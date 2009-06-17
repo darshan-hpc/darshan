@@ -60,6 +60,9 @@ a binary format with native gzip compression.  To get a human
 readable version of the log file, use the "$PREFIX/bin/darshan-parser
 $LOGPATH/<log_file_name>" utility from the bin directory.
 
+You can also compare two different log files by using
+$PREFIX/bin/darshan-diff <log1> <log2> to see what fields are different.
+
 To generate some automatic graphs, go to the "utils" directory of the
 source tree and run "./darshan-aggregate-stats.pl" on a text file that
 contains the output from darshan-parser.  That perl script will generate

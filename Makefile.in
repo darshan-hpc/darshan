@@ -67,6 +67,7 @@ install:: all
 	install -m 755 lib/libdarshan-mpi-io.a $(libdir)
 	install -d $(bindir)
 	install -m 755 darshan-parser $(bindir)
+	install -m 755 darshan-diff $(bindir)
 	install -m 755 darshan-mk-log-dirs.pl $(bindir)
 	install -m 755 compilers/mpicc-trace-bgp $(bindir)/mpicc
 	install -m 755 compilers/mpicxx-trace-bgp $(bindir)/mpicxx
