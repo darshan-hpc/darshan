@@ -1,0 +1,16 @@
+To compile "cp" utility with mpi support for tracing:
+
+<probably want to boost the file limit in darshan.h first>
+
+tar -xvzf coreutils-6.9.tar.gz
+cd coreutils-6.9
+patch -p1 < ../99_cu_futimens.patch
+patch -p1 < ../coreutils-cp-mpi.patch
+./configure CC=/home/pcarns/working/darshan/trunk/build/compilers/mpicc-trace-pcarns
+make 
+
+result is in src/cp
+
+example to collect data:
+mkdir /tmp/bin
+src/cp /usr/bin/* /tmp/bin/

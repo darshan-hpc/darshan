@@ -1,0 +1,28 @@
+diff -Naupr coreutils-6.9-orig/src/cp.c coreutils-6.9/src/cp.c
+--- coreutils-6.9-orig/src/cp.c	2007-03-18 17:36:43.000000000 -0400
++++ coreutils-6.9/src/cp.c	2009-01-16 09:46:00.000000000 -0500
+@@ -21,6 +21,7 @@
+ #include <stdio.h>
+ #include <sys/types.h>
+ #include <getopt.h>
++#include <mpi.h>
+ 
+ #include "system.h"
+ #include "argmatch.h"
+@@ -854,6 +855,8 @@ main (int argc, char **argv)
+   char *target_directory = NULL;
+   bool no_target_directory = false;
+ 
++  MPI_Init(&argc, &argv);
++
+   initialize_main (&argc, &argv);
+   program_name = argv[0];
+   setlocale (LC_ALL, "");
+@@ -861,6 +864,7 @@ main (int argc, char **argv)
+   textdomain (PACKAGE);
+ 
+   atexit (close_stdout);
++  atexit (MPI_Finalize);
+ 
+   cp_option_init (&x);
+ 

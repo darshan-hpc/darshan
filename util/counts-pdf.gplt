@@ -1,0 +1,28 @@
+#!/usr/bin/gnuplot -persist
+
+set terminal pdf enhanced fname "Helvetica" fsize 10
+set output "counts.pdf"
+set size 0.8,1.0
+
+set style data histogram
+set style histogram cluster gap 1
+set style fill solid border -1
+set boxwidth 0.9
+set bmargin 5
+set border 3 front linetype -1 linewidth 1.000
+
+set key out bottom horiz
+set xtics border in scale 1,0.5 nomirror norotate  offset character 0, 0, 0
+set ytics border in scale 1,0.5 nomirror norotate  offset character 0, 0, 0
+
+set key title ""
+set datafile separator ","
+
+set ylabel "Ops (Total, All Procs)"
+set ylabel offset character 2,0,0 font "" textcolor lt -1 rotate by 90
+
+set title "I/O Operation Counts"
+# PR, MIR, MCR, PW, MIW, MCW, Popen, Pseek, Pstat
+plot  "counts.dat" using 2:xtic(1) title "POSIX", \
+      "" using 3 title "MPI-IO Ind.", \
+      "" using 4 title "MPI-IO Coll."

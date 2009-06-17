@@ -1,0 +1,82 @@
+all: checkpath lib/libdarshan-posix.a lib/libdarshan-mpi-io.a darshan-parser darshan-diff test/gztest test/gz-bench 
+
+DESTDIR =
+srcdir = @srcdir@
+prefix = @prefix@
+datarootdir = @datarootdir@
+exec_prefix = @exec_prefix@
+includedir = $(DESTDIR)@includedir@
+mandir = $(DESTDIR)@mandir@
+sbindir = $(DESTDIR)@sbindir@
+bindir = $(DESTDIR)@bindir@
+libdir = $(DESTDIR)@libdir@
+
+VPATH = $(srcdir)
+
+darshan_lib_path = @darshan_lib_path@
+
+CFLAGS = -I . -I $(srcdir) @CFLAGS@ @CPPFLAGS@ -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -Wall
+CC=@MPICC@
+LD=@MPICC@
+
+checkpath::
+ifneq ($(darshan_lib_path),$(libdir)) 
+	@echo "Error: <libdir> must match <prefix>/lib, don't use --libdir!"
+	@exit 1
+endif
+
+mklibdir::
+	mkdir -p lib
+
+mktestdir::
+	mkdir -p test
+
+darshan-parser: darshan-parser.c darshan.h darshan-log-format.h
+	gcc $(CFLAGS) -lz $< -o $@
+
+darshan-diff: darshan-diff.o darshan.h darshan-log-format.h darshan-logutils.o darshan-logutils.h
+	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
+darshan-diff.o: darshan-diff.c
+	gcc $(CFLAGS) -c  $< -o $@
+darshan-logutils.o: darshan-logutils.c
+	gcc $(CFLAGS) -c  $< -o $@
+
+test/gztest: test/gztest.c mktestdir
+	gcc $(CFLAGS) -lz $< -o $@
+
+test/gz-bench: test/gz-bench.c mktestdir
+	gcc $(CFLAGS) -lz $< -o $@
+
+lib/darshan-mpi-io.o: darshan.h darshan-log-format.h mklibdir
+
+lib/darshan-posix.o: darshan.h darshan-log-format.h mklibdir
+
+lookup3.o: lookup3.c
+
+lookup8.o: lookup8.c
+
+lib/libdarshan-mpi-io.a: lib/darshan-mpi-io.o
+	ar rcs $@ $^
+
+lib/libdarshan-posix.a: lib/darshan-posix.o lib/lookup3.o lib/lookup8.o
+	ar rcs $@ $^
+
+install:: all
+	install -d $(libdir)
+	install -m 755 lib/libdarshan-posix.a $(libdir)
+	install -m 755 lib/libdarshan-mpi-io.a $(libdir)
+	install -d $(bindir)
+	install -m 755 darshan-parser $(bindir)
+	install -m 755 darshan-mk-log-dirs.pl $(bindir)
+	install -m 755 compilers/mpicc-trace-bgp $(bindir)/mpicc
+	install -m 755 compilers/mpicxx-trace-bgp $(bindir)/mpicxx
+	install -m 755 compilers/mpif77-trace-bgp $(bindir)/mpif77
+	install -m 755 compilers/mpif90-trace-bgp $(bindir)/mpif90
+	install -m 755 compilers/mpixlc-trace-bgp $(bindir)/mpixlc
+	install -m 755 compilers/mpixlcxx-trace-bgp $(bindir)/mpixlcxx
+	install -m 755 compilers/mpixlf2003-trace-bgp $(bindir)/mpixlf2003
+	install -m 755 compilers/mpixlf77-trace-bgp $(bindir)/mpixlf77
+	install -m 755 compilers/mpixlf90-trace-bgp $(bindir)/mpixlf90
+
+clean::
+	rm -f *.o *.a lib/*.o lib/*.a darshan-parser darshan-diff

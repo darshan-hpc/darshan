@@ -1,0 +1,69 @@
+Compile and install example for BG/P:
+-------------------------------------
+
+# adjust these paths to suit
+export PREFIX=/home/carns/demo/install
+export LOGPATH=/home/carns/demo
+
+# configuring, compiling, and installing darshan
+./configure --with-mem-align=16 --with-log-path=$LOGPATH --prefix=$PREFIX CFLAGS="-O2"
+make
+make install
+
+# configuring, compiling, and installing libz for compute nodes
+cd extern
+tar -vxzf zlib-1.2.3.tar.gz
+cd zlib-1.2.3
+CC=/bgsys/drivers/ppcfloor/gnu-linux/bin/powerpc-bgp-linux-gcc CFLAGS="-O2" ./configure
+make
+cp libz.a $PREFIX/lib/
+
+Explanation of configure arguments:
+--------------------
+
+--with-log-path (manditory): specifies the directory where all of the
+application log files will be written.  
+
+--prefix (manditory): where compiler scripts and darshan libraries will be
+installed.
+
+--with-mem-align (manditory): memory alignment for the architecture you are
+building for; 16 is an interesting value on BG/P because that is the optimal
+alignment for tree network communication.
+
+Setting up the log directory
+----------------------------
+
+# create the directory that you specified in the --with-log-path argument to
+# configure (if it does not already exist)
+mkdir $LOGPATH
+# run a darshan script (no arguments needed) that will create subdirectories
+# for darshan to place output in.  The subdirectories are structured in
+# <year>/<month>/<day> format.  The last subdirectories will have the sticky 
+# bit set (1777 permissions, like /tmp) so that multiple users can write log
+# files to the same directories.
+darshan-mk-log-dirs.pl
+
+Using darshan:
+-------
+Once darshan is installed, compile your applications using the
+appropriate compiler from <prefix>/bin.  These compilers only modify the
+link steps.  If you have a previously compiled application you can simply
+relink it using the darshan compilers rather than recompiling from scratch.
+
+Example:
+
+install/bin/mpicc mpi-io-test.c -o mpi-io-test
+
+The log files that darshan generates at run time will be in
+a binary format with native gzip compression.  To get a human
+readable version of the log file, use the "$PREFIX/bin/darshan-parser
+$LOGPATH/<log_file_name>" utility from the bin directory.
+
+To generate some automatic graphs, go to the "utils" directory of the
+source tree and run "./darshan-aggregate-stats.pl" on a text file that
+contains the output from darshan-parser.  That perl script will generate
+a summary.pdf file with some graphs in it.  You will need pdflatex and
+a version of gnuplot with pdf support to use it.
+
+
