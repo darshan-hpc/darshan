@@ -50,7 +50,7 @@ WRAPPER_FFLAGS="-I/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/comm/sys/include"
 WRAPPER_LDFLAGS="${CP_WRAPPERS}"
 MPILIBNAME="mpich.cnk"
 PMPILIBNAME="pmpich.cnk"
-MPI_OTHERLIBS=" -L/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/comm/sys/lib -Wl,-rpath,/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/comm/sys/lib -ldcmfcoll.cnk      -ldcmf.cnk      -lpthread -L/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/runtime/SPI -Wl,-rpath,/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/runtime/SPI -lSPI.cna -lrt   -L${DARSHAN_LIB_PATH} -ldarshan-posix "
+MPI_OTHERLIBS=" -L/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/comm/sys/lib -Wl,-rpath,/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/comm/sys/lib -ldcmfcoll.cnk      -ldcmf.cnk      -lpthread -L/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/runtime/SPI -Wl,-rpath,/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/runtime/SPI -lSPI.cna -lrt"
 NEEDSPLIB="no"
 #
 # MPIVERSION is the version of the MPICH2 library for which mpif77 is intended
@@ -281,7 +281,7 @@ if [ "$linking" = yes ] ; then
     $Show $FC "${allargs[@]}" -L${DARSHAN_LIB_PATH} -lfmpich.cnk \
     	-ldarshan-posix -ldarshan-mpi-io \
 	-I$includedir $FFLAGS $LDFLAGS -L$libdir $mpilibs $MPI_OTHERLIBS \
-	-ldarshan-posix -ldarshan-mpi-io -lz 
+	-L${DARSHAN_LIB_PATH} -ldarshan-posix -ldarshan-mpi-io -lz 
     rc=$?
 else
     $Show $FC "${allargs[@]}" -I$includedir $FFLAGS
