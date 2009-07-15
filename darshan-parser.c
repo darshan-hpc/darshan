@@ -128,8 +128,10 @@ int main(int argc, char **argv)
     printf("#   CP_F_*_START_TIMESTAMP: timestamp of first read/write (mpi or posix).\n");
     printf("#   CP_F_*_END_TIMESTAMP: timestamp of last read/write (mpi or posix).\n");
     printf("#   CP_F_CLOSE_TIMESTAMP: timestamp of last close (mpi or posix).\n");
-    printf("#   CP_F_POSIX_*_TIME: cumulative time spent in posix reads or writes.\n");
-    printf("#   CP_F_MPI_*_TIME: cumulative time spent in mpi-io reads or writes.\n");
+    printf("#   CP_F_POSIX_READ/WRITE_TIME: cumulative time spent in posix reads or writes.\n");
+    printf("#   CP_F_MPI_READ/WRITE_TIME: cumulative time spent in mpi-io reads or writes.\n");
+    printf("#   CP_F_POSIX_META_TIME: cumulative time spent in posix open, close, fsync, stat and seek, .\n");
+    printf("#   CP_F_MPI_META_TIME: cumulative time spent in mpi-io open, close, set_view, and sync.\n");
 
     printf("\n");
 
