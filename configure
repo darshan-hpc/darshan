@@ -638,6 +638,8 @@ ac_includes_default="\
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
 CP_WRAPPERS
+__CP_ZLIB_INCLUDE_FLAGS
+__CP_ZLIB_LINK_FLAGS
 __CP_LOG_PATH
 darshan_lib_path
 MPICC
@@ -698,6 +700,7 @@ enable_option_checking
 with_zlib
 with_mpi
 with_mem_align
+with_zlib_for_mpi
 with_log_path
 '
       ac_precious_vars='build_alias
@@ -1332,6 +1335,7 @@ Optional Packages:
   --without-zlib to disable zlib usage completely
   --with-mpi=<dir>        Location of the MPI installation
   --with-mem-align=<num>  Memory alignment in bytes
+  --with-zlib-for-mpi=<dir>  base dir for zlib to use on mpi processes
   --with-log-path=<path>  Location to store log files at run time
 
 Some influential environment variables:
@@ -3906,6 +3910,21 @@ fi
 
 
 
+# Check whether --with-zlib-for-mpi was given.
+if test "${with_zlib_for_mpi+set}" = set; then
+  withval=$with_zlib_for_mpi; if test x$withval = xyes; then
+        { { $as_echo "$as_me:$LINENO: error: --with-zlib-for-mpi must be given a path argument" >&5
+$as_echo "$as_me: error: --with-zlib-for-mpi must be given a path argument" >&2;}
+   { (exit 1); exit 1; }; }
+    else
+        __CP_ZLIB_LINK_FLAGS="-L ${withval}/lib"
+        __CP_ZLIB_INCLUDE_FLAGS="-I ${withval}/include"
+    fi
+
+fi
+
+
+
 # Check whether --with-log-path was given.
 if test "${with_log_path+set}" = set; then
   withval=$with_log_path; if test x$withval = xyes; then
@@ -4004,6 +4023,8 @@ if test "x$prefix" = xNONE; then
 else
     darshan_lib_path=$prefix/lib
 fi
+
+
 
 
 

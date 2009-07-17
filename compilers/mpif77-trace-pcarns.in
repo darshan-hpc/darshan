@@ -38,6 +38,7 @@ libdir=/home/pcarns/working/mpich2/build-ufs-fortran-1.0.7/lib
 
 CP_WRAPPERS=@CP_WRAPPERS@
 DARSHAN_LIB_PATH=@darshan_lib_path@
+CP_ZLIB_LINK_FLAGS=@__CP_ZLIB_LINK_FLAGS@
 
 #
 # Default settings for compiler, flags, and libraries
@@ -275,7 +276,7 @@ if [ "$linking" = yes ] ; then
         # Prepend the path for the shared libraries to the library list
         mpilibs="$FC_LINKPATH_SHL$libdir $mpilibs"
     fi
-    $Show $FC $FFLAGS $LDFLAGS "${allargs[@]}"  -L${DARSHAN_LIB_PATH} -lfmpich -ldarshan-mpi-io -lz -I$includedir -L$libdir $mpilibs $MPI_OTHERLIBS
+    $Show $FC $FFLAGS $LDFLAGS "${allargs[@]}"  -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -lfmpich -ldarshan-mpi-io -lz -I$includedir -L$libdir $mpilibs $MPI_OTHERLIBS
     rc=$?
 else
     $Show $FC $FFLAGS "${allargs[@]}" -I$includedir

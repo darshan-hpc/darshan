@@ -40,6 +40,16 @@ AC_ARG_WITH(mem-align,
     fi
 )
 
+AC_ARG_WITH(zlib-for-mpi,
+[  --with-zlib-for-mpi=<dir>  base dir for zlib to use on mpi processes],
+    if test x$withval = xyes; then
+        AC_MSG_ERROR(--with-zlib-for-mpi must be given a path argument)
+    else
+        __CP_ZLIB_LINK_FLAGS="-L ${withval}/lib"
+        __CP_ZLIB_INCLUDE_FLAGS="-I ${withval}/include"
+    fi
+)
+
 AC_ARG_WITH(log-path,
 [  --with-log-path=<path>  Location to store log files at run time],
     if test x$withval = xyes; then
@@ -82,6 +92,8 @@ else
 fi
 AC_SUBST(darshan_lib_path)
 AC_SUBST(__CP_LOG_PATH)
+AC_SUBST(__CP_ZLIB_LINK_FLAGS)
+AC_SUBST(__CP_ZLIB_INCLUDE_FLAGS)
 AC_SUBST(CP_WRAPPERS)
 AC_CHECK_SIZEOF([long int])
 AC_OUTPUT(Makefile

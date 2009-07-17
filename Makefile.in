@@ -14,6 +14,8 @@ libdir = $(DESTDIR)@libdir@
 VPATH = $(srcdir)
 
 darshan_lib_path = @darshan_lib_path@
+cp_zlib_link_flags = @__CP_ZLIB_LINK_FLAGS@
+cp_zlib_include_flags = @__CP_ZLIB_INCLUDE_FLAGS@
 
 CFLAGS = -I . -I $(srcdir) @CFLAGS@ @CPPFLAGS@ -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -Wall
 CC=@MPICC@
@@ -47,9 +49,11 @@ test/gztest: test/gztest.c mktestdir
 test/gz-bench: test/gz-bench.c mktestdir
 	gcc $(CFLAGS) -lz $< -o $@
 
-lib/darshan-mpi-io.o: darshan.h darshan-log-format.h mklibdir
+lib/darshan-mpi-io.o: lib/darshan-mpi-io.c darshan.h darshan-log-format.h mklibdir
+	$(CC) $(cp_zlib_include_flags) $(CFLAGS) -c $< -o $@
 
-lib/darshan-posix.o: darshan.h darshan-log-format.h mklibdir
+lib/darshan-posix.o: lib/darshan-posix.c darshan.h darshan-log-format.h mklibdir
+	$(CC) $(cp_zlib_include_flags) $(CFLAGS) -c $< -o $@
 
 lookup3.o: lookup3.c
 

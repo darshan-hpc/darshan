@@ -36,6 +36,7 @@ libdir=${exec_prefix}/lib
 
 CP_WRAPPERS=@CP_WRAPPERS@
 DARSHAN_LIB_PATH=@darshan_lib_path@
+CP_ZLIB_LINK_FLAGS=@__CP_ZLIB_LINK_FLAGS@
 
 #
 # Default settings for compiler, flags, and libraries.
@@ -229,7 +230,7 @@ if [ "$linking" = yes ] ; then
 	# prepend the path for the shared libraries to the library list
 	mpilibs="$C_LINKPATH_SHL$libdir $mpilibs"
     fi
-    $Show $CC "${allargs[@]}" -L${DARSHAN_LIB_PATH} -ldarshan-mpi-io -lz -I$includedir $CFLAGS $LDFLAGS -L$libdir $mpilibs $MPI_OTHERLIBS
+    $Show $CC "${allargs[@]}" -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} ${CP_ZLIB_LINK_FLAGS} -ldarshan-mpi-io -lz -I$includedir $CFLAGS $LDFLAGS -L$libdir $mpilibs $MPI_OTHERLIBS
     rc=$?
 else
     $Show $CC "${allargs[@]}" -I$includedir $CFLAGS 

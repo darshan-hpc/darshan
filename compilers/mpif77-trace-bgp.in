@@ -38,6 +38,7 @@ libdir=${exec_prefix}/lib
 
 CP_WRAPPERS=@CP_WRAPPERS@
 DARSHAN_LIB_PATH=@darshan_lib_path@
+CP_ZLIB_LINK_FLAGS=@__CP_ZLIB_LINK_FLAGS@
 
 #
 # Default settings for compiler, flags, and libraries
@@ -279,7 +280,7 @@ if [ "$linking" = yes ] ; then
     # If we link link darshan-mpi-io before system mpi lib, we don't get a
     # trace but if we don't link it early enough, we get undefined MPI symbols.
     # Seems like listing the darshan libs twice does the trick
-    $Show $FC $FFLAGS $LDFLAGS "${allargs[@]}" -L${DARSHAN_LIB_PATH} -lfmpich.cnk\
+    $Show $FC $FFLAGS $LDFLAGS "${allargs[@]}" -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -lfmpich.cnk\
         -ldarshan-posix -ldarshan-mpi-io \
         -I$includedir -L$libdir $mpilibs $MPI_OTHERLIBS \
         -L${DARSHAN_LIB_PATH} -ldarshan-posix -ldarshan-mpi-io -lz
