@@ -45,7 +45,7 @@ AC_ARG_WITH(zlib-for-mpi,
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-zlib-for-mpi must be given a path argument)
     else
-        __CP_ZLIB_LINK_FLAGS="-L ${withval}/lib"
+        __CP_ZLIB_LINK_FLAGS="-L${withval}/lib"
         __CP_ZLIB_INCLUDE_FLAGS="-I ${withval}/include"
     fi
 )

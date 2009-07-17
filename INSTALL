@@ -6,17 +6,9 @@ export PREFIX=/home/carns/demo/install
 export LOGPATH=/home/carns/demo
 
 # configuring, compiling, and installing darshan
-./configure --with-mem-align=16 --with-log-path=$LOGPATH --prefix=$PREFIX CFLAGS="-O2"
+./configure --with-mem-align=16 --with-log-path=$LOGPATH --prefix=$PREFIX --with-zlib-for-mpi=/soft/apps/zlib-1.2.3/ CFLAGS="-O2"
 make
 make install
-
-# configuring, compiling, and installing libz for compute nodes
-cd extern
-tar -vxzf zlib-1.2.3.tar.gz
-cd zlib-1.2.3
-CC=/bgsys/drivers/ppcfloor/gnu-linux/bin/powerpc-bgp-linux-gcc CFLAGS="-O2" ./configure
-make
-cp libz.a $PREFIX/lib/
 
 Explanation of configure arguments:
 --------------------
@@ -30,6 +22,9 @@ installed.
 --with-mem-align (manditory): memory alignment for the architecture you are
 building for; 16 is an interesting value on BG/P because that is the optimal
 alignment for tree network communication.
+
+--with-zlib-for-mpi (optional): path to a zlib build that is cross compiled
+for use with mpi processes
 
 Setting up the log directory
 ----------------------------
@@ -69,4 +64,16 @@ contains the output from darshan-parser.  That perl script will generate
 a summary.pdf file with some graphs in it.  You will need pdflatex and
 a version of gnuplot with pdf support to use it.
 
+compiling libz for the compute nodes
+-------------------------------------
+
+NOTE: This is not necessary (there is a libz build already available for
+compute nodes). The instructions are included for archival purposes.
+
+cd extern
+tar -vxzf zlib-1.2.3.tar.gz
+cd zlib-1.2.3
+CC=/bgsys/drivers/ppcfloor/gnu-linux/bin/powerpc-bgp-linux-gcc CFLAGS="-O2" ./configure
+make
+cp libz.a $PREFIX/lib/
 
