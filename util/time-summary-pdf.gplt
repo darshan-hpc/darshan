@@ -24,5 +24,7 @@ set yrange [0:100]
 
 set title "Average I/O cost per process"
 
+set bmargin 7
+
 plot \
-    newhistogram "", "time-summary.dat" using 2:xtic(1) title "Application", "" using 3 title "Read", "" using 4 title "Write", "" using 5 title "Metadata"
+    newhistogram "", "time-summary.dat" using 3:xtic(1) title "Read", "" using 4 title "Write", "" using 5 title "Metadata", "" using 2 title "Other (including application compute)"
