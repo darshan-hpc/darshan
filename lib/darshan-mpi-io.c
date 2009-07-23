@@ -1,3 +1,8 @@
+/*
+ *  (C) 2009 by Argonne National Laboratory.
+ *      See COPYRIGHT in top-level directory.
+ */
+
 #define _XOPEN_SOURCE 500
 #define _GNU_SOURCE /* for tdestroy() */
 

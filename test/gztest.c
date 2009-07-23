@@ -1,3 +1,8 @@
+/*
+ *  (C) 2009 by Argonne National Laboratory.
+ *      See COPYRIGHT in top-level directory.
+ */
+
 /* this is just a scratch program for playing with zlib */
 
 #include <stdio.h>

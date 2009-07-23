@@ -1,3 +1,8 @@
+/*
+ *  (C) 2009 by Argonne National Laboratory.
+ *      See COPYRIGHT in top-level directory.
+ */
+
 #ifndef __DARSHAN_LOG_FORMAT_H
 #define __DARSHAN_LOG_FORMAT_H
 

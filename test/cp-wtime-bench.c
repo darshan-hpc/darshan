@@ -1,3 +1,8 @@
+/*
+ *  (C) 2009 by Argonne National Laboratory.
+ *      See COPYRIGHT in top-level directory.
+ */
+
 /* Benchmark to measure Chutzpah overhead.  This is an MPI program that uses
  * exactly one process to perform I/O on /dev/zero for testing purposes
  */

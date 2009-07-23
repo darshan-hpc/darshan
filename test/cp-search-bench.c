@@ -1,3 +1,8 @@
+/*
+ *  (C) 2009 by Argonne National Laboratory.
+ *      See COPYRIGHT in top-level directory.
+ */
+
 /* Arguments: an integer specifying the number of iterations to run of each
  * test phase
  */
