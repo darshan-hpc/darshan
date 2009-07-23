@@ -1,9 +1,9 @@
+#!/usr/bin/perl -w
 #
 #  (C) 2009 by Argonne National Laboratory.
 #      See COPYRIGHT in top-level directory.
 #
 
-#!/usr/bin/perl -w
 use File::Basename;
 
 # creates a hierarchy of subdirectories for darshan to place log files in

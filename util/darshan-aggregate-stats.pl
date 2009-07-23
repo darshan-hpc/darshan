@@ -1,9 +1,8 @@
+#!/usr/bin/perl -w
 #
 #  (C) 2009 by Argonne National Laboratory.
 #      See COPYRIGHT in top-level directory.
 #
-
-#!/usr/bin/perl -w
 
 use TeX::Encode;
 use Encode;
