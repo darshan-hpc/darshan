@@ -306,13 +306,17 @@ print TIME ", ", (($summary{CP_F_MPI_META_TIME}/($runtime * $nprocs))*100), "\n"
 close TIME;
 
 # execute gnuplot scripts
-system "gnuplot counts-pdf.gplt";
-system "gnuplot hist-pdf.gplt";
-system "gnuplot pattern-pdf.gplt";
+system "gnuplot counts-eps.gplt";
+system "epstopdf counts.eps";
+system "gnuplot hist-eps.gplt";
+system "epstopdf hist.eps";
+system "gnuplot pattern-eps.gplt";
+system "epstopdf pattern.eps";
 system "gnuplot align-pdf.gplt";
 system "gnuplot iodist-pdf.gplt";
 system "gnuplot types-pdf.gplt";
-system "gnuplot time-summary-pdf.gplt";
+system "gnuplot time-summary-eps.gplt";
+system "epstopdf time-summary.eps";
 
 # generate summary PDF
 system "pdflatex -halt-on-error summary.tex > latex.output";

@@ -1,7 +1,7 @@
 #!/usr/bin/gnuplot -persist
 
 set terminal postscript eps color enhanced font "Helvetica" 18
-set output "counts.eps"
+set output "hist.eps"
 set size 0.8,1.0
 
 set style data histogram
@@ -12,17 +12,17 @@ set bmargin 5
 set border 3 front linetype -1 linewidth 1.000
 
 set key out bottom horiz
-set xtics border in scale 1,0.5 nomirror norotate  offset character 0, 0, 0
+set xtics border in scale 1,0.5 nomirror rotate by -45 offset character 0, 0, 0
 set ytics border in scale 1,0.5 nomirror norotate  offset character 0, 0, 0
 
 set key title ""
 set datafile separator ","
 
-set ylabel "Ops (Total, All Processes)"
+set ylabel "Count (Total, All Procs)"
 set ylabel offset character 2,0,0 font "" textcolor lt -1 rotate by 90
+set bmargin 7
 
-set title "I/O Operation Counts"
+set title "I/O Sizes"
 # PR, MIR, MCR, PW, MIW, MCW, Popen, Pseek, Pstat
-plot  "counts.dat" using 2:xtic(1) title "POSIX", \
-      "" using 3 title "MPI-IO Indep.", \
-      "" using 4 title "MPI-IO Coll."
+plot  "hist.dat" using 2:xtic(1) title "Read", \
+      "" using 3 title "Write"
