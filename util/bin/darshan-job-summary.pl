@@ -10,13 +10,19 @@ use TeX::Encode;
 use Encode;
 use File::Temp qw/ tempdir /;
 use Cwd;
+use Getopt::Long;
+use English;
 
 my $gnuplot = "";
 
 my $tmp_dir = tempdir( CLEANUP => 1 );
 my $orig_dir = getcwd;
+my $output_file = "summary.pdf";
+my $input_file = "";
 
-open(TRACE, $ARGV[0]) || die("can't open $ARGV[0] for processing: $!\n");
+process_args();
+
+open(TRACE, $input_file) || die("can't open $input_file for processing: $!\n");
 
 $max_access = -1;
 $max_access_hash = 0;
@@ -347,5 +353,56 @@ system "epstopdf time-summary.eps";
 system "pdflatex -halt-on-error summary.tex > latex.output";
 system "pdflatex -halt-on-error summary.tex > latex.output2";
 
-# move the summary out to final location
-system "mv summary.pdf $orig_dir/";
+# get back out of tmp dir and grab results
+chdir $orig_dir;
+system "mv $tmp_dir/summary.pdf $output_file";
+
+sub process_args
+{
+    use vars qw( $opt_help $opt_output );
+
+    Getopt::Long::Configure("no_ignore_case", "bundling");
+    GetOptions( "help",
+        "output=s");
+
+    if($opt_help)
+    {
+        print_help();
+        exit(0);
+    }
+
+    if($opt_output)
+    {
+        $output_file = $opt_output;
+    }
+
+    # there should only be one remaining argument: the input file 
+    if($#ARGV != 0)
+    {
+        print "Error: invalid arguments.\n";
+        print_help();
+        exit(1);
+    }
+    $input_file = $ARGV[0];
+
+    return;
+}
+
+sub print_help
+{
+    print <<EOF;
+
+Usage: $PROGRAM_NAME <options> input_file
+
+    --help          Prints this help message
+    --output        Specifies a file to write pdf output to
+                    (defaults to ./summary.pdf)
+Purpose:
+
+    This script reads a Darshan output file in text format (as 
+    produced by the darshan-parser utility) and generates a pdf file 
+    summarizing job behavior.
+
+EOF
+    return;
+}
