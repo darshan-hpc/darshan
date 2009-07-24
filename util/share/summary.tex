@@ -4,6 +4,7 @@
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{lastpage}
+\usepackage{subfigure}
 %
 % GET THE MARGINS RIGHT, THE UGLY WAY
 %
@@ -29,44 +30,36 @@
 
 \pagestyle{fancy}
 
-\begin{figure}[!h]
-%\vspace{-11pt}
+\begin{figure*}[!h]
 \centering
-\input{job-table}
-%\vspace{11pt}
-\end{figure}
+\subfigure
+{
+    \input{job-table}
+}\\
+\subfigure
+{
+    \includegraphics[scale=0.8]{time-summary.pdf}
+}
+\subfigure
+{
+    \includegraphics[scale=0.8]{counts.pdf}
+}
+\subfigure
+{
+    \includegraphics[scale=0.8]{hist.pdf}
+}
+\subfigure
+{
+    \includegraphics[scale=0.8]{pattern.pdf}
+}
+\subfigure
+{
+    \input{access-table}
+}
+\end{figure*}
 
-\begin{figure}[!h]
-%\vspace{-5pt}
-\centering
-\includegraphics[scale=0.8]{time-summary.pdf}
-%\vspace{-11pt}
-\end{figure}
 
-\begin{figure}[!h]
-%\vspace{8pt}
-\centering
-\includegraphics[scale=0.8]{counts.pdf}
-\end{figure}
-
-\begin{figure}[!h]
-%\vspace{8pt}
-\centering
-\includegraphics[scale=0.8]{hist.pdf}
-\end{figure}
-
-\begin{figure}[!h]
-%\vspace{-100pt}
-\centering
-\includegraphics[scale=0.8]{pattern.pdf}
-\end{figure}
-
-\begin{figure}[!h]
-\centering
-\input{access-table}
-\end{figure}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % at this point, things fall onto page 2
 %\begin{figure}[!h]

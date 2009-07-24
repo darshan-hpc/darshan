@@ -16,6 +16,7 @@ use English;
 my $gnuplot = "";
 
 my $tmp_dir = tempdir( CLEANUP => 1 );
+#my $tmp_dir = tempdir();
 my $orig_dir = getcwd;
 my $output_file = "summary.pdf";
 my $input_file = "";
