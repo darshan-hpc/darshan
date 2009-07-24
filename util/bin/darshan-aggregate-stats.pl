@@ -4,8 +4,17 @@
 #      See COPYRIGHT in top-level directory.
 #
 
+use FindBin;
+use lib "$FindBin::Bin/../lib/";
 use TeX::Encode;
 use Encode;
+use File::Temp qw/ tempdir /;
+use Cwd;
+
+my $gnuplot = "";
+
+my $tmp_dir = tempdir( CLEANUP => 1 );
+my $orig_dir = getcwd;
 
 open(TRACE, $ARGV[0]) || die("can't open $ARGV[0] for processing: $!\n");
 
@@ -102,7 +111,7 @@ while ($line = <TRACE>) {
 # print "max_access_hash: $max_access_hash.\n";
 
 # counts of operations
-open(COUNTS, ">counts.dat") || die("error opening output file: $!\n");
+open(COUNTS, ">$tmp_dir/counts.dat") || die("error opening output file: $!\n");
 print COUNTS "# P=POSIX, MI=MPI-IO indep., MC=MPI-IO coll., R=read, W=write\n";
 print COUNTS "# PR, MIR, MCR, PW, MIW, MCW, Popen, Pseek, Pstat\n";
 print COUNTS "Read, ", $summary{CP_POSIX_READS}, ", ",
@@ -117,7 +126,7 @@ print COUNTS "Read, ", $summary{CP_POSIX_READS}, ", ",
 close COUNTS;
 
 # histograms of reads and writes
-open (HIST, ">hist.dat") || die("error opening output file: $!\n");
+open (HIST, ">$tmp_dir/hist.dat") || die("error opening output file: $!\n");
 print HIST "# size_range read write\n";
 print HIST "0-100, ", $summary{CP_SIZE_READ_0_100}, ", ",
                  $summary{CP_SIZE_WRITE_0_100}, "\n";
@@ -142,7 +151,7 @@ print HIST "1G+, ", $summary{CP_SIZE_READ_1G_PLUS}, ", ",
 close HIST;
 
 # sequential and consecutive accesses
-open (PATTERN, ">pattern.dat") || die("error opening output file: $!\n");
+open (PATTERN, ">$tmp_dir/pattern.dat") || die("error opening output file: $!\n");
 print PATTERN "# op total sequential consecutive\n";
 print PATTERN "Read, ", $summary{CP_POSIX_READS}, ", ",
     $summary{CP_SEQ_READS}, ", ", $summary{CP_CONSEC_READS}, "\n";
@@ -151,14 +160,14 @@ print PATTERN "Write, ", $summary{CP_POSIX_WRITES}, ", ",
 close PATTERN;
 
 # aligned I/O
-open (ALIGN, ">align.dat") || die("error opening output file: $!\n");
+open (ALIGN, ">$tmp_dir/align.dat") || die("error opening output file: $!\n");
 print ALIGN "# total unaligned_mem unaligned_file align_mem align_file\n";
 print ALIGN $summary{CP_POSIX_READS} + $summary{CP_POSIX_WRITES}, ", ",
     $summary{CP_MEM_NOT_ALIGNED}, ", ", $summary{CP_FILE_NOT_ALIGNED}, "\n";
 close ALIGN;
 
 # MPI types
-open (TYPES, ">types.dat") || die("error opening output file: $!\n");
+open (TYPES, ">$tmp_dir/types.dat") || die("error opening output file: $!\n");
 print TYPES "# type use_count\n";
 print TYPES "Named, ", $summary{CP_COMBINER_NAMED}, "\n";
 print TYPES "Dup, ", $summary{CP_COMBINER_DUP}, "\n";
@@ -206,7 +215,7 @@ for ($i=0; $i < $nprocs; $i++) {
     $bucket[$mybucket]++;
 }
 
-open(IODIST, ">iodist.dat") || die("error opening output file: $!\n");
+open(IODIST, ">$tmp_dir/iodist.dat") || die("error opening output file: $!\n");
 print IODIST "# bucket n_procs_rd n_procs_wr\n";
 print IODIST "# NOTE: WRITES ARE A COPY OF READS FOR NOW!!!\n";
 
@@ -228,7 +237,7 @@ $year = $timearray[5] + 1900;
 $mon = $timearray[4] + 1;
 $mday = $timearray[3];
 
-open(TITLE, ">title.tex") || die("error opening output file:$!\n");
+open(TITLE, ">$tmp_dir/title.tex") || die("error opening output file:$!\n");
 print TITLE "
 \\rhead{\\thepage\\ of \\pageref{LastPage}}
 \\chead[
@@ -246,7 +255,7 @@ print TITLE "
 ";
 close TITLE;
 
-open(TABLES, ">job-table.tex") || die("error opening output file:$!\n");
+open(TABLES, ">$tmp_dir/job-table.tex") || die("error opening output file:$!\n");
 print TABLES "
 \\begin{tabular}{|p{.63\\columnwidth}|p{.63\\columnwidth}|p{.63\\columnwidth}|}
 \\hline
@@ -256,7 +265,7 @@ uid: $uid \& nprocs: $nprocs \& runtime: $runtime seconds\\\\
 ";
 close TABLES;
 
-open(TABLES, ">access-table.tex") || die("error opening output file:$!\n");
+open(TABLES, ">$tmp_dir/access-table.tex") || die("error opening output file:$!\n");
 print TABLES "
 \\begin{tabular}{|r|r|}
 \\multicolumn{2}{c}{Top 4 Access Sizes} \\\\
@@ -272,7 +281,7 @@ access size \& count \\\\
 ";
 close TABLES;
 
-open(TABLES, ">stride-table.tex") || die("error opening output file:$!\n");
+open(TABLES, ">$tmp_dir/stride-table.tex") || die("error opening output file:$!\n");
 print TABLES "
 \\begin{tabular}{|r|r|}
 \\multicolumn{2}{c}{file: $common{$max_access_hash}{'name'}} \\\\
@@ -289,7 +298,7 @@ stride size \& count \\\\
 close TABLES;
 
 
-open(TIME, ">time-summary.dat") || die("error opening output file:$!\n");
+open(TIME, ">$tmp_dir/time-summary.dat") || die("error opening output file:$!\n");
 print TIME "# <type>, <app time>, <read>, <write>, <meta>\n";
 print TIME "POSIX, ", ((($runtime * $nprocs - $summary{CP_F_POSIX_READ_TIME} -
     $summary{CP_F_POSIX_WRITE_TIME} -
@@ -305,14 +314,29 @@ print TIME ", ", (($summary{CP_F_MPI_WRITE_TIME}/($runtime * $nprocs))*100);
 print TIME ", ", (($summary{CP_F_MPI_META_TIME}/($runtime * $nprocs))*100), "\n";
 close TIME;
 
+# copy template files to tmp tmp_dir
+system "cp $FindBin::Bin/../share/* $tmp_dir/";
+
+if(-x "$FindBin::Bin/gnuplot")
+{
+    $gnuplot = "$FindBin::Bin/gnuplot";
+}
+else
+{
+    $gnuplot = "gnuplot";
+}
+
+# move to tmp_dir
+chdir $tmp_dir;
+
 # execute gnuplot scripts
-system "gnuplot counts-eps.gplt";
+system "$gnuplot counts-eps.gplt";
 system "epstopdf counts.eps";
-system "gnuplot hist-eps.gplt";
+system "$gnuplot hist-eps.gplt";
 system "epstopdf hist.eps";
-system "gnuplot pattern-eps.gplt";
+system "$gnuplot pattern-eps.gplt";
 system "epstopdf pattern.eps";
-system "gnuplot time-summary-eps.gplt";
+system "$gnuplot time-summary-eps.gplt";
 system "epstopdf time-summary.eps";
 
 #system "gnuplot align-pdf.gplt";
@@ -323,3 +347,5 @@ system "epstopdf time-summary.eps";
 system "pdflatex -halt-on-error summary.tex > latex.output";
 system "pdflatex -halt-on-error summary.tex > latex.output2";
 
+# move the summary out to final location
+system "mv summary.pdf $orig_dir/";
