@@ -312,11 +312,12 @@ system "gnuplot hist-eps.gplt";
 system "epstopdf hist.eps";
 system "gnuplot pattern-eps.gplt";
 system "epstopdf pattern.eps";
-system "gnuplot align-pdf.gplt";
-system "gnuplot iodist-pdf.gplt";
-system "gnuplot types-pdf.gplt";
 system "gnuplot time-summary-eps.gplt";
 system "epstopdf time-summary.eps";
+
+#system "gnuplot align-pdf.gplt";
+#system "gnuplot iodist-pdf.gplt";
+#system "gnuplot types-pdf.gplt";
 
 # generate summary PDF
 system "pdflatex -halt-on-error summary.tex > latex.output";

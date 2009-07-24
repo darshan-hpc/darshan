@@ -1,6 +1,6 @@
 #!/usr/bin/gnuplot -persist
 
-set terminal postscript eps color enhanced font "Helvetica" 18
+set terminal postscript eps color enhanced "Helvetica" 18
 set output "counts.eps"
 set size 0.8,1.0
 
