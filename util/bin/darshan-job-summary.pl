@@ -322,7 +322,8 @@ print TIME ", ", (($summary{CP_F_MPI_META_TIME}/($runtime * $nprocs))*100), "\n"
 close TIME;
 
 # copy template files to tmp tmp_dir
-system "cp $FindBin::Bin/../share/* $tmp_dir/";
+system "cp $FindBin::Bin/../share/*.gplt $tmp_dir/";
+system "cp $FindBin::Bin/../share/*.tex $tmp_dir/";
 
 if(-x "$FindBin::Bin/gnuplot")
 {
