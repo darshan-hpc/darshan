@@ -82,6 +82,7 @@ install:: all
 	install -m 755 compilers/mpixlf2003-trace-bgp $(bindir)/mpixlf2003
 	install -m 755 compilers/mpixlf77-trace-bgp $(bindir)/mpixlf77
 	install -m 755 compilers/mpixlf90-trace-bgp $(bindir)/mpixlf90
+	install -m 755 $(srcdir)/darshan-pmpi-filter.sh $(bindir)
 
 clean::
 	rm -f *.o *.a lib/*.o lib/*.a darshan-parser darshan-diff

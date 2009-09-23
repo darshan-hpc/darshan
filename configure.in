@@ -87,10 +87,13 @@ CP_WRAPPERS="-Wl,-wrap,write,-wrap,open,-wrap,creat,-wrap,creat64,-wrap,open64,-
 
 if test "x$prefix" = xNONE; then
     darshan_lib_path=$ac_default_prefix/lib
+    darshan_bin_path=$ac_default_prefix/bin
 else
     darshan_lib_path=$prefix/lib
+    darshan_bin_path=$prefix/bin
 fi
 AC_SUBST(darshan_lib_path)
+AC_SUBST(darshan_bin_path)
 AC_SUBST(__CP_LOG_PATH)
 AC_SUBST(__CP_ZLIB_LINK_FLAGS)
 AC_SUBST(__CP_ZLIB_INCLUDE_FLAGS)

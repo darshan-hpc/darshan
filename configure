@@ -309,7 +309,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CPP EGREP HAVE_MPICC MPICC darshan_lib_path __CP_LOG_PATH __CP_ZLIB_LINK_FLAGS __CP_ZLIB_INCLUDE_FLAGS CP_WRAPPERS LIBOBJS LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CPP EGREP HAVE_MPICC MPICC darshan_lib_path darshan_bin_path __CP_LOG_PATH __CP_ZLIB_LINK_FLAGS __CP_ZLIB_INCLUDE_FLAGS CP_WRAPPERS LIBOBJS LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -3381,9 +3381,12 @@ CP_WRAPPERS="-Wl,-wrap,write,-wrap,open,-wrap,creat,-wrap,creat64,-wrap,open64,-
 
 if test "x$prefix" = xNONE; then
     darshan_lib_path=$ac_default_prefix/lib
+    darshan_bin_path=$ac_default_prefix/bin
 else
     darshan_lib_path=$prefix/lib
+    darshan_bin_path=$prefix/bin
 fi
+
 
 
 
@@ -4443,6 +4446,7 @@ s,@EGREP@,$EGREP,;t t
 s,@HAVE_MPICC@,$HAVE_MPICC,;t t
 s,@MPICC@,$MPICC,;t t
 s,@darshan_lib_path@,$darshan_lib_path,;t t
+s,@darshan_bin_path@,$darshan_bin_path,;t t
 s,@__CP_LOG_PATH@,$__CP_LOG_PATH,;t t
 s,@__CP_ZLIB_LINK_FLAGS@,$__CP_ZLIB_LINK_FLAGS,;t t
 s,@__CP_ZLIB_INCLUDE_FLAGS@,$__CP_ZLIB_INCLUDE_FLAGS,;t t

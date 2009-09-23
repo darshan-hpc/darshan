@@ -39,6 +39,7 @@ libdir=${exec_prefix}/lib
 
 CP_WRAPPERS=@CP_WRAPPERS@
 DARSHAN_LIB_PATH=@darshan_lib_path@
+DARSHAN_BIN_PATH=@darshan_bin_path@
 CP_ZLIB_LINK_FLAGS=@__CP_ZLIB_LINK_FLAGS@
 
 #
@@ -48,10 +49,10 @@ CP_ZLIB_LINK_FLAGS=@__CP_ZLIB_LINK_FLAGS@
 CC=" /bgsys/drivers/V1R3M0_460_2008-081112P/ppc/gnu-linux/bin/powerpc-bgp-linux-gcc"
 C_LINKPATH_SHL="-Wl,-rpath,"
 WRAPPER_CFLAGS="-I/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/comm/sys/include"
-WRAPPER_LDFLAGS="${CP_WRAPPERS}"
+WRAPPER_LDFLAGS=""
 MPILIBNAME="mpich.cnk"
 PMPILIBNAME="pmpich.cnk"
-MPI_OTHERLIBS=" -L/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/comm/sys/lib -Wl,-rpath,/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/comm/sys/lib -ldcmfcoll.cnk      -ldcmf.cnk      -lpthread -L/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/runtime/SPI -Wl,-rpath,/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/runtime/SPI -lSPI.cna -lrt -L${DARSHAN_LIB_PATH} -ldarshan-posix "
+MPI_OTHERLIBS=" -L/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/comm/sys/lib -Wl,-rpath,/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/comm/sys/lib -ldcmfcoll.cnk      -ldcmf.cnk      -lpthread -L/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/runtime/SPI -Wl,-rpath,/bgsys/drivers/V1R3M0_460_2008-081112P/ppc/runtime/SPI -lSPI.cna -lrt "
 NEEDSPLIB="no"
 # MPIVERSION is the version of the MPICH2 library that mpicc is intended for
 MPIVERSION="1.0.7"
@@ -233,7 +234,16 @@ if [ "$linking" = yes ] ; then
 	# prepend the path for the shared libraries to the library list
 	mpilibs="$C_LINKPATH_SHL$libdir $mpilibs"
     fi
-    $Show $CC "${allargs[@]}" -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -ldarshan-mpi-io -lz -I$includedir $CFLAGS $LDFLAGS -L$libdir $mpilibs $MPI_OTHERLIBS
+    # check to see if the command line refers to any profilers that might
+    # use PMPI.
+    profiler_check=`echo "${allargs[@]}" | ${DARSHAN_BIN_PATH}/darshan-pmpi-filter.sh`
+    if [ "$profiler_check" = "" ] ; then
+        $Show $CC "${allargs[@]}" -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -ldarshan-mpi-io -lz -I$includedir $CFLAGS ${CP_WRAPPERS} $LDFLAGS -L$libdir $mpilibs $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix 
+    else
+        # it looks like the user wants to use another tool with PMPI; don't
+        # link in Darshan PMPI wrappers (disables Darshan)
+        $Show $CC "${allargs[@]}" -I$includedir $CFLAGS $LDFLAGS -L$libdir $mpilibs $MPI_OTHERLIBS
+    fi
     rc=$?
 else
     $Show $CC "${allargs[@]}" -I$includedir $CFLAGS 
