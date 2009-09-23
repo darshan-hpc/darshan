@@ -46,11 +46,11 @@ CP_ZLIB_LINK_FLAGS=@__CP_ZLIB_LINK_FLAGS@
 CXX="c++"
 CXX_LINKPATH_SHL=""
 WRAPPER_CXXFLAGS=""
-WRAPPER_LDFLAGS="${CP_WRAPPERS}"
+WRAPPER_LDFLAGS=""
 MPILIBNAME="mpich"
 PMPILIBNAME="pmpich"
 MPICXXLIBNAME="mpichcxx"
-MPI_OTHERLIBS="-lpthread  -lrt    -lrt -L${DARSHAN_LIB_PATH} -ldarshan-posix "
+MPI_OTHERLIBS="-lpthread  -lrt    -lrt "
 NEEDSPLIB="no"
 # MPIVERSION is the version of the MPICH2 library that mpicxx is intended for
 MPIVERSION="1.0.7"
@@ -233,7 +233,14 @@ if [ "$linking" = yes ] ; then
         # Prepend the path for the shared libraries to the library list
         shllibpath="$CXX_LINKPATH_SHL$libdir"
     fi
-    $Show $CXX $CXXFLAGS $LDFLAGS "${allargs[@]}" -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -lmpichcxx -ldarshan-mpi-io -lz -I$includedir -L$libdir $shllibpath $cxxlibs $mpilibs $MPI_OTHERLIBS
+    # check to see if the command line refers to any profilers that might
+    # use PMPI.
+    profiler_check=`echo "${allargs[@]}" | ${DARSHAN_BIN_PATH}/darshan-pmpi-filter.sh`
+    if [ "$profiler_check" = "" ] ; then
+        $Show $CXX $CXXFLAGS ${CP_WRAPPERS} $LDFLAGS "${allargs[@]}" -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -lmpichcxx -ldarshan-mpi-io -lz -I$includedir -L$libdir $shllibpath $cxxlibs $mpilibs $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix
+    else
+        $Show $CXX $CXXFLAGS $LDFLAGS "${allargs[@]}" -lmpichcxx -I$includedir -L$libdir $shllibpath $cxxlibs $mpilibs $MPI_OTHERLIBS
+    fi
     rc=$?
 else
     $Show $CXX $CXXFLAGS "${allargs[@]}" -I$includedir
