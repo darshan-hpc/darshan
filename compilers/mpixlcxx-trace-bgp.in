@@ -238,7 +238,7 @@ if [ "$linking" = yes ] ; then
     # use PMPI.
     profiler_check=`echo "${allargs[@]}" | ${DARSHAN_BIN_PATH}/darshan-pmpi-filter.sh`
     if [ "$profiler_check" = "" ] ; then
-        $Show $CXX "${allargs[@]}" -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -ldarshan-mpi-io -lz -I$includedir $CXXFLAGS ${CP_WRAPPERS} $LDFLAGS -L$libdir $shllibpath $cxxlibs $mpilibs $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix
+        $Show $CXX "${allargs[@]}" -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -lcxxmpich.cnk -ldarshan-mpi-io -lz -I$includedir $CXXFLAGS ${CP_WRAPPERS} $LDFLAGS -L$libdir $shllibpath $cxxlibs $mpilibs $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix
     else
         $Show $CXX "${allargs[@]}" -I$includedir $CXXFLAGS $LDFLAGS -L$libdir $shllibpath $cxxlibs $mpilibs $MPI_OTHERLIBS
     fi
