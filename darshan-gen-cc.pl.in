@@ -10,6 +10,11 @@
 use Getopt::Long;
 use English;
 
+$CP_WRAPPERS="@CP_WRAPPERS@";
+$DARSHAN_LIB_PATH="@darshan_lib_path@";
+$DARSHAN_BIN_PATH="@darshan_bin_path@";
+$CP_ZLIB_LINK_FLAGS="@__CP_ZLIB_LINK_FLAGS@";
+
 my $input_file = "";
 my $output_file = "";
 
@@ -43,12 +48,11 @@ chomp($link_cmd);
 open (OUTPUT, ">$output_file") || die("Error opening output file: $!");
 
 # substitute arguments and darshan options into commands
-$compile_cmd =~ s/-c foo.c/"\$\{allargs\[\@\]\}"/g;
-$link_cmd =~ s/foo.o -o foo/"\$\{allargs\[\@\]\}" -L$DARSHAN_LIB_PATH $CP_ZLIB_LINK_FLAG -ldarshan-mpi-io -lz/g;
+$base_link_cmd = $link_cmd;
+$base_link_cmd =~ s/foo.o -o foo/"\$\{allargs\[\@\]\}"/g;
+$link_cmd =~ s/foo.o -o foo/"\$\{allargs\[\@\]\}" -L$DARSHAN_LIB_PATH $CP_ZLIB_LINK_FLAGS -ldarshan-mpi-io -lz $CP_WRAPPERS/g;
 $link_cmd =~ s/$/ -L$DARSHAN_LIB_PATH -ldarshan-posix/g;
-
-print "compile: $compile_cmd\n";
-print "link: $link_cmd\n";
+$compile_cmd =~ s/-c foo.c/"\$\{allargs\[\@\]\}"/g;
 
 print OUTPUT <<'EOF';
 #!/bin/sh
@@ -90,14 +94,23 @@ if [ "$linking" = yes ] ; then
 	# prepend the path for the shared libraries to the library list
 	mpilibs="$C_LINKPATH_SHL$libdir $mpilibs"
     fi
-    $Show $CC "${allargs[@]}" -I$includedir $CFLAGS $LDFLAGS -L$libdir $mpilibs $MPI_OTHERLIBS
-    rc=$?
+    # check to see if the command line refers to any profilers that might
+    # use PMPI.
+EOF
+print OUTPUT <<EOF;
+    profiler_check=`echo "\$\{allargs\[\@\]\}" | $DARSHAN_BIN_PATH/darshan-pmpi-filter.sh`
+    if [ "\$profiler_check" = "" ] ; then
+        \$Show $link_cmd
+    else
+        \$Show $base_link_cmd
+    fi
+    rc=\$?
 else
-    $Show $CC "${allargs[@]}" -I$includedir $CFLAGS
-    rc=$?
+    \$Show $compile_cmd
+    rc=\$?
 fi
 
-exit $rc
+exit \$rc
 EOF
 
 close(OUTPUT);
