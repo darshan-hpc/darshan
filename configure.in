@@ -113,4 +113,5 @@ compilers/mpicxx-trace-bgp
 compilers/mpixlcxx-trace-bgp
 compilers/mpixlf2003-trace-bgp
 darshan-mk-log-dirs.pl
+darshan-gen-cc.pl
 )

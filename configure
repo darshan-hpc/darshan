@@ -3806,7 +3806,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-                                                                                                                                            ac_config_files="$ac_config_files Makefile compilers/mpicc-trace-bgp compilers/mpif77-trace-bgp compilers/mpif90-trace-bgp compilers/mpixlc-trace-bgp compilers/mpixlf77-trace-bgp compilers/mpixlf90-trace-bgp compilers/mpicc-trace-pcarns compilers/mpicxx-trace-pcarns compilers/mpif77-trace-pcarns compilers/mpicxx-trace-bgp compilers/mpixlcxx-trace-bgp compilers/mpixlf2003-trace-bgp darshan-mk-log-dirs.pl"
+                                                                                                                                                      ac_config_files="$ac_config_files Makefile compilers/mpicc-trace-bgp compilers/mpif77-trace-bgp compilers/mpif90-trace-bgp compilers/mpixlc-trace-bgp compilers/mpixlf77-trace-bgp compilers/mpixlf90-trace-bgp compilers/mpicc-trace-pcarns compilers/mpicxx-trace-pcarns compilers/mpif77-trace-pcarns compilers/mpicxx-trace-bgp compilers/mpixlcxx-trace-bgp compilers/mpixlf2003-trace-bgp darshan-mk-log-dirs.pl darshan-gen-cc.pl"
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
 # tests run on this system so they can be shared between configure
@@ -4346,6 +4346,7 @@ do
   "compilers/mpixlcxx-trace-bgp" ) CONFIG_FILES="$CONFIG_FILES compilers/mpixlcxx-trace-bgp" ;;
   "compilers/mpixlf2003-trace-bgp" ) CONFIG_FILES="$CONFIG_FILES compilers/mpixlf2003-trace-bgp" ;;
   "darshan-mk-log-dirs.pl" ) CONFIG_FILES="$CONFIG_FILES darshan-mk-log-dirs.pl" ;;
+  "darshan-gen-cc.pl" ) CONFIG_FILES="$CONFIG_FILES darshan-gen-cc.pl" ;;
   "darshan-config.h" ) CONFIG_HEADERS="$CONFIG_HEADERS darshan-config.h" ;;
   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
 echo "$as_me: error: invalid argument: $ac_config_target" >&2;}
