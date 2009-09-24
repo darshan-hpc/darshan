@@ -31,17 +31,24 @@ if (!($link_cmd))
     exit(1);
 }
 
-#print "compile: $compile_cmd\n";
-#print "link: $link_cmd\n";
-
 # check command lines for accuracy
 if(!($compile_cmd =~ /-c foo.c/) || !($link_cmd =~ /foo.o -o foo/))
 {
     printf STDERR "Error: faulty output from $input_file with -show.\n";
     exit(1);
 }
+chomp($compile_cmd);
+chomp($link_cmd);
 
 open (OUTPUT, ">$output_file") || die("Error opening output file: $!");
+
+# substitute arguments and darshan options into commands
+$compile_cmd =~ s/-c foo.c/"\$\{allargs\[\@\]\}"/g;
+$link_cmd =~ s/foo.o -o foo/"\$\{allargs\[\@\]\}" -L$DARSHAN_LIB_PATH $CP_ZLIB_LINK_FLAG -ldarshan-mpi-io -lz/g;
+$link_cmd =~ s/$/ -L$DARSHAN_LIB_PATH -ldarshan-posix/g;
+
+print "compile: $compile_cmd\n";
+print "link: $link_cmd\n";
 
 print OUTPUT <<'EOF';
 #!/bin/sh
