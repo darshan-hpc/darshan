@@ -14,9 +14,11 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <zlib.h>
 #include <assert.h>
 #include <search.h>
+#include <errno.h>
 
 #include "mpi.h"
 #include "darshan.h"
@@ -116,9 +118,9 @@ extern char* __progname;
 static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh);
 static void cp_log_construct_indices(struct darshan_job_runtime* final_job, int rank, int* inout_count, int* lengths, void** pointers);
 static int cp_log_write(struct darshan_job_runtime* final_job, int rank, 
-    char* logfile_name, int count, int* lengths, void** pointers, double start_log_time);
+    char* logfile_name, char* logdir_name, int count, int* lengths, void** pointers, double start_log_time);
 static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank, 
-    char* logfile_name, MPI_Offset* next_offset);
+    MPI_Offset* next_offset);
 static void darshan_file_reduce(void* infile_v, 
     void* inoutfile_v, int *len, 
     MPI_Datatype *datatype);
@@ -161,6 +163,7 @@ void darshan_shutdown(int timing_flag)
 {
     int rank;
     char* logfile_name;
+    char* logdir_name;
     struct darshan_job_runtime* final_job;
     double start_log_time = 0;
     int flags;
@@ -236,6 +239,14 @@ void darshan_shutdown(int timing_flag)
         return;
     }
 
+    logdir_name = malloc(PATH_MAX);
+    if(!logdir_name)
+    {
+        free(logfile_name);
+        darshan_finalize(final_job);
+        return;
+    }
+
     PMPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     /* construct log file name */
@@ -264,9 +275,9 @@ void darshan_shutdown(int timing_flag)
         cuserid(cuser);
 
         ret = snprintf(logfile_name, PATH_MAX, 
-            "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d.darshan_partial",
+            "%s/%d/%d/%s/%s_%s_id%d_%d-%d-%d.darshan_partial",
             __CP_LOG_PATH, (my_tm->tm_year+1900), 
-            (my_tm->tm_mon+1), my_tm->tm_mday, 
+            (my_tm->tm_mon+1), cuser, 
             cuser, __progname, jobid,
             (my_tm->tm_mon+1), 
             my_tm->tm_mday, 
@@ -278,18 +289,22 @@ void darshan_shutdown(int timing_flag)
                 "%s/id%d.darshan_partial",
                 __CP_LOG_PATH, jobid);
         }
+        snprintf(logdir_name, PATH_MAX, 
+            "%s/%d/%d/%s",
+            __CP_LOG_PATH, (my_tm->tm_year+1900), 
+            (my_tm->tm_mon+1), cuser);
     }
 
     /* broadcast log file name */
     PMPI_Bcast(logfile_name, PATH_MAX, MPI_CHAR, 0, MPI_COMM_WORLD);
+    PMPI_Bcast(logdir_name, PATH_MAX, MPI_CHAR, 0, MPI_COMM_WORLD);
 
     final_job->log_job.end_time = time(NULL);
 
     /* reduce records for shared files */
     if(timing_flag)
         red1 = PMPI_Wtime();
-    local_ret = cp_log_reduction(final_job, rank, logfile_name, 
-        &next_offset);
+    local_ret = cp_log_reduction(final_job, rank, &next_offset);
     if(timing_flag)
         red2 = PMPI_Wtime();
     PMPI_Allreduce(&local_ret, &all_ret, 1, MPI_INT, MPI_LOR, 
@@ -320,7 +335,7 @@ void darshan_shutdown(int timing_flag)
         /* actually write out log file */
         if(timing_flag)
             write1 = PMPI_Wtime();
-        local_ret = cp_log_write(final_job, rank, logfile_name, 
+        local_ret = cp_log_write(final_job, rank, logfile_name, logdir_name,
             index_count, lengths, pointers, start_log_time);
         if(timing_flag)
             write2 = PMPI_Wtime();
@@ -337,6 +352,7 @@ void darshan_shutdown(int timing_flag)
     }
 
     free(logfile_name);
+    free(logdir_name);
     darshan_finalize(final_job);
     
     if(timing_flag)
@@ -949,7 +965,7 @@ static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh)
  * returns 0 on success, -1 on failure
  */
 static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank, 
-    char* logfile_name, MPI_Offset* next_offset)
+    MPI_Offset* next_offset)
 {
     /* TODO: these need to be allocated differently now, too big */
     uint64_t hash_array[CP_MAX_FILES] = {0};
@@ -1289,7 +1305,8 @@ static void cp_log_construct_indices(struct darshan_job_runtime* final_job,
  * actually write log information to disk
  */
 static int cp_log_write(struct darshan_job_runtime* final_job, int rank, 
-    char* logfile_name, int count, int* lengths, void** pointers, double start_log_time)
+    char* logfile_name, char* logdir_name, int count, int* lengths, 
+    void** pointers, double start_log_time)
 {
     int ret;
     MPI_File fh;
@@ -1316,11 +1333,28 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     PMPI_Type_hindexed(count, lengths, displacements, MPI_BYTE, &mtype);
     PMPI_Type_commit(&mtype); 
 
+    /* create directory for output if it doesn't exist yet */
+    if(rank == 0)
+    {
+        ret = mkdir(logdir_name, 0750);
+        if(ret != 0 && errno != EEXIST)
+        {
+            /* failure for some reason other than the directory already
+             * existing
+             */
+            fprintf(stderr, "darshan library: failed to create/access %s\n",
+                logdir_name);
+            fprintf(stderr, "darshan library: have you executed darshan-mk-log-dirs.pl to create log directories?\n");
+            PMPI_Type_free(&mtype);
+            return(-1);
+        }
+    }
+    PMPI_Barrier(MPI_COMM_WORLD);
+
     ret = PMPI_File_open(MPI_COMM_WORLD, logfile_name, MPI_MODE_CREATE |
         MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
     if(ret != MPI_SUCCESS)
     {
-        /* TODO: keep this print or not? */
         fprintf(stderr, "darshan library: failed to open log file %s\n", logfile_name);
         fprintf(stderr, "darshan library: have you executed darshan-mk-log-dirs.pl to create log directories?\n");
         PMPI_Type_free(&mtype);
@@ -1362,6 +1396,8 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
             mod_index = strstr(new_logfile_name, ".darshan_partial");
             sprintf(mod_index, "_%d.darshan.gz", (int)(end_log_time-start_log_time+1));
             rename(logfile_name, new_logfile_name);
+            /* set permissions on log file */
+            chmod(new_logfile_name, (S_IRGRP|S_IRUSR)); 
             free(new_logfile_name);
         }
     }
