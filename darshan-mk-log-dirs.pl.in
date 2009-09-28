@@ -5,14 +5,9 @@
 #
 
 use File::Basename;
-use English;
-use Getopt::Long;
-use Fcntl ':mode';
 
-# Creates a hierarchy of subdirectories for darshan log files in the format
-# LOGDIR/<year>/<month>/
-# The outermost directories will have setgid bits set so that user subdirs
-# maintain appropriate group ownership
+# creates a hierarchy of subdirectories for darshan to place log files in
+# LOGDIR/<year>/<month>/<day>/
 
 # use log dir specified at configure time
 $LOGDIR = "@__CP_LOG_PATH@";
@@ -20,77 +15,26 @@ $LOGDIR = "@__CP_LOG_PATH@";
 
 my $year = (localtime)[5] + 1900;
 my $month;
+my $day;
 my $i;
 my $j;
-my $target_group = "";
-
-process_args();
+my $k;
 
 umask(0);
 
-# go through three years worth of directories
-for ($i=$year; $i<($year+3); $i++)
+# go through the end of next year
+for ($i=$year; $i<($year+2); $i++)
 {
-    mkdir("$LOGDIR/$i") or die("Error: could not mkdir $LOGDIR/$i.\n");
-    chmod ((S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IXOTH|S_IROTH), "$LOGDIR/$i") or die("Error: could not set permissions on $LOGDIR/$i.\n");
-    if(!($target_group eq ""))
-    {
-        my $target_gid = getgrnam($target_group) || die("Error looking up group $target_group");
-        chown($UID, $target_gid, "$LOGDIR/$i") || die ("Error setting group ownership to $target_group on $LOGDIR/$i");
-    }
-
+    mkdir("$LOGDIR/$i", 0755) or die("Error: could not mkdir $LOGDIR/$i.\n");
     for ($j=1; $j<13; $j++)
     {
-        mkdir("$LOGDIR/$i/$j") or die("Error: could not mkdir $LOGDIR/$i/$j.\n");
-        chmod ((S_ISGID|S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IWOTH|S_IROTH|S_IXOTH), "$LOGDIR/$i/$j") or die("Error: could not set permissions on $LOGDIR/$i/$j.\n"); 
-        if(!($target_group eq ""))
+        mkdir("$LOGDIR/$i/$j", 0755) or die("Error: could not mkdir $LOGDIR/$i/$j.\n");
+        for ($k=1; $k<32; $k++)
         {
-            my $target_gid = getgrnam($target_group) || die("Error looking up group $target_group");
-            chown($UID, $target_gid, "$LOGDIR/$i/$j") || die ("Error setting group ownership to $target_group on $LOGDIR/$i/$j");
+            mkdir("$LOGDIR/$i/$j/$k", 01777) or die("Error: could not mkdir $LOGDIR/$i/$j/$k.\n");
+
         }
-
     }
 }
 
-sub process_args
-{
-    use vars qw( $opt_help $opt_group );
-
-    Getopt::Long::Configure("no_ignore_case", "bundling");
-    GetOptions( "help",
-        "group=s");
-
-    if($opt_help)
-    {
-        print_help();
-        exit(0);
-    }
-
-    if($opt_group)
-    {
-        $target_group = $opt_group;
-    }
-
-    return;
-}
-
-sub print_help
-{
-    print <<EOF;
-
-Usage: $PROGRAM_NAME <options>
-
-    --help          Prints this help message
-    --group         Group ownership to assign to leaf directories
-
-Purpose:
-
-    Creates a hierarchy of subdirectories for Darshan log files.  The
-    directory layout is LOGDIR/<year>/<month>.  Leaf directories will have 
-    setgid bits set, and will be owned by the group specified with --group
-    (if provided).
-    
-EOF
-    return;
-}
 
