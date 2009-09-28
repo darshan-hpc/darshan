@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <zlib.h>
 #include <assert.h>
 #include <search.h>
@@ -1362,6 +1363,8 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
             mod_index = strstr(new_logfile_name, ".darshan_partial");
             sprintf(mod_index, "_%d.darshan.gz", (int)(end_log_time-start_log_time+1));
             rename(logfile_name, new_logfile_name);
+            /* set permissions on log file */
+            chmod(new_logfile_name, (S_IRUSR)); 
             free(new_logfile_name);
         }
     }
