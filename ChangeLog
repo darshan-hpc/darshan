@@ -1,0 +1,13 @@
+--------------------------
+Darshan Release Change Log
+--------------------------
+
+darshan-1.1.1
+=============
+* Set default permissions to 0400 (user read only) for output files
+* Automatically disable Darshan at link time if common PMPI libraries are detected in the command line
+* Experimental tool (darshan-gen-cc.pl) to automatically generate Darshan-enabled mpicc scripts
+
+darshan-1.1.0
+=============
+* Initial public release
