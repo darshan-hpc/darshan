@@ -2,6 +2,10 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-1.1.2
+=============
+* Added *_r versions of each IBM compiler script on BlueGene/P
+
 darshan-1.1.1
 =============
 * Set default permissions to 0400 (user read only) for output files

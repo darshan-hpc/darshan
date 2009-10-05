@@ -83,6 +83,13 @@ install:: all
 	install -m 755 compilers/mpixlf2003-trace-bgp $(bindir)/mpixlf2003
 	install -m 755 compilers/mpixlf77-trace-bgp $(bindir)/mpixlf77
 	install -m 755 compilers/mpixlf90-trace-bgp $(bindir)/mpixlf90
+	install -m 755 compilers/mpixlf95-trace-bgp $(bindir)/mpixlf95
+	install -m 755 compilers/mpixlc_r-trace-bgp $(bindir)/mpixlc_r
+	install -m 755 compilers/mpixlcxx_r-trace-bgp $(bindir)/mpixlcxx_r
+	install -m 755 compilers/mpixlf2003_r-trace-bgp $(bindir)/mpixlf2003_r
+	install -m 755 compilers/mpixlf77_r-trace-bgp $(bindir)/mpixlf77_r
+	install -m 755 compilers/mpixlf90_r-trace-bgp $(bindir)/mpixlf90_r
+	install -m 755 compilers/mpixlf95_r-trace-bgp $(bindir)/mpixlf95_r
 	install -m 755 $(srcdir)/darshan-pmpi-filter.sh $(bindir)
 
 clean::
