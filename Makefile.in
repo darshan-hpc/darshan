@@ -74,22 +74,22 @@ install:: all
 	install -m 755 darshan-diff $(bindir)
 	install -m 755 darshan-mk-log-dirs.pl $(bindir)
 	install -m 755 darshan-gen-cc.pl $(bindir)
-	install -m 755 compilers/mpicc-trace-bgp $(bindir)/mpicc
-	install -m 755 compilers/mpicxx-trace-bgp $(bindir)/mpicxx
-	install -m 755 compilers/mpif77-trace-bgp $(bindir)/mpif77
-	install -m 755 compilers/mpif90-trace-bgp $(bindir)/mpif90
-	install -m 755 compilers/mpixlc-trace-bgp $(bindir)/mpixlc
-	install -m 755 compilers/mpixlcxx-trace-bgp $(bindir)/mpixlcxx
-	install -m 755 compilers/mpixlf2003-trace-bgp $(bindir)/mpixlf2003
-	install -m 755 compilers/mpixlf77-trace-bgp $(bindir)/mpixlf77
-	install -m 755 compilers/mpixlf90-trace-bgp $(bindir)/mpixlf90
-	install -m 755 compilers/mpixlf95-trace-bgp $(bindir)/mpixlf95
-	install -m 755 compilers/mpixlc_r-trace-bgp $(bindir)/mpixlc_r
-	install -m 755 compilers/mpixlcxx_r-trace-bgp $(bindir)/mpixlcxx_r
-	install -m 755 compilers/mpixlf2003_r-trace-bgp $(bindir)/mpixlf2003_r
-	install -m 755 compilers/mpixlf77_r-trace-bgp $(bindir)/mpixlf77_r
-	install -m 755 compilers/mpixlf90_r-trace-bgp $(bindir)/mpixlf90_r
-	install -m 755 compilers/mpixlf95_r-trace-bgp $(bindir)/mpixlf95_r
+	install -m 755 compilers/mpicc-trace-bgp-V1R4 $(bindir)/mpicc
+	install -m 755 compilers/mpicxx-trace-bgp-V1R4 $(bindir)/mpicxx
+	install -m 755 compilers/mpif77-trace-bgp-V1R4 $(bindir)/mpif77
+	install -m 755 compilers/mpif90-trace-bgp-V1R4 $(bindir)/mpif90
+	install -m 755 compilers/mpixlc-trace-bgp-V1R4 $(bindir)/mpixlc
+	install -m 755 compilers/mpixlcxx-trace-bgp-V1R4 $(bindir)/mpixlcxx
+	install -m 755 compilers/mpixlf2003-trace-bgp-V1R4 $(bindir)/mpixlf2003
+	install -m 755 compilers/mpixlf77-trace-bgp-V1R4 $(bindir)/mpixlf77
+	install -m 755 compilers/mpixlf90-trace-bgp-V1R4 $(bindir)/mpixlf90
+	install -m 755 compilers/mpixlf95-trace-bgp-V1R4 $(bindir)/mpixlf95
+	install -m 755 compilers/mpixlc_r-trace-bgp-V1R4 $(bindir)/mpixlc_r
+	install -m 755 compilers/mpixlcxx_r-trace-bgp-V1R4 $(bindir)/mpixlcxx_r
+	install -m 755 compilers/mpixlf2003_r-trace-bgp-V1R4 $(bindir)/mpixlf2003_r
+	install -m 755 compilers/mpixlf77_r-trace-bgp-V1R4 $(bindir)/mpixlf77_r
+	install -m 755 compilers/mpixlf90_r-trace-bgp-V1R4 $(bindir)/mpixlf90_r
+	install -m 755 compilers/mpixlf95_r-trace-bgp-V1R4 $(bindir)/mpixlf95_r
 	install -m 755 $(srcdir)/darshan-pmpi-filter.sh $(bindir)
 
 clean::
