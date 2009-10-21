@@ -2,6 +2,10 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-1.1.3
+=============
+* Updated compiler scripts for V1R4 driver on BlueGene/P
+
 darshan-1.1.2
 =============
 * Added *_r versions of each IBM compiler script on BlueGene/P
