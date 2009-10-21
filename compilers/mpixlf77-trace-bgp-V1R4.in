@@ -299,7 +299,22 @@ if [ "$linking" = yes ] ; then
         # Prepend the path for the shared libraries to the library list
         mpilibs="$FC_LINKPATH_SHL$libdir $mpilibs"
     fi
-    $Show $FC "${allargs[@]}" -I$includedir $FFLAGS $LDFLAGS -L$libdir -L$opalibdir $mpilibs $MPI_OTHERLIBS
+    # check to see if the command line refers to any profilers that might
+    # use PMPI.
+    profiler_check=`echo "${allargs[@]}" | ${DARSHAN_BIN_PATH}/darshan-pmpi-filter.sh`
+    if [ "$profiler_check" = "" ] ; then
+        # If we link link darshan-mpi-io before system mpi lib, we don't 
+        # get a trace but if we don't link it early enough, we get 
+        # undefined MPI symbols.  Seems like listing the darshan libs 
+        # twice does the trick
+        $Show $FC ${CP_WRAPPERS} "${allargs[@]}" -L${DARSHAN_LIB_PATH} \
+         ${CP_ZLIB_LINK_FLAGS} -lfmpich.cnk -ldarshan-posix -ldarshan-mpi-io \
+         -I$includedir $FFLAGS $LDFLAGS -L$libdir \
+         -L$opalibdir $mpilibs $MPI_OTHERLIBS \
+         -L${DARSHAN_LIB_PATH} -ldarshan-posix -ldarshan-mpi-io -lz
+    else
+        $Show $FC "${allargs[@]}" -I$includedir $FFLAGS $LDFLAGS -L$libdir -L$opalibdir $mpilibs $MPI_OTHERLIBS
+    fi
     rc=$?
 else
     $Show $FC "${allargs[@]}" -I$includedir $FFLAGS
