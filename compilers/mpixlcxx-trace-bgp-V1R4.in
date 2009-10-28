@@ -251,18 +251,47 @@ if [ "$linking" = yes ] ; then
         # Prepend the path for the shared libraries to the library list
         shllibpath="$CXX_LINKPATH_SHL$libdir"
     fi
-    # check to see if the command line refers to any profilers that might
-    # use PMPI.
-    profiler_check=`echo "${allargs[@]}" | ${DARSHAN_BIN_PATH}/darshan-pmpi-filter.sh`
-    if [ "$profiler_check" = "" ] ; then
-        $Show $CXX "${allargs[@]}" -L${DARSHAN_LIB_PATH} \
-         ${CP_ZLIB_LINK_FLAGS} -lcxxmpich.cnk -ldarshan-mpi-io -lz -I$includedir $CXXFLAGS \
-         ${CP_WRAPPERS} $LDFLAGS -L$libdir -L$opalibdir $shllibpath $cxxlibs $mpilibs \
-         $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix
-    else
-        # it looks like the user wants to use another tool with PMPI; don't
-        # link in Darshan PMPI wrappers (disables Darshan)
-        $Show $CXX "${allargs[@]}" -I$includedir $CXXFLAGS $LDFLAGS -L$libdir -L$opalibdir $shllibpath $cxxlibs $mpilibs $MPI_OTHERLIBS
+
+    # Trial run to generate a symbol listing.  We only enable Darshan if:
+    # a) MPI is used
+    # b) PMPI is _not_ used
+    #
+    # We want Darshan to get out of the way if the user is doing a runtime
+    # test in configure (in which case MPI objects break the executable) or
+    # if the user is using another PMPI based tool
+    
+    stock_link_cmd="$CXX ${allargs[@]} -I$includedir $CXXFLAGS $LDFLAGS -L$libdir -L$opalibdir $shllibpath $cxxlibs $mpilibs $MPI_OTHERLIBS"
+    
+    darshan_link_cmd="$CXX ${allargs[@]} -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -ldarshan-mpi-io -lz -I$includedir $CXXFLAGS ${CP_WRAPPERS} $LDFLAGS -L$libdir -L$opalibdir $shllibpath $cxxlibs $mpilibs $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix" 
+
+    used_darshan=0
+
+    # create a temporary file
+    tmpfile=`mktemp`
+    # generate a map of the symbol names
+    $stock_link_cmd -Wl,-Map,$tmpfile $LDFLAGS -o /dev/null >& /dev/null
+    # is MPI in there?
+    grep MPI $tmpfile >& /dev/null
+    rc_mpi=$?
+    # is PMPI in there (except for the mpich library itself)?
+    grep \(PMPI $tmpfile | grep -v mpich.cnk.a >& /dev/null
+    rc_pmpi=$?
+    rm $tmpfile >& /dev/null
+
+    # disable darshan if the executable is not an MPI program (this feature
+    # mainly allows runtime configure tests to work
+    if [ $rc_mpi -eq 0 ] ; then
+        # disable darshan if something else is already using PMPI; we don't
+        # want to cause any symbol conflicts
+        if [ $rc_pmpi -ne 0 ] ; then
+            $Show $darshan_link_cmd
+            used_darshan=1
+        fi
+    fi
+
+    # otherwise use the normal command line
+    if [ "$used_darshan" = "0" ] ; then
+        $Show $stock_link_cmd
     fi
     rc=$?
 else
