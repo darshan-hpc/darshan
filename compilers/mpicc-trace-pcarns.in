@@ -234,13 +234,47 @@ if [ "$linking" = yes ] ; then
 	# prepend the path for the shared libraries to the library list
 	mpilibs="$C_LINKPATH_SHL$libdir $mpilibs"
     fi
-    # check to see if the command line refers to any profilers that might
-    # use PMPI.
-    profiler_check=`echo "${allargs[@]}" | ${DARSHAN_BIN_PATH}/darshan-pmpi-filter.sh`
-    if [ "$profiler_check" = "" ] ; then
-        $Show $CC $CFLAGS ${CP_WRAPPERS} $LDFLAGS "${allargs[@]}" -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -ldarshan-mpi-io -lz -I$includedir -L$libdir $mpilibs $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix
-    else
-        $Show $CC $CFLAGS $LDFLAGS "${allargs[@]}" -I$includedir -L$libdir $mpilibs $MPI_OTHERLIBS
+
+    # Trial run to generate a symbol listing.  We only enable Darshan if:
+    # a) MPI is used
+    # b) PMPI is _not_ used
+    #
+    # We want Darshan to get out of the way if the user is doing a runtime
+    # test in configure (in which case MPI objects break the executable) or
+    # if the user is using another PMPI based tool
+    
+    stock_link_cmd="$CC ${allargs[@]} -I$includedir $CFLAGS $LDFLAGS -L$libdir $mpilibs $MPI_OTHERLIBS"
+
+    darshan_link_cmd="$CC ${allargs[@]} -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -ldarshan-mpi-io -lz -I$includedir $CFLAGS ${CP_WRAPPERS} $LDFLAGS -L$libdir $mpilibs $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix"
+
+    used_darshan=0
+
+    # create a temporary file
+    tmpfile=`mktemp`
+    # generate a map of the symbol names
+    $stock_link_cmd -Wl,-Map,$tmpfile $LDFLAGS -o /dev/null >& /dev/null
+    # is MPI in there?
+    grep MPI $tmpfile >& /dev/null
+    rc_mpi=$?
+    # is PMPI in there (except for the mpich library itself)?
+    grep \(PMPI $tmpfile | grep -v mpich.a >& /dev/null
+    rc_pmpi=$?
+    rm $tmpfile >& /dev/null
+
+    # disable darshan if the executable is not an MPI program (this feature
+    # mainly allows runtime configure tests to work
+    if [ $rc_mpi -eq 0 ] ; then
+        # disable darshan if something else is already using PMPI; we don't
+        # want to cause any symbol conflicts
+        if [ $rc_pmpi -ne 0 ] ; then
+            $Show $darshan_link_cmd
+            used_darshan=1
+        fi
+    fi
+
+    # otherwise use the normal command line
+    if [ "$used_darshan" = "0" ] ; then
+        $Show $stock_link_cmd
     fi
     rc=$?
 else
