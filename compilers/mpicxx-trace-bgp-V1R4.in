@@ -262,7 +262,7 @@ if [ "$linking" = yes ] ; then
     
     stock_link_cmd="$CXX ${allargs[@]} -I$includedir $CXXFLAGS $LDFLAGS -L$libdir -L$opalibdir $shllibpath $cxxlibs $mpilibs $MPI_OTHERLIBS"
     
-    darshan_link_cmd="$CXX ${allargs[@]} -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -ldarshan-mpi-io -lz -I$includedir $CXXFLAGS ${CP_WRAPPERS} $LDFLAGS -L$libdir -L$opalibdir $shllibpath $cxxlibs $mpilibs $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix" 
+    darshan_link_cmd="$CXX ${allargs[@]} -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -lcxxmpich.cnk -ldarshan-mpi-io -lz -I$includedir $CXXFLAGS ${CP_WRAPPERS} $LDFLAGS -L$libdir -L$opalibdir $shllibpath $cxxlibs $mpilibs $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix" 
 
     used_darshan=0
 
