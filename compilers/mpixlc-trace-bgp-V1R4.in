@@ -44,7 +44,7 @@ CP_ZLIB_LINK_FLAGS=@__CP_ZLIB_LINK_FLAGS@
 # Default settings for compiler, flags, and libraries.
 # Determined by a combination of environment variables and tests within
 # configure (e.g., determining whehter -lsocket is needee)
-CC="/opt/ibmcmp/vacpp/bg/9.0/bin/bgxlc"
+CC=`which bgxlc`
 C_LINKPATH_SHL="-Wl,-rpath,"
 WRAPPER_CFLAGS="-I/bgsys/drivers/ppcfloor/comm/sys/include"
 WRAPPER_LDFLAGS="  "

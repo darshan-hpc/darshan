@@ -46,7 +46,7 @@ CP_ZLIB_LINK_FLAGS=@__CP_ZLIB_LINK_FLAGS@
 # Default settings for compiler, flags, and libraries
 # Determined by a combination of environment variables and tests within
 # configure (e.g., determining whehter -lsocket is needee)
-FC="/opt/ibmcmp/xlf/bg/11.1/bin/bgxlf90"
+FC=`which bgxlf90`
 FC_LINKPATH_SHL="-Wl,-rpath -Wl,"
 F77CPP=""
 WRAPPER_FFLAGS="-I/bgsys/drivers/ppcfloor/comm/sys/include"

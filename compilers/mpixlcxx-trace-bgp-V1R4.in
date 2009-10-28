@@ -42,7 +42,7 @@ CP_ZLIB_LINK_FLAGS=@__CP_ZLIB_LINK_FLAGS@
 
 #
 # Default settings for compiler, flags, and libraries
-CXX="/opt/ibmcmp/vacpp/bg/9.0/bin/bgxlC"
+CXX=`which bgxlC`
 CXX_LINKPATH_SHL="-Wl,-rpath -Wl,"
 WRAPPER_CXXFLAGS="-I/bgsys/drivers/ppcfloor/comm/sys/include"
 WRAPPER_LDFLAGS="  "
