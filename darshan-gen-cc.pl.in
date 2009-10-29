@@ -54,7 +54,7 @@ $link_cmd =~ s/$/ -L$DARSHAN_LIB_PATH -ldarshan-posix/g;
 $compile_cmd =~ s/-c foo.c/"\$\{allargs\[\@\]\}"/g;
 
 print OUTPUT <<'EOF';
-#!/bin/sh
+#!/bin/bash
 #
 # Auto-generated mpicc script from darshan-gen-cc.pl
 #
