@@ -39,7 +39,6 @@ opalibdir=${exec_prefix}/lib
 
 CP_WRAPPERS=@CP_WRAPPERS@
 DARSHAN_LIB_PATH=@darshan_lib_path@
-DARSHAN_BIN_PATH=@darshan_bin_path@
 CP_ZLIB_LINK_FLAGS=@__CP_ZLIB_LINK_FLAGS@
 
 #
