@@ -109,7 +109,7 @@ print OUTPUT <<EOF;
     tmpfile=`mktemp`
     # generate a map of the symbol names
     # don't use -shared for this step
-    stock_link_cmd_no_shared=`echo \$base_link_cmd | sed 's/ -shared / /g'`
+    stock_link_cmd_no_shared=`echo $base_link_cmd | sed 's/ -shared / /g'`
     \$stock_link_cmd_no_shared -Wl,-Map,\$tmpfile \$LDFLAGS -o /dev/null >& /dev/null
     # is MPI in there?
     grep MPI \$tmpfile >& /dev/null
@@ -125,14 +125,14 @@ print OUTPUT <<EOF;
         # disable darshan if something else is already using PMPI; we don't
         # want to cause any symbol conflicts
         if [ \$rc_pmpi -ne 0 ] ; then
-            \$Show \$link_cmd
+            \$Show $link_cmd
             used_darshan=1
         fi
     fi
 
     # otherwise use the normal command line
     if [ "\$used_darshan" = "0" ] ; then
-        \$Show \$base_link_cmd
+        \$Show $base_link_cmd
     fi
     rc=\$?
 else
