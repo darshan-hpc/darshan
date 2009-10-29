@@ -1322,8 +1322,7 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     if(ret != MPI_SUCCESS)
     {
         /* TODO: keep this print or not? */
-        fprintf(stderr, "darshan library: failed to open log file %s\n", logfile_name);
-        fprintf(stderr, "darshan library: have you executed darshan-mk-log-dirs.pl to create log directories?\n");
+        fprintf(stderr, "darshan library warning: unable to open log file %s\n", logfile_name);
         PMPI_Type_free(&mtype);
         return(-1);
     }
