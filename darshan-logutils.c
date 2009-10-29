@@ -32,6 +32,8 @@ char *darshan_names[] = {
     "CP_POSIX_FSEEKS",
     "CP_POSIX_FSYNCS",
     "CP_POSIX_FDSYNCS",
+    "CP_POSIX_FOPENS",
+    "CP_POSIX_FSEEKS",
     "CP_COMBINER_NAMED",           /* count of each MPI datatype category */
     "CP_COMBINER_DUP",
     "CP_COMBINER_CONTIGUOUS",

@@ -111,6 +111,7 @@ int main(int argc, char **argv)
     printf("#   CP_SPIT_*: MPI split collective operation counts.\n");
     printf("#   CP_NB_*: MPI non blocking operation counts.\n");
     printf("#   READS,WRITES,OPENS,SEEKS,STATS, and MMAPS are types of operations.\n");
+    printf("#   CP_*_NC_OPENS: number of indep. and collective pnetcdf opens.\n");
     printf("#   CP_COMBINER_*: combiner counts for MPI mem and file datatypes.\n");
     printf("#   CP_HINTS: number of times MPI hints were used.\n");
     printf("#   CP_VIEWS: number of times MPI file views were used.\n");
@@ -185,6 +186,8 @@ int main(int argc, char **argv)
         CP_PRINT(&job, &cp_file, CP_COMBINER_F90_COMPLEX);
         CP_PRINT(&job, &cp_file, CP_COMBINER_F90_INTEGER);
         CP_PRINT(&job, &cp_file, CP_COMBINER_RESIZED);
+        CP_PRINT(&job, &cp_file, CP_INDEP_NC_OPENS);
+        CP_PRINT(&job, &cp_file, CP_COLL_NC_OPENS);
         CP_PRINT(&job, &cp_file, CP_HINTS);
         CP_PRINT(&job, &cp_file, CP_VIEWS);
         CP_PRINT(&job, &cp_file, CP_MODE);

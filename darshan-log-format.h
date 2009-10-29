@@ -12,7 +12,7 @@
 #include "darshan-config.h"
 
 /* update this on file format changes */
-#define CP_VERSION "1.21"
+#define CP_VERSION "1.22"
 
 /* size (in bytes) of job record */
 #define CP_JOB_RECORD_SIZE 1024
@@ -52,6 +52,9 @@ enum darshan_indices
     CP_POSIX_FSEEKS,
     CP_POSIX_FSYNCS,
     CP_POSIX_FDSYNCS,
+    /* pnetcdf stuff */
+    CP_INDEP_NC_OPENS,
+    CP_COLL_NC_OPENS,
     /* type categories */
     CP_COMBINER_NAMED,           /* count of each MPI datatype category */
     CP_COMBINER_DUP,
