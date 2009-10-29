@@ -269,7 +269,9 @@ if [ "$linking" = yes ] ; then
     # create a temporary file
     tmpfile=`mktemp`
     # generate a map of the symbol names
-    $stock_link_cmd -Wl,-Map,$tmpfile $LDFLAGS -o /dev/null >& /dev/null
+    # don't use -shared for this step
+    stock_link_cmd_no_shared=`echo $stock_link_cmd | sed 's/ -shared / /g'`
+    $stock_link_cmd_no_shared -Wl,-Map,$tmpfile $LDFLAGS -o /dev/null >& /dev/null
     # is MPI in there?
     grep MPI $tmpfile >& /dev/null
     rc_mpi=$?
