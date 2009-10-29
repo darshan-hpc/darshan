@@ -978,6 +978,7 @@ void darshan_initialize(int argc, char** argv,  int nprocs, int rank)
         darshan_global_job->file_runtime_array[i].log_file = 
             &darshan_global_job->file_array[i];
         darshan_global_job->file_runtime_array[i].fd = -1;
+        darshan_global_job->file_runtime_array[i].ncid = -1;
         darshan_global_job->file_runtime_array[i].fh = MPI_FILE_NULL;
     }
 
