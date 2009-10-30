@@ -46,25 +46,24 @@ int __wrap_ncmpi_create(MPI_Comm comm, const char *path,
         if(file && (file->ncid == -1))
         {
             file->ncid = *ncidp;
-        }
 
-        PMPI_Comm_size(comm, &comm_size);
-        if(comm_size == 1)
-        {
-            CP_INC(file, CP_INDEP_NC_OPENS, 1);
-        }
-        else
-        {
-            CP_INC(file, CP_COLL_NC_OPENS, 1);
-        }
+            PMPI_Comm_size(comm, &comm_size);
+            if(comm_size == 1)
+            {
+                CP_INC(file, CP_INDEP_NC_OPENS, 1);
+            }
+            else
+            {
+                CP_INC(file, CP_COLL_NC_OPENS, 1);
+            }
 
-        hash_index = file->ncid & CP_HASH_MASK;
-        file->ncid_prev = NULL;
-        file->ncid_next = darshan_global_job->ncid_table[hash_index];
-        if(file->ncid_next) 
-            file->ncid_next->ncid_prev = file;
-        darshan_global_job->ncid_table[hash_index] = file;
-
+            hash_index = file->ncid & CP_HASH_MASK;
+            file->ncid_prev = NULL;
+            file->ncid_next = darshan_global_job->ncid_table[hash_index];
+            if(file->ncid_next) 
+                file->ncid_next->ncid_prev = file;
+            darshan_global_job->ncid_table[hash_index] = file;
+        }
         CP_UNLOCK();
     }
 
@@ -99,25 +98,24 @@ int __wrap_ncmpi_open(MPI_Comm comm, const char *path,
         if(file && (file->ncid == -1))
         {
             file->ncid = *ncidp;
-        }
 
-        PMPI_Comm_size(comm, &comm_size);
-        if(comm_size == 1)
-        {
-            CP_INC(file, CP_INDEP_NC_OPENS, 1);
-        }
-        else
-        {
-            CP_INC(file, CP_COLL_NC_OPENS, 1);
-        }
+            PMPI_Comm_size(comm, &comm_size);
+            if(comm_size == 1)
+            {
+                CP_INC(file, CP_INDEP_NC_OPENS, 1);
+            }
+            else
+            {
+                CP_INC(file, CP_COLL_NC_OPENS, 1);
+            }
 
-        hash_index = file->ncid & CP_HASH_MASK;
-        file->ncid_prev = NULL;
-        file->ncid_next = darshan_global_job->ncid_table[hash_index];
-        if(file->ncid_next) 
-            file->ncid_next->ncid_prev = file;
-        darshan_global_job->ncid_table[hash_index] = file;
-
+            hash_index = file->ncid & CP_HASH_MASK;
+            file->ncid_prev = NULL;
+            file->ncid_next = darshan_global_job->ncid_table[hash_index];
+            if(file->ncid_next) 
+                file->ncid_next->ncid_prev = file;
+            darshan_global_job->ncid_table[hash_index] = file;
+        }
         CP_UNLOCK();
     }
 

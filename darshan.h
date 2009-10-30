@@ -61,12 +61,15 @@ struct darshan_file_runtime
     MPI_File fh;
     int fd;
     int ncid;
+    int hid;
     struct darshan_file_runtime* name_next;
     struct darshan_file_runtime* name_prev;
     struct darshan_file_runtime* fd_next;
     struct darshan_file_runtime* fd_prev;
     struct darshan_file_runtime* ncid_next;
     struct darshan_file_runtime* ncid_prev;
+    struct darshan_file_runtime* hid_next;
+    struct darshan_file_runtime* hid_prev;
     struct darshan_file_runtime* fh_next;
     struct darshan_file_runtime* fh_prev;
     void* access_root;
@@ -92,6 +95,7 @@ struct darshan_job_runtime
     struct darshan_file_runtime* name_table[CP_HASH_SIZE];
     struct darshan_file_runtime* fd_table[CP_HASH_SIZE];
     struct darshan_file_runtime* ncid_table[CP_HASH_SIZE];
+    struct darshan_file_runtime* hid_table[CP_HASH_SIZE];
     struct darshan_file_runtime* fh_table[CP_HASH_SIZE];
     struct darshan_file_runtime* darshan_mru_file;
 };

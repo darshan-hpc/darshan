@@ -51,7 +51,11 @@ test/gz-bench: test/gz-bench.c mktestdir
 
 lib/darshan-mpi-io.o: lib/darshan-mpi-io.c darshan.h darshan-log-format.h mklibdir
 	$(CC) $(cp_zlib_include_flags) $(CFLAGS) -c $< -o $@
+
 lib/darshan-pnetcdf.o: lib/darshan-pnetcdf.c darshan.h darshan-log-format.h mklibdir
+	$(CC) $(cp_zlib_include_flags) $(CFLAGS) -c $< -o $@
+
+lib/darshan-hdf5.o: lib/darshan-hdf5.c darshan.h darshan-log-format.h mklibdir
 	$(CC) $(cp_zlib_include_flags) $(CFLAGS) -c $< -o $@
 
 lib/darshan-posix.o: lib/darshan-posix.c darshan.h darshan-log-format.h mklibdir
@@ -61,7 +65,7 @@ lookup3.o: lookup3.c
 
 lookup8.o: lookup8.c
 
-lib/libdarshan-mpi-io.a: lib/darshan-mpi-io.o lib/darshan-pnetcdf.o
+lib/libdarshan-mpi-io.a: lib/darshan-mpi-io.o lib/darshan-pnetcdf.o lib/darshan-hdf5.o
 	ar rcs $@ $^
 
 lib/libdarshan-posix.a: lib/darshan-posix.o lib/lookup3.o lib/lookup8.o

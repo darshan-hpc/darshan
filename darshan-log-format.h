@@ -55,6 +55,8 @@ enum darshan_indices
     /* pnetcdf stuff */
     CP_INDEP_NC_OPENS,
     CP_COLL_NC_OPENS,
+    /* HDF5 stuff */
+    CP_HDF5_OPENS,
     /* type categories */
     CP_COMBINER_NAMED,           /* count of each MPI datatype category */
     CP_COMBINER_DUP,
