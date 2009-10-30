@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PREFIX=/soft/apps/unsupported/darshan-1.1.3
+PREFIX=/soft/apps/darshan-1.1.4
 
 #darshan 
 cd ../
