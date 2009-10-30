@@ -84,6 +84,7 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     off_t old_offset; \
     int64_t file_alignment; \
     struct darshan_file_runtime* file; \
+    double __elapsed = __tm2-__tm1; \
     if(__ret < 0) break; \
     file = darshan_file_by_fd(__fd); \
     if(!file) break; \
@@ -117,10 +118,13 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     if(file->last_io_type == CP_READ) \
         CP_INC(file, CP_RW_SWITCHES, 1); \
     file->last_io_type = CP_WRITE; \
-    CP_F_INC(file, CP_F_POSIX_WRITE_TIME, (__tm2-__tm1)); \
+    CP_F_INC(file, CP_F_POSIX_WRITE_TIME, (__elapsed)); \
     if(CP_F_VALUE(file, CP_F_WRITE_START_TIMESTAMP) == 0) \
         CP_F_SET(file, CP_F_WRITE_START_TIMESTAMP, __tm1); \
     CP_F_SET(file, CP_F_WRITE_END_TIMESTAMP, __tm2); \
+    if(CP_F_VALUE(file, CP_F_MAX_WRITE_TIME) < __elapsed){ \
+        CP_F_SET(file, CP_F_MAX_WRITE_TIME, __elapsed); \
+        CP_SET(file, CP_MAX_WRITE_TIME_SIZE, __ret); } \
 } while(0)
 
 #define CP_RECORD_READ(__ret, __fd, __count, __update_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
@@ -128,6 +132,7 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     off_t old_offset; \
     struct darshan_file_runtime* file; \
     int64_t file_alignment; \
+    double __elapsed = __tm2-__tm1; \
     if(__ret < 0) break; \
     file = darshan_file_by_fd(__fd); \
     if(!file) break; \
@@ -161,10 +166,13 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     if(file->last_io_type == CP_WRITE) \
         CP_INC(file, CP_RW_SWITCHES, 1); \
     file->last_io_type = CP_READ; \
-    CP_F_INC(file, CP_F_POSIX_READ_TIME, (__tm2-__tm1)); \
+    CP_F_INC(file, CP_F_POSIX_READ_TIME, (__elapsed)); \
     if(CP_F_VALUE(file, CP_F_READ_START_TIMESTAMP) == 0) \
         CP_F_SET(file, CP_F_READ_START_TIMESTAMP, __tm1); \
     CP_F_SET(file, CP_F_READ_END_TIMESTAMP, __tm2); \
+    if(CP_F_VALUE(file, CP_F_MAX_READ_TIME) < __elapsed){ \
+        CP_F_SET(file, CP_F_MAX_READ_TIME, __elapsed); \
+        CP_SET(file, CP_MAX_READ_TIME_SIZE, __ret); } \
 } while(0)
 
 #define CP_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
@@ -1059,6 +1067,13 @@ void darshan_condense(void)
                     CP_MAX(base_file, i, CP_VALUE(iter_file, i));
                     break;
 
+                /* do nothing with these; they are handled in the floating
+                 * point loop 
+                 */
+                case CP_MAX_WRITE_TIME_SIZE:
+                case CP_MAX_READ_TIME_SIZE:
+                    break;
+
                 /* most records can simply be added */
                 default:
                     CP_INC(base_file, i, CP_VALUE(iter_file, i));
@@ -1067,7 +1082,28 @@ void darshan_condense(void)
         }
         for(i=0; i<CP_F_NUM_INDICES; i++)
         {
-            CP_F_SET(base_file, i, CP_F_VALUE(iter_file, i) + CP_F_VALUE(base_file, i));
+            switch(i)
+            {
+                case CP_F_MAX_WRITE_TIME:
+                    if(CP_F_VALUE(iter_file, i) > CP_F_VALUE(base_file, i))
+                    {
+                        CP_F_SET(base_file, i, CP_F_VALUE(iter_file, i));
+                        CP_SET(base_file, CP_MAX_WRITE_TIME_SIZE, 
+                            CP_VALUE(iter_file, CP_MAX_WRITE_TIME_SIZE));
+                    }
+                    break;
+                case CP_F_MAX_READ_TIME:
+                    if(CP_F_VALUE(iter_file, i) > CP_F_VALUE(base_file, i))
+                    {
+                        CP_F_SET(base_file, i, CP_F_VALUE(iter_file, i));
+                        CP_SET(base_file, CP_MAX_READ_TIME_SIZE, 
+                            CP_VALUE(iter_file, CP_MAX_READ_TIME_SIZE));
+                    }
+                    break;
+                default:
+                    CP_F_SET(base_file, i, CP_F_VALUE(iter_file, i) + CP_F_VALUE(base_file, i));
+                    break;
+            }
         }
     }
     

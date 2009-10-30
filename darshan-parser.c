@@ -124,6 +124,7 @@ int main(int argc, char **argv)
     printf("#   CP_RW_SWITCHES: number of times access alternated between read and write.\n");
     printf("#   CP_*_ALIGNMENT: memory and file alignment.\n");
     printf("#   CP_*_NOT_ALIGNED: number of reads and writes that were not aligned.\n");
+    printf("#   CP_MAX_*_TIME_SIZE: size of the slowest read and write operations.\n");
     printf("#   CP_SIZE_READ_*: histogram of read access sizes.\n");
     printf("#   CP_SIZE_READ_AGG_*: histogram of MPI datatype total sizes.\n");
     printf("#   CP_EXTENT_READ_*: histogram of MPI datatype extents.\n");
@@ -139,6 +140,7 @@ int main(int argc, char **argv)
     printf("#   CP_F_MPI_READ/WRITE_TIME: cumulative time spent in mpi-io reads or writes.\n");
     printf("#   CP_F_POSIX_META_TIME: cumulative time spent in posix open, close, fsync, stat and seek, .\n");
     printf("#   CP_F_MPI_META_TIME: cumulative time spent in mpi-io open, close, set_view, and sync.\n");
+    printf("#   CP_MAX_*_TIME: duration of the slowest read and write operations.\n");
 
     printf("\n");
 
@@ -206,6 +208,8 @@ int main(int argc, char **argv)
         CP_PRINT(&job, &cp_file, CP_MEM_ALIGNMENT);
         CP_PRINT(&job, &cp_file, CP_FILE_NOT_ALIGNED);
         CP_PRINT(&job, &cp_file, CP_FILE_ALIGNMENT);
+        CP_PRINT(&job, &cp_file, CP_MAX_READ_TIME_SIZE);
+        CP_PRINT(&job, &cp_file, CP_MAX_WRITE_TIME_SIZE);
         CP_PRINT(&job, &cp_file, CP_SIZE_READ_0_100);
         CP_PRINT(&job, &cp_file, CP_SIZE_READ_100_1K);
         CP_PRINT(&job, &cp_file, CP_SIZE_READ_1K_10K);
@@ -295,6 +299,8 @@ int main(int argc, char **argv)
         CP_F_PRINT(&job, &cp_file, CP_F_MPI_META_TIME);
         CP_F_PRINT(&job, &cp_file, CP_F_MPI_READ_TIME);
         CP_F_PRINT(&job, &cp_file, CP_F_MPI_WRITE_TIME);
+        CP_F_PRINT(&job, &cp_file, CP_F_MAX_READ_TIME);
+        CP_F_PRINT(&job, &cp_file, CP_F_MAX_WRITE_TIME);
     }
 
     if(ret > 0 && ret < sizeof(cp_file))

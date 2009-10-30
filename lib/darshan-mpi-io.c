@@ -1147,6 +1147,8 @@ static void darshan_file_reduce(void* infile_v,
         /* pick one */
         tmp_file.counters[CP_FILE_ALIGNMENT] = infile->counters[CP_FILE_ALIGNMENT];
         
+        /* skip CP_MAX_*_TIME_SIZE; handled in floating point section */
+
         /* sum */
         for(j=CP_SIZE_READ_0_100; j<=CP_EXTENT_WRITE_1G_PLUS; j++)
         {
@@ -1240,6 +1242,39 @@ static void darshan_file_reduce(void* infile_v,
         {
             tmp_file.fcounters[j] = infile->fcounters[j] + 
                 inoutfile->fcounters[j];
+        }
+
+        /* max (special case) */
+        if(infile->fcounters[CP_F_MAX_WRITE_TIME] > 
+            inoutfile->fcounters[CP_F_MAX_WRITE_TIME])
+        {
+            tmp_file.fcounters[CP_F_MAX_WRITE_TIME] = 
+                infile->fcounters[CP_F_MAX_WRITE_TIME];
+            tmp_file.counters[CP_MAX_WRITE_TIME_SIZE] = 
+                infile->counters[CP_MAX_WRITE_TIME_SIZE];
+        }
+        else
+        {
+            tmp_file.fcounters[CP_F_MAX_WRITE_TIME] = 
+                inoutfile->fcounters[CP_F_MAX_WRITE_TIME];
+            tmp_file.counters[CP_MAX_WRITE_TIME_SIZE] = 
+                inoutfile->counters[CP_MAX_WRITE_TIME_SIZE];
+        }
+
+        if(infile->fcounters[CP_F_MAX_READ_TIME] > 
+            inoutfile->fcounters[CP_F_MAX_READ_TIME])
+        {
+            tmp_file.fcounters[CP_F_MAX_READ_TIME] = 
+                infile->fcounters[CP_F_MAX_READ_TIME];
+            tmp_file.counters[CP_MAX_READ_TIME_SIZE] = 
+                infile->counters[CP_MAX_READ_TIME_SIZE];
+        }
+        else
+        {
+            tmp_file.fcounters[CP_F_MAX_READ_TIME] = 
+                inoutfile->fcounters[CP_F_MAX_READ_TIME];
+            tmp_file.counters[CP_MAX_READ_TIME_SIZE] = 
+                inoutfile->counters[CP_MAX_READ_TIME_SIZE];
         }
 
         /* pick one name suffix */

@@ -92,6 +92,8 @@ enum darshan_indices
     CP_MEM_ALIGNMENT,             /* mem alignment in bytes */
     CP_FILE_NOT_ALIGNED,          /* count of accesses not file aligned */
     CP_FILE_ALIGNMENT,            /* file alignment in bytes */
+    CP_MAX_READ_TIME_SIZE,
+    CP_MAX_WRITE_TIME_SIZE,
     /* buckets */
     CP_SIZE_READ_0_100,           /* count of posix read size ranges */
     CP_SIZE_READ_100_1K,
@@ -194,6 +196,8 @@ enum f_darshan_indices
     CP_F_MPI_META_TIME,         /* cumulative mpi-io meta time */
     CP_F_MPI_READ_TIME,         /* cumulative mpi-io read time */
     CP_F_MPI_WRITE_TIME,        /* cumulative mpi-io write time */
+    CP_F_MAX_READ_TIME,
+    CP_F_MAX_WRITE_TIME,
     CP_F_NUM_INDICES,
 };
 
