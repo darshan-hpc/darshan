@@ -2,6 +2,16 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-1.1.4
+=============
+* Track files opened via Parallel NetCDF
+* Track files opened via HDF5
+* Record slowest individual POSIX read and write times along with access size for those operations
+* Inspect symbols at compile time to determine whether to enable Darshan or not based on the presence of MPI and PMPI symbols
+* Use GNU and IBM compilers from path rather than hard coded location
+* Simplify warning message if unable to open log file
+* Remove unused internal benchmark routines
+
 darshan-1.1.3
 =============
 * Updated compiler scripts for V1R4 driver on BlueGene/P
