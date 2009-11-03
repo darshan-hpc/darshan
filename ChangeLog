@@ -2,6 +2,11 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-1.1.5
+=============
+* Limit PMPI usage in library to fewer functions
+* Update PMPI detection in compiler scripts to ignore functions unused by Darshan
+
 darshan-1.1.4
 =============
 * Track files opened via Parallel NetCDF
