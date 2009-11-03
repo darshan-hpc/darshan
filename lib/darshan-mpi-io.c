@@ -190,7 +190,7 @@ void darshan_shutdown(int timing_flag)
     flags = final_job->flags;
     CP_UNLOCK();
 
-    start_log_time = PMPI_Wtime();
+    start_log_time = MPI_Wtime();
 
     /* figure out which access sizes to log */
     darshan_walk_file_accesses(final_job);
@@ -237,7 +237,7 @@ void darshan_shutdown(int timing_flag)
         return;
     }
 
-    PMPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     /* construct log file name */
     if(rank == 0)
@@ -282,18 +282,18 @@ void darshan_shutdown(int timing_flag)
     }
 
     /* broadcast log file name */
-    PMPI_Bcast(logfile_name, PATH_MAX, MPI_CHAR, 0, MPI_COMM_WORLD);
+    MPI_Bcast(logfile_name, PATH_MAX, MPI_CHAR, 0, MPI_COMM_WORLD);
 
     final_job->log_job.end_time = time(NULL);
 
     /* reduce records for shared files */
     if(timing_flag)
-        red1 = PMPI_Wtime();
+        red1 = MPI_Wtime();
     local_ret = cp_log_reduction(final_job, rank, logfile_name, 
         &next_offset);
     if(timing_flag)
-        red2 = PMPI_Wtime();
-    PMPI_Allreduce(&local_ret, &all_ret, 1, MPI_INT, MPI_LOR, 
+        red2 = MPI_Wtime();
+    MPI_Allreduce(&local_ret, &all_ret, 1, MPI_INT, MPI_LOR, 
         MPI_COMM_WORLD);
 
     if(all_ret == 0)
@@ -307,12 +307,12 @@ void darshan_shutdown(int timing_flag)
     {
         /* compress data */
         if(timing_flag)
-            gz1 = PMPI_Wtime();
+            gz1 = MPI_Wtime();
         local_ret = cp_log_compress(final_job, rank, &index_count, 
             lengths, pointers);
         if(timing_flag)
-            gz2 = PMPI_Wtime();
-        PMPI_Allreduce(&local_ret, &all_ret, 1, MPI_INT, MPI_LOR, 
+            gz2 = MPI_Wtime();
+        MPI_Allreduce(&local_ret, &all_ret, 1, MPI_INT, MPI_LOR, 
             MPI_COMM_WORLD);
     }
 
@@ -320,12 +320,12 @@ void darshan_shutdown(int timing_flag)
     {
         /* actually write out log file */
         if(timing_flag)
-            write1 = PMPI_Wtime();
+            write1 = MPI_Wtime();
         local_ret = cp_log_write(final_job, rank, logfile_name, 
             index_count, lengths, pointers, start_log_time);
         if(timing_flag)
-            write2 = PMPI_Wtime();
-        PMPI_Allreduce(&local_ret, &all_ret, 1, MPI_INT, MPI_LOR, 
+            write2 = MPI_Wtime();
+        MPI_Allreduce(&local_ret, &all_ret, 1, MPI_INT, MPI_LOR, 
             MPI_COMM_WORLD);
     }
 
@@ -347,20 +347,20 @@ void darshan_shutdown(int timing_flag)
         double write_tm, write_slowest;
         double all_tm, all_slowest;
         
-        tm_end = PMPI_Wtime();
+        tm_end = MPI_Wtime();
 
         red_tm = red2-red1;
         gz_tm = gz2-gz1;
         write_tm = write2-write1;
         all_tm = tm_end-start_log_time;
 
-        PMPI_Allreduce(&red_tm, &red_slowest, 1,
+        MPI_Allreduce(&red_tm, &red_slowest, 1,
             MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        PMPI_Allreduce(&gz_tm, &gz_slowest, 1,
+        MPI_Allreduce(&gz_tm, &gz_slowest, 1,
             MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        PMPI_Allreduce(&write_tm, &write_slowest, 1,
+        MPI_Allreduce(&write_tm, &write_slowest, 1,
             MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        PMPI_Allreduce(&all_tm, &all_slowest, 1,
+        MPI_Allreduce(&all_tm, &all_slowest, 1,
             MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
         if(rank == 0)
@@ -424,7 +424,7 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
             CP_F_INC(file, CP_F_MPI_META_TIME, (tm2-tm1));
             if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
                 CP_F_SET(file, CP_F_OPEN_TIMESTAMP, MPI_Wtime());
-            PMPI_Comm_size(comm, &comm_size);
+            MPI_Comm_size(comm, &comm_size);
             if(comm_size == 1)
             {
                 CP_INC(file, CP_INDEP_OPENS, 1);
@@ -965,7 +965,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
     int shared_count = 0;
 
     /* register a reduction operation */
-    ret = PMPI_Op_create(darshan_file_reduce, 1, &reduce_op); 
+    ret = MPI_Op_create(darshan_file_reduce, 1, &reduce_op); 
     if(ret != 0)
     {
         return(-1);
@@ -974,8 +974,8 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
     /* construct a datatype for a file record.  This is serving no purpose
      * except to make sure we can do a reduction on proper boundaries
      */
-    PMPI_Type_contiguous(sizeof(struct darshan_file), MPI_BYTE, &rtype); 
-    PMPI_Type_commit(&rtype); 
+    MPI_Type_contiguous(sizeof(struct darshan_file), MPI_BYTE, &rtype); 
+    MPI_Type_commit(&rtype); 
 
     /* gather list of files that root process has opened */
     if(rank == 0)
@@ -987,7 +987,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
     }
 
     /* broadcast list of files to all other processes */
-    ret = PMPI_Bcast(hash_array, (CP_MAX_FILES * sizeof(uint64_t)), 
+    ret = MPI_Bcast(hash_array, (CP_MAX_FILES * sizeof(uint64_t)), 
         MPI_BYTE, 0, MPI_COMM_WORLD);
     if(ret != 0)
     {
@@ -1009,7 +1009,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
     }
 
     /* now allreduce so that everyone agrees on which files are shared */
-    ret = PMPI_Allreduce(mask_array, all_mask_array, CP_MAX_FILES, MPI_INT, 
+    ret = MPI_Allreduce(mask_array, all_mask_array, CP_MAX_FILES, MPI_INT, 
         MPI_LAND, MPI_COMM_WORLD);
     if(ret != 0)
     {
@@ -1055,7 +1055,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
         qsort(final_job->file_array, final_job->file_count, 
             sizeof(struct darshan_file), file_compare);
 
-        ret = PMPI_Reduce(
+        ret = MPI_Reduce(
             &final_job->file_array[final_job->file_count-shared_count], 
             tmp_array, shared_count, rtype, reduce_op, 0, MPI_COMM_WORLD);
         if(ret != 0)
@@ -1349,8 +1349,8 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     {
         displacements[i] = (MPI_Aint)(pointers[i] - buf);
     }
-    PMPI_Type_hindexed(count, lengths, displacements, MPI_BYTE, &mtype);
-    PMPI_Type_commit(&mtype); 
+    MPI_Type_hindexed(count, lengths, displacements, MPI_BYTE, &mtype);
+    MPI_Type_commit(&mtype); 
 
     ret = PMPI_File_open(MPI_COMM_WORLD, logfile_name, MPI_MODE_CREATE |
         MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
@@ -1358,16 +1358,16 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     {
         /* TODO: keep this print or not? */
         fprintf(stderr, "darshan library warning: unable to open log file %s\n", logfile_name);
-        PMPI_Type_free(&mtype);
+        MPI_Type_free(&mtype);
         return(-1);
     }
    
     PMPI_File_set_size(fh, 0);
 
     /* figure out where everyone is writing */
-    PMPI_Type_size(mtype, &my_total);
+    MPI_Type_size(mtype, &my_total);
     my_total_long = my_total;
-    PMPI_Scan(&my_total_long, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD); 
+    MPI_Scan(&my_total_long, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD); 
     /* scan is inclusive; subtract local size back out */
     offset -= my_total_long;
 
@@ -1392,7 +1392,7 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
         if(new_logfile_name)
         {
             new_logfile_name[0] = '\0';
-            end_log_time = PMPI_Wtime();
+            end_log_time = MPI_Wtime();
             strcat(new_logfile_name, logfile_name);
             mod_index = strstr(new_logfile_name, ".darshan_partial");
             sprintf(mod_index, "_%d.darshan.gz", (int)(end_log_time-start_log_time+1));
@@ -1403,7 +1403,7 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
         }
     }
 
-    PMPI_Type_free(&mtype);
+    MPI_Type_free(&mtype);
 
     if(failed_write)
     {
