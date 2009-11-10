@@ -204,6 +204,7 @@ void darshan_shutdown(int timing_flag)
     if(!darshan_global_job)
     {
         CP_UNLOCK();
+        return;
     }
     /* disable further tracing while hanging onto the data so that we can
      * write it out
