@@ -130,14 +130,37 @@ static int file_compare(const void* a, const void* b);
 int MPI_Init(int *argc, char ***argv)
 {
     int ret;
-    int nprocs;
-    int rank;
 
     ret = PMPI_Init(argc, argv);
     if(ret != MPI_SUCCESS)
     {
         return(ret);
     }
+
+    darshan_mpi_initialize(argc, argv);
+
+    return(ret);
+}
+
+int MPI_Init_thread (int *argc, char ***argv, int required, int *provided)
+{
+    int ret;
+
+    ret = PMPI_Init_thread(argc, argv, required, provided);
+    if (ret != MPI_SUCCESS)
+    {
+        return(ret);
+    }
+
+    darshan_mpi_initialize(argc, argv);
+
+    return(ret);
+}
+
+void darshan_mpi_initialize(int *argc, char ***argv)
+{
+    int nprocs;
+    int rank;
 
     MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -155,7 +178,7 @@ int MPI_Init(int *argc, char ***argv)
 
     CP_UNLOCK();
 
-    return(MPI_SUCCESS);
+    return;
 }
 
 void darshan_shutdown(int timing_flag)
