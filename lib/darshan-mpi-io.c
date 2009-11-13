@@ -126,6 +126,7 @@ static void darshan_file_reduce(void* infile_v,
 static int cp_log_compress(struct darshan_job_runtime* final_job,
     int rank, int* inout_count, int* lengths, void** pointers);
 static int file_compare(const void* a, const void* b);
+static void darshan_mpi_initialize(int *argc, char ***argv);
 
 int MPI_Init(int *argc, char ***argv)
 {
@@ -157,7 +158,7 @@ int MPI_Init_thread (int *argc, char ***argv, int required, int *provided)
     return(ret);
 }
 
-void darshan_mpi_initialize(int *argc, char ***argv)
+static void darshan_mpi_initialize(int *argc, char ***argv)
 {
     int nprocs;
     int rank;
