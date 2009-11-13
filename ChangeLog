@@ -2,6 +2,10 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-1.1.7
+=============
+* Minor fix for a compile warning
+
 darshan-1.1.6
 =============
 * Kevin Harms: bug fix for segfault in apps that use MPI_Init_thread()
