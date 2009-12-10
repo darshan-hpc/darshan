@@ -30,27 +30,27 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    file = darshan_open(argv[1]);
+    file = darshan_log_open(argv[1]);
     if(!file)
     {
-        perror("darshan_open");
+        perror("darshan_log_open");
         return(-1);
     }
    
     /* read job info */
-    ret = darshan_job_init(file, &job);
+    ret = darshan_log_getjob(file, &job);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to read job information from log file.\n");
-        darshan_finalize(file);
+        darshan_log_close(file);
         return(-1);
     }
 
-    ret = darshan_getexe(file, tmp_string, &no_files_flag);
+    ret = darshan_log_getexe(file, tmp_string, &no_files_flag);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to read trailing job information.\n");
-        darshan_finalize(file);
+        darshan_log_close(file);
         return(-1);
     }
 
@@ -72,7 +72,7 @@ int main(int argc, char **argv)
     {
         /* it looks like the app didn't open any files */
         printf("# no files opened.\n");
-        darshan_finalize(file);
+        darshan_log_close(file);
         return(0);
     }
 
@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 
     CP_PRINT_HEADER();
 
-    while((ret = darshan_getfile(file, &cp_file)) == 1)
+    while((ret = darshan_log_getfile(file, &cp_file)) == 1)
     {
         CP_PRINT(&job, &cp_file, CP_POSIX_READS);
         CP_PRINT(&job, &cp_file, CP_POSIX_WRITES);
@@ -289,6 +289,6 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    darshan_finalize(file);
+    darshan_log_close(file);
     return(0);
 }

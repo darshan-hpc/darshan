@@ -173,16 +173,16 @@ char *darshan_f_names[] = {
 };
 
 /* a rather crude API for accessing raw binary darshan files */
-darshan_fd darshan_open(char *name)
+darshan_fd darshan_log_open(char *name)
 {
     return gzopen(name, "r");
 }
 
-/* darshan_job_init()
+/* darshan_log_getjob()
  *
  * returns 0 on success, -1 on failure
  */
-int darshan_job_init(darshan_fd file, struct darshan_job *job)
+int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
 {
     int ret;
     ret = gzread(file, job, sizeof(*job));
@@ -206,11 +206,11 @@ int darshan_job_init(darshan_fd file, struct darshan_job *job)
     return(0);
 }
 
-/* darshan_getfile()
+/* darshan_log_getfile()
  *
  * return 1 if file record found, 0 on eof, and -1 on error
  */
-int darshan_getfile(darshan_fd fd, struct darshan_file *file)
+int darshan_log_getfile(darshan_fd fd, struct darshan_file *file)
 {
     int ret;
     const char* err_string;
@@ -246,7 +246,7 @@ int darshan_getfile(darshan_fd fd, struct darshan_file *file)
     return(-1);
 }
 
-int darshan_getexe(darshan_fd fd, char *buf, int *flag)
+int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
 {
     int ret;
 
@@ -263,7 +263,7 @@ int darshan_getexe(darshan_fd fd, char *buf, int *flag)
     return (0);
 }
 
-void darshan_finalize(darshan_fd file)
+void darshan_log_close(darshan_fd file)
 {
     gzclose(file);
 }

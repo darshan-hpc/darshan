@@ -43,36 +43,36 @@ int main(int argc, char ** argv)
         return(-1);
     }
 
-    file1 = darshan_open(argv[1]);
+    file1 = darshan_log_open(argv[1]);
     if(!file1) {
-        perror("darshan_open");
+        perror("darshan_log_open");
         return(-1);
     }
-    file2 = darshan_open(argv[2]);
+    file2 = darshan_log_open(argv[2]);
     if(!file2) {
-        perror("darshan_open");
+        perror("darshan_log_open");
         return(-1);
     }
 
-    if (darshan_job_init(file1, &job1))
+    if (darshan_log_getjob(file1, &job1))
     {
-        darshan_finalize(file1);
+        darshan_log_close(file1);
         return(-1);
     }
-    if (darshan_job_init(file2, &job2))
+    if (darshan_log_getjob(file2, &job2))
     {
-        darshan_finalize(file2);
+        darshan_log_close(file2);
         return(-1);
     }
 
-    if (darshan_getexe(file1, exe1, &no_files_flag1))
+    if (darshan_log_getexe(file1, exe1, &no_files_flag1))
     {
-        darshan_finalize(file1);
+        darshan_log_close(file1);
         return(-1);
     }
-    if (darshan_getexe(file2, exe2, &no_files_flag2))
+    if (darshan_log_getexe(file2, exe2, &no_files_flag2))
     {
-        darshan_finalize(file2);
+        darshan_log_close(file2);
         return(-1);
     }
 
@@ -98,18 +98,18 @@ int main(int argc, char ** argv)
      * buffers in the while loop */
 
     do {
-        ret1 = darshan_getfile(file1, &cp_file1);
+        ret1 = darshan_log_getfile(file1, &cp_file1);
 	if (ret1 < 0) 
 	{
-		perror("darshan_getfile");
-		darshan_finalize(file1);
+		perror("darshan_log_getfile");
+		darshan_log_close(file1);
 		return(-1);
 	}
-        ret2 = darshan_getfile(file2, &cp_file2);
+        ret2 = darshan_log_getfile(file2, &cp_file2);
 	if (ret2 < 0) 
 	{
-		perror("darshan_getfile");
-		darshan_finalize(file2);
+		perror("darshan_log_getfile");
+		darshan_log_close(file2);
 		return(-1);
 	}
 
@@ -142,8 +142,8 @@ int main(int argc, char ** argv)
     } while (ret1 == 1 || ret2 == 1);
 
 
-    darshan_finalize(file1);
-    darshan_finalize(file2);
+    darshan_log_close(file1);
+    darshan_log_close(file2);
     return(0);
 }
 
