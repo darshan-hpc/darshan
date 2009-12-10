@@ -46,6 +46,9 @@ int main(int argc, char **argv)
         return(-1);
     }
 
+    /* warn user about any missing information in this log format */
+    darshan_log_print_version_warnings(&job);
+
     ret = darshan_log_getexe(file, tmp_string, &no_files_flag);
     if(ret < 0)
     {

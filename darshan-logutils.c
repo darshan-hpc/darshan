@@ -268,3 +268,49 @@ void darshan_log_close(darshan_fd file)
     gzclose(file);
 }
 
+/* darshan_log_print_version_warnings()
+ *
+ * Print summary of any problems with the detected log format
+ */
+void darshan_log_print_version_warnings(struct darshan_job *job)
+{
+    if(strcmp(job->version_string, "1.22") == 0)
+    {
+        /* nothing to do, this is the current version */
+        return;
+    }
+
+    if(strcmp(job->version_string, "1.21") == 0)
+    {
+        printf("# WARNING: version 1.21 log format does not support the following parameters:\n");
+        printf("#   CP_INDEP_NC_OPENS\n");
+        printf("#   CP_COLL_NC_OPENS\n");
+        printf("#   CP_HDF5_OPENS\n");
+        printf("#   CP_MAX_READ_TIME_SIZE\n");
+        printf("#   CP_MAX_WRITE_TIME_SIZE\n");
+        printf("#   CP_F_MAX_READ_TIME\n");
+        printf("#   CP_F_MAX_WRITE_TIME\n");
+        return;
+    }
+
+    fprintf(stderr, "Error: version %s not supported by parser.\n",
+        job->version_string);
+    return;
+}
+
+/*******************************
+ * version 1.21 to 1.22 differences 
+ * - added:
+ *   - CP_INDEP_NC_OPENS
+ *   - CP_COLL_NC_OPENS
+ *   - CP_HDF5_OPENS
+ *   - CP_MAX_READ_TIME_SIZE
+ *   - CP_MAX_WRITE_TIME_SIZE
+ *   - CP_F_MAX_READ_TIME
+ *   - CP_F_MAX_WRITE_TIME
+ * - changed params:
+ *   - CP_FILE_RECORD_SIZE: 1184 to 1240
+ *   - CP_NUM_INDICES: 133 to 138
+ *   - CP_F_NUM_INDICES: 12 to 14
+ * - so 56 bytes worth of new indices are the only difference
+ */
