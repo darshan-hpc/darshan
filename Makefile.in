@@ -1,4 +1,4 @@
-all: checkpath lib/libdarshan-posix.a lib/libdarshan-mpi-io.a darshan-parser darshan-diff darshan-analyzer test/gztest test/gz-bench 
+all: checkpath lib/libdarshan-posix.a lib/libdarshan-mpi-io.a darshan-parser darshan-diff darshan-analyzer test/gztest test/gz-bench darshan-log-params
 
 DESTDIR =
 srcdir = @srcdir@
@@ -37,6 +37,9 @@ darshan-parser: darshan-parser.c darshan.h darshan-log-format.h darshan-logutils
 	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
 
 darshan-analyzer: darshan-analyzer.c darshan.h darshan-log-format.h
+	gcc $(CFLAGS) -lz $< -o $@
+
+darshan-log-params: darshan-log-params.c darshan-log-format.h
 	gcc $(CFLAGS) -lz $< -o $@
 
 darshan-diff: darshan-diff.o darshan.h darshan-log-format.h darshan-logutils.o darshan-logutils.h
