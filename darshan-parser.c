@@ -23,6 +23,7 @@ int main(int argc, char **argv)
     int no_files_flag = 0;
     time_t tmp_time = 0;
     darshan_fd file;
+    int i;
 
     if(argc != 2)
     {
@@ -131,159 +132,14 @@ int main(int argc, char **argv)
 
     while((ret = darshan_log_getfile(file, &job, &cp_file)) == 1)
     {
-        CP_PRINT(&job, &cp_file, CP_POSIX_READS);
-        CP_PRINT(&job, &cp_file, CP_POSIX_WRITES);
-        CP_PRINT(&job, &cp_file, CP_POSIX_OPENS);
-        CP_PRINT(&job, &cp_file, CP_POSIX_SEEKS);
-        CP_PRINT(&job, &cp_file, CP_POSIX_STATS);
-        CP_PRINT(&job, &cp_file, CP_POSIX_MMAPS);
-        CP_PRINT(&job, &cp_file, CP_POSIX_FREADS);
-        CP_PRINT(&job, &cp_file, CP_POSIX_FWRITES);
-        CP_PRINT(&job, &cp_file, CP_POSIX_FOPENS);
-        CP_PRINT(&job, &cp_file, CP_POSIX_FSEEKS);
-        CP_PRINT(&job, &cp_file, CP_POSIX_FSYNCS);
-        CP_PRINT(&job, &cp_file, CP_POSIX_FDSYNCS);
-        CP_PRINT(&job, &cp_file, CP_INDEP_OPENS);
-        CP_PRINT(&job, &cp_file, CP_COLL_OPENS);
-        CP_PRINT(&job, &cp_file, CP_INDEP_READS);
-        CP_PRINT(&job, &cp_file, CP_INDEP_WRITES);
-        CP_PRINT(&job, &cp_file, CP_COLL_READS);
-        CP_PRINT(&job, &cp_file, CP_COLL_WRITES);
-        CP_PRINT(&job, &cp_file, CP_SPLIT_READS);
-        CP_PRINT(&job, &cp_file, CP_SPLIT_WRITES);
-        CP_PRINT(&job, &cp_file, CP_NB_READS);
-        CP_PRINT(&job, &cp_file, CP_NB_WRITES);
-        CP_PRINT(&job, &cp_file, CP_SYNCS);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_NAMED);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_DUP);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_CONTIGUOUS);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_VECTOR);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_HVECTOR_INTEGER);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_HVECTOR);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_INDEXED);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_HINDEXED_INTEGER);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_HINDEXED);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_INDEXED_BLOCK);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_STRUCT_INTEGER);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_STRUCT);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_SUBARRAY);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_DARRAY);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_F90_REAL);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_F90_COMPLEX);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_F90_INTEGER);
-        CP_PRINT(&job, &cp_file, CP_COMBINER_RESIZED);
-        CP_PRINT(&job, &cp_file, CP_INDEP_NC_OPENS);
-        CP_PRINT(&job, &cp_file, CP_COLL_NC_OPENS);
-        CP_PRINT(&job, &cp_file, CP_HDF5_OPENS);
-        CP_PRINT(&job, &cp_file, CP_HINTS);
-        CP_PRINT(&job, &cp_file, CP_VIEWS);
-        CP_PRINT(&job, &cp_file, CP_MODE);
-        CP_PRINT(&job, &cp_file, CP_BYTES_READ);
-        CP_PRINT(&job, &cp_file, CP_BYTES_WRITTEN);
-        CP_PRINT(&job, &cp_file, CP_MAX_BYTE_READ);
-        CP_PRINT(&job, &cp_file, CP_MAX_BYTE_WRITTEN);
-        CP_PRINT(&job, &cp_file, CP_CONSEC_READS);
-        CP_PRINT(&job, &cp_file, CP_CONSEC_WRITES);
-        CP_PRINT(&job, &cp_file, CP_SEQ_READS);
-        CP_PRINT(&job, &cp_file, CP_SEQ_WRITES);
-        CP_PRINT(&job, &cp_file, CP_RW_SWITCHES);
-        CP_PRINT(&job, &cp_file, CP_MEM_NOT_ALIGNED);
-        CP_PRINT(&job, &cp_file, CP_MEM_ALIGNMENT);
-        CP_PRINT(&job, &cp_file, CP_FILE_NOT_ALIGNED);
-        CP_PRINT(&job, &cp_file, CP_FILE_ALIGNMENT);
-        CP_PRINT(&job, &cp_file, CP_MAX_READ_TIME_SIZE);
-        CP_PRINT(&job, &cp_file, CP_MAX_WRITE_TIME_SIZE);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_0_100);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_100_1K);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_1K_10K);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_10K_100K);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_100K_1M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_1M_4M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_4M_10M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_10M_100M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_100M_1G);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_1G_PLUS);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_AGG_0_100);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_AGG_100_1K);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_AGG_1K_10K);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_AGG_10K_100K);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_AGG_100K_1M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_AGG_1M_4M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_AGG_4M_10M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_AGG_10M_100M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_AGG_100M_1G);
-        CP_PRINT(&job, &cp_file, CP_SIZE_READ_AGG_1G_PLUS);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_READ_0_100);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_READ_100_1K);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_READ_1K_10K);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_READ_10K_100K);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_READ_100K_1M);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_READ_1M_4M);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_READ_4M_10M);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_READ_10M_100M);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_READ_100M_1G);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_READ_1G_PLUS);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_0_100);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_100_1K);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_1K_10K);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_10K_100K);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_100K_1M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_1M_4M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_4M_10M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_10M_100M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_100M_1G);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_1G_PLUS);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_AGG_0_100);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_AGG_100_1K);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_AGG_1K_10K);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_AGG_10K_100K);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_AGG_100K_1M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_AGG_1M_4M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_AGG_4M_10M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_AGG_10M_100M);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_AGG_100M_1G);
-        CP_PRINT(&job, &cp_file, CP_SIZE_WRITE_AGG_1G_PLUS);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_WRITE_0_100);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_WRITE_100_1K);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_WRITE_1K_10K);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_WRITE_10K_100K);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_WRITE_100K_1M);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_WRITE_1M_4M);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_WRITE_4M_10M);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_WRITE_10M_100M);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_WRITE_100M_1G);
-        CP_PRINT(&job, &cp_file, CP_EXTENT_WRITE_1G_PLUS);
-        CP_PRINT(&job, &cp_file, CP_STRIDE1_STRIDE);
-        CP_PRINT(&job, &cp_file, CP_STRIDE1_COUNT);
-        CP_PRINT(&job, &cp_file, CP_STRIDE2_STRIDE);
-        CP_PRINT(&job, &cp_file, CP_STRIDE2_COUNT);
-        CP_PRINT(&job, &cp_file, CP_STRIDE3_STRIDE);
-        CP_PRINT(&job, &cp_file, CP_STRIDE3_COUNT);
-        CP_PRINT(&job, &cp_file, CP_STRIDE4_STRIDE);
-        CP_PRINT(&job, &cp_file, CP_STRIDE4_COUNT);
-        CP_PRINT(&job, &cp_file, CP_ACCESS1_ACCESS);
-        CP_PRINT(&job, &cp_file, CP_ACCESS1_COUNT);
-        CP_PRINT(&job, &cp_file, CP_ACCESS2_ACCESS);
-        CP_PRINT(&job, &cp_file, CP_ACCESS2_COUNT);
-        CP_PRINT(&job, &cp_file, CP_ACCESS3_ACCESS);
-        CP_PRINT(&job, &cp_file, CP_ACCESS3_COUNT);
-        CP_PRINT(&job, &cp_file, CP_ACCESS4_ACCESS);
-        CP_PRINT(&job, &cp_file, CP_ACCESS4_COUNT);
-
-        CP_F_PRINT(&job, &cp_file, CP_F_OPEN_TIMESTAMP);
-        CP_F_PRINT(&job, &cp_file, CP_F_CLOSE_TIMESTAMP);
-        CP_F_PRINT(&job, &cp_file, CP_F_READ_START_TIMESTAMP);
-        CP_F_PRINT(&job, &cp_file, CP_F_READ_END_TIMESTAMP);
-        CP_F_PRINT(&job, &cp_file, CP_F_WRITE_START_TIMESTAMP);
-        CP_F_PRINT(&job, &cp_file, CP_F_WRITE_END_TIMESTAMP);
-        CP_F_PRINT(&job, &cp_file, CP_F_POSIX_READ_TIME);
-        CP_F_PRINT(&job, &cp_file, CP_F_POSIX_WRITE_TIME);
-        CP_F_PRINT(&job, &cp_file, CP_F_POSIX_META_TIME);
-        CP_F_PRINT(&job, &cp_file, CP_F_MPI_META_TIME);
-        CP_F_PRINT(&job, &cp_file, CP_F_MPI_READ_TIME);
-        CP_F_PRINT(&job, &cp_file, CP_F_MPI_WRITE_TIME);
-        CP_F_PRINT(&job, &cp_file, CP_F_MAX_READ_TIME);
-        CP_F_PRINT(&job, &cp_file, CP_F_MAX_WRITE_TIME);
+        for(i=0; i<CP_NUM_INDICES; i++)
+        {
+            CP_PRINT(&job, &cp_file, i);
+        }
+        for(i=0; i<CP_F_NUM_INDICES; i++)
+        {
+            CP_F_PRINT(&job, &cp_file, i);
+        }
     }
 
     if(ret < 0)
