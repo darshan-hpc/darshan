@@ -201,7 +201,7 @@ struct darshan_file_1_21
 static void shift_missing_1_21(struct darshan_file* file);
 
 /* a rather crude API for accessing raw binary darshan files */
-darshan_fd darshan_log_open(char *name)
+darshan_fd darshan_log_open(const char *name)
 {
     return gzopen(name, "r");
 }
@@ -319,6 +319,7 @@ int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
         perror("gzread");
         return(-1);
     }
+    *flag = 0;
     return (0);
 }
 

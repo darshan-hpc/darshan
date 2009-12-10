@@ -36,8 +36,8 @@ mktestdir::
 darshan-parser: darshan-parser.c darshan.h darshan-log-format.h darshan-logutils.o
 	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
 
-darshan-analyzer: darshan-analyzer.c darshan.h darshan-log-format.h
-	gcc $(CFLAGS) -lz $< -o $@
+darshan-analyzer: darshan-analyzer.c darshan.h darshan-log-format.h darshan-logutils.o
+	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
 
 darshan-log-params: darshan-log-params.c darshan-log-format.h
 	gcc $(CFLAGS) -lz $< -o $@
