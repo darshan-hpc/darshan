@@ -221,9 +221,6 @@ struct darshan_job
     int nprocs;
 };
 
-/* convenience macros for printing out counters */
-#define CP_PRINT_HEADER() printf("#<rank>\t<file>\t<counter>\t<value>\t<name suffix>\n")
-
 #if SIZEOF_LONG_INT == 4
 #  define llu(x) (x)
 #  define lld(x) (x)
@@ -235,19 +232,5 @@ struct darshan_job
 #else
 #  error Unexpected sizeof(long int)
 #endif
-
-/* for integers */
-#define CP_PRINT(__job, __file, __counter) do {\
-        printf("%d\t%llu\t%s\t%lld\t...%s\n", \
-            (__file)->rank, llu((__file)->hash), #__counter, \
-            lld((__file)->counters[__counter]), (__file)->name_suffix); \
-} while(0)
-
-/* for double floats */
-#define CP_F_PRINT(__job, __file, __counter) do {\
-        printf("%d\t%llu\t%s\t%f\t...%s\n", \
-            (__file)->rank, llu((__file)->hash), #__counter, \
-            (__file)->fcounters[__counter], (__file)->name_suffix); \
-} while(0)
 
 #endif /* __DARSHAN_LOG_FORMAT_H */

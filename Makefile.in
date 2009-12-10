@@ -33,10 +33,10 @@ mklibdir::
 mktestdir::
 	mkdir -p test
 
-darshan-parser: darshan-parser.c darshan.h darshan-log-format.h darshan-logutils.o
+darshan-parser: darshan-parser.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o
 	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
 
-darshan-analyzer: darshan-analyzer.c darshan.h darshan-log-format.h darshan-logutils.o
+darshan-analyzer: darshan-analyzer.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o
 	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
 
 darshan-log-params: darshan-log-params.c darshan-log-format.h
