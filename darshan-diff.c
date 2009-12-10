@@ -98,14 +98,14 @@ int main(int argc, char ** argv)
      * buffers in the while loop */
 
     do {
-        ret1 = darshan_log_getfile(file1, &cp_file1);
+        ret1 = darshan_log_getfile(file1, &job1, &cp_file1);
 	if (ret1 < 0) 
 	{
 		perror("darshan_log_getfile");
 		darshan_log_close(file1);
 		return(-1);
 	}
-        ret2 = darshan_log_getfile(file2, &cp_file2);
+        ret2 = darshan_log_getfile(file2, &job2, &cp_file2);
 	if (ret2 < 0) 
 	{
 		perror("darshan_log_getfile");

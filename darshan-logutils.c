@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include "darshan-logutils.h"
 
 /* isn't there a clever c way to avoid this? */
@@ -172,6 +173,35 @@ char *darshan_f_names[] = {
     "CP_F_NUM_INDICES",
 };
 
+/*******************************
+ * version 1.21 to 1.22 differences 
+ * - added:
+ *   - CP_INDEP_NC_OPENS
+ *   - CP_COLL_NC_OPENS
+ *   - CP_HDF5_OPENS
+ *   - CP_MAX_READ_TIME_SIZE
+ *   - CP_MAX_WRITE_TIME_SIZE
+ *   - CP_F_MAX_READ_TIME
+ *   - CP_F_MAX_WRITE_TIME
+ * - changed params:
+ *   - CP_FILE_RECORD_SIZE: 1184 to 1240
+ *   - CP_NUM_INDICES: 133 to 138
+ *   - CP_F_NUM_INDICES: 12 to 14
+ * - so 56 bytes worth of new indices are the only difference
+ */
+#define CP_NUM_INDICES_1_21 133
+#define CP_F_NUM_INDICES_1_21 12
+struct darshan_file_1_21
+{
+    uint64_t hash;
+    int rank;
+    int64_t counters[CP_NUM_INDICES_1_21];
+    double fcounters[CP_F_NUM_INDICES_1_21];
+    char name_suffix[CP_NAME_SUFFIX_LEN+1];
+};
+
+static void shift_missing_1_21(struct darshan_file* file);
+
 /* a rather crude API for accessing raw binary darshan files */
 darshan_fd darshan_log_open(char *name)
 {
@@ -195,36 +225,67 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
         perror("darshan_job_init");
         return(-1);
     }
-    if (strcmp(job->version_string, CP_VERSION))
-    {
-        fprintf(stderr, "Error: incompatible darshan file.\n");
-        fprintf(stderr, "Error: expected version %s, but got %s\n", 
-                CP_VERSION, job->version_string);
-        return(-1);
-    }
+    if(strcmp(job->version_string, "1.21"))
+        return(0);
+    if(strcmp(job->version_string, "1.22"))
+        return(0);
 
-    return(0);
+    fprintf(stderr, "Error: incompatible darshan file.\n");
+    fprintf(stderr, "Error: expected version %s, but got %s\n", 
+            CP_VERSION, job->version_string);
+    return(-1);
 }
 
 /* darshan_log_getfile()
  *
  * return 1 if file record found, 0 on eof, and -1 on error
  */
-int darshan_log_getfile(darshan_fd fd, struct darshan_file *file)
+int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_file *file)
 {
     int ret;
     const char* err_string;
+    struct darshan_file_1_21 file_1_21;
 
     /* reset file record, so that diff compares against a zero'd out record
      * if file is missing
      */
     memset(file, 0, sizeof(&file));
 
-    ret = gzread(fd, file, sizeof(*file));
-    if(ret == sizeof(*file))
+    if(strcmp(job->version_string, "1.21") == 0)
     {
-        /* got exactly one, correct size record */
-        return(1);
+        ret = gzread(fd, &file_1_21, sizeof(file_1_21));
+        if(ret == sizeof(file_1_21))
+        {
+            /* convert to new file record structure */
+            file->hash = file_1_21.hash;
+            file->rank = file_1_21.rank;
+            strcpy(file->name_suffix, file_1_21.name_suffix);
+            memcpy(file->counters, file_1_21.counters,
+                (CP_NUM_INDICES_1_21*sizeof(int64_t)));
+            memcpy(file->fcounters, file_1_21.fcounters,
+                (CP_F_NUM_INDICES_1_21*sizeof(double)));
+            shift_missing_1_21(file);
+
+            /* got exactly one, correct size record */
+            return(1);
+        }
+    }
+    else if(strcmp(job->version_string, "1.22") == 0)
+    {
+        /* make sure this is the current version */
+        assert(strcmp("1.22", CP_VERSION) == 0);
+
+        ret = gzread(fd, file, sizeof(*file));
+        if(ret == sizeof(*file))
+        {
+            /* got exactly one, correct size record */
+            return(1);
+        }
+    }
+    else
+    {
+        fprintf(stderr, "Error: invalid log file version.\n");
+        return(-1);
     }
 
     if(ret > 0)
@@ -290,6 +351,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_MAX_WRITE_TIME_SIZE\n");
         printf("#   CP_F_MAX_READ_TIME\n");
         printf("#   CP_F_MAX_WRITE_TIME\n");
+        printf("#\n");
         return;
     }
 
@@ -298,19 +360,57 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
     return;
 }
 
-/*******************************
- * version 1.21 to 1.22 differences 
- * - added:
- *   - CP_INDEP_NC_OPENS
- *   - CP_COLL_NC_OPENS
- *   - CP_HDF5_OPENS
- *   - CP_MAX_READ_TIME_SIZE
- *   - CP_MAX_WRITE_TIME_SIZE
- *   - CP_F_MAX_READ_TIME
- *   - CP_F_MAX_WRITE_TIME
- * - changed params:
- *   - CP_FILE_RECORD_SIZE: 1184 to 1240
- *   - CP_NUM_INDICES: 133 to 138
- *   - CP_F_NUM_INDICES: 12 to 14
- * - so 56 bytes worth of new indices are the only difference
+/* shift_missing_1_21()
+ *
+ * translates indices to account for counters that weren't present in log
+ * format 1.21
  */
+static void shift_missing_1_21(struct darshan_file* file)
+{
+    int c_index = 0;
+    int missing_counters[] = {
+        CP_INDEP_NC_OPENS,
+        CP_COLL_NC_OPENS,
+        CP_HDF5_OPENS,
+        CP_MAX_READ_TIME_SIZE,
+        CP_MAX_WRITE_TIME_SIZE,
+        -1};
+    int missing_f_counters[] = {
+        CP_F_MAX_READ_TIME,
+        CP_F_MAX_WRITE_TIME,
+        -1};
+
+    c_index = 0;
+    while(missing_counters[c_index] != -1)
+    {
+        int missing_counter = missing_counters[c_index];
+        c_index++;
+        if(missing_counter < (CP_NUM_INDICES - 1))
+        {
+            /* shift down */
+            memmove(&file->counters[missing_counter+1],
+                &file->counters[missing_counter],
+                (CP_NUM_INDICES-missing_counter-1)*sizeof(int64_t));
+        }
+        /* zero out missing counter */
+        file->counters[missing_counter] = 0;
+    }
+
+    c_index = 0;
+    while(missing_f_counters[c_index] != -1)
+    {
+        int missing_counter = missing_f_counters[c_index];
+        c_index++;
+        if(missing_counter < (CP_F_NUM_INDICES - 1))
+        {
+            /* shift down */
+            memmove(&file->fcounters[missing_counter+1],
+                &file->fcounters[missing_counter],
+                (CP_F_NUM_INDICES-missing_counter-1)*sizeof(double));
+        }
+        /* zero out missing counter */
+        file->fcounters[missing_counter] = 0;
+    }
+
+    return;
+}

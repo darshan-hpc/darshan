@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 
     CP_PRINT_HEADER();
 
-    while((ret = darshan_log_getfile(file, &cp_file)) == 1)
+    while((ret = darshan_log_getfile(file, &job, &cp_file)) == 1)
     {
         CP_PRINT(&job, &cp_file, CP_POSIX_READS);
         CP_PRINT(&job, &cp_file, CP_POSIX_WRITES);
