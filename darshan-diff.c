@@ -113,19 +113,6 @@ int main(int argc, char ** argv)
 		return(-1);
 	}
 
-
-        if (ret1 > 0 && ret1 <sizeof(cp_file1))
-        {
-            fprintf(stderr, "Error: %s has invalid size.\n", argv[1]);
-            darshan_finalize(file1);
-            return(-1);
-        }
-        if (ret2 > 0 && ret2< sizeof(cp_file2))
-        {
-            fprintf(stderr, "Error: %s has invalid size.\n", argv[2]);
-            darshan_finalize(file2);
-            return(-1);
-        }
         for(i=0; i<CP_NUM_INDICES; i++) {
             if (cp_file1.counters[i] != cp_file2.counters[i]) {
 		printf("- ");
@@ -152,7 +139,7 @@ int main(int argc, char ** argv)
         }
 
 
-    } while (ret1 == sizeof(cp_file1) || ret2 == sizeof(cp_file2));
+    } while (ret1 == 1 || ret2 == 1);
 
 
     darshan_finalize(file1);

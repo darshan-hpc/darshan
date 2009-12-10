@@ -12,17 +12,17 @@
 #include <zlib.h>
 #include <time.h>
 
-#include "darshan-log-format.h"
+#include "darshan-logutils.h"
 
 int main(int argc, char **argv)
 {
-    gzFile file;
     int ret;
     struct darshan_job job;
     struct darshan_file cp_file;
     char tmp_string[1024];
     int no_files_flag = 0;
     time_t tmp_time = 0;
+    darshan_fd file;
 
     if(argc != 2)
     {
@@ -30,47 +30,27 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    file = gzopen(argv[1], "r");
+    file = darshan_open(argv[1]);
     if(!file)
     {
-        perror("gzopen");
+        perror("darshan_open");
         return(-1);
     }
    
     /* read job info */
-    ret = gzread(file, &job, sizeof(job));
-    if(ret < sizeof(job))
+    ret = darshan_job_init(file, &job);
+    if(ret < 0)
     {
-        if(gzeof(file))
-        {
-            fprintf(stderr, "Error: invalid log file (too short).\n");
-            gzclose(file);
-            return(-1);
-        }
-        perror("gzread");
-        gzclose(file);
+        fprintf(stderr, "Error: unable to read job information from log file.\n");
+        darshan_finalize(file);
         return(-1);
     }
 
-    /* check version string */
-    if(strcmp(job.version_string, CP_VERSION))
+    ret = darshan_getexe(file, tmp_string, &no_files_flag);
+    if(ret < 0)
     {
-        fprintf(stderr, "Error: incompatible darshan file.\n");
-        fprintf(stderr, "Error: expected version %s, but got %s\n", CP_VERSION, job.version_string);
-        gzclose(file);
-        return(-1);
-    }
-
-    /* read trailing exe string */
-    ret = gzread(file, tmp_string, (CP_EXE_LEN + 1));
-    if(ret < (CP_EXE_LEN + 1))
-    {
-        if(gzeof(file))
-        {
-            no_files_flag = 1;
-        }
-        perror("gzread");
-        gzclose(file);
+        fprintf(stderr, "Error: unable to read trailing job information.\n");
+        darshan_finalize(file);
         return(-1);
     }
 
@@ -92,7 +72,7 @@ int main(int argc, char **argv)
     {
         /* it looks like the app didn't open any files */
         printf("# no files opened.\n");
-        gzclose(file);
+        darshan_finalize(file);
         return(0);
     }
 
@@ -146,7 +126,7 @@ int main(int argc, char **argv)
 
     CP_PRINT_HEADER();
 
-    while((ret = gzread(file, &cp_file, sizeof(cp_file))) == sizeof(cp_file))
+    while((ret = darshan_getfile(file, &cp_file)) == 1)
     {
         CP_PRINT(&job, &cp_file, CP_POSIX_READS);
         CP_PRINT(&job, &cp_file, CP_POSIX_WRITES);
@@ -303,19 +283,12 @@ int main(int argc, char **argv)
         CP_F_PRINT(&job, &cp_file, CP_F_MAX_WRITE_TIME);
     }
 
-    if(ret > 0 && ret < sizeof(cp_file))
+    if(ret < 0)
     {
-        fprintf(stderr, "Error: log file has invalid size.\n");
-        gzclose(file);
-        return(-1);
-    }
-    if(!gzeof(file))
-    {
-        perror("gzread");
-        gzclose(file);
+        fprintf(stderr, "Error: failed to parse log file.\n");
         return(-1);
     }
 
-    gzclose(file);
+    darshan_finalize(file);
     return(0);
 }

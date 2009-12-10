@@ -178,6 +178,10 @@ darshan_fd darshan_open(char *name)
     return gzopen(name, "r");
 }
 
+/* darshan_job_init()
+ *
+ * returns 0 on success, -1 on failure
+ */
 int darshan_job_init(darshan_fd file, struct darshan_job *job)
 {
     int ret;
@@ -202,9 +206,44 @@ int darshan_job_init(darshan_fd file, struct darshan_job *job)
     return(0);
 }
 
+/* darshan_getfile()
+ *
+ * return 1 if file record found, 0 on eof, and -1 on error
+ */
 int darshan_getfile(darshan_fd fd, struct darshan_file *file)
 {
-    return gzread(fd, file, sizeof(*file));
+    int ret;
+    const char* err_string;
+
+    /* reset file record, so that diff compares against a zero'd out record
+     * if file is missing
+     */
+    memset(file, 0, sizeof(&file));
+
+    ret = gzread(fd, file, sizeof(*file));
+    if(ret == sizeof(*file))
+    {
+        /* got exactly one, correct size record */
+        return(1);
+    }
+
+    if(ret > 0)
+    {
+        /* got a short read */
+        fprintf(stderr, "Error: invalid file record (too small)\n");
+        return(-1);
+    }
+
+    if(ret == 0 && gzeof(fd))
+    {
+        /* hit end of file */
+        return(0);
+    }
+
+    /* all other errors */
+    err_string = gzerror(fd, &ret);
+    fprintf(stderr, "Error: %s\n", err_string);
+    return(-1);
 }
 
 int darshan_getexe(darshan_fd fd, char *buf, int *flag)
