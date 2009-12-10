@@ -1,4 +1,4 @@
-all: checkpath lib/libdarshan-posix.a lib/libdarshan-mpi-io.a darshan-parser darshan-diff test/gztest test/gz-bench 
+all: checkpath lib/libdarshan-posix.a lib/libdarshan-mpi-io.a darshan-parser darshan-diff darshan-analyzer test/gztest test/gz-bench 
 
 DESTDIR =
 srcdir = @srcdir@
@@ -34,6 +34,9 @@ mktestdir::
 	mkdir -p test
 
 darshan-parser: darshan-parser.c darshan.h darshan-log-format.h
+	gcc $(CFLAGS) -lz $< -o $@
+
+darshan-analyzer: darshan-analyzer.c darshan.h darshan-log-format.h
 	gcc $(CFLAGS) -lz $< -o $@
 
 darshan-diff: darshan-diff.o darshan.h darshan-log-format.h darshan-logutils.o darshan-logutils.h
@@ -78,6 +81,7 @@ install:: all
 	install -d $(bindir)
 	install -m 755 darshan-parser $(bindir)
 	install -m 755 darshan-diff $(bindir)
+	install -m 755 darshan-analyzer $(bindir)
 	install -m 755 darshan-mk-log-dirs.pl $(bindir)
 	install -m 755 darshan-gen-cc.pl $(bindir)
 	install -m 755 compilers/mpicc-trace-bgp-V1R4 $(bindir)/mpicc
@@ -98,4 +102,4 @@ install:: all
 	install -m 755 compilers/mpixlf95_r-trace-bgp-V1R4 $(bindir)/mpixlf95_r
 
 clean::
-	rm -f *.o *.a lib/*.o lib/*.a darshan-parser darshan-diff
+	rm -f *.o *.a lib/*.o lib/*.a darshan-parser darshan-diff darshan-analyzer

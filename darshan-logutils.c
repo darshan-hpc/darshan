@@ -172,7 +172,7 @@ char *darshan_f_names[] = {
     "CP_F_NUM_INDICES",
 };
 
-/* a rather crude API for accessing raw binary chutzpa files */
+/* a rather crude API for accessing raw binary darshan files */
 darshan_fd darshan_open(char *name)
 {
     return gzopen(name, "r");

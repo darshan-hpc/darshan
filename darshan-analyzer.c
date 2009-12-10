@@ -367,9 +367,22 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
 
 int main(int argc, char **argv)
 {
+    int ret = 0;
+
+    if(argc != 2)
+    {
+        fprintf(stderr, "Error: bad arguments.\n");
+        return(-1);
+    }
+
     base = argv[1];
 
-    ftw(base, tree_walk, 512);
+    ret = ftw(base, tree_walk, 512);
+    if(ret != 0)
+    {
+        fprintf(stderr, "Error: failed to walk path: %s\n", base);
+        return(-1);
+    }
 
     printf ("   log: %s\n", base);
     printf (" total: %d\n", total_count);
