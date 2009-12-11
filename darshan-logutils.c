@@ -322,14 +322,14 @@ int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
     ret = gzread(fd, buf, (CP_EXE_LEN + 1));
     if (ret < (CP_EXE_LEN + 1))
     {
-        if (gzeof(fd))
-        {
-            *flag = 1;
-        }
         perror("gzread");
         return(-1);
     }
-    *flag = 0;
+    if (gzeof(fd))
+        *flag = 1;
+    else
+        *flag = 0;
+
     return (0);
 }
 
