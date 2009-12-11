@@ -475,9 +475,17 @@ void darshan_log_close(darshan_fd file)
  */
 void darshan_log_print_version_warnings(struct darshan_job *job)
 {
-    if(strcmp(job->version_string, "1.22") == 0)
+    if(strcmp(job->version_string, "1.23") == 0)
     {
         /* nothing to do, this is the current version */
+        return;
+    }
+    
+    if(strcmp(job->version_string, "1.22") == 0)
+    {
+        printf("# WARNING: version 1.22 log format does not support the following parameters:\n");
+        printf("#   CP_DEVICE\n");
+        printf("# It also does not record mounted file systems, mount points, or fs types.\n");
         return;
     }
 
@@ -489,8 +497,10 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_HDF5_OPENS\n");
         printf("#   CP_MAX_READ_TIME_SIZE\n");
         printf("#   CP_MAX_WRITE_TIME_SIZE\n");
+        printf("#   CP_DEVICE\n");
         printf("#   CP_F_MAX_READ_TIME\n");
         printf("#   CP_F_MAX_WRITE_TIME\n");
+        printf("# It also does not record mounted file systems, mount points, or fs types.\n");
         printf("#\n");
         return;
     }

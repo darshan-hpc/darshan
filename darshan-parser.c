@@ -86,12 +86,7 @@ int main(int argc, char **argv)
     for(i=0; i<mount_count; i++)
     {
         printf("# mount entry: %d\t%s\t%s\n", devs[i], mnt_pts[i], fs_types[i]);
-        free(mnt_pts[i]);
-        free(fs_types[i]);
     }
-    free(devs);
-    free(mnt_pts);
-    free(fs_types);
   
     if(no_files_flag)
     {
@@ -153,13 +148,30 @@ int main(int argc, char **argv)
 
     while((ret = darshan_log_getfile(file, &job, &cp_file)) == 1)
     {
+        char* mnt_pt = NULL;
+        char* fs_type = NULL;
+        
+        for(i=0; i<mount_count; i++)
+        {
+            if(cp_file.counters[CP_DEVICE] == devs[i])
+            {
+                mnt_pt = mnt_pts[i];
+                fs_type = fs_types[i];
+                break;
+            }
+        }
+        if(!mnt_pt)
+            mnt_pt = "UNKNOWN";
+        if(!fs_type)
+            fs_type = "UNKNOWN";
+
         for(i=0; i<CP_NUM_INDICES; i++)
         {
-            CP_PRINT(&job, &cp_file, i);
+            CP_PRINT(&job, &cp_file, i, mnt_pt, fs_type);
         }
         for(i=0; i<CP_F_NUM_INDICES; i++)
         {
-            CP_F_PRINT(&job, &cp_file, i);
+            CP_F_PRINT(&job, &cp_file, i, mnt_pt, fs_type);
         }
     }
 
@@ -169,6 +181,15 @@ int main(int argc, char **argv)
         return(-1);
     }
 
+    for(i=0; i<mount_count; i++)
+    {
+        free(mnt_pts[i]);
+        free(fs_types[i]);
+    }
+    free(devs);
+    free(mnt_pts);
+    free(fs_types);
+ 
     darshan_log_close(file);
     return(0);
 }
