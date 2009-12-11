@@ -12,7 +12,7 @@
 #include "darshan-config.h"
 
 /* update this on file format changes */
-#define CP_VERSION "1.22"
+#define CP_VERSION "1.23"
 
 /* size (in bytes) of job record */
 #define CP_JOB_RECORD_SIZE 1024
@@ -177,6 +177,7 @@ enum darshan_indices
     CP_ACCESS2_COUNT,
     CP_ACCESS3_COUNT,
     CP_ACCESS4_COUNT,
+    CP_DEVICE,                     /* device id reported by stat */
 
     CP_NUM_INDICES,
 };

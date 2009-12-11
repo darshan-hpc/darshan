@@ -192,8 +192,10 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     if(file->fd != -1) break; /* TODO: handle multiple concurrent opens */ \
     file->fd = __ret; \
     if(!CP_VALUE(file, CP_FILE_ALIGNMENT)){ \
-        if(fstat(file->fd, &cp_stat_buf) == 0) \
+        if(fstat(file->fd, &cp_stat_buf) == 0) {\
+            CP_SET(file, CP_DEVICE, cp_stat_buf.st_dev); \
             CP_SET(file, CP_FILE_ALIGNMENT, cp_stat_buf.st_blksize); \
+        }\
     }\
     file->log_file->rank = my_rank; \
     if(__mode) \

@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <stdlib.h>
 #include "darshan-logutils.h"
 
 /* isn't there a clever c way to avoid this? */
@@ -148,6 +149,7 @@ char *darshan_names[] = {
     "CP_ACCESS2_COUNT",
     "CP_ACCESS3_COUNT",
     "CP_ACCESS4_COUNT",
+    "CP_DEVICE",
 
     "CP_NUM_INDICES"
 };
@@ -172,20 +174,43 @@ char *darshan_f_names[] = {
 };
 
 /*******************************
- * version 1.21 to 1.22 differences 
+ * version 1.22 to 1.23 differences
+ *
+ * - added:
+ *   - CP_DEVICE
+ * - changed params:
+ *   - CP_FILE_RECORD_SIZE: 1240 to 1244
+ *   - CP_NUM_INDICES: 138 to 139
+ */
+#define CP_NUM_INDICES_1_22 138
+struct darshan_file_1_22
+{
+    uint64_t hash;
+    int rank;
+    int64_t counters[CP_NUM_INDICES_1_22];
+    double fcounters[CP_F_NUM_INDICES];
+    char name_suffix[CP_NAME_SUFFIX_LEN+1];
+};
+
+static void shift_missing_1_22(struct darshan_file* file);
+
+
+/*******************************
+ * version 1.21 to 1.23 differences 
  * - added:
  *   - CP_INDEP_NC_OPENS
  *   - CP_COLL_NC_OPENS
  *   - CP_HDF5_OPENS
  *   - CP_MAX_READ_TIME_SIZE
  *   - CP_MAX_WRITE_TIME_SIZE
+ *   - CP_DEVICE
  *   - CP_F_MAX_READ_TIME
  *   - CP_F_MAX_WRITE_TIME
  * - changed params:
- *   - CP_FILE_RECORD_SIZE: 1184 to 1240
- *   - CP_NUM_INDICES: 133 to 138
+ *   - CP_FILE_RECORD_SIZE: 1184 to 1244
+ *   - CP_NUM_INDICES: 133 to 139
  *   - CP_F_NUM_INDICES: 12 to 14
- * - so 56 bytes worth of new indices are the only difference
+ * - so 60 bytes worth of new indices are the only difference
  */
 #define CP_NUM_INDICES_1_21 133
 #define CP_F_NUM_INDICES_1_21 12
@@ -246,6 +271,7 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     int ret;
     const char* err_string;
     struct darshan_file_1_21 file_1_21;
+    struct darshan_file_1_22 file_1_22;
     
     if(gztell(file) < CP_JOB_RECORD_SIZE)
         gzseek(file, CP_JOB_RECORD_SIZE, SEEK_SET);
@@ -278,8 +304,27 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     }
     else if(strcmp(job->version_string, "1.22") == 0)
     {
+        ret = gzread(fd, &file_1_22, sizeof(file_1_22));
+        if(ret == sizeof(file_1_22))
+        {
+            /* convert to new file record structure */
+            file->hash = file_1_22.hash;
+            file->rank = file_1_22.rank;
+            strcpy(file->name_suffix, file_1_22.name_suffix);
+            memcpy(file->counters, file_1_22.counters,
+                (CP_NUM_INDICES_1_22*sizeof(int64_t)));
+            memcpy(file->fcounters, file_1_22.fcounters,
+                (CP_F_NUM_INDICES*sizeof(double)));
+            shift_missing_1_22(file);
+
+            /* got exactly one, correct size record */
+            return(1);
+        }
+    }
+    else if(strcmp(job->version_string, "1.23") == 0)
+    {
         /* make sure this is the current version */
-        assert(strcmp("1.22", CP_VERSION) == 0);
+        assert(strcmp("1.23", CP_VERSION) == 0);
 
         ret = gzread(fd, file, sizeof(*file));
         if(ret == sizeof(*file))
@@ -312,6 +357,83 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     fprintf(stderr, "Error: %s\n", err_string);
     return(-1);
 }
+
+/* darshan_log_getmounts()
+ * 
+ * retrieves mount table information from the log.  Note that devs, mnt_pts,
+ * and fs_types are arrays that will be allocated by the function and must
+ * be freed by the caller.  count will indicate the size of the arrays
+ */
+int darshan_log_getmounts(darshan_fd fd, int** devs, char*** mnt_pts, char***
+    fs_types, int* count, int *flag)
+{
+    int ret;
+    char* pos;
+    int array_index = 0;
+    char buf[CP_EXE_LEN+1];
+
+    gzseek(fd, sizeof(struct darshan_job), SEEK_SET);
+
+    ret = gzread(fd, buf, (CP_EXE_LEN + 1));
+    if (ret < (CP_EXE_LEN + 1))
+    {
+        perror("gzread");
+        return(-1);
+    }
+    if (gzeof(fd))
+        *flag = 1;
+    else
+        *flag = 0;
+
+    /* count entries */
+    *count = 0;
+    pos = buf;
+    while((pos = strchr(pos, '\n')) != NULL)
+    {
+        pos++;
+        (*count)++;
+    }
+
+    if(*count == 0)
+    {
+        /* no mount entries present */
+        return(0);
+    }
+
+    /* allocate output arrays */
+    *devs = malloc((*count)*sizeof(int));
+    assert(*devs);
+    *mnt_pts = malloc((*count)*sizeof(char*));
+    assert(*mnt_pts);
+    *fs_types = malloc((*count)*sizeof(char*));
+    assert(*fs_types);
+    
+    /* work backwards through the table and parse each line (except for
+     * first, which holds command line information)
+     */
+    while((pos = strrchr(buf, '\n')) != NULL)
+    {
+        /* overestimate string lengths */
+        (*mnt_pts)[array_index] = malloc(CP_EXE_LEN);
+        assert((*mnt_pts)[array_index]);
+        (*fs_types)[array_index] = malloc(CP_EXE_LEN);
+        assert((*fs_types)[array_index]);
+        
+        ret = sscanf(++pos, "%d\t%s\t%s", &(*devs)[array_index],
+            (*fs_types)[array_index], (*mnt_pts)[array_index]);
+        if(ret != 3)
+        {
+            fprintf(stderr, "Error: poorly formatted mount table in log file.\n");
+            return(-1);
+        }
+        pos--;
+        *pos = '\0';
+        array_index++;
+    }
+   
+    return (0);
+}
+
 
 int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
 {
@@ -392,6 +514,7 @@ static void shift_missing_1_21(struct darshan_file* file)
         CP_HDF5_OPENS,
         CP_MAX_READ_TIME_SIZE,
         CP_MAX_WRITE_TIME_SIZE,
+        CP_DEVICE,
         -1};
     int missing_f_counters[] = {
         CP_F_MAX_READ_TIME,
@@ -428,6 +551,37 @@ static void shift_missing_1_21(struct darshan_file* file)
         }
         /* zero out missing counter */
         file->fcounters[missing_counter] = 0;
+    }
+
+    return;
+}
+
+/* shift_missing_1_22()
+ *
+ * translates indices to account for counters that weren't present in log
+ * format 1.22
+ */
+static void shift_missing_1_22(struct darshan_file* file)
+{
+    int c_index = 0;
+    int missing_counters[] = {
+        CP_DEVICE,
+        -1};
+
+    c_index = 0;
+    while(missing_counters[c_index] != -1)
+    {
+        int missing_counter = missing_counters[c_index];
+        c_index++;
+        if(missing_counter < (CP_NUM_INDICES - 1))
+        {
+            /* shift down */
+            memmove(&file->counters[missing_counter+1],
+                &file->counters[missing_counter],
+                (CP_NUM_INDICES-missing_counter-1)*sizeof(int64_t));
+        }
+        /* zero out missing counter */
+        file->counters[missing_counter] = 0;
     }
 
     return;

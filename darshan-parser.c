@@ -11,6 +11,7 @@
 #include <string.h>
 #include <zlib.h>
 #include <time.h>
+#include <stdlib.h>
 
 #include "darshan-logutils.h"
 
@@ -24,6 +25,10 @@ int main(int argc, char **argv)
     time_t tmp_time = 0;
     darshan_fd file;
     int i;
+    int mount_count;
+    int* devs;
+    char** mnt_pts;
+    char** fs_types;
 
     if(argc != 2)
     {
@@ -58,6 +63,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
+    /* print job summary */
     printf("# darshan log version: %s\n", job.version_string);
     printf("# size of file statistics: %d bytes\n", sizeof(cp_file));
     printf("# size of job statistics: %d bytes\n", sizeof(job));
@@ -71,7 +77,22 @@ int main(int argc, char **argv)
     printf("# end_time_asci: %s", ctime(&tmp_time));
     printf("# nprocs: %d\n", job.nprocs);
     printf("# run time: %ld\n", (long)(job.end_time - job.start_time + 1));
-   
+ 
+    /* print table of mounted file systems */
+    ret = darshan_log_getmounts(file, &devs, &mnt_pts, &fs_types, &mount_count,
+        &no_files_flag);
+    printf("\n# mounted file systems (device, fs type, and mount point)\n");
+    printf("# -------------------------------------------------------\n");
+    for(i=0; i<mount_count; i++)
+    {
+        printf("# mount entry: %d\t%s\t%s\n", devs[i], mnt_pts[i], fs_types[i]);
+        free(mnt_pts[i]);
+        free(fs_types[i]);
+    }
+    free(devs);
+    free(mnt_pts);
+    free(fs_types);
+  
     if(no_files_flag)
     {
         /* it looks like the app didn't open any files */
