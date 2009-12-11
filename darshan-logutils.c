@@ -316,6 +316,7 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
 int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
 {
     int ret;
+    char* newline;
 
     gzseek(fd, sizeof(struct darshan_job), SEEK_SET);
 
@@ -329,6 +330,14 @@ int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
         *flag = 1;
     else
         *flag = 0;
+
+    /* this call is only supposed to return the exe string, but starting in
+     * log format 1.23 there could be a table of mount entry information
+     * after the exe.  Look for newline character and truncate there.
+     */
+    newline = strchr(buf, '\n');
+    if(newline)
+        *newline = '\0';
 
     return (0);
 }
