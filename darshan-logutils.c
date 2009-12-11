@@ -213,6 +213,9 @@ darshan_fd darshan_log_open(const char *name)
 int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
 {
     int ret;
+
+    gzseek(file, 0, SEEK_SET);
+
     ret = gzread(file, job, sizeof(*job));
     if (ret < sizeof(*job))
     {
@@ -243,6 +246,11 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     int ret;
     const char* err_string;
     struct darshan_file_1_21 file_1_21;
+    
+    if(gztell(file) < CP_JOB_RECORD_SIZE)
+        gzseek(file, CP_JOB_RECORD_SIZE, SEEK_SET);
+
+    gzseek(file, sizeof(struct darshan_job), SEEK_SET);
 
     /* reset file record, so that diff compares against a zero'd out record
      * if file is missing
@@ -308,6 +316,8 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
 int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
 {
     int ret;
+
+    gzseek(fd, sizeof(struct darshan_job), SEEK_SET);
 
     ret = gzread(fd, buf, (CP_EXE_LEN + 1));
     if (ret < (CP_EXE_LEN + 1))
