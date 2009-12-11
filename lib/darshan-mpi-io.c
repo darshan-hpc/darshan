@@ -116,7 +116,9 @@ extern char* __progname;
 } while(0)
 
 static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh);
-static void cp_log_construct_indices(struct darshan_job_runtime* final_job, int rank, int* inout_count, int* lengths, void** pointers);
+static void cp_log_construct_indices(struct darshan_job_runtime* final_job,
+    int rank, int* inout_count, int* lengths, void** pointers, char*
+    trailing_data);
 static int cp_log_write(struct darshan_job_runtime* final_job, int rank, 
     char* logfile_name, int count, int* lengths, void** pointers, double start_log_time);
 static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank, 
@@ -128,7 +130,7 @@ static int cp_log_compress(struct darshan_job_runtime* final_job,
     int rank, int* inout_count, int* lengths, void** pointers);
 static int file_compare(const void* a, const void* b);
 static void darshan_mpi_initialize(int *argc, char ***argv);
-static void darshan_get_mounts(struct darshan_job_runtime* final_job);
+static char*  darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job);
 
 int MPI_Init(int *argc, char ***argv)
 {
@@ -202,6 +204,7 @@ void darshan_shutdown(int timing_flag)
     int ret;
     double red1=0, red2=0, gz1=0, gz2=0, write1=0, write2=0, tm_end=0;
     int nprocs;
+    char* trailing_data = NULL;
 
     CP_LOCK();
     if(!darshan_global_job)
@@ -266,10 +269,12 @@ void darshan_shutdown(int timing_flag)
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    /* 1st process will collect information about mounted file systems */
+    /* 1st process will collect information about command line and 
+     * mounted file systems 
+     */
     if(rank ==0)
     {
-        darshan_get_mounts(final_job);
+        trailing_data = darshan_get_exe_and_mounts(final_job);
     }
 
     /* construct log file name */
@@ -333,7 +338,7 @@ void darshan_shutdown(int timing_flag)
     {
         /* collect data to write from local process */
         cp_log_construct_indices(final_job, rank, &index_count, lengths, 
-            pointers);
+            pointers, trailing_data);
     }
 
     if(all_ret == 0)
@@ -370,6 +375,8 @@ void darshan_shutdown(int timing_flag)
         unlink(logfile_name);
     }
 
+    if(trailing_data)
+        free(trailing_data);
     free(logfile_name);
     darshan_finalize(final_job);
     
@@ -1325,7 +1332,8 @@ static void darshan_file_reduce(void* infile_v,
  * create memory datatypes to describe the log data to write out
  */
 static void cp_log_construct_indices(struct darshan_job_runtime* final_job, 
-    int rank, int* inout_count, int* lengths, void** pointers)
+    int rank, int* inout_count, int* lengths, void** pointers, char*
+    trailing_data)
 {
     *inout_count = 0;
 
@@ -1338,7 +1346,7 @@ static void cp_log_construct_indices(struct darshan_job_runtime* final_job,
 
         /* also string containing exe command line */
         lengths[*inout_count] = CP_EXE_LEN + 1; 
-        pointers[*inout_count] = final_job->exe;
+        pointers[*inout_count] = trailing_data;
         (*inout_count)++;
     }
 
@@ -1613,12 +1621,12 @@ static int file_compare(const void* a, const void* b)
     return 0;
 }
 
-/* darshan_get_mounts()
+/* darshan_get_exe_and_mounts()
  *
- * scans currently mounted file systems and records mount point and device
- * id in the job struct
+ * collects command line and list of mounted file systems into a string that
+ * will be stored with the job header
  */
-static void darshan_get_mounts(struct darshan_job_runtime* final_job)
+static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
 {
     FILE* tab;
     struct mntent *entry;
@@ -1627,6 +1635,9 @@ static void darshan_get_mounts(struct darshan_job_runtime* final_job)
     int ret;
     struct stat statbuf;
     int skip = 0;
+    char* trailing_data;
+    int space_left;
+    char tmp_mnt[256];
 
     /* skip these fs types */
     static char* fs_exclusions[] = {
@@ -1642,9 +1653,22 @@ static void darshan_get_mounts(struct darshan_job_runtime* final_job)
         NULL
     };
 
+    /* extra byte for \0 already accounted for */
+    space_left = CP_EXE_LEN;
+    trailing_data = malloc(space_left);
+    if(!trailing_data)
+    {
+        return(NULL);
+    }
+    memset(trailing_data, 0, space_left);
+
+    /* length of exe has already been safety checked in darshan-posix.c */
+    strcat(trailing_data, final_job->exe);
+    space_left = CP_EXE_LEN - strlen(trailing_data);
+
     tab = setmntent("/etc/mtab", "r");
     if(!tab)
-        return;
+        return(trailing_data);
 
     while((entry = getmntent(tab)) != NULL)
     {
@@ -1666,12 +1690,25 @@ static void darshan_get_mounts(struct darshan_job_runtime* final_job)
         ret = stat(entry->mnt_dir, &statbuf);
         if(ret == 0)
         {
+            ret = snprintf(tmp_mnt, 256, "\n%d\t%s\t%s", (int)statbuf.st_dev, 
+                entry->mnt_type, entry->mnt_dir);
+            if(ret >= 256)
+            {
+                /* didn't fit; skip this entry */
+                continue;
+            }
+            if(strlen(tmp_mnt) <= space_left)
+            {
+                strcat(trailing_data, tmp_mnt);
+                space_left -= strlen(tmp_mnt);
+            }
 #if 0
             printf("dev: %d, mnt_pt: %s, type: %s\n",  
                 (int)statbuf.st_dev, entry->mnt_dir, entry->mnt_type);
 #endif
         }
     }
+    return(trailing_data);
 }
 
 /*
