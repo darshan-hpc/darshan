@@ -276,8 +276,6 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     if(gztell(fd) < CP_JOB_RECORD_SIZE)
         gzseek(fd, CP_JOB_RECORD_SIZE, SEEK_SET);
 
-    gzseek(fd, sizeof(struct darshan_job), SEEK_SET);
-
     /* reset file record, so that diff compares against a zero'd out record
      * if file is missing
      */
