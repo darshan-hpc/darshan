@@ -7,6 +7,7 @@
 #define _GNU_SOURCE /* for tdestroy() */
 
 #include <stdio.h>
+#include <mntent.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -127,6 +128,7 @@ static int cp_log_compress(struct darshan_job_runtime* final_job,
     int rank, int* inout_count, int* lengths, void** pointers);
 static int file_compare(const void* a, const void* b);
 static void darshan_mpi_initialize(int *argc, char ***argv);
+static void darshan_get_mounts(struct darshan_job_runtime* final_job);
 
 int MPI_Init(int *argc, char ***argv)
 {
@@ -263,6 +265,12 @@ void darshan_shutdown(int timing_flag)
     }
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    /* 1st process will collect information about mounted file systems */
+    if(rank ==0)
+    {
+        darshan_get_mounts(final_job);
+    }
 
     /* construct log file name */
     if(rank == 0)
@@ -1603,6 +1611,67 @@ static int file_compare(const void* a, const void* b)
         return -1;
     
     return 0;
+}
+
+/* darshan_get_mounts()
+ *
+ * scans currently mounted file systems and records mount point and device
+ * id in the job struct
+ */
+static void darshan_get_mounts(struct darshan_job_runtime* final_job)
+{
+    FILE* tab;
+    struct mntent *entry;
+    char* exclude;
+    int tmp_index = 0;
+    int ret;
+    struct stat statbuf;
+    int skip = 0;
+
+    /* skip these fs types */
+    static char* fs_exclusions[] = {
+        "tmpfs",
+        "proc",
+        "sysfs",
+        "devpts",
+        "binfmt_misc",
+        "fusectl",
+        "debugfs",
+        "securityfs",
+        "nfsd",
+        NULL
+    };
+
+    tab = setmntent("/etc/mtab", "r");
+    if(!tab)
+        return;
+
+    while((entry = getmntent(tab)) != NULL)
+    {
+        tmp_index = 0;
+        skip = 0;
+        while((exclude = fs_exclusions[tmp_index]))
+        {
+            if(!(strcmp(exclude, entry->mnt_type)))
+            {
+                skip =1;
+                break; 
+            }
+            tmp_index++;
+        }
+
+        if(skip)
+            continue;
+
+        ret = stat(entry->mnt_dir, &statbuf);
+        if(ret == 0)
+        {
+#if 0
+            printf("dev: %d, mnt_pt: %s, type: %s\n",  
+                (int)statbuf.st_dev, entry->mnt_dir, entry->mnt_type);
+#endif
+        }
+    }
 }
 
 /*
