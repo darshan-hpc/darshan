@@ -1076,6 +1076,11 @@ void darshan_condense(void)
                 case CP_MAX_READ_TIME_SIZE:
                     break;
 
+                /* pick one */
+                case CP_DEVICE:
+                    CP_SET(base_file, i, CP_VALUE(iter_file, i));
+                    break;
+
                 /* most records can simply be added */
                 default:
                     CP_INC(base_file, i, CP_VALUE(iter_file, i));

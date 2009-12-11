@@ -1317,6 +1317,9 @@ static void darshan_file_reduce(void* infile_v,
                 inoutfile->counters[CP_MAX_READ_TIME_SIZE];
         }
 
+        /* pick one device id */
+        tmp_file.counters[CP_DEVICE] = infile->counters[CP_DEVICE];
+
         /* pick one name suffix */
         strcpy(tmp_file.name_suffix, infile->name_suffix);
 
