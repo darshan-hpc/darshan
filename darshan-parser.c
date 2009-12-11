@@ -58,7 +58,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    printf("# darshan log version: %s\n", CP_VERSION);
+    printf("# darshan log version: %s\n", job.version_string);
     printf("# size of file statistics: %d bytes\n", sizeof(cp_file));
     printf("# size of job statistics: %d bytes\n", sizeof(job));
     printf("# exe: %s\n", tmp_string);
