@@ -97,6 +97,7 @@ while ($line = <TRACE>) {
 open(COUNTS, ">$tmp_dir/counts.dat") || die("error opening output file: $!\n");
 print COUNTS "# P=POSIX, MI=MPI-IO indep., MC=MPI-IO coll., R=read, W=write\n";
 print COUNTS "# PR, MIR, MCR, PW, MIW, MCW, Popen, Pseek, Pstat\n";
+my $total_syncs = $summary{CP_POSIX_FSYNCS} + $summary{CP_POSIX_FDSYNCS};
 print COUNTS "Read, ", $summary{CP_POSIX_READS}, ", ",
     $summary{CP_INDEP_READS}, ", ", $summary{CP_COLL_READS}, "\n",
     "Write, ", $summary{CP_POSIX_WRITES}, ", ", 
@@ -105,7 +106,8 @@ print COUNTS "Read, ", $summary{CP_POSIX_READS}, ", ",
     $summary{CP_COLL_OPENS}, "\n",
     "Stat, ", $summary{CP_POSIX_STATS}, ", 0, 0\n",
     "Seek, ", $summary{CP_POSIX_SEEKS}, ", 0, 0\n",
-    "Mmap, ", $summary{CP_POSIX_MMAPS}, ", 0, 0\n";
+    "Mmap, ", $summary{CP_POSIX_MMAPS}, ", 0, 0\n",
+    "Fsync, ", $total_syncs, ", 0, 0\n";
 close COUNTS;
 
 # histograms of reads and writes
@@ -251,7 +253,7 @@ close TABLES;
 open(TABLES, ">$tmp_dir/access-table.tex") || die("error opening output file:$!\n");
 print TABLES "
 \\begin{tabular}{|r|r|}
-\\multicolumn{2}{c}{Common Access Sizes} \\\\
+\\multicolumn{2}{c}{Most Common Access Sizes} \\\\
 \\hline
 access size \& count \\\\
 \\hline
@@ -259,8 +261,8 @@ access size \& count \\\\
 
 # sort access sizes (descending)
 my $i = 0;
-foreach $value (sort {$access_hash{$b} cmp $access_hash{$a} } keys %access_hash) {
-    if($i == 3) {
+foreach $value (sort {$access_hash{$b} <=> $access_hash{$a} } keys %access_hash) {
+    if($i == 4) {
         last;
     }
     if($access_hash{$value} == 0) {

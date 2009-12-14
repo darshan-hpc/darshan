@@ -178,6 +178,7 @@ enum darshan_indices
     CP_ACCESS3_COUNT,
     CP_ACCESS4_COUNT,
     CP_DEVICE,                     /* device id reported by stat */
+    CP_SIZE_AT_OPEN,
 
     CP_NUM_INDICES,
 };

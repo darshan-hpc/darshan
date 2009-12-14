@@ -81,7 +81,7 @@ int main(int argc, char **argv)
     /* print table of mounted file systems */
     ret = darshan_log_getmounts(file, &devs, &mnt_pts, &fs_types, &mount_count,
         &no_files_flag);
-    printf("\n# mounted file systems (device, fs type, and mount point)\n");
+    printf("\n# mounted file systems (device, mount point, and fs type)\n");
     printf("# -------------------------------------------------------\n");
     for(i=0; i<mount_count; i++)
     {
@@ -135,6 +135,7 @@ int main(int argc, char **argv)
     printf("#   CP_ACCESS*_ACCESS: the four most common access sizes.\n");
     printf("#   CP_ACCESS*_COUNT: count of the four most common access sizes.\n");
     printf("#   CP_DEVICE: device id reported by stat().\n");
+    printf("#   CP_SIZE_AT_OPEN: size of file when first opened.\n");
     printf("#   CP_F_OPEN_TIMESTAMP: timestamp of first open (mpi or posix).\n");
     printf("#   CP_F_*_START_TIMESTAMP: timestamp of first read/write (mpi or posix).\n");
     printf("#   CP_F_*_END_TIMESTAMP: timestamp of last read/write (mpi or posix).\n");

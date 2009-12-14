@@ -551,7 +551,7 @@ int MPI_File_sync(MPI_File fh)
         file = darshan_file_by_fh(fh);
         if(file)
         {
-            CP_F_INC(file, CP_F_MPI_META_TIME, (tm2-tm1));
+            CP_F_INC(file, CP_F_MPI_WRITE_TIME, (tm2-tm1));
             CP_INC(file, CP_SYNCS, 1);
         }
         CP_UNLOCK();
@@ -1317,8 +1317,9 @@ static void darshan_file_reduce(void* infile_v,
                 inoutfile->counters[CP_MAX_READ_TIME_SIZE];
         }
 
-        /* pick one device id */
+        /* pick one device id and file size */
         tmp_file.counters[CP_DEVICE] = infile->counters[CP_DEVICE];
+        tmp_file.counters[CP_SIZE_AT_OPEN] = infile->counters[CP_SIZE_AT_OPEN];
 
         /* pick one name suffix */
         strcpy(tmp_file.name_suffix, infile->name_suffix);
