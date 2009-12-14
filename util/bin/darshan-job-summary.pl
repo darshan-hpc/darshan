@@ -20,13 +20,12 @@ my $tmp_dir = tempdir( CLEANUP => 1 );
 my $orig_dir = getcwd;
 my $output_file = "summary.pdf";
 my $input_file = "";
+my %access_hash = ();
+my @access_size = ();
 
 process_args();
 
 open(TRACE, $input_file) || die("can't open $input_file for processing: $!\n");
-
-$max_access = -1;
-$max_access_hash = 0;
 
 while ($line = <TRACE>) {
     chop($line);
@@ -79,43 +78,20 @@ while ($line = <TRACE>) {
 	    }
 	}
 
-        # record access and stride counters
-        if ($fields[2] =~ /(^CP_STRIDE.*)/) {
-            $tmpfield = $1;
-
-            if(defined $common{$fields[1]}{$tmpfield}) {
-                $common{$fields[1]}{$tmpfield} += $fields[3];
-            }
-            else {
-                $common{$fields[1]}{$tmpfield} = $fields[3];
-            }
-            $common{$fields[1]}{'name'} = $fields[4];
+        if ($fields[2] =~ /^CP_ACCESS(.)_ACCESS/) {
+            $access_size[$1] = $fields[3];
         }
-        if ($fields[2] =~ /(^CP_ACCESS.*)/) {
-            $tmpfield = $1;
-            if(defined $common{$fields[1]}{$tmpfield}) {
-                $common{$fields[1]}{$tmpfield} += $fields[3];
+        if ($fields[2] =~ /^CP_ACCESS(.)_COUNT/) {
+            my $tmp_access_size = $access_size[$1];
+            if(defined $access_hash{$tmp_access_size}){
+                $access_hash{$tmp_access_size} += $fields[3];
             }
-            else {
-                $common{$fields[1]}{$tmpfield} = $fields[3];
-            }
-            if(defined $common{$fields[1]}{'totalaccess'}) {
-                $common{$fields[1]}{'totalaccess'} += $fields[3];
-            }
-            else {
-                $common{$fields[1]}{'totalaccess'} = $fields[3];
-            }
-
-            if($common{$fields[1]}{'totalaccess'} > $max_access) {
-                $max_access = $common{$fields[1]}{'totalaccess'};
-                $max_access_hash = $fields[1];
+            else{
+                $access_hash{$tmp_access_size} = $fields[3];
             }
         }
     }
 }
-
-# print "max_access: $max_access.\n";
-# print "max_access_hash: $max_access_hash.\n";
 
 # counts of operations
 open(COUNTS, ">$tmp_dir/counts.dat") || die("error opening output file: $!\n");
@@ -275,35 +251,30 @@ close TABLES;
 open(TABLES, ">$tmp_dir/access-table.tex") || die("error opening output file:$!\n");
 print TABLES "
 \\begin{tabular}{|r|r|}
-\\multicolumn{2}{c}{Top 4 Access Sizes} \\\\
+\\multicolumn{2}{c}{Common Access Sizes} \\\\
 \\hline
 access size \& count \\\\
 \\hline
-  $common{$max_access_hash}{CP_ACCESS1_ACCESS} \& $common{$max_access_hash}{CP_ACCESS1_COUNT} \\\\
-  $common{$max_access_hash}{CP_ACCESS2_ACCESS} \& $common{$max_access_hash}{CP_ACCESS2_COUNT} \\\\
-  $common{$max_access_hash}{CP_ACCESS3_ACCESS} \& $common{$max_access_hash}{CP_ACCESS3_COUNT} \\\\
-  $common{$max_access_hash}{CP_ACCESS4_ACCESS} \& $common{$max_access_hash}{CP_ACCESS4_COUNT} \\\\
-\\hline
-\\end{tabular}
 ";
-close TABLES;
 
-open(TABLES, ">$tmp_dir/stride-table.tex") || die("error opening output file:$!\n");
+# sort access sizes (descending)
+my $i = 0;
+foreach $value (sort {$access_hash{$b} cmp $access_hash{$a} } keys %access_hash) {
+    if($i == 3) {
+        last;
+    }
+    if($access_hash{$value} == 0) {
+        last;
+    }
+    print TABLES "$value \& $access_hash{$value} \\\\\n";
+    $i++;
+}
+
 print TABLES "
-\\begin{tabular}{|r|r|}
-\\multicolumn{2}{c}{file: $common{$max_access_hash}{'name'}} \\\\
-\\hline
-stride size \& count \\\\
-\\hline
-  $common{$max_access_hash}{CP_STRIDE1_STRIDE} \& $common{$max_access_hash}{CP_STRIDE1_COUNT} \\\\
-  $common{$max_access_hash}{CP_STRIDE2_STRIDE} \& $common{$max_access_hash}{CP_STRIDE2_COUNT} \\\\
-  $common{$max_access_hash}{CP_STRIDE3_STRIDE} \& $common{$max_access_hash}{CP_STRIDE3_COUNT} \\\\
-  $common{$max_access_hash}{CP_STRIDE4_STRIDE} \& $common{$max_access_hash}{CP_STRIDE4_COUNT} \\\\
 \\hline
 \\end{tabular}
 ";
 close TABLES;
-
 
 open(TIME, ">$tmp_dir/time-summary.dat") || die("error opening output file:$!\n");
 print TIME "# <type>, <app time>, <read>, <write>, <meta>\n";
