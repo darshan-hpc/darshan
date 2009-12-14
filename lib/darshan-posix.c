@@ -195,6 +195,7 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
         if(fstat(file->fd, &cp_stat_buf) == 0) {\
             CP_SET(file, CP_DEVICE, cp_stat_buf.st_dev); \
             CP_SET(file, CP_FILE_ALIGNMENT, cp_stat_buf.st_blksize); \
+            CP_SET(file, CP_SIZE_AT_OPEN, cp_stat_buf.st_size); \
         }\
     }\
     file->log_file->rank = my_rank; \
@@ -326,7 +327,7 @@ int __wrap_fsync(int fd)
     file = darshan_file_by_fd(fd);
     if(file)
     {
-        CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
+        CP_F_INC(file, CP_F_POSIX_WRITE_TIME, (tm2-tm1));
         CP_INC(file, CP_POSIX_FSYNCS, 1);
     }
     CP_UNLOCK();
@@ -350,7 +351,7 @@ int __wrap_fdatasync(int fd)
     file = darshan_file_by_fd(fd);
     if(file)
     {
-        CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
+        CP_F_INC(file, CP_F_POSIX_WRITE_TIME, (tm2-tm1));
         CP_INC(file, CP_POSIX_FDSYNCS, 1);
     }
     CP_UNLOCK();
@@ -1078,6 +1079,7 @@ void darshan_condense(void)
 
                 /* pick one */
                 case CP_DEVICE:
+                case CP_SIZE_AT_OPEN:
                     CP_SET(base_file, i, CP_VALUE(iter_file, i));
                     break;
 

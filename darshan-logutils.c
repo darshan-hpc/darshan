@@ -150,6 +150,7 @@ char *darshan_names[] = {
     "CP_ACCESS3_COUNT",
     "CP_ACCESS4_COUNT",
     "CP_DEVICE",
+    "CP_SIZE_AT_OPEN",
 
     "CP_NUM_INDICES"
 };
@@ -178,9 +179,10 @@ char *darshan_f_names[] = {
  *
  * - added:
  *   - CP_DEVICE
+ *   - CP_SIZE_AT_OPEN
  * - changed params:
- *   - CP_FILE_RECORD_SIZE: 1240 to 1244
- *   - CP_NUM_INDICES: 138 to 139
+ *   - CP_FILE_RECORD_SIZE: 1240 to 1248
+ *   - CP_NUM_INDICES: 138 to 140
  */
 #define CP_NUM_INDICES_1_22 138
 struct darshan_file_1_22
@@ -204,11 +206,12 @@ static void shift_missing_1_22(struct darshan_file* file);
  *   - CP_MAX_READ_TIME_SIZE
  *   - CP_MAX_WRITE_TIME_SIZE
  *   - CP_DEVICE
+ *   - CP_SIZE_AT_OPEN
  *   - CP_F_MAX_READ_TIME
  *   - CP_F_MAX_WRITE_TIME
  * - changed params:
- *   - CP_FILE_RECORD_SIZE: 1184 to 1244
- *   - CP_NUM_INDICES: 133 to 139
+ *   - CP_FILE_RECORD_SIZE: 1184 to 1248
+ *   - CP_NUM_INDICES: 133 to 140
  *   - CP_F_NUM_INDICES: 12 to 14
  * - so 60 bytes worth of new indices are the only difference
  */
@@ -483,7 +486,9 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
     {
         printf("# WARNING: version 1.22 log format does not support the following parameters:\n");
         printf("#   CP_DEVICE\n");
-        printf("# It also does not record mounted file systems, mount points, or fs types.\n");
+        printf("#   CP_SIZE_AT_OPEN\n");
+        printf("# It does not record mounted file systems, mount points, or fs types.\n");
+        printf("# It also attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
         return;
     }
 
@@ -496,9 +501,11 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_MAX_READ_TIME_SIZE\n");
         printf("#   CP_MAX_WRITE_TIME_SIZE\n");
         printf("#   CP_DEVICE\n");
+        printf("#   CP_SIZE_AT_OPEN\n");
         printf("#   CP_F_MAX_READ_TIME\n");
         printf("#   CP_F_MAX_WRITE_TIME\n");
         printf("# It also does not record mounted file systems, mount points, or fs types.\n");
+        printf("# It also attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
         printf("#\n");
         return;
     }
@@ -523,6 +530,7 @@ static void shift_missing_1_21(struct darshan_file* file)
         CP_MAX_READ_TIME_SIZE,
         CP_MAX_WRITE_TIME_SIZE,
         CP_DEVICE,
+        CP_SIZE_AT_OPEN,
         -1};
     int missing_f_counters[] = {
         CP_F_MAX_READ_TIME,
@@ -574,6 +582,7 @@ static void shift_missing_1_22(struct darshan_file* file)
     int c_index = 0;
     int missing_counters[] = {
         CP_DEVICE,
+        CP_SIZE_AT_OPEN,
         -1};
 
     c_index = 0;
