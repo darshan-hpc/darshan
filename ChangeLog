@@ -5,6 +5,9 @@ Darshan Release Change Log
 darshan-1.1.8
 =============
 * Added tracking of file system type and mount point for each file
+* Added tracking of file size at open time (CP_SIZE_AT_OPEN)
+* Moved sync cost to be counted in cumulative write time rather than cumulative metadata time
+* Added sync as a separate category in darshan-job-summar.pl counters
 * Bug fix to most frequent access size table in darshan-job-summary.pl
 * Converted all utilities to use darshan-logutils api for reading output files
 * Added backwards compatibility to darshan-logutils routines
