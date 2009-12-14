@@ -104,6 +104,8 @@ int main(int argc, char **argv)
     printf("#      process.\n");
     printf("#   <counter> and <value>: statistical counters.\n");
     printf("#   <name suffix>: last %d characters of file name.\n", CP_NAME_SUFFIX_LEN);
+    printf("#   <mount pt>: mount point that the file resides on.\n");
+    printf("#   <fs type>: type of file system that the file resides on.\n");
     printf("\n# description of counters:\n");
     printf("#   CP_POSIX_*: posix operation counts.\n");
     printf("#   CP_COLL_*: MPI collective operation counts.\n");
@@ -132,6 +134,7 @@ int main(int argc, char **argv)
     printf("#   CP_STRIDE*_COUNT: count of the four most common strides.\n");
     printf("#   CP_ACCESS*_ACCESS: the four most common access sizes.\n");
     printf("#   CP_ACCESS*_COUNT: count of the four most common access sizes.\n");
+    printf("#   CP_DEVICE: device id reported by stat().\n");
     printf("#   CP_F_OPEN_TIMESTAMP: timestamp of first open (mpi or posix).\n");
     printf("#   CP_F_*_START_TIMESTAMP: timestamp of first read/write (mpi or posix).\n");
     printf("#   CP_F_*_END_TIMESTAMP: timestamp of last read/write (mpi or posix).\n");
