@@ -2,6 +2,15 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-1.1.8
+=============
+* Added tracking of file system type and mount point for each file
+* Bug fix to most frequent access size table in darshan-job-summary.pl
+* Converted all utilities to use darshan-logutils api for reading output files
+* Added backwards compatibility to darshan-logutils routines
+* Kevin Harms: Added darshan-analyzer utility to summarize usage of MPI-IO, pNetCDF, HDF5, and shared files across a set of output files
+* Fixed bug field listing for darshan-diff utility
+
 darshan-1.1.7
 =============
 * Minor fix for a compile warning
