@@ -253,7 +253,7 @@ close TABLES;
 open(TABLES, ">$tmp_dir/access-table.tex") || die("error opening output file:$!\n");
 print TABLES "
 \\begin{tabular}{|r|r|}
-\\multicolumn{2}{c}{Common Access Sizes} \\\\
+\\multicolumn{2}{c}{Most Common Access Sizes} \\\\
 \\hline
 access size \& count \\\\
 \\hline
