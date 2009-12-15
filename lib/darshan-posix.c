@@ -22,6 +22,10 @@
 #include "darshan.h"
 #include "darshan-config.h"
 
+#ifndef HAVE_OFF64_t
+typedef int64_t off64_t;
+#endif
+
 extern char* __progname_full;
 
 extern int __real_creat(const char* path, mode_t mode);
