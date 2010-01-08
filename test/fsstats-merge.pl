@@ -2,7 +2,8 @@
 #
 #  (C) 2010 by Argonne National Laboratory.
 #
-#  Routines for handling human readable sizes and percentages
+#  Routines for handling human readable sizes and percentages, histogram
+#  package
 #  TODO: what else?
 #  Copyright (c) 2005 Panasas, Inc.
 #
@@ -203,5 +204,379 @@ sub kb_to_print {
   }
   return sprintf("%.2f %s", $num, $unit);
 }
+
+##### Histo.pm #####
+
+#
+# Histo.pm
+#
+# Histogram module for Perl.
+#
+# Author: Marc Unangst <munangst@panasas.com>
+#
+# Copyright (c) 2005 Panasas, Inc.  All rights reserved.
+#
+
+use strict;
+
+package Histo;
+
+#
+# Constructor for a new Histo object.  The arguments are a hash
+# of parameter/value pairs.  The "min" and "incr" parameters
+# must be supplied.  "max" and "log_incr" are optional.
+#
+sub new {
+  my $type = shift;
+  my %params = @_;
+  my $self = {};
+
+  die "Histo->new: required parameters not set\n"
+    unless (defined $params{min} && defined $params{incr});
+
+  $self->{min} = $params{min};
+#  $self->{max} = $params{max}-1 if defined $params{max};
+  $self->{max} = $params{max} if defined $params{max};
+  $self->{incr} = $params{incr};
+  if(defined $params{integer_vals}) {
+     $self->{integer_vals} = $params{integer_vals};
+  }  
+  else {
+     $self->{integer_vals} = 1;
+  }
+  
+  $self->{count} = 0;
+  $self->{total_val} = 0;
+
+
+  if($params{log_incr}) {
+    $self->{log_incr} = $params{log_incr};
+    $self->{bucket_max} = [$self->{min}+$self->{log_incr}];
+  }
+  else {
+    $self->{log_incr} = 0;
+  }
+
+  $self->{buckets} = [];
+  $self->{buckets_val} = [];
+  bless $self, $type;
+}
+
+#
+# Add a new data point to the histogram.
+#
+# @arg  $val
+#   Value to add to the histogram
+# @arg  $count
+#   Optional; if specified, the weight of the item being added.
+#   Calling add($x, 3) is the same as calling add($x) three times.
+#
+sub add ($$;$) {
+  my $self = shift;
+  my ($val, $count) = @_;
+
+  if(!defined $count) {
+    $count = 1;
+  }
+
+  if(!defined $self->{min_val} || $val < $self->{min_val}) {
+    $self->{min_val} = $val;
+  }
+  if(!defined $self->{max_val} || $val > $self->{max_val}) {
+    $self->{max_val} = $val;
+  }
+
+#  if(int($val) != $val) {
+#    $self->{integer_vals} = 0;
+#  }
+
+  $self->{count} += $count;
+  $self->{total_val} += ($val*$count);
+  #$self->{total_val} += $val;
+
+  if(defined $self->{max} && $val > $self->{max}) {
+    $self->{over_max} += $count;
+    $self->{over_max_buckets_val} += $val*$count;
+  }
+  elsif($val < $self->{min}) {
+    $self->{under_min} += $count;
+    $self->{under_min_buckets_val} += $val*$count;
+  }
+  else {
+     my $b;
+     my $val_to_use = $val;
+
+# NOTE: not applicable in the fsstats-merge.pl script
+#     if($self == $pos_ovhd_histo || $self == $neg_ovhd_histo) {
+#        $val_to_use = $size;
+#     }
+
+     if($self->{log_incr}) {
+        $b = 0;
+        my $x = $self->{bucket_max}[0];
+        while($val_to_use >= $x+1) {
+           $x = $x*2 + 1;
+           $b++;
+           if($b > $#{$self->{bucket_max}}) {
+              $self->{bucket_max}[$b] = $x;
+           }
+        }
+     }
+     else {
+        $b = int (($val_to_use - $self->{min}) / $self->{incr});
+     }
+    #print STDERR "sample $val into bucket $b\n";
+    $self->{buckets}[$b] += $count;
+    $self->{buckets_val}[$b] += $val*$count;
+
+    if(!defined $self->{largest_bucket} ||
+	 $self->{buckets}[$b] > $self->{largest_bucket}) {
+      $self->{largest_bucket} = $self->{buckets}[$b];
+    }
+  }
+}
+
+#
+# Get maximum value of the specified bucket.
+#
+# @arg  $b
+#   bucket number
+#
+# @internal
+#
+sub _get_bucket_max ($$) {
+  my $self = shift;
+  my ($b) = @_;
+#  my $epsilon;   dont need this
+
+#  if($self->{integer_vals}) {
+#    $epsilon = 1;
+#    $epsilon = 0;
+#  }
+#  else {
+#   $epsilon = 0.1;
+#  }
+
+  if($self->{log_incr}) {
+    if($b <= $#{$self->{bucket_max}}) {
+#     return ($self->{bucket_max}[$b]-$epsilon);
+      return ($self->{bucket_max}[$b]);
+    }
+    else {
+      return undef;
+    }
+  }
+  else {
+    #return ($self->{incr}*($b+1))-$epsilon;
+    return (($self->{incr}*($b+1)) -1); 
+  }
+}
+
+#
+# Get minimum value of the specified bucket.
+#
+# @arg  $b
+#   bucket number
+#
+# @internal
+#
+sub _get_bucket_min ($$) {
+  my $self = shift;
+  my ($b) = @_;
+
+  if($self->{log_incr}) {
+    if($b == 0) {
+      return $self->{min};
+    }
+    elsif($b <= $#{$self->{bucket_max}}) {
+#     return $self->{bucket_max}[$b-1]
+      return $self->{bucket_max}[$b-1]+1;
+    }
+    else {
+      return undef;
+    }
+  }
+  else {
+    return ($self->{min} + $self->{incr}*($b));
+  }
+}
+
+#
+# Print the histogram contents to STDOUT.
+#
+# @arg  $prefix
+#   String to prefix each output line with.
+# @arg  $unit_str
+#   String that describes the units of the histogram items.
+#
+sub print ($$$) {
+  my $self = shift;
+  my ($prefix, $unit_str) = @_;
+  my $c = 0;
+  my $d = 0;
+#  my $prev_pct = 0;
+
+  my $width;
+  my $fmt;
+#  if ($self->{integer_vals}) {
+    $width = length sprintf("%d", $self->_get_bucket_max($#{$self->{buckets}}));
+    $fmt = "d";
+# }
+#  else {
+#    $width = length sprintf("%.1f", $self->_get_bucket_max($#{$self->{buckets}}));
+#    $fmt = ".1f"
+#  }
+  my $bwidth = 0;
+  if (defined $self->{largest_bucket}) {
+    $bwidth = length sprintf("%d", $self->{largest_bucket});
+  }
+  if($bwidth < 5) {
+    $bwidth = 5;
+  }
+
+  my $bwidth_val = length sprintf("%.2f", $self->{total_val});
+
+  printf("%scount=%d avg=%.2f %s\n", $prefix,
+         $self->{count},
+         $self->{count} > 0 ? $self->{total_val} / $self->{count} : 0,
+         $unit_str);
+  my ($min_val, $max_val);
+  $min_val = defined $self->{min_val} ? $self->{min_val} : "0";
+  $max_val = defined $self->{max_val} ? $self->{max_val} : "0";
+  printf("%smin=%.2f %s max=%.2f %s\n", $prefix,
+         $min_val, $unit_str, $max_val, $unit_str);
+
+  if(defined $self->{under_min} &&  $self->{under_min} > 0) {
+    $c += $self->{under_min};
+    $d += $self->{under_min_buckets_val};
+    printf("%s[%${width}s<%${width}${fmt} %s]: %${bwidth}d (%5.2f%%) (%6.2f%% cumulative) %${bwidth_val}.2f %s (%5.2f%%) (%6.2f%% cumulative)\n", $prefix, " ", $self->{min}, $unit_str, 
+           $c, ($c/$self->{count})*100, ($c/$self->{count})*100,
+           $d, $unit_str, ($d/$self->{total_val})*100, ($d/$self->{total_val})*100);
+  }
+
+  for(my $b = 0; $b <= $#{$self->{buckets}}; $b++) {
+    if($self->{buckets}->[$b]) {
+      my $x = $self->{buckets}->[$b];
+      my $y = $self->{buckets_val}->[$b];
+
+      $c += $x;
+      $d += $y;
+
+      my $pct = ($x / $self->{count}) * 100;
+      my $cum_pct = ($c / $self->{count}) * 100;
+      
+      # if all the files parsed are zero bytes, the total_val will be zero but count will be a positive number
+      my $y_pct = 0;
+      my $y_cum_pct = 0;
+      if($self->{total_val}) {
+         $y_pct = ($y / $self->{total_val}) * 100;
+         $y_cum_pct = ($d / $self->{total_val}) * 100;
+      }
+
+      if ($self->{integer_vals}) {
+	      printf("%s[%${width}${fmt}-%${width}${fmt} %s]: %${bwidth}d (%5.2f%%) (%6.2f%% cumulative) %${bwidth_val}.2f %s (%5.2f%%) (%6.2f%% cumulative) \n", $prefix,
+		      $self->_get_bucket_min($b), $self->_get_bucket_max($b),
+		      $unit_str, $x, $pct, $cum_pct, $y, $unit_str, $y_pct, $y_cum_pct);
+     }else {
+	     printf("%s[%${width}${fmt}-%${width}${fmt} %s): %${bwidth}d (%5.2f%%) (%6.2f%% cumulative) %${bwidth_val}.2f %s (%5.2f%%) (%6.2f%% cumulative)\n", $prefix,
+		      $self->_get_bucket_min($b), $self->_get_bucket_max($b)+1,
+		      $unit_str, $x, $pct, $cum_pct, $y, $unit_str, $y_pct, $y_cum_pct);
+
+     }
+     
+ #     $prev_pct = $cum_pct;
+    }
+  }
+  if(defined $self->{over_max} && $self->{over_max} > 0) {
+    $c += $self->{over_max};
+    $d += $self->{over_max_buckets_val};
+    printf("%s[%${width}s>%${width}${fmt} %s]: %${bwidth}d (%5.2f%%) (%6.2f%% cumulative) %${bwidth_val}.2f %s (%5.2f%%) (%6.2f%% cumulative)\n", $prefix, " ", $self->{max}, $unit_str, 
+          $self->{over_max}, ($self->{over_max} / $self->{count})*100, ($c / $self->{count})*100,
+          $self->{over_max_buckets_val}, $unit_str, ($self->{over_max_buckets_val} / $self->{total_val})*100, ($d/$self->{total_val})*100);
+  }
+}
+
+#
+# Print histogram contents to a CSV-format file.
+#
+# @arg  $fh
+#   filehandle to print to
+# @arg  $name
+#   descriptive name of this histogram, to identify it in the file
+# @arg  $unit_str
+#   string that describes the units of the histogram items
+#
+sub print_csv {
+  my $self = shift;
+  my ($fh, $name, $unit_str) = @_;
+  my $c = 0;
+  my $d = 0;
+
+  
+  printf($fh "histogram,%s\n", $name);
+  printf($fh "count,%d,items\n",
+	 $self->{count});
+  printf($fh "average,%f,%s\n",
+	 $self->{count} > 0 ? $self->{total_val} / $self->{count} : 0,
+	 $unit_str);
+  my ($min_val, $max_val);
+  $min_val = defined $self->{min_val} ? $self->{min_val} : "0";
+  $max_val = defined $self->{max_val} ? $self->{max_val} : "0";
+  printf($fh "min,%d,%s\n", $min_val, $unit_str);
+  printf($fh "max,%d,%s\n", $max_val, $unit_str);
+  print $fh "bucket min,bucket max,count,percent,cumulative pct,val count,percent,cumulative pct\n";
+
+  if (defined $self->{under_min} && $self->{under_min} > 0) {
+    $c += $self->{under_min};
+    $d += $self->{under_min_buckets_val};
+    printf($fh "%d,%d,%d,%f,%f,%f,%f,%f\n",
+          -1, $self->{min}, $c, $c/$self->{count}, $c/$self->{count},
+          $d, $d/$self->{total_val}, $d/$self->{total_val});
+  }
+
+  for (my $b = 0; $b <= $#{$self->{buckets}}; $b++) {
+    if (defined $self->{buckets}->[$b] && $self->{buckets}->[$b] != 0) {
+      my $x = $self->{buckets}->[$b];
+      my $y = $self->{buckets_val}->[$b];
+
+      $c += $x;
+      $d += $y;
+
+      my $pct = $x / $self->{count};
+      my $cum_pct = $c / $self->{count};
+     
+      # if all the files parsed are zero bytes, the total_val will be zero but count will be a positive number
+      my $y_pct = 0;
+      my $y_cum_pct = 0;
+      if($self->{total_val}) {
+         $y_pct = $y / $self->{total_val};
+         $y_cum_pct = $d / $self->{total_val};
+      }
+
+      if($self->{integer_vals}) {
+         printf($fh "%d,%d,%d,%f,%f,%f,%f,%f\n",
+               $self->_get_bucket_min($b), $self->_get_bucket_max($b),
+               $x, $pct, $cum_pct, $y, $y_pct, $y_cum_pct);
+      }
+      else {
+         printf($fh "%d,%d,%d,%f,%f,%f,%f,%f\n",
+               $self->_get_bucket_min($b), $self->_get_bucket_max($b)+1,
+               $x, $pct, $cum_pct, $y, $y_pct, $y_cum_pct);
+      }
+    }
+  }
+
+  if (defined $self->{over_max} && $self->{over_max} > 0) {
+     $c += $self->{over_max};
+     $d += $self->{over_max_buckets_val};
+     printf($fh "%d,%d,%d,%f,%f,%f,%f,%f\n",
+           $self->{max}, -1, $self->{over_max}, $self->{over_max}/$self->{count}, $c/$self->{count},
+           $self->{over_max_buckets_val},  $self->{over_max_buckets_val}/$self->{total_val}, $d/$self->{total_val});
+  }
+  print $fh "\n";
+}
+
+__END__
+
 
 #######################################################################
