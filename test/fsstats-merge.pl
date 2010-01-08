@@ -189,6 +189,19 @@ sub add_histogram
     # $_[1] is the data structure we are adding to
     my $name = $_[2]; # name of the histogram
 
+    # save some global values; we need to replace/adjust those manually
+    # after adding in the histogram because we no longer know the actual
+    # value of each data point
+    my $old_count = $_[1]->{count};
+    my $old_total_val = $_[1]->{total_val};
+    my $old_min_val = $_[1]->{min_val};
+    my $old_max_val = $_[1]->{max_val};
+
+    my $count = 0;
+    my $average = 0;
+    my $min = 0;
+    my $max = 0;
+
     seek($file, 0, 0);
 
     while($line = <$file>) 
@@ -198,15 +211,32 @@ sub add_histogram
         {
             while($line = <$file>) 
             {
-                # stop when we hit a blank line
-                if($line =~ /^\s*$/)
+                if($line =~ /^count,(.*),/) {$count = $1;}
+                elsif($line =~ /^average,(.*),/) {$average = $1;}
+                elsif($line =~ /^min,(.*),/) {$min = $1;}
+                elsif($line =~ /^max,(.*),/) {$max = $1;}
+                elsif($line =~ /^bucket min,bucket max,/) {} # key
+                elsif($line =~
+                /^([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*)/)
                 {
+                    $_[1]->add(($6/$3), $3);
+                }
+                elsif($line =~ /^\s*$/)
+                {
+                    # stop when we hit a blank line
                     last;
+                }
+                else
+                {
+                    print $line;
+                    die("Error: poorly formated csv file.\n");
                 }
             }
             last;
         }
     }
+
+    # TODO: fix min/max
 
     seek($file, 0, 0);
 }
