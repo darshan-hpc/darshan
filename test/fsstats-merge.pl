@@ -2,9 +2,8 @@
 #
 #  (C) 2010 by Argonne National Laboratory.
 #
-#  Routines for handling human readable sizes and percentages, histogram
-#  package
-#  TODO: what else?
+#  Portions of this code including histogram package and routines for
+#  printing human readable sizes and percentages taken from fsstats 1.4.5
 #  Copyright (c) 2005 Panasas, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -35,6 +34,10 @@ my $skipped_hlink = 0;
 my $skipped_snapshot = 0;
 my $total_cap_used = 0;
 my $total_size = 0;
+my $slink_relative = 0;
+my $slink_absolute = 0;
+my $slink_relative_pct = 0;
+my $slink_absolute_pct = 0;
 
 my ($size_histo,
     $cap_histo,
@@ -205,6 +208,11 @@ sub add_summary
         if ($line =~ /^skipped snapshot dirs,(.*)/) {$skipped_snapshot += $1;}
         if ($line =~ /^total capacity used,(.*)/) {$total_cap_used += print_to_kb($1);}
         if ($line =~ /^total user data,(.*)/) {$total_size += print_to_kb($1);}
+        # NOTE: deliberately don't accumulate slink percentage; we have to do
+        # a calculation later so that they are weighted properly.  See
+        # special case in add_histogram() subroutine. 
+        if ($line =~ /^relative symlink target pct,(.*)/) {$slink_relative_pct = $1;}
+        if ($line =~ /^absolute symlink target pct,(.*)/) {$slink_absolute_pct = $1;}
     }
 
     if($version ne "1.4.5")
@@ -236,6 +244,8 @@ sub add_histogram
     my $average = 0;
     my $min = 0;
     my $max = 0;
+    
+    my $total_count = 0;
 
     seek($file, 0, 0);
 
@@ -255,6 +265,7 @@ sub add_histogram
                 /^([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*),([0-9]*\.?[0-9]*)/)
                 {
                     $_[1]->add(($6/$3), $3);
+                    $total_count += $3;
                 }
                 elsif($line =~ /^\s*$/)
                 {
@@ -269,6 +280,13 @@ sub add_histogram
             }
             last;
         }
+    }
+
+    # work backwards to relative and absolute slink counters
+    if($name eq quotemeta("symlink target length"))
+    {
+        $slink_relative += $slink_relative_pct * $total_count;
+        $slink_absolute += $slink_absolute_pct * $total_count;
     }
 
     # fix min and max value
