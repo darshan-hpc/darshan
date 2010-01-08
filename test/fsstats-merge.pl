@@ -222,7 +222,7 @@ sub add_histogram
 {
     my $file = $_[0]; # open file handle
     # $_[1] is the data structure we are adding to
-    my $name = $_[2]; # name of the histogram
+    my $name = quotemeta($_[2]); # name of the histogram
 
     # save some global values; we need to replace/adjust those manually
     # after adding in the histogram because we no longer know the actual
