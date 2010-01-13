@@ -10,6 +10,8 @@
 #include "darshan-logutils.h"
 
 #define MAXSQL (1024*1024)
+#define STOPWALK (1)
+#define CONTWALK (0)
 
 const char *insert_job_fmt  = "insert into %s values('%d','%s','%s','%s',\
 '%d','%d','%d','%d')";
@@ -43,6 +45,7 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     struct darshan_job  job;
     darshan_fd          dfile;
     int                 ret;
+    int                 rc;
     int                 nofiles;
     char                exe[1024];
     char               *base;
@@ -58,13 +61,16 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     regex_t             regex;
     regmatch_t          match[1];
 
+    rc      = CONTWALK;
+    count   = 0;
+
     /* Only Process Files */
-    if (typeflag != FTW_F) return 0;
+    if (typeflag != FTW_F) return CONTWALK;
 
     sqlstmt = malloc(MAXSQL);
     if (!sqlstmt)
     {
-        return -1;
+        return STOPWALK;
     }
 
     /* Process Log Files */
@@ -72,7 +78,8 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     if (dfile == NULL)
     {
         perror("darshan_log_open");
-        return -1;
+        rc = CONTWALK;
+        goto exit;
     }
 
     ret = darshan_log_getjob(dfile, &job);
@@ -80,8 +87,8 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     {
         perror("darshan_log_getjob");
         fprintf(stderr, "%s\n", fpath);
-        darshan_log_close(dfile);
-        return -1;
+        rc = CONTWALK;
+        goto exit;
     }
 
     memset(exe, 0, sizeof(exe));
@@ -91,8 +98,8 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     {
         perror("darshan_log_getexe");
         fprintf(stderr, "%s\n", fpath);
-        darshan_log_close(dfile);
-        return -1;
+        rc = CONTWALK;
+        goto exit;
     }
 
     base     = basename(fpath);
@@ -110,7 +117,8 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
         char buf[256];
         regerror(ret, &regex, buf, sizeof(buf));
         fprintf(stderr, "regcomp: %s\n", buf);
-        return -1;
+        rc = STOPWALK;
+        goto exit;
     }
 
     ret = regexec(&regex, jobid, 1, match, 0);
@@ -119,7 +127,8 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
         char buf[256];
         regerror(ret, &regex, buf, sizeof(buf));
         fprintf(stderr, "regexec: %s\n", buf);
-        return -1;
+        rc = STOPWALK;
+        goto exit;
     }
 
     regfree(&regex);
@@ -142,6 +151,7 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     {
         fprintf(stderr, "log not processed: %s [mysql: %d (%s)\n",
             fpath, mysql_errno(mysql), mysql_error(mysql));
+        rc = CONTWALK;
         goto exit;
     }
 
@@ -153,10 +163,9 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     {
         perror("darshan_log_getmounts");
         fprintf(stderr, "%s\n", fpath);
-        darshan_log_close(dfile);
-        return -1;
+        rc = STOPWALK;
+        goto exit;
     }
-    printf ("mounts: %d files: %d\n", count, nofiles);
 
     for (i=0; (i<count); i++)
     {
@@ -169,7 +178,8 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
         {
             fprintf(stderr, "mysql: %d (%s)\n", mysql_errno(mysql),
                 mysql_error(mysql));
-            exit(1);
+            rc = STOPWALK;
+            goto exit;
         }
     }
 
@@ -343,7 +353,8 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
             {
                 fprintf(stderr, "mysql: %d (%s)\n", mysql_errno(mysql),
                     mysql_error(mysql));
-                exit(1);
+                rc = STOPWALK;
+                goto exit;
             }
         }
     }
@@ -355,12 +366,12 @@ exit:
     {
         for(i=0; i<count; i++)
         {
-            free(mnts[i]);
-            free(fstypes[i]);
+            if (mnts[i]) free(mnts[i]);
+            if (fstypes[i]) free(fstypes[i]);
         }
-        free(devs);
-        free(mnts);
-        free(fstypes);
+        if (devs) free(devs);
+        if (mnts) free(mnts);
+        if (fstypes) free(fstypes);
     }
 
     ret = mysql_commit(mysql);
@@ -368,7 +379,6 @@ exit:
     {
         fprintf(stderr, "mysql: %d (%s)\n", mysql_errno(mysql),
             mysql_error(mysql));
-        exit(1);
     }
 
     if (sqlstmt)
@@ -376,7 +386,7 @@ exit:
         free(sqlstmt);
     }
     
-    return 0;
+    return rc;
 }
 
 int main (int argc, char **argv)
