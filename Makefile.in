@@ -88,6 +88,7 @@ install:: all
 	install -m 755 lib/libdarshan-posix.a $(libdir)
 	install -m 755 lib/libdarshan-mpi-io.a $(libdir)
 	install -d $(bindir)
+	install -d $(bindir)/fast
 	install -m 755 darshan-parser $(bindir)
 	install -m 755 darshan-diff $(bindir)
 	install -m 755 darshan-analyzer $(bindir)
@@ -109,6 +110,22 @@ install:: all
 	install -m 755 compilers/mpixlf77_r-trace-bgp-V1R4 $(bindir)/mpixlf77_r
 	install -m 755 compilers/mpixlf90_r-trace-bgp-V1R4 $(bindir)/mpixlf90_r
 	install -m 755 compilers/mpixlf95_r-trace-bgp-V1R4 $(bindir)/mpixlf95_r
+	install -m 755 compilers/mpicc-trace-bgp-V1R4 $(bindir)/fast/mpicc
+	install -m 755 compilers/mpicxx-trace-bgp-V1R4 $(bindir)/fast/mpicxx
+	install -m 755 compilers/mpif77-trace-bgp-V1R4 $(bindir)/fast/mpif77
+	install -m 755 compilers/mpif90-trace-bgp-V1R4 $(bindir)/fast/mpif90
+	install -m 755 compilers/mpixlc-trace-bgp-V1R4 $(bindir)/fast/mpixlc
+	install -m 755 compilers/mpixlcxx-trace-bgp-V1R4 $(bindir)/fast/mpixlcxx
+	install -m 755 compilers/mpixlf2003-trace-bgp-V1R4 $(bindir)/fast/mpixlf2003
+	install -m 755 compilers/mpixlf77-trace-bgp-V1R4 $(bindir)/fast/mpixlf77
+	install -m 755 compilers/mpixlf90-trace-bgp-V1R4 $(bindir)/fast/mpixlf90
+	install -m 755 compilers/mpixlf95-trace-bgp-V1R4 $(bindir)/fast/mpixlf95
+	install -m 755 compilers/mpixlc_r-trace-bgp-V1R4 $(bindir)/fast/mpixlc_r
+	install -m 755 compilers/mpixlcxx_r-trace-bgp-V1R4 $(bindir)/fast/mpixlcxx_r
+	install -m 755 compilers/mpixlf2003_r-trace-bgp-V1R4 $(bindir)/fast/mpixlf2003_r
+	install -m 755 compilers/mpixlf77_r-trace-bgp-V1R4 $(bindir)/fast/mpixlf77_r
+	install -m 755 compilers/mpixlf90_r-trace-bgp-V1R4 $(bindir)/fast/mpixlf90_r
+	install -m 755 compilers/mpixlf95_r-trace-bgp-V1R4 $(bindir)/fast/mpixlf95_r
 
 clean::
 	rm -f *.o *.a lib/*.o lib/*.a darshan-parser darshan-diff darshan-analyzer

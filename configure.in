@@ -11,6 +11,8 @@ AC_CONFIG_HEADER(darshan-config.h)
 
 AC_PROG_INSTALL
 
+CFLAGS="$CFLAGS -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE"
+
 CHECK_ZLIB
 
 AC_CHECK_PROG(HAVE_MPICC, mpicc, yes, no)
@@ -144,6 +146,22 @@ compilers/mpicc-trace-bgp-V1R4
 compilers/mpicxx-trace-bgp-V1R4
 compilers/mpif77-trace-bgp-V1R4
 compilers/mpif90-trace-bgp-V1R4
+compilers/fast/mpixlc_r-trace-bgp-V1R4
+compilers/fast/mpixlcxx_r-trace-bgp-V1R4
+compilers/fast/mpixlf2003_r-trace-bgp-V1R4
+compilers/fast/mpixlf77_r-trace-bgp-V1R4
+compilers/fast/mpixlf90_r-trace-bgp-V1R4
+compilers/fast/mpixlf95_r-trace-bgp-V1R4
+compilers/fast/mpixlc-trace-bgp-V1R4
+compilers/fast/mpixlf77-trace-bgp-V1R4
+compilers/fast/mpixlf90-trace-bgp-V1R4
+compilers/fast/mpixlf95-trace-bgp-V1R4
+compilers/fast/mpixlcxx-trace-bgp-V1R4
+compilers/fast/mpixlf2003-trace-bgp-V1R4
+compilers/fast/mpicc-trace-bgp-V1R4
+compilers/fast/mpicxx-trace-bgp-V1R4
+compilers/fast/mpif77-trace-bgp-V1R4
+compilers/fast/mpif90-trace-bgp-V1R4
 compilers/mpicc-trace-pcarns
 compilers/mpicxx-trace-pcarns
 compilers/mpif77-trace-pcarns
