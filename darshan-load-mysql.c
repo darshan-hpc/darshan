@@ -392,10 +392,10 @@ exit:
 int main (int argc, char **argv)
 {
     const char *base;
-    const char *host = "mgt6-mgmt.ether.alcf.anl.gov";
-    const char *user = "harms";
-    const char *passwd = "borken";
-    const char *db = "darshan";
+    const char *host   = "db-host";
+    const char *user   = "username";
+    const char *passwd = "password";
+    const char *db     = "darshan";
     int         ret = 0;
 
     if(argc != 2)
