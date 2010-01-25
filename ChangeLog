@@ -2,6 +2,14 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-1.1.9
+=============
+* Added "fast" version of each BG/P compiler
+* Added experimental scripts in test directory to run fsstats in parallel
+* Kevin Harms: Added experimental utilities for loading darshan results into SQL
+* Use exclusive flag when opening output file (to protect against file name collision)
+* Rob Ross: updates to allow command line tools to build on Darwin
+
 darshan-1.1.8
 =============
 * Added tracking of file system type and mount point for each file
