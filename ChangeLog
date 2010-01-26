@@ -9,6 +9,7 @@ darshan-1.1.9
 * Kevin Harms: Added experimental utilities for loading darshan results into SQL
 * Use exclusive flag when opening output file (to protect against file name collision)
 * Rob Ross: updates to allow command line tools to build on Darwin
+* Bug fix for pnetcdf configure problem reported by Rob Latham; darshan now always pulls in MPI_Wtime() symbol at link time
 
 darshan-1.1.8
 =============
