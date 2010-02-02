@@ -1403,8 +1403,6 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL}'
 test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
 
-CFLAGS="$CFLAGS -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE"
-
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
 ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
@@ -3378,6 +3376,8 @@ echo "$as_me: error: $CC doesn't appear to be a valid MPI compiler" >&2;}
 fi
 rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
 
+old_cflags="$CFLAGS"
+CFLAGS="$CFLAGS -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE"
 echo "$as_me:$LINENO: checking for off64_t" >&5
 echo $ECHO_N "checking for off64_t... $ECHO_C" >&6
 cat >conftest.$ac_ext <<_ACEOF
@@ -3449,6 +3449,7 @@ echo "${ECHO_T}no" >&6
 
 fi
 rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
+CFLAGS="$old_cflags"
 
 
 # libc functions wrapped by darshan

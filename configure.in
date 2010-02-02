@@ -11,8 +11,6 @@ AC_CONFIG_HEADER(darshan-config.h)
 
 AC_PROG_INSTALL
 
-CFLAGS="$CFLAGS -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE"
-
 CHECK_ZLIB
 
 AC_CHECK_PROG(HAVE_MPICC, mpicc, yes, no)
@@ -84,6 +82,10 @@ AC_TRY_COMPILE([#include <mpi.h>], [int ret = MPI_Init(0, (void*)0)],
     AC_MSG_ERROR($CC doesn't appear to be a valid MPI compiler)
 )
 
+dnl temporarily set large file flags just for this test; we don't want
+dnl it to propigate to the makefile because of zlib bugs
+old_cflags="$CFLAGS"
+CFLAGS="$CFLAGS -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE"
 AC_MSG_CHECKING(for off64_t)
 AC_TRY_COMPILE(
     [
@@ -108,6 +110,7 @@ AC_TRY_COMPILE(
     AC_DEFINE(HAVE_OFF64_T, 1, Define if off64_t type is defined),
     AC_MSG_RESULT(no)
 )
+CFLAGS="$old_cflags"
 
 
 # libc functions wrapped by darshan
