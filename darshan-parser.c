@@ -29,6 +29,7 @@ int main(int argc, char **argv)
     int* devs;
     char** mnt_pts;
     char** fs_types;
+    int last_rank = 0;
 
     if(argc != 2)
     {
@@ -154,6 +155,14 @@ int main(int argc, char **argv)
     {
         char* mnt_pt = NULL;
         char* fs_type = NULL;
+
+        if(cp_file.rank != -1 && cp_file.rank < last_rank)
+        {
+            fprintf(stderr, "Error: log file contains out of order rank data.\n");
+            return(-1);
+        }
+        if(cp_file.rank != -1)
+            last_rank = cp_file.rank;
         
         for(i=0; i<mount_count; i++)
         {
