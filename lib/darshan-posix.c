@@ -179,6 +179,17 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
         CP_SET(file, CP_MAX_READ_TIME_SIZE, __ret); } \
 } while(0)
 
+#define CP_RECORD_STAT(__file, __statbuf, __tm1, __tm2) do { \
+    if(!CP_VALUE((__file), CP_FILE_ALIGNMENT)){ \
+        CP_SET((__file), CP_DEVICE, (__statbuf)->st_dev); \
+        CP_SET((__file), CP_FILE_ALIGNMENT, (__statbuf)->st_blksize); \
+        CP_SET((__file), CP_SIZE_AT_OPEN, (__statbuf)->st_size); \
+    }\
+    (__file)->log_file->rank = my_rank; \
+    CP_F_INC(__file, CP_F_POSIX_META_TIME, (__tm2-__tm1)); \
+    CP_INC(__file, CP_POSIX_STATS, 1); \
+} while(0)
+
 #define CP_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
     struct darshan_file_runtime* file; \
     char* exclude; \
@@ -537,8 +548,7 @@ int __wrap___xstat64(int vers, const char *path, struct stat *buf)
     file = darshan_file_by_name(path);
     if(file)
     {
-        CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
-        CP_INC(file, CP_POSIX_STATS, 1);
+        CP_RECORD_STAT(file, buf, tm1, tm2);
     }
     CP_UNLOCK();
 
@@ -561,8 +571,7 @@ int __wrap___lxstat64(int vers, const char *path, struct stat *buf)
     file = darshan_file_by_name(path);
     if(file)
     {
-        CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
-        CP_INC(file, CP_POSIX_STATS, 1);
+        CP_RECORD_STAT(file, buf, tm1, tm2);
     }
     CP_UNLOCK();
 
@@ -589,8 +598,7 @@ int __wrap___fxstat64(int vers, int fd, struct stat *buf)
     file = darshan_file_by_fd(fd);
     if(file)
     {
-        CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
-        CP_INC(file, CP_POSIX_STATS, 1);
+        CP_RECORD_STAT(file, buf, tm1, tm2);
     }
     CP_UNLOCK();
 
@@ -614,8 +622,7 @@ int __wrap___xstat(int vers, const char *path, struct stat *buf)
     file = darshan_file_by_name(path);
     if(file)
     {
-        CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
-        CP_INC(file, CP_POSIX_STATS, 1);
+        CP_RECORD_STAT(file, buf, tm1, tm2);
     }
     CP_UNLOCK();
 
@@ -638,8 +645,7 @@ int __wrap___lxstat(int vers, const char *path, struct stat *buf)
     file = darshan_file_by_name(path);
     if(file)
     {
-        CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
-        CP_INC(file, CP_POSIX_STATS, 1);
+        CP_RECORD_STAT(file, buf, tm1, tm2);
     }
     CP_UNLOCK();
 
@@ -666,8 +672,7 @@ int __wrap___fxstat(int vers, int fd, struct stat *buf)
     file = darshan_file_by_fd(fd);
     if(file)
     {
-        CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
-        CP_INC(file, CP_POSIX_STATS, 1);
+        CP_RECORD_STAT(file, buf, tm1, tm2);
     }
     CP_UNLOCK();
 
