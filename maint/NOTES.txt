@@ -1,1 +1,0 @@
-- need to install pdflatex and epstopdf on eureka
