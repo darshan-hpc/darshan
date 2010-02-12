@@ -124,6 +124,8 @@ print OUTPUT <<EOF;
     rc_cnk_check=\$?
     if [ \$rc_cnk_check -eq 0 ] ; then
         script_link_cmd=`echo $link_cmd | sed 's/-lmpichcxx/-lcxxmpich.cnk/g'`
+    else
+        script_link_cmd="$link_cmd"
     fi
 
     rm \$tmpfile >& /dev/null
