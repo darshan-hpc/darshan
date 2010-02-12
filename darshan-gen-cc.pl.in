@@ -115,7 +115,7 @@ print OUTPUT <<EOF;
     grep MPI \$tmpfile >& /dev/null
     rc_mpi=\$?
     # is PMPI in there (except for the mpich library itself)?
-    grep \\(PMPI \$tmpfile | grep -v mpich.cnk.a >& /dev/null
+    grep \\(PMPI \$tmpfile | grep -v -E \\\(mpich.cnk.a\\\|mpich.a\\\) >& /dev/null
     rc_pmpi=\$?
     rm \$tmpfile >& /dev/null
 
