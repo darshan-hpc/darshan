@@ -123,7 +123,7 @@ print OUTPUT <<EOF;
     grep -E mpich\\.cnk\\.a \$tmpfile >& /dev/null
     rc_cnk_check=\$?
     if [ \$rc_cnk_check -eq 0 ] ; then
-        link_cmd=`echo $link_cmd | sed 's/-lmpichcxx/-lcxxmpich.cnk/g'`
+        script_link_cmd=`echo $link_cmd | sed 's/-lmpichcxx/-lcxxmpich.cnk/g'`
     fi
 
     rm \$tmpfile >& /dev/null
@@ -134,7 +134,7 @@ print OUTPUT <<EOF;
         # disable darshan if something else is already using PMPI; we don't
         # want to cause any symbol conflicts
         if [ \$rc_pmpi -ne 0 ] ; then
-            \$Show $link_cmd
+            \$Show \$script_link_cmd
             used_darshan=1
         fi
     fi
