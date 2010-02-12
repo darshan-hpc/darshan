@@ -94,6 +94,7 @@ install:: all
 	install -m 755 darshan-analyzer $(bindir)
 	install -m 755 darshan-mk-log-dirs.pl $(bindir)
 	install -m 755 darshan-gen-cc.pl $(bindir)
+	install -m 755 darshan-gen-cxx.pl $(bindir)
 	install -m 755 compilers/mpicc-trace-bgp-V1R4 $(bindir)/mpicc
 	install -m 755 compilers/mpicxx-trace-bgp-V1R4 $(bindir)/mpicxx
 	install -m 755 compilers/mpif77-trace-bgp-V1R4 $(bindir)/mpif77
