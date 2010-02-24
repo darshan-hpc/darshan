@@ -21,7 +21,7 @@ cp_zlib_include_flags = @__CP_ZLIB_INCLUDE_FLAGS@
 # potentially buggy libz 64 bit offset support
 CFLAGS = -I . -I $(srcdir) @CFLAGS@ @CPPFLAGS@ -Wall
 
-CFLAGS_MPI = -I . -I $(srcdir) @CFLAGS@ @CPPFLAGS@ -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -Wall
+CFLAGS_MPI = -I . -I $(srcdir) @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE -Wall
 CC=@MPICC@
 LD=@MPICC@
 

@@ -38,19 +38,21 @@ extern ssize_t __real_read(int fd, void *buf, size_t count);
 extern off_t __real_lseek(int fd, off_t offset, int whence);
 extern off64_t __real_lseek64(int fd, off64_t offset, int whence);
 extern ssize_t __real_pread(int fd, void *buf, size_t count, off_t offset);
-extern ssize_t __real_pread64(int fd, void *buf, size_t count, off_t offset);
+extern ssize_t __real_pread64(int fd, void *buf, size_t count, off64_t offset);
 extern ssize_t __real_pwrite(int fd, const void *buf, size_t count, off_t offset);
-extern ssize_t __real_pwrite64(int fd, const void *buf, size_t count, off_t offset);
+extern ssize_t __real_pwrite64(int fd, const void *buf, size_t count, off64_t offset);
 extern ssize_t __real_readv(int fd, const struct iovec *iov, int iovcnt);
 extern ssize_t __real_writev(int fd, const struct iovec *iov, int iovcnt);
 extern int __real___fxstat(int vers, int fd, struct stat *buf);
 extern int __real___lxstat(int vers, const char* path, struct stat *buf);
 extern int __real___xstat(int vers, const char* path, struct stat *buf);
-extern int __real___fxstat64(int vers, int fd, struct stat *buf);
-extern int __real___lxstat64(int vers, const char* path, struct stat *buf);
-extern int __real___xstat64(int vers, const char* path, struct stat *buf);
+extern int __real___fxstat64(int vers, int fd, struct stat64 *buf);
+extern int __real___lxstat64(int vers, const char* path, struct stat64 *buf);
+extern int __real___xstat64(int vers, const char* path, struct stat64 *buf);
 extern void* __real_mmap(void *addr, size_t length, int prot, int flags,
     int fd, off_t offset);
+extern void* __real_mmap64(void *addr, size_t length, int prot, int flags,
+    int fd, off64_t offset);
 extern FILE* __real_fopen(const char *path, const char *mode);
 extern FILE* __real_fopen64(const char *path, const char *mode);
 extern int __real_fclose(FILE *fp);
@@ -64,7 +66,7 @@ extern int __real_fdatasync(int fd);
 pthread_mutex_t cp_mutex = PTHREAD_MUTEX_INITIALIZER;
 struct darshan_job_runtime* darshan_global_job = NULL;
 static int my_rank = -1;
-static struct stat cp_stat_buf;
+static struct stat64 cp_stat_buf;
 
 /* these are paths that we will not trace */
 static char* exclusions[] = {
@@ -207,7 +209,7 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     if(file->fd != -1) break; /* TODO: handle multiple concurrent opens */ \
     file->fd = __ret; \
     if(!CP_VALUE(file, CP_FILE_ALIGNMENT)){ \
-        if(fstat(file->fd, &cp_stat_buf) == 0) {\
+        if(fstat64(file->fd, &cp_stat_buf) == 0) {\
             CP_SET(file, CP_DEVICE, cp_stat_buf.st_dev); \
             CP_SET(file, CP_FILE_ALIGNMENT, cp_stat_buf.st_blksize); \
             CP_SET(file, CP_SIZE_AT_OPEN, cp_stat_buf.st_size); \
@@ -375,6 +377,28 @@ int __wrap_fdatasync(int fd)
 }
 
 
+void* __wrap_mmap64(void *addr, size_t length, int prot, int flags,
+    int fd, off64_t offset)
+{
+    void* ret;
+    struct darshan_file_runtime* file;
+
+    ret = __real_mmap64(addr, length, prot, flags, fd, offset);
+    if(ret == MAP_FAILED)
+        return(ret);
+
+    CP_LOCK();
+    file = darshan_file_by_fd(fd);
+    if(file)
+    {
+        CP_INC(file, CP_POSIX_MMAPS, 1);
+    }
+    CP_UNLOCK();
+
+    return(ret);
+}
+
+
 void* __wrap_mmap(void *addr, size_t length, int prot, int flags,
     int fd, off_t offset)
 {
@@ -532,7 +556,7 @@ FILE* __wrap_fopen(const char *path, const char *mode)
     return(ret);
 }
 
-int __wrap___xstat64(int vers, const char *path, struct stat *buf)
+int __wrap___xstat64(int vers, const char *path, struct stat64 *buf)
 {
     int ret;
     struct darshan_file_runtime* file;
@@ -555,7 +579,7 @@ int __wrap___xstat64(int vers, const char *path, struct stat *buf)
     return(ret);
 }
 
-int __wrap___lxstat64(int vers, const char *path, struct stat *buf)
+int __wrap___lxstat64(int vers, const char *path, struct stat64 *buf)
 {
     int ret;
     struct darshan_file_runtime* file;
@@ -578,7 +602,7 @@ int __wrap___lxstat64(int vers, const char *path, struct stat *buf)
     return(ret);
 }
 
-int __wrap___fxstat64(int vers, int fd, struct stat *buf)
+int __wrap___fxstat64(int vers, int fd, struct stat64 *buf)
 {
     int ret;
     struct darshan_file_runtime* file;
@@ -665,7 +689,7 @@ int __wrap___fxstat(int vers, int fd, struct stat *buf)
         return(ret);
 
     /* skip logging if this was triggered internally */
-    if(buf == &cp_stat_buf)
+    if((void*)buf == (void*)&cp_stat_buf)
         return(ret);
 
     CP_LOCK();
@@ -679,7 +703,7 @@ int __wrap___fxstat(int vers, int fd, struct stat *buf)
     return(ret);
 }
 
-ssize_t __wrap_pread64(int fd, void *buf, size_t count, off_t offset)
+ssize_t __wrap_pread64(int fd, void *buf, size_t count, off64_t offset)
 {
     ssize_t ret;
     int aligned_flag = 0;
@@ -734,7 +758,7 @@ ssize_t __wrap_pwrite(int fd, const void *buf, size_t count, off_t offset)
     return(ret);
 }
 
-ssize_t __wrap_pwrite64(int fd, const void *buf, size_t count, off_t offset)
+ssize_t __wrap_pwrite64(int fd, const void *buf, size_t count, off64_t offset)
 {
     ssize_t ret;
     int aligned_flag = 0;
