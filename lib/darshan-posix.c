@@ -900,7 +900,7 @@ size_t __wrap_fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
 
 off64_t __wrap_lseek64(int fd, off64_t offset, int whence)
 {
-    off_t ret;
+    off64_t ret;
     struct darshan_file_runtime* file;
     double tm1, tm2;
 
