@@ -1,6 +1,11 @@
 --------------------------
 Darshan Release Change Log
 --------------------------
+darshan-1.1.11
+==============
+* Bug fix for lseek, pread, and pwrite when used in 32 applications without large file support
+* Improved experimental darshan-gen-cc.pl script
+* Added new experimental darshan-gen-cxx.pl script
 
 darshan-1.1.10
 ==============
