@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PREFIX=/soft/apps/darshan-1.1.10
+PREFIX=/soft/apps/darshan-1.1.11
 LOGDIR=/pvfs-surveyor/darshan_logs
 
 #darshan 
