@@ -137,6 +137,11 @@ uint64_t mnt_hash_array[CP_MAX_MNTS] = {0};
 int64_t mnt_id_array[CP_MAX_MNTS] = {0};
 uint64_t mnt_hash_array_root[CP_MAX_MNTS] = {0};
 int64_t mnt_id_array_root[CP_MAX_MNTS] = {0};
+struct
+{
+    int64_t mnt_id_local;
+    int64_t mnt_id_root;
+} mnt_mapping[CP_MAX_MNTS];
 
 int MPI_Init(int *argc, char ***argv)
 {
@@ -211,7 +216,8 @@ void darshan_shutdown(int timing_flag)
     double red1=0, red2=0, gz1=0, gz2=0, write1=0, write2=0, tm_end=0;
     int nprocs;
     char* trailing_data = NULL;
-    int i, j, k;
+    int i, j;
+    int map_index = 0;
 
     CP_LOCK();
     if(!darshan_global_job)
@@ -305,22 +311,33 @@ void darshan_shutdown(int timing_flag)
                 /* found a shared mount point */
                 if(mnt_id_array_root[i] != mnt_id_array[j])
                 {
-                    /* mismatching ids; correct locally to match root */
-                    for(k=0; k<final_job->file_count; k++)
-                    {
-                        if(final_job->file_array[j].counters[CP_DEVICE] ==
-                            mnt_id_array[j])
-                        {
-                            final_job->file_array[j].counters[CP_DEVICE] =  
-                                mnt_id_array_root[i];
-                        }
-                    }
+                    /* mismatching ids; record correct mapping */
+                    mnt_mapping[map_index].mnt_id_local =
+                        mnt_id_array[j];
+                    mnt_mapping[map_index].mnt_id_root = 
+                        mnt_id_array_root[i];
+                    map_index++;
                 }
                 break;
             }
         }
     }
-    
+ 
+    /* adjust affected file records */
+    for(i=0; (i<final_job->file_count && map_index > 0); i++)
+    {
+        for(j=0; j<map_index; j++)
+        {
+            if(final_job->file_array[i].counters[CP_DEVICE] ==
+                mnt_mapping[j].mnt_id_local)
+            {
+                final_job->file_array[i].counters[CP_DEVICE] =  
+                    mnt_mapping[j].mnt_id_root;
+                break;
+            }
+        }
+    }
+   
     /* construct log file name */
     if(rank == 0)
     {
