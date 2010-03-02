@@ -132,6 +132,12 @@ static int file_compare(const void* a, const void* b);
 static void darshan_mpi_initialize(int *argc, char ***argv);
 static char*  darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job);
 
+#define CP_MAX_MNTS 32
+uint64_t mnt_hash_array[CP_MAX_MNTS] = {0};
+int64_t mnt_id_array[CP_MAX_MNTS] = {0};
+uint64_t mnt_hash_array_root[CP_MAX_MNTS] = {0};
+int64_t mnt_id_array_root[CP_MAX_MNTS] = {0};
+
 int MPI_Init(int *argc, char ***argv)
 {
     int ret;
@@ -205,6 +211,7 @@ void darshan_shutdown(int timing_flag)
     double red1=0, red2=0, gz1=0, gz2=0, write1=0, write2=0, tm_end=0;
     int nprocs;
     char* trailing_data = NULL;
+    int i, j, k;
 
     CP_LOCK();
     if(!darshan_global_job)
@@ -269,14 +276,51 @@ void darshan_shutdown(int timing_flag)
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    /* 1st process will collect information about command line and 
+    /* collect information about command line and 
      * mounted file systems 
      */
-    if(rank ==0)
-    {
-        trailing_data = darshan_get_exe_and_mounts(final_job);
-    }
+    trailing_data = darshan_get_exe_and_mounts(final_job);
 
+    /* broadcast mount point information from root */
+    if(rank == 0)
+    {
+        memcpy(mnt_hash_array_root, mnt_hash_array,
+            CP_MAX_MNTS*sizeof(uint64_t));
+        memcpy(mnt_id_array_root, mnt_id_array,
+            CP_MAX_MNTS*sizeof(int64_t));
+    }
+    MPI_Bcast(mnt_id_array_root, CP_MAX_MNTS*sizeof(int64_t), MPI_BYTE, 0,
+        MPI_COMM_WORLD);
+    MPI_Bcast(mnt_hash_array_root, CP_MAX_MNTS*sizeof(uint64_t), MPI_BYTE, 0,
+        MPI_COMM_WORLD);
+    /* identify any common mount points that have different device ids on
+     * non-root processes
+     */
+    for(i=0; (i<CP_MAX_MNTS && mnt_hash_array_root[i] != 0); i++)
+    {
+        for(j=0; (j<CP_MAX_MNTS && mnt_hash_array[j] != 0); j++)
+        {
+            if(mnt_hash_array_root[i] == mnt_hash_array[j])
+            {
+                /* found a shared mount point */
+                if(mnt_id_array_root[i] != mnt_id_array[j])
+                {
+                    /* mismatching ids; correct locally to match root */
+                    for(k=0; k<final_job->file_count; k++)
+                    {
+                        if(final_job->file_array[j].counters[CP_DEVICE] ==
+                            mnt_id_array[j])
+                        {
+                            final_job->file_array[j].counters[CP_DEVICE] =  
+                                mnt_id_array_root[i];
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+    
     /* construct log file name */
     if(rank == 0)
     {
@@ -1642,6 +1686,7 @@ static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
     char* trailing_data;
     int space_left;
     char tmp_mnt[256];
+    int mnt_array_index = 0;
 
     /* skip these fs types */
     static char* fs_exclusions[] = {
@@ -1694,6 +1739,15 @@ static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
         ret = stat(entry->mnt_dir, &statbuf);
         if(ret == 0)
         {
+            /* record hash of mount point and id */
+            if(mnt_array_index < CP_MAX_MNTS)
+            {
+                mnt_hash_array[mnt_array_index] =
+                    hash((void*)entry->mnt_dir, strlen(entry->mnt_dir), 0);
+                mnt_id_array[mnt_array_index] = statbuf.st_dev;
+                mnt_array_index++;
+            }
+
             ret = snprintf(tmp_mnt, 256, "\n%d\t%s\t%s", (int)statbuf.st_dev, 
                 entry->mnt_type, entry->mnt_dir);
             if(ret >= 256)
