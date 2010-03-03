@@ -418,9 +418,11 @@ set xdata time
 set timefmt \"%s\"
 set format x \"%H:%M:%S\"
 set yrange [-1:$ymax]
+set title \"Duration from first to last read access on independent files\"
 # the xrange doesn't work for some reason
 #set xrange [0:$runtime]
 #set ytics -1,1
+set lmargin 5
 
 # color blindness work around
 set style line 2 lc 3
@@ -445,10 +447,12 @@ set xlabel \"hours:minutes:seconds\"
 set xdata time
 set timefmt \"%s\"
 set format x \"%H:%M:%S\"
+set title \"Duration from first to last write access on independent files\"
 set yrange [-1:$ymax]
 # the xrange doesn't work for some reason
 # set xrange [0:$runtime]
 #set ytics -1,1
+set lmargin 5
 
 # color blindness work around
 set style line 2 lc 3
@@ -472,9 +476,12 @@ set xdata time
 set timefmt \"%s\"
 set format x \"%H:%M:%S\"
 unset ytics
+set ylabel \"All processes\"
 # the xrange doesn't work for some reason
 # set xrange [0:$runtime]
 set yrange [-1:1]
+set title \"Duration from first to last access on shared files\"
+set lmargin 5
 
 # color blindness work around
 set style line 2 lc 3
