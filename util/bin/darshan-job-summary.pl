@@ -30,6 +30,8 @@ process_args();
 open(TRACE, $input_file) || die("can't open $input_file for processing: $!\n");
 open(FA_READ, ">$tmp_dir/file-access-read.dat") || die("error opening output file: $!\n");
 open(FA_WRITE, ">$tmp_dir/file-access-write.dat") || die("error opening output file: $!\n");
+open(FA_READ_SH, ">$tmp_dir/file-access-read-sh.dat") || die("error opening output file: $!\n");
+open(FA_WRITE_SH, ">$tmp_dir/file-access-write-sh.dat") || die("error opening output file: $!\n");
 
 my $last_read_start = 0;
 my $last_write_start = 0;
@@ -99,7 +101,12 @@ while ($line = <TRACE>) {
             if($last_read_start > $starttime) {
                 $last_read_start -= $starttime;
             }
-            print FA_READ "$last_read_start\t$fields[0]\t$xdelta\t0\n";
+            if($fields[0] == -1){
+                print FA_READ_SH "$last_read_start\t0\t$xdelta\t0\n";
+            }
+            else{
+                print FA_READ "$last_read_start\t$fields[0]\t$xdelta\t0\n";
+            }
         }
         if ($fields[2] eq "CP_F_WRITE_START_TIMESTAMP") {
             # store until we find the end
@@ -112,7 +119,12 @@ while ($line = <TRACE>) {
             if($last_write_start > $starttime) {
                 $last_write_start -= $starttime;
             }
-            print FA_WRITE "$last_write_start\t$fields[0]\t$xdelta\t0\n";
+            if($fields[0] == -1){
+                print FA_WRITE_SH "$last_write_start\t0\t$xdelta\t0\n";
+            }
+            else{
+                print FA_WRITE "$last_write_start\t$fields[0]\t$xdelta\t0\n";
+            }
         }
 
         if ($fields[2] =~ /^CP_ACCESS(.)_ACCESS/) {
@@ -134,8 +146,12 @@ while ($line = <TRACE>) {
 # For some reason I can't get the xrange command to work.  -Phil
 print FA_READ "$runtime\t-1\t0\t0\n";
 print FA_WRITE "$runtime\t-1\t0\t0\n";
+print FA_READ_SH "$runtime\t0\t0\t0\n";
+print FA_WRITE_SH "$runtime\t0\t0\t0\n";
 close(FA_READ);
 close(FA_WRITE);
+close(FA_READ_SH);
+close(FA_WRITE_SH);
 
 # counts of operations
 open(COUNTS, ">$tmp_dir/counts.dat") || die("error opening output file: $!\n");
@@ -349,12 +365,12 @@ print FILEACC "#!/usr/bin/gnuplot -persist
 
 set terminal postscript eps color solid font \"Helvetica\" 18 size 10in,2.5in
 set output \"file-access-read.eps\"
-set ylabel \"MPI rank (-1 for shared files)\"
-set xlabel \"Execution time in hours:minutes:seconds\"
+set ylabel \"MPI rank\"
+set xlabel \"hours:minutes:seconds\"
 set xdata time
 set timefmt \"%s\"
 set format x \"%H:%M:%S\"
-set yrange [-2:$ymax]
+set yrange [-1:$ymax]
 # the xrange doesn't work for some reason
 #set xrange [0:$runtime]
 #set ytics -1,1
@@ -377,12 +393,12 @@ print FILEACC "#!/usr/bin/gnuplot -persist
 
 set terminal postscript eps color solid font \"Helvetica\" 18 size 10in,2.5in
 set output \"file-access-write.eps\"
-set ylabel \"MPI rank (-1 for shared files)\"
-set xlabel \"Execution time in hours:minutes:seconds\"
+set ylabel \"MPI rank\"
+set xlabel \"hours:minutes:seconds\"
 set xdata time
 set timefmt \"%s\"
 set format x \"%H:%M:%S\"
-set yrange [-2:$ymax]
+set yrange [-1:$ymax]
 # the xrange doesn't work for some reason
 # set xrange [0:$runtime]
 #set ytics -1,1
@@ -398,6 +414,33 @@ set style increment user
 plot \"file-access-write.dat\" using 1:2:3:4 with vectors nohead filled lt 2 notitle
 ";
 close FILEACC;
+
+open(FILEACC, ">$tmp_dir/file-access-shared-eps.gplt") || die("error opening output file:$!\n");
+print FILEACC "#!/usr/bin/gnuplot -persist
+
+set terminal postscript eps color solid font \"Helvetica\" 18 size 10in,2.5in
+set output \"file-access-shared.eps\"
+set xlabel \"hours:minutes:seconds\"
+set xdata time
+set timefmt \"%s\"
+set format x \"%H:%M:%S\"
+unset ytics
+# the xrange doesn't work for some reason
+# set xrange [0:$runtime]
+set yrange [-1:1]
+
+# color blindness work around
+set style line 2 lc 3
+set style line 3 lc 4
+set style line 4 lc 5
+set style line 5 lc 2
+set style increment user
+
+plot \"file-access-read-sh.dat\" using 1:2:3:4 with vectors nohead filled lw 10 title \"read\", \\
+\"file-access-write-sh.dat\" using 1:((\$2)-.2):3:4 with vectors nohead filled lw 10 title \"write\"
+";
+close FILEACC;
+
 
 if(-x "$FindBin::Bin/gnuplot")
 {
@@ -424,6 +467,8 @@ system "$gnuplot file-access-read-eps.gplt";
 system "epstopdf file-access-read.eps";
 system "$gnuplot file-access-write-eps.gplt";
 system "epstopdf file-access-write.eps";
+system "$gnuplot file-access-shared-eps.gplt";
+system "epstopdf file-access-shared.eps";
 
 #system "gnuplot align-pdf.gplt";
 #system "gnuplot iodist-pdf.gplt";
