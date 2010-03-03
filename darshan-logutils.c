@@ -260,6 +260,8 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
         return(0);
     if(strcmp(job->version_string, "1.23") == 0)
         return(0);
+    if(strcmp(job->version_string, "1.24") == 0)
+        return(0);
 
     fprintf(stderr, "Error: incompatible darshan file.\n");
     fprintf(stderr, "Error: expected version %s, but got %s\n", 
@@ -326,8 +328,18 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     }
     else if(strcmp(job->version_string, "1.23") == 0)
     {
+        /* data format is compatible with 1.24 */
+        ret = gzread(fd, file, sizeof(*file));
+        if(ret == sizeof(*file))
+        {
+            /* got exactly one, correct size record */
+            return(1);
+        }
+    }
+    else if(strcmp(job->version_string, "1.24") == 0)
+    {
         /* make sure this is the current version */
-        assert(strcmp("1.23", CP_VERSION) == 0);
+        assert(strcmp("1.24", CP_VERSION) == 0);
 
         ret = gzread(fd, file, sizeof(*file));
         if(ret == sizeof(*file))
@@ -478,12 +490,17 @@ void darshan_log_close(darshan_fd file)
  */
 void darshan_log_print_version_warnings(struct darshan_job *job)
 {
-    if(strcmp(job->version_string, "1.23") == 0)
+    if(strcmp(job->version_string, "1.24") == 0)
     {
         /* nothing to do, this is the current version */
         return;
     }
     
+    if(strcmp(job->version_string, "1.23") == 0)
+    {
+        printf("# WARNING: version 1.23 log format may have incorrect mount point mappings for files with rank > 0\n");
+    }
+
     if(strcmp(job->version_string, "1.22") == 0)
     {
         printf("# WARNING: version 1.22 log format does not support the following parameters:\n");

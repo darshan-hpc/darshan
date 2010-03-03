@@ -12,7 +12,7 @@
 #include "darshan-config.h"
 
 /* update this on file format changes */
-#define CP_VERSION "1.23"
+#define CP_VERSION "1.24"
 
 /* size (in bytes) of job record */
 #define CP_JOB_RECORD_SIZE 1024
