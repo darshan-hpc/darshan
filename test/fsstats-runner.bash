@@ -7,16 +7,17 @@
 # usage: fsstats-runner.bash <hostname> <path>
 
 # make this configurable or something...
-FSSTATS_PATH=/home/pcarns/working/parallel-fsstats
+FSSTATS_PATH=/home/harms/darshan/trunk/test
 
-if [ "${#}" != 2 ]
+if [ "${#}" != 4 ]
 then
     echo "Error: bad arguments"
     exit 1
 fi
 HOST=${1}
 FS_PATH=${2}
-
+CHKPNT=${3}
+RESTART=${4}
 
 # the output file name will be the path that was scanned, but with equals
 # signs in place of the slashes
@@ -24,7 +25,13 @@ OUT_FILE=`echo $FS_PATH | sed -e 's/\//=/g'`
 OUT_FILE="${OUT_FILE}.csv"
 
 # launch remote command
-ssh -oBatchMode=yes -n $HOST "${FSSTATS_PATH}/fsstats -o /tmp/pfsstats-$$.csv $FS_PATH >& /dev/null"
+if [ $RESTART -eq 1 ];
+then
+    ssh -oBatchMode=yes -n $HOST "${FSSTATS_PATH}/fsstats -r $CHKPNT -c $CHKPNT -o /tmp/pfsstats-$$.csv $FS_PATH >& /dev/null"
+else
+    ssh -oBatchMode=yes -n $HOST "${FSSTATS_PATH}/fsstats -c $CHKPNT -o /tmp/pfsstats-$$.csv $FS_PATH >& /dev/null"
+fi
+
 if [ "${?}" != 0 ]
 then
     exit 1
