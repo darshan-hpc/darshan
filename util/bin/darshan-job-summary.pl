@@ -36,6 +36,22 @@ open(FA_WRITE_SH, ">$tmp_dir/file-access-write-sh.dat") || die("error opening ou
 my $last_read_start = 0;
 my $last_write_start = 0;
 
+my $cumul_read_indep = 0;
+my $cumul_read_duration_indep = 0;
+my $cumul_read_bytes_indep = 0;
+
+my $cumul_write_indep = 0;
+my $cumul_write_duration_indep = 0;
+my $cumul_write_bytes_indep = 0;
+
+my $cumul_read_shared = 0;
+my $cumul_read_duration_shared = 0;
+my $cumul_read_bytes_shared = 0;
+
+my $cumul_write_shared = 0;
+my $cumul_write_duration_shared = 0;
+my $cumul_write_bytes_shared = 0;
+
 while ($line = <TRACE>) {
     chop($line);
     
@@ -87,6 +103,33 @@ while ($line = <TRACE>) {
 	    }
 	}
 
+        # seperate accumulators for independent and shared reads and writes
+        if ($fields[2] eq "CP_F_POSIX_READ_TIME" && $fields[1] == -1){
+            $cumul_read_shared += $fields[3];
+        }
+        if ($fields[2] eq "CP_F_POSIX_READ_TIME" && $fields[1] != -1){
+            $cumul_read_indep += $fields[3];
+        }
+        if ($fields[2] eq "CP_F_POSIX_WRITE_TIME" && $fields[1] == -1){
+            $cumul_write_shared += $fields[3];
+        }
+        if ($fields[2] eq "CP_F_POSIX_WRITE_TIME" && $fields[1] != -1){
+            $cumul_write_indep += $fields[3];
+        }
+
+        if ($fields[2] eq "CP_BYTES_READ" && $fields[1] == -1){
+            $cumul_read_bytes_shared += $fields[3];
+        }
+        if ($fields[2] eq "CP_BYTES_READ" && $fields[1] != -1){
+            $cumul_read_bytes_indep += $fields[3];
+        }
+        if ($fields[2] eq "CP_BYTES_WRITTEN" && $fields[1] == -1){
+            $cumul_write_bytes_shared += $fields[3];
+        }
+        if ($fields[2] eq "CP_BYTES_WRITTEN" && $fields[1] != -1){
+            $cumul_write_bytes_indep += $fields[3];
+        }
+
         # record start and end of reads and writes
 
         if ($fields[2] eq "CP_F_READ_START_TIMESTAMP") {
@@ -102,9 +145,11 @@ while ($line = <TRACE>) {
                 $last_read_start -= $starttime;
             }
             if($fields[0] == -1){
+                $cumul_read_duration_shared += $xdelta;
                 print FA_READ_SH "$last_read_start\t0\t$xdelta\t0\n";
             }
             else{
+                $cumul_read_duration_indep += $xdelta;
                 print FA_READ "$last_read_start\t$fields[0]\t$xdelta\t0\n";
             }
         }
@@ -120,9 +165,11 @@ while ($line = <TRACE>) {
                 $last_write_start -= $starttime;
             }
             if($fields[0] == -1){
+                $cumul_write_duration_shared += $xdelta;
                 print FA_WRITE_SH "$last_write_start\t0\t$xdelta\t0\n";
             }
             else{
+                $cumul_write_duration_indep += $xdelta;
                 print FA_WRITE "$last_write_start\t$fields[0]\t$xdelta\t0\n";
             }
         }
