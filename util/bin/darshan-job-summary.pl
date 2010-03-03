@@ -495,6 +495,46 @@ plot \"file-access-read-sh.dat\" using 1:2:3:4 with vectors nohead filled lw 10 
 ";
 close FILEACC;
 
+$cumul_read_indep /= $nprocs;
+$cumul_read_duration_indep /= $nprocs;
+$cumul_read_bytes_indep /= $nprocs;
+$cumul_read_bytes_indep /= 1048576.0;
+
+$cumul_write_indep /= $nprocs;
+$cumul_write_duration_indep /= $nprocs;
+$cumul_write_bytes_indep /= $nprocs;
+$cumul_write_bytes_indep /= 1048576.0;
+
+$cumul_read_shared /= $nprocs;
+$cumul_read_duration_shared /= $nprocs;
+$cumul_read_bytes_shared /= $nprocs;
+$cumul_read_bytes_shared /= 1048576.0;
+
+$cumul_write_shared /= $nprocs;
+$cumul_write_duration_shared /= $nprocs;
+$cumul_write_bytes_shared /= $nprocs;
+$cumul_write_bytes_shared /= 1048576.0;
+
+open(FILEACC, ">$tmp_dir/file-access-table.tex") || die("error opening output file:$!\n");
+
+print FILEACC "On average, each process spent $cumul_read_indep cumulative
+seconds within a $cumul_read_duration_indep window reading 
+$cumul_read_bytes_indep MBytes of data.  ";
+
+print FILEACC "On average, each process spent $cumul_write_indep cumulative
+seconds within a $cumul_write_duration_indep window writing 
+$cumul_write_bytes_indep MBytes of data.  ";
+
+print FILEACC "On average, each process spent $cumul_read_shared cumulative
+seconds within a $cumul_read_duration_shared window reading 
+$cumul_read_bytes_shared MBytes of data.  ";
+
+print FILEACC "It also spent $cumul_write_shared cumulative
+seconds within a $cumul_write_duration_shared window writing 
+$cumul_write_bytes_shared MBytes of data.  ";
+
+close(FILEACC);
+
 
 if(-x "$FindBin::Bin/gnuplot")
 {
