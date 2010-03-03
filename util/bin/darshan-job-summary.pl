@@ -16,7 +16,9 @@ use English;
 my $gnuplot = "";
 
 my $tmp_dir = tempdir( CLEANUP => 1 );
-#my $tmp_dir = tempdir();
+#my $tmp_dir = tempdir( CLEANUP => 0 );
+#print "tmp dir: $tmp_dir\n";
+
 my $orig_dir = getcwd;
 my $output_file = "summary.pdf";
 my $input_file = "";
@@ -26,6 +28,11 @@ my @access_size = ();
 process_args();
 
 open(TRACE, $input_file) || die("can't open $input_file for processing: $!\n");
+open(FA_READ, ">$tmp_dir/file-access-read.dat") || die("error opening output file: $!\n");
+open(FA_WRITE, ">$tmp_dir/file-access-write.dat") || die("error opening output file: $!\n");
+
+my $last_read_start = 0;
+my $last_write_start = 0;
 
 while ($line = <TRACE>) {
     chop($line);
@@ -78,6 +85,36 @@ while ($line = <TRACE>) {
 	    }
 	}
 
+        # record start and end of reads and writes
+
+        if ($fields[2] eq "CP_F_READ_START_TIMESTAMP") {
+            # store until we find the end
+            # adjust for systems that give absolute time stamps
+            $last_read_start = $fields[3];
+        }
+        if ($fields[2] eq "CP_F_READ_END_TIMESTAMP" && $fields[3] != 0) {
+            # assume we got the read start already 
+            my $xdelta = $fields[3] - $last_read_start;
+            # adjust for systems that have absolute time stamps 
+            if($last_read_start > $starttime) {
+                $last_read_start -= $starttime;
+            }
+            print FA_READ "$last_read_start\t$fields[0]\t$xdelta\t0\n";
+        }
+        if ($fields[2] eq "CP_F_WRITE_START_TIMESTAMP") {
+            # store until we find the end
+            $last_write_start = $fields[3];
+        }
+        if ($fields[2] eq "CP_F_WRITE_END_TIMESTAMP" && $fields[3] != 0) {
+            # assume we got the write start already 
+            my $xdelta = $fields[3] - $last_write_start;
+            # adjust for systems that have absolute time stamps 
+            if($last_write_start > $starttime) {
+                $last_write_start -= $starttime;
+            }
+            print FA_WRITE "$last_write_start\t$fields[0]\t$xdelta\t0\n";
+        }
+
         if ($fields[2] =~ /^CP_ACCESS(.)_ACCESS/) {
             $access_size[$1] = $fields[3];
         }
@@ -92,6 +129,13 @@ while ($line = <TRACE>) {
         }
     }
 }
+
+# Fudge one point at the end to make xrange match in read and write plots.
+# For some reason I can't get the xrange command to work.  -Phil
+print FA_READ "$runtime\t-1\t0\t0\n";
+print FA_WRITE "$runtime\t-1\t0\t0\n";
+close(FA_READ);
+close(FA_WRITE);
 
 # counts of operations
 open(COUNTS, ">$tmp_dir/counts.dat") || die("error opening output file: $!\n");
@@ -298,6 +342,63 @@ close TIME;
 system "cp $FindBin::Bin/../share/*.gplt $tmp_dir/";
 system "cp $FindBin::Bin/../share/*.tex $tmp_dir/";
 
+# generate template for file access plot (we have to set range)
+my $ymax = $nprocs + 1;
+open(FILEACC, ">$tmp_dir/file-access-read-eps.gplt") || die("error opening output file:$!\n");
+print FILEACC "#!/usr/bin/gnuplot -persist
+
+set terminal postscript eps color solid font \"Helvetica\" 18 size 10in,2.5in
+set output \"file-access-read.eps\"
+set ylabel \"MPI rank (-1 for shared files)\"
+set xlabel \"Execution time in hours:minutes:seconds\"
+set xdata time
+set timefmt \"%s\"
+set format x \"%H:%M:%S\"
+set yrange [-2:$ymax]
+# the xrange doesn't work for some reason
+#set xrange [0:$runtime]
+#set ytics -1,1
+
+# color blindness work around
+set style line 2 lc 3
+set style line 3 lc 4
+set style line 4 lc 5
+set style line 5 lc 2
+set style increment user
+
+# lw 3 to make lines thicker...
+# note that writes are slightly offset for better visibility
+plot \"file-access-read.dat\" using 1:2:3:4 with vectors nohead filled notitle
+";
+close FILEACC;
+
+open(FILEACC, ">$tmp_dir/file-access-write-eps.gplt") || die("error opening output file:$!\n");
+print FILEACC "#!/usr/bin/gnuplot -persist
+
+set terminal postscript eps color solid font \"Helvetica\" 18 size 10in,2.5in
+set output \"file-access-write.eps\"
+set ylabel \"MPI rank (-1 for shared files)\"
+set xlabel \"Execution time in hours:minutes:seconds\"
+set xdata time
+set timefmt \"%s\"
+set format x \"%H:%M:%S\"
+set yrange [-2:$ymax]
+# the xrange doesn't work for some reason
+# set xrange [0:$runtime]
+#set ytics -1,1
+
+# color blindness work around
+set style line 2 lc 3
+set style line 3 lc 4
+set style line 4 lc 5
+set style line 5 lc 2
+set style increment user
+
+# lw 3 to make lines thicker...
+plot \"file-access-write.dat\" using 1:2:3:4 with vectors nohead filled lt 2 notitle
+";
+close FILEACC;
+
 if(-x "$FindBin::Bin/gnuplot")
 {
     $gnuplot = "$FindBin::Bin/gnuplot";
@@ -319,6 +420,10 @@ system "$gnuplot pattern-eps.gplt";
 system "epstopdf pattern.eps";
 system "$gnuplot time-summary-eps.gplt";
 system "epstopdf time-summary.eps";
+system "$gnuplot file-access-read-eps.gplt";
+system "epstopdf file-access-read.eps";
+system "$gnuplot file-access-write-eps.gplt";
+system "epstopdf file-access-write.eps";
 
 #system "gnuplot align-pdf.gplt";
 #system "gnuplot iodist-pdf.gplt";
