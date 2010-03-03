@@ -254,9 +254,11 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
         perror("darshan_job_init");
         return(-1);
     }
-    if(strcmp(job->version_string, "1.21"))
+    if(strcmp(job->version_string, "1.21") == 0)
         return(0);
-    if(strcmp(job->version_string, "1.22"))
+    if(strcmp(job->version_string, "1.22") == 0)
+        return(0);
+    if(strcmp(job->version_string, "1.23") == 0)
         return(0);
 
     fprintf(stderr, "Error: incompatible darshan file.\n");
