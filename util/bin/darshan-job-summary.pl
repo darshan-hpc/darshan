@@ -37,19 +37,15 @@ my $last_read_start = 0;
 my $last_write_start = 0;
 
 my $cumul_read_indep = 0;
-my $cumul_read_duration_indep = 0;
 my $cumul_read_bytes_indep = 0;
 
 my $cumul_write_indep = 0;
-my $cumul_write_duration_indep = 0;
 my $cumul_write_bytes_indep = 0;
 
 my $cumul_read_shared = 0;
-my $cumul_read_duration_shared = 0;
 my $cumul_read_bytes_shared = 0;
 
 my $cumul_write_shared = 0;
-my $cumul_write_duration_shared = 0;
 my $cumul_write_bytes_shared = 0;
 
 while ($line = <TRACE>) {
@@ -145,11 +141,9 @@ while ($line = <TRACE>) {
                 $last_read_start -= $starttime;
             }
             if($fields[0] == -1){
-                $cumul_read_duration_shared += $xdelta;
                 print FA_READ_SH "$last_read_start\t0\t$xdelta\t0\n";
             }
             else{
-                $cumul_read_duration_indep += $xdelta;
                 print FA_READ "$last_read_start\t$fields[0]\t$xdelta\t0\n";
             }
         }
@@ -165,11 +159,9 @@ while ($line = <TRACE>) {
                 $last_write_start -= $starttime;
             }
             if($fields[0] == -1){
-                $cumul_write_duration_shared += $xdelta;
                 print FA_WRITE_SH "$last_write_start\t0\t$xdelta\t0\n";
             }
             else{
-                $cumul_write_duration_indep += $xdelta;
                 print FA_WRITE "$last_write_start\t$fields[0]\t$xdelta\t0\n";
             }
         }
@@ -359,10 +351,11 @@ close TABLES;
 
 open(TABLES, ">$tmp_dir/access-table.tex") || die("error opening output file:$!\n");
 print TABLES "
-\\begin{tabular}{|r|r|}
+\\begin{tabular}{r|r}
 \\multicolumn{2}{c}{Most Common Access Sizes} \\\\
 \\hline
 access size \& count \\\\
+\\hline
 \\hline
 ";
 
@@ -496,12 +489,10 @@ plot \"file-access-read-sh.dat\" using 1:2:3:4 with vectors nohead filled lw 10 
 close FILEACC;
 
 $cumul_read_indep /= $nprocs;
-$cumul_read_duration_indep /= $nprocs;
 $cumul_read_bytes_indep /= $nprocs;
 $cumul_read_bytes_indep /= 1048576.0;
 
 $cumul_write_indep /= $nprocs;
-$cumul_write_duration_indep /= $nprocs;
 $cumul_write_bytes_indep /= $nprocs;
 $cumul_write_bytes_indep /= 1048576.0;
 
@@ -515,21 +506,23 @@ $cumul_write_bytes_shared /= 1048576.0;
 
 open(FILEACC, ">$tmp_dir/file-access-table.tex") || die("error opening output file:$!\n");
 print FILEACC "
-\\begin{tabular}{|l|p{1.5in}|p{1.5in}|p{1.5in}|}
-\\multicolumn{4}{c}{Average file I/O per process} \\\\
+\\begin{tabular}{l|p{1.7in}r}
+\\multicolumn{3}{c}{Average I/O per process} \\\\
 \\hline
- \& Cumulative time spent in I/O functions (seconds) \& Timespan from first to last I/O (seconds) \& Amount of I/O (MB) \\\\
+ \& Cumulative time spent in I/O functions (seconds) \& Amount of I/O (MB) \\\\
+\\hline
 \\hline
 ";
 
-printf(FILEACC "Independent reads \& %f \& %f \& %f \\\\", 
-    $cumul_read_indep, $cumul_read_duration_indep, $cumul_read_bytes_indep);
-printf(FILEACC "Independent writes \& %f \& %f \& %f \\\\", 
-    $cumul_write_indep, $cumul_write_duration_indep, $cumul_write_bytes_indep);
-printf(FILEACC "Shared reads \& %f \& %f \& %f \\\\", 
-    $cumul_read_shared, $cumul_read_duration_shared, $cumul_read_bytes_shared);
-printf(FILEACC "Shared writes \& %f \& %f \& %f \\\\", 
-    $cumul_write_shared, $cumul_write_duration_shared, $cumul_write_bytes_shared);
+# printf to get consistent precision in output
+printf(FILEACC "Independent reads \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{%f} \\\\", 
+    $cumul_read_indep, $cumul_read_bytes_indep);
+printf(FILEACC "Independent writes \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{%f} \\\\", 
+    $cumul_write_indep, $cumul_write_bytes_indep);
+printf(FILEACC "Shared reads \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{%f} \\\\", 
+    $cumul_read_shared, $cumul_read_bytes_shared);
+printf(FILEACC "Shared writes \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{%f} \\\\", 
+    $cumul_write_shared, $cumul_write_bytes_shared);
 
 print FILEACC "
 \\hline
