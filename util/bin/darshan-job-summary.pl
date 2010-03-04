@@ -422,7 +422,7 @@ set title \"Duration from first to last read access on independent files\"
 # the xrange doesn't work for some reason
 #set xrange [0:$runtime]
 #set ytics -1,1
-set lmargin 5
+set lmargin 4
 
 # color blindness work around
 set style line 2 lc 3
@@ -452,7 +452,7 @@ set yrange [-1:$ymax]
 # the xrange doesn't work for some reason
 # set xrange [0:$runtime]
 #set ytics -1,1
-set lmargin 5
+set lmargin 4
 
 # color blindness work around
 set style line 2 lc 3
@@ -481,7 +481,7 @@ set ylabel \"All processes\"
 # set xrange [0:$runtime]
 set yrange [-1:1]
 set title \"Duration from first to last access on shared files\"
-set lmargin 5
+set lmargin 4
 
 # color blindness work around
 set style line 2 lc 3
@@ -517,8 +517,7 @@ $cumul_write_bytes_shared /= 1048576.0;
 
 open(FILEACC, ">$tmp_dir/file-access-table.tex") || die("error opening output file:$!\n");
 print FILEACC "
-\\begin{tabular}{|l|r|r|r|}
-\\hline
+\\begin{tabular}{|l|p{1.5in}|p{1.5in}|p{1.5in}|}
 \\multicolumn{4}{c}{I/O averages per process} \\\\
 \\hline
  \& Cumulative I/O time (seconds) \& Time from first to last access (seconds) \& Amount of I/O (MB) \\\\
