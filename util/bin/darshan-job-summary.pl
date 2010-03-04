@@ -104,29 +104,29 @@ while ($line = <TRACE>) {
 	}
 
         # seperate accumulators for independent and shared reads and writes
-        if ($fields[2] eq "CP_F_POSIX_READ_TIME" && $fields[1] == -1){
+        if ($fields[2] eq "CP_F_POSIX_READ_TIME" && $fields[0] == -1){
             $cumul_read_shared += $fields[3];
         }
-        if ($fields[2] eq "CP_F_POSIX_READ_TIME" && $fields[1] != -1){
+        if ($fields[2] eq "CP_F_POSIX_READ_TIME" && $fields[0] != -1){
             $cumul_read_indep += $fields[3];
         }
-        if ($fields[2] eq "CP_F_POSIX_WRITE_TIME" && $fields[1] == -1){
+        if ($fields[2] eq "CP_F_POSIX_WRITE_TIME" && $fields[0] == -1){
             $cumul_write_shared += $fields[3];
         }
-        if ($fields[2] eq "CP_F_POSIX_WRITE_TIME" && $fields[1] != -1){
+        if ($fields[2] eq "CP_F_POSIX_WRITE_TIME" && $fields[0] != -1){
             $cumul_write_indep += $fields[3];
         }
 
-        if ($fields[2] eq "CP_BYTES_READ" && $fields[1] == -1){
+        if ($fields[2] eq "CP_BYTES_READ" && $fields[0] == -1){
             $cumul_read_bytes_shared += $fields[3];
         }
-        if ($fields[2] eq "CP_BYTES_READ" && $fields[1] != -1){
+        if ($fields[2] eq "CP_BYTES_READ" && $fields[0] != -1){
             $cumul_read_bytes_indep += $fields[3];
         }
-        if ($fields[2] eq "CP_BYTES_WRITTEN" && $fields[1] == -1){
+        if ($fields[2] eq "CP_BYTES_WRITTEN" && $fields[0] == -1){
             $cumul_write_bytes_shared += $fields[3];
         }
-        if ($fields[2] eq "CP_BYTES_WRITTEN" && $fields[1] != -1){
+        if ($fields[2] eq "CP_BYTES_WRITTEN" && $fields[0] != -1){
             $cumul_write_bytes_indep += $fields[3];
         }
 
@@ -418,7 +418,7 @@ set xdata time
 set timefmt \"%s\"
 set format x \"%H:%M:%S\"
 set yrange [-1:$ymax]
-set title \"Duration from first to last read access on independent files\"
+set title \"Timespan from first to last read access on independent files\"
 # the xrange doesn't work for some reason
 #set xrange [0:$runtime]
 #set ytics -1,1
@@ -447,7 +447,7 @@ set xlabel \"hours:minutes:seconds\"
 set xdata time
 set timefmt \"%s\"
 set format x \"%H:%M:%S\"
-set title \"Duration from first to last write access on independent files\"
+set title \"Timespan from first to last write access on independent files\"
 set yrange [-1:$ymax]
 # the xrange doesn't work for some reason
 # set xrange [0:$runtime]
@@ -480,7 +480,7 @@ set ylabel \"All processes\"
 # the xrange doesn't work for some reason
 # set xrange [0:$runtime]
 set yrange [-1:1]
-set title \"Duration from first to last access on files shared by all processes\"
+set title \"Timespan from first to last access on files shared by all processes\"
 set lmargin 4
 
 # color blindness work around
@@ -506,21 +506,19 @@ $cumul_write_bytes_indep /= $nprocs;
 $cumul_write_bytes_indep /= 1048576.0;
 
 $cumul_read_shared /= $nprocs;
-$cumul_read_duration_shared /= $nprocs;
 $cumul_read_bytes_shared /= $nprocs;
 $cumul_read_bytes_shared /= 1048576.0;
 
 $cumul_write_shared /= $nprocs;
-$cumul_write_duration_shared /= $nprocs;
 $cumul_write_bytes_shared /= $nprocs;
 $cumul_write_bytes_shared /= 1048576.0;
 
 open(FILEACC, ">$tmp_dir/file-access-table.tex") || die("error opening output file:$!\n");
 print FILEACC "
 \\begin{tabular}{|l|p{1.5in}|p{1.5in}|p{1.5in}|}
-\\multicolumn{4}{c}{I/O averages per process} \\\\
+\\multicolumn{4}{c}{Average file I/O per process} \\\\
 \\hline
- \& Cumulative I/O time (seconds) \& Time from first to last access (seconds) \& Amount of I/O (MB) \\\\
+ \& Cumulative time spent in I/O functions (seconds) \& Timespan from first to last I/O (seconds) \& Amount of I/O (MB) \\\\
 \\hline
 ";
 
