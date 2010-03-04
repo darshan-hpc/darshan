@@ -516,24 +516,38 @@ $cumul_write_bytes_shared /= $nprocs;
 $cumul_write_bytes_shared /= 1048576.0;
 
 open(FILEACC, ">$tmp_dir/file-access-table.tex") || die("error opening output file:$!\n");
-
-print FILEACC "On average, each process spent $cumul_read_indep cumulative
-seconds within a $cumul_read_duration_indep window reading 
-$cumul_read_bytes_indep MBytes of data.  ";
-
-print FILEACC "On average, each process spent $cumul_write_indep cumulative
-seconds within a $cumul_write_duration_indep window writing 
-$cumul_write_bytes_indep MBytes of data.  ";
-
-print FILEACC "On average, each process spent $cumul_read_shared cumulative
-seconds within a $cumul_read_duration_shared window reading 
-$cumul_read_bytes_shared MBytes of data.  ";
-
-print FILEACC "It also spent $cumul_write_shared cumulative
-seconds within a $cumul_write_duration_shared window writing 
-$cumul_write_bytes_shared MBytes of data.  ";
-
+print FILEACC "
+\\begin{tabular}{|l|r|r|r|}
+\\hline
+\\multicolumn{4}{c}{I/O averages per process} \\\\
+\\hline
+ \& Cumulative I/O time (seconds) \& Time from first to last access (seconds) \& Amount of I/O (MB) \\\\
+\\hline
+Independent reads \& $cumul_read_indep \& $cumul_read_duration_indep \& $cumul_read_bytes_indep \\\\
+Independent writes \& $cumul_write_indep \& $cumul_write_duration_indep \& $cumul_write_bytes_indep \\\\
+Shared reads \& $cumul_read_shared \& $cumul_read_duration_shared \& $cumul_read_bytes_shared \\\\
+Shared writes \& $cumul_write_shared \& $cumul_write_duration_shared \& $cumul_write_bytes_shared \\\\
+\\hline
+\\end{tabular}
+";
 close(FILEACC);
+
+#print FILEACC "On average, each process spent $cumul_read_indep cumulative
+#seconds within a $cumul_read_duration_indep window reading 
+#$cumul_read_bytes_indep MBytes of data.  ";
+#
+#print FILEACC "On average, each process spent $cumul_write_indep cumulative
+#seconds within a $cumul_write_duration_indep window writing 
+#$cumul_write_bytes_indep MBytes of data.  ";
+#
+#print FILEACC "On average, each process spent $cumul_read_shared cumulative
+#seconds within a $cumul_read_duration_shared window reading 
+#$cumul_read_bytes_shared MBytes of data.  ";
+#
+#print FILEACC "It also spent $cumul_write_shared cumulative
+#seconds within a $cumul_write_duration_shared window writing 
+#$cumul_write_bytes_shared MBytes of data.  ";
+#
 
 
 if(-x "$FindBin::Bin/gnuplot")
