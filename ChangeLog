@@ -1,6 +1,13 @@
 --------------------------
 Darshan Release Change Log
 --------------------------
+darshan-1.1.12
+==============
+* improved mapping of file records to mount points
+* new page in darshan-job-summary.pl output showing timelines of file access
+* bug fix to "fast" mpif90 script
+* checkpoint/restart ability in parallel fsstats script
+
 darshan-1.1.11
 ==============
 * Bug fix for lseek, pread, and pwrite when used in 32 applications without large file support
