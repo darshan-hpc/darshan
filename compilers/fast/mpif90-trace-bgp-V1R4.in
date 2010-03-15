@@ -356,7 +356,10 @@ if [ "$linking" = yes ] ; then
     
     stock_link_cmd="$F90 ${allargs[@]} $F90INCDIRS $F90MODDIRS $F90FLAGS $LDFLAGS -L$libdir -L$opalibdir $F90MODLIBS $mpilibs $MPI_OTHERLIBS"
 
-    darshan_link_cmd="$F90 ${CP_WRAPPERS} ${allargs[@]} -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -lfmpich.cnk -ldarshan-posix -ldarshan-mpi-io $F90INCDIRS $F90MODDIRS $F90FLAGS $LDFLAGS -L$libdir -L$opalibdir $F90MODLIBS $mpilibs $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix -ldarshan-mpi-io -lz"
+    # if allargs includes any libraries, then we need to get 
+    # -ldarshan-mpi-io in there first
+    newallargs=`echo ${allargs[@]} | sed 's/ -l/ -ldarshan-mpi-io -l/'`
+    darshan_link_cmd="$F90 ${CP_WRAPPERS} $newallargs -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -lfmpich.cnk -ldarshan-posix -ldarshan-mpi-io $F90INCDIRS $F90MODDIRS $F90FLAGS $LDFLAGS -L$libdir -L$opalibdir $F90MODLIBS $mpilibs $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix -ldarshan-mpi-io -lz"
 
     used_darshan=0
 

@@ -49,7 +49,7 @@ open (OUTPUT, ">$output_file") || die("Error opening output file: $!");
 # substitute arguments and darshan options into commands
 $base_link_cmd = $link_cmd;
 $base_link_cmd =~ s/foo.o -o foo/"\$\{allargs\[\@\]\}"/g;
-$link_cmd =~ s/foo.o -o foo/"\$\{allargs\[\@\]\}" -L$DARSHAN_LIB_PATH $CP_ZLIB_LINK_FLAGS -ldarshan-mpi-io -lz $CP_WRAPPERS/g;
+$link_cmd =~ s/foo.o -o foo/"\$\{newallargs\}" -L$DARSHAN_LIB_PATH $CP_ZLIB_LINK_FLAGS -ldarshan-mpi-io -lz $CP_WRAPPERS/g;
 $link_cmd =~ s/$/ -L$DARSHAN_LIB_PATH -ldarshan-posix/g;
 $compile_cmd =~ s/-c foo.c/"\$\{allargs\[\@\]\}"/g;
 
@@ -102,6 +102,10 @@ print OUTPUT <<EOF;
     # We want Darshan to get out of the way if the user is doing a runtime
     # test in configure (in which case MPI objects break the executable) or
     # if the user is using another PMPI based tool
+
+    # if allargs includes any libraries, then we need to get 
+    # -ldarshan-mpi-io in there first
+    newallargs=`echo ${allargs[@]} | sed 's/ -l/ -ldarshan-mpi-io -l/'`
 
     used_darshan=0
 

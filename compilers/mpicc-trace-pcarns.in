@@ -244,7 +244,10 @@ if [ "$linking" = yes ] ; then
     
     stock_link_cmd="$CC ${allargs[@]} -I$includedir $CFLAGS $LDFLAGS -L$libdir $mpilibs $MPI_OTHERLIBS"
 
-    darshan_link_cmd="$CC ${allargs[@]} -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -ldarshan-mpi-io -lz -I$includedir $CFLAGS ${CP_WRAPPERS} $LDFLAGS -L$libdir $mpilibs $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix"
+    # if allargs includes any libraries, then we need to get 
+    # -ldarshan-mpi-io in there first
+    newallargs=`echo ${allargs[@]} | sed 's/ -l/ -ldarshan-mpi-io -l/'`
+    darshan_link_cmd="$CC $newallargs -L${DARSHAN_LIB_PATH} ${CP_ZLIB_LINK_FLAGS} -ldarshan-mpi-io -lz -I$includedir $CFLAGS ${CP_WRAPPERS} $LDFLAGS -L$libdir $mpilibs $MPI_OTHERLIBS -L${DARSHAN_LIB_PATH} -ldarshan-posix"
 
     used_darshan=0
 
