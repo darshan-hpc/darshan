@@ -499,6 +499,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
     if(strcmp(job->version_string, "1.23") == 0)
     {
         printf("# WARNING: version 1.23 log format may have incorrect mount point mappings for files with rank > 0\n");
+        return;
     }
 
     if(strcmp(job->version_string, "1.22") == 0)
