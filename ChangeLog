@@ -1,6 +1,11 @@
 --------------------------
 Darshan Release Change Log
 --------------------------
+
+darshan-1.1.14
+==============
+* fixed erroneous incompatibility warning when opening old logs in darshan-parser
+
 darshan-1.1.13
 ==============
 * updated compiler scripts to fix link order in some cases with -lhdf5
