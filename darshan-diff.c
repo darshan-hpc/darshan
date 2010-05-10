@@ -24,8 +24,8 @@ static void cd_print_int(char * prefix, int arg1, int arg2)
 }
 static void cd_print_int64(char * prefix, int64_t arg1, int64_t arg2)
 {
-    printf("- %s %lld\n", prefix, arg1);
-    printf("+ %s %lld\n", prefix, arg2);
+    printf("- %s %lld\n", prefix, lld(arg1));
+    printf("+ %s %lld\n", prefix, lld(arg2));
 }
 
 
@@ -117,23 +117,23 @@ int main(int argc, char ** argv)
             if (cp_file1.counters[i] != cp_file2.counters[i]) {
 		printf("- ");
 		printf("%d\t%llu\t%s\t%lld\t...%s\n",
-			cp_file1.rank, cp_file1.hash, darshan_names[i], 
-			cp_file1.counters[i], cp_file1.name_suffix);
+			cp_file1.rank, llu(cp_file1.hash), darshan_names[i], 
+			lld(cp_file1.counters[i]), cp_file1.name_suffix);
 		printf("+ ");
 		printf("%d\t%llu\t%s\t%lld\t...%s\n",
-			cp_file2.rank, cp_file2.hash, darshan_names[i], 
-			cp_file2.counters[i], cp_file2.name_suffix);
+			cp_file2.rank, llu(cp_file2.hash), darshan_names[i], 
+			lld(cp_file2.counters[i]), cp_file2.name_suffix);
             }
         }
         for(i=0; i<CP_F_NUM_INDICES; i++) {
             if (cp_file1.fcounters[i] != cp_file2.fcounters[i]) {
 		printf("- ");
 		printf("%d\t%llu\t%s\t%f\t...%s\n",
-			cp_file1.rank, cp_file1.hash, darshan_f_names[i], 
+			cp_file1.rank, llu(cp_file1.hash), darshan_f_names[i], 
 			cp_file1.fcounters[i], cp_file1.name_suffix);
 		printf("+ ");
 		printf("%d\t%llu\t%s\t%f\t...%s\n",
-			cp_file2.rank, cp_file2.hash, darshan_f_names[i], 
+			cp_file2.rank, llu(cp_file2.hash), darshan_f_names[i], 
 			cp_file2.fcounters[i], cp_file2.name_suffix);
             }
         }
