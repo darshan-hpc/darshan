@@ -3191,7 +3191,23 @@ fi
 
 
 
-# Extract the first word of "mpicc", so it can be a program name with args.
+
+# Check whether --with-mpi or --without-mpi was given.
+if test "${with_mpi+set}" = set; then
+  withval="$with_mpi"
+  if test x$withval = xyes; then
+        { { echo "$as_me:$LINENO: error: --with-mpi must be given a pathname" >&5
+echo "$as_me: error: --with-mpi must be given a pathname" >&2;}
+   { (exit 1); exit 1; }; }
+    else
+        MPICC="${withval}/bin/mpicc"
+        HAVE_MPICC="yes"
+    fi
+
+fi;
+
+if test x$HAVE_MPICC != xyes; then
+    # Extract the first word of "mpicc", so it can be a program name with args.
 set dummy mpicc; ac_word=$2
 echo "$as_me:$LINENO: checking for $ac_word" >&5
 echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
@@ -3227,24 +3243,9 @@ else
 echo "${ECHO_T}no" >&6
 fi
 
-if test x$HAVE_MPICC != xyes; then
-
-# Check whether --with-mpi or --without-mpi was given.
-if test "${with_mpi+set}" = set; then
-  withval="$with_mpi"
-  if test x$withval = xyes; then
-            { { echo "$as_me:$LINENO: error: --with-mpi must be given a pathname" >&5
-echo "$as_me: error: --with-mpi must be given a pathname" >&2;}
-   { (exit 1); exit 1; }; }
-        else
-            MPICC="${withval}/bin/mpicc"
-            GOT_MPICC="1"
-        fi
-
-fi;
-else
-    GOT_MPICC="1"
-    MPICC=mpicc
+    if test x$HAVE_MPICC = xyes; then
+        MPICC=mpicc
+    fi
 fi
 
 
@@ -3306,9 +3307,9 @@ fi;
 saveCC="$CC"
 CC="$MPICC"
 
-if test x$GOT_MPICC != x1; then
-    { { echo "$as_me:$LINENO: error: must provide --with-mpi=<path> argument to configure." >&5
-echo "$as_me: error: must provide --with-mpi=<path> argument to configure." >&2;}
+if test x$HAVE_MPICC != "xyes"; then
+    { { echo "$as_me:$LINENO: error: must provide --with-mpi=<path> argument to configure if mpicc is not in path." >&5
+echo "$as_me: error: must provide --with-mpi=<path> argument to configure if mpicc is not in path." >&2;}
    { (exit 1); exit 1; }; }
 fi
 if test x$GOT_ALIGNMENT != x1; then

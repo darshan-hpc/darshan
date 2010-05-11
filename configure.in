@@ -13,20 +13,21 @@ AC_PROG_INSTALL
 
 CHECK_ZLIB
 
-AC_CHECK_PROG(HAVE_MPICC, mpicc, yes, no)
+AC_ARG_WITH(mpi,
+[  --with-mpi=<dir>        Location of the MPI installation],
+    if test x$withval = xyes; then
+        AC_MSG_ERROR(--with-mpi must be given a pathname)
+    else
+        MPICC="${withval}/bin/mpicc"
+        HAVE_MPICC="yes"
+    fi
+)
+
 if test x$HAVE_MPICC != xyes; then
-    AC_ARG_WITH(mpi,
-    [  --with-mpi=<dir>        Location of the MPI installation],
-        if test x$withval = xyes; then
-            AC_MSG_ERROR(--with-mpi must be given a pathname)
-        else
-            MPICC="${withval}/bin/mpicc"
-            GOT_MPICC="1"
-        fi
-    )
-else
-    GOT_MPICC="1"
-    MPICC=mpicc
+    AC_CHECK_PROG(HAVE_MPICC, mpicc, yes, no)
+    if test x$HAVE_MPICC = xyes; then
+        MPICC=mpicc
+    fi
 fi
 AC_SUBST(MPICC)
 
@@ -65,8 +66,8 @@ AC_ARG_WITH(log-path,
 saveCC="$CC"
 CC="$MPICC"
 
-if test x$GOT_MPICC != x1; then
-    AC_MSG_ERROR(must provide --with-mpi=<path> argument to configure.)
+if test x$HAVE_MPICC != "xyes"; then
+    AC_MSG_ERROR(must provide --with-mpi=<path> argument to configure if mpicc is not in path.)
 fi
 if test x$GOT_ALIGNMENT != x1; then
     AC_MSG_ERROR(must provide --with-mem-align=<num> argument to configure.)
