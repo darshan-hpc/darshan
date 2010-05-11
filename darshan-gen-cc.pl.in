@@ -94,7 +94,7 @@ if [ "$linking" = yes ] ; then
 	mpilibs="$C_LINKPATH_SHL$libdir $mpilibs"
     fi
 EOF
-print OUTPUT <<EOF;
+print OUTPUT << 'EOF';
     # Trial run to generate a symbol listing.  We only enable Darshan if:
     # a) MPI is used
     # b) PMPI is _not_ used
@@ -191,7 +191,7 @@ sub process_args
 
 sub print_help
 {
-    print <<EOF;
+    print <<'EOF';
 
 Usage: $PROGRAM_NAME <stock mpicc> --output <modified mpicc>
 
