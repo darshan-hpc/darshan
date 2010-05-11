@@ -49,11 +49,11 @@ open (OUTPUT, ">$output_file") || die("Error opening output file: $!");
 # substitute arguments and darshan options into commands
 $base_link_cmd = $link_cmd;
 $base_link_cmd =~ s/foo.o -o foo/"\$\{allargs\[\@\]\}"/g;
-$link_cmd =~ s/foo.o -o foo/"\$\{newallargs\}" -L$DARSHAN_LIB_PATH $CP_ZLIB_LINK_FLAGS -ldarshan-mpi-io -lz $CP_WRAPPERS/g;
+$link_cmd =~ s/foo.o -o foo/\$\{newallargs\} -L$DARSHAN_LIB_PATH $CP_ZLIB_LINK_FLAGS -ldarshan-mpi-io -lz $CP_WRAPPERS/g;
 $link_cmd =~ s/$/ -L$DARSHAN_LIB_PATH -ldarshan-posix/g;
 $compile_cmd =~ s/-c foo.c/"\$\{allargs\[\@\]\}"/g;
 
-print OUTPUT <<'EOF';
+print OUTPUT<<'EOF';
 #!/bin/bash
 #
 # Auto-generated mpicc script from darshan-gen-cc.pl
@@ -94,7 +94,7 @@ if [ "$linking" = yes ] ; then
 	mpilibs="$C_LINKPATH_SHL$libdir $mpilibs"
     fi
 EOF
-print OUTPUT <<EOF;
+print OUTPUT<<"EOF";
     # Trial run to generate a symbol listing.  We only enable Darshan if:
     # a) MPI is used
     # b) PMPI is _not_ used
@@ -105,7 +105,7 @@ print OUTPUT <<EOF;
 
     # if allargs includes any libraries, then we need to get 
     # -ldarshan-mpi-io in there first
-    newallargs=`echo ${allargs[@]} | sed 's/ -l/ -ldarshan-mpi-io -l/'`
+    newallargs=`echo \${allargs[@]} | sed 's/ -l/ -ldarshan-mpi-io -l/'`
 
     used_darshan=0
 
@@ -191,7 +191,7 @@ sub process_args
 
 sub print_help
 {
-    print <<EOF;
+    print<<"EOF";
 
 Usage: $PROGRAM_NAME <stock mpicc> --output <modified mpicc>
 
