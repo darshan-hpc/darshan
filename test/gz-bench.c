@@ -82,7 +82,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    printf("# size of file statistics: %lu bytes\n", sizeof(cp_file));
+    printf("# size of file statistics: %zu bytes\n", sizeof(cp_file));
     printf("# exe: %s\n", tmp_string);
     printf("# uid: %d\n", job.uid);
     printf("# start_time: %ld\n", (long)job.start_time);
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
         percentage -= tmp_stream.total_out;
         percentage = percentage / (i*sizeof(cp_file));
 
-        printf("%d\t%lu\t%lu\t%f\n", i, i*sizeof(cp_file), tmp_stream.total_out,
+        printf("%d\t%zu\t%lu\t%f\n", i, i*sizeof(cp_file), tmp_stream.total_out,
             percentage);
         
         deflateEnd(&tmp_stream);
