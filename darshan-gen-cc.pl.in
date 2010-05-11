@@ -49,7 +49,7 @@ open (OUTPUT, ">$output_file") || die("Error opening output file: $!");
 # substitute arguments and darshan options into commands
 $base_link_cmd = $link_cmd;
 $base_link_cmd =~ s/foo.o -o foo/"\$\{allargs\[\@\]\}"/g;
-$link_cmd =~ s/foo.o -o foo/"\$\{newallargs\}" -L$DARSHAN_LIB_PATH $CP_ZLIB_LINK_FLAGS -ldarshan-mpi-io -lz $CP_WRAPPERS/g;
+$link_cmd =~ s/foo.o -o foo/\$\{newallargs\} -L$DARSHAN_LIB_PATH $CP_ZLIB_LINK_FLAGS -ldarshan-mpi-io -lz $CP_WRAPPERS/g;
 $link_cmd =~ s/$/ -L$DARSHAN_LIB_PATH -ldarshan-posix/g;
 $compile_cmd =~ s/-c foo.c/"\$\{allargs\[\@\]\}"/g;
 
