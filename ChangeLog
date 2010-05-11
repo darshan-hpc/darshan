@@ -2,6 +2,13 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-1.1.15
+==============
+* bug fixes to darshan-gen-cc.pl and darshan-gen-cxx.pl
+* basic testing of darshan-gen-cc.pl with mpich/pgi
+* update autoconf so that --with-mpi argument overrides mpicc in path
+* fix warnings on 64 bit machines
+
 darshan-1.1.14
 ==============
 * fixed erroneous incompatibility warning when opening old logs in darshan-parser
