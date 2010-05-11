@@ -129,4 +129,4 @@ install:: all
 	install -m 755 compilers/mpixlf95_r-trace-bgp-V1R4 $(bindir)/fast/mpixlf95_r
 
 clean::
-	rm -f *.o *.a lib/*.o lib/*.a darshan-parser darshan-diff darshan-analyzer
+	rm -f *.o *.a lib/*.o lib/*.a darshan-parser darshan-diff darshan-analyzer darshan-log-params
