@@ -254,6 +254,16 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
         perror("darshan_job_init");
         return(-1);
     }
+    /* TODO: error out on anything except 2.00 in trunk for now, build
+     * backwards compatibility later
+     */ 
+    if(strcmp(job->version_string, "2.00") == 0)
+        return(0);
+    fprintf(stderr, "Error: incompatible darshan file.\n");
+    fprintf(stderr, "Error: expected version %s, but got %s\n", 
+            CP_VERSION, job->version_string);
+
+    return(-1);
     if(strcmp(job->version_string, "1.21") == 0)
         return(0);
     if(strcmp(job->version_string, "1.22") == 0)
@@ -338,8 +348,17 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     }
     else if(strcmp(job->version_string, "1.24") == 0)
     {
+        ret = gzread(fd, file, sizeof(*file));
+        if(ret == sizeof(*file))
+        {
+            /* got exactly one, correct size record */
+            return(1);
+        }
+    }
+    else if(strcmp(job->version_string, "2.00") == 0)
+    {
         /* make sure this is the current version */
-        assert(strcmp("1.24", CP_VERSION) == 0);
+        assert(strcmp("2.00", CP_VERSION) == 0);
 
         ret = gzread(fd, file, sizeof(*file));
         if(ret == sizeof(*file))
@@ -490,9 +509,14 @@ void darshan_log_close(darshan_fd file)
  */
 void darshan_log_print_version_warnings(struct darshan_job *job)
 {
+    if(strcmp(job->version_string, "2.00") == 0)
+    {
+        /* current version */
+        return;
+    }
+ 
     if(strcmp(job->version_string, "1.24") == 0)
     {
-        /* nothing to do, this is the current version */
         return;
     }
     

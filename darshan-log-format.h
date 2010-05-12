@@ -14,6 +14,9 @@
 /* update this on file format changes */
 #define CP_VERSION "2.00"
 
+/* magic number for validating output files and checking byte order */
+#define CP_MAGIC_NR 6567223
+
 /* size (in bytes) of job record */
 #define CP_JOB_RECORD_SIZE 1024
 
@@ -217,6 +220,7 @@ struct darshan_file
 struct darshan_job
 {
     char version_string[8];
+    int64_t magic_nr;
     int64_t uid;
     int64_t start_time;
     int64_t end_time;
