@@ -12,7 +12,7 @@
 #include "darshan-config.h"
 
 /* update this on file format changes */
-#define CP_VERSION "1.24"
+#define CP_VERSION "2.00"
 
 /* size (in bytes) of job record */
 #define CP_JOB_RECORD_SIZE 1024
@@ -24,7 +24,7 @@
 #define CP_FILE_RECORD_SIZE (sizeof(struct darshan_file))
 
 /* max length of name suffix string within file record (not counting '\0') */
-#define CP_NAME_SUFFIX_LEN 11
+#define CP_NAME_SUFFIX_LEN 15
 
 /* per file statistics */
 enum darshan_indices
@@ -207,20 +207,20 @@ enum f_darshan_indices
 struct darshan_file
 {
     uint64_t hash;
-    int rank;
+    int64_t rank;
+    char name_suffix[CP_NAME_SUFFIX_LEN+1];
     int64_t counters[CP_NUM_INDICES];
     double fcounters[CP_F_NUM_INDICES];
-    char name_suffix[CP_NAME_SUFFIX_LEN+1];
 };
 
 /* statistics for the job as a whole */
 struct darshan_job
 {
-    char version_string[10];
-    uid_t uid;
-    long start_time;
-    long end_time;
-    int nprocs;
+    char version_string[8];
+    int64_t uid;
+    int64_t start_time;
+    int64_t end_time;
+    int64_t nprocs;
 };
 
 #if SIZEOF_LONG_INT == 4

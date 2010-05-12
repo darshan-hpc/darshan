@@ -69,15 +69,16 @@ int main(int argc, char **argv)
     printf("# size of file statistics: %zu bytes\n", sizeof(cp_file));
     printf("# size of job statistics: %zu bytes\n", sizeof(job));
     printf("# exe: %s\n", tmp_string);
-    printf("# uid: %d\n", job.uid);
-    printf("# start_time: %ld\n", (long)job.start_time);
-    tmp_time = (time_t)job.start_time;
+    printf("# uid: %lld\n", lld(job.uid));
+    printf("# start_time: %lld\n", lld(job.start_time));
+    tmp_time += job.start_time;
     printf("# start_time_asci: %s", ctime(&tmp_time));
-    printf("# end_time: %ld\n", (long)job.end_time);
-    tmp_time = (time_t)job.end_time;
+    printf("# end_time: %lld\n", lld(job.end_time));
+    tmp_time = 0;
+    tmp_time += job.end_time;
     printf("# end_time_asci: %s", ctime(&tmp_time));
-    printf("# nprocs: %d\n", job.nprocs);
-    printf("# run time: %ld\n", (long)(job.end_time - job.start_time + 1));
+    printf("# nprocs: %lld\n", lld(job.nprocs));
+    printf("# run time: %lld\n", lld(job.end_time - job.start_time + 1));
  
     /* print table of mounted file systems */
     ret = darshan_log_getmounts(file, &devs, &mnt_pts, &fs_types, &mount_count,

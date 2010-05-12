@@ -218,6 +218,7 @@ void darshan_shutdown(int timing_flag)
     char* trailing_data = NULL;
     int i, j;
     int map_index = 0;
+    time_t start_time_tmp = 0;
 
     CP_LOCK();
     if(!darshan_global_job)
@@ -358,7 +359,8 @@ void darshan_shutdown(int timing_flag)
         }
 
         /* break out time into something human readable */
-        my_tm = localtime(&final_job->log_job.start_time);
+        start_time_tmp += final_job->log_job.start_time;
+        my_tm = localtime(&start_time_tmp);
 
         /* note: getpwuid() causes link errors for static binaries */
         cuserid(cuser);
