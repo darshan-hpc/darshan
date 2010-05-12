@@ -231,7 +231,19 @@ static void shift_missing_1_21(struct darshan_file* file);
 /* a rather crude API for accessing raw binary darshan files */
 darshan_fd darshan_log_open(const char *name)
 {
-    return gzopen(name, "r");
+    darshan_fd tmp_fd = malloc(sizeof(*tmp_fd));
+    if(!tmp_fd)
+        return(NULL);
+
+    memset(tmp_fd, 0, sizeof(*tmp_fd));
+
+    tmp_fd->gzf = gzopen(name, "r");
+    if(!tmp_fd->gzf)
+    {
+        free(tmp_fd);
+        tmp_fd = NULL;
+    }
+    return tmp_fd;
 }
 
 /* darshan_log_getjob()
@@ -242,12 +254,12 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
 {
     int ret;
 
-    gzseek(file, 0, SEEK_SET);
+    gzseek(file->gzf, 0, SEEK_SET);
 
-    ret = gzread(file, job, sizeof(*job));
+    ret = gzread(file->gzf, job, sizeof(*job));
     if (ret < sizeof(*job))
     {
-        if(gzeof(file))
+        if(gzeof(file->gzf))
         {
             fprintf(stderr, "Error: invalid log file (too short).\n");
         }
@@ -290,8 +302,8 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     struct darshan_file_1_21 file_1_21;
     struct darshan_file_1_22 file_1_22;
     
-    if(gztell(fd) < CP_JOB_RECORD_SIZE)
-        gzseek(fd, CP_JOB_RECORD_SIZE, SEEK_SET);
+    if(gztell(fd->gzf) < CP_JOB_RECORD_SIZE)
+        gzseek(fd->gzf, CP_JOB_RECORD_SIZE, SEEK_SET);
 
     /* reset file record, so that diff compares against a zero'd out record
      * if file is missing
@@ -300,7 +312,7 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
 
     if(strcmp(job->version_string, "1.21") == 0)
     {
-        ret = gzread(fd, &file_1_21, sizeof(file_1_21));
+        ret = gzread(fd->gzf, &file_1_21, sizeof(file_1_21));
         if(ret == sizeof(file_1_21))
         {
             /* convert to new file record structure */
@@ -319,7 +331,7 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     }
     else if(strcmp(job->version_string, "1.22") == 0)
     {
-        ret = gzread(fd, &file_1_22, sizeof(file_1_22));
+        ret = gzread(fd->gzf, &file_1_22, sizeof(file_1_22));
         if(ret == sizeof(file_1_22))
         {
             /* convert to new file record structure */
@@ -339,7 +351,7 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     else if(strcmp(job->version_string, "1.23") == 0)
     {
         /* data format is compatible with 1.24 */
-        ret = gzread(fd, file, sizeof(*file));
+        ret = gzread(fd->gzf, file, sizeof(*file));
         if(ret == sizeof(*file))
         {
             /* got exactly one, correct size record */
@@ -348,7 +360,7 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     }
     else if(strcmp(job->version_string, "1.24") == 0)
     {
-        ret = gzread(fd, file, sizeof(*file));
+        ret = gzread(fd->gzf, file, sizeof(*file));
         if(ret == sizeof(*file))
         {
             /* got exactly one, correct size record */
@@ -360,7 +372,7 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
         /* make sure this is the current version */
         assert(strcmp("2.00", CP_VERSION) == 0);
 
-        ret = gzread(fd, file, sizeof(*file));
+        ret = gzread(fd->gzf, file, sizeof(*file));
         if(ret == sizeof(*file))
         {
             /* got exactly one, correct size record */
@@ -380,14 +392,14 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
         return(-1);
     }
 
-    if(ret == 0 && gzeof(fd))
+    if(ret == 0 && gzeof(fd->gzf))
     {
         /* hit end of file */
         return(0);
     }
 
     /* all other errors */
-    err_string = gzerror(fd, &ret);
+    err_string = gzerror(fd->gzf, &ret);
     fprintf(stderr, "Error: %s\n", err_string);
     return(-1);
 }
@@ -406,15 +418,15 @@ int darshan_log_getmounts(darshan_fd fd, int** devs, char*** mnt_pts, char***
     int array_index = 0;
     char buf[CP_EXE_LEN+1];
 
-    gzseek(fd, sizeof(struct darshan_job), SEEK_SET);
+    gzseek(fd->gzf, sizeof(struct darshan_job), SEEK_SET);
 
-    ret = gzread(fd, buf, (CP_EXE_LEN + 1));
+    ret = gzread(fd->gzf, buf, (CP_EXE_LEN + 1));
     if (ret < (CP_EXE_LEN + 1))
     {
         perror("gzread");
         return(-1);
     }
-    if (gzeof(fd))
+    if (gzeof(fd->gzf))
         *flag = 1;
     else
         *flag = 0;
@@ -474,15 +486,15 @@ int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
     int ret;
     char* newline;
 
-    gzseek(fd, sizeof(struct darshan_job), SEEK_SET);
+    gzseek(fd->gzf, sizeof(struct darshan_job), SEEK_SET);
 
-    ret = gzread(fd, buf, (CP_EXE_LEN + 1));
+    ret = gzread(fd->gzf, buf, (CP_EXE_LEN + 1));
     if (ret < (CP_EXE_LEN + 1))
     {
         perror("gzread");
         return(-1);
     }
-    if (gzeof(fd))
+    if (gzeof(fd->gzf))
         *flag = 1;
     else
         *flag = 0;
@@ -500,7 +512,8 @@ int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
 
 void darshan_log_close(darshan_fd file)
 {
-    gzclose(file);
+    gzclose(file->gzf);
+    free(file);
 }
 
 /* darshan_log_print_version_warnings()

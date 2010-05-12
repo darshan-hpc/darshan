@@ -7,7 +7,13 @@
 #define __DARSHAN_LOG_UTILS_H
 #include <darshan-log-format.h>
 #include <zlib.h>
-typedef gzFile darshan_fd;
+
+struct darshan_fd_s
+{
+    gzFile gzf;
+    int swap_flag;
+};
+typedef struct darshan_fd_s* darshan_fd;
 
 extern char *darshan_names[];
 extern char *darshan_f_names[];
@@ -36,6 +42,21 @@ void darshan_log_print_version_warnings(struct darshan_job *job);
             lld((__file)->rank), llu((__file)->hash), darshan_f_names[__counter], \
             (__file)->fcounters[__counter], (__file)->name_suffix, \
             __mnt_pt, __fs_type); \
+} while(0)
+
+/* naive byte swap implementation */
+#define DARSHAN_BSWAP64(__ptr) do {\
+    char __dst_char[8]; \
+    char* __src_char = (char*)__ptr; \
+    __dst_char[0] = __src_char[7]; \
+    __dst_char[1] = __src_char[6]; \
+    __dst_char[2] = __src_char[5]; \
+    __dst_char[3] = __src_char[4]; \
+    __dst_char[4] = __src_char[3]; \
+    __dst_char[5] = __src_char[2]; \
+    __dst_char[6] = __src_char[1]; \
+    __dst_char[7] = __src_char[0]; \
+    memcpy(__ptr, __dst_char, 8); \
 } while(0)
 
 #endif
