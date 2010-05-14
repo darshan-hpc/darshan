@@ -48,6 +48,11 @@ my $cumul_read_bytes_shared = 0;
 my $cumul_write_shared = 0;
 my $cumul_write_bytes_shared = 0;
 
+my $first_data_line = 1;
+my $current_rank = 0;
+my $current_hash = 0;
+my %file_record_hash = ();
+
 while ($line = <TRACE>) {
     chop($line);
     
@@ -76,7 +81,31 @@ while ($line = <TRACE>) {
 	}
     }
     else {
+        # parse line
 	@fields = split(/[\t ]+/, $line);
+
+        # is this our first piece of data?
+        if($first_data_line)
+        {
+            $current_rank = $fields[0];
+            $current_hash = $fields[1];
+            $first_data_line = 0;
+        }
+
+        # is this a new file record?
+        if($fields[0] != $current_rank && $fields[1] != $current_hash)
+        {
+            # process previous record
+            process_file_record(\%file_record_hash);
+
+            # reset variables for next record 
+            $current_rank = $fields[0];
+            $current_hash = $fields[1];
+            %file_record_hash = ();
+        }
+
+        $file_record_hash{$fields[2]} = $fields[3];
+
 	$summary{$fields[2]} += $fields[3];
 
 	# record per-process POSIX read count
@@ -180,6 +209,10 @@ while ($line = <TRACE>) {
         }
     }
 }
+
+# process last file record
+process_file_record(\%file_record_hash);
+close(TRACE);
 
 # Fudge one point at the end to make xrange match in read and write plots.
 # For some reason I can't get the xrange command to work.  -Phil
@@ -569,6 +602,11 @@ system "pdflatex -halt-on-error summary.tex > latex.output2";
 # get back out of tmp dir and grab results
 chdir $orig_dir;
 system "mv $tmp_dir/summary.pdf $output_file";
+
+sub process_file_record
+{
+    my(%file_record) = %{$_[0]};
+}
 
 sub process_args
 {
