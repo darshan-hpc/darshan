@@ -24,6 +24,7 @@ my $output_file = "summary.pdf";
 my $input_file = "";
 my %access_hash = ();
 my @access_size = ();
+my %hash_files = ();
 
 process_args();
 
@@ -96,7 +97,8 @@ while ($line = <TRACE>) {
         if($fields[0] != $current_rank && $fields[1] != $current_hash)
         {
             # process previous record
-            process_file_record(\%file_record_hash);
+            print("file_record_hash: $file_record_hash{'CP_SIZE_AT_OPEN'}\n");
+            process_file_record($current_rank, $current_hash, \%file_record_hash);
 
             # reset variables for next record 
             $current_rank = $fields[0];
@@ -211,7 +213,7 @@ while ($line = <TRACE>) {
 }
 
 # process last file record
-process_file_record(\%file_record_hash);
+process_file_record($current_rank, $current_hash, \%file_record_hash);
 close(TRACE);
 
 # Fudge one point at the end to make xrange match in read and write plots.
@@ -603,9 +605,111 @@ system "pdflatex -halt-on-error summary.tex > latex.output2";
 chdir $orig_dir;
 system "mv $tmp_dir/summary.pdf $output_file";
 
+foreach my $hash (keys %hash_files) {
+    my $value = $hash_files{$hash}{'min_open_size'};
+    print("$hash: $value\n");
+}
+
 sub process_file_record
 {
-    my(%file_record) = %{$_[0]};
+    my $rank = $_[0];
+    my $hash = $_[1];
+    my(%file_record) = %{$_[2]};
+
+    if($file_record{'CP_INDEP_OPENS'} == 0 &&
+        $file_record{'CP_COLL_OPENS'} == 0 &&
+        $file_record{'CP_POSIX_OPENS'} == 0)
+    {
+        # file wasn't really opened, just stat probably
+        return;
+    }
+
+    # record smallest open time size reported by any rank
+    if(!defined($hash_files{$hash}{'min_open_size'}) ||
+        $hash_files{$hash}{'min_open_size'} > 
+        $file_record{'CP_SIZE_AT_OPEN'})
+    {
+        $hash_files{$hash}{'min_open_size'} = 
+            $file_record{'CP_SIZE_AT_OPEN'};
+    }
+
+    # record largest size that the file reached at any rank
+    if(!defined($hash_files{$hash}{'max_size'}) ||
+        $hash_files{$hash}{'max_size'} <  
+        ($file_record{'CP_MAX_BYTE_READ'} + 1))
+    {
+        $hash_files{$hash}{'max_size'} = 
+            $file_record{'CP_MAX_BYTE_READ'} + 1;
+    }
+    if(!defined($hash_files{$hash}{'max_size'}) ||
+        $hash_files{$hash}{'max_size'} <  
+        ($file_record{'CP_MAX_BYTE_WRITTEN'} + 1))
+    {
+        $hash_files{$hash}{'max_size'} = 
+            $file_record{'CP_MAX_BYTE_WRITTEN'} + 1;
+    }
+
+    # make sure there is an initial value for read and write flags
+    if(!defined($hash_files{$hash}{'was_read'}))
+    {
+        $hash_files{$hash}{'was_read'} = 0;
+    }
+    if(!defined($hash_files{$hash}{'was_written'}))
+    {
+        $hash_files{$hash}{'was_written'} = 0;
+    }
+
+    if($file_record{'CP_INDEP_OPENS'} > 0 ||
+        $file_record{'CP_COLL_OPENS'} > 0)
+    {
+        # mpi file
+        if($file_record{'CP_INDEP_READS'} > 0 ||
+            $file_record{'CP_COLL_READS'} > 0 ||
+            $file_record{'CP_SPLIT_READS'} > 0 ||
+            $file_record{'CP_NB_READS'} > 0)
+        {
+            # data was read from the file
+            $hash_files{$hash}{'was_read'} = 1;
+        }
+        if($file_record{'CP_INDEP_WRITES'} > 0 ||
+            $file_record{'CP_COLL_WRITES'} > 0 ||
+            $file_record{'CP_SPLIT_WRITES'} > 0 ||
+            $file_record{'CP_NB_WRITES'} > 0)
+        {
+            # data was written to the file
+            $hash_files{$hash}{'was_written'} = 1;
+        }
+    }
+    else
+    {
+        # posix file
+        if($file_record{'CP_POSIX_READS'} > 0 ||
+            $file_record{'CP_POSIX_FREADS'} > 0)
+        {
+            # data was read from the file
+            $hash_files{$hash}{'was_read'} = 1;
+        }
+        if($file_record{'CP_POSIX_WRITES'} > 0 ||
+            $file_record{'CP_POSIX_FWRITES'} > 0)
+        {
+            # data was written to the file 
+            $hash_files{$hash}{'was_written'} = 1;
+        }
+    }
+
+    # TODO 
+    # (detect mpi or posix and):
+    # - sum meta time per rank for uniq files
+    # - sum io time per rank for uniq files
+    # - sum time from first open to last io for shared files
+    # - sum meta time/nprocs for shared files
+    # - sum io time/nprocs for shared files
+    
+    # TODO: ideas
+    # graph time spent performing I/O per rank
+    # for rank that spent the most time performing I/O:
+    # - meta on ro files, meta on wo files, read time, write time
+    # table with nfiles accessed, ro, wo, rw, created
 }
 
 sub process_args
