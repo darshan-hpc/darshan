@@ -97,7 +97,6 @@ while ($line = <TRACE>) {
         if($fields[0] != $current_rank && $fields[1] != $current_hash)
         {
             # process previous record
-            print("file_record_hash: $file_record_hash{'CP_SIZE_AT_OPEN'}\n");
             process_file_record($current_rank, $current_hash, \%file_record_hash);
 
             # reset variables for next record 
@@ -413,6 +412,54 @@ print TABLES "
 ";
 close TABLES;
 
+open(TABLES, ">$tmp_dir/file-count-table.tex") || die("error opening output file:$!\n");
+print TABLES "
+\\begin{tabular}{r|r|r|r}
+\\multicolumn{4}{c}{File Count Summary} \\\\
+\\hline
+type \& number of files \& avg. size \& max size \\\\
+\\hline
+\\hline
+";
+my $counter;
+my $sum;
+my $max;
+my $key;
+my $avg;
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    $counter++;
+    if($hash_files{$key}{'min_open_size'} >
+        $hash_files{$key}{'max_size'})
+    {
+        $sum += $hash_files{$key}{'min_open_size'};
+        if($hash_files{$key}{'min_open_size'} > $max)
+        {
+            $max = $hash_files{$key}{'min_open_size'};
+        }
+    }
+    else
+    {
+        $sum += $hash_files{$key}{'max_size'};
+        if($hash_files{$key}{'max_size'} > $max)
+        {
+            $max = $hash_files{$key}{'max_size'};
+        }
+    }
+}
+$avg = $sum / $counter;
+print TABLES "total opened \& $counter \& $avg \& $max \\\\\n";
+
+print TABLES "
+\\hline
+\\end{tabular}
+";
+close(TABLES);
+
+
 open(TIME, ">$tmp_dir/time-summary.dat") || die("error opening output file:$!\n");
 print TIME "# <type>, <app time>, <read>, <write>, <meta>\n";
 print TIME "POSIX, ", ((($runtime * $nprocs - $summary{CP_F_POSIX_READ_TIME} -
@@ -604,11 +651,6 @@ system "pdflatex -halt-on-error summary.tex > latex.output2";
 # get back out of tmp dir and grab results
 chdir $orig_dir;
 system "mv $tmp_dir/summary.pdf $output_file";
-
-foreach my $hash (keys %hash_files) {
-    my $value = $hash_files{$hash}{'min_open_size'};
-    print("$hash: $value\n");
-}
 
 sub process_file_record
 {
