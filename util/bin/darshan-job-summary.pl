@@ -12,6 +12,7 @@ use File::Temp qw/ tempdir /;
 use Cwd;
 use Getopt::Long;
 use English;
+use Number::Bytes::Human qw(format_bytes);
 
 my $gnuplot = "";
 
@@ -24,6 +25,7 @@ my $output_file = "summary.pdf";
 my $input_file = "";
 my %access_hash = ();
 my @access_size = ();
+my %hash_files = ();
 
 process_args();
 
@@ -47,6 +49,14 @@ my $cumul_read_bytes_shared = 0;
 
 my $cumul_write_shared = 0;
 my $cumul_write_bytes_shared = 0;
+
+my $cumul_meta_shared = 0;
+my $cumul_meta_indep = 0;
+
+my $first_data_line = 1;
+my $current_rank = 0;
+my $current_hash = 0;
+my %file_record_hash = ();
 
 while ($line = <TRACE>) {
     chop($line);
@@ -76,7 +86,31 @@ while ($line = <TRACE>) {
 	}
     }
     else {
+        # parse line
 	@fields = split(/[\t ]+/, $line);
+
+        # is this our first piece of data?
+        if($first_data_line)
+        {
+            $current_rank = $fields[0];
+            $current_hash = $fields[1];
+            $first_data_line = 0;
+        }
+
+        # is this a new file record?
+        if($fields[0] != $current_rank || $fields[1] != $current_hash)
+        {
+            # process previous record
+            process_file_record($current_rank, $current_hash, \%file_record_hash);
+
+            # reset variables for next record 
+            $current_rank = $fields[0];
+            $current_hash = $fields[1];
+            %file_record_hash = ();
+        }
+
+        $file_record_hash{$fields[2]} = $fields[3];
+
 	$summary{$fields[2]} += $fields[3];
 
 	# record per-process POSIX read count
@@ -112,6 +146,14 @@ while ($line = <TRACE>) {
         if ($fields[2] eq "CP_F_POSIX_WRITE_TIME" && $fields[0] != -1){
             $cumul_write_indep += $fields[3];
         }
+
+        if ($fields[2] eq "CP_F_POSIX_META_TIME" && $fields[0] == -1){
+            $cumul_meta_shared += $fields[3];
+        }
+        if ($fields[2] eq "CP_F_POSIX_META_TIME" && $fields[0] != -1){
+            $cumul_meta_indep += $fields[3];
+        }
+
 
         if ($fields[2] eq "CP_BYTES_READ" && $fields[0] == -1){
             $cumul_read_bytes_shared += $fields[3];
@@ -180,6 +222,10 @@ while ($line = <TRACE>) {
         }
     }
 }
+
+# process last file record
+process_file_record($current_rank, $current_hash, \%file_record_hash);
+close(TRACE);
 
 # Fudge one point at the end to make xrange match in read and write plots.
 # For some reason I can't get the xrange command to work.  -Phil
@@ -352,6 +398,7 @@ close TABLES;
 open(TABLES, ">$tmp_dir/access-table.tex") || die("error opening output file:$!\n");
 print TABLES "
 \\begin{tabular}{r|r}
+\\multicolumn{2}{c}{ } \\\\
 \\multicolumn{2}{c}{Most Common Access Sizes} \\\\
 \\hline
 access size \& count \\\\
@@ -377,6 +424,188 @@ print TABLES "
 \\end{tabular}
 ";
 close TABLES;
+
+open(TABLES, ">$tmp_dir/file-count-table.tex") || die("error opening output file:$!\n");
+print TABLES "
+\\begin{tabular}{r|r|r|r}
+\\multicolumn{4}{c}{ } \\\\
+\\multicolumn{4}{c}{File Count Summary} \\\\
+\\hline
+type \& number of files \& avg. size \& max size \\\\
+\\hline
+\\hline
+";
+my $counter;
+my $sum;
+my $max;
+my $key;
+my $avg;
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    $counter++;
+    if($hash_files{$key}{'min_open_size'} >
+        $hash_files{$key}{'max_size'})
+    {
+        $sum += $hash_files{$key}{'min_open_size'};
+        if($hash_files{$key}{'min_open_size'} > $max)
+        {
+            $max = $hash_files{$key}{'min_open_size'};
+        }
+    }
+    else
+    {
+        $sum += $hash_files{$key}{'max_size'};
+        if($hash_files{$key}{'max_size'} > $max)
+        {
+            $max = $hash_files{$key}{'max_size'};
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print TABLES "total opened \& $counter \& $avg \& $max \\\\\n";
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    if($hash_files{$key}{'was_read'} && !($hash_files{$key}{'was_written'}))
+    {
+        $counter++;
+        if($hash_files{$key}{'min_open_size'} >
+            $hash_files{$key}{'max_size'})
+        {
+            $sum += $hash_files{$key}{'min_open_size'};
+            if($hash_files{$key}{'min_open_size'} > $max)
+            {
+                $max = $hash_files{$key}{'min_open_size'};
+            }
+        }
+        else
+        {
+            $sum += $hash_files{$key}{'max_size'};
+            if($hash_files{$key}{'max_size'} > $max)
+            {
+                $max = $hash_files{$key}{'max_size'};
+            }
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print TABLES "read-only files \& $counter \& $avg \& $max \\\\\n";
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    if(!($hash_files{$key}{'was_read'}) && $hash_files{$key}{'was_written'})
+    {
+        $counter++;
+        if($hash_files{$key}{'min_open_size'} >
+            $hash_files{$key}{'max_size'})
+        {
+            $sum += $hash_files{$key}{'min_open_size'};
+            if($hash_files{$key}{'min_open_size'} > $max)
+            {
+                $max = $hash_files{$key}{'min_open_size'};
+            }
+        }
+        else
+        {
+            $sum += $hash_files{$key}{'max_size'};
+            if($hash_files{$key}{'max_size'} > $max)
+            {
+                $max = $hash_files{$key}{'max_size'};
+            }
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print TABLES "write-only files \& $counter \& $avg \& $max \\\\\n";
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    if($hash_files{$key}{'was_read'} && $hash_files{$key}{'was_written'})
+    {
+        $counter++;
+        if($hash_files{$key}{'min_open_size'} >
+            $hash_files{$key}{'max_size'})
+        {
+            $sum += $hash_files{$key}{'min_open_size'};
+            if($hash_files{$key}{'min_open_size'} > $max)
+            {
+                $max = $hash_files{$key}{'min_open_size'};
+            }
+        }
+        else
+        {
+            $sum += $hash_files{$key}{'max_size'};
+            if($hash_files{$key}{'max_size'} > $max)
+            {
+                $max = $hash_files{$key}{'max_size'};
+            }
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print TABLES "read/write files \& $counter \& $avg \& $max \\\\\n";
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    if($hash_files{$key}{'was_written'} &&
+        $hash_files{$key}{'min_open_size'} == 0 &&
+        $hash_files{$key}{'max_size'} > 0)
+    {
+        $counter++;
+        if($hash_files{$key}{'min_open_size'} >
+            $hash_files{$key}{'max_size'})
+        {
+            $sum += $hash_files{$key}{'min_open_size'};
+            if($hash_files{$key}{'min_open_size'} > $max)
+            {
+                $max = $hash_files{$key}{'min_open_size'};
+            }
+        }
+        else
+        {
+            $sum += $hash_files{$key}{'max_size'};
+            if($hash_files{$key}{'max_size'} > $max)
+            {
+                $max = $hash_files{$key}{'max_size'};
+            }
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print TABLES "created files \& $counter \& $avg \& $max \\\\\n";
+
+print TABLES "
+\\hline
+\\end{tabular}
+";
+close(TABLES);
+
 
 open(TIME, ">$tmp_dir/time-summary.dat") || die("error opening output file:$!\n");
 print TIME "# <type>, <app time>, <read>, <write>, <meta>\n";
@@ -504,6 +733,9 @@ $cumul_write_shared /= $nprocs;
 $cumul_write_bytes_shared /= $nprocs;
 $cumul_write_bytes_shared /= 1048576.0;
 
+$cumul_meta_shared /= $nprocs;
+$cumul_meta_indep /= $nprocs;
+
 open(FILEACC, ">$tmp_dir/file-access-table.tex") || die("error opening output file:$!\n");
 print FILEACC "
 \\begin{tabular}{l|p{1.7in}r}
@@ -519,10 +751,14 @@ printf(FILEACC "Independent reads \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}
     $cumul_read_indep, $cumul_read_bytes_indep);
 printf(FILEACC "Independent writes \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{%f} \\\\", 
     $cumul_write_indep, $cumul_write_bytes_indep);
+printf(FILEACC "Independent metadata \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{N/A} \\\\", 
+    $cumul_meta_indep);
 printf(FILEACC "Shared reads \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{%f} \\\\", 
     $cumul_read_shared, $cumul_read_bytes_shared);
 printf(FILEACC "Shared writes \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{%f} \\\\", 
     $cumul_write_shared, $cumul_write_bytes_shared);
+printf(FILEACC "Shared metadata \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{N/A} \\\\", 
+    $cumul_meta_shared);
 
 print FILEACC "
 \\hline
@@ -569,6 +805,108 @@ system "pdflatex -halt-on-error summary.tex > latex.output2";
 # get back out of tmp dir and grab results
 chdir $orig_dir;
 system "mv $tmp_dir/summary.pdf $output_file";
+
+sub process_file_record
+{
+    my $rank = $_[0];
+    my $hash = $_[1];
+    my(%file_record) = %{$_[2]};
+
+    if($file_record{'CP_INDEP_OPENS'} == 0 &&
+        $file_record{'CP_COLL_OPENS'} == 0 &&
+        $file_record{'CP_POSIX_OPENS'} == 0)
+    {
+        # file wasn't really opened, just stat probably
+        return;
+    }
+
+    # record smallest open time size reported by any rank
+    if(!defined($hash_files{$hash}{'min_open_size'}) ||
+        $hash_files{$hash}{'min_open_size'} > 
+        $file_record{'CP_SIZE_AT_OPEN'})
+    {
+        $hash_files{$hash}{'min_open_size'} = 
+            $file_record{'CP_SIZE_AT_OPEN'};
+    }
+
+    # record largest size that the file reached at any rank
+    if(!defined($hash_files{$hash}{'max_size'}) ||
+        $hash_files{$hash}{'max_size'} <  
+        ($file_record{'CP_MAX_BYTE_READ'} + 1))
+    {
+        $hash_files{$hash}{'max_size'} = 
+            $file_record{'CP_MAX_BYTE_READ'} + 1;
+    }
+    if(!defined($hash_files{$hash}{'max_size'}) ||
+        $hash_files{$hash}{'max_size'} <  
+        ($file_record{'CP_MAX_BYTE_WRITTEN'} + 1))
+    {
+        $hash_files{$hash}{'max_size'} = 
+            $file_record{'CP_MAX_BYTE_WRITTEN'} + 1;
+    }
+
+    # make sure there is an initial value for read and write flags
+    if(!defined($hash_files{$hash}{'was_read'}))
+    {
+        $hash_files{$hash}{'was_read'} = 0;
+    }
+    if(!defined($hash_files{$hash}{'was_written'}))
+    {
+        $hash_files{$hash}{'was_written'} = 0;
+    }
+
+    if($file_record{'CP_INDEP_OPENS'} > 0 ||
+        $file_record{'CP_COLL_OPENS'} > 0)
+    {
+        # mpi file
+        if($file_record{'CP_INDEP_READS'} > 0 ||
+            $file_record{'CP_COLL_READS'} > 0 ||
+            $file_record{'CP_SPLIT_READS'} > 0 ||
+            $file_record{'CP_NB_READS'} > 0)
+        {
+            # data was read from the file
+            $hash_files{$hash}{'was_read'} = 1;
+        }
+        if($file_record{'CP_INDEP_WRITES'} > 0 ||
+            $file_record{'CP_COLL_WRITES'} > 0 ||
+            $file_record{'CP_SPLIT_WRITES'} > 0 ||
+            $file_record{'CP_NB_WRITES'} > 0)
+        {
+            # data was written to the file
+            $hash_files{$hash}{'was_written'} = 1;
+        }
+    }
+    else
+    {
+        # posix file
+        if($file_record{'CP_POSIX_READS'} > 0 ||
+            $file_record{'CP_POSIX_FREADS'} > 0)
+        {
+            # data was read from the file
+            $hash_files{$hash}{'was_read'} = 1;
+        }
+        if($file_record{'CP_POSIX_WRITES'} > 0 ||
+            $file_record{'CP_POSIX_FWRITES'} > 0)
+        {
+            # data was written to the file 
+            $hash_files{$hash}{'was_written'} = 1;
+        }
+    }
+
+    # TODO 
+    # (detect mpi or posix and):
+    # - sum meta time per rank for uniq files
+    # - sum io time per rank for uniq files
+    # - sum time from first open to last io for shared files
+    # - sum meta time/nprocs for shared files
+    # - sum io time/nprocs for shared files
+    
+    # TODO: ideas
+    # graph time spent performing I/O per rank
+    # for rank that spent the most time performing I/O:
+    # - meta on ro files, meta on wo files, read time, write time
+    # table with nfiles accessed, ro, wo, rw, created
+}
 
 sub process_args
 {
