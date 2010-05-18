@@ -8,9 +8,12 @@ install -d $PREFIX
 install -d $PREFIX/bin
 install -d $PREFIX/lib
 install -d $PREFIX/lib/TeX
+install -d $PREFIX/lib/Number
+install -d $PREFIX/lib/Number/Bytes
 install -d $PREFIX/share
 install -m 755 util/bin/darshan-job-summary.pl $PREFIX/bin/
 install -m 644 util/lib/TeX/Encode.pm $PREFIX/lib/TeX/
+install -m 644 util/lib/Number/Bytes/Human.pm $PREFIX/lib/Number/Bytes
 install -m 644 util/share/* $PREFIX/share/
 
 #gnuplot (new version with additional histogram support)
