@@ -12,6 +12,7 @@ use File::Temp qw/ tempdir /;
 use Cwd;
 use Getopt::Long;
 use English;
+use Number::Bytes::Human qw(format_bytes);
 
 my $gnuplot = "";
 
@@ -94,7 +95,7 @@ while ($line = <TRACE>) {
         }
 
         # is this a new file record?
-        if($fields[0] != $current_rank && $fields[1] != $current_hash)
+        if($fields[0] != $current_rank || $fields[1] != $current_hash)
         {
             # process previous record
             process_file_record($current_rank, $current_hash, \%file_record_hash);
@@ -451,6 +452,8 @@ foreach $key (keys %hash_files) {
     }
 }
 $avg = $sum / $counter;
+$avg = format_bytes($avg);
+$max = format_bytes($max);
 print TABLES "total opened \& $counter \& $avg \& $max \\\\\n";
 
 print TABLES "
