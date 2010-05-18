@@ -50,6 +50,9 @@ my $cumul_read_bytes_shared = 0;
 my $cumul_write_shared = 0;
 my $cumul_write_bytes_shared = 0;
 
+my $cumul_meta_shared = 0;
+my $cumul_meta_indep = 0;
+
 my $first_data_line = 1;
 my $current_rank = 0;
 my $current_hash = 0;
@@ -143,6 +146,14 @@ while ($line = <TRACE>) {
         if ($fields[2] eq "CP_F_POSIX_WRITE_TIME" && $fields[0] != -1){
             $cumul_write_indep += $fields[3];
         }
+
+        if ($fields[2] eq "CP_F_POSIX_META_TIME" && $fields[0] == -1){
+            $cumul_meta_shared += $fields[3];
+        }
+        if ($fields[2] eq "CP_F_POSIX_META_TIME" && $fields[0] != -1){
+            $cumul_meta_indep += $fields[3];
+        }
+
 
         if ($fields[2] eq "CP_BYTES_READ" && $fields[0] == -1){
             $cumul_read_bytes_shared += $fields[3];
@@ -387,6 +398,7 @@ close TABLES;
 open(TABLES, ">$tmp_dir/access-table.tex") || die("error opening output file:$!\n");
 print TABLES "
 \\begin{tabular}{r|r}
+\\multicolumn{2}{c}{ } \\\\
 \\multicolumn{2}{c}{Most Common Access Sizes} \\\\
 \\hline
 access size \& count \\\\
@@ -416,6 +428,7 @@ close TABLES;
 open(TABLES, ">$tmp_dir/file-count-table.tex") || die("error opening output file:$!\n");
 print TABLES "
 \\begin{tabular}{r|r|r|r}
+\\multicolumn{4}{c}{ } \\\\
 \\multicolumn{4}{c}{File Count Summary} \\\\
 \\hline
 type \& number of files \& avg. size \& max size \\\\
@@ -451,10 +464,141 @@ foreach $key (keys %hash_files) {
         }
     }
 }
-$avg = $sum / $counter;
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
 $avg = format_bytes($avg);
 $max = format_bytes($max);
 print TABLES "total opened \& $counter \& $avg \& $max \\\\\n";
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    if($hash_files{$key}{'was_read'} && !($hash_files{$key}{'was_written'}))
+    {
+        $counter++;
+        if($hash_files{$key}{'min_open_size'} >
+            $hash_files{$key}{'max_size'})
+        {
+            $sum += $hash_files{$key}{'min_open_size'};
+            if($hash_files{$key}{'min_open_size'} > $max)
+            {
+                $max = $hash_files{$key}{'min_open_size'};
+            }
+        }
+        else
+        {
+            $sum += $hash_files{$key}{'max_size'};
+            if($hash_files{$key}{'max_size'} > $max)
+            {
+                $max = $hash_files{$key}{'max_size'};
+            }
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print TABLES "read-only files \& $counter \& $avg \& $max \\\\\n";
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    if(!($hash_files{$key}{'was_read'}) && $hash_files{$key}{'was_written'})
+    {
+        $counter++;
+        if($hash_files{$key}{'min_open_size'} >
+            $hash_files{$key}{'max_size'})
+        {
+            $sum += $hash_files{$key}{'min_open_size'};
+            if($hash_files{$key}{'min_open_size'} > $max)
+            {
+                $max = $hash_files{$key}{'min_open_size'};
+            }
+        }
+        else
+        {
+            $sum += $hash_files{$key}{'max_size'};
+            if($hash_files{$key}{'max_size'} > $max)
+            {
+                $max = $hash_files{$key}{'max_size'};
+            }
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print TABLES "write-only files \& $counter \& $avg \& $max \\\\\n";
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    if($hash_files{$key}{'was_read'} && $hash_files{$key}{'was_written'})
+    {
+        $counter++;
+        if($hash_files{$key}{'min_open_size'} >
+            $hash_files{$key}{'max_size'})
+        {
+            $sum += $hash_files{$key}{'min_open_size'};
+            if($hash_files{$key}{'min_open_size'} > $max)
+            {
+                $max = $hash_files{$key}{'min_open_size'};
+            }
+        }
+        else
+        {
+            $sum += $hash_files{$key}{'max_size'};
+            if($hash_files{$key}{'max_size'} > $max)
+            {
+                $max = $hash_files{$key}{'max_size'};
+            }
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print TABLES "read/write files \& $counter \& $avg \& $max \\\\\n";
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    if($hash_files{$key}{'was_written'} &&
+        $hash_files{$key}{'min_open_size'} == 0 &&
+        $hash_files{$key}{'max_size'} > 0)
+    {
+        $counter++;
+        if($hash_files{$key}{'min_open_size'} >
+            $hash_files{$key}{'max_size'})
+        {
+            $sum += $hash_files{$key}{'min_open_size'};
+            if($hash_files{$key}{'min_open_size'} > $max)
+            {
+                $max = $hash_files{$key}{'min_open_size'};
+            }
+        }
+        else
+        {
+            $sum += $hash_files{$key}{'max_size'};
+            if($hash_files{$key}{'max_size'} > $max)
+            {
+                $max = $hash_files{$key}{'max_size'};
+            }
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print TABLES "created files \& $counter \& $avg \& $max \\\\\n";
 
 print TABLES "
 \\hline
@@ -589,6 +733,9 @@ $cumul_write_shared /= $nprocs;
 $cumul_write_bytes_shared /= $nprocs;
 $cumul_write_bytes_shared /= 1048576.0;
 
+$cumul_meta_shared /= $nprocs;
+$cumul_meta_indep /= $nprocs;
+
 open(FILEACC, ">$tmp_dir/file-access-table.tex") || die("error opening output file:$!\n");
 print FILEACC "
 \\begin{tabular}{l|p{1.7in}r}
@@ -604,10 +751,14 @@ printf(FILEACC "Independent reads \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}
     $cumul_read_indep, $cumul_read_bytes_indep);
 printf(FILEACC "Independent writes \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{%f} \\\\", 
     $cumul_write_indep, $cumul_write_bytes_indep);
+printf(FILEACC "Independent metadata \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{N/A} \\\\", 
+    $cumul_meta_indep);
 printf(FILEACC "Shared reads \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{%f} \\\\", 
     $cumul_read_shared, $cumul_read_bytes_shared);
 printf(FILEACC "Shared writes \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{%f} \\\\", 
     $cumul_write_shared, $cumul_write_bytes_shared);
+printf(FILEACC "Shared metadata \& \\multicolumn{1}{r}{%f} \& \\multicolumn{1}{r}{N/A} \\\\", 
+    $cumul_meta_shared);
 
 print FILEACC "
 \\hline
