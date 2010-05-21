@@ -26,7 +26,7 @@ int main(int argc, char **argv)
     darshan_fd file;
     int i;
     int mount_count;
-    int* devs;
+    int64_t* devs;
     char** mnt_pts;
     char** fs_types;
     int last_rank = 0;
@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     printf("# -------------------------------------------------------\n");
     for(i=0; i<mount_count; i++)
     {
-        printf("# mount entry: %d\t%s\t%s\n", devs[i], mnt_pts[i], fs_types[i]);
+        printf("# mount entry: %lld\t%s\t%s\n", lld(devs[i]), mnt_pts[i], fs_types[i]);
     }
   
     if(no_files_flag)

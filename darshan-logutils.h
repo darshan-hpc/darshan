@@ -18,7 +18,7 @@ int darshan_log_getfile(darshan_fd fd,
     struct darshan_job* job, 
     struct darshan_file *file);
 int darshan_log_getexe(darshan_fd fd, char *buf, int *flag);
-int darshan_log_getmounts(darshan_fd fd, int** devs, char*** mnt_pts, char***
+int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char***
     fs_types, int* count, int *flag);
 void darshan_log_close(darshan_fd file);
 void darshan_log_print_version_warnings(struct darshan_job *job);

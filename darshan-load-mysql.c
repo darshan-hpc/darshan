@@ -15,7 +15,7 @@
 
 const char *insert_job_fmt  = "insert into %s values('%d','%s','%s','%s',\
 '%d','%d','%d','%d')";
-const char *insert_mnt_fmt  = "insert into %s values('%d','%d','%d','%s','%s')";
+const char *insert_mnt_fmt  = "insert into %s values('%d','%d','%lld','%s','%s')";
 const char *insert_file_fmt = "insert into %s values('%d','%d','%lld','%d',\
 '%s',\
 '%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
@@ -55,7 +55,7 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     char               *sqlstmt;
     int                 count;
     int                 i;
-    int                *devs;
+    int64_t            *devs;
     char              **mnts;
     char              **fstypes;
     regex_t             regex;
@@ -170,7 +170,7 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     for (i=0; (i<count); i++)
     {
         snprintf(sqlstmt,MAXSQL,insert_mnt_fmt, "darshan_mountpoints_surveyor",
-            atoi(jobid), job.start_time, devs[i], mnts[i], fstypes[i]);
+            atoi(jobid), job.start_time, lld(devs[i]), mnts[i], fstypes[i]);
 
         if (debug) printf("sql: %s\n", sqlstmt);
         ret = mysql_query(mysql, sqlstmt);

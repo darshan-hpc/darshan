@@ -379,7 +379,7 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
  * and fs_types are arrays that will be allocated by the function and must
  * be freed by the caller.  count will indicate the size of the arrays
  */
-int darshan_log_getmounts(darshan_fd fd, int** devs, char*** mnt_pts, char***
+int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char***
     fs_types, int* count, int *flag)
 {
     int ret;
@@ -416,7 +416,7 @@ int darshan_log_getmounts(darshan_fd fd, int** devs, char*** mnt_pts, char***
     }
 
     /* allocate output arrays */
-    *devs = malloc((*count)*sizeof(int));
+    *devs = malloc((*count)*sizeof(int64_t));
     assert(*devs);
     *mnt_pts = malloc((*count)*sizeof(char*));
     assert(*mnt_pts);
@@ -434,8 +434,16 @@ int darshan_log_getmounts(darshan_fd fd, int** devs, char*** mnt_pts, char***
         (*fs_types)[array_index] = malloc(CP_EXE_LEN);
         assert((*fs_types)[array_index]);
         
-        ret = sscanf(++pos, "%d\t%s\t%s", &(*devs)[array_index],
+#if SIZEOF_LONG_INT == 4
+        ret = sscanf(++pos, "%lld\t%s\t%s", &(*devs)[array_index],
             (*fs_types)[array_index], (*mnt_pts)[array_index]);
+#elif SIZEOF_LONG_INT == 8
+        ret = sscanf(++pos, "%ld\t%s\t%s", &(*devs)[array_index],
+            (*fs_types)[array_index], (*mnt_pts)[array_index]);
+#else
+#  error Unexpected sizeof(long int)
+#endif
+
         if(ret != 3)
         {
             fprintf(stderr, "Error: poorly formatted mount table in log file.\n");
