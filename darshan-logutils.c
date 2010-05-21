@@ -269,13 +269,36 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
     /* TODO: error out on anything except 2.00 in trunk for now, build
      * backwards compatibility later
      */ 
-    if(strcmp(job->version_string, "2.00") == 0)
-        return(0);
-    fprintf(stderr, "Error: incompatible darshan file.\n");
-    fprintf(stderr, "Error: expected version %s, but got %s\n", 
-            CP_VERSION, job->version_string);
+    if(strcmp(job->version_string, "2.00") != 0)
+    {
+        fprintf(stderr, "Error: incompatible darshan file.\n");
+        fprintf(stderr, "Error: expected version %s, but got %s\n", 
+                CP_VERSION, job->version_string);
 
+        return(-1);
+    }
+
+    if(job->magic_nr == CP_MAGIC_NR)
+    {
+        /* no byte swapping needed, this file is in host format already */
+        file->swap_flag = 0;
+        return(0);
+    }
+
+    /* try byte swapping */
+    DARSHAN_BSWAP64(&job->magic_nr);
+    if(job->magic_nr == CP_MAGIC_NR)
+    {
+        file->swap_flag = 1;
+        return(0);
+    }
+
+    /* otherwise this file is just broken */
+    fprintf(stderr, "Error: bad magic number in darshan file.\n");
     return(-1);
+
+#if 0
+   
     if(strcmp(job->version_string, "1.21") == 0)
         return(0);
     if(strcmp(job->version_string, "1.22") == 0)
@@ -289,6 +312,7 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
     fprintf(stderr, "Error: expected version %s, but got %s\n", 
             CP_VERSION, job->version_string);
     return(-1);
+#endif
 }
 
 /* darshan_log_getfile()
@@ -410,7 +434,7 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
  * and fs_types are arrays that will be allocated by the function and must
  * be freed by the caller.  count will indicate the size of the arrays
  */
-int darshan_log_getmounts(darshan_fd fd, int** devs, char*** mnt_pts, char***
+int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char***
     fs_types, int* count, int *flag)
 {
     int ret;
@@ -447,7 +471,7 @@ int darshan_log_getmounts(darshan_fd fd, int** devs, char*** mnt_pts, char***
     }
 
     /* allocate output arrays */
-    *devs = malloc((*count)*sizeof(int));
+    *devs = malloc((*count)*sizeof(int64_t));
     assert(*devs);
     *mnt_pts = malloc((*count)*sizeof(char*));
     assert(*mnt_pts);
@@ -465,8 +489,16 @@ int darshan_log_getmounts(darshan_fd fd, int** devs, char*** mnt_pts, char***
         (*fs_types)[array_index] = malloc(CP_EXE_LEN);
         assert((*fs_types)[array_index]);
         
-        ret = sscanf(++pos, "%d\t%s\t%s", &(*devs)[array_index],
+#if SIZEOF_LONG_INT == 4
+        ret = sscanf(++pos, "%lld\t%s\t%s", &(*devs)[array_index],
             (*fs_types)[array_index], (*mnt_pts)[array_index]);
+#elif SIZEOF_LONG_INT == 8
+        ret = sscanf(++pos, "%ld\t%s\t%s", &(*devs)[array_index],
+            (*fs_types)[array_index], (*mnt_pts)[array_index]);
+#else
+#  error Unexpected sizeof(long int)
+#endif
+
         if(ret != 3)
         {
             fprintf(stderr, "Error: poorly formatted mount table in log file.\n");

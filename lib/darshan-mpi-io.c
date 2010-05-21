@@ -1758,16 +1758,18 @@ static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
         ret = stat(entry->mnt_dir, &statbuf);
         if(ret == 0)
         {
+            int64_t tmp_st_dev = statbuf.st_dev;
+
             /* record hash of mount point and id */
             if(mnt_array_index < CP_MAX_MNTS)
             {
                 mnt_hash_array[mnt_array_index] =
                     hash((void*)entry->mnt_dir, strlen(entry->mnt_dir), 0);
-                mnt_id_array[mnt_array_index] = statbuf.st_dev;
+                mnt_id_array[mnt_array_index] = tmp_st_dev;
                 mnt_array_index++;
             }
 
-            ret = snprintf(tmp_mnt, 256, "\n%d\t%s\t%s", (int)statbuf.st_dev, 
+            ret = snprintf(tmp_mnt, 256, "\n%lld\t%s\t%s", lld(tmp_st_dev), 
                 entry->mnt_type, entry->mnt_dir);
             if(ret >= 256)
             {
@@ -1780,8 +1782,8 @@ static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
                 space_left -= strlen(tmp_mnt);
             }
 #if 0
-            printf("dev: %d, mnt_pt: %s, type: %s\n",  
-                (int)statbuf.st_dev, entry->mnt_dir, entry->mnt_type);
+            printf("dev: %lld, mnt_pt: %s, type: %s\n",  
+                lld(tmp_st_dev), entry->mnt_dir, entry->mnt_type);
 #endif
         }
     }
