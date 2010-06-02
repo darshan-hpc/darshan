@@ -310,7 +310,7 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
     else if(strcmp(file->version, "1.21") == 0)
     {
         getjob_internal = getjob_internal_124;
-        getfile_internal = getfile_internal_122;
+        getfile_internal = getfile_internal_121;
     }
     else
     {
@@ -648,8 +648,6 @@ static int getfile_internal_200(darshan_fd fd, struct darshan_job *job,
 {
     int ret;
     const char* err_string;
-    struct darshan_file_1_21 file_1_21;
-    struct darshan_file_1_22 file_1_22;
     int i;
     
     if(gztell(fd->gzf) < CP_JOB_RECORD_SIZE)
@@ -771,6 +769,7 @@ static int getfile_internal_122(darshan_fd fd, struct darshan_job *job,
     struct darshan_file *file)
 {
 #if 0
+    struct darshan_file_1_22 file_1_22;
     else if(strcmp(job->version_string, "1.22") == 0)
     {
         ret = gzread(fd->gzf, &file_1_22, sizeof(file_1_22));
@@ -798,6 +797,7 @@ static int getfile_internal_121(darshan_fd fd, struct darshan_job *job,
     struct darshan_file *file)
 {   
 #if 0
+    struct darshan_file_1_21 file_1_21;
     if(strcmp(job->version_string, "1.21") == 0)
     {
         ret = gzread(fd->gzf, &file_1_21, sizeof(file_1_21));
