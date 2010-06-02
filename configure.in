@@ -13,6 +13,9 @@ AC_PROG_INSTALL
 
 CHECK_ZLIB
 
+dnl Check byte ordering
+AC_C_BIGENDIAN
+
 AC_ARG_WITH(mpi,
 [  --with-mpi=<dir>        Location of the MPI installation],
     if test x$withval = xyes; then
