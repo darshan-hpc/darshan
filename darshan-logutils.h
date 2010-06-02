@@ -59,5 +59,15 @@ void darshan_log_print_version_warnings(struct darshan_job *job);
     __dst_char[7] = __src_char[0]; \
     memcpy(__ptr, __dst_char, 8); \
 } while(0)
+#define DARSHAN_BSWAP32(__ptr) do {\
+    char __dst_char[4]; \
+    char* __src_char = (char*)__ptr; \
+    __dst_char[0] = __src_char[3]; \
+    __dst_char[1] = __src_char[2]; \
+    __dst_char[2] = __src_char[1]; \
+    __dst_char[3] = __src_char[0]; \
+    memcpy(__ptr, __dst_char, 4); \
+} while(0)
+
 
 #endif

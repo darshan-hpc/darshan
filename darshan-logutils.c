@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include "darshan-logutils.h"
+#include "darshan-config.h"
 
 /* isn't there a clever c way to avoid this? */
 char *darshan_names[] = {
@@ -696,9 +697,67 @@ static int getfile_internal_200(darshan_fd fd, struct darshan_job *job,
     return(-1);
 }
 
+/* If we see version 1.24, assume that it is stored in big endian 32 bit
+ * format.  Convert up to current format.
+ */
+#define JOB_SIZE_124 28
 static int getjob_internal_124(darshan_fd fd, struct darshan_job *job)
 {
-    return(-1);
+    char* buffer;
+    int ret;
+    uint32_t uid;
+    int32_t start_time;
+    int32_t end_time;
+    int32_t nprocs;
+
+    memset(job, 0, sizeof(*job));
+
+    buffer = (char*)malloc(JOB_SIZE_124);
+    if(!buffer)
+    {
+        return(-1);
+    }
+
+    gzseek(fd->gzf, 0, SEEK_SET);
+
+    ret = gzread(fd->gzf, buffer, JOB_SIZE_124);
+    if (ret < JOB_SIZE_124)
+    {
+        fprintf(stderr, "Error: invalid log file (could not read file record).\n");
+        free(buffer);
+        return(-1);
+    }
+
+    /* pull job header information out of specific bytes in case struct
+     * padding is off
+     */
+    strncpy(job->version_string, buffer, 8);
+    uid = *((uint32_t*)&buffer[12]);
+    start_time = *((int32_t*)&buffer[16]);
+    end_time = *((int32_t*)&buffer[20]);
+    nprocs = *((int32_t*)&buffer[24]);
+
+    free(buffer);
+
+#ifdef WORDS_BIGENDIAN
+    /* native format */
+#else
+    /* byte swap */
+    DARSHAN_BSWAP32(&uid);
+    DARSHAN_BSWAP32(&start_time);
+    DARSHAN_BSWAP32(&end_time);
+    DARSHAN_BSWAP32(&nprocs);
+#endif
+
+    job->uid += uid;
+    job->start_time += start_time;
+    job->end_time += end_time;
+    job->nprocs += nprocs;
+    
+    /* set magic number */
+    job->magic_nr = CP_MAGIC_NR;
+
+    return(0);
 }
 
 static int getfile_internal_124(darshan_fd fd, struct darshan_job *job, 
