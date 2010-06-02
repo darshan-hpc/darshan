@@ -708,6 +708,12 @@ static int getjob_internal_124(darshan_fd fd, struct darshan_job *job)
     int32_t end_time;
     int32_t nprocs;
 
+#ifdef WORDS_BIGENDIAN
+    fd->swap_flag = 0;
+#else
+    fd->swap_flag = 1;
+#endif
+
     memset(job, 0, sizeof(*job));
 
     buffer = (char*)malloc(JOB_SIZE_124);
@@ -737,15 +743,14 @@ static int getjob_internal_124(darshan_fd fd, struct darshan_job *job)
 
     free(buffer);
 
-#ifdef WORDS_BIGENDIAN
-    /* native format */
-#else
-    /* byte swap */
-    DARSHAN_BSWAP32(&uid);
-    DARSHAN_BSWAP32(&start_time);
-    DARSHAN_BSWAP32(&end_time);
-    DARSHAN_BSWAP32(&nprocs);
-#endif
+    if(fd->swap_flag)
+    {
+        /* byte swap */
+        DARSHAN_BSWAP32(&uid);
+        DARSHAN_BSWAP32(&start_time);
+        DARSHAN_BSWAP32(&end_time);
+        DARSHAN_BSWAP32(&nprocs);
+    }
 
     job->uid += uid;
     job->start_time += start_time;
@@ -758,11 +763,87 @@ static int getjob_internal_124(darshan_fd fd, struct darshan_job *job)
     return(0);
 }
 
+#define FILE_SIZE_124 (32 + 140*8 + 14*8)
 static int getfile_internal_124(darshan_fd fd, struct darshan_job *job, 
     struct darshan_file *file)
 {
+    char* buffer;
+    int ret;
+    const char* err_string;
+    int i;
+    uint64_t hash;
+    int32_t rank;
+    int64_t* counters;
+    double* fcounters;
+    char* name_suffix;
 
-    return(-1);
+    memset(file, 0, sizeof(*file));
+
+    /* set file pointer if this is the first file record; otherwise pick up
+     * where we left off last time
+     */
+    if(gztell(fd->gzf) < CP_JOB_RECORD_SIZE)
+        gzseek(fd->gzf, CP_JOB_RECORD_SIZE, SEEK_SET);
+
+    /* space for file struct, int64 array, and double array */
+    buffer = (char*)malloc(FILE_SIZE_124);
+    if(!buffer)
+    {
+        return(-1);
+    }
+
+    ret = gzread(fd->gzf, buffer, FILE_SIZE_124);
+
+    if(ret > 0 && ret < FILE_SIZE_124)
+    {
+        /* got a short read */
+        fprintf(stderr, "Error: invalid file record (too small)\n");
+        free(buffer);
+        return(-1);
+    }
+    else if(ret == 0 && gzeof(fd->gzf))
+    {
+        /* hit end of file */
+        free(buffer);
+        return(0);
+    }
+    else if(ret <= 0)
+    {
+        /* all other errors */
+        err_string = gzerror(fd->gzf, &ret);
+        fprintf(stderr, "Error: %s\n", err_string);
+        free(buffer);
+        return(-1);
+    }
+
+    /* got exactly one, correct size record */
+    hash = *((int64_t*)&buffer[0]);
+    rank = *((int32_t*)&buffer[8]);
+    counters = ((int64_t*)&buffer[16]);
+    fcounters = ((double*)&buffer[16 + 140*8]);
+    name_suffix = &buffer[16 + 140*8 + 14*8];
+
+
+    if(fd->swap_flag)
+    {
+        /* swap bytes if necessary */
+        DARSHAN_BSWAP64(&hash);
+        DARSHAN_BSWAP32(&rank);
+        for(i=0; i<CP_NUM_INDICES; i++)
+            DARSHAN_BSWAP64(&counters[i]);
+        for(i=0; i<CP_F_NUM_INDICES; i++)
+            DARSHAN_BSWAP64(&fcounters[i]);
+    }
+
+    /* assign into new format */
+    file->hash = hash;
+    file->rank += rank;
+    memcpy(file->counters, counters, 140*8);
+    memcpy(file->fcounters, fcounters, 14*8);
+    memcpy(file->name_suffix, name_suffix, 12);
+
+    free(buffer);
+    return(1);
 }
 
 static int getfile_internal_122(darshan_fd fd, struct darshan_job *job, 
