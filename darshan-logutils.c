@@ -290,6 +290,10 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
     if(job->magic_nr == CP_MAGIC_NR)
     {
         file->swap_flag = 1;
+        DARSHAN_BSWAP64(&job->uid);
+        DARSHAN_BSWAP64(&job->start_time);
+        DARSHAN_BSWAP64(&job->end_time);
+        DARSHAN_BSWAP64(&job->nprocs);
         return(0);
     }
 
@@ -325,6 +329,7 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     const char* err_string;
     struct darshan_file_1_21 file_1_21;
     struct darshan_file_1_22 file_1_22;
+    int i;
     
     if(gztell(fd->gzf) < CP_JOB_RECORD_SIZE)
         gzseek(fd->gzf, CP_JOB_RECORD_SIZE, SEEK_SET);
@@ -334,6 +339,7 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
      */
     memset(file, 0, sizeof(&file));
 
+#if 0
     if(strcmp(job->version_string, "1.21") == 0)
     {
         ret = gzread(fd->gzf, &file_1_21, sizeof(file_1_21));
@@ -391,7 +397,10 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
             return(1);
         }
     }
-    else if(strcmp(job->version_string, "2.00") == 0)
+#endif
+    /* TODO: backwards compatibility */
+
+    if(strcmp(job->version_string, "2.00") == 0)
     {
         /* make sure this is the current version */
         assert(strcmp("2.00", CP_VERSION) == 0);
@@ -400,6 +409,16 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
         if(ret == sizeof(*file))
         {
             /* got exactly one, correct size record */
+            if(fd->swap_flag)
+            {
+                /* swap bytes if necessary */
+                DARSHAN_BSWAP64(&file->hash);
+                DARSHAN_BSWAP64(&file->rank);
+                for(i=0; i<CP_NUM_INDICES; i++)
+                    DARSHAN_BSWAP64(&file->counters[i]);
+                for(i=0; i<CP_F_NUM_INDICES; i++)
+                    DARSHAN_BSWAP64(&file->fcounters[i]);
+            }
             return(1);
         }
     }
