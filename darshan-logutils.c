@@ -175,60 +175,6 @@ char *darshan_f_names[] = {
     "CP_F_NUM_INDICES",
 };
 
-/*******************************
- * version 1.22 to 1.23 differences
- *
- * - added:
- *   - CP_DEVICE
- *   - CP_SIZE_AT_OPEN
- * - changed params:
- *   - CP_FILE_RECORD_SIZE: 1240 to 1248
- *   - CP_NUM_INDICES: 138 to 140
- */
-#define CP_NUM_INDICES_1_22 138
-struct darshan_file_1_22
-{
-    uint64_t hash;
-    int rank;
-    int64_t counters[CP_NUM_INDICES_1_22];
-    double fcounters[CP_F_NUM_INDICES];
-    char name_suffix[CP_NAME_SUFFIX_LEN+1];
-};
-
-static void shift_missing_1_22(struct darshan_file* file);
-
-
-/*******************************
- * version 1.21 to 1.23 differences 
- * - added:
- *   - CP_INDEP_NC_OPENS
- *   - CP_COLL_NC_OPENS
- *   - CP_HDF5_OPENS
- *   - CP_MAX_READ_TIME_SIZE
- *   - CP_MAX_WRITE_TIME_SIZE
- *   - CP_DEVICE
- *   - CP_SIZE_AT_OPEN
- *   - CP_F_MAX_READ_TIME
- *   - CP_F_MAX_WRITE_TIME
- * - changed params:
- *   - CP_FILE_RECORD_SIZE: 1184 to 1248
- *   - CP_NUM_INDICES: 133 to 140
- *   - CP_F_NUM_INDICES: 12 to 14
- * - so 60 bytes worth of new indices are the only difference
- */
-#define CP_NUM_INDICES_1_21 133
-#define CP_F_NUM_INDICES_1_21 12
-struct darshan_file_1_21
-{
-    uint64_t hash;
-    int rank;
-    int64_t counters[CP_NUM_INDICES_1_21];
-    double fcounters[CP_F_NUM_INDICES_1_21];
-    char name_suffix[CP_NAME_SUFFIX_LEN+1];
-};
-
-static void shift_missing_1_21(struct darshan_file* file);
-
 /* function pointers so that we can switch functions depending on what file
  * version is detected
  */
@@ -237,6 +183,7 @@ int (*getfile_internal)(darshan_fd fd,
     struct darshan_job *job, 
     struct darshan_file *file);
 
+/* internal routines for parsing different file versions */
 static int getjob_internal_200(darshan_fd file, struct darshan_job *job);
 static int getfile_internal_200(darshan_fd fd, struct darshan_job *job, 
     struct darshan_file *file);
@@ -247,6 +194,10 @@ static int getfile_internal_122(darshan_fd fd, struct darshan_job *job,
     struct darshan_file *file);
 static int getfile_internal_121(darshan_fd fd, struct darshan_job *job, 
     struct darshan_file *file);
+static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file, int n_counters, int n_fcounters);
+static void shift_missing_1_22(struct darshan_file* file);
+static void shift_missing_1_21(struct darshan_file* file);
 
 /* a rather crude API for accessing raw binary darshan files */
 darshan_fd darshan_log_open(const char *name)
@@ -518,6 +469,24 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
  * translates indices to account for counters that weren't present in log
  * format 1.21
  */
+/*******************************
+ * version 1.21 to 1.23 differences 
+ * - added:
+ *   - CP_INDEP_NC_OPENS
+ *   - CP_COLL_NC_OPENS
+ *   - CP_HDF5_OPENS
+ *   - CP_MAX_READ_TIME_SIZE
+ *   - CP_MAX_WRITE_TIME_SIZE
+ *   - CP_DEVICE
+ *   - CP_SIZE_AT_OPEN
+ *   - CP_F_MAX_READ_TIME
+ *   - CP_F_MAX_WRITE_TIME
+ * - changed params:
+ *   - CP_FILE_RECORD_SIZE: 1184 to 1248
+ *   - CP_NUM_INDICES: 133 to 140
+ *   - CP_F_NUM_INDICES: 12 to 14
+ * - so 60 bytes worth of new indices are the only difference
+ */
 static void shift_missing_1_21(struct darshan_file* file)
 {
     int c_index = 0;
@@ -574,6 +543,16 @@ static void shift_missing_1_21(struct darshan_file* file)
  *
  * translates indices to account for counters that weren't present in log
  * format 1.22
+ */
+/*******************************
+ * version 1.22 to 1.23 differences
+ *
+ * - added:
+ *   - CP_DEVICE
+ *   - CP_SIZE_AT_OPEN
+ * - changed params:
+ *   - CP_FILE_RECORD_SIZE: 1240 to 1248
+ *   - CP_NUM_INDICES: 138 to 140
  */
 static void shift_missing_1_22(struct darshan_file* file)
 {
@@ -763,9 +742,42 @@ static int getjob_internal_124(darshan_fd fd, struct darshan_job *job)
     return(0);
 }
 
-#define FILE_SIZE_124 (32 + 140*8 + 14*8)
 static int getfile_internal_124(darshan_fd fd, struct darshan_job *job, 
     struct darshan_file *file)
+{
+    return(getfile_internal_1x(fd, job, file, 140, 14));
+}
+
+static int getfile_internal_122(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file)
+{
+    int ret;
+
+    ret = getfile_internal_1x(fd, job, file, 133, 12);
+    if(ret < 0)
+        return(ret);
+
+    shift_missing_1_22(file);
+
+    return(0);
+}
+
+static int getfile_internal_121(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file)
+{
+    int ret;
+
+    ret = getfile_internal_1x(fd, job, file, 138, 14);
+    if(ret < 0)
+        return(ret);
+
+    shift_missing_1_21(file);
+
+    return(0);
+}
+
+static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file, int n_counters, int n_fcounters)
 {
     char* buffer;
     int ret;
@@ -776,6 +788,7 @@ static int getfile_internal_124(darshan_fd fd, struct darshan_job *job,
     int64_t* counters;
     double* fcounters;
     char* name_suffix;
+    int FILE_SIZE_1x = (32 + n_counters*8 + n_fcounters*8);
 
     memset(file, 0, sizeof(*file));
 
@@ -786,15 +799,15 @@ static int getfile_internal_124(darshan_fd fd, struct darshan_job *job,
         gzseek(fd->gzf, CP_JOB_RECORD_SIZE, SEEK_SET);
 
     /* space for file struct, int64 array, and double array */
-    buffer = (char*)malloc(FILE_SIZE_124);
+    buffer = (char*)malloc(FILE_SIZE_1x);
     if(!buffer)
     {
         return(-1);
     }
 
-    ret = gzread(fd->gzf, buffer, FILE_SIZE_124);
+    ret = gzread(fd->gzf, buffer, FILE_SIZE_1x);
 
-    if(ret > 0 && ret < FILE_SIZE_124)
+    if(ret > 0 && ret < FILE_SIZE_1x)
     {
         /* got a short read */
         fprintf(stderr, "Error: invalid file record (too small)\n");
@@ -820,8 +833,8 @@ static int getfile_internal_124(darshan_fd fd, struct darshan_job *job,
     hash = *((int64_t*)&buffer[0]);
     rank = *((int32_t*)&buffer[8]);
     counters = ((int64_t*)&buffer[16]);
-    fcounters = ((double*)&buffer[16 + 140*8]);
-    name_suffix = &buffer[16 + 140*8 + 14*8];
+    fcounters = ((double*)&buffer[16 + n_counters*8]);
+    name_suffix = &buffer[16 + n_counters*8 + n_fcounters*8];
 
 
     if(fd->swap_flag)
@@ -829,77 +842,22 @@ static int getfile_internal_124(darshan_fd fd, struct darshan_job *job,
         /* swap bytes if necessary */
         DARSHAN_BSWAP64(&hash);
         DARSHAN_BSWAP32(&rank);
-        for(i=0; i<CP_NUM_INDICES; i++)
+        for(i=0; i<n_counters; i++)
             DARSHAN_BSWAP64(&counters[i]);
-        for(i=0; i<CP_F_NUM_INDICES; i++)
+        for(i=0; i<n_fcounters; i++)
             DARSHAN_BSWAP64(&fcounters[i]);
     }
 
     /* assign into new format */
     file->hash = hash;
     file->rank += rank;
-    memcpy(file->counters, counters, 140*8);
-    memcpy(file->fcounters, fcounters, 14*8);
+    memcpy(file->counters, counters, n_counters*8);
+    memcpy(file->fcounters, fcounters, n_fcounters*8);
     memcpy(file->name_suffix, name_suffix, 12);
 
     free(buffer);
     return(1);
 }
 
-static int getfile_internal_122(darshan_fd fd, struct darshan_job *job, 
-    struct darshan_file *file)
-{
-#if 0
-    struct darshan_file_1_22 file_1_22;
-    else if(strcmp(job->version_string, "1.22") == 0)
-    {
-        ret = gzread(fd->gzf, &file_1_22, sizeof(file_1_22));
-        if(ret == sizeof(file_1_22))
-        {
-            /* convert to new file record structure */
-            file->hash = file_1_22.hash;
-            file->rank = file_1_22.rank;
-            strcpy(file->name_suffix, file_1_22.name_suffix);
-            memcpy(file->counters, file_1_22.counters,
-                (CP_NUM_INDICES_1_22*sizeof(int64_t)));
-            memcpy(file->fcounters, file_1_22.fcounters,
-                (CP_F_NUM_INDICES*sizeof(double)));
-            shift_missing_1_22(file);
-
-            /* got exactly one, correct size record */
-            return(1);
-        }
-    }
-#endif
-    return(-1);
-}
-
-static int getfile_internal_121(darshan_fd fd, struct darshan_job *job, 
-    struct darshan_file *file)
-{   
-#if 0
-    struct darshan_file_1_21 file_1_21;
-    if(strcmp(job->version_string, "1.21") == 0)
-    {
-        ret = gzread(fd->gzf, &file_1_21, sizeof(file_1_21));
-        if(ret == sizeof(file_1_21))
-        {
-            /* convert to new file record structure */
-            file->hash = file_1_21.hash;
-            file->rank = file_1_21.rank;
-            strcpy(file->name_suffix, file_1_21.name_suffix);
-            memcpy(file->counters, file_1_21.counters,
-                (CP_NUM_INDICES_1_21*sizeof(int64_t)));
-            memcpy(file->fcounters, file_1_21.fcounters,
-                (CP_F_NUM_INDICES_1_21*sizeof(double)));
-            shift_missing_1_21(file);
-
-            /* got exactly one, correct size record */
-            return(1);
-        }
-    }
-#endif
-    return(-1);
-}
 
 
