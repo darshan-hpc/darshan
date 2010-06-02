@@ -470,7 +470,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
  * format 1.21
  */
 /*******************************
- * version 1.21 to 1.23 differences 
+ * version 1.21 to 2.00 differences 
  * - added:
  *   - CP_INDEP_NC_OPENS
  *   - CP_COLL_NC_OPENS
@@ -545,7 +545,7 @@ static void shift_missing_1_21(struct darshan_file* file)
  * format 1.22
  */
 /*******************************
- * version 1.22 to 1.23 differences
+ * version 1.22 to 2.00 differences
  *
  * - added:
  *   - CP_DEVICE
