@@ -12,6 +12,7 @@ struct darshan_fd_s
 {
     gzFile gzf;
     int swap_flag;
+    char version[10];
 };
 typedef struct darshan_fd_s* darshan_fd;
 

@@ -228,6 +228,25 @@ struct darshan_file_1_21
 
 static void shift_missing_1_21(struct darshan_file* file);
 
+/* function pointers so that we can switch functions depending on what file
+ * version is detected
+ */
+int (*getjob_internal)(darshan_fd file, struct darshan_job *job);
+int (*getfile_internal)(darshan_fd fd, 
+    struct darshan_job *job, 
+    struct darshan_file *file);
+
+static int getjob_internal_200(darshan_fd file, struct darshan_job *job);
+static int getfile_internal_200(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file);
+static int getjob_internal_124(darshan_fd file, struct darshan_job *job);
+static int getfile_internal_124(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file);
+static int getfile_internal_122(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file);
+static int getfile_internal_121(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file);
+
 /* a rather crude API for accessing raw binary darshan files */
 darshan_fd darshan_log_open(const char *name)
 {
@@ -256,67 +275,52 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
 
     gzseek(file->gzf, 0, SEEK_SET);
 
-    ret = gzread(file->gzf, job, sizeof(*job));
-    if (ret < sizeof(*job))
+    /* read version number first so we know how to digest the rest of the
+     * file
+     */
+    ret = gzread(file->gzf, file->version, 10);
+    if(ret < 10)
     {
-        if(gzeof(file->gzf))
-        {
-            fprintf(stderr, "Error: invalid log file (too short).\n");
-        }
-        perror("darshan_job_init");
+        fprintf(stderr, "Error: invalid log file (failed to read version).\n");
         return(-1);
     }
-    /* TODO: error out on anything except 2.00 in trunk for now, build
-     * backwards compatibility later
-     */ 
-    if(strcmp(job->version_string, "2.00") != 0)
+
+    if(strcmp(file->version, "2.00") == 0)
+    {
+        getjob_internal = getjob_internal_200;
+        getfile_internal = getfile_internal_200;
+    }
+    else if(strcmp(file->version, "1.24") == 0)
+    {
+        getjob_internal = getjob_internal_124;
+        getfile_internal = getfile_internal_124;
+    }
+    else if(strcmp(file->version, "1.23") == 0)
+    {
+        /* same as 1.24, except that mnt points may be incorrect */
+        getjob_internal = getjob_internal_124;
+        getfile_internal = getfile_internal_124;
+    }
+    else if(strcmp(file->version, "1.22") == 0)
+    {
+        getjob_internal = getjob_internal_124;
+        getfile_internal = getfile_internal_122;
+    }
+    else if(strcmp(file->version, "1.21") == 0)
+    {
+        getjob_internal = getjob_internal_124;
+        getfile_internal = getfile_internal_122;
+    }
+    else
     {
         fprintf(stderr, "Error: incompatible darshan file.\n");
         fprintf(stderr, "Error: expected version %s, but got %s\n", 
-                CP_VERSION, job->version_string);
-
+                CP_VERSION, file->version);
         return(-1);
     }
 
-    if(job->magic_nr == CP_MAGIC_NR)
-    {
-        /* no byte swapping needed, this file is in host format already */
-        file->swap_flag = 0;
-        return(0);
-    }
-
-    /* try byte swapping */
-    DARSHAN_BSWAP64(&job->magic_nr);
-    if(job->magic_nr == CP_MAGIC_NR)
-    {
-        file->swap_flag = 1;
-        DARSHAN_BSWAP64(&job->uid);
-        DARSHAN_BSWAP64(&job->start_time);
-        DARSHAN_BSWAP64(&job->end_time);
-        DARSHAN_BSWAP64(&job->nprocs);
-        return(0);
-    }
-
-    /* otherwise this file is just broken */
-    fprintf(stderr, "Error: bad magic number in darshan file.\n");
-    return(-1);
-
-#if 0
-   
-    if(strcmp(job->version_string, "1.21") == 0)
-        return(0);
-    if(strcmp(job->version_string, "1.22") == 0)
-        return(0);
-    if(strcmp(job->version_string, "1.23") == 0)
-        return(0);
-    if(strcmp(job->version_string, "1.24") == 0)
-        return(0);
-
-    fprintf(stderr, "Error: incompatible darshan file.\n");
-    fprintf(stderr, "Error: expected version %s, but got %s\n", 
-            CP_VERSION, job->version_string);
-    return(-1);
-#endif
+    ret = getjob_internal(file, job);
+    return(ret);
 }
 
 /* darshan_log_getfile()
@@ -326,125 +330,10 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
 int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_file *file)
 {
     int ret;
-    const char* err_string;
-    struct darshan_file_1_21 file_1_21;
-    struct darshan_file_1_22 file_1_22;
-    int i;
-    
-    if(gztell(fd->gzf) < CP_JOB_RECORD_SIZE)
-        gzseek(fd->gzf, CP_JOB_RECORD_SIZE, SEEK_SET);
 
-    /* reset file record, so that diff compares against a zero'd out record
-     * if file is missing
-     */
-    memset(file, 0, sizeof(&file));
+    ret = getfile_internal(fd, job, file);
 
-#if 0
-    if(strcmp(job->version_string, "1.21") == 0)
-    {
-        ret = gzread(fd->gzf, &file_1_21, sizeof(file_1_21));
-        if(ret == sizeof(file_1_21))
-        {
-            /* convert to new file record structure */
-            file->hash = file_1_21.hash;
-            file->rank = file_1_21.rank;
-            strcpy(file->name_suffix, file_1_21.name_suffix);
-            memcpy(file->counters, file_1_21.counters,
-                (CP_NUM_INDICES_1_21*sizeof(int64_t)));
-            memcpy(file->fcounters, file_1_21.fcounters,
-                (CP_F_NUM_INDICES_1_21*sizeof(double)));
-            shift_missing_1_21(file);
-
-            /* got exactly one, correct size record */
-            return(1);
-        }
-    }
-    else if(strcmp(job->version_string, "1.22") == 0)
-    {
-        ret = gzread(fd->gzf, &file_1_22, sizeof(file_1_22));
-        if(ret == sizeof(file_1_22))
-        {
-            /* convert to new file record structure */
-            file->hash = file_1_22.hash;
-            file->rank = file_1_22.rank;
-            strcpy(file->name_suffix, file_1_22.name_suffix);
-            memcpy(file->counters, file_1_22.counters,
-                (CP_NUM_INDICES_1_22*sizeof(int64_t)));
-            memcpy(file->fcounters, file_1_22.fcounters,
-                (CP_F_NUM_INDICES*sizeof(double)));
-            shift_missing_1_22(file);
-
-            /* got exactly one, correct size record */
-            return(1);
-        }
-    }
-    else if(strcmp(job->version_string, "1.23") == 0)
-    {
-        /* data format is compatible with 1.24 */
-        ret = gzread(fd->gzf, file, sizeof(*file));
-        if(ret == sizeof(*file))
-        {
-            /* got exactly one, correct size record */
-            return(1);
-        }
-    }
-    else if(strcmp(job->version_string, "1.24") == 0)
-    {
-        ret = gzread(fd->gzf, file, sizeof(*file));
-        if(ret == sizeof(*file))
-        {
-            /* got exactly one, correct size record */
-            return(1);
-        }
-    }
-#endif
-    /* TODO: backwards compatibility */
-
-    if(strcmp(job->version_string, "2.00") == 0)
-    {
-        /* make sure this is the current version */
-        assert(strcmp("2.00", CP_VERSION) == 0);
-
-        ret = gzread(fd->gzf, file, sizeof(*file));
-        if(ret == sizeof(*file))
-        {
-            /* got exactly one, correct size record */
-            if(fd->swap_flag)
-            {
-                /* swap bytes if necessary */
-                DARSHAN_BSWAP64(&file->hash);
-                DARSHAN_BSWAP64(&file->rank);
-                for(i=0; i<CP_NUM_INDICES; i++)
-                    DARSHAN_BSWAP64(&file->counters[i]);
-                for(i=0; i<CP_F_NUM_INDICES; i++)
-                    DARSHAN_BSWAP64(&file->fcounters[i]);
-            }
-            return(1);
-        }
-    }
-    else
-    {
-        fprintf(stderr, "Error: invalid log file version.\n");
-        return(-1);
-    }
-
-    if(ret > 0)
-    {
-        /* got a short read */
-        fprintf(stderr, "Error: invalid file record (too small)\n");
-        return(-1);
-    }
-
-    if(ret == 0 && gzeof(fd->gzf))
-    {
-        /* hit end of file */
-        return(0);
-    }
-
-    /* all other errors */
-    err_string = gzerror(fd->gzf, &ret);
-    fprintf(stderr, "Error: %s\n", err_string);
-    return(-1);
+    return(ret);
 }
 
 /* darshan_log_getmounts()
@@ -711,3 +600,166 @@ static void shift_missing_1_22(struct darshan_file* file)
 
     return;
 }
+
+static int getjob_internal_200(darshan_fd file, struct darshan_job *job)
+{
+    int ret;
+
+    gzseek(file->gzf, 0, SEEK_SET);
+
+    ret = gzread(file->gzf, job, sizeof(*job));
+    if (ret < sizeof(*job))
+    {
+        if(gzeof(file->gzf))
+        {
+            fprintf(stderr, "Error: invalid log file (too short).\n");
+        }
+        perror("darshan_job_init");
+        return(-1);
+    }
+
+    if(job->magic_nr == CP_MAGIC_NR)
+    {
+        /* no byte swapping needed, this file is in host format already */
+        file->swap_flag = 0;
+        return(0);
+    }
+
+    /* try byte swapping */
+    DARSHAN_BSWAP64(&job->magic_nr);
+    if(job->magic_nr == CP_MAGIC_NR)
+    {
+        file->swap_flag = 1;
+        DARSHAN_BSWAP64(&job->uid);
+        DARSHAN_BSWAP64(&job->start_time);
+        DARSHAN_BSWAP64(&job->end_time);
+        DARSHAN_BSWAP64(&job->nprocs);
+        return(0);
+    }
+
+    /* otherwise this file is just broken */
+    fprintf(stderr, "Error: bad magic number in darshan file.\n");
+    return(-1);
+}
+
+static int getfile_internal_200(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file)
+{
+    int ret;
+    const char* err_string;
+    struct darshan_file_1_21 file_1_21;
+    struct darshan_file_1_22 file_1_22;
+    int i;
+    
+    if(gztell(fd->gzf) < CP_JOB_RECORD_SIZE)
+        gzseek(fd->gzf, CP_JOB_RECORD_SIZE, SEEK_SET);
+
+    /* reset file record, so that diff compares against a zero'd out record
+     * if file is missing
+     */
+    memset(file, 0, sizeof(&file));
+
+    ret = gzread(fd->gzf, file, sizeof(*file));
+    if(ret == sizeof(*file))
+    {
+        /* got exactly one, correct size record */
+        if(fd->swap_flag)
+        {
+            /* swap bytes if necessary */
+            DARSHAN_BSWAP64(&file->hash);
+            DARSHAN_BSWAP64(&file->rank);
+            for(i=0; i<CP_NUM_INDICES; i++)
+                DARSHAN_BSWAP64(&file->counters[i]);
+            for(i=0; i<CP_F_NUM_INDICES; i++)
+                DARSHAN_BSWAP64(&file->fcounters[i]);
+        }
+        return(1);
+    }
+
+
+    if(ret > 0)
+    {
+        /* got a short read */
+        fprintf(stderr, "Error: invalid file record (too small)\n");
+        return(-1);
+    }
+
+    if(ret == 0 && gzeof(fd->gzf))
+    {
+        /* hit end of file */
+        return(0);
+    }
+
+    /* all other errors */
+    err_string = gzerror(fd->gzf, &ret);
+    fprintf(stderr, "Error: %s\n", err_string);
+    return(-1);
+}
+
+static int getjob_internal_124(darshan_fd fd, struct darshan_job *job)
+{
+    return(-1);
+}
+
+static int getfile_internal_124(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file)
+{
+
+    return(-1);
+}
+
+static int getfile_internal_122(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file)
+{
+#if 0
+    else if(strcmp(job->version_string, "1.22") == 0)
+    {
+        ret = gzread(fd->gzf, &file_1_22, sizeof(file_1_22));
+        if(ret == sizeof(file_1_22))
+        {
+            /* convert to new file record structure */
+            file->hash = file_1_22.hash;
+            file->rank = file_1_22.rank;
+            strcpy(file->name_suffix, file_1_22.name_suffix);
+            memcpy(file->counters, file_1_22.counters,
+                (CP_NUM_INDICES_1_22*sizeof(int64_t)));
+            memcpy(file->fcounters, file_1_22.fcounters,
+                (CP_F_NUM_INDICES*sizeof(double)));
+            shift_missing_1_22(file);
+
+            /* got exactly one, correct size record */
+            return(1);
+        }
+    }
+#endif
+    return(-1);
+}
+
+static int getfile_internal_121(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file)
+{   
+#if 0
+    if(strcmp(job->version_string, "1.21") == 0)
+    {
+        ret = gzread(fd->gzf, &file_1_21, sizeof(file_1_21));
+        if(ret == sizeof(file_1_21))
+        {
+            /* convert to new file record structure */
+            file->hash = file_1_21.hash;
+            file->rank = file_1_21.rank;
+            strcpy(file->name_suffix, file_1_21.name_suffix);
+            memcpy(file->counters, file_1_21.counters,
+                (CP_NUM_INDICES_1_21*sizeof(int64_t)));
+            memcpy(file->fcounters, file_1_21.fcounters,
+                (CP_F_NUM_INDICES_1_21*sizeof(double)));
+            shift_missing_1_21(file);
+
+            /* got exactly one, correct size record */
+            return(1);
+        }
+    }
+#endif
+    return(-1);
+}
+
+
