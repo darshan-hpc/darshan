@@ -65,6 +65,16 @@ AC_ARG_WITH(log-path,
     fi
 )
 
+AC_ARG_WITH(jobid-env,
+[  --with-jobid-env=<name> Name of environment variable that stores the jobid ],
+    if test x$withval = xyes; then
+        AC_MSG_ERROR(--with-jobid-env must be given a name)
+    else
+        AC_DEFINE_UNQUOTED(CP_JOBID, "${withval}", Name of the environment variable that stores the jobid)
+        CP_JOBID="${withval}"
+        GOT_JOBID=1
+    fi
+)
 
 saveCC="$CC"
 CC="$MPICC"
@@ -77,6 +87,9 @@ if test x$GOT_ALIGNMENT != x1; then
 fi
 if test x$GOT_LOG_PATH != x1; then
     AC_MSG_ERROR(must provide --with-log-path=<path> argument to configure.)
+fi
+if test x$GOT_JOBID != x1; then
+    AC_MSG_ERROR(must provide --with-jobid-env=<name> argument to configure.)
 fi
 
 AC_MSG_CHECKING(whether the mpicc compiler works)

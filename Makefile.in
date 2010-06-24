@@ -131,3 +131,7 @@ install:: all
 
 clean::
 	rm -f *.o *.a lib/*.o lib/*.a darshan-parser darshan-diff darshan-analyzer darshan-log-params
+
+distclean:: clean
+	rm -f darshan-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl aclocal.m4 autom4te.cache/* config.status config.log Makefile
+	rmdir autom4te.cache

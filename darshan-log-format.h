@@ -225,6 +225,7 @@ struct darshan_job
     int64_t start_time;
     int64_t end_time;
     int64_t nprocs;
+    int64_t jobid;
 };
 
 #if SIZEOF_LONG_INT == 4
