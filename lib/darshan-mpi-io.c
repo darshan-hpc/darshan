@@ -346,7 +346,7 @@ void darshan_shutdown(int timing_flag)
         struct tm* my_tm;
 
         /* find a job id */
-        jobid_str = getenv("COBALT_JOBID");
+        jobid_str = getenv(CP_JOBID);
         if(jobid_str)
         {
             /* in cobalt we can find it in env var */
