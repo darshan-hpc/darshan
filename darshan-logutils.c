@@ -753,13 +753,13 @@ static int getfile_internal_122(darshan_fd fd, struct darshan_job *job,
 {
     int ret;
 
-    ret = getfile_internal_1x(fd, job, file, 133, 12);
-    if(ret < 0)
+    ret = getfile_internal_1x(fd, job, file, 138, 14);
+    if(ret <= 0)
         return(ret);
 
     shift_missing_1_22(file);
 
-    return(0);
+    return(1);
 }
 
 static int getfile_internal_121(darshan_fd fd, struct darshan_job *job, 
@@ -767,13 +767,13 @@ static int getfile_internal_121(darshan_fd fd, struct darshan_job *job,
 {
     int ret;
 
-    ret = getfile_internal_1x(fd, job, file, 138, 14);
-    if(ret < 0)
+    ret = getfile_internal_1x(fd, job, file, 133, 12);
+    if(ret <= 0)
         return(ret);
 
     shift_missing_1_21(file);
 
-    return(0);
+    return(1);
 }
 
 static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job, 

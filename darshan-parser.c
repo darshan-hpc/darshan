@@ -200,9 +200,12 @@ int main(int argc, char **argv)
         free(mnt_pts[i]);
         free(fs_types[i]);
     }
-    free(devs);
-    free(mnt_pts);
-    free(fs_types);
+    if(mount_count > 0)
+    {
+        free(devs);
+        free(mnt_pts);
+        free(fs_types);
+    }
  
     darshan_log_close(file);
     return(0);
