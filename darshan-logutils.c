@@ -182,6 +182,7 @@ int (*getjob_internal)(darshan_fd file, struct darshan_job *job);
 int (*getfile_internal)(darshan_fd fd, 
     struct darshan_job *job, 
     struct darshan_file *file);
+#define JOB_SIZE_124 28
 
 /* internal routines for parsing different file versions */
 static int getjob_internal_200(darshan_fd file, struct darshan_job *job);
@@ -241,27 +242,32 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
     {
         getjob_internal = getjob_internal_200;
         getfile_internal = getfile_internal_200;
+        file->job_struct_size = sizeof(*job);
     }
     else if(strcmp(file->version, "1.24") == 0)
     {
         getjob_internal = getjob_internal_124;
         getfile_internal = getfile_internal_124;
+        file->job_struct_size = JOB_SIZE_124;
     }
     else if(strcmp(file->version, "1.23") == 0)
     {
         /* same as 1.24, except that mnt points may be incorrect */
         getjob_internal = getjob_internal_124;
         getfile_internal = getfile_internal_124;
+        file->job_struct_size = JOB_SIZE_124;
     }
     else if(strcmp(file->version, "1.22") == 0)
     {
         getjob_internal = getjob_internal_124;
         getfile_internal = getfile_internal_122;
+        file->job_struct_size = JOB_SIZE_124;
     }
     else if(strcmp(file->version, "1.21") == 0)
     {
         getjob_internal = getjob_internal_124;
         getfile_internal = getfile_internal_121;
+        file->job_struct_size = JOB_SIZE_124;
     }
     else
     {
@@ -302,7 +308,7 @@ int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char**
     int array_index = 0;
     char buf[CP_EXE_LEN+1];
 
-    gzseek(fd->gzf, sizeof(struct darshan_job), SEEK_SET);
+    gzseek(fd->gzf, fd->job_struct_size, SEEK_SET);
 
     ret = gzread(fd->gzf, buf, (CP_EXE_LEN + 1));
     if (ret < (CP_EXE_LEN + 1))
@@ -378,7 +384,7 @@ int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
     int ret;
     char* newline;
 
-    gzseek(fd->gzf, sizeof(struct darshan_job), SEEK_SET);
+    gzseek(fd->gzf, fd->job_struct_size, SEEK_SET);
 
     ret = gzread(fd->gzf, buf, (CP_EXE_LEN + 1));
     if (ret < (CP_EXE_LEN + 1))
@@ -677,7 +683,6 @@ static int getfile_internal_200(darshan_fd fd, struct darshan_job *job,
 /* If we see version 1.24, assume that it is stored in big endian 32 bit
  * format.  Convert up to current format.
  */
-#define JOB_SIZE_124 28
 static int getjob_internal_124(darshan_fd fd, struct darshan_job *job)
 {
     char* buffer;

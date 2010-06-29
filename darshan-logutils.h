@@ -13,6 +13,7 @@ struct darshan_fd_s
     gzFile gzf;
     int swap_flag;
     char version[10];
+    int job_struct_size;
 };
 typedef struct darshan_fd_s* darshan_fd;
 
