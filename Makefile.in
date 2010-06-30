@@ -77,6 +77,9 @@ lib/lookup3.o: lib/lookup3.c
 lib/lookup8.o: lib/lookup8.c
 	$(CC) $(CFLAGS_MPI) -c $< -o $@
 
+%.i: %.c
+	$(CC) -E $(CFLAGS_MPI) -c $< o $@
+
 lib/libdarshan-mpi-io.a: lib/darshan-mpi-io.o lib/darshan-pnetcdf.o lib/darshan-hdf5.o
 	ar rcs $@ $^
 
