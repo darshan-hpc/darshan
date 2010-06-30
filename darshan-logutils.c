@@ -428,12 +428,14 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
  
     if(strcmp(job->version_string, "1.24") == 0)
     {
+        printf("# WARNING: version 1.24 log format does not store the job id in the log file.\n");
         return;
     }
     
     if(strcmp(job->version_string, "1.23") == 0)
     {
         printf("# WARNING: version 1.23 log format may have incorrect mount point mappings for files with rank > 0\n");
+        printf("# It also does not store the job id in the log file.\n");
         return;
     }
 
@@ -443,7 +445,8 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_DEVICE\n");
         printf("#   CP_SIZE_AT_OPEN\n");
         printf("# It does not record mounted file systems, mount points, or fs types.\n");
-        printf("# It also attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
+        printf("# It attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
+        printf("# It also does not store the job id in the log file.\n");
         return;
     }
 
@@ -459,9 +462,10 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_SIZE_AT_OPEN\n");
         printf("#   CP_F_MAX_READ_TIME\n");
         printf("#   CP_F_MAX_WRITE_TIME\n");
-        printf("# It also does not record mounted file systems, mount points, or fs types.\n");
-        printf("# It also attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
+        printf("# It does not record mounted file systems, mount points, or fs types.\n");
+        printf("# It attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
         printf("#\n");
+        printf("# It also does not store the job id in the file.\n");
         return;
     }
 
@@ -620,6 +624,7 @@ static int getjob_internal_200(darshan_fd file, struct darshan_job *job)
         DARSHAN_BSWAP64(&job->start_time);
         DARSHAN_BSWAP64(&job->end_time);
         DARSHAN_BSWAP64(&job->nprocs);
+        DARSHAN_BSWAP64(&job->jobid);
         return(0);
     }
 
@@ -740,6 +745,7 @@ static int getjob_internal_124(darshan_fd fd, struct darshan_job *job)
     job->start_time += start_time;
     job->end_time += end_time;
     job->nprocs += nprocs;
+    job->jobid = 0; /* old log versions did not have this field */
     
     /* set magic number */
     job->magic_nr = CP_MAGIC_NR;
