@@ -70,6 +70,8 @@ my $current_rank = 0;
 my $current_hash = 0;
 my %file_record_hash = ();
 
+my %fs_data = ();
+
 while ($line = <TRACE>) {
     chop($line);
     
@@ -169,18 +171,28 @@ while ($line = <TRACE>) {
             $cumul_meta_indep += $fields[3];
         }
 
+        if (($fields[2] eq "CP_BYTES_READ") or
+            ($fields[2] eq "CP_BYTES_WRITTEN") and
+            not defined($fs_data{$fields[5]}))
+        {
+            $fs_data{$fields[5]} = [0,0];
+        }
 
         if ($fields[2] eq "CP_BYTES_READ" && $fields[0] == -1){
             $cumul_read_bytes_shared += $fields[3];
+            $fs_data{$fields[5]}->[0] += $fields[3];
         }
         if ($fields[2] eq "CP_BYTES_READ" && $fields[0] != -1){
             $cumul_read_bytes_indep += $fields[3];
+            $fs_data{$fields[5]}->[0] += $fields[3];
         }
         if ($fields[2] eq "CP_BYTES_WRITTEN" && $fields[0] == -1){
             $cumul_write_bytes_shared += $fields[3];
+            $fs_data{$fields[5]}->[1] += $fields[3];
         }
         if ($fields[2] eq "CP_BYTES_WRITTEN" && $fields[0] != -1){
             $cumul_write_bytes_indep += $fields[3];
+            $fs_data{$fields[5]}->[1] += $fields[3];
         }
 
         # record start and end of reads and writes
@@ -615,6 +627,38 @@ $avg = format_bytes($avg);
 $max = format_bytes($max);
 print TABLES "created files \& $counter \& $avg \& $max \\\\\n";
 
+print TABLES "
+\\hline
+\\end{tabular}
+";
+close(TABLES);
+
+
+#
+# Generate Per Filesystem Data
+#
+open(TABLES, ">$tmp_dir/fs-data-table.tex") || die("error opening output files:$!\n");
+print TABLES "
+\\begin{tabular}{c|r|r|r|r}
+\\multicolumn{5}{c}{ } \\\\
+\\multicolumn{5}{c}{Data Transfer Per Filesystem} \\\\
+\\hline
+\\multirow{2}{*}{File System} \& \\multicolumn{2}{c}{Write} \\vline \& \\multicolumn{2}{c}{Read} \\\\
+\\cline{2-5}
+\& MiB \& Ratio \& MiB \& Ratio \\\\\
+\\hline
+\\hline
+";
+foreach $key (keys %fs_data)
+{
+    my $wr_total_mb = ($fs_data{$key}->[1] / (1024*1024));
+    my $rd_total_mb = ($fs_data{$key}->[0] / (1024*1024));
+    my $wr_total_rt = ($fs_data{$key}->[1] / ($cumul_write_bytes_shared + $cumul_write_bytes_indep));
+    my $rd_total_rt = ($fs_data{$key}->[0] / ($cumul_read_bytes_shared + $cumul_read_bytes_indep));
+
+    printf TABLES "%s \& %.5f \& %.5f \& %.5f \& %.5f \\\\\n",
+        $key, $wr_total_mb, $wr_total_rt, $rd_total_mb, $rd_total_rt;
+}
 print TABLES "
 \\hline
 \\end{tabular}
