@@ -96,6 +96,9 @@ while ($line = <TRACE>) {
 	if ($line =~ /^# uid: /) {
 	    ($junk, $uid) = split(':', $line, 2);
 	}
+        if ($line =~ /^# jobid: /) {
+	    ($junk, $jobid) = split(':', $line, 2);
+        }
     }
     else {
         # parse line
@@ -399,9 +402,9 @@ close TITLE;
 
 open(TABLES, ">$tmp_dir/job-table.tex") || die("error opening output file:$!\n");
 print TABLES "
-\\begin{tabular}{|p{.63\\columnwidth}|p{.63\\columnwidth}|p{.63\\columnwidth}|}
+\\begin{tabular}{|p{.47\\columnwidth}|p{.35\\columnwidth}|p{.47\\columnwidth}|p{.6\\columnwidth}|}
 \\hline
-uid: $uid \& nprocs: $nprocs \& runtime: $runtime seconds\\\\
+jobid: $jobid \& uid: $uid \& nprocs: $nprocs \& runtime: $runtime seconds\\\\
 \\hline
 \\end{tabular}
 ";

@@ -70,6 +70,7 @@ int main(int argc, char **argv)
     printf("# size of job statistics: %zu bytes\n", sizeof(job));
     printf("# exe: %s\n", tmp_string);
     printf("# uid: %lld\n", lld(job.uid));
+    printf("# jobid: %lld\n", lld(job.jobid));
     printf("# start_time: %lld\n", lld(job.start_time));
     tmp_time += job.start_time;
     printf("# start_time_asci: %s", ctime(&tmp_time));

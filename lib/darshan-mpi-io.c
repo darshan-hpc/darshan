@@ -380,6 +380,9 @@ void darshan_shutdown(int timing_flag)
                 "%s/id%d.darshan_partial",
                 __CP_LOG_PATH, jobid);
         }
+
+        /* add jobid */
+        final_job->log_job.jobid = (int64_t)jobid;
     }
 
     /* broadcast log file name */
