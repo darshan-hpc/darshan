@@ -171,8 +171,8 @@ while ($line = <TRACE>) {
             $cumul_meta_indep += $fields[3];
         }
 
-        if (($fields[2] eq "CP_BYTES_READ") or
-            ($fields[2] eq "CP_BYTES_WRITTEN") and
+        if ((($fields[2] eq "CP_BYTES_READ") or
+             ($fields[2] eq "CP_BYTES_WRITTEN")) and
             not defined($fs_data{$fields[5]}))
         {
             $fs_data{$fields[5]} = [0,0];
