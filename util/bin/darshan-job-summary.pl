@@ -653,8 +653,26 @@ foreach $key (keys %fs_data)
 {
     my $wr_total_mb = ($fs_data{$key}->[1] / (1024*1024));
     my $rd_total_mb = ($fs_data{$key}->[0] / (1024*1024));
-    my $wr_total_rt = ($fs_data{$key}->[1] / ($cumul_write_bytes_shared + $cumul_write_bytes_indep));
-    my $rd_total_rt = ($fs_data{$key}->[0] / ($cumul_read_bytes_shared + $cumul_read_bytes_indep));
+    my $wr_total_rt;
+
+    if ($cumul_write_bytes_shared+$cumul_write_bytes_shared)
+    {
+        $wr_total_rt = ($fs_data{$key}->[1] / ($cumul_write_bytes_shared + $cumul_write_bytes_indep));
+    }
+    else
+    {
+        $wr_total_rt = 0;
+    }
+
+    my $rd_total_rt;
+    if ($cumul_write_bytes_shared+$cumul_read_bytes_indep)
+    {
+        $rd_total_rt = ($fs_data{$key}->[0] / ($cumul_read_bytes_shared + $cumul_read_bytes_indep));
+    }
+    else
+    {
+        $rd_total_rt = 0;
+    }
 
     printf TABLES "%s \& %.5f \& %.5f \& %.5f \& %.5f \\\\\n",
         $key, $wr_total_mb, $wr_total_rt, $rd_total_mb, $rd_total_rt;
