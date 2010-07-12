@@ -423,9 +423,16 @@ void darshan_log_close(darshan_fd file)
  */
 void darshan_log_print_version_warnings(struct darshan_job *job)
 {
+    if(strcmp(job->version_string, "2.01") == 0) 
+    {
+        /* curent version */
+        return;
+    }
     if(strcmp(job->version_string, "2.00") == 0)
     {
-        /* current version */
+        printf("#WARNING: version 2.00 log format does not support the following parameters:\n");
+	printf("#  CP_F_NC_READ_TIME\n");
+	printf("#  CP_F_NC_WRITE_TIME\n");
         return;
     }
  
