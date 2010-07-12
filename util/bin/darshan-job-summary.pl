@@ -686,18 +686,27 @@ close(TABLES);
 
 open(TIME, ">$tmp_dir/time-summary.dat") || die("error opening output file:$!\n");
 print TIME "# <type>, <app time>, <read>, <write>, <meta>\n";
+
 print TIME "POSIX, ", ((($runtime * $nprocs - $summary{CP_F_POSIX_READ_TIME} -
     $summary{CP_F_POSIX_WRITE_TIME} -
     $summary{CP_F_POSIX_META_TIME})/($runtime * $nprocs)) * 100);
 print TIME ", ", (($summary{CP_F_POSIX_READ_TIME}/($runtime * $nprocs))*100);
 print TIME ", ", (($summary{CP_F_POSIX_WRITE_TIME}/($runtime * $nprocs))*100);
 print TIME ", ", (($summary{CP_F_POSIX_META_TIME}/($runtime * $nprocs))*100), "\n";
+
 print TIME "MPI-IO, ", ((($runtime * $nprocs - $summary{CP_F_MPI_READ_TIME} -
     $summary{CP_F_MPI_WRITE_TIME} -
     $summary{CP_F_MPI_META_TIME})/($runtime * $nprocs)) * 100);
 print TIME ", ", (($summary{CP_F_MPI_READ_TIME}/($runtime * $nprocs))*100);
 print TIME ", ", (($summary{CP_F_MPI_WRITE_TIME}/($runtime * $nprocs))*100);
 print TIME ", ", (($summary{CP_F_MPI_META_TIME}/($runtime * $nprocs))*100), "\n";
+
+print TIME "PNETCDF, ", ((($runtime * $nprocs - $summary{CP_F_NC_READ_TIME} -
+    $summary{CP_F_NC_WRITE_TIME})/($runtime * $nprocs)) * 100);
+print TIME ", ", (($summary{CP_F_NC_READ_TIME}/($runtime * $nprocs))*100);
+print TIME ", ", (($summary{CP_F_NC_WRITE_TIME}/($runtime * $nprocs))*100);
+print TIME ", ", (($summary{CP_F_NC_META_TIME}/($runtime * $nprocs))*100), "\n";
+
 close TIME;
 
 # copy template files to tmp tmp_dir
