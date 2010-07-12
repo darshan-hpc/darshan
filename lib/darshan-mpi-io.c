@@ -1344,7 +1344,7 @@ static void darshan_file_reduce(void* infile_v,
         }
 
         /* sum */
-        for(j=CP_F_POSIX_READ_TIME; j<=CP_F_MPI_WRITE_TIME; j++)
+        for(j=CP_F_POSIX_READ_TIME; j<=CP_F_NC_WRITE_TIME; j++)
         {
             tmp_file.fcounters[j] = infile->fcounters[j] + 
                 inoutfile->fcounters[j];

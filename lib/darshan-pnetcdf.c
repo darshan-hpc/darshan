@@ -16,7 +16,44 @@ extern int __real_ncmpi_open(MPI_Comm comm, const char *path,
     int omode, MPI_Info info, int *ncidp);
 extern int __real_ncmpi_close(int ncid);
 
+extern int __real_ncmpi_iput_vara(int ncid, int varid,
+                const MPI_Offset *start, const MPI_Offset *count,
+                const void *buf, MPI_Offset bufcount, MPI_Datatype datatype,
+                int *reqid);
+extern int __real_ncmpi_put_vara_all(int ncid, int varid,
+                   const MPI_Offset  start[], const MPI_Offset  count[],
+                   const void *buf, MPI_Offset bufcount,
+                   MPI_Datatype datatype);
+
+extern int __real_ncmpi_put_vara_int_all(int ncid, int varid, 
+    const MPI_Offset  start[], const MPI_Offset  count[], 
+    const void *buf);
+
+extern int __real_ncmpi_wait_all(int  ncid, int  num_reqs, 
+		int *req_ids, int *statuses);
+
+static int nr_writes=0;
+static int nr_reads=0;
+
 static struct darshan_file_runtime* darshan_file_by_ncid(int ncid);
+
+#define NC_NOERR 0
+
+#define CP_RECORD_PNETCDF_WRITE(__ret, __ncid, __tim1, __tim2) do {\
+	struct darshan_file_runtime*file;\
+	if (__ret != NC_NOERR) break;\
+	file = darshan_file_by_ncid(__ncid);\
+	CP_F_INC(file, CP_F_NC_WRITE_TIME, (__tim2-__tim1));\
+} while (0)
+
+#define CP_RECORD_PNETCDF_READ(__ret, __ncid, __tim1, __tim2) do {\
+	struct darshan_file_runtime*file;\
+	if (__ret != NC_NOERR) break;\
+	file = darshan_file_by_ncid(__ncid);\
+	CP_F_INC(file, CP_F_NC_READ_TIME, (__tim2-__tim1));\
+} while (0)
+
+
 
 int __wrap_ncmpi_create(MPI_Comm comm, const char *path, 
     int cmode, MPI_Info info, int *ncidp)
@@ -161,6 +198,87 @@ int __wrap_ncmpi_close(int ncid)
     return(ret);
 
 }
+
+int __wrap_ncmpi_put_vara_all(int ncid, int varid, 
+    const MPI_Offset  start[], const MPI_Offset  count[], 
+    const void *buf, MPI_Offset bufcount, MPI_Datatype datatype)
+{   
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_put_vara_all(ncid, varid, start, count, buf, bufcount,
+                    datatype);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_WRITE(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+    return (ret);
+}
+
+int __wrap_ncmpi_put_vara_int_all(int ncid, int varid, 
+    const MPI_Offset  start[], const MPI_Offset  count[], 
+    const void *buf)
+{   
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_put_vara_int_all(ncid, varid, start, count, buf);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_WRITE(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+    return (ret);
+}
+
+
+int __wrap_ncmpi_iput_vara(int ncid, int varid,
+                const MPI_Offset *start, const MPI_Offset *count,
+                const void *buf, MPI_Offset bufcount, MPI_Datatype datatype,
+                int *reqid)
+{   
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_iput_vara(ncid, varid, start, count, buf, bufcount, datatype, reqid);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    nr_writes++;
+    CP_RECORD_PNETCDF_WRITE(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+    return (ret);
+}
+
+int __wrap_ncmpi_wait_all(int  ncid,
+		int  num_reqs, 
+		int *req_ids,  
+		int *statuses) 
+{
+    int ret;
+    double tm1, tm2;
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_wait_all(ncid, num_reqs, req_ids, statuses);
+    tm2 = darshan_wtime();
+
+    CP_LOCK();
+    /* TODO: problem: ncmpi_wait{,_all} take both read and write operations.
+     * Need a good way to sort out how much of this wait is read and how much
+     * is write.  This is good enough for now... */
+    if ( (nr_reads > 0 && nr_writes == 0) ) 
+	    CP_RECORD_PNETCDF_READ(ret, ncid, tm1, tm2);
+    else
+	    CP_RECORD_PNETCDF_WRITE(ret, ncid, tm1, tm2);
+
+    nr_writes=0;
+    nr_reads=0;
+    CP_UNLOCK();
+
+    return ret;
+}
+
+
 
 static struct darshan_file_runtime* darshan_file_by_ncid(int ncid)
 {

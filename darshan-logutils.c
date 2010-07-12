@@ -172,6 +172,8 @@ char *darshan_f_names[] = {
     "CP_F_MPI_WRITE_TIME",        /* cumulative mpi-io write time */
     "CP_F_MAX_READ_TIME",
     "CP_F_MAX_WRITE_TIME",
+    "CP_F_NC_READ_TIME",	/* cumulative time in pnetcdf reads */
+    "CP_F_NC_WRITE_TIME",	/* cumulative time in pnetcdf writes */
     "CP_F_NUM_INDICES",
 };
 
@@ -238,7 +240,8 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
         return(-1);
     }
 
-    if(strcmp(file->version, "2.00") == 0)
+    if(  strcmp(file->version, "2.00") == 0 || 
+		    strcmp(file->version, "2.01") == 0)
     {
         getjob_internal = getjob_internal_200;
         getfile_internal = getfile_internal_200;
