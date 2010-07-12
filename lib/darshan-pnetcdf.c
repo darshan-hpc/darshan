@@ -266,19 +266,32 @@ int __wrap_ncmpi_wait_all(int  ncid,
     /* TODO: problem: ncmpi_wait{,_all} take both read and write operations.
      * Need a good way to sort out how much of this wait is read and how much
      * is write.  This is good enough for now... */
-    if ( (nr_reads > 0 && nr_writes == 0) ) 
-	    CP_RECORD_PNETCDF_READ(ret, ncid, tm1, tm2);
-    else
-	    CP_RECORD_PNETCDF_WRITE(ret, ncid, tm1, tm2);
 
+    /* fraction of writes: nr_writes/(nr_writes + nr_reads) */
+    /* fraction of reads:  1- fraction_of_writes */
+    /* don't need to do any of that if all the reqests are of one kind */
+
+    if (nr_reads == 0) {
+	    CP_RECORD_PNETCDF_WRITE(ret, ncid, tm1, tm2);
+    } else if (nr_writes == 0)  {
+	    CP_RECORD_PNETCDF_READ(ret, ncid, tm1, tm2);
+    } else {
+	    double delta = tm2-tm1;	
+	    double write_time, read_time;
+	    write_time = delta*(nr_writes/(nr_writes+nr_reads));
+	    read_time = delta*(1-write_time);
+	    /* second_timestamp - first_timestamp == total_time:
+	     * 	so, (tm1+read_time) - tm1 = read_time
+	     * 	and tm2 - (tm2 - write_time) = write_time */
+	    CP_RECORD_PNETCDF_READ(ret, ncid, tm1, tm1+read_time);
+	    CP_RECORD_PNETCDF_WRITE(ret, ncid, tm2-write_time, tm2);
+    }
     nr_writes=0;
     nr_reads=0;
     CP_UNLOCK();
 
     return ret;
 }
-
-
 
 static struct darshan_file_runtime* darshan_file_by_ncid(int ncid)
 {
