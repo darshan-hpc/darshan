@@ -204,7 +204,7 @@ void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs);
 void darshan_walk_file_accesses(struct darshan_job_runtime* final_job);
 double darshan_wtime(void);
 
-uint32_t hashlittle(const void *key, size_t length, uint32_t initval);
-uint64_t hash(register unsigned char *k, register uint64_t length, register uint64_t level);
+uint32_t darshan_hashlittle(const void *key, size_t length, uint32_t initval);
+uint64_t darshan_hash(register unsigned char *k, register uint64_t length, register uint64_t level);
 
 #endif /* __DARSHAN_H */

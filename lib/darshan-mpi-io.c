@@ -543,7 +543,7 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
             {
                 CP_INC(file, CP_HINTS, 1);
             }
-            tmp_hash = hash((void*)fh, sizeof(*fh), 0);
+            tmp_hash = darshan_hash((void*)fh, sizeof(*fh), 0);
             hash_index = tmp_hash & CP_HASH_MASK;
             file->fh_prev = NULL;
             file->fh_next = darshan_global_job->fh_table[hash_index];
@@ -580,7 +580,7 @@ int MPI_File_close(MPI_File *fh)
         if(file->fh_prev == NULL)
         {
             /* head of fh hash table list */
-            tmp_hash = hash((void*)&tmp_fh, sizeof(tmp_fh), 0);
+            tmp_hash = darshan_hash((void*)&tmp_fh, sizeof(tmp_fh), 0);
             hash_index = tmp_hash & CP_HASH_MASK;
             darshan_global_job->fh_table[hash_index] = file->fh_next;
             if(file->fh_next)
@@ -1031,7 +1031,7 @@ static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh)
         return(darshan_global_job->darshan_mru_file);
     }
 
-    tmp_hash = hash((void*)(&fh), sizeof(fh), 0);
+    tmp_hash = darshan_hash((void*)(&fh), sizeof(fh), 0);
 
     /* search hash table */
     hash_index = tmp_hash & CP_HASH_MASK;
@@ -1767,7 +1767,7 @@ static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
             if(mnt_array_index < CP_MAX_MNTS)
             {
                 mnt_hash_array[mnt_array_index] =
-                    hash((void*)entry->mnt_dir, strlen(entry->mnt_dir), 0);
+                    darshan_hash((void*)entry->mnt_dir, strlen(entry->mnt_dir), 0);
                 mnt_id_array[mnt_array_index] = tmp_st_dev;
                 mnt_array_index++;
             }
