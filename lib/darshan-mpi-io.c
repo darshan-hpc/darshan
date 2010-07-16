@@ -1813,8 +1813,7 @@ static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
         NULL
     };
 
-    /* extra byte for \0 already accounted for */
-    space_left = CP_EXE_LEN;
+    space_left = CP_EXE_LEN + 1;
     trailing_data = malloc(space_left);
     if(!trailing_data)
     {
