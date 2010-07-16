@@ -2,13 +2,26 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.0.0-pre1
-==================
-* introduce new output file format that is portable across architectures, with
-reader-makes-right byte swapping
-* enable darshan-job-summary.pl to open output files directly without using
-intermediate darshan-parser output
-* backwards compatibility to version 1.1.0
+darshan-2.0.0
+=============
+* new output file format that is portable across architectures
+  NOTE: Darshan 1.x output files are incompatible with the tools in this 
+  release unless they were generated on a ppc32 architecture (Blue Gene)
+* 8 new counters that record the rank of the fastest and slowest process that
+  opened each shared file, along with the number of seconds and number of
+  bytes consumed by those processes.  It also reports the variance in both
+  time and amount of data.
+* new --with-jobid-env configure argument to support recording job identifiers
+  from different schedulers
+* job ID is now recorded within the Darshan log in addition to in the file
+  name
+* darshan-job-summary.pl:
+  * opens output files directly without using intermediate darshan-parser output
+  * table showing data usage per file system
+  * table showing I/O balance in shared files
+* Fixes for bugs reported by Noah Watkins: 
+  * avoid name collision in hashing function
+  * divide by zero error in darshan-job-summary.pl
 
 darshan-1.1.14
 ==============
