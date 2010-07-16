@@ -438,13 +438,31 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
  
     if(strcmp(job->version_string, "1.24") == 0)
     {
-        printf("# WARNING: version 1.24 log format does not store the job id in the log file.\n");
+        printf("# WARNING: version 1.24 log format does not support the following parameters:\n");
+        printf("#   CP_FASTEST_RANK\n");
+        printf("#   CP_FASTEST_RANK_BYTES\n");
+        printf("#   CP_SLOWEST_RANK\n");
+        printf("#   CP_SLOWEST_RANK_BYTES\n");
+        printf("#   CP_F_FASTEST_RANK_TIME\n");
+        printf("#   CP_F_SLOWEST_RANK_TIME\n");
+        printf("#   CP_F_VARIANCE_RANK_TIME\n");
+        printf("#   CP_F_VARIANCE_RANK_BYTES\n");
+        printf("# It also does not store the job id in the log file.\n");
         return;
     }
     
     if(strcmp(job->version_string, "1.23") == 0)
     {
-        printf("# WARNING: version 1.23 log format may have incorrect mount point mappings for files with rank > 0\n");
+        printf("# WARNING: version 1.23 log format does not support the following parameters:\n");
+        printf("#   CP_FASTEST_RANK\n");
+        printf("#   CP_FASTEST_RANK_BYTES\n");
+        printf("#   CP_SLOWEST_RANK\n");
+        printf("#   CP_SLOWEST_RANK_BYTES\n");
+        printf("#   CP_F_FASTEST_RANK_TIME\n");
+        printf("#   CP_F_SLOWEST_RANK_TIME\n");
+        printf("#   CP_F_VARIANCE_RANK_TIME\n");
+        printf("#   CP_F_VARIANCE_RANK_BYTES\n");
+        printf("# It also may have incorrect mount point mappings for files with rank > 0\n");
         printf("# It also does not store the job id in the log file.\n");
         return;
     }
@@ -454,6 +472,14 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("# WARNING: version 1.22 log format does not support the following parameters:\n");
         printf("#   CP_DEVICE\n");
         printf("#   CP_SIZE_AT_OPEN\n");
+        printf("#   CP_FASTEST_RANK\n");
+        printf("#   CP_FASTEST_RANK_BYTES\n");
+        printf("#   CP_SLOWEST_RANK\n");
+        printf("#   CP_SLOWEST_RANK_BYTES\n");
+        printf("#   CP_F_FASTEST_RANK_TIME\n");
+        printf("#   CP_F_SLOWEST_RANK_TIME\n");
+        printf("#   CP_F_VARIANCE_RANK_TIME\n");
+        printf("#   CP_F_VARIANCE_RANK_BYTES\n");
         printf("# It does not record mounted file systems, mount points, or fs types.\n");
         printf("# It attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
         printf("# It also does not store the job id in the log file.\n");
@@ -472,6 +498,14 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_SIZE_AT_OPEN\n");
         printf("#   CP_F_MAX_READ_TIME\n");
         printf("#   CP_F_MAX_WRITE_TIME\n");
+        printf("#   CP_FASTEST_RANK\n");
+        printf("#   CP_FASTEST_RANK_BYTES\n");
+        printf("#   CP_SLOWEST_RANK\n");
+        printf("#   CP_SLOWEST_RANK_BYTES\n");
+        printf("#   CP_F_FASTEST_RANK_TIME\n");
+        printf("#   CP_F_SLOWEST_RANK_TIME\n");
+        printf("#   CP_F_VARIANCE_RANK_TIME\n");
+        printf("#   CP_F_VARIANCE_RANK_BYTES\n");
         printf("# It does not record mounted file systems, mount points, or fs types.\n");
         printf("# It attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
         printf("#\n");
