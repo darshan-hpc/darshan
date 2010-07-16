@@ -206,6 +206,7 @@ static int getfile_internal_121(darshan_fd fd, struct darshan_job *job,
     struct darshan_file *file);
 static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job, 
     struct darshan_file *file, int n_counters, int n_fcounters);
+static void shift_missing_1_24(struct darshan_file* file);
 static void shift_missing_1_22(struct darshan_file* file);
 static void shift_missing_1_21(struct darshan_file* file);
 
@@ -498,13 +499,20 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
  *   - CP_MAX_WRITE_TIME_SIZE
  *   - CP_DEVICE
  *   - CP_SIZE_AT_OPEN
+ *   - CP_FASTEST_RANK
+ *   - CP_FASTEST_RANK_BYTES
+ *   - CP_SLOWEST_RANK
+ *   - CP_SLOWEST_RANK_BYTES
  *   - CP_F_MAX_READ_TIME
  *   - CP_F_MAX_WRITE_TIME
+ *   - CP_F_FASTEST_RANK_TIME
+ *   - CP_F_SLOWEST_RANK_TIME
+ *   - CP_F_VARIANCE_RANK_TIME
+ *   - CP_F_VARIANCE_RANK_BYTES
  * - changed params:
- *   - CP_FILE_RECORD_SIZE: 1184 to 1248
- *   - CP_NUM_INDICES: 133 to 140
- *   - CP_F_NUM_INDICES: 12 to 14
- * - so 60 bytes worth of new indices are the only difference
+ *   - CP_FILE_RECORD_SIZE: 1184 to 1328
+ *   - CP_NUM_INDICES: 133 to 144
+ *   - CP_F_NUM_INDICES: 12 to 18
  */
 static void shift_missing_1_21(struct darshan_file* file)
 {
@@ -517,10 +525,18 @@ static void shift_missing_1_21(struct darshan_file* file)
         CP_MAX_WRITE_TIME_SIZE,
         CP_DEVICE,
         CP_SIZE_AT_OPEN,
+        CP_FASTEST_RANK,
+        CP_FASTEST_RANK_BYTES,
+        CP_SLOWEST_RANK,
+        CP_SLOWEST_RANK_BYTES,
         -1};
     int missing_f_counters[] = {
         CP_F_MAX_READ_TIME,
         CP_F_MAX_WRITE_TIME,
+        CP_F_FASTEST_RANK_TIME,
+        CP_F_SLOWEST_RANK_TIME,
+        CP_F_VARIANCE_RANK_TIME,
+        CP_F_VARIANCE_RANK_BYTES,
         -1};
 
     c_index = 0;
@@ -569,9 +585,18 @@ static void shift_missing_1_21(struct darshan_file* file)
  * - added:
  *   - CP_DEVICE
  *   - CP_SIZE_AT_OPEN
+ *   - CP_FASTEST_RANK
+ *   - CP_FASTEST_RANK_BYTES
+ *   - CP_SLOWEST_RANK
+ *   - CP_SLOWEST_RANK_BYTES
+ *   - CP_F_FASTEST_RANK_TIME
+ *   - CP_F_SLOWEST_RANK_TIME
+ *   - CP_F_VARIANCE_RANK_TIME
+ *   - CP_F_VARIANCE_RANK_BYTES
  * - changed params:
- *   - CP_FILE_RECORD_SIZE: 1240 to 1248
- *   - CP_NUM_INDICES: 138 to 140
+ *   - CP_FILE_RECORD_SIZE: 1240 to 1328
+ *   - CP_NUM_INDICES: 138 to 144
+ *   - CP_F_NUM_INDICES: 14 to 18
  */
 static void shift_missing_1_22(struct darshan_file* file)
 {
@@ -579,6 +604,16 @@ static void shift_missing_1_22(struct darshan_file* file)
     int missing_counters[] = {
         CP_DEVICE,
         CP_SIZE_AT_OPEN,
+        CP_FASTEST_RANK,
+        CP_FASTEST_RANK_BYTES,
+        CP_SLOWEST_RANK,
+        CP_SLOWEST_RANK_BYTES,
+        -1};
+    int missing_f_counters[] = {
+        CP_F_FASTEST_RANK_TIME,
+        CP_F_SLOWEST_RANK_TIME,
+        CP_F_VARIANCE_RANK_TIME,
+        CP_F_VARIANCE_RANK_BYTES,
         -1};
 
     c_index = 0;
@@ -597,8 +632,94 @@ static void shift_missing_1_22(struct darshan_file* file)
         file->counters[missing_counter] = 0;
     }
 
+    c_index = 0;
+    while(missing_f_counters[c_index] != -1)
+    {
+        int missing_counter = missing_f_counters[c_index];
+        c_index++;
+        if(missing_counter < (CP_F_NUM_INDICES - 1))
+        {
+            /* shift down */
+            memmove(&file->fcounters[missing_counter+1],
+                &file->fcounters[missing_counter],
+                (CP_F_NUM_INDICES-missing_counter-1)*sizeof(double));
+        }
+        /* zero out missing counter */
+        file->fcounters[missing_counter] = 0;
+    }
+
     return;
 }
+
+/* shift_missing_1_24()
+ *
+ * translates indices to account for counters that weren't present in log
+ * format 1.24
+ */
+/*******************************
+ * version 1.24 to 2.00 differences
+ *
+ * - added:
+ *   - CP_F_FASTEST_RANK_TIME
+ *   - CP_F_SLOWEST_RANK_TIME
+ *   - CP_F_VARIANCE_RANK_TIME
+ *   - CP_F_VARIANCE_RANK_BYTES
+ * - changed params:
+ *   - CP_FILE_RECORD_SIZE: ? to 1328
+ *   - CP_NUM_INDICES: 140 to 144
+ *   - CP_F_NUM_INDICES: 14 to 18
+ */
+static void shift_missing_1_24(struct darshan_file* file)
+{
+    int c_index = 0;
+    int missing_counters[] = {
+        CP_FASTEST_RANK,
+        CP_FASTEST_RANK_BYTES,
+        CP_SLOWEST_RANK,
+        CP_SLOWEST_RANK_BYTES,
+        -1};
+    int missing_f_counters[] = {
+        CP_F_FASTEST_RANK_TIME,
+        CP_F_SLOWEST_RANK_TIME,
+        CP_F_VARIANCE_RANK_TIME,
+        CP_F_VARIANCE_RANK_BYTES,
+        -1};
+
+    c_index = 0;
+    while(missing_counters[c_index] != -1)
+    {
+        int missing_counter = missing_counters[c_index];
+        c_index++;
+        if(missing_counter < (CP_NUM_INDICES - 1))
+        {
+            /* shift down */
+            memmove(&file->counters[missing_counter+1],
+                &file->counters[missing_counter],
+                (CP_NUM_INDICES-missing_counter-1)*sizeof(int64_t));
+        }
+        /* zero out missing counter */
+        file->counters[missing_counter] = 0;
+    }
+
+    c_index = 0;
+    while(missing_f_counters[c_index] != -1)
+    {
+        int missing_counter = missing_f_counters[c_index];
+        c_index++;
+        if(missing_counter < (CP_F_NUM_INDICES - 1))
+        {
+            /* shift down */
+            memmove(&file->fcounters[missing_counter+1],
+                &file->fcounters[missing_counter],
+                (CP_F_NUM_INDICES-missing_counter-1)*sizeof(double));
+        }
+        /* zero out missing counter */
+        file->fcounters[missing_counter] = 0;
+    }
+
+    return;
+}
+
 
 static int getjob_internal_200(darshan_fd file, struct darshan_job *job)
 {
@@ -765,7 +886,15 @@ static int getjob_internal_124(darshan_fd fd, struct darshan_job *job)
 static int getfile_internal_124(darshan_fd fd, struct darshan_job *job, 
     struct darshan_file *file)
 {
-    return(getfile_internal_1x(fd, job, file, 140, 14));
+    int ret;
+
+    ret = getfile_internal_1x(fd, job, file, 138, 14);
+    if(ret <= 0)
+        return(ret);
+
+    shift_missing_1_24(file);
+
+    return(1);
 }
 
 static int getfile_internal_122(darshan_fd fd, struct darshan_job *job, 
