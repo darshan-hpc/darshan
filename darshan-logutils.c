@@ -694,6 +694,10 @@ static void shift_missing_1_22(struct darshan_file* file)
  * version 1.24 to 2.00 differences
  *
  * - added:
+ *   - CP_FASTEST_RANK
+ *   - CP_FASTEST_RANK_BYTES
+ *   - CP_SLOWEST_RANK
+ *   - CP_SLOWEST_RANK_BYTES
  *   - CP_F_FASTEST_RANK_TIME
  *   - CP_F_SLOWEST_RANK_TIME
  *   - CP_F_VARIANCE_RANK_TIME
@@ -922,7 +926,7 @@ static int getfile_internal_124(darshan_fd fd, struct darshan_job *job,
 {
     int ret;
 
-    ret = getfile_internal_1x(fd, job, file, 138, 14);
+    ret = getfile_internal_1x(fd, job, file, 140, 14);
     if(ret <= 0)
         return(ret);
 
