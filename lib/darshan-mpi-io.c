@@ -228,6 +228,7 @@ void darshan_shutdown(int timing_flag)
     void* pointers[CP_MAX_MEM_SEGMENTS];
     int ret;
     double red1=0, red2=0, gz1=0, gz2=0, write1=0, write2=0, tm_end=0;
+    double bcst1=0, bcst2=0, bcst3=0;
     int nprocs;
     char* trailing_data = NULL;
     int i, j;
@@ -310,10 +311,14 @@ void darshan_shutdown(int timing_flag)
         memcpy(mnt_id_array_root, mnt_id_array,
             CP_MAX_MNTS*sizeof(int64_t));
     }
+
+    bcst1=MPI_Wtime();
     MPI_Bcast(mnt_id_array_root, CP_MAX_MNTS*sizeof(int64_t), MPI_BYTE, 0,
         MPI_COMM_WORLD);
     MPI_Bcast(mnt_hash_array_root, CP_MAX_MNTS*sizeof(uint64_t), MPI_BYTE, 0,
         MPI_COMM_WORLD);
+    bcst2=MPI_Wtime();
+
     /* identify any common mount points that have different device ids on
      * non-root processes
      */
@@ -400,6 +405,7 @@ void darshan_shutdown(int timing_flag)
     }
 
     /* broadcast log file name */
+    bcst3=MPI_Wtime();
     MPI_Bcast(logfile_name, PATH_MAX, MPI_CHAR, 0, MPI_COMM_WORLD);
 
     final_job->log_job.end_time = time(NULL);
@@ -466,9 +472,11 @@ void darshan_shutdown(int timing_flag)
         double gz_tm, gz_slowest;
         double write_tm, write_slowest;
         double all_tm, all_slowest;
+        double bcst_tm, bcst_slowest;
         
         tm_end = MPI_Wtime();
 
+        bcst_tm=(bcst2-bcst1)+(red1-bcst3);
         red_tm = red2-red1;
         gz_tm = gz2-gz1;
         write_tm = write2-write1;
@@ -482,11 +490,14 @@ void darshan_shutdown(int timing_flag)
             MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
         MPI_Allreduce(&all_tm, &all_slowest, 1,
             MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&bcst_tm, &bcst_slowest, 1,
+            MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
         if(rank == 0)
         {
             MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
             printf("#<op>\t<nprocs>\t<time>\n");
+            printf("bcst\t%d\t%f\n", nprocs, bcst_slowest);
             printf("reduce\t%d\t%f\n", nprocs, red_slowest);
             printf("gzip\t%d\t%f\n", nprocs, gz_slowest);
             printf("write\t%d\t%f\n", nprocs, write_slowest);
