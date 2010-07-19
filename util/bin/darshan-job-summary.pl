@@ -117,6 +117,8 @@ while ($line = <TRACE>) {
         # is this a new file record?
         if($fields[0] != $current_rank || $fields[1] != $current_hash)
         {
+            $file_record_hash{CP_NAME_SUFFIX} = $fields[4];
+
             # process previous record
             process_file_record($current_rank, $current_hash, \%file_record_hash);
 
@@ -251,6 +253,7 @@ while ($line = <TRACE>) {
 }
 
 # process last file record
+$file_record_hash{CP_NAME_SUFFIX} = $fields[4];
 process_file_record($current_rank, $current_hash, \%file_record_hash);
 close(TRACE) || die "darshan-parser failure: $! $?";
 
@@ -843,6 +846,52 @@ print FILEACC "
 ";
 close(FILEACC);
 
+#
+# Variance Data
+#
+open(VARP, ">$tmp_dir/variance-table.tex") || die("error opening output file:$!\n");
+print VARP "
+\\begin{tabular}{c|r|r|r|r|r|r|r|r|r}
+\\multicolumn{10}{c}{} \\\\
+\\multicolumn{10}{c}{Variance in Shared Files} \\\\
+\\hline
+File \& Processes \& \\multicolumn{3}{c}{Fastest} \\vline \&
+\\multicolumn{3}{c}{Slowest} \\vline \& \\multicolumn{2}{c}{\$\\sigma\$} \\\\
+\\cline{3-10}
+Suffix \&  \& Rank \& Time \& Bytes \& Rank \& Time \& Bytes \& Time \& Bytes \\\\
+\\hline
+\\hline
+";
+
+foreach $key (keys %hash_files) {
+    if ($hash_files{$key}{'procs'} > 1)
+    {
+        my $vt = sprintf("%.3g", sqrt($hash_files{$key}{'variance_time'}));
+        my $vb = sprintf("%.3g", sqrt($hash_files{$key}{'variance_bytes'}));
+        my $fast_bytes = format_bytes($hash_files{$key}{'fastest_bytes'});
+        my $slow_bytes = format_bytes($hash_files{$key}{'slowest_bytes'});
+
+        print VARP "
+               $hash_files{$key}{'name'} \&
+               $hash_files{$key}{'procs'} \&
+               $hash_files{$key}{'fastest_rank'} \&
+               $hash_files{$key}{'fastest_time'} \&
+               $fast_bytes \&
+               $hash_files{$key}{'slowest_rank'} \&
+               $hash_files{$key}{'slowest_time'} \& 
+               $slow_bytes \&
+               $vt \&
+               $vb \\\\
+         ";
+    }
+}
+
+print VARP "
+\\hline
+\\end{tabular}
+";
+close(VARP);
+
 if(-x "$FindBin::Bin/gnuplot")
 {
     $gnuplot = "$FindBin::Bin/gnuplot";
@@ -967,6 +1016,81 @@ sub process_file_record
         {
             # data was written to the file 
             $hash_files{$hash}{'was_written'} = 1;
+        }
+    }
+
+    $hash_files{$hash}{'name'} = $file_record{CP_NAME_SUFFIX};
+
+    if ($rank == -1)
+    {
+        $hash_files{$hash}{'procs'}          = $nprocs;
+        $hash_files{$hash}{'slowest_rank'}   = $file_record{'CP_SLOWEST_RANK'};
+        $hash_files{$hash}{'slowest_time'}   = $file_record{'CP_F_SLOWEST_RANK_TIME'};
+        $hash_files{$hash}{'slowest_bytes'}  = $file_record{'CP_SLOWEST_RANK_BYTES'};
+        $hash_files{$hash}{'fastest_rank'}   = $file_record{'CP_FASTEST_RANK'};
+        $hash_files{$hash}{'fastest_time'}   = $file_record{'CP_F_FASTEST_RANK_TIME'};
+        $hash_files{$hash}{'fastest_bytes'}  = $file_record{'CP_FASTEST_RANK_BYTES'};
+        $hash_files{$hash}{'variance_time'}  = $file_record{'CP_F_VARIANCE_RANK_TIME'};
+        $hash_files{$hash}{'variance_bytes'} = $file_record{'CP_F_VARIANCE_RANK_BYTES'};
+    }
+    else
+    {
+        my $total_time = $file_record{'CP_F_POSIX_META_TIME'} +
+                         $file_record{'CP_F_POSIX_READ_TIME'} +
+                         $file_record{'CP_F_POSIX_WRITE_TIME'};
+
+        my $total_bytes = $file_record{'CP_BYTES_READ'} +
+                          $file_record{'CP_BYTES_WRITTEN'};
+
+        if(!defined($hash_files{$hash}{'slowest_time'}) ||
+           $hash_files{$hash}{'slowest_time'} < $total_time)
+        {
+            $hash_files{$hash}{'slowest_time'}  = $total_time;
+            $hash_files{$hash}{'slowest_rank'}  = $rank;
+            $hash_files{$hash}{'slowest_bytes'} = $total_bytes;
+        }
+
+        if(!defined($hash_files{$hash}{'fastest_time'}) ||
+           $hash_files{$hash}{'fastest_time'} > $total_time)
+        {
+            $hash_files{$hash}{'fastest_time'}  = $total_time;
+            $hash_files{$hash}{'fastest_rank'}  = $rank;
+            $hash_files{$hash}{'fastest_bytes'} = $total_bytes;
+        }
+
+        if(!defined($hash_files{$hash}{'variance_time_S'}))
+        {
+            $hash_files{$hash}{'variance_time_S'} = 0;
+            $hash_files{$hash}{'variance_time_T'} = $total_time;
+            $hash_files{$hash}{'variance_time_n'} = 1;
+            $hash_files{$hash}{'variance_bytes_S'} = 0;
+            $hash_files{$hash}{'variance_bytes_T'} = $total_bytes;
+            $hash_files{$hash}{'variance_bytes_n'} = 1;
+            $hash_files{$hash}{'procs'} = 1;
+            $hash_files{$hash}{'variance_time'} = 0;
+            $hash_files{$hash}{'variance_bytes'} = 0;
+        }
+        else
+        {
+            my $n = $hash_files{$hash}{'variance_time_n'};
+            my $m = 1;
+            my $T = $hash_files{$hash}{'variance_time_T'};
+            $hash_files{$hash}{'variance_time_S'} += ($m/($n*($n+$m)))*(($n/$m)*$total_time - $T)*(($n/$m)*$total_time - $T);
+            $hash_files{$hash}{'variance_time_T'} += $total_time;
+            $hash_files{$hash}{'variance_time_n'} += 1;
+
+            $hash_files{$hash}{'variance_time'}    = $hash_files{$hash}{'variance_time_S'} / $hash_files{$hash}{'variance_time_n'};
+
+            $n = $hash_files{$hash}{'variance_bytes_n'};
+            $m = 1;
+            $T = $hash_files{$hash}{'variance_bytes_T'};
+            $hash_files{$hash}{'variance_bytes_S'} += ($m/($n*($n+$m)))*(($n/$m)*$total_bytes - $T)*(($n/$m)*$total_bytes - $T);
+            $hash_files{$hash}{'variance_bytes_T'} += $total_bytes;
+            $hash_files{$hash}{'variance_bytes_n'} += 1;
+
+            $hash_files{$hash}{'variance_bytes'}    = $hash_files{$hash}{'variance_bytes_S'} / $hash_files{$hash}{'variance_bytes_n'};
+
+            $hash_files{$hash}{'procs'} = $n;
         }
     }
 
