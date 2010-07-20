@@ -18,7 +18,7 @@ darshan-2.0.0
 * darshan-job-summary.pl:
   * opens output files directly without using intermediate darshan-parser output
   * table showing data usage per file system
-  * table showing I/O balance in shared files
+  * table showing I/O variance in shared files
 * Fixes for bugs reported by Noah Watkins: 
   * avoid name collision in hashing function
   * divide by zero error in darshan-job-summary.pl
