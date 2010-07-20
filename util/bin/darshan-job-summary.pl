@@ -272,12 +272,13 @@ close(FA_WRITE_SH);
 open(COUNTS, ">$tmp_dir/counts.dat") || die("error opening output file: $!\n");
 print COUNTS "# P=POSIX, MI=MPI-IO indep., MC=MPI-IO coll., R=read, W=write\n";
 print COUNTS "# PR, MIR, MCR, PW, MIW, MCW, Popen, Pseek, Pstat\n";
+my $total_posix_opens = $summary{CP_POSIX_OPENS} + $summary{CP_POSIX_FOPENS};
 my $total_syncs = $summary{CP_POSIX_FSYNCS} + $summary{CP_POSIX_FDSYNCS};
 print COUNTS "Read, ", $summary{CP_POSIX_READS}, ", ",
     $summary{CP_INDEP_READS}, ", ", $summary{CP_COLL_READS}, "\n",
     "Write, ", $summary{CP_POSIX_WRITES}, ", ", 
     $summary{CP_INDEP_WRITES}, ", ", $summary{CP_COLL_WRITES}, "\n",
-    "Open, ", $summary{CP_POSIX_OPENS}, ", ", $summary{CP_INDEP_OPENS},", ",
+    "Open, ", $total_posix_opens, ", ", $summary{CP_INDEP_OPENS},", ",
     $summary{CP_COLL_OPENS}, "\n",
     "Stat, ", $summary{CP_POSIX_STATS}, ", 0, 0\n",
     "Seek, ", $summary{CP_POSIX_SEEKS}, ", 0, 0\n",
@@ -940,7 +941,8 @@ sub process_file_record
 
     if($file_record{'CP_INDEP_OPENS'} == 0 &&
         $file_record{'CP_COLL_OPENS'} == 0 &&
-        $file_record{'CP_POSIX_OPENS'} == 0)
+        $file_record{'CP_POSIX_OPENS'} == 0 &&
+        $file_record{'CP_POSIX_FOPENS'})
     {
         # file wasn't really opened, just stat probably
         return;
