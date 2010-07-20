@@ -101,6 +101,12 @@ while ($line = <TRACE>) {
         if ($line =~ /^# jobid: /) {
 	    ($junk, $jobid) = split(':', $line, 2);
         }
+        if ($line =~ /^# darshan log version: /) {
+            ($junk, $version) = split(':', $line, 2);
+            $version =~ s/^\s+//;
+            ($major, $minor) = split(/\./, $version, 2);
+            print "version:$version major:$major minor:$minor\n";
+        }
     }
     else {
         # parse line
@@ -642,49 +648,59 @@ close(TABLES);
 # Generate Per Filesystem Data
 #
 open(TABLES, ">$tmp_dir/fs-data-table.tex") || die("error opening output files:$!\n");
-print TABLES "
-\\begin{tabular}{c|r|r|r|r}
-\\multicolumn{5}{c}{ } \\\\
-\\multicolumn{5}{c}{Data Transfer Per Filesystem} \\\\
-\\hline
-\\multirow{2}{*}{File System} \& \\multicolumn{2}{c}{Write} \\vline \& \\multicolumn{2}{c}{Read} \\\\
-\\cline{2-5}
-\& MiB \& Ratio \& MiB \& Ratio \\\\\
-\\hline
-\\hline
-";
-foreach $key (keys %fs_data)
+if (($major > 1) or ($minor > 23))
 {
-    my $wr_total_mb = ($fs_data{$key}->[1] / (1024*1024));
-    my $rd_total_mb = ($fs_data{$key}->[0] / (1024*1024));
-    my $wr_total_rt;
+    print TABLES "
+    \\begin{tabular}{c|r|r|r|r}
+    \\multicolumn{5}{c}{ } \\\\
+    \\multicolumn{5}{c}{Data Transfer Per Filesystem} \\\\
+    \\hline
+    \\multirow{2}{*}{File System} \& \\multicolumn{2}{c}{Write} \\vline \& \\multicolumn{2}{c}{Read} \\\\
+    \\cline{2-5}
+    \& MiB \& Ratio \& MiB \& Ratio \\\\\
+    \\hline
+    \\hline
+    ";
+    foreach $key (keys %fs_data)
+    {
+        my $wr_total_mb = ($fs_data{$key}->[1] / (1024*1024));
+        my $rd_total_mb = ($fs_data{$key}->[0] / (1024*1024));
+        my $wr_total_rt;
 
-    if ($cumul_write_bytes_shared+$cumul_write_bytes_shared)
-    {
-        $wr_total_rt = ($fs_data{$key}->[1] / ($cumul_write_bytes_shared + $cumul_write_bytes_indep));
-    }
-    else
-    {
-        $wr_total_rt = 0;
-    }
+        if ($cumul_write_bytes_shared+$cumul_write_bytes_shared)
+        {
+            $wr_total_rt = ($fs_data{$key}->[1] / ($cumul_write_bytes_shared + $cumul_write_bytes_indep));
+        }
+        else
+        {
+            $wr_total_rt = 0;
+        }
 
-    my $rd_total_rt;
-    if ($cumul_read_bytes_shared+$cumul_read_bytes_indep)
-    {
-        $rd_total_rt = ($fs_data{$key}->[0] / ($cumul_read_bytes_shared + $cumul_read_bytes_indep));
-    }
-    else
-    {
-        $rd_total_rt = 0;
-    }
+        my $rd_total_rt;
+        if ($cumul_read_bytes_shared+$cumul_read_bytes_indep)
+        {
+            $rd_total_rt = ($fs_data{$key}->[0] / ($cumul_read_bytes_shared + $cumul_read_bytes_indep));
+        }
+        else
+        {
+            $rd_total_rt = 0;
+        }
 
-    printf TABLES "%s \& %.5f \& %.5f \& %.5f \& %.5f \\\\\n",
-        $key, $wr_total_mb, $wr_total_rt, $rd_total_mb, $rd_total_rt;
+        printf TABLES "%s \& %.5f \& %.5f \& %.5f \& %.5f \\\\\n",
+            $key, $wr_total_mb, $wr_total_rt, $rd_total_mb, $rd_total_rt;
 }
 print TABLES "
 \\hline
 \\end{tabular}
 ";
+}
+else
+{
+    print TABLES "
+\\rule{0in}{1in}
+\\parbox{5in}{Log versions prior to 1.24 do not support per-filesystem data.}
+";
+}
 close(TABLES);
 
 
