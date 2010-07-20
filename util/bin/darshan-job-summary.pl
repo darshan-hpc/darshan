@@ -668,7 +668,7 @@ foreach $key (keys %fs_data)
     }
 
     my $rd_total_rt;
-    if ($cumul_write_bytes_shared+$cumul_read_bytes_indep)
+    if ($cumul_read_bytes_shared+$cumul_read_bytes_indep)
     {
         $rd_total_rt = ($fs_data{$key}->[0] / ($cumul_read_bytes_shared + $cumul_read_bytes_indep));
     }
