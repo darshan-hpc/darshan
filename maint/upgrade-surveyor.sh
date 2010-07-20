@@ -1,11 +1,11 @@
 #!/bin/bash
 
-PREFIX=/soft/apps/darshan-1.1.14
-LOGDIR=/pvfs-surveyor/darshan_logs
+PREFIX=/soft/apps/darshan-2.0.0
+LOGDIR=/pvfs-surveyor/logs/darshan
 
 #darshan 
 cd ../
-./configure --with-mem-align=16 --with-log-path=$LOGDIR --prefix=$PREFIX --with-zlib-for-mpi=/soft/apps/zlib-1.2.3/ CFLAGS="-O2" && make && make install
+./configure --with-mem-align=16 --with-log-path=$LOGDIR --prefix=$PREFIX --with-zlib-for-mpi=/soft/apps/zlib-1.2.3/ --with-jobid-env=COBALT_JOBID CFLAGS="-O2" && make && make install
 
 # log dir already exists
 #mkdir -p $LOGDIR
