@@ -942,7 +942,7 @@ sub process_file_record
     if($file_record{'CP_INDEP_OPENS'} == 0 &&
         $file_record{'CP_COLL_OPENS'} == 0 &&
         $file_record{'CP_POSIX_OPENS'} == 0 &&
-        $file_record{'CP_POSIX_FOPENS'})
+        $file_record{'CP_POSIX_FOPENS'} == 0)
     {
         # file wasn't really opened, just stat probably
         return;
