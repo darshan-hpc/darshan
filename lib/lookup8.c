@@ -54,7 +54,7 @@ This implies that a hash using mix64 has no funnels.  There may be
 
 /*
 --------------------------------------------------------------------
-hash() -- hash a variable-length key into a 64-bit value
+darshan_hash() -- hash a variable-length key into a 64-bit value
   k     : the key (the unaligned variable-length array of bytes)
   len   : the length of the key, counting by bytes
   level : can be any 8-byte value
@@ -81,7 +81,7 @@ is acceptable.  Do NOT use for cryptographic purposes.
 --------------------------------------------------------------------
 */
 
-ub8 hash( k, length, level)
+ub8 darshan_hash( k, length, level)
 const register ub1 *k;        /* the key */
 register ub8  length;   /* the length of the key */
 register ub8  level;    /* the previous hash, or an arbitrary value */
@@ -280,7 +280,7 @@ void driver1()
 
   for (i=0; i<256; ++i) 
   {
-    h = hash(buf,i,h);
+    h = darshan_hash(buf,i,h);
   }
 }
 
@@ -318,10 +318,10 @@ void driver2()
 	    /* have a and b be two keys differing in only one bit */
 	    a[i] ^= (k<<j);
 	    a[i] ^= (k>>(8-j));
-	     c[0] = hash(a, hlen, m);
+	     c[0] = darshan_hash(a, hlen, m);
 	    b[i] ^= ((k+1)<<j);
 	    b[i] ^= ((k+1)>>(8-j));
-	     d[0] = hash(b, hlen, m);
+	     d[0] = darshan_hash(b, hlen, m);
 	    /* check every bit is 1, 0, set, and not set at least once */
 	    for (l=0; l<HASHSTATE; ++l)
 	    {
@@ -374,21 +374,21 @@ void driver3()
   ub8 h,i,j,ref,x,y;
 
   printf("Endianness.  These should all be the same:\n");
-  h = hash(q+0, (ub8)(sizeof(q)-1), (ub8)0);
+  h = darshan_hash(q+0, (ub8)(sizeof(q)-1), (ub8)0);
   printf("%.8lx%.8lx\n", (ub4)h, (ub4)(h>>32));
-  h = hash(qq+1, (ub8)(sizeof(q)-1), (ub8)0);
+  h = darshan_hash(qq+1, (ub8)(sizeof(q)-1), (ub8)0);
   printf("%.8lx%.8lx\n", (ub4)h, (ub4)(h>>32));
-  h = hash(qqq+2, (ub8)(sizeof(q)-1), (ub8)0);
+  h = darshan_hash(qqq+2, (ub8)(sizeof(q)-1), (ub8)0);
   printf("%.8lx%.8lx\n", (ub4)h, (ub4)(h>>32));
-  h = hash(qqqq+3, (ub8)(sizeof(q)-1), (ub8)0);
+  h = darshan_hash(qqqq+3, (ub8)(sizeof(q)-1), (ub8)0);
   printf("%.8lx%.8lx\n", (ub4)h, (ub4)(h>>32));
-  h = hash(o+4, (ub8)(sizeof(q)-1), (ub8)0);
+  h = darshan_hash(o+4, (ub8)(sizeof(q)-1), (ub8)0);
   printf("%.8lx%.8lx\n", (ub4)h, (ub4)(h>>32));
-  h = hash(oo+5, (ub8)(sizeof(q)-1), (ub8)0);
+  h = darshan_hash(oo+5, (ub8)(sizeof(q)-1), (ub8)0);
   printf("%.8lx%.8lx\n", (ub4)h, (ub4)(h>>32));
-  h = hash(ooo+6, (ub8)(sizeof(q)-1), (ub8)0);
+  h = darshan_hash(ooo+6, (ub8)(sizeof(q)-1), (ub8)0);
   printf("%.8lx%.8lx\n", (ub4)h, (ub4)(h>>32));
-  h = hash(oooo+7, (ub8)(sizeof(q)-1), (ub8)0);
+  h = darshan_hash(oooo+7, (ub8)(sizeof(q)-1), (ub8)0);
   printf("%.8lx%.8lx\n", (ub4)h, (ub4)(h>>32));
   printf("\n");
   for (h=0, b=buf+1; h<8; ++h, ++b)
@@ -399,11 +399,11 @@ void driver3()
       for (j=0; j<i; ++j) *(b+j)=0;
 
       /* these should all be equal */
-      ref = hash(b, len, (ub8)1);
+      ref = darshan_hash(b, len, (ub8)1);
       *(b+i)=(ub1)~0;
       *(b-1)=(ub1)~0;
-      x = hash(b, len, (ub8)1);
-      y = hash(b, len, (ub8)1);
+      x = darshan_hash(b, len, (ub8)1);
+      y = darshan_hash(b, len, (ub8)1);
       if ((ref != x) || (ref != y)) 
       {
 	printf("alignment error: %.8lx %.8lx %.8lx %ld %ld\n",ref,x,y,h,i);
@@ -424,8 +424,8 @@ void driver3()
   printf("These should all be different\n");
   for (i=0, h=0; i<8; ++i)
   {
-    h = hash(buf, (ub8)0, h);
-    printf("%2ld  0-byte strings, hash is  %.8lx%.8lx\n", (ub4)i,
+    h = darshan_hash(buf, (ub8)0, h);
+    printf("%2ld  0-byte strings, darshan_hash is  %.8lx%.8lx\n", (ub4)i,
       (ub4)h,(ub4)(h>>32));
   }
 }

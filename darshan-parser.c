@@ -139,6 +139,7 @@ int main(int argc, char **argv)
     printf("#   CP_ACCESS*_COUNT: count of the four most common access sizes.\n");
     printf("#   CP_DEVICE: device id reported by stat().\n");
     printf("#   CP_SIZE_AT_OPEN: size of file when first opened.\n");
+    printf("#   CP_*_RANK_BYTES: fastest, slowest and variance of bytes transfer.\n");
     printf("#   CP_F_OPEN_TIMESTAMP: timestamp of first open (mpi or posix).\n");
     printf("#   CP_F_*_START_TIMESTAMP: timestamp of first read/write (mpi or posix).\n");
     printf("#   CP_F_*_END_TIMESTAMP: timestamp of last read/write (mpi or posix).\n");
@@ -148,6 +149,7 @@ int main(int argc, char **argv)
     printf("#   CP_F_POSIX_META_TIME: cumulative time spent in posix open, close, fsync, stat and seek, .\n");
     printf("#   CP_F_MPI_META_TIME: cumulative time spent in mpi-io open, close, set_view, and sync.\n");
     printf("#   CP_MAX_*_TIME: duration of the slowest read and write operations.\n");
+    printf("#   CP_*_RANK_TIME: fastest, slowest variance of transfer time.\n");
 
     printf("\n");
 

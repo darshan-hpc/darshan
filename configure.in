@@ -66,7 +66,9 @@ AC_ARG_WITH(log-path,
 )
 
 AC_ARG_WITH(jobid-env,
-[  --with-jobid-env=<name> Name of environment variable that stores the jobid ],
+[  --with-jobid-env=<name> Name of environment variable that stores the jobid
+    (specify "NONE" if no appropriate environment variable is available: 
+    Darshan will use rank 0's pid instead)],
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-jobid-env must be given a name)
     else

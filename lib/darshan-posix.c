@@ -1181,7 +1181,7 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
         return(&darshan_global_job->file_runtime_array[0]);
     }
 
-    tmp_hash = hash((void*)name, strlen(name), 0);
+    tmp_hash = darshan_hash((void*)name, strlen(name), 0);
 
     /* check most recently used */
     if(darshan_global_job->darshan_mru_file && darshan_global_job->darshan_mru_file->log_file->hash == tmp_hash)

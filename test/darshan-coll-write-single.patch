@@ -1,0 +1,38 @@
+Index: lib/darshan-mpi-io.c
+===================================================================
+--- lib/darshan-mpi-io.c	(revision 300)
++++ lib/darshan-mpi-io.c	(working copy)
+@@ -1538,6 +1538,7 @@
+     MPI_Aint displacements[CP_MAX_MEM_SEGMENTS];
+     void* buf;
+     int failed_write = 0;
++    MPI_Info info;
+ 
+     /* construct data type to describe everything we are writing */
+     /* NOTE: there may be a bug in MPI-IO when using MPI_BOTTOM with an
+@@ -1552,8 +1553,16 @@
+     MPI_Type_hindexed(count, lengths, displacements, MPI_BYTE, &mtype);
+     MPI_Type_commit(&mtype); 
+ 
++    /* EXPERIMENTAL: set up ROMIO hints to use collective buffering with a
++     * single node writing all of the data
++     */
++    MPI_Info_create(&info);
++    MPI_Info_set(info, "romio_cb_write", "enable");
++    MPI_Info_set(info, "cb_nodes", "1");
++
+     ret = PMPI_File_open(MPI_COMM_WORLD, logfile_name, MPI_MODE_CREATE |
+-        MPI_MODE_WRONLY | MPI_MODE_EXCL, MPI_INFO_NULL, &fh);
++        MPI_MODE_WRONLY | MPI_MODE_EXCL, info, &fh);
++    MPI_Info_free(&info);
+     if(ret != MPI_SUCCESS)
+     {
+         /* TODO: keep this print or not? */
+@@ -1581,6 +1590,7 @@
+ 
+     PMPI_File_close(&fh);
+ 
++
+     /* rename from *.darshan_partial to *-<logwritetime>.darshan.gz */
+     if(rank == 0)
+     {

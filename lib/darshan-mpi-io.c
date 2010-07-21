@@ -131,6 +131,13 @@ static int cp_log_compress(struct darshan_job_runtime* final_job,
 static int file_compare(const void* a, const void* b);
 static void darshan_mpi_initialize(int *argc, char ***argv);
 static char*  darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job);
+static int darshan_file_variance(
+    struct darshan_file *infile_array,
+    struct darshan_file *outfile_array,
+    int count, int rank);
+static void pairwise_variance_reduce (
+    void *invec, void *inoutvec, int *len, MPI_Datatype *dt);
+
 
 #define CP_MAX_MNTS 32
 uint64_t mnt_hash_array[CP_MAX_MNTS] = {0};
@@ -142,6 +149,13 @@ struct
     int64_t mnt_id_local;
     int64_t mnt_id_root;
 } mnt_mapping[CP_MAX_MNTS];
+
+struct variance_dt
+{
+    double n;
+    double T;
+    double S;
+};
 
 int MPI_Init(int *argc, char ***argv)
 {
@@ -543,7 +557,7 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
             {
                 CP_INC(file, CP_HINTS, 1);
             }
-            tmp_hash = hash((void*)fh, sizeof(*fh), 0);
+            tmp_hash = darshan_hash((void*)fh, sizeof(*fh), 0);
             hash_index = tmp_hash & CP_HASH_MASK;
             file->fh_prev = NULL;
             file->fh_next = darshan_global_job->fh_table[hash_index];
@@ -580,7 +594,7 @@ int MPI_File_close(MPI_File *fh)
         if(file->fh_prev == NULL)
         {
             /* head of fh hash table list */
-            tmp_hash = hash((void*)&tmp_fh, sizeof(tmp_fh), 0);
+            tmp_hash = darshan_hash((void*)&tmp_fh, sizeof(tmp_fh), 0);
             hash_index = tmp_hash & CP_HASH_MASK;
             darshan_global_job->fh_table[hash_index] = file->fh_next;
             if(file->fh_next)
@@ -1031,7 +1045,7 @@ static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh)
         return(darshan_global_job->darshan_mru_file);
     }
 
-    tmp_hash = hash((void*)(&fh), sizeof(fh), 0);
+    tmp_hash = darshan_hash((void*)(&fh), sizeof(fh), 0);
 
     /* search hash table */
     hash_index = tmp_hash & CP_HASH_MASK;
@@ -1134,6 +1148,31 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
             {
                 if(final_job->file_array[j].hash == hash_array[i])
                 {
+
+                    /*
+                     * Initialize fastest/slowest info prior
+                     * to the reduction.
+                     */
+                    final_job->file_array[j].counters[CP_FASTEST_RANK] =
+                      final_job->file_array[j].rank;
+                    final_job->file_array[j].counters[CP_FASTEST_RANK_BYTES] =
+                      final_job->file_array[j].counters[CP_BYTES_READ] +
+                      final_job->file_array[j].counters[CP_BYTES_WRITTEN];
+                    final_job->file_array[j].fcounters[CP_F_FASTEST_RANK_TIME] =
+                      final_job->file_array[j].fcounters[CP_F_POSIX_META_TIME] +
+                      final_job->file_array[j].fcounters[CP_F_POSIX_READ_TIME] +
+                      final_job->file_array[j].fcounters[CP_F_POSIX_WRITE_TIME];
+
+                    final_job->file_array[j].counters[CP_SLOWEST_RANK] =
+                      final_job->file_array[j].rank;
+                    final_job->file_array[j].counters[CP_SLOWEST_RANK_BYTES] =
+                      final_job->file_array[j].counters[CP_BYTES_READ] +
+                      final_job->file_array[j].counters[CP_BYTES_WRITTEN];
+                    final_job->file_array[j].fcounters[CP_F_SLOWEST_RANK_TIME] =
+                      final_job->file_array[j].fcounters[CP_F_POSIX_META_TIME] +
+                      final_job->file_array[j].fcounters[CP_F_POSIX_READ_TIME] +
+                      final_job->file_array[j].fcounters[CP_F_POSIX_WRITE_TIME];
+
                     final_job->file_array[j].rank = -1;
                     break;
                 }
@@ -1165,6 +1204,14 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
             &final_job->file_array[final_job->file_count-shared_count], 
             tmp_array, shared_count, rtype, reduce_op, 0, MPI_COMM_WORLD);
         if(ret != 0)
+        {
+            return(-1);
+        }
+
+        ret = darshan_file_variance(
+            &final_job->file_array[final_job->file_count-shared_count],
+            tmp_array, shared_count, rank);
+        if (ret)
         {
             return(-1);
         }
@@ -1381,6 +1428,48 @@ static void darshan_file_reduce(void* infile_v,
                 inoutfile->fcounters[CP_F_MAX_READ_TIME];
             tmp_file.counters[CP_MAX_READ_TIME_SIZE] = 
                 inoutfile->counters[CP_MAX_READ_TIME_SIZE];
+        }
+
+        /* min */
+        if(infile->counters[CP_F_FASTEST_RANK_TIME] <
+           inoutfile->counters[CP_F_FASTEST_RANK_TIME])
+        {
+            tmp_file.counters[CP_FASTEST_RANK] =
+                infile->counters[CP_FASTEST_RANK];
+            tmp_file.counters[CP_FASTEST_RANK_BYTES] = 
+                infile->counters[CP_FASTEST_RANK_BYTES];
+            tmp_file.fcounters[CP_F_FASTEST_RANK_TIME] =
+                infile->fcounters[CP_F_FASTEST_RANK_TIME];
+        }
+        else
+        {
+            tmp_file.counters[CP_FASTEST_RANK] =
+                inoutfile->counters[CP_FASTEST_RANK];
+            tmp_file.counters[CP_FASTEST_RANK_BYTES] =
+                inoutfile->counters[CP_FASTEST_RANK_BYTES];
+            tmp_file.fcounters[CP_F_FASTEST_RANK_TIME] = 
+                inoutfile->fcounters[CP_F_FASTEST_RANK_TIME];
+        }
+
+        /* max */
+        if(infile->fcounters[CP_F_SLOWEST_RANK_TIME] >
+           inoutfile->fcounters[CP_F_SLOWEST_RANK_TIME])
+        {
+            tmp_file.counters[CP_SLOWEST_RANK] =
+                infile->counters[CP_SLOWEST_RANK];
+            tmp_file.counters[CP_SLOWEST_RANK_BYTES] =
+                infile->counters[CP_SLOWEST_RANK_BYTES];
+            tmp_file.fcounters[CP_F_SLOWEST_RANK_TIME] = 
+                infile->fcounters[CP_F_SLOWEST_RANK_TIME];
+        }
+        else
+        {
+            tmp_file.counters[CP_SLOWEST_RANK] = 
+                inoutfile->counters[CP_SLOWEST_RANK];
+            tmp_file.counters[CP_SLOWEST_RANK_BYTES] = 
+                inoutfile->counters[CP_SLOWEST_RANK_BYTES];
+            tmp_file.fcounters[CP_F_SLOWEST_RANK_TIME] = 
+                inoutfile->fcounters[CP_F_SLOWEST_RANK_TIME];
         }
 
         /* pick one device id and file size */
@@ -1724,8 +1813,7 @@ static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
         NULL
     };
 
-    /* extra byte for \0 already accounted for */
-    space_left = CP_EXE_LEN;
+    space_left = CP_EXE_LEN + 1;
     trailing_data = malloc(space_left);
     if(!trailing_data)
     {
@@ -1767,7 +1855,7 @@ static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
             if(mnt_array_index < CP_MAX_MNTS)
             {
                 mnt_hash_array[mnt_array_index] =
-                    hash((void*)entry->mnt_dir, strlen(entry->mnt_dir), 0);
+                    darshan_hash((void*)entry->mnt_dir, strlen(entry->mnt_dir), 0);
                 mnt_id_array[mnt_array_index] = tmp_st_dev;
                 mnt_array_index++;
             }
@@ -1791,6 +1879,146 @@ static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
         }
     }
     return(trailing_data);
+}
+
+/*
+ * Computes population variance of bytes moved and total time
+ * for each rank on a shared file.
+ */
+static int darshan_file_variance(
+    struct darshan_file *infile_array,
+    struct darshan_file *outfile_array,
+    int count, int rank)
+{
+    MPI_Op pw_var_op;
+    MPI_Datatype var_dt;
+    int ret;
+    int i;
+    struct variance_dt* var_array = NULL;
+    struct variance_dt* varres_array = NULL;
+
+    ret = MPI_Op_create(pairwise_variance_reduce, 1, &pw_var_op);
+    if (ret != MPI_SUCCESS)
+    {
+        goto error_handler;
+    }
+
+    ret = MPI_Type_contiguous(sizeof(struct variance_dt), MPI_BYTE, &var_dt);
+    if (ret != MPI_SUCCESS)
+    {
+        goto error_handler;
+    }
+
+    ret = MPI_Type_commit(&var_dt);
+    if (ret != MPI_SUCCESS)
+    {
+        goto error_handler;
+    }
+
+    var_array = malloc(count*sizeof(struct variance_dt));
+    if(!var_array)
+    {
+        goto error_handler;
+    }       
+
+    if (rank == 0)
+    {
+        varres_array = malloc(count*sizeof(struct variance_dt));
+        if(!varres_array)
+        {
+            goto error_handler;
+        }
+    }
+ 
+    /*
+     * total time
+     */
+
+    for(i=0; i<count; i++)
+    {
+        var_array[i].n = 1;
+        var_array[i].S = 0;
+        var_array[i].T = infile_array[i].fcounters[CP_F_POSIX_META_TIME] +
+                         infile_array[i].fcounters[CP_F_POSIX_READ_TIME] +
+                         infile_array[i].fcounters[CP_F_POSIX_WRITE_TIME];
+    } 
+
+    ret = MPI_Reduce(
+             var_array, varres_array, count, var_dt, pw_var_op,
+             0, MPI_COMM_WORLD);
+    if(ret != MPI_SUCCESS)
+    {
+        goto error_handler;
+    }
+
+    if (rank == 0)
+    {
+        for(i=0; i<count; i++)
+        {
+            outfile_array[i].fcounters[CP_F_VARIANCE_RANK_TIME] =
+                (varres_array[i].S / varres_array[i].n);
+        }
+    }
+
+    /*
+     * total bytes
+     */
+    for(i=0; i<count; i++)
+    {
+        var_array[i].n = 1;
+        var_array[i].S = 0;
+        var_array[i].T = (double)
+                         infile_array[i].counters[CP_BYTES_READ] +
+                         infile_array[i].counters[CP_BYTES_WRITTEN];
+    } 
+
+    ret = MPI_Reduce(
+             var_array, varres_array, count, var_dt, pw_var_op,
+             0, MPI_COMM_WORLD);
+    if(ret != MPI_SUCCESS)
+    {
+        goto error_handler;
+    }
+
+    if (rank == 0)
+    {
+        for(i=0; i<count; i++)
+        {
+            outfile_array[i].fcounters[CP_F_VARIANCE_RANK_BYTES] =
+                (varres_array[i].S / varres_array[i].n);
+        }
+    }
+
+    MPI_Type_free(&var_dt);
+
+    ret = 0;
+
+error_handler:
+    if (var_array) free(var_array);
+    if (varres_array) free(varres_array);
+
+    return ret;
+}
+
+static void pairwise_variance_reduce (
+    void *invec, void *inoutvec, int *len, MPI_Datatype *dt)
+{
+    int i;
+    struct variance_dt *X = invec;
+    struct variance_dt *Y = inoutvec;
+    struct variance_dt  Z;
+
+    for (i=0; i<*len; i++,X++,Y++)
+    {
+        Z.n = X->n + Y->n;
+        Z.T = X->T + Y->T;
+        Z.S = X->S + Y->S + (X->n/(Y->n*Z.n)) *
+           ((Y->n/X->n)*X->T - Y->T) * ((Y->n/X->n)*X->T - Y->T);
+
+        *Y = Z;
+    }
+
+    return;
 }
 
 /*
