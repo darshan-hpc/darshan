@@ -49,9 +49,13 @@ open (OUTPUT, ">$output_file") || die("Error opening output file: $!");
 # substitute arguments and darshan options into commands
 $base_link_cmd = $link_cmd;
 $base_link_cmd =~ s/foo.o -o foo/"\$\{allargs\[\@\]\}"/g;
-$link_cmd =~ s/foo.o -o foo/\$\{newallargs\} -L$DARSHAN_LIB_PATH $CP_ZLIB_LINK_FLAGS -lmpichcxx -ldarshan-mpi-io -lz $CP_WRAPPERS/g;
+$link_cmd =~ s/foo.o -o foo/"\$\{newallargs\[\@\]\}" -L$DARSHAN_LIB_PATH $CP_ZLIB_LINK_FLAGS -ldarshan-mpi-io -lz $CP_WRAPPERS/g;
 $link_cmd =~ s/$/ -L$DARSHAN_LIB_PATH -ldarshan-posix/g;
 $compile_cmd =~ s/-c foo.c/"\$\{allargs\[\@\]\}"/g;
+
+# create link cmd with noshrargs variable
+$link_cmd_no_shared = $base_link_cmd;
+$link_cmd_no_shared =~ s/allargs/noshrargs/;
 
 print OUTPUT<<'EOF';
 #!/bin/bash
@@ -105,7 +109,21 @@ print OUTPUT<<"EOF";
 
     # if allargs includes any libraries, then we need to get 
     # -ldarshan-mpi-io in there first
-    newallargs=`echo \${allargs[@]} | sed 's/ -l/ -ldarshan-mpi-io -l/'`
+    argno=0;
+    once=0;
+    newallargs=\("\$\{allargs\[\@\]\}"\);
+    for arg in "\$\{newallargs\[\@\]\}"; do
+        res=`expr match "\$arg" "^-l"`;
+        if [ \$res -gt 0 -a \$once -lt 1 ]; then
+            newallargs[\$argno]=-ldarshan-mpi-io
+            argno=`expr \$argno + 1`
+            newallargs[\$argno]=\$arg;
+            once=1;
+        else
+            newallargs[\$argno]=\$arg;
+        fi
+        argno=`expr \$argno + 1`
+    done
 
     used_darshan=0
 
@@ -113,8 +131,16 @@ print OUTPUT<<"EOF";
     tmpfile=`mktemp`
     # generate a map of the symbol names
     # don't use -shared for this step
-    stock_link_cmd_no_shared=`echo $base_link_cmd | sed 's/ -shared / /g'`
-    \$stock_link_cmd_no_shared -Wl,-Map,\$tmpfile \$LDFLAGS -o /dev/null >& /dev/null
+    argno=0
+    noshrargs=\("\$\{allargs\[\@\]\}");
+    for arg in "\$\{noshrargs\[\@\]\}"; do
+        if [ "\$arg" = "-shared" ]; then
+            unset noshrarg[\$argno];
+        fi
+        argno=`expr \$argno + 1`
+    done
+    $link_cmd_no_shared -Wl,-Map,\$tmpfile \$LDFLAGS -o /dev/null >& /dev/null
+
     # is MPI in there?
     grep MPI \$tmpfile >& /dev/null
     rc_mpi=\$?
@@ -127,9 +153,13 @@ print OUTPUT<<"EOF";
     grep -E mpich\\.cnk\\.a \$tmpfile >& /dev/null
     rc_cnk_check=\$?
     if [ \$rc_cnk_check -eq 0 ] ; then
-        script_link_cmd=`echo $link_cmd | sed 's/-lmpichcxx/-lcxxmpich.cnk/g'`
-    else
-        script_link_cmd="$link_cmd"
+        argno=0
+        for arg in "\$\{newallargs\[\@\]\}"; do
+            if [ "\$arg" = "-lcxxmpich" ]; then
+                newallargs[\$argno]=-lcxxmpich.cnk;
+            fi
+            argno=`expr \$argno + 1`
+        done
     fi
 
     rm \$tmpfile >& /dev/null
@@ -140,7 +170,7 @@ print OUTPUT<<"EOF";
         # disable darshan if something else is already using PMPI; we don't
         # want to cause any symbol conflicts
         if [ \$rc_pmpi -ne 0 ] ; then
-            \$Show \$script_link_cmd
+            \$Show $link_cmd
             used_darshan=1
         fi
     fi
