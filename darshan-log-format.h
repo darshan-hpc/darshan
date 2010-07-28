@@ -207,12 +207,10 @@ enum f_darshan_indices
     CP_F_MPI_WRITE_TIME,        /* cumulative mpi-io write time */
     CP_F_MAX_READ_TIME,
     CP_F_MAX_WRITE_TIME,
-
     CP_F_FASTEST_RANK_TIME,
     CP_F_SLOWEST_RANK_TIME,
     CP_F_VARIANCE_RANK_TIME,
     CP_F_VARIANCE_RANK_BYTES,
-
     CP_F_NC_READ_TIME,
     CP_F_NC_WRITE_TIME,
 
