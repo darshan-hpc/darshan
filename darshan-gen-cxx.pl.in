@@ -44,6 +44,20 @@ if(!($compile_cmd =~ /-c foo.c/) || !($link_cmd =~ /foo.o -o foo/))
 chomp($compile_cmd);
 chomp($link_cmd);
 
+#
+# Incomprehensible re to eat the leading path of the compiler command
+# and only give the basename.
+#
+# /cmd -> cmd
+# cmd -> cmd
+# /x/y/x/z/cmd -> cmd
+#
+if($trim_exe_path)
+{
+    $compile_cmd =~ s/\/*([^\/ ]+\/)*//;
+    $link_cmd =~ s/\/*([^\/ ]+\/)*//;
+}
+
 open (OUTPUT, ">$output_file") || die("Error opening output file: $!");
 
 # substitute arguments and darshan options into commands
@@ -113,7 +127,7 @@ print OUTPUT<<"EOF";
     once=0;
     newallargs=\("\$\{allargs\[\@\]\}"\);
     for arg in "\$\{newallargs\[\@\]\}"; do
-        res=`expr match "\$arg" "^-l"`;
+        res=`expr match "\$arg" "-l"`;
         if [ \$res -gt 0 -a \$once -lt 1 ]; then
             newallargs[\$argno]=-ldarshan-mpi-io
             argno=`expr \$argno + 1`
@@ -196,16 +210,22 @@ exit(0);
 
 sub process_args
 {
-    use vars qw( $opt_help $opt_output );
+    use vars qw( $opt_help $opt_output $opt_trim );
 
     Getopt::Long::Configure("no_ignore_case", "bundling");
     GetOptions( "help",
-        "output=s");
+        "output=s",
+        "trim");
 
     if($opt_help)
     {
         print_help();
         exit(0);
+    }
+
+    if($opt_trim)
+    {
+        $trim_exe_path=1;
     }
 
     if($opt_output)
@@ -238,6 +258,7 @@ Usage: $PROGRAM_NAME <stock mpicxx> --output <modified mpicc>
 
     --help          Prints this help message
     --output        Specifies name of output script
+    --trim          Trim the compilers path
 
 Purpose:
 

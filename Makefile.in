@@ -1,4 +1,4 @@
-all: checkpath lib/libdarshan-posix.a lib/libdarshan-mpi-io.a darshan-parser darshan-diff darshan-analyzer test/gztest test/gz-bench darshan-log-params
+all: checkpath lib/libdarshan-posix.a lib/libdarshan-mpi-io.a darshan-parser darshan-diff darshan-analyzer darshan-log-params
 
 DESTDIR =
 srcdir = @srcdir@
@@ -10,6 +10,7 @@ mandir = $(DESTDIR)@mandir@
 sbindir = $(DESTDIR)@sbindir@
 bindir = $(DESTDIR)@bindir@
 libdir = $(DESTDIR)@libdir@
+buildlib = lib
 
 VPATH = $(srcdir)
 
@@ -31,8 +32,8 @@ ifneq ($(darshan_lib_path),$(libdir))
 	@exit 1
 endif
 
-mklibdir::
-	mkdir -p lib
+${buildlib}/::
+	@mkdir -p $@
 
 mktestdir::
 	mkdir -p test
@@ -59,16 +60,16 @@ test/gztest: test/gztest.c mktestdir
 test/gz-bench: test/gz-bench.c mktestdir
 	gcc $(CFLAGS) -lz $< -o $@
 
-lib/darshan-mpi-io.o: lib/darshan-mpi-io.c darshan.h darshan-log-format.h mklibdir
+lib/darshan-mpi-io.o: lib/darshan-mpi-io.c darshan.h darshan-log-format.h | ${buildlib}/
 	$(CC) $(cp_zlib_include_flags) $(CFLAGS_MPI) -c $< -o $@
 
-lib/darshan-pnetcdf.o: lib/darshan-pnetcdf.c darshan.h darshan-log-format.h mklibdir
+lib/darshan-pnetcdf.o: lib/darshan-pnetcdf.c darshan.h darshan-log-format.h | ${buildlib}/
 	$(CC) $(cp_zlib_include_flags) $(CFLAGS_MPI) -c $< -o $@
 
-lib/darshan-hdf5.o: lib/darshan-hdf5.c darshan.h darshan-log-format.h mklibdir
+lib/darshan-hdf5.o: lib/darshan-hdf5.c darshan.h darshan-log-format.h | ${buildlib}/
 	$(CC) $(cp_zlib_include_flags) $(CFLAGS_MPI) -c $< -o $@
 
-lib/darshan-posix.o: lib/darshan-posix.c darshan.h darshan-log-format.h mklibdir
+lib/darshan-posix.o: lib/darshan-posix.c darshan.h darshan-log-format.h | ${buildlib}/
 	$(CC) $(cp_zlib_include_flags) $(CFLAGS_MPI) -c $< -o $@
 
 lib/lookup3.o: lib/lookup3.c
@@ -91,7 +92,6 @@ install:: all
 	install -m 755 lib/libdarshan-posix.a $(libdir)
 	install -m 755 lib/libdarshan-mpi-io.a $(libdir)
 	install -d $(bindir)
-	install -d $(bindir)/fast
 	install -m 755 darshan-parser $(bindir)
 	install -m 755 darshan-diff $(bindir)
 	install -m 755 darshan-analyzer $(bindir)
@@ -99,42 +99,11 @@ install:: all
 	install -m 755 darshan-gen-cc.pl $(bindir)
 	install -m 755 darshan-gen-cxx.pl $(bindir)
 	install -m 755 darshan-gen-fortran.pl $(bindir)
-	install -m 755 compilers/mpicc-trace-bgp-V1R4 $(bindir)/mpicc
-	install -m 755 compilers/mpicxx-trace-bgp-V1R4 $(bindir)/mpicxx
-	install -m 755 compilers/mpif77-trace-bgp-V1R4 $(bindir)/mpif77
-	install -m 755 compilers/mpif90-trace-bgp-V1R4 $(bindir)/mpif90
-	install -m 755 compilers/mpixlc-trace-bgp-V1R4 $(bindir)/mpixlc
-	install -m 755 compilers/mpixlcxx-trace-bgp-V1R4 $(bindir)/mpixlcxx
-	install -m 755 compilers/mpixlf2003-trace-bgp-V1R4 $(bindir)/mpixlf2003
-	install -m 755 compilers/mpixlf77-trace-bgp-V1R4 $(bindir)/mpixlf77
-	install -m 755 compilers/mpixlf90-trace-bgp-V1R4 $(bindir)/mpixlf90
-	install -m 755 compilers/mpixlf95-trace-bgp-V1R4 $(bindir)/mpixlf95
-	install -m 755 compilers/mpixlc_r-trace-bgp-V1R4 $(bindir)/mpixlc_r
-	install -m 755 compilers/mpixlcxx_r-trace-bgp-V1R4 $(bindir)/mpixlcxx_r
-	install -m 755 compilers/mpixlf2003_r-trace-bgp-V1R4 $(bindir)/mpixlf2003_r
-	install -m 755 compilers/mpixlf77_r-trace-bgp-V1R4 $(bindir)/mpixlf77_r
-	install -m 755 compilers/mpixlf90_r-trace-bgp-V1R4 $(bindir)/mpixlf90_r
-	install -m 755 compilers/mpixlf95_r-trace-bgp-V1R4 $(bindir)/mpixlf95_r
-	install -m 755 compilers/mpicc-trace-bgp-V1R4 $(bindir)/fast/mpicc
-	install -m 755 compilers/mpicxx-trace-bgp-V1R4 $(bindir)/fast/mpicxx
-	install -m 755 compilers/mpif77-trace-bgp-V1R4 $(bindir)/fast/mpif77
-	install -m 755 compilers/mpif90-trace-bgp-V1R4 $(bindir)/fast/mpif90
-	install -m 755 compilers/mpixlc-trace-bgp-V1R4 $(bindir)/fast/mpixlc
-	install -m 755 compilers/mpixlcxx-trace-bgp-V1R4 $(bindir)/fast/mpixlcxx
-	install -m 755 compilers/mpixlf2003-trace-bgp-V1R4 $(bindir)/fast/mpixlf2003
-	install -m 755 compilers/mpixlf77-trace-bgp-V1R4 $(bindir)/fast/mpixlf77
-	install -m 755 compilers/mpixlf90-trace-bgp-V1R4 $(bindir)/fast/mpixlf90
-	install -m 755 compilers/mpixlf95-trace-bgp-V1R4 $(bindir)/fast/mpixlf95
-	install -m 755 compilers/mpixlc_r-trace-bgp-V1R4 $(bindir)/fast/mpixlc_r
-	install -m 755 compilers/mpixlcxx_r-trace-bgp-V1R4 $(bindir)/fast/mpixlcxx_r
-	install -m 755 compilers/mpixlf2003_r-trace-bgp-V1R4 $(bindir)/fast/mpixlf2003_r
-	install -m 755 compilers/mpixlf77_r-trace-bgp-V1R4 $(bindir)/fast/mpixlf77_r
-	install -m 755 compilers/mpixlf90_r-trace-bgp-V1R4 $(bindir)/fast/mpixlf90_r
-	install -m 755 compilers/mpixlf95_r-trace-bgp-V1R4 $(bindir)/fast/mpixlf95_r
 
 clean::
 	rm -f *.o *.a lib/*.o lib/*.a darshan-parser darshan-diff darshan-analyzer darshan-log-params
 
 distclean:: clean
 	rm -f darshan-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl aclocal.m4 autom4te.cache/* config.status config.log Makefile
+	rm -f compilers/*-V1R4 compilers/fast/*-V1R4 compilers/*-pcarns
 	rmdir autom4te.cache
