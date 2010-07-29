@@ -105,7 +105,6 @@ while ($line = <TRACE>) {
             ($junk, $version) = split(':', $line, 2);
             $version =~ s/^\s+//;
             ($major, $minor) = split(/\./, $version, 2);
-            print "version:$version major:$major minor:$minor\n";
         }
     }
     else {
@@ -887,9 +886,10 @@ foreach $key (keys %hash_files) {
         my $vb = sprintf("%.3g", sqrt($hash_files{$key}{'variance_bytes'}));
         my $fast_bytes = format_bytes($hash_files{$key}{'fastest_bytes'});
         my $slow_bytes = format_bytes($hash_files{$key}{'slowest_bytes'});
+        my $name = encode('latex', $hash_files{$key}{'name'});
 
         print VARP "
-               $hash_files{$key}{'name'} \&
+               $name \&
                $hash_files{$key}{'procs'} \&
                $hash_files{$key}{'fastest_rank'} \&
                $hash_files{$key}{'fastest_time'} \&
