@@ -1442,8 +1442,8 @@ static void darshan_file_reduce(void* infile_v,
         }
 
         /* min */
-        if(infile->counters[CP_F_FASTEST_RANK_TIME] <
-           inoutfile->counters[CP_F_FASTEST_RANK_TIME])
+        if(infile->fcounters[CP_F_FASTEST_RANK_TIME] <
+           inoutfile->fcounters[CP_F_FASTEST_RANK_TIME])
         {
             tmp_file.counters[CP_FASTEST_RANK] =
                 infile->counters[CP_FASTEST_RANK];
