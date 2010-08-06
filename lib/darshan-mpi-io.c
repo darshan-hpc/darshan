@@ -512,7 +512,10 @@ int MPI_Finalize(void)
 {
     int ret;
 
-    darshan_shutdown(0);
+    if(getenv("DARSHAN_INTERNAL_TIMING"))
+        darshan_shutdown(1);
+    else
+        darshan_shutdown(0);
 
     ret = PMPI_Finalize();
     return(ret);

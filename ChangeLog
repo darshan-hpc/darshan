@@ -2,6 +2,12 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.0.1
+=============
+* new run time environment variable: DARSHAN_INTERNAL_TIMING.  If set at job
+  execution time, it will cause Darshan to time its own internal data 
+  aggregation routines and print the results to stdout at rank 0.
+
 darshan-2.0.0
 =============
 * new output file format that is portable across architectures
