@@ -4,6 +4,9 @@ Darshan Release Change Log
 
 darshan-2.0.1
 =============
+* bug fix to variance/minimum calculations on shared files
+* switch to automatic generation of all MPI compiler scripts using
+  darshan-gen-* tools
 * new run time environment variable: DARSHAN_INTERNAL_TIMING.  If set at job
   execution time, it will cause Darshan to time its own internal data 
   aggregation routines and print the results to stdout at rank 0.
