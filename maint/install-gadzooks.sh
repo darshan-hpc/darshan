@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PREFIX=/soft/apps/darshan-2.0.0
+PREFIX=/soft/apps/darshan-2.0.1
 LOGDIR=/pvfs-surveyor/logs/darshan
 
 # darshan job summary
@@ -17,7 +17,7 @@ install -m 644 util/lib/TeX/Encode.pm $PREFIX/lib/TeX/
 install -m 644 util/lib/Number/Bytes/Human.pm $PREFIX/lib/Number/Bytes
 install -m 644 util/share/* $PREFIX/share/
 
-# we also need to build darshan-parser in 2.0.0
+# we also need to build darshan-parser in 2.0.1
 ./configure --with-mem-align=16 --with-log-path=$LOGDIR --prefix=$PREFIX --with-jobid-env=COBALT_JOBID CFLAGS="-O2" && make darshan-parser
 install -m 755 darshan-parser $PREFIX/bin/
 
