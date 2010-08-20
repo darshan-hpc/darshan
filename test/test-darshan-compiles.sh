@@ -40,7 +40,7 @@ compile_examples() {
 
 mkdir -p out
 mkdir -p out/normal
-mkdir -p out/fmpi
+mkdir -p out/fpmpi
 TEST_PROG_DIR=/home/carns/working/darshan-examples
 
 # tests with darshan enabled
