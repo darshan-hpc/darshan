@@ -61,5 +61,5 @@ compile_examples default out/fpmpi
 compile_examples fast out/fpmpi
 compile_examples xl out/fpmpi
 
-for i in `ls out/normal`; do echo $i; nm out/$i |grep -c darshan; done
-for i in `ls out/fpmpi`; do echo $i; nm out/$i |grep -c darshan; done
+for i in `ls out/normal`; do echo $i; nm out/normal/$i |grep -c darshan; done
+for i in `ls out/fpmpi`; do echo $i; nm out/fpmpi/$i |grep -c darshan; done
