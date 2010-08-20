@@ -63,7 +63,7 @@ open (OUTPUT, ">$output_file") || die("Error opening output file: $!");
 # substitute arguments and darshan options into commands
 $base_link_cmd = $link_cmd;
 $base_link_cmd =~ s/foo.o -o foo/"\$\{allargs\[\@\]\}"/g;
-$link_cmd =~ s/foo.o -o foo/"\$\{newallargs\[\@\]\}" -L$DARSHAN_LIB_PATH $CP_ZLIB_LINK_FLAGS -ldarshan-mpi-io -lz $CP_WRAPPERS/g;
+$link_cmd =~ s/foo.o -o foo/"\$\{newallargs\[\@\]\}" -L$DARSHAN_LIB_PATH $CP_ZLIB_LINK_FLAGS \$CXXMPICH -ldarshan-mpi-io -lz $CP_WRAPPERS/g;
 $link_cmd =~ s/$/ -L$DARSHAN_LIB_PATH -ldarshan-posix/g;
 $compile_cmd =~ s/-c foo.c/"\$\{allargs\[\@\]\}"/g;
 
@@ -164,16 +164,12 @@ print OUTPUT<<"EOF";
     rc_pmpi=\$?
 
     # normal or cnk libraries?
-    grep -E mpich\\.cnk\\.a \$tmpfile >& /dev/null
+    grep -E mpich\\.cnk \$tmpfile >& /dev/null
     rc_cnk_check=\$?
     if [ \$rc_cnk_check -eq 0 ] ; then
-        argno=0
-        for arg in "\$\{newallargs\[\@\]\}"; do
-            if [ "\$arg" = "-lcxxmpich" ]; then
-                newallargs[\$argno]=-lcxxmpich.cnk;
-            fi
-            argno=`expr \$argno + 1`
-        done
+        CXXMPICH=-lcxxmpich.cnk
+    else
+        CXXMPICH=-lcxxmpich
     fi
 
     rm \$tmpfile >& /dev/null
