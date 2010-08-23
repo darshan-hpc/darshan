@@ -9,7 +9,7 @@ export PREFIX=/home/carns/demo/install
 export LOGPATH=/home/carns/demo
 
 # configuring, compiling, and installing darshan
-./configure --with-mem-align=16 --with-log-path=$LOGPATH --prefix=$PREFIX --with-zlib-for-mpi=/soft/apps/zlib-1.2.3/ CFLAGS="-O2"
+./configure --with-mem-align=16 --with-log-path=$LOGPATH --prefix=$PREFIX --with-zlib-for-mpi=/soft/apps/zlib-1.2.3/ --with-jobid-env=COBALT_JOBID CFLAGS="-O2"
 make
 make install
 
@@ -26,8 +26,13 @@ installed.
 building for; 16 is an interesting value on BG/P because that is the optimal
 alignment for tree network communication.
 
+--with-jobid-env (manditory): name of environment variable to use for
+determining the job id at runtime.  If this environment variable is not set,
+then Darshan will use the process pid instead.
+
 --with-zlib-for-mpi (optional): path to a zlib build that is cross compiled
 for use with mpi processes
+
 
 Setting up the log directory
 ----------------------------
@@ -42,11 +47,21 @@ mkdir $LOGPATH
 # files to the same directories.
 darshan-mk-log-dirs.pl
 
+Generating compiler scripts
+---------------------------
+
+Use one of darshan-gen-cc.pl, darshan-gen-fortran.pl, or darshan-gen-cxx.pl
+to create new compiler scripts for C, FORTRAN, or C++.  For example:
+
+./darshan-gen-cc.pl `which mpicc` --output $PREFIX/bin/mpicc
+
+The resulting scripts can be placed in your path to be used as the default
+compilers (if desired).
+
 Using darshan:
 -------
-Once darshan is installed, compile your applications using the
-appropriate compiler from <prefix>/bin.  These compilers only modify the
-link steps.  If you have a previously compiled application you can simply
+Compile your application using one of the compiler scripts genrated in the
+previous step.  If you have a previously compiled application you can simply
 relink it using the darshan compilers rather than recompiling from scratch.
 
 Example:
@@ -54,18 +69,19 @@ Example:
 install/bin/mpicc mpi-io-test.c -o mpi-io-test
 
 The log files that darshan generates at run time will be in
-a binary format with native gzip compression.  To get a human
-readable version of the log file, use the "$PREFIX/bin/darshan-parser
-$LOGPATH/<log_file_name>" utility from the bin directory.
+a binary format with native gzip compression.  
+
+To get a human readable version of the log file, use the
+"$PREFIX/bin/darshan-parser $LOGPATH/<log_file_name>" utility from the
+bin directory.
+
+To generate key summary graphs, go to the "utils" directory of the
+source tree and run "./darshan-aggregate-stats.pl" on the log file.  This
+tool requires pdflatex and a version of gnuplot with pdf support.  It will
+generate a pdf file with graphs summarizing the behavior of the application.
 
 You can also compare two different log files by using
 $PREFIX/bin/darshan-diff <log1> <log2> to see what fields are different.
-
-To generate some automatic graphs, go to the "utils" directory of the
-source tree and run "./darshan-aggregate-stats.pl" on a text file that
-contains the output from darshan-parser.  That perl script will generate
-a summary.pdf file with some graphs in it.  You will need pdflatex and
-a version of gnuplot with pdf support to use it.
 
 compiling libz for the compute nodes
 -------------------------------------
