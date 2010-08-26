@@ -6,6 +6,8 @@
 #include <mysql.h>
 #include <regex.h>
 #include <sys/types.h>
+#include <getopt.h>
+#include <readline/readline.h>
 
 #include "darshan-logutils.h"
 
@@ -13,10 +15,16 @@
 #define STOPWALK (1)
 #define CONTWALK (0)
 
+#define OPT_HOST (1)
+#define OPT_USER (2)
+#define OPT_PASS (3)
+#define OPT_DB   (4)
+#define OPT_PATH (5)
+
 const char *insert_job_fmt  = "insert into %s values('%d','%s','%s','%s',\
-'%d','%d','%d','%d')";
+'%d','%ld','%ld','%d')";
 const char *insert_mnt_fmt  = "insert into %s values('%d','%d','%lld','%s','%s')";
-const char *insert_file_fmt = "insert into %s values('%d','%d','%lld','%d',\
+const char *insert_file_fmt = "insert into %s values('%d','%ld','%lld','%d',\
 '%s',\
 '%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
 '%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
@@ -43,7 +51,7 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
 {
     struct darshan_file file;
     struct darshan_job  job;
-    darshan_fd          dfile;
+    darshan_fd          dfile = NULL;
     int                 ret;
     int                 rc;
     int                 nofiles;
@@ -52,7 +60,7 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     char               *dash;
     char               *username;
     char               *jobid;
-    char               *sqlstmt;
+    char               *sqlstmt = NULL;
     int                 count;
     int                 i;
     int64_t            *devs;
@@ -60,6 +68,8 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     char              **fstypes;
     regex_t             regex;
     regmatch_t          match[1];
+    char               *filepath = NULL;
+    int                 prev_rank;
 
     rc      = CONTWALK;
     count   = 0;
@@ -70,7 +80,17 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     sqlstmt = malloc(MAXSQL);
     if (!sqlstmt)
     {
-        return STOPWALK;
+        perror("malloc");
+        rc = STOPWALK;
+        goto exit;
+    }
+
+    filepath = strdup(fpath);
+    if (!filepath)
+    {
+        perror("strdup");
+        rc = STOPWALK;
+        goto exit;
     }
 
     /* Process Log Files */
@@ -102,7 +122,7 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
         goto exit;
     }
 
-    base     = basename(fpath);
+    base     = basename(filepath);
     username = base;
     dash     = index(base, '_');
     *dash    = '\0';
@@ -141,7 +161,7 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     /*
      * Insert Job Record
      */
-    snprintf(sqlstmt, MAXSQL, insert_job_fmt, "darshan_job_surveyor",
+    snprintf(sqlstmt, MAXSQL, insert_job_fmt, "darshan_job_intrepid",
         atoi(jobid), username, job.version_string, exe, job.uid,
         job.start_time, job.end_time, job.nprocs);
 
@@ -149,8 +169,10 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     ret = mysql_query(mysql, sqlstmt);
     if (ret)
     {
-        fprintf(stderr, "log not processed: %s [mysql: %d (%s)\n",
-            fpath, mysql_errno(mysql), mysql_error(mysql));
+        fprintf(stderr, "log not processed: %s [mysql: %d (%s)] : \
+jobid=%d start_time=%ld\n",
+            fpath, mysql_errno(mysql), mysql_error(mysql),
+            atoi(jobid), job.start_time);
         rc = CONTWALK;
         goto exit;
     }
@@ -169,7 +191,7 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
 
     for (i=0; (i<count); i++)
     {
-        snprintf(sqlstmt,MAXSQL,insert_mnt_fmt, "darshan_mountpoints_surveyor",
+        snprintf(sqlstmt,MAXSQL,insert_mnt_fmt, "darshan_mountpoints_intrepid",
             atoi(jobid), job.start_time, lld(devs[i]), mnts[i], fstypes[i]);
 
         if (debug) printf("sql: %s\n", sqlstmt);
@@ -190,7 +212,18 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     {
         while ((ret = darshan_log_getfile(dfile, &job, &file)) == 1)
         {
-            snprintf(sqlstmt, MAXSQL, insert_file_fmt, "darshan_file_surveyor",
+            /*
+             * Work around issue where bogus file data was in older logs.
+             * Bogus data was files taht were 'stat'd but not opened.
+             */
+            if (file.rank != -1 && file.rank < prev_rank)
+            {
+                continue;
+            }
+            if (file.rank != -1)
+                prev_rank = file.rank;
+
+            snprintf(sqlstmt, MAXSQL, insert_file_fmt, "darshan_file_intrepid",
                 atoi(jobid), job.start_time, file.hash, file.rank, file.name_suffix,
                 file.counters[CP_INDEP_OPENS],
                 file.counters[CP_COLL_OPENS],
@@ -374,16 +407,14 @@ exit:
         if (fstypes) free(fstypes);
     }
 
-    ret = mysql_commit(mysql);
-    if (ret)
-    {
-        fprintf(stderr, "mysql: %d (%s)\n", mysql_errno(mysql),
-            mysql_error(mysql));
-    }
-
     if (sqlstmt)
     {
         free(sqlstmt);
+    }
+
+    if (filepath)
+    {
+        free(filepath);
     }
     
     return rc;
@@ -391,20 +422,55 @@ exit:
 
 int main (int argc, char **argv)
 {
-    const char *base;
-    const char *host   = "db-host";
-    const char *user   = "username";
-    const char *passwd = "password";
-    const char *db     = "darshan";
-    int         ret = 0;
+    char base[256] = "";
+    char host[256] = "";
+    char user[256] = "";
+    char pass[256] = "";
+    char db[256]   = "";
+    int  ret = 0;
 
-    if(argc != 2)
+    while(1)
     {
-        fprintf(stderr, "Error: bad arguments.\n");
-        return(-1);
+        static struct option options[] = {
+            {"host", 1, NULL, OPT_HOST},
+            {"user", 1, NULL, OPT_USER},
+            {"pass", 1, NULL, OPT_PASS},
+            {"db",   1, NULL, OPT_DB},
+            {"path", 1, NULL, OPT_PATH},
+            {NULL,   0, NULL, 0}
+        };
+        int o = getopt_long(argc, argv, "", options, NULL);
+
+        if (o == -1) break;
+
+        switch(o)
+        {
+        case OPT_HOST:
+            strncpy(host, optarg, sizeof(host));
+            break;
+        case OPT_USER:
+            strncpy(user, optarg, sizeof(user));
+            break;
+        case OPT_PASS:
+            strncpy(pass, optarg, sizeof(pass));
+            break;
+        case OPT_DB:
+            strncpy(db, optarg, sizeof(db));
+            break;
+        case OPT_PATH:
+            strncpy(base, optarg, sizeof(base));
+            break;
+        }
     }
 
-    base = argv[1];
+    if (strcmp(pass, "") == 0)
+    {
+        char *line = readline(NULL);
+        if (line)
+        {
+            strncpy(pass, line, sizeof(pass));
+        }
+    }
 
     mysql = mysql_init(NULL);
     if (mysql == NULL)
@@ -413,18 +479,28 @@ int main (int argc, char **argv)
         exit(-1);
     }
 
-    mysql = mysql_real_connect(mysql, host, user, passwd, db, 0, NULL, 0);
+    mysql = mysql_real_connect(mysql, host, user, pass, db, 0, NULL, 0);
     if (mysql == NULL)
     {
         fprintf(stderr, "mysql_real_connect");
         exit(-1);
     }
 
+    /* Turn off auto commits, hopefuly for performance sake */
+    (void) mysql_autocommit(mysql, 0);
+
     ret = ftw(base, tree_walk, 512);
     if(ret != 0)
     {
         fprintf(stderr, "Error: failed to walk path: %s\n", base);
         return(-1);
+    }
+
+    ret = mysql_commit(mysql);
+    if (ret)
+    {
+        fprintf(stderr, "mysql: %d (%s)\n", mysql_errno(mysql),
+            mysql_error(mysql));
     }
 
     mysql_close(mysql);
