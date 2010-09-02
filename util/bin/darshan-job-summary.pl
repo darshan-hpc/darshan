@@ -27,6 +27,9 @@ my %access_hash = ();
 my @access_size = ();
 my %hash_files = ();
 
+# data structures for calculating performance
+my %hash_uniq_file_time = ();
+
 process_args();
 
 # find a darshan-parser executable somewhere
@@ -909,6 +912,18 @@ print VARP "
 ";
 close(VARP);
 
+# calculate performance
+##########################################################################
+
+# what was the slowest time by any proc for unique file access?
+my $slowest_uniq_time = 0;
+if(keys %hash_unique_file_time > 0)
+{
+    print values %hash_uniq_file_time;
+    $slowest_uniq_time < $_ and $slowest_uniq_time = $_ for values %hash_unique_file_time;
+}
+print("Slowest unique file time: $slowest_uniq_time\n");
+
 if(-x "$FindBin::Bin/gnuplot")
 {
     $gnuplot = "$FindBin::Bin/gnuplot";
@@ -948,6 +963,7 @@ system "pdflatex -halt-on-error summary.tex > latex.output2";
 # get back out of tmp dir and grab results
 chdir $orig_dir;
 system "mv $tmp_dir/summary.pdf $output_file";
+
 
 sub process_file_record
 {
@@ -1109,6 +1125,50 @@ sub process_file_record
             $hash_files{$hash}{'variance_bytes'}    = $hash_files{$hash}{'variance_bytes_S'} / $hash_files{$hash}{'variance_bytes_n'};
 
             $hash_files{$hash}{'procs'} = $n;
+        }
+    }
+
+    # if this is a non-shared file, then add the time spent here to the
+    # total for that particular rank
+    if ($rank != -1)
+    {
+        # is it mpi-io or posix?
+        if($file_record{CP_INDEP_OPENS} > 0 ||
+            $file_record{CP_COLL_OPENS} > 0)
+        {
+            # add up mpi times
+            if(defined($hash_unique_file_time{$rank}))
+            {
+                $hash_unique_file_time{$rank} +=
+                    $file_record{CP_F_MPI_META_TIME} + 
+                    $file_record{CP_F_MPI_READ_TIME} + 
+                    $file_record{CP_F_MPI_WRITE_TIME};
+            }
+            else
+            {
+                $hash_unique_file_time{$rank} =
+                    $file_record{CP_F_MPI_META_TIME} + 
+                    $file_record{CP_F_MPI_READ_TIME} + 
+                    $file_record{CP_F_MPI_WRITE_TIME};
+            }
+        }
+        else
+        {
+            # add up posix times
+            if(defined($hash_unique_file_time{$rank}))
+            {
+                $hash_unique_file_time{$rank} +=
+                    $file_record{CP_F_POSIX_META_TIME} + 
+                    $file_record{CP_F_POSIX_READ_TIME} + 
+                    $file_record{CP_F_POSIX_WRITE_TIME};
+            }
+            else
+            {
+                $hash_unique_file_time{$rank} =
+                    $file_record{CP_F_POSIX_META_TIME} + 
+                    $file_record{CP_F_POSIX_READ_TIME} + 
+                    $file_record{CP_F_POSIX_WRITE_TIME};
+            }
         }
     }
 
