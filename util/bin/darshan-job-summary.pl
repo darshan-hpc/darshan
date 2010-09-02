@@ -28,7 +28,8 @@ my @access_size = ();
 my %hash_files = ();
 
 # data structures for calculating performance
-my %hash_uniq_file_time = ();
+my %hash_unique_file_time = ();
+my $shared_file_time = 0;
 
 process_args();
 
@@ -919,10 +920,10 @@ close(VARP);
 my $slowest_uniq_time = 0;
 if(keys %hash_unique_file_time > 0)
 {
-    print values %hash_uniq_file_time;
     $slowest_uniq_time < $_ and $slowest_uniq_time = $_ for values %hash_unique_file_time;
 }
 print("Slowest unique file time: $slowest_uniq_time\n");
+print("Slowest shared file time: $shared_file_time\n");
 
 if(-x "$FindBin::Bin/gnuplot")
 {
@@ -1168,6 +1169,32 @@ sub process_file_record
                     $file_record{CP_F_POSIX_META_TIME} + 
                     $file_record{CP_F_POSIX_READ_TIME} + 
                     $file_record{CP_F_POSIX_WRITE_TIME};
+            }
+        }
+    }
+    else
+    {
+
+        # cumulative time spent on shared files by slowest proc
+        if($major > 1)
+        {
+            # new file format
+            $shared_file_time += $file_record{'CP_F_SLOWEST_RANK_TIME'};
+        }
+        else
+        {
+            # old file format.  Guess time spent as duration between first open
+            # and last io
+            if($file_record{'CP_F_READ_END_TIMESTAMP'} >
+                $file_record{'CP_F_WRITE_END_TIMESTAMP'})
+            {
+                $shared_file_time += $file_record{'CP_F_READ_END_TIMESTAMP'} -
+                    $file_record{'CP_F_OPEN_TIMESTAMP'};
+            }
+            else
+            {
+                $shared_file_time += $file_record{'CP_F_WRITE_END_TIMESTAMP'} -
+                    $file_record{'CP_F_OPEN_TIMESTAMP'};
             }
         }
     }
