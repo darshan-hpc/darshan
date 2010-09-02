@@ -30,6 +30,7 @@ my %hash_files = ();
 # data structures for calculating performance
 my %hash_unique_file_time = ();
 my $shared_file_time = 0;
+my $total_job_bytes = 0;
 
 process_args();
 
@@ -924,6 +925,9 @@ if(keys %hash_unique_file_time > 0)
 }
 print("Slowest unique file time: $slowest_uniq_time\n");
 print("Slowest shared file time: $shared_file_time\n");
+print("Total bytes read and written by app (may be incorrect): $total_job_bytes\n");
+my $tmp_total_time = $slowest_uniq_time+$shared_file_time;
+print("Total absolute I/O time: $tmp_total_time\n");
 
 if(-x "$FindBin::Bin/gnuplot")
 {
@@ -1197,6 +1201,27 @@ sub process_file_record
                     $file_record{'CP_F_OPEN_TIMESTAMP'};
             }
         }
+    }
+
+    my $mpi_did_read = 
+        $file_record{'CP_INDEP_READS'} + 
+        $file_record{'CP_COLL_READS'} + 
+        $file_record{'CP_NB_READS'} + 
+        $file_record{'CP_SPLIT_READS'};
+
+    # add up how many bytes were transferred
+    if(($file_record{CP_INDEP_OPENS} > 0 ||
+        $file_record{CP_COLL_OPENS} > 0) && (!($mpi_did_read)))
+    {
+        # mpi file that was only written; disregard any read accesses that
+        # may have been performed for sieving at the posix level
+        $total_job_bytes += $file_record{'CP_BYTES_WRITTEN'}; 
+    }
+    else
+    {
+        # normal case
+        $total_job_bytes += $file_record{'CP_BYTES_WRITTEN'} +
+            $file_record{'CP_BYTES_READ'};
     }
 
     # TODO 
