@@ -884,7 +884,11 @@ Suffix \&  \& Rank \& Time \& Bytes \& Rank \& Time \& Bytes \& Time \& Bytes \\
 \\hline
 ";
 
-foreach $key (keys %hash_files) {
+my $curcount = 1;
+foreach $key (sort { $hash_files{$b}{'slowest_time'} <=> $hash_files{$a}{'slowest_time'} } keys %hash_files) {
+
+    if ($curcount > 20) { last; }
+
     if ($hash_files{$key}{'procs'} > 1)
     {
         my $vt = sprintf("%.3g", sqrt($hash_files{$key}{'variance_time'}));
@@ -905,6 +909,7 @@ foreach $key (keys %hash_files) {
                $vt \&
                $vb \\\\
          ";
+        $curcount++;
     }
 }
 
