@@ -1,5 +1,5 @@
 dnl **************************************************************
-dnl PVFS2 AUTOCONF SCRIPT
+dnl DARSHAN AUTOCONF SCRIPT
 dnl
 dnl Process this file with autoconf to produce a configure script.
 dnl You may need to use autoheader as well if changing any DEFINEs
@@ -102,7 +102,7 @@ AC_TRY_COMPILE([#include <mpi.h>], [int ret = MPI_Init(0, (void*)0)],
 )
 
 dnl temporarily set large file flags just for this test; we don't want
-dnl it to propigate to the makefile because of zlib bugs
+dnl it to propagate to the makefile because of zlib bugs
 old_cflags="$CFLAGS"
 CFLAGS="$CFLAGS -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE"
 AC_MSG_CHECKING(for off64_t)
@@ -131,6 +131,7 @@ AC_TRY_COMPILE(
 )
 CFLAGS="$old_cflags"
 
+AC_CHECK_HEADERS(mntent.h sys/mount.h)
 
 # libc functions wrapped by darshan
 CP_WRAPPERS="-Wl,-u,MPI_Wtime,-wrap,write,-wrap,open,-wrap,creat,-wrap,creat64,-wrap,open64,-wrap,close,-wrap,read,-wrap,lseek,-wrap,lseek64,-wrap,pread,-wrap,pwrite,-wrap,readv,-wrap,writev,-wrap,__xstat,-wrap,__lxstat,-wrap,__fxstat,-wrap,__xstat64,-wrap,__lxstat64,-wrap,__fxstat64,-wrap,mmap,-wrap,mmap64,-wrap,fopen,-wrap,fclose,-wrap,fread,-wrap,fwrite,-wrap,fseek,-wrap,fopen64,-wrap,pread64,-wrap,pwrite64,-wrap,fsync,-wrap,fdatasync,-wrap,ncmpi_create,-wrap,ncmpi_open,-wrap,ncmpi_close,-wrap,H5Fcreate,-wrap,H5Fopen,-wrap,H5Fclose"

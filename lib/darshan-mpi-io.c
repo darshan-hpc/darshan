@@ -6,8 +6,12 @@
 #define _XOPEN_SOURCE 500
 #define _GNU_SOURCE /* for tdestroy() */
 
+#include "darshan-config.h"
+
 #include <stdio.h>
+#ifdef HAVE_MNTENT_H
 #include <mntent.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -22,7 +26,6 @@
 
 #include "mpi.h"
 #include "darshan.h"
-#include "darshan-config.h"
 
 extern char* __progname;
 
