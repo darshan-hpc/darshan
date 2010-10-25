@@ -12,12 +12,168 @@
 #include <zlib.h>
 #include <time.h>
 #include <stdlib.h>
+#include <getopt.h>
 
 #include "darshan-logutils.h"
+
+#include "uthash.h"
+
+/*
+ * Options
+ */
+#define OPTION_BASE  (1 << 0)  // darshan log fields
+#define OPTION_TOTAL (1 << 1)  // aggregated fields
+#define OPTION_PERF  (1 << 2)  // derived performance
+#define OPTION_FILE  (1 << 3)  // file count totals
+#define OPTION_ALL (\
+  OPTION_BASE|\
+  OPTION_TOTAL|\
+  OPTION_PERF|\
+  OPTION_FILE)
+
+#define FILETYPE_SHARED (1 << 0)
+#define FILETYPE_UNIQUE (1 << 1)
+#define FILETYPE_PARTSHARED (1 << 2)
+
+#define max(a,b) (((a) > (b)) ? (a) : (b))
+#define max3(a,b,c) (((a) > (b)) ? (((a) > (c)) ? (a) : (c)) : (((b) > (c)) ? (b) : (c)))
+
+/*
+ * Datatypes
+ */
+typedef struct hash_entry_s
+{
+    UT_hash_handle hlink;
+    int64_t hash;
+    int64_t type;
+    int64_t procs;
+    int64_t counters[CP_NUM_INDICES];
+    double  fcounters[CP_F_NUM_INDICES];
+    double cumul_time;
+    double meta_time;
+} hash_entry_t;
+
+typedef struct perf_data_s
+{
+    int64_t total_bytes;
+    double slowest_rank_time;
+    double slowest_rank_meta_time;
+    double shared_time_by_cumul;
+    double shared_time_by_open;
+    double shared_time_by_open_lastio;
+    double shared_time_by_slowest;
+    double shared_meta_time;
+    double agg_perf_by_cumul;
+    double agg_perf_by_open;
+    double agg_perf_by_open_lastio;
+    double agg_perf_by_slowest;
+} perf_data_t;
+
+typedef struct file_data_s
+{
+    int64_t total;
+    int64_t total_size;
+    int64_t total_max;
+    int64_t read_only;
+    int64_t read_only_size;
+    int64_t read_only_max;
+    int64_t write_only;
+    int64_t write_only_size;
+    int64_t write_only_max;
+    int64_t read_write;
+    int64_t read_write_size;
+    int64_t read_write_max;
+    int64_t unique;
+    int64_t unique_size;
+    int64_t unique_max;
+    int64_t shared;
+    int64_t shared_size;
+    int64_t shared_max;
+} file_data_t;
+
+/*
+ * Prototypes
+ */
+void accum_perf(struct darshan_file *, hash_entry_t *, perf_data_t *);
+void calc_perf(struct darshan_job *, hash_entry_t *, perf_data_t *);
+
+void accum_file(struct darshan_file *, hash_entry_t *, file_data_t *);
+void calc_file(struct darshan_job *, hash_entry_t *, file_data_t *);
+
+int usage (char *exename)
+{
+    fprintf(stderr, "Usage: %s [options] <filename>\n", exename);
+    fprintf(stderr, "    --all   : all sub-options are enabled\n");
+    fprintf(stderr, "    --base  : darshan log field data [default]\n");
+    fprintf(stderr, "    --file  : total file counts\n");
+    fprintf(stderr, "    --perf  : derived perf data\n");
+    fprintf(stderr, "    --total : aggregated darshan field data\n");
+
+    exit(1);
+}
+
+int parse_args (int argc, char **argv, char **filename)
+{
+    int index;
+    int mask;
+    static struct option long_opts[] =
+    {
+        {"all",   0, NULL, OPTION_ALL},
+        {"base",  0, NULL, OPTION_BASE},
+        {"file",  0, NULL, OPTION_FILE},
+        {"perf",  0, NULL, OPTION_PERF},
+        {"total", 0, NULL, OPTION_TOTAL},
+        {"help",  0, NULL, 0}
+    };
+
+    mask = 0;
+
+    while(1)
+    {
+        int c = getopt_long(argc, argv, "", long_opts, &index);
+
+        if (c == -1) break;
+
+        switch(c)
+        {
+            case OPTION_ALL:
+            case OPTION_BASE:
+            case OPTION_FILE:
+            case OPTION_PERF:
+            case OPTION_TOTAL:
+                mask |= c;
+                break;
+            case 0:
+            case '?':
+            default:
+                usage(argv[0]);
+                break;
+        }
+    }
+
+    if (optind < argc)
+    {
+        *filename = argv[optind];
+    }
+    else
+    {
+        usage(argv[0]);
+    }
+
+    /* default mask value if none specified */
+    if (mask == 0)
+    {
+        mask = OPTION_BASE;
+    }
+
+    return mask;
+}
 
 int main(int argc, char **argv)
 {
     int ret;
+    int mask;
+    char *filename;
     struct darshan_job job;
     struct darshan_file cp_file;
     char tmp_string[1024];
@@ -31,13 +187,19 @@ int main(int argc, char **argv)
     char** fs_types;
     int last_rank = 0;
 
-    if(argc != 2)
-    {
-        fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
-        return(-1);
-    }
+    hash_entry_t *file_hash = NULL;
+    hash_entry_t *curr = NULL;
+    hash_entry_t *tmp = NULL;
+    hash_entry_t total;
+    perf_data_t pdata;
+    file_data_t fdata;
 
-    file = darshan_log_open(argv[1]);
+    memset(&pdata, 0, sizeof(pdata));
+    memset(&total, 0, sizeof(total));
+
+    mask = parse_args(argc, argv, &filename);
+
+    file = darshan_log_open(filename);
     if(!file)
     {
         perror("darshan_log_open");
@@ -99,70 +261,74 @@ int main(int argc, char **argv)
         return(0);
     }
 
-    printf("\n# description of columns:\n");
-    printf("#   <rank>: MPI rank.  -1 indicates that the file is shared\n");
-    printf("#      across all processes and statistics are aggregated.\n");
-    printf("#   <file>: hash of file path.  0 indicates that statistics\n");
-    printf("#      are condensed to refer to all files opened at the given\n");
-    printf("#      process.\n");
-    printf("#   <counter> and <value>: statistical counters.\n");
-    printf("#   <name suffix>: last %d characters of file name.\n", CP_NAME_SUFFIX_LEN);
-    printf("#   <mount pt>: mount point that the file resides on.\n");
-    printf("#   <fs type>: type of file system that the file resides on.\n");
-    printf("\n# description of counters:\n");
-    printf("#   CP_POSIX_*: posix operation counts.\n");
-    printf("#   CP_COLL_*: MPI collective operation counts.\n");
-    printf("#   CP_INDEP_*: MPI independent operation counts.\n");
-    printf("#   CP_SPIT_*: MPI split collective operation counts.\n");
-    printf("#   CP_NB_*: MPI non blocking operation counts.\n");
-    printf("#   READS,WRITES,OPENS,SEEKS,STATS, and MMAPS are types of operations.\n");
-    printf("#   CP_*_NC_OPENS: number of indep. and collective pnetcdf opens.\n");
-    printf("#   CP_HDF5_OPENS: number of hdf5 opens.\n");
-    printf("#   CP_COMBINER_*: combiner counts for MPI mem and file datatypes.\n");
-    printf("#   CP_HINTS: number of times MPI hints were used.\n");
-    printf("#   CP_VIEWS: number of times MPI file views were used.\n");
-    printf("#   CP_MODE: mode that file was opened in.\n");
-    printf("#   CP_BYTES_*: total bytes read and written.\n");
-    printf("#   CP_MAX_BYTE_*: highest offset byte read and written.\n");
-    printf("#   CP_CONSEC_*: number of exactly adjacent reads and writes.\n");
-    printf("#   CP_SEQ_*: number of reads and writes from increasing offsets.\n");
-    printf("#   CP_RW_SWITCHES: number of times access alternated between read and write.\n");
-    printf("#   CP_*_ALIGNMENT: memory and file alignment.\n");
-    printf("#   CP_*_NOT_ALIGNED: number of reads and writes that were not aligned.\n");
-    printf("#   CP_MAX_*_TIME_SIZE: size of the slowest read and write operations.\n");
-    printf("#   CP_SIZE_READ_*: histogram of read access sizes.\n");
-    printf("#   CP_SIZE_READ_AGG_*: histogram of MPI datatype total sizes.\n");
-    printf("#   CP_EXTENT_READ_*: histogram of MPI datatype extents.\n");
-    printf("#   CP_STRIDE*_STRIDE: the four most common strides detected.\n");
-    printf("#   CP_STRIDE*_COUNT: count of the four most common strides.\n");
-    printf("#   CP_ACCESS*_ACCESS: the four most common access sizes.\n");
-    printf("#   CP_ACCESS*_COUNT: count of the four most common access sizes.\n");
-    printf("#   CP_DEVICE: device id reported by stat().\n");
-    printf("#   CP_SIZE_AT_OPEN: size of file when first opened.\n");
-    printf("#   CP_*_RANK_BYTES: fastest, slowest and variance of bytes transfer.\n");
-    printf("#   CP_F_OPEN_TIMESTAMP: timestamp of first open (mpi or posix).\n");
-    printf("#   CP_F_*_START_TIMESTAMP: timestamp of first read/write (mpi or posix).\n");
-    printf("#   CP_F_*_END_TIMESTAMP: timestamp of last read/write (mpi or posix).\n");
-    printf("#   CP_F_CLOSE_TIMESTAMP: timestamp of last close (mpi or posix).\n");
-    printf("#   CP_F_POSIX_READ/WRITE_TIME: cumulative time spent in posix reads or writes.\n");
-    printf("#   CP_F_MPI_READ/WRITE_TIME: cumulative time spent in mpi-io reads or writes.\n");
-    printf("#   CP_F_POSIX_META_TIME: cumulative time spent in posix open, close, fsync, stat and seek, .\n");
-    printf("#   CP_F_MPI_META_TIME: cumulative time spent in mpi-io open, close, set_view, and sync.\n");
-    printf("#   CP_MAX_*_TIME: duration of the slowest read and write operations.\n");
-    printf("#   CP_*_RANK_TIME: fastest, slowest variance of transfer time.\n");
+    if ((mask & OPTION_BASE))
+    {
+        printf("\n# description of columns:\n");
+        printf("#   <rank>: MPI rank.  -1 indicates that the file is shared\n");
+        printf("#      across all processes and statistics are aggregated.\n");
+        printf("#   <file>: hash of file path.  0 indicates that statistics\n");
+        printf("#      are condensed to refer to all files opened at the given\n");
+        printf("#      process.\n");
+        printf("#   <counter> and <value>: statistical counters.\n");
+        printf("#   <name suffix>: last %d characters of file name.\n", CP_NAME_SUFFIX_LEN);
+        printf("#   <mount pt>: mount point that the file resides on.\n");
+        printf("#   <fs type>: type of file system that the file resides on.\n");
+        printf("\n# description of counters:\n");
+        printf("#   CP_POSIX_*: posix operation counts.\n");
+        printf("#   CP_COLL_*: MPI collective operation counts.\n");
+        printf("#   CP_INDEP_*: MPI independent operation counts.\n");
+        printf("#   CP_SPIT_*: MPI split collective operation counts.\n");
+        printf("#   CP_NB_*: MPI non blocking operation counts.\n");
+        printf("#   READS,WRITES,OPENS,SEEKS,STATS, and MMAPS are types of operations.\n");
+        printf("#   CP_*_NC_OPENS: number of indep. and collective pnetcdf opens.\n");
+        printf("#   CP_HDF5_OPENS: number of hdf5 opens.\n");
+        printf("#   CP_COMBINER_*: combiner counts for MPI mem and file datatypes.\n");
+        printf("#   CP_HINTS: number of times MPI hints were used.\n");
+        printf("#   CP_VIEWS: number of times MPI file views were used.\n");
+        printf("#   CP_MODE: mode that file was opened in.\n");
+        printf("#   CP_BYTES_*: total bytes read and written.\n");
+        printf("#   CP_MAX_BYTE_*: highest offset byte read and written.\n");
+        printf("#   CP_CONSEC_*: number of exactly adjacent reads and writes.\n");
+        printf("#   CP_SEQ_*: number of reads and writes from increasing offsets.\n");
+        printf("#   CP_RW_SWITCHES: number of times access alternated between read and write.\n");
+        printf("#   CP_*_ALIGNMENT: memory and file alignment.\n");
+        printf("#   CP_*_NOT_ALIGNED: number of reads and writes that were not aligned.\n");
+        printf("#   CP_MAX_*_TIME_SIZE: size of the slowest read and write operations.\n");
+        printf("#   CP_SIZE_READ_*: histogram of read access sizes.\n");
+        printf("#   CP_SIZE_READ_AGG_*: histogram of MPI datatype total sizes.\n");
+        printf("#   CP_EXTENT_READ_*: histogram of MPI datatype extents.\n");
+        printf("#   CP_STRIDE*_STRIDE: the four most common strides detected.\n");
+        printf("#   CP_STRIDE*_COUNT: count of the four most common strides.\n");
+        printf("#   CP_ACCESS*_ACCESS: the four most common access sizes.\n");
+        printf("#   CP_ACCESS*_COUNT: count of the four most common access sizes.\n");
+        printf("#   CP_DEVICE: device id reported by stat().\n");
+        printf("#   CP_SIZE_AT_OPEN: size of file when first opened.\n");
+        printf("#   CP_*_RANK_BYTES: fastest, slowest and variance of bytes transfer.\n");
+        printf("#   CP_F_OPEN_TIMESTAMP: timestamp of first open (mpi or posix).\n");
+        printf("#   CP_F_*_START_TIMESTAMP: timestamp of first read/write (mpi or posix).\n");
+        printf("#   CP_F_*_END_TIMESTAMP: timestamp of last read/write (mpi or posix).\n");
+        printf("#   CP_F_CLOSE_TIMESTAMP: timestamp of last close (mpi or posix).\n");
+        printf("#   CP_F_POSIX_READ/WRITE_TIME: cumulative time spent in posix reads or writes.\n");
+        printf("#   CP_F_MPI_READ/WRITE_TIME: cumulative time spent in mpi-io reads or writes.\n");
+        printf("#   CP_F_POSIX_META_TIME: cumulative time spent in posix open, close, fsync, stat and seek, .\n");
+        printf("#   CP_F_MPI_META_TIME: cumulative time spent in mpi-io open, close, set_view, and sync.\n");
+        printf("#   CP_MAX_*_TIME: duration of the slowest read and write operations.\n");
+        printf("#   CP_*_RANK_TIME: fastest, slowest variance of transfer time.\n");
 
-    printf("\n");
-
-    CP_PRINT_HEADER();
+        printf("\n");
+        CP_PRINT_HEADER();
+    }
 
     while((ret = darshan_log_getfile(file, &job, &cp_file)) == 1)
     {
         char* mnt_pt = NULL;
         char* fs_type = NULL;
+        hash_entry_t *hfile = NULL;
 
         if(cp_file.rank != -1 && cp_file.rank < last_rank)
         {
             fprintf(stderr, "Error: log file contains out of order rank data.\n");
+            fflush(stderr);
             return(-1);
         }
         if(cp_file.rank != -1)
@@ -182,19 +348,114 @@ int main(int argc, char **argv)
         if(!fs_type)
             fs_type = "UNKNOWN";
 
+        HASH_FIND(hlink,file_hash,&cp_file.hash,sizeof(int64_t),hfile);
+        if (!hfile)
+        {
+            hfile = (hash_entry_t*) malloc(sizeof(*hfile));
+            if (!hfile)
+            {
+                fprintf(stderr,"malloc failure");
+                exit(1);
+            }
+
+            /* init */
+            memset(hfile, 0, sizeof(*hfile));
+            hfile->hash          = cp_file.hash;
+            hfile->type          = 0;
+            hfile->procs         = 0;
+            hfile->cumul_time    = 0.0;
+            hfile->meta_time     = 0.0;
+
+            HASH_ADD(hlink,file_hash,hash,sizeof(int64_t),hfile);
+        }
+
+        accum_file(&cp_file, &total, NULL);
+        accum_file(&cp_file, hfile, &fdata);
+        accum_perf(&cp_file, hfile, &pdata);
+
+        if ((mask & OPTION_BASE))
+        {
+            for(i=0; i<CP_NUM_INDICES; i++)
+            {
+                CP_PRINT(&job, &cp_file, i, mnt_pt, fs_type);
+            }
+            for(i=0; i<CP_F_NUM_INDICES; i++)
+            {
+                CP_F_PRINT(&job, &cp_file, i, mnt_pt, fs_type);
+            }
+        }
+    }
+
+    /* Total Calc */
+    if ((mask & OPTION_TOTAL))
+    {
         for(i=0; i<CP_NUM_INDICES; i++)
         {
-            CP_PRINT(&job, &cp_file, i, mnt_pt, fs_type);
+            printf("total_%s: %lld\n",
+                   darshan_names[i], total.counters[i]);
         }
         for(i=0; i<CP_F_NUM_INDICES; i++)
         {
-            CP_F_PRINT(&job, &cp_file, i, mnt_pt, fs_type);
+            printf("total_%s: %lf\n",
+                   darshan_f_names[i], total.fcounters[i]);
         }
+    }
+
+    /* Perf Calc */
+    calc_perf(&job, file_hash, &pdata);
+    if ((mask & OPTION_PERF))
+    {
+        printf("\n# performance\n");
+        printf("# -----------\n");
+        printf("# total_bytes: %lld\n", lld(pdata.total_bytes));
+        printf("# slowest_rank_time: %lf\n", pdata.slowest_rank_time);
+        printf("# slowest_rank_meta_time: %lf\n", pdata.slowest_rank_meta_time);
+        printf("# shared_time_by_cumul: %lf\n", pdata.shared_time_by_cumul);
+        printf("# shared_time_by_open: %lf\n", pdata.shared_time_by_open);
+        printf("# shared_time_by_open_lastio: %lf\n", pdata.shared_time_by_open_lastio);
+        printf("# shared_meta_time: %lf\n", pdata.shared_meta_time);
+        printf("# agg_perf_by_cumul: %lf\n", pdata.agg_perf_by_cumul);
+        printf("# agg_perf_by_open: %lf\n", pdata.agg_perf_by_open);
+        printf("# agg_perf_by_open_lastio: %lf\n", pdata.agg_perf_by_open_lastio);
+        printf("# agg_perf_by_slowest: %lf\n", pdata.agg_perf_by_slowest);
+    }
+
+    /* File Calc */
+    calc_file(&job, file_hash, &fdata);
+    if ((mask & OPTION_FILE))
+    {
+        printf("\n# files\n");
+        printf("# -----\n");
+        printf("# total: %lld %lld %lld\n",
+               lld(fdata.total),
+               lld(fdata.total_size),
+               lld(fdata.total_max));
+        printf("# read_only: %lld %lld %lld\n",
+               lld(fdata.read_only),
+               lld(fdata.read_only_size),
+               lld(fdata.read_only_max));
+        printf("# write_only: %lld %lld %lld\n",
+               lld(fdata.write_only),
+               lld(fdata.write_only_size),
+               lld(fdata.write_only_max));
+        printf("# read_write: %lld %lld %lld\n",
+               lld(fdata.read_write),
+               lld(fdata.read_write_size),
+               lld(fdata.read_write_max));
+        printf("# unique: %lld %lld %lld\n",
+               lld(fdata.unique),
+               lld(fdata.unique_size),
+               lld(fdata.unique_max));
+        printf("# shared: %lld %lld %lld\n",
+               lld(fdata.shared),
+               lld(fdata.shared_size),
+               lld(fdata.shared_max));
     }
 
     if(ret < 0)
     {
         fprintf(stderr, "Error: failed to parse log file.\n");
+        fflush(stderr);
         return(-1);
     }
 
@@ -211,5 +472,344 @@ int main(int argc, char **argv)
     }
  
     darshan_log_close(file);
+
+    HASH_ITER(hlink, file_hash, curr, tmp)
+    {
+        HASH_DELETE(hlink, file_hash, curr);
+        free(curr);
+    }
+
     return(0);
+}
+
+void accum_file(struct darshan_file *dfile,
+                hash_entry_t *hfile, 
+                file_data_t *fdata)
+{
+    int i;
+
+    hfile->procs += 1;
+
+    if (dfile->rank == -1)
+    {
+        hfile->type |= FILETYPE_SHARED;
+    }
+    else if (hfile->procs > 1)
+    {
+        hfile->type &= (~FILETYPE_UNIQUE);
+        hfile->type |= FILETYPE_PARTSHARED;
+    }
+    else
+    {
+        hfile->type |= FILETYPE_UNIQUE;
+    }
+
+    for (i = 0; i < CP_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+        case CP_DEVICE:
+        case CP_MODE:
+        case CP_MEM_ALIGNMENT:
+        case CP_FILE_ALIGNMENT:
+            hfile->counters[i] = dfile->counters[i];
+            break;
+        case CP_SIZE_AT_OPEN:
+            if (hfile->counters[i] == -1)
+            {
+                hfile->counters[i] = dfile->counters[i];
+            }
+            if (hfile->counters[i] > dfile->counters[i])
+            {
+                hfile->counters[i] = dfile->counters[i];
+            }
+            break;
+        case CP_MAX_BYTE_READ:
+        case CP_MAX_BYTE_WRITTEN:
+            if (hfile->counters[i] == -1)
+            {
+                hfile->counters[i] = dfile->counters[i];
+            }
+            if (hfile->counters[i] < dfile->counters[i])
+            {
+                hfile->counters[i] = dfile->counters[i];
+            }
+            break;
+        case CP_STRIDE1_COUNT:
+        case CP_STRIDE2_COUNT:
+        case CP_STRIDE3_COUNT:
+        case CP_STRIDE4_COUNT:
+        case CP_ACCESS1_COUNT:
+        case CP_ACCESS2_COUNT:
+        case CP_ACCESS3_COUNT:
+        case CP_ACCESS4_COUNT:
+            if (hfile->counters[i] == -1)
+            {
+                hfile->counters[i] = dfile->counters[i];
+            }
+            if (hfile->counters[i] < dfile->counters[i])
+            {
+                hfile->counters[i]   = dfile->counters[i];
+                hfile->counters[i-4] = dfile->counters[i-4];
+            }
+            break;
+        case CP_FASTEST_RANK:
+        case CP_SLOWEST_RANK:
+        case CP_FASTEST_RANK_BYTES:
+        case CP_SLOWEST_RANK_BYTES:
+            hfile->counters[i] = 0;
+            break;
+        case CP_MAX_READ_TIME_SIZE:
+        case CP_MAX_WRITE_TIME_SIZE:
+            break;
+        default:
+            hfile->counters[i] += dfile->counters[i];
+            break;
+        }
+    }
+
+    for (i = 0; i < CP_F_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case CP_F_FASTEST_RANK_TIME:
+            case CP_F_SLOWEST_RANK_TIME:
+            case CP_F_VARIANCE_RANK_TIME:
+            case CP_F_VARIANCE_RANK_BYTES:
+                hfile->fcounters[i] = 0;
+                break;
+            case CP_F_MAX_READ_TIME:
+                if (hfile->fcounters[i] > dfile->fcounters[i])
+                {
+                    hfile->fcounters[i] = dfile->fcounters[i];
+                    hfile->counters[CP_MAX_READ_TIME_SIZE] =
+                        dfile->counters[CP_MAX_READ_TIME_SIZE];
+                }
+                break;
+            case CP_F_MAX_WRITE_TIME:
+                if (hfile->fcounters[i] > dfile->fcounters[i])
+                {
+                    hfile->fcounters[i] = dfile->fcounters[i];
+                    hfile->counters[CP_MAX_WRITE_TIME_SIZE] =
+                        dfile->counters[CP_MAX_WRITE_TIME_SIZE];
+                }
+                break;
+            default:
+                hfile->fcounters[i] += dfile->fcounters[i];
+                break;
+        }
+    }
+
+    return;
+}
+
+
+void calc_file(struct darshan_job *djob,
+               hash_entry_t *file_hash, 
+               file_data_t *fdata)
+{
+    hash_entry_t *curr = NULL;
+    hash_entry_t *tmp = NULL;
+
+    memset(fdata, 0, sizeof(*fdata));
+
+    HASH_ITER(hlink, file_hash, curr, tmp)
+    {
+        int64_t max;
+        int64_t r;
+        int64_t w;
+
+        max = max3(curr->counters[CP_SIZE_AT_OPEN],
+                   curr->counters[CP_MAX_BYTE_READ],
+                   curr->counters[CP_MAX_BYTE_WRITTEN]);
+
+        r = (curr->counters[CP_POSIX_READS]+
+             curr->counters[CP_POSIX_FREADS]+
+             curr->counters[CP_INDEP_READS]+
+             curr->counters[CP_COLL_READS]+
+             curr->counters[CP_SPLIT_READS]+
+             curr->counters[CP_NB_READS]);
+
+        w = (curr->counters[CP_POSIX_WRITES]+
+             curr->counters[CP_POSIX_FWRITES]+
+             curr->counters[CP_INDEP_WRITES]+
+             curr->counters[CP_COLL_WRITES]+
+             curr->counters[CP_SPLIT_WRITES]+
+             curr->counters[CP_NB_WRITES]);
+
+        fdata->total += 1;
+        fdata->total_size += max;
+        fdata->total_max = max(fdata->total_max, max);
+
+        if (r && !w)
+        {
+            fdata->read_only += 1;
+            fdata->read_only_size += max;
+            fdata->read_only_max = max(fdata->read_only_max, max);
+        }
+
+        if (!r && w)
+        {
+            fdata->write_only += 1;
+            fdata->write_only_size += max;
+            fdata->write_only_max = max(fdata->write_only_max, max);
+        }
+
+        if (r && w)
+        {
+            fdata->read_write += 1;
+            fdata->read_write_size += max;
+            fdata->read_write_max = max(fdata->read_write_max, max);
+        }
+
+        if ((curr->type & (FILETYPE_SHARED|FILETYPE_PARTSHARED)))
+        {
+            fdata->shared += 1;
+            fdata->shared_size += max;
+            fdata->shared_max = max(fdata->shared_max, max);
+        }
+
+        if ((curr->type & (FILETYPE_UNIQUE)))
+        {
+            fdata->unique += 1;
+            fdata->unique_size += max;
+            fdata->unique_max = max(fdata->unique_max, max);
+        }
+    }
+
+    return;
+}
+
+void accum_perf(struct darshan_file *dfile,
+                hash_entry_t *hfile,
+                perf_data_t *pdata)
+{
+    int64_t mpi_file;
+
+    pdata->total_bytes += dfile->counters[CP_BYTES_READ] +
+                          dfile->counters[CP_BYTES_WRITTEN];
+
+    mpi_file = dfile->counters[CP_INDEP_OPENS] +
+               dfile->counters[CP_COLL_OPENS];
+
+    /*
+     * Calculation of Shared File Time
+     *   Four Methods!!!!
+     *     by_cumul: sum time counters and divide by nprocs
+     *               (inaccurate if lots of variance between procs)
+     *     by_open: difference between timestamp of open and close
+     *              (inaccurate if file is left open without i/o happening)
+     *     by_open_lastio: difference between timestamp of open and the
+     *                     timestamp of last i/o
+     *                     (similar to above but fixes case where file is left
+     *                      open after io is complete)
+     *     by_slowest: use slowest rank time from log data
+     *                 (most accurate but requires newer log version)
+     */
+    if (dfile->rank == -1)
+    {
+        /* by_open (same for MPI or POSIX) */
+        pdata->shared_time_by_open +=
+            dfile->fcounters[CP_F_CLOSE_TIMESTAMP] -
+            dfile->fcounters[CP_F_OPEN_TIMESTAMP];
+
+        /* by_open_lastio (same for MPI or POSIX) */
+        if (dfile->fcounters[CP_F_READ_END_TIMESTAMP] >
+            dfile->fcounters[CP_F_WRITE_END_TIMESTAMP])
+        {
+            pdata->shared_time_by_open_lastio += 
+                dfile->fcounters[CP_F_READ_END_TIMESTAMP] - 
+                dfile->fcounters[CP_F_OPEN_TIMESTAMP];
+        }
+        else
+        {
+            pdata->shared_time_by_open_lastio += 
+                dfile->fcounters[CP_F_WRITE_END_TIMESTAMP] - 
+                dfile->fcounters[CP_F_OPEN_TIMESTAMP];
+        }
+
+        /* by_cumul */
+        if (mpi_file)
+        {
+            pdata->shared_time_by_cumul +=
+                dfile->fcounters[CP_F_MPI_META_TIME] +
+                dfile->fcounters[CP_F_MPI_READ_TIME] +
+                dfile->fcounters[CP_F_MPI_WRITE_TIME];
+            pdata->shared_meta_time += dfile->fcounters[CP_F_MPI_META_TIME];
+        }
+        else
+        {
+            pdata->shared_time_by_cumul +=
+                dfile->fcounters[CP_F_POSIX_META_TIME] +
+                dfile->fcounters[CP_F_POSIX_READ_TIME] +
+                dfile->fcounters[CP_F_POSIX_WRITE_TIME];
+            pdata->shared_meta_time += dfile->fcounters[CP_F_POSIX_META_TIME];
+        }
+
+        /* by_slowest (same for MPI or POSIX) */
+        pdata->shared_time_by_slowest +=
+            dfile->fcounters[CP_F_SLOWEST_RANK_TIME];
+    }
+
+    /*
+     * Calculation of Unique File Time
+     *   record the data for each file and sum it 
+     */
+    else
+    {
+        if (mpi_file)
+        {
+            hfile->cumul_time += dfile->fcounters[CP_F_MPI_META_TIME] +
+                                dfile->fcounters[CP_F_MPI_READ_TIME] +
+                                dfile->fcounters[CP_F_MPI_WRITE_TIME];
+            hfile->meta_time += dfile->fcounters[CP_F_MPI_META_TIME];
+        }
+        else
+        {
+             hfile->cumul_time += dfile->fcounters[CP_F_POSIX_META_TIME] +
+                                 dfile->fcounters[CP_F_POSIX_READ_TIME] +
+                                 dfile->fcounters[CP_F_POSIX_WRITE_TIME];
+             hfile->meta_time += dfile->fcounters[CP_F_POSIX_META_TIME];
+        }
+    }
+
+    return;
+}
+
+void calc_perf(struct darshan_job *djob,
+               hash_entry_t *hash_rank_uniq,
+               perf_data_t *pdata)
+{
+    hash_entry_t *curr = NULL;
+    hash_entry_t *tmp = NULL;
+
+    pdata->shared_time_by_cumul =
+        pdata->shared_time_by_cumul / (double)djob->nprocs;
+
+    pdata->shared_meta_time = pdata->shared_meta_time / (double)djob->nprocs;
+
+    HASH_ITER(hlink, hash_rank_uniq, curr, tmp)
+    {
+        if (pdata->slowest_rank_time < curr->cumul_time)
+        {
+            pdata->slowest_rank_time = curr->cumul_time;
+            pdata->slowest_rank_meta_time = curr->meta_time;
+        }
+    }
+
+    pdata->agg_perf_by_cumul = ((double)pdata->total_bytes / 1048576.0) /
+                               (pdata->slowest_rank_time +
+                                pdata->shared_time_by_cumul);
+    pdata->agg_perf_by_open  = ((double)pdata->total_bytes / 1048576.0) / 
+                               (pdata->slowest_rank_time +
+                                pdata->shared_time_by_open);
+    pdata->agg_perf_by_open_lastio = ((double)pdata->total_bytes / 1048576.0) /
+                                     (pdata->slowest_rank_time +
+                                      pdata->shared_time_by_open_lastio);
+    if (pdata->slowest_rank_time + pdata->shared_time_by_slowest)
+    pdata->agg_perf_by_slowest = ((double)pdata->total_bytes / 1048576.0) /
+                                 (pdata->slowest_rank_time +
+                                  pdata->shared_time_by_slowest);
+
+    return;
 }
