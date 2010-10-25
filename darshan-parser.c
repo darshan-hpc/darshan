@@ -16,7 +16,7 @@
 
 #include "darshan-logutils.h"
 
-#include "uthash.h"
+#include "uthash-1.9.2/src/uthash.h"
 
 /*
  * Options

@@ -37,7 +37,10 @@ mklibdir::
 mktestdir::
 	mkdir -p test
 
-darshan-parser: darshan-parser.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o
+uthash-1.9.2:
+	tar xjvf extern/uthash-1.9.2.tar.bz2
+
+darshan-parser: darshan-parser.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o | uthash-1.9.2
 	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
 
 darshan-analyzer: darshan-analyzer.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o
@@ -105,4 +108,5 @@ clean::
 distclean:: clean
 	rm -f darshan-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl aclocal.m4 autom4te.cache/* config.status config.log Makefile
 	rm -f compilers/*-V1R4 compilers/fast/*-V1R4 compilers/*-pcarns
+	rm -rf uthash-1.9.2
 	rmdir autom4te.cache
