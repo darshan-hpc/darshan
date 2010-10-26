@@ -990,8 +990,22 @@ system "epstopdf file-access-shared.eps";
 #system "gnuplot types-pdf.gplt";
 
 # generate summary PDF
-system "pdflatex -halt-on-error summary.tex > latex.output";
-system "pdflatex -halt-on-error summary.tex > latex.output2";
+$system_rc = system "pdflatex -halt-on-error summary.tex > latex.output";
+if($system_rc)
+{
+    print("LaTeX generation (phase1) failed [$system_rc], aborting summary creation.\n");
+    print("error log:\n");
+    system("tail latex.output");
+    exit(1);
+}
+$system_rc = system "pdflatex -halt-on-error summary.tex > latex.output2";
+if($system_rc)
+{
+    print("LaTeX generation (phase2) failed [$system_rc], aborting summary creation.\n");
+    print("error log:\n");
+    system("tail latex.output2");
+    exit(1);
+}
 
 # get back out of tmp dir and grab results
 chdir $orig_dir;
