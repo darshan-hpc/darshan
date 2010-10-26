@@ -13,6 +13,7 @@ use Cwd;
 use Getopt::Long;
 use English;
 use Number::Bytes::Human qw(format_bytes);
+use POSIX qw(strftime);
 
 my $gnuplot = "";
 
@@ -82,7 +83,7 @@ my %file_record_hash = ();
 my %fs_data = ();
 
 while ($line = <TRACE>) {
-    chop($line);
+    chomp($line);
     
     if ($line =~ /^\s*$/) {
         # ignore blank lines
@@ -264,6 +265,24 @@ while ($line = <TRACE>) {
             }
         }
     }
+}
+
+#
+# Exit out if there are no actual file accesses
+#
+if ($first_data_line)
+{
+    $strtm = strftime("%a %b %e %H:%M:%S %Y", localtime($starttime));
+
+    print "This darshan log has no file records. No summary was produced.\n";
+    print "    jobid:$jobid\n";
+    print "      uid:$uid\n";
+    print "starttime: $strtm ($starttime )\n";
+    print "  runtime:$runtime (seconds)\n";
+    print "   nprocs:$nprocs\n";
+    print "  version: $version\n";
+    close(TRACE);
+    exit(1);
 }
 
 # process last file record
