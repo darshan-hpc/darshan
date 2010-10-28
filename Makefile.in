@@ -101,6 +101,15 @@ install:: all
 	install -m 755 darshan-gen-cc.pl $(bindir)
 	install -m 755 darshan-gen-cxx.pl $(bindir)
 	install -m 755 darshan-gen-fortran.pl $(bindir)
+	install -m 755 util/bin/darshan-job-summary.pl $(bindir)
+	install -d $(libdir)/TeX
+	install -m 644 util/lib/TeX/Encode.pm $(libdir)/TeX/
+	install -d $(libdir)/Number
+	install -d $(libdir)/Number/Bytes
+	install -m 644 util/lib/Number/Bytes/Human.pm $(libdir)/Number/Bytes
+	install -d $(datarootdir)
+	install -m 644 util/share/* $(datarootdir)
+
 
 clean::
 	rm -f *.o *.a lib/*.o lib/*.a darshan-parser darshan-diff darshan-analyzer darshan-log-params

@@ -5,9 +5,9 @@
 #
 
 # Set via configure
-my $PREFIX="@@PREFIX@@";
+my $PREFIX="@prefix@";
 
-use lib "@@PREFIX@@/lib";
+use lib "@prefix@/lib";
 use TeX::Encode;
 use Encode;
 use File::Temp qw/ tempdir /;
