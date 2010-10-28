@@ -4,8 +4,10 @@
 #      See COPYRIGHT in top-level directory.
 #
 
-use FindBin;
-use lib "$FindBin::Bin/../lib/";
+# Set via configure
+my $PREFIX="@@PREFIX@@";
+
+use lib "@@PREFIX@@/lib";
 use TeX::Encode;
 use Encode;
 use File::Temp qw/ tempdir /;
@@ -15,8 +17,15 @@ use English;
 use Number::Bytes::Human qw(format_bytes);
 use POSIX qw(strftime);
 
-my $gnuplot = "";
-
+#
+# system commands used
+#
+my $darshan_parser = "$PREFIX/bin/darshan-parser";
+my $pdflatex       = "pdflatex";
+my $gnuplot        = "$PREFIX/bin/gnuplot";
+my $epstopdf       = "epstopdf";
+my $cp             = "cp";
+my $mv             = "mv";
 
 my $orig_dir = getcwd;
 my $output_file = "summary.pdf";
@@ -33,22 +42,14 @@ my $total_job_bytes = 0;
 
 process_args();
 
+check_prereqs();
+
 my $tmp_dir = tempdir( CLEANUP => !$verbose_flag );
 if ($verbose_flag)
 {
     print "verbose: $tmp_dir\n";
 }
 
-# find a darshan-parser executable somewhere
-my $darshan_parser = "";
-if(-x "$FindBin::Bin/../bin/darshan-parser")
-{
-    $darshan_parser = "$FindBin::Bin/../bin/darshan-parser";
-}
-else
-{
-    $darshan_parser = "darshan-parser";
-}
 
 open(TRACE, "$darshan_parser $input_file |") || die("Can't execute \"$darshan_parser $input_file\": $!\n");
 
@@ -748,8 +749,8 @@ print TIME ", ", (($summary{CP_F_MPI_META_TIME}/($runtime * $nprocs))*100), "\n"
 close TIME;
 
 # copy template files to tmp tmp_dir
-system "cp $FindBin::Bin/../share/*.gplt $tmp_dir/";
-system "cp $FindBin::Bin/../share/*.tex $tmp_dir/";
+system "$cp $PREFIX/share/*.gplt $tmp_dir/";
+system "$cp $PREFIX/share/*.tex $tmp_dir/";
 
 # generate template for file access plot (we have to set range)
 my $ymax = $nprocs + 1;
@@ -957,40 +958,31 @@ print("Total bytes read and written by app (may be incorrect): $total_job_bytes\
 my $tmp_total_time = $slowest_uniq_time+$shared_file_time;
 print("Total absolute I/O time: $tmp_total_time\n");
 
-if(-x "$FindBin::Bin/gnuplot")
-{
-    $gnuplot = "$FindBin::Bin/gnuplot";
-}
-else
-{
-    $gnuplot = "gnuplot";
-}
-
 # move to tmp_dir
 chdir $tmp_dir;
 
 # execute gnuplot scripts
 system "$gnuplot counts-eps.gplt";
-system "epstopdf counts.eps";
+system "$epstopdf counts.eps";
 system "$gnuplot hist-eps.gplt";
-system "epstopdf hist.eps";
+system "$epstopdf hist.eps";
 system "$gnuplot pattern-eps.gplt";
-system "epstopdf pattern.eps";
+system "$epstopdf pattern.eps";
 system "$gnuplot time-summary-eps.gplt";
-system "epstopdf time-summary.eps";
+system "$epstopdf time-summary.eps";
 system "$gnuplot file-access-read-eps.gplt";
-system "epstopdf file-access-read.eps";
+system "$epstopdf file-access-read.eps";
 system "$gnuplot file-access-write-eps.gplt";
-system "epstopdf file-access-write.eps";
+system "$epstopdf file-access-write.eps";
 system "$gnuplot file-access-shared-eps.gplt";
-system "epstopdf file-access-shared.eps";
+system "$epstopdf file-access-shared.eps";
 
 #system "gnuplot align-pdf.gplt";
 #system "gnuplot iodist-pdf.gplt";
 #system "gnuplot types-pdf.gplt";
 
 # generate summary PDF
-$system_rc = system "pdflatex -halt-on-error summary.tex > latex.output";
+$system_rc = system "$pdflatex -halt-on-error summary.tex > latex.output";
 if($system_rc)
 {
     print("LaTeX generation (phase1) failed [$system_rc], aborting summary creation.\n");
@@ -998,7 +990,7 @@ if($system_rc)
     system("tail latex.output");
     exit(1);
 }
-$system_rc = system "pdflatex -halt-on-error summary.tex > latex.output2";
+$system_rc = system "$pdflatex -halt-on-error summary.tex > latex.output2";
 if($system_rc)
 {
     print("LaTeX generation (phase2) failed [$system_rc], aborting summary creation.\n");
@@ -1009,7 +1001,7 @@ if($system_rc)
 
 # get back out of tmp dir and grab results
 chdir $orig_dir;
-system "mv $tmp_dir/summary.pdf $output_file";
+system "$mv $tmp_dir/summary.pdf $output_file";
 
 
 sub process_file_record
@@ -1316,6 +1308,62 @@ sub process_args
     $input_file = $ARGV[0];
 
     return;
+}
+
+#
+# Check for all support programs needed to generate the summary.
+#
+sub check_prereqs
+{
+    my $rc;
+    my @bins = ($darshan_parser, $pdflatex, $epstopdf,
+                $gnuplot, $cp, $mv);
+    foreach my $bin (@bins)
+    {
+        $rc = checkbin($bin);
+        if ($rc)
+        {
+            print("error: $bin not found in PATH\n");
+            exit(1);
+        }
+    }
+
+    return;
+}
+
+#
+# Execute which to see if the binary can be found in
+# the users path.
+#
+sub checkbin($)
+{
+    my $binname = shift;
+    my $rc;
+
+    # save stdout/err
+    open(SAVEOUT, ">&STDOUT");
+    open(SAVEERR, ">&STDERR");
+
+    # redirect stdout/error
+    open(STDERR, '>/dev/null');
+    open(STDOUT, '>/dev/null');
+    $rc = system("which $binname");
+    if ($rc)
+    {
+        $rc = 1;
+    }
+    close(STDOUT);
+    close(STDERR);
+
+    # suppress perl warning
+    select(SAVEERR);
+    select(SAVEOUT);
+
+    # restore stdout/err
+    open(STDOUT, ">&SAVEOUT");
+    open(STDERR, ">&SAVEERR");
+
+    return $rc;
 }
 
 sub print_help
