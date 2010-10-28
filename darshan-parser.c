@@ -392,7 +392,7 @@ int main(int argc, char **argv)
         for(i=0; i<CP_NUM_INDICES; i++)
         {
             printf("total_%s: %lld\n",
-                   darshan_names[i], total.counters[i]);
+                   darshan_names[i], lld(total.counters[i]));
         }
         for(i=0; i<CP_F_NUM_INDICES; i++)
         {
