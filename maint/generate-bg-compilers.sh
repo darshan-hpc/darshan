@@ -3,8 +3,7 @@
 # Generates compiler scripts for all BG compilers
 #
 
-PREFIX=/home/harms/darshan/test
-#PREFIX=/soft/apps/darshan-2.0.0
+PREFIX=/soft/apps/darshan-x.x.x
 BGPATH=/bgsys/drivers/ppcfloor/comm/xxx/bin
 
 for compiler_type in default fast xl;
