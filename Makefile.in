@@ -115,7 +115,8 @@ clean::
 	rm -f *.o *.a lib/*.o lib/*.a darshan-parser darshan-diff darshan-analyzer darshan-log-params
 
 distclean:: clean
-	rm -f darshan-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl aclocal.m4 autom4te.cache/* config.status config.log Makefile
+	rm -f darshan-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl aclocal.m4 autom4te.cache/* config.status config.log Makefile util/bin/darshan-job-summary.pl
 	rm -f compilers/*-V1R4 compilers/fast/*-V1R4 compilers/*-pcarns
 	rm -rf uthash-1.9.2
-	rmdir autom4te.cache
+	rm -rf autom4te.cache
+	rm -rf mklibdir
