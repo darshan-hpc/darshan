@@ -237,6 +237,8 @@ void darshan_shutdown(int timing_flag)
     int i, j;
     int map_index = 0;
     time_t start_time_tmp = 0;
+    uint64_t logmod;
+    char hname[HOST_NAME_MAX];
 
     CP_LOCK();
     if(!darshan_global_job)
@@ -387,14 +389,19 @@ void darshan_shutdown(int timing_flag)
         /* note: getpwuid() causes link errors for static binaries */
         cuserid(cuser);
 
+        /* generate a random number to help differentiate the log */
+        (void) gethostname(hname, sizeof(hname));
+        logmod = darshan_hash((void*)hname,strlen(hname),0);
+
         ret = snprintf(logfile_name, PATH_MAX, 
-            "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d.darshan_partial",
+            "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%llu.darshan_partial",
             __CP_LOG_PATH, (my_tm->tm_year+1900), 
             (my_tm->tm_mon+1), my_tm->tm_mday, 
             cuser, __progname, jobid,
             (my_tm->tm_mon+1), 
             my_tm->tm_mday, 
-            (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec));
+            (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
+            llu(logmod));
         if(ret == (PATH_MAX-1))
         {
             /* file name was too big; squish it down */
