@@ -31,14 +31,14 @@ ifneq ($(darshan_lib_path),$(libdir))
 	@exit 1
 endif
 
-mklibdir::
+lib::
 	@mkdir -p $@
 
 mktestdir::
 	mkdir -p test
 
 uthash-1.9.2:
-	tar xjvf extern/uthash-1.9.2.tar.bz2
+	tar xjvf $(srcdir)/extern/uthash-1.9.2.tar.bz2
 
 darshan-parser: darshan-parser.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o | uthash-1.9.2
 	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
@@ -62,16 +62,16 @@ test/gztest: test/gztest.c mktestdir
 test/gz-bench: test/gz-bench.c mktestdir
 	gcc $(CFLAGS) -lz $< -o $@
 
-lib/darshan-mpi-io.o: lib/darshan-mpi-io.c darshan.h darshan-log-format.h | mklibdir
+lib/darshan-mpi-io.o: lib/darshan-mpi-io.c darshan.h darshan-log-format.h | lib
 	$(CC) $(cp_zlib_include_flags) $(CFLAGS_MPI) -c $< -o $@
 
-lib/darshan-pnetcdf.o: lib/darshan-pnetcdf.c darshan.h darshan-log-format.h | mklibdir 
+lib/darshan-pnetcdf.o: lib/darshan-pnetcdf.c darshan.h darshan-log-format.h | lib 
 	$(CC) $(cp_zlib_include_flags) $(CFLAGS_MPI) -c $< -o $@
 
-lib/darshan-hdf5.o: lib/darshan-hdf5.c darshan.h darshan-log-format.h | mklibdir
+lib/darshan-hdf5.o: lib/darshan-hdf5.c darshan.h darshan-log-format.h | lib
 	$(CC) $(cp_zlib_include_flags) $(CFLAGS_MPI) -c $< -o $@
 
-lib/darshan-posix.o: lib/darshan-posix.c darshan.h darshan-log-format.h | mklibdir
+lib/darshan-posix.o: lib/darshan-posix.c darshan.h darshan-log-format.h | lib
 	$(CC) $(cp_zlib_include_flags) $(CFLAGS_MPI) -c $< -o $@
 
 lib/lookup3.o: lib/lookup3.c
@@ -103,12 +103,12 @@ install:: all
 	install -m 755 darshan-gen-fortran.pl $(bindir)
 	install -m 755 util/bin/darshan-job-summary.pl $(bindir)
 	install -d $(libdir)/TeX
-	install -m 644 util/lib/TeX/Encode.pm $(libdir)/TeX/
+	install -m 644 $(srcdir)/util/lib/TeX/Encode.pm $(libdir)/TeX/
 	install -d $(libdir)/Number
 	install -d $(libdir)/Number/Bytes
-	install -m 644 util/lib/Number/Bytes/Human.pm $(libdir)/Number/Bytes
+	install -m 644 $(srcdir)/util/lib/Number/Bytes/Human.pm $(libdir)/Number/Bytes
 	install -d $(datarootdir)
-	install -m 644 util/share/* $(datarootdir)
+	install -m 644 $(srcdir)/util/share/* $(datarootdir)
 
 
 clean::
@@ -119,4 +119,3 @@ distclean:: clean
 	rm -f compilers/*-V1R4 compilers/fast/*-V1R4 compilers/*-pcarns
 	rm -rf uthash-1.9.2
 	rm -rf autom4te.cache
-	rm -rf mklibdir
