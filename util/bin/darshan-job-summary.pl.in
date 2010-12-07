@@ -22,10 +22,19 @@ use POSIX qw(strftime);
 #
 my $darshan_parser = "$PREFIX/bin/darshan-parser";
 my $pdflatex       = "pdflatex";
-my $gnuplot        = "$PREFIX/bin/gnuplot";
 my $epstopdf       = "epstopdf";
 my $cp             = "cp";
 my $mv             = "mv";
+my $gnuplot;
+# Prefer gnuplot installed with darshan, if present.
+if(-x "$PREFIX/bin/gnuplot")
+{
+    $gnuplot       = "$PREFIX/bin/gnuplot";
+}
+else
+{
+    $gnuplot       = "gnuplot";
+}
 
 my $orig_dir = getcwd;
 my $output_file = "summary.pdf";
