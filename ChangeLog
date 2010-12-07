@@ -2,6 +2,19 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.0.2
+=============
+* added a random identifier to job logs (to avoid collisions from multiple
+  application instances within a single scheduler job)
+* improved installation and library path management for darshan-job-summary.pl
+* improved error handling in darshan-job-summary.pl
+* additional derived statistics categories for darshan-parser output:
+    --all   : all sub-options are enabled
+    --base  : darshan log field data [default]
+    --file  : total file counts
+    --perf  : derived perf data
+    --total : aggregated darshan field data
+
 darshan-2.0.1
 =============
 * bug fix to variance/minimum calculations on shared files
