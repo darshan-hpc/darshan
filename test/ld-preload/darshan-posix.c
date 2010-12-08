@@ -3,6 +3,9 @@
  *      See COPYRIGHT in top-level directory.
  */
 
+/* TODO: is this the right thing to do to get ahold of RTLD_NEXT? */
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -18,15 +21,37 @@
 #include <sys/mman.h>
 #include <search.h>
 #include <assert.h>
+#include <dlfcn.h>
 
+/* TODO: need a mechanism to disable all of these wrappers (or make them
+ * pass through directly to underlying fn) if MPI is not initialized
+ */
 
+#ifdef DARSHAN_PRELOAD
+int (*__real_open)(const char* path, int flags, ...) = NULL;
+int (*__real_open64)(const char* path, int flags, ...) = NULL;
+#else
 extern int __real_open(const char *path, int flags, ...);
 extern int __real_open64(const char *path, int flags, ...);
+#endif
 
+#ifdef DARSHAN_PRELOAD
+int open64(const char* path, int flags, ...)
+#else
 int __wrap_open64(const char* path, int flags, ...)
+#endif
 {
     int mode = 0;
     int ret;
+
+#ifdef DARSHAN_PRELOAD
+    /* TODO: maybe put this in a constructor or something so that we can do
+     * them all at once somewhere?
+     */
+    if(!__real_open64)
+        __real_open64 = dlsym(RTLD_NEXT, "open64");
+    assert(__real_open64);
+#endif
 
     printf("Hello world, I hijacked open64()!\n");
 
@@ -47,10 +72,23 @@ int __wrap_open64(const char* path, int flags, ...)
     return(ret);
 }
 
-int __wrap_open(const char *path, int flags, ...)
+#ifdef DARSHAN_PRELOAD
+int open(const char* path, int flags, ...)
+#else
+int __wrap_open(const char* path, int flags, ...)
+#endif
 {
     int mode = 0;
     int ret;
+
+#ifdef DARSHAN_PRELOAD
+    /* TODO: maybe put this in a constructor or something so that we can do
+     * them all at once somewhere?
+     */
+    if(!__real_open)
+        __real_open = dlsym(RTLD_NEXT, "open");
+    assert(__real_open);
+#endif
 
     printf("Hello world, I hijacked open()!\n");
 
