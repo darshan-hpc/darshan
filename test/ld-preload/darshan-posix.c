@@ -24,7 +24,9 @@
 #include <dlfcn.h>
 
 /* TODO: need a mechanism to disable all of these wrappers (or make them
- * pass through directly to underlying fn) if MPI is not initialized
+ * pass through directly to underlying fn) if MPI is not initialized.  This
+ * _might_ be handled already by the safety checks in darshan_file_by_fd() and
+ * friends.  If we rely on that then we need some more serious testing.
  */
 
 #ifdef DARSHAN_PRELOAD
