@@ -1,4 +1,4 @@
-all: libdarshan-posix.a libdarshan-mpi-io.a libdarshan-posix.so libdarshan-mpi-io.so
+all: libdarshan-posix.a libdarshan-mpi-io.a libdarshan-preload.so
 
 MPICC=mpicc
 
@@ -17,11 +17,8 @@ libdarshan-mpi-io.a: darshan-mpi-io.o
 libdarshan-posix.a: darshan-posix.o 
 	ar rcs $@ $^
 
-libdarshan-mpi-io.so: darshan-mpi-io.o 
-	$(MPICC) $(CFLAGS) -fpic -DPIC -shared -o $@ $^
-
-libdarshan-posix.so: darshan-posix-preload.o 
-	$(CC) $(CFLAGS) -fpic -DPIC -shared -ldl -o $@ $^
+libdarshan-preload.so: darshan-mpi-io.o darshan-posix-preload.o
+	$(MPICC) $(CFLAGS) -fpic -DPIC -shared -ldl -o $@ $^
 
 clean::
 	rm -f *.o *.a *.so 
