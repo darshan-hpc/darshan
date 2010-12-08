@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# notes:
+# - install darshan to /home/carns/working/darshan/install
+# - edit maint/generate-bg-compilers.sh to use that path
+# - run generate-bg-compilers.sh
+# - rm -rf out
+# - run this script
+
 compile_examples() {
     if [ -z $1 ]
     then
