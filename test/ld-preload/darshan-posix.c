@@ -45,20 +45,15 @@ void __attribute__ ((constructor)) darshan_ldpreload_init(void)
     /* TODO: helpful error message */
     assert(__real_open);
 }
-
+#define DARSHAN_DECL(__name) __name
 #else
-
 extern int __real_open(const char *path, int flags, ...);
 extern int __real_open64(const char *path, int flags, ...);
-
+#define DARSHAN_DECL(__name) __wrap ## __name
 #endif
 
 
-#ifdef DARSHAN_PRELOAD
-int open64(const char* path, int flags, ...)
-#else
-int __wrap_open64(const char* path, int flags, ...)
-#endif
+DARSHAN_DECL(open64)(const char* path, int flags, ...)
 {
     int mode = 0;
     int ret;
@@ -82,11 +77,7 @@ int __wrap_open64(const char* path, int flags, ...)
     return(ret);
 }
 
-#ifdef DARSHAN_PRELOAD
-int open(const char* path, int flags, ...)
-#else
-int __wrap_open(const char* path, int flags, ...)
-#endif
+DARSHAN_DECL(open)(const char* path, int flags, ...)
 {
     int mode = 0;
     int ret;
