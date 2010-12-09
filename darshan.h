@@ -12,6 +12,14 @@
 #include <mpi.h>
 #include "darshan-log-format.h"
 
+/* Environment variable to override CP_JOBID */
+#define CP_JOBID_OVERRIDE "DARSHAN_JOBID"
+
+/* Environment variable to override __CP_LOG_PATH */
+#define CP_LOG_PATH_OVERRIDE "DARSHAN_LOGPATH"
+
+/* Environment variable to override __CP_MEM_ALIGNMENT */
+#define CP_MEM_ALIGNMENT_OVERRIDE "DARSHAN_MEMALIGN"
 
 /* maximum number of files per process we will track */
 #define CP_MAX_FILES 1024

@@ -225,6 +225,8 @@ void darshan_shutdown(int timing_flag)
     int local_ret = 0;
     MPI_Offset next_offset = 0;
     char* jobid_str;
+    char* envjobid;
+    char* logpath;
     int jobid;
     int index_count = 0;
     int lengths[CP_MAX_MEM_SEGMENTS];
@@ -369,8 +371,22 @@ void darshan_shutdown(int timing_flag)
         char cuser[L_cuserid] = {0};
         struct tm* my_tm;
 
+        /* Use CP_JOBID_OVERRIDE for the env var or CP_JOBID */
+        envjobid = getenv(CP_JOBID_OVERRIDE);
+        if (!envjobid)
+        {
+            envjobid = CP_JOBID;
+        }
+
+        /* Use CP_LOG_PATH_OVERRIDE for the value or __CP_LOG_PATH */
+        logpath = getenv(CP_LOG_PATH_OVERRIDE);
+        if (!logpath)
+        {
+            logpath = __CP_LOG_PATH;
+        }
+
         /* find a job id */
-        jobid_str = getenv(CP_JOBID);
+        jobid_str = getenv(envjobid);
         if(jobid_str)
         {
             /* in cobalt we can find it in env var */
@@ -395,7 +411,7 @@ void darshan_shutdown(int timing_flag)
 
         ret = snprintf(logfile_name, PATH_MAX, 
             "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%llu.darshan_partial",
-            __CP_LOG_PATH, (my_tm->tm_year+1900), 
+            logpath, (my_tm->tm_year+1900), 
             (my_tm->tm_mon+1), my_tm->tm_mday, 
             cuser, __progname, jobid,
             (my_tm->tm_mon+1), 
@@ -407,7 +423,7 @@ void darshan_shutdown(int timing_flag)
             /* file name was too big; squish it down */
             snprintf(logfile_name, PATH_MAX,
                 "%s/id%d.darshan_partial",
-                __CP_LOG_PATH, jobid);
+                logpath, jobid);
         }
 
         /* add jobid */

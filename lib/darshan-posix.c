@@ -67,6 +67,7 @@ pthread_mutex_t cp_mutex = PTHREAD_MUTEX_INITIALIZER;
 struct darshan_job_runtime* darshan_global_job = NULL;
 static int my_rank = -1;
 static struct stat64 cp_stat_buf;
+static int darshan_mem_alignment;
 
 /* these are paths that we will not trace */
 static char* exclusions[] = {
@@ -709,7 +710,7 @@ ssize_t __wrap_pread64(int fd, void *buf, size_t count, off64_t offset)
     int aligned_flag = 0;
     double tm1, tm2;
 
-    if((unsigned long)buf % __CP_MEM_ALIGNMENT == 0)
+    if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
     tm1 = darshan_wtime();
@@ -727,7 +728,7 @@ ssize_t __wrap_pread(int fd, void *buf, size_t count, off_t offset)
     int aligned_flag = 0;
     double tm1, tm2;
 
-    if((unsigned long)buf % __CP_MEM_ALIGNMENT == 0)
+    if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
     tm1 = darshan_wtime();
@@ -746,7 +747,7 @@ ssize_t __wrap_pwrite(int fd, const void *buf, size_t count, off_t offset)
     int aligned_flag = 0;
     double tm1, tm2;
 
-    if((unsigned long)buf % __CP_MEM_ALIGNMENT == 0)
+    if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
     tm1 = darshan_wtime();
@@ -764,7 +765,7 @@ ssize_t __wrap_pwrite64(int fd, const void *buf, size_t count, off64_t offset)
     int aligned_flag = 0;
     double tm1, tm2;
 
-    if((unsigned long)buf % __CP_MEM_ALIGNMENT == 0)
+    if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
     tm1 = darshan_wtime();
@@ -785,7 +786,7 @@ ssize_t __wrap_readv(int fd, const struct iovec *iov, int iovcnt)
 
     for(i=0; i<iovcnt; i++)
     {
-        if(((unsigned long)iov[i].iov_base % __CP_MEM_ALIGNMENT) != 0)
+        if(((unsigned long)iov[i].iov_base % darshan_mem_alignment) != 0)
             aligned_flag = 0;
     }
 
@@ -807,7 +808,7 @@ ssize_t __wrap_writev(int fd, const struct iovec *iov, int iovcnt)
 
     for(i=0; i<iovcnt; i++)
     {
-        if(!((unsigned long)iov[i].iov_base % __CP_MEM_ALIGNMENT == 0))
+        if(!((unsigned long)iov[i].iov_base % darshan_mem_alignment == 0))
             aligned_flag = 0;
     }
 
@@ -826,7 +827,7 @@ size_t __wrap_fread(void *ptr, size_t size, size_t nmemb, FILE *stream)
     int aligned_flag = 0;
     double tm1, tm2;
 
-    if((unsigned long)ptr % __CP_MEM_ALIGNMENT == 0)
+    if((unsigned long)ptr % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
     tm1 = darshan_wtime();
@@ -847,7 +848,7 @@ ssize_t __wrap_read(int fd, void *buf, size_t count)
     int aligned_flag = 0;
     double tm1, tm2;
 
-    if((unsigned long)buf % __CP_MEM_ALIGNMENT == 0)
+    if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
     tm1 = darshan_wtime();
@@ -865,7 +866,7 @@ ssize_t __wrap_write(int fd, const void *buf, size_t count)
     int aligned_flag = 0;
     double tm1, tm2;
 
-    if((unsigned long)buf % __CP_MEM_ALIGNMENT == 0)
+    if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
     tm1 = darshan_wtime();
@@ -883,7 +884,7 @@ size_t __wrap_fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
     int aligned_flag = 0;
     double tm1, tm2;
 
-    if((unsigned long)ptr % __CP_MEM_ALIGNMENT == 0)
+    if((unsigned long)ptr % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
     tm1 = darshan_wtime();
@@ -985,6 +986,7 @@ void darshan_initialize(int argc, char** argv,  int nprocs, int rank)
     int i;
     char* disable;
     char* disable_timing;
+    char* envstr;
     char* truncate_string = "<TRUNCATED>";
     int truncate_offset;
     int chars_left = 0;
@@ -1001,6 +1003,16 @@ void darshan_initialize(int argc, char** argv,  int nprocs, int rank)
     if(darshan_global_job != NULL)
     {
         return;
+    }
+
+    envstr = getenv("DARSHAN_MEMALIGN");
+    if (envstr)
+    {
+        sscanf(envstr, "%d", &darshan_mem_alignment);
+    }
+    else
+    {
+        darshan_mem_alignment = __CP_MEM_ALIGNMENT;
     }
 
     /* allocate structure to track darshan_global_job information */
@@ -1212,7 +1224,7 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
     /* new, unique file */
     tmp_file = &darshan_global_job->file_runtime_array[darshan_global_job->file_count];
 
-    CP_SET(tmp_file, CP_MEM_ALIGNMENT, __CP_MEM_ALIGNMENT);
+    CP_SET(tmp_file, CP_MEM_ALIGNMENT, darshan_mem_alignment);
     tmp_file->log_file->hash = tmp_hash;
 
     /* record last N characters of file name too */
