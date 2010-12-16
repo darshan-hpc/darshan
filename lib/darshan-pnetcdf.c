@@ -10,15 +10,50 @@
 #include "darshan.h"
 #include "darshan-config.h"
 
-extern int __real_ncmpi_create(MPI_Comm comm, const char *path, 
-    int cmode, MPI_Info info, int *ncidp);
-extern int __real_ncmpi_open(MPI_Comm comm, const char *path, 
-    int omode, MPI_Info info, int *ncidp);
-extern int __real_ncmpi_close(int ncid);
+#ifdef DARSHAN_PRELOAD
+        
+#define DARSHAN_FORWARD_DECL(name,ret,args) \
+  ret (*__real_ ## name)args = NULL;
+         
+#define DARSHAN_DECL(__name) __name
+
+#else   
+    
+#define DARSHAN_FORWARD_DECL(name,ret,args) \
+  extern ret __real_ ## name args;
+
+#define DARSHAN_DECL(__name) __wrap_ ## __name
+
+#endif
+
+DARSHAN_FORWARD_DECL(ncmpi_create, int, (MPI_Comm comm, const char *path, int cmode, MPI_Info info, int *ncidp));
+DARSHAN_FORWARD_DECL(ncmpi_open, int, (MPI_Comm comm, const char *path, int omode, MPI_Info info, int *ncidp));
+DARSHAN_FORWARD_DECL(ncmpi_close, int, (int ncid));
+
+#ifdef DARSHAN_PRELOAD
+#define __USE_GNU
+#include <dlfcn.h>
+#include <stdlib.h>
+static void __attribute__ ((constructor)) darshan_ldpreload_init(void)
+{       
+#define MAP_OR_FAIL(func) \
+    __real_ ## func = dlsym(RTLD_NEXT, #func); \
+    if(!(__real_ ## func)) { \
+        fprintf(stderr, "Darshan failed to map symbol: %s\n", #func); \
+        exit(1); \
+    }       
+            
+    MAP_OR_FAIL(ncmpi_create);
+    MAP_OR_FAIL(ncmpi_open);
+    MAP_OR_FAIL(ncmpi_close); 
+            
+    return;     
+}           
+#endif
 
 static struct darshan_file_runtime* darshan_file_by_ncid(int ncid);
 
-int __wrap_ncmpi_create(MPI_Comm comm, const char *path, 
+int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path, 
     int cmode, MPI_Info info, int *ncidp)
 {
     int ret;
@@ -70,7 +105,7 @@ int __wrap_ncmpi_create(MPI_Comm comm, const char *path,
     return(ret);
 }
 
-int __wrap_ncmpi_open(MPI_Comm comm, const char *path, 
+int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path, 
     int omode, MPI_Info info, int *ncidp)
 {
     int ret;
@@ -123,7 +158,7 @@ int __wrap_ncmpi_open(MPI_Comm comm, const char *path,
 
 }
 
-int __wrap_ncmpi_close(int ncid)
+int DARSHAN_DECL(ncmpi_close)(int ncid)
 {
     struct darshan_file_runtime* file;
     int hash_index;

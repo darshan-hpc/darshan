@@ -14,15 +14,50 @@
 typedef int hid_t; 
 typedef int herr_t;
 
-extern hid_t __real_H5Fcreate(const char *filename, unsigned flags,
-    hid_t create_plist, hid_t access_plist);
-extern hid_t __real_H5Fopen(const char *filename, unsigned flags,
-    hid_t access_plist);
-extern herr_t __real_H5Fclose(hid_t file_id);
+#ifdef DARSHAN_PRELOAD
+
+#define DARSHAN_FORWARD_DECL(name,ret,args) \
+  ret (*__real_ ## name)args = NULL;
+
+#define DARSHAN_DECL(__name) __name
+
+#else
+
+#define DARSHAN_FORWARD_DECL(name,ret,args) \
+  extern ret __real_ ## name args;
+
+#define DARSHAN_DECL(__name) __wrap_ ## __name
+
+#endif
+
+DARSHAN_FORWARD_DECL(H5Fcreate, hid_t, (const char *filename, unsigned flags, hid_t create_plist, hid_t access_plist));
+DARSHAN_FORWARD_DECL(H5Fopen, hid_t, (const char *filename, unsigned flags, hid_t access_plist));
+DARSHAN_FORWARD_DECL(H5Fclose, herr_t, (hid_t file_id));
+
+#ifdef DARSHAN_PRELOAD
+#define __USE_GNU
+#include <dlfcn.h>
+#include <stdlib.h>
+static void __attribute__ ((constructor)) darshan_ldpreload_init(void)
+{
+#define MAP_OR_FAIL(func) \
+    __real_ ## func = dlsym(RTLD_NEXT, #func); \
+    if(!(__real_ ## func)) { \
+        fprintf(stderr, "Darshan failed to map symbol: %s\n", #func); \
+        exit(1); \
+    }
+
+    MAP_OR_FAIL(H5Fcreate);
+    MAP_OR_FAIL(H5Fopen);
+    MAP_OR_FAIL(H5Fclose);
+
+    return;
+}
+#endif
 
 static struct darshan_file_runtime* darshan_file_by_hid(int hid);
 
-hid_t __wrap_H5Fcreate(const char *filename, unsigned flags,
+hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     hid_t create_plist, hid_t access_plist)
 {
     int ret;
@@ -63,7 +98,7 @@ hid_t __wrap_H5Fcreate(const char *filename, unsigned flags,
     return(ret);
 }
 
-hid_t __wrap_H5Fopen(const char *filename, unsigned flags,
+hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     hid_t access_plist)
 {
     int ret;
@@ -106,7 +141,7 @@ hid_t __wrap_H5Fopen(const char *filename, unsigned flags,
 
 }
 
-herr_t __wrap_H5Fclose(hid_t file_id)
+herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 {
     struct darshan_file_runtime* file;
     int hash_index;

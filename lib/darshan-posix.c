@@ -28,40 +28,103 @@ typedef int64_t off64_t;
 
 extern char* __progname_full;
 
-extern int __real_creat(const char* path, mode_t mode);
-extern int __real_creat64(const char* path, mode_t mode);
-extern int __real_open(const char *path, int flags, ...);
-extern int __real_open64(const char *path, int flags, ...);
-extern int __real_close(int fd);
-extern ssize_t __real_write(int fd, const void *buf, size_t count);
-extern ssize_t __real_read(int fd, void *buf, size_t count);
-extern off_t __real_lseek(int fd, off_t offset, int whence);
-extern off64_t __real_lseek64(int fd, off64_t offset, int whence);
-extern ssize_t __real_pread(int fd, void *buf, size_t count, off_t offset);
-extern ssize_t __real_pread64(int fd, void *buf, size_t count, off64_t offset);
-extern ssize_t __real_pwrite(int fd, const void *buf, size_t count, off_t offset);
-extern ssize_t __real_pwrite64(int fd, const void *buf, size_t count, off64_t offset);
-extern ssize_t __real_readv(int fd, const struct iovec *iov, int iovcnt);
-extern ssize_t __real_writev(int fd, const struct iovec *iov, int iovcnt);
-extern int __real___fxstat(int vers, int fd, struct stat *buf);
-extern int __real___lxstat(int vers, const char* path, struct stat *buf);
-extern int __real___xstat(int vers, const char* path, struct stat *buf);
-extern int __real___fxstat64(int vers, int fd, struct stat64 *buf);
-extern int __real___lxstat64(int vers, const char* path, struct stat64 *buf);
-extern int __real___xstat64(int vers, const char* path, struct stat64 *buf);
-extern void* __real_mmap(void *addr, size_t length, int prot, int flags,
-    int fd, off_t offset);
-extern void* __real_mmap64(void *addr, size_t length, int prot, int flags,
-    int fd, off64_t offset);
-extern FILE* __real_fopen(const char *path, const char *mode);
-extern FILE* __real_fopen64(const char *path, const char *mode);
-extern int __real_fclose(FILE *fp);
-extern size_t __real_fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
-extern size_t __real_fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
-extern int __real_fseek(FILE *stream, long offset, int whence);
-extern int __real_fsync(int fd);
-extern int __real_fdatasync(int fd);
+#ifdef DARSHAN_PRELOAD
 
+#define DARSHAN_FORWARD_DECL(name,ret,args) \
+  ret (*__real_ ## name)args = NULL;
+
+#define DARSHAN_DECL(__name) __name
+
+#else
+
+#define DARSHAN_FORWARD_DECL(name,ret,args) \
+  extern ret __real_ ## name args;
+
+#define DARSHAN_DECL(__name) __wrap_ ## __name
+
+#endif
+
+DARSHAN_FORWARD_DECL(creat, int, (const char* path, mode_t mode));
+DARSHAN_FORWARD_DECL(creat64, int, (const char* path, mode_t mode));
+DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
+DARSHAN_FORWARD_DECL(open64, int, (const char *path, int flags, ...));
+DARSHAN_FORWARD_DECL(close, int, (int fd));
+DARSHAN_FORWARD_DECL(write, ssize_t, (int fd, const void *buf, size_t count));
+DARSHAN_FORWARD_DECL(read, ssize_t, (int fd, void *buf, size_t count));
+DARSHAN_FORWARD_DECL(lseek, off_t, (int fd, off_t offset, int whence));
+DARSHAN_FORWARD_DECL(lseek64, off64_t, (int fd, off64_t offset, int whence));
+DARSHAN_FORWARD_DECL(pread, ssize_t, (int fd, void *buf, size_t count, off_t offset));
+DARSHAN_FORWARD_DECL(pread64, ssize_t, (int fd, void *buf, size_t count, off64_t offset));
+DARSHAN_FORWARD_DECL(pwrite, ssize_t, (int fd, const void *buf, size_t count, off_t offset));
+DARSHAN_FORWARD_DECL(pwrite64, ssize_t, (int fd, const void *buf, size_t count, off64_t offset
+));
+DARSHAN_FORWARD_DECL(readv, ssize_t, (int fd, const struct iovec *iov, int iovcnt));
+DARSHAN_FORWARD_DECL(writev, ssize_t, (int fd, const struct iovec *iov, int iovcnt));
+DARSHAN_FORWARD_DECL(__fxstat, int, (int vers, int fd, struct stat *buf));
+DARSHAN_FORWARD_DECL(__fxstat64, int, (int vers, int fd, struct stat64 *buf));
+DARSHAN_FORWARD_DECL(__lxstat, int, (int vers, const char* path, struct stat *buf));
+DARSHAN_FORWARD_DECL(__lxstat64, int, (int vers, const char* path, struct stat64 *buf));
+DARSHAN_FORWARD_DECL(__xstat, int, (int vers, const char* path, struct stat *buf));
+DARSHAN_FORWARD_DECL(__xstat64, int, (int vers, const char* path, struct stat64 *buf));
+DARSHAN_FORWARD_DECL(mmap, void*, (void *addr, size_t length, int prot, int flags, int fd, off_t offset));
+DARSHAN_FORWARD_DECL(mmap64, void*, (void *addr, size_t length, int prot, int flags, int fd, off64_t offset));
+DARSHAN_FORWARD_DECL(fopen, FILE*, (const char *path, const char *mode));
+DARSHAN_FORWARD_DECL(fopen64, FILE*, (const char *path, const char *mode));
+DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
+DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
+DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
+DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
+DARSHAN_FORWARD_DECL(fsync, int, (int fd));
+DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
+
+#ifdef DARSHAN_PRELOAD
+#define __USE_GNU
+#include <dlfcn.h>
+#include <stdlib.h>
+static void __attribute__ ((constructor)) darshan_ldpreload_init(void)
+{
+#define MAP_OR_FAIL(func) \
+    __real_ ## func = dlsym(RTLD_NEXT, #func); \
+    if(!(__real_ ## func)) { \
+        fprintf(stderr, "Darshan failed to map symbol: %s\n", #func); \
+        exit(1); \
+    }
+
+    MAP_OR_FAIL(creat);
+    MAP_OR_FAIL(creat64);
+    MAP_OR_FAIL(open);
+    MAP_OR_FAIL(open64);
+    MAP_OR_FAIL(close);
+    MAP_OR_FAIL(write);
+    MAP_OR_FAIL(read);
+    MAP_OR_FAIL(lseek);
+    MAP_OR_FAIL(lseek64);
+    MAP_OR_FAIL(pread);
+    MAP_OR_FAIL(pread64);
+    MAP_OR_FAIL(pwrite);
+    MAP_OR_FAIL(pwrite64);
+    MAP_OR_FAIL(readv);
+    MAP_OR_FAIL(writev);
+    MAP_OR_FAIL(__fxstat);
+    MAP_OR_FAIL(__fxstat64);
+    MAP_OR_FAIL(__lxstat);
+    MAP_OR_FAIL(__lxstat64);
+    MAP_OR_FAIL(__xstat);
+    MAP_OR_FAIL(__xstat64);
+    MAP_OR_FAIL(mmap);
+    MAP_OR_FAIL(mmap64);
+    MAP_OR_FAIL(fopen);
+    MAP_OR_FAIL(fopen64);
+    MAP_OR_FAIL(close);
+    MAP_OR_FAIL(fread);
+    MAP_OR_FAIL(fwrite);
+    MAP_OR_FAIL(fseek);
+    MAP_OR_FAIL(fsync);
+    MAP_OR_FAIL(fdatasync);
+
+    return;
+}
+#endif
 
 pthread_mutex_t cp_mutex = PTHREAD_MUTEX_INITIALIZER;
 struct darshan_job_runtime* darshan_global_job = NULL;
@@ -237,7 +300,7 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     darshan_global_job->fd_table[hash_index] = file; \
 } while (0)
 
-int __wrap_close(int fd)
+int DARSHAN_DECL(close)(int fd)
 {
     struct darshan_file_runtime* file;
     int hash_index;
@@ -282,7 +345,7 @@ int __wrap_close(int fd)
     return(ret);
 }
 
-int __wrap_fclose(FILE *fp)
+int DARSHAN_DECL(fclose)(FILE *fp)
 {
     struct darshan_file_runtime* file;
     int hash_index;
@@ -328,7 +391,7 @@ int __wrap_fclose(FILE *fp)
 }
 
 
-int __wrap_fsync(int fd)
+int DARSHAN_DECL(fsync)(int fd)
 {
     int ret;
     struct darshan_file_runtime* file;
@@ -353,7 +416,7 @@ int __wrap_fsync(int fd)
     return(ret);
 }
 
-int __wrap_fdatasync(int fd)
+int DARSHAN_DECL(fdatasync)(int fd)
 {
     int ret;
     struct darshan_file_runtime* file;
@@ -378,7 +441,7 @@ int __wrap_fdatasync(int fd)
 }
 
 
-void* __wrap_mmap64(void *addr, size_t length, int prot, int flags,
+void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
     int fd, off64_t offset)
 {
     void* ret;
@@ -400,7 +463,7 @@ void* __wrap_mmap64(void *addr, size_t length, int prot, int flags,
 }
 
 
-void* __wrap_mmap(void *addr, size_t length, int prot, int flags,
+void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
     int fd, off_t offset)
 {
     void* ret;
@@ -421,7 +484,7 @@ void* __wrap_mmap(void *addr, size_t length, int prot, int flags,
     return(ret);
 }
 
-int __wrap_creat(const char* path, mode_t mode)
+int DARSHAN_DECL(creat)(const char* path, mode_t mode)
 {
     int ret;
     double tm1, tm2;
@@ -437,7 +500,7 @@ int __wrap_creat(const char* path, mode_t mode)
     return(ret);
 }
 
-int __wrap_creat64(const char* path, mode_t mode)
+int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
 {
     int ret;
     double tm1, tm2;
@@ -453,7 +516,7 @@ int __wrap_creat64(const char* path, mode_t mode)
     return(ret);
 }
 
-int __wrap_open64(const char* path, int flags, ...)
+int DARSHAN_DECL(open64)(const char* path, int flags, ...)
 {
     int mode = 0;
     int ret;
@@ -484,7 +547,7 @@ int __wrap_open64(const char* path, int flags, ...)
     return(ret);
 }
 
-int __wrap_open(const char *path, int flags, ...)
+int DARSHAN_DECL(open)(const char *path, int flags, ...)
 {
     int mode = 0;
     int ret;
@@ -515,7 +578,7 @@ int __wrap_open(const char *path, int flags, ...)
     return(ret);
 }
 
-FILE* __wrap_fopen64(const char *path, const char *mode)
+FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
 {
     FILE* ret;
     int fd;
@@ -536,7 +599,7 @@ FILE* __wrap_fopen64(const char *path, const char *mode)
     return(ret);
 }
 
-FILE* __wrap_fopen(const char *path, const char *mode)
+FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
 {
     FILE* ret;
     int fd;
@@ -557,7 +620,7 @@ FILE* __wrap_fopen(const char *path, const char *mode)
     return(ret);
 }
 
-int __wrap___xstat64(int vers, const char *path, struct stat64 *buf)
+int DARSHAN_DECL(__xstat64)(int vers, const char *path, struct stat64 *buf)
 {
     int ret;
     struct darshan_file_runtime* file;
@@ -580,7 +643,7 @@ int __wrap___xstat64(int vers, const char *path, struct stat64 *buf)
     return(ret);
 }
 
-int __wrap___lxstat64(int vers, const char *path, struct stat64 *buf)
+int DARSHAN_DECL(__lxstat64)(int vers, const char *path, struct stat64 *buf)
 {
     int ret;
     struct darshan_file_runtime* file;
@@ -603,7 +666,7 @@ int __wrap___lxstat64(int vers, const char *path, struct stat64 *buf)
     return(ret);
 }
 
-int __wrap___fxstat64(int vers, int fd, struct stat64 *buf)
+int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
 {
     int ret;
     struct darshan_file_runtime* file;
@@ -631,7 +694,7 @@ int __wrap___fxstat64(int vers, int fd, struct stat64 *buf)
 }
 
 
-int __wrap___xstat(int vers, const char *path, struct stat *buf)
+int DARSHAN_DECL(__xstat)(int vers, const char *path, struct stat *buf)
 {
     int ret;
     struct darshan_file_runtime* file;
@@ -654,7 +717,7 @@ int __wrap___xstat(int vers, const char *path, struct stat *buf)
     return(ret);
 }
 
-int __wrap___lxstat(int vers, const char *path, struct stat *buf)
+int DARSHAN_DECL(__lxstat)(int vers, const char *path, struct stat *buf)
 {
     int ret;
     struct darshan_file_runtime* file;
@@ -677,7 +740,7 @@ int __wrap___lxstat(int vers, const char *path, struct stat *buf)
     return(ret);
 }
 
-int __wrap___fxstat(int vers, int fd, struct stat *buf)
+int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
 {
     int ret;
     struct darshan_file_runtime* file;
@@ -704,7 +767,7 @@ int __wrap___fxstat(int vers, int fd, struct stat *buf)
     return(ret);
 }
 
-ssize_t __wrap_pread64(int fd, void *buf, size_t count, off64_t offset)
+ssize_t DARSHAN_DECL(pread64)(int fd, void *buf, size_t count, off64_t offset)
 {
     ssize_t ret;
     int aligned_flag = 0;
@@ -722,7 +785,7 @@ ssize_t __wrap_pread64(int fd, void *buf, size_t count, off64_t offset)
     return(ret);
 }
 
-ssize_t __wrap_pread(int fd, void *buf, size_t count, off_t offset)
+ssize_t DARSHAN_DECL(pread)(int fd, void *buf, size_t count, off_t offset)
 {
     ssize_t ret;
     int aligned_flag = 0;
@@ -741,7 +804,7 @@ ssize_t __wrap_pread(int fd, void *buf, size_t count, off_t offset)
 }
 
 
-ssize_t __wrap_pwrite(int fd, const void *buf, size_t count, off_t offset)
+ssize_t DARSHAN_DECL(pwrite)(int fd, const void *buf, size_t count, off_t offset)
 {
     ssize_t ret;
     int aligned_flag = 0;
@@ -759,7 +822,7 @@ ssize_t __wrap_pwrite(int fd, const void *buf, size_t count, off_t offset)
     return(ret);
 }
 
-ssize_t __wrap_pwrite64(int fd, const void *buf, size_t count, off64_t offset)
+ssize_t DARSHAN_DECL(pwrite64)(int fd, const void *buf, size_t count, off64_t offset)
 {
     ssize_t ret;
     int aligned_flag = 0;
@@ -777,7 +840,7 @@ ssize_t __wrap_pwrite64(int fd, const void *buf, size_t count, off64_t offset)
     return(ret);
 }
 
-ssize_t __wrap_readv(int fd, const struct iovec *iov, int iovcnt)
+ssize_t DARSHAN_DECL(readv)(int fd, const struct iovec *iov, int iovcnt)
 {
     ssize_t ret;
     int aligned_flag = 1;
@@ -799,7 +862,7 @@ ssize_t __wrap_readv(int fd, const struct iovec *iov, int iovcnt)
     return(ret);
 }
 
-ssize_t __wrap_writev(int fd, const struct iovec *iov, int iovcnt)
+ssize_t DARSHAN_DECL(writev)(int fd, const struct iovec *iov, int iovcnt)
 {
     ssize_t ret;
     int aligned_flag = 1;
@@ -821,7 +884,7 @@ ssize_t __wrap_writev(int fd, const struct iovec *iov, int iovcnt)
     return(ret);
 }
 
-size_t __wrap_fread(void *ptr, size_t size, size_t nmemb, FILE *stream)
+size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
     size_t ret;
     int aligned_flag = 0;
@@ -842,7 +905,7 @@ size_t __wrap_fread(void *ptr, size_t size, size_t nmemb, FILE *stream)
     return(ret);
 }
 
-ssize_t __wrap_read(int fd, void *buf, size_t count)
+ssize_t DARSHAN_DECL(read)(int fd, void *buf, size_t count)
 {
     ssize_t ret;
     int aligned_flag = 0;
@@ -860,7 +923,7 @@ ssize_t __wrap_read(int fd, void *buf, size_t count)
     return(ret);
 }
 
-ssize_t __wrap_write(int fd, const void *buf, size_t count)
+ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
 {
     ssize_t ret;
     int aligned_flag = 0;
@@ -878,7 +941,7 @@ ssize_t __wrap_write(int fd, const void *buf, size_t count)
     return(ret);
 }
 
-size_t __wrap_fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
+size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
     size_t ret;
     int aligned_flag = 0;
@@ -899,7 +962,7 @@ size_t __wrap_fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
     return(ret);
 }
 
-off64_t __wrap_lseek64(int fd, off64_t offset, int whence)
+off64_t DARSHAN_DECL(lseek64)(int fd, off64_t offset, int whence)
 {
     off64_t ret;
     struct darshan_file_runtime* file;
@@ -923,7 +986,7 @@ off64_t __wrap_lseek64(int fd, off64_t offset, int whence)
     return(ret);
 }
 
-off_t __wrap_lseek(int fd, off_t offset, int whence)
+off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
 {
     off_t ret;
     struct darshan_file_runtime* file;
@@ -947,7 +1010,7 @@ off_t __wrap_lseek(int fd, off_t offset, int whence)
     return(ret);
 }
 
-int __wrap_fseek(FILE *stream, long offset, int whence)
+int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
 {
     int ret;
     struct darshan_file_runtime* file;
