@@ -16,10 +16,24 @@ typedef int herr_t;
 
 #ifdef DARSHAN_PRELOAD
 
+#define __USE_GNU
+#include <dlfcn.h>
+#include <stdlib.h>
+
 #define DARSHAN_FORWARD_DECL(name,ret,args) \
   ret (*__real_ ## name)args = NULL;
 
 #define DARSHAN_DECL(__name) __name
+
+#define MAP_OR_FAIL(func) \
+    if (!(__real_ ## func)) \
+    { \
+        __real_ ## func = dlsym(RTLD_NEXT, #func); \
+        if(!(__real_ ## func)) { \
+            fprintf(stderr, "Darshan failed to map symbol: %s\n", #func); \
+            exit(1); \
+        } \
+    }
 
 #else
 
@@ -28,32 +42,13 @@ typedef int herr_t;
 
 #define DARSHAN_DECL(__name) __wrap_ ## __name
 
+#define MAP_OR_FAIL(func) 
+
 #endif
 
 DARSHAN_FORWARD_DECL(H5Fcreate, hid_t, (const char *filename, unsigned flags, hid_t create_plist, hid_t access_plist));
 DARSHAN_FORWARD_DECL(H5Fopen, hid_t, (const char *filename, unsigned flags, hid_t access_plist));
 DARSHAN_FORWARD_DECL(H5Fclose, herr_t, (hid_t file_id));
-
-#ifdef DARSHAN_PRELOAD
-#define __USE_GNU
-#include <dlfcn.h>
-#include <stdlib.h>
-static void __attribute__ ((constructor)) darshan_ldpreload_init(void)
-{
-#define MAP_OR_FAIL(func) \
-    __real_ ## func = dlsym(RTLD_NEXT, #func); \
-    if(!(__real_ ## func)) { \
-        fprintf(stderr, "Darshan failed to map symbol: %s\n", #func); \
-        exit(1); \
-    }
-
-    MAP_OR_FAIL(H5Fcreate);
-    MAP_OR_FAIL(H5Fopen);
-    MAP_OR_FAIL(H5Fclose);
-
-    return;
-}
-#endif
 
 static struct darshan_file_runtime* darshan_file_by_hid(int hid);
 
@@ -64,6 +59,8 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     struct darshan_file_runtime* file;
     char* tmp;
     int hash_index;
+
+    MAP_OR_FAIL(H5Fcreate);
 
     ret = __real_H5Fcreate(filename, flags, create_plist, access_plist);
     if(ret >= 0)
@@ -106,6 +103,8 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     char* tmp;
     int hash_index;
 
+    MAP_OR_FAIL(H5Fopen);
+
     ret = __real_H5Fopen(filename, flags, access_plist);
     if(ret >= 0)
     {  
@@ -147,6 +146,8 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     int hash_index;
     int tmp_hid = file_id;
     int ret;
+
+    MAP_OR_FAIL(H5Fclose);
 
     ret = __real_H5Fclose(file_id);
 

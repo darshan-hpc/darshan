@@ -29,11 +29,30 @@ typedef int64_t off64_t;
 extern char* __progname_full;
 
 #ifdef DARSHAN_PRELOAD
+#define __USE_GNU
+#include <dlfcn.h>
+#include <stdlib.h>
 
 #define DARSHAN_FORWARD_DECL(name,ret,args) \
   ret (*__real_ ## name)args = NULL;
 
 #define DARSHAN_DECL(__name) __name
+
+#define DARSHAN_MPI_CALL(func) __real_ ## func
+
+#define MAP_OR_FAIL(func) \
+    fprintf(stderr, "Trapped: %s\n", #func); \
+    if (!(__real_ ## func)) \
+    { \
+        __real_ ## func = dlsym(RTLD_NEXT, #func); \
+        if(!(__real_ ## func)) { \
+           fprintf(stderr, "Darshan failed to map symbol: %s\n", #func); \
+           exit(1); \
+       } \
+    }
+
+
+extern double __real_PMPI_Wtime(void);
 
 #else
 
@@ -41,6 +60,10 @@ extern char* __progname_full;
   extern ret __real_ ## name args;
 
 #define DARSHAN_DECL(__name) __wrap_ ## __name
+
+#define MAP_OR_FAIL(func)
+
+#define DARSHAN_MPI_CALL(func) func
 
 #endif
 
@@ -77,55 +100,6 @@ DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
 DARSHAN_FORWARD_DECL(fsync, int, (int fd));
 DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
 
-#ifdef DARSHAN_PRELOAD
-#define __USE_GNU
-#include <dlfcn.h>
-#include <stdlib.h>
-static void __attribute__ ((constructor)) darshan_ldpreload_init(void)
-{
-#define MAP_OR_FAIL(func) \
-    __real_ ## func = dlsym(RTLD_NEXT, #func); \
-    if(!(__real_ ## func)) { \
-        fprintf(stderr, "Darshan failed to map symbol: %s\n", #func); \
-        exit(1); \
-    }
-
-    MAP_OR_FAIL(creat);
-    MAP_OR_FAIL(creat64);
-    MAP_OR_FAIL(open);
-    MAP_OR_FAIL(open64);
-    MAP_OR_FAIL(close);
-    MAP_OR_FAIL(write);
-    MAP_OR_FAIL(read);
-    MAP_OR_FAIL(lseek);
-    MAP_OR_FAIL(lseek64);
-    MAP_OR_FAIL(pread);
-    MAP_OR_FAIL(pread64);
-    MAP_OR_FAIL(pwrite);
-    MAP_OR_FAIL(pwrite64);
-    MAP_OR_FAIL(readv);
-    MAP_OR_FAIL(writev);
-    MAP_OR_FAIL(__fxstat);
-    MAP_OR_FAIL(__fxstat64);
-    MAP_OR_FAIL(__lxstat);
-    MAP_OR_FAIL(__lxstat64);
-    MAP_OR_FAIL(__xstat);
-    MAP_OR_FAIL(__xstat64);
-    MAP_OR_FAIL(mmap);
-    MAP_OR_FAIL(mmap64);
-    MAP_OR_FAIL(fopen);
-    MAP_OR_FAIL(fopen64);
-    MAP_OR_FAIL(close);
-    MAP_OR_FAIL(fread);
-    MAP_OR_FAIL(fwrite);
-    MAP_OR_FAIL(fseek);
-    MAP_OR_FAIL(fsync);
-    MAP_OR_FAIL(fdatasync);
-
-    return;
-}
-#endif
-
 pthread_mutex_t cp_mutex = PTHREAD_MUTEX_INITIALIZER;
 struct darshan_job_runtime* darshan_global_job = NULL;
 static int my_rank = -1;
@@ -146,6 +120,8 @@ static char* exclusions[] = {
 "/proc/",
 NULL
 };
+
+static double posix_wtime(void);
 
 static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,     enum cp_counter_type type);
 
@@ -290,7 +266,7 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     else \
         CP_INC(file, CP_POSIX_OPENS, 1); \
     if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0) \
-        CP_F_SET(file, CP_F_OPEN_TIMESTAMP, MPI_Wtime()); \
+        CP_F_SET(file, CP_F_OPEN_TIMESTAMP, posix_wtime()); \
     CP_F_INC(file, CP_F_POSIX_META_TIME, (__tm2-__tm1)); \
     hash_index = file->fd & CP_HASH_MASK; \
     file->fd_prev = NULL; \
@@ -308,6 +284,8 @@ int DARSHAN_DECL(close)(int fd)
     double tm1, tm2;
     int ret;
 
+    MAP_OR_FAIL(close);
+
     tm1 = darshan_wtime();
     ret = __real_close(fd);
     tm2 = darshan_wtime();
@@ -319,7 +297,7 @@ int DARSHAN_DECL(close)(int fd)
         file->fd = -1;
         file->last_byte_written = 0;
         file->last_byte_read = 0;
-        CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, MPI_Wtime());
+        CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, posix_wtime());
         CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
         if(file->fd_prev == NULL)
         {
@@ -353,6 +331,8 @@ int DARSHAN_DECL(fclose)(FILE *fp)
     double tm1, tm2;
     int ret;
 
+    MAP_OR_FAIL(fclose);
+
     tm1 = darshan_wtime();
     ret = __real_fclose(fp);
     tm2 = darshan_wtime();
@@ -364,7 +344,7 @@ int DARSHAN_DECL(fclose)(FILE *fp)
         file->fd = -1;
         file->last_byte_written = 0;
         file->last_byte_read = 0;
-        CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, MPI_Wtime());
+        CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, posix_wtime());
         CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
         if(file->fd_prev == NULL)
         {
@@ -397,6 +377,8 @@ int DARSHAN_DECL(fsync)(int fd)
     struct darshan_file_runtime* file;
     double tm1, tm2;
 
+    MAP_OR_FAIL(fsync);
+
     tm1 = darshan_wtime();
     ret = __real_fsync(fd);
     tm2 = darshan_wtime();
@@ -421,6 +403,8 @@ int DARSHAN_DECL(fdatasync)(int fd)
     int ret;
     struct darshan_file_runtime* file;
     double tm1, tm2;
+
+    MAP_OR_FAIL(fdatasync);
 
     tm1 = darshan_wtime();
     ret = __real_fdatasync(fd);
@@ -447,6 +431,8 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
     void* ret;
     struct darshan_file_runtime* file;
 
+    MAP_OR_FAIL(mmap64);
+
     ret = __real_mmap64(addr, length, prot, flags, fd, offset);
     if(ret == MAP_FAILED)
         return(ret);
@@ -469,6 +455,8 @@ void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
     void* ret;
     struct darshan_file_runtime* file;
 
+    MAP_OR_FAIL(mmap);
+
     ret = __real_mmap(addr, length, prot, flags, fd, offset);
     if(ret == MAP_FAILED)
         return(ret);
@@ -489,6 +477,8 @@ int DARSHAN_DECL(creat)(const char* path, mode_t mode)
     int ret;
     double tm1, tm2;
 
+    MAP_OR_FAIL(creat);
+
     tm1 = darshan_wtime();
     ret = __real_creat(path, mode);
     tm2 = darshan_wtime();
@@ -504,6 +494,8 @@ int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
 {
     int ret;
     double tm1, tm2;
+
+    MAP_OR_FAIL(creat64);
 
     tm1 = darshan_wtime();
     ret = __real_creat64(path, mode);
@@ -521,6 +513,8 @@ int DARSHAN_DECL(open64)(const char* path, int flags, ...)
     int mode = 0;
     int ret;
     double tm1, tm2;
+
+    MAP_OR_FAIL(open64);
 
     if (flags & O_CREAT) 
     {
@@ -553,6 +547,8 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
     int ret;
     double tm1, tm2;
 
+    MAP_OR_FAIL(open);
+
     if (flags & O_CREAT) 
     {
         va_list arg;
@@ -584,6 +580,8 @@ FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
     int fd;
     double tm1, tm2;
 
+    MAP_OR_FAIL(fopen64);
+
     tm1 = darshan_wtime();
     ret = __real_fopen64(path, mode);
     tm2 = darshan_wtime();
@@ -605,6 +603,8 @@ FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
     int fd;
     double tm1, tm2;
 
+    MAP_OR_FAIL(fopen);
+
     tm1 = darshan_wtime();
     ret = __real_fopen(path, mode);
     tm2 = darshan_wtime();
@@ -625,6 +625,8 @@ int DARSHAN_DECL(__xstat64)(int vers, const char *path, struct stat64 *buf)
     int ret;
     struct darshan_file_runtime* file;
     double tm1, tm2;
+
+    MAP_OR_FAIL(__xstat64);
 
     tm1 = darshan_wtime();
     ret = __real___xstat64(vers, path, buf);
@@ -649,6 +651,8 @@ int DARSHAN_DECL(__lxstat64)(int vers, const char *path, struct stat64 *buf)
     struct darshan_file_runtime* file;
     double tm1, tm2;
 
+    MAP_OR_FAIL(__lxstat64);
+
     tm1 = darshan_wtime();
     ret = __real___lxstat64(vers, path, buf);
     tm2 = darshan_wtime();
@@ -671,6 +675,8 @@ int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
     int ret;
     struct darshan_file_runtime* file;
     double tm1, tm2;
+
+    MAP_OR_FAIL(__fxstat64);
 
     tm1 = darshan_wtime();
     ret = __real___fxstat64(vers, fd, buf);
@@ -700,6 +706,8 @@ int DARSHAN_DECL(__xstat)(int vers, const char *path, struct stat *buf)
     struct darshan_file_runtime* file;
     double tm1, tm2;
 
+    MAP_OR_FAIL(__xstat);
+
     tm1 = darshan_wtime();
     ret = __real___xstat(vers, path, buf);
     tm2 = darshan_wtime();
@@ -723,6 +731,8 @@ int DARSHAN_DECL(__lxstat)(int vers, const char *path, struct stat *buf)
     struct darshan_file_runtime* file;
     double tm1, tm2;
 
+    MAP_OR_FAIL(__lxstat);
+
     tm1 = darshan_wtime();
     ret = __real___lxstat(vers, path, buf);
     tm2 = darshan_wtime();
@@ -745,6 +755,8 @@ int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
     int ret;
     struct darshan_file_runtime* file;
     double tm1, tm2;
+
+    MAP_OR_FAIL(__fxstat);
 
     tm1 = darshan_wtime();
     ret = __real___fxstat(vers, fd, buf);
@@ -773,6 +785,8 @@ ssize_t DARSHAN_DECL(pread64)(int fd, void *buf, size_t count, off64_t offset)
     int aligned_flag = 0;
     double tm1, tm2;
 
+    MAP_OR_FAIL(pread64);
+
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
@@ -790,6 +804,8 @@ ssize_t DARSHAN_DECL(pread)(int fd, void *buf, size_t count, off_t offset)
     ssize_t ret;
     int aligned_flag = 0;
     double tm1, tm2;
+
+    MAP_OR_FAIL(pread);
 
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
@@ -810,6 +826,8 @@ ssize_t DARSHAN_DECL(pwrite)(int fd, const void *buf, size_t count, off_t offset
     int aligned_flag = 0;
     double tm1, tm2;
 
+    MAP_OR_FAIL(pwrite);
+
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
@@ -827,6 +845,8 @@ ssize_t DARSHAN_DECL(pwrite64)(int fd, const void *buf, size_t count, off64_t of
     ssize_t ret;
     int aligned_flag = 0;
     double tm1, tm2;
+
+    MAP_OR_FAIL(pwrite64);
 
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
@@ -846,6 +866,8 @@ ssize_t DARSHAN_DECL(readv)(int fd, const struct iovec *iov, int iovcnt)
     int aligned_flag = 1;
     int i;
     double tm1, tm2;
+
+    MAP_OR_FAIL(readv);
 
     for(i=0; i<iovcnt; i++)
     {
@@ -869,6 +891,8 @@ ssize_t DARSHAN_DECL(writev)(int fd, const struct iovec *iov, int iovcnt)
     int i;
     double tm1, tm2;
 
+    MAP_OR_FAIL(writev);
+
     for(i=0; i<iovcnt; i++)
     {
         if(!((unsigned long)iov[i].iov_base % darshan_mem_alignment == 0))
@@ -889,6 +913,8 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
     size_t ret;
     int aligned_flag = 0;
     double tm1, tm2;
+
+    MAP_OR_FAIL(fread);
 
     if((unsigned long)ptr % darshan_mem_alignment == 0)
         aligned_flag = 1;
@@ -911,6 +937,8 @@ ssize_t DARSHAN_DECL(read)(int fd, void *buf, size_t count)
     int aligned_flag = 0;
     double tm1, tm2;
 
+    MAP_OR_FAIL(read);
+
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
@@ -929,6 +957,8 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
     int aligned_flag = 0;
     double tm1, tm2;
 
+    MAP_OR_FAIL(write);
+
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
@@ -946,6 +976,8 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
     size_t ret;
     int aligned_flag = 0;
     double tm1, tm2;
+
+    MAP_OR_FAIL(fwrite);
 
     if((unsigned long)ptr % darshan_mem_alignment == 0)
         aligned_flag = 1;
@@ -967,6 +999,8 @@ off64_t DARSHAN_DECL(lseek64)(int fd, off64_t offset, int whence)
     off64_t ret;
     struct darshan_file_runtime* file;
     double tm1, tm2;
+
+    MAP_OR_FAIL(lseek64);
 
     tm1 = darshan_wtime();
     ret = __real_lseek64(fd, offset, whence);
@@ -992,6 +1026,8 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
     struct darshan_file_runtime* file;
     double tm1, tm2;
 
+    MAP_OR_FAIL(lseek);
+
     tm1 = darshan_wtime();
     ret = __real_lseek(fd, offset, whence);
     tm2 = darshan_wtime();
@@ -1015,6 +1051,8 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
     int ret;
     struct darshan_file_runtime* file;
     double tm1, tm2;
+
+    MAP_OR_FAIL(fseek);
 
     tm1 = darshan_wtime();
     ret = __real_fseek(stream, offset, whence);
@@ -1662,6 +1700,11 @@ void darshan_search_bench(int argc, char** argv, int iters)
 }
 #endif
 
+static double posix_wtime(void)
+{
+    return DARSHAN_MPI_CALL(PMPI_Wtime)();
+}
+
 double darshan_wtime(void)
 {
     if(!darshan_global_job || darshan_global_job->flags & CP_FLAG_NOTIMING)
@@ -1669,7 +1712,7 @@ double darshan_wtime(void)
         return(0);
     }
     
-    return(MPI_Wtime());
+    return(posix_wtime());
 }
 
 /*

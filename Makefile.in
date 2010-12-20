@@ -111,7 +111,7 @@ lib/libdarshan-posix.a: lib/darshan-posix.o lib/lookup3.o lib/lookup8.o
 	ar rcs $@ $^
 
 lib/libdarshan.so: lib/darshan-mpi-io.po lib/darshan-pnetcdf.po lib/darshan-hdf5.po lib/darshan-posix.po lib/lookup3.po lib/lookup8.po
-	$(CC) $(CFLAGS_MPI_SHARED) -ldl -o $@ $^
+	gcc $(CFLAGS_MPI_SHARED) -ldl -o $@ $^ -lpthread -lrt
 
 install:: all
 	install -d $(libdir)
