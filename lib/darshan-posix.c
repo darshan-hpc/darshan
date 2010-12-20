@@ -1106,6 +1106,9 @@ void darshan_initialize(int argc, char** argv,  int nprocs, int rank)
         return;
     }
 
+    #if (__CP_MEM_ALIGNMENT < 1)
+        #error Darshan must be configured with a positive value for --with-mem-align
+    #endif
     envstr = getenv("DARSHAN_MEMALIGN");
     if (envstr)
     {
