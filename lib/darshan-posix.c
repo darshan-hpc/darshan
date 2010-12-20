@@ -41,7 +41,6 @@ extern char* __progname_full;
 #define DARSHAN_MPI_CALL(func) __real_ ## func
 
 #define MAP_OR_FAIL(func) \
-    fprintf(stderr, "Trapped: %s\n", #func); \
     if (!(__real_ ## func)) \
     { \
         __real_ ## func = dlsym(RTLD_NEXT, #func); \
@@ -52,7 +51,7 @@ extern char* __progname_full;
     }
 
 
-extern double __real_PMPI_Wtime(void);
+extern double (*__real_PMPI_Wtime)(void);
 
 #else
 
@@ -1124,6 +1123,12 @@ void darshan_initialize(int argc, char** argv,  int nprocs, int rank)
     else
     {
         darshan_mem_alignment = __CP_MEM_ALIGNMENT;
+    }
+
+    /* avoid floating point errors on faulty input */
+    if (darshan_mem_alignment < 1)
+    {
+        darshan_mem_alignment = 1;
     }
 
     /* allocate structure to track darshan_global_job information */
