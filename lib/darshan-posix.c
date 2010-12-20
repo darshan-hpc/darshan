@@ -104,7 +104,7 @@ pthread_mutex_t cp_mutex = PTHREAD_MUTEX_INITIALIZER;
 struct darshan_job_runtime* darshan_global_job = NULL;
 static int my_rank = -1;
 static struct stat64 cp_stat_buf;
-static int darshan_mem_alignment;
+static int darshan_mem_alignment = 1;
 
 /* these are paths that we will not trace */
 static char* exclusions[] = {
@@ -1091,6 +1091,8 @@ void darshan_initialize(int argc, char** argv,  int nprocs, int rank)
     char* truncate_string = "<TRUNCATED>";
     int truncate_offset;
     int chars_left = 0;
+    int ret;
+    int tmpval;
 
     disable = getenv("DARSHAN_DISABLE");
     if(disable)
@@ -1112,7 +1114,12 @@ void darshan_initialize(int argc, char** argv,  int nprocs, int rank)
     envstr = getenv("DARSHAN_MEMALIGN");
     if (envstr)
     {
-        sscanf(envstr, "%d", &darshan_mem_alignment);
+        ret = sscanf(envstr, "%d", &tmpval);
+        /* silently ignore if the env variable is set poorly */
+        if(ret == 1 && tmpval > 0)
+        {
+            darshan_mem_alignment = tmpval;
+        }
     }
     else
     {
