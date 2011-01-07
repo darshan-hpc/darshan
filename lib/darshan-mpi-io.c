@@ -335,7 +335,6 @@ static void darshan_mpi_initialize(int *argc, char ***argv)
     DARSHAN_MPI_CALL(PMPI_Comm_size)(MPI_COMM_WORLD, &nprocs);
     DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
 
-    CP_LOCK();
     if(argc && argv)
     {
         darshan_initialize(*argc, *argv, nprocs, rank);
@@ -345,8 +344,6 @@ static void darshan_mpi_initialize(int *argc, char ***argv)
         /* we don't see argc and argv here in fortran */
         darshan_initialize(0, NULL, nprocs, rank);
     }
-
-    CP_UNLOCK();
 
     return;
 }
