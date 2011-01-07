@@ -1312,6 +1312,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
     if(ret != 0)
     {
         DARSHAN_MPI_CALL(PMPI_Op_free)(&reduce_op);
+        DARSHAN_MPI_CALL(PMPI_Type_free)(&rtype);
         return(-1);
     }
 
@@ -1335,6 +1336,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
     if(ret != 0)
     {
         DARSHAN_MPI_CALL(PMPI_Op_free)(&reduce_op);
+        DARSHAN_MPI_CALL(PMPI_Type_free)(&rtype);
         return(-1);
     }
 
@@ -1392,6 +1394,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
             {
                 /* TODO: think more about how to handle errors like this */
                 DARSHAN_MPI_CALL(PMPI_Op_free)(&reduce_op);
+                DARSHAN_MPI_CALL(PMPI_Type_free)(&rtype);
                 return(-1);
             }
         }
@@ -1409,6 +1412,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
         if(ret != 0)
         {
             DARSHAN_MPI_CALL(PMPI_Op_free)(&reduce_op);
+            DARSHAN_MPI_CALL(PMPI_Type_free)(&rtype);
             return(-1);
         }
 
@@ -1418,6 +1422,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
         if (ret)
         {
             DARSHAN_MPI_CALL(PMPI_Op_free)(&reduce_op);
+            DARSHAN_MPI_CALL(PMPI_Type_free)(&rtype);
             return(-1);
         }
 
@@ -1437,6 +1442,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
     }
     
     DARSHAN_MPI_CALL(PMPI_Op_free)(&reduce_op);
+    DARSHAN_MPI_CALL(PMPI_Type_free)(&rtype);
 
     return(0);
 }
@@ -2100,7 +2106,7 @@ static int darshan_file_variance(
     int count, int rank)
 {
     MPI_Op pw_var_op = MPI_OP_NULL;
-    MPI_Datatype var_dt;
+    MPI_Datatype var_dt = MPI_BYTE;
     int ret;
     int i;
     struct variance_dt* var_array = NULL;
@@ -2200,12 +2206,11 @@ static int darshan_file_variance(
         }
     }
 
-    DARSHAN_MPI_CALL(PMPI_Type_free)(&var_dt);
-
     ret = 0;
 
 error_handler:
-    if(pw_var_op != MPI_OP_NULL) DARSHAN_MPI_CALL(PMPI_Op_free)(&pw_var_op);
+    if (var_dt != MPI_BYTE) DARSHAN_MPI_CALL(PMPI_Type_free)(&var_dt);
+    if (pw_var_op != MPI_OP_NULL) DARSHAN_MPI_CALL(PMPI_Op_free)(&pw_var_op);
     if (var_array) free(var_array);
     if (varres_array) free(varres_array);
 
