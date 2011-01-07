@@ -87,6 +87,7 @@ DARSHAN_FORWARD_DECL(PMPI_Type_extent, int, (MPI_Datatype datatype, MPI_Aint *ex
 DARSHAN_FORWARD_DECL(PMPI_Type_free, int, (MPI_Datatype *datatype));
 DARSHAN_FORWARD_DECL(PMPI_Type_hindexed, int, (int count, int *array_of_blocklengths, MPI_Aint *array_of_displacements, MPI_Datatype oldtype, MPI_Datatype *newtype));
 DARSHAN_FORWARD_DECL(PMPI_Op_create, int, (MPI_User_function *function, int commute, MPI_Op *op));
+DARSHAN_FORWARD_DECL(PMPI_Op_free, int, (MPI_Op *op));
 DARSHAN_FORWARD_DECL(PMPI_Reduce, int, (void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm));
 DARSHAN_FORWARD_DECL(PMPI_Type_get_envelope, int, (MPI_Datatype datatype, int *num_integers, int *num_addresses, int *num_datatypes, int *combiner));
 DARSHAN_FORWARD_DECL(PMPI_Type_size, int, (MPI_Datatype datatype, int *size));
@@ -146,6 +147,7 @@ void resolve_mpi_symbols (void)
     MAP_OR_FAIL(PMPI_Type_size);
     MAP_OR_FAIL(PMPI_Type_hindexed);
     MAP_OR_FAIL(PMPI_Op_create);
+    MAP_OR_FAIL(PMPI_Op_free);
     MAP_OR_FAIL(PMPI_Reduce);
     MAP_OR_FAIL(PMPI_Type_get_envelope);
 
@@ -1309,6 +1311,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
         MPI_BYTE, 0, MPI_COMM_WORLD);
     if(ret != 0)
     {
+        DARSHAN_MPI_CALL(PMPI_Op_free)(&reduce_op);
         return(-1);
     }
 
@@ -1331,6 +1334,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
         CP_MAX_FILES, MPI_INT, MPI_LAND, MPI_COMM_WORLD);
     if(ret != 0)
     {
+        DARSHAN_MPI_CALL(PMPI_Op_free)(&reduce_op);
         return(-1);
     }
 
@@ -1387,6 +1391,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
             if(!tmp_array)
             {
                 /* TODO: think more about how to handle errors like this */
+                DARSHAN_MPI_CALL(PMPI_Op_free)(&reduce_op);
                 return(-1);
             }
         }
@@ -1403,6 +1408,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
             tmp_array, shared_count, rtype, reduce_op, 0, MPI_COMM_WORLD);
         if(ret != 0)
         {
+            DARSHAN_MPI_CALL(PMPI_Op_free)(&reduce_op);
             return(-1);
         }
 
@@ -1411,6 +1417,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
             tmp_array, shared_count, rank);
         if (ret)
         {
+            DARSHAN_MPI_CALL(PMPI_Op_free)(&reduce_op);
             return(-1);
         }
 
@@ -1429,6 +1436,8 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
         }
     }
     
+    DARSHAN_MPI_CALL(PMPI_Op_free)(&reduce_op);
+
     return(0);
 }
 
@@ -2090,7 +2099,7 @@ static int darshan_file_variance(
     struct darshan_file *outfile_array,
     int count, int rank)
 {
-    MPI_Op pw_var_op;
+    MPI_Op pw_var_op = MPI_OP_NULL;
     MPI_Datatype var_dt;
     int ret;
     int i;
@@ -2196,6 +2205,7 @@ static int darshan_file_variance(
     ret = 0;
 
 error_handler:
+    if(pw_var_op != MPI_OP_NULL) DARSHAN_MPI_CALL(PMPI_Op_free)(&pw_var_op);
     if (var_array) free(var_array);
     if (varres_array) free(varres_array);
 
