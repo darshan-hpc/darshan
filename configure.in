@@ -157,6 +157,20 @@ eval darshan_bin_path=$bindir
 prefix=$savePrefix
 exec_prefix=$saveExecprefix
 
+# determine if the MPI library includes MPI-IO functions or not
+AC_MSG_CHECKING(for MPI-IO support in MPI)
+AC_TRY_LINK([#include <mpi.h>], [
+    MPI_Comm comm;
+    char* filename;
+    int amode;
+    MPI_Info info;
+    MPI_File fh;
+    MPI_File_open(comm, filename, amode, info, &fh);
+],
+    AC_MSG_RESULT(yes),
+    AC_MSG_ERROR(Darshan requires a version of MPI with MPI-IO support)
+)
+
 AC_SUBST(darshan_lib_path)
 AC_SUBST(darshan_bin_path)
 AC_SUBST(__CP_LOG_PATH)

@@ -4149,6 +4149,37 @@ eval darshan_bin_path=$bindir
 prefix=$savePrefix
 exec_prefix=$saveExecprefix
 
+# determine if the MPI library includes MPI-IO functions or not
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for MPI-IO support in MPI" >&5
+$as_echo_n "checking for MPI-IO support in MPI... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <mpi.h>
+int
+main ()
+{
+
+    MPI_Comm comm;
+    char* filename;
+    int amode;
+    MPI_Info info;
+    MPI_File fh;
+    MPI_File_open(comm, filename, amode, info, &fh);
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+  as_fn_error $? "Darshan requires a version of MPI with MPI-IO support" "$LINENO" 5
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
 
 
 
