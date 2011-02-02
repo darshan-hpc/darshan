@@ -1,4 +1,4 @@
-all: checkpath lib/libdarshan-posix.a lib/libdarshan-mpi-io.a lib/libdarshan.so darshan-parser darshan-diff darshan-analyzer darshan-log-params
+all: lib/libdarshan-posix.a lib/libdarshan-mpi-io.a lib/libdarshan.so darshan-parser darshan-diff darshan-analyzer darshan-log-params
 
 DESTDIR =
 srcdir = @srcdir@
@@ -13,7 +13,6 @@ libdir = $(DESTDIR)@libdir@
 
 VPATH = $(srcdir)
 
-darshan_lib_path = @darshan_lib_path@
 cp_zlib_link_flags = @__CP_ZLIB_LINK_FLAGS@
 cp_zlib_include_flags = @__CP_ZLIB_INCLUDE_FLAGS@
 
@@ -27,12 +26,6 @@ CFLAGS_MPI_SHARED = -I . -I $(srcdir) @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE 
 
 CC=@MPICC@
 LD=@MPICC@
-
-checkpath::
-ifneq ($(darshan_lib_path),$(libdir)) 
-	@echo "Error: <libdir> must match <prefix>/lib, don't use --libdir!"
-	@exit 1
-endif
 
 lib::
 	@mkdir -p $@

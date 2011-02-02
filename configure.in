@@ -138,13 +138,25 @@ CP_WRAPPERS="-Wl,-u,MPI_Wtime,-wrap,write,-wrap,open,-wrap,creat,-wrap,creat64,-
 
 # ,-u,__wrap___fxstat64,-u,pthread_mutex_lock,-u,pthread_mutex_unlock
 
-if test "x$prefix" = xNONE; then
-    darshan_lib_path=$ac_default_prefix/lib
-    darshan_bin_path=$ac_default_prefix/bin
-else
-    darshan_lib_path=$prefix/lib
-    darshan_bin_path=$prefix/bin
-fi
+# We need to know the value of the $libdir and $bindir variables so that 
+# we can reference the correct path in the darshan compiler wrappers.  
+# Unfortunately, those two variables are not normally evaluated by autoconf.  
+# They are evaluated at build time using Makefile variable substitutions.  
+# 
+# The following logic was copied from mpich2 1.3.1 to resolve the $libdir
+# variable at configure time.
+#
+# Temporarily replace the default NONE value for exec_prefix
+# and prefix with the actual, default values.
+savePrefix=$prefix
+saveExecprefix=$exec_prefix
+test "x$prefix" = xNONE && prefix=$ac_default_prefix
+test "x$exec_prefix" = xNONE && exec_prefix=$prefix
+eval darshan_lib_path=$libdir
+eval darshan_bin_path=$bindir
+prefix=$savePrefix
+exec_prefix=$saveExecprefix
+
 AC_SUBST(darshan_lib_path)
 AC_SUBST(darshan_bin_path)
 AC_SUBST(__CP_LOG_PATH)
