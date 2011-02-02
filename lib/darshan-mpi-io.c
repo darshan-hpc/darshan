@@ -31,6 +31,10 @@
 #include <dlfcn.h>
 #include <stdlib.h>
 
+#if MPI_VERSION < 2
+#error Darshan does not yet support MPI 1.x
+#endif
+
 #define DARSHAN_MPI_CALL(func) __real_ ## func
 
 #define DARSHAN_FORWARD_DECL(name,ret,args) \
