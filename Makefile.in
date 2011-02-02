@@ -3,8 +3,8 @@ all: lib/libdarshan-posix.a lib/libdarshan-mpi-io.a lib/libdarshan.so darshan-pa
 DESTDIR =
 srcdir = @srcdir@
 prefix = @prefix@
-datarootdir = @datarootdir@
 exec_prefix = @exec_prefix@
+datarootdir = $(DESTDIR)@datarootdir@
 includedir = $(DESTDIR)@includedir@
 mandir = $(DESTDIR)@mandir@
 sbindir = $(DESTDIR)@sbindir@
