@@ -18,7 +18,7 @@ do
            if [ $(expr match $compiler ".*xl.*") -gt 0 -o \
                 $compiler_type = "fast" -o \
                 $compiler_type = "xl" ]; then
-               compiler_opt="--trim";
+               compiler_opt="--trim --xl";
            fi
            if [ $(expr match $compiler ".*cxx") -gt 0 ]; then
                $PREFIX/bin/darshan-gen-cxx.pl $compiler_opt --output=$PREFIX/bin/$compiler_type/$compiler $compiler_path/$compiler

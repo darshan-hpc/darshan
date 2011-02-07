@@ -17,6 +17,7 @@ $CP_ZLIB_LINK_FLAGS="@__CP_ZLIB_LINK_FLAGS@";
 my $input_file = "";
 my $output_file = "";
 my $trim_exe_path=0;
+my $xl_check = 0;
 
 process_args();
 
@@ -82,7 +83,38 @@ print OUTPUT<<'EOF';
 # Show is set to echo to cause the compilation command to be echoed instead 
 # of executed.
 Show=
+EOF
 
+if ($xl_check == 1)
+{
+print OUTPUT<<'EOF';
+#
+# Check for IBM XL Linker Parameters
+#
+# If IPA linker is used, we must disable darshan
+# because the IPA linker doesn't support -wrap.
+#
+function check_XL()
+{
+    arg=$1;
+    ipa_enabled=0;
+
+    if [ "$arg" = "-O5" ]; then
+        ipa_enabled=1;
+    fi
+    if [ "$arg" = "-O4" ]; then
+        ipa_enabled=1;
+    fi
+    if [ "$arg" = "-qipa" ]; then
+        ipa_enabled=1;
+    fi
+
+    return $ipa_enabled;
+}
+EOF
+}
+
+print OUTPUT<<'EOF';
 linking=yes
 allargs=("$@")
 argno=0
@@ -126,6 +158,7 @@ print OUTPUT<<"EOF";
     # -ldarshan-mpi-io in there first
     argno=0;
     once=0;
+    compiler_check=0;
     newallargs=\("\$\{allargs\[\@\]\}"\);
     for arg in "\$\{newallargs\[\@\]\}"; do
         res=`expr match "\$arg" "-l"`;
@@ -137,6 +170,23 @@ print OUTPUT<<"EOF";
         else
             newallargs[\$argno]=\$arg;
         fi
+EOF
+
+#
+# Add any functional tests for linker parameters
+#
+       if ($xl_check)
+       {
+print OUTPUT<<"EOF";
+           check_XL "\$arg";
+           if [ \$? -ne 0 ]; then
+               compiler_check=1;
+           fi
+EOF
+       }
+
+print OUTPUT<<"EOF";
+
         argno=`expr \$argno + 1`
     done
 
@@ -180,7 +230,7 @@ print OUTPUT<<"EOF";
     if [ \$rc_mpi -eq 0 ] ; then
         # disable darshan if something else is already using PMPI; we don't
         # want to cause any symbol conflicts
-        if [ \$rc_pmpi -ne 0 ] ; then
+        if [ \$rc_pmpi -ne 0 ] && [ \$compiler_check -eq 0 ]; then
             \$Show $link_cmd
             used_darshan=1
         fi
@@ -207,12 +257,13 @@ exit(0);
 
 sub process_args
 {
-    use vars qw( $opt_help $opt_output $opt_trim );
+    use vars qw( $opt_help $opt_output $opt_trim $opt_xl );
 
     Getopt::Long::Configure("no_ignore_case", "bundling");
     GetOptions( "help",
         "output=s",
-        "trim");
+        "trim",
+        "xl");
 
     if($opt_help)
     {
@@ -223,6 +274,11 @@ sub process_args
     if($opt_trim)
     {
         $trim_exe_path=1;
+    }
+
+    if($opt_xl)
+    {
+        $xl_check=1;
     }
 
     if($opt_output)
@@ -256,6 +312,8 @@ Usage: $PROGRAM_NAME <stock mpi fortran script> --output <modified mpi fortran s
     --help          Prints this help message
     --output        Specifies name of output script
     --trim          Trim the compilers path
+    --xl            Disables darshan if certain linker parameters are used
+                    (Intended for IBM XL Compilers)
 
 Purpose:
 
