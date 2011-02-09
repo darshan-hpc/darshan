@@ -67,6 +67,8 @@ typedef struct perf_data_s
     double agg_perf_by_open;
     double agg_perf_by_open_lastio;
     double agg_perf_by_slowest;
+    double *rank_cumul_io_time;
+    double *rank_cumul_md_time;
 } perf_data_t;
 
 typedef struct file_data_s
@@ -317,6 +319,20 @@ int main(int argc, char **argv)
 
         printf("\n");
         CP_PRINT_HEADER();
+    }
+
+    pdata.rank_cumul_io_time = malloc(sizeof(double)*job.nprocs);
+    pdata.rank_cumul_md_time = malloc(sizeof(double)*job.nprocs);
+    if (!pdata.rank_cumul_io_time || !pdata.rank_cumul_md_time)
+    {
+        perror("malloc failed");
+        darshan_log_close(file);
+        return(-1);
+    }
+    else
+    {
+        memset(pdata.rank_cumul_io_time, 0, sizeof(double)*job.nprocs);
+        memset(pdata.rank_cumul_md_time, 0, sizeof(double)*job.nprocs);
     }
 
     while((ret = darshan_log_getfile(file, &job, &cp_file)) == 1)
@@ -771,6 +787,9 @@ void accum_perf(struct darshan_file *dfile,
                                  dfile->fcounters[CP_F_POSIX_WRITE_TIME];
              hfile->meta_time += dfile->fcounters[CP_F_POSIX_META_TIME];
         }
+
+        pdata->rank_cumul_io_time[dfile->rank] += hfile->cumul_time;
+        pdata->rank_cumul_md_time[dfile->rank] += hfile->meta_time;
     }
 
     return;
@@ -780,20 +799,18 @@ void calc_perf(struct darshan_job *djob,
                hash_entry_t *hash_rank_uniq,
                perf_data_t *pdata)
 {
-    hash_entry_t *curr = NULL;
-    hash_entry_t *tmp = NULL;
+    int64_t i;
 
     pdata->shared_time_by_cumul =
         pdata->shared_time_by_cumul / (double)djob->nprocs;
 
     pdata->shared_meta_time = pdata->shared_meta_time / (double)djob->nprocs;
 
-    HASH_ITER(hlink, hash_rank_uniq, curr, tmp)
+    for (i=0; i<djob->nprocs; i++)
     {
-        if (pdata->slowest_rank_time < curr->cumul_time)
+        if (pdata->rank_cumul_io_time[i] > pdata->slowest_rank_time)
         {
-            pdata->slowest_rank_time = curr->cumul_time;
-            pdata->slowest_rank_meta_time = curr->meta_time;
+            pdata->slowest_rank_time = pdata->rank_cumul_io_time[i];
         }
     }
 
