@@ -1,0 +1,40 @@
+Test Cases to evaluate darshan-parser --perf performance calculations.
+
+Logs
+----
+350665
+  * IOR single shared file with multiple iterations
+  * 350665.output
+  * harms_IOR_id350665_2-8-78651_12.darshan.gz
+
+350690
+  * IOR file-per-process with multiple iterations
+  * 350690
+  * harms_IOR_id350690_2-8-83458_1.darshan.gz
+
+350892
+  * IOR with both single file and file-per-process modes
+  * 350892.output
+  * harms_IOR_id1350892_2-9-74258_1.darshan.gz
+
+Check Performance
+------------------
+Add all the performance test runs (both read and write) and the compute the average. 
+
+awk 'BEGIN {sum=0;count=0;} /^(write|read)/ { sum+=$2; count+=1; } END { print "avg: " sum/count; }' xxxx.output
+
+darshan-parser --perf log.gz
+
+Compare the four methods to the calculated average.
+
+IOR Commands
+------------
+# File Per Proc with Multiple Files
+qsub -q prod -A Operations -t 60 -n 512 --mode vn --env BG_COREDUMPDISABLED=1 IOR/src/C/IOR -a POSIX -F -b 256M -g -m -i 4 -K -o <path>/ior.out -r -w -t 4m -v
+
+# Single Shared File with Multiple Files
+qsub -q prod -A Operations -t 60 -n 512 --mode vn --env BG_COREDUMPDISABLED=1 IOR/src/C/IOR -a POSIX -b 256M -g -m -i 4 -K -o <path>/ior.out -r -w -t 4m -v
+
+# Both I/O methods in one run
+qsub -q prod -A Operations -t 60 -n 512 --mode vn --env BG_COREDUMPDISABLED=1 IOR/src/C/IOR -f single_and_multi_file.ior
+

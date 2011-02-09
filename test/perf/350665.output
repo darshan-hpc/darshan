@@ -1,0 +1,61 @@
+IOR-2.10.0.1: MPI Coordinated Test of Parallel I/O
+
+Run began: Tue Feb  8 21:50:51 2011
+Command line used: /home/harms/bgp/IOR/src/C/IOR -a POSIX -F -b 256M -g -m -i 4 -K -o /intrepid-fs1/users/harms/scratch/ior.out -r -w -t 4m -v
+Machine: CNK ion-R42-1
+Start time skew across all tasks: 0.20 sec
+Path: /intrepid-fs1/users/harms/scratch
+FS: 2194.4 TiB   Used FS: 22.8%   Inodes: 4096.0 Mi   Used Inodes: 33.7%
+Participating tasks: 2048
+
+Summary:
+	api                = POSIX
+	test filename      = /intrepid-fs1/users/harms/scratch/ior.out
+	access             = file-per-process
+	pattern            = segmented (1 segment)
+	ordering           = sequential offsets
+	clients            = 2048 (1 per node)
+	repetitions        = 4
+	xfersize           = 4 MiB
+	blocksize          = 256 MiB
+	aggregate filesize = 512 GiB
+
+Commencing write performance test.
+Tue Feb  8 21:51:00 2011
+
+access    bw(MiB/s)  block(KiB) xfer(KiB)  open(s)    wr/rd(s)   close(s)   iter
+------    ---------  ---------- ---------  --------   --------   --------   ----
+write     1853.28    262144     4096       6.46       276.33     0.104290   0   
+Commencing read performance test.
+Tue Feb  8 21:55:54 2011
+
+read      1568.01    262144     4096       6.39       327.85     0.128561   0   
+Commencing write performance test.
+Tue Feb  8 22:02:12 2011
+
+write     1860.19    262144     4096       6.68       275.05     0.108472   1   
+Commencing read performance test.
+Tue Feb  8 22:07:05 2011
+
+read      1497.59    262144     4096       6.39       343.58     0.120167   1   
+Commencing write performance test.
+Tue Feb  8 22:13:36 2011
+
+write     1905.81    262144     4096       4.29       270.71     0.103336   2   
+Commencing read performance test.
+Tue Feb  8 22:18:25 2011
+
+read      1558.55    262144     4096       6.36       329.91     0.126614   2   
+Commencing write performance test.
+Tue Feb  8 22:24:44 2011
+
+write     1952.53    262144     4096       5.20       263.21     0.101522   3   
+Commencing read performance test.
+Tue Feb  8 22:29:25 2011
+
+read      1566.06    262144     4096       6.42       328.24     0.120201   3   
+
+Max Write: 1952.53 MiB/sec (2047.38 MB/sec)
+Max Read:  1568.01 MiB/sec (1644.17 MB/sec)
+
+Run finished: Tue Feb  8 22:35:34 2011

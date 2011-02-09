@@ -1,0 +1,61 @@
+stdout[0] IOR-2.10.0.1: MPI Coordinated Test of Parallel I/O
+
+stdout[0] Run began: Tue Feb  8 23:10:58 2011
+stdout[0] Command line used: /home/harms/bgp/IOR/src/C/IOR -a POSIX -b 256M -g -m -i 4 -K -o /intrepid-fs0/users/harms/scratch/ior.out -r -w -t 4m -v
+stdout[0] Machine: CNK ion-R44-9
+stdout[0] Start time skew across all tasks: 0.12 sec
+stdout[0] Path: /intrepid-fs0/users/harms/scratch
+stdout[0] FS: 3072.0 TiB   Used FS: 90.3%   Inodes: 512.0 Mi   Used Inodes: 76.2%
+stdout[0] Participating tasks: 2048
+stdout[0] 
+Summary:
+stdout[0] 	api                = POSIX
+stdout[0] 	test filename      = /intrepid-fs0/users/harms/scratch/ior.out
+stdout[0] 	access             = single-shared-file
+stdout[0] 	pattern            = segmented (1 segment)
+stdout[0] 	ordering           = sequential offsets
+stdout[0] 	clients            = 2048 (1 per node)
+stdout[0] 	repetitions        = 4
+stdout[0] 	xfersize           = 4 MiB
+stdout[0] 	blocksize          = 256 MiB
+stdout[0] 	aggregate filesize = 512 GiB
+stdout[0] 
+stdout[0] Commencing write performance test.
+stdout[0] Tue Feb  8 23:10:59 2011
+stdout[0] 
+stdout[0] access    bw(MiB/s)  block(KiB) xfer(KiB)  open(s)    wr/rd(s)   close(s)   iter
+stdout[0] ------    ---------  ---------- ---------  --------   --------   --------   ----
+stdout[0] write     2222.96    262144     4096       0.427417   235.34     0.079745   0   
+stdout[0] Commencing read performance test.
+stdout[0] Tue Feb  8 23:14:54 2011
+stdout[0] 
+stdout[0] read      2878.55    262144     4096       0.017130   182.00     0.123749   0   
+stdout[0] Commencing write performance test.
+stdout[0] Tue Feb  8 23:17:57 2011
+stdout[0] 
+stdout[0] write     2321.09    262144     4096       0.179439   225.64     0.063335   1   
+stdout[0] Commencing read performance test.
+stdout[0] Tue Feb  8 23:21:42 2011
+stdout[0] 
+stdout[0] read      2939.11    262144     4096       0.018604   178.19     0.170030   1   
+stdout[0] Commencing write performance test.
+stdout[0] Tue Feb  8 23:24:41 2011
+stdout[0] 
+stdout[0] write     2314.76    262144     4096       0.183715   226.12     0.194725   2   
+stdout[0] Commencing read performance test.
+stdout[0] Tue Feb  8 23:28:28 2011
+stdout[0] 
+stdout[0] read      2910.44    262144     4096       0.017381   179.94     0.181669   2   
+stdout[0] Commencing write performance test.
+stdout[0] Tue Feb  8 23:31:28 2011
+stdout[0] 
+stdout[0] write     2302.51    262144     4096       0.166151   227.30     0.233268   3   
+stdout[0] Commencing read performance test.
+stdout[0] Tue Feb  8 23:35:16 2011
+stdout[0] 
+stdout[0] read      2903.94    262144     4096       0.017946   180.34     0.189010   3   
+stdout[0] 
+stdout[0] Max Write: 2321.09 MiB/sec (2433.84 MB/sec)
+stdout[0] Max Read:  2939.11 MiB/sec (3081.88 MB/sec)
+stdout[0] 
+stdout[0] Run finished: Tue Feb  8 23:38:16 2011

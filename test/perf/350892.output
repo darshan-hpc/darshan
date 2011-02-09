@@ -1,0 +1,61 @@
+IOR-2.10.0.1: MPI Coordinated Test of Parallel I/O
+
+Run began: Wed Feb  9 20:37:39 2011
+Command line used: /home/harms/bgp/IOR/src/C/IOR -f single_and_multi_file.ior
+Machine: CNK ion-R06-9
+
+Summary:
+	api                = POSIX
+	test filename      = /intrepid-fs0/users/harms/scratch/ior.out
+	access             = single-shared-file
+	ordering           = sequential offsets
+	clients            = 2048 (1 per node)
+	repetitions        = 4
+	xfersize           = 4 MiB
+	blocksize          = 256 MiB
+	aggregate filesize = 512 GiB
+
+access    bw(MiB/s)  block(KiB) xfer(KiB)  open(s)    wr/rd(s)   close(s)   iter
+------    ---------  ---------- ---------  --------   --------   --------   ----
+write     2263.37    262144     4096       0.318107   231.21     0.107741   0   
+read      2819.49    262144     4096       0.016437   185.79     0.145695   0   
+write     2363.48    262144     4096       0.186718   221.42     0.216908   1   
+read      2861.37    262144     4096       0.017310   182.96     0.251082   1   
+write     2261.83    262144     4096       0.167811   231.40     0.234639   2   
+read      2867.13    262144     4096       0.016909   182.67     0.179075   2   
+write     2304.19    262144     4096       0.218270   227.20     0.118000   3   
+read      2908.42    262144     4096       0.018176   180.11     0.134019   3   
+
+Max Write: 2363.48 MiB/sec (2478.29 MB/sec)
+Max Read:  2908.42 MiB/sec (3049.70 MB/sec)
+
+IOR-2.10.0.1: MPI Coordinated Test of Parallel I/O
+
+Run began: Wed Feb  9 21:05:05 2011
+Command line used: /home/harms/bgp/IOR/src/C/IOR -f single_and_multi_file.ior
+Machine: CNK ion-R06-9
+
+Summary:
+	api                = POSIX
+	test filename      = /intrepid-fs0/users/harms/scratch/ior.out
+	access             = file-per-process
+	ordering           = sequential offsets
+	clients            = 2048 (1 per node)
+	repetitions        = 4
+	xfersize           = 4 MiB
+	blocksize          = 256 MiB
+	aggregate filesize = 512 GiB
+
+write     2341.54    262144     4096       0.622082   223.12     0.162660   0   
+read      2862.17    262144     4096       0.017030   183.13     0.030806   0   
+write     2354.37    262144     4096       0.409148   222.11     0.171205   1   
+read      2850.33    262144     4096       0.016691   183.89     0.031446   1   
+write     2356.01    262144     4096       0.425325   221.91     0.200420   2   
+read      2867.77    262144     4096       0.020235   182.77     0.032219   2   
+write     2341.94    262144     4096       0.982192   222.72     0.163251   3   
+read      2884.45    262144     4096       0.054666   181.67     0.035870   3   
+
+Max Write: 2356.01 MiB/sec (2470.45 MB/sec)
+Max Read:  2884.45 MiB/sec (3024.56 MB/sec)
+
+Run finished: Wed Feb  9 21:32:21 2011

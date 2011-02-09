@@ -1,0 +1,27 @@
+# IOR Script to use both single-shared-file and file-per-proc IO
+#
+#qsub -q prod -A Operations -t 60 -n 512 --mode vn --env BG_COREDUMPDISABLED=1 /
+home/harms/bgp/IOR/src/C/IOR -f file.ior
+#
+IOR START
+	# Base Config
+	testFile = /intrepid-fs0/users/harms/scratch/ior.out
+        api = POSIX
+	blockSize = 256M
+	transferSize = 4M
+	intraTestBarriers = 1
+	keepFileWithError = 1
+	multiFile = 1
+	repetitions = 4
+	writeFile = 1
+	readFile = 1
+
+	# Single Shared File 
+	filePerProc = 0
+	RUN
+
+	# File Per Process
+	filePerProc = 1
+	uniqueDir = 1
+	RUN
+IOR STOP
