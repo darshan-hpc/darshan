@@ -14,10 +14,11 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/uio.h>
-#include <pthread.h>
 #include <sys/mman.h>
 #include <search.h>
 #include <assert.h>
+#define __USE_GNU
+#include <pthread.h>
 
 #include "darshan.h"
 #include "darshan-config.h"
@@ -99,7 +100,7 @@ DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
 DARSHAN_FORWARD_DECL(fsync, int, (int fd));
 DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
 
-pthread_mutex_t cp_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t cp_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 struct darshan_job_runtime* darshan_global_job = NULL;
 static int my_rank = -1;
 static struct stat64 cp_stat_buf;
