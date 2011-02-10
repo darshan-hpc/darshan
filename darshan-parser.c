@@ -21,10 +21,10 @@
 /*
  * Options
  */
-#define OPTION_BASE  (1 << 0)  // darshan log fields
-#define OPTION_TOTAL (1 << 1)  // aggregated fields
-#define OPTION_PERF  (1 << 2)  // derived performance
-#define OPTION_FILE  (1 << 3)  // file count totals
+#define OPTION_BASE  (1 << 0)  /* darshan log fields */
+#define OPTION_TOTAL (1 << 1)  /* aggregated fields */
+#define OPTION_PERF  (1 << 2)  /* derived performance */
+#define OPTION_FILE  (1 << 3)  /* file count totals */
 #define OPTION_ALL (\
   OPTION_BASE|\
   OPTION_TOTAL|\

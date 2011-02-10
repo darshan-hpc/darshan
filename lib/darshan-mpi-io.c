@@ -1939,7 +1939,9 @@ static void cp_access_walker(const void* nodep, const VISIT which, const int dep
         case postorder:
         case leaf:
             counter = *(struct cp_access_counter**)nodep;
-            //printf("   type %d size: %lld, freq: %d\n", walker_validx, counter->size, counter->freq);
+#if 0
+            printf("   type %d size: %lld, freq: %d\n", walker_validx, counter->size, counter->freq);
+#endif
             CP_COUNTER_INC(walker_file, counter->size, counter->freq, 1, walker_validx, walker_cntidx);
         default:
             break;
@@ -1959,7 +1961,9 @@ void darshan_walk_file_accesses(struct darshan_job_runtime* final_job)
 
     for(i=0; i<final_job->file_count; i++)
     {
-        //printf("file: %d\n", i);
+        #if 0
+        printf("file: %d\n", i);
+        #endif
         
         /* walk trees for both access sizes and stride sizes to pick 4 most
          * common of each

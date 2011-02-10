@@ -1703,7 +1703,7 @@ void darshan_search_bench(int argc, char** argv, int iters)
             }
             tm2 = darshan_wtime();
 
-            // printf("#<iters>\t<numfiles>\t<numsizes>\t<total time>\t<per iter>\n");
+            /* printf("#<iters>\t<numfiles>\t<numsizes>\t<total time>\t<per iter>\n"); */
             printf("%d\t%d\t%d\t%f\t%.12f\n", iters, nfiles, (j==0?CP_MAX_ACCESS_COUNT_RUNTIME:1), tm2-tm1, (tm2-tm1)/iters);
 
             if(nfiles == 1)
