@@ -237,16 +237,14 @@ struct darshan_job
     int64_t jobid;
 };
 
-#if SIZEOF_LONG_INT == 4
-#  define llu(x) (x)
-#  define lld(x) (x)
-#  define SCANF_lld "%lld"
-#elif SIZEOF_LONG_INT == 8
+#ifdef PRINTF_CAST_INT64_LLD
 #  define llu(x) (unsigned long long)(x)
 #  define lld(x) (long long)(x)
 #  define SCANF_lld "%ld"
 #else
-#  error Unexpected sizeof(long int)
+#  define llu(x) (x)
+#  define lld(x) (x)
+#  define SCANF_lld "%lld"
 #endif
 
 #endif /* __DARSHAN_LOG_FORMAT_H */

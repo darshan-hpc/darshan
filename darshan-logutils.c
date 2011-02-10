@@ -365,14 +365,12 @@ int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char**
         (*fs_types)[array_index] = malloc(CP_EXE_LEN);
         assert((*fs_types)[array_index]);
         
-#if SIZEOF_LONG_INT == 4
-        ret = sscanf(++pos, "%lld\t%s\t%s", &(*devs)[array_index],
-            (*fs_types)[array_index], (*mnt_pts)[array_index]);
-#elif SIZEOF_LONG_INT == 8
+#ifdef PRINTF_CAST_INT64_LLD
         ret = sscanf(++pos, "%ld\t%s\t%s", &(*devs)[array_index],
             (*fs_types)[array_index], (*mnt_pts)[array_index]);
 #else
-#  error Unexpected sizeof(long int)
+        ret = sscanf(++pos, "%lld\t%s\t%s", &(*devs)[array_index],
+            (*fs_types)[array_index], (*mnt_pts)[array_index]);
 #endif
 
         if(ret != 3)

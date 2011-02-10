@@ -13,9 +13,6 @@ AC_PROG_INSTALL
 
 CHECK_ZLIB
 
-dnl Check byte ordering
-AC_C_BIGENDIAN
-
 AC_ARG_WITH(mpi,
 [  --with-mpi=<dir>        Location of the MPI installation],
     if test x$withval = xyes; then
@@ -78,9 +75,6 @@ AC_ARG_WITH(jobid-env,
     fi
 )
 
-saveCC="$CC"
-CC="$MPICC"
-
 if test x$HAVE_MPICC != "xyes"; then
     AC_MSG_ERROR(must provide --with-mpi=<path> argument to configure if mpicc is not in path.)
 fi
@@ -94,12 +88,42 @@ if test x$GOT_JOBID != x1; then
     AC_MSG_ERROR(must provide --with-jobid-env=<name> argument to configure.)
 fi
 
+# =====================================================================
+# all tests executed with CC=MPICC from this point on
+
+saveCC="$CC"
+CC="$MPICC"
+
+# redo printf int64 test for mpi compiler
+AC_MSG_CHECKING(if int64 can be printed as lld without cast)
+old_cflags="$CFLAGS"
+CFLAGS="$CFLAGS -Wall -Werror"
+AC_TRY_COMPILE(
+    [
+        #include <stdio.h>
+        #include <sys/types.h>
+    ],
+    [ 
+        int64_t test = 0;
+        printf("%lld\n", test); 
+    ],
+        AC_MSG_RESULT(yes)
+    ,
+        AC_MSG_RESULT(no)
+        AC_DEFINE(PRINTF_CAST_INT64_LLD, 1, Define if int64 should be cast to long long for printf)
+)
+CFLAGS="$old_cflags"
+
+
 AC_MSG_CHECKING(whether the mpicc compiler works)
 AC_TRY_COMPILE([#include <mpi.h>], [int ret = MPI_Init(0, (void*)0)],
     AC_MSG_RESULT(yes),
     AC_MSG_RESULT(no)
     AC_MSG_ERROR($CC doesn't appear to be a valid MPI compiler)
 )
+
+dnl Check byte ordering
+AC_C_BIGENDIAN
 
 dnl temporarily set large file flags just for this test; we don't want
 dnl it to propagate to the makefile because of zlib bugs
@@ -177,7 +201,6 @@ AC_SUBST(__CP_LOG_PATH)
 AC_SUBST(__CP_ZLIB_LINK_FLAGS)
 AC_SUBST(__CP_ZLIB_INCLUDE_FLAGS)
 AC_SUBST(CP_WRAPPERS)
-AC_CHECK_SIZEOF([long int])
 AC_OUTPUT(Makefile
 darshan-mk-log-dirs.pl
 darshan-gen-cc.pl

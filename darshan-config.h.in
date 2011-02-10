@@ -63,8 +63,8 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* The size of `long int', as computed by sizeof. */
-#undef SIZEOF_LONG_INT
+/* Define if int64 should be cast to long long for printf */
+#undef PRINTF_CAST_INT64_LLD
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
