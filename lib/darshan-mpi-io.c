@@ -991,7 +991,7 @@ int MPI_File_read_ordered_begin(MPI_File fh, void * buf, int count, MPI_Datatype
 }
 
 int MPI_File_iread_at(MPI_File fh, MPI_Offset offset, void * buf,
-    int count, MPI_Datatype datatype, MPIO_Request *request)
+    int count, MPI_Datatype datatype, MPI_Request *request)
 {
     int ret;
     double tm1, tm2;
@@ -1006,7 +1006,7 @@ int MPI_File_iread_at(MPI_File fh, MPI_Offset offset, void * buf,
     return(ret);
 }
 
-int MPI_File_iread(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MPIO_Request * request)
+int MPI_File_iread(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MPI_Request * request)
 {
     int ret;
     double tm1, tm2;
@@ -1021,7 +1021,7 @@ int MPI_File_iread(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MP
 }
 
 int MPI_File_iread_shared(MPI_File fh, void * buf, int count,
-    MPI_Datatype datatype, MPIO_Request * request)
+    MPI_Datatype datatype, MPI_Request * request)
 {
     int ret;
     double tm1, tm2;
@@ -1176,7 +1176,7 @@ int MPI_File_write_ordered_begin(MPI_File fh, void * buf, int count, MPI_Datatyp
 }
 
 int MPI_File_iwrite_at(MPI_File fh, MPI_Offset offset, void * buf,
-    int count, MPI_Datatype datatype, MPIO_Request *request)
+    int count, MPI_Datatype datatype, MPI_Request *request)
 {
     int ret;
     double tm1, tm2;
@@ -1191,7 +1191,7 @@ int MPI_File_iwrite_at(MPI_File fh, MPI_Offset offset, void * buf,
     return(ret);
 }
 
-int MPI_File_iwrite(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MPIO_Request * request)
+int MPI_File_iwrite(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MPI_Request * request)
 {
     int ret;
     double tm1, tm2;
@@ -1206,7 +1206,7 @@ int MPI_File_iwrite(MPI_File fh, void * buf, int count, MPI_Datatype datatype, M
 }
 
 int MPI_File_iwrite_shared(MPI_File fh, void * buf, int count,
-    MPI_Datatype datatype, MPIO_Request * request)
+    MPI_Datatype datatype, MPI_Request * request)
 {
     int ret;
     double tm1, tm2;
