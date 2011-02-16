@@ -991,7 +991,9 @@ system "$epstopdf file-access-shared.eps";
 #system "gnuplot types-pdf.gplt";
 
 # generate summary PDF
-$system_rc = system "$pdflatex -halt-on-error summary.tex > latex.output";
+# NOTE: an autoconf test determines if -halt-on-error is available and sets
+# __CP_PDFLATEX_HALT_ON_ERROR accordingly
+$system_rc = system "$pdflatex @__CP_PDFLATEX_HALT_ON_ERROR@ summary.tex > latex.output";
 if($system_rc)
 {
     print("LaTeX generation (phase1) failed [$system_rc], aborting summary creation.\n");
@@ -999,7 +1001,7 @@ if($system_rc)
     system("tail latex.output");
     exit(1);
 }
-$system_rc = system "$pdflatex -halt-on-error summary.tex > latex.output2";
+$system_rc = system "$pdflatex @__CP_PDFLATEX_HALT_ON_ERROR@ summary.tex > latex.output2";
 if($system_rc)
 {
     print("LaTeX generation (phase2) failed [$system_rc], aborting summary creation.\n");

@@ -88,6 +88,20 @@ if test x$GOT_JOBID != x1; then
     AC_MSG_ERROR(must provide --with-jobid-env=<name> argument to configure.)
 fi
 
+AC_CHECK_PROG(HAVE_PDFLATEX, pdflatex, yes, no)
+
+if test x$HAVE_PDFLATEX == xyes; then
+    AC_MSG_CHECKING(for -halt-on-error argument to pdflatex)
+    PDFLATEX_GREP=`pdflatex --help |grep halt-on-error`
+    if test "x$PDFLATEX_GREP" != "x"; then
+        AC_MSG_RESULT(yes)
+        __CP_PDFLATEX_HALT_ON_ERROR="-halt-on-error"
+    else
+        __CP_PDFLATEX_HALT_ON_ERROR=""
+        AC_MSG_RESULT(no)
+    fi
+fi
+
 # =====================================================================
 # all tests executed with CC=MPICC from this point on
 
@@ -240,6 +254,7 @@ AC_SUBST(__CP_LOG_PATH)
 AC_SUBST(__CP_ZLIB_LINK_FLAGS)
 AC_SUBST(__CP_ZLIB_INCLUDE_FLAGS)
 AC_SUBST(CP_WRAPPERS)
+AC_SUBST(__CP_PDFLATEX_HALT_ON_ERROR)
 AC_OUTPUT(Makefile
 darshan-mk-log-dirs.pl
 darshan-gen-cc.pl
@@ -247,3 +262,7 @@ darshan-gen-cxx.pl
 darshan-gen-fortran.pl
 util/bin/darshan-job-summary.pl
 )
+
+if test x$HAVE_PDFLATEX != xyes; then
+    AC_MSG_WARN(Please install pdflatex if you wish to use the darshan-job-summary.pl utility)
+fi
