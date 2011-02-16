@@ -218,9 +218,8 @@ AC_TRY_COMPILE(
         #include <stdlib.h>
     ],
     [ 
-	int ret = 0;
 	MPI_Request req;
-	ret = MPI_File_iread_at(MPI_FILE_NULL, 0, NULL, 0, MPI_BYTE, &req);
+	MPI_File_iread_at(MPI_FILE_NULL, 0, NULL, 0, MPI_BYTE, &req);
     ],
         AC_MSG_RESULT(yes)
         AC_DEFINE_UNQUOTED(__D_MPI_REQUEST, MPI_Request, Generalized request type for MPI-IO)
@@ -233,9 +232,8 @@ AC_TRY_COMPILE(
         	#include <stdlib.h>
 	    ],
 	    [ 
-		int ret = 0;
 		MPIO_Request req;
-		ret = MPI_File_iread_at(MPI_FILE_NULL, 0, NULL, 0, MPI_BYTE, &req);
+		MPI_File_iread_at(MPI_FILE_NULL, 0, NULL, 0, MPI_BYTE, &req);
 	    ],
 		AC_MSG_RESULT(yes)
 		AC_DEFINE_UNQUOTED(__D_MPI_REQUEST, MPIO_Request, Generalized request type for MPI-IO)
