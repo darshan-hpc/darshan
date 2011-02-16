@@ -165,9 +165,65 @@ extern char* __progname;
 /* maximum number of memory segments each process will write to the log */
 #define CP_MAX_MEM_SEGMENTS 8
 
-#if MPI_VERSION < 2
-#define CP_DATATYPE_INC(__file, __datatype) do {}while(0)
-#else
+/* Some old versions of MPI don't provide all of these COMBINER definitions.  
+ * If any are missing then we define them to an arbitrary value just to 
+ * prevent compile errors in DATATYPE_INC().
+ */
+#ifndef MPI_COMBINER_NAMED
+    #define MPI_COMBINER_NAMED CP_COMBINER_NAMED
+#endif
+#ifndef MPI_COMBINER_DUP
+    #define MPI_COMBINER_DUP CP_COMBINER_DUP
+#endif
+#ifndef MPI_COMBINER_CONTIGUOUS
+    #define MPI_COMBINER_CONTIGUOUS CP_COMBINER_CONTIGUOUS
+#endif
+#ifndef MPI_COMBINER_VECTOR
+    #define MPI_COMBINER_VECTOR CP_COMBINER_VECTOR
+#endif
+#ifndef MPI_COMBINER_HVECTOR_INTEGER
+    #define MPI_COMBINER_HVECTOR_INTEGER CP_COMBINER_HVECTOR_INTEGER
+#endif
+#ifndef MPI_COMBINER_HVECTOR
+    #define MPI_COMBINER_HVECTOR CP_COMBINER_HVECTOR
+#endif
+#ifndef MPI_COMBINER_INDEXED
+    #define MPI_COMBINER_INDEXED CP_COMBINER_INDEXED
+#endif
+#ifndef MPI_COMBINER_HINDEXED_INTEGER
+    #define MPI_COMBINER_HINDEXED_INTEGER CP_COMBINER_HINDEXED_INTEGER
+#endif
+#ifndef MPI_COMBINER_HINDEXED
+    #define MPI_COMBINER_HINDEXED CP_COMBINER_HINDEXED
+#endif
+#ifndef MPI_COMBINER_INDEXED_BLOCK
+    #define MPI_COMBINER_INDEXED_BLOCK CP_COMBINER_INDEXED_BLOCK
+#endif
+#ifndef MPI_COMBINER_STRUCT_INTEGER
+    #define MPI_COMBINER_STRUCT_INTEGER CP_COMBINER_STRUCT_INTEGER
+#endif
+#ifndef MPI_COMBINER_STRUCT
+    #define MPI_COMBINER_STRUCT CP_COMBINER_STRUCT
+#endif
+#ifndef MPI_COMBINER_SUBARRAY
+    #define MPI_COMBINER_SUBARRAY CP_COMBINER_SUBARRAY
+#endif
+#ifndef MPI_COMBINER_DARRAY
+    #define MPI_COMBINER_DARRAY CP_COMBINER_DARRAY
+#endif
+#ifndef MPI_COMBINER_F90_REAL
+    #define MPI_COMBINER_F90_REAL CP_COMBINER_F90_REAL
+#endif
+#ifndef MPI_COMBINER_F90_COMPLEX
+    #define MPI_COMBINER_F90_COMPLEX CP_COMBINER_F90_COMPLEX
+#endif
+#ifndef MPI_COMBINER_F90_INTEGER
+    #define MPI_COMBINER_F90_INTEGER CP_COMBINER_F90_INTEGER
+#endif
+#ifndef MPI_COMBINER_RESIZED
+    #define MPI_COMBINER_RESIZED CP_COMBINER_RESIZED
+#endif
+
 #define CP_DATATYPE_INC(__file, __datatype) do {\
     int num_integers, num_addresses, num_datatypes, combiner, ret; \
     ret = DARSHAN_MPI_CALL(PMPI_Type_get_envelope)(__datatype, &num_integers, \
@@ -213,7 +269,6 @@ extern char* __progname;
         } \
     } \
 } while(0)
-#endif
 
 #define CP_RECORD_MPI_WRITE(__ret, __fh, __count, __datatype, __counter, __tm1, __tm2) do { \
     struct darshan_file_runtime* file; \
