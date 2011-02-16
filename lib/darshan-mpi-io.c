@@ -31,10 +31,6 @@
 #include <dlfcn.h>
 #include <stdlib.h>
 
-#if MPI_VERSION < 2
-#error Darshan does not yet support MPI 1.x
-#endif
-
 #define DARSHAN_MPI_CALL(func) __real_ ## func
 
 #define DARSHAN_FORWARD_DECL(name,ret,args) \
@@ -48,12 +44,12 @@
 
 DARSHAN_FORWARD_DECL(PMPI_File_close, int, (MPI_File *fh));
 DARSHAN_FORWARD_DECL(PMPI_File_set_size, int, (MPI_File fh, MPI_Offset size));
-DARSHAN_FORWARD_DECL(PMPI_File_iread_at, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, MPI_Request *request));
-DARSHAN_FORWARD_DECL(PMPI_File_iread, int, (MPI_File fh, void  *buf, int  count, MPI_Datatype  datatype, MPI_Request  *request));
-DARSHAN_FORWARD_DECL(PMPI_File_iread_shared, int, (MPI_File fh, void *buf, int count, MPI_Datatype datatype, MPI_Request *request));
-DARSHAN_FORWARD_DECL(PMPI_File_iwrite_at, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, MPI_Request *request));
-DARSHAN_FORWARD_DECL(PMPI_File_iwrite, int, (MPI_File fh, void *buf, int count, MPI_Datatype datatype, MPI_Request *request));
-DARSHAN_FORWARD_DECL(PMPI_File_iwrite_shared, int, (MPI_File fh, void *buf, int count, MPI_Datatype datatype, MPI_Request *request));
+DARSHAN_FORWARD_DECL(PMPI_File_iread_at, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_FORWARD_DECL(PMPI_File_iread, int, (MPI_File fh, void  *buf, int  count, MPI_Datatype  datatype, __D_MPI_REQUEST  *request));
+DARSHAN_FORWARD_DECL(PMPI_File_iread_shared, int, (MPI_File fh, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_FORWARD_DECL(PMPI_File_iwrite_at, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_FORWARD_DECL(PMPI_File_iwrite, int, (MPI_File fh, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_FORWARD_DECL(PMPI_File_iwrite_shared, int, (MPI_File fh, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
 DARSHAN_FORWARD_DECL(PMPI_File_open, int, (MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_File *fh));
 DARSHAN_FORWARD_DECL(PMPI_File_read_all_begin, int, (MPI_File fh, void *buf, int count, MPI_Datatype datatype));
 DARSHAN_FORWARD_DECL(PMPI_File_read_all, int, (MPI_File fh, void *buf, int count, MPI_Datatype datatype, MPI_Status *status));
@@ -169,6 +165,9 @@ extern char* __progname;
 /* maximum number of memory segments each process will write to the log */
 #define CP_MAX_MEM_SEGMENTS 8
 
+#if MPI_VERSION < 2
+#define CP_DATATYPE_INC(__file, __datatype) do {}while(0)
+#else
 #define CP_DATATYPE_INC(__file, __datatype) do {\
     int num_integers, num_addresses, num_datatypes, combiner, ret; \
     ret = DARSHAN_MPI_CALL(PMPI_Type_get_envelope)(__datatype, &num_integers, \
@@ -214,6 +213,7 @@ extern char* __progname;
         } \
     } \
 } while(0)
+#endif
 
 #define CP_RECORD_MPI_WRITE(__ret, __fh, __count, __datatype, __counter, __tm1, __tm2) do { \
     struct darshan_file_runtime* file; \
@@ -991,7 +991,7 @@ int MPI_File_read_ordered_begin(MPI_File fh, void * buf, int count, MPI_Datatype
 }
 
 int MPI_File_iread_at(MPI_File fh, MPI_Offset offset, void * buf,
-    int count, MPI_Datatype datatype, MPI_Request *request)
+    int count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
 {
     int ret;
     double tm1, tm2;
@@ -1006,7 +1006,7 @@ int MPI_File_iread_at(MPI_File fh, MPI_Offset offset, void * buf,
     return(ret);
 }
 
-int MPI_File_iread(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MPI_Request * request)
+int MPI_File_iread(MPI_File fh, void * buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST * request)
 {
     int ret;
     double tm1, tm2;
@@ -1021,7 +1021,7 @@ int MPI_File_iread(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MP
 }
 
 int MPI_File_iread_shared(MPI_File fh, void * buf, int count,
-    MPI_Datatype datatype, MPI_Request * request)
+    MPI_Datatype datatype, __D_MPI_REQUEST * request)
 {
     int ret;
     double tm1, tm2;
@@ -1176,7 +1176,7 @@ int MPI_File_write_ordered_begin(MPI_File fh, void * buf, int count, MPI_Datatyp
 }
 
 int MPI_File_iwrite_at(MPI_File fh, MPI_Offset offset, void * buf,
-    int count, MPI_Datatype datatype, MPI_Request *request)
+    int count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
 {
     int ret;
     double tm1, tm2;
@@ -1191,7 +1191,7 @@ int MPI_File_iwrite_at(MPI_File fh, MPI_Offset offset, void * buf,
     return(ret);
 }
 
-int MPI_File_iwrite(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MPI_Request * request)
+int MPI_File_iwrite(MPI_File fh, void * buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST * request)
 {
     int ret;
     double tm1, tm2;
@@ -1206,7 +1206,7 @@ int MPI_File_iwrite(MPI_File fh, void * buf, int count, MPI_Datatype datatype, M
 }
 
 int MPI_File_iwrite_shared(MPI_File fh, void * buf, int count,
-    MPI_Datatype datatype, MPI_Request * request)
+    MPI_Datatype datatype, __D_MPI_REQUEST * request)
 {
     int ret;
     double tm1, tm2;
