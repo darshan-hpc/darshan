@@ -775,21 +775,38 @@ void accum_perf(struct darshan_file *dfile,
     {
         if (mpi_file)
         {
+#if 0
             hfile->cumul_time += dfile->fcounters[CP_F_MPI_META_TIME] +
                                 dfile->fcounters[CP_F_MPI_READ_TIME] +
                                 dfile->fcounters[CP_F_MPI_WRITE_TIME];
             hfile->meta_time += dfile->fcounters[CP_F_MPI_META_TIME];
+#else
+            pdata->rank_cumul_io_time[dfile->rank] += dfile->fcounters[CP_F_MPI_META_TIME] +
+                                dfile->fcounters[CP_F_MPI_READ_TIME] +
+                                dfile->fcounters[CP_F_MPI_WRITE_TIME];
+            pdata->rank_cumul_md_time[dfile->rank] += dfile->fcounters[CP_F_MPI_META_TIME];
+#endif
         }
         else
         {
+#if 0
              hfile->cumul_time += dfile->fcounters[CP_F_POSIX_META_TIME] +
                                  dfile->fcounters[CP_F_POSIX_READ_TIME] +
                                  dfile->fcounters[CP_F_POSIX_WRITE_TIME];
              hfile->meta_time += dfile->fcounters[CP_F_POSIX_META_TIME];
+#else
+            pdata->rank_cumul_io_time[dfile->rank] += dfile->fcounters[CP_F_POSIX_META_TIME] +
+                                dfile->fcounters[CP_F_POSIX_READ_TIME] +
+                                dfile->fcounters[CP_F_POSIX_WRITE_TIME];
+            pdata->rank_cumul_md_time[dfile->rank] += dfile->fcounters[CP_F_POSIX_META_TIME];
+
+#endif
         }
 
+#if 0
         pdata->rank_cumul_io_time[dfile->rank] += hfile->cumul_time;
         pdata->rank_cumul_md_time[dfile->rank] += hfile->meta_time;
+#endif
     }
 
     return;
@@ -811,6 +828,7 @@ void calc_perf(struct darshan_job *djob,
         if (pdata->rank_cumul_io_time[i] > pdata->slowest_rank_time)
         {
             pdata->slowest_rank_time = pdata->rank_cumul_io_time[i];
+            pdata->slowest_rank_meta_time = pdata->rank_cumul_md_time[i];
         }
     }
 
