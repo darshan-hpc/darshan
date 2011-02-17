@@ -1237,13 +1237,19 @@ sub process_file_record
             if($file_record{'CP_F_READ_END_TIMESTAMP'} >
                 $file_record{'CP_F_WRITE_END_TIMESTAMP'})
             {
-                $shared_file_time += $file_record{'CP_F_READ_END_TIMESTAMP'} -
-                    $file_record{'CP_F_OPEN_TIMESTAMP'};
+                # be careful of files that were opened but not read or
+                # written
+                if($file_record{'CP_F_READ_END_TIMESTAMP'} > $file_record{'CP_F_OPEN_TIMESTAMP'}) {
+                    $shared_file_time += $file_record{'CP_F_READ_END_TIMESTAMP'} -
+                        $file_record{'CP_F_OPEN_TIMESTAMP'};
+                }
             }
             else
             {
-                $shared_file_time += $file_record{'CP_F_WRITE_END_TIMESTAMP'} -
-                    $file_record{'CP_F_OPEN_TIMESTAMP'};
+                if($file_record{'CP_F_WRITE_END_TIMESTAMP'} > $file_record{'CP_F_OPEN_TIMESTAMP'}) {
+                    $shared_file_time += $file_record{'CP_F_WRITE_END_TIMESTAMP'} -
+                        $file_record{'CP_F_OPEN_TIMESTAMP'};
+                }
             }
         }
     }

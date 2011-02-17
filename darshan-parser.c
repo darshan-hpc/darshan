@@ -13,6 +13,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <assert.h>
 
 #include "darshan-logutils.h"
 
@@ -733,15 +734,23 @@ void accum_perf(struct darshan_file *dfile,
         if (dfile->fcounters[CP_F_READ_END_TIMESTAMP] >
             dfile->fcounters[CP_F_WRITE_END_TIMESTAMP])
         {
-            pdata->shared_time_by_open_lastio += 
-                dfile->fcounters[CP_F_READ_END_TIMESTAMP] - 
-                dfile->fcounters[CP_F_OPEN_TIMESTAMP];
+            /* be careful: file may have been opened but not read or written */
+            if(dfile->fcounters[CP_F_READ_END_TIMESTAMP] > dfile->fcounters[CP_F_OPEN_TIMESTAMP])
+            {
+                pdata->shared_time_by_open_lastio += 
+                    dfile->fcounters[CP_F_READ_END_TIMESTAMP] - 
+                    dfile->fcounters[CP_F_OPEN_TIMESTAMP];
+            }
         }
         else
         {
-            pdata->shared_time_by_open_lastio += 
-                dfile->fcounters[CP_F_WRITE_END_TIMESTAMP] - 
-                dfile->fcounters[CP_F_OPEN_TIMESTAMP];
+            /* be careful: file may have been opened but not read or written */
+            if(dfile->fcounters[CP_F_WRITE_END_TIMESTAMP] > dfile->fcounters[CP_F_OPEN_TIMESTAMP])
+            {
+                pdata->shared_time_by_open_lastio += 
+                    dfile->fcounters[CP_F_WRITE_END_TIMESTAMP] - 
+                    dfile->fcounters[CP_F_OPEN_TIMESTAMP];
+            }
         }
 
         /* by_cumul */
