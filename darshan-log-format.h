@@ -6,17 +6,21 @@
 #ifndef __DARSHAN_LOG_FORMAT_H
 #define __DARSHAN_LOG_FORMAT_H
 
+#include "darshan-config.h"
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdint.h>
 #ifdef HAVE_INTTYPES_H
 	#include <inttypes.h>
 #endif
-#include "darshan-config.h"
 
 #if !defined PRId64 || PRI_MACROS_BROKEN
 # undef PRId64
 # define PRId64 (sizeof (long) == 8 ? "ld" : "lld")
+#endif
+#if !defined PRIu64 || PRI_MACROS_BROKEN
+# undef PRIu64
+# define PRIu64 (sizeof (long) == 8 ? "lu" : "llu")
 #endif
 
 /* update this on file format changes */

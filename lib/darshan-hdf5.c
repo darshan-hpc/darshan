@@ -3,12 +3,12 @@
  *      See COPYRIGHT in top-level directory.
  */
 
+#include "darshan-config.h"
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
 #include "mpi.h"
 #include "darshan.h"
-#include "darshan-config.h"
 
 /* hope this doesn't change any time soon */
 typedef int hid_t; 

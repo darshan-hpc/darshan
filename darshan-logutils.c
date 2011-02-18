@@ -3,13 +3,13 @@
  *      See COPYRIGHT in top-level directory.
  */
 
+#include "darshan-config.h"
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include "darshan-logutils.h"
-#include "darshan-config.h"
 
 /* isn't there a clever c way to avoid this? */
 char *darshan_names[] = {
@@ -366,7 +366,7 @@ int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char**
         (*fs_types)[array_index] = malloc(CP_EXE_LEN);
         assert((*fs_types)[array_index]);
         
-        ret = sscanf(++pos, "%PRId64\t%s\t%s", &(*devs)[array_index],
+        ret = sscanf(++pos, "%" PRId64 "\t%s\t%s", &(*devs)[array_index],
             (*fs_types)[array_index], (*mnt_pts)[array_index]);
 
         if(ret != 3)

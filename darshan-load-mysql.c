@@ -23,23 +23,23 @@
 
 const char *insert_job_fmt  = "insert into %s values('%d','%s','%s','%s',\
 '%d','%ld','%ld','%d')";
-const char *insert_mnt_fmt  = "insert into %s values('%d','%d','%PRId64','%s','%s')";
-const char *insert_file_fmt = "insert into %s values('%d','%ld','%PRId64','%d',\
+const char *insert_mnt_fmt  = "insert into %s values('%d','%d','%" PRId64 "','%s','%s')";
+const char *insert_file_fmt = "insert into %s values('%d','%ld','%" PRId64 "','%d',\
 '%s',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
-'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
+'%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%" PRId64 "',\
 '%.16lf','%.16lf','%.16lf','%.16lf','%.16lf',\
 '%.16lf','%.16lf','%.16lf','%.16lf','%.16lf',\
 '%.16lf','%.16lf','%.16lf','%.16lf')";

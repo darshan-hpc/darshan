@@ -24,8 +24,8 @@ static void cd_print_int(char * prefix, int arg1, int arg2)
 }
 static void cd_print_int64(char * prefix, int64_t arg1, int64_t arg2)
 {
-    printf("- %s %PRId64\n", prefix, arg1);
-    printf("+ %s %PRId64\n", prefix, arg2);
+    printf("- %s %" PRId64 "\n", prefix, arg1);
+    printf("+ %s %" PRId64 "\n", prefix, arg2);
 }
 
 
@@ -116,11 +116,11 @@ int main(int argc, char ** argv)
         for(i=0; i<CP_NUM_INDICES; i++) {
             if (cp_file1.counters[i] != cp_file2.counters[i]) {
 		printf("- ");
-		printf("%PRId64\t%PRIu64\t%s\t%PRId64\t...%s\n",
+		printf("%" PRId64 "\t%" PRIu64 "\t%s\t%" PRId64 "\t...%s\n",
 			cp_file1.rank, cp_file1.hash, darshan_names[i], 
 			cp_file1.counters[i], cp_file1.name_suffix);
 		printf("+ ");
-		printf("%PRId64\t%PRIu64\t%s\t%PRId64\t...%s\n",
+		printf("%" PRId64 "\t%" PRIu64 "\t%s\t%" PRId64 "\t...%s\n",
 			cp_file2.rank, cp_file2.hash, darshan_names[i], 
 			cp_file2.counters[i], cp_file2.name_suffix);
             }
@@ -128,11 +128,11 @@ int main(int argc, char ** argv)
         for(i=0; i<CP_F_NUM_INDICES; i++) {
             if (cp_file1.fcounters[i] != cp_file2.fcounters[i]) {
 		printf("- ");
-		printf("%PRId64\t%PRIu64\t%s\t%f\t...%s\n",
+		printf("%" PRId64 "\t%" PRIu64 "\t%s\t%f\t...%s\n",
 			cp_file1.rank, cp_file1.hash, darshan_f_names[i], 
 			cp_file1.fcounters[i], cp_file1.name_suffix);
 		printf("+ ");
-		printf("%PRId64\t%PRIu64\t%s\t%f\t...%s\n",
+		printf("%" PRId64 "\t%" PRIu64 "\t%s\t%f\t...%s\n",
 			cp_file2.rank, cp_file2.hash, darshan_f_names[i], 
 			cp_file2.fcounters[i], cp_file2.name_suffix);
             }

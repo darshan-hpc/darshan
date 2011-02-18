@@ -34,13 +34,13 @@ void darshan_log_print_version_warnings(struct darshan_job *job);
 /* convenience macros for printing out counters */
 #define CP_PRINT_HEADER() printf("#<rank>\t<file>\t<counter>\t<value>\t<name suffix>\t<mount pt>\t<fs type>\n")
 #define CP_PRINT(__job, __file, __counter, __mnt_pt, __fs_type) do {\
-        printf("%PRId64\t%PRIu64\t%s\t%PRId64\t...%s\t%s\t%s\n", \
+        printf("%" PRId64 "\t%" PRIu64 "\t%s\t%" PRId64 "\t...%s\t%s\t%s\n", \
             (__file)->rank, (__file)->hash, darshan_names[__counter], \
             (__file)->counters[__counter], (__file)->name_suffix, \
             __mnt_pt, __fs_type); \
 } while(0)
 #define CP_F_PRINT(__job, __file, __counter, __mnt_pt, __fs_type) do {\
-        printf("%PRId64\t%PRIu64\t%s\t%f\t...%s\t%s\t%s\n", \
+        printf("%" PRId64 "\t%" PRIu64 "\t%s\t%f\t...%s\t%s\t%s\n", \
             (__file)->rank, (__file)->hash, darshan_f_names[__counter], \
             (__file)->fcounters[__counter], (__file)->name_suffix, \
             __mnt_pt, __fs_type); \

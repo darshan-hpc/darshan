@@ -234,17 +234,17 @@ int main(int argc, char **argv)
     printf("# size of file statistics: %zu bytes\n", sizeof(cp_file));
     printf("# size of job statistics: %zu bytes\n", sizeof(job));
     printf("# exe: %s\n", tmp_string);
-    printf("# uid: %PRId64\n", job.uid);
-    printf("# jobid: %PRId64\n", job.jobid);
-    printf("# start_time: %PRId64\n", job.start_time);
+    printf("# uid: %" PRId64 "\n", job.uid);
+    printf("# jobid: %" PRId64 "\n", job.jobid);
+    printf("# start_time: %" PRId64 "\n", job.start_time);
     tmp_time += job.start_time;
     printf("# start_time_asci: %s", ctime(&tmp_time));
-    printf("# end_time: %PRId64\n", job.end_time);
+    printf("# end_time: %" PRId64 "\n", job.end_time);
     tmp_time = 0;
     tmp_time += job.end_time;
     printf("# end_time_asci: %s", ctime(&tmp_time));
-    printf("# nprocs: %PRId64\n", job.nprocs);
-    printf("# run time: %PRId64\n", job.end_time - job.start_time + 1);
+    printf("# nprocs: %" PRId64 "\n", job.nprocs);
+    printf("# run time: %" PRId64 "\n", job.end_time - job.start_time + 1);
  
     /* print table of mounted file systems */
     ret = darshan_log_getmounts(file, &devs, &mnt_pts, &fs_types, &mount_count,
@@ -253,7 +253,7 @@ int main(int argc, char **argv)
     printf("# -------------------------------------------------------\n");
     for(i=0; i<mount_count; i++)
     {
-        printf("# mount entry: %PRId64\t%s\t%s\n", devs[i], mnt_pts[i], fs_types[i]);
+        printf("# mount entry: %" PRId64 "\t%s\t%s\n", devs[i], mnt_pts[i], fs_types[i]);
     }
   
     if(no_files_flag)
@@ -408,7 +408,7 @@ int main(int argc, char **argv)
     {
         for(i=0; i<CP_NUM_INDICES; i++)
         {
-            printf("total_%s: %PRId64\n",
+            printf("total_%s: %" PRId64 "\n",
                    darshan_names[i], total.counters[i]);
         }
         for(i=0; i<CP_F_NUM_INDICES; i++)
@@ -424,7 +424,7 @@ int main(int argc, char **argv)
     {
         printf("\n# performance\n");
         printf("# -----------\n");
-        printf("# total_bytes: %PRId64\n", pdata.total_bytes);
+        printf("# total_bytes: %" PRId64 "\n", pdata.total_bytes);
         printf("# slowest_rank_time: %lf\n", pdata.slowest_rank_time);
         printf("# slowest_rank_meta_time: %lf\n", pdata.slowest_rank_meta_time);
         printf("# shared_time_by_cumul: %lf\n", pdata.shared_time_by_cumul);
@@ -443,27 +443,27 @@ int main(int argc, char **argv)
     {
         printf("\n# files\n");
         printf("# -----\n");
-        printf("# total: %PRId64 %PRId64 %PRId64\n",
+        printf("# total: %" PRId64 " %" PRId64 " %" PRId64 "\n",
                fdata.total,
                fdata.total_size,
                fdata.total_max);
-        printf("# read_only: %PRId64 %PRId64 %PRId64\n",
+        printf("# read_only: %" PRId64 " %" PRId64 " %" PRId64 "\n",
                fdata.read_only,
                fdata.read_only_size,
                fdata.read_only_max);
-        printf("# write_only: %PRId64 %PRId64 %PRId64\n",
+        printf("# write_only: %" PRId64 " %" PRId64 " %" PRId64 "\n",
                fdata.write_only,
                fdata.write_only_size,
                fdata.write_only_max);
-        printf("# read_write: %PRId64 %PRId64 %PRId64\n",
+        printf("# read_write: %" PRId64 " %" PRId64 " %" PRId64 "\n",
                fdata.read_write,
                fdata.read_write_size,
                fdata.read_write_max);
-        printf("# unique: %PRId64 %PRId64 %PRId64\n",
+        printf("# unique: %" PRId64 " %" PRId64 " %" PRId64 "\n",
                fdata.unique,
                fdata.unique_size,
                fdata.unique_max);
-        printf("# shared: %PRId64 %PRId64 %PRId64\n",
+        printf("# shared: %" PRId64 " %" PRId64 " %" PRId64 "\n",
                fdata.shared,
                fdata.shared_size,
                fdata.shared_max);

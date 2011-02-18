@@ -3,6 +3,7 @@
  *      See COPYRIGHT in top-level directory.
  */
 
+#include "darshan-config.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -21,7 +22,6 @@
 #include <pthread.h>
 
 #include "darshan.h"
-#include "darshan-config.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
