@@ -108,26 +108,8 @@ fi
 saveCC="$CC"
 CC="$MPICC"
 
-# redo printf int64 test for mpi compiler
-AC_MSG_CHECKING(if int64 can be printed as lld without cast)
-old_cflags="$CFLAGS"
-CFLAGS="$CFLAGS -Wall -Werror"
-AC_TRY_COMPILE(
-    [
-        #include <stdio.h>
-        #include <sys/types.h>
-    ],
-    [ 
-        int64_t test = 0;
-        printf("%lld\n", test); 
-    ],
-        AC_MSG_RESULT(yes)
-    ,
-        AC_MSG_RESULT(no)
-        AC_DEFINE(PRINTF_CAST_INT64_LLD, 1, Define if int64 should be cast to long long for printf)
-)
-CFLAGS="$old_cflags"
-
+# checks to see how we can print 64 bit values on this architecture
+gt_INTTYPES_PRI
 
 AC_MSG_CHECKING(whether the mpicc compiler works)
 AC_TRY_COMPILE([#include <mpi.h>], [int ret = MPI_Init(0, (void*)0)],
@@ -209,42 +191,16 @@ AC_TRY_LINK([#include <mpi.h>], [
     AC_MSG_ERROR(Darshan requires a version of MPI with MPI-IO support)
 )
 
-AC_MSG_CHECKING(for generalized requests in MPI-IO)
-old_cflags="$CFLAGS"
-CFLAGS="$CFLAGS -Wall -Werror"
-AC_TRY_COMPILE(
-    [
-        #include <mpi.h>
-        #include <stdlib.h>
-    ],
-    [ 
-	MPI_Request req;
-	MPI_File_iread_at(MPI_FILE_NULL, 0, NULL, 0, MPI_BYTE, &req);
-    ],
-        AC_MSG_RESULT(yes)
-        AC_DEFINE_UNQUOTED(__D_MPI_REQUEST, MPI_Request, Generalized request type for MPI-IO)
-    ,
-        AC_MSG_RESULT(no)
-	AC_MSG_CHECKING(for MPIO_Request in MPI-IO)
-	AC_TRY_COMPILE(
-	    [
-		#include <mpi.h>
-        	#include <stdlib.h>
-	    ],
-	    [ 
-		MPIO_Request req;
-		MPI_File_iread_at(MPI_FILE_NULL, 0, NULL, 0, MPI_BYTE, &req);
-	    ],
-		AC_MSG_RESULT(yes)
-		AC_DEFINE_UNQUOTED(__D_MPI_REQUEST, MPIO_Request, Generalized request type for MPI-IO)
-	    ,
-		AC_MSG_RESULT(no)
-    		AC_MSG_ERROR(Unable to find valid request type for MPI-IO)
-
-	)
-)
-CFLAGS="$old_cflags"
-
+# if this version of mpi defines an MPIO_Request type, then we assume that 
+# we should use it in the nonblocking MPI-IO functions.  This is necessary 
+# for MPI 1.x implementations that did not use generalized requests yet in 
+# MPI-IO.  Later MPI implementations might typedef MPIO_Request to MPI_Request
+# so there is no  harm in using the former if it is available there.
+AC_CHECK_TYPE([MPIO_Request], 
+		AC_DEFINE(__D_MPI_REQUEST, MPIO_Request, Generalized request type for MPI-IO)
+	, 
+		AC_DEFINE(__D_MPI_REQUEST, MPI_Request, Generalized request type for MPI-IO)
+	,[#include <mpi.h>])
 
 AC_SUBST(darshan_lib_path)
 AC_SUBST(darshan_bin_path)

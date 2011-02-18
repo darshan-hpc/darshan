@@ -9,7 +9,15 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdint.h>
+#ifdef HAVE_INTTYPES_H
+	#include <inttypes.h>
+#endif
 #include "darshan-config.h"
+
+#if !defined PRId64 || PRI_MACROS_BROKEN
+# undef PRId64
+# define PRId64 (sizeof (long) == 8 ? "ld" : "lld")
+#endif
 
 /* update this on file format changes */
 #define CP_VERSION "2.00"
@@ -236,15 +244,5 @@ struct darshan_job
     int64_t nprocs;
     int64_t jobid;
 };
-
-#ifdef PRINTF_CAST_INT64_LLD
-#  define llu(x) (unsigned long long)(x)
-#  define lld(x) (long long)(x)
-#  define SCANF_lld "%ld"
-#else
-#  define llu(x) (x)
-#  define lld(x) (x)
-#  define SCANF_lld "%lld"
-#endif
 
 #endif /* __DARSHAN_LOG_FORMAT_H */

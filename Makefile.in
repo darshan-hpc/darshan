@@ -18,11 +18,11 @@ cp_zlib_include_flags = @__CP_ZLIB_INCLUDE_FLAGS@
 
 # deliberately avoid large file support for host side utilities to avoid
 # potentially buggy libz 64 bit offset support
-CFLAGS = -I . -I $(srcdir) @CFLAGS@ @CPPFLAGS@ -Wall
+CFLAGS = -I . -I $(srcdir) @CFLAGS@ @CPPFLAGS@ 
 
-CFLAGS_MPI = -I . -I $(srcdir) @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE -Wall
+CFLAGS_MPI = -I . -I $(srcdir) @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE 
 
-CFLAGS_MPI_SHARED = -I . -I $(srcdir) @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE -Wall -shared -fpic -DPIC -DDARSHAN_PRELOAD
+CFLAGS_MPI_SHARED = -I . -I $(srcdir) @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE -shared -fpic -DPIC -DDARSHAN_PRELOAD
 
 CC=@MPICC@
 LD=@MPICC@

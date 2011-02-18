@@ -23,23 +23,23 @@
 
 const char *insert_job_fmt  = "insert into %s values('%d','%s','%s','%s',\
 '%d','%ld','%ld','%d')";
-const char *insert_mnt_fmt  = "insert into %s values('%d','%d','%lld','%s','%s')";
-const char *insert_file_fmt = "insert into %s values('%d','%ld','%lld','%d',\
+const char *insert_mnt_fmt  = "insert into %s values('%d','%d','%PRId64','%s','%s')";
+const char *insert_file_fmt = "insert into %s values('%d','%ld','%PRId64','%d',\
 '%s',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
-'%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld','%lld',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
+'%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64','%PRId64',\
 '%.16lf','%.16lf','%.16lf','%.16lf','%.16lf',\
 '%.16lf','%.16lf','%.16lf','%.16lf','%.16lf',\
 '%.16lf','%.16lf','%.16lf','%.16lf')";
@@ -192,7 +192,7 @@ jobid=%d start_time=%ld\n",
     for (i=0; (i<count); i++)
     {
         snprintf(sqlstmt,MAXSQL,insert_mnt_fmt, "darshan_mountpoints_intrepid",
-            atoi(jobid), job.start_time, lld(devs[i]), mnts[i], fstypes[i]);
+            atoi(jobid), job.start_time, devs[i], mnts[i], fstypes[i]);
 
         if (debug) printf("sql: %s\n", sqlstmt);
         ret = mysql_query(mysql, sqlstmt);

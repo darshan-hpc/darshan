@@ -603,14 +603,14 @@ void darshan_shutdown(int timing_flag)
         logmod = darshan_hash((void*)hname,strlen(hname),0);
 
         ret = snprintf(logfile_name, PATH_MAX, 
-            "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%llu.darshan_partial",
+            "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%PRIu64.darshan_partial",
             logpath, (my_tm->tm_year+1900), 
             (my_tm->tm_mon+1), my_tm->tm_mday, 
             cuser, __progname, jobid,
             (my_tm->tm_mon+1), 
             my_tm->tm_mday, 
             (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
-            llu(logmod));
+            logmod);
         if(ret == (PATH_MAX-1))
         {
             /* file name was too big; squish it down */
@@ -1995,7 +1995,7 @@ static void cp_access_walker(const void* nodep, const VISIT which, const int dep
         case leaf:
             counter = *(struct cp_access_counter**)nodep;
 #if 0
-            printf("   type %d size: %lld, freq: %d\n", walker_validx, counter->size, counter->freq);
+            printf("   type %d size: %PRId64, freq: %d\n", walker_validx, counter->size, counter->freq);
 #endif
             CP_COUNTER_INC(walker_file, counter->size, counter->freq, 1, walker_validx, walker_cntidx);
         default:
@@ -2135,7 +2135,7 @@ static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
                 mnt_array_index++;
             }
 
-            ret = snprintf(tmp_mnt, 256, "\n%lld\t%s\t%s", lld(tmp_st_dev), 
+            ret = snprintf(tmp_mnt, 256, "\n%PRId64\t%s\t%s", tmp_st_dev, 
                 entry->mnt_type, entry->mnt_dir);
             if(ret >= 256)
             {
@@ -2148,8 +2148,8 @@ static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
                 space_left -= strlen(tmp_mnt);
             }
 #if 0
-            printf("dev: %lld, mnt_pt: %s, type: %s\n",  
-                lld(tmp_st_dev), entry->mnt_dir, entry->mnt_type);
+            printf("dev: %PRId64, mnt_pt: %s, type: %s\n",  
+                tmp_st_dev, entry->mnt_dir, entry->mnt_type);
 #endif
         }
     }

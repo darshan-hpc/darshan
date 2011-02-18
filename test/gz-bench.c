@@ -84,10 +84,10 @@ int main(int argc, char **argv)
 
     printf("# size of file statistics: %zu bytes\n", sizeof(cp_file));
     printf("# exe: %s\n", tmp_string);
-    printf("# uid: %lld\n", lld(job.uid));
+    printf("# uid: %PRId64\n", job.uid);
     printf("# start_time: %ld\n", (long)job.start_time);
     printf("# end_time: %ld\n", (long)job.end_time);
-    printf("# nprocs: %lld\n", lld(job.nprocs));
+    printf("# nprocs: %PRId64\n", job.nprocs);
     printf("# run time: %ld\n", (long)(job.end_time - job.start_time + 1));
    
     if(no_files_flag)

@@ -7,6 +7,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <inttypes.h>
 #include "darshan-logutils.h"
 #include "darshan-config.h"
 
@@ -365,13 +366,8 @@ int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char**
         (*fs_types)[array_index] = malloc(CP_EXE_LEN);
         assert((*fs_types)[array_index]);
         
-#ifdef PRINTF_CAST_INT64_LLD
-        ret = sscanf(++pos, "%ld\t%s\t%s", &(*devs)[array_index],
+        ret = sscanf(++pos, "%PRId64\t%s\t%s", &(*devs)[array_index],
             (*fs_types)[array_index], (*mnt_pts)[array_index]);
-#else
-        ret = sscanf(++pos, "%lld\t%s\t%s", &(*devs)[array_index],
-            (*fs_types)[array_index], (*mnt_pts)[array_index]);
-#endif
 
         if(ret != 3)
         {
