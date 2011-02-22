@@ -1808,22 +1808,26 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     void* buf;
     int failed_write = 0;
 
-    /* construct data type to describe everything we are writing */
-    /* NOTE: there may be a bug in MPI-IO when using MPI_BOTTOM with an
-     * hindexed data type.  We will instead use the first pointer as a base
-     * and adjust the displacements relative to it.
-     */
-    buf = pointers[0];
-    for(i=0; i<count; i++)
+    /* skip building a datatype if we don't have anything to write */
+    if(count > 0)
     {
-        /* use this transform to be compiler safe */
-        uintptr_t ptr  = (uintptr_t) pointers[i];
-        uintptr_t base = (uintptr_t) buf;
-        displacements[i] = (MPI_Aint)(ptr - base);
+        /* construct data type to describe everything we are writing */
+        /* NOTE: there may be a bug in MPI-IO when using MPI_BOTTOM with an
+         * hindexed data type.  We will instead use the first pointer as a base
+         * and adjust the displacements relative to it.
+         */
+        buf = pointers[0];
+        for(i=0; i<count; i++)
+        {
+            /* use this transform to be compiler safe */
+            uintptr_t ptr  = (uintptr_t) pointers[i];
+            uintptr_t base = (uintptr_t) buf;
+            displacements[i] = (MPI_Aint)(ptr - base);
+        }
+        DARSHAN_MPI_CALL(PMPI_Type_hindexed)(count, lengths, displacements,
+            MPI_BYTE, &mtype);
+        DARSHAN_MPI_CALL(PMPI_Type_commit)(&mtype); 
     }
-    DARSHAN_MPI_CALL(PMPI_Type_hindexed)(count, lengths, displacements,
-        MPI_BYTE, &mtype);
-    DARSHAN_MPI_CALL(PMPI_Type_commit)(&mtype); 
 
     ret = DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, logfile_name,
         MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, MPI_INFO_NULL, &fh);
@@ -1845,12 +1849,27 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     /* scan is inclusive; subtract local size back out */
     offset -= my_total_long;
 
-    /* collectively write out file records from all processes */
-    ret = DARSHAN_MPI_CALL(PMPI_File_write_at_all)(fh, offset, buf, 
-        1, mtype, &status);
-    if(ret != MPI_SUCCESS)
+    if(count > 0)
     {
-        failed_write = 1;
+        /* collectively write out file records from all processes */
+        ret = DARSHAN_MPI_CALL(PMPI_File_write_at_all)(fh, offset, buf, 
+            1, mtype, &status);
+        if(ret != MPI_SUCCESS)
+        {
+            failed_write = 1;
+        }
+    }
+    else
+    {
+        /* nothing to write, but we need to participate in the 
+         * collectivee anyway 
+         */
+        ret = DARSHAN_MPI_CALL(PMPI_File_write_at_all)(fh, offset, NULL, 
+            0, MPI_BYTE, &status);
+        if(ret != MPI_SUCCESS)
+        {
+            failed_write = 1;
+        }
     }
 
     DARSHAN_MPI_CALL(PMPI_File_close)(&fh);
@@ -1877,7 +1896,8 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
         }
     }
 
-    DARSHAN_MPI_CALL(PMPI_Type_free)(&mtype);
+    if(count > 1)
+        DARSHAN_MPI_CALL(PMPI_Type_free)(&mtype);
 
     if(failed_write)
     {
