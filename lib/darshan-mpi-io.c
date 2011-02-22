@@ -1816,7 +1816,10 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     buf = pointers[0];
     for(i=0; i<count; i++)
     {
-        displacements[i] = (MPI_Aint)(pointers[i] - buf);
+        /* use this transform to be compiler safe */
+        uintptr_t ptr  = (uintptr_t) pointers[i];
+        uintptr_t base = (uintptr_t) buf;
+        displacements[i] = (MPI_Aint)(ptr - base);
     }
     DARSHAN_MPI_CALL(PMPI_Type_hindexed)(count, lengths, displacements,
         MPI_BYTE, &mtype);
