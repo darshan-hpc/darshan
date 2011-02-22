@@ -455,7 +455,7 @@ foreach $key (keys %hash_files) {
 }
 if($counter > 0) { $avg = $sum / $counter; }
 else { $avg = 0; }
-print "$counter\t$avg\t$max";
+print "$counter\t$avg\t$max\n";
 
 $cumul_read_indep /= $nprocs;
 $cumul_read_bytes_indep /= $nprocs;
