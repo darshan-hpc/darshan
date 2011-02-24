@@ -1835,14 +1835,18 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     {
         /* TODO: keep this print or not? */
         fprintf(stderr, "darshan library warning: unable to open log file %s\n", logfile_name);
-        DARSHAN_MPI_CALL(PMPI_Type_free)(&mtype);
+        if(count > 0)
+            DARSHAN_MPI_CALL(PMPI_Type_free)(&mtype);
         return(-1);
     }
    
     DARSHAN_MPI_CALL(PMPI_File_set_size)(fh, 0);
 
     /* figure out where everyone is writing */
-    DARSHAN_MPI_CALL(PMPI_Type_size)(mtype, &my_total);
+    if(count > 0)
+        DARSHAN_MPI_CALL(PMPI_Type_size)(mtype, &my_total);
+    else
+        my_total = 0;
     my_total_long = my_total;
     DARSHAN_MPI_CALL(PMPI_Scan)(&my_total_long, &offset, 1,
         MPI_LONG, MPI_SUM, MPI_COMM_WORLD); 
