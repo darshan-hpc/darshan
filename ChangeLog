@@ -2,6 +2,17 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.1.0
+=============
+* additinoal environment variables to control log, jobid and
+  alignment parameters
+* additional configure tests to improve portability
+* bug fixes for darshan-parser --perf calucations
+* support for MPI1.x
+* support for OpenMPI
+* support for PGI, Intel compilers
+* new libdarshan.so dynamic library for use with LD_PRELOAD
+
 darshan-2.0.2
 =============
 * added a random identifier to job logs (to avoid collisions from multiple
