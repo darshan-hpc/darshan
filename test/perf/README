@@ -17,15 +17,25 @@ Logs
   * 350892.output
   * harms_IOR_id1350892_2-9-74258_1.darshan.gz
 
+354969
+  * partshared run that creates shared files that are used by a subset of ranks
+  * 354969.output
+  * harms_partshared_id354969_2-25-56979_1.darshan.gz
+
 Check Performance
 ------------------
-Add all the performance test runs (both read and write) and the compute the average. 
+Add all the performance test runs (both read and write) and the compute the average for IOR test cases.
 
 awk 'BEGIN {sum=0;count=0;} /^(write|read)/ { sum+=$2; count+=1; } END { print "avg: " sum/count; }' xxxx.output
 
-darshan-parser --perf log.gz
+darshan-parser --perf <log.gz>
 
 Compare the four methods to the calculated average.
+
+For partshared:
+grep "rate" 354969.output
+
+Then compare with darshan-parser --perf <log.gz>
 
 IOR Commands
 ------------
@@ -38,3 +48,11 @@ qsub -q prod -A Operations -t 60 -n 512 --mode vn --env BG_COREDUMPDISABLED=1 IO
 # Both I/O methods in one run
 qsub -q prod -A Operations -t 60 -n 512 --mode vn --env BG_COREDUMPDISABLED=1 IOR/src/C/IOR -f single_and_multi_file.ior
 
+Partial Shared Files
+--------------------
+# a subset of ranks access the same file
+qsub -q prod -A Operations -t 60 -n 512 --mode vn --env BG_COREDUMPDISABLED=1 ./partshared
+
+partshared
+----------
+mpicc -o partshared partshared.c
