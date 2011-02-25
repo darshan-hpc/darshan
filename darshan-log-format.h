@@ -14,13 +14,27 @@
 	#include <inttypes.h>
 #endif
 
-#if !defined PRId64 || PRI_MACROS_BROKEN
-# undef PRId64
-# define PRId64 (sizeof (long) == 8 ? "ld" : "lld")
+#if !defined PRId64 || defined(PRI_MACROS_BROKEN)
+#ifndef __WORDSIZE
+#error failed to detect PRId64 or word size
 #endif
-#if !defined PRIu64 || PRI_MACROS_BROKEN
+# undef PRId64
+#if __WORDSIZE == 64
+# define PRId64 "ld"
+#else
+# define PRId64 "lld"
+#endif
+#endif
+#if !defined PRIu64 || defined(PRI_MACROS_BROKEN)
+#ifndef __WORDSIZE
+#error failed to detect PRId64 or word size
+#endif
 # undef PRIu64
-# define PRIu64 (sizeof (long) == 8 ? "lu" : "llu")
+#if __WORDSIZE == 64
+# define PRIu64 "lu"
+#else
+# define PRIu64 "llu"
+#endif
 #endif
 
 /* update this on file format changes */
