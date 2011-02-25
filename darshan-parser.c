@@ -543,15 +543,26 @@ void accum_file(struct darshan_file *dfile,
             break;
         case CP_MAX_BYTE_READ:
         case CP_MAX_BYTE_WRITTEN:
-            if (hfile->counters[i] == -1)
-            {
-                hfile->counters[i] = dfile->counters[i];
-            }
             if (hfile->counters[i] < dfile->counters[i])
             {
                 hfile->counters[i] = dfile->counters[i];
             }
             break;
+
+        case CP_STRIDE1_STRIDE:
+        case CP_STRIDE2_STRIDE:
+        case CP_STRIDE3_STRIDE:
+        case CP_STRIDE4_STRIDE:
+        case CP_ACCESS1_ACCESS:
+        case CP_ACCESS2_ACCESS:
+        case CP_ACCESS3_ACCESS:
+        case CP_ACCESS4_ACCESS:
+           /*
+            * do nothing here because these will be stored
+            * when the _COUNT is accessed.
+            */
+           break;
+ 
         case CP_STRIDE1_COUNT:
         case CP_STRIDE2_COUNT:
         case CP_STRIDE3_COUNT:
@@ -560,10 +571,6 @@ void accum_file(struct darshan_file *dfile,
         case CP_ACCESS2_COUNT:
         case CP_ACCESS3_COUNT:
         case CP_ACCESS4_COUNT:
-            if (hfile->counters[i] == -1)
-            {
-                hfile->counters[i] = dfile->counters[i];
-            }
             if (hfile->counters[i] < dfile->counters[i])
             {
                 hfile->counters[i]   = dfile->counters[i];
@@ -726,9 +733,13 @@ void accum_perf(struct darshan_file *dfile,
     if (dfile->rank == -1)
     {
         /* by_open (same for MPI or POSIX) */
-        pdata->shared_time_by_open +=
-            dfile->fcounters[CP_F_CLOSE_TIMESTAMP] -
-            dfile->fcounters[CP_F_OPEN_TIMESTAMP];
+        if (dfile->fcounters[CP_F_CLOSE_TIMESTAMP] >
+            dfile->fcounters[CP_F_OPEN_TIMESTAMP])
+        {
+            pdata->shared_time_by_open +=
+                dfile->fcounters[CP_F_CLOSE_TIMESTAMP] -
+                dfile->fcounters[CP_F_OPEN_TIMESTAMP];
+        }
 
         /* by_open_lastio (same for MPI or POSIX) */
         if (dfile->fcounters[CP_F_READ_END_TIMESTAMP] >
@@ -841,19 +852,25 @@ void calc_perf(struct darshan_job *djob,
         }
     }
 
+    if (pdata->slowest_rank_time + pdata->shared_time_by_cumul)
     pdata->agg_perf_by_cumul = ((double)pdata->total_bytes / 1048576.0) /
-                               (pdata->slowest_rank_time +
-                                pdata->shared_time_by_cumul);
+                                  (pdata->slowest_rank_time +
+                                   pdata->shared_time_by_cumul);
+
+    if (pdata->slowest_rank_time + pdata->shared_time_by_open)
     pdata->agg_perf_by_open  = ((double)pdata->total_bytes / 1048576.0) / 
-                               (pdata->slowest_rank_time +
-                                pdata->shared_time_by_open);
+                                   (pdata->slowest_rank_time +
+                                    pdata->shared_time_by_open);
+
+    if (pdata->slowest_rank_time + pdata->shared_time_by_open_lastio)
     pdata->agg_perf_by_open_lastio = ((double)pdata->total_bytes / 1048576.0) /
                                      (pdata->slowest_rank_time +
                                       pdata->shared_time_by_open_lastio);
+
     if (pdata->slowest_rank_time + pdata->shared_time_by_slowest)
     pdata->agg_perf_by_slowest = ((double)pdata->total_bytes / 1048576.0) /
-                                 (pdata->slowest_rank_time +
-                                  pdata->shared_time_by_slowest);
+                                     (pdata->slowest_rank_time +
+                                      pdata->shared_time_by_slowest);
 
     return;
 }
