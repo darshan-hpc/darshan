@@ -1,9 +1,5 @@
 all: lib/libdarshan-posix.a lib/libdarshan-mpi-io.a darshan-parser darshan-diff darshan-analyzer darshan-log-params
 
-ifndef DISABLE_LDPRELOAD
-all: lib/libdarshan.so 
-endif
-
 DESTDIR =
 srcdir = @srcdir@
 prefix = @prefix@
@@ -16,6 +12,10 @@ bindir = $(DESTDIR)@bindir@
 libdir = $(DESTDIR)@libdir@
 
 DISABLE_LDPRELOAD = @DISABLE_LDPRELOAD@
+
+ifndef DISABLE_LDPRELOAD
+all: lib/libdarshan.so 
+endif
 
 VPATH = $(srcdir)
 
