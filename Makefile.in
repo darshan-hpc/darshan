@@ -1,4 +1,4 @@
-all: lib/libdarshan-posix.a lib/libdarshan-mpi-io.a lib/libdarshan.so darshan-parser darshan-diff darshan-analyzer darshan-log-params
+all: lib/libdarshan-posix.a lib/libdarshan-mpi-io.a darshan-parser darshan-diff darshan-analyzer darshan-log-params
 
 DESTDIR =
 srcdir = @srcdir@
@@ -10,6 +10,12 @@ mandir = $(DESTDIR)@mandir@
 sbindir = $(DESTDIR)@sbindir@
 bindir = $(DESTDIR)@bindir@
 libdir = $(DESTDIR)@libdir@
+
+DISABLE_LDPRELOAD = @DISABLE_LDPRELOAD@
+
+ifndef DISABLE_LDPRELOAD
+all: lib/libdarshan.so 
+endif
 
 VPATH = $(srcdir)
 
@@ -110,7 +116,9 @@ install:: all
 	install -d $(libdir)
 	install -m 755 lib/libdarshan-posix.a $(libdir)
 	install -m 755 lib/libdarshan-mpi-io.a $(libdir)
+ifndef DISABLE_LDPRELOAD
 	install -m 755 lib/libdarshan.so $(libdir)
+endif
 	install -d $(bindir)
 	install -m 755 darshan-parser $(bindir)
 	install -m 755 darshan-diff $(bindir)
