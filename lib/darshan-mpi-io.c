@@ -1836,7 +1836,11 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
         /* TODO: keep this print or not? */
         if(rank == 0)
         {
-            fprintf(stderr, "darshan library warning: unable to open log file %s\n", logfile_name);
+            int msg_len;
+            char msg[MPI_MAX_ERROR_STRING] = {0};
+            
+            MPI_Error_string(ret, msg, &msg_len);
+            fprintf(stderr, "darshan library warning: unable to open log file %s: %s\n", logfile_name, msg);
         }
         if(count > 0)
             DARSHAN_MPI_CALL(PMPI_Type_free)(&mtype);
