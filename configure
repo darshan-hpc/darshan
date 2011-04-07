@@ -664,6 +664,7 @@ with_mpi
 enable_ld_preload
 with_mem_align
 with_zlib_for_mpi
+with_log_path_by_env
 with_log_path
 with_jobid_env
 '
@@ -1296,6 +1297,7 @@ Optional Packages:
   --with-mpi=<dir>        Location of the MPI installation
   --with-mem-align=<num>  Memory alignment in bytes
   --with-zlib-for-mpi=<dir>  base dir for zlib to use on mpi processes
+  --with-log-path-by-env=<env var list> Comma separated list of environment variables to check for log path location before --with-log-path path
   --with-log-path=<path>  Location to store log files at run time
   --with-jobid-env=<name> Name of environment variable that stores the jobid
     (specify "NONE" if no appropriate environment variable is available:
@@ -3662,6 +3664,24 @@ fi
 
 
 
+# Check whether --with-log-path-by-env was given.
+if test "${with_log_path_by_env+set}" = set; then :
+  withval=$with_log_path_by_env; if test x$withval = xyes; then
+        as_fn_error $? "--with-log-path-by-env must be given at least one variable name" "$LINENO" 5
+    else
+
+cat >>confdefs.h <<_ACEOF
+#define __CP_LOG_ENV "${withval}"
+_ACEOF
+
+        __CP_LOG_ENV="${withval}"
+        GOT_LOG_PATH=1
+    fi
+
+fi
+
+
+
 # Check whether --with-log-path was given.
 if test "${with_log_path+set}" = set; then :
   withval=$with_log_path; if test x$withval = xyes; then
@@ -3704,7 +3724,7 @@ if test x$GOT_ALIGNMENT != x1; then
     as_fn_error $? "must provide --with-mem-align=<num> argument to configure." "$LINENO" 5
 fi
 if test x$GOT_LOG_PATH != x1; then
-    as_fn_error $? "must provide --with-log-path=<path> argument to configure." "$LINENO" 5
+    as_fn_error $? "must provide --with-log-path=<path> _or_ --with-log-path-by-env=<variable list> argument to configure." "$LINENO" 5
 fi
 if test x$GOT_JOBID != x1; then
     as_fn_error $? "must provide --with-jobid-env=<name> argument to configure." "$LINENO" 5

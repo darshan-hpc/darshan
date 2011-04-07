@@ -2,6 +2,11 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.1.1
+=============
+* added --with-logpath-by-env configure option to allow absolute 
+  log path to be specified via environment variable
+
 darshan-2.1.0
 =============
 * additinoal environment variables to control log, jobid and

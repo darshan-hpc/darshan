@@ -434,6 +434,11 @@ void darshan_shutdown(int timing_flag)
     time_t start_time_tmp = 0;
     uint64_t logmod;
     char hname[HOST_NAME_MAX];
+    char* logpath_override = NULL;
+#ifdef __CP_LOG_ENV
+    char env_check[256];
+    char* env_tok;
+#endif
 
     CP_LOCK();
     if(!darshan_global_job)
@@ -602,21 +607,70 @@ void darshan_shutdown(int timing_flag)
         (void) gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),0);
 
-        ret = snprintf(logfile_name, PATH_MAX, 
-            "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
-            logpath, (my_tm->tm_year+1900), 
-            (my_tm->tm_mon+1), my_tm->tm_mday, 
-            cuser, __progname, jobid,
-            (my_tm->tm_mon+1), 
-            my_tm->tm_mday, 
-            (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
-            logmod);
-        if(ret == (PATH_MAX-1))
+        /* see if darshan was configured using the --with-logpath-by-env
+         * argument, which allows the user to specify an absolute path to
+         * place logs via an env variable.
+         */
+#ifdef __CP_LOG_ENV
+        /* just silently skip if the environment variable list is too big */
+        if(strlen(__CP_LOG_ENV) < 256)
         {
-            /* file name was too big; squish it down */
-            snprintf(logfile_name, PATH_MAX,
-                "%s/id%d.darshan_partial",
-                logpath, jobid);
+            /* copy env variable list to a temporary buffer */
+            strcpy(env_check, __CP_LOG_ENV);
+            /* tokenize the comma-separated list */
+            env_tok = strtok(env_check, ",");
+            if(env_tok)
+            {
+                do
+                {
+                    /* check each env variable in order */
+                    logpath_override = getenv(env_tok); 
+                    if(logpath_override)
+                    {
+                        /* stop as soon as we find a match */
+                        break;
+                    }
+                }while((env_tok = strtok(NULL, ",")));
+            }
+        }
+#endif
+
+        if(logpath_override)
+        {
+            ret = snprintf(logfile_name, PATH_MAX, 
+                "%s/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                logpath_override, 
+                cuser, __progname, jobid,
+                (my_tm->tm_mon+1), 
+                my_tm->tm_mday, 
+                (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
+                logmod);
+            if(ret == (PATH_MAX-1))
+            {
+                /* file name was too big; squish it down */
+                snprintf(logfile_name, PATH_MAX,
+                    "%s/id%d.darshan_partial",
+                    logpath_override, jobid);
+            }
+        }
+        else
+        {
+            ret = snprintf(logfile_name, PATH_MAX, 
+                "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                logpath, (my_tm->tm_year+1900), 
+                (my_tm->tm_mon+1), my_tm->tm_mday, 
+                cuser, __progname, jobid,
+                (my_tm->tm_mon+1), 
+                my_tm->tm_mday, 
+                (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
+                logmod);
+            if(ret == (PATH_MAX-1))
+            {
+                /* file name was too big; squish it down */
+                snprintf(logfile_name, PATH_MAX,
+                    "%s/id%d.darshan_partial",
+                    logpath, jobid);
+            }
         }
 
         /* add jobid */
