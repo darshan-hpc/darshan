@@ -229,7 +229,7 @@ print OUTPUT<<"EOF";
     $link_cmd_no_shared -Wl,-Map,\$tmpfile \$LDFLAGS -o /dev/null >& /dev/null
 
     # is MPI in there?
-    grep MPI \$tmpfile >& /dev/null
+    grep -i MPI \$tmpfile >& /dev/null
     rc_mpi=\$?
 
     # is PMPI being used for any init, finalize, or mpi-io calls?

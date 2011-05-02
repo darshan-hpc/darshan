@@ -2,6 +2,11 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.1.2
+=============
+* bug fix contributed by Sandra Schröder: use case-insensitive search for MPI
+  symbols in Fortran wrapper script
+
 darshan-2.1.1
 =============
 * added --with-logpath-by-env configure option to allow absolute 
