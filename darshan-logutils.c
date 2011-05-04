@@ -292,6 +292,40 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
     return(ret);
 }
 
+/* darshan_putjob()
+ * write job header in gzfile
+ *
+ * return 0 on success, -1 on failure.
+ */
+int darshan_log_putjob(darshan_fd file, struct darshan_job *job)
+{
+    struct darshan_job job_copy;
+    z_off_t off;
+    int     ret;
+
+    off = gzseek(file->gzf, 0, SEEK_SET);
+    if (off != 0)
+    {
+        ret = -1;
+        fprintf(stderr, "Error: couldn't seek to beginning of file.\n");
+        return(ret);
+    }
+
+    job_copy = *job;
+    memset(job_copy.version_string, 0, sizeof(job_copy.version_string));
+    strcpy(job_copy.version_string, CP_VERSION);
+    job_copy.magic_nr = CP_MAGIC_NR;
+
+    ret = gzwrite(file->gzf, &job_copy, sizeof(job_copy));
+    if (ret != sizeof(job_copy))
+    {
+        fprintf(stderr, "Error: failed to write job header: %d\n", ret);
+        return(-1);
+    }
+
+    return(0);
+}
+
 /* darshan_log_getfile()
  *
  * return 1 if file record found, 0 on eof, and -1 on error
@@ -303,6 +337,35 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     ret = getfile_internal(fd, job, file);
 
     return(ret);
+}
+
+/* darshan_log_putfile()
+ *
+ * return 0 if file record written, -1 on error.
+ */
+int darshan_log_putfile(darshan_fd fd, struct darshan_job *job, struct darshan_file *file)
+{
+    z_off_t off;
+    int     ret;
+
+    if(gztell(fd->gzf) < CP_JOB_RECORD_SIZE)
+    {
+        off = gzseek(fd->gzf, CP_JOB_RECORD_SIZE, SEEK_SET);
+        if (off == -1)
+        {
+            fprintf(stderr, "Error: Failed to set start of file records.\n");
+            return(-1);
+        }
+    }
+
+    ret = gzwrite(fd->gzf, file, sizeof(*file));
+    if (ret != sizeof(*file))
+    {
+        fprintf(stderr, "Error: writing file record failed: %d\n", ret);
+        return(-1);
+    }
+
+    return(0);
 }
 
 /* darshan_log_getmounts()
@@ -378,10 +441,37 @@ int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char**
         *pos = '\0';
         array_index++;
     }
-   
+
     return (0);
 }
 
+/* darshan_log_putmounts
+ *
+ * encode mount information back into mtab format.
+ *
+ * returns 0 on success, -1 on failure.
+ */
+int darshan_log_putmounts(darshan_fd fd, int64_t* devs, char** mnt_pts, char** fs_types, int count)
+{
+    z_off_t off;
+    int     ret;
+    char    line[1024];
+    int     i;
+
+    for(i=count-1; i>=0; i--)
+    {
+        sprintf(line, "\n%" PRId64 "\t%s\t%s",
+                devs[i], fs_types[i], mnt_pts[i]);
+        ret = gzwrite(fd->gzf, line, strlen(line));
+        if (ret != strlen(line))
+        {
+            fprintf(stderr, "Error: failed to write mount entry: %d\n", ret);
+            return(-1);
+        }
+    }
+    
+    return(0);
+}
 
 int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
 {
@@ -410,6 +500,38 @@ int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
         *newline = '\0';
 
     return (0);
+}
+
+/* darshan_log_putexe()
+ *
+ * Write the exe string to the log.
+ *
+ * return 0 on success, -1 on failure.
+ */
+int darshan_log_putexe(darshan_fd fd, char *buf)
+{
+    z_off_t off;
+    int     ret;
+    int     len;
+
+    off = gzseek(fd->gzf, sizeof(struct darshan_job), SEEK_SET);
+    if (off != sizeof(struct darshan_job))
+    {
+        ret = -1;
+        fprintf(stderr, "Error: failed to set position to exe section.\n");
+        return(ret);
+    }
+
+    len = strlen(buf);
+
+    ret = gzwrite(fd->gzf, buf, len);
+    if (ret != len)
+    {
+        fprintf(stderr, "Error: failed to write exe info: %d\n", ret);
+        ret = -1;
+    }
+
+    return(ret);
 }
 
 void darshan_log_close(darshan_fd file)

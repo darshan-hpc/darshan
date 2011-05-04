@@ -116,6 +116,14 @@ int main(int argc, char **argv)
         return(-1);
     }
 
+    ret = darshan_log_putjob(outfile, &job);
+    if (ret < 0)
+    {
+        fprintf(stderr, "Error: unable to write job information to log file.\n");
+        darshan_log_close(outfile);
+        return(-1);
+    }
+
     /* warn user about any missing information in this log format */
     darshan_log_print_version_warnings(&job);
 
@@ -131,6 +139,14 @@ int main(int argc, char **argv)
         darshan_log_close(infile);
         return(-1);
     }
+
+    ret = darshan_log_putexe(outfile, tmp_string);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to write trailing job information.\n");
+        darshan_log_close(outfile);
+        return(-1);
+    }
    
     ret = darshan_log_getmounts(infile, &devs, &mnt_pts, &fs_types, &mount_count,
         &no_files_flag);
@@ -141,10 +157,18 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-  
+    ret = darshan_log_putmounts(outfile, devs, mnt_pts, fs_types, mount_count);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to write mount information.\n");
+        darshan_log_close(outfile);
+        return(-1);
+    }
+
     if(no_files_flag)
     {
-        /* TODO: cut short here */
+        darshan_log_close(infile);
+        darshan_log_close(outfile);
     }
 
     while((ret = darshan_log_getfile(infile, &job, &cp_file)) == 1)
@@ -157,13 +181,19 @@ int main(int argc, char **argv)
         }
         if(cp_file.rank != -1)
             last_rank = cp_file.rank;
+
+        ret = darshan_log_putfile(outfile, &job, &cp_file);
+        if (ret < 0)
+        {
+            fprintf(stderr, "Error: failed to write file record.\n");
+            break;
+        }
     }
 
     if(ret < 0)
     {
-        fprintf(stderr, "Error: failed to parse log file.\n");
+        fprintf(stderr, "Error: failed to process log file.\n");
         fflush(stderr);
-        return(-1);
     }
 
     for(i=0; i<mount_count; i++)
@@ -181,6 +211,6 @@ int main(int argc, char **argv)
     darshan_log_close(infile);
     darshan_log_close(outfile);
 
-    return(0);
+    return(ret);
 }
 
