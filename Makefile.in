@@ -1,4 +1,4 @@
-all: lib/libdarshan-posix.a lib/libdarshan-mpi-io.a darshan-parser darshan-diff darshan-analyzer darshan-log-params
+all: lib/libdarshan-posix.a lib/libdarshan-mpi-io.a darshan-parser darshan-convert darshan-diff darshan-analyzer darshan-log-params
 
 DESTDIR =
 srcdir = @srcdir@
@@ -43,6 +43,9 @@ uthash-1.9.2:
 	tar xjvf $(srcdir)/extern/uthash-1.9.2.tar.bz2
 
 darshan-parser: darshan-parser.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o | uthash-1.9.2
+	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
+
+darshan-convert: darshan-convert.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o | uthash-1.9.2
 	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
 
 darshan-analyzer: darshan-analyzer.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o
@@ -121,6 +124,7 @@ ifndef DISABLE_LDPRELOAD
 endif
 	install -d $(bindir)
 	install -m 755 darshan-parser $(bindir)
+	install -m 755 darshan-convert $(bindir)
 	install -m 755 darshan-diff $(bindir)
 	install -m 755 darshan-analyzer $(bindir)
 	install -m 755 darshan-mk-log-dirs.pl $(bindir)
@@ -138,7 +142,7 @@ endif
 
 
 clean::
-	rm -f *.o *.a lib/*.o lib/*.po lib/*.a lib/*.so darshan-parser darshan-diff darshan-analyzer darshan-log-params
+	rm -f *.o *.a lib/*.o lib/*.po lib/*.a lib/*.so darshan-parser darshan-convert darshan-diff darshan-analyzer darshan-log-params
 
 distclean:: clean
 	rm -f darshan-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl aclocal.m4 autom4te.cache/* config.status config.log Makefile util/bin/darshan-job-summary.pl
