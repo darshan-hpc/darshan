@@ -20,7 +20,7 @@ typedef struct darshan_fd_s* darshan_fd;
 extern char *darshan_names[];
 extern char *darshan_f_names[];
 
-darshan_fd darshan_log_open(const char *name);
+darshan_fd darshan_log_open(const char *name, const char* mode);
 int darshan_log_getjob(darshan_fd file, struct darshan_job *job);
 int darshan_log_getfile(darshan_fd fd, 
     struct darshan_job* job, 

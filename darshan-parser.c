@@ -202,7 +202,7 @@ int main(int argc, char **argv)
 
     mask = parse_args(argc, argv, &filename);
 
-    file = darshan_log_open(filename);
+    file = darshan_log_open(filename, "r");
     if(!file)
     {
         perror("darshan_log_open");

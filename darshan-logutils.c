@@ -212,7 +212,7 @@ static void shift_missing_1_22(struct darshan_file* file);
 static void shift_missing_1_21(struct darshan_file* file);
 
 /* a rather crude API for accessing raw binary darshan files */
-darshan_fd darshan_log_open(const char *name)
+darshan_fd darshan_log_open(const char *name, const char* mode)
 {
     darshan_fd tmp_fd = malloc(sizeof(*tmp_fd));
     if(!tmp_fd)
@@ -220,7 +220,7 @@ darshan_fd darshan_log_open(const char *name)
 
     memset(tmp_fd, 0, sizeof(*tmp_fd));
 
-    tmp_fd->gzf = gzopen(name, "r");
+    tmp_fd->gzf = gzopen(name, mode);
     if(!tmp_fd->gzf)
     {
         free(tmp_fd);

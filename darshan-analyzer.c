@@ -39,7 +39,7 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
     double total_job_time;
     int nofiles = 0;
 
-    zfile = darshan_log_open(fname);
+    zfile = darshan_log_open(fname, "r");
     if (zfile == NULL)
     {
         perror("darshan_log_open");

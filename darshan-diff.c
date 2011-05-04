@@ -43,12 +43,12 @@ int main(int argc, char ** argv)
         return(-1);
     }
 
-    file1 = darshan_log_open(argv[1]);
+    file1 = darshan_log_open(argv[1], "r");
     if(!file1) {
         perror("darshan_log_open");
         return(-1);
     }
-    file2 = darshan_log_open(argv[2]);
+    file2 = darshan_log_open(argv[2], "r");
     if(!file2) {
         perror("darshan_log_open");
         return(-1);

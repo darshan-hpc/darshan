@@ -94,7 +94,7 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     }
 
     /* Process Log Files */
-    dfile = darshan_log_open(fpath);
+    dfile = darshan_log_open(fpath, "r");
     if (dfile == NULL)
     {
         perror("darshan_log_open");
