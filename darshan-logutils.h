@@ -7,10 +7,16 @@
 #define __DARSHAN_LOG_UTILS_H
 #include <darshan-log-format.h>
 #include <zlib.h>
+#ifdef HAVE_LIBBZ2
+#include <bzlib.h>
+#endif
 
 struct darshan_fd_s
 {
     gzFile gzf;
+#ifdef HAVE_LIBBZ2
+    BZFILE* bzf;
+#endif
     int swap_flag;
     char version[10];
     int job_struct_size;

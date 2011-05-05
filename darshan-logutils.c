@@ -8,7 +8,12 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <inttypes.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include "darshan-logutils.h"
 
 /* isn't there a clever c way to avoid this? */
@@ -214,11 +219,70 @@ static void shift_missing_1_21(struct darshan_file* file);
 /* a rather crude API for accessing raw binary darshan files */
 darshan_fd darshan_log_open(const char *name, const char* mode)
 {
+    int test_fd;
+    uint8_t magic[2];
+    int ret;
+    int try_bz2 = 1;
+    int len = strlen(name);
+
     darshan_fd tmp_fd = malloc(sizeof(*tmp_fd));
     if(!tmp_fd)
         return(NULL);
 
     memset(tmp_fd, 0, sizeof(*tmp_fd));
+
+#ifdef HAVE_LIBBZ2
+    if(strcmp(mode, "r") == 0)
+    {
+        /* Try to detect if existing file is a bzip2 file or not.  Both 
+         * libbz2 and libz will fall back to normal I/O (without compression) 
+         * automatically, so we need to do some detection manually up front 
+         * in order to get a chance to try both compression formats.
+         */
+        test_fd = open(name, O_RDONLY);
+        if(!test_fd)
+        {
+            perror("open");
+            free(tmp_fd);
+            return(NULL);
+        }
+        ret = read(test_fd, &magic, 2);
+        if(ret != 2)
+        {
+            fprintf(stderr, "Error: failed to read any data from %s.\n", 
+                name);
+            free(tmp_fd);
+            close(test_fd);
+            return(NULL);
+        }
+        /* header magic for bz2 */
+        if(magic[0] != 0x42 && magic[1] != 0x5A)
+        {
+            try_bz2 = 0;
+        }
+        close(test_fd);
+    }
+    if(strcmp(mode, "w") == 0)
+    {
+        /* TODO: is this the behavior that we want? */
+        /* if we are writing a new file, go by the file extension to tell
+         * whether to use bz2 or not?
+         */
+        if(len >= 3 && name[len-2] == 'b' && name[len-1] == 'z' && name[len] == '2')
+            try_bz2 = 1;
+        else
+            try_bz2 = 0;
+    }
+
+    if(try_bz2)
+    {
+        tmp_fd->bzf = BZ2_bzopen(name, mode);
+        if(tmp_fd->bzf)
+        {
+            return(tmp_fd);
+        }
+    }
+#endif
 
     tmp_fd->gzf = gzopen(name, mode);
     if(!tmp_fd->gzf)
@@ -236,6 +300,10 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
 int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
 {
     int ret;
+    
+#ifdef HAVE_LIBBZ2
+    assert(file->bzf == NULL);
+#endif
 
     gzseek(file->gzf, 0, SEEK_SET);
 
@@ -303,6 +371,10 @@ int darshan_log_putjob(darshan_fd file, struct darshan_job *job)
     z_off_t off;
     int     ret;
 
+#ifdef HAVE_LIBBZ2
+    assert(file->bzf == NULL);
+#endif
+
     off = gzseek(file->gzf, 0, SEEK_SET);
     if (off != 0)
     {
@@ -348,6 +420,10 @@ int darshan_log_putfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     z_off_t off;
     int     ret;
 
+#ifdef HAVE_LIBBZ2
+    assert(fd->bzf == NULL);
+#endif
+
     if(gztell(fd->gzf) < CP_JOB_RECORD_SIZE)
     {
         off = gzseek(fd->gzf, CP_JOB_RECORD_SIZE, SEEK_SET);
@@ -381,6 +457,10 @@ int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char**
     char* pos;
     int array_index = 0;
     char buf[CP_EXE_LEN+1];
+
+#ifdef HAVE_LIBBZ2
+    assert(fd->bzf == NULL);
+#endif
 
     gzseek(fd->gzf, fd->job_struct_size, SEEK_SET);
 
@@ -458,6 +538,10 @@ int darshan_log_putmounts(darshan_fd fd, int64_t* devs, char** mnt_pts, char** f
     char    line[1024];
     int     i;
 
+#ifdef HAVE_LIBBZ2
+    assert(fd->bzf == NULL);
+#endif
+
     for(i=count-1; i>=0; i--)
     {
         sprintf(line, "\n%" PRId64 "\t%s\t%s",
@@ -477,6 +561,10 @@ int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
 {
     int ret;
     char* newline;
+
+#ifdef HAVE_LIBBZ2
+    assert(fd->bzf == NULL);
+#endif
 
     gzseek(fd->gzf, fd->job_struct_size, SEEK_SET);
 
@@ -514,6 +602,10 @@ int darshan_log_putexe(darshan_fd fd, char *buf)
     int     ret;
     int     len;
 
+#ifdef HAVE_LIBBZ2
+    assert(fd->bzf == NULL);
+#endif
+
     off = gzseek(fd->gzf, sizeof(struct darshan_job), SEEK_SET);
     if (off != sizeof(struct darshan_job))
     {
@@ -536,7 +628,14 @@ int darshan_log_putexe(darshan_fd fd, char *buf)
 
 void darshan_log_close(darshan_fd file)
 {
-    gzclose(file->gzf);
+#ifdef HAVE_LIBBZ2
+    if(file->bzf)
+        BZ2_bzclose(file->bzf);
+#endif
+
+    if(file->gzf)
+        gzclose(file->gzf);
+
     free(file);
 }
 
@@ -879,6 +978,10 @@ static int getjob_internal_200(darshan_fd file, struct darshan_job *job)
 {
     int ret;
 
+#ifdef HAVE_LIBBZ2
+    assert(file->bzf == NULL);
+#endif
+
     gzseek(file->gzf, 0, SEEK_SET);
 
     ret = gzread(file->gzf, job, sizeof(*job));
@@ -924,6 +1027,10 @@ static int getfile_internal_200(darshan_fd fd, struct darshan_job *job,
     const char* err_string;
     int i;
     
+#ifdef HAVE_LIBBZ2
+    assert(fd->bzf == NULL);
+#endif
+
     if(gztell(fd->gzf) < CP_JOB_RECORD_SIZE)
         gzseek(fd->gzf, CP_JOB_RECORD_SIZE, SEEK_SET);
 
@@ -980,6 +1087,10 @@ static int getjob_internal_124(darshan_fd fd, struct darshan_job *job)
     int32_t start_time;
     int32_t end_time;
     int32_t nprocs;
+
+#ifdef HAVE_LIBBZ2
+    assert(fd->bzf == NULL);
+#endif
 
 #ifdef WORDS_BIGENDIAN
     fd->swap_flag = 0;
@@ -1092,6 +1203,10 @@ static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job,
     double* fcounters;
     char* name_suffix;
     int FILE_SIZE_1x = (32 + n_counters*8 + n_fcounters*8);
+
+#ifdef HAVE_LIBBZ2
+    assert(fd->bzf == NULL);
+#endif
 
     memset(file, 0, sizeof(*file));
 

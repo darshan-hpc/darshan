@@ -33,6 +33,8 @@ CFLAGS_MPI_SHARED = -I . -I $(srcdir) @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE 
 CC=@MPICC@
 LD=@MPICC@
 
+LIBS = -lz @LIBBZ2@
+
 lib::
 	@mkdir -p $@
 
@@ -43,19 +45,19 @@ uthash-1.9.2:
 	tar xjvf $(srcdir)/extern/uthash-1.9.2.tar.bz2
 
 darshan-parser: darshan-parser.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o | uthash-1.9.2
-	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
+	gcc $(CFLAGS) $(LIBS) $< darshan-logutils.o -o $@
 
 darshan-convert: darshan-convert.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o | uthash-1.9.2
-	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
+	gcc $(CFLAGS) $(LIBS) $< darshan-logutils.o -o $@
 
 darshan-analyzer: darshan-analyzer.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o
-	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
+	gcc $(CFLAGS) $(LIBS) $< darshan-logutils.o -o $@
 
 darshan-log-params: darshan-log-params.c darshan-log-format.h
-	gcc $(CFLAGS) -lz $< -o $@
+	gcc $(CFLAGS) $(LIBS) $< -o $@
 
 darshan-diff: darshan-diff.o darshan.h darshan-log-format.h darshan-logutils.o darshan-logutils.h
-	gcc $(CFLAGS) -lz $< darshan-logutils.o -o $@
+	gcc $(CFLAGS) $(LIBS) $< darshan-logutils.o -o $@
 darshan-diff.o: darshan-diff.c
 	gcc $(CFLAGS) -c  $< -o $@
 darshan-logutils.o: darshan-logutils.c

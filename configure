@@ -605,6 +605,7 @@ PRI_MACROS_BROKEN
 HAVE_PDFLATEX
 MPICC
 HAVE_MPICC
+LIBBZ2
 EGREP
 GREP
 CPP
@@ -3726,6 +3727,8 @@ fi
 $as_echo_n "checking bzlib in ${BZLIB_HOME}... " >&6; }
                 { $as_echo "$as_me:${as_lineno-$LINENO}: result: ok" >&5
 $as_echo "ok" >&6; }
+                LIBBZ2=-lbz2
+
         else
                 #
                 # If either header or library was not found, revert and bomb
@@ -3738,6 +3741,8 @@ $as_echo_n "checking bzlib in ${BZLIB_HOME}... " >&6; }
 $as_echo "failed" >&6; }
 # Don't fail; this is optional in Darshan
 #                AC_MSG_ERROR(either specify a valid bzlib installation with --with-bzlib=DIR or disable bzlib usage with --without-bzlib)
+#                TODO: it would be nice if this showed up at the _end_ of
+#                configure...
                 { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: libbz2 not found; Darshan utilities will use gzip only." >&5
 $as_echo "$as_me: WARNING: libbz2 not found; Darshan utilities will use gzip only." >&2;}
         fi

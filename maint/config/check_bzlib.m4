@@ -72,6 +72,8 @@ then
                 AC_CHECK_LIB(bz2, BZ2_bzCompressInit)
                 AC_MSG_CHECKING(bzlib in ${BZLIB_HOME})
                 AC_MSG_RESULT(ok)
+                LIBBZ2=-lbz2
+                AC_SUBST(LIBBZ2)
         else
                 #
                 # If either header or library was not found, revert and bomb
