@@ -198,8 +198,10 @@ int (*getfile_internal)(darshan_fd fd,
     struct darshan_job *job, 
     struct darshan_file *file);
 #define JOB_SIZE_124 28
+#define JOB_SIZE_200 56
 
 /* internal routines for parsing different file versions */
+static int getjob_internal_201(darshan_fd file, struct darshan_job *job);
 static int getjob_internal_200(darshan_fd file, struct darshan_job *job);
 static int getfile_internal_200(darshan_fd fd, struct darshan_job *job, 
     struct darshan_file *file);
@@ -317,11 +319,17 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
         return(-1);
     }
 
-    if(strcmp(file->version, "2.00") == 0)
+    if(strcmp(file->version, "2.01") == 0)
+    {
+        getjob_internal = getjob_internal_201;
+        getfile_internal = getfile_internal_200;
+        file->job_struct_size = sizeof(*job);
+    }
+    else if(strcmp(file->version, "2.00") == 0)
     {
         getjob_internal = getjob_internal_200;
         getfile_internal = getfile_internal_200;
-        file->job_struct_size = sizeof(*job);
+        file->job_struct_size = JOB_SIZE_200;
     }
     else if(strcmp(file->version, "1.24") == 0)
     {
@@ -357,6 +365,36 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
     }
 
     ret = getjob_internal(file, job);
+
+    if (ret == 0)
+    {
+        char *comment = strndup(job->comment, sizeof(job->comment));
+        char *tokenize = comment;
+        char *kv;
+        char *ptr;
+        char *key;
+        char *val;
+        char *save;
+
+        do
+        {
+            kv = strtok_r(tokenize, "\n", &save);
+            if(kv)
+            {
+                ptr  = strchr(kv, '=');
+                *ptr = 0;
+                key  = kv;
+                val  = ptr+1;
+                if (strcmp(key, "prev_ver") == 0)
+                {
+                    strncpy(job->version_string, val, sizeof(job->version_string));
+                }
+            }
+            tokenize = NULL;
+        } while(kv);
+        free(comment);
+    }
+
     return(ret);
 }
 
@@ -368,6 +406,7 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
 int darshan_log_putjob(darshan_fd file, struct darshan_job *job)
 {
     struct darshan_job job_copy;
+    char    pv_str[64];
     z_off_t off;
     int     ret;
 
@@ -384,8 +423,10 @@ int darshan_log_putjob(darshan_fd file, struct darshan_job *job)
     }
 
     job_copy = *job;
+    sprintf(pv_str, "prev_ver=%s\n", job->version_string);
     memset(job_copy.version_string, 0, sizeof(job_copy.version_string));
     strcpy(job_copy.version_string, CP_VERSION);
+    strncat(job_copy.comment, pv_str, strlen(pv_str));
     job_copy.magic_nr = CP_MAGIC_NR;
 
     ret = gzwrite(file->gzf, &job_copy, sizeof(job_copy));
@@ -973,8 +1014,7 @@ static void shift_missing_1_24(struct darshan_file* file)
     return;
 }
 
-
-static int getjob_internal_200(darshan_fd file, struct darshan_job *job)
+static int getjob_internal_201(darshan_fd file, struct darshan_job *job)
 {
     int ret;
 
@@ -994,6 +1034,70 @@ static int getjob_internal_200(darshan_fd file, struct darshan_job *job)
         perror("darshan_job_init");
         return(-1);
     }
+
+    if(job->magic_nr == CP_MAGIC_NR)
+    {
+        /* no byte swapping needed, this file is in host format already */
+        file->swap_flag = 0;
+        return(0);
+    }
+
+    /* try byte swapping */
+    DARSHAN_BSWAP64(&job->magic_nr);
+    if(job->magic_nr == CP_MAGIC_NR)
+    {
+        file->swap_flag = 1;
+        DARSHAN_BSWAP64(&job->uid);
+        DARSHAN_BSWAP64(&job->start_time);
+        DARSHAN_BSWAP64(&job->end_time);
+        DARSHAN_BSWAP64(&job->nprocs);
+        DARSHAN_BSWAP64(&job->jobid);
+        return(0);
+    }
+
+    /* otherwise this file is just broken */
+    fprintf(stderr, "Error: bad magic number in darshan file.\n");
+    return(-1);
+}
+
+
+static int getjob_internal_200(darshan_fd file, struct darshan_job *job)
+{
+    int ret;
+    struct darshan_job_200
+    {
+        char version_string[8];
+        int64_t magic_nr;
+        int64_t uid;
+        int64_t start_time;
+        int64_t end_time;
+        int64_t nprocs;
+        int64_t jobid;
+    } job_200;
+
+    memset(job, 0, sizeof(job_200));
+    memset(job, 0, sizeof(*job));
+
+    gzseek(file->gzf, 0, SEEK_SET);
+
+    ret = gzread(file->gzf, &job_200, sizeof(job_200));
+    if (ret < sizeof(job_200))
+    {
+        if(gzeof(file->gzf))
+        {
+            fprintf(stderr, "Error: invalid log file (too short).\n");
+        }
+        perror("darshan_job_init");
+        return(-1);
+    }
+
+    memcpy(job->version_string, job_200.version_string, 8);
+    job->magic_nr   = job_200.magic_nr;
+    job->uid        = job_200.uid;
+    job->start_time = job_200.start_time;
+    job->end_time   = job_200.end_time;
+    job->nprocs     = job_200.nprocs;
+    job->jobid      = job_200.jobid;
 
     if(job->magic_nr == CP_MAGIC_NR)
     {
@@ -1276,6 +1380,4 @@ static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job,
     free(buffer);
     return(1);
 }
-
-
 
