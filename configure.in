@@ -12,6 +12,7 @@ AC_CONFIG_HEADER(darshan-config.h)
 AC_PROG_INSTALL
 
 CHECK_ZLIB
+CHECK_BZLIB
 
 AC_ARG_WITH(mpi,
 [  --with-mpi=<dir>        Location of the MPI installation],
