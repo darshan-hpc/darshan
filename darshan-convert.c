@@ -17,22 +17,27 @@
 
 #include "darshan-logutils.h"
 
+extern uint32_t darshan_hashlittle(const void *key, size_t length, uint32_t initval);
 
 int usage (char *exename)
 {
     fprintf(stderr, "Usage: %s [options] <infile> <outfile>\n", exename);
     fprintf(stderr, "       Converts darshan log from infile to outfile.\n");
-    fprintf(stderr, "       No options supported yet; this utility simply\n");
     fprintf(stderr, "       rewrites the log file into the newest format.\n");
+    fprintf(stderr, "       --obfuscate Obfuscate items in the log.\n");
+    fprintf(stderr, "       --key Key to use when obfuscating.\n");
 
     exit(1);
 }
 
-void parse_args (int argc, char **argv, char **infile, char **outfile)
+void parse_args (int argc, char **argv, char **infile, char **outfile,
+                 int *obfuscate, int *key)
 {
     int index;
     static struct option long_opts[] =
     {
+        {"obfuscate", 0, NULL, 'o'},
+        {"key", 1, NULL, 'k'},
         {"help",  0, NULL, 0}
     };
 
@@ -44,6 +49,12 @@ void parse_args (int argc, char **argv, char **infile, char **outfile)
 
         switch(c)
         {
+            case 'o':
+                *obfuscate = 1;
+                break;
+            case 'k':
+                *key = atoi(optarg);
+                break;
             case 0:
             case '?':
             default:
@@ -65,6 +76,39 @@ void parse_args (int argc, char **argv, char **infile, char **outfile)
     return;
 }
 
+void obfuscate_job(int key, struct darshan_job *job)
+{
+    job->uid   = (int64_t) darshan_hashlittle(&job->uid, sizeof(job->uid), key);
+    if (job->jobid != 0)
+    {
+        job->jobid = (int64_t) darshan_hashlittle(&job->jobid, sizeof(job->jobid), key);
+    }
+
+    return;
+}
+
+void obfuscate_exe(int key, char *exe)
+{
+    uint32_t hashed;
+
+    hashed = darshan_hashlittle(exe, strlen(exe), key);
+    memset(exe, 0, strlen(exe));
+    sprintf(exe, "%u", hashed);
+
+    return;
+}
+
+void obfuscate_file(int key, struct darshan_file *file)
+{
+    uint32_t hashed;
+
+    hashed = darshan_hashlittle(file->name_suffix, sizeof(file->name_suffix), key);
+    memset(file->name_suffix, 0, sizeof(file->name_suffix));
+    sprintf(file->name_suffix, "%u", hashed);
+
+    return;
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -82,8 +126,10 @@ int main(int argc, char **argv)
     char** mnt_pts;
     char** fs_types;
     int last_rank = 0;
+    int obfuscate = 0;
+    int key = 0;
 
-    parse_args(argc, argv, &infile_name, &outfile_name);
+    parse_args(argc, argv, &infile_name, &outfile_name, &obfuscate, &key);
 
     infile = darshan_log_open(infile_name, "r");
     if(!infile)
@@ -116,6 +162,8 @@ int main(int argc, char **argv)
         return(-1);
     }
 
+    if (obfuscate) obfuscate_job(key, &job);
+
     ret = darshan_log_putjob(outfile, &job);
     if (ret < 0)
     {
@@ -124,14 +172,6 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    /* warn user about any missing information in this log format */
-    darshan_log_print_version_warnings(&job);
-
-    /* TODO: yuck.  It would be nice to have this tool write into the newest
-     * format always, but that may lose some information about what fields
-     * are and are not valid.  Need to think through the various old log
-     * format scenarios.
-     */
     ret = darshan_log_getexe(infile, tmp_string, &no_files_flag);
     if(ret < 0)
     {
@@ -139,6 +179,8 @@ int main(int argc, char **argv)
         darshan_log_close(infile);
         return(-1);
     }
+
+    if (obfuscate) obfuscate_exe(key, tmp_string);
 
     ret = darshan_log_putexe(outfile, tmp_string);
     if(ret < 0)
@@ -182,6 +224,8 @@ int main(int argc, char **argv)
         if(cp_file.rank != -1)
             last_rank = cp_file.rank;
 
+        if (obfuscate) obfuscate_file(key, &cp_file);
+
         ret = darshan_log_putfile(outfile, &job, &cp_file);
         if (ret < 0)
         {
@@ -213,4 +257,5 @@ int main(int argc, char **argv)
 
     return(ret);
 }
+
 

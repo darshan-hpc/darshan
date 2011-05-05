@@ -47,8 +47,8 @@ uthash-1.9.2:
 darshan-parser: darshan-parser.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o | uthash-1.9.2
 	gcc $(CFLAGS) $(LIBS) $< darshan-logutils.o -o $@
 
-darshan-convert: darshan-convert.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o | uthash-1.9.2
-	gcc $(CFLAGS) $(LIBS) $< darshan-logutils.o -o $@
+darshan-convert: darshan-convert.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o lib/lookup3.o
+	gcc $(CFLAGS) $(LIBS) $< darshan-logutils.o lib/lookup3.o -o $@
 
 darshan-analyzer: darshan-analyzer.c darshan.h darshan-log-format.h darshan-logutils.h darshan-logutils.o
 	gcc $(CFLAGS) $(LIBS) $< darshan-logutils.o -o $@
