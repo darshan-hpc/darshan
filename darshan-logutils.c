@@ -368,31 +368,27 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
 
     if (ret == 0)
     {
-        char *comment = strndup(job->comment, sizeof(job->comment));
-        char *tokenize = comment;
+        char *metadata = strndup(job->metadata, sizeof(job->metadata));
+        char *tokenize = metadata;
         char *kv;
         char *ptr;
         char *key;
         char *val;
         char *save;
+        char *save2;
 
-        do
+        for(kv=strtok_r(metadata, "\n", &save);
+            kv != NULL;
+            kv=strtok_r(NULL, "\n", &save))
         {
-            kv = strtok_r(tokenize, "\n", &save);
-            if(kv)
+            key = strtok_r(kv, "=", &save2);
+            val = strtok_r(NULL, "=", &save2);
+            if (strcmp(key, "prev_ver") == 0)
             {
-                ptr  = strchr(kv, '=');
-                *ptr = 0;
-                key  = kv;
-                val  = ptr+1;
-                if (strcmp(key, "prev_ver") == 0)
-                {
-                    strncpy(job->version_string, val, sizeof(job->version_string));
-                }
+                strncpy(job->version_string, val, sizeof(job->version_string));
             }
-            tokenize = NULL;
-        } while(kv);
-        free(comment);
+        }
+        free(metadata);
     }
 
     return(ret);
@@ -422,11 +418,11 @@ int darshan_log_putjob(darshan_fd file, struct darshan_job *job)
         return(ret);
     }
 
-    job_copy = *job;
+    memset(&job_copy, 0, sizeof(job_copy));
+    memcpy(&job_copy, job, sizeof(job_copy));
     sprintf(pv_str, "prev_ver=%s\n", job->version_string);
-    memset(job_copy.version_string, 0, sizeof(job_copy.version_string));
-    strcpy(job_copy.version_string, CP_VERSION);
-    strncat(job_copy.comment, pv_str, strlen(pv_str));
+    sprintf(job_copy.version_string, "%s", CP_VERSION);
+    strncat(job_copy.metadata, pv_str, strlen(pv_str));
     job_copy.magic_nr = CP_MAGIC_NR;
 
     ret = gzwrite(file->gzf, &job_copy, sizeof(job_copy));
