@@ -261,7 +261,7 @@ struct darshan_job
     int64_t end_time;
     int64_t nprocs;
     int64_t jobid;
-    char comment[64];
+    char metadata[64];
 };
 
 #endif /* __DARSHAN_LOG_FORMAT_H */

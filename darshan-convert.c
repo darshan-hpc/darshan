@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "darshan-logutils.h"
 
@@ -25,17 +26,19 @@ int usage (char *exename)
     fprintf(stderr, "       Converts darshan log from infile to outfile.\n");
     fprintf(stderr, "       rewrites the log file into the newest format.\n");
     fprintf(stderr, "       --obfuscate Obfuscate items in the log.\n");
-    fprintf(stderr, "       --key Key to use when obfuscating.\n");
+    fprintf(stderr, "       --key <key> Key to use when obfuscating.\n");
+    fprintf(stderr, "       --annotate <string> Additional metadata to add.\n");
 
     exit(1);
 }
 
 void parse_args (int argc, char **argv, char **infile, char **outfile,
-                 int *obfuscate, int *key)
+                 int *obfuscate, int *key, char **annotate)
 {
     int index;
     static struct option long_opts[] =
     {
+        {"annotate", 1, NULL, 'a'},
         {"obfuscate", 0, NULL, 'o'},
         {"key", 1, NULL, 'k'},
         {"help",  0, NULL, 0}
@@ -49,6 +52,9 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
 
         switch(c)
         {
+            case 'a':
+                *annotate = optarg;
+                break;
             case 'o':
                 *obfuscate = 1;
                 break;
@@ -109,6 +115,23 @@ void obfuscate_file(int key, struct darshan_file *file)
     return;
 }
 
+void add_annotation (char *annotation,
+                     struct darshan_job *job)
+{
+    char *token;
+    char *save;
+
+    for(token=strtok_r(annotation, "\t", &save);
+        token != NULL;
+        token=strtok_r(NULL, "\t", &save))
+    {
+        strcat(job->metadata, token);
+        strcat(job->metadata, "\n");
+    }
+
+    return;
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -128,8 +151,9 @@ int main(int argc, char **argv)
     int last_rank = 0;
     int obfuscate = 0;
     int key = 0;
+    char *annotation = NULL;
 
-    parse_args(argc, argv, &infile_name, &outfile_name, &obfuscate, &key);
+    parse_args(argc, argv, &infile_name, &outfile_name, &obfuscate, &key, &annotation);
 
     infile = darshan_log_open(infile_name, "r");
     if(!infile)
@@ -163,6 +187,7 @@ int main(int argc, char **argv)
     }
 
     if (obfuscate) obfuscate_job(key, &job);
+    if (annotation) add_annotation(annotation, &job);
 
     ret = darshan_log_putjob(outfile, &job);
     if (ret < 0)

@@ -189,6 +189,8 @@ int main(int argc, char **argv)
     char** mnt_pts;
     char** fs_types;
     int last_rank = 0;
+    char *token;
+    char *save;
 
     hash_entry_t *file_hash = NULL;
     hash_entry_t *curr = NULL;
@@ -245,6 +247,18 @@ int main(int argc, char **argv)
     printf("# end_time_asci: %s", ctime(&tmp_time));
     printf("# nprocs: %" PRId64 "\n", job.nprocs);
     printf("# run time: %" PRId64 "\n", job.end_time - job.start_time + 1);
+    for(token=strtok_r(job.metadata, "\n", &save);
+        token != NULL;
+        token=strtok_r(NULL, "\n", &save))
+    {
+        char *save2;
+        char *key;
+        char *val;
+       
+        key = strtok_r(token, "=", &save2);
+        val = strtok_r(NULL, "=", &save2);
+        printf("# metadata: %s = %s\n", key, val);
+    }
  
     /* print table of mounted file systems */
     ret = darshan_log_getmounts(file, &devs, &mnt_pts, &fs_types, &mount_count,
