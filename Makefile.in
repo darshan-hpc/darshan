@@ -56,6 +56,9 @@ darshan-analyzer: darshan-analyzer.c darshan.h darshan-log-format.h darshan-logu
 darshan-log-params: darshan-log-params.c darshan-log-format.h
 	gcc $(CFLAGS) $(LIBS) $< -o $@
 
+jenkins: util/bin/jenkins.o lib/lookup3.o
+	gcc $(CFLAGS) $(LIBS) $< -o $@ lib/lookup3.o
+
 darshan-diff: darshan-diff.o darshan.h darshan-log-format.h darshan-logutils.o darshan-logutils.h
 	gcc $(CFLAGS) $(LIBS) $< darshan-logutils.o -o $@
 darshan-diff.o: darshan-diff.c
