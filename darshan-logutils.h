@@ -17,9 +17,12 @@ struct darshan_fd_s
 #ifdef HAVE_LIBBZ2
     BZFILE* bzf;
 #endif
+    int64_t pos;
+    char mode[2];
     int swap_flag;
     char version[10];
     int job_struct_size;
+    char* name;
 };
 typedef struct darshan_fd_s* darshan_fd;
 
@@ -35,14 +38,13 @@ int darshan_log_getfile(darshan_fd fd,
 int darshan_log_putfile(darshan_fd fd, 
     struct darshan_job* job, 
     struct darshan_file *file);
-int darshan_log_getexe(darshan_fd fd, char *buf, int *flag);
+int darshan_log_getexe(darshan_fd fd, char *buf);
 int darshan_log_putexe(darshan_fd fd, char *buf);
 int darshan_log_getmounts(darshan_fd fd,
     int64_t** devs,
     char*** mnt_pts,
     char*** fs_types,
-    int* count,
-    int *flag);
+    int* count);
 int darshan_log_putmounts(darshan_fd fd,
     int64_t* devs,
     char** mnt_pts,

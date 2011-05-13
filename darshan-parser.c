@@ -180,7 +180,6 @@ int main(int argc, char **argv)
     struct darshan_job job;
     struct darshan_file cp_file;
     char tmp_string[1024];
-    int no_files_flag = 0;
     time_t tmp_time = 0;
     darshan_fd file;
     int i;
@@ -223,7 +222,7 @@ int main(int argc, char **argv)
     /* warn user about any missing information in this log format */
     darshan_log_print_version_warnings(&job);
 
-    ret = darshan_log_getexe(file, tmp_string, &no_files_flag);
+    ret = darshan_log_getexe(file, tmp_string);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to read trailing job information.\n");
@@ -261,8 +260,7 @@ int main(int argc, char **argv)
     }
  
     /* print table of mounted file systems */
-    ret = darshan_log_getmounts(file, &devs, &mnt_pts, &fs_types, &mount_count,
-        &no_files_flag);
+    ret = darshan_log_getmounts(file, &devs, &mnt_pts, &fs_types, &mount_count);
     printf("\n# mounted file systems (device, mount point, and fs type)\n");
     printf("# -------------------------------------------------------\n");
     for(i=0; i<mount_count; i++)
@@ -270,7 +268,15 @@ int main(int argc, char **argv)
         printf("# mount entry: %" PRId64 "\t%s\t%s\n", devs[i], mnt_pts[i], fs_types[i]);
     }
   
-    if(no_files_flag)
+    /* try to retrieve first record (may not exist) */
+    ret = darshan_log_getfile(file, &job, &cp_file);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: failed to parse log file.\n");
+        fflush(stderr);
+        return(-1);
+    }
+    if(ret == 0)
     {
         /* it looks like the app didn't open any files */
         printf("# no files opened.\n");
@@ -350,7 +356,7 @@ int main(int argc, char **argv)
         memset(pdata.rank_cumul_md_time, 0, sizeof(double)*job.nprocs);
     }
 
-    while((ret = darshan_log_getfile(file, &job, &cp_file)) == 1)
+    do
     {
         char* mnt_pt = NULL;
         char* fs_type = NULL;
@@ -415,7 +421,7 @@ int main(int argc, char **argv)
                 CP_F_PRINT(&job, &cp_file, i, mnt_pt, fs_type);
             }
         }
-    }
+    }while((ret = darshan_log_getfile(file, &job, &cp_file)) == 1);
 
     /* Total Calc */
     if ((mask & OPTION_TOTAL))

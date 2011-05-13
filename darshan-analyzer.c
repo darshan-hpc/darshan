@@ -37,7 +37,6 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
     int f_count;
     double total_io_time;
     double total_job_time;
-    int nofiles = 0;
 
     zfile = darshan_log_open(fname, "r");
     if (zfile == NULL)
@@ -55,7 +54,7 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
         return -1;
     }
 
-    ret = darshan_log_getexe(zfile, tmp_string, &nofiles);
+    ret = darshan_log_getexe(zfile, tmp_string);
     if (ret < 0)
     {
         perror("darshan_log_getexe");

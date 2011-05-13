@@ -140,7 +140,6 @@ int main(int argc, char **argv)
     struct darshan_job job;
     struct darshan_file cp_file;
     char tmp_string[1024];
-    int no_files_flag = 0;
     darshan_fd infile;
     darshan_fd outfile;
     int i;
@@ -197,7 +196,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    ret = darshan_log_getexe(infile, tmp_string, &no_files_flag);
+    ret = darshan_log_getexe(infile, tmp_string);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to read trailing job information.\n");
@@ -215,8 +214,7 @@ int main(int argc, char **argv)
         return(-1);
     }
    
-    ret = darshan_log_getmounts(infile, &devs, &mnt_pts, &fs_types, &mount_count,
-        &no_files_flag);
+    ret = darshan_log_getmounts(infile, &devs, &mnt_pts, &fs_types, &mount_count);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to read trailing job information.\n");
@@ -232,13 +230,19 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    if(no_files_flag)
+    ret = darshan_log_getfile(infile, &job, &cp_file);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: failed to process log file.\n");
+        fflush(stderr);
+    }
+    if(ret == 0)
     {
         darshan_log_close(infile);
         darshan_log_close(outfile);
     }
 
-    while((ret = darshan_log_getfile(infile, &job, &cp_file)) == 1)
+    do
     {
         if(cp_file.rank != -1 && cp_file.rank < last_rank)
         {
@@ -257,7 +261,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "Error: failed to write file record.\n");
             break;
         }
-    }
+    } while((ret = darshan_log_getfile(infile, &job, &cp_file)) == 1);
 
     if(ret < 0)
     {

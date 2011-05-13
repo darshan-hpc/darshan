@@ -16,6 +16,8 @@
 
 #include "darshan-logutils.h"
 
+/* TODO: bzip write support */
+
 /* isn't there a clever c way to avoid this? */
 char *darshan_names[] = {
     "CP_INDEP_OPENS",
@@ -218,6 +220,10 @@ static void shift_missing_1_24(struct darshan_file* file);
 static void shift_missing_1_22(struct darshan_file* file);
 static void shift_missing_1_21(struct darshan_file* file);
 
+static int darshan_log_seek(darshan_fd fd, int64_t offset);
+static int darshan_log_read(darshan_fd fd, void* buf, int len);
+static const char* darshan_log_error(darshan_fd fd, int* errnum);
+
 /* a rather crude API for accessing raw binary darshan files */
 darshan_fd darshan_log_open(const char *name, const char* mode)
 {
@@ -227,11 +233,23 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
     int try_bz2 = 1;
     int len = strlen(name);
 
+    /* we only allows "w" or "r" modes, nothing fancy */
+    assert(strlen(mode) == 1);
+    assert(mode[0] == 'r' || mode[0] == 'w');
+
     darshan_fd tmp_fd = malloc(sizeof(*tmp_fd));
     if(!tmp_fd)
         return(NULL);
-
     memset(tmp_fd, 0, sizeof(*tmp_fd));
+
+    tmp_fd->mode[0] = mode[0];
+    tmp_fd->mode[1] = mode[1];
+    tmp_fd->name  = strdup(name);
+    if(!tmp_fd->name)
+    {
+        free(tmp_fd);
+        return(NULL);
+    }
 
 #ifdef HAVE_LIBBZ2
     if(strcmp(mode, "r") == 0)
@@ -245,6 +263,7 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
         if(!test_fd)
         {
             perror("open");
+            free(tmp_fd->name);
             free(tmp_fd);
             return(NULL);
         }
@@ -253,6 +272,7 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
         {
             fprintf(stderr, "Error: failed to read any data from %s.\n", 
                 name);
+            free(tmp_fd->name);
             free(tmp_fd);
             close(test_fd);
             return(NULL);
@@ -279,16 +299,20 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
     if(try_bz2)
     {
         tmp_fd->bzf = BZ2_bzopen(name, mode);
-        if(tmp_fd->bzf)
+        if(!tmp_fd->bzf)
         {
-            return(tmp_fd);
+            free(tmp_fd->name);
+            free(tmp_fd);
+            return(NULL);
         }
+        return(tmp_fd);
     }
 #endif
 
     tmp_fd->gzf = gzopen(name, mode);
     if(!tmp_fd->gzf)
     {
+        free(tmp_fd->name);
         free(tmp_fd);
         tmp_fd = NULL;
     }
@@ -302,17 +326,15 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
 int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
 {
     int ret;
-    
-#ifdef HAVE_LIBBZ2
-    assert(file->bzf == NULL);
-#endif
 
-    gzseek(file->gzf, 0, SEEK_SET);
+    ret = darshan_log_seek(file, 0);
+    if(ret < 0)
+        return(ret);
 
     /* read version number first so we know how to digest the rest of the
      * file
      */
-    ret = gzread(file->gzf, file->version, 10);
+    ret = darshan_log_read(file, file->version, 10);
     if(ret < 10)
     {
         fprintf(stderr, "Error: invalid log file (failed to read version).\n");
@@ -403,20 +425,15 @@ int darshan_log_putjob(darshan_fd file, struct darshan_job *job)
 {
     struct darshan_job job_copy;
     char    pv_str[64];
-    z_off_t off;
     int     ret;
 
 #ifdef HAVE_LIBBZ2
     assert(file->bzf == NULL);
 #endif
 
-    off = gzseek(file->gzf, 0, SEEK_SET);
-    if (off != 0)
-    {
-        ret = -1;
-        fprintf(stderr, "Error: couldn't seek to beginning of file.\n");
+    ret = darshan_log_seek(file, 0);
+    if(ret < 0)
         return(ret);
-    }
 
     memset(&job_copy, 0, sizeof(job_copy));
     memcpy(&job_copy, job, sizeof(job_copy));
@@ -454,22 +471,15 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
  */
 int darshan_log_putfile(darshan_fd fd, struct darshan_job *job, struct darshan_file *file)
 {
-    z_off_t off;
     int     ret;
 
 #ifdef HAVE_LIBBZ2
     assert(fd->bzf == NULL);
 #endif
 
-    if(gztell(fd->gzf) < CP_JOB_RECORD_SIZE)
-    {
-        off = gzseek(fd->gzf, CP_JOB_RECORD_SIZE, SEEK_SET);
-        if (off == -1)
-        {
-            fprintf(stderr, "Error: Failed to set start of file records.\n");
-            return(-1);
-        }
-    }
+    ret = darshan_log_seek(fd, CP_JOB_RECORD_SIZE);
+    if(ret < 0)
+        return(ret);
 
     ret = gzwrite(fd->gzf, file, sizeof(*file));
     if (ret != sizeof(*file))
@@ -488,29 +498,23 @@ int darshan_log_putfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
  * be freed by the caller.  count will indicate the size of the arrays
  */
 int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char***
-    fs_types, int* count, int *flag)
+    fs_types, int* count)
 {
     int ret;
     char* pos;
     int array_index = 0;
     char buf[CP_EXE_LEN+1];
 
-#ifdef HAVE_LIBBZ2
-    assert(fd->bzf == NULL);
-#endif
+    ret = darshan_log_seek(fd, fd->job_struct_size);
+    if(ret < 0)
+        return(ret);
 
-    gzseek(fd->gzf, fd->job_struct_size, SEEK_SET);
-
-    ret = gzread(fd->gzf, buf, (CP_EXE_LEN + 1));
+    ret = darshan_log_read(fd, buf, (CP_EXE_LEN + 1));
     if (ret < (CP_EXE_LEN + 1))
     {
-        perror("gzread");
+        perror("darshan_log_read");
         return(-1);
     }
-    if (gzeof(fd->gzf))
-        *flag = 1;
-    else
-        *flag = 0;
 
     /* count entries */
     *count = 0;
@@ -570,7 +574,6 @@ int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char**
  */
 int darshan_log_putmounts(darshan_fd fd, int64_t* devs, char** mnt_pts, char** fs_types, int count)
 {
-    z_off_t off;
     int     ret;
     char    line[1024];
     int     i;
@@ -594,27 +597,21 @@ int darshan_log_putmounts(darshan_fd fd, int64_t* devs, char** mnt_pts, char** f
     return(0);
 }
 
-int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
+int darshan_log_getexe(darshan_fd fd, char *buf)
 {
     int ret;
     char* newline;
 
-#ifdef HAVE_LIBBZ2
-    assert(fd->bzf == NULL);
-#endif
+    ret = darshan_log_seek(fd, fd->job_struct_size);
+    if(ret < 0)
+        return(ret);
 
-    gzseek(fd->gzf, fd->job_struct_size, SEEK_SET);
-
-    ret = gzread(fd->gzf, buf, (CP_EXE_LEN + 1));
+    ret = darshan_log_read(fd, buf, (CP_EXE_LEN + 1));
     if (ret < (CP_EXE_LEN + 1))
     {
-        perror("gzread");
+        perror("darshan_log_read");
         return(-1);
     }
-    if (gzeof(fd->gzf))
-        *flag = 1;
-    else
-        *flag = 0;
 
     /* this call is only supposed to return the exe string, but starting in
      * log format 1.23 there could be a table of mount entry information
@@ -635,7 +632,6 @@ int darshan_log_getexe(darshan_fd fd, char *buf, int *flag)
  */
 int darshan_log_putexe(darshan_fd fd, char *buf)
 {
-    z_off_t off;
     int     ret;
     int     len;
 
@@ -643,13 +639,9 @@ int darshan_log_putexe(darshan_fd fd, char *buf)
     assert(fd->bzf == NULL);
 #endif
 
-    off = gzseek(fd->gzf, sizeof(struct darshan_job), SEEK_SET);
-    if (off != sizeof(struct darshan_job))
-    {
-        ret = -1;
-        fprintf(stderr, "Error: failed to set position to exe section.\n");
+    ret = darshan_log_seek(fd, sizeof(struct darshan_job));
+    if(ret < 0)
         return(ret);
-    }
 
     len = strlen(buf);
 
@@ -673,6 +665,7 @@ void darshan_log_close(darshan_fd file)
     if(file->gzf)
         gzclose(file->gzf);
 
+    free(file->name);
     free(file);
 }
 
@@ -1014,20 +1007,14 @@ static int getjob_internal_201(darshan_fd file, struct darshan_job *job)
 {
     int ret;
 
-#ifdef HAVE_LIBBZ2
-    assert(file->bzf == NULL);
-#endif
+    ret = darshan_log_seek(file, 0);
+    if(ret < 0)
+        return(ret);
 
-    gzseek(file->gzf, 0, SEEK_SET);
-
-    ret = gzread(file->gzf, job, sizeof(*job));
+    ret = darshan_log_read(file, job, sizeof(*job));
     if (ret < sizeof(*job))
     {
-        if(gzeof(file->gzf))
-        {
-            fprintf(stderr, "Error: invalid log file (too short).\n");
-        }
-        perror("darshan_job_init");
+        fprintf(stderr, "Error: invalid log file (too short).\n");
         return(-1);
     }
 
@@ -1074,16 +1061,14 @@ static int getjob_internal_200(darshan_fd file, struct darshan_job *job)
     memset(job, 0, sizeof(job_200));
     memset(job, 0, sizeof(*job));
 
-    gzseek(file->gzf, 0, SEEK_SET);
+    ret = darshan_log_seek(file, 0);
+    if(ret < 0)
+        return(ret);
 
-    ret = gzread(file->gzf, &job_200, sizeof(job_200));
+    ret = darshan_log_read(file, &job_200, sizeof(job_200));
     if (ret < sizeof(job_200))
     {
-        if(gzeof(file->gzf))
-        {
-            fprintf(stderr, "Error: invalid log file (too short).\n");
-        }
-        perror("darshan_job_init");
+        fprintf(stderr, "Error: invalid log file (too short).\n");
         return(-1);
     }
 
@@ -1126,20 +1111,20 @@ static int getfile_internal_200(darshan_fd fd, struct darshan_job *job,
     int ret;
     const char* err_string;
     int i;
-    
-#ifdef HAVE_LIBBZ2
-    assert(fd->bzf == NULL);
-#endif
 
-    if(gztell(fd->gzf) < CP_JOB_RECORD_SIZE)
-        gzseek(fd->gzf, CP_JOB_RECORD_SIZE, SEEK_SET);
+    if(fd->pos < CP_JOB_RECORD_SIZE)
+    {
+        ret = darshan_log_seek(fd, CP_JOB_RECORD_SIZE);
+        if(ret < 0)
+            return(ret);
+    }
 
     /* reset file record, so that diff compares against a zero'd out record
      * if file is missing
      */
     memset(file, 0, sizeof(&file));
 
-    ret = gzread(fd->gzf, file, sizeof(*file));
+    ret = darshan_log_read(fd, file, sizeof(*file));
     if(ret == sizeof(*file))
     {
         /* got exactly one, correct size record */
@@ -1164,14 +1149,14 @@ static int getfile_internal_200(darshan_fd fd, struct darshan_job *job,
         return(-1);
     }
 
-    if(ret == 0 && gzeof(fd->gzf))
+    if(ret == 0)
     {
         /* hit end of file */
         return(0);
     }
 
     /* all other errors */
-    err_string = gzerror(fd->gzf, &ret);
+    err_string = darshan_log_error(fd, &ret);
     fprintf(stderr, "Error: %s\n", err_string);
     return(-1);
 }
@@ -1188,10 +1173,6 @@ static int getjob_internal_124(darshan_fd fd, struct darshan_job *job)
     int32_t end_time;
     int32_t nprocs;
 
-#ifdef HAVE_LIBBZ2
-    assert(fd->bzf == NULL);
-#endif
-
 #ifdef WORDS_BIGENDIAN
     fd->swap_flag = 0;
 #else
@@ -1206,9 +1187,11 @@ static int getjob_internal_124(darshan_fd fd, struct darshan_job *job)
         return(-1);
     }
 
-    gzseek(fd->gzf, 0, SEEK_SET);
+    ret = darshan_log_seek(fd, 0);
+    if(ret < 0)
+        return(ret);
 
-    ret = gzread(fd->gzf, buffer, JOB_SIZE_124);
+    ret = darshan_log_read(fd, buffer, JOB_SIZE_124);
     if (ret < JOB_SIZE_124)
     {
         fprintf(stderr, "Error: invalid log file (could not read file record).\n");
@@ -1304,18 +1287,18 @@ static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job,
     char* name_suffix;
     int FILE_SIZE_1x = (32 + n_counters*8 + n_fcounters*8);
 
-#ifdef HAVE_LIBBZ2
-    assert(fd->bzf == NULL);
-#endif
-
     memset(file, 0, sizeof(*file));
 
     /* set file pointer if this is the first file record; otherwise pick up
      * where we left off last time
      */
-    if(gztell(fd->gzf) < CP_JOB_RECORD_SIZE)
-        gzseek(fd->gzf, CP_JOB_RECORD_SIZE, SEEK_SET);
-
+    if(fd->pos < CP_JOB_RECORD_SIZE)
+    {
+        ret = darshan_log_seek(fd, CP_JOB_RECORD_SIZE);
+        if(ret < 0)
+            return(ret);
+    }
+    
     /* space for file struct, int64 array, and double array */
     buffer = (char*)malloc(FILE_SIZE_1x);
     if(!buffer)
@@ -1323,7 +1306,7 @@ static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job,
         return(-1);
     }
 
-    ret = gzread(fd->gzf, buffer, FILE_SIZE_1x);
+    ret = darshan_log_read(fd, buffer, FILE_SIZE_1x);
 
     if(ret > 0 && ret < FILE_SIZE_1x)
     {
@@ -1332,7 +1315,7 @@ static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job,
         free(buffer);
         return(-1);
     }
-    else if(ret == 0 && gzeof(fd->gzf))
+    else if(ret == 0)
     {
         /* hit end of file */
         free(buffer);
@@ -1341,7 +1324,7 @@ static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job,
     else if(ret <= 0)
     {
         /* all other errors */
-        err_string = gzerror(fd->gzf, &ret);
+        err_string = darshan_log_error(fd, &ret);
         fprintf(stderr, "Error: %s\n", err_string);
         free(buffer);
         return(-1);
@@ -1375,5 +1358,110 @@ static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job,
 
     free(buffer);
     return(1);
+}
+
+/* return amount read on success, 0 on EOF, -1 on failure.
+ */
+static int darshan_log_read(darshan_fd fd, void* buf, int len)
+{
+    int ret;
+
+    if(fd->gzf)
+    {
+        ret = gzread(fd->gzf, buf, len);
+        if(ret > 0)
+            fd->pos += ret;
+        return(ret);
+    }
+
+#ifdef HAVE_LIBBZ2
+    if(fd->bzf)
+    {
+        ret = BZ2_bzread(fd->bzf, buf, len);
+        if(ret > 0)
+            fd->pos += ret;
+        return(ret);
+    }
+#endif
+
+    return(-1);
+}
+
+
+static const char* darshan_log_error(darshan_fd fd, int* errnum)
+{
+    if(fd->gzf)
+    {
+        return(gzerror(fd->gzf, errnum));
+    }
+
+#ifdef HAVE_LIBBZ2
+    if(fd->bzf)
+    {
+        return(BZ2_bzerror(fd->bzf, errnum));
+    }
+#endif
+
+    *errnum = 0;
+    return(NULL);
+}
+
+/* return 0 on successful seek to offset, -1 on failure.
+ */
+static int darshan_log_seek(darshan_fd fd, int64_t offset)
+{
+    z_off_t zoff = 0;
+    z_off_t zoff_ret = 0;
+
+    if(fd->pos == offset)
+        return(0);
+
+    if(fd->gzf)
+    {
+        zoff += offset;
+        zoff_ret = gzseek(fd->gzf, zoff, SEEK_SET);
+        if(zoff_ret == zoff)
+        {
+            fd->pos = offset;
+            return(0);
+        }
+        return(-1);
+    }
+
+#ifdef HAVE_LIBBZ2
+    if(fd->bzf)
+    {
+        int64_t counter;
+        char dummy = '\0';
+        int ret;
+
+        /* There is no seek in bzip2.  Just close, reopen, and throw away 
+         * data until the correct offset.  Very slow, but we don't expect to
+         * do this often.
+         */
+        BZ2_bzclose(fd->bzf);
+        fd->bzf = BZ2_bzopen(fd->name, fd->mode);
+        if(!fd->bzf)
+            return(-1);
+
+        for(counter=0; counter<offset; counter++)
+        {
+            if(fd->mode[0] == 'r')
+            {
+                ret = BZ2_bzread(fd->bzf, &dummy, 1);
+            }
+            else
+            {
+                ret = BZ2_bzwrite(fd->bzf, &dummy, 1);
+            }
+            if(ret != 1)
+                return(-1);
+        }
+        fd->pos = offset;
+        return(0);
+    }
+#endif
+
+    return(-1);
 }
 
