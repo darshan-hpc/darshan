@@ -16,8 +16,6 @@
 
 #include "darshan-logutils.h"
 
-/* TODO: bzip write support */
-
 /* isn't there a clever c way to avoid this? */
 char *darshan_names[] = {
     "CP_INDEP_OPENS",
@@ -222,6 +220,7 @@ static void shift_missing_1_21(struct darshan_file* file);
 
 static int darshan_log_seek(darshan_fd fd, int64_t offset);
 static int darshan_log_read(darshan_fd fd, void* buf, int len);
+static int darshan_log_write(darshan_fd fd, void* buf, int len);
 static const char* darshan_log_error(darshan_fd fd, int* errnum);
 
 /* a rather crude API for accessing raw binary darshan files */
@@ -290,7 +289,7 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
         /* if we are writing a new file, go by the file extension to tell
          * whether to use bz2 or not?
          */
-        if(len >= 3 && name[len-2] == 'b' && name[len-1] == 'z' && name[len] == '2')
+        if(len >= 3 && name[len-3] == 'b' && name[len-2] == 'z' && name[len-1] == '2')
             try_bz2 = 1;
         else
             try_bz2 = 0;
@@ -427,10 +426,6 @@ int darshan_log_putjob(darshan_fd file, struct darshan_job *job)
     char    pv_str[64];
     int     ret;
 
-#ifdef HAVE_LIBBZ2
-    assert(file->bzf == NULL);
-#endif
-
     ret = darshan_log_seek(file, 0);
     if(ret < 0)
         return(ret);
@@ -442,7 +437,7 @@ int darshan_log_putjob(darshan_fd file, struct darshan_job *job)
     strncat(job_copy.metadata, pv_str, strlen(pv_str));
     job_copy.magic_nr = CP_MAGIC_NR;
 
-    ret = gzwrite(file->gzf, &job_copy, sizeof(job_copy));
+    ret = darshan_log_write(file, &job_copy, sizeof(job_copy));
     if (ret != sizeof(job_copy))
     {
         fprintf(stderr, "Error: failed to write job header: %d\n", ret);
@@ -473,15 +468,14 @@ int darshan_log_putfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
 {
     int     ret;
 
-#ifdef HAVE_LIBBZ2
-    assert(fd->bzf == NULL);
-#endif
+    if(fd->pos < CP_JOB_RECORD_SIZE)
+    {
+        ret = darshan_log_seek(fd, CP_JOB_RECORD_SIZE);
+        if(ret < 0)
+            return(ret);
+    }
 
-    ret = darshan_log_seek(fd, CP_JOB_RECORD_SIZE);
-    if(ret < 0)
-        return(ret);
-
-    ret = gzwrite(fd->gzf, file, sizeof(*file));
+    ret = darshan_log_write(fd, file, sizeof(*file));
     if (ret != sizeof(*file))
     {
         fprintf(stderr, "Error: writing file record failed: %d\n", ret);
@@ -578,15 +572,11 @@ int darshan_log_putmounts(darshan_fd fd, int64_t* devs, char** mnt_pts, char** f
     char    line[1024];
     int     i;
 
-#ifdef HAVE_LIBBZ2
-    assert(fd->bzf == NULL);
-#endif
-
     for(i=count-1; i>=0; i--)
     {
         sprintf(line, "\n%" PRId64 "\t%s\t%s",
                 devs[i], fs_types[i], mnt_pts[i]);
-        ret = gzwrite(fd->gzf, line, strlen(line));
+        ret = darshan_log_write(fd, line, strlen(line));
         if (ret != strlen(line))
         {
             fprintf(stderr, "Error: failed to write mount entry: %d\n", ret);
@@ -635,17 +625,13 @@ int darshan_log_putexe(darshan_fd fd, char *buf)
     int     ret;
     int     len;
 
-#ifdef HAVE_LIBBZ2
-    assert(fd->bzf == NULL);
-#endif
-
     ret = darshan_log_seek(fd, sizeof(struct darshan_job));
     if(ret < 0)
         return(ret);
 
     len = strlen(buf);
 
-    ret = gzwrite(fd->gzf, buf, len);
+    ret = darshan_log_write(fd, buf, len);
     if (ret != len)
     {
         fprintf(stderr, "Error: failed to write exe info: %d\n", ret);
@@ -1360,6 +1346,34 @@ static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job,
     return(1);
 }
 
+/* return amount written on success, -1 on failure.
+ */
+static int darshan_log_write(darshan_fd fd, void* buf, int len)
+{
+    int ret;
+
+    if(fd->gzf)
+    {
+        ret = gzwrite(fd, buf, len);
+        if(ret > 0)
+            fd->pos += ret;
+        return(ret);
+    }
+
+#ifdef HAVE_LIBBZ2
+    if(fd->bzf)
+    {
+        ret = BZ2_bzwrite(fd->bzf, buf, len);
+        if(ret > 0)
+            fd->pos += ret;
+        return(ret);
+    }
+#endif
+
+    return(-1);
+}
+
+
 /* return amount read on success, 0 on EOF, -1 on failure.
  */
 static int darshan_log_read(darshan_fd fd, void* buf, int len)
@@ -1439,12 +1453,29 @@ static int darshan_log_seek(darshan_fd fd, int64_t offset)
          * data until the correct offset.  Very slow, but we don't expect to
          * do this often.
          */
-        BZ2_bzclose(fd->bzf);
-        fd->bzf = BZ2_bzopen(fd->name, fd->mode);
-        if(!fd->bzf)
-            return(-1);
+        if(fd->mode[0] == 'r' && offset < fd->pos)
+        {
+            /* to seek backwards in read-only mode we just close and re-open
+             * the file
+             */
+            BZ2_bzclose(fd->bzf);
+            fd->bzf = BZ2_bzopen(fd->name, fd->mode);
+            if(!fd->bzf)
+                return(-1);
 
-        for(counter=0; counter<offset; counter++)
+            fd->pos = 0;
+        }
+        else if(fd->mode[0] == 'w' && offset < fd->pos)
+        {
+            /* there isn't any convenient way to seek backwards in a
+             * write-only bzip2 file, but we shouldn't need that
+             * functionality in darshan anyway.
+             */
+            fprintf(stderr, "Error: seeking backwards in a bzip2 compressed darshan output file is not supported.\n");
+            return(-1);
+        }
+
+        for(counter=0; counter<(offset-fd->pos); counter++)
         {
             if(fd->mode[0] == 'r')
             {
@@ -1457,7 +1488,7 @@ static int darshan_log_seek(darshan_fd fd, int64_t offset)
             if(ret != 1)
                 return(-1);
         }
-        fd->pos = offset;
+        fd->pos += counter;
         return(0);
     }
 #endif
