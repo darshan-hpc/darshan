@@ -35,7 +35,7 @@ int main(int argc, char ** argv)
     struct darshan_job job1, job2;
     struct darshan_file cp_file1, cp_file2;
     char exe1[1024], exe2[1024];
-    int no_files_flag1=0, no_files_flag2=0, i, ret1,ret2;
+    int i, ret1,ret2;
 
     if (argc != 3)
     {
@@ -65,12 +65,12 @@ int main(int argc, char ** argv)
         return(-1);
     }
 
-    if (darshan_log_getexe(file1, exe1, &no_files_flag1))
+    if (darshan_log_getexe(file1, exe1))
     {
         darshan_log_close(file1);
         return(-1);
     }
-    if (darshan_log_getexe(file2, exe2, &no_files_flag2))
+    if (darshan_log_getexe(file2, exe2))
     {
         darshan_log_close(file2);
         return(-1);
