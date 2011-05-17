@@ -1,0 +1,270 @@
+Index: lib/darshan-posix.c
+===================================================================
+--- lib/darshan-posix.c	(revision 444)
++++ lib/darshan-posix.c	(working copy)
+@@ -1486,8 +1486,7 @@
+     return;
+ }
+ 
+-#if 0
+-void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs)
++void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs, int mode)
+ {
+     int* fd_array;
+     int64_t* size_array;
+@@ -1539,7 +1538,7 @@
+ 
+     if(rank == 0)
+         printf("# 1 unique file per proc\n");
+-    darshan_shutdown(1);
++    darshan_shutdown(1, mode);
+     darshan_global_job = NULL;
+ 
+     /***********************************************************/
+@@ -1562,7 +1561,7 @@
+ 
+     if(rank == 0)
+         printf("# 1 shared file across procs\n");
+-    darshan_shutdown(1);
++    darshan_shutdown(1, mode);
+     darshan_global_job = NULL;
+ 
+     /***********************************************************/
+@@ -1585,7 +1584,7 @@
+ 
+     if(rank == 0)
+         printf("# 1024 unique files per proc\n");
+-    darshan_shutdown(1);
++    darshan_shutdown(1, mode);
+     darshan_global_job = NULL;
+ 
+     /***********************************************************/
+@@ -1608,7 +1607,7 @@
+ 
+     if(rank == 0)
+         printf("# 1024 shared files across procs\n");
+-    darshan_shutdown(1);
++    darshan_shutdown(1, mode);
+     darshan_global_job = NULL;
+ 
+     darshan_initialize(argc, argv, nprocs, rank);
+@@ -1714,7 +1713,6 @@
+     free(fd_array);
+     free(size_array);
+ }
+-#endif
+ 
+ static double posix_wtime(void)
+ {
+Index: lib/darshan-mpi-io.c
+===================================================================
+--- lib/darshan-mpi-io.c	(revision 444)
++++ lib/darshan-mpi-io.c	(working copy)
+@@ -315,7 +315,7 @@
+     int rank, int* inout_count, int* lengths, void** pointers, char*
+     trailing_data);
+ static int cp_log_write(struct darshan_job_runtime* final_job, int rank, 
+-    char* logfile_name, int count, int* lengths, void** pointers, double start_log_time);
++    char* logfile_name, int count, int* lengths, void** pointers, double start_log_time, int mode);
+ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank, 
+     char* logfile_name, MPI_Offset* next_offset);
+ static void darshan_file_reduce(void* infile_v, 
+@@ -407,7 +407,7 @@
+     return;
+ }
+ 
+-void darshan_shutdown(int timing_flag)
++void darshan_shutdown(int timing_flag, int mode)
+ {
+     int rank;
+     char* logfile_name;
+@@ -720,7 +720,7 @@
+         if(timing_flag)
+             write1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
+         local_ret = cp_log_write(final_job, rank, logfile_name, 
+-            index_count, lengths, pointers, start_log_time);
++            index_count, lengths, pointers, start_log_time, mode);
+         if(timing_flag)
+             write2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
+         DARSHAN_MPI_CALL(PMPI_Allreduce)(&local_ret, &all_ret, 1,
+@@ -787,9 +787,9 @@
+     int ret;
+ 
+     if(getenv("DARSHAN_INTERNAL_TIMING"))
+-        darshan_shutdown(1);
++        darshan_shutdown(1, 0);
+     else
+-        darshan_shutdown(0);
++        darshan_shutdown(0, 0);
+ 
+     ret = DARSHAN_MPI_CALL(PMPI_Finalize)();
+     return(ret);
+@@ -1848,7 +1848,7 @@
+  * actually write log information to disk
+  */
+ static int cp_log_write(struct darshan_job_runtime* final_job, int rank, 
+-    char* logfile_name, int count, int* lengths, void** pointers, double start_log_time)
++    char* logfile_name, int count, int* lengths, void** pointers, double start_log_time, int mode)
+ {
+     int ret;
+     MPI_File fh;
+@@ -1861,6 +1861,7 @@
+     MPI_Aint displacements[CP_MAX_MEM_SEGMENTS];
+     void* buf;
+     int failed_write = 0;
++    MPI_Info info;
+ 
+     /* skip building a datatype if we don't have anything to write */
+     if(count > 0)
+@@ -1883,24 +1884,21 @@
+         DARSHAN_MPI_CALL(PMPI_Type_commit)(&mtype); 
+     }
+ 
+-    ret = DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, logfile_name,
+-        MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, MPI_INFO_NULL, &fh);
+-    if(ret != MPI_SUCCESS)
++    if(mode == 0)
+     {
+-        /* TODO: keep this print or not? */
++        /* in this mode, try pre-creating the file on rank 0 to avoid
++         * metadata contention in collective open
++         */
+         if(rank == 0)
+         {
+-            int msg_len;
+-            char msg[MPI_MAX_ERROR_STRING] = {0};
+-            
+-            MPI_Error_string(ret, msg, &msg_len);
+-            fprintf(stderr, "darshan library warning: unable to open log file %s: %s\n", logfile_name, msg);
++            ret = DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_SELF, logfile_name,
++                MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, 
++                MPI_INFO_NULL, &fh);
++            if(ret == MPI_SUCCESS)
++                DARSHAN_MPI_CALL(PMPI_File_close(&fh));
+         }
+-        if(count > 0)
+-            DARSHAN_MPI_CALL(PMPI_Type_free)(&mtype);
+-        return(-1);
+     }
+-  
++ 
+     /* figure out where everyone is writing */
+     if(count > 0)
+         DARSHAN_MPI_CALL(PMPI_Type_size)(mtype, &my_total);
+@@ -1912,6 +1910,60 @@
+     /* scan is inclusive; subtract local size back out */
+     offset -= my_total_long;
+ 
++    if(mode > 0)
++    {
++        /* in this mode, no precreate, but we set romio hints to tell it
++         * that we are only going to do collective operations (so that files
++         * are only opened on the aggregators).  We also use the value of
++         * mode to set the number of aggregators.
++         */
++        char cb_nodes_string[10];
++        sprintf(cb_nodes_string, "%d", mode);
++
++        MPI_Info_create(&info);
++        /* make sure that collective buffering is on */
++        MPI_Info_set(info, "romio_cb_write", "enable"); 
++        /* tell ROMIO that we will only do collective operations to this file,
++         * so that it can avoid opening the file on every proc. 
++         */
++        MPI_Info_set(info, "romio_no_indep_rw", "true"); 
++        /* use exactly one process as an aggregator */
++        MPI_Info_set(info, "cb_nodes", cb_nodes_string);
++
++        ret = DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, logfile_name,
++            MPI_MODE_CREATE | MPI_MODE_EXCL |MPI_MODE_WRONLY, info, &fh);
++
++        MPI_Info_free(&info);
++    }
++    else if(mode == 0)
++    {
++        /* must have been precreated */
++        ret = DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, logfile_name,
++            MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
++    }
++    else
++    {
++        /* negative mode; do what we've always done */
++        ret = DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, logfile_name,
++            MPI_MODE_CREATE | MPI_MODE_EXCL| MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
++    }
++
++    if(ret != MPI_SUCCESS)
++    {
++        /* TODO: keep this print or not? */
++        if(rank == 0)
++        {
++            int msg_len;
++            char msg[MPI_MAX_ERROR_STRING] = {0};
++            
++            MPI_Error_string(ret, msg, &msg_len);
++            fprintf(stderr, "darshan library warning: unable to open log file %s: %s\n", logfile_name, msg);
++        }
++        if(count > 0)
++            DARSHAN_MPI_CALL(PMPI_Type_free)(&mtype);
++        return(-1);
++    }
++ 
+     if(count > 0)
+     {
+         /* collectively write out file records from all processes */
+Index: darshan.h
+===================================================================
+--- darshan.h	(revision 444)
++++ darshan.h	(working copy)
+@@ -207,8 +207,8 @@
+ void darshan_finalize(struct darshan_job_runtime* job);
+ void darshan_condense(void);
+ void darshan_search_bench(int argc, char** argv, int iters);
+-void darshan_shutdown(int timing_flag);
+-void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs);
++void darshan_shutdown(int timing_flag, int mode);
++void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs, int mode);
+ void darshan_walk_file_accesses(struct darshan_job_runtime* final_job);
+ double darshan_wtime(void);
+ 
+Index: test/cp-shutdown-bench.c
+===================================================================
+--- test/cp-shutdown-bench.c	(revision 444)
++++ test/cp-shutdown-bench.c	(working copy)
+@@ -23,7 +23,7 @@
+     int i;
+     int ret;
+     int fd;
+-    int iters;
++    int mode;
+ 
+     MPI_Init(&argc, &argv);
+     MPI_Comm_rank(MPI_COMM_WORLD, &mynod);
+@@ -37,7 +37,7 @@
+         return(-1);
+     }
+ 
+-    ret = sscanf(argv[1], "%d", &iters);
++    ret = sscanf(argv[1], "%d", &mode);
+     if(ret != 1)
+     {
+         fprintf(stderr, "Usage: %s <number of iterations>\n", argv[0]);
+@@ -47,10 +47,16 @@
+ 
+     if(mynod == 0)
+     {
+-        printf("ignoring iters argument for now.\n");
++	if(mode < 0)
++        	printf("# using old method (no precreate or hints)\n");
++	if(mode == 0)
++        	printf("# using precreate)\n");
++	if(mode > 0)
++		printf("# using hints, with cb_nodes %d\n", mode);
++
+     }
+ 
+-    darshan_shutdown_bench(argc, argv, mynod, nprocs);
++    darshan_shutdown_bench(argc, argv, mynod, nprocs, mode);
+ 
+     MPI_Finalize();
+     return(0);
