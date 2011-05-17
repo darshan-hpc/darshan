@@ -1900,9 +1900,7 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
             DARSHAN_MPI_CALL(PMPI_Type_free)(&mtype);
         return(-1);
     }
-   
-    DARSHAN_MPI_CALL(PMPI_File_set_size)(fh, 0);
-
+  
     /* figure out where everyone is writing */
     if(count > 0)
         DARSHAN_MPI_CALL(PMPI_Type_size)(mtype, &my_total);
