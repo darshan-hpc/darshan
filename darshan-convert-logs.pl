@@ -16,6 +16,7 @@
 #
 
 my $darshan_convert = "./darshan-convert";
+my $jenkins = "./jenkins";
 
 sub load_annotations($$)
 {
@@ -59,11 +60,23 @@ sub main()
             my $annotation;
             my $hashed_fname;
             my @args;
+            my $year;
+            my $month;
+            my $day;
+            my $logname;
+            my $rc;
 
             $jobid = $1;
             $annotation = $ref->{$jobid};
 
-            $hashed_fname = `./jenkins --64 --key $hash_key $logfile`;
+            if ($logfile =~ /\/(\d+)\/(\d+)\/(\d+)\/([0-9a-zA-Z\-_\.]+)/)
+            {
+                $year = $1;
+                $month = $2;
+                $day = $3;
+                $logname = $4;
+            }
+            $hashed_fname = `$jenkins --64 --key $hash_key $logname`;
             chomp($hashed_fname);
 
             @args = ("$darshan_convert",
@@ -71,9 +84,14 @@ sub main()
                      "--key=$hash_key",
                      "--annotate=$annotation",
                      "$logfile",
-                     "$output_path/$hashed_fname.gz");
-            system(@args);
-            print("$hashed_fname\t$logfile\n");
+                     "$output_path/$year/$month/$day/$hashed_fname.bz2");
+            $rc = system(@args);
+            if ($rc) {
+                print("$hashed_fname\t$logfile:failed:$rc\n");
+            }
+            else {
+                print("$hashed_fname\t$logfile\n");
+            }
         }
         else
         {

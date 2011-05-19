@@ -3,6 +3,7 @@
  *      See COPYRIGHT in top-level directory.
  */
 
+#define _GNU_SOURCE
 #include "darshan-config.h"
 #include <stdio.h>
 #include <string.h>
@@ -259,7 +260,7 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
          * in order to get a chance to try both compression formats.
          */
         test_fd = open(name, O_RDONLY);
-        if(!test_fd)
+        if(test_fd < 0)
         {
             perror("open");
             free(tmp_fd->name);
@@ -583,7 +584,14 @@ int darshan_log_putmounts(darshan_fd fd, int64_t* devs, char** mnt_pts, char** f
             return(-1);
         }
     }
-    
+
+    /* seek ahead to end of exe region, will be zero filled */
+    ret = darshan_log_seek(fd, CP_JOB_RECORD_SIZE);
+    if (ret)
+    {
+        fprintf(stderr, "Error: forward seek failed: %d\n", CP_JOB_RECORD_SIZE);
+    }
+
     return(0);
 }
 
@@ -1354,7 +1362,7 @@ static int darshan_log_write(darshan_fd fd, void* buf, int len)
 
     if(fd->gzf)
     {
-        ret = gzwrite(fd, buf, len);
+        ret = gzwrite(fd->gzf, buf, len);
         if(ret > 0)
             fd->pos += ret;
         return(ret);

@@ -157,7 +157,9 @@ int main(int argc, char **argv)
     infile = darshan_log_open(infile_name, "r");
     if(!infile)
     {
-        perror("darshan_log_open");
+        char errmsg[256];
+        sprintf(errmsg, "darshan_log_open: %s", infile_name);
+        perror(errmsg);
         return(-1);
     }
  
@@ -167,7 +169,9 @@ int main(int argc, char **argv)
     outfile = darshan_log_open(outfile_name, "w");
     if(!outfile)
     {
-        perror("darshan_log_open");
+        char errmsg[256];
+        sprintf(errmsg, "darshan_log_open: %s", outfile_name);
+        perror(errmsg);
         return(-1);
     }
 
@@ -238,8 +242,7 @@ int main(int argc, char **argv)
     }
     if(ret == 0)
     {
-        darshan_log_close(infile);
-        darshan_log_close(outfile);
+        goto done;
     }
 
     do
@@ -269,6 +272,7 @@ int main(int argc, char **argv)
         fflush(stderr);
     }
 
+done:
     for(i=0; i<mount_count; i++)
     {
         free(mnt_pts[i]);
