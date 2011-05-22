@@ -1862,6 +1862,11 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     void* buf;
     int failed_write = 0;
     char* hints;
+    char* key;
+    char* value;
+    char* tok_str;
+    char* saveptr = NULL;
+    MPI_Info info;
 
     /* skip building a datatype if we don't have anything to write */
     if(count > 0)
@@ -1892,11 +1897,40 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     {
         hints = __CP_LOG_HINTS;
     }
+
+    /* TODO: test more cases here (empty string, one hint, missing =, empty
+     * value, and empty key)
+     */
+    MPI_Info_create(&info);
+    tok_str = strdup(hints);
+    if(tok_str)
+    {
+        do
+        {
+            /* split string on commas */
+            key = strtok_r(tok_str, ",", &saveptr);
+            if(key)
+            {
+                tok_str = NULL;
+                /* look for = sign splitting key/value pairs */
+                value = index(key, '=');
+                if(value)
+                {
+                    /* break key and value into separate null terminated strings */
+                    value[0] = '\0';
+                    value++;
+                    MPI_Info_set(info, key, value);
+                }
+            }
+        }while(key != NULL);
+        free(tok_str);
+    }
     
-    /* TODO: process hints */ 
+    /* TODO: append hints to metadata field in job structure */
 
     ret = DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, logfile_name,
         MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, MPI_INFO_NULL, &fh);
+    MPI_Info_free(&info);
     if(ret != MPI_SUCCESS)
     {
         /* TODO: keep this print or not? */
