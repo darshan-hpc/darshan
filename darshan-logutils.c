@@ -669,9 +669,17 @@ void darshan_log_close(darshan_fd file)
  */
 void darshan_log_print_version_warnings(struct darshan_job *job)
 {
-    if(strcmp(job->version_string, "2.00") == 0)
+    if(strcmp(job->version_string, "2.01") == 0)
     {
         /* current version */
+        return;
+    }
+
+    if(strcmp(job->version_string, "2.00") == 0)
+    {
+        /* no characterization functionality missing, 
+         * just internal darshan metadata 
+         */
         return;
     }
  
