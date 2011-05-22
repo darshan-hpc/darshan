@@ -667,6 +667,7 @@ enable_ld_preload
 with_mem_align
 with_zlib_for_mpi
 with_log_path_by_env
+with_log_hints
 with_log_path
 with_jobid_env
 '
@@ -1303,6 +1304,7 @@ Optional Packages:
   --with-mem-align=<num>  Memory alignment in bytes
   --with-zlib-for-mpi=<dir>  base dir for zlib to use on mpi processes
   --with-log-path-by-env=<env var list> Comma separated list of environment variables to check for log path location before --with-log-path path
+  --with-log-hints=<hint1=x,hint2=y>  Comma-separated list of MPI-IO hints for log file write
   --with-log-path=<path>  Location to store log files at run time
   --with-jobid-env=<name> Name of environment variable that stores the jobid
     (specify "NONE" if no appropriate environment variable is available:
@@ -3866,6 +3868,24 @@ fi
 
 
 
+# Check whether --with-log-hints was given.
+if test "${with_log_hints+set}" = set; then :
+  withval=$with_log_hints; if test x$withval = xyes; then
+        as_fn_error $? "--with-log-hints must be given an argument" "$LINENO" 5
+    else
+
+cat >>confdefs.h <<_ACEOF
+#define __CP_LOG_HINTS "${withval}"
+_ACEOF
+
+        __CP_LOG_HINTS="${withval}"
+        GOT_LOG_HINTS=1
+    fi
+
+fi
+
+
+
 # Check whether --with-log-path was given.
 if test "${with_log_path+set}" = set; then :
   withval=$with_log_path; if test x$withval = xyes; then
@@ -3912,6 +3932,14 @@ if test x$GOT_LOG_PATH != x1; then
 fi
 if test x$GOT_JOBID != x1; then
     as_fn_error $? "must provide --with-jobid-env=<name> argument to configure." "$LINENO" 5
+fi
+__CP_LOG_HINTS_DEFAULT="romio_no_indep_rw=true,cb_nodes=8"
+if test x$GOT_LOG_HINTS != x1; then
+
+cat >>confdefs.h <<_ACEOF
+#define __CP_LOG_HINTS "$__CP_LOG_HINTS_DEFAULT"
+_ACEOF
+
 fi
 
 # Extract the first word of "pdflatex", so it can be a program name with args.

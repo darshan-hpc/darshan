@@ -87,6 +87,9 @@
 /* Comma separated list of env. variables to use for log path */
 #undef __CP_LOG_ENV
 
+/* Comma-separated list of MPI-IO hints for log file write */
+#undef __CP_LOG_HINTS
+
 /* Location to store log files at run time */
 #undef __CP_LOG_PATH
 
