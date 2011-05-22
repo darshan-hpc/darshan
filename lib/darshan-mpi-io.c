@@ -1861,6 +1861,7 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     MPI_Aint displacements[CP_MAX_MEM_SEGMENTS];
     void* buf;
     int failed_write = 0;
+    char* hints;
 
     /* skip building a datatype if we don't have anything to write */
     if(count > 0)
@@ -1882,6 +1883,17 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
             MPI_BYTE, &mtype);
         DARSHAN_MPI_CALL(PMPI_Type_commit)(&mtype); 
     }
+
+    /* check environment variable to see if the default MPI file hints have
+     * been overridden
+     */
+    hints = getenv(CP_LOG_HINTS_OVERRIDE);
+    if(!hints)
+    {
+        hints = __CP_LOG_HINTS;
+    }
+    
+    /* TODO: process hints */ 
 
     ret = DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, logfile_name,
         MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, MPI_INFO_NULL, &fh);
