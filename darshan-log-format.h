@@ -252,6 +252,7 @@ struct darshan_file
 };
 
 /* statistics for the job as a whole */
+#define DARSHAN_JOB_METADATA_LEN 64 /* including null terminator! */
 struct darshan_job
 {
     char version_string[8];
@@ -261,7 +262,7 @@ struct darshan_job
     int64_t end_time;
     int64_t nprocs;
     int64_t jobid;
-    char metadata[64];
+    char metadata[DARSHAN_JOB_METADATA_LEN];
 };
 
 #endif /* __DARSHAN_LOG_FORMAT_H */
