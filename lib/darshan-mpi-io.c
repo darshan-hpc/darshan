@@ -316,6 +316,7 @@ static void cp_log_construct_indices(struct darshan_job_runtime* final_job,
     trailing_data);
 static int cp_log_write(struct darshan_job_runtime* final_job, int rank, 
     char* logfile_name, int count, int* lengths, void** pointers, double start_log_time);
+static void cp_log_record_hints(struct darshan_job_runtime* final_job, int rank);
 static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank, 
     char* logfile_name, MPI_Offset* next_offset);
 static void darshan_file_reduce(void* infile_v, 
@@ -693,6 +694,11 @@ void darshan_shutdown(int timing_flag)
         red2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
     DARSHAN_MPI_CALL(PMPI_Allreduce)(&local_ret, &all_ret, 1, MPI_INT, MPI_LOR, 
         MPI_COMM_WORLD);
+
+    /* if we are using any hints to write the log file, then record those
+     * hints in the log file header
+     */
+    cp_log_record_hints(final_job, rank);
 
     if(all_ret == 0)
     {
@@ -1888,6 +1894,8 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
             MPI_BYTE, &mtype);
         DARSHAN_MPI_CALL(PMPI_Type_commit)(&mtype); 
     }
+    
+    MPI_Info_create(&info);
 
     /* check environment variable to see if the default MPI file hints have
      * been overridden
@@ -1898,42 +1906,41 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
         hints = __CP_LOG_HINTS;
     }
 
-    /* TODO: test more cases here (empty string, one hint, missing =, empty
-     * value, and empty key)
-     */
-    MPI_Info_create(&info);
-    tok_str = strdup(hints);
-    if(tok_str)
+    if(hints && strlen(hints) > 0)
     {
-        do
+        /* TODO: test more cases here (empty string, one hint, missing =, empty
+         * value, and empty key)
+         */
+        tok_str = strdup(hints);
+        if(tok_str)
         {
-            /* split string on commas */
-            key = strtok_r(tok_str, ",", &saveptr);
-            if(key)
+            do
             {
-                tok_str = NULL;
-                /* look for = sign splitting key/value pairs */
-                value = index(key, '=');
-                if(value)
+                /* split string on commas */
+                key = strtok_r(tok_str, ",", &saveptr);
+                if(key)
                 {
-                    /* break key and value into separate null terminated strings */
-                    value[0] = '\0';
-                    value++;
-                    MPI_Info_set(info, key, value);
+                    tok_str = NULL;
+                    /* look for = sign splitting key/value pairs */
+                    value = index(key, '=');
+                    if(value)
+                    {
+                        /* break key and value into separate null terminated strings */
+                        value[0] = '\0';
+                        value++;
+                        MPI_Info_set(info, key, value);
+                    }
                 }
-            }
-        }while(key != NULL);
-        free(tok_str);
+            }while(key != NULL);
+            free(tok_str);
+        }
     }
     
-    /* TODO: append hints to metadata field in job structure */
-
     ret = DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, logfile_name,
         MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, MPI_INFO_NULL, &fh);
     MPI_Info_free(&info);
     if(ret != MPI_SUCCESS)
     {
-        /* TODO: keep this print or not? */
         if(rank == 0)
         {
             int msg_len;
@@ -2426,6 +2433,56 @@ static void pairwise_variance_reduce (
 
         *Y = Z;
     }
+
+    return;
+}
+
+/* record any hints used to write the darshan log in the log header */
+static void cp_log_record_hints(struct darshan_job_runtime* final_job, int rank)
+{
+    char* hints;
+    char* header_hints;
+    int meta_remain = 0;
+    int i;
+
+    /* only need to do this on first process */
+    if(rank > 0)
+        return;
+
+    /* check environment variable to see if the default MPI file hints have
+     * been overridden
+     */
+    hints = getenv(CP_LOG_HINTS_OVERRIDE);
+    if(!hints)
+    {
+        hints = __CP_LOG_HINTS;
+    }
+
+    if(!hints || strlen(hints) < 1)
+        return;
+
+    header_hints = strdup(hints);
+    if(!header_hints)
+        return;
+
+    meta_remain = DARSHAN_JOB_METADATA_LEN - 
+        strlen(final_job->log_job.metadata) - 1;
+    if(meta_remain >= (3 + strlen(header_hints)))
+    {
+        /* We have room to store the hints in the metadata portion of
+         * the job header.  We just need to convert '=' into another
+         * character so that it doesn't conflict with the delimiter used
+         * in the Darshan header.
+         */
+        for(i=0; i<strlen(header_hints); i++)
+        {
+            if(header_hints[i] == '=')
+                header_hints[i] = ':';
+        }
+        strcat(final_job->log_job.metadata, "h=");
+        strcat(final_job->log_job.metadata, header_hints);
+    }
+    free(header_hints);
 
     return;
 }
