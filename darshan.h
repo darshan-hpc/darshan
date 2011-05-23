@@ -18,6 +18,9 @@
 /* Environment variable to override __CP_LOG_PATH */
 #define CP_LOG_PATH_OVERRIDE "DARSHAN_LOGPATH"
 
+/* Environment variable to override __CP_LOG_PATH */
+#define CP_LOG_HINTS_OVERRIDE "DARSHAN_LOGHINTS"
+
 /* Environment variable to override __CP_MEM_ALIGNMENT */
 #define CP_MEM_ALIGNMENT_OVERRIDE "DARSHAN_MEMALIGN"
 
@@ -36,19 +39,14 @@
  */
 #define CP_MAX_ACCESS_COUNT_RUNTIME 32
 
-/* ratio of extra memory allocated to use as a compression buffer if needed */
-/* example: 0.5 means that we allocate 50% extra memory to compress the logs
- * if all CP_MAX_FILES entries are used.
- */
-#define CP_COMPRESSION_ALLOWANCE 0.5
-
 /* flags to indicate properties of file records */
 #define CP_FLAG_CONDENSED 1<<0
 #define CP_FLAG_NOTIMING 1<<1
 
-/* calculation of compression buffer size */
-#define CP_COMP_BUF_SIZE ((int)((double)CP_MAX_FILES *\
-    CP_COMPRESSION_ALLOWANCE * (double)sizeof(struct darshan_file)))
+/* calculation of compression buffer size (defaults to 50% of the maximum
+ * memory that Darshan is allowed to consume on a process) 
+ */
+#define CP_COMP_BUF_SIZE ((CP_MAX_FILES * sizeof(struct darshan_file))/2)
 
 enum cp_io_type
 {
