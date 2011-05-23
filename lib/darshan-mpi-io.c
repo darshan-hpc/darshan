@@ -1908,9 +1908,6 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
 
     if(hints && strlen(hints) > 0)
     {
-        /* TODO: test more cases here (empty string, one hint, missing =, empty
-         * value, and empty key)
-         */
         tok_str = strdup(hints);
         if(tok_str)
         {
@@ -1928,7 +1925,8 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
                         /* break key and value into separate null terminated strings */
                         value[0] = '\0';
                         value++;
-                        MPI_Info_set(info, key, value);
+                        if(strlen(key) > 0)
+                            MPI_Info_set(info, key, value);
                     }
                 }
             }while(key != NULL);
