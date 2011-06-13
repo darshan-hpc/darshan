@@ -326,6 +326,7 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
 int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
 {
     int ret;
+    char buffer[DARSHAN_JOB_METADATA_LEN];
 
     ret = darshan_log_seek(file, 0);
     if(ret < 0)
@@ -395,19 +396,28 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
         char *kv;
         char *ptr;
         char *key;
-        char *val;
+        char *value;
         char *save;
-        char *save2;
 
         for(kv=strtok_r(metadata, "\n", &save);
             kv != NULL;
             kv=strtok_r(NULL, "\n", &save))
         {
-            key = strtok_r(kv, "=", &save2);
-            val = strtok_r(NULL, "=", &save2);
+            /* NOTE: we intentionally only split on the first = character.
+             * There may be additional = characters in the value portion
+             * (for example, when storing mpi-io hints).
+             */
+            strcpy(buffer, kv);
+            key = buffer;
+            value = index(buffer, '=');
+            if(!value)
+                continue;
+            /* convert = to a null terminator to split key and value */
+            value[0] = '\0';
+            value++;
             if (strcmp(key, "prev_ver") == 0)
             {
-                strncpy(job->version_string, val, sizeof(job->version_string));
+                strncpy(job->version_string, value, sizeof(job->version_string));
             }
         }
         free(metadata);

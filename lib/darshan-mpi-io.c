@@ -1913,8 +1913,8 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
         {
             do
             {
-                /* split string on commas */
-                key = strtok_r(tok_str, ",", &saveptr);
+                /* split string on semicolon */
+                key = strtok_r(tok_str, ";", &saveptr);
                 if(key)
                 {
                     tok_str = NULL;
@@ -2441,7 +2441,6 @@ static void cp_log_record_hints(struct darshan_job_runtime* final_job, int rank)
     char* hints;
     char* header_hints;
     int meta_remain = 0;
-    int i;
 
     /* only need to do this on first process */
     if(rank > 0)
@@ -2468,15 +2467,10 @@ static void cp_log_record_hints(struct darshan_job_runtime* final_job, int rank)
     if(meta_remain >= (3 + strlen(header_hints)))
     {
         /* We have room to store the hints in the metadata portion of
-         * the job header.  We just need to convert '=' into another
-         * character so that it doesn't conflict with the delimiter used
-         * in the Darshan header.
+         * the job header.  We just prepend an h= to the hints list.  The
+         * metadata parser will ignore = characters that appear in the value
+         * portion of the metadata key/value pair.
          */
-        for(i=0; i<strlen(header_hints); i++)
-        {
-            if(header_hints[i] == '=')
-                header_hints[i] = ':';
-        }
         strcat(final_job->log_job.metadata, "h=");
         strcat(final_job->log_job.metadata, header_hints);
     }

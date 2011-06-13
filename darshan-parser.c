@@ -190,6 +190,7 @@ int main(int argc, char **argv)
     int last_rank = 0;
     char *token;
     char *save;
+    char buffer[DARSHAN_JOB_METADATA_LEN];
 
     hash_entry_t *file_hash = NULL;
     hash_entry_t *curr = NULL;
@@ -250,13 +251,21 @@ int main(int argc, char **argv)
         token != NULL;
         token=strtok_r(NULL, "\n", &save))
     {
-        char *save2;
         char *key;
-        char *val;
-       
-        key = strtok_r(token, "=", &save2);
-        val = strtok_r(NULL, "=", &save2);
-        printf("# metadata: %s = %s\n", key, val);
+        char *value;
+        /* NOTE: we intentionally only split on the first = character.
+         * There may be additional = characters in the value portion
+         * (for example, when storing mpi-io hints).
+         */
+        strcpy(buffer, token);
+        key = buffer;
+        value = index(buffer, '=');
+        if(!value)
+            continue;
+        /* convert = to a null terminator to split key and value */
+        value[0] = '\0';
+        value++;
+        printf("# metadata: %s = %s\n", key, value);
     }
  
     /* print table of mounted file systems */

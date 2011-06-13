@@ -71,11 +71,11 @@ AC_ARG_WITH(log-path-by-env,
 )
 
 AC_ARG_WITH(log-hints,
-[  --with-log-hints=<hint1=x,hint2=y>  Comma-separated list of MPI-IO hints for log file write],
+[  --with-log-hints=<hint1=x,hint2=y>  Semicolon-separated list of MPI-IO hints for log file write],
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-log-hints must be given an argument)
     else
-        AC_DEFINE_UNQUOTED(__CP_LOG_HINTS, "${withval}", Comma-separated list of MPI-IO hints for log file write)
+        AC_DEFINE_UNQUOTED(__CP_LOG_HINTS, "${withval}", Semicolon-separated list of MPI-IO hints for log file write)
         __CP_LOG_HINTS="${withval}"
         GOT_LOG_HINTS=1
     fi
@@ -117,7 +117,7 @@ fi
 if test x$GOT_JOBID != x1; then
     AC_MSG_ERROR(must provide --with-jobid-env=<name> argument to configure.)
 fi
-__CP_LOG_HINTS_DEFAULT="romio_no_indep_rw=true,cb_nodes=8"
+__CP_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=8"
 if test x$GOT_LOG_HINTS != x1; then
 dnl use default hints
     AC_DEFINE_UNQUOTED(__CP_LOG_HINTS, "$__CP_LOG_HINTS_DEFAULT", Comma-separated list of MPI-IO hints for log file write)
