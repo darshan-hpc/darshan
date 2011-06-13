@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PREFIX=/soft/apps/darshan-2.1.0
+PREFIX=/soft/apps/darshan-2.1.1
 LOGDIR=/intrepid-fs0/logs/darshan/
 
 # Configure, Make and Install Darshan suite

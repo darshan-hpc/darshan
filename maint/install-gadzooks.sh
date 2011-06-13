@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PREFIX=/soft/apps/darshan-2.1.0
+PREFIX=/soft/apps/darshan-2.1.1
 LOGDIR=/pvfs-surveyor/logs/darshan
 
 # Configure, Make and Install Darshan suite
