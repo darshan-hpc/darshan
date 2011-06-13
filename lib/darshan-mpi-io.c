@@ -2010,7 +2010,7 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
         }
     }
 
-    if(count > 1)
+    if(count > 0)
         DARSHAN_MPI_CALL(PMPI_Type_free)(&mtype);
 
     if(failed_write)
