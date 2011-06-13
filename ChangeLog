@@ -2,7 +2,7 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.1.2
+darshan-2.1.1
 =============
 * new darshan-convert command line utility for converting existing log files,
   with optional anonymization and optional bzip2 compression
@@ -15,14 +15,11 @@ darshan-2.1.2
   at run time: DARSHAN_LOGHINTS environment variable
 * new default hints when writing darshan log for more consistent
   performance on a wider range of file systems:
-  romio_no_indep_rw=true,cb_nodes=8
+  romio_no_indep_rw=true;cb_nodes=8
 * bug fix contributed by Sandra Schröder: use case-insensitive search for MPI
   symbols in Fortran wrapper script
 * performance bug fix: remove unecessary call to MPI_File_set_size when
   writing log
-
-darshan-2.1.1
-=============
 * added --with-logpath-by-env configure option to allow absolute 
   log path to be specified via environment variable
 
