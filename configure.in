@@ -117,7 +117,8 @@ fi
 if test x$GOT_JOBID != x1; then
     AC_MSG_ERROR(must provide --with-jobid-env=<name> argument to configure.)
 fi
-__CP_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=8"
+#__CP_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=8"
+__CP_LOG_HINTS_DEFAULT=""
 if test x$GOT_LOG_HINTS != x1; then
 dnl use default hints
     AC_DEFINE_UNQUOTED(__CP_LOG_HINTS, "$__CP_LOG_HINTS_DEFAULT", Comma-separated list of MPI-IO hints for log file write)

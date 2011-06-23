@@ -3933,7 +3933,8 @@ fi
 if test x$GOT_JOBID != x1; then
     as_fn_error $? "must provide --with-jobid-env=<name> argument to configure." "$LINENO" 5
 fi
-__CP_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=8"
+#__CP_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=8"
+__CP_LOG_HINTS_DEFAULT=""
 if test x$GOT_LOG_HINTS != x1; then
 
 cat >>confdefs.h <<_ACEOF
