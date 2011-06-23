@@ -392,9 +392,7 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
     if (ret == 0)
     {
         char *metadata = strndup(job->metadata, sizeof(job->metadata));
-        char *tokenize = metadata;
         char *kv;
-        char *ptr;
         char *key;
         char *value;
         char *save;
