@@ -733,12 +733,40 @@ void darshan_shutdown(int timing_flag)
             MPI_INT, MPI_LOR, MPI_COMM_WORLD);
     }
 
-    /* if any process failed to write log, then delete the whole file so we
-     * don't leave corrupted results
-     */
-    if(all_ret != 0 && rank == 0)
+    if(rank == 0)
     {
-        unlink(logfile_name);
+        if(all_ret != 0)
+        {
+            fprintf(stderr, "darshan library warning: unable to write log file %s\n", logfile_name);
+            /* if any process failed to write log, then delete the whole 
+             * file so we don't leave corrupted results
+             */
+            unlink(logfile_name);
+        }
+        else
+        {
+            /* rename from *.darshan_partial to *-<logwritetime>.darshan.gz,
+             * which indicates that this log file is complete and ready for
+             * analysis
+             */ 
+            char* mod_index;
+            double end_log_time;
+            char* new_logfile_name;
+
+            new_logfile_name = malloc(PATH_MAX);
+            if(new_logfile_name)
+            {
+                new_logfile_name[0] = '\0';
+                end_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
+                strcat(new_logfile_name, logfile_name);
+                mod_index = strstr(new_logfile_name, ".darshan_partial");
+                sprintf(mod_index, "_%d.darshan.gz", (int)(end_log_time-start_log_time+1));
+                rename(logfile_name, new_logfile_name);
+                /* set permissions on log file */
+                chmod(new_logfile_name, (S_IRUSR)); 
+                free(new_logfile_name);
+            }
+        }
     }
 
     if(trailing_data)
@@ -1987,28 +2015,6 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     }
 
     DARSHAN_MPI_CALL(PMPI_File_close)(&fh);
-
-    /* rename from *.darshan_partial to *-<logwritetime>.darshan.gz */
-    if(rank == 0)
-    {
-        char* mod_index;
-        double end_log_time;
-        char* new_logfile_name;
-
-        new_logfile_name = malloc(PATH_MAX);
-        if(new_logfile_name)
-        {
-            new_logfile_name[0] = '\0';
-            end_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
-            strcat(new_logfile_name, logfile_name);
-            mod_index = strstr(new_logfile_name, ".darshan_partial");
-            sprintf(mod_index, "_%d.darshan.gz", (int)(end_log_time-start_log_time+1));
-            rename(logfile_name, new_logfile_name);
-            /* set permissions on log file */
-            chmod(new_logfile_name, (S_IRUSR)); 
-            free(new_logfile_name);
-        }
-    }
 
     if(count > 0)
         DARSHAN_MPI_CALL(PMPI_Type_free)(&mtype);
