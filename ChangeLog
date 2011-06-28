@@ -2,6 +2,11 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.1.2
+=============
+* improved error handling when writing log files.  If a write fails then the
+  log file will be deleted and a warning will be printed to stderr.
+
 darshan-2.1.1
 =============
 * new darshan-convert command line utility for converting existing log files,
