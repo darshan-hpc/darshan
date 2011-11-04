@@ -1,0 +1,91 @@
+all: darshan-parser darshan-convert darshan-diff darshan-analyzer darshan-log-params
+
+DESTDIR =
+srcdir = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+datarootdir = $(DESTDIR)@datarootdir@
+includedir = $(DESTDIR)@includedir@
+mandir = $(DESTDIR)@mandir@
+sbindir = $(DESTDIR)@sbindir@
+bindir = $(DESTDIR)@bindir@
+libdir = $(DESTDIR)@libdir@
+
+DISABLE_LDPRELOAD = @DISABLE_LDPRELOAD@
+DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
+
+VPATH = $(srcdir)
+
+cp_zlib_link_flags = @__CP_ZLIB_LINK_FLAGS@
+cp_zlib_include_flags = @__CP_ZLIB_INCLUDE_FLAGS@
+
+# deliberately avoid large file support for host side utilities to avoid
+# potentially buggy libz 64 bit offset support
+CFLAGS = -I . -I $(srcdir) -I $(srcdir)/../ -DDARSHAN_CONFIG_H=\"darshan-util-config.h\" @CFLAGS@ @CPPFLAGS@ 
+
+CC=@CC@
+LD=@LD@
+
+LIBS = -lz @LIBBZ2@
+
+mktestdir::
+	mkdir -p test
+
+uthash-1.9.2:
+	tar xjvf $(srcdir)/extern/uthash-1.9.2.tar.bz2
+
+darshan-parser: darshan-parser.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o | uthash-1.9.2
+	gcc $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS) 
+
+darshan-convert: darshan-convert.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o lookup3.o
+	gcc $(CFLAGS) $< darshan-logutils.o lookup3.o -o $@ $(LIBS)
+
+darshan-analyzer: darshan-analyzer.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o
+	gcc $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
+
+darshan-log-params: darshan-log-params.c $(DARSHAN_LOG_FORMAT)
+	gcc $(CFLAGS) $< -o $@ $(LIBS)
+
+jenkins: util/bin/jenkins.o lookup3.o
+	gcc $(CFLAGS) $< -o $@ lookup3.o $(LIBS)
+
+darshan-diff: darshan-diff.o $(DARSHAN_LOG_FORMAT) darshan-logutils.o darshan-logutils.h
+	gcc $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
+darshan-diff.o: darshan-diff.c
+	gcc $(CFLAGS) -c  $< -o $@
+darshan-logutils.o: darshan-logutils.c
+	gcc $(CFLAGS) -c  $< -o $@
+
+test/gztest: test/gztest.c mktestdir
+	gcc $(CFLAGS) -lz $< -o $@
+
+test/gz-bench: test/gz-bench.c mktestdir
+	gcc $(CFLAGS) -lz $< -o $@
+
+lookup3.o: lookup3.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+install:: all
+	install -d $(bindir)
+	install -d $(libdir)
+	install -m 755 darshan-parser $(bindir)
+	install -m 755 darshan-convert $(bindir)
+	install -m 755 darshan-diff $(bindir)
+	install -m 755 darshan-analyzer $(bindir)
+	install -m 755 util/bin/darshan-job-summary.pl $(bindir)
+	install -d $(libdir)/TeX
+	install -m 644 $(srcdir)/util/lib/TeX/Encode.pm $(libdir)/TeX/
+	install -d $(libdir)/Number
+	install -d $(libdir)/Number/Bytes
+	install -m 644 $(srcdir)/util/lib/Number/Bytes/Human.pm $(libdir)/Number/Bytes
+	install -d $(datarootdir)
+	install -m 644 $(srcdir)/util/share/* $(datarootdir)
+
+
+clean::
+	rm -f *.o *.a darshan-parser darshan-convert darshan-diff darshan-analyzer darshan-log-params
+
+distclean:: clean
+	rm -f darshan-runtime-config.h aclocal.m4 autom4te.cache/* config.status config.log Makefile util/bin/darshan-job-summary.pl
+	rm -rf uthash-1.9.2
+	rm -rf autom4te.cache

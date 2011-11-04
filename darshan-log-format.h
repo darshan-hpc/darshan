@@ -6,7 +6,11 @@
 #ifndef __DARSHAN_LOG_FORMAT_H
 #define __DARSHAN_LOG_FORMAT_H
 
-#include "darshan-config.h"
+#ifndef DARSHAN_CONFIG_H
+    #error Must define DARSHAN_CONFIG_H
+#endif
+
+#include DARSHAN_CONFIG_H
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdint.h>

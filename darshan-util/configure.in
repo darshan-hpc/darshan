@@ -1,0 +1,74 @@
+dnl **************************************************************
+dnl DARSHAN AUTOCONF SCRIPT
+dnl
+dnl Process this file with autoconf to produce a configure script.
+dnl You may need to use autoheader as well if changing any DEFINEs
+
+dnl sanity checks, output header, location of scripts used here
+AC_INIT([darshan-util], [2.x])
+AC_CONFIG_SRCDIR([darshan-logutils.h])
+AC_CONFIG_AUX_DIR(../maint/config)
+AC_CONFIG_HEADER(darshan-util-config.h)
+
+AC_PROG_INSTALL
+
+CHECK_ZLIB
+CHECK_BZLIB
+
+AC_CHECK_PROG(HAVE_PDFLATEX, pdflatex, yes, no)
+
+if test x$HAVE_PDFLATEX == xyes; then
+    AC_MSG_CHECKING(for -halt-on-error argument to pdflatex)
+    PDFLATEX_GREP=`pdflatex --help |grep halt-on-error`
+    if test "x$PDFLATEX_GREP" != "x"; then
+        AC_MSG_RESULT(yes)
+        __CP_PDFLATEX_HALT_ON_ERROR="-halt-on-error"
+    else
+        __CP_PDFLATEX_HALT_ON_ERROR=""
+        AC_MSG_RESULT(no)
+    fi
+fi
+
+dnl Check byte ordering
+AC_C_BIGENDIAN
+
+dnl temporarily set large file flags just for this test; we don't want
+dnl it to propagate to the makefile because of zlib bugs
+old_cflags="$CFLAGS"
+CFLAGS="$CFLAGS -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE"
+AC_MSG_CHECKING(for off64_t)
+AC_TRY_COMPILE(
+    [
+    #include <stdio.h>
+    #include <unistd.h>
+    #include <sys/types.h>
+    #include <sys/stat.h>
+    #include <fcntl.h>
+    #include <stdarg.h>
+    #include <string.h>
+    #include <time.h>
+    #include <stdlib.h>
+    #include <errno.h>
+    #include <sys/uio.h>
+    #include <pthread.h>
+    #include <sys/mman.h>
+    #include <search.h>
+    #include <assert.h>
+    ],
+    [ off64_t off; ],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_OFF64_T, 1, Define if off64_t type is defined),
+    AC_MSG_RESULT(no)
+)
+CFLAGS="$old_cflags"
+
+AC_SUBST(__CP_ZLIB_LINK_FLAGS)
+AC_SUBST(__CP_ZLIB_INCLUDE_FLAGS)
+AC_SUBST(__CP_PDFLATEX_HALT_ON_ERROR)
+AC_OUTPUT(Makefile
+darshan-job-summary/bin/darshan-job-summary.pl
+)
+
+if test x$HAVE_PDFLATEX != xyes; then
+    AC_MSG_WARN(Please install pdflatex if you wish to use the darshan-job-summary.pl utility)
+fi
