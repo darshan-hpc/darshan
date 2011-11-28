@@ -106,13 +106,6 @@ fi
 # checks to see how we can print 64 bit values on this architecture
 gt_INTTYPES_PRI
 
-AC_MSG_CHECKING(whether the mpicc compiler works)
-AC_TRY_COMPILE([#include <mpi.h>], [int ret = MPI_Init(0, (void*)0)],
-    AC_MSG_RESULT(yes),
-    AC_MSG_RESULT(no)
-    AC_MSG_ERROR($CC doesn't appear to be a valid MPI compiler)
-)
-
 dnl Check byte ordering
 AC_C_BIGENDIAN
 
