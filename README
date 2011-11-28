@@ -8,3 +8,7 @@ The Darshan source tree is divided into two parts:
 
 For installation instructions please visit
 http://www.mcs.anl.gov/darshan/documentation/
+
+The darshan-test directory contains various test harnesses, benchmarks,
+patches, and unsupported utilites that are mainly of interest to Darshan
+developers.
