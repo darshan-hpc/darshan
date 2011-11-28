@@ -607,7 +607,6 @@ __CP_LOG_PATH
 darshan_bin_path
 darshan_lib_path
 PRI_MACROS_BROKEN
-LIBBZ2
 EGREP
 GREP
 CPP
@@ -663,7 +662,6 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 with_zlib
-with_bzlib
 enable_ld_preload
 with_mem_align
 with_log_path_by_env
@@ -1299,9 +1297,6 @@ Optional Packages:
   --with-zlib=DIR root directory path of zlib installation defaults to
                     /usr/local or /usr if not found in /usr/local
   --without-zlib to disable zlib usage completely
-  --with-bzlib=DIR root directory path of bzlib installation defaults to
-                    /usr/local or /usr if not found in /usr/local
-  --without-bzlib to disable bzlib usage completely
   --with-mem-align=<num>  Memory alignment in bytes
   --with-log-path-by-env=<env var list> Comma separated list of environment variables to check for log path location before --with-log-path path
   --with-log-hints=<hint1=x,hint2=y>  Semicolon-separated list of MPI-IO hints for log file write
@@ -3593,185 +3588,6 @@ $as_echo_n "checking zlib in ${ZLIB_HOME}... " >&6; }
                 { $as_echo "$as_me:${as_lineno-$LINENO}: result: failed" >&5
 $as_echo "failed" >&6; }
                 as_fn_error $? "either specify a valid zlib installation with --with-zlib=DIR or disable zlib usage with --without-zlib" "$LINENO" 5
-        fi
-fi
-
-
-#
-# Handle user hints
-#
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if bzlib is wanted" >&5
-$as_echo_n "checking if bzlib is wanted... " >&6; }
-
-# Check whether --with-bzlib was given.
-if test "${with_bzlib+set}" = set; then :
-  withval=$with_bzlib; if test "$withval" != no ; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-  if test -d "$withval"
-  then
-    BZLIB_HOME="$withval"
-  else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Sorry, $withval does not exist, checking usual places" >&5
-$as_echo "$as_me: WARNING: Sorry, $withval does not exist, checking usual places" >&2;}
-  fi
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-fi
-
-
-BZLIB_HOME=/usr/local
-if test ! -f "${BZLIB_HOME}/include/bzlib.h"
-then
-        BZLIB_HOME=/usr
-fi
-
-#
-# Locate bzlib, if wanted
-#
-if test -n "${BZLIB_HOME}"
-then
-        BZLIB_OLD_LDFLAGS=$LDFLAGS
-        BZLIB_OLD_CPPFLAGS=$LDFLAGS
-        LDFLAGS="$LDFLAGS -L${BZLIB_HOME}/lib"
-        CPPFLAGS="$CPPFLAGS -I${BZLIB_HOME}/include"
-
-        ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BZ2_bzCompressInit in -lbz2" >&5
-$as_echo_n "checking for BZ2_bzCompressInit in -lbz2... " >&6; }
-if ${ac_cv_lib_bz2_BZ2_bzCompressInit+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lbz2  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char BZ2_bzCompressInit ();
-int
-main ()
-{
-return BZ2_bzCompressInit ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_bz2_BZ2_bzCompressInit=yes
-else
-  ac_cv_lib_bz2_BZ2_bzCompressInit=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bz2_BZ2_bzCompressInit" >&5
-$as_echo "$ac_cv_lib_bz2_BZ2_bzCompressInit" >&6; }
-if test "x$ac_cv_lib_bz2_BZ2_bzCompressInit" = xyes; then :
-  bzlib_cv_libbz2=yes
-else
-  bzlib_cv_libbz2=no
-fi
-
-        ac_fn_c_check_header_mongrel "$LINENO" "bzlib.h" "ac_cv_header_bzlib_h" "$ac_includes_default"
-if test "x$ac_cv_header_bzlib_h" = xyes; then :
-  bzlib_cv_bzlib_h=yes
-else
-  bzlib_cv_bzlib_h=no
-fi
-
-
-        ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-        if test "$bzlib_cv_libbz2" = "yes" -a "$bzlib_cv_bzlib_h" = "yes"
-        then
-                #
-                # If both library and header were found, use them
-                #
-                { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BZ2_bzCompressInit in -lbz2" >&5
-$as_echo_n "checking for BZ2_bzCompressInit in -lbz2... " >&6; }
-if ${ac_cv_lib_bz2_BZ2_bzCompressInit+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lbz2  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char BZ2_bzCompressInit ();
-int
-main ()
-{
-return BZ2_bzCompressInit ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_bz2_BZ2_bzCompressInit=yes
-else
-  ac_cv_lib_bz2_BZ2_bzCompressInit=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bz2_BZ2_bzCompressInit" >&5
-$as_echo "$ac_cv_lib_bz2_BZ2_bzCompressInit" >&6; }
-if test "x$ac_cv_lib_bz2_BZ2_bzCompressInit" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBBZ2 1
-_ACEOF
-
-  LIBS="-lbz2 $LIBS"
-
-fi
-
-                { $as_echo "$as_me:${as_lineno-$LINENO}: checking bzlib in ${BZLIB_HOME}" >&5
-$as_echo_n "checking bzlib in ${BZLIB_HOME}... " >&6; }
-                { $as_echo "$as_me:${as_lineno-$LINENO}: result: ok" >&5
-$as_echo "ok" >&6; }
-                LIBBZ2=-lbz2
-
-        else
-                #
-                # If either header or library was not found, revert and bomb
-                #
-                { $as_echo "$as_me:${as_lineno-$LINENO}: checking bzlib in ${BZLIB_HOME}" >&5
-$as_echo_n "checking bzlib in ${BZLIB_HOME}... " >&6; }
-                LDFLAGS="$BZLIB_OLD_LDFLAGS"
-                CPPFLAGS="$BZLIB_OLD_CPPFLAGS"
-                { $as_echo "$as_me:${as_lineno-$LINENO}: result: failed" >&5
-$as_echo "failed" >&6; }
-# Don't fail; this is optional in Darshan
-#                AC_MSG_ERROR(either specify a valid bzlib installation with --with-bzlib=DIR or disable bzlib usage with --without-bzlib)
-#                TODO: it would be nice if this showed up at the _end_ of
-#                configure...
-                { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: libbz2 not found; Darshan utilities will use gzip only." >&5
-$as_echo "$as_me: WARNING: libbz2 not found; Darshan utilities will use gzip only." >&2;}
         fi
 fi
 
