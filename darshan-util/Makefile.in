@@ -72,14 +72,14 @@ install:: all
 	install -m 755 darshan-convert $(bindir)
 	install -m 755 darshan-diff $(bindir)
 	install -m 755 darshan-analyzer $(bindir)
-	install -m 755 util/bin/darshan-job-summary.pl $(bindir)
+	install -m 755 darshan-job-summary/bin/darshan-job-summary.pl $(bindir)
 	install -d $(libdir)/TeX
-	install -m 644 $(srcdir)/util/lib/TeX/Encode.pm $(libdir)/TeX/
+	install -m 644 $(srcdir)/darshan-job-summary/lib/TeX/Encode.pm $(libdir)/TeX/
 	install -d $(libdir)/Number
 	install -d $(libdir)/Number/Bytes
-	install -m 644 $(srcdir)/util/lib/Number/Bytes/Human.pm $(libdir)/Number/Bytes
+	install -m 644 $(srcdir)/darshan-job-summary/lib/Number/Bytes/Human.pm $(libdir)/Number/Bytes
 	install -d $(datarootdir)
-	install -m 644 $(srcdir)/util/share/* $(datarootdir)
+	install -m 644 $(srcdir)/darshan-job-summary/share/* $(datarootdir)
 
 
 clean::
