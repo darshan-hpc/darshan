@@ -45,16 +45,16 @@ lib/darshan-pnetcdf.po: lib/darshan-pnetcdf.c darshan.h $(DARSHAN_LOG_FORMAT) | 
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
 lib/darshan-hdf5.o: lib/darshan-hdf5.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
-	$(CC) $(CFLAGS)$(cp_zlib_include_flags) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 lib/darshan-hdf5.po: lib/darshan-hdf5.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
-	$(CC) $(CFLAGS_SHARED)$(cp_zlib_include_flags) -c $< -o $@
+	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
 lib/darshan-posix.o: lib/darshan-posix.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
-	$(CC) $(CFLAGS)$(cp_zlib_include_flags) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 lib/darshan-posix.po: lib/darshan-posix.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
-	$(CC) $(CFLAGS_SHARED) $(cp_zlib_include_flags) -c $< -o $@
+	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
 lib/lookup3.o: lib/lookup3.c
 	$(CC) $(CFLAGS) -c $< -o $@

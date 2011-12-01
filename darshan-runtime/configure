@@ -3454,12 +3454,6 @@ fi
 fi
 
 
-ZLIB_HOME=/usr/local
-if test ! -f "${ZLIB_HOME}/include/zlib.h"
-then
-        ZLIB_HOME=/usr
-fi
-
 #
 # Locate zlib, if wanted
 #

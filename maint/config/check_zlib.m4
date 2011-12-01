@@ -24,6 +24,7 @@ dnl @version 2004-09-20
 dnl @license GPLWithACException
 
 AC_DEFUN([CHECK_ZLIB],
+
 #
 # Handle user hints
 #
@@ -43,12 +44,6 @@ AC_ARG_WITH(zlib,
 else
   AC_MSG_RESULT(no)
 fi])
-
-ZLIB_HOME=/usr/local
-if test ! -f "${ZLIB_HOME}/include/zlib.h"
-then
-        ZLIB_HOME=/usr
-fi
 
 #
 # Locate zlib, if wanted
