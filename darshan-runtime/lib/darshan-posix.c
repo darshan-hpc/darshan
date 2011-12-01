@@ -127,7 +127,7 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
 
 #define CP_RECORD_WRITE(__ret, __fd, __count, __update_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
     size_t stride; \
-    off_t old_offset; \
+    int64_t old_offset; \
     int64_t file_alignment; \
     struct darshan_file_runtime* file; \
     double __elapsed = __tm2-__tm1; \
@@ -175,7 +175,7 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
 
 #define CP_RECORD_READ(__ret, __fd, __count, __update_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
     size_t stride; \
-    off_t old_offset; \
+    int64_t old_offset; \
     struct darshan_file_runtime* file; \
     int64_t file_alignment; \
     double __elapsed = __tm2-__tm1; \
