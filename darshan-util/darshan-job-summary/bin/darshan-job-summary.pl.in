@@ -11,6 +11,7 @@ use lib "@prefix@/lib";
 use TeX::Encode;
 use Encode;
 use File::Temp qw/ tempdir /;
+use File::Basename;
 use Cwd;
 use Getopt::Long;
 use English;
@@ -1322,7 +1323,24 @@ sub process_args
         print_help();
         exit(1);
     }
+
     $input_file = $ARGV[0];
+
+    # give default output file a similar name to the input file.
+    #   log.darshan.gz => log.pdf
+    #   log_name => log_name.pdf
+    if (not $opt_output)
+    {
+        $output_file = basename($input_file);
+        if ($output_file =~ /\.darshan\.gz$/)
+        {
+            $output_file =~ s/\.darshan\.gz$/\.pdf/;
+        }
+        else
+        {
+            $output_file .= ".pdf";
+        }
+    }
 
     return;
 }
