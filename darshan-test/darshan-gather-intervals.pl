@@ -27,7 +27,14 @@ sub wanted
     my $write_interval = {};
     my @read_interval_array = ();
     my @write_interval_array = ();
+    my @read_merged = ();
+    my @write_merged = ();
     my @fields = ();
+    my $idle_after;
+    my $duration;
+    my $rbytes = 0;
+    my $wbytes = 0;
+    my $uid = 0;
 
     # only operate on darshan log files
     $file =~ /\.darshan\.gz$/ or return;    
@@ -65,6 +72,9 @@ sub wanted
             }
             if($line =~ /end_time_asci: (.+)/) {
                 $end_a = "$1";
+            }
+            if($line =~ /uid: (\S+)/) {
+                $uid = "$1";
             }
         }
         else {
@@ -115,27 +125,107 @@ sub wanted
     @read_interval_array = sort { $a->{start} <=> $b->{start} } @read_interval_array;
     @write_interval_array = sort { $a->{start} <=> $b->{start} } @write_interval_array;
 
-#    my $href;
-#    my $mykey;
-#
-#    print "reads:\n";
-#    for $href ( @read_interval_array ) {
-#        print "{ ";
-#        for $mykey ( keys %$href ) {
-#            print "$mykey=$href->{$mykey} ";
-#        }
-#        print "}\n";
-#    }
-#    print "writes:\n";
-#    for $href ( @write_interval_array ) {
-#        print "{ ";
-#        for $mykey ( keys %$href ) {
-#            print "$mykey=$href->{$mykey} ";
-#        }
-#        print "}\n";
-#    }
+    my $i;
+    if($#read_interval_array > -1){
+        push(@read_merged, $read_interval_array[0]);
+    }
+    if($#read_interval_array > 0){
+        for $i (1 .. $#read_interval_array)
+        {
+            if($read_interval_array[$i]->{start} <=
+                $read_merged[$#read_merged]->{end})
+            {
+                $read_merged[$#read_merged]->{bytes} +=
+                    $read_interval_array[$i]->{bytes};
+                if($read_interval_array[$i]->{end} > $read_merged[$#read_merged]->{end}) {
+                    $read_merged[$#read_merged]->{end} = 
+                        $read_interval_array[$i]->{end};
+                }
+            }
+            else
+            {
+                push(@read_merged, $read_interval_array[$i]);
+            }
+        }
+    }
 
-    print(SUMMARY "$jobid\t\"$start_a\"\t\"$end_a\"\t$start\t$end\t$nprocs\n"); 
+    if($#write_interval_array > -1){
+        push(@write_merged, $write_interval_array[0]);
+    }
+    if($#write_interval_array > 0){
+        for $i (1 .. $#write_interval_array)
+        {
+            if($write_interval_array[$i]->{start} <=
+                $write_merged[$#write_merged]->{end})
+            {
+                $write_merged[$#write_merged]->{bytes} +=
+                    $write_interval_array[$i]->{bytes};
+                if($write_interval_array[$i]->{end} > $write_merged[$#write_merged]->{end}) {
+                    $write_merged[$#write_merged]->{end} = 
+                        $write_interval_array[$i]->{end};
+                }
+            }
+            else
+            {
+                push(@write_merged, $write_interval_array[$i]);
+            }
+        }
+    }
+
+    if(!(open(WFILE, ">$jobid-write-intervals.dat")))
+    {
+        print(STDERR "Failed to open $jobid-write-intervals.dat\n");
+        return;
+    }
+    print(WFILE "#<bytes>\t<start>\t<end>\t<duration>\t<idle time after>\n");
+
+    if($#write_merged > -1) {
+        for $i (0 .. $#write_merged)
+        {
+            if($i == $#write_merged) {
+                $idle_after = ($end-$start + 1)-$write_merged[$i]->{end};
+            }
+            else {
+                $idle_after = $write_merged[$i+1]->{start} -
+                    $write_merged[$i]->{end};
+            }
+            $wbytes += $write_merged[$i]->{bytes};
+            $duration = $write_merged[$i]->{end} - $write_merged[$i]->{start};
+            print(WFILE
+            "$write_merged[$i]->{bytes}\t$write_merged[$i]->{start}\t$write_merged[$i]->{end}\t$duration\t$idle_after\n");
+        }
+    }
+
+    close(WFILE);
+
+    if(!(open(RFILE, ">$jobid-read-intervals.dat")))
+    {
+        print(STDERR "Failed to open $jobid-read-intervals.dat\n");
+        return;
+    }
+    print(RFILE "#<bytes>\t<start>\t<end>\t<duration>\t<idle time after>\n");
+
+    if($#read_merged > -1) {
+        for $i (0 .. $#read_merged)
+        {
+            if($i == $#read_merged) {
+                $idle_after = ($end-$start + 1)-$read_merged[$i]->{end};
+            }
+            else {
+                $idle_after = $read_merged[$i+1]->{start} -
+                    $read_merged[$i]->{end};
+            }
+            $rbytes += $read_merged[$i]->{bytes};
+            $duration = $read_merged[$i]->{end} - $read_merged[$i]->{start};
+            print(RFILE
+            "$read_merged[$i]->{bytes}\t$read_merged[$i]->{start}\t$read_merged[$i]->{end}\t$duration\t$idle_after\n");
+        }
+    }
+
+    close(RFILE);
+
+    print(SUMMARY
+    "$uid\t$jobid\t\"$start_a\"\t\"$end_a\"\t$start\t$end\t$nprocs\t$rbytes\t$wbytes\n"); 
 }
 
 sub main
@@ -154,9 +244,9 @@ sub main
         return;
     }
 
-    print(SUMMARY "<jobid>\t<start ascii>\t<end ascii>\t<start unix>\t<end unix>\t<nprocs>\n"); 
+    print(SUMMARY "#<uid>\t<jobid>\t<start ascii>\t<end ascii>\t<start unix>\t<end unix>\t<nprocs>\t<read bytes>\t<write bytes>\n"); 
 
-    find(\&wanted, @paths);
+    find({wanted=>\&wanted, no_chdir => 1}, @paths);
 
 }
 
