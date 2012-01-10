@@ -172,7 +172,7 @@ sub wanted
         }
     }
 
-    if(!(open(WFILE, ">$jobid-write-intervals.dat")))
+    if(!(open(WFILE, ">$jobid-$start-write-intervals.dat")))
     {
         print(STDERR "Failed to open $jobid-write-intervals.dat\n");
         return;
@@ -198,7 +198,7 @@ sub wanted
 
     close(WFILE);
 
-    if(!(open(RFILE, ">$jobid-read-intervals.dat")))
+    if(!(open(RFILE, ">$jobid-$start-read-intervals.dat")))
     {
         print(STDERR "Failed to open $jobid-read-intervals.dat\n");
         return;
