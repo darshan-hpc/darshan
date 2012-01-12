@@ -32,10 +32,16 @@ LIBS = -lz @LIBBZ2@
 lib::
 	@mkdir -p $@
 
-lib/darshan-mpi-io.o: lib/darshan-mpi-io.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
+lib/darshan-mpi-io.o: lib/darshan-mpi-io.c darshan.h darshan-dynamic.h $(DARSHAN_LOG_FORMAT) | lib
 	$(CC) $(CFLAGS) -c $< -o $@
 
-lib/darshan-mpi-io.po: lib/darshan-mpi-io.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
+lib/darshan-mpi-io.po: lib/darshan-mpi-io.c darshan.h darshan-dynamic.h $(DARSHAN_LOG_FORMAT) | lib
+	$(CC) $(CFLAGS_SHARED) -c $< -o $@
+
+lib/darshan-mpi-init-finalize.o: lib/darshan-mpi-init-finalize.c darshan.h darshan-dynamic.h $(DARSHAN_LOG_FORMAT) | lib
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/darshan-mpi-init-finalize.po: lib/darshan-mpi-init-finalize.c darshan.h darshan-dynamic.h $(DARSHAN_LOG_FORMAT) | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
 lib/darshan-pnetcdf.o: lib/darshan-pnetcdf.c darshan.h $(DARSHAN_LOG_FORMAT) | lib 
@@ -71,13 +77,13 @@ lib/lookup8.po: lib/lookup8.c
 %.i: %.c
 	$(CC) -E $(CFLAGS) -c $< -o $@
 
-lib/libdarshan-mpi-io.a: lib/darshan-mpi-io.o lib/darshan-pnetcdf.o lib/darshan-hdf5.o
+lib/libdarshan-mpi-io.a: lib/darshan-mpi-io.o lib/darshan-mpi-init-finalize.o lib/darshan-pnetcdf.o lib/darshan-hdf5.o
 	ar rcs $@ $^
 
 lib/libdarshan-posix.a: lib/darshan-posix.o lib/lookup3.o lib/lookup8.o
 	ar rcs $@ $^
 
-lib/libdarshan.so: lib/darshan-mpi-io.po lib/darshan-pnetcdf.po lib/darshan-hdf5.po lib/darshan-posix.po lib/lookup3.po lib/lookup8.po
+lib/libdarshan.so: lib/darshan-mpi-io.po lib/darshan-mpi-init-finalize.po lib/darshan-pnetcdf.po lib/darshan-hdf5.po lib/darshan-posix.po lib/lookup3.po lib/lookup8.po
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -ldl -o $@ $^ -lpthread -lrt -lz
 
 install:: all
