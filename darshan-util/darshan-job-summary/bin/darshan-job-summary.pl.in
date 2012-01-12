@@ -143,8 +143,6 @@ while ($line = <TRACE>) {
         # is this a new file record?
         if($fields[0] != $current_rank || $fields[1] != $current_hash)
         {
-            $file_record_hash{CP_NAME_SUFFIX} = $fields[4];
-
             # process previous record
             process_file_record($current_rank, $current_hash, \%file_record_hash);
 
@@ -152,6 +150,7 @@ while ($line = <TRACE>) {
             $current_rank = $fields[0];
             $current_hash = $fields[1];
             %file_record_hash = ();
+            $file_record_hash{CP_NAME_SUFFIX} = $fields[4];
         }
 
         $file_record_hash{$fields[2]} = $fields[3];
