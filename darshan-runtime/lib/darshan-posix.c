@@ -125,30 +125,32 @@ static double posix_wtime(void);
 
 static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,     enum cp_counter_type type);
 
-#define CP_RECORD_WRITE(__ret, __fd, __count, __update_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
+#define CP_RECORD_WRITE(__ret, __fd, __count, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
     size_t stride; \
-    int64_t old_offset; \
+    int64_t this_offset; \
     int64_t file_alignment; \
     struct darshan_file_runtime* file; \
     double __elapsed = __tm2-__tm1; \
     if(__ret < 0) break; \
     file = darshan_file_by_fd(__fd); \
     if(!file) break; \
-    old_offset = file->offset; \
+    if(__pwrite_flag) \
+        this_offset = __pwrite_offset; \
+    else \
+        this_offset = file->offset; \
     file_alignment = CP_VALUE(file, CP_FILE_ALIGNMENT); \
-    if(old_offset > file->last_byte_written) \
+    if(this_offset > file->last_byte_written) \
         CP_INC(file, CP_SEQ_WRITES, 1); \
-    if(old_offset == (file->last_byte_written + 1)) \
+    if(this_offset == (file->last_byte_written + 1)) \
         CP_INC(file, CP_CONSEC_WRITES, 1); \
-    if(old_offset > 0 && old_offset > file->last_byte_written \
+    if(this_offset > 0 && this_offset > file->last_byte_written \
         && file->last_byte_written != 0) \
-        stride = old_offset - file->last_byte_written - 1; \
+        stride = this_offset - file->last_byte_written - 1; \
     else \
         stride = 0; \
-    file->last_byte_written = old_offset + __ret - 1; \
-    if(__update_offset) \
-        file->offset = old_offset + __ret; \
-    CP_MAX(file, CP_MAX_BYTE_WRITTEN, (old_offset + __ret -1)); \
+    file->last_byte_written = this_offset + __ret - 1; \
+    file->offset = this_offset + __ret; \
+    CP_MAX(file, CP_MAX_BYTE_WRITTEN, (this_offset + __ret -1)); \
     CP_INC(file, CP_BYTES_WRITTEN, __ret); \
     if(__stream_flag) \
         CP_INC(file, CP_POSIX_FWRITES, 1); \
@@ -158,7 +160,7 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     cp_access_counter(file, stride, CP_COUNTER_STRIDE); \
     if(!__aligned) \
         CP_INC(file, CP_MEM_NOT_ALIGNED, 1); \
-    if(file_alignment && (old_offset % file_alignment) != 0) \
+    if(file_alignment && (this_offset % file_alignment) != 0) \
         CP_INC(file, CP_FILE_NOT_ALIGNED, 1); \
     cp_access_counter(file, __ret, CP_COUNTER_ACCESS); \
     if(file->last_io_type == CP_READ) \
@@ -835,7 +837,7 @@ ssize_t DARSHAN_DECL(pwrite)(int fd, const void *buf, size_t count, off_t offset
     ret = __real_pwrite(fd, buf, count, offset);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_WRITE(ret, fd, count, 0, aligned_flag, 0, tm1, tm2);
+    CP_RECORD_WRITE(ret, fd, count, 1, offset, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
     return(ret);
 }
@@ -855,7 +857,7 @@ ssize_t DARSHAN_DECL(pwrite64)(int fd, const void *buf, size_t count, off64_t of
     ret = __real_pwrite64(fd, buf, count, offset);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_WRITE(ret, fd, count, 0, aligned_flag, 0, tm1, tm2);
+    CP_RECORD_WRITE(ret, fd, count, 1, offset, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
     return(ret);
 }
@@ -903,7 +905,7 @@ ssize_t DARSHAN_DECL(writev)(int fd, const struct iovec *iov, int iovcnt)
     ret = __real_writev(fd, iov, iovcnt);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_WRITE(ret, fd, count, 1, aligned_flag, 0, tm1, tm2);
+    CP_RECORD_WRITE(ret, fd, count, 0, 0, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
     return(ret);
 }
@@ -966,7 +968,7 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
     ret = __real_write(fd, buf, count);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_WRITE(ret, fd, count, 1, aligned_flag, 0, tm1, tm2);
+    CP_RECORD_WRITE(ret, fd, count, 0, 0, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
     return(ret);
 }
@@ -987,9 +989,9 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
     tm2 = darshan_wtime();
     CP_LOCK();
     if(ret > 0)
-        CP_RECORD_WRITE(size*ret, fileno(stream), (size*nmemb), 1, aligned_flag, 1, tm1, tm2);
+        CP_RECORD_WRITE(size*ret, fileno(stream), (size*nmemb), 0, 0, aligned_flag, 1, tm1, tm2);
     else
-        CP_RECORD_WRITE(ret, fileno(stream), 0, 1, aligned_flag, 1, tm1, tm2);
+        CP_RECORD_WRITE(ret, fileno(stream), 0, 0, 0, aligned_flag, 1, tm1, tm2);
     CP_UNLOCK();
     return(ret);
 }
@@ -1534,7 +1536,7 @@ void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs)
 
     for(i=0; i<iters; i++)
     {
-        CP_RECORD_WRITE(size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], fd_array[i%nfiles], size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], 0, 1, 0, 1, 2);
+        CP_RECORD_WRITE(size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], fd_array[i%nfiles], size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], 0, 0, 1, 0, 1, 2);
     }
 
     if(rank == 0)
@@ -1557,7 +1559,7 @@ void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs)
 
     for(i=0; i<iters; i++)
     {
-        CP_RECORD_WRITE(size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], fd_array[i%nfiles], size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], 0, 1, 0, 1, 2);
+        CP_RECORD_WRITE(size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], fd_array[i%nfiles], size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], 0, 0, 1, 0, 1, 2);
     }
 
     if(rank == 0)
@@ -1580,7 +1582,7 @@ void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs)
 
     for(i=0; i<iters; i++)
     {
-        CP_RECORD_WRITE(size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], fd_array[i%nfiles], size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], 0, 1, 0, 1, 2);
+        CP_RECORD_WRITE(size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], fd_array[i%nfiles], size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], 0, 0, 1, 0, 1, 2);
     }
 
     if(rank == 0)
@@ -1603,7 +1605,7 @@ void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs)
 
     for(i=0; i<iters; i++)
     {
-        CP_RECORD_WRITE(size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], fd_array[i%nfiles], size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], 0, 1, 0, 1, 2);
+        CP_RECORD_WRITE(size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], fd_array[i%nfiles], size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], 0, 0, 1, 0, 1, 2);
     }
 
     if(rank == 0)
@@ -1662,11 +1664,11 @@ void darshan_search_bench(int argc, char** argv, int iters)
         {
             if(j==0)
             {
-                CP_RECORD_WRITE(size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], fd_array[i%nfiles], size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], 0, 1, 0, 1, 2);
+                CP_RECORD_WRITE(size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], fd_array[i%nfiles], size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], 0, 0, 1, 0, 1, 2);
             }
             else
             {
-                CP_RECORD_WRITE(size_array[0], fd_array[i%nfiles], size_array[0], 0, 1, 0, 1, 2);
+                CP_RECORD_WRITE(size_array[0], fd_array[i%nfiles], size_array[0], 0, 0, 1, 0, 1, 2);
             }
         }
 
@@ -1694,11 +1696,11 @@ void darshan_search_bench(int argc, char** argv, int iters)
             {
                 if(j==0)
                 {
-                    CP_RECORD_WRITE(size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], fd_array[i%nfiles], size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], 0, 1, 0, 1, 2);
+                    CP_RECORD_WRITE(size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], fd_array[i%nfiles], size_array[(i/nfiles)%CP_MAX_ACCESS_COUNT_RUNTIME], 0, 0, 1, 0, 1, 2);
                 }
                 else
                 {
-                    CP_RECORD_WRITE(size_array[0], fd_array[i%nfiles], size_array[0], 0, 1, 0, 1, 2);
+                    CP_RECORD_WRITE(size_array[0], fd_array[i%nfiles], size_array[0], 0, 0, 1, 0, 1, 2);
                 }
             }
             tm2 = darshan_wtime();
