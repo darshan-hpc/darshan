@@ -157,9 +157,7 @@ int main(int argc, char **argv)
     infile = darshan_log_open(infile_name, "r");
     if(!infile)
     {
-        char errmsg[256];
-        sprintf(errmsg, "darshan_log_open: %s", infile_name);
-        perror(errmsg);
+        fprintf(stderr, "darshan_log_open() failed to open %s\n.", infile_name);
         return(-1);
     }
  
@@ -169,9 +167,7 @@ int main(int argc, char **argv)
     outfile = darshan_log_open(outfile_name, "w");
     if(!outfile)
     {
-        char errmsg[256];
-        sprintf(errmsg, "darshan_log_open: %s", outfile_name);
-        perror(errmsg);
+        fprintf(stderr, "darshan_log_open() failed to open %s\n.", outfile_name);
         return(-1);
     }
 

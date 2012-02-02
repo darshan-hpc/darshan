@@ -251,7 +251,6 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
         return(NULL);
     }
 
-#ifdef HAVE_LIBBZ2
     if(strcmp(mode, "r") == 0)
     {
         /* Try to detect if existing file is a bzip2 file or not.  Both 
@@ -284,6 +283,7 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
         }
         close(test_fd);
     }
+
     if(strcmp(mode, "w") == 0)
     {
         /* TODO: is this the behavior that we want? */
@@ -296,6 +296,7 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
             try_bz2 = 0;
     }
 
+#ifdef HAVE_LIBBZ2
     if(try_bz2)
     {
         tmp_fd->bzf = BZ2_bzopen(name, mode);
@@ -306,6 +307,13 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
             return(NULL);
         }
         return(tmp_fd);
+    }
+#else
+    if(try_bz2)
+    {
+        fprintf(stderr, "Error: this Darshan build does not support bz2 files.\n");
+        fprintf(stderr, "Error: please install libbz2-dev and reconfigure.\n");
+        return(NULL);
     }
 #endif
 

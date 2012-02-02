@@ -41,7 +41,7 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
     zfile = darshan_log_open(fname, "r");
     if (zfile == NULL)
     {
-        perror("darshan_log_open");
+        fprintf(stderr, "darshan_log_open() failed to open %s\n.", fname);
         return -1;
     }
 

@@ -45,12 +45,12 @@ int main(int argc, char ** argv)
 
     file1 = darshan_log_open(argv[1], "r");
     if(!file1) {
-        perror("darshan_log_open");
+        fprintf(stderr, "darshan_log_open() failed to open %s\n.", argv[1]);
         return(-1);
     }
     file2 = darshan_log_open(argv[2], "r");
     if(!file2) {
-        perror("darshan_log_open");
+        fprintf(stderr, "darshan_log_open() failed to open %s\n.", argv[2]);
         return(-1);
     }
 

@@ -207,7 +207,7 @@ int main(int argc, char **argv)
     file = darshan_log_open(filename, "r");
     if(!file)
     {
-        perror("darshan_log_open");
+        fprintf(stderr, "darshan_log_open() failed to open %s\n.", filename);
         return(-1);
     }
    

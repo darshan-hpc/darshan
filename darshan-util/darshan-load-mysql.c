@@ -97,7 +97,7 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     dfile = darshan_log_open(fpath, "r");
     if (dfile == NULL)
     {
-        perror("darshan_log_open");
+        fprintf(stderr, "darshan_log_open() failed to open %s\n.", fpath);
         rc = CONTWALK;
         goto exit;
     }
