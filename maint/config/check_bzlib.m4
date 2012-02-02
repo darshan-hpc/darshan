@@ -33,7 +33,6 @@ AC_ARG_WITH(bzlib,
                     /usr/local or /usr if not found in /usr/local]
   --without-bzlib to disable bzlib usage completely],
 [if test "$withval" != no ; then
-  AC_MSG_RESULT(yes)
   if test -d "$withval"
   then
     BZLIB_HOME="$withval"
@@ -41,6 +40,7 @@ AC_ARG_WITH(bzlib,
     AC_MSG_WARN([Sorry, $withval does not exist, checking usual places])
   fi
 else
+  DISABLE_BZLIB=1
   AC_MSG_RESULT(no)
 fi])
 
@@ -53,8 +53,9 @@ fi
 #
 # Locate bzlib, if wanted
 #
-if test -n "${BZLIB_HOME}"
+if test -z "${DISABLE_BZLIB}" 
 then
+        AC_MSG_RESULT(yes)
         BZLIB_OLD_LDFLAGS=$LDFLAGS
         BZLIB_OLD_CPPFLAGS=$LDFLAGS
         LDFLAGS="$LDFLAGS -L${BZLIB_HOME}/lib"

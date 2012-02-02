@@ -3351,12 +3351,6 @@ fi
 fi
 
 
-ZLIB_HOME=/usr/local
-if test ! -f "${ZLIB_HOME}/include/zlib.h"
-then
-        ZLIB_HOME=/usr
-fi
-
 #
 # Locate zlib, if wanted
 #
@@ -3507,8 +3501,6 @@ $as_echo_n "checking if bzlib is wanted... " >&6; }
 # Check whether --with-bzlib was given.
 if test "${with_bzlib+set}" = set; then :
   withval=$with_bzlib; if test "$withval" != no ; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
   if test -d "$withval"
   then
     BZLIB_HOME="$withval"
@@ -3517,6 +3509,7 @@ $as_echo "yes" >&6; }
 $as_echo "$as_me: WARNING: Sorry, $withval does not exist, checking usual places" >&2;}
   fi
 else
+  DISABLE_BZLIB=1
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
@@ -3532,8 +3525,10 @@ fi
 #
 # Locate bzlib, if wanted
 #
-if test -n "${BZLIB_HOME}"
+if test -z "${DISABLE_BZLIB}"
 then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
         BZLIB_OLD_LDFLAGS=$LDFLAGS
         BZLIB_OLD_CPPFLAGS=$LDFLAGS
         LDFLAGS="$LDFLAGS -L${BZLIB_HOME}/lib"
