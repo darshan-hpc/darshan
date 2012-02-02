@@ -175,30 +175,32 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
         CP_SET(file, CP_MAX_WRITE_TIME_SIZE, __ret); } \
 } while(0)
 
-#define CP_RECORD_READ(__ret, __fd, __count, __update_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
+#define CP_RECORD_READ(__ret, __fd, __count, __pread_flag, __pread_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
     size_t stride; \
-    int64_t old_offset; \
+    int64_t this_offset; \
     struct darshan_file_runtime* file; \
     int64_t file_alignment; \
     double __elapsed = __tm2-__tm1; \
     if(__ret < 0) break; \
     file = darshan_file_by_fd(__fd); \
     if(!file) break; \
-    old_offset = file->offset; \
+    if(__pread_flag)\
+        this_offset = __pread_offset; \
+    else \
+        this_offset = file->offset; \
     file_alignment = CP_VALUE(file, CP_FILE_ALIGNMENT); \
-    if(old_offset > file->last_byte_read) \
+    if(this_offset > file->last_byte_read) \
         CP_INC(file, CP_SEQ_READS, 1); \
-    if(old_offset == (file->last_byte_read + 1)) \
+    if(this_offset == (file->last_byte_read + 1)) \
         CP_INC(file, CP_CONSEC_READS, 1); \
-    if(old_offset > 0 && old_offset > file->last_byte_read \
+    if(this_offset > 0 && this_offset > file->last_byte_read \
         && file->last_byte_read != 0) \
-        stride = old_offset - file->last_byte_read - 1; \
+        stride = this_offset - file->last_byte_read - 1; \
     else \
         stride = 0; \
-    file->last_byte_read = old_offset + __ret - 1; \
-    CP_MAX(file, CP_MAX_BYTE_READ, (old_offset + __ret -1)); \
-    if(__update_offset) \
-        file->offset = old_offset + __ret; \
+    file->last_byte_read = this_offset + __ret - 1; \
+    CP_MAX(file, CP_MAX_BYTE_READ, (this_offset + __ret -1)); \
+    file->offset = this_offset + __ret; \
     CP_INC(file, CP_BYTES_READ, __ret); \
     if(__stream_flag)\
         CP_INC(file, CP_POSIX_FREADS, 1); \
@@ -208,7 +210,7 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     cp_access_counter(file, stride, CP_COUNTER_STRIDE); \
     if(!__aligned) \
         CP_INC(file, CP_MEM_NOT_ALIGNED, 1); \
-    if(file_alignment && (old_offset % file_alignment) != 0) \
+    if(file_alignment && (this_offset % file_alignment) != 0) \
         CP_INC(file, CP_FILE_NOT_ALIGNED, 1); \
     cp_access_counter(file, __ret, CP_COUNTER_ACCESS); \
     if(file->last_io_type == CP_WRITE) \
@@ -796,7 +798,7 @@ ssize_t DARSHAN_DECL(pread64)(int fd, void *buf, size_t count, off64_t offset)
     ret = __real_pread64(fd, buf, count, offset);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_READ(ret, fd, count, 0, aligned_flag, 0, tm1, tm2);
+    CP_RECORD_READ(ret, fd, count, 1, offset, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
     return(ret);
 }
@@ -816,7 +818,7 @@ ssize_t DARSHAN_DECL(pread)(int fd, void *buf, size_t count, off_t offset)
     ret = __real_pread(fd, buf, count, offset);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_READ(ret, fd, count, 0, aligned_flag, 0, tm1, tm2);
+    CP_RECORD_READ(ret, fd, count, 1, offset, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
     return(ret);
 }
@@ -881,7 +883,7 @@ ssize_t DARSHAN_DECL(readv)(int fd, const struct iovec *iov, int iovcnt)
     ret = __real_readv(fd, iov, iovcnt);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_READ(ret, fd, count, 1, aligned_flag, 0, tm1, tm2);
+    CP_RECORD_READ(ret, fd, count, 0, 0, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
     return(ret);
 }
@@ -926,9 +928,9 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
     tm2 = darshan_wtime();
     CP_LOCK();
     if(ret > 0)
-        CP_RECORD_READ(size*ret, fileno(stream), (size*nmemb), 1, aligned_flag, 1, tm1, tm2);
+        CP_RECORD_READ(size*ret, fileno(stream), (size*nmemb), 0, 0, aligned_flag, 1, tm1, tm2);
     else
-        CP_RECORD_READ(ret, fileno(stream), (size*nmemb), 1, aligned_flag, 1, tm1, tm2);
+        CP_RECORD_READ(ret, fileno(stream), (size*nmemb), 0, 0, aligned_flag, 1, tm1, tm2);
     CP_UNLOCK();
     return(ret);
 }
@@ -948,7 +950,7 @@ ssize_t DARSHAN_DECL(read)(int fd, void *buf, size_t count)
     ret = __real_read(fd, buf, count);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_READ(ret, fd, count, 1, aligned_flag, 0, tm1, tm2);
+    CP_RECORD_READ(ret, fd, count, 0, 0, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
     return(ret);
 }
