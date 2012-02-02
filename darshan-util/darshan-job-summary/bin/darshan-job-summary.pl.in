@@ -277,6 +277,8 @@ while ($line = <TRACE>) {
     }
 }
 
+close(TRACE) || die "darshan-parser failure: $! $?";
+
 #
 # Exit out if there are no actual file accesses
 #
@@ -291,14 +293,12 @@ if ($first_data_line)
     print "  runtime:$runtime (seconds)\n";
     print "   nprocs:$nprocs\n";
     print "  version: $version\n";
-    close(TRACE);
     exit(1);
 }
 
 # process last file record
 $file_record_hash{CP_NAME_SUFFIX} = $fields[4];
 process_file_record($current_rank, $current_hash, \%file_record_hash);
-close(TRACE) || die "darshan-parser failure: $! $?";
 
 # Fudge one point at the end to make xrange match in read and write plots.
 # For some reason I can't get the xrange command to work.  -Phil
