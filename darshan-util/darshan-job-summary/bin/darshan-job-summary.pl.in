@@ -1174,7 +1174,7 @@ sub process_file_record
 
             $hash_files{$hash}{'variance_bytes'}    = $hash_files{$hash}{'variance_bytes_S'} / $hash_files{$hash}{'variance_bytes_n'};
 
-            $hash_files{$hash}{'procs'} = $n;
+            $hash_files{$hash}{'procs'} = $hash_files{$hash}{'variance_time_n'};
         }
     }
 
