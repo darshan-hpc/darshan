@@ -175,6 +175,10 @@ print OUTPUT<<'EOF';
         linking=no
     fi
     ;;
+    -cc=*)
+    CC=`echo A$arg | sed -e 's/A-cc=//g'`
+    addarg=no
+    ;;
     -show)
     addarg=no
     Show=echo
