@@ -72,18 +72,42 @@ if($trim_exe_path)
 
 open (OUTPUT, ">$output_file") || die("Error opening output file: $!");
 
-# substitute arguments and darshan options into commands
-$base_link_cmd = $link_cmd;
-$base_link_cmd =~ s/foo.o -o foo/"\$\{allargs\[\@\]\}"/g;
-$link_cmd =~ s/foo.o -o foo/"\$\{newallargs\[\@\]\}" -L$DARSHAN_LIB_PATH $DARSHAN_LDFLAGS \$FMPICH -ldarshan-mpi-io -lz $CP_WRAPPERS/g;
-$link_cmd =~ s/$/ -L$DARSHAN_LIB_PATH -ldarshan-posix/g;
-$compile_cmd =~ s/-c foo.c/"\$\{allargs\[\@\]\}"/g;
+# split the link command from the original mpicc script so that we have the
+# part before the "foo.o -o foo", which is assumed to be FC, and the part
+# that comes afterwards, which is assumed to be the required link flags and
+# libraries.
+if(!($link_cmd =~ /(.+)\s+(foo.o -o foo)\s+(.*)/))
+{
+    printf STDERR "Error: improperly formatted link cmd: $link_cmd\n";
+    exit(1);
+}
+$FC_from_link=$1;
+$base_link_cmd_suffix="\"\$\{allargs\[\@\]\}\" $3";
+$link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" -L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS \$FMPICH -ldarshan-mpi-io -lz $CP_WRAPPERS $3 -L$DARSHAN_LIB_PATH -ldarshan-posix";
+
+# repeat the above step for the compilation command line
+if(!($compile_cmd =~ /(.+)\s+(-c foo.c)\s+(.*)/))
+{
+    printf STDERR "Error: improperly formatted compile cmd: $compile_cmd\n";
+    exit(1);
+}
+$FC_from_compile=$1;
+$compile_cmd_suffix="\"\$\{allargs\[\@\]\}\" $3";
+
+# we expect to see the same FC command in both the link and compile steps
+if($FC_from_link ne $FC_from_compile)
+{
+    printf STDERR "Error: cannot find matching FC from: $compile_cmd\n";
+    printf STDERR "and: $link_cmd\n";
+    exit(1);
+}
+$FC=$FC_from_compile;
 
 # create link cmd with noshrargs variable
-$link_cmd_no_shared = $base_link_cmd;
-$link_cmd_no_shared =~ s/allargs/noshrargs/;
+$link_cmd_no_shared_suffix = $base_link_cmd_suffix;
+$link_cmd_no_shared_suffix =~ s/allargs/noshrargs/;
 
-print OUTPUT<<'EOF';
+print OUTPUT<<"EOF";
 #!/bin/bash
 #
 # Auto-generated mpicc script from darshan-gen-cc.pl
@@ -93,6 +117,7 @@ print OUTPUT<<'EOF';
 # Show is set to echo to cause the compilation command to be echoed instead 
 # of executed.
 Show=
+FC="$FC"
 EOF
 
 if ($xl_check == 1)
@@ -149,6 +174,18 @@ print OUTPUT<<'EOF';
     if [ "$#" -eq "1" ] ; then
         linking=no
     fi
+    ;;
+    -f77=*)
+    FC=`echo A$arg | sed -e 's/A-f77=//g'`
+    addarg=no
+    ;;
+    -f90=*)
+    FC=`echo A$arg | sed -e 's/A-f90=//g'`
+    addarg=no
+    ;;
+    -fc=*)
+    FC=`echo A$arg | sed -e 's/A-fc=//g'`
+    addarg=no
     ;;
     -show)
     addarg=no
@@ -226,7 +263,7 @@ print OUTPUT<<"EOF";
         fi
         argno=`expr \$argno + 1`
     done
-    $link_cmd_no_shared -Wl,-Map,\$tmpfile \$LDFLAGS -o /dev/null >& /dev/null
+    \$FC $link_cmd_no_shared_suffix -Wl,-Map,\$tmpfile \$LDFLAGS -o /dev/null >& /dev/null
 
     # is MPI in there?
     grep -i MPI \$tmpfile >& /dev/null
@@ -253,18 +290,18 @@ print OUTPUT<<"EOF";
         # disable darshan if something else is already using PMPI; we don't
         # want to cause any symbol conflicts
         if [ \$rc_pmpi -ne 0 ] && [ \$compiler_check -eq 0 ]; then
-            \$Show $link_cmd
+            \$Show \$FC $link_cmd_suffix
             used_darshan=1
         fi
     fi
 
     # otherwise use the normal command line
     if [ "\$used_darshan" = "0" ] ; then
-        \$Show $base_link_cmd
+        \$Show \$FC $base_link_cmd_suffix
     fi
     rc=\$?
 else
-    \$Show $compile_cmd
+    \$Show \$FC $compile_cmd_suffix
     rc=\$?
 fi
 
