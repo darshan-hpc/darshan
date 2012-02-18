@@ -775,8 +775,7 @@ set timefmt \"%s\"
 set format x \"%H:%M:%S\"
 set yrange [-1:$ymax]
 set title \"Timespan from first to last read access on independent files\"
-# the xrange doesn't work for some reason
-#set xrange [0:$runtime]
+set xrange [\"00:00:00\":*]
 #set ytics -1,1
 set lmargin 4
 
@@ -805,8 +804,7 @@ set timefmt \"%s\"
 set format x \"%H:%M:%S\"
 set title \"Timespan from first to last write access on independent files\"
 set yrange [-1:$ymax]
-# the xrange doesn't work for some reason
-# set xrange [0:$runtime]
+set xrange [\"00:00:00\":*]
 #set ytics -1,1
 set lmargin 4
 
@@ -833,8 +831,7 @@ set timefmt \"%s\"
 set format x \"%H:%M:%S\"
 unset ytics
 set ylabel \"All processes\"
-# the xrange doesn't work for some reason
-# set xrange [0:$runtime]
+set xrange [\"00:00:00\":*]
 set yrange [-1:1]
 set title \"Timespan from first to last access on files shared by all processes\"
 set lmargin 4
