@@ -415,7 +415,9 @@ void darshan_shutdown(int timing_flag)
         logpath = getenv(CP_LOG_PATH_OVERRIDE);
         if (!logpath)
         {
+#ifdef __CP_LOG_PATH
             logpath = __CP_LOG_PATH;
+#endif
         }
 
         /* find a job id */
@@ -469,6 +471,13 @@ void darshan_shutdown(int timing_flag)
             }
         }
 #endif
+
+        if(!logpath && !logpath_override)
+        {
+            /* we could not find any location to write the log file */
+            darshan_finalize(final_job);
+            return;
+        }
 
         if(logpath_override)
         {
