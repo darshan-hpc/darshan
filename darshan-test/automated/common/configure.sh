@@ -7,7 +7,7 @@ status=0
 
 if [[ $NODE_LABELS =~ "magellan" ]];
 then
-  darshan-test/magellan/configure.sh
+  darshan-test/automated/magellan/configure.sh
   status=$?
 else
   # unknown machine

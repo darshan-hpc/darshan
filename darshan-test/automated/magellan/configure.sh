@@ -36,5 +36,5 @@ echo "
     </testcase>
   </testsuite>
 </testsuites>
-"
+" > configure-result.xml
 exit $fcount

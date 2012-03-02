@@ -25,5 +25,5 @@ echo "
     </testcase>
   </testsuite>
 </testsuites>
-"
+" > setup-result.xml
 exit $status
