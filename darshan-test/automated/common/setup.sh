@@ -15,7 +15,7 @@ status=$((status + $?))
 mkdir -p build/darshan-runtime
 status=$((status + $?))
 
-mkdir -p build/darshan-utils
+mkdir -p build/darshan-util
 status=$((status + $?))
 
 echo "
