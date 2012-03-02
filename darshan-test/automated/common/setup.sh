@@ -20,8 +20,8 @@ status=$((status + $?))
 
 echo "
 <testsuites>
-  <testsuite name=setup tests=1 errors=$status time='$thedate'>
-    <testcase name=setup time='$thedate'>
+  <testsuite name='setup' tests='1' errors='$status' time='$thedate'>
+    <testcase name='setup' time='$thedate'>
     </testcase>
   </testsuite>
 </testsuites>
