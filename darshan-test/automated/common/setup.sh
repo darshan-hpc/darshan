@@ -4,6 +4,7 @@
 #
 
 status=0
+thedate=$(date)
 
 mkdir -p install
 status=$((status + $?))
@@ -17,4 +18,12 @@ status=$((status + $?))
 mkdir -p build/darshan-utils
 status=$((status + $?))
 
+echo "
+<testsuites>
+  <testsuite name=setup tests=1 errors=$status time='$thedate'>
+    <testcase name=setup time='$thedate'>
+    </testcase>
+  </testsuite>
+</testsuites>
+"
 exit $status
