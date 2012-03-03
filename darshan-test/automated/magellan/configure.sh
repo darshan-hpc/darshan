@@ -10,7 +10,7 @@ util_result=""
 thedate=$(date)
 
 cd build/darshan-runtime
-../../darshan-runtime/configure --prefix=$basedir/install --with-mem-align=16 --with-jobid-env=DARSHAN_JOBID --with-log-path=$basedir/logs --with-log-path-by-env DARSHAN_LOGPATH CC=/usr/local/mpich/mpich-1.4.1p1/bin/mpicc > configure.out 2>&1
+../../darshan-runtime/configure --prefix=$basedir/install --with-mem-align=16 --with-jobid-env=DARSHAN_JOBID --with-log-path=$basedir/logs --with-log-path-by-env=DARSHAN_LOGPATH CC=/usr/local/mpich/mpich-1.4.1p1/bin/mpicc > configure.out 2>&1
 runtime_status=$?
 if [ $runtime_status -ne 0 ]; then
   fcount=$((fcount+1));
@@ -25,12 +25,14 @@ if [ $util_status -ne 0 ]; then
   util_result="<error type='$util_status' message='configure failed' />"
 fi
 
+cd ../../;
+
 echo "
 <testsuites>
   <testsuite name='configure' tests='2' failures='$fcount' time='$thedate'>
     <testcase name='darshan-runtime' time='$thedate'>
-    </testcase>
     $runtime_result
+    </testcase>
     <testcase name='darshan-util' time='$thedate'>
     $util_result
     </testcase>
