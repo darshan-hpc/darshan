@@ -1,9 +1,12 @@
-PDF=darshan-util.pdf
+OUTPUT=darshan-util.pdf darshan-util.html
 
-all:: $(PDF)
+all:: $(OUTPUT)
 
 %.pdf: %.txt
 	a2x -f pdf $<
 
+%.html: %.txt
+	asciidoc $<
+
 clean::
-	rm -f $(PDF)
+	rm -f $(OUTPUT)

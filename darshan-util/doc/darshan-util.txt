@@ -3,13 +3,11 @@ Darshan-util installation and usage
 
 == Introduction
 
-This document describes darshan-util, which is a collection of tools that
-aid in parsing and summarizing log files produced by the darshan-runtime
-instrumentation.  The two packages can be installed independently.
-For example, you may wish to install darshan-util by itself on a
-workstation in order to analyze logs that were produced on a separate
-HPC system.  Darshan log files are platform-independent and can be
-processed on any architecture.
+This document describes darshan-util, a collection of tools for
+parsing and summarizing log files produced by Darshan instrumentation.
+The darshan-util package can be installed and used on any system
+regardless of where the logs were originally generated.  Darshan log
+files are platform-independent.
 
 == Requirements
 
