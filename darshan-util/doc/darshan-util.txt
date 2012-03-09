@@ -62,7 +62,7 @@ the same system that executed the job.
 === darshan-job-summary.pl
 
 You can generate a graphical summary
-of this I/O activity by using the `darshan-job-summary.pl` graphical summary
+of the I/O activity for a job by using the `darshan-job-summary.pl` graphical summary
 tool as in the following example:
 
 ----
@@ -88,7 +88,7 @@ into a fully expanded text file:
 darshan-parser carns_my-app_id114525_7-27-58921_19.darshan.gz > ~/job-characterization.txt
 ----
 
-The format of this output is described in the following section
+The format of this output is described in the following section.
 
 === Guide to darshan-parser output
 
@@ -343,9 +343,9 @@ If the output file has a .bz2 extension, then it will be re-compressed in
 bz2 format rather than gz format.  It also has command line options for
 anonymizing personal data and adding metadata annotation to the log header.
 * darshan-diff: compares two darshan log files and shows counters that
-differ
+differ.
 * darshan-analyzer: walks an entire directory tree of Darshan log files and
-produces a summary of the types of access methods used in those log files
+produces a summary of the types of access methods used in those log files.
 * darshan-logutils*: this is a library rather than an executable, but it
 provides a C interface for opening and parsing Darshan log files.  This is
 the recommended method for writing custom utilities, as darshan-logutils
