@@ -272,7 +272,7 @@ executables.  For more details please check this Intel forum discussion:
 http://software.intel.com/en-us/forums/showthread.php?t=103447&o=a&s=lr
 ====
 
-==== Linux clusters using MPICH or OpenMPI
+=== Linux clusters using MPICH or OpenMPI
 
 Follow the generic instructions provided at the top of this document.  The
 only modification is to make sure that the `CC` used for compilation is
