@@ -3,4 +3,95 @@ Darshan-util installation and usage
 
 == Introduction
 
-This document...
+This document describes darshan-util, which is a collection of tools that
+aid in parsing and summarizing log files produced by the darshan-runtime
+instrumentation.  The two packages can be installed independently.
+For example, you may wish to install darshan-util by itself on a
+workstation in order to analyze logs that were produced on a separate
+HPC system.  Darshan log files are platform-independent and can be
+processed on any architecture.
+
+== Requirements
+
+Darshan-util has only been tested in Linux environments, but will likely
+work in other Unix-like environments as well.  
+
+.Hard requirements
+* C compiler
+* zlib development headers and library (zlib-dev or similar)
+
+.Optional requirements
+* libbz2 development headers and library (libbz2-dev or similar)
+* Perl
+* pdflatex
+* gnuplot 4.2 or later
+* epstopdf
+
+== Compilation
+
+.Configure and build example
+----
+tar -xvzf darshan-<version-number>.tar.gz
+cd darshan-<version-number>/darshan-util
+./configure
+make
+make install
+----
+
+You can specify `--prefix` to install darshan-util in a specific location
+(such as in your home directory for non-root installations).  See
+`./configure --help` for additional optional arguments, including how to
+specify alternative paths for zlib and libbz2 development libraries.
+darshan-util also supports VPATH or "out-of-tree" builds if you prefer that
+method of compilation.
+
+== Analyzing log files
+
+Each time a darshan-instrumented application is executed, it will generate a
+single log file summarizing the I/O activity from that application.  See the
+darshan-runtime documentation for more details, but the log file for a given
+application will likely be found in a centralized directory, with the path
+and log file name in the following format:
+
+----
+<YEAR>/<MONTH>/<DAY>/<USERNAME>_<BINARY_NAME>_<JOB_ID>_<DATE>.darshan.gz
+----
+
+This is a binary format file that summarizes I/O activity. As of version
+2.0.0 of Darshan, this file is portable and does not have to be analyzed on
+the same system that executed the job. 
+
+=== darshan-job-summary.pl
+
+You can generate a graphical summary
+of this I/O activity by using the `darshan-job-summary.pl` graphical summary
+tool as in the following example:
+
+----
+darshan-job-summary.pl carns_my-app_id114525_7-27-58921_19.darshan.gz
+----
+
+This utility requires Perl, pdflatex, epstopdf, and gnuplot in order to
+generate its summary.  By default, the output is written to a multi-page
+pdf file based on the name of the input file (in this case it would
+produce a `carns_my-app_id114525_7-27-58921_19.pdf` output file).
+You can also manually specify the name of the output file using the
+`--output` argument.
+
+=== darshan-parser
+
+In order to obtained a full, human readable dump of all information
+contained in a log file, you can use the `darshan-parser` command
+line utility.  It does not require any additional command line tools.
+The following example essentially converts the contents of the log file
+into a fully expanded text file:
+
+----
+darshan-parser carns_my-app_id114525_7-27-58921_19.darshan.gz > ~/job-characterization.txt
+----
+
+The format of this output is described in the following section
+
+=== Guide to darshan-parser output
+
+TODO: pick up here.
