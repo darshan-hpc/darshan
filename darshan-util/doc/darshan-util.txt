@@ -52,7 +52,7 @@ application will likely be found in a centralized directory, with the path
 and log file name in the following format:
 
 ----
-<YEAR>/<MONTH>/<DAY>/<USERNAME>_<BINARY_NAME>_<JOB_ID>_<DATE>.darshan.gz
+<YEAR>/<MONTH>/<DAY>/<USERNAME>_<BINARY_NAME>_<JOB_ID>_<DATE>_<UNIQUE_ID>_<TIMING>.darshan.gz
 ----
 
 This is a binary format file that summarizes I/O activity. As of version
@@ -347,7 +347,7 @@ differ
 * darshan-analyzer: walks an entire directory tree of Darshan log files and
 produces a summary of the types of access methods used in those log files
 * darshan-logutils*: this is a library rather than an executable, but it
-provides a C inteface for opening and parsing Darshan log files.  This is
+provides a C interface for opening and parsing Darshan log files.  This is
 the recommended method for writing custom utilities, as darshan-logutils
 provides a relatively stable interface across different versions of Darshan
 and different log formats.

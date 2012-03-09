@@ -10,7 +10,7 @@ system where you intend to collect I/O characterization information.
 Darshan instruments applications via either compile time wrappers for static
 executables or dynamic library preloading for dynamic executables.  An
 application that has been instrumented with Darshan will produce a single
-log file each time is executed.  This log summarizes the I/O access patterns
+log file each time it is executed.  This log summarizes the I/O access patterns
 used by the application.
 
 The darshan-runtime instrumentation only instruments MPI applications (the
