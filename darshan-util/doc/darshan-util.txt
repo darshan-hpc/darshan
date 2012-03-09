@@ -25,7 +25,7 @@ work in other Unix-like environments as well.
 * gnuplot 4.2 or later
 * epstopdf
 
-== Compilation
+== Compilation and installation
 
 .Configure and build example
 ----

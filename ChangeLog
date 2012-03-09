@@ -19,6 +19,10 @@ darshan-2.2.0
   - corrections to darshan-job-summary variance table
   - better runtime error handling if bzip or gnuplot tools are insufficient
   - improvements to time range in darshan-job-summary graphs
+* documentation:
+  - improved documentation for both the darshan-runtime and darshan-util
+  portions of Darshan can be found in the respective doc/ subdirectory for
+  each
 
 darshan-2.1.2
 =============
