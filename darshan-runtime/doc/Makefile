@@ -1,9 +1,12 @@
-PDF=darshan-runtime.pdf
+OUTPUT=darshan-runtime.pdf darshan-runtime.html
 
-all:: $(PDF)
+all:: $(OUTPUT)
 
 %.pdf: %.txt
 	a2x -f pdf $<
 
+%.html: %.txt
+	asciidoc $<
+
 clean::
-	rm -f $(PDF)
+	rm -f $(OUTPUT)

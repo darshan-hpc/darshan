@@ -3,6 +3,93 @@ Darshan-runtime installation and usage
 
 == Introduction
 
-This document...
+This document describes darshan-runtime, which is the instrumentation
+portion of the Darshan characterization tool.  It should be installed on the
+system where you intend to collect I/O characterization information.
 
+Darshan instruments applications via either compile time wrappers for static
+executables or dynamic library preloading for dynamic executables.  An
+application that has been instrumented with Darshan will produce a single
+log file each time is executed.  This log summarizes the I/O access patterns
+used by the application.
+
+The darshan-runtime instrumentation only instruments MPI applications (the
+application must at least call `MPI_Init()` and `MPI_Finalize()`).  However,
+it captures both MPI-IO and POSIX file access.  It also captures limited
+information about HDF5 and PnetCDF access.
+
+This document provides generic installation instructions, but "recipes" for
+several common HPC systems are provided at the end of the document as well.
+
+== Requirements
+
+* MPI C compiler
+* zlib development headers and library
+
+== Compilation and installation
+
+.Configure and build example
+----
+tar -xvzf darshan-<version-number>.tar.gz
+cd darshan-<version-number>/darshan-runtime
+./configure --with-mem-align=8 --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID CC=mpicc
+make
+make install
+----
+
+.Explanation of configure arguments:
+* `--with-mem-align` (mandatory): This value is system-dependent and will be
+used by Darshan to determine if the buffer for a read or write operation is
+aligned in memory.
+* `--with-log-path` (this, or `--with-log-path-by-env`, is mandatory): This
+specifies the parent directory for the directory tree where darshan logs
+will be placed
+* `--with-jobid-env` (mandatory): this specifies the environment variable that
+Darshan should check to determine the jobid of a job.  Common values are
+`PBS_JOBID` or `COBALT_JOBID`.  If you are not using a scheduler (or your
+scheduler does not advertise the job ID) then you can specify `NONE` here.
+Darshan will fall back to using the pid of the rank 0 process if the
+specified environment variable is not set.
+* `CC=`: specifies the MPI C compiler to use for compilation
+* `--with-log-path-by-env`: specified an environment variable to use to
+determine the log path at run time.
+* `--with-log-hints=`: specifies hints to use when writing the Darshan log
+file.  See `./configure --help` for details.
+* `--with-zlib=`: specifies an alternate location for the zlib development
+header and library
+
+=== Cross compilation
+
+On some systems (notably the IBM BlueGene series) the login nodes do not
+have the same architecture or runtime environment as the compute nodes.  In
+this case, you must configure darshan-runtime to be built using a cross
+compiler.  The following arguments show an example for the BG/P system:
+
+----
+--host=powerpc-bgp-linux CC=/bgsys/drivers/ppcfloor/comm/default/bin/mpicc 
+----
+
+== Environment preparation
+
+TODO: fill this in
+
+=== Log directory
+
+TODO: fill this in
+
+=== Instrumentation
+
+TODO: fill this in
+
+== Instrumenting statically-linked applications
+
+TODO: fill this in
+
+== Instrumenting dynamically-linked applications
+
+TODO: fill this in
+
+== Darshan installation recipes
+
+TODO: fill this in
 
