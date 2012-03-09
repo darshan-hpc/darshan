@@ -71,23 +71,93 @@ compiler.  The following arguments show an example for the BG/P system:
 
 == Environment preparation
 
-TODO: fill this in
+Once darshan-runtime has been installed, you must still prepare a location
+to store Darshan log files and configure an instrumentation method.
 
 === Log directory
 
-TODO: fill this in
+This step can be safely skipped if you configured darshan-runtime using the
+`--with-log-path-by-env` option.  A more typical configuration, however, is
+to provide a static directory hierarchy in which to gather Darshan log
+files.
 
-=== Instrumentation
+The `darshan-mk-log-dirs.pl` utility will configure the path specified at
+configure time to include
+subdirectories organized by year, month, and day in which log files will be
+placed. The last subdirectories will have sticky permissions to enable
+multiple users to write to the same directory.  If the log directory is
+shared system-wide across many users then the following script should be run
+as root.
+ 
+----
+darshan-mk-log-dirs.pl
+----
 
-TODO: fill this in
+=== Instrumentation method
+
+The instrumentation method to use depends on whether the executables
+produced by your MPI compiler are statically or dynamically linked.  If you
+are unsure, you can check by running `ldd <executable_name>` on an example
+executable.  Dynamically-linked executables will produce a list of shared
+libraries when this command is executed.
+
+Most MPI compilers allow you to toggle dynamic or static linking via options
+such as `-dynamic` or `-static`.  Please check your MPI compiler man page
+for details if you intend to force one mode or the other.
 
 == Instrumenting statically-linked applications
 
-TODO: fill this in
+Statically linked executables must be instrumented at compile time.  The
+simplest way to do this is to generate an MPI compiler script (e.g. `mpicc`)
+that includes the link options and libraries needed by Darshan.  Once this
+is done, Darshan instrumentation is transparent; you simply compile
+applications using the darshan-enabled MPI compiler scripts.
+
+For MPICH-based MPI libraries, such as MPICH1, MPICH2, or MVAPICH, these
+wrapper scripts can be generated automatically.  The following example
+illustrates how to produce wrappers for C, C++, and Fortran compilers:
+
+----
+darshan-gen-cc.pl `which mpicc` --output mpicc.darshan
+darshan-gen-cxx.pl `which mpicxx` --output mpicxx.darshan
+darshan-gen-fortran.pl `which mpif77` --output mpif77.darshan
+darshan-gen-fortran.pl `which mpif90` --output mpif90.darshan
+-----
+
+For other MPI Libraries you must manually modify the MPI compiler scripts to
+add the necessary link options and libraries.  Please see the
+`darshan-gen-*` scripts for examples or contact the Darshan users mailing
+list for help.
 
 == Instrumenting dynamically-linked applications
 
-TODO: fill this in
+For dynamically-linked executables, darshan relies on the `LD_PRELOAD`
+environment variable to insert instrumentation at run time.  The application
+can be compiled using the normal, unmodified MPI compiler.
+
+To use this mechanism, set the `LD_PRELOAD` environment variable to the full
+path to the Darshan shared library, as in this example:
+
+----
+export LD_PRELOAD=/home/carns/darshan-install/lib/libdarshan.so
+----
+
+You can then run your application as usual.  Some environments may require a
+special `mpirun` or `mpiexec` command line argument to propagate the
+environment variable to all processes.  Other environments may require a
+scheduler submission option to control this behavior.  Please check your
+local site documentation for details.
+
+=== Instrumenting dynamically-linked Fortran applications
+
+Please follow the general steps outlined in the previous section.  For
+Fortran applications compiled with MPICH you may have to take the additional
+step fo adding
+`libfmpich.so` to your `LD_PRELOAD` environment variable. For example:
+
+----
+export LD_PRELOAD=libfmpich.so:/home/carns/darshan-install/lib/libdarshan.so
+----
 
 == Darshan installation recipes
 
