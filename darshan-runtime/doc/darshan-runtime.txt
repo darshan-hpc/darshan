@@ -51,19 +51,19 @@ scheduler does not advertise the job ID) then you can specify `NONE` here.
 Darshan will fall back to using the pid of the rank 0 process if the
 specified environment variable is not set.
 * `CC=`: specifies the MPI C compiler to use for compilation
-* `--with-log-path-by-env`: specified an environment variable to use to
+* `--with-log-path-by-env`: specifies an environment variable to use to
 determine the log path at run time.
 * `--with-log-hints=`: specifies hints to use when writing the Darshan log
 file.  See `./configure --help` for details.
 * `--with-zlib=`: specifies an alternate location for the zlib development
-header and library
+header and library.
 
 === Cross compilation
 
-On some systems (notably the IBM BlueGene series) the login nodes do not
+On some systems (notably the IBM Blue Gene series), the login nodes do not
 have the same architecture or runtime environment as the compute nodes.  In
 this case, you must configure darshan-runtime to be built using a cross
-compiler.  The following arguments show an example for the BG/P system:
+compiler.  The following configure arguments show an example for the BG/P system:
 
 ----
 --host=powerpc-bgp-linux CC=/bgsys/drivers/ppcfloor/comm/default/bin/mpicc 
@@ -71,20 +71,20 @@ compiler.  The following arguments show an example for the BG/P system:
 
 == Environment preparation
 
-Once darshan-runtime has been installed, you must still prepare a location
-to store Darshan log files and configure an instrumentation method.
+Once darshan-runtime has been installed, you must prepare a location
+in which to store the Darshan log files and configure an instrumentation method.
 
 === Log directory
 
 This step can be safely skipped if you configured darshan-runtime using the
-`--with-log-path-by-env` option.  A more typical configuration, however, is
-to provide a static directory hierarchy in which to gather Darshan log
+`--with-log-path-by-env` option.  A more typical configuration uses a static
+directory hierarchy for Darshan log
 files.
 
 The `darshan-mk-log-dirs.pl` utility will configure the path specified at
 configure time to include
 subdirectories organized by year, month, and day in which log files will be
-placed. The last subdirectories will have sticky permissions to enable
+placed. The deepest subdirectories will have sticky permissions to enable
 multiple users to write to the same directory.  If the log directory is
 shared system-wide across many users then the following script should be run
 as root.
@@ -132,8 +132,8 @@ list for help.
 == Instrumenting dynamically-linked applications
 
 For dynamically-linked executables, darshan relies on the `LD_PRELOAD`
-environment variable to insert instrumentation at run time.  The application
-can be compiled using the normal, unmodified MPI compiler.
+environment variable to insert instrumentation at run time.  The executables
+should be compiled using the normal, unmodified MPI compiler.
 
 To use this mechanism, set the `LD_PRELOAD` environment variable to the full
 path to the Darshan shared library, as in this example:
@@ -152,7 +152,7 @@ local site documentation for details.
 
 Please follow the general steps outlined in the previous section.  For
 Fortran applications compiled with MPICH you may have to take the additional
-step fo adding
+step of adding
 `libfmpich.so` to your `LD_PRELOAD` environment variable. For example:
 
 ----
@@ -161,9 +161,8 @@ export LD_PRELOAD=libfmpich.so:/home/carns/darshan-install/lib/libdarshan.so
 
 == Darshan installation recipes
 
-The following recipes provide examples for some prominant HPC systems.
-These are intended to be used as a starting point for installation on such
-systems, although you will most likely have to adjust paths and options to
+The following recipes provide examples for prominant HPC systems.
+These are intended to be used as a starting point.  You will most likely have to adjust paths and options to
 reflect the specifics of your system.
 
 === IBM Blue Gene/P
@@ -215,24 +214,26 @@ module swap PrgEnv-pgi PrgEnv-gnu
  --with-log-path=/lustre/beagle/carns/darshan-logs \
  --prefix=/home/carns/working/darshan/releases/install-darshan-2.2.0-pre1 \
  --with-jobid-env=PBS_JOBID CC=cc
+module swap PrgEnv-gnu PrgEnv-pgi 
 ----
 
 .Rationale
 [NOTE]
 ====
 Before compiling Darshan you must modify your environment to use the GNU
-compilers rather than the default PGI or Cray compilers.  Please see your
+compilers rather than the default PGI or Cray compilers.  You can swap this
+configuration back once Darshan has been compiled.  Please see your
 site documentation for details.
 
 The job ID is set to `PBS_JOBID` for use with a Torque or PBS based scheduler.
 The `CC` variable is configured to point the standard MPI compiler.
 ====
 
-The darshan-runtime package does not provide any scripts or wrappers to use
+The darshan-runtime package does not provide scripts or wrappers to use
 for instrumenting static executables in the Cray environment.  It may be
-possible to do this manually.  However, you _can_ instrument dynamic
+possible to do this manually.  Another option is to instrument dynamic
 executables using `LD_PRELOAD`.  To do this, compile your application with
-the `-dynamic` compiler option and follow the instructions for dynamic
+the `-dynamic` compiler option and follow the instructions for instrumenting dynamic
 executables listed earlier in this document.  This method has been tested
 with PGI and GNU compilers and is likely to work with other compiler
 combinations as well.
