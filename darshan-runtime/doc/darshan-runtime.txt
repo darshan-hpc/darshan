@@ -161,7 +161,7 @@ export LD_PRELOAD=libfmpich.so:/home/carns/darshan-install/lib/libdarshan.so
 
 == Darshan installation recipes
 
-The following recipes provide examples for prominant HPC systems.
+The following recipes provide examples for prominent HPC systems.
 These are intended to be used as a starting point.  You will most likely have to adjust paths and options to
 reflect the specifics of your system.
 
