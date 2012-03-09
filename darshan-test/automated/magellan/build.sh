@@ -10,7 +10,7 @@ util_result=""
 thedate=$(date)
 
 cd build/darshan-runtime
-make && make install > build.out 2>&1
+make && make install
 runtime_status=$?
 if [ $runtime_status -ne 0 ]; then
   fcount=$((fcount+1));
@@ -18,7 +18,7 @@ if [ $runtime_status -ne 0 ]; then
 fi
 
 cd ../../build/darshan-util
-make && make install > build.out 2>&1
+make && make install
 util_status=$?
 if [ $util_status -ne 0 ]; then
   fcount=$((fcount+1));

@@ -10,7 +10,7 @@ util_result=""
 thedate=$(date)
 
 cd build/darshan-runtime
-../../darshan-runtime/configure --prefix=$basedir/install --with-mem-align=16 --with-jobid-env=DARSHAN_JOBID --with-log-path=$basedir/logs --with-log-path-by-env=DARSHAN_LOGPATH CC=/usr/local/mpich/mpich-1.4.1p1/bin/mpicc > configure.out 2>&1
+../../darshan-runtime/configure --prefix=$basedir/install --with-mem-align=16 --with-jobid-env=DARSHAN_JOBID --with-log-path=$basedir/logs --with-log-path-by-env=DARSHAN_LOGPATH CC=/usr/local/mpich/mpich-1.4.1p1/bin/mpicc
 runtime_status=$?
 if [ $runtime_status -ne 0 ]; then
   fcount=$((fcount+1));
@@ -18,7 +18,7 @@ if [ $runtime_status -ne 0 ]; then
 fi
 
 cd ../darshan-util
-../../darshan-util/configure --prefix=$basedir/install > configure.out 2>&1
+../../darshan-util/configure --prefix=$basedir/install
 util_status=$?
 if [ $util_status -ne 0 ]; then
   fcount=$((fcount+1));
