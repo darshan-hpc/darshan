@@ -94,4 +94,25 @@ The format of this output is described in the following section
 
 === Guide to darshan-parser output
 
+The beginning of the output from darshan-parser displays a summary of
+overall information about the job. The following table defines the meaning
+of each line:
+
+[cols="25%,75%",options="header"]
+|====
+|output line | description
+| "# darshan log version" | internal version number of the Darshan log file
+| "# size of file statistics" | uncompressed size of each file record in the binary log file
+| "# size of job statistics" |  uncompressed size of the overall job statistics in the binary log file
+| "# exe" | name of the executable that generated the log file
+| "# uid" | user id that the job ran as
+| "# jobid" | job id from the scheduler
+| "# start_time" | start time of the job, in seconds since the epoch
+| "# start_time_asci" | start time of the job, in human readable format
+| "# end_time" | end time of the job, in seconds since the epoch
+| "# end_time_asci" | end time of the job, in human readable format
+| "# nprocs" | number of MPI processes
+| "# run time" | run time of the job in seconds
+|====
+
 TODO: pick up here.
