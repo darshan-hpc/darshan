@@ -9,6 +9,9 @@ The darshan-util package can be installed and used on any system
 regardless of where the logs were originally generated.  Darshan log
 files are platform-independent.
 
+More information about Darshan can be found at the 
+http://www.mcs.anl.gov/darshan[Darshan web site].
+
 == Requirements
 
 Darshan-util has only been tested in Linux environments, but will likely

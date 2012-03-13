@@ -21,6 +21,9 @@ information about HDF5 and PnetCDF access.
 This document provides generic installation instructions, but "recipes" for
 several common HPC systems are provided at the end of the document as well.
 
+More information about Darshan can be found at the 
+http://www.mcs.anl.gov/darshan[Darshan web site].
+
 == Requirements
 
 * MPI C compiler

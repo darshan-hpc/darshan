@@ -6,7 +6,7 @@ all:: $(OUTPUT)
 	a2x -f pdf $<
 
 %.html: %.txt
-	asciidoc $<
+	a2x -f xhtml $<
 
 clean::
 	rm -f $(OUTPUT)
