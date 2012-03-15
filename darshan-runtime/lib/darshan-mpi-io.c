@@ -2065,6 +2065,8 @@ static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
         "debugfs",
         "securityfs",
         "nfsd",
+        "none",
+        "rpc_pipefs",
         NULL
     };
 
