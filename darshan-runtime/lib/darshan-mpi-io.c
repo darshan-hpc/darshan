@@ -439,6 +439,13 @@ void darshan_shutdown(int timing_flag)
 
         /* note: getpwuid() causes link errors for static binaries */
         cuserid(cuser);
+        if (strcmp(cuser, "") == 0)
+        {
+            /* if node config is wrong, cuserid can return an empty string
+               this is backup in case that happens. */
+            uid_t uid = geteuid();
+            snprintf(cuser, sizeof(cuser), "%u", uid);
+        }
 
         /* generate a random number to help differentiate the log */
         (void) gethostname(hname, sizeof(hname));
