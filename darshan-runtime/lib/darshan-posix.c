@@ -225,6 +225,24 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
         CP_SET(file, CP_MAX_READ_TIME_SIZE, __ret); } \
 } while(0)
 
+#define CP_LOOKUP_RECORD_STAT(__path, __statbuf, __tm1, __tm2) do { \
+    char* exclude; \
+    int tmp_index = 0; \
+    struct darshan_file_runtime* file; \
+    while((exclude = exclusions[tmp_index])) { \
+        if(!(strncmp(exclude, __path, strlen(exclude)))) \
+            break; \
+        tmp_index++; \
+    } \
+    if(exclude) break; \
+    file = darshan_file_by_name(__path); \
+    if (file) \
+    { \
+        CP_RECORD_STAT(file, __statbuf, __tm1, __tm2); \
+    } \
+} while(0)
+
+    
 #define CP_RECORD_STAT(__file, __statbuf, __tm1, __tm2) do { \
     if(!CP_VALUE((__file), CP_FILE_ALIGNMENT)){ \
         CP_SET((__file), CP_DEVICE, (__statbuf)->st_dev); \
@@ -627,7 +645,6 @@ FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
 int DARSHAN_DECL(__xstat64)(int vers, const char *path, struct stat64 *buf)
 {
     int ret;
-    struct darshan_file_runtime* file;
     double tm1, tm2;
 
     MAP_OR_FAIL(__xstat64);
@@ -639,11 +656,7 @@ int DARSHAN_DECL(__xstat64)(int vers, const char *path, struct stat64 *buf)
         return(ret);
 
     CP_LOCK();
-    file = darshan_file_by_name(path);
-    if(file)
-    {
-        CP_RECORD_STAT(file, buf, tm1, tm2);
-    }
+    CP_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
     CP_UNLOCK();
 
     return(ret);
@@ -652,7 +665,6 @@ int DARSHAN_DECL(__xstat64)(int vers, const char *path, struct stat64 *buf)
 int DARSHAN_DECL(__lxstat64)(int vers, const char *path, struct stat64 *buf)
 {
     int ret;
-    struct darshan_file_runtime* file;
     double tm1, tm2;
 
     MAP_OR_FAIL(__lxstat64);
@@ -664,11 +676,7 @@ int DARSHAN_DECL(__lxstat64)(int vers, const char *path, struct stat64 *buf)
         return(ret);
 
     CP_LOCK();
-    file = darshan_file_by_name(path);
-    if(file)
-    {
-        CP_RECORD_STAT(file, buf, tm1, tm2);
-    }
+    CP_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
     CP_UNLOCK();
 
     return(ret);
@@ -707,7 +715,6 @@ int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
 int DARSHAN_DECL(__xstat)(int vers, const char *path, struct stat *buf)
 {
     int ret;
-    struct darshan_file_runtime* file;
     double tm1, tm2;
 
     MAP_OR_FAIL(__xstat);
@@ -719,11 +726,7 @@ int DARSHAN_DECL(__xstat)(int vers, const char *path, struct stat *buf)
         return(ret);
 
     CP_LOCK();
-    file = darshan_file_by_name(path);
-    if(file)
-    {
-        CP_RECORD_STAT(file, buf, tm1, tm2);
-    }
+    CP_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
     CP_UNLOCK();
 
     return(ret);
@@ -732,7 +735,6 @@ int DARSHAN_DECL(__xstat)(int vers, const char *path, struct stat *buf)
 int DARSHAN_DECL(__lxstat)(int vers, const char *path, struct stat *buf)
 {
     int ret;
-    struct darshan_file_runtime* file;
     double tm1, tm2;
 
     MAP_OR_FAIL(__lxstat);
@@ -744,11 +746,7 @@ int DARSHAN_DECL(__lxstat)(int vers, const char *path, struct stat *buf)
         return(ret);
 
     CP_LOCK();
-    file = darshan_file_by_name(path);
-    if(file)
-    {
-        CP_RECORD_STAT(file, buf, tm1, tm2);
-    }
+    CP_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
     CP_UNLOCK();
 
     return(ret);
