@@ -448,7 +448,9 @@ void darshan_shutdown(int timing_flag)
          * work in statically compiled binaries.
          */
 
+#ifndef DARSHAN_DISABLE_CUSERID
         cuserid(cuser);
+#endif
 
         /* if cuserid() didn't work, then check the environment */
         if (strcmp(cuser, "") == 0)

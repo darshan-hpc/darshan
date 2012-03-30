@@ -6,6 +6,9 @@
 /* Name of the environment variable that stores the jobid */
 #undef CP_JOBID
 
+/* Define if cuserid() should be disabled */
+#undef DARSHAN_DISABLE_CUSERID
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 

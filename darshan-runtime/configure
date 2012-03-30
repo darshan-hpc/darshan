@@ -663,6 +663,7 @@ ac_user_opts='
 enable_option_checking
 with_zlib_for_mpi
 with_zlib
+enable_cuserid
 enable_ld_preload
 with_mem_align
 with_log_path_by_env
@@ -1290,6 +1291,7 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --disable-cuserid       Disables attempted use of cuserid() at run time
   --disable-ld-preload    Disables support for LD_PRELOAD library
 
 Optional Packages:
@@ -3596,6 +3598,17 @@ $as_echo "failed" >&6; }
         fi
 fi
 
+
+
+# Check whether --enable-cuserid was given.
+if test "${enable_cuserid+set}" = set; then :
+  enableval=$enable_cuserid; if test "x$enableval" = "xno" ; then
+
+$as_echo "#define DARSHAN_DISABLE_CUSERID 1" >>confdefs.h
+,
+fi
+
+fi
 
 
 # Check whether --enable-ld-preload was given.
