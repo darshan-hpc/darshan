@@ -437,12 +437,34 @@ void darshan_shutdown(int timing_flag)
         start_time_tmp += final_job->log_job.start_time;
         my_tm = localtime(&start_time_tmp);
 
-        /* note: getpwuid() causes link errors for static binaries */
+        /* get the username for this job.  In order we will try each of the
+         * following until one of them succeeds:
+         *
+         * - cuserid()
+         * - getenv("LOGNAME")
+         * - snprintf(..., geteuid());
+         *
+         * Note that we do not use getpwuid() because it generally will not
+         * work in statically compiled binaries.
+         */
+
         cuserid(cuser);
+
+        /* if cuserid() didn't work, then check the environment */
         if (strcmp(cuser, "") == 0)
         {
-            /* if node config is wrong, cuserid can return an empty string
-               this is backup in case that happens. */
+            char* logname_string;
+            logname_string = getenv("LOGNAME");
+            if(logname_string)
+            {
+                strncpy(cuser, logname_string, (L_cuserid-1));
+            }
+
+        }
+
+        /* if cuserid() and environment both fail, then fall back to uid */
+        if (strcmp(cuser, "") == 0)
+        {
             uid_t uid = geteuid();
             snprintf(cuser, sizeof(cuser), "%u", uid);
         }
