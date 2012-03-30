@@ -216,7 +216,7 @@ module swap PrgEnv-pgi PrgEnv-gnu
 ./configure --with-mem-align=8 \
  --with-log-path=/lustre/beagle/carns/darshan-logs \
  --prefix=/home/carns/working/darshan/releases/install-darshan-2.2.0-pre1 \
- --with-jobid-env=PBS_JOBID CC=cc
+ --with-jobid-env=PBS_JOBID --disable-cuserid CC=cc
 module swap PrgEnv-gnu PrgEnv-pgi 
 ----
 
@@ -230,6 +230,14 @@ site documentation for details.
 
 The job ID is set to `PBS_JOBID` for use with a Torque or PBS based scheduler.
 The `CC` variable is configured to point the standard MPI compiler.
+
+The --disable-cuserid argument is used to prevent Darshan from attempting to
+use the cuserid() function to retrieve the user name associated with a job.
+Darshan automatically falls back to other methods if this function fails,
+but on some Cray environments (notably the Beagle XE6 system as of March 2012)
+the cuserid() call triggers a segmentation fault.  With this option set,
+Darshan will typically use the LOGNAME environment variable to determine a
+userid.
 ====
 
 The darshan-runtime package does not provide scripts or wrappers to use
