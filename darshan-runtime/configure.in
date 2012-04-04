@@ -231,4 +231,5 @@ darshan-mk-log-dirs.pl
 darshan-gen-cc.pl
 darshan-gen-cxx.pl
 darshan-gen-fortran.pl
+darshan-config
 )

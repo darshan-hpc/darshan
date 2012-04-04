@@ -98,6 +98,7 @@ endif
 	install -m 755 darshan-gen-cc.pl $(bindir)
 	install -m 755 darshan-gen-cxx.pl $(bindir)
 	install -m 755 darshan-gen-fortran.pl $(bindir)
+	install -m 755 darshan-config $(bindir)
 
 clean::
 	rm -f *.o *.a lib/*.o lib/*.po lib/*.a lib/*.so 

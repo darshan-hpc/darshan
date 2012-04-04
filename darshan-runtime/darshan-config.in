@@ -1,0 +1,37 @@
+#!/bin/sh
+
+CP_WRAPPERS="@CP_WRAPPERS@"
+DARSHAN_LIB_PATH="@darshan_lib_path@"
+DARSHAN_LD_FLAGS="@LDFLAGS@"
+
+PRE_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -ldarshan-mpi-io -lz $CP_WRAPPERS"
+POST_LD_FLAGS="-L$DARSHAN_LIB_PATH -ldarshan-posix"
+
+usage="\
+Usage: darshan-config [--pre-ld-flags] [--post-ld-flags]"
+
+if test $# -eq 0; then
+      echo "${usage}" 1>&2
+      exit 1
+fi
+
+while test $# -gt 0; do
+  case "$1" in
+  -*=*) optarg=`echo "$1" | sed 's/[-_a-zA-Z0-9]*=//'` ;;
+  *) optarg= ;;
+  esac
+
+  case $1 in
+    --pre-ld-flags)
+      echo $PRE_LD_FLAGS
+      ;;
+    --post-ld-flags)
+      echo $POST_LD_FLAGS
+      ;;
+    *)
+      echo "${usage}" 1>&2
+      exit 1
+      ;;
+  esac
+  shift
+done
