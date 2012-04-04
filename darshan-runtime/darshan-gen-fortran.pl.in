@@ -10,9 +10,7 @@
 use Getopt::Long;
 use English;
 
-$CP_WRAPPERS="@CP_WRAPPERS@";
-$DARSHAN_LIB_PATH="@darshan_lib_path@";
-$DARSHAN_LD_FLAGS="@LDFLAGS@";
+my $PREFIX="@prefix@";
 
 my $input_file = "";
 my $output_file = "";
@@ -83,7 +81,7 @@ if(!($link_cmd =~ /(.+)\s+(foo.o -o foo)\s+(.*)/))
 }
 $FC_from_link=$1;
 $base_link_cmd_suffix="\"\$\{allargs\[\@\]\}\" $3";
-$link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" -L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS \$FMPICH -ldarshan-mpi-io -lz $CP_WRAPPERS $3 -L$DARSHAN_LIB_PATH -ldarshan-posix";
+$link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" \$FMPICH `$PREFIX/bin/darshan-config --pre-ld-flags` $3 `$PREFIX/bin/darshan-config --post-ld-flags`";
 
 # repeat the above step for the compilation command line
 if(!($compile_cmd =~ /(.+)\s+(-c foo.c)\s+(.*)/))
