@@ -81,6 +81,9 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
         if(file && (file->hid == -1))
         {
             file->hid = ret;
+            if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
+                CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
+                PMPI_Wtime());
             CP_INC(file, CP_HDF5_OPENS, 1);
             hash_index = file->hid & CP_HASH_MASK;
             file->hid_prev = NULL;
@@ -124,6 +127,9 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
         if(file && (file->hid == -1))
         {
             file->hid = ret;
+            if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
+                CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
+                PMPI_Wtime());
             CP_INC(file, CP_HDF5_OPENS, 1);
             hash_index = file->hid & CP_HASH_MASK;
             file->hid_prev = NULL;
@@ -156,6 +162,7 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     if(file)
     {
         file->hid = -1;
+        CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, PMPI_Wtime());
         if(file->hid_prev == NULL)
         {
             /* head of hid hash table list */
