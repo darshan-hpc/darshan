@@ -1479,8 +1479,11 @@ static void darshan_file_reduce(void* infile_v,
                 inoutfile->counters[j];
         }
 
-        /* pick one */
-        tmp_file.counters[CP_MODE] = infile->counters[CP_MODE];
+        /* pick one, favoring complete records if available */
+        if(CP_FILE_PARTIAL(infile))
+            tmp_file.counters[CP_MODE] = inoutfile->counters[CP_MODE];
+        else
+            tmp_file.counters[CP_MODE] = infile->counters[CP_MODE];
 
 
         /* sum */
@@ -1506,8 +1509,12 @@ static void darshan_file_reduce(void* infile_v,
                 inoutfile->counters[j];
         }
 
-        /* pick one */
-        tmp_file.counters[CP_MEM_ALIGNMENT] = infile->counters[CP_MEM_ALIGNMENT];
+        /* pick one, favoring complete records if available */
+        if(CP_FILE_PARTIAL(infile))
+            tmp_file.counters[CP_MEM_ALIGNMENT] = inoutfile->counters[CP_MEM_ALIGNMENT];
+        else
+            tmp_file.counters[CP_MEM_ALIGNMENT] = infile->counters[CP_MEM_ALIGNMENT];
+
         /* sum */
         for(j=CP_FILE_NOT_ALIGNED; j<=CP_FILE_NOT_ALIGNED; j++)
         {
@@ -1515,8 +1522,11 @@ static void darshan_file_reduce(void* infile_v,
                 inoutfile->counters[j];
         }
 
-        /* pick one */
-        tmp_file.counters[CP_FILE_ALIGNMENT] = infile->counters[CP_FILE_ALIGNMENT];
+        /* pick one, favoring complete records if available */
+        if(CP_FILE_PARTIAL(infile))
+            tmp_file.counters[CP_FILE_ALIGNMENT] = inoutfile->counters[CP_FILE_ALIGNMENT];
+        else
+            tmp_file.counters[CP_FILE_ALIGNMENT] = infile->counters[CP_FILE_ALIGNMENT];
         
         /* skip CP_MAX_*_TIME_SIZE; handled in floating point section */
 
@@ -1590,10 +1600,10 @@ static void darshan_file_reduce(void* infile_v,
                 inoutfile->counters[j+4], 1, CP_ACCESS1_ACCESS, CP_ACCESS1_COUNT);
         }
 
-        /* min */
+        /* min non-zero (if available) value */
         for(j=CP_F_OPEN_TIMESTAMP; j<=CP_F_WRITE_START_TIMESTAMP; j++)
         {
-            if(infile->fcounters[j] > inoutfile->fcounters[j])
+            if(infile->fcounters[j] > inoutfile->fcounters[j] && inoutfile->fcounters[j] > 0)
                 tmp_file.fcounters[j] = inoutfile->fcounters[j];
             else
                 tmp_file.fcounters[j] = infile->fcounters[j];
@@ -1648,7 +1658,7 @@ static void darshan_file_reduce(void* infile_v,
                 inoutfile->counters[CP_MAX_READ_TIME_SIZE];
         }
 
-        /* min */
+        /* min (zeroes are ok here; some procs don't do I/O) */
         if(infile->fcounters[CP_F_FASTEST_RANK_TIME] <
            inoutfile->fcounters[CP_F_FASTEST_RANK_TIME])
         {
@@ -1690,11 +1700,23 @@ static void darshan_file_reduce(void* infile_v,
                 inoutfile->fcounters[CP_F_SLOWEST_RANK_TIME];
         }
 
-        /* pick one device id and file size */
-        tmp_file.counters[CP_DEVICE] = infile->counters[CP_DEVICE];
-        tmp_file.counters[CP_SIZE_AT_OPEN] = infile->counters[CP_SIZE_AT_OPEN];
+        /* pick one device id and file size, favoring complete records if
+         * available
+         */
+        if(CP_FILE_PARTIAL(infile))
+        {
+            tmp_file.counters[CP_DEVICE] = inoutfile->counters[CP_DEVICE];
+            tmp_file.counters[CP_SIZE_AT_OPEN] = inoutfile->counters[CP_SIZE_AT_OPEN];
+        }
+        else
+        {
+            tmp_file.counters[CP_DEVICE] = infile->counters[CP_DEVICE];
+            tmp_file.counters[CP_SIZE_AT_OPEN] = infile->counters[CP_SIZE_AT_OPEN];
+        }
 
-        /* pick one name suffix */
+        /* pick one name suffix (every file record should have this, whether
+         * it is a partial record or not
+         */
         strcpy(tmp_file.name_suffix, infile->name_suffix);
 
         *inoutfile = tmp_file;
