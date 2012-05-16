@@ -558,14 +558,15 @@ void accum_file(struct darshan_file *dfile,
         case CP_MODE:
         case CP_MEM_ALIGNMENT:
         case CP_FILE_ALIGNMENT:
-            hfile->counters[i] = dfile->counters[i];
+            if(CP_FILE_PARTIAL(hfile))
+                hfile->counters[i] = dfile->counters[i];
             break;
         case CP_SIZE_AT_OPEN:
             if (hfile->counters[i] == -1)
             {
                 hfile->counters[i] = dfile->counters[i];
             }
-            if (hfile->counters[i] > dfile->counters[i])
+            if (hfile->counters[i] > dfile->counters[i] && !CP_FILE_PARTIAL(dfile))
             {
                 hfile->counters[i] = dfile->counters[i];
             }
