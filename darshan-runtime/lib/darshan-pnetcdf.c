@@ -77,7 +77,9 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
         if(file && (file->ncid == -1))
         {
             file->ncid = *ncidp;
-
+            if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
+                CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
+                PMPI_Wtime());
             PMPI_Comm_size(comm, &comm_size);
             if(comm_size == 1)
             {
@@ -131,7 +133,9 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
         if(file && (file->ncid == -1))
         {
             file->ncid = *ncidp;
-
+            if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
+                CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
+                PMPI_Wtime());
             PMPI_Comm_size(comm, &comm_size);
             if(comm_size == 1)
             {
@@ -172,6 +176,7 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
     if(file)
     {
         file->ncid = -1;
+        CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, PMPI_Wtime());
         if(file->ncid_prev == NULL)
         {
             /* head of ncid hash table list */
