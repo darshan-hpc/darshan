@@ -273,7 +273,8 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     file->fd = __ret; \
     if(!CP_VALUE(file, CP_FILE_ALIGNMENT)){ \
         char* __tmp_path = strdup(__path); \
-        if(__tmp_path && stat64(__tmp_path, &cp_stat_buf) == 0) {\
+        char* __parent = dirname(__tmp_path); \
+        if(__parent && stat64(__parent, &cp_stat_buf) == 0) {\
             CP_SET(file, CP_DEVICE, cp_stat_buf.st_dev); \
             CP_SET(file, CP_FILE_ALIGNMENT, cp_stat_buf.st_blksize); \
             CP_SET(file, CP_SIZE_AT_OPEN, cp_stat_buf.st_size); \
