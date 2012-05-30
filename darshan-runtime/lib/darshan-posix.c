@@ -18,6 +18,7 @@
 #include <sys/mman.h>
 #include <search.h>
 #include <assert.h>
+#include <libgen.h>
 #define __USE_GNU
 #include <pthread.h>
 
@@ -271,11 +272,13 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     if(file->fd != -1) break; /* TODO: handle multiple concurrent opens */ \
     file->fd = __ret; \
     if(!CP_VALUE(file, CP_FILE_ALIGNMENT)){ \
-        if(fstat64(file->fd, &cp_stat_buf) == 0) {\
+        char* __tmp_path = strdup(__path); \
+        if(__tmp_path && stat64(__tmp_path, &cp_stat_buf) == 0) {\
             CP_SET(file, CP_DEVICE, cp_stat_buf.st_dev); \
             CP_SET(file, CP_FILE_ALIGNMENT, cp_stat_buf.st_blksize); \
             CP_SET(file, CP_SIZE_AT_OPEN, cp_stat_buf.st_size); \
         }\
+        if(__tmp_path) free(__tmp_path); \
     }\
     file->log_file->rank = my_rank; \
     if(__mode) \
