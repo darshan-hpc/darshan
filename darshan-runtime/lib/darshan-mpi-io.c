@@ -201,6 +201,7 @@ static int darshan_file_variance(
     int count, int rank);
 static void pairwise_variance_reduce (
     void *invec, void *inoutvec, int *len, MPI_Datatype *dt);
+static void debug_mounts(const char* mtab_file, const char* out_file);
 
 
 #define CP_MAX_MNTS 32
@@ -2369,6 +2370,47 @@ static void cp_log_record_hints(struct darshan_job_runtime* final_job, int rank)
     }
     free(header_hints);
 
+    return;
+}
+
+static void debug_mounts(const char* mtab_file, const char* out_file)
+{
+    FILE* tab;
+    struct mntent *entry;
+    int ret;
+    struct stat statbuf;
+    char tmp_mnt[256];
+    FILE* out;
+
+    out = fopen(out_file, "w");
+    if(!out)
+    {
+        perror("darshan: fopen");
+        return;
+    }
+
+    tab = setmntent(mtab_file, "r");
+    if(!tab)
+    {
+        perror("darshan: setmnt");
+        return;
+    }
+
+    while((entry = getmntent(tab)) != NULL)
+    {
+        ret = stat(entry->mnt_dir, &statbuf);
+        if(ret == 0)
+        {
+            int64_t tmp_st_dev = statbuf.st_dev;
+
+            fprintf(out, "%" PRId64 "\t%s\t%s\n", tmp_st_dev, 
+                entry->mnt_type, entry->mnt_dir);
+        }
+        else
+        {
+            perror("darshan: stat");
+        }
+    }
     return;
 }
 
