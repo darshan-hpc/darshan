@@ -255,6 +255,24 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     CP_INC(__file, CP_POSIX_STATS, 1); \
 } while(0)
 
+static inline dev_t get_device(const char* path, struct stat64* statbuf)
+{
+    dev_t device = 0;
+
+#ifdef __CP_ST_DEV_WORKAROUND
+    struct stat64 dirstat;
+    char* tmp_path = strdup(path);
+    char* parent = dirname(tmp_path);
+    if(parent && stat64(parent, &dirstat) == 0)
+        device = dirstat.st_dev;
+    if(tmp_path) free(tmp_path);
+#else
+    device = statbuf->st_dev;
+#endif
+
+    return(device);
+}
+
 #define CP_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
     struct darshan_file_runtime* file; \
     char* exclude; \
@@ -272,14 +290,11 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,  
     if(file->fd != -1) break; /* TODO: handle multiple concurrent opens */ \
     file->fd = __ret; \
     if(!CP_VALUE(file, CP_FILE_ALIGNMENT)){ \
-        char* __tmp_path = strdup(__path); \
-        char* __parent = dirname(__tmp_path); \
-        if(__parent && stat64(__parent, &cp_stat_buf) == 0) {\
-            CP_SET(file, CP_DEVICE, cp_stat_buf.st_dev); \
+        if(stat64(__path, &cp_stat_buf) == 0) { \
+            CP_SET(file, CP_DEVICE, get_device(__path, &cp_stat_buf)); \
             CP_SET(file, CP_FILE_ALIGNMENT, cp_stat_buf.st_blksize); \
             CP_SET(file, CP_SIZE_AT_OPEN, cp_stat_buf.st_size); \
         }\
-        if(__tmp_path) free(__tmp_path); \
     }\
     file->log_file->rank = my_rank; \
     if(__mode) \
