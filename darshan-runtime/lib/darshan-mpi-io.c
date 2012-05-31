@@ -249,7 +249,6 @@ void darshan_shutdown(int timing_flag)
     char* logfile_name;
     struct darshan_job_runtime* final_job;
     double start_log_time = 0;
-    int flags;
     int all_ret = 0;
     int local_ret = 0;
     MPI_Offset next_offset = 0;
@@ -287,7 +286,6 @@ void darshan_shutdown(int timing_flag)
      */
     final_job = darshan_global_job;
     darshan_global_job = NULL;
-    flags = final_job->flags;
     CP_UNLOCK();
 
     start_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
@@ -2379,7 +2377,6 @@ static void debug_mounts(const char* mtab_file, const char* out_file)
     struct mntent *entry;
     int ret;
     struct stat statbuf;
-    char tmp_mnt[256];
     FILE* out;
 
     out = fopen(out_file, "w");
