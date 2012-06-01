@@ -74,6 +74,12 @@ struct darshan_file_runtime
     int64_t last_byte_written;
     int64_t offset;
     enum cp_io_type last_io_type;
+    double last_posix_write_end;
+    double last_mpi_write_end;
+    double last_posix_read_end;
+    double last_mpi_read_end;
+    double last_posix_meta_end;
+    double last_mpi_meta_end;
 };
 
 /* handles used by various APIs to refer to files */
@@ -131,6 +137,15 @@ extern pthread_mutex_t cp_mutex;
 
 #define CP_F_INC(__file, __counter, __value) do {\
     (__file)->log_file->fcounters[__counter] += __value; \
+} while(0)
+
+#define CP_F_INC_NO_OVERLAP(__file, __tm1, __tm2, __last, __counter) do { \
+    if(__tm1 > __last) \
+        CP_F_INC(__file, __counter, (__tm2-__tm1)); \
+    else \
+        CP_F_INC(__file, __counter, (__tm2 - __last)); \
+    if(__tm2 > __last) \
+        __last = __tm2; \
 } while(0)
 
 #define CP_VALUE(__file, __counter) \

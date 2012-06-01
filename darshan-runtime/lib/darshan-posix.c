@@ -176,7 +176,7 @@ static struct darshan_file_runtime* darshan_file_by_name_setfd(const char* name,
     if(file->last_io_type == CP_READ) \
         CP_INC(file, CP_RW_SWITCHES, 1); \
     file->last_io_type = CP_WRITE; \
-    CP_F_INC(file, CP_F_POSIX_WRITE_TIME, (__elapsed)); \
+    CP_F_INC_NO_OVERLAP(file, __tm1, __tm2, file->last_posix_write_end, CP_F_POSIX_WRITE_TIME); \
     if(CP_F_VALUE(file, CP_F_WRITE_START_TIMESTAMP) == 0) \
         CP_F_SET(file, CP_F_WRITE_START_TIMESTAMP, __tm1); \
     CP_F_SET(file, CP_F_WRITE_END_TIMESTAMP, __tm2); \
@@ -226,7 +226,7 @@ static struct darshan_file_runtime* darshan_file_by_name_setfd(const char* name,
     if(file->last_io_type == CP_WRITE) \
         CP_INC(file, CP_RW_SWITCHES, 1); \
     file->last_io_type = CP_READ; \
-    CP_F_INC(file, CP_F_POSIX_READ_TIME, (__elapsed)); \
+    CP_F_INC_NO_OVERLAP(file, __tm1, __tm2, file->last_posix_read_end, CP_F_POSIX_READ_TIME); \
     if(CP_F_VALUE(file, CP_F_READ_START_TIMESTAMP) == 0) \
         CP_F_SET(file, CP_F_READ_START_TIMESTAMP, __tm1); \
     CP_F_SET(file, CP_F_READ_END_TIMESTAMP, __tm2); \
@@ -260,7 +260,7 @@ static struct darshan_file_runtime* darshan_file_by_name_setfd(const char* name,
         CP_SET((__file), CP_SIZE_AT_OPEN, (__statbuf)->st_size); \
     }\
     (__file)->log_file->rank = my_rank; \
-    CP_F_INC(__file, CP_F_POSIX_META_TIME, (__tm2-__tm1)); \
+    CP_F_INC_NO_OVERLAP(file, __tm1, __tm2, file->last_posix_meta_end, CP_F_POSIX_META_TIME); \
     CP_INC(__file, CP_POSIX_STATS, 1); \
 } while(0)
 
@@ -314,7 +314,7 @@ static inline dev_t get_device(const char* path, struct stat64* statbuf)
         CP_INC(file, CP_POSIX_OPENS, 1); \
     if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0) \
         CP_F_SET(file, CP_F_OPEN_TIMESTAMP, posix_wtime()); \
-    CP_F_INC(file, CP_F_POSIX_META_TIME, (__tm2-__tm1)); \
+    CP_F_INC_NO_OVERLAP(file, __tm1, __tm2, file->last_posix_meta_end, CP_F_POSIX_META_TIME); \
 } while (0)
 
 int DARSHAN_DECL(close)(int fd)
@@ -337,7 +337,7 @@ int DARSHAN_DECL(close)(int fd)
         file->last_byte_written = 0;
         file->last_byte_read = 0;
         CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, posix_wtime());
-        CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
+        CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_posix_meta_end, CP_F_POSIX_META_TIME);
         darshan_file_close_fd(tmp_fd);
     }
     CP_UNLOCK();
@@ -365,7 +365,7 @@ int DARSHAN_DECL(fclose)(FILE *fp)
         file->last_byte_written = 0;
         file->last_byte_read = 0;
         CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, posix_wtime());
-        CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
+        CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_posix_meta_end, CP_F_POSIX_META_TIME);
         darshan_file_close_fd(tmp_fd);
     }
     CP_UNLOCK();
@@ -393,7 +393,7 @@ int DARSHAN_DECL(fsync)(int fd)
     file = darshan_file_by_fd(fd);
     if(file)
     {
-        CP_F_INC(file, CP_F_POSIX_WRITE_TIME, (tm2-tm1));
+        CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_posix_write_end, CP_F_POSIX_WRITE_TIME); \
         CP_INC(file, CP_POSIX_FSYNCS, 1);
     }
     CP_UNLOCK();
@@ -419,7 +419,7 @@ int DARSHAN_DECL(fdatasync)(int fd)
     file = darshan_file_by_fd(fd);
     if(file)
     {
-        CP_F_INC(file, CP_F_POSIX_WRITE_TIME, (tm2-tm1));
+        CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_posix_write_end, CP_F_POSIX_WRITE_TIME); \
         CP_INC(file, CP_POSIX_FDSYNCS, 1);
     }
     CP_UNLOCK();
@@ -995,7 +995,7 @@ off64_t DARSHAN_DECL(lseek64)(int fd, off64_t offset, int whence)
         if(file)
         {
             file->offset = ret;
-            CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
+            CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_posix_meta_end, CP_F_POSIX_META_TIME);
             CP_INC(file, CP_POSIX_SEEKS, 1);
         }
         CP_UNLOCK();
@@ -1021,7 +1021,7 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
         if(file)
         {
             file->offset = ret;
-            CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
+            CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_posix_meta_end, CP_F_POSIX_META_TIME);
             CP_INC(file, CP_POSIX_SEEKS, 1);
         }
         CP_UNLOCK();
@@ -1047,7 +1047,7 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
         if(file)
         {
             file->offset = ret;
-            CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
+            CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_posix_meta_end, CP_F_POSIX_META_TIME);
             CP_INC(file, CP_POSIX_FSEEKS, 1);
         }
         CP_UNLOCK();

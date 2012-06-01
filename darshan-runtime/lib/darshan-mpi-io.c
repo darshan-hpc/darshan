@@ -152,7 +152,7 @@ extern char* __progname;
     CP_BUCKET_INC(file, CP_EXTENT_WRITE_0_100, extent); \
     CP_INC(file, __counter, 1); \
     CP_DATATYPE_INC(file, __datatype); \
-    CP_F_INC(file, CP_F_MPI_WRITE_TIME, (__tm2-__tm1)); \
+    CP_F_INC_NO_OVERLAP(file, __tm1, __tm2, file->last_mpi_write_end, CP_F_MPI_WRITE_TIME); \
     if(CP_F_VALUE(file, CP_F_WRITE_START_TIMESTAMP) == 0) \
         CP_F_SET(file, CP_F_WRITE_START_TIMESTAMP, __tm1); \
     CP_F_SET(file, CP_F_WRITE_END_TIMESTAMP, __tm2); \
@@ -172,7 +172,7 @@ extern char* __progname;
     CP_BUCKET_INC(file, CP_EXTENT_READ_0_100, extent); \
     CP_INC(file, __counter, 1); \
     CP_DATATYPE_INC(file, __datatype); \
-    CP_F_INC(file, CP_F_MPI_READ_TIME, (__tm2-__tm1)); \
+    CP_F_INC_NO_OVERLAP(file, __tm1, __tm2, file->last_mpi_read_end, CP_F_MPI_READ_TIME); \
     if(CP_F_VALUE(file, CP_F_READ_START_TIMESTAMP) == 0) \
         CP_F_SET(file, CP_F_READ_START_TIMESTAMP, __tm1); \
     CP_F_SET(file, CP_F_READ_END_TIMESTAMP, __tm2); \
@@ -721,7 +721,7 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
         if(file)
         {
             CP_SET(file, CP_MODE, amode);
-            CP_F_INC(file, CP_F_MPI_META_TIME, (tm2-tm1));
+            CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_mpi_meta_end, CP_F_MPI_META_TIME);
             if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
                 CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
                 DARSHAN_MPI_CALL(PMPI_Wtime)());
@@ -762,7 +762,7 @@ int MPI_File_close(MPI_File *fh)
     if(file)
     {
         CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, DARSHAN_MPI_CALL(PMPI_Wtime)());
-        CP_F_INC(file, CP_F_MPI_META_TIME, (tm2-tm1));
+        CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_mpi_meta_end, CP_F_MPI_META_TIME);
         darshan_file_close_fh(tmp_fh);
     }
     CP_UNLOCK();
@@ -785,7 +785,8 @@ int MPI_File_sync(MPI_File fh)
         file = darshan_file_by_fh(fh);
         if(file)
         {
-            CP_F_INC(file, CP_F_MPI_WRITE_TIME, (tm2-tm1));
+            fprintf(stderr, "FOO: BOOM.\n");
+            CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_mpi_write_end, CP_F_MPI_WRITE_TIME);
             CP_INC(file, CP_SYNCS, 1);
         }
         CP_UNLOCK();
@@ -815,7 +816,7 @@ int MPI_File_set_view(MPI_File fh, MPI_Offset disp, MPI_Datatype etype,
             CP_INC(file, CP_VIEWS, 1);
             if(info != MPI_INFO_NULL)
             {
-                CP_F_INC(file, CP_F_MPI_META_TIME, (tm2-tm1));
+                CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_mpi_meta_end, CP_F_MPI_META_TIME);
                 CP_INC(file, CP_HINTS, 1);
             }
             CP_DATATYPE_INC(file, filetype);
