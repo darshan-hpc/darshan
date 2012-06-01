@@ -126,6 +126,15 @@ static double posix_wtime(void);
 
 static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,     enum cp_counter_type type);
 
+static struct darshan_file_ref* ref_by_handle(
+    const void* handle,
+    int handle_sz,
+    enum darshan_handle_type handle_type);
+
+static struct darshan_file_runtime* darshan_file_by_fd(int fd);
+static void darshan_file_close_fd(int fd);
+static struct darshan_file_runtime* darshan_file_by_name_setfd(const char* name, int fd);
+
 #define CP_RECORD_WRITE(__ret, __fd, __count, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
     size_t stride; \
     int64_t this_offset; \
@@ -277,7 +286,6 @@ static inline dev_t get_device(const char* path, struct stat64* statbuf)
     struct darshan_file_runtime* file; \
     char* exclude; \
     int tmp_index = 0; \
-    int hash_index; \
     if(__ret < 0) break; \
     while((exclude = exclusions[tmp_index])) { \
         if(!(strncmp(exclude, __path, strlen(exclude)))) \
@@ -285,10 +293,8 @@ static inline dev_t get_device(const char* path, struct stat64* statbuf)
         tmp_index++; \
     } \
     if(exclude) break; \
-    file = darshan_file_by_name(__path); \
+    file = darshan_file_by_name_setfd(__path, __ret); \
     if(!file) break; \
-    if(file->fd != -1) break; /* TODO: handle multiple concurrent opens */ \
-    file->fd = __ret; \
     if(!CP_VALUE(file, CP_FILE_ALIGNMENT)){ \
         if(stat64(__path, &cp_stat_buf) == 0) { \
             CP_SET(file, CP_DEVICE, get_device(__path, &cp_stat_buf)); \
@@ -309,18 +315,11 @@ static inline dev_t get_device(const char* path, struct stat64* statbuf)
     if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0) \
         CP_F_SET(file, CP_F_OPEN_TIMESTAMP, posix_wtime()); \
     CP_F_INC(file, CP_F_POSIX_META_TIME, (__tm2-__tm1)); \
-    hash_index = file->fd & CP_HASH_MASK; \
-    file->fd_prev = NULL; \
-    file->fd_next = darshan_global_job->fd_table[hash_index]; \
-    if(file->fd_next) \
-        file->fd_next->fd_prev = file; \
-    darshan_global_job->fd_table[hash_index] = file; \
 } while (0)
 
 int DARSHAN_DECL(close)(int fd)
 {
     struct darshan_file_runtime* file;
-    int hash_index;
     int tmp_fd = fd;
     double tm1, tm2;
     int ret;
@@ -335,29 +334,11 @@ int DARSHAN_DECL(close)(int fd)
     file = darshan_file_by_fd(tmp_fd);
     if(file)
     {
-        file->fd = -1;
         file->last_byte_written = 0;
         file->last_byte_read = 0;
         CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, posix_wtime());
         CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
-        if(file->fd_prev == NULL)
-        {
-            /* head of fd hash table list */
-            hash_index = tmp_fd & CP_HASH_MASK;
-            darshan_global_job->fd_table[hash_index] = file->fd_next;
-            if(file->fd_next)
-                file->fd_next->fd_prev = NULL;
-        }
-        else
-        {
-            if(file->fd_prev)
-                file->fd_prev->fd_next = file->fd_next;
-            if(file->fd_next)
-                file->fd_next->fd_prev = file->fd_prev;
-        }
-        file->fd_prev = NULL;
-        file->fd_next = NULL;
-        darshan_global_job->darshan_mru_file = file; /* in case we open it again */
+        darshan_file_close_fd(tmp_fd);
     }
     CP_UNLOCK();
 
@@ -367,7 +348,6 @@ int DARSHAN_DECL(close)(int fd)
 int DARSHAN_DECL(fclose)(FILE *fp)
 {
     struct darshan_file_runtime* file;
-    int hash_index;
     int tmp_fd = fileno(fp);
     double tm1, tm2;
     int ret;
@@ -382,29 +362,11 @@ int DARSHAN_DECL(fclose)(FILE *fp)
     file = darshan_file_by_fd(tmp_fd);
     if(file)
     {
-        file->fd = -1;
         file->last_byte_written = 0;
         file->last_byte_read = 0;
         CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, posix_wtime());
         CP_F_INC(file, CP_F_POSIX_META_TIME, (tm2-tm1));
-        if(file->fd_prev == NULL)
-        {
-            /* head of fd hash table list */
-            hash_index = tmp_fd & CP_HASH_MASK;
-            darshan_global_job->fd_table[hash_index] = file->fd_next;
-            if(file->fd_next)
-                file->fd_next->fd_prev = NULL;
-        }
-        else
-        {
-            if(file->fd_prev)
-                file->fd_prev->fd_next = file->fd_next;
-            if(file->fd_next)
-                file->fd_next->fd_prev = file->fd_prev;
-        }
-        file->fd_prev = NULL;
-        file->fd_next = NULL;
-        darshan_global_job->darshan_mru_file = file; /* in case we open it again */
+        darshan_file_close_fd(tmp_fd);
     }
     CP_UNLOCK();
 
@@ -1171,10 +1133,6 @@ void darshan_initialize(int argc, char** argv,  int nprocs, int rank)
     {
         darshan_global_job->file_runtime_array[i].log_file = 
             &darshan_global_job->file_array[i];
-        darshan_global_job->file_runtime_array[i].fd = -1;
-        darshan_global_job->file_runtime_array[i].ncid = -1;
-        darshan_global_job->file_runtime_array[i].hid = -1;
-        darshan_global_job->file_runtime_array[i].fh = MPI_FILE_NULL;
     }
 
     strcpy(darshan_global_job->log_job.version_string, CP_VERSION);
@@ -1307,124 +1265,32 @@ void darshan_condense(void)
 
     /* clear hash tables for safety */
     memset(darshan_global_job->name_table, 0, CP_HASH_SIZE*sizeof(struct darshan_file_runtime*));
-    memset(darshan_global_job->fd_table, 0, CP_HASH_SIZE*sizeof(struct darshan_file_runtime*));
-    memset(darshan_global_job->fh_table, 0, CP_HASH_SIZE*sizeof(struct darshan_file_runtime*));
+    memset(darshan_global_job->handle_table, 0, CP_HASH_SIZE*sizeof(*darshan_global_job->handle_table));
     
     return;
 }
 
-struct darshan_file_runtime* darshan_file_by_name(const char* name)
+static struct darshan_file_runtime* darshan_file_by_name_setfd(const char* name, int fd)
 {
     struct darshan_file_runtime* tmp_file;
-    uint64_t tmp_hash = 0;
-    char* suffix_pointer;
-    int hash_index;
 
-    if(!darshan_global_job)
-        return(NULL);
-
-    /* if we have already condensed the data, then just hand the first file
-     * back
-     */
-    if(darshan_global_job->flags & CP_FLAG_CONDENSED)
-    {
-        return(&darshan_global_job->file_runtime_array[0]);
-    }
-
-    tmp_hash = darshan_hash((void*)name, strlen(name), 0);
-
-    /* check most recently used */
-    if(darshan_global_job->darshan_mru_file && darshan_global_job->darshan_mru_file->log_file->hash == tmp_hash)
-    {
-        return(darshan_global_job->darshan_mru_file);
-    }
-
-    /* search hash table */
-    hash_index = tmp_hash & CP_HASH_MASK;
-    tmp_file = darshan_global_job->name_table[hash_index];
-    while(tmp_file)
-    {
-        if(tmp_file->log_file->hash == tmp_hash)
-        {
-            darshan_global_job->darshan_mru_file = tmp_file;
-            return(tmp_file);
-        }
-        tmp_file = tmp_file->name_next;
-    }
-
-    /* see if we need to condense */
-    if(darshan_global_job->file_count >= CP_MAX_FILES)
-    {
-        darshan_condense();
-        return(&darshan_global_job->file_runtime_array[0]);
-    }
-
-    /* new, unique file */
-    tmp_file = &darshan_global_job->file_runtime_array[darshan_global_job->file_count];
-
-    CP_SET(tmp_file, CP_MEM_ALIGNMENT, darshan_mem_alignment);
-    tmp_file->log_file->hash = tmp_hash;
-
-    /* record last N characters of file name too */
-    suffix_pointer = (char*)name;
-    if(strlen(name) > CP_NAME_SUFFIX_LEN)
-    {
-        suffix_pointer += (strlen(name) - CP_NAME_SUFFIX_LEN);
-    }
-    strcpy(tmp_file->log_file->name_suffix, suffix_pointer); 
-
-    darshan_global_job->file_count++;
-
-    /* put into hash table, head of list at that index */
-    tmp_file->name_prev = NULL;
-    tmp_file->name_next = darshan_global_job->name_table[hash_index];
-    if(tmp_file->name_next)
-        tmp_file->name_next->name_prev = tmp_file;
-    darshan_global_job->name_table[hash_index] = tmp_file;
-
-    darshan_global_job->darshan_mru_file = tmp_file;
+    tmp_file = darshan_file_by_name_sethandle(name, &fd, sizeof(fd), DARSHAN_FD);
     return(tmp_file);
 }
 
-struct darshan_file_runtime* darshan_file_by_fd(int fd)
+static void darshan_file_close_fd(int fd)
 {
-    int hash_index;
+    darshan_file_closehandle(&fd, sizeof(fd), DARSHAN_FD);
+    return;
+}
+
+static struct darshan_file_runtime* darshan_file_by_fd(int fd)
+{
     struct darshan_file_runtime* tmp_file;
 
-    if(!darshan_global_job)
-    {
-        return(NULL);
-    }
-
-    /* if we have already condensed the data, then just hand the first file
-     * back
-     */
-    if(darshan_global_job->flags & CP_FLAG_CONDENSED)
-    {
-        return(&darshan_global_job->file_runtime_array[0]);
-    }
-
-    /* try mru first */
-    if(darshan_global_job->darshan_mru_file && darshan_global_job->darshan_mru_file->fd == fd)
-    {
-        return(darshan_global_job->darshan_mru_file);
-    }
-
-    /* search hash table */
-    /* TODO: confirm that fd as hash index is reasonable */
-    hash_index = fd & CP_HASH_MASK;
-    tmp_file = darshan_global_job->fd_table[hash_index];
-    while(tmp_file)
-    {
-        if(tmp_file->fd == fd)
-        {
-            darshan_global_job->darshan_mru_file = tmp_file;
-            return(tmp_file);
-        }
-        tmp_file = tmp_file->fd_next;
-    }
-
-    return(NULL);
+    tmp_file = darshan_file_by_handle(&fd, sizeof(fd), DARSHAN_FD);
+    
+    return(tmp_file);
 }
 
 static int access_comparison(const void* a_p, const void* b_p)
@@ -1751,6 +1617,232 @@ double darshan_wtime(void)
     
     return(posix_wtime());
 }
+
+struct darshan_file_runtime* darshan_file_by_name(const char* name)
+{
+    struct darshan_file_runtime* tmp_file;
+    uint64_t tmp_hash = 0;
+    char* suffix_pointer;
+    int hash_index;
+
+    if(!darshan_global_job)
+        return(NULL);
+
+    /* if we have already condensed the data, then just hand the first file
+     * back
+     */
+    if(darshan_global_job->flags & CP_FLAG_CONDENSED)
+    {
+        return(&darshan_global_job->file_runtime_array[0]);
+    }
+
+    tmp_hash = darshan_hash((void*)name, strlen(name), 0);
+
+    /* search hash table */
+    hash_index = tmp_hash & CP_HASH_MASK;
+    tmp_file = darshan_global_job->name_table[hash_index];
+    while(tmp_file)
+    {
+        if(tmp_file->log_file->hash == tmp_hash)
+        {
+            return(tmp_file);
+        }
+        tmp_file = tmp_file->name_next;
+    }
+
+    /* see if we need to condense */
+    if(darshan_global_job->file_count >= CP_MAX_FILES)
+    {
+        darshan_condense();
+        return(&darshan_global_job->file_runtime_array[0]);
+    }
+
+    /* new, unique file */
+    tmp_file = &darshan_global_job->file_runtime_array[darshan_global_job->file_count];
+
+    CP_SET(tmp_file, CP_MEM_ALIGNMENT, darshan_mem_alignment);
+    tmp_file->log_file->hash = tmp_hash;
+
+    /* record last N characters of file name too */
+    suffix_pointer = (char*)name;
+    if(strlen(name) > CP_NAME_SUFFIX_LEN)
+    {
+        suffix_pointer += (strlen(name) - CP_NAME_SUFFIX_LEN);
+    }
+    strcpy(tmp_file->log_file->name_suffix, suffix_pointer); 
+
+    darshan_global_job->file_count++;
+
+    /* put into hash table, head of list at that index */
+    tmp_file->name_prev = NULL;
+    tmp_file->name_next = darshan_global_job->name_table[hash_index];
+    if(tmp_file->name_next)
+        tmp_file->name_next->name_prev = tmp_file;
+    darshan_global_job->name_table[hash_index] = tmp_file;
+
+    return(tmp_file);
+}
+
+
+struct darshan_file_runtime* darshan_file_by_name_sethandle(
+    const char* name,
+    const void* handle,
+    int handle_sz,
+    enum darshan_handle_type handle_type)
+{
+    struct darshan_file_runtime* file;
+    uint64_t tmp_hash;
+    int hash_index;
+    struct darshan_file_ref* tmp_ref;
+
+    if(!darshan_global_job)
+    {
+        return(NULL);
+    }
+
+    /* find file record by name first */
+    file = darshan_file_by_name(name);
+
+    if(!file)
+        return(NULL);
+
+    /* search hash table */
+    tmp_ref = ref_by_handle(handle, handle_sz, handle_type);
+    if(tmp_ref)
+    {
+        /* we have a reference.  Make sure it points to the correct file
+         * and return it
+         */
+        tmp_ref->file = file;
+        return(file);
+    }
+
+    /* if we hit this point, then we don't have a reference for this handle
+     * in the table yet.  Add it.
+     */
+    tmp_hash = darshan_hash(handle, handle_sz, 0);
+    hash_index = tmp_hash & CP_HASH_MASK;
+    tmp_ref = malloc(sizeof(*tmp_ref));
+    if(!tmp_ref)
+        return(NULL);
+
+    memset(tmp_ref, 0, sizeof(*tmp_ref));
+    tmp_ref->file = file;
+    memcpy(tmp_ref->handle, handle, handle_sz);
+    tmp_ref->handle_sz = handle_sz;
+    tmp_ref->handle_type = handle_type;
+    tmp_ref->prev = NULL;
+    tmp_ref->next = darshan_global_job->handle_table[hash_index];
+    if(tmp_ref->next)
+        tmp_ref->next->prev = tmp_ref;
+    darshan_global_job->handle_table[hash_index] = tmp_ref;
+
+    return(file);
+}
+
+struct darshan_file_runtime* darshan_file_by_handle(
+    const void* handle,
+    int handle_sz,
+    enum darshan_handle_type handle_type)
+{   
+    struct darshan_file_ref* tmp_ref;
+
+    if(!darshan_global_job)
+    {
+        return(NULL);
+    }
+
+    tmp_ref = ref_by_handle(handle, handle_sz, handle_type);
+    if(tmp_ref)
+        return(tmp_ref->file);
+    else
+        return(NULL);
+
+    return(NULL);
+}
+
+void darshan_file_closehandle(
+    const void* handle,
+    int handle_sz,
+    enum darshan_handle_type handle_type)
+{
+    struct darshan_file_ref* tmp_ref;
+    uint64_t tmp_hash;
+    int hash_index;
+    
+    if(!darshan_global_job)
+    {
+        return;
+    }
+
+    /* search hash table */
+    tmp_hash = darshan_hash(handle, handle_sz, 0);
+    hash_index = tmp_hash & CP_HASH_MASK;
+    tmp_ref = darshan_global_job->handle_table[hash_index];
+    while(tmp_ref)
+    {
+        if(tmp_ref->handle_sz == handle_sz &&
+            tmp_ref->handle_type == handle_type &&
+            memcmp(tmp_ref->handle, handle, handle_sz) == 0)
+        {
+            /* we have a reference. */ 
+            if(!tmp_ref->prev)
+            {
+                /* head of list */
+                darshan_global_job->handle_table[hash_index] = tmp_ref->next;
+                if(tmp_ref->next)
+                    tmp_ref->next->prev = NULL;
+            }
+            else
+            {
+                /* not head of list */
+                if(tmp_ref->prev)
+                    tmp_ref->prev->next = tmp_ref->next;
+                if(tmp_ref->next)
+                    tmp_ref->next->prev = tmp_ref->prev;
+            }
+            free(tmp_ref);
+            return;
+        }
+        tmp_ref = tmp_ref->next;
+    }
+
+    return;
+}
+
+static struct darshan_file_ref* ref_by_handle(
+    const void* handle,
+    int handle_sz,
+    enum darshan_handle_type handle_type)
+{   
+    uint64_t tmp_hash;
+    int hash_index;
+    struct darshan_file_ref* tmp_ref;
+
+    if(!darshan_global_job)
+    {
+        return(NULL);
+    }
+
+    /* search hash table */
+    tmp_hash = darshan_hash(handle, handle_sz, 0);
+    hash_index = tmp_hash & CP_HASH_MASK;
+    tmp_ref = darshan_global_job->handle_table[hash_index];
+    while(tmp_ref)
+    {
+        if(tmp_ref->handle_sz == handle_sz &&
+            tmp_ref->handle_type == handle_type &&
+            memcmp(tmp_ref->handle, handle, handle_sz) == 0)
+        {
+            /* we have a reference. */ 
+            return(tmp_ref);
+        }
+        tmp_ref = tmp_ref->next;
+    }
+
+    return(NULL);
+}
+
 
 /*
  * Local variables:

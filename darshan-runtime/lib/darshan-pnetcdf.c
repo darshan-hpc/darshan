@@ -46,6 +46,8 @@ DARSHAN_FORWARD_DECL(ncmpi_open, int, (MPI_Comm comm, const char *path, int omod
 DARSHAN_FORWARD_DECL(ncmpi_close, int, (int ncid));
 
 static struct darshan_file_runtime* darshan_file_by_ncid(int ncid);
+static void darshan_file_close_ncid(int ncid);
+static struct darshan_file_runtime* darshan_file_by_name_setncid(const char* name, int ncid);
 
 int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path, 
     int cmode, MPI_Info info, int *ncidp)
@@ -54,7 +56,6 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
     struct darshan_file_runtime* file;
     char* tmp;
     int comm_size;
-    int hash_index;
 
     MAP_OR_FAIL(ncmpi_create);
 
@@ -72,11 +73,9 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
             path = tmp + 1;
         }
 
-        file = darshan_file_by_name(path);
-        /* TODO: handle the case of multiple concurrent opens */
-        if(file && (file->ncid == -1))
+        file = darshan_file_by_name_setncid(path, (*ncidp));
+        if(file)
         {
-            file->ncid = *ncidp;
             if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
                 CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
                 PMPI_Wtime());
@@ -89,13 +88,6 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
             {
                 CP_INC(file, CP_COLL_NC_OPENS, 1);
             }
-
-            hash_index = file->ncid & CP_HASH_MASK;
-            file->ncid_prev = NULL;
-            file->ncid_next = darshan_global_job->ncid_table[hash_index];
-            if(file->ncid_next) 
-                file->ncid_next->ncid_prev = file;
-            darshan_global_job->ncid_table[hash_index] = file;
         }
         CP_UNLOCK();
     }
@@ -110,7 +102,6 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
     struct darshan_file_runtime* file;
     char* tmp;
     int comm_size;
-    int hash_index;
 
     MAP_OR_FAIL(ncmpi_open);
 
@@ -128,11 +119,9 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
             path = tmp + 1;
         }
 
-        file = darshan_file_by_name(path);
-        /* TODO: handle the case of multiple concurrent opens */
-        if(file && (file->ncid == -1))
+        file = darshan_file_by_name_setncid(path, (*ncidp));
+        if(file)
         {
-            file->ncid = *ncidp;
             if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
                 CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
                 PMPI_Wtime());
@@ -145,13 +134,6 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
             {
                 CP_INC(file, CP_COLL_NC_OPENS, 1);
             }
-
-            hash_index = file->ncid & CP_HASH_MASK;
-            file->ncid_prev = NULL;
-            file->ncid_next = darshan_global_job->ncid_table[hash_index];
-            if(file->ncid_next) 
-                file->ncid_next->ncid_prev = file;
-            darshan_global_job->ncid_table[hash_index] = file;
         }
         CP_UNLOCK();
     }
@@ -163,8 +145,6 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
 int DARSHAN_DECL(ncmpi_close)(int ncid)
 {
     struct darshan_file_runtime* file;
-    int hash_index;
-    int tmp_ncid = ncid;
     int ret;
 
     MAP_OR_FAIL(ncmpi_close); 
@@ -175,72 +155,37 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
     file = darshan_file_by_ncid(ncid);
     if(file)
     {
-        file->ncid = -1;
         CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, PMPI_Wtime());
-        if(file->ncid_prev == NULL)
-        {
-            /* head of ncid hash table list */
-            hash_index = tmp_ncid & CP_HASH_MASK;
-            darshan_global_job->ncid_table[hash_index] = file->ncid_next;
-            if(file->ncid_next)
-                file->ncid_next->ncid_prev = NULL;
-        }
-        else
-        {
-            if(file->ncid_prev)
-                file->ncid_prev->ncid_next = file->ncid_next;
-            if(file->ncid_next)
-                file->ncid_next->ncid_prev = file->ncid_prev;
-        }
-        file->ncid_prev = NULL;
-        file->ncid_next = NULL;
-        darshan_global_job->darshan_mru_file = file; /* in case we open it again */
+        darshan_file_close_ncid(ncid);
     }
     CP_UNLOCK();
 
     return(ret);
+}
 
+static struct darshan_file_runtime* darshan_file_by_name_setncid(const char* name, int ncid)
+{
+    struct darshan_file_runtime* tmp_file;
+
+    tmp_file = darshan_file_by_name_sethandle(name, &ncid, sizeof(ncid), DARSHAN_NCID);
+    return(tmp_file);
+}
+
+static void darshan_file_close_ncid(int ncid)
+{
+    darshan_file_closehandle(&ncid, sizeof(ncid), DARSHAN_NCID);
+    return;
 }
 
 static struct darshan_file_runtime* darshan_file_by_ncid(int ncid)
 {
-    int hash_index;
     struct darshan_file_runtime* tmp_file;
 
-    if(!darshan_global_job)
-    {
-        return(NULL);
-    }
-
-    /* if we have already condensed the data, then just hand the first file
-     * back
-     */
-    if(darshan_global_job->flags & CP_FLAG_CONDENSED)
-    {
-        return(&darshan_global_job->file_runtime_array[0]);
-    }
-
-    /* try mru first */
-    if(darshan_global_job->darshan_mru_file && darshan_global_job->darshan_mru_file->ncid == ncid)
-    {
-        return(darshan_global_job->darshan_mru_file);
-    }
-
-    /* search hash table */
-    hash_index = ncid & CP_HASH_MASK;
-    tmp_file = darshan_global_job->ncid_table[hash_index];
-    while(tmp_file)
-    {
-        if(tmp_file->ncid == ncid)
-        {
-            darshan_global_job->darshan_mru_file = tmp_file;
-            return(tmp_file);
-        }
-        tmp_file = tmp_file->ncid_next;
-    }
-
-    return(NULL);
+    tmp_file = darshan_file_by_handle(&ncid, sizeof(ncid), DARSHAN_NCID);
+    
+    return(tmp_file);
 }
+
 
 
 /*

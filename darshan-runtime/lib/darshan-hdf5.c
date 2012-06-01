@@ -51,6 +51,8 @@ DARSHAN_FORWARD_DECL(H5Fopen, hid_t, (const char *filename, unsigned flags, hid_
 DARSHAN_FORWARD_DECL(H5Fclose, herr_t, (hid_t file_id));
 
 static struct darshan_file_runtime* darshan_file_by_hid(int hid);
+static void darshan_file_close_hid(int hid);
+static struct darshan_file_runtime* darshan_file_by_name_sethid(const char* name, int hid);
 
 hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     hid_t create_plist, hid_t access_plist)
@@ -58,7 +60,6 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     int ret;
     struct darshan_file_runtime* file;
     char* tmp;
-    int hash_index;
 
     MAP_OR_FAIL(H5Fcreate);
 
@@ -76,21 +77,13 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
             filename = tmp + 1;
         }
 
-        file = darshan_file_by_name(filename);
-        /* TODO: handle the case of multiple concurrent opens */
-        if(file && (file->hid == -1))
+        file = darshan_file_by_name_sethid(filename, ret);
+        if(file)
         {
-            file->hid = ret;
             if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
                 CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
                 PMPI_Wtime());
             CP_INC(file, CP_HDF5_OPENS, 1);
-            hash_index = file->hid & CP_HASH_MASK;
-            file->hid_prev = NULL;
-            file->hid_next = darshan_global_job->hid_table[hash_index];
-            if(file->hid_next) 
-                file->hid_next->hid_prev = file;
-            darshan_global_job->hid_table[hash_index] = file;
         }
         CP_UNLOCK();
     }
@@ -104,7 +97,6 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     int ret;
     struct darshan_file_runtime* file;
     char* tmp;
-    int hash_index;
 
     MAP_OR_FAIL(H5Fopen);
 
@@ -122,21 +114,13 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
             filename = tmp + 1;
         }
 
-        file = darshan_file_by_name(filename);
-        /* TODO: handle the case of multiple concurrent opens */
-        if(file && (file->hid == -1))
+        file = darshan_file_by_name_sethid(filename, ret);
+        if(file)
         {
-            file->hid = ret;
             if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
                 CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
                 PMPI_Wtime());
             CP_INC(file, CP_HDF5_OPENS, 1);
-            hash_index = file->hid & CP_HASH_MASK;
-            file->hid_prev = NULL;
-            file->hid_next = darshan_global_job->hid_table[hash_index];
-            if(file->hid_next) 
-                file->hid_next->hid_prev = file;
-            darshan_global_job->hid_table[hash_index] = file;
         }
 
         CP_UNLOCK();
@@ -149,8 +133,6 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
 herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 {
     struct darshan_file_runtime* file;
-    int hash_index;
-    int tmp_hid = file_id;
     int ret;
 
     MAP_OR_FAIL(H5Fclose);
@@ -161,26 +143,8 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     file = darshan_file_by_hid(file_id);
     if(file)
     {
-        file->hid = -1;
         CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, PMPI_Wtime());
-        if(file->hid_prev == NULL)
-        {
-            /* head of hid hash table list */
-            hash_index = tmp_hid & CP_HASH_MASK;
-            darshan_global_job->hid_table[hash_index] = file->hid_next;
-            if(file->hid_next)
-                file->hid_next->hid_prev = NULL;
-        }
-        else
-        {
-            if(file->hid_prev)
-                file->hid_prev->hid_next = file->hid_next;
-            if(file->hid_next)
-                file->hid_next->hid_prev = file->hid_prev;
-        }
-        file->hid_prev = NULL;
-        file->hid_next = NULL;
-        darshan_global_job->darshan_mru_file = file; /* in case we open it again */
+        darshan_file_close_hid(file_id);
     }
     CP_UNLOCK();
 
@@ -188,44 +152,27 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 
 }
 
-static struct darshan_file_runtime* darshan_file_by_hid(int hid)
+static struct darshan_file_runtime* darshan_file_by_name_sethid(const char* name, int hid)
 {
-    int hash_index;
     struct darshan_file_runtime* tmp_file;
 
-    if(!darshan_global_job)
-    {
-        return(NULL);
-    }
+    tmp_file = darshan_file_by_name_sethandle(name, &hid, sizeof(hid), DARSHAN_HID);
+    return(tmp_file);
+}
 
-    /* if we have already condensed the data, then just hand the first file
-     * back
-     */
-    if(darshan_global_job->flags & CP_FLAG_CONDENSED)
-    {
-        return(&darshan_global_job->file_runtime_array[0]);
-    }
+static void darshan_file_close_hid(int hid)
+{
+    darshan_file_closehandle(&hid, sizeof(hid), DARSHAN_HID);
+    return;
+}
 
-    /* try mru first */
-    if(darshan_global_job->darshan_mru_file && darshan_global_job->darshan_mru_file->hid == hid)
-    {
-        return(darshan_global_job->darshan_mru_file);
-    }
+static struct darshan_file_runtime* darshan_file_by_hid(int hid)
+{
+    struct darshan_file_runtime* tmp_file;
 
-    /* search hash table */
-    hash_index = hid & CP_HASH_MASK;
-    tmp_file = darshan_global_job->hid_table[hash_index];
-    while(tmp_file)
-    {
-        if(tmp_file->hid == hid)
-        {
-            darshan_global_job->darshan_mru_file = tmp_file;
-            return(tmp_file);
-        }
-        tmp_file = tmp_file->hid_next;
-    }
-
-    return(NULL);
+    tmp_file = darshan_file_by_handle(&hid, sizeof(hid), DARSHAN_HID);
+    
+    return(tmp_file);
 }
 
 

@@ -64,20 +64,8 @@ struct cp_access_counter
 struct darshan_file_runtime
 {
     struct darshan_file* log_file;
-    MPI_File fh;
-    int fd;
-    int ncid;
-    int hid;
     struct darshan_file_runtime* name_next;
     struct darshan_file_runtime* name_prev;
-    struct darshan_file_runtime* fd_next;
-    struct darshan_file_runtime* fd_prev;
-    struct darshan_file_runtime* ncid_next;
-    struct darshan_file_runtime* ncid_prev;
-    struct darshan_file_runtime* hid_next;
-    struct darshan_file_runtime* hid_prev;
-    struct darshan_file_runtime* fh_next;
-    struct darshan_file_runtime* fh_prev;
     void* access_root;
     int access_count;
     void* stride_root;
@@ -86,6 +74,29 @@ struct darshan_file_runtime
     int64_t last_byte_written;
     int64_t offset;
     enum cp_io_type last_io_type;
+};
+
+/* handles used by various APIs to refer to files */
+enum darshan_handle_type 
+{
+    DARSHAN_FD = 1,
+    DARSHAN_FH,
+    DARSHAN_NCID,
+    DARSHAN_HID
+};
+
+#define DARSHAN_FILE_HANDLE_MAX (sizeof(MPI_File))
+/* This struct is used to track a reference to a file by file 
+ * descriptor, MPI file handle, ncdf id, etc.
+ */
+struct darshan_file_ref
+{
+    struct darshan_file_runtime* file;
+    char handle[DARSHAN_FILE_HANDLE_MAX];
+    int handle_sz;
+    enum darshan_handle_type handle_type;
+    struct darshan_file_ref* next;
+    struct darshan_file_ref* prev;
 };
 
 /* in memory structure to keep up with job level data */
@@ -99,11 +110,7 @@ struct darshan_job_runtime
     int flags;
     int file_count;
     struct darshan_file_runtime* name_table[CP_HASH_SIZE];
-    struct darshan_file_runtime* fd_table[CP_HASH_SIZE];
-    struct darshan_file_runtime* ncid_table[CP_HASH_SIZE];
-    struct darshan_file_runtime* hid_table[CP_HASH_SIZE];
-    struct darshan_file_runtime* fh_table[CP_HASH_SIZE];
-    struct darshan_file_runtime* darshan_mru_file;
+    struct darshan_file_ref* handle_table[CP_HASH_SIZE];
 };
 
 extern pthread_mutex_t cp_mutex;
@@ -199,8 +206,6 @@ enum cp_counter_type
 
 extern struct darshan_job_runtime* darshan_global_job;
 
-struct darshan_file_runtime* darshan_file_by_name(const char* name);
-struct darshan_file_runtime* darshan_file_by_fd(int fd);
 void darshan_initialize(int argc, char** argv, int nprocs, int rank);
 void darshan_finalize(struct darshan_job_runtime* job);
 void darshan_condense(void);
@@ -211,6 +216,24 @@ void darshan_walk_file_accesses(struct darshan_job_runtime* final_job);
 double darshan_wtime(void);
 
 uint32_t darshan_hashlittle(const void *key, size_t length, uint32_t initval);
-uint64_t darshan_hash(register unsigned char *k, register uint64_t length, register uint64_t level);
+uint64_t darshan_hash(const register unsigned char *k, register uint64_t length, register uint64_t level);
+
+struct darshan_file_runtime* darshan_file_by_name(const char* name);
+
+struct darshan_file_runtime* darshan_file_by_name_sethandle(
+    const char* name,
+    const void* handle,
+    int handle_sz,
+    enum darshan_handle_type handle_type);
+
+struct darshan_file_runtime* darshan_file_by_handle(
+    const void* handle,
+    int handle_sz,
+    enum darshan_handle_type handle_type);
+
+void darshan_file_closehandle(
+    const void* handle,
+    int handle_sz,
+    enum darshan_handle_type handle_type);
 
 #endif /* __DARSHAN_H */

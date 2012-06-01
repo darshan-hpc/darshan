@@ -178,7 +178,6 @@ extern char* __progname;
     CP_F_SET(file, CP_F_READ_END_TIMESTAMP, __tm2); \
 } while(0)
 
-static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh);
 static void cp_log_construct_indices(struct darshan_job_runtime* final_job,
     int rank, int* inout_count, int* lengths, void** pointers, char*
     trailing_data);
@@ -203,6 +202,9 @@ static void pairwise_variance_reduce (
     void *invec, void *inoutvec, int *len, MPI_Datatype *dt);
 static void debug_mounts(const char* mtab_file, const char* out_file);
 
+static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh);
+static void darshan_file_close_fh(MPI_File fh);
+static struct darshan_file_runtime* darshan_file_by_name_setfh(const char* name, MPI_File fh);
 
 #define CP_MAX_MNTS 32
 uint64_t mnt_hash_array[CP_MAX_MNTS] = {0};
@@ -695,8 +697,6 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
     struct darshan_file_runtime* file;
     char* tmp;
     int comm_size;
-    int hash_index;
-    uint64_t tmp_hash;
     double tm1, tm2;
 
     tm1 = darshan_wtime();
@@ -717,11 +717,9 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
             filename = tmp + 1;
         }
 
-        file = darshan_file_by_name(filename);
-        /* TODO: handle the case of multiple concurrent opens */
-        if(file && (file->fh == MPI_FILE_NULL))
+        file = darshan_file_by_name_setfh(filename, (*fh));
+        if(file)
         {
-            file->fh = *fh;
             CP_SET(file, CP_MODE, amode);
             CP_F_INC(file, CP_F_MPI_META_TIME, (tm2-tm1));
             if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
@@ -740,14 +738,8 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
             {
                 CP_INC(file, CP_HINTS, 1);
             }
-            tmp_hash = darshan_hash((void*)fh, sizeof(*fh), 0);
-            hash_index = tmp_hash & CP_HASH_MASK;
-            file->fh_prev = NULL;
-            file->fh_next = darshan_global_job->fh_table[hash_index];
-            if(file->fh_next)
-                file->fh_next->fh_prev = file;
-            darshan_global_job->fh_table[hash_index] = file;
         }
+
         CP_UNLOCK();
     }
 
@@ -756,8 +748,6 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
 
 int MPI_File_close(MPI_File *fh) 
 {
-    int hash_index;
-    uint64_t tmp_hash;
     struct darshan_file_runtime* file;
     MPI_File tmp_fh = *fh;
     double tm1, tm2;
@@ -771,28 +761,9 @@ int MPI_File_close(MPI_File *fh)
     file = darshan_file_by_fh(tmp_fh);
     if(file)
     {
-        file->fh = MPI_FILE_NULL;
         CP_F_SET(file, CP_F_CLOSE_TIMESTAMP, DARSHAN_MPI_CALL(PMPI_Wtime)());
         CP_F_INC(file, CP_F_MPI_META_TIME, (tm2-tm1));
-        if(file->fh_prev == NULL)
-        {
-            /* head of fh hash table list */
-            tmp_hash = darshan_hash((void*)&tmp_fh, sizeof(tmp_fh), 0);
-            hash_index = tmp_hash & CP_HASH_MASK;
-            darshan_global_job->fh_table[hash_index] = file->fh_next;
-            if(file->fh_next)
-                file->fh_next->fh_prev = NULL;
-        }
-        else
-        {
-            if(file->fh_prev)
-                file->fh_prev->fh_next = file->fh_next;
-            if(file->fh_next)
-                file->fh_next->fh_prev = file->fh_prev;
-        }
-        file->fh_prev = NULL;
-        file->fh_next = NULL;
-        darshan_global_job->darshan_mru_file = file; /* in case we open it again, or hit posix calls */
+        darshan_file_close_fh(tmp_fh);
     }
     CP_UNLOCK();
 
@@ -1222,47 +1193,6 @@ int MPI_File_iwrite_shared(MPI_File fh, void * buf, int count,
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_NB_WRITES, tm1, tm2);
     CP_UNLOCK();
     return(ret);
-}
-
-static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh)
-{
-    struct darshan_file_runtime* tmp_file;
-    uint64_t tmp_hash = 0;
-    int hash_index;
-
-    if(!darshan_global_job)
-        return(NULL);
-
-    /* if we have already condensed the data, then just hand the first file
-     * back
-     */
-    if(darshan_global_job->flags & CP_FLAG_CONDENSED)
-    {
-        return(&darshan_global_job->file_runtime_array[0]);
-    }
-
-    /* check most recently used */
-    if(darshan_global_job->darshan_mru_file && darshan_global_job->darshan_mru_file->fh == fh)
-    {
-        return(darshan_global_job->darshan_mru_file);
-    }
-
-    tmp_hash = darshan_hash((void*)(&fh), sizeof(fh), 0);
-
-    /* search hash table */
-    hash_index = tmp_hash & CP_HASH_MASK;
-    tmp_file = darshan_global_job->fh_table[hash_index];
-    while(tmp_file)
-    {
-        if(tmp_file->fh == fh)
-        {
-            darshan_global_job->darshan_mru_file = tmp_file;
-            return(tmp_file);
-        }
-        tmp_file = tmp_file->fh_next;
-    }
-
-    return(NULL);
 }
 
 /* cp_log_reduction()
@@ -2409,6 +2339,29 @@ static void debug_mounts(const char* mtab_file, const char* out_file)
         }
     }
     return;
+}
+
+static struct darshan_file_runtime* darshan_file_by_name_setfh(const char* name, MPI_File fh)
+{
+    struct darshan_file_runtime* tmp_file;
+
+    tmp_file = darshan_file_by_name_sethandle(name, &fh, sizeof(fh), DARSHAN_FH);
+    return(tmp_file);
+}
+
+static void darshan_file_close_fh(MPI_File fh)
+{
+    darshan_file_closehandle(&fh, sizeof(fh), DARSHAN_FH);
+    return;
+}
+
+static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh)
+{
+    struct darshan_file_runtime* tmp_file;
+
+    tmp_file = darshan_file_by_handle(&fh, sizeof(fh), DARSHAN_FH);
+    
+    return(tmp_file);
 }
 
 /*
