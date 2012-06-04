@@ -42,7 +42,7 @@
 #endif
 
 /* update this on file format changes */
-#define CP_VERSION "2.01"
+#define CP_VERSION "2.02"
 
 /* magic number for validating output files and checking byte order */
 #define CP_MAGIC_NR 6567223
