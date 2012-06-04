@@ -405,7 +405,11 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
 
     if (ret == 0)
     {
+#ifdef HAVE_STRNDUP
         char *metadata = strndup(job->metadata, sizeof(job->metadata));
+#else
+        char *metadata = strndup(job->metadata);
+#endif
         char *kv;
         char *key;
         char *value;
