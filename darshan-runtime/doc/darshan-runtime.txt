@@ -207,27 +207,28 @@ compilers.
 
 The Cray environment produces static executables by default, uses a similar
 architecture for login and compute nodes, and uses its own unique compiler
-script system.
+script system.  Darshan support for Cray is alpha-quality at this time.  It
+has only been tested in a limited fashion with PGI and GNU compilers.
 
-The following example shows how to configure Darshan on a Cray system:
+Please set your environment to use either the default PGI programming
+environment or the optional GNU programming environment.  You can confirm
+this by checking for either the PrgEnv-pgi or PrgEnv-gnu module in the
+output of the  "module list" command.  Please see your site documentation
+for information about how to switch programming environments.
+
+The following example shows how to configure Darshan on a Cray system using
+either the PGI or GNU programming environment:
 
 ----
-module swap PrgEnv-pgi PrgEnv-gnu
 ./configure --with-mem-align=8 \
  --with-log-path=/lustre/beagle/carns/darshan-logs \
- --prefix=/home/carns/working/darshan/releases/install-darshan-2.2.0-pre1 \
- --with-jobid-env=PBS_JOBID --disable-cuserid CC=cc
-module swap PrgEnv-gnu PrgEnv-pgi 
+ --prefix=/home/carns/working/darshan/install \
+ --with-jobid-env=PBS_JOBID --disable-cuserid --enable-st-dev-workaround CC=cc
 ----
 
 .Rationale
 [NOTE]
 ====
-Before compiling Darshan you must modify your environment to use the GNU
-compilers rather than the default PGI or Cray compilers.  You can swap this
-configuration back once Darshan has been compiled.  Please see your
-site documentation for details.
-
 The job ID is set to `PBS_JOBID` for use with a Torque or PBS based scheduler.
 The `CC` variable is configured to point the standard MPI compiler.
 
@@ -238,20 +239,60 @@ but on some Cray environments (notably the Beagle XE6 system as of March 2012)
 the cuserid() call triggers a segmentation fault.  With this option set,
 Darshan will typically use the LOGNAME environment variable to determine a
 userid.
+
+The --enable-st-dev-workaround argument is used to tell Darshan to
+determine the device type of each file by checking the parent directory
+rather than the file itself.  This is a workaround for a file stat
+inconsistency observed on some Cray systems.
 ====
 
-The darshan-runtime package does not provide scripts or wrappers to use
-for instrumenting static executables in the Cray environment.  It may be
-possible to do this manually.  Another option is to instrument dynamic
-executables using `LD_PRELOAD`.  To do this, compile your application with
-the `-dynamic` compiler option and follow the instructions for instrumenting dynamic
-executables listed earlier in this document.  This method has been tested
-with PGI and GNU compilers and is likely to work with other compiler
-combinations as well.
+The darshan-runtime package does not provide automated scripts or wrappers to
+use for instrumenting static executables in the Cray environment.  This step
+must be performed manually.  The following example demonstrates a rough
+procedure for modifying the compiler scripts to support Darshan.  We intend
+to improve this in future releases.
 
-Note that some Cray systems may require additional environment variables or
-modules to be set in order to run dynamic executables on a compute node.
-Please see your site documentation for details.
+. Go to the "bin" subdirectory in the darshan-runtime installation path
+. Determine the path to the standard compiler scripts by running "which cc"
+.. An example would be: "/opt/cray/xt-asyncpe/5.01/bin/"
+. Copy the "cc", "CC", "ftn", "linux-cc", "linux-CC", and "linux-f90"
+scripts from standard path to the local directory
+. Modify each of the cc, CC, and ftn scripts as follows:
+.. Find the line near the end that launches the compiler driver.  It will 
+look something like this: 
+
+    exec ${ASYNCPE_DIR}/bin/${compilerdriver} $compile_opts $link_opts "${arglist[@]}"
+
+.. Update the above line to replace the ASYNCPE_DIR variable with the path to the
+darshan-runtime installation
+. Modify each of the linux-cc, linux-CC, and linux-f90 scripts as follows:
+.. Find the if/else block near the end that executes $CC 
+.. Add a line just before the if/else block that looks like the following (replace
+the path with the installation directory for darshan-runtime):
+
+    DARSHAN_PATH=/home/carns/working/darshan/trunk/install/bin
+
+.. Modify the $CC command in the else block for each script as follows:
+... Add the following to the end of the line (all 3 scripts):
+
+    `$DARSHAN_PATH/darshan-config --post-ld-flags`
+
+... Insert the following just before POST_COMPILE_OPTS depending on the
+script:
+.... linux-cc
+    
+    `$DARSHAN_PATH/darshan-config --pre-ld-flags`
+
+.... linux-f90:
+    
+    -lfmpich `$DARSHAN_PATH/darshan-config --pre-ld-flags`
+
+.... linux-CC:
+
+    -lmpichcxx `$DARSHAN_PATH/darshan-config --pre-ld-flags`
+
+From this point you can compile your programs as usual, but use the cc, CC,
+or ftn scripts from this directory rather than the default path.
 
 === Linux clusters using Intel MPI 
 
