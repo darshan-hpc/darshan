@@ -79,6 +79,10 @@ produce a `carns_my-app_id114525_7-27-58921_19.pdf` output file).
 You can also manually specify the name of the output file using the
 `--output` argument.
 
+An example of the output produced by darshan-job-summary.pl can be found at
+http://www.mcs.anl.gov/research/projects/darshan/files/2012/06/pcarns_mpi-io-test_id3406_6-7-47644-13333843235489639491_1.pdf
+.
+
 === darshan-parser
 
 In order to obtained a full, human readable dump of all information
