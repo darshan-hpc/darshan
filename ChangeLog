@@ -2,6 +2,18 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.2.1-pre1
+=============
+* significant improvements to how counters are handled in multi-threaded
+  applications
+* initial (rough) documentation for using Darshan in the default Cray
+  programming environment with static linking
+* bug fixes:
+  - workarounds for various runtime problems with cuserid() and stat() in  
+    Cray environments
+  - build problems with darshan-utils on some versions of OSX
+  - accurate shared file statistics for libraries that use deferred opens
+
 darshan-2.2.0
 =============
 * split darshan into separate packages:
