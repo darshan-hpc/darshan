@@ -132,6 +132,9 @@ while ($line = <TRACE>) {
         # parse line
 	@fields = split(/[\t ]+/, $line);
 
+        # encode the file system name to protect against special characters
+        $fields[5] = encode('latex', $fields[5]);
+        
         # is this our first piece of data?
         if($first_data_line)
         {
