@@ -1,6 +1,6 @@
---- /opt/cray/xt-asyncpe/5.10/bin/linux-cc	2012-05-09 06:01:41.000000000 -0700
-+++ bin/linux-cc	2012-08-09 12:38:04.220477348 -0700
-@@ -1701,6 +1701,39 @@ else
+--- linux-cc	2012-05-09 06:01:41.000000000 -0700
++++ bin/linux-cc	2012-08-09 12:58:37.283453567 -0700
+@@ -1701,6 +1701,35 @@ else
       LIBPNETCDF=
  fi
  
@@ -17,16 +17,12 @@
 +   if [ "$XTPE_LINK_TYPE" != "dynamic" ] ; then
 +
 +      case $PE_ENV in     
-+      PGI )
-+         LIBDARSHAN=`${CRAY_DARSHAN_DIR}/bin/darshan-config --post-ld-flags`
-+         DARSHAN_POST_LINK_OPTS=`${CRAY_DARSHAN_DIR}/bin/darshan-config --pre-ld-flags`
-+      ;;
-+      GNU )
++      PGI|GNU|PATHSCALE|INTEL )
 +         LIBDARSHAN=`${CRAY_DARSHAN_DIR}/bin/darshan-config --post-ld-flags`
 +         DARSHAN_POST_LINK_OPTS=`${CRAY_DARSHAN_DIR}/bin/darshan-config --pre-ld-flags`
 +      ;;
 +      *)
-+         # TODO: test with other environments (Pathscale, Intel, and Cray)
++         # TODO: test with Cray environment
 +      ;;
 +      esac
 +
@@ -40,7 +36,7 @@
  ##
  # PMI
  ##
-@@ -1979,6 +2012,11 @@ fi
+@@ -1979,6 +2008,11 @@ fi
          eval $($BUILD_OPTS)
     fi
  
