@@ -16,6 +16,7 @@ LD = @LD@
 
 DISABLE_LDPRELOAD = @DISABLE_LDPRELOAD@
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
+DARSHAN_VERSION = @DARSHAN_VERSION@
 
 ifndef DISABLE_LDPRELOAD
 all: lib/libdarshan.so 
@@ -99,6 +100,8 @@ endif
 	install -m 755 darshan-gen-cxx.pl $(bindir)
 	install -m 755 darshan-gen-fortran.pl $(bindir)
 	install -m 755 darshan-config $(bindir)
+	install -d $(datarootdir)/cray/modulefiles/darshan
+	install -m 755 share/cray/darshan-module $(datarootdir)/cray/modulefiles/darshan/$(DARSHAN_VERSION)
 
 clean::
 	rm -f *.o *.a lib/*.o lib/*.po lib/*.a lib/*.so 

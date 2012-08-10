@@ -1,0 +1,29 @@
+#%Module
+#
+# Module darshan
+#
+
+set DARSHAN_LEVEL    @DARSHAN_VERSION@
+set DARSHAN_CURPATH  @prefix@
+
+# Note: this module just sets environment variables that are picked up by
+#       the system compiler scripts to enable darshan at link time
+
+setenv CRAY_DARSHAN_VERSION              $DARSHAN_LEVEL
+setenv CRAY_DARSHAN_DIR                  $DARSHAN_CURPATH
+
+prepend-path PATH $DARSHAN_CURPATH/bin
+
+proc ModulesHelp { } {
+    global DARSHAN_CURPATH
+    global DARSHAN_LEVEL
+
+    puts stderr ""
+    puts stderr "Darshan version $DARSHAN_LEVEL"
+    puts stderr "Installation path $DARSHAN_CURPATH"
+    puts stderr "==================================================================="
+    puts stderr "Darshan is a low-overhead I/O characterization tool."
+    puts stderr "See http://www.mcs.anl.gov/darshan"
+    puts stderr "===================================================================\n"
+    puts stderr ""
+} 
