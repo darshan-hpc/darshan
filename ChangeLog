@@ -2,6 +2,14 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.2.3-pre1
+=============
+* improved Cray XE6 support
+  - support for GNU, PGI, Cray, Pathscale, and Intel compilers
+  - patch adding Darshan capability to system compiler scripts
+  - software module
+  - improved documentation
+
 darshan-2.2.2
 =============
 * bug fixes:
