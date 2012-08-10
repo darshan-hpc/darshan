@@ -270,8 +270,8 @@ files in the --with-log-path directory.
 ====
 The instructions in this section will modify the default compiler scripts
 that underly the system-wide CC, ftn, and cc scripts.  Please proceed
-with caution.  It is probably advisable to perform the following steps
-on a copy of the scripts and then move them to the correct location afterwards.
+with caution.  We recommend performing the following steps
+on a copy of the scripts and then moving them to the correct location afterwards.
 ====
 
 The Darshan distribution includes a patch to the Cray programming environment 
