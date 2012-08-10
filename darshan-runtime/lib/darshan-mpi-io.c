@@ -785,7 +785,6 @@ int MPI_File_sync(MPI_File fh)
         file = darshan_file_by_fh(fh);
         if(file)
         {
-            fprintf(stderr, "FOO: BOOM.\n");
             CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_mpi_write_end, CP_F_MPI_WRITE_TIME);
             CP_INC(file, CP_SYNCS, 1);
         }
