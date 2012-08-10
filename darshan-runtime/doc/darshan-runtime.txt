@@ -317,7 +317,7 @@ Darshan module is added locally rather than globally:
 ----
 mkdir xt-asyncpe-darshan
 cp -r $ASYNCPE_DIR/* xt-asyncpe-darshan
-cd xt-axyncpe-darshan/bin
+cd xt-asyncpe-darshan/bin
 patch -p0 --dry-run < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
 # CONFIRM THE RESULTS OF THE DRY RUN SHOWN ABOVE
 patch -p0 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
