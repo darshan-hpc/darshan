@@ -203,27 +203,40 @@ described earlier in this document to produce darshan-enabled MPI compilers.
 This method has been widely used and tested with both the GNU and IBM XL
 compilers.
 
-=== Cray XE (or similar)
+=== Cray XE6 (or similar)
 
-The Cray environment produces static executables by default, uses a similar
-architecture for login and compute nodes, and uses its own unique compiler
-script system.  Darshan support for Cray is alpha-quality at this time.  It
-has only been tested in a limited fashion with PGI and GNU compilers.
+The Cray programming environment produces static executables by default.
+Darshan should therefore be configured to insert instrumentation at link
+time by way of compiler script wrappers.  Darshan 2.2.3 supports GNU,
+PGI, Cray, Pathscale, and Intel compilers.  The following documentation
+describes how to modify the Cray compiler wrappers to add Darshan
+capability, as well as how to install a Darshan software module that
+allows users to enable or disable Darshan instrumentation.
 
-Please set your environment to use either the default PGI programming
-environment or the optional GNU programming environment.  You can confirm
-this by checking for either the PrgEnv-pgi or PrgEnv-gnu module in the
-output of the  "module list" command.  Please see your site documentation
-for information about how to switch programming environments.
+==== Building and installing Darshan
 
-The following example shows how to configure Darshan on a Cray system using
-either the PGI or GNU programming environment:
+Please set your environment to use the GNU programming environment before
+configuring or compiling Darshan.  Although Darshan can be built with a
+variety of compilers, the GNU compilers are recommended because it will
+produce a Darshan library that is interoperable with a variety of linkers.
+On most Cray systems you can enable the GNU programming environment with
+a command similar to "module swap PrgEnv-pgi PrgEnv-gnu".  Please see
+your site documentation for information about how to switch programming
+environments.
+
+The following example shows how to configure and build Darshan on a Cray
+system using either the GNU programming environment.  Please adjust the 
+--with-log-path and --prefix arguments to point to the desired log file path 
+and installation path, respectively.
 
 ----
+module swap PrgEnv-pgi PrgEnv-gnu
 ./configure --with-mem-align=8 \
- --with-log-path=/lustre/beagle/carns/darshan-logs \
- --prefix=/home/carns/working/darshan/install \
+ --with-log-path=/shared-file-system/darshan-logs \
+ --prefix=/soft/darshan-2.2.3 \
  --with-jobid-env=PBS_JOBID --disable-cuserid --enable-st-dev-workaround CC=cc
+make install
+module swap PrgEnv-gnu PrgEnv-pgi
 ----
 
 .Rationale
@@ -243,56 +256,82 @@ userid.
 The --enable-st-dev-workaround argument is used to tell Darshan to
 determine the device type of each file by checking the parent directory
 rather than the file itself.  This is a workaround for a file stat
-inconsistency observed on some Cray systems.
+inconsistency observed on some systems.
 ====
 
-The darshan-runtime package does not provide automated scripts or wrappers to
-use for instrumenting static executables in the Cray environment.  This step
-must be performed manually.  The following example demonstrates a rough
-procedure for modifying the compiler scripts to support Darshan.  We intend
-to improve this in future releases.
+As in any Darshan installation, the darshan-mk-log-dirs.pl script can then be 
+used to create the appropriate directory hierarchy for storing Darshan log 
+files in the --with-log-path directory.
 
-. Go to the "bin" subdirectory in the darshan-runtime installation path
-. Determine the path to the standard compiler scripts by running "which cc"
-.. An example would be: "/opt/cray/xt-asyncpe/5.01/bin/"
-. Copy the "cc", "CC", "ftn", "linux-cc", "linux-CC", and "linux-f90"
-scripts from standard path to the local directory
-. Modify each of the cc, CC, and ftn scripts as follows:
-.. Find the line near the end that launches the compiler driver.  It will 
-look something like this: 
+==== Compiler wrappers (system-wide installation)
 
-    exec ${ASYNCPE_DIR}/bin/${compilerdriver} $compile_opts $link_opts "${arglist[@]}"
+.Warning
+[NOTE]
+====
+The instructions in this section will modify the default compiler scripts
+that underly the system-wide CC, ftn, and cc scripts.  Please proceed
+with caution.  It is probably advisable to perform the following steps
+on a copy of the scripts and then move them to the correct location afterwards.
+====
 
-.. Update the above line to replace the ASYNCPE_DIR variable with the path to the
-darshan-runtime installation
-. Modify each of the linux-cc, linux-CC, and linux-f90 scripts as follows:
-.. Find the if/else block near the end that executes $CC 
-.. Add a line just before the if/else block that looks like the following (replace
-the path with the installation directory for darshan-runtime):
+The Darshan distribution includes a patch to the Cray programming environment 
+that adds Darshan capability to the compiler scripts.  It does not modify the
+behavior of the scripts in any way unless the CRAY_DARSHAN_DIR environment 
+variable is set by the Darshan software module.  This approach is similar to
+that used by the HDF5, NetCDF, and PETSc packages on Cray XE6 systems.  Darshan
+requires compiler script modifications in order to apply instrumentation
+libraries and link options in the correct order relative to other libraries used
+at link time.
 
-    DARSHAN_PATH=/home/carns/working/darshan/trunk/install/bin
+Perform the following steps to patch the system compiler scripts.  The patch 
+provided in the Darshan source tree was generated against the xt-asyncpe-5.10
+environment, but it should also work on similar versions as well.  The patch 
+does not modify any existing lines in the scripts.
 
-.. Modify the $CC command in the else block for each script as follows:
-... Add the following to the end of the line (all 3 scripts):
+----
+cd $ASYNCPE_DIR/bin
+patch -p0 --dry-run < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
+# CONFIRM THE RESULTS OF THE DRY RUN SHOWN ABOVE
+patch -p0 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
+----
 
-    `$DARSHAN_PATH/darshan-config --post-ld-flags`
+The next step is to install the Darshan software module.  Note that the module
+file will be found in the Darshan installation dir, as it is generated 
+automatically based on configuration parameters:
 
-... Insert the following just before POST_COMPILE_OPTS depending on the
-script:
-.... linux-cc
-    
-    `$DARSHAN_PATH/darshan-config --pre-ld-flags`
+----
+cp -r /soft/darshan-2.2.3/share/cray/modulefiles/darshan /opt/modulefiles/
+----
 
-.... linux-f90:
-    
-    -lfmpich `$DARSHAN_PATH/darshan-config --pre-ld-flags`
+Users (or administrators) can now enable or disable darshan instrumentation by 
+loading or unloading the "darshan" module.
 
-.... linux-CC:
+==== Compiler wrappers (user installation)
 
-    -lmpichcxx `$DARSHAN_PATH/darshan-config --pre-ld-flags`
+In order to install Darshan for a single user in a Cray environment, the steps
+are similar to those described above, except that the compiler script
+modifications are applied to a local copy of the compiler scripts and the 
+Darshan module is added locally rather than globally:
 
-From this point you can compile your programs as usual, but use the cc, CC,
-or ftn scripts from this directory rather than the default path.
+----
+mkdir xt-asyncpe-darshan
+cp -r $ASYNCPE_DIR/* xt-asyncpe-darshan
+cd xt-axyncpe-darshan/bin
+patch -p0 --dry-run < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
+# CONFIRM THE RESULTS OF THE DRY RUN SHOWN ABOVE
+patch -p0 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
+
+module use /soft/darshan-2.2.3/share/cray/modulefiles/
+----
+
+In addition to loading the "darshan" software module, in order to use the 
+modified compiler script you must also set the following environment
+variables:
+
+----
+setenv ASYNCPE_DIR /home/carns/xt-asyncpe-darshan
+setenv PATH "/home/carns/xt-asyncpe-darshan/bin:$PATH"
+----
 
 === Linux clusters using Intel MPI 
 
