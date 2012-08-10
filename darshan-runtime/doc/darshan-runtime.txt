@@ -127,6 +127,8 @@ darshan-gen-fortran.pl `which mpif77` --output mpif77.darshan
 darshan-gen-fortran.pl `which mpif90` --output mpif90.darshan
 -----
 
+Please see the Cray recipe in this document for instructions on adding
+Darshan support to the Cray compiler scripts.  
 For other MPI Libraries you must manually modify the MPI compiler scripts to
 add the necessary link options and libraries.  Please see the
 `darshan-gen-*` scripts for examples or contact the Darshan users mailing
