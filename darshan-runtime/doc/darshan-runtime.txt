@@ -291,9 +291,9 @@ environment, but it should also work on similar versions as well.
 
 ----
 cd $ASYNCPE_DIR/bin
-patch -p0 --dry-run < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
+patch -p1 --dry-run < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
 # CONFIRM THE RESULTS OF THE DRY RUN SHOWN ABOVE
-patch -p0 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
+patch -p1 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
 ----
 
 The next step is to install the Darshan software module.  Note that the module
@@ -318,9 +318,9 @@ Darshan module is added locally rather than globally:
 mkdir xt-asyncpe-darshan
 cp -r $ASYNCPE_DIR/* xt-asyncpe-darshan
 cd xt-asyncpe-darshan/bin
-patch -p0 --dry-run < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
+patch -p1 --dry-run < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
 # CONFIRM THE RESULTS OF THE DRY RUN SHOWN ABOVE
-patch -p0 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
+patch -p1 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
 
 module use /soft/darshan-2.2.3/share/cray/modulefiles/
 ----
