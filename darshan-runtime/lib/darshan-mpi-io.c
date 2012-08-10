@@ -504,13 +504,7 @@ void darshan_shutdown(int timing_flag)
         }
 #endif
 
-        if(!logpath && !logpath_override)
-        {
-            /* we could not find any location to write the log file */
-            darshan_finalize(final_job);
-            return;
-        }
-
+       
         if(logpath_override)
         {
             ret = snprintf(logfile_name, PATH_MAX, 
@@ -529,7 +523,7 @@ void darshan_shutdown(int timing_flag)
                     logpath_override, jobid);
             }
         }
-        else
+        else if(logpath)
         {
             ret = snprintf(logfile_name, PATH_MAX, 
                 "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
@@ -548,6 +542,10 @@ void darshan_shutdown(int timing_flag)
                     logpath, jobid);
             }
         }
+        else
+        {
+            logfile_name[0] = '\0';
+        }
 
         /* add jobid */
         final_job->log_job.jobid = (int64_t)jobid;
@@ -557,6 +555,13 @@ void darshan_shutdown(int timing_flag)
     bcst3=DARSHAN_MPI_CALL(PMPI_Wtime)();
     DARSHAN_MPI_CALL(PMPI_Bcast)(logfile_name, PATH_MAX, MPI_CHAR, 0,
         MPI_COMM_WORLD);
+
+    if(strlen(logfile_name) == 0)
+    {
+        /* failed to generate log file name */
+        darshan_finalize(final_job);
+	return;
+    }
 
     final_job->log_job.end_time = time(NULL);
 
