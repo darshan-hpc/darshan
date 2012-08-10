@@ -2,6 +2,14 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.2.2
+=============
+* bug fixes:
+  - remove debugging message that was inadvertently included in
+    MPI_File_sync() wrapper
+  - fix potential hang if the --with-log-path-by-env argument was used at 
+    configure time but the environment variable was not set at run time
+
 darshan-2.2.1
 =============
 * significant improvements to how counters are handled in multi-threaded
