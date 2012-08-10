@@ -285,8 +285,7 @@ at link time.
 
 Perform the following steps to patch the system compiler scripts.  The patch 
 provided in the Darshan source tree was generated against the xt-asyncpe-5.10
-environment, but it should also work on similar versions as well.  The patch 
-does not modify any existing lines in the scripts.
+environment, but it should also work on similar versions as well. 
 
 ----
 cd $ASYNCPE_DIR/bin
