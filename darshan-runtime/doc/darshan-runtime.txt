@@ -29,7 +29,7 @@ http://www.mcs.anl.gov/darshan[Darshan web site].
 * MPI C compiler
 * zlib development headers and library
 
-== Compilation and installation
+== Compilation
 
 .Configure and build example
 ----
