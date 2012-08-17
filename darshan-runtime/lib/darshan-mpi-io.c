@@ -276,6 +276,7 @@ void darshan_shutdown(int timing_flag)
     char env_check[256];
     char* env_tok;
 #endif
+    uint64_t hlevel;
 
     CP_LOCK();
     if(!darshan_global_job)
@@ -354,6 +355,8 @@ void darshan_shutdown(int timing_flag)
     }
 
     bcst1=DARSHAN_MPI_CALL(PMPI_Wtime)();
+    hlevel = bcst1*1000000;
+
     DARSHAN_MPI_CALL(PMPI_Bcast)(mnt_id_array_root,
         CP_MAX_MNTS*sizeof(int64_t), MPI_BYTE, 0, MPI_COMM_WORLD);
     DARSHAN_MPI_CALL(PMPI_Bcast)(mnt_hash_array_root,
@@ -474,7 +477,7 @@ void darshan_shutdown(int timing_flag)
 
         /* generate a random number to help differentiate the log */
         (void) gethostname(hname, sizeof(hname));
-        logmod = darshan_hash((void*)hname,strlen(hname),0);
+        logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
 
         /* see if darshan was configured using the --with-logpath-by-env
          * argument, which allows the user to specify an absolute path to
