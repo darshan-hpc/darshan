@@ -263,13 +263,16 @@ print OUTPUT<<"EOF";
     grep -E \\(PMPI_File_\\)\\|\\(PMPI_Init\\)\\|\\(PMPI_Finalize\\) \$tmpfile | grep -v -E \\(mpich.cnk.a\\|mpich.a\\) |grep \\(PMPI >& /dev/null
     rc_pmpi=\$?
 
-    # normal or cnk libraries?
-    grep -E mpich\\.cnk \$tmpfile >& /dev/null
-    rc_cnk_check=\$?
-    if [ \$rc_cnk_check -eq 0 ] ; then
+    CXXMPICH=-lmpichcxx
+
+    # check for unusual cxx library name
+    grep -E cxxmpich\\.a \$tmpfile >& /dev/null
+    if [ \$? -eq 0 ] ; then
+        CXXMPICH=-lcxxmpich
+    fi
+    grep -E cxxmpich\\.cnk.a \$tmpfile >& /dev/null
+    if [ \$? -eq 0 ] ; then
         CXXMPICH=-lcxxmpich.cnk
-    else
-        CXXMPICH=-lmpichcxx
     fi
 
     rm \$tmpfile >& /dev/null
