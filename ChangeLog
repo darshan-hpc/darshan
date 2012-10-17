@@ -11,7 +11,10 @@ darshan-2.2.3
     by Yushu Yao and Katie Antypas of The National Energy Research 
     Scientific Computing Center (NERSC)
   - improved documentation
-* minor bug fix for compiler wrapper generation on the IBM BG/Q platform
+* minor bug fixes:
+  - properly detect cxx library name when generating BG/Q compiler wrappers
+  - improve timing mechanism for cp-shutdown-bench benchmark
+  - improve hashing to avoid log file name collisions
 
 darshan-2.2.2
 =============
