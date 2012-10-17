@@ -1,29 +1,72 @@
 #%Module
-#
-# Module darshan
-#
+##
 
-set DARSHAN_LEVEL    @DARSHAN_VERSION@
-set DARSHAN_CURPATH  @prefix@
+## Required internal variables
 
-# Note: this module just sets environment variables that are picked up by
-#       the system compiler scripts to enable darshan at link time
+set		name		darshan
+set		version		@DARSHAN_VERSION@
+set		root		@prefix@
 
-setenv CRAY_DARSHAN_VERSION              $DARSHAN_LEVEL
-setenv CRAY_DARSHAN_DIR                  $DARSHAN_CURPATH
+## List conflicting modules here
 
-prepend-path PATH $DARSHAN_CURPATH/bin
+conflict $name
+
+## List prerequisite modules here
+
+# prereq
+
+set		fullname	Darshan
+set		externalurl	http://www.mcs.anl.gov/research/projects/darshan
+set		maincategory	applications
+set		subcategory	debugging
+set		description	"A lightweight IO profiler"
+
+## Required for "module help ..."
 
 proc ModulesHelp { } {
-    global DARSHAN_CURPATH
-    global DARSHAN_LEVEL
+  global description externalurl
+  puts stderr "Description - $description"
+  puts stderr "Other Docs  - $externalurl"
+}
 
-    puts stderr ""
-    puts stderr "Darshan version $DARSHAN_LEVEL"
-    puts stderr "Installation path $DARSHAN_CURPATH"
-    puts stderr "==================================================================="
-    puts stderr "Darshan is a low-overhead I/O characterization tool."
-    puts stderr "See http://www.mcs.anl.gov/darshan"
-    puts stderr "===================================================================\n"
-    puts stderr ""
-} 
+## Required for "module display ..." 
+
+module-whatis			"$description"
+
+## Software-specific settings exported to user environment
+
+# Note: The following environment variables are picked up by the system
+#       compiler scripts to enable darshan at link time for statically linked
+#       executables 
+
+setenv CRAY_DARSHAN_VERSION              $version
+setenv CRAY_DARSHAN_DIR                  $root
+
+# Put darshan utilities in the path
+prepend-path PATH $root/bin
+
+# NOTE: The following example shows how to enable Darshan for dynamically linked
+#       executables if your environment allows you to load modules from
+#       within a scheduler script.
+# 
+#if [info exists env(PBS_JOBID)] {
+#    module load xt-lgdb
+#    setenv LD_PRELOAD  $path/lib/libdarshan.so	
+#}
+
+# NOTE: The following example shows how to switch to an alternative set of
+#       compiler scripts when darshan is loaded into the environment.  This 
+#       configuration is useful if the default system-wide compiler
+#       scripts do not support Darshan.  The following settings will be 
+#       overridden, however, if the user swaps PrgEnv modules after loading
+#       the darshan module.  If possible, it is preferable to add support to 
+#       the standard compiler scripts instead.  See the Darshan documentation 
+#       for details.
+#
+# setenv ASYNCPE_DIR $root/../xt-asyncpe/5.12
+# setenv BUILD_OPTS $root/../xt-asyncpe/5.12/bin/build-opts 
+# setenv ASYNCPE_VERSION 5.12 
+# prepend-path PATH $root/../xt-asyncpe/5.12/bin
+
+
+
