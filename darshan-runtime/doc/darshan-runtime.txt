@@ -297,7 +297,7 @@ patch -p1 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe
 ----
 
 The next step is to install the Darshan software module.  Note that the module
-file will be found in the Darshan installation dir, as it is generated 
+file will be found in the Darshan installation directory, as it is generated 
 automatically based on configuration parameters:
 
 ----
@@ -305,7 +305,11 @@ cp -r /soft/darshan-2.2.3/share/cray/modulefiles/darshan /opt/modulefiles/
 ----
 
 Users (or administrators) can now enable or disable darshan instrumentation by 
-loading or unloading the "darshan" module.
+loading or unloading the "darshan" module.  Note that the module file also
+includes commented-out examples that may be useful for deploying Darshan in
+different configurations, including how to use LD_PRELOAD for dynamically
+linked executables and how to use Darshan with a different set of compiler
+scripts than those found in the normal system path.
 
 ==== Compiler wrappers (user installation)
 
