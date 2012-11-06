@@ -6,7 +6,8 @@
 /* stat-perf.c
  *
  * Time how long it takes to issue a stat64() call to the designated file
- * from every process.  -f causes it to use fstat64() rather than stat64().
+ * from every process.  -f causes it to use fstat64() rather than stat64().  
+ * -l causes it to use lseek(SEEK_END) instead of stat64().
  * -c causes it to create the file from scratch rather than operating on an
  *  existing file.
  */
@@ -29,6 +30,7 @@
 static char* opt_file = NULL;
 static int opt_create = 0;
 static int opt_fstat = 0;
+static int opt_lseek = 0;
 static int rank = -1;
 
 static int parse_args(int argc, char **argv);
@@ -41,6 +43,7 @@ int main(int argc, char **argv)
    double stime, etime, elapsed, slowest;
    struct stat64 statbuf;
    int nprocs;
+   off64_t offset, orig_offset;
 
    MPI_Init(&argc,&argv);
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -89,8 +92,30 @@ int main(int argc, char **argv)
    MPI_Barrier(MPI_COMM_WORLD);
    stime = MPI_Wtime();
 
+   ret = 0;
    if(opt_fstat)
       ret = fstat64(fd, &statbuf);
+   else if(opt_lseek)
+   {
+      /* find current position */
+      orig_offset = lseek64(fd, 0, SEEK_CUR);
+      if(orig_offset < 0)
+         ret = -1;
+      else
+      {
+         /* find end of file; this is the size */
+         offset = lseek64(fd, 0, SEEK_END);
+         if(offset < 0)
+            ret = -1;
+         else
+         {
+            /* go back to original position */
+            offset = lseek64(fd, orig_offset, SEEK_SET);
+            if(offset < 0)
+                ret = -1;
+         }
+      }
+   }
    else
       ret = stat64(opt_file, &statbuf);
 
@@ -126,13 +151,16 @@ static int parse_args(int argc, char **argv)
 {
    int c;
    
-   while ((c = getopt(argc, argv, "fc")) != EOF) {
+   while ((c = getopt(argc, argv, "fcl")) != EOF) {
       switch (c) {
          case 'c': /* create file */
             opt_create = 1;
             break;
          case 'f': /* fstat instead of stat */
             opt_fstat = 1;
+            break;
+         case 'l': /* lseek instead of stat */
+            opt_lseek = 1;
             break;
          case 'h':
             if (rank == 0)
@@ -145,6 +173,13 @@ static int parse_args(int argc, char **argv)
          default:
             break;
       }
+   }
+
+   if(opt_lseek && opt_fstat)
+   {
+      fprintf(stderr, "Error: cannot specify both -l and -f at once.\n");
+      usage();
+      exit(1);
    }
 
    if(argc-optind != 1)
@@ -166,6 +201,7 @@ static void usage(void)
     printf("\n<OPTIONS> is one or more of\n");
     printf(" -c       create new file to stat\n");
     printf(" -f       use fstat instead of stat\n");
+    printf(" -l       use lseek instead of stat\n");
     printf(" -h       print this help\n");
 }
 
