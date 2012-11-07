@@ -140,7 +140,7 @@ int main(int argc, char **argv)
 
    if(rank == 0)
    {
-      printf("opt_file: %s, opt_create: %d, opt_fstat: %d, nprocs: %d, time: %f ms\n", opt_file, opt_create, opt_fstat, nprocs, slowest);
+      printf("opt_file: %s, opt_create: %d, opt_fstat: %d, opt_lseek: %d, nprocs: %d, time: %f ms\n", opt_file, opt_create, opt_fstat, opt_lseek, nprocs, slowest);
    }
 
    MPI_Finalize();
