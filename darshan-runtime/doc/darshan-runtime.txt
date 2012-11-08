@@ -40,6 +40,20 @@ make
 make install
 ----
 
+.Detecting file size and alignment
+[NOTE]
+====
+You can also add --enable-stat-at-open option to cause the Darshan library
+to issue an additional stat() system call on each file the first time that
+it is opened on each process.  This allows Darshan to detect the file
+alignment (and subsequent unaligned accesses).  It also allows Darshan to
+detect the size of files at open time before any I/O is performed.
+Unfortunately, this option can cause significant overhead at scale on file
+systems such as PVFS or Lustre that must contact every server for a given
+file in order to satisfy a stat request.  We therefore disable this
+feature by default.
+====
+
 .Explanation of configure arguments:
 * `--with-mem-align` (mandatory): This value is system-dependent and will be
 used by Darshan to determine if the buffer for a read or write operation is
@@ -236,7 +250,7 @@ module swap PrgEnv-pgi PrgEnv-gnu
 ./configure --with-mem-align=8 \
  --with-log-path=/shared-file-system/darshan-logs \
  --prefix=/soft/darshan-2.2.3 \
- --with-jobid-env=PBS_JOBID --disable-cuserid --enable-st-dev-workaround CC=cc
+ --with-jobid-env=PBS_JOBID --disable-cuserid CC=cc
 make install
 module swap PrgEnv-gnu PrgEnv-pgi
 ----
@@ -254,11 +268,6 @@ but on some Cray environments (notably the Beagle XE6 system as of March 2012)
 the cuserid() call triggers a segmentation fault.  With this option set,
 Darshan will typically use the LOGNAME environment variable to determine a
 userid.
-
-The --enable-st-dev-workaround argument is used to tell Darshan to
-determine the device type of each file by checking the parent directory
-rather than the file itself.  This is a workaround for a file stat
-inconsistency observed on some systems.
 ====
 
 As in any Darshan installation, the darshan-mk-log-dirs.pl script can then be 
