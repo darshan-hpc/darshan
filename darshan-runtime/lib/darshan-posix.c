@@ -1639,6 +1639,7 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
     char* suffix_pointer;
     int hash_index;
     char* newname = NULL;
+    int64_t device_id;
 
     if(!darshan_global_job)
         return(NULL);
@@ -1684,6 +1685,8 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
     /* new, unique file */
     tmp_file = &darshan_global_job->file_runtime_array[darshan_global_job->file_count];
 
+    device_id = darshan_mnt_id_from_path(newname);
+    CP_SET(tmp_file, CP_DEVICE, device_id);
     CP_SET(tmp_file, CP_MEM_ALIGNMENT, darshan_mem_alignment);
     tmp_file->log_file->hash = tmp_hash;
 

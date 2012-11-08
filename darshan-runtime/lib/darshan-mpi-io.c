@@ -210,6 +210,7 @@ static struct darshan_file_runtime* darshan_file_by_name_setfh(const char* name,
 static char* trailing_data = NULL;
 static uint64_t mnt_hash_array[CP_MAX_MNTS] = {0};
 static int64_t mnt_id_array[CP_MAX_MNTS] = {0};
+static char* mnt_path_array[CP_MAX_MNTS] = {0};
 static uint64_t mnt_hash_array_root[CP_MAX_MNTS] = {0};
 static int64_t mnt_id_array_root[CP_MAX_MNTS] = {0};
 struct
@@ -655,6 +656,11 @@ void darshan_shutdown(int timing_flag)
 
     if(trailing_data)
         free(trailing_data);
+    for(i=0; i<CP_MAX_MNTS; i++)
+    {
+        if(mnt_path_array[i])
+            free(mnt_path_array[i]);
+    }
     free(logfile_name);
     darshan_finalize(final_job);
     
@@ -2100,6 +2106,7 @@ static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
                 mnt_hash_array[mnt_array_index] =
                     darshan_hash((void*)entry->mnt_dir, strlen(entry->mnt_dir), 0);
                 mnt_id_array[mnt_array_index] = tmp_st_dev;
+                mnt_path_array[mnt_array_index] = strdup(entry->mnt_dir);
                 mnt_array_index++;
             }
 
@@ -2371,6 +2378,24 @@ static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh)
     tmp_file = darshan_file_by_handle(&fh, sizeof(fh), DARSHAN_FH);
     
     return(tmp_file);
+}
+
+/* find the device id for the specified file, based on data from the mount
+ * entries.
+ */
+int64_t darshan_mnt_id_from_path(const char* path)
+{
+    int i;
+
+    for(i=0; (i<CP_MAX_MNTS && mnt_hash_array[i] != 0); i++)
+    {
+        if(!(strncmp(mnt_path_array[i], path, strlen(mnt_path_array[i]))))
+        {
+            return(mnt_id_array[i]);
+        }
+    }
+
+    return(0);
 }
 
 /*
