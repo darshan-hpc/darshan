@@ -170,7 +170,7 @@ static struct darshan_file_runtime* darshan_file_by_name_setfd(const char* name,
     cp_access_counter(file, stride, CP_COUNTER_STRIDE); \
     if(!__aligned) \
         CP_INC(file, CP_MEM_NOT_ALIGNED, 1); \
-    if(file_alignment && (this_offset % file_alignment) != 0) \
+    if(file_alignment > 0 && (this_offset % file_alignment) != 0) \
         CP_INC(file, CP_FILE_NOT_ALIGNED, 1); \
     cp_access_counter(file, __ret, CP_COUNTER_ACCESS); \
     if(file->last_io_type == CP_READ) \
@@ -220,7 +220,7 @@ static struct darshan_file_runtime* darshan_file_by_name_setfd(const char* name,
     cp_access_counter(file, stride, CP_COUNTER_STRIDE); \
     if(!__aligned) \
         CP_INC(file, CP_MEM_NOT_ALIGNED, 1); \
-    if(file_alignment && (this_offset % file_alignment) != 0) \
+    if(file_alignment > 0 && (this_offset % file_alignment) != 0) \
         CP_INC(file, CP_FILE_NOT_ALIGNED, 1); \
     cp_access_counter(file, __ret, CP_COUNTER_ACCESS); \
     if(file->last_io_type == CP_WRITE) \
@@ -282,6 +282,20 @@ static inline dev_t get_device(const char* path, struct stat64* statbuf)
     return(device);
 }
 
+#ifdef __CP_STAT_AT_OPEN
+#define CP_STAT_FILE(_f, _p) do { \
+    if(!CP_VALUE(_f, CP_FILE_ALIGNMENT)){ \
+        if(stat64(_p, &cp_stat_buf) == 0) { \
+            CP_SET(_f, CP_DEVICE, get_device(_p, &cp_stat_buf)); \
+            CP_SET(_f, CP_FILE_ALIGNMENT, cp_stat_buf.st_blksize); \
+            CP_SET(_f, CP_SIZE_AT_OPEN, cp_stat_buf.st_size); \
+        }\
+    }\
+}while(0)
+#else
+#define CP_STAT_FILE(_f, _p) do { }while(0)
+#endif
+
 #define CP_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
     struct darshan_file_runtime* file; \
     char* exclude; \
@@ -295,13 +309,7 @@ static inline dev_t get_device(const char* path, struct stat64* statbuf)
     if(exclude) break; \
     file = darshan_file_by_name_setfd(__path, __ret); \
     if(!file) break; \
-    if(!CP_VALUE(file, CP_FILE_ALIGNMENT)){ \
-        if(stat64(__path, &cp_stat_buf) == 0) { \
-            CP_SET(file, CP_DEVICE, get_device(__path, &cp_stat_buf)); \
-            CP_SET(file, CP_FILE_ALIGNMENT, cp_stat_buf.st_blksize); \
-            CP_SET(file, CP_SIZE_AT_OPEN, cp_stat_buf.st_size); \
-        }\
-    }\
+    CP_STAT_FILE(file, __path); \
     file->log_file->rank = my_rank; \
     if(__mode) \
         CP_SET(file, CP_MODE, __mode); \
@@ -1674,6 +1682,16 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
         suffix_pointer += (strlen(name) - CP_NAME_SUFFIX_LEN);
     }
     strcpy(tmp_file->log_file->name_suffix, suffix_pointer); 
+
+    /* if the "stat at open" functionality is disabled, then go ahead and
+     * mark certain counters with invalid values to make sure that they are
+     * not mis-interpretted.
+     */
+#ifndef __CP_STAT_AT_OPEN
+    CP_SET(tmp_file, CP_SIZE_AT_OPEN, -1);
+    CP_SET(tmp_file, CP_FILE_ALIGNMENT, -1);
+    CP_SET(tmp_file, CP_FILE_NOT_ALIGNED, -1);
+#endif
 
     darshan_global_job->file_count++;
 
