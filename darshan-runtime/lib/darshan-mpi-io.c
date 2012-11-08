@@ -207,10 +207,11 @@ static void darshan_file_close_fh(MPI_File fh);
 static struct darshan_file_runtime* darshan_file_by_name_setfh(const char* name, MPI_File fh);
 
 #define CP_MAX_MNTS 32
-uint64_t mnt_hash_array[CP_MAX_MNTS] = {0};
-int64_t mnt_id_array[CP_MAX_MNTS] = {0};
-uint64_t mnt_hash_array_root[CP_MAX_MNTS] = {0};
-int64_t mnt_id_array_root[CP_MAX_MNTS] = {0};
+static char* trailing_data = NULL;
+static uint64_t mnt_hash_array[CP_MAX_MNTS] = {0};
+static int64_t mnt_id_array[CP_MAX_MNTS] = {0};
+static uint64_t mnt_hash_array_root[CP_MAX_MNTS] = {0};
+static int64_t mnt_id_array_root[CP_MAX_MNTS] = {0};
 struct
 {
     int64_t mnt_id_local;
@@ -242,6 +243,12 @@ void darshan_mpi_initialize(int *argc, char ***argv)
         darshan_initialize(0, NULL, nprocs, rank);
     }
 
+    /* collect information about command line and 
+     * mounted file systems 
+     */
+    if(darshan_global_job)
+        trailing_data = darshan_get_exe_and_mounts(darshan_global_job);
+
     return;
 }
 
@@ -265,7 +272,6 @@ void darshan_shutdown(int timing_flag)
     double red1=0, red2=0, gz1=0, gz2=0, write1=0, write2=0, tm_end=0;
     double bcst1=0, bcst2=0, bcst3=0;
     int nprocs;
-    char* trailing_data = NULL;
     int i, j;
     int map_index = 0;
     time_t start_time_tmp = 0;
@@ -339,11 +345,6 @@ void darshan_shutdown(int timing_flag)
     }
 
     DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
-
-    /* collect information about command line and 
-     * mounted file systems 
-     */
-    trailing_data = darshan_get_exe_and_mounts(final_job);
 
     /* broadcast mount point information from root */
     if(rank == 0)
