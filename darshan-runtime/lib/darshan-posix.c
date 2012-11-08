@@ -19,6 +19,7 @@
 #include <search.h>
 #include <assert.h>
 #include <libgen.h>
+#include <limits.h>
 #define __USE_GNU
 #include <pthread.h>
 
@@ -134,6 +135,7 @@ static struct darshan_file_ref* ref_by_handle(
 static struct darshan_file_runtime* darshan_file_by_fd(int fd);
 static void darshan_file_close_fd(int fd);
 static struct darshan_file_runtime* darshan_file_by_name_setfd(const char* name, int fd);
+static char* clean_path(const char* path);
 
 #define CP_RECORD_WRITE(__ret, __fd, __count, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
     size_t stride; \
@@ -1636,6 +1638,7 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
     uint64_t tmp_hash = 0;
     char* suffix_pointer;
     int hash_index;
+    char* newname = NULL;
 
     if(!darshan_global_job)
         return(NULL);
@@ -1648,7 +1651,12 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
         return(&darshan_global_job->file_runtime_array[0]);
     }
 
-    tmp_hash = darshan_hash((void*)name, strlen(name), 0);
+    /* try to construct absolute path */
+    newname = clean_path(name);
+    if(!newname)
+        newname = (char*)name;
+
+    tmp_hash = darshan_hash((void*)newname, strlen(newname), 0);
 
     /* search hash table */
     hash_index = tmp_hash & CP_HASH_MASK;
@@ -1657,6 +1665,8 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
     {
         if(tmp_file->log_file->hash == tmp_hash)
         {
+            if(newname != name)
+                free(newname);
             return(tmp_file);
         }
         tmp_file = tmp_file->name_next;
@@ -1666,6 +1676,8 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
     if(darshan_global_job->file_count >= CP_MAX_FILES)
     {
         darshan_condense();
+        if(newname != name)
+            free(newname);
         return(&darshan_global_job->file_runtime_array[0]);
     }
 
@@ -1676,10 +1688,10 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
     tmp_file->log_file->hash = tmp_hash;
 
     /* record last N characters of file name too */
-    suffix_pointer = (char*)name;
-    if(strlen(name) > CP_NAME_SUFFIX_LEN)
+    suffix_pointer = (char*)newname;
+    if(strlen(newname) > CP_NAME_SUFFIX_LEN)
     {
-        suffix_pointer += (strlen(name) - CP_NAME_SUFFIX_LEN);
+        suffix_pointer += (strlen(newname) - CP_NAME_SUFFIX_LEN);
     }
     strcpy(tmp_file->log_file->name_suffix, suffix_pointer); 
 
@@ -1702,6 +1714,8 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
         tmp_file->name_next->name_prev = tmp_file;
     darshan_global_job->name_table[hash_index] = tmp_file;
 
+    if(newname != name)
+        free(newname);
     return(tmp_file);
 }
 
@@ -1865,6 +1879,66 @@ static struct darshan_file_ref* ref_by_handle(
     return(NULL);
 }
 
+/* Allocate a new string that contains a cleaned-up version of the path
+ * passed in as an argument.  Converts relative paths to absolute paths and
+ * filters out some potential noise in the path string.
+ */
+static char* clean_path(const char* path)
+{
+    char* newpath = NULL;
+    char* cwd = NULL;
+    char* filter = NULL;
+
+    if(!path || strlen(path) < 1)
+        return(NULL);
+
+    if(path[0] == '/')
+    {
+        /* it is already an absolute path */
+        newpath = malloc(strlen(path)+1);
+        if(newpath)
+        {
+            strcpy(newpath, path);
+        }
+    }
+    else
+    {
+        /* handle relative path */
+        cwd = malloc(PATH_MAX);
+        if(cwd)
+        {
+            if(getcwd(cwd, PATH_MAX))
+            {
+                newpath = malloc(strlen(path) + strlen(cwd) + 2);
+                if(newpath)
+                {
+                    sprintf(newpath, "%s/%s", cwd, path);
+                }
+            }
+            free(cwd);
+        }
+    }
+
+    if(!newpath)
+        return(NULL);
+
+    /* filter out any double slashes */
+    while((filter = strstr(newpath, "//")))
+    {
+        /* shift down one character */
+        memmove(filter, &filter[1], (strlen(&filter[1]) + 1));
+    }
+
+    /* filter out any /./ instances */
+    while((filter = strstr(newpath, "/./")))
+    {
+        /* shift down two characters */
+        memmove(filter, &filter[2], (strlen(&filter[2]) + 1));
+    }
+
+    /* return result */
+    return(newpath);
+}
 
 /*
  * Local variables:
