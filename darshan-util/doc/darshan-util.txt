@@ -149,7 +149,9 @@ case, the value of the counter represents an aggregate across all processes. The
 `<file name hash>` is a 64 bit hash of the file path/name that was opened. It
 is used as a way to uniquely differentiate each file. The `<counter name>` is
 the name of the statistic that the line is reporting, while the `<counter
-value>` is the value of that statistic. The `<file name suffix>` shows the last
+value>` is the value of that statistic. A value of -1 indicates that Darshan
+was unable to collect statistics for that particular counter, and the value
+should be ignored.  The `<file name suffix>` shows the last
 11 characters of the file name. The `<mount point>` is the mount point of the
 file system that this file belongs to. The `<fs type>` is the type of file
 system.
