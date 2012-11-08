@@ -44,6 +44,7 @@ my $input_file = "";
 my %access_hash = ();
 my @access_size = ();
 my %hash_files = ();
+my $size_est_flag = 0;
 
 # data structures for calculating performance
 my %hash_unique_file_time = ();
@@ -507,6 +508,14 @@ print TABLES "
 \\begin{tabular}{r|r|r|r}
 \\multicolumn{4}{c}{ } \\\\
 \\multicolumn{4}{c}{File Count Summary} \\\\
+";
+if($size_est_flag == 1)
+{
+print TABLES "
+\\multicolumn{4}{c}{(estimated by I/O access offsets)} \\\\
+";
+}
+print TABLES "
 \\hline
 type \& number of files \& avg. size \& max size \\\\
 \\hline
@@ -1035,8 +1044,19 @@ sub process_file_record
         $hash_files{$hash}{'min_open_size'} > 
         $file_record{'CP_SIZE_AT_OPEN'})
     {
-        $hash_files{$hash}{'min_open_size'} = 
-            $file_record{'CP_SIZE_AT_OPEN'};
+        # size at open will be set to -1 if the darshan library was not
+        # configured to stat files at open time
+        if($file_record{'CP_SIZE_AT_OPEN'} < 0)
+        {
+            $hash_files{$hash}{'min_open_size'} = 0;
+            # set flag indicating that file sizes are estimated 
+            $size_est_flag = 1;
+        }
+        else
+        {
+            $hash_files{$hash}{'min_open_size'} = 
+                $file_record{'CP_SIZE_AT_OPEN'};
+        }
     }
 
     # record largest size that the file reached at any rank
