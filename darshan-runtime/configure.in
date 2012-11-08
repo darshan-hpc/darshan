@@ -43,6 +43,14 @@ AC_ARG_ENABLE(ld-preload,
 fi]
 ,)
 
+AC_ARG_ENABLE(stat-at-open, 
+[  --enable-stat-at-open   Perform stat() call at open time to gather extra statistics], 
+[if test "x$enableval" = "xyes" ; then
+    AC_DEFINE(__CP_STAT_AT_OPEN, 1, Define if Darshan should stat files at open time to collect extra statistics)
+fi]
+,)
+
+
 AC_ARG_ENABLE(st-dev-workaround, 
 [  --enable-st-dev-workaround Gather device id from parent directory instead of file], 
 [if test "x$enableval" = "xyes" ; then

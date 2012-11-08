@@ -96,6 +96,10 @@
 /* Memory alignment in bytes */
 #undef __CP_MEM_ALIGNMENT
 
+/* Define if Darshan should stat files at open time to collect extra
+   statistics */
+#undef __CP_STAT_AT_OPEN
+
 /* Define if device id should be taken from parent directory rather than file
    */
 #undef __CP_ST_DEV_WORKAROUND
