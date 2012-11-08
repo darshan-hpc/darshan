@@ -302,6 +302,8 @@ int main(int argc, char **argv)
         printf("#      are condensed to refer to all files opened at the given\n");
         printf("#      process.\n");
         printf("#   <counter> and <value>: statistical counters.\n");
+        printf("#      A value of -1 indicates that Darshan could not monitor\n");
+        printf("#      that counter, and its value should be ignored.\n");
         printf("#   <name suffix>: last %d characters of file name.\n", CP_NAME_SUFFIX_LEN);
         printf("#   <mount pt>: mount point that the file resides on.\n");
         printf("#   <fs type>: type of file system that the file resides on.\n");
