@@ -2,6 +2,14 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.2.4-pre1
+=============
+* disable extra stat() of newly opened files by default in order
+  to improve performance on shared files.  
+  - prevents Darshan from reporting SIZE_AT_OPEN, FILE_ALIGNENT, and 
+    DARSHAN_FILE_NOT_ALIGNED values
+  - features can still be enabled via --enable-stat-at-open option
+
 darshan-2.2.3
 =============
 * improved Cray XE6 support
