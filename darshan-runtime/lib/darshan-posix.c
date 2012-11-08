@@ -19,6 +19,7 @@
 #include <search.h>
 #include <assert.h>
 #include <libgen.h>
+#include <limits.h>
 #define __USE_GNU
 #include <pthread.h>
 
@@ -100,6 +101,7 @@ DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb
 DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
 DARSHAN_FORWARD_DECL(fsync, int, (int fd));
 DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
+DARSHAN_FORWARD_DECL(chdir, int, (const char* path));
 
 pthread_mutex_t cp_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 struct darshan_job_runtime* darshan_global_job = NULL;
@@ -121,6 +123,8 @@ static char* exclusions[] = {
 "/proc/",
 NULL
 };
+
+static char working_dir[PATH_MAX] = {0};
 
 static double posix_wtime(void);
 
@@ -573,6 +577,21 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
     CP_LOCK();
     CP_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
     CP_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(chdir)(const char *path)
+{
+    int ret;
+
+    MAP_OR_FAIL(chdir);
+
+    ret = __real_chdir(path);
+    if(ret == 0)
+    {
+        strncpy(working_dir, path, PATH_MAX-1);
+    }
 
     return(ret);
 }
@@ -1083,6 +1102,13 @@ void darshan_initialize(int argc, char** argv,  int nprocs, int rank)
         /* turn off tracing */
         return;
     }
+    
+    /* find current working directory */
+    if(getcwd(working_dir, PATH_MAX) == NULL)
+    {
+        /* turn off tracing if we can't find working dir */
+        return;
+    }
 
     disable_timing = getenv("DARSHAN_DISABLE_TIMING");
 
@@ -1114,6 +1140,7 @@ void darshan_initialize(int argc, char** argv,  int nprocs, int rank)
     {
         darshan_mem_alignment = 1;
     }
+
 
     /* allocate structure to track darshan_global_job information */
     darshan_global_job = malloc(sizeof(*darshan_global_job));
