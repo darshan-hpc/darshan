@@ -9,7 +9,7 @@
  * from every process.  -f causes it to use fstat64() rather than stat64().  
  * -l causes it to use lseek(SEEK_END) instead of stat64().
  * -c causes it to create the file from scratch rather than operating on an
- *  existing file.
+ *  existing file.  -r issues a realpath() call on the file.
  */
 
 #define _LARGEFILE64_SOURCE
@@ -31,6 +31,7 @@ static char* opt_file = NULL;
 static int opt_create = 0;
 static int opt_fstat = 0;
 static int opt_lseek = 0;
+static int opt_realpath = 0;
 static int rank = -1;
 
 static int parse_args(int argc, char **argv);
@@ -44,6 +45,7 @@ int main(int argc, char **argv)
    struct stat64 statbuf;
    int nprocs;
    off64_t offset, orig_offset;
+   char* new_path;
 
    MPI_Init(&argc,&argv);
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -116,6 +118,14 @@ int main(int argc, char **argv)
          }
       }
    }
+   else if(opt_realpath)
+   {
+      new_path = realpath(opt_file, NULL);
+      if(!new_path)
+        ret = -1;
+      else
+        free(new_path);
+   }
    else
       ret = stat64(opt_file, &statbuf);
 
@@ -140,7 +150,7 @@ int main(int argc, char **argv)
 
    if(rank == 0)
    {
-      printf("opt_file: %s, opt_create: %d, opt_fstat: %d, opt_lseek: %d, nprocs: %d, time: %f ms\n", opt_file, opt_create, opt_fstat, opt_lseek, nprocs, slowest);
+      printf("opt_file: %s, opt_create: %d, opt_fstat: %d, opt_lseek: %d, opt_realpath: %d, nprocs: %d, time: %f ms\n", opt_file, opt_create, opt_fstat, opt_lseek, opt_realpath, nprocs, slowest);
    }
 
    MPI_Finalize();
@@ -151,7 +161,7 @@ static int parse_args(int argc, char **argv)
 {
    int c;
    
-   while ((c = getopt(argc, argv, "fcl")) != EOF) {
+   while ((c = getopt(argc, argv, "fclr")) != EOF) {
       switch (c) {
          case 'c': /* create file */
             opt_create = 1;
@@ -161,6 +171,9 @@ static int parse_args(int argc, char **argv)
             break;
          case 'l': /* lseek instead of stat */
             opt_lseek = 1;
+            break;
+         case 'r': /* realpath instead of stat */
+            opt_realpath = 1;
             break;
          case 'h':
             if (rank == 0)
@@ -175,9 +188,9 @@ static int parse_args(int argc, char **argv)
       }
    }
 
-   if(opt_lseek && opt_fstat)
+   if(opt_lseek + opt_fstat + opt_realpath > 1)
    {
-      fprintf(stderr, "Error: cannot specify both -l and -f at once.\n");
+      fprintf(stderr, "Error: Only specify one of -l, -f, or -r.\n");
       usage();
       exit(1);
    }
@@ -202,6 +215,7 @@ static void usage(void)
     printf(" -c       create new file to stat\n");
     printf(" -f       use fstat instead of stat\n");
     printf(" -l       use lseek instead of stat\n");
+    printf(" -r       use realpath instead of stat\n");
     printf(" -h       print this help\n");
 }
 
