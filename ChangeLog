@@ -2,7 +2,7 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.2.4-pre1
+darshan-2.2.4-pre2
 =============
 * disable extra stat() of newly opened files by default in order
   to improve performance on shared files.  
