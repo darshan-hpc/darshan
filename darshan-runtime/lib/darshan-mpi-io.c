@@ -193,7 +193,6 @@ static int cp_log_compress(struct darshan_job_runtime* final_job,
     int rank, int* inout_count, int* lengths, void** pointers);
 static int file_compare(const void* a, const void* b);
        void darshan_mpi_initialize(int *argc, char ***argv);
-static char*  darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job);
 static int darshan_file_variance(
     struct darshan_file *infile_array,
     struct darshan_file *outfile_array,
@@ -207,7 +206,6 @@ static void darshan_file_close_fh(MPI_File fh);
 static struct darshan_file_runtime* darshan_file_by_name_setfh(const char* name, MPI_File fh);
 
 #define CP_MAX_MNTS 32
-static char* trailing_data = NULL;
 static uint64_t mnt_hash_array[CP_MAX_MNTS] = {0};
 static int64_t mnt_id_array[CP_MAX_MNTS] = {0};
 static char* mnt_path_array[CP_MAX_MNTS] = {0};
@@ -243,12 +241,6 @@ void darshan_mpi_initialize(int *argc, char ***argv)
         /* we don't see argc and argv here in fortran */
         darshan_initialize(0, NULL, nprocs, rank);
     }
-
-    /* collect information about command line and 
-     * mounted file systems 
-     */
-    if(darshan_global_job)
-        trailing_data = darshan_get_exe_and_mounts(darshan_global_job);
 
     return;
 }
@@ -589,7 +581,7 @@ void darshan_shutdown(int timing_flag)
     {
         /* collect data to write from local process */
         cp_log_construct_indices(final_job, rank, &index_count, lengths, 
-            pointers, trailing_data);
+            pointers, final_job->trailing_data);
     }
 
     if(all_ret == 0)
@@ -654,12 +646,15 @@ void darshan_shutdown(int timing_flag)
         }
     }
 
-    if(trailing_data)
-        free(trailing_data);
+    if(final_job->trailing_data)
+        free(final_job->trailing_data);
     for(i=0; i<CP_MAX_MNTS; i++)
     {
         if(mnt_path_array[i])
+        {
             free(mnt_path_array[i]);
+            mnt_path_array[i] = NULL;
+        }
     }
     free(logfile_name);
     darshan_finalize(final_job);
@@ -2030,7 +2025,7 @@ static int file_compare(const void* a, const void* b)
  * collects command line and list of mounted file systems into a string that
  * will be stored with the job header
  */
-static char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
+char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
 {
     FILE* tab;
     struct mntent *entry;

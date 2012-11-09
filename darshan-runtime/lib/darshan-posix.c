@@ -1182,6 +1182,14 @@ void darshan_initialize(int argc, char** argv,  int nprocs, int rank)
         sprintf(&darshan_global_job->exe[truncate_offset], "%s", 
             truncate_string);
     }
+
+    /* collect information about command line and 
+     * mounted file systems 
+     */
+    darshan_global_job->trailing_data = 
+        darshan_get_exe_and_mounts(darshan_global_job);
+
+    return;
 }
 
 /* darshan_condense()

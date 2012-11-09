@@ -117,6 +117,7 @@ struct darshan_job_runtime
     int file_count;
     struct darshan_file_runtime* name_table[CP_HASH_SIZE];
     struct darshan_file_ref* handle_table[CP_HASH_SIZE];
+    char* trailing_data;
 };
 
 extern pthread_mutex_t cp_mutex;
@@ -230,6 +231,7 @@ void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs);
 void darshan_walk_file_accesses(struct darshan_job_runtime* final_job);
 double darshan_wtime(void);
 int64_t darshan_mnt_id_from_path(const char* path);
+char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job);
 
 uint32_t darshan_hashlittle(const void *key, size_t length, uint32_t initval);
 uint64_t darshan_hash(const register unsigned char *k, register uint64_t length, register uint64_t level);
