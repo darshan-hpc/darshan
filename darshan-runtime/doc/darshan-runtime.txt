@@ -196,13 +196,17 @@ The following example shows how to configure Darshan on a BG/P system:
 ./configure --with-mem-align=16 \
  --with-log-path=/home/carns/working/darshan/releases/logs \
  --prefix=/home/carns/working/darshan/install --with-jobid-env=COBALT_JOBID \
- --with-zlib=/soft/apps/zlib-1.2.3/ \
+ --with-zlib=/soft/apps/zlib-1.2.3/ --enable-stat-at-open  \
  --host=powerpc-bgp-linux CC=/bgsys/drivers/ppcfloor/comm/default/bin/mpicc 
 ----
 
 .Rationale
 [NOTE]
 ====
+The --enable-stat-at-open time option is specified to allow Darshan to
+collect additional information for newly opened files.  The GPFS file system
+typically deployed  in conjunction with Blue Gene systems does not produce
+significant additional overhead from the use of this option.
 The memory alignment is set to 16 not because that is the proper alignment
 for the BG/P CPU architecture, but because that is the optimal alignment for
 the network transport used between compute nodes and I/O nodes in the
