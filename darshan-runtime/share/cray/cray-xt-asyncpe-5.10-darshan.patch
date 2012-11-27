@@ -36,7 +36,7 @@ diff -Naupr asyncpe-bin-orig/crayc++ asyncpe-bin/crayc++
  
 +if [ ${DARSHAN_POST_LINK_OPTS:+1} ] ; then
 +   CNL_LIBS_LIST="$CNL_LIBS_LIST $LIBDARSHAN"
-+   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_LINK_OPTS}" 
++   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_COMPILE_OPTS}" 
 +fi
 +
 +
@@ -80,7 +80,7 @@ diff -Naupr asyncpe-bin-orig/craycc asyncpe-bin/craycc
  
 +if [ ${DARSHAN_POST_LINK_OPTS:+1} ] ; then
 +   CNL_LIBS_LIST="$CNL_LIBS_LIST $LIBDARSHAN"
-+   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_LINK_OPTS}" 
++   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_COMPILE_OPTS}" 
 +fi
 +
  _RUN_OPTIONS="$compile_opts $PRE_COMPILE_OPTS $PRE_LINK_OPTS "$@" -hlast_user_arg \
@@ -124,7 +124,7 @@ diff -Naupr asyncpe-bin-orig/crayftn asyncpe-bin/crayftn
  
 +if [ ${DARSHAN_POST_LINK_OPTS:+1} ] ; then
 +   CNL_LIBS_LIST="$CNL_LIBS_LIST $LIBDARSHAN"
-+   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_LINK_OPTS}" 
++   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_COMPILE_OPTS}" 
 +fi
 +
  _RUN_OPTIONS="${_FTN_OPTS} $compile_opts $PRE_COMPILE_OPTS $PRE_LINK_OPTS "$@" $END_USER_ARG \
@@ -175,7 +175,7 @@ diff -Naupr asyncpe-bin-orig/linux-cc asyncpe-bin/linux-cc
  
 +if [ ${DARSHAN_POST_LINK_OPTS:+1} ] ; then
 +   CNL_LIBS_LIST="$CNL_LIBS_LIST $LIBDARSHAN"
-+   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_LINK_OPTS}" 
++   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_COMPILE_OPTS}" 
 +fi
 +
  comp_only=0
@@ -228,7 +228,7 @@ diff -Naupr asyncpe-bin-orig/linux-CC asyncpe-bin/linux-CC
  
 +if [ ${DARSHAN_POST_LINK_OPTS:+1} ] ; then
 +   CNL_LIBS_LIST="$CNL_LIBS_LIST $LIBDARSHAN"
-+   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_LINK_OPTS}" 
++   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_COMPILE_OPTS}" 
 +fi
 +
  comp_only=0
@@ -281,7 +281,7 @@ diff -Naupr asyncpe-bin-orig/linux-f90 asyncpe-bin/linux-f90
  
 +if [ ${DARSHAN_POST_LINK_OPTS:+1} ] ; then
 +   CNL_LIBS_LIST="$CNL_LIBS_LIST $LIBDARSHAN"
-+   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_LINK_OPTS}" 
++   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_COMPILE_OPTS}" 
 +fi
 +
  comp_only=0
