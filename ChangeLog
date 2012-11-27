@@ -13,6 +13,8 @@ darshan-2.2.4-pre5
   error for some corner-case applications.
 * Fix bug in Cray compiler script patches that was setting compiler flags 
   incorrectly.  Reported by Yushu Yao.
+  WARNING: if you are using a previous Darshan release (2.2.3 through
+  2.2.4-pre4) on a Cray platform, please re-patch your compiler scripts.
 
 darshan-2.2.3
 =============
