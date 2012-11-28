@@ -74,23 +74,25 @@ open (OUTPUT, ">$output_file") || die("Error opening output file: $!");
 # part before the "foo.o -o foo", which is assumed to be CXX, and the part
 # that comes afterwards, which is assumed to be the required link flags and
 # libraries.
-if(!($link_cmd =~ /(.+)\s+(foo.o -o foo)\s+(.*)/))
+if(!($link_cmd =~ /(\S+)(.+)(foo.o -o foo)\s+(.*)/))
 {
     printf STDERR "Error: improperly formatted link cmd: $link_cmd\n";
     exit(1);
 }
 $CXX_from_link=$1;
-$base_link_cmd_suffix="\"\$\{allargs\[\@\]\}\" $3";
-$link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" \$CXXMPICH `$PREFIX/bin/darshan-config --pre-ld-flags` $3 `$PREFIX/bin/darshan-config --post-ld-flags`";
+$link_cmd_prefix=$2;
+$base_link_cmd_suffix="\"\$\{allargs\[\@\]\}\" $4";
+$link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" \$CXXMPICH `$PREFIX/bin/darshan-config --pre-ld-flags` $4 `$PREFIX/bin/darshan-config --post-ld-flags`";
 
 # repeat the above step for the compilation command line
-if(!($compile_cmd =~ /(.+)\s+(-c foo.c)\s+(.*)/))
+if(!($compile_cmd =~ /(\S+)(.+)(-c foo.c)\s+(.*)/))
 {
     printf STDERR "Error: improperly formatted compile cmd: $compile_cmd\n";
     exit(1);
 }
 $CXX_from_compile=$1;
-$compile_cmd_suffix="\"\$\{allargs\[\@\]\}\" $3";
+$compile_cmd_prefix=$2;
+$compile_cmd_suffix="\"\$\{allargs\[\@\]\}\" $4";
 
 # we expect to see the same CXX command in both the link and compile steps
 if($CXX_from_link ne $CXX_from_compile)
@@ -253,7 +255,7 @@ print OUTPUT<<"EOF";
         fi
         argno=`expr \$argno + 1`
     done
-    \$CXX $link_cmd_no_shared_suffix -Wl,-Map,\$tmpfile \$LDFLAGS -o /dev/null >& /dev/null
+    \$CXX $link_cmd_prefix $link_cmd_no_shared_suffix -Wl,-Map,\$tmpfile \$LDFLAGS -o /dev/null >& /dev/null
 
     # is MPI in there?
     grep MPI \$tmpfile >& /dev/null
@@ -283,18 +285,18 @@ print OUTPUT<<"EOF";
         # disable darshan if something else is already using PMPI; we don't
         # want to cause any symbol conflicts
         if [ \$rc_pmpi -ne 0 ] && [ \$compiler_check -eq 0 ]; then
-            \$Show \$CXX $link_cmd_suffix
+            \$Show \$CXX $link_cmd_prefix $link_cmd_suffix
             used_darshan=1
         fi
     fi
 
     # otherwise use the normal command line
     if [ "\$used_darshan" = "0" ] ; then
-        \$Show \$CXX $base_link_cmd_suffix
+        \$Show \$CXX $link_cmd_prefix $base_link_cmd_suffix
     fi
     rc=\$?
 else
-    \$Show \$CXX $compile_cmd_suffix
+    \$Show \$CXX $compile_cmd_prefix $compile_cmd_suffix
     rc=\$?
 fi
 
