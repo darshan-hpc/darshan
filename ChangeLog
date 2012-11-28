@@ -2,7 +2,7 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.2.4-pre5
+darshan-2.2.4-pre6
 =============
 * Disable extra stat() of newly opened files by default in order
   to improve performance on shared files.  Reported by Yushu Yao.
@@ -15,6 +15,10 @@ darshan-2.2.4-pre5
   incorrectly.  Reported by Yushu Yao.
   WARNING: if you are using a previous Darshan release (2.2.3 through
   2.2.4-pre4) on a Cray platform, please re-patch your compiler scripts.
+* Update darshan-gen-* scripts to support the potential for additonal LDFLAGS
+  or CFLAGS that appear before the object or source file in the compile or
+  link commands.  This fixes compatibility with some mvapich2 installations,
+  reported by Dragos Constantin.
 
 darshan-2.2.3
 =============
