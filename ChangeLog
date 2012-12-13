@@ -2,10 +2,10 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.2.4-pre6
+darshan-2.2.4
 =============
-* Disable extra stat() of newly opened files by default in order
-  to improve performance on shared files.  Reported by Yushu Yao.
+* Disable extra stat() of newly opened files by default.  This improves 
+  performance on shared files for some platforms.  Reported by Yushu Yao.
   - prevents Darshan from reporting SIZE_AT_OPEN, FILE_ALIGNENT, and 
     DARSHAN_FILE_NOT_ALIGNED values
   - features can still be enabled via --enable-stat-at-open option
