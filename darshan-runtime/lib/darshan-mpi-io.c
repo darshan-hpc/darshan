@@ -2020,6 +2020,19 @@ static int file_compare(const void* a, const void* b)
     return 0;
 }
 
+static path_len_cmp(const void* a, const void* b)
+{
+    const char** str_a  = (const char**)a;
+    const char** str_b  = (const char**)b;
+
+    if(strlen(*str_a) > strlen(*str_b))
+        return(-1);
+    else if(strlen(*str_a) < strlen(*str_b))
+        return(1);
+    else
+        return(0);
+}
+
 /* darshan_get_exe_and_mounts()
  *
  * collects command line and list of mounted file systems into a string that
@@ -2120,6 +2133,12 @@ char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
 #endif
         }
     }
+
+    /* Sort mount points in order of longest path to shortest path.  This is
+     * necessary so that if we try to match file paths to mount points later
+     * we don't match on "/" every time.
+     */
+    qsort(mnt_path_array, mnt_array_index, sizeof(char*), path_len_cmp);
 
     /* collect stat and hash information for each mnt */
     for(i=0; (i<mnt_array_index && i<CP_MAX_MNTS); i++)
