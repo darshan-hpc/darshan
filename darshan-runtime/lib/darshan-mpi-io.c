@@ -2038,6 +2038,7 @@ char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
     int space_left;
     char tmp_mnt[256];
     int mnt_array_index = 0;
+    int i;
 
     /* skip these fs types */
     static char* fs_exclusions[] = {
@@ -2073,8 +2074,10 @@ char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
     if(!tab)
         return(trailing_data);
 
+    /* loop through list of mounted file systems */
     while((entry = getmntent(tab)) != NULL)
     {
+        /* filter out excluded fs types */
         tmp_index = 0;
         skip = 0;
         while((exclude = fs_exclusions[tmp_index]))
@@ -2095,18 +2098,12 @@ char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
         {
             int64_t tmp_st_dev = statbuf.st_dev;
 
-            /* record hash of mount point and id */
-            if(mnt_array_index < CP_MAX_MNTS)
-            {
-                mnt_hash_array[mnt_array_index] =
-                    darshan_hash((void*)entry->mnt_dir, strlen(entry->mnt_dir), 0);
-                mnt_id_array[mnt_array_index] = tmp_st_dev;
-                mnt_path_array[mnt_array_index] = strdup(entry->mnt_dir);
-                mnt_array_index++;
-            }
-
+            mnt_path_array[mnt_array_index] = strdup(entry->mnt_dir);
+            mnt_array_index++;
+            
+            /* store mount information for use in header of darshan log */
             ret = snprintf(tmp_mnt, 256, "\n%" PRId64 "\t%s\t%s", tmp_st_dev, 
-                entry->mnt_type, entry->mnt_dir);
+                    entry->mnt_type, entry->mnt_dir);
             if(ret >= 256)
             {
                 /* didn't fit; skip this entry */
@@ -2121,6 +2118,22 @@ char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
             printf("dev: %" PRId64 ", mnt_pt: %s, type: %s\n",  
                 tmp_st_dev, entry->mnt_dir, entry->mnt_type);
 #endif
+        }
+    }
+
+    /* collect stat and hash information for each mnt */
+    for(i=0; (i<mnt_array_index && i<CP_MAX_MNTS); i++)
+    {
+        ret = stat(mnt_path_array[i], &statbuf);
+        if(ret == 0)
+        {
+            int64_t tmp_st_dev = statbuf.st_dev;
+
+            /* record hash of mount point and id */
+            mnt_hash_array[i] =
+                darshan_hash((void*)mnt_path_array[i], 
+                strlen(mnt_path_array[i]), 0);
+            mnt_id_array[i] = tmp_st_dev;
         }
     }
     return(trailing_data);
