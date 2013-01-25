@@ -2,6 +2,12 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.2.5-pre1
+=============
+* Fix bug in mount point identification when --enable-stat-at-open option is
+  not used.  In Darshan 2.2.4, some file entries were recorded as using the "/"
+  file system regardless of their location.
+
 darshan-2.2.4
 =============
 * Disable extra stat() of newly opened files by default.  This improves 
