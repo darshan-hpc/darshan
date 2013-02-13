@@ -5,7 +5,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl You may need to use autoheader as well if changing any DEFINEs
 
 dnl sanity checks, output header, location of scripts used here
-AC_INIT([darshan-runtime], [2.2.5-pre1])
+AC_INIT([darshan-runtime], [2.2.5-pre2])
 AC_CONFIG_SRCDIR([darshan.h])
 AC_CONFIG_AUX_DIR(../maint/config)
 AC_CONFIG_HEADER(darshan-runtime-config.h)
@@ -171,7 +171,7 @@ CFLAGS="$old_cflags"
 AC_CHECK_HEADERS(mntent.h sys/mount.h)
 
 # libc functions wrapped by darshan
-CP_WRAPPERS="-Wl,-u,MPI_Wtime,-wrap,write,-wrap,open,-wrap,creat,-wrap,creat64,-wrap,open64,-wrap,close,-wrap,read,-wrap,lseek,-wrap,lseek64,-wrap,pread,-wrap,pwrite,-wrap,readv,-wrap,writev,-wrap,__xstat,-wrap,__lxstat,-wrap,__fxstat,-wrap,__xstat64,-wrap,__lxstat64,-wrap,__fxstat64,-wrap,mmap,-wrap,mmap64,-wrap,fopen,-wrap,fclose,-wrap,fread,-wrap,fwrite,-wrap,fseek,-wrap,fopen64,-wrap,pread64,-wrap,pwrite64,-wrap,fsync,-wrap,fdatasync,-wrap,ncmpi_create,-wrap,ncmpi_open,-wrap,ncmpi_close,-wrap,H5Fcreate,-wrap,H5Fopen,-wrap,H5Fclose"
+CP_WRAPPERS="-Wl,-u,MPI_Init,-u,MPI_Wtime,-wrap,write,-wrap,open,-wrap,creat,-wrap,creat64,-wrap,open64,-wrap,close,-wrap,read,-wrap,lseek,-wrap,lseek64,-wrap,pread,-wrap,pwrite,-wrap,readv,-wrap,writev,-wrap,__xstat,-wrap,__lxstat,-wrap,__fxstat,-wrap,__xstat64,-wrap,__lxstat64,-wrap,__fxstat64,-wrap,mmap,-wrap,mmap64,-wrap,fopen,-wrap,fclose,-wrap,fread,-wrap,fwrite,-wrap,fseek,-wrap,fopen64,-wrap,pread64,-wrap,pwrite64,-wrap,fsync,-wrap,fdatasync,-wrap,ncmpi_create,-wrap,ncmpi_open,-wrap,ncmpi_close,-wrap,H5Fcreate,-wrap,H5Fopen,-wrap,H5Fclose"
 
 # ,-u,__wrap___fxstat64,-u,pthread_mutex_lock,-u,pthread_mutex_unlock
 

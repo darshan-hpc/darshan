@@ -9,6 +9,8 @@ darshan-2.2.5-pre2
   file system regardless of their location.
 * Update documentation to no longer recommend --enable-stat-at-open option on 
   any systems
+* Fix unresolved symbols error when linking non-MPI programs with Cray
+  compiler.  Reported by Yushu Yao.
 
 darshan-2.2.4
 =============
