@@ -285,9 +285,9 @@ static inline dev_t get_device(const char* path, struct stat64* statbuf)
 }
 
 #ifdef __CP_STAT_AT_OPEN
-#define CP_STAT_FILE(_f, _p) do { \
+#define CP_STAT_FILE(_f, _p, _r) do { \
     if(!CP_VALUE(_f, CP_FILE_ALIGNMENT)){ \
-        if(stat64(_p, &cp_stat_buf) == 0) { \
+        if(fstat64(_r, &cp_stat_buf) == 0) { \
             CP_SET(_f, CP_DEVICE, get_device(_p, &cp_stat_buf)); \
             CP_SET(_f, CP_FILE_ALIGNMENT, cp_stat_buf.st_blksize); \
             CP_SET(_f, CP_SIZE_AT_OPEN, cp_stat_buf.st_size); \
@@ -295,7 +295,7 @@ static inline dev_t get_device(const char* path, struct stat64* statbuf)
     }\
 }while(0)
 #else
-#define CP_STAT_FILE(_f, _p) do { }while(0)
+#define CP_STAT_FILE(_f, _p, _r) do { }while(0)
 #endif
 
 #define CP_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
@@ -311,7 +311,7 @@ static inline dev_t get_device(const char* path, struct stat64* statbuf)
     if(exclude) break; \
     file = darshan_file_by_name_setfd(__path, __ret); \
     if(!file) break; \
-    CP_STAT_FILE(file, __path); \
+    CP_STAT_FILE(file, __path, __ret); \
     file->log_file->rank = my_rank; \
     if(__mode) \
         CP_SET(file, CP_MODE, __mode); \
