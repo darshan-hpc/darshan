@@ -84,6 +84,9 @@
 # endif
 #endif
 
+/* Define if Darshan should set log files to be group readable */
+#undef __CP_GROUP_READABLE_LOGS
+
 /* Comma separated list of env. variables to use for log path */
 #undef __CP_LOG_ENV
 

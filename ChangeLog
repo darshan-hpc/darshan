@@ -2,7 +2,7 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.2.5-pre2
+darshan-2.2.5-pre3
 =============
 * Fix bug in mount point identification when --enable-stat-at-open option is
   not used.  In Darshan 2.2.4, some file entries were recorded as using the "/"
@@ -11,6 +11,14 @@ darshan-2.2.5-pre2
   any systems
 * Fix unresolved symbols error when linking non-MPI programs with Cray
   compiler.  Reported by Yushu Yao.
+* Use fstat() in place of stat() for detecting file information when
+  --enable-stat-at-open option is used
+* Use statfs() at startup to detect default block size for supported file
+  systems
+* Added --enable-group-readable-logs configure option, which will cause
+  Darshan to to generate log files with the group read permission bit set.
+  This option is useful in conjunction with deployments that set the setgid
+  bit on log directories.
 
 darshan-2.2.4
 =============

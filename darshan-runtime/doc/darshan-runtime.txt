@@ -110,6 +110,25 @@ as root.
 darshan-mk-log-dirs.pl
 ----
 
+.A note about log directory permissions
+[NOTE]
+====
+All log files written by darshan have permissions set to only allow
+read access by the owner of the file.  You can modify this behavior,
+however, by specifying the --enable-group-readable-logs option at
+configure time.  One notable deployment scenario would be to configure
+Darshan and the log directories to allow all logs to be readable by both the
+end user and a Darshan administrators group.   This can be done with the
+following steps:
+
+* set the --enable-group-readable-logs option at configure time
+* create the log directories with darshan-mk-log-dirs.pl
+* recursively set the group ownership of the log directories to the Darshan
+administrators group
+* recursively set the setgid bit on the log directories
+====
+
+
 === Instrumentation method
 
 The instrumentation method to use depends on whether the executables

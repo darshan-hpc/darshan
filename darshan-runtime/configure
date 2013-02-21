@@ -686,6 +686,7 @@ with_zlib_for_mpi
 with_zlib
 enable_cuserid
 enable_ld_preload
+enable_group_readable_logs
 enable_stat_at_open
 enable_st_dev_workaround
 with_mem_align
@@ -1314,6 +1315,7 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-cuserid       Disables attempted use of cuserid() at run time
   --disable-ld-preload    Disables support for LD_PRELOAD library
+  --enable-group-readable-logs Set log files to be group readable
   --enable-stat-at-open   Perform stat() call at open time to gather extra statistics
   --enable-st-dev-workaround Gather device id from parent directory instead of file
 
@@ -3637,6 +3639,17 @@ fi
 if test "${enable_ld_preload+set}" = set; then :
   enableval=$enable_ld_preload; if test "x$enableval" = "xno" ; then
     DISABLE_LDPRELOAD="1"
+fi
+
+fi
+
+
+# Check whether --enable-group-readable-logs was given.
+if test "${enable_group_readable_logs+set}" = set; then :
+  enableval=$enable_group_readable_logs; if test "x$enableval" = "xyes" ; then
+
+$as_echo "#define __CP_GROUP_READABLE_LOGS 1" >>confdefs.h
+
 fi
 
 fi

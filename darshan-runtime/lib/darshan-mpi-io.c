@@ -643,7 +643,11 @@ void darshan_shutdown(int timing_flag)
                 sprintf(mod_index, "_%d.darshan.gz", (int)(end_log_time-start_log_time+1));
                 rename(logfile_name, new_logfile_name);
                 /* set permissions on log file */
+#ifdef __CP_GROUP_READABLE_LOGS
+                chmod(new_logfile_name, (S_IRUSR|S_IRGRP)); 
+#else
                 chmod(new_logfile_name, (S_IRUSR)); 
+#endif
                 free(new_logfile_name);
             }
         }
