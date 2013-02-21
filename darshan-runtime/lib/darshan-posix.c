@@ -256,7 +256,7 @@ static char* clean_path(const char* path);
 
     
 #define CP_RECORD_STAT(__file, __statbuf, __tm1, __tm2) do { \
-    if(!CP_VALUE((__file), CP_FILE_ALIGNMENT)){ \
+    if(!CP_VALUE((__file), CP_POSIX_STATS) && !CP_VALUE((__file), CP_POSIX_OPENS)){ \
         CP_SET((__file), CP_DEVICE, (__statbuf)->st_dev); \
         CP_SET((__file), CP_FILE_ALIGNMENT, (__statbuf)->st_blksize); \
         CP_SET((__file), CP_SIZE_AT_OPEN, (__statbuf)->st_size); \
@@ -286,7 +286,7 @@ static inline dev_t get_device(const char* path, struct stat64* statbuf)
 
 #ifdef __CP_STAT_AT_OPEN
 #define CP_STAT_FILE(_f, _p, _r) do { \
-    if(!CP_VALUE(_f, CP_FILE_ALIGNMENT)){ \
+    if(!CP_VALUE((_f), CP_POSIX_STATS) && !CP_VALUE((_f), CP_POSIX_OPENS)){ \
         if(fstat64(_r, &cp_stat_buf) == 0) { \
             CP_SET(_f, CP_DEVICE, get_device(_p, &cp_stat_buf)); \
             CP_SET(_f, CP_FILE_ALIGNMENT, cp_stat_buf.st_blksize); \
@@ -1648,6 +1648,7 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
     int hash_index;
     char* newname = NULL;
     int64_t device_id;
+    int64_t block_size;
 
     if(!darshan_global_job)
         return(NULL);
@@ -1693,8 +1694,9 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
     /* new, unique file */
     tmp_file = &darshan_global_job->file_runtime_array[darshan_global_job->file_count];
 
-    device_id = darshan_mnt_id_from_path(newname);
+    darshan_mnt_id_from_path(newname, &device_id, &block_size);
     CP_SET(tmp_file, CP_DEVICE, device_id);
+    CP_SET(tmp_file, CP_FILE_ALIGNMENT, block_size);
     CP_SET(tmp_file, CP_MEM_ALIGNMENT, darshan_mem_alignment);
     tmp_file->log_file->hash = tmp_hash;
 
@@ -1712,8 +1714,8 @@ struct darshan_file_runtime* darshan_file_by_name(const char* name)
      */
 #ifndef __CP_STAT_AT_OPEN
     CP_SET(tmp_file, CP_SIZE_AT_OPEN, -1);
-    CP_SET(tmp_file, CP_FILE_ALIGNMENT, -1);
-    CP_SET(tmp_file, CP_FILE_NOT_ALIGNED, -1);
+    if(CP_VALUE(tmp_file, CP_FILE_ALIGNMENT) == -1)
+        CP_SET(tmp_file, CP_FILE_NOT_ALIGNED, -1);
 #endif
 
     darshan_global_job->file_count++;

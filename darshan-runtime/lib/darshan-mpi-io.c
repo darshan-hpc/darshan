@@ -20,6 +20,7 @@
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
 #include <zlib.h>
 #include <assert.h>
 #include <search.h>
@@ -208,7 +209,9 @@ static struct darshan_file_runtime* darshan_file_by_name_setfh(const char* name,
 #define CP_MAX_MNTS 32
 static uint64_t mnt_hash_array[CP_MAX_MNTS] = {0};
 static int64_t mnt_id_array[CP_MAX_MNTS] = {0};
+static int64_t mnt_block_size_array[CP_MAX_MNTS] = {0};
 static char* mnt_path_array[CP_MAX_MNTS] = {0};
+
 static uint64_t mnt_hash_array_root[CP_MAX_MNTS] = {0};
 static int64_t mnt_id_array_root[CP_MAX_MNTS] = {0};
 struct
@@ -2046,6 +2049,7 @@ char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
     int tmp_index = 0;
     int ret;
     struct stat statbuf;
+    struct statfs statfsbuf;
     int skip = 0;
     char* trailing_data;
     int space_left;
@@ -2154,6 +2158,19 @@ char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
                 strlen(mnt_path_array[i]), 0);
             mnt_id_array[i] = tmp_st_dev;
         }
+/* NOTE: we now try to detect default block size for each file system, but we
+ * skip this step on Lustre, which appears to always report a 4K block size
+ * through statfs().
+ */
+#ifndef LL_SUPER_MAGIC
+#define LL_SUPER_MAGIC 0x0BD00BD0
+#endif
+        ret = statfs(mnt_path_array[i], &statfsbuf);
+        if(ret == 0 && statfsbuf.f_type != LL_SUPER_MAGIC)
+            mnt_block_size_array[i] = statfsbuf.f_bsize;
+        else
+            mnt_block_size_array[i] = -1;
+
     }
     return(trailing_data);
 }
@@ -2407,18 +2424,22 @@ static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh)
     return(tmp_file);
 }
 
-/* find the device id for the specified file, based on data from the mount
- * entries.
+/* find the device id and block size for the specified file, based on 
+ * data from the mount entries.
  */
-int64_t darshan_mnt_id_from_path(const char* path)
+void darshan_mnt_id_from_path(const char* path, int64_t* device_id, int64_t* block_size)
 {
     int i;
+    *device_id = -1;
+    *block_size = -1;
 
     for(i=0; (i<CP_MAX_MNTS && mnt_hash_array[i] != 0); i++)
     {
         if(!(strncmp(mnt_path_array[i], path, strlen(mnt_path_array[i]))))
         {
-            return(mnt_id_array[i]);
+            *device_id = mnt_id_array[i];
+            *block_size = mnt_block_size_array[i];
+            return;
         }
     }
 
