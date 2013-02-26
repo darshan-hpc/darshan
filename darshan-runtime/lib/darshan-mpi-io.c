@@ -2447,7 +2447,7 @@ void darshan_mnt_id_from_path(const char* path, int64_t* device_id, int64_t* blo
         }
     }
 
-    return(0);
+    return;
 }
 
 /*
