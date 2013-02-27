@@ -1,0 +1,289 @@
+diff -Naupr asyncpe-bin-orig/crayc++ asyncpe-bin/crayc++
+--- asyncpe-bin-orig/crayc++	2013-02-27 09:36:45.969418574 -0600
++++ asyncpe-bin/crayc++	2013-02-27 09:37:58.521909847 -0600
+@@ -1661,6 +1661,28 @@ else
+      LIBPNETCDF=
+ fi
+ 
++###
++# Process Darshan libraries
++###
++
++if [ ${CRAY_DARSHAN_DIR:+1} ] ; then
++
++   unset LIBDARSHAN
++   unset DARSHAN_POST_LINK_OPTS
++
++   # disable darshan if dynamic linking
++   if [ "$CRAYPE_LINK_TYPE" != "dynamic" ] ; then
++      LIBDARSHAN=`${CRAY_DARSHAN_DIR}/bin/darshan-config --post-ld-flags`
++      DARSHAN_POST_LINK_OPTS=`${CRAY_DARSHAN_DIR}/bin/darshan-config --pre-ld-flags`
++      DARSHAN_POST_LINK_OPTS="-lmpichcxx ${DARSHAN_POST_LINK_OPTS}"
++   fi
++
++else
++   LIBDARSHAN=
++   DARSHAN_POST_LINK_OPTS=
++fi
++
++
+ ##
+ # PMI
+ ##
+@@ -1893,6 +1915,12 @@ if [ -f ${BUILD_OPTS} ] ; then
+ 	eval $($BUILD_OPTS)
+ fi
+ 
++if [ ${DARSHAN_POST_LINK_OPTS:+1} ] ; then
++   CNL_LIBS_LIST="$CNL_LIBS_LIST $LIBDARSHAN"
++   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_COMPILE_OPTS}" 
++fi
++
++
+ _RUN_OPTIONS="$compile_opts $PRE_COMPILE_OPTS $PRE_LINK_OPTS \
+      "$@" -hlast_user_arg \
+      -nostdinc \
+diff -Naupr asyncpe-bin-orig/craycc asyncpe-bin/craycc
+--- asyncpe-bin-orig/craycc	2013-02-27 09:36:45.938614537 -0600
++++ asyncpe-bin/craycc	2013-02-27 09:38:02.068807618 -0600
+@@ -1546,6 +1546,27 @@ else
+      LIBPNETCDF=
+ fi
+ 
++###
++# Process Darshan libraries
++###
++
++if [ ${CRAY_DARSHAN_DIR:+1} ] ; then
++
++   unset LIBDARSHAN
++   unset DARSHAN_POST_LINK_OPTS
++
++   # disable darshan if dynamic linking
++   if [ "$CRAYPE_LINK_TYPE" != "dynamic" ] ; then
++      LIBDARSHAN=`${CRAY_DARSHAN_DIR}/bin/darshan-config --post-ld-flags`
++      DARSHAN_POST_LINK_OPTS=`${CRAY_DARSHAN_DIR}/bin/darshan-config --pre-ld-flags`
++   fi
++
++else
++   LIBDARSHAN=
++   DARSHAN_POST_LINK_OPTS=
++fi
++
++
+ ##
+ # PMI
+ ##
+@@ -1786,6 +1807,11 @@ if [ -f ${BUILD_OPTS} ] ; then
+ 	eval $($BUILD_OPTS)
+ fi
+ 
++if [ ${DARSHAN_POST_LINK_OPTS:+1} ] ; then
++   CNL_LIBS_LIST="$CNL_LIBS_LIST $LIBDARSHAN"
++   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_COMPILE_OPTS}" 
++fi
++
+ _RUN_OPTIONS="$compile_opts $PRE_COMPILE_OPTS $PRE_LINK_OPTS "$@" -hlast_user_arg \
+      -nostdinc \
+      $INCLUDE_OPTS ${COMPILER_INCLUDE} ${INC_PATH} ${GCC_XX_INCLUDE_PATH_LIST} ${GCC_BASE} $SYSROOT $SYSROOT_INC_PATH \
+diff -Naupr asyncpe-bin-orig/crayftn asyncpe-bin/crayftn
+--- asyncpe-bin-orig/crayftn	2013-02-27 09:36:45.823973010 -0600
++++ asyncpe-bin/crayftn	2013-02-27 09:38:05.896830086 -0600
+@@ -1552,6 +1552,28 @@ else
+      pnetcdf_fmodules_dir=
+ fi
+ 
++###
++# Process Darshan libraries
++###
++
++if [ ${CRAY_DARSHAN_DIR:+1} ] ; then
++
++   unset LIBDARSHAN
++   unset DARSHAN_POST_LINK_OPTS
++
++   # disable darshan if dynamic linking
++   if [ "$CRAYPE_LINK_TYPE" != "dynamic" ] ; then
++      LIBDARSHAN=`${CRAY_DARSHAN_DIR}/bin/darshan-config --post-ld-flags`
++      DARSHAN_POST_LINK_OPTS=`${CRAY_DARSHAN_DIR}/bin/darshan-config --pre-ld-flags`
++      DARSHAN_POST_LINK_OPTS="-lfmpich ${DARSHAN_POST_LINK_OPTS}"
++   fi
++
++else
++   LIBDARSHAN=
++   DARSHAN_POST_LINK_OPTS=
++fi
++
++
+ ##
+ # PMI
+ ##
+@@ -1805,6 +1827,11 @@ if [ -f ${BUILD_OPTS} ] ; then
+       	eval $($BUILD_OPTS)
+ fi
+ 
++if [ ${DARSHAN_POST_LINK_OPTS:+1} ] ; then
++   CNL_LIBS_LIST="$CNL_LIBS_LIST $LIBDARSHAN"
++   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_COMPILE_OPTS}" 
++fi
++
+ _RUN_OPTIONS="${_FTN_OPTS} $compile_opts $PRE_COMPILE_OPTS $PRE_LINK_OPTS "$@" $END_USER_ARG \
+            $INCLUDE_OPTS ${INC_PATH} $SYSROOT_INC_PATH ${INCDIRS} \
+ 	   $POST_COMPILE_OPTS $POST_LINK_OPTS -L${CRAYLIBS} ${CRAYLIBS_RPATH} ${LIB_PATH} \
+diff -Naupr asyncpe-bin-orig/linux-cc asyncpe-bin/linux-cc
+--- asyncpe-bin-orig/linux-cc	2013-02-27 09:36:45.998202260 -0600
++++ asyncpe-bin/linux-cc	2013-02-27 09:38:15.891507131 -0600
+@@ -1851,6 +1851,35 @@ else
+      LIBPNETCDF=
+ fi
+ 
++###
++# Process Darshan libraries
++###
++
++if [ ${CRAY_DARSHAN_DIR:+1} ] ; then
++
++   unset LIBDARSHAN
++   unset DARSHAN_POST_LINK_OPTS
++
++   # disable darshan if dynamic linking
++   if [ "$CRAYPE_LINK_TYPE" != "dynamic" ] ; then
++
++      case $PE_ENV in     
++      PGI|GNU|PATHSCALE|INTEL )
++         LIBDARSHAN=`${CRAY_DARSHAN_DIR}/bin/darshan-config --post-ld-flags`
++         DARSHAN_POST_LINK_OPTS=`${CRAY_DARSHAN_DIR}/bin/darshan-config --pre-ld-flags`
++      ;;
++      *)
++         # Darshan has not been tested with other compiler combinations
++      ;;
++      esac
++
++   fi
++
++else
++   LIBDARSHAN=
++   DARSHAN_POST_LINK_OPTS=
++fi
++
+ ##
+ # PMI
+ ##
+@@ -2144,6 +2173,11 @@ fi
+         eval $($BUILD_OPTS)
+    fi
+ 
++if [ ${DARSHAN_POST_LINK_OPTS:+1} ] ; then
++   CNL_LIBS_LIST="$CNL_LIBS_LIST $LIBDARSHAN"
++   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_COMPILE_OPTS}" 
++fi
++
+ comp_only=0
+ 
+ for arg
+diff -Naupr asyncpe-bin-orig/linux-CC asyncpe-bin/linux-CC
+--- asyncpe-bin-orig/linux-CC	2013-02-27 09:36:45.851506594 -0600
++++ asyncpe-bin/linux-CC	2013-02-27 09:38:18.574255692 -0600
+@@ -2100,6 +2100,37 @@ else
+      LIBPNETCDF=
+ fi 
+ 
++###
++# Process Darshan libraries
++###
++
++if [ ${CRAY_DARSHAN_DIR:+1} ] ; then
++
++   unset LIBDARSHAN
++   unset DARSHAN_POST_LINK_OPTS
++
++   # disable darshan if dynamic linking
++   if [ "$CRAYPE_LINK_TYPE" != "dynamic" ] ; then
++
++      case $PE_ENV in     
++      PGI|GNU|PATHSCALE|INTEL )
++         LIBDARSHAN=`${CRAY_DARSHAN_DIR}/bin/darshan-config --post-ld-flags`
++         DARSHAN_POST_LINK_OPTS=`${CRAY_DARSHAN_DIR}/bin/darshan-config --pre-ld-flags`
++         DARSHAN_POST_LINK_OPTS="-lmpichcxx ${DARSHAN_POST_LINK_OPTS}"
++      ;;
++      *)
++         # Darshan has not been tested with other compiler combinations
++      ;;
++      esac
++
++   fi
++
++else
++   LIBDARSHAN=
++   DARSHAN_POST_LINK_OPTS=
++fi
++
++
+ ##
+ # PMI
+ ##
+@@ -2383,6 +2414,11 @@ fi
+         eval $($BUILD_OPTS)
+    fi
+ 
++if [ ${DARSHAN_POST_LINK_OPTS:+1} ] ; then
++   CNL_LIBS_LIST="$CNL_LIBS_LIST $LIBDARSHAN"
++   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_COMPILE_OPTS}" 
++fi
++
+ comp_only=0
+ 
+ for arg
+diff -Naupr asyncpe-bin-orig/linux-f90 asyncpe-bin/linux-f90
+--- asyncpe-bin-orig/linux-f90	2013-02-27 09:36:45.899788203 -0600
++++ asyncpe-bin/linux-f90	2013-02-27 09:38:26.239283575 -0600
+@@ -1918,6 +1918,37 @@ else
+      LIBPNETCDF=
+ fi
+ 
++###
++# Process Darshan libraries
++###
++
++if [ ${CRAY_DARSHAN_DIR:+1} ] ; then
++
++   unset LIBDARSHAN
++   unset DARSHAN_POST_LINK_OPTS
++
++   # disable darshan if dynamic linking
++   if [ "$CRAYPE_LINK_TYPE" != "dynamic" ] ; then
++
++      case $PE_ENV in     
++      PGI|GNU|PATHSCALE|INTEL )
++         LIBDARSHAN=`${CRAY_DARSHAN_DIR}/bin/darshan-config --post-ld-flags`
++         DARSHAN_POST_LINK_OPTS=`${CRAY_DARSHAN_DIR}/bin/darshan-config --pre-ld-flags`
++         DARSHAN_POST_LINK_OPTS="-lfmpich ${DARSHAN_POST_LINK_OPTS}"
++      ;;
++      *)
++         # Darshan has not been tested with other compiler combinations
++      ;;
++      esac
++
++   fi
++
++else
++   LIBDARSHAN=
++   DARSHAN_POST_LINK_OPTS=
++fi
++
++
+ ##
+ # PMI
+ ##
+@@ -2239,6 +2270,11 @@ fi
+         eval $($BUILD_OPTS)
+    fi
+ 
++if [ ${DARSHAN_POST_LINK_OPTS:+1} ] ; then
++   CNL_LIBS_LIST="$CNL_LIBS_LIST $LIBDARSHAN"
++   POST_COMPILE_OPTS="${DARSHAN_POST_LINK_OPTS} ${POST_COMPILE_OPTS}" 
++fi
++
+ comp_only=0
+ for arg
+ do
