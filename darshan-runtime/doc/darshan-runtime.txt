@@ -313,15 +313,20 @@ requires compiler script modifications in order to apply instrumentation
 libraries and link options in the correct order relative to other libraries used
 at link time.
 
-Perform the following steps to patch the system compiler scripts.  The patch 
-provided in the Darshan source tree was generated against the xt-asyncpe-5.10
-environment, but it should also work on similar versions as well. 
+Two patches are provided in the Darshan source tree:
+
+* cray-xt-asyncpe-5.10-darshan.patch: for xt-asyncpe versions 5.10 or 5.11
+* cray-xt-asyncpe-5.12-darshan.patch: for xt-asyncpe versions 5.12 or higher
+
+Perform the following steps to modify the system compiler scripts 
+after selecting the appropriate patch.  This example assumes the use of the
+patch for xt-asyncpe version 5.12 or higher.
 
 ----
 cd $ASYNCPE_DIR/bin
-patch -p1 --dry-run < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
+patch -p1 --dry-run < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.12-darshan.patch
 # CONFIRM THE RESULTS OF THE DRY RUN SHOWN ABOVE
-patch -p1 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
+patch -p1 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.12-darshan.patch
 ----
 
 The next step is to install the Darshan software module.  Note that the module
@@ -344,15 +349,17 @@ scripts than those found in the normal system path.
 In order to install Darshan for a single user in a Cray environment, the steps
 are similar to those described above, except that the compiler script
 modifications are applied to a local copy of the compiler scripts and the 
-Darshan module is added locally rather than globally:
+Darshan module is added locally rather than globally.  Note that the 
+cray-xt-asyncpe-5.12-darshan.patch is intended for use with xt-asyncpe versions
+5.12 or higher.  Please use cray-xt-asyncpe-5.12-darshan.patch for 5.10 or 5.11.
 
 ----
 mkdir xt-asyncpe-darshan
 cp -r $ASYNCPE_DIR/* xt-asyncpe-darshan
 cd xt-asyncpe-darshan/bin
-patch -p1 --dry-run < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
+patch -p1 --dry-run < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.12-darshan.patch
 # CONFIRM THE RESULTS OF THE DRY RUN SHOWN ABOVE
-patch -p1 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.10-darshan.patch
+patch -p1 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.12-darshan.patch
 
 module use /soft/darshan-2.2.3/share/cray/modulefiles/
 ----
