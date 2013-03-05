@@ -1792,7 +1792,7 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     }
     
     ret = DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, logfile_name,
-        MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, MPI_INFO_NULL, &fh);
+        MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, info, &fh);
     MPI_Info_free(&info);
     if(ret != MPI_SUCCESS)
     {

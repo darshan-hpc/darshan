@@ -2,6 +2,11 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.2.6-pre1
+=============
+* Bug fix: make sure to honor any user-specified hints passed in at runtime
+  via the DARSHAN_LOGHINTS env variable.
+
 darshan-2.2.5
 =============
 * Fix bug in mount point identification when --enable-stat-at-open option is
