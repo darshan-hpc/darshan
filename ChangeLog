@@ -8,6 +8,9 @@ darshan-2.2.6-pre1
   via the DARSHAN_LOGHINTS env variable.
 * Add instrumentation of startup time, enabled via DARSHAN_INTERNAL_TIMING
   environment variable
+* Rename cp-shutdown-bench test utility to darshan-shutdown-bench and enable
+  benchmarking hooks in library by default so that darshan-shutdown-bench 
+  can be used with any Darshan installation.
 
 darshan-2.2.5
 =============
