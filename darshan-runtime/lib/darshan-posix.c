@@ -1391,7 +1391,6 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size, e
     return;
 }
 
-#if 0
 void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs)
 {
     int* fd_array;
@@ -1623,7 +1622,6 @@ void darshan_search_bench(int argc, char** argv, int iters)
     free(fd_array);
     free(size_array);
 }
-#endif
 
 static double posix_wtime(void)
 {
