@@ -1449,6 +1449,7 @@ void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs)
 
     /***********************************************************/
     /* reset darshan to start clean */
+    sleep(1);
     darshan_initialize(argc, argv, nprocs, rank);
 
     /* populate one shared file per proc */
@@ -1473,6 +1474,7 @@ void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs)
 
     /***********************************************************/
     /* reset darshan to start clean */
+    sleep(1);
     darshan_initialize(argc, argv, nprocs, rank);
 
     /* populate 1024 unique file per proc */
@@ -1497,6 +1499,7 @@ void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs)
 
     /***********************************************************/
     /* reset darshan to start clean */
+    sleep(1);
     darshan_initialize(argc, argv, nprocs, rank);
 
     /* populate 1024 shared file per proc */
