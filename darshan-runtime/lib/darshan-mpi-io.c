@@ -702,16 +702,16 @@ void darshan_shutdown(int timing_flag)
         write_tm = write2-write1;
         all_tm = tm_end-start_log_time;
 
-        DARSHAN_MPI_CALL(PMPI_Allreduce)(&red_tm, &red_slowest, 1,
-            MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        DARSHAN_MPI_CALL(PMPI_Allreduce)(&gz_tm, &gz_slowest, 1,
-            MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        DARSHAN_MPI_CALL(PMPI_Allreduce)(&write_tm, &write_slowest, 1,
-            MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        DARSHAN_MPI_CALL(PMPI_Allreduce)(&all_tm, &all_slowest, 1,
-            MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        DARSHAN_MPI_CALL(PMPI_Allreduce)(&bcst_tm, &bcst_slowest, 1,
-            MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(&red_tm, &red_slowest, 1,
+            MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(&gz_tm, &gz_slowest, 1,
+            MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(&write_tm, &write_slowest, 1,
+            MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(&all_tm, &all_slowest, 1,
+            MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(&bcst_tm, &bcst_slowest, 1,
+            MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
         if(rank == 0)
         {
