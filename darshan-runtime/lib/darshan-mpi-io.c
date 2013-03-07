@@ -721,7 +721,7 @@ void darshan_shutdown(int timing_flag)
             printf("darshan:reduce\t%d\t%f\n", nprocs, red_slowest);
             printf("darshan:gzip\t%d\t%f\n", nprocs, gz_slowest);
             printf("darshan:write\t%d\t%f\n", nprocs, write_slowest);
-            printf("darshan:all\t%d\t%f\n", nprocs, all_slowest);
+            printf("darshan:bcast+reduce+gzip+write\t%d\t%f\n", nprocs, all_slowest);
         }
     }
 
