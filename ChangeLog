@@ -11,6 +11,8 @@ darshan-2.2.6-pre1
 * Rename cp-shutdown-bench test utility to darshan-shutdown-bench and enable
   benchmarking hooks in library by default so that darshan-shutdown-bench 
   can be used with any Darshan installation.
+* Change default MPI-IO hints for writing log file to
+  romio_no_indep_rw=true and cb_nodes=4 to improve log creation performance
 
 darshan-2.2.5
 =============
