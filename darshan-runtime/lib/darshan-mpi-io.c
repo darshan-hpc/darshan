@@ -231,9 +231,17 @@ void darshan_mpi_initialize(int *argc, char ***argv)
 {
     int nprocs;
     int rank;
+    int timing_flag = 0;
+    double init_start, init_time, init_max;
 
     DARSHAN_MPI_CALL(PMPI_Comm_size)(MPI_COMM_WORLD, &nprocs);
     DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
+    
+    if(getenv("DARSHAN_INTERNAL_TIMING"))
+        timing_flag = 1;
+
+    if(timing_flag)
+        init_start = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
     if(argc && argv)
     {
@@ -243,6 +251,18 @@ void darshan_mpi_initialize(int *argc, char ***argv)
     {
         /* we don't see argc and argv here in fortran */
         darshan_initialize(0, NULL, nprocs, rank);
+    }
+    
+    if(timing_flag)
+    {
+        init_time = DARSHAN_MPI_CALL(PMPI_Wtime)() - init_start;
+        DARSHAN_MPI_CALL(PMPI_Reduce)(&init_time, &init_max, 1,
+            MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        if(rank == 0)
+        {
+            printf("#darshan:<op>\t<nprocs>\t<time>\n");
+            printf("darshan:init\t%d\t%f\n", nprocs, init_max);
+        }
     }
 
     return;
@@ -696,12 +716,12 @@ void darshan_shutdown(int timing_flag)
         if(rank == 0)
         {
             DARSHAN_MPI_CALL(PMPI_Comm_size)(MPI_COMM_WORLD, &nprocs);
-            printf("#<op>\t<nprocs>\t<time>\n");
-            printf("bcst\t%d\t%f\n", nprocs, bcst_slowest);
-            printf("reduce\t%d\t%f\n", nprocs, red_slowest);
-            printf("gzip\t%d\t%f\n", nprocs, gz_slowest);
-            printf("write\t%d\t%f\n", nprocs, write_slowest);
-            printf("all\t%d\t%f\n", nprocs, all_slowest);
+            printf("#darshan:<op>\t<nprocs>\t<time>\n");
+            printf("darshan:bcst\t%d\t%f\n", nprocs, bcst_slowest);
+            printf("darshan:reduce\t%d\t%f\n", nprocs, red_slowest);
+            printf("darshan:gzip\t%d\t%f\n", nprocs, gz_slowest);
+            printf("darshan:write\t%d\t%f\n", nprocs, write_slowest);
+            printf("darshan:all\t%d\t%f\n", nprocs, all_slowest);
         }
     }
 
