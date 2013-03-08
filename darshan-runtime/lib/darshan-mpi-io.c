@@ -1995,12 +1995,12 @@ static int mnt_data_cmp(const void* a, const void* b)
         return(0);
 }
 
-/* darshan_get_exe_and_mounts()
+/* darshan_get_exe_and_mounts_root()
  *
  * collects command line and list of mounted file systems into a string that
  * will be stored with the job header
  */
-char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
+static void darshan_get_exe_and_mounts_root(struct darshan_job_runtime* final_job, char* trailing_data, int space_left)
 {
     FILE* tab;
     struct mntent *entry;
@@ -2009,8 +2009,6 @@ char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
     int ret;
     struct statfs statfsbuf;
     int skip = 0;
-    char* trailing_data;
-    int space_left;
     char tmp_mnt[256];
 
     /* skip these fs types */
@@ -2031,21 +2029,13 @@ char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
         NULL
     };
 
-    space_left = CP_EXE_LEN + 1;
-    trailing_data = malloc(space_left);
-    if(!trailing_data)
-    {
-        return(NULL);
-    }
-    memset(trailing_data, 0, space_left);
-
     /* length of exe has already been safety checked in darshan-posix.c */
     strcat(trailing_data, final_job->exe);
     space_left = CP_EXE_LEN - strlen(trailing_data);
 
     tab = setmntent("/etc/mtab", "r");
     if(!tab)
-        return(trailing_data);
+        return;
 
     /* loop through list of mounted file systems */
     while((entry = getmntent(tab)) != NULL)
@@ -2106,6 +2096,44 @@ char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
      * we don't match on "/" every time.
      */
     qsort(mnt_data_array, mnt_data_count, sizeof(mnt_data_array[0]), mnt_data_cmp);
+    return;
+}
+
+/* darshan_get_exe_and_mounts()
+ *
+ * collects command line and list of mounted file systems into a string that
+ * will be stored with the job header
+ */
+char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
+{
+    char* trailing_data;
+    int space_left;
+    int rank;
+
+    space_left = CP_EXE_LEN + 1;
+    trailing_data = malloc(space_left);
+    if(!trailing_data)
+    {
+        return(NULL);
+    }
+    memset(trailing_data, 0, space_left);
+
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
+    if(rank == 0)
+    {
+        darshan_get_exe_and_mounts_root(final_job, trailing_data, space_left);
+    }
+
+    /* broadcast trailing data to all nodes */
+    DARSHAN_MPI_CALL(PMPI_Bcast)(trailing_data, space_left, MPI_CHAR, 0,
+        MPI_COMM_WORLD);
+    /* broadcast mount count to all nodes */
+    DARSHAN_MPI_CALL(PMPI_Bcast)(&mnt_data_count, 1, MPI_INT, 0,
+        MPI_COMM_WORLD);
+    /* broadcast mount data to all nodes */
+    DARSHAN_MPI_CALL(PMPI_Bcast)(mnt_data_array, 
+        mnt_data_count*sizeof(mnt_data_array[0]), MPI_BYTE, 0, MPI_COMM_WORLD);
+
     return(trailing_data);
 }
 
