@@ -200,25 +200,26 @@ static int darshan_file_variance(
     int count, int rank);
 static void pairwise_variance_reduce (
     void *invec, void *inoutvec, int *len, MPI_Datatype *dt);
+#if 0
 static void debug_mounts(const char* mtab_file, const char* out_file);
+#endif
 
 static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh);
 static void darshan_file_close_fh(MPI_File fh);
 static struct darshan_file_runtime* darshan_file_by_name_setfh(const char* name, MPI_File fh);
 
 #define CP_MAX_MNTS 32
-static uint64_t mnt_hash_array[CP_MAX_MNTS] = {0};
-static int64_t mnt_id_array[CP_MAX_MNTS] = {0};
-static int64_t mnt_block_size_array[CP_MAX_MNTS] = {0};
-static char* mnt_path_array[CP_MAX_MNTS] = {0};
-
-static uint64_t mnt_hash_array_root[CP_MAX_MNTS] = {0};
-static int64_t mnt_id_array_root[CP_MAX_MNTS] = {0};
-struct
+#define CP_MAX_MNT_PATH 256
+#define CP_MAX_MNT_TYPE 32
+struct mnt_data
 {
-    int64_t mnt_id_local;
-    int64_t mnt_id_root;
-} mnt_mapping[CP_MAX_MNTS];
+    int64_t hash;
+    int64_t block_size;
+    char path[CP_MAX_MNT_PATH];
+    char type[CP_MAX_MNT_TYPE];
+};
+static struct mnt_data mnt_data_array[CP_MAX_MNTS];
+static int mnt_data_count = 0;
 
 struct variance_dt
 {
@@ -286,10 +287,8 @@ void darshan_shutdown(int timing_flag)
     void* pointers[CP_MAX_MEM_SEGMENTS];
     int ret;
     double red1=0, red2=0, gz1=0, gz2=0, write1=0, write2=0, tm_end=0;
-    double bcst1=0, bcst2=0, bcst3=0;
+    double bcst=0;
     int nprocs;
-    int i, j;
-    int map_index = 0;
     time_t start_time_tmp = 0;
     uint64_t logmod;
     char hname[HOST_NAME_MAX];
@@ -362,63 +361,6 @@ void darshan_shutdown(int timing_flag)
 
     DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
 
-    /* broadcast mount point information from root */
-    if(rank == 0)
-    {
-        memcpy(mnt_hash_array_root, mnt_hash_array,
-            CP_MAX_MNTS*sizeof(uint64_t));
-        memcpy(mnt_id_array_root, mnt_id_array,
-            CP_MAX_MNTS*sizeof(int64_t));
-    }
-
-    bcst1=DARSHAN_MPI_CALL(PMPI_Wtime)();
-    hlevel = bcst1*1000000;
-
-    DARSHAN_MPI_CALL(PMPI_Bcast)(mnt_id_array_root,
-        CP_MAX_MNTS*sizeof(int64_t), MPI_BYTE, 0, MPI_COMM_WORLD);
-    DARSHAN_MPI_CALL(PMPI_Bcast)(mnt_hash_array_root,
-        CP_MAX_MNTS*sizeof(uint64_t), MPI_BYTE, 0, MPI_COMM_WORLD);
-    bcst2=DARSHAN_MPI_CALL(PMPI_Wtime)();
-
-    /* identify any common mount points that have different device ids on
-     * non-root processes
-     */
-    for(i=0; (i<CP_MAX_MNTS && mnt_hash_array_root[i] != 0); i++)
-    {
-        for(j=0; (j<CP_MAX_MNTS && mnt_hash_array[j] != 0); j++)
-        {
-            if(mnt_hash_array_root[i] == mnt_hash_array[j])
-            {
-                /* found a shared mount point */
-                if(mnt_id_array_root[i] != mnt_id_array[j])
-                {
-                    /* mismatching ids; record correct mapping */
-                    mnt_mapping[map_index].mnt_id_local =
-                        mnt_id_array[j];
-                    mnt_mapping[map_index].mnt_id_root = 
-                        mnt_id_array_root[i];
-                    map_index++;
-                }
-                break;
-            }
-        }
-    }
- 
-    /* adjust affected file records */
-    for(i=0; (i<final_job->file_count && map_index > 0); i++)
-    {
-        for(j=0; j<map_index; j++)
-        {
-            if(final_job->file_array[i].counters[CP_DEVICE] ==
-                mnt_mapping[j].mnt_id_local)
-            {
-                final_job->file_array[i].counters[CP_DEVICE] =  
-                    mnt_mapping[j].mnt_id_root;
-                break;
-            }
-        }
-    }
-   
     /* construct log file name */
     if(rank == 0)
     {
@@ -493,6 +435,7 @@ void darshan_shutdown(int timing_flag)
         }
 
         /* generate a random number to help differentiate the log */
+        hlevel=DARSHAN_MPI_CALL(PMPI_Wtime)() * 1000000;
         (void) gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
 
@@ -572,7 +515,7 @@ void darshan_shutdown(int timing_flag)
     }
 
     /* broadcast log file name */
-    bcst3=DARSHAN_MPI_CALL(PMPI_Wtime)();
+    bcst=DARSHAN_MPI_CALL(PMPI_Wtime)();
     DARSHAN_MPI_CALL(PMPI_Bcast)(logfile_name, PATH_MAX, MPI_CHAR, 0,
         MPI_COMM_WORLD);
 
@@ -675,14 +618,7 @@ void darshan_shutdown(int timing_flag)
 
     if(final_job->trailing_data)
         free(final_job->trailing_data);
-    for(i=0; i<CP_MAX_MNTS; i++)
-    {
-        if(mnt_path_array[i])
-        {
-            free(mnt_path_array[i]);
-            mnt_path_array[i] = NULL;
-        }
-    }
+    mnt_data_count = 0;
     free(logfile_name);
     darshan_finalize(final_job);
     
@@ -696,7 +632,7 @@ void darshan_shutdown(int timing_flag)
         
         tm_end = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
-        bcst_tm=(bcst2-bcst1)+(red1-bcst3);
+        bcst_tm= red1-bcst;
         red_tm = red2-red1;
         gz_tm = gz2-gz1;
         write_tm = write2-write1;
@@ -2047,14 +1983,14 @@ static int file_compare(const void* a, const void* b)
     return 0;
 }
 
-static path_len_cmp(const void* a, const void* b)
+static int mnt_data_cmp(const void* a, const void* b)
 {
-    const char** str_a  = (const char**)a;
-    const char** str_b  = (const char**)b;
+    const struct mnt_data *d_a = (const struct mnt_data*)a;
+    const struct mnt_data *d_b = (const struct mnt_data*)b;
 
-    if(strlen(*str_a) > strlen(*str_b))
+    if(strlen(d_a->path) > strlen(d_b->path))
         return(-1);
-    else if(strlen(*str_a) < strlen(*str_b))
+    else if(strlen(d_a->path) < strlen(d_b->path))
         return(1);
     else
         return(0);
@@ -2072,14 +2008,11 @@ char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
     char* exclude;
     int tmp_index = 0;
     int ret;
-    struct stat statbuf;
     struct statfs statfsbuf;
     int skip = 0;
     char* trailing_data;
     int space_left;
     char tmp_mnt[256];
-    int mnt_array_index = 0;
-    int i;
 
     /* skip these fs types */
     static char* fs_exclusions[] = {
@@ -2133,69 +2066,47 @@ char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job)
 
         if(skip)
             continue;
-
-        ret = stat(entry->mnt_dir, &statbuf);
-        if(ret == 0)
-        {
-            int64_t tmp_st_dev = statbuf.st_dev;
-
-            mnt_path_array[mnt_array_index] = strdup(entry->mnt_dir);
-            mnt_array_index++;
-            
-            /* store mount information for use in header of darshan log */
-            ret = snprintf(tmp_mnt, 256, "\n%" PRId64 "\t%s\t%s", tmp_st_dev, 
-                    entry->mnt_type, entry->mnt_dir);
-            if(ret >= 256)
-            {
-                /* didn't fit; skip this entry */
-                continue;
-            }
-            if(strlen(tmp_mnt) <= space_left)
-            {
-                strcat(trailing_data, tmp_mnt);
-                space_left -= strlen(tmp_mnt);
-            }
-#if 0
-            printf("dev: %" PRId64 ", mnt_pt: %s, type: %s\n",  
-                tmp_st_dev, entry->mnt_dir, entry->mnt_type);
+        
+        strncpy(mnt_data_array[mnt_data_count].path, entry->mnt_dir, 
+            CP_MAX_MNT_PATH-1);
+        strncpy(mnt_data_array[mnt_data_count].type, entry->mnt_type, 
+            CP_MAX_MNT_TYPE-1);
+        mnt_data_array[mnt_data_count].hash = 
+            darshan_hash((void*)mnt_data_array[mnt_data_count].path, 
+            strlen(mnt_data_array[mnt_data_count].path), 0);
+        /* NOTE: we now try to detect the preferred block size for each file 
+         * system using fstatfs().  On Lustre we assume a size of 1 MiB 
+         * because fstatfs() reports 4 KiB. 
+         */
+#ifndef LL_SUPER_MAGIC
+#define LL_SUPER_MAGIC 0x0BD00BD0
 #endif
+        ret = statfs(entry->mnt_dir, &statfsbuf);
+        if(ret == 0 && statfsbuf.f_type != LL_SUPER_MAGIC)
+            mnt_data_array[mnt_data_count].block_size = statfsbuf.f_bsize;
+        else if(ret == 0 && statfsbuf.f_type == LL_SUPER_MAGIC)
+            mnt_data_array[mnt_data_count].block_size = 1024*1024;
+        else
+            mnt_data_array[mnt_data_count].block_size = 4096;
+
+        /* store mount information for use in header of darshan log */
+        ret = snprintf(tmp_mnt, 256, "\n%" PRId64 "\t%s\t%s", 
+            mnt_data_array[mnt_data_count].hash,
+            entry->mnt_type, entry->mnt_dir);
+        if(ret < 256 && strlen(tmp_mnt) <= space_left)
+        {
+            strcat(trailing_data, tmp_mnt);
+            space_left -= strlen(tmp_mnt);
         }
+        
+        mnt_data_count++;
     }
 
     /* Sort mount points in order of longest path to shortest path.  This is
      * necessary so that if we try to match file paths to mount points later
      * we don't match on "/" every time.
      */
-    qsort(mnt_path_array, mnt_array_index, sizeof(char*), path_len_cmp);
-
-    /* collect stat and hash information for each mnt */
-    for(i=0; (i<mnt_array_index && i<CP_MAX_MNTS); i++)
-    {
-        ret = stat(mnt_path_array[i], &statbuf);
-        if(ret == 0)
-        {
-            int64_t tmp_st_dev = statbuf.st_dev;
-
-            /* record hash of mount point and id */
-            mnt_hash_array[i] =
-                darshan_hash((void*)mnt_path_array[i], 
-                strlen(mnt_path_array[i]), 0);
-            mnt_id_array[i] = tmp_st_dev;
-        }
-/* NOTE: we now try to detect default block size for each file system, but we
- * skip this step on Lustre, which appears to always report a 4K block size
- * through statfs().
- */
-#ifndef LL_SUPER_MAGIC
-#define LL_SUPER_MAGIC 0x0BD00BD0
-#endif
-        ret = statfs(mnt_path_array[i], &statfsbuf);
-        if(ret == 0 && statfsbuf.f_type != LL_SUPER_MAGIC)
-            mnt_block_size_array[i] = statfsbuf.f_bsize;
-        else
-            mnt_block_size_array[i] = -1;
-
-    }
+    qsort(mnt_data_array, mnt_data_count, sizeof(mnt_data_array[0]), mnt_data_cmp);
     return(trailing_data);
 }
 
@@ -2385,6 +2296,7 @@ static void cp_log_record_hints(struct darshan_job_runtime* final_job, int rank)
     return;
 }
 
+#if 0
 static void debug_mounts(const char* mtab_file, const char* out_file)
 {
     FILE* tab;
@@ -2424,6 +2336,7 @@ static void debug_mounts(const char* mtab_file, const char* out_file)
     }
     return;
 }
+#endif
 
 static struct darshan_file_runtime* darshan_file_by_name_setfh(const char* name, MPI_File fh)
 {
@@ -2457,12 +2370,12 @@ void darshan_mnt_id_from_path(const char* path, int64_t* device_id, int64_t* blo
     *device_id = -1;
     *block_size = -1;
 
-    for(i=0; (i<CP_MAX_MNTS && mnt_hash_array[i] != 0); i++)
+    for(i=0; i<mnt_data_count; i++)
     {
-        if(!(strncmp(mnt_path_array[i], path, strlen(mnt_path_array[i]))))
+        if(!(strncmp(mnt_data_array[i].path, path, strlen(mnt_data_array[i].path))))
         {
-            *device_id = mnt_id_array[i];
-            *block_size = mnt_block_size_array[i];
+            *device_id = mnt_data_array[i].hash;
+            *block_size = mnt_data_array[i].block_size;
             return;
         }
     }
