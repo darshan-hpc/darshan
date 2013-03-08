@@ -688,7 +688,6 @@ enable_cuserid
 enable_ld_preload
 enable_group_readable_logs
 enable_stat_at_open
-enable_st_dev_workaround
 with_mem_align
 with_log_path_by_env
 with_log_hints
@@ -1317,7 +1316,6 @@ Optional Features:
   --disable-ld-preload    Disables support for LD_PRELOAD library
   --enable-group-readable-logs Set log files to be group readable
   --enable-stat-at-open   Perform stat() call at open time to gather extra statistics
-  --enable-st-dev-workaround Gather device id from parent directory instead of file
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -3664,20 +3662,6 @@ $as_echo "#define __CP_STAT_AT_OPEN 1" >>confdefs.h
 fi
 
 fi
-
-
-
-# Check whether --enable-st-dev-workaround was given.
-if test "${enable_st_dev_workaround+set}" = set; then :
-  enableval=$enable_st_dev_workaround; if test "x$enableval" = "xyes" ; then
-
-$as_echo "#define __CP_ST_DEV_WORKAROUND 1" >>confdefs.h
-
-    DISABLE_LDPRELOAD="1"
-fi
-
-fi
-
 
 
 

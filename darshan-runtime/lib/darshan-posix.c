@@ -266,29 +266,10 @@ static char* clean_path(const char* path);
     CP_INC(__file, CP_POSIX_STATS, 1); \
 } while(0)
 
-static inline dev_t get_device(const char* path, struct stat64* statbuf)
-{
-    dev_t device = 0;
-
-#ifdef __CP_ST_DEV_WORKAROUND
-    struct stat64 dirstat;
-    char* tmp_path = strdup(path);
-    char* parent = dirname(tmp_path);
-    if(parent && stat64(parent, &dirstat) == 0)
-        device = dirstat.st_dev;
-    if(tmp_path) free(tmp_path);
-#else
-    device = statbuf->st_dev;
-#endif
-
-    return(device);
-}
-
 #ifdef __CP_STAT_AT_OPEN
 #define CP_STAT_FILE(_f, _p, _r) do { \
     if(!CP_VALUE((_f), CP_POSIX_STATS) && !CP_VALUE((_f), CP_POSIX_OPENS)){ \
         if(fstat64(_r, &cp_stat_buf) == 0) { \
-            CP_SET(_f, CP_DEVICE, get_device(_p, &cp_stat_buf)); \
             CP_SET(_f, CP_FILE_ALIGNMENT, cp_stat_buf.st_blksize); \
             CP_SET(_f, CP_SIZE_AT_OPEN, cp_stat_buf.st_size); \
         }\

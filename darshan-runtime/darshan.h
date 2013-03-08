@@ -230,6 +230,7 @@ void darshan_walk_file_accesses(struct darshan_job_runtime* final_job);
 double darshan_wtime(void);
 void darshan_mnt_id_from_path(const char* path, int64_t* device_id, int64_t* block_size);
 char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job);
+void darshan_mpi_initialize(int *argc, char ***argv);
 
 uint32_t darshan_hashlittle(const void *key, size_t length, uint32_t initval);
 uint64_t darshan_hash(const register unsigned char *k, register uint64_t length, register uint64_t level);

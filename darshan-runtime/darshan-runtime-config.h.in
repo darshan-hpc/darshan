@@ -103,9 +103,5 @@
    statistics */
 #undef __CP_STAT_AT_OPEN
 
-/* Define if device id should be taken from parent directory rather than file
-   */
-#undef __CP_ST_DEV_WORKAROUND
-
 /* Generalized request type for MPI-IO */
 #undef __D_MPI_REQUEST
