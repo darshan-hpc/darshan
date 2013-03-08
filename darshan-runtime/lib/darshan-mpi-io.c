@@ -1683,6 +1683,7 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
     char* key;
     char* value;
     char* tok_str;
+    char* orig_tok_str;
     char* saveptr = NULL;
     MPI_Info info;
 
@@ -1723,6 +1724,7 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
         tok_str = strdup(hints);
         if(tok_str)
         {
+            orig_tok_str = tok_str;
             do
             {
                 /* split string on semicolon */
@@ -1742,7 +1744,7 @@ static int cp_log_write(struct darshan_job_runtime* final_job, int rank,
                     }
                 }
             }while(key != NULL);
-            free(tok_str);
+            free(orig_tok_str);
         }
     }
     
