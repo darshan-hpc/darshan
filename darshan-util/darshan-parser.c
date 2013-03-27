@@ -27,11 +27,13 @@
 #define OPTION_PERF  (1 << 2)  /* derived performance */
 #define OPTION_FILE  (1 << 3)  /* file count totals */
 #define OPTION_RED_READ  (1 << 4)  /* files with redundant read traffic */
+#define OPTION_META_RATIO  (1 << 5)  /* metadata time ratio */
 #define OPTION_ALL (\
   OPTION_BASE|\
   OPTION_TOTAL|\
   OPTION_PERF|\
   OPTION_FILE|\
+  OPTION_META_RATIO|\
   OPTION_RED_READ)
 
 #define FILETYPE_SHARED (1 << 0)
@@ -116,6 +118,7 @@ int usage (char *exename)
     fprintf(stderr, "    --perf  : derived perf data\n");
     fprintf(stderr, "    --total : aggregated darshan field data\n");
     fprintf(stderr, "    --red-read : files with redundant read traffic\n");
+    fprintf(stderr, "    --meta-ratio : ratio of I/O time spent in metadata\n");
 
     exit(1);
 }
@@ -132,6 +135,7 @@ int parse_args (int argc, char **argv, char **filename)
         {"perf",  0, NULL, OPTION_PERF},
         {"total", 0, NULL, OPTION_TOTAL},
         {"red-read", 0, NULL, OPTION_RED_READ},
+        {"meta-ratio", 0, NULL, OPTION_META_RATIO},
         {"help",  0, NULL, 0}
     };
 
@@ -151,10 +155,10 @@ int parse_args (int argc, char **argv, char **filename)
             case OPTION_PERF:
             case OPTION_TOTAL:
             case OPTION_RED_READ:
+            case OPTION_META_RATIO:
                 mask |= c;
                 break;
             case 0:
-            case '?':
             default:
                 usage(argv[0]);
                 break;
@@ -473,6 +477,12 @@ int main(int argc, char **argv)
         printf("# agg_perf_by_open: %lf\n", pdata.agg_perf_by_open);
         printf("# agg_perf_by_open_lastio: %lf\n", pdata.agg_perf_by_open_lastio);
         printf("# agg_perf_by_slowest: %lf\n", pdata.agg_perf_by_slowest);
+    }
+    if((mask & OPTION_META_RATIO))
+    {
+        printf("#<jobid>\t<uid>\t<procs>\t<start>\t<type>\t<io_time>\t<meta_time>\t<percent>\n");
+        printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tmeta-ratio\t%lf\t%lf\t%lf\n",
+            job.jobid, job.uid, job.nprocs, job.start_time, (pdata.slowest_rank_time+pdata.shared_time_by_slowest), (pdata.slowest_rank_meta_time+pdata.shared_meta_time), (pdata.slowest_rank_meta_time+pdata.shared_meta_time)/(pdata.slowest_rank_time+pdata.shared_time_by_slowest));
     }
 
     /* Redundant read calc */
