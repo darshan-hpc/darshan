@@ -28,12 +28,14 @@
 #define OPTION_FILE  (1 << 3)  /* file count totals */
 #define OPTION_RED_READ  (1 << 4)  /* files with redundant read traffic */
 #define OPTION_META_RATIO  (1 << 5)  /* metadata time ratio */
+#define OPTION_SHARED_SMALL_WRITES (1 << 6) /* shared files with small writes */
 #define OPTION_ALL (\
   OPTION_BASE|\
   OPTION_TOTAL|\
   OPTION_PERF|\
   OPTION_FILE|\
   OPTION_META_RATIO|\
+  OPTION_SHARED_SMALL_WRITES|\
   OPTION_RED_READ)
 
 #define FILETYPE_SHARED (1 << 0)
@@ -108,6 +110,8 @@ void accum_file(struct darshan_file *, hash_entry_t *, file_data_t *);
 void calc_file(struct darshan_job *, hash_entry_t *, file_data_t *);
 static void calc_red_read(struct darshan_job *djob,
                hash_entry_t *file_hash);
+static void calc_shared_small_writes(struct darshan_job *djob,
+               hash_entry_t *file_hash);
 
 int usage (char *exename)
 {
@@ -136,6 +140,7 @@ int parse_args (int argc, char **argv, char **filename)
         {"total", 0, NULL, OPTION_TOTAL},
         {"red-read", 0, NULL, OPTION_RED_READ},
         {"meta-ratio", 0, NULL, OPTION_META_RATIO},
+        {"shared-small-writes", 0, NULL, OPTION_SHARED_SMALL_WRITES},
         {"help",  0, NULL, 0}
     };
 
@@ -156,6 +161,7 @@ int parse_args (int argc, char **argv, char **filename)
             case OPTION_TOTAL:
             case OPTION_RED_READ:
             case OPTION_META_RATIO:
+            case OPTION_SHARED_SMALL_WRITES:
                 mask |= c;
                 break;
             case 0:
@@ -491,6 +497,12 @@ int main(int argc, char **argv)
         calc_red_read(&job, file_hash);
     }
 
+    /* shared small write call */
+    if((mask & OPTION_SHARED_SMALL_WRITES))
+    {
+        calc_shared_small_writes(&job, file_hash);
+    }
+
     /* File Calc */
     calc_file(&job, file_hash, &fdata);
     if ((mask & OPTION_FILE))
@@ -682,6 +694,42 @@ void accum_file(struct darshan_file *dfile,
     return;
 }
 
+
+static void calc_shared_small_writes(struct darshan_job *djob,
+               hash_entry_t *file_hash)
+{
+    hash_entry_t *curr = NULL;
+    hash_entry_t *tmp = NULL;
+    int header_print = 0;
+
+    HASH_ITER(hlink, file_hash, curr, tmp)
+    {
+        int i;
+        uint64_t writes_lt_100k = 0;
+        uint64_t writes_gt_100k = 0;
+
+        /* only look at shared files that were written to */
+        if(curr->type == FILETYPE_SHARED && curr->counters[CP_BYTES_WRITTEN] > 0 && curr->counters[CP_COLL_WRITES] == 0)
+        {
+            if(!header_print)
+            {
+                printf("#<jobid>\t<uid>\t<procs>\t<start>\t<type>\t<writes_lt_100k>\t<writes_gt_100k>\t<bytes_written>\n");
+                header_print = 1;
+            }
+
+            for(i=CP_SIZE_WRITE_0_100; i<= CP_SIZE_WRITE_10K_100K; i++)
+                writes_lt_100k += curr->counters[i];
+            for(i=CP_SIZE_WRITE_100K_1M; i<= CP_SIZE_WRITE_1G_PLUS; i++)
+                writes_gt_100k += curr->counters[i];
+
+            printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tshared-small-writes\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
+                djob->jobid, djob->uid, djob->nprocs, djob->start_time, curr->hash, 
+                writes_lt_100k, writes_gt_100k, curr->counters[CP_BYTES_WRITTEN]);
+        }
+    }
+
+    return;
+}
 
 static void calc_red_read(struct darshan_job *djob,
                hash_entry_t *file_hash)
