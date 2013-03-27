@@ -26,11 +26,13 @@
 #define OPTION_TOTAL (1 << 1)  /* aggregated fields */
 #define OPTION_PERF  (1 << 2)  /* derived performance */
 #define OPTION_FILE  (1 << 3)  /* file count totals */
+#define OPTION_RED_READ  (1 << 4)  /* files with redundant read traffic */
 #define OPTION_ALL (\
   OPTION_BASE|\
   OPTION_TOTAL|\
   OPTION_PERF|\
-  OPTION_FILE)
+  OPTION_FILE|\
+  OPTION_RED_READ)
 
 #define FILETYPE_SHARED (1 << 0)
 #define FILETYPE_UNIQUE (1 << 1)
@@ -102,6 +104,8 @@ void calc_perf(struct darshan_job *, hash_entry_t *, perf_data_t *);
 
 void accum_file(struct darshan_file *, hash_entry_t *, file_data_t *);
 void calc_file(struct darshan_job *, hash_entry_t *, file_data_t *);
+static void calc_red_read(struct darshan_job *djob,
+               hash_entry_t *file_hash);
 
 int usage (char *exename)
 {
@@ -111,6 +115,7 @@ int usage (char *exename)
     fprintf(stderr, "    --file  : total file counts\n");
     fprintf(stderr, "    --perf  : derived perf data\n");
     fprintf(stderr, "    --total : aggregated darshan field data\n");
+    fprintf(stderr, "    --red-read : files with redundant read traffic\n");
 
     exit(1);
 }
@@ -126,6 +131,7 @@ int parse_args (int argc, char **argv, char **filename)
         {"file",  0, NULL, OPTION_FILE},
         {"perf",  0, NULL, OPTION_PERF},
         {"total", 0, NULL, OPTION_TOTAL},
+        {"red-read", 0, NULL, OPTION_RED_READ},
         {"help",  0, NULL, 0}
     };
 
@@ -144,6 +150,7 @@ int parse_args (int argc, char **argv, char **filename)
             case OPTION_FILE:
             case OPTION_PERF:
             case OPTION_TOTAL:
+            case OPTION_RED_READ:
                 mask |= c;
                 break;
             case 0:
@@ -468,6 +475,12 @@ int main(int argc, char **argv)
         printf("# agg_perf_by_slowest: %lf\n", pdata.agg_perf_by_slowest);
     }
 
+    /* Redundant read calc */
+    if((mask & OPTION_RED_READ))
+    {
+        calc_red_read(&job, file_hash);
+    }
+
     /* File Calc */
     calc_file(&job, file_hash, &fdata);
     if ((mask & OPTION_FILE))
@@ -659,6 +672,25 @@ void accum_file(struct darshan_file *dfile,
     return;
 }
 
+
+static void calc_red_read(struct darshan_job *djob,
+               hash_entry_t *file_hash)
+{
+    hash_entry_t *curr = NULL;
+    hash_entry_t *tmp = NULL;
+
+    printf("#<jobid>\t<type>\t<file_hash>\t<max_byte_read>\t<bytes_read>\n");
+    HASH_ITER(hlink, file_hash, curr, tmp)
+    {
+        if((curr->counters[CP_MAX_BYTE_READ]+1) < curr->counters[CP_BYTES_READ])
+        {
+            printf("%" PRId64 "\tred-read\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
+                djob->jobid, curr->hash, curr->counters[CP_MAX_BYTE_READ], curr->counters[CP_BYTES_READ]);
+        }
+    }
+
+    return;
+}
 
 void calc_file(struct darshan_job *djob,
                hash_entry_t *file_hash, 
