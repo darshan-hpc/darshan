@@ -680,23 +680,28 @@ static void calc_red_read(struct darshan_job *djob,
     hash_entry_t *tmp = NULL;
     uint64_t total_max = 0;
     uint64_t total_read = 0;
+    int header_print = 0;
 
-    printf("#<jobid>\t<uid>\t<procs>\t<start>\t<type>\t<file_hash>\t<max_byte_read>\t<bytes_read>\n");
     HASH_ITER(hlink, file_hash, curr, tmp)
     {
         if((curr->counters[CP_MAX_BYTE_READ]+1) < curr->counters[CP_BYTES_READ])
         {
+            if(!header_print)
+            {
+                printf("#<jobid>\t<uid>\t<procs>\t<start>\t<type>\t<file_hash>\t<max_byte_read>\t<bytes_read>\t<diff>\n");
+                header_print = 1;
+            }
             total_read += curr->counters[CP_BYTES_READ];
             total_max += (curr->counters[CP_MAX_BYTE_READ]+1);
-            printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tred-read-file\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
-                djob->jobid, djob->uid, djob->nprocs, djob->start_time, curr->hash, curr->counters[CP_MAX_BYTE_READ], curr->counters[CP_BYTES_READ]);
+            printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tred-read-file\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
+                djob->jobid, djob->uid, djob->nprocs, djob->start_time, curr->hash, curr->counters[CP_MAX_BYTE_READ], curr->counters[CP_BYTES_READ], curr->counters[CP_BYTES_READ] - (curr->counters[CP_MAX_BYTE_READ]+1));
         }
     }
 
     if(total_read > 0)
     {
-        printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tred-read-summary\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
-            djob->jobid, djob->uid, djob->nprocs, djob->start_time, (int64_t)0, total_max, total_read);
+        printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tred-read-summary\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
+            djob->jobid, djob->uid, djob->nprocs, djob->start_time, (int64_t)0, total_max, total_read, total_read-total_max);
     }
 
     return;
