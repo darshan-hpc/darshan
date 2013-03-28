@@ -486,9 +486,22 @@ int main(int argc, char **argv)
     }
     if((mask & OPTION_META_RATIO))
     {
-        printf("#<jobid>\t<uid>\t<procs>\t<start>\t<type>\t<io_time>\t<meta_time>\t<percent>\n");
+        double avg_io_time = 0;
+        double avg_meta_time = 0;
+
+        for(i=0; i<job.nprocs; i++)
+        {
+            avg_io_time += pdata.rank_cumul_io_time[i];
+            avg_meta_time += pdata.rank_cumul_md_time[i];
+        }
+        avg_io_time /= (double)job.nprocs;
+        avg_meta_time /= (double)job.nprocs;
+        avg_io_time += pdata.shared_time_by_cumul;
+        avg_meta_time += pdata.shared_meta_time / (double)job.nprocs;
+
+        printf("#<jobid>\t<uid>\t<procs>\t<start>\t<type>\t<avg_io_time>\t<avg_meta_time>\t<percent>\n");
         printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tmeta-ratio\t%lf\t%lf\t%lf\n",
-            job.jobid, job.uid, job.nprocs, job.start_time, (pdata.slowest_rank_time+pdata.shared_time_by_slowest), (pdata.slowest_rank_meta_time+pdata.shared_meta_time), (pdata.slowest_rank_meta_time+pdata.shared_meta_time)/(pdata.slowest_rank_time+pdata.shared_time_by_slowest));
+            job.jobid, job.uid, job.nprocs, job.start_time, avg_io_time, avg_meta_time, avg_meta_time/avg_io_time);
     }
 
     /* Redundant read calc */
