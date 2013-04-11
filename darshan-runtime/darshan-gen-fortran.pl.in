@@ -117,9 +117,9 @@ print OUTPUT<<"EOF";
 # Show is set to echo to cause the compilation command to be echoed instead 
 # of executed.
 Show=
-FC=${F77:-"$FC"}
-if [ -n "$MPICH_F77" ] ; then
-    FC="$MPICH_F77"
+FC=\${F77:-"$FC"}
+if [ -n "\$MPICH_F77" -o -n "\$MPICH_F90" ] ; then
+    FC=\${MPICH_F90:-\$MPICH_F77}
 fi
 
 EOF

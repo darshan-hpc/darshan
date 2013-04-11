@@ -117,9 +117,9 @@ print OUTPUT<<"EOF";
 # Show is set to echo to cause the compilation command to be echoed instead 
 # of executed.
 Show=
-CC=${CC:-"$CC"}
-if [ -n "$MPICH_CC" ] ; then
-    CC="$MPICH_CC"
+CC=\${CC:-"$CC"}
+if [ -n "\$MPICH_CC" ] ; then
+    CC=\$MPICH_CC
 fi
 
 EOF

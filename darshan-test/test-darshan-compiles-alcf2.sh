@@ -56,10 +56,10 @@ CXXFLAGS="-g -DHAVE_CXX_IOSTREAM -DHAVE_NAMESPACE_STD"
 LDFLAGS=""
 LIBS=""
 FLIBS=""
-#for compile_type in gcc gcc.legacy xl xl.legacy xl.legacy.ndebug xl.ndebug;
-#do
-#    compile_examples $compile_type out/normal
-#done
+for compile_type in gcc gcc.legacy xl xl.legacy xl.legacy.ndebug xl.ndebug;
+do
+    compile_examples $compile_type out/normal
+done
 
 # tests with another pmpi library taking precedence
 CFLAGS="-g"
