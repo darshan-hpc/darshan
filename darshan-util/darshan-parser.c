@@ -26,17 +26,11 @@
 #define OPTION_TOTAL (1 << 1)  /* aggregated fields */
 #define OPTION_PERF  (1 << 2)  /* derived performance */
 #define OPTION_FILE  (1 << 3)  /* file count totals */
-#define OPTION_RED_READ  (1 << 4)  /* files with redundant read traffic */
-#define OPTION_META_RATIO  (1 << 5)  /* metadata time ratio */
-#define OPTION_SHARED_SMALL_WRITES (1 << 6) /* shared files with small writes */
 #define OPTION_ALL (\
   OPTION_BASE|\
   OPTION_TOTAL|\
   OPTION_PERF|\
-  OPTION_FILE|\
-  OPTION_META_RATIO|\
-  OPTION_SHARED_SMALL_WRITES|\
-  OPTION_RED_READ)
+  OPTION_FILE)
 
 #define FILETYPE_SHARED (1 << 0)
 #define FILETYPE_UNIQUE (1 << 1)
@@ -108,10 +102,6 @@ void calc_perf(struct darshan_job *, hash_entry_t *, perf_data_t *);
 
 void accum_file(struct darshan_file *, hash_entry_t *, file_data_t *);
 void calc_file(struct darshan_job *, hash_entry_t *, file_data_t *);
-static void calc_red_read(struct darshan_job *djob,
-               hash_entry_t *file_hash);
-static void calc_shared_small_writes(struct darshan_job *djob,
-               hash_entry_t *file_hash);
 
 int usage (char *exename)
 {
@@ -121,8 +111,6 @@ int usage (char *exename)
     fprintf(stderr, "    --file  : total file counts\n");
     fprintf(stderr, "    --perf  : derived perf data\n");
     fprintf(stderr, "    --total : aggregated darshan field data\n");
-    fprintf(stderr, "    --red-read : files with redundant read traffic\n");
-    fprintf(stderr, "    --meta-ratio : ratio of I/O time spent in metadata\n");
 
     exit(1);
 }
@@ -138,9 +126,6 @@ int parse_args (int argc, char **argv, char **filename)
         {"file",  0, NULL, OPTION_FILE},
         {"perf",  0, NULL, OPTION_PERF},
         {"total", 0, NULL, OPTION_TOTAL},
-        {"red-read", 0, NULL, OPTION_RED_READ},
-        {"meta-ratio", 0, NULL, OPTION_META_RATIO},
-        {"shared-small-writes", 0, NULL, OPTION_SHARED_SMALL_WRITES},
         {"help",  0, NULL, 0}
     };
 
@@ -159,12 +144,10 @@ int parse_args (int argc, char **argv, char **filename)
             case OPTION_FILE:
             case OPTION_PERF:
             case OPTION_TOTAL:
-            case OPTION_RED_READ:
-            case OPTION_META_RATIO:
-            case OPTION_SHARED_SMALL_WRITES:
                 mask |= c;
                 break;
             case 0:
+            case '?':
             default:
                 usage(argv[0]);
                 break;
@@ -484,37 +467,6 @@ int main(int argc, char **argv)
         printf("# agg_perf_by_open_lastio: %lf\n", pdata.agg_perf_by_open_lastio);
         printf("# agg_perf_by_slowest: %lf\n", pdata.agg_perf_by_slowest);
     }
-    if((mask & OPTION_META_RATIO))
-    {
-        double avg_io_time = 0;
-        double avg_meta_time = 0;
-
-        for(i=0; i<job.nprocs; i++)
-        {
-            avg_io_time += pdata.rank_cumul_io_time[i];
-            avg_meta_time += pdata.rank_cumul_md_time[i];
-        }
-        avg_io_time /= (double)job.nprocs;
-        avg_meta_time /= (double)job.nprocs;
-        avg_io_time += pdata.shared_time_by_cumul;
-        avg_meta_time += pdata.shared_meta_time / (double)job.nprocs;
-
-        printf("#<jobid>\t<uid>\t<procs>\t<start>\t<type>\t<avg_io_time>\t<avg_meta_time>\t<percent>\n");
-        printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tmeta-ratio\t%lf\t%lf\t%lf\n",
-            job.jobid, job.uid, job.nprocs, job.start_time, avg_io_time, avg_meta_time, avg_meta_time/avg_io_time);
-    }
-
-    /* Redundant read calc */
-    if((mask & OPTION_RED_READ))
-    {
-        calc_red_read(&job, file_hash);
-    }
-
-    /* shared small write call */
-    if((mask & OPTION_SHARED_SMALL_WRITES))
-    {
-        calc_shared_small_writes(&job, file_hash);
-    }
 
     /* File Calc */
     calc_file(&job, file_hash, &fdata);
@@ -707,76 +659,6 @@ void accum_file(struct darshan_file *dfile,
     return;
 }
 
-
-static void calc_shared_small_writes(struct darshan_job *djob,
-               hash_entry_t *file_hash)
-{
-    hash_entry_t *curr = NULL;
-    hash_entry_t *tmp = NULL;
-    int header_print = 0;
-
-    HASH_ITER(hlink, file_hash, curr, tmp)
-    {
-        int i;
-        uint64_t writes_lt_100k = 0;
-        uint64_t writes_gt_100k = 0;
-
-        /* only look at shared files that were written to */
-        if(curr->type == FILETYPE_SHARED && curr->counters[CP_BYTES_WRITTEN] > 0 && curr->counters[CP_COLL_WRITES] == 0)
-        {
-            if(!header_print)
-            {
-                printf("#<jobid>\t<uid>\t<procs>\t<start>\t<type>\t<writes_lt_100k>\t<writes_gt_100k>\t<bytes_written>\n");
-                header_print = 1;
-            }
-
-            for(i=CP_SIZE_WRITE_0_100; i<= CP_SIZE_WRITE_10K_100K; i++)
-                writes_lt_100k += curr->counters[i];
-            for(i=CP_SIZE_WRITE_100K_1M; i<= CP_SIZE_WRITE_1G_PLUS; i++)
-                writes_gt_100k += curr->counters[i];
-
-            printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tshared-small-writes\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
-                djob->jobid, djob->uid, djob->nprocs, djob->start_time, curr->hash, 
-                writes_lt_100k, writes_gt_100k, curr->counters[CP_BYTES_WRITTEN]);
-        }
-    }
-
-    return;
-}
-
-static void calc_red_read(struct darshan_job *djob,
-               hash_entry_t *file_hash)
-{
-    hash_entry_t *curr = NULL;
-    hash_entry_t *tmp = NULL;
-    uint64_t total_max = 0;
-    uint64_t total_read = 0;
-    int header_print = 0;
-
-    HASH_ITER(hlink, file_hash, curr, tmp)
-    {
-        if((curr->counters[CP_MAX_BYTE_READ]+1) < curr->counters[CP_BYTES_READ])
-        {
-            if(!header_print)
-            {
-                printf("#<jobid>\t<uid>\t<procs>\t<start>\t<type>\t<file_hash>\t<max_byte_read>\t<bytes_read>\t<diff>\n");
-                header_print = 1;
-            }
-            total_read += curr->counters[CP_BYTES_READ];
-            total_max += (curr->counters[CP_MAX_BYTE_READ]+1);
-            printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tred-read-file\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
-                djob->jobid, djob->uid, djob->nprocs, djob->start_time, curr->hash, curr->counters[CP_MAX_BYTE_READ], curr->counters[CP_BYTES_READ], curr->counters[CP_BYTES_READ] - (curr->counters[CP_MAX_BYTE_READ]+1));
-        }
-    }
-
-    if(total_read > 0)
-    {
-        printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tred-read-summary\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
-            djob->jobid, djob->uid, djob->nprocs, djob->start_time, (int64_t)0, total_max, total_read, total_read-total_max);
-    }
-
-    return;
-}
 
 void calc_file(struct darshan_job *djob,
                hash_entry_t *file_hash, 
