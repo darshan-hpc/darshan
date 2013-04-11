@@ -117,7 +117,11 @@ print OUTPUT<<"EOF";
 # Show is set to echo to cause the compilation command to be echoed instead 
 # of executed.
 Show=
-FC="$FC"
+FC=${F77:-"$FC"}
+if [ -n "$MPICH_F77" ] ; then
+    FC="$MPICH_F77"
+fi
+
 EOF
 
 if ($xl_check == 1)
