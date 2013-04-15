@@ -162,7 +162,7 @@ while ($line = <TRACE>) {
 	$summary{$fields[2]} += $fields[3];
 
 	# record per-process POSIX read count
-	if ($fields[2] eq "CP_POSIX_READS") {
+	if ($fields[2] eq "CP_POSIX_READS" || $fields[2] eq "CP_POSIX_FREADS") {
 	    if ($fields[0] == -1) {
 		$procreads[$nprocs] += $fields[3];
 	    }
@@ -172,7 +172,7 @@ while ($line = <TRACE>) {
 	}
 
 	# record per-proces POSIX write count
-	if ($fields[2] eq "CP_POSIX_WRITES") {
+	if ($fields[2] eq "CP_POSIX_WRITES" || $fields[2] eq "CP_POSIX_FWRITES") {
 	    if ($fields[0] == -1) {
 		$procwrites[$nprocs] += $fields[3];
 	    }
@@ -321,9 +321,9 @@ print COUNTS "# P=POSIX, MI=MPI-IO indep., MC=MPI-IO coll., R=read, W=write\n";
 print COUNTS "# PR, MIR, MCR, PW, MIW, MCW, Popen, Pseek, Pstat\n";
 my $total_posix_opens = $summary{CP_POSIX_OPENS} + $summary{CP_POSIX_FOPENS};
 my $total_syncs = $summary{CP_POSIX_FSYNCS} + $summary{CP_POSIX_FDSYNCS};
-print COUNTS "Read, ", $summary{CP_POSIX_READS}, ", ",
+print COUNTS "Read, ", $summary{CP_POSIX_READS} + $summary{CP_POSIX_FREADS}, ", ",
     $summary{CP_INDEP_READS}, ", ", $summary{CP_COLL_READS}, "\n",
-    "Write, ", $summary{CP_POSIX_WRITES}, ", ", 
+    "Write, ", $summary{CP_POSIX_WRITES} + $summary{CP_POSIX_FWRITES}, ", ", 
     $summary{CP_INDEP_WRITES}, ", ", $summary{CP_COLL_WRITES}, "\n",
     "Open, ", $total_posix_opens, ", ", $summary{CP_INDEP_OPENS},", ",
     $summary{CP_COLL_OPENS}, "\n",
@@ -361,16 +361,17 @@ close HIST;
 # sequential and consecutive accesses
 open (PATTERN, ">$tmp_dir/pattern.dat") || die("error opening output file: $!\n");
 print PATTERN "# op total sequential consecutive\n";
-print PATTERN "Read, ", $summary{CP_POSIX_READS}, ", ",
+print PATTERN "Read, ", $summary{CP_POSIX_READS} + $summary{CP_POSIX_FREADS}, ", ",
     $summary{CP_SEQ_READS}, ", ", $summary{CP_CONSEC_READS}, "\n";
-print PATTERN "Write, ", $summary{CP_POSIX_WRITES}, ", ",
+print PATTERN "Write, ", $summary{CP_POSIX_WRITES} + $summary{CP_POSIX_FWRITES}, ", ",
     $summary{CP_SEQ_WRITES}, ", ", $summary{CP_CONSEC_WRITES}, "\n";
 close PATTERN;
 
 # aligned I/O
 open (ALIGN, ">$tmp_dir/align.dat") || die("error opening output file: $!\n");
 print ALIGN "# total unaligned_mem unaligned_file align_mem align_file\n";
-print ALIGN $summary{CP_POSIX_READS} + $summary{CP_POSIX_WRITES}, ", ",
+print ALIGN $summary{CP_POSIX_READS} + $summary{CP_POSIX_WRITES} + $summary{CP_POSIX_FREADS} + $summary{CP_POSIX_FWRITES}
+, ", ",
     $summary{CP_MEM_NOT_ALIGNED}, ", ", $summary{CP_FILE_NOT_ALIGNED}, "\n";
 close ALIGN;
 
