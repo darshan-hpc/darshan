@@ -126,7 +126,8 @@ int parse_args (int argc, char **argv, char **filename)
         {"file",  0, NULL, OPTION_FILE},
         {"perf",  0, NULL, OPTION_PERF},
         {"total", 0, NULL, OPTION_TOTAL},
-        {"help",  0, NULL, 0}
+        {"help",  0, NULL, 0},
+        {0, 0, 0, 0}
     };
 
     mask = 0;
