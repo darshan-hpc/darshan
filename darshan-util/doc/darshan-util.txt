@@ -209,7 +209,9 @@ question, such a `read()`, `pread()`, and `readv()` for CP_POSIX_READS.
 | CP_MEM_NOT_ALIGNED |  Number of times that a read or write was not aligned in memory
 | CP_MEM_ALIGNMENT |    Memory alignment value (chosen at compile time)
 | CP_FILE_NOT_ALIGNED | Number of times that a read or write was not aligned in file
-| CP_FILE_ALIGNMENT |   File alignment value (detected at run time)
+| CP_FILE_ALIGNMENT |   File alignment value.  This value is detected at
+runtime on most file systems.  On Lustre, however, Darshan assumes a default
+value of 1 MiB for optimal file alignment.
 | CP_MAX_READ_TIME_SIZE |   Size of the slowest POSIX read operation
 | CP_MAX_WRITE_TIME_SIZE |  Size of the slowest POSIX write operation
 | CP_SIZE_READ_* |  Histogram of read access sizes at POSIX level
