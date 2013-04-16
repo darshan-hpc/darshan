@@ -293,6 +293,11 @@ As in any Darshan installation, the darshan-mk-log-dirs.pl script can then be
 used to create the appropriate directory hierarchy for storing Darshan log 
 files in the --with-log-path directory.
 
+Note that Darshan is not currently capable of detecting the stripe size
+(and therefore the Darshan FILE_ALIGNMENT value) on Lustre file systems.
+If a Lustre file system is detected, then Darshan assumes an optimal
+file alignment of 1 MiB.
+
 ==== Compiler wrappers (system-wide installation)
 
 .Warning
@@ -425,3 +430,16 @@ MPI 1.6.4 and newer.  For more details on why Darshan is not compatible with
 older versions of Open MPI, please refer to the following mailing list discussion:
 
 http://www.open-mpi.org/community/lists/devel/2013/01/11907.php
+
+== Runtime environment variables
+
+The Darshan library honors the following environment variables to modify
+behavior at runtime:
+
+* DARSHAN_DISABLE: disables Darshan instrumentation
+* DARSHAN_INTERNAL_TIMING: enables internal instrumentation that will print the time required to startup and shutdown Darshan to stderr at run time.
+* DARSHAN_LOGHINTS: specifies the MPI-IO hints to use when storing the Darshan output file.  The format is a semicolon-delimited list of key=value pairs, for example: hint1=value1;hint2=value2
+* DARSHAN_DISABLE_TIMING: disables the subset of Darshan instrumentation that gathers timing information
+* DARSHAN_MEMALIGN: specifies a value for memory alignment (CP_MEM_ALIGNMENT)
+* DARSHAN_JOBID: specifies the name of the environment variable to use for the job identifier, such as PBS_JOBID
+
