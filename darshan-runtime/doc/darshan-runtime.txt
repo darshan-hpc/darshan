@@ -404,7 +404,7 @@ executables.  For more details please check this Intel forum discussion:
 http://software.intel.com/en-us/forums/showthread.php?t=103447&o=a&s=lr
 ====
 
-=== Linux clusters using MPICH or OpenMPI
+=== Linux clusters using MPICH 
 
 Follow the generic instructions provided at the top of this document.  The
 only modification is to make sure that the `CC` used for compilation is
@@ -412,3 +412,16 @@ based on a GNU compiler.  Once Darshan has been installed, it should be
 capable of instrumenting executables built with GNU, Intel, and PGI
 compilers.
 
+=== Linux clusters using Open MPI
+
+Follow the generic instructions provided at the top of this document for
+compilation, and make sure that the `CC` used for compilation is based on a
+GNU compiler.
+
+Open MPI typically produces dynamically linked executables by default, which
+means that you should use the `LD_PRELOAD` method to instrument executables
+that have been built with Open MPI.  Darshan is only compatible with Open
+MPI 1.6.4 and newer.  For more details on why Darshan is not compatible with
+older versions of Open MPI, please refer to the following mailing list discussion:
+
+http://www.open-mpi.org/community/lists/devel/2013/01/11907.php

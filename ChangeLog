@@ -19,6 +19,7 @@ darshan-2.2.6-pre2
 * Optimize darshan startup by collecting mount point information at rank 0 and
   broadcasting to all processes
 * Remove deprecated --enable-st-dev-workaround configure option
+* Misc. documentation updates
 
 darshan-2.2.5
 =============
