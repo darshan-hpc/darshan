@@ -336,7 +336,7 @@ int main(int argc, char **argv)
         printf("#   CP_STRIDE*_COUNT: count of the four most common strides.\n");
         printf("#   CP_ACCESS*_ACCESS: the four most common access sizes.\n");
         printf("#   CP_ACCESS*_COUNT: count of the four most common access sizes.\n");
-        printf("#   CP_DEVICE: device id reported by stat().\n");
+        printf("#   CP_DEVICE: File system identifier.\n");
         printf("#   CP_SIZE_AT_OPEN: size of file when first opened.\n");
         printf("#   CP_*_RANK_BYTES: fastest, slowest and variance of bytes transfer.\n");
         printf("#   CP_F_OPEN_TIMESTAMP: timestamp of first open (mpi or posix).\n");
