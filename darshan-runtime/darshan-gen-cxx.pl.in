@@ -246,6 +246,7 @@ print OUTPUT<<"EOF";
 
     # create a temporary file
     tmpfile=`mktemp`
+    binfile=`mktemp`
     # generate a map of the symbol names
     # don't use -shared for this step
     argno=0
@@ -256,7 +257,7 @@ print OUTPUT<<"EOF";
         fi
         argno=`expr \$argno + 1`
     done
-    \$CXX $link_cmd_prefix $link_cmd_no_shared_suffix -Wl,-Map,\$tmpfile \$LDFLAGS -o /dev/null >& /dev/null
+    \$CXX $link_cmd_prefix $link_cmd_no_shared_suffix -Wl,-Map,\$tmpfile \$LDFLAGS -o \$binfile >& /dev/null
 
     # is MPI in there?
     grep MPI \$tmpfile >& /dev/null
@@ -280,12 +281,23 @@ print OUTPUT<<"EOF";
 
     rm \$tmpfile >& /dev/null
 
+    # is MPI_Init a weak symbol?
+    # disable darshan if it is not
+    if [ -e \$binfile ];
+    then
+        nm \$binfile | grep -i "mpi_init" | grep -i "w" >& /dev/null
+        rc_weak=\$?
+    else
+        rc_weak=1
+    fi
+    rm \$binfile >& /dev/null
+
     # disable darshan if the executable is not an MPI program (this feature
     # mainly allows runtime configure tests to work
     if [ \$rc_mpi -eq 0 ] ; then
         # disable darshan if something else is already using PMPI; we don't
         # want to cause any symbol conflicts
-        if [ \$rc_pmpi -ne 0 ] && [ \$compiler_check -eq 0 ]; then
+        if [ \$rc_pmpi -ne 0 ] && [ \$compiler_check -eq 0 ] && [ \$rc_weak -eq 0 ]; then
             \$Show \$CXX $link_cmd_prefix $link_cmd_suffix
             used_darshan=1
         fi
