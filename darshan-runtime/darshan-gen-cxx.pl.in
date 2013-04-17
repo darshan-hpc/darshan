@@ -117,10 +117,7 @@ print OUTPUT<<"EOF";
 # Show is set to echo to cause the compilation command to be echoed instead 
 # of executed.
 Show=
-CXX=\${CXX:-"$CXX"}
-if [ -n "\$MPICH_CC" ] ; then
-    CXX=\$MPICH_CXX
-fi
+CXX=\${MPICH_CXX:-"$CXX"}
 
 EOF
 
