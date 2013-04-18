@@ -4,22 +4,29 @@ Darshan Release Change Log
 
 darshan-2.2.6-pre2
 =============
-* Install libdarshan-util and headers during installation process for
-  darshan-util; patch contributed by Matthieu Dorier
 * Bug fixes:
   - make sure to honor user-specified hints passed in at runtime
     via the DARSHAN_LOGHINTS env variable.
   - include fread and fwrite in darshan-job-summary.pl read and write counts
   - fix segmentation fault on invalid arguments to darshan-parser
+* Performance enhancements:
+  - collect mount point information at rank 0 and broadcast to all 
+    processes to avoid excess file system traffic on startup
+  - change default MPI-IO hints for writing log file to
+    romio_no_indep_rw=true and cb_nodes=4 to improve log creation performance
+* Install libdarshan-util and headers during installation process for
+  darshan-util; patch contributed by Matthieu Dorier
+* Detect PMPI support at link time when using compiler scripts produced
+  by the darshan-gen-* utilities.  This avoids link problems when Darshan
+  compiler wrappers are used with the ADIOS dummy MPI library; reported
+  by Jingqing Mu
+* Support MPICH_{CC/CXX/F77} environment variables in compiler scripts
+  produced by the darshan-gen-* utilities
 * Add instrumentation of startup time, enabled via DARSHAN_INTERNAL_TIMING
   environment variable
 * Rename cp-shutdown-bench test utility to darshan-shutdown-bench and enable
   benchmarking hooks in library by default so that darshan-shutdown-bench 
   can be used with any Darshan installation
-* Change default MPI-IO hints for writing log file to
-  romio_no_indep_rw=true and cb_nodes=4 to improve log creation performance
-* Optimize darshan startup by collecting mount point information at rank 0 and
-  broadcasting to all processes
 * Remove deprecated --enable-st-dev-workaround configure option
 * Misc. documentation updates
 
