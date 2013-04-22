@@ -5,9 +5,9 @@
 
 status=0
 
-if [[ $NODE_LABELS =~ "magellan" ]];
+if [[ $NODE_LABELS =~ "mcs" ]];
 then
-  source darshan-test/automated/magellan/build.sh
+  source darshan-test/automated/mcs/build.sh
   status=$?
 else
   # unknown machine
