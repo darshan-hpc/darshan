@@ -2,7 +2,7 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.2.6-pre2
+darshan-2.2.6
 =============
 * Bug fixes:
   - make sure to honor user-specified hints passed in at runtime
