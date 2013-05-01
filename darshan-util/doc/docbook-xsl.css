@@ -97,7 +97,7 @@ div.navfooter hr {
 }
 
 body td {
-  line-height: 0;
+  line-height: 1;
 }
 
 body th {
@@ -249,6 +249,15 @@ div.informaltable tbody
     /* No effect in IE6. */
     border-top: 3px solid #527bbd;
     border-bottom: 3px solid #527bbd;
+}
+/* This part shinks the padding inside tables since all the content is
+   is wrapped in <p> tags. */
+div.informaltable p
+{
+    margin-top: 5px;
+    margin-bottom: 5px;
+    margin-right: 10px;
+    margin-left: 10px;
 }
 div.table thead, div.table tfoot,
 div.informaltable thead, div.informaltable tfoot
