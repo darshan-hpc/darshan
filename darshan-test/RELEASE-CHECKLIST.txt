@@ -1,0 +1,28 @@
+Notes on how to release a new version of Darshan
+2013-05
+-----------------------
+
+- check Darshan trac to see if there are any pending tickets for this
+  release/milestone if applicable
+  http://trac.mcs.anl.gov/projects/darshan/roadmap
+- check for any problems in jenkins nightly builds
+- make sure that documentation in darshan-util/doc/ and darshan-runtime/doc/
+  are up to date
+- update the Changelog if needed (browse svn log since last release)
+  - commit
+- update version number in configure.in (see AC_INIT)
+  - in both darshan-util/ and darshan-runtime/
+  - re-run ./prepare in both darshan-util and darshan-runtime
+  - commit
+- generate example output files on x86_64, ppc32, and ppc64, commit in
+  darshan-test/example-output/ directory
+- make a tag by doing an svn copy from trunk to tags/darshan-<some number>
+- TESTING
+- svn export the tag, tar gzip it
+  - upload .tar.gz file to /mcs/ftp/pub/darshan/releases
+- generate web documentation from asciidoc by running make in
+  darshan-util/doc/ and darshan-runtime/doc/ directories
+  - upload .html files to /mcs/web/research/projects/darshan/docs
+- update download page on darshan web site: www.mcs.anl.gov/darshan/download
+- announce on web page (new post) and mailing list
+
