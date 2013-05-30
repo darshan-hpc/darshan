@@ -2,12 +2,6 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.2.7-pre1
-=============
-* made darshan libraries less sensitive to link order by adding dummy
-  implementations of hdf5 and pnetcdf functions that can be used when hdf5 and
-  pnetcdf libraries are not present
-
 darshan-2.2.6
 =============
 * Bug fixes:
