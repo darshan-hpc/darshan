@@ -42,6 +42,16 @@ setenv CRAY_DARSHAN_DIR                  $root
 prepend-path PATH $root/bin
 prepend-path CRAY_LD_LIBRARY_PATH           $root/lib
 
+# NOTE: The following example shows how to enable Darshan for dynamically linked
+#       executables if your environment allows you to load modules from
+#       within a scheduler script.
+# 
+#if [info exists env(PBS_JOBID)] {
+#    module load xt-lgdb
+#    setenv LD_PRELOAD  $path/lib/libdarshan.so	
+#}
+
+
 # initial link options for Darshan
 setenv DARSHAN_POST_LINK_OPTS " -L$root/lib -ldarshan-mpi-io -lz -Wl,-u,__wrap_fopen,-u,MPI_Init,-u,MPI_Wtime,-wrap,write,-wrap,open,-wrap,creat,-wrap,creat64,-wrap,open64,-wrap,close,-wrap,read,-wrap,lseek,-wrap,lseek64,-wrap,pread,-wrap,pwrite,-wrap,readv,-wrap,writev,-wrap,__xstat,-wrap,__lxstat,-wrap,__fxstat,-wrap,__xstat64,-wrap,__lxstat64,-wrap,__fxstat64,-wrap,mmap,-wrap,mmap64,-wrap,fopen,-wrap,fclose,-wrap,fread,-wrap,fwrite,-wrap,fseek,-wrap,fopen64,-wrap,pread64,-wrap,pwrite64,-wrap,fsync,-wrap,fdatasync,-wrap,ncmpi_create,-wrap,ncmpi_open,-wrap,ncmpi_close,-wrap,H5Fcreate,-wrap,H5Fopen,-wrap,H5Fclose  -lfmpich -lmpichcxx -ldarshan-posix -ldarshan-mpi-io -lz "
 
@@ -71,15 +81,5 @@ prepend-path PE_PRODUCT_LIST $product
 # this one adds on to a variable normally used by trilinos:
 #setenv LIBSCIFFT "$LIBSCIFFT -ldarshan-mpi-io"
 #
-
-
-# NOTE: The following example shows how to enable Darshan for dynamically linked
-#       executables if your environment allows you to load modules from
-#       within a scheduler script.
-# 
-#if [info exists env(PBS_JOBID)] {
-#    module load xt-lgdb
-#    setenv LD_PRELOAD  $path/lib/libdarshan.so	
-#}
 
 
