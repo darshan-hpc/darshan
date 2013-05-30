@@ -66,14 +66,20 @@ prepend-path PE_PRODUCT_LIST $product
 # resolve darshan symbols if an application library is indirectly using a
 # high level library like hdf5 or pnetcdf.
 #
-# You can either modify the linux-cc, linux-f90, linux-CC, craycc, crayftn,
-# and crayc++ scripts to include a new variable (for example, LIBDARSHAN) in
-# CNL_LIBS_LIST, or for testing purposes you can re-use an existing variable
-# from another software product.  Three possible examples are shown below
-# but commented out:
+# There are two options:
 #
-# this one requires modification to the cray compiler scripts:
+# a) Modify the linux-cc, linux-f90, linux-CC, craycc, crayftn,
+# and crayc++ scripts to include a new variable (for example, LIBDARSHAN) at
+# the end of the CNL_LIBS_LIST, and set that variable below:
 #setenv LIBDARSHAN "-ldarshan-mpi-io"
+#
+# b) For testing purposes, you can re-use an existing variable from another
+# software project that is already present in CNL_LIBS_LIST but is not
+# defined within directly within the compiler script.  Two examples are
+# shown below.  Note that the scripts for the Cray compiler (craycc,
+# crayftn, and crayc++) use different linker arguments and are more
+# sensitive to library ordering.  The following examples may only work for
+# the GNU, PGI, Pathscale, and Intel compilers:
 # 
 # this one adds on to a variable normally used by trilinos:
 #setenv LIBTRILINOS "$LIBTRILINOS -ldarshan-mpi-io"
