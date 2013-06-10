@@ -509,35 +509,6 @@ int main(int argc, char **argv)
             job.jobid, job.uid, job.nprocs, job.start_time, avg_io_time, avg_meta_time, avg_meta_time/avg_io_time);
     }
 
-    if((mask & OPTION_SUMMARY))
-    {
-        double avg_io_time = 0;
-        double slowest = 0;
-        if(pdata.shared_time_by_slowest)
-                slowest = pdata.shared_time_by_slowest;
-        else
-                slowest = pdata.shared_time_by_open_lastio;
-
-        slowest += pdata.slowest_rank_time;
-
-        for(i=0; i<job.nprocs; i++)
-        {
-            avg_io_time += pdata.rank_cumul_io_time[i];
-        }
-        avg_io_time /= (double)job.nprocs;
-        avg_io_time += pdata.shared_time_by_cumul;
-
-        printf("#<jobid>\t<uid>\t<procs>\t<start>\t<end>\t<type>\t<slowest_proc_io_time>\t<bytes_read>\t<bytes_written>\t<read histos 10x...>\t<write histos 10x...\n");
-        printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tsummary\t%lf\t%" PRId64 "\t%" PRId64,
-            job.jobid, job.uid, job.nprocs, job.start_time, job.end_time, slowest, total.counters[CP_BYTES_READ], total.counters[CP_BYTES_WRITTEN]);
-        for(i=CP_SIZE_READ_0_100; i<=CP_SIZE_WRITE_1G_PLUS; i++)
-        {
-            printf("\t%" PRId64, total.counters[i]);
-        }
-        printf("\n");
-    }
-
-
     /* Redundant read calc */
     if((mask & OPTION_RED_READ))
     {
@@ -581,6 +552,35 @@ int main(int argc, char **argv)
                fdata.shared_size,
                fdata.shared_max);
     }
+
+    if((mask & OPTION_SUMMARY))
+    {
+        double avg_io_time = 0;
+        double slowest = 0;
+        if(pdata.shared_time_by_slowest)
+                slowest = pdata.shared_time_by_slowest;
+        else
+                slowest = pdata.shared_time_by_open_lastio;
+
+        slowest += pdata.slowest_rank_time;
+
+        for(i=0; i<job.nprocs; i++)
+        {
+            avg_io_time += pdata.rank_cumul_io_time[i];
+        }
+        avg_io_time /= (double)job.nprocs;
+        avg_io_time += pdata.shared_time_by_cumul;
+
+        printf("#<jobid>\t<uid>\t<procs>\t<start>\t<end>\t<type>\t<slowest_proc_io_time>\t<bytes_read>\t<bytes_written>\t<total files opened>\t<read histos 10x...>\t<write histos 10x...\n");
+        printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tsummary\t%lf\t%" PRId64 "\t%" PRId64 "\t%" PRId64,
+            job.jobid, job.uid, job.nprocs, job.start_time, job.end_time, slowest, total.counters[CP_BYTES_READ], total.counters[CP_BYTES_WRITTEN], fdata.total);
+        for(i=CP_SIZE_READ_0_100; i<=CP_SIZE_WRITE_1G_PLUS; i++)
+        {
+            printf("\t%" PRId64, total.counters[i]);
+        }
+        printf("\n");
+    }
+
 
     if(ret < 0)
     {
