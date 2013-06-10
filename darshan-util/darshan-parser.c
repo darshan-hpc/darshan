@@ -29,6 +29,7 @@
 #define OPTION_RED_READ  (1 << 4)  /* files with redundant read traffic */
 #define OPTION_META_RATIO  (1 << 5)  /* metadata time ratio */
 #define OPTION_SHARED_SMALL_WRITES (1 << 6) /* shared files with small writes */
+#define OPTION_SUMMARY (1 << 7) /* summary information */
 #define OPTION_ALL (\
   OPTION_BASE|\
   OPTION_TOTAL|\
@@ -36,6 +37,7 @@
   OPTION_FILE|\
   OPTION_META_RATIO|\
   OPTION_SHARED_SMALL_WRITES|\
+  OPTION_SUMMARY|\
   OPTION_RED_READ)
 
 #define FILETYPE_SHARED (1 << 0)
@@ -123,6 +125,7 @@ int usage (char *exename)
     fprintf(stderr, "    --total : aggregated darshan field data\n");
     fprintf(stderr, "    --red-read : files with redundant read traffic\n");
     fprintf(stderr, "    --meta-ratio : ratio of I/O time spent in metadata\n");
+    fprintf(stderr, "    --summary : summary information per job\n");
 
     exit(1);
 }
@@ -140,6 +143,7 @@ int parse_args (int argc, char **argv, char **filename)
         {"total", 0, NULL, OPTION_TOTAL},
         {"red-read", 0, NULL, OPTION_RED_READ},
         {"meta-ratio", 0, NULL, OPTION_META_RATIO},
+        {"summary", 0, NULL, OPTION_SUMMARY},
         {"shared-small-writes", 0, NULL, OPTION_SHARED_SMALL_WRITES},
         {"help",  0, NULL, 0}
     };
@@ -162,6 +166,7 @@ int parse_args (int argc, char **argv, char **filename)
             case OPTION_RED_READ:
             case OPTION_META_RATIO:
             case OPTION_SHARED_SMALL_WRITES:
+            case OPTION_SUMMARY:
                 mask |= c;
                 break;
             case 0:
@@ -503,6 +508,35 @@ int main(int argc, char **argv)
         printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tmeta-ratio\t%lf\t%lf\t%lf\n",
             job.jobid, job.uid, job.nprocs, job.start_time, avg_io_time, avg_meta_time, avg_meta_time/avg_io_time);
     }
+
+    if((mask & OPTION_SUMMARY))
+    {
+        double avg_io_time = 0;
+        double slowest = 0;
+        if(pdata.shared_time_by_slowest)
+                slowest = pdata.shared_time_by_slowest;
+        else
+                slowest = pdata.shared_time_by_open_lastio;
+
+        slowest += pdata.slowest_rank_time;
+
+        for(i=0; i<job.nprocs; i++)
+        {
+            avg_io_time += pdata.rank_cumul_io_time[i];
+        }
+        avg_io_time /= (double)job.nprocs;
+        avg_io_time += pdata.shared_time_by_cumul;
+
+        printf("#<jobid>\t<uid>\t<procs>\t<start>\t<end>\t<type>\t<slowest_proc_io_time>\t<bytes_read>\t<bytes_written>\t<read histos 10x...>\t<write histos 10x...\n");
+        printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%" PRId64 "\tsummary\t%lf\t%" PRId64 "\t%" PRId64,
+            job.jobid, job.uid, job.nprocs, job.start_time, job.end_time, slowest, total.counters[CP_BYTES_READ], total.counters[CP_BYTES_WRITTEN]);
+        for(i=CP_SIZE_READ_0_100; i<=CP_SIZE_WRITE_1G_PLUS; i++)
+        {
+            printf("\t%" PRId64, total.counters[i]);
+        }
+        printf("\n");
+    }
+
 
     /* Redundant read calc */
     if((mask & OPTION_RED_READ))
