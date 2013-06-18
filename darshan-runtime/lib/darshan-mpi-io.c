@@ -184,7 +184,7 @@ static void cp_log_construct_indices(struct darshan_job_runtime* final_job,
     trailing_data);
 static int cp_log_write(struct darshan_job_runtime* final_job, int rank, 
     char* logfile_name, int count, int* lengths, void** pointers, double start_log_time);
-static void cp_log_record_hints(struct darshan_job_runtime* final_job, int rank);
+static void cp_log_record_hints_and_ver(struct darshan_job_runtime* final_job, int rank);
 static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank, 
     char* logfile_name, MPI_Offset* next_offset);
 static void darshan_file_reduce(void* infile_v, 
@@ -540,7 +540,7 @@ void darshan_shutdown(int timing_flag)
     /* if we are using any hints to write the log file, then record those
      * hints in the log file header
      */
-    cp_log_record_hints(final_job, rank);
+    cp_log_record_hints_and_ver(final_job, rank);
 
     if(all_ret == 0)
     {
@@ -2282,11 +2282,12 @@ static void pairwise_variance_reduce (
 }
 
 /* record any hints used to write the darshan log in the log header */
-static void cp_log_record_hints(struct darshan_job_runtime* final_job, int rank)
+static void cp_log_record_hints_and_ver(struct darshan_job_runtime* final_job, int rank)
 {
     char* hints;
     char* header_hints;
     int meta_remain = 0;
+    char* m;
 
     /* only need to do this on first process */
     if(rank > 0)
@@ -2310,15 +2311,20 @@ static void cp_log_record_hints(struct darshan_job_runtime* final_job, int rank)
 
     meta_remain = DARSHAN_JOB_METADATA_LEN - 
         strlen(final_job->log_job.metadata) - 1;
+    if(meta_remain >= (strlen(PACKAGE_VERSION) + 9))
+    {
+        sprintf(final_job->log_job.metadata, "lib_ver=%s\n", PACKAGE_VERSION);
+        meta_remain -= (strlen(PACKAGE_VERSION) + 9);
+    }
     if(meta_remain >= (3 + strlen(header_hints)))
     {
+        m = final_job->log_job.metadata + strlen(final_job->log_job.metadata);
         /* We have room to store the hints in the metadata portion of
          * the job header.  We just prepend an h= to the hints list.  The
          * metadata parser will ignore = characters that appear in the value
          * portion of the metadata key/value pair.
          */
-        strcat(final_job->log_job.metadata, "h=");
-        strcat(final_job->log_job.metadata, header_hints);
+        sprintf(m, "h=%s\n", header_hints);
     }
     free(header_hints);
 

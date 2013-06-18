@@ -8,6 +8,8 @@ darshan-2.2.7-pre1
   point mapping) if stat() was called on a file before opening
 * Updated Cray installation documentation for cleaner integration in Cray
   environments
+* Store version number of the darshan runtime library that generated a log
+  file in the log file metadata (see lib_ver in darshan-parser output).
 
 darshan-2.2.6
 =============
