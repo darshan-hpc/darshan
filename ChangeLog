@@ -2,6 +2,13 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.2.7-pre1
+=============
+* Fix bug that recorded incorrect device ID (and therefore incorrect mount
+  point mapping) if stat() was called on a file before opening
+* Updated Cray installation documentation for cleaner integration in Cray
+  environments
+
 darshan-2.2.6
 =============
 * Bug fixes:
