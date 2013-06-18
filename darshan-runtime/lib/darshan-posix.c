@@ -257,7 +257,6 @@ static char* clean_path(const char* path);
     
 #define CP_RECORD_STAT(__file, __statbuf, __tm1, __tm2) do { \
     if(!CP_VALUE((__file), CP_POSIX_STATS) && !CP_VALUE((__file), CP_POSIX_OPENS)){ \
-        CP_SET((__file), CP_DEVICE, (__statbuf)->st_dev); \
         CP_SET((__file), CP_FILE_ALIGNMENT, (__statbuf)->st_blksize); \
         CP_SET((__file), CP_SIZE_AT_OPEN, (__statbuf)->st_size); \
     }\

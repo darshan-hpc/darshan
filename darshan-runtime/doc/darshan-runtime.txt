@@ -160,8 +160,9 @@ darshan-gen-fortran.pl `which mpif77` --output mpif77.darshan
 darshan-gen-fortran.pl `which mpif90` --output mpif90.darshan
 -----
 
-Please see the Cray recipe in this document for instructions on adding
-Darshan support to the Cray compiler scripts.  
+Please see the Cray recipe in this document for instructions on
+instrumenting statically-linked applications on that platform.
+
 For other MPI Libraries you must manually modify the MPI compiler scripts to
 add the necessary link options and libraries.  Please see the
 `darshan-gen-*` scripts for examples or contact the Darshan users mailing
@@ -240,27 +241,27 @@ compilers.
 
 === Cray XE6 (or similar)
 
-The Cray programming environment produces static executables by default.
-Darshan should therefore be configured to insert instrumentation at link
-time by way of compiler script wrappers.  Darshan 2.2.3 supports GNU,
-PGI, Cray, Pathscale, and Intel compilers.  The following documentation
-describes how to modify the Cray compiler wrappers to add Darshan
-capability, as well as how to install a Darshan software module that
-allows users to enable or disable Darshan instrumentation.
+The Cray programming environment produces static executables by default,
+which means that Darshan instrumentation must be inserted at compile
+time.  This can be accomplished by loading a software module that sets
+appropriate environment variables to modify the Cray compiler script link
+behavior.  This section describes how to compile and install Darshan,
+as well as how to use a software module to enable and disable Darshan
+instrumentation.
 
 ==== Building and installing Darshan
 
 Please set your environment to use the GNU programming environment before
 configuring or compiling Darshan.  Although Darshan can be built with a
 variety of compilers, the GNU compilers are recommended because it will
-produce a Darshan library that is interoperable with a variety of linkers.
-On most Cray systems you can enable the GNU programming environment with
-a command similar to "module swap PrgEnv-pgi PrgEnv-gnu".  Please see
-your site documentation for information about how to switch programming
-environments.
+produce a Darshan library that is interoperable with the widest range
+of compmilers and linkers.  On most Cray systems you can enable the GNU
+programming environment with a command similar to "module swap PrgEnv-pgi
+PrgEnv-gnu".  Please see your site documentation for information about
+how to switch programming environments.
 
 The following example shows how to configure and build Darshan on a Cray
-system using either the GNU programming environment.  Please adjust the 
+system using either the GNU programming environment.  Adjust the 
 --with-log-path and --prefix arguments to point to the desired log file path 
 and installation path, respectively.
 
@@ -298,85 +299,32 @@ Note that Darshan is not currently capable of detecting the stripe size
 If a Lustre file system is detected, then Darshan assumes an optimal
 file alignment of 1 MiB.
 
-==== Compiler wrappers (system-wide installation)
+==== Enabling Darshan instrumentation
 
-.Warning
-[NOTE]
-====
-The instructions in this section will modify the default compiler scripts
-that underly the system-wide CC, ftn, and cc scripts.  Please proceed
-with caution.  We recommend performing the following steps
-on a copy of the scripts and then moving them to the correct location afterwards.
-====
-
-The Darshan distribution includes a patch to the Cray programming environment 
-that adds Darshan capability to the compiler scripts.  It does not modify the
-behavior of the scripts in any way unless the CRAY_DARSHAN_DIR environment 
-variable is set by the Darshan software module.  This approach is similar to
-that used by the HDF5, NetCDF, and PETSc packages on Cray XE6 systems.  Darshan
-requires compiler script modifications in order to apply instrumentation
-libraries and link options in the correct order relative to other libraries used
-at link time.
-
-Two patches are provided in the Darshan source tree:
-
-* cray-xt-asyncpe-5.10-darshan.patch: for xt-asyncpe versions 5.10 or 5.11
-* cray-xt-asyncpe-5.12-darshan.patch: for xt-asyncpe versions 5.12 or higher
-
-Perform the following steps to modify the system compiler scripts 
-after selecting the appropriate patch.  This example assumes the use of the
-patch for xt-asyncpe version 5.12 or higher.
+Darshan will automatically install an example software module file in the
+following location (depending on how you specified the --prefix option in
+the previous section):
 
 ----
-cd $ASYNCPE_DIR/bin
-patch -p1 --dry-run < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.12-darshan.patch
-# CONFIRM THE RESULTS OF THE DRY RUN SHOWN ABOVE
-patch -p1 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.12-darshan.patch
+/soft/darshan-2.2.3/share/cray/modulefiles/darshan
 ----
 
-The next step is to install the Darshan software module.  Note that the module
-file will be found in the Darshan installation directory, as it is generated 
-automatically based on configuration parameters:
+This file must be modified before it is used, however.  Please see the
+comments at the end of the file and choose an environment variable method 
+that is appropriate for your system.  If this is not done, then the
+compiler may fail to link some applications when the Darshan module is
+loaded.
+
+The updated module file can then be copied to a system location, or the
+install location can be added to your local module path with the following
+command:
 
 ----
-cp -r /soft/darshan-2.2.3/share/cray/modulefiles/darshan /opt/modulefiles/
+module use /soft/darshan-2.2.3/share/cray/modulefiles
 ----
 
-Users (or administrators) can now enable or disable darshan instrumentation by 
-loading or unloading the "darshan" module.  Note that the module file also
-includes commented-out examples that may be useful for deploying Darshan in
-different configurations, including how to use LD_PRELOAD for dynamically
-linked executables and how to use Darshan with a different set of compiler
-scripts than those found in the normal system path.
-
-==== Compiler wrappers (user installation)
-
-In order to install Darshan for a single user in a Cray environment, the steps
-are similar to those described above, except that the compiler script
-modifications are applied to a local copy of the compiler scripts and the 
-Darshan module is added locally rather than globally.  Note that the 
-cray-xt-asyncpe-5.12-darshan.patch is intended for use with xt-asyncpe versions
-5.12 or higher.  Please use cray-xt-asyncpe-5.12-darshan.patch for 5.10 or 5.11.
-
-----
-mkdir xt-asyncpe-darshan
-cp -r $ASYNCPE_DIR/* xt-asyncpe-darshan
-cd xt-asyncpe-darshan/bin
-patch -p1 --dry-run < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.12-darshan.patch
-# CONFIRM THE RESULTS OF THE DRY RUN SHOWN ABOVE
-patch -p1 < /home/carns/darshan-2.2.3/darshan-runtime/share/cray/cray-xt-asyncpe-5.12-darshan.patch
-
-module use /soft/darshan-2.2.3/share/cray/modulefiles/
-----
-
-In addition to loading the "darshan" software module, in order to use the 
-modified compiler script you must also set the following environment
-variables:
-
-----
-setenv ASYNCPE_DIR /home/carns/xt-asyncpe-darshan
-setenv PATH "/home/carns/xt-asyncpe-darshan/bin:$PATH"
-----
+From this point, Darshan instrumenation can be enabled for all future
+application compilations by running "module load darshan".
 
 === Linux clusters using Intel MPI 
 

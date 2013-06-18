@@ -35,15 +35,12 @@ module-whatis			"$description"
 
 ## Software-specific settings exported to user environment
 
-# Note: The following environment variables are picked up by the system
-#       compiler scripts to enable darshan at link time for statically linked
-#       executables 
-
 setenv CRAY_DARSHAN_VERSION              $version
 setenv CRAY_DARSHAN_DIR                  $root
 
-# Put darshan utilities in the path
+# Put darshan utilities and libraries in system paths
 prepend-path PATH $root/bin
+prepend-path CRAY_LD_LIBRARY_PATH           $root/lib
 
 # NOTE: The following example shows how to enable Darshan for dynamically linked
 #       executables if your environment allows you to load modules from
@@ -54,19 +51,41 @@ prepend-path PATH $root/bin
 #    setenv LD_PRELOAD  $path/lib/libdarshan.so	
 #}
 
-# NOTE: The following example shows how to switch to an alternative set of
-#       compiler scripts when darshan is loaded into the environment.  This 
-#       configuration is useful if the default system-wide compiler
-#       scripts do not support Darshan.  The following settings will be 
-#       overridden, however, if the user swaps PrgEnv modules after loading
-#       the darshan module.  If possible, it is preferable to add support to 
-#       the standard compiler scripts instead.  See the Darshan documentation 
-#       for details.
-#
-# setenv ASYNCPE_DIR $root/../xt-asyncpe/5.12
-# setenv BUILD_OPTS $root/../xt-asyncpe/5.12/bin/build-opts 
-# setenv ASYNCPE_VERSION 5.12 
-# prepend-path PATH $root/../xt-asyncpe/5.12/bin
 
+# initial link options for Darshan
+setenv DARSHAN_POST_LINK_OPTS " -L$root/lib -ldarshan-mpi-io -lz -Wl,-u,__wrap_fopen,-u,MPI_Init,-u,MPI_Wtime,-wrap,write,-wrap,open,-wrap,creat,-wrap,creat64,-wrap,open64,-wrap,close,-wrap,read,-wrap,lseek,-wrap,lseek64,-wrap,pread,-wrap,pwrite,-wrap,readv,-wrap,writev,-wrap,__xstat,-wrap,__lxstat,-wrap,__fxstat,-wrap,__xstat64,-wrap,__lxstat64,-wrap,__fxstat64,-wrap,mmap,-wrap,mmap64,-wrap,fopen,-wrap,fclose,-wrap,fread,-wrap,fwrite,-wrap,fseek,-wrap,fopen64,-wrap,pread64,-wrap,pwrite64,-wrap,fsync,-wrap,fdatasync,-wrap,ncmpi_create,-wrap,ncmpi_open,-wrap,ncmpi_close,-wrap,H5Fcreate,-wrap,H5Fopen,-wrap,H5Fclose  -lfmpich -lmpichcxx -ldarshan-posix -ldarshan-mpi-io -lz "
+
+# Add Darshan to the PE_PRODUCT_LIST variable.  This will cause the
+# compiler scripts to insert DARSHAN_POST_LINK_OPTS into the link command
+# line.
+prepend-path PE_PRODUCT_LIST $product
+
+# IMPORTANT: In addition to the DARSHAN_POST_LINK_OPTS option shown above,
+# we must also add -ldarshan-mpi-io to the CNL_LIBS_LIST variable in
+# the compiler scripts. This enables the linker to make a final pass to
+# resolve darshan symbols if an application library is indirectly using a
+# high level library like hdf5 or pnetcdf.
+#
+# There are two options:
+#
+# a) Modify the linux-cc, linux-f90, linux-CC, craycc, crayftn,
+# and crayc++ scripts to include a new variable (for example, LIBDARSHAN) at
+# the end of the CNL_LIBS_LIST, and set that variable below:
+#setenv LIBDARSHAN "-ldarshan-mpi-io"
+#
+# b) For testing purposes, you can re-use an existing variable from another
+# software project that is already present in CNL_LIBS_LIST but is not
+# defined within directly within the compiler script.  Two examples are
+# shown below.  Note that the scripts for the Cray compiler (craycc,
+# crayftn, and crayc++) use different linker arguments and are more
+# sensitive to library ordering.  The following examples may only work for
+# the GNU, PGI, Pathscale, and Intel compilers:
+# 
+# this one adds on to a variable normally used by trilinos:
+#setenv LIBTRILINOS "$LIBTRILINOS -ldarshan-mpi-io"
+#
+# this one adds on to a variable normally used by trilinos:
+#setenv LIBSCIFFT "$LIBSCIFFT -ldarshan-mpi-io"
+#
 
 
