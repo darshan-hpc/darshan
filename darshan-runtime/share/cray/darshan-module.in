@@ -84,7 +84,7 @@ prepend-path PE_PRODUCT_LIST $product
 # this one adds on to a variable normally used by trilinos:
 #setenv LIBTRILINOS "$LIBTRILINOS -ldarshan-mpi-io"
 #
-# this one adds on to a variable normally used by trilinos:
+# this one adds on to a variable normally used by the Scilab FFT library
 #setenv LIBSCIFFT "$LIBSCIFFT -ldarshan-mpi-io"
 #
 
