@@ -2,6 +2,12 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.2.8-pre1
+=============
+* Fix compile-time errors for MPICH 3.x installations with const correct MPI 
+  function prototypes. Also affects MPICH 1.5+ installations configured with 
+  const support. 
+
 darshan-2.2.7
 =============
 * Updated Cray installation documentation for cleaner integration in Cray

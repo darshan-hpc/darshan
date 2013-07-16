@@ -21,6 +21,9 @@
 /* Define to 1 if you have the <mntent.h> header file. */
 #undef HAVE_MNTENT_H
 
+/* Define if MPI-IO prototypes use const qualifier */
+#undef HAVE_MPIIO_CONST
+
 /* Define if off64_t type is defined */
 #undef HAVE_OFF64_T
 

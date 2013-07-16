@@ -5,7 +5,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl You may need to use autoheader as well if changing any DEFINEs
 
 dnl sanity checks, output header, location of scripts used here
-AC_INIT([darshan-runtime], [2.2.7])
+AC_INIT([darshan-runtime], [2.2.8-pre1])
 AC_CONFIG_SRCDIR([darshan.h])
 AC_CONFIG_AUX_DIR(../maint/config)
 AC_CONFIG_HEADER(darshan-runtime-config.h)
@@ -134,6 +134,7 @@ gt_INTTYPES_PRI
 dnl Check byte ordering
 AC_C_BIGENDIAN
 
+
 dnl temporarily set large file flags just for this test; we don't want
 dnl it to propagate to the makefile because of zlib bugs
 old_cflags="$CFLAGS"
@@ -202,6 +203,39 @@ AC_TRY_LINK([#include <mpi.h>], [
 ],
     AC_MSG_RESULT(yes),
     AC_MSG_ERROR(Darshan requires a version of MPI with MPI-IO support)
+)
+
+# At some point MPI-IO converted most API functions to be const correct.  We
+# need to test for this to determine how to define MPI-IO wrappers in
+# Darshan.  First we try compiling without cost qualifiers.
+AC_MSG_CHECKING(for MPI-IO prototypes without const qualifier)
+AC_TRY_COMPILE(
+    [
+    #include <mpi.h>
+    int MPI_File_open(MPI_Comm comm, char *filename, int amode, 
+        MPI_Info info, MPI_File *fh)
+        {return 0;}
+    ],
+    [],
+    AC_MSG_RESULT(yes),
+    AC_MSG_RESULT(no)
+
+    # unable to compile without const qualifiers.  Let's try again with
+    # const qualifiers.
+    AC_MSG_CHECKING(for MPI-IO prototypes with const qualifier)
+    AC_TRY_COMPILE(
+        [
+        #include <mpi.h>
+        int MPI_File_open(MPI_Comm comm, const char *filename, int amode, 
+            MPI_Info info, MPI_File *fh)
+            {return 0;}
+        ],
+        [],
+        AC_MSG_RESULT(yes)
+        AC_DEFINE(HAVE_MPIIO_CONST, 1, Define if MPI-IO prototypes use const qualifier),
+        ,
+        AC_MSG_ERROR(Darshan is unable to find a compatible MPI_File_open prototype)
+    )
 )
 
 # determine if mpicc can create shared libraries that use MPI functions
