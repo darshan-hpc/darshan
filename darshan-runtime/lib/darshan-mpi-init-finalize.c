@@ -166,6 +166,10 @@ int MPI_Init_thread (int *argc, char ***argv, int required, int *provided)
 {
     int ret;
 
+#ifdef DARSHAN_PRELOAD
+    resolve_mpi_symbols();
+#endif
+
     ret = DARSHAN_MPI_CALL(PMPI_Init_thread)(argc, argv, required, provided);
     if (ret != MPI_SUCCESS)
     {
