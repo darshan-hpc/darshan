@@ -26,11 +26,13 @@
 #define OPTION_TOTAL (1 << 1)  /* aggregated fields */
 #define OPTION_PERF  (1 << 2)  /* derived performance */
 #define OPTION_FILE  (1 << 3)  /* file count totals */
+#define OPTION_FILE_LIST  (1 << 4)  /* per-file summaries */
 #define OPTION_ALL (\
   OPTION_BASE|\
   OPTION_TOTAL|\
   OPTION_PERF|\
-  OPTION_FILE)
+  OPTION_FILE|\
+  OPTION_FILE_LIST)
 
 #define FILETYPE_SHARED (1 << 0)
 #define FILETYPE_UNIQUE (1 << 1)
@@ -45,7 +47,7 @@
 typedef struct hash_entry_s
 {
     UT_hash_handle hlink;
-    int64_t hash;
+    uint64_t hash;
     int64_t type;
     int64_t procs;
     int64_t counters[CP_NUM_INDICES];
@@ -102,6 +104,7 @@ void calc_perf(struct darshan_job *, hash_entry_t *, perf_data_t *);
 
 void accum_file(struct darshan_file *, hash_entry_t *, file_data_t *);
 void calc_file(struct darshan_job *, hash_entry_t *, file_data_t *);
+void file_list(struct darshan_job *, hash_entry_t *);
 
 int usage (char *exename)
 {
@@ -109,6 +112,7 @@ int usage (char *exename)
     fprintf(stderr, "    --all   : all sub-options are enabled\n");
     fprintf(stderr, "    --base  : darshan log field data [default]\n");
     fprintf(stderr, "    --file  : total file counts\n");
+    fprintf(stderr, "    --file-list  : per-file summaries\n");
     fprintf(stderr, "    --perf  : derived perf data\n");
     fprintf(stderr, "    --total : aggregated darshan field data\n");
 
@@ -124,6 +128,7 @@ int parse_args (int argc, char **argv, char **filename)
         {"all",   0, NULL, OPTION_ALL},
         {"base",  0, NULL, OPTION_BASE},
         {"file",  0, NULL, OPTION_FILE},
+        {"file-list",  0, NULL, OPTION_FILE_LIST},
         {"perf",  0, NULL, OPTION_PERF},
         {"total", 0, NULL, OPTION_TOTAL},
         {"help",  0, NULL, 0},
@@ -143,6 +148,7 @@ int parse_args (int argc, char **argv, char **filename)
             case OPTION_ALL:
             case OPTION_BASE:
             case OPTION_FILE:
+            case OPTION_FILE_LIST:
             case OPTION_PERF:
             case OPTION_TOTAL:
                 mask |= c;
@@ -501,6 +507,12 @@ int main(int argc, char **argv)
                fdata.shared_max);
     }
 
+    if ((mask & OPTION_FILE_LIST))
+    {
+        printf("\n# Per-file summary of I/O activity.\n");
+        file_list(&job, file_hash);
+    }
+
     if(ret < 0)
     {
         fprintf(stderr, "Error: failed to parse log file.\n");
@@ -660,6 +672,22 @@ void accum_file(struct darshan_file *dfile,
     return;
 }
 
+void file_list(struct darshan_job *djob, hash_entry_t *file_hash)
+{
+    hash_entry_t *curr = NULL;
+    hash_entry_t *tmp = NULL;
+
+    printf("# <hash>: hash of file name\n");
+    
+    printf("\n# <hash>\n");
+    HASH_ITER(hlink, file_hash, curr, tmp)
+    {
+        printf("%" PRIu64 "\n",
+            curr->hash);
+    }
+
+    return;
+}
 
 void calc_file(struct darshan_job *djob,
                hash_entry_t *file_hash, 
