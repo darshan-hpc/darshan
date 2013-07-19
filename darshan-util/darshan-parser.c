@@ -54,6 +54,7 @@ typedef struct hash_entry_s
     double  fcounters[CP_F_NUM_INDICES];
     double cumul_time;
     double meta_time;
+    char name_suffix[CP_NAME_SUFFIX_LEN+1];
 } hash_entry_t;
 
 typedef struct perf_data_s
@@ -416,6 +417,7 @@ int main(int argc, char **argv)
             /* init */
             memset(hfile, 0, sizeof(*hfile));
             hfile->hash          = cp_file.hash;
+            memcpy(hfile->name_suffix, cp_file.name_suffix, CP_NAME_SUFFIX_LEN+1);
             hfile->type          = 0;
             hfile->procs         = 0;
             hfile->cumul_time    = 0.0;
@@ -678,12 +680,14 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash)
     hash_entry_t *tmp = NULL;
 
     printf("# <hash>: hash of file name\n");
+    printf("# <suffix>: last %d characters of file name\n", CP_NAME_SUFFIX_LEN);
     
-    printf("\n# <hash>\n");
+    printf("\n# <hash>\t<suffix>\n");
     HASH_ITER(hlink, file_hash, curr, tmp)
     {
-        printf("%" PRIu64 "\n",
-            curr->hash);
+        printf("%" PRIu64 "\t%s\n",
+            curr->hash,
+            curr->name_suffix);
     }
 
     return;
