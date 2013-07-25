@@ -28,21 +28,27 @@ int usage (char *exename)
     fprintf(stderr, "       --obfuscate Obfuscate items in the log.\n");
     fprintf(stderr, "       --key <key> Key to use when obfuscating.\n");
     fprintf(stderr, "       --annotate <string> Additional metadata to add.\n");
+    fprintf(stderr, "       --file <hash> Limit output to specified (hashed) file only.\n");
 
     exit(1);
 }
 
 void parse_args (int argc, char **argv, char **infile, char **outfile,
-                 int *obfuscate, int *key, char **annotate)
+                 int *obfuscate, int *key, char **annotate, uint64_t* hash)
 {
     int index;
+    int ret;
+
     static struct option long_opts[] =
     {
         {"annotate", 1, NULL, 'a'},
         {"obfuscate", 0, NULL, 'o'},
         {"key", 1, NULL, 'k'},
+        {"file", 1, NULL, 'f'},
         {"help",  0, NULL, 0}
     };
+
+    *hash = 0;
 
     while(1)
     {
@@ -60,6 +66,11 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
                 break;
             case 'k':
                 *key = atoi(optarg);
+                break;
+            case 'f':
+                ret = sscanf(optarg, "%" PRIu64, hash);
+                if(ret != 1)
+                    usage(argv[0]);
                 break;
             case 0:
             case '?':
@@ -151,8 +162,9 @@ int main(int argc, char **argv)
     int obfuscate = 0;
     int key = 0;
     char *annotation = NULL;
+    uint64_t hash;
 
-    parse_args(argc, argv, &infile_name, &outfile_name, &obfuscate, &key, &annotation);
+    parse_args(argc, argv, &infile_name, &outfile_name, &obfuscate, &key, &annotation, &hash);
 
     infile = darshan_log_open(infile_name, "r");
     if(!infile)
@@ -252,13 +264,16 @@ int main(int argc, char **argv)
         if(cp_file.rank != -1)
             last_rank = cp_file.rank;
 
-        if (obfuscate) obfuscate_file(key, &cp_file);
-
-        ret = darshan_log_putfile(outfile, &job, &cp_file);
-        if (ret < 0)
+        if(!hash || hash == cp_file.hash)
         {
-            fprintf(stderr, "Error: failed to write file record.\n");
-            break;
+            if (obfuscate) obfuscate_file(key, &cp_file);
+
+            ret = darshan_log_putfile(outfile, &job, &cp_file);
+            if (ret < 0)
+            {
+                fprintf(stderr, "Error: failed to write file record.\n");
+                break;
+            }
         }
     } while((ret = darshan_log_getfile(infile, &job, &cp_file)) == 1);
 
