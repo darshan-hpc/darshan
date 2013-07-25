@@ -105,7 +105,7 @@ typedef struct file_data_s
 void accum_perf(struct darshan_file *, hash_entry_t *, perf_data_t *);
 void calc_perf(struct darshan_job *, hash_entry_t *, perf_data_t *);
 
-void accum_file(struct darshan_file *, hash_entry_t *, file_data_t *);
+void accum_file(struct darshan_job *, struct darshan_file *, hash_entry_t *, file_data_t *);
 void calc_file(struct darshan_job *, hash_entry_t *, file_data_t *);
 void file_list(struct darshan_job *, hash_entry_t *, int);
 
@@ -431,8 +431,8 @@ int main(int argc, char **argv)
             HASH_ADD(hlink,file_hash,hash,sizeof(int64_t),hfile);
         }
 
-        accum_file(&cp_file, &total, NULL);
-        accum_file(&cp_file, hfile, &fdata);
+        accum_file(&job, &cp_file, &total, NULL);
+        accum_file(&job, &cp_file, hfile, &fdata);
         accum_perf(&cp_file, hfile, &pdata);
 
         if ((mask & OPTION_BASE))
@@ -552,7 +552,8 @@ int main(int argc, char **argv)
     return(0);
 }
 
-void accum_file(struct darshan_file *dfile,
+void accum_file(struct darshan_job *job,
+                struct darshan_file *dfile,
                 hash_entry_t *hfile, 
                 file_data_t *fdata)
 {
@@ -562,6 +563,7 @@ void accum_file(struct darshan_file *dfile,
 
     if (dfile->rank == -1)
     {
+        hfile->procs = job->nprocs;
         hfile->type |= FILETYPE_SHARED;
     }
     else if (hfile->procs > 1)
@@ -685,6 +687,7 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_fla
 {
     hash_entry_t *curr = NULL;
     hash_entry_t *tmp = NULL;
+    char* type;
 
     /* TODO: list of columns:
      *
@@ -717,13 +720,22 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_fla
 
     printf("# <hash>: hash of file name\n");
     printf("# <suffix>: last %d characters of file name\n", CP_NAME_SUFFIX_LEN);
+    printf("# <type>: MPI or POSIX\n");
+    printf("# <nprocs>: number of processes that opened the file\n");
     
-    printf("\n# <hash>\t<suffix>\n");
+    printf("\n# <hash>\t<suffix>\t<type>\t<nprocs>\n");
     HASH_ITER(hlink, file_hash, curr, tmp)
     {
-        printf("%" PRIu64 "\t%s\n",
+        if(curr->counters[CP_INDEP_OPENS] || curr->counters[CP_COLL_OPENS])
+            type = "MPI";
+        else
+            type = "POSIX";
+
+        printf("%" PRIu64 "\t%s\t%s\t%" PRId64 "\n",
             curr->hash,
-            curr->name_suffix);
+            curr->name_suffix,
+            type,
+            curr->procs);
     }
 
     return;
