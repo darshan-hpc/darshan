@@ -56,6 +56,7 @@ typedef struct hash_entry_s
     double  fcounters[CP_F_NUM_INDICES];
     double cumul_time;
     double meta_time;
+    double slowest_time;
     char name_suffix[CP_NAME_SUFFIX_LEN+1];
 } hash_entry_t;
 
@@ -563,8 +564,46 @@ void accum_file(struct darshan_job *job,
 
     if (dfile->rank == -1)
     {
+        if(job->version_string[0] == '1')
+        {
+            hfile->slowest_time = 
+                max((dfile->fcounters[CP_F_READ_END_TIMESTAMP] 
+                    - dfile->fcounters[CP_F_OPEN_TIMESTAMP]),
+                    (dfile->fcounters[CP_F_WRITE_END_TIMESTAMP] 
+                    - dfile->fcounters[CP_F_OPEN_TIMESTAMP]));
+            if(hfile->slowest_time < 0)
+                hfile->slowest_time = 0;
+        }
+        else
+        {
+            hfile->slowest_time = dfile->fcounters[CP_F_SLOWEST_RANK_TIME];
+        }
+    }
+    else
+    {
+        if(dfile->counters[CP_INDEP_OPENS] || dfile->counters[CP_COLL_OPENS])
+        {
+            /* MPI file */
+            hfile->slowest_time = max(hfile->slowest_time, 
+                (dfile->fcounters[CP_F_MPI_META_TIME] +
+                dfile->fcounters[CP_F_MPI_READ_TIME] +
+                dfile->fcounters[CP_F_MPI_WRITE_TIME]));
+        }
+        else
+        {
+            /* POSIX file */
+            hfile->slowest_time = max(hfile->slowest_time, 
+                (dfile->fcounters[CP_F_POSIX_META_TIME] +
+                dfile->fcounters[CP_F_POSIX_READ_TIME] +
+                dfile->fcounters[CP_F_POSIX_WRITE_TIME]));
+        }
+    }
+
+    if (dfile->rank == -1)
+    {
         hfile->procs = job->nprocs;
         hfile->type |= FILETYPE_SHARED;
+
     }
     else if (hfile->procs > 1)
     {
@@ -722,8 +761,9 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_fla
     printf("# <suffix>: last %d characters of file name\n", CP_NAME_SUFFIX_LEN);
     printf("# <type>: MPI or POSIX\n");
     printf("# <nprocs>: number of processes that opened the file\n");
+    printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process.\n");
     
-    printf("\n# <hash>\t<suffix>\t<type>\t<nprocs>\n");
+    printf("\n# <hash>\t<suffix>\t<type>\t<nprocs>\t<slowest>\n");
     HASH_ITER(hlink, file_hash, curr, tmp)
     {
         if(curr->counters[CP_INDEP_OPENS] || curr->counters[CP_COLL_OPENS])
@@ -731,11 +771,12 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_fla
         else
             type = "POSIX";
 
-        printf("%" PRIu64 "\t%s\t%s\t%" PRId64 "\n",
+        printf("%" PRIu64 "\t%s\t%s\t%" PRId64 "\t%f\n",
             curr->hash,
             curr->name_suffix,
             type,
-            curr->procs);
+            curr->procs,
+            curr->slowest_time);
     }
 
     return;
