@@ -781,8 +781,8 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_fla
      * - MPI indep opens
      * - MPI coll opens
      * - POSIX opens
-     * - r histogram (MPI or POSIX)
-     * - w histogram (MPI or POSIX)
+     * - r histogram (POSIX)
+     * - w histogram (POSIX)
      */
 
     if(detail_flag)
@@ -803,6 +803,8 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_fla
         printf("# <mpi_indep_opens>: independent MPI_File_open calls\n");
         printf("# <mpi_coll_opens>: collective MPI_File_open calls\n");
         printf("# <posix_opens>: POSIX open calls\n");
+        printf("# <CP_SIZE_READ_*>: POSIX read size histogram\n");
+        printf("# <CP_SIZE_WRITE_*>: POSIX write size histogram\n");
     }
     
     printf("\n# <hash>\t<suffix>\t<type>\t<nprocs>\t<slowest>\t<avg>");
@@ -811,6 +813,8 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_fla
         printf("\t<start_open>\t<start_read>\t<start_write>");
         printf("\t<end_open>\t<end_read>\t<end_write>");
         printf("\t<mpi_indep_opens>\t<mpi_coll_opens>\t<posix_opens>");
+        for(i=CP_SIZE_READ_0_100; i<= CP_SIZE_WRITE_1G_PLUS; i++)
+            printf("\t%s", darshan_names[i]);
     }
     printf("\n");
 
@@ -835,6 +839,8 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_fla
                 printf("\t%f", curr->fcounters[i]);
             }
             printf("\t%" PRId64 "\t%" PRId64 "\t%" PRId64, curr->counters[CP_INDEP_OPENS], curr->counters[CP_COLL_OPENS], curr->counters[CP_POSIX_OPENS]);
+            for(i=CP_SIZE_READ_0_100; i<= CP_SIZE_WRITE_1G_PLUS; i++)
+                printf("\t%" PRId64, curr->counters[i]);
         }
         printf("\n");
     }
