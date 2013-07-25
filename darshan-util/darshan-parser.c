@@ -27,12 +27,14 @@
 #define OPTION_PERF  (1 << 2)  /* derived performance */
 #define OPTION_FILE  (1 << 3)  /* file count totals */
 #define OPTION_FILE_LIST  (1 << 4)  /* per-file summaries */
+#define OPTION_FILE_LIST_DETAILED  (1 << 6)  /* per-file summaries with extra detail */
 #define OPTION_ALL (\
   OPTION_BASE|\
   OPTION_TOTAL|\
   OPTION_PERF|\
   OPTION_FILE|\
-  OPTION_FILE_LIST)
+  OPTION_FILE_LIST|\
+  OPTION_FILE_LIST_DETAILED)
 
 #define FILETYPE_SHARED (1 << 0)
 #define FILETYPE_UNIQUE (1 << 1)
@@ -105,7 +107,7 @@ void calc_perf(struct darshan_job *, hash_entry_t *, perf_data_t *);
 
 void accum_file(struct darshan_file *, hash_entry_t *, file_data_t *);
 void calc_file(struct darshan_job *, hash_entry_t *, file_data_t *);
-void file_list(struct darshan_job *, hash_entry_t *);
+void file_list(struct darshan_job *, hash_entry_t *, int);
 
 int usage (char *exename)
 {
@@ -114,6 +116,7 @@ int usage (char *exename)
     fprintf(stderr, "    --base  : darshan log field data [default]\n");
     fprintf(stderr, "    --file  : total file counts\n");
     fprintf(stderr, "    --file-list  : per-file summaries\n");
+    fprintf(stderr, "    --file-list-detailed  : per-file summaries with additional detail\n");
     fprintf(stderr, "    --perf  : derived perf data\n");
     fprintf(stderr, "    --total : aggregated darshan field data\n");
 
@@ -130,6 +133,7 @@ int parse_args (int argc, char **argv, char **filename)
         {"base",  0, NULL, OPTION_BASE},
         {"file",  0, NULL, OPTION_FILE},
         {"file-list",  0, NULL, OPTION_FILE_LIST},
+        {"file-list-detailed",  0, NULL, OPTION_FILE_LIST_DETAILED},
         {"perf",  0, NULL, OPTION_PERF},
         {"total", 0, NULL, OPTION_TOTAL},
         {"help",  0, NULL, 0},
@@ -150,6 +154,7 @@ int parse_args (int argc, char **argv, char **filename)
             case OPTION_BASE:
             case OPTION_FILE:
             case OPTION_FILE_LIST:
+            case OPTION_FILE_LIST_DETAILED:
             case OPTION_PERF:
             case OPTION_TOTAL:
                 mask |= c;
@@ -509,10 +514,12 @@ int main(int argc, char **argv)
                fdata.shared_max);
     }
 
-    if ((mask & OPTION_FILE_LIST))
+    if ((mask & OPTION_FILE_LIST) || mask & OPTION_FILE_LIST_DETAILED)
     {
-        printf("\n# Per-file summary of I/O activity.\n");
-        file_list(&job, file_hash);
+        if(mask & OPTION_FILE_LIST_DETAILED)
+            file_list(&job, file_hash, 1);
+        else
+            file_list(&job, file_hash, 0);
     }
 
     if(ret < 0)
@@ -674,10 +681,39 @@ void accum_file(struct darshan_file *dfile,
     return;
 }
 
-void file_list(struct darshan_job *djob, hash_entry_t *file_hash)
+void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_flag)
 {
     hash_entry_t *curr = NULL;
     hash_entry_t *tmp = NULL;
+
+    /* TODO: list of columns:
+     *
+     * normal mode?
+     * - hash
+     * - suffix
+     * - MPI or POSIX
+     * - nprocs
+     * - slowest I/O time
+     * - average cumulative I/O time
+     *
+     * detailed mode?
+     * - first open
+     * - first read
+     * - first write
+     * - last close
+     * - last read
+     * - last write
+     * - MPI indep opens
+     * - MPI coll opens
+     * - POSIX opens
+     * - r histogram (MPI or POSIX)
+     * - w histogram (MPI or POSIX)
+     */
+
+    if(detail_flag)
+        printf("\n# Per-file summary of I/O activity (detailed).\n");
+    else
+        printf("\n# Per-file summary of I/O activity.\n");
 
     printf("# <hash>: hash of file name\n");
     printf("# <suffix>: last %d characters of file name\n", CP_NAME_SUFFIX_LEN);
