@@ -705,6 +705,24 @@ void accum_file(struct darshan_job *job,
     {
         switch(i)
         {
+            case CP_F_OPEN_TIMESTAMP:
+            case CP_F_READ_START_TIMESTAMP:
+            case CP_F_WRITE_START_TIMESTAMP:
+                if(hfile->fcounters[i] == 0 || 
+                    hfile->fcounters[i] > dfile->fcounters[i])
+                {
+                    hfile->fcounters[i] = dfile->fcounters[i];
+                }
+                break;
+            case CP_F_CLOSE_TIMESTAMP:
+            case CP_F_READ_END_TIMESTAMP:
+            case CP_F_WRITE_END_TIMESTAMP:
+                if(hfile->fcounters[i] == 0 || 
+                    hfile->fcounters[i] < dfile->fcounters[i])
+                {
+                    hfile->fcounters[i] = dfile->fcounters[i];
+                }
+                break;
             case CP_F_FASTEST_RANK_TIME:
             case CP_F_SLOWEST_RANK_TIME:
             case CP_F_VARIANCE_RANK_TIME:
@@ -741,6 +759,7 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_fla
     hash_entry_t *curr = NULL;
     hash_entry_t *tmp = NULL;
     char* type;
+    int i;
 
     /* TODO: list of columns:
      *
@@ -777,8 +796,22 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_fla
     printf("# <nprocs>: number of processes that opened the file\n");
     printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process.\n");
     printf("# <avg>: average time in seconds consumed in IO per process.\n");
+    if(detail_flag)
+    {
+        printf("# <start_{open/read/write}>: start timestamp of first open, read, or write\n");
+        printf("# <end_{open/read/write}>: end timestamp of last open, read, or write\n");
+    }
     
-    printf("\n# <hash>\t<suffix>\t<type>\t<nprocs>\t<slowest>\t<avg>\n");
+    printf("\n# <hash>\t<suffix>\t<type>\t<nprocs>\t<slowest>\t<avg>");
+    if(detail_flag)
+    {
+        printf("\t<start_open>\t<start_read>\t<start_write>");
+        printf("\t<end_open>\t<end_read>\t<end_write>\n");
+    }
+    else
+    {
+        printf("\n");
+    }
     HASH_ITER(hlink, file_hash, curr, tmp)
     {
         if(curr->counters[CP_INDEP_OPENS] || curr->counters[CP_COLL_OPENS])
@@ -786,13 +819,21 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_fla
         else
             type = "POSIX";
 
-        printf("%" PRIu64 "\t%s\t%s\t%" PRId64 "\t%f\t%f\n",
+        printf("%" PRIu64 "\t%s\t%s\t%" PRId64 "\t%f\t%f",
             curr->hash,
             curr->name_suffix,
             type,
             curr->procs,
             curr->slowest_time,
             curr->cumul_time/(double)curr->procs);
+        if(detail_flag)
+        {
+            for(i=CP_F_OPEN_TIMESTAMP; i<=CP_F_WRITE_END_TIMESTAMP; i++)
+            {
+                printf("\t%f", curr->fcounters[i]);
+            }
+        }
+        printf("\n");
     }
 
     return;
