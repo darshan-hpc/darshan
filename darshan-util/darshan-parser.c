@@ -794,24 +794,26 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_fla
     printf("# <suffix>: last %d characters of file name\n", CP_NAME_SUFFIX_LEN);
     printf("# <type>: MPI or POSIX\n");
     printf("# <nprocs>: number of processes that opened the file\n");
-    printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process.\n");
-    printf("# <avg>: average time in seconds consumed in IO per process.\n");
+    printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
+    printf("# <avg>: average time in seconds consumed in IO per process\n");
     if(detail_flag)
     {
         printf("# <start_{open/read/write}>: start timestamp of first open, read, or write\n");
         printf("# <end_{open/read/write}>: end timestamp of last open, read, or write\n");
+        printf("# <mpi_indep_opens>: independent MPI_File_open calls\n");
+        printf("# <mpi_coll_opens>: collective MPI_File_open calls\n");
+        printf("# <posix_opens>: POSIX open calls\n");
     }
     
     printf("\n# <hash>\t<suffix>\t<type>\t<nprocs>\t<slowest>\t<avg>");
     if(detail_flag)
     {
         printf("\t<start_open>\t<start_read>\t<start_write>");
-        printf("\t<end_open>\t<end_read>\t<end_write>\n");
+        printf("\t<end_open>\t<end_read>\t<end_write>");
+        printf("\t<mpi_indep_opens>\t<mpi_coll_opens>\t<posix_opens>");
     }
-    else
-    {
-        printf("\n");
-    }
+    printf("\n");
+
     HASH_ITER(hlink, file_hash, curr, tmp)
     {
         if(curr->counters[CP_INDEP_OPENS] || curr->counters[CP_COLL_OPENS])
@@ -832,6 +834,7 @@ void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_fla
             {
                 printf("\t%f", curr->fcounters[i]);
             }
+            printf("\t%" PRId64 "\t%" PRId64 "\t%" PRId64, curr->counters[CP_INDEP_OPENS], curr->counters[CP_COLL_OPENS], curr->counters[CP_POSIX_OPENS]);
         }
         printf("\n");
     }
