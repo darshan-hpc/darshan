@@ -461,7 +461,10 @@ int darshan_log_putjob(darshan_fd file, struct darshan_job *job)
     memcpy(&job_copy, job, sizeof(job_copy));
     sprintf(pv_str, "prev_ver=%s\n", job->version_string);
     sprintf(job_copy.version_string, "%s", CP_VERSION);
-    strncat(job_copy.metadata, pv_str, strlen(pv_str));
+    if(strlen(job_copy.metadata) + strlen(pv_str) < DARSHAN_JOB_METADATA_LEN)
+        strncat(job_copy.metadata, pv_str, strlen(pv_str));
+    else
+        sprintf(job_copy.metadata, "%s", pv_str);
     job_copy.magic_nr = CP_MAGIC_NR;
 
     ret = darshan_log_write(file, &job_copy, sizeof(job_copy));
