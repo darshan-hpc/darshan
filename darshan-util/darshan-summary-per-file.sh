@@ -49,3 +49,6 @@ while read -r hash suffix stuff ; do
            exit $rc
         fi
 done 
+
+echo =======================================================
+echo darshan-summary-per-file.sh done.  Results can be found in $2/\*.pdf.
