@@ -77,6 +77,7 @@ install:: all
 	install -m 755 darshan-convert $(bindir)
 	install -m 755 darshan-diff $(bindir)
 	install -m 755 darshan-analyzer $(bindir)
+	install -m 755 $(srcdir)/darshan-summary-per-file.sh $(bindir)
 	install -m 755 libdarshan-util.a $(libdir)
 	install -m 644 $(srcdir)/darshan-logutils.h $(includedir)
 	install -m 644 $(DARSHAN_LOG_FORMAT) $(includedir)
