@@ -121,7 +121,7 @@ static int darshan_mem_alignment = 1;
 struct darshan_aio_tracker
 {
     double tm1;
-    struct aio_cb *aiocbp;
+    struct aiocb *aiocbp;
     struct darshan_aio_tracker* next;
 };
 
@@ -1036,15 +1036,73 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
     return(ret);
 }
 
+/* finds the tracker structure for a given aio operation, removes it from
+ * the linked list for the darshan_file structure, and returns a pointer.  
+ *
+ * returns NULL if aio operation not found
+ */
+static struct darshan_aio_tracker* darshan_aio_tracker_del(struct aiocb *aiocbp)
+{
+    struct darshan_aio_tracker *tmp, *prev;
+    struct darshan_file_runtime* file;
+
+    CP_LOCK();
+    file = darshan_file_by_fd(aiocbp->aio_fildes);
+    if(file)
+    {
+        /* is there a tracker struct for this operation? */
+        tmp = file->aio_list_head; 
+        prev = NULL;
+        while(tmp)
+        {
+            if(tmp->aiocbp == aiocbp)
+            {
+                if(prev)
+                    prev->next = tmp->next;
+                else
+                    file->aio_list_head = tmp->next;
+
+                if(tmp == file->aio_list_tail)
+                    file->aio_list_tail = prev;
+
+                break;
+            }
+            else
+            {
+                prev = tmp;
+                tmp = tmp->next;
+            }
+        }
+    }
+
+    CP_UNLOCK();
+
+    return(tmp);
+}
+
 ssize_t DARSHAN_DECL(aio_return64)(struct aiocb *aiocbp)
 {
     int ret;
+    double tm2;
+    struct darshan_aio_tracker *tmp;
+    int aligned_flag = 0;
 
     MAP_OR_FAIL(aio_return64);
 
-    printf("TESTING: wrapped aio_return64()\n");
-
     ret = __real_aio_return64(aiocbp);
+    tm2 = darshan_wtime();
+    tmp = darshan_aio_tracker_del(aiocbp);
+
+    if(tmp)
+    {
+        if((unsigned long)aiocbp->aio_buf % darshan_mem_alignment == 0)
+            aligned_flag = 1;
+        CP_LOCK();
+        CP_RECORD_WRITE(ret, aiocbp->aio_fildes, aiocbp->aio_nbytes,
+            1, aiocbp->aio_offset, aligned_flag, 0, tmp->tm1, tm2);
+        CP_UNLOCK();
+        free(tmp);
+    }
 
     return(ret);
 }
@@ -1103,6 +1161,7 @@ int DARSHAN_DECL(aio_write64)(struct aiocb *aiocbp)
     ret = __real_aio_write64(aiocbp);
     if(ret == 0)
     {
+        CP_LOCK();
         file = darshan_file_by_fd(aiocbp->aio_fildes);
         if(file)
         {
@@ -1123,6 +1182,7 @@ int DARSHAN_DECL(aio_write64)(struct aiocb *aiocbp)
                 }
             }
         }
+        CP_UNLOCK();
     }
 
     return(ret);
