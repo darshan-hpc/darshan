@@ -153,6 +153,8 @@ static struct darshan_file_runtime* darshan_file_by_fd(int fd);
 static void darshan_file_close_fd(int fd);
 static struct darshan_file_runtime* darshan_file_by_name_setfd(const char* name, int fd);
 static char* clean_path(const char* path);
+static void darshan_aio_tracker_add(struct aiocb *aiocbp);
+static struct darshan_aio_tracker* darshan_aio_tracker_del(struct aiocb *aiocbp);
 
 #define CP_RECORD_WRITE(__ret, __fd, __count, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
     size_t stride; \
@@ -1036,50 +1038,6 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
     return(ret);
 }
 
-/* finds the tracker structure for a given aio operation, removes it from
- * the linked list for the darshan_file structure, and returns a pointer.  
- *
- * returns NULL if aio operation not found
- */
-static struct darshan_aio_tracker* darshan_aio_tracker_del(struct aiocb *aiocbp)
-{
-    struct darshan_aio_tracker *tmp, *prev;
-    struct darshan_file_runtime* file;
-
-    CP_LOCK();
-    file = darshan_file_by_fd(aiocbp->aio_fildes);
-    if(file)
-    {
-        /* is there a tracker struct for this operation? */
-        tmp = file->aio_list_head; 
-        prev = NULL;
-        while(tmp)
-        {
-            if(tmp->aiocbp == aiocbp)
-            {
-                if(prev)
-                    prev->next = tmp->next;
-                else
-                    file->aio_list_head = tmp->next;
-
-                if(tmp == file->aio_list_tail)
-                    file->aio_list_tail = prev;
-
-                break;
-            }
-            else
-            {
-                prev = tmp;
-                tmp = tmp->next;
-            }
-        }
-    }
-
-    CP_UNLOCK();
-
-    return(tmp);
-}
-
 ssize_t DARSHAN_DECL(aio_return64)(struct aiocb *aiocbp)
 {
     int ret;
@@ -1165,39 +1123,12 @@ int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb *const aiocb_list[],
 int DARSHAN_DECL(aio_write64)(struct aiocb *aiocbp)
 {
     int ret;
-    struct darshan_aio_tracker* tracker;
-    struct darshan_file_runtime* file;
 
     MAP_OR_FAIL(aio_write64);
 
-    printf("TESTING: wrapped aio_write64()\n");
-
     ret = __real_aio_write64(aiocbp);
     if(ret == 0)
-    {
-        CP_LOCK();
-        file = darshan_file_by_fd(aiocbp->aio_fildes);
-        if(file)
-        {
-            tracker = malloc(sizeof(*tracker));
-            if(tracker)
-            {
-                tracker->tm1 = darshan_wtime();
-                tracker->aiocbp = aiocbp;
-                tracker->next = NULL;
-                if(file->aio_list_tail)
-                {
-                    file->aio_list_tail->next = tracker;
-                    file->aio_list_tail = tracker;
-                }
-                else
-                {
-                    file->aio_list_head = file->aio_list_tail = tracker;
-                }
-            }
-        }
-        CP_UNLOCK();
-    }
+        darshan_aio_tracker_add(aiocbp);
 
     return(ret);
 }
@@ -2155,6 +2086,82 @@ static char* clean_path(const char* path)
 
     /* return result */
     return(newpath);
+}
+
+/* adds a tracker for the given aio operation */
+static void darshan_aio_tracker_add(struct aiocb *aiocbp)
+{
+    struct darshan_aio_tracker* tracker;
+    struct darshan_file_runtime* file;
+
+    CP_LOCK();
+    file = darshan_file_by_fd(aiocbp->aio_fildes);
+    if(file)
+    {
+        tracker = malloc(sizeof(*tracker));
+        if(tracker)
+        {
+            tracker->tm1 = darshan_wtime();
+            tracker->aiocbp = aiocbp;
+            tracker->next = NULL;
+            if(file->aio_list_tail)
+            {
+                file->aio_list_tail->next = tracker;
+                file->aio_list_tail = tracker;
+            }
+            else
+            {
+                file->aio_list_head = file->aio_list_tail = tracker;
+            }
+        }
+    }
+    CP_UNLOCK();
+
+    return;
+}
+
+/* finds the tracker structure for a given aio operation, removes it from
+ * the linked list for the darshan_file structure, and returns a pointer.  
+ *
+ * returns NULL if aio operation not found
+ */
+static struct darshan_aio_tracker* darshan_aio_tracker_del(struct aiocb *aiocbp)
+{
+    struct darshan_aio_tracker *tmp, *prev;
+    struct darshan_file_runtime* file;
+
+    CP_LOCK();
+    file = darshan_file_by_fd(aiocbp->aio_fildes);
+    if(file)
+    {
+        /* is there a tracker struct for this operation? */
+        tmp = file->aio_list_head; 
+        prev = NULL;
+        while(tmp)
+        {
+            if(tmp->aiocbp == aiocbp)
+            {
+                if(prev)
+                    prev->next = tmp->next;
+                else
+                    file->aio_list_head = tmp->next;
+
+                if(tmp == file->aio_list_tail)
+                    file->aio_list_tail = prev;
+
+                break;
+            }
+            else
+            {
+                prev = tmp;
+                tmp = tmp->next;
+            }
+        }
+    }
+
+    CP_UNLOCK();
+
+    return(tmp);
 }
 
 /*
