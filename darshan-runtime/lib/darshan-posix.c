@@ -29,6 +29,9 @@
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
 #endif
+#ifndef HAVE_AIOCB64
+#define aiocb64 aiocb
+#endif
 
 extern char* __progname_full;
 
@@ -103,13 +106,13 @@ DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
 DARSHAN_FORWARD_DECL(fsync, int, (int fd));
 DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
 DARSHAN_FORWARD_DECL(aio_read, int, (struct aiocb *aiocbp));
-DARSHAN_FORWARD_DECL(aio_read64, int, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(aio_read64, int, (struct aiocb64 *aiocbp));
 DARSHAN_FORWARD_DECL(aio_write, int, (struct aiocb *aiocbp));
-DARSHAN_FORWARD_DECL(aio_write64, int, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(aio_write64, int, (struct aiocb64 *aiocbp));
 DARSHAN_FORWARD_DECL(lio_listio, int, (int mode, struct aiocb *const aiocb_list[], int nitems, struct sigevent *sevp));
-DARSHAN_FORWARD_DECL(lio_listio64, int, (int mode, struct aiocb *const aiocb_list[], int nitems, struct sigevent *sevp));
+DARSHAN_FORWARD_DECL(lio_listio64, int, (int mode, struct aiocb64 *const aiocb_list[], int nitems, struct sigevent *sevp));
 DARSHAN_FORWARD_DECL(aio_return, ssize_t, (struct aiocb *aiocbp));
-DARSHAN_FORWARD_DECL(aio_return64, ssize_t, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(aio_return64, ssize_t, (struct aiocb64 *aiocbp));
 
 pthread_mutex_t cp_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 struct darshan_job_runtime* darshan_global_job = NULL;
@@ -121,7 +124,7 @@ static int darshan_mem_alignment = 1;
 struct darshan_aio_tracker
 {
     double tm1;
-    struct aiocb *aiocbp;
+    void *aiocbp;
     struct darshan_aio_tracker* next;
 };
 
@@ -153,8 +156,8 @@ static struct darshan_file_runtime* darshan_file_by_fd(int fd);
 static void darshan_file_close_fd(int fd);
 static struct darshan_file_runtime* darshan_file_by_name_setfd(const char* name, int fd);
 static char* clean_path(const char* path);
-static void darshan_aio_tracker_add(struct aiocb *aiocbp);
-static struct darshan_aio_tracker* darshan_aio_tracker_del(struct aiocb *aiocbp);
+static void darshan_aio_tracker_add(int fd, void *aiocbp);
+static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp);
 
 #define CP_RECORD_WRITE(__ret, __fd, __count, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
     size_t stride; \
@@ -1038,7 +1041,7 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
     return(ret);
 }
 
-ssize_t DARSHAN_DECL(aio_return64)(struct aiocb *aiocbp)
+ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
 {
     int ret;
     double tm2;
@@ -1049,7 +1052,7 @@ ssize_t DARSHAN_DECL(aio_return64)(struct aiocb *aiocbp)
 
     ret = __real_aio_return64(aiocbp);
     tm2 = darshan_wtime();
-    tmp = darshan_aio_tracker_del(aiocbp);
+    tmp = darshan_aio_tracker_del(aiocbp->aio_fildes, aiocbp);
 
     if(tmp)
     {
@@ -1084,7 +1087,7 @@ ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
 
     ret = __real_aio_return(aiocbp);
     tm2 = darshan_wtime();
-    tmp = darshan_aio_tracker_del(aiocbp);
+    tmp = darshan_aio_tracker_del(aiocbp->aio_fildes, aiocbp);
 
     if(tmp)
     {
@@ -1113,14 +1116,14 @@ int DARSHAN_DECL(lio_listio)(int mode, struct aiocb *const aiocb_list[],
     {
         for(i=0; i<nitems; i++)
         {
-            darshan_aio_tracker_add(aiocb_list[i]);        
+            darshan_aio_tracker_add(aiocb_list[i]->aio_fildes, aiocb_list[i]);        
         }
     }
 
     return(ret);
 }
 
-int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb *const aiocb_list[],
+int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb64 *const aiocb_list[],
     int nitems, struct sigevent *sevp)
 {
     int ret;
@@ -1128,19 +1131,19 @@ int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb *const aiocb_list[],
 
     MAP_OR_FAIL(lio_listio);
 
-    ret = __real_lio_listio(mode, aiocb_list, nitems, sevp);
+    ret = __real_lio_listio64(mode, aiocb_list, nitems, sevp);
     if(ret == 0)
     {
         for(i=0; i<nitems; i++)
         {
-            darshan_aio_tracker_add(aiocb_list[i]);        
+            darshan_aio_tracker_add(aiocb_list[i]->aio_fildes, aiocb_list[i]);        
         }
     }
 
     return(ret);
 }
 
-int DARSHAN_DECL(aio_write64)(struct aiocb *aiocbp)
+int DARSHAN_DECL(aio_write64)(struct aiocb64 *aiocbp)
 {
     int ret;
 
@@ -1148,7 +1151,7 @@ int DARSHAN_DECL(aio_write64)(struct aiocb *aiocbp)
 
     ret = __real_aio_write64(aiocbp);
     if(ret == 0)
-        darshan_aio_tracker_add(aiocbp);
+        darshan_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
 
     return(ret);
 }
@@ -1161,12 +1164,12 @@ int DARSHAN_DECL(aio_write)(struct aiocb *aiocbp)
 
     ret = __real_aio_write(aiocbp);
     if(ret == 0)
-        darshan_aio_tracker_add(aiocbp);
+        darshan_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
 
     return(ret);
 }
 
-int DARSHAN_DECL(aio_read64)(struct aiocb *aiocbp)
+int DARSHAN_DECL(aio_read64)(struct aiocb64 *aiocbp)
 {
     int ret;
 
@@ -1174,7 +1177,7 @@ int DARSHAN_DECL(aio_read64)(struct aiocb *aiocbp)
 
     ret = __real_aio_read64(aiocbp);
     if(ret == 0)
-        darshan_aio_tracker_add(aiocbp);
+        darshan_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
 
     return(ret);
 }
@@ -1187,7 +1190,7 @@ int DARSHAN_DECL(aio_read)(struct aiocb *aiocbp)
 
     ret = __real_aio_read(aiocbp);
     if(ret == 0)
-        darshan_aio_tracker_add(aiocbp);
+        darshan_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
 
     return(ret);
 }
@@ -2123,13 +2126,13 @@ static char* clean_path(const char* path)
 }
 
 /* adds a tracker for the given aio operation */
-static void darshan_aio_tracker_add(struct aiocb *aiocbp)
+static void darshan_aio_tracker_add(int fd, void *aiocbp)
 {
     struct darshan_aio_tracker* tracker;
     struct darshan_file_runtime* file;
 
     CP_LOCK();
-    file = darshan_file_by_fd(aiocbp->aio_fildes);
+    file = darshan_file_by_fd(fd);
     if(file)
     {
         tracker = malloc(sizeof(*tracker));
@@ -2159,13 +2162,13 @@ static void darshan_aio_tracker_add(struct aiocb *aiocbp)
  *
  * returns NULL if aio operation not found
  */
-static struct darshan_aio_tracker* darshan_aio_tracker_del(struct aiocb *aiocbp)
+static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp)
 {
     struct darshan_aio_tracker *tmp, *prev;
     struct darshan_file_runtime* file;
 
     CP_LOCK();
-    file = darshan_file_by_fd(aiocbp->aio_fildes);
+    file = darshan_file_by_fd(fd);
     if(file)
     {
         /* is there a tracker struct for this operation? */

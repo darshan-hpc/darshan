@@ -9,6 +9,9 @@
 /* Define if cuserid() should be disabled */
 #undef DARSHAN_DISABLE_CUSERID
 
+/* Define if struct aiocb64 type is defined */
+#undef HAVE_AIOCB64
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 

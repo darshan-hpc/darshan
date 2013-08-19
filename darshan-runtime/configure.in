@@ -139,6 +139,22 @@ dnl temporarily set large file flags just for this test; we don't want
 dnl it to propagate to the makefile because of zlib bugs
 old_cflags="$CFLAGS"
 CFLAGS="$CFLAGS -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE"
+AC_MSG_CHECKING(for struct aiocb64)
+AC_TRY_COMPILE(
+    [
+    #include <aio.h>
+    ],
+    [ struct aiocb64 aiocb; ],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_AIOCB64, 1, Define if struct aiocb64 type is defined),
+    AC_MSG_RESULT(no)
+)
+CFLAGS="$old_cflags"
+
+dnl temporarily set large file flags just for this test; we don't want
+dnl it to propagate to the makefile because of zlib bugs
+old_cflags="$CFLAGS"
+CFLAGS="$CFLAGS -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE"
 AC_MSG_CHECKING(for off64_t)
 AC_TRY_COMPILE(
     [
