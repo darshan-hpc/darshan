@@ -117,6 +117,14 @@ static int my_rank = -1;
 static struct stat64 cp_stat_buf;
 static int darshan_mem_alignment = 1;
 
+/* struct to track information about aio operations in flight */
+struct darshan_aio_tracker
+{
+    double tm1;
+    struct aio_cb *aiocbp;
+    struct darshan_aio_tracker* next;
+};
+
 /* these are paths that we will not trace */
 static char* exclusions[] = {
 "/etc/",
@@ -1085,12 +1093,37 @@ int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb *const aiocb_list[],
 int DARSHAN_DECL(aio_write64)(struct aiocb *aiocbp)
 {
     int ret;
+    struct darshan_aio_tracker* tracker;
+    struct darshan_file_runtime* file;
 
     MAP_OR_FAIL(aio_write64);
 
     printf("TESTING: wrapped aio_write64()\n");
 
     ret = __real_aio_write64(aiocbp);
+    if(ret == 0)
+    {
+        file = darshan_file_by_fd(aiocbp->aio_fildes);
+        if(file)
+        {
+            tracker = malloc(sizeof(*tracker));
+            if(tracker)
+            {
+                tracker->tm1 = darshan_wtime();
+                tracker->aiocbp = aiocbp;
+                tracker->next = NULL;
+                if(file->aio_list_tail)
+                {
+                    file->aio_list_tail->next = tracker;
+                    file->aio_list_tail = tracker;
+                }
+                else
+                {
+                    file->aio_list_head = file->aio_list_tail = tracker;
+                }
+            }
+        }
+    }
 
     return(ret);
 }

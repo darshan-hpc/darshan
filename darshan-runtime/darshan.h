@@ -60,6 +60,8 @@ struct cp_access_counter
     int freq;
 };
 
+struct darshan_io_tracker;
+
 /* in memory structure to keep up with file level data */
 struct darshan_file_runtime
 {
@@ -80,6 +82,8 @@ struct darshan_file_runtime
     double last_mpi_read_end;
     double last_posix_meta_end;
     double last_mpi_meta_end;
+    struct darshan_aio_tracker* aio_list_head;
+    struct darshan_aio_tracker* aio_list_tail;
 };
 
 /* handles used by various APIs to refer to files */
