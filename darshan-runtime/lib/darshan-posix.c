@@ -1056,8 +1056,16 @@ ssize_t DARSHAN_DECL(aio_return64)(struct aiocb *aiocbp)
         if((unsigned long)aiocbp->aio_buf % darshan_mem_alignment == 0)
             aligned_flag = 1;
         CP_LOCK();
-        CP_RECORD_WRITE(ret, aiocbp->aio_fildes, aiocbp->aio_nbytes,
-            1, aiocbp->aio_offset, aligned_flag, 0, tmp->tm1, tm2);
+        if(aiocbp->aio_lio_opcode == LIO_WRITE)
+        {
+            CP_RECORD_WRITE(ret, aiocbp->aio_fildes, aiocbp->aio_nbytes,
+                1, aiocbp->aio_offset, aligned_flag, 0, tmp->tm1, tm2);
+        }
+        if(aiocbp->aio_lio_opcode == LIO_READ)
+        {
+            CP_RECORD_READ(ret, aiocbp->aio_fildes, aiocbp->aio_nbytes,
+                1, aiocbp->aio_offset, aligned_flag, 0, tmp->tm1, tm2);
+        }
         CP_UNLOCK();
         free(tmp);
     }
@@ -1139,9 +1147,9 @@ int DARSHAN_DECL(aio_write)(struct aiocb *aiocbp)
 
     MAP_OR_FAIL(aio_write);
 
-    printf("TESTING: wrapped aio_write()\n");
-
     ret = __real_aio_write(aiocbp);
+    if(ret == 0)
+        darshan_aio_tracker_add(aiocbp);
 
     return(ret);
 }
@@ -1152,9 +1160,9 @@ int DARSHAN_DECL(aio_read64)(struct aiocb *aiocbp)
 
     MAP_OR_FAIL(aio_read64);
 
-    printf("TESTING: wrapped aio_read64()\n");
-
     ret = __real_aio_read64(aiocbp);
+    if(ret == 0)
+        darshan_aio_tracker_add(aiocbp);
 
     return(ret);
 }
@@ -1165,13 +1173,12 @@ int DARSHAN_DECL(aio_read)(struct aiocb *aiocbp)
 
     MAP_OR_FAIL(aio_read);
 
-    printf("TESTING: wrapped aio_read()\n");
-
     ret = __real_aio_read(aiocbp);
+    if(ret == 0)
+        darshan_aio_tracker_add(aiocbp);
 
     return(ret);
 }
-
 
 int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
 {
