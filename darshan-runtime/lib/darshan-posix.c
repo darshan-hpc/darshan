@@ -1110,12 +1110,26 @@ ssize_t DARSHAN_DECL(aio_return64)(struct aiocb *aiocbp)
 ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
 {
     int ret;
+    double tm2;
+    struct darshan_aio_tracker *tmp;
+    int aligned_flag = 0;
 
     MAP_OR_FAIL(aio_return);
 
-    printf("TESTING: wrapped aio_return()\n");
-
     ret = __real_aio_return(aiocbp);
+    tm2 = darshan_wtime();
+    tmp = darshan_aio_tracker_del(aiocbp);
+
+    if(tmp)
+    {
+        if((unsigned long)aiocbp->aio_buf % darshan_mem_alignment == 0)
+            aligned_flag = 1;
+        CP_LOCK();
+        CP_RECORD_WRITE(ret, aiocbp->aio_fildes, aiocbp->aio_nbytes,
+            1, aiocbp->aio_offset, aligned_flag, 0, tmp->tm1, tm2);
+        CP_UNLOCK();
+        free(tmp);
+    }
 
     return(ret);
 }
