@@ -1427,6 +1427,21 @@ void darshan_condense(void)
                     break;
             }
         }
+
+        if(base_file->aio_list_tail)
+        {
+            /* base has an aio list already; add on to it */
+            assert(base_file->aio_list_head);
+            base_file->aio_list_tail->next = iter_file->aio_list_head;
+            if(iter_file->aio_list_tail)
+                base_file->aio_list_tail = iter_file->aio_list_tail;
+        }
+        else
+        {
+            /* take on list from iter */
+            base_file->aio_list_head = iter_file->aio_list_head;
+            base_file->aio_list_tail = iter_file->aio_list_tail;
+        }
     }
     
     base_file->log_file->hash = 0;
