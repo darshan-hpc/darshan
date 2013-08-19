@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <libgen.h>
 #include <limits.h>
+#include <aio.h>
 #define __USE_GNU
 #include <pthread.h>
 
@@ -101,6 +102,14 @@ DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb
 DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
 DARSHAN_FORWARD_DECL(fsync, int, (int fd));
 DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
+DARSHAN_FORWARD_DECL(aio_read, int, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(aio_read64, int, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(aio_write, int, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(aio_write64, int, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(lio_listio, int, (int mode, struct aiocb *const aiocb_list[], int nitems, struct sigevent *sevp));
+DARSHAN_FORWARD_DECL(lio_listio64, int, (int mode, struct aiocb *const aiocb_list[], int nitems, struct sigevent *sevp));
+DARSHAN_FORWARD_DECL(aio_return, ssize_t, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(aio_return64, ssize_t, (struct aiocb *aiocbp));
 
 pthread_mutex_t cp_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 struct darshan_job_runtime* darshan_global_job = NULL;
@@ -1018,6 +1027,113 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
     }
     return(ret);
 }
+
+ssize_t DARSHAN_DECL(aio_return64)(struct aiocb *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_return64);
+
+    printf("TESTING: wrapped aio_return64()\n");
+
+    ret = __real_aio_return64(aiocbp);
+
+    return(ret);
+}
+
+ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_return);
+
+    printf("TESTING: wrapped aio_return()\n");
+
+    ret = __real_aio_return(aiocbp);
+
+    return(ret);
+}
+
+int DARSHAN_DECL(lio_listio)(int mode, struct aiocb *const aiocb_list[],
+    int nitems, struct sigevent *sevp)
+{
+    int ret;
+
+    MAP_OR_FAIL(lio_listio);
+
+    printf("TESTING: wrapped lio_listio()\n");
+
+    ret = __real_lio_listio(mode, aiocb_list, nitems, sevp);
+
+    return(ret);
+}
+
+int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb *const aiocb_list[],
+    int nitems, struct sigevent *sevp)
+{
+    int ret;
+
+    MAP_OR_FAIL(lio_listio64);
+
+    printf("TESTING: wrapped lio_listio64()\n");
+
+    ret = __real_lio_listio64(mode, aiocb_list, nitems, sevp);
+
+    return(ret);
+}
+
+int DARSHAN_DECL(aio_write64)(struct aiocb *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_write64);
+
+    printf("TESTING: wrapped aio_write64()\n");
+
+    ret = __real_aio_write64(aiocbp);
+
+    return(ret);
+}
+
+int DARSHAN_DECL(aio_write)(struct aiocb *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_write);
+
+    printf("TESTING: wrapped aio_write()\n");
+
+    ret = __real_aio_write(aiocbp);
+
+    return(ret);
+}
+
+int DARSHAN_DECL(aio_read64)(struct aiocb *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_read64);
+
+    printf("TESTING: wrapped aio_read64()\n");
+
+    ret = __real_aio_read64(aiocbp);
+
+    return(ret);
+}
+
+int DARSHAN_DECL(aio_read)(struct aiocb *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_read);
+
+    printf("TESTING: wrapped aio_read()\n");
+
+    ret = __real_aio_read(aiocbp);
+
+    return(ret);
+}
+
 
 int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
 {
