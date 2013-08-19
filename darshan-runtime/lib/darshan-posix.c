@@ -1104,12 +1104,18 @@ int DARSHAN_DECL(lio_listio)(int mode, struct aiocb *const aiocb_list[],
     int nitems, struct sigevent *sevp)
 {
     int ret;
+    int i;
 
     MAP_OR_FAIL(lio_listio);
 
-    printf("TESTING: wrapped lio_listio()\n");
-
     ret = __real_lio_listio(mode, aiocb_list, nitems, sevp);
+    if(ret == 0)
+    {
+        for(i=0; i<nitems; i++)
+        {
+            darshan_aio_tracker_add(aiocb_list[i]);        
+        }
+    }
 
     return(ret);
 }
@@ -1118,12 +1124,18 @@ int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb *const aiocb_list[],
     int nitems, struct sigevent *sevp)
 {
     int ret;
+    int i;
 
-    MAP_OR_FAIL(lio_listio64);
+    MAP_OR_FAIL(lio_listio);
 
-    printf("TESTING: wrapped lio_listio64()\n");
-
-    ret = __real_lio_listio64(mode, aiocb_list, nitems, sevp);
+    ret = __real_lio_listio(mode, aiocb_list, nitems, sevp);
+    if(ret == 0)
+    {
+        for(i=0; i<nitems; i++)
+        {
+            darshan_aio_tracker_add(aiocb_list[i]);        
+        }
+    }
 
     return(ret);
 }
