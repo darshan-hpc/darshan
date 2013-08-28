@@ -2,7 +2,7 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.2.8-pre2
+darshan-2.2.8-pre3
 =============
 * Add wrappers for POSIX AIO operations (fixes tracking of underlying POSIX
   operations resulting from nonblocking MPI-IO operations.  Bug reported by
