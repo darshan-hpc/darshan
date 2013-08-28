@@ -2,8 +2,12 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.2.8-pre3
+darshan-2.2.8-pre4
 =============
+* WARNING: please note that the Darshan module file for Cray environments has
+  been updated, especially in the DARSHAN_POST_LINK_OPTS variable.  Please
+  update your module file accordingly when upgrading from 2.2.7 or earlier 
+  on Cray platforms.
 * Add wrappers for POSIX AIO operations (fixes tracking of underlying POSIX
   operations resulting from nonblocking MPI-IO operations.  Bug reported by
   David Shrader.)
