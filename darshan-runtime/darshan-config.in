@@ -11,7 +11,7 @@ DARSHAN_LD_FLAGS="@LDFLAGS@"
 #   dependencies on PnetCDF and HDF5 symbols (if the app used a library which 
 #   in turn used one of those HLLs).
 PRE_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -ldarshan-mpi-io -lz $CP_WRAPPERS"
-POST_LD_FLAGS="-L$DARSHAN_LIB_PATH -ldarshan-posix -ldarshan-mpi-io -lz"
+POST_LD_FLAGS="-L$DARSHAN_LIB_PATH -ldarshan-posix -ldarshan-mpi-io -lz -lrt -lpthread"
 
 
 usage="\
