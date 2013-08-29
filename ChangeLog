@@ -2,12 +2,20 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.2.8-pre4
+darshan-2.2.8
 =============
 * WARNING: please note that the Darshan module file for Cray environments has
   been updated, especially in the DARSHAN_POST_LINK_OPTS variable.  Please
   update your module file accordingly when upgrading from 2.2.7 or earlier 
   on Cray platforms.
+* Improved ability to analyze the activity to particular files opened by an
+  application
+  - darshan-summary-per-file.sh script to generate a separate pdf summary for
+    each file opened by an application, developed by Rob Latham.
+  - Added --file-list and --file-list-detailed options to darshan-parser to 
+    lists files present within a log file along with summary statistics.
+  - Added --file option to darshan-convert to filter out activity for a
+    specific file from a Darshan log
 * Add wrappers for POSIX AIO operations (fixes tracking of underlying POSIX
   operations resulting from nonblocking MPI-IO operations.  Bug reported by
   David Shrader.)
@@ -17,14 +25,6 @@ darshan-2.2.8-pre4
 * Fix segmentation fault when using LD_PRELOAD instrumentation on programs
   that use MPI_Init_thread() rather than MPI_Init().  Reported by Myriam
   Botalla.
-* Improved ability to analyze the activity to particular files opened by an
-  application
-  - Added --file-list and --file-list-detailed options to darshan-parser to 
-    lists files present within a log file along with summary statistics.
-  - Added --file optoin to darshan-convert to filter out activity for a
-    specific file from a Darshan log
-  - darshan-summary-per-file.sh script to generate a separate pdf summary for
-    each file opened by an application, developed by Rob Latham.
 
 darshan-2.2.7
 =============
