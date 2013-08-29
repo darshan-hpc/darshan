@@ -83,6 +83,42 @@ An example of the output produced by darshan-job-summary.pl can be found at
 http://www.mcs.anl.gov/research/projects/darshan/files/2012/06/pcarns_mpi-io-test_id3406_6-7-47644-13333843235489639491_1.pdf
 .
 
+=== darshan-summary-per-file.sh
+
+This utility is similar to darshan-job-summary.pl, except that it produces a
+separate pdf summary for every file accessed by an application.  It can be
+executed as follows:
+
+----
+darshan-summary-per-file.sh carns_my-app_id114525_7-27-58921_19.darshan.gz output-dir
+----
+
+The second argument is the name of a directory (to be created) that will
+contain the collection of pdf files.  Note that this utility probably
+is not appropriate if your application opens a large number of files.
+
+If you would like to produce a summary for a single
+specific file, then you can run the following command to produce a quick
+list of the files opened by an application and the amount of time spent
+performing I/O to each of them:
+
+----
+darshan-parser --file-list carns_my-app_id114525_7-27-58921_19.darshan.gz
+----
+
+Once you have identified a specific file of interest, then you can produce a
+summary for that specific file with the following commands:
+
+----
+darshan-convert --file HASH carns_my-app_id114525_7-27-58921_19.darshan.gz interesting_file.darshan.gz
+darshan-job-summary.pl interesting_file.darshan.gz
+----
+
+The "HASH" argument is the hash of a file name as listed in the
++darshan-parser --file-list+ output.  The +interesting_file.darshan.gz+ file
+produced by darshan-convert is like a normal Darshan log file, but it will only contain instrumentation for the
+specified file.
+
 === darshan-parser
 
 In order to obtained a full, human readable dump of all information
@@ -344,6 +380,32 @@ total_CP_POSIX_OPENS: 230918
 ...
 ----
 
+===== File list
+
+Use the `--file-list` option to produce a list of files opened by the
+application along with estimates of the amount of time spent accessing each
+file.
+
+.Example output
+----
+# Per-file summary of I/O activity.
+# <hash>: hash of file name
+# <suffix>: last 15 characters of file name
+# <type>: MPI or POSIX
+# <nprocs>: number of processes that opened the file
+# <slowest>: (estimated) time in seconds consumed in IO by slowest process
+# <avg>: average time in seconds consumed in IO per process
+
+# <hash>    <suffix>    <type>  <nprocs>    <slowest>   <avg>
+17028232952633024488    amples/boom.dat MPI 2   0.000363    0.012262
+----
+
+===== Detailed file list
+
+The `--file-list-detailed` is the same as --file-list except that it
+produces many columns of output containing statistics broken down by file.
+This option is mainly useful for automated analysis.
+
 === Other command line utilities
 
 The darshan-util package includes a number of other utilies that can be
@@ -352,7 +414,8 @@ summarized briefly as follows:
 * darshan-convert: converts an existing log file to the newest log format.
 If the output file has a .bz2 extension, then it will be re-compressed in
 bz2 format rather than gz format.  It also has command line options for
-anonymizing personal data and adding metadata annotation to the log header.
+anonymizing personal data, adding metadata annotation to the log header, and
+restricting the output to a specific instrumented file.
 * darshan-diff: compares two darshan log files and shows counters that
 differ.
 * darshan-analyzer: walks an entire directory tree of Darshan log files and
