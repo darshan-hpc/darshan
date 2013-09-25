@@ -2,6 +2,11 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.2.9-pre1
+=============
+* Fix mnt table overflow if a large number of file systems are mounted, 
+  reported by David Shrader.
+
 darshan-2.2.8
 =============
 * WARNING: please note that the Darshan module file for Cray environments has
