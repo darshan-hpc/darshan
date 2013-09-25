@@ -2104,7 +2104,7 @@ static void darshan_get_exe_and_mounts_root(struct darshan_job_runtime* final_jo
         return;
 
     /* loop through list of mounted file systems */
-    while((entry = getmntent(tab)) != NULL)
+    while(mnt_data_count<CP_MAX_MNTS && (entry = getmntent(tab)) != NULL)
     {
         /* filter out excluded fs types */
         tmp_index = 0;
@@ -2156,6 +2156,8 @@ static void darshan_get_exe_and_mounts_root(struct darshan_job_runtime* final_jo
         
         mnt_data_count++;
     }
+
+    endmntent(tab);
 
     /* Sort mount points in order of longest path to shortest path.  This is
      * necessary so that if we try to match file paths to mount points later
