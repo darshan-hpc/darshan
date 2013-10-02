@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <getopt.h>
+#include <string.h>
 #include <assert.h>
 #include <fcntl.h>
 
@@ -7,46 +8,92 @@
 
 #define DARSHAN_MAX_STORED_EVENTS 500000
 
-/* macro for adding darshan trace events to an event structure */
-#define DARSHAN_TRACE_STORE_EVENT(__new_event, __type, __file, __time) \
-do {                                                                   \
-    (__new_event)->event_type = __type;                                \
-    (__new_event)->rank = (__file)->rank;                              \
-    (__new_event)->file_hash = (__file)->hash;                         \
-    (__new_event)->time_stamp = __time;                                \
-} while (0)
+#define NEGLIGIBLE_DELAY_PCT .0001
+#define DEF_INTER_IO_DELAY_PCT 0.2
+#define DEF_INTER_CYC_DELAY_PCT 0.4
 
 typedef enum
 {
     POSIX_OPEN = 0,
     POSIX_CLOSE,
+    POSIX_READ,
+    POSIX_WRITE,
+    BARRIER,
+    DELAY,
 } darshan_event_type;
 
 static const char *darshan_event_names[] =
 {
     "POSIX_OPEN",
     "POSIX_CLOSE",
+    "POSIX_READ",
+    "POSIX_WRITE",
+    "BARRIER",
+    "DELAY",
 };
 
 struct darshan_event
 {
-    darshan_event_type event_type;
     int64_t rank;
-    uint64_t file_hash;
-    double time_stamp;
+    darshan_event_type type;
+    union
+    {
+        struct
+        {
+            uint64_t file;
+            int create_flag;           
+        } open;
+        struct
+        {
+            uint64_t file;
+        } close;
+        struct
+        {
+            uint64_t file;
+            off_t offset;
+            size_t size;
+        } read;
+        struct
+        {
+            uint64_t file;
+            off_t offset;
+            size_t size;
+        } write;
+        struct
+        {
+            int proc_count;
+            int root;
+        } barrier;
+        struct
+        {
+            double seconds;
+        } delay;
+    } event_params;
 };
 
-int generate_file_events(struct darshan_job *job,
-                         struct darshan_file *file,
-                         struct darshan_event *event_list,
-                         int event_list_ndx);
+void generate_psx_file_events(struct darshan_job *job,
+                              struct darshan_file *file);
 
-void sort_stored_events(struct darshan_event *event_list,
-                        int event_list_cnt,
-                        int (*compar)(const void*, const void*));
+void generate_delay_event(struct darshan_file *file,
+                          double seconds);
 
-int event_compare(const void *p1, const void *p2);
+void generate_psx_open_event(struct darshan_file *file);
 
+void generate_psx_io_events(struct darshan_file *file,
+                            int64_t read_cnt,
+                            int64_t write_cnt,
+                            double inter_io_delay);
+
+void generate_psx_close_event(struct darshan_file *file);
+
+void generate_barrier_event();
+
+void store_event(struct darshan_event *event);
+
+
+static struct darshan_event *event_list = NULL; /* global list for application events */
+static int64_t event_list_cnt = 0;    /* current member count of the event list */
+static int64_t app_run_time = 0;
 
 int usage(char *exename)
 {
@@ -107,8 +154,6 @@ int main(int argc, char *argv[])
     struct darshan_file next_file;
     darshan_fd log_file;
     int last_rank = 0;
-    int total_event_cnt = 0;    /* total number of events stored in the event_list */
-    struct darshan_event *event_list;
 
     /* parse command line args */
     parse_args(argc, argv, &log_filename, &trace_filename);
@@ -129,7 +174,8 @@ int main(int argc, char *argv[])
         darshan_log_close(log_file);
         return -1;
     }
-
+    app_run_time = job.end_time - job.start_time + 1;
+    
     /* TODO: we should probably be generating traces on a per file system basis ?? */
 
     /* allocate memory for the event list */
@@ -159,6 +205,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    /* TODO: we should probably make sure counters we know we will use are not invalid (-1) */
     do
     {
         if (next_file.rank != -1 && next_file.rank < last_rank)
@@ -172,7 +219,9 @@ int main(int argc, char *argv[])
             last_rank = next_file.rank;
 
         /* generate all events associated with this file */
-        total_event_cnt = generate_file_events(&job, &next_file, event_list, total_event_cnt);       
+        generate_psx_file_events(&job, &next_file);       
+
+        /* TODO SORT! */
 
         /* try to get next file */
     } while((ret = darshan_log_getfile(log_file, &job, &next_file)) == 1);
@@ -187,17 +236,39 @@ int main(int argc, char *argv[])
 
     darshan_log_close(log_file);
 
-    /* sort the event_list into a time-ordered_list */
-    sort_stored_events(event_list, total_event_cnt, event_compare);
-
-    int i;
-    for (i = 0; i < total_event_cnt; i++)
+    int64_t i;
+    for (i = 0; i < event_list_cnt; i++)
     {
-        printf("Rank %"PRId64" attempting %s on file %"PRIu64" @ time %lf\n",
-               event_list[i].rank,
-               darshan_event_names[event_list[i].event_type],
-               event_list[i].file_hash,
-               event_list[i].time_stamp);
+        if (event_list[i].type == DELAY)
+        {
+            printf("Rank %"PRId64" DELAY for %lf seconds\n",
+                   event_list[i].rank,
+                   event_list[i].event_params.delay.seconds);
+        }
+        else if (event_list[i].type == POSIX_OPEN)
+        {
+            printf("Rank %"PRId64" OPEN file %"PRIu64"\n",
+                   event_list[i].rank,
+                   event_list[i].event_params.open.file);
+        }
+        else if (event_list[i].type == POSIX_CLOSE)
+        {
+            printf("Rank %"PRId64" CLOSE file %"PRIu64"\n",
+                   event_list[i].rank,
+                   event_list[i].event_params.open.file);
+        }
+        else if (event_list[i].type == POSIX_READ)
+        {
+            printf("Rank %"PRId64" READ file %"PRIu64"\n",
+                   event_list[i].rank,
+                   event_list[i].event_params.read.file);
+        }
+        else if (event_list[i].type == POSIX_WRITE)
+        {
+            printf("Rank %"PRId64" WRITE file %"PRIu64"\n",
+                   event_list[i].rank,
+                   event_list[i].event_params.write.file);
+        }
     }
 
     free(event_list);
@@ -206,63 +277,255 @@ int main(int argc, char *argv[])
 }
 
 /* store all events found in a particular file in no particular order */
-int generate_file_events(struct darshan_job *job,
-                         struct darshan_file *file,
-                         struct darshan_event *event_list,
-                         int event_list_ndx)
+void generate_psx_file_events(struct darshan_job *job,
+                              struct darshan_file *file)
 {
-    int64_t psx_open_cnt = file->counters[CP_POSIX_OPENS];
+    int64_t reads_per_cycle;
+    int64_t extra_reads;
+    int64_t writes_per_cycle;
+    int64_t extra_writes;
+    double first_io_time;
+    double last_io_time;
+    double delay_per_cycle;
+    double first_io_delay_pct;
+    double close_delay_pct;
+    double inter_cycle_delay_pct;
+    double inter_io_delay_pct;
+    double total_delay_pct = 0.0;
+    int64_t i;
 
-    /* check for and generate any open/close events */
-    if (psx_open_cnt && file->rank != -1)
+    /* set last close time to end of execution, if necessary */
+    if (!(file->fcounters[CP_F_CLOSE_TIMESTAMP]))
+        file->fcounters[CP_F_CLOSE_TIMESTAMP] = app_run_time;
+
+    /* determine amount of io operations per open-io-close cycle */
+    reads_per_cycle = file->counters[CP_POSIX_READS] / file->counters[CP_POSIX_OPENS];
+    writes_per_cycle = file->counters[CP_POSIX_WRITES] / file->counters[CP_POSIX_OPENS];
+    extra_reads = file->counters[CP_POSIX_READS] % file->counters[CP_POSIX_OPENS];
+    extra_writes = file->counters[CP_POSIX_WRITES] % file->counters[CP_POSIX_OPENS];
+
+    /* determine delay available per open-io-close cycle */
+    delay_per_cycle = ((file->fcounters[CP_F_CLOSE_TIMESTAMP] - file->fcounters[CP_F_OPEN_TIMESTAMP])
+                     - (file->fcounters[CP_F_POSIX_READ_TIME] + file->counters[CP_F_POSIX_WRITE_TIME])
+                     - (file->fcounters[CP_F_POSIX_META_TIME])) / file->counters[CP_POSIX_OPENS];
+
+    /* determine the time of the first io operation */
+    if ((file->fcounters[CP_F_READ_START_TIMESTAMP] < file->fcounters[CP_F_WRITE_START_TIMESTAMP]) &&
+        file->fcounters[CP_F_READ_START_TIMESTAMP] != 0.0)
     {
-        double open_time = file->fcounters[CP_F_OPEN_TIMESTAMP];
-        double close_time = file->fcounters[CP_F_CLOSE_TIMESTAMP];
-
-        DARSHAN_TRACE_STORE_EVENT(&(event_list[event_list_ndx]),
-                                  POSIX_OPEN,
-                                  file,
-                                  open_time);
-        event_list_ndx++;
-        assert(event_list_ndx < DARSHAN_MAX_STORED_EVENTS);        
-
-        DARSHAN_TRACE_STORE_EVENT(&(event_list[event_list_ndx]),
-                                  POSIX_CLOSE,
-                                  file,
-                                  close_time);
-        event_list_ndx++;
-        assert(event_list_ndx < DARSHAN_MAX_STORED_EVENTS);
+        first_io_time = file->fcounters[CP_F_READ_START_TIMESTAMP];
+    }
+    else
+    {
+        first_io_time = file->fcounters[CP_F_WRITE_START_TIMESTAMP];
     }
 
-    return event_list_ndx;
-}
+    /* determine the time of the last io operation */
+    if (file->fcounters[CP_F_READ_END_TIMESTAMP] > file->fcounters[CP_F_WRITE_END_TIMESTAMP])
+    {
+        last_io_time = file->fcounters[CP_F_READ_END_TIMESTAMP];
+    }
+    else
+    {
+        last_io_time = file->fcounters[CP_F_WRITE_END_TIMESTAMP];
+    }
 
-/* use qsort to sort the event_list according to the function compar */
-void sort_stored_events(struct darshan_event *event_list,
-                        int event_list_cnt,
-                        int (*compar)(const void*, const void*))
-{
-    qsort(event_list, event_list_cnt, sizeof(*event_list), compar);
+    /* no delay contribution for intercycle delay if there is only a single cycle */
+    if (file->counters[CP_POSIX_OPENS] == 1)
+    {
+        inter_cycle_delay_pct = 0.0;
+    }
+    else
+    {
+        inter_cycle_delay_pct = DEF_INTER_CYC_DELAY_PCT;
+    }
+    /* no delay contribution for interio delay if there is only a single io op */
+    if ((reads_per_cycle + writes_per_cycle) == 1)
+    {
+        inter_io_delay_pct = 0.0;
+    }
+    else
+    {
+        inter_io_delay_pct = DEF_INTER_IO_DELAY_PCT;
+    }
+
+    /* determine delay contribution for first io and close delays */
+    first_io_delay_pct = (first_io_time - file->fcounters[CP_F_OPEN_TIMESTAMP]) / delay_per_cycle;
+    close_delay_pct = (file->fcounters[CP_F_CLOSE_TIMESTAMP] - last_io_time) / delay_per_cycle;
+
+    /* adjust per cycle delay percentages using a simple heuristic */
+    total_delay_pct = inter_cycle_delay_pct + inter_io_delay_pct +
+                      first_io_delay_pct + close_delay_pct;
+    inter_cycle_delay_pct += (inter_cycle_delay_pct / total_delay_pct) * (1 - total_delay_pct);
+    inter_io_delay_pct += (inter_io_delay_pct / total_delay_pct) * (1 - total_delay_pct);
+    first_io_delay_pct += (first_io_delay_pct / total_delay_pct) * (1 - total_delay_pct);
+    close_delay_pct += (close_delay_pct / total_delay_pct) * (1 - total_delay_pct);
+
+    /* generate delay until first open */
+    if (file->fcounters[CP_F_OPEN_TIMESTAMP])
+    {
+        generate_delay_event(file, file->fcounters[CP_F_OPEN_TIMESTAMP]);
+    }
+
+    /* if this file was opened by a single process (rank) */
+    if (file->rank > -1)
+    {
+        for (i = 0; i < file->counters[CP_POSIX_OPENS]; i++)
+        {
+            /* generate an open event */
+            generate_psx_open_event(file);
+
+            /* generate potential delay from first open to first io */
+            generate_delay_event(file, first_io_delay_pct * delay_per_cycle);
+
+            /* generate io events for this sequence */
+            generate_psx_io_events(file, reads_per_cycle, writes_per_cycle,
+                                   inter_io_delay_pct * delay_per_cycle);
+
+            /* if this is the last open, do any extra read/write operations */
+            if ((i == file->counters[CP_POSIX_OPENS] - 1) && (extra_reads || extra_writes))
+            {
+                generate_psx_io_events(file, extra_reads, extra_writes, 0.0);
+            }
+
+            /* generate potential delay from last io to close */
+            generate_delay_event(file, close_delay_pct * delay_per_cycle);
+
+            /* generate a close for the open event at the start of the loop */
+            generate_psx_close_event(file);
+
+            /* generate potential intercycle delay if more than one cycle */
+            if (i != file->counters[CP_POSIX_OPENS] - 1)
+            {
+                generate_delay_event(file, inter_cycle_delay_pct * delay_per_cycle);
+            }
+        }
+    }
+    else    /* TODO: this is a collective open across all ranks */
+    {
+
+    }
 
     return;
 }
 
-/* sort events so their timestamps are non-decreasing */
-int event_compare(const void *p1, const void *p2)
+void generate_delay_event(struct darshan_file *file,
+                          double seconds)
 {
-    const struct darshan_event *elem1 = p1;
-    const struct darshan_event *elem2 = p2;
+    struct darshan_event next_event = { .rank = file->rank };
+    
+    if (seconds <= NEGLIGIBLE_DELAY_PCT * app_run_time)
+        return;
 
-    if (elem1->time_stamp < elem2->time_stamp)
+    next_event.type = DELAY;
+    next_event.event_params.delay.seconds = seconds;
+    store_event(&next_event);
+
+    return;
+}
+
+void generate_psx_open_event(struct darshan_file *file)
+{
+    struct darshan_event next_event = { .rank = file->rank };
+
+    next_event.type = POSIX_OPEN;
+    next_event.event_params.open.file = file->hash;
+    next_event.event_params.open.create_flag = 0; /* TODO: create flag ?? */
+    store_event(&next_event);
+
+    return;
+}
+
+void generate_psx_io_events(struct darshan_file *file,
+                            int64_t read_cnt,
+                            int64_t write_cnt,
+                            double inter_io_delay)
+{
+    int64_t reads = 0, writes = 0;
+    double rw_switch = file->counters[CP_RW_SWITCHES] /
+                       (file->counters[CP_POSIX_READS] + file->counters[CP_POSIX_WRITES]);
+    struct darshan_event next_event = { .rank = file->rank };
+
+    /* read = 0, write = 1 ... initialized to first io op executed in application */
+    int rw = ((file->fcounters[CP_F_READ_START_TIMESTAMP] <
+               file->fcounters[CP_F_WRITE_START_TIMESTAMP]) &&
+              file->fcounters[CP_F_READ_START_TIMESTAMP] != 0.0) ? 0 : 1;
+
+    /* loop to generate all reads/writes for this open/close sequence */
+    while (1)
     {
-        return -1;
+        if (reads == read_cnt)
+        {
+            rw = 1; /* write */
+        }
+        else if (writes == write_cnt)
+        {
+            rw = 0; /* read */
+        }
+        else
+        {
+            /* else we have reads and writes to perform */
+            if (((double)rand() / (double)RAND_MAX - 1) < rw_switch)
+            {
+                /* toggle read/write flag */
+                rw ^= 1;
+            }
+        }
+
+        if (!rw)
+        {
+            /* generate a read event */
+            next_event.type = POSIX_READ;
+            next_event.event_params.read.file = file->hash;
+            next_event.event_params.read.size = 1;      /* TODO: size and offset */
+            next_event.event_params.read.offset = 0;
+            store_event(&next_event);
+            reads++;
+        }
+        else
+        {
+            /* generate a write event */
+            next_event.type = POSIX_WRITE;
+            next_event.event_params.write.file = file->hash;
+            next_event.event_params.write.size = 1;      /* TODO: size and offset */
+            next_event.event_params.write.offset = 0;
+            store_event(&next_event);
+            writes++;
+        }
+
+        if ((reads == read_cnt) && (writes == write_cnt))
+        {
+            break;
+        }
+
+        /* generate appropriate delay between i/o operations */
+        generate_delay_event(file, inter_io_delay / (read_cnt + write_cnt - 1));
     }
-    else if (elem1->time_stamp > elem2->time_stamp)
-    {
-        return 1;
-    }
-    else
-    {
-        return 0;
-    }
+
+    return;
+}
+
+void generate_psx_close_event(struct darshan_file *file)
+{
+    struct darshan_event next_event = { .rank = file->rank };
+
+    next_event.type = POSIX_CLOSE;
+    next_event.event_params.close.file = file->hash;
+    store_event(&next_event);
+
+    return;
+}
+
+void generate_barrier_event()
+{
+
+    return;
+}
+
+void store_event(struct darshan_event *event)
+{
+    assert(event_list_cnt != DARSHAN_MAX_STORED_EVENTS);
+    memcpy(&(event_list[event_list_cnt++]), event, sizeof(*event));
+
+    return;
 }
