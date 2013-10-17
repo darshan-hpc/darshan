@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <sys/types.h>
 #include <getopt.h>
 #include <string.h>
 #include <assert.h>
@@ -8,19 +9,9 @@
 
 #include "uthash-1.9.2/src/uthash.h"
 
-#define PRINT 1
-#define MYFILE 7911951833236281656ULL
-
 #define DEF_INTER_IO_DELAY_PCT 0.2
 #define DEF_INTER_CYC_DELAY_PCT 0.4
 #define MPI_IO_ARTIFACT_OPENS 1
-
-/* macro for copying darshan event to the file event list */
-#define DARSHAN_STORE_EVENT(__event)                         \
-do {                                                         \
-    assert(file_event_list_cnt != file_event_list_max);      \
-    file_event_list[file_event_list_cnt++] = *(__event);     \
-} while (0)
 
 typedef enum
 {
@@ -30,15 +21,6 @@ typedef enum
     POSIX_WRITE,
     BARRIER,
 } darshan_event_type;
-
-static const char *darshan_event_names[] =
-{
-    "POSIX_OPEN",
-    "POSIX_CLOSE",
-    "POSIX_READ",
-    "POSIX_WRITE",
-    "BARRIER",
-};
 
 struct darshan_event
 {
@@ -123,15 +105,12 @@ static struct darshan_event *file_event_list = NULL;
 static int64_t file_event_list_cnt = 0;
 static int64_t file_event_list_max = 0;
 
+static uint64_t *header_buf = NULL;
+
 static int64_t app_run_time = 0;
 static int64_t nprocs = 0;
 
 static hash_entry_t *created_files_hash = NULL;
-
-/* TEMPPPP */
-int64_t num_opens=0;
-int64_t num_reads=0;
-int64_t num_writes=0;
 
 /** */
 
@@ -201,7 +180,7 @@ int main(int argc, char *argv[])
 
     /* parse command line args */
     parse_args(argc, argv, &log_filename, &events_filename);
-#if 0
+
     /* open the output file for storing generated events */
     event_file_fd = open(events_filename, O_CREAT | O_TRUNC | O_APPEND | O_RDWR, 0644);
     if (event_file_fd == -1)
@@ -210,7 +189,7 @@ int main(int argc, char *argv[])
         fflush(stderr);
         return -1;
     }
-#endif 
+ 
     /* preprocess the darshan log file to init file/job data and write the output header */
     ret = preprocess_events(log_filename, event_file_fd);
     if (ret < 0)
@@ -225,9 +204,11 @@ int main(int argc, char *argv[])
         fprintf(stderr, "darshan_log_open() failed to open %s.\n", log_filename);
         fflush(stderr);
         close(event_file_fd);
+        free(header_buf);
         return -1;
     }
 
+    /* allocate memory for rank and file event lists */
     rank_event_list = malloc(rank_event_list_max * sizeof(*rank_event_list));
     file_event_list = malloc(file_event_list_max * sizeof(*file_event_list));
     if (!rank_event_list || !file_event_list)
@@ -236,6 +217,7 @@ int main(int argc, char *argv[])
         fflush(stderr);
         darshan_log_close(log_file);
         close(event_file_fd);
+        free(header_buf);
     }
 
     /* try to retrieve the first file record */
@@ -247,6 +229,7 @@ int main(int argc, char *argv[])
         close(event_file_fd);
         free(rank_event_list);
         free(file_event_list);
+        free(header_buf);
         return -1;
     }
     if (ret == 0)
@@ -258,6 +241,7 @@ int main(int argc, char *argv[])
         close(event_file_fd);
         free(rank_event_list);
         free(file_event_list);
+        free(header_buf);
         return 0;
     }
 
@@ -285,18 +269,20 @@ int main(int argc, char *argv[])
                 free(file_event_list);
                 darshan_log_close(log_file);
                 close(event_file_fd);
+                free(header_buf);
                 return ret;
             }
         }
         /* else, write last_rank's events to file before merging new events over */
         else
         {
-            ret = store_rank_events();
+            ret = store_rank_events(event_file_fd, last_rank);
             if (ret < 0)
             {
                 free(rank_event_list);
                 free(file_event_list);
                 darshan_log_close(log_file);
+                free(header_buf);
                 return ret;
             }
         }
@@ -312,15 +298,17 @@ int main(int argc, char *argv[])
         free(rank_event_list);
         free(file_event_list);
         close(event_file_fd);
+        free(header_buf);
         return -1;
     }
 
-    ret = store_rank_events();
+    ret = store_rank_events(event_file_fd, last_rank);
     if (ret < 0)
     {
         free(rank_event_list);
         free(file_event_list);
         darshan_log_close(log_file);
+        free(header_buf);
         return ret;
     }
 
@@ -335,11 +323,11 @@ int main(int argc, char *argv[])
 
     free(rank_event_list);
     free(file_event_list);
+    free(header_buf);
 
     return 0;
 }
 
-/* TODO: do we need an events file header, or do we do something different ?? */
 int preprocess_events(const char *log_filename,
                       int event_file_fd)
 {
@@ -348,7 +336,11 @@ int preprocess_events(const char *log_filename,
     struct darshan_job job;
     struct darshan_file next_file;
     int64_t last_rank;
-    int64_t file_event_cnt = 0, rank_event_cnt = 0;
+    uint64_t file_event_cnt = 0, rank_event_cnt = 0;
+    ssize_t bytes_written;
+    uint64_t coll_event_cnt = 0;
+    uint64_t cur_offset = 0;
+    uint64_t i;
     hash_entry_t *hfile = NULL;
 
     /* open the darshan log file */
@@ -373,6 +365,20 @@ int preprocess_events(const char *log_filename,
     app_run_time = job.end_time - job.start_time + 1;
     nprocs = job.nprocs;
 
+    /* allocate memory for the file header, and set its first value equal to the number of ranks */
+    header_buf = malloc((nprocs + 2) * sizeof(uint64_t));
+    if (!header_buf)
+    {
+        fprintf(stderr, "Error: no memory available to create output event file header.\n");
+        fflush(stderr);
+        darshan_log_close(log_file);
+        close(event_file_fd);
+        return -1;
+    }
+    header_buf[0] = (uint64_t)nprocs;
+    for (i = 1; i < nprocs + 2; i++)
+        header_buf[i] = 0;
+
     /* try to retrieve the first file record */
     ret = darshan_log_getfile(log_file, &job, &next_file);
     if (ret < 0)
@@ -380,6 +386,7 @@ int preprocess_events(const char *log_filename,
         fprintf(stderr, "Error: failed to parse log file.\n");
         fflush(stderr);
         close(event_file_fd);
+        free(header_buf);
         return -1;
     }
     if (ret == 0)
@@ -389,15 +396,29 @@ int preprocess_events(const char *log_filename,
         fflush(stderr);
         darshan_log_close(log_file);
         close(event_file_fd);
+        free(header_buf);
         return -1;
     }
 
     last_rank = next_file.rank;
+    cur_offset = (nprocs + 2) * sizeof(uint64_t);
     do
     {
-        /* update maximum number of events per rank */
         if (last_rank != next_file.rank)
         {
+            /* set flag so the offset of collective events can be set last */
+            if (last_rank == -1)
+            {
+                coll_event_cnt = rank_event_cnt;
+            }
+            else
+            {
+                /* store last_rank's event count in it's corresponding field of the header */
+                header_buf[last_rank + 1] = cur_offset;
+                cur_offset += rank_event_cnt * sizeof(struct darshan_event);
+            }
+         
+            /* update maximum number of rank events */   
             if (rank_event_cnt > rank_event_list_max)
                 rank_event_list_max = rank_event_cnt;
 
@@ -410,6 +431,7 @@ int preprocess_events(const char *log_filename,
             fprintf(stderr, "Error: log file contains out of order rank data.\n");
             fflush(stderr);
             close(event_file_fd);
+            free(header_buf);
             return -1;
         }
         last_rank = next_file.rank;
@@ -418,9 +440,17 @@ int preprocess_events(const char *log_filename,
         check_file_counters(&next_file);
 
         /* determine number of events to be generated for this file */
-        file_event_cnt = (2 * next_file.counters[CP_POSIX_OPENS]) +
-                         next_file.counters[CP_POSIX_READS] +
-                         next_file.counters[CP_POSIX_WRITES];
+        if (next_file.rank > -1)
+        {
+            file_event_cnt = (2 * next_file.counters[CP_POSIX_OPENS]) +
+                             next_file.counters[CP_POSIX_READS] +
+                             next_file.counters[CP_POSIX_WRITES];
+        }
+        else
+        {
+            file_event_cnt = (2 * next_file.counters[CP_POSIX_OPENS]) +
+                             (next_file.counters[CP_COLL_OPENS] / nprocs);
+        }
 
         if (file_event_cnt > file_event_list_max)
             file_event_list_max = file_event_cnt;
@@ -444,6 +474,7 @@ int preprocess_events(const char *log_filename,
                     fflush(stderr);
                     darshan_log_close(log_file);
                     close(event_file_fd);
+                    free(header_buf);
                     return -1;
                 }
 
@@ -462,19 +493,47 @@ int preprocess_events(const char *log_filename,
         /* try to get next file */
     } while((ret = darshan_log_getfile(log_file, &job, &next_file)) == 1);
 
-    if (rank_event_cnt > rank_event_list_max)
-        rank_event_list_max = rank_event_cnt;
-
     /* make sure no errors occurred while reading files from the log */
     if (ret < 0)
     {
         fprintf(stderr, "Error: failed to parse log file.\n");
         fflush(stderr);
-        free(rank_event_list);
-        free(file_event_list);
         close(event_file_fd);
+        free(header_buf);
         return -1;
     }
+
+    /* store last_rank's event count in it's corresponding field of the header, if independent file */
+    if (last_rank > -1)
+    {
+        header_buf[last_rank + 1] = cur_offset;
+        cur_offset += rank_event_cnt * sizeof(struct darshan_event);
+    }
+    else
+    {
+        coll_event_cnt = rank_event_cnt;
+    }
+
+    /* set the offset of the collective events, if there are any */
+    if (coll_event_cnt)
+    {
+        header_buf[nprocs + 1] = cur_offset;
+    }
+
+    /* write the header to the output events file */
+    bytes_written = write(event_file_fd, header_buf, (nprocs + 2) * sizeof(uint64_t));
+    if (bytes_written != ((nprocs + 2) * sizeof(uint64_t)))
+    {
+        fprintf(stderr, "Error: unable to write header to output events file.\n");
+        fflush(stderr);
+        darshan_log_close(log_file);
+        close(event_file_fd);
+        free(header_buf);
+        return -1;
+    }
+
+    if (rank_event_cnt > rank_event_list_max)
+        rank_event_list_max = rank_event_cnt;
 
     darshan_log_close(log_file);
 
@@ -716,6 +775,7 @@ void generate_psx_coll_file_events(struct darshan_file *file)
     if (file->fcounters[CP_F_CLOSE_TIMESTAMP] == 0.0)
         file->fcounters[CP_F_CLOSE_TIMESTAMP] = app_run_time;
 
+    /* determine collective i/o amount, then assign rest as independent io? */
     
 
     /* determine delay available per open-io-close cycle */
@@ -792,7 +852,10 @@ double generate_psx_open_event(struct darshan_file *file,
                 (2 * file->counters[CP_POSIX_OPENS]);
     next_event.end_time = cur_time;
 
-    DARSHAN_STORE_EVENT(&next_event);
+    /* store the open event */
+    assert(file_event_list_cnt != file_event_list_max);
+    file_event_list[file_event_list_cnt++] = next_event;
+
     return cur_time;
 }
 
@@ -852,8 +915,6 @@ double generate_psx_io_events(struct darshan_file *file,
             /* set the end time based on observed bandwidth and io size */
             cur_time += (next_event.event_params.read.size / rd_bw);
             next_event.end_time = cur_time;
-
-            DARSHAN_STORE_EVENT(&next_event);
             reads++;
         }
         else
@@ -868,10 +929,12 @@ double generate_psx_io_events(struct darshan_file *file,
             /* set the end time based on observed bandwidth and io size */
             cur_time += (next_event.event_params.write.size / wr_bw);
             next_event.end_time = cur_time;
-
-            DARSHAN_STORE_EVENT(&next_event);
             writes++;
         }
+
+        /* store the i/o event */
+        assert(file_event_list_cnt != file_event_list_max);
+        file_event_list[file_event_list_cnt++] = next_event;
 
         if ((reads == read_cnt) && (writes == write_cnt))
         {
@@ -900,7 +963,10 @@ double generate_psx_close_event(struct darshan_file *file,
                 (2 * file->counters[CP_POSIX_OPENS]);
     next_event.end_time = cur_time;
 
-    DARSHAN_STORE_EVENT(&next_event);
+    /* store the close event */
+    assert(file_event_list_cnt != file_event_list_max);
+    file_event_list[file_event_list_cnt++] = next_event;
+
     return cur_time;
 }
 
@@ -917,7 +983,10 @@ double generate_barrier_event(struct darshan_file *file,
     next_event.event_params.barrier.proc_count = nprocs;
     next_event.event_params.barrier.root = root;
 
-    DARSHAN_STORE_EVENT(&next_event);
+    /* store the barrier event */
+    assert(file_event_list_cnt != file_event_list_max);
+    file_event_list[file_event_list_cnt++] = next_event;
+
     return cur_time;
 }
 
@@ -1018,9 +1087,31 @@ int merge_file_events(struct darshan_file *file)
     return 0;
 }
 
-int store_rank_events(void)
+int store_rank_events(int event_file_fd, int64_t rank)
 {
-//    print_events();
+    ssize_t bytes_written;
+
+    if (rank > -1)
+    {
+        bytes_written = pwrite(event_file_fd,
+                               rank_event_list,
+                               rank_event_list_cnt * sizeof(struct darshan_event),
+                               (off_t)&header_buf[rank + 1]);
+    }
+    else
+    {
+        bytes_written = pwrite(event_file_fd,
+                               rank_event_list,
+                               rank_event_list_cnt * sizeof(struct darshan_event),
+                               (off_t)&header_buf[nprocs + 1]);
+    }
+
+    if (bytes_written != (rank_event_list_cnt * sizeof(struct darshan_event)))
+    {
+        return -1;
+    }
+
+    print_events();
     rank_event_list_cnt = 0;
     
     return 0;
