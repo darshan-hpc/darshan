@@ -27,7 +27,7 @@ CC=@CC@
 LD=@LD@
 AR=@AR@
 
-LIBS = -lz @LIBBZ2@
+LIBS = -lm -lz @LIBBZ2@
 
 mktestdir::
 	mkdir -p test
