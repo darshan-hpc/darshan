@@ -487,10 +487,20 @@ int preprocess_events(const char *log_filename,
         }
         else
         {
-            file_event_cnt = (2 * next_file.counters[CP_POSIX_OPENS]) +
-                             (next_file.counters[CP_COLL_OPENS] / nprocs) +
-                             next_file.counters[CP_POSIX_READS] +
-                             next_file.counters[CP_POSIX_WRITES];
+            if (next_file.counters[CP_COLL_OPENS])
+            {
+                file_event_cnt = (3 * (next_file.counters[CP_COLL_OPENS] / nprocs)) +
+                                 (next_file.counters[CP_COLL_READS] / nprocs) +
+                                 (next_file.counters[CP_COLL_WRITES] / nprocs) +
+                                 next_file.counters[CP_POSIX_READS] +
+                                 next_file.counters[CP_POSIX_WRITES];
+            }
+            else
+            {
+                file_event_cnt = (2 * next_file.counters[CP_POSIX_OPENS]) + 
+                                 next_file.counters[CP_POSIX_READS] +
+                                 next_file.counters[CP_POSIX_WRITES];
+            }
         }
 
         if (file_event_cnt > file_event_list_max)
@@ -1064,6 +1074,7 @@ double generate_psx_coll_io_events(struct darshan_file *file,
                        (file->counters[CP_POSIX_READS] + file->counters[CP_POSIX_WRITES]);
     struct darshan_event next_event;
     int64_t coll_reads = 0, coll_writes = 0;
+    int64_t ind_reads = 0, ind_writes = 0;
     int64_t aggregator_cnt = ceil(nprocs / RANKS_PER_IO_AGGREGATOR);
     int64_t extra_psx_reads = file->counters[CP_POSIX_READS] - file->counters[CP_INDEP_READS];
     int64_t extra_psx_writes = file->counters[CP_POSIX_WRITES] - file->counters[CP_INDEP_WRITES];
@@ -1110,7 +1121,6 @@ double generate_psx_coll_io_events(struct darshan_file *file,
         next_event.rank = (rand() % aggregator_cnt) * RANKS_PER_IO_AGGREGATOR;
         if (!rw)
         {
-            coll_reads++;
             for (i = 0; i < ceil(extra_psx_reads / (coll_read_cnt - coll_reads)); i++)
             {
                 /* generate a read event */
@@ -1135,10 +1145,10 @@ double generate_psx_coll_io_events(struct darshan_file *file,
                     next_event.rank = 0;
             }
             extra_psx_reads -= i;
+            coll_reads++;
         }
         else
         {
-            coll_writes++;
             for (i = 0; i < ceil(extra_psx_writes / (coll_write_cnt - coll_writes)); i++)
             {
                 /* generate a write event */
@@ -1163,6 +1173,7 @@ double generate_psx_coll_io_events(struct darshan_file *file,
                     next_event.rank = 0;
             }
             extra_psx_writes -= i;
+            coll_writes++;
         }
 
         cur_time = max_cur_time;
@@ -1170,19 +1181,19 @@ double generate_psx_coll_io_events(struct darshan_file *file,
             break;
     }
 
-    /* then assign the independent i/o in round robin manner */
-#if 0
+    /* then assign the independent i/o in round robin manner, starting with random rank */
+    next_event.rank = rand() % nprocs;
     while (1)
     {
-        if (reads == read_cnt)
+        if (ind_reads == ind_read_cnt)
         {
             rw = 1; /* write */
         }
-        else if (writes == write_cnt)
+        else if (ind_writes == ind_write_cnt)
         {
             rw = 0; /* read */
         }
-        else if ((reads != 0) && (writes != 0))
+        else if ((ind_reads != 0) && (ind_writes != 0))
         {
             /* else we have reads and writes to perform */
             if (((double)rand() / (double)RAND_MAX - 1) < rw_switch)
@@ -1191,8 +1202,51 @@ double generate_psx_coll_io_events(struct darshan_file *file,
                 rw ^= 1;
             }
         }
+
+        if (!rw)
+        {
+            /* generate a read event */
+            next_event.type = POSIX_READ;
+            next_event.start_time = cur_time;
+            next_event.event_params.read.file = file->hash;
+            next_event.event_params.read.size = 10;      /* TODO: size and offset */
+            next_event.event_params.read.offset = 0;
+            ind_reads++;
+            num_reads++;
+
+            /* set the end time based on observed bandwidth and io size */
+            next_event.end_time = (next_event.event_params.read.size / rd_bw);
+        }
+        else
+        {
+            /* generate a write event */
+            next_event.type = POSIX_WRITE;
+            next_event.start_time = cur_time;
+            next_event.event_params.write.file = file->hash;
+            next_event.event_params.write.size = 10;      /* TODO: size and offset */
+            next_event.event_params.write.offset = 0;
+            ind_writes++;
+            num_writes++;
+
+            /* set the end time based on observed bandwidth and io size */
+            next_event.end_time = (next_event.event_params.write.size / wr_bw);
+        }
+
+        if (next_event.end_time > max_cur_time)
+            max_cur_time = next_event.end_time;
+
+        /* store the i/o event */
+        assert(file_event_list_cnt != file_event_list_max);
+        file_event_list[file_event_list_cnt++] = next_event;
+
+        /* sync rank times if we start a new cycle of independnet i/o */
+        if (!((ind_reads + ind_writes) % nprocs))
+            cur_time = max_cur_time;
+
+        if ((ind_reads == ind_read_cnt) && (ind_writes == ind_write_cnt))
+            break;
     }
-#endif
+
     return cur_time;
 }
 
