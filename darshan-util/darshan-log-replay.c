@@ -11,6 +11,7 @@
 #include "uthash-1.9.2/src/uthash.h"
 
 #define MYHASH 5234986228163024165
+#define PRINT 1
 
 #define DEF_INTER_IO_DELAY_PCT 0.2
 #define DEF_INTER_CYC_DELAY_PCT 0.4
@@ -134,6 +135,7 @@ static int64_t nprocs = 0;
 static hash_entry_t *created_files_hash = NULL;
 
 /* check variables */
+int64_t total_events = 0;
 int64_t num_opens = 0, num_reads = 0, num_writes = 0, num_barriers = 0;
 
 /** */
@@ -246,7 +248,6 @@ int main(int argc, char *argv[])
         close(event_file_fd);
         free(header_buf);
     }
-//    printf("rank_event_list_cnt = %"PRId64"\nfile_event_list_cnt = %"PRId64"\n", rank_event_list_max, file_event_list_max);
 
     /* try to retrieve the first file record */
     ret = darshan_log_getfile(log_file, &job, &next_file);
@@ -277,7 +278,6 @@ int main(int argc, char *argv[])
     do
     {
         /* generate all events associated with this file */
-//    if (next_file.hash == MYHASH) {
         if (next_file.rank > -1)
         {
             generate_psx_ind_file_events(&next_file);       
@@ -286,7 +286,7 @@ int main(int argc, char *argv[])
         {
            generate_psx_coll_file_events(&next_file);
         }
-//}
+
         /* if the rank is the same as the previous rank, just merge their events together */
         if (next_file.rank == last_rank)
         {
@@ -363,6 +363,10 @@ int main(int argc, char *argv[])
     free(rank_event_list);
     free(file_event_list);
     free(header_buf);
+
+    fprintf(stderr, "\n\n**total_events = %"PRId64" **\n", total_events);
+//    printf("\n\nopens = %"PRId64", reads = %"PRId64", writes = %"PRId64", barriers = %"PRId64"\n",
+//           num_opens, num_reads, num_writes, num_barriers);
 
     return 0;
 }
@@ -479,29 +483,30 @@ int preprocess_events(const char *log_filename,
         check_file_counters(&next_file);
 
         /* determine number of events to be generated for this file */
+        file_event_cnt = next_file.counters[CP_POSIX_READS] +
+                         next_file.counters[CP_POSIX_WRITES] +
+                         (next_file.counters[CP_COLL_OPENS] / nprocs) +
+                         (next_file.counters[CP_COLL_WRITES] / nprocs) +
+                         (next_file.counters[CP_COLL_READS] / nprocs);
         if (next_file.rank > -1)
         {
-            file_event_cnt = (2 * next_file.counters[CP_POSIX_OPENS]) +
-                             next_file.counters[CP_POSIX_READS] +
-                             next_file.counters[CP_POSIX_WRITES];
+            file_event_cnt += (2 * next_file.counters[CP_POSIX_OPENS]);
         }
         else
         {
             if (next_file.counters[CP_COLL_OPENS])
             {
-                file_event_cnt = (3 * (next_file.counters[CP_COLL_OPENS] / nprocs)) +
-                                 (next_file.counters[CP_COLL_READS] / nprocs) +
-                                 (next_file.counters[CP_COLL_WRITES] / nprocs) +
-                                 next_file.counters[CP_POSIX_READS] +
-                                 next_file.counters[CP_POSIX_WRITES];
+                file_event_cnt += (2 * (next_file.counters[CP_COLL_OPENS] / nprocs)) +
+                (2 * (next_file.counters[CP_POSIX_OPENS] - next_file.counters[CP_COLL_OPENS]));
             }
             else
             {
-                file_event_cnt = (2 * next_file.counters[CP_POSIX_OPENS]) + 
-                                 next_file.counters[CP_POSIX_READS] +
-                                 next_file.counters[CP_POSIX_WRITES];
+                file_event_cnt += (2 * (next_file.counters[CP_POSIX_OPENS] / nprocs)) +
+                                  (2 * (next_file.counters[CP_POSIX_OPENS] % nprocs));
             }
         }
+
+        total_events += file_event_cnt;
 
         if (file_event_cnt > file_event_list_max)
             file_event_list_max = file_event_cnt;
@@ -1239,12 +1244,14 @@ double generate_psx_coll_io_events(struct darshan_file *file,
         assert(file_event_list_cnt != file_event_list_max);
         file_event_list[file_event_list_cnt++] = next_event;
 
-        /* sync rank times if we start a new cycle of independnet i/o */
+        /* sync rank times if we start a new cycle of independent i/o */
         if (!((ind_reads + ind_writes) % nprocs))
             cur_time = max_cur_time;
 
         if ((ind_reads == ind_read_cnt) && (ind_writes == ind_write_cnt))
             break;
+
+        next_event.rank = (next_event.rank + 1) % nprocs;
     }
 
     return cur_time;
@@ -1329,6 +1336,10 @@ int merge_file_events(struct darshan_file *file)
     if (!file_event_list_cnt)
         return 0;
 
+#if PRINT
+//    print_events(file_event_list, file_event_list_cnt);
+#endif
+
     /* if the rank event list is empty, just copy this file's events over */
     if (!rank_event_list_cnt)
     {
@@ -1404,7 +1415,7 @@ int merge_file_events(struct darshan_file *file)
     }
 
     /* copy the temp list to the complete event list for this rank */
-    assert(temp_list_ndx < rank_event_list_max);
+    assert(temp_list_ndx <= rank_event_list_max);
     memcpy(rank_event_list, temp_list, temp_list_ndx * sizeof(*temp_list));
     rank_event_list_cnt = temp_list_ndx;
     file_event_list_cnt = 0;
@@ -1424,14 +1435,14 @@ int store_rank_events(int event_file_fd,
         bytes_written = pwrite(event_file_fd,
                                rank_event_list,
                                rank_event_list_cnt * sizeof(struct darshan_event),
-                               (off_t)&header_buf[rank + 1]);
+                               (off_t)header_buf[rank + 1]);
     }
     else
     {
         bytes_written = pwrite(event_file_fd,
                                rank_event_list,
                                rank_event_list_cnt * sizeof(struct darshan_event),
-                               (off_t)&header_buf[nprocs + 1]);
+                               (off_t)header_buf[nprocs + 1]);
     }
 
     if (bytes_written != (rank_event_list_cnt * sizeof(struct darshan_event)))
@@ -1439,7 +1450,9 @@ int store_rank_events(int event_file_fd,
         return -1;
     }
 
+#if PRINT
     print_events(rank_event_list, rank_event_list_cnt);
+#endif
     rank_event_list_cnt = 0;
     
     return 0;
@@ -1507,10 +1520,11 @@ int print_events(struct darshan_event *event_list,
                    event_list[i].end_time);
         }
     }
-//    printf("num_opens = %"PRId64"\nnum_reads = %"PRId64"\nnum_writes = %"PRId64"\nnum_barriers = %"PRId64"\n", num_opens, num_reads, num_writes, num_barriers);
 
-    num_opens = num_reads = num_writes = num_barriers = 0;
+//    printf("\nopens = %"PRId64", reads = %"PRId64", writes = %"PRId64", barriers = %"PRId64"\n",
+//           num_opens, num_reads, num_writes, num_barriers);
     printf("\n*****\n*****\n\n");
+//    num_opens = num_reads = num_writes = num_barriers = 0;
 
     return 0;
 }
