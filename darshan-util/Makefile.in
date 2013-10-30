@@ -1,4 +1,4 @@
-all: darshan-parser darshan-log-replay darshan-convert darshan-diff darshan-analyzer darshan-log-params darshan-util-lib
+all: darshan-parser darshan-gen-io-trace darshan-convert darshan-diff darshan-analyzer darshan-log-params darshan-util-lib
 
 DESTDIR =
 srcdir = @srcdir@
@@ -38,7 +38,7 @@ uthash-1.9.2:
 darshan-parser: darshan-parser.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o | uthash-1.9.2
 	gcc $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS) 
 
-darshan-log-replay: darshan-log-replay.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o
+darshan-gen-io-trace: darshan-gen-io-trace.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o
 	gcc $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
 
 darshan-convert: darshan-convert.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o lookup3.o
@@ -77,7 +77,7 @@ install:: all
 	install -d $(libdir)
 	install -d $(includedir)
 	install -m 755 darshan-parser $(bindir)
-	install -m 755 darshan-log-replay $(bindir)
+	install -m 755 darshan-gen-io-trace $(bindir)
 	install -m 755 darshan-convert $(bindir)
 	install -m 755 darshan-diff $(bindir)
 	install -m 755 darshan-analyzer $(bindir)
@@ -96,7 +96,7 @@ install:: all
 
 
 clean::
-	rm -f *.o *.a darshan-parser darshan-log-replay darshan-convert darshan-diff darshan-analyzer darshan-log-params
+	rm -f *.o *.a darshan-parser darshan-gen-io-trace darshan-convert darshan-diff darshan-analyzer darshan-log-params
 
 distclean:: clean
 	rm -f darshan-runtime-config.h aclocal.m4 autom4te.cache/* config.status config.log Makefile util/bin/darshan-job-summary.pl

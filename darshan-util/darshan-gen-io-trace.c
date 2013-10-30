@@ -107,6 +107,11 @@ double generate_psx_coll_io_events(struct darshan_file *file,
                                    double inter_io_delay,
                                    double cur_time);
 
+void determine_io_params(struct darshan_file *file,
+                         int write_flag,
+                         size_t *io_sz,
+                         off_t *io_off);
+
 double generate_psx_close_event(struct darshan_file *file,
                                 double cur_time);
 
@@ -660,6 +665,10 @@ void generate_psx_ind_file_events(struct darshan_file *file)
                     - file->fcounters[CP_F_POSIX_READ_TIME] - file->fcounters[CP_F_POSIX_WRITE_TIME]
                     - file->fcounters[CP_F_POSIX_META_TIME]) / open_cnt;
 
+    calc_io_delay_pcts(file, open_cnt, delay_per_open, &first_io_delay_pct, &close_delay_pct,
+                       &inter_open_delay_pct, &inter_io_delay_pct);
+
+
     /* determine whether to set the create flag for the first open generated */
     HASH_FIND(hlink, created_files_hash, &(file->hash), sizeof(uint64_t), hfile);
     if (!hfile)
@@ -1039,6 +1048,8 @@ double generate_psx_ind_io_events(struct darshan_file *file,
     double rd_bw, wr_bw;
     int rw;     /* read = 0, write = 1 ... initialized to first io op executed in application */
     double rw_switch;
+    size_t io_sz;
+    off_t io_off;
     struct darshan_event next_event = { .rank = file->rank };
 
     if (read_cnt || write_cnt)
@@ -1071,7 +1082,7 @@ double generate_psx_ind_io_events(struct darshan_file *file,
         {
             rw = 0; /* read */
         }
-        else if ((reads != 0) && (writes != 0))
+        else if ((reads != 0) || (writes != 0))
         {
             /* else we have reads and writes to perform */
             if (((double)rand() / (double)RAND_MAX - 1) < rw_switch)
@@ -1081,14 +1092,16 @@ double generate_psx_ind_io_events(struct darshan_file *file,
             }
         }
 
+        /* determin i/o params then generate i/o event */
+        determine_io_params(file, rw, &io_sz, &io_off);
         if (!rw)
         {
             /* generate a read event */
             next_event.type = POSIX_READ;
             next_event.start_time = cur_time;
             next_event.event_params.read.file = file->hash;
-            next_event.event_params.read.size = 10;      /* TODO: size and offset */
-            next_event.event_params.read.offset = 0;
+            next_event.event_params.read.size = io_sz;
+            next_event.event_params.read.offset = io_off;
 
             /* set the end time based on observed bandwidth and io size */
             cur_time += (next_event.event_params.read.size / rd_bw);
@@ -1102,8 +1115,8 @@ double generate_psx_ind_io_events(struct darshan_file *file,
             next_event.type = POSIX_WRITE;
             next_event.start_time = cur_time;
             next_event.event_params.write.file = file->hash;
-            next_event.event_params.write.size = 10;      /* TODO: size and offset */
-            next_event.event_params.write.offset = 0;
+            next_event.event_params.write.size = io_sz;
+            next_event.event_params.write.offset = io_off;
 
             /* set the end time based on observed bandwidth and io size */
             cur_time += (next_event.event_params.write.size / wr_bw);
@@ -1178,7 +1191,7 @@ double generate_psx_coll_io_events(struct darshan_file *file,
             {
                 rw = 0; /* read */
             }
-            else if ((coll_reads != 0) && (coll_writes != 0))
+            else if ((coll_reads != 0) || (coll_writes != 0))
             {
                 /* else we have reads and writes to perform */
                 if (((double)rand() / (double)RAND_MAX - 1) < rw_switch)
@@ -1276,7 +1289,7 @@ double generate_psx_coll_io_events(struct darshan_file *file,
             {
                 rw = 0; /* read */
             }
-            else if ((ind_reads != 0) && (ind_writes != 0))
+            else if ((ind_reads != 0) || (ind_writes != 0))
             {
                 /* else we have reads and writes to perform */
                 if (((double)rand() / (double)RAND_MAX - 1) < rw_switch)
@@ -1338,6 +1351,133 @@ double generate_psx_coll_io_events(struct darshan_file *file,
     }
 
     return cur_time;
+}
+
+void determine_io_params(struct darshan_file *file,
+                         int write_flag,
+                         size_t *io_sz,
+                         off_t *io_off)
+{
+    int64_t *size_bins; /* 10 size bins for io operations */
+    int64_t *common_io_sizes = &(file->counters[CP_ACCESS1_ACCESS]); /* 4 common accesses */
+    int64_t *common_io_counts = &(file->counters[CP_ACCESS1_COUNT]); /* common access counts */
+    int64_t last_io_byte;
+    int64_t *total_io_size;
+    int64_t num_io_ops = 0;
+    int64_t min_io_size_req = 0;
+    int size_bins_ndx = -1;
+    int common_list_ndx = -1;
+    int i, j;
+    int64_t bin_min_size[10] = { 0, 100, 1024, 10 * 1024, 100 * 1024, 1024 * 1024, 4 * 1024 * 1024,
+                                 10 * 1024 * 1024, 100 * 1024 * 1024, 1024 * 1024 * 1024};
+    int64_t bin_def_size[10] = { 40, 512, 4 * 1024, 60 * 1024, 512 * 1024, 2 * 1024 * 1024,
+                                 6 * 1024 * 1024, 40 * 1024 * 1024, 400 * 1024 * 1024,
+                                 1 * 1024 * 1024 * 1024};
+
+    /* determine which data to use, depending on whether op is read or write */
+    if (write_flag)
+    {
+        size_bins = &(file->counters[CP_SIZE_WRITE_0_100]);
+        total_io_size = &(file->counters[CP_BYTES_WRITTEN]);
+        last_io_byte = file->counters[CP_MAX_BYTE_WRITTEN];
+    }
+    else
+    {
+        size_bins = &(file->counters[CP_SIZE_READ_0_100]);
+        total_io_size = &(file->counters[CP_BYTES_READ]);
+        last_io_byte = file->counters[CP_MAX_BYTE_READ];
+    }
+
+    /* determine which bin to use for this access */
+    size_bins_ndx = rand() % 10;
+    for (i = 0; i < 10; i++)
+    {
+        if (!(size_bins[size_bins_ndx]))
+        {
+            size_bins_ndx = (size_bins_ndx + 1) % 10;
+        }
+
+        /* determine the number and minimum size requirement of remaining i/o operations */
+        num_io_ops += size_bins[i];
+        min_io_size_req += (size_bins[i] * bin_min_size[i]);
+    }
+    assert(num_io_ops > 0);
+
+    /* allocate remaining i/o bytes if this is the last i/o operation */
+    if (num_io_ops == 1)
+    {
+        *io_sz = *total_io_size;
+    }
+    else
+    {
+        /* check to see if we can assign a common size instead of a random one */
+        for (i = 0; i < 4; i++)
+        {
+            if (common_io_counts[i] &&
+                (((size_bins_ndx == 9) && (common_io_sizes[i] >= bin_min_size[size_bins_ndx])) ||
+                ((size_bins_ndx < 9) && (common_io_sizes[i] >= bin_min_size[size_bins_ndx]) &&
+                (common_io_sizes[i] < bin_min_size[size_bins_ndx + 1]))))
+            {
+                common_list_ndx = i;
+                if ((*total_io_size - common_io_sizes[common_list_ndx]) >=
+                    (min_io_size_req - bin_min_size[size_bins_ndx]))
+                {
+                    *io_sz = (size_t)common_io_sizes[common_list_ndx];
+                    common_io_counts[common_list_ndx]--;
+                    break;
+                }
+                common_list_ndx = -1;
+            }
+        }
+
+        /* if no frequent access counter matches, assign a default or random size from the bin */
+        if (common_list_ndx < 0)
+        {
+            /* try to assign a default i/o size */
+            if ((*total_io_size - bin_def_size[size_bins_ndx]) >= 
+                (min_io_size_req - bin_min_size[size_bins_ndx]))
+            {
+                *io_sz = (size_t)bin_def_size[size_bins_ndx];
+            }
+            /* we need to assign the minimum available size */
+            /* TODO: some cases we allocate all i/o way too early, remaining requests are just min */
+            else if (*total_io_size == min_io_size_req)
+            {
+                *io_sz = (size_t)bin_min_size[size_bins_ndx];
+            }
+            /* we need to assign a random value to this i/o operation */
+            else
+            {
+                *io_sz = (size_t)(rand() % (*total_io_size - min_io_size_req)) +
+                         bin_min_size[size_bins_ndx];
+            }
+        }
+    }
+
+/*  TODO: this code fails. this algorithm does not ensure that the i/o for the last op will
+ *        fit in the remaining size bin.
+
+    assert(*io_sz >= bin_min_size[size_bins_ndx]);
+    if (size_bins_ndx < 9)
+        assert(*io_sz < bin_min_size[size_bins_ndx + 1]);
+*/
+
+    /* update io statistics for this file */
+    *total_io_size = *total_io_size - *io_sz;
+    if ((size_bins_ndx >= 0) && size_bins[size_bins_ndx])
+        size_bins[size_bins_ndx]--;
+
+    /* next, determine the offset to use */
+
+    /*  for now we just assign a random offset that makes sure not to write past the recorded
+     *  last byte written in the file.
+     */
+    if (*io_sz < last_io_byte)
+        *io_off = (off_t)rand() % (last_io_byte - *io_sz);
+    else
+        *io_off = 0;
+
+    return;
 }
 
 double generate_psx_close_event(struct darshan_file *file,
