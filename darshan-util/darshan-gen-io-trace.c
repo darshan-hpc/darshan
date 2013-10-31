@@ -10,7 +10,6 @@
 
 #include "uthash-1.9.2/src/uthash.h"
 
-#define MYHASH 5234986228163024165
 #define PRINT 1
 
 #define DEF_INTER_IO_DELAY_PCT 0.2
@@ -875,7 +874,8 @@ void generate_psx_coll_file_events(struct darshan_file *file)
             {
                 file->rank = i % nprocs;
                 tmp_cur_time = generate_psx_ind_io_events(file, reads_this_open, writes_this_open,
-                                                          0.0, cur_time);
+                                                          inter_io_delay_pct * delay_per_cycle,
+                                                          cur_time);
                 if (tmp_cur_time > max_cur_time)
                     max_cur_time = tmp_cur_time;
 
@@ -1358,11 +1358,13 @@ void determine_io_params(struct darshan_file *file,
                          size_t *io_sz,
                          off_t *io_off)
 {
+    static uint64_t last_file = 0;
+    static int64_t last_rank = -2;
+    static int64_t total_io_size;
     int64_t *size_bins; /* 10 size bins for io operations */
     int64_t *common_io_sizes = &(file->counters[CP_ACCESS1_ACCESS]); /* 4 common accesses */
     int64_t *common_io_counts = &(file->counters[CP_ACCESS1_COUNT]); /* common access counts */
     int64_t last_io_byte;
-    int64_t *total_io_size;
     int64_t num_io_ops = 0;
     int64_t min_io_size_req = 0;
     int size_bins_ndx = -1;
@@ -1374,17 +1376,28 @@ void determine_io_params(struct darshan_file *file,
                                  6 * 1024 * 1024, 40 * 1024 * 1024, 400 * 1024 * 1024,
                                  1 * 1024 * 1024 * 1024};
 
+    /* if this is a new file/rank pair, reset the total file size */
+    if ((file->rank != last_rank) || (file->hash != last_file))
+    {
+        if (write_flag)
+        {
+            total_io_size = file->counters[CP_BYTES_WRITTEN];
+        }
+        else
+        {
+            total_io_size = file->counters[CP_BYTES_READ];
+        }
+    }
+
     /* determine which data to use, depending on whether op is read or write */
     if (write_flag)
     {
         size_bins = &(file->counters[CP_SIZE_WRITE_0_100]);
-        total_io_size = &(file->counters[CP_BYTES_WRITTEN]);
         last_io_byte = file->counters[CP_MAX_BYTE_WRITTEN];
     }
     else
     {
         size_bins = &(file->counters[CP_SIZE_READ_0_100]);
-        total_io_size = &(file->counters[CP_BYTES_READ]);
         last_io_byte = file->counters[CP_MAX_BYTE_READ];
     }
 
@@ -1406,7 +1419,7 @@ void determine_io_params(struct darshan_file *file,
     /* allocate remaining i/o bytes if this is the last i/o operation */
     if (num_io_ops == 1)
     {
-        *io_sz = *total_io_size;
+        *io_sz = total_io_size;
     }
     else
     {
@@ -1419,7 +1432,7 @@ void determine_io_params(struct darshan_file *file,
                 (common_io_sizes[i] < bin_min_size[size_bins_ndx + 1]))))
             {
                 common_list_ndx = i;
-                if ((*total_io_size - common_io_sizes[common_list_ndx]) >=
+                if ((total_io_size - common_io_sizes[common_list_ndx]) >=
                     (min_io_size_req - bin_min_size[size_bins_ndx]))
                 {
                     *io_sz = (size_t)common_io_sizes[common_list_ndx];
@@ -1434,21 +1447,21 @@ void determine_io_params(struct darshan_file *file,
         if (common_list_ndx < 0)
         {
             /* try to assign a default i/o size */
-            if ((*total_io_size - bin_def_size[size_bins_ndx]) >= 
+            if ((total_io_size - bin_def_size[size_bins_ndx]) >= 
                 (min_io_size_req - bin_min_size[size_bins_ndx]))
             {
                 *io_sz = (size_t)bin_def_size[size_bins_ndx];
             }
             /* we need to assign the minimum available size */
             /* TODO: some cases we allocate all i/o way too early, remaining requests are just min */
-            else if (*total_io_size == min_io_size_req)
+            else if (total_io_size == min_io_size_req)
             {
                 *io_sz = (size_t)bin_min_size[size_bins_ndx];
             }
             /* we need to assign a random value to this i/o operation */
             else
             {
-                *io_sz = (size_t)(rand() % (*total_io_size - min_io_size_req)) +
+                *io_sz = (size_t)(rand() % (total_io_size - min_io_size_req)) +
                          bin_min_size[size_bins_ndx];
             }
         }
@@ -1463,7 +1476,7 @@ void determine_io_params(struct darshan_file *file,
 */
 
     /* update io statistics for this file */
-    *total_io_size = *total_io_size - *io_sz;
+    total_io_size = total_io_size - *io_sz;
     if ((size_bins_ndx >= 0) && size_bins[size_bins_ndx])
         size_bins[size_bins_ndx]--;
 
