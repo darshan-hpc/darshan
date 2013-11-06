@@ -1577,7 +1577,7 @@ double generate_barrier_event(struct darshan_file *file,
                                         .end_time = cur_time
                                       };
 
-    next_event.event_params.barrier.proc_count = nprocs;
+    next_event.event_params.barrier.proc_count = -1; /* -1 for all procs (nprocs) */
     next_event.event_params.barrier.root = root;
 
     cur_time += .000001;
