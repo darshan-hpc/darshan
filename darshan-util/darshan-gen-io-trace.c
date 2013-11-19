@@ -74,6 +74,9 @@ double generate_barrier_event(struct darshan_file *file,
                               int64_t root,
                               double cur_time);
 
+int event_comp(const void *p1,
+               const void *p2);
+
 int merge_file_events(struct darshan_file *file);
 
 int store_rank_events(int event_file_fd,
@@ -468,14 +471,20 @@ int preprocess_events(const char *log_filename,
                          (next_file.counters[CP_COLL_OPENS] / nprocs) +
                          (next_file.counters[CP_COLL_WRITES] / nprocs) +
                          (next_file.counters[CP_COLL_READS] / nprocs);
-        if (next_file.rank > -1 || !(next_file.counters[CP_COLL_OPENS]))
+
+        if (next_file.rank > -1)
         {
-            file_event_cnt += (2 * psx_open_cnt);
+            file_event_cnt += (2 * next_file.counters[CP_POSIX_OPENS]);
         }
         else if (next_file.counters[CP_COLL_OPENS])
         {
-                file_event_cnt += (2 * (next_file.counters[CP_COLL_OPENS] / nprocs)) +
-                (2 * (psx_open_cnt - next_file.counters[CP_COLL_OPENS]));
+            file_event_cnt += (2 * (next_file.counters[CP_COLL_OPENS] / nprocs)) +
+            (2 * (next_file.counters[CP_POSIX_OPENS] - next_file.counters[CP_COLL_OPENS]));
+        }
+        else
+        {
+            file_event_cnt += (2 * (next_file.counters[CP_POSIX_OPENS] / nprocs)) +
+                              (2 * (next_file.counters[CP_POSIX_OPENS] % nprocs));
         }
 
         total_events += file_event_cnt;
@@ -853,28 +862,30 @@ void generate_psx_coll_file_events(struct darshan_file *file)
             }
         }
 
-    }
+        tmp_cur_time = cur_time;
+        for (; i < psx_open_cnt; i++, file->counters[CP_POSIX_OPENS]--)
+        {
+            file->rank = i % nprocs;
 
-    tmp_cur_time = cur_time;
-    for (; i < psx_open_cnt; i++, file->counters[CP_POSIX_OPENS]--)
-    {
-        file->rank = i % nprocs;
+            cur_time = generate_psx_open_event(file, create_flag, cur_time);
 
-        cur_time = generate_psx_open_event(file, create_flag, cur_time);
+            /* account for potential delay between the open and first i/o */
+            cur_time += (first_io_delay_pct * delay_per_cycle);
 
-        /* account for potential delay between the open and first i/o */
-        cur_time += (first_io_delay_pct * delay_per_cycle);
+            cur_time = generate_psx_ind_io_events(file, i, inter_io_delay_pct * delay_per_cycle,
+                                                  cur_time);
 
-        cur_time = generate_psx_ind_io_events(file, i, inter_io_delay_pct * delay_per_cycle,
-                                              cur_time);
+            /* account for potential delay between last i/o operation and file close */
+            cur_time += (close_delay_pct * delay_per_cycle);
 
-        /* account for potential delay between last i/o operation and file close */
-        cur_time += (close_delay_pct * delay_per_cycle);
+            /* generate the corresponding close event for the open at the start of the loop */
+            cur_time = generate_psx_close_event(file, cur_time);
 
-        /* generate the corresponding close event for the open at the start of the loop */
-        cur_time = generate_psx_close_event(file, cur_time);
+            cur_time = tmp_cur_time;
+        }
 
-        cur_time = tmp_cur_time;
+        /* we need to sort the file list, because it is not in order */
+        qsort(file_event_list, file_event_list_cnt, sizeof(*file_event_list), event_comp);
     }
 
     return;
@@ -1620,6 +1631,25 @@ double generate_barrier_event(struct darshan_file *file,
     num_barriers++;
 
     return cur_time;
+}
+
+int event_comp(const void *p1, const void *p2)
+{
+    struct darshan_event *e1 = (struct darshan_event *)p1;
+    struct darshan_event *e2 = (struct darshan_event *)p2;
+
+    if (e1->start_time < e2->start_time)
+    {
+        return -1;
+    }
+    else if (e1->start_time > e2->start_time)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 /* TODO: we will probably want to benchmark this merge, and try to optimize it */
