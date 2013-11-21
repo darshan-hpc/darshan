@@ -54,10 +54,7 @@ double generate_psx_ind_io_events(struct darshan_file *file,
                                   double cur_time);
 
 double generate_psx_coll_io_events(struct darshan_file *file,
-                                   int64_t coll_reads,
-                                   int64_t coll_writes,
-                                   int64_t ind_reads,
-                                   int64_t ind_writes,
+                                   int64_t open_ndx,
                                    double inter_io_delay,
                                    double cur_time);
 
@@ -629,8 +626,8 @@ void check_file_counters(struct darshan_file *file)
         file->fcounters[CP_F_CLOSE_TIMESTAMP] = app_run_time;
 
     /* collapse fopen/fread/etc. calls into the corresponding open/read/etc. counters */
-        file->counters[CP_POSIX_OPENS] += file->counters[CP_POSIX_FOPENS];
-        file->counters[CP_POSIX_READS] += file->counters[CP_POSIX_FREADS];
+    file->counters[CP_POSIX_OPENS] += file->counters[CP_POSIX_FOPENS];
+    file->counters[CP_POSIX_READS] += file->counters[CP_POSIX_FREADS];
     file->counters[CP_POSIX_WRITES] += file->counters[CP_POSIX_FWRITES];
 
     return;
@@ -692,8 +689,7 @@ void generate_psx_ind_file_events(struct darshan_file *file)
         /* account for potential delay from first open to first io */
         cur_time += (first_io_delay_pct * delay_per_open);
 
-        cur_time = generate_psx_ind_io_events(file, i, inter_io_delay_pct * delay_per_open,
-                                              cur_time);
+        cur_time = generate_psx_ind_io_events(file, i, inter_io_delay_pct * delay_per_open, cur_time);
 
         /* account for potential delay from last io to close */
         cur_time += (close_delay_pct * delay_per_open);
@@ -713,29 +709,26 @@ void generate_psx_ind_file_events(struct darshan_file *file)
 
 void generate_psx_coll_file_events(struct darshan_file *file)
 {
-    int64_t psx_open_cnt = file->counters[CP_POSIX_OPENS];
-    int64_t coll_reads = 0, coll_writes = 0;
-    int64_t ind_reads = 0, ind_writes = 0;
+    int64_t total_io_ops = file->counters[CP_POSIX_READS] + file->counters[CP_POSIX_WRITES];
     int create_flag = 0;
     double cur_time = file->fcounters[CP_F_OPEN_TIMESTAMP];
-    double max_cur_time = 0.0, tmp_cur_time;
     double delay_per_cycle;
     double first_io_delay_pct = 0.0;
     double close_delay_pct = 0.0;
     double inter_cycle_delay_pct = 0.0;
     double inter_io_delay_pct = 0.0;
     double total_delay_pct = 0.0;
-    int64_t i;
+    int64_t i, j;
 
     /* the collective file was never opened (i.e., just stat-ed), so return */
-    if (!psx_open_cnt)
+    if (!(file->counters[CP_POSIX_OPENS]))
         return;
 
     /*  in this case, posix opens are less than mpi opens...
      *  this is probably a mpi deferred open -- assume app will not use this, currently.
      */
     if (file->counters[CP_COLL_OPENS])
-        assert(psx_open_cnt >= file->counters[CP_COLL_OPENS]);
+        assert(file->counters[CP_POSIX_OPENS] >= file->counters[CP_COLL_OPENS]);
 
     /* determine collective i/o amount, then assign rest as independent io? */
     assert((file->counters[CP_COLL_READS] % nprocs) == 0);
@@ -750,14 +743,29 @@ void generate_psx_coll_file_events(struct darshan_file *file)
     /* use assumptions based on the use of MPI to generate the I/O events */
     if (file->counters[CP_COLL_OPENS])
     {
-#if 0
         assert(file->counters[CP_COLL_OPENS] == nprocs);
         assert(!(file->counters[CP_COLL_READS] % nprocs));
         assert(!(file->counters[CP_COLL_WRITES] % nprocs));
-        ind_reads = file->counters[CP_INDEP_READS];
-        ind_writes = file->counters[CP_INDEP_WRITES];
-        coll_reads = file->counters[CP_COLL_READS] / nprocs;
-        coll_writes = file->counters[CP_COLL_WRITES] / nprocs;
+
+#if 0
+        /*  if we have leftover opens in a MPI collective open pattern, it is likely due to rank 0
+         *  creating the file, then all ranks opening it.
+         */
+        if (file->counters[CP_POSIX_OPENS] > file->counters[CP_COLL_OPENS])
+        {
+            assert((psx_open_cnt - file->counters[CP_COLL_OPENS]) == MPI_IO_ARTIFACT_OPENS);
+            assert(create_flag);
+
+            /* assign the file create and close to rank 0 */
+            file->rank = 0;
+
+            /* generate the open/close events for creating the collective file */
+            cur_time = generate_psx_open_event(file, create_flag, cur_time);
+            cur_time = generate_psx_close_event(file, cur_time);
+            create_flag = 0;
+            file->rank = -1;
+            file->counters[CP_POSIX_OPEN]--;
+        }
 
         /* calculate the delay information */
         delay_per_cycle = file->fcounters[CP_F_CLOSE_TIMESTAMP] -
@@ -769,24 +777,6 @@ void generate_psx_coll_file_events(struct darshan_file *file)
         calc_io_delay_pcts(file, 1, ind_reads + coll_reads + ind_writes + coll_writes,
                            delay_per_cycle, &first_io_delay_pct, &close_delay_pct,
                            &inter_cycle_delay_pct, &inter_io_delay_pct);
-
-        /*  if we have leftover opens in a MPI collective open pattern, it is likely due to rank 0
-         *  creating the file, then all ranks opening it.
-         */
-        if (psx_opens > file->counters[CP_COLL_OPENS])
-        {
-            assert((psx_opens - file->counters[CP_COLL_OPENS]) == MPI_IO_ARTIFACT_OPENS);
-            assert(create_flag);
-
-            /* temporarily set the file's rank to 0, so the open/close events are assigned properly */
-            file->rank = 0;
-
-            /* generate the open/close events for creating the collective file */
-            cur_time = generate_psx_open_event(file, create_flag, cur_time);
-            cur_time = generate_psx_close_event(file, cur_time);
-            create_flag = 0;
-            file->rank = -1;
-        }
 
         /* generate a collective barrier */
         cur_time = generate_barrier_event(file, 0, cur_time);   
@@ -819,73 +809,72 @@ void generate_psx_coll_file_events(struct darshan_file *file)
                           (file->fcounters[CP_F_POSIX_META_TIME] / nprocs)) /
                           round((double)file->counters[CP_POSIX_OPENS] / nprocs);
 
-        calc_io_delay_pcts(file, file->counters[CP_POSIX_OPENS],
-                           file->counters[CP_POSIX_READS] + file->counters[CP_POSIX_WRITES],
-                           delay_per_cycle, &first_io_delay_pct, &close_delay_pct,
+        calc_io_delay_pcts(file, round((double)file->counters[CP_POSIX_OPENS] / nprocs),
+                           round((double)total_io_ops / nprocs), delay_per_cycle,
+                           &first_io_delay_pct, &close_delay_pct,
                            &inter_cycle_delay_pct, &inter_io_delay_pct);
 
-        file->counters[CP_RW_SWITCHES] = file->counters[CP_RW_SWITCHES] / nprocs;
-
-        for (i = 0; i < (psx_open_cnt / nprocs) * nprocs; i++, file->counters[CP_POSIX_OPENS]--)
+        /* generate all events for this collectively opened file */
+        for (i = 0; file->counters[CP_POSIX_OPENS]; i++)
         {
-            if ((i % nprocs) == 0)
+            if (file->counters[CP_POSIX_OPENS] >= nprocs)
             {
-                file->rank = -1;
+                /* perform an open across all ranks (rank == -1) */
                 cur_time = generate_psx_open_event(file, create_flag, cur_time);
                 create_flag = 0;
 
                 /* account for potential delay between the open and first i/o */
                 cur_time += (first_io_delay_pct * delay_per_cycle);
-            }
-            
-            file->rank = i % nprocs;
 
-            /* generate the i/o for this open */
-            tmp_cur_time = generate_psx_ind_io_events(file, i, inter_io_delay_pct * delay_per_cycle,
-                                                      cur_time);
+                cur_time = generate_psx_coll_io_events(file, i, inter_io_delay_pct * delay_per_cycle,
+                                                       cur_time);
 
-            if (tmp_cur_time > max_cur_time)
-                max_cur_time = tmp_cur_time;
-
-            if ((i % nprocs) == (nprocs - 1))   
-            {
                 /* account for potential delay between last i/o operation and file close */
-                max_cur_time += (close_delay_pct * delay_per_cycle);
-
+                cur_time += (close_delay_pct * delay_per_cycle);
+                
                 /* generate the corresponding close event for the open at the start of the loop */
-                file->rank = -1;
-                cur_time = generate_psx_close_event(file, max_cur_time);
+                cur_time = generate_psx_close_event(file, cur_time);
 
-                /* don't generate inter-cycle delay for the last open-close cycle */
-                if (i < (psx_open_cnt - 1))
+                /* account for any delay between open-close cycles */
+                file->counters[CP_POSIX_OPENS] -= nprocs;
+                if (file->counters[CP_POSIX_OPENS])
                     cur_time += (inter_cycle_delay_pct * delay_per_cycle);
             }
+            else
+            {
+                /* open the file across participating ranks */
+                for (j = 0; j < file->counters[CP_POSIX_OPENS]; j++)
+                {
+                    file->rank = j;
+                    if (j != (file->counters[CP_POSIX_OPENS] - 1))
+                        generate_psx_open_event(file, 0, cur_time);
+                    else
+                        cur_time = generate_psx_open_event(file, 0, cur_time);
+                }
+
+                /* account for potential delay between the open and first i/o */
+                cur_time += (first_io_delay_pct * delay_per_cycle);
+
+                cur_time = generate_psx_coll_io_events(file, i, inter_io_delay_pct * delay_per_cycle,
+                                                       cur_time);
+
+                /* account for potential delay between last i/o operation and file close */
+                cur_time += (close_delay_pct * delay_per_cycle);
+
+                /* close the file across participating ranks */
+                for (j = 0; j < file->counters[CP_POSIX_OPENS]; j++)
+                {
+                    file->rank = j;
+                    if (j != (file->counters[CP_POSIX_OPENS] - 1))
+                        generate_psx_close_event(file, cur_time);
+                    else
+                        cur_time = generate_psx_close_event(file, cur_time);
+                }
+                
+                file->counters[CP_POSIX_OPENS] = 0;
+                file->rank = -1;
+            }
         }
-
-        tmp_cur_time = cur_time;
-        for (; i < psx_open_cnt; i++, file->counters[CP_POSIX_OPENS]--)
-        {
-            file->rank = i % nprocs;
-
-            cur_time = generate_psx_open_event(file, create_flag, cur_time);
-
-            /* account for potential delay between the open and first i/o */
-            cur_time += (first_io_delay_pct * delay_per_cycle);
-
-            cur_time = generate_psx_ind_io_events(file, i, inter_io_delay_pct * delay_per_cycle,
-                                                  cur_time);
-
-            /* account for potential delay between last i/o operation and file close */
-            cur_time += (close_delay_pct * delay_per_cycle);
-
-            /* generate the corresponding close event for the open at the start of the loop */
-            cur_time = generate_psx_close_event(file, cur_time);
-
-            cur_time = tmp_cur_time;
-        }
-
-        /* we need to sort the file list, because it is not in order */
-        qsort(file_event_list, file_event_list_cnt, sizeof(*file_event_list), event_comp);
     }
 
     return;
@@ -1011,8 +1000,8 @@ double generate_psx_ind_io_events(struct darshan_file *file,
     static int next_switch_ndx;
     static double rd_bw, wr_bw;
     int64_t psx_rw_ops_remaining = file->counters[CP_POSIX_READS] + file->counters[CP_POSIX_WRITES];
-    double rw_switch;
     int64_t io_ops_this_cycle;
+    double rw_switch;
     size_t io_sz;
     off_t io_off;
     int64_t i;
@@ -1104,7 +1093,7 @@ double generate_psx_ind_io_events(struct darshan_file *file,
         }
 
         /* determine whether to toggle between reads and writes */
-        if (((double)rand() / ((double)RAND_MAX - 1)) < rw_switch)
+        if (((double)rand() / (RAND_MAX - 1)) < rw_switch)
         {
             /* toggle the read/write flag */
             rw ^= 1;
@@ -1129,7 +1118,7 @@ double generate_psx_ind_io_events(struct darshan_file *file,
     {
         rw ^= 1;
         file->counters[CP_RW_SWITCHES]--;
-        next_switch_ndx += ceil((file->counters[CP_POSIX_OPENS] - 1) /
+        next_switch_ndx += ceil((double)(file->counters[CP_POSIX_OPENS] - 1) /
                                 (file->counters[CP_RW_SWITCHES] + 1));
     }
 
@@ -1137,230 +1126,148 @@ double generate_psx_ind_io_events(struct darshan_file *file,
 }
 
 double generate_psx_coll_io_events(struct darshan_file *file,
-                                   int64_t coll_read_cnt,
-                                   int64_t coll_write_cnt,
-                                   int64_t ind_read_cnt,
-                                   int64_t ind_write_cnt,
+                                   int64_t open_ndx,
                                    double inter_io_delay,
                                    double cur_time)
 {
-    double rd_bw, wr_bw;
+    static int rw = -1; /* rw = 1 for write, 0 for read, -1 for uninitialized */
+    static int next_switch_ndx;
+    static double rd_bw, wr_bw;
+    int64_t cycle_rank_cnt;
+    int64_t psx_rw_ops_remaining = file->counters[CP_POSIX_READS] + file->counters[CP_POSIX_WRITES];
+    int64_t ind_io_ops_this_cycle;
     double rw_switch;
-    int rw;     /* read = 0, write = 1 ... initialized to first io op executed in application */
-    struct darshan_event next_event;
-    int64_t psx_reads = file->counters[CP_POSIX_READS] + file->counters[CP_POSIX_FREADS];
-    int64_t psx_writes = file->counters[CP_POSIX_WRITES] + file->counters[CP_POSIX_FWRITES];
-    int64_t coll_reads = 0, coll_writes = 0;
-    int64_t ind_reads = 0, ind_writes = 0;
-    int64_t aggregator_cnt = ceil((double)nprocs / RANKS_PER_IO_AGGREGATOR);
-    int64_t extra_psx_reads = psx_reads - file->counters[CP_INDEP_READS];
-    int64_t extra_psx_writes = psx_writes - file->counters[CP_INDEP_WRITES];
-    int64_t i;
-    double max_cur_time;
+    double max_cur_time = 0.0;
     size_t io_sz;
     off_t io_off;
-#if 0
+    int64_t i;
+    struct darshan_event next_event;
 
-    if (coll_read_cnt || coll_write_cnt || ind_read_cnt || ind_write_cnt)
-    {
-        rw_switch = file->counters[CP_RW_SWITCHES] / (psx_reads + psx_writes);
-        rw = ((file->fcounters[CP_F_READ_START_TIMESTAMP] <
-               file->fcounters[CP_F_WRITE_START_TIMESTAMP]) &&
-              file->fcounters[CP_F_READ_START_TIMESTAMP] != 0.0) ? 0 : 1;
-    }
+    /* TODO: need ind. and coll. here */
+    if (!psx_rw_ops_remaining)
+        return;
+
+    if (file->counters[CP_POSIX_OPENS] >= nprocs)
+        cycle_rank_cnt = nprocs;
     else
+        cycle_rank_cnt = file->counters[CP_POSIX_OPENS];
+
+    ind_io_ops_this_cycle = ceil((double)psx_rw_ops_remaining / file->counters[CP_POSIX_OPENS] *
+                                 cycle_rank_cnt);
+
+    /* initialze static variables when a new file is opened */
+    if (rw == -1)
     {
-        return cur_time;
+        /* initialize rw to be the first i/o operation found in the log */
+        rw = ((file->fcounters[CP_F_WRITE_START_TIMESTAMP] == 0.0) ||
+              (file->fcounters[CP_F_READ_START_TIMESTAMP] <
+               file->fcounters[CP_F_WRITE_START_TIMESTAMP])) ? 0 : 1;
+
+        /* determine when the next r/w switch likely occurs */
+        next_switch_ndx = ceil(((double)file->counters[CP_POSIX_OPENS] / nprocs) /
+                               (((double)file->counters[CP_RW_SWITCHES] / nprocs) + 1));
+
+        /* initialize the rd and wr bandwidth values using total io size and time */
+        if (file->fcounters[CP_F_POSIX_READ_TIME])
+            rd_bw = file->counters[CP_BYTES_READ] / file->fcounters[CP_F_POSIX_READ_TIME];
+        if (file->fcounters[CP_F_POSIX_WRITE_TIME])
+            wr_bw = file->counters[CP_BYTES_WRITTEN] / file->fcounters[CP_F_POSIX_WRITE_TIME];
     }
 
-    /* determine the read/write "bandwidth" seen for this file */
-    if (file->fcounters[CP_F_POSIX_READ_TIME])
-        rd_bw = file->counters[CP_BYTES_READ] / file->fcounters[CP_F_POSIX_READ_TIME];
-    if (file->fcounters[CP_F_POSIX_WRITE_TIME])
-        wr_bw = file->counters[CP_BYTES_WRITTEN] / file->fcounters[CP_F_POSIX_WRITE_TIME];
-
-    /* do collective i/o first */
-    if (coll_read_cnt || coll_write_cnt)
+    for (i = 0; i < ind_io_ops_this_cycle; i++)
     {
-        while (1)
+        next_event.rank = i % nprocs;
+
+        determine_io_params(file, rw, ceil((double)file->counters[CP_POSIX_OPENS] / nprocs),
+                            &io_sz, &io_off);
+        if (!rw)
         {
-            if (coll_reads == coll_read_cnt)
-            {
-                rw = 1; /* write */
-            }
-            else if (coll_writes == coll_write_cnt)
-            {
-                rw = 0; /* read */
-            }
-            else if ((coll_reads != 0) || (coll_writes != 0))
-            {
-                /* else we have reads and writes to perform */
-                if (((double)rand() / (double)RAND_MAX - 1) < rw_switch)
-                {
-                    /* toggle read/write flag */
-                    rw ^= 1;
-                }
-            }
+            /* generate a read event */
+            next_event.type = POSIX_READ;
+            next_event.start_time = cur_time;
+            next_event.event_params.read.file = file->hash;
+            next_event.event_params.read.size = io_sz;
+            next_event.event_params.read.offset = io_off;
 
-            /* generate a barrier event for the collective i/o operation */
-            max_cur_time = 0.0;
-            generate_barrier_event(file, 0, cur_time);
+            /* set the end time based on observed bandwidth and io size */
+            next_event.end_time = cur_time + (next_event.event_params.read.size / rd_bw);
+            num_reads++;
+            file->counters[CP_POSIX_READS]--;
+        }
+        else
+        {
+            /* generate a write event */
+            next_event.type = POSIX_WRITE;
+            next_event.start_time = cur_time;
+            next_event.event_params.write.file = file->hash;
+            next_event.event_params.write.size = io_sz;
+            next_event.event_params.write.offset = io_off;
 
-            /* distribute this round of posix i/o over collective i/o aggregators */
-            next_event.rank = (rand() % aggregator_cnt) * RANKS_PER_IO_AGGREGATOR;
-            if (!rw)
-            {
-                for (i = 0; i < ceil((double)extra_psx_reads / (coll_read_cnt - coll_reads)); i++)
-                {
-                    /* determin i/o params then generate i/o event */
-                    determine_io_params(file, rw, 1, 1, &io_sz, &io_off);
+            /* set the end time based on observed bandwidth and io size */
+            next_event.end_time = cur_time + (next_event.event_params.write.size / wr_bw);
+            num_writes++;
+            file->counters[CP_POSIX_WRITES]--;
+        }
+        psx_rw_ops_remaining--;
+        assert(file->counters[CP_POSIX_READS] >= 0);
+        assert(file->counters[CP_POSIX_WRITES] >= 0);
 
-                    /* generate a read event */
-                    next_event.type = POSIX_READ;
-                    next_event.start_time = cur_time;
-                    next_event.event_params.read.file = file->hash;
-                    next_event.event_params.read.size = io_sz;
-                    next_event.event_params.read.offset = io_off;
-                    num_reads++;
+        if (next_event.end_time > max_cur_time)
+            max_cur_time = next_event.end_time;
 
-                    /* set the end time based on observed bandwidth and io size */
-                    next_event.end_time = (next_event.event_params.read.size / rd_bw);
-                    if (next_event.end_time > max_cur_time)
-                        max_cur_time = next_event.end_time;
+        /* store the i/o event */
+        assert(file_event_list_cnt != file_event_list_max);
+        file_event_list[file_event_list_cnt++] = next_event;
 
-                    /* store the i/o event */
-                    assert(file_event_list_cnt != file_event_list_max);
-                    file_event_list[file_event_list_cnt++] = next_event;
-
-                    next_event.rank += RANKS_PER_IO_AGGREGATOR;
-                    if (next_event.rank >= nprocs)
-                        next_event.rank = 0;
-                }
-                extra_psx_reads -= i;
-                coll_reads++;
-            }
+        /* determine how often to switch between reads/writes */
+        if (file->counters[CP_RW_SWITCHES] >= file->counters[CP_POSIX_OPENS])
+        {
+            if (psx_rw_ops_remaining > 1)
+                rw_switch = (double)file->counters[CP_RW_SWITCHES] / (psx_rw_ops_remaining - 1);
             else
-            {
-                for (i = 0; i < ceil((double)extra_psx_writes / (coll_write_cnt - coll_writes)); i++)
-                {
-                    /* determin i/o params then generate i/o event */
-                    determine_io_params(file, rw, 1, 1, &io_sz, &io_off);
+                rw_switch = 1.0;
+        }
+        else
+        {
+            if ((file->counters[CP_RW_SWITCHES] == 1) && ((!rw && !file->counters[CP_POSIX_READS]) ||
+                (rw && !file->counters[CP_POSIX_WRITES])))
+                rw_switch = 1.0;
+            else
+                rw_switch = 0.0;
+        }
 
-                    /* generate a write event */
-                    next_event.type = POSIX_WRITE;
-                    next_event.start_time = cur_time;
-                    next_event.event_params.write.file = file->hash;
-                    next_event.event_params.write.size = io_sz;
-                    next_event.event_params.write.offset = io_off;
-                    num_writes++;
+        /* determine whether to toggle between reads and writes */
+        if (((double)rand() / (RAND_MAX - 1)) < rw_switch)
+        {
+            /* toggle the read/write flag */
+            rw ^= 1;
+            file->counters[CP_RW_SWITCHES] -= nprocs;
+        }
 
-                    /* set the end time based on observed bandwidth and io size */
-                    next_event.end_time = (next_event.event_params.write.size / wr_bw);
-                    if (next_event.end_time > max_cur_time)
-                        max_cur_time = next_event.end_time;
-
-                    /* store the i/o event */
-                    assert(file_event_list_cnt != file_event_list_max);
-                    file_event_list[file_event_list_cnt++] = next_event;
-
-                    next_event.rank += RANKS_PER_IO_AGGREGATOR;
-                    if (next_event.rank >= nprocs)
-                        next_event.rank = 0;
-                }
-                extra_psx_writes -= i;
-                coll_writes++;
-            }
-
+        /* set the current time to the maximum time seen by an i/o event, if starting a new cycle */
+        if ((i % nprocs) == (nprocs - 1))
+        {
             cur_time = max_cur_time;
-
-            /* account for potential inter-io delay */
-            cur_time += inter_io_delay / 
-                (coll_read_cnt + coll_write_cnt + ind_read_cnt + ind_write_cnt - 1);
-
-            if ((coll_reads == coll_read_cnt) && (coll_writes == coll_write_cnt))
-                break;
+            if (i != (ind_io_ops_this_cycle - 1))
+                cur_time += (inter_io_delay / (((double)ind_io_ops_this_cycle / nprocs) - 1));
         }
     }
 
-    if (ind_read_cnt || ind_write_cnt)
+    /* reset the static rw flag if this is the last open-close cycle for this file */
+    if (file->counters[CP_POSIX_OPENS] <= nprocs)
     {
-        /* then assign the independent i/o in round robin manner, starting with random rank */
-        next_event.rank = rand() % nprocs;
-        while (1)
-        {
-            if (ind_reads == ind_read_cnt)
-            {
-                rw = 1; /* write */
-            }
-            else if (ind_writes == ind_write_cnt)
-            {
-                rw = 0; /* read */
-            }
-            else if ((ind_reads != 0) || (ind_writes != 0))
-            {
-                /* else we have reads and writes to perform */
-                if (((double)rand() / (double)RAND_MAX - 1) < rw_switch)
-                {
-                    /* toggle read/write flag */
-                    rw ^= 1;
-                }
-            }
-
-            /* determin i/o params then generate i/o event */
-            determine_io_params(file, rw, 1, 1, &io_sz, &io_off);
-            if (!rw)
-            {
-                /* generate a read event */
-                next_event.type = POSIX_READ;
-                next_event.start_time = cur_time;
-                next_event.event_params.read.file = file->hash;
-                next_event.event_params.read.size = io_sz;
-                next_event.event_params.read.offset = io_off;
-                ind_reads++;
-                num_reads++;
-
-                /* set the end time based on observed bandwidth and io size */
-                next_event.end_time = (next_event.event_params.read.size / rd_bw);
-            }
-            else
-            {
-                /* generate a write event */
-                next_event.type = POSIX_WRITE;
-                next_event.start_time = cur_time;
-                next_event.event_params.write.file = file->hash;
-                next_event.event_params.write.size = io_sz;
-                next_event.event_params.write.offset = io_off;
-                ind_writes++;
-                num_writes++;
-
-                /* set the end time based on observed bandwidth and io size */
-                next_event.end_time = (next_event.event_params.write.size / wr_bw);
-            }
-
-            if (next_event.end_time > max_cur_time)
-                max_cur_time = next_event.end_time;
-
-            /* store the i/o event */
-            assert(file_event_list_cnt != file_event_list_max);
-            file_event_list[file_event_list_cnt++] = next_event;
-
-            /* sync rank times if we start a new cycle of independent i/o */
-            if (!((ind_reads + ind_writes) % nprocs))
-                cur_time = max_cur_time;
-
-            if ((ind_reads == ind_read_cnt) && (ind_writes == ind_write_cnt))
-                break;
-
-            /* account for potential inter-io delay */
-            cur_time += inter_io_delay / 
-                (coll_read_cnt + coll_write_cnt + ind_read_cnt + ind_write_cnt - 1);
-
-            next_event.rank = (next_event.rank + 1) % nprocs;
-        }
+        rw = -1;
     }
-#endif
+    else if ((rw_switch == 0.0) && file->counters[CP_RW_SWITCHES] &&
+             (next_switch_ndx == open_ndx + 1))
+    {
+        rw ^= 1;
+        file->counters[CP_RW_SWITCHES] -= nprocs;
+        next_switch_ndx += ceil((((double)file->counters[CP_POSIX_OPENS] - nprocs) / nprocs) /
+                                (((double)file->counters[CP_RW_SWITCHES] / nprocs) + 1));
+    }
 
-    return cur_time;
+    return max_cur_time;
 }
 
 void determine_io_params(struct darshan_file *file,
@@ -1430,6 +1337,7 @@ void determine_io_params(struct darshan_file *file,
     if (*total_io_size == 0)
     {
         *io_sz = 0;
+        size_bins[0]--;
     }
     else if (common_size == *total_io_size)
     {
@@ -1514,17 +1422,10 @@ void determine_io_params(struct darshan_file *file,
             /* we need to assign a random value to this i/o operation */
             else
             {
-            *io_sz = (size_t)(rand() % (*total_io_size - min_io_size_req)) +
-                     bin_min_size[rand_ndx];
+                *io_sz = (size_t)(rand() % (*total_io_size - min_io_size_req)) +
+                         bin_min_size[rand_ndx];
             }
         }
-
-       /*  TODO: this code fails. this algorithm does not ensure that the i/o for the last op will
-        *        fit in the remaining size bin.
-        assert(*io_sz >= bin_min_size[size_bins_ndx]);
-        if (size_bins_ndx < 9)
-            assert(*io_sz < bin_min_size[size_bins_ndx + 1]);
-        */
 
         if ((rand_ndx >= 0) && size_bins[rand_ndx])
             size_bins[rand_ndx]--;
@@ -1565,12 +1466,14 @@ void determine_io_params(struct darshan_file *file,
     else
         *io_off = 0;
 
-    /* reset static variables if this is the last open for a file */
-    if (opens_remaining == 1)
+    /* reset static variable if this is the last i/o op for this file */
+    if ((file->counters[CP_POSIX_READS] + file->counters[CP_POSIX_WRITES]) == 1)
     {
-        common_list_ndx = 0;
         next_r_off = next_w_off = 0;
+        seq_io_flag = 0;
+        common_list_ndx = 0;
     }
+
 
     return;
 }
