@@ -11,11 +11,13 @@
 
 #include "uthash-1.9.2/src/uthash.h"
 
-#define PRINT 1
-
 #define DEF_INTER_IO_DELAY_PCT 0.2
 #define DEF_INTER_CYC_DELAY_PCT 0.4
-#define RANKS_PER_IO_AGGREGATOR 4
+
+#define IS_IN_SIZE_BIN_RANGE(size, bin_ndx, bin_min_sizes)                         \
+        ((bin_ndx == 9) ?                                                          \
+        (size >= bin_min_sizes[bin_ndx]) :                                         \
+        ((size >= bin_min_sizes[bin_ndx]) && (size < bin_min_sizes[bin_ndx + 1])))
 
 typedef struct
 {
@@ -62,7 +64,7 @@ double generate_psx_coll_io_events(struct darshan_file *file,
 
 void determine_io_params(struct darshan_file *file,
                          int write_flag,
-                         int64_t opens_remaining,
+                         int64_t remaining_coll_ops,
                          size_t *io_sz,
                          off_t *io_off);
 
@@ -91,54 +93,50 @@ static int64_t rank_event_list_max = 0;
 static struct darshan_event *file_event_list = NULL;
 static int64_t file_event_list_cnt = 0;
 static int64_t file_event_list_max = 0;
-
 static uint64_t *header_buf = NULL;
-
 static int64_t app_run_time = 0;
 static int64_t nprocs = 0;
 static int64_t start_time = 0;
-
 static hash_entry_t *created_files_hash = NULL;
 
-/* check variables */
+/* global options which may be specified on command line */
+static int64_t opt_agg_count = 16;
+static int opt_verbose = 0;
+
+/* variables to print out per-file statistics */
 int64_t total_events = 0;
-int64_t num_opens = 0, num_reads = 0, num_writes = 0, num_barriers = 0;
+int64_t file_num_opens = 0, file_num_reads = 0, file_num_writes = 0;
+int64_t file_bytes_read = 0, file_bytes_written = 0;
 
 /** */
 
 int usage(char *exename)
 {
-    fprintf(stderr, "Usage: %s --log <log_filename> --out <output_filename>\n", exename);
+    fprintf(stderr, "Usage: %s [options] <log_filename> <trace_filename>\n", exename);
+    fprintf(stderr, "\n\tOptions:\n");
+    fprintf(stderr, "\t-a [aggregator_count] - max number of collective aggregators to use\n");
+    fprintf(stderr, "\t-v - verbose printing of each generated event\n");
 
     exit(1);
 }
 
 void parse_args(int argc, char **argv, char **log_file, char **out_file)
 {
-    int index;
-    static struct option long_opts[] =
-    {
-        {"log", 1, NULL, 'l'},
-        {"out", 1, NULL, 'o'},
-        {"help", 0, NULL, 0},
-        {0, 0, 0, 0}
-    };
-
     *log_file = NULL;
     *out_file = NULL;
     while (1)
     {
-        int c = getopt_long(argc, argv, "", long_opts, &index);
+        int c = getopt(argc, argv, "a:v");
 
         if (c == -1) break;
 
         switch (c)
         {
-            case 'l':
-                *log_file = optarg;
+            case 'a':
+                opt_agg_count = atoll(optarg);
                 break;
-            case 'o':
-                *out_file = optarg;
+            case 'v':
+                opt_verbose = 1;
                 break;
             case 0:
             case '?':
@@ -148,10 +146,13 @@ void parse_args(int argc, char **argv, char **log_file, char **out_file)
         }
     }
 
-    if (optind < argc || !(*log_file) || !(*out_file))
+    if ((optind + 2) != argc)
     {
         usage(argv[0]);
     }
+
+    *log_file = argv[optind];
+    *out_file = argv[optind + 1];
 
     return;
 }
@@ -266,6 +267,10 @@ int main(int argc, char *argv[])
         {
            generate_psx_coll_file_events(&next_file);
         }
+
+        /* print out events, if verbose option turned on */
+        if (opt_verbose)
+            print_events(file_event_list, file_event_list_cnt);
 
         /* if the rank is the same as the previous rank, just merge their events together */
         if (next_file.rank == last_rank)
@@ -963,7 +968,11 @@ double generate_psx_open_event(struct darshan_file *file,
     /* store the open event */
     assert(file_event_list_cnt != file_event_list_max);
     file_event_list[file_event_list_cnt++] = next_event;
-    num_opens++;
+
+    if (file->rank > -1)
+        file_num_opens++;
+    else
+        file_num_opens += nprocs;
 
     return cur_time;
 }
@@ -1018,7 +1027,7 @@ double generate_psx_ind_io_events(struct darshan_file *file,
     /* loop to generate all reads/writes for this open/close sequence */
     for (i = 0; i < io_ops_this_cycle; i++)
     {
-        determine_io_params(file, rw, file->counters[CP_POSIX_OPENS], &io_sz, &io_off);
+        determine_io_params(file, rw, 0, &io_sz, &io_off);
         if (!rw)
         {
             /* generate a read event */
@@ -1037,8 +1046,9 @@ double generate_psx_ind_io_events(struct darshan_file *file,
             /* update time, accounting for metadata time */
             cur_time += (io_op_time + meta_op_time);
             next_event.end_time = cur_time;
-            num_reads++;
+            file_num_reads++;
             file->counters[CP_POSIX_READS]--;
+            file_bytes_read += (int64_t)io_sz;
         }
         else
         {
@@ -1059,8 +1069,9 @@ double generate_psx_ind_io_events(struct darshan_file *file,
             /* update time, accounting for metadata time */
             cur_time += (io_op_time + meta_op_time);
             next_event.end_time = cur_time;
-            num_writes++;
+            file_num_writes++;
             file->counters[CP_POSIX_WRITES]--;
+            file_bytes_written += (int64_t)io_sz;
         }
         psx_rw_ops_remaining--;
         assert(file->counters[CP_POSIX_READS] >= 0);
@@ -1090,7 +1101,7 @@ double generate_psx_ind_io_events(struct darshan_file *file,
         }
 
         /* determine whether to toggle between reads and writes */
-        if (((double)rand() / (RAND_MAX - 1)) < rw_switch)
+        if (((double)rand() / (double)(RAND_MAX + 1.0)) < rw_switch)
         {
             /* toggle the read/write flag */
             rw ^= 1;
@@ -1138,13 +1149,14 @@ double generate_psx_coll_io_events(struct darshan_file *file,
     int64_t ind_io_ops_this_cycle;
     int64_t coll_io_ops_this_cycle;
     int64_t next_ind_io_rank = 0;
-    int64_t next_coll_io_rank;
     int64_t io_cnt;
-    int64_t aggregator_cnt; /* TODO: ceil(nprocs / RANKS_PER_IO_AGGREGATOR); */
+    int64_t aggregator_cnt;
+    int64_t ranks_per_aggregator = 1;
     double ind_coll_switch;
     double rw_switch;
     double io_op_time;
     double max_cur_time = 0.0;
+    int ind_coll;
     size_t io_sz;
     off_t io_off;
     int64_t i, j;
@@ -1154,7 +1166,8 @@ double generate_psx_coll_io_events(struct darshan_file *file,
     {
         total_ind_io_ops = file->counters[CP_INDEP_READS] + file->counters[CP_INDEP_WRITES];
         total_coll_io_ops = (file->counters[CP_COLL_READS] + file->counters[CP_COLL_WRITES]) / nprocs;
-        aggregator_cnt = 2;
+        aggregator_cnt = opt_agg_count;
+        ranks_per_aggregator = nprocs / aggregator_cnt;
     }
     else
     {
@@ -1204,8 +1217,9 @@ double generate_psx_coll_io_events(struct darshan_file *file,
     for (i = 0; i < total_io_ops_this_cycle; i++)
     {
         ind_coll_switch = ind_io_ops_this_cycle / (total_io_ops_this_cycle - i);
-        if (((double)rand() / (RAND_MAX - 1)) < ind_coll_switch)
+        if (((double)rand() / (double)(RAND_MAX + 1.0)) < ind_coll_switch)
         {
+            ind_coll = 0;
             io_event.rank = (next_ind_io_rank++) % nprocs;
             io_cnt = 1;
             if (!rw)
@@ -1216,9 +1230,10 @@ double generate_psx_coll_io_events(struct darshan_file *file,
         }
         else
         {
+            ind_coll = 1;
             generate_barrier_event(file, 0, cur_time);
 
-            io_event.rank = (rand() % aggregator_cnt) * RANKS_PER_IO_AGGREGATOR;
+            io_event.rank = 0;
             if (!rw)
             {
                 io_cnt = ceil((double)(file->counters[CP_POSIX_READS] -
@@ -1234,12 +1249,12 @@ double generate_psx_coll_io_events(struct darshan_file *file,
                 file->counters[CP_COLL_WRITES] -= nprocs;
             }
             coll_io_ops_this_cycle--;
+            total_coll_io_ops--;
         }
 
         for (j = 0; j < io_cnt; j++)
         {
-            determine_io_params(file, rw, ceil((double)file->counters[CP_POSIX_OPENS] / nprocs), 
-                            &io_sz, &io_off);
+            determine_io_params(file, rw, (ind_coll) ? total_coll_io_ops + 1 : 0, &io_sz, &io_off);
             if (!rw)
             {
                 /* generate a read event */
@@ -1256,8 +1271,9 @@ double generate_psx_coll_io_events(struct darshan_file *file,
                     io_op_time = (io_event.event_params.read.size / rd_bw);
 
                 io_event.end_time = cur_time + io_op_time + meta_op_time;
-                num_reads++;
+                file_num_reads++;
                 file->counters[CP_POSIX_READS]--;
+                file_bytes_read += io_sz;
             }
             else
             {
@@ -1275,8 +1291,9 @@ double generate_psx_coll_io_events(struct darshan_file *file,
                     io_op_time = (io_event.event_params.write.size / wr_bw);
 
                 io_event.end_time = cur_time + io_op_time + meta_op_time;
-                num_writes++;
+                file_num_writes++;
                 file->counters[CP_POSIX_WRITES]--;
+                file_bytes_written += io_sz;
             }
             assert(file->counters[CP_POSIX_READS] >= 0);
             assert(file->counters[CP_POSIX_WRITES] >= 0);
@@ -1288,23 +1305,27 @@ double generate_psx_coll_io_events(struct darshan_file *file,
             if (io_event.end_time > max_cur_time)
                 max_cur_time = io_event.end_time;
 
-            io_event.rank += RANKS_PER_IO_AGGREGATOR;
-            if (io_event.rank >= nprocs)
+            io_event.rank += ranks_per_aggregator;
+            if (io_event.rank >= (ranks_per_aggregator * aggregator_cnt))
                 io_event.rank = 0;
         }
 
         /* determine how often to switch between reads/writes */
-        if (file->counters[CP_RW_SWITCHES] && ((!rw && (file->counters[CP_POSIX_READS] <=
-            (file->counters[CP_RW_SWITCHES] / (2 * cycle_rank_cnt)))) ||
+        if ((file->counters[CP_RW_SWITCHES] / aggregator_cnt) && 
+            ((!rw && (file->counters[CP_POSIX_READS] <= 
+            (file->counters[CP_RW_SWITCHES] / (2 * aggregator_cnt)))) ||
             (rw && (file->counters[CP_POSIX_WRITES] <=
-            (file->counters[CP_RW_SWITCHES] / (2 * cycle_rank_cnt))))))
+            (file->counters[CP_RW_SWITCHES] / (2 * aggregator_cnt))))))
         {
             rw_switch = 1.0;
         }
         else if (!(file->counters[CP_RW_SWITCHES]) ||
-                 (file->counters[CP_RW_SWITCHES] < file->counters[CP_POSIX_OPENS]) ||
-                 (!rw && (file->counters[CP_RW_SWITCHES] == 1) && file->counters[CP_POSIX_READS]) ||
-                 (rw && (file->counters[CP_RW_SWITCHES] == 1) && file->counters[CP_POSIX_WRITES]))
+                 ((file->counters[CP_RW_SWITCHES] / aggregator_cnt) <
+                  (file->counters[CP_POSIX_OPENS] / nprocs)) ||
+                 (!rw && (file->counters[CP_RW_SWITCHES] == aggregator_cnt) &&
+                  file->counters[CP_POSIX_READS]) ||
+                 (rw && (file->counters[CP_RW_SWITCHES] == aggregator_cnt) &&
+                  file->counters[CP_POSIX_WRITES]))
         {
             rw_switch = 0.0;
         }
@@ -1315,7 +1336,7 @@ double generate_psx_coll_io_events(struct darshan_file *file,
         }
 
         /* determine whether to toggle between reads and writes */
-        if (((double)rand() / (RAND_MAX - 1)) < rw_switch)
+        if (((double)rand() / (double)(RAND_MAX + 1.0)) < rw_switch)
         {
             /* toggle the read/write flag */
             rw ^= 1;
@@ -1333,7 +1354,7 @@ double generate_psx_coll_io_events(struct darshan_file *file,
     {
         rw = -1;
     }
-    else if ((rw_switch == 0.0) && file->counters[CP_RW_SWITCHES] &&
+    else if ((rw_switch == 0.0) && (file->counters[CP_RW_SWITCHES] / aggregator_cnt)  &&
              (next_switch_ndx == open_ndx + 1))
     {
         rw ^= 1;
@@ -1347,169 +1368,148 @@ double generate_psx_coll_io_events(struct darshan_file *file,
 
 void determine_io_params(struct darshan_file *file,
                          int write_flag,
-                         int64_t opens_remaining,
+                         int64_t remaining_coll_ops,
                          size_t *io_sz,
                          off_t *io_off)
 {
+    static int seq_rd_flag = -1;
+    static int seq_wr_flag = -1;
     static uint64_t next_r_off = 0;
     static uint64_t next_w_off = 0;
-    static int seq_io_flag = 0;
-    static int common_list_ndx = 0;
-    int64_t common_size = 0;
-    int64_t common_cnt = 0;
+    static int64_t common_access_per_coll[4] = { 0, 0, 0, 0 };
     int64_t *size_bins; /* 10 size bins for io operations */
-    int64_t *common_io_sizes = &(file->counters[CP_ACCESS1_ACCESS]); /* 4 common accesses */
-    int64_t *common_io_counts = &(file->counters[CP_ACCESS1_COUNT]); /* common access counts */
+    int64_t *common_accesses = &(file->counters[CP_ACCESS1_ACCESS]); /* 4 common accesses */
+    int64_t *common_access_counts = &(file->counters[CP_ACCESS1_COUNT]); /* common access counts */
+    int64_t *common_strides = &(file->counters[CP_STRIDE1_STRIDE]); /* 4 common strides */
+    int64_t *common_stride_counts = &(file->counters[CP_STRIDE1_COUNT]); /* common stride counts */
     int64_t *total_io_size;
     int64_t last_io_byte;
     int64_t num_io_ops = 0;
-    int64_t num_zero_ops;
-    int64_t min_io_size_req = 0;
-    int rand_ndx = -1;
-    int i;
+    double gen_rand_val;
+    double weighted_rand_counter = 0.0;
+    int size_bin_ndx;
+    int i, j = 0;
     int64_t bin_min_size[10] = { 0, 100, 1024, 10 * 1024, 100 * 1024, 1024 * 1024, 4 * 1024 * 1024,
-                                 10 * 1024 * 1024, 100 * 1024 * 1024, 1024 * 1024 * 1024};
+                                 10 * 1024 * 1024, 100 * 1024 * 1024, 1024 * 1024 * 1024 };
     int64_t bin_def_size[10] = { 40, 512, 4 * 1024, 60 * 1024, 512 * 1024, 2 * 1024 * 1024,
                                  6 * 1024 * 1024, 40 * 1024 * 1024, 400 * 1024 * 1024,
-                                 1 * 1024 * 1024 * 1024};
+                                 1 * 1024 * 1024 * 1024 };
 
     /* determine which data to use, depending on whether op is read or write */
     if (write_flag)
     {
+        num_io_ops = file->counters[CP_POSIX_WRITES];
         size_bins = &(file->counters[CP_SIZE_WRITE_0_100]);
         total_io_size = &(file->counters[CP_BYTES_WRITTEN]);
         last_io_byte = file->counters[CP_MAX_BYTE_WRITTEN];
-        /* TODO: this doesn't work with collectives yet */
-        if ((file->counters[CP_POSIX_WRITES] - file->counters[CP_POSIX_OPENS] +
-            ((file->counters[CP_RW_SWITCHES] + 1) / 2)) == file->counters[CP_SEQ_WRITES])
-            seq_io_flag = 1;
+
+        if (seq_wr_flag == -1)
+        {
+            if ((file->counters[CP_POSIX_WRITES] -
+                ((*total_io_size - last_io_byte - 1) / (last_io_byte + 1)) - 1) ==
+                file->counters[CP_SEQ_WRITES])
+            {
+                seq_wr_flag = 1;
+            }
+            else
+            {
+                seq_wr_flag = 0;
+            }
+        }
     }
     else
     {
+        num_io_ops = file->counters[CP_POSIX_READS];
         size_bins = &(file->counters[CP_SIZE_READ_0_100]);
         total_io_size = &(file->counters[CP_BYTES_READ]);
         last_io_byte = file->counters[CP_MAX_BYTE_READ];
-        if ((file->counters[CP_POSIX_READS] - file->counters[CP_POSIX_OPENS] +
-            ((file->counters[CP_RW_SWITCHES] + 1) / 2)) == file->counters[CP_SEQ_READS])
-            seq_io_flag = 1;
-    }
 
-    /* determine the total number of i/o ops to service and their minimum size requirements */
-    for (i = 0; i < 10; i++)
-    {
-        num_io_ops += size_bins[i];
-        min_io_size_req += (size_bins[i] * bin_min_size[i]);
-    }
-    assert(num_io_ops > 0);
-
-    /* determine the number and total size of i/o operations stored in common access counters */
-    num_zero_ops = size_bins[0];
-    for (i = 0; i < 4; i++)
-    {
-        common_cnt += common_io_counts[i];
-        common_size += (common_io_sizes[i] * common_io_counts[i]);
-        if ((common_io_sizes[i] > bin_min_size[0]) && (common_io_sizes[i] < bin_min_size[1]))
-            num_zero_ops -= common_io_counts[i];
-    }
-
-    if (*total_io_size == 0)
-    {
-        *io_sz = 0;
-        size_bins[0]--;
-    }
-    else if (common_size >= *total_io_size)
-    {
-        for (i = 0; i < 4; i++)
+        if (seq_rd_flag == -1)
         {
-            if (common_io_counts[(i + common_list_ndx) % 4] / (opens_remaining))
+            if ((file->counters[CP_POSIX_READS] -
+                ((*total_io_size - last_io_byte - 1) / (last_io_byte + 1)) - 1) ==
+                file->counters[CP_SEQ_READS])
             {
-                common_list_ndx = (i + common_list_ndx) % 4;
-                break;
+                seq_rd_flag = 1;
             }
-        }
-
-        if ((i == 4) && (num_zero_ops / (opens_remaining)))
-        {
-            *io_sz = 0;
-            size_bins[0]--;
-            common_list_ndx = 0;
-        }
-        else
-        {
-            *io_sz = common_io_sizes[common_list_ndx];
-            common_io_counts[common_list_ndx]--;
-            for (i = 0; i < 10; i++)
-            {
-                if (((i < 9) && (*io_sz >= bin_min_size[i]) && (*io_sz < bin_min_size[i + 1])) ||
-                    ((i == 9) && (*io_sz >= bin_min_size[i])))
-                {
-                    size_bins[i]--;
-                    break;
-                }
-            }
-        }
-    }
-    else
-    {
-        /* determine which bin to use for this access */
-        rand_ndx = rand() % 10;
-        for (i = 0; i < 10; i++)
-        {
-            if (!(size_bins[rand_ndx]))
-            {
-                rand_ndx = (rand_ndx + 1) % 10;
-            }
-        }
-
-        /* check to see if we can assign a common size instead of a random one */
-        common_list_ndx = -1;
-        for (i = 0; i < 4; i++)
-        {
-            if (common_io_counts[i] &&
-                (((rand_ndx == 9) && (common_io_sizes[i] >= bin_min_size[rand_ndx])) ||
-                ((rand_ndx < 9) && (common_io_sizes[i] >= bin_min_size[rand_ndx]) &&
-                (common_io_sizes[i] < bin_min_size[rand_ndx + 1]))))
-            {
-                common_list_ndx = i;
-                if ((*total_io_size - common_io_sizes[common_list_ndx]) >=
-                    (min_io_size_req - bin_min_size[rand_ndx]))
-                {
-                    *io_sz = (size_t)common_io_sizes[common_list_ndx];
-                    common_io_counts[common_list_ndx]--;
-                    break;
-                }
-                common_list_ndx = -1;
-            }
-        }
-
-        /* if no frequent access counter matches, assign a default or random size from the bin */
-        if (common_list_ndx < 0)
-        {
-            /* try to assign a default i/o size */
-            if ((*total_io_size - bin_def_size[rand_ndx]) >= 
-                (min_io_size_req - bin_min_size[rand_ndx]))
-            {
-                *io_sz = (size_t)bin_def_size[rand_ndx];
-            }
-            /* we need to assign the minimum available size */
-            /* TODO: some cases we allocate all i/o way too early */
-            else if (*total_io_size == min_io_size_req)
-            {
-                *io_sz = (size_t)bin_min_size[rand_ndx];
-            }
-            /* we need to assign a random value to this i/o operation */
             else
             {
-                *io_sz = (size_t)(rand() % (*total_io_size - min_io_size_req)) +
-                         bin_min_size[rand_ndx];
+                seq_rd_flag = 0;
             }
         }
 
-        if ((rand_ndx >= 0) && size_bins[rand_ndx])
-            size_bins[rand_ndx]--;
     }
 
+    /* if there is no I/O left to assign, assign a 0 byte operation */
+    *io_sz = 0;
+    if (*total_io_size > 0)
+    {
+        if (remaining_coll_ops)
+        {
+            for (i = 0; i < 4; i++)
+            {
+                if (common_access_per_coll[i] > 0)
+                {
+                    *io_sz = common_accesses[i];
+                    common_access_counts[i]--;
+                    common_access_per_coll[i]--;
+                    goto size_found;
+                }
+            }
+
+            for (i = 0; i < 4; i++)
+            {
+                common_access_per_coll[i] =
+                    ceil((double)common_access_counts[i] / remaining_coll_ops);
+                if ((*io_sz == 0) && common_access_per_coll[i])
+                {
+                    *io_sz = common_accesses[i];
+                    common_access_counts[i]--;
+                    common_access_per_coll[i]--;
+                }
+            }
+
+            if (*io_sz)
+                goto size_found;
+        }
+
+        gen_rand_val = (double)rand() / (double)(RAND_MAX + 1.0);
+        for (i = 0; i < 10; i++)
+        {
+            weighted_rand_counter += ((double)size_bins[i] / num_io_ops);
+            if (gen_rand_val < weighted_rand_counter)
+                break;
+        }
+
+        size_bin_ndx = i;
+        do
+        {
+            for (i = 0; i < 4; i++)
+            {
+                if (common_access_counts[i] &&
+                    IS_IN_SIZE_BIN_RANGE(common_accesses[i], size_bin_ndx, bin_min_size))
+                {
+                    *io_sz = common_accesses[i];
+                    common_access_counts[i]--;
+                    goto size_found;
+                }
+            }
+
+            j++;
+            size_bin_ndx = (size_bin_ndx + 1) % 10;
+        } while (j < 10);
+
+        assert(!"random size code path has not been tested.\n");
+    }
+    
+size_found:
     *total_io_size -= *io_sz;
+
+    for (i = 0; i < 10; i++)
+    {
+        if (IS_IN_SIZE_BIN_RANGE(*io_sz, i, bin_min_size))
+            size_bins[i]--;
+    }
 
     /* next, determine the offset to use */
 
@@ -1517,39 +1517,42 @@ void determine_io_params(struct darshan_file *file,
      *  last byte written in the file.
      */
     if (*io_sz == 0)
-        *io_off = last_io_byte + 1;
-    else if (seq_io_flag)
     {
-        if (write_flag)
-        {
-            if ((next_w_off + *io_sz) > (last_io_byte + 1))
-                next_w_off = 0;
+        *io_off = last_io_byte + 1;
+    }
+    else if (write_flag && seq_wr_flag)
+    {
+        if ((next_w_off + *io_sz) > (last_io_byte + 1))
+            next_w_off = 0;
 
-            *io_off = next_w_off;
-            next_w_off += *io_sz;
-        }
-        else
-        {
-            if ((next_r_off + *io_sz) > (last_io_byte + 1))
-                next_r_off = 0;
+        *io_off = next_w_off;
+        next_w_off += *io_sz;
+    }
+    else if (!write_flag && seq_rd_flag)
+    {
+        if ((next_r_off + *io_sz) > (last_io_byte + 1))
+            next_r_off = 0;
 
-            *io_off = next_r_off;
-            next_r_off += *io_sz;
-        }
+        *io_off = next_r_off;
+        next_r_off += *io_sz;
     }
     else if (*io_sz < last_io_byte)
+    {
         *io_off = (off_t)rand() % (last_io_byte - *io_sz);
+    }
     else
+    {
         *io_off = 0;
+    }
 
     /* reset static variable if this is the last i/o op for this file */
     if ((file->counters[CP_POSIX_READS] + file->counters[CP_POSIX_WRITES]) == 1)
     {
         next_r_off = next_w_off = 0;
-        seq_io_flag = 0;
-        common_list_ndx = 0;
+        seq_wr_flag = seq_rd_flag = -1;
+        for (i = 0; i < 4; i++)
+            common_access_per_coll[i] = 0;
     }
-
 
     return;
 }
@@ -1595,7 +1598,6 @@ double generate_barrier_event(struct darshan_file *file,
     /* store the barrier event */
     assert(file_event_list_cnt != file_event_list_max);
     file_event_list[file_event_list_cnt++] = next_event;
-    num_barriers++;
 
     return cur_time;
 }
@@ -1724,9 +1726,6 @@ int store_rank_events(int event_file_fd,
         return -1;
     }
 
-#if PRINT
-    print_events(rank_event_list, rank_event_list_cnt);
-#endif
     rank_event_list_cnt = 0;
     
     return 0;
@@ -1791,15 +1790,27 @@ int print_events(struct darshan_event *event_list,
         }
         else if (event_list[i].type == BARRIER)
         {
+            printf("** **\n");
+#if 0
             printf("**BARRIER** [nprocs = %"PRId64", root = %"PRId64"] (%lf - %lf)\n",
                    event_list[i].event_params.barrier.proc_count,
                    event_list[i].event_params.barrier.root,
                    event_list[i].start_time,
                    event_list[i].end_time);
+#endif
         }
     }
 
+    printf("\n-------COUNTERS-------\n");
+    printf("\nPOSIX_OPENS: %"PRId64"\nPOSIX_READS: %"PRId64"\nPOSIX_WRITES: %"PRId64"\n",
+           file_num_opens, file_num_reads, file_num_writes);
+    printf("BYTES_READ: %"PRId64"\nBYTES_WRITTEN: %"PRId64"\n",
+           file_bytes_read, file_bytes_written);
+
     printf("\n*****\n*****\n\n");
+
+    file_num_opens = file_num_reads = file_num_writes = 0;
+    file_bytes_read = file_bytes_written = 0;
 
     return 0;
 }
