@@ -45,7 +45,8 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
         {"obfuscate", 0, NULL, 'o'},
         {"key", 1, NULL, 'k'},
         {"file", 1, NULL, 'f'},
-        {"help",  0, NULL, 0}
+        {"help",  0, NULL, 0},
+        { 0, 0, 0, 0 }
     };
 
     *hash = 0;
@@ -131,13 +132,26 @@ void add_annotation (char *annotation,
 {
     char *token;
     char *save;
+    
+    /* determine remaining space in metadata string */
+    int remaining = sizeof(job->metadata) - strlen(job->metadata);
 
     for(token=strtok_r(annotation, "\t", &save);
         token != NULL;
         token=strtok_r(NULL, "\t", &save))
     {
-        strcat(job->metadata, token);
-        strcat(job->metadata, "\n");
+        if ((strlen(token)+1) < remaining)
+        {
+            strcat(job->metadata, token);
+            strcat(job->metadata, "\n");
+            remaining -= (strlen(token)+1);
+        }
+        else
+        {
+            fprintf(stderr,
+                    "not enough space left in metadata for: current=%s token=%s (remain=%d:need=%d)\n",
+                    job->metadata, token, remaining-1, strlen(token)+1);
+        }
     }
 
     return;
