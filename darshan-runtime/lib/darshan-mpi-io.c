@@ -28,6 +28,7 @@
 #include "mpi.h"
 #include "darshan.h"
 #include "darshan-dynamic.h"
+#include "darshan-ext.h"
 
 extern char* __progname;
 
@@ -2484,6 +2485,35 @@ void darshan_mnt_id_from_path(const char* path, int64_t* device_id, int64_t* blo
     return;
 }
 
+static int epoch_counter = 0;
+
+void darshan_start_epoch(void)
+{
+    int nprocs, rank;
+
+    if(darshan_global_job)
+    {
+        /* darshan instrumentation already on; turn it off */
+        darshan_finalize(darshan_global_job);
+        darshan_global_job = NULL;
+    }
+
+    epoch_counter++;
+
+    DARSHAN_MPI_CALL(PMPI_Comm_size)(MPI_COMM_WORLD, &nprocs);
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
+
+    darshan_initialize(0, NULL, nprocs, rank);
+
+    return;
+}
+
+void darshan_end_epoch(void)
+{
+    darshan_shutdown(0);
+    darshan_global_job = NULL;
+    return;
+}
 /*
  * Local variables:
  *  c-indent-level: 4
