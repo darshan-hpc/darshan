@@ -4,8 +4,12 @@ Darshan Release Change Log
 
 darshan-2.2.9-pre1
 =============
-* Fix mnt table overflow if a large number of file systems are mounted, 
-  reported by David Shrader.
+* Bug fixes:
+  - Fix mnt table overflow if a large number of file systems are mounted, 
+    reported by David Shrader.
+  - Fix argument parsing for darshan-convert, reported by Mouhamed Gueye.
+  - Fix metadata annotation overflow in darshan-convert, reported by 
+    Mouhamed Gueye.
 
 darshan-2.2.8
 =============
