@@ -228,6 +228,8 @@ struct variance_dt
     double S;
 };
 
+static int epoch_counter = 0;
+
 void darshan_mpi_initialize(int *argc, char ***argv)
 {
     int nprocs;
@@ -269,7 +271,7 @@ void darshan_mpi_initialize(int *argc, char ***argv)
     return;
 }
 
-void darshan_shutdown(int timing_flag)
+void darshan_shutdown_epoch(int timing_flag)
 {
     int rank;
     char* logfile_name;
@@ -298,6 +300,7 @@ void darshan_shutdown(int timing_flag)
     char* env_tok;
 #endif
     uint64_t hlevel;
+    static int epoch_idx = 0;
 
     CP_LOCK();
     if(!darshan_global_job)
@@ -309,7 +312,8 @@ void darshan_shutdown(int timing_flag)
      * write it out
      */
     final_job = darshan_global_job;
-    darshan_global_job = NULL;
+    //  Moved to the new darshan_shutdown   
+    //    darshan_global_job = NULL;
     CP_UNLOCK();
 
     start_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
@@ -470,14 +474,25 @@ void darshan_shutdown(int timing_flag)
        
         if(logpath_override)
         {
-            ret = snprintf(logfile_name, PATH_MAX, 
-                "%s/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
-                logpath_override, 
-                cuser, __progname, jobid,
-                (my_tm->tm_mon+1), 
-                my_tm->tm_mday, 
-                (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
-                logmod);
+	    if (epoch_counter > 0)
+		ret = snprintf(logfile_name, PATH_MAX, 
+		    "%s/%s_%s_id%d_epoch%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+		    logpath_override, 
+		    cuser, __progname, jobid, epoch_idx++,
+                    (my_tm->tm_mon+1), 
+                    my_tm->tm_mday, 
+                    (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
+                    logmod);
+ 
+	    else
+		ret = snprintf(logfile_name, PATH_MAX, 
+                    "%s/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                    logpath_override, 
+                    cuser, __progname, jobid,
+                    (my_tm->tm_mon+1), 
+                    my_tm->tm_mday, 
+                    (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
+                    logmod);
             if(ret == (PATH_MAX-1))
             {
                 /* file name was too big; squish it down */
@@ -488,15 +503,27 @@ void darshan_shutdown(int timing_flag)
         }
         else if(logpath)
         {
-            ret = snprintf(logfile_name, PATH_MAX, 
-                "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
-                logpath, (my_tm->tm_year+1900), 
-                (my_tm->tm_mon+1), my_tm->tm_mday, 
-                cuser, __progname, jobid,
-                (my_tm->tm_mon+1), 
-                my_tm->tm_mday, 
-                (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
-                logmod);
+	    if (epoch_counter > 0)	    
+		ret = snprintf(logfile_name, PATH_MAX, 
+		    "%s/%d/%d/%d/%s_%s_id%d_epoch%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                    logpath, (my_tm->tm_year+1900), 
+                    (my_tm->tm_mon+1), my_tm->tm_mday, 
+		    cuser, __progname, jobid, epoch_idx++,
+                    (my_tm->tm_mon+1), 
+                    my_tm->tm_mday, 
+                    (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
+                    logmod);
+	    else
+		ret = snprintf(logfile_name, PATH_MAX, 
+		    "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                    logpath, (my_tm->tm_year+1900), 
+                    (my_tm->tm_mon+1), my_tm->tm_mday, 
+                    cuser, __progname, jobid,
+                    (my_tm->tm_mon+1), 
+                    my_tm->tm_mday, 
+                    (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
+                    logmod);
+
             if(ret == (PATH_MAX-1))
             {
                 /* file name was too big; squish it down */
@@ -616,11 +643,13 @@ void darshan_shutdown(int timing_flag)
         }
     }
 
-    if(final_job->trailing_data)
-        free(final_job->trailing_data);
-    mnt_data_count = 0;
+    //  Moved to the new darshan_shutdown   
+    // if(final_job->trailing_data)
+    //    free(final_job->trailing_data);
+    // mnt_data_count = 0;
     free(logfile_name);
-    darshan_finalize(final_job);
+    //  Moved to the new darshan_shutdown 
+    //    darshan_finalize(final_job);
     
     if(timing_flag)
     {
@@ -2485,35 +2514,135 @@ void darshan_mnt_id_from_path(const char* path, int64_t* device_id, int64_t* blo
     return;
 }
 
-static int epoch_counter = 0;
+
+// Keep counters for each epoch
+
+#define DARSHAN_MAX_EPOCHS 128
+
+struct darshan_file epoch_file_array[DARSHAN_MAX_EPOCHS][CP_MAX_FILES];
+struct darshan_file_runtime epoch_file_runtime_array[DARSHAN_MAX_EPOCHS][CP_MAX_FILES];
+int epoch_file_count[DARSHAN_MAX_EPOCHS];
+
+static void darshan_reset_counters(){
+
+	int i;
+	
+	for (i=0; i<darshan_global_job->file_count; i++){
+	    int64_t mode = darshan_global_job->file_array[i].counters[CP_MODE];
+	    int64_t device = darshan_global_job->file_array[i].counters[CP_DEVICE];
+	    double open_timestamp = darshan_global_job->file_array[i].fcounters[CP_F_OPEN_TIMESTAMP];
+
+	    memset(darshan_global_job->file_array[i].counters, 0, 
+		   sizeof(int64_t)*CP_NUM_INDICES); 
+	    memset(darshan_global_job->file_array[i].fcounters, 0, 
+		   sizeof(double)*CP_F_NUM_INDICES); 
+	    darshan_global_job->file_array[i].counters[CP_MODE] = mode;
+	    darshan_global_job->file_array[i].counters[CP_DEVICE] = device;
+	    darshan_global_job->file_array[i].fcounters[CP_F_OPEN_TIMESTAMP] = open_timestamp;
+
+	    darshan_global_job->file_runtime_array[i].access_root = NULL;
+	    darshan_global_job->file_runtime_array[i].access_count = 0;
+	    darshan_global_job->file_runtime_array[i].stride_root = NULL;
+	    darshan_global_job->file_runtime_array[i].stride_count = 0;
+	    darshan_global_job->file_runtime_array[i].last_byte_read = 0;
+	    darshan_global_job->file_runtime_array[i].last_byte_written = 0;
+	    //		darshan_global_job->file_runtime_array[i].offset = 0;
+	    darshan_global_job->file_runtime_array[i].last_io_type = 0;
+	    darshan_global_job->file_runtime_array[i].last_posix_write_end = 0;
+	    darshan_global_job->file_runtime_array[i].last_mpi_write_end = 0;
+	    darshan_global_job->file_runtime_array[i].last_posix_read_end = 0;
+	    darshan_global_job->file_runtime_array[i].last_mpi_read_end = 0;
+	    darshan_global_job->file_runtime_array[i].last_posix_meta_end = 0;
+	    darshan_global_job->file_runtime_array[i].last_mpi_meta_end = 0;
+	    darshan_global_job->file_runtime_array[i].aio_list_head = NULL;
+	    darshan_global_job->file_runtime_array[i].aio_list_tail = NULL;
+	}
+   
+}
+
 
 void darshan_start_epoch(void)
 {
-    int nprocs, rank;
 
-    if(darshan_global_job)
-    {
-        /* darshan instrumentation already on; turn it off */
-        darshan_finalize(darshan_global_job);
-        darshan_global_job = NULL;
+ 
+    CP_LOCK();
+    if (epoch_counter == 0){
+	memset(epoch_file_array, 0, 
+	       sizeof(struct darshan_file)*CP_MAX_FILES*DARSHAN_MAX_EPOCHS);
+	memset(epoch_file_runtime_array, 0, 
+	       sizeof(struct darshan_file_runtime)*CP_MAX_FILES*DARSHAN_MAX_EPOCHS);
     }
-
-    epoch_counter++;
-
-    DARSHAN_MPI_CALL(PMPI_Comm_size)(MPI_COMM_WORLD, &nprocs);
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
-
-    darshan_initialize(0, NULL, nprocs, rank);
-
+    darshan_reset_counters();
+    CP_UNLOCK();
     return;
 }
 
 void darshan_end_epoch(void)
 {
-    darshan_shutdown(0);
-    darshan_global_job = NULL;
+    int i;
+
+    CP_LOCK();
+    memcpy(epoch_file_array[epoch_counter],
+	   darshan_global_job->file_array,
+	   darshan_global_job->file_count* sizeof(struct darshan_file));
+    memcpy(epoch_file_runtime_array[epoch_counter],
+	   darshan_global_job->file_runtime_array,
+	   darshan_global_job->file_count* sizeof(struct darshan_file_runtime));
+    epoch_file_count[epoch_counter] = darshan_global_job->file_count;
+    epoch_counter++;
+    CP_UNLOCK();
     return;
 }
+
+void darshan_shutdown(int timing_flag)
+{
+    
+    if (!epoch_counter)
+	darshan_shutdown_epoch(0);
+    else {
+	int i,j;
+
+	for(i=0; i<epoch_counter; i++){
+	    CP_LOCK();
+	    darshan_global_job->file_count = epoch_file_count[i];
+	    memcpy(darshan_global_job->file_array,
+		   epoch_file_array[i],
+		   darshan_global_job->file_count* sizeof(struct darshan_file));
+	    // Can not copy to avoid destroying the hash table pointers
+	    for (j=0; j<darshan_global_job->file_count; j++) {
+		darshan_global_job->file_runtime_array[j].log_file = epoch_file_runtime_array[i][j].log_file;
+		darshan_global_job->file_runtime_array[j].access_root = epoch_file_runtime_array[i][j].access_root;
+		darshan_global_job->file_runtime_array[j].access_count = epoch_file_runtime_array[i][j].access_count;
+		darshan_global_job->file_runtime_array[j].stride_root = epoch_file_runtime_array[i][j].stride_root ;
+		darshan_global_job->file_runtime_array[j].stride_count = epoch_file_runtime_array[i][j].stride_count;
+		darshan_global_job->file_runtime_array[j].last_byte_read = epoch_file_runtime_array[i][j].last_byte_read;
+		darshan_global_job->file_runtime_array[j].last_byte_written = epoch_file_runtime_array[i][j].last_byte_written;
+		darshan_global_job->file_runtime_array[j].offset = epoch_file_runtime_array[i][j].offset;
+		darshan_global_job->file_runtime_array[j].last_io_type = epoch_file_runtime_array[i][j].last_io_type;
+		darshan_global_job->file_runtime_array[j].last_posix_write_end = epoch_file_runtime_array[i][j].last_posix_write_end;
+		darshan_global_job->file_runtime_array[j].last_mpi_write_end = epoch_file_runtime_array[i][j].last_mpi_write_end;
+		darshan_global_job->file_runtime_array[j].last_posix_read_end = epoch_file_runtime_array[i][j].last_posix_read_end;
+		darshan_global_job->file_runtime_array[j].last_mpi_read_end = epoch_file_runtime_array[i][j].last_mpi_read_end;
+		darshan_global_job->file_runtime_array[j].last_posix_meta_end = epoch_file_runtime_array[i][j].last_posix_meta_end;
+		darshan_global_job->file_runtime_array[j].last_mpi_meta_end = epoch_file_runtime_array[i][j].last_mpi_meta_end;
+		darshan_global_job->file_runtime_array[j].aio_list_head = epoch_file_runtime_array[i][j].aio_list_head;
+		darshan_global_job->file_runtime_array[j].aio_list_tail = epoch_file_runtime_array[i][j].aio_list_tail;
+	    }
+	    CP_UNLOCK();
+	    darshan_shutdown_epoch(0);
+	}
+	
+    }
+    // Moved here from previous darshan_shutdown
+    CP_LOCK();
+    if (darshan_global_job->trailing_data)
+	free(darshan_global_job->trailing_data);
+    mnt_data_count = 0;
+    darshan_finalize(darshan_global_job);
+    darshan_global_job = NULL;
+    CP_UNLOCK();
+}
+
 /*
  * Local variables:
  *  c-indent-level: 4
