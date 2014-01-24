@@ -1562,6 +1562,11 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size, e
     return;
 }
 
+/* NOTE: we disable internal benchmarking routines when building shared
+ * libraries so that when Darshan is loaded with LD_PRELOAD it does not
+ * depend on MPI routines.
+ */
+#ifndef DARSHAN_PRELOAD
 void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs)
 {
     int* fd_array;
@@ -1700,6 +1705,7 @@ void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs)
 
     return;
 }
+#endif
 
 void darshan_search_bench(int argc, char** argv, int iters)
 {
