@@ -12,6 +12,8 @@ darshan-2.2.9-pre1
     Mouhamed Gueye.
   - Fix const-correctness in dynamic library when built against MPI 3.x
     libraries.
+  - Fix "undefined symbol: dlsym" error when using preloaded dynamic library
+    on some platforms, reported by Florin Isaila.
 
 darshan-2.2.8
 =============
