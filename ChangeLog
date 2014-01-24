@@ -10,6 +10,8 @@ darshan-2.2.9-pre1
   - Fix argument parsing for darshan-convert, reported by Mouhamed Gueye.
   - Fix metadata annotation overflow in darshan-convert, reported by 
     Mouhamed Gueye.
+  - Fix const-correctness in dynamic library when built against MPI 3.x
+    libraries.
 
 darshan-2.2.8
 =============
