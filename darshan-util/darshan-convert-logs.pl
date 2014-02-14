@@ -5,7 +5,9 @@
 #
 # Convert a list of logs and add metadata from another file.
 #
-# List of Logs: logfile path, one per line.
+# List of Logs: logfile path, one per line.  This can be generated with a 
+#           command like "find <path> -name "*.gz"".  Make sure that the
+#           resulting list does not include .partial files.
 #	/path/to/log1
 #	/path/to/log2
 #
