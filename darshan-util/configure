@@ -4096,7 +4096,7 @@ done
 
 
 
-ac_config_files="$ac_config_files Makefile darshan-job-summary/bin/darshan-job-summary.pl"
+ac_config_files="$ac_config_files Makefile darshan-job-summary/bin/darshan-job-summary.pl maint/darshan-util.pc"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -4792,6 +4792,7 @@ do
     "darshan-util-config.h") CONFIG_HEADERS="$CONFIG_HEADERS darshan-util-config.h" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "darshan-job-summary/bin/darshan-job-summary.pl") CONFIG_FILES="$CONFIG_FILES darshan-job-summary/bin/darshan-job-summary.pl" ;;
+    "maint/darshan-util.pc") CONFIG_FILES="$CONFIG_FILES maint/darshan-util.pc" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

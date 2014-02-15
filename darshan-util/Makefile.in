@@ -10,6 +10,7 @@ mandir = $(DESTDIR)@mandir@
 sbindir = $(DESTDIR)@sbindir@
 bindir = $(DESTDIR)@bindir@
 libdir = $(DESTDIR)@libdir@
+pkgconfigdir = $(DESTDIR)$(libdir)/pkgconfig
 
 DISABLE_LDPRELOAD = @DISABLE_LDPRELOAD@
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
@@ -73,6 +74,7 @@ install:: all
 	install -d $(bindir)
 	install -d $(libdir)
 	install -d $(includedir)
+	install -d $(pkgconfigdir)
 	install -m 755 darshan-parser $(bindir)
 	install -m 755 darshan-convert $(bindir)
 	install -m 755 darshan-diff $(bindir)
@@ -89,6 +91,7 @@ install:: all
 	install -m 644 $(srcdir)/darshan-job-summary/lib/Number/Bytes/Human.pm $(libdir)/Number/Bytes
 	install -d $(datarootdir)
 	install -m 644 $(srcdir)/darshan-job-summary/share/* $(datarootdir)
+	install -m 644 $(srcdir)/maint/darshan-util.pc $(pkgconfigdir)
 
 
 clean::

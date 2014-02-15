@@ -69,6 +69,7 @@ AC_SUBST(__CP_ZLIB_INCLUDE_FLAGS)
 AC_SUBST(__CP_PDFLATEX_HALT_ON_ERROR)
 AC_OUTPUT(Makefile
 darshan-job-summary/bin/darshan-job-summary.pl
+maint/darshan-util.pc
 )
 
 if test x$HAVE_PDFLATEX != xyes; then
