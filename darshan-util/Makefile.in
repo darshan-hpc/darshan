@@ -91,7 +91,7 @@ install:: all
 	install -m 644 $(srcdir)/darshan-job-summary/lib/Number/Bytes/Human.pm $(libdir)/Number/Bytes
 	install -d $(datarootdir)
 	install -m 644 $(srcdir)/darshan-job-summary/share/* $(datarootdir)
-	install -m 644 $(srcdir)/maint/darshan-util.pc $(pkgconfigdir)
+	install -m 644 maint/darshan-util.pc $(pkgconfigdir)
 
 
 clean::
