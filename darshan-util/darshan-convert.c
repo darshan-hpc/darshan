@@ -132,7 +132,19 @@ void add_annotation (char *annotation,
 {
     char *token;
     char *save;
+    int len;
     
+    /* check for newline in existing metadata, insert if needed */
+    len = strlen(job->metadata);
+    if(len > 0 && len < sizeof(job->metadata))
+    {
+        if(job->metadata[len-1] != '\n')
+        {
+            job->metadata[len] = '\n';
+            job->metadata[len+1] = '\0';
+        }
+    }
+
     /* determine remaining space in metadata string */
     int remaining = sizeof(job->metadata) - strlen(job->metadata);
 

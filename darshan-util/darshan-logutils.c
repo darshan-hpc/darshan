@@ -452,6 +452,7 @@ int darshan_log_putjob(darshan_fd file, struct darshan_job *job)
     struct darshan_job job_copy;
     char    pv_str[64];
     int     ret;
+    int len;
 
     ret = darshan_log_seek(file, 0);
     if(ret < 0)
@@ -459,6 +460,17 @@ int darshan_log_putjob(darshan_fd file, struct darshan_job *job)
 
     memset(&job_copy, 0, sizeof(job_copy));
     memcpy(&job_copy, job, sizeof(job_copy));
+    /* check for newline in existing metadata, add if needed */
+    len = strlen(job_copy.metadata);
+    if(len > 0 && len < DARSHAN_JOB_METADATA_LEN)
+    {
+        if(job_copy.metadata[len-1] != '\n')
+        {
+            job_copy.metadata[len] = '\n';
+            job_copy.metadata[len+1] = '\0';
+        }
+    }
+
     sprintf(pv_str, "prev_ver=%s\n", job->version_string);
     sprintf(job_copy.version_string, "%s", CP_VERSION);
     if(strlen(job_copy.metadata) + strlen(pv_str) < DARSHAN_JOB_METADATA_LEN)
