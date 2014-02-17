@@ -29,20 +29,24 @@ int usage (char *exename)
     fprintf(stderr, "       --key <key> Key to use when obfuscating.\n");
     fprintf(stderr, "       --annotate <string> Additional metadata to add.\n");
     fprintf(stderr, "       --file <hash> Limit output to specified (hashed) file only.\n");
+    fprintf(stderr, "       --reset-md Reset old metadata during conversion.\n");
 
     exit(1);
 }
 
 void parse_args (int argc, char **argv, char **infile, char **outfile,
-                 int *obfuscate, int *key, char **annotate, uint64_t* hash)
+                 int *obfuscate, int *reset_md, int *key, char **annotate, uint64_t* hash)
 {
     int index;
     int ret;
+
+    *reset_md = 0;
 
     static struct option long_opts[] =
     {
         {"annotate", 1, NULL, 'a'},
         {"obfuscate", 0, NULL, 'o'},
+        {"reset-md", 0, NULL, 'r'},
         {"key", 1, NULL, 'k'},
         {"file", 1, NULL, 'f'},
         {"help",  0, NULL, 0},
@@ -64,6 +68,9 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
                 break;
             case 'o':
                 *obfuscate = 1;
+                break;
+            case 'r':
+                *reset_md = 1;
                 break;
             case 'k':
                 *key = atoi(optarg);
@@ -91,6 +98,12 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
         usage(argv[0]);
     }
 
+    return;
+}
+
+static void reset_md_job(struct darshan_job *job)
+{
+    job->metadata[0] = '\0';
     return;
 }
 
@@ -189,8 +202,9 @@ int main(int argc, char **argv)
     int key = 0;
     char *annotation = NULL;
     uint64_t hash;
+    int reset_md = 0;
 
-    parse_args(argc, argv, &infile_name, &outfile_name, &obfuscate, &key, &annotation, &hash);
+    parse_args(argc, argv, &infile_name, &outfile_name, &obfuscate, &reset_md, &key, &annotation, &hash);
 
     infile = darshan_log_open(infile_name, "r");
     if(!infile)
@@ -223,6 +237,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
+    if (reset_md) reset_md_job(&job);
     if (obfuscate) obfuscate_job(key, &job);
     if (annotation) add_annotation(annotation, &job);
 

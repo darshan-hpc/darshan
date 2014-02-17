@@ -85,6 +85,7 @@ sub main()
                      "--obfuscate",
                      "--key=$hash_key",
                      "--annotate=$annotation",
+                     "--reset-md",
                      "$logfile",
                      "$output_path/$year/$month/$day/$hashed_fname.bz2");
             $rc = system(@args);
