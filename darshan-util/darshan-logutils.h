@@ -6,24 +6,7 @@
 #ifndef __DARSHAN_LOG_UTILS_H
 #define __DARSHAN_LOG_UTILS_H
 #include <darshan-log-format.h>
-#include <zlib.h>
-#ifdef HAVE_LIBBZ2
-#include <bzlib.h>
-#endif
 
-struct darshan_fd_s
-{
-    gzFile gzf;
-#ifdef HAVE_LIBBZ2
-    BZFILE* bzf;
-#endif
-    int64_t pos;
-    char mode[2];
-    int swap_flag;
-    char version[10];
-    int job_struct_size;
-    char* name;
-};
 typedef struct darshan_fd_s* darshan_fd;
 
 extern char *darshan_names[];
@@ -91,6 +74,5 @@ void darshan_log_print_version_warnings(struct darshan_job *job);
     __dst_char[3] = __src_char[0]; \
     memcpy(__ptr, __dst_char, 4); \
 } while(0)
-
 
 #endif

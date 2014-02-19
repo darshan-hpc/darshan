@@ -3,14 +3,15 @@ exec_prefix = @exec_prefix@
 libdir = @libdir@
 includedir = @includedir@
 abs_top_builddir = @abs_top_builddir@
-LIBBZ2 = @LIBBZ2@
 cp_zlib_include_flags = @__CP_ZLIB_INCLUDE_FLAGS@
 cp_zlib_link_flags = @__CP_ZLIB_LINK_FLAGS@
+LIBBZ2 = @LIBBZ2@
 
 Name: darshan-util
 Description: Library for parsing and summarizing log files produced by Darshan runtime
 Version: @DARSHAN_UTIL_VERSION@
 URL: http://trac.mcs.anl.gov/projects/darshan/
 Requires:
-Libs: -L${libdir} -ldarshan-util ${cp_zlib_link_flags} -lz ${LIBBZ2}
-Cflags: -I${includedir} -DDARSHAN_CONFIG_H=\"${abs_top_builddir}/darshan-util-config.h\" ${cp_zlib_include_flags}
+Libs: -L${libdir} -ldarshan-util 
+Libs.private: ${cp_zlib_link_flags} -lz ${LIBBZ2}
+Cflags: -I${includedir} ${cp_zlib_include_flags}

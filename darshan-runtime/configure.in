@@ -130,10 +130,14 @@ fi
 
 # checks to see how we can print 64 bit values on this architecture
 gt_INTTYPES_PRI
+if test x$PRI_MACROS_BROKEN == xyes; then
+    AC_MSG_ERROR(PRI_xx macros are broken)
+else
+    AC_CHECK_HEADERS(inttypes.h, , [AC_MSG_ERROR(Couldn't find inttypes.h)])
+fi
 
 dnl Check byte ordering
 AC_C_BIGENDIAN
-
 
 dnl temporarily set large file flags just for this test; we don't want
 dnl it to propagate to the makefile because of zlib bugs

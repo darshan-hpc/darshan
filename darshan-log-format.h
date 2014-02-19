@@ -6,39 +6,16 @@
 #ifndef __DARSHAN_LOG_FORMAT_H
 #define __DARSHAN_LOG_FORMAT_H
 
-#ifndef DARSHAN_CONFIG_H
-    #error Must define DARSHAN_CONFIG_H
-#endif
-
-#include DARSHAN_CONFIG_H
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdint.h>
-#ifdef HAVE_INTTYPES_H
-	#include <inttypes.h>
-#endif
+#include <inttypes.h>
 
-#if !defined PRId64 || defined(PRI_MACROS_BROKEN)
-#ifndef __WORDSIZE
-#error failed to detect PRId64 or word size
+#if !defined PRId64
+#error failed to detect PRId64
 #endif
-# undef PRId64
-#if __WORDSIZE == 64
-# define PRId64 "ld"
-#else
-# define PRId64 "lld"
-#endif
-#endif
-#if !defined PRIu64 || defined(PRI_MACROS_BROKEN)
-#ifndef __WORDSIZE
-#error failed to detect PRId64 or word size
-#endif
-# undef PRIu64
-#if __WORDSIZE == 64
-# define PRIu64 "lu"
-#else
-# define PRIu64 "llu"
-#endif
+#if !defined PRIu64
+#error failed to detect PRIu64
 #endif
 
 /* update this on file format changes */

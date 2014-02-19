@@ -15,6 +15,14 @@ AC_PROG_INSTALL
 CHECK_ZLIB
 CHECK_BZLIB
 
+# checks to see how we can print 64 bit values on this architecture
+gt_INTTYPES_PRI
+if test x$PRI_MACROS_BROKEN == xyes; then
+    AC_MSG_ERROR(PRI_xx macros are broken)
+else
+    AC_CHECK_HEADERS(inttypes.h, , [AC_MSG_ERROR(Couldn't find inttypes.h)])
+fi
+
 AC_CHECK_PROG(HAVE_PDFLATEX, pdflatex, yes, no)
 
 if test x$HAVE_PDFLATEX == xyes; then

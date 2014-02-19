@@ -625,6 +625,7 @@ __CP_PDFLATEX_HALT_ON_ERROR
 __CP_ZLIB_INCLUDE_FLAGS
 __CP_ZLIB_LINK_FLAGS
 HAVE_PDFLATEX
+PRI_MACROS_BROKEN
 LIBBZ2
 EGREP
 GREP
@@ -3756,6 +3757,84 @@ $as_echo "$as_me: WARNING: libbz2 not found; Darshan utilities will use gzip onl
 fi
 
 
+
+# checks to see how we can print 64 bit values on this architecture
+
+  for ac_header in inttypes.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "inttypes.h" "ac_cv_header_inttypes_h" "$ac_includes_default"
+if test "x$ac_cv_header_inttypes_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_INTTYPES_H 1
+_ACEOF
+
+fi
+
+done
+
+  if test $ac_cv_header_inttypes_h = yes; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the inttypes.h PRIxNN macros are broken" >&5
+$as_echo_n "checking whether the inttypes.h PRIxNN macros are broken... " >&6; }
+if ${gt_cv_inttypes_pri_broken+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <inttypes.h>
+#ifdef PRId32
+char *p = PRId32;
+#endif
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  gt_cv_inttypes_pri_broken=no
+else
+  gt_cv_inttypes_pri_broken=yes
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $gt_cv_inttypes_pri_broken" >&5
+$as_echo "$gt_cv_inttypes_pri_broken" >&6; }
+  fi
+  if test "$gt_cv_inttypes_pri_broken" = yes; then
+
+cat >>confdefs.h <<_ACEOF
+#define PRI_MACROS_BROKEN 1
+_ACEOF
+
+    PRI_MACROS_BROKEN=1
+  else
+    PRI_MACROS_BROKEN=0
+  fi
+
+
+if test x$PRI_MACROS_BROKEN == xyes; then
+    as_fn_error $? "PRI_xx macros are broken" "$LINENO" 5
+else
+    for ac_header in inttypes.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "inttypes.h" "ac_cv_header_inttypes_h" "$ac_includes_default"
+if test "x$ac_cv_header_inttypes_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_INTTYPES_H 1
+_ACEOF
+
+else
+  as_fn_error $? "Couldn't find inttypes.h" "$LINENO" 5
+fi
+
+done
+
+fi
 
 # Extract the first word of "pdflatex", so it can be a program name with args.
 set dummy pdflatex; ac_word=$2

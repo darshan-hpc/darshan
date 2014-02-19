@@ -15,7 +15,26 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include <zlib.h>
+#ifdef HAVE_LIBBZ2
+#include <bzlib.h>
+#endif
+
 #include "darshan-logutils.h"
+
+struct darshan_fd_s
+{
+    gzFile gzf;
+#ifdef HAVE_LIBBZ2
+    BZFILE* bzf;
+#endif
+    int64_t pos;
+    char mode[2];
+    int swap_flag;
+    char version[10];
+    int job_struct_size;
+    char* name;
+};
 
 /* isn't there a clever c way to avoid this? */
 char *darshan_names[] = {
