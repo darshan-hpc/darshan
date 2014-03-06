@@ -230,6 +230,11 @@ struct variance_dt
 
 static int epoch_counter = 0;
 
+// The next two variables used for the context of the file access operation
+// e.g. for tracing all the MPI communication from an MPI_File_write
+static __thread char *crt_filename = NULL;
+static __thread MPI_File *crt_fh = NULL;
+
 void darshan_mpi_initialize(int *argc, char ***argv)
 {
     int nprocs;
@@ -843,12 +848,14 @@ int MPI_File_read(MPI_File fh, void *buf, int count,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;	
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_read)(fh, buf, count, datatype, status);
     tm2 = darshan_wtime();
     CP_LOCK();
     CP_RECORD_MPI_READ(ret, fh, count, datatype, CP_INDEP_READS, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;	
     return(ret);
 }
 
@@ -858,6 +865,7 @@ int MPI_File_read_at(MPI_File fh, MPI_Offset offset, void *buf,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_read_at)(fh, offset, buf,
         count, datatype, status);
@@ -865,6 +873,7 @@ int MPI_File_read_at(MPI_File fh, MPI_Offset offset, void *buf,
     CP_LOCK();
     CP_RECORD_MPI_READ(ret, fh, count, datatype, CP_INDEP_READS, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -874,6 +883,7 @@ int MPI_File_read_at_all(MPI_File fh, MPI_Offset offset, void * buf,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_read_at_all)(fh, offset, buf,
         count, datatype, status);
@@ -881,6 +891,7 @@ int MPI_File_read_at_all(MPI_File fh, MPI_Offset offset, void * buf,
     CP_LOCK();
     CP_RECORD_MPI_READ(ret, fh, count, datatype, CP_COLL_READS, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -889,6 +900,7 @@ int MPI_File_read_all(MPI_File fh, void * buf, int count, MPI_Datatype datatype,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_read_all)(fh, buf, count,
         datatype, status);
@@ -896,6 +908,7 @@ int MPI_File_read_all(MPI_File fh, void * buf, int count, MPI_Datatype datatype,
     CP_LOCK();
     CP_RECORD_MPI_READ(ret, fh, count, datatype, CP_COLL_READS, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -904,6 +917,7 @@ int MPI_File_read_shared(MPI_File fh, void * buf, int count, MPI_Datatype dataty
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_read_shared)(fh, buf, count,
         datatype, status);
@@ -911,6 +925,7 @@ int MPI_File_read_shared(MPI_File fh, void * buf, int count, MPI_Datatype dataty
     CP_LOCK();
     CP_RECORD_MPI_READ(ret, fh, count, datatype, CP_INDEP_READS, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -920,6 +935,7 @@ int MPI_File_read_ordered(MPI_File fh, void * buf, int count,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_read_ordered)(fh, buf, count,
         datatype, status);
@@ -927,6 +943,7 @@ int MPI_File_read_ordered(MPI_File fh, void * buf, int count,
     CP_LOCK();
     CP_RECORD_MPI_READ(ret, fh, count, datatype, CP_COLL_READS, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -936,6 +953,7 @@ int MPI_File_read_at_all_begin(MPI_File fh, MPI_Offset offset, void * buf,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_read_at_all_begin)(fh, offset, buf,
         count, datatype);
@@ -943,6 +961,7 @@ int MPI_File_read_at_all_begin(MPI_File fh, MPI_Offset offset, void * buf,
     CP_LOCK();
     CP_RECORD_MPI_READ(ret, fh, count, datatype, CP_SPLIT_READS, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -951,12 +970,14 @@ int MPI_File_read_all_begin(MPI_File fh, void * buf, int count, MPI_Datatype dat
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_read_all_begin)(fh, buf, count, datatype);
     tm2 = darshan_wtime();
     CP_LOCK();
     CP_RECORD_MPI_READ(ret, fh, count, datatype, CP_SPLIT_READS, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -965,6 +986,7 @@ int MPI_File_read_ordered_begin(MPI_File fh, void * buf, int count, MPI_Datatype
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_read_ordered_begin)(fh, buf, count,
         datatype);
@@ -972,6 +994,7 @@ int MPI_File_read_ordered_begin(MPI_File fh, void * buf, int count, MPI_Datatype
     CP_LOCK();
     CP_RECORD_MPI_READ(ret, fh, count, datatype, CP_SPLIT_READS, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -981,6 +1004,7 @@ int MPI_File_iread_at(MPI_File fh, MPI_Offset offset, void * buf,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_iread_at)(fh, offset, buf, count,
         datatype, request);
@@ -988,6 +1012,7 @@ int MPI_File_iread_at(MPI_File fh, MPI_Offset offset, void * buf,
     CP_LOCK();
     CP_RECORD_MPI_READ(ret, fh, count, datatype, CP_NB_READS, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -996,12 +1021,14 @@ int MPI_File_iread(MPI_File fh, void * buf, int count, MPI_Datatype datatype, __
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_iread)(fh, buf, count, datatype, request);
     tm2 = darshan_wtime();
     CP_LOCK();
     CP_RECORD_MPI_READ(ret, fh, count, datatype, CP_NB_READS, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -1011,6 +1038,7 @@ int MPI_File_iread_shared(MPI_File fh, void * buf, int count,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_iread_shared)(fh, buf, count,
         datatype, request);
@@ -1018,9 +1046,9 @@ int MPI_File_iread_shared(MPI_File fh, void * buf, int count,
     CP_LOCK();
     CP_RECORD_MPI_READ(ret, fh, count, datatype, CP_NB_READS, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
-
 
 #ifdef HAVE_MPIIO_CONST
 int MPI_File_write(MPI_File fh, const void *buf, int count, 
@@ -1033,12 +1061,14 @@ int MPI_File_write(MPI_File fh, void *buf, int count,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_write)(fh, buf, count, datatype, status);
     tm2 = darshan_wtime();
     CP_LOCK();
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_INDEP_WRITES, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -1053,6 +1083,7 @@ int MPI_File_write_at(MPI_File fh, MPI_Offset offset, void *buf,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(fh, offset, buf,
         count, datatype, status);
@@ -1060,6 +1091,7 @@ int MPI_File_write_at(MPI_File fh, MPI_Offset offset, void *buf,
     CP_LOCK();
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_INDEP_WRITES, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -1074,6 +1106,9 @@ int MPI_File_write_at_all(MPI_File fh, MPI_Offset offset, void * buf,
     int ret;
     double tm1, tm2;
 
+    darshan_start_epoch();
+
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_write_at_all)(fh, offset, buf,
         count, datatype, status);
@@ -1081,6 +1116,10 @@ int MPI_File_write_at_all(MPI_File fh, MPI_Offset offset, void * buf,
     CP_LOCK();
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_COLL_WRITES, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
+
+    darshan_end_epoch();
+
     return(ret);
 }
 
@@ -1093,6 +1132,7 @@ int MPI_File_write_all(MPI_File fh, void * buf, int count, MPI_Datatype datatype
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_write_all)(fh, buf, count,
         datatype, status);
@@ -1100,6 +1140,8 @@ int MPI_File_write_all(MPI_File fh, void * buf, int count, MPI_Datatype datatype
     CP_LOCK();
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_COLL_WRITES, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
+
     return(ret);
 }
 
@@ -1112,6 +1154,7 @@ int MPI_File_write_shared(MPI_File fh, void * buf, int count, MPI_Datatype datat
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_write_shared)(fh, buf, count,
         datatype, status);
@@ -1119,6 +1162,7 @@ int MPI_File_write_shared(MPI_File fh, void * buf, int count, MPI_Datatype datat
     CP_LOCK();
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_INDEP_WRITES, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -1133,13 +1177,15 @@ int MPI_File_write_ordered(MPI_File fh, void * buf, int count,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_write_ordered)(fh, buf, count,
-         datatype, status);
+         datatype, status); 
     tm2 = darshan_wtime();
     CP_LOCK();
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_COLL_WRITES, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -1154,6 +1200,7 @@ int MPI_File_write_at_all_begin(MPI_File fh, MPI_Offset offset, void * buf,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_write_at_all_begin)(fh, offset,
         buf, count, datatype);
@@ -1161,6 +1208,7 @@ int MPI_File_write_at_all_begin(MPI_File fh, MPI_Offset offset, void * buf,
     CP_LOCK();
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_SPLIT_WRITES, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -1173,12 +1221,14 @@ int MPI_File_write_all_begin(MPI_File fh, void * buf, int count, MPI_Datatype da
     int ret;
     double tm1, tm2;
 
-    tm1 = darshan_wtime();
+    crt_fh = &fh;
+    tm1 = darshan_wtime(); 
     ret = DARSHAN_MPI_CALL(PMPI_File_write_all_begin)(fh, buf, count, datatype);
     tm2 = darshan_wtime();
     CP_LOCK();
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_SPLIT_WRITES, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -1191,6 +1241,7 @@ int MPI_File_write_ordered_begin(MPI_File fh, void * buf, int count, MPI_Datatyp
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_write_ordered_begin)(fh, buf, count,
         datatype);
@@ -1198,6 +1249,7 @@ int MPI_File_write_ordered_begin(MPI_File fh, void * buf, int count, MPI_Datatyp
     CP_LOCK();
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_SPLIT_WRITES, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -1212,6 +1264,7 @@ int MPI_File_iwrite_at(MPI_File fh, MPI_Offset offset, void * buf,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_iwrite_at)(fh, offset, buf,
         count, datatype, request);
@@ -1219,6 +1272,7 @@ int MPI_File_iwrite_at(MPI_File fh, MPI_Offset offset, void * buf,
     CP_LOCK();
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_NB_WRITES, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -1231,12 +1285,14 @@ int MPI_File_iwrite(MPI_File fh, void * buf, int count, MPI_Datatype datatype, _
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_iwrite)(fh, buf, count, datatype, request);
     tm2 = darshan_wtime();
     CP_LOCK();
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_NB_WRITES, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -1251,6 +1307,7 @@ int MPI_File_iwrite_shared(MPI_File fh, void * buf, int count,
     int ret;
     double tm1, tm2;
 
+    crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_iwrite_shared)(fh, buf, count,
         datatype, request);
@@ -1258,6 +1315,7 @@ int MPI_File_iwrite_shared(MPI_File fh, void * buf, int count,
     CP_LOCK();
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_NB_WRITES, tm1, tm2);
     CP_UNLOCK();
+    crt_fh = NULL;
     return(ret);
 }
 
@@ -1708,6 +1766,13 @@ static void darshan_file_reduce(void* infile_v,
             tmp_file.counters[CP_DEVICE] = infile->counters[CP_DEVICE];
             tmp_file.counters[CP_SIZE_AT_OPEN] = infile->counters[CP_SIZE_AT_OPEN];
         }
+
+	for (j=CP_MPI_SENDS; j<=CP_BYTES_MPI_ALLREDUCE; j++)
+        {
+            tmp_file.counters[j] = infile->counters[j] +
+                inoutfile->counters[j];
+        }
+
 
         /* pick one name suffix (every file record should have this, whether
          * it is a partial record or not
@@ -2517,7 +2582,7 @@ void darshan_mnt_id_from_path(const char* path, int64_t* device_id, int64_t* blo
 
 // Keep counters for each epoch
 
-#define DARSHAN_MAX_EPOCHS 128
+#define DARSHAN_MAX_EPOCHS 1024
 
 struct darshan_file epoch_file_array[DARSHAN_MAX_EPOCHS][CP_MAX_FILES];
 struct darshan_file_runtime epoch_file_runtime_array[DARSHAN_MAX_EPOCHS][CP_MAX_FILES];
@@ -2563,35 +2628,42 @@ static void darshan_reset_counters(){
 
 void darshan_start_epoch(void)
 {
-
+    if (!getenv("DARSHAN_EPOCH"))
+	return;
+    else {
  
-    CP_LOCK();
-    if (epoch_counter == 0){
-	memset(epoch_file_array, 0, 
-	       sizeof(struct darshan_file)*CP_MAX_FILES*DARSHAN_MAX_EPOCHS);
-	memset(epoch_file_runtime_array, 0, 
-	       sizeof(struct darshan_file_runtime)*CP_MAX_FILES*DARSHAN_MAX_EPOCHS);
+	CP_LOCK();
+	if (epoch_counter == 0){
+	    memset(epoch_file_array, 0, 
+		   sizeof(struct darshan_file)*CP_MAX_FILES*DARSHAN_MAX_EPOCHS);
+	    memset(epoch_file_runtime_array, 0, 
+		   sizeof(struct darshan_file_runtime)*CP_MAX_FILES*DARSHAN_MAX_EPOCHS);
+	}
+	darshan_reset_counters();
+	CP_UNLOCK();
+	return;
     }
-    darshan_reset_counters();
-    CP_UNLOCK();
-    return;
 }
 
 void darshan_end_epoch(void)
 {
-    int i;
+    if (!getenv("DARSHAN_EPOCH"))
+	return;
+    else {
+	int i;
 
-    CP_LOCK();
-    memcpy(epoch_file_array[epoch_counter],
-	   darshan_global_job->file_array,
-	   darshan_global_job->file_count* sizeof(struct darshan_file));
-    memcpy(epoch_file_runtime_array[epoch_counter],
-	   darshan_global_job->file_runtime_array,
-	   darshan_global_job->file_count* sizeof(struct darshan_file_runtime));
-    epoch_file_count[epoch_counter] = darshan_global_job->file_count;
-    epoch_counter++;
-    CP_UNLOCK();
-    return;
+	CP_LOCK();
+	memcpy(epoch_file_array[epoch_counter],
+	       darshan_global_job->file_array,
+	       darshan_global_job->file_count* sizeof(struct darshan_file));
+	memcpy(epoch_file_runtime_array[epoch_counter],
+	       darshan_global_job->file_runtime_array,
+	       darshan_global_job->file_count* sizeof(struct darshan_file_runtime));
+	epoch_file_count[epoch_counter] = darshan_global_job->file_count;
+	epoch_counter++;
+	CP_UNLOCK();
+	return;
+    }
 }
 
 void darshan_shutdown(int timing_flag)
@@ -2642,6 +2714,557 @@ void darshan_shutdown(int timing_flag)
     darshan_global_job = NULL;
     CP_UNLOCK();
 }
+
+
+/* MPI communication */
+
+int MPI_Send(const void* buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
+{
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_Send, crt_fh = %lx\n", (unsigned long int)crt_fh);
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Send)(buf, count, datatype, dest, tag, comm);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+	if (crt_fh)
+		file = darshan_file_by_fh(*crt_fh);
+	else
+		if (crt_filename)
+			file = darshan_file_by_name(crt_filename);
+	if (file) {
+	    int size = 0;
+	    DARSHAN_MPI_CALL(PMPI_Type_size)(datatype, &size);
+	    CP_INC(file, CP_MPI_SENDS, 1);
+	    CP_INC(file, CP_BYTES_MPI_SEND, size*count);
+
+	}
+        CP_UNLOCK();
+    }
+
+    return(ret);
+} 
+
+int MPI_Recv(void* buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status *status){
+
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_Recv, crt_fh = %lx\n", (unsigned long int)crt_fh);
+
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Recv)(buf, count, datatype, source, tag, comm, status);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+	if (crt_fh)
+		file = darshan_file_by_fh(*crt_fh);
+	else
+		if (crt_filename)
+			file = darshan_file_by_name(crt_filename);
+	if (file) {
+	    int size = 0;
+	    DARSHAN_MPI_CALL(PMPI_Type_size)(datatype, &size);
+	    CP_INC(file, CP_MPI_RECVS, 1);
+	    CP_INC(file, CP_BYTES_MPI_RECV, size*count);
+
+	}
+        CP_UNLOCK();
+    }
+
+    return(ret);
+} 
+
+
+int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request) 
+{
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_Isend, crt_fh = %lx\n", (unsigned long int)crt_fh);
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Isend)(buf, count, datatype, dest, tag, comm, request);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+	if (crt_fh)
+	    file = darshan_file_by_fh(*crt_fh);
+	else
+	    if (crt_filename)
+		file = darshan_file_by_name(crt_filename);
+	if (file) {
+	    int size = 0;
+	    DARSHAN_MPI_CALL(PMPI_Type_size)(datatype, &size);
+	    CP_INC(file, CP_MPI_ISENDS, 1);
+	    CP_INC(file, CP_BYTES_MPI_ISEND, size*count);
+	}
+        CP_UNLOCK();
+    }
+
+    return(ret);
+   
+}
+
+int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
+              MPI_Comm comm, MPI_Request *request)
+{
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_Irecv, crt_fh = %lx\n", (unsigned long int)crt_fh);
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Irecv)(buf, count, datatype, source, tag, comm, request);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+	if (crt_fh)
+	    file = darshan_file_by_fh(*crt_fh);
+	else
+	    if (crt_filename)
+		file = darshan_file_by_name(crt_filename);
+	if (file) {
+	    int size = 0;
+	    DARSHAN_MPI_CALL(PMPI_Type_size)(datatype, &size);
+	    CP_INC(file, CP_MPI_IRECVS, 1);
+	    CP_INC(file, CP_BYTES_MPI_IRECV, size*count);
+	}
+        CP_UNLOCK();
+    }
+
+    return(ret);
+  
+}
+
+
+int MPI_Wait(MPI_Request *request, MPI_Status *status) 
+{
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_WAIT, crt_fh = %lx\n", (unsigned long int)crt_fh);
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Wait)(request, status);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+	if (crt_fh)
+	    file = darshan_file_by_fh(*crt_fh);
+	else
+	    if (crt_filename)
+		file = darshan_file_by_name(crt_filename);
+	if (file) {
+	    CP_INC(file, CP_MPI_WAITS, 1);
+	}
+        CP_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int MPI_Test(MPI_Request *request, int *flag, MPI_Status *status)
+{
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_TEST, crt_fh = %lx\n", (unsigned long int)crt_fh);
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Test)(request, flag, status);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+	if (crt_fh)
+	    file = darshan_file_by_fh(*crt_fh);
+	else
+	    if (crt_filename)
+		file = darshan_file_by_name(crt_filename);
+	if (file) {
+	    CP_INC(file, CP_MPI_TESTS, 1);
+	}
+        CP_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int MPI_Waitany(int count, MPI_Request array_of_requests[], int *indx, MPI_Status *status)
+{
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_WAITANY, crt_fh = %lx\n", (unsigned long int)crt_fh);
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Waitany)(count, array_of_requests, indx, status);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+	if (crt_fh)
+	    file = darshan_file_by_fh(*crt_fh);
+	else
+	    if (crt_filename)
+		file = darshan_file_by_name(crt_filename);
+	if (file) {
+	    CP_INC(file, CP_MPI_WAITANYS, 1);
+	}
+        CP_UNLOCK();
+    }
+
+    return(ret);
+}
+
+
+int MPI_Waitall(int count, MPI_Request array_of_requests[], MPI_Status array_of_statuses[])
+{
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_WAITALL, crt_fh = %lx\n", (unsigned long int)crt_fh);
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Waitall)(count, array_of_requests, array_of_statuses);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+	if (crt_fh)
+	    file = darshan_file_by_fh(*crt_fh);
+	else
+	    if (crt_filename)
+		file = darshan_file_by_name(crt_filename);
+	if (file) {
+	    CP_INC(file, CP_MPI_WAITALLS, 1);
+	}
+        CP_UNLOCK();
+    }
+
+    return(ret);
+}
+
+
+int MPI_Testall(int count, MPI_Request array_of_requests[], int *flag,
+                MPI_Status array_of_statuses[])
+{
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_TESTALL, crt_fh = %lx\n", (unsigned long int)crt_fh);
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Testall)(count, array_of_requests, flag, array_of_statuses);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+	if (crt_fh)
+	    file = darshan_file_by_fh(*crt_fh);
+	else
+	    if (crt_filename)
+		file = darshan_file_by_name(crt_filename);
+	if (file) {
+	    CP_INC(file, CP_MPI_TESTALLS, 1);
+	}
+        CP_UNLOCK();
+    }
+
+    return(ret);
+}
+
+
+
+int MPI_Barrier(MPI_Comm comm)
+{
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_Bcast, crt_fh = %lx\n", (unsigned long int)crt_fh);
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Barrier)(comm);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+	if (crt_fh)
+	    file = darshan_file_by_fh(*crt_fh);
+	else
+	    if (crt_filename)
+		file = darshan_file_by_name(crt_filename);
+	if (file) {
+	    CP_INC(file, CP_MPI_BARRIERS, 1);
+	}
+        CP_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int MPI_Bcast(void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm comm){
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_Bcast, crt_fh = %lx\n", (unsigned long int)crt_fh);
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Bcast)(buffer, count, datatype, root, comm);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+	if (crt_fh)
+	    file = darshan_file_by_fh(*crt_fh);
+	else
+	    if (crt_filename)
+		file = darshan_file_by_name(crt_filename);
+	if (file) {
+	    int size = 0;
+	    DARSHAN_MPI_CALL(PMPI_Type_size)(datatype, &size);
+	    CP_INC(file, CP_MPI_BCASTS, 1);
+	    CP_INC(file, CP_BYTES_MPI_BCAST, size*count);
+	}
+        CP_UNLOCK();
+    }
+    return(ret);
+}
+
+int MPI_Gather(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm)
+{
+
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_Gather, crt_fh = %lx\n", (unsigned long int)crt_fh);
+
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Gather)(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+        if (crt_fh)
+            file = darshan_file_by_fh(*crt_fh);
+        else
+            if (crt_filename)
+                file = darshan_file_by_name(crt_filename);
+        if (file) {
+            int size = 0;
+            DARSHAN_MPI_CALL(PMPI_Type_size)(sendtype, &size);
+            CP_INC(file, CP_MPI_GATHERS, 1);
+            CP_INC(file, CP_BYTES_MPI_GATHER, size*sendcount);
+        }
+        CP_UNLOCK();
+    }
+    return(ret);
+}
+
+int MPI_Gatherv(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, const int *recvcounts, const int *displs, MPI_Datatype recvtype, int root, MPI_Comm comm)
+{
+
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_Gatherv, crt_fh = %lx\n", (unsigned long int)crt_fh);
+
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Gatherv)(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, root, comm);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+        if (crt_fh)
+            file = darshan_file_by_fh(*crt_fh);
+        else
+            if (crt_filename)
+                file = darshan_file_by_name(crt_filename);
+        if (file) {
+            int size = 0;
+            DARSHAN_MPI_CALL(PMPI_Type_size)(sendtype, &size);
+            CP_INC(file, CP_MPI_GATHERVS, 1);
+            CP_INC(file, CP_BYTES_MPI_GATHERV, size*sendcount);
+        }
+        CP_UNLOCK();
+    }
+    return(ret);
+}
+
+
+
+
+
+int MPI_Allgather(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm){
+
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_Allgather, crt_fh = %lx\n", (unsigned long int)crt_fh);
+
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Allgather)(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+        if (crt_fh)
+            file = darshan_file_by_fh(*crt_fh);
+        else
+            if (crt_filename)
+                file = darshan_file_by_name(crt_filename);
+        if (file) {
+            int size = 0;
+            DARSHAN_MPI_CALL(PMPI_Type_size)(sendtype, &size);
+            CP_INC(file, CP_MPI_ALLGATHERS, 1);
+            CP_INC(file, CP_BYTES_MPI_ALLGATHER, size*sendcount);
+        }
+        CP_UNLOCK();
+    }
+    return(ret);
+}
+
+
+
+int MPI_Alltoall(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm){
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_Alltoall, crt_fh = %lx\n", (unsigned long int)crt_fh);
+
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Alltoall)(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+	if (crt_fh)
+	    file = darshan_file_by_fh(*crt_fh);
+	else
+	    if (crt_filename)
+		file = darshan_file_by_name(crt_filename);
+	if (file) {
+	    int size = 0;
+	    DARSHAN_MPI_CALL(PMPI_Type_size)(sendtype, &size);
+	    CP_INC(file, CP_MPI_ALLTOALLS, 1);
+	    CP_INC(file, CP_BYTES_MPI_ALLTOALL, size*sendcount);
+	}
+        CP_UNLOCK();
+    }
+    return(ret);
+
+}
+
+int MPI_Alltoallv(const void *sendbuf, const int *sendcounts, const int *sdispls, MPI_Datatype sendtype, void *recvbuf, const int *recvcounts, const int *rdispls, MPI_Datatype recvtype, MPI_Comm comm){
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_Alltoallv, crt_fh = %lx\n", (unsigned long int)crt_fh);
+
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Alltoallv)(sendbuf, sendcounts, sdispls, sendtype, recvbuf, recvcounts, rdispls, recvtype, comm);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+	if (crt_fh)
+	    file = darshan_file_by_fh(*crt_fh);
+	else
+	    if (crt_filename)
+		file = darshan_file_by_name(crt_filename);
+	if (file) {
+	    int size, comm_size, i, counts=0;
+	    DARSHAN_MPI_CALL(PMPI_Type_size)(sendtype, &size);
+	    DARSHAN_MPI_CALL(PMPI_Comm_size)(comm, &comm_size);
+	    for (i=0; i<comm_size; i++)
+		counts+=sendcounts[i];
+	    CP_INC(file, CP_MPI_ALLTOALLVS, 1);
+	    CP_INC(file, CP_BYTES_MPI_ALLTOALLV, size*counts);
+	}
+        CP_UNLOCK();
+    }
+    return(ret);
+}
+
+int MPI_Reduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm)
+{
+
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_Reduce, crt_fh = %lx\n", (unsigned long int)crt_fh);
+
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Reduce)(sendbuf, recvbuf, count, datatype, op, root, comm);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+        if (crt_fh)
+            file = darshan_file_by_fh(*crt_fh);
+        else
+            if (crt_filename)
+                file = darshan_file_by_name(crt_filename);
+        if (file) {
+            int size;
+            DARSHAN_MPI_CALL(PMPI_Type_size)(datatype, &size);
+            CP_INC(file, CP_MPI_REDUCES, 1);
+            CP_INC(file, CP_BYTES_MPI_REDUCE, size*count);
+        }
+        CP_UNLOCK();
+    }
+    return(ret);
+}
+   
+int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
+ {
+
+    int ret;
+    struct darshan_file_runtime* file = NULL;
+    double tm1, tm2;
+    // printf("Darshan captured MPI_Reduce, crt_fh = %lx\n", (unsigned long int)crt_fh);
+
+    tm1 = darshan_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_Allreduce)(sendbuf, recvbuf, count, datatype, op, comm);
+    tm2 = darshan_wtime();
+
+    if(ret == MPI_SUCCESS)
+    {
+        CP_LOCK();
+        if (crt_fh)
+            file = darshan_file_by_fh(*crt_fh);
+        else
+            if (crt_filename)
+                file = darshan_file_by_name(crt_filename);
+        if (file) {
+            int size;
+            DARSHAN_MPI_CALL(PMPI_Type_size)(datatype, &size);
+            CP_INC(file, CP_MPI_ALLREDUCES, 1);
+            CP_INC(file, CP_BYTES_MPI_ALLREDUCE, size*count);
+        }
+        CP_UNLOCK();
+    }
+    return(ret);
+}
+
+
+
 
 /*
  * Local variables:

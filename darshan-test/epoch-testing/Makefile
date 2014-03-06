@@ -8,7 +8,7 @@ CFLAGS	= -O0 -g -Wall -Wl,-rpath,../../darshan-runtime/lib
 
 CFLAGS	+= -I../../darshan-runtime/lib -I. -I../../darshan-runtime -I../../darshan-florin-extensions
 #LDFLAGS	= -Wl,-wrap,MPI_Init 
-LDFLAGS =  -L../../darshan-runtime/lib -ldarshan 
+LDFLAGS =  -Wl,--no-as-needed -ldl -L../../darshan-runtime/lib -ldarshan 
 
 #-L/home/fisaila/software/darshan-florin-extensions/darshan-runtime/lib -ldarshan-posix #-rdynamic -L/home/fisaila/software/darshan-florin-extensions/darshan-runtime/lib -ldarshan
 
@@ -18,7 +18,7 @@ LIBS    =
 
 SRCS	= $(patsubst %.o,%.c,$(OBJS))
 
-PRGS	=  writef 
+PRGS	=  writef_noepoch writef counters coll_perf
 
 all: $(PRGS)
 
