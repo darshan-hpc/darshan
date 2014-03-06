@@ -1,0 +1,17 @@
+Notes from Florin Isaila re: adding new counters as of 2014/03/06
+---------------
+
+1. Added the counters in darshan-log-format.h
+2. Added the names of the counters in darshan-util/darshan-logutils.c
+3. Added the new profiled function declarations (e.g., PMPI_Sent) in
+darshan-runtime/darshan-dynamic.h
+ - DARSHAN_EXTERN_DECL(...)
+4. Added the new profiled function declarations (e.g., PMPI_Sent) in
+darshan-runtime/lib/darshan-mpi-init-finalize.c 
+ - DARSHAN_FORWARD_DECL(...)
+ - MAP_OR_FAIL(...)
+5. Updated the reducer in darshan-runtime/lib/darshan-mpi-io.c in the
+function: 
+ static void darshan_file_reduce(void* infile_v, 
+   void* inoutfile_v, int *len, 
+   MPI_Datatype *datatype);
