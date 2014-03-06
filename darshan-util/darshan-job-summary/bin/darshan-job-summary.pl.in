@@ -240,6 +240,10 @@ while ($line = <TRACE>) {
             if($last_read_start > $starttime) {
                 $last_read_start -= $starttime;
             }
+            if($fields[3] > $runtime)
+            {
+                print "Warning: detected read access at time $fields[3] but runtime is only $runtime seconds.\n";
+            }
             if($fields[0] == -1){
                 print FA_READ_SH "$last_read_start\t0\t$xdelta\t0\n";
             }
@@ -257,6 +261,10 @@ while ($line = <TRACE>) {
             # adjust for systems that have absolute time stamps 
             if($last_write_start > $starttime) {
                 $last_write_start -= $starttime;
+            }
+            if($fields[3] > $runtime)
+            {
+                print "Warning: detected write access at time $fields[3] but runtime is only $runtime seconds.\n";
             }
             if($fields[0] == -1){
                 print FA_WRITE_SH "$last_write_start\t0\t$xdelta\t0\n";
