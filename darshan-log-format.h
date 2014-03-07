@@ -19,7 +19,7 @@
 #endif
 
 /* update this on file format changes */
-#define CP_VERSION "2.03"
+#define CP_VERSION "2.02"
 
 /* magic number for validating output files and checking byte order */
 #define CP_MAGIC_NR 6567223
@@ -243,7 +243,6 @@ struct darshan_job
     int64_t end_time;
     int64_t nprocs;
     int64_t jobid;
-    double wtime_offset;  /* offset of MPI_Wtime() from job start */
     char metadata[DARSHAN_JOB_METADATA_LEN];
 };
 

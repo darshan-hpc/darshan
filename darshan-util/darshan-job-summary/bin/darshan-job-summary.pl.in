@@ -45,14 +45,13 @@ my %access_hash = ();
 my @access_size = ();
 my %hash_files = ();
 my $size_est_flag = 0;
+my $read_interval_overflow_flag = 0;
+my $write_interval_overflow_flag = 0;
 
 # data structures for calculating performance
 my %hash_unique_file_time = ();
 my $shared_file_time = 0;
 my $total_job_bytes = 0;
-
-my $warn_read_time_overflow = 0;
-my $warn_write_time_overflow = 0;
 
 process_args();
 
@@ -125,9 +124,6 @@ while ($line = <TRACE>) {
 	}
         if ($line =~ /^# jobid: /) {
 	    ($junk, $jobid) = split(':', $line, 2);
-        }
-        if ($line =~ /^# wtime_offset: /) {
-	    ($junk, $wtime_offset) = split(':', $line, 2);
         }
         if ($line =~ /^# darshan log version: /) {
             ($junk, $version) = split(':', $line, 2);
@@ -242,15 +238,13 @@ while ($line = <TRACE>) {
         if ($fields[2] eq "CP_F_READ_END_TIMESTAMP" && $fields[3] != 0) {
             # assume we got the read start already 
             my $xdelta = $fields[3] - $last_read_start;
-            # adjust based on wtime_offset if available
-            $last_read_start -= $wtime_offset;
             # adjust for systems that have absolute time stamps 
             if($last_read_start > $starttime) {
                 $last_read_start -= $starttime;
             }
-            if(($fields[3] - $wtime_offset) > $runtime && !$warn_read_time_overflow)
+            if($fields[3] > $runtime && !$read_interval_overflow_flag)
             {
-                $warn_read_time_overflow = 1;
+                $read_interval_overflow_flag = 1;
                 print "Warning: detected read access at time $fields[3] but runtime is only $runtime seconds.\n";
             }
             if($fields[0] == -1){
@@ -267,15 +261,13 @@ while ($line = <TRACE>) {
         if ($fields[2] eq "CP_F_WRITE_END_TIMESTAMP" && $fields[3] != 0) {
             # assume we got the write start already 
             my $xdelta = $fields[3] - $last_write_start;
-            # adjust based on wtime_offset if available
-            $last_write_start -= $wtime_offset;
             # adjust for systems that have absolute time stamps 
             if($last_write_start > $starttime) {
                 $last_write_start -= $starttime;
             }
-            if(($fields[3] - $wtime_offset) > $runtime && !$warn_write_time_overflow)
+            if($fields[3] > $runtime && !$write_interval_overflow_flag)
             {
-                $warn_write_time_overflow = 1;
+                $write_interval_overflow_flag = 1;
                 print "Warning: detected write access at time $fields[3] but runtime is only $runtime seconds.\n";
             }
             if($fields[0] == -1){
