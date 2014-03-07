@@ -369,7 +369,13 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
         return(-1);
     }
 
-    if(strcmp(file->version, "2.02") == 0)
+    if(strcmp(file->version, "2.03") == 0)
+    {
+        getjob_internal = getjob_internal_201;
+        getfile_internal = getfile_internal_200;
+        file->job_struct_size = sizeof(*job);
+    }
+    else if(strcmp(file->version, "2.02") == 0)
     {
         getjob_internal = getjob_internal_201;
         getfile_internal = getfile_internal_200;
@@ -729,15 +735,23 @@ void darshan_log_close(darshan_fd file)
  */
 void darshan_log_print_version_warnings(struct darshan_job *job)
 {
-    if(strcmp(job->version_string, "2.02") == 0)
+    if(strcmp(job->version_string, "2.03") == 0)
     {
         /* current version */
+        return;
+    }
+
+    if(strcmp(job->version_string, "2.02") == 0)
+    {
+        printf("# WARNING: version 2.01 log format has the following limitations:\n");
+        printf("# - *_TIMESTAMP fields are not normalized relative to MPI_Init() time.\n");
         return;
     }
 
     if(strcmp(job->version_string, "2.01") == 0)
     {
         printf("# WARNING: version 2.01 log format has the following limitations:\n");
+        printf("# - *_TIMESTAMP fields are not normalized relative to MPI_Init() time.\n");
         printf("# - inaccurate statistics in some multi-threaded cases.\n");
         return;
     }
@@ -745,6 +759,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
     if(strcmp(job->version_string, "2.00") == 0)
     {
         printf("# WARNING: version 2.00 log format has the following limitations:\n");
+        printf("# - *_TIMESTAMP fields are not normalized relative to MPI_Init() time.\n");
         printf("# - inaccurate statistics in some multi-threaded cases.\n");
         return;
     }
@@ -761,6 +776,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_F_VARIANCE_RANK_TIME\n");
         printf("#   CP_F_VARIANCE_RANK_BYTES\n");
         printf("# WARNING: version 1.24 log format has the following limitations:\n");
+        printf("# - *_TIMESTAMP fields are not normalized relative to MPI_Init() time.\n");
         printf("# - does not store the job id in the file.\n");
         printf("# - inaccurate statistics in some multi-threaded cases.\n");
         return;
@@ -778,6 +794,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_F_VARIANCE_RANK_TIME\n");
         printf("#   CP_F_VARIANCE_RANK_BYTES\n");
         printf("# WARNING: version 1.23 log format has the following limitations:\n");
+        printf("# - *_TIMESTAMP fields are not normalized relative to MPI_Init() time.\n");
         printf("# - may have incorrect mount point mappings for files with rank > 0.\n");
         printf("# - does not store the job id in the file.\n");
         printf("# - inaccurate statistics in some multi-threaded cases.\n");
@@ -798,6 +815,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_F_VARIANCE_RANK_TIME\n");
         printf("#   CP_F_VARIANCE_RANK_BYTES\n");
         printf("# WARNING: version 1.22 log format has the following limitations:\n");
+        printf("# - *_TIMESTAMP fields are not normalized relative to MPI_Init() time.\n");
         printf("# - does not record mounted file systems, mount points, or fs types.\n");
         printf("# - attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
         printf("# - does not store the job id in the file.\n");
@@ -826,6 +844,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_F_VARIANCE_RANK_TIME\n");
         printf("#   CP_F_VARIANCE_RANK_BYTES\n");
         printf("# WARNING: version 1.21 log format has the following limitations:\n");
+        printf("# - *_TIMESTAMP fields are not normalized relative to MPI_Init() time.\n");
         printf("# - does not record mounted file systems, mount points, or fs types.\n");
         printf("# - attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
         printf("# - does not store the job id in the file.\n");

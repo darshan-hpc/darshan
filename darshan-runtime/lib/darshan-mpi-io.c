@@ -179,6 +179,7 @@ extern char* __progname;
     CP_F_SET(file, CP_F_READ_END_TIMESTAMP, __tm2); \
 } while(0)
 
+static void cp_normalize_timestamps(struct darshan_job_runtime* final_job);
 static void cp_log_construct_indices(struct darshan_job_runtime* final_job,
     int rank, int* inout_count, int* lengths, void** pointers, char*
     trailing_data);
@@ -536,6 +537,9 @@ void darshan_shutdown(int timing_flag)
         red2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
     DARSHAN_MPI_CALL(PMPI_Allreduce)(&local_ret, &all_ret, 1, MPI_INT, MPI_LOR, 
         MPI_COMM_WORLD);
+
+    /* adjust timestamps in any remaining records */
+    cp_normalize_timestamps(final_job);
 
     /* if we are using any hints to write the log file, then record those
      * hints in the log file header
@@ -2478,6 +2482,25 @@ void darshan_mnt_id_from_path(const char* path, int64_t* device_id, int64_t* blo
             *device_id = mnt_data_array[i].hash;
             *block_size = mnt_data_array[i].block_size;
             return;
+        }
+    }
+
+    return;
+}
+
+/* iterates through counters and adjusts timestamps to be relative to
+ * MPI_Init()
+ */
+static void cp_normalize_timestamps(struct darshan_job_runtime* final_job)
+{
+    int i;
+    int j;
+
+    for(i=0; i<final_job->file_count; i++)
+    {
+        for(j=CP_F_OPEN_TIMESTAMP; j<=CP_F_WRITE_END_TIMESTAMP; j++)
+        {
+            final_job->file_array[i].fcounters[j] -= final_job->wtime_offset;
         }
     }
 

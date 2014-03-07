@@ -19,7 +19,7 @@
 #endif
 
 /* update this on file format changes */
-#define CP_VERSION "2.02"
+#define CP_VERSION "2.03"
 
 /* magic number for validating output files and checking byte order */
 #define CP_MAGIC_NR 6567223
@@ -200,6 +200,9 @@ enum darshan_indices
 /* floating point statistics */
 enum f_darshan_indices
 {
+    /* NOTE: adjust cp_normalize_timestamps() function if any TIMESTAMPS are
+     * added or modified in this list
+     */
     CP_F_OPEN_TIMESTAMP = 0,    /* timestamp of first open */
     CP_F_READ_START_TIMESTAMP,  /* timestamp of first read */
     CP_F_WRITE_START_TIMESTAMP, /* timestamp of first write */

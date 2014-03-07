@@ -121,6 +121,7 @@ struct darshan_job_runtime
     int file_count;
     struct darshan_file_runtime* name_table[CP_HASH_SIZE];
     struct darshan_file_ref* handle_table[CP_HASH_SIZE];
+    double wtime_offset;
     char* trailing_data;
 };
 
