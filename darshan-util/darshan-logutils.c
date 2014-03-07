@@ -221,6 +221,7 @@ int (*getfile_internal)(darshan_fd fd,
 #define JOB_SIZE_200 56
 
 /* internal routines for parsing different file versions */
+static int getjob_internal_203(darshan_fd file, struct darshan_job *job);
 static int getjob_internal_201(darshan_fd file, struct darshan_job *job);
 static int getjob_internal_200(darshan_fd file, struct darshan_job *job);
 static int getfile_internal_200(darshan_fd fd, struct darshan_job *job, 
@@ -369,7 +370,13 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
         return(-1);
     }
 
-    if(strcmp(file->version, "2.02") == 0)
+    if(strcmp(file->version, "2.03") == 0)
+    {
+        getjob_internal = getjob_internal_203;
+        getfile_internal = getfile_internal_200;
+        file->job_struct_size = sizeof(*job);
+    }
+    else if(strcmp(file->version, "2.02") == 0)
     {
         getjob_internal = getjob_internal_201;
         getfile_internal = getfile_internal_200;
@@ -729,14 +736,23 @@ void darshan_log_close(darshan_fd file)
  */
 void darshan_log_print_version_warnings(struct darshan_job *job)
 {
-    if(strcmp(job->version_string, "2.02") == 0)
+    if(strcmp(job->version_string, "2.03") == 0)
     {
         /* current version */
         return;
     }
 
+    if(strcmp(job->version_string, "2.02") == 0)
+    {
+        printf("# WARNING: version 2.02 log format does not support the following parameters:\n");
+        printf("#   wtime_offset (in job header).\n");
+        return;
+    }
+
     if(strcmp(job->version_string, "2.01") == 0)
     {
+        printf("# WARNING: version 2.01 log format does not support the following parameters:\n");
+        printf("#   wtime_offset (in job header).\n");
         printf("# WARNING: version 2.01 log format has the following limitations:\n");
         printf("# - inaccurate statistics in some multi-threaded cases.\n");
         return;
@@ -744,6 +760,8 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
 
     if(strcmp(job->version_string, "2.00") == 0)
     {
+        printf("# WARNING: version 2.00 log format does not support the following parameters:\n");
+        printf("#   wtime_offset (in job header).\n");
         printf("# WARNING: version 2.00 log format has the following limitations:\n");
         printf("# - inaccurate statistics in some multi-threaded cases.\n");
         return;
@@ -760,6 +778,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_F_SLOWEST_RANK_TIME\n");
         printf("#   CP_F_VARIANCE_RANK_TIME\n");
         printf("#   CP_F_VARIANCE_RANK_BYTES\n");
+        printf("#   wtime_offset (in job header).\n");
         printf("# WARNING: version 1.24 log format has the following limitations:\n");
         printf("# - does not store the job id in the file.\n");
         printf("# - inaccurate statistics in some multi-threaded cases.\n");
@@ -777,6 +796,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_F_SLOWEST_RANK_TIME\n");
         printf("#   CP_F_VARIANCE_RANK_TIME\n");
         printf("#   CP_F_VARIANCE_RANK_BYTES\n");
+        printf("#   wtime_offset (in job header).\n");
         printf("# WARNING: version 1.23 log format has the following limitations:\n");
         printf("# - may have incorrect mount point mappings for files with rank > 0.\n");
         printf("# - does not store the job id in the file.\n");
@@ -797,6 +817,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_F_SLOWEST_RANK_TIME\n");
         printf("#   CP_F_VARIANCE_RANK_TIME\n");
         printf("#   CP_F_VARIANCE_RANK_BYTES\n");
+        printf("#   wtime_offset (in job header).\n");
         printf("# WARNING: version 1.22 log format has the following limitations:\n");
         printf("# - does not record mounted file systems, mount points, or fs types.\n");
         printf("# - attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
@@ -825,6 +846,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("#   CP_F_SLOWEST_RANK_TIME\n");
         printf("#   CP_F_VARIANCE_RANK_TIME\n");
         printf("#   CP_F_VARIANCE_RANK_BYTES\n");
+        printf("#   wtime_offset (in job header).\n");
         printf("# WARNING: version 1.21 log format has the following limitations:\n");
         printf("# - does not record mounted file systems, mount points, or fs types.\n");
         printf("# - attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
@@ -1078,7 +1100,7 @@ static void shift_missing_1_24(struct darshan_file* file)
     return;
 }
 
-static int getjob_internal_201(darshan_fd file, struct darshan_job *job)
+static int getjob_internal_203(darshan_fd file, struct darshan_job *job)
 {
     int ret;
 
@@ -1092,6 +1114,70 @@ static int getjob_internal_201(darshan_fd file, struct darshan_job *job)
         fprintf(stderr, "Error: invalid log file (too short).\n");
         return(-1);
     }
+
+    if(job->magic_nr == CP_MAGIC_NR)
+    {
+        /* no byte swapping needed, this file is in host format already */
+        file->swap_flag = 0;
+        return(0);
+    }
+
+    /* try byte swapping */
+    DARSHAN_BSWAP64(&job->magic_nr);
+    if(job->magic_nr == CP_MAGIC_NR)
+    {
+        file->swap_flag = 1;
+        DARSHAN_BSWAP64(&job->uid);
+        DARSHAN_BSWAP64(&job->start_time);
+        DARSHAN_BSWAP64(&job->end_time);
+        DARSHAN_BSWAP64(&job->nprocs);
+        DARSHAN_BSWAP64(&job->jobid);
+        DARSHAN_BSWAP64(&job->wtime_offset);
+        return(0);
+    }
+
+    /* otherwise this file is just broken */
+    fprintf(stderr, "Error: bad magic number in darshan file.\n");
+    return(-1);
+}
+
+static int getjob_internal_201(darshan_fd file, struct darshan_job *job)
+{
+    int ret;
+    struct darshan_job_201
+    {
+        char version_string[8];
+        int64_t magic_nr;
+        int64_t uid;
+        int64_t start_time;
+        int64_t end_time;
+        int64_t nprocs;
+        int64_t jobid;
+        char metadata[DARSHAN_JOB_METADATA_LEN];
+    } job_201;
+
+    memset(&job_201, 0, sizeof(job_201));
+    memset(job, 0, sizeof(*job));
+
+    ret = darshan_log_seek(file, 0);
+    if(ret < 0)
+        return(ret);
+
+    ret = darshan_log_read(file, &job_201, sizeof(job_201));
+    if (ret < sizeof(job_201))
+    {
+        fprintf(stderr, "Error: invalid log file (too short).\n");
+        return(-1);
+    }
+
+    memcpy(job->version_string, job_201.version_string, 8);
+    job->magic_nr   = job_201.magic_nr;
+    job->uid        = job_201.uid;
+    job->start_time = job_201.start_time;
+    job->end_time   = job_201.end_time;
+    job->nprocs     = job_201.nprocs;
+    job->jobid      = job_201.jobid;
+    memcpy(job->metadata, job_201.metadata, DARSHAN_JOB_METADATA_LEN);
 
     if(job->magic_nr == CP_MAGIC_NR)
     {
@@ -1133,7 +1219,7 @@ static int getjob_internal_200(darshan_fd file, struct darshan_job *job)
         int64_t jobid;
     } job_200;
 
-    memset(job, 0, sizeof(job_200));
+    memset(&job_200, 0, sizeof(job_200));
     memset(job, 0, sizeof(*job));
 
     ret = darshan_log_seek(file, 0);

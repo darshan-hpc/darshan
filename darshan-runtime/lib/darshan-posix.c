@@ -1306,6 +1306,7 @@ void darshan_initialize(int argc, char** argv,  int nprocs, int rank)
     darshan_global_job->log_job.uid = getuid();
     darshan_global_job->log_job.start_time = time(NULL);
     darshan_global_job->log_job.nprocs = nprocs;
+    darshan_global_job->log_job.wtime_offset = posix_wtime();
     my_rank = rank;
 
     /* record exe and arguments */

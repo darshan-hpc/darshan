@@ -261,6 +261,7 @@ int main(int argc, char **argv)
     printf("# end_time_asci: %s", ctime(&tmp_time));
     printf("# nprocs: %" PRId64 "\n", job.nprocs);
     printf("# run time: %" PRId64 "\n", job.end_time - job.start_time + 1);
+    printf("# wtime_offset: %f\n", job.wtime_offset);
     for(token=strtok_r(job.metadata, "\n", &save);
         token != NULL;
         token=strtok_r(NULL, "\n", &save))
