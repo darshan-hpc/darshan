@@ -248,7 +248,7 @@ while ($line = <TRACE>) {
             if($last_read_start > $starttime) {
                 $last_read_start -= $starttime;
             }
-            if($fields[3] > $runtime && !$warn_read_time_overflow)
+            if(($fields[3] - $wtime_offset) > $runtime && !$warn_read_time_overflow)
             {
                 $warn_read_time_overflow = 1;
                 print "Warning: detected read access at time $fields[3] but runtime is only $runtime seconds.\n";
@@ -273,7 +273,7 @@ while ($line = <TRACE>) {
             if($last_write_start > $starttime) {
                 $last_write_start -= $starttime;
             }
-            if($fields[3] > $runtime && !$warn_write_time_overflow)
+            if(($fields[3] - $wtime_offset) > $runtime && !$warn_write_time_overflow)
             {
                 $warn_write_time_overflow = 1;
                 print "Warning: detected write access at time $fields[3] but runtime is only $runtime seconds.\n";
