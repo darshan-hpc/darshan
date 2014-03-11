@@ -25,7 +25,7 @@
 #define CP_MEM_ALIGNMENT_OVERRIDE "DARSHAN_MEMALIGN"
 
 /* maximum number of files per process we will track */
-#define CP_MAX_FILES 1024
+#define CP_MAX_FILES 10  //Intial default 1024
 
 /* TODO: figure out how to pick good value here */
 /* hash table size parameters */

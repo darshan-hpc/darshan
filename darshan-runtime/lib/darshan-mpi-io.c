@@ -140,10 +140,17 @@ extern char* __progname;
     } \
 } while(0)
 
-#define CP_RECORD_MPI_WRITE(__ret, __fh, __count, __datatype, __counter, __tm1, __tm2) do { \
+int count_contiguous_blocks_memory(MPI_Datatype datatype, int count);
+int count_contiguous_blocks_file(MPI_File fh, MPI_Offset foff1, MPI_Offset foff2);
+MPI_Offset func_1_inf(MPI_File fh, MPI_Offset x, int memtype_size);
+MPI_Offset func_1(MPI_File fh, MPI_Offset x);
+
+/*
+#define CP_RECORD_MPI_WRITE(__ret, __fh, __count, __datatype, __counter, __tm1, __tm2, __voff) do { \
     struct darshan_file_runtime* file; \
     int size = 0; \
     MPI_Aint extent = 0; \
+    MPI_Offset foff1, foff2; \
     if(__ret != MPI_SUCCESS) break; \
     file = darshan_file_by_fh(__fh); \
     if(!file) break; \
@@ -158,7 +165,68 @@ extern char* __progname;
     if(CP_F_VALUE(file, CP_F_WRITE_START_TIMESTAMP) == 0) \
         CP_F_SET(file, CP_F_WRITE_START_TIMESTAMP, __tm1); \
     CP_F_SET(file, CP_F_WRITE_END_TIMESTAMP, __tm2); \
+    CP_SET(file, CP_AVG_MEM_DTYPE_SIZE, size); \
+    CP_SET(file, CP_AVG_MEM_DTYPE_EXTENT, extent * __count); \
+    CP_SET(file, CP_AVG_MEM_DTYPE_BLOCKS, count_contiguous_blocks_memory(__datatype,  __count)); \
+    MPI_File_get_byte_offset(__fh, __voff, &foff1); \
+    MPI_File_get_byte_offset(__fh, __voff + size, &foff2); \
+    CP_SET(file, CP_MIN_FILE_OFFSET, foff1);  \
+    CP_SET(file, CP_MAX_FILE_OFFSET, foff2);  \
+    CP_SET(file, CP_AVG_FILE_DTYPE_EXTENT, foff2 -foff1);  \
+    CP_SET(file, CP_AVG_FILE_DTYPE_BLOCKS, count_contiguous_blocks_file(fh, foff1, foff2 )); \
 } while(0)
+*/
+
+static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh);
+
+void CP_RECORD_MPI_WRITE(int __ret, MPI_File __fh, int __count, MPI_Datatype __datatype, 
+			 int64_t __counter, double __tm1, double __tm2, MPI_Offset __voff) { 
+    struct darshan_file_runtime* file; 
+    int size = 0; 
+    MPI_Aint extent = 0; 
+    MPI_Offset foff1, foff2;
+    int mem_blocks, file_blocks; //
+    if(__ret != MPI_SUCCESS) return; 
+    file = darshan_file_by_fh(__fh); 
+    if(!file) return; 
+    DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  
+    size = size * __count; 
+    DARSHAN_MPI_CALL(PMPI_Type_extent)(__datatype, &extent); 
+    CP_BUCKET_INC(file, CP_SIZE_WRITE_AGG_0_100, size); 
+    CP_BUCKET_INC(file, CP_EXTENT_WRITE_0_100, extent); 
+    CP_INC(file, __counter, 1); 
+    CP_DATATYPE_INC(file, __datatype); 
+    CP_F_INC_NO_OVERLAP(file, __tm1, __tm2, file->last_mpi_write_end, CP_F_MPI_WRITE_TIME); 
+    if(CP_F_VALUE(file, CP_F_WRITE_START_TIMESTAMP) == 0) 
+        CP_F_SET(file, CP_F_WRITE_START_TIMESTAMP, __tm1); 
+    CP_F_SET(file, CP_F_WRITE_END_TIMESTAMP, __tm2); 
+    CP_SET(file, CP_AVG_MEM_DTYPE_SIZE, size); 
+    CP_SET(file, CP_AVG_MEM_DTYPE_EXTENT, extent * __count);
+    mem_blocks = count_contiguous_blocks_memory(__datatype,  __count); //
+    CP_SET(file, CP_AVG_MEM_DTYPE_BLOCKS, mem_blocks); // 
+    CP_SET(file, CP_MAX_MEM_DTYPE_SIZE, size); //
+    CP_SET(file, CP_MAX_MEM_DTYPE_EXTENT, extent); //
+    CP_SET(file, CP_MAX_MEM_DTYPE_BLOCKS, mem_blocks); //
+    CP_SET(file, CP_MIN_MEM_DTYPE_SIZE, size); //
+    CP_SET(file, CP_MIN_MEM_DTYPE_EXTENT, extent); //
+    CP_SET(file, CP_MIN_MEM_DTYPE_BLOCKS, mem_blocks); //
+    //MPI_File_get_byte_offset(__fh, __voff, &foff1);
+    //MPI_File_get_byte_offset(__fh, __voff + __count, &foff2);
+    foff1 = func_1(__fh, __voff); //
+    foff2 = func_1_inf(__fh, __voff, size); //
+    //    printf("foff1 = %lld foff1_func_1 = %lld foff2 = %lld foff2_func_1_inf = %lld __voff =%lld __count=%d\n", 
+    //	   foff1, func_1(__fh, __voff), foff2, func_1_inf(__fh, __voff, size), __voff,  __count);
+    file_blocks = count_contiguous_blocks_file(__fh, foff1, foff2 );
+    CP_SET(file, CP_MIN_FILE_OFFSET, foff1);  
+    CP_SET(file, CP_MAX_FILE_OFFSET, foff2);  
+    CP_SET(file, CP_AVG_FILE_DTYPE_EXTENT, foff2 - foff1 + 1);  
+    CP_SET(file, CP_AVG_FILE_DTYPE_BLOCKS, file_blocks); 
+    CP_SET(file, CP_MAX_FILE_DTYPE_EXTENT, foff2 - foff1 + 1); //
+    CP_SET(file, CP_MAX_FILE_DTYPE_BLOCKS, file_blocks);  //
+    CP_SET(file, CP_MIN_FILE_DTYPE_EXTENT, foff2 - foff1 + 1); //
+    CP_SET(file, CP_MIN_FILE_DTYPE_BLOCKS, file_blocks);  //    
+} 
+
 
 #define CP_RECORD_MPI_READ(__ret, __fh, __count, __datatype, __counter, __tm1, __tm2) do { \
     struct darshan_file_runtime* file; \
@@ -204,7 +272,7 @@ static void pairwise_variance_reduce (
 static void debug_mounts(const char* mtab_file, const char* out_file);
 #endif
 
-static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh);
+//static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh);
 static void darshan_file_close_fh(MPI_File fh);
 static struct darshan_file_runtime* darshan_file_by_name_setfh(const char* name, MPI_File fh);
 
@@ -1050,6 +1118,8 @@ int MPI_File_iread_shared(MPI_File fh, void * buf, int count,
     return(ret);
 }
 
+
+
 #ifdef HAVE_MPIIO_CONST
 int MPI_File_write(MPI_File fh, const void *buf, int count, 
     MPI_Datatype datatype, MPI_Status *status)
@@ -1060,13 +1130,15 @@ int MPI_File_write(MPI_File fh, void *buf, int count,
 {
     int ret;
     double tm1, tm2;
+    MPI_Offset off;
 
     crt_fh = &fh;
     tm1 = darshan_wtime();
+    MPI_File_get_position(fh, &off);
     ret = DARSHAN_MPI_CALL(PMPI_File_write)(fh, buf, count, datatype, status);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_INDEP_WRITES, tm1, tm2);
+    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_INDEP_WRITES, tm1, tm2, off);
     CP_UNLOCK();
     crt_fh = NULL;
     return(ret);
@@ -1089,7 +1161,7 @@ int MPI_File_write_at(MPI_File fh, MPI_Offset offset, void *buf,
         count, datatype, status);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_INDEP_WRITES, tm1, tm2);
+    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_INDEP_WRITES, tm1, tm2, offset);
     CP_UNLOCK();
     crt_fh = NULL;
     return(ret);
@@ -1114,10 +1186,9 @@ int MPI_File_write_at_all(MPI_File fh, MPI_Offset offset, void * buf,
         count, datatype, status);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_COLL_WRITES, tm1, tm2);
+    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_COLL_WRITES, tm1, tm2, offset);
     CP_UNLOCK();
     crt_fh = NULL;
-
     darshan_end_epoch();
 
     return(ret);
@@ -1131,16 +1202,22 @@ int MPI_File_write_all(MPI_File fh, void * buf, int count, MPI_Datatype datatype
 {
     int ret;
     double tm1, tm2;
+    MPI_Offset off;
+
+    darshan_start_epoch();
 
     crt_fh = &fh;
     tm1 = darshan_wtime();
+    MPI_File_get_position(fh, &off);
     ret = DARSHAN_MPI_CALL(PMPI_File_write_all)(fh, buf, count,
         datatype, status);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_COLL_WRITES, tm1, tm2);
+    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_COLL_WRITES, tm1, tm2, off);
     CP_UNLOCK();
     crt_fh = NULL;
+
+    darshan_end_epoch();
 
     return(ret);
 }
@@ -1153,14 +1230,16 @@ int MPI_File_write_shared(MPI_File fh, void * buf, int count, MPI_Datatype datat
 {
     int ret;
     double tm1, tm2;
+    MPI_Offset off;
 
     crt_fh = &fh;
     tm1 = darshan_wtime();
+    MPI_File_get_position(fh, &off);
     ret = DARSHAN_MPI_CALL(PMPI_File_write_shared)(fh, buf, count,
         datatype, status);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_INDEP_WRITES, tm1, tm2);
+    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_INDEP_WRITES, tm1, tm2, off);
     CP_UNLOCK();
     crt_fh = NULL;
     return(ret);
@@ -1176,14 +1255,16 @@ int MPI_File_write_ordered(MPI_File fh, void * buf, int count,
 {
     int ret;
     double tm1, tm2;
+    MPI_Offset off;
 
     crt_fh = &fh;
     tm1 = darshan_wtime();
+    MPI_File_get_position(fh, &off);
     ret = DARSHAN_MPI_CALL(PMPI_File_write_ordered)(fh, buf, count,
          datatype, status); 
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_COLL_WRITES, tm1, tm2);
+    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_COLL_WRITES, tm1, tm2, off);
     CP_UNLOCK();
     crt_fh = NULL;
     return(ret);
@@ -1206,7 +1287,7 @@ int MPI_File_write_at_all_begin(MPI_File fh, MPI_Offset offset, void * buf,
         buf, count, datatype);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_SPLIT_WRITES, tm1, tm2);
+    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_SPLIT_WRITES, tm1, tm2, offset);
     CP_UNLOCK();
     crt_fh = NULL;
     return(ret);
@@ -1220,13 +1301,15 @@ int MPI_File_write_all_begin(MPI_File fh, void * buf, int count, MPI_Datatype da
 {
     int ret;
     double tm1, tm2;
+    MPI_Offset off;
 
     crt_fh = &fh;
     tm1 = darshan_wtime(); 
+    MPI_File_get_position(fh, &off);
     ret = DARSHAN_MPI_CALL(PMPI_File_write_all_begin)(fh, buf, count, datatype);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_SPLIT_WRITES, tm1, tm2);
+    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_SPLIT_WRITES, tm1, tm2, off);
     CP_UNLOCK();
     crt_fh = NULL;
     return(ret);
@@ -1240,14 +1323,16 @@ int MPI_File_write_ordered_begin(MPI_File fh, void * buf, int count, MPI_Datatyp
 {
     int ret;
     double tm1, tm2;
+    MPI_Offset off;
 
     crt_fh = &fh;
     tm1 = darshan_wtime();
+    MPI_File_get_position(fh, &off);
     ret = DARSHAN_MPI_CALL(PMPI_File_write_ordered_begin)(fh, buf, count,
         datatype);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_SPLIT_WRITES, tm1, tm2);
+    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_SPLIT_WRITES, tm1, tm2, off);
     CP_UNLOCK();
     crt_fh = NULL;
     return(ret);
@@ -1270,7 +1355,7 @@ int MPI_File_iwrite_at(MPI_File fh, MPI_Offset offset, void * buf,
         count, datatype, request);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_NB_WRITES, tm1, tm2);
+    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_NB_WRITES, tm1, tm2, offset);
     CP_UNLOCK();
     crt_fh = NULL;
     return(ret);
@@ -1284,13 +1369,15 @@ int MPI_File_iwrite(MPI_File fh, void * buf, int count, MPI_Datatype datatype, _
 {
     int ret;
     double tm1, tm2;
+    MPI_Offset off;
 
     crt_fh = &fh;
     tm1 = darshan_wtime();
+    MPI_File_get_position(fh, &off);
     ret = DARSHAN_MPI_CALL(PMPI_File_iwrite)(fh, buf, count, datatype, request);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_NB_WRITES, tm1, tm2);
+    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_NB_WRITES, tm1, tm2, off);
     CP_UNLOCK();
     crt_fh = NULL;
     return(ret);
@@ -1306,14 +1393,16 @@ int MPI_File_iwrite_shared(MPI_File fh, void * buf, int count,
 {
     int ret;
     double tm1, tm2;
+    MPI_Offset off;
 
     crt_fh = &fh;
     tm1 = darshan_wtime();
+    MPI_File_get_position(fh, &off);
     ret = DARSHAN_MPI_CALL(PMPI_File_iwrite_shared)(fh, buf, count,
         datatype, request);
     tm2 = darshan_wtime();
     CP_LOCK();
-    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_NB_WRITES, tm1, tm2);
+    CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_NB_WRITES, tm1, tm2, off);
     CP_UNLOCK();
     crt_fh = NULL;
     return(ret);
@@ -1766,12 +1855,37 @@ static void darshan_file_reduce(void* infile_v,
             tmp_file.counters[CP_DEVICE] = infile->counters[CP_DEVICE];
             tmp_file.counters[CP_SIZE_AT_OPEN] = infile->counters[CP_SIZE_AT_OPEN];
         }
-
+	/* sum */
 	for (j=CP_MPI_SENDS; j<=CP_BYTES_MPI_ALLREDUCE; j++)
         {
             tmp_file.counters[j] = infile->counters[j] +
                 inoutfile->counters[j];
         }
+	/* sum */
+	for (j=CP_AVG_MEM_DTYPE_SIZE; j<= CP_AVG_FILE_DTYPE_BLOCKS; j++)
+        {
+            tmp_file.counters[j] = infile->counters[j] +
+                inoutfile->counters[j];
+        }
+	
+        /* max */
+        for(j=CP_MAX_MEM_DTYPE_SIZE; j<=CP_MAX_FILE_DTYPE_BLOCKS; j++)
+        {
+            tmp_file.counters[j] = (
+                (infile->counters[j] > inoutfile->counters[j]) ? 
+                infile->counters[j] :
+                inoutfile->counters[j]);
+        }
+
+	/* min */
+        for(j=CP_MIN_MEM_DTYPE_SIZE; j<=CP_MIN_FILE_DTYPE_BLOCKS; j++)
+        {
+            tmp_file.counters[j] = (
+		(infile->counters[j] < inoutfile->counters[j]) ? 
+                infile->counters[j] :
+                inoutfile->counters[j]);
+        }
+
 
 
         /* pick one name suffix (every file record should have this, whether
@@ -2582,7 +2696,7 @@ void darshan_mnt_id_from_path(const char* path, int64_t* device_id, int64_t* blo
 
 // Keep counters for each epoch
 
-#define DARSHAN_MAX_EPOCHS 1024
+#define DARSHAN_MAX_EPOCHS 128
 
 struct darshan_file epoch_file_array[DARSHAN_MAX_EPOCHS][CP_MAX_FILES];
 struct darshan_file_runtime epoch_file_runtime_array[DARSHAN_MAX_EPOCHS][CP_MAX_FILES];
@@ -2670,7 +2784,7 @@ void darshan_shutdown(int timing_flag)
 {
     
     if (!epoch_counter)
-	darshan_shutdown_epoch(0);
+	darshan_shutdown_epoch(timing_flag);
     else {
 	int i,j;
 
@@ -2701,7 +2815,7 @@ void darshan_shutdown(int timing_flag)
 		darshan_global_job->file_runtime_array[j].aio_list_tail = epoch_file_runtime_array[i][j].aio_list_tail;
 	    }
 	    CP_UNLOCK();
-	    darshan_shutdown_epoch(0);
+	    darshan_shutdown_epoch(timing_flag);
 	}
 	
     }
