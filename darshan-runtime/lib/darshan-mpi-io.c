@@ -303,12 +303,11 @@ void darshan_shutdown_epoch(struct darshan_job_runtime* final_job, int timing_fl
     static int epoch_idx = 0;
 
     //CP_LOCK();
-
-    //    if(!darshan_global_job)
-    //  {
+    //if(!darshan_global_job)
+    //{
     //    CP_UNLOCK();
     //    return;
-    // }
+    //}
     /* disable further tracing while hanging onto the data so that we can
      * write it out
      */
@@ -2611,7 +2610,7 @@ void darshan_shutdown(int timing_flag)
     CP_UNLOCK();
     
     if (!epoch_counter)
-	darshan_shutdown_epoch(final_job, 0);
+	darshan_shutdown_epoch(final_job, timing_flag);
     else {
 	int i,j;
 
@@ -2642,7 +2641,7 @@ void darshan_shutdown(int timing_flag)
 		final_job->file_runtime_array[j].aio_list_tail = epoch_file_runtime_array[i][j].aio_list_tail;
 	    }
 	    CP_UNLOCK();
-	    darshan_shutdown_epoch(final_job, 0);
+	    darshan_shutdown_epoch(final_job, timing_flag);
 	}
 	
     }
