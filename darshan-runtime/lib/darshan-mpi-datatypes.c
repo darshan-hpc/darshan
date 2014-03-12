@@ -39,10 +39,12 @@ void print_flatlist(MPI_Datatype dt) {
   int b_index;
   ADIOI_Flatlist_node *flat_buf;
   flat_buf = get_flatlist(dt);
-  if (flat_buf)
+  if (flat_buf) {
+    printf("FLATLIST with %d elements\n",flat_buf->count);	
     for (b_index=0; b_index < flat_buf->count; b_index++) {
 	printf ("%3d-th: offset=%8lld len=%8lld \n",b_index, flat_buf->indices[b_index],flat_buf->blocklens[b_index]);
     }
+  }
   else
     printf ("NULL flat_buf\n");
 }
@@ -112,8 +114,10 @@ int find_bin_search(MPI_Offset x, MPI_Datatype datatype, int leftright){
 
 // Finds the file offset within the extent range  
 // assumes : x > 0
-int find_size_bin_search(MPI_Offset x, ADIOI_Flatlist_node *flat_buf){
-  int l = 0 ,r = flat_buf->count - 1 ,size = -1;
+MPI_Offset find_size_bin_search(MPI_Offset x, ADIOI_Flatlist_node *flat_buf){
+  int l = 0 ,r = flat_buf->count - 1;
+  MPI_Offset size;
+
   while (l <= r) {
     int m = (l + r) / 2;
     //printf("\n*** l=%d r=%d\n",l,r);
@@ -258,7 +262,11 @@ int count_contiguous_blocks_file(MPI_File fh, MPI_Offset foff1, MPI_Offset foff2
 	ADIOI_Flatlist_node *flat_buf;
 	flat_buf = get_flatlist(filetype);
 	MPI_Type_get_extent(filetype, &lb, &extent);
-	
+
+	if (disp+lb > foff1) {
+		printf("disp=%lld lb=%lld foff1=%lld foff2=%lld\n", disp, lb, foff1, foff2);
+		print_flatlist(filetype);		
+	}	
 	assert(disp+lb <= foff1);
 	assert(lb == flat_buf->indices[0]);
 
