@@ -271,11 +271,11 @@ void darshan_mpi_initialize(int *argc, char ***argv)
     return;
 }
 
-void darshan_shutdown_epoch(int timing_flag)
+void darshan_shutdown_epoch(struct darshan_job_runtime* final_job, int timing_flag)
 {
     int rank;
     char* logfile_name;
-    struct darshan_job_runtime* final_job;
+    // struct darshan_job_runtime* final_job;
     double start_log_time = 0;
     int all_ret = 0;
     int local_ret = 0;
@@ -302,19 +302,20 @@ void darshan_shutdown_epoch(int timing_flag)
     uint64_t hlevel;
     static int epoch_idx = 0;
 
-    CP_LOCK();
-    if(!darshan_global_job)
-    {
-        CP_UNLOCK();
-        return;
-    }
+    //CP_LOCK();
+
+    //    if(!darshan_global_job)
+    //  {
+    //    CP_UNLOCK();
+    //    return;
+    // }
     /* disable further tracing while hanging onto the data so that we can
      * write it out
      */
-    final_job = darshan_global_job;
+    //final_job = darshan_global_job;
     //  Moved to the new darshan_shutdown   
     //    darshan_global_job = NULL;
-    CP_UNLOCK();
+    //CP_UNLOCK();
 
     start_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
@@ -2596,50 +2597,62 @@ void darshan_end_epoch(void)
 
 void darshan_shutdown(int timing_flag)
 {
+    struct darshan_job_runtime *final_job;
+
+    // Moved here from previous darshan_shutdown
+    CP_LOCK();
+    if (!darshan_global_job){
+        CP_UNLOCK();
+        return;
+    }
+
+    final_job = darshan_global_job;
+    darshan_global_job = NULL;
+    CP_UNLOCK();
     
     if (!epoch_counter)
-	darshan_shutdown_epoch(0);
+	darshan_shutdown_epoch(final_job, 0);
     else {
 	int i,j;
 
 	for(i=0; i<epoch_counter; i++){
 	    CP_LOCK();
-	    darshan_global_job->file_count = epoch_file_count[i];
-	    memcpy(darshan_global_job->file_array,
+	    final_job->file_count = epoch_file_count[i];
+	    memcpy(final_job->file_array,
 		   epoch_file_array[i],
-		   darshan_global_job->file_count* sizeof(struct darshan_file));
+		   final_job->file_count* sizeof(struct darshan_file));
 	    // Can not copy to avoid destroying the hash table pointers
-	    for (j=0; j<darshan_global_job->file_count; j++) {
-		darshan_global_job->file_runtime_array[j].log_file = epoch_file_runtime_array[i][j].log_file;
-		darshan_global_job->file_runtime_array[j].access_root = epoch_file_runtime_array[i][j].access_root;
-		darshan_global_job->file_runtime_array[j].access_count = epoch_file_runtime_array[i][j].access_count;
-		darshan_global_job->file_runtime_array[j].stride_root = epoch_file_runtime_array[i][j].stride_root ;
-		darshan_global_job->file_runtime_array[j].stride_count = epoch_file_runtime_array[i][j].stride_count;
-		darshan_global_job->file_runtime_array[j].last_byte_read = epoch_file_runtime_array[i][j].last_byte_read;
-		darshan_global_job->file_runtime_array[j].last_byte_written = epoch_file_runtime_array[i][j].last_byte_written;
-		darshan_global_job->file_runtime_array[j].offset = epoch_file_runtime_array[i][j].offset;
-		darshan_global_job->file_runtime_array[j].last_io_type = epoch_file_runtime_array[i][j].last_io_type;
-		darshan_global_job->file_runtime_array[j].last_posix_write_end = epoch_file_runtime_array[i][j].last_posix_write_end;
-		darshan_global_job->file_runtime_array[j].last_mpi_write_end = epoch_file_runtime_array[i][j].last_mpi_write_end;
-		darshan_global_job->file_runtime_array[j].last_posix_read_end = epoch_file_runtime_array[i][j].last_posix_read_end;
-		darshan_global_job->file_runtime_array[j].last_mpi_read_end = epoch_file_runtime_array[i][j].last_mpi_read_end;
-		darshan_global_job->file_runtime_array[j].last_posix_meta_end = epoch_file_runtime_array[i][j].last_posix_meta_end;
-		darshan_global_job->file_runtime_array[j].last_mpi_meta_end = epoch_file_runtime_array[i][j].last_mpi_meta_end;
-		darshan_global_job->file_runtime_array[j].aio_list_head = epoch_file_runtime_array[i][j].aio_list_head;
-		darshan_global_job->file_runtime_array[j].aio_list_tail = epoch_file_runtime_array[i][j].aio_list_tail;
+	    for (j=0; j<final_job->file_count; j++) {
+		final_job->file_runtime_array[j].log_file = epoch_file_runtime_array[i][j].log_file;
+		final_job->file_runtime_array[j].access_root = epoch_file_runtime_array[i][j].access_root;
+		final_job->file_runtime_array[j].access_count = epoch_file_runtime_array[i][j].access_count;
+		final_job->file_runtime_array[j].stride_root = epoch_file_runtime_array[i][j].stride_root ;
+		final_job->file_runtime_array[j].stride_count = epoch_file_runtime_array[i][j].stride_count;
+		final_job->file_runtime_array[j].last_byte_read = epoch_file_runtime_array[i][j].last_byte_read;
+		final_job->file_runtime_array[j].last_byte_written = epoch_file_runtime_array[i][j].last_byte_written;
+		final_job->file_runtime_array[j].offset = epoch_file_runtime_array[i][j].offset;
+		final_job->file_runtime_array[j].last_io_type = epoch_file_runtime_array[i][j].last_io_type;
+		final_job->file_runtime_array[j].last_posix_write_end = epoch_file_runtime_array[i][j].last_posix_write_end;
+		final_job->file_runtime_array[j].last_mpi_write_end = epoch_file_runtime_array[i][j].last_mpi_write_end;
+		final_job->file_runtime_array[j].last_posix_read_end = epoch_file_runtime_array[i][j].last_posix_read_end;
+		final_job->file_runtime_array[j].last_mpi_read_end = epoch_file_runtime_array[i][j].last_mpi_read_end;
+		final_job->file_runtime_array[j].last_posix_meta_end = epoch_file_runtime_array[i][j].last_posix_meta_end;
+		final_job->file_runtime_array[j].last_mpi_meta_end = epoch_file_runtime_array[i][j].last_mpi_meta_end;
+		final_job->file_runtime_array[j].aio_list_head = epoch_file_runtime_array[i][j].aio_list_head;
+		final_job->file_runtime_array[j].aio_list_tail = epoch_file_runtime_array[i][j].aio_list_tail;
 	    }
 	    CP_UNLOCK();
-	    darshan_shutdown_epoch(0);
+	    darshan_shutdown_epoch(final_job, 0);
 	}
 	
     }
     // Moved here from previous darshan_shutdown
     CP_LOCK();
-    if (darshan_global_job->trailing_data)
-	free(darshan_global_job->trailing_data);
+    if (final_job->trailing_data)
+	free(final_job->trailing_data);
     mnt_data_count = 0;
-    darshan_finalize(darshan_global_job);
-    darshan_global_job = NULL;
+    darshan_finalize(final_job);
+    final_job = NULL;
     CP_UNLOCK();
 }
 
