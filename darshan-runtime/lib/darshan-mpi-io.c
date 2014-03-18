@@ -179,6 +179,8 @@ MPI_Offset func_1(MPI_File fh, MPI_Offset x);
 
 static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh);
 
+static int epoch_counter = 0;
+
 void printHints(MPI_Info * mpiHints)
 {
     int rank;
@@ -189,7 +191,7 @@ void printHints(MPI_Info * mpiHints)
     	int  flag, i, nkeys;
 
     	MPI_Info_get_nkeys(*mpiHints, &nkeys);
-
+	fprintf(stdout,"MPI-IO hints epoch%d\n", epoch_counter);
     	for (i = 0; i < nkeys; i++) {
         	MPI_Info_get_nthkey(*mpiHints, i, key);
         	MPI_Info_get(*mpiHints, key, MPI_MAX_INFO_VAL-1,
@@ -272,6 +274,25 @@ void CP_RECORD_MPI_WRITE(int __ret, MPI_File __fh, int __count, MPI_Datatype __d
     CP_F_SET(file, CP_F_READ_END_TIMESTAMP, __tm2); \
 } while(0)
 
+
+void  set_collective_io_hints(MPI_File fh){
+	char *value;
+
+	MPI_Info info;
+	MPI_Info_create(&info);
+	if (value = getenv("ROMIO_CB_NODES"))
+		MPI_Info_set(info, "cb_nodes", value);
+	// printf("value=%s\n",value);
+        if (value = getenv("ROMIO_CB_BUFFER_SIZE"))
+                MPI_Info_set(info, "cb_buffer_size", value);
+	// printf("value=%s\n",value);
+        if (value = getenv("ROMIO_BG_NODES_PSET"))
+                MPI_Info_set(info, "bg_nodes_pset", value);
+	// printf("value=%s\n",value);
+	MPI_File_set_info(fh, info);
+	MPI_Info_free(&info);
+}
+
 static void cp_log_construct_indices(struct darshan_job_runtime* final_job,
     int rank, int* inout_count, int* lengths, void** pointers, char*
     trailing_data);
@@ -319,8 +340,6 @@ struct variance_dt
     double T;
     double S;
 };
-
-static int epoch_counter = 0;
 
 // The next two variables used for the context of the file access operation
 // e.g. for tracing all the MPI communication from an MPI_File_write
@@ -729,6 +748,7 @@ void darshan_shutdown_epoch(struct darshan_job_runtime* final_job, int timing_fl
                 mod_index = strstr(new_logfile_name, ".darshan_partial");
                 sprintf(mod_index, "_%d.darshan.gz", (int)(end_log_time-start_log_time+1));
                 rename(logfile_name, new_logfile_name);
+		fprintf(stdout, "DARSHAN_LOGFILE:%s\n", new_logfile_name);
                 /* set permissions on log file */
 #ifdef __CP_GROUP_READABLE_LOGS
                 chmod(new_logfile_name, (S_IRUSR|S_IRGRP)); 
@@ -801,10 +821,25 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
     char* tmp;
     int comm_size;
     double tm1, tm2;
+    char *romio_file_prefix, *new_filename;
 
+    
+    // Add a ROMIO prefix through an env variable 
+    if (romio_file_prefix = getenv("ROMIO_FILE_PREFIX")) {
+	new_filename = (char *) malloc (strlen(romio_file_prefix) + strlen(filename) + 1);
+	strcpy(new_filename, romio_file_prefix);
+	strcat(new_filename, filename);
+    }
+    else
+	new_filename = filename;	
+
+    //printf("new_filename=%s\n", new_filename);
     tm1 = darshan_wtime();
-    ret = DARSHAN_MPI_CALL(PMPI_File_open)(comm, filename, amode, info, fh);
+    ret = DARSHAN_MPI_CALL(PMPI_File_open)(comm, new_filename, amode, info, fh);
     tm2 = darshan_wtime();
+
+    if (romio_file_prefix)
+	free(new_filename);
 
     if(ret == MPI_SUCCESS)
     {
@@ -1204,6 +1239,7 @@ int MPI_File_write_at_all(MPI_File fh, MPI_Offset offset, void * buf,
 
     darshan_start_epoch();
 
+    set_collective_io_hints(fh);
     crt_fh = &fh;
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_write_at_all)(fh, offset, buf,
@@ -1230,6 +1266,7 @@ int MPI_File_write_all(MPI_File fh, void * buf, int count, MPI_Datatype datatype
 
     darshan_start_epoch();
 
+    set_collective_io_hints(fh);
     crt_fh = &fh;
     tm1 = darshan_wtime();
     MPI_File_get_position(fh, &off);

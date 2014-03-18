@@ -40,7 +40,7 @@ void print_flatlist(MPI_Datatype dt) {
   ADIOI_Flatlist_node *flat_buf;
   flat_buf = get_flatlist(dt);
   if (flat_buf) {
-    printf("FLATLIST with %d elements\n",flat_buf->count);	
+    printf("FLATLIST with %lld elements\n",(long long) flat_buf->count);	
     for (b_index=0; b_index < flat_buf->count; b_index++) {
 	printf ("%3d-th: offset=%8lld len=%8lld \n",b_index, flat_buf->indices[b_index],flat_buf->blocklens[b_index]);
     }
@@ -264,7 +264,7 @@ int count_contiguous_blocks_file(MPI_File fh, MPI_Offset foff1, MPI_Offset foff2
 	MPI_Type_get_extent(filetype, &lb, &extent);
 
 	if (disp+lb > foff1) {
-		printf("disp=%lld lb=%lld foff1=%lld foff2=%lld\n", disp, lb, foff1, foff2);
+		printf("disp=%lld lb=%lld foff1=%lld foff2=%lld\n", disp, (long long) lb, foff1, foff2);
 		print_flatlist(filetype);		
 	}	
 	assert(disp+lb <= foff1);
