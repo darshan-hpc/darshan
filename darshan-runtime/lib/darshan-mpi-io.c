@@ -181,7 +181,7 @@ static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh);
 
 static int epoch_counter = 0;
 
-void printHints(MPI_Info * mpiHints)
+void printHints(MPI_File fh)
 {
     int rank;
     DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
@@ -189,12 +189,13 @@ void printHints(MPI_Info * mpiHints)
     	char key[MPI_MAX_INFO_VAL],
          value[MPI_MAX_INFO_VAL];
     	int  flag, i, nkeys;
-
-    	MPI_Info_get_nkeys(*mpiHints, &nkeys);
+	MPI_Info info;
+	MPI_File_get_info(fh, &info);
+    	MPI_Info_get_nkeys(info, &nkeys);
 	fprintf(stdout,"MPI-IO hints epoch%d\n", epoch_counter);
     	for (i = 0; i < nkeys; i++) {
-        	MPI_Info_get_nthkey(*mpiHints, i, key);
-        	MPI_Info_get(*mpiHints, key, MPI_MAX_INFO_VAL-1,
+        	MPI_Info_get_nthkey(info, i, key);
+        	MPI_Info_get(info, key, MPI_MAX_INFO_VAL-1,
                                value, &flag);
         	fprintf(stdout,"\t%s = %s\n", key, value);
     	}
@@ -209,9 +210,7 @@ void CP_RECORD_MPI_WRITE(int __ret, MPI_File __fh, int __count, MPI_Datatype __d
     MPI_Aint extent = 0; 
     MPI_Offset foff1, foff2;
     int mem_blocks, file_blocks; //
-    MPI_Info hints;
-    MPI_File_get_info(__fh, &hints);
-    printHints(&hints);	
+    //printHints(__fh); //	
     if(__ret != MPI_SUCCESS) return; 
     file = darshan_file_by_fh(__fh); 
     if(!file) return; 
@@ -1249,6 +1248,7 @@ int MPI_File_write_at_all(MPI_File fh, MPI_Offset offset, void * buf,
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_COLL_WRITES, tm1, tm2, offset);
     CP_UNLOCK();
     crt_fh = NULL;
+    printHints(fh);
     darshan_end_epoch();
 
     return(ret);
@@ -1277,7 +1277,7 @@ int MPI_File_write_all(MPI_File fh, void * buf, int count, MPI_Datatype datatype
     CP_RECORD_MPI_WRITE(ret, fh, count, datatype, CP_COLL_WRITES, tm1, tm2, off);
     CP_UNLOCK();
     crt_fh = NULL;
-
+    printHints(fh);
     darshan_end_epoch();
 
     return(ret);
