@@ -179,6 +179,27 @@ MPI_Offset func_1(MPI_File fh, MPI_Offset x);
 
 static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh);
 
+void printHints(MPI_Info * mpiHints)
+{
+    int rank;
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {	
+    	char key[MPI_MAX_INFO_VAL],
+         value[MPI_MAX_INFO_VAL];
+    	int  flag, i, nkeys;
+
+    	MPI_Info_get_nkeys(*mpiHints, &nkeys);
+
+    	for (i = 0; i < nkeys; i++) {
+        	MPI_Info_get_nthkey(*mpiHints, i, key);
+        	MPI_Info_get(*mpiHints, key, MPI_MAX_INFO_VAL-1,
+                               value, &flag);
+        	fprintf(stdout,"\t%s = %s\n", key, value);
+    	}
+   }
+} /* printHints() */
+
+
 void CP_RECORD_MPI_WRITE(int __ret, MPI_File __fh, int __count, MPI_Datatype __datatype, 
 			 int64_t __counter, double __tm1, double __tm2, MPI_Offset __voff) { 
     struct darshan_file_runtime* file; 
@@ -186,6 +207,9 @@ void CP_RECORD_MPI_WRITE(int __ret, MPI_File __fh, int __count, MPI_Datatype __d
     MPI_Aint extent = 0; 
     MPI_Offset foff1, foff2;
     int mem_blocks, file_blocks; //
+    MPI_Info hints;
+    MPI_File_get_info(__fh, &hints);
+    printHints(&hints);	
     if(__ret != MPI_SUCCESS) return; 
     file = darshan_file_by_fh(__fh); 
     if(!file) return; 
