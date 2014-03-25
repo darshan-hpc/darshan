@@ -230,10 +230,10 @@ void CP_RECORD_MPI_WRITE(int __ret, MPI_File __fh, int __count, MPI_Datatype __d
     mem_blocks = count_contiguous_blocks_memory(__datatype,  __count); //
     CP_SET(file, CP_AVG_MEM_DTYPE_BLOCKS, mem_blocks); // 
     CP_SET(file, CP_MAX_MEM_DTYPE_SIZE, size); //
-    CP_SET(file, CP_MAX_MEM_DTYPE_EXTENT, extent); //
+    CP_SET(file, CP_MAX_MEM_DTYPE_EXTENT, extent * __count); //
     CP_SET(file, CP_MAX_MEM_DTYPE_BLOCKS, mem_blocks); //
     CP_SET(file, CP_MIN_MEM_DTYPE_SIZE, size); //
-    CP_SET(file, CP_MIN_MEM_DTYPE_EXTENT, extent); //
+    CP_SET(file, CP_MIN_MEM_DTYPE_EXTENT, extent * __count); //
     CP_SET(file, CP_MIN_MEM_DTYPE_BLOCKS, mem_blocks); //
     //MPI_File_get_byte_offset(__fh, __voff, &foff1);
     //MPI_File_get_byte_offset(__fh, __voff + __count, &foff2);
