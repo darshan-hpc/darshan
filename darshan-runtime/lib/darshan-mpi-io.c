@@ -2803,6 +2803,8 @@ static void darshan_reset_counters(){
 
 void darshan_start_epoch(void)
 {
+    if (!darshan_global_job)
+        return;
     if (!getenv("DARSHAN_EPOCH"))
 	return;
     else {
@@ -2822,6 +2824,9 @@ void darshan_start_epoch(void)
 
 void darshan_end_epoch(void)
 {
+    if (!darshan_global_job)
+        return;
+
     if (!getenv("DARSHAN_EPOCH"))
 	return;
     else {
