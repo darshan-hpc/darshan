@@ -951,8 +951,12 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
     ssize_t ret;
     int aligned_flag = 0;
     double tm1, tm2;
+    char *value; 
 
     MAP_OR_FAIL(write);
+    
+    if (value = getenv("DARSHAN_POSIX_EPOCH"))
+        darshan_start_epoch();
 
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
@@ -963,6 +967,10 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
     CP_LOCK();
     CP_RECORD_WRITE(ret, fd, count, 0, 0, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
+
+    if (value = getenv("DARSHAN_POSIX_EPOCH"))
+        darshan_end_epoch();
+
     return(ret);
 }
 
