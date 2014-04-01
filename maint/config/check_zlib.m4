@@ -67,6 +67,8 @@ then
                 AC_CHECK_LIB(z, inflateEnd)
                 AC_MSG_CHECKING(zlib in ${ZLIB_HOME})
                 AC_MSG_RESULT(ok)
+		__CP_ZLIB_LINK_FLAGS="-L${ZLIB_HOME}/lib"
+		__CP_ZLIB_INCLUDE_FLAGS="-I${ZLIB_HOME}/include"
         else
                 #
                 # If either header or library was not found, revert and bomb
