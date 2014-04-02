@@ -3562,6 +3562,8 @@ fi
 $as_echo_n "checking zlib in ${ZLIB_HOME}... " >&6; }
                 { $as_echo "$as_me:${as_lineno-$LINENO}: result: ok" >&5
 $as_echo "ok" >&6; }
+		__CP_ZLIB_LINK_FLAGS="-L${ZLIB_HOME}/lib"
+		__CP_ZLIB_INCLUDE_FLAGS="-I${ZLIB_HOME}/include"
         else
                 #
                 # If either header or library was not found, revert and bomb

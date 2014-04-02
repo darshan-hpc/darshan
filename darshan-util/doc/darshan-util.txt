@@ -39,6 +39,15 @@ make
 make install
 ----
 
+CC variable
+[NOTE]
+The darshan-util package is intended to be used on a login node or
+workstation.  For most use cases this means that you should
+either leave CC to its default setting or specify a local compiler.  This is
+in contrast to the darshan-runtime documentation, which suggests setting CC
+to mpicc because the runtime library will be used in the compute node
+environment.
+
 You can specify `--prefix` to install darshan-util in a specific location
 (such as in your home directory for non-root installations).  See
 `./configure --help` for additional optional arguments, including how to

@@ -37,35 +37,35 @@ uthash-1.9.2:
 	tar xjvf $(srcdir)/extern/uthash-1.9.2.tar.bz2
 
 darshan-parser: darshan-parser.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o | uthash-1.9.2
-	gcc $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS) 
+	$(CC) $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS) 
 
 darshan-convert: darshan-convert.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o lookup3.o
-	gcc $(CFLAGS) $< darshan-logutils.o lookup3.o -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $< darshan-logutils.o lookup3.o -o $@ $(LIBS)
 
 darshan-analyzer: darshan-analyzer.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o
-	gcc $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
 
 darshan-log-params: darshan-log-params.c $(DARSHAN_LOG_FORMAT)
-	gcc $(CFLAGS) $< -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
 
 jenkins: util/bin/jenkins.o lookup3.o
-	gcc $(CFLAGS) $< -o $@ lookup3.o $(LIBS)
+	$(CC) $(CFLAGS) $< -o $@ lookup3.o $(LIBS)
 
 darshan-diff: darshan-diff.o $(DARSHAN_LOG_FORMAT) darshan-logutils.o darshan-logutils.h
-	gcc $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
 darshan-diff.o: darshan-diff.c
-	gcc $(CFLAGS) -c  $< -o $@
+	$(CC) $(CFLAGS) -c  $< -o $@
 darshan-logutils.o: darshan-logutils.c
-	gcc $(CFLAGS) -c  $< -o $@
+	$(CC) $(CFLAGS) -c  $< -o $@
 
 darshan-util-lib: darshan-logutils.o
 	ar rcs libdarshan-util.a $<
 
 test/gztest: test/gztest.c mktestdir
-	gcc $(CFLAGS) -lz $< -o $@
+	$(CC) $(CFLAGS) -lz $< -o $@
 
 test/gz-bench: test/gz-bench.c mktestdir
-	gcc $(CFLAGS) -lz $< -o $@
+	$(CC) $(CFLAGS) -lz $< -o $@
 
 lookup3.o: lookup3.c
 	$(CC) $(CFLAGS) -c $< -o $@

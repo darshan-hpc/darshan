@@ -14,6 +14,9 @@ darshan-2.2.9-pre1
     libraries.
   - Fix "undefined symbol: dlsym" error when using preloaded dynamic library
     on some platforms, reported by Florin Isaila.
+* Enhancements:
+  - Honor CC variable to allow darshan-util to be built with other compilers
+    besides gcc.
 
 darshan-2.2.8
 =============
