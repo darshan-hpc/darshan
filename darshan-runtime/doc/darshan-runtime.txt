@@ -195,8 +195,18 @@ step of adding
 `libfmpich.so` to your `LD_PRELOAD` environment variable. For example:
 
 ----
-export LD_PRELOAD=libfmpich.so:/home/carns/darshan-install/lib/libdarshan.so
+export LD_PRELOAD=/path/to/mpi/used/by/executable/lib/libfmpich.so:/home/carns/darshan-install/lib/libdarshan.so
 ----
+
+[NOTE]
+The full path to the libfmpich.so library can be omitted if the rpath
+variable points to the correct path.  Be careful to check the rpath of the
+darshan library and the executable before using this configuration, however.
+They may provide conflicting paths.  Ideally the rpath to the  MPI library
+would *not* be set by the darshan library, but would instead be specified
+exclusively by the executable itself.  You can check the rpath of the
+darshan library by running `objdump -x
+/home/carns/darshan-install/lib/libdarshan.so |grep RPATH`.
 
 == Darshan installation recipes
 

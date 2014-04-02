@@ -17,6 +17,9 @@ darshan-2.2.9-pre1
 * Enhancements:
   - Honor CC variable to allow darshan-util to be built with other compilers
     besides gcc.
+  - Update documentation to clarify the interaction between rpath and
+    LD_PRELOAD when instrumenting dynamic libraries, issue reported and
+    investigated by Davide Del Vento.
 
 darshan-2.2.8
 =============
