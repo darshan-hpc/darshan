@@ -23,6 +23,7 @@ cp_zlib_include_flags = @__CP_ZLIB_INCLUDE_FLAGS@
 # deliberately avoid large file support for host side utilities to avoid
 # potentially buggy libz 64 bit offset support
 CFLAGS = -I . -I $(srcdir) -I $(srcdir)/../ -DDARSHAN_CONFIG_H=\"darshan-util-config.h\" @CFLAGS@ @CPPFLAGS@ 
+LDFLAGS=@LDFLAGS@
 
 CC=@CC@
 LD=@LD@
@@ -37,22 +38,22 @@ uthash-1.9.2:
 	tar xjvf $(srcdir)/extern/uthash-1.9.2.tar.bz2
 
 darshan-parser: darshan-parser.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o | uthash-1.9.2
-	$(CC) $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS) 
+	$(CC) $(CFLAGS) $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS) 
 
 darshan-convert: darshan-convert.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o lookup3.o
-	$(CC) $(CFLAGS) $< darshan-logutils.o lookup3.o -o $@ $(LIBS)
+	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o lookup3.o -o $@ $(LIBS)
 
 darshan-analyzer: darshan-analyzer.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o
-	$(CC) $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
+	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
 
 darshan-log-params: darshan-log-params.c $(DARSHAN_LOG_FORMAT)
-	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
+	$(CC) $(CFLAGS)  $(LDFLAGS) $< -o $@ $(LIBS)
 
 jenkins: util/bin/jenkins.o lookup3.o
-	$(CC) $(CFLAGS) $< -o $@ lookup3.o $(LIBS)
+	$(CC) $(CFLAGS)  $(LDFLAGS) $< -o $@ lookup3.o $(LIBS)
 
 darshan-diff: darshan-diff.o $(DARSHAN_LOG_FORMAT) darshan-logutils.o darshan-logutils.h
-	$(CC) $(CFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
+	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
 darshan-diff.o: darshan-diff.c
 	$(CC) $(CFLAGS) -c  $< -o $@
 darshan-logutils.o: darshan-logutils.c
@@ -62,10 +63,10 @@ darshan-util-lib: darshan-logutils.o
 	ar rcs libdarshan-util.a $<
 
 test/gztest: test/gztest.c mktestdir
-	$(CC) $(CFLAGS) -lz $< -o $@
+	$(CC) $(CFLAGS)  $(LDFLAGS) -lz $< -o $@
 
 test/gz-bench: test/gz-bench.c mktestdir
-	$(CC) $(CFLAGS) -lz $< -o $@
+	$(CC) $(CFLAGS)  $(LDFLAGS) -lz $< -o $@
 
 lookup3.o: lookup3.c
 	$(CC) $(CFLAGS) -c $< -o $@
