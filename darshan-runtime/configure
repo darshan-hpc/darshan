@@ -4347,7 +4347,7 @@ DARSHAN_VERSION="2.2.9-pre1"
 
 
 
-ac_config_files="$ac_config_files Makefile darshan-mk-log-dirs.pl darshan-gen-cc.pl darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-config share/craype-1.x/darshan-module"
+ac_config_files="$ac_config_files Makefile darshan-mk-log-dirs.pl darshan-gen-cc.pl darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-config share/craype-1.x/darshan-module lib/pkgconfig/darshan-runtime.pc"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5048,6 +5048,7 @@ do
     "darshan-gen-fortran.pl") CONFIG_FILES="$CONFIG_FILES darshan-gen-fortran.pl" ;;
     "darshan-config") CONFIG_FILES="$CONFIG_FILES darshan-config" ;;
     "share/craype-1.x/darshan-module") CONFIG_FILES="$CONFIG_FILES share/craype-1.x/darshan-module" ;;
+    "lib/pkgconfig/darshan-runtime.pc") CONFIG_FILES="$CONFIG_FILES lib/pkgconfig/darshan-runtime.pc" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

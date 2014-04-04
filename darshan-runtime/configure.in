@@ -303,4 +303,5 @@ darshan-gen-cxx.pl
 darshan-gen-fortran.pl
 darshan-config
 share/craype-1.x/darshan-module
+lib/pkgconfig/darshan-runtime.pc
 )
