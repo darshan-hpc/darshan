@@ -531,8 +531,15 @@ void darshan_shutdown(int timing_flag)
     /* reduce records for shared files */
     if(timing_flag)
         red1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
-    local_ret = cp_log_reduction(final_job, rank, logfile_name, 
-        &next_offset);
+    if(getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
+    {
+        local_ret = 0;
+    }
+    else
+    {
+        local_ret = cp_log_reduction(final_job, rank, logfile_name, 
+            &next_offset);
+    }
     if(timing_flag)
         red2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
     DARSHAN_MPI_CALL(PMPI_Allreduce)(&local_ret, &all_ret, 1, MPI_INT, MPI_LOR, 

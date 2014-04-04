@@ -410,4 +410,8 @@ behavior at runtime:
 * DARSHAN_DISABLE_TIMING: disables the subset of Darshan instrumentation that gathers timing information
 * DARSHAN_MEMALIGN: specifies a value for memory alignment (CP_MEM_ALIGNMENT)
 * DARSHAN_JOBID: specifies the name of the environment variable to use for the job identifier, such as PBS_JOBID
+* DARSHAN_DISABLE_SHARED_REDUCTION: disables the step in Darshan aggregation
+in which files that were accessed by all ranks are collapsed into a single
+cumulative file record at rank 0.  This option retains more per-process
+information at the expense of creating larger log files.
 

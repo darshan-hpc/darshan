@@ -22,6 +22,8 @@ darshan-2.2.9-pre1
   - Update documentation to clarify the interaction between rpath and
     LD_PRELOAD when instrumenting dynamic libraries, issue reported and
     investigated by Davide Del Vento.
+  - Ability to disable shared-file reduction by setting the
+    DARSHAN_DISABLE_SHARED_REDUCTION environment variable.
 
 darshan-2.2.8
 =============
