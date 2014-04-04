@@ -249,7 +249,7 @@ described earlier in this document to produce darshan-enabled MPI compilers.
 This method has been widely used and tested with both the GNU and IBM XL
 compilers.
 
-=== Cray XE6 (or similar)
+=== Cray platforms (XE, XC, or similar)
 
 The Cray programming environment produces static executables by default,
 which means that Darshan instrumentation must be inserted at compile
@@ -309,14 +309,15 @@ Note that Darshan is not currently capable of detecting the stripe size
 If a Lustre file system is detected, then Darshan assumes an optimal
 file alignment of 1 MiB.
 
-==== Enabling Darshan instrumentation
+==== Enabling Darshan instrumentation with Cray Programming Environment
+(craype) 1.x
 
 Darshan will automatically install an example software module file in the
 following location (depending on how you specified the --prefix option in
 the previous section):
 
 ----
-/soft/darshan-2.2.3/share/cray/modulefiles/darshan
+/soft/darshan-2.2.3/share/craype-1.x/modulefiles/darshan
 ----
 
 This file must be modified before it is used, however.  Please see the
@@ -330,7 +331,7 @@ install location can be added to your local module path with the following
 command:
 
 ----
-module use /soft/darshan-2.2.3/share/cray/modulefiles
+module use /soft/darshan-2.2.3/share/craype-1.x/modulefiles
 ----
 
 From this point, Darshan instrumenation can be enabled for all future

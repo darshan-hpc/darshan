@@ -302,5 +302,5 @@ darshan-gen-cc.pl
 darshan-gen-cxx.pl
 darshan-gen-fortran.pl
 darshan-config
-share/cray/darshan-module
+share/craype-1.x/darshan-module
 )
