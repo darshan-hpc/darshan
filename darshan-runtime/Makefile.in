@@ -102,6 +102,8 @@ endif
 	install -m 755 darshan-config $(bindir)
 	install -d $(datarootdir)/craype-1.x/modulefiles/darshan
 	install -m 755 share/craype-1.x/darshan-module $(datarootdir)/craype-1.x/modulefiles/darshan/$(DARSHAN_VERSION)
+	install -d $(datarootdir)/craype-2.x/modulefiles/darshan
+	install -m 755 share/craype-2.x/darshan-module $(datarootdir)/craype-2.x/modulefiles/darshan/$(DARSHAN_VERSION)
 	install -d $(libdir)/pkgconfig
 	install -m 644 lib/pkgconfig/darshan-runtime.pc $(libdir)/pkgconfig/darshan-runtime.pc
 

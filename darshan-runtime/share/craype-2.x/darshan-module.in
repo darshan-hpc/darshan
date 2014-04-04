@@ -1,0 +1,20 @@
+#%Module
+#
+# Module darshan
+#
+
+if { [ info exists env(PE_ENV) ] } {
+       set PRGENV $env(PE_ENV)
+} else {
+       set PRGENV "GNU"
+}
+
+set PREFIX @prefix@
+
+#PE_PKGCONFIG_LIBS contain a list of all pc files that apply to all supported languages
+prepend-path PE_PKGCONFIG_LIBS darshan-runtime
+
+prepend-path PKG_CONFIG_PATH $PREFIX/lib/pkgconfig 
+prepend-path LD_LIBRARY_PATH $PREFIX/lib 
+prepend-path PATH $PREFIX/bin 
+
