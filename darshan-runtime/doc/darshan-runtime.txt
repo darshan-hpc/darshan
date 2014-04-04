@@ -309,29 +309,38 @@ Note that Darshan is not currently capable of detecting the stripe size
 If a Lustre file system is detected, then Darshan assumes an optimal
 file alignment of 1 MiB.
 
-==== Enabling Darshan instrumentation with Cray Programming Environment
-(craype) 1.x
+==== Enabling Darshan instrumentation 
 
-Darshan will automatically install an example software module file in the
-following location (depending on how you specified the --prefix option in
+Darshan will automatically install example software module files in the
+following locations (depending on how you specified the --prefix option in
 the previous section):
 
 ----
 /soft/darshan-2.2.3/share/craype-1.x/modulefiles/darshan
+/soft/darshan-2.2.3/share/craype-2.x/modulefiles/darshan
 ----
 
-This file must be modified before it is used, however.  Please see the
-comments at the end of the file and choose an environment variable method 
-that is appropriate for your system.  If this is not done, then the
-compiler may fail to link some applications when the Darshan module is
-loaded.
+Select the one that is appropriate for your Cray programming environment
+(see the version number of the craype module in `module list`).
 
-The updated module file can then be copied to a system location, or the
+If you are using the Cray Programming Environment version 1.x, then you
+must modify the corresponding modulefile before using it.  Please see
+the comments at the end of the file and choose an environment variable
+method that is appropriate for your system.  If this is not done, then
+the compiler may fail to link some applications when the Darshan module
+is loaded.
+
+If you are using the Cray Programming Environment version 2.x then you can
+likely use the modulefile as is.  Note that it pulls most of its
+configuration from the lib/pkgconfig/darshan-runtime.pc file installed with
+Darshan.
+
+The modulefile that you select can be copied to a system location, or the
 install location can be added to your local module path with the following
 command:
 
 ----
-module use /soft/darshan-2.2.3/share/craype-1.x/modulefiles
+module use /soft/darshan-2.2.3/share/craype-<VERSION>/modulefiles
 ----
 
 From this point, Darshan instrumenation can be enabled for all future
