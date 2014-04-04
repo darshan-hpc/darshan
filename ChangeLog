@@ -15,6 +15,8 @@ darshan-2.2.9-pre1
   - Fix "undefined symbol: dlsym" error when using preloaded dynamic library
     on some platforms, reported by Florin Isaila.
 * Enhancements:
+  - Add support (both in documementation and in provided module files) for
+    Cray PE 2.x.
   - Honor CC variable to allow darshan-util to be built with other compilers
     besides gcc.
   - Update documentation to clarify the interaction between rpath and
