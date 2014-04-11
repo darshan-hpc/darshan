@@ -310,33 +310,34 @@ each file:
 Use the '--perf' option to get performance approximations using four
 different computations.
 
-* agg_perf_by_slowest:
-Uses the slowest time over all ranks (most accurate but requires newer log
-version)
-* agg_perf_by_cumul: Sums time counters and divides by nprocs 
-(inaccurate if lots of variance between procs)
-* agg_perf_by_open: The difference between timestamp of open and 
-close (inaccurate if file is left open without i/o happening)
-* agg_perf_by_open_lastio: The difference between timestamp of open and 
-the timestamp of last i/o
-(similar to above but fixes case where file is left open after io is
-complete)
-
 .Example output
 ----
 # performance
 # -----------
-# total_bytes: 4260544914638
-# slowest_rank_time: 100.615304
-# slowest_rank_meta_time: 85.642247
-# shared_time_by_cumul: 55.306259
-# shared_time_by_open: 65.125876
-# shared_time_by_open_lastio: 65.027973
-# shared_meta_time: 3.002117
-# agg_perf_by_cumul: 26059.078568
-# agg_perf_by_open: 24515.164431
-# agg_perf_by_open_lastio: 24529.654039
-# agg_perf_by_slowest: 26049.207180
+# total_bytes: 134217728
+#
+# I/O timing for unique files (seconds):
+# ...........................
+# unique files: slowest_rank_time: 0.000000
+# unique files: slowest_rank_meta_time: 0.000000
+#
+# I/O timing for shared files (seconds):
+# (multiple estimates shown; time_by_slowest is generally the most accurate)
+# ...........................
+# shared files: time_by_cumul_io_only: 0.042264
+# shared files: time_by_cumul_meta_only: 0.000325
+# shared files: time_by_open: 0.064986
+# shared files: time_by_open_lastio: 0.064966
+# shared files: time_by_slowest: 0.057998
+#
+# Aggregate performance, including both shared and unique files (MiB/s):
+# (multiple estimates shown; agg_perf_by_slowest is generally the most
+# accurate)
+# ...........................
+# agg_perf_by_cumul: 3028.570529
+# agg_perf_by_open: 1969.648064
+# agg_perf_by_open_lastio: 1970.255248
+# agg_perf_by_slowest: 2206.983935
 ----
 
 ===== Files
