@@ -19,13 +19,13 @@
 #endif
 
 /* update this on file format changes */
-#define CP_VERSION "2.03"
+#define CP_VERSION "2.04"
 
 /* magic number for validating output files and checking byte order */
 #define CP_MAGIC_NR 6567223
 
 /* size (in bytes) of job record */
-#define CP_JOB_RECORD_SIZE 1024
+#define CP_JOB_RECORD_SIZE 4096
 
 /* max length of exe string within job record (not counting '\0') */
 #define CP_EXE_LEN (CP_JOB_RECORD_SIZE - sizeof(struct darshan_job) - 1)

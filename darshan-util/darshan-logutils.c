@@ -34,6 +34,7 @@ struct darshan_fd_s
     char version[10];
     int job_struct_size;
     char* name;
+    int COMPAT_CP_EXE_LEN;
 };
 
 /* isn't there a clever c way to avoid this? */
@@ -219,10 +220,14 @@ int (*getfile_internal)(darshan_fd fd,
     struct darshan_file *file);
 #define JOB_SIZE_124 28
 #define JOB_SIZE_200 56
+#define CP_JOB_RECORD_SIZE_200 1024
+#define CP_JOB_RECORD_SIZE_1x 1024
 
 /* internal routines for parsing different file versions */
 static int getjob_internal_201(darshan_fd file, struct darshan_job *job);
 static int getjob_internal_200(darshan_fd file, struct darshan_job *job);
+static int getfile_internal_204(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file);
 static int getfile_internal_200(darshan_fd fd, struct darshan_job *job, 
     struct darshan_file *file);
 static int getjob_internal_124(darshan_fd file, struct darshan_job *job);
@@ -369,35 +374,47 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
         return(-1);
     }
 
-    if(strcmp(file->version, "2.03") == 0)
+    if(strcmp(file->version, "2.04") == 0)
+    {
+        getjob_internal = getjob_internal_201;
+        getfile_internal = getfile_internal_204;
+        file->job_struct_size = sizeof(*job);
+        file->COMPAT_CP_EXE_LEN = CP_EXE_LEN;
+    }
+    else if(strcmp(file->version, "2.03") == 0)
     {
         getjob_internal = getjob_internal_201;
         getfile_internal = getfile_internal_200;
         file->job_struct_size = sizeof(*job);
+        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_200-file->job_struct_size-1;
     }
     else if(strcmp(file->version, "2.02") == 0)
     {
         getjob_internal = getjob_internal_201;
         getfile_internal = getfile_internal_200;
         file->job_struct_size = sizeof(*job);
+        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_200-file->job_struct_size-1;
     }
     else if(strcmp(file->version, "2.01") == 0)
     {
         getjob_internal = getjob_internal_201;
         getfile_internal = getfile_internal_200;
         file->job_struct_size = sizeof(*job);
+        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_200-file->job_struct_size-1;
     }
     else if(strcmp(file->version, "2.00") == 0)
     {
         getjob_internal = getjob_internal_200;
         getfile_internal = getfile_internal_200;
         file->job_struct_size = JOB_SIZE_200;
+        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_200-file->job_struct_size-1;
     }
     else if(strcmp(file->version, "1.24") == 0)
     {
         getjob_internal = getjob_internal_124;
         getfile_internal = getfile_internal_124;
         file->job_struct_size = JOB_SIZE_124;
+        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_1x-file->job_struct_size-1;
     }
     else if(strcmp(file->version, "1.23") == 0)
     {
@@ -405,18 +422,21 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
         getjob_internal = getjob_internal_124;
         getfile_internal = getfile_internal_124;
         file->job_struct_size = JOB_SIZE_124;
+        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_1x-file->job_struct_size-1;
     }
     else if(strcmp(file->version, "1.22") == 0)
     {
         getjob_internal = getjob_internal_124;
         getfile_internal = getfile_internal_122;
         file->job_struct_size = JOB_SIZE_124;
+        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_1x-file->job_struct_size-1;
     }
     else if(strcmp(file->version, "1.21") == 0)
     {
         getjob_internal = getjob_internal_124;
         getfile_internal = getfile_internal_121;
         file->job_struct_size = JOB_SIZE_124;
+        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_1x-file->job_struct_size-1;
     }
     else
     {
@@ -564,14 +584,14 @@ int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char**
     int ret;
     char* pos;
     int array_index = 0;
-    char buf[CP_EXE_LEN+1];
+    char buf[fd->COMPAT_CP_EXE_LEN+1];
 
     ret = darshan_log_seek(fd, fd->job_struct_size);
     if(ret < 0)
         return(ret);
 
-    ret = darshan_log_read(fd, buf, (CP_EXE_LEN + 1));
-    if (ret < (CP_EXE_LEN + 1))
+    ret = darshan_log_read(fd, buf, (fd->COMPAT_CP_EXE_LEN + 1));
+    if (ret < (fd->COMPAT_CP_EXE_LEN + 1))
     {
         perror("darshan_log_read");
         return(-1);
@@ -606,9 +626,9 @@ int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char**
     while((pos = strrchr(buf, '\n')) != NULL)
     {
         /* overestimate string lengths */
-        (*mnt_pts)[array_index] = malloc(CP_EXE_LEN);
+        (*mnt_pts)[array_index] = malloc(fd->COMPAT_CP_EXE_LEN);
         assert((*mnt_pts)[array_index]);
-        (*fs_types)[array_index] = malloc(CP_EXE_LEN);
+        (*fs_types)[array_index] = malloc(fd->COMPAT_CP_EXE_LEN);
         assert((*fs_types)[array_index]);
         
         ret = sscanf(++pos, "%" PRId64 "\t%s\t%s", &(*devs)[array_index],
@@ -670,8 +690,8 @@ int darshan_log_getexe(darshan_fd fd, char *buf)
     if(ret < 0)
         return(ret);
 
-    ret = darshan_log_read(fd, buf, (CP_EXE_LEN + 1));
-    if (ret < (CP_EXE_LEN + 1))
+    ret = darshan_log_read(fd, buf, (fd->COMPAT_CP_EXE_LEN + 1));
+    if (ret < (fd->COMPAT_CP_EXE_LEN + 1))
     {
         perror("darshan_log_read");
         return(-1);
@@ -735,9 +755,17 @@ void darshan_log_close(darshan_fd file)
  */
 void darshan_log_print_version_warnings(struct darshan_job *job)
 {
-    if(strcmp(job->version_string, "2.03") == 0)
+    if(strcmp(job->version_string, "2.04") == 0)
     {
         /* current version */
+        return;
+    }
+
+    if(strcmp(job->version_string, "2.03") == 0)
+    {
+        /* no meaningful change to interpretation of log file, 2.04 just
+         * increased the header space available for annotations.
+         */
         return;
     }
 
@@ -1199,7 +1227,7 @@ static int getjob_internal_200(darshan_fd file, struct darshan_job *job)
     return(-1);
 }
 
-static int getfile_internal_200(darshan_fd fd, struct darshan_job *job, 
+static int getfile_internal_204(darshan_fd fd, struct darshan_job *job, 
     struct darshan_file *file)
 {
     int ret;
@@ -1209,6 +1237,62 @@ static int getfile_internal_200(darshan_fd fd, struct darshan_job *job,
     if(fd->pos < CP_JOB_RECORD_SIZE)
     {
         ret = darshan_log_seek(fd, CP_JOB_RECORD_SIZE);
+        if(ret < 0)
+            return(ret);
+    }
+
+    /* reset file record, so that diff compares against a zero'd out record
+     * if file is missing
+     */
+    memset(file, 0, sizeof(&file));
+
+    ret = darshan_log_read(fd, file, sizeof(*file));
+    if(ret == sizeof(*file))
+    {
+        /* got exactly one, correct size record */
+        if(fd->swap_flag)
+        {
+            /* swap bytes if necessary */
+            DARSHAN_BSWAP64(&file->hash);
+            DARSHAN_BSWAP64(&file->rank);
+            for(i=0; i<CP_NUM_INDICES; i++)
+                DARSHAN_BSWAP64(&file->counters[i]);
+            for(i=0; i<CP_F_NUM_INDICES; i++)
+                DARSHAN_BSWAP64(&file->fcounters[i]);
+        }
+        return(1);
+    }
+
+
+    if(ret > 0)
+    {
+        /* got a short read */
+        fprintf(stderr, "Error: invalid file record (too small)\n");
+        return(-1);
+    }
+
+    if(ret == 0)
+    {
+        /* hit end of file */
+        return(0);
+    }
+
+    /* all other errors */
+    err_string = darshan_log_error(fd, &ret);
+    fprintf(stderr, "Error: %s\n", err_string);
+    return(-1);
+}
+
+static int getfile_internal_200(darshan_fd fd, struct darshan_job *job, 
+    struct darshan_file *file)
+{
+    int ret;
+    const char* err_string;
+    int i;
+
+    if(fd->pos < CP_JOB_RECORD_SIZE_200)
+    {
+        ret = darshan_log_seek(fd, CP_JOB_RECORD_SIZE_200);
         if(ret < 0)
             return(ret);
     }
@@ -1386,9 +1470,9 @@ static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job,
     /* set file pointer if this is the first file record; otherwise pick up
      * where we left off last time
      */
-    if(fd->pos < CP_JOB_RECORD_SIZE)
+    if(fd->pos < CP_JOB_RECORD_SIZE_1x)
     {
-        ret = darshan_log_seek(fd, CP_JOB_RECORD_SIZE);
+        ret = darshan_log_seek(fd, CP_JOB_RECORD_SIZE_1x);
         if(ret < 0)
             return(ret);
     }

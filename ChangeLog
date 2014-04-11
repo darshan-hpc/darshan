@@ -25,6 +25,8 @@ darshan-2.2.9-pre1
   - Ability to disable shared-file reduction by setting the
     DARSHAN_DISABLE_SHARED_REDUCTION environment variable.
   - More thorough output from darshan-parser --perf, suggested by Huong Luu.
+  - Increased uncompressed log header size from 1 KiB to 4 KiB to support
+    additional annotations.
 
 darshan-2.2.8
 =============
