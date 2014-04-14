@@ -241,7 +241,7 @@ void CP_RECORD_MPI_WRITE(int __ret, MPI_File __fh, int __count, MPI_Datatype __d
     foff2 = func_1_inf(__fh, __voff, size); //
     //    printf("foff1 = %lld foff1_func_1 = %lld foff2 = %lld foff2_func_1_inf = %lld __voff =%lld __count=%d\n", 
     //	   foff1, func_1(__fh, __voff), foff2, func_1_inf(__fh, __voff, size), __voff,  __count);
-    file_blocks = count_contiguous_blocks_file(__fh, foff1, foff2 );
+    file_blocks = (size>0)?count_contiguous_blocks_file(__fh, foff1, foff2 ):0;
     CP_SET(file, CP_MIN_FILE_OFFSET, foff1);  
     CP_SET(file, CP_MAX_FILE_OFFSET, foff2);  
     CP_SET(file, CP_AVG_FILE_DTYPE_EXTENT, foff2 - foff1 + 1);  
