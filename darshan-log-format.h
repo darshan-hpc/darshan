@@ -240,7 +240,7 @@ struct darshan_file
 };
 
 /* statistics for the job as a whole */
-#define DARSHAN_JOB_METADATA_LEN 64 /* including null terminator! */
+#define DARSHAN_JOB_METADATA_LEN 1024 /* including null terminator! */
 struct darshan_job
 {
     char version_string[8];

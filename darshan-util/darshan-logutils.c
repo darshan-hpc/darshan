@@ -220,10 +220,12 @@ int (*getfile_internal)(darshan_fd fd,
     struct darshan_file *file);
 #define JOB_SIZE_124 28
 #define JOB_SIZE_200 56
+#define JOB_SIZE_201 120
 #define CP_JOB_RECORD_SIZE_200 1024
 #define CP_JOB_RECORD_SIZE_1x 1024
 
 /* internal routines for parsing different file versions */
+static int getjob_internal_204(darshan_fd file, struct darshan_job *job);
 static int getjob_internal_201(darshan_fd file, struct darshan_job *job);
 static int getjob_internal_200(darshan_fd file, struct darshan_job *job);
 static int getfile_internal_204(darshan_fd fd, struct darshan_job *job, 
@@ -376,14 +378,14 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
 
     if(strcmp(file->version, "2.05") == 0)
     {
-        getjob_internal = getjob_internal_201;
+        getjob_internal = getjob_internal_204;
         getfile_internal = getfile_internal_204;
         file->job_struct_size = sizeof(*job);
         file->COMPAT_CP_EXE_LEN = CP_EXE_LEN;
     }
     else if(strcmp(file->version, "2.04") == 0)
     {
-        getjob_internal = getjob_internal_201;
+        getjob_internal = getjob_internal_204;
         getfile_internal = getfile_internal_204;
         file->job_struct_size = sizeof(*job);
         file->COMPAT_CP_EXE_LEN = CP_EXE_LEN;
@@ -392,21 +394,21 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
     {
         getjob_internal = getjob_internal_201;
         getfile_internal = getfile_internal_200;
-        file->job_struct_size = sizeof(*job);
+        file->job_struct_size = JOB_SIZE_201;
         file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_200-file->job_struct_size-1;
     }
     else if(strcmp(file->version, "2.02") == 0)
     {
         getjob_internal = getjob_internal_201;
         getfile_internal = getfile_internal_200;
-        file->job_struct_size = sizeof(*job);
+        file->job_struct_size = JOB_SIZE_201;
         file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_200-file->job_struct_size-1;
     }
     else if(strcmp(file->version, "2.01") == 0)
     {
         getjob_internal = getjob_internal_201;
         getfile_internal = getfile_internal_200;
-        file->job_struct_size = sizeof(*job);
+        file->job_struct_size = JOB_SIZE_201;
         file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_200-file->job_struct_size-1;
     }
     else if(strcmp(file->version, "2.00") == 0)
@@ -1148,7 +1150,7 @@ static void shift_missing_1_24(struct darshan_file* file)
     return;
 }
 
-static int getjob_internal_201(darshan_fd file, struct darshan_job *job)
+static int getjob_internal_204(darshan_fd file, struct darshan_job *job)
 {
     int ret;
 
@@ -1162,6 +1164,68 @@ static int getjob_internal_201(darshan_fd file, struct darshan_job *job)
         fprintf(stderr, "Error: invalid log file (too short).\n");
         return(-1);
     }
+
+    if(job->magic_nr == CP_MAGIC_NR)
+    {
+        /* no byte swapping needed, this file is in host format already */
+        file->swap_flag = 0;
+        return(0);
+    }
+
+    /* try byte swapping */
+    DARSHAN_BSWAP64(&job->magic_nr);
+    if(job->magic_nr == CP_MAGIC_NR)
+    {
+        file->swap_flag = 1;
+        DARSHAN_BSWAP64(&job->uid);
+        DARSHAN_BSWAP64(&job->start_time);
+        DARSHAN_BSWAP64(&job->end_time);
+        DARSHAN_BSWAP64(&job->nprocs);
+        DARSHAN_BSWAP64(&job->jobid);
+        return(0);
+    }
+
+    /* otherwise this file is just broken */
+    fprintf(stderr, "Error: bad magic number in darshan file.\n");
+    return(-1);
+}
+
+static int getjob_internal_201(darshan_fd file, struct darshan_job *job)
+{
+    int ret;
+    struct darshan_job_201
+    {
+        char version_string[8];
+        int64_t magic_nr;
+        int64_t uid;
+        int64_t start_time;
+        int64_t end_time;
+        int64_t nprocs;
+        int64_t jobid;
+        char metadata[64];
+    } job_201;
+    memset(job, 0, sizeof(job_201));
+    memset(job, 0, sizeof(*job));
+
+    ret = darshan_log_seek(file, 0);
+    if(ret < 0)
+        return(ret);
+
+    ret = darshan_log_read(file, &job_201, sizeof(job_201));
+    if (ret < sizeof(job_201))
+    {
+        fprintf(stderr, "Error: invalid log file (too short).\n");
+        return(-1);
+    }
+
+    memcpy(job->version_string, job_201.version_string, 8);
+    job->magic_nr   = job_201.magic_nr;
+    job->uid        = job_201.uid;
+    job->start_time = job_201.start_time;
+    job->end_time   = job_201.end_time;
+    job->nprocs     = job_201.nprocs;
+    job->jobid      = job_201.jobid;
+    strncpy(job->metadata, job_201.metadata, 64);
 
     if(job->magic_nr == CP_MAGIC_NR)
     {
