@@ -272,7 +272,7 @@ print OUTPUT<<"EOF";
     rc_mpi=\$?
 
     # is PMPI being used for any init, finalize, or mpi-io calls?
-    grep -E \\(PMPI_File_\\)\\|\\(PMPI_Init\\)\\|\\(PMPI_Finalize\\) \$tmpfile | grep -v -E \\(mpich.cnk.a\\|mpich.a\\) |grep \\(PMPI >& /dev/null
+    grep -E \\(PMPI_File_\\)\\|\\(PMPI_Init\\)\\|\\(PMPI_Finalize\\) \$tmpfile | grep -v -E \\(mpich.*\\.a\\) |grep \\(PMPI >& /dev/null
     rc_pmpi=\$?
 
     # normal or cnk libraries?
