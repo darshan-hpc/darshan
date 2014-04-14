@@ -17,6 +17,8 @@ darshan-2.2.9-pre1
   - Normalize timestamps to always be relative to MPI_Init().
   - Better library name matching in compiler wrappers to handle more MPICH
     variations on Blue Gene systems.
+  - Fixed header dependency problems when using darshan-logutils.h in external
+    programs (Shane Snyder).
 * Enhancements:
   - Add support (both in documementation and in provided module files) for
     Cray PE 2.x.
@@ -39,6 +41,7 @@ darshan-2.2.9-pre1
       log file from approximately 1 KiB to approximately 3 KiB.
     - Prioritize storing information about non-NFS volumes over NFS volumes
       if too many file systems are mounted to record them all.
+  - Added darshan-util pkgconfig file (Shane Snyder).
 
 
 darshan-2.2.8
