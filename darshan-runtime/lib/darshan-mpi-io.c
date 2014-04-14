@@ -2549,7 +2549,8 @@ static void cp_normalize_timestamps(struct darshan_job_runtime* final_job)
     {
         for(j=CP_F_OPEN_TIMESTAMP; j<=CP_F_WRITE_END_TIMESTAMP; j++)
         {
-            final_job->file_array[i].fcounters[j] -= final_job->wtime_offset;
+            if(final_job->file_array[i].fcounters[j] > final_job->wtime_offset)
+                final_job->file_array[i].fcounters[j] -= final_job->wtime_offset;
         }
     }
 
