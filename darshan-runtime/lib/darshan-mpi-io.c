@@ -1947,6 +1947,12 @@ static void darshan_file_reduce(void* infile_v,
                 inoutfile->counters[j]);
         }
 
+        /* sum */
+        for(j=CP_F_MPI_BARRIER_TIME; j<=CP_F_MPI_ALLREDUCE_TIME; j++)
+        {
+            tmp_file.fcounters[j] = infile->fcounters[j] +
+                inoutfile->fcounters[j];
+        }
 
 
         /* pick one name suffix (every file record should have this, whether
@@ -3198,6 +3204,7 @@ int MPI_Barrier(MPI_Comm comm)
 		file = darshan_file_by_name(crt_filename);
 	if (file) {
 	    CP_INC(file, CP_MPI_BARRIERS, 1);
+            CP_F_INC(file, CP_F_MPI_BARRIER_TIME, (tm2 - tm1));
 	}
         CP_UNLOCK();
     }
@@ -3329,14 +3336,18 @@ int MPI_Allgather(const void *sendbuf, int sendcount, MPI_Datatype sendtype, voi
     return(ret);
 }
 
-
+//char s[1024*1024];
 
 int MPI_Alltoall(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm){
     int ret;
     struct darshan_file_runtime* file = NULL;
     double tm1, tm2;
     // printf("Darshan captured MPI_Alltoall, crt_fh = %lx\n", (unsigned long int)crt_fh);
-
+/*
+    int rank;
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
+    sprintf(s,"ALLTOALL rank %d=", rank);
+*/ 
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_Alltoall)(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm);
     tm2 = darshan_wtime();
@@ -3354,6 +3365,9 @@ int MPI_Alltoall(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void
 	    DARSHAN_MPI_CALL(PMPI_Type_size)(sendtype, &size);
 	    CP_INC(file, CP_MPI_ALLTOALLS, 1);
 	    CP_INC(file, CP_BYTES_MPI_ALLTOALL, size*sendcount);
+            CP_F_INC(file, CP_F_MPI_ALLTOALL_TIME, (tm2 - tm1));
+//            if (rank == 0)
+//                printf("%s %d\n",s,size*sendcount);
 	}
         CP_UNLOCK();
     }
@@ -3361,12 +3375,16 @@ int MPI_Alltoall(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void
 
 }
 
+
 int MPI_Alltoallv(const void *sendbuf, const int *sendcounts, const int *sdispls, MPI_Datatype sendtype, void *recvbuf, const int *recvcounts, const int *rdispls, MPI_Datatype recvtype, MPI_Comm comm){
     int ret;
     struct darshan_file_runtime* file = NULL;
     double tm1, tm2;
-    // printf("Darshan captured MPI_Alltoallv, crt_fh = %lx\n", (unsigned long int)crt_fh);
-
+/*
+    int rank;
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
+    sprintf(s,"ALLTOALLV rank %d= ", rank);
+*/
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_Alltoallv)(sendbuf, sendcounts, sdispls, sendtype, recvbuf, recvcounts, rdispls, recvtype, comm);
     tm2 = darshan_wtime();
@@ -3383,10 +3401,16 @@ int MPI_Alltoallv(const void *sendbuf, const int *sendcounts, const int *sdispls
 	    int size, comm_size, i, counts=0;
 	    DARSHAN_MPI_CALL(PMPI_Type_size)(sendtype, &size);
 	    DARSHAN_MPI_CALL(PMPI_Comm_size)(comm, &comm_size);
-	    for (i=0; i<comm_size; i++)
+	    for (i=0; i<comm_size; i++) {
 		counts+=sendcounts[i];
+ //               if (sendcounts[i] > 0)
+ //                   sprintf(s,"%s %d:%d",s, i,sendcounts[i]*size);
+            }
+ //           printf("%s\n",s);
 	    CP_INC(file, CP_MPI_ALLTOALLVS, 1);
 	    CP_INC(file, CP_BYTES_MPI_ALLTOALLV, size*counts);
+            CP_F_INC(file, CP_F_MPI_ALLTOALLV_TIME, (tm2 - tm1));
+
 	}
         CP_UNLOCK();
     }
@@ -3431,6 +3455,11 @@ int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype da
     struct darshan_file_runtime* file = NULL;
     double tm1, tm2;
     // printf("Darshan captured MPI_Reduce, crt_fh = %lx\n", (unsigned long int)crt_fh);
+/*
+    int rank;
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
+    sprintf(s,"ALLREDUCE rank %d=", rank);
+*/
 
     tm1 = darshan_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_Allreduce)(sendbuf, recvbuf, count, datatype, op, comm);
@@ -3449,6 +3478,10 @@ int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype da
             DARSHAN_MPI_CALL(PMPI_Type_size)(datatype, &size);
             CP_INC(file, CP_MPI_ALLREDUCES, 1);
             CP_INC(file, CP_BYTES_MPI_ALLREDUCE, size*count);
+            CP_F_INC(file, CP_F_MPI_ALLREDUCE_TIME, (tm2 - tm1));
+/*            if (rank == 0)
+                printf("%s %d\n",s,size*count);
+*/
         }
         CP_UNLOCK();
     }

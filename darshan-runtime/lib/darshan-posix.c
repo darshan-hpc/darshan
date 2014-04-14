@@ -954,7 +954,12 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
     char *value; 
 
     MAP_OR_FAIL(write);
-    
+
+/*
+    int rank; 
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank); 
+    printf("POSIX WRITE rank:%d count:%d\n", rank, count); 
+  */  
     if (value = getenv("DARSHAN_POSIX_EPOCH"))
         darshan_start_epoch();
 
