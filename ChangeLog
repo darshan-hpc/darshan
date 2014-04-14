@@ -20,7 +20,7 @@ darshan-2.2.9-pre1
   - Fixed header dependency problems when using darshan-logutils.h in external
     programs (Shane Snyder).
 * Enhancements:
-  - Add support (both in documementation and in provided module files) for
+  - Add support (both in documentation and in provided module files) for
     Cray PE 2.x.
   - Honor CC variable to allow darshan-util to be built with other compilers
     besides gcc.
