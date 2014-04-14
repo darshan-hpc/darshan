@@ -31,7 +31,7 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
 {
     struct darshan_job job;
     struct darshan_file cp_file;
-    char tmp_string[1024];
+    char tmp_string[4096];
     darshan_fd zfile;
     int ret;
     int f_count;

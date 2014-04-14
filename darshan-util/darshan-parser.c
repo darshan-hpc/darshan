@@ -193,7 +193,7 @@ int main(int argc, char **argv)
     char *filename;
     struct darshan_job job;
     struct darshan_file cp_file;
-    char tmp_string[1024];
+    char tmp_string[4096];
     time_t tmp_time = 0;
     darshan_fd file;
     int i;

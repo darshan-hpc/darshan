@@ -55,7 +55,7 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     int                 ret;
     int                 rc;
     int                 nofiles;
-    char                exe[1024];
+    char                exe[4096];
     char               *base;
     char               *dash;
     char               *username;

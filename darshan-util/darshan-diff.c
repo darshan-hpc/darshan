@@ -34,7 +34,7 @@ int main(int argc, char ** argv)
     darshan_fd file1, file2;
     struct darshan_job job1, job2;
     struct darshan_file cp_file1, cp_file2;
-    char exe1[1024], exe2[1024];
+    char exe1[4096], exe2[4096];
     int i, ret1,ret2;
 
     if (argc != 3)

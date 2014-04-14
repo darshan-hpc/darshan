@@ -189,7 +189,7 @@ int main(int argc, char **argv)
     char *outfile_name;
     struct darshan_job job;
     struct darshan_file cp_file;
-    char tmp_string[1024];
+    char tmp_string[4096];
     darshan_fd infile;
     darshan_fd outfile;
     int i;
