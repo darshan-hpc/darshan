@@ -25,10 +25,18 @@ darshan-2.2.9-pre1
   - Ability to disable shared-file reduction by setting the
     DARSHAN_DISABLE_SHARED_REDUCTION environment variable.
   - More thorough output from darshan-parser --perf, suggested by Huong Luu.
-  - Increased uncompressed log header size from 1 KiB to 4 KiB to support
-    additional metadata annotations and more mounted file system information.
+  - Increased metadata annotation room from 64 bytes to 1KiB in header.
   - CP_F_{FASTEST/SLOWEST}_RANK_TIME counters now take MPI-IO time into
     account, not just POSIX time, issue reported by Huong Luu.
+  - Better handling of systems with many mounted file systems (after which
+    point Darshan will assume file resides on / file system), issue reported
+    and investigated by David Shrader:
+    - Track up to 64 rather than 32 mounted file systems at runtime.
+    - Increase header space available for storing mount point information in
+      log file from approximately 1 KiB to approximately 3 KiB.
+    - Prioritize storing information about non-NFS volumes over NFS volumes
+      if too many file systems are mounted to record them all.
+
 
 darshan-2.2.8
 =============

@@ -208,7 +208,7 @@ static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh);
 static void darshan_file_close_fh(MPI_File fh);
 static struct darshan_file_runtime* darshan_file_by_name_setfh(const char* name, MPI_File fh);
 
-#define CP_MAX_MNTS 32
+#define CP_MAX_MNTS 64
 #define CP_MAX_MNT_PATH 256
 #define CP_MAX_MNT_TYPE 32
 struct mnt_data
@@ -2090,6 +2090,49 @@ static int mnt_data_cmp(const void* a, const void* b)
         return(0);
 }
 
+/* adds an entry to table of mounted file systems */
+static void add_entry(char* trailing_data, int* space_left, struct mntent *entry)
+{
+    int ret;
+    char tmp_mnt[256];
+    struct statfs statfsbuf;
+    
+    strncpy(mnt_data_array[mnt_data_count].path, entry->mnt_dir, 
+        CP_MAX_MNT_PATH-1);
+    strncpy(mnt_data_array[mnt_data_count].type, entry->mnt_type, 
+        CP_MAX_MNT_TYPE-1);
+    mnt_data_array[mnt_data_count].hash = 
+        darshan_hash((void*)mnt_data_array[mnt_data_count].path, 
+        strlen(mnt_data_array[mnt_data_count].path), 0);
+    /* NOTE: we now try to detect the preferred block size for each file 
+     * system using fstatfs().  On Lustre we assume a size of 1 MiB 
+     * because fstatfs() reports 4 KiB. 
+     */
+#ifndef LL_SUPER_MAGIC
+#define LL_SUPER_MAGIC 0x0BD00BD0
+#endif
+    ret = statfs(entry->mnt_dir, &statfsbuf);
+    if(ret == 0 && statfsbuf.f_type != LL_SUPER_MAGIC)
+        mnt_data_array[mnt_data_count].block_size = statfsbuf.f_bsize;
+    else if(ret == 0 && statfsbuf.f_type == LL_SUPER_MAGIC)
+        mnt_data_array[mnt_data_count].block_size = 1024*1024;
+    else
+        mnt_data_array[mnt_data_count].block_size = 4096;
+
+    /* store mount information for use in header of darshan log */
+    ret = snprintf(tmp_mnt, 256, "\n%" PRId64 "\t%s\t%s", 
+        mnt_data_array[mnt_data_count].hash,
+        entry->mnt_type, entry->mnt_dir);
+    if(ret < 256 && strlen(tmp_mnt) <= (*space_left))
+    {
+        strcat(trailing_data, tmp_mnt);
+        (*space_left) -= strlen(tmp_mnt);
+    }
+    
+    mnt_data_count++;
+    return;
+}
+
 /* darshan_get_exe_and_mounts_root()
  *
  * collects command line and list of mounted file systems into a string that
@@ -2101,10 +2144,7 @@ static void darshan_get_exe_and_mounts_root(struct darshan_job_runtime* final_jo
     struct mntent *entry;
     char* exclude;
     int tmp_index = 0;
-    int ret;
-    struct statfs statfsbuf;
     int skip = 0;
-    char tmp_mnt[256];
 
     /* skip these fs types */
     static char* fs_exclusions[] = {
@@ -2128,10 +2168,14 @@ static void darshan_get_exe_and_mounts_root(struct darshan_job_runtime* final_jo
     strcat(trailing_data, final_job->exe);
     space_left = CP_EXE_LEN - strlen(trailing_data);
 
+    /* we make two passes through mounted file systems; in the first pass we
+     * grab any non-nfs mount points, then on the second pass we grab nfs
+     * mount points
+     */
+
     tab = setmntent("/etc/mtab", "r");
     if(!tab)
         return;
-
     /* loop through list of mounted file systems */
     while(mnt_data_count<CP_MAX_MNTS && (entry = getmntent(tab)) != NULL)
     {
@@ -2148,44 +2192,24 @@ static void darshan_get_exe_and_mounts_root(struct darshan_job_runtime* final_jo
             tmp_index++;
         }
 
-        if(skip)
+        if(skip || (strcmp(entry->mnt_type, "nfs") == 0))
             continue;
         
-        strncpy(mnt_data_array[mnt_data_count].path, entry->mnt_dir, 
-            CP_MAX_MNT_PATH-1);
-        strncpy(mnt_data_array[mnt_data_count].type, entry->mnt_type, 
-            CP_MAX_MNT_TYPE-1);
-        mnt_data_array[mnt_data_count].hash = 
-            darshan_hash((void*)mnt_data_array[mnt_data_count].path, 
-            strlen(mnt_data_array[mnt_data_count].path), 0);
-        /* NOTE: we now try to detect the preferred block size for each file 
-         * system using fstatfs().  On Lustre we assume a size of 1 MiB 
-         * because fstatfs() reports 4 KiB. 
-         */
-#ifndef LL_SUPER_MAGIC
-#define LL_SUPER_MAGIC 0x0BD00BD0
-#endif
-        ret = statfs(entry->mnt_dir, &statfsbuf);
-        if(ret == 0 && statfsbuf.f_type != LL_SUPER_MAGIC)
-            mnt_data_array[mnt_data_count].block_size = statfsbuf.f_bsize;
-        else if(ret == 0 && statfsbuf.f_type == LL_SUPER_MAGIC)
-            mnt_data_array[mnt_data_count].block_size = 1024*1024;
-        else
-            mnt_data_array[mnt_data_count].block_size = 4096;
-
-        /* store mount information for use in header of darshan log */
-        ret = snprintf(tmp_mnt, 256, "\n%" PRId64 "\t%s\t%s", 
-            mnt_data_array[mnt_data_count].hash,
-            entry->mnt_type, entry->mnt_dir);
-        if(ret < 256 && strlen(tmp_mnt) <= space_left)
-        {
-            strcat(trailing_data, tmp_mnt);
-            space_left -= strlen(tmp_mnt);
-        }
-        
-        mnt_data_count++;
+        add_entry(trailing_data, &space_left, entry);
     }
+    endmntent(tab);
 
+    tab = setmntent("/etc/mtab", "r");
+    if(!tab)
+        return;
+    /* loop through list of mounted file systems */
+    while(mnt_data_count<CP_MAX_MNTS && (entry = getmntent(tab)) != NULL)
+    {
+        if(strcmp(entry->mnt_type, "nfs") != 0)
+            continue;
+        
+        add_entry(trailing_data, &space_left, entry);
+    }
     endmntent(tab);
 
     /* Sort mount points in order of longest path to shortest path.  This is
