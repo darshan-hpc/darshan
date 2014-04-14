@@ -1262,6 +1262,7 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
     MPI_Datatype rtype;
     struct darshan_file* tmp_array = NULL;
     int shared_count = 0;
+    double mpi_time, posix_time;
 
     /* register a reduction operation */
     ret = DARSHAN_MPI_CALL(PMPI_Op_create)(darshan_file_reduce, 1, &reduce_op); 
@@ -1333,6 +1334,14 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
             {
                 if(final_job->file_array[j].hash == hash_array[i])
                 {
+                    posix_time = 
+                      final_job->file_array[j].fcounters[CP_F_POSIX_META_TIME] +
+                      final_job->file_array[j].fcounters[CP_F_POSIX_READ_TIME] +
+                      final_job->file_array[j].fcounters[CP_F_POSIX_WRITE_TIME];
+                    mpi_time = 
+                      final_job->file_array[j].fcounters[CP_F_MPI_META_TIME] +
+                      final_job->file_array[j].fcounters[CP_F_MPI_READ_TIME] +
+                      final_job->file_array[j].fcounters[CP_F_MPI_WRITE_TIME];
 
                     /*
                      * Initialize fastest/slowest info prior
@@ -1343,20 +1352,29 @@ static int cp_log_reduction(struct darshan_job_runtime* final_job, int rank,
                     final_job->file_array[j].counters[CP_FASTEST_RANK_BYTES] =
                       final_job->file_array[j].counters[CP_BYTES_READ] +
                       final_job->file_array[j].counters[CP_BYTES_WRITTEN];
-                    final_job->file_array[j].fcounters[CP_F_FASTEST_RANK_TIME] =
-                      final_job->file_array[j].fcounters[CP_F_POSIX_META_TIME] +
-                      final_job->file_array[j].fcounters[CP_F_POSIX_READ_TIME] +
-                      final_job->file_array[j].fcounters[CP_F_POSIX_WRITE_TIME];
+                    /* use MPI timing if this file was accessed with MPI */
+                    if(mpi_time > 0)
+                    {
+                        final_job->file_array[j].fcounters[CP_F_FASTEST_RANK_TIME] =
+                        mpi_time;
+                    }
+                    else
+                    {
+                        final_job->file_array[j].fcounters[CP_F_FASTEST_RANK_TIME] =
+                        posix_time;
+                    }
 
+                    /* Until reduction occurs, we assume that this rank is
+                     * both the fastest and slowest.  It is up to the
+                     * reduction operator to find the true min and max if it
+                     * is a shared file.
+                     */
                     final_job->file_array[j].counters[CP_SLOWEST_RANK] =
-                      final_job->file_array[j].rank;
+                        final_job->file_array[j].counters[CP_FASTEST_RANK];
                     final_job->file_array[j].counters[CP_SLOWEST_RANK_BYTES] =
-                      final_job->file_array[j].counters[CP_BYTES_READ] +
-                      final_job->file_array[j].counters[CP_BYTES_WRITTEN];
+                        final_job->file_array[j].counters[CP_FASTEST_RANK_BYTES];
                     final_job->file_array[j].fcounters[CP_F_SLOWEST_RANK_TIME] =
-                      final_job->file_array[j].fcounters[CP_F_POSIX_META_TIME] +
-                      final_job->file_array[j].fcounters[CP_F_POSIX_READ_TIME] +
-                      final_job->file_array[j].fcounters[CP_F_POSIX_WRITE_TIME];
+                        final_job->file_array[j].fcounters[CP_F_FASTEST_RANK_TIME];
 
                     final_job->file_array[j].rank = -1;
                     break;

@@ -374,7 +374,14 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
         return(-1);
     }
 
-    if(strcmp(file->version, "2.04") == 0)
+    if(strcmp(file->version, "2.05") == 0)
+    {
+        getjob_internal = getjob_internal_201;
+        getfile_internal = getfile_internal_204;
+        file->job_struct_size = sizeof(*job);
+        file->COMPAT_CP_EXE_LEN = CP_EXE_LEN;
+    }
+    else if(strcmp(file->version, "2.04") == 0)
     {
         getjob_internal = getjob_internal_201;
         getfile_internal = getfile_internal_204;
@@ -755,17 +762,26 @@ void darshan_log_close(darshan_fd file)
  */
 void darshan_log_print_version_warnings(struct darshan_job *job)
 {
-    if(strcmp(job->version_string, "2.04") == 0)
+    if(strcmp(job->version_string, "2.05") == 0)
     {
         /* current version */
         return;
     }
 
+    if(strcmp(job->version_string, "2.04") == 0)
+    {
+        printf("# WARNING: version 2.04 log format has the following limitations:\n");
+        printf("# - CP_F_SLOWEST_RANK_TIME and CP_F_FASTEST_RANK_TIME only report elapsed time at the POSIX level.\n");
+        return;
+    }
+
     if(strcmp(job->version_string, "2.03") == 0)
     {
-        /* no meaningful change to interpretation of log file, 2.04 just
+        /* no meaningful change to interpretation of log file, 2.03 just
          * increased the header space available for annotations.
          */
+        printf("# WARNING: version 2.03 log format has the following limitations:\n");
+        printf("# - CP_F_SLOWEST_RANK_TIME and CP_F_FASTEST_RANK_TIME only report elapsed time at the POSIX level.\n");
         return;
     }
 
@@ -773,6 +789,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
     {
         printf("# WARNING: version 2.01 log format has the following limitations:\n");
         printf("# - *_TIMESTAMP fields are not normalized relative to MPI_Init() time.\n");
+        printf("# - CP_F_SLOWEST_RANK_TIME and CP_F_FASTEST_RANK_TIME only report elapsed time at the POSIX level.\n");
         return;
     }
 
@@ -781,6 +798,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("# WARNING: version 2.01 log format has the following limitations:\n");
         printf("# - *_TIMESTAMP fields are not normalized relative to MPI_Init() time.\n");
         printf("# - inaccurate statistics in some multi-threaded cases.\n");
+        printf("# - CP_F_SLOWEST_RANK_TIME and CP_F_FASTEST_RANK_TIME only report elapsed time at the POSIX level.\n");
         return;
     }
 
@@ -789,6 +807,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("# WARNING: version 2.00 log format has the following limitations:\n");
         printf("# - *_TIMESTAMP fields are not normalized relative to MPI_Init() time.\n");
         printf("# - inaccurate statistics in some multi-threaded cases.\n");
+        printf("# - CP_F_SLOWEST_RANK_TIME and CP_F_FASTEST_RANK_TIME only report elapsed time at the POSIX level.\n");
         return;
     }
  
@@ -807,6 +826,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("# - *_TIMESTAMP fields are not normalized relative to MPI_Init() time.\n");
         printf("# - does not store the job id in the file.\n");
         printf("# - inaccurate statistics in some multi-threaded cases.\n");
+        printf("# - CP_F_SLOWEST_RANK_TIME and CP_F_FASTEST_RANK_TIME only report elapsed time at the POSIX level.\n");
         return;
     }
     
@@ -826,6 +846,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("# - may have incorrect mount point mappings for files with rank > 0.\n");
         printf("# - does not store the job id in the file.\n");
         printf("# - inaccurate statistics in some multi-threaded cases.\n");
+        printf("# - CP_F_SLOWEST_RANK_TIME and CP_F_FASTEST_RANK_TIME only report elapsed time at the POSIX level.\n");
         return;
     }
 
@@ -848,6 +869,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("# - attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
         printf("# - does not store the job id in the file.\n");
         printf("# - inaccurate statistics in some multi-threaded cases.\n");
+        printf("# - CP_F_SLOWEST_RANK_TIME and CP_F_FASTEST_RANK_TIME only report elapsed time at the POSIX level.\n");
         return;
     }
 
@@ -877,6 +899,7 @@ void darshan_log_print_version_warnings(struct darshan_job *job)
         printf("# - attributes syncs to cumulative metadata time, rather than cumulative write time.\n");
         printf("# - does not store the job id in the file.\n");
         printf("# - inaccurate statistics in some multi-threaded cases.\n");
+        printf("# - CP_F_SLOWEST_RANK_TIME and CP_F_FASTEST_RANK_TIME only report elapsed time at the POSIX level.\n");
         return;
     }
 

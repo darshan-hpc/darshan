@@ -27,6 +27,8 @@ darshan-2.2.9-pre1
   - More thorough output from darshan-parser --perf, suggested by Huong Luu.
   - Increased uncompressed log header size from 1 KiB to 4 KiB to support
     additional annotations.
+  - CP_F_{FASTEST/SLOWEST}_RANK_TIME counters now take MPI-IO time into
+    account, not just POSIX time, issue reported by Huong Luu.
 
 darshan-2.2.8
 =============

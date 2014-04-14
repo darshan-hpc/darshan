@@ -19,7 +19,7 @@
 #endif
 
 /* update this on file format changes */
-#define CP_VERSION "2.04"
+#define CP_VERSION "2.05"
 
 /* magic number for validating output files and checking byte order */
 #define CP_MAGIC_NR 6567223
@@ -217,7 +217,11 @@ enum f_darshan_indices
     CP_F_MPI_WRITE_TIME,        /* cumulative mpi-io write time */
     CP_F_MAX_READ_TIME,
     CP_F_MAX_WRITE_TIME,
-    CP_F_FASTEST_RANK_TIME,
+    /* Total I/O and meta time consumed by fastest and slowest ranks, 
+     * reported in either MPI or POSIX time depending on how the file 
+     * was accessed.
+     */
+    CP_F_FASTEST_RANK_TIME,     
     CP_F_SLOWEST_RANK_TIME,
     CP_F_VARIANCE_RANK_TIME,
     CP_F_VARIANCE_RANK_BYTES,

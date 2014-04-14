@@ -297,7 +297,7 @@ each file:
 | CP_F_MPI_WRITE_TIME | Cumulative time spent write and sync at the MPI-IO level
 | CP_F_MAX_READ_TIME |  Duration of the slowest individual POSIX read operation
 | CP_F_MAX_WRITE_TIME | Duration of the slowest individual POSIX write operation
-| CP_F_FASTEST_RANK_TIME |  The time of the rank which had the smallest amount of time spent in I/O (CP_F_POSIX_READ_TIME + CP_F_POSIX_WRITE_TIME + CP_F_POSIX_META_TIME)
+| CP_F_FASTEST_RANK_TIME |  The time of the rank which had the smallest amount of time spent in I/O.  If the file was accessed usign MPI-IO it combines the MPI meta, read, and write time.  If the file was not accessed with MPI-IO then it combines the posix meta, read, and write time.
 | CP_F_SLOWEST_RANK_TIME |  The time of the rank which had the largest amount of time spent in I/O
 | CP_F_VARIANCE_RANK_TIME | The population variance for I/O time of all the ranks
 | CP_F_VARIANCE_RANK_BYTES |    The population variance for bytes transferred of all the ranks

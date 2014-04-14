@@ -361,7 +361,7 @@ int main(int argc, char **argv)
         printf("#   CP_F_POSIX_META_TIME: cumulative time spent in posix open, close, fsync, stat and seek, .\n");
         printf("#   CP_F_MPI_META_TIME: cumulative time spent in mpi-io open, close, set_view, and sync.\n");
         printf("#   CP_MAX_*_TIME: duration of the slowest read and write operations.\n");
-        printf("#   CP_*_RANK_TIME: fastest, slowest variance of transfer time.\n");
+        printf("#   CP_*_RANK_TIME: fastest, slowest variance of transfer time. Note that these counters show MPI-IO time for files accessed using MPI-IO, and POSIX time otherwise.\n");
 
         printf("\n");
         CP_PRINT_HEADER();
