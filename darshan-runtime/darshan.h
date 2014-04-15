@@ -236,7 +236,7 @@ extern int epoch_counter;
 
 extern char darshan_log[DARSHAN_TRACER_LOG_SIZE];
 //extern char darshan_log[];
-extern int darshan_log_ptr;
+extern long long int darshan_log_ptr;
 
 void darshan_trace_log_record(int rank, int epoch, int op, double tm1, double tm2, int send_count, int recv_count, long long int offset);
 void darshan_trace_log_write();

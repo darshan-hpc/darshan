@@ -144,7 +144,7 @@ int epoch_counter = 0;
 
 
 char darshan_log[DARSHAN_TRACER_LOG_SIZE];
-int darshan_log_ptr = 0;
+long long int darshan_log_ptr = 0;
 
 void darshan_trace_log_record(int rank, int epoch, int op, double tm1, double tm2, int send_count, int recv_count, long long int offset) {
        
@@ -197,7 +197,7 @@ void darshan_trace_log_write() {
 		fprintf(stdout, "DARSHAN_TRACEFILE:%s\n", filename);
 
         MPI_Scan(&darshan_log_ptr, &offset, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
-        
+//        printf("%d: darshan_log_ptr=%lld offset=%lld\n", rank, darshan_log_ptr, offset-darshan_log_ptr);   
         DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, filename, MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, 
                       MPI_INFO_NULL, &fh);
         DARSHAN_MPI_CALL(PMPI_File_write_at_all)(fh, offset - darshan_log_ptr, darshan_log, darshan_log_ptr, MPI_BYTE, &status);
