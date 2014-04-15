@@ -338,4 +338,19 @@ struct darshan_job
  */
 #define CP_FILE_PARTIAL(__file)((((__file)->counters[CP_POSIX_OPENS] || (__file)->counters[CP_POSIX_FOPENS] || (__file)->counters[CP_POSIX_STATS]) ? 0 : 1))
 
+/* Florin 
+ Structure for Darshan tracing functionality
+ */
+struct darshan_trace_record {
+    int rank;
+    int epoch; 
+    int op;
+    double tm1;
+    double tm2;
+    int send_count;
+    int recv_count;
+    long long int offset;
+};
+
+
 #endif /* __DARSHAN_LOG_FORMAT_H */

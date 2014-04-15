@@ -955,10 +955,10 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
 
     MAP_OR_FAIL(write);
 
-/*
-    int rank; 
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank); 
-    printf("POSIX WRITE rank:%d count:%d\n", rank, count); 
+
+    //int rank; 
+    //DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank); 
+    /*    printf("POSIX WRITE rank:%d count:%d\n", rank, count); 
   */  
     if (value = getenv("DARSHAN_POSIX_EPOCH"))
         darshan_start_epoch();
@@ -971,6 +971,14 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
     tm2 = darshan_wtime();
     CP_LOCK();
     CP_RECORD_WRITE(ret, fd, count, 0, 0, aligned_flag, 0, tm1, tm2);
+
+    if (darshan_global_job) {
+	int rank;
+	long long int off=0; 
+    	PMPI_Comm_rank(MPI_COMM_WORLD, &rank); 
+	off = lseek64(fd,0,1);
+    	darshan_trace_log_record(rank, epoch_counter, CP_POSIX_WRITES, tm1, tm2, count, 0, off);
+    }
     CP_UNLOCK();
 
     if (value = getenv("DARSHAN_POSIX_EPOCH"))

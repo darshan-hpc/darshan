@@ -226,6 +226,22 @@ enum cp_counter_type
 
 extern struct darshan_job_runtime* darshan_global_job;
 
+
+extern int epoch_counter;
+
+/* Florin
+   Trace log structures
+ */ 
+#define DARSHAN_TRACER_LOG_SIZE 1024*1024
+
+extern char darshan_log[DARSHAN_TRACER_LOG_SIZE];
+//extern char darshan_log[];
+extern int darshan_log_ptr;
+
+void darshan_trace_log_record(int rank, int epoch, int op, double tm1, double tm2, int send_count, int recv_count, long long int offset);
+void darshan_trace_log_write();
+
+
 void darshan_initialize(int argc, char** argv, int nprocs, int rank);
 void darshan_finalize(struct darshan_job_runtime* job);
 void darshan_condense(void);

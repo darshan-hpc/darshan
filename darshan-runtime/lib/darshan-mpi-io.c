@@ -140,6 +140,74 @@ extern char* __progname;
     } \
 } while(0)
 
+int epoch_counter = 0;
+
+
+char darshan_log[DARSHAN_TRACER_LOG_SIZE];
+int darshan_log_ptr = 0;
+
+void darshan_trace_log_record(int rank, int epoch, int op, double tm1, double tm2, int send_count, int recv_count, long long int offset) {
+       
+    if (getenv("DARSHAN_TRACING")) {
+        if (darshan_log_ptr +  sizeof(struct darshan_trace_record) > DARSHAN_TRACER_LOG_SIZE) {
+            printf("Out of memory for log recording\n");
+            return;
+        }
+        else {
+            struct darshan_trace_record* d =  (struct darshan_trace_record*) (darshan_log + darshan_log_ptr);
+	      	
+	    PMPI_Comm_rank(MPI_COMM_WORLD, &(d->rank));
+	    //d->rank = rank; 
+            d->epoch = epoch;
+            d->op = op;
+            d->tm1 = tm1;
+            d->tm2 = tm2;
+            d->send_count = send_count;
+            d->recv_count = recv_count;
+            d->offset = offset; 
+            darshan_log_ptr += sizeof(struct darshan_trace_record);
+        }
+    }
+}
+
+void darshan_trace_log_write() {
+    char *filename;
+    //if ((filename=getenv("DARSHAN_TRACING"))!=NULL) {
+    if (getenv("DARSHAN_TRACING")){
+        MPI_Offset offset;
+        int rank;
+        MPI_File fh;
+        MPI_Status status;
+      	struct tm* my_tm; 
+	time_t tm;
+	
+	filename = (char*) malloc(PATH_MAX);
+	tm = time(NULL);
+	my_tm = localtime(&tm);
+	
+	snprintf(filename, PATH_MAX,
+                    "%s_%d-%d-%d.darshan_trace",
+                    __progname,
+                    (my_tm->tm_mon+1),
+                    my_tm->tm_mday,
+                    (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec));
+
+	DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
+	if (rank == 0)
+		fprintf(stdout, "DARSHAN_TRACEFILE:%s\n", filename);
+
+        MPI_Scan(&darshan_log_ptr, &offset, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+        
+        DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, filename, MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, 
+                      MPI_INFO_NULL, &fh);
+        DARSHAN_MPI_CALL(PMPI_File_write_at_all)(fh, offset - darshan_log_ptr, darshan_log, darshan_log_ptr, MPI_BYTE, &status);
+        DARSHAN_MPI_CALL(PMPI_File_close)(&fh);
+	free(filename);
+    }
+}
+
+
+
 int count_contiguous_blocks_memory(MPI_Datatype datatype, int count);
 int count_contiguous_blocks_file(MPI_File fh, MPI_Offset foff1, MPI_Offset foff2);
 MPI_Offset func_1_inf(MPI_File fh, MPI_Offset x, int memtype_size);
@@ -179,7 +247,6 @@ MPI_Offset func_1(MPI_File fh, MPI_Offset x);
 
 static struct darshan_file_runtime* darshan_file_by_fh(MPI_File fh);
 
-static int epoch_counter = 0;
 
 void printHints(MPI_File fh)
 {
@@ -250,6 +317,7 @@ void CP_RECORD_MPI_WRITE(int __ret, MPI_File __fh, int __count, MPI_Datatype __d
     CP_SET(file, CP_MAX_FILE_DTYPE_BLOCKS, file_blocks);  //
     CP_SET(file, CP_MIN_FILE_DTYPE_EXTENT, foff2 - foff1 + 1); //
     CP_SET(file, CP_MIN_FILE_DTYPE_BLOCKS, file_blocks);  //    
+    darshan_trace_log_record(-1, epoch_counter,__counter,__tm1,__tm2,__count*size, 0,__voff);	
 } 
 
 
@@ -2903,6 +2971,10 @@ void darshan_shutdown(int timing_flag)
 	}
 	
     }
+
+    // Florin: Write the trace log if any
+    darshan_trace_log_write();
+
     // Moved here from previous darshan_shutdown
     CP_LOCK();
     if (final_job->trailing_data)
@@ -3361,13 +3433,17 @@ int MPI_Alltoall(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void
 	    if (crt_filename)
 		file = darshan_file_by_name(crt_filename);
 	if (file) {
-	    int size = 0;
-	    DARSHAN_MPI_CALL(PMPI_Type_size)(sendtype, &size);
+	    int size_snd, size_rcv;
+	    int rank;
+	    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
+	    DARSHAN_MPI_CALL(PMPI_Type_size)(sendtype, &size_snd);
+	    DARSHAN_MPI_CALL(PMPI_Type_size)(sendtype, &size_rcv);
 	    CP_INC(file, CP_MPI_ALLTOALLS, 1);
-	    CP_INC(file, CP_BYTES_MPI_ALLTOALL, size*sendcount);
+	    CP_INC(file, CP_BYTES_MPI_ALLTOALL, size_snd*sendcount);
             CP_F_INC(file, CP_F_MPI_ALLTOALL_TIME, (tm2 - tm1));
 //            if (rank == 0)
 //                printf("%s %d\n",s,size*sendcount);
+	    darshan_trace_log_record(rank, epoch_counter,CP_MPI_ALLTOALLS,tm1,tm2,size_snd*sendcount, size_rcv*recvcount,-1);
 	}
         CP_UNLOCK();
     }
@@ -3398,19 +3474,26 @@ int MPI_Alltoallv(const void *sendbuf, const int *sendcounts, const int *sdispls
 	    if (crt_filename)
 		file = darshan_file_by_name(crt_filename);
 	if (file) {
-	    int size, comm_size, i, counts=0;
-	    DARSHAN_MPI_CALL(PMPI_Type_size)(sendtype, &size);
+	    int size_snd, comm_size, i, count_snd=0, size_rcv, count_rcv=0;
+	    int rank;
+	    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
+	    DARSHAN_MPI_CALL(PMPI_Type_size)(sendtype, &size_snd);
+	    DARSHAN_MPI_CALL(PMPI_Type_size)(recvtype, &size_rcv);
+	    
 	    DARSHAN_MPI_CALL(PMPI_Comm_size)(comm, &comm_size);
 	    for (i=0; i<comm_size; i++) {
-		counts+=sendcounts[i];
+		count_snd+=sendcounts[i];
+		count_rcv+=recvcounts[i];
+		
  //               if (sendcounts[i] > 0)
  //                   sprintf(s,"%s %d:%d",s, i,sendcounts[i]*size);
             }
  //           printf("%s\n",s);
 	    CP_INC(file, CP_MPI_ALLTOALLVS, 1);
-	    CP_INC(file, CP_BYTES_MPI_ALLTOALLV, size*counts);
+	    CP_INC(file, CP_BYTES_MPI_ALLTOALLV, size_snd*count_snd);
             CP_F_INC(file, CP_F_MPI_ALLTOALLV_TIME, (tm2 - tm1));
 
+	    darshan_trace_log_record(rank, epoch_counter,CP_MPI_ALLTOALLVS,tm1,tm2,size_snd*count_snd, size_rcv*count_rcv,-1);
 	}
         CP_UNLOCK();
     }
@@ -3475,6 +3558,8 @@ int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype da
                 file = darshan_file_by_name(crt_filename);
         if (file) {
             int size;
+	    int rank;
+	    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
             DARSHAN_MPI_CALL(PMPI_Type_size)(datatype, &size);
             CP_INC(file, CP_MPI_ALLREDUCES, 1);
             CP_INC(file, CP_BYTES_MPI_ALLREDUCE, size*count);
@@ -3482,6 +3567,7 @@ int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype da
 /*            if (rank == 0)
                 printf("%s %d\n",s,size*count);
 */
+	    darshan_trace_log_record(rank, epoch_counter,CP_MPI_ALLREDUCES,tm1,tm2,size*count,size*count,-1);
         }
         CP_UNLOCK();
     }
