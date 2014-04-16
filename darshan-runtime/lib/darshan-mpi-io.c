@@ -172,31 +172,39 @@ void darshan_trace_log_record(int rank, int epoch, int op, double tm1, double tm
 
 void darshan_trace_log_write() {
     char *filename;
-    //if ((filename=getenv("DARSHAN_TRACING"))!=NULL) {
-    if (getenv("DARSHAN_TRACING")){
+    char *dir;
+    if ((dir=getenv("DARSHAN_TRACING"))!=NULL) {
+    //if (getenv("DARSHAN_TRACING")){
         MPI_Offset offset;
         int rank;
         MPI_File fh;
         MPI_Status status;
-      	struct tm* my_tm; 
-	time_t tm;
-	
-	filename = (char*) malloc(PATH_MAX);
-	tm = time(NULL);
-	my_tm = localtime(&tm);
-	
-	snprintf(filename, PATH_MAX,
-                    "%s_%d-%d-%d.darshan_trace",
+
+        filename = (char*) malloc(PATH_MAX);
+
+        DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
+	if (rank == 0) {
+            struct tm* my_tm;
+            time_t tm;
+ 
+	    tm = time(NULL);
+	    my_tm = localtime(&tm);
+        	
+	    snprintf(filename, PATH_MAX,
+                    "%s/%s_%d-%d-%d.darshan_trace",
+                    dir,
                     __progname,
                     (my_tm->tm_mon+1),
                     my_tm->tm_mday,
                     (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec));
 
-	DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
-	if (rank == 0)
-		fprintf(stdout, "DARSHAN_TRACEFILE:%s\n", filename);
+	    fprintf(stdout, "DARSHAN_TRACEFILE:%s\n", filename);
+        }
 
-        MPI_Scan(&darshan_log_ptr, &offset, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Bcast)(filename, PATH_MAX, MPI_CHAR, 0,
+            MPI_COMM_WORLD);
+
+        PMPI_Scan(&darshan_log_ptr, &offset, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
 //        printf("%d: darshan_log_ptr=%lld offset=%lld\n", rank, darshan_log_ptr, offset-darshan_log_ptr);   
         DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, filename, MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, 
                       MPI_INFO_NULL, &fh);
