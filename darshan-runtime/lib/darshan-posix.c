@@ -976,7 +976,7 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
 	int rank;
 	long long int off=0; 
     	PMPI_Comm_rank(MPI_COMM_WORLD, &rank); 
-	off = lseek64(fd,0,1);
+	off = lseek64(fd,0,SEEK_CUR);
     	darshan_trace_log_record(rank, epoch_counter, CP_POSIX_WRITES, tm1, tm2, count, 0, off);
     }
     CP_UNLOCK();
