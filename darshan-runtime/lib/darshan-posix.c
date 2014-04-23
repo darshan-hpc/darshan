@@ -973,11 +973,12 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
     CP_RECORD_WRITE(ret, fd, count, 0, 0, aligned_flag, 0, tm1, tm2);
 
     if (darshan_global_job) {
-	int rank;
-	long long int off=0; 
-    	PMPI_Comm_rank(MPI_COMM_WORLD, &rank); 
-	off = lseek64(fd,0,SEEK_CUR);
-    	darshan_trace_log_record(rank, epoch_counter, CP_POSIX_WRITES, tm1, tm2, count, 0, off);
+	
+	//	int rank;
+    	//PMPI_Comm_rank(MPI_COMM_WORLD, &rank); 
+	if (getenv("DARSHAN_TRACING")){
+	     darshan_trace_log_record(-1, epoch_counter, CP_POSIX_WRITES, tm1, tm2, count, 0, __real_lseek64(fd,0,SEEK_CUR));
+	}
     }
     CP_UNLOCK();
 

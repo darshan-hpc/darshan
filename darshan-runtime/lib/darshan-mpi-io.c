@@ -164,7 +164,7 @@ void darshan_trace_log_record(int rank, int epoch, int op, double tm1, double tm
             d->tm2 = tm2;
             d->send_count = send_count;
             d->recv_count = recv_count;
-            d->offset = offset; 
+	    d->offset = offset; 
             darshan_log_ptr += sizeof(struct darshan_trace_record);
         }
     }
