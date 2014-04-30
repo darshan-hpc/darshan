@@ -20,10 +20,10 @@
 typedef int hid_t; 
 typedef int herr_t;
 
-hid_t __real_H5Fcreate(const char *filename, unsigned flags,
+hid_t H5Fcreate(const char *filename, unsigned flags,
     hid_t create_plist, hid_t access_plist) __attribute__((weak));
 
-hid_t __real_H5Fcreate(const char *filename, unsigned flags,
+hid_t H5Fcreate(const char *filename, unsigned flags,
     hid_t create_plist, hid_t access_plist)
 {
     int rank;
@@ -37,10 +37,10 @@ hid_t __real_H5Fcreate(const char *filename, unsigned flags,
     return(-1);
 }
 
-hid_t __real_H5Fopen(const char *filename, unsigned flags,
+hid_t H5Fopen(const char *filename, unsigned flags,
     hid_t access_plist) __attribute__((weak));
 
-hid_t __real_H5Fopen(const char *filename, unsigned flags,
+hid_t H5Fopen(const char *filename, unsigned flags,
     hid_t access_plist)
 {
     int rank;
@@ -54,9 +54,9 @@ hid_t __real_H5Fopen(const char *filename, unsigned flags,
     return(-1);
 }
 
-herr_t __real_H5Fclose(hid_t file_id) __attribute__((weak));
+herr_t H5Fclose(hid_t file_id) __attribute__((weak));
 
-herr_t __real_H5Fclose(hid_t file_id)
+herr_t H5Fclose(hid_t file_id)
 {
     int rank;
 

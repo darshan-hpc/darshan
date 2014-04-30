@@ -15,10 +15,10 @@
 #include "mpi.h"
 #include "darshan.h"
 
-int __real_ncmpi_create(MPI_Comm comm, const char *path, 
+int ncmpi_create(MPI_Comm comm, const char *path, 
     int cmode, MPI_Info info, int *ncidp) __attribute__((weak));
 
-int __real_ncmpi_create(MPI_Comm comm, const char *path, 
+int ncmpi_create(MPI_Comm comm, const char *path, 
     int cmode, MPI_Info info, int *ncidp)
 {
     int rank;
@@ -32,10 +32,10 @@ int __real_ncmpi_create(MPI_Comm comm, const char *path,
     return(-1);
 }
 
-int __real_ncmpi_open(MPI_Comm comm, const char *path, 
+int ncmpi_open(MPI_Comm comm, const char *path, 
     int omode, MPI_Info info, int *ncidp) __attribute__((weak));
 
-int __real_ncmpi_open(MPI_Comm comm, const char *path, 
+int ncmpi_open(MPI_Comm comm, const char *path, 
     int omode, MPI_Info info, int *ncidp)
 {
     int rank;
@@ -49,9 +49,9 @@ int __real_ncmpi_open(MPI_Comm comm, const char *path,
     return(-1);
 }
 
-int __real_ncmpi_close(int ncid) __attribute__((weak));
+int ncmpi_close(int ncid) __attribute__((weak));
 
-int __real_ncmpi_close(int ncid)
+int ncmpi_close(int ncid)
 {
     int rank;
 
