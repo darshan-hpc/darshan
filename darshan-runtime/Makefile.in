@@ -100,6 +100,7 @@ install:: all
 	install -d $(libdir)
 	install -m 755 lib/libdarshan-posix.a $(libdir)
 	install -m 755 lib/libdarshan-mpi-io.a $(libdir)
+	install -m 755 lib/libdarshan-stubs.a $(libdir)
 ifndef DISABLE_LDPRELOAD
 	install -m 755 lib/libdarshan.so $(libdir)
 endif
