@@ -12,17 +12,21 @@ bindir = $(DESTDIR)@bindir@
 libdir = $(DESTDIR)@libdir@
 pkgconfigdir = $(DESTDIR)$(libdir)/pkgconfig
 
-DISABLE_LDPRELOAD = @DISABLE_LDPRELOAD@
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
+DARSHAN_ENABLE_SHARED=@DARSHAN_ENABLE_SHARED@
 
 VPATH = $(srcdir)
 
+ifeq ($(DARSHAN_ENABLE_SHARED),1)
+all: libdarshan-util.so
+endif
 cp_zlib_link_flags = @__CP_ZLIB_LINK_FLAGS@
 cp_zlib_include_flags = @__CP_ZLIB_INCLUDE_FLAGS@
 
 # deliberately avoid large file support for host side utilities to avoid
 # potentially buggy libz 64 bit offset support
 CFLAGS = -I . -I $(srcdir) -I $(srcdir)/../ -DDARSHAN_CONFIG_H=\"darshan-util-config.h\" @CFLAGS@ @CPPFLAGS@ 
+CFLAGS_SHARED = $(CFLAGS) -shared -fpic -DPIC 
 LDFLAGS=@LDFLAGS@
 
 CC=@CC@
@@ -58,7 +62,12 @@ darshan-diff.o: darshan-diff.c
 	$(CC) $(CFLAGS) -c  $< -o $@
 darshan-logutils.o: darshan-logutils.c
 	$(CC) $(CFLAGS) -c  $< -o $@
+darshan-logutils.po: darshan-logutils.c
+	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
 
+libdarshan-util.so: darshan-logutils.po
+	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ $(LIBS)
+	
 darshan-util-lib: darshan-logutils.o
 	ar rcs libdarshan-util.a $<
 
@@ -82,6 +91,9 @@ install:: all
 	install -m 755 darshan-analyzer $(bindir)
 	install -m 755 $(srcdir)/darshan-summary-per-file.sh $(bindir)
 	install -m 755 libdarshan-util.a $(libdir)
+ifeq ($(DARSHAN_ENABLE_SHARED),1)
+	install -m 755 libdarshan-util.so $(libdir)
+endif
 	install -m 644 $(srcdir)/darshan-logutils.h $(includedir)
 	install -m 644 $(DARSHAN_LOG_FORMAT) $(includedir)
 	install -m 755 darshan-job-summary/bin/darshan-job-summary.pl $(bindir)

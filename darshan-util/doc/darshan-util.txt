@@ -55,6 +55,9 @@ specify alternative paths for zlib and libbz2 development libraries.
 darshan-util also supports VPATH or "out-of-tree" builds if you prefer that
 method of compilation.
 
+The `--enable-shared` argument to configure can be used to enable
+compilation of a shared version of the darshan-util library.
+
 == Analyzing log files
 
 Each time a darshan-instrumented application is executed, it will generate a
