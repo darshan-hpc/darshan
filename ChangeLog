@@ -2,7 +2,7 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.2.9-pre1
+darshan-2.2.9-pre2
 =============
 * Bug fixes:
   - Fix mnt table overflow if a large number of file systems are mounted, 
