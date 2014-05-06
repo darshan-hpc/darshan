@@ -214,9 +214,9 @@ The following recipes provide examples for prominent HPC systems.
 These are intended to be used as a starting point.  You will most likely have to adjust paths and options to
 reflect the specifics of your system.
 
-=== IBM Blue Gene/P
+=== IBM Blue Gene (BG/P or BG/Q)
 
-The IBM Blue Gene/P series produces static executables by default, uses a
+IBM Blue Gene systems produces static executables by default, uses a
 different architecture for login and compute nodes, and uses an MPI
 environment based on MPICH.
 
