@@ -2,7 +2,7 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.2.9-pre2
+darshan-2.2.9
 =============
 * Bug fixes:
   - Fix mnt table overflow if a large number of file systems are mounted, 
@@ -42,7 +42,8 @@ darshan-2.2.9-pre2
     - Prioritize storing information about non-NFS volumes over NFS volumes
       if too many file systems are mounted to record them all.
   - Added darshan-util pkgconfig file (Shane Snyder).
-
+  - Added --enable-shared configure option to darshan-util to build and
+    a shared library version of libdarshan-util
 
 darshan-2.2.8
 =============
