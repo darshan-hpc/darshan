@@ -16,6 +16,8 @@ Notes on how to release a new version of Darshan
   - commit
 - generate example output files on x86_64, ppc32, and ppc64, commit in
   darshan-test/example-output/ directory
+- use "svn status" and "svn diff" to make sure all changes are committed to
+  trunk
 - make a tag by doing an svn copy from trunk to tags/darshan-<some number>
 - TESTING
 - svn export the tag, tar gzip it
