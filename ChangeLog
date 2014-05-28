@@ -2,6 +2,11 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.3.0
+=============
+* Fix incorrect version numbering in darshan-runtime component of Darshan
+  2.2.9, reported by Jean-Guillaume Piccinali
+
 darshan-2.2.9
 =============
 * Bug fixes:
