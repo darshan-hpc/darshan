@@ -298,6 +298,8 @@ void darshan_shutdown(int timing_flag)
     char* env_tok;
 #endif
     uint64_t hlevel;
+    int64_t first_start_time;
+    int64_t last_end_time;
 
     CP_LOCK();
     if(!darshan_global_job)
@@ -527,6 +529,17 @@ void darshan_shutdown(int timing_flag)
     }
 
     final_job->log_job.end_time = time(NULL);
+
+    /* reduce to report first start time and last end time across all ranks
+     * at rank 0
+     */
+    DARSHAN_MPI_CALL(PMPI_Reduce)(&final_job->log_job.start_time, &first_start_time, 1, MPI_LONG_LONG, MPI_MIN, 0, MPI_COMM_WORLD); 
+    DARSHAN_MPI_CALL(PMPI_Reduce)(&final_job->log_job.end_time, &last_end_time, 1, MPI_LONG_LONG, MPI_MAX, 0, MPI_COMM_WORLD); 
+    if(rank == 0)
+    {
+        final_job->log_job.start_time = first_start_time;
+        final_job->log_job.end_time = last_end_time;
+    }
 
     /* reduce records for shared files */
     if(timing_flag)
