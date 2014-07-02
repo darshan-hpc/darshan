@@ -711,7 +711,7 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
             CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_mpi_meta_end, CP_F_MPI_META_TIME);
             if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
                 CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
-                DARSHAN_MPI_CALL(PMPI_Wtime)());
+                tm1);
             DARSHAN_MPI_CALL(PMPI_Comm_size)(comm, &comm_size);
             if(comm_size == 1)
             {

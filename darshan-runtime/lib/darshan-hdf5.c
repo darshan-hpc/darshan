@@ -60,9 +60,11 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     int ret;
     struct darshan_file_runtime* file;
     char* tmp;
+    double tm1;
 
     MAP_OR_FAIL(H5Fcreate);
 
+    tm1 = darshan_wtime();
     ret = __real_H5Fcreate(filename, flags, create_plist, access_plist);
     if(ret >= 0)
     {  
@@ -82,7 +84,7 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
         {
             if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
                 CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
-                PMPI_Wtime());
+                tm1);
             CP_INC(file, CP_HDF5_OPENS, 1);
         }
         CP_UNLOCK();
@@ -97,9 +99,11 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     int ret;
     struct darshan_file_runtime* file;
     char* tmp;
+    double tm1;
 
     MAP_OR_FAIL(H5Fopen);
 
+    tm1 = darshan_wtime();
     ret = __real_H5Fopen(filename, flags, access_plist);
     if(ret >= 0)
     {  
@@ -119,7 +123,7 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
         {
             if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
                 CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
-                PMPI_Wtime());
+                tm1);
             CP_INC(file, CP_HDF5_OPENS, 1);
         }
 

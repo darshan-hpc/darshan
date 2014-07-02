@@ -325,7 +325,7 @@ static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp)
     else \
         CP_INC(file, CP_POSIX_OPENS, 1); \
     if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0) \
-        CP_F_SET(file, CP_F_OPEN_TIMESTAMP, posix_wtime()); \
+        CP_F_SET(file, CP_F_OPEN_TIMESTAMP, __tm1); \
     CP_F_INC_NO_OVERLAP(file, __tm1, __tm2, file->last_posix_meta_end, CP_F_POSIX_META_TIME); \
 } while (0)
 

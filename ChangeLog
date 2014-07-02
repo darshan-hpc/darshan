@@ -2,6 +2,11 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.3.1-pre1
+=============
+* Change OPEN_TIMESTAMP field to report timestamp right before open() is
+  invoked rather than after timestamp after open is completed
+
 darshan-2.3.0
 =============
 * Fix incorrect version numbering in darshan-runtime component of Darshan

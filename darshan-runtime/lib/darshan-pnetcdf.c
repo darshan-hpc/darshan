@@ -56,9 +56,11 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
     struct darshan_file_runtime* file;
     char* tmp;
     int comm_size;
+    double tm1;
 
     MAP_OR_FAIL(ncmpi_create);
 
+    tm1 = darshan_wtime();
     ret = __real_ncmpi_create(comm, path, cmode, info, ncidp);
     if(ret == 0)
     {  
@@ -78,7 +80,7 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
         {
             if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
                 CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
-                PMPI_Wtime());
+                tm1);
             PMPI_Comm_size(comm, &comm_size);
             if(comm_size == 1)
             {
@@ -102,9 +104,11 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
     struct darshan_file_runtime* file;
     char* tmp;
     int comm_size;
+    double tm1;
 
     MAP_OR_FAIL(ncmpi_open);
 
+    tm1 = darshan_wtime();
     ret = __real_ncmpi_open(comm, path, omode, info, ncidp);
     if(ret == 0)
     {  
@@ -124,7 +128,7 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
         {
             if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
                 CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
-                PMPI_Wtime());
+                tm1);
             PMPI_Comm_size(comm, &comm_size);
             if(comm_size == 1)
             {
