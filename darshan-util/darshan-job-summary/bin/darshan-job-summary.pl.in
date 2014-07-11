@@ -729,7 +729,7 @@ if (($major > 1) or ($minor > 23))
         my $rd_total_mb = ($fs_data{$key}->[0] / (1024*1024));
         my $wr_total_rt;
 
-        if ($cumul_write_bytes_shared+$cumul_write_bytes_shared)
+        if ($cumul_write_bytes_shared+$cumul_write_bytes_indep)
         {
             $wr_total_rt = ($fs_data{$key}->[1] / ($cumul_write_bytes_shared + $cumul_write_bytes_indep));
         }

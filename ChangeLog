@@ -8,6 +8,9 @@ darshan-2.3.1-pre1
   invoked rather than after timestamp after open is completed
 * Change start_time and end_time fields in job record to use min and max
   (respectively) across all ranks
+* Fix bug in write volume data reported in file system table in
+  darshan-job-summary.pl (reported by Matthieu Dorier)
+
 TODO: bump log version number and add warnings about semantic changes  
 
 darshan-2.3.0
