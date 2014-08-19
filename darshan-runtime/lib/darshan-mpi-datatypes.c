@@ -168,7 +168,9 @@ MPI_Offset func_1_per( MPI_Offset x, ADIOI_Flatlist_node *flat_buf){
   return  find_size_bin_search(x, flat_buf) - flat_buf->indices[0];
 }
 
-/* Maps a view offset on a file offset */
+/* Maps a view offset on a file offset 
+Warning: offset is in multiple of etypes, needed func_1_inf for converting the x into byte offset before computing a mapping for x + number_of_bytes
+*/
 
 MPI_Offset func_1(MPI_File fh, MPI_Offset x){
     int is_contig, etype_size;
@@ -198,9 +200,14 @@ MPI_Offset func_1(MPI_File fh, MPI_Offset x){
     return ret;
 }
 
-/* Maps a view offset on a file offset: 
+/* 
+Warning: offset is in multiple of etypes, needed func_1_inf for converting the x into byte offset before computing a mapping for x + number_of_bytes
+
+Maps a view offset on a file offset: 
 trasforms first etype -> bytes 
-and then moves on the previous byte */
+and then moves on the previous byte 
+
+*/
 
 MPI_Offset func_1_inf(MPI_File fh, MPI_Offset x, int memtype_size){
     int is_contig, etype_size;
