@@ -2171,7 +2171,7 @@ static void darshan_aio_tracker_add(int fd, void *aiocbp)
  */
 static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp)
 {
-    struct darshan_aio_tracker *tmp==NULL, *prev;
+    struct darshan_aio_tracker *tmp=NULL, *prev;
     struct darshan_file_runtime* file;
 
     CP_LOCK();
