@@ -8,7 +8,7 @@ Notes on how to release a new version of Darshan
 - check for any problems in jenkins nightly builds
 - make sure that documentation in darshan-util/doc/ and darshan-runtime/doc/
   are up to date
-- update the Changelog if needed (browse svn log since last release)
+- update the Changelog if needed (browse git log since last release)
   - commit
 - update version number in configure.in (see AC_INIT)
   - in both darshan-util/ and darshan-runtime/
@@ -16,11 +16,12 @@ Notes on how to release a new version of Darshan
   - commit
 - generate example output files on x86_64, ppc32, and ppc64, commit in
   darshan-test/example-output/ directory
-- use "svn status" and "svn diff" to make sure all changes are committed to
-  trunk
-- make a tag by doing an svn copy from trunk to tags/darshan-<some number>
+- use "git status" to make sure that all changes have been committed and
+  pushed to origin/master
+- make a tag for the release according to instructions at
+  http://git-scm.com/book/en/Git-Basics-Tagging
 - TESTING
-- svn export the tag, tar gzip it
+- export the tag (TODO: document recommended method) and tar gzip it
   - upload .tar.gz file to /mcs/ftp/pub/darshan/releases
 - generate web documentation from asciidoc by running make in
   darshan-util/doc/ and darshan-runtime/doc/ directories
