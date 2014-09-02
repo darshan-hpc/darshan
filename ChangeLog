@@ -2,6 +2,9 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.0.0-pre1
+=============
+
 darshan-2.3.1-pre1
 =============
 * Change OPEN_TIMESTAMP field to report timestamp right before open() is
