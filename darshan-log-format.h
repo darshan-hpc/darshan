@@ -213,6 +213,7 @@ enum f_darshan_indices
     CP_F_VARIANCE_RANK_BYTES,
     CP_F_NC_READ_TIME,
     CP_F_NC_WRITE_TIME,
+    CP_F_NC_META_TIME,
 
     CP_F_NUM_INDICES,
 };

@@ -10,34 +10,84 @@
 #include "darshan.h"
 #include "darshan-config.h"
 
+#define NC_NOERR 0
+
+typedef enum {
+        NC_NAT =        0,      /* NAT = 'Not A Type' (c.f. NaN) */
+        NC_BYTE =       1,      /* signed 1 byte integer */
+        NC_CHAR =       2,      /* ISO/ASCII character */
+        NC_SHORT =      3,      /* signed 2 byte integer */
+        NC_INT =        4,      /* signed 4 byte integer */
+        NC_FLOAT =      5,      /* single precision floating point number */
+        NC_DOUBLE =     6       /* double precision floating point number */
+} nc_type;
+
+typedef nc_type ncmpi_type;
+
+
 extern int __real_ncmpi_create(MPI_Comm comm, const char *path, 
     int cmode, MPI_Info info, int *ncidp);
 extern int __real_ncmpi_open(MPI_Comm comm, const char *path, 
     int omode, MPI_Info info, int *ncidp);
 extern int __real_ncmpi_close(int ncid);
 
+/* nonblocking interfaces */
 extern int __real_ncmpi_iput_vara(int ncid, int varid,
                 const MPI_Offset *start, const MPI_Offset *count,
                 const void *buf, MPI_Offset bufcount, MPI_Datatype datatype,
                 int *reqid);
+
+extern int __real_ncmpi_wait_all(int  ncid, int  num_reqs,
+		int *req_ids, int *statuses);
+
+/* blocking interfaces */
 extern int __real_ncmpi_put_vara_all(int ncid, int varid,
                    const MPI_Offset  start[], const MPI_Offset  count[],
                    const void *buf, MPI_Offset bufcount,
                    MPI_Datatype datatype);
 
-extern int __real_ncmpi_put_vara_int_all(int ncid, int varid, 
-    const MPI_Offset  start[], const MPI_Offset  count[], 
+extern int __real_ncmpi_put_vara_double_all(int ncid, int varid,
+        const MPI_Offset start[],
+        const MPI_Offset count[], const double *op);
+
+extern int __real_ncmpi_put_vara_int_all(int ncid, int varid,
+    const MPI_Offset  start[], const MPI_Offset  count[],
     const void *buf);
 
-extern int __real_ncmpi_wait_all(int  ncid, int  num_reqs, 
-		int *req_ids, int *statuses);
+extern int __real_ncmpi_put_vara_float_all(int ncid, int varid, const MPI_Offset start[],
+        const MPI_Offset count[], const float *op);
+
+extern int __real_ncmpi_put_vars_double_all(int ncid, int varid,
+        const MPI_Offset start[],
+        const MPI_Offset count[], const MPI_Offset stride[], const double *op);
+
+extern int __real_ncmpi_put_vars_float_all(int ncid, int varid, const MPI_Offset start[],
+        const MPI_Offset count[], const MPI_Offset stride[], const float *op);
+
+/* define-mode functions */
+extern int __real_ncmpi_enddef(int ncid);
+extern int __real_ncmpi_def_dim(int ncid, const char *name, MPI_Offset size, int *dimidp);
+
+extern int __real_ncmpi_def_var(int ncid, const char *name, nc_type type,
+        int ndims, const int *dimids, int *varidp);
+
+/* inquiry functions */
+extern int __real_ncmpi_get_att_double(int ncid, int varid, const char *name, double *tp);
+extern int __real_ncmpi_get_att_int(int ncid, int varid, const char *name, int *tp);
+extern int __real_ncmpi_get_att_text(int ncid, int varid, const char *name, char *str);
 
 static int nr_writes=0;
 static int nr_reads=0;
 
 static struct darshan_file_runtime* darshan_file_by_ncid(int ncid);
 
-#define NC_NOERR 0
+
+#define CP_RECORD_PNETCDF_META(__ret, __ncid, __tim1, __tim2) do {\
+    struct darshan_file_runtime *file;\
+    if (__ret != NC_NOERR) break;\
+    file = darshan_file_by_ncid(__ncid);\
+    CP_F_INC(file, CP_F_NC_META_TIME, (__tim2-__tim1));\
+} while (0)
 
 #define CP_RECORD_PNETCDF_WRITE(__ret, __ncid, __tim1, __tim2) do {\
 	struct darshan_file_runtime*file;\
@@ -63,8 +113,11 @@ int __wrap_ncmpi_create(MPI_Comm comm, const char *path,
     char* tmp;
     int comm_size;
     int hash_index;
+    double tm1, tm2;
 
+    tm1 = darshan_wtime();
     ret = __real_ncmpi_create(comm, path, cmode, info, ncidp);
+    tm2 = darshan_wtime();
     if(ret == 0)
     {  
         CP_LOCK();
@@ -83,6 +136,8 @@ int __wrap_ncmpi_create(MPI_Comm comm, const char *path,
         if(file && (file->ncid == -1))
         {
             file->ncid = *ncidp;
+
+            CP_F_INC(file, CP_F_MPI_META_TIME, (tm2-tm1));
 
             PMPI_Comm_size(comm, &comm_size);
             if(comm_size == 1)
@@ -136,6 +191,8 @@ int __wrap_ncmpi_open(MPI_Comm comm, const char *path,
         {
             file->ncid = *ncidp;
 
+            CP_F_INC(file, CP_F_MPI_META_TIME, (tm2-tm1));
+
             PMPI_Comm_size(comm, &comm_size);
             if(comm_size == 1)
             {
@@ -166,13 +223,17 @@ int __wrap_ncmpi_close(int ncid)
     int hash_index;
     int tmp_ncid = ncid;
     int ret;
+    double tm1, tm2;
 
+    tm1 = darshan_wtime();
     ret = __real_ncmpi_close(ncid);
+    tm2 = darshan_wtime();
 
     CP_LOCK();
     file = darshan_file_by_ncid(ncid);
     if(file)
     {
+        CP_F_INC(file, CP_F_NC_META_TIME, (tm2-tm1));
         file->ncid = -1;
         if(file->ncid_prev == NULL)
         {
@@ -216,6 +277,67 @@ int __wrap_ncmpi_put_vara_all(int ncid, int varid,
     return (ret);
 }
 
+int __wrap_ncmpi_put_vara_double_all(int ncid, int varid, const MPI_Offset start[],
+        const MPI_Offset count[], const double *op)
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_put_vara_double_all(ncid, varid, start, count, op);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_WRITE(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+    return (ret);
+}
+
+int __wrap_ncmpi_put_vara_float_all(int ncid, int varid, const MPI_Offset start[],
+        const MPI_Offset count[], const float *op)
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_put_vara_float_all(ncid, varid, start, count, op);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_WRITE(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+    return (ret);
+}
+int __wrap_ncmpi_put_vars_double_all(int ncid, int varid, const MPI_Offset start[],
+        const MPI_Offset count[], const MPI_Offset stride[], const double *op)
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_put_vars_double_all(ncid, varid, start, count, stride, op);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_WRITE(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+    return (ret);
+}
+
+int __wrap_ncmpi_put_vars_float_all(int ncid, int varid, const MPI_Offset start[],
+        const MPI_Offset count[], const MPI_Offset stride[], const float *op)
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_put_vars_float_all(ncid, varid, start, count, stride, op);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_WRITE(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+    return (ret);
+}
+
+
+
 int __wrap_ncmpi_put_vara_int_all(int ncid, int varid, 
     const MPI_Offset  start[], const MPI_Offset  count[], 
     const void *buf)
@@ -232,6 +354,51 @@ int __wrap_ncmpi_put_vara_int_all(int ncid, int varid,
     return (ret);
 }
 
+int __wrap_ncmpi_get_vara_all(int ncid, int varid,
+    const MPI_Offset  start[], const MPI_Offset  count[],
+    const void *buf, MPI_Offset bufcount, MPI_Datatype datatype)
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_get_vara_all(ncid, varid, start, count, buf, bufcount,
+                    datatype);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_READ(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+    return (ret);
+}
+
+int __wrap_ncmpi_get_vara_double_all(int ncid, int varid,
+    const MPI_Offset  start[], const MPI_Offset  count[], double *ip)
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_get_vara_double_all(ncid, varid, start, count, ip);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_READ(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+    return (ret);
+}
+int __wrap_ncmpi_get_vara_int_all(int ncid, int varid,
+    const MPI_Offset  start[], const MPI_Offset  count[], double *ip)
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_get_vara_double_all(ncid, varid, start, count, ip);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_READ(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+    return (ret);
+}
 
 int __wrap_ncmpi_iput_vara(int ncid, int varid,
                 const MPI_Offset *start, const MPI_Offset *count,
@@ -291,6 +458,86 @@ int __wrap_ncmpi_wait_all(int  ncid,
     CP_UNLOCK();
 
     return ret;
+}
+int __wrap_ncmpi_def_dim(int ncid, const char *name, MPI_Offset size, int *dimidp)
+{
+    double tm1, tm2;
+    int ret;
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_def_dim(ncid, name, size, dimidp);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_META(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+
+    return (ret);
+}
+int __wrap_ncmpi_def_var(int ncid, const char *name, nc_type type,
+        int ndims, const int *dimids, int *varidp)
+{
+    double tm1, tm2;
+    int ret;
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_def_var(ncid, name, type, ndims, dimids, varidp);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_META(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+
+    return (ret);
+}
+int __wrap_ncmpi_enddef(int ncid)
+{
+    double tm1, tm2;
+    int ret;
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_enddef(ncid);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_META(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+
+    return (ret);
+}
+
+int __wrap_ncmpi_get_att_double(int ncid, int varid, const char *name, double *tp)
+{
+    double tm1, tm2;
+    int ret;
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_get_att_double(ncid, varid, name, tp);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_META(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+
+    return (ret);
+}
+int __wrap_ncmpi_get_att_int(int ncid, int varid, const char *name, int *tp)
+{
+    double tm1, tm2;
+    int ret;
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_get_att_int(ncid, varid, name, tp);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_META(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+
+    return (ret);
+}
+int __wrap_ncmpi_get_att_text(int ncid, int varid, const char *name, char *str)
+{
+    double tm1, tm2;
+    int ret;
+    tm1 = darshan_wtime();
+    ret = __real_ncmpi_get_att_text(ncid, varid, name, str);
+    tm2 = darshan_wtime();
+    CP_LOCK();
+    CP_RECORD_PNETCDF_META(ret, ncid, tm1, tm2);
+    CP_UNLOCK();
+
+    return (ret);
 }
 
 static struct darshan_file_runtime* darshan_file_by_ncid(int ncid)
