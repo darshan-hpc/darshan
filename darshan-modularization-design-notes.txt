@@ -1,0 +1,112 @@
+Rough design notes on modularizing Darshan
+2014-09-24
+------------------------
+
+- Darshan is split into two parts (subdirs in the same repo):
+  - runtime: runtime instrumentation for MPI programs
+  - util: post-processing of logs
+
+Runtime design
+----------------
+
+- current code has the following responsibilities:
+  - init:
+    - set up data structures
+  - during runtime:
+    - track file names and handles
+    - memory allocation
+    - intercepting function calls
+    - updating counters
+  - shutdown:
+    - identify shared files
+    - aggregation/reduction
+    - compression
+    - write log
+
+- propose division of code in modular runtime library:
+  (these aren't literally separate libraries, they are probably all
+  combined):
+  - core lib: 
+    - central component that modules register with, coordinates shutdown
+  - modules:
+    - posix, mpi-io, pnetcdf, hdf5, asg, etc.
+    - register with the core lib and track statistics for a single API
+  - common/utility lib:
+    - contains utility functions
+    - not mandatory for a module to use this, but may make things easier
+
+- responsibilities of core library:
+  - track file names and map them to generic IDs
+    (keep full path names)
+  - tell modules how much memory they can consume
+  - kick off shutdown procedure
+  - perform generic (zlib) compression
+
+- at shutdown time, the core library will:
+  - create output file
+  - write header and index information
+  - write out filename->ID mapping
+  - perform its own aggregation step to identify files shared across ranks
+
+API:
+- core API (presented by core library, used by modules):
+  - register(const char* name, int* runtime_mem_limit, struct mod_fns *mfns)
+    - lets module register with the core library, provide its name and table
+      of function pointers, and get back a limit on how much RAM it can
+      consume
+  - lookup_id(void* name, int len, int64* ID, int printable_flag);
+    - used by module to convert a file name to a generic ID.  printable_flag
+      tells Darshan that the "name" is not a string (as in ASG use case)
+
+- module API (will be function pointers in struct mod_fns above, this is the
+  API that each module must present to the core library)
+  - prep_for_shutdown()
+    - tells the module that it should stop instrumenting and perform any
+      module-specific aggregation or custom compression that it wants to do
+      before Darshan stores its results
+  - get_output(void **buffer, int size)
+    - called by core library to get a pointer to the data that should be
+      written into the log file.  Darshan will zlib compress it and put it
+      in the right position in the output file.
+
+- how will the asg module fit in?
+  - it doesn't have file names
+  - will pass in object IDs instead that will still get mapped to generic
+    Darshan IDs just like a file name would have
+    - set flag telling Darshan that the "name" won't be printable
+
+- compiler script:
+  - how much do we want to modularize here?
+  - don't need to do this initially, but we could have the compiler script
+    call out to a predefined directory to look for scripts or files that let
+    each module describe the linker arguments to add
+    - avoid extremely large ld arguments
+
+- utility library:
+  - this is the part run to process existing logs
+  - file format:
+
+    - header (endianness, version number, etc.)
+    - job information (cmd line, start time, end time, etc.)
+    - indices 
+      - location/size of name->id mapping table
+      - location/size of each module's opaque data (with name)
+    - table of name->id mapping
+      - needs to handle variable length names (some of which won't be
+        printable)
+      - format it however makes sense for parsing
+      - compress this part since it will often contain mostly text
+    - opaque blobs containing data for each module
+      - modules will refer to files using ID from name->id table, won't
+        store full paths here
+
+  - each module can define its own parser, grapher, etc. as needed
+  - for convenience we may integrate posix and mpi-io support into the default
+    darshan tools
+
+- development notes
+  - do development in git branch
+  - ignore compatibility (we'll work that out later)
+  - strip down to basic example
+    - just do one or two posix counters to start, but exercise all of the
+      API and code organization stuff
