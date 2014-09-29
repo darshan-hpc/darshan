@@ -26,8 +26,8 @@ static void darshan_shutdown(void);
 static char *darshan_get_exe_and_mounts(int rank);
 static void darshan_get_exe_and_mounts_root(char* trailing_data, int space_left);
 
+/* internal variables */
 static struct darshan_job_runtime *darshan_global_job = NULL;
-static int darshan_mem_alignment = 1;
 
 #define CP_MAX_MNTS 64
 #define CP_MAX_MNT_PATH 256
@@ -90,12 +90,9 @@ static void darshan_initialize(int *argc, char ***argv)
     int rank;
     int internal_timing_flag = 0;
     double init_start, init_time, init_max;
-    char *mem_align;
     char* truncate_string = "<TRUNCATED>";
     int truncate_offset;
     int chars_left = 0;
-    int ret;
-    int tmpval;
 
     DARSHAN_MPI_CALL(PMPI_Comm_size)(MPI_COMM_WORLD, &nprocs);
     DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
@@ -109,30 +106,6 @@ static void darshan_initialize(int *argc, char ***argv)
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if (!getenv("DARSHAN_DISABLE") && !darshan_global_job)
     {
-        #if (__CP_MEM_ALIGNMENT < 1)
-            #error Darshan must be configured with a positive value for --with-mem-align
-        #endif
-        mem_align = getenv("DARSHAN_MEMALIGN");
-        if (mem_align)
-        {
-            ret = sscanf(mem_align, "%d", &tmpval);
-            /* silently ignore if the env variable is set poorly */
-            if(ret == 1 && tmpval > 0)
-            {
-                darshan_mem_alignment = tmpval;
-            }
-        }
-        else
-        {
-            darshan_mem_alignment == __CP_MEM_ALIGNMENT;
-        }
-
-        /* avoid floating point errors on faulty input */
-        if (darshan_mem_alignment < 1)
-        {
-            darshan_mem_alignment = 1;
-        }
-
         /* allocate structure to track darshan_global_job information */
         darshan_global_job = malloc(sizeof(*darshan_global_job));
         if (darshan_global_job)
@@ -142,13 +115,6 @@ static void darshan_initialize(int *argc, char ***argv)
             if (getenv("DARSHAN_DISABLE_TIMING"))
             {
                 darshan_global_job->flags |= CP_FLAG_NOTIMING;
-            }
-
-            /* set up file records */
-            for(i=0; i<CP_MAX_FILES; i++)
-            {
-                darshan_global_job->file_runtime_array[i].log_file =
-                    &darshan_global_job->file_array[i];
             }
 
             strcpy(darshan_global_job->log_job.version_string, CP_VERSION);
@@ -424,6 +390,15 @@ void darshan_core_lookup_id(
     return;
 }
 
+double darshan_core_wtime()
+{
+    if(!darshan_global_job || darshan_global_job->flags & CP_FLAG_NOTIMING)
+    {
+        return(0);
+    }
+
+    return DARSHAN_MPI_CALL(PMPI_Wtime)();
+}
 
 /*
  * Local variables:

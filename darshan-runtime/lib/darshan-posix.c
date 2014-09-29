@@ -83,9 +83,6 @@ DARSHAN_FORWARD_DECL(lio_listio64, int, (int mode, struct aiocb64 *const aiocb_l
 DARSHAN_FORWARD_DECL(aio_return, ssize_t, (struct aiocb *aiocbp));
 DARSHAN_FORWARD_DECL(aio_return64, ssize_t, (struct aiocb64 *aiocbp));
 
-pthread_mutex_t cp_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-static struct stat64 cp_stat_buf;
-
 /* struct to track information about aio operations in flight */
 struct darshan_aio_tracker
 {
@@ -109,21 +106,22 @@ static char* exclusions[] = {
 NULL
 };
 
-static int posix_mod_registered = 0;
+static int darshan_mem_alignment = 1;
+
+static int posix_mod_initialized = 0;
+static int posix_mod_mem_limit = 0;
+static pthread_mutex_t posix_mod_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static struct darshan_module_funcs posix_mod_funcs = 
 {
 
 };
-static int posix_runtime_mem_limit = 0;
 
-#define DARSHAN_REGISTER_POSIX_MOD() do{ \
-    if (!posix_mod_registered) { \
-        darshan_core_register_module("POSIX", &posix_mod_funcs, &posix_runtime_mem_limit); \
-        posix_mod_registered = 1; \
-    } \
-} while(0)
-
+static void posix_runtime_initialize(void);
 static double posix_wtime(void);
+
+#define POSIX_LOCK() pthread_mutex_lock(&posix_mod_mutex)
+#define POSIX_UNLOCK() pthread_mutex_unlock(&posix_mod_mutex)
+
 static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,     enum cp_counter_type type);
 static void darshan_aio_tracker_add(int fd, void *aiocbp);
 static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp);
@@ -300,7 +298,6 @@ static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp)
     CP_F_INC_NO_OVERLAP(file, __tm1, __tm2, file->last_posix_meta_end, CP_F_POSIX_META_TIME); \
 } while (0)
 
-#if 0
 int DARSHAN_DECL(close)(int fd)
 {
     struct darshan_file_runtime* file;
@@ -310,13 +307,14 @@ int DARSHAN_DECL(close)(int fd)
 
     MAP_OR_FAIL(close);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_close(fd);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
 
-    CP_LOCK();
+    POSIX_LOCK();
+    posix_runtime_initialize();
+
+#if 0
     file = darshan_file_by_fd(tmp_fd);
     if(file)
     {
@@ -326,11 +324,14 @@ int DARSHAN_DECL(close)(int fd)
         CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_posix_meta_end, CP_F_POSIX_META_TIME);
         darshan_file_close_fd(tmp_fd);
     }
-    CP_UNLOCK();
+#endif
+
+    POSIX_UNLOCK();    
 
     return(ret);
 }
 
+#if 0
 int DARSHAN_DECL(fclose)(FILE *fp)
 {
     struct darshan_file_runtime* file;
@@ -340,11 +341,9 @@ int DARSHAN_DECL(fclose)(FILE *fp)
 
     MAP_OR_FAIL(fclose);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_fclose(fp);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     
     CP_LOCK();
     file = darshan_file_by_fd(tmp_fd);
@@ -370,11 +369,9 @@ int DARSHAN_DECL(fsync)(int fd)
 
     MAP_OR_FAIL(fsync);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_fsync(fd);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
 
     if(ret < 0)
         return(ret);
@@ -399,11 +396,9 @@ int DARSHAN_DECL(fdatasync)(int fd)
 
     MAP_OR_FAIL(fdatasync);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_fdatasync(fd);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     if(ret < 0)
         return(ret);
 
@@ -427,8 +422,6 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
     struct darshan_file_runtime* file;
 
     MAP_OR_FAIL(mmap64);
-
-    DARSHAN_REGISTER_POSIX_MOD();
 
     ret = __real_mmap64(addr, length, prot, flags, fd, offset);
     if(ret == MAP_FAILED)
@@ -454,8 +447,6 @@ void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
 
     MAP_OR_FAIL(mmap);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     ret = __real_mmap(addr, length, prot, flags, fd, offset);
     if(ret == MAP_FAILED)
         return(ret);
@@ -478,11 +469,9 @@ int DARSHAN_DECL(creat)(const char* path, mode_t mode)
 
     MAP_OR_FAIL(creat);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_creat(path, mode);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
 
     CP_LOCK();
     CP_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
@@ -498,11 +487,9 @@ int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
 
     MAP_OR_FAIL(creat64);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_creat64(path, mode);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
 
     CP_LOCK();
     CP_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
@@ -519,8 +506,6 @@ int DARSHAN_DECL(open64)(const char* path, int flags, ...)
 
     MAP_OR_FAIL(open64);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     if (flags & O_CREAT) 
     {
         va_list arg;
@@ -528,15 +513,15 @@ int DARSHAN_DECL(open64)(const char* path, int flags, ...)
         mode = va_arg(arg, int);
         va_end(arg);
 
-        tm1 = darshan_wtime();
+        tm1 = darshan_core_wtime();
         ret = __real_open64(path, flags, mode);
-        tm2 = darshan_wtime();
+        tm2 = darshan_core_wtime();
     }
     else
     {
-        tm1 = darshan_wtime();
+        tm1 = darshan_core_wtime();
         ret = __real_open64(path, flags);
-        tm2 = darshan_wtime();
+        tm2 = darshan_core_wtime();
     }
 
     CP_LOCK();
@@ -555,8 +540,6 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
 
     MAP_OR_FAIL(open);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-#if 0
     if (flags & O_CREAT) 
     {
         va_list arg;
@@ -564,21 +547,22 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
         mode = va_arg(arg, int);
         va_end(arg);
 
-        tm1 = darshan_wtime();
+        tm1 = darshan_core_wtime();
         ret = __real_open(path, flags, mode);
-        tm2 = darshan_wtime();
+        tm2 = darshan_core_wtime();
     }
     else
     {
-        tm1 = darshan_wtime();
+        tm1 = darshan_core_wtime();
         ret = __real_open(path, flags);
-        tm2 = darshan_wtime();
+        tm2 = darshan_core_wtime();
     }
 
-    CP_LOCK();
-    CP_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
-    CP_UNLOCK();
-#endif
+    POSIX_LOCK();
+    posix_runtime_initialize();
+
+//    POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
+    POSIX_UNLOCK();
 
     return(ret);
 }
@@ -592,11 +576,9 @@ FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
 
     MAP_OR_FAIL(fopen64);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_fopen64(path, mode);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     if(ret == 0)
         fd = -1;
     else
@@ -617,11 +599,9 @@ FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
 
     MAP_OR_FAIL(fopen);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_fopen(path, mode);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     if(ret == 0)
         fd = -1;
     else
@@ -641,11 +621,9 @@ int DARSHAN_DECL(__xstat64)(int vers, const char *path, struct stat64 *buf)
 
     MAP_OR_FAIL(__xstat64);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real___xstat64(vers, path, buf);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
 
@@ -663,11 +641,9 @@ int DARSHAN_DECL(__lxstat64)(int vers, const char *path, struct stat64 *buf)
 
     MAP_OR_FAIL(__lxstat64);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real___lxstat64(vers, path, buf);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
 
@@ -686,11 +662,9 @@ int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
 
     MAP_OR_FAIL(__fxstat64);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real___fxstat64(vers, fd, buf);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
 
@@ -717,11 +691,9 @@ int DARSHAN_DECL(__xstat)(int vers, const char *path, struct stat *buf)
 
     MAP_OR_FAIL(__xstat);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real___xstat(vers, path, buf);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
 
@@ -739,11 +711,9 @@ int DARSHAN_DECL(__lxstat)(int vers, const char *path, struct stat *buf)
 
     MAP_OR_FAIL(__lxstat);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real___lxstat(vers, path, buf);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
 
@@ -762,11 +732,9 @@ int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
 
     MAP_OR_FAIL(__fxstat);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real___fxstat(vers, fd, buf);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
 
@@ -793,14 +761,12 @@ ssize_t DARSHAN_DECL(pread64)(int fd, void *buf, size_t count, off64_t offset)
 
     MAP_OR_FAIL(pread64);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_pread64(fd, buf, count, offset);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     CP_LOCK();
     CP_RECORD_READ(ret, fd, count, 1, offset, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
@@ -815,14 +781,12 @@ ssize_t DARSHAN_DECL(pread)(int fd, void *buf, size_t count, off_t offset)
 
     MAP_OR_FAIL(pread);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_pread(fd, buf, count, offset);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     CP_LOCK();
     CP_RECORD_READ(ret, fd, count, 1, offset, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
@@ -838,14 +802,12 @@ ssize_t DARSHAN_DECL(pwrite)(int fd, const void *buf, size_t count, off_t offset
 
     MAP_OR_FAIL(pwrite);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_pwrite(fd, buf, count, offset);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     CP_LOCK();
     CP_RECORD_WRITE(ret, fd, count, 1, offset, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
@@ -860,14 +822,12 @@ ssize_t DARSHAN_DECL(pwrite64)(int fd, const void *buf, size_t count, off64_t of
 
     MAP_OR_FAIL(pwrite64);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_pwrite64(fd, buf, count, offset);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     CP_LOCK();
     CP_RECORD_WRITE(ret, fd, count, 1, offset, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
@@ -883,17 +843,15 @@ ssize_t DARSHAN_DECL(readv)(int fd, const struct iovec *iov, int iovcnt)
 
     MAP_OR_FAIL(readv);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     for(i=0; i<iovcnt; i++)
     {
         if(((unsigned long)iov[i].iov_base % darshan_mem_alignment) != 0)
             aligned_flag = 0;
     }
 
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_readv(fd, iov, iovcnt);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     CP_LOCK();
     CP_RECORD_READ(ret, fd, count, 0, 0, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
@@ -909,17 +867,15 @@ ssize_t DARSHAN_DECL(writev)(int fd, const struct iovec *iov, int iovcnt)
 
     MAP_OR_FAIL(writev);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     for(i=0; i<iovcnt; i++)
     {
         if(!((unsigned long)iov[i].iov_base % darshan_mem_alignment == 0))
             aligned_flag = 0;
     }
 
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_writev(fd, iov, iovcnt);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     CP_LOCK();
     CP_RECORD_WRITE(ret, fd, count, 0, 0, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
@@ -934,14 +890,12 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
 
     MAP_OR_FAIL(fread);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     if((unsigned long)ptr % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_fread(ptr, size, nmemb, stream);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     CP_LOCK();
     if(ret > 0)
         CP_RECORD_READ(size*ret, fileno(stream), (size*nmemb), 0, 0, aligned_flag, 1, tm1, tm2);
@@ -959,14 +913,12 @@ ssize_t DARSHAN_DECL(read)(int fd, void *buf, size_t count)
 
     MAP_OR_FAIL(read);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_read(fd, buf, count);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     CP_LOCK();
     CP_RECORD_READ(ret, fd, count, 0, 0, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
@@ -981,14 +933,12 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
 
     MAP_OR_FAIL(write);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_write(fd, buf, count);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     CP_LOCK();
     CP_RECORD_WRITE(ret, fd, count, 0, 0, aligned_flag, 0, tm1, tm2);
     CP_UNLOCK();
@@ -1003,14 +953,12 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
 
     MAP_OR_FAIL(fwrite);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     if((unsigned long)ptr % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_fwrite(ptr, size, nmemb, stream);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     CP_LOCK();
     if(ret > 0)
         CP_RECORD_WRITE(size*ret, fileno(stream), (size*nmemb), 0, 0, aligned_flag, 1, tm1, tm2);
@@ -1028,11 +976,9 @@ off64_t DARSHAN_DECL(lseek64)(int fd, off64_t offset, int whence)
 
     MAP_OR_FAIL(lseek64);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_lseek64(fd, offset, whence);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     if(ret >= 0)
     {
         CP_LOCK();
@@ -1056,11 +1002,9 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
 
     MAP_OR_FAIL(lseek);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_lseek(fd, offset, whence);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     if(ret >= 0)
     {
         CP_LOCK();
@@ -1085,10 +1029,8 @@ ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
 
     MAP_OR_FAIL(aio_return64);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     ret = __real_aio_return64(aiocbp);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     tmp = darshan_aio_tracker_del(aiocbp->aio_fildes, aiocbp);
 
     if(tmp)
@@ -1122,10 +1064,8 @@ ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
 
     MAP_OR_FAIL(aio_return);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     ret = __real_aio_return(aiocbp);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     tmp = darshan_aio_tracker_del(aiocbp->aio_fildes, aiocbp);
 
     if(tmp)
@@ -1150,8 +1090,6 @@ int DARSHAN_DECL(lio_listio)(int mode, struct aiocb *const aiocb_list[],
 
     MAP_OR_FAIL(lio_listio);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     ret = __real_lio_listio(mode, aiocb_list, nitems, sevp);
     if(ret == 0)
     {
@@ -1172,8 +1110,6 @@ int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb64 *const aiocb_list[],
 
     MAP_OR_FAIL(lio_listio);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     ret = __real_lio_listio64(mode, aiocb_list, nitems, sevp);
     if(ret == 0)
     {
@@ -1192,8 +1128,6 @@ int DARSHAN_DECL(aio_write64)(struct aiocb64 *aiocbp)
 
     MAP_OR_FAIL(aio_write64);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     ret = __real_aio_write64(aiocbp);
     if(ret == 0)
         darshan_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
@@ -1206,8 +1140,6 @@ int DARSHAN_DECL(aio_write)(struct aiocb *aiocbp)
     int ret;
 
     MAP_OR_FAIL(aio_write);
-
-    DARSHAN_REGISTER_POSIX_MOD();
 
     ret = __real_aio_write(aiocbp);
     if(ret == 0)
@@ -1222,8 +1154,6 @@ int DARSHAN_DECL(aio_read64)(struct aiocb64 *aiocbp)
 
     MAP_OR_FAIL(aio_read64);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
     ret = __real_aio_read64(aiocbp);
     if(ret == 0)
         darshan_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
@@ -1236,8 +1166,6 @@ int DARSHAN_DECL(aio_read)(struct aiocb *aiocbp)
     int ret;
 
     MAP_OR_FAIL(aio_read);
-
-    DARSHAN_REGISTER_POSIX_MOD();
 
     ret = __real_aio_read(aiocbp);
     if(ret == 0)
@@ -1254,11 +1182,9 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
 
     MAP_OR_FAIL(fseek);
 
-    DARSHAN_REGISTER_POSIX_MOD();
-
-    tm1 = darshan_wtime();
+    tm1 = darshan_core_wtime();
     ret = __real_fseek(stream, offset, whence);
-    tm2 = darshan_wtime();
+    tm2 = darshan_core_wtime();
     if(ret >= 0)
     {
         CP_LOCK();
@@ -1274,6 +1200,47 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
     return(ret);
 }
 #endif
+
+static void posix_runtime_initialize()
+{
+    char *alignstr;
+    int tmpval;
+    int ret;
+
+    if (posix_mod_initialized)
+        return;
+
+    /* set the memory alignment according to config or environment variables */
+    #if (__CP_MEM_ALIGNMENT < 1)
+        #error Darshan must be configured with a positive value for --with-mem-align
+    #endif
+    alignstr = getenv("DARSHAN_MEMALIGN");
+    if (alignstr)
+    {
+        ret = sscanf(alignstr, "%d", &tmpval);
+        /* silently ignore if the env variable is set poorly */
+        if(ret == 1 && tmpval > 0)
+        {
+            darshan_mem_alignment = tmpval;
+        }
+    }
+    else
+    {
+        darshan_mem_alignment = __CP_MEM_ALIGNMENT;
+    }
+
+    /* avoid floating point errors on faulty input */
+    if (darshan_mem_alignment < 1)
+    {
+        darshan_mem_alignment = 1;
+    }
+
+    /* register the posix module with darshan core */
+    darshan_core_register_module("POSIX", &posix_mod_funcs, &posix_mod_mem_limit);
+
+    posix_mod_initialized = 1;
+    return;
+}
 
 static int access_comparison(const void* a_p, const void* b_p)
 {
@@ -1353,6 +1320,11 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size, e
     }
 
     return;
+}
+
+static double posix_wtime(void)
+{
+    return DARSHAN_MPI_CALL(PMPI_Wtime)();
 }
 
 #if 0
@@ -1571,7 +1543,7 @@ void darshan_search_bench(int argc, char** argv, int iters)
                 CP_RECORD_OPEN(fd_array[i], path, 777, 0, 0, 0);
             }
 
-            tm1 = darshan_wtime();
+            tm1 = darshan_core_wtime();
             for(i=0; i<iters; i++)
             {
                 if(j==0)
@@ -1583,7 +1555,7 @@ void darshan_search_bench(int argc, char** argv, int iters)
                     CP_RECORD_WRITE(size_array[0], fd_array[i%nfiles], size_array[0], 0, 0, 1, 0, 1, 2);
                 }
             }
-            tm2 = darshan_wtime();
+            tm2 = darshan_core_wtime();
 
             /* printf("#<iters>\t<numfiles>\t<numsizes>\t<total time>\t<per iter>\n"); */
             printf("%d\t%d\t%d\t%f\t%.12f\n", iters, nfiles, (j==0?CP_MAX_ACCESS_COUNT_RUNTIME:1), tm2-tm1, (tm2-tm1)/iters);
@@ -1598,21 +1570,7 @@ void darshan_search_bench(int argc, char** argv, int iters)
 }
 #endif
 
-static double posix_wtime(void)
-{
-    return DARSHAN_MPI_CALL(PMPI_Wtime)();
-}
-
 #if 0
-double darshan_wtime(void)
-{
-    if(!darshan_global_job || darshan_global_job->flags & CP_FLAG_NOTIMING)
-    {
-        return(0);
-    }
-    
-    return(posix_wtime());
-}
 
 /* adds a tracker for the given aio operation */
 static void darshan_aio_tracker_add(int fd, void *aiocbp)
@@ -1627,7 +1585,7 @@ static void darshan_aio_tracker_add(int fd, void *aiocbp)
         tracker = malloc(sizeof(*tracker));
         if(tracker)
         {
-            tracker->tm1 = darshan_wtime();
+            tracker->tm1 = darshan_core_wtime();
             tracker->aiocbp = aiocbp;
             tracker->next = NULL;
             if(file->aio_list_tail)

@@ -37,4 +37,6 @@ void darshan_core_lookup_id(
     int printable_flag,
     darshan_file_id *id);
 
+double darshan_core_wtime(void);
+
 #endif /* __DARSHAN_CORE_H */
