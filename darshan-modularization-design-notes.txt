@@ -110,3 +110,7 @@ API:
   - strip down to basic example
     - just do one or two posix counters to start, but exercise all of the
       API and code organization stuff
+
+TODO NOTES:
+    - why are darshan mutexes recursive?
+    - how do we allow modules to specify there necessary linker/wrapper flags
