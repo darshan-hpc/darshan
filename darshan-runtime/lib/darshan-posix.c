@@ -25,6 +25,7 @@
 #include <pthread.h>
 
 #include "darshan.h"
+#include "darshan-core.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
@@ -32,35 +33,6 @@ typedef int64_t off64_t;
 #ifndef HAVE_AIOCB64
 #define aiocb64 aiocb
 #endif
-
-extern char* __progname_full;
-
-#ifdef DARSHAN_PRELOAD
-#define __USE_GNU
-#include <dlfcn.h>
-#include <stdlib.h>
-
-#define DARSHAN_FORWARD_DECL(name,ret,args) \
-  ret (*__real_ ## name)args = NULL;
-
-#define DARSHAN_DECL(__name) __name
-
-#define DARSHAN_MPI_CALL(func) __real_ ## func
-
-#define MAP_OR_FAIL(func) \
-    if (!(__real_ ## func)) \
-    { \
-        __real_ ## func = dlsym(RTLD_NEXT, #func); \
-        if(!(__real_ ## func)) { \
-           fprintf(stderr, "Darshan failed to map symbol: %s\n", #func); \
-           exit(1); \
-       } \
-    }
-
-
-extern double (*__real_PMPI_Wtime)(void);
-
-#else
 
 #define DARSHAN_FORWARD_DECL(name,ret,args) \
   extern ret __real_ ## name args;
@@ -70,8 +42,6 @@ extern double (*__real_PMPI_Wtime)(void);
 #define MAP_OR_FAIL(func)
 
 #define DARSHAN_MPI_CALL(func) func
-
-#endif
 
 DARSHAN_FORWARD_DECL(creat, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(creat64, int, (const char* path, mode_t mode));
@@ -85,8 +55,7 @@ DARSHAN_FORWARD_DECL(lseek64, off64_t, (int fd, off64_t offset, int whence));
 DARSHAN_FORWARD_DECL(pread, ssize_t, (int fd, void *buf, size_t count, off_t offset));
 DARSHAN_FORWARD_DECL(pread64, ssize_t, (int fd, void *buf, size_t count, off64_t offset));
 DARSHAN_FORWARD_DECL(pwrite, ssize_t, (int fd, const void *buf, size_t count, off_t offset));
-DARSHAN_FORWARD_DECL(pwrite64, ssize_t, (int fd, const void *buf, size_t count, off64_t offset
-));
+DARSHAN_FORWARD_DECL(pwrite64, ssize_t, (int fd, const void *buf, size_t count, off64_t offset));
 DARSHAN_FORWARD_DECL(readv, ssize_t, (int fd, const struct iovec *iov, int iovcnt));
 DARSHAN_FORWARD_DECL(writev, ssize_t, (int fd, const struct iovec *iov, int iovcnt));
 DARSHAN_FORWARD_DECL(__fxstat, int, (int vers, int fd, struct stat *buf));
@@ -115,10 +84,7 @@ DARSHAN_FORWARD_DECL(aio_return, ssize_t, (struct aiocb *aiocbp));
 DARSHAN_FORWARD_DECL(aio_return64, ssize_t, (struct aiocb64 *aiocbp));
 
 pthread_mutex_t cp_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-struct darshan_job_runtime* darshan_global_job = NULL;
-static int my_rank = -1;
 static struct stat64 cp_stat_buf;
-static int darshan_mem_alignment = 1;
 
 /* struct to track information about aio operations in flight */
 struct darshan_aio_tracker
@@ -143,22 +109,26 @@ static char* exclusions[] = {
 NULL
 };
 
+static int posix_mod_registered = 0;
+static struct darshan_module_funcs posix_mod_funcs = 
+{
+
+};
+static int posix_runtime_mem_limit = 0;
+
+#define DARSHAN_REGISTER_POSIX_MOD() do{ \
+    if (!posix_mod_registered) { \
+        darshan_core_register_module("POSIX", &posix_mod_funcs, &posix_runtime_mem_limit); \
+        posix_mod_registered = 1; \
+    } \
+} while(0)
+
 static double posix_wtime(void);
-
 static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,     enum cp_counter_type type);
-
-static struct darshan_file_ref* ref_by_handle(
-    const void* handle,
-    int handle_sz,
-    enum darshan_handle_type handle_type);
-
-static struct darshan_file_runtime* darshan_file_by_fd(int fd);
-static void darshan_file_close_fd(int fd);
-static struct darshan_file_runtime* darshan_file_by_name_setfd(const char* name, int fd);
-static char* clean_path(const char* path);
 static void darshan_aio_tracker_add(int fd, void *aiocbp);
 static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp);
 
+#if 0
 #define CP_RECORD_WRITE(__ret, __fd, __count, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
     size_t stride; \
     int64_t this_offset; \
@@ -299,6 +269,7 @@ static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp)
 #else
 #define CP_STAT_FILE(_f, _p, _r) do { }while(0)
 #endif
+#endif
 
 #define CP_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
     struct darshan_file_runtime* file; \
@@ -329,6 +300,7 @@ static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp)
     CP_F_INC_NO_OVERLAP(file, __tm1, __tm2, file->last_posix_meta_end, CP_F_POSIX_META_TIME); \
 } while (0)
 
+#if 0
 int DARSHAN_DECL(close)(int fd)
 {
     struct darshan_file_runtime* file;
@@ -337,6 +309,8 @@ int DARSHAN_DECL(close)(int fd)
     int ret;
 
     MAP_OR_FAIL(close);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     tm1 = darshan_wtime();
     ret = __real_close(fd);
@@ -366,6 +340,8 @@ int DARSHAN_DECL(fclose)(FILE *fp)
 
     MAP_OR_FAIL(fclose);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     tm1 = darshan_wtime();
     ret = __real_fclose(fp);
     tm2 = darshan_wtime();
@@ -394,6 +370,8 @@ int DARSHAN_DECL(fsync)(int fd)
 
     MAP_OR_FAIL(fsync);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     tm1 = darshan_wtime();
     ret = __real_fsync(fd);
     tm2 = darshan_wtime();
@@ -420,6 +398,8 @@ int DARSHAN_DECL(fdatasync)(int fd)
     double tm1, tm2;
 
     MAP_OR_FAIL(fdatasync);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     tm1 = darshan_wtime();
     ret = __real_fdatasync(fd);
@@ -448,6 +428,8 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
 
     MAP_OR_FAIL(mmap64);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     ret = __real_mmap64(addr, length, prot, flags, fd, offset);
     if(ret == MAP_FAILED)
         return(ret);
@@ -472,6 +454,8 @@ void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
 
     MAP_OR_FAIL(mmap);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     ret = __real_mmap(addr, length, prot, flags, fd, offset);
     if(ret == MAP_FAILED)
         return(ret);
@@ -494,6 +478,8 @@ int DARSHAN_DECL(creat)(const char* path, mode_t mode)
 
     MAP_OR_FAIL(creat);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     tm1 = darshan_wtime();
     ret = __real_creat(path, mode);
     tm2 = darshan_wtime();
@@ -511,6 +497,8 @@ int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
     double tm1, tm2;
 
     MAP_OR_FAIL(creat64);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     tm1 = darshan_wtime();
     ret = __real_creat64(path, mode);
@@ -530,6 +518,8 @@ int DARSHAN_DECL(open64)(const char* path, int flags, ...)
     double tm1, tm2;
 
     MAP_OR_FAIL(open64);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     if (flags & O_CREAT) 
     {
@@ -555,6 +545,7 @@ int DARSHAN_DECL(open64)(const char* path, int flags, ...)
 
     return(ret);
 }
+#endif
 
 int DARSHAN_DECL(open)(const char *path, int flags, ...)
 {
@@ -564,6 +555,8 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
 
     MAP_OR_FAIL(open);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+#if 0
     if (flags & O_CREAT) 
     {
         va_list arg;
@@ -585,10 +578,12 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
     CP_LOCK();
     CP_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
     CP_UNLOCK();
+#endif
 
     return(ret);
 }
 
+#if 0
 FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
 {
     FILE* ret;
@@ -596,6 +591,8 @@ FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
     double tm1, tm2;
 
     MAP_OR_FAIL(fopen64);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     tm1 = darshan_wtime();
     ret = __real_fopen64(path, mode);
@@ -620,6 +617,8 @@ FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
 
     MAP_OR_FAIL(fopen);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     tm1 = darshan_wtime();
     ret = __real_fopen(path, mode);
     tm2 = darshan_wtime();
@@ -642,6 +641,8 @@ int DARSHAN_DECL(__xstat64)(int vers, const char *path, struct stat64 *buf)
 
     MAP_OR_FAIL(__xstat64);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     tm1 = darshan_wtime();
     ret = __real___xstat64(vers, path, buf);
     tm2 = darshan_wtime();
@@ -661,6 +662,8 @@ int DARSHAN_DECL(__lxstat64)(int vers, const char *path, struct stat64 *buf)
     double tm1, tm2;
 
     MAP_OR_FAIL(__lxstat64);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     tm1 = darshan_wtime();
     ret = __real___lxstat64(vers, path, buf);
@@ -682,6 +685,8 @@ int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
     double tm1, tm2;
 
     MAP_OR_FAIL(__fxstat64);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     tm1 = darshan_wtime();
     ret = __real___fxstat64(vers, fd, buf);
@@ -712,6 +717,8 @@ int DARSHAN_DECL(__xstat)(int vers, const char *path, struct stat *buf)
 
     MAP_OR_FAIL(__xstat);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     tm1 = darshan_wtime();
     ret = __real___xstat(vers, path, buf);
     tm2 = darshan_wtime();
@@ -731,6 +738,8 @@ int DARSHAN_DECL(__lxstat)(int vers, const char *path, struct stat *buf)
     double tm1, tm2;
 
     MAP_OR_FAIL(__lxstat);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     tm1 = darshan_wtime();
     ret = __real___lxstat(vers, path, buf);
@@ -752,6 +761,8 @@ int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
     double tm1, tm2;
 
     MAP_OR_FAIL(__fxstat);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     tm1 = darshan_wtime();
     ret = __real___fxstat(vers, fd, buf);
@@ -782,6 +793,8 @@ ssize_t DARSHAN_DECL(pread64)(int fd, void *buf, size_t count, off64_t offset)
 
     MAP_OR_FAIL(pread64);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
@@ -801,6 +814,8 @@ ssize_t DARSHAN_DECL(pread)(int fd, void *buf, size_t count, off_t offset)
     double tm1, tm2;
 
     MAP_OR_FAIL(pread);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
@@ -823,6 +838,8 @@ ssize_t DARSHAN_DECL(pwrite)(int fd, const void *buf, size_t count, off_t offset
 
     MAP_OR_FAIL(pwrite);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
@@ -842,6 +859,8 @@ ssize_t DARSHAN_DECL(pwrite64)(int fd, const void *buf, size_t count, off64_t of
     double tm1, tm2;
 
     MAP_OR_FAIL(pwrite64);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
@@ -863,6 +882,8 @@ ssize_t DARSHAN_DECL(readv)(int fd, const struct iovec *iov, int iovcnt)
     double tm1, tm2;
 
     MAP_OR_FAIL(readv);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     for(i=0; i<iovcnt; i++)
     {
@@ -888,6 +909,8 @@ ssize_t DARSHAN_DECL(writev)(int fd, const struct iovec *iov, int iovcnt)
 
     MAP_OR_FAIL(writev);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     for(i=0; i<iovcnt; i++)
     {
         if(!((unsigned long)iov[i].iov_base % darshan_mem_alignment == 0))
@@ -910,6 +933,8 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
     double tm1, tm2;
 
     MAP_OR_FAIL(fread);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     if((unsigned long)ptr % darshan_mem_alignment == 0)
         aligned_flag = 1;
@@ -934,6 +959,8 @@ ssize_t DARSHAN_DECL(read)(int fd, void *buf, size_t count)
 
     MAP_OR_FAIL(read);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
@@ -954,6 +981,8 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
 
     MAP_OR_FAIL(write);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     if((unsigned long)buf % darshan_mem_alignment == 0)
         aligned_flag = 1;
 
@@ -973,6 +1002,8 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
     double tm1, tm2;
 
     MAP_OR_FAIL(fwrite);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     if((unsigned long)ptr % darshan_mem_alignment == 0)
         aligned_flag = 1;
@@ -996,6 +1027,8 @@ off64_t DARSHAN_DECL(lseek64)(int fd, off64_t offset, int whence)
     double tm1, tm2;
 
     MAP_OR_FAIL(lseek64);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     tm1 = darshan_wtime();
     ret = __real_lseek64(fd, offset, whence);
@@ -1023,6 +1056,8 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
 
     MAP_OR_FAIL(lseek);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     tm1 = darshan_wtime();
     ret = __real_lseek(fd, offset, whence);
     tm2 = darshan_wtime();
@@ -1049,6 +1084,8 @@ ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
     int aligned_flag = 0;
 
     MAP_OR_FAIL(aio_return64);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     ret = __real_aio_return64(aiocbp);
     tm2 = darshan_wtime();
@@ -1085,6 +1122,8 @@ ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
 
     MAP_OR_FAIL(aio_return);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     ret = __real_aio_return(aiocbp);
     tm2 = darshan_wtime();
     tmp = darshan_aio_tracker_del(aiocbp->aio_fildes, aiocbp);
@@ -1111,6 +1150,8 @@ int DARSHAN_DECL(lio_listio)(int mode, struct aiocb *const aiocb_list[],
 
     MAP_OR_FAIL(lio_listio);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     ret = __real_lio_listio(mode, aiocb_list, nitems, sevp);
     if(ret == 0)
     {
@@ -1131,6 +1172,8 @@ int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb64 *const aiocb_list[],
 
     MAP_OR_FAIL(lio_listio);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     ret = __real_lio_listio64(mode, aiocb_list, nitems, sevp);
     if(ret == 0)
     {
@@ -1149,6 +1192,8 @@ int DARSHAN_DECL(aio_write64)(struct aiocb64 *aiocbp)
 
     MAP_OR_FAIL(aio_write64);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     ret = __real_aio_write64(aiocbp);
     if(ret == 0)
         darshan_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
@@ -1161,6 +1206,8 @@ int DARSHAN_DECL(aio_write)(struct aiocb *aiocbp)
     int ret;
 
     MAP_OR_FAIL(aio_write);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     ret = __real_aio_write(aiocbp);
     if(ret == 0)
@@ -1175,6 +1222,8 @@ int DARSHAN_DECL(aio_read64)(struct aiocb64 *aiocbp)
 
     MAP_OR_FAIL(aio_read64);
 
+    DARSHAN_REGISTER_POSIX_MOD();
+
     ret = __real_aio_read64(aiocbp);
     if(ret == 0)
         darshan_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
@@ -1187,6 +1236,8 @@ int DARSHAN_DECL(aio_read)(struct aiocb *aiocbp)
     int ret;
 
     MAP_OR_FAIL(aio_read);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     ret = __real_aio_read(aiocbp);
     if(ret == 0)
@@ -1202,6 +1253,8 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
     double tm1, tm2;
 
     MAP_OR_FAIL(fseek);
+
+    DARSHAN_REGISTER_POSIX_MOD();
 
     tm1 = darshan_wtime();
     ret = __real_fseek(stream, offset, whence);
@@ -1220,268 +1273,7 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
     }
     return(ret);
 }
-
-void darshan_finalize(struct darshan_job_runtime* job)
-{
-    if(!job)
-    {
-        return;
-    }
-
-    free(job);
-}
-
-void darshan_initialize(int argc, char** argv,  int nprocs, int rank)
-{
-    int i;
-    char* disable;
-    char* disable_timing;
-    char* envstr;
-    char* truncate_string = "<TRUNCATED>";
-    int truncate_offset;
-    int chars_left = 0;
-    int ret;
-    int tmpval;
-
-    disable = getenv("DARSHAN_DISABLE");
-    if(disable)
-    {
-        /* turn off tracing */
-        return;
-    }
-
-    disable_timing = getenv("DARSHAN_DISABLE_TIMING");
-
-    if(darshan_global_job != NULL)
-    {
-        return;
-    }
-
-    #if (__CP_MEM_ALIGNMENT < 1)
-        #error Darshan must be configured with a positive value for --with-mem-align
-    #endif
-    envstr = getenv("DARSHAN_MEMALIGN");
-    if (envstr)
-    {
-        ret = sscanf(envstr, "%d", &tmpval);
-        /* silently ignore if the env variable is set poorly */
-        if(ret == 1 && tmpval > 0)
-        {
-            darshan_mem_alignment = tmpval;
-        }
-    }
-    else
-    {
-        darshan_mem_alignment = __CP_MEM_ALIGNMENT;
-    }
-
-    /* avoid floating point errors on faulty input */
-    if (darshan_mem_alignment < 1)
-    {
-        darshan_mem_alignment = 1;
-    }
-
-    /* allocate structure to track darshan_global_job information */
-    darshan_global_job = malloc(sizeof(*darshan_global_job));
-    if(!darshan_global_job)
-    {
-        return;
-    }
-    memset(darshan_global_job, 0, sizeof(*darshan_global_job));
-
-    if(disable_timing)
-    {
-        darshan_global_job->flags |= CP_FLAG_NOTIMING;
-    }
-
-    /* set up file records */
-    for(i=0; i<CP_MAX_FILES; i++)
-    {
-        darshan_global_job->file_runtime_array[i].log_file = 
-            &darshan_global_job->file_array[i];
-    }
-
-    strcpy(darshan_global_job->log_job.version_string, CP_VERSION);
-    darshan_global_job->log_job.magic_nr = CP_MAGIC_NR;
-    darshan_global_job->log_job.uid = getuid();
-    darshan_global_job->log_job.start_time = time(NULL);
-    darshan_global_job->log_job.nprocs = nprocs;
-    darshan_global_job->wtime_offset = posix_wtime();
-    my_rank = rank;
-
-    /* record exe and arguments */
-    for(i=0; i<argc; i++)
-    {
-        chars_left = CP_EXE_LEN-strlen(darshan_global_job->exe);
-        strncat(darshan_global_job->exe, argv[i], chars_left);
-        if(i < (argc-1))
-        {
-            chars_left = CP_EXE_LEN-strlen(darshan_global_job->exe);
-            strncat(darshan_global_job->exe, " ", chars_left);
-        }
-    }
-
-    /* if we don't see any arguments, then use glibc symbol to get
-     * program name at least (this happens in fortran)
-     */
-    if(argc == 0)
-    {
-        chars_left = CP_EXE_LEN-strlen(darshan_global_job->exe);
-        strncat(darshan_global_job->exe, __progname_full, chars_left);
-        chars_left = CP_EXE_LEN-strlen(darshan_global_job->exe);
-        strncat(darshan_global_job->exe, " <unknown args>", chars_left);
-    }
-
-    if(chars_left == 0)
-    {
-        /* we ran out of room; mark that string was truncated */
-        truncate_offset = CP_EXE_LEN - strlen(truncate_string);
-        sprintf(&darshan_global_job->exe[truncate_offset], "%s", 
-            truncate_string);
-    }
-
-    /* collect information about command line and 
-     * mounted file systems 
-     */
-    darshan_global_job->trailing_data = 
-        darshan_get_exe_and_mounts(darshan_global_job);
-
-    return;
-}
-
-/* darshan_condense()
- *
- * collapses all file statistics into a single unified set of counters; used
- * when we have opened too many files to track independently
- */
-void darshan_condense(void)
-{
-    struct darshan_file_runtime* base_file;
-    struct darshan_file_runtime* iter_file;
-    int i;
-    int j;
-
-    if(!darshan_global_job)
-        return;
-
-    base_file = &darshan_global_job->file_runtime_array[0];
-
-    /* iterate through files */
-    for(j=1; j<darshan_global_job->file_count; j++)
-    {
-        iter_file = &darshan_global_job->file_runtime_array[j];
-
-        /* iterate through records */
-        for(i=0; i<CP_NUM_INDICES; i++)
-        {
-            switch(i)
-            {
-                /* NOTE: several fields cease to make sense if the records
-                 * have been condensed.  Just let them get summed anyway.
-                 */
-                /* TODO: double check this */
-
-                /* keep up with global maxes in case they are helpful */
-                case CP_MAX_BYTE_READ:
-                case CP_MAX_BYTE_WRITTEN:
-                    CP_MAX(base_file, i, CP_VALUE(iter_file, i));
-                    break;
-
-                /* do nothing with these; they are handled in the floating
-                 * point loop 
-                 */
-                case CP_MAX_WRITE_TIME_SIZE:
-                case CP_MAX_READ_TIME_SIZE:
-                    break;
-
-                /* pick one */
-                case CP_DEVICE:
-                case CP_SIZE_AT_OPEN:
-                    CP_SET(base_file, i, CP_VALUE(iter_file, i));
-                    break;
-
-                /* most records can simply be added */
-                default:
-                    CP_INC(base_file, i, CP_VALUE(iter_file, i));
-                    break;
-            }
-        }
-        for(i=0; i<CP_F_NUM_INDICES; i++)
-        {
-            switch(i)
-            {
-                case CP_F_MAX_WRITE_TIME:
-                    if(CP_F_VALUE(iter_file, i) > CP_F_VALUE(base_file, i))
-                    {
-                        CP_F_SET(base_file, i, CP_F_VALUE(iter_file, i));
-                        CP_SET(base_file, CP_MAX_WRITE_TIME_SIZE, 
-                            CP_VALUE(iter_file, CP_MAX_WRITE_TIME_SIZE));
-                    }
-                    break;
-                case CP_F_MAX_READ_TIME:
-                    if(CP_F_VALUE(iter_file, i) > CP_F_VALUE(base_file, i))
-                    {
-                        CP_F_SET(base_file, i, CP_F_VALUE(iter_file, i));
-                        CP_SET(base_file, CP_MAX_READ_TIME_SIZE, 
-                            CP_VALUE(iter_file, CP_MAX_READ_TIME_SIZE));
-                    }
-                    break;
-                default:
-                    CP_F_SET(base_file, i, CP_F_VALUE(iter_file, i) + CP_F_VALUE(base_file, i));
-                    break;
-            }
-        }
-
-        if(base_file->aio_list_tail)
-        {
-            /* base has an aio list already; add on to it */
-            assert(base_file->aio_list_head);
-            base_file->aio_list_tail->next = iter_file->aio_list_head;
-            if(iter_file->aio_list_tail)
-                base_file->aio_list_tail = iter_file->aio_list_tail;
-        }
-        else
-        {
-            /* take on list from iter */
-            base_file->aio_list_head = iter_file->aio_list_head;
-            base_file->aio_list_tail = iter_file->aio_list_tail;
-        }
-    }
-    
-    base_file->log_file->hash = 0;
-    
-    darshan_global_job->flags |= CP_FLAG_CONDENSED;
-    darshan_global_job->file_count = 1;
-
-    /* clear hash tables for safety */
-    memset(darshan_global_job->name_table, 0, CP_HASH_SIZE*sizeof(struct darshan_file_runtime*));
-    memset(darshan_global_job->handle_table, 0, CP_HASH_SIZE*sizeof(*darshan_global_job->handle_table));
-    
-    return;
-}
-
-static struct darshan_file_runtime* darshan_file_by_name_setfd(const char* name, int fd)
-{
-    struct darshan_file_runtime* tmp_file;
-
-    tmp_file = darshan_file_by_name_sethandle(name, &fd, sizeof(fd), DARSHAN_FD);
-    return(tmp_file);
-}
-
-static void darshan_file_close_fd(int fd)
-{
-    darshan_file_closehandle(&fd, sizeof(fd), DARSHAN_FD);
-    return;
-}
-
-static struct darshan_file_runtime* darshan_file_by_fd(int fd)
-{
-    struct darshan_file_runtime* tmp_file;
-
-    tmp_file = darshan_file_by_handle(&fd, sizeof(fd), DARSHAN_FD);
-    
-    return(tmp_file);
-}
+#endif
 
 static int access_comparison(const void* a_p, const void* b_p)
 {
@@ -1563,6 +1355,7 @@ static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size, e
     return;
 }
 
+#if 0
 /* NOTE: we disable internal benchmarking routines when building shared
  * libraries so that when Darshan is loaded with LD_PRELOAD it does not
  * depend on MPI routines.
@@ -1803,12 +1596,14 @@ void darshan_search_bench(int argc, char** argv, int iters)
     free(fd_array);
     free(size_array);
 }
+#endif
 
 static double posix_wtime(void)
 {
     return DARSHAN_MPI_CALL(PMPI_Wtime)();
 }
 
+#if 0
 double darshan_wtime(void)
 {
     if(!darshan_global_job || darshan_global_job->flags & CP_FLAG_NOTIMING)
@@ -1817,319 +1612,6 @@ double darshan_wtime(void)
     }
     
     return(posix_wtime());
-}
-
-struct darshan_file_runtime* darshan_file_by_name(const char* name)
-{
-    struct darshan_file_runtime* tmp_file;
-    uint64_t tmp_hash = 0;
-    char* suffix_pointer;
-    int hash_index;
-    char* newname = NULL;
-    int64_t device_id;
-    int64_t block_size;
-
-    if(!darshan_global_job)
-        return(NULL);
-
-    /* if we have already condensed the data, then just hand the first file
-     * back
-     */
-    if(darshan_global_job->flags & CP_FLAG_CONDENSED)
-    {
-        return(&darshan_global_job->file_runtime_array[0]);
-    }
-
-    /* try to construct absolute path */
-    newname = clean_path(name);
-    if(!newname)
-        newname = (char*)name;
-
-    tmp_hash = darshan_hash((void*)newname, strlen(newname), 0);
-
-    /* search hash table */
-    hash_index = tmp_hash & CP_HASH_MASK;
-    tmp_file = darshan_global_job->name_table[hash_index];
-    while(tmp_file)
-    {
-        if(tmp_file->log_file->hash == tmp_hash)
-        {
-            if(newname != name)
-                free(newname);
-            return(tmp_file);
-        }
-        tmp_file = tmp_file->name_next;
-    }
-
-    /* see if we need to condense */
-    if(darshan_global_job->file_count >= CP_MAX_FILES)
-    {
-        darshan_condense();
-        if(newname != name)
-            free(newname);
-        return(&darshan_global_job->file_runtime_array[0]);
-    }
-
-    /* new, unique file */
-    tmp_file = &darshan_global_job->file_runtime_array[darshan_global_job->file_count];
-
-    darshan_mnt_id_from_path(newname, &device_id, &block_size);
-    CP_SET(tmp_file, CP_DEVICE, device_id);
-    CP_SET(tmp_file, CP_FILE_ALIGNMENT, block_size);
-    CP_SET(tmp_file, CP_MEM_ALIGNMENT, darshan_mem_alignment);
-    tmp_file->log_file->hash = tmp_hash;
-
-    /* record last N characters of file name too */
-    suffix_pointer = (char*)newname;
-    if(strlen(newname) > CP_NAME_SUFFIX_LEN)
-    {
-        suffix_pointer += (strlen(newname) - CP_NAME_SUFFIX_LEN);
-    }
-    strcpy(tmp_file->log_file->name_suffix, suffix_pointer); 
-
-    /* if the "stat at open" functionality is disabled, then go ahead and
-     * mark certain counters with invalid values to make sure that they are
-     * not mis-interpretted.
-     */
-#ifndef __CP_STAT_AT_OPEN
-    CP_SET(tmp_file, CP_SIZE_AT_OPEN, -1);
-    if(CP_VALUE(tmp_file, CP_FILE_ALIGNMENT) == -1)
-        CP_SET(tmp_file, CP_FILE_NOT_ALIGNED, -1);
-#endif
-
-    darshan_global_job->file_count++;
-
-    /* put into hash table, head of list at that index */
-    tmp_file->name_prev = NULL;
-    tmp_file->name_next = darshan_global_job->name_table[hash_index];
-    if(tmp_file->name_next)
-        tmp_file->name_next->name_prev = tmp_file;
-    darshan_global_job->name_table[hash_index] = tmp_file;
-
-    if(newname != name)
-        free(newname);
-    return(tmp_file);
-}
-
-
-struct darshan_file_runtime* darshan_file_by_name_sethandle(
-    const char* name,
-    const void* handle,
-    int handle_sz,
-    enum darshan_handle_type handle_type)
-{
-    struct darshan_file_runtime* file;
-    uint64_t tmp_hash;
-    int hash_index;
-    struct darshan_file_ref* tmp_ref;
-
-    if(!darshan_global_job)
-    {
-        return(NULL);
-    }
-
-    /* find file record by name first */
-    file = darshan_file_by_name(name);
-
-    if(!file)
-        return(NULL);
-
-    /* search hash table */
-    tmp_ref = ref_by_handle(handle, handle_sz, handle_type);
-    if(tmp_ref)
-    {
-        /* we have a reference.  Make sure it points to the correct file
-         * and return it
-         */
-        tmp_ref->file = file;
-        return(file);
-    }
-
-    /* if we hit this point, then we don't have a reference for this handle
-     * in the table yet.  Add it.
-     */
-    tmp_hash = darshan_hash(handle, handle_sz, 0);
-    hash_index = tmp_hash & CP_HASH_MASK;
-    tmp_ref = malloc(sizeof(*tmp_ref));
-    if(!tmp_ref)
-        return(NULL);
-
-    memset(tmp_ref, 0, sizeof(*tmp_ref));
-    tmp_ref->file = file;
-    memcpy(tmp_ref->handle, handle, handle_sz);
-    tmp_ref->handle_sz = handle_sz;
-    tmp_ref->handle_type = handle_type;
-    tmp_ref->prev = NULL;
-    tmp_ref->next = darshan_global_job->handle_table[hash_index];
-    if(tmp_ref->next)
-        tmp_ref->next->prev = tmp_ref;
-    darshan_global_job->handle_table[hash_index] = tmp_ref;
-
-    return(file);
-}
-
-struct darshan_file_runtime* darshan_file_by_handle(
-    const void* handle,
-    int handle_sz,
-    enum darshan_handle_type handle_type)
-{   
-    struct darshan_file_ref* tmp_ref;
-
-    if(!darshan_global_job)
-    {
-        return(NULL);
-    }
-
-    tmp_ref = ref_by_handle(handle, handle_sz, handle_type);
-    if(tmp_ref)
-        return(tmp_ref->file);
-    else
-        return(NULL);
-
-    return(NULL);
-}
-
-void darshan_file_closehandle(
-    const void* handle,
-    int handle_sz,
-    enum darshan_handle_type handle_type)
-{
-    struct darshan_file_ref* tmp_ref;
-    uint64_t tmp_hash;
-    int hash_index;
-    
-    if(!darshan_global_job)
-    {
-        return;
-    }
-
-    /* search hash table */
-    tmp_hash = darshan_hash(handle, handle_sz, 0);
-    hash_index = tmp_hash & CP_HASH_MASK;
-    tmp_ref = darshan_global_job->handle_table[hash_index];
-    while(tmp_ref)
-    {
-        if(tmp_ref->handle_sz == handle_sz &&
-            tmp_ref->handle_type == handle_type &&
-            memcmp(tmp_ref->handle, handle, handle_sz) == 0)
-        {
-            /* we have a reference. */ 
-            if(!tmp_ref->prev)
-            {
-                /* head of list */
-                darshan_global_job->handle_table[hash_index] = tmp_ref->next;
-                if(tmp_ref->next)
-                    tmp_ref->next->prev = NULL;
-            }
-            else
-            {
-                /* not head of list */
-                if(tmp_ref->prev)
-                    tmp_ref->prev->next = tmp_ref->next;
-                if(tmp_ref->next)
-                    tmp_ref->next->prev = tmp_ref->prev;
-            }
-            free(tmp_ref);
-            return;
-        }
-        tmp_ref = tmp_ref->next;
-    }
-
-    return;
-}
-
-static struct darshan_file_ref* ref_by_handle(
-    const void* handle,
-    int handle_sz,
-    enum darshan_handle_type handle_type)
-{   
-    uint64_t tmp_hash;
-    int hash_index;
-    struct darshan_file_ref* tmp_ref;
-
-    if(!darshan_global_job)
-    {
-        return(NULL);
-    }
-
-    /* search hash table */
-    tmp_hash = darshan_hash(handle, handle_sz, 0);
-    hash_index = tmp_hash & CP_HASH_MASK;
-    tmp_ref = darshan_global_job->handle_table[hash_index];
-    while(tmp_ref)
-    {
-        if(tmp_ref->handle_sz == handle_sz &&
-            tmp_ref->handle_type == handle_type &&
-            memcmp(tmp_ref->handle, handle, handle_sz) == 0)
-        {
-            /* we have a reference. */ 
-            return(tmp_ref);
-        }
-        tmp_ref = tmp_ref->next;
-    }
-
-    return(NULL);
-}
-
-/* Allocate a new string that contains a cleaned-up version of the path
- * passed in as an argument.  Converts relative paths to absolute paths and
- * filters out some potential noise in the path string.
- */
-static char* clean_path(const char* path)
-{
-    char* newpath = NULL;
-    char* cwd = NULL;
-    char* filter = NULL;
-
-    if(!path || strlen(path) < 1)
-        return(NULL);
-
-    if(path[0] == '/')
-    {
-        /* it is already an absolute path */
-        newpath = malloc(strlen(path)+1);
-        if(newpath)
-        {
-            strcpy(newpath, path);
-        }
-    }
-    else
-    {
-        /* handle relative path */
-        cwd = malloc(PATH_MAX);
-        if(cwd)
-        {
-            if(getcwd(cwd, PATH_MAX))
-            {
-                newpath = malloc(strlen(path) + strlen(cwd) + 2);
-                if(newpath)
-                {
-                    sprintf(newpath, "%s/%s", cwd, path);
-                }
-            }
-            free(cwd);
-        }
-    }
-
-    if(!newpath)
-        return(NULL);
-
-    /* filter out any double slashes */
-    while((filter = strstr(newpath, "//")))
-    {
-        /* shift down one character */
-        memmove(filter, &filter[1], (strlen(&filter[1]) + 1));
-    }
-
-    /* filter out any /./ instances */
-    while((filter = strstr(newpath, "/./")))
-    {
-        /* shift down two characters */
-        memmove(filter, &filter[2], (strlen(&filter[2]) + 1));
-    }
-
-    /* return result */
-    return(newpath);
 }
 
 /* adds a tracker for the given aio operation */
@@ -2207,6 +1689,7 @@ static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp)
 
     return(tmp);
 }
+#endif
 
 /*
  * Local variables:

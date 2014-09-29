@@ -225,16 +225,11 @@ enum cp_counter_type
  * http://publib.boulder.ibm.com/infocenter/compbgpl/v9v111/index.jsp?topic=/com.ibm.bg9111.doc/bgusing/data_alignment.htm
  */
 
-extern struct darshan_job_runtime* darshan_global_job;
-
-void darshan_initialize(int argc, char** argv, int nprocs, int rank);
 void darshan_finalize(struct darshan_job_runtime* job);
 void darshan_condense(void);
-void darshan_shutdown(int timing_flag);
 void darshan_walk_file_accesses(struct darshan_job_runtime* final_job);
 double darshan_wtime(void);
 void darshan_mnt_id_from_path(const char* path, int64_t* device_id, int64_t* block_size);
-char* darshan_get_exe_and_mounts(struct darshan_job_runtime* final_job);
 void darshan_mpi_initialize(int *argc, char ***argv);
 
 uint32_t darshan_hashlittle(const void *key, size_t length, uint32_t initval);
