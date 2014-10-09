@@ -25,7 +25,6 @@
 #include <pthread.h>
 
 #include "darshan.h"
-#include "darshan-core.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
@@ -109,22 +108,22 @@ NULL
 static int darshan_mem_alignment = 1;
 
 static int posix_mod_initialized = 0;
-static int posix_mod_mem_limit = 0;
 static pthread_mutex_t posix_mod_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-static struct darshan_module_funcs posix_mod_funcs = 
-{
-
-};
 
 static void posix_runtime_initialize(void);
 static double posix_wtime(void);
 
+static void posix_prepare_for_shutdown(void);
+static void posix_get_output_data(void **buffer, int size);
+
 #define POSIX_LOCK() pthread_mutex_lock(&posix_mod_mutex)
 #define POSIX_UNLOCK() pthread_mutex_unlock(&posix_mod_mutex)
 
+#if 0
 static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size,     enum cp_counter_type type);
 static void darshan_aio_tracker_add(int fd, void *aiocbp);
 static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp);
+#endif
 
 #if 0
 #define CP_RECORD_WRITE(__ret, __fd, __count, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
@@ -267,7 +266,6 @@ static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp)
 #else
 #define CP_STAT_FILE(_f, _p, _r) do { }while(0)
 #endif
-#endif
 
 #define CP_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
     struct darshan_file_runtime* file; \
@@ -297,6 +295,7 @@ static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp)
         CP_F_SET(file, CP_F_OPEN_TIMESTAMP, __tm1); \
     CP_F_INC_NO_OVERLAP(file, __tm1, __tm2, file->last_posix_meta_end, CP_F_POSIX_META_TIME); \
 } while (0)
+#endif
 
 int DARSHAN_DECL(close)(int fd)
 {
@@ -1206,6 +1205,12 @@ static void posix_runtime_initialize()
     char *alignstr;
     int tmpval;
     int ret;
+    int posix_mod_mem_limit = 0;
+    struct darshan_module_funcs posix_mod_funcs =
+    {
+        .prepare_for_shutdown = &posix_prepare_for_shutdown,
+        .get_output_data = &posix_get_output_data
+    };
 
     if (posix_mod_initialized)
         return;
@@ -1238,93 +1243,27 @@ static void posix_runtime_initialize()
     /* register the posix module with darshan core */
     darshan_core_register_module("POSIX", &posix_mod_funcs, &posix_mod_mem_limit);
 
+    /* TODO: allocate memory for saving i/o stats */
+
     posix_mod_initialized = 1;
     return;
 }
 
-static int access_comparison(const void* a_p, const void* b_p)
+static double posix_wtime()
 {
-    const struct cp_access_counter* a = a_p;
-    const struct cp_access_counter* b = b_p;
-
-    if(a->size < b->size)
-        return(-1);
-    if(a->size > b->size)
-        return(1);
-    return(0);
+    return DARSHAN_MPI_CALL(PMPI_Wtime)();
 }
 
-/* cp_access_counter()
- *
- * records the occurance of a particular access size for a file,
- * current implementation uses glibc red black tree
- */
-static void cp_access_counter(struct darshan_file_runtime* file, ssize_t size, enum cp_counter_type type)
+static void posix_prepare_for_shutdown()
 {
-    struct cp_access_counter* counter;
-    struct cp_access_counter* found;
-    void* tmp;
-    void** root;
-    int* count;
-    struct cp_access_counter tmp_counter;
-
-    /* don't count sizes or strides of 0 */
-    if(size == 0)
-        return;
-    
-    switch(type)
-    {
-        case CP_COUNTER_ACCESS:
-            root = &file->access_root;
-            count = &file->access_count;
-            break;
-        case CP_COUNTER_STRIDE:
-            root = &file->stride_root;
-            count = &file->stride_count;
-            break;
-        default:
-            return;
-    }
-
-    /* check to see if this size is already recorded */
-    tmp_counter.size = size;
-    tmp_counter.freq = 1;
-    tmp = tfind(&tmp_counter, root, access_comparison);
-    if(tmp)
-    {
-        found = *(struct cp_access_counter**)tmp;
-        found->freq++;
-        return;
-    }
-
-    /* we can add a new one as long as we haven't hit the limit */
-    if(*count < CP_MAX_ACCESS_COUNT_RUNTIME)
-    {
-        counter = malloc(sizeof(*counter));
-        if(!counter)
-        {
-            return;
-        }
-
-        counter->size = size;
-        counter->freq = 1;
-
-        tmp = tsearch(counter, root, access_comparison);
-        found = *(struct cp_access_counter**)tmp;
-        /* if we get a new answer out here we are in trouble; this was
-         * already checked with the tfind()
-         */
-        assert(found == counter);
-
-        (*count)++;
-    }
 
     return;
 }
 
-static double posix_wtime(void)
+static void posix_get_output_data(void **buffer, int size)
 {
-    return DARSHAN_MPI_CALL(PMPI_Wtime)();
+
+    return;
 }
 
 #if 0
@@ -1567,85 +1506,6 @@ void darshan_search_bench(int argc, char** argv, int iters)
 
     free(fd_array);
     free(size_array);
-}
-#endif
-
-#if 0
-
-/* adds a tracker for the given aio operation */
-static void darshan_aio_tracker_add(int fd, void *aiocbp)
-{
-    struct darshan_aio_tracker* tracker;
-    struct darshan_file_runtime* file;
-
-    CP_LOCK();
-    file = darshan_file_by_fd(fd);
-    if(file)
-    {
-        tracker = malloc(sizeof(*tracker));
-        if(tracker)
-        {
-            tracker->tm1 = darshan_core_wtime();
-            tracker->aiocbp = aiocbp;
-            tracker->next = NULL;
-            if(file->aio_list_tail)
-            {
-                file->aio_list_tail->next = tracker;
-                file->aio_list_tail = tracker;
-            }
-            else
-            {
-                file->aio_list_head = file->aio_list_tail = tracker;
-            }
-        }
-    }
-    CP_UNLOCK();
-
-    return;
-}
-
-/* finds the tracker structure for a given aio operation, removes it from
- * the linked list for the darshan_file structure, and returns a pointer.  
- *
- * returns NULL if aio operation not found
- */
-static struct darshan_aio_tracker* darshan_aio_tracker_del(int fd, void *aiocbp)
-{
-    struct darshan_aio_tracker *tmp=NULL, *prev;
-    struct darshan_file_runtime* file;
-
-    CP_LOCK();
-    file = darshan_file_by_fd(fd);
-    if(file)
-    {
-        /* is there a tracker struct for this operation? */
-        tmp = file->aio_list_head; 
-        prev = NULL;
-        while(tmp)
-        {
-            if(tmp->aiocbp == aiocbp)
-            {
-                if(prev)
-                    prev->next = tmp->next;
-                else
-                    file->aio_list_head = tmp->next;
-
-                if(tmp == file->aio_list_tail)
-                    file->aio_list_tail = prev;
-
-                break;
-            }
-            else
-            {
-                prev = tmp;
-                tmp = tmp->next;
-            }
-        }
-    }
-
-    CP_UNLOCK();
-
-    return(tmp);
 }
 #endif
 

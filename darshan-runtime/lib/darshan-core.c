@@ -14,32 +14,38 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
+#include <pthread.h>
 
 #include <mpi.h>
-#include "darshan.h"
+
 #include "darshan-core.h"
 
 extern char* __progname_full;
 
-static void darshan_initialize(int *argc, char ***argv);
-static void darshan_shutdown(void);
+static void darshan_core_initialize(int *argc, char ***argv);
+static void darshan_core_shutdown(void);
+
 static char *darshan_get_exe_and_mounts(int rank);
 static void darshan_get_exe_and_mounts_root(char* trailing_data, int space_left);
 
 /* internal variables */
-static struct darshan_job_runtime *darshan_global_job = NULL;
+static struct darshan_core_job_runtime *darshan_global_job = NULL;
+static pthread_mutex_t darshan_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-#define CP_MAX_MNTS 64
-#define CP_MAX_MNT_PATH 256
-#define CP_MAX_MNT_TYPE 32
+#define DARSHAN_LOCK() pthread_mutex_lock(&darshan_mutex)
+#define DARSHAN_UNLOCK() pthread_mutex_unlock(&darshan_mutex)
+
+#define DARSHAN_MAX_MNTS 64
+#define DARSHAN_MAX_MNT_PATH 256
+#define DARSHAN_MAX_MNT_TYPE 32
 struct mnt_data
 {
     int64_t hash;
     int64_t block_size;
-    char path[CP_MAX_MNT_PATH];
-    char type[CP_MAX_MNT_TYPE];
+    char path[DARSHAN_MAX_MNT_PATH];
+    char type[DARSHAN_MAX_MNT_TYPE];
 };
-static struct mnt_data mnt_data_array[CP_MAX_MNTS];
+static struct mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
 
 /* intercept MPI initialize and finalize to initialize darshan */
@@ -53,12 +59,12 @@ int MPI_Init(int *argc, char ***argv)
         return(ret);
     }
 
-    darshan_initialize(argc, argv);
+    darshan_core_initialize(argc, argv);
 
     return(ret);
 }
 
-int MPI_Init_thread (int *argc, char ***argv, int required, int *provided)
+int MPI_Init_thread(int *argc, char ***argv, int required, int *provided)
 {
     int ret;
 
@@ -68,7 +74,7 @@ int MPI_Init_thread (int *argc, char ***argv, int required, int *provided)
         return(ret);
     }
 
-    darshan_initialize(argc, argv);
+    darshan_core_initialize(argc, argv);
 
     return(ret);
 }
@@ -77,13 +83,13 @@ int MPI_Finalize(void)
 {
     int ret;
 
-    darshan_shutdown();
+    darshan_core_shutdown();
 
     ret = DARSHAN_MPI_CALL(PMPI_Finalize)();
     return(ret);
 }
 
-static void darshan_initialize(int *argc, char ***argv)
+static void darshan_core_initialize(int *argc, char ***argv)
 {
     int i;
     int nprocs;
@@ -123,6 +129,7 @@ static void darshan_initialize(int *argc, char ***argv)
             darshan_global_job->log_job.start_time = time(NULL);
             darshan_global_job->log_job.nprocs = nprocs;
             darshan_global_job->wtime_offset = DARSHAN_MPI_CALL(PMPI_Wtime)();
+            darshan_global_job->mod_list_head = NULL;
 
             /* record exe and arguments */
             for(i=0; i<(*argc); i++)
@@ -177,7 +184,7 @@ static void darshan_initialize(int *argc, char ***argv)
     return;
 }
 
-static void darshan_shutdown()
+static void darshan_core_shutdown()
 {
     int internal_timing_flag = 0;
 
@@ -210,9 +217,9 @@ static void add_entry(char* trailing_data, int* space_left, struct mntent *entry
     struct statfs statfsbuf;
 
     strncpy(mnt_data_array[mnt_data_count].path, entry->mnt_dir,
-        CP_MAX_MNT_PATH-1);
+        DARSHAN_MAX_MNT_PATH-1);
     strncpy(mnt_data_array[mnt_data_count].type, entry->mnt_type,
-        CP_MAX_MNT_TYPE-1);
+        DARSHAN_MAX_MNT_TYPE-1);
     mnt_data_array[mnt_data_count].hash =
         darshan_hash((void*)mnt_data_array[mnt_data_count].path,
         strlen(mnt_data_array[mnt_data_count].path), 0);
@@ -289,7 +296,7 @@ static void darshan_get_exe_and_mounts_root(char* trailing_data, int space_left)
     if(!tab)
         return;
     /* loop through list of mounted file systems */
-    while(mnt_data_count<CP_MAX_MNTS && (entry = getmntent(tab)) != NULL)
+    while(mnt_data_count<DARSHAN_MAX_MNTS && (entry = getmntent(tab)) != NULL)
     {
         /* filter out excluded fs types */
         tmp_index = 0;
@@ -315,7 +322,7 @@ static void darshan_get_exe_and_mounts_root(char* trailing_data, int space_left)
     if(!tab)
         return;
     /* loop through list of mounted file systems */
-    while(mnt_data_count<CP_MAX_MNTS && (entry = getmntent(tab)) != NULL)
+    while(mnt_data_count<DARSHAN_MAX_MNTS && (entry = getmntent(tab)) != NULL)
     {
         if(strcmp(entry->mnt_type, "nfs") != 0)
             continue;
@@ -373,9 +380,42 @@ void darshan_core_register_module(
     struct darshan_module_funcs *funcs,
     int *runtime_mem_limit)
 {
-    struct darshan_module mod;
+    struct darshan_core_module *tmp;
+    struct darshan_core_module *new_mod;
 
-    printf("%s MODULE REGISTERED\n", name);    
+    if (!darshan_global_job)
+        return;
+
+    DARSHAN_LOCK();
+    tmp = darshan_global_job->mod_list_head;
+    while(tmp)
+    {
+        /* silently return if this module is already registered */
+        if (strcmp(tmp->name, name) == 0)
+        {
+            DARSHAN_UNLOCK();
+            return;
+        }
+        tmp = tmp->next_mod;
+    }
+
+    /* allocate new module and add to the head of the linked list of darshan modules */
+    new_mod = malloc(sizeof(*new_mod));
+    if (!new_mod)
+    {
+        DARSHAN_UNLOCK();
+        return;
+    }
+
+    memset(new_mod, 0, sizeof(*new_mod));
+    strncpy(new_mod->name, name, DARSHAN_MOD_NAME_LEN);
+    new_mod->mod_funcs = *funcs;
+    new_mod->next_mod = darshan_global_job->mod_list_head;
+    darshan_global_job->mod_list_head = new_mod;
+    DARSHAN_UNLOCK();
+
+    /* TODO: something smarter than just 2 MiB per module */
+    *runtime_mem_limit = 2 * 1024 * 1024;
 
     return;
 }
