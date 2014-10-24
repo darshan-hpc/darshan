@@ -6,13 +6,12 @@ darshan-2.3.1-pre1
 =============
 * Add wrappers for mkstemp(), mkostemp(), mkstemps(), and mkostemps()
 * Change OPEN_TIMESTAMP field to report timestamp right before open() is
-  invoked rather than after timestamp after open is completed
+  invoked rather than after timestamp after open is completed.
+  NOTE: updated log format version to 2.06 to reflect this change.
 * Change start_time and end_time fields in job record to use min and max
   (respectively) across all ranks
 * Fix bug in write volume data reported in file system table in
   darshan-job-summary.pl (reported by Matthieu Dorier)
-
-TODO: bump log version number and add warnings about semantic changes  
 
 darshan-2.3.0
 =============
