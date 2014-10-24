@@ -12,6 +12,7 @@ darshan-2.3.1-pre1
   (respectively) across all ranks
 * Fix bug in write volume data reported in file system table in
   darshan-job-summary.pl (reported by Matthieu Dorier)
+* Clean up autoconf test for zlib and make zlib mandatory
 
 darshan-2.3.0
 =============
