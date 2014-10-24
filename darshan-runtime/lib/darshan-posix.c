@@ -73,6 +73,10 @@ extern double (*__real_PMPI_Wtime)(void);
 
 #endif
 
+DARSHAN_FORWARD_DECL(mkstemp, int, (char *template));
+DARSHAN_FORWARD_DECL(mkostemp, int, (char *template, int flags));
+DARSHAN_FORWARD_DECL(mkstemps, int, (char *template, int suffixlen));
+DARSHAN_FORWARD_DECL(mkostemps, int, (char *template, int suffixlen, int flags));
 DARSHAN_FORWARD_DECL(creat, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(creat64, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
@@ -500,6 +504,80 @@ int DARSHAN_DECL(creat)(const char* path, mode_t mode)
 
     CP_LOCK();
     CP_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
+    CP_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(mkstemp)(char* template)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(mkstemp);
+
+    tm1 = darshan_wtime();
+    ret = __real_mkstemp(template);
+    tm2 = darshan_wtime();
+
+    CP_LOCK();
+    CP_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
+    CP_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(mkostemp)(char* template, int flags)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(mkostemp);
+
+    tm1 = darshan_wtime();
+    ret = __real_mkostemp(template, flags);
+    tm2 = darshan_wtime();
+
+    CP_LOCK();
+    CP_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
+    CP_UNLOCK();
+
+    return(ret);
+}
+
+
+int DARSHAN_DECL(mkstemps)(char* template, int suffixlen)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(mkstemps);
+
+    tm1 = darshan_wtime();
+    ret = __real_mkstemps(template, suffixlen);
+    tm2 = darshan_wtime();
+
+    CP_LOCK();
+    CP_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
+    CP_UNLOCK();
+
+    return(ret);
+}
+
+
+int DARSHAN_DECL(mkostemps)(char* template, int suffixlen, int flags)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(mkostemps);
+
+    tm1 = darshan_wtime();
+    ret = __real_mkostemps(template, suffixlen, flags);
+    tm2 = darshan_wtime();
+
+    CP_LOCK();
+    CP_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
     CP_UNLOCK();
 
     return(ret);

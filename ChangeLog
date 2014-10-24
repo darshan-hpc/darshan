@@ -4,6 +4,7 @@ Darshan Release Change Log
 
 darshan-2.3.1-pre1
 =============
+* Add wrappers for mkstemp(), mkostemp(), mkstemps(), and mkostemps()
 * Change OPEN_TIMESTAMP field to report timestamp right before open() is
   invoked rather than after timestamp after open is completed
 * Change start_time and end_time fields in job record to use min and max
