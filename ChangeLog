@@ -5,6 +5,7 @@ Darshan Release Change Log
 darshan-2.3.1-pre1
 =============
 * Add wrappers for mkstemp(), mkostemp(), mkstemps(), and mkostemps()
+  (reported by Tom Peterka)
 * Change OPEN_TIMESTAMP field to report timestamp right before open() is
   invoked rather than after timestamp after open is completed.
   NOTE: updated log format version to 2.06 to reflect this change.
@@ -12,7 +13,8 @@ darshan-2.3.1-pre1
   (respectively) across all ranks
 * Fix bug in write volume data reported in file system table in
   darshan-job-summary.pl (reported by Matthieu Dorier)
-* Clean up autoconf test for zlib and make zlib mandatory
+* Clean up autoconf test for zlib and make zlib mandatory (reported by Kalyana
+  Chadalavada)
 
 darshan-2.3.0
 =============
