@@ -12,8 +12,6 @@
 
 #include "darshan.h"
 
-#define DARSHAN_MPI_CALL(func) func
-
 /* calculation of compression buffer size (defaults to 50% of the maximum
  * memory that Darshan is allowed to consume on a process) 
  */

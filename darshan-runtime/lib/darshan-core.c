@@ -278,8 +278,8 @@ static void darshan_get_exe_and_mounts_root(char* trailing_data, int space_left)
         "nfsd",
         "none",
         "rpc_pipefs",
-    "hugetlbfs",
-    "cgroup",
+        "hugetlbfs",
+        "cgroup",
         NULL
     };
 
@@ -383,6 +383,7 @@ void darshan_core_register_module(
     struct darshan_core_module *tmp;
     struct darshan_core_module *new_mod;
 
+    *runtime_mem_limit = 0;
     if (!darshan_global_job)
         return;
 
@@ -426,7 +427,19 @@ void darshan_core_lookup_id(
     int printable_flag,
     darshan_file_id *id)
 {
+    darshan_file_id tmp_id;
 
+    if (!darshan_global_job)
+        return;
+
+    /* TODO: what do you do with printable flag? */
+
+    /* hash the input name to get a unique id for this record */
+    tmp_id = darshan_hash(name, len, 0);
+    
+    /* TODO: how to store the filename to hash mapping? */
+
+    *id = tmp_id;
     return;
 }
 

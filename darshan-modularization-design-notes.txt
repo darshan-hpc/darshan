@@ -114,3 +114,4 @@ API:
 TODO NOTES:
     - why are darshan mutexes recursive?
     - how do we allow modules to specify there necessary linker/wrapper flags
+    - configurable amount of max runtime memory

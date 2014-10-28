@@ -12,6 +12,8 @@
 #include <mpi.h>
 #include "darshan-log-format.h"
 
+#define DARSHAN_MPI_CALL(func) func
+
 typedef uint64_t darshan_file_id;
 
 struct darshan_module_funcs
@@ -32,5 +34,9 @@ void darshan_core_lookup_id(
     darshan_file_id *id);
 
 double darshan_core_wtime(void);
+
+char* darshan_clean_file_path(const char* path);
+
+double darshan_wtime(void);
 
 #endif /* __DARSHAN_H */
