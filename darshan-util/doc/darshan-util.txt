@@ -321,8 +321,9 @@ different computations.
 #
 # I/O timing for unique files (seconds):
 # ...........................
-# unique files: slowest_rank_time: 0.000000
+# unique files: slowest_rank_io_time: 0.000000
 # unique files: slowest_rank_meta_time: 0.000000
+# unique files: slowest_rank: 0
 #
 # I/O timing for shared files (seconds):
 # (multiple estimates shown; time_by_slowest is generally the most accurate)
