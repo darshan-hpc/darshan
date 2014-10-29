@@ -19,6 +19,11 @@ darshan-2.3.1-pre1
   2.x environment to fix link-time corner cases (Yushu Yao)
 * improve y axis labels on time interval graphs in darshan-job-summary.pl
   (reported by Tomo Peterka)
+* misc. improvements to darshan-parser --perf output (reported by Shane
+  Snyder)
+  - indicate which rank was slowest in unique file results
+  - label I/O vs. meta time more clearly
+  - include unique file meta time in agg_perf_by_slowest calculation
 
 darshan-2.3.0
 =============
