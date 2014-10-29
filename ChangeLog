@@ -17,6 +17,8 @@ darshan-2.3.1-pre1
   Chadalavada)
 * add --start-group and --end-group notation to Darshan libraries for Cray PE
   2.x environment to fix link-time corner cases (Yushu Yao)
+* improve y axis labels on time interval graphs in darshan-job-summary.pl
+  (reported by Tomo Peterka)
 
 darshan-2.3.0
 =============
