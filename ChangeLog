@@ -15,6 +15,8 @@ darshan-2.3.1-pre1
   darshan-job-summary.pl (reported by Matthieu Dorier)
 * Clean up autoconf test for zlib and make zlib mandatory (reported by Kalyana
   Chadalavada)
+* add --start-group and --end-group notation to Darshan libraries for Cray PE
+  2.x environment to fix link-time corner cases (Yushu Yao)
 
 darshan-2.3.0
 =============
