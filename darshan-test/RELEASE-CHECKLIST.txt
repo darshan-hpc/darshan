@@ -21,7 +21,9 @@ Notes on how to release a new version of Darshan
 - make a tag for the release according to instructions at
   http://git-scm.com/book/en/Git-Basics-Tagging
 - TESTING
-- export the tag (TODO: document recommended method) and tar gzip it
+- export the tag and tar gzip it
+  - easiest method is to do a fresh checkout and remove the .git
+    subdirectory
   - upload .tar.gz file to /mcs/ftp/pub/darshan/releases
 - generate web documentation from asciidoc by running make in
   darshan-util/doc/ and darshan-runtime/doc/ directories
