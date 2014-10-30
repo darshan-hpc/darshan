@@ -25,6 +25,7 @@
 #include <pthread.h>
 
 #include "darshan.h"
+#include "uthash.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
@@ -41,10 +42,6 @@ typedef int64_t off64_t;
 #define DARSHAN_DECL(__name) __wrap_ ## __name
 
 #define MAP_OR_FAIL(func)
-
-#define POSIX_HASH_BITS 8
-#define POSIX_HASH_SIZE (1 << POSIX_HASH_BITS)
-#define POSIX_HASH_MASK (POSIX_HASH_SIZE - 1)
 
 /* TODO: where do these file record structs go? (some needed for darshan-util) */
 /* TODO: DARSHAN_* OR CP_* */
@@ -169,7 +166,7 @@ struct darshan_posix_file
 struct darshan_posix_runtime_file
 {
     struct darshan_posix_file file_record;
-    struct darshan_posix_runtime_file *next_file;
+    UT_hash_handle hlink;
 };
 
 struct darshan_posix_runtime
@@ -177,7 +174,7 @@ struct darshan_posix_runtime
     struct darshan_posix_runtime_file* file_array;
     int file_array_size;
     int file_count;
-    struct darshan_posix_runtime_file* file_table[POSIX_HASH_SIZE];
+    struct darshan_posix_runtime_file* file_hash;
 };
 
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -199,7 +196,6 @@ static char* exclusions[] = {
 "/proc/",
 NULL
 };
-
 
 DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
 //DARSHAN_FORWARD_DECL(close, int, (int fd));
@@ -365,11 +361,10 @@ static void posix_runtime_initialize()
         &posix_mod_fns,
         &mem_limit);
 
-    /* initialize posix runtime variables */
+    /* set maximum number of file records according to max memory limit */
     posix_runtime->file_array_size = mem_limit / sizeof(struct darshan_posix_runtime_file);
-    posix_runtime->file_count = 0;
 
-    /* allocate array of runtime file records no larger than the returned mem_limit */
+    /* allocate array of runtime file records */
     posix_runtime->file_array = malloc(sizeof(struct darshan_posix_runtime_file) *
                                        posix_runtime->file_array_size);
     if(!posix_runtime->file_array)
@@ -385,10 +380,9 @@ static void posix_runtime_initialize()
 
 static struct darshan_posix_runtime_file* posix_file_by_name(const char *name)
 {
-    struct darshan_posix_runtime_file *tmp_file;
+    struct darshan_posix_runtime_file *tmp_file = NULL;
     char *newname = NULL;
     darshan_file_id tmp_id;
-    int hash_index;
 
     if(!posix_runtime)
         return(NULL);
@@ -404,29 +398,23 @@ static struct darshan_posix_runtime_file* posix_file_by_name(const char *name)
         1,
         &tmp_id);
 
-    /* search the hash table for this file record */
-    hash_index = tmp_id & POSIX_HASH_MASK;
-    tmp_file = posix_runtime->file_table[hash_index];
-    while(tmp_file)
+    /* search the hash table for this file record, and return if found */
+    HASH_FIND(hlink, posix_runtime->file_hash, &tmp_id, sizeof(darshan_file_id), tmp_file);
+    if (tmp_file)
     {
-        if(tmp_file->file_record.f_id == tmp_id)
-        {
-            if(newname != name)
-                free(newname);
-            return(tmp_file);
-        }
-        tmp_file = tmp_file->next_file;
+        if (newname != name)
+            free(newname);
+        return(tmp_file);
     }
 
     /* no existing record, assign a new file record from the global array */
     tmp_file = &posix_runtime->file_array[posix_runtime->file_count];
     tmp_file->file_record.f_id = tmp_id;
 
-    posix_runtime->file_count++;
+    /* add new record to file hash table */
+    HASH_ADD(hlink, posix_runtime->file_hash, file_record.f_id, sizeof(darshan_file_id), tmp_file);
 
-    /* put record into hash table, head of list at that index */
-    tmp_file->next_file = posix_runtime->file_table[hash_index];
-    posix_runtime->file_table[hash_index] = tmp_file;
+    posix_runtime->file_count++;
 
     if(newname != name)
         free(newname);
