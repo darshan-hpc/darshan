@@ -33,12 +33,18 @@ typedef int64_t off64_t;
 #define aiocb64 aiocb
 #endif
 
+/* TODO these go where ? */
+
 #define DARSHAN_FORWARD_DECL(name,ret,args) \
   extern ret __real_ ## name args;
 
 #define DARSHAN_DECL(__name) __wrap_ ## __name
 
 #define MAP_OR_FAIL(func)
+
+#define POSIX_HASH_BITS 8
+#define POSIX_HASH_SIZE (1 << POSIX_HASH_BITS)
+#define POSIX_HASH_MASK (POSIX_HASH_SIZE - 1)
 
 /* TODO: where do these file record structs go? (some needed for darshan-util) */
 /* TODO: DARSHAN_* OR CP_* */
@@ -155,6 +161,7 @@ enum f_darshan_posix_indices
 
 struct darshan_posix_file
 {
+    darshan_file_id f_id;
     int64_t counters[CP_NUM_INDICES];
     double fcounters[CP_F_NUM_INDICES];
 };
@@ -162,16 +169,21 @@ struct darshan_posix_file
 struct darshan_posix_runtime_file
 {
     struct darshan_posix_file file_record;
+    struct darshan_posix_runtime_file *next_file;
 };
 
 struct darshan_posix_runtime
 {
-    struct darshan_posix_file_runtime *file_array;
-    int file_array_sz;
+    struct darshan_posix_runtime_file* file_array;
+    int file_array_size;
+    int file_count;
+    struct darshan_posix_runtime_file* file_table[POSIX_HASH_SIZE];
 };
 
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static struct darshan_posix_runtime *posix_runtime = NULL;
+static int my_rank = -1;
+static int darshan_mem_alignment = 1;
 
 /* these are paths that we will not trace */
 static char* exclusions[] = {
@@ -188,7 +200,6 @@ static char* exclusions[] = {
 NULL
 };
 
-static int darshan_mem_alignment = 1;
 
 DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
 //DARSHAN_FORWARD_DECL(close, int, (int fd));
@@ -202,19 +213,6 @@ static void posix_get_output_data(void **buffer, int size);
 #define POSIX_LOCK() pthread_mutex_lock(&posix_runtime_mutex)
 #define POSIX_UNLOCK() pthread_mutex_unlock(&posix_runtime_mutex)
 
-#ifdef __DARSHAN_STAT_AT_OPEN
-#define DARSHAN_STAT_FILE(_f, _p, _r) do { \
-    if(!DARSHAN_VALUE((_f), DARSHAN_POSIX_STATS) && !DARSHAN_VALUE((_f), DARSHAN_POSIX_OPENS)){ \
-        if(fstat64(_r, &cp_stat_buf) == 0) { \
-            DARSHAN_SET(_f, DARSHAN_FILE_ALIGNMENT, cp_stat_buf.st_blksize); \
-            DARSHAN_SET(_f, DARSHAN_SIZE_AT_OPEN, cp_stat_buf.st_size); \
-        }\
-    }\
-}while(0)
-#else
-#define DARSHAN_STAT_FILE(_f, _p, _r) do { }while(0)
-#endif
-
 #define POSIX_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
     struct darshan_posix_runtime_file* file; \
     char* exclude; \
@@ -226,9 +224,8 @@ static void posix_get_output_data(void **buffer, int size);
         tmp_index++; \
     } \
     if(exclude) break; \
-    file = *************darshan_file_by_name_setfd(__path, __ret); \
-    if(!file_rec) break; \
-    DARSHAN_STAT_FILE(file, __path, __ret); \
+    file = darshan_file_by_name(__path, __ret); \
+    if(!file) break; \
     file->log_file->rank = my_rank; \
     if(__mode) \
         DARSHAN_SET(file, DARSHAN_MODE, __mode); \
@@ -243,6 +240,42 @@ static void posix_get_output_data(void **buffer, int size);
         DARSHAN_F_SET(file, DARSHAN_F_OPEN_TIMESTAMP, __tm1); \
     DARSHAN_F_INC_NO_OVERLAP(file, __tm1, __tm2, file->last_posix_meta_end, DARSHAN_F_POSIX_META_TIME); \
 } while (0)
+
+int DARSHAN_DECL(open)(const char *path, int flags, ...)
+{
+    int mode = 0;
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(open);
+
+    if(flags & O_CREAT) 
+    {
+        va_list arg;
+        va_start(arg, flags);
+        mode = va_arg(arg, int);
+        va_end(arg);
+
+        tm1 = darshan_core_wtime();
+        ret = __real_open(path, flags, mode);
+        tm2 = darshan_core_wtime();
+    }
+    else
+    {
+        tm1 = darshan_core_wtime();
+        ret = __real_open(path, flags);
+        tm2 = darshan_core_wtime();
+    }
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+
+    //POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
+
+    POSIX_UNLOCK();
+
+    return(ret);
+}
 
 #if 0
 int DARSHAN_DECL(close)(int fd)
@@ -277,43 +310,7 @@ int DARSHAN_DECL(close)(int fd)
 }
 #endif
 
-int DARSHAN_DECL(open)(const char *path, int flags, ...)
-{
-    int mode = 0;
-    int ret;
-    double tm1, tm2;
-
-    MAP_OR_FAIL(open);
-
-    if (flags & O_CREAT) 
-    {
-        va_list arg;
-        va_start(arg, flags);
-        mode = va_arg(arg, int);
-        va_end(arg);
-
-        tm1 = darshan_core_wtime();
-        ret = __real_open(path, flags, mode);
-        tm2 = darshan_core_wtime();
-    }
-    else
-    {
-        tm1 = darshan_core_wtime();
-        ret = __real_open(path, flags);
-        tm2 = darshan_core_wtime();
-    }
-
-    POSIX_LOCK();
-    posix_runtime_initialize();
-
-//    POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
-    POSIX_UNLOCK();
-
-    return(ret);
-}
-
 /* ***************************************************** */
-
 
 static void posix_runtime_initialize()
 {
@@ -327,15 +324,16 @@ static void posix_runtime_initialize()
         .get_output_data = &posix_get_output_data,
     };
 
-    if (posix_runtime)
+    if(posix_runtime)
         return;
 
+#if 0
     /* set the memory alignment according to config or environment variables */
     #if (__CP_MEM_ALIGNMENT < 1)
         #error Darshan must be configured with a positive value for --with-mem-align
     #endif
     alignstr = getenv("DARSHAN_MEMALIGN");
-    if (alignstr)
+    if(alignstr)
     {
         ret = sscanf(alignstr, "%d", &tmpval);
         /* silently ignore if the env variable is set poorly */
@@ -350,14 +348,16 @@ static void posix_runtime_initialize()
     }
 
     /* avoid floating point errors on faulty input */
-    if (darshan_mem_alignment < 1)
+    if(darshan_mem_alignment < 1)
     {
         darshan_mem_alignment = 1;
     }
+#endif
 
     posix_runtime = malloc(sizeof(*posix_runtime));
-    if (!posix_runtime)
+    if(!posix_runtime)
         return;
+    memset(posix_runtime, 0, sizeof(*posix_runtime));
 
     /* register the posix module with darshan core */
     darshan_core_register_module(
@@ -365,17 +365,20 @@ static void posix_runtime_initialize()
         &posix_mod_fns,
         &mem_limit);
 
+    /* initialize posix runtime variables */
+    posix_runtime->file_array_size = mem_limit / sizeof(struct darshan_posix_runtime_file);
+    posix_runtime->file_count = 0;
+
     /* allocate array of runtime file records no larger than the returned mem_limit */
-    posix_runtime->file_array_sz = mem_limit / sizeof(struct darshan_posix_runtime_file);
     posix_runtime->file_array = malloc(sizeof(struct darshan_posix_runtime_file) *
-                                       posix_runtime->file_array_sz);
-    if (!posix_runtime->file_array)
+                                       posix_runtime->file_array_size);
+    if(!posix_runtime->file_array)
     {
-        posix_runtime->file_array_sz = 0;
+        posix_runtime->file_array_size = 0;
         return;
     }
     memset(posix_runtime->file_array, 0, sizeof(struct darshan_posix_runtime_file) *
-           posix_runtime->file_array_sz);
+           posix_runtime->file_array_size);
 
     return;
 }
@@ -384,18 +387,53 @@ static struct darshan_posix_runtime_file* posix_file_by_name(const char *name)
 {
     struct darshan_posix_runtime_file *tmp_file;
     char *newname = NULL;
+    darshan_file_id tmp_id;
+    int hash_index;
 
-    if (!posix_runtime)
+    if(!posix_runtime)
         return(NULL);
 
     newname = darshan_clean_file_path(name);
-    if (!newname)
+    if(!newname)
         newname = (char*)name;
 
-    if (newname != name)
+    /* get a unique id for this file from darshan core */
+    darshan_core_lookup_id(
+        (void*)newname,
+        strlen(newname),
+        1,
+        &tmp_id);
+
+    /* search the hash table for this file record */
+    hash_index = tmp_id & POSIX_HASH_MASK;
+    tmp_file = posix_runtime->file_table[hash_index];
+    while(tmp_file)
+    {
+        if(tmp_file->file_record.f_id == tmp_id)
+        {
+            if(newname != name)
+                free(newname);
+            return(tmp_file);
+        }
+        tmp_file = tmp_file->next_file;
+    }
+
+    /* no existing record, assign a new file record from the global array */
+    tmp_file = &posix_runtime->file_array[posix_runtime->file_count];
+    tmp_file->file_record.f_id = tmp_id;
+
+    posix_runtime->file_count++;
+
+    /* put record into hash table, head of list at that index */
+    tmp_file->next_file = posix_runtime->file_table[hash_index];
+    posix_runtime->file_table[hash_index] = tmp_file;
+
+    if(newname != name)
         free(newname);
     return(tmp_file);
 }
+
+/* ***************************************************** */
 
 static void posix_prepare_for_shutdown()
 {

@@ -40,9 +40,7 @@ struct darshan_core_job_runtime
     struct darshan_core_module *mod_list_head;
     char comp_buf[CP_COMP_BUF_SIZE];
     int flags;
-    int file_count;
     double wtime_offset;
-    char* trailing_data;
 };
 
 #endif /* __DARSHAN_CORE_H */

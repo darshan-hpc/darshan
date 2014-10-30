@@ -12,6 +12,7 @@
 #include <mpi.h>
 #include "darshan-log-format.h"
 
+/* TODO these go where ? */
 #define DARSHAN_MPI_CALL(func) func
 
 typedef uint64_t darshan_file_id;
