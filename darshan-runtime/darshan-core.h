@@ -29,7 +29,7 @@ struct darshan_core_module
 {
     char name[DARSHAN_MOD_NAME_LEN+1];
     struct darshan_module_funcs mod_funcs;
-    struct darshan_core_module *next_mod;
+    struct darshan_core_module *next;
 };
 
 /* in memory structure to keep up with job level data */

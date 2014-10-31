@@ -360,6 +360,36 @@ static void posix_runtime_initialize()
     if(posix_runtime)
         return;
 
+    /* register the posix module with darshan core */
+    darshan_core_register_module(
+        POSIX_MOD_NAME,
+        &posix_mod_fns,
+        &mem_limit);
+
+    /* return if no memory assigned by darshan core */
+    if(mem_limit == 0)
+        return;
+
+    posix_runtime = malloc(sizeof(*posix_runtime));
+    if(!posix_runtime)
+        return;
+    memset(posix_runtime, 0, sizeof(*posix_runtime));
+
+    /* set maximum number of file records according to max memory limit */
+    /* NOTE: maximum number of records is based on the size of a posix file record */
+    posix_runtime->file_array_size = mem_limit / sizeof(struct darshan_posix_file);
+
+    /* allocate array of runtime file records */
+    posix_runtime->file_array = malloc(sizeof(struct posix_runtime_file) *
+                                       posix_runtime->file_array_size);
+    if(!posix_runtime->file_array)
+    {
+        posix_runtime->file_array_size = 0;
+        return;
+    }
+    memset(posix_runtime->file_array, 0, sizeof(struct posix_runtime_file) *
+           posix_runtime->file_array_size);
+
 #if 0
     /* set the memory alignment according to config or environment variables */
     #if (__CP_MEM_ALIGNMENT < 1)
@@ -387,31 +417,11 @@ static void posix_runtime_initialize()
     }
 #endif
 
-    posix_runtime = malloc(sizeof(*posix_runtime));
-    if(!posix_runtime)
-        return;
-    memset(posix_runtime, 0, sizeof(*posix_runtime));
+    return;
+}
 
-    /* register the posix module with darshan core */
-    darshan_core_register_module(
-        POSIX_MOD_NAME,
-        &posix_mod_fns,
-        &mem_limit);
-
-    /* set maximum number of file records according to max memory limit */
-    /* NOTE: maximum number of records is based on the size of a posix file record */
-    posix_runtime->file_array_size = mem_limit / sizeof(struct darshan_posix_file);
-
-    /* allocate array of runtime file records */
-    posix_runtime->file_array = malloc(sizeof(struct posix_runtime_file) *
-                                       posix_runtime->file_array_size);
-    if(!posix_runtime->file_array)
-    {
-        posix_runtime->file_array_size = 0;
-        return;
-    }
-    memset(posix_runtime->file_array, 0, sizeof(struct posix_runtime_file) *
-           posix_runtime->file_array_size);
+static void posix_runtime_finalize()
+{
 
     return;
 }
@@ -528,6 +538,9 @@ static void posix_prepare_for_shutdown()
 
 static void posix_get_output_data(void **buffer, int size)
 {
+
+    /* shutdown the posix runtime module */
+    posix_runtime_finalize();
 
     return;
 }

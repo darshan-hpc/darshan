@@ -19,6 +19,7 @@
 #include <mpi.h>
 
 #include "darshan-core.h"
+#include "utlist.h"
 
 extern char* __progname_full;
 
@@ -26,11 +27,20 @@ static void darshan_core_initialize(int *argc, char ***argv);
 static void darshan_core_shutdown(void);
 
 /* internal variables */
-static struct darshan_core_job_runtime *darshan_global_job = NULL;
+static struct darshan_core_job_runtime *darshan_core_job = NULL;
 static pthread_mutex_t darshan_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #define DARSHAN_LOCK() pthread_mutex_lock(&darshan_mutex)
 #define DARSHAN_UNLOCK() pthread_mutex_unlock(&darshan_mutex)
+
+#define DARSHAN_MOD_REGISTER(__mod) \
+    LL_PREPEND(darshan_core_job->mod_list_head, __mod)
+#define DARSHAN_MOD_SEARCH(__mod, __tmp) \
+    LL_SEARCH(darshan_core_job->mod_list_head, __mod, __tmp, mod_cmp)
+#define DARSHAN_MOD_ITER(__mod, __tmp) \
+    LL_FOREACH_SAFE(darshan_core_job->mod_list_head, __mod, __tmp)
+#define DARSHAN_MOD_DELETE(__mod) \
+   LL_DELETE(darshan_core_job->mod_list_head, __mod)
 
 /* intercept MPI initialize and finalize to initialize darshan */
 int MPI_Init(int *argc, char ***argv)
@@ -53,7 +63,7 @@ int MPI_Init_thread(int *argc, char ***argv, int required, int *provided)
     int ret;
 
     ret = DARSHAN_MPI_CALL(PMPI_Init_thread)(argc, argv, required, provided);
-    if (ret != MPI_SUCCESS)
+    if(ret != MPI_SUCCESS)
     {
         return(ret);
     }
@@ -73,6 +83,8 @@ int MPI_Finalize(void)
     return(ret);
 }
 
+/* *********************************** */
+
 static void darshan_core_initialize(int *argc, char ***argv)
 {
     int i;
@@ -90,40 +102,39 @@ static void darshan_core_initialize(int *argc, char ***argv)
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
 
-    if (internal_timing_flag)
+    if(internal_timing_flag)
         init_start = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
-    if (!getenv("DARSHAN_DISABLE") && !darshan_global_job)
+    if(!getenv("DARSHAN_DISABLE") && !darshan_core_job)
     {
-        /* allocate structure to track darshan_global_job information */
-        darshan_global_job = malloc(sizeof(*darshan_global_job));
-        if (darshan_global_job)
+        /* allocate structure to track darshan_core_job information */
+        darshan_core_job = malloc(sizeof(*darshan_core_job));
+        if(darshan_core_job)
         {
-            memset(darshan_global_job, 0, sizeof(*darshan_global_job));
+            memset(darshan_core_job, 0, sizeof(*darshan_core_job));
 
-            if (getenv("DARSHAN_DISABLE_TIMING"))
+            if(getenv("DARSHAN_DISABLE_TIMING"))
             {
-                darshan_global_job->flags |= CP_FLAG_NOTIMING;
+                darshan_core_job->flags |= CP_FLAG_NOTIMING;
             }
 
-            strcpy(darshan_global_job->log_job.version_string, CP_VERSION);
-            darshan_global_job->log_job.magic_nr = CP_MAGIC_NR;
-            darshan_global_job->log_job.uid = getuid();
-            darshan_global_job->log_job.start_time = time(NULL);
-            darshan_global_job->log_job.nprocs = nprocs;
-            darshan_global_job->wtime_offset = DARSHAN_MPI_CALL(PMPI_Wtime)();
-            darshan_global_job->mod_list_head = NULL;
+            strcpy(darshan_core_job->log_job.version_string, CP_VERSION);
+            darshan_core_job->log_job.magic_nr = CP_MAGIC_NR;
+            darshan_core_job->log_job.uid = getuid();
+            darshan_core_job->log_job.start_time = time(NULL);
+            darshan_core_job->log_job.nprocs = nprocs;
+            darshan_core_job->wtime_offset = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
             /* record exe and arguments */
             for(i=0; i<(*argc); i++)
             {
-                chars_left = CP_EXE_LEN-strlen(darshan_global_job->exe);
-                strncat(darshan_global_job->exe, *(argv[i]), chars_left);
+                chars_left = CP_EXE_LEN-strlen(darshan_core_job->exe);
+                strncat(darshan_core_job->exe, *(argv[i]), chars_left);
                 if(i < ((*argc)-1))
                 {
-                    chars_left = CP_EXE_LEN-strlen(darshan_global_job->exe);
-                    strncat(darshan_global_job->exe, " ", chars_left);
+                    chars_left = CP_EXE_LEN-strlen(darshan_core_job->exe);
+                    strncat(darshan_core_job->exe, " ", chars_left);
                 }
             }
 
@@ -132,17 +143,17 @@ static void darshan_core_initialize(int *argc, char ***argv)
              */
             if(argc == 0)
             {
-                chars_left = CP_EXE_LEN-strlen(darshan_global_job->exe);
-                strncat(darshan_global_job->exe, __progname_full, chars_left);
-                chars_left = CP_EXE_LEN-strlen(darshan_global_job->exe);
-                strncat(darshan_global_job->exe, " <unknown args>", chars_left);
+                chars_left = CP_EXE_LEN-strlen(darshan_core_job->exe);
+                strncat(darshan_core_job->exe, __progname_full, chars_left);
+                chars_left = CP_EXE_LEN-strlen(darshan_core_job->exe);
+                strncat(darshan_core_job->exe, " <unknown args>", chars_left);
             }
 
             if(chars_left == 0)
             {
                 /* we ran out of room; mark that string was truncated */
                 truncate_offset = CP_EXE_LEN - strlen(truncate_string);
-                sprintf(&darshan_global_job->exe[truncate_offset], "%s",
+                sprintf(&darshan_core_job->exe[truncate_offset], "%s",
                     truncate_string);
             }
         }
@@ -165,14 +176,29 @@ static void darshan_core_initialize(int *argc, char ***argv)
 
 static void darshan_core_shutdown()
 {
+    struct darshan_core_module *mod, *tmp;
     int internal_timing_flag = 0;
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
 
-    printf("darshan SHUTDOWN\n");
+    /* TODO: coordinate shutdown accross all registered modules */
+    DARSHAN_MOD_ITER(mod, tmp)
+    {
+        printf("Shutting down %s module\n", mod->name);
+
+        DARSHAN_MOD_DELETE(mod);
+        free(mod);
+    };
+
+    free(darshan_core_job);
 
     return;
+}
+
+static int mod_cmp(struct darshan_core_module* a, struct darshan_core_module* b)
+{
+    return strcmp(a->name, b->name);
 }
 
 /* ********************************************************* */
@@ -182,43 +208,45 @@ void darshan_core_register_module(
     struct darshan_module_funcs *funcs,
     int *runtime_mem_limit)
 {
-    struct darshan_core_module *tmp;
-    struct darshan_core_module *new_mod;
+    struct darshan_core_module tmp;
+    struct darshan_core_module* mod;
 
     *runtime_mem_limit = 0;
-    if (!darshan_global_job)
+    if(!darshan_core_job)
         return;
 
     DARSHAN_LOCK();
-    tmp = darshan_global_job->mod_list_head;
-    while(tmp)
-    {
-        /* silently return if this module is already registered */
-        if (strcmp(tmp->name, name) == 0)
-        {
-            DARSHAN_UNLOCK();
-            return;
-        }
-        tmp = tmp->next_mod;
-    }
 
-    /* allocate new module and add to the head of the linked list of darshan modules */
-    new_mod = malloc(sizeof(*new_mod));
-    if (!new_mod)
+    /* see if this module is already registered */
+    strncpy(tmp.name, name, DARSHAN_MOD_NAME_LEN);
+    DARSHAN_MOD_SEARCH(mod, &tmp);
+    if(mod)
     {
+        /* if module is already registered, update module_funcs and return */
+        /* NOTE: we do not recalculate memory limit here, just set to 0 */
+        mod->mod_funcs = *funcs;
+
         DARSHAN_UNLOCK();
         return;
     }
 
-    memset(new_mod, 0, sizeof(*new_mod));
-    strncpy(new_mod->name, name, DARSHAN_MOD_NAME_LEN);
-    new_mod->mod_funcs = *funcs;
-    new_mod->next_mod = darshan_global_job->mod_list_head;
-    darshan_global_job->mod_list_head = new_mod;
-    DARSHAN_UNLOCK();
+    /* this module has not been registered yet, allocate and register it */
+    mod = malloc(sizeof(*mod));
+    if(!mod)
+    {
+        DARSHAN_UNLOCK();
+        return;
+    }
+    memset(mod, 0, sizeof(*mod));
+
+    strncpy(mod->name, name, DARSHAN_MOD_NAME_LEN);
+    mod->mod_funcs = *funcs;
+    DARSHAN_MOD_REGISTER(mod);
 
     /* TODO: something smarter than just 2 MiB per module */
     *runtime_mem_limit = 2 * 1024 * 1024;
+
+    DARSHAN_UNLOCK();
 
     return;
 }
@@ -231,7 +259,7 @@ void darshan_core_lookup_id(
 {
     darshan_file_id tmp_id;
 
-    if (!darshan_global_job)
+    if(!darshan_core_job)
         return;
 
     /* TODO: what do you do with printable flag? */
@@ -247,7 +275,7 @@ void darshan_core_lookup_id(
 
 double darshan_core_wtime()
 {
-    if(!darshan_global_job || darshan_global_job->flags & CP_FLAG_NOTIMING)
+    if(!darshan_core_job || darshan_core_job->flags & CP_FLAG_NOTIMING)
     {
         return(0);
     }
