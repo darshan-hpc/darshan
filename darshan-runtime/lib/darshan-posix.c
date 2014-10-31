@@ -128,7 +128,7 @@ enum darshan_posix_indices
 };
 
 /* floating point statistics */
-enum f_darshan_posix_indices
+enum darshan_f_posix_indices
 {
     /* NOTE: adjust cp_normalize_timestamps() function if any TIMESTAMPS are
      * added or modified in this list
@@ -159,26 +159,35 @@ enum f_darshan_posix_indices
 struct darshan_posix_file
 {
     darshan_file_id f_id;
+    int64_t rank;
     int64_t counters[CP_NUM_INDICES];
     double fcounters[CP_F_NUM_INDICES];
 };
 
-struct darshan_posix_runtime_file
+struct posix_runtime_file
 {
     struct darshan_posix_file file_record;
     UT_hash_handle hlink;
 };
 
-struct darshan_posix_runtime
+struct posix_runtime_file_ref
 {
-    struct darshan_posix_runtime_file* file_array;
-    int file_array_size;
-    int file_count;
-    struct darshan_posix_runtime_file* file_hash;
+    struct posix_runtime_file* file;
+    int fd;
+    UT_hash_handle hlink;
 };
 
+struct posix_runtime
+{
+    struct posix_runtime_file* file_array;
+    int file_array_size;
+    int file_count;
+    struct posix_runtime_file* file_hash;
+    struct posix_runtime_file_ref* fd_hash;
+};
+
+static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-static struct darshan_posix_runtime *posix_runtime = NULL;
 static int my_rank = -1;
 static int darshan_mem_alignment = 1;
 
@@ -198,10 +207,14 @@ NULL
 };
 
 DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
-//DARSHAN_FORWARD_DECL(close, int, (int fd));
+DARSHAN_FORWARD_DECL(close, int, (int fd));
 
 static void posix_runtime_initialize(void);
 static void posix_runtime_finalize(void);
+
+static struct posix_runtime_file* posix_file_by_name(const char *name);
+static struct posix_runtime_file* posix_file_by_name_setfd(const char* name, int fd);
+static void posix_file_close_fd(int fd);
 
 static void posix_prepare_for_shutdown(void);
 static void posix_get_output_data(void **buffer, int size);
@@ -209,8 +222,46 @@ static void posix_get_output_data(void **buffer, int size);
 #define POSIX_LOCK() pthread_mutex_lock(&posix_runtime_mutex)
 #define POSIX_UNLOCK() pthread_mutex_unlock(&posix_runtime_mutex)
 
+#define POSIX_SET(__file, __counter, __value) do {\
+    (__file)->file_record.counters[__counter] = __value; \
+} while(0)
+
+#define POSIX_F_SET(__file, __counter, __value) do {\
+    (__file)->file_record.fcounters[__counter] = __value; \
+} while(0)
+
+#define POSIX_INC(__file, __counter, __value) do {\
+    (__file)->file_record.counters[__counter] += __value; \
+} while(0)
+
+#define POSIX_F_INC(__file, __counter, __value) do {\
+    (__file)->file_record.fcounters[__counter] += __value; \
+} while(0)
+
+#define POSIX_F_INC_NO_OVERLAP(__file, __tm1, __tm2, __last, __counter) do { \
+    if(__tm1 > __last) \
+        POSIX_F_INC(__file, __counter, (__tm2-__tm1)); \
+    else \
+        POSIX_F_INC(__file, __counter, (__tm2 - __last)); \
+    if(__tm2 > __last) \
+        __last = __tm2; \
+} while(0)
+
+#define POSIX_VALUE(__file, __counter) \
+    ((__file)->file_record.counters[__counter])
+
+#define POSIX_F_VALUE(__file, __counter) \
+    ((__file)->file_record.fcounters[__counter])
+
+#define POSIX_MAX(__file, __counter, __value) do {\
+    if((__file)->file_record.counters[__counter] < __value) \
+    { \
+        (__file)->file_record.counters[__counter] = __value; \
+    } \
+} while(0)
+
 #define POSIX_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
-    struct darshan_posix_runtime_file* file; \
+    struct posix_runtime_file* file; \
     char* exclude; \
     int tmp_index = 0; \
     if(__ret < 0) break; \
@@ -220,22 +271,18 @@ static void posix_get_output_data(void **buffer, int size);
         tmp_index++; \
     } \
     if(exclude) break; \
-    file = darshan_file_by_name(__path, __ret); \
+    file = posix_file_by_name_setfd(__path, __ret); \
     if(!file) break; \
-    file->log_file->rank = my_rank; \
+    file->file_record.rank = my_rank; \
     if(__mode) \
-        DARSHAN_SET(file, DARSHAN_MODE, __mode); \
-    file->offset = 0; \
-    file->last_byte_written = 0; \
-    file->last_byte_read = 0; \
+        POSIX_SET(file, CP_MODE, __mode); \
     if(__stream_flag)\
-        DARSHAN_INC(file, DARSHAN_POSIX_FOPENS, 1); \
+        POSIX_INC(file, CP_POSIX_FOPENS, 1); \
     else \
-        DARSHAN_INC(file, DARSHAN_POSIX_OPENS, 1); \
-    if(DARSHAN_F_VALUE(file, DARSHAN_F_OPEN_TIMESTAMP) == 0) \
-        DARSHAN_F_SET(file, DARSHAN_F_OPEN_TIMESTAMP, __tm1); \
-    DARSHAN_F_INC_NO_OVERLAP(file, __tm1, __tm2, file->last_posix_meta_end, DARSHAN_F_POSIX_META_TIME); \
-} while (0)
+        POSIX_INC(file, CP_POSIX_OPENS, 1); \
+    if(POSIX_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0) \
+        POSIX_F_SET(file, CP_F_OPEN_TIMESTAMP, __tm1); \
+} while(0)
 
 int DARSHAN_DECL(open)(const char *path, int flags, ...)
 {
@@ -266,14 +313,13 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
     POSIX_LOCK();
     posix_runtime_initialize();
 
-    //POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
 
     POSIX_UNLOCK();
 
     return(ret);
 }
 
-#if 0
 int DARSHAN_DECL(close)(int fd)
 {
     struct darshan_file_runtime* file;
@@ -290,21 +336,12 @@ int DARSHAN_DECL(close)(int fd)
     POSIX_LOCK();
     posix_runtime_initialize();
 
-    file = darshan_file_by_fd(tmp_fd);
-    if(file)
-    {
-        file->last_byte_written = 0;
-        file->last_byte_read = 0;
-        DARSHAN_F_SET(file, DARSHAN_F_CLOSE_TIMESTAMP, posix_wtime());
-        DARSHAN_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_posix_meta_end, DARSHAN_F_POSIX_META_TIME);
-        darshan_file_close_fd(tmp_fd);
-    }
+    posix_file_close_fd(tmp_fd);
 
     POSIX_UNLOCK();    
 
     return(ret);
 }
-#endif
 
 /* ***************************************************** */
 
@@ -362,27 +399,28 @@ static void posix_runtime_initialize()
         &mem_limit);
 
     /* set maximum number of file records according to max memory limit */
-    posix_runtime->file_array_size = mem_limit / sizeof(struct darshan_posix_runtime_file);
+    /* NOTE: maximum number of records is based on the size of a posix file record */
+    posix_runtime->file_array_size = mem_limit / sizeof(struct darshan_posix_file);
 
     /* allocate array of runtime file records */
-    posix_runtime->file_array = malloc(sizeof(struct darshan_posix_runtime_file) *
+    posix_runtime->file_array = malloc(sizeof(struct posix_runtime_file) *
                                        posix_runtime->file_array_size);
     if(!posix_runtime->file_array)
     {
         posix_runtime->file_array_size = 0;
         return;
     }
-    memset(posix_runtime->file_array, 0, sizeof(struct darshan_posix_runtime_file) *
+    memset(posix_runtime->file_array, 0, sizeof(struct posix_runtime_file) *
            posix_runtime->file_array_size);
 
     return;
 }
 
-static struct darshan_posix_runtime_file* posix_file_by_name(const char *name)
+static struct posix_runtime_file* posix_file_by_name(const char *name)
 {
-    struct darshan_posix_runtime_file *tmp_file = NULL;
+    struct posix_runtime_file *file = NULL;
     char *newname = NULL;
-    darshan_file_id tmp_id;
+    darshan_file_id file_id;
 
     if(!posix_runtime)
         return(NULL);
@@ -396,29 +434,88 @@ static struct darshan_posix_runtime_file* posix_file_by_name(const char *name)
         (void*)newname,
         strlen(newname),
         1,
-        &tmp_id);
+        &file_id);
 
     /* search the hash table for this file record, and return if found */
-    HASH_FIND(hlink, posix_runtime->file_hash, &tmp_id, sizeof(darshan_file_id), tmp_file);
-    if (tmp_file)
+    HASH_FIND(hlink, posix_runtime->file_hash, &file_id, sizeof(darshan_file_id), file);
+    if(file)
     {
-        if (newname != name)
+        if(newname != name)
             free(newname);
-        return(tmp_file);
+        return(file);
     }
 
     /* no existing record, assign a new file record from the global array */
-    tmp_file = &posix_runtime->file_array[posix_runtime->file_count];
-    tmp_file->file_record.f_id = tmp_id;
+    file = &posix_runtime->file_array[posix_runtime->file_count];
+    file->file_record.f_id = file_id;
 
     /* add new record to file hash table */
-    HASH_ADD(hlink, posix_runtime->file_hash, file_record.f_id, sizeof(darshan_file_id), tmp_file);
+    HASH_ADD(hlink, posix_runtime->file_hash, file_record.f_id, sizeof(darshan_file_id), file);
 
     posix_runtime->file_count++;
 
     if(newname != name)
         free(newname);
-    return(tmp_file);
+    return(file);
+}
+
+static struct posix_runtime_file* posix_file_by_name_setfd(const char* name, int fd)
+{
+    struct posix_runtime_file* file;
+    struct posix_runtime_file_ref* ref;
+
+    if(!posix_runtime)
+        return(NULL);
+
+    /* find file record by name first */
+    file = posix_file_by_name(name);
+
+    if(!file)
+        return(NULL);
+
+    /* search hash table for existing file ref for this fd */
+    HASH_FIND(hlink, posix_runtime->fd_hash, &fd, sizeof(int), ref);
+    if(ref)
+    {
+        /* we have a reference.  Make sure it points to the correct file
+         * and return it
+         */
+        ref->file = file;
+        return(file);
+    }
+
+    /* if we hit this point, then we don't have a reference for this fd
+     * in the table yet.  Add it.
+     */
+    ref = malloc(sizeof(*ref));
+    if(!ref)
+        return(NULL);
+    memset(ref, 0, sizeof(*ref));
+    ref->file = file;
+    ref->fd = fd;    
+
+    HASH_ADD(hlink, posix_runtime->fd_hash, fd, sizeof(int), ref);
+
+    return(file);
+}
+
+static void posix_file_close_fd(int fd)
+{
+    struct posix_runtime_file_ref *ref;
+
+    if(!posix_runtime)
+        return;
+
+    /* search hash table for this fd */
+    HASH_FIND(hlink, posix_runtime->fd_hash, &fd, sizeof(int), ref);
+    if (ref)
+    {
+        /* we have a reference, delete it */
+        HASH_DELETE(hlink, posix_runtime->fd_hash, ref);
+        free(ref);
+    }
+
+    return;
 }
 
 /* ***************************************************** */
