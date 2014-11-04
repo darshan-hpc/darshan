@@ -44,11 +44,4 @@ struct darshan_job
     char metadata[DARSHAN_JOB_METADATA_LEN];
 };
 
-/* This macro can be used to identify files that have been opened using
- * pnetcdf, hdf5, or mpi-io, but were never opened at the posix level.  As a
- * result the record will not necessarily have all of the expected fields
- * populated.
- */
-#define CP_FILE_PARTIAL(__file)((((__file)->counters[CP_POSIX_OPENS] || (__file)->counters[CP_POSIX_FOPENS] || (__file)->counters[CP_POSIX_STATS]) ? 0 : 1))
-
 #endif /* __DARSHAN_LOG_FORMAT_H */
