@@ -1,4 +1,4 @@
-all: lib/libdarshan-core.a
+all: lib/libdarshan.a
 #all: lib/libdarshan-posix.a lib/libdarshan-mpi-io.a lib/libdarshan-stubs.a
 
 DESTDIR =
@@ -35,6 +35,9 @@ lib::
 	@mkdir -p $@
 
 lib/darshan-core.o: lib/darshan-core.c darshan-core.h $(DARSHAN_LOG_FORMAT) | lib
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/darshan-common.o: lib/darshan-common.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
 	$(CC) $(CFLAGS) -c $< -o $@
 
 #lib/darshan-mpi-io.o: lib/darshan-mpi-io.c darshan.h darshan-dynamic.h $(DARSHAN_LOG_FORMAT) | lib
@@ -88,7 +91,7 @@ lib/lookup8.o: lib/lookup8.c
 #%.i: %.c
 #	$(CC) -E $(CFLAGS) -c $< -o $@
 
-lib/libdarshan-core.a: lib/darshan-core.o lib/lookup3.o lib/lookup8.o lib/darshan-posix.o
+lib/libdarshan.a: lib/darshan-posix.o lib/darshan-core.o lib/darshan-common.o lib/lookup3.o lib/lookup8.o
 	ar rcs $@ $^
 
 #lib/libdarshan-mpi-io.a: lib/darshan-mpi-io.o lib/darshan-mpi-init-finalize.o lib/darshan-pnetcdf.o lib/darshan-hdf5.o
@@ -105,7 +108,7 @@ lib/libdarshan-core.a: lib/darshan-core.o lib/lookup3.o lib/lookup8.o lib/darsha
 
 install:: all
 	install -d $(libdir)
-	install -m 755 lib/libdarshan-core.a $(libdir)
+	install -m 755 lib/libdarshan.a $(libdir)
 #	install -m 755 lib/libdarshan-posix.a $(libdir)
 #	install -m 755 lib/libdarshan-mpi-io.a $(libdir)
 #	install -m 755 lib/libdarshan-stubs.a $(libdir)

@@ -3,7 +3,10 @@
  *      See COPYRIGHT in top-level directory.
  */
 
+#define _GNU_SOURCE
+
 #include "darshan-runtime-config.h"
+
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -19,9 +22,7 @@
 #include <search.h>
 #include <assert.h>
 #include <libgen.h>
-#include <limits.h>
 #include <aio.h>
-#define __USE_GNU
 #include <pthread.h>
 
 #include "darshan.h"
@@ -188,7 +189,7 @@ struct posix_runtime
 
 static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-static int my_rank = -1; /* TODO */
+static int my_rank = -1;
 static int darshan_mem_alignment = 1;
 
 /* these are paths that we will not trace */
@@ -210,12 +211,10 @@ DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(close, int, (int fd));
 
 static void posix_runtime_initialize(void);
-static void posix_runtime_finalize(void);
 
 static struct posix_runtime_file* posix_file_by_name(const char *name);
 static struct posix_runtime_file* posix_file_by_name_setfd(const char* name, int fd);
 static void posix_file_close_fd(int fd);
-static char* darshan_clean_file_path(const char* path);
 
 static void posix_prepare_for_shutdown(void);
 static void posix_get_output_data(void **buffer, int size);
@@ -391,6 +390,8 @@ static void posix_runtime_initialize()
     memset(posix_runtime->file_array, 0, sizeof(struct posix_runtime_file) *
            posix_runtime->file_array_size);
 
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
+
 #if 0
     /* set the memory alignment according to config or environment variables */
     #if (__CP_MEM_ALIGNMENT < 1)
@@ -417,12 +418,6 @@ static void posix_runtime_initialize()
         darshan_mem_alignment = 1;
     }
 #endif
-
-    return;
-}
-
-static void posix_runtime_finalize()
-{
 
     return;
 }
@@ -519,7 +514,7 @@ static void posix_file_close_fd(int fd)
 
     /* search hash table for this fd */
     HASH_FIND(hlink, posix_runtime->fd_hash, &fd, sizeof(int), ref);
-    if (ref)
+    if(ref)
     {
         /* we have a reference, delete it */
         HASH_DELETE(hlink, posix_runtime->fd_hash, ref);
@@ -529,80 +524,18 @@ static void posix_file_close_fd(int fd)
     return;
 }
 
-/* Allocate a new string that contains a cleaned-up version of the path
- * passed in as an argument.  Converts relative paths to absolute paths and
- * filters out some potential noise in the path string.
- */
-static char* darshan_clean_file_path(const char* path)
-{
-    char* newpath = NULL;
-    char* cwd = NULL;
-    char* filter = NULL;
-
-    if(!path || strlen(path) < 1)
-        return(NULL);
-
-    if(path[0] == '/')
-    {
-        /* it is already an absolute path */
-        newpath = malloc(strlen(path)+1);
-        if(newpath)
-        {
-            strcpy(newpath, path);
-        }
-    }
-    else
-    {
-        /* handle relative path */
-        cwd = malloc(PATH_MAX);
-        if(cwd)
-        {
-            if(getcwd(cwd, PATH_MAX))
-            {
-                newpath = malloc(strlen(path) + strlen(cwd) + 2);
-                if(newpath)
-                {
-                    sprintf(newpath, "%s/%s", cwd, path);
-                }
-            }
-            free(cwd);
-        }
-    }
-
-    if(!newpath)
-        return(NULL);
-
-    /* filter out any double slashes */
-    while((filter = strstr(newpath, "//")))
-    {
-        /* shift down one character */
-        memmove(filter, &filter[1], (strlen(&filter[1]) + 1));
-    }
-
-    /* filter out any /./ instances */
-    while((filter = strstr(newpath, "/./")))
-    {
-        /* shift down two characters */
-        memmove(filter, &filter[2], (strlen(&filter[2]) + 1));
-    }
-
-    /* return result */
-    return(newpath);
-}
-
 /* ***************************************************** */
 
 static void posix_prepare_for_shutdown()
 {
+
+    
 
     return;
 }
 
 static void posix_get_output_data(void **buffer, int size)
 {
-
-    /* shutdown the posix runtime module */
-    posix_runtime_finalize();
 
     return;
 }

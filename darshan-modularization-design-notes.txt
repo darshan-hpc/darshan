@@ -120,3 +120,4 @@ TODO NOTES:
     - fs mount information -- should we export this info from darshan-core?
         - would the posix module be the only one to leverage this info?
         - it is used to correlate filenames with mount points, but not sure what is needed where
+    - test fortran and c apps to make sure command line args are handled properly (see email with Phil 11/4)

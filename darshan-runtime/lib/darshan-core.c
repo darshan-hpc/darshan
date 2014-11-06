@@ -3,7 +3,7 @@
  *      See COPYRIGHT in top-level directory.
  */
 
-#define _XOPEN_SOURCE 500
+#define _GNU_SOURCE
 
 #include "darshan-runtime-config.h"
 
@@ -25,15 +25,17 @@
 #include "darshan-core.h"
 #include "utlist.h"
 
-extern char* __progname_full;
-
-static void darshan_core_initialize(int *argc, char ***argv);
-static void darshan_core_shutdown(void);
-static void darshan_core_cleanup(struct darshan_core_job_runtime* job);
+/* TODO is __progname_full needed here */
+extern char* __progname;
 
 /* internal variables */
 static struct darshan_core_job_runtime *darshan_core_job = NULL;
 static pthread_mutex_t darshan_mutex = PTHREAD_MUTEX_INITIALIZER;
+static int my_rank = -1;
+
+static void darshan_core_initialize(int *argc, char ***argv);
+static void darshan_core_shutdown(void);
+static void darshan_core_cleanup(struct darshan_core_job_runtime* job);
 
 #define DARSHAN_LOCK() pthread_mutex_lock(&darshan_mutex)
 #define DARSHAN_UNLOCK() pthread_mutex_unlock(&darshan_mutex)
@@ -47,7 +49,7 @@ static pthread_mutex_t darshan_mutex = PTHREAD_MUTEX_INITIALIZER;
 #define DARSHAN_MOD_DELETE(__mod, __job) \
    LL_DELETE(__job->mod_list_head, __mod)
 
-/* intercept MPI initialize and finalize to initialize darshan */
+/* intercept MPI initialize and finalize to manage darshan core runtime */
 int MPI_Init(int *argc, char ***argv)
 {
     int ret;
@@ -94,7 +96,6 @@ static void darshan_core_initialize(int *argc, char ***argv)
 {
     int i;
     int nprocs;
-    int rank;
     int internal_timing_flag = 0;
     double init_start, init_time, init_max;
     char* truncate_string = "<TRUNCATED>";
@@ -102,7 +103,7 @@ static void darshan_core_initialize(int *argc, char ***argv)
     int chars_left = 0;
 
     DARSHAN_MPI_CALL(PMPI_Comm_size)(MPI_COMM_WORLD, &nprocs);
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
@@ -149,7 +150,7 @@ static void darshan_core_initialize(int *argc, char ***argv)
             if(argc == 0)
             {
                 chars_left = CP_EXE_LEN-strlen(darshan_core_job->exe);
-                strncat(darshan_core_job->exe, __progname_full, chars_left);
+                strncat(darshan_core_job->exe, __progname, chars_left);
                 chars_left = CP_EXE_LEN-strlen(darshan_core_job->exe);
                 strncat(darshan_core_job->exe, " <unknown args>", chars_left);
             }
@@ -169,7 +170,7 @@ static void darshan_core_initialize(int *argc, char ***argv)
         init_time = DARSHAN_MPI_CALL(PMPI_Wtime)() - init_start;
         DARSHAN_MPI_CALL(PMPI_Reduce)(&init_time, &init_max, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        if(rank == 0)
+        if(my_rank == 0)
         {
             printf("#darshan:<op>\t<nprocs>\t<time>\n");
             printf("darshan:init\t%d\t%f\n", nprocs, init_max);
@@ -181,7 +182,6 @@ static void darshan_core_initialize(int *argc, char ***argv)
 
 static void darshan_core_shutdown()
 {
-    int rank;
     char *logfile_name;
     struct darshan_core_job_runtime* final_job;
     struct darshan_core_module *mod, *tmp;
@@ -191,6 +191,8 @@ static void darshan_core_shutdown()
     char* envjobid;
     char* logpath;
     int ret;
+    int local_ret = 0;
+    int all_ret = 0;
     uint64_t hlevel;
     char hname[HOST_NAME_MAX];
     uint64_t logmod;
@@ -199,6 +201,8 @@ static void darshan_core_shutdown()
     char env_check[256];
     char* env_tok;
 #endif
+    int64_t first_start_time;
+    int64_t last_end_time;
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
@@ -223,10 +227,8 @@ static void darshan_core_shutdown()
         return;
     }
 
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &rank);
-
     /* construct log file name */
-    if(rank == 0)
+    if(my_rank == 0)
     {
         char cuser[L_cuserid] = {0};
         struct tm* my_tm;
@@ -391,9 +393,22 @@ static void darshan_core_shutdown()
 
     final_job->log_job.end_time = time(NULL);
 
+    /* reduce to report first start time and last end time across all ranks
+     * at rank 0
+     */
+    DARSHAN_MPI_CALL(PMPI_Reduce)(&final_job->log_job.start_time, &first_start_time, 1, MPI_LONG_LONG, MPI_MIN, 0, MPI_COMM_WORLD);
+    DARSHAN_MPI_CALL(PMPI_Reduce)(&final_job->log_job.end_time, &last_end_time, 1, MPI_LONG_LONG, MPI_MAX, 0, MPI_COMM_WORLD);
+    if(my_rank == 0)
+    {
+        final_job->log_job.start_time = first_start_time;
+        final_job->log_job.end_time = last_end_time;
+    }
+
     /* TODO: coordinate shutdown accross all registered modules */
+    DARSHAN_MOD_ITER(mod, tmp, final_job)
+    {
 
-
+    }
 
     free(logfile_name);
     darshan_core_cleanup(final_job);
@@ -414,7 +429,7 @@ static void darshan_core_cleanup(struct darshan_core_job_runtime* job)
     {
         DARSHAN_MOD_DELETE(mod, job);
         free(mod);
-    };
+    }
 
     free(job);
 
@@ -503,6 +518,7 @@ void darshan_core_lookup_id(
 
 double darshan_core_wtime()
 {
+    /* TODO since NOTIMING is the only flag (currently), maybe we just drop 'flags' */
     if(!darshan_core_job || darshan_core_job->flags & CP_FLAG_NOTIMING)
     {
         return(0);

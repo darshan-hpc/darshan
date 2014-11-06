@@ -36,6 +36,10 @@ struct darshan_module_funcs
     void (*get_output_data)(void **, int);
 };
 
+/*********************************************
+* darshan-core functions for darshan modules *
+*********************************************/
+
 void darshan_core_register_module(
     char *name,
     struct darshan_module_funcs *funcs,
@@ -48,5 +52,11 @@ void darshan_core_lookup_id(
     darshan_file_id *id);
 
 double darshan_core_wtime(void);
+
+/***********************************************
+* darshan-common functions for darshan modules *
+***********************************************/
+
+char* darshan_clean_file_path(const char* path);
 
 #endif /* __DARSHAN_H */
