@@ -19,11 +19,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
-
 #include <mpi.h>
 
 #include "darshan-core.h"
-#include "utlist.h"
 
 /* TODO is __progname_full needed here */
 extern char* __progname;
@@ -36,18 +34,10 @@ static int my_rank = -1;
 static void darshan_core_initialize(int *argc, char ***argv);
 static void darshan_core_shutdown(void);
 static void darshan_core_cleanup(struct darshan_core_job_runtime* job);
+static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* start_tm);
 
 #define DARSHAN_LOCK() pthread_mutex_lock(&darshan_mutex)
 #define DARSHAN_UNLOCK() pthread_mutex_unlock(&darshan_mutex)
-
-#define DARSHAN_MOD_REGISTER(__mod, __job) \
-    LL_PREPEND(__job->mod_list_head, __mod)
-#define DARSHAN_MOD_SEARCH(__mod, __tmp, __job) \
-    LL_SEARCH(__job->mod_list_head, __mod, __tmp, mod_cmp)
-#define DARSHAN_MOD_ITER(__mod, __tmp, __job) \
-    LL_FOREACH_SAFE(__job->mod_list_head, __mod, __tmp)
-#define DARSHAN_MOD_DELETE(__mod, __job) \
-   LL_DELETE(__job->mod_list_head, __mod)
 
 /* intercept MPI initialize and finalize to manage darshan core runtime */
 int MPI_Init(int *argc, char ***argv)
@@ -186,23 +176,17 @@ static void darshan_core_shutdown()
     struct darshan_core_job_runtime* final_job;
     struct darshan_core_module *mod, *tmp;
     int internal_timing_flag = 0;
-    int jobid;
-    char* jobid_str;
     char* envjobid;
-    char* logpath;
+    char* jobid_str;
+    int jobid;
+    struct tm* start_tm;
+    time_t start_time_tmp;
     int ret;
-    int local_ret = 0;
-    int all_ret = 0;
-    uint64_t hlevel;
-    char hname[HOST_NAME_MAX];
-    uint64_t logmod;
-    char* logpath_override = NULL;
-#ifdef __CP_LOG_ENV
-    char env_check[256];
-    char* env_tok;
-#endif
     int64_t first_start_time;
     int64_t last_end_time;
+    int local_mod_use[DARSHAN_MAX_MODS] = {0};
+    int global_mod_use_count[DARSHAN_MAX_MODS] = {0};
+    int i;
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
@@ -227,30 +211,16 @@ static void darshan_core_shutdown()
         return;
     }
 
-    /* construct log file name */
+    /* set jobid and logfile name on rank 0 */
     if(my_rank == 0)
     {
-        char cuser[L_cuserid] = {0};
-        struct tm* my_tm;
-        time_t start_time_tmp;
-
         /* Use CP_JOBID_OVERRIDE for the env var or CP_JOBID */
         envjobid = getenv(CP_JOBID_OVERRIDE);
-        if (!envjobid)
+        if(!envjobid)
         {
             envjobid = CP_JOBID;
         }
 
-        /* Use CP_LOG_PATH_OVERRIDE for the value or __CP_LOG_PATH */
-        logpath = getenv(CP_LOG_PATH_OVERRIDE);
-        if (!logpath)
-        {
-#ifdef __CP_LOG_PATH
-            logpath = __CP_LOG_PATH;
-#endif
-        }
-
-        /* find a job id */
         jobid_str = getenv(envjobid);
         if(jobid_str)
         {
@@ -263,121 +233,15 @@ static void darshan_core_shutdown()
             jobid = getpid();
         }
 
-        /* break out time into something human readable */
-        start_time_tmp = final_job->log_job.start_time;
-        my_tm = localtime(&start_time_tmp);
-
-        /* get the username for this job.  In order we will try each of the
-         * following until one of them succeeds:
-         *
-         * - cuserid()
-         * - getenv("LOGNAME")
-         * - snprintf(..., geteuid());
-         *
-         * Note that we do not use getpwuid() because it generally will not
-         * work in statically compiled binaries.
-         */
-
-#ifndef DARSHAN_DISABLE_CUSERID
-        cuserid(cuser);
-#endif
-
-        /* if cuserid() didn't work, then check the environment */
-        if (strcmp(cuser, "") == 0)
-        {
-            char* logname_string;
-            logname_string = getenv("LOGNAME");
-            if(logname_string)
-            {
-                strncpy(cuser, logname_string, (L_cuserid-1));
-            }
-
-        }
-
-        /* if cuserid() and environment both fail, then fall back to uid */
-        if (strcmp(cuser, "") == 0)
-        {
-            uid_t uid = geteuid();
-            snprintf(cuser, sizeof(cuser), "%u", uid);
-        }
-
-        /* generate a random number to help differentiate the log */
-        hlevel=DARSHAN_MPI_CALL(PMPI_Wtime)() * 1000000;
-        (void) gethostname(hname, sizeof(hname));
-        logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
-
-        /* see if darshan was configured using the --with-logpath-by-env
-         * argument, which allows the user to specify an absolute path to
-         * place logs via an env variable.
-         */
-#ifdef __CP_LOG_ENV
-        /* just silently skip if the environment variable list is too big */
-        if(strlen(__CP_LOG_ENV) < 256)
-        {
-            /* copy env variable list to a temporary buffer */
-            strcpy(env_check, __CP_LOG_ENV);
-            /* tokenize the comma-separated list */
-            env_tok = strtok(env_check, ",");
-            if(env_tok)
-            {
-                do
-                {
-                    /* check each env variable in order */
-                    logpath_override = getenv(env_tok);
-                    if(logpath_override)
-                    {
-                        /* stop as soon as we find a match */
-                        break;
-                    }
-                }while((env_tok = strtok(NULL, ",")));
-            }
-        }
-#endif
-
-        if(logpath_override)
-        {
-            ret = snprintf(logfile_name, PATH_MAX,
-                "%s/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
-                logpath_override,
-                cuser, __progname, jobid,
-                (my_tm->tm_mon+1),
-                my_tm->tm_mday,
-                (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
-                logmod);
-            if(ret == (PATH_MAX-1))
-            {
-                /* file name was too big; squish it down */
-                snprintf(logfile_name, PATH_MAX,
-                    "%s/id%d.darshan_partial",
-                    logpath_override, jobid);
-            }
-        }
-        else if(logpath)
-        {
-            ret = snprintf(logfile_name, PATH_MAX,
-                "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
-                logpath, (my_tm->tm_year+1900),
-                (my_tm->tm_mon+1), my_tm->tm_mday,
-                cuser, __progname, jobid,
-                (my_tm->tm_mon+1),
-                my_tm->tm_mday,
-                (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
-                logmod);
-            if(ret == (PATH_MAX-1))
-            {
-                /* file name was too big; squish it down */
-                snprintf(logfile_name, PATH_MAX,
-                    "%s/id%d.darshan_partial",
-                    logpath, jobid);
-            }
-        }
-        else
-        {
-            logfile_name[0] = '\0';
-        }
-
-        /* add jobid */
+        /* add to darshan core job */
         final_job->log_job.jobid = (int64_t)jobid;
+
+        /* use human readable start time format in log filename */
+        start_time_tmp = final_job->log_job.start_time;
+        start_tm = localtime(&start_time_tmp);
+
+        /* construct log file name */
+        darshan_get_logfile_name(logfile_name, jobid, start_tm);
     }
 
     /* broadcast log file name */
@@ -404,8 +268,17 @@ static void darshan_core_shutdown()
         final_job->log_job.end_time = last_end_time;
     }
 
-    /* TODO: coordinate shutdown accross all registered modules */
-    DARSHAN_MOD_ITER(mod, tmp, final_job)
+    /* set which local modules were actually used */
+    for(i = 0; i < DARSHAN_MAX_MODS; i++)
+    {
+        if(final_job->mod_array[i])
+            local_mod_use[i] = 1;
+    }
+
+    /* reduce the number of times a module was opened globally and bcast to everyone */   
+    DARSHAN_MPI_CALL(PMPI_Allreduce)(local_mod_use, global_mod_use_count, DARSHAN_MAX_MODS, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+    for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
 
     }
@@ -413,7 +286,7 @@ static void darshan_core_shutdown()
     free(logfile_name);
     darshan_core_cleanup(final_job);
 
-    if (internal_timing_flag)
+    if(internal_timing_flag)
     {
         /* TODO: what do we want to time in new darshan version? */
     }
@@ -423,12 +296,11 @@ static void darshan_core_shutdown()
 
 static void darshan_core_cleanup(struct darshan_core_job_runtime* job)
 {
-    struct darshan_core_module *mod, *tmp;
+    int i;
 
-    DARSHAN_MOD_ITER(mod, tmp, job)
+    for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
-        DARSHAN_MOD_DELETE(mod, job);
-        free(mod);
+
     }
 
     free(job);
@@ -436,44 +308,170 @@ static void darshan_core_cleanup(struct darshan_core_job_runtime* job)
     return;
 }
 
-static int mod_cmp(struct darshan_core_module* a, struct darshan_core_module* b)
+static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* start_tm)
 {
-    return strcmp(a->name, b->name);
+    char* logpath;
+    char* logname_string;
+    char* logpath_override = NULL;
+#ifdef __CP_LOG_ENV
+    char env_check[256];
+    char* env_tok;
+#endif
+    uint64_t hlevel;
+    char hname[HOST_NAME_MAX];
+    uint64_t logmod;
+    char cuser[L_cuserid] = {0};
+    int ret;
+
+    /* Use CP_LOG_PATH_OVERRIDE for the value or __CP_LOG_PATH */
+    logpath = getenv(CP_LOG_PATH_OVERRIDE);
+    if(!logpath)
+    {
+#ifdef __CP_LOG_PATH
+        logpath = __CP_LOG_PATH;
+#endif
+    }
+
+    /* get the username for this job.  In order we will try each of the
+     * following until one of them succeeds:
+     *
+     * - cuserid()
+     * - getenv("LOGNAME")
+     * - snprintf(..., geteuid());
+     *
+     * Note that we do not use getpwuid() because it generally will not
+     * work in statically compiled binaries.
+     */
+
+#ifndef DARSHAN_DISABLE_CUSERID
+    cuserid(cuser);
+#endif
+
+    /* if cuserid() didn't work, then check the environment */
+    if(strcmp(cuser, "") == 0)
+    {
+        logname_string = getenv("LOGNAME");
+        if(logname_string)
+        {
+            strncpy(cuser, logname_string, (L_cuserid-1));
+        }
+
+    }
+
+    /* if cuserid() and environment both fail, then fall back to uid */
+    if(strcmp(cuser, "") == 0)
+    {
+        uid_t uid = geteuid();
+        snprintf(cuser, sizeof(cuser), "%u", uid);
+    }
+
+    /* generate a random number to help differentiate the log */
+    hlevel=DARSHAN_MPI_CALL(PMPI_Wtime)() * 1000000;
+    (void)gethostname(hname, sizeof(hname));
+    logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
+
+    /* see if darshan was configured using the --with-logpath-by-env
+     * argument, which allows the user to specify an absolute path to
+     * place logs via an env variable.
+     */
+#ifdef __CP_LOG_ENV
+    /* just silently skip if the environment variable list is too big */
+    if(strlen(__CP_LOG_ENV) < 256)
+    {
+        /* copy env variable list to a temporary buffer */
+        strcpy(env_check, __CP_LOG_ENV);
+        /* tokenize the comma-separated list */
+        env_tok = strtok(env_check, ",");
+        if(env_tok)
+        {
+            do
+            {
+                /* check each env variable in order */
+                logpath_override = getenv(env_tok);
+                if(logpath_override)
+                {
+                    /* stop as soon as we find a match */
+                    break;
+                }
+            }while((env_tok = strtok(NULL, ",")));
+        }
+    }
+#endif
+
+    if(logpath_override)
+    {
+        ret = snprintf(logfile_name, PATH_MAX,
+            "%s/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+            logpath_override,
+            cuser, __progname, jobid,
+            (start_tm->tm_mon+1),
+            start_tm->tm_mday,
+            (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
+            logmod);
+        if(ret == (PATH_MAX-1))
+        {
+            /* file name was too big; squish it down */
+            snprintf(logfile_name, PATH_MAX,
+                "%s/id%d.darshan_partial",
+                logpath_override, jobid);
+        }
+    }
+    else if(logpath)
+    {
+        ret = snprintf(logfile_name, PATH_MAX,
+            "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+            logpath, (start_tm->tm_year+1900),
+            (start_tm->tm_mon+1), start_tm->tm_mday,
+            cuser, __progname, jobid,
+            (start_tm->tm_mon+1),
+            start_tm->tm_mday,
+            (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
+            logmod);
+        if(ret == (PATH_MAX-1))
+        {
+            /* file name was too big; squish it down */
+            snprintf(logfile_name, PATH_MAX,
+                "%s/id%d.darshan_partial",
+                logpath, jobid);
+        }
+    }
+    else
+    {
+        logfile_name[0] = '\0';
+    }
+
+    return;
 }
 
 /* ********************************************************* */
 
 void darshan_core_register_module(
+    darshan_module_id id,
     char *name,
     struct darshan_module_funcs *funcs,
     int *runtime_mem_limit)
 {
-    struct darshan_core_module tmp;
     struct darshan_core_module* mod;
 
     DARSHAN_LOCK();
 
     *runtime_mem_limit = 0;
-    if(!darshan_core_job)
+    if(!darshan_core_job || (id >= DARSHAN_MAX_MODS))
     {
         DARSHAN_UNLOCK();
         return;
     }
 
     /* see if this module is already registered */
-    strncpy(tmp.name, name, DARSHAN_MOD_NAME_LEN);
-    DARSHAN_MOD_SEARCH(mod, &tmp, darshan_core_job);
-    if(mod)
+    if(darshan_core_job->mod_array[id])
     {
-        /* if module is already registered, update module_funcs and return */
+        /* if module is already registered just return */
         /* NOTE: we do not recalculate memory limit here, just set to 0 */
-        mod->mod_funcs = *funcs;
-
         DARSHAN_UNLOCK();
         return;
     }
 
-    /* this module has not been registered yet, allocate and register it */
+    /* this module has not been registered yet, allocate and initialize it */
     mod = malloc(sizeof(*mod));
     if(!mod)
     {
@@ -482,9 +480,12 @@ void darshan_core_register_module(
     }
     memset(mod, 0, sizeof(*mod));
 
+    mod->id = id;
     strncpy(mod->name, name, DARSHAN_MOD_NAME_LEN);
     mod->mod_funcs = *funcs;
-    DARSHAN_MOD_REGISTER(mod, darshan_core_job);
+
+    /* register module with darshan */
+    darshan_core_job->mod_array[id] = mod;
 
     /* TODO: something smarter than just 2 MiB per module */
     *runtime_mem_limit = 2 * 1024 * 1024;

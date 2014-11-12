@@ -25,8 +25,24 @@
 /* Environment variable to override __CP_MEM_ALIGNMENT */
 #define CP_MEM_ALIGNMENT_OVERRIDE "DARSHAN_MEMALIGN"
 
-/* TODO these go where ? */
+/* TODO where do each of the following macros make most sense ? */
 #define DARSHAN_MPI_CALL(func) func
+
+/* max length of module name string (not counting \0) */
+#define DARSHAN_MOD_NAME_LEN 31
+
+/* unique identifiers to distinguish between available darshan modules */
+/* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
+ *        - order of ids control module shutdown order (first module shuts down first)
+ */
+#define DARSHAN_MAX_MODS 16
+typedef enum
+{
+    DARSHAN_POSIX_MOD,
+    DARSHAN_MPIIO_MOD,
+    DARSHAN_HDF5_MOD,
+    DARSHAN_PNETCDF_MOD,
+} darshan_module_id;
 
 typedef uint64_t darshan_file_id;
 
@@ -41,6 +57,7 @@ struct darshan_module_funcs
 *********************************************/
 
 void darshan_core_register_module(
+    darshan_module_id id,
     char *name,
     struct darshan_module_funcs *funcs,
     int *runtime_mem_limit);

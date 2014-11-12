@@ -22,22 +22,21 @@
 #define DARSHAN_MOD_NAME_LEN 31
 
 /* flags to indicate properties of file records */
-#define CP_FLAG_CONDENSED 1<<0
 #define CP_FLAG_NOTIMING 1<<1
 
 struct darshan_core_module
 {
+    darshan_module_id id;
     char name[DARSHAN_MOD_NAME_LEN+1];
     struct darshan_module_funcs mod_funcs;
-    struct darshan_core_module *next;
 };
 
 /* in memory structure to keep up with job level data */
 struct darshan_core_job_runtime
 {
     struct darshan_job log_job;
+    struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
     char exe[CP_EXE_LEN+1];
-    struct darshan_core_module *mod_list_head;
     char comp_buf[CP_COMP_BUF_SIZE];
     int flags;
     double wtime_offset;

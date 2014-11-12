@@ -362,6 +362,7 @@ static void posix_runtime_initialize()
 
     /* register the posix module with darshan core */
     darshan_core_register_module(
+        DARSHAN_POSIX_MOD,
         POSIX_MOD_NAME,
         &posix_mod_fns,
         &mem_limit);
