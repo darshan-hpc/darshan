@@ -48,8 +48,12 @@ typedef uint64_t darshan_file_id;
 
 struct darshan_module_funcs
 {
-    void (*prepare_for_shutdown)(void);
-    void (*get_output_data)(void **, int);
+    void (*get_output_data)(
+        MPI_Comm mod_comm, /* communicator to use for module shutdown */
+        void** buf, /* output parameter to save module buffer address */
+        int* size /* output parameter to save module buffer size */
+    );
+    void (*shutdown)(void);
 };
 
 /*********************************************

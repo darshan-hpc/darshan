@@ -167,7 +167,7 @@ struct darshan_posix_file
 
 struct posix_runtime_file
 {
-    struct darshan_posix_file file_record;
+    struct darshan_posix_file* file_record;
     UT_hash_handle hlink;
 };
 
@@ -180,9 +180,10 @@ struct posix_runtime_file_ref
 
 struct posix_runtime
 {
-    struct posix_runtime_file* file_array;
+    struct posix_runtime_file* file_runtime_array;
+    struct darshan_posix_file* file_record_array;
     int file_array_size;
-    int file_count;
+    int file_array_ndx;
     struct posix_runtime_file* file_hash;
     struct posix_runtime_file_ref* fd_hash;
 };
@@ -216,26 +217,26 @@ static struct posix_runtime_file* posix_file_by_name(const char *name);
 static struct posix_runtime_file* posix_file_by_name_setfd(const char* name, int fd);
 static void posix_file_close_fd(int fd);
 
-static void posix_prepare_for_shutdown(void);
-static void posix_get_output_data(void **buffer, int size);
+static void posix_get_output_data(MPI_Comm comm, void **buffer, int *size);
+static void posix_shutdown(void);
 
 #define POSIX_LOCK() pthread_mutex_lock(&posix_runtime_mutex)
 #define POSIX_UNLOCK() pthread_mutex_unlock(&posix_runtime_mutex)
 
 #define POSIX_SET(__file, __counter, __value) do {\
-    (__file)->file_record.counters[__counter] = __value; \
+    (__file)->file_record->counters[__counter] = __value; \
 } while(0)
 
 #define POSIX_F_SET(__file, __counter, __value) do {\
-    (__file)->file_record.fcounters[__counter] = __value; \
+    (__file)->file_record->fcounters[__counter] = __value; \
 } while(0)
 
 #define POSIX_INC(__file, __counter, __value) do {\
-    (__file)->file_record.counters[__counter] += __value; \
+    (__file)->file_record->counters[__counter] += __value; \
 } while(0)
 
 #define POSIX_F_INC(__file, __counter, __value) do {\
-    (__file)->file_record.fcounters[__counter] += __value; \
+    (__file)->file_record->fcounters[__counter] += __value; \
 } while(0)
 
 #define POSIX_F_INC_NO_OVERLAP(__file, __tm1, __tm2, __last, __counter) do { \
@@ -248,15 +249,15 @@ static void posix_get_output_data(void **buffer, int size);
 } while(0)
 
 #define POSIX_VALUE(__file, __counter) \
-    ((__file)->file_record.counters[__counter])
+    ((__file)->file_record->counters[__counter])
 
 #define POSIX_F_VALUE(__file, __counter) \
-    ((__file)->file_record.fcounters[__counter])
+    ((__file)->file_record->fcounters[__counter])
 
 #define POSIX_MAX(__file, __counter, __value) do {\
-    if((__file)->file_record.counters[__counter] < __value) \
+    if((__file)->file_record->counters[__counter] < __value) \
     { \
-        (__file)->file_record.counters[__counter] = __value; \
+        (__file)->file_record->counters[__counter] = __value; \
     } \
 } while(0)
 
@@ -273,7 +274,7 @@ static void posix_get_output_data(void **buffer, int size);
     if(exclude) break; \
     file = posix_file_by_name_setfd(__path, __ret); \
     if(!file) break; \
-    file->file_record.rank = my_rank; \
+    file->file_record->rank = my_rank; \
     if(__mode) \
         POSIX_SET(file, CP_MODE, __mode); \
     if(__stream_flag)\
@@ -353,8 +354,8 @@ static void posix_runtime_initialize()
     int mem_limit;
     struct darshan_module_funcs posix_mod_fns =
     {
-        .prepare_for_shutdown = &posix_prepare_for_shutdown,
         .get_output_data = &posix_get_output_data,
+        .shutdown = &posix_shutdown
     };
 
     if(posix_runtime)
@@ -379,17 +380,22 @@ static void posix_runtime_initialize()
     /* set maximum number of file records according to max memory limit */
     /* NOTE: maximum number of records is based on the size of a posix file record */
     posix_runtime->file_array_size = mem_limit / sizeof(struct darshan_posix_file);
+    posix_runtime->file_array_ndx = 0;
 
     /* allocate array of runtime file records */
-    posix_runtime->file_array = malloc(sizeof(struct posix_runtime_file) *
-                                       posix_runtime->file_array_size);
-    if(!posix_runtime->file_array)
+    posix_runtime->file_runtime_array = malloc(posix_runtime->file_array_size *
+                                               sizeof(struct posix_runtime_file));
+    posix_runtime->file_record_array = malloc(posix_runtime->file_array_size *
+                                              sizeof(struct darshan_posix_file));
+    if(!posix_runtime->file_runtime_array || !posix_runtime->file_record_array)
     {
         posix_runtime->file_array_size = 0;
         return;
     }
-    memset(posix_runtime->file_array, 0, sizeof(struct posix_runtime_file) *
-           posix_runtime->file_array_size);
+    memset(posix_runtime->file_runtime_array, 0, posix_runtime->file_array_size *
+           sizeof(struct posix_runtime_file));
+    memset(posix_runtime->file_record_array, 0, posix_runtime->file_array_size *
+           sizeof(struct darshan_posix_file));
 
     DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
 
@@ -452,14 +458,18 @@ static struct posix_runtime_file* posix_file_by_name(const char *name)
         return(file);
     }
 
-    /* no existing record, assign a new file record from the global array */
-    file = &posix_runtime->file_array[posix_runtime->file_count];
-    file->file_record.f_id = file_id;
+    if(posix_runtime->file_array_ndx < posix_runtime->file_array_size);
+    {
+        /* no existing record, assign a new file record from the global array */
+        file = &(posix_runtime->file_runtime_array[posix_runtime->file_array_ndx]);
+        file->file_record = &(posix_runtime->file_record_array[posix_runtime->file_array_ndx]);
+        file->file_record->f_id = file_id;
 
-    /* add new record to file hash table */
-    HASH_ADD(hlink, posix_runtime->file_hash, file_record.f_id, sizeof(darshan_file_id), file);
+        /* add new record to file hash table */
+        HASH_ADD(hlink, posix_runtime->file_hash, file_record->f_id, sizeof(darshan_file_id), file);
 
-    posix_runtime->file_count++;
+        posix_runtime->file_array_ndx++;
+    }
 
     if(newname != name)
         free(newname);
@@ -527,16 +537,36 @@ static void posix_file_close_fd(int fd)
 
 /* ***************************************************** */
 
-static void posix_prepare_for_shutdown()
+static void posix_get_output_data(MPI_Comm comm, void **buffer, int *size)
 {
-
+    int comm_cmp;
     
+    MPI_Comm_compare(MPI_COMM_WORLD, comm, &comm_cmp);
+
+    /* only do shared file reductions if this communicator includes _everyone_ */
+    if((comm_cmp == MPI_IDENT) || (comm_cmp == MPI_CONGRUENT))
+    {
+        /* don't reduce shared files if that feature is disabled, either */
+        if(!getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
+        {
+            /* TODO reduction code */
+        }
+    }
+
+    *buffer = (void *)(posix_runtime->file_record_array);
+    *size = posix_runtime->file_array_ndx * sizeof(struct darshan_posix_file);
 
     return;
 }
 
-static void posix_get_output_data(void **buffer, int size)
+static void posix_shutdown()
 {
+    /* TODO destroy hash tables ?? */
+
+    free(posix_runtime->file_runtime_array);
+    free(posix_runtime->file_record_array);
+    free(posix_runtime);
+    posix_runtime = NULL;
 
     return;
 }
