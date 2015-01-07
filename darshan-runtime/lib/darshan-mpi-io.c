@@ -278,6 +278,7 @@ void darshan_shutdown(int timing_flag)
     int all_ret = 0;
     int local_ret = 0;
     MPI_Offset next_offset = 0;
+    char* user_logfile_name;
     char* jobid_str;
     char* envjobid;
     char* logpath;
@@ -366,23 +367,11 @@ void darshan_shutdown(int timing_flag)
     /* construct log file name */
     if(rank == 0)
     {
-        char cuser[L_cuserid] = {0};
-        struct tm* my_tm;
-
         /* Use CP_JOBID_OVERRIDE for the env var or CP_JOBID */
         envjobid = getenv(CP_JOBID_OVERRIDE);
         if (!envjobid)
         {
             envjobid = CP_JOBID;
-        }
-
-        /* Use CP_LOG_PATH_OVERRIDE for the value or __CP_LOG_PATH */
-        logpath = getenv(CP_LOG_PATH_OVERRIDE);
-        if (!logpath)
-        {
-#ifdef __CP_LOG_PATH
-            logpath = __CP_LOG_PATH;
-#endif
         }
 
         /* find a job id */
@@ -398,122 +387,150 @@ void darshan_shutdown(int timing_flag)
             jobid = getpid();
         }
 
-        /* break out time into something human readable */
-        start_time_tmp += final_job->log_job.start_time;
-        my_tm = localtime(&start_time_tmp);
+        /* add jobid to darshan runtime info */
+        final_job->log_job.jobid = (int64_t)jobid;
 
-        /* get the username for this job.  In order we will try each of the
-         * following until one of them succeeds:
-         *
-         * - cuserid()
-         * - getenv("LOGNAME")
-         * - snprintf(..., geteuid());
-         *
-         * Note that we do not use getpwuid() because it generally will not
-         * work in statically compiled binaries.
-         */
-
-#ifndef DARSHAN_DISABLE_CUSERID
-        cuserid(cuser);
-#endif
-
-        /* if cuserid() didn't work, then check the environment */
-        if (strcmp(cuser, "") == 0)
+        /* if user specifies a logfile name (and path), use that. otherwise automatically generate */
+        user_logfile_name = getenv("DARSHAN_LOGFILE");
+        if(user_logfile_name)
         {
-            char* logname_string;
-            logname_string = getenv("LOGNAME");
-            if(logname_string)
+            if(strlen(user_logfile_name) >= PATH_MAX)
             {
-                strncpy(cuser, logname_string, (L_cuserid-1));
+                logfile_name[0] = '\0';
+                fprintf(stderr, "darshan library warning: user given log file path too long\n");
             }
-
-        }
-
-        /* if cuserid() and environment both fail, then fall back to uid */
-        if (strcmp(cuser, "") == 0)
-        {
-            uid_t uid = geteuid();
-            snprintf(cuser, sizeof(cuser), "%u", uid);
-        }
-
-        /* generate a random number to help differentiate the log */
-        hlevel=DARSHAN_MPI_CALL(PMPI_Wtime)() * 1000000;
-        (void) gethostname(hname, sizeof(hname));
-        logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
-
-        /* see if darshan was configured using the --with-logpath-by-env
-         * argument, which allows the user to specify an absolute path to
-         * place logs via an env variable.
-         */
-#ifdef __CP_LOG_ENV
-        /* just silently skip if the environment variable list is too big */
-        if(strlen(__CP_LOG_ENV) < 256)
-        {
-            /* copy env variable list to a temporary buffer */
-            strcpy(env_check, __CP_LOG_ENV);
-            /* tokenize the comma-separated list */
-            env_tok = strtok(env_check, ",");
-            if(env_tok)
+            else
             {
-                do
-                {
-                    /* check each env variable in order */
-                    logpath_override = getenv(env_tok); 
-                    if(logpath_override)
-                    {
-                        /* stop as soon as we find a match */
-                        break;
-                    }
-                }while((env_tok = strtok(NULL, ",")));
-            }
-        }
-#endif
-
-       
-        if(logpath_override)
-        {
-            ret = snprintf(logfile_name, PATH_MAX, 
-                "%s/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
-                logpath_override, 
-                cuser, __progname, jobid,
-                (my_tm->tm_mon+1), 
-                my_tm->tm_mday, 
-                (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
-                logmod);
-            if(ret == (PATH_MAX-1))
-            {
-                /* file name was too big; squish it down */
-                snprintf(logfile_name, PATH_MAX,
-                    "%s/id%d.darshan_partial",
-                    logpath_override, jobid);
-            }
-        }
-        else if(logpath)
-        {
-            ret = snprintf(logfile_name, PATH_MAX, 
-                "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
-                logpath, (my_tm->tm_year+1900), 
-                (my_tm->tm_mon+1), my_tm->tm_mday, 
-                cuser, __progname, jobid,
-                (my_tm->tm_mon+1), 
-                my_tm->tm_mday, 
-                (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
-                logmod);
-            if(ret == (PATH_MAX-1))
-            {
-                /* file name was too big; squish it down */
-                snprintf(logfile_name, PATH_MAX,
-                    "%s/id%d.darshan_partial",
-                    logpath, jobid);
+                strncpy(logfile_name, user_logfile_name, PATH_MAX);
             }
         }
         else
         {
-            logfile_name[0] = '\0';
-        }
+            char cuser[L_cuserid] = {0};
+            struct tm* my_tm;
 
-        /* add jobid */
-        final_job->log_job.jobid = (int64_t)jobid;
+            /* Use CP_LOG_PATH_OVERRIDE for the value or __CP_LOG_PATH */
+            logpath = getenv(CP_LOG_PATH_OVERRIDE);
+            if (!logpath)
+            {
+#ifdef __CP_LOG_PATH
+                logpath = __CP_LOG_PATH;
+#endif
+            }
+
+            /* break out time into something human readable */
+            start_time_tmp += final_job->log_job.start_time;
+            my_tm = localtime(&start_time_tmp);
+
+            /* get the username for this job.  In order we will try each of the
+             * following until one of them succeeds:
+             *
+             * - cuserid()
+             * - getenv("LOGNAME")
+             * - snprintf(..., geteuid());
+             *
+             * Note that we do not use getpwuid() because it generally will not
+             * work in statically compiled binaries.
+             */
+
+#ifndef DARSHAN_DISABLE_CUSERID
+            cuserid(cuser);
+#endif
+
+            /* if cuserid() didn't work, then check the environment */
+            if (strcmp(cuser, "") == 0)
+            {
+                char* logname_string;
+                logname_string = getenv("LOGNAME");
+                if(logname_string)
+                {
+                    strncpy(cuser, logname_string, (L_cuserid-1));
+                }
+
+            }
+
+            /* if cuserid() and environment both fail, then fall back to uid */
+            if (strcmp(cuser, "") == 0)
+            {
+                uid_t uid = geteuid();
+                snprintf(cuser, sizeof(cuser), "%u", uid);
+            }
+
+            /* generate a random number to help differentiate the log */
+            hlevel=DARSHAN_MPI_CALL(PMPI_Wtime)() * 1000000;
+            (void) gethostname(hname, sizeof(hname));
+            logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
+
+            /* see if darshan was configured using the --with-logpath-by-env
+             * argument, which allows the user to specify an absolute path to
+             * place logs via an env variable.
+             */
+#ifdef __CP_LOG_ENV
+            /* just silently skip if the environment variable list is too big */
+            if(strlen(__CP_LOG_ENV) < 256)
+            {
+                /* copy env variable list to a temporary buffer */
+                strcpy(env_check, __CP_LOG_ENV);
+                /* tokenize the comma-separated list */
+                env_tok = strtok(env_check, ",");
+                if(env_tok)
+                {
+                    do
+                    {
+                        /* check each env variable in order */
+                        logpath_override = getenv(env_tok); 
+                        if(logpath_override)
+                        {
+                            /* stop as soon as we find a match */
+                            break;
+                        }
+                    }while((env_tok = strtok(NULL, ",")));
+                }
+            }
+#endif
+           
+            if(logpath_override)
+            {
+                ret = snprintf(logfile_name, PATH_MAX, 
+                    "%s/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                    logpath_override, 
+                    cuser, __progname, jobid,
+                    (my_tm->tm_mon+1), 
+                my_tm->tm_mday, 
+                (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
+                logmod);
+                if(ret == (PATH_MAX-1))
+                {
+                    /* file name was too big; squish it down */
+                    snprintf(logfile_name, PATH_MAX,
+                        "%s/id%d.darshan_partial",
+                        logpath_override, jobid);
+                }
+            }
+            else if(logpath)
+            {
+                ret = snprintf(logfile_name, PATH_MAX, 
+                    "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                    logpath, (my_tm->tm_year+1900), 
+                    (my_tm->tm_mon+1), my_tm->tm_mday, 
+                    cuser, __progname, jobid,
+                    (my_tm->tm_mon+1), 
+                    my_tm->tm_mday, 
+                    (my_tm->tm_hour*60*60 + my_tm->tm_min*60 + my_tm->tm_sec),
+                    logmod);
+                if(ret == (PATH_MAX-1))
+                {
+                    /* file name was too big; squish it down */
+                    snprintf(logfile_name, PATH_MAX,
+                        "%s/id%d.darshan_partial",
+                        logpath, jobid);
+                }
+            }
+            else
+            {
+                logfile_name[0] = '\0';
+            }
+        }
     }
 
     /* broadcast log file name */
@@ -525,7 +542,7 @@ void darshan_shutdown(int timing_flag)
     {
         /* failed to generate log file name */
         darshan_finalize(final_job);
-	return;
+        return;
     }
 
     final_job->log_job.end_time = time(NULL);
@@ -608,6 +625,15 @@ void darshan_shutdown(int timing_flag)
              * file so we don't leave corrupted results
              */
             unlink(logfile_name);
+        }
+        else if (user_logfile_name)
+        {
+            /* we do not need to rename file, just change the permissions */
+#ifdef __CP_GROUP_READABLE_LOGS
+            chmod(user_logfile_name, (S_IRUSR|S_IRGRP));
+#else
+            chmod(user_logfile_name, (S_IRUSR));
+#endif
         }
         else
         {

@@ -414,4 +414,5 @@ behavior at runtime:
 in which files that were accessed by all ranks are collapsed into a single
 cumulative file record at rank 0.  This option retains more per-process
 information at the expense of creating larger log files.
-
+* DARSHAN_LOGPATH: specifies the path to write Darshan log files to. Note that this directory needs to be formatted using the darshan-mk-log-dirs script.
+* DARSHAN_LOGFILE: specifies the path (directory + Darshan log file name) to write the output Darshan log to. This overrides the default Darshan behavior of automatically generating a log file name and adding to a log file directory formatted using darshan-mk-log-dirs script.
