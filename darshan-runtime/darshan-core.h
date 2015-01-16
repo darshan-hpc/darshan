@@ -12,6 +12,9 @@
 
 #include "darshan.h"
 
+/* TODO: enforce this when handing out ids */
+#define DARSHAN_CORE_MAX_RECORDS 1024
+
 struct darshan_core_module
 {
     darshan_module_id id;
@@ -21,12 +24,20 @@ struct darshan_core_module
 
 /* in memory structure to keep up with job level data */
 /* TODO: trailing data ? */
-struct darshan_core_job_runtime
+struct darshan_core_runtime
 {
     struct darshan_job log_job;
-    struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
     char exe[CP_EXE_LEN+1];
     double wtime_offset;
+    struct darshan_core_record_ref *rec_hash;
+    struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
+};
+
+struct darshan_core_record_ref
+{
+    char* name;
+    darshan_record_id id;
+    UT_hash_handle hlink;
 };
 
 #endif /* __DARSHAN_CORE_H */

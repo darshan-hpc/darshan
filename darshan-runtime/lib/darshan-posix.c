@@ -25,8 +25,8 @@
 #include <aio.h>
 #include <pthread.h>
 
-#include "darshan.h"
 #include "uthash.h"
+#include "darshan.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
@@ -159,7 +159,7 @@ enum darshan_f_posix_indices
 
 struct darshan_posix_file
 {
-    darshan_file_id f_id;
+    darshan_record_id f_id;
     int64_t rank;
     int64_t counters[CP_NUM_INDICES];
     double fcounters[CP_F_NUM_INDICES];
@@ -433,7 +433,7 @@ static struct posix_runtime_file* posix_file_by_name(const char *name)
 {
     struct posix_runtime_file *file = NULL;
     char *newname = NULL;
-    darshan_file_id file_id;
+    darshan_record_id file_id;
 
     if(!posix_runtime)
         return(NULL);
@@ -443,14 +443,14 @@ static struct posix_runtime_file* posix_file_by_name(const char *name)
         newname = (char*)name;
 
     /* get a unique id for this file from darshan core */
-    darshan_core_lookup_id(
+    darshan_core_lookup_record_id(
         (void*)newname,
         strlen(newname),
         1,
         &file_id);
 
     /* search the hash table for this file record, and return if found */
-    HASH_FIND(hlink, posix_runtime->file_hash, &file_id, sizeof(darshan_file_id), file);
+    HASH_FIND(hlink, posix_runtime->file_hash, &file_id, sizeof(darshan_record_id), file);
     if(file)
     {
         if(newname != name)
@@ -466,7 +466,7 @@ static struct posix_runtime_file* posix_file_by_name(const char *name)
         file->file_record->f_id = file_id;
 
         /* add new record to file hash table */
-        HASH_ADD(hlink, posix_runtime->file_hash, file_record->f_id, sizeof(darshan_file_id), file);
+        HASH_ADD(hlink, posix_runtime->file_hash, file_record->f_id, sizeof(darshan_record_id), file);
 
         posix_runtime->file_array_ndx++;
     }
@@ -518,7 +518,7 @@ static struct posix_runtime_file* posix_file_by_name_setfd(const char* name, int
 
 static void posix_file_close_fd(int fd)
 {
-    struct posix_runtime_file_ref *ref;
+    struct posix_runtime_file_ref* ref;
 
     if(!posix_runtime)
         return;

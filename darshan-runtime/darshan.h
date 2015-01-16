@@ -44,7 +44,7 @@ typedef enum
     DARSHAN_PNETCDF_MOD,
 } darshan_module_id;
 
-typedef uint64_t darshan_file_id;
+typedef uint64_t darshan_record_id;
 
 struct darshan_module_funcs
 {
@@ -56,9 +56,9 @@ struct darshan_module_funcs
     void (*shutdown)(void);
 };
 
-/*********************************************
-* darshan-core functions for darshan modules *
-*********************************************/
+/*****************************************************
+* darshan-core functions exported to darshan modules *
+*****************************************************/
 
 void darshan_core_register_module(
     darshan_module_id id,
@@ -66,11 +66,11 @@ void darshan_core_register_module(
     struct darshan_module_funcs *funcs,
     int *runtime_mem_limit);
 
-void darshan_core_lookup_id(
+void darshan_core_lookup_record_id(
     void *name,
     int len,
     int printable_flag,
-    darshan_file_id *id);
+    darshan_record_id *id);
 
 double darshan_core_wtime(void);
 
