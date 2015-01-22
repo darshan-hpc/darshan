@@ -1,4 +1,5 @@
-all: darshan-parser darshan-convert darshan-diff darshan-analyzer darshan-log-params darshan-util-lib
+all: darshan-posix-parser darshan-util-lib
+#all: darshan-parser darshan-convert darshan-diff darshan-analyzer darshan-log-params darshan-util-lib
 
 DESTDIR =
 srcdir = @srcdir@
@@ -41,25 +42,28 @@ mktestdir::
 uthash-1.9.2:
 	tar xjvf $(srcdir)/extern/uthash-1.9.2.tar.bz2
 
-darshan-parser: darshan-parser.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o | uthash-1.9.2
+darshan-posix-parser: darshan-posix-parser.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o | uthash-1.9.2
 	$(CC) $(CFLAGS) $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS) 
 
-darshan-convert: darshan-convert.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o lookup3.o
-	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o lookup3.o -o $@ $(LIBS)
+#darshan-parser: darshan-parser.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o | uthash-1.9.2
+#	$(CC) $(CFLAGS) $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS) 
 
-darshan-analyzer: darshan-analyzer.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o
-	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
+#darshan-convert: darshan-convert.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o lookup3.o
+#	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o lookup3.o -o $@ $(LIBS)
 
-darshan-log-params: darshan-log-params.c $(DARSHAN_LOG_FORMAT)
-	$(CC) $(CFLAGS)  $(LDFLAGS) $< -o $@ $(LIBS)
+#darshan-analyzer: darshan-analyzer.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o
+#	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
+
+#darshan-log-params: darshan-log-params.c $(DARSHAN_LOG_FORMAT)
+#	$(CC) $(CFLAGS)  $(LDFLAGS) $< -o $@ $(LIBS)
 
 jenkins: util/bin/jenkins.o lookup3.o
 	$(CC) $(CFLAGS)  $(LDFLAGS) $< -o $@ lookup3.o $(LIBS)
 
-darshan-diff: darshan-diff.o $(DARSHAN_LOG_FORMAT) darshan-logutils.o darshan-logutils.h
-	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
-darshan-diff.o: darshan-diff.c
-	$(CC) $(CFLAGS) -c  $< -o $@
+#darshan-diff: darshan-diff.o $(DARSHAN_LOG_FORMAT) darshan-logutils.o darshan-logutils.h
+#	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
+#darshan-diff.o: darshan-diff.c
+#	$(CC) $(CFLAGS) -c  $< -o $@
 darshan-logutils.o: darshan-logutils.c
 	$(CC) $(CFLAGS) -c  $< -o $@
 darshan-logutils.po: darshan-logutils.c
@@ -71,11 +75,11 @@ libdarshan-util.so: darshan-logutils.po
 darshan-util-lib: darshan-logutils.o
 	ar rcs libdarshan-util.a $<
 
-test/gztest: test/gztest.c mktestdir
-	$(CC) $(CFLAGS)  $(LDFLAGS) -lz $< -o $@
+#test/gztest: test/gztest.c mktestdir
+#	$(CC) $(CFLAGS)  $(LDFLAGS) -lz $< -o $@
 
-test/gz-bench: test/gz-bench.c mktestdir
-	$(CC) $(CFLAGS)  $(LDFLAGS) -lz $< -o $@
+#test/gz-bench: test/gz-bench.c mktestdir
+#	$(CC) $(CFLAGS)  $(LDFLAGS) -lz $< -o $@
 
 lookup3.o: lookup3.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -85,25 +89,26 @@ install:: all
 	install -d $(libdir)
 	install -d $(includedir)
 	install -d $(pkgconfigdir)
-	install -m 755 darshan-parser $(bindir)
-	install -m 755 darshan-convert $(bindir)
-	install -m 755 darshan-diff $(bindir)
-	install -m 755 darshan-analyzer $(bindir)
-	install -m 755 $(srcdir)/darshan-summary-per-file.sh $(bindir)
+#	install -m 755 darshan-parser $(bindir)
+	install -m 755 darshan-posix-parser $(bindir)
+#	install -m 755 darshan-convert $(bindir)
+#	install -m 755 darshan-diff $(bindir)
+#	install -m 755 darshan-analyzer $(bindir)
+#	install -m 755 $(srcdir)/darshan-summary-per-file.sh $(bindir)
 	install -m 755 libdarshan-util.a $(libdir)
 ifeq ($(DARSHAN_ENABLE_SHARED),1)
 	install -m 755 libdarshan-util.so $(libdir)
 endif
 	install -m 644 $(srcdir)/darshan-logutils.h $(includedir)
 	install -m 644 $(DARSHAN_LOG_FORMAT) $(includedir)
-	install -m 755 darshan-job-summary/bin/darshan-job-summary.pl $(bindir)
+#	install -m 755 darshan-job-summary/bin/darshan-job-summary.pl $(bindir)
 	install -d $(libdir)/TeX
 	install -m 644 $(srcdir)/darshan-job-summary/lib/TeX/Encode.pm $(libdir)/TeX/
 	install -d $(libdir)/Number
 	install -d $(libdir)/Number/Bytes
 	install -m 644 $(srcdir)/darshan-job-summary/lib/Number/Bytes/Human.pm $(libdir)/Number/Bytes
 	install -d $(datarootdir)
-	install -m 644 $(srcdir)/darshan-job-summary/share/* $(datarootdir)
+#	install -m 644 $(srcdir)/darshan-job-summary/share/* $(datarootdir)
 	install -m 644 maint/darshan-util.pc $(pkgconfigdir)
 
 

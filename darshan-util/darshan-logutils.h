@@ -9,11 +9,13 @@
 
 typedef struct darshan_fd_s* darshan_fd;
 
-extern char *darshan_names[];
-extern char *darshan_f_names[];
-
 darshan_fd darshan_log_open(const char *name, const char* mode);
+int darshan_log_getheader(darshan_fd file, struct darshan_header *header);
 int darshan_log_getjob(darshan_fd file, struct darshan_job *job);
+int darshan_log_getmap(darshan_fd file, unsigned char **map_buf);
+int darshan_log_build_map(unsigned char *map_buf);
+int darshan_log_destroy_map(void);
+#if 0
 int darshan_log_putjob(darshan_fd file, struct darshan_job *job);
 int darshan_log_getfile(darshan_fd fd, 
     struct darshan_job* job, 
@@ -33,8 +35,9 @@ int darshan_log_putmounts(darshan_fd fd,
     char** mnt_pts,
     char** fs_types,
     int count);
+#endif
 void darshan_log_close(darshan_fd file);
-void darshan_log_print_version_warnings(struct darshan_job *job);
+//void darshan_log_print_version_warnings(struct darshan_job *job);
 
 /* convenience macros for printing out counters */
 #define CP_PRINT_HEADER() printf("#<rank>\t<file>\t<counter>\t<value>\t<name suffix>\t<mount pt>\t<fs type>\n")

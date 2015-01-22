@@ -24,250 +24,40 @@
 
 struct darshan_fd_s
 {
-    gzFile gzf;
-#ifdef HAVE_LIBBZ2
-    BZFILE* bzf;
-#endif
+    int pf;
     int64_t pos;
     char mode[2];
     int swap_flag;
-    char version[10];
-    int job_struct_size;
+    char version[8];
     char* name;
-    int COMPAT_CP_EXE_LEN;
+    /* TODO: ultimately store indices here */
 };
 
-/* isn't there a clever c way to avoid this? */
-char *darshan_names[] = {
-    "CP_INDEP_OPENS",
-    "CP_COLL_OPENS",               /* count of MPI collective opens */
-    "CP_INDEP_READS",              /* count of independent MPI reads */
-    "CP_INDEP_WRITES",             /* count of independent MPI writes */
-    "CP_COLL_READS",               /* count of collective MPI reads */
-    "CP_COLL_WRITES",              /* count of collective MPI writes */
-    "CP_SPLIT_READS",              /* count of split collective MPI reads */
-    "CP_SPLIT_WRITES",             /* count of split collective MPI writes */
-    "CP_NB_READS",                 /* count of nonblocking MPI reads */
-    "CP_NB_WRITES",                /* count of nonblocking MPI writes */
-    "CP_SYNCS",                    /* count of MPI_File_sync */
-    "CP_POSIX_READS",              /* count of posix reads */
-    "CP_POSIX_WRITES",             /* count of posix writes */
-    "CP_POSIX_OPENS",              /* count of posix opens */
-    "CP_POSIX_SEEKS",              /* count of posix seeks */
-    "CP_POSIX_STATS",              /* count of posix stat/lstat/fstats */
-    "CP_POSIX_MMAPS",              /* count of posix mmaps */
-    "CP_POSIX_FREADS",
-    "CP_POSIX_FWRITES",
-    "CP_POSIX_FOPENS",
-    "CP_POSIX_FSEEKS",
-    "CP_POSIX_FSYNCS",
-    "CP_POSIX_FDSYNCS",
-    "CP_INDEP_NC_OPENS",
-    "CP_COLL_NC_OPENS",
-    "CP_HDF5_OPENS",
-    "CP_COMBINER_NAMED",           /* count of each MPI datatype category */
-    "CP_COMBINER_DUP",
-    "CP_COMBINER_CONTIGUOUS",
-    "CP_COMBINER_VECTOR",
-    "CP_COMBINER_HVECTOR_INTEGER",
-    "CP_COMBINER_HVECTOR",
-    "CP_COMBINER_INDEXED",
-    "CP_COMBINER_HINDEXED_INTEGER",
-    "CP_COMBINER_HINDEXED",
-    "CP_COMBINER_INDEXED_BLOCK",
-    "CP_COMBINER_STRUCT_INTEGER",
-    "CP_COMBINER_STRUCT",
-    "CP_COMBINER_SUBARRAY",
-    "CP_COMBINER_DARRAY",
-    "CP_COMBINER_F90_REAL",
-    "CP_COMBINER_F90_COMPLEX",
-    "CP_COMBINER_F90_INTEGER",
-    "CP_COMBINER_RESIZED",
-    "CP_HINTS",                     /* count of MPI hints used */
-    "CP_VIEWS",                     /* count of MPI set view calls */
-    "CP_MODE",                      /* mode of file */
-    "CP_BYTES_READ",                /* total bytes read */
-    "CP_BYTES_WRITTEN",             /* total bytes written */
-    "CP_MAX_BYTE_READ",             /* highest offset byte read */
-    "CP_MAX_BYTE_WRITTEN",          /* highest offset byte written */
-    "CP_CONSEC_READS",              /* count of consecutive reads */
-    "CP_CONSEC_WRITES",             /* count of consecutive writes */
-    "CP_SEQ_READS",                 /* count of sequential reads */
-    "CP_SEQ_WRITES",                /* count of sequential writes */
-    "CP_RW_SWITCHES",
-    "CP_MEM_NOT_ALIGNED",           /* count of accesses not mem aligned */
-    "CP_MEM_ALIGNMENT",             /* mem alignment in bytes */
-    "CP_FILE_NOT_ALIGNED",          /* count of accesses not file aligned */
-    "CP_FILE_ALIGNMENT",            /* file alignment in bytes */
-    "CP_MAX_READ_TIME_SIZE",
-    "CP_MAX_WRITE_TIME_SIZE",
-    "CP_SIZE_READ_0_100",           /* count of posix read size ranges */
-    "CP_SIZE_READ_100_1K",
-    "CP_SIZE_READ_1K_10K",
-    "CP_SIZE_READ_10K_100K",
-    "CP_SIZE_READ_100K_1M",
-    "CP_SIZE_READ_1M_4M",
-    "CP_SIZE_READ_4M_10M",
-    "CP_SIZE_READ_10M_100M",
-    "CP_SIZE_READ_100M_1G",
-    "CP_SIZE_READ_1G_PLUS",
-    "CP_SIZE_WRITE_0_100",          /* count of posix write size ranges */
-    "CP_SIZE_WRITE_100_1K",
-    "CP_SIZE_WRITE_1K_10K",
-    "CP_SIZE_WRITE_10K_100K",
-    "CP_SIZE_WRITE_100K_1M",
-    "CP_SIZE_WRITE_1M_4M",
-    "CP_SIZE_WRITE_4M_10M",
-    "CP_SIZE_WRITE_10M_100M",
-    "CP_SIZE_WRITE_100M_1G",
-    "CP_SIZE_WRITE_1G_PLUS",
-    "CP_SIZE_READ_AGG_0_100",       /* count of MPI read size ranges */
-    "CP_SIZE_READ_AGG_100_1K",
-    "CP_SIZE_READ_AGG_1K_10K",
-    "CP_SIZE_READ_AGG_10K_100K",
-    "CP_SIZE_READ_AGG_100K_1M",
-    "CP_SIZE_READ_AGG_1M_4M",
-    "CP_SIZE_READ_AGG_4M_10M",
-    "CP_SIZE_READ_AGG_10M_100M",
-    "CP_SIZE_READ_AGG_100M_1G",
-    "CP_SIZE_READ_AGG_1G_PLUS",
-    "CP_SIZE_WRITE_AGG_0_100",      /* count of MPI write size ranges */
-    "CP_SIZE_WRITE_AGG_100_1K",
-    "CP_SIZE_WRITE_AGG_1K_10K",
-    "CP_SIZE_WRITE_AGG_10K_100K",
-    "CP_SIZE_WRITE_AGG_100K_1M",
-    "CP_SIZE_WRITE_AGG_1M_4M",
-    "CP_SIZE_WRITE_AGG_4M_10M",
-    "CP_SIZE_WRITE_AGG_10M_100M",
-    "CP_SIZE_WRITE_AGG_100M_1G",
-    "CP_SIZE_WRITE_AGG_1G_PLUS",
-    "CP_EXTENT_READ_0_100",          /* count of MPI read extent ranges */
-    "CP_EXTENT_READ_100_1K",
-    "CP_EXTENT_READ_1K_10K",
-    "CP_EXTENT_READ_10K_100K",
-    "CP_EXTENT_READ_100K_1M",
-    "CP_EXTENT_READ_1M_4M",
-    "CP_EXTENT_READ_4M_10M",
-    "CP_EXTENT_READ_10M_100M",
-    "CP_EXTENT_READ_100M_1G",
-    "CP_EXTENT_READ_1G_PLUS",
-    "CP_EXTENT_WRITE_0_100",         /* count of MPI write extent ranges */
-    "CP_EXTENT_WRITE_100_1K",
-    "CP_EXTENT_WRITE_1K_10K",
-    "CP_EXTENT_WRITE_10K_100K",
-    "CP_EXTENT_WRITE_100K_1M",
-    "CP_EXTENT_WRITE_1M_4M",
-    "CP_EXTENT_WRITE_4M_10M",
-    "CP_EXTENT_WRITE_10M_100M",
-    "CP_EXTENT_WRITE_100M_1G",
-    "CP_EXTENT_WRITE_1G_PLUS",
-    "CP_STRIDE1_STRIDE",             /* the four most frequently appearing strides */
-    "CP_STRIDE2_STRIDE",
-    "CP_STRIDE3_STRIDE",
-    "CP_STRIDE4_STRIDE",
-    "CP_STRIDE1_COUNT",              /* count of each of the most frequent strides */
-    "CP_STRIDE2_COUNT",
-    "CP_STRIDE3_COUNT",
-    "CP_STRIDE4_COUNT",
-    "CP_ACCESS1_ACCESS",
-    "CP_ACCESS2_ACCESS",
-    "CP_ACCESS3_ACCESS",
-    "CP_ACCESS4_ACCESS",
-    "CP_ACCESS1_COUNT",
-    "CP_ACCESS2_COUNT",
-    "CP_ACCESS3_COUNT",
-    "CP_ACCESS4_COUNT",
-    "CP_DEVICE",
-    "CP_SIZE_AT_OPEN",
-    "CP_FASTEST_RANK",
-    "CP_FASTEST_RANK_BYTES",
-    "CP_SLOWEST_RANK",
-    "CP_SLOWEST_RANK_BYTES",
-
-    "CP_NUM_INDICES"
-};
-
-/* isn't there a clever c way to avoid this? */
-char *darshan_f_names[] = {
-    "CP_F_OPEN_TIMESTAMP",        /* timestamp of first open */
-    "CP_F_READ_START_TIMESTAMP",  /* timestamp of first read */
-    "CP_F_WRITE_START_TIMESTAMP", /* timestamp of first write */
-    "CP_F_CLOSE_TIMESTAMP",       /* timestamp of last close */
-    "CP_F_READ_END_TIMESTAMP",    /* timestamp of last read */
-    "CP_F_WRITE_END_TIMESTAMP",   /* timestamp of last write */
-    "CP_F_POSIX_READ_TIME",       /* cumulative posix read time */
-    "CP_F_POSIX_WRITE_TIME",      /* cumulative posix write time */
-    "CP_F_POSIX_META_TIME",       /* cumulative posix meta time */
-    "CP_F_MPI_META_TIME",         /* cumulative mpi-io metadata time */
-    "CP_F_MPI_READ_TIME",         /* cumulative mpi-io read time */
-    "CP_F_MPI_WRITE_TIME",        /* cumulative mpi-io write time */
-    "CP_F_MAX_READ_TIME",
-    "CP_F_MAX_WRITE_TIME",
-    "CP_F_FASTEST_RANK_TIME",
-    "CP_F_SLOWEST_RANK_TIME",
-    "CP_F_VARIANCE_RANK_TIME",
-    "CP_F_VARIANCE_RANK_BYTES",
-
-    "CP_F_NUM_INDICES"
-};
-
-/* function pointers so that we can switch functions depending on what file
- * version is detected
- */
-int (*getjob_internal)(darshan_fd file, struct darshan_job *job);
-int (*getfile_internal)(darshan_fd fd, 
-    struct darshan_job *job, 
-    struct darshan_file *file);
-#define JOB_SIZE_124 28
-#define JOB_SIZE_200 56
-#define JOB_SIZE_201 120
-#define CP_JOB_RECORD_SIZE_200 1024
-#define CP_JOB_RECORD_SIZE_1x 1024
-
-/* internal routines for parsing different file versions */
-static int getjob_internal_204(darshan_fd file, struct darshan_job *job);
-static int getjob_internal_201(darshan_fd file, struct darshan_job *job);
-static int getjob_internal_200(darshan_fd file, struct darshan_job *job);
-static int getfile_internal_204(darshan_fd fd, struct darshan_job *job, 
-    struct darshan_file *file);
-static int getfile_internal_200(darshan_fd fd, struct darshan_job *job, 
-    struct darshan_file *file);
-static int getjob_internal_124(darshan_fd file, struct darshan_job *job);
-static int getfile_internal_124(darshan_fd fd, struct darshan_job *job, 
-    struct darshan_file *file);
-static int getfile_internal_122(darshan_fd fd, struct darshan_job *job, 
-    struct darshan_file *file);
-static int getfile_internal_121(darshan_fd fd, struct darshan_job *job, 
-    struct darshan_file *file);
-static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job, 
-    struct darshan_file *file, int n_counters, int n_fcounters);
-static void shift_missing_1_24(struct darshan_file* file);
-static void shift_missing_1_22(struct darshan_file* file);
-static void shift_missing_1_21(struct darshan_file* file);
-
-static int darshan_log_seek(darshan_fd fd, int64_t offset);
-static int darshan_log_read(darshan_fd fd, void* buf, int len);
-static int darshan_log_write(darshan_fd fd, void* buf, int len);
-static const char* darshan_log_error(darshan_fd fd, int* errnum);
+static int darshan_log_seek(darshan_fd fd, off_t offset);
+static int darshan_log_read(darshan_fd fd, void *buf, int len);
+static int darshan_log_write(darshan_fd fd, void *buf, int len);
+//static const char* darshan_log_error(darshan_fd fd, int* errnum);
 
 /* a rather crude API for accessing raw binary darshan files */
-darshan_fd darshan_log_open(const char *name, const char* mode)
+darshan_fd darshan_log_open(const char *name, const char *mode)
 {
-    int test_fd;
-    uint8_t magic[2];
-    int ret;
-    int try_bz2 = 1;
-    int len = strlen(name);
+    int o_flags;
 
     /* we only allows "w" or "r" modes, nothing fancy */
     assert(strlen(mode) == 1);
     assert(mode[0] == 'r' || mode[0] == 'w');
+    if(mode[0] == 'r')
+        o_flags = O_RDONLY;
+    else
+        o_flags = O_WRONLY;
 
     darshan_fd tmp_fd = malloc(sizeof(*tmp_fd));
     if(!tmp_fd)
         return(NULL);
     memset(tmp_fd, 0, sizeof(*tmp_fd));
 
+    /* TODO: why is mode needed??? */
+    /* TODO: why is name needed??? */
     tmp_fd->mode[0] = mode[0];
     tmp_fd->mode[1] = mode[1];
     tmp_fd->name  = strdup(name);
@@ -277,80 +67,57 @@ darshan_fd darshan_log_open(const char *name, const char* mode)
         return(NULL);
     }
 
-    if(strcmp(mode, "r") == 0)
-    {
-        /* Try to detect if existing file is a bzip2 file or not.  Both 
-         * libbz2 and libz will fall back to normal I/O (without compression) 
-         * automatically, so we need to do some detection manually up front 
-         * in order to get a chance to try both compression formats.
-         */
-        test_fd = open(name, O_RDONLY);
-        if(test_fd < 0)
-        {
-            perror("open");
-            free(tmp_fd->name);
-            free(tmp_fd);
-            return(NULL);
-        }
-        ret = read(test_fd, &magic, 2);
-        if(ret != 2)
-        {
-            fprintf(stderr, "Error: failed to read any data from %s.\n", 
-                name);
-            free(tmp_fd->name);
-            free(tmp_fd);
-            close(test_fd);
-            return(NULL);
-        }
-        /* header magic for bz2 */
-        if(magic[0] != 0x42 && magic[1] != 0x5A)
-        {
-            try_bz2 = 0;
-        }
-        close(test_fd);
-    }
-
-    if(strcmp(mode, "w") == 0)
-    {
-        /* TODO: is this the behavior that we want? */
-        /* if we are writing a new file, go by the file extension to tell
-         * whether to use bz2 or not?
-         */
-        if(len >= 3 && name[len-3] == 'b' && name[len-2] == 'z' && name[len-1] == '2')
-            try_bz2 = 1;
-        else
-            try_bz2 = 0;
-    }
-
-#ifdef HAVE_LIBBZ2
-    if(try_bz2)
-    {
-        tmp_fd->bzf = BZ2_bzopen(name, mode);
-        if(!tmp_fd->bzf)
-        {
-            free(tmp_fd->name);
-            free(tmp_fd);
-            return(NULL);
-        }
-        return(tmp_fd);
-    }
-#else
-    if(try_bz2)
-    {
-        fprintf(stderr, "Error: this Darshan build does not support bz2 files.\n");
-        fprintf(stderr, "Error: please install libbz2-dev and reconfigure.\n");
-        return(NULL);
-    }
-#endif
-
-    tmp_fd->gzf = gzopen(name, mode);
-    if(!tmp_fd->gzf)
+    tmp_fd->pf = open(name, o_flags);
+    if(tmp_fd->pf < 0)
     {
         free(tmp_fd->name);
         free(tmp_fd);
-        tmp_fd = NULL;
+        return(NULL);
     }
-    return tmp_fd;
+
+    return(tmp_fd);
+}
+
+int darshan_log_getheader(darshan_fd file, struct darshan_header *header)
+{
+    int ret;
+
+    ret = darshan_log_seek(file, 0);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to seek in darshan log file.\n");
+        return(ret);
+    }
+
+    /* read header from log file */
+    ret = darshan_log_read(file, header, sizeof(*header));
+    if(ret < sizeof(*header))
+    {
+        fprintf(stderr, "Error: invalid darshan log file (failed to read header).\n");
+        return(-1);
+    }
+
+    /* save the version string -- this can be used to support multiple log versions */
+    strncpy(file->version, header->version_string, 8);
+
+    if(header->magic_nr == CP_MAGIC_NR)
+    {
+        /* no byte swapping needed, this file is in host format already */
+        file->swap_flag = 0;
+        return(0);
+    }
+
+    /* try byte swapping */
+    DARSHAN_BSWAP64(&header->magic_nr);
+    if(header->magic_nr == CP_MAGIC_NR)
+    {
+        file->swap_flag = 1;
+        return(0);
+    }
+
+    /* otherwise this file is just broken */
+    fprintf(stderr, "Error: bad magic number in darshan log file.\n");
+    return(-1);
 }
 
 /* darshan_log_getjob()
@@ -362,187 +129,107 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job)
     int ret;
     char buffer[DARSHAN_JOB_METADATA_LEN];
 
-    ret = darshan_log_seek(file, 0);
+    ret = darshan_log_seek(file, sizeof(struct darshan_header));
     if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to seek in darshan log file.\n");
         return(ret);
+    }
 
-    /* read version number first so we know how to digest the rest of the
-     * file
-     */
-    ret = darshan_log_read(file, file->version, 10);
-    if(ret < 10)
+    /* read the job data from the log file */
+    ret = darshan_log_read(file, job, sizeof(*job));
+    if(ret < sizeof(*job))
     {
-        fprintf(stderr, "Error: invalid log file (failed to read version).\n");
+        fprintf(stderr, "Error: invalid darshan log file (failed to read job data).\n");
         return(-1);
     }
 
-    if(strcmp(file->version, "2.05") == 0)
+    if(file->swap_flag)
     {
-        getjob_internal = getjob_internal_204;
-        getfile_internal = getfile_internal_204;
-        file->job_struct_size = sizeof(*job);
-        file->COMPAT_CP_EXE_LEN = CP_EXE_LEN;
-    }
-    else if(strcmp(file->version, "2.04") == 0)
-    {
-        getjob_internal = getjob_internal_204;
-        getfile_internal = getfile_internal_204;
-        file->job_struct_size = sizeof(*job);
-        file->COMPAT_CP_EXE_LEN = CP_EXE_LEN;
-    }
-    else if(strcmp(file->version, "2.03") == 0)
-    {
-        getjob_internal = getjob_internal_201;
-        getfile_internal = getfile_internal_200;
-        file->job_struct_size = JOB_SIZE_201;
-        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_200-file->job_struct_size-1;
-    }
-    else if(strcmp(file->version, "2.02") == 0)
-    {
-        getjob_internal = getjob_internal_201;
-        getfile_internal = getfile_internal_200;
-        file->job_struct_size = JOB_SIZE_201;
-        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_200-file->job_struct_size-1;
-    }
-    else if(strcmp(file->version, "2.01") == 0)
-    {
-        getjob_internal = getjob_internal_201;
-        getfile_internal = getfile_internal_200;
-        file->job_struct_size = JOB_SIZE_201;
-        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_200-file->job_struct_size-1;
-    }
-    else if(strcmp(file->version, "2.00") == 0)
-    {
-        getjob_internal = getjob_internal_200;
-        getfile_internal = getfile_internal_200;
-        file->job_struct_size = JOB_SIZE_200;
-        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_200-file->job_struct_size-1;
-    }
-    else if(strcmp(file->version, "1.24") == 0)
-    {
-        getjob_internal = getjob_internal_124;
-        getfile_internal = getfile_internal_124;
-        file->job_struct_size = JOB_SIZE_124;
-        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_1x-file->job_struct_size-1;
-    }
-    else if(strcmp(file->version, "1.23") == 0)
-    {
-        /* same as 1.24, except that mnt points may be incorrect */
-        getjob_internal = getjob_internal_124;
-        getfile_internal = getfile_internal_124;
-        file->job_struct_size = JOB_SIZE_124;
-        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_1x-file->job_struct_size-1;
-    }
-    else if(strcmp(file->version, "1.22") == 0)
-    {
-        getjob_internal = getjob_internal_124;
-        getfile_internal = getfile_internal_122;
-        file->job_struct_size = JOB_SIZE_124;
-        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_1x-file->job_struct_size-1;
-    }
-    else if(strcmp(file->version, "1.21") == 0)
-    {
-        getjob_internal = getjob_internal_124;
-        getfile_internal = getfile_internal_121;
-        file->job_struct_size = JOB_SIZE_124;
-        file->COMPAT_CP_EXE_LEN = CP_JOB_RECORD_SIZE_1x-file->job_struct_size-1;
-    }
-    else
-    {
-        fprintf(stderr, "Error: incompatible darshan file.\n");
-        fprintf(stderr, "Error: expected version %s, but got %s\n", 
-                CP_VERSION, file->version);
-        return(-1);
-    }
-
-    ret = getjob_internal(file, job);
-
-    if (ret == 0)
-    {
-#ifdef HAVE_STRNDUP
-        char *metadata = strndup(job->metadata, sizeof(job->metadata));
-#else
-        char *metadata = strdup(job->metadata);
-#endif
-        char *kv;
-        char *key;
-        char *value;
-        char *save;
-
-        for(kv=strtok_r(metadata, "\n", &save);
-            kv != NULL;
-            kv=strtok_r(NULL, "\n", &save))
-        {
-            /* NOTE: we intentionally only split on the first = character.
-             * There may be additional = characters in the value portion
-             * (for example, when storing mpi-io hints).
-             */
-            strcpy(buffer, kv);
-            key = buffer;
-            value = index(buffer, '=');
-            if(!value)
-                continue;
-            /* convert = to a null terminator to split key and value */
-            value[0] = '\0';
-            value++;
-            if (strcmp(key, "prev_ver") == 0)
-            {
-                strncpy(job->version_string, value, sizeof(job->version_string));
-            }
-        }
-        free(metadata);
-    }
-
-    return(ret);
-}
-
-/* darshan_putjob()
- * write job header in gzfile
- *
- * return 0 on success, -1 on failure.
- */
-int darshan_log_putjob(darshan_fd file, struct darshan_job *job)
-{
-    struct darshan_job job_copy;
-    char    pv_str[64];
-    int     ret;
-    int len;
-
-    ret = darshan_log_seek(file, 0);
-    if(ret < 0)
-        return(ret);
-
-    memset(&job_copy, 0, sizeof(job_copy));
-    memcpy(&job_copy, job, sizeof(job_copy));
-    /* check for newline in existing metadata, add if needed */
-    len = strlen(job_copy.metadata);
-    if(len > 0 && len < DARSHAN_JOB_METADATA_LEN)
-    {
-        if(job_copy.metadata[len-1] != '\n')
-        {
-            job_copy.metadata[len] = '\n';
-            job_copy.metadata[len+1] = '\0';
-        }
-    }
-
-    sprintf(pv_str, "prev_ver=%s\n", job->version_string);
-    sprintf(job_copy.version_string, "%s", CP_VERSION);
-    if(strlen(job_copy.metadata) + strlen(pv_str) < DARSHAN_JOB_METADATA_LEN)
-        strncat(job_copy.metadata, pv_str, strlen(pv_str));
-    else
-        sprintf(job_copy.metadata, "%s", pv_str);
-    job_copy.magic_nr = CP_MAGIC_NR;
-
-    ret = darshan_log_write(file, &job_copy, sizeof(job_copy));
-    if (ret != sizeof(job_copy))
-    {
-        fprintf(stderr, "Error: failed to write job header: %d\n", ret);
-        return(-1);
+        /* swap bytes if necessary */
+        DARSHAN_BSWAP64(&job->uid);
+        DARSHAN_BSWAP64(&job->start_time);
+        DARSHAN_BSWAP64(&job->end_time);
+        DARSHAN_BSWAP64(&job->nprocs);
+        DARSHAN_BSWAP64(&job->jobid);
     }
 
     return(0);
 }
 
+int darshan_log_getmap(darshan_fd file, unsigned char **map_buf)
+{
+    int ret;
+    struct stat sbuf;
+    int map_buf_size;
+
+    ret = darshan_log_seek(file, sizeof(struct darshan_header) + CP_JOB_RECORD_SIZE);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to seek in darshan log file.\n");
+        return(ret);
+    }
+
+    /* TODO: use indices map rather than stat to determine offsets */
+    /* allocate a buffer to store the (serialized) darshan record map */
+    /* NOTE: caller's responsibility to free this allocated map buffer */
+    fstat(file->pf, &sbuf);
+    map_buf_size = sbuf.st_size - (sizeof(struct darshan_header) + CP_JOB_RECORD_SIZE);
+    *map_buf = malloc(map_buf_size);
+    if(!(*map_buf))
+        return(-1);
+
+    /* read the record map from the log file */
+    ret = darshan_log_read(file, *map_buf, map_buf_size);
+    if(ret < map_buf_size)
+    {
+        fprintf(stderr, "Error: invalid darshan log file (failed to read record map).\n");
+        return(-1);
+    }
+
+    if(file->swap_flag)
+    {
+        /* we need to sort out endianness issues before passing back the serialized buffer */
+        /* NOTE: darshan record map serialization method: 
+         *          ... darshan_record_id | (uint32_t) path_len | path ...
+         */
+        unsigned char *buf_ptr = *map_buf;
+        darshan_record_id *rec_id_ptr;
+        uint32_t *path_len_ptr;
+
+        while(buf_ptr < (*map_buf + map_buf_size))
+        {
+            rec_id_ptr = (darshan_record_id *)buf_ptr;
+            buf_ptr += sizeof(darshan_record_id);
+            path_len_ptr = (uint32_t *)buf_ptr;
+            buf_ptr += sizeof(uint32_t);
+            buf_ptr += *path_len_ptr;
+
+            DARSHAN_BSWAP64(rec_id_ptr);
+            DARSHAN_BSWAP32(path_len_ptr);
+        }
+    }
+
+    return(0);
+}
+
+/* TODO: implement */
+/* TODO: could this could be used in darshan-runtime? do we refactor so we aren't maintaining in 2 spots? */
+int darshan_log_build_map(unsigned char *map_buf, int map_buf_size, some_struct *rec_hash)
+{
+    unsigned char *buf_ptr;
+
+    return(0);
+}
+
+/* TODO: implement */
+/* TODO: could this could be used in darshan-runtime? do we refactor so we aren't maintaining in 2 spots? */
+int darshan_log_destroy_map()
+{
+    return(0);
+}
+
+#if 0
 /* darshan_log_getfile()
  *
  * return 1 if file record found, 0 on eof, and -1 on error
@@ -554,140 +241,6 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_job *job, struct darshan_f
     ret = getfile_internal(fd, job, file);
 
     return(ret);
-}
-
-/* darshan_log_putfile()
- *
- * return 0 if file record written, -1 on error.
- */
-int darshan_log_putfile(darshan_fd fd, struct darshan_job *job, struct darshan_file *file)
-{
-    int     ret;
-
-    if(fd->pos < CP_JOB_RECORD_SIZE)
-    {
-        ret = darshan_log_seek(fd, CP_JOB_RECORD_SIZE);
-        if(ret < 0)
-            return(ret);
-    }
-
-    ret = darshan_log_write(fd, file, sizeof(*file));
-    if (ret != sizeof(*file))
-    {
-        fprintf(stderr, "Error: writing file record failed: %d\n", ret);
-        return(-1);
-    }
-
-    return(0);
-}
-
-/* darshan_log_getmounts()
- * 
- * retrieves mount table information from the log.  Note that devs, mnt_pts,
- * and fs_types are arrays that will be allocated by the function and must
- * be freed by the caller.  count will indicate the size of the arrays
- */
-int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts, char***
-    fs_types, int* count)
-{
-    int ret;
-    char* pos;
-    int array_index = 0;
-    char buf[fd->COMPAT_CP_EXE_LEN+1];
-
-    ret = darshan_log_seek(fd, fd->job_struct_size);
-    if(ret < 0)
-        return(ret);
-
-    ret = darshan_log_read(fd, buf, (fd->COMPAT_CP_EXE_LEN + 1));
-    if (ret < (fd->COMPAT_CP_EXE_LEN + 1))
-    {
-        perror("darshan_log_read");
-        return(-1);
-    }
-
-    /* count entries */
-    *count = 0;
-    pos = buf;
-    while((pos = strchr(pos, '\n')) != NULL)
-    {
-        pos++;
-        (*count)++;
-    }
-
-    if(*count == 0)
-    {
-        /* no mount entries present */
-        return(0);
-    }
-
-    /* allocate output arrays */
-    *devs = malloc((*count)*sizeof(int64_t));
-    assert(*devs);
-    *mnt_pts = malloc((*count)*sizeof(char*));
-    assert(*mnt_pts);
-    *fs_types = malloc((*count)*sizeof(char*));
-    assert(*fs_types);
-    
-    /* work backwards through the table and parse each line (except for
-     * first, which holds command line information)
-     */
-    while((pos = strrchr(buf, '\n')) != NULL)
-    {
-        /* overestimate string lengths */
-        (*mnt_pts)[array_index] = malloc(fd->COMPAT_CP_EXE_LEN);
-        assert((*mnt_pts)[array_index]);
-        (*fs_types)[array_index] = malloc(fd->COMPAT_CP_EXE_LEN);
-        assert((*fs_types)[array_index]);
-        
-        ret = sscanf(++pos, "%" PRId64 "\t%s\t%s", &(*devs)[array_index],
-            (*fs_types)[array_index], (*mnt_pts)[array_index]);
-
-        if(ret != 3)
-        {
-            fprintf(stderr, "Error: poorly formatted mount table in log file.\n");
-            return(-1);
-        }
-        pos--;
-        *pos = '\0';
-        array_index++;
-    }
-
-    return (0);
-}
-
-/* darshan_log_putmounts
- *
- * encode mount information back into mtab format.
- *
- * returns 0 on success, -1 on failure.
- */
-int darshan_log_putmounts(darshan_fd fd, int64_t* devs, char** mnt_pts, char** fs_types, int count)
-{
-    int     ret;
-    char    line[1024];
-    int     i;
-
-    for(i=count-1; i>=0; i--)
-    {
-        sprintf(line, "\n%" PRId64 "\t%s\t%s",
-                devs[i], fs_types[i], mnt_pts[i]);
-        ret = darshan_log_write(fd, line, strlen(line));
-        if (ret != strlen(line))
-        {
-            fprintf(stderr, "Error: failed to write mount entry: %d\n", ret);
-            return(-1);
-        }
-    }
-
-    /* seek ahead to end of exe region, will be zero filled */
-    ret = darshan_log_seek(fd, CP_JOB_RECORD_SIZE);
-    if (ret)
-    {
-        fprintf(stderr, "Error: forward seek failed: %d\n", CP_JOB_RECORD_SIZE);
-    }
-
-    return(0);
 }
 
 int darshan_log_getexe(darshan_fd fd, char *buf)
@@ -716,48 +269,18 @@ int darshan_log_getexe(darshan_fd fd, char *buf)
 
     return (0);
 }
-
-/* darshan_log_putexe()
- *
- * Write the exe string to the log.
- *
- * return 0 on success, -1 on failure.
- */
-int darshan_log_putexe(darshan_fd fd, char *buf)
-{
-    int     ret;
-    int     len;
-
-    ret = darshan_log_seek(fd, sizeof(struct darshan_job));
-    if(ret < 0)
-        return(ret);
-
-    len = strlen(buf);
-
-    ret = darshan_log_write(fd, buf, len);
-    if (ret != len)
-    {
-        fprintf(stderr, "Error: failed to write exe info: %d\n", ret);
-        ret = -1;
-    }
-
-    return(ret);
-}
+#endif
 
 void darshan_log_close(darshan_fd file)
 {
-#ifdef HAVE_LIBBZ2
-    if(file->bzf)
-        BZ2_bzclose(file->bzf);
-#endif
-
-    if(file->gzf)
-        gzclose(file->gzf);
+    if(file->pf)
+        close(file->pf);
 
     free(file->name);
     free(file);
 }
 
+#if 0
 /* darshan_log_print_version_warnings()
  *
  * Print summary of any problems with the detected log format
@@ -1150,170 +673,6 @@ static void shift_missing_1_24(struct darshan_file* file)
     return;
 }
 
-static int getjob_internal_204(darshan_fd file, struct darshan_job *job)
-{
-    int ret;
-
-    ret = darshan_log_seek(file, 0);
-    if(ret < 0)
-        return(ret);
-
-    ret = darshan_log_read(file, job, sizeof(*job));
-    if (ret < sizeof(*job))
-    {
-        fprintf(stderr, "Error: invalid log file (too short).\n");
-        return(-1);
-    }
-
-    if(job->magic_nr == CP_MAGIC_NR)
-    {
-        /* no byte swapping needed, this file is in host format already */
-        file->swap_flag = 0;
-        return(0);
-    }
-
-    /* try byte swapping */
-    DARSHAN_BSWAP64(&job->magic_nr);
-    if(job->magic_nr == CP_MAGIC_NR)
-    {
-        file->swap_flag = 1;
-        DARSHAN_BSWAP64(&job->uid);
-        DARSHAN_BSWAP64(&job->start_time);
-        DARSHAN_BSWAP64(&job->end_time);
-        DARSHAN_BSWAP64(&job->nprocs);
-        DARSHAN_BSWAP64(&job->jobid);
-        return(0);
-    }
-
-    /* otherwise this file is just broken */
-    fprintf(stderr, "Error: bad magic number in darshan file.\n");
-    return(-1);
-}
-
-static int getjob_internal_201(darshan_fd file, struct darshan_job *job)
-{
-    int ret;
-    struct darshan_job_201
-    {
-        char version_string[8];
-        int64_t magic_nr;
-        int64_t uid;
-        int64_t start_time;
-        int64_t end_time;
-        int64_t nprocs;
-        int64_t jobid;
-        char metadata[64];
-    } job_201;
-    memset(job, 0, sizeof(job_201));
-    memset(job, 0, sizeof(*job));
-
-    ret = darshan_log_seek(file, 0);
-    if(ret < 0)
-        return(ret);
-
-    ret = darshan_log_read(file, &job_201, sizeof(job_201));
-    if (ret < sizeof(job_201))
-    {
-        fprintf(stderr, "Error: invalid log file (too short).\n");
-        return(-1);
-    }
-
-    memcpy(job->version_string, job_201.version_string, 8);
-    job->magic_nr   = job_201.magic_nr;
-    job->uid        = job_201.uid;
-    job->start_time = job_201.start_time;
-    job->end_time   = job_201.end_time;
-    job->nprocs     = job_201.nprocs;
-    job->jobid      = job_201.jobid;
-    strncpy(job->metadata, job_201.metadata, 64);
-
-    if(job->magic_nr == CP_MAGIC_NR)
-    {
-        /* no byte swapping needed, this file is in host format already */
-        file->swap_flag = 0;
-        return(0);
-    }
-
-    /* try byte swapping */
-    DARSHAN_BSWAP64(&job->magic_nr);
-    if(job->magic_nr == CP_MAGIC_NR)
-    {
-        file->swap_flag = 1;
-        DARSHAN_BSWAP64(&job->uid);
-        DARSHAN_BSWAP64(&job->start_time);
-        DARSHAN_BSWAP64(&job->end_time);
-        DARSHAN_BSWAP64(&job->nprocs);
-        DARSHAN_BSWAP64(&job->jobid);
-        return(0);
-    }
-
-    /* otherwise this file is just broken */
-    fprintf(stderr, "Error: bad magic number in darshan file.\n");
-    return(-1);
-}
-
-
-static int getjob_internal_200(darshan_fd file, struct darshan_job *job)
-{
-    int ret;
-    struct darshan_job_200
-    {
-        char version_string[8];
-        int64_t magic_nr;
-        int64_t uid;
-        int64_t start_time;
-        int64_t end_time;
-        int64_t nprocs;
-        int64_t jobid;
-    } job_200;
-
-    memset(job, 0, sizeof(job_200));
-    memset(job, 0, sizeof(*job));
-
-    ret = darshan_log_seek(file, 0);
-    if(ret < 0)
-        return(ret);
-
-    ret = darshan_log_read(file, &job_200, sizeof(job_200));
-    if (ret < sizeof(job_200))
-    {
-        fprintf(stderr, "Error: invalid log file (too short).\n");
-        return(-1);
-    }
-
-    memcpy(job->version_string, job_200.version_string, 8);
-    job->magic_nr   = job_200.magic_nr;
-    job->uid        = job_200.uid;
-    job->start_time = job_200.start_time;
-    job->end_time   = job_200.end_time;
-    job->nprocs     = job_200.nprocs;
-    job->jobid      = job_200.jobid;
-
-    if(job->magic_nr == CP_MAGIC_NR)
-    {
-        /* no byte swapping needed, this file is in host format already */
-        file->swap_flag = 0;
-        return(0);
-    }
-
-    /* try byte swapping */
-    DARSHAN_BSWAP64(&job->magic_nr);
-    if(job->magic_nr == CP_MAGIC_NR)
-    {
-        file->swap_flag = 1;
-        DARSHAN_BSWAP64(&job->uid);
-        DARSHAN_BSWAP64(&job->start_time);
-        DARSHAN_BSWAP64(&job->end_time);
-        DARSHAN_BSWAP64(&job->nprocs);
-        DARSHAN_BSWAP64(&job->jobid);
-        return(0);
-    }
-
-    /* otherwise this file is just broken */
-    fprintf(stderr, "Error: bad magic number in darshan file.\n");
-    return(-1);
-}
-
 static int getfile_internal_204(darshan_fd fd, struct darshan_job *job, 
     struct darshan_file *file)
 {
@@ -1424,76 +783,6 @@ static int getfile_internal_200(darshan_fd fd, struct darshan_job *job,
     err_string = darshan_log_error(fd, &ret);
     fprintf(stderr, "Error: %s\n", err_string);
     return(-1);
-}
-
-/* If we see version 1.24, assume that it is stored in big endian 32 bit
- * format.  Convert up to current format.
- */
-static int getjob_internal_124(darshan_fd fd, struct darshan_job *job)
-{
-    char* buffer;
-    int ret;
-    uint32_t uid;
-    int32_t start_time;
-    int32_t end_time;
-    int32_t nprocs;
-
-#ifdef WORDS_BIGENDIAN
-    fd->swap_flag = 0;
-#else
-    fd->swap_flag = 1;
-#endif
-
-    memset(job, 0, sizeof(*job));
-
-    buffer = (char*)malloc(JOB_SIZE_124);
-    if(!buffer)
-    {
-        return(-1);
-    }
-
-    ret = darshan_log_seek(fd, 0);
-    if(ret < 0)
-        return(ret);
-
-    ret = darshan_log_read(fd, buffer, JOB_SIZE_124);
-    if (ret < JOB_SIZE_124)
-    {
-        fprintf(stderr, "Error: invalid log file (could not read file record).\n");
-        free(buffer);
-        return(-1);
-    }
-
-    /* pull job header information out of specific bytes in case struct
-     * padding is off
-     */
-    strncpy(job->version_string, buffer, 8);
-    uid = *((uint32_t*)&buffer[12]);
-    start_time = *((int32_t*)&buffer[16]);
-    end_time = *((int32_t*)&buffer[20]);
-    nprocs = *((int32_t*)&buffer[24]);
-
-    free(buffer);
-
-    if(fd->swap_flag)
-    {
-        /* byte swap */
-        DARSHAN_BSWAP32(&uid);
-        DARSHAN_BSWAP32(&start_time);
-        DARSHAN_BSWAP32(&end_time);
-        DARSHAN_BSWAP32(&nprocs);
-    }
-
-    job->uid += uid;
-    job->start_time += start_time;
-    job->end_time += end_time;
-    job->nprocs += nprocs;
-    job->jobid = 0; /* old log versions did not have this field */
-    
-    /* set magic number */
-    job->magic_nr = CP_MAGIC_NR;
-
-    return(0);
 }
 
 static int getfile_internal_124(darshan_fd fd, struct darshan_job *job, 
@@ -1624,63 +913,45 @@ static int getfile_internal_1x(darshan_fd fd, struct darshan_job *job,
     free(buffer);
     return(1);
 }
+#endif
 
+/* ** SDS ** */
 /* return amount written on success, -1 on failure.
  */
 static int darshan_log_write(darshan_fd fd, void* buf, int len)
 {
     int ret;
 
-    if(fd->gzf)
+    if(fd->pf)
     {
-        ret = gzwrite(fd->gzf, buf, len);
+        ret = write(fd->pf, buf, len);
         if(ret > 0)
             fd->pos += ret;
         return(ret);
     }
-
-#ifdef HAVE_LIBBZ2
-    if(fd->bzf)
-    {
-        ret = BZ2_bzwrite(fd->bzf, buf, len);
-        if(ret > 0)
-            fd->pos += ret;
-        return(ret);
-    }
-#endif
 
     return(-1);
 }
 
-
+/* ** SDS ** */
 /* return amount read on success, 0 on EOF, -1 on failure.
  */
 static int darshan_log_read(darshan_fd fd, void* buf, int len)
 {
     int ret;
 
-    if(fd->gzf)
+    if(fd->pf)
     {
-        ret = gzread(fd->gzf, buf, len);
+        ret = read(fd->pf, buf, len);
         if(ret > 0)
             fd->pos += ret;
         return(ret);
     }
-
-#ifdef HAVE_LIBBZ2
-    if(fd->bzf)
-    {
-        ret = BZ2_bzread(fd->bzf, buf, len);
-        if(ret > 0)
-            fd->pos += ret;
-        return(ret);
-    }
-#endif
 
     return(-1);
 }
 
-
+#if 0
 static const char* darshan_log_error(darshan_fd fd, int* errnum)
 {
     if(fd->gzf)
@@ -1698,80 +969,26 @@ static const char* darshan_log_error(darshan_fd fd, int* errnum)
     *errnum = 0;
     return(NULL);
 }
+#endif
 
+/* ** SDS ** */
 /* return 0 on successful seek to offset, -1 on failure.
  */
-static int darshan_log_seek(darshan_fd fd, int64_t offset)
+static int darshan_log_seek(darshan_fd fd, off_t offset)
 {
-    z_off_t zoff = 0;
-    z_off_t zoff_ret = 0;
+    off_t ret_off;
+
+    /* TODO: need to look at each use case here -- do I have everything right? */
 
     if(fd->pos == offset)
         return(0);
 
-    if(fd->gzf)
+    ret_off = lseek(fd->pf, offset, SEEK_SET);
+    if(ret_off == offset)
     {
-        zoff += offset;
-        zoff_ret = gzseek(fd->gzf, zoff, SEEK_SET);
-        if(zoff_ret == zoff)
-        {
-            fd->pos = offset;
-            return(0);
-        }
-        return(-1);
-    }
-
-#ifdef HAVE_LIBBZ2
-    if(fd->bzf)
-    {
-        int64_t counter;
-        char dummy = '\0';
-        int ret;
-
-        /* There is no seek in bzip2.  Just close, reopen, and throw away 
-         * data until the correct offset.  Very slow, but we don't expect to
-         * do this often.
-         */
-        if(fd->mode[0] == 'r' && offset < fd->pos)
-        {
-            /* to seek backwards in read-only mode we just close and re-open
-             * the file
-             */
-            BZ2_bzclose(fd->bzf);
-            fd->bzf = BZ2_bzopen(fd->name, fd->mode);
-            if(!fd->bzf)
-                return(-1);
-
-            fd->pos = 0;
-        }
-        else if(fd->mode[0] == 'w' && offset < fd->pos)
-        {
-            /* there isn't any convenient way to seek backwards in a
-             * write-only bzip2 file, but we shouldn't need that
-             * functionality in darshan anyway.
-             */
-            fprintf(stderr, "Error: seeking backwards in a bzip2 compressed darshan output file is not supported.\n");
-            return(-1);
-        }
-
-        for(counter=0; counter<(offset-fd->pos); counter++)
-        {
-            if(fd->mode[0] == 'r')
-            {
-                ret = BZ2_bzread(fd->bzf, &dummy, 1);
-            }
-            else
-            {
-                ret = BZ2_bzwrite(fd->bzf, &dummy, 1);
-            }
-            if(ret != 1)
-                return(-1);
-        }
-        fd->pos += counter;
+        fd->pos = offset;
         return(0);
     }
-#endif
 
     return(-1);
 }
-
