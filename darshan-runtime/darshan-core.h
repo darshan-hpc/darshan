@@ -35,8 +35,7 @@ struct darshan_core_runtime
 
 struct darshan_core_record_ref
 {
-    char* name;
-    darshan_record_id id;
+    struct darshan_record rec;
     UT_hash_handle hlink;
 };
 

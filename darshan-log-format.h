@@ -19,7 +19,7 @@
 #endif
 
 /* update this on file format changes */
-#define CP_VERSION "2.05"
+#define CP_VERSION "3.00"
 
 /* magic number for validating output files and checking byte order */
 #define CP_MAGIC_NR 6567223
@@ -30,18 +30,33 @@
 /* max length of exe string within job record (not counting '\0') */
 #define CP_EXE_LEN (CP_JOB_RECORD_SIZE - sizeof(struct darshan_job) - 1)
 
+typedef uint64_t darshan_record_id;
+
+struct darshan_header
+{
+    char version_string[8];
+    int64_t magic_nr;
+    uint8_t comp_type;
+    uint8_t mod_count;
+};
+
+struct darshan_record
+{
+    char* name;
+    darshan_record_id id;
+    //int64_t rank; /* TODO: maybe rank doesn't go here ? */
+};
+
 /* statistics for the job as a whole */
 #define DARSHAN_JOB_METADATA_LEN 1024 /* including null terminator! */
 struct darshan_job
 {
-    char version_string[8];
-    int64_t magic_nr;
     int64_t uid;
     int64_t start_time;
     int64_t end_time;
     int64_t nprocs;
     int64_t jobid;
-    char metadata[DARSHAN_JOB_METADATA_LEN];
+    char metadata[DARSHAN_JOB_METADATA_LEN]; /* TODO: what is this? */
 };
 
 #endif /* __DARSHAN_LOG_FORMAT_H */

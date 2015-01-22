@@ -44,8 +44,6 @@ typedef enum
     DARSHAN_PNETCDF_MOD,
 } darshan_module_id;
 
-typedef uint64_t darshan_record_id;
-
 struct darshan_module_funcs
 {
     void (*get_output_data)(
