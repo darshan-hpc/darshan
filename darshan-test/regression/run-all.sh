@@ -10,6 +10,8 @@ fi
 export DARSHAN_PATH=$1
 export DARSHAN_TMP=$2
 export DARSHAN_PLATFORM=$3
+# number of procs that most test jobs will use
+export DARSHAN_DEFAULT_NPROCS=4
 
 # check darshan path
 if [ ! -x $DARSHAN_PATH/bin/darshan-parser ]; then
@@ -42,8 +44,14 @@ DARSHAN_CC=`$DARSHAN_PLATFORM/setup-cc.sh`
 if [ $? != 0 ]; then
     exit 1
 fi
-
 export DARSHAN_CC
+
+# set up job execution wrapper for this platform
+DARSHAN_RUNJOB=`$DARSHAN_PLATFORM/setup-runjob.sh`
+if [ $? != 0 ]; then
+    exit 1
+fi
+export DARSHAN_RUNJOB
 
 for i in `ls test-cases/*.sh`; do
     $i
