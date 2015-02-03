@@ -17,7 +17,7 @@
 # subsequent tests should be generated from this using darshan-gen-cc.pl.
 
 $DARSHAN_PATH/bin/darshan-gen-cc.pl `which mpicc` --output $DARSHAN_TMP/mpicc
-if [ $? != 0 ]; then
+if [ $? -ne 0 ]; then
     echo "Error: failed to generate c compiler." 1>&2
     exit 1
 fi

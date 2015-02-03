@@ -41,24 +41,33 @@ fi
 
 # set up c compiler for this platform
 DARSHAN_CC=`$DARSHAN_PLATFORM/setup-cc.sh`
-if [ $? != 0 ]; then
+if [ $? -ne 0 ]; then
     exit 1
 fi
 export DARSHAN_CC
 
+# set up c++ compiler for this platform
+DARSHAN_CXX=`$DARSHAN_PLATFORM/setup-cxx.sh`
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+export DARSHAN_CXX
+
 # set up job execution wrapper for this platform
 DARSHAN_RUNJOB=`$DARSHAN_PLATFORM/setup-runjob.sh`
-if [ $? != 0 ]; then
+if [ $? -ne 0 ]; then
     exit 1
 fi
 export DARSHAN_RUNJOB
 
 for i in `ls test-cases/*.sh`; do
+    echo Running ${i}...
     $i
-    if [ $? != 0 ]; then
+    if [ $? -ne 0 ]; then
         echo "Error: failed to execute test case $i"
         exit 1
     fi
+    echo Done.
 done
 
 exit 0
