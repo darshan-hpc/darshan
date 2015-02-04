@@ -2,7 +2,7 @@
 Darshan Release Change Log
 --------------------------
 
-darshan-2.3.1-pre1
+darshan-2.3.1-pre2
 =============
 * Add wrappers for mkstemp(), mkostemp(), mkstemps(), and mkostemps()
   (reported by Tom Peterka)
@@ -24,6 +24,7 @@ darshan-2.3.1-pre1
   - indicate which rank was slowest in unique file results
   - label I/O vs. meta time more clearly
   - include unique file meta time in agg_perf_by_slowest calculation
+* added regression test script framework in darshan-test/regression/
 
 darshan-2.3.0
 =============
