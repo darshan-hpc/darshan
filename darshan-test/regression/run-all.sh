@@ -53,6 +53,18 @@ if [ $? -ne 0 ]; then
 fi
 export DARSHAN_CXX
 
+# set up Fortran compilers for this platform
+DARSHAN_F77=`$DARSHAN_PLATFORM/setup-f77.sh`
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+export DARSHAN_F77
+DARSHAN_F90=`$DARSHAN_PLATFORM/setup-f90.sh`
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+export DARSHAN_F90
+
 # set up job execution wrapper for this platform
 DARSHAN_RUNJOB=`$DARSHAN_PLATFORM/setup-runjob.sh`
 if [ $? -ne 0 ]; then
