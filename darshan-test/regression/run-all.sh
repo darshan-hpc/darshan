@@ -13,7 +13,8 @@ export DARSHAN_PLATFORM=$3
 # number of procs that most test jobs will use
 export DARSHAN_DEFAULT_NPROCS=4
 
-BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+DARSHAN_TESTDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+export DARSHAN_TESTDIR
 
 # check darshan path
 if [ ! -x $DARSHAN_PATH/bin/darshan-parser ]; then
@@ -36,45 +37,45 @@ if [ ! -w $DARSHAN_TMP ]; then
 fi
 
 # make sure that we have sub-scripts for the specified platform
-if [ ! -d $BASEDIR/$DARSHAN_PLATFORM ]; then
+if [ ! -d $DARSHAN_TESTDIR/$DARSHAN_PLATFORM ]; then
     echo "Error: unable to find scripts for platform $DARSHAN_PLATFORM" 1>&2
     exit 1
 fi
 
 # set up c compiler for this platform
-DARSHAN_CC=`$BASEDIR/$DARSHAN_PLATFORM/setup-cc.sh`
+DARSHAN_CC=`$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/setup-cc.sh`
 if [ $? -ne 0 ]; then
     exit 1
 fi
 export DARSHAN_CC
 
 # set up c++ compiler for this platform
-DARSHAN_CXX=`$BASEDIR/$DARSHAN_PLATFORM/setup-cxx.sh`
+DARSHAN_CXX=`$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/setup-cxx.sh`
 if [ $? -ne 0 ]; then
     exit 1
 fi
 export DARSHAN_CXX
 
 # set up Fortran compilers for this platform
-DARSHAN_F77=`$BASEDIR/$DARSHAN_PLATFORM/setup-f77.sh`
+DARSHAN_F77=`$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/setup-f77.sh`
 if [ $? -ne 0 ]; then
     exit 1
 fi
 export DARSHAN_F77
-DARSHAN_F90=`$BASEDIR/$DARSHAN_PLATFORM/setup-f90.sh`
+DARSHAN_F90=`$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/setup-f90.sh`
 if [ $? -ne 0 ]; then
     exit 1
 fi
 export DARSHAN_F90
 
 # set up job execution wrapper for this platform
-DARSHAN_RUNJOB=`$BASEDIR/$DARSHAN_PLATFORM/setup-runjob.sh`
+DARSHAN_RUNJOB=`$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/setup-runjob.sh`
 if [ $? -ne 0 ]; then
     exit 1
 fi
 export DARSHAN_RUNJOB
 
-for i in `ls $BASEDIR/test-cases/*.sh`; do
+for i in `ls $DARSHAN_TESTDIR/test-cases/*.sh`; do
     echo Running ${i}...
     $i
     if [ $? -ne 0 ]; then

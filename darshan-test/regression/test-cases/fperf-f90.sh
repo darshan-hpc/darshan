@@ -7,7 +7,7 @@ export DARSHAN_LOGFILE=$DARSHAN_TMP/${PROG}.darshan.gz
 rm -f ${DARSHAN_LOGFILE}
 
 # compile
-$DARSHAN_F90 test-cases/src/fperf.f -o $DARSHAN_TMP/${PROG}
+$DARSHAN_F90 $DARSHAN_TESTDIR/test-cases/src/fperf.f -o $DARSHAN_TMP/${PROG}
 if [ $? -ne 0 ]; then
     echo "Error: failed to compile ${PROG}" 1>&2
     exit 1
