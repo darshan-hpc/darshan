@@ -7,7 +7,7 @@ export DARSHAN_LOGFILE=$DARSHAN_TMP/${PROG}.darshan.gz
 rm -f ${DARSHAN_LOGFILE}
 
 # compile
-$DARSHAN_CXX $DARSHAN_TESTDIR/test-cases/src/${PROG}.cxx -o $DARSHAN_TMP/${PROG}
+$DARSHAN_CXX -static $DARSHAN_TESTDIR/test-cases/src/${PROG}.cxx -o $DARSHAN_TMP/${PROG}
 if [ $? -ne 0 ]; then
     echo "Error: failed to compile ${PROG}" 1>&2
     exit 1
