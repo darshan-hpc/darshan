@@ -274,9 +274,13 @@ print OUTPUT<<"EOF";
     if [ \$? -eq 0 ] ; then
         CXXMPICH=-lcxxmpich
     fi
-    grep -E cxxmpich\\.cnk.a \$tmpfile >& /dev/null
+    grep -E cxxmpich\\.cnk\\.a \$tmpfile >& /dev/null
     if [ \$? -eq 0 ] ; then
         CXXMPICH=-lcxxmpich.cnk
+    fi
+    grep -E mpicxx\\.a \$tmpfile >& /dev/null
+    if [ \$? -eq 0 ] ; then
+        CXXMPICH=-lmpicxx
     fi
 
     rm \$tmpfile >& /dev/null

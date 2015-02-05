@@ -25,8 +25,8 @@ darshan-2.3.1-pre2
   - label I/O vs. meta time more clearly
   - include unique file meta time in agg_perf_by_slowest calculation
 * added regression test script framework in darshan-test/regression/
-* update darshan-gen-fortran.pl to support new Fortran library name in 
-  MPICH 3.1.1
+* update darshan-gen-fortran.pl and darshan-gen-cxx.pl to support new library
+  naming conventions in MPICH 3.1.1 and higher
 
 darshan-2.3.0
 =============
