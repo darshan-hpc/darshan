@@ -45,7 +45,6 @@ fi
 # set up environment for tests according to platform
 source $DARSHAN_TESTDIR/$DARSHAN_PLATFORM/env.sh
 
-echo A
 for i in `ls $DARSHAN_TESTDIR/test-cases/*.sh`; do
     echo Running ${i}...
     $i
