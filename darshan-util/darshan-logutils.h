@@ -5,39 +5,34 @@
 
 #ifndef __DARSHAN_LOG_UTILS_H
 #define __DARSHAN_LOG_UTILS_H
+
 #include <darshan-log-format.h>
+#include "uthash-1.9.2/src/uthash.h"
 
 typedef struct darshan_fd_s* darshan_fd;
+
+struct darshan_record_ref
+{
+    struct darshan_record rec;
+    UT_hash_handle hlink;
+};
 
 darshan_fd darshan_log_open(const char *name, const char* mode);
 int darshan_log_getheader(darshan_fd file, struct darshan_header *header);
 int darshan_log_getjob(darshan_fd file, struct darshan_job *job);
-int darshan_log_getmap(darshan_fd file, unsigned char **map_buf);
-int darshan_log_build_map(unsigned char *map_buf);
-int darshan_log_destroy_map(void);
+int darshan_log_getmap(darshan_fd file, struct darshan_record_ref **map);
 #if 0
-int darshan_log_putjob(darshan_fd file, struct darshan_job *job);
 int darshan_log_getfile(darshan_fd fd, 
     struct darshan_job* job, 
     struct darshan_file *file);
-int darshan_log_putfile(darshan_fd fd, 
-    struct darshan_job* job, 
-    struct darshan_file *file);
 int darshan_log_getexe(darshan_fd fd, char *buf);
-int darshan_log_putexe(darshan_fd fd, char *buf);
 int darshan_log_getmounts(darshan_fd fd,
     int64_t** devs,
     char*** mnt_pts,
     char*** fs_types,
     int* count);
-int darshan_log_putmounts(darshan_fd fd,
-    int64_t* devs,
-    char** mnt_pts,
-    char** fs_types,
-    int count);
 #endif
 void darshan_log_close(darshan_fd file);
-//void darshan_log_print_version_warnings(struct darshan_job *job);
 
 /* convenience macros for printing out counters */
 #define CP_PRINT_HEADER() printf("#<rank>\t<file>\t<counter>\t<value>\t<name suffix>\t<mount pt>\t<fs type>\n")
