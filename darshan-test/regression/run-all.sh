@@ -42,39 +42,10 @@ if [ ! -d $DARSHAN_TESTDIR/$DARSHAN_PLATFORM ]; then
     exit 1
 fi
 
-# set up c compiler for this platform
-DARSHAN_CC=`$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/setup-cc.sh`
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-export DARSHAN_CC
+# set up environment for tests according to platform
+source $DARSHAN_TESTDIR/$DARSHAN_PLATFORM/env.sh
 
-# set up c++ compiler for this platform
-DARSHAN_CXX=`$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/setup-cxx.sh`
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-export DARSHAN_CXX
-
-# set up Fortran compilers for this platform
-DARSHAN_F77=`$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/setup-f77.sh`
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-export DARSHAN_F77
-DARSHAN_F90=`$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/setup-f90.sh`
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-export DARSHAN_F90
-
-# set up job execution wrapper for this platform
-DARSHAN_RUNJOB=`$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/setup-runjob.sh`
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-export DARSHAN_RUNJOB
-
+echo A
 for i in `ls $DARSHAN_TESTDIR/test-cases/*.sh`; do
     echo Running ${i}...
     $i
