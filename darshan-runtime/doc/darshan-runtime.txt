@@ -379,11 +379,29 @@ http://software.intel.com/en-us/forums/showthread.php?t=103447&o=a&s=lr
 
 === Linux clusters using MPICH 
 
-Follow the generic instructions provided at the top of this document.  The
-only modification is to make sure that the `CC` used for compilation is
+Follow the generic instructions provided at the top of this document.  For MPICH versions 3.1 and
+later, MPICH uses shared libraries by default, so you may need to consider the dynamic linking
+instrumentation approach.  
+
+The static linking method can be used if MPICH is configured to use static
+linking by default, or if you are using a version prior to 3.1.
+The only modification is to make sure that the `CC` used for compilation is
 based on a GNU compiler.  Once Darshan has been installed, it should be
 capable of instrumenting executables built with GNU, Intel, and PGI
 compilers.
+
+[NOTE]
+Darshan is not capable of instrumenting Fortran applications build with MPICH versions 3.1.1, 3.1.2,
+or 3.1.3 due to a library symbol name compatibility issue.  Consider using a newer version of
+MPICH if you wish to instrument Fortran applications.  Please see
+http://trac.mpich.org/projects/mpich/ticket/2209 for more details.
+
+[NOTE]
+MPICH versions 3.1, 3.1.1, 3.1.2, and 3.1.3 may produce link-time errors when building static
+executables (i.e. using the -static option) if MPICH is built with shared library support.
+Please see http://trac.mpich.org/projects/mpich/ticket/2190 for more details.  The workaround if you
+wish to use static linking is to configure MPICH with `--enable-shared=no --enable-static=yes` to
+force it to use static MPI libraries with correct dependencies.
 
 === Linux clusters using Open MPI
 
