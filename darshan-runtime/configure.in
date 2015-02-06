@@ -305,4 +305,7 @@ darshan-config
 share/craype-1.x/darshan-module
 share/craype-2.x/darshan-module
 lib/pkgconfig/darshan-runtime.pc
+share/mpi-profile/darshan-cc.conf
+share/mpi-profile/darshan-cxx.conf
+share/mpi-profile/darshan-f.conf
 )

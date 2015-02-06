@@ -29,6 +29,8 @@ darshan-2.3.1-pre2
 * update darshan-gen-fortran.pl and darshan-gen-cxx.pl to support new library
   naming conventions in MPICH 3.1.1 and higher
 * update documentation to reflect known issues with some versions of MPICH
+* added example mpicc profile configuration files, see share/mpi-profile/ 
+  subdirectory within installation directory
 
 darshan-2.3.0
 =============

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Example Darshan profiling configuration file for MPICH.
+
+
+DARSHAN_PREFIX=@prefix@
+
+# Libraries (and paths) to include before the MPI library 
+export PROFILE_PRELIB="-lfmpich `$DARSHAN_PREFIX/bin/darshan-config --pre-ld-flags`"
+
+# Libraries to include after the MPI library 
+export PROFILE_POSTLIB=`$DARSHAN_PREFIX/bin/darshan-config --post-ld-flags`
+
+# C preprocessor arguments for any include files For example, to add
+# /usr/local/myprof/include to the include path and the library libmyprof.a in
+# /usr/local/myprof/lib to the link step, you could create the file myprof.conf with the
+# lines 
+# PROFILE_INCPATHS

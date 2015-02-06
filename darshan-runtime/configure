@@ -4259,7 +4259,7 @@ DARSHAN_VERSION="2.3.1-pre1"
 
 
 
-ac_config_files="$ac_config_files Makefile darshan-mk-log-dirs.pl darshan-gen-cc.pl darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-config share/craype-1.x/darshan-module share/craype-2.x/darshan-module lib/pkgconfig/darshan-runtime.pc"
+ac_config_files="$ac_config_files Makefile darshan-mk-log-dirs.pl darshan-gen-cc.pl darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-config share/craype-1.x/darshan-module share/craype-2.x/darshan-module lib/pkgconfig/darshan-runtime.pc share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -4962,6 +4962,9 @@ do
     "share/craype-1.x/darshan-module") CONFIG_FILES="$CONFIG_FILES share/craype-1.x/darshan-module" ;;
     "share/craype-2.x/darshan-module") CONFIG_FILES="$CONFIG_FILES share/craype-2.x/darshan-module" ;;
     "lib/pkgconfig/darshan-runtime.pc") CONFIG_FILES="$CONFIG_FILES lib/pkgconfig/darshan-runtime.pc" ;;
+    "share/mpi-profile/darshan-cc.conf") CONFIG_FILES="$CONFIG_FILES share/mpi-profile/darshan-cc.conf" ;;
+    "share/mpi-profile/darshan-cxx.conf") CONFIG_FILES="$CONFIG_FILES share/mpi-profile/darshan-cxx.conf" ;;
+    "share/mpi-profile/darshan-f.conf") CONFIG_FILES="$CONFIG_FILES share/mpi-profile/darshan-f.conf" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

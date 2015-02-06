@@ -114,6 +114,10 @@ endif
 	install -m 755 share/craype-1.x/darshan-module $(datarootdir)/craype-1.x/modulefiles/darshan/$(DARSHAN_VERSION)
 	install -d $(datarootdir)/craype-2.x/modulefiles/darshan
 	install -m 755 share/craype-2.x/darshan-module $(datarootdir)/craype-2.x/modulefiles/darshan/$(DARSHAN_VERSION)
+	install -d $(datarootdir)/mpi-profile
+	install -m 755 share/mpi-profile/darshan-cc.conf $(datarootdir)/mpi-profile/darshan-cc.conf
+	install -m 755 share/mpi-profile/darshan-cxx.conf $(datarootdir)/mpi-profile/darshan-cxx.conf
+	install -m 755 share/mpi-profile/darshan-f.conf $(datarootdir)/mpi-profile/darshan-f.conf
 	install -d $(libdir)/pkgconfig
 	install -m 644 lib/pkgconfig/darshan-runtime.pc $(libdir)/pkgconfig/darshan-runtime.pc
 
