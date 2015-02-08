@@ -621,6 +621,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+MPICH_LIB_OLD
 DARSHAN_VERSION
 DISABLE_LDPRELOAD
 CP_WRAPPERS
@@ -4250,7 +4251,21 @@ $as_echo "#define __D_MPI_REQUEST MPI_Request" >>confdefs.h
 fi
 
 
+# attempt to detect librarly naming convention in mpi compiler script
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for old (pre-3.1.1) style MPICH library naming convention" >&5
+$as_echo_n "checking for old (pre-3.1.1) style MPICH library naming convention... " >&6; }
+if $CC -show foo.c -o foo |grep lmpich >& /dev/null; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+    MPICH_LIB_OLD=1
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+    MPICH_LIB_OLD=0
+fi
+
 DARSHAN_VERSION="2.3.1-pre1"
+
 
 
 

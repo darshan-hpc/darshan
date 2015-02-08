@@ -287,6 +287,14 @@ AC_CHECK_TYPE([MPIO_Request],
 		AC_DEFINE(__D_MPI_REQUEST, MPI_Request, Generalized request type for MPI-IO)
 	,[#include <mpi.h>])
 
+# attempt to detect librarly naming convention in mpi compiler script
+AC_MSG_CHECKING(for old (pre-3.1.1) style MPICH library naming convention)
+AS_IF([$CC -show foo.c -o foo |grep lmpich >& /dev/null], 
+    AC_MSG_RESULT(yes)
+    MPICH_LIB_OLD=1,
+    AC_MSG_RESULT(no)
+    MPICH_LIB_OLD=0)
+
 DARSHAN_VERSION="AC_PACKAGE_VERSION"
 
 AC_SUBST(darshan_lib_path)
@@ -296,6 +304,7 @@ AC_SUBST(__CP_LOG_PATH)
 AC_SUBST(CP_WRAPPERS)
 AC_SUBST(DISABLE_LDPRELOAD)
 AC_SUBST(DARSHAN_VERSION)
+AC_SUBST(MPICH_LIB_OLD)
 AC_OUTPUT(Makefile
 darshan-mk-log-dirs.pl
 darshan-gen-cc.pl
