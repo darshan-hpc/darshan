@@ -4,6 +4,9 @@ Darshan Release Change Log
 
 darshan-2.3.1-pre2
 =============
+* added documentation and example configuration files for using the -profile
+  or $MPICC_PROFILE hooks to add instrumentation to MPICH-based MPI
+  implementations without generating custom wrapper scripts
 * Add wrappers for mkstemp(), mkostemp(), mkstemps(), and mkostemps()
   (reported by Tom Peterka)
 * Change OPEN_TIMESTAMP field to report timestamp right before open() is
@@ -29,8 +32,6 @@ darshan-2.3.1-pre2
 * update darshan-gen-fortran.pl and darshan-gen-cxx.pl to support new library
   naming conventions in MPICH 3.1.1 and higher
 * update documentation to reflect known issues with some versions of MPICH
-* added example mpicc profile configuration files, see share/mpi-profile/ 
-  subdirectory within installation directory
 
 darshan-2.3.0
 =============

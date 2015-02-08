@@ -143,13 +143,17 @@ for details if you intend to force one mode or the other.
 
 == Instrumenting statically-linked applications
 
-Statically linked executables must be instrumented at compile time.  The
-simplest way to do this is to generate an MPI compiler script (e.g. `mpicc`)
-that includes the link options and libraries needed by Darshan.  Once this
-is done, Darshan instrumentation is transparent; you simply compile
-applications using the darshan-enabled MPI compiler scripts.
+Statically linked executables must be instrumented at compile time.
+The simplest methods to do this are to either generate a customized
+MPI compiler script (e.g. `mpicc`) that includes the link options and
+libraries needed by Darshan, or to use existing profiling configuration
+hooks for existing MPI compiler scripts.  Once this is done, Darshan
+instrumentation is transparent; you simply compile applications using
+the darshan-enabled MPI compiler scripts.
 
-For MPICH-based MPI libraries, such as MPICH1, MPICH2, or MVAPICH, these
+=== Using customized compiler wrapper scripts
+
+For MPICH-based MPI libraries, such as MPICH1, MPICH2, or MVAPICH, custom
 wrapper scripts can be generated automatically.  The following example
 illustrates how to produce wrappers for C, C++, and Fortran compilers:
 
@@ -159,6 +163,40 @@ darshan-gen-cxx.pl `which mpicxx` --output mpicxx.darshan
 darshan-gen-fortran.pl `which mpif77` --output mpif77.darshan
 darshan-gen-fortran.pl `which mpif90` --output mpif90.darshan
 -----
+
+=== Using a profile configuration 
+
+The MPICH MPI implementation supports the specification of a profiling library
+configuration, then it can be used to insert Darshan instrumentation without
+modifying the existing MPI compiler script.  Example profiling configuration
+files are installed with Darshan 2.3.1 and later.  You can enable a profiling
+configuration using environment variables or command line arguments to the
+compiler scripts:
+
+Example for MPICH 3.1.1 or newer:
+----
+export MPICC_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cc
+export MPICXX_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cxx
+export MPIFORT_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
+----
+
+Example for MPICH 3.1 or earlier:
+----
+export MPICC_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cc
+export MPICXX_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cxx
+export MPICF77_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
+export MPICF90_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
+----
+
+Examples for command line use:
+----
+mpicc -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-c <args>
+mpicxx -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-cxx <args>
+mpif77 -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-f <args>
+mpif90 -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-f <args>
+----
+
+=== Other configurations
 
 Please see the Cray recipe in this document for instructions on
 instrumenting statically-linked applications on that platform.
