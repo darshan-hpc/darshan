@@ -20,6 +20,9 @@ Notes on how to release a new version of Darshan
   pushed to origin/master
 - make a tag for the release according to instructions at
   http://git-scm.com/book/en/Git-Basics-Tagging
+  - example (annotated tag, pushed to repo):
+    git tag -a darshan-2.3.1-pre2 -m 'Darshan 2.3.1-pre2'
+    git push origin darshan-2.3.1-pre2
 - TESTING
 - export the tag and tar gzip it
   - easiest method is to do a fresh checkout and remove the .git
