@@ -27,6 +27,7 @@
 
 #include "uthash.h"
 #include "darshan.h"
+#include "darshan-posix-log-format.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;

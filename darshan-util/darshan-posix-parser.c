@@ -22,23 +22,20 @@ int main(int argc, char **argv)
 {
     int ret;
     char *filename;
+    char tmp_string[4096];
     darshan_fd file;
     struct darshan_header header;
     struct darshan_job job;
     struct darshan_record_ref *rec_map = NULL;
     struct darshan_record_ref *ref, *tmp;
     struct darshan_posix_file next_rec;
+    time_t tmp_time = 0;
 
     assert(argc == 2);
     filename = argv[1];
 
     struct stat sbuf;
     stat(filename, &sbuf);
-
-    printf("\nDarshan log file size: %"PRId64"\n", sbuf.st_size);
-    printf("size of header: %"PRId64"\n", sizeof(struct darshan_header));
-    printf("size of index map: %"PRId64"\n", 2*sizeof(int64_t));
-    printf("size of job data: %"PRId64"\n", sizeof(struct darshan_job));
 
     file = darshan_log_open(filename, "r");
     if(!file)
@@ -47,7 +44,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    /* read the log header */
+    /* read darshan log header */
     ret = darshan_log_getheader(file, &header);
     if(ret < 0)
     {
@@ -56,11 +53,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    printf("\n*** HEADER DATA ***\n");
-    printf("\tver=%s\n\tmagic_nr=%"PRId64"\n\tcomp_type=%d\n\tmod_count=%d\n",
-        header.version_string, header.magic_nr, header.comp_type, header.mod_count);    
-
-    /* read job info */
+    /* read darshan job info */
     ret = darshan_log_getjob(file, &job);
     if(ret < 0)
     {
@@ -69,10 +62,22 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    printf("\n*** JOB DATA ***\n");
-    printf(
-        "\tuid=%"PRId64"\n\tstart_time=%"PRId64"\n\tend_time=%"PRId64"\n\tnprocs=%"PRId64"\n\tjobid=%"PRId64"\n",
-        job.uid, job.start_time, job.end_time, job.nprocs, job.jobid);    
+    /* print job summary */
+    printf("# darshan log version: %s\n", header.version_string);
+    printf("# size of POSIX file statistics: %zu bytes\n", sizeof(next_rec));
+    printf("# size of job statistics: %zu bytes\n", sizeof(job));
+    printf("# exe: %s\n", tmp_string);
+    printf("# uid: %" PRId64 "\n", job.uid);
+    printf("# jobid: %" PRId64 "\n", job.jobid);
+    printf("# start_time: %" PRId64 "\n", job.start_time);
+    tmp_time += job.start_time;
+    printf("# start_time_asci: %s", ctime(&tmp_time));
+    printf("# end_time: %" PRId64 "\n", job.end_time);
+    tmp_time = 0;
+    tmp_time += job.end_time;
+    printf("# end_time_asci: %s", ctime(&tmp_time));
+    printf("# nprocs: %" PRId64 "\n", job.nprocs);
+    printf("# run time: %" PRId64 "\n", job.end_time - job.start_time + 1);
 
     /* read record map */
     ret = darshan_log_getmap(file, &rec_map);
@@ -111,6 +116,8 @@ int main(int argc, char **argv)
 
         printf("\tRecord %d: id=%"PRIu64" (path=%s, rank=%"PRId64")\n",
             i, next_rec.f_id, ref->rec.name, next_rec.rank);
+        printf("\t\tPOSIX_OPENS:\t%"PRIu64"\n\t\tF_OPEN_TIMESTAMP:\t%lf\n",
+            next_rec.counters[CP_POSIX_OPENS], next_rec.fcounters[CP_F_OPEN_TIMESTAMP]);
 
         i++;
     } while((ret = darshan_log_getfile(file, &next_rec)) == 1);

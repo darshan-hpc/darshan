@@ -6,7 +6,8 @@
 #ifndef __DARSHAN_LOG_UTILS_H
 #define __DARSHAN_LOG_UTILS_H
 
-#include <darshan-log-format.h>
+#include "darshan-log-format.h"
+#include "darshan-posix-log-format.h"
 #include "uthash-1.9.2/src/uthash.h"
 
 typedef struct darshan_fd_s* darshan_fd;
