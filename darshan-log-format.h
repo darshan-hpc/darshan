@@ -30,26 +30,44 @@
 /* max length of exe string within job record (not counting '\0') */
 #define CP_EXE_LEN (CP_JOB_RECORD_SIZE - sizeof(struct darshan_job) - 1)
 
+/* max length of module name string (not counting '\0') */
+/* TODO */
+#define DARSHAN_MOD_NAME_LEN 31
+
 typedef uint64_t darshan_record_id;
+
+/* unique identifiers to distinguish between available darshan modules */
+/* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
+ *        - order of ids control module shutdown order (and consequently, order in log file)
+ */
+#define DARSHAN_MAX_MODS 16
+typedef enum
+{
+    DARSHAN_POSIX_MOD,
+    DARSHAN_MPIIO_MOD,
+    DARSHAN_HDF5_MOD,
+    DARSHAN_PNETCDF_MOD,
+} darshan_module_id;
 
 enum darshan_comp_type
 {
     DARSHAN_GZ_COMP,
-    DARSHAN_BZ2_COMP,
+    DARSHAN_BZ2_COMP, /* TODO: no bz2 support util side, yet */
+};
+
+struct darshan_log_map
+{
+    uint64_t off;
+    uint64_t len;
 };
 
 struct darshan_header
 {
     char version_string[8];
     int64_t magic_nr;
-    uint8_t comp_type; /* TODO */
-    uint8_t mod_count; /* TODO: */
-};
-
-struct darshan_record
-{
-    char* name;
-    darshan_record_id id;
+    unsigned char comp_type;
+    struct darshan_log_map rec_map;
+    struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
 };
 
 /* statistics for the job as a whole */
@@ -62,6 +80,12 @@ struct darshan_job
     int64_t nprocs;
     int64_t jobid;
     char metadata[DARSHAN_JOB_METADATA_LEN]; /* TODO: what is this? */
+};
+
+struct darshan_record
+{
+    char* name;
+    darshan_record_id id;
 };
 
 #endif /* __DARSHAN_LOG_FORMAT_H */

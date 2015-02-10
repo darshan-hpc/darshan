@@ -26,7 +26,7 @@ int main(int argc, char **argv)
     darshan_fd file;
     struct darshan_header header;
     struct darshan_job job;
-    struct darshan_record_ref *rec_map = NULL;
+    struct darshan_record_ref *rec_hash = NULL;
     struct darshan_record_ref *ref, *tmp;
     struct darshan_posix_file next_rec;
     time_t tmp_time = 0;
@@ -79,8 +79,8 @@ int main(int argc, char **argv)
     printf("# nprocs: %" PRId64 "\n", job.nprocs);
     printf("# run time: %" PRId64 "\n", job.end_time - job.start_time + 1);
 
-    /* read record map */
-    ret = darshan_log_getmap(file, &rec_map);
+    /* read hash of darshan records */
+    ret = darshan_log_gethash(file, &rec_hash);
     if(ret < 0)
     {
         fprintf(stderr, "darshan_log_getmap() failed to read record map.\n");
@@ -111,7 +111,7 @@ int main(int argc, char **argv)
         struct darshan_record_ref *ref;
 
         /* get the pathname for this record */
-        HASH_FIND(hlink, rec_map, &next_rec.f_id, sizeof(darshan_record_id), ref);
+        HASH_FIND(hlink, rec_hash, &next_rec.f_id, sizeof(darshan_record_id), ref);
         assert(ref);
 
         printf("\tRecord %d: id=%"PRIu64" (path=%s, rank=%"PRId64")\n",

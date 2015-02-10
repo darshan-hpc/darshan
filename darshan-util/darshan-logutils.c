@@ -31,11 +31,9 @@ struct darshan_fd_s
     int swap_flag;
     char version[8];
     char* name;
-    int mod_count;
-    int64_t job_off;
-    int64_t rec_off;
-    int64_t mod_off;
-    int64_t end_off;
+    struct darshan_log_map job_map;
+    struct darshan_log_map rec_map;
+    struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
 };
 
 static int darshan_log_seek(darshan_fd fd, off_t offset);
@@ -97,8 +95,7 @@ darshan_fd darshan_log_open(const char *name, const char *mode)
  */
 int darshan_log_getheader(darshan_fd fd, struct darshan_header *header)
 {
-    struct stat sbuf;
-    int64_t ndx_buf[2];
+    int i;
     int ret;
 
     ret = darshan_log_seek(fd, 0);
@@ -131,6 +128,15 @@ int darshan_log_getheader(darshan_fd fd, struct darshan_header *header)
         if(header->magic_nr == CP_MAGIC_NR)
         {
             fd->swap_flag = 1;
+
+            /* swap the log map variables in the header */
+            DARSHAN_BSWAP64(&header->rec_map.off);
+            DARSHAN_BSWAP64(&header->rec_map.len);
+            for(i=0;i<DARSHAN_MAX_MODS;i++)
+            {
+                DARSHAN_BSWAP64(&header->mod_map[i].off);
+                DARSHAN_BSWAP64(&header->mod_map[i].len);
+            }
         }
         else
         {
@@ -140,22 +146,11 @@ int darshan_log_getheader(darshan_fd fd, struct darshan_header *header)
         }
     }
 
-    /* read index map from log file */
-    ret = darshan_log_read(fd, ndx_buf, (2*sizeof(int64_t)));
-    if(ret < (2 * sizeof(int64_t)))
-    {
-        fprintf(stderr, "Error: invalid darshan log file (failed to read header indexes).\n");
-        return(-1);
-    }
-
-    /* fill index info into darshan file descriptor */
-    fd->job_off = sizeof(struct darshan_header) + (2 * sizeof(int64_t)); /* TODO: */
-    fd->rec_off = ndx_buf[0];
-    fd->mod_off = ndx_buf[1];
-
-    /* use stat to get log file size -- used to help index the log */
-    fstat(fd->pf, &sbuf);
-    fd->end_off = sbuf.st_size;
+    /* save the mapping of data within log file to this file descriptor */
+    fd->job_map.off = sizeof(struct darshan_header);
+    fd->job_map.len = header->rec_map.off - fd->job_map.off;
+    memcpy(&fd->rec_map, &header->rec_map, sizeof(struct darshan_log_map));
+    memcpy(&fd->mod_map, &header->mod_map, DARSHAN_MAX_MODS * sizeof(struct darshan_log_map));
 
     return(0);
 }
@@ -170,7 +165,7 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
 {
     int ret;
 
-    ret = darshan_log_seek(fd, fd->job_off);
+    ret = darshan_log_seek(fd, fd->job_map.off);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to seek in darshan log file.\n");
@@ -178,8 +173,8 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
     }
 
     /* read the job data from the log file */
-    ret = darshan_log_read(fd, job, sizeof(*job));
-    if(ret < sizeof(*job))
+    ret = darshan_log_read(fd, job, fd->job_map.len);
+    if(ret < fd->job_map.len)
     {
         fprintf(stderr, "Error: invalid darshan log file (failed to read job data).\n");
         return(-1);
@@ -198,16 +193,15 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
     return(0);
 }
 
-/* darshan_log_getjob()
+/* darshan_log_gethash()
  *
- * read job level metadata from the darshan log file
+ * read the hash of records from the darshan log file
  *
  * returns 0 on success, -1 on failure
  */
-int darshan_log_getmap(darshan_fd fd, struct darshan_record_ref **map)
+int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
 {
-    int map_size;
-    unsigned char *map_buf;
+    unsigned char *hash_buf;
     unsigned char *buf_ptr;
     darshan_record_id *rec_id_ptr;
     uint32_t *path_len_ptr;
@@ -215,33 +209,32 @@ int darshan_log_getmap(darshan_fd fd, struct darshan_record_ref **map)
     struct darshan_record_ref *ref;
     int ret;
 
-    ret = darshan_log_seek(fd, fd->rec_off);
+    ret = darshan_log_seek(fd, fd->rec_map.off);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to seek in darshan log file.\n");
         return(ret);
     }
 
-    /* allocate a buffer to store the (serialized) darshan record map */
-    map_size = fd->mod_off - fd->rec_off;
-    map_buf = malloc(map_size);
-    if(!map_buf)
+    /* allocate a buffer to store the (serialized) darshan record hash */
+    hash_buf = malloc(fd->rec_map.len);
+    if(!hash_buf)
         return(-1);
 
     /* read the record map from the log file */
-    ret = darshan_log_read(fd, map_buf, map_size);
-    if(ret < map_size)
+    ret = darshan_log_read(fd, hash_buf, fd->rec_map.len);
+    if(ret < fd->rec_map.len)
     {
-        fprintf(stderr, "Error: invalid darshan log file (failed to read record map).\n");
-        free(map_buf);
+        fprintf(stderr, "Error: invalid darshan log file (failed to read record hash).\n");
+        free(hash_buf);
         return(-1);
     }
 
-    buf_ptr = map_buf;
-    while(buf_ptr < (map_buf + map_size))
+    buf_ptr = hash_buf;
+    while(buf_ptr < (hash_buf + fd->rec_map.len))
     {
         /* get pointers for each field of this darshan record */
-        /* NOTE: darshan record map serialization method: 
+        /* NOTE: darshan record hash serialization method: 
          *          ... darshan_record_id | (uint32_t) path_len | path ...
          */
         rec_id_ptr = (darshan_record_id *)buf_ptr;
@@ -254,13 +247,13 @@ int darshan_log_getmap(darshan_fd fd, struct darshan_record_ref **map)
         ref = malloc(sizeof(*ref));
         if(!ref)
         {
-            free(map_buf);
+            free(hash_buf);
             return(-1);
         }
         ref->rec.name = malloc(*path_len_ptr + 1);
         if(!ref->rec.name)
         {
-            free(map_buf);
+            free(hash_buf);
             free(ref);
             return(-1);
         }
@@ -278,10 +271,10 @@ int darshan_log_getmap(darshan_fd fd, struct darshan_record_ref **map)
         ref->rec.name[*path_len_ptr] = '\0';
 
         /* add this record to the hash */
-        HASH_ADD(hlink, *map, rec.id, sizeof(darshan_record_id), ref);
+        HASH_ADD(hlink, *hash, rec.id, sizeof(darshan_record_id), ref);
     }
 
-    free(map_buf);
+    free(hash_buf);
 
     return(0);
 }
@@ -295,9 +288,9 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_posix_file *file)
     const char* err_string;
     int i;
 
-    if(fd->pos < fd->mod_off)
+    if(fd->pos < fd->mod_map[0].off)
     {
-        ret = darshan_log_seek(fd, fd->mod_off);
+        ret = darshan_log_seek(fd, fd->mod_map[0].off);
         if(ret < 0)
         {
             fprintf(stderr, "Error: unable to seek in darshan log file.\n");
