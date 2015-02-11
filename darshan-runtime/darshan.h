@@ -44,7 +44,6 @@ struct darshan_module_funcs
 
 void darshan_core_register_module(
     darshan_module_id id,
-    char *name,
     struct darshan_module_funcs *funcs,
     int *runtime_mem_limit);
 

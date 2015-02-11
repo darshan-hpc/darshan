@@ -18,7 +18,6 @@
 struct darshan_core_module
 {
     darshan_module_id id;
-    char name[DARSHAN_MOD_NAME_LEN+1];
     struct darshan_module_funcs mod_funcs;
 };
 

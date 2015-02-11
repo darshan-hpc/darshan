@@ -45,9 +45,11 @@ static void darshan_get_logfile_name(
     char* logfile_name, int jobid, struct tm* start_tm);
 static void darshan_log_record_hints_and_ver(
     struct darshan_core_runtime* job);
-static int darshan_get_shared_record_ids(
+static void darshan_get_shared_record_ids(
     struct darshan_core_runtime *job, darshan_record_id *shared_recs);
-static int darshan_log_write_record_map(
+static int darshan_log_coll_open(
+    char *logfile_name, MPI_File *log_fh);
+static int darshan_log_write_record_hash(
     MPI_File log_fh, struct darshan_core_record_ref *rec_hash,
     darshan_record_id *shared_recs, struct darshan_log_map *map);
 static int darshan_log_coll_write(
@@ -197,13 +199,11 @@ static void darshan_core_shutdown()
     int local_mod_use[DARSHAN_MAX_MODS] = {0};
     int global_mod_use_count[DARSHAN_MAX_MODS] = {0};
     darshan_record_id shared_recs[DARSHAN_CORE_MAX_RECORDS] = {0};
-    char *hints;
     double start_log_time;
     long offset;
     struct darshan_header log_header;
     MPI_File log_fh;
     MPI_Offset tmp_off;
-    MPI_Info info;
     MPI_Status status;
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
@@ -297,10 +297,6 @@ static void darshan_core_shutdown()
         final_job->log_job.end_time = last_end_time;
     }
 
-    /* XXX */
-    /* TODO: ensuing error checking...does MPI ensure collective I/O functions return the same error
-     * globally, or do I always need to allreduce????? */
-
     /* set which local modules were actually used */
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
@@ -312,72 +308,10 @@ static void darshan_core_shutdown()
     DARSHAN_MPI_CALL(PMPI_Allreduce)(local_mod_use, global_mod_use_count, DARSHAN_MAX_MODS, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
     /* get a list of records which are shared across all processes */
-    ret = darshan_get_shared_record_ids(final_job, shared_recs);
+    darshan_get_shared_record_ids(final_job, shared_recs);
 
-    /* error out if unable to determine shared file records */
-    DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
-        MPI_LOR, MPI_COMM_WORLD);
-    if(all_ret != 0)
-    {
-        if(my_rank == 0)
-        {
-            fprintf(stderr, "darshan library warning: unable to determine shared file records\n");
-        }
-        free(logfile_name);
-        darshan_core_cleanup(final_job);
-        return;
-    }
-
-    /* check environment variable to see if the default MPI file hints have
-     * been overridden
-     */
-    MPI_Info_create(&info);
-
-    hints = getenv(CP_LOG_HINTS_OVERRIDE);
-    if(!hints)
-    {
-        hints = __CP_LOG_HINTS;
-    }
-
-    if(hints && strlen(hints) > 0)
-    {
-        char *tok_str;
-        char *orig_tok_str;
-        char *key;
-        char *value;
-        char *saveptr = NULL;
-
-        tok_str = strdup(hints);
-        if(tok_str)
-        {
-            orig_tok_str = tok_str;
-            do
-            {
-                /* split string on semicolon */
-                key = strtok_r(tok_str, ";", &saveptr);
-                if(key)
-                {
-                    tok_str = NULL;
-                    /* look for = sign splitting key/value pairs */
-                    value = index(key, '=');
-                    if(value)
-                    {
-                        /* break key and value into separate null terminated strings */
-                        value[0] = '\0';
-                        value++;
-                        if(strlen(key) > 0)
-                            MPI_Info_set(info, key, value);
-                    }
-                }
-            }while(key != NULL);
-            free(orig_tok_str);
-        }
-    }
-
-    /* open the darshan log file for writing */
-    ret = DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, logfile_name,
-        MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, info, &log_fh);
-    MPI_Info_free(&info);
+    /* collectively open the darshan log file */
+    ret = darshan_log_coll_open(logfile_name, &log_fh);
 
     /* error out if unable to open log file */
     DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
@@ -386,12 +320,8 @@ static void darshan_core_shutdown()
     {
         if(my_rank == 0)
         {
-            int msg_len;
-            char msg[MPI_MAX_ERROR_STRING] = {0};
-
-            MPI_Error_string(ret, msg, &msg_len);
-            fprintf(stderr, "darshan library warning: unable to open log file %s: %s\n",
-                logfile_name, msg);
+            fprintf(stderr, "darshan library warning: unable to open log file %s\n",
+                logfile_name);
             unlink(logfile_name);
         }
         free(logfile_name);
@@ -403,26 +333,33 @@ static void darshan_core_shutdown()
     if(my_rank == 0)
     {
         /* write the job information, making sure to prealloc space for the log header */
-        ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, sizeof(struct darshan_header),
+        all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, sizeof(struct darshan_header),
                 &final_job->log_job, sizeof(struct darshan_job), MPI_BYTE, &status);
-        if(ret != MPI_SUCCESS)
+        if(all_ret != MPI_SUCCESS)
         {
-            int msg_len;
-            char msg[MPI_MAX_ERROR_STRING] = {0};
-
-            MPI_Error_string(ret, msg, &msg_len);
-            fprintf(stderr, "darshan library warning: unable to write job data to log file %s: %s\n",
-                    logfile_name, msg);
+            fprintf(stderr, "darshan library warning: unable to write job data to log file %s\n",
+                    logfile_name);
+            unlink(logfile_name);
         }
 
-        /* TODO */
+        /* TODO: after compression is added, this should be fixed */
         log_header.rec_map.off = sizeof(struct darshan_header) + sizeof(struct darshan_job);
     }
 
-    /* write the record name->id map to the log file */
-    ret = darshan_log_write_record_map(log_fh, final_job->rec_hash,
+    /* error out if unable to write job information */
+    DARSHAN_MPI_CALL(PMPI_Bcast)(&all_ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if(all_ret != 0)
+    {
+        free(logfile_name);
+        darshan_core_cleanup(final_job);
+        return;
+    }
+
+    /* write the record name->id hash to the log file */
+    ret = darshan_log_write_record_hash(log_fh, final_job->rec_hash,
         shared_recs, &log_header.rec_map);
 
+    /* error out if unable to write record hash */
     DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
         MPI_LOR, MPI_COMM_WORLD);
     if(all_ret != 0)
@@ -431,6 +368,7 @@ static void darshan_core_shutdown()
         {
             fprintf(stderr, "darshan library warning: unable to write record map to log file %s\n",
                 logfile_name);
+            unlink(logfile_name);
         }
         free(logfile_name);
         darshan_core_cleanup(final_job);
@@ -441,7 +379,8 @@ static void darshan_core_shutdown()
      *      - get final output buffer
      *      - compress (zlib) provided output buffer
      *      - append compressed buffer to log file
-     *      - shutdown the module TODO
+     *      - add module index info (file offset/length) to log header
+     *      - shutdown the module
      */
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
@@ -483,9 +422,22 @@ static void darshan_core_shutdown()
 
         /* write module data buffer to the darshan log file */
         ret = darshan_log_coll_write(log_fh, mod_buf, mod_buf_size, &log_header.mod_map[i]);
-        if(ret < 0)
+
+        /* error out if unable to write this module's data */
+        DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
+            MPI_LOR, MPI_COMM_WORLD);
+        if(all_ret != 0)
         {
-            /* TODO: */
+            if(my_rank == 0)
+            {
+                fprintf(stderr,
+                    "darshan library warning: unable to write %s module data to log file %s\n",
+                    darshan_module_names[i], logfile_name);
+                unlink(logfile_name);
+            }
+            free(logfile_name);
+            darshan_core_cleanup(final_job);
+            return;
         }
 
         tmp_off += log_header.mod_map[i].len;
@@ -508,12 +460,23 @@ static void darshan_core_shutdown()
         log_header.magic_nr = CP_MAGIC_NR;
         log_header.comp_type = DARSHAN_GZ_COMP;
 
-        ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, 0, &log_header,
+        all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, 0, &log_header,
             sizeof(struct darshan_header), MPI_BYTE, &status);
-        if(ret != MPI_SUCCESS)
+        if(all_ret != MPI_SUCCESS)
         {
-            /* TODO */
+            fprintf(stderr, "darshan library warning: unable to write header to log file %s\n",
+                    logfile_name);
+            unlink(logfile_name);
         }
+    }
+
+    /* error out if unable to write log header */
+    DARSHAN_MPI_CALL(PMPI_Bcast)(&all_ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if(all_ret != 0)
+    {
+        free(logfile_name);
+        darshan_core_cleanup(final_job);
+        return;
     }
 
     DARSHAN_MPI_CALL(PMPI_File_close)(&log_fh);
@@ -522,6 +485,7 @@ static void darshan_core_shutdown()
      * to *-<logwritetime>.darshan.gz, which indicates that this log file is
      * complete and ready for analysis
      */
+    /* TODO: support user given logfile path/name */
     if(my_rank == 0)
     {
         char* tmp_index;
@@ -758,12 +722,11 @@ static void darshan_log_record_hints_and_ver(struct darshan_core_runtime* job)
     return;
 }
 
-static int darshan_get_shared_record_ids(struct darshan_core_runtime *job,
+static void darshan_get_shared_record_ids(struct darshan_core_runtime *job,
     darshan_record_id *shared_recs)
 {
     int i;
     int ndx;
-    int ret;
     struct darshan_core_record_ref *ref, *tmp;
     darshan_record_id id_array[DARSHAN_CORE_MAX_RECORDS] = {0};
     darshan_record_id mask_array[DARSHAN_CORE_MAX_RECORDS] = {0};
@@ -780,13 +743,9 @@ static int darshan_get_shared_record_ids(struct darshan_core_runtime *job,
     }
 
     /* broadcast root's list of records to all other processes */
-    ret = DARSHAN_MPI_CALL(PMPI_Bcast)(id_array,
+    DARSHAN_MPI_CALL(PMPI_Bcast)(id_array,
         (DARSHAN_CORE_MAX_RECORDS * sizeof(darshan_record_id)),
         MPI_BYTE, 0, MPI_COMM_WORLD);
-    if(ret != 0)
-    {
-        return(-1);
-    }
 
     /* everyone looks to see if they opened the same records as root */
     for(i=0; (i<DARSHAN_CORE_MAX_RECORDS && id_array[i] != 0); i++)
@@ -803,12 +762,8 @@ static int darshan_get_shared_record_ids(struct darshan_core_runtime *job,
     }
 
     /* now allreduce so everyone agrees which files are shared */
-    ret = DARSHAN_MPI_CALL(PMPI_Allreduce)(mask_array, all_mask_array,
+    DARSHAN_MPI_CALL(PMPI_Allreduce)(mask_array, all_mask_array,
         DARSHAN_CORE_MAX_RECORDS, MPI_INT, MPI_LAND, MPI_COMM_WORLD);
-    if(ret != 0)
-    {
-        return(-1);
-    }
 
     ndx = 0;
     for(i=0; (i<DARSHAN_CORE_MAX_RECORDS && id_array[i] != 0); i++)
@@ -819,13 +774,74 @@ static int darshan_get_shared_record_ids(struct darshan_core_runtime *job,
         }
     }
 
+    return;
+}
+
+static int darshan_log_coll_open(char *logfile_name, MPI_File *log_fh)
+{
+    char *hints;
+    char *tok_str;
+    char *orig_tok_str;
+    char *key;
+    char *value;
+    char *saveptr = NULL;
+    int ret;
+    MPI_Info info;
+
+    /* check environment variable to see if the default MPI file hints have
+     * been overridden
+     */
+    MPI_Info_create(&info);
+
+    hints = getenv(CP_LOG_HINTS_OVERRIDE);
+    if(!hints)
+    {
+        hints = __CP_LOG_HINTS;
+    }
+
+    if(hints && strlen(hints) > 0)
+    {
+        tok_str = strdup(hints);
+        if(tok_str)
+        {
+            orig_tok_str = tok_str;
+            do
+            {
+                /* split string on semicolon */
+                key = strtok_r(tok_str, ";", &saveptr);
+                if(key)
+                {
+                    tok_str = NULL;
+                    /* look for = sign splitting key/value pairs */
+                    value = index(key, '=');
+                    if(value)
+                    {
+                        /* break key and value into separate null terminated strings */
+                        value[0] = '\0';
+                        value++;
+                        if(strlen(key) > 0)
+                            MPI_Info_set(info, key, value);
+                    }
+                }
+            }while(key != NULL);
+            free(orig_tok_str);
+        }
+    }
+
+    /* open the darshan log file for writing */
+    ret = DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, logfile_name,
+        MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, info, log_fh);
+    if(ret < 0)
+        return(-1);
+
+    MPI_Info_free(&info);
     return(0);
 }
 
 /* NOTE: the map written to file may contain duplicate id->name entries if a
  *       record is opened by multiple ranks, but not all ranks
  */
-static int darshan_log_write_record_map(MPI_File log_fh, struct darshan_core_record_ref *rec_hash,
+static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_record_ref *rec_hash,
     darshan_record_id *shared_recs, struct darshan_log_map *map)
 {
     int i;
@@ -983,7 +999,6 @@ static int darshan_log_coll_write(MPI_File log_fh, void *buf, int count,
 
 void darshan_core_register_module(
     darshan_module_id id,
-    char *name,
     struct darshan_module_funcs *funcs,
     int *runtime_mem_limit)
 {
@@ -1017,7 +1032,6 @@ void darshan_core_register_module(
     memset(mod, 0, sizeof(*mod));
 
     mod->id = id;
-    strncpy(mod->name, name, DARSHAN_MOD_NAME_LEN);
     mod->mod_funcs = *funcs;
 
     /* register module with darshan */

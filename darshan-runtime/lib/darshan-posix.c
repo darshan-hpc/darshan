@@ -45,8 +45,6 @@ typedef int64_t off64_t;
 
 #define MAP_OR_FAIL(func)
 
-#define POSIX_MOD_NAME "POSIX"
-
 struct posix_runtime_file
 {
     struct darshan_posix_file* file_record;
@@ -245,7 +243,6 @@ static void posix_runtime_initialize()
     /* register the posix module with darshan core */
     darshan_core_register_module(
         DARSHAN_POSIX_MOD,
-        POSIX_MOD_NAME,
         &posix_mod_fns,
         &mem_limit);
 

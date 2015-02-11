@@ -30,24 +30,29 @@
 /* max length of exe string within job record (not counting '\0') */
 #define CP_EXE_LEN (CP_JOB_RECORD_SIZE - sizeof(struct darshan_job) - 1)
 
-/* max length of module name string (not counting '\0') */
-/* TODO */
-#define DARSHAN_MOD_NAME_LEN 31
-
 typedef uint64_t darshan_record_id;
 
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
  *        - order of ids control module shutdown order (and consequently, order in log file)
  */
+/* TODO: enforce maximum? */
 #define DARSHAN_MAX_MODS 16
 typedef enum
 {
-    DARSHAN_POSIX_MOD,
+    DARSHAN_POSIX_MOD = 0,
     DARSHAN_MPIIO_MOD,
     DARSHAN_HDF5_MOD,
     DARSHAN_PNETCDF_MOD,
 } darshan_module_id;
+
+static char *darshan_module_names[] =
+{
+    "POSIX",
+    "MPI-IO",
+    "HDF5",
+    "PNETCDF"
+};
 
 enum darshan_comp_type
 {
