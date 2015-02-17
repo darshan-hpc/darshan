@@ -38,4 +38,7 @@ struct darshan_core_record_ref
     UT_hash_handle hlink;
 };
 
+uint32_t darshan_hashlittle(const void *key, size_t length, uint32_t initval);
+uint64_t darshan_hash(const register unsigned char *k, register uint64_t length, register uint64_t level);
+
 #endif /* __DARSHAN_CORE_H */

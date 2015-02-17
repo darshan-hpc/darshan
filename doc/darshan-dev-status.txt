@@ -1,37 +1,65 @@
-Darshan-modular branch development notes
-========================================
+Darshan modularization branch development notes
+===============================================
 
 == Introduction
 
-Darshan-modular is the new implementation of Darshan (version >= 3.0.0), a lightweight
-toolkit for characterizing the I/O performance of instrumented HPC applications.
+Darshan is a lightweight toolkit for characterizing the I/O performance of instrumented
+HPC applications.
 
-Previously, Darshan had been designed to gather I/O data from a static set of sources.
+Darshan was originally designed to gather I/O data from a static set of sources.
 Adding instrumentation for additional sources of I/O data was only possible through
 manual modification of the Darshan log file format, which consequentially breaks
-other utilities reliant on that format.
+any other utilities reliant on that format.
 
-Darshan-modular is differentiated from previous versions in that it modularizes the Darshan
-runtime environment and log file format such that new "instrumentation modules" can be
-added without breaking existing tools. Essentially, developers are given a framework to
-implement arbitrary modules, which are responsible for gathering I/O data from a specific
-system component (which could be from an I/O library, platform-specific data, etc.). Darshan
-can then manage these modules and create a valid Darshan log regardless of how many or what
-types of modules are used.
+Starting with version 3.0.0, the Darshan runtime environment and log file format have
+been redesigned such that new "instrumentation modules" can be added without breaking
+existing tools. Developers are given a framework to implement arbitrary instrumentation
+modules, which are responsible for gathering I/O data from a specific system component
+(which could be from an I/O library, platform-specific data, etc.). Darshan can then
+manage these modules at runtime and create a valid Darshan log regardless of how many
+or what types of modules are used.
 
-== Status
+== Architectural overview
 
-=== Runtime status
+The Darshan source tree is composed of two primary components:
+
+* *darshan-runtime*: Darshan runtime environment necessary for instrumenting MPI
+applications and generating I/O characterization logs.
+
+* *darshan-util*: Darshan utilities for analyzing the contents of a given Darshan
+I/O characterization log.
+
+=== darshan-runtime
 
 Text.
 
-=== Util status
+=== darshan-util
 
 Text.
 
-=== Counters status
+== Checking out and building the modularization branch
 
-Text.
+Developers can clone the Darshan source repository using the following methods:
+
+* "git clone git://git.mcs.anl.gov/radix/darshan" (read-only access)
+
+* "git clone \git@git.mcs.anl.gov:radix/darshan" (authenticated access)
+
+After cloning the Darshan source, it is necessary to checkout the modularization
+development branch:
+
+----
+git clone git@git.mcs.anl.gov:radix/darshan
+git checkout dev-modular
+----
+
+For details on building the Darshan runtime and utility repositories, consult
+the documentation from previous versions
+(http://www.mcs.anl.gov/research/projects/darshan/docs/darshan-runtime.html[darshan-runtime] and
+http://www.mcs.anl.gov/research/projects/darshan/docs/darshan-util.html[darshan-util]) -- the
+necessary steps for building these repositories should not have changed in the new version of
+Darshan.
 
 == Adding new modules
 
+Text.

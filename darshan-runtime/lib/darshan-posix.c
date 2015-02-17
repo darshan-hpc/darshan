@@ -419,7 +419,7 @@ static void posix_get_output_data(MPI_Comm comm, void **buffer, int *size)
 {
     int comm_cmp;
     
-    MPI_Comm_compare(MPI_COMM_WORLD, comm, &comm_cmp);
+    DARSHAN_MPI_CALL(PMPI_Comm_compare)(MPI_COMM_WORLD, comm, &comm_cmp);
 
     /* only do shared file reductions if this communicator includes _everyone_ */
     if((comm_cmp == MPI_IDENT) || (comm_cmp == MPI_CONGRUENT))

@@ -3,6 +3,7 @@
  *      See COPYRIGHT in top-level directory.
  */
 
+#define _XOPEN_SOURCE 500
 #define _GNU_SOURCE
 
 #include "darshan-runtime-config.h"
@@ -19,6 +20,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
+#include <zlib.h>
 #include <mpi.h>
 #include <assert.h>
 
@@ -40,7 +42,7 @@ static int nprocs = -1;
 #define DARSHAN_MAX_MNT_TYPE 32
 struct mnt_data
 {
-    int64_t hash;
+    int64_t hash; /* TODO: should it be possible for these to be negative? */
     int64_t block_size;
     char path[DARSHAN_MAX_MNT_PATH];
     char type[DARSHAN_MAX_MNT_TYPE];
@@ -430,11 +432,11 @@ static void darshan_core_shutdown()
         /* create a communicator to use for shutting down the module */
         if(global_mod_use_count[i] == nprocs)
         {
-            MPI_Comm_dup(MPI_COMM_WORLD, &mod_comm);
+            DARSHAN_MPI_CALL(PMPI_Comm_dup)(MPI_COMM_WORLD, &mod_comm);
         }
         else
         {
-            MPI_Comm_split(MPI_COMM_WORLD, local_mod_use[i], 0, &mod_comm);
+            DARSHAN_MPI_CALL(PMPI_Comm_split)(MPI_COMM_WORLD, local_mod_use[i], 0, &mod_comm);
         }
 
         /* if module is registered locally, get the corresponding output buffer */
@@ -479,7 +481,7 @@ static void darshan_core_shutdown()
             this_mod = NULL;
         }
 
-        MPI_Comm_free(&mod_comm);
+        DARSHAN_MPI_CALL(PMPI_Comm_free)(&mod_comm);
     }
 
     /* rank 0 is responsible for writing the log header */
