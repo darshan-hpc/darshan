@@ -407,7 +407,6 @@ behavior at runtime:
 * DARSHAN_DISABLE: disables Darshan instrumentation
 * DARSHAN_INTERNAL_TIMING: enables internal instrumentation that will print the time required to startup and shutdown Darshan to stderr at run time.
 * DARSHAN_LOGHINTS: specifies the MPI-IO hints to use when storing the Darshan output file.  The format is a semicolon-delimited list of key=value pairs, for example: hint1=value1;hint2=value2
-* DARSHAN_DISABLE_TIMING: disables the subset of Darshan instrumentation that gathers timing information
 * DARSHAN_MEMALIGN: specifies a value for memory alignment (CP_MEM_ALIGNMENT)
 * DARSHAN_JOBID: specifies the name of the environment variable to use for the job identifier, such as PBS_JOBID
 * DARSHAN_DISABLE_SHARED_REDUCTION: disables the step in Darshan aggregation

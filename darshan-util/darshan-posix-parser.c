@@ -21,6 +21,7 @@
 int main(int argc, char **argv)
 {
     int ret;
+    int i;
     char *filename;
     char tmp_string[4096];
     darshan_fd file;
@@ -28,8 +29,15 @@ int main(int argc, char **argv)
     struct darshan_job job;
     struct darshan_record_ref *rec_hash = NULL;
     struct darshan_record_ref *ref, *tmp;
+    int mount_count;
+    int64_t* devs;
+    char** mnt_pts;
+    char** fs_types;
     struct darshan_posix_file next_rec;
     time_t tmp_time = 0;
+    char *token;
+    char *save;
+    char buffer[DARSHAN_JOB_METADATA_LEN];
 
     assert(argc == 2);
     filename = argv[1];
@@ -62,6 +70,15 @@ int main(int argc, char **argv)
         return(-1);
     }
 
+    /* get the original command line for this job */
+    ret = darshan_log_getexe(file, tmp_string);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to read trailing job information.\n");
+        darshan_log_close(file);
+        return(-1);
+    }
+
     /* print job summary */
     printf("# darshan log version: %s\n", header.version_string);
     printf("# size of POSIX file statistics: %zu bytes\n", sizeof(next_rec));
@@ -78,6 +95,43 @@ int main(int argc, char **argv)
     printf("# end_time_asci: %s", ctime(&tmp_time));
     printf("# nprocs: %" PRId64 "\n", job.nprocs);
     printf("# run time: %" PRId64 "\n", job.end_time - job.start_time + 1);
+    for(token=strtok_r(job.metadata, "\n", &save);
+        token != NULL;
+        token=strtok_r(NULL, "\n", &save))
+    {
+        char *key;
+        char *value;
+        /* NOTE: we intentionally only split on the first = character.
+         * There may be additional = characters in the value portion
+         * (for example, when storing mpi-io hints).
+         */
+        strcpy(buffer, token);
+        key = buffer;
+        value = index(buffer, '=');
+        if(!value)
+            continue;
+        /* convert = to a null terminator to split key and value */
+        value[0] = '\0';
+        value++;
+        printf("# metadata: %s = %s\n", key, value);
+    }
+
+    /* get the mount information for this log */
+    ret = darshan_log_getmounts(file, &devs, &mnt_pts, &fs_types, &mount_count);
+    if(ret < 0)
+    {
+        fprintf(stderr, "darshan_log_getmounts() failed to read mount information.\n");
+        darshan_log_close(file);
+        return(-1);
+    }
+
+    /* print table of mounted file systems */
+    printf("\n# mounted file systems (device, mount point, and fs type)\n");
+    printf("# -------------------------------------------------------\n");
+    for(i=0; i<mount_count; i++)
+    {
+        printf("# mount entry: %" PRId64 "\t%s\t%s\n", devs[i], mnt_pts[i], fs_types[i]);
+    }
 
     /* read hash of darshan records */
     ret = darshan_log_gethash(file, &rec_hash);
@@ -106,7 +160,7 @@ int main(int argc, char **argv)
 
     /* iterate the posix file records stored in the darshan log */
     printf("\n*** FILE RECORD DATA ***\n");
-    int i = 0;
+    i = 0;
     do{
         struct darshan_record_ref *ref;
 

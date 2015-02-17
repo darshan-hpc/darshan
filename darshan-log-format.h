@@ -36,7 +36,6 @@ typedef uint64_t darshan_record_id;
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
  *        - order of ids control module shutdown order (and consequently, order in log file)
  */
-/* TODO: enforce maximum? */
 #define DARSHAN_MAX_MODS 16
 typedef enum
 {
@@ -84,7 +83,7 @@ struct darshan_job
     int64_t end_time;
     int64_t nprocs;
     int64_t jobid;
-    char metadata[DARSHAN_JOB_METADATA_LEN]; /* TODO: what is this? */
+    char metadata[DARSHAN_JOB_METADATA_LEN];
 };
 
 struct darshan_record

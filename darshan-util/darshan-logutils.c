@@ -27,10 +27,9 @@ struct darshan_fd_s
 {
     int pf;
     int64_t pos;
-    char mode[2];
-    int swap_flag;
     char version[8];
-    char* name;
+    int swap_flag;
+    char *exe_mnt_data;
     struct darshan_log_map job_map;
     struct darshan_log_map rec_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
@@ -64,21 +63,9 @@ darshan_fd darshan_log_open(const char *name, const char *mode)
         return(NULL);
     memset(tmp_fd, 0, sizeof(*tmp_fd));
 
-    /* TODO: why is mode needed??? */
-    /* TODO: why is name needed??? */
-    tmp_fd->mode[0] = mode[0];
-    tmp_fd->mode[1] = mode[1];
-    tmp_fd->name  = strdup(name);
-    if(!tmp_fd->name)
-    {
-        free(tmp_fd);
-        return(NULL);
-    }
-
     tmp_fd->pf = open(name, o_flags);
     if(tmp_fd->pf < 0)
     {
-        free(tmp_fd->name);
         free(tmp_fd);
         return(NULL);
     }
@@ -163,6 +150,7 @@ int darshan_log_getheader(darshan_fd fd, struct darshan_header *header)
  */
 int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
 {
+    char job_buf[CP_JOB_RECORD_SIZE] = {0};
     int ret;
 
     ret = darshan_log_seek(fd, fd->job_map.off);
@@ -173,12 +161,14 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
     }
 
     /* read the job data from the log file */
-    ret = darshan_log_read(fd, job, fd->job_map.len);
+    ret = darshan_log_read(fd, job_buf, fd->job_map.len);
     if(ret < fd->job_map.len)
     {
         fprintf(stderr, "Error: invalid darshan log file (failed to read job data).\n");
         return(-1);
     }
+
+    memcpy(job, job_buf, sizeof(*job));
 
     if(fd->swap_flag)
     {
@@ -188,6 +178,131 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
         DARSHAN_BSWAP64(&job->end_time);
         DARSHAN_BSWAP64(&job->nprocs);
         DARSHAN_BSWAP64(&job->jobid);
+    }
+
+    /* save trailing job data, so exe and mount information can be retrieved later */
+    fd->exe_mnt_data = malloc(CP_EXE_LEN+1);
+    if(!fd->exe_mnt_data)
+        return(-1);
+    memcpy(fd->exe_mnt_data, &job_buf[sizeof(*job)], CP_EXE_LEN+1);
+
+    return(0);
+}
+
+#if 0
+#ifdef HAVE_STRNDUP
+    metadata = strndup(job->metadata, sizeof(job->metadata));
+#else
+    metadata = strdup(job->metadata);
+#endif
+    char *kv;
+    char *key;
+    char *value;
+    char *save;
+
+    for(kv=strtok_r(metadata, "\n", &save);
+        kv != NULL;
+        kv=strtok_r(NULL, "\n", &save))
+    {
+        /* NOTE: we intentionally only split on the first = character.
+         * There may be additional = characters in the value portion
+         * (for example, when storing mpi-io hints).
+         */
+        strcpy(buffer, kv);
+        key = buffer;
+        value = index(buffer, '=');
+        if(!value)
+            continue;
+        /* convert = to a null terminator to split key and value */
+        value[0] = '\0';
+        value++;
+        if (strcmp(key, "prev_ver") == 0)
+        {
+            strncpy(job->version_string, value, sizeof(job->version_string));
+        }
+    }
+    free(metadata);
+#endif
+
+int darshan_log_getexe(darshan_fd fd, char *buf)
+{
+    char *newline;
+
+    /* TODO: try reading log job one more time to set this buffer up */
+    if(!fd->exe_mnt_data)
+        return(-1);
+
+    newline = strchr(fd->exe_mnt_data, '\n');
+
+    /* copy over the exe string */
+    if(newline)
+        memcpy(buf, fd->exe_mnt_data, (newline - fd->exe_mnt_data));
+
+    return (0);
+}
+
+/* darshan_log_getmounts()
+ * 
+ * retrieves mount table information from the log.  Note that devs, mnt_pts,
+ * and fs_types are arrays that will be allocated by the function and must
+ * be freed by the caller.  count will indicate the size of the arrays
+ */
+int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts,
+    char*** fs_types, int* count)
+{
+    int ret;
+    char *pos;
+    int array_index = 0;
+
+    /* TODO: try reading log job one more time to set this buffer up */
+    if(!fd->exe_mnt_data)
+        return(-1);
+
+    /* count entries */
+    *count = 0;
+    pos = fd->exe_mnt_data;
+    while((pos = strchr(pos, '\n')) != NULL)
+    {
+        pos++;
+        (*count)++;
+    }
+
+    if(*count == 0)
+    {
+        /* no mount entries present */
+        return(0);
+    }
+
+    /* allocate output arrays */
+    *devs = malloc((*count)*sizeof(int64_t));
+    assert(*devs);
+    *mnt_pts = malloc((*count)*sizeof(char*));
+    assert(*mnt_pts);
+    *fs_types = malloc((*count)*sizeof(char*));
+    assert(*fs_types);
+
+    /* work backwards through the table and parse each line (except for
+     * first, which holds command line information)
+     */
+    while((pos = strrchr(fd->exe_mnt_data, '\n')) != NULL)
+    {
+        /* overestimate string lengths */
+        (*mnt_pts)[array_index] = malloc(CP_EXE_LEN);
+        assert((*mnt_pts)[array_index]);
+        (*fs_types)[array_index] = malloc(CP_EXE_LEN);
+        assert((*fs_types)[array_index]);
+
+        ret = sscanf(++pos, "%" PRId64 "\t%s\t%s", &(*devs)[array_index],
+            (*fs_types)[array_index], (*mnt_pts)[array_index]);
+
+        if(ret != 3)
+        {
+            fprintf(stderr, "Error: poorly formatted mount table in log file.\n");
+            return(-1);
+        }
+        pos--;
+        *pos = '\0';
+        array_index++;
     }
 
     return(0);
@@ -340,35 +455,6 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_posix_file *file)
     return(-1);
 }
 
-#if 0
-int darshan_log_getexe(darshan_fd fd, char *buf)
-{
-    int ret;
-    char* newline;
-
-    ret = darshan_log_seek(fd, fd->job_struct_size);
-    if(ret < 0)
-        return(ret);
-
-    ret = darshan_log_read(fd, buf, (fd->COMPAT_CP_EXE_LEN + 1));
-    if (ret < (fd->COMPAT_CP_EXE_LEN + 1))
-    {
-        perror("darshan_log_read");
-        return(-1);
-    }
-
-    /* this call is only supposed to return the exe string, but starting in
-     * log format 1.23 there could be a table of mount entry information
-     * after the exe.  Look for newline character and truncate there.
-     */
-    newline = strchr(buf, '\n');
-    if(newline)
-        *newline = '\0';
-
-    return (0);
-}
-#endif
-
 /* darshan_log_close()
  *
  * close an open darshan file descriptor
@@ -380,7 +466,9 @@ void darshan_log_close(darshan_fd fd)
     if(fd->pf)
         close(fd->pf);
 
-    free(fd->name);
+    if(fd->exe_mnt_data)
+        free(fd->exe_mnt_data);
+
     free(fd);
 }
 

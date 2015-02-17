@@ -22,14 +22,14 @@ struct darshan_core_module
 };
 
 /* in memory structure to keep up with job level data */
-/* TODO: trailing data ? */
 struct darshan_core_runtime
 {
     struct darshan_job log_job;
     char exe[CP_EXE_LEN+1];
-    double wtime_offset;
     struct darshan_core_record_ref *rec_hash;
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
+    double wtime_offset;
+    char *trailing_data;
 };
 
 struct darshan_core_record_ref
