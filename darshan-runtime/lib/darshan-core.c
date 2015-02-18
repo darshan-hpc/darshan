@@ -158,11 +158,11 @@ static void darshan_core_initialize(int *argc, char ***argv)
             /* record exe and arguments */
             for(i=0; i<(*argc); i++)
             {
-                chars_left = CP_EXE_LEN-strlen(darshan_core->exe);
+                chars_left = DARSHAN_EXE_LEN-strlen(darshan_core->exe);
                 strncat(darshan_core->exe, (*argv)[i], chars_left);
                 if(i < ((*argc)-1))
                 {
-                    chars_left = CP_EXE_LEN-strlen(darshan_core->exe);
+                    chars_left = DARSHAN_EXE_LEN-strlen(darshan_core->exe);
                     strncat(darshan_core->exe, " ", chars_left);
                 }
             }
@@ -172,16 +172,16 @@ static void darshan_core_initialize(int *argc, char ***argv)
              */
             if(argc == 0)
             {
-                chars_left = CP_EXE_LEN-strlen(darshan_core->exe);
+                chars_left = DARSHAN_EXE_LEN-strlen(darshan_core->exe);
                 strncat(darshan_core->exe, __progname, chars_left);
-                chars_left = CP_EXE_LEN-strlen(darshan_core->exe);
+                chars_left = DARSHAN_EXE_LEN-strlen(darshan_core->exe);
                 strncat(darshan_core->exe, " <unknown args>", chars_left);
             }
 
             if(chars_left == 0)
             {
                 /* we ran out of room; mark that string was truncated */
-                truncate_offset = CP_EXE_LEN - strlen(truncate_string);
+                truncate_offset = DARSHAN_EXE_LEN - strlen(truncate_string);
                 sprintf(&darshan_core->exe[truncate_offset], "%s",
                     truncate_string);
             }
@@ -354,18 +354,18 @@ static void darshan_core_shutdown()
     /* rank 0 is responsible for writing the darshan job information */
     if(my_rank == 0)
     {
-        unsigned char tmp_buf[CP_JOB_RECORD_SIZE];
+        unsigned char tmp_buf[DARSHAN_JOB_RECORD_SIZE];
         unsigned char *tmp_ptr;
 
         /* pack the job info and exe/mount info into a buffer for writing */
         tmp_ptr = tmp_buf;
         memcpy(tmp_ptr, &final_core->log_job, sizeof(struct darshan_job));
         tmp_ptr += sizeof(struct darshan_job);
-        memcpy(tmp_ptr, final_core->trailing_data, CP_EXE_LEN+1);
+        memcpy(tmp_ptr, final_core->trailing_data, DARSHAN_EXE_LEN+1);
 
         /* write the job information, making sure to prealloc space for the log header */
         all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, sizeof(struct darshan_header),
-                tmp_buf, CP_JOB_RECORD_SIZE, MPI_BYTE, &status);
+                tmp_buf, DARSHAN_JOB_RECORD_SIZE, MPI_BYTE, &status);
         if(all_ret != MPI_SUCCESS)
         {
             fprintf(stderr, "darshan library warning: unable to write job data to log file %s\n",
@@ -374,7 +374,7 @@ static void darshan_core_shutdown()
         }
 
         /* TODO: after compression is added, this should be fixed */
-        log_header.rec_map.off = sizeof(struct darshan_header) + CP_JOB_RECORD_SIZE;
+        log_header.rec_map.off = sizeof(struct darshan_header) + DARSHAN_JOB_RECORD_SIZE;
     }
 
     /* error out if unable to write job information */
@@ -487,8 +487,8 @@ static void darshan_core_shutdown()
     if(my_rank == 0)
     {
         /* initialize the remaining header fields */
-        strcpy(log_header.version_string, CP_VERSION);
-        log_header.magic_nr = CP_MAGIC_NR;
+        strcpy(log_header.version_string, DARSHAN_LOG_VERSION);
+        log_header.magic_nr = DARSHAN_MAGIC_NR;
         log_header.comp_type = DARSHAN_GZ_COMP;
 
         all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, 0, &log_header,
@@ -839,7 +839,7 @@ static void darshan_get_exe_and_mounts_root(struct darshan_core_runtime *core,
 
     /* length of exe has already been safety checked in darshan-posix.c */
     strcat(trailing_data, core->exe);
-    space_left = CP_EXE_LEN - strlen(trailing_data);
+    space_left = DARSHAN_EXE_LEN - strlen(trailing_data);
 
     /* we make two passes through mounted file systems; in the first pass we
      * grab any non-nfs mount points, then on the second pass we grab nfs
@@ -903,7 +903,7 @@ static char* darshan_get_exe_and_mounts(struct darshan_core_runtime *core)
     char* trailing_data;
     int space_left;
 
-    space_left = CP_EXE_LEN + 1;
+    space_left = DARSHAN_EXE_LEN + 1;
     trailing_data = malloc(space_left);
     if(!trailing_data)
     {

@@ -103,7 +103,7 @@ int darshan_log_getheader(darshan_fd fd, struct darshan_header *header)
     /* save the version string */
     strncpy(fd->version, header->version_string, 8);
 
-    if(header->magic_nr == CP_MAGIC_NR)
+    if(header->magic_nr == DARSHAN_MAGIC_NR)
     {
         /* no byte swapping needed, this file is in host format already */
         fd->swap_flag = 0;
@@ -112,7 +112,7 @@ int darshan_log_getheader(darshan_fd fd, struct darshan_header *header)
     {
         /* try byte swapping */
         DARSHAN_BSWAP64(&header->magic_nr);
-        if(header->magic_nr == CP_MAGIC_NR)
+        if(header->magic_nr == DARSHAN_MAGIC_NR)
         {
             fd->swap_flag = 1;
 
@@ -150,7 +150,7 @@ int darshan_log_getheader(darshan_fd fd, struct darshan_header *header)
  */
 int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
 {
-    char job_buf[CP_JOB_RECORD_SIZE] = {0};
+    char job_buf[DARSHAN_JOB_RECORD_SIZE] = {0};
     int ret;
 
     ret = darshan_log_seek(fd, fd->job_map.off);
@@ -181,48 +181,13 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
     }
 
     /* save trailing job data, so exe and mount information can be retrieved later */
-    fd->exe_mnt_data = malloc(CP_EXE_LEN+1);
+    fd->exe_mnt_data = malloc(DARSHAN_EXE_LEN+1);
     if(!fd->exe_mnt_data)
         return(-1);
-    memcpy(fd->exe_mnt_data, &job_buf[sizeof(*job)], CP_EXE_LEN+1);
+    memcpy(fd->exe_mnt_data, &job_buf[sizeof(*job)], DARSHAN_EXE_LEN+1);
 
     return(0);
 }
-
-#if 0
-#ifdef HAVE_STRNDUP
-    metadata = strndup(job->metadata, sizeof(job->metadata));
-#else
-    metadata = strdup(job->metadata);
-#endif
-    char *kv;
-    char *key;
-    char *value;
-    char *save;
-
-    for(kv=strtok_r(metadata, "\n", &save);
-        kv != NULL;
-        kv=strtok_r(NULL, "\n", &save))
-    {
-        /* NOTE: we intentionally only split on the first = character.
-         * There may be additional = characters in the value portion
-         * (for example, when storing mpi-io hints).
-         */
-        strcpy(buffer, kv);
-        key = buffer;
-        value = index(buffer, '=');
-        if(!value)
-            continue;
-        /* convert = to a null terminator to split key and value */
-        value[0] = '\0';
-        value++;
-        if (strcmp(key, "prev_ver") == 0)
-        {
-            strncpy(job->version_string, value, sizeof(job->version_string));
-        }
-    }
-    free(metadata);
-#endif
 
 int darshan_log_getexe(darshan_fd fd, char *buf)
 {
@@ -285,9 +250,9 @@ int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts,
     while((pos = strrchr(fd->exe_mnt_data, '\n')) != NULL)
     {
         /* overestimate string lengths */
-        (*mnt_pts)[array_index] = malloc(CP_EXE_LEN);
+        (*mnt_pts)[array_index] = malloc(DARSHAN_EXE_LEN);
         assert((*mnt_pts)[array_index]);
-        (*fs_types)[array_index] = malloc(CP_EXE_LEN);
+        (*fs_types)[array_index] = malloc(DARSHAN_EXE_LEN);
         assert((*fs_types)[array_index]);
 
         ret = sscanf(++pos, "%s\t%s", (*fs_types)[array_index],

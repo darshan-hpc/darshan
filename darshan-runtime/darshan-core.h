@@ -25,7 +25,7 @@ struct darshan_core_module
 struct darshan_core_runtime
 {
     struct darshan_job log_job;
-    char exe[CP_EXE_LEN+1];
+    char exe[DARSHAN_EXE_LEN+1];
     struct darshan_core_record_ref *rec_hash;
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
     double wtime_offset;
