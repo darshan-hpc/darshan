@@ -19,24 +19,6 @@ modules, which are responsible for gathering I/O data from a specific system com
 manage these modules at runtime and create a valid Darshan log regardless of how many
 or what types of modules are used.
 
-== Architectural overview
-
-The Darshan source tree is composed of two primary components:
-
-* *darshan-runtime*: Darshan runtime environment necessary for instrumenting MPI
-applications and generating I/O characterization logs.
-
-* *darshan-util*: Darshan utilities for analyzing the contents of a given Darshan
-I/O characterization log.
-
-=== darshan-runtime
-
-Text.
-
-=== darshan-util
-
-Text.
-
 == Checking out and building the modularization branch
 
 Developers can clone the Darshan source repository using the following methods:
@@ -53,12 +35,41 @@ git clone git@git.mcs.anl.gov:radix/darshan
 git checkout dev-modular
 ----
 
-For details on building the Darshan runtime and utility repositories, consult
-the documentation from previous versions
+For details on configuring and building the Darshan runtime and utility repositories,
+consult the documentation from previous versions
 (http://www.mcs.anl.gov/research/projects/darshan/docs/darshan-runtime.html[darshan-runtime] and
 http://www.mcs.anl.gov/research/projects/darshan/docs/darshan-util.html[darshan-util]) -- the
 necessary steps for building these repositories should not have changed in the new version of
 Darshan.
+
+== Architectural overview
+
+The Darshan source tree is composed of two primary components:
+
+* *darshan-runtime*: Darshan runtime environment necessary for instrumenting MPI
+applications and generating I/O characterization logs.
+
+* *darshan-util*: Darshan utilities for analyzing the contents of a given Darshan
+I/O characterization log.
+
+The following subsections provide an overview of each of these components with specific
+attention to how new instrumentation modules may be integrated into Darshan.
+
+=== darshan-runtime
+
+At a high level, the darshan-runtime library is responsible for instrumenting MPI applications
+and generating a log file containing the resulting I/O characterization.
+
+The I/O behavior an application is primarily instrumented by intercepting function calls of
+interest and recording relevant data.
+
+// TODO: how does dynamic vs static executable affect a module developer?
+
+
+
+=== darshan-util
+
+Text.
 
 == Adding new modules
 
