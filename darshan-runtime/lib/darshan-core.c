@@ -42,7 +42,6 @@ static int nprocs = -1;
 #define DARSHAN_MAX_MNT_TYPE 32
 struct mnt_data
 {
-    int64_t hash; /* TODO: should it be possible for these to be negative? */
     int64_t block_size;
     char path[DARSHAN_MAX_MNT_PATH];
     char type[DARSHAN_MAX_MNT_TYPE];
@@ -778,9 +777,6 @@ static void add_entry(char* trailing_data, int* space_left, struct mntent *entry
         DARSHAN_MAX_MNT_PATH-1);
     strncpy(mnt_data_array[mnt_data_count].type, entry->mnt_type,
         DARSHAN_MAX_MNT_TYPE-1);
-    mnt_data_array[mnt_data_count].hash =
-        darshan_hash((void*)mnt_data_array[mnt_data_count].path,
-        strlen(mnt_data_array[mnt_data_count].path), 0);
     /* NOTE: we now try to detect the preferred block size for each file 
      * system using fstatfs().  On Lustre we assume a size of 1 MiB 
      * because fstatfs() reports 4 KiB. 
@@ -797,8 +793,7 @@ static void add_entry(char* trailing_data, int* space_left, struct mntent *entry
         mnt_data_array[mnt_data_count].block_size = 4096;
 
     /* store mount information for use in header of darshan log */
-    ret = snprintf(tmp_mnt, 256, "\n%" PRId64 "\t%s\t%s",
-        mnt_data_array[mnt_data_count].hash,
+    ret = snprintf(tmp_mnt, 256, "\n%s\t%s",
         entry->mnt_type, entry->mnt_dir);
     if(ret < 256 && strlen(tmp_mnt) <= (*space_left))
     {

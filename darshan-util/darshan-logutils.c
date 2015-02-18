@@ -243,11 +243,11 @@ int darshan_log_getexe(darshan_fd fd, char *buf)
 
 /* darshan_log_getmounts()
  * 
- * retrieves mount table information from the log.  Note that devs, mnt_pts,
- * and fs_types are arrays that will be allocated by the function and must
- * be freed by the caller.  count will indicate the size of the arrays
+ * retrieves mount table information from the log.  Note that mnt_pts and
+ * fs_types are arrays that will be allocated by the function and must be
+ * freed by the caller.  count will indicate the size of the arrays
  */
-int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts,
+int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts,
     char*** fs_types, int* count)
 {
     int ret;
@@ -274,8 +274,6 @@ int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts,
     }
 
     /* allocate output arrays */
-    *devs = malloc((*count)*sizeof(int64_t));
-    assert(*devs);
     *mnt_pts = malloc((*count)*sizeof(char*));
     assert(*mnt_pts);
     *fs_types = malloc((*count)*sizeof(char*));
@@ -292,10 +290,9 @@ int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts,
         (*fs_types)[array_index] = malloc(CP_EXE_LEN);
         assert((*fs_types)[array_index]);
 
-        ret = sscanf(++pos, "%" PRId64 "\t%s\t%s", &(*devs)[array_index],
-            (*fs_types)[array_index], (*mnt_pts)[array_index]);
-
-        if(ret != 3)
+        ret = sscanf(++pos, "%s\t%s", (*fs_types)[array_index],
+            (*mnt_pts)[array_index]);
+        if(ret != 2)
         {
             fprintf(stderr, "Error: poorly formatted mount table in log file.\n");
             return(-1);

@@ -30,7 +30,6 @@ int main(int argc, char **argv)
     struct darshan_record_ref *rec_hash = NULL;
     struct darshan_record_ref *ref, *tmp;
     int mount_count;
-    int64_t* devs;
     char** mnt_pts;
     char** fs_types;
     struct darshan_posix_file next_rec;
@@ -117,7 +116,7 @@ int main(int argc, char **argv)
     }
 
     /* get the mount information for this log */
-    ret = darshan_log_getmounts(file, &devs, &mnt_pts, &fs_types, &mount_count);
+    ret = darshan_log_getmounts(file, &mnt_pts, &fs_types, &mount_count);
     if(ret < 0)
     {
         fprintf(stderr, "darshan_log_getmounts() failed to read mount information.\n");
@@ -126,11 +125,11 @@ int main(int argc, char **argv)
     }
 
     /* print table of mounted file systems */
-    printf("\n# mounted file systems (device, mount point, and fs type)\n");
+    printf("\n# mounted file systems (mount point and fs type)\n");
     printf("# -------------------------------------------------------\n");
     for(i=0; i<mount_count; i++)
     {
-        printf("# mount entry: %" PRId64 "\t%s\t%s\n", devs[i], mnt_pts[i], fs_types[i]);
+        printf("# mount entry:\t%s\t%s\n", mnt_pts[i], fs_types[i]);
     }
 
     /* read hash of darshan records */
@@ -175,6 +174,18 @@ int main(int argc, char **argv)
 
         i++;
     } while((ret = darshan_log_getfile(file, &next_rec)) == 1);
+
+    /* free mount info */
+    for(i=0; i<mount_count; i++)
+    {
+        free(mnt_pts[i]);
+        free(fs_types[i]);
+    }
+    if(mount_count > 0)
+    {
+        free(mnt_pts);
+        free(fs_types);
+    }
 
     darshan_log_close(file);
 

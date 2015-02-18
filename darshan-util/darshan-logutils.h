@@ -24,7 +24,7 @@ int darshan_log_getjob(darshan_fd file, struct darshan_job *job);
 int darshan_log_gethash(darshan_fd file, struct darshan_record_ref **hash);
 int darshan_log_getfile(darshan_fd fd, struct darshan_posix_file *file);
 int darshan_log_getexe(darshan_fd fd, char *buf);
-int darshan_log_getmounts(darshan_fd fd, int64_t** devs, char*** mnt_pts,
+int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts,
     char*** fs_types, int* count);
 void darshan_log_close(darshan_fd file);
 
