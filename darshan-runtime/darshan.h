@@ -30,6 +30,7 @@
 
 struct darshan_module_funcs
 {
+    void (*disable_instrumentation)(void);
     void (*get_output_data)(
         MPI_Comm mod_comm, /* communicator to use for module shutdown */
         void** buf, /* output parameter to save module buffer address */

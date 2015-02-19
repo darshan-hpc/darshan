@@ -139,6 +139,7 @@ static void darshan_core_initialize(int *argc, char ***argv)
     if(internal_timing_flag)
         init_start = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
+    DARSHAN_CORE_LOCK();
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if(!getenv("DARSHAN_DISABLE") && !darshan_core)
     {
@@ -190,6 +191,7 @@ static void darshan_core_initialize(int *argc, char ***argv)
             darshan_core->trailing_data = darshan_get_exe_and_mounts(darshan_core);
         }
     }
+    DARSHAN_CORE_UNLOCK();
 
     if(internal_timing_flag)
     {
@@ -234,17 +236,27 @@ static void darshan_core_shutdown()
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
 
+    /* disable darhan-core while we shutdown */
     DARSHAN_CORE_LOCK();
     if(!darshan_core)
     {
         DARSHAN_CORE_UNLOCK();
         return;
     }
-    /* disable further tracing while hanging onto the data so that we can
-     * write it out
-     */
     final_core = darshan_core;
     darshan_core = NULL;
+
+    /* we also need to set which modules were registerd on this process and
+     * disable tracing within those modules while we shutdown
+     */
+    for(i = 0; i < DARSHAN_MAX_MODS; i++)
+    {
+        if(final_core->mod_array[i])
+        {
+            local_mod_use[i] = 1;
+            final_core->mod_array[i]->mod_funcs.disable_instrumentation();
+        }
+    }
     DARSHAN_CORE_UNLOCK();
 
     start_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
@@ -317,13 +329,6 @@ static void darshan_core_shutdown()
     {
         final_core->log_job.start_time = first_start_time;
         final_core->log_job.end_time = last_end_time;
-    }
-
-    /* set which local modules were actually used */
-    for(i = 0; i < DARSHAN_MAX_MODS; i++)
-    {
-        if(final_core->mod_array[i])
-            local_mod_use[i] = 1;
     }
 
     /* reduce the number of times a module was opened globally and bcast to everyone */   
@@ -1210,10 +1215,9 @@ void darshan_core_register_module(
     int *runtime_mem_limit)
 {
     struct darshan_core_module* mod;
+    *runtime_mem_limit = 0;
 
     DARSHAN_CORE_LOCK();
-
-    *runtime_mem_limit = 0;
     if(!darshan_core || (id >= DARSHAN_MAX_MODS))
     {
         DARSHAN_CORE_UNLOCK();
@@ -1261,16 +1265,15 @@ void darshan_core_lookup_record_id(
     darshan_record_id tmp_id;
     struct darshan_core_record_ref* ref;
 
-    if(!darshan_core || !name)
+    if(!darshan_core)
         return;
 
     /* TODO: what do you do with printable flag? */
 
     /* hash the input name to get a unique id for this record */
     tmp_id = darshan_hash(name, len, 0);
- 
-    DARSHAN_CORE_LOCK();
 
+    DARSHAN_CORE_LOCK();
     /* check to see if we've already stored the id->name mapping for this record */
     HASH_FIND(hlink, darshan_core->rec_hash, &tmp_id, sizeof(darshan_record_id), ref);
     if(!ref)
@@ -1287,10 +1290,7 @@ void darshan_core_lookup_record_id(
             HASH_ADD(hlink, darshan_core->rec_hash, rec.id, sizeof(darshan_record_id), ref);
         }
     }   
-
     DARSHAN_CORE_UNLOCK();
-
-    printf("New Darshan record: %s (%"PRIu64")\n", (char *)name, tmp_id);
 
     *id = tmp_id;
     return;

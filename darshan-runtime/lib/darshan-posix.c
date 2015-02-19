@@ -70,6 +70,7 @@ struct posix_runtime
 
 static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static int instrumentation_disabled = 0;
 static int my_rank = -1;
 
 /* these are paths that we will not trace */
@@ -88,14 +89,17 @@ NULL
 };
 
 DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
+DARSHAN_FORWARD_DECL(open64, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(close, int, (int fd));
 
 static void posix_runtime_initialize(void);
 
 static struct posix_runtime_file* posix_file_by_name(const char *name);
 static struct posix_runtime_file* posix_file_by_name_setfd(const char* name, int fd);
+static struct posix_runtime_file* posix_file_by_fd(int fd);
 static void posix_file_close_fd(int fd);
 
+static void posix_disable_instrumentation(void);
 static void posix_get_output_data(MPI_Comm comm, void **buffer, int *size);
 static void posix_shutdown(void);
 
@@ -200,10 +204,44 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
     return(ret);
 }
 
+int DARSHAN_DECL(open64)(const char *path, int flags, ...)
+{
+    int mode = 0;
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(open);
+
+    if(flags & O_CREAT)
+    {
+        va_list arg;
+        va_start(arg, flags);
+        mode = va_arg(arg, int);
+        va_end(arg);
+
+        tm1 = darshan_core_wtime();
+        ret = __real_open64(path, flags, mode);
+        tm2 = darshan_core_wtime();
+    }
+    else
+    {
+        tm1 = darshan_core_wtime();
+        ret = __real_open64(path, flags);
+        tm2 = darshan_core_wtime();
+    }
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+
+    POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
 int DARSHAN_DECL(close)(int fd)
 {
-    struct darshan_file_runtime* file;
-    int tmp_fd = fd;
+    struct posix_runtime_file* file;
     double tm1, tm2;
     int ret;
 
@@ -216,8 +254,12 @@ int DARSHAN_DECL(close)(int fd)
     POSIX_LOCK();
     posix_runtime_initialize();
 
-    posix_file_close_fd(tmp_fd);
-
+    file = posix_file_by_fd(fd);
+    if(file)
+    {
+        POSIX_F_SET(file, CP_F_CLOSE_TIMESTAMP, darshan_core_wtime());
+        posix_file_close_fd(fd);
+    }
     POSIX_UNLOCK();    
 
     return(ret);
@@ -233,11 +275,13 @@ static void posix_runtime_initialize()
     int mem_limit;
     struct darshan_module_funcs posix_mod_fns =
     {
+        .disable_instrumentation = &posix_disable_instrumentation,
         .get_output_data = &posix_get_output_data,
         .shutdown = &posix_shutdown
     };
 
-    if(posix_runtime)
+    /* don't do anything if already initialized or instrumenation is disabled */
+    if(posix_runtime || instrumentation_disabled)
         return;
 
     /* register the posix module with darshan core */
@@ -275,34 +319,7 @@ static void posix_runtime_initialize()
     memset(posix_runtime->file_record_array, 0, posix_runtime->file_array_size *
            sizeof(struct darshan_posix_file));
 
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
-
-#if 0
-    /* set the memory alignment according to config or environment variables */
-    #if (__CP_MEM_ALIGNMENT < 1)
-        #error Darshan must be configured with a positive value for --with-mem-align
-    #endif
-    alignstr = getenv(CP_MEM_ALIGNMENT_OVERRIDE);
-    if(alignstr)
-    {
-        ret = sscanf(alignstr, "%d", &tmpval);
-        /* silently ignore if the env variable is set poorly */
-        if(ret == 1 && tmpval > 0)
-        {
-            darshan_mem_alignment = tmpval;
-        }
-    }
-    else
-    {
-        darshan_mem_alignment = __CP_MEM_ALIGNMENT;
-    }
-
-    /* avoid floating point errors on faulty input */
-    if(darshan_mem_alignment < 1)
-    {
-        darshan_mem_alignment = 1;
-    }
-#endif
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank); /* TODO: can we move this out of here? */
 
     return;
 }
@@ -313,7 +330,7 @@ static struct posix_runtime_file* posix_file_by_name(const char *name)
     char *newname = NULL;
     darshan_record_id file_id;
 
-    if(!posix_runtime)
+    if(!posix_runtime || instrumentation_disabled)
         return(NULL);
 
     newname = darshan_clean_file_path(name);
@@ -359,7 +376,7 @@ static struct posix_runtime_file* posix_file_by_name_setfd(const char* name, int
     struct posix_runtime_file* file;
     struct posix_runtime_file_ref* ref;
 
-    if(!posix_runtime)
+    if(!posix_runtime || instrumentation_disabled)
         return(NULL);
 
     /* find file record by name first */
@@ -386,19 +403,34 @@ static struct posix_runtime_file* posix_file_by_name_setfd(const char* name, int
     if(!ref)
         return(NULL);
     memset(ref, 0, sizeof(*ref));
+
     ref->file = file;
     ref->fd = fd;    
-
     HASH_ADD(hlink, posix_runtime->fd_hash, fd, sizeof(int), ref);
 
     return(file);
+}
+
+static struct posix_runtime_file* posix_file_by_fd(int fd)
+{
+    struct posix_runtime_file_ref* ref;
+
+    if(!posix_runtime || instrumentation_disabled)
+        return(NULL);
+
+    /* search hash table for existing file ref for this fd */
+    HASH_FIND(hlink, posix_runtime->fd_hash, &fd, sizeof(int), ref);
+    if(ref)
+        return(ref->file);
+
+    return(NULL);
 }
 
 static void posix_file_close_fd(int fd)
 {
     struct posix_runtime_file_ref* ref;
 
-    if(!posix_runtime)
+    if(!posix_runtime || instrumentation_disabled)
         return;
 
     /* search hash table for this fd */
@@ -415,21 +447,18 @@ static void posix_file_close_fd(int fd)
 
 /* ***************************************************** */
 
+static void posix_disable_instrumentation()
+{
+    POSIX_LOCK();
+    instrumentation_disabled = 1;
+    POSIX_UNLOCK();
+
+    return;
+}
+
 static void posix_get_output_data(MPI_Comm comm, void **buffer, int *size)
 {
-    int comm_cmp;
-    
-    DARSHAN_MPI_CALL(PMPI_Comm_compare)(MPI_COMM_WORLD, comm, &comm_cmp);
-
-    /* only do shared file reductions if this communicator includes _everyone_ */
-    if((comm_cmp == MPI_IDENT) || (comm_cmp == MPI_CONGRUENT))
-    {
-        /* don't reduce shared files if that feature is disabled, either */
-        if(!getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
-        {
-            /* TODO reduction code */
-        }
-    }
+    /* TODO: shared file reduction */
 
     *buffer = (void *)(posix_runtime->file_record_array);
     *size = posix_runtime->file_array_ndx * sizeof(struct darshan_posix_file);

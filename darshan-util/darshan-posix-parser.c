@@ -169,8 +169,9 @@ int main(int argc, char **argv)
 
         printf("\tRecord %d: id=%"PRIu64" (path=%s, rank=%"PRId64")\n",
             i, next_rec.f_id, ref->rec.name, next_rec.rank);
-        printf("\t\tPOSIX_OPENS:\t%"PRIu64"\n\t\tF_OPEN_TIMESTAMP:\t%lf\n",
-            next_rec.counters[CP_POSIX_OPENS], next_rec.fcounters[CP_F_OPEN_TIMESTAMP]);
+        printf("\t\tPOSIX_OPENS:\t%"PRIu64"\n\t\tF_OPEN_TIMESTAMP:\t%lf\n\t\tF_CLOSE_TIMESTAMP:\t%lf\n",
+            next_rec.counters[CP_POSIX_OPENS], next_rec.fcounters[CP_F_OPEN_TIMESTAMP],
+            next_rec.fcounters[CP_F_CLOSE_TIMESTAMP]);
 
         i++;
     } while((ret = darshan_log_getfile(file, &next_rec)) == 1);
