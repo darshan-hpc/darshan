@@ -23,6 +23,9 @@
 
 #include "darshan-logutils.h"
 
+/* default to a compression buffer size of 4 MiB */
+#define DARSHAN_DEF_DECOMP_BUF_SZ (4*1024*1024)
+
 struct darshan_fd_s
 {
     int pf;
@@ -38,7 +41,8 @@ struct darshan_fd_s
 static int darshan_log_seek(darshan_fd fd, off_t offset);
 static int darshan_log_read(darshan_fd fd, void *buf, int len);
 static int darshan_log_write(darshan_fd fd, void *buf, int len);
-
+static int darshan_decompress_buffer(char *comp_buf, int comp_buf_sz,
+    char *decomp_buf, int *inout_decomp_buf_sz);
 
 /* darshan_log_open()
  *
@@ -150,23 +154,44 @@ int darshan_log_getheader(darshan_fd fd, struct darshan_header *header)
  */
 int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
 {
+    char *comp_buf;
     char job_buf[DARSHAN_JOB_RECORD_SIZE] = {0};
+    int job_buf_sz = DARSHAN_JOB_RECORD_SIZE;
     int ret;
+
+    /* allocate a buffer to store the (compressed) darshan job info */
+    comp_buf = malloc(fd->job_map.len);
+    if(!comp_buf)
+        return(-1);
 
     ret = darshan_log_seek(fd, fd->job_map.off);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to seek in darshan log file.\n");
+        free(comp_buf);
         return(ret);
     }
 
     /* read the job data from the log file */
-    ret = darshan_log_read(fd, job_buf, fd->job_map.len);
+    ret = darshan_log_read(fd, comp_buf, fd->job_map.len);
     if(ret < fd->job_map.len)
     {
         fprintf(stderr, "Error: invalid darshan log file (failed to read job data).\n");
+        free(comp_buf);
         return(-1);
     }
+
+    /* decompress the job data */
+    ret = darshan_decompress_buffer(comp_buf, fd->job_map.len,
+        job_buf, &job_buf_sz);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to decompress darshan job data.\n");
+        free(comp_buf);
+        return(-1);
+    }
+    assert(job_buf_sz == DARSHAN_JOB_RECORD_SIZE);
+    free(comp_buf);
 
     memcpy(job, job_buf, sizeof(*job));
 
@@ -181,7 +206,8 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
     }
 
     /* save trailing job data, so exe and mount information can be retrieved later */
-    fd->exe_mnt_data = malloc(DARSHAN_EXE_LEN+1);
+    if(!fd->exe_mnt_data)
+        fd->exe_mnt_data = malloc(DARSHAN_EXE_LEN+1);
     if(!fd->exe_mnt_data)
         return(-1);
     memcpy(fd->exe_mnt_data, &job_buf[sizeof(*job)], DARSHAN_EXE_LEN+1);
@@ -193,9 +219,17 @@ int darshan_log_getexe(darshan_fd fd, char *buf)
 {
     char *newline;
 
-    /* TODO: try reading log job one more time to set this buffer up */
+    /* if the exe/mount info has not been saved yet, read in the job
+     * header to get this data.
+     */
     if(!fd->exe_mnt_data)
-        return(-1);
+    {
+        struct darshan_job job;
+        (void)darshan_log_getjob(fd, &job);
+
+        if(!fd->exe_mnt_data)
+            return(-1);
+    }
 
     newline = strchr(fd->exe_mnt_data, '\n');
 
@@ -219,11 +253,18 @@ int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts,
     char *pos;
     int array_index = 0;
 
-    /* TODO: try reading log job one more time to set this buffer up */
+    /* if the exe/mount info has not been saved yet, read in the job
+     * header to get this data.
+     */
     if(!fd->exe_mnt_data)
-        return(-1);
+    {
+        struct darshan_job job;
+        (void)darshan_log_getjob(fd, &job);
 
-    /* count entries */
+        if(!fd->exe_mnt_data)
+            return(-1);
+    }
+
     *count = 0;
     pos = fd->exe_mnt_data;
     while((pos = strchr(pos, '\n')) != NULL)
@@ -278,37 +319,51 @@ int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts,
  */
 int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
 {
-    unsigned char *hash_buf;
-    unsigned char *buf_ptr;
+    char *comp_buf;
+    char hash_buf[DARSHAN_DEF_DECOMP_BUF_SZ] = {0};
+    int hash_buf_sz = DARSHAN_DEF_DECOMP_BUF_SZ;
+    char *buf_ptr;
     darshan_record_id *rec_id_ptr;
     uint32_t *path_len_ptr;
     char *path_ptr;
     struct darshan_record_ref *ref;
     int ret;
 
+    /* allocate a buffer to store the (compressed, serialized) darshan record hash */
+    comp_buf = malloc(fd->rec_map.len);
+    if(!comp_buf)
+        return(-1);
+
     ret = darshan_log_seek(fd, fd->rec_map.off);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to seek in darshan log file.\n");
+        free(comp_buf);
         return(ret);
     }
 
-    /* allocate a buffer to store the (serialized) darshan record hash */
-    hash_buf = malloc(fd->rec_map.len);
-    if(!hash_buf)
-        return(-1);
-
-    /* read the record map from the log file */
-    ret = darshan_log_read(fd, hash_buf, fd->rec_map.len);
+    /* read the record hash from the log file */
+    ret = darshan_log_read(fd, comp_buf, fd->rec_map.len);
     if(ret < fd->rec_map.len)
     {
         fprintf(stderr, "Error: invalid darshan log file (failed to read record hash).\n");
-        free(hash_buf);
+        free(comp_buf);
         return(-1);
     }
 
+    /* decompress the record hash buffer */
+    ret = darshan_decompress_buffer(comp_buf, fd->rec_map.len,
+        hash_buf, &hash_buf_sz);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to decompress darshan job data.\n");
+        free(comp_buf);
+        return(-1);
+    }
+    free(comp_buf);
+
     buf_ptr = hash_buf;
-    while(buf_ptr < (hash_buf + fd->rec_map.len))
+    while(buf_ptr < (hash_buf + hash_buf_sz))
     {
         /* get pointers for each field of this darshan record */
         /* NOTE: darshan record hash serialization method: 
@@ -324,13 +379,11 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
         ref = malloc(sizeof(*ref));
         if(!ref)
         {
-            free(hash_buf);
             return(-1);
         }
         ref->rec.name = malloc(*path_len_ptr + 1);
         if(!ref->rec.name)
         {
-            free(hash_buf);
             free(ref);
             return(-1);
         }
@@ -351,16 +404,88 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
         HASH_ADD(hlink, *hash, rec.id, sizeof(darshan_record_id), ref);
     }
 
-    free(hash_buf);
+    return(0);
+}
+
+int darshan_log_getmod(darshan_fd fd, int mod_id, void **mod_buf,
+    int *mod_buf_sz)
+{
+    char *comp_buf;
+    char *tmp_buf;
+    int tmp_buf_sz;
+    int ret;
+    *mod_buf = NULL;
+    *mod_buf_sz = 0;
+
+    if(mod_id < 0 || mod_id >= DARSHAN_MAX_MODS)
+    {
+        fprintf(stderr, "Error: invalid Darshan module id.\n");
+        return(-1);
+    }
+
+    if(fd->mod_map[mod_id].len == 0)
+    {
+        /* this module has no data in the log */
+        return(0);
+    }
+
+    comp_buf = malloc(fd->mod_map[mod_id].len);
+    if(!comp_buf)
+        return(-1);
+
+    ret = darshan_log_seek(fd, fd->mod_map[mod_id].off);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to seek in darshan log file.\n");
+        free(comp_buf);
+        return(ret);
+    }
+
+    /* read the given module's (compressed) data from the log file */
+    ret = darshan_log_read(fd, comp_buf, fd->mod_map[mod_id].len);
+    if(ret < fd->mod_map[mod_id].len)
+    {
+        fprintf(stderr, "Error: invalid darshan log file (failed to read module %s data).\n",
+            darshan_module_names[mod_id]);
+        free(comp_buf);
+        return(-1);
+    }
+
+    tmp_buf_sz = DARSHAN_DEF_DECOMP_BUF_SZ;
+    tmp_buf = malloc(DARSHAN_DEF_DECOMP_BUF_SZ);
+    if(!tmp_buf)
+    {
+        free(comp_buf);
+        return(-1);
+    }
+
+    /* decompress this module's data */
+    ret = darshan_decompress_buffer(comp_buf, fd->mod_map[mod_id].len, tmp_buf,
+        &tmp_buf_sz);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to decompress module %s data.\n",
+            darshan_module_names[mod_id]);
+        free(tmp_buf);
+        return(-1);
+    }
+    free(comp_buf);
+
+    /* pass back the final decompressed data pointer */
+    *mod_buf = tmp_buf;
+    *mod_buf_sz = tmp_buf_sz;
 
     return(0);
 }
 
+#if 0
 /* TODO: hardcoded for posix -- what can we do generally?
  *       different function for each module and a way to map to this function?
  */
 int darshan_log_getfile(darshan_fd fd, struct darshan_posix_file *file)
 {
+    char *comp_buf;
+    char hash_buf[DARSHAN_DEF_DECOMP_BUF_SZ] = {0};
     int ret;
     const char* err_string;
     int i;
@@ -416,6 +541,7 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_posix_file *file)
     fprintf(stderr, "Error: %s\n", err_string);
     return(-1);
 }
+#endif
 
 /* darshan_log_close()
  *
@@ -435,6 +561,25 @@ void darshan_log_close(darshan_fd fd)
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* return 0 on successful seek to offset, -1 on failure.
+ */
+static int darshan_log_seek(darshan_fd fd, off_t offset)
+{
+    off_t ret_off;
+
+    if(fd->pos == offset)
+        return(0);
+
+    ret_off = lseek(fd->pf, offset, SEEK_SET);
+    if(ret_off == offset)
+    {
+        fd->pos = offset;
+        return(0);
+    }
+
+    return(-1);
+}
 
 /* return amount written on success, -1 on failure.
  */
@@ -470,21 +615,64 @@ static int darshan_log_read(darshan_fd fd, void* buf, int len)
     return(-1);
 }
 
-/* return 0 on successful seek to offset, -1 on failure.
- */
-static int darshan_log_seek(darshan_fd fd, off_t offset)
+/* TODO bz2 compression support */
+static int darshan_decompress_buffer(char *comp_buf, int comp_buf_sz,
+    char *decomp_buf, int *inout_decomp_buf_sz)
 {
-    off_t ret_off;
+    int ret;
+    z_stream tmp_stream;
 
-    if(fd->pos == offset)
-        return(0);
+    memset(&tmp_stream, 0, sizeof(tmp_stream));
+    tmp_stream.zalloc = Z_NULL;
+    tmp_stream.zfree = Z_NULL;
+    tmp_stream.opaque = Z_NULL;
 
-    ret_off = lseek(fd->pf, offset, SEEK_SET);
-    if(ret_off == offset)
+    /* initialize the zlib decompression parameters */
+    /* TODO: check these parameters? */
+    //ret = inflateInit2(&tmp_stream, 31);
+    ret = inflateInit(&tmp_stream);
+    if(ret != Z_OK)
     {
-        fd->pos = offset;
-        return(0);
+        return(-1);
     }
 
-    return(-1);
+    tmp_stream.next_in = comp_buf;
+    tmp_stream.avail_in = comp_buf_sz;
+    tmp_stream.next_out = decomp_buf;
+    tmp_stream.avail_out = *inout_decomp_buf_sz;
+
+    /* while we have not finished consuming all of the compressed input data */
+    while(tmp_stream.total_in < comp_buf_sz)
+    {
+        if(tmp_stream.avail_out == 0)
+        {
+            /* We ran out of buffer space for compression.  In theory,
+             * we could just alloc more space, but probably just easier
+             * to bump up the default size of the output buffer.
+             */
+            inflateEnd(&tmp_stream);
+            return(-1);
+        }
+
+        /* decompress data */
+        ret = inflate(&tmp_stream, Z_NO_FLUSH);
+        if(ret != Z_STREAM_END)
+        {
+            inflateEnd(&tmp_stream);
+            return(-1);
+        }
+    }
+    inflateEnd(&tmp_stream);
+
+    *inout_decomp_buf_sz = tmp_stream.total_out;
+    return(0);
 }
+
+/*
+ * Local variables:
+ *  c-indent-level: 4
+ *  c-basic-offset: 4
+ * End:
+ *
+ * vim: ts=8 sts=4 sw=4 expandtab
+ */

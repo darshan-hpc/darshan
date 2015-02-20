@@ -32,11 +32,12 @@ int main(int argc, char **argv)
     int mount_count;
     char** mnt_pts;
     char** fs_types;
-    struct darshan_posix_file next_rec;
     time_t tmp_time = 0;
     char *token;
     char *save;
     char buffer[DARSHAN_JOB_METADATA_LEN];
+    struct darshan_posix_file *posix_mod_buf;
+    int posix_mod_buf_sz = 0;
 
     assert(argc == 2);
     filename = argv[1];
@@ -80,8 +81,8 @@ int main(int argc, char **argv)
 
     /* print job summary */
     printf("# darshan log version: %s\n", header.version_string);
-    printf("# size of POSIX file statistics: %zu bytes\n", sizeof(next_rec));
-    printf("# size of job statistics: %zu bytes\n", sizeof(job));
+    printf("# size of POSIX file statistics: %zu bytes\n", sizeof(struct darshan_posix_file));
+    printf("# size of job statistics: %zu bytes\n", sizeof(struct darshan_job));
     printf("# exe: %s\n", tmp_string);
     printf("# uid: %" PRId64 "\n", job.uid);
     printf("# jobid: %" PRId64 "\n", job.jobid);
@@ -132,6 +133,13 @@ int main(int argc, char **argv)
         printf("# mount entry:\t%s\t%s\n", mnt_pts[i], fs_types[i]);
     }
 
+    uint64_t job_size = header.rec_map.off - sizeof(struct darshan_header);
+    printf("\nDarshan log file module sizes:\n");
+    printf("\tHEADER size = %"PRIu64"\n\tJOB size = %"PRIu64"\n\tREC_HASH size = %"PRIu64"\n",
+        sizeof(struct darshan_header), job_size, header.rec_map.len);
+    printf("\t%s MODULE size = %"PRIu64"\n", darshan_module_names[DARSHAN_POSIX_MOD],
+        header.mod_map[DARSHAN_POSIX_MOD].len);
+
     /* read hash of darshan records */
     ret = darshan_log_gethash(file, &rec_hash);
     if(ret < 0)
@@ -141,15 +149,18 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    /* try to retrieve first record (may not exist) */
-    ret = darshan_log_getfile(file, &next_rec);
-    if(ret < 0)
+    printf("\n*** FILE RECORD DATA ***\n");
+
+    /* get the log data for the POSIX module */
+    ret = darshan_log_getmod(file, DARSHAN_POSIX_MOD, (void**)&posix_mod_buf, &posix_mod_buf_sz);
+    if(ret < 0 || posix_mod_buf_sz % sizeof(struct darshan_posix_file))
     {
-        fprintf(stderr, "Error: failed to parse log file.\n");
-        fflush(stderr);
+        fprintf(stderr, "darshan_log_getmod() failed to read POSIX module data.\n");
+        darshan_log_close(file);
         return(-1);
     }
-    if(ret == 0)
+
+    if(posix_mod_buf_sz == 0)
     {
         /* it looks like the app didn't open any files */
         printf("# no files opened.\n");
@@ -157,11 +168,10 @@ int main(int argc, char **argv)
         return(0);
     }
 
-    /* iterate the posix file records stored in the darshan log */
-    printf("\n*** FILE RECORD DATA ***\n");
-    i = 0;
-    do{
-        struct darshan_record_ref *ref;
+    /* loop over the POSIX file records and print out counters */
+    for(i = 0; i < (posix_mod_buf_sz / sizeof(struct darshan_posix_file)); i++)
+    {
+        struct darshan_posix_file next_rec = posix_mod_buf[i];
 
         /* get the pathname for this record */
         HASH_FIND(hlink, rec_hash, &next_rec.f_id, sizeof(darshan_record_id), ref);
@@ -172,9 +182,7 @@ int main(int argc, char **argv)
         printf("\t\tPOSIX_OPENS:\t%"PRIu64"\n\t\tF_OPEN_TIMESTAMP:\t%lf\n\t\tF_CLOSE_TIMESTAMP:\t%lf\n",
             next_rec.counters[CP_POSIX_OPENS], next_rec.fcounters[CP_F_OPEN_TIMESTAMP],
             next_rec.fcounters[CP_F_CLOSE_TIMESTAMP]);
-
-        i++;
-    } while((ret = darshan_log_getfile(file, &next_rec)) == 1);
+    }
 
     /* free mount info */
     for(i=0; i<mount_count; i++)

@@ -15,6 +15,10 @@
 /* TODO: enforce this when handing out ids */
 #define DARSHAN_CORE_MAX_RECORDS 1024
 
+/* default compression buffer size of 2 MiB */
+/* TODO: revisit this default size if we change memory per module */
+#define DARSHAN_COMP_BUF_SIZE (2 * 1024 * 1024)
+
 struct darshan_core_module
 {
     darshan_module_id id;
@@ -28,6 +32,7 @@ struct darshan_core_runtime
     char exe[DARSHAN_EXE_LEN+1];
     struct darshan_core_record_ref *rec_hash;
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
+    char comp_buf[DARSHAN_COMP_BUF_SIZE];
     double wtime_offset;
     char *trailing_data;
 };
