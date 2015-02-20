@@ -42,7 +42,7 @@ mktestdir::
 uthash-1.9.2:
 	tar xjvf $(srcdir)/extern/uthash-1.9.2.tar.bz2
 
-darshan-posix-parser: darshan-posix-parser.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o | uthash-1.9.2
+darshan-posix-parser: darshan-posix-parser.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS) 
 
 #darshan-parser: darshan-parser.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o | uthash-1.9.2
@@ -64,7 +64,7 @@ jenkins: util/bin/jenkins.o lookup3.o
 #	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
 #darshan-diff.o: darshan-diff.c
 #	$(CC) $(CFLAGS) -c  $< -o $@
-darshan-logutils.o: darshan-logutils.c
+darshan-logutils.o: darshan-logutils.c | uthash-1.9.2
 	$(CC) $(CFLAGS) -c  $< -o $@
 darshan-logutils.po: darshan-logutils.c
 	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
