@@ -65,6 +65,7 @@ typedef struct perf_data_s
     int64_t total_bytes;
     double slowest_rank_time;
     double slowest_rank_meta_time;
+    int slowest_rank_rank;
     double shared_time_by_cumul;
     double shared_time_by_open;
     double shared_time_by_open_lastio;
@@ -475,8 +476,9 @@ int main(int argc, char **argv)
         printf("#\n");
         printf("# I/O timing for unique files (seconds):\n");
         printf("# ...........................\n");
-        printf("# unique files: slowest_rank_time: %lf\n", pdata.slowest_rank_time);
+        printf("# unique files: slowest_rank_io_time: %lf\n", pdata.slowest_rank_time);
         printf("# unique files: slowest_rank_meta_time: %lf\n", pdata.slowest_rank_meta_time);
+        printf("# unique files: slowest rank: %d\n", pdata.slowest_rank_rank);
         printf("#\n");
         printf("# I/O timing for shared files (seconds):\n");
         printf("# (multiple estimates shown; time_by_slowest is generally the most accurate)\n");
@@ -1062,6 +1064,7 @@ void calc_perf(struct darshan_job *djob,
         {
             pdata->slowest_rank_time = pdata->rank_cumul_io_time[i];
             pdata->slowest_rank_meta_time = pdata->rank_cumul_md_time[i];
+            pdata->slowest_rank_rank = i;
         }
     }
 
@@ -1083,6 +1086,7 @@ void calc_perf(struct darshan_job *djob,
     if (pdata->slowest_rank_time + pdata->shared_time_by_slowest)
     pdata->agg_perf_by_slowest = ((double)pdata->total_bytes / 1048576.0) /
                                      (pdata->slowest_rank_time +
+                                      pdata->slowest_rank_meta_time +
                                       pdata->shared_time_by_slowest);
 
     return;

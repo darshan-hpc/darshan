@@ -275,13 +275,20 @@ print OUTPUT<<"EOF";
     grep -E \\(PMPI_File_\\)\\|\\(PMPI_Init\\)\\|\\(PMPI_Finalize\\) \$tmpfile | grep -v -E \\(mpich.*\\.a\\) |grep \\(PMPI >& /dev/null
     rc_pmpi=\$?
 
-    # normal or cnk libraries?
-    grep -E mpich\\.cnk \$tmpfile >& /dev/null
+
+    # find appropriate fortran library name for profiling
+    grep -E libmpifort \$tmpfile >& /dev/null
     rc_cnk_check=\$?
     if [ \$rc_cnk_check -eq 0 ] ; then
-        FMPICH=-lfmpich.cnk
+        FMPICH=-lmpifort
     else
-        FMPICH=-lfmpich
+        grep -E mpich\\.cnk \$tmpfile >& /dev/null
+        rc_cnk_check=\$?
+        if [ \$rc_cnk_check -eq 0 ] ; then
+            FMPICH=-lfmpich.cnk
+        else
+            FMPICH=-lfmpich
+        fi
     fi
 
     rm \$tmpfile >& /dev/null

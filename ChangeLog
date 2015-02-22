@@ -5,16 +5,38 @@ Darshan Release Change Log
 Darshan-3.0.0-pre1
 =============
 
-darshan-2.3.1-pre1
+darshan-2.3.1-pre2
 =============
+* added documentation and example configuration files for using the -profile
+  or $MPICC_PROFILE hooks to add instrumentation to MPICH-based MPI
+  implementations without generating custom wrapper scripts
+* Add wrappers for mkstemp(), mkostemp(), mkstemps(), and mkostemps()
+  (reported by Tom Peterka)
 * Change OPEN_TIMESTAMP field to report timestamp right before open() is
-  invoked rather than after timestamp after open is completed
+  invoked rather than after timestamp after open is completed.
+  NOTE: updated log format version to 2.06 to reflect this change.
 * Change start_time and end_time fields in job record to use min and max
   (respectively) across all ranks
 * Fix bug in write volume data reported in file system table in
   darshan-job-summary.pl (reported by Matthieu Dorier)
-
-TODO: bump log version number and add warnings about semantic changes  
+* Clean up autoconf test for zlib and make zlib mandatory (reported by Kalyana
+  Chadalavada)
+* add --start-group and --end-group notation to Darshan libraries for Cray PE
+  2.x environment to fix link-time corner cases (Yushu Yao)
+* improve y axis labels on time interval graphs in darshan-job-summary.pl
+  (reported by Tom Peterka)
+* misc. improvements to darshan-parser --perf output (reported by Shane
+  Snyder)
+  - indicate which rank was slowest in unique file results
+  - label I/O vs. meta time more clearly
+  - include unique file meta time in agg_perf_by_slowest calculation
+* added regression test script framework in darshan-test/regression/
+  - workstation-static and workstation-dynamic test environments supported
+* update darshan-gen-fortran.pl and darshan-gen-cxx.pl to support new library
+  naming conventions in MPICH 3.1.1 and higher
+* update documentation to reflect known issues with some versions of MPICH
+* modify darshan-runtime so that link-time instrumentation options are only used
+  when statically linking via Libs.private.  (reported by Kalyana Chadalavada)
 
 darshan-2.3.0
 =============

@@ -787,7 +787,10 @@ system "$cp $PREFIX/share/*.gplt $tmp_dir/";
 system "$cp $PREFIX/share/*.tex $tmp_dir/";
 
 # generate template for file access plot (we have to set range)
-my $ymax = $nprocs + 1;
+my $ymax = $nprocs;
+my $yinc = int($nprocs / 8);
+if($yinc == 0) {$yinc=1;}
+my $ymaxtic = $nprocs-1;
 open(FILEACC, ">$tmp_dir/file-access-read-eps.gplt") || die("error opening output file:$!\n");
 print FILEACC "#!/usr/bin/gnuplot -persist
 
@@ -801,6 +804,7 @@ set format x \"%H:%M:%S\"
 set yrange [-1:$ymax]
 set title \"Timespan from first to last read access on independent files\"
 set xrange [\"0\":\"$runtime\"]
+set ytics 0,$yinc,$ymaxtic
 #set ytics -1,1
 set lmargin 4
 
@@ -831,6 +835,7 @@ set title \"Timespan from first to last write access on independent files\"
 set yrange [-1:$ymax]
 set xrange [\"0\":\"$runtime\"]
 #set ytics -1,1
+set ytics 0,$yinc,$ymaxtic
 set lmargin 4
 
 # color blindness work around

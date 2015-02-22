@@ -143,13 +143,17 @@ for details if you intend to force one mode or the other.
 
 == Instrumenting statically-linked applications
 
-Statically linked executables must be instrumented at compile time.  The
-simplest way to do this is to generate an MPI compiler script (e.g. `mpicc`)
-that includes the link options and libraries needed by Darshan.  Once this
-is done, Darshan instrumentation is transparent; you simply compile
-applications using the darshan-enabled MPI compiler scripts.
+Statically linked executables must be instrumented at compile time.
+The simplest methods to do this are to either generate a customized
+MPI compiler script (e.g. `mpicc`) that includes the link options and
+libraries needed by Darshan, or to use existing profiling configuration
+hooks for existing MPI compiler scripts.  Once this is done, Darshan
+instrumentation is transparent; you simply compile applications using
+the darshan-enabled MPI compiler scripts.
 
-For MPICH-based MPI libraries, such as MPICH1, MPICH2, or MVAPICH, these
+=== Using customized compiler wrapper scripts
+
+For MPICH-based MPI libraries, such as MPICH1, MPICH2, or MVAPICH, custom
 wrapper scripts can be generated automatically.  The following example
 illustrates how to produce wrappers for C, C++, and Fortran compilers:
 
@@ -159,6 +163,40 @@ darshan-gen-cxx.pl `which mpicxx` --output mpicxx.darshan
 darshan-gen-fortran.pl `which mpif77` --output mpif77.darshan
 darshan-gen-fortran.pl `which mpif90` --output mpif90.darshan
 -----
+
+=== Using a profile configuration 
+
+The MPICH MPI implementation supports the specification of a profiling library
+configuration, then it can be used to insert Darshan instrumentation without
+modifying the existing MPI compiler script.  Example profiling configuration
+files are installed with Darshan 2.3.1 and later.  You can enable a profiling
+configuration using environment variables or command line arguments to the
+compiler scripts:
+
+Example for MPICH 3.1.1 or newer:
+----
+export MPICC_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cc
+export MPICXX_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cxx
+export MPIFORT_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
+----
+
+Example for MPICH 3.1 or earlier:
+----
+export MPICC_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cc
+export MPICXX_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cxx
+export MPICF77_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
+export MPICF90_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
+----
+
+Examples for command line use:
+----
+mpicc -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-c <args>
+mpicxx -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-cxx <args>
+mpif77 -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-f <args>
+mpif90 -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-f <args>
+----
+
+=== Other configurations
 
 Please see the Cray recipe in this document for instructions on
 instrumenting statically-linked applications on that platform.
@@ -379,11 +417,29 @@ http://software.intel.com/en-us/forums/showthread.php?t=103447&o=a&s=lr
 
 === Linux clusters using MPICH 
 
-Follow the generic instructions provided at the top of this document.  The
-only modification is to make sure that the `CC` used for compilation is
+Follow the generic instructions provided at the top of this document.  For MPICH versions 3.1 and
+later, MPICH uses shared libraries by default, so you may need to consider the dynamic linking
+instrumentation approach.  
+
+The static linking method can be used if MPICH is configured to use static
+linking by default, or if you are using a version prior to 3.1.
+The only modification is to make sure that the `CC` used for compilation is
 based on a GNU compiler.  Once Darshan has been installed, it should be
 capable of instrumenting executables built with GNU, Intel, and PGI
 compilers.
+
+[NOTE]
+Darshan is not capable of instrumenting Fortran applications build with MPICH versions 3.1.1, 3.1.2,
+or 3.1.3 due to a library symbol name compatibility issue.  Consider using a newer version of
+MPICH if you wish to instrument Fortran applications.  Please see
+http://trac.mpich.org/projects/mpich/ticket/2209 for more details.
+
+[NOTE]
+MPICH versions 3.1, 3.1.1, 3.1.2, and 3.1.3 may produce link-time errors when building static
+executables (i.e. using the -static option) if MPICH is built with shared library support.
+Please see http://trac.mpich.org/projects/mpich/ticket/2190 for more details.  The workaround if you
+wish to use static linking is to configure MPICH with `--enable-shared=no --enable-static=yes` to
+force it to use static MPI libraries with correct dependencies.
 
 === Linux clusters using Open MPI
 
@@ -413,4 +469,5 @@ behavior at runtime:
 in which files that were accessed by all ranks are collapsed into a single
 cumulative file record at rank 0.  This option retains more per-process
 information at the expense of creating larger log files.
-
+* DARSHAN_LOGPATH: specifies the path to write Darshan log files to. Note that this directory needs to be formatted using the darshan-mk-log-dirs script.
+* DARSHAN_LOGFILE: specifies the path (directory + Darshan log file name) to write the output Darshan log to. This overrides the default Darshan behavior of automatically generating a log file name and adding to a log file directory formatted using darshan-mk-log-dirs script.
