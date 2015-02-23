@@ -620,12 +620,17 @@ static int darshan_decompress_buffer(char *comp_buf, int comp_buf_sz,
     char *decomp_buf, int *inout_decomp_buf_sz)
 {
     int ret;
+    int total_out = 0;
     z_stream tmp_stream;
 
     memset(&tmp_stream, 0, sizeof(tmp_stream));
     tmp_stream.zalloc = Z_NULL;
     tmp_stream.zfree = Z_NULL;
     tmp_stream.opaque = Z_NULL;
+    tmp_stream.next_in = comp_buf;
+    tmp_stream.avail_in = comp_buf_sz;
+    tmp_stream.next_out = decomp_buf;
+    tmp_stream.avail_out = *inout_decomp_buf_sz;
 
     /* initialize the zlib decompression parameters */
     /* TODO: check these parameters? */
@@ -636,13 +641,8 @@ static int darshan_decompress_buffer(char *comp_buf, int comp_buf_sz,
         return(-1);
     }
 
-    tmp_stream.next_in = comp_buf;
-    tmp_stream.avail_in = comp_buf_sz;
-    tmp_stream.next_out = decomp_buf;
-    tmp_stream.avail_out = *inout_decomp_buf_sz;
-
     /* while we have not finished consuming all of the compressed input data */
-    while(tmp_stream.total_in < comp_buf_sz)
+    while(tmp_stream.avail_in)
     {
         if(tmp_stream.avail_out == 0)
         {
@@ -655,16 +655,20 @@ static int darshan_decompress_buffer(char *comp_buf, int comp_buf_sz,
         }
 
         /* decompress data */
-        ret = inflate(&tmp_stream, Z_NO_FLUSH);
+        ret = inflate(&tmp_stream, Z_FINISH);
         if(ret != Z_STREAM_END)
         {
             inflateEnd(&tmp_stream);
             return(-1);
         }
+
+        total_out += tmp_stream.total_out;
+        if(tmp_stream.avail_in)
+            inflateReset(&tmp_stream);
     }
     inflateEnd(&tmp_stream);
 
-    *inout_decomp_buf_sz = tmp_stream.total_out;
+    *inout_decomp_buf_sz = total_out;
     return(0);
 }
 
