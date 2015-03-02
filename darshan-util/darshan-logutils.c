@@ -475,6 +475,8 @@ int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
     *mod_buf = tmp_buf;
     *mod_buf_sz = tmp_buf_sz;
 
+    /* TODO: bswaps */
+
     return(0);
 }
 

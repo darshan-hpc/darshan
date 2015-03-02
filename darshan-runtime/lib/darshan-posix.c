@@ -604,9 +604,15 @@ static void posix_get_output_data(
 
 static void posix_shutdown()
 {
-    assert(posix_runtime);
+    struct posix_runtime_file_ref *ref, *tmp;
 
-    /* TODO destroy hash tables ?? */
+    HASH_ITER(hlink, posix_runtime->fd_hash, ref, tmp)
+    {
+        HASH_DELETE(hlink, posix_runtime->fd_hash, ref);
+        free(ref);
+    }
+
+    HASH_CLEAR(hlink, posix_runtime->file_hash); /* these entries are freed all at once below */
 
     free(posix_runtime->file_runtime_array);
     free(posix_runtime->file_record_array);

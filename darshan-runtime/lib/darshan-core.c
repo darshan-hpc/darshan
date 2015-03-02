@@ -623,9 +623,15 @@ static void darshan_core_shutdown()
 /* free darshan core data structures to shutdown */
 static void darshan_core_cleanup(struct darshan_core_runtime* core)
 {
+    struct darshan_core_record_ref *tmp, *ref;
     int i;
 
-    /* TODO: destroy record hash */
+    HASH_ITER(hlink, core->rec_hash, ref, tmp)
+    {
+        HASH_DELETE(hlink, core->rec_hash, ref);
+        free(ref->rec.name);
+        free(ref);
+    }
 
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
