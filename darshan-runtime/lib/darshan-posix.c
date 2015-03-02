@@ -66,6 +66,8 @@ struct posix_runtime
     int file_array_ndx;
     struct posix_runtime_file* file_hash;
     struct posix_runtime_file_ref* fd_hash;
+    void *red_buf;
+    int shared_rec_count;
 };
 
 static struct posix_runtime *posix_runtime = NULL;
@@ -100,7 +102,11 @@ static struct posix_runtime_file* posix_file_by_fd(int fd);
 static void posix_file_close_fd(int fd);
 
 static void posix_disable_instrumentation(void);
-static void posix_get_output_data(MPI_Comm comm, void **buffer, int *size);
+static void posix_prepare_for_reduction(darshan_record_id *shared_recs,
+    int *shared_rec_count, void **send_buf, void **recv_buf, int *rec_size);
+static void posix_reduce_record(void* infile_v, void* inoutfile_v,
+    int *len, MPI_Datatype *datatype);
+static void posix_get_output_data(void **buffer, int *size);
 static void posix_shutdown(void);
 
 #define POSIX_LOCK() pthread_mutex_lock(&posix_runtime_mutex)
@@ -276,6 +282,8 @@ static void posix_runtime_initialize()
     struct darshan_module_funcs posix_mod_fns =
     {
         .disable_instrumentation = &posix_disable_instrumentation,
+        .prepare_for_reduction = &posix_prepare_for_reduction,
+        .reduce_record = &posix_reduce_record,
         .get_output_data = &posix_get_output_data,
         .shutdown = &posix_shutdown
     };
@@ -342,6 +350,7 @@ static struct posix_runtime_file* posix_file_by_name(const char *name)
         (void*)newname,
         strlen(newname),
         1,
+        DARSHAN_POSIX_MOD,
         &file_id);
 
     /* search the hash table for this file record, and return if found */
@@ -445,10 +454,25 @@ static void posix_file_close_fd(int fd)
     return;
 }
 
+static int posix_file_compare(const void* a, const void* b)
+{
+    const struct darshan_posix_file* f_a = a;
+    const struct darshan_posix_file* f_b = b;
+
+    if(f_a->rank < f_b->rank)
+        return 1;
+    if(f_a->rank > f_b->rank)
+        return -1;
+
+    return 0;
+}
+
 /* ***************************************************** */
 
 static void posix_disable_instrumentation()
 {
+    assert(posix_runtime);
+
     POSIX_LOCK();
     instrumentation_disabled = 1;
     POSIX_UNLOCK();
@@ -456,9 +480,121 @@ static void posix_disable_instrumentation()
     return;
 }
 
-static void posix_get_output_data(MPI_Comm comm, void **buffer, int *size)
+static void posix_prepare_for_reduction(
+    darshan_record_id *shared_recs,
+    int *shared_rec_count,
+    void **send_buf,
+    void **recv_buf,
+    int *rec_size)
 {
-    /* TODO: shared file reduction */
+    struct posix_runtime_file *file;
+    struct darshan_posix_file *tmp_array;
+    int i;
+
+    assert(posix_runtime);
+
+    /* necessary initialization of shared records (e.g., change rank to -1) */
+    for(i = 0; i < *shared_rec_count; i++)
+    {
+        HASH_FIND(hlink, posix_runtime->file_hash, &shared_recs[i],
+            sizeof(darshan_record_id), file);
+        assert(file);
+
+        /* TODO: any initialization before reduction */
+        file->file_record->rank = -1;
+    }
+
+    /* sort the array of files descending by rank so that we get all of the 
+     * shared files (marked by rank -1) in a contiguous portion at end 
+     * of the array
+     */
+    qsort(posix_runtime->file_record_array, posix_runtime->file_array_ndx,
+        sizeof(struct darshan_posix_file), posix_file_compare);
+
+    /* make *send_buf point to the shared files at the end of sorted array */
+    *send_buf =
+        &(posix_runtime->file_record_array[posix_runtime->file_array_ndx-(*shared_rec_count)]);
+
+    /* allocate memory for the reduction output on rank 0 */
+    if(my_rank == 0)
+    {
+        *recv_buf = malloc(*shared_rec_count * sizeof(struct darshan_posix_file));
+        if(!(*recv_buf))
+            return;
+    }
+
+    *rec_size = sizeof(struct darshan_posix_file);
+
+    /* TODO: HACK-Y -- how can we do this in a cleaner way?? */
+    if(my_rank == 0)
+        posix_runtime->red_buf = *recv_buf;
+    posix_runtime->shared_rec_count = *shared_rec_count;
+
+    return;
+}
+
+static void posix_reduce_record(
+    void* infile_v,
+    void* inoutfile_v,
+    int *len,
+    MPI_Datatype *datatype)
+{
+    struct darshan_posix_file tmp_file;
+    struct darshan_posix_file *infile = infile_v;
+    struct darshan_posix_file *inoutfile = inoutfile_v;
+    int i;
+
+    assert(posix_runtime);
+
+    for(i = 0; i < *len; i++)
+    {
+        memset(&tmp_file, 0, sizeof(struct darshan_posix_file));
+
+        tmp_file.f_id = infile->f_id;
+        tmp_file.rank = -1;
+
+        tmp_file.counters[CP_POSIX_OPENS] = infile->counters[CP_POSIX_OPENS] +
+            inoutfile->counters[CP_POSIX_OPENS];
+
+        if((infile->fcounters[CP_F_OPEN_TIMESTAMP] > inoutfile->fcounters[CP_F_OPEN_TIMESTAMP]) &&
+            (inoutfile->fcounters[CP_F_OPEN_TIMESTAMP] > 0))
+            tmp_file.fcounters[CP_F_OPEN_TIMESTAMP] = inoutfile->fcounters[CP_F_OPEN_TIMESTAMP];
+        else
+            tmp_file.fcounters[CP_F_OPEN_TIMESTAMP] = infile->fcounters[CP_F_OPEN_TIMESTAMP];
+
+        if(infile->fcounters[CP_F_CLOSE_TIMESTAMP] > inoutfile->fcounters[CP_F_CLOSE_TIMESTAMP])
+            tmp_file.fcounters[CP_F_CLOSE_TIMESTAMP] = infile->fcounters[CP_F_CLOSE_TIMESTAMP];
+        else
+            tmp_file.fcounters[CP_F_CLOSE_TIMESTAMP] = inoutfile->fcounters[CP_F_CLOSE_TIMESTAMP];
+
+        /* update pointers */
+        *inoutfile = tmp_file;
+        inoutfile++;
+        infile++;
+    }
+
+    return;
+}
+
+static void posix_get_output_data(
+    void **buffer,
+    int *size)
+{
+    assert(posix_runtime);
+
+    /* TODO: HACK-Y -- how can we do this in a cleaner way?? */
+    /* clean up reduction state */
+    if(my_rank == 0)
+    {
+        int tmp_ndx = posix_runtime->file_array_ndx - posix_runtime->shared_rec_count;
+        memcpy(&(posix_runtime->file_record_array[tmp_ndx]), posix_runtime->red_buf,
+            posix_runtime->shared_rec_count * sizeof(struct darshan_posix_file));
+        free(posix_runtime->red_buf);
+    }
+    else
+    {
+        posix_runtime->file_array_ndx -= posix_runtime->shared_rec_count;
+    }
 
     *buffer = (void *)(posix_runtime->file_record_array);
     *size = posix_runtime->file_array_ndx * sizeof(struct darshan_posix_file);
@@ -468,6 +604,8 @@ static void posix_get_output_data(MPI_Comm comm, void **buffer, int *size)
 
 static void posix_shutdown()
 {
+    assert(posix_runtime);
+
     /* TODO destroy hash tables ?? */
 
     free(posix_runtime->file_runtime_array);

@@ -65,7 +65,7 @@ static void darshan_get_exe_and_mounts_root(
     int space_left);
 static char* darshan_get_exe_and_mounts(
     struct darshan_core_runtime *core);
-static void darshan_get_shared_record_ids(
+static void darshan_get_shared_records(
     struct darshan_core_runtime *core, darshan_record_id *shared_recs);
 static int darshan_log_coll_open(
     char *logfile_name, MPI_File *log_fh);
@@ -73,7 +73,7 @@ static int darshan_compress_buffer(void **pointers, int *lengths,
     int count, char *comp_buf, int *comp_length);
 static int darshan_log_write_record_hash(
     MPI_File log_fh, struct darshan_core_runtime *core,
-    darshan_record_id *shared_recs, struct darshan_log_map *map);
+    struct darshan_log_map *map);
 static int darshan_log_coll_write(
     MPI_File log_fh, void *buf, int count, struct darshan_log_map *map);
 
@@ -335,7 +335,7 @@ static void darshan_core_shutdown()
     DARSHAN_MPI_CALL(PMPI_Allreduce)(local_mod_use, global_mod_use_count, DARSHAN_MAX_MODS, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
     /* get a list of records which are shared across all processes */
-    darshan_get_shared_record_ids(final_core, shared_recs);
+    darshan_get_shared_records(final_core, shared_recs);
 
     /* collectively open the darshan log file */
     ret = darshan_log_coll_open(logfile_name, &log_fh);
@@ -399,7 +399,7 @@ static void darshan_core_shutdown()
     }
 
     /* write the record name->id hash to the log file */
-    ret = darshan_log_write_record_hash(log_fh, final_core, shared_recs, &log_header.rec_map);
+    ret = darshan_log_write_record_hash(log_fh, final_core, &log_header.rec_map);
 
     /* error out if unable to write record hash */
     DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
@@ -418,6 +418,7 @@ static void darshan_core_shutdown()
     }
 
     /* loop over globally used darshan modules and:
+     *      - perform shared file reductions, if possible
      *      - get final output buffer
      *      - compress (zlib) provided output buffer
      *      - append compressed buffer to log file
@@ -427,34 +428,77 @@ static void darshan_core_shutdown()
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
         struct darshan_core_module* this_mod = final_core->mod_array[i];
-        MPI_Comm mod_comm;
+        darshan_record_id mod_shared_recs[DARSHAN_CORE_MAX_RECORDS];
+        struct darshan_core_record_ref *ref = NULL;
+        int shared_rec_cnt = 0;
         void* mod_buf = NULL;
         int mod_buf_sz = 0;
         int comp_buf_sz = 0;
+        int j;
 
-        if(!global_mod_use_count[i])
+        if(global_mod_use_count[i] == 0)
         {
             if(my_rank == 0)
                 log_header.mod_map[i].off = log_header.mod_map[i].len = 0;
 
             continue;
         }
+        else if(global_mod_use_count[j] == nprocs)
+        {
+            int shared_rec_count = 0;
+            int rec_sz = 0;
+            void *red_send_buf = NULL, *red_recv_buf = NULL;
+            MPI_Datatype red_type;
+            MPI_Op red_op;
 
-        /* create a communicator to use for shutting down the module */
-        if(global_mod_use_count[i] == nprocs)
-        {
-            DARSHAN_MPI_CALL(PMPI_Comm_dup)(MPI_COMM_WORLD, &mod_comm);
-        }
-        else
-        {
-            DARSHAN_MPI_CALL(PMPI_Comm_split)(MPI_COMM_WORLD, local_mod_use[i], 0, &mod_comm);
+            /* if all processes used this module, prepare to do a shared file reduction */
+
+            /* set the shared file list for this module */
+            memset(mod_shared_recs, 0, DARSHAN_CORE_MAX_RECORDS * sizeof(darshan_record_id));
+            for(j = 0; j < DARSHAN_CORE_MAX_RECORDS && shared_recs[j] != 0; j++)
+            {
+                HASH_FIND(hlink, final_core->rec_hash, &shared_recs[j],
+                    sizeof(darshan_record_id), ref);
+                assert(ref);
+                if(ref->global_mod_flags & (1 << i)) /* TODO: MACRO? */
+                {
+                    mod_shared_recs[shared_rec_count++] = shared_recs[j];
+                }
+            }
+
+            /* if there are globally shared files, do a shared file reduction */
+            if(shared_rec_count)
+            {
+                this_mod->mod_funcs.prepare_for_reduction(mod_shared_recs, &shared_rec_count,
+                    &red_send_buf, &red_recv_buf, &rec_sz);
+
+                if(shared_rec_count)
+                {
+                    /* construct a datatype for a file record.  This is serving no purpose
+                     * except to make sure we can do a reduction on proper boundaries
+                     */
+                    DARSHAN_MPI_CALL(PMPI_Type_contiguous)(rec_sz, MPI_BYTE, &red_type);
+                    DARSHAN_MPI_CALL(PMPI_Type_commit)(&red_type);
+
+                    /* register a reduction operator for this module */
+                    DARSHAN_MPI_CALL(PMPI_Op_create)(this_mod->mod_funcs.reduce_record,
+                        1, &red_op);
+
+                    /* reduce shared file records for this module */
+                    DARSHAN_MPI_CALL(PMPI_Reduce)(red_send_buf, red_recv_buf,
+                        shared_rec_count, red_type, red_op, 0, MPI_COMM_WORLD);
+
+                    DARSHAN_MPI_CALL(PMPI_Type_free)(&red_type);
+                    DARSHAN_MPI_CALL(PMPI_Op_free)(&red_op);
+                }
+            }
         }
 
         /* if module is registered locally, get the corresponding output buffer */
-        if(local_mod_use[i])
+        if(this_mod)
         {
             /* get output buffer from module */
-            this_mod->mod_funcs.get_output_data(mod_comm, &mod_buf, &mod_buf_sz);
+            this_mod->mod_funcs.get_output_data(&mod_buf, &mod_buf_sz);
         }
 
         /* compress the module buffer */
@@ -500,13 +544,10 @@ static void darshan_core_shutdown()
         tmp_off += log_header.mod_map[i].len;
 
         /* shutdown module if registered locally */
-        if(local_mod_use[i])
+        if(this_mod)
         {
             this_mod->mod_funcs.shutdown();
-            this_mod = NULL;
         }
-
-        DARSHAN_MPI_CALL(PMPI_Comm_free)(&mod_comm);
     }
 
     /* rank 0 is responsible for writing the log header */
@@ -584,6 +625,8 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
 {
     int i;
 
+    /* TODO: destroy record hash */
+
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
         if(core->mod_array[i])
@@ -593,6 +636,7 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
         }
     }
 
+    free(core->trailing_data);
     free(core);
 
     return;
@@ -955,15 +999,15 @@ static char* darshan_get_exe_and_mounts(struct darshan_core_runtime *core)
     return(trailing_data);
 }
 
-static void darshan_get_shared_record_ids(struct darshan_core_runtime *core,
+static void darshan_get_shared_records(struct darshan_core_runtime *core,
     darshan_record_id *shared_recs)
 {
     int i;
     int ndx;
-    struct darshan_core_record_ref *ref, *tmp;
+    struct darshan_core_record_ref *tmp, *ref;
     darshan_record_id id_array[DARSHAN_CORE_MAX_RECORDS] = {0};
-    darshan_record_id mask_array[DARSHAN_CORE_MAX_RECORDS] = {0};
-    darshan_record_id all_mask_array[DARSHAN_CORE_MAX_RECORDS] = {0};
+    uint64_t mod_flags[DARSHAN_CORE_MAX_RECORDS] = {0};
+    uint64_t global_mod_flags[DARSHAN_CORE_MAX_RECORDS] = {0};
 
     /* first, determine list of records root process has opened */
     if(my_rank == 0)
@@ -983,27 +1027,35 @@ static void darshan_get_shared_record_ids(struct darshan_core_runtime *core,
     /* everyone looks to see if they opened the same records as root */
     for(i=0; (i<DARSHAN_CORE_MAX_RECORDS && id_array[i] != 0); i++)
     {
-        HASH_ITER(hlink, core->rec_hash, ref, tmp)
+        HASH_FIND(hlink, core->rec_hash, &id_array[i], sizeof(darshan_record_id), ref);
+        if(ref)
         {
-            if(id_array[i] == ref->rec.id)
-            {
-                /* we opened that record too */
-                mask_array[i] = 1;
-                break;
-            }
+            /* we opened that record too, save the mod_flags */
+            mod_flags[i] = ref->mod_flags;
+            break;
         }
     }
 
-    /* now allreduce so everyone agrees which files are shared */
-    DARSHAN_MPI_CALL(PMPI_Allreduce)(mask_array, all_mask_array,
-        DARSHAN_CORE_MAX_RECORDS, MPI_INT, MPI_LAND, MPI_COMM_WORLD);
+    /* now allreduce so everyone agrees which files are shared and
+     * which modules accessed them collectively
+     */
+    DARSHAN_MPI_CALL(PMPI_Allreduce)(mod_flags, global_mod_flags,
+        DARSHAN_CORE_MAX_RECORDS, MPI_UINT64_T, MPI_LAND, MPI_COMM_WORLD);
 
     ndx = 0;
     for(i=0; (i<DARSHAN_CORE_MAX_RECORDS && id_array[i] != 0); i++)
     {
-        if(all_mask_array[i] != 0)
+        if(global_mod_flags[i] != 0)
         {
             shared_recs[ndx++] = id_array[i];
+
+            /* set global_mod_flags so we know which modules collectively
+             * accessed this module. we need this info to support shared
+             * file reductions
+             */
+            HASH_FIND(hlink, core->rec_hash, &id_array[i], sizeof(darshan_record_id), ref);
+            assert(ref);
+            ref->global_mod_flags = global_mod_flags[i];
         }
     }
 
@@ -1079,6 +1131,21 @@ static int darshan_compress_buffer(void **pointers, int *lengths, int count,
     int total_target = 0;
     z_stream tmp_stream;
 
+    /* just return if there is no data */
+    for(i = 0; i < count; i++)
+    {
+        total_target += lengths[i];
+    }
+    if(total_target)
+    {
+        total_target = 0;
+    }
+    else
+    {
+        *comp_length = 0;
+        return(0);
+    }
+
     memset(&tmp_stream, 0, sizeof(tmp_stream));
     tmp_stream.zalloc = Z_NULL;
     tmp_stream.zfree = Z_NULL;
@@ -1146,7 +1213,7 @@ static int darshan_compress_buffer(void **pointers, int *lengths, int count,
  *       record is opened by multiple ranks, but not all ranks
  */
 static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_runtime *core,
-    darshan_record_id *shared_recs, struct darshan_log_map *map)
+    struct darshan_log_map *map)
 {
     int i;
     int ret;
@@ -1157,21 +1224,6 @@ static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_ru
     char *hash_buf;
     char *hash_buf_off;
     MPI_Status status;
-
-    /* non-root ranks (rank > 0) remove shared records from their hash --
-     * these records will be written by rank 0
-     */
-    if(my_rank > 0)
-    {
-        for(i=0; (i<DARSHAN_CORE_MAX_RECORDS && shared_recs[i]); i++)
-        {
-            HASH_FIND(hlink, core->rec_hash, &shared_recs[i], sizeof(darshan_record_id), ref);
-            assert(ref); /* this id had better be in the hash ... */
-            HASH_DELETE(hlink, core->rec_hash, ref);
-            if(ref->rec.name) free(ref->rec.name);
-            free(ref);
-        }
-    }
 
     /* allocate a buffer to store at most 64 bytes for each of a max number of records */
     /* NOTE: this buffer may be reallocated if estimate is too small */
@@ -1186,8 +1238,12 @@ static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_ru
     hash_buf_off = hash_buf;
     HASH_ITER(hlink, core->rec_hash, ref, tmp)
     {
+        /* to avoid duplicate records, only rank 0 will write shared records */
+        if(my_rank > 0 && ref->global_mod_flags)
+            continue;
+
         name_len = strlen(ref->rec.name);
-        record_sz = sizeof(darshan_record_id) + sizeof(int) + name_len;
+        record_sz = sizeof(darshan_record_id) + sizeof(uint32_t) + name_len;
         /* make sure there is room in the buffer for this record */
         if((hash_buf_off + record_sz) > (hash_buf + hash_buf_sz))
         {
@@ -1361,13 +1417,15 @@ void darshan_core_register_module(
     return;
 }
 
+/* TODO: RENAME */
 void darshan_core_lookup_record_id(
     void *name,
     int len,
     int printable_flag,
-    darshan_record_id *id)
+    darshan_module_id mod_id,
+    darshan_record_id *rec_id)
 {
-    darshan_record_id tmp_id;
+    darshan_record_id tmp_rec_id;
     struct darshan_core_record_ref* ref;
 
     if(!darshan_core)
@@ -1376,28 +1434,31 @@ void darshan_core_lookup_record_id(
     /* TODO: what do you do with printable flag? */
 
     /* hash the input name to get a unique id for this record */
-    tmp_id = darshan_hash(name, len, 0);
+    tmp_rec_id = darshan_hash(name, len, 0);
 
     /* check to see if we've already stored the id->name mapping for this record */
     DARSHAN_CORE_LOCK();
-    HASH_FIND(hlink, darshan_core->rec_hash, &tmp_id, sizeof(darshan_record_id), ref);
+    HASH_FIND(hlink, darshan_core->rec_hash, &tmp_rec_id, sizeof(darshan_record_id), ref);
     if(!ref)
     {
         /* if not, add this record to the hash */
         ref = malloc(sizeof(struct darshan_core_record_ref));
         if(ref)
         {
-            ref->rec.id = tmp_id;
+            ref->mod_flags = ref->global_mod_flags = 0;
+            ref->rec.id = tmp_rec_id;
             ref->rec.name = malloc(strlen(name) + 1);
             if(ref->rec.name)
                 strcpy(ref->rec.name, name);
 
             HASH_ADD(hlink, darshan_core->rec_hash, rec.id, sizeof(darshan_record_id), ref);
         }
-    }   
+    }
+    /* TODO: we need a function to disassociate a module with a record id, probably */
+    ref->mod_flags |= (1 << mod_id); /* TODO: MACRO? */
     DARSHAN_CORE_UNLOCK();
 
-    *id = tmp_id;
+    *rec_id = tmp_rec_id;
     return;
 }
 

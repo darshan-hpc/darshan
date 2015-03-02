@@ -40,6 +40,8 @@ struct darshan_core_runtime
 struct darshan_core_record_ref
 {
     struct darshan_record rec;
+    uint64_t mod_flags;
+    uint64_t global_mod_flags;
     UT_hash_handle hlink;
 };
 

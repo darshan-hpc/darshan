@@ -30,12 +30,29 @@
 
 struct darshan_module_funcs
 {
+    /* disable futher instrumentation within a module */
     void (*disable_instrumentation)(void);
+    /* TODO: */
+    void (*prepare_for_reduction)(
+        darshan_record_id *shared_recs,
+        int *shared_rec_count, /* in/out shared record count */
+        void **send_buf,
+        void **recv_buf,
+        int *rec_size
+    );
+    /* TODO: */
+    void (*reduce_record)(
+        void* infile_v,
+        void* inoutfile_v,
+        int *len,
+        MPI_Datatype *datatype
+    );
+    /* retrieve module data to write to log file */
     void (*get_output_data)(
-        MPI_Comm mod_comm, /* communicator to use for module shutdown */
         void** buf, /* output parameter to save module buffer address */
         int* size /* output parameter to save module buffer size */
     );
+    /* shutdown module data structures */
     void (*shutdown)(void);
 };
 
@@ -44,7 +61,7 @@ struct darshan_module_funcs
 *****************************************************/
 
 void darshan_core_register_module(
-    darshan_module_id id,
+    darshan_module_id mod_id,
     struct darshan_module_funcs *funcs,
     int *runtime_mem_limit);
 
@@ -52,6 +69,7 @@ void darshan_core_lookup_record_id(
     void *name,
     int len,
     int printable_flag,
+    darshan_module_id mod_id,
     darshan_record_id *id);
 
 double darshan_core_wtime(void);

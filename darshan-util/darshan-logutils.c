@@ -407,8 +407,8 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
     return(0);
 }
 
-int darshan_log_getmod(darshan_fd fd, int mod_id, void **mod_buf,
-    int *mod_buf_sz)
+int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
+    void **mod_buf, int *mod_buf_sz)
 {
     char *comp_buf;
     char *tmp_buf;

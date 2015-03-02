@@ -25,8 +25,8 @@ int darshan_log_gethash(darshan_fd file, struct darshan_record_ref **hash);
 int darshan_log_getexe(darshan_fd fd, char *buf);
 int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts,
     char*** fs_types, int* count);
-int darshan_log_getmod(darshan_fd fd, int mod_id, void **mod_buf,
-    int *mod_buf_sz);
+int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
+    void **mod_buf, int *mod_buf_sz);
 void darshan_log_close(darshan_fd file);
 
 /* convenience macros for printing out counters */
