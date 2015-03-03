@@ -227,6 +227,13 @@ static void darshan_core_shutdown()
     int global_mod_use_count[DARSHAN_MAX_MODS] = {0};
     darshan_record_id shared_recs[DARSHAN_CORE_MAX_RECORDS] = {0};
     double start_log_time;
+    double open1, open2;
+    double job1, job2;
+    double rec1, rec2;
+    double mod1[DARSHAN_MAX_MODS] = {0};
+    double mod2[DARSHAN_MAX_MODS] = {0};
+    double header1, header2;
+    double tm_end;
     long offset;
     struct darshan_header log_header;
     MPI_File log_fh;
@@ -235,6 +242,8 @@ static void darshan_core_shutdown()
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
+
+    start_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
     /* disable darhan-core while we shutdown */
     DARSHAN_CORE_LOCK();
@@ -258,8 +267,6 @@ static void darshan_core_shutdown()
         }
     }
     DARSHAN_CORE_UNLOCK();
-
-    start_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
     logfile_name = malloc(PATH_MAX);
     if(!logfile_name)
@@ -337,8 +344,12 @@ static void darshan_core_shutdown()
     /* get a list of records which are shared across all processes */
     darshan_get_shared_records(final_core, shared_recs);
 
+    if(internal_timing_flag)
+        open1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
     /* collectively open the darshan log file */
     ret = darshan_log_coll_open(logfile_name, &log_fh);
+    if(internal_timing_flag)
+        open2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
     /* error out if unable to open log file */
     DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
@@ -356,13 +367,15 @@ static void darshan_core_shutdown()
         return;
     }
 
+    if(internal_timing_flag)
+        job1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
     /* rank 0 is responsible for writing the compressed darshan job information */
     if(my_rank == 0)
     {
         void *pointers[2] = {&final_core->log_job, final_core->trailing_data};
         int lengths[2] = {sizeof(struct darshan_job), DARSHAN_EXE_LEN+1};
         int comp_buf_sz = 0;
-        
+
         /* compress the job info and the trailing mount/exe data */
         all_ret = darshan_compress_buffer(pointers, lengths, 2,
             final_core->comp_buf, &comp_buf_sz);
@@ -397,9 +410,15 @@ static void darshan_core_shutdown()
         darshan_core_cleanup(final_core);
         return;
     }
+    if(internal_timing_flag)
+        job2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
+    if(internal_timing_flag)
+        rec1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
     /* write the record name->id hash to the log file */
     ret = darshan_log_write_record_hash(log_fh, final_core, &log_header.rec_map);
+    if(internal_timing_flag)
+        rec2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
     /* error out if unable to write record hash */
     DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
@@ -417,6 +436,7 @@ static void darshan_core_shutdown()
         return;
     }
 
+    /* TODO: would be nice to factor this out somehow ... a lot to look at */
     /* loop over globally used darshan modules and:
      *      - perform shared file reductions, if possible
      *      - get final output buffer
@@ -443,15 +463,17 @@ static void darshan_core_shutdown()
 
             continue;
         }
-        else if(global_mod_use_count[j] == nprocs)
+ 
+        if(internal_timing_flag)
+            mod1[i] = DARSHAN_MPI_CALL(PMPI_Wtime)();   
+        /* if all processes used this module, prepare to do a shared file reduction */
+        if(global_mod_use_count[j] == nprocs)
         {
             int shared_rec_count = 0;
             int rec_sz = 0;
             void *red_send_buf = NULL, *red_recv_buf = NULL;
             MPI_Datatype red_type;
             MPI_Op red_op;
-
-            /* if all processes used this module, prepare to do a shared file reduction */
 
             /* set the shared file list for this module */
             memset(mod_shared_recs, 0, DARSHAN_CORE_MAX_RECORDS * sizeof(darshan_record_id));
@@ -548,8 +570,12 @@ static void darshan_core_shutdown()
         {
             this_mod->mod_funcs.shutdown();
         }
+        if(internal_timing_flag)
+            mod2[i] = DARSHAN_MPI_CALL(PMPI_Wtime)();
     }
 
+    if(internal_timing_flag)
+        header1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
     /* rank 0 is responsible for writing the log header */
     if(my_rank == 0)
     {
@@ -576,6 +602,8 @@ static void darshan_core_shutdown()
         darshan_core_cleanup(final_core);
         return;
     }
+    if(internal_timing_flag)
+        header2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
     DARSHAN_MPI_CALL(PMPI_File_close)(&log_fh);
 
@@ -614,7 +642,53 @@ static void darshan_core_shutdown()
 
     if(internal_timing_flag)
     {
-        /* TODO: what do we want to time in new darshan version? */
+        double open_tm, open_slowest;
+        double header_tm, header_slowest;
+        double job_tm, job_slowest;
+        double rec_tm, rec_slowest;
+        double mod_tm[DARSHAN_MAX_MODS], mod_slowest[DARSHAN_MAX_MODS];
+        double all_tm, all_slowest;
+
+        tm_end = DARSHAN_MPI_CALL(PMPI_Wtime)();
+
+        open_tm = open2 - open1;
+        header_tm = header2 - header1;
+        job_tm = job2 - job1;
+        rec_tm = rec2 - rec1;
+        all_tm = tm_end - start_log_time;
+        for(i = 0;i < DARSHAN_MAX_MODS; i++)
+        {
+            mod_tm[i] = mod2[i] - mod1[i];
+        }
+
+        DARSHAN_MPI_CALL(PMPI_Reduce)(&open_tm, &open_slowest, 1,
+            MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(&header_tm, &header_slowest, 1,
+            MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(&job_tm, &job_slowest, 1,
+            MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(&rec_tm, &rec_slowest, 1,
+            MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(&all_tm, &all_slowest, 1,
+            MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(mod_tm, mod_slowest, DARSHAN_MAX_MODS,
+            MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
+        if(my_rank == 0)
+        {
+            printf("#darshan:<op>\t<nprocs>\t<time>\n");
+            printf("darshan:log_open\t%d\t%f\n", nprocs, open_slowest);
+            printf("darshan:job_write\t%d\t%f\n", nprocs, job_slowest);
+            printf("darshan:hash_write\t%d\t%f\n", nprocs, rec_slowest);
+            printf("darshan:header_write\t%d\t%f\n", nprocs, rec_slowest);
+            for(i = 0; i < DARSHAN_MAX_MODS; i++)
+            {
+                if(global_mod_use_count[i])
+                    printf("darshan:%s_shutdown\t%d\t%f\n", darshan_module_names[i],
+                        nprocs, rec_slowest);
+            }
+            printf("darshan:core_shutdown\t%d\t%f\n", nprocs, all_slowest);
+        }
     }
     
     return;
