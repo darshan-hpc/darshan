@@ -417,8 +417,6 @@ static void darshan_core_shutdown()
         rec1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
     /* write the record name->id hash to the log file */
     ret = darshan_log_write_record_hash(log_fh, final_core, &log_header.rec_map);
-    if(internal_timing_flag)
-        rec2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
     /* error out if unable to write record hash */
     DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
@@ -435,6 +433,8 @@ static void darshan_core_shutdown()
         darshan_core_cleanup(final_core);
         return;
     }
+    if(internal_timing_flag)
+        rec2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
     /* TODO: would be nice to factor this out somehow ... a lot to look at */
     /* loop over globally used darshan modules and:
@@ -680,12 +680,12 @@ static void darshan_core_shutdown()
             printf("darshan:log_open\t%d\t%f\n", nprocs, open_slowest);
             printf("darshan:job_write\t%d\t%f\n", nprocs, job_slowest);
             printf("darshan:hash_write\t%d\t%f\n", nprocs, rec_slowest);
-            printf("darshan:header_write\t%d\t%f\n", nprocs, rec_slowest);
+            printf("darshan:header_write\t%d\t%f\n", nprocs, header_slowest);
             for(i = 0; i < DARSHAN_MAX_MODS; i++)
             {
                 if(global_mod_use_count[i])
                     printf("darshan:%s_shutdown\t%d\t%f\n", darshan_module_names[i],
-                        nprocs, rec_slowest);
+                        nprocs, mod_slowest[i]);
             }
             printf("darshan:core_shutdown\t%d\t%f\n", nprocs, all_slowest);
         }
