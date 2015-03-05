@@ -30,6 +30,8 @@
 /* TODO is __progname_full needed here */
 extern char* __progname;
 
+#define DARSHAN_MPI_CALL(func) func
+
 /* internal variable delcarations */
 static struct darshan_core_runtime *darshan_core = NULL;
 static pthread_mutex_t darshan_core_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -255,7 +257,7 @@ static void darshan_core_shutdown()
     final_core = darshan_core;
     darshan_core = NULL;
 
-    /* we also need to set which modules were registerd on this process and
+    /* we also need to set which modules were registered on this process and
      * disable tracing within those modules while we shutdown
      */
     for(i = 0; i < DARSHAN_MAX_MODS; i++)

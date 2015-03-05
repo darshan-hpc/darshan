@@ -362,6 +362,7 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
     }
     free(comp_buf);
 
+    /* TODO: check for duplicate entries? */
     buf_ptr = hash_buf;
     while(buf_ptr < (hash_buf + hash_buf_sz))
     {

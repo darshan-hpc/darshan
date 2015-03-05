@@ -3,10 +3,7 @@
  *      See COPYRIGHT in top-level directory.
  */
 
-#define _GNU_SOURCE
-
 #include "darshan-runtime-config.h"
-
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -23,6 +20,7 @@
 #include <assert.h>
 #include <libgen.h>
 #include <aio.h>
+#define __USE_GNU
 #include <pthread.h>
 
 #include "uthash.h"
@@ -36,14 +34,44 @@ typedef int64_t off64_t;
 #define aiocb64 aiocb
 #endif
 
-/* TODO these go where ? */
+#ifdef DARSHAN_PRELOAD
+#define __USE_GNU
+#include <dlfcn.h>
+#include <stdlib.h>
+
+#define DARSHAN_FORWARD_DECL(name,ret,args) \
+  ret (*__real_ ## name)args = NULL;
+
+#define DARSHAN_DECL(__name) __name
+
+#define DARSHAN_MPI_CALL(func) __real_ ## func
+
+#define MAP_OR_FAIL(func) \
+    if (!(__real_ ## func)) \
+    { \
+        __real_ ## func = dlsym(RTLD_NEXT, #func); \
+        if(!(__real_ ## func)) { \
+           fprintf(stderr, "Darshan failed to map symbol: %s\n", #func); \
+           exit(1); \
+       } \
+    }
+
+#else
 
 #define DARSHAN_FORWARD_DECL(name,ret,args) \
   extern ret __real_ ## name args;
 
 #define DARSHAN_DECL(__name) __wrap_ ## __name
 
+#define DARSHAN_MPI_CALL(func) func
+
 #define MAP_OR_FAIL(func)
+
+#endif
+
+DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
+DARSHAN_FORWARD_DECL(open64, int, (const char *path, int flags, ...));
+DARSHAN_FORWARD_DECL(close, int, (int fd));
 
 struct posix_runtime_file
 {
@@ -90,12 +118,7 @@ static char* exclusions[] = {
 NULL
 };
 
-DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
-DARSHAN_FORWARD_DECL(open64, int, (const char *path, int flags, ...));
-DARSHAN_FORWARD_DECL(close, int, (int fd));
-
 static void posix_runtime_initialize(void);
-
 static struct posix_runtime_file* posix_file_by_name(const char *name);
 static struct posix_runtime_file* posix_file_by_name_setfd(const char* name, int fd);
 static struct posix_runtime_file* posix_file_by_fd(int fd);
@@ -216,7 +239,7 @@ int DARSHAN_DECL(open64)(const char *path, int flags, ...)
     int ret;
     double tm1, tm2;
 
-    MAP_OR_FAIL(open);
+    MAP_OR_FAIL(open64);
 
     if(flags & O_CREAT)
     {

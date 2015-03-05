@@ -25,9 +25,6 @@
 /* Environment variable to override __CP_MEM_ALIGNMENT */
 #define CP_MEM_ALIGNMENT_OVERRIDE "DARSHAN_MEMALIGN"
 
-/* TODO where does this go? */
-#define DARSHAN_MPI_CALL(func) func
-
 struct darshan_module_funcs
 {
     /* disable futher instrumentation within a module */
