@@ -25,20 +25,21 @@
 /* Environment variable to override __CP_MEM_ALIGNMENT */
 #define CP_MEM_ALIGNMENT_OVERRIDE "DARSHAN_MEMALIGN"
 
+/* module developers provide the following functions to darshan-core */
 struct darshan_module_funcs
 {
     /* disable futher instrumentation within a module */
     void (*disable_instrumentation)(void);
-    /* TODO: */
+    /* perform any necessary steps prior to reducing */
     void (*prepare_for_reduction)(
-        darshan_record_id *shared_recs,
+        darshan_record_id *shared_recs, /* input list of shared records */
         int *shared_rec_count, /* in/out shared record count */
-        void **send_buf,
-        void **recv_buf,
-        int *rec_size
+        void **send_buf, /* send buffer for shared file reduction */
+        void **recv_buf, /* recv buffer for shared file reduction (root only) */
+        int *rec_size /* size of records being stored for this module */
     );
-    /* TODO: */
-    void (*reduce_record)(
+    /* reduce records which are shared globally across this module */
+    void (*reduce_records)(
         void* infile_v,
         void* inoutfile_v,
         int *len,
@@ -62,12 +63,16 @@ void darshan_core_register_module(
     struct darshan_module_funcs *funcs,
     int *runtime_mem_limit);
 
-void darshan_core_lookup_record_id(
+void darshan_core_register_record(
     void *name,
     int len,
     int printable_flag,
     darshan_module_id mod_id,
     darshan_record_id *id);
+
+void darshan_core_unregister_record(
+    darshan_record_id rec_id,
+    darshan_module_id mod_id);
 
 double darshan_core_wtime(void);
 

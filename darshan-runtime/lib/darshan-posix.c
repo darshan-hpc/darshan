@@ -127,7 +127,7 @@ static void posix_file_close_fd(int fd);
 static void posix_disable_instrumentation(void);
 static void posix_prepare_for_reduction(darshan_record_id *shared_recs,
     int *shared_rec_count, void **send_buf, void **recv_buf, int *rec_size);
-static void posix_reduce_record(void* infile_v, void* inoutfile_v,
+static void posix_reduce_records(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype);
 static void posix_get_output_data(void **buffer, int *size);
 static void posix_shutdown(void);
@@ -306,7 +306,7 @@ static void posix_runtime_initialize()
     {
         .disable_instrumentation = &posix_disable_instrumentation,
         .prepare_for_reduction = &posix_prepare_for_reduction,
-        .reduce_record = &posix_reduce_record,
+        .reduce_records = &posix_reduce_records,
         .get_output_data = &posix_get_output_data,
         .shutdown = &posix_shutdown
     };
@@ -350,7 +350,8 @@ static void posix_runtime_initialize()
     memset(posix_runtime->file_record_array, 0, posix_runtime->file_array_size *
            sizeof(struct darshan_posix_file));
 
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank); /* TODO: can we move this out of here? */
+    /* TODO: can we move this out of here? perhaps register_module returns rank? */
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
 
     return;
 }
@@ -369,7 +370,7 @@ static struct posix_runtime_file* posix_file_by_name(const char *name)
         newname = (char*)name;
 
     /* get a unique id for this file from darshan core */
-    darshan_core_lookup_record_id(
+    darshan_core_register_record(
         (void*)newname,
         strlen(newname),
         1,
@@ -548,7 +549,7 @@ static void posix_prepare_for_reduction(
 
     *rec_size = sizeof(struct darshan_posix_file);
 
-    /* TODO: HACK-Y -- how can we do this in a cleaner way?? */
+    /* TODO: cleaner way to do this? */
     if(my_rank == 0)
         posix_runtime->red_buf = *recv_buf;
     posix_runtime->shared_rec_count = *shared_rec_count;
@@ -556,7 +557,7 @@ static void posix_prepare_for_reduction(
     return;
 }
 
-static void posix_reduce_record(
+static void posix_reduce_records(
     void* infile_v,
     void* inoutfile_v,
     int *len,
@@ -605,7 +606,7 @@ static void posix_get_output_data(
 {
     assert(posix_runtime);
 
-    /* TODO: HACK-Y -- how can we do this in a cleaner way?? */
+    /* TODO: cleaner way to do this? */
     /* clean up reduction state */
     if(my_rank == 0)
     {

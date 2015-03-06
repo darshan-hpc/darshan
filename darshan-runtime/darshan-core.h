@@ -12,18 +12,20 @@
 
 #include "darshan.h"
 
-/* TODO: enforce this when handing out ids */
+/* TODO: this goes where ? -- shared libs */
+#define DARSHAN_MPI_CALL(func) func
+
+
 #define DARSHAN_CORE_MAX_RECORDS 1024
 
-/* default compression buffer size of 2 MiB */
 /* TODO: revisit this default size if we change memory per module */
-#define DARSHAN_COMP_BUF_SIZE (2 * 1024 * 1024)
+#define DARSHAN_CORE_COMP_BUF_SIZE (2 * 1024 * 1024)
 
-struct darshan_core_module
-{
-    darshan_module_id id;
-    struct darshan_module_funcs mod_funcs;
-};
+#define DARSHAN_CORE_MOD_SET(flags, id) (flags | (1 << id))
+
+#define DARSHAN_CORE_MOD_UNSET(flags, id) (flags & ~(1 << id))
+
+#define DARSHAN_CORE_MOD_ISSET(flags, id) (flags & (1 << id))
 
 /* in memory structure to keep up with job level data */
 struct darshan_core_runtime
@@ -31,10 +33,17 @@ struct darshan_core_runtime
     struct darshan_job log_job;
     char exe[DARSHAN_EXE_LEN+1];
     struct darshan_core_record_ref *rec_hash;
+    int rec_count;
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
-    char comp_buf[DARSHAN_COMP_BUF_SIZE];
+    char comp_buf[DARSHAN_CORE_COMP_BUF_SIZE];
     double wtime_offset;
     char *trailing_data;
+};
+
+struct darshan_core_module
+{
+    darshan_module_id id;
+    struct darshan_module_funcs mod_funcs;
 };
 
 struct darshan_core_record_ref
