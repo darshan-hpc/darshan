@@ -103,6 +103,7 @@ static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER
 static int instrumentation_disabled = 0;
 static int my_rank = -1;
 
+/* TODO: I'm sure these should be applied on all modules */
 /* these are paths that we will not trace */
 static char* exclusions[] = {
 "/etc/",

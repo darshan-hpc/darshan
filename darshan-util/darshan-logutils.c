@@ -362,7 +362,6 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
     }
     free(comp_buf);
 
-    /* TODO: check for duplicate entries? */
     buf_ptr = hash_buf;
     while(buf_ptr < (hash_buf + hash_buf_sz))
     {
@@ -377,18 +376,6 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
         path_ptr = (char *)buf_ptr;
         buf_ptr += *path_len_ptr;
 
-        ref = malloc(sizeof(*ref));
-        if(!ref)
-        {
-            return(-1);
-        }
-        ref->rec.name = malloc(*path_len_ptr + 1);
-        if(!ref->rec.name)
-        {
-            free(ref);
-            return(-1);
-        }
-
         if(fd->swap_flag)
         {
             /* we need to sort out endianness issues before deserializing */
@@ -396,13 +383,29 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
             DARSHAN_BSWAP32(path_len_ptr);
         }
 
-        /* set the fields for this record */
-        ref->rec.id = *rec_id_ptr;
-        memcpy(ref->rec.name, path_ptr, *path_len_ptr);
-        ref->rec.name[*path_len_ptr] = '\0';
+        HASH_FIND(hlink, *hash, rec_id_ptr, sizeof(darshan_record_id), ref);
+        if(!ref)
+        {
+            ref = malloc(sizeof(*ref));
+            if(!ref)
+            {
+                return(-1);
+            }
+            ref->rec.name = malloc(*path_len_ptr + 1);
+            if(!ref->rec.name)
+            {
+                free(ref);
+                return(-1);
+            }
 
-        /* add this record to the hash */
-        HASH_ADD(hlink, *hash, rec.id, sizeof(darshan_record_id), ref);
+            /* set the fields for this record */
+            ref->rec.id = *rec_id_ptr;
+            memcpy(ref->rec.name, path_ptr, *path_len_ptr);
+            ref->rec.name[*path_len_ptr] = '\0';
+
+            /* add this record to the hash */
+            HASH_ADD(hlink, *hash, rec.id, sizeof(darshan_record_id), ref);
+        }
     }
 
     return(0);
@@ -476,15 +479,13 @@ int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
     *mod_buf = tmp_buf;
     *mod_buf_sz = tmp_buf_sz;
 
-    /* TODO: bswaps */
-
     return(0);
 }
 
-#if 0
 /* TODO: hardcoded for posix -- what can we do generally?
  *       different function for each module and a way to map to this function?
  */
+/* TODO: we need bswaps here, too */
 int darshan_log_getfile(darshan_fd fd, struct darshan_posix_file *file)
 {
     char *comp_buf;
@@ -544,7 +545,6 @@ int darshan_log_getfile(darshan_fd fd, struct darshan_posix_file *file)
     fprintf(stderr, "Error: %s\n", err_string);
     return(-1);
 }
-#endif
 
 /* darshan_log_close()
  *
@@ -563,7 +563,7 @@ void darshan_log_close(darshan_fd fd)
     free(fd);
 }
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* ******************************************* */
 
 /* return 0 on successful seek to offset, -1 on failure.
  */

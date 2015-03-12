@@ -168,10 +168,17 @@ int main(int argc, char **argv)
         return(0);
     }
 
+    /* TODO: move this functionality somewhere else so it can be reused */
     /* loop over the POSIX file records and print out counters */
     for(i = 0; i < (posix_mod_buf_sz / sizeof(struct darshan_posix_file)); i++)
     {
         struct darshan_posix_file next_rec = posix_mod_buf[i];
+
+        DARSHAN_BSWAP64(&(next_rec.f_id));
+        DARSHAN_BSWAP64(&(next_rec.rank));
+        DARSHAN_BSWAP64(&(next_rec.counters[CP_POSIX_OPENS]));
+        DARSHAN_BSWAP64(&(next_rec.fcounters[CP_F_OPEN_TIMESTAMP]));
+        DARSHAN_BSWAP64(&(next_rec.fcounters[CP_F_CLOSE_TIMESTAMP]));
 
         /* get the pathname for this record */
         HASH_FIND(hlink, rec_hash, &next_rec.f_id, sizeof(darshan_record_id), ref);

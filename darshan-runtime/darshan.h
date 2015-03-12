@@ -63,12 +63,15 @@ void darshan_core_register_module(
     struct darshan_module_funcs *funcs,
     int *runtime_mem_limit);
 
+void darshan_core_unregister_module(
+    darshan_module_id mod_id);
+
 void darshan_core_register_record(
     void *name,
     int len,
     int printable_flag,
     darshan_module_id mod_id,
-    darshan_record_id *id);
+    darshan_record_id *rec_id);
 
 void darshan_core_unregister_record(
     darshan_record_id rec_id,

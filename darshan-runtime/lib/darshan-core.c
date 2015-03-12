@@ -32,7 +32,7 @@ extern char* __progname;
 
 /* internal variable delcarations */
 static struct darshan_core_runtime *darshan_core = NULL;
-static pthread_mutex_t darshan_core_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t darshan_core_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int my_rank = -1;
 static int nprocs = -1;
 
@@ -1484,19 +1484,19 @@ static int darshan_log_coll_write(MPI_File log_fh, void *buf, int count,
 /* ********************************************************* */
 
 void darshan_core_register_module(
-    darshan_module_id id,
+    darshan_module_id mod_id,
     struct darshan_module_funcs *funcs,
     int *runtime_mem_limit)
 {
     struct darshan_core_module* mod;
     *runtime_mem_limit = 0;
 
-    if(!darshan_core || (id >= DARSHAN_MAX_MODS))
+    if(!darshan_core || (mod_id >= DARSHAN_MAX_MODS))
         return;
 
     /* see if this module is already registered */
     DARSHAN_CORE_LOCK();
-    if(darshan_core->mod_array[id])
+    if(darshan_core->mod_array[mod_id])
     {
         /* if module is already registered just return */
         /* NOTE: we do not recalculate memory limit here, just set to 0 */
@@ -1513,14 +1513,39 @@ void darshan_core_register_module(
     }
     memset(mod, 0, sizeof(*mod));
 
-    mod->id = id;
+    mod->id = mod_id;
     mod->mod_funcs = *funcs;
 
     /* register module with darshan */
-    darshan_core->mod_array[id] = mod;
+    darshan_core->mod_array[mod_id] = mod;
 
     /* TODO: something smarter than just 2 MiB per module */
     *runtime_mem_limit = 2 * 1024 * 1024;
+
+    DARSHAN_CORE_UNLOCK();
+
+    return;
+}
+
+/* TODO: implement & test*/
+void darshan_core_unregister_module(
+    darshan_module_id mod_id)
+{
+    struct darshan_core_record_ref *ref, *tmp;
+
+    if(!darshan_core)
+        return;
+
+    DARSHAN_CORE_LOCK();
+
+    /* iterate all records and disassociate this module from them */
+    HASH_ITER(hlink, darshan_core->rec_hash, ref, tmp)
+    {
+        darshan_core_unregister_record(ref->rec.id, mod_id);
+    }
+
+    free(darshan_core->mod_array[mod_id]);
+    darshan_core->mod_array[mod_id] = NULL;
 
     DARSHAN_CORE_UNLOCK();
 
@@ -1579,6 +1604,7 @@ void darshan_core_register_record(
     return;
 }
 
+/* TODO: test */
 void darshan_core_unregister_record(
     darshan_record_id rec_id,
     darshan_module_id mod_id)
