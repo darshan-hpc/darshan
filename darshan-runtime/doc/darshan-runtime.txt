@@ -153,6 +153,7 @@ the darshan-enabled MPI compiler scripts.
 
 === Using a profile configuration 
 
+[[static-prof]]
 The MPICH MPI implementation supports the specification of a profiling library
 configuration, then it can be used to insert Darshan instrumentation without
 modifying the existing MPI compiler script.  Example profiling configuration
@@ -185,6 +186,7 @@ mpif90 -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-f <args>
 
 === Using customized compiler wrapper scripts
 
+[[static-wrapper]]
 For MPICH-based MPI libraries, such as MPICH1, MPICH2, or MVAPICH,
 custom wrapper scripts can be generated to automatically include Darshan
 instrumentation.  The following example illustrates how to produce
@@ -283,10 +285,21 @@ than the login node.  The `--host` argument is used to force cross-compilation
 of Darshan.  The `CC` variable is set to point to a stock MPI compiler.
 ====
 
-Once Darshan has been installed, use the `darshan-gen-*.pl` scripts as
-described earlier in this document to produce darshan-enabled MPI compilers.
-This method has been widely used and tested with both the GNU and IBM XL
-compilers.
+Once Darshan has been installed, you can use one of the static
+instrumentation methods described earlier in this document.  If you
+use the profiling configuration file method, then please note that the
+Darshan installation includes profiling configuration files that have been
+adapted specifically for the Blue Gene environment.  Set the following
+environment variables to enable them, and then use your normal compiler
+scripts.  This method is compatible with both GNU and IBM compilers.
+
+Blue Gene profiling configuration example:
+----
+export MPICC_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-cc
+export MPICXX_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-cxx
+export MPICF77_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-f
+export MPICF90_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-f
+----
 
 === Cray platforms (XE, XC, or similar)
 
