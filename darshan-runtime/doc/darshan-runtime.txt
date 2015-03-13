@@ -151,19 +151,6 @@ hooks for existing MPI compiler scripts.  Once this is done, Darshan
 instrumentation is transparent; you simply compile applications using
 the darshan-enabled MPI compiler scripts.
 
-=== Using customized compiler wrapper scripts
-
-For MPICH-based MPI libraries, such as MPICH1, MPICH2, or MVAPICH, custom
-wrapper scripts can be generated automatically.  The following example
-illustrates how to produce wrappers for C, C++, and Fortran compilers:
-
-----
-darshan-gen-cc.pl `which mpicc` --output mpicc.darshan
-darshan-gen-cxx.pl `which mpicxx` --output mpicxx.darshan
-darshan-gen-fortran.pl `which mpif77` --output mpif77.darshan
-darshan-gen-fortran.pl `which mpif90` --output mpif90.darshan
------
-
 === Using a profile configuration 
 
 The MPICH MPI implementation supports the specification of a profiling library
@@ -195,6 +182,20 @@ mpicxx -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-cxx <args>
 mpif77 -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-f <args>
 mpif90 -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-f <args>
 ----
+
+=== Using customized compiler wrapper scripts
+
+For MPICH-based MPI libraries, such as MPICH1, MPICH2, or MVAPICH,
+custom wrapper scripts can be generated to automatically include Darshan
+instrumentation.  The following example illustrates how to produce
+wrappers for C, C++, and Fortran compilers:
+
+----
+darshan-gen-cc.pl `which mpicc` --output mpicc.darshan
+darshan-gen-cxx.pl `which mpicxx` --output mpicxx.darshan
+darshan-gen-fortran.pl `which mpif77` --output mpif77.darshan
+darshan-gen-fortran.pl `which mpif90` --output mpif90.darshan
+-----
 
 === Other configurations
 
