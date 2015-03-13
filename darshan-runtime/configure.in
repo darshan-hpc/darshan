@@ -317,4 +317,7 @@ lib/pkgconfig/darshan-runtime.pc
 share/mpi-profile/darshan-cc.conf
 share/mpi-profile/darshan-cxx.conf
 share/mpi-profile/darshan-f.conf
+share/mpi-profile/darshan-bg-cc.conf
+share/mpi-profile/darshan-bg-cxx.conf
+share/mpi-profile/darshan-bg-f.conf
 )
