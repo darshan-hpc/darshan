@@ -24,6 +24,9 @@ Notes on how to release a new version of Darshan
     git tag -a darshan-2.3.1-pre2 -m 'Darshan 2.3.1-pre2'
     git push origin darshan-2.3.1-pre2
 - TESTING
+  - manually trigger jenkins test
+  - run regression tests on BG platform (see
+    darshan-test/regression/README.BG.txt)
 - export the tag and tar gzip it
   - easiest method is to do a fresh checkout and remove the .git
     subdirectory
