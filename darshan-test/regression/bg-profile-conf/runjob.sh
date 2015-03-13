@@ -18,7 +18,7 @@ while [ -n "$output" -a "$rc" -eq 0 ]; do
 done
 
 # look for return code
-grep "exit code of 0" $$-tmp.debuglog
+grep "exit code of 0" $DARSHAN_TMP/$$-tmp.debuglog
 if [ $? -ne 0 ]; then
 	exit 1
 else
