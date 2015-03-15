@@ -14,7 +14,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # execute
-$DARSHAN_RUNJOB $DARSHAN_TMP/${PROG} -f $DARSHAN_TMP/${PROG}.tmp.dat
+$DARSHAN_RUNJOB $DARSHAN_TMP/${PROG}
 if [ $? -ne 0 ]; then
     echo "Error: failed to execute ${PROG}" 1>&2
     exit 1

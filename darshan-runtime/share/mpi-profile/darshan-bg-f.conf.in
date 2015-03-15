@@ -4,7 +4,6 @@
 
 
 DARSHAN_PREFIX=@prefix@
-MPICH_LIB_OLD=@MPICH_LIB_OLD@
 
 # Check to see if user explicitly specified dynamic linking options
 echo $CFLAGS |grep "\\-dynamic" >& /dev/null
@@ -14,16 +13,16 @@ dyncheck2=$?
 echo "${allargs[@]}" | grep "\\-dynamic" >& /dev/null
 dyncheck3=$?
 
+# try to detect name of libmpichf77 or libmpichf90 library needed for pmpi
+#   - these may be named with different suffixes to match the compiler version
+D_MPI_PRELIB=`echo $LIBS |grep "\-lmpichf\\S\+\-\\S\+" -o`
+
 # Skip profiling if we know that dynamic linking is in use.  See LD_PRELOAD 
 # method instead.
 if [ "$dyncheck1" -ne 0 -a "$dyncheck2" -ne 0 -a "$dyncheck3" -ne 0 ]; then
 
 	# Libraries (and paths) to include before the MPI library 
-	if [ $MPICH_LIB_OLD -eq 1 ]; then
-	    export PROFILE_PRELIB="-lfmpich `$DARSHAN_PREFIX/bin/darshan-config --pre-ld-flags`"
-	else
-	    export PROFILE_PRELIB="-lmpifort `$DARSHAN_PREFIX/bin/darshan-config --pre-ld-flags`"
-	fi
+	export PROFILE_PRELIB="$D_MPI_PRELIB `$DARSHAN_PREFIX/bin/darshan-config --pre-ld-flags`"
 
 	# Libraries to include after the MPI library 
 	export PROFILE_POSTLIB=`$DARSHAN_PREFIX/bin/darshan-config --post-ld-flags`

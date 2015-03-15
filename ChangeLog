@@ -5,7 +5,7 @@ Darshan Release Change Log
 Darshan-3.0.0-pre1
 =============
 
-darshan-2.3.1-pre2
+darshan-2.3.1
 =============
 * added documentation and example configuration files for using the -profile
   or $MPICC_PROFILE hooks to add instrumentation to MPICH-based MPI
@@ -31,12 +31,17 @@ darshan-2.3.1-pre2
   - label I/O vs. meta time more clearly
   - include unique file meta time in agg_perf_by_slowest calculation
 * added regression test script framework in darshan-test/regression/
-  - workstation-static and workstation-dynamic test environments supported
+  - currently support platforms include:
+    - Linux with static linking and generated compiler wrappers
+    - Linux with static linking and profiler configuration files
+    - Linux with dynamic linking and LD_PRELOAD
+    - Blue Gene/Q with static linking and profiler configuration files
 * update darshan-gen-fortran.pl and darshan-gen-cxx.pl to support new library
   naming conventions in MPICH 3.1.1 and higher
 * update documentation to reflect known issues with some versions of MPICH
-* modify darshan-runtime so that link-time instrumentation options are only used
-  when statically linking via Libs.private.  (reported by Kalyana Chadalavada)
+* Cray platforms: modify darshan-runtime so that link-time instrumentation 
+  options are only used when statically linking via Libs.private.  
+  (reported by Kalyana Chadalavada)
 
 darshan-2.3.0
 =============

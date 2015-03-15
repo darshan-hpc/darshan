@@ -45,14 +45,21 @@ fi
 # set up environment for tests according to platform
 source $DARSHAN_TESTDIR/$DARSHAN_PLATFORM/env.sh
 
+failure_count=0
+
 for i in `ls $DARSHAN_TESTDIR/test-cases/*.sh`; do
     echo Running ${i}...
     $i
     if [ $? -ne 0 ]; then
         echo "Error: failed to execute test case $i"
-        exit 1
+	failure_count=$((failure_count+1))
     fi
     echo Done.
 done
 
-exit 0
+if [ "$failure_count" -eq 0 ]; then
+	exit 0
+else
+	echo $failure_count tests failed
+	exit 1
+fi

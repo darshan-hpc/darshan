@@ -4,7 +4,6 @@
 
 
 DARSHAN_PREFIX=@prefix@
-MPICH_LIB_OLD=@MPICH_LIB_OLD@
 
 # Check to see if user explicitly specified dynamic linking options
 echo $CFLAGS |grep "\\-dynamic" >& /dev/null
@@ -18,12 +17,12 @@ dyncheck3=$?
 # method instead.
 if [ "$dyncheck1" -ne 0 -a "$dyncheck2" -ne 0 -a "$dyncheck3" -ne 0 ]; then
 
+	# NOTE: there is something fragile here.  We are relying on the BG mpicxx script to set a 
+        #       variable called $cxxlibs to the name of the libmpichcxx variant that we need in order
+        #       to intercept pmpi calls
+
 	# Libraries (and paths) to include before the MPI library 
-	if [ $MPICH_LIB_OLD -eq 1 ]; then
-	    export PROFILE_PRELIB="-lfmpich `$DARSHAN_PREFIX/bin/darshan-config --pre-ld-flags`"
-	else
-	    export PROFILE_PRELIB="-lmpifort `$DARSHAN_PREFIX/bin/darshan-config --pre-ld-flags`"
-	fi
+	export PROFILE_PRELIB="$cxxlibs `$DARSHAN_PREFIX/bin/darshan-config --pre-ld-flags`"
 
 	# Libraries to include after the MPI library 
 	export PROFILE_POSTLIB=`$DARSHAN_PREFIX/bin/darshan-config --post-ld-flags`
