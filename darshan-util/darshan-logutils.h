@@ -6,10 +6,26 @@
 #ifndef __DARSHAN_LOG_UTILS_H
 #define __DARSHAN_LOG_UTILS_H
 
+#include <zlib.h>
+#ifdef HAVE_LIBBZ2
+#include <bzlib.h>
+#endif
+
 #include "darshan-log-format.h"
-#include "darshan-posix-log-format.h"
 #include "uthash-1.9.2/src/uthash.h"
 
+/* default to a compression buffer size of 4 MiB */
+#define DARSHAN_DEF_DECOMP_BUF_SZ (4*1024*1024)
+
+struct darshan_fd_s
+{
+    gzFile gzf;
+    int64_t pos;
+    char version[8];
+    int swap_flag;
+    struct darshan_log_map rec_map;
+    struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
+};
 typedef struct darshan_fd_s* darshan_fd;
 
 struct darshan_record_ref
@@ -21,12 +37,12 @@ struct darshan_record_ref
 darshan_fd darshan_log_open(const char *name, const char* mode);
 int darshan_log_getheader(darshan_fd file, struct darshan_header *header);
 int darshan_log_getjob(darshan_fd file, struct darshan_job *job);
-int darshan_log_gethash(darshan_fd file, struct darshan_record_ref **hash);
 int darshan_log_getexe(darshan_fd fd, char *buf);
 int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts,
     char*** fs_types, int* count);
-int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
-    void **mod_buf, int *mod_buf_sz);
+int darshan_log_gethash(darshan_fd file, struct darshan_record_ref **hash);
+int darshan_log_get_moddat(darshan_fd fd, darshan_module_id mod_id,
+    void *moddat_buf, int moddat_buf_sz);
 void darshan_log_close(darshan_fd file);
 
 /* convenience macros for printing out counters */

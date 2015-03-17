@@ -277,6 +277,7 @@ char* darshan_clean_file_path(
 
 The `darshan_clean_file_path` function just cleans up the input path string, converting
 relative paths to absolute paths and suppressing any potential noise within the string.
+The address of the new string is returned and should be freed by the user.
 
 * _path_ is the input path string to be cleaned up.
 
@@ -346,7 +347,7 @@ to store the record structure in a hash table or some other structure.
 
 ==== Build modifications
 
-Text
+Text.
 
 == Other resources
 

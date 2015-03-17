@@ -30,6 +30,7 @@
 /* in memory structure to keep up with job level data */
 struct darshan_core_runtime
 {
+    struct darshan_header log_header;
     struct darshan_job log_job;
     char exe[DARSHAN_EXE_LEN+1];
     struct darshan_core_record_ref *rec_hash;

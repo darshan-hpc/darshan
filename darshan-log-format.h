@@ -53,12 +53,6 @@ static char *darshan_module_names[] =
     "PNETCDF"
 };
 
-enum darshan_comp_type
-{
-    DARSHAN_GZ_COMP,
-    DARSHAN_BZ2_COMP, /* TODO: no bz2 support util side, yet */
-};
-
 struct darshan_log_map
 {
     uint64_t off;
@@ -69,7 +63,6 @@ struct darshan_header
 {
     char version_string[8];
     int64_t magic_nr;
-    unsigned char comp_type;
     struct darshan_log_map rec_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
 };

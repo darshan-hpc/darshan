@@ -70,15 +70,17 @@ static char* darshan_get_exe_and_mounts(
     struct darshan_core_runtime *core);
 static void darshan_get_shared_records(
     struct darshan_core_runtime *core, darshan_record_id *shared_recs);
-static int darshan_log_coll_open(
+static int darshan_log_open_all(
     char *logfile_name, MPI_File *log_fh);
-static int darshan_compress_buffer(void **pointers, int *lengths,
-    int count, char *comp_buf, int *comp_length);
+static int darshan_deflate_buffer(
+    void **pointers, int *lengths, int count, int nocomp_flag,
+    char *comp_buf, int *comp_length);
 static int darshan_log_write_record_hash(
     MPI_File log_fh, struct darshan_core_runtime *core,
-    struct darshan_log_map *map);
-static int darshan_log_coll_write(
-    MPI_File log_fh, void *buf, int count, struct darshan_log_map *map);
+    uint64_t *inout_off);
+static int darshan_log_append_all(
+    MPI_File log_fh, struct darshan_core_runtime *core, void *buf,
+    int count, uint64_t *inout_off, uint64_t *agg_uncomp_sz);
 
 /* intercept MPI initialize and finalize to manage darshan core runtime */
 int MPI_Init(int *argc, char ***argv)
@@ -235,9 +237,9 @@ static void darshan_core_shutdown()
     double header1, header2;
     double tm_end;
     long offset;
-    struct darshan_header log_header;
+    uint64_t gz_fp = 0;
+    uint64_t tmp_off = 0;
     MPI_File log_fh;
-    MPI_Offset tmp_off = 0;
     MPI_Status status;
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
@@ -347,7 +349,7 @@ static void darshan_core_shutdown()
     if(internal_timing_flag)
         open1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
     /* collectively open the darshan log file */
-    ret = darshan_log_coll_open(logfile_name, &log_fh);
+    ret = darshan_log_open_all(logfile_name, &log_fh);
     if(internal_timing_flag)
         open2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
@@ -377,7 +379,7 @@ static void darshan_core_shutdown()
         int comp_buf_sz = 0;
 
         /* compress the job info and the trailing mount/exe data */
-        all_ret = darshan_compress_buffer(pointers, lengths, 2,
+        all_ret = darshan_deflate_buffer(pointers, lengths, 2, 0,
             final_core->comp_buf, &comp_buf_sz);
         if(all_ret)
         {
@@ -387,9 +389,9 @@ static void darshan_core_shutdown()
         else
         {
             /* write the job information, preallocing space for the log header */
-            all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(
-                log_fh, sizeof(struct darshan_header), final_core->comp_buf,
-                comp_buf_sz, MPI_BYTE, &status);
+            gz_fp += sizeof(struct darshan_header) + 23; /* gzip headers/trailers ... */
+            all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, gz_fp,
+                final_core->comp_buf, comp_buf_sz, MPI_BYTE, &status);
             if(all_ret != MPI_SUCCESS)
             {
                 fprintf(stderr, "darshan library warning: unable to write job data to log file %s\n",
@@ -398,8 +400,8 @@ static void darshan_core_shutdown()
                 
             }
 
-            /* set the beginning offset of record hash, which precedes job info just written */
-            log_header.rec_map.off = sizeof(struct darshan_header) + comp_buf_sz;
+            /* set the beginning offset of record hash, which follows job info just written */
+            gz_fp += comp_buf_sz;
         }
     }
 
@@ -417,7 +419,8 @@ static void darshan_core_shutdown()
     if(internal_timing_flag)
         rec1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
     /* write the record name->id hash to the log file */
-    ret = darshan_log_write_record_hash(log_fh, final_core, &log_header.rec_map);
+    ret = darshan_log_write_record_hash(log_fh, final_core, &gz_fp);
+    tmp_off = final_core->log_header.rec_map.off + final_core->log_header.rec_map.len;
 
     /* error out if unable to write record hash */
     DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
@@ -459,8 +462,10 @@ static void darshan_core_shutdown()
         if(global_mod_use_count[i] == 0)
         {
             if(my_rank == 0)
-                log_header.mod_map[i].off = log_header.mod_map[i].len = 0;
-
+            {
+                final_core->log_header.mod_map[i].off = 0;
+                final_core->log_header.mod_map[i].len = 0;
+            }
             continue;
         }
  
@@ -523,30 +528,14 @@ static void darshan_core_shutdown()
             this_mod->mod_funcs.get_output_data(&mod_buf, &mod_buf_sz);
         }
 
-        /* compress the module buffer */
-        ret = darshan_compress_buffer((void**)&mod_buf, &mod_buf_sz, 1,
-            final_core->comp_buf, &comp_buf_sz);
-        if(ret == 0)
-        {
-            /* set the starting offset of this module */
-            if(tmp_off == 0)
-                tmp_off = log_header.rec_map.off + log_header.rec_map.len;
+        final_core->log_header.mod_map[i].off = tmp_off;
 
-            log_header.mod_map[i].off = tmp_off;
+        /* append this module's data to the darshan log */
+        ret = darshan_log_append_all(log_fh, final_core, mod_buf, mod_buf_sz,
+            &gz_fp, &(final_core->log_header.mod_map[i].len));
+        tmp_off += final_core->log_header.mod_map[i].len;
 
-            /* write (compressed) module data buffer to the darshan log file */
-            ret = darshan_log_coll_write(log_fh, final_core->comp_buf, comp_buf_sz,
-                &log_header.mod_map[i]);
-        }
-        else
-        {
-            /* error in compression, participate in collective write to avoid
-             * deadlock, but preserve return value to terminate darshan_shutdown.
-             */
-            (void)darshan_log_coll_write(log_fh, NULL, 0, &log_header.mod_map[i]);
-        }
-
-        /* error out if the compression or collective write failed */
+        /* error out if the log append failed */
         DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
             MPI_LOR, MPI_COMM_WORLD);
         if(all_ret != 0)
@@ -563,8 +552,6 @@ static void darshan_core_shutdown()
             return;
         }
 
-        tmp_off += log_header.mod_map[i].len;
-
         /* shutdown module if registered locally */
         if(this_mod)
         {
@@ -579,18 +566,38 @@ static void darshan_core_shutdown()
     /* rank 0 is responsible for writing the log header */
     if(my_rank == 0)
     {
-        /* initialize the remaining header fields */
-        strcpy(log_header.version_string, DARSHAN_LOG_VERSION);
-        log_header.magic_nr = DARSHAN_MAGIC_NR;
-        log_header.comp_type = DARSHAN_GZ_COMP;
+        void *header_buf = &(final_core->log_header);
+        int header_buf_sz = sizeof(struct darshan_header);
+        int comp_buf_sz = 0;
 
-        all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, 0, &log_header,
-            sizeof(struct darshan_header), MPI_BYTE, &status);
-        if(all_ret != MPI_SUCCESS)
+        /* initialize the remaining header fields */
+        strcpy(final_core->log_header.version_string, DARSHAN_LOG_VERSION);
+        final_core->log_header.magic_nr = DARSHAN_MAGIC_NR;
+
+        /* deflate the header */
+        /* NOTE: the header is not actually compressed because space for it must
+         *       be preallocated before writing. i.e., the "compressed" header
+         *       must be constant sized, sizeof(struct darshan_header) + 23.
+         *       it is still necessary to deflate the header or the resulting log
+         *       file will not be a valid gzip file.
+         */
+        all_ret = darshan_deflate_buffer((void **)&header_buf, &header_buf_sz, 1, 1,
+            final_core->comp_buf, &comp_buf_sz);
+        if(all_ret)
         {
-            fprintf(stderr, "darshan library warning: unable to write header to log file %s\n",
-                    logfile_name);
+            fprintf(stderr, "darshan library warning: unable to compress header\n");
             unlink(logfile_name);
+        }
+        else
+        {
+            all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, 0, final_core->comp_buf,
+                comp_buf_sz, MPI_BYTE, &status);
+            if(all_ret != MPI_SUCCESS)
+            {
+                fprintf(stderr, "darshan library warning: unable to write header to log file %s\n",
+                        logfile_name);
+                unlink(logfile_name);
+            }
         }
     }
 
@@ -1172,7 +1179,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     return;
 }
 
-static int darshan_log_coll_open(char *logfile_name, MPI_File *log_fh)
+static int darshan_log_open_all(char *logfile_name, MPI_File *log_fh)
 {
     char *hints;
     char *tok_str;
@@ -1233,12 +1240,13 @@ static int darshan_log_coll_open(char *logfile_name, MPI_File *log_fh)
     return(0);
 }
 
-static int darshan_compress_buffer(void **pointers, int *lengths, int count,
-    char *comp_buf, int *comp_length)
+static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
+    int nocomp_flag, char *comp_buf, int *comp_length)
 {
     int ret = 0;
     int i;
     int total_target = 0;
+    int z_comp_level;
     z_stream tmp_stream;
 
     /* just return if there is no data */
@@ -1263,9 +1271,10 @@ static int darshan_compress_buffer(void **pointers, int *lengths, int count,
 
     /* initialize the zlib compression parameters */
     /* TODO: check these parameters? */
-//    ret = deflateInit2(&tmp_stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
-//        31, 8, Z_DEFAULT_STRATEGY);
-    ret = deflateInit(&tmp_stream, Z_DEFAULT_COMPRESSION);
+    z_comp_level = nocomp_flag ? Z_NO_COMPRESSION : Z_DEFAULT_COMPRESSION;
+    ret = deflateInit2(&tmp_stream, z_comp_level, Z_DEFLATED,
+        15 + 16, 8, Z_DEFAULT_STRATEGY);
+//    ret = deflateInit(&tmp_stream, z_comp_level);
     if(ret != Z_OK)
     {
         return(-1);
@@ -1323,9 +1332,8 @@ static int darshan_compress_buffer(void **pointers, int *lengths, int count,
  *       record is opened by multiple ranks, but not all ranks
  */
 static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_runtime *core,
-    struct darshan_log_map *map)
+    uint64_t *inout_off)
 {
-    int i;
     int ret;
     struct darshan_core_record_ref *ref, *tmp;
     uint32_t name_len;
@@ -1388,80 +1396,75 @@ static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_ru
         hash_buf_off += name_len;
     }
 
-    /* collectively write out the record hash to the darshan log */
-    if(hash_buf_off > hash_buf)
-    {
-        int hash_buf_sz = hash_buf_off - hash_buf;
-        int comp_buf_sz = 0;
+    /* store uncompressed offset of the record hash */
+    core->log_header.rec_map.off = sizeof(struct darshan_header) +
+        DARSHAN_JOB_RECORD_SIZE;
 
-        /* compress the record hash buffer */
-        ret = darshan_compress_buffer((void **)&hash_buf, &hash_buf_sz, 1,
-            core->comp_buf, &comp_buf_sz);
-        if(ret < 0)
-        {
-            /* participate in collective write to avoid deadlock, but preserve
-             * the compression error to pass back to the caller.
-             */
-            (void)darshan_log_coll_write(log_fh, NULL, 0, map);
-        }
-        else
-        {
-            /* we have records to contribute to the write of the record hash */
-            ret = darshan_log_coll_write(log_fh, core->comp_buf, comp_buf_sz, map);
-        }
-    }
-    else
-    {
-        /* we have no data to write, but participate in the collective anyway */
-        ret = darshan_log_coll_write(log_fh, NULL, 0, map);
-    }
+    /* collectively write out the record hash to the darshan log */
+    hash_buf_sz = hash_buf_off - hash_buf;
+    ret = darshan_log_append_all(log_fh, core, hash_buf, hash_buf_sz,
+        inout_off, &(core->log_header.rec_map.len));
 
     free(hash_buf);
 
-    if(ret < 0)
-        return(-1);
-
-    return(0);
+    return(ret);
 }
 
-/* NOTE: The in/out param 'map' is only valid on rank 0 and is used
- *       to provide the starting offset of this collective write and
- *       to store the aggregate size of this write upon completion.
- *       This implies ONLY rank 0 can specify the starting offset
- *       and that only rank 0 knows the ending log file offset upon
- *       return from this function (starting off + aggregate size).
+/* NOTE: inout_off contains the starting offset of this append at the beginning
+ *       of the call, and contains the ending offset at the end of the call.
+ *       total_uncomp_sz will store the collective size of the uncompressed
+ *       buffer being written. This data is necessary to properly index data
+ *       when reading a darshan log. Also, these variables should only be valid
+ *       on the root rank (rank 0).
  */
-static int darshan_log_coll_write(MPI_File log_fh, void *buf, int count,
-    struct darshan_log_map *map)
+static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *core,
+    void *buf, int count, uint64_t *inout_off, uint64_t *agg_uncomp_sz)
 {
     MPI_Offset send_off, my_off;
     MPI_Status status;
+    uint64_t uncomp_buf_sz = count;
+    int comp_buf_sz = 0;
     int ret;
 
+    /* compress the input buffer */
+    ret = darshan_deflate_buffer((void **)&buf, &count, 1, 0,
+        core->comp_buf, &comp_buf_sz);
+    if(ret < 0)
+        comp_buf_sz = 0;
+
     /* figure out where everyone is writing using scan */
-    send_off = count;
+    send_off = comp_buf_sz;
     if(my_rank == 0)
     {
-        send_off += map->off; /* rank 0 knows the beginning offset */
+        send_off += *inout_off; /* rank 0 knows the beginning offset */
     }
 
     DARSHAN_MPI_CALL(PMPI_Scan)(&send_off, &my_off, 1, MPI_OFFSET,
         MPI_SUM, MPI_COMM_WORLD);
     /* scan in inclusive; subtract local size back out */
-    my_off -= count;
+    my_off -= comp_buf_sz;
 
-    /* perform the collective write */
-    ret = DARSHAN_MPI_CALL(PMPI_File_write_at_all)(log_fh, my_off, buf,
-        count, MPI_BYTE, &status);
-    if(ret != MPI_SUCCESS)
-        return(-1);
+    if(ret == 0)
+    {
+        /* no compression errors, proceed with the collective write */
+        ret = DARSHAN_MPI_CALL(PMPI_File_write_at_all)(log_fh, my_off,
+            core->comp_buf, comp_buf_sz, MPI_BYTE, &status);
+    }
+    else
+    {
+        /* error during compression. preserve and return error to caller,
+         * but participate in collective write to avoid deadlock.
+         */
+        (void)DARSHAN_MPI_CALL(PMPI_File_write_at_all)(log_fh, my_off,
+            core->comp_buf, comp_buf_sz, MPI_BYTE, &status);
+    }
 
     /* send the ending offset from rank (n-1) to rank 0 */
     if(nprocs > 1)
     {
         if(my_rank == (nprocs-1))
         {
-            my_off += count;
+            my_off += comp_buf_sz;
             DARSHAN_MPI_CALL(PMPI_Send)(&my_off, 1, MPI_OFFSET, 0, 0,
                 MPI_COMM_WORLD);
         }
@@ -1470,14 +1473,20 @@ static int darshan_log_coll_write(MPI_File log_fh, void *buf, int count,
             DARSHAN_MPI_CALL(PMPI_Recv)(&my_off, 1, MPI_OFFSET, (nprocs-1), 0,
                 MPI_COMM_WORLD, &status);
 
-            map->len = my_off - map->off;
+            *inout_off = my_off;
         }
     }
     else
     {
-        map->len = my_off + count - map->off;
+        *inout_off = my_off + comp_buf_sz;
     }
 
+    /* pass back the aggregate uncompressed size of this blob */
+    DARSHAN_MPI_CALL(PMPI_Reduce)(&uncomp_buf_sz, agg_uncomp_sz, 1,
+        MPI_UINT64_T, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    if(ret != 0)
+        return(-1);
     return(0);
 }
 
