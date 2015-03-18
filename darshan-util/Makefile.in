@@ -1,5 +1,4 @@
 all: darshan-util-lib darshan-posix-parser
-#all: darshan-parser darshan-convert darshan-diff darshan-analyzer darshan-log-params darshan-util-lib
 
 DESTDIR =
 srcdir = @srcdir@

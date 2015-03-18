@@ -287,7 +287,80 @@ simplifying maintenance.
 
 === Darshan-util
 
-Text.
+The darshan-util component is composed of a log parsing library (libdarshan-util) and a
+corresponding set of utility programs that can parse and analyze Darshan I/O characterization
+logs using this library. The log parsing library includes a generic interface (see
+`darshan-logutils.h`) for retrieving specific portions of a given log file. Specifically,
+this interface allows utilities to retrieve a log's header metadata, job details, record
+identifier mapping, and any module-specific data contained within the log.
+
+Module developers may wish to define additional interfaces for parsing module-specific data
+that can then be integrated into the log parsing library. This extended functionality can be
+implemented in terms of the generic functions offered by darshan-logutils and by module-specific
+formatting information.
+
+==== darshan-logutils
+
+Here we define each function of the `darshan-logutils` interface, which can be used to implement
+new log analysis utilities and to define module-specific functionality.
+
+[source,c]
+darshan_fd darshan_log_open(const char *name, const char* mode);
+
+Opens Darshan log file stored at path `name`. `mode` can only be `r` for reading or `w` for
+writing. Returns a Darshan file descriptor on success, or `NULL` on error.
+
+[source,c]
+int darshan_log_getheader(darshan_fd fd, struct darshan_header *header);
+
+Fills in `header` structure from the log file referenced by descriptor `fd`. The `darshan_header`
+structure is defined in `darshan-log-format.h`. Returns `0` on success, `-1` on failure.
+
+[source,c]
+int darshan_log_getjob(darshan_fd fd, struct darshan_job *job);
+
+Fills in `job` structure from the log file referenced by descriptor `fd`. The `darshan_job`
+structure is defined in `darshan-log-format.h`. Returns `0` on success, `-1` on failure.
+
+[source,c]
+int darshan_log_getexe(darshan_fd fd, char *buf);
+
+Fills in `buf` with the corresponding executable string (exe name and command line arguments)
+for the Darshan log referenced by `fd`. Returns `0` on success, `-1` on failure.
+
+[source,c]
+int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts, char*** fs_types, int* count);
+
+Returns mounted file system information for the Darshan log referenced by `fd`. `mnt_pnts` points
+to an array of strings storing mount points, `fs_types` points to an array of strings storing file
+system types (e.g., ext4, nfs, etc.), and `count` points to an integer storing the total number
+of mounted file systems recorded by Darshan. Returns `0` on success, `-1` on failure.
+
+[source,c]
+int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash);
+
+Builds hash table of Darshan record identifiers to full names for all records contained
+in the Darshan log referenced by `fd`. `hash` is a pointer to the hash table (of type
+struct darshan_record_ref *, which should be initialized to `NULL`). This hash table is
+defined by the `uthash` hash table implementation and includes corresponding macros for
+searching, iterating, and deleting records from the hash. For detailed documentation on using this
+hash table, consult `uthash` documentation in `darshan-util/uthash-1.9.2/doc/txt/userguide.txt`.
+The `darshan-posix-parser` utility (for parsing POSIX module information out of a Darshan log)
+provides an example of how this hash table may be used. Returns `0` on success, `-1` on failure.
+
+[source,c]
+int darshan_log_get_moddat(darshan_fd fd, darshan_module_id mod_id, void *moddat_buf, int moddat_buf_sz);
+
+Retrieves a chunk of (uncompressed) data for the module identified by `mod_id` from the Darshan log
+referenced by `fd`. `moddat_buf_sz` specifies the number of uncompressed bytes to read from the file
+and store in `moddat_buf`. This function may be repeatedly called to retrieve sequential chunks of data
+from a given Darshan file descriptor. This function returns `1` if `moddat_buf_sz` bytes were read
+successfully, `0` if no more data is available for this module, and `-1` otherwise.
+
+[source,c]
+void darshan_log_close(darshan_fd fd);
+
+Close Darshan file descriptor `fd`. Returns `0` on success, `-1` on failure.
 
 == Adding new instrumentation modules
 
@@ -318,9 +391,6 @@ of `CP_WRAPPERS` in `darshan-config.in`.
 source files, which will be stored in the `lib/` directory. The prerequisites to building
 static and dynamic versions of `lib-darshan` must be updated to include these objects, as well.
 
-It is necessary to rerun the `prepare` script and reconfigure darshan-runtime for these changes
-to take effect.
-
 ==== Instrumentation module implementation
 
 An exemplar instrumentation module for POSIX I/O functions is given in `lib/darshan-posix.c` as
@@ -347,7 +417,22 @@ to store the record structure in a hash table or some other structure.
 
 ==== Build modifications
 
-Text.
+The following modifications to the darshan-util build system are necessary to integrate new
+instrumentation modules:
+
+* Update `Makefile.in` with new targets necessary for building new utilities and module-specific
+log parsing source.
+    - Make sure to update `all`, `clean`, and `install` targets to reference updates.
+    - If adding new log parsing functionality, make sure to add it as a prerequisite source for 
+    building libdarshan-util.
+
+==== Module-specific logutils and utilities
+
+For a straightforward reference implementation of module-specific log parsing functionality for
+the POSIX module, consider files `darshan-posix-logutils.c` and `darshan-posix-logutils.h`. 
+
+Also, the `darshan-posix-parser` source provides a simple example of a utility which can leverage
+libdarshan-util for analyzing the contents of a given Darshan I/O characterization log.
 
 == Other resources
 

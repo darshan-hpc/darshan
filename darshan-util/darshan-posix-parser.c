@@ -15,6 +15,7 @@
 #include <getopt.h>
 #include <assert.h>
 
+#include "darshan-logutils.h"
 #include "darshan-posix-logutils.h"
 #include "uthash-1.9.2/src/uthash.h"
 
