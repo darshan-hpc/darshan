@@ -21,7 +21,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # parse log
-$DARSHAN_PATH/bin/darshan-parser $DARSHAN_LOGFILE > $DARSHAN_TMP/${PROG}.darshan.txt
+$DARSHAN_PATH/bin/darshan-posix-parser $DARSHAN_LOGFILE > $DARSHAN_TMP/${PROG}.darshan.txt
 if [ $? -ne 0 ]; then
     echo "Error: failed to parse ${DARSHAN_LOGFILE}" 1>&2
     exit 1
@@ -34,11 +34,17 @@ fi
 #    echo "Error: MPI open count of $MPI_OPENS is incorrect" 1>&2
 #    exit 1
 #fi
-POSIX_OPENS=`grep CP_POSIX_OPENS $DARSHAN_TMP/${PROG}.darshan.txt |cut -f 4`
+#POSIX_OPENS=`grep CP_POSIX_OPENS $DARSHAN_TMP/${PROG}.darshan.txt |cut -f 4`
+#if [ ! $POSIX_OPENS -gt 0 ]; then
+#    echo "Error: POSIX open count of $POSIX_OPENS is incorrect" 1>&2
+#    exit 1
+#fi
+POSIX_OPENS=`grep POSIX_OPENS $DARSHAN_TMP/${PROG}.darshan.txt |cut -d : -f 2 |xargs`
 if [ ! $POSIX_OPENS -gt 0 ]; then
     echo "Error: POSIX open count of $POSIX_OPENS is incorrect" 1>&2
     exit 1
 fi
+
 
 
 exit 0
