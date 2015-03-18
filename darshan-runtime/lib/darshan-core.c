@@ -472,7 +472,7 @@ static void darshan_core_shutdown()
         if(internal_timing_flag)
             mod1[i] = DARSHAN_MPI_CALL(PMPI_Wtime)();   
         /* if all processes used this module, prepare to do a shared file reduction */
-        if(global_mod_use_count[j] == nprocs)
+        if(global_mod_use_count[i] == nprocs)
         {
             int shared_rec_count = 0;
             int rec_sz = 0;

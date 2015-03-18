@@ -96,7 +96,7 @@ install:: all
 	install -d $(includedir)
 	install -d $(pkgconfigdir)
 #	install -m 755 darshan-parser $(bindir)
-#	install -m 755 darshan-posix-parser $(bindir)
+	install -m 755 darshan-posix-parser $(bindir)
 #	install -m 755 darshan-convert $(bindir)
 #	install -m 755 darshan-diff $(bindir)
 #	install -m 755 darshan-analyzer $(bindir)

@@ -208,6 +208,7 @@ print OUTPUT<<"EOF";
 
     # if allargs includes any libraries, then we need to get 
     # -ldarshan-mpi-io in there first
+    # TODO: changing -ldarshan-mpi-io to -ldarshan OK ?
     argno=0;
     once=0;
     compiler_check=0;
@@ -215,7 +216,7 @@ print OUTPUT<<"EOF";
     for arg in "\$\{newallargs\[\@\]\}"; do
         res=`expr match "\$arg" "-l"`;
         if [ \$res -gt 0 -a \$once -lt 1 ]; then
-            newallargs[\$argno]=-ldarshan-mpi-io
+            newallargs[\$argno]=-ldarshan
             argno=`expr \$argno + 1`
             newallargs[\$argno]=\$arg;
             once=1;

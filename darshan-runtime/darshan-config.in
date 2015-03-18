@@ -13,7 +13,7 @@ DARSHAN_LD_FLAGS="@LDFLAGS@"
 
 # TODO: extra -lmpi in POST_LD_FLAGS -- link ordering issue
 PRE_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -ldarshan -lz $CP_WRAPPERS"
-POST_LD_FLAGS="-L$DARSHAN_LIB_PATH -ldarshan -lmpi -lz -lrt -lpthread"
+POST_LD_FLAGS="-L$DARSHAN_LIB_PATH -ldarshan -lz -lrt -lpthread"
 
 usage="\
 Usage: darshan-config [--pre-ld-flags] [--post-ld-flags]"
