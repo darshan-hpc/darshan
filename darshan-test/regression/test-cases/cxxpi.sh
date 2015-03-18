@@ -35,5 +35,4 @@ if [ "$POSIX_OPENS"x != ""x ]; then
     exit 1
 fi
 
-
 exit 0
