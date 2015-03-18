@@ -357,6 +357,12 @@ and store in `moddat_buf`. This function may be repeatedly called to retrieve se
 from a given Darshan file descriptor. This function returns `1` if `moddat_buf_sz` bytes were read
 successfully, `0` if no more data is available for this module, and `-1` otherwise.
 
+*NOTE*: Darshan use a reader makes right conversion strategy to rectify endianness issues
+between the machine a log was generated on and a machine analyzing the log. Accordingly,
+module-specific log utility functions will need to check the `swap_flag` variable of the Darshan
+file descriptor to determine if byte swapping is necessary. 32-bit and 64-bit byte swapping
+macros (DARSHAN_BSWAP32/DARSHAN_BSWAP64) are provided in `darshan-logutils.h`.
+
 [source,c]
 void darshan_log_close(darshan_fd fd);
 
