@@ -1,4 +1,4 @@
-all: darshan-util-lib darshan-posix-parser
+all: libdarshan-util.a darshan-posix-parser
 
 DESTDIR =
 srcdir = @srcdir@
@@ -54,14 +54,14 @@ darshan-posix-logutils.po: darshan-posix-logutils.c darshan-logutils.h darshan-p
 libdarshan-util.so: darshan-logutils.po darshan-posix-logutils.po
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ $(LIBS)
 	
-darshan-util-lib: darshan-logutils.o darshan-posix-logutils.o
+libdarshan-util.a: darshan-logutils.o darshan-posix-logutils.o
 	ar rcs libdarshan-util.a $^
 
 jenkins: util/bin/jenkins.o lookup3.o
 	$(CC) $(CFLAGS)  $(LDFLAGS) $< -o $@ lookup3.o $(LIBS)
 
-darshan-posix-parser: darshan-posix-parser.c darshan-logutils.h darshan-posix-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-posix-log-format.h darshan-util-lib | uthash-1.9.2
-	$(CC) $(CFLAGS) $(LDFLAGS) darshan-posix-parser.c libdarshan-util.a -o $@ $(LIBS) 
+darshan-posix-parser: darshan-posix-parser.c darshan-logutils.h darshan-posix-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-posix-log-format.h libdarshan-util.a | uthash-1.9.2
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS) 
 
 #darshan-parser: darshan-parser.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o | uthash-1.9.2
 #	$(CC) $(CFLAGS) $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS) 
