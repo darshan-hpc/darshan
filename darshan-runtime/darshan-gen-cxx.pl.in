@@ -215,7 +215,7 @@ print OUTPUT<<"EOF";
     for arg in "\$\{newallargs\[\@\]\}"; do
         res=`expr match "\$arg" "-l"`;
         if [ \$res -gt 0 -a \$once -lt 1 ]; then
-            newallargs[\$argno]=-ldarshan-mpi-io
+            newallargs[\$argno]=-ldarshan
             argno=`expr \$argno + 1`
             newallargs[\$argno]=\$arg;
             once=1;
