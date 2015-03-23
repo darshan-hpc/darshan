@@ -54,7 +54,7 @@ static int mnt_data_count = 0;
 
 /* prototypes for internal helper functions */
 static void darshan_core_initialize(
-    int *argc, char ***argv);
+    int argc, char **argv);
 static void darshan_core_shutdown(
     void);
 static void darshan_core_cleanup(
@@ -93,7 +93,15 @@ int MPI_Init(int *argc, char ***argv)
         return(ret);
     }
 
-    darshan_core_initialize(argc, argv);
+    if(argc && argv)
+    {
+        darshan_core_initialize(*argc, *argv);
+    }
+    else
+    {
+        /* we don't see argc and argv here in fortran */
+        darshan_core_initialize(0, NULL);
+    }
 
     return(ret);
 }
@@ -108,7 +116,15 @@ int MPI_Init_thread(int *argc, char ***argv, int required, int *provided)
         return(ret);
     }
 
-    darshan_core_initialize(argc, argv);
+    if(argc && argv)
+    {
+        darshan_core_initialize(*argc, *argv);
+    }
+    else
+    {
+        /* we don't see argc and argv here in fortran */
+        darshan_core_initialize(0, NULL);
+    }
 
     return(ret);
 }
@@ -125,7 +141,7 @@ int MPI_Finalize(void)
 
 /* *********************************** */
 
-static void darshan_core_initialize(int *argc, char ***argv)
+static void darshan_core_initialize(int argc, char **argv)
 {
     int i;
     int internal_timing_flag = 0;
@@ -160,11 +176,11 @@ static void darshan_core_initialize(int *argc, char ***argv)
             darshan_core->wtime_offset = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
             /* record exe and arguments */
-            for(i=0; i<(*argc); i++)
+            for(i=0; i<argc; i++)
             {
                 chars_left = DARSHAN_EXE_LEN-strlen(darshan_core->exe);
-                strncat(darshan_core->exe, (*argv)[i], chars_left);
-                if(i < ((*argc)-1))
+                strncat(darshan_core->exe, argv[i], chars_left);
+                if(i < (argc-1))
                 {
                     chars_left = DARSHAN_EXE_LEN-strlen(darshan_core->exe);
                     strncat(darshan_core->exe, " ", chars_left);
