@@ -110,16 +110,3 @@ API:
   - strip down to basic example
     - just do one or two posix counters to start, but exercise all of the
       API and code organization stuff
-
-TODO NOTES:
-    - why are darshan mutexes recursive?
-    - how do we allow modules to specify there necessary linker/wrapper flags
-    - configurable amount of max runtime memory
-    - fs mount information -- should we export this info from darshan-core?
-        - would the posix module be the only one to leverage this info?
-        - it is used to correlate filenames with mount points, but not sure what is needed where
-    - test fortran and c apps to make sure command line args are handled properly (see email with Phil 11/4)
-    - when is DARSHAN_MPI_CALL macro needed? All MPI functions, or just those intercepted by darshan?
-    - darshan link order causes issues when compiling mpi-io-test -- had to add extra -lmpi to resolve
-    - is there more coordination between core and modules for shared file reductions?
-    - do we change darshan file extension (.dz? .darshan?)

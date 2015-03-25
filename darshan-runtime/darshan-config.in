@@ -11,7 +11,6 @@ DARSHAN_LD_FLAGS="@LDFLAGS@"
 #   dependencies on PnetCDF and HDF5 symbols (if the app used a library which 
 #   in turn used one of those HLLs).
 
-# TODO: extra -lmpi in POST_LD_FLAGS -- link ordering issue
 PRE_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -ldarshan -lz $CP_WRAPPERS"
 POST_LD_FLAGS="-L$DARSHAN_LIB_PATH -ldarshan -lz -lrt -lpthread"
 

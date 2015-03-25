@@ -27,8 +27,8 @@
 #include "uthash.h"
 #include "darshan-core.h"
 
-/* TODO is __progname_full needed here */
 extern char* __progname;
+extern char* __progname_full;
 
 /* internal variable delcarations */
 static struct darshan_core_runtime *darshan_core = NULL;
@@ -193,7 +193,7 @@ static void darshan_core_initialize(int argc, char **argv)
             if(argc == 0)
             {
                 chars_left = DARSHAN_EXE_LEN-strlen(darshan_core->exe);
-                strncat(darshan_core->exe, __progname, chars_left);
+                strncat(darshan_core->exe, __progname_full, chars_left);
                 chars_left = DARSHAN_EXE_LEN-strlen(darshan_core->exe);
                 strncat(darshan_core->exe, " <unknown args>", chars_left);
             }

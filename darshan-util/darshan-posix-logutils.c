@@ -37,9 +37,9 @@ int darshan_log_get_posix_file(darshan_fd fd, struct darshan_posix_file *file)
             /* swap bytes if necessary */
             DARSHAN_BSWAP64(&file->f_id);
             DARSHAN_BSWAP64(&file->rank);
-            for(i=0; i<CP_NUM_INDICES; i++)
+            for(i=0; i<POSIX_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->counters[i]);
-            for(i=0; i<CP_F_NUM_INDICES; i++)
+            for(i=0; i<POSIX_F_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->fcounters[i]);
         }
     }

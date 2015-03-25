@@ -153,7 +153,7 @@ int main(int argc, char **argv)
     }
     if(ret == 0)
     {
-        printf("# no files opened.");
+        printf("# no files opened.\n");
         darshan_log_close(fd);
         return(0);
     }
@@ -168,9 +168,45 @@ int main(int argc, char **argv)
 
         printf("\tRecord %d: id=%"PRIu64" (path=%s, rank=%"PRId64")\n",
             i, next_file.f_id, ref->rec.name, next_file.rank);
-        printf("\t\tPOSIX_OPENS:\t%"PRIu64"\n\t\tF_OPEN_TIMESTAMP:\t%lf\n\t\tF_CLOSE_TIMESTAMP:\t%lf\n",
-            next_file.counters[CP_POSIX_OPENS], next_file.fcounters[CP_F_OPEN_TIMESTAMP],
-            next_file.fcounters[CP_F_CLOSE_TIMESTAMP]);
+        printf(
+            "\t\tPOSIX_OPENS:\t%"PRIu64"\n"
+            "\t\tPOSIX_READS:\t%"PRIu64"\n"
+            "\t\tPOSIX_WRITES:\t%"PRIu64"\n"
+            "\t\tPOSIX_FOPENS:\t%"PRIu64"\n"
+            "\t\tPOSIX_FREADS:\t%"PRIu64"\n"
+            "\t\tPOSIX_FWRITES:\t%"PRIu64"\n"
+            "\t\tPOSIX_MODE:\t%"PRIu64"\n"
+            "\t\tPOSIX_MAX_READ_TIME_SIZE:\t%"PRIu64"\n"
+            "\t\tPOSIX_MAX_WRITE_TIME_SIZE:\t%"PRIu64"\n"
+            "\t\tPOSIX_F_OPEN_TIMESTAMP:\t%lf\n"
+            "\t\tPOSIX_F_READ_START_TIMESTAMP:\t%lf\n"
+            "\t\tPOSIX_F_WRITE_START_TIMESTAMP:\t%lf\n"
+            "\t\tPOSIX_F_READ_END_TIMESTAMP:\t%lf\n"
+            "\t\tPOSIX_F_WRITE_END_TIMESTAMP:\t%lf\n"
+            "\t\tPOSIX_F_CLOSE_TIMESTAMP:\t%lf\n"
+            "\t\tPOSIX_F_READ_TIME:\t%lf\n"
+            "\t\tPOSIX_F_WRITE_TIME:\t%lf\n"
+            "\t\tPOSIX_F_MAX_READ_TIME:\t%lf\n"
+            "\t\tPOSIX_F_MAX_WRITE_TIME:\t%lf\n",
+            next_file.counters[POSIX_OPENS],
+            next_file.counters[POSIX_READS],
+            next_file.counters[POSIX_WRITES],
+            next_file.counters[POSIX_FOPENS],
+            next_file.counters[POSIX_FREADS],
+            next_file.counters[POSIX_FWRITES],
+            next_file.counters[POSIX_MODE],
+            next_file.counters[POSIX_MAX_READ_TIME_SIZE],
+            next_file.counters[POSIX_MAX_WRITE_TIME_SIZE],
+            next_file.fcounters[POSIX_F_OPEN_TIMESTAMP],
+            next_file.fcounters[POSIX_F_READ_START_TIMESTAMP],
+            next_file.fcounters[POSIX_F_WRITE_START_TIMESTAMP],
+            next_file.fcounters[POSIX_F_READ_END_TIMESTAMP],
+            next_file.fcounters[POSIX_F_WRITE_END_TIMESTAMP],
+            next_file.fcounters[POSIX_F_CLOSE_TIMESTAMP],
+            next_file.fcounters[POSIX_F_READ_TIME],
+            next_file.fcounters[POSIX_F_WRITE_TIME],
+            next_file.fcounters[POSIX_F_MAX_READ_TIME],
+            next_file.fcounters[POSIX_F_MAX_WRITE_TIME]);
 
         i++;
     } while((ret = darshan_log_get_posix_file(fd, &next_file)) == 1);
