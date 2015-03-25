@@ -90,6 +90,13 @@ NULL
 #define MPIIO_LOCK() pthread_mutex_lock(&mpiio_runtime_mutex)
 #define MPIIO_UNLOCK() pthread_mutex_unlock(&mpiio_runtime_mutex)
 
+static void mpiio_runtime_initialize(void);
+static void mpiio_disable_instrumentation(void);
+static void mpiio_shutdown(void);
+static void mpiio_get_output_data(
+    void **buffer,
+    int *size);
+
 #ifdef HAVE_MPIIO_CONST
 int MPI_File_open(MPI_Comm comm, const char *filename, int amode, MPI_Info info, MPI_File *fh) 
 #else
@@ -155,16 +162,116 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
     return(ret);
 }
 
+static void mpiio_runtime_initialize()
+{
+    int ret;
+    int mem_limit;
+    struct darshan_module_funcs mpiio_mod_fns =
+    {
+        .disable_instrumentation = &mpiio_disable_instrumentation,
+        .prepare_for_reduction = NULL,
+        .reduce_records = NULL,
+        .get_output_data = &mpiio_get_output_data,
+        .shutdown = &mpiio_shutdown
+    };
+
+    /* don't do anything if already initialized or instrumenation is disabled */
+    if(mpiio_runtime || instrumentation_disabled)
+        return;
+
+    /* register the mpiio module with darshan core */
+    darshan_core_register_module(
+        DARSHAN_MPIIO_MOD,
+        &mpiio_mod_fns,
+        &mem_limit);
+
+    /* return if no memory assigned by darshan core */
+    if(mem_limit == 0)
+        return;
+
+    mpiio_runtime = malloc(sizeof(*mpiio_runtime));
+    if(!mpiio_runtime)
+        return;
+    memset(mpiio_runtime, 0, sizeof(*mpiio_runtime));
+
+    /* set maximum number of file records according to max memory limit */
+    /* NOTE: maximum number of records is based on the size of a mpiio file record */
+    mpiio_runtime->file_array_size = mem_limit / sizeof(struct darshan_mpiio_file);
+    mpiio_runtime->file_array_ndx = 0;
+
+    /* allocate array of runtime file records */
+    mpiio_runtime->file_runtime_array = malloc(mpiio_runtime->file_array_size *
+                                               sizeof(struct mpiio_runtime_file));
+    mpiio_runtime->file_record_array = malloc(mpiio_runtime->file_array_size *
+                                              sizeof(struct darshan_mpiio_file));
+    if(!mpiio_runtime->file_runtime_array || !mpiio_runtime->file_record_array)
+    {
+        mpiio_runtime->file_array_size = 0;
+        return;
+    }
+    memset(mpiio_runtime->file_runtime_array, 0, mpiio_runtime->file_array_size *
+           sizeof(struct mpiio_runtime_file));
+    memset(mpiio_runtime->file_record_array, 0, mpiio_runtime->file_array_size *
+           sizeof(struct darshan_mpiio_file));
+
+    /* TODO: can we move this out of here? perhaps register_module returns rank? */
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
+
+    return;
+}
+
+static void mpiio_disable_instrumentation()
+{
+    assert(mpiio_runtime);
+
+    MPIIO_LOCK();
+    instrumentation_disabled = 1;
+    MPIIO_UNLOCK();
+
+    return;
+}
+
+static void mpiio_get_output_data(
+    void **buffer,
+    int *size)
+{
+    assert(mpiio_runtime);
+
+    /* TODO: clean up reduction stuff */
+
+    *buffer = (void *)(mpiio_runtime->file_record_array);
+    *size = mpiio_runtime->file_array_ndx * sizeof(struct darshan_mpiio_file);
+
+    return;
+}
+
+static void mpiio_shutdown()
+{
+    struct mpiio_runtime_file_ref *ref, *tmp;
+
+    HASH_ITER(hlink, mpiio_runtime->fd_hash, ref, tmp)
+    {
+        HASH_DELETE(hlink, mpiio_runtime->fd_hash, ref);
+        free(ref);
+    }
+
+    HASH_CLEAR(hlink, mpiio_runtime->file_hash); /* these entries are freed all at once below */
+
+    free(mpiio_runtime->file_runtime_array);
+    free(mpiio_runtime->file_record_array);
+    free(mpiio_runtime);
+    mpiio_runtime = NULL;
+
+    return;
+}
 
 
 #if 0
-static void posix_runtime_initialize(void);
 static struct posix_runtime_file* posix_file_by_name(const char *name);
 static struct posix_runtime_file* posix_file_by_name_setfd(const char* name, int fd);
 static struct posix_runtime_file* posix_file_by_fd(int fd);
 static void posix_file_close_fd(int fd);
 
-static void posix_disable_instrumentation(void);
 static void posix_prepare_for_reduction(darshan_record_id *shared_recs,
     int *shared_rec_count, void **send_buf, void **recv_buf, int *rec_size);
 static void posix_reduce_records(void* infile_v, void* inoutfile_v,
@@ -529,17 +636,6 @@ static int posix_file_compare(const void* a, const void* b)
 }
 
 /* ***************************************************** */
-
-static void posix_disable_instrumentation()
-{
-    assert(posix_runtime);
-
-    POSIX_LOCK();
-    instrumentation_disabled = 1;
-    POSIX_UNLOCK();
-
-    return;
-}
 
 static void posix_prepare_for_reduction(
     darshan_record_id *shared_recs,
