@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #
-# (C) 2013 by Argonne National Laboratory.
-#     See COPYRIGHT in top-level directory.
+# Copyright (C) 2015 University of Chicago.
+# See COPYRIGHT notice in top-level directory.
 #
 
 # change behavior of shell error code following failure of a piped command

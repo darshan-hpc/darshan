@@ -1,8 +1,10 @@
 #!/usr/bin/perl -w
+
 #
-#  (C) 2011 by Argonne National Laboratory.
-#      See COPYRIGHT in top-level directory.
+# Copyright (C) 2015 University of Chicago.
+# See COPYRIGHT notice in top-level directory.
 #
+
 # Convert a list of logs and add metadata from another file.
 #
 # List of Logs: logfile path, one per line.  This can be generated with a 

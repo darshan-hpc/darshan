@@ -1,6 +1,7 @@
 /*
- *  (C) 2009 by Argonne National Laboratory.
- *      See COPYRIGHT in top-level directory.
+ * Copyright (C) 2015 University of Chicago.
+ * See COPYRIGHT notice in top-level directory.
+ *
  */
 
 #define _GNU_SOURCE
