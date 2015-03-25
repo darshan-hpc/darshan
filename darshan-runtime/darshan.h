@@ -40,7 +40,7 @@ struct darshan_module_funcs
         int *rec_size /* size of records being stored for this module */
     );
     /* reduce records which are shared globally across this module */
-    void (*reduce_records)(
+    void (*record_reduction_op)(
         void* infile_v,
         void* inoutfile_v,
         int *len,

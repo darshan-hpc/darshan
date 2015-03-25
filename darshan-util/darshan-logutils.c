@@ -22,8 +22,6 @@
 static int darshan_log_seek(darshan_fd fd, off_t offset);
 static int darshan_log_read(darshan_fd fd, void *buf, int len);
 static int darshan_log_write(darshan_fd fd, void *buf, int len);
-static int darshan_decompress_buffer(char *comp_buf, int comp_buf_sz,
-    char *decomp_buf, int *inout_decomp_buf_sz);
 
 /* darshan_log_open()
  *

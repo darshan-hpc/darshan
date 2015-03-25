@@ -171,7 +171,7 @@ static void mpiio_runtime_initialize()
     {
         .disable_instrumentation = &mpiio_disable_instrumentation,
         .prepare_for_reduction = NULL,
-        .reduce_records = NULL,
+        .record_reduction_op = NULL,
         .get_output_data = &mpiio_get_output_data,
         .shutdown = &mpiio_shutdown
     };
@@ -275,7 +275,7 @@ static void posix_file_close_fd(int fd);
 
 static void posix_prepare_for_reduction(darshan_record_id *shared_recs,
     int *shared_rec_count, void **send_buf, void **recv_buf, int *rec_size);
-static void posix_reduce_records(void* infile_v, void* inoutfile_v,
+static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype);
 static void posix_get_output_data(void **buffer, int *size);
 static void posix_shutdown(void);
@@ -451,7 +451,7 @@ static void posix_runtime_initialize()
     {
         .disable_instrumentation = &posix_disable_instrumentation,
         .prepare_for_reduction = &posix_prepare_for_reduction,
-        .reduce_records = &posix_reduce_records,
+        .record_reduction_op = &posix_record_reduction_op,
         .get_output_data = &posix_get_output_data,
         .shutdown = &posix_shutdown
     };
@@ -691,7 +691,7 @@ static void posix_prepare_for_reduction(
     return;
 }
 
-static void posix_reduce_records(
+static void posix_record_reduction_op(
     void* infile_v,
     void* inoutfile_v,
     int *len,

@@ -16,16 +16,13 @@
 /* TODO: this goes where ? -- shared libs */
 #define DARSHAN_MPI_CALL(func) func
 
-
 #define DARSHAN_CORE_MAX_RECORDS 1024
 
 /* TODO: revisit this default size if we change memory per module */
 #define DARSHAN_CORE_COMP_BUF_SIZE (2 * 1024 * 1024)
 
 #define DARSHAN_CORE_MOD_SET(flags, id) (flags | (1 << id))
-
 #define DARSHAN_CORE_MOD_UNSET(flags, id) (flags & ~(1 << id))
-
 #define DARSHAN_CORE_MOD_ISSET(flags, id) (flags & (1 << id))
 
 /* in memory structure to keep up with job level data */

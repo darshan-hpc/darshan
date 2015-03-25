@@ -144,7 +144,7 @@ static void posix_file_close_fd(int fd);
 static void posix_disable_instrumentation(void);
 static void posix_prepare_for_reduction(darshan_record_id *shared_recs,
     int *shared_rec_count, void **send_buf, void **recv_buf, int *rec_size);
-static void posix_reduce_records(void* infile_v, void* inoutfile_v,
+static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype);
 static void posix_get_output_data(void **buffer, int *size);
 static void posix_shutdown(void);
@@ -648,7 +648,7 @@ static void posix_runtime_initialize()
     {
         .disable_instrumentation = &posix_disable_instrumentation,
         .prepare_for_reduction = &posix_prepare_for_reduction,
-        .reduce_records = &posix_reduce_records,
+        .record_reduction_op = &posix_record_reduction_op,
         .get_output_data = &posix_get_output_data,
         .shutdown = &posix_shutdown
     };
@@ -899,7 +899,7 @@ static void posix_prepare_for_reduction(
     return;
 }
 
-static void posix_reduce_records(
+static void posix_record_reduction_op(
     void* infile_v,
     void* inoutfile_v,
     int *len,
@@ -909,29 +909,81 @@ static void posix_reduce_records(
     struct darshan_posix_file *infile = infile_v;
     struct darshan_posix_file *inoutfile = inoutfile_v;
     int i;
+    int j;
 
     assert(posix_runtime);
 
-    for(i = 0; i < *len; i++)
+    for(i=0; i<*len; i++)
     {
         memset(&tmp_file, 0, sizeof(struct darshan_posix_file));
 
         tmp_file.f_id = infile->f_id;
         tmp_file.rank = -1;
 
-        tmp_file.counters[POSIX_OPENS] = infile->counters[POSIX_OPENS] +
-            inoutfile->counters[POSIX_OPENS];
+        /* sum */
+        for(j=POSIX_OPENS; j<=POSIX_FWRITES; j++)
+        {
+            tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
+        }
 
-        if((infile->fcounters[POSIX_F_OPEN_TIMESTAMP] > inoutfile->fcounters[POSIX_F_OPEN_TIMESTAMP]) &&
-            (inoutfile->fcounters[POSIX_F_OPEN_TIMESTAMP] > 0))
-            tmp_file.fcounters[POSIX_F_OPEN_TIMESTAMP] = inoutfile->fcounters[POSIX_F_OPEN_TIMESTAMP];
-        else
-            tmp_file.fcounters[POSIX_F_OPEN_TIMESTAMP] = infile->fcounters[POSIX_F_OPEN_TIMESTAMP];
+        tmp_file.counters[POSIX_MODE] = infile->counters[POSIX_MODE];
 
-        if(infile->fcounters[POSIX_F_CLOSE_TIMESTAMP] > inoutfile->fcounters[POSIX_F_CLOSE_TIMESTAMP])
-            tmp_file.fcounters[POSIX_F_CLOSE_TIMESTAMP] = infile->fcounters[POSIX_F_CLOSE_TIMESTAMP];
+        /* min non-zero (if available) value */
+        for(j=POSIX_F_OPEN_TIMESTAMP; j<=POSIX_F_WRITE_START_TIMESTAMP; j++)
+        {
+            if(infile->fcounters[j] > inoutfile->fcounters[j] && inoutfile->fcounters[j] > 0)
+                tmp_file.fcounters[j] = inoutfile->fcounters[j];
+            else
+                tmp_file.fcounters[j] = infile->fcounters[j];
+        }
+
+        /* max */
+        for(j=POSIX_F_READ_END_TIMESTAMP; j<=POSIX_F_CLOSE_TIMESTAMP; j++)
+        {
+            if(infile->fcounters[j] > inoutfile->fcounters[j])
+                tmp_file.fcounters[j] = infile->fcounters[j];
+            else
+                tmp_file.fcounters[j] = inoutfile->fcounters[j];
+        }
+
+        /* sum */
+        for(j=POSIX_F_READ_TIME; j<=POSIX_F_META_TIME; j++)
+        {
+            tmp_file.fcounters[j] = infile->fcounters[j] + inoutfile->fcounters[j];
+        }
+
+        /* max (special case) */
+        if(infile->fcounters[POSIX_F_MAX_READ_TIME] >
+            inoutfile->fcounters[POSIX_F_MAX_READ_TIME])
+        {
+            tmp_file.fcounters[POSIX_F_MAX_READ_TIME] =
+                infile->fcounters[POSIX_F_MAX_READ_TIME];
+            tmp_file.counters[POSIX_MAX_READ_TIME_SIZE] =
+                infile->counters[POSIX_MAX_READ_TIME_SIZE];
+        }
         else
-            tmp_file.fcounters[POSIX_F_CLOSE_TIMESTAMP] = inoutfile->fcounters[POSIX_F_CLOSE_TIMESTAMP];
+        {
+            tmp_file.fcounters[POSIX_F_MAX_READ_TIME] =
+                inoutfile->fcounters[POSIX_F_MAX_READ_TIME];
+            tmp_file.counters[POSIX_MAX_READ_TIME_SIZE] =
+                inoutfile->counters[POSIX_MAX_READ_TIME_SIZE];
+        }
+
+        if(infile->fcounters[POSIX_F_MAX_WRITE_TIME] >
+            inoutfile->fcounters[POSIX_F_MAX_WRITE_TIME])
+        {
+            tmp_file.fcounters[POSIX_F_MAX_WRITE_TIME] =
+                infile->fcounters[POSIX_F_MAX_WRITE_TIME];
+            tmp_file.counters[POSIX_MAX_WRITE_TIME_SIZE] =
+                infile->counters[POSIX_MAX_WRITE_TIME_SIZE];
+        }
+        else
+        {
+            tmp_file.fcounters[POSIX_F_MAX_WRITE_TIME] =
+                inoutfile->fcounters[POSIX_F_MAX_WRITE_TIME];
+            tmp_file.counters[POSIX_MAX_WRITE_TIME_SIZE] =
+                inoutfile->counters[POSIX_MAX_WRITE_TIME_SIZE];
+        }
 
         /* update pointers */
         *inoutfile = tmp_file;

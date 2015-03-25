@@ -508,7 +508,8 @@ static void darshan_core_shutdown()
             }
 
             /* if there are globally shared files, do a shared file reduction */
-            if(shared_rec_count)
+            if(shared_rec_count && this_mod->mod_funcs.prepare_for_reduction &&
+               this_mod->mod_funcs.record_reduction_op)
             {
                 this_mod->mod_funcs.prepare_for_reduction(mod_shared_recs, &shared_rec_count,
                     &red_send_buf, &red_recv_buf, &rec_sz);
@@ -522,7 +523,7 @@ static void darshan_core_shutdown()
                     DARSHAN_MPI_CALL(PMPI_Type_commit)(&red_type);
 
                     /* register a reduction operator for this module */
-                    DARSHAN_MPI_CALL(PMPI_Op_create)(this_mod->mod_funcs.reduce_records,
+                    DARSHAN_MPI_CALL(PMPI_Op_create)(this_mod->mod_funcs.record_reduction_op,
                         1, &red_op);
 
                     /* reduce shared file records for this module */
