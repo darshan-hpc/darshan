@@ -122,7 +122,7 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
         }
 
         /* TODO: record statistics */
-        printf("HELLO WORLD!\n");
+        //printf("HELLO WORLD!\n");
 
 #if 0
         file = darshan_file_by_name_setfh(filename, (*fh));
