@@ -116,7 +116,7 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
     if(ret == MPI_SUCCESS)
     {
         MPIIO_LOCK();
-        /* TODO: initialize fn */
+        mpiio_runtime_initialize();
 
         /* use ROMIO approach to strip prefix if present */
         /* strip off prefix if there is one, but only skip prefixes
