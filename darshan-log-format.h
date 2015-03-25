@@ -45,7 +45,7 @@ typedef enum
     DARSHAN_PNETCDF_MOD,
 } darshan_module_id;
 
-static char *darshan_module_names[] =
+static char * const darshan_module_names[] =
 {
     "POSIX",
     "MPI-IO",

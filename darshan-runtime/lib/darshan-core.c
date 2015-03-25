@@ -252,7 +252,6 @@ static void darshan_core_shutdown()
     double mod2[DARSHAN_MAX_MODS] = {0};
     double header1, header2;
     double tm_end;
-    long offset;
     uint64_t gz_fp = 0;
     uint64_t tmp_off = 0;
     MPI_File log_fh;
@@ -469,10 +468,8 @@ static void darshan_core_shutdown()
         struct darshan_core_module* this_mod = final_core->mod_array[i];
         darshan_record_id mod_shared_recs[DARSHAN_CORE_MAX_RECORDS];
         struct darshan_core_record_ref *ref = NULL;
-        int shared_rec_cnt = 0;
         void* mod_buf = NULL;
         int mod_buf_sz = 0;
-        int comp_buf_sz = 0;
         int j;
 
         if(global_mod_use_count[i] == 0)
@@ -1296,7 +1293,7 @@ static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
         return(-1);
     }
 
-    tmp_stream.next_out = comp_buf;
+    tmp_stream.next_out = (unsigned char *)comp_buf;
     tmp_stream.avail_out = DARSHAN_CORE_COMP_BUF_SIZE;
 
     /* loop over the input pointers */
@@ -1357,7 +1354,6 @@ static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_ru
     size_t hash_buf_sz = 0;
     char *hash_buf;
     char *hash_buf_off;
-    MPI_Status status;
 
     /* allocate a buffer to store at most 64 bytes for each of a max number of records */
     /* NOTE: this buffer may be reallocated if estimate is too small */

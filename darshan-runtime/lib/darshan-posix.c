@@ -642,9 +642,6 @@ int DARSHAN_DECL(close)(int fd)
 
 static void posix_runtime_initialize()
 {
-    char *alignstr;
-    int tmpval;
-    int ret;
     int mem_limit;
     struct darshan_module_funcs posix_mod_fns =
     {
@@ -857,7 +854,6 @@ static void posix_prepare_for_reduction(
     int *rec_size)
 {
     struct posix_file_runtime *file;
-    struct darshan_posix_file *tmp_array;
     int i;
 
     assert(posix_runtime);
