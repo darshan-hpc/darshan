@@ -101,6 +101,8 @@ endif
 	install -m 755 share/mpi-profile/darshan-bg-cc.conf $(datarootdir)/mpi-profile/darshan-bg-cc.conf
 	install -m 755 share/mpi-profile/darshan-bg-cxx.conf $(datarootdir)/mpi-profile/darshan-bg-cxx.conf
 	install -m 755 share/mpi-profile/darshan-bg-f.conf $(datarootdir)/mpi-profile/darshan-bg-f.conf
+	install -m 644 darshan-base-ld-opts $(datarootdir)/darshan-base-ld-opts
+	install -m 644 darshan-posix-ld-opts $(datarootdir)/darshan-posix-ld-opts
 	install -d $(libdir)/pkgconfig
 	install -m 644 lib/pkgconfig/darshan-runtime.pc $(libdir)/pkgconfig/darshan-runtime.pc
 
@@ -108,5 +110,5 @@ clean::
 	rm -f *.o *.a lib/*.o lib/*.po lib/*.a lib/*.so 
 
 distclean:: clean
-	rm -f darshan-runtime-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl aclocal.m4 autom4te.cache/* config.status config.log Makefile 
+	rm -f darshan-runtime-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl darshan-config darshan-base-ld-opts aclocal.m4 autom4te.cache/* config.status config.log Makefile 
 	rm -rf autom4te.cache

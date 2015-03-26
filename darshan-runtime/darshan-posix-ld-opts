@@ -1,0 +1,13 @@
+--wrap=open
+--wrap=open64
+--wrap=creat
+--wrap=creat64
+--wrap=read
+--wrap=write
+--wrap=pread
+--wrap=pwrite
+--wrap=pread64
+--wrap=pwrite64
+--wrap=readv
+--wrap=writev
+--wrap=close

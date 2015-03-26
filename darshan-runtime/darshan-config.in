@@ -1,7 +1,7 @@
 #!/bin/sh
 
-CP_WRAPPERS="@CP_WRAPPERS@"
 DARSHAN_LIB_PATH="@darshan_lib_path@"
+DARSHAN_SHARE_PATH="@darshan_share_path@"
 DARSHAN_LD_FLAGS="@LDFLAGS@"
 
 # NOTE:
@@ -11,7 +11,7 @@ DARSHAN_LD_FLAGS="@LDFLAGS@"
 #   dependencies on PnetCDF and HDF5 symbols (if the app used a library which 
 #   in turn used one of those HLLs).
 
-PRE_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -ldarshan -lz $CP_WRAPPERS"
+PRE_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -ldarshan -lz -Wl,@$DARSHAN_SHARE_PATH/darshan-base-ld-opts"
 POST_LD_FLAGS="-L$DARSHAN_LIB_PATH -ldarshan -lz -lrt -lpthread"
 
 usage="\
