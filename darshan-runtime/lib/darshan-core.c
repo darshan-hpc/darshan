@@ -37,6 +37,21 @@ static pthread_mutex_t darshan_core_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_
 static int my_rank = -1;
 static int nprocs = -1;
 
+/* paths prefixed with the following directories are not traced by darshan */
+char* darshan_path_exclusions[] = {
+"/etc/",
+"/dev/",
+"/usr/",
+"/bin/",
+"/boot/",
+"/lib/",
+"/opt/",
+"/sbin/",
+"/sys/",
+"/proc/",
+NULL
+};
+
 #define DARSHAN_CORE_LOCK() pthread_mutex_lock(&darshan_core_mutex)
 #define DARSHAN_CORE_UNLOCK() pthread_mutex_unlock(&darshan_core_mutex)
 

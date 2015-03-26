@@ -13,9 +13,6 @@
 
 #include "darshan.h"
 
-/* TODO: this goes where ? -- shared libs */
-#define DARSHAN_MPI_CALL(func) func
-
 #define DARSHAN_CORE_MAX_RECORDS 1024
 
 /* TODO: revisit this default size if we change memory per module */

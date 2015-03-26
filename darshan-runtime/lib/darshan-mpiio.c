@@ -28,20 +28,6 @@
 #include "darshan.h"
 #include "darshan-mpiio-log-format.h"
 
-/* TODO: move this stuff to a shared header somewhere */
-#ifdef DARSHAN_PRELOAD
-#define __USE_GNU
-#include <dlfcn.h>
-#include <stdlib.h>
-
-#define DARSHAN_MPI_CALL(func) __real_ ## func
-
-#else
-
-#define DARSHAN_MPI_CALL(func) func
-
-#endif
-
 struct mpiio_runtime_file
 {
     struct darshan_mpiio_file* file_record;
@@ -71,22 +57,6 @@ static struct mpiio_runtime *mpiio_runtime = NULL;
 static pthread_mutex_t mpiio_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int instrumentation_disabled = 0;
 static int my_rank = -1;
-
-/* TODO: I'm sure these should be applied on all modules */
-/* these are paths that we will not trace */
-static char* exclusions[] = {
-"/etc/",
-"/dev/",
-"/usr/",
-"/bin/",
-"/boot/",
-"/lib/",
-"/opt/",
-"/sbin/",
-"/sys/",
-"/proc/",
-NULL
-};
 
 #define MPIIO_LOCK() pthread_mutex_lock(&mpiio_runtime_mutex)
 #define MPIIO_UNLOCK() pthread_mutex_unlock(&mpiio_runtime_mutex)
@@ -323,7 +293,7 @@ static void posix_shutdown(void);
     char* exclude; \
     int tmp_index = 0; \
     if(__ret < 0) break; \
-    while((exclude = exclusions[tmp_index])) { \
+    while((exclude = darshan_path_exclusions[tmp_index])) { \
         if(!(strncmp(exclude, __path, strlen(exclude)))) \
             break; \
         tmp_index++; \

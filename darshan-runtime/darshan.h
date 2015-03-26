@@ -26,6 +26,47 @@
 /* Environment variable to override __CP_MEM_ALIGNMENT */
 #define CP_MEM_ALIGNMENT_OVERRIDE "DARSHAN_MEMALIGN"
 
+/* macros for declaring wrapper functions and calling MPI routines
+ * consistently regardless of whether static or dynamic linking is used
+ */
+#ifdef DARSHAN_PRELOAD
+#define __USE_GNU
+#include <dlfcn.h>
+#include <stdlib.h>
+
+#define DARSHAN_FORWARD_DECL(name,ret,args) \
+  ret (*__real_ ## name)args = NULL;
+
+#define DARSHAN_DECL(__name) __name
+
+#define DARSHAN_MPI_CALL(func) __real_ ## func
+
+#define MAP_OR_FAIL(func) \
+    if (!(__real_ ## func)) \
+    { \
+        __real_ ## func = dlsym(RTLD_NEXT, #func); \
+        if(!(__real_ ## func)) { \
+           fprintf(stderr, "Darshan failed to map symbol: %s\n", #func); \
+           exit(1); \
+       } \
+    }
+
+#else
+
+#define DARSHAN_FORWARD_DECL(name,ret,args) \
+  extern ret __real_ ## name args;
+
+#define DARSHAN_DECL(__name) __wrap_ ## __name
+
+#define DARSHAN_MPI_CALL(func) func
+
+#define MAP_OR_FAIL(func)
+
+#endif
+
+/* macros for manipulating module's counter variables */
+/* NOTE: */
+
 /* module developers provide the following functions to darshan-core */
 struct darshan_module_funcs
 {
@@ -54,6 +95,9 @@ struct darshan_module_funcs
     /* shutdown module data structures */
     void (*shutdown)(void);
 };
+
+/* paths that darshan will not trace */
+extern char* darshan_path_exclusions[]; /* defined in lib/darshan-core.c */
 
 /*****************************************************
 * darshan-core functions exported to darshan modules *

@@ -35,41 +35,6 @@ typedef int64_t off64_t;
 #define aiocb64 aiocb
 #endif
 
-#ifdef DARSHAN_PRELOAD
-#define __USE_GNU
-#include <dlfcn.h>
-#include <stdlib.h>
-
-#define DARSHAN_FORWARD_DECL(name,ret,args) \
-  ret (*__real_ ## name)args = NULL;
-
-#define DARSHAN_DECL(__name) __name
-
-#define DARSHAN_MPI_CALL(func) __real_ ## func
-
-#define MAP_OR_FAIL(func) \
-    if (!(__real_ ## func)) \
-    { \
-        __real_ ## func = dlsym(RTLD_NEXT, #func); \
-        if(!(__real_ ## func)) { \
-           fprintf(stderr, "Darshan failed to map symbol: %s\n", #func); \
-           exit(1); \
-       } \
-    }
-
-#else
-
-#define DARSHAN_FORWARD_DECL(name,ret,args) \
-  extern ret __real_ ## name args;
-
-#define DARSHAN_DECL(__name) __wrap_ ## __name
-
-#define DARSHAN_MPI_CALL(func) func
-
-#define MAP_OR_FAIL(func)
-
-#endif
-
 /* TODO: more libc, fgetc, etc etc etc. */
 
 DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
@@ -85,6 +50,20 @@ DARSHAN_FORWARD_DECL(pwrite64, ssize_t, (int fd, const void *buf, size_t count, 
 DARSHAN_FORWARD_DECL(readv, ssize_t, (int fd, const struct iovec *iov, int iovcnt));
 DARSHAN_FORWARD_DECL(writev, ssize_t, (int fd, const struct iovec *iov, int iovcnt));
 DARSHAN_FORWARD_DECL(close, int, (int fd));
+
+static void posix_runtime_initialize(void);
+static struct posix_file_runtime* posix_file_by_name(const char *name);
+static struct posix_file_runtime* posix_file_by_name_setfd(const char* name, int fd);
+static struct posix_file_runtime* posix_file_by_fd(int fd);
+static void posix_file_close_fd(int fd);
+
+static void posix_disable_instrumentation(void);
+static void posix_prepare_for_reduction(darshan_record_id *shared_recs,
+    int *shared_rec_count, void **send_buf, void **recv_buf, int *rec_size);
+static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
+    int *len, MPI_Datatype *datatype);
+static void posix_get_output_data(void **buffer, int *size);
+static void posix_shutdown(void);
 
 struct posix_file_runtime
 {
@@ -118,36 +97,6 @@ static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int instrumentation_disabled = 0;
 static int my_rank = -1;
-
-/* TODO: I'm sure these should be applied on all modules */
-/* these are paths that we will not trace */
-static char* exclusions[] = {
-"/etc/",
-"/dev/",
-"/usr/",
-"/bin/",
-"/boot/",
-"/lib/",
-"/opt/",
-"/sbin/",
-"/sys/",
-"/proc/",
-NULL
-};
-
-static void posix_runtime_initialize(void);
-static struct posix_file_runtime* posix_file_by_name(const char *name);
-static struct posix_file_runtime* posix_file_by_name_setfd(const char* name, int fd);
-static struct posix_file_runtime* posix_file_by_fd(int fd);
-static void posix_file_close_fd(int fd);
-
-static void posix_disable_instrumentation(void);
-static void posix_prepare_for_reduction(darshan_record_id *shared_recs,
-    int *shared_rec_count, void **send_buf, void **recv_buf, int *rec_size);
-static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
-    int *len, MPI_Datatype *datatype);
-static void posix_get_output_data(void **buffer, int *size);
-static void posix_shutdown(void);
 
 #define POSIX_LOCK() pthread_mutex_lock(&posix_runtime_mutex)
 #define POSIX_UNLOCK() pthread_mutex_unlock(&posix_runtime_mutex)
@@ -195,7 +144,7 @@ static void posix_shutdown(void);
     char* exclude; \
     int tmp_index = 0; \
     if(__ret < 0) break; \
-    while((exclude = exclusions[tmp_index])) { \
+    while((exclude = darshan_path_exclusions[tmp_index])) { \
         if(!(strncmp(exclude, __path, strlen(exclude)))) \
             break; \
         tmp_index++; \
