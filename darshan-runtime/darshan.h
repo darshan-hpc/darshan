@@ -75,11 +75,11 @@
 } while(0)
 
 #define DARSHAN_COUNTER_INC(__rec_p, __counter, __value) do{ \
-    (__rec_p)->counters[__counter] = __value; \
+    (__rec_p)->counters[__counter] += __value; \
 } while(0)
 
 #define DARSHAN_COUNTER_F_INC(__rec_p, __counter, __value) do{ \
-    (__rec_p)->fcounters[__counter] = __value; \
+    (__rec_p)->fcounters[__counter] += __value; \
 } while(0)
 
 #define DARSHAN_COUNTER_F_INC_NO_OVERLAP(__rec_p, __tm1, __tm2, __last, __counter) do{ \

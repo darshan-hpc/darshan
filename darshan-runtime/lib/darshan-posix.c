@@ -601,7 +601,7 @@ static void posix_runtime_initialize()
     {
         .disable_instrumentation = &posix_disable_instrumentation,
         .prepare_for_reduction = &posix_prepare_for_reduction,
-        .record_reduction_op = NULL,//&posix_record_reduction_op,
+        .record_reduction_op = &posix_record_reduction_op,
         .get_output_data = &posix_get_output_data,
         .shutdown = &posix_shutdown
     };
