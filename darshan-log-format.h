@@ -53,12 +53,22 @@ static char * const darshan_module_names[] =
     "PNETCDF"
 };
 
+/* the darshan_log_map structure is used to indicate the location of
+ * specific module data in a Darshan log. Note that 'off' and 'len' are
+ * the respective offset and length of the data in the file, in *uncompressed*
+ * terms -- this is nonintuitive since the data is compressed, but this is
+ * done so we can utilize the gzread interface for all Darshan log reading
+ * utilities. 
+ */
 struct darshan_log_map
 {
     uint64_t off;
     uint64_t len;
 };
 
+/* the darshan header stores critical metadata needed for correctly
+ * reading the contents of the corresponding Darshan log
+ */
 struct darshan_header
 {
     char version_string[8];
@@ -67,7 +77,7 @@ struct darshan_header
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
 };
 
-/* statistics for the job as a whole */
+/* job-level metadata stored for this application */
 #define DARSHAN_JOB_METADATA_LEN 1024 /* including null terminator! */
 struct darshan_job
 {
@@ -79,6 +89,7 @@ struct darshan_job
     char metadata[DARSHAN_JOB_METADATA_LEN];
 };
 
+/* minimal record stored for each file/object accessed by Darshan */
 struct darshan_record
 {
     char* name;

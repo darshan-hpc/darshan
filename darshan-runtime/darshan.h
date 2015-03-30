@@ -66,6 +66,41 @@
 
 /* macros for manipulating module's counter variables */
 /* NOTE: */
+#define DARSHAN_COUNTER_SET(__rec_p, __counter, __value) do{ \
+    (__rec_p)->counters[__counter] = __value; \
+} while(0)
+
+#define DARSHAN_COUNTER_F_SET(__rec_p, __counter, __value) do{ \
+    (__rec_p)->fcounters[__counter] = __value; \
+} while(0)
+
+#define DARSHAN_COUNTER_INC(__rec_p, __counter, __value) do{ \
+    (__rec_p)->counters[__counter] = __value; \
+} while(0)
+
+#define DARSHAN_COUNTER_F_INC(__rec_p, __counter, __value) do{ \
+    (__rec_p)->fcounters[__counter] = __value; \
+} while(0)
+
+#define DARSHAN_COUNTER_F_INC_NO_OVERLAP(__rec_p, __tm1, __tm2, __last, __counter) do{ \
+    if(__tm1 > __last) \
+        DARSHAN_COUNTER_F_INC(__rec_p, __counter, (__tm2 - __tm1)); \
+    else \
+        DARSHAN_COUNTER_F_INC(__rec_p, __counter, (__tm2 - __last)); \
+    if(__tm2 > __last) \
+        __last = __tm2; \
+} while(0)
+
+#define DARSHAN_COUNTER_VALUE(__rec_p, __counter) \
+    ((__rec_p)->counters[__counter])
+
+#define DARSHAN_COUNTER_F_VALUE(__rec_p, __counter) \
+    ((__rec_p)->fcounters[__counter])
+
+#define DARSHAN_COUNTER_MAX(__rec_p, __counter, __value) do{ \
+    if((__rec_p)->counters[__counter] < __value) \
+        (__rec_p)->counters[__counter] = __value; \
+} while(0)
 
 /* module developers provide the following functions to darshan-core */
 struct darshan_module_funcs

@@ -8,6 +8,7 @@
 
 #include "darshan-log-format.h"
 
+/* integer statistics for POSIX file records */
 enum darshan_posix_indices
 {
     POSIX_OPENS,              /* count of posix opens */
@@ -27,16 +28,16 @@ enum darshan_posix_indices
     POSIX_FDSYNCS,
 #endif
     POSIX_MODE,                /* mode of file */
-#if 0
     POSIX_BYTES_READ,          /* total bytes read */
     POSIX_BYTES_WRITTEN,       /* total bytes written */
     POSIX_MAX_BYTE_READ,       /* highest offset byte read */
     POSIX_MAX_BYTE_WRITTEN,    /* highest offset byte written */
-    CONSEC_READS,              /* count of consecutive reads */
-    CONSEC_WRITES,             /* count of consecutive writes */
-    SEQ_READS,                 /* count of sequential reads */
-    SEQ_WRITES,                /* count of sequential writes */
-    RW_SWITCHES,               /* number of times switched between read and write */
+    POSIX_CONSEC_READS,        /* count of consecutive reads */
+    POSIX_CONSEC_WRITES,       /* count of consecutive writes */ 
+    POSIX_SEQ_READS,           /* count of sequential reads */
+    POSIX_SEQ_WRITES,          /* count of sequential writes */
+    POSIX_RW_SWITCHES,         /* number of times switched between read and write */
+#if 0
     MEM_NOT_ALIGNED,           /* count of accesses not mem aligned */
     MEM_ALIGNMENT,             /* mem alignment in bytes */
     FILE_NOT_ALIGNED,          /* count of accesses not file aligned */
@@ -95,7 +96,7 @@ enum darshan_posix_indices
     POSIX_NUM_INDICES,
 };
 
-/* floating point statistics */
+/* floating point statistics for POSIX file records */
 enum darshan_posix_f_indices
 {
     /* NOTE: adjust cp_normalize_timestamps() function if any TIMESTAMPS are
@@ -126,6 +127,14 @@ enum darshan_posix_f_indices
     POSIX_F_NUM_INDICES,
 };
 
+/* file record structure for POSIX files. a record is created and stored for
+ * every POSIX file opened by the original application. For the POSIX module,
+ * the record includes:
+ *      - a corresponding record identifier (created by hashing the file path)
+ *      - the rank of the process which opened the file (-1 for shared files)
+ *      - integer file I/O statistics (open, read/write counts, etc)
+ *      - floating point I/O statistics (timestamps, cumulative timers, etc.)
+ */
 struct darshan_posix_file
 {
     darshan_record_id f_id;
