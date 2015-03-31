@@ -17,6 +17,12 @@
 --wrap=lseek
 --wrap=lseek64
 --wrap=fseek
+--wrap=__xstat
+--wrap=__xstat64
+--wrap=__lxstat
+--wrap=__lxstat64
+--wrap=__fxstat
+--wrap=__fxstat64
 --wrap=fsync
 --wrap=fdatasync
 --wrap=close

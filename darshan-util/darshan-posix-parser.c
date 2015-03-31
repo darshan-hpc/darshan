@@ -174,6 +174,7 @@ int main(int argc, char **argv)
             "\t\tPOSIX_READS:\t%"PRIu64"\n"
             "\t\tPOSIX_WRITES:\t%"PRIu64"\n"
             "\t\tPOSIX_SEEKS:\t%"PRIu64"\n"
+            "\t\tPOSIX_STATS:\t%"PRIu64"\n"
             "\t\tPOSIX_FOPENS:\t%"PRIu64"\n"
             "\t\tPOSIX_FREADS:\t%"PRIu64"\n"
             "\t\tPOSIX_FWRITES:\t%"PRIu64"\n"
@@ -190,8 +191,10 @@ int main(int argc, char **argv)
             "\t\tPOSIX_SEQ_READS:\t%"PRIu64"\n"
             "\t\tPOSIX_SEQ_WRITES:\t%"PRIu64"\n"
             "\t\tPOSIX_RW_SWITCHES:\t%"PRIu64"\n"
+            "\t\tFILE_ALIGNMENT:\t%"PRIu64"\n"
             "\t\tPOSIX_MAX_READ_TIME_SIZE:\t%"PRIu64"\n"
             "\t\tPOSIX_MAX_WRITE_TIME_SIZE:\t%"PRIu64"\n"
+            "\t\tSIZE_AT_OPEN:\t%"PRIu64"\n"
             "\t\tPOSIX_F_OPEN_TIMESTAMP:\t%lf\n"
             "\t\tPOSIX_F_READ_START_TIMESTAMP:\t%lf\n"
             "\t\tPOSIX_F_WRITE_START_TIMESTAMP:\t%lf\n"
@@ -206,6 +209,7 @@ int main(int argc, char **argv)
             next_file.counters[POSIX_READS],
             next_file.counters[POSIX_WRITES],
             next_file.counters[POSIX_SEEKS],
+            next_file.counters[POSIX_STATS],
             next_file.counters[POSIX_FOPENS],
             next_file.counters[POSIX_FREADS],
             next_file.counters[POSIX_FWRITES],
@@ -222,8 +226,10 @@ int main(int argc, char **argv)
             next_file.counters[POSIX_SEQ_READS],
             next_file.counters[POSIX_SEQ_WRITES],
             next_file.counters[POSIX_RW_SWITCHES],
+            next_file.counters[FILE_ALIGNMENT],
             next_file.counters[POSIX_MAX_READ_TIME_SIZE],
             next_file.counters[POSIX_MAX_WRITE_TIME_SIZE],
+            next_file.counters[SIZE_AT_OPEN],
             next_file.fcounters[POSIX_F_OPEN_TIMESTAMP],
             next_file.fcounters[POSIX_F_READ_START_TIMESTAMP],
             next_file.fcounters[POSIX_F_WRITE_START_TIMESTAMP],

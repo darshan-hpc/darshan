@@ -56,12 +56,20 @@ DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb
 DARSHAN_FORWARD_DECL(lseek, off_t, (int fd, off_t offset, int whence));
 DARSHAN_FORWARD_DECL(lseek64, off64_t, (int fd, off64_t offset, int whence));
 DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
-/* stats */
-/* mmaps */
+DARSHAN_FORWARD_DECL(__xstat, int, (int vers, const char* path, struct stat *buf));
+DARSHAN_FORWARD_DECL(__xstat64, int, (int vers, const char* path, struct stat64 *buf));
+DARSHAN_FORWARD_DECL(__lxstat, int, (int vers, const char* path, struct stat *buf));
+DARSHAN_FORWARD_DECL(__lxstat64, int, (int vers, const char* path, struct stat64 *buf));
+DARSHAN_FORWARD_DECL(__fxstat, int, (int vers, int fd, struct stat *buf));
+DARSHAN_FORWARD_DECL(__fxstat64, int, (int vers, int fd, struct stat64 *buf));
+/* TODO mmaps */
 DARSHAN_FORWARD_DECL(fsync, int, (int fd));
 DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
 DARSHAN_FORWARD_DECL(close, int, (int fd));
 DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
+/* TODO mkstemp */
+/* TODO aio */
+/* TODO listio */
 
 static void posix_runtime_initialize(void);
 static struct posix_file_runtime* posix_file_by_name(const char *name);
@@ -273,6 +281,33 @@ static int my_rank = -1;
     if(DARSHAN_COUNTER_F_VALUE(file->file_record, POSIX_F_MAX_WRITE_TIME) < __elapsed){ \
         DARSHAN_COUNTER_F_SET(file->file_record, POSIX_F_MAX_WRITE_TIME, __elapsed); \
         DARSHAN_COUNTER_SET(file->file_record, POSIX_MAX_WRITE_TIME_SIZE, __ret); } \
+} while(0)
+
+#define POSIX_LOOKUP_RECORD_STAT(__path, __statbuf, __tm1, __tm2) do { \
+    char* exclude; \
+    int tmp_index = 0; \
+    struct posix_file_runtime* file; \
+    while((exclude = darshan_path_exclusions[tmp_index])) { \
+        if(!(strncmp(exclude, __path, strlen(exclude)))) \
+            break; \
+        tmp_index++; \
+    } \
+    if(exclude) break; \
+    file = posix_file_by_name(__path); \
+    if(file) \
+    { \
+        POSIX_RECORD_STAT(file, __statbuf, __tm1, __tm2); \
+    } \
+} while(0)
+
+#define POSIX_RECORD_STAT(__file, __statbuf, __tm1, __tm2) do { \
+    if(!DARSHAN_COUNTER_VALUE((__file)->file_record, POSIX_STATS) && !DARSHAN_COUNTER_VALUE((__file)->file_record, POSIX_OPENS)){ \
+        DARSHAN_COUNTER_SET((__file)->file_record, FILE_ALIGNMENT, (__statbuf)->st_blksize); \
+        DARSHAN_COUNTER_SET((__file)->file_record, SIZE_AT_OPEN, (__statbuf)->st_size); \
+    }\
+    (__file)->file_record->rank = my_rank; \
+    DARSHAN_COUNTER_F_INC_NO_OVERLAP((__file)->file_record, __tm1, __tm2, (__file)->last_meta_end, POSIX_F_META_TIME); \
+    DARSHAN_COUNTER_INC((__file)->file_record, POSIX_STATS, 1); \
 } while(0)
 
 /**********************************************************
@@ -764,13 +799,169 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
         file = posix_file_by_fd(fileno(stream));
         if(file)
         {
-            file->offset = ftell(stream); /* TODO: this seems wrong. ftell? */
+            file->offset = ftell(stream);
             DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
                 tm1, tm2, file->last_meta_end, POSIX_F_META_TIME);
             DARSHAN_COUNTER_INC(file->file_record, POSIX_FSEEKS, 1);
         }
         POSIX_UNLOCK();
     }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(__xstat)(int vers, const char *path, struct stat *buf)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(__xstat);
+
+    tm1 = darshan_core_wtime();
+    ret = __real___xstat(vers, path, buf);
+    tm2 = darshan_core_wtime();
+
+    if(ret < 0 || !S_ISREG(buf->st_mode))
+        return(ret);
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    POSIX_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(__xstat64)(int vers, const char *path, struct stat64 *buf)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(__xstat64);
+
+    tm1 = darshan_core_wtime();
+    ret = __real___xstat64(vers, path, buf);
+    tm2 = darshan_core_wtime();
+
+    if(ret < 0 || !S_ISREG(buf->st_mode))
+        return(ret);
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    POSIX_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(__lxstat)(int vers, const char *path, struct stat *buf)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(__lxstat);
+
+    tm1 = darshan_core_wtime();
+    ret = __real___lxstat(vers, path, buf);
+    tm2 = darshan_core_wtime();
+
+    if(ret < 0 || !S_ISREG(buf->st_mode))
+        return(ret);
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    POSIX_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(__lxstat64)(int vers, const char *path, struct stat64 *buf)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(__lxstat64);
+
+    tm1 = darshan_core_wtime();
+    ret = __real___lxstat64(vers, path, buf);
+    tm2 = darshan_core_wtime();
+
+    if(ret < 0 || !S_ISREG(buf->st_mode))
+        return(ret);
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    POSIX_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
+{
+    int ret;
+    struct posix_file_runtime* file;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(__fxstat);
+
+    tm1 = darshan_core_wtime();
+    ret = __real___fxstat(vers, fd, buf);
+    tm2 = darshan_core_wtime();
+
+    if(ret < 0 || !S_ISREG(buf->st_mode))
+        return(ret);
+
+    /* TODO */
+#if 0
+    /* skip logging if this was triggered internally */
+    if((void*)buf == (void*)&cp_stat_buf)
+        return(ret);
+#endif
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    file = posix_file_by_fd(fd);
+    if(file)
+    {
+        POSIX_RECORD_STAT(file, buf, tm1, tm2);
+    }
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
+{
+    int ret;
+    struct posix_file_runtime* file;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(__fxstat64);
+
+    tm1 = darshan_core_wtime();
+    ret = __real___fxstat64(vers, fd, buf);
+    tm2 = darshan_core_wtime();
+
+    if(ret < 0 || !S_ISREG(buf->st_mode))
+        return(ret);
+
+    /* TODO */
+#if 0
+    /* skip logging if this was triggered internally */
+    if((void*)buf == (void*)&cp_stat_buf)
+        return(ret);
+#endif
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    file = posix_file_by_fd(fd);
+    if(file)
+    {
+        POSIX_RECORD_STAT(file, buf, tm1, tm2);
+    }
+    POSIX_UNLOCK();
 
     return(ret);
 }

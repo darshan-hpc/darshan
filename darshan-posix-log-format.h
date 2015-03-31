@@ -15,8 +15,8 @@ enum darshan_posix_indices
     POSIX_READS,              /* count of posix reads */
     POSIX_WRITES,             /* count of posix writes */
     POSIX_SEEKS,              /* count of posix seeks */
-#if 0
     POSIX_STATS,              /* count of posix stat/lstat/fstats */
+#if 0
     POSIX_MMAPS,              /* count of posix mmaps */
 #endif
     POSIX_FOPENS,             /* count of posix fopens */
@@ -39,8 +39,8 @@ enum darshan_posix_indices
     MEM_NOT_ALIGNED,          /* count of accesses not mem aligned */
     MEM_ALIGNMENT,            /* mem alignment in bytes */
     FILE_NOT_ALIGNED,         /* count of accesses not file aligned */
-    FILE_ALIGNMENT,           /* file alignment in bytes */
 #endif
+    FILE_ALIGNMENT,           /* file alignment in bytes */
     POSIX_MAX_READ_TIME_SIZE,
     POSIX_MAX_WRITE_TIME_SIZE,
 #if 0
@@ -84,7 +84,9 @@ enum darshan_posix_indices
     ACCESS3_COUNT,
     ACCESS4_COUNT,
     DEVICE,                   /* device id reported by stat */
+#endif
     SIZE_AT_OPEN,
+#if 0
     FASTEST_RANK,
     FASTEST_RANK_BYTES,
     SLOWEST_RANK,
