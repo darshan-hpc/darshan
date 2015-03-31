@@ -41,6 +41,8 @@ DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(open64, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(creat, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(creat64, int, (const char* path, mode_t mode));
+DARSHAN_FORWARD_DECL(fopen, FILE*, (const char *path, const char *mode));
+DARSHAN_FORWARD_DECL(fopen64, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(read, ssize_t, (int fd, void *buf, size_t count));
 DARSHAN_FORWARD_DECL(write, ssize_t, (int fd, const void *buf, size_t count));
 DARSHAN_FORWARD_DECL(pread, ssize_t, (int fd, void *buf, size_t count, off_t offset));
@@ -49,7 +51,17 @@ DARSHAN_FORWARD_DECL(pread64, ssize_t, (int fd, void *buf, size_t count, off64_t
 DARSHAN_FORWARD_DECL(pwrite64, ssize_t, (int fd, const void *buf, size_t count, off64_t offset));
 DARSHAN_FORWARD_DECL(readv, ssize_t, (int fd, const struct iovec *iov, int iovcnt));
 DARSHAN_FORWARD_DECL(writev, ssize_t, (int fd, const struct iovec *iov, int iovcnt));
+DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
+DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
+DARSHAN_FORWARD_DECL(lseek, off_t, (int fd, off_t offset, int whence));
+DARSHAN_FORWARD_DECL(lseek64, off64_t, (int fd, off64_t offset, int whence));
+DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
+/* stats */
+/* mmaps */
+DARSHAN_FORWARD_DECL(fsync, int, (int fd));
+DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
 DARSHAN_FORWARD_DECL(close, int, (int fd));
+DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
 
 static void posix_runtime_initialize(void);
 static struct posix_file_runtime* posix_file_by_name(const char *name);
@@ -373,6 +385,56 @@ int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
     return(ret);
 }
 
+FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
+{
+    FILE* ret;
+    int fd;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fopen);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fopen(path, mode);
+    tm2 = darshan_core_wtime();
+
+    if(ret == NULL)
+        fd = -1;
+    else
+        fd = fileno(ret);
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    POSIX_RECORD_OPEN(fd, path, 0, 1, tm1, tm2);
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
+{
+    FILE* ret;
+    int fd;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fopen64);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fopen64(path, mode);
+    tm2 = darshan_core_wtime();
+
+    if(ret == NULL)
+        fd = -1;
+    else
+        fd = fileno(ret);
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    POSIX_RECORD_OPEN(fd, path, 0, 1, tm1, tm2);
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
 ssize_t DARSHAN_DECL(read)(int fd, void *buf, size_t count)
 {
     ssize_t ret;
@@ -526,6 +588,7 @@ ssize_t DARSHAN_DECL(readv)(int fd, const struct iovec *iov, int iovcnt)
     tm2 = darshan_core_wtime();
 
     POSIX_LOCK();
+    posix_runtime_initialize();
     POSIX_RECORD_READ(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
     POSIX_UNLOCK();
 
@@ -553,7 +616,218 @@ ssize_t DARSHAN_DECL(writev)(int fd, const struct iovec *iov, int iovcnt)
     tm2 = darshan_core_wtime();
 
     POSIX_LOCK();
+    posix_runtime_initialize();
     POSIX_RECORD_WRITE(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
+{
+    size_t ret;
+    int aligned_flag = 0;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fread);
+
+    /* if((unsigned long)ptr % darshan_mem_alignment == 0) aligned_flag = 1; */
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fread(ptr, size, nmemb, stream);
+    tm2 = darshan_core_wtime();
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    if(ret > 0)
+    {
+        POSIX_RECORD_READ(size*ret, fileno(stream), 0, 0,
+            aligned_flag, 1, tm1, tm2);
+    }
+    else
+    {
+        POSIX_RECORD_READ(ret, fileno(stream), 0, 0,
+            aligned_flag, 1, tm1, tm2);
+    }
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *stream)
+{
+    size_t ret;
+    int aligned_flag = 0;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fwrite);
+
+    /* if((unsigned long)ptr % darshan_mem_alignment == 0) aligned_flag = 1; */
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fwrite(ptr, size, nmemb, stream);
+    tm2 = darshan_core_wtime();
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    if(ret > 0)
+    {
+        POSIX_RECORD_WRITE(size*ret, fileno(stream), 0, 0,
+            aligned_flag, 1, tm1, tm2);
+    }
+    else
+    {
+        POSIX_RECORD_WRITE(ret, fileno(stream), 0, 0,
+            aligned_flag, 1, tm1, tm2);
+    }
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
+{
+    off_t ret;
+    struct posix_file_runtime* file;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(lseek);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_lseek(fd, offset, whence);
+    tm2 = darshan_core_wtime();
+
+    if(ret >= 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        file = posix_file_by_fd(fd);
+        if(file)
+        {
+            file->offset = ret;
+            DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
+                tm1, tm2, file->last_meta_end, POSIX_F_META_TIME);
+            DARSHAN_COUNTER_INC(file->file_record, POSIX_SEEKS, 1);
+        }
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
+off_t DARSHAN_DECL(lseek64)(int fd, off_t offset, int whence)
+{
+    off_t ret;
+    struct posix_file_runtime* file;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(lseek64);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_lseek64(fd, offset, whence);
+    tm2 = darshan_core_wtime();
+
+    if(ret >= 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        file = posix_file_by_fd(fd);
+        if(file)
+        {
+            file->offset = ret;
+            DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
+                tm1, tm2, file->last_meta_end, POSIX_F_META_TIME);
+            DARSHAN_COUNTER_INC(file->file_record, POSIX_SEEKS, 1);
+        }
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
+{
+    int ret;
+    struct posix_file_runtime* file;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fseek);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fseek(stream, offset, whence);
+    tm2 = darshan_core_wtime();
+
+    if(ret >= 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        file = posix_file_by_fd(fileno(stream));
+        if(file)
+        {
+            file->offset = ftell(stream); /* TODO: this seems wrong. ftell? */
+            DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
+                tm1, tm2, file->last_meta_end, POSIX_F_META_TIME);
+            DARSHAN_COUNTER_INC(file->file_record, POSIX_FSEEKS, 1);
+        }
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(fsync)(int fd)
+{
+    int ret;
+    struct posix_file_runtime* file;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fsync);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fsync(fd);
+    tm2 = darshan_core_wtime();
+
+    if(ret < 0)
+        return(ret);
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    file = posix_file_by_fd(fd);
+    if(file)
+    {
+        DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
+            tm1, tm2, file->last_write_end, POSIX_F_WRITE_TIME);
+        DARSHAN_COUNTER_INC(file->file_record, POSIX_FSYNCS, 1);
+    }
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(fdatasync)(int fd)
+{
+    int ret;
+    struct posix_file_runtime* file;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fdatasync);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fdatasync(fd);
+    tm2 = darshan_core_wtime();
+
+    if(ret < 0)
+        return(ret);
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    file = posix_file_by_fd(fd);
+    if(file)
+    {
+        DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
+            tm1, tm2, file->last_write_end, POSIX_F_WRITE_TIME); 
+        DARSHAN_COUNTER_INC(file->file_record, POSIX_FDSYNCS, 1);
+    }
     POSIX_UNLOCK();
 
     return(ret);
@@ -585,6 +859,37 @@ int DARSHAN_DECL(close)(int fd)
         posix_file_close_fd(fd);
     }
     POSIX_UNLOCK();    
+
+    return(ret);
+}
+
+int DARSHAN_DECL(fclose)(FILE *fp)
+{
+    struct posix_file_runtime* file;
+    int fd = fileno(fp);
+    double tm1, tm2;
+    int ret;
+
+    MAP_OR_FAIL(fclose);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fclose(fp);
+    tm2 = darshan_core_wtime();
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    file = posix_file_by_fd(fd);
+    if(file)
+    {
+        file->last_byte_written = 0;
+        file->last_byte_read = 0;
+        DARSHAN_COUNTER_F_SET(file->file_record,
+            POSIX_F_CLOSE_TIMESTAMP, darshan_core_wtime());
+        DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
+            tm1, tm2, file->last_meta_end, POSIX_F_META_TIME);
+        posix_file_close_fd(fd);
+    }
+    POSIX_UNLOCK();
 
     return(ret);
 }
@@ -883,7 +1188,7 @@ static void posix_record_reduction_op(
         tmp_file.rank = -1;
 
         /* sum */
-        for(j=POSIX_OPENS; j<=POSIX_FWRITES; j++)
+        for(j=POSIX_OPENS; j<=POSIX_FDSYNCS; j++)
         {
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }

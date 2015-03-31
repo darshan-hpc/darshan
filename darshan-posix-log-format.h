@@ -14,40 +14,38 @@ enum darshan_posix_indices
     POSIX_OPENS,              /* count of posix opens */
     POSIX_READS,              /* count of posix reads */
     POSIX_WRITES,             /* count of posix writes */
-#if 0
     POSIX_SEEKS,              /* count of posix seeks */
+#if 0
     POSIX_STATS,              /* count of posix stat/lstat/fstats */
     POSIX_MMAPS,              /* count of posix mmaps */
 #endif
-    POSIX_FOPENS,
-    POSIX_FREADS,
-    POSIX_FWRITES,
+    POSIX_FOPENS,             /* count of posix fopens */
+    POSIX_FREADS,             /* count of posix freads */
+    POSIX_FWRITES,            /* count of posix fwrites */
+    POSIX_FSEEKS,             /* count of posix fseeks */
+    POSIX_FSYNCS,             /* count of posix fsyncs */
+    POSIX_FDSYNCS,            /* count of posix fdatasyncs */
+    POSIX_MODE,               /* mode of file */
+    POSIX_BYTES_READ,         /* total bytes read */
+    POSIX_BYTES_WRITTEN,      /* total bytes written */
+    POSIX_MAX_BYTE_READ,      /* highest offset byte read */
+    POSIX_MAX_BYTE_WRITTEN,   /* highest offset byte written */
+    POSIX_CONSEC_READS,       /* count of consecutive reads */
+    POSIX_CONSEC_WRITES,      /* count of consecutive writes */ 
+    POSIX_SEQ_READS,          /* count of sequential reads */
+    POSIX_SEQ_WRITES,         /* count of sequential writes */
+    POSIX_RW_SWITCHES,        /* number of times switched between read and write */
 #if 0
-    POSIX_FSEEKS,
-    POSIX_FSYNCS,
-    POSIX_FDSYNCS,
-#endif
-    POSIX_MODE,                /* mode of file */
-    POSIX_BYTES_READ,          /* total bytes read */
-    POSIX_BYTES_WRITTEN,       /* total bytes written */
-    POSIX_MAX_BYTE_READ,       /* highest offset byte read */
-    POSIX_MAX_BYTE_WRITTEN,    /* highest offset byte written */
-    POSIX_CONSEC_READS,        /* count of consecutive reads */
-    POSIX_CONSEC_WRITES,       /* count of consecutive writes */ 
-    POSIX_SEQ_READS,           /* count of sequential reads */
-    POSIX_SEQ_WRITES,          /* count of sequential writes */
-    POSIX_RW_SWITCHES,         /* number of times switched between read and write */
-#if 0
-    MEM_NOT_ALIGNED,           /* count of accesses not mem aligned */
-    MEM_ALIGNMENT,             /* mem alignment in bytes */
-    FILE_NOT_ALIGNED,          /* count of accesses not file aligned */
-    FILE_ALIGNMENT,            /* file alignment in bytes */
+    MEM_NOT_ALIGNED,          /* count of accesses not mem aligned */
+    MEM_ALIGNMENT,            /* mem alignment in bytes */
+    FILE_NOT_ALIGNED,         /* count of accesses not file aligned */
+    FILE_ALIGNMENT,           /* file alignment in bytes */
 #endif
     POSIX_MAX_READ_TIME_SIZE,
     POSIX_MAX_WRITE_TIME_SIZE,
 #if 0
     /* buckets */
-    SIZE_READ_0_100,           /* count of posix read size ranges */
+    SIZE_READ_0_100,          /* count of posix read size ranges */
     SIZE_READ_100_1K,
     SIZE_READ_1K_10K,
     SIZE_READ_10K_100K,
@@ -58,7 +56,7 @@ enum darshan_posix_indices
     SIZE_READ_100M_1G,
     SIZE_READ_1G_PLUS,
     /* buckets */
-    SIZE_WRITE_0_100,          /* count of posix write size ranges */
+    SIZE_WRITE_0_100,         /* count of posix write size ranges */
     SIZE_WRITE_100_1K,
     SIZE_WRITE_1K_10K,
     SIZE_WRITE_10K_100K,
@@ -69,23 +67,23 @@ enum darshan_posix_indices
     SIZE_WRITE_100M_1G,
     SIZE_WRITE_1G_PLUS,
     /* counters */
-    STRIDE1_STRIDE,             /* the four most frequently appearing strides */
+    STRIDE1_STRIDE,           /* the four most frequently appearing strides */
     STRIDE2_STRIDE,
     STRIDE3_STRIDE,
     STRIDE4_STRIDE,
-    STRIDE1_COUNT,              /* count of each of the most frequent strides */
+    STRIDE1_COUNT,            /* count of each of the most frequent strides */
     STRIDE2_COUNT,
     STRIDE3_COUNT,
     STRIDE4_COUNT,
-    ACCESS1_ACCESS,             /* the four most frequently appearing access sizes */
+    ACCESS1_ACCESS,           /* the four most frequently appearing access sizes */
     ACCESS2_ACCESS,
     ACCESS3_ACCESS,
     ACCESS4_ACCESS,
-    ACCESS1_COUNT,              /* count of each of the most frequent access sizes */
+    ACCESS1_COUNT,            /* count of each of the most frequent access sizes */
     ACCESS2_COUNT,
     ACCESS3_COUNT,
     ACCESS4_COUNT,
-    DEVICE,                     /* device id reported by stat */
+    DEVICE,                   /* device id reported by stat */
     SIZE_AT_OPEN,
     FASTEST_RANK,
     FASTEST_RANK_BYTES,

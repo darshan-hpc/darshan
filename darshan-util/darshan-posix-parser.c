@@ -173,9 +173,13 @@ int main(int argc, char **argv)
             "\t\tPOSIX_OPENS:\t%"PRIu64"\n"
             "\t\tPOSIX_READS:\t%"PRIu64"\n"
             "\t\tPOSIX_WRITES:\t%"PRIu64"\n"
+            "\t\tPOSIX_SEEKS:\t%"PRIu64"\n"
             "\t\tPOSIX_FOPENS:\t%"PRIu64"\n"
             "\t\tPOSIX_FREADS:\t%"PRIu64"\n"
             "\t\tPOSIX_FWRITES:\t%"PRIu64"\n"
+            "\t\tPOSIX_FSEEKS:\t%"PRIu64"\n"
+            "\t\tPOSIX_FSYNCS:\t%"PRIu64"\n"
+            "\t\tPOSIX_FDSYNCS:\t%"PRIu64"\n"
             "\t\tPOSIX_MODE:\t%"PRIu64"\n"
             "\t\tPOSIX_BYTES_READ:\t%"PRIu64"\n"
             "\t\tPOSIX_BYTES_WRITTEN:\t%"PRIu64"\n"
@@ -201,9 +205,13 @@ int main(int argc, char **argv)
             next_file.counters[POSIX_OPENS],
             next_file.counters[POSIX_READS],
             next_file.counters[POSIX_WRITES],
+            next_file.counters[POSIX_SEEKS],
             next_file.counters[POSIX_FOPENS],
             next_file.counters[POSIX_FREADS],
             next_file.counters[POSIX_FWRITES],
+            next_file.counters[POSIX_FSEEKS],
+            next_file.counters[POSIX_FSYNCS],
+            next_file.counters[POSIX_FDSYNCS],
             next_file.counters[POSIX_MODE],
             next_file.counters[POSIX_BYTES_READ],
             next_file.counters[POSIX_BYTES_WRITTEN],
