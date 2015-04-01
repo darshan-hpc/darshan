@@ -36,6 +36,7 @@ static struct darshan_core_runtime *darshan_core = NULL;
 static pthread_mutex_t darshan_core_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int my_rank = -1;
 static int nprocs = -1;
+static int darshan_mem_alignment = 1;
 
 /* paths prefixed with the following directories are not traced by darshan */
 char* darshan_path_exclusions[] = {

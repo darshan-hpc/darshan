@@ -81,15 +81,11 @@ enum darshan_posix_indices
     ACCESS2_COUNT,
     ACCESS3_COUNT,
     ACCESS4_COUNT,
-    DEVICE,                   /* device id reported by stat */
 #endif
-    SIZE_AT_OPEN,
-#if 0
-    FASTEST_RANK,
-    FASTEST_RANK_BYTES,
-    SLOWEST_RANK,
-    SLOWEST_RANK_BYTES,
-#endif
+    POSIX_FASTEST_RANK,
+    POSIX_FASTEST_RANK_BYTES,
+    POSIX_SLOWEST_RANK,
+    POSIX_SLOWEST_RANK_BYTES,
 
     POSIX_NUM_INDICES,
 };
@@ -108,13 +104,10 @@ enum darshan_posix_f_indices
     POSIX_F_META_TIME,             /* cumulative posix meta time */
     POSIX_F_MAX_READ_TIME,
     POSIX_F_MAX_WRITE_TIME,
+    /* Total I/O and meta time consumed by fastest and slowest ranks */ 
+    POSIX_F_FASTEST_RANK_TIME,
+    POSIX_F_SLOWEST_RANK_TIME,
 #if 0
-    /* Total I/O and meta time consumed by fastest and slowest ranks, 
-     * reported in either MPI or POSIX time depending on how the file 
-     * was accessed.
-     */
-    F_FASTEST_RANK_TIME,
-    F_SLOWEST_RANK_TIME,
     F_VARIANCE_RANK_TIME,
     F_VARIANCE_RANK_BYTES,
 #endif

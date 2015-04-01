@@ -196,6 +196,10 @@ int main(int argc, char **argv)
             "\t\tPOSIX_MAX_READ_TIME_SIZE:\t%"PRIu64"\n"
             "\t\tPOSIX_MAX_WRITE_TIME_SIZE:\t%"PRIu64"\n"
             "\t\tSIZE_AT_OPEN:\t%"PRIu64"\n"
+            "\t\tPOSIX_FASTEST_RANK:\t%"PRIu64"\n"
+            "\t\tPOSIX_FASTEST_RANK_BYTES:\t%"PRIu64"\n"
+            "\t\tPOSIX_SLOWEST_RANK:\t%"PRIu64"\n"
+            "\t\tPOSIX_SLOWEST_RANK_BYTES:\t%"PRIu64"\n"
             "\t\tPOSIX_F_OPEN_TIMESTAMP:\t%lf\n"
             "\t\tPOSIX_F_READ_START_TIMESTAMP:\t%lf\n"
             "\t\tPOSIX_F_WRITE_START_TIMESTAMP:\t%lf\n"
@@ -204,8 +208,11 @@ int main(int argc, char **argv)
             "\t\tPOSIX_F_CLOSE_TIMESTAMP:\t%lf\n"
             "\t\tPOSIX_F_READ_TIME:\t%lf\n"
             "\t\tPOSIX_F_WRITE_TIME:\t%lf\n"
+            "\t\tPOSIX_F_META_TIME:\t%lf\n"
             "\t\tPOSIX_F_MAX_READ_TIME:\t%lf\n"
-            "\t\tPOSIX_F_MAX_WRITE_TIME:\t%lf\n",
+            "\t\tPOSIX_F_MAX_WRITE_TIME:\t%lf\n"
+            "\t\tPOSIX_F_FASTEST_RANK_TIME:\t%lf\n"
+            "\t\tPOSIX_F_SLOWEST_RANK_TIME:\t%lf\n",
             next_file.counters[POSIX_OPENS],
             next_file.counters[POSIX_READS],
             next_file.counters[POSIX_WRITES],
@@ -232,6 +239,10 @@ int main(int argc, char **argv)
             next_file.counters[POSIX_MAX_READ_TIME_SIZE],
             next_file.counters[POSIX_MAX_WRITE_TIME_SIZE],
             next_file.counters[SIZE_AT_OPEN],
+            next_file.counters[POSIX_FASTEST_RANK],
+            next_file.counters[POSIX_FASTEST_RANK_BYTES],
+            next_file.counters[POSIX_SLOWEST_RANK],
+            next_file.counters[POSIX_SLOWEST_RANK_BYTES],
             next_file.fcounters[POSIX_F_OPEN_TIMESTAMP],
             next_file.fcounters[POSIX_F_READ_START_TIMESTAMP],
             next_file.fcounters[POSIX_F_WRITE_START_TIMESTAMP],
@@ -240,8 +251,11 @@ int main(int argc, char **argv)
             next_file.fcounters[POSIX_F_CLOSE_TIMESTAMP],
             next_file.fcounters[POSIX_F_READ_TIME],
             next_file.fcounters[POSIX_F_WRITE_TIME],
+            next_file.fcounters[POSIX_F_META_TIME],
             next_file.fcounters[POSIX_F_MAX_READ_TIME],
-            next_file.fcounters[POSIX_F_MAX_WRITE_TIME]);
+            next_file.fcounters[POSIX_F_MAX_WRITE_TIME],
+            next_file.fcounters[POSIX_F_FASTEST_RANK_TIME],
+            next_file.fcounters[POSIX_F_SLOWEST_RANK_TIME]);
 
         i++;
     } while((ret = darshan_log_get_posix_file(fd, &next_file)) == 1);

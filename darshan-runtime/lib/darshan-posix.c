@@ -198,7 +198,6 @@ static int my_rank = -1;
     if(exclude) break; \
     file = posix_file_by_name_setfd(__path, __ret); \
     if(!file) break; \
-    /* CP_STAT_FILE(file, __path, __ret); */ \
     file->file_record->rank = my_rank; \
     if(__mode) \
         DARSHAN_COUNTER_SET(file->file_record, POSIX_MODE, __mode); \
@@ -332,10 +331,6 @@ static int my_rank = -1;
 } while(0)
 
 #define POSIX_RECORD_STAT(__file, __statbuf, __tm1, __tm2) do { \
-    if(!DARSHAN_COUNTER_VALUE((__file)->file_record, POSIX_STATS) && !DARSHAN_COUNTER_VALUE((__file)->file_record, POSIX_OPENS)){ \
-        DARSHAN_COUNTER_SET((__file)->file_record, FILE_ALIGNMENT, (__statbuf)->st_blksize); \
-        DARSHAN_COUNTER_SET((__file)->file_record, SIZE_AT_OPEN, (__statbuf)->st_size); \
-    }\
     (__file)->file_record->rank = my_rank; \
     DARSHAN_COUNTER_F_INC_NO_OVERLAP((__file)->file_record, __tm1, __tm2, (__file)->last_meta_end, POSIX_F_META_TIME); \
     DARSHAN_COUNTER_INC((__file)->file_record, POSIX_STATS, 1); \
@@ -1020,13 +1015,6 @@ int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
 
-    /* TODO */
-#if 0
-    /* skip logging if this was triggered internally */
-    if((void*)buf == (void*)&cp_stat_buf)
-        return(ret);
-#endif
-
     POSIX_LOCK();
     posix_runtime_initialize();
     file = posix_file_by_fd(fd);
@@ -1053,13 +1041,6 @@ int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
 
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
-
-    /* TODO */
-#if 0
-    /* skip logging if this was triggered internally */
-    if((void*)buf == (void*)&cp_stat_buf)
-        return(ret);
-#endif
 
     POSIX_LOCK();
     posix_runtime_initialize();
@@ -1469,6 +1450,7 @@ static void posix_prepare_for_reduction(
 {
     struct posix_file_runtime *file;
     int i;
+    double posix_time;
 
     assert(posix_runtime);
 
@@ -1479,7 +1461,31 @@ static void posix_prepare_for_reduction(
             sizeof(darshan_record_id), file);
         assert(file);
 
-        /* TODO: any initialization before reduction */
+        posix_time =
+            file->file_record->fcounters[POSIX_F_READ_TIME] +
+            file->file_record->fcounters[POSIX_F_WRITE_TIME] +
+            file->file_record->fcounters[POSIX_F_META_TIME];
+
+        /* initialize fastest/slowest info prior to the reduction */
+        file->file_record->counters[POSIX_FASTEST_RANK] =
+            file->file_record->rank;
+        file->file_record->counters[POSIX_FASTEST_RANK_BYTES] = 
+            file->file_record->counters[POSIX_BYTES_READ] +
+            file->file_record->counters[POSIX_BYTES_WRITTEN];
+        file->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME] = 
+            posix_time;
+
+        /* until reduction occurs, we assume that this rank is both
+         * the fastest and slowest. It is up to the reduction operator
+         * to find the true min and max.
+         */
+        file->file_record->counters[POSIX_SLOWEST_RANK] =
+            file->file_record->counters[POSIX_FASTEST_RANK];
+        file->file_record->counters[POSIX_SLOWEST_RANK_BYTES] =
+            file->file_record->counters[POSIX_FASTEST_RANK_BYTES];
+        file->file_record->fcounters[POSIX_F_SLOWEST_RANK_TIME] =
+            file->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME];
+
         file->file_record->rank = -1;
     }
 
@@ -1618,6 +1624,48 @@ static void posix_record_reduction_op(
                 inoutfile->fcounters[POSIX_F_MAX_WRITE_TIME];
             tmp_file.counters[POSIX_MAX_WRITE_TIME_SIZE] =
                 inoutfile->counters[POSIX_MAX_WRITE_TIME_SIZE];
+        }
+
+        /* min (zeroes are ok here; some procs don't do I/O) */
+        if(infile->fcounters[POSIX_F_FASTEST_RANK_TIME] <
+           inoutfile->fcounters[POSIX_F_FASTEST_RANK_TIME])
+        {
+            tmp_file.counters[POSIX_FASTEST_RANK] =
+                infile->counters[POSIX_FASTEST_RANK];
+            tmp_file.counters[POSIX_FASTEST_RANK_BYTES] =
+                infile->counters[POSIX_FASTEST_RANK_BYTES];
+            tmp_file.fcounters[POSIX_F_FASTEST_RANK_TIME] =
+                infile->fcounters[POSIX_F_FASTEST_RANK_TIME];
+        }
+        else
+        {
+            tmp_file.counters[POSIX_FASTEST_RANK] =
+                inoutfile->counters[POSIX_FASTEST_RANK];
+            tmp_file.counters[POSIX_FASTEST_RANK_BYTES] =
+                inoutfile->counters[POSIX_FASTEST_RANK_BYTES];
+            tmp_file.fcounters[POSIX_F_FASTEST_RANK_TIME] =
+                inoutfile->fcounters[POSIX_F_FASTEST_RANK_TIME];
+        }
+
+        /* max */
+        if(infile->fcounters[POSIX_F_SLOWEST_RANK_TIME] >
+           inoutfile->fcounters[POSIX_F_SLOWEST_RANK_TIME])
+        {
+            tmp_file.counters[POSIX_SLOWEST_RANK] =
+                infile->counters[POSIX_SLOWEST_RANK];
+            tmp_file.counters[POSIX_SLOWEST_RANK_BYTES] =
+                infile->counters[POSIX_SLOWEST_RANK_BYTES];
+            tmp_file.fcounters[POSIX_F_SLOWEST_RANK_TIME] =
+                infile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
+        }
+        else
+        {
+            tmp_file.counters[POSIX_SLOWEST_RANK] =
+                inoutfile->counters[POSIX_SLOWEST_RANK];
+            tmp_file.counters[POSIX_SLOWEST_RANK_BYTES] =
+                inoutfile->counters[POSIX_SLOWEST_RANK_BYTES];
+            tmp_file.fcounters[POSIX_F_SLOWEST_RANK_TIME] =
+                inoutfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
         }
 
         /* update pointers */
