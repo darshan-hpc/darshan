@@ -138,6 +138,17 @@ struct posix_file_runtime
  * available. This structure includes another hash table link, since separate
  * hashes are maintained for posix_file_runtime structures and posix_file_runtime_ref
  * structures.
+ *
+ * RATIONALE: In theory the fd information could be included in the
+ * posix_file_runtime struct rather than in a separate structure here.  The
+ * reason we don't do that is because the same file could be opened multiple
+ * times by a given process with different file descriptors and thus
+ * simulataneously referenced using different file descriptors.  This practice is
+ * not common, but we must support it.
+ *
+ * NOTE: there are potentially multiple posix_file_runtime_ref structures
+ * referring to a single posix_file_runtime structure.  Most of the time there is
+ * only one, however.
  */
 struct posix_file_runtime_ref
 {
