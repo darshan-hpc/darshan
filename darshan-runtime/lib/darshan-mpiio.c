@@ -28,12 +28,62 @@
 #include "darshan.h"
 #include "darshan-mpiio-log-format.h"
 
+/* The mpiio_file_runtime structure maintains necessary runtime metadata
+ * for the MPIIO file record (darshan_mpiio_file structure, defined in
+ * darshan-mpiio-log-format.h) pointed to by 'file_record'. This metadata
+ * assists with the instrumenting of specific statistics in the file record.
+ * 'hlink' is a hash table link structure used to add/remove this record
+ * from the hash table of MPIIO file records for this process. 
+ *
+ * RATIONALE: the MPIIO module needs to track some stateful, volatile 
+ * information about each open file (like the current file offset, most recent 
+ * access time, etc.) to aid in instrumentation, but this information can't be
+ * stored in the darshan_mpiio_file struct because we don't want it to appear in
+ * the final darshan log file.  We therefore associate a mpiio_file_runtime
+ * struct with each darshan_mpiio_file struct in order to track this information.
+  *
+ * NOTE: There is a one-to-one mapping of mpiio_file_runtime structs to
+ * darshan_mpiio_file structs.
+ *
+ * NOTE: The mpiio_file_runtime struct contains a pointer to a darshan_mpiio_file
+ * struct (see the *file_record member) rather than simply embedding an entire
+ * darshan_mpiio_file struct.  This is done so that all of the darshan_mpiio_file
+ * structs can be kept contiguous in memory as a single array to simplify
+ * reduction, compression, and storage.
+ */
 struct mpiio_runtime_file
 {
     struct darshan_mpiio_file* file_record;
+    /* TODO: any stateful (but not intended for persistent storage in the log)
+     * information about MPI-IO access.  If we don't have any then this struct
+     * could be eliminated.
+     */
     UT_hash_handle hlink;
 };
 
+/* The mpiio_file_runtime_ref structure is used to associate a MPIIO
+ * file handle with an already existing MPIIO file record. This is
+ * necessary as many MPIIO I/O functions take only a file handle as input,
+ * but MPIIO file records are indexed by their full file paths (i.e., darshan
+ * record identifiers for MPIIO files are created by hashing the file path).
+ * In other words, this structure is necessary as it allows us to look up a
+ * file record either by a pathname (mpiio_file_runtime) or by MPIIO file
+ * descriptor (mpiio_file_runtime_ref), depending on which parameters are
+ * available. This structure includes another hash table link, since separate
+ * hashes are maintained for mpiio_file_runtime structures and mpiio_file_runtime_ref
+ * structures.
+ *
+ * RATIONALE: In theory the file handle information could be included in the
+ * mpiio_file_runtime struct rather than in a separate structure here.  The
+ * reason we don't do that is to handle the potential for an MPI implementation
+ * to produce a new file handle instance each time MPI_File_open() is called on a
+ * file.  Thus there might be multiple file handles referring to the same
+ * underlying record.
+ *
+ * NOTE: there are potentially multiple mpiio_file_runtime_ref structures
+ * referring to a single mpiio_file_runtime structure.  Most of the time there is
+ * only one, however.
+ */
 struct mpiio_runtime_file_ref
 {
     struct mpiio_runtime_file* file;
