@@ -37,8 +37,8 @@ enum darshan_posix_indices
     MEM_NOT_ALIGNED,          /* count of accesses not mem aligned */
     MEM_ALIGNMENT,            /* mem alignment in bytes */
     FILE_NOT_ALIGNED,         /* count of accesses not file aligned */
-#endif
     FILE_ALIGNMENT,           /* file alignment in bytes */
+#endif
     POSIX_MAX_READ_TIME_SIZE,
     POSIX_MAX_WRITE_TIME_SIZE,
 #if 0

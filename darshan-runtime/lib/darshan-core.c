@@ -1525,10 +1525,11 @@ static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *
 void darshan_core_register_module(
     darshan_module_id mod_id,
     struct darshan_module_funcs *funcs,
-    int *runtime_mem_limit)
+    int *mod_mem_limit,
+    int *sys_mem_alignment)
 {
     struct darshan_core_module* mod;
-    *runtime_mem_limit = 0;
+    *mod_mem_limit = 0;
 
     if(!darshan_core || (mod_id >= DARSHAN_MAX_MODS))
         return;
@@ -1551,7 +1552,6 @@ void darshan_core_register_module(
         return;
     }
     memset(mod, 0, sizeof(*mod));
-
     mod->id = mod_id;
     mod->mod_funcs = *funcs;
 
@@ -1559,14 +1559,17 @@ void darshan_core_register_module(
     darshan_core->mod_array[mod_id] = mod;
 
     /* TODO: something smarter than just 2 MiB per module */
-    *runtime_mem_limit = 2 * 1024 * 1024;
+    *mod_mem_limit = 2 * 1024 * 1024;
+
+    if(sys_mem_alignment)
+        *sys_mem_alignment = darshan_mem_alignment;
 
     DARSHAN_CORE_UNLOCK();
 
     return;
 }
 
-/* TODO: implement & test*/
+/* TODO: test */
 void darshan_core_unregister_module(
     darshan_module_id mod_id)
 {

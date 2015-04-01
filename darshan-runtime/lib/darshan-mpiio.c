@@ -206,7 +206,8 @@ static void mpiio_runtime_initialize()
     darshan_core_register_module(
         DARSHAN_MPIIO_MOD,
         &mpiio_mod_fns,
-        &mem_limit);
+        &mem_limit,
+        NULL);
 
     /* return if no memory assigned by darshan core */
     if(mem_limit == 0)

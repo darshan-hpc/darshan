@@ -181,6 +181,7 @@ static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int instrumentation_disabled = 0;
 static int my_rank = -1;
+static int darshan_mem_alignment = 1;
 
 #define POSIX_LOCK() pthread_mutex_lock(&posix_runtime_mutex)
 #define POSIX_UNLOCK() pthread_mutex_unlock(&posix_runtime_mutex)
@@ -1246,7 +1247,8 @@ static void posix_runtime_initialize()
     darshan_core_register_module(
         DARSHAN_POSIX_MOD,
         &posix_mod_fns,
-        &mem_limit);
+        &mem_limit,
+        &darshan_mem_alignment);
 
     /* return if no memory assigned by darshan core */
     if(mem_limit == 0)

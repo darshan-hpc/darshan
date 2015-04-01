@@ -141,7 +141,8 @@ extern char* darshan_path_exclusions[]; /* defined in lib/darshan-core.c */
 void darshan_core_register_module(
     darshan_module_id mod_id,
     struct darshan_module_funcs *funcs,
-    int *runtime_mem_limit);
+    int *mod_mem_limit,
+    int *sys_mem_alignment);
 
 void darshan_core_unregister_module(
     darshan_module_id mod_id);
