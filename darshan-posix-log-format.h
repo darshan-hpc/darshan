@@ -97,9 +97,6 @@ enum darshan_posix_indices
 /* floating point statistics for POSIX file records */
 enum darshan_posix_f_indices
 {
-    /* NOTE: adjust cp_normalize_timestamps() function if any TIMESTAMPS are
-     * added or modified in this list
-     */
     POSIX_F_OPEN_TIMESTAMP = 0,    /* timestamp of first open */
     POSIX_F_READ_START_TIMESTAMP,  /* timestamp of first read */
     POSIX_F_WRITE_START_TIMESTAMP, /* timestamp of first write */

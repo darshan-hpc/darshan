@@ -43,6 +43,10 @@ DARSHAN_FORWARD_DECL(creat, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(creat64, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(fopen, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(fopen64, FILE*, (const char *path, const char *mode));
+DARSHAN_FORWARD_DECL(mkstemp, int, (char *template));
+DARSHAN_FORWARD_DECL(mkostemp, int, (char *template, int flags));
+DARSHAN_FORWARD_DECL(mkstemps, int, (char *template, int suffixlen));
+DARSHAN_FORWARD_DECL(mkostemps, int, (char *template, int suffixlen, int flags));
 DARSHAN_FORWARD_DECL(read, ssize_t, (int fd, void *buf, size_t count));
 DARSHAN_FORWARD_DECL(write, ssize_t, (int fd, const void *buf, size_t count));
 DARSHAN_FORWARD_DECL(pread, ssize_t, (int fd, void *buf, size_t count, off_t offset));
@@ -68,7 +72,6 @@ DARSHAN_FORWARD_DECL(fsync, int, (int fd));
 DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
 DARSHAN_FORWARD_DECL(close, int, (int fd));
 DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
-/* TODO mkstemp */
 /* TODO aio */
 /* TODO listio */
 
@@ -493,6 +496,82 @@ FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
     POSIX_LOCK();
     posix_runtime_initialize();
     POSIX_RECORD_OPEN(fd, path, 0, 1, tm1, tm2);
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(mkstemp)(char* template)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(mkstemp);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_mkstemp(template);
+    tm2 = darshan_core_wtime();
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(mkostemp)(char* template, int flags)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(mkostemp);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_mkostemp(template, flags);
+    tm2 = darshan_core_wtime();
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(mkstemps)(char* template, int suffixlen)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(mkstemps);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_mkstemps(template, suffixlen);
+    tm2 = darshan_core_wtime();
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(mkostemps)(char* template, int suffixlen, int flags)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(mkostemps);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_mkostemps(template, suffixlen, flags);
+    tm2 = darshan_core_wtime();
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);

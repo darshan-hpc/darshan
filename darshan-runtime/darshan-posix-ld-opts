@@ -4,6 +4,10 @@
 --wrap=creat64
 --wrap=fopen
 --wrap=fopen64
+--wrap=mkstemp
+--wrap=mkostemp
+--wrap=mkstemps
+--wrap=mkostemps
 --wrap=read
 --wrap=write
 --wrap=pread
