@@ -97,6 +97,22 @@ enum posix_io_type
  * assists with the instrumenting of specific statistics in the file record.
  * 'hlink' is a hash table link structure used to add/remove this record
  * from the hash table of POSIX file records for this process. 
+ *
+ * RATIONALE: the POSIX module needs to track some stateful, volatile 
+ * information about each open file (like the current file offset, most recent 
+ * access time, etc.) to aid in instrumentation, but this information can't be
+ * stored in the darshan_posix_file struct because we don't want it to appear in
+ * the final darshan log file.  We therefore associate a posix_file_runtime
+ * struct with each darshan_posix_file struct in order to track this information.
+  *
+ * NOTE: There is a one-to-one mapping of posix_file_runtime structs to
+ * darshan_posix_file structs.
+ *
+ * NOTE: The posix_file_runtime struct contains a pointer to a darshan_posix_file
+ * struct (see the *file_record member) rather than simply embedding an entire
+ * darshan_posix_file struct.  This is done so that all of the darshan_posix_file
+ * structs can be kept contiguous in memory as a single array to simplify
+ * reduction, compression, and storage.
  */
 struct posix_file_runtime
 {
