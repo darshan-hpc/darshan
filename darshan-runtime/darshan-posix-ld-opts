@@ -23,6 +23,8 @@
 --wrap=__lxstat64
 --wrap=__fxstat
 --wrap=__fxstat64
+--wrap=mmap
+--wrap=mmap64
 --wrap=fsync
 --wrap=fdatasync
 --wrap=close

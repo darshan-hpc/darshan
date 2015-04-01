@@ -16,9 +16,7 @@ enum darshan_posix_indices
     POSIX_WRITES,             /* count of posix writes */
     POSIX_SEEKS,              /* count of posix seeks */
     POSIX_STATS,              /* count of posix stat/lstat/fstats */
-#if 0
     POSIX_MMAPS,              /* count of posix mmaps */
-#endif
     POSIX_FOPENS,             /* count of posix fopens */
     POSIX_FREADS,             /* count of posix freads */
     POSIX_FWRITES,            /* count of posix fwrites */

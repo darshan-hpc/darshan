@@ -62,7 +62,8 @@ DARSHAN_FORWARD_DECL(__lxstat, int, (int vers, const char* path, struct stat *bu
 DARSHAN_FORWARD_DECL(__lxstat64, int, (int vers, const char* path, struct stat64 *buf));
 DARSHAN_FORWARD_DECL(__fxstat, int, (int vers, int fd, struct stat *buf));
 DARSHAN_FORWARD_DECL(__fxstat64, int, (int vers, int fd, struct stat64 *buf));
-/* TODO mmaps */
+DARSHAN_FORWARD_DECL(mmap, void*, (void *addr, size_t length, int prot, int flags, int fd, off_t offset));
+DARSHAN_FORWARD_DECL(mmap64, void*, (void *addr, size_t length, int prot, int flags, int fd, off64_t offset));
 DARSHAN_FORWARD_DECL(fsync, int, (int fd));
 DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
 DARSHAN_FORWARD_DECL(close, int, (int fd));
@@ -987,6 +988,54 @@ int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
     if(file)
     {
         POSIX_RECORD_STAT(file, buf, tm1, tm2);
+    }
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
+    int fd, off_t offset)
+{
+    void* ret;
+    struct posix_file_runtime* file;
+
+    MAP_OR_FAIL(mmap);
+
+    ret = __real_mmap(addr, length, prot, flags, fd, offset);
+    if(ret == MAP_FAILED)
+        return(ret);
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    file = posix_file_by_fd(fd);
+    if(file)
+    {
+        DARSHAN_COUNTER_INC(file->file_record, POSIX_MMAPS, 1);
+    }
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
+    int fd, off64_t offset)
+{
+    void* ret;
+    struct posix_file_runtime* file;
+
+    MAP_OR_FAIL(mmap64);
+
+    ret = __real_mmap64(addr, length, prot, flags, fd, offset);
+    if(ret == MAP_FAILED)
+        return(ret);
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    file = posix_file_by_fd(fd);
+    if(file)
+    {
+        DARSHAN_COUNTER_INC(file->file_record, POSIX_MMAPS, 1);
     }
     POSIX_UNLOCK();
 

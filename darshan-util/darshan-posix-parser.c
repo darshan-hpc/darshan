@@ -175,6 +175,7 @@ int main(int argc, char **argv)
             "\t\tPOSIX_WRITES:\t%"PRIu64"\n"
             "\t\tPOSIX_SEEKS:\t%"PRIu64"\n"
             "\t\tPOSIX_STATS:\t%"PRIu64"\n"
+            "\t\tPOSIX_MMAPS:\t%"PRIu64"\n"
             "\t\tPOSIX_FOPENS:\t%"PRIu64"\n"
             "\t\tPOSIX_FREADS:\t%"PRIu64"\n"
             "\t\tPOSIX_FWRITES:\t%"PRIu64"\n"
@@ -210,6 +211,7 @@ int main(int argc, char **argv)
             next_file.counters[POSIX_WRITES],
             next_file.counters[POSIX_SEEKS],
             next_file.counters[POSIX_STATS],
+            next_file.counters[POSIX_MMAPS],
             next_file.counters[POSIX_FOPENS],
             next_file.counters[POSIX_FREADS],
             next_file.counters[POSIX_FWRITES],
