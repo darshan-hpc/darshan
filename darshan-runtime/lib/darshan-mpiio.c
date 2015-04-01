@@ -51,7 +51,7 @@
  * structs can be kept contiguous in memory as a single array to simplify
  * reduction, compression, and storage.
  */
-struct mpiio_runtime_file
+struct mpiio_file_runtime
 {
     struct darshan_mpiio_file* file_record;
     /* TODO: any stateful (but not intended for persistent storage in the log)
@@ -84,21 +84,21 @@ struct mpiio_runtime_file
  * referring to a single mpiio_file_runtime structure.  Most of the time there is
  * only one, however.
  */
-struct mpiio_runtime_file_ref
+struct mpiio_file_runtime_ref
 {
-    struct mpiio_runtime_file* file;
-    MPI_File fh;
+    struct mpiio_file_runtime* file;
+    MPI_File *fh;
     UT_hash_handle hlink;
 };
 
 struct mpiio_runtime
 {
-    struct mpiio_runtime_file* file_runtime_array;
+    struct mpiio_file_runtime* file_runtime_array;
     struct darshan_mpiio_file* file_record_array;
     int file_array_size;
     int file_array_ndx;
-    struct mpiio_runtime_file* file_hash;
-    struct mpiio_runtime_file_ref* fh_hash;
+    struct mpiio_file_runtime* file_hash;
+    struct mpiio_file_runtime_ref* fh_hash;
     void *red_buf;
     int shared_rec_count;
 };
@@ -117,6 +117,8 @@ static void mpiio_shutdown(void);
 static void mpiio_get_output_data(
     void **buffer,
     int *size);
+static struct mpiio_file_runtime* mpiio_file_by_name_setfh(const char* name, MPI_File *fh);
+static struct mpiio_file_runtime* mpiio_file_by_name(const char *name);
 
 #ifdef HAVE_MPIIO_CONST
 int MPI_File_open(MPI_Comm comm, const char *filename, int amode, MPI_Info info, MPI_File *fh) 
@@ -125,7 +127,7 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
 #endif
 {
     int ret;
-    struct darshan_file_runtime* file;
+    struct mpiio_file_runtime* file;
     char* tmp;
     int comm_size;
     double tm1, tm2;
@@ -149,8 +151,9 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
             filename = tmp + 1;
         }
 
+        file = mpiio_file_by_name_setfh(filename, fh);
+        //printf("Hello world: got file ref %p\n", file);
         /* TODO: record statistics */
-        //printf("HELLO WORLD!\n");
 
 #if 0
         file = darshan_file_by_name_setfh(filename, (*fh));
@@ -185,7 +188,6 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
 
 static void mpiio_runtime_initialize()
 {
-    int ret;
     int mem_limit;
     struct darshan_module_funcs mpiio_mod_fns =
     {
@@ -222,7 +224,7 @@ static void mpiio_runtime_initialize()
 
     /* allocate array of runtime file records */
     mpiio_runtime->file_runtime_array = malloc(mpiio_runtime->file_array_size *
-                                               sizeof(struct mpiio_runtime_file));
+                                               sizeof(struct mpiio_file_runtime));
     mpiio_runtime->file_record_array = malloc(mpiio_runtime->file_array_size *
                                               sizeof(struct darshan_mpiio_file));
     if(!mpiio_runtime->file_runtime_array || !mpiio_runtime->file_record_array)
@@ -231,7 +233,7 @@ static void mpiio_runtime_initialize()
         return;
     }
     memset(mpiio_runtime->file_runtime_array, 0, mpiio_runtime->file_array_size *
-           sizeof(struct mpiio_runtime_file));
+           sizeof(struct mpiio_file_runtime));
     memset(mpiio_runtime->file_record_array, 0, mpiio_runtime->file_array_size *
            sizeof(struct darshan_mpiio_file));
 
@@ -268,7 +270,7 @@ static void mpiio_get_output_data(
 
 static void mpiio_shutdown()
 {
-    struct mpiio_runtime_file_ref *ref, *tmp;
+    struct mpiio_file_runtime_ref *ref, *tmp;
 
     HASH_ITER(hlink, mpiio_runtime->fh_hash, ref, tmp)
     {
@@ -284,6 +286,98 @@ static void mpiio_shutdown()
     mpiio_runtime = NULL;
 
     return;
+}
+
+/* get a MPIIO file record for the given file path */
+static struct mpiio_file_runtime* mpiio_file_by_name(const char *name)
+{
+    struct mpiio_file_runtime *file = NULL;
+    char *newname = NULL;
+    darshan_record_id file_id;
+
+    if(!mpiio_runtime || instrumentation_disabled)
+        return(NULL);
+
+    newname = darshan_clean_file_path(name);
+    if(!newname)
+        newname = (char*)name;
+
+    /* get a unique id for this file from darshan core */
+    darshan_core_register_record(
+        (void*)newname,
+        strlen(newname),
+        1,
+        DARSHAN_MPIIO_MOD,
+        &file_id);
+
+    /* search the hash table for this file record, and return if found */
+    HASH_FIND(hlink, mpiio_runtime->file_hash, &file_id, sizeof(darshan_record_id), file);
+    if(file)
+    {
+        if(newname != name)
+            free(newname);
+        return(file);
+    }
+
+    if(mpiio_runtime->file_array_ndx < mpiio_runtime->file_array_size);
+    {
+        /* no existing record, assign a new file record from the global array */
+        file = &(mpiio_runtime->file_runtime_array[mpiio_runtime->file_array_ndx]);
+        file->file_record = &(mpiio_runtime->file_record_array[mpiio_runtime->file_array_ndx]);
+        file->file_record->f_id = file_id;
+
+        /* add new record to file hash table */
+        HASH_ADD(hlink, mpiio_runtime->file_hash, file_record->f_id, sizeof(darshan_record_id), file);
+
+        mpiio_runtime->file_array_ndx++;
+    }
+
+    if(newname != name)
+        free(newname);
+    return(file);
+}
+
+/* get an MPIIO file record for the given file path, and also create a
+ * reference structure using the corresponding file handle
+ */
+static struct mpiio_file_runtime* mpiio_file_by_name_setfh(const char* name, MPI_File *fh)
+{
+    struct mpiio_file_runtime* file;
+    struct mpiio_file_runtime_ref* ref;
+
+    if(!mpiio_runtime || instrumentation_disabled)
+        return(NULL);
+
+    /* find file record by name first */
+    file = mpiio_file_by_name(name);
+
+    if(!file)
+        return(NULL);
+
+    /* search hash table for existing file ref for this fh */
+    HASH_FIND(hlink, mpiio_runtime->fh_hash, &fh, sizeof(fh), ref);
+    if(ref)
+    {
+        /* we have a reference.  Make sure it points to the correct file
+         * and return it
+         */
+        ref->file = file;
+        return(file);
+    }
+
+    /* if we hit this point, then we don't have a reference for this fh
+     * in the table yet.  Add it.
+     */
+    ref = malloc(sizeof(*ref));
+    if(!ref)
+        return(NULL);
+    memset(ref, 0, sizeof(*ref));
+
+    ref->file = file;
+    ref->fh = fh;    
+    HASH_ADD(hlink, mpiio_runtime->fh_hash, fh, sizeof(fh), ref);
+
+    return(file);
 }
 
 
