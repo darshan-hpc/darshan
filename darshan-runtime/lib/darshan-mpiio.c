@@ -87,7 +87,7 @@ struct mpiio_runtime_file
 struct mpiio_runtime_file_ref
 {
     struct mpiio_runtime_file* file;
-    int fd;
+    MPI_File fh;
     UT_hash_handle hlink;
 };
 
@@ -98,7 +98,7 @@ struct mpiio_runtime
     int file_array_size;
     int file_array_ndx;
     struct mpiio_runtime_file* file_hash;
-    struct mpiio_runtime_file_ref* fd_hash;
+    struct mpiio_runtime_file_ref* fh_hash;
     void *red_buf;
     int shared_rec_count;
 };
@@ -270,9 +270,9 @@ static void mpiio_shutdown()
 {
     struct mpiio_runtime_file_ref *ref, *tmp;
 
-    HASH_ITER(hlink, mpiio_runtime->fd_hash, ref, tmp)
+    HASH_ITER(hlink, mpiio_runtime->fh_hash, ref, tmp)
     {
-        HASH_DELETE(hlink, mpiio_runtime->fd_hash, ref);
+        HASH_DELETE(hlink, mpiio_runtime->fh_hash, ref);
         free(ref);
     }
 
