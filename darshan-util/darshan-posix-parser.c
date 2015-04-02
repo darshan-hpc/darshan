@@ -192,10 +192,12 @@ int main(int argc, char **argv)
             "\t\tPOSIX_SEQ_READS:\t%"PRIu64"\n"
             "\t\tPOSIX_SEQ_WRITES:\t%"PRIu64"\n"
             "\t\tPOSIX_RW_SWITCHES:\t%"PRIu64"\n"
-            "\t\tFILE_ALIGNMENT:\t%"PRIu64"\n"
+            "\t\tPOSIX_MEM_NOT_ALIGNED:\t%"PRIu64"\n"
+            "\t\tPOSIX_MEM_ALIGNMENT:\t%"PRIu64"\n"
+            "\t\tPOSIX_FILE_NOT_ALIGNED:\t%"PRIu64"\n"
+            "\t\tPOSIX_FILE_ALIGNMENT:\t%"PRIu64"\n"
             "\t\tPOSIX_MAX_READ_TIME_SIZE:\t%"PRIu64"\n"
             "\t\tPOSIX_MAX_WRITE_TIME_SIZE:\t%"PRIu64"\n"
-            "\t\tSIZE_AT_OPEN:\t%"PRIu64"\n"
             "\t\tPOSIX_FASTEST_RANK:\t%"PRIu64"\n"
             "\t\tPOSIX_FASTEST_RANK_BYTES:\t%"PRIu64"\n"
             "\t\tPOSIX_SLOWEST_RANK:\t%"PRIu64"\n"
@@ -235,10 +237,12 @@ int main(int argc, char **argv)
             next_file.counters[POSIX_SEQ_READS],
             next_file.counters[POSIX_SEQ_WRITES],
             next_file.counters[POSIX_RW_SWITCHES],
-            next_file.counters[FILE_ALIGNMENT],
+            next_file.counters[POSIX_MEM_NOT_ALIGNED],
+            next_file.counters[POSIX_MEM_ALIGNMENT],
+            next_file.counters[POSIX_FILE_NOT_ALIGNED],
+            next_file.counters[POSIX_FILE_ALIGNMENT],
             next_file.counters[POSIX_MAX_READ_TIME_SIZE],
             next_file.counters[POSIX_MAX_WRITE_TIME_SIZE],
-            next_file.counters[SIZE_AT_OPEN],
             next_file.counters[POSIX_FASTEST_RANK],
             next_file.counters[POSIX_FASTEST_RANK_BYTES],
             next_file.counters[POSIX_SLOWEST_RANK],

@@ -33,12 +33,10 @@ enum darshan_posix_indices
     POSIX_SEQ_READS,          /* count of sequential reads */
     POSIX_SEQ_WRITES,         /* count of sequential writes */
     POSIX_RW_SWITCHES,        /* number of times switched between read and write */
-#if 0
-    MEM_NOT_ALIGNED,          /* count of accesses not mem aligned */
-    MEM_ALIGNMENT,            /* mem alignment in bytes */
-    FILE_NOT_ALIGNED,         /* count of accesses not file aligned */
-    FILE_ALIGNMENT,           /* file alignment in bytes */
-#endif
+    POSIX_MEM_NOT_ALIGNED,    /* count of accesses not mem aligned */
+    POSIX_MEM_ALIGNMENT,      /* mem alignment in bytes */
+    POSIX_FILE_NOT_ALIGNED,   /* count of accesses not file aligned */
+    POSIX_FILE_ALIGNMENT,     /* file alignment in bytes */
     POSIX_MAX_READ_TIME_SIZE,
     POSIX_MAX_WRITE_TIME_SIZE,
 #if 0

@@ -309,7 +309,8 @@ static struct mpiio_file_runtime* mpiio_file_by_name(const char *name)
         strlen(newname),
         1,
         DARSHAN_MPIIO_MOD,
-        &file_id);
+        &file_id,
+        NULL);
 
     /* search the hash table for this file record, and return if found */
     HASH_FIND(hlink, mpiio_runtime->file_hash, &file_id, sizeof(darshan_record_id), file);
@@ -635,7 +636,8 @@ static struct posix_runtime_file* posix_file_by_name(const char *name)
         strlen(newname),
         1,
         DARSHAN_POSIX_MOD,
-        &file_id);
+        &file_id,
+        NULL);
 
     /* search the hash table for this file record, and return if found */
     HASH_FIND(hlink, posix_runtime->file_hash, &file_id, sizeof(darshan_record_id), file);

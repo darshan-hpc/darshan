@@ -62,7 +62,7 @@ NULL
 #define DARSHAN_MAX_MNT_TYPE 32
 struct mnt_data
 {
-    int64_t block_size;
+    int block_size;
     char path[DARSHAN_MAX_MNT_PATH];
     char type[DARSHAN_MAX_MNT_TYPE];
 };
@@ -85,6 +85,8 @@ static void darshan_get_exe_and_mounts_root(
     int space_left);
 static char* darshan_get_exe_and_mounts(
     struct darshan_core_runtime *core);
+static void darshan_block_size_from_path(
+    const char *path, int *block_size);
 static void darshan_get_shared_records(
     struct darshan_core_runtime *core, darshan_record_id *shared_recs);
 static int darshan_log_open_all(
@@ -163,9 +165,12 @@ static void darshan_core_initialize(int argc, char **argv)
     int i;
     int internal_timing_flag = 0;
     double init_start, init_time, init_max;
+    char *envstr;
     char* truncate_string = "<TRUNCATED>";
     int truncate_offset;
     int chars_left = 0;
+    int ret;
+    int tmpval;
 
     DARSHAN_MPI_CALL(PMPI_Comm_size)(MPI_COMM_WORLD, &nprocs);
     DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
@@ -179,7 +184,29 @@ static void darshan_core_initialize(int argc, char **argv)
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if(!getenv("DARSHAN_DISABLE") && !darshan_core)
     {
-        /* TODO: darshan mem alignment code? */
+        #if (__CP_MEM_ALIGNMENT < 1)
+            #error Darshan must be configured with a positive value for --with-mem-align
+        #endif
+        envstr = getenv("DARSHAN_MEMALIGN");
+        if(envstr)
+        {
+            ret = sscanf(envstr, "%d", &tmpval);
+            /* silently ignore if the env variable is set poorly */
+            if(ret == 1 && tmpval > 0)
+            {
+                darshan_mem_alignment = tmpval;
+            }
+        }
+        else
+        {
+            darshan_mem_alignment = __CP_MEM_ALIGNMENT;
+        }
+
+        /* avoid floating point errors on faulty input */
+        if (darshan_mem_alignment < 1)
+        {
+            darshan_mem_alignment = 1;
+        }
 
         /* allocate structure to track darshan_core_runtime information */
         darshan_core = malloc(sizeof(*darshan_core));
@@ -1147,6 +1174,23 @@ static char* darshan_get_exe_and_mounts(struct darshan_core_runtime *core)
     return(trailing_data);
 }
 
+static void darshan_block_size_from_path(const char *path, int *block_size)
+{
+    int i;
+    *block_size = -1;
+
+    for(i=0; i<mnt_data_count; i++)
+    {
+        if(!(strncmp(mnt_data_array[i].path, path, strlen(mnt_data_array[i].path))))
+        {
+            *block_size = mnt_data_array[i].block_size;
+            return;
+        }
+    }
+
+    return;
+}
+
 static void darshan_get_shared_records(struct darshan_core_runtime *core,
     darshan_record_id *shared_recs)
 {
@@ -1534,6 +1578,9 @@ void darshan_core_register_module(
     if(!darshan_core || (mod_id >= DARSHAN_MAX_MODS))
         return;
 
+    if(sys_mem_alignment)
+        *sys_mem_alignment = darshan_mem_alignment;
+
     /* see if this module is already registered */
     DARSHAN_CORE_LOCK();
     if(darshan_core->mod_array[mod_id])
@@ -1560,9 +1607,6 @@ void darshan_core_register_module(
 
     /* TODO: something smarter than just 2 MiB per module */
     *mod_mem_limit = 2 * 1024 * 1024;
-
-    if(sys_mem_alignment)
-        *sys_mem_alignment = darshan_mem_alignment;
 
     DARSHAN_CORE_UNLOCK();
 
@@ -1599,7 +1643,8 @@ void darshan_core_register_record(
     int len,
     int printable_flag,
     darshan_module_id mod_id,
-    darshan_record_id *rec_id)
+    darshan_record_id *rec_id,
+    int *file_alignment)
 {
     darshan_record_id tmp_rec_id;
     struct darshan_core_record_ref *ref;
@@ -1641,6 +1686,9 @@ void darshan_core_register_record(
     }
     ref->mod_flags = DARSHAN_CORE_MOD_SET(ref->mod_flags, mod_id);
     DARSHAN_CORE_UNLOCK();
+
+    if(file_alignment)
+        darshan_block_size_from_path(name, file_alignment);
 
     *rec_id = tmp_rec_id;
     return;
