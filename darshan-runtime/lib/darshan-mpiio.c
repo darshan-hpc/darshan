@@ -27,6 +27,7 @@
 #include "uthash.h"
 #include "darshan.h"
 #include "darshan-mpiio-log-format.h"
+#include "darshan-dynamic.h"
 
 /* The mpiio_file_runtime structure maintains necessary runtime metadata
  * for the MPIIO file record (darshan_mpiio_file structure, defined in

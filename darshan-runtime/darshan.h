@@ -30,12 +30,12 @@
  * consistently regardless of whether static or dynamic linking is used
  */
 #ifdef DARSHAN_PRELOAD
-#define __USE_GNU
+
 #include <dlfcn.h>
 #include <stdlib.h>
 
 #define DARSHAN_FORWARD_DECL(name,ret,args) \
-  ret (*__real_ ## name)args = NULL;
+  ret (*__real_ ## name)args = NULL
 
 #define DARSHAN_DECL(__name) __name
 

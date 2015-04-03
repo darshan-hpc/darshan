@@ -9,16 +9,10 @@
 
 #ifdef DARSHAN_PRELOAD
 
-#include <dlfcn.h>
-#include <stdlib.h>
-
-#define DARSHAN_MPI_CALL(func) __real_ ## func
-
 #define DARSHAN_EXTERN_DECL(name,ret,args) \
   extern ret (*__real_ ## name)args;
 
 DARSHAN_EXTERN_DECL(PMPI_File_close, int, (MPI_File *fh));
-DARSHAN_EXTERN_DECL(PMPI_File_set_size, int, (MPI_File fh, MPI_Offset size));
 DARSHAN_EXTERN_DECL(PMPI_File_iread_at, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
 DARSHAN_EXTERN_DECL(PMPI_File_iread, int, (MPI_File fh, void  *buf, int  count, MPI_Datatype  datatype, __D_MPI_REQUEST  *request));
 DARSHAN_EXTERN_DECL(PMPI_File_iread_shared, int, (MPI_File fh, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
@@ -105,7 +99,6 @@ DARSHAN_EXTERN_DECL(PMPI_File_write_shared, int, (MPI_File fh, void *buf, int co
 DARSHAN_EXTERN_DECL(PMPI_Finalize, int, ());
 DARSHAN_EXTERN_DECL(PMPI_Init, int, (int *argc, char ***argv));
 DARSHAN_EXTERN_DECL(PMPI_Init_thread, int, (int *argc, char ***argv, int required, int *provided));
-
 DARSHAN_EXTERN_DECL(PMPI_Wtime, double, ());
 DARSHAN_EXTERN_DECL(PMPI_Allreduce, int, (void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm));
 DARSHAN_EXTERN_DECL(PMPI_Bcast, int, (void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm comm));
@@ -117,16 +110,14 @@ DARSHAN_EXTERN_DECL(PMPI_Type_contiguous, int, (int count, MPI_Datatype oldtype,
 DARSHAN_EXTERN_DECL(PMPI_Type_extent, int, (MPI_Datatype datatype, MPI_Aint *extent));
 DARSHAN_EXTERN_DECL(PMPI_Type_free, int, (MPI_Datatype *datatype));
 DARSHAN_EXTERN_DECL(PMPI_Type_hindexed, int, (int count, int *array_of_blocklengths, MPI_Aint *array_of_displacements, MPI_Datatype oldtype, MPI_Datatype *newtype));
+DARSHAN_EXTERN_DECL(PMPI_Type_get_envelope, int, (MPI_Datatype datatype, int *num_integers, int *num_addresses, int *num_datatypes, int *combiner));
+DARSHAN_EXTERN_DECL(PMPI_Type_size, int, (MPI_Datatype datatype, int *size));
 DARSHAN_EXTERN_DECL(PMPI_Op_create, int, (MPI_User_function *function, int commute, MPI_Op *op));
 DARSHAN_EXTERN_DECL(PMPI_Op_free, int, (MPI_Op *op));
 DARSHAN_EXTERN_DECL(PMPI_Reduce, int, (void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm));
-DARSHAN_EXTERN_DECL(PMPI_Type_get_envelope, int, (MPI_Datatype datatype, int *num_integers, int *num_addresses, int *num_datatypes, int *combiner));
-DARSHAN_EXTERN_DECL(PMPI_Type_size, int, (MPI_Datatype datatype, int *size));
-
-#else
-
-#define DARSHAN_MPI_CALL(func) func
+DARSHAN_EXTERN_DECL(PMPI_Send, int, (void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm));
+DARSHAN_EXTERN_DECL(PMPI_Recv, int, (void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status *status));
 
 #endif
 
-#endif
+#endif /* __DARSHAN_DYNAMIC_H */

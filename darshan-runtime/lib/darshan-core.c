@@ -26,7 +26,9 @@
 #include <assert.h>
 
 #include "uthash.h"
+#include "darshan.h"
 #include "darshan-core.h"
+#include "darshan-dynamic.h"
 
 extern char* __progname;
 extern char* __progname_full;
@@ -70,12 +72,6 @@ static struct mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
 
 /* prototypes for internal helper functions */
-static void darshan_core_initialize(
-    int argc, char **argv);
-static void darshan_core_shutdown(
-    void);
-static void darshan_core_cleanup(
-    struct darshan_core_runtime* core);
 static void darshan_get_logfile_name(
     char* logfile_name, int jobid, struct tm* start_tm);
 static void darshan_log_record_hints_and_ver(
@@ -100,67 +96,12 @@ static int darshan_log_write_record_hash(
 static int darshan_log_append_all(
     MPI_File log_fh, struct darshan_core_runtime *core, void *buf,
     int count, uint64_t *inout_off, uint64_t *agg_uncomp_sz);
-
-/* intercept MPI initialize and finalize to manage darshan core runtime */
-int MPI_Init(int *argc, char ***argv)
-{
-    int ret;
-
-    ret = DARSHAN_MPI_CALL(PMPI_Init)(argc, argv);
-    if(ret != MPI_SUCCESS)
-    {
-        return(ret);
-    }
-
-    if(argc && argv)
-    {
-        darshan_core_initialize(*argc, *argv);
-    }
-    else
-    {
-        /* we don't see argc and argv here in fortran */
-        darshan_core_initialize(0, NULL);
-    }
-
-    return(ret);
-}
-
-int MPI_Init_thread(int *argc, char ***argv, int required, int *provided)
-{
-    int ret;
-
-    ret = DARSHAN_MPI_CALL(PMPI_Init_thread)(argc, argv, required, provided);
-    if(ret != MPI_SUCCESS)
-    {
-        return(ret);
-    }
-
-    if(argc && argv)
-    {
-        darshan_core_initialize(*argc, *argv);
-    }
-    else
-    {
-        /* we don't see argc and argv here in fortran */
-        darshan_core_initialize(0, NULL);
-    }
-
-    return(ret);
-}
-
-int MPI_Finalize(void)
-{
-    int ret;
-
-    darshan_core_shutdown();
-
-    ret = DARSHAN_MPI_CALL(PMPI_Finalize)();
-    return(ret);
-}
+static void darshan_core_cleanup(
+    struct darshan_core_runtime* core);
 
 /* *********************************** */
 
-static void darshan_core_initialize(int argc, char **argv)
+void darshan_core_initialize(int argc, char **argv)
 {
     int i;
     int internal_timing_flag = 0;
@@ -270,7 +211,7 @@ static void darshan_core_initialize(int argc, char **argv)
     return;
 }
 
-static void darshan_core_shutdown()
+void darshan_core_shutdown()
 {
     int i;
     char *logfile_name;
@@ -769,33 +710,7 @@ static void darshan_core_shutdown()
     return;
 }
 
-/* free darshan core data structures to shutdown */
-static void darshan_core_cleanup(struct darshan_core_runtime* core)
-{
-    struct darshan_core_record_ref *tmp, *ref;
-    int i;
-
-    HASH_ITER(hlink, core->rec_hash, ref, tmp)
-    {
-        HASH_DELETE(hlink, core->rec_hash, ref);
-        free(ref->rec.name);
-        free(ref);
-    }
-
-    for(i = 0; i < DARSHAN_MAX_MODS; i++)
-    {
-        if(core->mod_array[i])
-        {        
-            free(core->mod_array[i]);
-            core->mod_array[i] = NULL;
-        }
-    }
-
-    free(core->trailing_data);
-    free(core);
-
-    return;
-}
+/* *********************************** */
 
 /* construct the darshan log file name */
 static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* start_tm)
@@ -1562,6 +1477,34 @@ static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *
     if(ret != 0)
         return(-1);
     return(0);
+}
+
+/* free darshan core data structures to shutdown */
+static void darshan_core_cleanup(struct darshan_core_runtime* core)
+{
+    struct darshan_core_record_ref *tmp, *ref;
+    int i;
+
+    HASH_ITER(hlink, core->rec_hash, ref, tmp)
+    {
+        HASH_DELETE(hlink, core->rec_hash, ref);
+        free(ref->rec.name);
+        free(ref);
+    }
+
+    for(i = 0; i < DARSHAN_MAX_MODS; i++)
+    {
+        if(core->mod_array[i])
+        {        
+            free(core->mod_array[i]);
+            core->mod_array[i] = NULL;
+        }
+    }
+
+    free(core->trailing_data);
+    free(core);
+
+    return;
 }
 
 /* ********************************************************* */

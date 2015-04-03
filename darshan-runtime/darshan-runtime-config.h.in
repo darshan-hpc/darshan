@@ -105,9 +105,5 @@
 /* Memory alignment in bytes */
 #undef __CP_MEM_ALIGNMENT
 
-/* Define if Darshan should stat files at open time to collect extra
-   statistics */
-#undef __CP_STAT_AT_OPEN
-
 /* Generalized request type for MPI-IO */
 #undef __D_MPI_REQUEST

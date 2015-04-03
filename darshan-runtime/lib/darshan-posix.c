@@ -35,6 +35,10 @@ typedef int64_t off64_t;
 #define aiocb64 aiocb
 #endif
 
+#ifdef DARSHAN_PRELOAD
+extern double (*__real_PMPI_Comm_rank)(MPI_Comm comm, int *rank);
+#endif
+
 /* TODO: more libc, fgetc, etc etc etc. */
 
 DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
@@ -215,7 +219,7 @@ static int darshan_mem_alignment = 1;
 } while(0)
 
 #define POSIX_RECORD_READ(__ret, __fd, __pread_flag, __pread_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
-    size_t stride; \
+    /* size_t stride; */\
     int64_t this_offset; \
     struct posix_file_runtime* file; \
     int64_t file_alignment; \
@@ -231,11 +235,11 @@ static int darshan_mem_alignment = 1;
         DARSHAN_COUNTER_INC(file->file_record, POSIX_SEQ_READS, 1); \
     if(this_offset == (file->last_byte_read + 1)) \
         DARSHAN_COUNTER_INC(file->file_record, POSIX_CONSEC_READS, 1); \
-    if(this_offset > 0 && this_offset > file->last_byte_read \
+    /* if(this_offset > 0 && this_offset > file->last_byte_read \
         && file->last_byte_read != 0) \
         stride = this_offset - file->last_byte_read - 1; \
     else \
-        stride = 0; \
+        stride = 0; */\
     file->last_byte_read = this_offset + __ret - 1; \
     file->offset = this_offset + __ret; \
     DARSHAN_COUNTER_MAX(file->file_record, POSIX_MAX_BYTE_READ, (this_offset + __ret - 1)); \
@@ -265,7 +269,7 @@ static int darshan_mem_alignment = 1;
 } while(0)
 
 #define POSIX_RECORD_WRITE(__ret, __fd, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
-    size_t stride; \
+    /* size_t stride; */\
     int64_t this_offset; \
     struct posix_file_runtime* file; \
     int64_t file_alignment; \
@@ -281,11 +285,11 @@ static int darshan_mem_alignment = 1;
         DARSHAN_COUNTER_INC(file->file_record, POSIX_SEQ_WRITES, 1); \
     if(this_offset == (file->last_byte_written + 1)) \
         DARSHAN_COUNTER_INC(file->file_record, POSIX_CONSEC_WRITES, 1); \
-    if(this_offset > 0 && this_offset > file->last_byte_written \
+    /* if(this_offset > 0 && this_offset > file->last_byte_written \
         && file->last_byte_written != 0) \
         stride = this_offset - file->last_byte_written - 1; \
     else \
-        stride = 0; \
+        stride = 0; */\
     file->last_byte_written = this_offset + __ret - 1; \
     file->offset = this_offset + __ret; \
     DARSHAN_COUNTER_MAX(file->file_record, POSIX_MAX_BYTE_WRITTEN, (this_offset + __ret - 1)); \
@@ -579,7 +583,7 @@ ssize_t DARSHAN_DECL(read)(int fd, void *buf, size_t count)
     int aligned_flag = 0;
     double tm1, tm2;
 
-    MAP_OR_FAIL(write);
+    MAP_OR_FAIL(read);
 
     if((unsigned long)buf % darshan_mem_alignment == 0) aligned_flag = 1;
 

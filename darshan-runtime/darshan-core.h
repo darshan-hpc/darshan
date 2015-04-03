@@ -11,7 +11,8 @@
 #include <sys/types.h>
 #include <stdint.h>
 
-#include "darshan.h"
+#include "uthash.h"
+#include "darshan-log-format.h"
 
 #define DARSHAN_CORE_MAX_RECORDS 1024
 
@@ -49,6 +50,9 @@ struct darshan_core_record_ref
     uint64_t global_mod_flags;
     UT_hash_handle hlink;
 };
+
+void darshan_core_initialize(int argc, char **argv);
+void darshan_core_shutdown(void);
 
 uint32_t darshan_hashlittle(const void *key, size_t length, uint32_t initval);
 uint64_t darshan_hash(const register unsigned char *k, register uint64_t length, register uint64_t level);
