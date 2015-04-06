@@ -55,6 +55,7 @@
 struct mpiio_file_runtime
 {
     struct darshan_mpiio_file* file_record;
+    double last_mpi_meta_end; /* end time of last MPI meta op (so far) */
     /* TODO: any stateful (but not intended for persistent storage in the log)
      * information about MPI-IO access.  If we don't have any then this struct
      * could be eliminated.
@@ -153,33 +154,26 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
         }
 
         file = mpiio_file_by_name_setfh(filename, fh);
-        //printf("Hello world: got file ref %p\n", file);
-        /* TODO: record statistics */
-
-#if 0
-        file = darshan_file_by_name_setfh(filename, (*fh));
         if(file)
         {
-            CP_SET(file, CP_MODE, amode);
-            CP_F_INC_NO_OVERLAP(file, tm1, tm2, file->last_mpi_meta_end, CP_F_MPI_META_TIME);
-            if(CP_F_VALUE(file, CP_F_OPEN_TIMESTAMP) == 0)
-                CP_F_SET(file, CP_F_OPEN_TIMESTAMP,
+            DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, tm1, tm2, file->last_mpi_meta_end, DARSHAN_MPIIO_F_META_TIME);
+            if(DARSHAN_COUNTER_F_VALUE(file->file_record, DARSHAN_MPIIO_F_OPEN_TIMESTAMP) == 0)
+                DARSHAN_COUNTER_F_SET(file->file_record, DARSHAN_MPIIO_F_OPEN_TIMESTAMP,
                 tm1);
             DARSHAN_MPI_CALL(PMPI_Comm_size)(comm, &comm_size);
             if(comm_size == 1)
             {
-                CP_INC(file, CP_INDEP_OPENS, 1);
+                DARSHAN_COUNTER_INC(file->file_record, DARSHAN_MPIIO_INDEP_OPENS, 1);
             }
             else
             {
-                CP_INC(file, CP_COLL_OPENS, 1);
+                DARSHAN_COUNTER_INC(file->file_record, DARSHAN_MPIIO_COLL_OPENS, 1);
             }
             if(info != MPI_INFO_NULL)
             {
-                CP_INC(file, CP_HINTS, 1);
+                DARSHAN_COUNTER_INC(file->file_record, DARSHAN_MPIIO_HINTS, 1);
             }
         }
-#endif
 
         MPIIO_UNLOCK();
     }
