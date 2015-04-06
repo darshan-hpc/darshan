@@ -123,6 +123,9 @@ static struct mpiio_file_runtime* mpiio_file_by_name_setfh(const char* name, MPI
 static struct mpiio_file_runtime* mpiio_file_by_name(const char *name);
 static void mpiio_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype);
+static void mpiio_prepare_for_reduction(darshan_record_id *shared_recs,
+    int *shared_rec_count, void **send_buf, void **recv_buf, int *rec_size);
+static int mpiio_file_compare(const void* a, const void* b);
 
 #ifdef HAVE_MPIIO_CONST
 int MPI_File_open(MPI_Comm comm, const char *filename, int amode, MPI_Info info, MPI_File *fh) 
@@ -190,7 +193,7 @@ static void mpiio_runtime_initialize()
     struct darshan_module_funcs mpiio_mod_fns =
     {
         .disable_instrumentation = &mpiio_disable_instrumentation,
-        .prepare_for_reduction = NULL,
+        .prepare_for_reduction = &mpiio_prepare_for_reduction,
         .record_reduction_op = &mpiio_record_reduction_op,
         .get_output_data = &mpiio_get_output_data,
         .shutdown = &mpiio_shutdown
@@ -428,6 +431,71 @@ static void mpiio_record_reduction_op(
     }
 
     return;
+}
+
+static void mpiio_prepare_for_reduction(
+    darshan_record_id *shared_recs,
+    int *shared_rec_count,
+    void **send_buf,
+    void **recv_buf,
+    int *rec_size)
+{
+    struct mpiio_file_runtime *file;
+    int i;
+
+    assert(mpiio_runtime);
+
+    /* necessary initialization of shared records (e.g., change rank to -1) */
+    for(i = 0; i < *shared_rec_count; i++)
+    {
+        HASH_FIND(hlink, mpiio_runtime->file_hash, &shared_recs[i],
+            sizeof(darshan_record_id), file);
+        assert(file);
+
+        file->file_record->rank = -1;
+    }
+
+    /* sort the array of files descending by rank so that we get all of the 
+     * shared files (marked by rank -1) in a contiguous portion at end 
+     * of the array
+     */
+    qsort(mpiio_runtime->file_record_array, mpiio_runtime->file_array_ndx,
+        sizeof(struct darshan_mpiio_file), mpiio_file_compare);
+
+    /* make *send_buf point to the shared files at the end of sorted array */
+    *send_buf =
+        &(mpiio_runtime->file_record_array[mpiio_runtime->file_array_ndx-(*shared_rec_count)]);
+
+    /* allocate memory for the reduction output on rank 0 */
+    if(my_rank == 0)
+    {
+        *recv_buf = malloc(*shared_rec_count * sizeof(struct darshan_mpiio_file));
+        if(!(*recv_buf))
+            return;
+    }
+
+    *rec_size = sizeof(struct darshan_mpiio_file);
+
+    /* TODO: cleaner way to do this? */
+    if(my_rank == 0)
+        mpiio_runtime->red_buf = *recv_buf;
+    mpiio_runtime->shared_rec_count = *shared_rec_count;
+
+    return;
+}
+
+/* compare function for sorting file records by descending rank */
+static int mpiio_file_compare(const void* a_p, const void* b_p)
+{
+    const struct darshan_mpiio_file* a = a_p;
+    const struct darshan_mpiio_file* b = b_p;
+
+    if(a->rank < b->rank)
+        return 1;
+    if(a->rank > b->rank)
+        return -1;
+
+    return 0;
 }
 
 /*
