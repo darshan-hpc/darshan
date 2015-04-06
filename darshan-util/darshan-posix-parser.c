@@ -198,6 +198,42 @@ int main(int argc, char **argv)
             "\t\tPOSIX_FILE_ALIGNMENT:\t%"PRIu64"\n"
             "\t\tPOSIX_MAX_READ_TIME_SIZE:\t%"PRIu64"\n"
             "\t\tPOSIX_MAX_WRITE_TIME_SIZE:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_READ_0_100:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_READ_100_1K:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_READ_1K_10K:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_READ_10K_100K:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_READ_100K_1M:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_READ_1M_4M:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_READ_4M_10M:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_READ_10M_100M:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_READ_100M_1G:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_READ_1G_PLUS:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_WRITE_0_100:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_WRITE_100_1K:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_WRITE_1K_10K:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_WRITE_10K_100K:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_WRITE_100K_1M:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_WRITE_1M_4M:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_WRITE_4M_10M:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_WRITE_10M_100M:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_WRITE_100M_1G:\t%"PRIu64"\n"
+            "\t\tPOSIX_SIZE_WRITE_1G_PLUS:\t%"PRIu64"\n"
+            "\t\tPOSIX_STRIDE1_STRIDE:\t%"PRIu64"\n"
+            "\t\tPOSIX_STRIDE2_STRIDE:\t%"PRIu64"\n"
+            "\t\tPOSIX_STRIDE3_STRIDE:\t%"PRIu64"\n"
+            "\t\tPOSIX_STRIDE4_STRIDE:\t%"PRIu64"\n"
+            "\t\tPOSIX_STRIDE1_COUNT:\t%"PRIu64"\n"
+            "\t\tPOSIX_STRIDE2_COUNT:\t%"PRIu64"\n"
+            "\t\tPOSIX_STRIDE3_COUNT:\t%"PRIu64"\n"
+            "\t\tPOSIX_STRIDE4_COUNT:\t%"PRIu64"\n"
+            "\t\tPOSIX_ACCESS1_ACCESS:\t%"PRIu64"\n"
+            "\t\tPOSIX_ACCESS2_ACCESS:\t%"PRIu64"\n"
+            "\t\tPOSIX_ACCESS3_ACCESS:\t%"PRIu64"\n"
+            "\t\tPOSIX_ACCESS4_ACCESS:\t%"PRIu64"\n"
+            "\t\tPOSIX_ACCESS1_COUNT:\t%"PRIu64"\n"
+            "\t\tPOSIX_ACCESS2_COUNT:\t%"PRIu64"\n"
+            "\t\tPOSIX_ACCESS3_COUNT:\t%"PRIu64"\n"
+            "\t\tPOSIX_ACCESS4_COUNT:\t%"PRIu64"\n"
             "\t\tPOSIX_FASTEST_RANK:\t%"PRIu64"\n"
             "\t\tPOSIX_FASTEST_RANK_BYTES:\t%"PRIu64"\n"
             "\t\tPOSIX_SLOWEST_RANK:\t%"PRIu64"\n"
@@ -243,6 +279,42 @@ int main(int argc, char **argv)
             next_file.counters[POSIX_FILE_ALIGNMENT],
             next_file.counters[POSIX_MAX_READ_TIME_SIZE],
             next_file.counters[POSIX_MAX_WRITE_TIME_SIZE],
+            next_file.counters[POSIX_SIZE_READ_0_100],
+            next_file.counters[POSIX_SIZE_READ_100_1K],
+            next_file.counters[POSIX_SIZE_READ_1K_10K],
+            next_file.counters[POSIX_SIZE_READ_10K_100K],
+            next_file.counters[POSIX_SIZE_READ_100K_1M],
+            next_file.counters[POSIX_SIZE_READ_1M_4M],
+            next_file.counters[POSIX_SIZE_READ_4M_10M],
+            next_file.counters[POSIX_SIZE_READ_10M_100M],
+            next_file.counters[POSIX_SIZE_READ_100M_1G],
+            next_file.counters[POSIX_SIZE_READ_1G_PLUS],
+            next_file.counters[POSIX_SIZE_WRITE_0_100],
+            next_file.counters[POSIX_SIZE_WRITE_100_1K],
+            next_file.counters[POSIX_SIZE_WRITE_1K_10K],
+            next_file.counters[POSIX_SIZE_WRITE_10K_100K],
+            next_file.counters[POSIX_SIZE_WRITE_100K_1M],
+            next_file.counters[POSIX_SIZE_WRITE_1M_4M],
+            next_file.counters[POSIX_SIZE_WRITE_4M_10M],
+            next_file.counters[POSIX_SIZE_WRITE_10M_100M],
+            next_file.counters[POSIX_SIZE_WRITE_100M_1G],
+            next_file.counters[POSIX_SIZE_WRITE_1G_PLUS],
+            next_file.counters[POSIX_STRIDE1_STRIDE],
+            next_file.counters[POSIX_STRIDE2_STRIDE],
+            next_file.counters[POSIX_STRIDE3_STRIDE],
+            next_file.counters[POSIX_STRIDE4_STRIDE],
+            next_file.counters[POSIX_STRIDE1_COUNT],
+            next_file.counters[POSIX_STRIDE2_COUNT],
+            next_file.counters[POSIX_STRIDE3_COUNT],
+            next_file.counters[POSIX_STRIDE4_COUNT],
+            next_file.counters[POSIX_ACCESS1_ACCESS],
+            next_file.counters[POSIX_ACCESS2_ACCESS],
+            next_file.counters[POSIX_ACCESS3_ACCESS],
+            next_file.counters[POSIX_ACCESS4_ACCESS],
+            next_file.counters[POSIX_ACCESS1_COUNT],
+            next_file.counters[POSIX_ACCESS2_COUNT],
+            next_file.counters[POSIX_ACCESS3_COUNT],
+            next_file.counters[POSIX_ACCESS4_COUNT],
             next_file.counters[POSIX_FASTEST_RANK],
             next_file.counters[POSIX_FASTEST_RANK_BYTES],
             next_file.counters[POSIX_SLOWEST_RANK],

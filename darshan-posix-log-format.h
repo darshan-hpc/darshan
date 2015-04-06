@@ -39,47 +39,45 @@ enum darshan_posix_indices
     POSIX_FILE_ALIGNMENT,     /* file alignment in bytes */
     POSIX_MAX_READ_TIME_SIZE,
     POSIX_MAX_WRITE_TIME_SIZE,
-#if 0
     /* buckets */
-    SIZE_READ_0_100,          /* count of posix read size ranges */
-    SIZE_READ_100_1K,
-    SIZE_READ_1K_10K,
-    SIZE_READ_10K_100K,
-    SIZE_READ_100K_1M,
-    SIZE_READ_1M_4M,
-    SIZE_READ_4M_10M,
-    SIZE_READ_10M_100M,
-    SIZE_READ_100M_1G,
-    SIZE_READ_1G_PLUS,
+    POSIX_SIZE_READ_0_100,    /* count of posix read size ranges */
+    POSIX_SIZE_READ_100_1K,
+    POSIX_SIZE_READ_1K_10K,
+    POSIX_SIZE_READ_10K_100K,
+    POSIX_SIZE_READ_100K_1M,
+    POSIX_SIZE_READ_1M_4M,
+    POSIX_SIZE_READ_4M_10M,
+    POSIX_SIZE_READ_10M_100M,
+    POSIX_SIZE_READ_100M_1G,
+    POSIX_SIZE_READ_1G_PLUS,
     /* buckets */
-    SIZE_WRITE_0_100,         /* count of posix write size ranges */
-    SIZE_WRITE_100_1K,
-    SIZE_WRITE_1K_10K,
-    SIZE_WRITE_10K_100K,
-    SIZE_WRITE_100K_1M,
-    SIZE_WRITE_1M_4M,
-    SIZE_WRITE_4M_10M,
-    SIZE_WRITE_10M_100M,
-    SIZE_WRITE_100M_1G,
-    SIZE_WRITE_1G_PLUS,
-    /* counters */
-    STRIDE1_STRIDE,           /* the four most frequently appearing strides */
-    STRIDE2_STRIDE,
-    STRIDE3_STRIDE,
-    STRIDE4_STRIDE,
-    STRIDE1_COUNT,            /* count of each of the most frequent strides */
-    STRIDE2_COUNT,
-    STRIDE3_COUNT,
-    STRIDE4_COUNT,
-    ACCESS1_ACCESS,           /* the four most frequently appearing access sizes */
-    ACCESS2_ACCESS,
-    ACCESS3_ACCESS,
-    ACCESS4_ACCESS,
-    ACCESS1_COUNT,            /* count of each of the most frequent access sizes */
-    ACCESS2_COUNT,
-    ACCESS3_COUNT,
-    ACCESS4_COUNT,
-#endif
+    POSIX_SIZE_WRITE_0_100,   /* count of posix write size ranges */
+    POSIX_SIZE_WRITE_100_1K,
+    POSIX_SIZE_WRITE_1K_10K,
+    POSIX_SIZE_WRITE_10K_100K,
+    POSIX_SIZE_WRITE_100K_1M,
+    POSIX_SIZE_WRITE_1M_4M,
+    POSIX_SIZE_WRITE_4M_10M,
+    POSIX_SIZE_WRITE_10M_100M,
+    POSIX_SIZE_WRITE_100M_1G,
+    POSIX_SIZE_WRITE_1G_PLUS,
+    /* stride/access counters */
+    POSIX_STRIDE1_STRIDE,     /* the four most frequently appearing strides */
+    POSIX_STRIDE2_STRIDE,
+    POSIX_STRIDE3_STRIDE,
+    POSIX_STRIDE4_STRIDE,
+    POSIX_STRIDE1_COUNT,      /* count of each of the most frequent strides */
+    POSIX_STRIDE2_COUNT,
+    POSIX_STRIDE3_COUNT,
+    POSIX_STRIDE4_COUNT,
+    POSIX_ACCESS1_ACCESS,     /* the four most frequently appearing access sizes */
+    POSIX_ACCESS2_ACCESS,
+    POSIX_ACCESS3_ACCESS,
+    POSIX_ACCESS4_ACCESS,
+    POSIX_ACCESS1_COUNT,      /* count of each of the most frequent access sizes */
+    POSIX_ACCESS2_COUNT,
+    POSIX_ACCESS3_COUNT,
+    POSIX_ACCESS4_COUNT,
     POSIX_FASTEST_RANK,
     POSIX_FASTEST_RANK_BYTES,
     POSIX_SLOWEST_RANK,

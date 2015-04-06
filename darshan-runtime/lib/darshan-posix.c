@@ -4,6 +4,9 @@
  *
  */
 
+#define _XOPEN_SOURCE 500
+#define _GNU_SOURCE
+
 #include "darshan-runtime-config.h"
 #include <stdio.h>
 #include <unistd.h>
@@ -21,7 +24,6 @@
 #include <assert.h>
 #include <libgen.h>
 #include <aio.h>
-#define __USE_GNU
 #include <pthread.h>
 
 #include "uthash.h"
@@ -35,6 +37,7 @@ typedef int64_t off64_t;
 #define aiocb64 aiocb
 #endif
 
+/* TODO: this probably shouldn't be here long term -- MPI symbols mess up LD_PRELOAD */
 #ifdef DARSHAN_PRELOAD
 extern double (*__real_PMPI_Comm_rank)(MPI_Comm comm, int *rank);
 #endif
@@ -79,24 +82,28 @@ DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
 /* TODO aio */
 /* TODO listio */
 
-static void posix_runtime_initialize(void);
-static struct posix_file_runtime* posix_file_by_name(const char *name);
-static struct posix_file_runtime* posix_file_by_name_setfd(const char* name, int fd);
-static struct posix_file_runtime* posix_file_by_fd(int fd);
-static void posix_file_close_fd(int fd);
-
-static void posix_disable_instrumentation(void);
-static void posix_prepare_for_reduction(darshan_record_id *shared_recs,
-    int *shared_rec_count, void **send_buf, void **recv_buf, int *rec_size);
-static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
-    int *len, MPI_Datatype *datatype);
-static void posix_get_output_data(void **buffer, int *size);
-static void posix_shutdown(void);
+/* maximum number of access sizes and stride sizes that darshan will track
+ * per file at runtime; at log time they will be reduced into the 4 most
+ * frequently occurring ones 
+ */
+#define POSIX_MAX_ACCESS_COUNT_RUNTIME 32
 
 enum posix_io_type
 {
     POSIX_READ = 1,
     POSIX_WRITE = 2,
+};
+
+enum posix_counter_type
+{
+    POSIX_COUNTER_ACCESS,
+    POSIX_COUNTER_STRIDE
+};
+
+struct posix_access_counter
+{
+    int64_t size;
+    int freq;
 };
 
 /* The posix_file_runtime structure maintains necessary runtime metadata
@@ -132,6 +139,10 @@ struct posix_file_runtime
     double last_meta_end;
     double last_read_end;
     double last_write_end;
+    void* access_root;
+    int access_count;
+    void* stride_root;
+    int stride_count;
     UT_hash_handle hlink;
 };
 
@@ -187,8 +198,58 @@ static int instrumentation_disabled = 0;
 static int my_rank = -1;
 static int darshan_mem_alignment = 1;
 
+/* global variables for determining 4 most common accesses/strides */
+static struct posix_file_runtime* walker_file = NULL;
+static int walker_validx;
+static int walker_cntidx;
+
+static void posix_runtime_initialize(void);
+static struct posix_file_runtime* posix_file_by_name(const char *name);
+static struct posix_file_runtime* posix_file_by_name_setfd(const char* name, int fd);
+static struct posix_file_runtime* posix_file_by_fd(int fd);
+static void posix_file_close_fd(int fd);
+static void posix_access_counter(struct posix_file_runtime* file, ssize_t size,
+    enum posix_counter_type type);
+static void posix_access_walker(const void* nodep, const VISIT which, const int depth);
+static void posix_walk_file_accesses(void);
+static int posix_access_compare(const void* a_p, const void* b_p);
+static int posix_file_compare(const void* a, const void* b);
+
+static void posix_disable_instrumentation(void);
+static void posix_prepare_for_reduction(darshan_record_id *shared_recs,
+    int *shared_rec_count, void **send_buf, void **recv_buf, int *rec_size);
+static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
+    int *len, MPI_Datatype *datatype);
+static void posix_get_output_data(void **buffer, int *size);
+static void posix_shutdown(void);
+
 #define POSIX_LOCK() pthread_mutex_lock(&posix_runtime_mutex)
 #define POSIX_UNLOCK() pthread_mutex_unlock(&posix_runtime_mutex)
+
+#define POSIX_COMMON_COUNTER_INC(__rec_p, __value, __count, __validx, __cntidx) do {\
+    int i; \
+    int set = 0; \
+    int64_t min = DARSHAN_COUNTER_VALUE(__rec_p, __cntidx); \
+    int min_index = 0; \
+    if(__value == 0) break; \
+    for(i=0; i<4; i++) { \
+        /* increment bucket if already exists */ \
+        if(DARSHAN_COUNTER_VALUE(__rec_p, __validx + i) == __value) { \
+            DARSHAN_COUNTER_INC(__rec_p, __cntidx + i, __count); \
+            set = 1; \
+            break; \
+        } \
+        /* otherwise find the least frequently used bucket */ \
+        else if(DARSHAN_COUNTER_VALUE(__rec_p, __cntidx + i) < min) { \
+            min = DARSHAN_COUNTER_VALUE(__rec_p, __cntidx + i); \
+            min_index = i; \
+        } \
+    } \
+    if(!set && (__count > min)) { \
+        DARSHAN_COUNTER_SET(__rec_p, __cntidx+min_index, __count); \
+        DARSHAN_COUNTER_SET(__rec_p, __validx+min_index, __value); \
+    } \
+} while(0)
 
 #define POSIX_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
     struct posix_file_runtime* file; \
@@ -219,7 +280,7 @@ static int darshan_mem_alignment = 1;
 } while(0)
 
 #define POSIX_RECORD_READ(__ret, __fd, __pread_flag, __pread_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
-    /* size_t stride; */\
+    size_t stride; \
     int64_t this_offset; \
     struct posix_file_runtime* file; \
     int64_t file_alignment; \
@@ -235,11 +296,11 @@ static int darshan_mem_alignment = 1;
         DARSHAN_COUNTER_INC(file->file_record, POSIX_SEQ_READS, 1); \
     if(this_offset == (file->last_byte_read + 1)) \
         DARSHAN_COUNTER_INC(file->file_record, POSIX_CONSEC_READS, 1); \
-    /* if(this_offset > 0 && this_offset > file->last_byte_read \
+    if(this_offset > 0 && this_offset > file->last_byte_read \
         && file->last_byte_read != 0) \
         stride = this_offset - file->last_byte_read - 1; \
     else \
-        stride = 0; */\
+        stride = 0; \
     file->last_byte_read = this_offset + __ret - 1; \
     file->offset = this_offset + __ret; \
     DARSHAN_COUNTER_MAX(file->file_record, POSIX_MAX_BYTE_READ, (this_offset + __ret - 1)); \
@@ -248,9 +309,9 @@ static int darshan_mem_alignment = 1;
         DARSHAN_COUNTER_INC(file->file_record, POSIX_FREADS, 1); \
     else\
         DARSHAN_COUNTER_INC(file->file_record, POSIX_READS, 1); \
-    /* CP_BUCKET_INC(file, CP_SIZE_READ_0_100, __ret); \
-    cp_access_counter(file, __ret, CP_COUNTER_ACCESS); \
-    cp_access_counter(file, stride, CP_COUNTER_STRIDE); */\
+    DARSHAN_BUCKET_INC(file->file_record, POSIX_SIZE_READ_0_100, __ret); \
+    posix_access_counter(file, __ret, POSIX_COUNTER_ACCESS); \
+    posix_access_counter(file, stride, POSIX_COUNTER_STRIDE); \
     if(!__aligned) \
         DARSHAN_COUNTER_INC(file->file_record, POSIX_MEM_NOT_ALIGNED, 1); \
     file_alignment = DARSHAN_COUNTER_VALUE(file->file_record, POSIX_FILE_ALIGNMENT); \
@@ -269,7 +330,7 @@ static int darshan_mem_alignment = 1;
 } while(0)
 
 #define POSIX_RECORD_WRITE(__ret, __fd, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
-    /* size_t stride; */\
+    size_t stride; \
     int64_t this_offset; \
     struct posix_file_runtime* file; \
     int64_t file_alignment; \
@@ -285,11 +346,11 @@ static int darshan_mem_alignment = 1;
         DARSHAN_COUNTER_INC(file->file_record, POSIX_SEQ_WRITES, 1); \
     if(this_offset == (file->last_byte_written + 1)) \
         DARSHAN_COUNTER_INC(file->file_record, POSIX_CONSEC_WRITES, 1); \
-    /* if(this_offset > 0 && this_offset > file->last_byte_written \
+    if(this_offset > 0 && this_offset > file->last_byte_written \
         && file->last_byte_written != 0) \
         stride = this_offset - file->last_byte_written - 1; \
     else \
-        stride = 0; */\
+        stride = 0; \
     file->last_byte_written = this_offset + __ret - 1; \
     file->offset = this_offset + __ret; \
     DARSHAN_COUNTER_MAX(file->file_record, POSIX_MAX_BYTE_WRITTEN, (this_offset + __ret - 1)); \
@@ -298,9 +359,9 @@ static int darshan_mem_alignment = 1;
         DARSHAN_COUNTER_INC(file->file_record, POSIX_FWRITES, 1); \
     else \
         DARSHAN_COUNTER_INC(file->file_record, POSIX_WRITES, 1); \
-    /* CP_BUCKET_INC(file, CP_SIZE_WRITE_0_100, __ret); \
-    cp_access_counter(file, __ret, CP_COUNTER_ACCESS); \
-    cp_access_counter(file, stride, CP_COUNTER_STRIDE); */ \
+    DARSHAN_BUCKET_INC(file->file_record, POSIX_SIZE_WRITE_0_100, __ret); \
+    posix_access_counter(file, __ret, POSIX_COUNTER_ACCESS); \
+    posix_access_counter(file, stride, POSIX_COUNTER_STRIDE);  \
     if(!__aligned) \
         DARSHAN_COUNTER_INC(file->file_record, POSIX_MEM_NOT_ALIGNED, 1); \
     file_alignment = DARSHAN_COUNTER_VALUE(file->file_record, POSIX_FILE_ALIGNMENT); \
@@ -1420,15 +1481,143 @@ static void posix_file_close_fd(int fd)
     return;
 }
 
-/* compare function for sorting file records by descending rank */
-static int posix_file_compare(const void* a, const void* b)
+static void posix_access_counter(struct posix_file_runtime* file, ssize_t size,
+    enum posix_counter_type type)
 {
-    const struct darshan_posix_file* f_a = a;
-    const struct darshan_posix_file* f_b = b;
+    struct posix_access_counter* counter;
+    struct posix_access_counter* found;
+    void* tmp;
+    void** root;
+    int* count;
+    struct posix_access_counter tmp_counter;
 
-    if(f_a->rank < f_b->rank)
+    /* don't count sizes or strides of 0 */
+    if(size == 0)
+        return;
+
+    switch(type)
+    {
+        case POSIX_COUNTER_ACCESS:
+            root = &file->access_root;
+            count = &file->access_count;
+            break;
+        case POSIX_COUNTER_STRIDE:
+            root = &file->stride_root;
+            count = &file->stride_count;
+            break;
+        default:
+            return;
+    }
+
+    /* check to see if this size is already recorded */
+    tmp_counter.size = size;
+    tmp_counter.freq = 1;
+    tmp = tfind(&tmp_counter, root, posix_access_compare);
+    if(tmp)
+    {
+        found = *(struct posix_access_counter**)tmp;
+        found->freq++;
+        return;
+    }
+
+    /* we can add a new one as long as we haven't hit the limit */
+    if(*count < POSIX_MAX_ACCESS_COUNT_RUNTIME)
+    {
+        counter = malloc(sizeof(*counter));
+        if(!counter)
+        {
+            return;
+        }
+
+        counter->size = size;
+        counter->freq = 1;
+
+        tmp = tsearch(counter, root, posix_access_compare);
+        found = *(struct posix_access_counter**)tmp;
+        /* if we get a new answer out here we are in trouble; this was
+         * already checked with the tfind()
+         */
+        assert(found == counter);
+
+        (*count)++;
+    }
+
+    return;
+}
+
+static void posix_access_walker(const void* nodep, const VISIT which, const int depth)
+{
+    struct posix_access_counter* counter;
+
+    switch (which)
+    {
+        case postorder:
+        case leaf:
+            counter = *(struct posix_access_counter**)nodep;
+            POSIX_COMMON_COUNTER_INC(walker_file->file_record, counter->size, counter->freq,
+                walker_validx, walker_cntidx);
+        default:
+            break;
+    }
+
+    return;
+};
+
+/* posix_walk_file_accesses()
+ *
+ * goes through runtime collections of accesses sizes and chooses the 4 most
+ * common for logging
+ */
+static void posix_walk_file_accesses()
+{
+    int i;
+
+    for(i=0; i<posix_runtime->file_array_ndx; i++)
+    {
+        /* walk trees for both access sizes and stride sizes to pick 4 most
+         * common of each
+         */
+
+        /* NOTE: setting global variables here for cp_access_walker() */
+        walker_file = &posix_runtime->file_runtime_array[i];
+        walker_validx = POSIX_ACCESS1_ACCESS;
+        walker_cntidx = POSIX_ACCESS1_COUNT;
+        twalk(walker_file->access_root,
+            posix_access_walker);
+        tdestroy(walker_file->access_root, free);
+
+        walker_validx = POSIX_STRIDE1_STRIDE;
+        walker_cntidx = POSIX_STRIDE1_COUNT;
+        twalk(walker_file->stride_root,
+            posix_access_walker);
+        tdestroy(walker_file->stride_root, free);
+    }
+
+    return;
+}
+
+static int posix_access_compare(const void* a_p, const void* b_p)
+{
+    const struct posix_access_counter* a = a_p;
+    const struct posix_access_counter* b = b_p;
+
+    if(a->size < b->size)
+        return(-1);
+    if(a->size > b->size)
+        return(1);
+    return(0);
+}
+
+
+/* compare function for sorting file records by descending rank */
+static int posix_file_compare(const void* a_p, const void* b_p)
+{
+    const struct darshan_posix_file* a = a_p;
+    const struct darshan_posix_file* b = b_p;
+
+    if(a->rank < b->rank)
         return 1;
-    if(f_a->rank > f_b->rank)
+    if(a->rank > b->rank)
         return -1;
 
     return 0;
@@ -1443,6 +1632,9 @@ static void posix_disable_instrumentation()
     assert(posix_runtime);
 
     POSIX_LOCK();
+
+    posix_walk_file_accesses();
+
     instrumentation_disabled = 1;
     POSIX_UNLOCK();
 
@@ -1535,8 +1727,7 @@ static void posix_record_reduction_op(
     struct darshan_posix_file tmp_file;
     struct darshan_posix_file *infile = infile_v;
     struct darshan_posix_file *inoutfile = inoutfile_v;
-    int i;
-    int j;
+    int i, j, k;
 
     assert(posix_runtime);
 
@@ -1585,6 +1776,70 @@ static void posix_record_reduction_op(
         {
             tmp_file.counters[j] = infile->counters[j] +
                 inoutfile->counters[j];
+        }
+
+        /* skip POSIX_MAX_*_TIME_SIZE; handled in floating point section */
+
+        for(j=POSIX_SIZE_READ_0_100; j<=POSIX_SIZE_WRITE_1G_PLUS; j++)
+        {
+            tmp_file.counters[j] = infile->counters[j] +
+                inoutfile->counters[j];
+        }
+
+        /* first collapse any duplicates */
+        for(j=POSIX_STRIDE1_STRIDE; j<=POSIX_STRIDE4_STRIDE; j++)
+        {
+            for(k=POSIX_STRIDE1_STRIDE; k<=POSIX_STRIDE4_STRIDE; k++)
+            {
+                if(infile->counters[j] == inoutfile->counters[k])
+                {
+                    infile->counters[j+4] += inoutfile->counters[k+4];
+                    inoutfile->counters[k] = 0;
+                    inoutfile->counters[k+4] = 0;
+                }
+            }
+        }
+
+        /* first set */
+        for(j=POSIX_STRIDE1_STRIDE; j<=POSIX_STRIDE4_STRIDE; j++)
+        {
+            POSIX_COMMON_COUNTER_INC(&tmp_file, infile->counters[j],
+                infile->counters[j+4], POSIX_STRIDE1_STRIDE, POSIX_STRIDE1_COUNT);
+        }
+        /* second set */
+        for(j=POSIX_STRIDE1_STRIDE; j<=POSIX_STRIDE4_STRIDE; j++)
+        {
+            POSIX_COMMON_COUNTER_INC(&tmp_file, inoutfile->counters[j],
+                inoutfile->counters[j+4], POSIX_STRIDE1_STRIDE, POSIX_STRIDE1_COUNT);
+        }
+
+        /* same for access counts */
+
+        /* first collapse any duplicates */
+        for(j=POSIX_ACCESS1_ACCESS; j<=POSIX_ACCESS4_ACCESS; j++)
+        {
+            for(k=POSIX_ACCESS1_ACCESS; k<=POSIX_ACCESS4_ACCESS; k++)
+            {
+                if(infile->counters[j] == inoutfile->counters[k])
+                {
+                    infile->counters[j+4] += inoutfile->counters[k+4];
+                    inoutfile->counters[k] = 0;
+                    inoutfile->counters[k+4] = 0;
+                }
+            }
+        }
+
+        /* first set */
+        for(j=POSIX_ACCESS1_ACCESS; j<=POSIX_ACCESS4_ACCESS; j++)
+        {
+            POSIX_COMMON_COUNTER_INC(&tmp_file, infile->counters[j],
+                infile->counters[j+4], POSIX_ACCESS1_ACCESS, POSIX_ACCESS1_COUNT);
+        }
+        /* second set */
+        for(j=POSIX_ACCESS1_ACCESS; j<=POSIX_ACCESS4_ACCESS; j++)
+        {
+            POSIX_COMMON_COUNTER_INC(&tmp_file, inoutfile->counters[j],
+                inoutfile->counters[j+4], POSIX_ACCESS1_ACCESS, POSIX_ACCESS1_COUNT);
         }
 
         /* min non-zero (if available) value */

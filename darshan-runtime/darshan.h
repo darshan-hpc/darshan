@@ -102,6 +102,29 @@
         (__rec_p)->counters[__counter] = __value; \
 } while(0)
 
+#define DARSHAN_BUCKET_INC(__rec_p, __counter_base, __value) do {\
+    if(__value < 101) \
+        (__rec_p)->counters[__counter_base] += 1; \
+    else if(__value < 1025) \
+        (__rec_p)->counters[__counter_base+1] += 1; \
+    else if(__value < 10241) \
+        (__rec_p)->counters[__counter_base+2] += 1; \
+    else if(__value < 102401) \
+        (__rec_p)->counters[__counter_base+3] += 1; \
+    else if(__value < 1048577) \
+        (__rec_p)->counters[__counter_base+4] += 1; \
+    else if(__value < 4194305) \
+        (__rec_p)->counters[__counter_base+5] += 1; \
+    else if(__value < 10485761) \
+        (__rec_p)->counters[__counter_base+6] += 1; \
+    else if(__value < 104857601) \
+        (__rec_p)->counters[__counter_base+7] += 1; \
+    else if(__value < 1073741825) \
+        (__rec_p)->counters[__counter_base+8] += 1; \
+    else \
+        (__rec_p)->counters[__counter_base+9] += 1; \
+} while(0)
+
 /* module developers provide the following functions to darshan-core */
 struct darshan_module_funcs
 {
