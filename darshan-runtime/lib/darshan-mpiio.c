@@ -121,6 +121,8 @@ static void mpiio_get_output_data(
     int *size);
 static struct mpiio_file_runtime* mpiio_file_by_name_setfh(const char* name, MPI_File *fh);
 static struct mpiio_file_runtime* mpiio_file_by_name(const char *name);
+static void mpiio_record_reduction_op(void* infile_v, void* inoutfile_v,
+    int *len, MPI_Datatype *datatype);
 
 #ifdef HAVE_MPIIO_CONST
 int MPI_File_open(MPI_Comm comm, const char *filename, int amode, MPI_Info info, MPI_File *fh) 
@@ -189,7 +191,7 @@ static void mpiio_runtime_initialize()
     {
         .disable_instrumentation = &mpiio_disable_instrumentation,
         .prepare_for_reduction = NULL,
-        .record_reduction_op = NULL,
+        .record_reduction_op = &mpiio_record_reduction_op,
         .get_output_data = &mpiio_get_output_data,
         .shutdown = &mpiio_shutdown
     };
@@ -376,6 +378,56 @@ static struct mpiio_file_runtime* mpiio_file_by_name_setfh(const char* name, MPI
     HASH_ADD(hlink, mpiio_runtime->fh_hash, fh, sizeof(fh), ref);
 
     return(file);
+}
+
+static void mpiio_record_reduction_op(
+    void* infile_v,
+    void* inoutfile_v,
+    int *len,
+    MPI_Datatype *datatype)
+{
+    struct darshan_mpiio_file tmp_file;
+    struct darshan_mpiio_file *infile = infile_v;
+    struct darshan_mpiio_file *inoutfile = inoutfile_v;
+    int i, j;
+
+    assert(mpiio_runtime);
+
+    for(i=0; i<*len; i++)
+    {
+        memset(&tmp_file, 0, sizeof(struct darshan_mpiio_file));
+
+        tmp_file.f_id = infile->f_id;
+        tmp_file.rank = -1;
+
+        /* sum */
+        for(j=DARSHAN_MPIIO_INDEP_OPENS; j<=DARSHAN_MPIIO_HINTS; j++)
+        {
+            tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
+        }
+
+        /* sum (floating point) */
+        for(j=DARSHAN_MPIIO_F_META_TIME; j<=DARSHAN_MPIIO_F_META_TIME; j++)
+        {
+            tmp_file.fcounters[j] = infile->fcounters[j] + inoutfile->fcounters[j];
+        }
+
+        /* min non-zero (if available) value */
+        for(j=DARSHAN_MPIIO_F_OPEN_TIMESTAMP; j<=DARSHAN_MPIIO_F_OPEN_TIMESTAMP; j++)
+        {
+            if(infile->fcounters[j] > inoutfile->fcounters[j] && inoutfile->fcounters[j] > 0)
+                tmp_file.fcounters[j] = inoutfile->fcounters[j];
+            else
+                tmp_file.fcounters[j] = infile->fcounters[j];
+        }
+
+        /* update pointers */
+        *inoutfile = tmp_file;
+        inoutfile++;
+        infile++;
+    }
+
+    return;
 }
 
 /*
