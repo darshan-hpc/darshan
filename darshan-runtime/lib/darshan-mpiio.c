@@ -156,6 +156,7 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
         file = mpiio_file_by_name_setfh(filename, fh);
         if(file)
         {
+            file->file_record->rank = my_rank;
             DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, tm1, tm2, file->last_mpi_meta_end, DARSHAN_MPIIO_F_META_TIME);
             if(DARSHAN_COUNTER_F_VALUE(file->file_record, DARSHAN_MPIIO_F_OPEN_TIMESTAMP) == 0)
                 DARSHAN_COUNTER_F_SET(file->file_record, DARSHAN_MPIIO_F_OPEN_TIMESTAMP,
