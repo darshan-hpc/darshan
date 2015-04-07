@@ -32,6 +32,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# check results
+# in this case we want to confirm that both the MPI and POSIX open counters were triggered
 POSIX_OPENS=`grep POSIX_OPENS $DARSHAN_TMP/${PROG}.darshan.txt |cut -d : -f 2 |xargs`
 if [ ! $POSIX_OPENS -gt 0 ]; then
     echo "Error: POSIX open count of $POSIX_OPENS is incorrect" 1>&2
