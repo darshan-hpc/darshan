@@ -1147,7 +1147,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
      * which modules accessed them collectively
      */
     DARSHAN_MPI_CALL(PMPI_Allreduce)(mod_flags, global_mod_flags,
-        DARSHAN_CORE_MAX_RECORDS, MPI_UINT64_T, MPI_LAND, MPI_COMM_WORLD);
+        DARSHAN_CORE_MAX_RECORDS, MPI_UINT64_T, MPI_BAND, MPI_COMM_WORLD);
 
     ndx = 0;
     for(i=0; (i<DARSHAN_CORE_MAX_RECORDS && id_array[i] != 0); i++)

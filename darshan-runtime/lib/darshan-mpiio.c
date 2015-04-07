@@ -263,6 +263,17 @@ static void mpiio_get_output_data(
     assert(mpiio_runtime);
 
     /* TODO: clean up reduction stuff */
+    if(my_rank == 0)
+    {
+        int tmp_ndx = mpiio_runtime->file_array_ndx - mpiio_runtime->shared_rec_count;
+        memcpy(&(mpiio_runtime->file_record_array[tmp_ndx]), mpiio_runtime->red_buf,
+            mpiio_runtime->shared_rec_count * sizeof(struct darshan_mpiio_file));
+        free(mpiio_runtime->red_buf);
+    }
+    else
+    {
+        mpiio_runtime->file_array_ndx -= mpiio_runtime->shared_rec_count;
+    }
 
     *buffer = (void *)(mpiio_runtime->file_record_array);
     *size = mpiio_runtime->file_array_ndx * sizeof(struct darshan_mpiio_file);
