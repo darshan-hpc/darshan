@@ -1,6 +1,7 @@
 /*
- *  (C) 2009 by Argonne National Laboratory.
- *      See COPYRIGHT in top-level directory.
+ * Copyright (C) 2015 University of Chicago.
+ * See COPYRIGHT notice in top-level directory.
+ *
  */
 
 #ifndef __DARSHAN_LOG_FORMAT_H
@@ -39,7 +40,8 @@ typedef uint64_t darshan_record_id;
 #define DARSHAN_MAX_MODS 16
 typedef enum
 {
-    DARSHAN_POSIX_MOD = 0,
+    DARSHAN_NULL_MOD = 0,
+    DARSHAN_POSIX_MOD,
     DARSHAN_MPIIO_MOD,
     DARSHAN_HDF5_MOD,
     DARSHAN_PNETCDF_MOD,
@@ -47,6 +49,7 @@ typedef enum
 
 static char * const darshan_module_names[] =
 {
+    "NULL",
     "POSIX",
     "MPI-IO",
     "HDF5",

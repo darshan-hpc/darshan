@@ -6,11 +6,6 @@ Darshan modularization branch development notes
 Darshan is a lightweight toolkit for characterizing the I/O performance of instrumented
 HPC applications.
 
-Darshan was originally designed to gather I/O data from a static set of sources.
-Adding instrumentation for additional sources of I/O data was only possible through
-manual modification of the Darshan log file format, which consequentially breaks
-any other utilities reliant on that format.
-
 Starting with version 3.0.0, the Darshan runtime environment and log file format have
 been redesigned such that new "instrumentation modules" can be added without breaking
 existing tools. Developers are given a framework to implement arbitrary instrumentation
@@ -51,6 +46,8 @@ applications and generating I/O characterization logs.
 
 * *darshan-util*: Darshan utilities for analyzing the contents of a given Darshan
 I/O characterization log.
+
+
 
 The following subsections provide an overview of each of these components with specific
 attention to how new instrumentation modules may be integrated into Darshan.

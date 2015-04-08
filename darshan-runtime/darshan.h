@@ -34,38 +34,43 @@
 #include <dlfcn.h>
 #include <stdlib.h>
 
-#define DARSHAN_FORWARD_DECL(name,ret,args) \
-  ret (*__real_ ## name)args = NULL
+#define DARSHAN_FORWARD_DECL(__func,__ret,__args) \
+  __ret (*__real_ ## __func)__args = NULL
 
-#define DARSHAN_DECL(__name) __name
+#define DARSHAN_DECL(__func) __func
 
-#define DARSHAN_MPI_CALL(func) __real_ ## func
+#define DARSHAN_MPI_CALL(__func) __real_ ## __func
 
-#define MAP_OR_FAIL(func) \
-    if (!(__real_ ## func)) \
+#define MAP_OR_FAIL(__func) \
+    if (!(__real_ ## __func)) \
     { \
-        __real_ ## func = dlsym(RTLD_NEXT, #func); \
-        if(!(__real_ ## func)) { \
-           fprintf(stderr, "Darshan failed to map symbol: %s\n", #func); \
+        __real_ ## __func = dlsym(RTLD_NEXT, #__func); \
+        if(!(__real_ ## __func)) { \
+           fprintf(stderr, "Darshan failed to map symbol: %s\n", #__func); \
            exit(1); \
        } \
     }
 
 #else
 
-#define DARSHAN_FORWARD_DECL(name,ret,args) \
-  extern ret __real_ ## name args;
+#define DARSHAN_FORWARD_DECL(__name,__ret,__args) \
+  extern __ret __real_ ## __name __args;
 
 #define DARSHAN_DECL(__name) __wrap_ ## __name
 
-#define DARSHAN_MPI_CALL(func) func
+#define DARSHAN_MPI_CALL(__func) __func
 
-#define MAP_OR_FAIL(func)
+#define MAP_OR_FAIL(__func)
 
 #endif
 
-/* macros for manipulating module's counter variables */
-/* NOTE: */
+/* macros for manipulating a module's counter variables */
+/* NOTE: These macros assume a module's record stores integer
+ * and floating point counters in arrays, named counters and
+ * fcounters, respectively. __rec_p is the a pointer to the
+ * data record, __counter is the counter in question, and
+ * __value is the corresponding data value.
+ */
 #define DARSHAN_COUNTER_SET(__rec_p, __counter, __value) do{ \
     (__rec_p)->counters[__counter] = __value; \
 } while(0)
@@ -102,6 +107,11 @@
         (__rec_p)->counters[__counter] = __value; \
 } while(0)
 
+/* NOTE: This macro is for storing histogram counters with 10
+ * distinct buckets. For an example of how it is used, consult
+ * the POSIX module implementation, which stores histograms of
+ * access sizes for POSIX I/O functions.
+ */
 #define DARSHAN_BUCKET_INC(__rec_p, __counter_base, __value) do {\
     if(__value < 101) \
         (__rec_p)->counters[__counter_base] += 1; \
@@ -128,10 +138,10 @@
 /* module developers provide the following functions to darshan-core */
 struct darshan_module_funcs
 {
-    /* disable futher instrumentation within a module */
-    void (*disable_instrumentation)(void);
+    /* perform any necessary pre-shutdown steps */
+    void (*begin_shutdown)(void);
     /* perform any necessary steps prior to reducing */
-    void (*prepare_for_reduction)(
+    void (*setup_reduction)(
         darshan_record_id *shared_recs, /* input list of shared records */
         int *shared_rec_count, /* in/out shared record count */
         void **send_buf, /* send buffer for shared file reduction */

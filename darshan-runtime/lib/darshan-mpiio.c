@@ -114,7 +114,7 @@ static int my_rank = -1;
 #define MPIIO_UNLOCK() pthread_mutex_unlock(&mpiio_runtime_mutex)
 
 static void mpiio_runtime_initialize(void);
-static void mpiio_disable_instrumentation(void);
+static void mpiio_begin_shutdown(void);
 static void mpiio_shutdown(void);
 static void mpiio_get_output_data(
     void **buffer,
@@ -123,7 +123,7 @@ static struct mpiio_file_runtime* mpiio_file_by_name_setfh(const char* name, MPI
 static struct mpiio_file_runtime* mpiio_file_by_name(const char *name);
 static void mpiio_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype);
-static void mpiio_prepare_for_reduction(darshan_record_id *shared_recs,
+static void mpiio_setup_reduction(darshan_record_id *shared_recs,
     int *shared_rec_count, void **send_buf, void **recv_buf, int *rec_size);
 static int mpiio_file_compare(const void* a, const void* b);
 
@@ -192,8 +192,8 @@ static void mpiio_runtime_initialize()
     int mem_limit;
     struct darshan_module_funcs mpiio_mod_fns =
     {
-        .disable_instrumentation = &mpiio_disable_instrumentation,
-        .prepare_for_reduction = &mpiio_prepare_for_reduction,
+        .begin_shutdown = &mpiio_begin_shutdown,
+        .setup_reduction = &mpiio_setup_reduction,
         .record_reduction_op = &mpiio_record_reduction_op,
         .get_output_data = &mpiio_get_output_data,
         .shutdown = &mpiio_shutdown
@@ -245,7 +245,7 @@ static void mpiio_runtime_initialize()
     return;
 }
 
-static void mpiio_disable_instrumentation()
+static void mpiio_begin_shutdown()
 {
     assert(mpiio_runtime);
 
@@ -444,7 +444,7 @@ static void mpiio_record_reduction_op(
     return;
 }
 
-static void mpiio_prepare_for_reduction(
+static void mpiio_setup_reduction(
     darshan_record_id *shared_recs,
     int *shared_rec_count,
     void **send_buf,

@@ -1,4 +1,4 @@
-all: lib/libdarshan.a
+all: lib/libdarshan.a lib/darshan-null.o
 
 DESTDIR =
 srcdir = @srcdir@
@@ -19,7 +19,7 @@ DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_VERSION = @DARSHAN_VERSION@
 
 ifndef DISABLE_LDPRELOAD
-all: lib/libdarshan.so 
+all: lib/libdarshan.so lib/darshan-null.po
 endif
 
 VPATH = $(srcdir)
@@ -51,16 +51,22 @@ lib/darshan-common.o: lib/darshan-common.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
 lib/darshan-common.po: lib/darshan-common.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
-lib/darshan-posix.o: lib/darshan-posix.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
+lib/darshan-null.o: lib/darshan-null.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-null-log-format.h | lib
 	$(CC) $(CFLAGS) -c $< -o $@
 
-lib/darshan-posix.po: lib/darshan-posix.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
+lib/darshan-null.po: lib/darshan-null.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-null-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
-lib/darshan-mpiio.o: lib/darshan-mpiio.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
+lib/darshan-posix.o: lib/darshan-posix.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-posix-log-format.h | lib
 	$(CC) $(CFLAGS) -c $< -o $@
 
-lib/darshan-mpiio.po: lib/darshan-mpiio.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
+lib/darshan-posix.po: lib/darshan-posix.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-posix-log-format.h | lib
+	$(CC) $(CFLAGS_SHARED) -c $< -o $@
+
+lib/darshan-mpiio.o: lib/darshan-mpiio.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mpiio-log-format.h | lib
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/darshan-mpiio.po: lib/darshan-mpiio.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mpiio-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
 lib/lookup3.o: lib/lookup3.c

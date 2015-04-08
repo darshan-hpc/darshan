@@ -258,14 +258,15 @@ void darshan_core_shutdown()
     darshan_core = NULL;
 
     /* we also need to set which modules were registered on this process and
-     * disable tracing within those modules while we shutdown
+     * call into those modules and give them a chance to perform any necessary
+     * pre-shutdown steps.
      */
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
         if(final_core->mod_array[i])
         {
             local_mod_use[i] = 1;
-            final_core->mod_array[i]->mod_funcs.disable_instrumentation();
+            final_core->mod_array[i]->mod_funcs.begin_shutdown();
         }
     }
     DARSHAN_CORE_UNLOCK();
@@ -492,10 +493,10 @@ void darshan_core_shutdown()
             }
 
             /* if there are globally shared files, do a shared file reduction */
-            if(shared_rec_count && this_mod->mod_funcs.prepare_for_reduction &&
+            if(shared_rec_count && this_mod->mod_funcs.setup_reduction &&
                this_mod->mod_funcs.record_reduction_op)
             {
-                this_mod->mod_funcs.prepare_for_reduction(mod_shared_recs, &shared_rec_count,
+                this_mod->mod_funcs.setup_reduction(mod_shared_recs, &shared_rec_count,
                     &red_send_buf, &red_recv_buf, &rec_sz);
 
                 if(shared_rec_count)

@@ -215,9 +215,9 @@ static void posix_walk_file_accesses(void);
 static int posix_access_compare(const void* a_p, const void* b_p);
 static int posix_file_compare(const void* a, const void* b);
 
-static void posix_disable_instrumentation(void);
-static void posix_prepare_for_reduction(darshan_record_id *shared_recs,
-    int *shared_rec_count, void **send_buf, void **recv_buf, int *rec_size);
+static void posix_begin_shutdown(void);
+static void posix_setup_reduction(darshan_record_id *shared_recs, int *shared_rec_count,
+    void **send_buf, void **recv_buf, int *rec_size);
 static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype);
 static void posix_get_output_data(void **buffer, int *size);
@@ -1295,8 +1295,8 @@ static void posix_runtime_initialize()
     int mem_limit;
     struct darshan_module_funcs posix_mod_fns =
     {
-        .disable_instrumentation = &posix_disable_instrumentation,
-        .prepare_for_reduction = &posix_prepare_for_reduction,
+        .begin_shutdown = &posix_begin_shutdown,
+        .setup_reduction = &posix_setup_reduction,
         .record_reduction_op = &posix_record_reduction_op,
         .get_output_data = &posix_get_output_data,
         .shutdown = &posix_shutdown
@@ -1627,21 +1627,25 @@ static int posix_file_compare(const void* a_p, const void* b_p)
  * Functions exported by this module for coordinating with darshan-core *
  ************************************************************************/
 
-static void posix_disable_instrumentation()
+static void posix_begin_shutdown()
 {
     assert(posix_runtime);
 
     POSIX_LOCK();
 
+    /* go through file access data for each record and set the 4 most common
+     * stride/access size counters.
+     */
     posix_walk_file_accesses();
 
+    /* disable further instrumentation while Darshan shuts down */
     instrumentation_disabled = 1;
     POSIX_UNLOCK();
 
     return;
 }
 
-static void posix_prepare_for_reduction(
+static void posix_setup_reduction(
     darshan_record_id *shared_recs,
     int *shared_rec_count,
     void **send_buf,
@@ -1979,6 +1983,8 @@ static void posix_get_output_data(
 static void posix_shutdown()
 {
     struct posix_file_runtime_ref *ref, *tmp;
+
+    assert(posix_runtime);
 
     HASH_ITER(hlink, posix_runtime->fd_hash, ref, tmp)
     {
