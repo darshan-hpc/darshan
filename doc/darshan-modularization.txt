@@ -1,4 +1,4 @@
-:sectlinks:
+:data-uri:
 
 Darshan modularization branch development notes
 ===============================================
@@ -76,6 +76,12 @@ In general, instrumentation modules are composed of:
 
 * a set of functions for interfacing with the Darshan runtime environment, including an optional
   reduction operation to condense I/O data shared on all processes into a single data record.
+
+A block diagram illustrating the interaction of an example POSIX instrumentation module and the
+Darshan runtime environment is given below in Figure 1.
+
+.Darshan runtime environment
+image::darshan-dev-modular-runtime.png[align="center"]
 
 ==== Instrumentation modules
 
@@ -172,7 +178,11 @@ all internal data structures.
 Within darshan-runtime, the darshan-core component manages the initialization and shutdown of the
 Darshan environment, provides instrumentation module developers an interface for registering modules
 with Darshan, and manages the compressing and the writing of the resultant I/O characterization.
-Each of the functions defined by this interface are explained in detail below.
+As illustrated in Figure 1, the darshan-core runtime environment intercepts `MPI_Init` and
+`MPI_Finalize` routines to initialze and shutdown the darshan runtime environment, respectively.
+
+Each of the functions provided by darshan-core to interface with instrumentation modules are
+described in detail below.
 
 [source,c]
 void darshan_core_register_module(
