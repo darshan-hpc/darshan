@@ -1,3 +1,5 @@
+:sectlinks:
+
 Darshan modularization branch development notes
 ===============================================
 
@@ -47,8 +49,6 @@ applications and generating I/O characterization logs.
 * *darshan-util*: Darshan utilities for analyzing the contents of a given Darshan
 I/O characterization log.
 
-
-
 The following subsections provide an overview of each of these components with specific
 attention to how new instrumentation modules may be integrated into Darshan.
 
@@ -64,21 +64,32 @@ The primary responsibilities of the darshan-runtime component are:
 
 * logging the compressed I/O characterization to file for future evaluation
 
-The first two responsibilities are the burden of the instrumentation module developer, while the last
-two are handled automatically by Darshan.
+The first two responsibilities are the burden of module developers, while the last two are handled
+automatically by Darshan.
+
+In general, instrumentation modules are composed of:
+
+* wrapper functions for intercepting I/O functions;
+
+* internal functions for initializing and maintaining internal data structures and module-specific
+  I/O characterization data;
+
+* a set of functions for interfacing with the Darshan runtime environment, including an optional
+  reduction operation to condense I/O data shared on all processes into a single data record.
 
 ==== Instrumentation modules
 
 The wrapper functions used to intercept I/O function calls of interest are central to the design of
 any Darshan instrumentation module. These wrappers are used to extract pertinent I/O data from
-the function call and persist this data in some state structure maintained by the module. The wrappers
-are inserted at compile time for statically linked executables (e.g., using the linkers `--wrap`
-mechanism) and at runtime for dynamically linked executables (using LD_PRELOAD).
+the function call and persist this data in some state structure maintained by the module. Modules
+must bootstrap themselves by initializing internal data structures within wrapper functions. The
+wrappers are inserted at compile time for statically linked executables (e.g., using the linkers
+`--wrap` mechanism) and at runtime for dynamically linked executables (using LD_PRELOAD).
 
 *NOTE*: Modules should not perform any I/O or communication within wrapper functions. Darshan records
 I/O data independently on each application process, then merges the data from all processes when the
 job is shutting down. This defers expensive I/O and communication operations to the shutdown process,
-limiting Darshan's impact on application I/O performance.
+minimizing Darshan's impact on application I/O performance.
 
 When the instrumented application terminates and Darshan begins its shutdown procedure, it requires
 a way to interface with any active modules that have data to contribute to the output I/O characterization.
@@ -88,15 +99,15 @@ environment to coordinate with modules while shutting down:
 [source,c]
 struct darshan_module_funcs
 {
-    void (*disable_instrumentation)(void);
-    void (*prepare_for_reduction)(
+    void (*begin_shutdown)(void);
+    void (*setup_reduction)(
         darshan_record_id *shared_recs,
         int *shared_rec_count,
         void **send_buf,
         void **recv_buf,
         int *rec_size
     );
-    void (*reduce_records)(
+    void (*record_reduction_op)(
         void* a,
         void* b,
         int *len,
@@ -109,55 +120,42 @@ struct darshan_module_funcs
     void (*shutdown)(void);
 };
 
-`disable_instrumentation()`
+`begin_shutdown()`
 
 This function informs the module that Darshan is about to begin shutting down. It should disable
-all wrappers and stop updating internal data structures to ensure data consistency and avoid
-other race conditions.
+all wrappers to prevent the module from making future updates to internal data structures, primarily
+to ensure data consistency and avoid other race conditions. This function also serves as a final
+opportunity for a module to modify internal data structures prior to a possible reduction of shared
+data.
 
-`prepare_for_reduction()`
+`setup_reduction()`
 
-Since Darshan aggregates shared data records (i.e., records which all application processes
-accessed) into a single record, module developers must provide mechanisms for performing a reduction
-on these records.
+An optional feature provided to instrumentation modules it the ability to run reduction operations
+on I/O data records which are shared across all application processes (e.g., data records for a
+shared file). This reduction is done to minimize the size of the resulting I/O characterization,
+by aggregating shared records into a single data record.
 
-This function is used to prepare a module for performing a reduction operation. In general, this
-just involves providing the input buffers to the reduction, and (on rank 0 only) providing output
-buffer space to store the result of the reduction.
+This function allows modules to setup internal data structures to run a reduction operation
+on data records which are shared across all application processes. Module developers can bypass
+the shared record reduction mechanism by setting the `setup_reduction` function pointer equal to `NULL`.
+This is helpful in initial prototyping of a module, or in the case where a module would not maintain
+I/O data which is shared across all processes. 
 
-* _shared_recs_ is a set of Darshan record identifiers which are associated with this module.
-These are the records which need to be reduced into single shared data records.
+The shared record reduction mechanism is described in detail
+link:darshan-modularization.html#_shared_record_reductions[here].
 
-* _shared_rec_count_ is a pointer to an integer storing the number of shared records will
-be reduced by this module. When the function is called this variable points to the number
-of shared records detected by Darshan, but the module can decide not to reduce any number
-of these records. Upon completion of the function, this variable should point to the number
-of shared records to perform reductions on (i.e., the size of the input and output buffers).
+`record_reduction_op()`
 
-* _send_buf_ is a pointer to the address of the send buffer used for performing the reduction
-operation. Upon completion, this variable should point to a buffer containing *_shared_rec_count_
-records that will be reduced.
+This function implements the actual shared record reduction operation. Module developers can bypass
+the shared record reduction mechanism by setting the `record_reduction_op` pointer equal to `NULL`.
 
-* _recv_buf_ is a pointer to the address of the receive bufffer used for performing the reduction
-operation. Upon completion, this variable should point to a buffer containing *_shared_rec_count_
-records that will be reduced. This variable is only valid on the root process (rank 0). This
-buffer address needs to be stored with module state, as it will be needed when retrieiving
-the final output buffers from this module.
-
-* _rec_size_ is just the size of the record structure being reduced for this module.
-
-`reduce_records()`
-
-This is the function which performs the actual shared record reduction operation. The prototype
-of this function matches that of the user function provided to the MPI_Op_create function. Refer
-to the http://www.mpich.org/static/docs/v3.1/www3/MPI_Op_create.html[documentation] for further
-details.
+The shared record reduction mechanism is described in detail
+link:darshan-modularization.html#_shared_record_reductions[here].
 
 `get_output_data()`
 
 This function is responsible for passing back a single buffer storing all data this module is
-contributing to the output I/O characterization. On rank 0, this may involve copying the results
-of the shared record reduction into the output buffer.
+contributing to the output I/O characterization.
 
 * _buf_ is a pointer to the address of the buffer this module is contributing to the I/O
 characterization. 
@@ -173,14 +171,15 @@ all internal data structures.
 
 Within darshan-runtime, the darshan-core component manages the initialization and shutdown of the
 Darshan environment, provides instrumentation module developers an interface for registering modules
-with Darshan, and manages the compressing and the writing of the resultant I/O charracterization.
+with Darshan, and manages the compressing and the writing of the resultant I/O characterization.
 Each of the functions defined by this interface are explained in detail below.
 
 [source,c]
 void darshan_core_register_module(
     darshan_module_id mod_id,
     struct darshan_module_funcs *funcs,
-    int *runtime_mem_limit);
+    int *mod_mem_limit,
+    int *sys_mem_alignment);
 
 The `darshan_core_register_module` function registers Darshan instrumentation modules with the
 darshan-core runtime environment. This function needs to be called at least once for any module
@@ -192,10 +191,14 @@ format header file (darshan-log-format.h).
 * _funcs_ is the structure of function pointers (as described above) that a module developer must
 provide to interface with the darshan-core runtime. 
 
-* _runtime_mem_limit_ is a pointer to an integer which will store the amount of memory Darshan
+* _mod_mem_limit_ is a pointer to an integer which will store the amount of memory Darshan
 allows this module to use at runtime. Currently, darshan-core will hardcode this value to 2 MiB,
 but in the future this may be changed to optimize Darshan's memory footprint. Note that Darshan
 does not allocate any memory for modules, it just informs a module how much memory it can use.
+
+* _sys_mem_alignment_ is a pointer to an integer which will store the system memory alignment value
+Darshan was configured with. This parameter may be set to `NULL` if a module is not concerned with the
+memory alignment value.
 
 [source,c]
 void darshan_core_unregister_module(
@@ -215,7 +218,8 @@ void darshan_core_register_record(
     int len,
     int printable_flag,
     darshan_module_id mod_id,
-    darshan_record_id *rec_id);
+    darshan_record_id *rec_id,
+    int *file_alignment);
 
 The `darshan_core_register_record` function registers some data record with the darshan-core
 runtime. This record could reference a POSIX file or perhaps an object identifier for an
@@ -240,12 +244,16 @@ is the size of the record name type.
 * _rec_id_ is a pointer to a variable which will store the unique record identifier generated
 by Darshan.
 
+* _file_alignment_ is a pointer to an integer which will store the the file alignment (block size)
+of the underlying storage system. This parameter may be set to `NULL` if it is not applicable to a
+given module.
+
 [source,c]
 void darshan_core_unregister_record(
     darshan_record_id rec_id,
     darshan_module_id mod_id);
 
-The `darshan_core_unregister_record` functoin disassociates the given module identifier from the
+The `darshan_core_unregister_record` function disassociates the given module identifier from the
 given record identifier. If no other modules are associated with the given record identifier, then
 Darshan removes all internal references to the record. This function should only be used if a
 module registers a record with darshan-core, but later decides not to store the record internally.
@@ -367,7 +375,13 @@ Close Darshan file descriptor `fd`. Returns `0` on success, `-1` on failure.
 
 == Adding new instrumentation modules
 
-In this section we outline each step necessary to adding a module to Darshan.
+In this section we outline each step necessary to adding a module to Darshan. To assist module
+developers, we have provided the example "NULL" module (`darshan-runtime/lib/darshan-null.c`)
+as part of the darshan-runtime source. This example can be used as a minimal stubbed out module
+implementation. It is also heavily annotated to document more specific functionality provided
+by Darshan to module developers. For a full-fledged implementation of a module, developers
+can examine the POSIX module (`darshan-runtime/lib/darshan-posix.c`), which wraps and instruments
+a number of POSIX I/O functions.
 
 === Log format headers
 
@@ -377,8 +391,12 @@ the module's record structure:
 * Add module identifier to darshan_module_id enum and add module string name to the
 darshan_module_name array in `darshan-log-format.h`.
 
-* Add a top-level header that defines a data record structure for the module. An exemplar
-log header for the POSIX instrumentation module is given in `darshan-posix-log-format.h`.
+* Add a top-level header that defines an I/O data record structure for the module. Consider
+the "NULL" module and POSIX module log format headers for examples (`darshan-null-log-format.h`
+and `darshan-posix-log-format.h`, respectively).
+
+These log format headers are defined at the top level of the Darshan source tree, since both the
+darshan-runtime and darshan-util repositories depend on them.
 
 === Darshan-runtime
 
@@ -387,17 +405,22 @@ log header for the POSIX instrumentation module is given in `darshan-posix-log-f
 The following modifications to the darshan-runtime build system are necessary to integrate
 new instrumentation modules:
 
-* Necessary linker flags for wrapping this module's functions need to be added to the definition
-of `CP_WRAPPERS` in `darshan-config.in`.
+* Necessary linker flags for wrapping this module's functions need to be added to a
+module-specific file which is used when linking applications with Darshan. For an example,
+consider `darshan-runtime/darshan-posix-ld-opts`, the required linker options for the POSIX
+module. The base linker options file for Darshan (`darshan-runtime/darshan-base-ld-opts.in`)
+must also be updated to point to the new module-specific linker options file.
 
 * Targets must be added to `Makefile.in` to build static and shared objects for the module's
-source files, which will be stored in the `lib/` directory. The prerequisites to building
-static and dynamic versions of `lib-darshan` must be updated to include these objects, as well.
+source files, which will be stored in the `darshan-runtime/lib/` directory. The prerequisites
+to building static and dynamic versions of `libdarshan` must be updated to include these objects,
+as well.
+    - If the module defines a linker options file, a target must also be added to install this
+      file with libdarshan.
 
 ==== Instrumentation module implementation
 
-An exemplar instrumentation module for POSIX I/O functions is given in `lib/darshan-posix.c` as
-reference. In addtion to the development notes from above and the reference POSIX module, we
+In addtion to the development notes from above and the exemplar "NULL" and POSIX modules, we
 provide the following notes to assist module developers:
 
 * Modules only need to include the `darshan.h` header to interface with darshan-core.
@@ -436,6 +459,70 @@ the POSIX module, consider files `darshan-posix-logutils.c` and `darshan-posix-l
 
 Also, the `darshan-posix-parser` source provides a simple example of a utility which can leverage
 libdarshan-util for analyzing the contents of a given Darshan I/O characterization log.
+
+== Shared record reductions
+
+Since Darshan perfers to aggregate data records which are shared across all processes into a single
+data record, module developers should consider implementing this functionality eventually, though it
+is not strictly required. 
+
+As mentioned previously, module developers must provide implementations for the `begin_reduction()`
+and `record_reduction_op` functions in the darshan_module_funcs structure to leverage Darshan's
+shared record reduction mechanism. These functions are described in detail as follows:
+
+[source,c]
+void (*setup_reduction)(
+    darshan_record_id *shared_recs,
+    int *shared_rec_count,
+    void **send_buf,
+    void **recv_buf,
+    int *rec_size
+);
+
+This function is used to prepare a module for performing a reduction operation. In general, this
+just involves providing the input buffers to the reduction, and (on rank 0 only) providing output
+buffer space to store the result of the reduction.
+
+* _shared_recs_ is a set of Darshan record identifiers which are associated with this module.
+These are the records which need to be reduced into single shared data records.
+
+* _shared_rec_count_ is a pointer to an integer storing the number of shared records will
+be reduced by this module. When the function is called this variable points to the number
+of shared records detected by Darshan, but the module can decide not to reduce any number
+of these records. Upon completion of the function, this variable should point to the number
+of shared records to perform reductions on (i.e., the size of the input and output buffers).
+
+* _send_buf_ is a pointer to the address of the send buffer used for performing the reduction
+operation. Upon completion, this variable should point to a buffer containing *_shared_rec_count_
+records that will be reduced.
+
+* _recv_buf_ is a pointer to the address of the receive bufffer used for performing the reduction
+operation. Upon completion, this variable should point to a buffer containing *_shared_rec_count_
+records that will be reduced. This variable is only valid on the root process (rank 0). This
+buffer address needs to be stored with module state, as it will be needed when retrieiving
+the final output buffers from this module.
+
+* _rec_size_ is just the size of the record structure being reduced for this module.
+
+[source,c]
+void (*record_reduction_op)(
+    void* a,
+    void* b,
+    int *len,
+    MPI_Datatype *datatype
+);
+
+This is the function which performs the actual shared record reduction operation. The prototype
+of this function matches that of the user function provided to the MPI_Op_create function. Refer
+to the http://www.mpich.org/static/docs/v3.1/www3/MPI_Op_create.html[documentation] for further
+details.
+
+Note that a module will likely need to clean up it's internal state after a reduction to get
+all data records into a contiguous buffer, as Darshan requires. This can be done within the
+`get_output_buffer()` function. 
+
+Module developers can examine the POSIX module for a comprehensive (and monolithic) implementation
+of the shared record reduction functionality.
 
 == Other resources
 
