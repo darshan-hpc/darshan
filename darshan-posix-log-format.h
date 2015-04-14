@@ -8,6 +8,8 @@
 
 #include "darshan-log-format.h"
 
+/* TODO: X macro this stuff so counter indices and string names don't diverge */
+
 /* integer statistics for POSIX file records */
 enum darshan_posix_indices
 {
