@@ -159,19 +159,6 @@ to ensure data consistency and avoid other race conditions. This function also s
 opportunity for a module to modify internal data structures prior to a possible reduction of shared
 data.
 
-`setup_reduction()`
-
-An optional feature provided to instrumentation modules it the ability to run reduction operations
-on I/O data records which are shared across all application processes (e.g., data records for a
-shared file). This reduction is done to minimize the size of the resulting I/O characterization,
-by aggregating shared records into a single data record.
-
-This function allows modules to setup internal data structures to run a reduction operation
-on data records which are shared across all application processes. Module developers can bypass
-the shared record reduction mechanism by setting the `setup_reduction` function pointer equal to `NULL`.
-This is helpful in initial prototyping of a module, or in the case where a module would not maintain
-I/O data which is shared across all processes. 
-
 `get_output_data()`
 
 This function is responsible for passing back a single buffer storing all data this module is
@@ -495,8 +482,8 @@ Since Darshan perfers to aggregate data records which are shared across all proc
 data record, module developers should consider implementing this functionality eventually, though it
 is not strictly required. 
 
-As mentioned previously, module developers must provide implementations for the `begin_reduction()`
-and `record_reduction_op` functions in the darshan_module_funcs structure to leverage Darshan's
+As mentioned previously, module developers must provide implementations for the `setup_reduction()`
+and `record_reduction_op()` functions in the darshan_module_funcs structure to leverage Darshan's
 shared record reduction mechanism. These functions are described in detail as follows:
 
 [source,c]

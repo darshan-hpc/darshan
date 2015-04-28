@@ -1710,13 +1710,12 @@ static void posix_setup_reduction(
         *recv_buf = malloc(*shared_rec_count * sizeof(struct darshan_posix_file));
         if(!(*recv_buf))
             return;
+
+        /* TODO: cleaner way to do this? */
+        posix_runtime->red_buf = *recv_buf;
     }
 
     *rec_size = sizeof(struct darshan_posix_file);
-
-    /* TODO: cleaner way to do this? */
-    if(my_rank == 0)
-        posix_runtime->red_buf = *recv_buf;
     posix_runtime->shared_rec_count = *shared_rec_count;
 
     return;
@@ -1967,7 +1966,6 @@ static void posix_get_output_data(
         int tmp_ndx = posix_runtime->file_array_ndx - posix_runtime->shared_rec_count;
         memcpy(&(posix_runtime->file_record_array[tmp_ndx]), posix_runtime->red_buf,
             posix_runtime->shared_rec_count * sizeof(struct darshan_posix_file));
-        free(posix_runtime->red_buf);
     }
     else
     {
@@ -1993,6 +1991,9 @@ static void posix_shutdown()
     }
 
     HASH_CLEAR(hlink, posix_runtime->file_hash); /* these entries are freed all at once below */
+
+    if(my_rank == 0 && posix_runtime->red_buf)
+        free(posix_runtime->red_buf);
 
     free(posix_runtime->file_runtime_array);
     free(posix_runtime->file_record_array);
