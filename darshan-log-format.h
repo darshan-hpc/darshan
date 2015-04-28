@@ -45,6 +45,7 @@ typedef enum
     DARSHAN_MPIIO_MOD,
     DARSHAN_HDF5_MOD,
     DARSHAN_PNETCDF_MOD,
+    DARSHAN_BGQ_MOD,
 } darshan_module_id;
 
 static char * const darshan_module_names[] =
@@ -53,7 +54,8 @@ static char * const darshan_module_names[] =
     "POSIX",
     "MPI-IO",
     "HDF5",
-    "PNETCDF"
+    "PNETCDF",
+    "BG/Q",
 };
 
 /* the darshan_log_map structure is used to indicate the location of

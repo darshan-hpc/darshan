@@ -69,6 +69,16 @@ lib/darshan-mpiio.o: lib/darshan-mpiio.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdi
 lib/darshan-mpiio.po: lib/darshan-mpiio.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mpiio-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
+#
+# BG/Q module
+#
+lib/darshan-bgq.o: lib/darshan-bgq.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mpiio-log-format.h | lib
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/darshan-bgq.po: lib/darshan-bgq.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mpiio-log-format.h | lib
+	$(CC) $(CFLAGS_SHARED) -c $< -o $@
+
+
 lib/lookup3.o: lib/lookup3.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -84,10 +94,10 @@ lib/lookup8.po: lib/lookup8.c
 #%.i: %.c
 #	$(CC) -E $(CFLAGS) -c $< -o $@
 
-lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darshan-common.o lib/darshan-posix.o lib/darshan-mpiio.o lib/lookup3.o lib/lookup8.o
+lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darshan-common.o lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-bgq.o lib/lookup3.o lib/lookup8.o
 	ar rcs $@ $^
 
-lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po lib/darshan-posix.po lib/darshan-mpiio.po lib/lookup3.po lib/lookup8.po
+lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-bgq.po lib/lookup3.po lib/lookup8.po
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ -lpthread -lrt -lz -ldl
 
 install:: all
