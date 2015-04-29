@@ -2,6 +2,11 @@
 Darshan Release Change Log
 --------------------------
 
+darshan-2.3.2-pre1
+=============
+* Fix gnuplot version number check to allow darshan-job-summary.pl to work
+  with gnuplot 5.0 (Kay Thust)
+
 darshan-2.3.1
 =============
 * added documentation and example configuration files for using the -profile
