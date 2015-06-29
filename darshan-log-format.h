@@ -33,28 +33,32 @@
 
 typedef uint64_t darshan_record_id;
 
+#define DARSHAN_MAX_MODS 16
+#define DARSHAN_MODULE_IDS \
+    X(DARSHAN_NULL_MOD,     "NULL") \
+    X(DARSHAN_POSIX_MOD,    "POSIX") \
+    X(DARSHAN_MPIIO_MOD,    "MPI-IO") \
+    X(DARSHAN_HDF5_MOD,     "HDF5") \
+    X(DARSHAN_PNETCDF_MOD,  "PNETCDF")
+
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
  *        - order of ids control module shutdown order (and consequently, order in log file)
  */
-#define DARSHAN_MAX_MODS 16
+#define X(a, b) a,
 typedef enum
 {
-    DARSHAN_NULL_MOD = 0,
-    DARSHAN_POSIX_MOD,
-    DARSHAN_MPIIO_MOD,
-    DARSHAN_HDF5_MOD,
-    DARSHAN_PNETCDF_MOD,
+    DARSHAN_MODULE_IDS
 } darshan_module_id;
+#undef X
 
+/* module name strings */
+#define X(a, b) b,
 static char * const darshan_module_names[] =
 {
-    "NULL",
-    "POSIX",
-    "MPI-IO",
-    "HDF5",
-    "PNETCDF"
+    DARSHAN_MODULE_IDS
 };
+#undef X
 
 /* the darshan_log_map structure is used to indicate the location of
  * specific module data in a Darshan log. Note that 'off' and 'len' are
