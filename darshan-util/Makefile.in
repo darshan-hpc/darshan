@@ -1,4 +1,4 @@
-all: libdarshan-util.a darshan-base-parser darshan-posix-parser darshan-mpiio-parser
+all: libdarshan-util.a darshan-base-parser darshan-posix-parser darshan-mpiio-parser darshan-bgq-parser
 
 DESTDIR =
 srcdir = @srcdir@
@@ -74,6 +74,9 @@ darshan-posix-parser: darshan-posix-parser.c darshan-logutils.h darshan-posix-lo
 darshan-mpiio-parser: darshan-mpiio-parser.c darshan-logutils.h darshan-mpiio-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mpiio-log-format.h libdarshan-util.a | uthash-1.9.2
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS) 
 
+darshan-bgq-parser: darshan-bgq-parser.c darshan-logutils.h darshan-bgq-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-bgq-log-format.h libdarshan-util.a | uthash-1.9.2
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS) 
+
 #darshan-parser: darshan-parser.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o | uthash-1.9.2
 #	$(CC) $(CFLAGS) $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS) 
 
@@ -109,6 +112,7 @@ install:: all
 	install -m 755 darshan-base-parser $(bindir)
 	install -m 755 darshan-posix-parser $(bindir)
 	install -m 755 darshan-mpiio-parser $(bindir)
+	install -m 755 darshan-bgq-parser $(bindir)
 #	install -m 755 darshan-convert $(bindir)
 #	install -m 755 darshan-diff $(bindir)
 #	install -m 755 darshan-analyzer $(bindir)

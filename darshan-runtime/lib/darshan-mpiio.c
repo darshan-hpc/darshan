@@ -453,16 +453,19 @@ static void mpiio_setup_reduction(
 {
     struct mpiio_file_runtime *file;
     int i;
+    int count;
 
     assert(mpiio_runtime);
 
     /* necessary initialization of shared records (e.g., change rank to -1) */
-    for(i = 0; i < *shared_rec_count; i++)
+    for(i = 0,count = 0; i < *shared_rec_count; i++)
     {
         HASH_FIND(hlink, mpiio_runtime->file_hash, &shared_recs[i],
             sizeof(darshan_record_id), file);
-        assert(file);
-
+        if (!file) {
+            continue;
+        }
+        count++;
         file->file_record->rank = -1;
     }
 
@@ -475,22 +478,18 @@ static void mpiio_setup_reduction(
 
     /* make *send_buf point to the shared files at the end of sorted array */
     *send_buf =
-        &(mpiio_runtime->file_record_array[mpiio_runtime->file_array_ndx-(*shared_rec_count)]);
+        &(mpiio_runtime->file_record_array[mpiio_runtime->file_array_ndx-(count)]);
 
     /* allocate memory for the reduction output on rank 0 */
-    if(my_rank == 0)
+    if((my_rank == 0) && (count > 0))
     {
-        *recv_buf = malloc(*shared_rec_count * sizeof(struct darshan_mpiio_file));
-        if(!(*recv_buf))
-            return;
+        *recv_buf = malloc(count * sizeof(struct darshan_mpiio_file));
+        mpiio_runtime->red_buf = *recv_buf;
     }
 
     *rec_size = sizeof(struct darshan_mpiio_file);
 
-    /* TODO: cleaner way to do this? */
-    if(my_rank == 0)
-        mpiio_runtime->red_buf = *recv_buf;
-    mpiio_runtime->shared_rec_count = *shared_rec_count;
+    mpiio_runtime->shared_rec_count = count;
 
     return;
 }

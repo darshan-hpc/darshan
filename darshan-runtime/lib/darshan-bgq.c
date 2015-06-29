@@ -41,7 +41,6 @@ struct bgq_runtime
     struct darshan_bgq_record record;
 };
 
-/* null_runtime is the global data structure encapsulating "NULL" module state */
 static struct bgq_runtime *bgq_runtime = NULL;
 static pthread_mutex_t bgq_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
@@ -52,12 +51,14 @@ static int instrumentation_disabled = 0;
 static int my_rank = -1;
 
 /* internal helper functions for the "NULL" module */
-static void bgq_runtime_initialize(void);
+void bgq_runtime_initialize(void);
 
 /* forward declaration for module functions needed to interface with darshan-core */
 static void bgq_begin_shutdown(void);
 static void bgq_get_output_data(void **buffer, int *size);
 static void bgq_shutdown(void);
+static void bgq_setup_reduction(darshan_record_id *shared_recs,int *shared_rec_count,void **send_buf,void **recv_buf,int *rec_size);
+static void bgq_record_reduction_op(void* infile_v,void* inoutfile_v,int *len,MPI_Datatype *datatype);
 
 /* macros for obtaining/releasing the "NULL" module lock */
 #define BGQ_LOCK() pthread_mutex_lock(&bgq_runtime_mutex)
@@ -70,9 +71,12 @@ static void capture(struct darshan_bgq_record *rec)
 {
 #ifdef __bgq__
     Personality_t person;
+    int r;
 
     rec->counters[BGQ_CSJOBID] = Kernel_GetJobID();
     rec->counters[BGQ_RANKSPERNODE] = Kernel_ProcessCount();
+
+    rec->counters[BGQ_INODES] = MPIX_IO_node();
 
     r = Kernel_GetPersonality(&person, sizeof(person));
     if (r == 0)
@@ -104,14 +108,14 @@ static void capture(struct darshan_bgq_record *rec)
  * Internal functions for manipulating BGQ module state *
  **********************************************************/
 
-static void bgq_runtime_initialize()
+void bgq_runtime_initialize()
 {
     /* struct of function pointers for interfacing with darshan-core */
     struct darshan_module_funcs bgq_mod_fns =
     {
         .begin_shutdown = bgq_begin_shutdown,
-        .setup_reduction = NULL, 
-        .record_reduction_op = NULL, 
+        .setup_reduction = bgq_setup_reduction, 
+        .record_reduction_op = bgq_record_reduction_op, 
         .get_output_data = bgq_get_output_data,
         .shutdown = bgq_shutdown
     };
@@ -198,9 +202,9 @@ static void bgq_get_output_data(
      * I/O records, and set the output size according to the number of records
      * currently being tracked.
      */
-    if (bgq_runtime)
+    if ((bgq_runtime) && (my_rank == 0))
     {
-        *buffer = (void *)&bgq_runtime->record;
+        *buffer = &bgq_runtime->record;
         *size = sizeof(struct darshan_bgq_record);
     }
     else
@@ -219,6 +223,70 @@ static void bgq_shutdown()
     {
         free(bgq_runtime);
         bgq_runtime = NULL;
+    }
+
+    return;
+}
+
+static void bgq_setup_reduction(
+    darshan_record_id *shared_recs,
+    int *shared_rec_count,
+    void **send_buf,
+    void **recv_buf,
+    int *rec_size)
+{
+    int i;
+    int found;
+
+    for (i = 0; i < *shared_rec_count; i++)
+    {
+        if (shared_recs[i] == bgq_runtime->record.f_id)
+        {
+            found = 1;
+            break;
+        }
+    }
+
+    if (found)
+    {
+        printf("found bgq shared record\n");
+        *rec_size = sizeof(struct darshan_bgq_record);
+        *shared_rec_count = 1;
+        *send_buf = &bgq_runtime->record;
+        *recv_buf = &bgq_runtime->record;
+    }
+
+    return;
+}
+
+static void bgq_record_reduction_op(
+    void* infile_v,
+    void* inoutfile_v,
+    int* len,
+    MPI_Datatype *datatype)
+{
+    int i;
+    int j;
+    struct darshan_bgq_record *infile = infile_v;
+    struct darshan_bgq_record *inoutfile = inoutfile_v;
+
+    for (i = 0; i<*len; i++)
+    {
+        for (j = 0; j < BGQ_NUM_INDICES; j++)
+        {
+            if (infile->counters[j] != inoutfile->counters[j])
+            {
+                // unexpected
+                fprintf(stderr,
+                        "%lu counter mismatch: %d [%lu] [%lu]\n",
+                        infile->f_id,
+                        j,
+                        infile->counters[j],
+                        inoutfile->counters[j]);
+            }
+        }
+        infile++;
+        inoutfile++;
     }
 
     return;

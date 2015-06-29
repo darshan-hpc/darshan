@@ -1655,15 +1655,19 @@ static void posix_setup_reduction(
     struct posix_file_runtime *file;
     int i;
     double posix_time;
+    int count;
 
     assert(posix_runtime);
 
     /* necessary initialization of shared records (e.g., change rank to -1) */
-    for(i = 0; i < *shared_rec_count; i++)
+    for(i = 0,count = 0; i < *shared_rec_count; i++)
     {
         HASH_FIND(hlink, posix_runtime->file_hash, &shared_recs[i],
             sizeof(darshan_record_id), file);
-        assert(file);
+        if (!file) {
+            continue;
+        }
+        count++;
 
         posix_time =
             file->file_record->fcounters[POSIX_F_READ_TIME] +
@@ -1702,22 +1706,22 @@ static void posix_setup_reduction(
 
     /* make *send_buf point to the shared files at the end of sorted array */
     *send_buf =
-        &(posix_runtime->file_record_array[posix_runtime->file_array_ndx-(*shared_rec_count)]);
+        &(posix_runtime->file_record_array[posix_runtime->file_array_ndx-(count)]);
 
     /* allocate memory for the reduction output on rank 0 */
-    if(my_rank == 0)
+    if((my_rank == 0) && (count > 0))
     {
-        *recv_buf = malloc(*shared_rec_count * sizeof(struct darshan_posix_file));
-        if(!(*recv_buf))
-            return;
+        printf("shared count = %d\n", count);
+        *recv_buf = malloc(count * sizeof(struct darshan_posix_file));
+        posix_runtime->red_buf = *recv_buf;
+        printf("recv_buf = %p\n", *recv_buf);
+//        if(!(*recv_buf))
+//            return;
     }
 
     *rec_size = sizeof(struct darshan_posix_file);
 
-    /* TODO: cleaner way to do this? */
-    if(my_rank == 0)
-        posix_runtime->red_buf = *recv_buf;
-    posix_runtime->shared_rec_count = *shared_rec_count;
+    posix_runtime->shared_rec_count = count;
 
     return;
 }
@@ -1962,7 +1966,7 @@ static void posix_get_output_data(
 
     /* TODO: cleaner way to do this? */
     /* clean up reduction state */
-    if(my_rank == 0)
+    if((my_rank == 0) && (posix_runtime->red_buf))
     {
         int tmp_ndx = posix_runtime->file_array_ndx - posix_runtime->shared_rec_count;
         memcpy(&(posix_runtime->file_record_array[tmp_ndx]), posix_runtime->red_buf,
