@@ -1207,7 +1207,7 @@ int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb64 *const aiocb_list[],
     int ret;
     int i;
 
-    MAP_OR_FAIL(lio_listio);
+    MAP_OR_FAIL(lio_listio64);
 
     ret = __real_lio_listio64(mode, aiocb_list, nitems, sevp);
     if(ret == 0)
