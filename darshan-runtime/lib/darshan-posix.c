@@ -1172,8 +1172,16 @@ ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
         if((unsigned long)aiocbp->aio_buf % darshan_mem_alignment == 0)
             aligned_flag = 1;
         CP_LOCK();
-        CP_RECORD_WRITE(ret, aiocbp->aio_fildes, aiocbp->aio_nbytes,
-            1, aiocbp->aio_offset, aligned_flag, 0, tmp->tm1, tm2);
+        if(aiocbp->aio_lio_opcode == LIO_WRITE)
+        {
+            CP_RECORD_WRITE(ret, aiocbp->aio_fildes, aiocbp->aio_nbytes,
+                1, aiocbp->aio_offset, aligned_flag, 0, tmp->tm1, tm2);
+        }
+        if(aiocbp->aio_lio_opcode == LIO_READ)
+        {
+            CP_RECORD_READ(ret, aiocbp->aio_fildes, aiocbp->aio_nbytes,
+                1, aiocbp->aio_offset, aligned_flag, 0, tmp->tm1, tm2);
+        }
         CP_UNLOCK();
         free(tmp);
     }
