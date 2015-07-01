@@ -25,6 +25,7 @@
 #include <pthread.h>
 
 #include "uthash.h"
+
 #include "darshan.h"
 #include "darshan-mpiio-log-format.h"
 #include "darshan-dynamic.h"
@@ -55,11 +56,7 @@
 struct mpiio_file_runtime
 {
     struct darshan_mpiio_file* file_record;
-    double last_mpi_meta_end; /* end time of last MPI meta op (so far) */
-    /* TODO: any stateful (but not intended for persistent storage in the log)
-     * information about MPI-IO access.  If we don't have any then this struct
-     * could be eliminated.
-     */
+    double last_mpi_meta_end;
     UT_hash_handle hlink;
 };
 
@@ -89,10 +86,14 @@ struct mpiio_file_runtime
 struct mpiio_file_runtime_ref
 {
     struct mpiio_file_runtime* file;
-    MPI_File *fh;
+    MPI_File fh;
     UT_hash_handle hlink;
 };
 
+/* The mpiio_runtime structure maintains necessary state for storing
+ * MPI-IO file records and for coordinating with darshan-core at 
+ * shutdown time.
+ */
 struct mpiio_runtime
 {
     struct mpiio_file_runtime* file_runtime_array;
@@ -110,22 +111,26 @@ static pthread_mutex_t mpiio_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER
 static int instrumentation_disabled = 0;
 static int my_rank = -1;
 
+static void mpiio_runtime_initialize(void);
+static struct mpiio_file_runtime* mpiio_file_by_name_setfh(const char* name, MPI_File fh);
+static struct mpiio_file_runtime* mpiio_file_by_fh(MPI_File fh);
+static void mpiio_file_close_fh(MPI_File fh);
+static int mpiio_file_compare(const void* a, const void* b);
+
+static void mpiio_begin_shutdown(void);
+static void mpiio_setup_reduction(darshan_record_id *shared_recs, int *shared_rec_count,
+    void **send_buf, void **recv_buf, int *rec_size);
+static void mpiio_record_reduction_op(void* infile_v, void* inoutfile_v,
+    int *len, MPI_Datatype *datatype);
+static void mpiio_get_output_data(void **buffer, int *size);
+static void mpiio_shutdown(void);
+
 #define MPIIO_LOCK() pthread_mutex_lock(&mpiio_runtime_mutex)
 #define MPIIO_UNLOCK() pthread_mutex_unlock(&mpiio_runtime_mutex)
 
-static void mpiio_runtime_initialize(void);
-static void mpiio_begin_shutdown(void);
-static void mpiio_shutdown(void);
-static void mpiio_get_output_data(
-    void **buffer,
-    int *size);
-static struct mpiio_file_runtime* mpiio_file_by_name_setfh(const char* name, MPI_File *fh);
-static struct mpiio_file_runtime* mpiio_file_by_name(const char *name);
-static void mpiio_record_reduction_op(void* infile_v, void* inoutfile_v,
-    int *len, MPI_Datatype *datatype);
-static void mpiio_setup_reduction(darshan_record_id *shared_recs,
-    int *shared_rec_count, void **send_buf, void **recv_buf, int *rec_size);
-static int mpiio_file_compare(const void* a, const void* b);
+/**********************************************************
+ *        Wrappers for MPI-IO functions of interest       * 
+ **********************************************************/
 
 #ifdef HAVE_MPIIO_CONST
 int MPI_File_open(MPI_Comm comm, const char *filename, int amode, MPI_Info info, MPI_File *fh) 
@@ -158,27 +163,27 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
             filename = tmp + 1;
         }
 
-        file = mpiio_file_by_name_setfh(filename, fh);
+        file = mpiio_file_by_name_setfh(filename, (*fh));
         if(file)
         {
             file->file_record->rank = my_rank;
-            DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, tm1, tm2, file->last_mpi_meta_end, DARSHAN_MPIIO_F_META_TIME);
-            if(DARSHAN_COUNTER_F_VALUE(file->file_record, DARSHAN_MPIIO_F_OPEN_TIMESTAMP) == 0)
-                DARSHAN_COUNTER_F_SET(file->file_record, DARSHAN_MPIIO_F_OPEN_TIMESTAMP,
-                tm1);
             DARSHAN_MPI_CALL(PMPI_Comm_size)(comm, &comm_size);
             if(comm_size == 1)
             {
-                DARSHAN_COUNTER_INC(file->file_record, DARSHAN_MPIIO_INDEP_OPENS, 1);
+                DARSHAN_COUNTER_INC(file->file_record, MPIIO_INDEP_OPENS, 1);
             }
             else
             {
-                DARSHAN_COUNTER_INC(file->file_record, DARSHAN_MPIIO_COLL_OPENS, 1);
+                DARSHAN_COUNTER_INC(file->file_record, MPIIO_COLL_OPENS, 1);
             }
             if(info != MPI_INFO_NULL)
             {
-                DARSHAN_COUNTER_INC(file->file_record, DARSHAN_MPIIO_HINTS, 1);
+                DARSHAN_COUNTER_INC(file->file_record, MPIIO_HINTS, 1);
             }
+            if(DARSHAN_COUNTER_F_VALUE(file->file_record, MPIIO_F_OPEN_TIMESTAMP) == 0)
+                DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_OPEN_TIMESTAMP, tm1);
+            DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, tm1, tm2,
+                file->last_mpi_meta_end, MPIIO_F_META_TIME);
         }
 
         MPIIO_UNLOCK();
@@ -187,6 +192,37 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
     return(ret);
 }
 
+int MPI_File_close(MPI_File *fh)
+{
+    int ret;
+    struct mpiio_file_runtime* file;
+    double tm1, tm2;
+
+    tm1 = darshan_core_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_File_close)(fh);
+    tm2 = darshan_core_wtime();
+
+    MPIIO_LOCK();
+    mpiio_runtime_initialize();
+    file = mpiio_file_by_fh(*fh);
+    if(file)
+    {
+        DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_CLOSE_TIMESTAMP,
+            darshan_core_wtime());
+        DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, tm1, tm2,
+            file->last_mpi_meta_end, MPIIO_F_META_TIME);
+        mpiio_file_close_fh(*fh);
+    }
+    MPIIO_UNLOCK();
+
+    return(ret);
+}
+
+/***********************************************************
+ * Internal functions for manipulating MPI-IO module state *
+ ***********************************************************/
+
+/* initialize data structures and register with darshan-core component */
 static void mpiio_runtime_initialize()
 {
     int mem_limit;
@@ -245,62 +281,7 @@ static void mpiio_runtime_initialize()
     return;
 }
 
-static void mpiio_begin_shutdown()
-{
-    assert(mpiio_runtime);
-
-    MPIIO_LOCK();
-    instrumentation_disabled = 1;
-    MPIIO_UNLOCK();
-
-    return;
-}
-
-static void mpiio_get_output_data(
-    void **buffer,
-    int *size)
-{
-    assert(mpiio_runtime);
-
-    /* TODO: clean up reduction stuff */
-    if(my_rank == 0)
-    {
-        int tmp_ndx = mpiio_runtime->file_array_ndx - mpiio_runtime->shared_rec_count;
-        memcpy(&(mpiio_runtime->file_record_array[tmp_ndx]), mpiio_runtime->red_buf,
-            mpiio_runtime->shared_rec_count * sizeof(struct darshan_mpiio_file));
-        free(mpiio_runtime->red_buf);
-    }
-    else
-    {
-        mpiio_runtime->file_array_ndx -= mpiio_runtime->shared_rec_count;
-    }
-
-    *buffer = (void *)(mpiio_runtime->file_record_array);
-    *size = mpiio_runtime->file_array_ndx * sizeof(struct darshan_mpiio_file);
-
-    return;
-}
-
-static void mpiio_shutdown()
-{
-    struct mpiio_file_runtime_ref *ref, *tmp;
-
-    HASH_ITER(hlink, mpiio_runtime->fh_hash, ref, tmp)
-    {
-        HASH_DELETE(hlink, mpiio_runtime->fh_hash, ref);
-        free(ref);
-    }
-
-    HASH_CLEAR(hlink, mpiio_runtime->file_hash); /* these entries are freed all at once below */
-
-    free(mpiio_runtime->file_runtime_array);
-    free(mpiio_runtime->file_record_array);
-    free(mpiio_runtime);
-    mpiio_runtime = NULL;
-
-    return;
-}
-
+#if 0
 /* get a MPIIO file record for the given file path */
 static struct mpiio_file_runtime* mpiio_file_by_name(const char *name)
 {
@@ -350,12 +331,14 @@ static struct mpiio_file_runtime* mpiio_file_by_name(const char *name)
         free(newname);
     return(file);
 }
+#endif
 
 /* get an MPIIO file record for the given file path, and also create a
  * reference structure using the corresponding file handle
  */
-static struct mpiio_file_runtime* mpiio_file_by_name_setfh(const char* name, MPI_File *fh)
+static struct mpiio_file_runtime* mpiio_file_by_name_setfh(const char* name, MPI_File fh)
 {
+#if 0
     struct mpiio_file_runtime* file;
     struct mpiio_file_runtime_ref* ref;
 
@@ -392,54 +375,34 @@ static struct mpiio_file_runtime* mpiio_file_by_name_setfh(const char* name, MPI
     HASH_ADD(hlink, mpiio_runtime->fh_hash, fh, sizeof(fh), ref);
 
     return(file);
+#endif
 }
 
-static void mpiio_record_reduction_op(
-    void* infile_v,
-    void* inoutfile_v,
-    int *len,
-    MPI_Datatype *datatype)
+/* compare function for sorting file records by descending rank */
+static int mpiio_file_compare(const void* a_p, const void* b_p)
 {
-    struct darshan_mpiio_file tmp_file;
-    struct darshan_mpiio_file *infile = infile_v;
-    struct darshan_mpiio_file *inoutfile = inoutfile_v;
-    int i, j;
+    const struct darshan_mpiio_file* a = a_p;
+    const struct darshan_mpiio_file* b = b_p;
 
+    if(a->rank < b->rank)
+        return 1;
+    if(a->rank > b->rank)
+        return -1;
+
+    return 0;
+}
+
+/**************************************************************************
+ * Functions exported by MPI-IO module for coordinating with darshan-core *
+ **************************************************************************/
+
+static void mpiio_begin_shutdown()
+{
     assert(mpiio_runtime);
 
-    for(i=0; i<*len; i++)
-    {
-        memset(&tmp_file, 0, sizeof(struct darshan_mpiio_file));
-
-        tmp_file.f_id = infile->f_id;
-        tmp_file.rank = -1;
-
-        /* sum */
-        for(j=DARSHAN_MPIIO_INDEP_OPENS; j<=DARSHAN_MPIIO_HINTS; j++)
-        {
-            tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
-        }
-
-        /* sum (floating point) */
-        for(j=DARSHAN_MPIIO_F_META_TIME; j<=DARSHAN_MPIIO_F_META_TIME; j++)
-        {
-            tmp_file.fcounters[j] = infile->fcounters[j] + inoutfile->fcounters[j];
-        }
-
-        /* min non-zero (if available) value */
-        for(j=DARSHAN_MPIIO_F_OPEN_TIMESTAMP; j<=DARSHAN_MPIIO_F_OPEN_TIMESTAMP; j++)
-        {
-            if(infile->fcounters[j] > inoutfile->fcounters[j] && inoutfile->fcounters[j] > 0)
-                tmp_file.fcounters[j] = inoutfile->fcounters[j];
-            else
-                tmp_file.fcounters[j] = infile->fcounters[j];
-        }
-
-        /* update pointers */
-        *inoutfile = tmp_file;
-        inoutfile++;
-        infile++;
-    }
+    MPIIO_LOCK();
+    instrumentation_disabled = 1;
+    MPIIO_UNLOCK();
 
     return;
 }
@@ -495,18 +458,99 @@ static void mpiio_setup_reduction(
     return;
 }
 
-/* compare function for sorting file records by descending rank */
-static int mpiio_file_compare(const void* a_p, const void* b_p)
+static void mpiio_record_reduction_op(
+    void* infile_v,
+    void* inoutfile_v,
+    int *len,
+    MPI_Datatype *datatype)
 {
-    const struct darshan_mpiio_file* a = a_p;
-    const struct darshan_mpiio_file* b = b_p;
+    struct darshan_mpiio_file tmp_file;
+    struct darshan_mpiio_file *infile = infile_v;
+    struct darshan_mpiio_file *inoutfile = inoutfile_v;
+    int i, j;
 
-    if(a->rank < b->rank)
-        return 1;
-    if(a->rank > b->rank)
-        return -1;
+    assert(mpiio_runtime);
 
-    return 0;
+    for(i=0; i<*len; i++)
+    {
+        memset(&tmp_file, 0, sizeof(struct darshan_mpiio_file));
+
+        tmp_file.f_id = infile->f_id;
+        tmp_file.rank = -1;
+
+        /* sum */
+        for(j=MPIIO_INDEP_OPENS; j<=MPIIO_HINTS; j++)
+        {
+            tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
+        }
+
+        /* sum (floating point) */
+        for(j=MPIIO_F_META_TIME; j<=MPIIO_F_META_TIME; j++)
+        {
+            tmp_file.fcounters[j] = infile->fcounters[j] + inoutfile->fcounters[j];
+        }
+
+        /* min non-zero (if available) value */
+        for(j=MPIIO_F_OPEN_TIMESTAMP; j<=MPIIO_F_OPEN_TIMESTAMP; j++)
+        {
+            if(infile->fcounters[j] > inoutfile->fcounters[j] && inoutfile->fcounters[j] > 0)
+                tmp_file.fcounters[j] = inoutfile->fcounters[j];
+            else
+                tmp_file.fcounters[j] = infile->fcounters[j];
+        }
+
+        /* update pointers */
+        *inoutfile = tmp_file;
+        inoutfile++;
+        infile++;
+    }
+
+    return;
+}
+
+static void mpiio_get_output_data(
+    void **buffer,
+    int *size)
+{
+    assert(mpiio_runtime);
+
+    /* TODO: clean up reduction stuff */
+    if(my_rank == 0)
+    {
+        int tmp_ndx = mpiio_runtime->file_array_ndx - mpiio_runtime->shared_rec_count;
+        memcpy(&(mpiio_runtime->file_record_array[tmp_ndx]), mpiio_runtime->red_buf,
+            mpiio_runtime->shared_rec_count * sizeof(struct darshan_mpiio_file));
+        free(mpiio_runtime->red_buf);
+    }
+    else
+    {
+        mpiio_runtime->file_array_ndx -= mpiio_runtime->shared_rec_count;
+    }
+
+    *buffer = (void *)(mpiio_runtime->file_record_array);
+    *size = mpiio_runtime->file_array_ndx * sizeof(struct darshan_mpiio_file);
+
+    return;
+}
+
+static void mpiio_shutdown()
+{
+    struct mpiio_file_runtime_ref *ref, *tmp;
+
+    HASH_ITER(hlink, mpiio_runtime->fh_hash, ref, tmp)
+    {
+        HASH_DELETE(hlink, mpiio_runtime->fh_hash, ref);
+        free(ref);
+    }
+
+    HASH_CLEAR(hlink, mpiio_runtime->file_hash); /* these entries are freed all at once below */
+
+    free(mpiio_runtime->file_runtime_array);
+    free(mpiio_runtime->file_record_array);
+    free(mpiio_runtime);
+    mpiio_runtime = NULL;
+
+    return;
 }
 
 /*
