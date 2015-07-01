@@ -33,3 +33,11 @@
 --wrap=fdatasync
 --wrap=close
 --wrap=fclose
+--wrap=aio_read
+--wrap=aio_write
+--wrap=aio_read64
+--wrap=aio_write64
+--wrap=aio_return
+--wrap=aio_return64
+--wrap=lio_listio
+--wrap=lio_listio64

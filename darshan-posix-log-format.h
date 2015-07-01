@@ -105,10 +105,12 @@ enum darshan_posix_f_indices
     /* Total I/O and meta time consumed by fastest and slowest ranks */ 
     POSIX_F_FASTEST_RANK_TIME,
     POSIX_F_SLOWEST_RANK_TIME,
-#if 0
-    F_VARIANCE_RANK_TIME,
-    F_VARIANCE_RANK_BYTES,
-#endif
+    /* TODO we need to be able to run more reduction operations to get
+     * time and byte variances for shared files. currently, darshan-core
+     * just runs a single reduction, which is used to reduce all other
+     * shared record fields. */
+    //F_VARIANCE_RANK_TIME,
+    //F_VARIANCE_RANK_BYTES,
 
     POSIX_F_NUM_INDICES,
 };

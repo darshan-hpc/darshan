@@ -27,6 +27,8 @@
 #include <pthread.h>
 
 #include "uthash.h"
+#include "utlist.h"
+
 #include "darshan.h"
 #include "darshan-posix-log-format.h"
 
@@ -79,8 +81,14 @@ DARSHAN_FORWARD_DECL(fsync, int, (int fd));
 DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
 DARSHAN_FORWARD_DECL(close, int, (int fd));
 DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
-/* TODO aio */
-/* TODO listio */
+DARSHAN_FORWARD_DECL(aio_read, int, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(aio_write, int, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(aio_read64, int, (struct aiocb64 *aiocbp));
+DARSHAN_FORWARD_DECL(aio_write64, int, (struct aiocb64 *aiocbp));
+DARSHAN_FORWARD_DECL(aio_return, ssize_t, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(aio_return64, ssize_t, (struct aiocb64 *aiocbp));
+DARSHAN_FORWARD_DECL(lio_listio, int, (int mode, struct aiocb *const aiocb_list[], int nitems, struct sigevent *sevp));
+DARSHAN_FORWARD_DECL(lio_listio64, int, (int mode, struct aiocb64 *const aiocb_list[], int nitems, struct sigevent *sevp));
 
 /* maximum number of access sizes and stride sizes that darshan will track
  * per file at runtime; at log time they will be reduced into the 4 most
@@ -104,6 +112,14 @@ struct posix_access_counter
 {
     int64_t size;
     int freq;
+};
+
+/* struct to track information about aio operations in flight */
+struct posix_aio_tracker
+{
+    double tm1;
+    void *aiocbp;
+    struct posix_aio_tracker* next;
 };
 
 /* The posix_file_runtime structure maintains necessary runtime metadata
@@ -143,6 +159,7 @@ struct posix_file_runtime
     int access_count;
     void* stride_root;
     int stride_count;
+    struct posix_aio_tracker* aio_list;
     UT_hash_handle hlink;
 };
 
@@ -214,6 +231,8 @@ static void posix_access_walker(const void* nodep, const VISIT which, const int 
 static void posix_walk_file_accesses(void);
 static int posix_access_compare(const void* a_p, const void* b_p);
 static int posix_file_compare(const void* a, const void* b);
+static void posix_aio_tracker_add(int fd, void *aiocbp);
+static struct posix_aio_tracker* posix_aio_tracker_del(int fd, void *aiocbp);
 
 static void posix_begin_shutdown(void);
 static void posix_setup_reduction(darshan_record_id *shared_recs, int *shared_rec_count,
@@ -1285,6 +1304,200 @@ int DARSHAN_DECL(fclose)(FILE *fp)
     return(ret);
 }
 
+int DARSHAN_DECL(aio_read)(struct aiocb *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_read);
+
+    ret = __real_aio_read(aiocbp);
+    if(ret == 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        posix_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(aio_write)(struct aiocb *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_write);
+
+    ret = __real_aio_write(aiocbp);
+    if(ret == 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        posix_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(aio_read64)(struct aiocb64 *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_read64);
+
+    ret = __real_aio_read64(aiocbp);
+    if(ret == 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        posix_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(aio_write64)(struct aiocb64 *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_write64);
+
+    ret = __real_aio_write64(aiocbp);
+    if(ret == 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        posix_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
+ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
+{
+    int ret;
+    double tm2;
+    struct posix_aio_tracker *tmp;
+    int aligned_flag = 0;
+
+    MAP_OR_FAIL(aio_return);
+
+    ret = __real_aio_return(aiocbp);
+    tm2 = darshan_core_wtime();
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    tmp = posix_aio_tracker_del(aiocbp->aio_fildes, aiocbp);
+    if (tmp)
+    {
+        if((unsigned long)aiocbp->aio_buf % darshan_mem_alignment == 0)
+            aligned_flag = 1;
+        if(aiocbp->aio_lio_opcode == LIO_WRITE)
+        {
+            POSIX_RECORD_WRITE(ret, aiocbp->aio_fildes,
+                1, aiocbp->aio_offset, aligned_flag, 0,
+                tmp->tm1, tm2);
+        }
+        else if(aiocbp->aio_lio_opcode == LIO_READ)
+        {
+            POSIX_RECORD_READ(ret, aiocbp->aio_fildes,
+                1, aiocbp->aio_offset, aligned_flag, 0,
+                tmp->tm1, tm2);
+        }
+        free(tmp);
+    }
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
+{
+    int ret;
+    double tm2;
+    struct posix_aio_tracker *tmp;
+    int aligned_flag = 0;
+
+    MAP_OR_FAIL(aio_return64);
+
+    ret = __real_aio_return64(aiocbp);
+    tm2 = darshan_core_wtime();
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    tmp = posix_aio_tracker_del(aiocbp->aio_fildes, aiocbp);
+    if (tmp)
+    {
+        if((unsigned long)aiocbp->aio_buf % darshan_mem_alignment == 0)
+            aligned_flag = 1;
+        if(aiocbp->aio_lio_opcode == LIO_WRITE)
+        {
+            POSIX_RECORD_WRITE(ret, aiocbp->aio_fildes,
+                1, aiocbp->aio_offset, aligned_flag, 0,
+                tmp->tm1, tm2);
+        }
+        else if(aiocbp->aio_lio_opcode == LIO_READ)
+        {
+            POSIX_RECORD_READ(ret, aiocbp->aio_fildes,
+                1, aiocbp->aio_offset, aligned_flag, 0,
+                tmp->tm1, tm2);
+        }
+        free(tmp);
+    }
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(lio_listio)(int mode, struct aiocb *const aiocb_list[],
+    int nitems, struct sigevent *sevp)
+{
+    int ret;
+    int i;
+
+    MAP_OR_FAIL(lio_listio);
+
+    ret = __real_lio_listio(mode, aiocb_list, nitems, sevp);
+    if(ret == 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        for(i = 0; i < nitems; i++)
+        {
+            posix_aio_tracker_add(aiocb_list[i]->aio_fildes, aiocb_list[i]);
+        }
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb64 *const aiocb_list[],
+    int nitems, struct sigevent *sevp)
+{
+    int ret;
+    int i;
+
+    MAP_OR_FAIL(lio_listio64);
+
+    ret = __real_lio_listio64(mode, aiocb_list, nitems, sevp);
+    if(ret == 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        for(i = 0; i < nitems; i++)
+        {
+            posix_aio_tracker_add(aiocb_list[i]->aio_fildes, aiocb_list[i]);
+        }
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
 /**********************************************************
  * Internal functions for manipulating POSIX module state *
  **********************************************************/
@@ -1621,6 +1834,54 @@ static int posix_file_compare(const void* a_p, const void* b_p)
         return -1;
 
     return 0;
+}
+
+/* adds a tracker for the given aio operation */
+static void posix_aio_tracker_add(int fd, void *aiocbp)
+{
+    struct posix_aio_tracker* tracker;
+    struct posix_file_runtime* file;
+
+    file = posix_file_by_fd(fd);
+    if (file)
+    {
+        tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = darshan_core_wtime();
+            tracker->aiocbp = aiocbp;
+            LL_PREPEND(file->aio_list, tracker);
+        }
+    }
+
+    return;
+}
+
+/* finds the tracker structure for a given aio operation, removes it from
+ * the linked list for the darshan_file structure, and returns a pointer.  
+ *
+ * returns NULL if aio operation not found
+ */
+static struct posix_aio_tracker* posix_aio_tracker_del(int fd, void *aiocbp)
+{
+    struct posix_aio_tracker *tracker = NULL, *iter, *tmp;
+    struct posix_file_runtime* file;
+
+    file = posix_file_by_fd(fd);
+    if (file)
+    {
+        LL_FOREACH_SAFE(file->aio_list, iter, tmp)
+        {
+            if (iter->aiocbp == aiocbp)
+            {
+                LL_DELETE(file->aio_list, iter);
+                tracker = iter;
+                break;
+            }
+        }
+    }
+
+    return(tracker);
 }
 
 /************************************************************************
