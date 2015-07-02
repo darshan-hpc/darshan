@@ -24,7 +24,6 @@ enum darshan_mpiio_indices
     MPIIO_SYNCS,        /* count of MPI file syncs */
     MPIIO_HINTS,        /* count of MPI hints used */
     MPIIO_VIEWS,        /* count of MPI set view calls */
-#if 0
     /* type categories */
     MPIIO_COMBINER_NAMED,           /* count of each MPI datatype category */
     MPIIO_COMBINER_DUP,
@@ -44,6 +43,7 @@ enum darshan_mpiio_indices
     MPIIO_COMBINER_F90_COMPLEX,
     MPIIO_COMBINER_F90_INTEGER,
     MPIIO_COMBINER_RESIZED,
+#if 0
     /* buckets */
     MPIIO_SIZE_READ_AGG_0_100,       /* count of MPI read size ranges */
     MPIIO_SIZE_READ_AGG_100_1K,
@@ -103,10 +103,8 @@ enum darshan_mpiio_f_indices
     MPIIO_F_WRITE_END_TIMESTAMP,
 #endif
     MPIIO_F_CLOSE_TIMESTAMP,
-#if 0
     MPIIO_F_READ_TIME,
     MPIIO_F_WRITE_TIME,
-#endif
     MPIIO_F_META_TIME,
 
     MPIIO_F_NUM_INDICES,
