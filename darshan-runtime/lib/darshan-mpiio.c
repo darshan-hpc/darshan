@@ -128,115 +128,49 @@ static void mpiio_record_reduction_op(void* infile_v, void* inoutfile_v,
 static void mpiio_get_output_data(void **buffer, int *size);
 static void mpiio_shutdown(void);
 
+/* TODO: maybe use a counter to track cases in which a derived datatype is used? */
+
 #define MPIIO_LOCK() pthread_mutex_lock(&mpiio_runtime_mutex)
 #define MPIIO_UNLOCK() pthread_mutex_unlock(&mpiio_runtime_mutex)
 
-#if 0
-/* Some old versions of MPI don't provide all of these COMBINER definitions.  
- * If any are missing then we define them to an arbitrary value just to 
- * prevent compile errors in DATATYPE_INC().
- */
-#ifndef MPI_COMBINER_NAMED
-    #define MPI_COMBINER_NAMED MPIIO_COMBINER_NAMED
-#endif
-#ifndef MPI_COMBINER_DUP
-    #define MPI_COMBINER_DUP MPIIO_COMBINER_DUP
-#endif
-#ifndef MPI_COMBINER_CONTIGUOUS
-    #define MPI_COMBINER_CONTIGUOUS MPIIO_COMBINER_CONTIGUOUS
-#endif
-#ifndef MPI_COMBINER_VECTOR
-    #define MPI_COMBINER_VECTOR MPIIO_COMBINER_VECTOR
-#endif
-#ifndef MPI_COMBINER_HVECTOR_INTEGER
-    #define MPI_COMBINER_HVECTOR_INTEGER MPIIO_COMBINER_HVECTOR_INTEGER
-#endif
-#ifndef MPI_COMBINER_HVECTOR
-    #define MPI_COMBINER_HVECTOR MPIIO_COMBINER_HVECTOR
-#endif
-#ifndef MPI_COMBINER_INDEXED
-    #define MPI_COMBINER_INDEXED MPIIO_COMBINER_INDEXED
-#endif
-#ifndef MPI_COMBINER_HINDEXED_INTEGER
-    #define MPI_COMBINER_HINDEXED_INTEGER MPIIO_COMBINER_HINDEXED_INTEGER
-#endif
-#ifndef MPI_COMBINER_HINDEXED
-    #define MPI_COMBINER_HINDEXED MPIIO_COMBINER_HINDEXED
-#endif
-#ifndef MPI_COMBINER_INDEXED_BLOCK
-    #define MPI_COMBINER_INDEXED_BLOCK MPIIO_COMBINER_INDEXED_BLOCK
-#endif
-#ifndef MPI_COMBINER_STRUCT_INTEGER
-    #define MPI_COMBINER_STRUCT_INTEGER MPIIO_COMBINER_STRUCT_INTEGER
-#endif
-#ifndef MPI_COMBINER_STRUCT
-    #define MPI_COMBINER_STRUCT MPIIO_COMBINER_STRUCT
-#endif
-#ifndef MPI_COMBINER_SUBARRAY
-    #define MPI_COMBINER_SUBARRAY MPIIO_COMBINER_SUBARRAY
-#endif
-#ifndef MPI_COMBINER_DARRAY
-    #define MPI_COMBINER_DARRAY MPIIO_COMBINER_DARRAY
-#endif
-#ifndef MPI_COMBINER_F90_REAL
-    #define MPI_COMBINER_F90_REAL MPIIO_COMBINER_F90_REAL
-#endif
-#ifndef MPI_COMBINER_F90_COMPLEX
-    #define MPI_COMBINER_F90_COMPLEX MPIIO_COMBINER_F90_COMPLEX
-#endif
-#ifndef MPI_COMBINER_F90_INTEGER
-    #define MPI_COMBINER_F90_INTEGER MPIIO_COMBINER_F90_INTEGER
-#endif
-#ifndef MPI_COMBINER_RESIZED
-    #define MPI_COMBINER_RESIZED MPIIO_COMBINER_RESIZED
-#endif
-#endif
+#define MPIIO_RECORD_READ(__ret, __fh, __count, __datatype, __counter, __tm1, __tm2) do { \
+    struct mpiio_file_runtime* file; \
+    int size = 0; \
+    MPI_Aint extent = 0; \
+    if(__ret != MPI_SUCCESS) break; \
+    file = mpiio_file_by_fh(__fh); \
+    if(!file) break; \
+    DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
+    size = size * __count; \
+    DARSHAN_MPI_CALL(PMPI_Type_extent)(__datatype, &extent); \
+    DARSHAN_BUCKET_INC(file->file_record, MPIIO_SIZE_READ_AGG_0_100, size); \
+    DARSHAN_BUCKET_INC(file->file_record, MPIIO_EXTENT_READ_0_100, extent); \
+    DARSHAN_COUNTER_INC(file->file_record, __counter, 1); \
+    DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, __tm1, __tm2, \
+        file->last_read_end, MPIIO_F_READ_TIME); \
+    if(DARSHAN_COUNTER_F_VALUE(file->file_record, MPIIO_F_READ_START_TIMESTAMP) == 0) \
+        DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_READ_START_TIMESTAMP, __tm1); \
+    DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_READ_END_TIMESTAMP, __tm2); \
+} while(0)
 
-#define MPIIO_DATATYPE_INC(__file, __datatype) do {\
-    int num_integers, num_addresses, num_datatypes, combiner, ret; \
-    struct darshan_mpiio_file* rec = (__file)->file_record; \
-    ret = DARSHAN_MPI_CALL(PMPI_Type_get_envelope)(__datatype, &num_integers, \
-        &num_addresses, &num_datatypes, &combiner); \
-    if(ret == MPI_SUCCESS) { \
-        switch(combiner) { \
-            case MPI_COMBINER_NAMED:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_NAMED,1); break; \
-            case MPI_COMBINER_DUP:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_DUP,1); break; \
-            case MPI_COMBINER_CONTIGUOUS:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_CONTIGUOUS,1); break; \
-            case MPI_COMBINER_VECTOR:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_VECTOR,1); break; \
-            case MPI_COMBINER_HVECTOR_INTEGER:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_HVECTOR_INTEGER,1); break; \
-            case MPI_COMBINER_HVECTOR:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_HVECTOR,1); break; \
-            case MPI_COMBINER_INDEXED:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_INDEXED,1); break; \
-            case MPI_COMBINER_HINDEXED_INTEGER:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_HINDEXED_INTEGER,1); break; \
-            case MPI_COMBINER_HINDEXED:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_HINDEXED,1); break; \
-            case MPI_COMBINER_INDEXED_BLOCK:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_INDEXED_BLOCK,1); break; \
-            case MPI_COMBINER_STRUCT_INTEGER:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_STRUCT_INTEGER,1); break; \
-            case MPI_COMBINER_STRUCT:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_STRUCT,1); break; \
-            case MPI_COMBINER_SUBARRAY:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_SUBARRAY,1); break; \
-            case MPI_COMBINER_DARRAY:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_DARRAY,1); break; \
-            case MPI_COMBINER_F90_REAL:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_F90_REAL,1); break; \
-            case MPI_COMBINER_F90_COMPLEX:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_F90_COMPLEX,1); break; \
-            case MPI_COMBINER_F90_INTEGER:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_F90_INTEGER,1); break; \
-            case MPI_COMBINER_RESIZED:\
-                DARSHAN_COUNTER_INC(rec,MPIIO_COMBINER_RESIZED,1); break; \
-        } \
-    } \
+#define MPIIO_RECORD_WRITE(__ret, __fh, __count, __datatype, __counter, __tm1, __tm2) do { \
+    struct mpiio_file_runtime* file; \
+    int size = 0; \
+    MPI_Aint extent = 0; \
+    if(__ret != MPI_SUCCESS) break; \
+    file = mpiio_file_by_fh(__fh); \
+    if(!file) break; \
+    DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
+    size = size * __count; \
+    DARSHAN_MPI_CALL(PMPI_Type_extent)(__datatype, &extent); \
+    DARSHAN_BUCKET_INC(file->file_record, MPIIO_SIZE_WRITE_AGG_0_100, size); \
+    DARSHAN_BUCKET_INC(file->file_record, MPIIO_EXTENT_WRITE_0_100, extent); \
+    DARSHAN_COUNTER_INC(file->file_record, __counter, 1); \
+    DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, __tm1, __tm2, \
+        file->last_write_end, MPIIO_F_WRITE_TIME); \
+    if(DARSHAN_COUNTER_F_VALUE(file->file_record, MPIIO_F_WRITE_START_TIMESTAMP) == 0) \
+        DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_WRITE_START_TIMESTAMP, __tm1); \
+    DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_WRITE_END_TIMESTAMP, __tm2); \
 } while(0)
 
 /**********************************************************
@@ -303,6 +237,165 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
     return(ret);
 }
 
+int MPI_File_read(MPI_File fh, void *buf, int count,
+    MPI_Datatype datatype, MPI_Status *status)
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_core_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_File_read)(fh, buf, count, datatype, status);
+    tm2 = darshan_core_wtime();
+
+    MPIIO_LOCK();
+    mpiio_runtime_initialize();
+    MPIIO_RECORD_READ(ret, fh, count, datatype, MPIIO_INDEP_READS, tm1, tm2);
+    MPIIO_UNLOCK();
+    return(ret);
+}
+
+#ifdef HAVE_MPIIO_CONST
+int MPI_File_write(MPI_File fh, const void *buf, int count,
+    MPI_Datatype datatype, MPI_Status *status)
+#else
+int MPI_File_write(MPI_File fh, void *buf, int count,
+    MPI_Datatype datatype, MPI_Status *status)
+#endif
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_core_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_File_write)(fh, buf, count, datatype, status);
+    tm2 = darshan_core_wtime();
+
+    MPIIO_LOCK();
+    mpiio_runtime_initialize();
+    MPIIO_RECORD_WRITE(ret, fh, count, datatype, MPIIO_INDEP_WRITES, tm1, tm2);
+    MPIIO_UNLOCK();
+    return(ret);
+}
+
+int MPI_File_read_at(MPI_File fh, MPI_Offset offset, void *buf,
+    int count, MPI_Datatype datatype, MPI_Status *status)
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_core_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_File_read_at)(fh, offset, buf,
+        count, datatype, status);
+    tm2 = darshan_core_wtime();
+
+    MPIIO_LOCK();
+    mpiio_runtime_initialize();
+    MPIIO_RECORD_READ(ret, fh, count, datatype, MPIIO_INDEP_READS, tm1, tm2);
+    MPIIO_UNLOCK();
+    return(ret);
+}
+
+#ifdef HAVE_MPIIO_CONST
+int MPI_File_write_at(MPI_File fh, MPI_Offset offset, const void *buf,
+    int count, MPI_Datatype datatype, MPI_Status *status)
+#else
+int MPI_File_write_at(MPI_File fh, MPI_Offset offset, void *buf,
+    int count, MPI_Datatype datatype, MPI_Status *status)
+#endif
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_core_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(fh, offset, buf,
+        count, datatype, status);
+    tm2 = darshan_core_wtime();
+
+    MPIIO_LOCK();
+    mpiio_runtime_initialize();
+    MPIIO_RECORD_WRITE(ret, fh, count, datatype, MPIIO_INDEP_WRITES, tm1, tm2);
+    MPIIO_UNLOCK();
+    return(ret);
+}
+
+int MPI_File_read_all(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MPI_Status *status)
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_core_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_File_read_all)(fh, buf, count,
+        datatype, status);
+    tm2 = darshan_core_wtime();
+
+    MPIIO_LOCK();
+    mpiio_runtime_initialize();
+    MPIIO_RECORD_READ(ret, fh, count, datatype, MPIIO_COLL_READS, tm1, tm2);
+    MPIIO_UNLOCK();
+    return(ret);
+}
+
+#ifdef HAVE_MPIIO_CONST
+int MPI_File_write_all(MPI_File fh, const void * buf, int count, MPI_Datatype datatype, MPI_Status *status)
+#else
+int MPI_File_write_all(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MPI_Status *status)
+#endif
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_core_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_File_write_all)(fh, buf, count,
+        datatype, status);
+    tm2 = darshan_core_wtime();
+
+    MPIIO_LOCK();
+    mpiio_runtime_initialize();
+    MPIIO_RECORD_WRITE(ret, fh, count, datatype, MPIIO_COLL_WRITES, tm1, tm2);
+    MPIIO_UNLOCK();
+    return(ret);
+}
+
+int MPI_File_read_at_all(MPI_File fh, MPI_Offset offset, void * buf,
+    int count, MPI_Datatype datatype, MPI_Status * status)
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_core_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_File_read_at_all)(fh, offset, buf,
+        count, datatype, status);
+    tm2 = darshan_core_wtime();
+
+    MPIIO_LOCK();
+    mpiio_runtime_initialize();
+    MPIIO_RECORD_READ(ret, fh, count, datatype, MPIIO_COLL_READS, tm1, tm2);
+    MPIIO_UNLOCK();
+    return(ret);
+}
+
+#ifdef HAVE_MPIIO_CONST
+int MPI_File_write_at_all(MPI_File fh, MPI_Offset offset, const void * buf,
+    int count, MPI_Datatype datatype, MPI_Status * status)
+#else
+int MPI_File_write_at_all(MPI_File fh, MPI_Offset offset, void * buf,
+    int count, MPI_Datatype datatype, MPI_Status * status)
+#endif
+{
+    int ret;
+    double tm1, tm2;
+
+    tm1 = darshan_core_wtime();
+    ret = DARSHAN_MPI_CALL(PMPI_File_write_at_all)(fh, offset, buf,
+        count, datatype, status);
+    tm2 = darshan_core_wtime();
+
+    MPIIO_LOCK();
+    mpiio_runtime_initialize();
+    MPIIO_RECORD_WRITE(ret, fh, count, datatype, MPIIO_COLL_WRITES, tm1, tm2);
+    MPIIO_UNLOCK();
+    return(ret);
+}
+
 /* TODO: reads and writes */
 
 int MPI_File_sync(MPI_File fh)
@@ -352,10 +445,6 @@ int MPI_File_set_view(MPI_File fh, MPI_Offset disp, MPI_Datatype etype,
 
     if(ret == MPI_SUCCESS)
     {
-        int num_integers, num_addresses, num_datatypes, combiner;
-        DARSHAN_MPI_CALL(PMPI_Type_get_envelope)(filetype, &num_integers,
-            &num_addresses, &num_datatypes, &combiner);
-
         MPIIO_LOCK();
         mpiio_runtime_initialize();
         file = mpiio_file_by_fh(fh);
@@ -368,7 +457,6 @@ int MPI_File_set_view(MPI_File fh, MPI_Offset disp, MPI_Datatype etype,
                 DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, tm1, tm2,
                     file->last_meta_end, MPIIO_F_META_TIME);
            }
-           MPIIO_DATATYPE_INC(file, filetype);
         }
         MPIIO_UNLOCK();
     }

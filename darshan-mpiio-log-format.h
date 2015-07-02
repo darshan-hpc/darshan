@@ -24,26 +24,6 @@ enum darshan_mpiio_indices
     MPIIO_SYNCS,        /* count of MPI file syncs */
     MPIIO_HINTS,        /* count of MPI hints used */
     MPIIO_VIEWS,        /* count of MPI set view calls */
-    /* type categories */
-    MPIIO_COMBINER_NAMED,           /* count of each MPI datatype category */
-    MPIIO_COMBINER_DUP,
-    MPIIO_COMBINER_CONTIGUOUS,
-    MPIIO_COMBINER_VECTOR,
-    MPIIO_COMBINER_HVECTOR_INTEGER,
-    MPIIO_COMBINER_HVECTOR,
-    MPIIO_COMBINER_INDEXED,
-    MPIIO_COMBINER_HINDEXED_INTEGER,
-    MPIIO_COMBINER_HINDEXED,
-    MPIIO_COMBINER_INDEXED_BLOCK,
-    MPIIO_COMBINER_STRUCT_INTEGER,
-    MPIIO_COMBINER_STRUCT,
-    MPIIO_COMBINER_SUBARRAY,
-    MPIIO_COMBINER_DARRAY,
-    MPIIO_COMBINER_F90_REAL,
-    MPIIO_COMBINER_F90_COMPLEX,
-    MPIIO_COMBINER_F90_INTEGER,
-    MPIIO_COMBINER_RESIZED,
-#if 0
     /* buckets */
     MPIIO_SIZE_READ_AGG_0_100,       /* count of MPI read size ranges */
     MPIIO_SIZE_READ_AGG_100_1K,
@@ -88,7 +68,6 @@ enum darshan_mpiio_indices
     MPIIO_EXTENT_WRITE_10M_100M,
     MPIIO_EXTENT_WRITE_100M_1G,
     MPIIO_EXTENT_WRITE_1G_PLUS,
-#endif
 
     MPIIO_NUM_INDICES,
 };
@@ -96,12 +75,10 @@ enum darshan_mpiio_indices
 enum darshan_mpiio_f_indices
 {
     MPIIO_F_OPEN_TIMESTAMP,
-#if 0
     MPIIO_F_READ_START_TIMESTAMP,
     MPIIO_F_WRITE_START_TIMESTAMP,
     MPIIO_F_READ_END_TIMESTAMP,
     MPIIO_F_WRITE_END_TIMESTAMP,
-#endif
     MPIIO_F_CLOSE_TIMESTAMP,
     MPIIO_F_READ_TIME,
     MPIIO_F_WRITE_TIME,

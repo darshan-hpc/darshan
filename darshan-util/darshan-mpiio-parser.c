@@ -195,24 +195,6 @@ int main(int argc, char **argv)
             "\t\tMPIIO_SYNCS:\t%"PRIu64"\n"
             "\t\tMPIIO_HINTS:\t%"PRIu64"\n"
             "\t\tMPIIO_VIEWS:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_NAMED:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_DUP:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_CONTIGUOUS:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_VECTOR:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_HVECTOR_INTEGER:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_HVECTOR:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_INDEXED:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_HINDEXED_INTEGER:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_HINDEXED:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_INDEXED_BLOCK:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_STRUCT_INTEGER:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_STRUCT:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_SUBARRAY:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_DARRAY:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_F90_REAL:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_F90_COMPLEX:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_F90_INTEGER:\t%"PRIu64"\n"
-            "\t\tMPIIO_COMBINER_RESIZED:\t%"PRIu64"\n"
             "\t\tMPIIO_F_OPEN_TIMESTAMP:\t%lf\n"
             "\t\tMPIIO_F_CLOSE_TIMESTAMP:\t%lf\n"
             "\t\tMPIIO_F_READ_TIME:\t%lf\n"
@@ -231,24 +213,6 @@ int main(int argc, char **argv)
             next_file.counters[MPIIO_SYNCS],
             next_file.counters[MPIIO_HINTS],
             next_file.counters[MPIIO_VIEWS],
-            next_file.counters[MPIIO_COMBINER_NAMED],
-            next_file.counters[MPIIO_COMBINER_DUP],
-            next_file.counters[MPIIO_COMBINER_CONTIGUOUS],
-            next_file.counters[MPIIO_COMBINER_VECTOR],
-            next_file.counters[MPIIO_COMBINER_HVECTOR_INTEGER],
-            next_file.counters[MPIIO_COMBINER_HVECTOR],
-            next_file.counters[MPIIO_COMBINER_INDEXED],
-            next_file.counters[MPIIO_COMBINER_HINDEXED_INTEGER],
-            next_file.counters[MPIIO_COMBINER_HINDEXED],
-            next_file.counters[MPIIO_COMBINER_INDEXED_BLOCK],
-            next_file.counters[MPIIO_COMBINER_STRUCT_INTEGER],
-            next_file.counters[MPIIO_COMBINER_STRUCT],
-            next_file.counters[MPIIO_COMBINER_SUBARRAY],
-            next_file.counters[MPIIO_COMBINER_DARRAY],
-            next_file.counters[MPIIO_COMBINER_F90_REAL],
-            next_file.counters[MPIIO_COMBINER_F90_COMPLEX],
-            next_file.counters[MPIIO_COMBINER_F90_INTEGER],
-            next_file.counters[MPIIO_COMBINER_RESIZED],
             next_file.fcounters[MPIIO_F_OPEN_TIMESTAMP],
             next_file.fcounters[MPIIO_F_CLOSE_TIMESTAMP],
             next_file.fcounters[MPIIO_F_READ_TIME],
