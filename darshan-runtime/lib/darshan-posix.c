@@ -96,12 +96,6 @@ DARSHAN_FORWARD_DECL(lio_listio64, int, (int mode, struct aiocb64 *const aiocb_l
  */
 #define POSIX_MAX_ACCESS_COUNT_RUNTIME 32
 
-enum posix_io_type
-{
-    POSIX_READ = 1,
-    POSIX_WRITE = 2,
-};
-
 enum posix_counter_type
 {
     POSIX_COUNTER_ACCESS,
@@ -151,7 +145,7 @@ struct posix_file_runtime
     int64_t offset;
     int64_t last_byte_read;
     int64_t last_byte_written;
-    enum posix_io_type last_io_type;
+    enum darshan_io_type last_io_type;
     double last_meta_end;
     double last_read_end;
     double last_write_end;
@@ -336,9 +330,9 @@ static void posix_shutdown(void);
     file_alignment = DARSHAN_COUNTER_VALUE(file->file_record, POSIX_FILE_ALIGNMENT); \
     if(file_alignment > 0 && (this_offset % file_alignment) != 0) \
         DARSHAN_COUNTER_INC(file->file_record, POSIX_FILE_NOT_ALIGNED, 1); \
-    if(file->last_io_type == POSIX_WRITE) \
+    if(file->last_io_type == DARSHAN_IO_WRITE) \
         DARSHAN_COUNTER_INC(file->file_record, POSIX_RW_SWITCHES, 1); \
-    file->last_io_type = POSIX_READ; \
+    file->last_io_type = DARSHAN_IO_READ; \
     DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, __tm1, __tm2, file->last_read_end, POSIX_F_READ_TIME); \
     if(DARSHAN_COUNTER_F_VALUE(file->file_record, POSIX_F_READ_START_TIMESTAMP) == 0) \
         DARSHAN_COUNTER_F_SET(file->file_record, POSIX_F_READ_START_TIMESTAMP, __tm1); \
@@ -386,9 +380,9 @@ static void posix_shutdown(void);
     file_alignment = DARSHAN_COUNTER_VALUE(file->file_record, POSIX_FILE_ALIGNMENT); \
     if(file_alignment > 0 && (this_offset % file_alignment) != 0) \
         DARSHAN_COUNTER_INC(file->file_record, POSIX_FILE_NOT_ALIGNED, 1); \
-    if(file->last_io_type == POSIX_READ) \
+    if(file->last_io_type == DARSHAN_IO_READ) \
         DARSHAN_COUNTER_INC(file->file_record, POSIX_RW_SWITCHES, 1); \
-    file->last_io_type = POSIX_WRITE; \
+    file->last_io_type = DARSHAN_IO_WRITE; \
     DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, __tm1, __tm2, file->last_write_end, POSIX_F_WRITE_TIME); \
     if(DARSHAN_COUNTER_F_VALUE(file->file_record, POSIX_F_WRITE_START_TIMESTAMP) == 0) \
         DARSHAN_COUNTER_F_SET(file->file_record, POSIX_F_WRITE_START_TIMESTAMP, __tm1); \

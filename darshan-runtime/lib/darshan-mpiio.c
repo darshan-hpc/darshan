@@ -56,6 +56,7 @@
 struct mpiio_file_runtime
 {
     struct darshan_mpiio_file* file_record;
+    enum darshan_io_type last_io_type;
     double last_meta_end;
     double last_read_end;
     double last_write_end;
@@ -136,41 +137,52 @@ static void mpiio_shutdown(void);
 #define MPIIO_RECORD_READ(__ret, __fh, __count, __datatype, __counter, __tm1, __tm2) do { \
     struct mpiio_file_runtime* file; \
     int size = 0; \
-    MPI_Aint extent = 0; \
+    double __elapsed = __tm2-__tm1; \
     if(__ret != MPI_SUCCESS) break; \
     file = mpiio_file_by_fh(__fh); \
     if(!file) break; \
     DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
     size = size * __count; \
-    DARSHAN_MPI_CALL(PMPI_Type_extent)(__datatype, &extent); \
     DARSHAN_BUCKET_INC(file->file_record, MPIIO_SIZE_READ_AGG_0_100, size); \
-    DARSHAN_BUCKET_INC(file->file_record, MPIIO_EXTENT_READ_0_100, extent); \
+    DARSHAN_COUNTER_INC(file->file_record, MPIIO_BYTES_READ, size); \
     DARSHAN_COUNTER_INC(file->file_record, __counter, 1); \
+    if(file->last_io_type == DARSHAN_IO_WRITE) \
+        DARSHAN_COUNTER_INC(file->file_record, MPIIO_RW_SWITCHES, 1); \
+    file->last_io_type = DARSHAN_IO_READ; \
     DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, __tm1, __tm2, \
         file->last_read_end, MPIIO_F_READ_TIME); \
     if(DARSHAN_COUNTER_F_VALUE(file->file_record, MPIIO_F_READ_START_TIMESTAMP) == 0) \
         DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_READ_START_TIMESTAMP, __tm1); \
     DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_READ_END_TIMESTAMP, __tm2); \
+    if(DARSHAN_COUNTER_F_VALUE(file->file_record, MPIIO_F_MAX_READ_TIME) < __elapsed) { \
+        DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_MAX_READ_TIME, __elapsed); \
+        DARSHAN_COUNTER_SET(file->file_record, MPIIO_MAX_READ_TIME_SIZE, size); } \
 } while(0)
 
 #define MPIIO_RECORD_WRITE(__ret, __fh, __count, __datatype, __counter, __tm1, __tm2) do { \
     struct mpiio_file_runtime* file; \
     int size = 0; \
-    MPI_Aint extent = 0; \
+    double __elapsed = __tm2-__tm1; \
+    if(__ret != MPI_SUCCESS) break; \
     if(__ret != MPI_SUCCESS) break; \
     file = mpiio_file_by_fh(__fh); \
     if(!file) break; \
     DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
     size = size * __count; \
-    DARSHAN_MPI_CALL(PMPI_Type_extent)(__datatype, &extent); \
     DARSHAN_BUCKET_INC(file->file_record, MPIIO_SIZE_WRITE_AGG_0_100, size); \
-    DARSHAN_BUCKET_INC(file->file_record, MPIIO_EXTENT_WRITE_0_100, extent); \
+    DARSHAN_COUNTER_INC(file->file_record, MPIIO_BYTES_WRITTEN, size); \
     DARSHAN_COUNTER_INC(file->file_record, __counter, 1); \
+    if(file->last_io_type == DARSHAN_IO_READ) \
+        DARSHAN_COUNTER_INC(file->file_record, MPIIO_RW_SWITCHES, 1); \
+    file->last_io_type = DARSHAN_IO_WRITE; \
     DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, __tm1, __tm2, \
         file->last_write_end, MPIIO_F_WRITE_TIME); \
     if(DARSHAN_COUNTER_F_VALUE(file->file_record, MPIIO_F_WRITE_START_TIMESTAMP) == 0) \
         DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_WRITE_START_TIMESTAMP, __tm1); \
     DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_WRITE_END_TIMESTAMP, __tm2); \
+    if(DARSHAN_COUNTER_F_VALUE(file->file_record, MPIIO_F_MAX_WRITE_TIME) < __elapsed) { \
+        DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_MAX_WRITE_TIME, __elapsed); \
+        DARSHAN_COUNTER_SET(file->file_record, MPIIO_MAX_WRITE_TIME_SIZE, size); } \
 } while(0)
 
 /**********************************************************

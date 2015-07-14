@@ -172,6 +172,12 @@ struct darshan_module_funcs
     );
 };
 
+enum darshan_io_type
+{
+    DARSHAN_IO_READ = 1,
+    DARSHAN_IO_WRITE = 2,
+};
+
 /* paths that darshan will not trace */
 extern char* darshan_path_exclusions[]; /* defined in lib/darshan-core.c */
 
