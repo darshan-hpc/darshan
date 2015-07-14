@@ -19,6 +19,17 @@
 
 #include "darshan-mpiio-logutils.h"
 
+/* counter name strings for the MPI-IO module */
+#define X(a) #a,
+char *mpiio_counter_names[] = {
+    MPIIO_COUNTERS
+};
+
+char *mpiio_f_counter_names[] = {
+    MPIIO_F_COUNTERS
+};
+#undef X
+
 int darshan_log_get_mpiio_file(darshan_fd fd, struct darshan_mpiio_file *file)
 {
     int i;

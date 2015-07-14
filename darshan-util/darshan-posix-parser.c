@@ -160,180 +160,21 @@ int main(int argc, char **argv)
     }
    
     /* loop over each stored POSIX file record and print counters */
-    i = 1;
     do
     {
         /* get the pathname for this record */
         HASH_FIND(hlink, rec_hash, &next_file.f_id, sizeof(darshan_record_id), ref);
         assert(ref);
 
-        printf("\tRecord %d: id=%"PRIu64" (path=%s, rank=%"PRId64")\n",
-            i, next_file.f_id, ref->rec.name, next_file.rank);
-        printf(
-            "\t\tPOSIX_OPENS:\t%"PRIu64"\n"
-            "\t\tPOSIX_READS:\t%"PRIu64"\n"
-            "\t\tPOSIX_WRITES:\t%"PRIu64"\n"
-            "\t\tPOSIX_SEEKS:\t%"PRIu64"\n"
-            "\t\tPOSIX_STATS:\t%"PRIu64"\n"
-            "\t\tPOSIX_MMAPS:\t%"PRIu64"\n"
-            "\t\tPOSIX_FOPENS:\t%"PRIu64"\n"
-            "\t\tPOSIX_FREADS:\t%"PRIu64"\n"
-            "\t\tPOSIX_FWRITES:\t%"PRIu64"\n"
-            "\t\tPOSIX_FSEEKS:\t%"PRIu64"\n"
-            "\t\tPOSIX_FSYNCS:\t%"PRIu64"\n"
-            "\t\tPOSIX_FDSYNCS:\t%"PRIu64"\n"
-            "\t\tPOSIX_MODE:\t%"PRIu64"\n"
-            "\t\tPOSIX_BYTES_READ:\t%"PRIu64"\n"
-            "\t\tPOSIX_BYTES_WRITTEN:\t%"PRIu64"\n"
-            "\t\tPOSIX_MAX_BYTE_READ:\t%"PRIu64"\n"
-            "\t\tPOSIX_MAX_BYTE_WRITTEN:\t%"PRIu64"\n"
-            "\t\tPOSIX_CONSEC_READS:\t%"PRIu64"\n"
-            "\t\tPOSIX_CONSEC_WRITES:\t%"PRIu64"\n"
-            "\t\tPOSIX_SEQ_READS:\t%"PRIu64"\n"
-            "\t\tPOSIX_SEQ_WRITES:\t%"PRIu64"\n"
-            "\t\tPOSIX_RW_SWITCHES:\t%"PRIu64"\n"
-            "\t\tPOSIX_MEM_NOT_ALIGNED:\t%"PRIu64"\n"
-            "\t\tPOSIX_MEM_ALIGNMENT:\t%"PRIu64"\n"
-            "\t\tPOSIX_FILE_NOT_ALIGNED:\t%"PRIu64"\n"
-            "\t\tPOSIX_FILE_ALIGNMENT:\t%"PRIu64"\n"
-            "\t\tPOSIX_MAX_READ_TIME_SIZE:\t%"PRIu64"\n"
-            "\t\tPOSIX_MAX_WRITE_TIME_SIZE:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_READ_0_100:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_READ_100_1K:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_READ_1K_10K:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_READ_10K_100K:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_READ_100K_1M:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_READ_1M_4M:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_READ_4M_10M:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_READ_10M_100M:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_READ_100M_1G:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_READ_1G_PLUS:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_WRITE_0_100:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_WRITE_100_1K:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_WRITE_1K_10K:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_WRITE_10K_100K:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_WRITE_100K_1M:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_WRITE_1M_4M:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_WRITE_4M_10M:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_WRITE_10M_100M:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_WRITE_100M_1G:\t%"PRIu64"\n"
-            "\t\tPOSIX_SIZE_WRITE_1G_PLUS:\t%"PRIu64"\n"
-            "\t\tPOSIX_STRIDE1_STRIDE:\t%"PRIu64"\n"
-            "\t\tPOSIX_STRIDE2_STRIDE:\t%"PRIu64"\n"
-            "\t\tPOSIX_STRIDE3_STRIDE:\t%"PRIu64"\n"
-            "\t\tPOSIX_STRIDE4_STRIDE:\t%"PRIu64"\n"
-            "\t\tPOSIX_STRIDE1_COUNT:\t%"PRIu64"\n"
-            "\t\tPOSIX_STRIDE2_COUNT:\t%"PRIu64"\n"
-            "\t\tPOSIX_STRIDE3_COUNT:\t%"PRIu64"\n"
-            "\t\tPOSIX_STRIDE4_COUNT:\t%"PRIu64"\n"
-            "\t\tPOSIX_ACCESS1_ACCESS:\t%"PRIu64"\n"
-            "\t\tPOSIX_ACCESS2_ACCESS:\t%"PRIu64"\n"
-            "\t\tPOSIX_ACCESS3_ACCESS:\t%"PRIu64"\n"
-            "\t\tPOSIX_ACCESS4_ACCESS:\t%"PRIu64"\n"
-            "\t\tPOSIX_ACCESS1_COUNT:\t%"PRIu64"\n"
-            "\t\tPOSIX_ACCESS2_COUNT:\t%"PRIu64"\n"
-            "\t\tPOSIX_ACCESS3_COUNT:\t%"PRIu64"\n"
-            "\t\tPOSIX_ACCESS4_COUNT:\t%"PRIu64"\n"
-            "\t\tPOSIX_FASTEST_RANK:\t%"PRIu64"\n"
-            "\t\tPOSIX_FASTEST_RANK_BYTES:\t%"PRIu64"\n"
-            "\t\tPOSIX_SLOWEST_RANK:\t%"PRIu64"\n"
-            "\t\tPOSIX_SLOWEST_RANK_BYTES:\t%"PRIu64"\n"
-            "\t\tPOSIX_F_OPEN_TIMESTAMP:\t%lf\n"
-            "\t\tPOSIX_F_READ_START_TIMESTAMP:\t%lf\n"
-            "\t\tPOSIX_F_WRITE_START_TIMESTAMP:\t%lf\n"
-            "\t\tPOSIX_F_READ_END_TIMESTAMP:\t%lf\n"
-            "\t\tPOSIX_F_WRITE_END_TIMESTAMP:\t%lf\n"
-            "\t\tPOSIX_F_CLOSE_TIMESTAMP:\t%lf\n"
-            "\t\tPOSIX_F_READ_TIME:\t%lf\n"
-            "\t\tPOSIX_F_WRITE_TIME:\t%lf\n"
-            "\t\tPOSIX_F_META_TIME:\t%lf\n"
-            "\t\tPOSIX_F_MAX_READ_TIME:\t%lf\n"
-            "\t\tPOSIX_F_MAX_WRITE_TIME:\t%lf\n"
-            "\t\tPOSIX_F_FASTEST_RANK_TIME:\t%lf\n"
-            "\t\tPOSIX_F_SLOWEST_RANK_TIME:\t%lf\n",
-            next_file.counters[POSIX_OPENS],
-            next_file.counters[POSIX_READS],
-            next_file.counters[POSIX_WRITES],
-            next_file.counters[POSIX_SEEKS],
-            next_file.counters[POSIX_STATS],
-            next_file.counters[POSIX_MMAPS],
-            next_file.counters[POSIX_FOPENS],
-            next_file.counters[POSIX_FREADS],
-            next_file.counters[POSIX_FWRITES],
-            next_file.counters[POSIX_FSEEKS],
-            next_file.counters[POSIX_FSYNCS],
-            next_file.counters[POSIX_FDSYNCS],
-            next_file.counters[POSIX_MODE],
-            next_file.counters[POSIX_BYTES_READ],
-            next_file.counters[POSIX_BYTES_WRITTEN],
-            next_file.counters[POSIX_MAX_BYTE_READ],
-            next_file.counters[POSIX_MAX_BYTE_WRITTEN],
-            next_file.counters[POSIX_CONSEC_READS],
-            next_file.counters[POSIX_CONSEC_WRITES],
-            next_file.counters[POSIX_SEQ_READS],
-            next_file.counters[POSIX_SEQ_WRITES],
-            next_file.counters[POSIX_RW_SWITCHES],
-            next_file.counters[POSIX_MEM_NOT_ALIGNED],
-            next_file.counters[POSIX_MEM_ALIGNMENT],
-            next_file.counters[POSIX_FILE_NOT_ALIGNED],
-            next_file.counters[POSIX_FILE_ALIGNMENT],
-            next_file.counters[POSIX_MAX_READ_TIME_SIZE],
-            next_file.counters[POSIX_MAX_WRITE_TIME_SIZE],
-            next_file.counters[POSIX_SIZE_READ_0_100],
-            next_file.counters[POSIX_SIZE_READ_100_1K],
-            next_file.counters[POSIX_SIZE_READ_1K_10K],
-            next_file.counters[POSIX_SIZE_READ_10K_100K],
-            next_file.counters[POSIX_SIZE_READ_100K_1M],
-            next_file.counters[POSIX_SIZE_READ_1M_4M],
-            next_file.counters[POSIX_SIZE_READ_4M_10M],
-            next_file.counters[POSIX_SIZE_READ_10M_100M],
-            next_file.counters[POSIX_SIZE_READ_100M_1G],
-            next_file.counters[POSIX_SIZE_READ_1G_PLUS],
-            next_file.counters[POSIX_SIZE_WRITE_0_100],
-            next_file.counters[POSIX_SIZE_WRITE_100_1K],
-            next_file.counters[POSIX_SIZE_WRITE_1K_10K],
-            next_file.counters[POSIX_SIZE_WRITE_10K_100K],
-            next_file.counters[POSIX_SIZE_WRITE_100K_1M],
-            next_file.counters[POSIX_SIZE_WRITE_1M_4M],
-            next_file.counters[POSIX_SIZE_WRITE_4M_10M],
-            next_file.counters[POSIX_SIZE_WRITE_10M_100M],
-            next_file.counters[POSIX_SIZE_WRITE_100M_1G],
-            next_file.counters[POSIX_SIZE_WRITE_1G_PLUS],
-            next_file.counters[POSIX_STRIDE1_STRIDE],
-            next_file.counters[POSIX_STRIDE2_STRIDE],
-            next_file.counters[POSIX_STRIDE3_STRIDE],
-            next_file.counters[POSIX_STRIDE4_STRIDE],
-            next_file.counters[POSIX_STRIDE1_COUNT],
-            next_file.counters[POSIX_STRIDE2_COUNT],
-            next_file.counters[POSIX_STRIDE3_COUNT],
-            next_file.counters[POSIX_STRIDE4_COUNT],
-            next_file.counters[POSIX_ACCESS1_ACCESS],
-            next_file.counters[POSIX_ACCESS2_ACCESS],
-            next_file.counters[POSIX_ACCESS3_ACCESS],
-            next_file.counters[POSIX_ACCESS4_ACCESS],
-            next_file.counters[POSIX_ACCESS1_COUNT],
-            next_file.counters[POSIX_ACCESS2_COUNT],
-            next_file.counters[POSIX_ACCESS3_COUNT],
-            next_file.counters[POSIX_ACCESS4_COUNT],
-            next_file.counters[POSIX_FASTEST_RANK],
-            next_file.counters[POSIX_FASTEST_RANK_BYTES],
-            next_file.counters[POSIX_SLOWEST_RANK],
-            next_file.counters[POSIX_SLOWEST_RANK_BYTES],
-            next_file.fcounters[POSIX_F_OPEN_TIMESTAMP],
-            next_file.fcounters[POSIX_F_READ_START_TIMESTAMP],
-            next_file.fcounters[POSIX_F_WRITE_START_TIMESTAMP],
-            next_file.fcounters[POSIX_F_READ_END_TIMESTAMP],
-            next_file.fcounters[POSIX_F_WRITE_END_TIMESTAMP],
-            next_file.fcounters[POSIX_F_CLOSE_TIMESTAMP],
-            next_file.fcounters[POSIX_F_READ_TIME],
-            next_file.fcounters[POSIX_F_WRITE_TIME],
-            next_file.fcounters[POSIX_F_META_TIME],
-            next_file.fcounters[POSIX_F_MAX_READ_TIME],
-            next_file.fcounters[POSIX_F_MAX_WRITE_TIME],
-            next_file.fcounters[POSIX_F_FASTEST_RANK_TIME],
-            next_file.fcounters[POSIX_F_SLOWEST_RANK_TIME]);
+        for(i=0; i<POSIX_NUM_INDICES; i++)
+        {
+            POSIX_COUNTER_PRINT(&next_file, i);
+        }
+        for(i=0; i<POSIX_F_NUM_INDICES; i++)
+        {
+            POSIX_F_COUNTER_PRINT(&next_file, i);
+        }
 
-        i++;
     } while((ret = darshan_log_get_posix_file(fd, &next_file)) == 1);
 
     /* free mount info */

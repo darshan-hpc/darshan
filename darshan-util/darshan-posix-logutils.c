@@ -19,6 +19,17 @@
 
 #include "darshan-posix-logutils.h"
 
+/* counter name strings for the POSIX module */
+#define X(a) #a,
+char *posix_counter_names[] = {
+    POSIX_COUNTERS
+};
+
+char *posix_f_counter_names[] = {
+    POSIX_F_COUNTERS
+};
+#undef X
+
 int darshan_log_get_posix_file(darshan_fd fd, struct darshan_posix_file *file)
 {
     int i;

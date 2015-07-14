@@ -151,8 +151,6 @@ int main(int argc, char **argv)
     /* end TODO */
     /*******************************************/
 
-    printf("\n*** FILE RECORD DATA ***\n");
- 
     ret = darshan_log_get_mpiio_file(fd, &next_file);
     if(ret < 0)
     {
@@ -168,58 +166,20 @@ int main(int argc, char **argv)
     }
    
     /* loop over each stored MPIIO file record and print counters */
-    i = 1;
     do
     {
         /* get the pathname for this record */
         HASH_FIND(hlink, rec_hash, &next_file.f_id, sizeof(darshan_record_id), ref);
         assert(ref);
 
-        printf("\tRecord %d: id=%"PRIu64" (path=%s, rank=%"PRId64")\n",
-            i, next_file.f_id, ref->rec.name, next_file.rank);
-        /* TODO: does it make sense to put these in a header or something?
-         * Down side of listing them here is ordering dependency between enum
-         * in header and names here.
-         */
-        printf(
-            "\t\tMPIIO_INDEP_OPENS:\t%"PRIu64"\n"
-            "\t\tMPIIO_COLL_OPENS:\t%"PRIu64"\n"
-            "\t\tMPIIO_INDEP_READS:\t%"PRIu64"\n"
-            "\t\tMPIIO_INDEP_WRITES:\t%"PRIu64"\n"
-            "\t\tMPIIO_COLL_READS:\t%"PRIu64"\n"
-            "\t\tMPIIO_COLL_WRITES:\t%"PRIu64"\n"
-            "\t\tMPIIO_SPLIT_READS:\t%"PRIu64"\n"
-            "\t\tMPIIO_SPLIT_WRITES:\t%"PRIu64"\n"
-            "\t\tMPIIO_NB_READS:\t%"PRIu64"\n"
-            "\t\tMPIIO_NB_WRITES:\t%"PRIu64"\n"
-            "\t\tMPIIO_SYNCS:\t%"PRIu64"\n"
-            "\t\tMPIIO_HINTS:\t%"PRIu64"\n"
-            "\t\tMPIIO_VIEWS:\t%"PRIu64"\n"
-            "\t\tMPIIO_F_OPEN_TIMESTAMP:\t%lf\n"
-            "\t\tMPIIO_F_CLOSE_TIMESTAMP:\t%lf\n"
-            "\t\tMPIIO_F_READ_TIME:\t%lf\n"
-            "\t\tMPIIO_F_WRITE_TIME:\t%lf\n"
-            "\t\tMPIIO_F_META_TIME:\t%lf\n",
-            next_file.counters[MPIIO_INDEP_OPENS],
-            next_file.counters[MPIIO_COLL_OPENS],
-            next_file.counters[MPIIO_INDEP_READS],
-            next_file.counters[MPIIO_INDEP_WRITES],
-            next_file.counters[MPIIO_COLL_READS],
-            next_file.counters[MPIIO_COLL_WRITES],
-            next_file.counters[MPIIO_SPLIT_READS],
-            next_file.counters[MPIIO_SPLIT_WRITES],
-            next_file.counters[MPIIO_NB_READS],
-            next_file.counters[MPIIO_NB_WRITES],
-            next_file.counters[MPIIO_SYNCS],
-            next_file.counters[MPIIO_HINTS],
-            next_file.counters[MPIIO_VIEWS],
-            next_file.fcounters[MPIIO_F_OPEN_TIMESTAMP],
-            next_file.fcounters[MPIIO_F_CLOSE_TIMESTAMP],
-            next_file.fcounters[MPIIO_F_READ_TIME],
-            next_file.fcounters[MPIIO_F_WRITE_TIME],
-            next_file.fcounters[MPIIO_F_META_TIME]);
-
-        i++;
+        for(i=0; i<MPIIO_NUM_INDICES; i++)
+        {
+            MPIIO_COUNTER_PRINT(&next_file, i);
+        }
+        for(i=0; i<MPIIO_F_NUM_INDICES; i++)
+        {
+            MPIIO_F_COUNTER_PRINT(&next_file, i);
+        }
     } while((ret = darshan_log_get_mpiio_file(fd, &next_file)) == 1);
 
     /* free mount info */
