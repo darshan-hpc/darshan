@@ -129,8 +129,6 @@ static void mpiio_record_reduction_op(void* infile_v, void* inoutfile_v,
 static void mpiio_get_output_data(void **buffer, int *size);
 static void mpiio_shutdown(void);
 
-/* TODO: maybe use a counter to track cases in which a derived datatype is used? */
-
 #define MPIIO_LOCK() pthread_mutex_lock(&mpiio_runtime_mutex)
 #define MPIIO_UNLOCK() pthread_mutex_unlock(&mpiio_runtime_mutex)
 
@@ -224,6 +222,7 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
         if(file)
         {
             file->file_record->rank = my_rank;
+            DARSHAN_COUNTER_SET(file->file_record, MPIIO_MODE, amode);
             DARSHAN_MPI_CALL(PMPI_Comm_size)(comm, &comm_size);
             if(comm_size == 1)
             {
@@ -839,6 +838,7 @@ static void mpiio_runtime_initialize()
     darshan_core_register_module(
         DARSHAN_MPIIO_MOD,
         &mpiio_mod_fns,
+        &my_rank,
         &mem_limit,
         NULL);
 
@@ -870,9 +870,6 @@ static void mpiio_runtime_initialize()
            sizeof(struct mpiio_file_runtime));
     memset(mpiio_runtime->file_record_array, 0, mpiio_runtime->file_array_size *
            sizeof(struct darshan_mpiio_file));
-
-    /* TODO: can we move this out of here? perhaps register_module returns rank? */
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
 
     return;
 }

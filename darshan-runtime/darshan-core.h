@@ -14,6 +14,19 @@
 #include "uthash.h"
 #include "darshan-log-format.h"
 
+/* TODO: drop CP_ and use DARSHAN_ */
+/* Environment variable to override CP_JOBID */
+#define CP_JOBID_OVERRIDE "DARSHAN_JOBID"
+
+/* Environment variable to override __CP_LOG_PATH */
+#define CP_LOG_PATH_OVERRIDE "DARSHAN_LOGPATH"
+
+/* Environment variable to override __CP_LOG_PATH */
+#define CP_LOG_HINTS_OVERRIDE "DARSHAN_LOGHINTS"
+
+/* Environment variable to override __CP_MEM_ALIGNMENT */
+#define CP_MEM_ALIGNMENT_OVERRIDE "DARSHAN_MEMALIGN"
+
 #define DARSHAN_CORE_MAX_RECORDS 1024
 
 /* TODO: revisit this default size if we change memory per module */

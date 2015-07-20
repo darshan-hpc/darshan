@@ -39,11 +39,6 @@ typedef int64_t off64_t;
 #define aiocb64 aiocb
 #endif
 
-/* TODO: this probably shouldn't be here long term -- MPI symbols mess up LD_PRELOAD */
-#ifdef DARSHAN_PRELOAD
-extern double (*__real_PMPI_Comm_rank)(MPI_Comm comm, int *rank);
-#endif
-
 /* TODO: more libc, fgetc, etc etc etc. */
 
 DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
@@ -1517,6 +1512,7 @@ static void posix_runtime_initialize()
     darshan_core_register_module(
         DARSHAN_POSIX_MOD,
         &posix_mod_fns,
+        &my_rank,
         &mem_limit,
         &darshan_mem_alignment);
 
@@ -1549,9 +1545,6 @@ static void posix_runtime_initialize()
            sizeof(struct posix_file_runtime));
     memset(posix_runtime->file_record_array, 0, posix_runtime->file_array_size *
            sizeof(struct darshan_posix_file));
-
-    /* TODO: can we move this out of here? perhaps register_module returns rank? */
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
 
     return;
 }

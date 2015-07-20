@@ -1513,6 +1513,7 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
 void darshan_core_register_module(
     darshan_module_id mod_id,
     struct darshan_module_funcs *funcs,
+    int *my_rank,
     int *mod_mem_limit,
     int *sys_mem_alignment)
 {
@@ -1548,6 +1549,9 @@ void darshan_core_register_module(
 
     /* register module with darshan */
     darshan_core->mod_array[mod_id] = mod;
+
+    /* get the calling process's rank */
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, my_rank);
 
     /* TODO: something smarter than just 2 MiB per module */
     *mod_mem_limit = 2 * 1024 * 1024;

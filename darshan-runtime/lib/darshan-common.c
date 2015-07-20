@@ -13,10 +13,6 @@
 
 #include "darshan.h"
 
-/* Allocate a new string that contains a cleaned-up version of the path
- * passed in as an argument.  Converts relative paths to absolute paths and
- * filters out some potential noise in the path string.
- */
 char* darshan_clean_file_path(const char* path)
 {
     char* newpath = NULL;

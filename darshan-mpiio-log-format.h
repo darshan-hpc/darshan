@@ -10,7 +10,8 @@
 #include "darshan-log-format.h"
 
 /* TODO: slowest/fastest rank (f)counters */
-/* TODO: access size and extent common counters? */
+/* TODO: access size common counters */
+/* TODO: maybe use a counter to track cases in which a derived datatype is used? */
 
 #define MPIIO_COUNTERS \
     /* count of MPI independent opens */\
@@ -39,6 +40,8 @@
     X(MPIIO_HINTS) \
     /* count of MPI set view calls */\
     X(MPIIO_VIEWS) \
+    /* MPI-IO access mode of the file */\
+    X(MPIIO_MODE) \
     /* total bytes read at MPI-IO layer */\
     X(MPIIO_BYTES_READ) \
     /* total bytes written at MPI-IO layer */\
@@ -70,6 +73,16 @@
     X(MPIIO_SIZE_WRITE_AGG_10M_100M) \
     X(MPIIO_SIZE_WRITE_AGG_100M_1G) \
     X(MPIIO_SIZE_WRITE_AGG_1G_PLUS) \
+    /* the four most frequently appearing MPI access sizes */\
+    X(MPIIO_ACCESS1_ACCESS) \
+    X(MPIIO_ACCESS2_ACCESS) \
+    X(MPIIO_ACCESS3_ACCESS) \
+    X(MPIIO_ACCESS4_ACCESS) \
+    /* count of each of the most frequent MPI access sizes */\
+    X(MPIIO_ACCESS1_COUNT) \
+    X(MPIIO_ACCESS2_COUNT) \
+    X(MPIIO_ACCESS3_COUNT) \
+    X(MPIIO_ACCESS4_COUNT) \
     /* rank and number of bytes moved for fastest/slowest ranks */\
     X(MPIIO_FASTEST_RANK) \
     X(MPIIO_FASTEST_RANK_BYTES) \

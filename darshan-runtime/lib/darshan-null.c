@@ -28,17 +28,11 @@
  * that may be reused and expanded on by developers adding new instrumentation modules.
  */
 
-/* TODO: this probably shouldn't be here -- LD_PRELOADing POSIX wrappers will cause MPI linker dependency */
-#ifdef DARSHAN_PRELOAD
-extern double (*__real_PMPI_Comm_rank)(MPI_Comm comm, int *rank);
-#endif
-
 /* The DARSHAN_FORWARD_DECL macro (defined in darshan.h) is used to provide forward
  * declarations for wrapped funcions, regardless if Darshan is used with statically
  * or dynamically linked executables.
  */
 DARSHAN_FORWARD_DECL(foo, int, (const char *name, int arg1, int arg2));
-
 
 /* The null_record_runtime structure maintains necessary runtime metadata
  * for a "NULL" module data record (darshan_null_record structure, defined
@@ -224,6 +218,7 @@ static void null_runtime_initialize()
     darshan_core_register_module(
         DARSHAN_NULL_MOD,   /* Darshan module identifier, defined in darshan-log-format.h */
         &null_mod_fns,
+        &my_rank,
         &mem_limit,
         NULL);
 
@@ -261,9 +256,6 @@ static void null_runtime_initialize()
            sizeof(struct null_record_runtime));
     memset(null_runtime->record_array, 0, null_runtime->rec_array_size *
            sizeof(struct darshan_null_record));
-
-    /* TODO: we should move this out of here.. perhaps register_module returns rank? */
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
 
     return;
 }

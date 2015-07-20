@@ -110,6 +110,7 @@
     X(POSIX_ACCESS2_COUNT) \
     X(POSIX_ACCESS3_COUNT) \
     X(POSIX_ACCESS4_COUNT) \
+    /* rank and number of bytes moved for fastest/slowest ranks */\
     X(POSIX_FASTEST_RANK) \
     X(POSIX_FASTEST_RANK_BYTES) \
     X(POSIX_SLOWEST_RANK) \
@@ -136,7 +137,9 @@
     X(POSIX_F_WRITE_TIME) \
     /* cumulative posix meta time */\
     X(POSIX_F_META_TIME) \
+    /* maximum posix read duration */\
     X(POSIX_F_MAX_READ_TIME) \
+    /* maximum posix write duration */\
     X(POSIX_F_MAX_WRITE_TIME) \
     /* total i/o and meta time consumed for fastest/slowest ranks */\
     X(POSIX_F_FASTEST_RANK_TIME) \
