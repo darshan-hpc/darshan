@@ -7,54 +7,19 @@
 #ifndef __DARSHAN_COMMON_H
 #define __DARSHAN_COMMON_H
 
-/* simple macros for manipulating a module's counters
- * 
- * NOTE: These macros assume a module's record stores integer
- * and floating point counters in arrays, named counters and
- * fcounters, respectively. __rec_p is the a pointer to the
- * data record, __counter is the counter in question, and
- * __value is the corresponding data value.
- */
-#define DARSHAN_COUNTER_SET(__rec_p, __counter, __value) do{ \
-    (__rec_p)->counters[__counter] = __value; \
-} while(0)
-
-#define DARSHAN_COUNTER_F_SET(__rec_p, __counter, __value) do{ \
-    (__rec_p)->fcounters[__counter] = __value; \
-} while(0)
-
-#define DARSHAN_COUNTER_INC(__rec_p, __counter, __value) do{ \
-    (__rec_p)->counters[__counter] += __value; \
-} while(0)
-
-#define DARSHAN_COUNTER_F_INC(__rec_p, __counter, __value) do{ \
-    (__rec_p)->fcounters[__counter] += __value; \
-} while(0)
-
-#define DARSHAN_COUNTER_VALUE(__rec_p, __counter) \
-    ((__rec_p)->counters[__counter])
-
-#define DARSHAN_COUNTER_F_VALUE(__rec_p, __counter) \
-    ((__rec_p)->fcounters[__counter])
-
-/* set __counter equal to the max of __counter or the passed in __value */
-#define DARSHAN_COUNTER_MAX(__rec_p, __counter, __value) do{ \
-    if((__rec_p)->counters[__counter] < __value) \
-        (__rec_p)->counters[__counter] = __value; \
-} while(0)
-
 /* increment a timer counter, making sure not to account for overlap
  * with previous operations
  *
- * NOTE: __tm1 is the start timestamp of the operation, __tm2 is the end
- * timestamp of the operation, and __last is the timestamp of the end of
- * the previous I/O operation (which we don't want to overlap with).
+ * NOTE: __timer is the corresponding timer counter variable, __tm1 is
+ * the start timestamp of the operation, __tm2 is the end timestamp of
+ * the operation, and __last is the timestamp of the end of the previous
+ * I/O operation (which we don't want to overlap with).
  */
-#define DARSHAN_COUNTER_F_INC_NO_OVERLAP(__rec_p, __tm1, __tm2, __last, __counter) do{ \
+#define DARSHAN_TIMER_INC_NO_OVERLAP(__timer, __tm1, __tm2, __last) do{ \
     if(__tm1 > __last) \
-        DARSHAN_COUNTER_F_INC(__rec_p, __counter, (__tm2 - __tm1)); \
+        __timer += (__tm2 - __tm1); \
     else \
-        DARSHAN_COUNTER_F_INC(__rec_p, __counter, (__tm2 - __last)); \
+        __timer += (__tm2 - __last); \
     if(__tm2 > __last) \
         __last = __tm2; \
 } while(0)
@@ -63,7 +28,7 @@
  *
  * NOTE: This macro can be used to build a histogram of access
  * sizes, offsets, etc. It assumes a 10-bucket histogram, with
- * __counter_base representing the first counter in the sequence
+ * __bucket_base_p pointing to the first counter in the sequence
  * of buckets (i.e., the smallest bucket). The size ranges of each
  * bucket are:
  *      * 0 - 100 bytes
@@ -77,28 +42,74 @@
  *      * 100 MiB - 1 GiB
  *      * 1 GiB+
  */
-#define DARSHAN_BUCKET_INC(__rec_p, __counter_base, __value) do {\
+#define DARSHAN_BUCKET_INC(__bucket_base_p, __value) do {\
     if(__value < 101) \
-        (__rec_p)->counters[__counter_base] += 1; \
+        *(__bucket_base_p) += 1; \
     else if(__value < 1025) \
-        (__rec_p)->counters[__counter_base+1] += 1; \
+        *(__bucket_base_p + 1) += 1; \
     else if(__value < 10241) \
-        (__rec_p)->counters[__counter_base+2] += 1; \
+        *(__bucket_base_p + 2) += 1; \
     else if(__value < 102401) \
-        (__rec_p)->counters[__counter_base+3] += 1; \
+        *(__bucket_base_p + 3) += 1; \
     else if(__value < 1048577) \
-        (__rec_p)->counters[__counter_base+4] += 1; \
+        *(__bucket_base_p + 4) += 1; \
     else if(__value < 4194305) \
-        (__rec_p)->counters[__counter_base+5] += 1; \
+        *(__bucket_base_p + 5) += 1; \
     else if(__value < 10485761) \
-        (__rec_p)->counters[__counter_base+6] += 1; \
+        *(__bucket_base_p + 6) += 1; \
     else if(__value < 104857601) \
-        (__rec_p)->counters[__counter_base+7] += 1; \
+        *(__bucket_base_p + 7) += 1; \
     else if(__value < 1073741825) \
-        (__rec_p)->counters[__counter_base+8] += 1; \
+        *(__bucket_base_p + 8) += 1; \
     else \
-        (__rec_p)->counters[__counter_base+9] += 1; \
+        *(__bucket_base_p + 9) += 1; \
 } while(0)
+
+/* potentially set or increment a common value counter, depending on the __count
+ * for the given __value
+ *
+ * NOTE: This macro is hardcoded to expect that Darshan will only track the 4
+ * most common (i.e., frequently occuring) values. __val_p is a pointer to the
+ * base of the value counters (i.e., the first of 4 contiguous common value
+ * counters) and __cnt_p is a pointer to the base of the count counters (i.e.
+ * the first of 4 contiguous common count counters). It is assumed your counters
+ * are stored as int64_t types.
+ */
+#define DARSHAN_COMMON_VAL_COUNTER_INC(__val_p, __cnt_p, __value, __count) do {\
+    int i; \
+    int set = 0; \
+    int64_t min = *(__cnt_p); \
+    int min_index = 0; \
+    if(__value == 0) break; \
+    for(i=0; i<4; i++) { \
+        /* increment bucket if already exists */ \
+        if(*(__val_p + i) == __value) { \
+            *(__cnt_p + i) += __count; \
+            set = 1; \
+            break; \
+        } \
+        /* otherwise find the least frequently used bucket */ \
+        else if(*(__cnt_p + i) < min) { \
+            min = *(__cnt_p + i); \
+            min_index = i; \
+        } \
+    } \
+    if(!set && (__count > min)) { \
+        *(__cnt_p + min_index) = __count; \
+        *(__val_p + min_index) = __value; \
+    } \
+} while(0)
+
+/* maximum number of common values that darshan will track per file at
+ * runtime; at shutdown time these will be reduced to the 4 most
+ * frequently occuring ones
+ */
+#define DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT 32
+struct darshan_common_val_counter
+{
+    int64_t val;
+    int freq;
+};
 
 /* i/o type (read or write) */
 enum darshan_io_type
@@ -118,6 +129,39 @@ enum darshan_io_type
  * to absolute paths and filters out some potential noise in the
  * path string.
  */
-char* darshan_clean_file_path(const char* path);
+char* darshan_clean_file_path(
+    const char* path);
+
+/* darshan_common_val_counter()
+ *
+ * Potentially increment an existing common value counter or allocate
+ * a new one to keep track of commonly occuring values. Example use
+ * cases would be to track the most frequent access sizes or strides
+ * used by a specific module, for instance. 'common_val_root' is the
+ * root pointer for the tree which stores common value info, 
+ * 'common_val_count' is a pointer to the number of nodes in the 
+ * tree (i.e., the number of allocated common value counters), and
+ * 'val' is the new value to attempt to add.
+ */
+void darshan_common_val_counter(
+    void** common_val_root,
+    int* common_val_count,
+    int64_t val);
+
+/* darshan_walk_common_vals()
+ *
+ * Walks the tree of common value counters and determines the 4 most
+ * frequently occuring values, storing the common values in the
+ * appropriate counter fields of the given record. 'common_val_root'
+ * is the root of the tree which stores the common value info, 'val_p'
+ * is a pointer to the base counter (i.e., the first) of the common
+ * values (which are assumed to be 4 total and contiguous in memory),
+ * and 'cnt_p' is a pointer to the base counter of the common counts
+ * (which are again expected to be contiguous in memory).
+ */
+void darshan_walk_common_vals(
+    void* common_val_root,
+    int64_t* val_p,
+    int64_t* cnt_p);
 
 #endif /* __DARSHAN_COMMON_H */

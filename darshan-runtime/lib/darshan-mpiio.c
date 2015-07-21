@@ -60,6 +60,8 @@ struct mpiio_file_runtime
     double last_meta_end;
     double last_read_end;
     double last_write_end;
+    void *access_root;
+    int access_count;
     UT_hash_handle hlink;
 };
 
@@ -141,20 +143,20 @@ static void mpiio_shutdown(void);
     if(!file) break; \
     DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
     size = size * __count; \
-    DARSHAN_BUCKET_INC(file->file_record, MPIIO_SIZE_READ_AGG_0_100, size); \
-    DARSHAN_COUNTER_INC(file->file_record, MPIIO_BYTES_READ, size); \
-    DARSHAN_COUNTER_INC(file->file_record, __counter, 1); \
+    DARSHAN_BUCKET_INC(&(file->file_record->counters[MPIIO_SIZE_READ_AGG_0_100]), size); \
+    darshan_common_val_counter(&file->access_root, &file->access_count, size); \
+    file->file_record->counters[MPIIO_BYTES_READ] += size; \
+    file->file_record->counters[__counter] += 1; \
     if(file->last_io_type == DARSHAN_IO_WRITE) \
-        DARSHAN_COUNTER_INC(file->file_record, MPIIO_RW_SWITCHES, 1); \
+        file->file_record->counters[MPIIO_RW_SWITCHES] += 1; \
     file->last_io_type = DARSHAN_IO_READ; \
-    DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, __tm1, __tm2, \
-        file->last_read_end, MPIIO_F_READ_TIME); \
-    if(DARSHAN_COUNTER_F_VALUE(file->file_record, MPIIO_F_READ_START_TIMESTAMP) == 0) \
-        DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_READ_START_TIMESTAMP, __tm1); \
-    DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_READ_END_TIMESTAMP, __tm2); \
-    if(DARSHAN_COUNTER_F_VALUE(file->file_record, MPIIO_F_MAX_READ_TIME) < __elapsed) { \
-        DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_MAX_READ_TIME, __elapsed); \
-        DARSHAN_COUNTER_SET(file->file_record, MPIIO_MAX_READ_TIME_SIZE, size); } \
+    if(file->file_record->fcounters[MPIIO_F_READ_START_TIMESTAMP] == 0) \
+        file->file_record->fcounters[MPIIO_F_READ_START_TIMESTAMP] = __tm1; \
+    file->file_record->fcounters[MPIIO_F_READ_END_TIMESTAMP] = __tm2; \
+    if(file->file_record->fcounters[MPIIO_F_MAX_READ_TIME] < __elapsed) { \
+        file->file_record->fcounters[MPIIO_F_MAX_READ_TIME] = __elapsed; \
+        file->file_record->counters[MPIIO_MAX_READ_TIME_SIZE] = size; } \
+    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[MPIIO_F_READ_TIME], __tm1, __tm2, file->last_read_end); \
 } while(0)
 
 #define MPIIO_RECORD_WRITE(__ret, __fh, __count, __datatype, __counter, __tm1, __tm2) do { \
@@ -162,25 +164,24 @@ static void mpiio_shutdown(void);
     int size = 0; \
     double __elapsed = __tm2-__tm1; \
     if(__ret != MPI_SUCCESS) break; \
-    if(__ret != MPI_SUCCESS) break; \
     file = mpiio_file_by_fh(__fh); \
     if(!file) break; \
     DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
     size = size * __count; \
-    DARSHAN_BUCKET_INC(file->file_record, MPIIO_SIZE_WRITE_AGG_0_100, size); \
-    DARSHAN_COUNTER_INC(file->file_record, MPIIO_BYTES_WRITTEN, size); \
-    DARSHAN_COUNTER_INC(file->file_record, __counter, 1); \
+    DARSHAN_BUCKET_INC(&(file->file_record->counters[MPIIO_SIZE_WRITE_AGG_0_100]), size); \
+    darshan_common_val_counter(&file->access_root, &file->access_count, size); \
+    file->file_record->counters[MPIIO_BYTES_WRITTEN] += size; \
+    file->file_record->counters[__counter] += 1; \
     if(file->last_io_type == DARSHAN_IO_READ) \
-        DARSHAN_COUNTER_INC(file->file_record, MPIIO_RW_SWITCHES, 1); \
+        file->file_record->counters[MPIIO_RW_SWITCHES] += 1; \
     file->last_io_type = DARSHAN_IO_WRITE; \
-    DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, __tm1, __tm2, \
-        file->last_write_end, MPIIO_F_WRITE_TIME); \
-    if(DARSHAN_COUNTER_F_VALUE(file->file_record, MPIIO_F_WRITE_START_TIMESTAMP) == 0) \
-        DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_WRITE_START_TIMESTAMP, __tm1); \
-    DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_WRITE_END_TIMESTAMP, __tm2); \
-    if(DARSHAN_COUNTER_F_VALUE(file->file_record, MPIIO_F_MAX_WRITE_TIME) < __elapsed) { \
-        DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_MAX_WRITE_TIME, __elapsed); \
-        DARSHAN_COUNTER_SET(file->file_record, MPIIO_MAX_WRITE_TIME_SIZE, size); } \
+    if(file->file_record->fcounters[MPIIO_F_WRITE_START_TIMESTAMP] == 0) \
+        file->file_record->fcounters[MPIIO_F_WRITE_START_TIMESTAMP] = __tm1; \
+    file->file_record->fcounters[MPIIO_F_WRITE_END_TIMESTAMP] = __tm2; \
+    if(file->file_record->fcounters[MPIIO_F_MAX_WRITE_TIME] < __elapsed) { \
+        file->file_record->fcounters[MPIIO_F_MAX_WRITE_TIME] = __elapsed; \
+        file->file_record->counters[MPIIO_MAX_WRITE_TIME_SIZE] = size; } \
+    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[MPIIO_F_WRITE_TIME], __tm1, __tm2, file->last_write_end); \
 } while(0)
 
 /**********************************************************
@@ -222,24 +223,25 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
         if(file)
         {
             file->file_record->rank = my_rank;
-            DARSHAN_COUNTER_SET(file->file_record, MPIIO_MODE, amode);
+            file->file_record->counters[MPIIO_MODE] = amode;
             DARSHAN_MPI_CALL(PMPI_Comm_size)(comm, &comm_size);
             if(comm_size == 1)
             {
-                DARSHAN_COUNTER_INC(file->file_record, MPIIO_INDEP_OPENS, 1);
+                file->file_record->counters[MPIIO_INDEP_OPENS] += 1;
             }
             else
             {
-                DARSHAN_COUNTER_INC(file->file_record, MPIIO_COLL_OPENS, 1);
+                file->file_record->counters[MPIIO_COLL_OPENS] += 1;
             }
             if(info != MPI_INFO_NULL)
             {
-                DARSHAN_COUNTER_INC(file->file_record, MPIIO_HINTS, 1);
+                file->file_record->counters[MPIIO_HINTS] += 1;
             }
-            if(DARSHAN_COUNTER_F_VALUE(file->file_record, MPIIO_F_OPEN_TIMESTAMP) == 0)
-                DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_OPEN_TIMESTAMP, tm1);
-            DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, tm1, tm2,
-                file->last_meta_end, MPIIO_F_META_TIME);
+            if(file->file_record->fcounters[MPIIO_F_OPEN_TIMESTAMP] == 0)
+                file->file_record->fcounters[MPIIO_F_OPEN_TIMESTAMP] = tm1;
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                file->file_record->fcounters[MPIIO_F_META_TIME],
+                tm1, tm2, file->last_meta_end);
         }
 
         MPIIO_UNLOCK();
@@ -738,9 +740,10 @@ int MPI_File_sync(MPI_File fh)
         file = mpiio_file_by_fh(fh);
         if(file)
         {
-            DARSHAN_COUNTER_INC(file->file_record, MPIIO_SYNCS, 1);
-            DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, tm1, tm2,
-                file->last_write_end, MPIIO_F_WRITE_TIME);
+            file->file_record->counters[MPIIO_SYNCS] += 1;
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                file->file_record->fcounters[MPIIO_F_WRITE_TIME],
+                tm1, tm2, file->last_write_end);
         }
         MPIIO_UNLOCK();
     }
@@ -772,12 +775,13 @@ int MPI_File_set_view(MPI_File fh, MPI_Offset disp, MPI_Datatype etype,
         file = mpiio_file_by_fh(fh);
         if(file)
         {
-            DARSHAN_COUNTER_INC(file->file_record, MPIIO_VIEWS, 1);
+            file->file_record->counters[MPIIO_VIEWS] += 1;
             if(info != MPI_INFO_NULL)
             {
-                DARSHAN_COUNTER_INC(file->file_record, MPIIO_HINTS, 1);
-                DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, tm1, tm2,
-                    file->last_meta_end, MPIIO_F_META_TIME);
+                file->file_record->counters[MPIIO_HINTS] += 1;
+                DARSHAN_TIMER_INC_NO_OVERLAP(
+                    file->file_record->fcounters[MPIIO_F_META_TIME],
+                    tm1, tm2, file->last_meta_end);
            }
         }
         MPIIO_UNLOCK();
@@ -802,10 +806,11 @@ int MPI_File_close(MPI_File *fh)
     file = mpiio_file_by_fh(tmp_fh);
     if(file)
     {
-        DARSHAN_COUNTER_F_SET(file->file_record, MPIIO_F_CLOSE_TIMESTAMP,
-            darshan_core_wtime());
-        DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, tm1, tm2,
-            file->last_meta_end, MPIIO_F_META_TIME);
+        file->file_record->fcounters[MPIIO_F_CLOSE_TIMESTAMP] =
+            darshan_core_wtime();
+        DARSHAN_TIMER_INC_NO_OVERLAP(
+            file->file_record->fcounters[MPIIO_F_META_TIME],
+            tm1, tm2, file->last_meta_end);
         mpiio_file_close_fh(tmp_fh);
     }
     MPIIO_UNLOCK();
@@ -1023,10 +1028,23 @@ static int mpiio_file_compare(const void* a_p, const void* b_p)
 
 static void mpiio_begin_shutdown()
 {
+    int i;
+    struct mpiio_file_runtime* tmp;
+
     assert(mpiio_runtime);
 
     MPIIO_LOCK();
     instrumentation_disabled = 1;
+
+    /* go through and set the 4 most common access sizes for MPI-IO */
+    for(i = 0; i < mpiio_runtime->file_array_ndx; i++)
+    {
+        tmp = &(mpiio_runtime->file_runtime_array[i]);
+
+        darshan_walk_common_vals(tmp->access_root,
+            &(tmp->file_record->counters[MPIIO_ACCESS1_ACCESS]),
+            &(tmp->file_record->counters[MPIIO_ACCESS1_COUNT]));
+    }
     MPIIO_UNLOCK();
 
     return;

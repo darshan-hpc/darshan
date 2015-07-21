@@ -139,13 +139,13 @@ static void null_shutdown(void);
     rec = null_record_by_name(__name); \
     if(!rec) break; \
     /* increment counter indicating number of calls to 'bar' */ \
-    DARSHAN_COUNTER_INC(rec->record_p, NULL_BARS, 1); \
+    rec->record_p->counters[NULL_BARS] += 1; \
     /* store data value for most recent call to 'bar' */ \
-    DARSHAN_COUNTER_SET(rec->record_p, NULL_BAR_DAT, __dat); \
+    rec->record_p->counters[NULL_BAR_DAT] = __dat; \
     /* store timestamp of most recent call to 'bar' */ \
-    DARSHAN_COUNTER_F_SET(rec->record_p, NULL_F_BAR_TIMESTAMP, __tm1); \
+    rec->record_p->fcounters[NULL_F_BAR_TIMESTAMP] = __tm1; \
     /* store duration of most recent call to 'bar' */ \
-    DARSHAN_COUNTER_F_SET(rec->record_p, NULL_F_BAR_DURATION, elapsed); \
+    rec->record_p->fcounters[NULL_F_BAR_DURATION] = elapsed; \
 } while(0)
 
 /**********************************************************
