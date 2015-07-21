@@ -121,7 +121,7 @@ static struct mpiio_file_runtime* mpiio_file_by_name(const char *name);
 static struct mpiio_file_runtime* mpiio_file_by_name_setfh(const char* name, MPI_File fh);
 static struct mpiio_file_runtime* mpiio_file_by_fh(MPI_File fh);
 static void mpiio_file_close_fh(MPI_File fh);
-static int mpiio_file_compare(const void* a, const void* b);
+static int mpiio_record_compare(const void* a, const void* b);
 
 static void mpiio_begin_shutdown(void);
 static void mpiio_setup_reduction(darshan_record_id *shared_recs, int *shared_rec_count,
@@ -1009,7 +1009,7 @@ static void mpiio_file_close_fh(MPI_File fh)
 }
 
 /* compare function for sorting file records by descending rank */
-static int mpiio_file_compare(const void* a_p, const void* b_p)
+static int mpiio_record_compare(const void* a_p, const void* b_p)
 {
     const struct darshan_mpiio_file* a = a_p;
     const struct darshan_mpiio_file* b = b_p;
@@ -1077,7 +1077,7 @@ static void mpiio_setup_reduction(
      * of the array
      */
     qsort(mpiio_runtime->file_record_array, mpiio_runtime->file_array_ndx,
-        sizeof(struct darshan_mpiio_file), mpiio_file_compare);
+        sizeof(struct darshan_mpiio_file), mpiio_record_compare);
 
     /* make *send_buf point to the shared files at the end of sorted array */
     *send_buf =
@@ -1089,13 +1089,12 @@ static void mpiio_setup_reduction(
         *recv_buf = malloc(*shared_rec_count * sizeof(struct darshan_mpiio_file));
         if(!(*recv_buf))
             return;
+
+        /* TODO: cleaner way to do this? */
+        mpiio_runtime->red_buf = *recv_buf;
     }
 
     *rec_size = sizeof(struct darshan_mpiio_file);
-
-    /* TODO: cleaner way to do this? */
-    if(my_rank == 0)
-        mpiio_runtime->red_buf = *recv_buf;
     mpiio_runtime->shared_rec_count = *shared_rec_count;
 
     return;
@@ -1110,7 +1109,7 @@ static void mpiio_record_reduction_op(
     struct darshan_mpiio_file tmp_file;
     struct darshan_mpiio_file *infile = infile_v;
     struct darshan_mpiio_file *inoutfile = inoutfile_v;
-    int i, j;
+    int i, j, k;
 
     assert(mpiio_runtime);
 
@@ -1122,24 +1121,111 @@ static void mpiio_record_reduction_op(
         tmp_file.rank = -1;
 
         /* sum */
-        for(j=MPIIO_INDEP_OPENS; j<=MPIIO_HINTS; j++)
+        for(j=MPIIO_INDEP_OPENS; j<=MPIIO_VIEWS; j++)
         {
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
-        /* sum (floating point) */
-        for(j=MPIIO_F_META_TIME; j<=MPIIO_F_META_TIME; j++)
+        tmp_file.counters[MPIIO_MODE] = infile->counters[MPIIO_MODE];
+
+        /* sum */
+        for(j=MPIIO_BYTES_READ; j<=MPIIO_RW_SWITCHES; j++)
         {
-            tmp_file.fcounters[j] = infile->fcounters[j] + inoutfile->fcounters[j];
+            tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
+        }
+
+        /* skip MPIIO_MAX_*_TIME_SIZE; handled in floating point section */
+
+        for(j=MPIIO_SIZE_READ_AGG_0_100; j<=MPIIO_SIZE_WRITE_AGG_1G_PLUS; j++)
+        {
+            tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
+        }
+
+        /* first collapse any duplicates */
+        for(j=MPIIO_ACCESS1_ACCESS; j<=MPIIO_ACCESS4_ACCESS; j++)
+        {
+            for(k=MPIIO_ACCESS1_ACCESS; k<=MPIIO_ACCESS4_ACCESS; k++)
+            {
+                if(infile->counters[j] == inoutfile->counters[k])
+                {
+                    infile->counters[j+4] += inoutfile->counters[k+4];
+                    inoutfile->counters[k] = 0;
+                    inoutfile->counters[k+4] = 0;
+                }
+            }
+        }
+
+        /* first set */
+        for(j=MPIIO_ACCESS1_ACCESS; j<=MPIIO_ACCESS4_ACCESS; j++)
+        {
+            DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[MPIIO_ACCESS1_ACCESS]),
+                &(tmp_file.counters[MPIIO_ACCESS1_COUNT]), infile->counters[j],
+                infile->counters[j+4]);
+        }
+
+        /* second set */
+        for(j=MPIIO_ACCESS1_ACCESS; j<=MPIIO_ACCESS4_ACCESS; j++)
+        {
+            DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[MPIIO_ACCESS1_ACCESS]),
+                &(tmp_file.counters[MPIIO_ACCESS1_COUNT]), inoutfile->counters[j],
+                inoutfile->counters[j+4]);
         }
 
         /* min non-zero (if available) value */
-        for(j=MPIIO_F_OPEN_TIMESTAMP; j<=MPIIO_F_OPEN_TIMESTAMP; j++)
+        for(j=MPIIO_F_OPEN_TIMESTAMP; j<=MPIIO_F_WRITE_START_TIMESTAMP; j++)
         {
             if(infile->fcounters[j] > inoutfile->fcounters[j] && inoutfile->fcounters[j] > 0)
                 tmp_file.fcounters[j] = inoutfile->fcounters[j];
             else
                 tmp_file.fcounters[j] = infile->fcounters[j];
+        }
+
+        /* max */
+        for(j=MPIIO_F_READ_END_TIMESTAMP; j<= MPIIO_F_CLOSE_TIMESTAMP; j++)
+        {
+            if(infile->fcounters[j] > inoutfile->fcounters[j])
+                tmp_file.fcounters[j] = infile->fcounters[j];
+            else
+                tmp_file.fcounters[j] = inoutfile->fcounters[j];
+        }
+
+        /* sum */
+        for(j=MPIIO_F_READ_TIME; j<=MPIIO_F_META_TIME; j++)
+        {
+            tmp_file.counters[j] = infile->fcounters[j] + inoutfile->fcounters[j];
+        }
+
+        /* max (special case) */
+        if(infile->fcounters[MPIIO_F_MAX_READ_TIME] >
+            inoutfile->fcounters[MPIIO_F_MAX_READ_TIME])
+        {
+            tmp_file.fcounters[MPIIO_F_MAX_READ_TIME] =
+                infile->fcounters[MPIIO_F_MAX_READ_TIME];
+            tmp_file.counters[MPIIO_MAX_READ_TIME_SIZE] =
+                infile->counters[MPIIO_MAX_READ_TIME_SIZE];
+        }
+        else
+        {
+            tmp_file.fcounters[MPIIO_F_MAX_READ_TIME] =
+                inoutfile->fcounters[MPIIO_F_MAX_READ_TIME];
+            tmp_file.counters[MPIIO_MAX_READ_TIME_SIZE] =
+                inoutfile->counters[MPIIO_MAX_READ_TIME_SIZE];
+        }
+
+        if(infile->fcounters[MPIIO_F_MAX_WRITE_TIME] >
+            inoutfile->fcounters[MPIIO_F_MAX_WRITE_TIME])
+        {
+            tmp_file.fcounters[MPIIO_F_MAX_WRITE_TIME] =
+                infile->fcounters[MPIIO_F_MAX_WRITE_TIME];
+            tmp_file.counters[MPIIO_MAX_WRITE_TIME_SIZE] =
+                infile->counters[MPIIO_MAX_WRITE_TIME_SIZE];
+        }
+        else
+        {
+            tmp_file.fcounters[MPIIO_F_MAX_WRITE_TIME] =
+                inoutfile->fcounters[MPIIO_F_MAX_WRITE_TIME];
+            tmp_file.counters[MPIIO_MAX_WRITE_TIME_SIZE] =
+                inoutfile->counters[MPIIO_MAX_WRITE_TIME_SIZE];
         }
 
         /* update pointers */
@@ -1157,7 +1243,7 @@ static void mpiio_get_output_data(
 {
     assert(mpiio_runtime);
 
-    /* TODO: clean up reduction stuff */
+    /* clean up reduction state */
     if(my_rank == 0)
     {
         int tmp_ndx = mpiio_runtime->file_array_ndx - mpiio_runtime->shared_rec_count;
@@ -1179,6 +1265,8 @@ static void mpiio_get_output_data(
 static void mpiio_shutdown()
 {
     struct mpiio_file_runtime_ref *ref, *tmp;
+
+    assert(mpiio_runtime);
 
     HASH_ITER(hlink, mpiio_runtime->fh_hash, ref, tmp)
     {

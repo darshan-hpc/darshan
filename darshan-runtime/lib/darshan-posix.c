@@ -1802,7 +1802,6 @@ static void posix_setup_reduction(
         if(!(*recv_buf))
             return;
 
-        /* TODO: cleaner way to do this? */
         posix_runtime->red_buf = *recv_buf;
     }
 
@@ -1858,8 +1857,7 @@ static void posix_record_reduction_op(
         /* sum */
         for(j=POSIX_CONSEC_READS; j<=POSIX_MEM_NOT_ALIGNED; j++)
         {
-            tmp_file.counters[j] = infile->counters[j] +
-                inoutfile->counters[j];
+            tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
         tmp_file.counters[POSIX_MEM_ALIGNMENT] = infile->counters[POSIX_MEM_ALIGNMENT];
@@ -1868,16 +1866,14 @@ static void posix_record_reduction_op(
         /* sum */
         for(j=POSIX_FILE_NOT_ALIGNED; j<=POSIX_FILE_NOT_ALIGNED; j++)
         {
-            tmp_file.counters[j] = infile->counters[j] +
-                inoutfile->counters[j];
+            tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
         /* skip POSIX_MAX_*_TIME_SIZE; handled in floating point section */
 
         for(j=POSIX_SIZE_READ_0_100; j<=POSIX_SIZE_WRITE_1G_PLUS; j++)
         {
-            tmp_file.counters[j] = infile->counters[j] +
-                inoutfile->counters[j];
+            tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
         /* first collapse any duplicates */
@@ -2054,13 +2050,13 @@ static void posix_get_output_data(
 {
     assert(posix_runtime);
 
-    /* TODO: cleaner way to do this? */
     /* clean up reduction state */
     if(my_rank == 0)
     {
         int tmp_ndx = posix_runtime->file_array_ndx - posix_runtime->shared_rec_count;
         memcpy(&(posix_runtime->file_record_array[tmp_ndx]), posix_runtime->red_buf,
             posix_runtime->shared_rec_count * sizeof(struct darshan_posix_file));
+        free(posix_runtime->red_buf);
     }
     else
     {
@@ -2086,9 +2082,6 @@ static void posix_shutdown()
     }
 
     HASH_CLEAR(hlink, posix_runtime->file_hash); /* these entries are freed all at once below */
-
-    if(my_rank == 0 && posix_runtime->red_buf)
-        free(posix_runtime->red_buf);
 
     free(posix_runtime->file_runtime_array);
     free(posix_runtime->file_record_array);
