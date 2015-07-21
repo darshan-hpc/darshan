@@ -9,7 +9,6 @@
 
 #include "darshan-log-format.h"
 
-/* TODO: slowest/fastest rank (f)counters */
 /* TODO: maybe use a counter to track cases in which a derived datatype is used? */
 
 #define MPIIO_COUNTERS \

@@ -1059,6 +1059,7 @@ static void mpiio_setup_reduction(
 {
     struct mpiio_file_runtime *file;
     int i;
+    double mpiio_time;
 
     assert(mpiio_runtime);
 
@@ -1068,6 +1069,31 @@ static void mpiio_setup_reduction(
         HASH_FIND(hlink, mpiio_runtime->file_hash, &shared_recs[i],
             sizeof(darshan_record_id), file);
         assert(file);
+
+        mpiio_time =
+            file->file_record->fcounters[MPIIO_F_READ_TIME] +
+            file->file_record->fcounters[MPIIO_F_WRITE_TIME] +
+            file->file_record->fcounters[MPIIO_F_META_TIME];
+
+        /* initialize fastest/slowest info prior to the reduction */
+        file->file_record->counters[MPIIO_FASTEST_RANK] =
+            file->file_record->rank;
+        file->file_record->counters[MPIIO_FASTEST_RANK_BYTES] =
+            file->file_record->counters[MPIIO_BYTES_READ] +
+            file->file_record->counters[MPIIO_BYTES_WRITTEN];
+        file->file_record->fcounters[MPIIO_F_FASTEST_RANK_TIME] =
+            mpiio_time;
+
+        /* until reduction occurs, we assume that this rank is both
+         * the fastest and slowest. It is up to the reduction operator
+         * to find the true min and max.
+         */
+        file->file_record->counters[MPIIO_SLOWEST_RANK] =
+            file->file_record->counters[MPIIO_FASTEST_RANK];
+        file->file_record->counters[MPIIO_SLOWEST_RANK_BYTES] =
+            file->file_record->counters[MPIIO_FASTEST_RANK_BYTES];
+        file->file_record->fcounters[MPIIO_F_SLOWEST_RANK_TIME] =
+            file->file_record->fcounters[MPIIO_F_FASTEST_RANK_TIME];
 
         file->file_record->rank = -1;
     }
@@ -1226,6 +1252,48 @@ static void mpiio_record_reduction_op(
                 inoutfile->fcounters[MPIIO_F_MAX_WRITE_TIME];
             tmp_file.counters[MPIIO_MAX_WRITE_TIME_SIZE] =
                 inoutfile->counters[MPIIO_MAX_WRITE_TIME_SIZE];
+        }
+
+        /* min (zeroes are ok here; some procs don't do I/O) */
+        if(infile->fcounters[MPIIO_F_FASTEST_RANK_TIME] <
+            inoutfile->fcounters[MPIIO_F_FASTEST_RANK_TIME])
+        {
+            tmp_file.counters[MPIIO_FASTEST_RANK] =
+                infile->counters[MPIIO_FASTEST_RANK];
+            tmp_file.counters[MPIIO_FASTEST_RANK_BYTES] =
+                infile->counters[MPIIO_FASTEST_RANK_BYTES];
+            tmp_file.fcounters[MPIIO_F_FASTEST_RANK_TIME] =
+                infile->fcounters[MPIIO_F_FASTEST_RANK_TIME];
+        }
+        else
+        {
+            tmp_file.counters[MPIIO_FASTEST_RANK] =
+                inoutfile->counters[MPIIO_FASTEST_RANK];
+            tmp_file.counters[MPIIO_FASTEST_RANK_BYTES] =
+                inoutfile->counters[MPIIO_FASTEST_RANK_BYTES];
+            tmp_file.fcounters[MPIIO_F_FASTEST_RANK_TIME] =
+                inoutfile->fcounters[MPIIO_F_FASTEST_RANK_TIME];
+        }
+
+        /* max */
+        if(infile->fcounters[MPIIO_F_SLOWEST_RANK_TIME] >
+           inoutfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME])
+        {
+            tmp_file.counters[MPIIO_SLOWEST_RANK] =
+                infile->counters[MPIIO_SLOWEST_RANK];
+            tmp_file.counters[MPIIO_SLOWEST_RANK_BYTES] =
+                infile->counters[MPIIO_SLOWEST_RANK_BYTES];
+            tmp_file.fcounters[MPIIO_F_SLOWEST_RANK_TIME] =
+                infile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
+        }
+        else
+        {
+            tmp_file.counters[MPIIO_SLOWEST_RANK] =
+                inoutfile->counters[MPIIO_SLOWEST_RANK];
+            tmp_file.counters[MPIIO_SLOWEST_RANK_BYTES] =
+                inoutfile->counters[MPIIO_SLOWEST_RANK_BYTES];
+            tmp_file.fcounters[MPIIO_F_SLOWEST_RANK_TIME] =
+                inoutfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
         }
 
         /* update pointers */
