@@ -122,6 +122,9 @@ static void mpiio_file_close_fh(MPI_File fh);
 static int mpiio_record_compare(const void* a, const void* b);
 static void mpiio_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype);
+static void mpiio_shared_record_variance(MPI_Comm mod_comm,
+    struct darshan_mpiio_file *inrec_array, struct darshan_mpiio_file *outrec_array,
+    int shared_rec_count);
 
 static void mpiio_begin_shutdown(void);
 static void mpiio_get_output_data(MPI_Comm mod_comm, darshan_record_id *shared_recs,
@@ -1196,6 +1199,88 @@ static void mpiio_record_reduction_op(
     return;
 }
 
+static void mpiio_shared_record_variance(MPI_Comm mod_comm,
+    struct darshan_mpiio_file *inrec_array, struct darshan_mpiio_file *outrec_array,
+    int shared_rec_count)
+{
+    MPI_Datatype var_dt;
+    MPI_Op var_op;
+    int i;
+    struct darshan_variance_dt *var_send_buf = NULL;
+    struct darshan_variance_dt *var_recv_buf = NULL;
+
+    DARSHAN_MPI_CALL(PMPI_Type_contiguous)(sizeof(struct darshan_variance_dt),
+        MPI_BYTE, &var_dt);
+    DARSHAN_MPI_CALL(PMPI_Type_commit)(&var_dt);
+
+    DARSHAN_MPI_CALL(PMPI_Op_create)(darshan_variance_reduce, 1, &var_op);
+
+    var_send_buf = malloc(shared_rec_count * sizeof(struct darshan_variance_dt));
+    if(!var_send_buf)
+        return;
+
+    if(my_rank == 0)
+    {
+        var_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_variance_dt));
+
+        if(!var_recv_buf)
+            return;
+    }
+
+    /* get total i/o time variances for shared records */
+
+    for(i=0; i<shared_rec_count; i++)
+    {
+        var_send_buf[i].n = 1;
+        var_send_buf[i].S = 0;
+        var_send_buf[i].T = inrec_array[i].fcounters[MPIIO_F_READ_TIME] +
+                            inrec_array[i].fcounters[MPIIO_F_WRITE_TIME] +
+                            inrec_array[i].fcounters[MPIIO_F_META_TIME];
+    }
+
+    DARSHAN_MPI_CALL(PMPI_Reduce)(var_send_buf, var_recv_buf, shared_rec_count,
+        var_dt, var_op, 0, mod_comm);
+
+    if(my_rank == 0)
+    {
+        for(i=0; i<shared_rec_count; i++)
+        {
+            outrec_array[i].fcounters[MPIIO_F_VARIANCE_RANK_TIME] =
+                (var_recv_buf[i].S / var_recv_buf[i].n);
+        }
+    }
+
+    /* get total bytes moved variances for shared records */
+
+    for(i=0; i<shared_rec_count; i++)
+    {
+        var_send_buf[i].n = 1;
+        var_send_buf[i].S = 0;
+        var_send_buf[i].T = (double)
+                            inrec_array[i].counters[MPIIO_BYTES_READ] +
+                            inrec_array[i].counters[MPIIO_BYTES_WRITTEN];
+    }
+
+    DARSHAN_MPI_CALL(PMPI_Reduce)(var_send_buf, var_recv_buf, shared_rec_count,
+        var_dt, var_op, 0, mod_comm);
+
+    if(my_rank == 0)
+    {
+        for(i=0; i<shared_rec_count; i++)
+        {
+            outrec_array[i].fcounters[MPIIO_F_VARIANCE_RANK_BYTES] =
+                (var_recv_buf[i].S / var_recv_buf[i].n);
+        }
+    }
+
+    DARSHAN_MPI_CALL(PMPI_Type_free)(&var_dt);
+    DARSHAN_MPI_CALL(PMPI_Op_free)(&var_op);
+    free(var_send_buf);
+    free(var_recv_buf);
+
+    return;
+}
+
 /**************************************************************************
  * Functions exported by MPI-IO module for coordinating with darshan-core *
  **************************************************************************/
@@ -1311,6 +1396,10 @@ static void mpiio_get_output_data(
         /* reduce shared MPIIO file records */
         DARSHAN_MPI_CALL(PMPI_Reduce)(red_send_buf, red_recv_buf,
             shared_rec_count, red_type, red_op, 0, mod_comm);
+
+        /* get the time and byte variances for shared files */
+        mpiio_shared_record_variance(mod_comm, red_send_buf, red_recv_buf,
+            shared_rec_count);
 
         /* clean up reduction state */
         if(my_rank == 0)

@@ -173,6 +173,27 @@ static int darshan_common_val_compare(const void* a_p, const void* b_p)
     return(0);
 }
 
+void darshan_variance_reduce(void *invec, void *inoutvec, int *len,
+    MPI_Datatype *dt)
+{
+    int i;
+    struct darshan_variance_dt *X = invec;
+    struct darshan_variance_dt *Y = inoutvec;
+    struct darshan_variance_dt  Z;
+
+    for (i=0; i<*len; i++,X++,Y++)
+    {
+        Z.n = X->n + Y->n;
+        Z.T = X->T + Y->T;
+        Z.S = X->S + Y->S + (X->n/(Y->n*Z.n)) *
+           ((Y->n/X->n)*X->T - Y->T) * ((Y->n/X->n)*X->T - Y->T);
+
+        *Y = Z;
+    }
+
+    return;
+}
+
 /*
  * Local variables:
  *  c-indent-level: 4

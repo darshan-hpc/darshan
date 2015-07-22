@@ -118,6 +118,14 @@ enum darshan_io_type
     DARSHAN_IO_WRITE = 2,
 };
 
+/* struct used for calculating variances */
+struct darshan_variance_dt
+{
+    double n;
+    double T;
+    double S;
+};
+
 /***********************************************
 * darshan-common functions for darshan modules *
 ***********************************************/
@@ -163,5 +171,22 @@ void darshan_walk_common_vals(
     void* common_val_root,
     int64_t* val_p,
     int64_t* cnt_p);
+
+/* darshan_variance_reduce()
+ *
+ * MPI reduction operation to calculate variances on counters in
+ * data records which are shared across all processes. This could
+ * be used, for instance, to find the variance in I/O time or total
+ * bytes moved for a given data record. This function needs to be
+ * passed to MPI_Op_create to obtain a corresponding MPI operation
+ * which can be used to complete the reduction.  For more details,
+ * consult the documentation for MPI_Op_create. Example use cases
+ * can be found in the POSIX and MPIIO modules.
+ */
+void darshan_variance_reduce(
+    void *invec,
+    void *inoutvec,
+    int *len,
+    MPI_Datatype *dt);
 
 #endif /* __DARSHAN_COMMON_H */

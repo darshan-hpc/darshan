@@ -115,6 +115,10 @@
     /* total i/o and meta time for fastest/slowest ranks */\
     X(MPIIO_F_FASTEST_RANK_TIME) \
     X(MPIIO_F_SLOWEST_RANK_TIME) \
+    /* variance of total i/o time and bytes moved across all ranks */\
+    /* NOTE: for shared records only */\
+    X(MPIIO_F_VARIANCE_RANK_TIME) \
+    X(MPIIO_F_VARIANCE_RANK_BYTES) \
     /* end of counters*/\
     X(MPIIO_F_NUM_INDICES)
 

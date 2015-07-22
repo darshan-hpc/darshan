@@ -8,11 +8,6 @@
 
 #include "darshan-log-format.h"
 
-/* TODO we need to be able to run more reduction operations to get
- * time and byte variances for shared files. currently, darshan-core
- * just runs a single reduction, which is used to reduce all other
- * shared record fields. (VARIANCE_RANK_TIME, VARIANCE_RANK_BYTES) */
-
 #define POSIX_COUNTERS \
     /* count of posix opens */\
     X(POSIX_OPENS) \
@@ -144,6 +139,10 @@
     /* total i/o and meta time consumed for fastest/slowest ranks */\
     X(POSIX_F_FASTEST_RANK_TIME) \
     X(POSIX_F_SLOWEST_RANK_TIME) \
+    /* variance of total i/o time and bytes moved across all ranks */\
+    /* NOTE: for shared records only */\
+    X(POSIX_F_VARIANCE_RANK_TIME) \
+    X(POSIX_F_VARIANCE_RANK_BYTES) \
     /* end of counters */\
     X(POSIX_F_NUM_INDICES)
 
