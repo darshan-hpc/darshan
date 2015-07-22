@@ -119,7 +119,8 @@ static struct null_record_runtime* null_record_by_name(const char *name);
 
 /* forward declaration for module functions needed to interface with darshan-core */
 static void null_begin_shutdown(void);
-static void null_get_output_data(void **buffer, int *size);
+static void null_get_output_data(MPI_Comm mod_comm, darshan_record_id *shared_recs,
+    int shared_rec_count, void **null_buf, int *null_buf_sz);
 static void null_shutdown(void);
 
 /* macros for obtaining/releasing the "NULL" module lock */
@@ -203,8 +204,6 @@ static void null_runtime_initialize()
     struct darshan_module_funcs null_mod_fns =
     {
         .begin_shutdown = &null_begin_shutdown,
-        .setup_reduction = NULL,        /* "NULL" module does not do reductions */
-        .record_reduction_op = NULL,    /* "NULL" module does not do reductions */
         .get_output_data = &null_get_output_data,
         .shutdown = &null_shutdown
     };
@@ -334,17 +333,30 @@ static void null_begin_shutdown()
 
 /* Pass output data for the "NULL" module back to darshan-core to log to file. */
 static void null_get_output_data(
-    void **buffer,
-    int *size)
+    MPI_Comm mod_comm,
+    darshan_record_id *shared_recs,
+    int shared_rec_count,
+    void **null_buf,
+    int *null_buf_sz)
 {
     assert(null_runtime);
+
+    /* NOTE: this function can be used to run collective operations prior to
+     * shutting down the module, as implied by the MPI communicator passed in
+     * as the first agrument. Typically, module developers will want to run a
+     * reduction on shared data records (passed in in the 'shared_recs' array),
+     * but other collective routines can be run here as well. For a detailed
+     * example illustrating how to run shared file reductions, consider the
+     * POSIX or MPIIO instrumentation modules, as they both implement this
+     * functionality.
+     */
 
     /* Just set the output buffer to point at the array of the "NULL" module's
      * I/O records, and set the output size according to the number of records
      * currently being tracked.
      */
-    *buffer = (void *)(null_runtime->record_array);
-    *size = null_runtime->rec_array_ndx * sizeof(struct darshan_null_record);
+    *null_buf = (void *)(null_runtime->record_array);
+    *null_buf_sz = null_runtime->rec_array_ndx * sizeof(struct darshan_null_record);
 
     return;
 }

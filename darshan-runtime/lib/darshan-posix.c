@@ -176,8 +176,6 @@ struct posix_runtime
     int file_array_ndx;
     struct posix_file_runtime* file_hash;
     struct posix_file_runtime_ref* fd_hash;
-    void *red_buf;
-    int shared_rec_count;
 };
 
 static struct posix_runtime *posix_runtime = NULL;
@@ -194,13 +192,12 @@ static void posix_file_close_fd(int fd);
 static int posix_record_compare(const void* a, const void* b);
 static void posix_aio_tracker_add(int fd, void *aiocbp);
 static struct posix_aio_tracker* posix_aio_tracker_del(int fd, void *aiocbp);
-
-static void posix_begin_shutdown(void);
-static void posix_setup_reduction(darshan_record_id *shared_recs, int *shared_rec_count,
-    void **send_buf, void **recv_buf, int *rec_size);
 static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype);
-static void posix_get_output_data(void **buffer, int *size);
+
+static void posix_begin_shutdown(void);
+static void posix_get_output_data(MPI_Comm mod_comm, darshan_record_id *shared_recs,
+    int shared_rec_count, void **posix_buf, int *posix_buf_sz);
 static void posix_shutdown(void);
 
 #define POSIX_LOCK() pthread_mutex_lock(&posix_runtime_mutex)
@@ -1454,8 +1451,6 @@ static void posix_runtime_initialize()
     struct darshan_module_funcs posix_mod_fns =
     {
         .begin_shutdown = &posix_begin_shutdown,
-        .setup_reduction = &posix_setup_reduction,
-        .record_reduction_op = &posix_record_reduction_op,
         .get_output_data = &posix_get_output_data,
         .shutdown = &posix_shutdown
     };
@@ -1699,118 +1694,6 @@ static struct posix_aio_tracker* posix_aio_tracker_del(int fd, void *aiocbp)
     return(tracker);
 }
 
-/************************************************************************
- * Functions exported by this module for coordinating with darshan-core *
- ************************************************************************/
-
-static void posix_begin_shutdown()
-{
-    int i;
-    struct posix_file_runtime* tmp;
-
-    assert(posix_runtime);
-
-    POSIX_LOCK();
-    instrumentation_disabled = 1;
-
-    /* go through file access data for each record and set the 4 most common
-     * stride/access size counters.
-     */
-    for(i = 0; i < posix_runtime->file_array_ndx; i++)
-    {
-        tmp = &(posix_runtime->file_runtime_array[i]);
-
-        /* common accesses */
-        darshan_walk_common_vals(tmp->access_root,
-            &(tmp->file_record->counters[POSIX_ACCESS1_ACCESS]),
-            &(tmp->file_record->counters[POSIX_ACCESS1_COUNT]));
-        /* common strides */
-        darshan_walk_common_vals(tmp->stride_root,
-            &(tmp->file_record->counters[POSIX_STRIDE1_STRIDE]),
-            &(tmp->file_record->counters[POSIX_STRIDE1_COUNT]));
-    }
-
-    /* disable further instrumentation while Darshan shuts down */
-    POSIX_UNLOCK();
-
-    return;
-}
-
-static void posix_setup_reduction(
-    darshan_record_id *shared_recs,
-    int *shared_rec_count,
-    void **send_buf,
-    void **recv_buf,
-    int *rec_size)
-{
-    struct posix_file_runtime *file;
-    int i;
-    double posix_time;
-
-    assert(posix_runtime);
-
-    /* necessary initialization of shared records (e.g., change rank to -1) */
-    for(i = 0; i < *shared_rec_count; i++)
-    {
-        HASH_FIND(hlink, posix_runtime->file_hash, &shared_recs[i],
-            sizeof(darshan_record_id), file);
-        assert(file);
-
-        posix_time =
-            file->file_record->fcounters[POSIX_F_READ_TIME] +
-            file->file_record->fcounters[POSIX_F_WRITE_TIME] +
-            file->file_record->fcounters[POSIX_F_META_TIME];
-
-        /* initialize fastest/slowest info prior to the reduction */
-        file->file_record->counters[POSIX_FASTEST_RANK] =
-            file->file_record->rank;
-        file->file_record->counters[POSIX_FASTEST_RANK_BYTES] = 
-            file->file_record->counters[POSIX_BYTES_READ] +
-            file->file_record->counters[POSIX_BYTES_WRITTEN];
-        file->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME] = 
-            posix_time;
-
-        /* until reduction occurs, we assume that this rank is both
-         * the fastest and slowest. It is up to the reduction operator
-         * to find the true min and max.
-         */
-        file->file_record->counters[POSIX_SLOWEST_RANK] =
-            file->file_record->counters[POSIX_FASTEST_RANK];
-        file->file_record->counters[POSIX_SLOWEST_RANK_BYTES] =
-            file->file_record->counters[POSIX_FASTEST_RANK_BYTES];
-        file->file_record->fcounters[POSIX_F_SLOWEST_RANK_TIME] =
-            file->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME];
-
-        file->file_record->rank = -1;
-    }
-
-    /* sort the array of files descending by rank so that we get all of the 
-     * shared files (marked by rank -1) in a contiguous portion at end 
-     * of the array
-     */
-    qsort(posix_runtime->file_record_array, posix_runtime->file_array_ndx,
-        sizeof(struct darshan_posix_file), posix_record_compare);
-
-    /* make *send_buf point to the shared files at the end of sorted array */
-    *send_buf =
-        &(posix_runtime->file_record_array[posix_runtime->file_array_ndx-(*shared_rec_count)]);
-
-    /* allocate memory for the reduction output on rank 0 */
-    if(my_rank == 0)
-    {
-        *recv_buf = malloc(*shared_rec_count * sizeof(struct darshan_posix_file));
-        if(!(*recv_buf))
-            return;
-
-        posix_runtime->red_buf = *recv_buf;
-    }
-
-    *rec_size = sizeof(struct darshan_posix_file);
-    posix_runtime->shared_rec_count = *shared_rec_count;
-
-    return;
-}
-
 static void posix_record_reduction_op(
     void* infile_v,
     void* inoutfile_v,
@@ -2044,27 +1927,147 @@ static void posix_record_reduction_op(
     return;
 }
 
-static void posix_get_output_data(
-    void **buffer,
-    int *size)
+/************************************************************************
+ * Functions exported by this module for coordinating with darshan-core *
+ ************************************************************************/
+
+static void posix_begin_shutdown()
 {
     assert(posix_runtime);
 
-    /* clean up reduction state */
-    if(my_rank == 0)
+    POSIX_LOCK();
+    /* disable further instrumentation while Darshan shuts down */
+    instrumentation_disabled = 1;
+    POSIX_UNLOCK();
+
+    return;
+}
+
+static void posix_get_output_data(
+    MPI_Comm mod_comm,
+    darshan_record_id *shared_recs,
+    int shared_rec_count,
+    void **posix_buf,
+    int *posix_buf_sz)
+{
+    struct posix_file_runtime *file;
+    struct posix_file_runtime *tmp;
+    int i;
+    double posix_time;
+    void *red_send_buf = NULL;
+    void *red_recv_buf = NULL;
+    MPI_Datatype red_type;
+    MPI_Op red_op;
+
+    assert(posix_runtime);
+
+    /* go through file access data for each record and set the 4 most common
+     * stride/access size counters.
+     */
+    for(i = 0; i < posix_runtime->file_array_ndx; i++)
     {
-        int tmp_ndx = posix_runtime->file_array_ndx - posix_runtime->shared_rec_count;
-        memcpy(&(posix_runtime->file_record_array[tmp_ndx]), posix_runtime->red_buf,
-            posix_runtime->shared_rec_count * sizeof(struct darshan_posix_file));
-        free(posix_runtime->red_buf);
-    }
-    else
-    {
-        posix_runtime->file_array_ndx -= posix_runtime->shared_rec_count;
+        tmp = &(posix_runtime->file_runtime_array[i]);
+
+        /* common accesses */
+        darshan_walk_common_vals(tmp->access_root,
+            &(tmp->file_record->counters[POSIX_ACCESS1_ACCESS]),
+            &(tmp->file_record->counters[POSIX_ACCESS1_COUNT]));
+        /* common strides */
+        darshan_walk_common_vals(tmp->stride_root,
+            &(tmp->file_record->counters[POSIX_STRIDE1_STRIDE]),
+            &(tmp->file_record->counters[POSIX_STRIDE1_COUNT]));
     }
 
-    *buffer = (void *)(posix_runtime->file_record_array);
-    *size = posix_runtime->file_array_ndx * sizeof(struct darshan_posix_file);
+    /* if there are globally shared files, do a shared file reduction */
+    if(shared_rec_count)
+    {
+        /* necessary initialization of shared records */
+        for(i = 0; i < shared_rec_count; i++)
+        {
+            HASH_FIND(hlink, posix_runtime->file_hash, &shared_recs[i],
+                sizeof(darshan_record_id), file);
+            assert(file);
+
+            posix_time =
+                file->file_record->fcounters[POSIX_F_READ_TIME] +
+                file->file_record->fcounters[POSIX_F_WRITE_TIME] +
+                file->file_record->fcounters[POSIX_F_META_TIME];
+
+            /* initialize fastest/slowest info prior to the reduction */
+            file->file_record->counters[POSIX_FASTEST_RANK] =
+                file->file_record->rank;
+            file->file_record->counters[POSIX_FASTEST_RANK_BYTES] =
+                file->file_record->counters[POSIX_BYTES_READ] +
+                file->file_record->counters[POSIX_BYTES_WRITTEN];
+            file->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME] =
+                posix_time;
+
+            /* until reduction occurs, we assume that this rank is both
+             * the fastest and slowest. It is up to the reduction operator
+             * to find the true min and max.
+             */
+            file->file_record->counters[POSIX_SLOWEST_RANK] =
+                file->file_record->counters[POSIX_FASTEST_RANK];
+            file->file_record->counters[POSIX_SLOWEST_RANK_BYTES] =
+                file->file_record->counters[POSIX_FASTEST_RANK_BYTES];
+            file->file_record->fcounters[POSIX_F_SLOWEST_RANK_TIME] =
+                file->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME];
+
+            file->file_record->rank = -1;
+        }
+
+        /* sort the array of files descending by rank so that we get all of the 
+         * shared files (marked by rank -1) in a contiguous portion at end 
+         * of the array
+         */
+        qsort(posix_runtime->file_record_array, posix_runtime->file_array_ndx,
+            sizeof(struct darshan_posix_file), posix_record_compare);
+
+        /* make *send_buf point to the shared files at the end of sorted array */
+        red_send_buf =
+            &(posix_runtime->file_record_array[posix_runtime->file_array_ndx-(shared_rec_count)]);
+        
+        /* allocate memory for the reduction output on rank 0 */
+        if(my_rank == 0)
+        {
+            red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_posix_file));
+            if(!red_recv_buf)
+                return;
+        }
+
+        /* construct a datatype for a POSIX file record.  This is serving no purpose
+         * except to make sure we can do a reduction on proper boundaries
+         */
+        DARSHAN_MPI_CALL(PMPI_Type_contiguous)(sizeof(struct darshan_posix_file),
+            MPI_BYTE, &red_type);
+        DARSHAN_MPI_CALL(PMPI_Type_commit)(&red_type);
+
+        /* register a POSIX file record reduction operator */
+        DARSHAN_MPI_CALL(PMPI_Op_create)(posix_record_reduction_op, 1, &red_op);
+
+        /* reduce shared POSIX file records */
+        DARSHAN_MPI_CALL(PMPI_Reduce)(red_send_buf, red_recv_buf,
+            shared_rec_count, red_type, red_op, 0, mod_comm);
+
+        /* clean up reduction state */
+        if(my_rank == 0)
+        {
+            int tmp_ndx = posix_runtime->file_array_ndx - shared_rec_count;
+            memcpy(&(posix_runtime->file_record_array[tmp_ndx]), red_recv_buf,
+                shared_rec_count * sizeof(struct darshan_posix_file));
+            free(red_recv_buf);
+        }
+        else
+        {
+            posix_runtime->file_array_ndx -= shared_rec_count;
+        }
+
+        DARSHAN_MPI_CALL(PMPI_Type_free)(&red_type);
+        DARSHAN_MPI_CALL(PMPI_Op_free)(&red_op);
+    }
+
+    *posix_buf = (void *)(posix_runtime->file_record_array);
+    *posix_buf_sz = posix_runtime->file_array_ndx * sizeof(struct darshan_posix_file);
 
     return;
 }

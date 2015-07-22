@@ -107,8 +107,6 @@ struct mpiio_runtime
     int file_array_ndx;
     struct mpiio_file_runtime* file_hash;
     struct mpiio_file_runtime_ref* fh_hash;
-    void *red_buf;
-    int shared_rec_count;
 };
 
 static struct mpiio_runtime *mpiio_runtime = NULL;
@@ -122,13 +120,12 @@ static struct mpiio_file_runtime* mpiio_file_by_name_setfh(const char* name, MPI
 static struct mpiio_file_runtime* mpiio_file_by_fh(MPI_File fh);
 static void mpiio_file_close_fh(MPI_File fh);
 static int mpiio_record_compare(const void* a, const void* b);
-
-static void mpiio_begin_shutdown(void);
-static void mpiio_setup_reduction(darshan_record_id *shared_recs, int *shared_rec_count,
-    void **send_buf, void **recv_buf, int *rec_size);
 static void mpiio_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype);
-static void mpiio_get_output_data(void **buffer, int *size);
+
+static void mpiio_begin_shutdown(void);
+static void mpiio_get_output_data(MPI_Comm mod_comm, darshan_record_id *shared_recs,
+    int shared_rec_count, void **mpiio_buf, int *mpiio_buf_sz);
 static void mpiio_shutdown(void);
 
 #define MPIIO_LOCK() pthread_mutex_lock(&mpiio_runtime_mutex)
@@ -829,8 +826,6 @@ static void mpiio_runtime_initialize()
     struct darshan_module_funcs mpiio_mod_fns =
     {
         .begin_shutdown = &mpiio_begin_shutdown,
-        .setup_reduction = &mpiio_setup_reduction,
-        .record_reduction_op = &mpiio_record_reduction_op,
         .get_output_data = &mpiio_get_output_data,
         .shutdown = &mpiio_shutdown
     };
@@ -1022,110 +1017,6 @@ static int mpiio_record_compare(const void* a_p, const void* b_p)
     return 0;
 }
 
-/**************************************************************************
- * Functions exported by MPI-IO module for coordinating with darshan-core *
- **************************************************************************/
-
-static void mpiio_begin_shutdown()
-{
-    int i;
-    struct mpiio_file_runtime* tmp;
-
-    assert(mpiio_runtime);
-
-    MPIIO_LOCK();
-    instrumentation_disabled = 1;
-
-    /* go through and set the 4 most common access sizes for MPI-IO */
-    for(i = 0; i < mpiio_runtime->file_array_ndx; i++)
-    {
-        tmp = &(mpiio_runtime->file_runtime_array[i]);
-
-        darshan_walk_common_vals(tmp->access_root,
-            &(tmp->file_record->counters[MPIIO_ACCESS1_ACCESS]),
-            &(tmp->file_record->counters[MPIIO_ACCESS1_COUNT]));
-    }
-    MPIIO_UNLOCK();
-
-    return;
-}
-
-static void mpiio_setup_reduction(
-    darshan_record_id *shared_recs,
-    int *shared_rec_count,
-    void **send_buf,
-    void **recv_buf,
-    int *rec_size)
-{
-    struct mpiio_file_runtime *file;
-    int i;
-    double mpiio_time;
-
-    assert(mpiio_runtime);
-
-    /* necessary initialization of shared records (e.g., change rank to -1) */
-    for(i = 0; i < *shared_rec_count; i++)
-    {
-        HASH_FIND(hlink, mpiio_runtime->file_hash, &shared_recs[i],
-            sizeof(darshan_record_id), file);
-        assert(file);
-
-        mpiio_time =
-            file->file_record->fcounters[MPIIO_F_READ_TIME] +
-            file->file_record->fcounters[MPIIO_F_WRITE_TIME] +
-            file->file_record->fcounters[MPIIO_F_META_TIME];
-
-        /* initialize fastest/slowest info prior to the reduction */
-        file->file_record->counters[MPIIO_FASTEST_RANK] =
-            file->file_record->rank;
-        file->file_record->counters[MPIIO_FASTEST_RANK_BYTES] =
-            file->file_record->counters[MPIIO_BYTES_READ] +
-            file->file_record->counters[MPIIO_BYTES_WRITTEN];
-        file->file_record->fcounters[MPIIO_F_FASTEST_RANK_TIME] =
-            mpiio_time;
-
-        /* until reduction occurs, we assume that this rank is both
-         * the fastest and slowest. It is up to the reduction operator
-         * to find the true min and max.
-         */
-        file->file_record->counters[MPIIO_SLOWEST_RANK] =
-            file->file_record->counters[MPIIO_FASTEST_RANK];
-        file->file_record->counters[MPIIO_SLOWEST_RANK_BYTES] =
-            file->file_record->counters[MPIIO_FASTEST_RANK_BYTES];
-        file->file_record->fcounters[MPIIO_F_SLOWEST_RANK_TIME] =
-            file->file_record->fcounters[MPIIO_F_FASTEST_RANK_TIME];
-
-        file->file_record->rank = -1;
-    }
-
-    /* sort the array of files descending by rank so that we get all of the 
-     * shared files (marked by rank -1) in a contiguous portion at end 
-     * of the array
-     */
-    qsort(mpiio_runtime->file_record_array, mpiio_runtime->file_array_ndx,
-        sizeof(struct darshan_mpiio_file), mpiio_record_compare);
-
-    /* make *send_buf point to the shared files at the end of sorted array */
-    *send_buf =
-        &(mpiio_runtime->file_record_array[mpiio_runtime->file_array_ndx-(*shared_rec_count)]);
-
-    /* allocate memory for the reduction output on rank 0 */
-    if(my_rank == 0)
-    {
-        *recv_buf = malloc(*shared_rec_count * sizeof(struct darshan_mpiio_file));
-        if(!(*recv_buf))
-            return;
-
-        /* TODO: cleaner way to do this? */
-        mpiio_runtime->red_buf = *recv_buf;
-    }
-
-    *rec_size = sizeof(struct darshan_mpiio_file);
-    mpiio_runtime->shared_rec_count = *shared_rec_count;
-
-    return;
-}
-
 static void mpiio_record_reduction_op(
     void* infile_v,
     void* inoutfile_v,
@@ -1305,27 +1196,141 @@ static void mpiio_record_reduction_op(
     return;
 }
 
-static void mpiio_get_output_data(
-    void **buffer,
-    int *size)
+/**************************************************************************
+ * Functions exported by MPI-IO module for coordinating with darshan-core *
+ **************************************************************************/
+
+static void mpiio_begin_shutdown()
 {
     assert(mpiio_runtime);
 
-    /* clean up reduction state */
-    if(my_rank == 0)
+    MPIIO_LOCK();
+    /* disable further instrumentation while Darshan shuts down */
+    instrumentation_disabled = 1;
+    MPIIO_UNLOCK();
+
+    return;
+}
+
+static void mpiio_get_output_data(
+    MPI_Comm mod_comm,
+    darshan_record_id *shared_recs,
+    int shared_rec_count,
+    void **mpiio_buf,
+    int *mpiio_buf_sz)
+{
+    struct mpiio_file_runtime *file;
+    struct mpiio_file_runtime* tmp;
+    int i;
+    double mpiio_time;
+    void *red_send_buf = NULL;
+    void *red_recv_buf = NULL;
+    MPI_Datatype red_type;
+    MPI_Op red_op;
+
+    assert(mpiio_runtime);
+
+    /* go through and set the 4 most common access sizes for MPI-IO */
+    for(i = 0; i < mpiio_runtime->file_array_ndx; i++)
     {
-        int tmp_ndx = mpiio_runtime->file_array_ndx - mpiio_runtime->shared_rec_count;
-        memcpy(&(mpiio_runtime->file_record_array[tmp_ndx]), mpiio_runtime->red_buf,
-            mpiio_runtime->shared_rec_count * sizeof(struct darshan_mpiio_file));
-        free(mpiio_runtime->red_buf);
-    }
-    else
-    {
-        mpiio_runtime->file_array_ndx -= mpiio_runtime->shared_rec_count;
+        tmp = &(mpiio_runtime->file_runtime_array[i]);
+
+        /* common access sizes */
+        darshan_walk_common_vals(tmp->access_root,
+            &(tmp->file_record->counters[MPIIO_ACCESS1_ACCESS]),
+            &(tmp->file_record->counters[MPIIO_ACCESS1_COUNT]));
     }
 
-    *buffer = (void *)(mpiio_runtime->file_record_array);
-    *size = mpiio_runtime->file_array_ndx * sizeof(struct darshan_mpiio_file);
+    /* if there are globally shared files, do a shared file reduction */   
+    if(shared_rec_count)
+    {
+        /* necessary initialization of shared records */
+        for(i = 0; i < shared_rec_count; i++)
+        {
+            HASH_FIND(hlink, mpiio_runtime->file_hash, &shared_recs[i],
+                sizeof(darshan_record_id), file);
+            assert(file);
+
+            mpiio_time =
+                file->file_record->fcounters[MPIIO_F_READ_TIME] +
+                file->file_record->fcounters[MPIIO_F_WRITE_TIME] +
+                file->file_record->fcounters[MPIIO_F_META_TIME];
+
+            /* initialize fastest/slowest info prior to the reduction */
+            file->file_record->counters[MPIIO_FASTEST_RANK] =
+                file->file_record->rank;
+            file->file_record->counters[MPIIO_FASTEST_RANK_BYTES] =
+                file->file_record->counters[MPIIO_BYTES_READ] +
+                file->file_record->counters[MPIIO_BYTES_WRITTEN];
+            file->file_record->fcounters[MPIIO_F_FASTEST_RANK_TIME] =
+                mpiio_time;
+
+            /* until reduction occurs, we assume that this rank is both
+             * the fastest and slowest. It is up to the reduction operator
+             * to find the true min and max.
+             */
+            file->file_record->counters[MPIIO_SLOWEST_RANK] =
+                file->file_record->counters[MPIIO_FASTEST_RANK];
+            file->file_record->counters[MPIIO_SLOWEST_RANK_BYTES] =
+                file->file_record->counters[MPIIO_FASTEST_RANK_BYTES];
+            file->file_record->fcounters[MPIIO_F_SLOWEST_RANK_TIME] =
+                file->file_record->fcounters[MPIIO_F_FASTEST_RANK_TIME];
+
+            file->file_record->rank = -1;
+        }
+
+        /* sort the array of files descending by rank so that we get all of the 
+         * shared files (marked by rank -1) in a contiguous portion at end 
+         * of the array
+         */
+        qsort(mpiio_runtime->file_record_array, mpiio_runtime->file_array_ndx,
+            sizeof(struct darshan_mpiio_file), mpiio_record_compare);
+
+        /* make *send_buf point to the shared files at the end of sorted array */
+        red_send_buf =
+            &(mpiio_runtime->file_record_array[mpiio_runtime->file_array_ndx-(shared_rec_count)]);
+
+        /* allocate memory for the reduction output on rank 0 */
+        if(my_rank == 0)
+        {
+            red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_mpiio_file));
+            if(!red_recv_buf)
+                return;
+        }
+
+        /* construct a datatype for a MPIIO file record.  This is serving no purpose
+         * except to make sure we can do a reduction on proper boundaries
+         */
+        DARSHAN_MPI_CALL(PMPI_Type_contiguous)(sizeof(struct darshan_mpiio_file),
+            MPI_BYTE, &red_type);
+        DARSHAN_MPI_CALL(PMPI_Type_commit)(&red_type);
+
+        /* register a MPIIO file record reduction operator */
+        DARSHAN_MPI_CALL(PMPI_Op_create)(mpiio_record_reduction_op, 1, &red_op);
+
+        /* reduce shared MPIIO file records */
+        DARSHAN_MPI_CALL(PMPI_Reduce)(red_send_buf, red_recv_buf,
+            shared_rec_count, red_type, red_op, 0, mod_comm);
+
+        /* clean up reduction state */
+        if(my_rank == 0)
+        {
+            int tmp_ndx = mpiio_runtime->file_array_ndx - shared_rec_count;
+            memcpy(&(mpiio_runtime->file_record_array[tmp_ndx]), red_recv_buf,
+                shared_rec_count * sizeof(struct darshan_mpiio_file));
+            free(red_recv_buf);
+        }
+        else
+        {
+            mpiio_runtime->file_array_ndx -= shared_rec_count;
+        }
+
+        DARSHAN_MPI_CALL(PMPI_Type_free)(&red_type);
+        DARSHAN_MPI_CALL(PMPI_Op_free)(&red_op);
+    }
+
+    *mpiio_buf = (void *)(mpiio_runtime->file_record_array);
+    *mpiio_buf_sz = mpiio_runtime->file_array_ndx * sizeof(struct darshan_mpiio_file);
 
     return;
 }

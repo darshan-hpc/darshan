@@ -452,8 +452,9 @@ void darshan_core_shutdown()
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
         struct darshan_core_module* this_mod = final_core->mod_array[i];
-        darshan_record_id mod_shared_recs[DARSHAN_CORE_MAX_RECORDS];
         struct darshan_core_record_ref *ref = NULL;
+        darshan_record_id mod_shared_recs[DARSHAN_CORE_MAX_RECORDS];
+        int mod_shared_rec_cnt = 0;
         void* mod_buf = NULL;
         int mod_buf_sz = 0;
         int j;
@@ -469,63 +470,30 @@ void darshan_core_shutdown()
         }
  
         if(internal_timing_flag)
-            mod1[i] = DARSHAN_MPI_CALL(PMPI_Wtime)();   
-        /* if all processes used this module, prepare to do a shared file reduction */
-        if(global_mod_use_count[i] == nprocs)
+            mod1[i] = DARSHAN_MPI_CALL(PMPI_Wtime)();
+
+        /* set the shared file list for this module */
+        memset(mod_shared_recs, 0, DARSHAN_CORE_MAX_RECORDS * sizeof(darshan_record_id));
+        for(j = 0; j < DARSHAN_CORE_MAX_RECORDS && shared_recs[j] != 0; j++)
         {
-            int shared_rec_count = 0;
-            int rec_sz = 0;
-            void *red_send_buf = NULL, *red_recv_buf = NULL;
-            MPI_Datatype red_type;
-            MPI_Op red_op;
-
-            /* set the shared file list for this module */
-            memset(mod_shared_recs, 0, DARSHAN_CORE_MAX_RECORDS * sizeof(darshan_record_id));
-            for(j = 0; j < DARSHAN_CORE_MAX_RECORDS && shared_recs[j] != 0; j++)
+            HASH_FIND(hlink, final_core->rec_hash, &shared_recs[j],
+                sizeof(darshan_record_id), ref);
+            assert(ref);
+            if(DARSHAN_CORE_MOD_ISSET(ref->global_mod_flags, i))
             {
-                HASH_FIND(hlink, final_core->rec_hash, &shared_recs[j],
-                    sizeof(darshan_record_id), ref);
-                assert(ref);
-                if(DARSHAN_CORE_MOD_ISSET(ref->global_mod_flags, i))
-                {
-                    mod_shared_recs[shared_rec_count++] = shared_recs[j];
-                }
-            }
-
-            /* if there are globally shared files, do a shared file reduction */
-            if(shared_rec_count && this_mod->mod_funcs.setup_reduction &&
-               this_mod->mod_funcs.record_reduction_op)
-            {
-                this_mod->mod_funcs.setup_reduction(mod_shared_recs, &shared_rec_count,
-                    &red_send_buf, &red_recv_buf, &rec_sz);
-
-                if(shared_rec_count)
-                {
-                    /* construct a datatype for a file record.  This is serving no purpose
-                     * except to make sure we can do a reduction on proper boundaries
-                     */
-                    DARSHAN_MPI_CALL(PMPI_Type_contiguous)(rec_sz, MPI_BYTE, &red_type);
-                    DARSHAN_MPI_CALL(PMPI_Type_commit)(&red_type);
-
-                    /* register a reduction operator for this module */
-                    DARSHAN_MPI_CALL(PMPI_Op_create)(this_mod->mod_funcs.record_reduction_op,
-                        1, &red_op);
-
-                    /* reduce shared file records for this module */
-                    DARSHAN_MPI_CALL(PMPI_Reduce)(red_send_buf, red_recv_buf,
-                        shared_rec_count, red_type, red_op, 0, MPI_COMM_WORLD);
-
-                    DARSHAN_MPI_CALL(PMPI_Type_free)(&red_type);
-                    DARSHAN_MPI_CALL(PMPI_Op_free)(&red_op);
-                }
+                mod_shared_recs[mod_shared_rec_cnt++] = shared_recs[j];
             }
         }
 
-        /* if module is registered locally, get the corresponding output buffer */
+        /* if module is registered locally, get the corresponding output buffer
+         * 
+         * NOTE: this function can be used to run collective operations across
+         * modules, if there are file records shared globally.
+         */
         if(this_mod)
         {
-            /* get output buffer from module */
-            this_mod->mod_funcs.get_output_data(&mod_buf, &mod_buf_sz);
+            this_mod->mod_funcs.get_output_data(MPI_COMM_WORLD, mod_shared_recs,
+                mod_shared_rec_cnt, &mod_buf, &mod_buf_sz);
         }
 
         final_core->log_header.mod_map[i].off = tmp_off;

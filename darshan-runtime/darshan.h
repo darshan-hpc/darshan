@@ -56,38 +56,28 @@
 /* module developers provide the following functions to darshan-core */
 struct darshan_module_funcs
 {
-    /* perform any necessary pre-shutdown steps */
+    /* perform any necessary pre-shutdown steps
+     *
+     * NOTE: this typically includes disabling wrapper functions so
+     * darshan-core can shutdown in a consistent state.
+     */
     void (*begin_shutdown)(void);
-    /* retrieve module data to write to log file */
+    /* retrieve module data to write to log file
+     *
+     * NOTE: module developers can use this function to run collective
+     * MPI operations at shutdown time. Typically this functionality
+     * has been used to reduce records shared globablly (given in the
+     * 'shared_recs' array) into a single data record.
+     */
     void (*get_output_data)(
-        void** buf, /* output parameter to save module buffer address */
-        int* size /* output parameter to save module buffer size */
+        MPI_Comm mod_comm,  /* MPI communicator to run collectives with */
+        darshan_record_id *shared_recs, /* list of shared data record ids */
+        int shared_rec_count, /* count of shared data records */
+        void** mod_buf, /* output parameter to save module buffer address */
+        int* mod_buf_sz /* output parameter to save module buffer size */
     );
     /* shutdown module data structures */
     void (*shutdown)(void);
-    /* (OPTIONAL) perform any necessary steps prior to performing a reduction
-     * of shared Darshan I/O records. To bypass shared file reduction mechanism,
-     * set this pointer to NULL.
-     */
-    void (*setup_reduction)(
-        darshan_record_id *shared_recs, /* input list of shared records */
-        int *shared_rec_count, /* in/out shared record count */
-        void **send_buf, /* send buffer for shared file reduction */
-        void **recv_buf, /* recv buffer for shared file reduction (root only) */
-        int *rec_size /* size of records being stored for this module */
-    );
-    /* (OPTIONAL) perform the actual shared file reduction operation. This 
-     * operation follows the prototype of MPI_Op_create, which allows the
-     * specification of user-defined combination functions which may be used
-     * directly by MPI. To bypass shared file reduction mechanism, set this
-     * pointer to NULL. 
-     */
-    void (*record_reduction_op)(
-        void* infile_v,
-        void* inoutfile_v,
-        int *len,
-        MPI_Datatype *datatype
-    );
 };
 
 /* paths that darshan will not trace */
