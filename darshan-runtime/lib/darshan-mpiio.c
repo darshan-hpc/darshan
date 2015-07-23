@@ -15,12 +15,8 @@
 #include <time.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <sys/uio.h>
-#include <sys/mman.h>
 #include <search.h>
 #include <assert.h>
-#include <libgen.h>
-#include <aio.h>
 #define __USE_GNU
 #include <pthread.h>
 
