@@ -21,7 +21,28 @@
 
 static int darshan_log_seek(darshan_fd fd, off_t offset);
 static int darshan_log_read(darshan_fd fd, void *buf, int len);
-static int darshan_log_write(darshan_fd fd, void *buf, int len);
+//static int darshan_log_write(darshan_fd fd, void *buf, int len);
+
+/* TODO: can we make this s.t. we don't care about ordering (i.e., X macro it ) */
+struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
+{
+    NULL,   /* NULL */
+    &posix_logutils,    /* POSIX */
+    &mpiio_logutils,   /* MPI-IO */
+    NULL,   /* HDF5 */
+    NULL,   /* PNETCDF */
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+};
 
 /* darshan_log_open()
  *
@@ -41,16 +62,6 @@ darshan_fd darshan_log_open(const char *name, const char *mode)
     if(!tmp_fd)
         return(NULL);
     memset(tmp_fd, 0, sizeof(*tmp_fd));
-
-    if(strcmp(mode, "r") == 0)
-    {
-        /* TODO: check for bz2 */
-    }
-    
-    if(strcmp(mode, "w") == 0)
-    {
-        /* TODO: check for bz2 */
-    }
 
     tmp_fd->gzf = gzopen(name, mode);
     if(!tmp_fd->gzf)
@@ -406,8 +417,6 @@ void darshan_log_close(darshan_fd fd)
     if(fd->gzf)
         gzclose(fd->gzf);
 
-    /* TODO: check bz2 */
-
     free(fd);
 
     return;
@@ -437,11 +446,10 @@ static int darshan_log_seek(darshan_fd fd, off_t offset)
         return(-1);
     }
 
-    /* TODO: check bz2 */
-
     return(-1);
 }
 
+#if 0
 /* return amount written on success, -1 on failure.
  */
 static int darshan_log_write(darshan_fd fd, void* buf, int len)
@@ -456,10 +464,9 @@ static int darshan_log_write(darshan_fd fd, void* buf, int len)
         return(ret);
     }
 
-    /* TODO: check bz2 */
-
     return(-1);
 }
+#endif
 
 /* return amount read on success, 0 on EOF, -1 on failure.
  */
@@ -474,8 +481,6 @@ static int darshan_log_read(darshan_fd fd, void* buf, int len)
             fd->pos += ret;
         return(ret);
     }
-
-    /* TODO: check bz2 */
 
     return(-1);
 }

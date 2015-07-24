@@ -12,14 +12,13 @@
 #include <bzlib.h>
 #endif
 
-#include "darshan-log-format.h"
 #include "uthash-1.9.2/src/uthash.h"
 
-/* default to a compression buffer size of 4 MiB */
+#include "darshan-log-format.h"
+
+/* default to a decompression buffer size of 4 MiB */
 #define DARSHAN_DEF_DECOMP_BUF_SZ (4*1024*1024)
 
-/* TODO: we need to refactor s.t. utilities don't know implementation
-   of this, but module-specific functions do */
 struct darshan_fd_s
 {
     gzFile gzf;
@@ -37,6 +36,26 @@ struct darshan_record_ref
     UT_hash_handle hlink;
 };
 
+struct darshan_mod_logutil_funcs
+{
+    int (*log_get_record)(
+        darshan_fd fd,
+        void **rec_dat,
+        darshan_record_id *rec_id
+    );
+    void (*log_print_record)(
+        void *file_rec,
+        char *file_name,
+        char *mnt_pt,
+        char *fs_type
+    );
+};
+
+extern struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS];
+
+#include "darshan-posix-logutils.h"
+#include "darshan-mpiio-logutils.h"
+
 darshan_fd darshan_log_open(const char *name, const char* mode);
 int darshan_log_getheader(darshan_fd fd, struct darshan_header *header);
 int darshan_log_getjob(darshan_fd fd, struct darshan_job *job);
@@ -48,19 +67,25 @@ int darshan_log_get_moddat(darshan_fd fd, darshan_module_id mod_id,
     void *moddat_buf, int moddat_buf_sz);
 void darshan_log_close(darshan_fd file);
 
-/* convenience macros for printing out counters */
-#define CP_PRINT_HEADER() printf("#<rank>\t<file>\t<counter>\t<value>\t<name suffix>\t<mount pt>\t<fs type>\n")
-#define CP_PRINT(__job, __file, __counter, __mnt_pt, __fs_type) do {\
-        printf("%" PRId64 "\t%" PRIu64 "\t%s\t%" PRId64 "\t...%s\t%s\t%s\n", \
-            (__file)->rank, (__file)->hash, darshan_names[__counter], \
-            (__file)->counters[__counter], (__file)->name_suffix, \
-            __mnt_pt, __fs_type); \
+/* convenience macros for printing Darshan counters */
+#define DARSHAN_PRINT_HEADER() \
+    printf("\n#<module>\t<rank>\t<file>\t<counter>\t<value>" \
+           "\t<file name>\t<mount pt>\t<fs type>\n")
+
+#define DARSHAN_COUNTER_PRINT(__mod_name, __rank, __file_id, \
+                              __counter, __counter_val, __file_name, \
+                              __mnt_pt, __fs_type) do { \
+    printf("%s\t%" PRId64 "\t%" PRIu64 "\t%s\t%" PRId64 "\t%s\t%s\t%s\n", \
+        __mod_name, __rank, __file_id, __counter, __counter_val, \
+        __file_name, __mnt_pt, __fs_type); \
 } while(0)
-#define CP_F_PRINT(__job, __file, __counter, __mnt_pt, __fs_type) do {\
-        printf("%" PRId64 "\t%" PRIu64 "\t%s\t%f\t...%s\t%s\t%s\n", \
-            (__file)->rank, (__file)->hash, darshan_f_names[__counter], \
-            (__file)->fcounters[__counter], (__file)->name_suffix, \
-            __mnt_pt, __fs_type); \
+
+#define DARSHAN_F_COUNTER_PRINT(__mod_name, __rank, __file_id, \
+                                __counter, __counter_val, __file_name, \
+                                __mnt_pt, __fs_type) do { \
+    printf("%s\t%" PRId64 "\t%" PRIu64 "\t%s\t%f\t%s\t%s\t%s\n", \
+        __mod_name, __rank, __file_id, __counter, __counter_val, \
+        __file_name, __mnt_pt, __fs_type); \
 } while(0)
 
 /* naive byte swap implementation */
