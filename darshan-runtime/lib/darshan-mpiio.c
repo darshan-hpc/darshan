@@ -218,7 +218,6 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
         file = mpiio_file_by_name_setfh(filename, (*fh));
         if(file)
         {
-            file->file_record->rank = my_rank;
             file->file_record->counters[MPIIO_MODE] = amode;
             DARSHAN_MPI_CALL(PMPI_Comm_size)(comm, &comm_size);
             if(comm_size == 1)
@@ -911,6 +910,7 @@ static struct mpiio_file_runtime* mpiio_file_by_name(const char *name)
         file = &(mpiio_runtime->file_runtime_array[mpiio_runtime->file_array_ndx]);
         file->file_record = &(mpiio_runtime->file_record_array[mpiio_runtime->file_array_ndx]);
         file->file_record->f_id = file_id;
+        file->file_record->rank = my_rank;
 
         /* add new record to file hash table */
         HASH_ADD(hlink, mpiio_runtime->file_hash, file_record->f_id, sizeof(darshan_record_id), file);

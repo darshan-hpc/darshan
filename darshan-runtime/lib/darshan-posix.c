@@ -220,7 +220,6 @@ static void posix_shutdown(void);
     if(exclude) break; \
     file = posix_file_by_name_setfd(__path, __ret); \
     if(!file) break; \
-    file->file_record->rank = my_rank; \
     if(__mode) \
         file->file_record->counters[POSIX_MODE] = __mode; \
     file->offset = 0; \
@@ -355,7 +354,6 @@ static void posix_shutdown(void);
 } while(0)
 
 #define POSIX_RECORD_STAT(__file, __statbuf, __tm1, __tm2) do { \
-    (__file)->file_record->rank = my_rank; \
     DARSHAN_TIMER_INC_NO_OVERLAP((__file)->file_record->fcounters[POSIX_F_META_TIME], __tm1, __tm2, (__file)->last_meta_end); \
     (__file)->file_record->counters[POSIX_STATS] += 1; \
 } while(0)
@@ -1543,6 +1541,7 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
         file = &(posix_runtime->file_runtime_array[posix_runtime->file_array_ndx]);
         file->file_record = &(posix_runtime->file_record_array[posix_runtime->file_array_ndx]);
         file->file_record->f_id = file_id;
+        file->file_record->rank = my_rank;
         file->file_record->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
         file->file_record->counters[POSIX_FILE_ALIGNMENT] = file_alignment;
 
@@ -1711,7 +1710,6 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
     for(i=0; i<*len; i++)
     {
         memset(&tmp_file, 0, sizeof(struct darshan_posix_file));
-
         tmp_file.f_id = infile->f_id;
         tmp_file.rank = -1;
 
@@ -1823,7 +1821,8 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
         /* min non-zero (if available) value */
         for(j=POSIX_F_OPEN_TIMESTAMP; j<=POSIX_F_WRITE_START_TIMESTAMP; j++)
         {
-            if(infile->fcounters[j] > inoutfile->fcounters[j] && inoutfile->fcounters[j] > 0)
+            if(infile->fcounters[j] > inoutfile->fcounters[j] &&
+               inoutfile->fcounters[j] > 0)
                 tmp_file.fcounters[j] = inoutfile->fcounters[j];
             else
                 tmp_file.fcounters[j] = infile->fcounters[j];
