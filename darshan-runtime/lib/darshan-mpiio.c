@@ -1369,7 +1369,7 @@ static void mpiio_get_output_data(
 
         /* make *send_buf point to the shared files at the end of sorted array */
         red_send_buf =
-            &(mpiio_runtime->file_record_array[mpiio_runtime->file_array_ndx-(shared_rec_count)]);
+            &(mpiio_runtime->file_record_array[mpiio_runtime->file_array_ndx-shared_rec_count]);
 
         /* allocate memory for the reduction output on rank 0 */
         if(my_rank == 0)

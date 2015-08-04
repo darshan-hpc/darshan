@@ -2107,7 +2107,7 @@ static void posix_get_output_data(
 
         /* make *send_buf point to the shared files at the end of sorted array */
         red_send_buf =
-            &(posix_runtime->file_record_array[posix_runtime->file_array_ndx-(shared_rec_count)]);
+            &(posix_runtime->file_record_array[posix_runtime->file_array_ndx-shared_rec_count]);
         
         /* allocate memory for the reduction output on rank 0 */
         if(my_rank == 0)
