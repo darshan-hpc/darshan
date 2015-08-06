@@ -1108,7 +1108,6 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
         {
             /* we opened that record too, save the mod_flags */
             mod_flags[i] = ref->mod_flags;
-            break;
         }
     }
 
