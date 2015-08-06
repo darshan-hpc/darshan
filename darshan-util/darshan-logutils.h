@@ -55,6 +55,7 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS];
 
 #include "darshan-posix-logutils.h"
 #include "darshan-mpiio-logutils.h"
+#include "darshan-hdf5-logutils.h"
 
 darshan_fd darshan_log_open(const char *name, const char* mode);
 int darshan_log_getheader(darshan_fd fd, struct darshan_header *header);
