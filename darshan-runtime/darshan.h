@@ -187,7 +187,7 @@ extern pthread_mutex_t cp_mutex;
         } \
     } \
     if((!set && !__maxflag) || (!set && __maxflag && (__count) > min)) { \
-        CP_INC(__file, __cntidx+min_index, (__count)); \
+        CP_SET(__file, __cntidx+min_index, __count); \
         CP_SET(__file, __validx+min_index, __value); \
     } \
 } while(0)
