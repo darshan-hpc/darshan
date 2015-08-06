@@ -26,11 +26,11 @@ static int darshan_log_read(darshan_fd fd, void *buf, int len);
 /* TODO: can we make this s.t. we don't care about ordering (i.e., X macro it ) */
 struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
 {
-    NULL,   /* NULL */
+    NULL,               /* NULL */
     &posix_logutils,    /* POSIX */
-    &mpiio_logutils,   /* MPI-IO */
-    &hdf5_logutils,   /* HDF5 */
-    NULL,   /* PNETCDF */
+    &mpiio_logutils,    /* MPI-IO */
+    &hdf5_logutils,     /* HDF5 */
+    &pnetcdf_logutils,  /* PNETCDF */
     NULL,
     NULL,
     NULL,

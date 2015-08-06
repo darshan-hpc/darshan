@@ -61,10 +61,10 @@ darshan-hdf5-logutils.o: darshan-hdf5-logutils.c darshan-logutils.h darshan-hdf5
 darshan-hdf5-logutils.po: darshan-hdf5-logutils.c darshan-logutils.h darshan-hdf5-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-hdf5-log-format.h | uthash-1.9.2
 	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
 
-libdarshan-util.so: darshan-logutils.po darshan-posix-logutils.po darshan-mpiio-logutils.po darshan-hdf5-logutils.po
+libdarshan-util.so: darshan-logutils.po darshan-posix-logutils.po darshan-mpiio-logutils.po darshan-hdf5-logutils.po darshan-pnetcdf-logutils.po
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ $(LIBS)
 	
-libdarshan-util.a: darshan-logutils.o darshan-posix-logutils.o darshan-mpiio-logutils.o darshan-hdf5-logutils.o
+libdarshan-util.a: darshan-logutils.o darshan-posix-logutils.o darshan-mpiio-logutils.o darshan-hdf5-logutils.o darshan-pnetcdf-logutils.o
 	ar rcs libdarshan-util.a $^
 
 jenkins: util/bin/jenkins.o lookup3.o
