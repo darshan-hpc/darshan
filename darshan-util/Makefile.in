@@ -1,4 +1,4 @@
-all: libdarshan-util.a darshan-parser
+all: libdarshan-util.a darshan-analyzer darshan-convert darshan-parser
 
 DESTDIR =
 srcdir = @srcdir@
@@ -81,19 +81,19 @@ jenkins: util/bin/jenkins.o lookup3.o
 lookup3.o: lookup3.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-darshan-parser: darshan-parser.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_MOD_LOGUTIL_HEADERS) $(DARSHAN_MOD_LOG_FORMATS) libdarshan-util.a | uthash-1.9.2
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS) 
-
 darshan-analyzer: darshan-analyzer.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_MOD_LOGUTIL_HEADERS) $(DARSHAN_MOD_LOG_FORMATS) libdarshan-util.a | uthash-1.9.2
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-#darshan-convert: darshan-convert.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o lookup3.o
-#	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o lookup3.o -o $@ $(LIBS)
+darshan-convert: darshan-convert.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) libdarshan-util.a | uthash-1.9.2
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 #darshan-diff: darshan-diff.o $(DARSHAN_LOG_FORMAT) darshan-logutils.o darshan-logutils.h
 #	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
 #darshan-diff.o: darshan-diff.c
 #	$(CC) $(CFLAGS) -c  $< -o $@
+
+darshan-parser: darshan-parser.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_MOD_LOGUTIL_HEADERS) $(DARSHAN_MOD_LOG_FORMATS) libdarshan-util.a | uthash-1.9.2
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS) 
 
 #test/gztest: test/gztest.c mktestdir
 #	$(CC) $(CFLAGS)  $(LDFLAGS) -lz $< -o $@
@@ -106,10 +106,10 @@ install:: all
 	install -d $(libdir)
 	install -d $(includedir)
 	install -d $(pkgconfigdir)
-	install -m 755 darshan-parser $(bindir)
+	install -m 755 darshan-analyzer $(bindir)
 #	install -m 755 darshan-convert $(bindir)
 #	install -m 755 darshan-diff $(bindir)
-	install -m 755 darshan-analyzer $(bindir)
+	install -m 755 darshan-parser $(bindir)
 #	install -m 755 $(srcdir)/darshan-summary-per-file.sh $(bindir)
 	install -m 755 libdarshan-util.a $(libdir)
 ifeq ($(DARSHAN_ENABLE_SHARED),1)
@@ -129,7 +129,7 @@ endif
 
 
 clean::
-	rm -f *.o *.a darshan-parser darshan-analyzer
+	rm -f *.o *.a darshan-analyzer darshan-convert darshan-parser
 
 distclean:: clean
 	rm -f darshan-runtime-config.h aclocal.m4 autom4te.cache/* config.status config.log Makefile util/bin/darshan-job-summary.pl
