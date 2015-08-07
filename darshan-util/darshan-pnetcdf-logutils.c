@@ -42,6 +42,7 @@ int darshan_log_get_pnetcdf_file(darshan_fd fd, void **file_rec,
     int i;
     int ret;
     struct darshan_pnetcdf_file *file = NULL;
+    *rec_id = 0;
 
     file = malloc(sizeof(*file));
     if(!file)
@@ -62,11 +63,12 @@ int darshan_log_get_pnetcdf_file(darshan_fd fd, void **file_rec,
             for(i=0; i<PNETCDF_F_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->fcounters[i]);
         }
+
+        /* pass the file record back */
+        *file_rec = (void *)file;
+        *rec_id = file->f_id;
     }
 
-    /* pass the file record back */
-    *file_rec = (void *)file;
-    *rec_id = file->f_id;
     return(ret);
 }
 
