@@ -9,6 +9,7 @@ darshan-2.3.2-pre1
 * Fix function pointer mapping typo in lio_listio64 wrapper (Shane Snyder)
 * Fix faulty logic in extracting I/O data from the aio_return 
   wrapper (Shane Snyder)
+* Fix bug in common access counter logic (Shane Snyder)
 
 darshan-2.3.1
 =============
