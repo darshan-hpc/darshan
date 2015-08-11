@@ -21,7 +21,7 @@
 
 static int darshan_log_seek(darshan_fd fd, off_t offset);
 static int darshan_log_read(darshan_fd fd, void *buf, int len);
-//static int darshan_log_write(darshan_fd fd, void *buf, int len);
+static int darshan_log_write(darshan_fd fd, void *buf, int len);
 
 /* TODO: can we make this s.t. we don't care about ordering (i.e., X macro it ) */
 struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
@@ -94,9 +94,9 @@ int darshan_log_getheader(darshan_fd fd, struct darshan_header *header)
 
     /* read header from log file */
     ret = darshan_log_read(fd, header, sizeof(*header));
-    if(ret < sizeof(*header))
+    if(ret != sizeof(*header))
     {
-        fprintf(stderr, "Error: invalid darshan log file (failed to read header).\n");
+        fprintf(stderr, "Error: failed to read darshan log file header.\n");
         return(-1);
     }
 
@@ -140,6 +140,38 @@ int darshan_log_getheader(darshan_fd fd, struct darshan_header *header)
     return(0);
 }
 
+/* darshan_log_putheader()
+ *
+ * write a darshan header to log file
+ *
+ * returns 0 on success, -1 on failure
+ */
+int darshan_log_putheader(darshan_fd fd, struct darshan_header *header)
+{
+    int ret;
+
+    ret = darshan_log_seek(fd, 0);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to seek in darshan log file.\n");
+        return(-1);
+    }
+
+    /* write header to file */
+    ret = darshan_log_write(fd, header, sizeof(*header));
+    if(ret != sizeof(*header))
+    {
+        fprintf(stderr, "Error: failed to write Darshan log file header.\n");
+        return(-1);
+    }
+
+    /* copy the mapping information to the file descriptor */
+    memcpy(&fd->rec_map, &header->rec_map, sizeof(struct darshan_log_map));
+    memcpy(&fd->mod_map, &header->mod_map, DARSHAN_MAX_MODS * sizeof(struct darshan_log_map));
+
+    return(0);
+}
+
 /* darshan_log_getjob()
  *
  * read job level metadata from the darshan log file
@@ -159,9 +191,9 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
 
     /* read the job data from the log file */
     ret = darshan_log_read(fd, job, sizeof(*job));
-    if(ret < sizeof(*job))
+    if(ret != sizeof(*job))
     {
-        fprintf(stderr, "Error: invalid darshan log file (failed to read job data).\n");
+        fprintf(stderr, "Error: failed to read darshan log file job data.\n");
         return(-1);
     }
 
@@ -178,6 +210,56 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
     return(0);
 }
 
+/* darshan_log_putjob()
+ *
+ * write job level metadat to darshan log file
+ *
+ * returns 0 on success, -1 on failure
+ */
+int darshan_log_putjob(darshan_fd fd, struct darshan_job *job)
+{
+    struct darshan_job job_copy;
+    int len;
+    int ret;
+
+    ret = darshan_log_seek(fd, sizeof(struct darshan_header));
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to seek in darshan log file.\n");
+        return(-1);
+    }
+
+    memset(&job_copy, 0, sizeof(*job));
+    memcpy(&job_copy, job, sizeof(*job));
+
+    /* check for newline in existing metadata, add if needed */
+    len = strlen(job_copy.metadata);
+    if(len > 0 && len < DARSHAN_JOB_METADATA_LEN)
+    {
+        if(job_copy.metadata[len-1] != '\n')
+        {
+            job_copy.metadata[len] = '\n';
+            job_copy.metadata[len+1] = '\0';
+        }
+    }
+
+    /* write job data to file */
+    ret = darshan_log_write(fd, job, sizeof(*job));
+    if(ret != sizeof(*job))
+    {
+        fprintf(stderr, "Error: failed to write darshan log file job data.\n");
+        return(-1);
+    }
+
+    return(0);
+}
+
+/* darshan_log_getexe()
+ *
+ * reads the application exe name from darshan log file
+ * 
+ * returns 0 on success, -1 on failure 
+ */
 int darshan_log_getexe(darshan_fd fd, char *buf)
 {
     int tmp_off = sizeof(struct darshan_header) + sizeof(struct darshan_job);
@@ -193,9 +275,9 @@ int darshan_log_getexe(darshan_fd fd, char *buf)
 
     /* read the trailing exe data from the darshan log */
     ret = darshan_log_read(fd, buf, DARSHAN_EXE_LEN+1);
-    if(ret < DARSHAN_EXE_LEN+1)
+    if(ret != DARSHAN_EXE_LEN+1)
     {
-        fprintf(stderr, "Error: invalid darshan log file (failed to read exe string).\n");
+        fprintf(stderr, "Error: failed to read exe string from darshan log file.\n");
         return(-1);
     }
 
@@ -207,11 +289,44 @@ int darshan_log_getexe(darshan_fd fd, char *buf)
     return (0);
 }
 
+/* darshan_log_putexe()
+ *
+ * wrties the application exe name to darshan log file
+ *
+ * returns 0 on success, -1 on failure 
+ */
+int darshan_log_putexe(darshan_fd fd, char *buf)
+{
+    int tmp_off = sizeof(struct darshan_header) + sizeof(struct darshan_job);
+    int len;
+    int ret;
+
+    ret = darshan_log_seek(fd, tmp_off);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to seek in darshan log file.\n");
+        return(-1);
+    }
+
+    len = strlen(buf);
+
+    ret = darshan_log_write(fd, buf, len);
+    if(ret != len)
+    {
+        fprintf(stderr, "Error: failed to write exe string to darshan log file.\n");
+        return(-1);
+    }
+
+    return(0);
+}
+
 /* darshan_log_getmounts()
  * 
- * retrieves mount table information from the log.  Note that mnt_pts and
+ * retrieves mount table information from the log. Note that mnt_pts and
  * fs_types are arrays that will be allocated by the function and must be
- * freed by the caller.  count will indicate the size of the arrays
+ * freed by the caller. count will indicate the size of the arrays
+ *
+ * returns 0 on success, -1 on failure
  */
 int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts,
     char*** fs_types, int* count)
@@ -231,9 +346,9 @@ int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts,
 
     /* read the trailing mount data from the darshan log */
     ret = darshan_log_read(fd, buf, DARSHAN_EXE_LEN+1);
-    if(ret < DARSHAN_EXE_LEN+1)
+    if(ret != DARSHAN_EXE_LEN+1)
     {
-        fprintf(stderr, "Error: invalid darshan log file (failed to read mount info).\n");
+        fprintf(stderr, "Error: failed to read mount info from darshan log file.\n");
         return(-1);
     }
 
@@ -273,12 +388,50 @@ int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts,
             (*mnt_pts)[array_index]);
         if(ret != 2)
         {
-            fprintf(stderr, "Error: poorly formatted mount table in log file.\n");
+            fprintf(stderr, "Error: poorly formatted mount table in darshan log file.\n");
             return(-1);
         }
         pos--;
         *pos = '\0';
         array_index++;
+    }
+
+    return(0);
+}
+
+/* darshan_log_putmounts()
+ *
+ * writes mount information to the darshan log file
+ * NOTE: this function call should follow immediately after the call
+ * to darshan_log_putexe(), as it assumes the darshan log file pointer
+ * is pointing to the offset immediately following the exe string
+ *
+ * returns 0 on success, -1 on failure
+ */
+int darshan_log_putmounts(darshan_fd fd, char** mnt_pts, char** fs_types, int count)
+{
+    int i;
+    char line[1024];
+    int ret;
+
+    /* write each mount entry to file */
+    for(i=count-1; i>=0; i--)
+    {
+        sprintf(line, "\n%s\t%s", fs_types[i], mnt_pts[i]);
+        ret = darshan_log_write(fd, line, strlen(line));
+        if (ret != strlen(line))
+        {
+            fprintf(stderr, "Error: failed to write darshan log mount entry.\n");
+            return(-1);
+        }
+    }
+
+    /* seek ahead to end of exe region, will be zero filled */
+    ret = darshan_log_seek(fd, DARSHAN_JOB_RECORD_SIZE);
+    if (ret < 0)
+    {
+        fprintf(stderr, "Error: unable to seek forward in darshan log file.\n");
+        return(-1);
     }
 
     return(0);
@@ -301,10 +454,6 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
     struct darshan_record_ref *ref;
     int ret;
 
-    hash_buf = malloc(hash_buf_sz);
-    if(!hash_buf)
-        return(-1);
-
     ret = darshan_log_seek(fd, fd->rec_map.off);
     if(ret < 0)
     {
@@ -312,11 +461,15 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
         return(-1);
     }
 
+    hash_buf = malloc(hash_buf_sz);
+    if(!hash_buf)
+        return(-1);
+
     /* read the record hash from the log file */
     ret = darshan_log_read(fd, hash_buf, fd->rec_map.len);
-    if(ret < fd->rec_map.len)
+    if(ret != fd->rec_map.len)
     {
-        fprintf(stderr, "Error: invalid darshan log file (failed to read record hash).\n");
+        fprintf(stderr, "Error: failed to read record hash from darshan log file.\n");
         return(-1);
     }
 
@@ -369,8 +522,105 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
     return(0);
 }
 
-int darshan_log_get_moddat(darshan_fd fd, darshan_module_id mod_id,
-    void *moddat_buf, int moddat_buf_sz)
+/* darshan_log_puthash()
+ *
+ * writes the hash table of records to the darshan log file
+ *
+ * returns 0 on success, -1 on failure
+ */
+int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash)
+{
+    size_t hash_buf_sz;
+    char *hash_buf;
+    char *hash_buf_off;
+    struct darshan_record_ref *ref, *tmp;
+    uint32_t name_len;
+    size_t record_sz;
+    int ret;
+
+    ret = darshan_log_seek(fd, fd->rec_map.off);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to seek in darshan log file.\n");
+        return(-1);
+    }
+
+    /* allocate a buffer to store 2 MiB worth of record data */
+    /* NOTE: this buffer may be reallocated if estimate is too small */
+    hash_buf_sz = 2 * 1024 * 1024;
+    hash_buf = malloc(hash_buf_sz);
+    if(!hash_buf)
+    {
+        return(-1);
+    }
+
+    /* serialize the record hash into a buffer for writing */
+    hash_buf_off = hash_buf;
+    HASH_ITER(hlink, hash, ref, tmp)
+    {
+        name_len = strlen(ref->rec.name);
+        record_sz = sizeof(darshan_record_id) + sizeof(uint32_t) + name_len;
+        /* make sure there is room in the buffer for this record */
+        if((hash_buf_off + record_sz) > (hash_buf + hash_buf_sz))
+        {
+            char *tmp_buf;
+            size_t old_buf_sz;
+
+            /* if no room, reallocate the hash buffer at twice the current size */
+            old_buf_sz = hash_buf_off - hash_buf;
+            hash_buf_sz *= 2;
+            tmp_buf = malloc(hash_buf_sz);
+            if(!tmp_buf)
+            {
+                free(hash_buf);
+                return(-1);
+            }
+
+            memcpy(tmp_buf, hash_buf, old_buf_sz);
+            free(hash_buf);
+            hash_buf = tmp_buf;
+            hash_buf_off = hash_buf + old_buf_sz;
+        }
+
+        /* now serialize the record into the hash buffer.
+         * NOTE: darshan record hash serialization method: 
+         *          ... darshan_record_id | (uint32_t) path_len | path ...
+         */
+        *((darshan_record_id *)hash_buf_off) = ref->rec.id;
+        hash_buf_off += sizeof(darshan_record_id);
+        *((uint32_t *)hash_buf_off) = name_len;
+        hash_buf_off += sizeof(uint32_t);
+        memcpy(hash_buf_off, ref->rec.name, name_len);
+        hash_buf_off += name_len;
+    }
+
+    /* collectively write out the record hash to the darshan log */
+    hash_buf_sz = hash_buf_off - hash_buf;
+
+    /* write the record hash to file */
+    ret = darshan_log_write(fd, hash_buf, hash_buf_sz);
+    if(ret != hash_buf_sz)
+    {
+        fprintf(stderr, "Error: failed to write record hash to darshan log file.\n");
+        return(-1);
+    }
+
+    free(hash_buf);
+
+    return(0);
+}
+
+/* darshan_log_getmod()
+ *
+ * reads a chunk of data for a corresponding darshan instrumentation module
+ * NOTE: mod_buf_sz is the uncompressed size of data we wish to read for the given
+ * module. chunks of data can be read sequentially for a given module by
+ * repeatedly calling this function with the desired chunk sizes.
+ *
+ * returns 1 on successful read of data, 0 on end of module region, -1 on failure
+ */
+int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
+    void *mod_buf, int mod_buf_sz)
 {
     int mod_buf_end = fd->mod_map[mod_id].off + fd->mod_map[mod_id].len;
     int ret;
@@ -393,17 +643,77 @@ int darshan_log_get_moddat(darshan_fd fd, darshan_module_id mod_id,
         }
     }
 
-    /* read the record hash from the log file */
-    ret = darshan_log_read(fd, moddat_buf, moddat_buf_sz);
-    if(ret != moddat_buf_sz)
+    /* if the requested amount of data violates mapping info, error out */
+    if(mod_buf_sz > (mod_buf_end - fd->pos))
+    {
+        fprintf(stderr, "Error: module data read violates stored mapping information.\n");
+        return(-1);
+    }
+
+    /* read the module chunk from the log file */
+    ret = darshan_log_read(fd, mod_buf, mod_buf_sz);
+    if(ret != mod_buf_sz)
     {
         fprintf(stderr,
-            "Error: invalid darshan log file (failed to read module %s data).\n",
+            "Error: failed to read module %s data from darshan log file.\n",
             darshan_module_names[mod_id]);
         return(-1);
     }
 
     return(1);
+}
+
+/* darshan_log_putmod()
+ *
+ * write a chunk of module data to the darshan log file
+ *
+ * returns 0 on success, -1 on failure
+ */
+int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
+    void *mod_buf, int mod_buf_sz)
+{
+    int mod_buf_end = fd->mod_map[mod_id].off + fd->mod_map[mod_id].len;
+    int ret;
+
+    if(!fd->mod_map[mod_id].len)
+    {
+        fprintf(stderr, "Error: attempting to write data for empty module.\n");
+        return(-1);
+    }
+
+    /* only seek to start of module data if current log file position 
+     * is not within the given mod_id's range. This allows one to
+     * repeatedly call this function and put chunks of a module's
+     * data piecemeal.
+     */
+    if((fd->pos < fd->mod_map[mod_id].off) || (fd->pos > mod_buf_end))
+    {
+        ret = darshan_log_seek(fd, fd->mod_map[mod_id].off);
+        if(ret < 0)
+        {
+            fprintf(stderr, "Error: unable to seek in darshan log file.\n");
+            return(-1);
+        }
+    }
+
+    /* if the given data violates stored mapping info, error out */
+    if(mod_buf_sz > (mod_buf_end - fd->pos))
+    {
+        fprintf(stderr, "Error: module data write violates stored mapping information.\n");
+        return(-1);
+    }
+
+    /* write the module chunk to the log file */
+    ret = darshan_log_write(fd, mod_buf, mod_buf_sz);
+    if(ret != mod_buf_sz)
+    {
+        fprintf(stderr,
+            "Error: failed to write module %s data to darshan log file.\n",
+            darshan_module_names[mod_id]);
+        return(-1);
+    }
+
+    return(0);
 }
 
 /* darshan_log_close()
@@ -449,25 +759,6 @@ static int darshan_log_seek(darshan_fd fd, off_t offset)
     return(-1);
 }
 
-#if 0
-/* return amount written on success, -1 on failure.
- */
-static int darshan_log_write(darshan_fd fd, void* buf, int len)
-{
-    int ret;
-
-    if(fd->gzf)
-    {
-        ret = gzwrite(fd->gzf, buf, len);
-        if(ret > 0)
-            fd->pos += ret;
-        return(ret);
-    }
-
-    return(-1);
-}
-#endif
-
 /* return amount read on success, 0 on EOF, -1 on failure.
  */
 static int darshan_log_read(darshan_fd fd, void* buf, int len)
@@ -477,6 +768,23 @@ static int darshan_log_read(darshan_fd fd, void* buf, int len)
     if(fd->gzf)
     {
         ret = gzread(fd->gzf, buf, len);
+        if(ret > 0)
+            fd->pos += ret;
+        return(ret);
+    }
+
+    return(-1);
+}
+
+/* return amount written on success, -1 on failure.
+ */
+static int darshan_log_write(darshan_fd fd, void* buf, int len)
+{
+    int ret;
+
+    if(fd->gzf)
+    {
+        ret = gzwrite(fd->gzf, buf, len);
         if(ret > 0)
             fd->pos += ret;
         return(ret);

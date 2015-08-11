@@ -60,13 +60,21 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS];
 
 darshan_fd darshan_log_open(const char *name, const char* mode);
 int darshan_log_getheader(darshan_fd fd, struct darshan_header *header);
+int darshan_log_putheader(darshan_fd fd, struct darshan_header *header);
 int darshan_log_getjob(darshan_fd fd, struct darshan_job *job);
+int darshan_log_putjob(darshan_fd fd, struct darshan_job *job);
 int darshan_log_getexe(darshan_fd fd, char *buf);
+int darshan_log_putexe(darshan_fd fd, char *buf);
 int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts,
     char*** fs_types, int* count);
+int darshan_log_putmounts(darshan_fd fd, char** mnt_pts,
+    char** fs_types, int count);
 int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash);
-int darshan_log_get_moddat(darshan_fd fd, darshan_module_id mod_id,
-    void *moddat_buf, int moddat_buf_sz);
+int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash);
+int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
+    void *mod_buf, int mod_buf_sz);
+int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
+    void *mod_buf, int mod_buf_sz);
 void darshan_log_close(darshan_fd file);
 
 /* convenience macros for printing Darshan counters */

@@ -49,7 +49,7 @@ int darshan_log_get_mpiio_file(darshan_fd fd, void **file_rec,
         return(-1);
     memset(file, 0, sizeof(*file));
 
-    ret = darshan_log_get_moddat(fd, DARSHAN_MPIIO_MOD,
+    ret = darshan_log_getmod(fd, DARSHAN_MPIIO_MOD,
         (void *)file, sizeof(*file));
     if(ret == 1)
     {
