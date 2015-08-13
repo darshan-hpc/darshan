@@ -17,7 +17,7 @@ DARSHAN_TESTDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 export DARSHAN_TESTDIR
 
 # check darshan path
-if [ ! -x $DARSHAN_PATH/bin/darshan-posix-parser ]; then
+if [ ! -x $DARSHAN_PATH/bin/darshan-parser ]; then
     echo "Error: $DARSHAN_PATH doesn't contain a valid Darshan install." 1>&2
     exit 1
 fi

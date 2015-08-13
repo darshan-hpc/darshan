@@ -21,7 +21,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # parse log
-$DARSHAN_PATH/bin/darshan-posix-parser $DARSHAN_LOGFILE > $DARSHAN_TMP/${PROG}.darshan.txt
+$DARSHAN_PATH/bin/darshan-parser $DARSHAN_LOGFILE > $DARSHAN_TMP/${PROG}.darshan.txt
 if [ $? -ne 0 ]; then
     echo "Error: failed to parse ${DARSHAN_LOGFILE}" 1>&2
     exit 1
@@ -29,12 +29,7 @@ fi
 
 # check results
 # in this case we want to confirm that the open counts are zero; cxxpi does not do any IO
-#POSIX_OPENS=`grep CP_POSIX_OPENS $DARSHAN_TMP/${PROG}.darshan.txt |cut -f 4`
-#if [ "$POSIX_OPENS"x != ""x ]; then
-#    echo "Error: Found unexpected POSIX open count of $POSIX_OPENS" 1>&2
-#    exit 1
-#fi
-POSIX_OPENS=`grep POSIX_OPENS $DARSHAN_TMP/${PROG}.darshan.txt |cut -d : -f 2 |xargs`
+POSIX_OPENS=`grep POSIX_OPENS $DARSHAN_TMP/${PROG}.darshan.txt |cut -f 5`
 if [ "$POSIX_OPENS"x != ""x ]; then
     echo "Error: Found unexpected POSIX open count of $POSIX_OPENS" 1>&2
     exit 1
