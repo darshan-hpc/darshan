@@ -1,4 +1,4 @@
-all: libdarshan-util.a darshan-analyzer darshan-convert darshan-parser
+all: libdarshan-util.a darshan-parser
 
 DESTDIR =
 srcdir = @srcdir@

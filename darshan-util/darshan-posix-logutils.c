@@ -66,7 +66,6 @@ static int darshan_log_get_posix_file(darshan_fd fd, void** psx_buf_p,
     *file_rec = (void *)file;
     *rec_id = file->f_id;
     *psx_buf_p = (file + 1); /* increment input buf by size of file record */
-    //((struct darshan_posix_file *)(*psx_buf_p))++;
     *bytes_left -= sizeof(struct darshan_posix_file);
 
     return(0);
