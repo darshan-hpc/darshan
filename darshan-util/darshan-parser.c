@@ -25,12 +25,12 @@ int main(int argc, char **argv)
     int ret;
     int i, j;
     char *filename;
-    char tmp_string[4096];
+    char tmp_string[4096] = {0};
     darshan_fd fd;
     struct darshan_header header;
     struct darshan_job job;
     struct darshan_record_ref *rec_hash = NULL;
-    struct darshan_record_ref *ref;
+    struct darshan_record_ref *ref, *tmp;
     int mount_count;
     char** mnt_pts;
     char** fs_types;
@@ -39,6 +39,8 @@ int main(int argc, char **argv)
     char *save;
     char buffer[DARSHAN_JOB_METADATA_LEN];
     int empty_mods = 0;
+    char *mod_buf;
+    int mod_buf_sz;
 
     /* TODO: argument parsing */
     assert(argc == 2);
@@ -132,10 +134,10 @@ int main(int argc, char **argv)
     }
 
     /* print breakdown of each log file component's contribution to file size */
-    printf("\n# log file component sizes (decompressed)\n");
+    printf("\n# log file component sizes (compressed)\n");
     printf("# -------------------------------------------------------\n");
-    printf("# header: %zu bytes\n", sizeof(struct darshan_header));
-    printf("# job data: %zu bytes\n", sizeof(struct darshan_job));
+    printf("# header: %zu bytes (uncompressed)\n", sizeof(struct darshan_header));
+    printf("# job data: %zu bytes\n", header.rec_map.off - sizeof(struct darshan_header));
     printf("# record table: %zu bytes\n", header.rec_map.len);
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
@@ -154,20 +156,37 @@ int main(int argc, char **argv)
         printf("# mount entry:\t%s\t%s\n", mnt_pts[i], fs_types[i]);
     }
 
+    mod_buf = malloc(DARSHAN_DEF_COMP_BUF_SZ);
+    if(!mod_buf)
+        return(-1);
+
     DARSHAN_PRINT_HEADER();
+    /* TODO: does each module print header of what each counter means??? */
 
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
+        int mod_bytes_left;
+        void *mod_buf_p;
         void *rec_p = NULL;
         darshan_record_id rec_id;
 
-        /* skip modules not present in log file */
-        if(header.mod_map[i].len == 0)
-        {
-            empty_mods++;
-            if(empty_mods == DARSHAN_MAX_MODS)
-                printf("# no module data available.\n");
+        memset(mod_buf, 0, DARSHAN_DEF_COMP_BUF_SZ);
+        mod_buf_sz = DARSHAN_DEF_COMP_BUF_SZ;
 
+        /* check each module for any data */
+        ret = darshan_log_getmod(fd, i, mod_buf, &mod_buf_sz);
+        if(ret < 0)
+        {
+            fprintf(stderr, "Error: failed to get module %s data\n",
+                darshan_module_names[i]);
+            fflush(stderr);
+            darshan_log_close(fd);
+            return(-1);
+        }
+        else if(ret == 0)
+        {
+            /* skip modules not present in log file */
+            empty_mods++;
             continue;
         }
 
@@ -180,14 +199,25 @@ int main(int argc, char **argv)
         }
 
         /* this module has data to be parsed and printed */
-
-        /* TODO: do modules print header of what each counter means??? */
+        mod_buf_p = mod_buf;
+        mod_bytes_left = mod_buf_sz;
 
         /* loop over each of this module's records and print them */
-        while ((ret = mod_logutils[i]->log_get_record(fd, &rec_p, &rec_id)) == 1)
+        while (mod_bytes_left > 0)
         {
             char *mnt_pt = NULL;
             char *fs_type = NULL;
+
+            ret = mod_logutils[i]->log_get_record(fd, &mod_buf_p, &mod_bytes_left,
+                &rec_p, &rec_id);
+            if(ret < 0)
+            {
+                fprintf(stderr, "Error: failed to parse module %s data record\n",
+                    darshan_module_names[i]);
+                fflush(stderr);
+                darshan_log_close(fd);
+                return(-1);
+            }
 
             /* get the pathname for this record */
             HASH_FIND(hlink, rec_hash, &rec_id, sizeof(darshan_record_id), ref);
@@ -211,19 +241,17 @@ int main(int argc, char **argv)
             /* print the corresponding module data for this record */
             mod_logutils[i]->log_print_record(rec_p, ref->rec.name,
                 mnt_pt, fs_type);
-
-            /* NOTE: we have to free the given file record data */
-            free(rec_p);
         }
+    }
+    if(empty_mods == DARSHAN_MAX_MODS)
+        printf("# no module data available.\n");
 
-        if(ret < 0)
-        {
-            fprintf(stderr, "Error: failed to parse module %s data\n",
-                darshan_module_names[i]);
-            fflush(stderr);
-            darshan_log_close(fd);
-            return(-1);
-        }
+    /* free record hash data */
+    HASH_ITER(hlink, rec_hash, ref, tmp)
+    {
+        HASH_DELETE(hlink, rec_hash, ref);
+        free(ref->rec.name);
+        free(ref);
     }
 
     /* free mount info */
@@ -238,6 +266,7 @@ int main(int argc, char **argv)
         free(fs_types);
     }
 
+    free(mod_buf);
     darshan_log_close(fd);
 
     return(0);

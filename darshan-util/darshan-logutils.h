@@ -16,15 +16,21 @@
 
 #include "darshan-log-format.h"
 
-/* default to a decompression buffer size of 4 MiB */
-#define DARSHAN_DEF_DECOMP_BUF_SZ (4*1024*1024)
+/* default to a buffer size of 4 MiB for compression/decompression */
+#define DARSHAN_DEF_COMP_BUF_SZ (4*1024*1024)
 
+/* TODO: can we refactor this def out of header? modules currently poke at swap_flag
+ * directly, but other than that there's no reason for another module to know this
+ * definition.
+ */
 struct darshan_fd_s
 {
-    gzFile gzf;
+    int fildes;
     int64_t pos;
     char version[8];
     int swap_flag;
+    char *exe_mnt_data;
+    struct darshan_log_map job_map;
     struct darshan_log_map rec_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
 };
@@ -40,8 +46,10 @@ struct darshan_mod_logutil_funcs
 {
     int (*log_get_record)(
         darshan_fd fd,
-        void **rec_dat,
-        darshan_record_id *rec_id
+        void** mod_buf_p,
+        int* mod_bytes_left,
+        void** file_rec,
+        darshan_record_id* rec_id
     );
     void (*log_print_record)(
         void *file_rec,
@@ -72,7 +80,7 @@ int darshan_log_putmounts(darshan_fd fd, char** mnt_pts,
 int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash);
 int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash);
 int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
-    void *mod_buf, int mod_buf_sz);
+    void *mod_buf, int *mod_buf_sz);
 int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz);
 void darshan_log_close(darshan_fd file);
