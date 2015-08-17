@@ -375,7 +375,7 @@ void darshan_core_shutdown()
     if(my_rank == 0)
     {
         void *pointers[2] = {&final_core->log_job, final_core->trailing_data};
-        int lengths[2] = {sizeof(struct darshan_job), DARSHAN_EXE_LEN+1};
+        int lengths[2] = {sizeof(struct darshan_job), strlen(final_core->trailing_data)};
         int comp_buf_sz = 0;
 
         /* compress the job info and the trailing mount/exe data */
