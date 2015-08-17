@@ -68,7 +68,7 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS];
 
 darshan_fd darshan_log_open(const char *name, const char* mode);
 int darshan_log_getheader(darshan_fd fd, struct darshan_header *header);
-int darshan_log_putheader(darshan_fd fd, struct darshan_header *header);
+int darshan_log_putheader(darshan_fd fd);
 int darshan_log_getjob(darshan_fd fd, struct darshan_job *job);
 int darshan_log_putjob(darshan_fd fd, struct darshan_job *job);
 int darshan_log_getexe(darshan_fd fd, char *buf);

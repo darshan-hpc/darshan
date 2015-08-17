@@ -31,21 +31,30 @@
 /* max length of exe string within job record (not counting '\0') */
 #define DARSHAN_EXE_LEN (DARSHAN_JOB_RECORD_SIZE - sizeof(struct darshan_job) - 1)
 
-typedef uint64_t darshan_record_id;
-
 #define DARSHAN_MAX_MODS 16
+
+/* TODO: do we want the logutil defs here ? */
+/* X-macro for keeping module ordering consistent */
+/* NOTE: first val used to define module enum values, 
+ * second val used to define module name strings, and
+ * third val is used to provide the name of a 
+ * corresponding logutils structure for parsing module
+ * data out of the log file (only used in darshan-util,
+ * just pass NULL (no quotes) if no log parsing
+ * functions are required).
+ */
 #define DARSHAN_MODULE_IDS \
-    X(DARSHAN_NULL_MOD,     "NULL") \
-    X(DARSHAN_POSIX_MOD,    "POSIX") \
-    X(DARSHAN_MPIIO_MOD,    "MPI-IO") \
-    X(DARSHAN_HDF5_MOD,     "HDF5") \
-    X(DARSHAN_PNETCDF_MOD,  "PNETCDF")
+    X(DARSHAN_NULL_MOD, "NULL", NULL) \
+    X(DARSHAN_POSIX_MOD, "POSIX", posix_logutils) \
+    X(DARSHAN_MPIIO_MOD, "MPI-IO", mpiio_logutils) \
+    X(DARSHAN_HDF5_MOD, "HDF5", hdf5_logutils) \
+    X(DARSHAN_PNETCDF_MOD, "PNETCDF", pnetcdf_logutils)
 
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
  *        - order of ids control module shutdown order (and consequently, order in log file)
  */
-#define X(a, b) a,
+#define X(a, b, c) a,
 typedef enum
 {
     DARSHAN_MODULE_IDS
@@ -53,7 +62,7 @@ typedef enum
 #undef X
 
 /* module name strings */
-#define X(a, b) b,
+#define X(a, b, c) b,
 static char * const darshan_module_names[] =
 {
     DARSHAN_MODULE_IDS
@@ -66,6 +75,8 @@ enum darshan_comp_type
     DARSHAN_ZLIB_COMP,
     DARSHAN_BZIP2_COMP,
 };
+
+typedef uint64_t darshan_record_id;
 
 /* the darshan_log_map structure is used to indicate the location of
  * specific module data in a Darshan log. Note that 'off' and 'len' are
