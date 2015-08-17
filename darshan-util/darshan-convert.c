@@ -1,6 +1,7 @@
 /*
- *  (C) 2011 by Argonne National Laboratory.
- *      See COPYRIGHT in top-level directory.
+ * Copyright (C) 2015 University of Chicago.
+ * See COPYRIGHT notice in top-level directory.
+ *
  */
 
 #include <stdio.h>
@@ -40,8 +41,6 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
     int index;
     int ret;
 
-    *reset_md = 0;
-
     static struct option long_opts[] =
     {
         {"annotate", 1, NULL, 'a'},
@@ -53,6 +52,7 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
         { 0, 0, 0, 0 }
     };
 
+    *reset_md = 0;
     *hash = 0;
 
     while(1)
@@ -101,6 +101,7 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
     return;
 }
 
+#if 0
 static void reset_md_job(struct darshan_job *job)
 {
     job->metadata[0] = '\0';
@@ -181,23 +182,26 @@ void add_annotation (char *annotation,
 
     return;
 }
+#endif
 
 int main(int argc, char **argv)
 {
     int ret;
     char *infile_name;
     char *outfile_name;
+    struct darshan_header header;
     struct darshan_job job;
-    struct darshan_file cp_file;
     char tmp_string[4096];
     darshan_fd infile;
     darshan_fd outfile;
     int i;
     int mount_count;
-    int64_t* devs;
     char** mnt_pts;
+    struct darshan_record_ref *rec_hash = NULL;
+    struct darshan_record_ref *ref, *tmp;
+    char *mod_buf;
+    int mod_buf_sz;
     char** fs_types;
-    int last_rank = 0;
     int obfuscate = 0;
     int key = 0;
     char *annotation = NULL;
@@ -213,38 +217,50 @@ int main(int argc, char **argv)
         return(-1);
     }
  
-    /* TODO: safety check that outfile_name doesn't exist; we don't want to
-     * overwrite something by accident.
-     */
     outfile = darshan_log_open(outfile_name, "w");
     if(!outfile)
     {
         fprintf(stderr, "darshan_log_open() failed to open %s\n.", outfile_name);
+        darshan_log_close(infile);
         return(-1);
     }
 
-    /* TODO: for now this tool is just reading the input file and throwing
-     * away the data.  Need to write the log_put*() functions and use this
-     * program as a test harness
+    /* read header from input file */
+    ret = darshan_log_getheader(infile, &header);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to read header from input log file %s.\n", infile_name);
+        darshan_log_close(infile);
+        darshan_log_close(outfile);
+        return(-1);
+    }
+
+    /* NOTE: we do not write the header to the output file until the end, as
+     * the mapping data stored in this structure may change in the conversion
+     * process (particularly, if we are converting between libz/bz2 compression)
      */
-  
+
     /* read job info */
     ret = darshan_log_getjob(infile, &job);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to read job information from log file.\n");
         darshan_log_close(infile);
+        darshan_log_close(outfile);
         return(-1);
     }
 
+#if 0
     if (reset_md) reset_md_job(&job);
     if (obfuscate) obfuscate_job(key, &job);
     if (annotation) add_annotation(annotation, &job);
+#endif
 
     ret = darshan_log_putjob(outfile, &job);
     if (ret < 0)
     {
         fprintf(stderr, "Error: unable to write job information to log file.\n");
+        darshan_log_close(infile);
         darshan_log_close(outfile);
         return(-1);
     }
@@ -254,77 +270,97 @@ int main(int argc, char **argv)
     {
         fprintf(stderr, "Error: unable to read trailing job information.\n");
         darshan_log_close(infile);
+        darshan_log_close(outfile);
         return(-1);
     }
 
+#if 0
     if (obfuscate) obfuscate_exe(key, tmp_string);
+#endif
 
     ret = darshan_log_putexe(outfile, tmp_string);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to write trailing job information.\n");
+        darshan_log_close(infile);
         darshan_log_close(outfile);
         return(-1);
     }
-   
-    ret = darshan_log_getmounts(infile, &devs, &mnt_pts, &fs_types, &mount_count);
+
+    ret = darshan_log_getmounts(infile, &mnt_pts, &fs_types, &mount_count);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to read trailing job information.\n");
         darshan_log_close(infile);
-        return(-1);
-    }
-
-    ret = darshan_log_putmounts(outfile, devs, mnt_pts, fs_types, mount_count);
-    if(ret < 0)
-    {
-        fprintf(stderr, "Error: unable to write mount information.\n");
         darshan_log_close(outfile);
         return(-1);
     }
 
-    ret = darshan_log_getfile(infile, &job, &cp_file);
+    ret = darshan_log_putmounts(outfile, mnt_pts, fs_types, mount_count);
     if(ret < 0)
     {
-        fprintf(stderr, "Error: failed to process log file.\n");
-        fflush(stderr);
-    }
-    if(ret == 0)
-    {
-        goto done;
+        fprintf(stderr, "Error: unable to write mount information.\n");
+        darshan_log_close(infile);
+        darshan_log_close(outfile);
+        return(-1);
     }
 
-    do
+    ret = darshan_log_gethash(infile, &rec_hash);
+    if(ret < 0)
     {
-        if(cp_file.rank != -1 && cp_file.rank < last_rank)
+        fprintf(stderr, "Error: unable to read darshan record hash.\n");
+        darshan_log_close(infile);
+        darshan_log_close(outfile);
+        return(-1);
+    }
+
+    ret = darshan_log_puthash(outfile, rec_hash);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to write darshan record hash.\n");
+        darshan_log_close(infile);
+        darshan_log_close(outfile);
+        return(-1);
+    }
+
+    mod_buf = malloc(DARSHAN_DEF_COMP_BUF_SZ);
+    if(!mod_buf)
+        return(-1);
+
+    for(i=0; i<DARSHAN_MAX_MODS; i++)
+    {
+        memset(mod_buf, 0, DARSHAN_DEF_COMP_BUF_SZ);
+        mod_buf_sz = DARSHAN_DEF_COMP_BUF_SZ;
+
+        /* check each module for any data */
+        ret = darshan_log_getmod(infile, i, mod_buf, &mod_buf_sz);
+        if(ret < 0)
         {
-            fprintf(stderr, "Error: log file contains out of order rank data.\n");
-            fflush(stderr);
+            fprintf(stderr, "Error: failed to get module %s data.\n",
+                darshan_module_names[i]);
+            darshan_log_close(infile);
+            darshan_log_close(outfile);
             return(-1);
         }
-        if(cp_file.rank != -1)
-            last_rank = cp_file.rank;
-
-        if(!hash || hash == cp_file.hash)
+        else if(ret == 0)
         {
-            if (obfuscate) obfuscate_file(key, &cp_file);
-
-            ret = darshan_log_putfile(outfile, &job, &cp_file);
-            if (ret < 0)
-            {
-                fprintf(stderr, "Error: failed to write file record.\n");
-                break;
-            }
+            /* skip modules not present in log file */
+            continue;
         }
-    } while((ret = darshan_log_getfile(infile, &job, &cp_file)) == 1);
 
-    if(ret < 0)
-    {
-        fprintf(stderr, "Error: failed to process log file.\n");
-        fflush(stderr);
+        /* we have module data to convert */
+        ret = darshan_log_putmod(outfile, i, mod_buf, mod_buf_sz);
+        if(ret < 0)
+        {
+            fprintf(stderr, "Error: failed to put module %s data.\n",
+                darshan_module_names[i]);
+            darshan_log_close(infile);
+            darshan_log_close(outfile);
+            return(-1);
+        }
     }
+    free(mod_buf);
 
-done:
     for(i=0; i<mount_count; i++)
     {
         free(mnt_pts[i]);
@@ -332,15 +368,38 @@ done:
     }
     if(mount_count > 0)
     {
-        free(devs);
         free(mnt_pts);
         free(fs_types);
     }
- 
+
+    HASH_ITER(hlink, rec_hash, ref, tmp)
+    {
+        HASH_DELETE(hlink, rec_hash, ref);
+        free(ref->rec.name);
+        free(ref);
+    }
+
+    /* write header to output file */
+    ret = darshan_log_putheader(outfile);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to write header to output log file %s.\n", outfile_name);
+        darshan_log_close(infile);
+        darshan_log_close(outfile);
+        return(-1);
+    }
+
     darshan_log_close(infile);
     darshan_log_close(outfile);
 
     return(ret);
 }
 
-
+/*
+ * Local variables:
+ *  c-indent-level: 4
+ *  c-basic-offset: 4
+ * End:
+ *
+ * vim: ts=8 sts=4 sw=4 expandtab
+ */

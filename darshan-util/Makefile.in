@@ -1,4 +1,4 @@
-all: libdarshan-util.a darshan-parser
+all: libdarshan-util.a darshan-analyzer darshan-convert darshan-parser
 
 DESTDIR =
 srcdir = @srcdir@
@@ -106,8 +106,8 @@ install:: all
 	install -d $(libdir)
 	install -d $(includedir)
 	install -d $(pkgconfigdir)
-#	install -m 755 darshan-analyzer $(bindir)
-#	install -m 755 darshan-convert $(bindir)
+	install -m 755 darshan-analyzer $(bindir)
+	install -m 755 darshan-convert $(bindir)
 #	install -m 755 darshan-diff $(bindir)
 	install -m 755 darshan-parser $(bindir)
 #	install -m 755 $(srcdir)/darshan-summary-per-file.sh $(bindir)

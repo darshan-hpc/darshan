@@ -246,6 +246,8 @@ int main(int argc, char **argv)
     if(empty_mods == DARSHAN_MAX_MODS)
         printf("# no module data available.\n");
 
+    free(mod_buf);
+
     /* free record hash data */
     HASH_ITER(hlink, rec_hash, ref, tmp)
     {
@@ -266,7 +268,6 @@ int main(int argc, char **argv)
         free(fs_types);
     }
 
-    free(mod_buf);
     darshan_log_close(fd);
 
     return(0);
