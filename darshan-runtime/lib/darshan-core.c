@@ -534,6 +534,7 @@ void darshan_core_shutdown()
         /* initialize the remaining header fields */
         strcpy(final_core->log_header.version_string, DARSHAN_LOG_VERSION);
         final_core->log_header.magic_nr = DARSHAN_MAGIC_NR;
+        final_core->log_header.comp_type = DARSHAN_ZLIB_COMP;
 
         all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, 0, &(final_core->log_header),
             sizeof(struct darshan_header), MPI_BYTE, &status);
@@ -559,7 +560,7 @@ void darshan_core_shutdown()
     DARSHAN_MPI_CALL(PMPI_File_close)(&log_fh);
 
     /* if we got this far, there are no errors, so rename from *.darshan_partial
-     * to *-<logwritetime>.darshan.gz, which indicates that this log file is
+     * to *-<logwritetime>.darshan, which indicates that this log file is
      * complete and ready for analysis
      */
     if(my_rank == 0)
@@ -585,7 +586,7 @@ void darshan_core_shutdown()
                 end_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
                 strcat(new_logfile_name, logfile_name);
                 tmp_index = strstr(new_logfile_name, ".darshan_partial");
-                sprintf(tmp_index, "_%d.darshan.gz", (int)(end_log_time-start_log_time+1));
+                sprintf(tmp_index, "_%d.darshan", (int)(end_log_time-start_log_time+1));
                 rename(logfile_name, new_logfile_name);
                 /* set permissions on log file */
 #ifdef __CP_GROUP_READABLE_LOGS

@@ -60,6 +60,13 @@ static char * const darshan_module_names[] =
 };
 #undef X
 
+/* compression method used on darshan log file */
+enum darshan_comp_type
+{
+    DARSHAN_ZLIB_COMP,
+    DARSHAN_BZIP2_COMP,
+};
+
 /* the darshan_log_map structure is used to indicate the location of
  * specific module data in a Darshan log. Note that 'off' and 'len' are
  * the respective offset and length of the data in the file, in *uncompressed*
@@ -80,6 +87,7 @@ struct darshan_header
 {
     char version_string[8];
     int64_t magic_nr;
+    enum darshan_comp_type comp_type;
     struct darshan_log_map rec_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
 };
