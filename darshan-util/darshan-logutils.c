@@ -548,6 +548,7 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
     {
         fprintf(stderr, "Error: unable to seek in darshan log file.\n");
         free(comp_buf);
+        free(hash_buf);
         return(-1);
     }
 
@@ -557,6 +558,7 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
     {
         fprintf(stderr, "Error: failed to read record hash from darshan log file.\n");
         free(comp_buf);
+        free(hash_buf);
         return(-1);
     }
 
@@ -567,6 +569,7 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
     {
         fprintf(stderr, "Error: unable to decompress darshan job data.\n");
         free(comp_buf);
+        free(hash_buf);
         return(-1);
     }
     free(comp_buf);
@@ -598,12 +601,14 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
             ref = malloc(sizeof(*ref));
             if(!ref)
             {
+                free(hash_buf);
                 return(-1);
             }
             ref->rec.name = malloc(*path_len_ptr + 1);
             if(!ref->rec.name)
             {
                 free(ref);
+                free(hash_buf);
                 return(-1);
             }
 
@@ -639,7 +644,7 @@ int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash)
     uint32_t name_len;
     size_t record_sz;
     char *comp_buf;
-    char comp_buf_sz;
+    int comp_buf_sz;
     int ret;
 
     /* allocate a buffer to store 2 MiB worth of record data */
@@ -692,16 +697,18 @@ int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash)
     }
     hash_buf_sz = hash_buf_off - hash_buf;
 
-    comp_buf = malloc(hash_buf_sz);
+    comp_buf = malloc(DARSHAN_DEF_COMP_BUF_SZ);
     if(!comp_buf)
         return(-1);
-    comp_buf_sz = hash_buf_sz;
+    comp_buf_sz = DARSHAN_DEF_COMP_BUF_SZ;
 
     /* compress the record hash */
     ret = darshan_compress_buf(hash_buf, hash_buf_sz, comp_buf, &comp_buf_sz);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to compress darshan record hash.\n");
+        free(comp_buf);
+        free(hash_buf);
         return(-1);
     }
 
@@ -714,9 +721,12 @@ int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash)
     if(ret != comp_buf_sz)
     {
         fprintf(stderr, "Error: failed to write record hash to darshan log file.\n");
+        free(comp_buf);
+        free(hash_buf);
         return(-1);
     }
 
+    free(comp_buf);
     free(hash_buf);
 
     return(0);
@@ -779,43 +789,53 @@ int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
     return(1);
 }
 
-/* XXX */
 /* darshan_log_putmod()
  *
  * write a chunk of module data to the darshan log file
+ * NOTE: this function call should be called directly after the
+ * put_hash() function, as it expects the file pointer to be
+ * positioned directly past the record hash location. Also,
+ * for a set of modules with data to write to file, this function
+ * should be called in order of increasing module identifiers,
+ * as the darshan log file format expects this ordering.
  *
  * returns 0 on success, -1 on failure
  */
 int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz)
 {
+    char *comp_buf;
+    int comp_buf_sz;
     int ret;
 
-    /* only seek to start of module data if current log file position 
-     * is not within the given mod_id's range. This allows one to
-     * repeatedly call this function and put chunks of a module's
-     * data piecemeal.
-     */
-    if((fd->pos < fd->mod_map[mod_id].off) || (fd->pos > mod_buf_end))
+    if(mod_id < 0 || mod_id >= DARSHAN_MAX_MODS)
     {
-        ret = darshan_log_seek(fd, fd->mod_map[mod_id].off);
-        if(ret < 0)
-        {
-            fprintf(stderr, "Error: unable to seek in darshan log file.\n");
-            return(-1);
-        }
-    }
-
-    /* if the given data violates stored mapping info, error out */
-    if(mod_buf_sz > (mod_buf_end - fd->pos))
-    {
-        fprintf(stderr, "Error: module data write violates stored mapping information.\n");
+        fprintf(stderr, "Error: invalid Darshan module id.\n");
         return(-1);
     }
 
+    comp_buf = malloc(mod_buf_sz);
+    if(!comp_buf)
+        return(-1);
+    comp_buf_sz = mod_buf_sz;
+
+    /* compress the module's data */
+    ret = darshan_compress_buf(mod_buf, mod_buf_sz, comp_buf, &comp_buf_sz);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to compress module %s data.\n",
+            darshan_module_names[mod_id]);
+        free(comp_buf);
+        return(-1);
+    }
+
+    /* set the appropriate mapping information for this module */
+    fd->mod_map[mod_id].off = fd->pos;
+    fd->mod_map[mod_id].len = comp_buf_sz;
+
     /* write the module chunk to the log file */
-    ret = darshan_log_write(fd, mod_buf, mod_buf_sz);
-    if(ret != mod_buf_sz)
+    ret = darshan_log_write(fd, comp_buf, comp_buf_sz);
+    if(ret != comp_buf_sz)
     {
         fprintf(stderr,
             "Error: failed to write module %s data to darshan log file.\n",
