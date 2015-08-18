@@ -213,6 +213,7 @@ int darshan_log_putheader(darshan_fd fd)
     memset(&header, 0, sizeof(header));
     strcpy(header.version_string, DARSHAN_LOG_VERSION);
     header.magic_nr = DARSHAN_MAGIC_NR;
+    header.comp_type = fd->comp_type;
 
     /* copy the mapping information to the header */
     memcpy(&header.rec_map, &fd->rec_map, sizeof(struct darshan_log_map));
@@ -975,6 +976,33 @@ static int darshan_decompress_buf(char* comp_buf, int comp_buf_sz,
     return(ret);
 }
 
+static int darshan_compress_buf(char* decomp_buf, int decomp_buf_sz,
+    char* comp_buf, int* inout_comp_buf_sz,
+    enum darshan_comp_type comp_type)
+{
+    int ret;
+
+    switch(comp_type)
+    {
+        case DARSHAN_ZLIB_COMP:
+            ret = darshan_zlib_comp(decomp_buf, decomp_buf_sz,
+                comp_buf, inout_comp_buf_sz);
+            break;
+#ifdef HAVE_LIBBZ2
+        case DARSHAN_BZIP2_COMP:
+            ret = darshan_bzip2_comp(decomp_buf, decomp_buf_sz,
+                comp_buf, inout_comp_buf_sz);
+            break;
+#endif
+        default:
+            fprintf(stderr, "Error: invalid compression method.\n");
+            return(-1);
+    }
+
+    return(ret);
+
+}
+
 static int darshan_zlib_decomp(char* comp_buf, int comp_buf_sz,
     char* decomp_buf, int* inout_decomp_buf_sz)
 {
@@ -1031,38 +1059,10 @@ static int darshan_zlib_decomp(char* comp_buf, int comp_buf_sz,
     return(0);
 }
 
-static int darshan_compress_buf(char* decomp_buf, int decomp_buf_sz,
-    char* comp_buf, int* inout_comp_buf_sz,
-    enum darshan_comp_type comp_type)
-{
-    int ret;
-
-    switch(comp_type)
-    {
-        case DARSHAN_ZLIB_COMP:
-            ret = darshan_zlib_comp(decomp_buf, decomp_buf_sz,
-                comp_buf, inout_comp_buf_sz);
-            break;
-#ifdef HAVE_LIBBZ2
-        case DARSHAN_BZIP2_COMP:
-            ret = darshan_bzip2_comp(decomp_buf, decomp_buf_sz,
-                comp_buf, inout_comp_buf_sz);
-            break;
-#endif
-        default:
-            fprintf(stderr, "Error: invalid compression method.\n");
-            return(-1);
-    }
-
-    return(ret);
-
-}
-
 static int darshan_zlib_comp(char* decomp_buf, int decomp_buf_sz,
     char* comp_buf, int* inout_comp_buf_sz)
 {
     int ret;
-    int total_out = 0;
     z_stream tmp_stream;
 
     memset(&tmp_stream, 0, sizeof(tmp_stream));
@@ -1080,34 +1080,16 @@ static int darshan_zlib_comp(char* decomp_buf, int decomp_buf_sz,
         return(-1);
     }
 
-    /* while we have not finished consuming all of the uncompressed input data */
-    while(tmp_stream.avail_in)
+    /* compress data */
+    ret = deflate(&tmp_stream, Z_FINISH);
+    if(ret != Z_STREAM_END)
     {
-        if(tmp_stream.avail_out == 0)
-        {
-            /* We ran out of buffer space for compression.  In theory,
-             * we could just alloc more space, but probably just easier
-             * to bump up the default size of the output buffer.
-             */
-            deflateEnd(&tmp_stream);
-            return(-1);
-        }
-
-        /* compress data */
-        ret = deflate(&tmp_stream, Z_FINISH);
-        if(ret != Z_STREAM_END)
-        {
-            deflateEnd(&tmp_stream);
-            return(-1);
-        }
-
-        total_out += tmp_stream.total_out;
-        if(tmp_stream.avail_in)
-            deflateReset(&tmp_stream);
+        deflateEnd(&tmp_stream);
+        return(-1);
     }
     deflateEnd(&tmp_stream);
 
-    *inout_comp_buf_sz = total_out;
+    *inout_comp_buf_sz = tmp_stream.total_out;
     return(0);
 }
 
@@ -1115,13 +1097,100 @@ static int darshan_zlib_comp(char* decomp_buf, int decomp_buf_sz,
 static int darshan_bzip2_decomp(char* comp_buf, int comp_buf_sz,
     char* decomp_buf, int* inout_decomp_buf_sz)
 {
-    return(-1);
+    int ret;
+    int total_out = 0;
+    bz_stream tmp_stream;
+
+    memset(&tmp_stream, 0, sizeof(tmp_stream));
+    tmp_stream.bzalloc = NULL;
+    tmp_stream.bzfree = NULL;
+    tmp_stream.opaque = NULL;
+    tmp_stream.next_in = comp_buf;
+    tmp_stream.avail_in = comp_buf_sz;
+    tmp_stream.next_out = decomp_buf;
+    tmp_stream.avail_out = *inout_decomp_buf_sz;
+
+    ret = BZ2_bzDecompressInit(&tmp_stream, 1, 0);
+    if(ret != BZ_OK)
+    {
+        return(-1);
+    }
+
+    /* while we have not finished consuming all of the uncompressed input data */
+    while(tmp_stream.avail_in)
+    {
+        if(tmp_stream.avail_out == 0)
+        {
+            /* We ran out of buffer space for decompression.  In theory,
+             * we could just alloc more space, but probably just easier
+             * to bump up the default size of the output buffer.
+             */
+            BZ2_bzDecompressEnd(&tmp_stream);
+            return(-1);
+        }
+
+        /* decompress data */
+        ret = BZ2_bzDecompress(&tmp_stream);
+        if(ret != BZ_STREAM_END)
+        {
+            BZ2_bzDecompressEnd(&tmp_stream);
+            return(-1);
+        }
+
+        assert(tmp_stream.total_out_hi32 == 0);
+        total_out += tmp_stream.total_out_lo32;
+        if(tmp_stream.avail_in)
+        {
+            /* reinitialize bzip2 stream, we have more data to
+             * decompress
+             */
+            BZ2_bzDecompressEnd(&tmp_stream);
+            ret = BZ2_bzDecompressInit(&tmp_stream, 1, 0);
+            if(ret != BZ_OK)
+            {
+                return(-1);
+            }
+        }
+    }
+    BZ2_bzDecompressEnd(&tmp_stream);
+
+    *inout_decomp_buf_sz = total_out;
+    return(0);
 }
 
 static int darshan_bzip2_comp(char* decomp_buf, int decomp_buf_sz,
     char* comp_buf, int* inout_comp_buf_sz)
 {
-    return(-1);
+    int ret;
+    bz_stream tmp_stream;
+
+    memset(&tmp_stream, 0, sizeof(tmp_stream));
+    tmp_stream.bzalloc = NULL;
+    tmp_stream.bzfree = NULL;
+    tmp_stream.opaque = NULL;
+    tmp_stream.next_in = decomp_buf;
+    tmp_stream.avail_in = decomp_buf_sz;
+    tmp_stream.next_out = comp_buf;
+    tmp_stream.avail_out = *inout_comp_buf_sz;
+
+    ret = BZ2_bzCompressInit(&tmp_stream, 9, 1, 30);
+    if(ret != BZ_OK)
+    {
+        return(-1);
+    }
+
+    /* compress data */
+    ret = BZ2_bzCompress(&tmp_stream, BZ_FINISH);
+    if(ret != BZ_STREAM_END)
+    {
+        BZ2_bzCompressEnd(&tmp_stream);
+        return(-1);
+    }
+    BZ2_bzCompressEnd(&tmp_stream);
+
+    assert(tmp_stream.total_out_hi32 == 0);
+    *inout_comp_buf_sz = tmp_stream.total_out_lo32;
+    return(0);
 }
 #endif
 
