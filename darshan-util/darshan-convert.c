@@ -26,6 +26,7 @@ int usage (char *exename)
     fprintf(stderr, "Usage: %s [options] <infile> <outfile>\n", exename);
     fprintf(stderr, "       Converts darshan log from infile to outfile.\n");
     fprintf(stderr, "       rewrites the log file into the newest format.\n");
+    fprintf(stderr, "       --bzip2 Use bzip2 compression instead of zlib.\n");
     fprintf(stderr, "       --obfuscate Obfuscate items in the log.\n");
     fprintf(stderr, "       --key <key> Key to use when obfuscating.\n");
     fprintf(stderr, "       --annotate <string> Additional metadata to add.\n");
@@ -36,13 +37,15 @@ int usage (char *exename)
 }
 
 void parse_args (int argc, char **argv, char **infile, char **outfile,
-                 int *obfuscate, int *reset_md, int *key, char **annotate, uint64_t* hash)
+                 int *bzip2, int *obfuscate, int *reset_md, int *key,
+                 char **annotate, uint64_t* hash)
 {
     int index;
     int ret;
 
     static struct option long_opts[] =
     {
+        {"bzip2", 0, NULL, 'b'},
         {"annotate", 1, NULL, 'a'},
         {"obfuscate", 0, NULL, 'o'},
         {"reset-md", 0, NULL, 'r'},
@@ -52,6 +55,7 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
         { 0, 0, 0, 0 }
     };
 
+    *bzip2 = 0;
     *reset_md = 0;
     *hash = 0;
 
@@ -63,6 +67,9 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
 
         switch(c)
         {
+            case 'b':
+                *bzip2 = 1;
+                break;
             case 'a':
                 *annotate = optarg;
                 break;
@@ -202,25 +209,30 @@ int main(int argc, char **argv)
     char *mod_buf;
     int mod_buf_sz;
     char** fs_types;
+    int bzip2;
+    enum darshan_comp_type comp_type;
+
     int obfuscate = 0;
     int key = 0;
     char *annotation = NULL;
     uint64_t hash;
     int reset_md = 0;
 
-    parse_args(argc, argv, &infile_name, &outfile_name, &obfuscate, &reset_md, &key, &annotation, &hash);
+    parse_args(argc, argv, &infile_name, &outfile_name, &bzip2, &obfuscate,
+               &reset_md, &key, &annotation, &hash);
 
-    infile = darshan_log_open(infile_name, "r");
+    infile = darshan_log_open(infile_name);
     if(!infile)
     {
         fprintf(stderr, "darshan_log_open() failed to open %s\n.", infile_name);
         return(-1);
     }
  
-    outfile = darshan_log_open(outfile_name, "w");
+    comp_type = bzip2 ? comp_type = DARSHAN_BZIP2_COMP : DARSHAN_ZLIB_COMP;
+    outfile = darshan_log_create(outfile_name, comp_type);
     if(!outfile)
     {
-        fprintf(stderr, "darshan_log_open() failed to open %s\n.", outfile_name);
+        fprintf(stderr, "darshan_log_create() failed to create %s\n.", outfile_name);
         darshan_log_close(infile);
         return(-1);
     }

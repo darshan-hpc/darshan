@@ -27,6 +27,7 @@ struct darshan_fd_s
 {
     int fildes;
     int64_t pos;
+    enum darshan_comp_type comp_type;
     char version[8];
     int swap_flag;
     char *exe_mnt_data;
@@ -66,7 +67,8 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS];
 #include "darshan-hdf5-logutils.h"
 #include "darshan-pnetcdf-logutils.h"
 
-darshan_fd darshan_log_open(const char *name, const char* mode);
+darshan_fd darshan_log_open(const char *name);
+darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type);
 int darshan_log_getheader(darshan_fd fd, struct darshan_header *header);
 int darshan_log_putheader(darshan_fd fd);
 int darshan_log_getjob(darshan_fd fd, struct darshan_job *job);

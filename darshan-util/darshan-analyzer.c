@@ -54,7 +54,7 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
     assert(hdf5_mod);
     assert(pnetcdf_mod);
 
-    zfile = darshan_log_open(fname, "r");
+    zfile = darshan_log_open(fname);
     if (zfile == NULL)
     {
         fprintf(stderr, "darshan_log_open() failed to open %s.\n", fname);

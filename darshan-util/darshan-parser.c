@@ -46,7 +46,7 @@ int main(int argc, char **argv)
     assert(argc == 2);
     filename = argv[1];
 
-    fd = darshan_log_open(filename, "r");
+    fd = darshan_log_open(filename);
     if(!fd)
     {
         fprintf(stderr, "darshan_log_open() failed to open %s\n.", filename);

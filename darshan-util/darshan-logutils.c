@@ -19,15 +19,26 @@
 
 #include "darshan-logutils.h"
 
-/* TODO: for log reads, we need to make sure the header has been read prior */
-
 static int darshan_log_seek(darshan_fd fd, off_t offset);
 static int darshan_log_read(darshan_fd fd, void *buf, int len);
 static int darshan_log_write(darshan_fd fd, void *buf, int len);
 static int darshan_decompress_buf(char* comp_buf, int comp_buf_sz,
-    char* decomp_buf, int* inout_decomp_buf_sz);
+    char* decomp_buf, int* inout_decomp_buf_sz,
+    enum darshan_comp_type comp_type);
 static int darshan_compress_buf(char* decomp_buf, int decomp_buf_sz,
+    char* comp_buf, int* inout_comp_buf_sz,
+    enum darshan_comp_type comp_type);
+static int darshan_zlib_decomp(char* comp_buf, int comp_buf_sz,
+    char* decomp_buf, int* inout_decomp_buf_sz);
+static int darshan_zlib_comp(char* decomp_buf, int decomp_buf_sz,
     char* comp_buf, int* inout_comp_buf_sz);
+#ifdef HAVE_LIBBZ2
+static int darshan_bzip2_decomp(char* comp_buf, int comp_buf_sz,
+    char* decomp_buf, int* inout_decomp_buf_sz);
+static int darshan_bzip2_comp(char* decomp_buf, int decomp_buf_sz,
+    char* comp_buf, int* inout_comp_buf_sz);
+#endif
+
 
 /* TODO: can we make this s.t. we don't care about ordering (i.e., X macro it ) */
 struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
@@ -52,39 +63,54 @@ struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
 
 /* darshan_log_open()
  *
- * open a darshan log file for reading/writing
+ * open an existing darshan log file for reading only
  *
  * returns 0 on success, -1 on failure
  */
-darshan_fd darshan_log_open(const char *name, const char *mode)
+darshan_fd darshan_log_open(const char *name)
 {
     darshan_fd tmp_fd;
-
-    /* we only allow "w" or "r" modes, nothing fancy */
-    assert(strlen(mode) == 1);
-    assert(mode[0] == 'r' || mode[0] == 'w');
 
     tmp_fd = malloc(sizeof(*tmp_fd));
     if(!tmp_fd)
         return(NULL);
     memset(tmp_fd, 0, sizeof(*tmp_fd));
 
-    if(mode[0] == 'r')
-    {
-        tmp_fd->fildes = open(name, O_RDONLY);
-    }
-    else if (mode[0] == 'w')
-    {
-        /* TODO: permissions when creating?  umask */
-        /* when writing, we create the log file making sure not to overwrite
-         * an existing log
-         */
-        tmp_fd->fildes = open(name, O_WRONLY | O_CREAT | O_EXCL, 0400);
-    }
-
+    tmp_fd->fildes = open(name, O_RDONLY);
     if(tmp_fd->fildes < 0)
     {
         perror("darshan_log_open: ");
+        free(tmp_fd);
+        tmp_fd = NULL;
+    }
+
+    return(tmp_fd);
+}
+
+/* darshan_log_create()
+ *
+ * create a darshan log file for writing with the given compression method
+ *
+ * returns 0 on success, -1 on failure
+ */
+darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type)
+{
+    darshan_fd tmp_fd;
+
+    tmp_fd = malloc(sizeof(*tmp_fd));
+    if(!tmp_fd)
+        return(NULL);
+    memset(tmp_fd, 0, sizeof(*tmp_fd));
+
+    /* TODO: permissions when creating?  umask */
+    /* when writing, we create the log file making sure not to overwrite
+     * an existing log
+     */
+    tmp_fd->comp_type = comp_type;
+    tmp_fd->fildes = open(name, O_WRONLY | O_CREAT | O_EXCL, 0400);
+    if(tmp_fd->fildes < 0)
+    {
+        perror("darshan_log_create: ");
         free(tmp_fd);
         tmp_fd = NULL;
     }
@@ -153,6 +179,8 @@ int darshan_log_getheader(darshan_fd fd, struct darshan_header *header)
         }
     }
 
+    fd->comp_type = header->comp_type;
+
     /* save the mapping of data within log file to this file descriptor */
     fd->job_map.off = sizeof(struct darshan_header);
     fd->job_map.len = header->rec_map.off - fd->job_map.off;
@@ -214,6 +242,8 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
     int job_buf_sz = DARSHAN_JOB_RECORD_SIZE;
     int ret;
 
+    assert(fd->job_map.len > 0 && fd->job_map.off > 0);
+
     /* allocate buffer to store compressed job info */
     comp_buf = malloc(fd->job_map.len);
     if(!comp_buf)
@@ -237,7 +267,8 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
     }
 
     /* decompress the job data */
-    ret = darshan_decompress_buf(comp_buf, fd->job_map.len, job_buf, &job_buf_sz);
+    ret = darshan_decompress_buf(comp_buf, fd->job_map.len,
+        job_buf, &job_buf_sz, fd->comp_type);
     if(ret < 0)
     {
         fprintf(stderr, "Error: failed to decompress darshan job data.\n");
@@ -309,7 +340,8 @@ int darshan_log_putjob(darshan_fd fd, struct darshan_job *job)
     comp_buf_sz = sizeof(*job);
 
     /* compress the job data */
-    ret = darshan_compress_buf((char*)&job_copy, sizeof(*job), comp_buf, &comp_buf_sz);
+    ret = darshan_compress_buf((char*)&job_copy, sizeof(*job),
+        comp_buf, &comp_buf_sz, fd->comp_type);
     if(ret < 0)
     {
         fprintf(stderr, "Error: failed to decompress darshan job data.\n");
@@ -378,7 +410,7 @@ int darshan_log_putexe(darshan_fd fd, char *buf)
     len = strlen(buf);
 
     /* compress the input exe string */
-    ret = darshan_compress_buf(buf, len, comp_buf, &comp_buf_sz);
+    ret = darshan_compress_buf(buf, len, comp_buf, &comp_buf_sz, fd->comp_type);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to compress exe string.\n");
@@ -498,7 +530,7 @@ int darshan_log_putmounts(darshan_fd fd, char** mnt_pts, char** fs_types, int co
         mnt_dat_sz += strlen(line);
     }
 
-    ret = darshan_compress_buf(mnt_dat, mnt_dat_sz, comp_buf, &comp_buf_sz);
+    ret = darshan_compress_buf(mnt_dat, mnt_dat_sz, comp_buf, &comp_buf_sz, fd->comp_type);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to compress mount data.\n");
@@ -564,7 +596,7 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
 
     /* decompress the record hash buffer */
     ret = darshan_decompress_buf(comp_buf, fd->rec_map.len,
-        hash_buf, &hash_buf_sz);
+        hash_buf, &hash_buf_sz, fd->comp_type);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to decompress darshan job data.\n");
@@ -703,7 +735,8 @@ int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash)
     comp_buf_sz = DARSHAN_DEF_COMP_BUF_SZ;
 
     /* compress the record hash */
-    ret = darshan_compress_buf(hash_buf, hash_buf_sz, comp_buf, &comp_buf_sz);
+    ret = darshan_compress_buf(hash_buf, hash_buf_sz,
+        comp_buf, &comp_buf_sz, fd->comp_type);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to compress darshan record hash.\n");
@@ -776,7 +809,7 @@ int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
 
     /* decompress this module's data */
     ret = darshan_decompress_buf(comp_buf, fd->mod_map[mod_id].len,
-        mod_buf, mod_buf_sz);
+        mod_buf, mod_buf_sz, fd->comp_type);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to decompress module %s data.\n",
@@ -820,7 +853,8 @@ int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
     comp_buf_sz = mod_buf_sz;
 
     /* compress the module's data */
-    ret = darshan_compress_buf(mod_buf, mod_buf_sz, comp_buf, &comp_buf_sz);
+    ret = darshan_compress_buf(mod_buf, mod_buf_sz,
+        comp_buf, &comp_buf_sz, fd->comp_type);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to compress module %s data.\n",
@@ -916,6 +950,32 @@ static int darshan_log_write(darshan_fd fd, void* buf, int len)
 /* return 0 on successful decompression, -1 on failure
  */
 static int darshan_decompress_buf(char* comp_buf, int comp_buf_sz,
+    char* decomp_buf, int* inout_decomp_buf_sz,
+    enum darshan_comp_type comp_type)
+{
+    int ret;
+
+    switch(comp_type)
+    {
+        case DARSHAN_ZLIB_COMP:
+            ret = darshan_zlib_decomp(comp_buf, comp_buf_sz,
+                decomp_buf, inout_decomp_buf_sz);
+            break;
+#ifdef HAVE_LIBBZ2
+        case DARSHAN_BZIP2_COMP:
+            ret = darshan_bzip2_decomp(comp_buf, comp_buf_sz,
+                decomp_buf, inout_decomp_buf_sz);
+            break;
+#endif
+        default:
+            fprintf(stderr, "Error: invalid decompression method.\n");
+            return(-1);
+    }
+
+    return(ret);
+}
+
+static int darshan_zlib_decomp(char* comp_buf, int comp_buf_sz,
     char* decomp_buf, int* inout_decomp_buf_sz)
 {
     int ret;
@@ -972,6 +1032,33 @@ static int darshan_decompress_buf(char* comp_buf, int comp_buf_sz,
 }
 
 static int darshan_compress_buf(char* decomp_buf, int decomp_buf_sz,
+    char* comp_buf, int* inout_comp_buf_sz,
+    enum darshan_comp_type comp_type)
+{
+    int ret;
+
+    switch(comp_type)
+    {
+        case DARSHAN_ZLIB_COMP:
+            ret = darshan_zlib_comp(decomp_buf, decomp_buf_sz,
+                comp_buf, inout_comp_buf_sz);
+            break;
+#ifdef HAVE_LIBBZ2
+        case DARSHAN_BZIP2_COMP:
+            ret = darshan_bzip2_comp(decomp_buf, decomp_buf_sz,
+                comp_buf, inout_comp_buf_sz);
+            break;
+#endif
+        default:
+            fprintf(stderr, "Error: invalid compression method.\n");
+            return(-1);
+    }
+
+    return(ret);
+
+}
+
+static int darshan_zlib_comp(char* decomp_buf, int decomp_buf_sz,
     char* comp_buf, int* inout_comp_buf_sz)
 {
     int ret;
@@ -1023,6 +1110,20 @@ static int darshan_compress_buf(char* decomp_buf, int decomp_buf_sz,
     *inout_comp_buf_sz = total_out;
     return(0);
 }
+
+#ifdef HAVE_LIBBZ2
+static int darshan_bzip2_decomp(char* comp_buf, int comp_buf_sz,
+    char* decomp_buf, int* inout_decomp_buf_sz)
+{
+    return(-1);
+}
+
+static int darshan_bzip2_comp(char* decomp_buf, int decomp_buf_sz,
+    char* comp_buf, int* inout_comp_buf_sz)
+{
+    return(-1);
+}
+#endif
 
 /*
  * Local variables:
