@@ -133,11 +133,10 @@ specified file.
 
 === darshan-parser
 
-In order to obtained a full, human readable dump of all information
-contained in a log file, you can use the `darshan-parser` command
-line utility.  It does not require any additional command line tools.
-The following example essentially converts the contents of the log file
-into a fully expanded text file:
+You can use the `darshan-parser` command line utility to obtain a
+complete, human-readable, text-format dump of all information contained
+in a log file.   The following example converts the contents of the
+log file into a fully expanded text file:
 
 ----
 darshan-parser carns_my-app_id114525_7-27-58921_19.darshan.gz > ~/job-characterization.txt
@@ -148,8 +147,14 @@ The format of this output is described in the following section.
 === Guide to darshan-parser output
 
 The beginning of the output from darshan-parser displays a summary of
-overall information about the job. The following table defines the meaning
-of each line:
+overall information about the job. Additional job-level summary information
+can also be produced using the `--perf`, `--file`, `--file-list`, or
+`--file-list-detailed` command line options.  See the
+<<addsummary,Additional summary output>> section for more information about
+those options.
+
+The following table defines the meaning
+of each line in the default header section of the output:
 
 [cols="25%,75%",options="header"]
 |====
@@ -307,11 +312,11 @@ each file:
 |====
 
 ==== Additional summary output
+[[addsummary]]
 
 ===== Performance
 
-Use the '--perf' option to get performance approximations using four
-different computations.
+Job performance information can be generated using the `--perf` command-line option.
 
 .Example output
 ----
@@ -344,6 +349,54 @@ different computations.
 # agg_perf_by_slowest: 2206.983935
 ----
 
+The `total_bytes` line shows the total number of bytes transferred
+(read/written) by the job.  That is followed by three sections:
+
+.I/O timing for unique files
+
+This section reports information about any files that were *not* opened
+by every rank in the job.  This includes independent files (opened by
+1 process) and partially shared files (opened by a proper subset of
+the job's processes). The I/O time for this category of file access
+is reported based on the *slowest* rank of all processes that performed this
+type of file access.
+
+* unique files: slowest_rank_io_time: total I/O time for unique files
+  (including both metadata + data transfer time)
+* unique files: slowest_rank_meta_time: metadata time for unique files
+* unique files: slowest_rank: the rank of the slowest process
+
+.I/O timing for shared files
+
+This section reports information about files that were globally shared (i.e.
+opened by every rank in the job).  This section estimates performance for
+globally shared files using four different methods.  The `time_by_slowest`
+is generally the most accurate, but it may not available in some older Darshan
+log files. 
+
+* shared files: time_by_cumul_*: adds the cumulative time across all
+  processes and divides by the number of processes (inaccurate when there is
+  high variance among processes).
+** shared files: time_by_cumul_io_only: include metadata AND data transfer
+   time for global shared files
+** shared files: time_by_cumul_meta_only: metadata time for global shared
+   files
+* shared files: time_by_open: difference between timestamp of open and
+  close (inaccurate if file is left open without I/O activity)
+* shared files: time_by_open_lastio: difference between timestamp of open
+  and the timestamp of last I/O (similar to above but fixes case where file is
+  left open after I/O is complete)
+* shared files: time_by_slowest : measures time according to which rank was
+  the slowest to perform both metadata operations and data transfer for each
+  shared file. (most accurate but requires newer log version)
+
+.Aggregate performance
+
+Performance is calculated by dividing the total bytes by the I/O time
+(shared files and unique files combined) computed
+using each of the four methods described in the previous output section. Note the unit for total bytes is
+Byte and for the aggregate performance is MiB/s (1024*1024 Bytes/s).
+
 ===== Files
 Use the `--file` option to get totals based on file usage.
 The first column is the count of files for that type, the second column is
@@ -353,8 +406,13 @@ accessed.
 * total: All files
 * read_only: Files that were only read from
 * write_only: Files that were only written to
+* read_write: Files that were both read and written
 * unique: Files that were opened on only one rank
 * shared: File that were opened by more than one rank
+
+Each line has 3 columns. The first column is the count of files for that
+type of file, the second column is number of bytes for that type, and the third
+column is the maximum offset accessed.
 
 .Example output
 ----
@@ -368,12 +426,72 @@ accessed.
 # shared: 1540 236561051820 154157611
 ----
 
+===== File list
+
+Use the `--file-list` option to produce a list of files opened by the
+application along with estimates of the amount of time spent accessing each
+file.  Each file is represented with one line with six columns:
+
+* <hash>: hash of file name
+* <suffix>: last 15 characters of file name
+* <type>: MPI or POSIX. A file is considered of MPI type if it is opened
+usijng an MPI function (directly or indirectly by a higher library such as
+HDF or NetCDF). 
+* <nprocs>: number of processes that opened the file
+* <slowest>: (estimated) time in seconds consumed in IO by slowest process
+* <avg>: average time in seconds consumed in IO per process
+
+.Example output
+----
+# Per-file summary of I/O activity.
+# <hash>: hash of file name
+# <suffix>: last 15 characters of file name
+# <type>: MPI or POSIX
+# <nprocs>: number of processes that opened the file
+# <slowest>: (estimated) time in seconds consumed in IO by slowest process
+# <avg>: average time in seconds consumed in IO per process
+
+# <hash>    <suffix>    <type>  <nprocs>    <slowest>   <avg>
+17028232952633024488    amples/boom.dat MPI 2   0.000363    0.012262
+----
+
+This data could be post-processed to compute more in-depth statistics, such as
+the total number of MPI files and total number of POSIX files used in a
+job, categorizing files into independent/unique/local files (opened by
+1 process), subset/partially shared files (opened by a proper subset of
+processes) or globally shared files (opened by all processes), and ranking
+files according to how much time was spent performing I/O in each file.
+
+===== Detailed file list
+
+The `--file-list-detailed` is the same as --file-list except that it
+produces many columns of output containing statistics broken down by file.
+This option is mainly useful for automated analysis.  Each file opened by
+the job is represented using one output line with the following colums:
+
+* <hash>: hash of file name
+* <suffix>: last 15 characters of file name
+* <type>: MPI or POSIX. A file is considered of MPI type if it is opened
+using an MPI function (directly or indirectly by a higher library such as HDF,
+NetCDF). 
+* <nprocs>: number of processes that opened the file
+* <slowest>: (estimated) time in seconds consumed in IO by slowest process
+* <avg>: average time in seconds consumed in IO per process
+* <start_{open/read/write}>: start timestamp of first open, read, or write
+* <end_{open/read/write}>: end timestamp of last open, read, or write
+* <mpi_indep_opens>: independent MPI_File_open calls
+* <mpi_coll_opens>: collective MPI_File_open calls
+* <posix_opens>: POSIX open calls
+* <CP_SIZE_READ_*>: POSIX read size histogram
+* <CP_SIZE_WRITE_*>: POSIX write size histogram
+
 ===== Totals
 
-Use the `--total` option to get all statistics as an aggregate total.
-Statistics that make sense to be aggregated are aggregated. Other statistics
-may be a minimum or maximum if that makes sense. Other data maybe zeroed if
-it doesn't make sense to aggregate the data.
+Use the `--total` option to get all statistics as an aggregate total rather
+than broken down per file.  Each field is either summed across files and
+process (for values such as number of opens), set to global minimums and
+maximums (for values such as open time and close time), or zeroed out (for
+statistics that are nonsensical in aggregate).
 
 .Example output
 ----
@@ -393,32 +511,6 @@ total_CP_POSIX_WRITES: 33795
 total_CP_POSIX_OPENS: 230918
 ...
 ----
-
-===== File list
-
-Use the `--file-list` option to produce a list of files opened by the
-application along with estimates of the amount of time spent accessing each
-file.
-
-.Example output
-----
-# Per-file summary of I/O activity.
-# <hash>: hash of file name
-# <suffix>: last 15 characters of file name
-# <type>: MPI or POSIX
-# <nprocs>: number of processes that opened the file
-# <slowest>: (estimated) time in seconds consumed in IO by slowest process
-# <avg>: average time in seconds consumed in IO per process
-
-# <hash>    <suffix>    <type>  <nprocs>    <slowest>   <avg>
-17028232952633024488    amples/boom.dat MPI 2   0.000363    0.012262
-----
-
-===== Detailed file list
-
-The `--file-list-detailed` is the same as --file-list except that it
-produces many columns of output containing statistics broken down by file.
-This option is mainly useful for automated analysis.
 
 === Other command line utilities
 
