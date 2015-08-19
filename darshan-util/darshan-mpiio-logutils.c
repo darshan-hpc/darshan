@@ -30,8 +30,8 @@ char *mpiio_f_counter_names[] = {
 };
 #undef X
 
-static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p,
-    int* bytes_left, void** file_rec, darshan_record_id* rec_id);
+static int darshan_log_get_mpiio_file(void** mpiio_buf_p, int* bytes_left,
+    void** file_rec, darshan_record_id* rec_id, int byte_swap_flag);
 static void darshan_log_print_mpiio_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type);
 
@@ -41,8 +41,8 @@ struct darshan_mod_logutil_funcs mpiio_logutils =
     .log_print_record = &darshan_log_print_mpiio_file,
 };
 
-static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p,
-    int* bytes_left, void** file_rec, darshan_record_id* rec_id)
+static int darshan_log_get_mpiio_file(void** mpiio_buf_p, int* bytes_left,
+    void** file_rec, darshan_record_id* rec_id, int byte_swap_flag)
 {
     int i;
     struct darshan_mpiio_file *file = (struct darshan_mpiio_file *)
@@ -51,7 +51,7 @@ static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p,
     if(*bytes_left < sizeof(struct darshan_mpiio_file))
         return(-1);
 
-    if(fd->swap_flag)
+    if(byte_swap_flag)
     {
         /* swap bytes if necessary */
         DARSHAN_BSWAP64(&file->f_id);

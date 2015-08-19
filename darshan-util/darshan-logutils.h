@@ -46,11 +46,11 @@ struct darshan_record_ref
 struct darshan_mod_logutil_funcs
 {
     int (*log_get_record)(
-        darshan_fd fd,
         void** mod_buf_p,
         int* mod_bytes_left,
         void** file_rec,
-        darshan_record_id* rec_id
+        darshan_record_id* rec_id,
+        int byte_swap_flag
     );
     void (*log_print_record)(
         void *file_rec,
