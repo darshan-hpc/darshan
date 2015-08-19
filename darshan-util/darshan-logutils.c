@@ -619,7 +619,6 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
         path_len_ptr = (uint32_t *)buf_ptr;
         buf_ptr += sizeof(uint32_t);
         path_ptr = (char *)buf_ptr;
-        buf_ptr += *path_len_ptr;
 
         if(fd->swap_flag)
         {
@@ -653,6 +652,8 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
             /* add this record to the hash */
             HASH_ADD(hlink, *hash, rec.id, sizeof(darshan_record_id), ref);
         }
+
+        buf_ptr += *path_len_ptr;
     }
 
     free(hash_buf);
