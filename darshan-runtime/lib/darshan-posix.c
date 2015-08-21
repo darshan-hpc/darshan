@@ -1756,7 +1756,7 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
-        if(POSIX_PARTIAL_FILE(infile))
+        if(POSIX_FILE_PARTIAL(infile))
             tmp_file.counters[POSIX_FILE_ALIGNMENT] = inoutfile->counters[POSIX_FILE_ALIGNMENT];
         else
             tmp_file.counters[POSIX_FILE_ALIGNMENT] = infile->counters[POSIX_FILE_ALIGNMENT];
