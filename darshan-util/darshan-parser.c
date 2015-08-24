@@ -394,6 +394,12 @@ int main(int argc, char **argv)
         printf("# %s module data\n", darshan_module_names[i]);
         printf("# *******************************************************\n");
 
+        if(mask & OPTION_BASE)
+        {
+            /* TODO: does each module print header of what each counter means??? */
+            DARSHAN_PRINT_HEADER();
+        }
+
         /* this module has data to be parsed and printed */
         mod_bytes_left = mod_buf_sz;
         mod_buf_p = mod_buf;
@@ -436,9 +442,6 @@ int main(int argc, char **argv)
 
             if(mask & OPTION_BASE)
             {
-                /* TODO: does each module print header of what each counter means??? */
-                DARSHAN_PRINT_HEADER();
-
                 /* print the corresponding module data for this record */
                 mod_logutils[i]->log_print_record(rec_p, ref->rec.name,
                     mnt_pt, fs_type);
@@ -448,7 +451,7 @@ int main(int argc, char **argv)
              * if the parser is executed with more than the base option
              */
             if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD)
-                break;
+                continue;
 
             HASH_FIND(hlink, file_hash, &rec_id, sizeof(darshan_record_id), hfile);
             if(!hfile)
@@ -482,6 +485,12 @@ int main(int argc, char **argv)
                 mpiio_accum_perf((struct darshan_mpiio_file*)rec_p, &pdata);
             }
         }
+
+        /* we calculate more detailed stats for POSIX and MPI-IO modules, 
+         * if the parser is executed with more than the base option
+         */
+        if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD)
+            continue;
 
         /* Total Calc */
         if(mask & OPTION_TOTAL)
@@ -686,9 +695,9 @@ void posix_accum_file(struct darshan_posix_file *pfile,
     {
         hfile->rec_dat = malloc(sizeof(struct darshan_posix_file));
         assert(hfile->rec_dat);
-        tmp = (struct darshan_posix_file*)hfile->rec_dat;
-        memset(tmp, 0, sizeof(struct darshan_posix_file));
+        memset(hfile->rec_dat, 0, sizeof(struct darshan_posix_file));
     }
+    tmp = (struct darshan_posix_file*)hfile->rec_dat;
 
     for(i = 0; i < POSIX_NUM_INDICES; i++)
     {
@@ -890,9 +899,9 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
     {
         hfile->rec_dat = malloc(sizeof(struct darshan_mpiio_file));
         assert(hfile->rec_dat);
-        tmp = (struct darshan_mpiio_file*)hfile->rec_dat;
-        memset(tmp, 0, sizeof(struct darshan_mpiio_file));
+        memset(hfile->rec_dat, 0, sizeof(struct darshan_mpiio_file));
     }
+    tmp = (struct darshan_mpiio_file*)hfile->rec_dat;
 
     for(i = 0; i < MPIIO_NUM_INDICES; i++)
     {
