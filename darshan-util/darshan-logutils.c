@@ -355,9 +355,11 @@ int darshan_log_putjob(darshan_fd fd, struct darshan_job *job)
     if(ret != comp_buf_sz)
     {
         fprintf(stderr, "Error: failed to write darshan log file job data.\n");
+        free(comp_buf);
         return(-1);
     }
 
+    free(comp_buf);
     return(0);
 }
 
@@ -876,9 +878,11 @@ int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
         fprintf(stderr,
             "Error: failed to write module %s data to darshan log file.\n",
             darshan_module_names[mod_id]);
+        free(comp_buf);
         return(-1);
     }
 
+    free(comp_buf);
     return(0);
 }
 
