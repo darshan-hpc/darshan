@@ -18,9 +18,8 @@
 #define BUCKET3 0.60
 #define BUCKET4 0.80
 
-char * base = NULL;
-
 int total_shared = 0;
+int total_fpp    = 0;
 int total_mpio   = 0;
 int total_pnet   = 0;
 int total_hdf5   = 0;
@@ -31,77 +30,91 @@ int bucket2 = 0;
 int bucket3 = 0;
 int bucket4 = 0;
 int bucket5 = 0;
-int fail    = 0;
 
-int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_pnet, int *used_hdf5, int *used_shared)
+int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_pnet, int *used_hdf5, int *used_shared, int *used_fpp)
 {
-    darshan_fd zfile;
+    int ret;
+    darshan_fd file;
     struct darshan_header header;
     struct darshan_job job;
     struct darshan_mod_logutil_funcs *psx_mod = mod_logutils[DARSHAN_POSIX_MOD];
-    struct darshan_mod_logutil_funcs *mpiio_mod = mod_logutils[DARSHAN_MPIIO_MOD];
-    struct darshan_mod_logutil_funcs *hdf5_mod = mod_logutils[DARSHAN_HDF5_MOD];
-    struct darshan_mod_logutil_funcs *pnetcdf_mod = mod_logutils[DARSHAN_PNETCDF_MOD];
+    struct darshan_posix_file *psx_buf, *psx_buf_p;
+    int psx_buf_sz, psx_buf_bytes_left;
     struct darshan_posix_file *psx_rec;
     darshan_record_id rec_id;
-    int ret;
     int f_count;
     double total_io_time;
     double total_job_time;
 
     assert(psx_mod);
-    assert(mpiio_mod);
-    assert(hdf5_mod);
-    assert(pnetcdf_mod);
 
-    zfile = darshan_log_open(fname);
-    if (zfile == NULL)
+    file = darshan_log_open(fname);
+    if (file == NULL)
     {
         fprintf(stderr, "darshan_log_open() failed to open %s.\n", fname);
         return -1;
     }
 
-#if 0
-    ret = darshan_log_getheader(zfile, &header);
+    ret = darshan_log_getheader(file, &header);
     if (ret < 0)
     {
         fprintf(stderr, "darshan_log_getheader() failed on file %s.\n", fname);
-        darshan_log_close(zfile);
+        darshan_log_close(file);
         return -1;
     }
 
-    ret = darshan_log_getjob(zfile, &job);
+    ret = darshan_log_getjob(file, &job);
     if (ret < 0)
     {
         fprintf(stderr, "darshan_log_getjob() failed on file %s.\n", fname);
-        darshan_log_close(zfile);
+        darshan_log_close(file);
+        return -1;
+    }
+
+    psx_buf_sz = DARSHAN_DEF_COMP_BUF_SZ;
+    psx_buf = malloc(psx_buf_sz);
+    if (!psx_buf)
+    {
+        darshan_log_close(file);
+        return -1;
+    }
+
+    ret = darshan_log_getmod(file, DARSHAN_POSIX_MOD, (void *)psx_buf, &psx_buf_sz);
+    if (ret < 0)
+    {
+        fprintf(stderr, "darshan_log_getmod() failed on file %s.\n", fname);
+        darshan_log_close(file);
         return -1;
     }
 
     f_count = 0;
     total_io_time = 0.0;
 
-    while ((ret = psx_mod->log_get_record(zfile, (void **)&psx_rec, &rec_id)) == 1)
+    psx_buf_bytes_left = psx_buf_sz;
+    psx_buf_p = psx_buf;
+    while(psx_buf_bytes_left)
     {
-        void *tmp_rec;
+        ret = psx_mod->log_get_record((void **)&psx_buf_p, &psx_buf_bytes_left,
+            (void **)&psx_rec, &rec_id, file->swap_flag);
+
         f_count   += 1;
 
         if (psx_rec->rank == -1)
             *used_shared = 1;
+        else
+            *used_fpp = 1;
 
-
-        while((ret = mpiio_mod->log_get_record(
-
-        *used_mpio += cp_file.counters[CP_INDEP_OPENS];
-        *used_mpio += cp_file.counters[CP_COLL_OPENS];
-        *used_pnet += cp_file.counters[CP_INDEP_NC_OPENS];
-        *used_pnet += cp_file.counters[CP_COLL_NC_OPENS];
-        *used_hdf5 += cp_file.counters[CP_HDF5_OPENS];
-
-        total_io_time += cp_file.fcounters[CP_F_POSIX_READ_TIME];
-        total_io_time += cp_file.fcounters[CP_F_POSIX_WRITE_TIME];
-        total_io_time += cp_file.fcounters[CP_F_POSIX_META_TIME];
+        total_io_time += (psx_rec->fcounters[POSIX_F_READ_TIME] +
+                         psx_rec->fcounters[POSIX_F_WRITE_TIME] +
+                         psx_rec->fcounters[POSIX_F_META_TIME]);
     }
+
+    if (header.mod_map[DARSHAN_MPIIO_MOD].len > 0)
+        *used_mpio += 1;
+    if (header.mod_map[DARSHAN_HDF5_MOD].len > 0)
+        *used_hdf5 += 1;
+    if (header.mod_map[DARSHAN_PNETCDF_MOD].len > 0)
+        *used_pnet += 1;
 
     total_job_time = (double)job.end_time - (double)job.start_time;
     if (total_job_time < 1.0)
@@ -117,9 +130,9 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
     {
         *io_ratio = 0.0;
     }
-#endif
 
-    darshan_log_close(zfile);
+    free(psx_buf);
+    darshan_log_close(file);
 
     return 0;
 }
@@ -131,18 +144,19 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
     int used_pnet = 0;
     int used_hdf5 = 0;
     int used_shared = 0;
+    int used_fpp = 0;
 
     if (typeflag != FTW_F) return 0;
 
-    process_log(fpath,&io_ratio,&used_mpio,&used_pnet,&used_hdf5,&used_shared);
+    process_log(fpath,&io_ratio,&used_mpio,&used_pnet,&used_hdf5,&used_shared,&used_fpp);
 
-    /* XXX */
     total_count++;
 
     if (used_mpio > 0) total_mpio++;
     if (used_pnet > 0) total_pnet++;
     if (used_hdf5 > 0) total_hdf5++;
     if (used_shared > 0) total_shared++;
+    if (used_fpp > 0) total_fpp++;
 
     if (io_ratio <= BUCKET1)
         bucket1++;
@@ -154,17 +168,13 @@ int tree_walk (const char *fpath, const struct stat *sb, int typeflag)
         bucket4++;
     else if (io_ratio > BUCKET4)
         bucket5++;
-    else
-    {
-        printf("iorat: %lf\n", io_ratio);
-        fail++;
-    }
 
     return 0;
 }
 
 int main(int argc, char **argv)
 {
+    char * base = NULL;
     int ret = 0;
 
     if(argc != 2)
@@ -182,10 +192,10 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    /* XXX */
     printf ("log dir: %s\n", base);
     printf ("  total: %d\n", total_count);
-    printf (" single: %lf [%d]\n", (double)total_shared/(double)total_count, total_shared);
+    printf (" shared: %lf [%d]\n", (double)total_shared/(double)total_count, total_shared);
+    printf ("    fpp: %lf [%d]\n", (double)total_fpp/(double)total_count, total_fpp);
     printf ("   mpio: %lf [%d]\n", (double)total_mpio/(double)total_count, total_mpio);
     printf ("   pnet: %lf [%d]\n", (double)total_pnet/(double)total_count, total_pnet);
     printf ("   hdf5: %lf [%d]\n", (double)total_hdf5/(double)total_count, total_hdf5);
