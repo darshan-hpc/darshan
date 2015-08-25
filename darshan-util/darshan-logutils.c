@@ -851,10 +851,10 @@ int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
         return(-1);
     }
 
-    comp_buf = malloc(mod_buf_sz);
+    comp_buf = malloc(DARSHAN_DEF_COMP_BUF_SZ);
     if(!comp_buf)
         return(-1);
-    comp_buf_sz = mod_buf_sz;
+    comp_buf_sz = DARSHAN_DEF_COMP_BUF_SZ;
 
     /* compress the module's data */
     ret = darshan_compress_buf(mod_buf, mod_buf_sz,
@@ -1185,12 +1185,15 @@ static int darshan_bzip2_comp(char* decomp_buf, int decomp_buf_sz,
     }
 
     /* compress data */
-    ret = BZ2_bzCompress(&tmp_stream, BZ_FINISH);
-    if(ret != BZ_STREAM_END)
+    do
     {
-        BZ2_bzCompressEnd(&tmp_stream);
-        return(-1);
-    }
+        ret = BZ2_bzCompress(&tmp_stream, BZ_FINISH);
+        if(ret < 0)
+        {
+            BZ2_bzCompressEnd(&tmp_stream);
+            return(-1);
+        }
+    } while (ret != BZ_STREAM_END);
     BZ2_bzCompressEnd(&tmp_stream);
 
     assert(tmp_stream.total_out_hi32 == 0);
