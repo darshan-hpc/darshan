@@ -56,7 +56,9 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
     };
 
     *bzip2 = 0;
+    *obfuscate = 0;
     *reset_md = 0;
+    *key = 0;
     *hash = 0;
 
     while(1)
@@ -108,7 +110,6 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
     return;
 }
 
-#if 0
 static void reset_md_job(struct darshan_job *job)
 {
     job->metadata[0] = '\0';
@@ -137,13 +138,21 @@ void obfuscate_exe(int key, char *exe)
     return;
 }
 
-void obfuscate_file(int key, struct darshan_file *file)
+void obfuscate_filenames(int key, struct darshan_record_ref *rec_hash)
 {
+    struct darshan_record_ref *ref, *tmp;
     uint32_t hashed;
+    char tmp_string[32];
 
-    hashed = darshan_hashlittle(file->name_suffix, sizeof(file->name_suffix), key);
-    memset(file->name_suffix, 0, sizeof(file->name_suffix));
-    sprintf(file->name_suffix, "%u", hashed);
+    HASH_ITER(hlink, rec_hash, ref, tmp)
+    {
+        hashed = darshan_hashlittle(ref->rec.name, strlen(ref->rec.name), key);
+        sprintf(tmp_string, "%u", hashed);
+        free(ref->rec.name);
+        ref->rec.name = malloc(strlen(tmp_string));
+        assert(ref->rec.name);
+        memcpy(ref->rec.name, tmp_string, strlen(tmp_string));
+    }
 
     return;
 }
@@ -183,13 +192,29 @@ void add_annotation (char *annotation,
         {
             fprintf(stderr,
                     "not enough space left in metadata for: current=%s token=%s (remain=%d:need=%d)\n",
-                    job->metadata, token, remaining-1, strlen(token)+1);
+                    job->metadata, token, remaining-1, (int)strlen(token)+1);
         }
     }
 
     return;
 }
-#endif
+
+static void remove_hash_recs(struct darshan_record_ref **rec_hash, darshan_record_id hash)
+{
+    struct darshan_record_ref *ref, *tmp;
+
+    HASH_ITER(hlink, *rec_hash, ref, tmp)
+    {
+        if(ref->rec.id != hash)
+        {
+            HASH_DELETE(hlink, *rec_hash, ref);
+            free(ref->rec.name);
+            free(ref);
+        }
+    }
+
+    return;
+}
 
 int main(int argc, char **argv)
 {
@@ -198,25 +223,24 @@ int main(int argc, char **argv)
     char *outfile_name;
     struct darshan_header header;
     struct darshan_job job;
-    char tmp_string[4096];
+    char tmp_string[4096] = {0};
     darshan_fd infile;
     darshan_fd outfile;
     int i;
     int mount_count;
     char** mnt_pts;
+    char** fs_types;
     struct darshan_record_ref *rec_hash = NULL;
     struct darshan_record_ref *ref, *tmp;
     char *mod_buf;
     int mod_buf_sz;
-    char** fs_types;
-    int bzip2;
     enum darshan_comp_type comp_type;
-
-    int obfuscate = 0;
-    int key = 0;
+    int bzip2;
+    int obfuscate;
+    int key;
     char *annotation = NULL;
-    uint64_t hash;
-    int reset_md = 0;
+    darshan_record_id hash;
+    int reset_md;
 
     parse_args(argc, argv, &infile_name, &outfile_name, &bzip2, &obfuscate,
                &reset_md, &key, &annotation, &hash);
@@ -262,11 +286,9 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-#if 0
     if (reset_md) reset_md_job(&job);
     if (obfuscate) obfuscate_job(key, &job);
     if (annotation) add_annotation(annotation, &job);
-#endif
 
     ret = darshan_log_putjob(outfile, &job);
     if (ret < 0)
@@ -286,9 +308,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-#if 0
     if (obfuscate) obfuscate_exe(key, tmp_string);
-#endif
 
     ret = darshan_log_putexe(outfile, tmp_string);
     if(ret < 0)
@@ -326,6 +346,12 @@ int main(int argc, char **argv)
         return(-1);
     }
 
+    /* NOTE: obfuscating filepaths breaks the ability to map files
+     * to the corresponding FS & mount info maintained by darshan
+     */
+    if(obfuscate) obfuscate_filenames(key, rec_hash);
+    if(hash) remove_hash_recs(&rec_hash, hash);
+
     ret = darshan_log_puthash(outfile, rec_hash);
     if(ret < 0)
     {
@@ -341,6 +367,12 @@ int main(int argc, char **argv)
 
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
+        int mod_bytes_left;
+        int mod_bytes_left_save;
+        void *mod_buf_p;
+        void *rec_p = NULL;
+        darshan_record_id rec_id;
+
         memset(mod_buf, 0, DARSHAN_DEF_COMP_BUF_SZ);
         mod_buf_sz = DARSHAN_DEF_COMP_BUF_SZ;
 
@@ -360,8 +392,48 @@ int main(int argc, char **argv)
             continue;
         }
 
+        /* skip modules with no defined logutil handlers */
+        if(!mod_logutils[i])
+        {
+            fprintf(stderr, "Warning: no log utility handlers defined "
+                "for module %s, SKIPPING\n", darshan_module_names[i]);
+            continue;
+        }
+
         /* we have module data to convert */
-        ret = darshan_log_putmod(outfile, i, mod_buf, mod_buf_sz);
+        /* NOTE: it is necessary to iterate through each module's
+         * records to correct any endianness issues before writing
+         * this data back to file
+         */
+        mod_bytes_left = mod_buf_sz;
+        mod_buf_p = mod_buf;
+        while(mod_bytes_left > 0)
+        {
+            mod_bytes_left_save = mod_bytes_left;
+            ret = mod_logutils[i]->log_get_record(&mod_buf_p, &mod_bytes_left,
+                &rec_p, &rec_id, infile->swap_flag);
+            if(ret < 0)
+            {
+                fprintf(stderr, "Error: failed to parse module %s data record\n",
+                    darshan_module_names[i]);
+                darshan_log_close(infile);
+                darshan_log_close(outfile);
+                return(-1);
+            }
+
+            if(hash == rec_id)
+            {
+                mod_buf_p = rec_p;
+                mod_buf_sz = mod_bytes_left_save - mod_bytes_left;
+                break;
+            }
+            else if(mod_bytes_left == 0)
+            {
+                mod_buf_p = mod_buf;
+            }
+        }
+
+        ret = darshan_log_putmod(outfile, i, mod_buf_p, mod_buf_sz);
         if(ret < 0)
         {
             fprintf(stderr, "Error: failed to put module %s data.\n",
@@ -372,6 +444,19 @@ int main(int argc, char **argv)
         }
     }
     free(mod_buf);
+
+    /* write header to output file */
+    ret = darshan_log_putheader(outfile);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to write header to output log file %s.\n", outfile_name);
+        darshan_log_close(infile);
+        darshan_log_close(outfile);
+        return(-1);
+    }
+
+    darshan_log_close(infile);
+    darshan_log_close(outfile);
 
     for(i=0; i<mount_count; i++)
     {
@@ -390,19 +475,6 @@ int main(int argc, char **argv)
         free(ref->rec.name);
         free(ref);
     }
-
-    /* write header to output file */
-    ret = darshan_log_putheader(outfile);
-    if(ret < 0)
-    {
-        fprintf(stderr, "Error: unable to write header to output log file %s.\n", outfile_name);
-        darshan_log_close(infile);
-        darshan_log_close(outfile);
-        return(-1);
-    }
-
-    darshan_log_close(infile);
-    darshan_log_close(outfile);
 
     return(ret);
 }
