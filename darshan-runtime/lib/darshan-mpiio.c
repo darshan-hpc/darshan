@@ -1108,7 +1108,7 @@ static void mpiio_record_reduction_op(
         /* sum */
         for(j=MPIIO_F_READ_TIME; j<=MPIIO_F_META_TIME; j++)
         {
-            tmp_file.counters[j] = infile->fcounters[j] + inoutfile->fcounters[j];
+            tmp_file.fcounters[j] = infile->fcounters[j] + inoutfile->fcounters[j];
         }
 
         /* max (special case) */
