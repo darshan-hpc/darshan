@@ -1,5 +1,4 @@
 \documentclass[11pt,letterpaper,twocolumn]{article}
-% \usepackage{html}
 \usepackage{charter}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
@@ -23,7 +22,7 @@
 % BEGINNING OF DOCUMENT
 %
 
-\input{title}
+\input{title.tex}
 
 \begin{document}
 \fontfamily{cmss}
@@ -35,7 +34,7 @@
 \centering
 \subfigure
 {
-    \input{job-table}
+    \input{job-table.tex}
 }\\
 \subfigure
 {
@@ -43,24 +42,34 @@
 }
 \subfigure
 {
-    \includegraphics[scale=0.8]{counts.pdf}
+    \includegraphics[scale=0.8]{op-counts.pdf}
 }
+\end{figure*}
+
+\begin{figure*}[!h]
+\centering
 \subfigure
 {
-    \includegraphics[scale=0.8]{hist.pdf}
+    \includegraphics[scale=0.8]{posix-access-hist.pdf}
 }
+\ifdefined\inclmpiio
 \subfigure
 {
-    \includegraphics[scale=0.8]{pattern.pdf}
+    \includegraphics[scale=0.8]{mpiio-access-hist.pdf}
 }
+\fi
+\end{figure*}
+
+\begin{figure*}[!h]
+\centering
 \subfigure
 {
-    \input{access-table}
+    \input{access-table.tex}
 }
-\subfigure
-{
-    \input{file-count-table}
-}
+%\subfigure
+%{
+%    \input{file-count-table}
+%}
 \end{figure*}
 
 \begin{figure*}[!h]
@@ -79,11 +88,11 @@
 }
 \subfigure
 {
-    \input{file-access-table}
+    \input{file-access-table.tex}
 }
 \subfigure
 {
-    \input{fs-data-table}
+    \input{fs-data-table.tex}
 }
 \end{figure*}
 
@@ -91,29 +100,12 @@
 \centering
 \subfigure
 {
-    \input{variance-table}
+    \includegraphics[scale=0.65]{pattern.pdf}
+}
+\subfigure
+{
+    \input{variance-table.tex}
 }
 \end{figure*}
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% at this point, things fall onto page 2
-%\begin{figure}[!h]
-%\includegraphics[scale=0.7]{types.pdf}
-%\end{figure}
-%\begin{figure}[!h]
-%\includegraphics[scale=0.7]{align.pdf}
-%\end{figure}
-%\begin{figure}[!h]
-%\includegraphics[scale=0.7]{iodist.pdf}
-%\end{figure}
-%
-%\begin{figure}[!h]
-%\centering
-%\input{stride-table}
-%\end{figure}
-
 
 \end{document}

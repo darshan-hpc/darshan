@@ -1,0 +1,40 @@
+#!/usr/bin/gnuplot -persist
+
+set terminal postscript eps color solid font "Helvetica" 18 size 10in,2.5in
+set output "file-access-read.eps"
+set ylabel "MPI rank"
+set xlabel "hours:minutes:seconds"
+set xdata time
+set timefmt "%s"
+set format x "%H:%M:%S"
+set yrange [-1:ymax]
+set title "Timespan from first to last read access on independent files"
+set xrange ["0":runtime]
+set ytics 0,yinc,ymaxtic
+set lmargin 6
+
+# color blindness work around
+set style line 2 lc 3
+set style line 3 lc 4
+set style line 4 lc 5
+set style line 5 lc 2
+set style increment user
+
+# lw 3 to make lines thicker...
+# note that writes are slightly offset for better visibility
+plot "file-access-read.dat" using 1:2:3:4 with vectors nohead filled notitle
+
+set output "file-access-write.eps"
+set title "Timespan from first to last write access on independent files"
+
+# lw 3 to make lines thicker...
+plot "file-access-write.dat" using 1:2:3:4 with vectors nohead filled lt 2 notitle
+
+set output "file-access-shared.eps"
+unset ytics
+set ylabel "All processes"
+set yrange [-1:1]
+set title "Timespan from first to last access on files shared by all processes"
+
+plot "file-access-read-sh.dat" using 1:2:3:4 with vectors nohead filled lw 10 title "read", \
+"file-access-write-sh.dat" using 1:(($2)-.2):3:4 with vectors nohead filled lw 10 title "write"
