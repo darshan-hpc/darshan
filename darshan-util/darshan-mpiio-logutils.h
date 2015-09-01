@@ -10,6 +10,9 @@
 #include "darshan-logutils.h"
 #include "darshan-mpiio-log-format.h"
 
-int darshan_log_get_mpiio_file(darshan_fd fd, struct darshan_mpiio_file *file);
+extern char *mpiio_counter_names[];
+extern char *mpiio_f_counter_names[];
+
+extern struct darshan_mod_logutil_funcs mpiio_logutils;
 
 #endif

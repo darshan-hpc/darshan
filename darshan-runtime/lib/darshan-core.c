@@ -88,14 +88,14 @@ static void darshan_get_shared_records(
 static int darshan_log_open_all(
     char *logfile_name, MPI_File *log_fh);
 static int darshan_deflate_buffer(
-    void **pointers, int *lengths, int count, int nocomp_flag,
-    char *comp_buf, int *comp_length);
+    void **pointers, int *lengths, int count, char *comp_buf,
+    int *comp_buf_length);
 static int darshan_log_write_record_hash(
     MPI_File log_fh, struct darshan_core_runtime *core,
     uint64_t *inout_off);
 static int darshan_log_append_all(
     MPI_File log_fh, struct darshan_core_runtime *core, void *buf,
-    int count, uint64_t *inout_off, uint64_t *agg_uncomp_sz);
+    int count, uint64_t *inout_off);
 static void darshan_core_cleanup(
     struct darshan_core_runtime* core);
 
@@ -243,7 +243,6 @@ void darshan_core_shutdown()
     double header1, header2;
     double tm_end;
     uint64_t gz_fp = 0;
-    uint64_t tmp_off = 0;
     MPI_File log_fh;
     MPI_Status status;
 
@@ -381,11 +380,11 @@ void darshan_core_shutdown()
     if(my_rank == 0)
     {
         void *pointers[2] = {&final_core->log_job, final_core->trailing_data};
-        int lengths[2] = {sizeof(struct darshan_job), DARSHAN_EXE_LEN+1};
+        int lengths[2] = {sizeof(struct darshan_job), strlen(final_core->trailing_data)};
         int comp_buf_sz = 0;
 
         /* compress the job info and the trailing mount/exe data */
-        all_ret = darshan_deflate_buffer(pointers, lengths, 2, 0,
+        all_ret = darshan_deflate_buffer(pointers, lengths, 2,
             final_core->comp_buf, &comp_buf_sz);
         if(all_ret)
         {
@@ -395,7 +394,7 @@ void darshan_core_shutdown()
         else
         {
             /* write the job information, preallocing space for the log header */
-            gz_fp += sizeof(struct darshan_header) + 23; /* gzip headers/trailers ... */
+            gz_fp += sizeof(struct darshan_header);
             all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, gz_fp,
                 final_core->comp_buf, comp_buf_sz, MPI_BYTE, &status);
             if(all_ret != MPI_SUCCESS)
@@ -405,8 +404,6 @@ void darshan_core_shutdown()
                 unlink(logfile_name);
                 
             }
-
-            /* set the beginning offset of record hash, which follows job info just written */
             gz_fp += comp_buf_sz;
         }
     }
@@ -425,8 +422,9 @@ void darshan_core_shutdown()
     if(internal_timing_flag)
         rec1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
     /* write the record name->id hash to the log file */
+    final_core->log_header.rec_map.off = gz_fp;
     ret = darshan_log_write_record_hash(log_fh, final_core, &gz_fp);
-    tmp_off = final_core->log_header.rec_map.off + final_core->log_header.rec_map.len;
+    final_core->log_header.rec_map.len = gz_fp - final_core->log_header.rec_map.off;
 
     /* error out if unable to write record hash */
     DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
@@ -457,8 +455,9 @@ void darshan_core_shutdown()
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
         struct darshan_core_module* this_mod = final_core->mod_array[i];
-        darshan_record_id mod_shared_recs[DARSHAN_CORE_MAX_RECORDS];
         struct darshan_core_record_ref *ref = NULL;
+        darshan_record_id mod_shared_recs[DARSHAN_CORE_MAX_RECORDS];
+        int mod_shared_rec_cnt = 0;
         void* mod_buf = NULL;
         int mod_buf_sz = 0;
         int j;
@@ -474,71 +473,37 @@ void darshan_core_shutdown()
         }
  
         if(internal_timing_flag)
-            mod1[i] = DARSHAN_MPI_CALL(PMPI_Wtime)();   
-        /* if all processes used this module, prepare to do a shared file reduction */
-        if(global_mod_use_count[i] == nprocs)
+            mod1[i] = DARSHAN_MPI_CALL(PMPI_Wtime)();
+
+        /* set the shared file list for this module */
+        memset(mod_shared_recs, 0, DARSHAN_CORE_MAX_RECORDS * sizeof(darshan_record_id));
+        for(j = 0; j < DARSHAN_CORE_MAX_RECORDS && shared_recs[j] != 0; j++)
         {
-            int shared_rec_count = 0;
-            int rec_sz = 0;
-            void *red_send_buf = NULL, *red_recv_buf = NULL;
-            MPI_Datatype red_type;
-            MPI_Op red_op;
-
-            /* set the shared file list for this module */
-            memset(mod_shared_recs, 0, DARSHAN_CORE_MAX_RECORDS * sizeof(darshan_record_id));
-            for(j = 0; j < DARSHAN_CORE_MAX_RECORDS && shared_recs[j] != 0; j++)
+            HASH_FIND(hlink, final_core->rec_hash, &shared_recs[j],
+                sizeof(darshan_record_id), ref);
+            assert(ref);
+            if(DARSHAN_CORE_MOD_ISSET(ref->global_mod_flags, i))
             {
-                HASH_FIND(hlink, final_core->rec_hash, &shared_recs[j],
-                    sizeof(darshan_record_id), ref);
-                assert(ref);
-                if(DARSHAN_CORE_MOD_ISSET(ref->global_mod_flags, i))
-                {
-                    mod_shared_recs[shared_rec_count++] = shared_recs[j];
-                }
-            }
-
-            /* if there are globally shared files, do a shared file reduction */
-            if(shared_rec_count && this_mod->mod_funcs.setup_reduction &&
-               this_mod->mod_funcs.record_reduction_op)
-            {
-                this_mod->mod_funcs.setup_reduction(mod_shared_recs, &shared_rec_count,
-                    &red_send_buf, &red_recv_buf, &rec_sz);
-
-                if(shared_rec_count)
-                {
-                    /* construct a datatype for a file record.  This is serving no purpose
-                     * except to make sure we can do a reduction on proper boundaries
-                     */
-                    DARSHAN_MPI_CALL(PMPI_Type_contiguous)(rec_sz, MPI_BYTE, &red_type);
-                    DARSHAN_MPI_CALL(PMPI_Type_commit)(&red_type);
-
-                    /* register a reduction operator for this module */
-                    DARSHAN_MPI_CALL(PMPI_Op_create)(this_mod->mod_funcs.record_reduction_op,
-                        1, &red_op);
-
-                    /* reduce shared file records for this module */
-                    DARSHAN_MPI_CALL(PMPI_Reduce)(red_send_buf, red_recv_buf,
-                        shared_rec_count, red_type, red_op, 0, MPI_COMM_WORLD);
-
-                    DARSHAN_MPI_CALL(PMPI_Type_free)(&red_type);
-                    DARSHAN_MPI_CALL(PMPI_Op_free)(&red_op);
-                }
+                mod_shared_recs[mod_shared_rec_cnt++] = shared_recs[j];
             }
         }
 
-        /* if module is registered locally, get the corresponding output buffer */
+        /* if module is registered locally, get the corresponding output buffer
+         * 
+         * NOTE: this function can be used to run collective operations across
+         * modules, if there are file records shared globally.
+         */
         if(this_mod)
         {
-            /* get output buffer from module */
-            this_mod->mod_funcs.get_output_data(&mod_buf, &mod_buf_sz);
+            this_mod->mod_funcs.get_output_data(MPI_COMM_WORLD, mod_shared_recs,
+                mod_shared_rec_cnt, &mod_buf, &mod_buf_sz);
         }
 
-        final_core->log_header.mod_map[i].off = tmp_off;
-
         /* append this module's data to the darshan log */
-        ret = darshan_log_append_all(log_fh, final_core, mod_buf, mod_buf_sz,
-            &gz_fp, &(final_core->log_header.mod_map[i].len));
-        tmp_off += final_core->log_header.mod_map[i].len;
+        final_core->log_header.mod_map[i].off = gz_fp;
+        ret = darshan_log_append_all(log_fh, final_core, mod_buf, mod_buf_sz, &gz_fp);
+        final_core->log_header.mod_map[i].len =
+            gz_fp - final_core->log_header.mod_map[i].off;
 
         /* error out if the log append failed */
         DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
@@ -571,38 +536,18 @@ void darshan_core_shutdown()
     /* rank 0 is responsible for writing the log header */
     if(my_rank == 0)
     {
-        void *header_buf = &(final_core->log_header);
-        int header_buf_sz = sizeof(struct darshan_header);
-        int comp_buf_sz = 0;
-
         /* initialize the remaining header fields */
         strcpy(final_core->log_header.version_string, DARSHAN_LOG_VERSION);
         final_core->log_header.magic_nr = DARSHAN_MAGIC_NR;
+        final_core->log_header.comp_type = DARSHAN_ZLIB_COMP;
 
-        /* deflate the header */
-        /* NOTE: the header is not actually compressed because space for it must
-         *       be preallocated before writing. i.e., the "compressed" header
-         *       must be constant sized, sizeof(struct darshan_header) + 23.
-         *       it is still necessary to deflate the header or the resulting log
-         *       file will not be a valid gzip file.
-         */
-        all_ret = darshan_deflate_buffer((void **)&header_buf, &header_buf_sz, 1, 1,
-            final_core->comp_buf, &comp_buf_sz);
-        if(all_ret)
+        all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, 0, &(final_core->log_header),
+            sizeof(struct darshan_header), MPI_BYTE, &status);
+        if(all_ret != MPI_SUCCESS)
         {
-            fprintf(stderr, "darshan library warning: unable to compress header\n");
+            fprintf(stderr, "darshan library warning: unable to write header to log file %s\n",
+                    logfile_name);
             unlink(logfile_name);
-        }
-        else
-        {
-            all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, 0, final_core->comp_buf,
-                comp_buf_sz, MPI_BYTE, &status);
-            if(all_ret != MPI_SUCCESS)
-            {
-                fprintf(stderr, "darshan library warning: unable to write header to log file %s\n",
-                        logfile_name);
-                unlink(logfile_name);
-            }
         }
     }
 
@@ -620,7 +565,7 @@ void darshan_core_shutdown()
     DARSHAN_MPI_CALL(PMPI_File_close)(&log_fh);
 
     /* if we got this far, there are no errors, so rename from *.darshan_partial
-     * to *-<logwritetime>.darshan.gz, which indicates that this log file is
+     * to *-<logwritetime>.darshan, which indicates that this log file is
      * complete and ready for analysis
      */
     if(my_rank == 0)
@@ -646,7 +591,7 @@ void darshan_core_shutdown()
                 end_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
                 strcat(new_logfile_name, logfile_name);
                 tmp_index = strstr(new_logfile_name, ".darshan_partial");
-                sprintf(tmp_index, "_%d.darshan.gz", (int)(end_log_time-start_log_time+1));
+                sprintf(tmp_index, "_%d.darshan", (int)(end_log_time-start_log_time+1));
                 rename(logfile_name, new_logfile_name);
                 /* set permissions on log file */
 #ifdef __CP_GROUP_READABLE_LOGS
@@ -1145,7 +1090,6 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
         {
             /* we opened that record too, save the mod_flags */
             mod_flags[i] = ref->mod_flags;
-            break;
         }
     }
 
@@ -1237,12 +1181,11 @@ static int darshan_log_open_all(char *logfile_name, MPI_File *log_fh)
 }
 
 static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
-    int nocomp_flag, char *comp_buf, int *comp_length)
+    char *comp_buf, int *comp_buf_length)
 {
     int ret = 0;
     int i;
     int total_target = 0;
-    int z_comp_level;
     z_stream tmp_stream;
 
     /* just return if there is no data */
@@ -1256,7 +1199,7 @@ static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
     }
     else
     {
-        *comp_length = 0;
+        *comp_buf_length = 0;
         return(0);
     }
 
@@ -1267,10 +1210,9 @@ static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
 
     /* initialize the zlib compression parameters */
     /* TODO: check these parameters? */
-    z_comp_level = nocomp_flag ? Z_NO_COMPRESSION : Z_DEFAULT_COMPRESSION;
-    ret = deflateInit2(&tmp_stream, z_comp_level, Z_DEFLATED,
-        15 + 16, 8, Z_DEFAULT_STRATEGY);
-//    ret = deflateInit(&tmp_stream, z_comp_level);
+//    ret = deflateInit2(&tmp_stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
+//        15 + 16, 8, Z_DEFAULT_STRATEGY);
+    ret = deflateInit(&tmp_stream, Z_DEFAULT_COMPRESSION);
     if(ret != Z_OK)
     {
         return(-1);
@@ -1320,7 +1262,7 @@ static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
     }
     deflateEnd(&tmp_stream);
 
-    *comp_length = tmp_stream.total_out;
+    *comp_buf_length = tmp_stream.total_out;
     return(0);
 }
 
@@ -1390,15 +1332,10 @@ static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_ru
         memcpy(hash_buf_off, ref->rec.name, name_len);
         hash_buf_off += name_len;
     }
-
-    /* store uncompressed offset of the record hash */
-    core->log_header.rec_map.off = sizeof(struct darshan_header) +
-        DARSHAN_JOB_RECORD_SIZE;
+    hash_buf_sz = hash_buf_off - hash_buf;
 
     /* collectively write out the record hash to the darshan log */
-    hash_buf_sz = hash_buf_off - hash_buf;
-    ret = darshan_log_append_all(log_fh, core, hash_buf, hash_buf_sz,
-        inout_off, &(core->log_header.rec_map.len));
+    ret = darshan_log_append_all(log_fh, core, hash_buf, hash_buf_sz, inout_off);
 
     free(hash_buf);
 
@@ -1407,22 +1344,18 @@ static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_ru
 
 /* NOTE: inout_off contains the starting offset of this append at the beginning
  *       of the call, and contains the ending offset at the end of the call.
- *       total_uncomp_sz will store the collective size of the uncompressed
- *       buffer being written. This data is necessary to properly index data
- *       when reading a darshan log. Also, these variables should only be valid
- *       on the root rank (rank 0).
+ *       This variable is only valid on the root rank (rank 0).
  */
 static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *core,
-    void *buf, int count, uint64_t *inout_off, uint64_t *agg_uncomp_sz)
+    void *buf, int count, uint64_t *inout_off)
 {
     MPI_Offset send_off, my_off;
     MPI_Status status;
-    uint64_t uncomp_buf_sz = count;
     int comp_buf_sz = 0;
     int ret;
 
     /* compress the input buffer */
-    ret = darshan_deflate_buffer((void **)&buf, &count, 1, 0,
+    ret = darshan_deflate_buffer((void **)&buf, &count, 1,
         core->comp_buf, &comp_buf_sz);
     if(ret < 0)
         comp_buf_sz = 0;
@@ -1454,16 +1387,16 @@ static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *
             core->comp_buf, comp_buf_sz, MPI_BYTE, &status);
     }
 
-    /* send the ending offset from rank (n-1) to rank 0 */
     if(nprocs > 1)
     {
+        /* send the ending offset from rank (n-1) to rank 0 */
         if(my_rank == (nprocs-1))
         {
             my_off += comp_buf_sz;
             DARSHAN_MPI_CALL(PMPI_Send)(&my_off, 1, MPI_OFFSET, 0, 0,
                 MPI_COMM_WORLD);
         }
-        else if(my_rank == 0)
+        if(my_rank == 0)
         {
             DARSHAN_MPI_CALL(PMPI_Recv)(&my_off, 1, MPI_OFFSET, (nprocs-1), 0,
                 MPI_COMM_WORLD, &status);
@@ -1475,10 +1408,6 @@ static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *
     {
         *inout_off = my_off + comp_buf_sz;
     }
-
-    /* pass back the aggregate uncompressed size of this blob */
-    DARSHAN_MPI_CALL(PMPI_Reduce)(&uncomp_buf_sz, agg_uncomp_sz, 1,
-        MPI_UINT64_T, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if(ret != 0)
         return(-1);
@@ -1518,6 +1447,7 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
 void darshan_core_register_module(
     darshan_module_id mod_id,
     struct darshan_module_funcs *funcs,
+    int *my_rank,
     int *mod_mem_limit,
     int *sys_mem_alignment)
 {
@@ -1553,6 +1483,9 @@ void darshan_core_register_module(
 
     /* register module with darshan */
     darshan_core->mod_array[mod_id] = mod;
+
+    /* get the calling process's rank */
+    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, my_rank);
 
     /* TODO: something smarter than just 2 MiB per module */
     *mod_mem_limit = 2 * 1024 * 1024;

@@ -1,4 +1,4 @@
-all: libdarshan-util.a darshan-base-parser darshan-posix-parser darshan-mpiio-parser darshan-bgq-parser
+all: libdarshan-util.a darshan-analyzer darshan-convert darshan-parser jenkins-hash-gen
 
 DESTDIR =
 srcdir = @srcdir@
@@ -13,6 +13,9 @@ libdir = $(DESTDIR)@libdir@
 pkgconfigdir = $(DESTDIR)$(libdir)/pkgconfig
 
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
+DARSHAN_MOD_LOG_FORMATS = $(srcdir)/../darshan-posix-log-format.h $(srcdir)/../darshan-mpiio-log-format.h $(srcdir)/../darshan-hdf5-log-format.h $(srcdir)/../darshan-pnetcdf-log-format.h
+DARSHAN_MOD_LOGUTIL_HEADERS = darshan-posix-logutils.h darshan-mpiio-logutils.h darshan-hdf5-logutils.h darshan-pnetcdf-logutils.h
+
 DARSHAN_ENABLE_SHARED=@DARSHAN_ENABLE_SHARED@
 
 VPATH = $(srcdir)
@@ -56,43 +59,41 @@ darshan-mpiio-logutils.o: darshan-mpiio-logutils.c darshan-logutils.h darshan-mp
 darshan-mpiio-logutils.po: darshan-mpiio-logutils.c darshan-logutils.h darshan-mpiio-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mpiio-log-format.h | uthash-1.9.2
 	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
 
-libdarshan-util.so: darshan-logutils.po darshan-posix-logutils.po darshan-mpiio-logutils.po
+darshan-hdf5-logutils.o: darshan-hdf5-logutils.c darshan-logutils.h darshan-hdf5-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-hdf5-log-format.h | uthash-1.9.2
+	$(CC) $(CFLAGS) -c  $< -o $@
+darshan-hdf5-logutils.po: darshan-hdf5-logutils.c darshan-logutils.h darshan-hdf5-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-hdf5-log-format.h | uthash-1.9.2
+	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
+
+darshan-pnetcdf-logutils.o: darshan-pnetcdf-logutils.c darshan-logutils.h darshan-pnetcdf-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-pnetcdf-log-format.h | uthash-1.9.2
+	$(CC) $(CFLAGS) -c  $< -o $@
+darshan-pnetcdf-logutils.po: darshan-pnetcdf-logutils.c darshan-logutils.h darshan-pnetcdf-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-pnetcdf-log-format.h | uthash-1.9.2
+	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
+
+libdarshan-util.so: darshan-logutils.po darshan-posix-logutils.po darshan-mpiio-logutils.po darshan-hdf5-logutils.po darshan-pnetcdf-logutils.po
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ $(LIBS)
 	
-libdarshan-util.a: darshan-logutils.o darshan-posix-logutils.o darshan-mpiio-logutils.o
+libdarshan-util.a: darshan-logutils.o darshan-posix-logutils.o darshan-mpiio-logutils.o darshan-hdf5-logutils.o darshan-pnetcdf-logutils.o
 	ar rcs libdarshan-util.a $^
 
-jenkins: util/bin/jenkins.o lookup3.o
-	$(CC) $(CFLAGS)  $(LDFLAGS) $< -o $@ lookup3.o $(LIBS)
+jenkins-hash-gen: jenkins-hash-gen.c lookup3.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-darshan-base-parser: darshan-base-parser.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) libdarshan-util.a | uthash-1.9.2
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS) 
+lookup3.o: lookup3.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
-darshan-posix-parser: darshan-posix-parser.c darshan-logutils.h darshan-posix-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-posix-log-format.h libdarshan-util.a | uthash-1.9.2
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS) 
+darshan-analyzer: darshan-analyzer.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_MOD_LOGUTIL_HEADERS) $(DARSHAN_MOD_LOG_FORMATS) libdarshan-util.a | uthash-1.9.2
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-darshan-mpiio-parser: darshan-mpiio-parser.c darshan-logutils.h darshan-mpiio-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mpiio-log-format.h libdarshan-util.a | uthash-1.9.2
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS) 
-
-darshan-bgq-parser: darshan-bgq-parser.c darshan-logutils.h darshan-bgq-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-bgq-log-format.h libdarshan-util.a | uthash-1.9.2
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS) 
-
-#darshan-parser: darshan-parser.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o | uthash-1.9.2
-#	$(CC) $(CFLAGS) $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS) 
-
-#darshan-convert: darshan-convert.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o lookup3.o
-#	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o lookup3.o -o $@ $(LIBS)
-
-#darshan-analyzer: darshan-analyzer.c $(DARSHAN_LOG_FORMAT) darshan-logutils.h darshan-logutils.o
-#	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
-
-#darshan-log-params: darshan-log-params.c $(DARSHAN_LOG_FORMAT)
-#	$(CC) $(CFLAGS)  $(LDFLAGS) $< -o $@ $(LIBS)
+darshan-convert: darshan-convert.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) libdarshan-util.a lookup3.o | uthash-1.9.2
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 #darshan-diff: darshan-diff.o $(DARSHAN_LOG_FORMAT) darshan-logutils.o darshan-logutils.h
 #	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
 #darshan-diff.o: darshan-diff.c
 #	$(CC) $(CFLAGS) -c  $< -o $@
+
+darshan-parser: darshan-parser.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_MOD_LOGUTIL_HEADERS) $(DARSHAN_MOD_LOG_FORMATS) libdarshan-util.a | uthash-1.9.2
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS) 
 
 #test/gztest: test/gztest.c mktestdir
 #	$(CC) $(CFLAGS)  $(LDFLAGS) -lz $< -o $@
@@ -100,29 +101,22 @@ darshan-bgq-parser: darshan-bgq-parser.c darshan-logutils.h darshan-bgq-logutils
 #test/gz-bench: test/gz-bench.c mktestdir
 #	$(CC) $(CFLAGS)  $(LDFLAGS) -lz $< -o $@
 
-lookup3.o: lookup3.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
 install:: all
 	install -d $(bindir)
 	install -d $(libdir)
 	install -d $(includedir)
 	install -d $(pkgconfigdir)
-#	install -m 755 darshan-parser $(bindir)
-	install -m 755 darshan-base-parser $(bindir)
-	install -m 755 darshan-posix-parser $(bindir)
-	install -m 755 darshan-mpiio-parser $(bindir)
-	install -m 755 darshan-bgq-parser $(bindir)
-#	install -m 755 darshan-convert $(bindir)
+	install -m 755 darshan-analyzer $(bindir)
+	install -m 755 darshan-convert $(bindir)
 #	install -m 755 darshan-diff $(bindir)
-#	install -m 755 darshan-analyzer $(bindir)
+	install -m 755 darshan-parser $(bindir)
 #	install -m 755 $(srcdir)/darshan-summary-per-file.sh $(bindir)
 	install -m 755 libdarshan-util.a $(libdir)
 ifeq ($(DARSHAN_ENABLE_SHARED),1)
 	install -m 755 libdarshan-util.so $(libdir)
 endif
-#	install -m 644 $(srcdir)/darshan-logutils.h $(includedir)
-#	install -m 644 $(DARSHAN_LOG_FORMAT) $(includedir)
+	install -m 644 $(srcdir)/darshan-logutils.h $(includedir)
+	install -m 644 $(DARSHAN_LOG_FORMAT) $(includedir)
 #	install -m 755 darshan-job-summary/bin/darshan-job-summary.pl $(bindir)
 #	install -d $(libdir)/TeX
 #	install -m 644 $(srcdir)/darshan-job-summary/lib/TeX/Encode.pm $(libdir)/TeX/
@@ -135,7 +129,7 @@ endif
 
 
 clean::
-	rm -f *.o *.a darshan-base-parser darshan-posix-parser darshan-mpiio-parser
+	rm -f *.o *.a darshan-analyzer darshan-convert darshan-parser jenkins-hash-gen
 
 distclean:: clean
 	rm -f darshan-runtime-config.h aclocal.m4 autom4te.cache/* config.status config.log Makefile util/bin/darshan-job-summary.pl

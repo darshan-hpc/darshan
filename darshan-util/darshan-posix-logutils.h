@@ -10,6 +10,9 @@
 #include "darshan-logutils.h"
 #include "darshan-posix-log-format.h"
 
-int darshan_log_get_posix_file(darshan_fd fd, struct darshan_posix_file *file);
+extern char *posix_counter_names[];
+extern char *posix_f_counter_names[];
+
+extern struct darshan_mod_logutil_funcs posix_logutils;
 
 #endif

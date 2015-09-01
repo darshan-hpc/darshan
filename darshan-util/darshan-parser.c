@@ -1,6 +1,7 @@
 /*
- *  (C) 2009 by Argonne National Laboratory.
- *      See COPYRIGHT in top-level directory.
+ * Copyright (C) 2015 University of Chicago.
+ * See COPYRIGHT notice in top-level directory.
+ *
  */
 
 #include <stdio.h>
@@ -15,9 +16,9 @@
 #include <getopt.h>
 #include <assert.h>
 
-#include "darshan-logutils.h"
-
 #include "uthash-1.9.2/src/uthash.h"
+
+#include "darshan-logutils.h"
 
 /*
  * Options
@@ -41,7 +42,6 @@
 #define FILETYPE_PARTSHARED (1 << 2)
 
 #define max(a,b) (((a) > (b)) ? (a) : (b))
-#define max3(a,b,c) (((a) > (b)) ? (((a) > (c)) ? (a) : (c)) : (((b) > (c)) ? (b) : (c)))
 
 /*
  * Datatypes
@@ -49,35 +49,13 @@
 typedef struct hash_entry_s
 {
     UT_hash_handle hlink;
-    uint64_t hash;
+    darshan_record_id rec_id;
     int64_t type;
     int64_t procs;
-    int64_t counters[CP_NUM_INDICES];
-    double  fcounters[CP_F_NUM_INDICES];
+    void *rec_dat;
     double cumul_time;
-    double meta_time;
     double slowest_time;
-    char name_suffix[CP_NAME_SUFFIX_LEN+1];
 } hash_entry_t;
-
-typedef struct perf_data_s
-{
-    int64_t total_bytes;
-    double slowest_rank_time;
-    double slowest_rank_meta_time;
-    int slowest_rank_rank;
-    double shared_time_by_cumul;
-    double shared_time_by_open;
-    double shared_time_by_open_lastio;
-    double shared_time_by_slowest;
-    double shared_meta_time;
-    double agg_perf_by_cumul;
-    double agg_perf_by_open;
-    double agg_perf_by_open_lastio;
-    double agg_perf_by_slowest;
-    double *rank_cumul_io_time;
-    double *rank_cumul_md_time;
-} perf_data_t;
 
 typedef struct file_data_s
 {
@@ -101,15 +79,41 @@ typedef struct file_data_s
     int64_t shared_max;
 } file_data_t;
 
+typedef struct perf_data_s
+{
+    int64_t total_bytes;
+    double slowest_rank_time;
+    double slowest_rank_meta_time;
+    int slowest_rank_rank;
+    double shared_time_by_cumul;
+    double shared_time_by_open;
+    double shared_time_by_open_lastio;
+    double shared_time_by_slowest;
+    double shared_meta_time;
+    double agg_perf_by_cumul;
+    double agg_perf_by_open;
+    double agg_perf_by_open_lastio;
+    double agg_perf_by_slowest;
+    double *rank_cumul_io_time;
+    double *rank_cumul_md_time;
+} perf_data_t;
+
 /*
  * Prototypes
  */
-void accum_perf(struct darshan_file *, hash_entry_t *, perf_data_t *);
-void calc_perf(struct darshan_job *, hash_entry_t *, perf_data_t *);
+void posix_accum_file(struct darshan_posix_file *pfile, hash_entry_t *hfile, int64_t nprocs);
+void posix_accum_perf(struct darshan_posix_file *pfile, perf_data_t *pdata);
+void posix_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
+void posix_print_total_file(struct darshan_posix_file *pfile);
+void posix_file_list(hash_entry_t *file_hash, struct darshan_record_ref *rec_hash, int detail_flag);
 
-void accum_file(struct darshan_job *, struct darshan_file *, hash_entry_t *, file_data_t *);
-void calc_file(struct darshan_job *, hash_entry_t *, file_data_t *);
-void file_list(struct darshan_job *, hash_entry_t *, int);
+void mpiio_accum_file(struct darshan_mpiio_file *mfile, hash_entry_t *hfile, int64_t nprocs);
+void mpiio_accum_perf(struct darshan_mpiio_file *mfile, perf_data_t *pdata);
+void mpiio_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
+void mpiio_print_total_file(struct darshan_mpiio_file *mfile);
+void mpiio_file_list(hash_entry_t *file_hash, struct darshan_record_ref *rec_hash, int detail_flag);
+
+void calc_perf(perf_data_t *pdata, int64_t nprocs);
 
 int usage (char *exename)
 {
@@ -191,65 +195,92 @@ int main(int argc, char **argv)
 {
     int ret;
     int mask;
+    int i, j;
     char *filename;
+    char tmp_string[4096] = {0};
+    darshan_fd fd;
+    struct darshan_header header;
     struct darshan_job job;
-    struct darshan_file cp_file;
-    char tmp_string[4096];
-    time_t tmp_time = 0;
-    darshan_fd file;
-    int i;
+    struct darshan_record_ref *rec_hash = NULL;
+    struct darshan_record_ref *ref, *tmp_ref;
     int mount_count;
-    int64_t* devs;
     char** mnt_pts;
     char** fs_types;
-    int last_rank = 0;
+    time_t tmp_time = 0;
     char *token;
     char *save;
     char buffer[DARSHAN_JOB_METADATA_LEN];
+    int empty_mods = 0;
+    char *mod_buf;
+    int mod_buf_sz;
 
     hash_entry_t *file_hash = NULL;
     hash_entry_t *curr = NULL;
-    hash_entry_t *tmp = NULL;
+    hash_entry_t *tmp_file = NULL;
     hash_entry_t total;
-    perf_data_t pdata;
     file_data_t fdata;
+    perf_data_t pdata;
 
-    memset(&pdata, 0, sizeof(pdata));
     memset(&total, 0, sizeof(total));
+    memset(&fdata, 0, sizeof(fdata));
+    memset(&pdata, 0, sizeof(pdata));
 
     mask = parse_args(argc, argv, &filename);
 
-    file = darshan_log_open(filename, "r");
-    if(!file)
+    fd = darshan_log_open(filename);
+    if(!fd)
     {
         fprintf(stderr, "darshan_log_open() failed to open %s\n.", filename);
         return(-1);
     }
-   
-    /* read job info */
-    ret = darshan_log_getjob(file, &job);
+
+    /* read darshan log header */
+    ret = darshan_log_getheader(fd, &header);
     if(ret < 0)
     {
-        fprintf(stderr, "Error: unable to read job information from log file.\n");
-        darshan_log_close(file);
+        fprintf(stderr, "darshan_log_getheader() failed to read log header.\n");
+        darshan_log_close(fd);
         return(-1);
     }
 
-    /* warn user about any missing information in this log format */
-    darshan_log_print_version_warnings(&job);
+    /* read darshan job info */
+    ret = darshan_log_getjob(fd, &job);
+    if(ret < 0)
+    {
+        fprintf(stderr, "darshan_log_getjob() failed to read job data.\n");
+        darshan_log_close(fd);
+        return(-1);
+    }
 
-    ret = darshan_log_getexe(file, tmp_string);
+    /* get the original command line for this job */
+    ret = darshan_log_getexe(fd, tmp_string);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to read trailing job information.\n");
-        darshan_log_close(file);
+        darshan_log_close(fd);
+        return(-1);
+    }
+
+    /* get the mount information for this log */
+    ret = darshan_log_getmounts(fd, &mnt_pts, &fs_types, &mount_count);
+    if(ret < 0)
+    {
+        fprintf(stderr, "darshan_log_getmounts() failed to read mount information.\n");
+        darshan_log_close(fd);
+        return(-1);
+    }
+
+    /* read hash of darshan records */
+    ret = darshan_log_gethash(fd, &rec_hash);
+    if(ret < 0)
+    {
+        fprintf(stderr, "darshan_log_getmap() failed to read record map.\n");
+        darshan_log_close(fd);
         return(-1);
     }
 
     /* print job summary */
-    printf("# darshan log version: %s\n", job.version_string);
-    printf("# size of file statistics: %zu bytes\n", sizeof(cp_file));
-    printf("# size of job statistics: %zu bytes\n", sizeof(job));
+    printf("# darshan log version: %s\n", header.version_string);
     printf("# exe: %s\n", tmp_string);
     printf("# uid: %" PRId64 "\n", job.uid);
     printf("# jobid: %" PRId64 "\n", job.jobid);
@@ -282,98 +313,39 @@ int main(int argc, char **argv)
         value++;
         printf("# metadata: %s = %s\n", key, value);
     }
- 
+
+    /* print breakdown of each log file component's contribution to file size */
+    printf("\n# log file component sizes (compressed)\n");
+    printf("# -------------------------------------------------------\n");
+    printf("# header: %zu bytes (uncompressed)\n", sizeof(struct darshan_header));
+    printf("# job data: %zu bytes\n", header.rec_map.off - sizeof(struct darshan_header));
+    printf("# record table: %zu bytes\n", header.rec_map.len);
+    for(i=0; i<DARSHAN_MAX_MODS; i++)
+    {
+        if(header.mod_map[i].len)
+        {
+            printf("# %s module: %zu bytes\n", darshan_module_names[i],
+                header.mod_map[i].len);
+        }
+    }
+
     /* print table of mounted file systems */
-    ret = darshan_log_getmounts(file, &devs, &mnt_pts, &fs_types, &mount_count);
-    printf("\n# mounted file systems (device, mount point, and fs type)\n");
+    printf("\n# mounted file systems (mount point and fs type)\n");
     printf("# -------------------------------------------------------\n");
     for(i=0; i<mount_count; i++)
     {
-        printf("# mount entry: %" PRId64 "\t%s\t%s\n", devs[i], mnt_pts[i], fs_types[i]);
+        printf("# mount entry:\t%s\t%s\n", mnt_pts[i], fs_types[i]);
     }
-  
-    /* try to retrieve first record (may not exist) */
-    ret = darshan_log_getfile(file, &job, &cp_file);
-    if(ret < 0)
-    {
-        fprintf(stderr, "Error: failed to parse log file.\n");
-        fflush(stderr);
+
+    mod_buf = malloc(DARSHAN_DEF_COMP_BUF_SZ);
+    if(!mod_buf)
         return(-1);
-    }
-    if(ret == 0)
-    {
-        /* it looks like the app didn't open any files */
-        printf("# no files opened.\n");
-        darshan_log_close(file);
-        return(0);
-    }
-
-    if ((mask & OPTION_BASE))
-    {
-        printf("\n# description of columns:\n");
-        printf("#   <rank>: MPI rank.  -1 indicates that the file is shared\n");
-        printf("#      across all processes and statistics are aggregated.\n");
-        printf("#   <file>: hash of file path.  0 indicates that statistics\n");
-        printf("#      are condensed to refer to all files opened at the given\n");
-        printf("#      process.\n");
-        printf("#   <counter> and <value>: statistical counters.\n");
-        printf("#      A value of -1 indicates that Darshan could not monitor\n");
-        printf("#      that counter, and its value should be ignored.\n");
-        printf("#   <name suffix>: last %d characters of file name.\n", CP_NAME_SUFFIX_LEN);
-        printf("#   <mount pt>: mount point that the file resides on.\n");
-        printf("#   <fs type>: type of file system that the file resides on.\n");
-        printf("\n# description of counters:\n");
-        printf("#   CP_POSIX_*: posix operation counts.\n");
-        printf("#   CP_COLL_*: MPI collective operation counts.\n");
-        printf("#   CP_INDEP_*: MPI independent operation counts.\n");
-        printf("#   CP_SPIT_*: MPI split collective operation counts.\n");
-        printf("#   CP_NB_*: MPI non blocking operation counts.\n");
-        printf("#   READS,WRITES,OPENS,SEEKS,STATS, and MMAPS are types of operations.\n");
-        printf("#   CP_*_NC_OPENS: number of indep. and collective pnetcdf opens.\n");
-        printf("#   CP_HDF5_OPENS: number of hdf5 opens.\n");
-        printf("#   CP_COMBINER_*: combiner counts for MPI mem and file datatypes.\n");
-        printf("#   CP_HINTS: number of times MPI hints were used.\n");
-        printf("#   CP_VIEWS: number of times MPI file views were used.\n");
-        printf("#   CP_MODE: mode that file was opened in.\n");
-        printf("#   CP_BYTES_*: total bytes read and written.\n");
-        printf("#   CP_MAX_BYTE_*: highest offset byte read and written.\n");
-        printf("#   CP_CONSEC_*: number of exactly adjacent reads and writes.\n");
-        printf("#   CP_SEQ_*: number of reads and writes from increasing offsets.\n");
-        printf("#   CP_RW_SWITCHES: number of times access alternated between read and write.\n");
-        printf("#   CP_*_ALIGNMENT: memory and file alignment.\n");
-        printf("#   CP_*_NOT_ALIGNED: number of reads and writes that were not aligned.\n");
-        printf("#   CP_MAX_*_TIME_SIZE: size of the slowest read and write operations.\n");
-        printf("#   CP_SIZE_READ_*: histogram of read access sizes.\n");
-        printf("#   CP_SIZE_READ_AGG_*: histogram of MPI datatype total sizes.\n");
-        printf("#   CP_EXTENT_READ_*: histogram of MPI datatype extents.\n");
-        printf("#   CP_STRIDE*_STRIDE: the four most common strides detected.\n");
-        printf("#   CP_STRIDE*_COUNT: count of the four most common strides.\n");
-        printf("#   CP_ACCESS*_ACCESS: the four most common access sizes.\n");
-        printf("#   CP_ACCESS*_COUNT: count of the four most common access sizes.\n");
-        printf("#   CP_DEVICE: File system identifier.\n");
-        printf("#   CP_SIZE_AT_OPEN: size of file when first opened.\n");
-        printf("#   CP_*_RANK_BYTES: fastest, slowest and variance of bytes transfer.\n");
-        printf("#   CP_F_OPEN_TIMESTAMP: timestamp of first open (mpi or posix).\n");
-        printf("#   CP_F_*_START_TIMESTAMP: timestamp of first read/write (mpi or posix).\n");
-        printf("#   CP_F_*_END_TIMESTAMP: timestamp of last read/write (mpi or posix).\n");
-        printf("#   CP_F_CLOSE_TIMESTAMP: timestamp of last close (mpi or posix).\n");
-        printf("#   CP_F_POSIX_READ/WRITE_TIME: cumulative time spent in posix reads or writes.\n");
-        printf("#   CP_F_MPI_READ/WRITE_TIME: cumulative time spent in mpi-io reads or writes.\n");
-        printf("#   CP_F_POSIX_META_TIME: cumulative time spent in posix open, close, fsync, stat and seek, .\n");
-        printf("#   CP_F_MPI_META_TIME: cumulative time spent in mpi-io open, close, set_view, and sync.\n");
-        printf("#   CP_MAX_*_TIME: duration of the slowest read and write operations.\n");
-        printf("#   CP_*_RANK_TIME: fastest, slowest variance of transfer time. Note that these counters show MPI-IO time for files accessed using MPI-IO, and POSIX time otherwise.\n");
-
-        printf("\n");
-        CP_PRINT_HEADER();
-    }
 
     pdata.rank_cumul_io_time = malloc(sizeof(double)*job.nprocs);
     pdata.rank_cumul_md_time = malloc(sizeof(double)*job.nprocs);
     if (!pdata.rank_cumul_io_time || !pdata.rank_cumul_md_time)
     {
-        perror("malloc failed");
-        darshan_log_close(file);
+        darshan_log_close(fd);
         return(-1);
     }
     else
@@ -382,169 +354,285 @@ int main(int argc, char **argv)
         memset(pdata.rank_cumul_md_time, 0, sizeof(double)*job.nprocs);
     }
 
-    do
+    for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
-        char* mnt_pt = NULL;
-        char* fs_type = NULL;
-        hash_entry_t *hfile = NULL;
+        int mod_bytes_left;
+        void *mod_buf_p;
+        void *rec_p = NULL;
+        darshan_record_id rec_id;
+        void *save_io, *save_md;
 
-        if(cp_file.rank != -1 && cp_file.rank < last_rank)
+        /* reset data structures for each module */
+        mod_buf_sz = DARSHAN_DEF_COMP_BUF_SZ;
+        memset(mod_buf, 0, DARSHAN_DEF_COMP_BUF_SZ);
+
+        /* check each module for any data */
+        ret = darshan_log_getmod(fd, i, mod_buf, &mod_buf_sz);
+        if(ret < 0)
         {
-            fprintf(stderr, "Error: log file contains out of order rank data.\n");
-            fflush(stderr);
+            fprintf(stderr, "Error: failed to get module %s data\n",
+                darshan_module_names[i]);
+            darshan_log_close(fd);
             return(-1);
         }
-        if(cp_file.rank != -1)
-            last_rank = cp_file.rank;
-        
-        for(i=0; i<mount_count; i++)
+        else if(ret == 0)
         {
-            if(cp_file.counters[CP_DEVICE] == devs[i])
+            /* skip modules not present in log file */
+            empty_mods++;
+            continue;
+        }
+
+        /* skip modules with no defined logutil handlers */
+        if(!mod_logutils[i])
+        {
+            fprintf(stderr, "Warning: no log utility handlers defined "
+                "for module %s, SKIPPING\n", darshan_module_names[i]);
+            continue;
+        }
+
+        printf("\n# *******************************************************\n");
+        printf("# %s module data\n", darshan_module_names[i]);
+        printf("# *******************************************************\n");
+
+        if(mask & OPTION_BASE)
+        {
+            /* TODO: does each module print header of what each counter means??? */
+            DARSHAN_PRINT_HEADER();
+        }
+
+        /* this module has data to be parsed and printed */
+        mod_bytes_left = mod_buf_sz;
+        mod_buf_p = mod_buf;
+
+        /* loop over each of this module's records and print them */
+        while (mod_bytes_left > 0)
+        {
+            char *mnt_pt = NULL;
+            char *fs_type = NULL;
+            hash_entry_t *hfile = NULL;
+
+            ret = mod_logutils[i]->log_get_record(&mod_buf_p, &mod_bytes_left,
+                &rec_p, &rec_id, fd->swap_flag);
+            if(ret < 0)
             {
-                mnt_pt = mnt_pts[i];
-                fs_type = fs_types[i];
-                break;
+                fprintf(stderr, "Error: failed to parse module %s data record\n",
+                    darshan_module_names[i]);
+                darshan_log_close(fd);
+                return(-1);
+            }
+
+            /* get the pathname for this record */
+            HASH_FIND(hlink, rec_hash, &rec_id, sizeof(darshan_record_id), ref);
+            assert(ref);
+
+            /* get mount point and fs type associated with this record */
+            for(j=0; j<mount_count; j++)
+            {
+                if(strncmp(mnt_pts[j], ref->rec.name, strlen(mnt_pts[j])) == 0)
+                {
+                    mnt_pt = mnt_pts[j];
+                    fs_type = fs_types[j];
+                    break;
+                }
+            }
+            if(!mnt_pt)
+                mnt_pt = "UNKNOWN";
+            if(!fs_type)
+                fs_type = "UNKNOWN";
+
+            if(mask & OPTION_BASE)
+            {
+                /* print the corresponding module data for this record */
+                mod_logutils[i]->log_print_record(rec_p, ref->rec.name,
+                    mnt_pt, fs_type);
+            }
+
+            /* we calculate more detailed stats for POSIX and MPI-IO modules, 
+             * if the parser is executed with more than the base option
+             */
+            if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD)
+                continue;
+
+            HASH_FIND(hlink, file_hash, &rec_id, sizeof(darshan_record_id), hfile);
+            if(!hfile)
+            {
+                hfile = malloc(sizeof(*hfile));
+                if(!hfile)
+                    return(-1);
+
+                /* init */
+                memset(hfile, 0, sizeof(*hfile));
+                hfile->rec_id = rec_id;
+                hfile->type = 0;
+                hfile->procs = 0;
+                hfile->rec_dat = NULL;
+                hfile->cumul_time = 0.0;
+                hfile->slowest_time = 0.0;
+
+                HASH_ADD(hlink, file_hash, rec_id, sizeof(darshan_record_id), hfile);
+            }
+
+            if(i == DARSHAN_POSIX_MOD)
+            {
+                posix_accum_file((struct darshan_posix_file*)rec_p, &total, job.nprocs);
+                posix_accum_file((struct darshan_posix_file*)rec_p, hfile, job.nprocs);
+                posix_accum_perf((struct darshan_posix_file*)rec_p, &pdata);
+            }
+            else if(i == DARSHAN_MPIIO_MOD)
+            {
+                mpiio_accum_file((struct darshan_mpiio_file*)rec_p, &total, job.nprocs);
+                mpiio_accum_file((struct darshan_mpiio_file*)rec_p, hfile, job.nprocs);
+                mpiio_accum_perf((struct darshan_mpiio_file*)rec_p, &pdata);
             }
         }
-        if(!mnt_pt)
-            mnt_pt = "UNKNOWN";
-        if(!fs_type)
-            fs_type = "UNKNOWN";
 
-        HASH_FIND(hlink,file_hash,&cp_file.hash,sizeof(int64_t),hfile);
-        if (!hfile)
+        /* we calculate more detailed stats for POSIX and MPI-IO modules, 
+         * if the parser is executed with more than the base option
+         */
+        if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD)
+            continue;
+
+        /* Total Calc */
+        if(mask & OPTION_TOTAL)
         {
-            hfile = (hash_entry_t*) malloc(sizeof(*hfile));
-            if (!hfile)
+            if(i == DARSHAN_POSIX_MOD)
             {
-                fprintf(stderr,"malloc failure");
-                exit(1);
+                posix_print_total_file((struct darshan_posix_file*)total.rec_dat);
             }
-
-            /* init */
-            memset(hfile, 0, sizeof(*hfile));
-            hfile->hash          = cp_file.hash;
-            memcpy(hfile->name_suffix, cp_file.name_suffix, CP_NAME_SUFFIX_LEN+1);
-            hfile->type          = 0;
-            hfile->procs         = 0;
-            hfile->cumul_time    = 0.0;
-            hfile->meta_time     = 0.0;
-            hfile->slowest_time  = 0.0;
-
-            HASH_ADD(hlink,file_hash,hash,sizeof(int64_t),hfile);
-        }
-
-        accum_file(&job, &cp_file, &total, NULL);
-        accum_file(&job, &cp_file, hfile, &fdata);
-        accum_perf(&cp_file, hfile, &pdata);
-
-        if ((mask & OPTION_BASE))
-        {
-            for(i=0; i<CP_NUM_INDICES; i++)
+            else if(i == DARSHAN_MPIIO_MOD)
             {
-                CP_PRINT(&job, &cp_file, i, mnt_pt, fs_type);
-            }
-            for(i=0; i<CP_F_NUM_INDICES; i++)
-            {
-                CP_F_PRINT(&job, &cp_file, i, mnt_pt, fs_type);
+                mpiio_print_total_file((struct darshan_mpiio_file*)total.rec_dat);
             }
         }
-    }while((ret = darshan_log_getfile(file, &job, &cp_file)) == 1);
 
-    /* Total Calc */
-    if ((mask & OPTION_TOTAL))
-    {
-        for(i=0; i<CP_NUM_INDICES; i++)
+        /* File Calc */
+        if(mask & OPTION_FILE)
         {
-            printf("total_%s: %" PRId64 "\n",
-                   darshan_names[i], total.counters[i]);
+            if(i == DARSHAN_POSIX_MOD)
+            {
+                posix_calc_file(file_hash, &fdata);
+            }
+            else if(i == DARSHAN_MPIIO_MOD)
+            {
+                mpiio_calc_file(file_hash, &fdata);
+            }
+
+            printf("\n# files\n");
+            printf("# -----\n");
+            printf("# total: %" PRId64 " %" PRId64 " %" PRId64 "\n",
+                   fdata.total,
+                   fdata.total_size,
+                   fdata.total_max);
+            printf("# read_only: %" PRId64 " %" PRId64 " %" PRId64 "\n",
+                   fdata.read_only,
+                   fdata.read_only_size,
+                   fdata.read_only_max);
+            printf("# write_only: %" PRId64 " %" PRId64 " %" PRId64 "\n",
+                   fdata.write_only,
+                   fdata.write_only_size,
+                   fdata.write_only_max);
+            printf("# read_write: %" PRId64 " %" PRId64 " %" PRId64 "\n",
+                   fdata.read_write,
+                   fdata.read_write_size,
+                   fdata.read_write_max);
+            printf("# unique: %" PRId64 " %" PRId64 " %" PRId64 "\n",
+                   fdata.unique,
+                   fdata.unique_size,
+                   fdata.unique_max);
+            printf("# shared: %" PRId64 " %" PRId64 " %" PRId64 "\n",
+                   fdata.shared,
+                   fdata.shared_size,
+                   fdata.shared_max);
         }
-        for(i=0; i<CP_F_NUM_INDICES; i++)
+
+        /* Perf Calc */
+        if(mask & OPTION_PERF)
         {
-            printf("total_%s: %lf\n",
-                   darshan_f_names[i], total.fcounters[i]);
+            calc_perf(&pdata, job.nprocs);
+
+            printf("\n# performance\n");
+            printf("# -----------\n");
+            printf("# total_bytes: %" PRId64 "\n", pdata.total_bytes);
+            printf("#\n");
+            printf("# I/O timing for unique files (seconds):\n");
+            printf("# ...........................\n");
+            printf("# unique files: slowest_rank_io_time: %lf\n", pdata.slowest_rank_time);
+            printf("# unique files: slowest_rank_meta_time: %lf\n", pdata.slowest_rank_meta_time);
+            printf("# unique files: slowest rank: %d\n", pdata.slowest_rank_rank);
+            printf("#\n");
+            printf("# I/O timing for shared files (seconds):\n");
+            printf("# (multiple estimates shown; time_by_slowest is generally the most accurate)\n");
+            printf("# ...........................\n");
+            printf("# shared files: time_by_cumul_io_only: %lf\n", pdata.shared_time_by_cumul);
+            printf("# shared files: time_by_cumul_meta_only: %lf\n", pdata.shared_meta_time);
+            printf("# shared files: time_by_open: %lf\n", pdata.shared_time_by_open);
+            printf("# shared files: time_by_open_lastio: %lf\n", pdata.shared_time_by_open_lastio);
+            printf("# shared files: time_by_slowest: %lf\n", pdata.shared_time_by_slowest);
+            printf("#\n");
+            printf("# Aggregate performance, including both shared and unique files (MiB/s):\n");
+            printf("# (multiple estimates shown; agg_perf_by_slowest is generally the most accurate)\n");
+            printf("# ...........................\n");
+            printf("# agg_perf_by_cumul: %lf\n", pdata.agg_perf_by_cumul);
+            printf("# agg_perf_by_open: %lf\n", pdata.agg_perf_by_open);
+            printf("# agg_perf_by_open_lastio: %lf\n", pdata.agg_perf_by_open_lastio);
+            printf("# agg_perf_by_slowest: %lf\n", pdata.agg_perf_by_slowest);
+        }
+
+        if((mask & OPTION_FILE_LIST) || (mask & OPTION_FILE_LIST_DETAILED))
+        {
+            if(i == DARSHAN_POSIX_MOD)
+            {
+                if(mask & OPTION_FILE_LIST_DETAILED)
+                    posix_file_list(file_hash, rec_hash, 1);
+                else
+                    posix_file_list(file_hash, rec_hash, 0);
+            }
+            else if(i == DARSHAN_MPIIO_MOD)
+            {
+                if(mask & OPTION_FILE_LIST_DETAILED)
+                    mpiio_file_list(file_hash, rec_hash, 1);
+                else
+                    mpiio_file_list(file_hash, rec_hash, 0);
+            }
+        }
+
+        /* reset data structures for next module */
+        if(total.rec_dat) free(total.rec_dat);
+        memset(&total, 0, sizeof(total));
+        memset(&fdata, 0, sizeof(fdata));
+        save_io = pdata.rank_cumul_io_time;
+        save_md = pdata.rank_cumul_md_time;
+        memset(&pdata, 0, sizeof(pdata));
+        memset(save_io, 0, sizeof(double)*job.nprocs);
+        memset(save_md, 0, sizeof(double)*job.nprocs);
+        pdata.rank_cumul_io_time = save_io;
+        pdata.rank_cumul_md_time = save_md;
+
+        HASH_ITER(hlink, file_hash, curr, tmp_file)
+        {
+            HASH_DELETE(hlink, file_hash, curr);
+            if(curr->rec_dat) free(curr->rec_dat);
+            free(curr);
         }
     }
+    if(empty_mods == DARSHAN_MAX_MODS)
+        printf("\n# no module data available.\n");
 
-    /* Perf Calc */
-    calc_perf(&job, file_hash, &pdata);
-    if ((mask & OPTION_PERF))
+    darshan_log_close(fd);
+
+    free(mod_buf);
+    free(pdata.rank_cumul_io_time);
+    free(pdata.rank_cumul_md_time);
+
+    /* free record hash data */
+    HASH_ITER(hlink, rec_hash, ref, tmp_ref)
     {
-        printf("\n# performance\n");
-        printf("# -----------\n");
-        printf("# total_bytes: %" PRId64 "\n", pdata.total_bytes);
-        printf("#\n");
-        printf("# I/O timing for unique files (seconds):\n");
-        printf("# ...........................\n");
-        printf("# unique files: slowest_rank_io_time: %lf\n", pdata.slowest_rank_time);
-        printf("# unique files: slowest_rank_meta_time: %lf\n", pdata.slowest_rank_meta_time);
-        printf("# unique files: slowest rank: %d\n", pdata.slowest_rank_rank);
-        printf("#\n");
-        printf("# I/O timing for shared files (seconds):\n");
-        printf("# (multiple estimates shown; time_by_slowest is generally the most accurate)\n");
-        printf("# ...........................\n");
-        printf("# shared files: time_by_cumul_io_only: %lf\n", pdata.shared_time_by_cumul);
-        printf("# shared files: time_by_cumul_meta_only: %lf\n", pdata.shared_meta_time);
-        printf("# shared files: time_by_open: %lf\n", pdata.shared_time_by_open);
-        printf("# shared files: time_by_open_lastio: %lf\n", pdata.shared_time_by_open_lastio);
-        printf("# shared files: time_by_slowest: %lf\n", pdata.shared_time_by_slowest);
-        printf("#\n");
-        printf("# Aggregate performance, including both shared and unique files (MiB/s):\n");
-        printf("# (multiple estimates shown; agg_perf_by_slowest is generally the most accurate)\n");
-        printf("# ...........................\n");
-        printf("# agg_perf_by_cumul: %lf\n", pdata.agg_perf_by_cumul);
-        printf("# agg_perf_by_open: %lf\n", pdata.agg_perf_by_open);
-        printf("# agg_perf_by_open_lastio: %lf\n", pdata.agg_perf_by_open_lastio);
-        printf("# agg_perf_by_slowest: %lf\n", pdata.agg_perf_by_slowest);
+        HASH_DELETE(hlink, rec_hash, ref);
+        free(ref->rec.name);
+        free(ref);
     }
 
-    /* File Calc */
-    calc_file(&job, file_hash, &fdata);
-    if ((mask & OPTION_FILE))
-    {
-        printf("\n# files\n");
-        printf("# -----\n");
-        printf("# total: %" PRId64 " %" PRId64 " %" PRId64 "\n",
-               fdata.total,
-               fdata.total_size,
-               fdata.total_max);
-        printf("# read_only: %" PRId64 " %" PRId64 " %" PRId64 "\n",
-               fdata.read_only,
-               fdata.read_only_size,
-               fdata.read_only_max);
-        printf("# write_only: %" PRId64 " %" PRId64 " %" PRId64 "\n",
-               fdata.write_only,
-               fdata.write_only_size,
-               fdata.write_only_max);
-        printf("# read_write: %" PRId64 " %" PRId64 " %" PRId64 "\n",
-               fdata.read_write,
-               fdata.read_write_size,
-               fdata.read_write_max);
-        printf("# unique: %" PRId64 " %" PRId64 " %" PRId64 "\n",
-               fdata.unique,
-               fdata.unique_size,
-               fdata.unique_max);
-        printf("# shared: %" PRId64 " %" PRId64 " %" PRId64 "\n",
-               fdata.shared,
-               fdata.shared_size,
-               fdata.shared_max);
-    }
-
-    if ((mask & OPTION_FILE_LIST) || mask & OPTION_FILE_LIST_DETAILED)
-    {
-        if(mask & OPTION_FILE_LIST_DETAILED)
-            file_list(&job, file_hash, 1);
-        else
-            file_list(&job, file_hash, 0);
-    }
-
-    if(ret < 0)
-    {
-        fprintf(stderr, "Error: failed to parse log file.\n");
-        fflush(stderr);
-        return(-1);
-    }
-
+    /* free mount info */
     for(i=0; i<mount_count; i++)
     {
         free(mnt_pts[i]);
@@ -552,75 +640,44 @@ int main(int argc, char **argv)
     }
     if(mount_count > 0)
     {
-        free(devs);
         free(mnt_pts);
         free(fs_types);
-    }
- 
-    darshan_log_close(file);
-
-    HASH_ITER(hlink, file_hash, curr, tmp)
-    {
-        HASH_DELETE(hlink, file_hash, curr);
-        free(curr);
     }
 
     return(0);
 }
 
-void accum_file(struct darshan_job *job,
-                struct darshan_file *dfile,
-                hash_entry_t *hfile, 
-                file_data_t *fdata)
+void posix_accum_file(struct darshan_posix_file *pfile,
+                      hash_entry_t *hfile,
+                      int64_t nprocs)
 {
-    int i;
+    int i, j;
+    int set;
+    int min_ndx;
+    int64_t min;
+    struct darshan_posix_file* tmp;
 
     hfile->procs += 1;
 
-    if (dfile->rank == -1)
+    if(pfile->rank == -1)
     {
-        if(job->version_string[0] == '1')
-        {
-            hfile->slowest_time = 
-                max((dfile->fcounters[CP_F_READ_END_TIMESTAMP] 
-                    - dfile->fcounters[CP_F_OPEN_TIMESTAMP]),
-                    (dfile->fcounters[CP_F_WRITE_END_TIMESTAMP] 
-                    - dfile->fcounters[CP_F_OPEN_TIMESTAMP]));
-            if(hfile->slowest_time < 0)
-                hfile->slowest_time = 0;
-        }
-        else
-        {
-            hfile->slowest_time = dfile->fcounters[CP_F_SLOWEST_RANK_TIME];
-        }
+        hfile->slowest_time = pfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
     }
     else
     {
-        if(dfile->counters[CP_INDEP_OPENS] || dfile->counters[CP_COLL_OPENS])
-        {
-            /* MPI file */
-            hfile->slowest_time = max(hfile->slowest_time, 
-                (dfile->fcounters[CP_F_MPI_META_TIME] +
-                dfile->fcounters[CP_F_MPI_READ_TIME] +
-                dfile->fcounters[CP_F_MPI_WRITE_TIME]));
-        }
-        else
-        {
-            /* POSIX file */
-            hfile->slowest_time = max(hfile->slowest_time, 
-                (dfile->fcounters[CP_F_POSIX_META_TIME] +
-                dfile->fcounters[CP_F_POSIX_READ_TIME] +
-                dfile->fcounters[CP_F_POSIX_WRITE_TIME]));
-        }
+        hfile->slowest_time = max(hfile->slowest_time, 
+            (pfile->fcounters[POSIX_F_META_TIME] +
+            pfile->fcounters[POSIX_F_READ_TIME] +
+            pfile->fcounters[POSIX_F_WRITE_TIME]));
     }
 
-    if (dfile->rank == -1)
+    if(pfile->rank == -1)
     {
-        hfile->procs = job->nprocs;
+        hfile->procs = nprocs;
         hfile->type |= FILETYPE_SHARED;
 
     }
-    else if (hfile->procs > 1)
+    else if(hfile->procs > 1)
     {
         hfile->type &= (~FILETYPE_UNIQUE);
         hfile->type |= FILETYPE_PARTSHARED;
@@ -630,137 +687,163 @@ void accum_file(struct darshan_job *job,
         hfile->type |= FILETYPE_UNIQUE;
     }
 
-    if(dfile->counters[CP_INDEP_OPENS] || dfile->counters[CP_COLL_OPENS])
-    {
-        hfile->cumul_time += dfile->fcounters[CP_F_MPI_META_TIME] +
-                             dfile->fcounters[CP_F_MPI_READ_TIME] +
-                             dfile->fcounters[CP_F_MPI_WRITE_TIME];
-    }
-    else
-    {
-        hfile->cumul_time += dfile->fcounters[CP_F_POSIX_META_TIME] +
-                             dfile->fcounters[CP_F_POSIX_READ_TIME] +
-                             dfile->fcounters[CP_F_POSIX_WRITE_TIME];
-    }
+    hfile->cumul_time += pfile->fcounters[POSIX_F_META_TIME] +
+                         pfile->fcounters[POSIX_F_READ_TIME] +
+                         pfile->fcounters[POSIX_F_WRITE_TIME];
 
-    for (i = 0; i < CP_NUM_INDICES; i++)
+    if(hfile->rec_dat == NULL)
+    {
+        hfile->rec_dat = malloc(sizeof(struct darshan_posix_file));
+        assert(hfile->rec_dat);
+        memset(hfile->rec_dat, 0, sizeof(struct darshan_posix_file));
+    }
+    tmp = (struct darshan_posix_file*)hfile->rec_dat;
+
+    for(i = 0; i < POSIX_NUM_INDICES; i++)
     {
         switch(i)
         {
-        case CP_DEVICE:
-        case CP_MODE:
-        case CP_MEM_ALIGNMENT:
-        case CP_FILE_ALIGNMENT:
-            if(CP_FILE_PARTIAL(hfile))
-                hfile->counters[i] = dfile->counters[i];
+        case POSIX_MODE:
+        case POSIX_MEM_ALIGNMENT:
+        case POSIX_FILE_ALIGNMENT:
+            if(POSIX_FILE_PARTIAL(tmp))
+                tmp->counters[i] = pfile->counters[i];
             break;
-        case CP_SIZE_AT_OPEN:
-            if (hfile->counters[i] == -1)
+        case POSIX_MAX_BYTE_READ:
+        case POSIX_MAX_BYTE_WRITTEN:
+            if (tmp->counters[i] < pfile->counters[i])
             {
-                hfile->counters[i] = dfile->counters[i];
-            }
-            if (hfile->counters[i] > dfile->counters[i] && !CP_FILE_PARTIAL(dfile))
-            {
-                hfile->counters[i] = dfile->counters[i];
+                tmp->counters[i] = pfile->counters[i];
             }
             break;
-        case CP_MAX_BYTE_READ:
-        case CP_MAX_BYTE_WRITTEN:
-            if (hfile->counters[i] < dfile->counters[i])
-            {
-                hfile->counters[i] = dfile->counters[i];
-            }
-            break;
-
-        case CP_STRIDE1_STRIDE:
-        case CP_STRIDE2_STRIDE:
-        case CP_STRIDE3_STRIDE:
-        case CP_STRIDE4_STRIDE:
-        case CP_ACCESS1_ACCESS:
-        case CP_ACCESS2_ACCESS:
-        case CP_ACCESS3_ACCESS:
-        case CP_ACCESS4_ACCESS:
+        case POSIX_STRIDE1_STRIDE:
+        case POSIX_STRIDE2_STRIDE:
+        case POSIX_STRIDE3_STRIDE:
+        case POSIX_STRIDE4_STRIDE:
+        case POSIX_ACCESS1_ACCESS:
+        case POSIX_ACCESS2_ACCESS:
+        case POSIX_ACCESS3_ACCESS:
+        case POSIX_ACCESS4_ACCESS:
            /*
             * do nothing here because these will be stored
             * when the _COUNT is accessed.
             */
            break;
- 
-        case CP_STRIDE1_COUNT:
-        case CP_STRIDE2_COUNT:
-        case CP_STRIDE3_COUNT:
-        case CP_STRIDE4_COUNT:
-        case CP_ACCESS1_COUNT:
-        case CP_ACCESS2_COUNT:
-        case CP_ACCESS3_COUNT:
-        case CP_ACCESS4_COUNT:
-            if (hfile->counters[i] < dfile->counters[i])
+        case POSIX_STRIDE1_COUNT:
+        case POSIX_STRIDE2_COUNT:
+        case POSIX_STRIDE3_COUNT:
+        case POSIX_STRIDE4_COUNT:
+            set = 0;
+            min_ndx = POSIX_STRIDE1_COUNT;
+            min = tmp->counters[min_ndx];
+            for(j = POSIX_STRIDE1_COUNT; j <= POSIX_STRIDE4_COUNT; j++)
             {
-                hfile->counters[i]   = dfile->counters[i];
-                hfile->counters[i-4] = dfile->counters[i-4];
+                if(tmp->counters[j-4] == pfile->counters[i-4])
+                {
+                    tmp->counters[j] += pfile->counters[i];
+                    set = 1;
+                    break;
+                }
+                if(tmp->counters[j] < min)
+                {
+                    min_ndx = j;
+                    min = tmp->counters[j];
+                }
+            }
+            if(!set && (pfile->counters[i] > min))
+            {
+                tmp->counters[min_ndx] = pfile->counters[i];
+                tmp->counters[min_ndx-4] = pfile->counters[i-4];
             }
             break;
-        case CP_FASTEST_RANK:
-        case CP_SLOWEST_RANK:
-        case CP_FASTEST_RANK_BYTES:
-        case CP_SLOWEST_RANK_BYTES:
-            hfile->counters[i] = 0;
+        case POSIX_ACCESS1_COUNT:
+        case POSIX_ACCESS2_COUNT:
+        case POSIX_ACCESS3_COUNT:
+        case POSIX_ACCESS4_COUNT:
+            set = 0;
+            min_ndx = POSIX_ACCESS1_COUNT;
+            min = tmp->counters[min_ndx];
+            for(j = POSIX_ACCESS1_COUNT; j <= POSIX_ACCESS4_COUNT; j++)
+            {
+                if(tmp->counters[j-4] == pfile->counters[i-4])
+                {
+                    tmp->counters[j] += pfile->counters[i];
+                    set = 1;
+                    break;
+                }
+                if(tmp->counters[j] < min)
+                {
+                    min_ndx = j;
+                    min = tmp->counters[j];
+                }
+            }
+            if(!set && (pfile->counters[i] > min))
+            {
+                tmp->counters[i] = pfile->counters[i];
+                tmp->counters[i-4] = pfile->counters[i-4];
+            }
             break;
-        case CP_MAX_READ_TIME_SIZE:
-        case CP_MAX_WRITE_TIME_SIZE:
+        case POSIX_FASTEST_RANK:
+        case POSIX_SLOWEST_RANK:
+        case POSIX_FASTEST_RANK_BYTES:
+        case POSIX_SLOWEST_RANK_BYTES:
+            tmp->counters[i] = 0;
+            break;
+        case POSIX_MAX_READ_TIME_SIZE:
+        case POSIX_MAX_WRITE_TIME_SIZE:
             break;
         default:
-            hfile->counters[i] += dfile->counters[i];
+            tmp->counters[i] += pfile->counters[i];
             break;
         }
     }
 
-    for (i = 0; i < CP_F_NUM_INDICES; i++)
+    for(i = 0; i < POSIX_F_NUM_INDICES; i++)
     {
         switch(i)
         {
-            case CP_F_OPEN_TIMESTAMP:
-            case CP_F_READ_START_TIMESTAMP:
-            case CP_F_WRITE_START_TIMESTAMP:
-                if(hfile->fcounters[i] == 0 || 
-                    hfile->fcounters[i] > dfile->fcounters[i])
+            case POSIX_F_OPEN_TIMESTAMP:
+            case POSIX_F_READ_START_TIMESTAMP:
+            case POSIX_F_WRITE_START_TIMESTAMP:
+                if(tmp->fcounters[i] == 0 || 
+                    tmp->fcounters[i] > pfile->fcounters[i])
                 {
-                    hfile->fcounters[i] = dfile->fcounters[i];
+                    tmp->fcounters[i] = pfile->fcounters[i];
                 }
                 break;
-            case CP_F_CLOSE_TIMESTAMP:
-            case CP_F_READ_END_TIMESTAMP:
-            case CP_F_WRITE_END_TIMESTAMP:
-                if(hfile->fcounters[i] == 0 || 
-                    hfile->fcounters[i] < dfile->fcounters[i])
+            case POSIX_F_READ_END_TIMESTAMP:
+            case POSIX_F_WRITE_END_TIMESTAMP:
+            case POSIX_F_CLOSE_TIMESTAMP:
+                if(tmp->fcounters[i] == 0 || 
+                    tmp->fcounters[i] < pfile->fcounters[i])
                 {
-                    hfile->fcounters[i] = dfile->fcounters[i];
+                    tmp->fcounters[i] = pfile->fcounters[i];
                 }
                 break;
-            case CP_F_FASTEST_RANK_TIME:
-            case CP_F_SLOWEST_RANK_TIME:
-            case CP_F_VARIANCE_RANK_TIME:
-            case CP_F_VARIANCE_RANK_BYTES:
-                hfile->fcounters[i] = 0;
+            case POSIX_F_FASTEST_RANK_TIME:
+            case POSIX_F_SLOWEST_RANK_TIME:
+            case POSIX_F_VARIANCE_RANK_TIME:
+            case POSIX_F_VARIANCE_RANK_BYTES:
+                tmp->fcounters[i] = 0;
                 break;
-            case CP_F_MAX_READ_TIME:
-                if (hfile->fcounters[i] > dfile->fcounters[i])
+            case POSIX_F_MAX_READ_TIME:
+                if(tmp->fcounters[i] < pfile->fcounters[i])
                 {
-                    hfile->fcounters[i] = dfile->fcounters[i];
-                    hfile->counters[CP_MAX_READ_TIME_SIZE] =
-                        dfile->counters[CP_MAX_READ_TIME_SIZE];
+                    tmp->fcounters[i] = pfile->fcounters[i];
+                    tmp->counters[POSIX_MAX_READ_TIME_SIZE] =
+                        pfile->counters[POSIX_MAX_READ_TIME_SIZE];
                 }
                 break;
-            case CP_F_MAX_WRITE_TIME:
-                if (hfile->fcounters[i] > dfile->fcounters[i])
+            case POSIX_F_MAX_WRITE_TIME:
+                if(tmp->fcounters[i] < pfile->fcounters[i])
                 {
-                    hfile->fcounters[i] = dfile->fcounters[i];
-                    hfile->counters[CP_MAX_WRITE_TIME_SIZE] =
-                        dfile->counters[CP_MAX_WRITE_TIME_SIZE];
+                    tmp->fcounters[i] = pfile->fcounters[i];
+                    tmp->counters[POSIX_MAX_WRITE_TIME_SIZE] =
+                        pfile->counters[POSIX_MAX_WRITE_TIME_SIZE];
                 }
                 break;
             default:
-                hfile->fcounters[i] += dfile->fcounters[i];
+                tmp->fcounters[i] += pfile->fcounters[i];
                 break;
         }
     }
@@ -768,187 +851,174 @@ void accum_file(struct darshan_job *job,
     return;
 }
 
-void file_list(struct darshan_job *djob, hash_entry_t *file_hash, int detail_flag)
+void mpiio_accum_file(struct darshan_mpiio_file *mfile,
+                      hash_entry_t *hfile,
+                      int64_t nprocs)
 {
-    hash_entry_t *curr = NULL;
-    hash_entry_t *tmp = NULL;
-    char* type;
-    int i;
+    int i, j;
+    int set;
+    int min_ndx;
+    int64_t min;
+    struct darshan_mpiio_file* tmp;
 
-    /* TODO: list of columns:
-     *
-     * normal mode?
-     * - hash
-     * - suffix
-     * - MPI or POSIX
-     * - nprocs
-     * - slowest I/O time
-     * - average cumulative I/O time
-     *
-     * detailed mode?
-     * - first open
-     * - first read
-     * - first write
-     * - last close
-     * - last read
-     * - last write
-     * - MPI indep opens
-     * - MPI coll opens
-     * - POSIX opens
-     * - r histogram (POSIX)
-     * - w histogram (POSIX)
-     */
+    hfile->procs += 1;
 
-    if(detail_flag)
-        printf("\n# Per-file summary of I/O activity (detailed).\n");
+    if(mfile->rank == -1)
+    {
+        hfile->slowest_time = mfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
+    }
     else
-        printf("\n# Per-file summary of I/O activity.\n");
-
-    printf("# <hash>: hash of file name\n");
-    printf("# <suffix>: last %d characters of file name\n", CP_NAME_SUFFIX_LEN);
-    printf("# <type>: MPI or POSIX\n");
-    printf("# <nprocs>: number of processes that opened the file\n");
-    printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
-    printf("# <avg>: average time in seconds consumed in IO per process\n");
-    if(detail_flag)
     {
-        printf("# <start_{open/read/write}>: start timestamp of first open, read, or write\n");
-        printf("# <end_{open/read/write}>: end timestamp of last open, read, or write\n");
-        printf("# <mpi_indep_opens>: independent MPI_File_open calls\n");
-        printf("# <mpi_coll_opens>: collective MPI_File_open calls\n");
-        printf("# <posix_opens>: POSIX open calls\n");
-        printf("# <CP_SIZE_READ_*>: POSIX read size histogram\n");
-        printf("# <CP_SIZE_WRITE_*>: POSIX write size histogram\n");
+        hfile->slowest_time = max(hfile->slowest_time, 
+            (mfile->fcounters[MPIIO_F_META_TIME] +
+            mfile->fcounters[MPIIO_F_READ_TIME] +
+            mfile->fcounters[MPIIO_F_WRITE_TIME]));
     }
-    
-    printf("\n# <hash>\t<suffix>\t<type>\t<nprocs>\t<slowest>\t<avg>");
-    if(detail_flag)
+
+    if(mfile->rank == -1)
     {
-        printf("\t<start_open>\t<start_read>\t<start_write>");
-        printf("\t<end_open>\t<end_read>\t<end_write>");
-        printf("\t<mpi_indep_opens>\t<mpi_coll_opens>\t<posix_opens>");
-        for(i=CP_SIZE_READ_0_100; i<= CP_SIZE_WRITE_1G_PLUS; i++)
-            printf("\t%s", darshan_names[i]);
+        hfile->procs = nprocs;
+        hfile->type |= FILETYPE_SHARED;
+
     }
-    printf("\n");
-
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    else if(hfile->procs > 1)
     {
-        if(curr->counters[CP_INDEP_OPENS] || curr->counters[CP_COLL_OPENS])
-            type = "MPI";
-        else
-            type = "POSIX";
+        hfile->type &= (~FILETYPE_UNIQUE);
+        hfile->type |= FILETYPE_PARTSHARED;
+    }
+    else
+    {
+        hfile->type |= FILETYPE_UNIQUE;
+    }
 
-        printf("%" PRIu64 "\t%s\t%s\t%" PRId64 "\t%f\t%f",
-            curr->hash,
-            curr->name_suffix,
-            type,
-            curr->procs,
-            curr->slowest_time,
-            curr->cumul_time/(double)curr->procs);
-        if(detail_flag)
+    hfile->cumul_time += mfile->fcounters[MPIIO_F_META_TIME] +
+                         mfile->fcounters[MPIIO_F_READ_TIME] +
+                         mfile->fcounters[MPIIO_F_WRITE_TIME];
+
+    if(hfile->rec_dat == NULL)
+    {
+        hfile->rec_dat = malloc(sizeof(struct darshan_mpiio_file));
+        assert(hfile->rec_dat);
+        memset(hfile->rec_dat, 0, sizeof(struct darshan_mpiio_file));
+    }
+    tmp = (struct darshan_mpiio_file*)hfile->rec_dat;
+
+    for(i = 0; i < MPIIO_NUM_INDICES; i++)
+    {
+        switch(i)
         {
-            for(i=CP_F_OPEN_TIMESTAMP; i<=CP_F_WRITE_END_TIMESTAMP; i++)
+        case MPIIO_MODE:
+            tmp->counters[i] = mfile->counters[i];
+            break;
+        case MPIIO_ACCESS1_ACCESS:
+        case MPIIO_ACCESS2_ACCESS:
+        case MPIIO_ACCESS3_ACCESS:
+        case MPIIO_ACCESS4_ACCESS:
+            /*
+             * do nothing here because these will be stored
+             * when the _COUNT is accessed.
+             */
+            break;
+        case MPIIO_ACCESS1_COUNT:
+        case MPIIO_ACCESS2_COUNT:
+        case MPIIO_ACCESS3_COUNT:
+        case MPIIO_ACCESS4_COUNT:
+            set = 0;
+            min_ndx = MPIIO_ACCESS1_COUNT;
+            min = tmp->counters[min_ndx];
+            for(j = MPIIO_ACCESS1_COUNT; j <= MPIIO_ACCESS4_COUNT; j++)
             {
-                printf("\t%f", curr->fcounters[i]);
+                if(tmp->counters[j-4] == mfile->counters[i-4])
+                {
+                    tmp->counters[j] += mfile->counters[i];
+                    set = 1;
+                    break;
+                }
+                if(tmp->counters[j] < min)
+                {
+                    min_ndx = j;
+                    min = tmp->counters[j];
+                }
             }
-            printf("\t%" PRId64 "\t%" PRId64 "\t%" PRId64, curr->counters[CP_INDEP_OPENS], curr->counters[CP_COLL_OPENS], curr->counters[CP_POSIX_OPENS]);
-            for(i=CP_SIZE_READ_0_100; i<= CP_SIZE_WRITE_1G_PLUS; i++)
-                printf("\t%" PRId64, curr->counters[i]);
+            if(!set && (mfile->counters[i] > min))
+            {
+                tmp->counters[i] = mfile->counters[i];
+                tmp->counters[i-4] = mfile->counters[i-4];
+            }
+            break;
+        case MPIIO_FASTEST_RANK:
+        case MPIIO_SLOWEST_RANK:
+        case MPIIO_FASTEST_RANK_BYTES:
+        case MPIIO_SLOWEST_RANK_BYTES:
+            tmp->counters[i] = 0;
+            break;
+        case MPIIO_MAX_READ_TIME_SIZE:
+        case MPIIO_MAX_WRITE_TIME_SIZE:
+            break;
+        default:
+            tmp->counters[i] += mfile->counters[i];
+            break;
         }
-        printf("\n");
     }
 
-    return;
-}
-
-void calc_file(struct darshan_job *djob,
-               hash_entry_t *file_hash, 
-               file_data_t *fdata)
-{
-    hash_entry_t *curr = NULL;
-    hash_entry_t *tmp = NULL;
-
-    memset(fdata, 0, sizeof(*fdata));
-
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    for(i = 0; i < MPIIO_F_NUM_INDICES; i++)
     {
-        int64_t max;
-        int64_t r;
-        int64_t w;
-
-        max = max3(curr->counters[CP_SIZE_AT_OPEN],
-                   curr->counters[CP_MAX_BYTE_READ],
-                   curr->counters[CP_MAX_BYTE_WRITTEN]);
-
-        r = (curr->counters[CP_POSIX_READS]+
-             curr->counters[CP_POSIX_FREADS]+
-             curr->counters[CP_INDEP_READS]+
-             curr->counters[CP_COLL_READS]+
-             curr->counters[CP_SPLIT_READS]+
-             curr->counters[CP_NB_READS]);
-
-        w = (curr->counters[CP_POSIX_WRITES]+
-             curr->counters[CP_POSIX_FWRITES]+
-             curr->counters[CP_INDEP_WRITES]+
-             curr->counters[CP_COLL_WRITES]+
-             curr->counters[CP_SPLIT_WRITES]+
-             curr->counters[CP_NB_WRITES]);
-
-        fdata->total += 1;
-        fdata->total_size += max;
-        fdata->total_max = max(fdata->total_max, max);
-
-        if (r && !w)
+        switch(i)
         {
-            fdata->read_only += 1;
-            fdata->read_only_size += max;
-            fdata->read_only_max = max(fdata->read_only_max, max);
-        }
-
-        if (!r && w)
-        {
-            fdata->write_only += 1;
-            fdata->write_only_size += max;
-            fdata->write_only_max = max(fdata->write_only_max, max);
-        }
-
-        if (r && w)
-        {
-            fdata->read_write += 1;
-            fdata->read_write_size += max;
-            fdata->read_write_max = max(fdata->read_write_max, max);
-        }
-
-        if ((curr->type & (FILETYPE_SHARED|FILETYPE_PARTSHARED)))
-        {
-            fdata->shared += 1;
-            fdata->shared_size += max;
-            fdata->shared_max = max(fdata->shared_max, max);
-        }
-
-        if ((curr->type & (FILETYPE_UNIQUE)))
-        {
-            fdata->unique += 1;
-            fdata->unique_size += max;
-            fdata->unique_max = max(fdata->unique_max, max);
+            case MPIIO_F_OPEN_TIMESTAMP:
+            case MPIIO_F_READ_START_TIMESTAMP:
+            case MPIIO_F_WRITE_START_TIMESTAMP:
+                if(tmp->fcounters[i] == 0 || 
+                    tmp->fcounters[i] > mfile->fcounters[i])
+                {
+                    tmp->fcounters[i] = mfile->fcounters[i];
+                }
+                break;
+            case MPIIO_F_READ_END_TIMESTAMP:
+            case MPIIO_F_WRITE_END_TIMESTAMP:
+            case MPIIO_F_CLOSE_TIMESTAMP:
+                if(tmp->fcounters[i] == 0 || 
+                    tmp->fcounters[i] < mfile->fcounters[i])
+                {
+                    tmp->fcounters[i] = mfile->fcounters[i];
+                }
+                break;
+            case MPIIO_F_FASTEST_RANK_TIME:
+            case MPIIO_F_SLOWEST_RANK_TIME:
+            case MPIIO_F_VARIANCE_RANK_TIME:
+            case MPIIO_F_VARIANCE_RANK_BYTES:
+                tmp->fcounters[i] = 0;
+                break;
+            case MPIIO_F_MAX_READ_TIME:
+                if(tmp->fcounters[i] < mfile->fcounters[i])
+                {
+                    tmp->fcounters[i] = mfile->fcounters[i];
+                    tmp->counters[MPIIO_MAX_READ_TIME_SIZE] =
+                        mfile->counters[MPIIO_MAX_READ_TIME_SIZE];
+                }
+                break;
+            case MPIIO_F_MAX_WRITE_TIME:
+                if(tmp->fcounters[i] < mfile->fcounters[i])
+                {
+                    tmp->fcounters[i] = mfile->fcounters[i];
+                    tmp->counters[MPIIO_MAX_WRITE_TIME_SIZE] =
+                        mfile->counters[MPIIO_MAX_WRITE_TIME_SIZE];
+                }
+                break;
+            default:
+                tmp->fcounters[i] += mfile->fcounters[i];
+                break;
         }
     }
 
     return;
 }
 
-void accum_perf(struct darshan_file *dfile,
-                hash_entry_t *hfile,
-                perf_data_t *pdata)
+void posix_accum_perf(struct darshan_posix_file *pfile,
+                      perf_data_t *pdata)
 {
-    int64_t mpi_file;
-
-    pdata->total_bytes += dfile->counters[CP_BYTES_READ] +
-                          dfile->counters[CP_BYTES_WRITTEN];
-
-    mpi_file = dfile->counters[CP_INDEP_OPENS] +
-               dfile->counters[CP_COLL_OPENS];
+    pdata->total_bytes += pfile->counters[POSIX_BYTES_READ] +
+                          pfile->counters[POSIX_BYTES_WRITTEN];
 
     /*
      * Calculation of Shared File Time
@@ -964,61 +1034,49 @@ void accum_perf(struct darshan_file *dfile,
      *     by_slowest: use slowest rank time from log data
      *                 (most accurate but requires newer log version)
      */
-    if (dfile->rank == -1)
+    if(pfile->rank == -1)
     {
-        /* by_open (same for MPI or POSIX) */
-        if (dfile->fcounters[CP_F_CLOSE_TIMESTAMP] >
-            dfile->fcounters[CP_F_OPEN_TIMESTAMP])
+        /* by_open */
+        if(pfile->fcounters[POSIX_F_CLOSE_TIMESTAMP] >
+            pfile->fcounters[POSIX_F_OPEN_TIMESTAMP])
         {
             pdata->shared_time_by_open +=
-                dfile->fcounters[CP_F_CLOSE_TIMESTAMP] -
-                dfile->fcounters[CP_F_OPEN_TIMESTAMP];
+                pfile->fcounters[POSIX_F_CLOSE_TIMESTAMP] -
+                pfile->fcounters[POSIX_F_OPEN_TIMESTAMP];
         }
 
-        /* by_open_lastio (same for MPI or POSIX) */
-        if (dfile->fcounters[CP_F_READ_END_TIMESTAMP] >
-            dfile->fcounters[CP_F_WRITE_END_TIMESTAMP])
+        /* by_open_lastio */
+        if(pfile->fcounters[POSIX_F_READ_END_TIMESTAMP] >
+            pfile->fcounters[POSIX_F_WRITE_END_TIMESTAMP])
         {
             /* be careful: file may have been opened but not read or written */
-            if(dfile->fcounters[CP_F_READ_END_TIMESTAMP] > dfile->fcounters[CP_F_OPEN_TIMESTAMP])
+            if(pfile->fcounters[POSIX_F_READ_END_TIMESTAMP] > pfile->fcounters[POSIX_F_OPEN_TIMESTAMP])
             {
                 pdata->shared_time_by_open_lastio += 
-                    dfile->fcounters[CP_F_READ_END_TIMESTAMP] - 
-                    dfile->fcounters[CP_F_OPEN_TIMESTAMP];
+                    pfile->fcounters[POSIX_F_READ_END_TIMESTAMP] - 
+                    pfile->fcounters[POSIX_F_OPEN_TIMESTAMP];
             }
         }
         else
         {
             /* be careful: file may have been opened but not read or written */
-            if(dfile->fcounters[CP_F_WRITE_END_TIMESTAMP] > dfile->fcounters[CP_F_OPEN_TIMESTAMP])
+            if(pfile->fcounters[POSIX_F_WRITE_END_TIMESTAMP] > pfile->fcounters[POSIX_F_OPEN_TIMESTAMP])
             {
                 pdata->shared_time_by_open_lastio += 
-                    dfile->fcounters[CP_F_WRITE_END_TIMESTAMP] - 
-                    dfile->fcounters[CP_F_OPEN_TIMESTAMP];
+                    pfile->fcounters[POSIX_F_WRITE_END_TIMESTAMP] - 
+                    pfile->fcounters[POSIX_F_OPEN_TIMESTAMP];
             }
         }
 
-        /* by_cumul */
-        if (mpi_file)
-        {
-            pdata->shared_time_by_cumul +=
-                dfile->fcounters[CP_F_MPI_META_TIME] +
-                dfile->fcounters[CP_F_MPI_READ_TIME] +
-                dfile->fcounters[CP_F_MPI_WRITE_TIME];
-            pdata->shared_meta_time += dfile->fcounters[CP_F_MPI_META_TIME];
-        }
-        else
-        {
-            pdata->shared_time_by_cumul +=
-                dfile->fcounters[CP_F_POSIX_META_TIME] +
-                dfile->fcounters[CP_F_POSIX_READ_TIME] +
-                dfile->fcounters[CP_F_POSIX_WRITE_TIME];
-            pdata->shared_meta_time += dfile->fcounters[CP_F_POSIX_META_TIME];
-        }
+        pdata->shared_time_by_cumul +=
+            pfile->fcounters[POSIX_F_META_TIME] +
+            pfile->fcounters[POSIX_F_READ_TIME] +
+            pfile->fcounters[POSIX_F_WRITE_TIME];
+        pdata->shared_meta_time += pfile->fcounters[POSIX_F_META_TIME];
 
-        /* by_slowest (same for MPI or POSIX) */
+        /* by_slowest */
         pdata->shared_time_by_slowest +=
-            dfile->fcounters[CP_F_SLOWEST_RANK_TIME];
+            pfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
     }
 
     /*
@@ -1027,38 +1085,250 @@ void accum_perf(struct darshan_file *dfile,
      */
     else
     {
-        if (mpi_file)
+        pdata->rank_cumul_io_time[pfile->rank] +=
+            (pfile->fcounters[POSIX_F_META_TIME] +
+            pfile->fcounters[POSIX_F_READ_TIME] +
+            pfile->fcounters[POSIX_F_WRITE_TIME]);
+        pdata->rank_cumul_md_time[pfile->rank] += pfile->fcounters[POSIX_F_META_TIME];
+    }
+
+    return;
+}
+
+void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
+                      perf_data_t *pdata)
+{
+    pdata->total_bytes += mfile->counters[MPIIO_BYTES_READ] +
+                          mfile->counters[MPIIO_BYTES_WRITTEN];
+
+    /*
+     * Calculation of Shared File Time
+     *   Four Methods!!!!
+     *     by_cumul: sum time counters and divide by nprocs
+     *               (inaccurate if lots of variance between procs)
+     *     by_open: difference between timestamp of open and close
+     *              (inaccurate if file is left open without i/o happening)
+     *     by_open_lastio: difference between timestamp of open and the
+     *                     timestamp of last i/o
+     *                     (similar to above but fixes case where file is left
+     *                      open after io is complete)
+     *     by_slowest: use slowest rank time from log data
+     *                 (most accurate but requires newer log version)
+     */
+    if(mfile->rank == -1)
+    {
+        /* by_open */
+        if(mfile->fcounters[MPIIO_F_CLOSE_TIMESTAMP] >
+            mfile->fcounters[MPIIO_F_OPEN_TIMESTAMP])
         {
-            pdata->rank_cumul_io_time[dfile->rank] += dfile->fcounters[CP_F_MPI_META_TIME] +
-                                dfile->fcounters[CP_F_MPI_READ_TIME] +
-                                dfile->fcounters[CP_F_MPI_WRITE_TIME];
-            pdata->rank_cumul_md_time[dfile->rank] += dfile->fcounters[CP_F_MPI_META_TIME];
+            pdata->shared_time_by_open +=
+                mfile->fcounters[MPIIO_F_CLOSE_TIMESTAMP] -
+                mfile->fcounters[MPIIO_F_OPEN_TIMESTAMP];
+        }
+
+        /* by_open_lastio */
+        if(mfile->fcounters[MPIIO_F_READ_END_TIMESTAMP] >
+            mfile->fcounters[MPIIO_F_WRITE_END_TIMESTAMP])
+        {
+            /* be careful: file may have been opened but not read or written */
+            if(mfile->fcounters[MPIIO_F_READ_END_TIMESTAMP] > mfile->fcounters[MPIIO_F_OPEN_TIMESTAMP])
+            {
+                pdata->shared_time_by_open_lastio += 
+                    mfile->fcounters[MPIIO_F_READ_END_TIMESTAMP] - 
+                    mfile->fcounters[MPIIO_F_OPEN_TIMESTAMP];
+            }
         }
         else
         {
-            pdata->rank_cumul_io_time[dfile->rank] += dfile->fcounters[CP_F_POSIX_META_TIME] +
-                                dfile->fcounters[CP_F_POSIX_READ_TIME] +
-                                dfile->fcounters[CP_F_POSIX_WRITE_TIME];
-            pdata->rank_cumul_md_time[dfile->rank] += dfile->fcounters[CP_F_POSIX_META_TIME];
+            /* be careful: file may have been opened but not read or written */
+            if(mfile->fcounters[MPIIO_F_WRITE_END_TIMESTAMP] > mfile->fcounters[MPIIO_F_OPEN_TIMESTAMP])
+            {
+                pdata->shared_time_by_open_lastio += 
+                    mfile->fcounters[MPIIO_F_WRITE_END_TIMESTAMP] - 
+                    mfile->fcounters[MPIIO_F_OPEN_TIMESTAMP];
+            }
+        }
 
+        pdata->shared_time_by_cumul +=
+            mfile->fcounters[MPIIO_F_META_TIME] +
+            mfile->fcounters[MPIIO_F_READ_TIME] +
+            mfile->fcounters[MPIIO_F_WRITE_TIME];
+        pdata->shared_meta_time += mfile->fcounters[MPIIO_F_META_TIME];
+
+        /* by_slowest */
+        pdata->shared_time_by_slowest +=
+            mfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
+    }
+
+    /*
+     * Calculation of Unique File Time
+     *   record the data for each file and sum it 
+     */
+    else
+    {
+        pdata->rank_cumul_io_time[mfile->rank] +=
+            (mfile->fcounters[MPIIO_F_META_TIME] +
+            mfile->fcounters[MPIIO_F_READ_TIME] +
+            mfile->fcounters[MPIIO_F_WRITE_TIME]);
+        pdata->rank_cumul_md_time[mfile->rank] += mfile->fcounters[MPIIO_F_META_TIME];
+    }
+
+    return;
+}
+
+void posix_calc_file(hash_entry_t *file_hash, 
+                     file_data_t *fdata)
+{
+    hash_entry_t *curr = NULL;
+    hash_entry_t *tmp = NULL;
+    struct darshan_posix_file *file_rec;
+
+    memset(fdata, 0, sizeof(*fdata));
+    HASH_ITER(hlink, file_hash, curr, tmp)
+    {
+        int64_t bytes;
+        int64_t r;
+        int64_t w;
+
+        file_rec = (struct darshan_posix_file*)curr->rec_dat;
+        assert(file_rec);
+
+        bytes = file_rec->counters[POSIX_BYTES_READ] +
+                file_rec->counters[POSIX_BYTES_WRITTEN];
+
+        r = (file_rec->counters[POSIX_READS]+
+             file_rec->counters[POSIX_FREADS]);
+
+        w = (file_rec->counters[POSIX_WRITES]+
+             file_rec->counters[POSIX_FWRITES]);
+
+        fdata->total += 1;
+        fdata->total_size += bytes;
+        fdata->total_max = max(fdata->total_max, bytes);
+
+        if (r && !w)
+        {
+            fdata->read_only += 1;
+            fdata->read_only_size += bytes;
+            fdata->read_only_max = max(fdata->read_only_max, bytes);
+        }
+
+        if (!r && w)
+        {
+            fdata->write_only += 1;
+            fdata->write_only_size += bytes;
+            fdata->write_only_max = max(fdata->write_only_max, bytes);
+        }
+
+        if (r && w)
+        {
+            fdata->read_write += 1;
+            fdata->read_write_size += bytes;
+            fdata->read_write_max = max(fdata->read_write_max, bytes);
+        }
+
+        if ((curr->type & (FILETYPE_SHARED|FILETYPE_PARTSHARED)))
+        {
+            fdata->shared += 1;
+            fdata->shared_size += bytes;
+            fdata->shared_max = max(fdata->shared_max, bytes);
+        }
+
+        if ((curr->type & (FILETYPE_UNIQUE)))
+        {
+            fdata->unique += 1;
+            fdata->unique_size += bytes;
+            fdata->unique_max = max(fdata->unique_max, bytes);
         }
     }
 
     return;
 }
 
-void calc_perf(struct darshan_job *djob,
-               hash_entry_t *hash_rank_uniq,
-               perf_data_t *pdata)
+void mpiio_calc_file(hash_entry_t *file_hash, 
+                     file_data_t *fdata)
+{
+    hash_entry_t *curr = NULL;
+    hash_entry_t *tmp = NULL;
+    struct darshan_mpiio_file *file_rec;
+
+    memset(fdata, 0, sizeof(*fdata));
+    HASH_ITER(hlink, file_hash, curr, tmp)
+    {
+        int64_t bytes;
+        int64_t r;
+        int64_t w;
+
+        file_rec = (struct darshan_mpiio_file*)curr->rec_dat;
+        assert(file_rec);
+
+        bytes = file_rec->counters[MPIIO_BYTES_READ] +
+                file_rec->counters[MPIIO_BYTES_WRITTEN];
+
+        r = (file_rec->counters[MPIIO_INDEP_READS]+
+             file_rec->counters[MPIIO_COLL_READS] +
+             file_rec->counters[MPIIO_SPLIT_READS] +
+             file_rec->counters[MPIIO_NB_READS]);
+
+        w = (file_rec->counters[MPIIO_INDEP_WRITES]+
+             file_rec->counters[MPIIO_COLL_WRITES] +
+             file_rec->counters[MPIIO_SPLIT_WRITES] +
+             file_rec->counters[MPIIO_NB_WRITES]);
+
+        fdata->total += 1;
+        fdata->total_size += bytes;
+        fdata->total_max = max(fdata->total_max, bytes);
+
+        if (r && !w)
+        {
+            fdata->read_only += 1;
+            fdata->read_only_size += bytes;
+            fdata->read_only_max = max(fdata->read_only_max, bytes);
+        }
+
+        if (!r && w)
+        {
+            fdata->write_only += 1;
+            fdata->write_only_size += bytes;
+            fdata->write_only_max = max(fdata->write_only_max, bytes);
+        }
+
+        if (r && w)
+        {
+            fdata->read_write += 1;
+            fdata->read_write_size += bytes;
+            fdata->read_write_max = max(fdata->read_write_max, bytes);
+        }
+
+        if ((curr->type & (FILETYPE_SHARED|FILETYPE_PARTSHARED)))
+        {
+            fdata->shared += 1;
+            fdata->shared_size += bytes;
+            fdata->shared_max = max(fdata->shared_max, bytes);
+        }
+
+        if ((curr->type & (FILETYPE_UNIQUE)))
+        {
+            fdata->unique += 1;
+            fdata->unique_size += bytes;
+            fdata->unique_max = max(fdata->unique_max, bytes);
+        }
+    }
+
+    return;
+}
+
+void calc_perf(perf_data_t *pdata,
+               int64_t nprocs)
 {
     int64_t i;
 
     pdata->shared_time_by_cumul =
-        pdata->shared_time_by_cumul / (double)djob->nprocs;
+        pdata->shared_time_by_cumul / (double)nprocs;
 
-    pdata->shared_meta_time = pdata->shared_meta_time / (double)djob->nprocs;
+    pdata->shared_meta_time = pdata->shared_meta_time / (double)nprocs;
 
-    for (i=0; i<djob->nprocs; i++)
+    for (i=0; i<nprocs; i++)
     {
         if (pdata->rank_cumul_io_time[i] > pdata->slowest_rank_time)
         {
@@ -1091,3 +1361,232 @@ void calc_perf(struct darshan_job *djob,
 
     return;
 }
+
+void posix_print_total_file(struct darshan_posix_file *pfile)
+{
+    int i;
+    printf("\n");
+    for(i = 0; i < POSIX_NUM_INDICES; i++)
+    {
+        printf("total_%s: %"PRId64"\n",
+            posix_counter_names[i], pfile->counters[i]);
+    }
+    for(i = 0; i < POSIX_F_NUM_INDICES; i++)
+    {
+        printf("total_%s: %lf\n",
+            posix_f_counter_names[i], pfile->fcounters[i]);
+    }
+    return;
+}
+
+void mpiio_print_total_file(struct darshan_mpiio_file *mfile)
+{
+    int i;
+    printf("\n");
+    for(i = 0; i < MPIIO_NUM_INDICES; i++)
+    {
+        printf("total_%s: %"PRId64"\n",
+            mpiio_counter_names[i], mfile->counters[i]);
+    }
+    for(i = 0; i < MPIIO_F_NUM_INDICES; i++)
+    {
+        printf("total_%s: %lf\n",
+            mpiio_f_counter_names[i], mfile->fcounters[i]);
+    }
+    return;
+}
+
+void posix_file_list(hash_entry_t *file_hash,
+                     struct darshan_record_ref *rec_hash,
+                     int detail_flag)
+{
+    hash_entry_t *curr = NULL;
+    hash_entry_t *tmp = NULL;
+    struct darshan_posix_file *file_rec = NULL;
+    struct darshan_record_ref *ref = NULL;
+    int i;
+
+    /* list of columns:
+     *
+     * normal mode
+     * - file id
+     * - file name
+     * - nprocs
+     * - slowest I/O time
+     * - average cumulative I/O time
+     *
+     * detailed mode
+     * - first open
+     * - first read
+     * - first write
+     * - last read
+     * - last write
+     * - last close
+     * - POSIX opens
+     * - r histogram
+     * - w histogram
+     */
+
+    if(detail_flag)
+        printf("\n# Per-file summary of I/O activity (detailed).\n");
+    else
+        printf("\n# Per-file summary of I/O activity.\n");
+
+    printf("# <record_id>: darshan record id for this file\n");
+    printf("# <file_name>: file name\n");
+    printf("# <nprocs>: number of processes that opened the file\n");
+    printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
+    printf("# <avg>: average time in seconds consumed in IO per process\n");
+    if(detail_flag)
+    {
+        printf("# <start_{open/read/write}>: start timestamp of first open, read, or write\n");
+        printf("# <end_{read/write/close}>: end timestamp of last read, write, or close\n");
+        printf("# <posix_opens>: POSIX open calls\n");
+        printf("# <POSIX_SIZE_READ_*>: POSIX read size histogram\n");
+        printf("# <POSIX_SIZE_WRITE_*>: POSIX write size histogram\n");
+    }
+    
+    printf("\n# <file_id>\t<file_name>\t<nprocs>\t<slowest>\t<avg>");
+    if(detail_flag)
+    {
+        printf("\t<start_open>\t<start_read>\t<start_write>");
+        printf("\t<end_read>\t<end_write>\t<end_close>\t<posix_opens>");
+        for(i=POSIX_SIZE_READ_0_100; i<= POSIX_SIZE_WRITE_1G_PLUS; i++)
+            printf("\t<%s>", posix_counter_names[i]);
+    }
+    printf("\n");
+
+    HASH_ITER(hlink, file_hash, curr, tmp)
+    {
+        file_rec = (struct darshan_posix_file*)curr->rec_dat;
+        assert(file_rec);
+
+        HASH_FIND(hlink, rec_hash, &(curr->rec_id), sizeof(darshan_record_id), ref);
+        assert(ref);
+
+        printf("%" PRIu64 "\t%s\t%" PRId64 "\t%f\t%f",
+            curr->rec_id,
+            ref->rec.name,
+            curr->procs,
+            curr->slowest_time,
+            curr->cumul_time/(double)curr->procs);
+
+        if(detail_flag)
+        {
+            for(i=POSIX_F_OPEN_TIMESTAMP; i<=POSIX_F_CLOSE_TIMESTAMP; i++)
+            {
+                printf("\t%f", file_rec->fcounters[i]);
+            }
+            printf("\t%" PRId64, file_rec->counters[POSIX_OPENS]);
+            for(i=POSIX_SIZE_READ_0_100; i<= POSIX_SIZE_WRITE_1G_PLUS; i++)
+                printf("\t%" PRId64, file_rec->counters[i]);
+        }
+        printf("\n");
+    }
+
+    return;
+}
+
+void mpiio_file_list(hash_entry_t *file_hash,
+                     struct darshan_record_ref *rec_hash,
+                     int detail_flag)
+{
+    hash_entry_t *curr = NULL;
+    hash_entry_t *tmp = NULL;
+    struct darshan_mpiio_file *file_rec = NULL;
+    struct darshan_record_ref *ref = NULL;
+    int i;
+
+    /* list of columns:
+     *
+     * normal mode
+     * - file id
+     * - file name
+     * - nprocs
+     * - slowest I/O time
+     * - average cumulative I/O time
+     *
+     * detailed mode
+     * - first open
+     * - first read
+     * - first write
+     * - last read
+     * - last write
+     * - last close
+     * - MPI indep opens
+     * - MPI coll opens
+     * - r histogram
+     * - w histogram
+     */
+
+    if(detail_flag)
+        printf("\n# Per-file summary of I/O activity (detailed).\n");
+    else
+        printf("\n# Per-file summary of I/O activity.\n");
+
+    printf("# <record_id>: darshan record id for this file\n");
+    printf("# <file_name>: file name\n");
+    printf("# <nprocs>: number of processes that opened the file\n");
+    printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
+    printf("# <avg>: average time in seconds consumed in IO per process\n");
+    if(detail_flag)
+    {
+        printf("# <start_{open/read/write}>: start timestamp of first open, read, or write\n");
+        printf("# <end_{read/write/close}>: end timestamp of last read, write, or close\n");
+        printf("# <mpi_indep_opens>: independent MPI_File_open calls\n");
+        printf("# <mpi_coll_opens>: collective MPI_File_open calls\n");
+        printf("# <MPIIO_SIZE_READ_AGG_*>: MPI-IO aggregate read size histogram\n");
+        printf("# <MPIIO_SIZE_WRITE_AGG_*>: MPI-IO aggregate write size histogram\n");
+    }
+    
+    printf("\n# <file_id>\t<file_name>\t<nprocs>\t<slowest>\t<avg>");
+    if(detail_flag)
+    {
+        printf("\t<start_open>\t<start_read>\t<start_write>");
+        printf("\t<end_read>\t<end_write>\t<end_close>");
+        printf("\t<mpi_indep_opens>\t<mpi_coll_opens>");
+        for(i=MPIIO_SIZE_READ_AGG_0_100; i<= MPIIO_SIZE_WRITE_AGG_1G_PLUS; i++)
+            printf("\t<%s>", mpiio_counter_names[i]);
+    }
+    printf("\n");
+
+    HASH_ITER(hlink, file_hash, curr, tmp)
+    {
+        file_rec = (struct darshan_mpiio_file*)curr->rec_dat;
+        assert(file_rec);
+
+        HASH_FIND(hlink, rec_hash, &(curr->rec_id), sizeof(darshan_record_id), ref);
+        assert(ref);
+
+        printf("%" PRIu64 "\t%s\t%" PRId64 "\t%f\t%f",
+            curr->rec_id,
+            ref->rec.name,
+            curr->procs,
+            curr->slowest_time,
+            curr->cumul_time/(double)curr->procs);
+
+        if(detail_flag)
+        {
+            for(i=MPIIO_F_OPEN_TIMESTAMP; i<=MPIIO_F_CLOSE_TIMESTAMP; i++)
+            {
+                printf("\t%f", file_rec->fcounters[i]);
+            }
+            printf("\t%" PRId64 "\t%" PRId64, file_rec->counters[MPIIO_INDEP_OPENS],
+                file_rec->counters[MPIIO_COLL_OPENS]);
+            for(i=MPIIO_SIZE_READ_AGG_0_100; i<= MPIIO_SIZE_WRITE_AGG_1G_PLUS; i++)
+                printf("\t%" PRId64, file_rec->counters[i]);
+        }
+        printf("\n");
+    }
+
+    return;
+}
+
+/*
+ * Local variables:
+ *  c-indent-level: 4
+ *  c-basic-offset: 4
+ * End:
+ *
+ * vim: ts=8 sts=4 sw=4 expandtab
+ */

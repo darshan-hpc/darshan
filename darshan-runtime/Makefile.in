@@ -1,4 +1,4 @@
-all: lib/libdarshan.a lib/darshan-null.o
+all: lib/libdarshan.a lib/libdarshan-stubs.a lib/darshan-null.o
 
 DESTDIR =
 srcdir = @srcdir@
@@ -25,7 +25,7 @@ endif
 VPATH = $(srcdir)
 
 CFLAGS = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I ../ -I $(srcdir) -I$(srcdir)/../ @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE 
-#
+
 CFLAGS_SHARED = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I$(srcdir) -I$(srcdir)/../ @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE -shared -fpic -DPIC -DDARSHAN_PRELOAD
 
 LIBS = -lz @LIBBZ2@
@@ -78,6 +78,23 @@ lib/darshan-bgq.o: lib/darshan-bgq.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/.
 lib/darshan-bgq.po: lib/darshan-bgq.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mpiio-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
+lib/darshan-hdf5.o: lib/darshan-hdf5.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-hdf5-log-format.h | lib
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/darshan-hdf5.po: lib/darshan-hdf5.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-hdf5-log-format.h | lib
+	$(CC) $(CFLAGS_SHARED) -c $< -o $@
+
+lib/darshan-hdf5-stubs.o: lib/darshan-hdf5-stubs.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/darshan-pnetcdf.o: lib/darshan-pnetcdf.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-pnetcdf-log-format.h | lib
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/darshan-pnetcdf.po: lib/darshan-pnetcdf.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-pnetcdf-log-format.h | lib
+	$(CC) $(CFLAGS_SHARED) -c $< -o $@
+
+lib/darshan-pnetcdf-stubs.o: lib/darshan-pnetcdf-stubs.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
+	$(CC) $(CFLAGS) -c $< -o $@
 
 lib/lookup3.o: lib/lookup3.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -91,18 +108,20 @@ lib/lookup8.o: lib/lookup8.c
 lib/lookup8.po: lib/lookup8.c
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
-#%.i: %.c
-#	$(CC) -E $(CFLAGS) -c $< -o $@
-
-lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darshan-common.o lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-bgq.o lib/lookup3.o lib/lookup8.o
+lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darshan-common.o lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-hdf5.o lib/darshan-pnetcdf.o lib/darshan-bgq.o lib/lookup3.o lib/lookup8.o
 	ar rcs $@ $^
 
-lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-bgq.po lib/lookup3.po lib/lookup8.po
+lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-pnetcdf.po lib/darshan-bgq.po lib/lookup3.po lib/lookup8.po
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ -lpthread -lrt -lz -ldl
+
+lib/libdarshan-stubs.a: lib/darshan-hdf5-stubs.o lib/darshan-pnetcdf-stubs.o
+	ar rcs $@ $^
+
 
 install:: all
 	install -d $(libdir)
 	install -m 755 lib/libdarshan.a $(libdir)
+	install -m 755 lib/libdarshan-stubs.a $(libdir)
 ifndef DISABLE_LDPRELOAD
 	install -m 755 lib/libdarshan.so $(libdir)
 endif
@@ -125,6 +144,8 @@ endif
 	install -m 755 share/mpi-profile/darshan-bg-f.conf $(datarootdir)/mpi-profile/darshan-bg-f.conf
 	install -m 644 darshan-base-ld-opts $(datarootdir)/darshan-base-ld-opts
 	install -m 644 $(srcdir)/darshan-posix-ld-opts $(datarootdir)/darshan-posix-ld-opts
+	install -m 644 $(srcdir)/darshan-hdf5-ld-opts $(datarootdir)/darshan-hdf5-ld-opts
+	install -m 644 $(srcdir)/darshan-pnetcdf-ld-opts $(datarootdir)/darshan-pnetcdf-ld-opts
 	install -d $(libdir)/pkgconfig
 	install -m 644 lib/pkgconfig/darshan-runtime.pc $(libdir)/pkgconfig/darshan-runtime.pc
 

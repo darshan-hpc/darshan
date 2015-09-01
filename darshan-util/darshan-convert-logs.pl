@@ -20,7 +20,7 @@
 #
 
 my $darshan_convert = "./darshan-convert";
-my $jenkins = "./jenkins";
+my $jenkins_hash_gen = "./jenkins-hash-gen";
 
 sub load_annotations($$)
 {
@@ -80,16 +80,17 @@ sub main()
                 $day = $3;
                 $logname = $4;
             }
-            $hashed_fname = `$jenkins --64 --key $hash_key $logname`;
+            $hashed_fname = `$jenkins_hash_gen --64 --key $hash_key $logname`;
             chomp($hashed_fname);
 
             @args = ("$darshan_convert",
+                     "--bzip2",
                      "--obfuscate",
                      "--key=$hash_key",
                      "--annotate=$annotation",
                      "--reset-md",
                      "$logfile",
-                     "$output_path/$year/$month/$day/$hashed_fname.bz2");
+                     "$output_path/$year/$month/$day/$hashed_fname.darshan");
             $rc = system(@args);
             if ($rc) {
                 print("$hashed_fname\t$logfile:failed:$rc\n");

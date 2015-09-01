@@ -27,19 +27,17 @@
 #include <pthread.h>
 
 #include "uthash.h"
+#include "utlist.h"
+
 #include "darshan.h"
 #include "darshan-posix-log-format.h"
+#include "darshan-dynamic.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
 #endif
 #ifndef HAVE_AIOCB64
 #define aiocb64 aiocb
-#endif
-
-/* TODO: this probably shouldn't be here long term -- MPI symbols mess up LD_PRELOAD */
-#ifdef DARSHAN_PRELOAD
-extern double (*__real_PMPI_Comm_rank)(MPI_Comm comm, int *rank);
 #endif
 
 /* TODO: more libc, fgetc, etc etc etc. */
@@ -79,31 +77,21 @@ DARSHAN_FORWARD_DECL(fsync, int, (int fd));
 DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
 DARSHAN_FORWARD_DECL(close, int, (int fd));
 DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
-/* TODO aio */
-/* TODO listio */
+DARSHAN_FORWARD_DECL(aio_read, int, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(aio_write, int, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(aio_read64, int, (struct aiocb64 *aiocbp));
+DARSHAN_FORWARD_DECL(aio_write64, int, (struct aiocb64 *aiocbp));
+DARSHAN_FORWARD_DECL(aio_return, ssize_t, (struct aiocb *aiocbp));
+DARSHAN_FORWARD_DECL(aio_return64, ssize_t, (struct aiocb64 *aiocbp));
+DARSHAN_FORWARD_DECL(lio_listio, int, (int mode, struct aiocb *const aiocb_list[], int nitems, struct sigevent *sevp));
+DARSHAN_FORWARD_DECL(lio_listio64, int, (int mode, struct aiocb64 *const aiocb_list[], int nitems, struct sigevent *sevp));
 
-/* maximum number of access sizes and stride sizes that darshan will track
- * per file at runtime; at log time they will be reduced into the 4 most
- * frequently occurring ones 
- */
-#define POSIX_MAX_ACCESS_COUNT_RUNTIME 32
-
-enum posix_io_type
+/* struct to track information about aio operations in flight */
+struct posix_aio_tracker
 {
-    POSIX_READ = 1,
-    POSIX_WRITE = 2,
-};
-
-enum posix_counter_type
-{
-    POSIX_COUNTER_ACCESS,
-    POSIX_COUNTER_STRIDE
-};
-
-struct posix_access_counter
-{
-    int64_t size;
-    int freq;
+    double tm1;
+    void *aiocbp;
+    struct posix_aio_tracker* next;
 };
 
 /* The posix_file_runtime structure maintains necessary runtime metadata
@@ -135,7 +123,7 @@ struct posix_file_runtime
     int64_t offset;
     int64_t last_byte_read;
     int64_t last_byte_written;
-    enum posix_io_type last_io_type;
+    enum darshan_io_type last_io_type;
     double last_meta_end;
     double last_read_end;
     double last_write_end;
@@ -143,6 +131,7 @@ struct posix_file_runtime
     int access_count;
     void* stride_root;
     int stride_count;
+    struct posix_aio_tracker* aio_list;
     UT_hash_handle hlink;
 };
 
@@ -188,8 +177,6 @@ struct posix_runtime
     int file_array_ndx;
     struct posix_file_runtime* file_hash;
     struct posix_file_runtime_ref* fd_hash;
-    void *red_buf;
-    int shared_rec_count;
 };
 
 static struct posix_runtime *posix_runtime = NULL;
@@ -198,58 +185,27 @@ static int instrumentation_disabled = 0;
 static int my_rank = -1;
 static int darshan_mem_alignment = 1;
 
-/* global variables for determining 4 most common accesses/strides */
-static struct posix_file_runtime* walker_file = NULL;
-static int walker_validx;
-static int walker_cntidx;
-
 static void posix_runtime_initialize(void);
 static struct posix_file_runtime* posix_file_by_name(const char *name);
 static struct posix_file_runtime* posix_file_by_name_setfd(const char* name, int fd);
 static struct posix_file_runtime* posix_file_by_fd(int fd);
 static void posix_file_close_fd(int fd);
-static void posix_access_counter(struct posix_file_runtime* file, ssize_t size,
-    enum posix_counter_type type);
-static void posix_access_walker(const void* nodep, const VISIT which, const int depth);
-static void posix_walk_file_accesses(void);
-static int posix_access_compare(const void* a_p, const void* b_p);
-static int posix_file_compare(const void* a, const void* b);
-
-static void posix_begin_shutdown(void);
-static void posix_setup_reduction(darshan_record_id *shared_recs, int *shared_rec_count,
-    void **send_buf, void **recv_buf, int *rec_size);
+static void posix_aio_tracker_add(int fd, void *aiocbp);
+static struct posix_aio_tracker* posix_aio_tracker_del(int fd, void *aiocbp);
+static int posix_record_compare(const void* a, const void* b);
 static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype);
-static void posix_get_output_data(void **buffer, int *size);
+static void posix_shared_record_variance(MPI_Comm mod_comm,
+    struct darshan_posix_file *inrec_array, struct darshan_posix_file *outrec_array,
+    int shared_rec_count);
+
+static void posix_begin_shutdown(void);
+static void posix_get_output_data(MPI_Comm mod_comm, darshan_record_id *shared_recs,
+    int shared_rec_count, void **posix_buf, int *posix_buf_sz);
 static void posix_shutdown(void);
 
 #define POSIX_LOCK() pthread_mutex_lock(&posix_runtime_mutex)
 #define POSIX_UNLOCK() pthread_mutex_unlock(&posix_runtime_mutex)
-
-#define POSIX_COMMON_COUNTER_INC(__rec_p, __value, __count, __validx, __cntidx) do {\
-    int i; \
-    int set = 0; \
-    int64_t min = DARSHAN_COUNTER_VALUE(__rec_p, __cntidx); \
-    int min_index = 0; \
-    if(__value == 0) break; \
-    for(i=0; i<4; i++) { \
-        /* increment bucket if already exists */ \
-        if(DARSHAN_COUNTER_VALUE(__rec_p, __validx + i) == __value) { \
-            DARSHAN_COUNTER_INC(__rec_p, __cntidx + i, __count); \
-            set = 1; \
-            break; \
-        } \
-        /* otherwise find the least frequently used bucket */ \
-        else if(DARSHAN_COUNTER_VALUE(__rec_p, __cntidx + i) < min) { \
-            min = DARSHAN_COUNTER_VALUE(__rec_p, __cntidx + i); \
-            min_index = i; \
-        } \
-    } \
-    if(!set && (__count > min)) { \
-        DARSHAN_COUNTER_SET(__rec_p, __cntidx+min_index, __count); \
-        DARSHAN_COUNTER_SET(__rec_p, __validx+min_index, __value); \
-    } \
-} while(0)
 
 #define POSIX_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
     struct posix_file_runtime* file; \
@@ -264,19 +220,18 @@ static void posix_shutdown(void);
     if(exclude) break; \
     file = posix_file_by_name_setfd(__path, __ret); \
     if(!file) break; \
-    file->file_record->rank = my_rank; \
     if(__mode) \
-        DARSHAN_COUNTER_SET(file->file_record, POSIX_MODE, __mode); \
+        file->file_record->counters[POSIX_MODE] = __mode; \
     file->offset = 0; \
     file->last_byte_written = 0; \
     file->last_byte_read = 0; \
     if(__stream_flag)\
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_FOPENS, 1); \
+        file->file_record->counters[POSIX_FOPENS] += 1; \
     else \
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_OPENS, 1); \
-    if(DARSHAN_COUNTER_F_VALUE(file->file_record, POSIX_F_OPEN_TIMESTAMP) == 0) \
-        DARSHAN_COUNTER_F_SET(file->file_record, POSIX_F_OPEN_TIMESTAMP, __tm1); \
-    DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, __tm1, __tm2, file->last_meta_end, POSIX_F_META_TIME); \
+        file->file_record->counters[POSIX_OPENS] += 1; \
+    if(file->file_record->fcounters[POSIX_F_OPEN_TIMESTAMP] == 0) \
+        file->file_record->fcounters[POSIX_F_OPEN_TIMESTAMP] = __tm1; \
+    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_META_TIME], __tm1, __tm2, file->last_meta_end); \
 } while(0)
 
 #define POSIX_RECORD_READ(__ret, __fd, __pread_flag, __pread_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
@@ -293,9 +248,9 @@ static void posix_shutdown(void);
     else \
         this_offset = file->offset; \
     if(this_offset > file->last_byte_read) \
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_SEQ_READS, 1); \
+        file->file_record->counters[POSIX_SEQ_READS] += 1;  \
     if(this_offset == (file->last_byte_read + 1)) \
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_CONSEC_READS, 1); \
+        file->file_record->counters[POSIX_CONSEC_READS] += 1;  \
     if(this_offset > 0 && this_offset > file->last_byte_read \
         && file->last_byte_read != 0) \
         stride = this_offset - file->last_byte_read - 1; \
@@ -303,30 +258,31 @@ static void posix_shutdown(void);
         stride = 0; \
     file->last_byte_read = this_offset + __ret - 1; \
     file->offset = this_offset + __ret; \
-    DARSHAN_COUNTER_MAX(file->file_record, POSIX_MAX_BYTE_READ, (this_offset + __ret - 1)); \
-    DARSHAN_COUNTER_INC(file->file_record, POSIX_BYTES_READ, __ret); \
-    if(__stream_flag)\
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_FREADS, 1); \
-    else\
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_READS, 1); \
-    DARSHAN_BUCKET_INC(file->file_record, POSIX_SIZE_READ_0_100, __ret); \
-    posix_access_counter(file, __ret, POSIX_COUNTER_ACCESS); \
-    posix_access_counter(file, stride, POSIX_COUNTER_STRIDE); \
+    if(file->file_record->counters[POSIX_MAX_BYTE_READ] < (this_offset + __ret - 1)) \
+        file->file_record->counters[POSIX_MAX_BYTE_READ] = (this_offset + __ret - 1); \
+    file->file_record->counters[POSIX_BYTES_READ] += __ret; \
+    if(__stream_flag) \
+        file->file_record->counters[POSIX_FREADS] += 1; \
+    else \
+        file->file_record->counters[POSIX_READS] += 1; \
+    DARSHAN_BUCKET_INC(&(file->file_record->counters[POSIX_SIZE_READ_0_100]), __ret); \
+    darshan_common_val_counter(&file->access_root, &file->access_count, __ret); \
+    darshan_common_val_counter(&file->stride_root, &file->stride_count, stride); \
     if(!__aligned) \
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_MEM_NOT_ALIGNED, 1); \
-    file_alignment = DARSHAN_COUNTER_VALUE(file->file_record, POSIX_FILE_ALIGNMENT); \
+        file->file_record->counters[POSIX_MEM_NOT_ALIGNED] += 1; \
+    file_alignment = file->file_record->counters[POSIX_FILE_ALIGNMENT]; \
     if(file_alignment > 0 && (this_offset % file_alignment) != 0) \
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_FILE_NOT_ALIGNED, 1); \
-    if(file->last_io_type == POSIX_WRITE) \
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_RW_SWITCHES, 1); \
-    file->last_io_type = POSIX_READ; \
-    DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, __tm1, __tm2, file->last_read_end, POSIX_F_READ_TIME); \
-    if(DARSHAN_COUNTER_F_VALUE(file->file_record, POSIX_F_READ_START_TIMESTAMP) == 0) \
-        DARSHAN_COUNTER_F_SET(file->file_record, POSIX_F_READ_START_TIMESTAMP, __tm1); \
-    DARSHAN_COUNTER_F_SET(file->file_record, POSIX_F_READ_END_TIMESTAMP, __tm2); \
-    if(DARSHAN_COUNTER_F_VALUE(file->file_record, POSIX_F_MAX_READ_TIME) < __elapsed){ \
-        DARSHAN_COUNTER_F_SET(file->file_record, POSIX_F_MAX_READ_TIME, __elapsed); \
-        DARSHAN_COUNTER_SET(file->file_record, POSIX_MAX_READ_TIME_SIZE, __ret); } \
+        file->file_record->counters[POSIX_FILE_NOT_ALIGNED] += 1; \
+    if(file->last_io_type == DARSHAN_IO_WRITE) \
+        file->file_record->counters[POSIX_RW_SWITCHES] += 1; \
+    file->last_io_type = DARSHAN_IO_READ; \
+    if(file->file_record->fcounters[POSIX_F_READ_START_TIMESTAMP] == 0) \
+        file->file_record->fcounters[POSIX_F_READ_START_TIMESTAMP] = __tm1; \
+    file->file_record->fcounters[POSIX_F_READ_END_TIMESTAMP] = __tm2; \
+    if(file->file_record->fcounters[POSIX_F_MAX_READ_TIME] < __elapsed) { \
+        file->file_record->fcounters[POSIX_F_MAX_READ_TIME] = __elapsed; \
+        file->file_record->counters[POSIX_MAX_READ_TIME_SIZE] = __ret; } \
+    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_READ_TIME], __tm1, __tm2, file->last_read_end); \
 } while(0)
 
 #define POSIX_RECORD_WRITE(__ret, __fd, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
@@ -343,9 +299,9 @@ static void posix_shutdown(void);
     else \
         this_offset = file->offset; \
     if(this_offset > file->last_byte_written) \
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_SEQ_WRITES, 1); \
+        file->file_record->counters[POSIX_SEQ_WRITES] += 1; \
     if(this_offset == (file->last_byte_written + 1)) \
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_CONSEC_WRITES, 1); \
+        file->file_record->counters[POSIX_CONSEC_WRITES] += 1; \
     if(this_offset > 0 && this_offset > file->last_byte_written \
         && file->last_byte_written != 0) \
         stride = this_offset - file->last_byte_written - 1; \
@@ -353,30 +309,31 @@ static void posix_shutdown(void);
         stride = 0; \
     file->last_byte_written = this_offset + __ret - 1; \
     file->offset = this_offset + __ret; \
-    DARSHAN_COUNTER_MAX(file->file_record, POSIX_MAX_BYTE_WRITTEN, (this_offset + __ret - 1)); \
-    DARSHAN_COUNTER_INC(file->file_record, POSIX_BYTES_WRITTEN, __ret); \
+    if(file->file_record->counters[POSIX_MAX_BYTE_WRITTEN] < (this_offset + __ret - 1)) \
+        file->file_record->counters[POSIX_MAX_BYTE_WRITTEN] = (this_offset + __ret - 1); \
+    file->file_record->counters[POSIX_BYTES_WRITTEN] += __ret; \
     if(__stream_flag) \
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_FWRITES, 1); \
+        file->file_record->counters[POSIX_FWRITES] += 1; \
     else \
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_WRITES, 1); \
-    DARSHAN_BUCKET_INC(file->file_record, POSIX_SIZE_WRITE_0_100, __ret); \
-    posix_access_counter(file, __ret, POSIX_COUNTER_ACCESS); \
-    posix_access_counter(file, stride, POSIX_COUNTER_STRIDE);  \
+        file->file_record->counters[POSIX_WRITES] += 1; \
+    DARSHAN_BUCKET_INC(&(file->file_record->counters[POSIX_SIZE_WRITE_0_100]), __ret); \
+    darshan_common_val_counter(&file->access_root, &file->access_count, __ret); \
+    darshan_common_val_counter(&file->stride_root, &file->stride_count, stride); \
     if(!__aligned) \
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_MEM_NOT_ALIGNED, 1); \
-    file_alignment = DARSHAN_COUNTER_VALUE(file->file_record, POSIX_FILE_ALIGNMENT); \
+        file->file_record->counters[POSIX_MEM_NOT_ALIGNED] += 1; \
+    file_alignment = file->file_record->counters[POSIX_FILE_ALIGNMENT]; \
     if(file_alignment > 0 && (this_offset % file_alignment) != 0) \
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_FILE_NOT_ALIGNED, 1); \
-    if(file->last_io_type == POSIX_READ) \
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_RW_SWITCHES, 1); \
-    file->last_io_type = POSIX_WRITE; \
-    DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record, __tm1, __tm2, file->last_write_end, POSIX_F_WRITE_TIME); \
-    if(DARSHAN_COUNTER_F_VALUE(file->file_record, POSIX_F_WRITE_START_TIMESTAMP) == 0) \
-        DARSHAN_COUNTER_F_SET(file->file_record, POSIX_F_WRITE_START_TIMESTAMP, __tm1); \
-    DARSHAN_COUNTER_F_SET(file->file_record, POSIX_F_WRITE_END_TIMESTAMP, __tm2); \
-    if(DARSHAN_COUNTER_F_VALUE(file->file_record, POSIX_F_MAX_WRITE_TIME) < __elapsed){ \
-        DARSHAN_COUNTER_F_SET(file->file_record, POSIX_F_MAX_WRITE_TIME, __elapsed); \
-        DARSHAN_COUNTER_SET(file->file_record, POSIX_MAX_WRITE_TIME_SIZE, __ret); } \
+        file->file_record->counters[POSIX_FILE_NOT_ALIGNED] += 1; \
+    if(file->last_io_type == DARSHAN_IO_READ) \
+        file->file_record->counters[POSIX_RW_SWITCHES] += 1; \
+    file->last_io_type = DARSHAN_IO_WRITE; \
+    if(file->file_record->fcounters[POSIX_F_WRITE_START_TIMESTAMP] == 0) \
+        file->file_record->fcounters[POSIX_F_WRITE_START_TIMESTAMP] = __tm1; \
+    file->file_record->fcounters[POSIX_F_WRITE_END_TIMESTAMP] = __tm2; \
+    if(file->file_record->fcounters[POSIX_F_MAX_WRITE_TIME] < __elapsed) { \
+        file->file_record->fcounters[POSIX_F_MAX_WRITE_TIME] = __elapsed; \
+        file->file_record->counters[POSIX_MAX_WRITE_TIME_SIZE] = __ret; } \
+    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_WRITE_TIME], __tm1, __tm2, file->last_write_end); \
 } while(0)
 
 #define POSIX_LOOKUP_RECORD_STAT(__path, __statbuf, __tm1, __tm2) do { \
@@ -397,9 +354,8 @@ static void posix_shutdown(void);
 } while(0)
 
 #define POSIX_RECORD_STAT(__file, __statbuf, __tm1, __tm2) do { \
-    (__file)->file_record->rank = my_rank; \
-    DARSHAN_COUNTER_F_INC_NO_OVERLAP((__file)->file_record, __tm1, __tm2, (__file)->last_meta_end, POSIX_F_META_TIME); \
-    DARSHAN_COUNTER_INC((__file)->file_record, POSIX_STATS, 1); \
+    DARSHAN_TIMER_INC_NO_OVERLAP((__file)->file_record->fcounters[POSIX_F_META_TIME], __tm1, __tm2, (__file)->last_meta_end); \
+    (__file)->file_record->counters[POSIX_STATS] += 1; \
 } while(0)
 
 /**********************************************************
@@ -906,9 +862,10 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
         if(file)
         {
             file->offset = ret;
-            DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
-                tm1, tm2, file->last_meta_end, POSIX_F_META_TIME);
-            DARSHAN_COUNTER_INC(file->file_record, POSIX_SEEKS, 1);
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                file->file_record->fcounters[POSIX_F_META_TIME],
+                tm1, tm2, file->last_meta_end);
+            file->file_record->counters[POSIX_SEEKS] += 1;
         }
         POSIX_UNLOCK();
     }
@@ -936,9 +893,10 @@ off_t DARSHAN_DECL(lseek64)(int fd, off_t offset, int whence)
         if(file)
         {
             file->offset = ret;
-            DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
-                tm1, tm2, file->last_meta_end, POSIX_F_META_TIME);
-            DARSHAN_COUNTER_INC(file->file_record, POSIX_SEEKS, 1);
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                file->file_record->fcounters[POSIX_F_META_TIME],
+                tm1, tm2, file->last_meta_end);
+            file->file_record->counters[POSIX_SEEKS] += 1;
         }
         POSIX_UNLOCK();
     }
@@ -966,9 +924,10 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
         if(file)
         {
             file->offset = ftell(stream);
-            DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
-                tm1, tm2, file->last_meta_end, POSIX_F_META_TIME);
-            DARSHAN_COUNTER_INC(file->file_record, POSIX_FSEEKS, 1);
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                file->file_record->fcounters[POSIX_F_META_TIME],
+                tm1, tm2, file->last_meta_end);
+            file->file_record->counters[POSIX_FSEEKS] += 1;
         }
         POSIX_UNLOCK();
     }
@@ -1135,7 +1094,7 @@ void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
     file = posix_file_by_fd(fd);
     if(file)
     {
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_MMAPS, 1);
+        file->file_record->counters[POSIX_MMAPS] += 1;
     }
     POSIX_UNLOCK();
 
@@ -1159,7 +1118,7 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
     file = posix_file_by_fd(fd);
     if(file)
     {
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_MMAPS, 1);
+        file->file_record->counters[POSIX_MMAPS] += 1;
     }
     POSIX_UNLOCK();
 
@@ -1186,9 +1145,10 @@ int DARSHAN_DECL(fsync)(int fd)
     file = posix_file_by_fd(fd);
     if(file)
     {
-        DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
-            tm1, tm2, file->last_write_end, POSIX_F_WRITE_TIME);
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_FSYNCS, 1);
+        DARSHAN_TIMER_INC_NO_OVERLAP(
+            file->file_record->fcounters[POSIX_F_WRITE_TIME],
+            tm1, tm2, file->last_write_end);
+        file->file_record->counters[POSIX_FSYNCS] += 1;
     }
     POSIX_UNLOCK();
 
@@ -1215,9 +1175,10 @@ int DARSHAN_DECL(fdatasync)(int fd)
     file = posix_file_by_fd(fd);
     if(file)
     {
-        DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
-            tm1, tm2, file->last_write_end, POSIX_F_WRITE_TIME); 
-        DARSHAN_COUNTER_INC(file->file_record, POSIX_FDSYNCS, 1);
+        DARSHAN_TIMER_INC_NO_OVERLAP(
+            file->file_record->fcounters[POSIX_F_WRITE_TIME],
+            tm1, tm2, file->last_write_end);
+        file->file_record->counters[POSIX_FDSYNCS] += 1;
     }
     POSIX_UNLOCK();
 
@@ -1243,10 +1204,11 @@ int DARSHAN_DECL(close)(int fd)
     {
         file->last_byte_written = 0;
         file->last_byte_read = 0;
-        DARSHAN_COUNTER_F_SET(file->file_record,
-            POSIX_F_CLOSE_TIMESTAMP, darshan_core_wtime());
-        DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
-             tm1, tm2, file->last_meta_end, POSIX_F_META_TIME);
+        file->file_record->fcounters[POSIX_F_CLOSE_TIMESTAMP] =
+            darshan_core_wtime();
+        DARSHAN_TIMER_INC_NO_OVERLAP(
+            file->file_record->fcounters[POSIX_F_META_TIME],
+            tm1, tm2, file->last_meta_end);
         posix_file_close_fd(fd);
     }
     POSIX_UNLOCK();    
@@ -1274,13 +1236,208 @@ int DARSHAN_DECL(fclose)(FILE *fp)
     {
         file->last_byte_written = 0;
         file->last_byte_read = 0;
-        DARSHAN_COUNTER_F_SET(file->file_record,
-            POSIX_F_CLOSE_TIMESTAMP, darshan_core_wtime());
-        DARSHAN_COUNTER_F_INC_NO_OVERLAP(file->file_record,
-            tm1, tm2, file->last_meta_end, POSIX_F_META_TIME);
+        file->file_record->fcounters[POSIX_F_CLOSE_TIMESTAMP] =
+            darshan_core_wtime();
+        DARSHAN_TIMER_INC_NO_OVERLAP(
+            file->file_record->fcounters[POSIX_F_META_TIME],
+            tm1, tm2, file->last_meta_end);
         posix_file_close_fd(fd);
     }
     POSIX_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(aio_read)(struct aiocb *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_read);
+
+    ret = __real_aio_read(aiocbp);
+    if(ret == 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        posix_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(aio_write)(struct aiocb *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_write);
+
+    ret = __real_aio_write(aiocbp);
+    if(ret == 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        posix_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(aio_read64)(struct aiocb64 *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_read64);
+
+    ret = __real_aio_read64(aiocbp);
+    if(ret == 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        posix_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(aio_write64)(struct aiocb64 *aiocbp)
+{
+    int ret;
+
+    MAP_OR_FAIL(aio_write64);
+
+    ret = __real_aio_write64(aiocbp);
+    if(ret == 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        posix_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
+ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
+{
+    int ret;
+    double tm2;
+    struct posix_aio_tracker *tmp;
+    int aligned_flag = 0;
+
+    MAP_OR_FAIL(aio_return);
+
+    ret = __real_aio_return(aiocbp);
+    tm2 = darshan_core_wtime();
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    tmp = posix_aio_tracker_del(aiocbp->aio_fildes, aiocbp);
+    if (tmp)
+    {
+        if((unsigned long)aiocbp->aio_buf % darshan_mem_alignment == 0)
+            aligned_flag = 1;
+        if(aiocbp->aio_lio_opcode == LIO_WRITE)
+        {
+            POSIX_RECORD_WRITE(ret, aiocbp->aio_fildes,
+                1, aiocbp->aio_offset, aligned_flag, 0,
+                tmp->tm1, tm2);
+        }
+        else if(aiocbp->aio_lio_opcode == LIO_READ)
+        {
+            POSIX_RECORD_READ(ret, aiocbp->aio_fildes,
+                1, aiocbp->aio_offset, aligned_flag, 0,
+                tmp->tm1, tm2);
+        }
+        free(tmp);
+    }
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
+{
+    int ret;
+    double tm2;
+    struct posix_aio_tracker *tmp;
+    int aligned_flag = 0;
+
+    MAP_OR_FAIL(aio_return64);
+
+    ret = __real_aio_return64(aiocbp);
+    tm2 = darshan_core_wtime();
+
+    POSIX_LOCK();
+    posix_runtime_initialize();
+    tmp = posix_aio_tracker_del(aiocbp->aio_fildes, aiocbp);
+    if (tmp)
+    {
+        if((unsigned long)aiocbp->aio_buf % darshan_mem_alignment == 0)
+            aligned_flag = 1;
+        if(aiocbp->aio_lio_opcode == LIO_WRITE)
+        {
+            POSIX_RECORD_WRITE(ret, aiocbp->aio_fildes,
+                1, aiocbp->aio_offset, aligned_flag, 0,
+                tmp->tm1, tm2);
+        }
+        else if(aiocbp->aio_lio_opcode == LIO_READ)
+        {
+            POSIX_RECORD_READ(ret, aiocbp->aio_fildes,
+                1, aiocbp->aio_offset, aligned_flag, 0,
+                tmp->tm1, tm2);
+        }
+        free(tmp);
+    }
+    POSIX_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(lio_listio)(int mode, struct aiocb *const aiocb_list[],
+    int nitems, struct sigevent *sevp)
+{
+    int ret;
+    int i;
+
+    MAP_OR_FAIL(lio_listio);
+
+    ret = __real_lio_listio(mode, aiocb_list, nitems, sevp);
+    if(ret == 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        for(i = 0; i < nitems; i++)
+        {
+            posix_aio_tracker_add(aiocb_list[i]->aio_fildes, aiocb_list[i]);
+        }
+        POSIX_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb64 *const aiocb_list[],
+    int nitems, struct sigevent *sevp)
+{
+    int ret;
+    int i;
+
+    MAP_OR_FAIL(lio_listio64);
+
+    ret = __real_lio_listio64(mode, aiocb_list, nitems, sevp);
+    if(ret == 0)
+    {
+        POSIX_LOCK();
+        posix_runtime_initialize();
+        for(i = 0; i < nitems; i++)
+        {
+            posix_aio_tracker_add(aiocb_list[i]->aio_fildes, aiocb_list[i]);
+        }
+        POSIX_UNLOCK();
+    }
 
     return(ret);
 }
@@ -1296,8 +1453,6 @@ static void posix_runtime_initialize()
     struct darshan_module_funcs posix_mod_fns =
     {
         .begin_shutdown = &posix_begin_shutdown,
-        .setup_reduction = &posix_setup_reduction,
-        .record_reduction_op = &posix_record_reduction_op,
         .get_output_data = &posix_get_output_data,
         .shutdown = &posix_shutdown
     };
@@ -1310,6 +1465,7 @@ static void posix_runtime_initialize()
     darshan_core_register_module(
         DARSHAN_POSIX_MOD,
         &posix_mod_fns,
+        &my_rank,
         &mem_limit,
         &darshan_mem_alignment);
 
@@ -1342,9 +1498,6 @@ static void posix_runtime_initialize()
            sizeof(struct posix_file_runtime));
     memset(posix_runtime->file_record_array, 0, posix_runtime->file_array_size *
            sizeof(struct darshan_posix_file));
-
-    /* TODO: can we move this out of here? perhaps register_module returns rank? */
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
 
     return;
 }
@@ -1388,8 +1541,9 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
         file = &(posix_runtime->file_runtime_array[posix_runtime->file_array_ndx]);
         file->file_record = &(posix_runtime->file_record_array[posix_runtime->file_array_ndx]);
         file->file_record->f_id = file_id;
-        DARSHAN_COUNTER_SET(file->file_record, POSIX_MEM_ALIGNMENT, darshan_mem_alignment);
-        DARSHAN_COUNTER_SET(file->file_record, POSIX_FILE_ALIGNMENT, file_alignment);
+        file->file_record->rank = my_rank;
+        file->file_record->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
+        file->file_record->counters[POSIX_FILE_ALIGNMENT] = file_alignment;
 
         /* add new record to file hash table */
         HASH_ADD(hlink, posix_runtime->file_hash, file_record->f_id, sizeof(darshan_record_id), file);
@@ -1481,136 +1635,8 @@ static void posix_file_close_fd(int fd)
     return;
 }
 
-static void posix_access_counter(struct posix_file_runtime* file, ssize_t size,
-    enum posix_counter_type type)
-{
-    struct posix_access_counter* counter;
-    struct posix_access_counter* found;
-    void* tmp;
-    void** root;
-    int* count;
-    struct posix_access_counter tmp_counter;
-
-    /* don't count sizes or strides of 0 */
-    if(size == 0)
-        return;
-
-    switch(type)
-    {
-        case POSIX_COUNTER_ACCESS:
-            root = &file->access_root;
-            count = &file->access_count;
-            break;
-        case POSIX_COUNTER_STRIDE:
-            root = &file->stride_root;
-            count = &file->stride_count;
-            break;
-        default:
-            return;
-    }
-
-    /* check to see if this size is already recorded */
-    tmp_counter.size = size;
-    tmp_counter.freq = 1;
-    tmp = tfind(&tmp_counter, root, posix_access_compare);
-    if(tmp)
-    {
-        found = *(struct posix_access_counter**)tmp;
-        found->freq++;
-        return;
-    }
-
-    /* we can add a new one as long as we haven't hit the limit */
-    if(*count < POSIX_MAX_ACCESS_COUNT_RUNTIME)
-    {
-        counter = malloc(sizeof(*counter));
-        if(!counter)
-        {
-            return;
-        }
-
-        counter->size = size;
-        counter->freq = 1;
-
-        tmp = tsearch(counter, root, posix_access_compare);
-        found = *(struct posix_access_counter**)tmp;
-        /* if we get a new answer out here we are in trouble; this was
-         * already checked with the tfind()
-         */
-        assert(found == counter);
-
-        (*count)++;
-    }
-
-    return;
-}
-
-static void posix_access_walker(const void* nodep, const VISIT which, const int depth)
-{
-    struct posix_access_counter* counter;
-
-    switch (which)
-    {
-        case postorder:
-        case leaf:
-            counter = *(struct posix_access_counter**)nodep;
-            POSIX_COMMON_COUNTER_INC(walker_file->file_record, counter->size, counter->freq,
-                walker_validx, walker_cntidx);
-        default:
-            break;
-    }
-
-    return;
-};
-
-/* posix_walk_file_accesses()
- *
- * goes through runtime collections of accesses sizes and chooses the 4 most
- * common for logging
- */
-static void posix_walk_file_accesses()
-{
-    int i;
-
-    for(i=0; i<posix_runtime->file_array_ndx; i++)
-    {
-        /* walk trees for both access sizes and stride sizes to pick 4 most
-         * common of each
-         */
-
-        /* NOTE: setting global variables here for cp_access_walker() */
-        walker_file = &posix_runtime->file_runtime_array[i];
-        walker_validx = POSIX_ACCESS1_ACCESS;
-        walker_cntidx = POSIX_ACCESS1_COUNT;
-        twalk(walker_file->access_root,
-            posix_access_walker);
-        tdestroy(walker_file->access_root, free);
-
-        walker_validx = POSIX_STRIDE1_STRIDE;
-        walker_cntidx = POSIX_STRIDE1_COUNT;
-        twalk(walker_file->stride_root,
-            posix_access_walker);
-        tdestroy(walker_file->stride_root, free);
-    }
-
-    return;
-}
-
-static int posix_access_compare(const void* a_p, const void* b_p)
-{
-    const struct posix_access_counter* a = a_p;
-    const struct posix_access_counter* b = b_p;
-
-    if(a->size < b->size)
-        return(-1);
-    if(a->size > b->size)
-        return(1);
-    return(0);
-}
-
-
 /* compare function for sorting file records by descending rank */
-static int posix_file_compare(const void* a_p, const void* b_p)
+static int posix_record_compare(const void* a_p, const void* b_p)
 {
     const struct darshan_posix_file* a = a_p;
     const struct darshan_posix_file* b = b_p;
@@ -1623,114 +1649,56 @@ static int posix_file_compare(const void* a_p, const void* b_p)
     return 0;
 }
 
-/************************************************************************
- * Functions exported by this module for coordinating with darshan-core *
- ************************************************************************/
-
-static void posix_begin_shutdown()
+/* finds the tracker structure for a given aio operation, removes it from
+ * the linked list for the darshan_file structure, and returns a pointer.  
+ *
+ * returns NULL if aio operation not found
+ */
+static struct posix_aio_tracker* posix_aio_tracker_del(int fd, void *aiocbp)
 {
-    assert(posix_runtime);
+    struct posix_aio_tracker *tracker = NULL, *iter, *tmp;
+    struct posix_file_runtime* file;
 
-    POSIX_LOCK();
-
-    /* go through file access data for each record and set the 4 most common
-     * stride/access size counters.
-     */
-    posix_walk_file_accesses();
-
-    /* disable further instrumentation while Darshan shuts down */
-    instrumentation_disabled = 1;
-    POSIX_UNLOCK();
-
-    return;
-}
-
-static void posix_setup_reduction(
-    darshan_record_id *shared_recs,
-    int *shared_rec_count,
-    void **send_buf,
-    void **recv_buf,
-    int *rec_size)
-{
-    struct posix_file_runtime *file;
-    int i;
-    double posix_time;
-    int count;
-
-    assert(posix_runtime);
-
-    /* necessary initialization of shared records (e.g., change rank to -1) */
-    for(i = 0,count = 0; i < *shared_rec_count; i++)
+    file = posix_file_by_fd(fd);
+    if (file)
     {
-        HASH_FIND(hlink, posix_runtime->file_hash, &shared_recs[i],
-            sizeof(darshan_record_id), file);
-        if (!file) {
-            continue;
+        LL_FOREACH_SAFE(file->aio_list, iter, tmp)
+        {
+            if (iter->aiocbp == aiocbp)
+            {
+                LL_DELETE(file->aio_list, iter);
+                tracker = iter;
+                break;
+            }
         }
-        count++;
-
-        posix_time =
-            file->file_record->fcounters[POSIX_F_READ_TIME] +
-            file->file_record->fcounters[POSIX_F_WRITE_TIME] +
-            file->file_record->fcounters[POSIX_F_META_TIME];
-
-        /* initialize fastest/slowest info prior to the reduction */
-        file->file_record->counters[POSIX_FASTEST_RANK] =
-            file->file_record->rank;
-        file->file_record->counters[POSIX_FASTEST_RANK_BYTES] = 
-            file->file_record->counters[POSIX_BYTES_READ] +
-            file->file_record->counters[POSIX_BYTES_WRITTEN];
-        file->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME] = 
-            posix_time;
-
-        /* until reduction occurs, we assume that this rank is both
-         * the fastest and slowest. It is up to the reduction operator
-         * to find the true min and max.
-         */
-        file->file_record->counters[POSIX_SLOWEST_RANK] =
-            file->file_record->counters[POSIX_FASTEST_RANK];
-        file->file_record->counters[POSIX_SLOWEST_RANK_BYTES] =
-            file->file_record->counters[POSIX_FASTEST_RANK_BYTES];
-        file->file_record->fcounters[POSIX_F_SLOWEST_RANK_TIME] =
-            file->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME];
-
-        file->file_record->rank = -1;
     }
 
-    /* sort the array of files descending by rank so that we get all of the 
-     * shared files (marked by rank -1) in a contiguous portion at end 
-     * of the array
-     */
-    qsort(posix_runtime->file_record_array, posix_runtime->file_array_ndx,
-        sizeof(struct darshan_posix_file), posix_file_compare);
+    return(tracker);
+}
 
-    /* make *send_buf point to the shared files at the end of sorted array */
-    *send_buf =
-        &(posix_runtime->file_record_array[posix_runtime->file_array_ndx-(count)]);
+/* adds a tracker for the given aio operation */
+static void posix_aio_tracker_add(int fd, void *aiocbp)
+{
+    struct posix_aio_tracker* tracker;
+    struct posix_file_runtime* file;
 
-    /* allocate memory for the reduction output on rank 0 */
-    if((my_rank == 0) && (count > 0))
+    file = posix_file_by_fd(fd);
+    if (file)
     {
-        printf("shared count = %d\n", count);
-        *recv_buf = malloc(count * sizeof(struct darshan_posix_file));
-        posix_runtime->red_buf = *recv_buf;
-        printf("recv_buf = %p\n", *recv_buf);
-//        if(!(*recv_buf))
-//            return;
+        tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = darshan_core_wtime();
+            tracker->aiocbp = aiocbp;
+            LL_PREPEND(file->aio_list, tracker);
+        }
     }
-
-    *rec_size = sizeof(struct darshan_posix_file);
-
-    posix_runtime->shared_rec_count = count;
 
     return;
 }
 
-static void posix_record_reduction_op(
-    void* infile_v,
-    void* inoutfile_v,
-    int *len,
-    MPI_Datatype *datatype)
+static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
+    int *len, MPI_Datatype *datatype)
 {
     struct darshan_posix_file tmp_file;
     struct darshan_posix_file *infile = infile_v;
@@ -1742,7 +1710,6 @@ static void posix_record_reduction_op(
     for(i=0; i<*len; i++)
     {
         memset(&tmp_file, 0, sizeof(struct darshan_posix_file));
-
         tmp_file.f_id = infile->f_id;
         tmp_file.rank = -1;
 
@@ -1752,7 +1719,10 @@ static void posix_record_reduction_op(
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
-        tmp_file.counters[POSIX_MODE] = infile->counters[POSIX_MODE];
+        if(POSIX_FILE_PARTIAL(infile))
+            tmp_file.counters[POSIX_MODE] = inoutfile->counters[POSIX_MODE];
+        else
+            tmp_file.counters[POSIX_MODE] = infile->counters[POSIX_MODE];
 
         /* sum */
         for(j=POSIX_BYTES_READ; j<=POSIX_BYTES_WRITTEN; j++)
@@ -1772,26 +1742,30 @@ static void posix_record_reduction_op(
         /* sum */
         for(j=POSIX_CONSEC_READS; j<=POSIX_MEM_NOT_ALIGNED; j++)
         {
-            tmp_file.counters[j] = infile->counters[j] +
-                inoutfile->counters[j];
+            tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
-        tmp_file.counters[POSIX_MEM_ALIGNMENT] = infile->counters[POSIX_MEM_ALIGNMENT];
-        tmp_file.counters[POSIX_FILE_ALIGNMENT] = infile->counters[POSIX_FILE_ALIGNMENT];
+        if(POSIX_FILE_PARTIAL(infile))
+            tmp_file.counters[POSIX_MEM_ALIGNMENT] = inoutfile->counters[POSIX_MEM_ALIGNMENT];
+        else
+            tmp_file.counters[POSIX_MEM_ALIGNMENT] = infile->counters[POSIX_MEM_ALIGNMENT];
 
         /* sum */
         for(j=POSIX_FILE_NOT_ALIGNED; j<=POSIX_FILE_NOT_ALIGNED; j++)
         {
-            tmp_file.counters[j] = infile->counters[j] +
-                inoutfile->counters[j];
+            tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
+
+        if(POSIX_FILE_PARTIAL(infile))
+            tmp_file.counters[POSIX_FILE_ALIGNMENT] = inoutfile->counters[POSIX_FILE_ALIGNMENT];
+        else
+            tmp_file.counters[POSIX_FILE_ALIGNMENT] = infile->counters[POSIX_FILE_ALIGNMENT];
 
         /* skip POSIX_MAX_*_TIME_SIZE; handled in floating point section */
 
         for(j=POSIX_SIZE_READ_0_100; j<=POSIX_SIZE_WRITE_1G_PLUS; j++)
         {
-            tmp_file.counters[j] = infile->counters[j] +
-                inoutfile->counters[j];
+            tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
         /* first collapse any duplicates */
@@ -1811,14 +1785,16 @@ static void posix_record_reduction_op(
         /* first set */
         for(j=POSIX_STRIDE1_STRIDE; j<=POSIX_STRIDE4_STRIDE; j++)
         {
-            POSIX_COMMON_COUNTER_INC(&tmp_file, infile->counters[j],
-                infile->counters[j+4], POSIX_STRIDE1_STRIDE, POSIX_STRIDE1_COUNT);
+            DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[POSIX_STRIDE1_STRIDE]),
+                &(tmp_file.counters[POSIX_STRIDE1_COUNT]), infile->counters[j],
+                infile->counters[j+4]);
         }
         /* second set */
         for(j=POSIX_STRIDE1_STRIDE; j<=POSIX_STRIDE4_STRIDE; j++)
         {
-            POSIX_COMMON_COUNTER_INC(&tmp_file, inoutfile->counters[j],
-                inoutfile->counters[j+4], POSIX_STRIDE1_STRIDE, POSIX_STRIDE1_COUNT);
+            DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[POSIX_STRIDE1_STRIDE]),
+                &(tmp_file.counters[POSIX_STRIDE1_COUNT]), inoutfile->counters[j],
+                inoutfile->counters[j+4]);
         }
 
         /* same for access counts */
@@ -1840,20 +1816,23 @@ static void posix_record_reduction_op(
         /* first set */
         for(j=POSIX_ACCESS1_ACCESS; j<=POSIX_ACCESS4_ACCESS; j++)
         {
-            POSIX_COMMON_COUNTER_INC(&tmp_file, infile->counters[j],
-                infile->counters[j+4], POSIX_ACCESS1_ACCESS, POSIX_ACCESS1_COUNT);
+            DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[POSIX_ACCESS1_ACCESS]),
+                &(tmp_file.counters[POSIX_ACCESS1_COUNT]), infile->counters[j],
+                infile->counters[j+4]);
         }
         /* second set */
         for(j=POSIX_ACCESS1_ACCESS; j<=POSIX_ACCESS4_ACCESS; j++)
         {
-            POSIX_COMMON_COUNTER_INC(&tmp_file, inoutfile->counters[j],
-                inoutfile->counters[j+4], POSIX_ACCESS1_ACCESS, POSIX_ACCESS1_COUNT);
+            DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[POSIX_ACCESS1_ACCESS]),
+                &(tmp_file.counters[POSIX_ACCESS1_COUNT]), inoutfile->counters[j],
+                inoutfile->counters[j+4]);
         }
 
         /* min non-zero (if available) value */
         for(j=POSIX_F_OPEN_TIMESTAMP; j<=POSIX_F_WRITE_START_TIMESTAMP; j++)
         {
-            if(infile->fcounters[j] > inoutfile->fcounters[j] && inoutfile->fcounters[j] > 0)
+            if(infile->fcounters[j] > inoutfile->fcounters[j] &&
+               inoutfile->fcounters[j] > 0)
                 tmp_file.fcounters[j] = inoutfile->fcounters[j];
             else
                 tmp_file.fcounters[j] = infile->fcounters[j];
@@ -1958,28 +1937,233 @@ static void posix_record_reduction_op(
     return;
 }
 
-static void posix_get_output_data(
-    void **buffer,
-    int *size)
+static void posix_shared_record_variance(MPI_Comm mod_comm,
+    struct darshan_posix_file *inrec_array, struct darshan_posix_file *outrec_array,
+    int shared_rec_count)
+{
+    MPI_Datatype var_dt;
+    MPI_Op var_op;
+    int i;
+    struct darshan_variance_dt *var_send_buf = NULL;
+    struct darshan_variance_dt *var_recv_buf = NULL;
+
+    DARSHAN_MPI_CALL(PMPI_Type_contiguous)(sizeof(struct darshan_variance_dt),
+        MPI_BYTE, &var_dt);
+    DARSHAN_MPI_CALL(PMPI_Type_commit)(&var_dt);
+
+    DARSHAN_MPI_CALL(PMPI_Op_create)(darshan_variance_reduce, 1, &var_op);
+
+    var_send_buf = malloc(shared_rec_count * sizeof(struct darshan_variance_dt));
+    if(!var_send_buf)
+        return;
+
+    if(my_rank == 0)
+    {
+        var_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_variance_dt));
+
+        if(!var_recv_buf)
+            return;
+    }
+
+    /* get total i/o time variances for shared records */
+
+    for(i=0; i<shared_rec_count; i++)
+    {
+        var_send_buf[i].n = 1;
+        var_send_buf[i].S = 0;
+        var_send_buf[i].T = inrec_array[i].fcounters[POSIX_F_READ_TIME] +
+                            inrec_array[i].fcounters[POSIX_F_WRITE_TIME] +
+                            inrec_array[i].fcounters[POSIX_F_META_TIME];
+    }
+
+    DARSHAN_MPI_CALL(PMPI_Reduce)(var_send_buf, var_recv_buf, shared_rec_count,
+        var_dt, var_op, 0, mod_comm);
+
+    if(my_rank == 0)
+    {
+        for(i=0; i<shared_rec_count; i++)
+        {
+            outrec_array[i].fcounters[POSIX_F_VARIANCE_RANK_TIME] =
+                (var_recv_buf[i].S / var_recv_buf[i].n);
+        }
+    }
+
+    /* get total bytes moved variances for shared records */
+
+    for(i=0; i<shared_rec_count; i++)
+    {
+        var_send_buf[i].n = 1;
+        var_send_buf[i].S = 0;
+        var_send_buf[i].T = (double)
+                            inrec_array[i].counters[POSIX_BYTES_READ] +
+                            inrec_array[i].counters[POSIX_BYTES_WRITTEN];
+    }
+
+    DARSHAN_MPI_CALL(PMPI_Reduce)(var_send_buf, var_recv_buf, shared_rec_count,
+        var_dt, var_op, 0, mod_comm);
+
+    if(my_rank == 0)
+    {
+        for(i=0; i<shared_rec_count; i++)
+        {
+            outrec_array[i].fcounters[POSIX_F_VARIANCE_RANK_BYTES] =
+                (var_recv_buf[i].S / var_recv_buf[i].n);
+        }
+    }
+
+    DARSHAN_MPI_CALL(PMPI_Type_free)(&var_dt);
+    DARSHAN_MPI_CALL(PMPI_Op_free)(&var_op);
+    free(var_send_buf);
+    free(var_recv_buf);
+
+    return;
+}
+
+/************************************************************************
+ * Functions exported by this module for coordinating with darshan-core *
+ ************************************************************************/
+
+static void posix_begin_shutdown()
 {
     assert(posix_runtime);
 
-    /* TODO: cleaner way to do this? */
-    /* clean up reduction state */
-    if((my_rank == 0) && (posix_runtime->red_buf))
+    POSIX_LOCK();
+    /* disable further instrumentation while Darshan shuts down */
+    instrumentation_disabled = 1;
+    POSIX_UNLOCK();
+
+    return;
+}
+
+static void posix_get_output_data(
+    MPI_Comm mod_comm,
+    darshan_record_id *shared_recs,
+    int shared_rec_count,
+    void **posix_buf,
+    int *posix_buf_sz)
+{
+    struct posix_file_runtime *file;
+    struct posix_file_runtime *tmp;
+    int i;
+    double posix_time;
+    struct darshan_posix_file *red_send_buf = NULL;
+    struct darshan_posix_file *red_recv_buf = NULL;
+    MPI_Datatype red_type;
+    MPI_Op red_op;
+
+    assert(posix_runtime);
+
+    /* go through file access data for each record and set the 4 most common
+     * stride/access size counters.
+     */
+    for(i = 0; i < posix_runtime->file_array_ndx; i++)
     {
-        int tmp_ndx = posix_runtime->file_array_ndx - posix_runtime->shared_rec_count;
-        memcpy(&(posix_runtime->file_record_array[tmp_ndx]), posix_runtime->red_buf,
-            posix_runtime->shared_rec_count * sizeof(struct darshan_posix_file));
-        free(posix_runtime->red_buf);
-    }
-    else
-    {
-        posix_runtime->file_array_ndx -= posix_runtime->shared_rec_count;
+        tmp = &(posix_runtime->file_runtime_array[i]);
+
+        /* common accesses */
+        darshan_walk_common_vals(tmp->access_root,
+            &(tmp->file_record->counters[POSIX_ACCESS1_ACCESS]),
+            &(tmp->file_record->counters[POSIX_ACCESS1_COUNT]));
+        /* common strides */
+        darshan_walk_common_vals(tmp->stride_root,
+            &(tmp->file_record->counters[POSIX_STRIDE1_STRIDE]),
+            &(tmp->file_record->counters[POSIX_STRIDE1_COUNT]));
     }
 
-    *buffer = (void *)(posix_runtime->file_record_array);
-    *size = posix_runtime->file_array_ndx * sizeof(struct darshan_posix_file);
+    /* if there are globally shared files, do a shared file reduction */
+    if(shared_rec_count)
+    {
+        /* necessary initialization of shared records */
+        for(i = 0; i < shared_rec_count; i++)
+        {
+            HASH_FIND(hlink, posix_runtime->file_hash, &shared_recs[i],
+                sizeof(darshan_record_id), file);
+            assert(file);
+
+            posix_time =
+                file->file_record->fcounters[POSIX_F_READ_TIME] +
+                file->file_record->fcounters[POSIX_F_WRITE_TIME] +
+                file->file_record->fcounters[POSIX_F_META_TIME];
+
+            /* initialize fastest/slowest info prior to the reduction */
+            file->file_record->counters[POSIX_FASTEST_RANK] =
+                file->file_record->rank;
+            file->file_record->counters[POSIX_FASTEST_RANK_BYTES] =
+                file->file_record->counters[POSIX_BYTES_READ] +
+                file->file_record->counters[POSIX_BYTES_WRITTEN];
+            file->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME] =
+                posix_time;
+
+            /* until reduction occurs, we assume that this rank is both
+             * the fastest and slowest. It is up to the reduction operator
+             * to find the true min and max.
+             */
+            file->file_record->counters[POSIX_SLOWEST_RANK] =
+                file->file_record->counters[POSIX_FASTEST_RANK];
+            file->file_record->counters[POSIX_SLOWEST_RANK_BYTES] =
+                file->file_record->counters[POSIX_FASTEST_RANK_BYTES];
+            file->file_record->fcounters[POSIX_F_SLOWEST_RANK_TIME] =
+                file->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME];
+
+            file->file_record->rank = -1;
+        }
+
+        /* sort the array of files descending by rank so that we get all of the 
+         * shared files (marked by rank -1) in a contiguous portion at end 
+         * of the array
+         */
+        qsort(posix_runtime->file_record_array, posix_runtime->file_array_ndx,
+            sizeof(struct darshan_posix_file), posix_record_compare);
+
+        /* make *send_buf point to the shared files at the end of sorted array */
+        red_send_buf =
+            &(posix_runtime->file_record_array[posix_runtime->file_array_ndx-shared_rec_count]);
+        
+        /* allocate memory for the reduction output on rank 0 */
+        if(my_rank == 0)
+        {
+            red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_posix_file));
+            if(!red_recv_buf)
+                return;
+        }
+
+        /* construct a datatype for a POSIX file record.  This is serving no purpose
+         * except to make sure we can do a reduction on proper boundaries
+         */
+        DARSHAN_MPI_CALL(PMPI_Type_contiguous)(sizeof(struct darshan_posix_file),
+            MPI_BYTE, &red_type);
+        DARSHAN_MPI_CALL(PMPI_Type_commit)(&red_type);
+
+        /* register a POSIX file record reduction operator */
+        DARSHAN_MPI_CALL(PMPI_Op_create)(posix_record_reduction_op, 1, &red_op);
+
+        /* reduce shared POSIX file records */
+        DARSHAN_MPI_CALL(PMPI_Reduce)(red_send_buf, red_recv_buf,
+            shared_rec_count, red_type, red_op, 0, mod_comm);
+
+        /* get the time and byte variances for shared files */
+        posix_shared_record_variance(mod_comm, red_send_buf, red_recv_buf,
+            shared_rec_count);
+
+        /* clean up reduction state */
+        if(my_rank == 0)
+        {
+            int tmp_ndx = posix_runtime->file_array_ndx - shared_rec_count;
+            memcpy(&(posix_runtime->file_record_array[tmp_ndx]), red_recv_buf,
+                shared_rec_count * sizeof(struct darshan_posix_file));
+            free(red_recv_buf);
+        }
+        else
+        {
+            posix_runtime->file_array_ndx -= shared_rec_count;
+        }
+
+        DARSHAN_MPI_CALL(PMPI_Type_free)(&red_type);
+        DARSHAN_MPI_CALL(PMPI_Op_free)(&red_op);
+    }
+
+    *posix_buf = (void *)(posix_runtime->file_record_array);
+    *posix_buf_sz = posix_runtime->file_array_ndx * sizeof(struct darshan_posix_file);
 
     return;
 }

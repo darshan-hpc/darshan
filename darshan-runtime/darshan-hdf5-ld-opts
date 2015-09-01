@@ -1,0 +1,3 @@
+--wrap=H5Fcreate
+--wrap=H5Fopen
+--wrap=H5Fclose

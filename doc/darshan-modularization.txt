@@ -74,14 +74,37 @@ In general, instrumentation modules are composed of:
 * internal functions for initializing and maintaining internal data structures and module-specific
   I/O characterization data;
 
-* a set of functions for interfacing with the Darshan runtime environment, including an optional
-  reduction operation to condense I/O data shared on all processes into a single data record.
+* a set of functions for interfacing with the Darshan runtime environment
 
 A block diagram illustrating the interaction of an example POSIX instrumentation module and the
 Darshan runtime environment is given below in Figure 1.
 
 .Darshan runtime environment
 image::darshan-dev-modular-runtime.png[align="center"]
+
+As shown in Figure 1, the Darshan runtime environment is just a library (libdarshan) which
+intercepts and instruments functions of interest made by an application to existing system
+libraries. Two primary components of this library are `darshan-core` and `darshan-common`.
+`darshan-core` is the central component which manages the initialization/shutdown of Darshan,
+coordinates with active instrumentation modules, and writes I/O characterization logs to disk,
+among other things. `darshan-core` intercepts `MPI_Init()` to initialize key internal data
+stuctures and intercepts `MPI_Finalize()` to initiate Darshan's shutdown process. `darshan-common`
+simply provides module developers with functionality that is likely to be reused across modules
+to minimize development and maintenance costs. Instrumentation modules must utilize `darshan-core`
+to register themselves and corresponding I/O records with Darshan so they can be added to the
+output I/O characterization. While not shown in Figure 1, numerous modules can be registered
+with Darshan at any given time and Darshan is capable of correlating records between these
+modules.
+
+In the next three subsections, we describe instrumentation modules, the `darshan-core` component,
+and the `darshan-common` component in more detail. In
+link:darshan-modularization.html#_adding_new_instrumentation_modules[Section 4], we provide the
+required steps for integrating new instrumentation modules into Darshan. This section also includes
+details on an example module that can serve as a minimal starting point for new module implementations.
+In link:darshan-modularization.html#_shared_record_reductions[Section 5], we provide details on
+implementing a shared record reduction operation within an instrumentation module. This optional
+mechanism allows modules to compress records which are shared across all processes of an application,
+minimizing the size of the resulting I/O characterization log.
 
 ==== Instrumentation modules
 
@@ -106,6 +129,12 @@ environment to coordinate with modules while shutting down:
 struct darshan_module_funcs
 {
     void (*begin_shutdown)(void);
+    void (*get_output_data)(
+        void** buf,
+        int* size
+    );
+    void (*shutdown)(void);
+    /* OPTIONAL: shared record reductions ignored by setting setup_reduction to NULL */
     void (*setup_reduction)(
         darshan_record_id *shared_recs,
         int *shared_rec_count,
@@ -113,17 +142,13 @@ struct darshan_module_funcs
         void **recv_buf,
         int *rec_size
     );
+    /* OPTIONAL: shared record reductions ignored by setting record_reduction_op to NULL */
     void (*record_reduction_op)(
         void* a,
         void* b,
         int *len,
         MPI_Datatype *datatype
     );
-    void (*get_output_data)(
-        void** buf,
-        int* size
-    );
-    void (*shutdown)(void);
 };
 
 `begin_shutdown()`
@@ -133,30 +158,6 @@ all wrappers to prevent the module from making future updates to internal data s
 to ensure data consistency and avoid other race conditions. This function also serves as a final
 opportunity for a module to modify internal data structures prior to a possible reduction of shared
 data.
-
-`setup_reduction()`
-
-An optional feature provided to instrumentation modules it the ability to run reduction operations
-on I/O data records which are shared across all application processes (e.g., data records for a
-shared file). This reduction is done to minimize the size of the resulting I/O characterization,
-by aggregating shared records into a single data record.
-
-This function allows modules to setup internal data structures to run a reduction operation
-on data records which are shared across all application processes. Module developers can bypass
-the shared record reduction mechanism by setting the `setup_reduction` function pointer equal to `NULL`.
-This is helpful in initial prototyping of a module, or in the case where a module would not maintain
-I/O data which is shared across all processes. 
-
-The shared record reduction mechanism is described in detail
-link:darshan-modularization.html#_shared_record_reductions[here].
-
-`record_reduction_op()`
-
-This function implements the actual shared record reduction operation. Module developers can bypass
-the shared record reduction mechanism by setting the `record_reduction_op` pointer equal to `NULL`.
-
-The shared record reduction mechanism is described in detail
-link:darshan-modularization.html#_shared_record_reductions[here].
 
 `get_output_data()`
 
@@ -172,6 +173,11 @@ characterization.
 
 This function is a signal from Darshan that it is safe to shutdown. It should clean up and free
 all internal data structures.
+
+`setup_reduction()` and `record_reduction_op()` are optional function pointers which can be
+implemented to utilize Darshan's shared I/O record reduction mechanism, described in detail in
+link:darshan-modularization.html#_shared_record_reductions[Section 5]. Module developers can
+bypass this mechanism by setting these function pointers to NULL. 
 
 ==== darshan-core
 
@@ -476,8 +482,8 @@ Since Darshan perfers to aggregate data records which are shared across all proc
 data record, module developers should consider implementing this functionality eventually, though it
 is not strictly required. 
 
-As mentioned previously, module developers must provide implementations for the `begin_reduction()`
-and `record_reduction_op` functions in the darshan_module_funcs structure to leverage Darshan's
+As mentioned previously, module developers must provide implementations for the `setup_reduction()`
+and `record_reduction_op()` functions in the darshan_module_funcs structure to leverage Darshan's
 shared record reduction mechanism. These functions are described in detail as follows:
 
 [source,c]
