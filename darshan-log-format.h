@@ -49,7 +49,7 @@
     X(DARSHAN_MPIIO_MOD, "MPI-IO", mpiio_logutils) \
     X(DARSHAN_HDF5_MOD, "HDF5", hdf5_logutils) \
     X(DARSHAN_PNETCDF_MOD, "PNETCDF", pnetcdf_logutils) \
-    X(DARSHAN_BGQ_MODE, "BG/Q", bgq_logutils)
+    X(DARSHAN_BGQ_MOD, "BG/Q", bgq_logutils)
 
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]

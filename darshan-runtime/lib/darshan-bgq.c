@@ -49,13 +49,14 @@ static int instrumentation_disabled = 0;
 
 /* my_rank indicates the MPI rank of this process */
 static int my_rank = -1;
+static int darshan_mem_alignment = 1;
 
 /* internal helper functions for the "NULL" module */
 void bgq_runtime_initialize(void);
 
 /* forward declaration for module functions needed to interface with darshan-core */
 static void bgq_begin_shutdown(void);
-static void bgq_get_output_data(void **buffer, int *size);
+static void bgq_get_output_data(MPI_Comm mod_comm, darshan_record_id *shared_recs, int shared_rec_count, void **buffer, int *size);
 static void bgq_shutdown(void);
 static void bgq_setup_reduction(darshan_record_id *shared_recs,int *shared_rec_count,void **send_buf,void **recv_buf,int *rec_size);
 static void bgq_record_reduction_op(void* infile_v,void* inoutfile_v,int *len,MPI_Datatype *datatype);
@@ -75,7 +76,6 @@ static void capture(struct darshan_bgq_record *rec)
 
     rec->counters[BGQ_CSJOBID] = Kernel_GetJobID();
     rec->counters[BGQ_RANKSPERNODE] = Kernel_ProcessCount();
-
     rec->counters[BGQ_INODES] = MPIX_IO_node();
 
     r = Kernel_GetPersonality(&person, sizeof(person));
@@ -88,11 +88,11 @@ static void capture(struct darshan_bgq_record *rec)
         rec->counters[BGQ_DNODES] = person.Network_Config.Dnodes;
         rec->counters[BGQ_ENODES] = person.Network_Config.Enodes;
         rec->counters[BGQ_TORUSENABLED] =
-            ((person.Network_Config.NetFlags & ND_ENABLE_TORUS_DIM_A) << 0) |
-            ((person.Network_Config.NetFlags & ND_ENABLE_TORUS_DIM_B) << 1) |
-            ((person.Network_Config.NetFlags & ND_ENABLE_TORUS_DIM_C) << 2) |
-            ((person.Network_Config.NetFlags & ND_ENABLE_TORUS_DIM_D) << 3) |
-            ((person.Network_Config.NetFlags & ND_ENABLE_TORUS_DIM_E) << 4);
+            (((person.Network_Config.NetFlags & ND_ENABLE_TORUS_DIM_A) == ND_ENABLE_TORUS_DIM_A) << 0) |
+            (((person.Network_Config.NetFlags & ND_ENABLE_TORUS_DIM_B) == ND_ENABLE_TORUS_DIM_B) << 1) |
+            (((person.Network_Config.NetFlags & ND_ENABLE_TORUS_DIM_C) == ND_ENABLE_TORUS_DIM_C) << 2) |
+            (((person.Network_Config.NetFlags & ND_ENABLE_TORUS_DIM_D) == ND_ENABLE_TORUS_DIM_D) << 3) |
+            (((person.Network_Config.NetFlags & ND_ENABLE_TORUS_DIM_E) == ND_ENABLE_TORUS_DIM_E) << 4);
 
         rec->counters[BGQ_DDRPERNODE] = person.DDR_Config.DDRSizeMB;
     }
@@ -114,8 +114,6 @@ void bgq_runtime_initialize()
     struct darshan_module_funcs bgq_mod_fns =
     {
         .begin_shutdown = bgq_begin_shutdown,
-        .setup_reduction = bgq_setup_reduction, 
-        .record_reduction_op = bgq_record_reduction_op, 
         .get_output_data = bgq_get_output_data,
         .shutdown = bgq_shutdown
     };
@@ -132,8 +130,9 @@ void bgq_runtime_initialize()
     darshan_core_register_module(
         DARSHAN_BGQ_MOD,
         &bgq_mod_fns,
+        &my_rank,
         &mem_limit,
-        NULL);
+        &darshan_mem_alignment);
 
     /* return if no memory assigned by darshan-core */
     if(mem_limit == 0)
@@ -162,7 +161,7 @@ void bgq_runtime_initialize()
         recname,
         strlen(recname),
         1,
-        DARSHAN_POSIX_MOD,
+        DARSHAN_BGQ_MOD,
         &bgq_runtime->record.f_id,
         &bgq_runtime->record.alignment);
 
@@ -192,8 +191,18 @@ static void bgq_begin_shutdown()
     return;
 }
 
+static int cmpr(const void *p1, const void *p2)
+{
+    const int *a = (int*) p1;
+    const int *b = (int*) p2;
+    return ((*a == *b) ?  0 : ((*a < *b) ? -1 : 1));
+}
+
 /* Pass output data for the "BGQ" module back to darshan-core to log to file. */
 static void bgq_get_output_data(
+    MPI_Comm mod_comm,
+    darshan_record_id *shared_recs,
+    int shared_rec_count,
     void **buffer,
     int *size)
 {
@@ -202,6 +211,46 @@ static void bgq_get_output_data(
      * I/O records, and set the output size according to the number of records
      * currently being tracked.
      */
+    int nprocs;
+    int result;
+    uint64_t *ion_ids;
+
+    if (my_rank == 0)
+    {
+        DARSHAN_MPI_CALL(MPI_Comm_size)(mod_comm, &nprocs);
+        ion_ids = malloc(sizeof(*ion_ids)*nprocs);
+        result = (ion_ids != NULL); 
+    }
+    DARSHAN_MPI_CALL(MPI_Bcast)(&result, 1, MPI_INT, 0, mod_comm);
+
+    if (bgq_runtime && result)
+    {
+        int i, found;
+        uint64_t val;
+
+        DARSHAN_MPI_CALL(MPI_Gather)(&bgq_runtime->record.counters[BGQ_INODES],
+                                     1,
+                                     MPI_INT,
+                                     ion_ids,
+                                     1,
+                                     MPI_INT,
+                                     0,
+                                     mod_comm);
+        if (my_rank == 0)
+        {
+            qsort(ion_ids, nprocs, sizeof(*ion_ids), cmpr);
+            for (i = 1, val = ion_ids[0], found = 1; i < nprocs; i++)
+            {
+                if (val != ion_ids[i])
+                {
+                    val = ion_ids[i];
+                    found += 1;
+                }
+            }
+            bgq_runtime->record.counters[BGQ_INODES] = found;
+        }
+    }
+
     if ((bgq_runtime) && (my_rank == 0))
     {
         *buffer = &bgq_runtime->record;
@@ -223,37 +272,6 @@ static void bgq_shutdown()
     {
         free(bgq_runtime);
         bgq_runtime = NULL;
-    }
-
-    return;
-}
-
-static void bgq_setup_reduction(
-    darshan_record_id *shared_recs,
-    int *shared_rec_count,
-    void **send_buf,
-    void **recv_buf,
-    int *rec_size)
-{
-    int i;
-    int found;
-
-    for (i = 0; i < *shared_rec_count; i++)
-    {
-        if (shared_recs[i] == bgq_runtime->record.f_id)
-        {
-            found = 1;
-            break;
-        }
-    }
-
-    if (found)
-    {
-        printf("found bgq shared record\n");
-        *rec_size = sizeof(struct darshan_bgq_record);
-        *shared_rec_count = 1;
-        *send_buf = &bgq_runtime->record;
-        *recv_buf = &bgq_runtime->record;
     }
 
     return;

@@ -10,6 +10,9 @@
 #include "darshan-logutils.h"
 #include "darshan-bgq-log-format.h"
 
-int darshan_log_get_bgq_file(darshan_fd fd, struct darshan_bgq_record *file);
+extern char *bgq_counter_names[];
+extern char *bgq_f_counter_names[];
+
+extern struct darshan_mod_logutil_funcs bgq_logutils;
 
 #endif

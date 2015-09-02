@@ -69,10 +69,16 @@ darshan-pnetcdf-logutils.o: darshan-pnetcdf-logutils.c darshan-logutils.h darsha
 darshan-pnetcdf-logutils.po: darshan-pnetcdf-logutils.c darshan-logutils.h darshan-pnetcdf-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-pnetcdf-log-format.h | uthash-1.9.2
 	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
 
-libdarshan-util.so: darshan-logutils.po darshan-posix-logutils.po darshan-mpiio-logutils.po darshan-hdf5-logutils.po darshan-pnetcdf-logutils.po
+darshan-bgq-logutils.o: darshan-bgq-logutils.c darshan-logutils.h darshan-bgq-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-bgq-log-format.h | uthash-1.9.2
+	$(CC) $(CFLAGS) -c  $< -o $@
+darshan-bgq-logutils.po: darshan-bgq-logutils.c darshan-logutils.h darshan-bgq-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-bgq-log-format.h | uthash-1.9.2
+	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
+
+
+libdarshan-util.so: darshan-logutils.po darshan-posix-logutils.po darshan-mpiio-logutils.po darshan-hdf5-logutils.po darshan-pnetcdf-logutils.po darshan-bgq-logutils.po
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ $(LIBS)
 	
-libdarshan-util.a: darshan-logutils.o darshan-posix-logutils.o darshan-mpiio-logutils.o darshan-hdf5-logutils.o darshan-pnetcdf-logutils.o
+libdarshan-util.a: darshan-logutils.o darshan-posix-logutils.o darshan-mpiio-logutils.o darshan-hdf5-logutils.o darshan-pnetcdf-logutils.o darshan-bgq-logutils.o
 	ar rcs libdarshan-util.a $^
 
 jenkins-hash-gen: jenkins-hash-gen.c lookup3.o
