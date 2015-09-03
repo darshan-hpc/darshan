@@ -56,9 +56,9 @@ static int darshan_log_get_bgq_file(void** psx_buf_p, int* bytes_left,
         /* swap bytes if necessary */
         DARSHAN_BSWAP64(&file->f_id);
         DARSHAN_BSWAP64(&file->rank);
-        for(i=0; i<POSIX_NUM_INDICES; i++)
+        for(i=0; i<BGQ_NUM_INDICES; i++)
             DARSHAN_BSWAP64(&file->counters[i]);
-        for(i=0; i<POSIX_F_NUM_INDICES; i++)
+        for(i=0; i<BGQ_F_NUM_INDICES; i++)
             DARSHAN_BSWAP64(&file->fcounters[i]);
     }
 
@@ -78,16 +78,16 @@ static void darshan_log_print_bgq_file(void *file_rec, char *file_name,
     struct darshan_bgq_record *bgq_file_rec =
         (struct darshan_bgq_record *)file_rec;
 
-    for(i=0; i<POSIX_NUM_INDICES; i++)
+    for(i=0; i<BGQ_NUM_INDICES; i++)
     {
-        DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+        DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_BGQ_MOD],
             bgq_file_rec->rank, bgq_file_rec->f_id, bgq_counter_names[i],
             bgq_file_rec->counters[i], file_name, mnt_pt, fs_type);
     }
 
-    for(i=0; i<POSIX_F_NUM_INDICES; i++)
+    for(i=0; i<BGQ_F_NUM_INDICES; i++)
     {
-        DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+        DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_BGQ_MOD],
             bgq_file_rec->rank, bgq_file_rec->f_id, bgq_f_counter_names[i],
             bgq_file_rec->fcounters[i], file_name, mnt_pt, fs_type);
     }

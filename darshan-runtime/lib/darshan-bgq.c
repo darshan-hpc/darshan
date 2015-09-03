@@ -76,7 +76,7 @@ static void capture(struct darshan_bgq_record *rec)
 
     rec->counters[BGQ_CSJOBID] = Kernel_GetJobID();
     rec->counters[BGQ_RANKSPERNODE] = Kernel_ProcessCount();
-    rec->counters[BGQ_INODES] = MPIX_IO_node();
+    rec->counters[BGQ_INODES] = MPIX_IO_node_id();
 
     r = Kernel_GetPersonality(&person, sizeof(person));
     if (r == 0)
@@ -193,8 +193,8 @@ static void bgq_begin_shutdown()
 
 static int cmpr(const void *p1, const void *p2)
 {
-    const int *a = (int*) p1;
-    const int *b = (int*) p2;
+    const uint64_t *a = (uint64_t*) p1;
+    const uint64_t *b = (uint64_t*) p2;
     return ((*a == *b) ?  0 : ((*a < *b) ? -1 : 1));
 }
 
@@ -230,10 +230,10 @@ static void bgq_get_output_data(
 
         DARSHAN_MPI_CALL(MPI_Gather)(&bgq_runtime->record.counters[BGQ_INODES],
                                      1,
-                                     MPI_INT,
+                                     MPI_LONG_LONG_INT,
                                      ion_ids,
                                      1,
-                                     MPI_INT,
+                                     MPI_LONG_LONG_INT,
                                      0,
                                      mod_comm);
         if (my_rank == 0)
