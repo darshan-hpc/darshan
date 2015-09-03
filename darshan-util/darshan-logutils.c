@@ -48,7 +48,7 @@ struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
     &mpiio_logutils,    /* MPI-IO */
     &hdf5_logutils,     /* HDF5 */
     &pnetcdf_logutils,  /* PNETCDF */
-    NULL,
+    &bgq_logutils,      /* BG/Q */
     NULL,
     NULL,
     NULL,

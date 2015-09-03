@@ -208,6 +208,11 @@ void darshan_core_initialize(int argc, char **argv)
         }
     }
 
+#ifdef __bgq__
+    extern void bgq_runtime_initialize();
+    bgq_runtime_initialize();
+#endif
+
     return;
 }
 
