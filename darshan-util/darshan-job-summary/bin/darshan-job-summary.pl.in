@@ -78,10 +78,7 @@ my $cumul_meta_shared = 0;
 my $cumul_meta_indep = 0;
 
 my $first_data_line = 1;
-my $current_rank = 0;
-my $current_hash = 0;
 my %file_record_hash = ();
-
 my %fs_data = ();
 
 while($line = <PARSE_OUT>)
@@ -133,33 +130,23 @@ while($line = <PARSE_OUT>)
         @fields = split(/[\t ]+/, $line);
 
         # encode the file system name to protect against special characters
-        $fields[5] = encode('latex', $fields[5]);
+        $fields[6] = encode('latex', $fields[6]);
 
         # is this our first piece of data?
         if($first_data_line)
         {
-            $current_rank = $fields[1];
-            $current_hash = $fields[2];
             $first_data_line = 0;
         }
 
         # is this a new file record?
-        if($fields[1] != $current_rank || $fields[2] != $current_hash)
+        if (!defined $file_record_hash{$fields[2]})
         {
-            # process previous record (if posix or mpiio record)
-            if ($fields[0] eq "POSIX" || $fields[0] eq "MPIIO")
-            {
-                process_file_record($current_rank, $current_hash, \%file_record_hash);
-            }
-
-            # reset variables for next record 
-            $current_rank = $fields[1];
-            $current_hash = $fields[2];
-            %file_record_hash = ();
-            $file_record_hash{FILE_NAME} = $fields[5];
+            $file_record_hash{$fields[2]} = ();
+            $file_record_hash{$fields[2]}{FILE_NAME} = $fields[5];
+            $file_record_hash{$fields[2]}{RANK} = $fields[1];
         }
 
-        $file_record_hash{$fields[3]} = $fields[4];
+        $file_record_hash{$fields[2]}{$fields[3]} = $fields[4];
         $summary{$fields[3]} += $fields[4];
 
         # accumulate independent and shared data as well as fs data
@@ -332,11 +319,9 @@ if ($first_data_line)
     exit(1);
 }
 
-# process last file record
-$file_record_hash{FILE_NAME} = $fields[5];
-if ($fields[0] eq "POSIX" || $fields[0] eq "MPIIO")
+foreach $key (keys %file_record_hash)
 {
-    process_file_record($current_rank, $current_hash, \%file_record_hash);
+    process_file_record($key, \%{$file_record_hash{$key}});
 }
 
 # copy template files to tmp tmp_dir
@@ -477,6 +462,7 @@ close PATTERN;
 # table of common access sizes
 open(ACCESS_TABLE, ">$tmp_dir/access-table.tex") || die("error opening output file:$!\n");
 print ACCESS_TABLE "
+\\begin{threeparttable}
 \\begin{tabular}{r|r|r}
 \\multicolumn{3}{c}{ } \\\\
 \\multicolumn{3}{c}{Most Common Access Sizes} \\\\
@@ -546,7 +532,7 @@ if ($tmp_access_count > 0)
         if ($i == 0) {
             print ACCESS_TABLE "
             \\hline
-            \\multirow{$tmp_access_count}{*}{MPI-IO \\textdagger} \& $value \& $mpiio_access_hash{$value} \\\\\n
+            \\multirow{$tmp_access_count}{*}{MPI-IO \\textbf{\\ddag}} \& $value \& $mpiio_access_hash{$value} \\\\\n
             ";
         }
         else {
@@ -562,197 +548,202 @@ print ACCESS_TABLE "
 \\hline
 \\end{tabular}
 ";
+if ($tmp_access_count > 0)
+{
+    print ACCESS_TABLE "
+    \\begin{tablenotes}
+    \\item[\\normalsize \\textbf{\\ddag}] \\scriptsize NOTE: MPI-IO accesses are given in terms of aggregate datatype size.
+    \\end{tablenotes}
+    ";
+}
+print ACCESS_TABLE "
+\\end{threeparttable}
+";
 close ACCESS_TABLE;
 
 # file count table
-#open(TABLES, ">$tmp_dir/file-count-table.tex") || die("error opening output file:$!\n");
-#print TABLES "
-#\\begin{tabular}{r|r|r|r}
-#\\multicolumn{4}{c}{ } \\\\
-#\\multicolumn{4}{c}{File Count Summary} \\\\
-#";
-#if($size_est_flag == 1)
-#{
-#print TABLES "
-#\\multicolumn{4}{c}{(estimated by I/O access offsets)} \\\\
-#";
-#}
-#print TABLES "
-#\\hline
-#type \& number of files \& avg. size \& max size \\\\
-#\\hline
-#\\hline
-#";
-#my $counter;
-#my $sum;
-#my $max;
-#my $key;
-#my $avg;
-#
-#$counter = 0;
-#$sum = 0;
-#$max = 0;
-#foreach $key (keys %hash_files) {
-#    $counter++;
-#    if($hash_files{$key}{'min_open_size'} >
-#        $hash_files{$key}{'max_size'})
-#    {
-#        $sum += $hash_files{$key}{'min_open_size'};
-#        if($hash_files{$key}{'min_open_size'} > $max)
-#        {
-#            $max = $hash_files{$key}{'min_open_size'};
-#        }
-#    }
-#    else
-#    {
-#        $sum += $hash_files{$key}{'max_size'};
-#        if($hash_files{$key}{'max_size'} > $max)
-#        {
-#            $max = $hash_files{$key}{'max_size'};
-#        }
-#    }
-#}
-#if($counter > 0) { $avg = $sum / $counter; }
-#else { $avg = 0; }
-#$avg = format_bytes($avg);
-#$max = format_bytes($max);
-#print TABLES "total opened \& $counter \& $avg \& $max \\\\\n";
-#
-#$counter = 0;
-#$sum = 0;
-#$max = 0;
-#foreach $key (keys %hash_files) {
-#    if($hash_files{$key}{'was_read'} && !($hash_files{$key}{'was_written'}))
-#    {
-#        $counter++;
-#        if($hash_files{$key}{'min_open_size'} >
-#            $hash_files{$key}{'max_size'})
-#        {
-#            $sum += $hash_files{$key}{'min_open_size'};
-#            if($hash_files{$key}{'min_open_size'} > $max)
-#            {
-#                $max = $hash_files{$key}{'min_open_size'};
-#            }
-#        }
-#        else
-#        {
-#            $sum += $hash_files{$key}{'max_size'};
-#            if($hash_files{$key}{'max_size'} > $max)
-#            {
-#                $max = $hash_files{$key}{'max_size'};
-#            }
-#        }
-#    }
-#}
-#if($counter > 0) { $avg = $sum / $counter; }
-#else { $avg = 0; }
-#$avg = format_bytes($avg);
-#$max = format_bytes($max);
-#print TABLES "read-only files \& $counter \& $avg \& $max \\\\\n";
-#
-#$counter = 0;
-#$sum = 0;
-#$max = 0;
-#foreach $key (keys %hash_files) {
-#    if(!($hash_files{$key}{'was_read'}) && $hash_files{$key}{'was_written'})
-#    {
-#        $counter++;
-#        if($hash_files{$key}{'min_open_size'} >
-#            $hash_files{$key}{'max_size'})
-#        {
-#            $sum += $hash_files{$key}{'min_open_size'};
-#            if($hash_files{$key}{'min_open_size'} > $max)
-#            {
-#                $max = $hash_files{$key}{'min_open_size'};
-#            }
-#        }
-#        else
-#        {
-#            $sum += $hash_files{$key}{'max_size'};
-#            if($hash_files{$key}{'max_size'} > $max)
-#            {
-#                $max = $hash_files{$key}{'max_size'};
-#            }
-#        }
-#    }
-#}
-#if($counter > 0) { $avg = $sum / $counter; }
-#else { $avg = 0; }
-#$avg = format_bytes($avg);
-#$max = format_bytes($max);
-#print TABLES "write-only files \& $counter \& $avg \& $max \\\\\n";
-#
-#$counter = 0;
-#$sum = 0;
-#$max = 0;
-#foreach $key (keys %hash_files) {
-#    if($hash_files{$key}{'was_read'} && $hash_files{$key}{'was_written'})
-#    {
-#        $counter++;
-#        if($hash_files{$key}{'min_open_size'} >
-#            $hash_files{$key}{'max_size'})
-#        {
-#            $sum += $hash_files{$key}{'min_open_size'};
-#            if($hash_files{$key}{'min_open_size'} > $max)
-#            {
-#                $max = $hash_files{$key}{'min_open_size'};
-#            }
-#        }
-#        else
-#        {
-#            $sum += $hash_files{$key}{'max_size'};
-#            if($hash_files{$key}{'max_size'} > $max)
-#            {
-#                $max = $hash_files{$key}{'max_size'};
-#            }
-#        }
-#    }
-#}
-#if($counter > 0) { $avg = $sum / $counter; }
-#else { $avg = 0; }
-#$avg = format_bytes($avg);
-#$max = format_bytes($max);
-#print TABLES "read/write files \& $counter \& $avg \& $max \\\\\n";
-#
-#$counter = 0;
-#$sum = 0;
-#$max = 0;
-#foreach $key (keys %hash_files) {
-#    if($hash_files{$key}{'was_written'} &&
-#        $hash_files{$key}{'min_open_size'} == 0 &&
-#        $hash_files{$key}{'max_size'} > 0)
-#    {
-#        $counter++;
-#        if($hash_files{$key}{'min_open_size'} >
-#            $hash_files{$key}{'max_size'})
-#        {
-#            $sum += $hash_files{$key}{'min_open_size'};
-#            if($hash_files{$key}{'min_open_size'} > $max)
-#            {
-#                $max = $hash_files{$key}{'min_open_size'};
-#            }
-#        }
-#        else
-#        {
-#            $sum += $hash_files{$key}{'max_size'};
-#            if($hash_files{$key}{'max_size'} > $max)
-#            {
-#                $max = $hash_files{$key}{'max_size'};
-#            }
-#        }
-#    }
-#}
-#if($counter > 0) { $avg = $sum / $counter; }
-#else { $avg = 0; }
-#$avg = format_bytes($avg);
-#$max = format_bytes($max);
-#print TABLES "created files \& $counter \& $avg \& $max \\\\\n";
-#
-#print TABLES "
-#\\hline
-#\\end{tabular}
-#";
-#close(TABLES);
+open(FILE_CNT_TABLE, ">$tmp_dir/file-count-table.tex") || die("error opening output file:$!\n");
+print FILE_CNT_TABLE "
+\\begin{tabular}{r|r|r|r}
+\\multicolumn{4}{c}{ } \\\\
+\\multicolumn{4}{c}{File Count Summary} \\\\
+\\multicolumn{4}{c}{(estimated by I/O access offsets)} \\\\
+\\hline
+type \& number of files \& avg. size \& max size \\\\
+\\hline
+\\hline
+";
+
+my $counter;
+my $sum;
+my $max;
+my $key;
+my $avg;
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    $counter++;
+    if($hash_files{$key}{'min_open_size'} >
+        $hash_files{$key}{'max_size'})
+    {
+        $sum += $hash_files{$key}{'min_open_size'};
+        if($hash_files{$key}{'min_open_size'} > $max)
+        {
+            $max = $hash_files{$key}{'min_open_size'};
+        }
+    }
+    else
+    {
+        $sum += $hash_files{$key}{'max_size'};
+        if($hash_files{$key}{'max_size'} > $max)
+        {
+            $max = $hash_files{$key}{'max_size'};
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print FILE_CNT_TABLE "total opened \& $counter \& $avg \& $max \\\\\n";
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    if($hash_files{$key}{'was_read'} && !($hash_files{$key}{'was_written'}))
+    {
+        $counter++;
+        if($hash_files{$key}{'min_open_size'} >
+            $hash_files{$key}{'max_size'})
+        {
+            $sum += $hash_files{$key}{'min_open_size'};
+            if($hash_files{$key}{'min_open_size'} > $max)
+            {
+                $max = $hash_files{$key}{'min_open_size'};
+            }
+        }
+        else
+        {
+            $sum += $hash_files{$key}{'max_size'};
+            if($hash_files{$key}{'max_size'} > $max)
+            {
+                $max = $hash_files{$key}{'max_size'};
+            }
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print FILE_CNT_TABLE "read-only files \& $counter \& $avg \& $max \\\\\n";
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    if(!($hash_files{$key}{'was_read'}) && $hash_files{$key}{'was_written'})
+    {
+        $counter++;
+        if($hash_files{$key}{'min_open_size'} >
+            $hash_files{$key}{'max_size'})
+        {
+            $sum += $hash_files{$key}{'min_open_size'};
+            if($hash_files{$key}{'min_open_size'} > $max)
+            {
+                $max = $hash_files{$key}{'min_open_size'};
+            }
+        }
+        else
+        {
+            $sum += $hash_files{$key}{'max_size'};
+            if($hash_files{$key}{'max_size'} > $max)
+            {
+                $max = $hash_files{$key}{'max_size'};
+            }
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print FILE_CNT_TABLE "write-only files \& $counter \& $avg \& $max \\\\\n";
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    if($hash_files{$key}{'was_read'} && $hash_files{$key}{'was_written'})
+    {
+        $counter++;
+        if($hash_files{$key}{'min_open_size'} >
+            $hash_files{$key}{'max_size'})
+        {
+            $sum += $hash_files{$key}{'min_open_size'};
+            if($hash_files{$key}{'min_open_size'} > $max)
+            {
+                $max = $hash_files{$key}{'min_open_size'};
+            }
+        }
+        else
+        {
+            $sum += $hash_files{$key}{'max_size'};
+            if($hash_files{$key}{'max_size'} > $max)
+            {
+                $max = $hash_files{$key}{'max_size'};
+            }
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print FILE_CNT_TABLE "read/write files \& $counter \& $avg \& $max \\\\\n";
+
+$counter = 0;
+$sum = 0;
+$max = 0;
+foreach $key (keys %hash_files) {
+    if($hash_files{$key}{'was_written'} &&
+        $hash_files{$key}{'min_open_size'} == 0 &&
+        $hash_files{$key}{'max_size'} > 0)
+    {
+        $counter++;
+        if($hash_files{$key}{'min_open_size'} >
+            $hash_files{$key}{'max_size'})
+        {
+            $sum += $hash_files{$key}{'min_open_size'};
+            if($hash_files{$key}{'min_open_size'} > $max)
+            {
+                $max = $hash_files{$key}{'min_open_size'};
+            }
+        }
+        else
+        {
+            $sum += $hash_files{$key}{'max_size'};
+            if($hash_files{$key}{'max_size'} > $max)
+            {
+                $max = $hash_files{$key}{'max_size'};
+            }
+        }
+    }
+}
+if($counter > 0) { $avg = $sum / $counter; }
+else { $avg = 0; }
+$avg = format_bytes($avg);
+$max = format_bytes($max);
+print FILE_CNT_TABLE "created files \& $counter \& $avg \& $max \\\\\n";
+
+print FILE_CNT_TABLE "
+\\hline
+\\end{tabular}
+";
+close(FILE_CNT_TABLE);
 
 # generate per filesystem data
 open(FS_TABLE, ">$tmp_dir/fs-data-table.tex") || die("error opening output files:$!\n");
@@ -829,7 +820,7 @@ foreach $key (sort { $hash_files{$b}{'slowest_time'} <=> $hash_files{$a}{'slowes
         my $vb = sprintf("%.3g", sqrt($hash_files{$key}{'variance_bytes'}));
         my $fast_bytes = format_bytes($hash_files{$key}{'fastest_bytes'});
         my $slow_bytes = format_bytes($hash_files{$key}{'slowest_bytes'});
-        my $name = encode('latex', $hash_files{$key}{'name'});
+        my $name = encode('latex', "..." . substr($hash_files{$key}{'name'}, -12));
 
         print VAR_TABLE "
                $name \&
@@ -905,7 +896,7 @@ my $cms = $cumul_meta_shared / $nprocs;
 # do any extra work needed for plotting mpi-io graphs
 if (defined $summary{MPIIO_INDEP_OPENS})
 {
-    system "$gnuplot -e \"data_file='mpiio-access-hist.dat'; graph_title='MPI-IO Access Sizes {\262}'; \\
+    system "$gnuplot -e \"data_file='mpiio-access-hist.dat'; graph_title='MPI-IO Access Sizes {/Times-Bold=32 \263}'; \\
     output_file='mpiio-access-hist.eps'\" access-hist-eps.gplt";
     system "$epstopdf mpiio-access-hist.eps";
 
@@ -990,9 +981,9 @@ system "$mv $tmp_dir/summary.pdf $output_file";
 
 sub process_file_record
 {
-    my $rank = $_[0];
-    my $hash = $_[1];
-    my(%file_record) = %{$_[2]};
+    my $hash = $_[0];
+    my(%file_record) = %{$_[1]};
+    my $rank = $file_record{'RANK'};
 
     if($file_record{'POSIX_OPENS'} == 0 &&
         $file_record{'POSIX_FOPENS'} == 0 &&

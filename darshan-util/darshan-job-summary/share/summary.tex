@@ -5,6 +5,8 @@
 \usepackage{lastpage}
 \usepackage{subfigure}
 \usepackage{multirow}
+\usepackage{threeparttable}
+
 %
 % GET THE MARGINS RIGHT, THE UGLY WAY
 %
@@ -38,11 +40,11 @@
 }\\
 \subfigure
 {
-    \includegraphics[scale=0.8]{time-summary.pdf}
+    \includegraphics[scale=0.75]{time-summary.pdf}
 }
 \subfigure
 {
-    \includegraphics[scale=0.8]{op-counts.pdf}
+    \includegraphics[scale=0.75]{op-counts.pdf}
 }
 \end{figure*}
 
@@ -50,12 +52,12 @@
 \centering
 \subfigure
 {
-    \includegraphics[scale=0.8]{posix-access-hist.pdf}
+    \includegraphics[scale=0.75]{posix-access-hist.pdf}
 }
 \ifdefined\inclmpiio
 \subfigure
 {
-    \includegraphics[scale=0.8]{mpiio-access-hist.pdf}
+    \includegraphics[scale=0.75]{mpiio-access-hist.pdf}
 }
 \fi
 \end{figure*}
@@ -66,10 +68,10 @@
 {
     \input{access-table.tex}
 }
-%\subfigure
-%{
-%    \input{file-count-table}
-%}
+\subfigure
+{
+    \input{file-count-table.tex}
+}
 \end{figure*}
 
 \begin{figure*}[!h]
@@ -102,6 +104,10 @@
 {
     \includegraphics[scale=0.65]{pattern.pdf}
 }
+\scriptsize
+\\ \textit{sequential}: An I/O op issued at an offset greater than where the previous I/O op ended.
+\\ \textit{consecutive}: An I/O op issued at the offset immediately following the end of the previous I/O op. \\
+\normalsize
 \subfigure
 {
     \input{variance-table.tex}
