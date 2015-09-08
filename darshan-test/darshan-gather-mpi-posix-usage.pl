@@ -54,13 +54,13 @@ sub wanted
 
         if($#fields == 34)
         {
-            if($fields[12] > 0){
+            if($fields[13] > 0){
                 $mpi_coll_count ++;
             }
-            elsif($fields[11] > 0){
+            elsif($fields[12] > 0){
                 $mpi_indep_count ++;
             }
-            elsif($fields[13] > 0){
+            elsif($fields[14] > 0){
                 $posix_count ++;
             }
 
