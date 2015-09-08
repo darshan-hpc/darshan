@@ -81,7 +81,8 @@ sub main
 
     @paths = @ARGV;
 
-    # print("<jobid>\t<version>\t<start ascii>\t<end ascii>\t<start unix>\t<end unix>\t<nprocs>\t<bytes read>\t<bytes written>\t<perf estimate>\n"); 
+    print("# <jobid>\t<#files_using_collectives>\t<#files_using_indep>\t<#files_using_posix>\n"); 
+    print("# NOTE: a given file will only show up in one category, with preference in the order shown above (i.e. a file that used collective I/O will not show up in the indep or posix category).\n");
 
     find(\&wanted, @paths);
 
