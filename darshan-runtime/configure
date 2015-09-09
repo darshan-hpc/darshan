@@ -692,6 +692,7 @@ with_log_path_by_env
 with_log_hints
 with_log_path
 with_jobid_env
+enable_bgq_mod
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1314,6 +1315,7 @@ Optional Features:
   --disable-cuserid       Disables attempted use of cuserid() at run time
   --disable-ld-preload    Disables support for LD_PRELOAD library
   --enable-group-readable-logs Set log files to be group readable
+  --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -4065,8 +4067,6 @@ fi
 done
 
 
-#CP_WRAPPERS="-Wl,-u,MPI_Init,-u,MPI_Wtime,-wrap,write,-wrap,open,-wrap,creat,-wrap,creat64,-wrap,open64,-wrap,close,-wrap,read,-wrap,lseek,-wrap,lseek64,-wrap,pread,-wrap,pwrite,-wrap,readv,-wrap,writev,-wrap,__xstat,-wrap,__lxstat,-wrap,__fxstat,-wrap,__xstat64,-wrap,__lxstat64,-wrap,__fxstat64,-wrap,mmap,-wrap,mmap64,-wrap,fopen,-wrap,fclose,-wrap,fread,-wrap,fwrite,-wrap,fseek,-wrap,fopen64,-wrap,pread64,-wrap,pwrite64,-wrap,fsync,-wrap,fdatasync,-wrap,ncmpi_create,-wrap,ncmpi_open,-wrap,ncmpi_close,-wrap,H5Fcreate,-wrap,H5Fopen,-wrap,H5Fclose,-wrap,aio_write,-wrap,aio_write64,-wrap,aio_read,-wrap,aio_read64,-wrap,lio_listio,-wrap,lio_listio64,-wrap,aio_return,-wrap,aio_return64,-wrap,mkstemp,-wrap,mkostemp,-wrap,mkstemps,-wrap,mkostemps"
-
 # We need to know the value of the $libdir and $bindir variables so that
 # we can reference the correct path in the darshan compiler wrappers.
 # Unfortunately, those two variables are not normally evaluated by autoconf.
@@ -4245,6 +4245,49 @@ else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
     MPICH_LIB_OLD=0
+fi
+
+# check to see if the bgq instrumentation module should be built
+# Check whether --enable-bgq_mod was given.
+if test "${enable_bgq_mod+set}" = set; then :
+  enableval=$enable_bgq_mod;
+else
+  enable_bgq_mod=check
+
+fi
+
+if test x$enable_bgq_mod != xno; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BG/Q environment" >&5
+$as_echo_n "checking for BG/Q environment... " >&6; }
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        #ifndef __bgq__
+        #error __bgq__ not set
+        #endif
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+        DARSHAN_USE_BGQ=1
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+        if
+            test "x$enable_bgq_mod" = xyes; then :
+  as_fn_error $? "BG/Q module enabled in non-BG/Q environment" "$LINENO" 5
+fi
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 fi
 
 DARSHAN_VERSION="3.0.0-pre1"

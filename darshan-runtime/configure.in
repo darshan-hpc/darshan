@@ -180,8 +180,6 @@ CFLAGS="$old_cflags"
 
 AC_CHECK_HEADERS(mntent.h sys/mount.h)
 
-#CP_WRAPPERS="-Wl,-u,MPI_Init,-u,MPI_Wtime,-wrap,write,-wrap,open,-wrap,creat,-wrap,creat64,-wrap,open64,-wrap,close,-wrap,read,-wrap,lseek,-wrap,lseek64,-wrap,pread,-wrap,pwrite,-wrap,readv,-wrap,writev,-wrap,__xstat,-wrap,__lxstat,-wrap,__fxstat,-wrap,__xstat64,-wrap,__lxstat64,-wrap,__fxstat64,-wrap,mmap,-wrap,mmap64,-wrap,fopen,-wrap,fclose,-wrap,fread,-wrap,fwrite,-wrap,fseek,-wrap,fopen64,-wrap,pread64,-wrap,pwrite64,-wrap,fsync,-wrap,fdatasync,-wrap,ncmpi_create,-wrap,ncmpi_open,-wrap,ncmpi_close,-wrap,H5Fcreate,-wrap,H5Fopen,-wrap,H5Fclose,-wrap,aio_write,-wrap,aio_write64,-wrap,aio_read,-wrap,aio_read64,-wrap,lio_listio,-wrap,lio_listio64,-wrap,aio_return,-wrap,aio_return64,-wrap,mkstemp,-wrap,mkostemp,-wrap,mkstemps,-wrap,mkostemps"
-
 # We need to know the value of the $libdir and $bindir variables so that 
 # we can reference the correct path in the darshan compiler wrappers.  
 # Unfortunately, those two variables are not normally evaluated by autoconf.  
@@ -285,6 +283,31 @@ AS_IF([$CC -show foo.c -o foo |grep lmpich >& /dev/null],
     AC_MSG_RESULT(no)
     MPICH_LIB_OLD=0)
 
+# check to see if the bgq instrumentation module should be built
+AC_ARG_ENABLE(
+    [bgq_mod],
+    [  --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)],
+    [],
+    [enable_bgq_mod=check]
+)
+if test x$enable_bgq_mod != xno; then
+    AC_MSG_CHECKING(for BG/Q environment)
+    AC_TRY_COMPILE([
+        #ifndef __bgq__
+        #error __bgq__ not set
+        #endif
+        ], [],
+        AC_MSG_RESULT(yes)
+        DARSHAN_USE_BGQ=1,
+        AC_MSG_RESULT(no)
+        AS_IF([
+            test "x$enable_bgq_mod" = xyes],
+            AC_MSG_ERROR(BG/Q module enabled in non-BG/Q environment),
+            []
+        )
+    )
+fi
+
 DARSHAN_VERSION="AC_PACKAGE_VERSION"
 
 AC_SUBST(darshan_lib_path)
@@ -294,6 +317,7 @@ AC_SUBST(__CP_LOG_PATH)
 AC_SUBST(DISABLE_LDPRELOAD)
 AC_SUBST(DARSHAN_VERSION)
 AC_SUBST(MPICH_LIB_OLD)
+AC_SUBST(DARSHAN_USE_BGQ)
 AC_OUTPUT(Makefile
 darshan-mk-log-dirs.pl
 darshan-gen-cc.pl
