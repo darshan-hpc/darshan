@@ -15,11 +15,20 @@ CC = @CC@
 LD = @LD@
 
 DISABLE_LDPRELOAD = @DISABLE_LDPRELOAD@
+DARSHAN_USE_BGQ = @DARSHAN_USE_BGQ@
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_VERSION = @DARSHAN_VERSION@
 
 ifndef DISABLE_LDPRELOAD
 all: lib/libdarshan.so lib/darshan-null.po
+endif
+
+static-mod-objs = lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-hdf5.o lib/darshan-pnetcdf.o
+dynamic-mod-objs = lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-hdf5.po lib/darshan-pnetcdf.po
+
+ifdef DARSHAN_USE_BGQ
+static-mod-objs += lib/darshan-bgq.o
+dynamic-mod-objs += lib/darshan-bgq.po
 endif
 
 VPATH = $(srcdir)
@@ -69,9 +78,6 @@ lib/darshan-mpiio.o: lib/darshan-mpiio.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdi
 lib/darshan-mpiio.po: lib/darshan-mpiio.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mpiio-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
-#
-# BG/Q module
-#
 lib/darshan-bgq.o: lib/darshan-bgq.c darshan.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mpiio-log-format.h | lib
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -108,10 +114,10 @@ lib/lookup8.o: lib/lookup8.c
 lib/lookup8.po: lib/lookup8.c
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
-lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darshan-common.o lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-hdf5.o lib/darshan-pnetcdf.o lib/darshan-bgq.o lib/lookup3.o lib/lookup8.o
+lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darshan-common.o $(static-mod-objs) lib/lookup3.o lib/lookup8.o
 	ar rcs $@ $^
 
-lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-pnetcdf.po lib/darshan-bgq.po lib/lookup3.po lib/lookup8.po
+lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po $(dynamic-mod-objs) lib/lookup3.po lib/lookup8.po
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ -lpthread -lrt -lz -ldl
 
 lib/libdarshan-stubs.a: lib/darshan-hdf5-stubs.o lib/darshan-pnetcdf-stubs.o

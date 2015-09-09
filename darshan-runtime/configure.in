@@ -283,7 +283,7 @@ AS_IF([$CC -show foo.c -o foo |grep lmpich >& /dev/null],
     AC_MSG_RESULT(no)
     MPICH_LIB_OLD=0)
 
-# check to see if the bgq instrumentation module should be built
+# check to see whether the bgq instrumentation module should be built
 AC_ARG_ENABLE(
     [bgq_mod],
     [  --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)],

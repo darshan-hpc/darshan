@@ -621,6 +621,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+DARSHAN_USE_BGQ
 MPICH_LIB_OLD
 DARSHAN_VERSION
 DISABLE_LDPRELOAD
@@ -4291,6 +4292,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 fi
 
 DARSHAN_VERSION="3.0.0-pre1"
+
 
 
 
