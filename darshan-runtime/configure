@@ -4248,7 +4248,7 @@ $as_echo "no" >&6; }
     MPICH_LIB_OLD=0
 fi
 
-# check to see if the bgq instrumentation module should be built
+# check to see whether the bgq instrumentation module should be built
 # Check whether --enable-bgq_mod was given.
 if test "${enable_bgq_mod+set}" = set; then :
   enableval=$enable_bgq_mod;

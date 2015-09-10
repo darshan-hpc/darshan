@@ -18,11 +18,9 @@
 #include "darshan.h"
 #include "darshan-bgq-log-format.h"
 
-#ifdef __bgq__
 #include <spi/include/kernel/location.h>
 #include <spi/include/kernel/process.h>
 #include <firmware/include/personality.h>
-#endif
 
 /*
  * Simple module which captures BG/Q hardware specific information about 
@@ -70,7 +68,6 @@ static void bgq_record_reduction_op(void* infile_v,void* inoutfile_v,int *len,MP
  */
 static void capture(struct darshan_bgq_record *rec)
 {
-#ifdef __bgq__
     Personality_t person;
     int r;
 
@@ -96,7 +93,6 @@ static void capture(struct darshan_bgq_record *rec)
 
         rec->counters[BGQ_DDRPERNODE] = person.DDR_Config.DDRSizeMB;
     }
-#endif
 
     rec->rank = my_rank;
     rec->fcounters[BGQ_F_TIMESTAMP] = darshan_core_wtime();

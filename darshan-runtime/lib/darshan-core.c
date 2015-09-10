@@ -55,6 +55,21 @@ char* darshan_path_exclusions[] = {
 NULL
 };
 
+#ifdef DARSHAN_BGQ
+extern void bgq_runtime_initialize();
+#endif
+
+/* array of init functions for modules which need to be statically
+ * initialized by darshan at startup time
+ */
+void (*mod_static_init_fns[])(void) =
+{
+#ifdef DARSHAN_BGQ
+    &bgq_runtime_initialize,
+#endif
+    NULL
+};
+
 #define DARSHAN_CORE_LOCK() pthread_mutex_lock(&darshan_core_mutex)
 #define DARSHAN_CORE_UNLOCK() pthread_mutex_unlock(&darshan_core_mutex)
 
@@ -196,6 +211,14 @@ void darshan_core_initialize(int argc, char **argv)
         }
     }
 
+    /* maybe bootstrap modules with static initializers */
+    i = 0;
+    while(mod_static_init_fns[i])
+    {
+        (*mod_static_init_fns[i])();
+        i++;
+    }
+
     if(internal_timing_flag)
     {
         init_time = DARSHAN_MPI_CALL(PMPI_Wtime)() - init_start;
@@ -207,11 +230,6 @@ void darshan_core_initialize(int argc, char **argv)
             printf("darshan:init\t%d\t%f\n", nprocs, init_max);
         }
     }
-
-#ifdef __bgq__
-    extern void bgq_runtime_initialize();
-    bgq_runtime_initialize();
-#endif
 
     return;
 }

@@ -23,21 +23,23 @@ ifndef DISABLE_LDPRELOAD
 all: lib/libdarshan.so lib/darshan-null.po
 endif
 
+VPATH = $(srcdir)
+
+CFLAGS = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I ../ -I $(srcdir) -I$(srcdir)/../ @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE
+
+CFLAGS_SHARED = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I$(srcdir) -I$(srcdir)/../ @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE -shared -fpic -DPIC -DDARSHAN_PRELOAD
+
+LIBS = -lz @LIBBZ2@
+
 static-mod-objs = lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-hdf5.o lib/darshan-pnetcdf.o
 dynamic-mod-objs = lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-hdf5.po lib/darshan-pnetcdf.po
 
 ifdef DARSHAN_USE_BGQ
 static-mod-objs += lib/darshan-bgq.o
 dynamic-mod-objs += lib/darshan-bgq.po
+CFLAGS += -DDARSHAN_BGQ
+CFLAGS_SHARED += -DDARSHAN_BGQ
 endif
-
-VPATH = $(srcdir)
-
-CFLAGS = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I ../ -I $(srcdir) -I$(srcdir)/../ @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE 
-
-CFLAGS_SHARED = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I$(srcdir) -I$(srcdir)/../ @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE -shared -fpic -DPIC -DDARSHAN_PRELOAD
-
-LIBS = -lz @LIBBZ2@
 
 lib::
 	@mkdir -p $@
