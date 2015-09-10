@@ -46,7 +46,7 @@ fi]
 AC_ARG_ENABLE(group-readable-logs, 
 [  --enable-group-readable-logs Set log files to be group readable], 
 [if test "x$enableval" = "xyes" ; then
-    AC_DEFINE(__CP_GROUP_READABLE_LOGS, 1, Define if Darshan should set log files to be group readable)
+    AC_DEFINE(__DARSHAN_GROUP_READABLE_LOGS, 1, Define if Darshan should set log files to be group readable)
 fi]
 ,)
 
@@ -55,7 +55,7 @@ AC_ARG_WITH(mem-align,
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-mem-align must be given a number in bytes)
     else
-        AC_DEFINE_UNQUOTED(__CP_MEM_ALIGNMENT, ${withval}, Memory alignment in bytes)
+        AC_DEFINE_UNQUOTED(__DARSHAN_MEM_ALIGNMENT, ${withval}, Memory alignment in bytes)
         GOT_ALIGNMENT=1
     fi
 )
@@ -65,8 +65,8 @@ AC_ARG_WITH(log-path-by-env,
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-log-path-by-env must be given at least one variable name)
     else
-        AC_DEFINE_UNQUOTED(__CP_LOG_ENV, "${withval}", Comma separated list of env. variables to use for log path)
-        __CP_LOG_ENV="${withval}"
+        AC_DEFINE_UNQUOTED(__DARSHAN_LOG_ENV, "${withval}", Comma separated list of env. variables to use for log path)
+        __DARSHAN_LOG_ENV="${withval}"
         GOT_LOG_PATH=1
     fi
 )
@@ -76,8 +76,8 @@ AC_ARG_WITH(log-hints,
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-log-hints must be given an argument)
     else
-        AC_DEFINE_UNQUOTED(__CP_LOG_HINTS, "${withval}", Semicolon-separated list of MPI-IO hints for log file write)
-        __CP_LOG_HINTS="${withval}"
+        AC_DEFINE_UNQUOTED(__DARSHAN_LOG_HINTS, "${withval}", Semicolon-separated list of MPI-IO hints for log file write)
+        __DARSHAN_LOG_HINTS="${withval}"
         GOT_LOG_HINTS=1
     fi
 )
@@ -87,8 +87,8 @@ AC_ARG_WITH(log-path,
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-log-path must be given a pathname)
     else
-        AC_DEFINE_UNQUOTED(__CP_LOG_PATH, "${withval}", Location to store log files at run time)
-        __CP_LOG_PATH="${withval}"
+        AC_DEFINE_UNQUOTED(__DARSHAN_LOG_PATH, "${withval}", Location to store log files at run time)
+        __DARSHAN_LOG_PATH="${withval}"
         GOT_LOG_PATH=1
     fi
 )
@@ -100,8 +100,8 @@ AC_ARG_WITH(jobid-env,
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-jobid-env must be given a name)
     else
-        AC_DEFINE_UNQUOTED(CP_JOBID, "${withval}", Name of the environment variable that stores the jobid)
-        CP_JOBID="${withval}"
+        AC_DEFINE_UNQUOTED(__DARSHAN_JOBID, "${withval}", Name of the environment variable that stores the jobid)
+        __DARSHAN_JOBID="${withval}"
         GOT_JOBID=1
     fi
 )
@@ -115,10 +115,10 @@ fi
 if test x$GOT_JOBID != x1; then
     AC_MSG_ERROR(must provide --with-jobid-env=<name> argument to configure.)
 fi
-__CP_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=4"
+__DARSHAN_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=4"
 if test x$GOT_LOG_HINTS != x1; then
 dnl use default hints
-    AC_DEFINE_UNQUOTED(__CP_LOG_HINTS, "$__CP_LOG_HINTS_DEFAULT", Comma-separated list of MPI-IO hints for log file write)
+    AC_DEFINE_UNQUOTED(__DARSHAN_LOG_HINTS, "$__DARSHAN_LOG_HINTS_DEFAULT", Comma-separated list of MPI-IO hints for log file write)
 fi
 
 # checks to see how we can print 64 bit values on this architecture
@@ -313,7 +313,7 @@ DARSHAN_VERSION="AC_PACKAGE_VERSION"
 AC_SUBST(darshan_lib_path)
 AC_SUBST(darshan_share_path)
 AC_SUBST(LDFLAGS)
-AC_SUBST(__CP_LOG_PATH)
+AC_SUBST(__DARSHAN_LOG_PATH)
 AC_SUBST(DISABLE_LDPRELOAD)
 AC_SUBST(DARSHAN_VERSION)
 AC_SUBST(MPICH_LIB_OLD)

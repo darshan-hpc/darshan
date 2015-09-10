@@ -625,7 +625,7 @@ DARSHAN_USE_BGQ
 MPICH_LIB_OLD
 DARSHAN_VERSION
 DISABLE_LDPRELOAD
-__CP_LOG_PATH
+__DARSHAN_LOG_PATH
 darshan_share_path
 darshan_lib_path
 PRI_MACROS_BROKEN
@@ -3467,8 +3467,8 @@ if test "${with_zlib+set}" = set; then :
     ZLIB_HOME="$withval"
     LDFLAGS="$LDFLAGS -L${ZLIB_HOME}/lib"
     CPPFLAGS="$CPPFLAGS -I${ZLIB_HOME}/include"
-    __CP_ZLIB_LINK_FLAGS="-L${ZLIB_HOME}/lib"
-    __CP_ZLIB_INCLUDE_FLAGS="-I${ZLIB_HOME}/include"
+    __DARSHAN_ZLIB_LINK_FLAGS="-L${ZLIB_HOME}/lib"
+    __DARSHAN_ZLIB_INCLUDE_FLAGS="-I${ZLIB_HOME}/include"
   else
     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Sorry, $withval does not exist, checking usual places" >&5
 $as_echo "$as_me: WARNING: Sorry, $withval does not exist, checking usual places" >&2;}
@@ -3561,7 +3561,7 @@ fi
 if test "${enable_group_readable_logs+set}" = set; then :
   enableval=$enable_group_readable_logs; if test "x$enableval" = "xyes" ; then
 
-$as_echo "#define __CP_GROUP_READABLE_LOGS 1" >>confdefs.h
+$as_echo "#define __DARSHAN_GROUP_READABLE_LOGS 1" >>confdefs.h
 
 fi
 
@@ -3576,7 +3576,7 @@ if test "${with_mem_align+set}" = set; then :
     else
 
 cat >>confdefs.h <<_ACEOF
-#define __CP_MEM_ALIGNMENT ${withval}
+#define __DARSHAN_MEM_ALIGNMENT ${withval}
 _ACEOF
 
         GOT_ALIGNMENT=1
@@ -3593,10 +3593,10 @@ if test "${with_log_path_by_env+set}" = set; then :
     else
 
 cat >>confdefs.h <<_ACEOF
-#define __CP_LOG_ENV "${withval}"
+#define __DARSHAN_LOG_ENV "${withval}"
 _ACEOF
 
-        __CP_LOG_ENV="${withval}"
+        __DARSHAN_LOG_ENV="${withval}"
         GOT_LOG_PATH=1
     fi
 
@@ -3611,10 +3611,10 @@ if test "${with_log_hints+set}" = set; then :
     else
 
 cat >>confdefs.h <<_ACEOF
-#define __CP_LOG_HINTS "${withval}"
+#define __DARSHAN_LOG_HINTS "${withval}"
 _ACEOF
 
-        __CP_LOG_HINTS="${withval}"
+        __DARSHAN_LOG_HINTS="${withval}"
         GOT_LOG_HINTS=1
     fi
 
@@ -3629,10 +3629,10 @@ if test "${with_log_path+set}" = set; then :
     else
 
 cat >>confdefs.h <<_ACEOF
-#define __CP_LOG_PATH "${withval}"
+#define __DARSHAN_LOG_PATH "${withval}"
 _ACEOF
 
-        __CP_LOG_PATH="${withval}"
+        __DARSHAN_LOG_PATH="${withval}"
         GOT_LOG_PATH=1
     fi
 
@@ -3647,10 +3647,10 @@ if test "${with_jobid_env+set}" = set; then :
     else
 
 cat >>confdefs.h <<_ACEOF
-#define CP_JOBID "${withval}"
+#define __DARSHAN_JOBID "${withval}"
 _ACEOF
 
-        CP_JOBID="${withval}"
+        __DARSHAN_JOBID="${withval}"
         GOT_JOBID=1
     fi
 
@@ -3666,11 +3666,11 @@ fi
 if test x$GOT_JOBID != x1; then
     as_fn_error $? "must provide --with-jobid-env=<name> argument to configure." "$LINENO" 5
 fi
-__CP_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=4"
+__DARSHAN_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=4"
 if test x$GOT_LOG_HINTS != x1; then
 
 cat >>confdefs.h <<_ACEOF
-#define __CP_LOG_HINTS "$__CP_LOG_HINTS_DEFAULT"
+#define __DARSHAN_LOG_HINTS "$__DARSHAN_LOG_HINTS_DEFAULT"
 _ACEOF
 
 fi

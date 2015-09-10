@@ -10,7 +10,7 @@ use File::Basename;
 # LOGDIR/<year>/<month>/<day>/
 
 # use log dir specified at configure time
-$LOGDIR = "@__CP_LOG_PATH@";
+$LOGDIR = "@__DARSHAN_LOG_PATH@";
 
 
 my $year = (localtime)[5] + 1900;

@@ -11,8 +11,8 @@ AC_ARG_WITH(zlib,
     ZLIB_HOME="$withval"
     LDFLAGS="$LDFLAGS -L${ZLIB_HOME}/lib"
     CPPFLAGS="$CPPFLAGS -I${ZLIB_HOME}/include"
-    __CP_ZLIB_LINK_FLAGS="-L${ZLIB_HOME}/lib"
-    __CP_ZLIB_INCLUDE_FLAGS="-I${ZLIB_HOME}/include"
+    __DARSHAN_ZLIB_LINK_FLAGS="-L${ZLIB_HOME}/lib"
+    __DARSHAN_ZLIB_INCLUDE_FLAGS="-I${ZLIB_HOME}/include"
   else
     AC_MSG_WARN([Sorry, $withval does not exist, checking usual places])
   fi

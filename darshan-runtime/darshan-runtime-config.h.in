@@ -3,9 +3,6 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
-/* Name of the environment variable that stores the jobid */
-#undef CP_JOBID
-
 /* Define if cuserid() should be disabled */
 #undef DARSHAN_DISABLE_CUSERID
 
@@ -91,19 +88,22 @@
 #endif
 
 /* Define if Darshan should set log files to be group readable */
-#undef __CP_GROUP_READABLE_LOGS
+#undef __DARSHAN_GROUP_READABLE_LOGS
+
+/* Name of the environment variable that stores the jobid */
+#undef __DARSHAN_JOBID
 
 /* Comma separated list of env. variables to use for log path */
-#undef __CP_LOG_ENV
+#undef __DARSHAN_LOG_ENV
 
 /* Comma-separated list of MPI-IO hints for log file write */
-#undef __CP_LOG_HINTS
+#undef __DARSHAN_LOG_HINTS
 
 /* Location to store log files at run time */
-#undef __CP_LOG_PATH
+#undef __DARSHAN_LOG_PATH
 
 /* Memory alignment in bytes */
-#undef __CP_MEM_ALIGNMENT
+#undef __DARSHAN_MEM_ALIGNMENT
 
 /* Generalized request type for MPI-IO */
 #undef __D_MPI_REQUEST

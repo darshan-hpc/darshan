@@ -140,10 +140,10 @@ void darshan_core_initialize(int argc, char **argv)
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if(!getenv("DARSHAN_DISABLE") && !darshan_core)
     {
-        #if (__CP_MEM_ALIGNMENT < 1)
+        #if (__DARSHAN_MEM_ALIGNMENT < 1)
             #error Darshan must be configured with a positive value for --with-mem-align
         #endif
-        envstr = getenv("DARSHAN_MEMALIGN");
+        envstr = getenv(DARSHAN_MEM_ALIGNMENT_OVERRIDE);
         if(envstr)
         {
             ret = sscanf(envstr, "%d", &tmpval);
@@ -155,7 +155,7 @@ void darshan_core_initialize(int argc, char **argv)
         }
         else
         {
-            darshan_mem_alignment = __CP_MEM_ALIGNMENT;
+            darshan_mem_alignment = __DARSHAN_MEM_ALIGNMENT;
         }
 
         /* avoid floating point errors on faulty input */
@@ -303,11 +303,11 @@ void darshan_core_shutdown()
     /* set darshan job id/metadata and constuct log file name on rank 0 */
     if(my_rank == 0)
     {
-        /* Use CP_JOBID_OVERRIDE for the env var or CP_JOBID */
-        envjobid = getenv(CP_JOBID_OVERRIDE);
+        /* Use DARSHAN_JOBID_OVERRIDE for the env var or __DARSHAN_JOBID */
+        envjobid = getenv(DARSHAN_JOBID_OVERRIDE);
         if(!envjobid)
         {
-            envjobid = CP_JOBID;
+            envjobid = __DARSHAN_JOBID;
         }
 
         /* find a job id */
@@ -590,7 +590,7 @@ void darshan_core_shutdown()
     {
         if(getenv("DARSHAN_LOGFILE"))
         {
-#ifdef __CP_GROUP_READABLE_LOGS
+#ifdef __DARSHAN_GROUP_READABLE_LOGS
             chmod(logfile_name, (S_IRUSR|S_IRGRP));
 #else
             chmod(logfile_name, (S_IRUSR));
@@ -612,7 +612,7 @@ void darshan_core_shutdown()
                 sprintf(tmp_index, "_%d.darshan", (int)(end_log_time-start_log_time+1));
                 rename(logfile_name, new_logfile_name);
                 /* set permissions on log file */
-#ifdef __CP_GROUP_READABLE_LOGS
+#ifdef __DARSHAN_GROUP_READABLE_LOGS
                 chmod(new_logfile_name, (S_IRUSR|S_IRGRP));
 #else
                 chmod(new_logfile_name, (S_IRUSR));
@@ -688,7 +688,7 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
     char* logpath;
     char* logname_string;
     char* logpath_override = NULL;
-#ifdef __CP_LOG_ENV
+#ifdef __DARSHAN_LOG_ENV
     char env_check[256];
     char* env_tok;
 #endif
@@ -716,12 +716,12 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
     {
         /* otherwise, generate the log path automatically */
 
-        /* Use CP_LOG_PATH_OVERRIDE for the value or __CP_LOG_PATH */
-        logpath = getenv(CP_LOG_PATH_OVERRIDE);
+        /* Use DARSHAN_LOG_PATH_OVERRIDE for the value or __DARSHAN_LOG_PATH */
+        logpath = getenv(DARSHAN_LOG_PATH_OVERRIDE);
         if(!logpath)
         {
-#ifdef __CP_LOG_PATH
-            logpath = __CP_LOG_PATH;
+#ifdef __DARSHAN_LOG_PATH
+            logpath = __DARSHAN_LOG_PATH;
 #endif
         }
 
@@ -766,12 +766,12 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
          * argument, which allows the user to specify an absolute path to
          * place logs via an env variable.
          */
-#ifdef __CP_LOG_ENV
+#ifdef __DARSHAN_LOG_ENV
         /* just silently skip if the environment variable list is too big */
-        if(strlen(__CP_LOG_ENV) < 256)
+        if(strlen(__DARSHAN_LOG_ENV) < 256)
         {
             /* copy env variable list to a temporary buffer */
-            strcpy(env_check, __CP_LOG_ENV);
+            strcpy(env_check, __DARSHAN_LOG_ENV);
             /* tokenize the comma-separated list */
             env_tok = strtok(env_check, ",");
             if(env_tok)
@@ -847,10 +847,10 @@ static void darshan_log_record_hints_and_ver(struct darshan_core_runtime* core)
     /* check environment variable to see if the default MPI file hints have
      * been overridden
      */
-    hints = getenv(CP_LOG_HINTS_OVERRIDE);
+    hints = getenv(DARSHAN_LOG_HINTS_OVERRIDE);
     if(!hints)
     {
-        hints = __CP_LOG_HINTS;
+        hints = __DARSHAN_LOG_HINTS;
     }
 
     if(!hints || strlen(hints) < 1)
@@ -1153,10 +1153,10 @@ static int darshan_log_open_all(char *logfile_name, MPI_File *log_fh)
      */
     MPI_Info_create(&info);
 
-    hints = getenv(CP_LOG_HINTS_OVERRIDE);
+    hints = getenv(DARSHAN_LOG_HINTS_OVERRIDE);
     if(!hints)
     {
-        hints = __CP_LOG_HINTS;
+        hints = __DARSHAN_LOG_HINTS;
     }
 
     if(hints && strlen(hints) > 0)
