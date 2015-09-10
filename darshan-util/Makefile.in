@@ -23,8 +23,8 @@ VPATH = $(srcdir)
 ifeq ($(DARSHAN_ENABLE_SHARED),1)
 all: libdarshan-util.so
 endif
-cp_zlib_link_flags = @__CP_ZLIB_LINK_FLAGS@
-cp_zlib_include_flags = @__CP_ZLIB_INCLUDE_FLAGS@
+cp_zlib_link_flags = @__DARSHAN_ZLIB_LINK_FLAGS@
+cp_zlib_include_flags = @__DARSHAN_ZLIB_INCLUDE_FLAGS@
 
 # deliberately avoid large file support for host side utilities to avoid
 # potentially buggy libz 64 bit offset support

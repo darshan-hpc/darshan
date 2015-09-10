@@ -3,8 +3,8 @@ exec_prefix = @exec_prefix@
 libdir = @libdir@
 includedir = @includedir@
 abs_top_builddir = @abs_top_builddir@
-cp_zlib_include_flags = @__CP_ZLIB_INCLUDE_FLAGS@
-cp_zlib_link_flags = @__CP_ZLIB_LINK_FLAGS@
+darshan_zlib_include_flags = @__DARSHAN_ZLIB_INCLUDE_FLAGS@
+darshan_zlib_link_flags = @__DARSHAN_ZLIB_LINK_FLAGS@
 LIBBZ2 = @LIBBZ2@
 
 Name: darshan-util
@@ -13,5 +13,5 @@ Version: @DARSHAN_UTIL_VERSION@
 URL: http://trac.mcs.anl.gov/projects/darshan/
 Requires:
 Libs: -L${libdir} -ldarshan-util 
-Libs.private: ${cp_zlib_link_flags} -lz ${LIBBZ2}
-Cflags: -I${includedir} ${cp_zlib_include_flags}
+Libs.private: ${darshan_zlib_link_flags} -lz ${LIBBZ2}
+Cflags: -I${includedir} ${darshan_zlib_include_flags}

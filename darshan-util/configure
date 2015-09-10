@@ -623,9 +623,9 @@ ac_subst_vars='LTLIBOBJS
 LIBOBJS
 DARSHAN_UTIL_VERSION
 DARSHAN_ENABLE_SHARED
-__CP_PDFLATEX_HALT_ON_ERROR
-__CP_ZLIB_INCLUDE_FLAGS
-__CP_ZLIB_LINK_FLAGS
+__DARSHAN_PDFLATEX_HALT_ON_ERROR
+__DARSHAN_ZLIB_INCLUDE_FLAGS
+__DARSHAN_ZLIB_LINK_FLAGS
 HAVE_PDFLATEX
 PRI_MACROS_BROKEN
 LIBBZ2
@@ -3431,8 +3431,8 @@ if test "${with_zlib+set}" = set; then :
     ZLIB_HOME="$withval"
     LDFLAGS="$LDFLAGS -L${ZLIB_HOME}/lib"
     CPPFLAGS="$CPPFLAGS -I${ZLIB_HOME}/include"
-    __CP_ZLIB_LINK_FLAGS="-L${ZLIB_HOME}/lib"
-    __CP_ZLIB_INCLUDE_FLAGS="-I${ZLIB_HOME}/include"
+    __DARSHAN_ZLIB_LINK_FLAGS="-L${ZLIB_HOME}/lib"
+    __DARSHAN_ZLIB_INCLUDE_FLAGS="-I${ZLIB_HOME}/include"
   else
     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Sorry, $withval does not exist, checking usual places" >&5
 $as_echo "$as_me: WARNING: Sorry, $withval does not exist, checking usual places" >&2;}
@@ -3805,9 +3805,9 @@ $as_echo_n "checking for -halt-on-error argument to pdflatex... " >&6; }
     if test "x$PDFLATEX_GREP" != "x"; then
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-        __CP_PDFLATEX_HALT_ON_ERROR="-halt-on-error"
+        __DARSHAN_PDFLATEX_HALT_ON_ERROR="-halt-on-error"
     else
-        __CP_PDFLATEX_HALT_ON_ERROR=""
+        __DARSHAN_PDFLATEX_HALT_ON_ERROR=""
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
     fi

@@ -928,7 +928,7 @@ system "$epstopdf pattern.eps";
 # generate summary PDF
 # NOTE: we pass arguments to the latex template using '\def' commands
 # NOTE: an autoconf test determines if -halt-on-error is available and sets
-# __CP_PDFLATEX_HALT_ON_ERROR accordingly
+# __DARSHAN_PDFLATEX_HALT_ON_ERROR accordingly
 my $latex_cmd_line = "\"\\def\\titlecmd{$cmd} \\
     \\def\\titlemon{$mon} \\
     \\def\\titlemday{$mday} \\
@@ -949,7 +949,7 @@ my $latex_cmd_line = "\"\\def\\titlecmd{$cmd} \\
     \\def\\filecmi{$cmi} \\
     \\def\\filecms{$cms} \\
     \\input{summary.tex}\" \\
-    @__CP_PDFLATEX_HALT_ON_ERROR@";
+    @__DARSHAN_PDFLATEX_HALT_ON_ERROR@";
 
 if (defined $summary{MPIIO_INDEP_OPENS})
 {

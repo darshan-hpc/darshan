@@ -602,7 +602,7 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
         hash_buf, &hash_buf_sz, fd->comp_type);
     if(ret < 0)
     {
-        fprintf(stderr, "Error: unable to decompress darshan job data.\n");
+        fprintf(stderr, "Error: unable to decompress darshan record map data.\n");
         free(comp_buf);
         free(hash_buf);
         return(-1);
