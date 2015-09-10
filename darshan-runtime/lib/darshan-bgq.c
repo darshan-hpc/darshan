@@ -17,7 +17,9 @@
 #include "uthash.h"
 #include "darshan.h"
 #include "darshan-bgq-log-format.h"
+#include "darshan-dynamic.h"
 
+#include <mpix.h>
 #include <spi/include/kernel/location.h>
 #include <spi/include/kernel/process.h>
 #include <firmware/include/personality.h>
@@ -56,8 +58,6 @@ void bgq_runtime_initialize(void);
 static void bgq_begin_shutdown(void);
 static void bgq_get_output_data(MPI_Comm mod_comm, darshan_record_id *shared_recs, int shared_rec_count, void **buffer, int *size);
 static void bgq_shutdown(void);
-static void bgq_setup_reduction(darshan_record_id *shared_recs,int *shared_rec_count,void **send_buf,void **recv_buf,int *rec_size);
-static void bgq_record_reduction_op(void* infile_v,void* inoutfile_v,int *len,MPI_Datatype *datatype);
 
 /* macros for obtaining/releasing the "NULL" module lock */
 #define BGQ_LOCK() pthread_mutex_lock(&bgq_runtime_mutex)
@@ -161,8 +161,6 @@ void bgq_runtime_initialize()
         &bgq_runtime->record.f_id,
         &bgq_runtime->record.alignment);
 
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
-
     capture(&bgq_runtime->record);
 
     BGQ_UNLOCK();
@@ -213,25 +211,25 @@ static void bgq_get_output_data(
 
     if (my_rank == 0)
     {
-        DARSHAN_MPI_CALL(MPI_Comm_size)(mod_comm, &nprocs);
+        DARSHAN_MPI_CALL(PMPI_Comm_size)(mod_comm, &nprocs);
         ion_ids = malloc(sizeof(*ion_ids)*nprocs);
         result = (ion_ids != NULL); 
     }
-    DARSHAN_MPI_CALL(MPI_Bcast)(&result, 1, MPI_INT, 0, mod_comm);
+    DARSHAN_MPI_CALL(PMPI_Bcast)(&result, 1, MPI_INT, 0, mod_comm);
 
     if (bgq_runtime && result)
     {
         int i, found;
         uint64_t val;
 
-        DARSHAN_MPI_CALL(MPI_Gather)(&bgq_runtime->record.counters[BGQ_INODES],
-                                     1,
-                                     MPI_LONG_LONG_INT,
-                                     ion_ids,
-                                     1,
-                                     MPI_LONG_LONG_INT,
-                                     0,
-                                     mod_comm);
+        DARSHAN_MPI_CALL(PMPI_Gather)(&bgq_runtime->record.counters[BGQ_INODES],
+                                      1,
+                                      MPI_LONG_LONG_INT,
+                                      ion_ids,
+                                      1,
+                                      MPI_LONG_LONG_INT,
+                                      0,
+                                      mod_comm);
         if (my_rank == 0)
         {
             qsort(ion_ids, nprocs, sizeof(*ion_ids), cmpr);
@@ -273,6 +271,7 @@ static void bgq_shutdown()
     return;
 }
 
+#if 0
 static void bgq_record_reduction_op(
     void* infile_v,
     void* inoutfile_v,
@@ -305,6 +304,7 @@ static void bgq_record_reduction_op(
 
     return;
 }
+#endif
 
 /*
  * Local variables:
