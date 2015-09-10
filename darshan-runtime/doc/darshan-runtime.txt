@@ -40,40 +40,32 @@ make
 make install
 ----
 
-.Detecting file size and alignment
-[NOTE]
-====
-You can also add --enable-stat-at-open option to cause the Darshan library
-to issue an additional stat() system call on each file the first time that
-it is opened on each process.  This allows Darshan to detect the file
-alignment (and subsequent unaligned accesses).  It also allows Darshan to
-detect the size of files at open time before any I/O is performed.
-Unfortunately, this option can cause significant overhead at scale on file
-systems such as PVFS or Lustre that must contact every server for a given
-file in order to satisfy a stat request.  We therefore disable this
-feature by default.
-====
-
 .Explanation of configure arguments:
-* `--with-mem-align` (mandatory): This value is system-dependent and will be
+* `--with-mem-align=` (mandatory): This value is system-dependent and will be
 used by Darshan to determine if the buffer for a read or write operation is
 aligned in memory.
-* `--with-log-path` (this, or `--with-log-path-by-env`, is mandatory): This
-specifies the parent directory for the directory tree where darshan logs
-will be placed
-* `--with-jobid-env` (mandatory): this specifies the environment variable that
+* `--with-jobid-env=` (mandatory): this specifies the environment variable that
 Darshan should check to determine the jobid of a job.  Common values are
 `PBS_JOBID` or `COBALT_JOBID`.  If you are not using a scheduler (or your
 scheduler does not advertise the job ID) then you can specify `NONE` here.
 Darshan will fall back to using the pid of the rank 0 process if the
 specified environment variable is not set.
-* `CC=`: specifies the MPI C compiler to use for compilation
-* `--with-log-path-by-env`: specifies an environment variable to use to
+* `--with-log-path=` (this, or `--with-log-path-by-env`, is mandatory): This
+specifies the parent directory for the directory tree where darshan logs
+will be placed.
+* `--with-log-path-by-env=`: specifies an environment variable to use to
 determine the log path at run time.
 * `--with-log-hints=`: specifies hints to use when writing the Darshan log
 file.  See `./configure --help` for details.
 * `--with-zlib=`: specifies an alternate location for the zlib development
 header and library.
+* `CC=`: specifies the MPI C compiler to use for compilation.
+* `--disable-cuserid`: disables use of cuserid() at runtime.
+* `--disable-ld-preload`: disables building of the Darshan LD_PRELOAD library
+* `--disable-bgq-mod`: disables building of the BG/Q module (default checks
+and only builds if BG/Q environment detected).
+* `--enable-group-readable-logs`: sets darshan log file permissions to allow
+group read access.
 
 === Cross compilation
 
@@ -479,9 +471,6 @@ behavior at runtime:
 * DARSHAN_LOGHINTS: specifies the MPI-IO hints to use when storing the Darshan output file.  The format is a semicolon-delimited list of key=value pairs, for example: hint1=value1;hint2=value2
 * DARSHAN_MEMALIGN: specifies a value for system memory alignment
 * DARSHAN_JOBID: specifies the name of the environment variable to use for the job identifier, such as PBS_JOBID
-* DARSHAN_DISABLE_SHARED_REDUCTION: disables the step in Darshan aggregation
-in which files that were accessed by all ranks are collapsed into a single
-cumulative file record at rank 0.  This option retains more per-process
-information at the expense of creating larger log files.
+* DARSHAN_DISABLE_SHARED_REDUCTION: disables the step in Darshan aggregation in which files that were accessed by all ranks are collapsed into a single cumulative file record at rank 0.  This option retains more per-process information at the expense of creating larger log files. Note that it is up to individual instrumentation module implementations whether this environment variable is actually honored.
 * DARSHAN_LOGPATH: specifies the path to write Darshan log files to. Note that this directory needs to be formatted using the darshan-mk-log-dirs script.
-* DARSHAN_LOGFILE: specifies the path (directory + Darshan log file name) to write the output Darshan log to. This overrides the default Darshan behavior of automatically generating a log file name and adding to a log file directory formatted using darshan-mk-log-dirs script.
+* DARSHAN_LOGFILE: specifies the path (directory + Darshan log file name) to write the output Darshan log to. This overrides the default Darshan behavior of automatically generating a log file name and adding it to a log file directory formatted using darshan-mk-log-dirs script.

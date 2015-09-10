@@ -476,7 +476,10 @@ static void hdf5_get_output_data(
     assert(hdf5_runtime);
 
     /* if there are globally shared files, do a shared file reduction */
-    if(shared_rec_count)
+    /* NOTE: the shared file reduction is also skipped if the 
+     * DARSHAN_DISABLE_SHARED_REDUCTION environment variable is set.
+     */
+    if(shared_rec_count && !getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
     {
         /* necessary initialization of shared records */
         for(i = 0; i < shared_rec_count; i++)

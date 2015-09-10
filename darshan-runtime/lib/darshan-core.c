@@ -209,14 +209,14 @@ void darshan_core_initialize(int argc, char **argv)
             /* collect information about command line and mounted file systems */
             darshan_core->trailing_data = darshan_get_exe_and_mounts(darshan_core);
         }
-    }
 
-    /* maybe bootstrap modules with static initializers */
-    i = 0;
-    while(mod_static_init_fns[i])
-    {
-        (*mod_static_init_fns[i])();
-        i++;
+        /* maybe bootstrap modules with static initializers */
+        i = 0;
+        while(mod_static_init_fns[i])
+        {
+            (*mod_static_init_fns[i])();
+            i++;
+        }
     }
 
     if(internal_timing_flag)
@@ -226,8 +226,8 @@ void darshan_core_initialize(int argc, char **argv)
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
         if(my_rank == 0)
         {
-            printf("#darshan:<op>\t<nprocs>\t<time>\n");
-            printf("darshan:init\t%d\t%f\n", nprocs, init_max);
+            fprintf(stderr, "#darshan:<op>\t<nprocs>\t<time>\n");
+            fprintf(stderr, "darshan:init\t%d\t%f\n", nprocs, init_max);
         }
     }
 
@@ -303,7 +303,7 @@ void darshan_core_shutdown()
     /* set darshan job id/metadata and constuct log file name on rank 0 */
     if(my_rank == 0)
     {
-        /* Use DARSHAN_JOBID_OVERRIDE for the env var or __DARSHAN_JOBID */
+        /* Use DARSHAN_JOBID_OVERRIDE for the env var for __DARSHAN_JOBID */
         envjobid = getenv(DARSHAN_JOBID_OVERRIDE);
         if(!envjobid)
         {
@@ -661,18 +661,18 @@ void darshan_core_shutdown()
 
         if(my_rank == 0)
         {
-            printf("#darshan:<op>\t<nprocs>\t<time>\n");
-            printf("darshan:log_open\t%d\t%f\n", nprocs, open_slowest);
-            printf("darshan:job_write\t%d\t%f\n", nprocs, job_slowest);
-            printf("darshan:hash_write\t%d\t%f\n", nprocs, rec_slowest);
-            printf("darshan:header_write\t%d\t%f\n", nprocs, header_slowest);
+            fprintf(stderr, "#darshan:<op>\t<nprocs>\t<time>\n");
+            fprintf(stderr, "darshan:log_open\t%d\t%f\n", nprocs, open_slowest);
+            fprintf(stderr, "darshan:job_write\t%d\t%f\n", nprocs, job_slowest);
+            fprintf(stderr, "darshan:hash_write\t%d\t%f\n", nprocs, rec_slowest);
+            fprintf(stderr, "darshan:header_write\t%d\t%f\n", nprocs, header_slowest);
             for(i = 0; i < DARSHAN_MAX_MODS; i++)
             {
                 if(global_mod_use_count[i])
-                    printf("darshan:%s_shutdown\t%d\t%f\n", darshan_module_names[i],
+                    fprintf(stderr, "darshan:%s_shutdown\t%d\t%f\n", darshan_module_names[i],
                         nprocs, mod_slowest[i]);
             }
-            printf("darshan:core_shutdown\t%d\t%f\n", nprocs, all_slowest);
+            fprintf(stderr, "darshan:core_shutdown\t%d\t%f\n", nprocs, all_slowest);
         }
     }
     

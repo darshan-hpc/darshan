@@ -21,11 +21,6 @@ AC_TRY_COMPILE([#include <mpi.h>], [int ret = MPI_Init(0, (void*)0)],
     AC_MSG_ERROR(CC doesn't appear to be a valid MPI compiler.  See INSTALL document or try adding CC=mpicc to your configure command line.)
 )
 
-AC_ARG_WITH(zlib-for-mpi,,
-    AC_MSG_ERROR(with-zlib-for-mpi argument is deprecated.  Please see Darshan documentation.)
-)
-
-
 dnl runtime libraries require zlib
 CHECK_ZLIB
 
@@ -72,7 +67,7 @@ AC_ARG_WITH(log-path-by-env,
 )
 
 AC_ARG_WITH(log-hints,
-[  --with-log-hints=<hint1=x,hint2=y>  Semicolon-separated list of MPI-IO hints for log file write],
+[  --with-log-hints=<hint1=x;hint2=y>  Semicolon-separated list of MPI-IO hints for log file write],
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-log-hints must be given an argument)
     else

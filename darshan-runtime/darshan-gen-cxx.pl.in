@@ -207,7 +207,7 @@ print OUTPUT<<"EOF";
     # if the user is using another PMPI based tool
 
     # if allargs includes any libraries, then we need to get 
-    # -ldarshan-mpi-io in there first
+    # -ldarshan in there first
     argno=0;
     once=0;
     compiler_check=0;
