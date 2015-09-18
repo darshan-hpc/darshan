@@ -19,6 +19,8 @@
 
 #include "darshan-logutils.h"
 
+#define DEF_MOD_BUF_SIZE 1024 /* 1 KiB is enough for all current mod records ... */
+
 extern uint32_t darshan_hashlittle(const void *key, size_t length, uint32_t initval);
 
 int usage (char *exename)
@@ -221,7 +223,6 @@ int main(int argc, char **argv)
     int ret;
     char *infile_name;
     char *outfile_name;
-    struct darshan_header header;
     struct darshan_job job;
     char tmp_string[4096] = {0};
     darshan_fd infile;
@@ -232,8 +233,7 @@ int main(int argc, char **argv)
     char** fs_types;
     struct darshan_record_ref *rec_hash = NULL;
     struct darshan_record_ref *ref, *tmp;
-    char *mod_buf;
-    int mod_buf_sz;
+    char mod_buf[DEF_MOD_BUF_SIZE];
     enum darshan_comp_type comp_type;
     int bzip2;
     int obfuscate;
@@ -247,42 +247,23 @@ int main(int argc, char **argv)
 
     infile = darshan_log_open(infile_name);
     if(!infile)
-    {
-        fprintf(stderr, "darshan_log_open() failed to open %s\n.", infile_name);
         return(-1);
-    }
  
     comp_type = bzip2 ? comp_type = DARSHAN_BZIP2_COMP : DARSHAN_ZLIB_COMP;
     outfile = darshan_log_create(outfile_name, comp_type);
     if(!outfile)
     {
-        fprintf(stderr, "darshan_log_create() failed to create %s\n.", outfile_name);
         darshan_log_close(infile);
         return(-1);
     }
-
-    /* read header from input file */
-    ret = darshan_log_getheader(infile, &header);
-    if(ret < 0)
-    {
-        fprintf(stderr, "Error: unable to read header from input log file %s.\n", infile_name);
-        darshan_log_close(infile);
-        darshan_log_close(outfile);
-        return(-1);
-    }
-
-    /* NOTE: we do not write the header to the output file until the end, as
-     * the mapping data stored in this structure may change in the conversion
-     * process (particularly, if we are converting between libz/bz2 compression)
-     */
 
     /* read job info */
     ret = darshan_log_getjob(infile, &job);
     if(ret < 0)
     {
-        fprintf(stderr, "Error: unable to read job information from log file.\n");
         darshan_log_close(infile);
         darshan_log_close(outfile);
+        unlink(outfile_name);
         return(-1);
     }
 
@@ -293,7 +274,6 @@ int main(int argc, char **argv)
     ret = darshan_log_putjob(outfile, &job);
     if (ret < 0)
     {
-        fprintf(stderr, "Error: unable to write job information to log file.\n");
         darshan_log_close(infile);
         darshan_log_close(outfile);
         return(-1);
@@ -302,9 +282,9 @@ int main(int argc, char **argv)
     ret = darshan_log_getexe(infile, tmp_string);
     if(ret < 0)
     {
-        fprintf(stderr, "Error: unable to read trailing job information.\n");
         darshan_log_close(infile);
         darshan_log_close(outfile);
+        unlink(outfile_name);
         return(-1);
     }
 
@@ -313,7 +293,6 @@ int main(int argc, char **argv)
     ret = darshan_log_putexe(outfile, tmp_string);
     if(ret < 0)
     {
-        fprintf(stderr, "Error: unable to write trailing job information.\n");
         darshan_log_close(infile);
         darshan_log_close(outfile);
         return(-1);
@@ -322,16 +301,15 @@ int main(int argc, char **argv)
     ret = darshan_log_getmounts(infile, &mnt_pts, &fs_types, &mount_count);
     if(ret < 0)
     {
-        fprintf(stderr, "Error: unable to read trailing job information.\n");
         darshan_log_close(infile);
         darshan_log_close(outfile);
+        unlink(outfile_name);
         return(-1);
     }
 
     ret = darshan_log_putmounts(outfile, mnt_pts, fs_types, mount_count);
     if(ret < 0)
     {
-        fprintf(stderr, "Error: unable to write mount information.\n");
         darshan_log_close(infile);
         darshan_log_close(outfile);
         return(-1);
@@ -340,9 +318,9 @@ int main(int argc, char **argv)
     ret = darshan_log_gethash(infile, &rec_hash);
     if(ret < 0)
     {
-        fprintf(stderr, "Error: unable to read darshan record hash.\n");
         darshan_log_close(infile);
         darshan_log_close(outfile);
+        unlink(outfile_name);
         return(-1);
     }
 
@@ -355,104 +333,56 @@ int main(int argc, char **argv)
     ret = darshan_log_puthash(outfile, rec_hash);
     if(ret < 0)
     {
-        fprintf(stderr, "Error: unable to write darshan record hash.\n");
         darshan_log_close(infile);
         darshan_log_close(outfile);
         return(-1);
     }
 
-    mod_buf = malloc(DARSHAN_DEF_COMP_BUF_SZ);
-    if(!mod_buf)
-        return(-1);
-
+    /* loop over each module and convert it's data to the new format */
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
-        int mod_bytes_left;
-        int mod_bytes_left_save;
-        void *mod_buf_p;
-        void *rec_p = NULL;
         darshan_record_id rec_id;
 
-        memset(mod_buf, 0, DARSHAN_DEF_COMP_BUF_SZ);
-        mod_buf_sz = DARSHAN_DEF_COMP_BUF_SZ;
-
         /* check each module for any data */
-        ret = darshan_log_getmod(infile, i, mod_buf, &mod_buf_sz);
-        if(ret < 0)
-        {
-            fprintf(stderr, "Error: failed to get module %s data.\n",
-                darshan_module_names[i]);
-            darshan_log_close(infile);
-            darshan_log_close(outfile);
-            return(-1);
-        }
-        else if(ret == 0)
-        {
-            /* skip modules not present in log file */
+        if(infile->mod_map[i].len == 0)
             continue;
-        }
-
-        /* skip modules with no defined logutil handlers */
-        if(!mod_logutils[i])
+        else if(!mod_logutils[i])
         {
             fprintf(stderr, "Warning: no log utility handlers defined "
-                "for module %s, SKIPPING\n", darshan_module_names[i]);
+                "for module %s, SKIPPING.\n", darshan_module_names[i]);
             continue;
         }
 
         /* we have module data to convert */
-        /* NOTE: it is necessary to iterate through each module's
-         * records to correct any endianness issues before writing
-         * this data back to file
-         */
-        mod_bytes_left = mod_buf_sz;
-        mod_buf_p = mod_buf;
-        while(mod_bytes_left > 0)
-        {
-            mod_bytes_left_save = mod_bytes_left;
-            ret = mod_logutils[i]->log_get_record(&mod_buf_p, &mod_bytes_left,
-                &rec_p, &rec_id, infile->swap_flag);
-            if(ret < 0)
-            {
-                fprintf(stderr, "Error: failed to parse module %s data record\n",
-                    darshan_module_names[i]);
-                darshan_log_close(infile);
-                darshan_log_close(outfile);
-                return(-1);
-            }
+        memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
 
-            if(hash == rec_id)
-            {
-                mod_buf_p = rec_p;
-                mod_buf_sz = mod_bytes_left_save - mod_bytes_left;
-                break;
-            }
-            else if(mod_bytes_left == 0)
-            {
-                mod_buf_p = mod_buf;
-            }
-        }
-
-        ret = darshan_log_putmod(outfile, i, mod_buf_p, mod_buf_sz);
-        if(ret < 0)
+        ret = mod_logutils[i]->log_get_record(infile, mod_buf, &rec_id);
+        if(ret != 1)
         {
-            fprintf(stderr, "Error: failed to put module %s data.\n",
+            fprintf(stderr, "Error: failed to parse the first %s module record.\n",
                 darshan_module_names[i]);
             darshan_log_close(infile);
             darshan_log_close(outfile);
+            unlink(outfile_name);
             return(-1);
         }
-    }
-    free(mod_buf);
 
-    /* write header to output file */
-    ret = darshan_log_putheader(outfile);
-    if(ret < 0)
-    {
-        fprintf(stderr, "Error: unable to write header to output log file %s.\n", outfile_name);
-        darshan_log_close(infile);
-        darshan_log_close(outfile);
-        return(-1);
+        /* loop over each of the module's records and convert */
+        do
+        {
+            if(!hash || hash == rec_id)
+            {
+                ret = mod_logutils[i]->log_put_record(outfile, mod_buf);
+                if(ret < 0)
+                {
+                    darshan_log_close(infile);
+                    darshan_log_close(outfile);
+                    return(-1);
+                }
+
+                memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
+            }
+        } while((ret = mod_logutils[i]->log_get_record(infile, mod_buf, &rec_id)) == 1);
     }
 
     darshan_log_close(infile);

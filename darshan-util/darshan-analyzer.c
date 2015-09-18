@@ -35,31 +35,21 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
 {
     int ret;
     darshan_fd file;
-    struct darshan_header header;
     struct darshan_job job;
     struct darshan_mod_logutil_funcs *psx_mod = mod_logutils[DARSHAN_POSIX_MOD];
-    struct darshan_posix_file *psx_buf, *psx_buf_p;
-    int psx_buf_sz, psx_buf_bytes_left;
-    struct darshan_posix_file *psx_rec;
+    struct darshan_posix_file psx_rec;
     darshan_record_id rec_id;
     int f_count;
     double total_io_time;
     double total_job_time;
 
     assert(psx_mod);
+    memset(&psx_rec, 0, sizeof(struct darshan_posix_file));
 
     file = darshan_log_open(fname);
     if (file == NULL)
     {
         fprintf(stderr, "darshan_log_open() failed to open %s.\n", fname);
-        return -1;
-    }
-
-    ret = darshan_log_getheader(file, &header);
-    if (ret < 0)
-    {
-        fprintf(stderr, "darshan_log_getheader() failed on file %s.\n", fname);
-        darshan_log_close(file);
         return -1;
     }
 
@@ -71,49 +61,36 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
         return -1;
     }
 
-    psx_buf_sz = DARSHAN_DEF_COMP_BUF_SZ;
-    psx_buf = malloc(psx_buf_sz);
-    if (!psx_buf)
-    {
-        darshan_log_close(file);
-        return -1;
-    }
-
-    ret = darshan_log_getmod(file, DARSHAN_POSIX_MOD, (void *)psx_buf, &psx_buf_sz);
-    if (ret < 0)
-    {
-        fprintf(stderr, "darshan_log_getmod() failed on file %s.\n", fname);
-        darshan_log_close(file);
-        return -1;
-    }
-
     f_count = 0;
     total_io_time = 0.0;
 
-    psx_buf_bytes_left = psx_buf_sz;
-    psx_buf_p = psx_buf;
-    while(psx_buf_bytes_left)
+    while((ret = psx_mod->log_get_record(file, &psx_rec, &rec_id)) == 1)
     {
-        ret = psx_mod->log_get_record((void **)&psx_buf_p, &psx_buf_bytes_left,
-            (void **)&psx_rec, &rec_id, file->swap_flag);
-
         f_count   += 1;
 
-        if (psx_rec->rank == -1)
+        if (psx_rec.rank == -1)
             *used_shared = 1;
         else
             *used_fpp = 1;
 
-        total_io_time += (psx_rec->fcounters[POSIX_F_READ_TIME] +
-                         psx_rec->fcounters[POSIX_F_WRITE_TIME] +
-                         psx_rec->fcounters[POSIX_F_META_TIME]);
+        total_io_time += (psx_rec.fcounters[POSIX_F_READ_TIME] +
+                         psx_rec.fcounters[POSIX_F_WRITE_TIME] +
+                         psx_rec.fcounters[POSIX_F_META_TIME]);
+
+        memset(&psx_rec, 0, sizeof(struct darshan_posix_file));
+    }
+    if (ret < 0)
+    {
+        fprintf(stderr, "Error: unable to read posix file record in log file %s.\n", fname);
+        darshan_log_close(file);
+        return -1;
     }
 
-    if (header.mod_map[DARSHAN_MPIIO_MOD].len > 0)
+    if (file->mod_map[DARSHAN_MPIIO_MOD].len > 0)
         *used_mpio += 1;
-    if (header.mod_map[DARSHAN_HDF5_MOD].len > 0)
+    if (file->mod_map[DARSHAN_HDF5_MOD].len > 0)
         *used_hdf5 += 1;
-    if (header.mod_map[DARSHAN_PNETCDF_MOD].len > 0)
+    if (file->mod_map[DARSHAN_PNETCDF_MOD].len > 0)
         *used_pnet += 1;
 
     total_job_time = (double)job.end_time - (double)job.start_time;
@@ -131,7 +108,6 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
         *io_ratio = 0.0;
     }
 
-    free(psx_buf);
     darshan_log_close(file);
 
     return 0;

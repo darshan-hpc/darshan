@@ -20,6 +20,8 @@
 
 #include "darshan-logutils.h"
 
+#define DEF_MOD_BUF_SIZE 1024 /* 1 KiB is enough for all current mod records ... */
+
 /*
  * Options
  */
@@ -199,7 +201,6 @@ int main(int argc, char **argv)
     char *filename;
     char tmp_string[4096] = {0};
     darshan_fd fd;
-    struct darshan_header header;
     struct darshan_job job;
     struct darshan_record_ref *rec_hash = NULL;
     struct darshan_record_ref *ref, *tmp_ref;
@@ -211,8 +212,7 @@ int main(int argc, char **argv)
     char *save;
     char buffer[DARSHAN_JOB_METADATA_LEN];
     int empty_mods = 0;
-    char *mod_buf;
-    int mod_buf_sz;
+    char mod_buf[DEF_MOD_BUF_SIZE];
 
     hash_entry_t *file_hash = NULL;
     hash_entry_t *curr = NULL;
@@ -229,25 +229,12 @@ int main(int argc, char **argv)
 
     fd = darshan_log_open(filename);
     if(!fd)
-    {
-        fprintf(stderr, "darshan_log_open() failed to open %s\n.", filename);
         return(-1);
-    }
-
-    /* read darshan log header */
-    ret = darshan_log_getheader(fd, &header);
-    if(ret < 0)
-    {
-        fprintf(stderr, "darshan_log_getheader() failed to read log header.\n");
-        darshan_log_close(fd);
-        return(-1);
-    }
 
     /* read darshan job info */
     ret = darshan_log_getjob(fd, &job);
     if(ret < 0)
     {
-        fprintf(stderr, "darshan_log_getjob() failed to read job data.\n");
         darshan_log_close(fd);
         return(-1);
     }
@@ -256,7 +243,6 @@ int main(int argc, char **argv)
     ret = darshan_log_getexe(fd, tmp_string);
     if(ret < 0)
     {
-        fprintf(stderr, "Error: unable to read trailing job information.\n");
         darshan_log_close(fd);
         return(-1);
     }
@@ -265,7 +251,6 @@ int main(int argc, char **argv)
     ret = darshan_log_getmounts(fd, &mnt_pts, &fs_types, &mount_count);
     if(ret < 0)
     {
-        fprintf(stderr, "darshan_log_getmounts() failed to read mount information.\n");
         darshan_log_close(fd);
         return(-1);
     }
@@ -274,13 +259,12 @@ int main(int argc, char **argv)
     ret = darshan_log_gethash(fd, &rec_hash);
     if(ret < 0)
     {
-        fprintf(stderr, "darshan_log_getmap() failed to read record map.\n");
         darshan_log_close(fd);
         return(-1);
     }
 
     /* print job summary */
-    printf("# darshan log version: %s\n", header.version_string);
+    printf("# darshan log version: %s\n", fd->version);
     printf("# exe: %s\n", tmp_string);
     printf("# uid: %" PRId64 "\n", job.uid);
     printf("# jobid: %" PRId64 "\n", job.jobid);
@@ -318,14 +302,14 @@ int main(int argc, char **argv)
     printf("\n# log file component sizes (compressed)\n");
     printf("# -------------------------------------------------------\n");
     printf("# header: %zu bytes (uncompressed)\n", sizeof(struct darshan_header));
-    printf("# job data: %zu bytes\n", header.rec_map.off - sizeof(struct darshan_header));
-    printf("# record table: %zu bytes\n", header.rec_map.len);
+    printf("# job data: %zu bytes\n", fd->job_map.len);
+    printf("# record table: %zu bytes\n", fd->rec_map.len);
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
-        if(header.mod_map[i].len)
+        if(fd->mod_map[i].len)
         {
             printf("# %s module: %zu bytes\n", darshan_module_names[i],
-                header.mod_map[i].len);
+                fd->mod_map[i].len);
         }
     }
 
@@ -336,10 +320,6 @@ int main(int argc, char **argv)
     {
         printf("# mount entry:\t%s\t%s\n", mnt_pts[i], fs_types[i]);
     }
-
-    mod_buf = malloc(DARSHAN_DEF_COMP_BUF_SZ);
-    if(!mod_buf)
-        return(-1);
 
     pdata.rank_cumul_io_time = malloc(sizeof(double)*job.nprocs);
     pdata.rank_cumul_md_time = malloc(sizeof(double)*job.nprocs);
@@ -356,39 +336,24 @@ int main(int argc, char **argv)
 
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
-        int mod_bytes_left;
-        void *mod_buf_p;
-        void *rec_p = NULL;
         darshan_record_id rec_id;
         void *save_io, *save_md;
 
-        /* reset data structures for each module */
-        mod_buf_sz = DARSHAN_DEF_COMP_BUF_SZ;
-        memset(mod_buf, 0, DARSHAN_DEF_COMP_BUF_SZ);
-
         /* check each module for any data */
-        ret = darshan_log_getmod(fd, i, mod_buf, &mod_buf_sz);
-        if(ret < 0)
+        if(fd->mod_map[i].len == 0)
         {
-            fprintf(stderr, "Error: failed to get module %s data\n",
-                darshan_module_names[i]);
-            darshan_log_close(fd);
-            return(-1);
-        }
-        else if(ret == 0)
-        {
-            /* skip modules not present in log file */
             empty_mods++;
             continue;
         }
-
-        /* skip modules with no defined logutil handlers */
-        if(!mod_logutils[i])
+        else if(!mod_logutils[i])
         {
             fprintf(stderr, "Warning: no log utility handlers defined "
-                "for module %s, SKIPPING\n", darshan_module_names[i]);
+                "for module %s, SKIPPING.\n", darshan_module_names[i]);
             continue;
         }
+
+        /* this module has data to be parsed and printed */
+        memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
 
         printf("\n# *******************************************************\n");
         printf("# %s module data\n", darshan_module_names[i]);
@@ -400,26 +365,21 @@ int main(int argc, char **argv)
             DARSHAN_PRINT_HEADER();
         }
 
-        /* this module has data to be parsed and printed */
-        mod_bytes_left = mod_buf_sz;
-        mod_buf_p = mod_buf;
+        ret = mod_logutils[i]->log_get_record(fd, mod_buf, &rec_id);
+        if(ret != 1)
+        {
+            fprintf(stderr, "Error: failed to parse the first %s module record.\n",
+                darshan_module_names[i]);
+            ret = -1;
+            goto cleanup;
+        }
 
         /* loop over each of this module's records and print them */
-        while (mod_bytes_left > 0)
+        do
         {
             char *mnt_pt = NULL;
             char *fs_type = NULL;
             hash_entry_t *hfile = NULL;
-
-            ret = mod_logutils[i]->log_get_record(&mod_buf_p, &mod_bytes_left,
-                &rec_p, &rec_id, fd->swap_flag);
-            if(ret < 0)
-            {
-                fprintf(stderr, "Error: failed to parse module %s data record\n",
-                    darshan_module_names[i]);
-                darshan_log_close(fd);
-                return(-1);
-            }
 
             /* get the pathname for this record */
             HASH_FIND(hlink, rec_hash, &rec_id, sizeof(darshan_record_id), ref);
@@ -443,7 +403,7 @@ int main(int argc, char **argv)
             if(mask & OPTION_BASE)
             {
                 /* print the corresponding module data for this record */
-                mod_logutils[i]->log_print_record(rec_p, ref->rec.name,
+                mod_logutils[i]->log_print_record(mod_buf, ref->rec.name,
                     mnt_pt, fs_type);
             }
 
@@ -458,7 +418,10 @@ int main(int argc, char **argv)
             {
                 hfile = malloc(sizeof(*hfile));
                 if(!hfile)
-                    return(-1);
+                {
+                    ret = -1;
+                    goto cleanup;
+                }
 
                 /* init */
                 memset(hfile, 0, sizeof(*hfile));
@@ -474,16 +437,24 @@ int main(int argc, char **argv)
 
             if(i == DARSHAN_POSIX_MOD)
             {
-                posix_accum_file((struct darshan_posix_file*)rec_p, &total, job.nprocs);
-                posix_accum_file((struct darshan_posix_file*)rec_p, hfile, job.nprocs);
-                posix_accum_perf((struct darshan_posix_file*)rec_p, &pdata);
+                posix_accum_file((struct darshan_posix_file*)mod_buf, &total, job.nprocs);
+                posix_accum_file((struct darshan_posix_file*)mod_buf, hfile, job.nprocs);
+                posix_accum_perf((struct darshan_posix_file*)mod_buf, &pdata);
             }
             else if(i == DARSHAN_MPIIO_MOD)
             {
-                mpiio_accum_file((struct darshan_mpiio_file*)rec_p, &total, job.nprocs);
-                mpiio_accum_file((struct darshan_mpiio_file*)rec_p, hfile, job.nprocs);
-                mpiio_accum_perf((struct darshan_mpiio_file*)rec_p, &pdata);
+                mpiio_accum_file((struct darshan_mpiio_file*)mod_buf, &total, job.nprocs);
+                mpiio_accum_file((struct darshan_mpiio_file*)mod_buf, hfile, job.nprocs);
+                mpiio_accum_perf((struct darshan_mpiio_file*)mod_buf, &pdata);
             }
+
+            memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
+
+        } while((ret = mod_logutils[i]->log_get_record(fd, mod_buf, &rec_id)) == 1);
+        if (ret < 0)
+        {
+            ret = -1;
+            goto cleanup;
         }
 
         /* we calculate more detailed stats for POSIX and MPI-IO modules, 
@@ -617,10 +588,10 @@ int main(int argc, char **argv)
     }
     if(empty_mods == DARSHAN_MAX_MODS)
         printf("\n# no module data available.\n");
+    ret = 0;
 
+cleanup:
     darshan_log_close(fd);
-
-    free(mod_buf);
     free(pdata.rank_cumul_io_time);
     free(pdata.rank_cumul_md_time);
 
@@ -644,7 +615,7 @@ int main(int argc, char **argv)
         free(fs_types);
     }
 
-    return(0);
+    return(ret);
 }
 
 void posix_accum_file(struct darshan_posix_file *pfile,

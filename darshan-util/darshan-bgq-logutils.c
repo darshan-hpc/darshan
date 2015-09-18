@@ -30,48 +30,65 @@ char *bgq_f_counter_names[] = {
 };
 #undef X
 
-static int darshan_log_get_bgq_file(void** psx_buf_p, int* bytes_left,
-    void** file_rec, darshan_record_id* rec_id, int byte_swap_flag);
-static void darshan_log_print_bgq_file(void *file_rec,
+static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf,
+    darshan_record_id* rec_id);
+static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf);
+static void darshan_log_print_bgq_rec(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type);
 
 struct darshan_mod_logutil_funcs bgq_logutils =
 {
-    .log_get_record = &darshan_log_get_bgq_file,
-    .log_print_record = &darshan_log_print_bgq_file,
+    .log_get_record = &darshan_log_get_bgq_rec,
+    .log_put_record = &darshan_log_put_bgq_rec,
+    .log_print_record = &darshan_log_print_bgq_rec,
 };
 
-static int darshan_log_get_bgq_file(void** psx_buf_p, int* bytes_left,
-    void** file_rec, darshan_record_id* rec_id, int byte_swap_flag)
+static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf,
+    darshan_record_id* rec_id)
 {
+    struct darshan_bgq_record *rec;
     int i;
-    struct darshan_bgq_record *file = (struct darshan_bgq_record *)
-        (*psx_buf_p);
+    int ret;
 
-    if(*bytes_left < sizeof(struct darshan_bgq_record))
+    ret = darshan_log_getmod(fd, DARSHAN_BGQ_MOD, bgq_buf,
+        sizeof(struct darshan_bgq_record));
+    if(ret < 0)
         return(-1);
-
-    if(byte_swap_flag)
+    else if(ret < sizeof(struct darshan_bgq_record))
+        return(0);
+    else
     {
-        /* swap bytes if necessary */
-        DARSHAN_BSWAP64(&file->f_id);
-        DARSHAN_BSWAP64(&file->rank);
-        for(i=0; i<BGQ_NUM_INDICES; i++)
-            DARSHAN_BSWAP64(&file->counters[i]);
-        for(i=0; i<BGQ_F_NUM_INDICES; i++)
-            DARSHAN_BSWAP64(&file->fcounters[i]);
-    }
+        rec = (struct darshan_bgq_record *)bgq_buf;
+        if(fd->swap_flag)
+        {
+            /* swap bytes if necessary */
+            DARSHAN_BSWAP64(&rec->f_id);
+            DARSHAN_BSWAP64(&rec->rank);
+            for(i=0; i<BGQ_NUM_INDICES; i++)
+                DARSHAN_BSWAP64(&rec->counters[i]);
+            for(i=0; i<BGQ_F_NUM_INDICES; i++)
+                DARSHAN_BSWAP64(&rec->fcounters[i]);
+        }
 
-    /* update/set output variables */
-    *file_rec = (void *)file;
-    *rec_id = file->f_id;
-    *psx_buf_p = (file + 1); /* increment input buf by size of file record */
-    *bytes_left -= sizeof(struct darshan_bgq_record);
+        *rec_id = rec->f_id;
+        return(1);
+    }
+}
+
+static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf)
+{
+    struct darshan_bgq_record *rec = (struct darshan_bgq_record *)bgq_buf;
+    int ret;
+
+    ret = darshan_log_putmod(fd, DARSHAN_BGQ_MOD, rec,
+        sizeof(struct darshan_bgq_record));
+    if(ret < 0)
+        return(-1);
 
     return(0);
 }
 
-static void darshan_log_print_bgq_file(void *file_rec, char *file_name,
+static void darshan_log_print_bgq_rec(void *file_rec, char *file_name,
     char *mnt_pt, char *fs_type)
 {
     int i;
