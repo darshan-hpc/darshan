@@ -452,6 +452,13 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
     int read_req_sz;
     int buf_remaining = 0;
 
+    /* just return if there is no record mapping data */
+    if(fd->rec_map.len == 0)
+    {
+        *hash = NULL;
+        return(0);
+    }
+
     /* default to hash buffer twice as big as default compression buf */
     hash_buf = malloc(DARSHAN_DEF_COMP_BUF_SZ * 2);
     if(!hash_buf)
