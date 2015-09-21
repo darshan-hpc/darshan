@@ -144,16 +144,17 @@ void obfuscate_filenames(int key, struct darshan_record_ref *rec_hash)
 {
     struct darshan_record_ref *ref, *tmp;
     uint32_t hashed;
-    char tmp_string[32];
+    char tmp_string[128] = {0};
 
     HASH_ITER(hlink, rec_hash, ref, tmp)
     {
         hashed = darshan_hashlittle(ref->rec.name, strlen(ref->rec.name), key);
         sprintf(tmp_string, "%u", hashed);
         free(ref->rec.name);
-        ref->rec.name = malloc(strlen(tmp_string));
+        ref->rec.name = malloc(strlen(tmp_string) + 1);
         assert(ref->rec.name);
         memcpy(ref->rec.name, tmp_string, strlen(tmp_string));
+        ref->rec.name[strlen(tmp_string)] = '\0';
     }
 
     return;
