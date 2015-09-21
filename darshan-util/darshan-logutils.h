@@ -7,6 +7,7 @@
 #ifndef __DARSHAN_LOG_UTILS_H
 #define __DARSHAN_LOG_UTILS_H
 
+#include <linux/limits.h>
 #include <zlib.h>
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
