@@ -88,27 +88,13 @@ static int darshan_log_dzunload(darshan_fd fd, struct darshan_log_map *map_p);
 
 /* TODO: check comments on functions to make sure they are right /cleanup */
 
-/* TODO: can we make this s.t. we don't care about ordering (i.e., X macro it ) */
-/* see gzip interface for ideas */
+/* each module's implementation of the darshan logutil functions */
+#define X(a, b, c) c,
 struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
 {
-    NULL,               /* NULL */
-    &posix_logutils,    /* POSIX */
-    &mpiio_logutils,    /* MPI-IO */
-    &hdf5_logutils,     /* HDF5 */
-    &pnetcdf_logutils,  /* PNETCDF */
-    &bgq_logutils,      /* BG/Q */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    DARSHAN_MODULE_IDS
 };
+#undef X
 
 /* darshan_log_open()
  *

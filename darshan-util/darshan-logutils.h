@@ -68,7 +68,7 @@ struct darshan_mod_logutil_funcs
     );
 };
 
-extern struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS];
+extern struct darshan_mod_logutil_funcs *mod_logutils[];
 
 #include "darshan-posix-logutils.h"
 #include "darshan-mpiio-logutils.h"
