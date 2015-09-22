@@ -17,31 +17,23 @@
 
 #include "darshan-log-format.h"
 
-/* TODO: can we refactor this def out of header? modules currently poke at swap_flag
- * directly, but other than that there's no reason for another module to know this
- * definition.
- */
+struct darshan_fd_int_state;
+
+/* darshan file descriptor definition */
 struct darshan_fd_s
 {
-    int fildes;
-    int o_flags;
-    int64_t pos;
-    enum darshan_comp_type comp_type;
-    char logfile_path[PATH_MAX];
+    /* log file version */
     char version[8];
+    /* flag indicating whether byte swapping needs to be
+     * performed on log file data */
     int swap_flag;
-    char *exe_mnt_data;
+    /* log file offset/length maps for each log file region */
     struct darshan_log_map job_map;
     struct darshan_log_map rec_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
-    int err;
 
-    /* XXX */
-    void *dz_strm;
-    int dz_size;
-    unsigned char *dz_buf;
-    int dz_eor;
-    int dz_prev_reg_id;
+    /* KEEP OUT -- remaining state hidden in logutils source */
+    struct darshan_fd_int_state *state;
 };
 typedef struct darshan_fd_s* darshan_fd;
 
@@ -51,17 +43,23 @@ struct darshan_record_ref
     UT_hash_handle hlink;
 };
 
+/* functions to be implemented by each module for integration with
+ * darshan log file utilities (e.g., parser & convert tools)
+ */
 struct darshan_mod_logutil_funcs
 {
+    /* retrieve a single module record from the log file */
     int (*log_get_record)(
         darshan_fd fd,
         void* buf,
         darshan_record_id* rec_id
     );
+    /* put a single module record into the log file */
     int (*log_put_record)(
         darshan_fd fd,
         void *buf
     );
+    /* print the counters for a given log file record */
     void (*log_print_record)(
         void *file_rec,
         char *file_name,
