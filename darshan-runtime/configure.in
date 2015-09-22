@@ -295,12 +295,9 @@ if test x$enable_bgq_mod != xno; then
         AC_MSG_RESULT(yes)
         DARSHAN_USE_BGQ=1,
         AC_MSG_RESULT(no)
-        AS_IF([
-            test "x$enable_bgq_mod" = xyes],
+        AS_IF([test "x$enable_bgq_mod" = xyes],
             AC_MSG_ERROR(BG/Q module enabled in non-BG/Q environment),
-            []
-        )
-    )
+            []))
 fi
 
 DARSHAN_VERSION="AC_PACKAGE_VERSION"
