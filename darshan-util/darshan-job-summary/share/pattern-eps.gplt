@@ -22,7 +22,7 @@ set datafile separator ","
 set ylabel "Ops (Total, All Procs)"
 set ylabel offset character 2,0,0 font "" textcolor lt -1 rotate by 90
 
-set title "I/O Pattern"
+set title "POSIX I/O Pattern"
 plot  "pattern.dat" using 2:xtic(1) title "Total", \
       "" using 3 title "Sequential", \
       "" using 4 title "Consecutive"

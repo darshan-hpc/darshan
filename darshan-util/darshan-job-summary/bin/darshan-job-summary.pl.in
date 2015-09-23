@@ -567,7 +567,7 @@ print FILE_CNT_TABLE "
 \\begin{tabular}{r|r|r|r}
 \\multicolumn{4}{c}{ } \\\\
 \\multicolumn{4}{c}{File Count Summary} \\\\
-\\multicolumn{4}{c}{(estimated by I/O access offsets)} \\\\
+\\multicolumn{4}{c}{(estimated by POSIX I/O access offsets)} \\\\
 \\hline
 type \& number of files \& avg. size \& max size \\\\
 \\hline
@@ -750,7 +750,7 @@ open(FS_TABLE, ">$tmp_dir/fs-data-table.tex") || die("error opening output files
 print FS_TABLE "
 \\begin{tabular}{c|r|r|r|r}
 \\multicolumn{5}{c}{ } \\\\
-\\multicolumn{5}{c}{Data Transfer Per Filesystem} \\\\
+\\multicolumn{5}{c}{Data Transfer Per Filesystem (POSIX)} \\\\
 \\hline
 \\multirow{2}{*}{File System} \& \\multicolumn{2}{c}{Write} \\vline \& \\multicolumn{2}{c}{Read} \\\\
 \\cline{2-5}
@@ -799,7 +799,7 @@ open(VAR_TABLE, ">$tmp_dir/variance-table.tex") || die("error opening output fil
 print VAR_TABLE "
 \\begin{tabular}{c|r|r|r|r|r|r|r|r|r}
 \\multicolumn{10}{c}{} \\\\
-\\multicolumn{10}{c}{Variance in Shared Files} \\\\
+\\multicolumn{10}{c}{Variance in Shared Files (POSIX)} \\\\
 \\hline
 File \& Processes \& \\multicolumn{3}{c}{Fastest} \\vline \&
 \\multicolumn{3}{c}{Slowest} \\vline \& \\multicolumn{2}{c}{\$\\sigma\$} \\\\
@@ -858,6 +858,7 @@ print("Slowest shared file time: $shared_file_time\n");
 print("Total bytes read and written by app (may be incorrect): $total_job_bytes\n");
 my $tmp_total_time = $slowest_uniq_time+$shared_file_time;
 print("Total absolute I/O time: $tmp_total_time\n");
+print("**NOTE: above shared and unique file times calculated using MPI-IO timers if MPI-IO interface used on a given file, POSIX timers otherwise.\n");
 
 # move to tmp_dir
 chdir $tmp_dir;
