@@ -39,7 +39,6 @@ make
 make install
 ----
 
-CC variable
 [NOTE]
 The darshan-util package is intended to be used on a login node or
 workstation.  For most use cases this means that you should
@@ -91,9 +90,8 @@ produce a `carns_my-app_id114525_7-27-58921_19.pdf` output file).
 You can also manually specify the name of the output file using the
 `--output` argument.
 
-An example of the output produced by darshan-job-summary.pl can be found at
-http://www.mcs.anl.gov/research/projects/darshan/files/2012/06/pcarns_mpi-io-test_id3406_6-7-47644-13333843235489639491_1.pdf
-.
+An example of the output produced by darshan-job-summary.pl can be found
+link:http://www.mcs.anl.gov/research/projects/darshan/docs/ssnyder_ior-hdf5_id3655016_9-23-29011-12333993518351519212_1.darshan.pdf[HERE].
 
 === darshan-summary-per-file.sh
 
@@ -155,8 +153,6 @@ of each line:
 |====
 |output line | description
 | "# darshan log version" | internal version number of the Darshan log file
-| "# size of file statistics" | uncompressed size of each file record in the binary log file
-| "# size of job statistics" |  uncompressed size of the overall job statistics in the binary log file
 | "# exe" | name of the executable that generated the log file
 | "# uid" | user id that the job ran as
 | "# jobid" | job id from the scheduler
@@ -168,6 +164,19 @@ of each line:
 | "# run time" | run time of the job in seconds
 |====
 
+==== Log file region sizes
+
+The next portion of the parser output displays the size of each region
+contained within the given log file. Each log file will contain the
+following regions:
+
+* header - constant-sized uncompressed header providing data on how to properly access the log
+* job data - job-level metadata (e.g., start/end time and exe name) for the log
+* record table - a table mapping Darshan record identifiers to full file name paths
+* module data - each module (e.g., POSIX, MPI-IO, etc.) stores their I/O characterization data in distinct regions of the log
+
+All regions of the log file are compressed (in libz or bzip2 format), except the header.
+
 ==== Table of mounted file systems
 
 The next portion of the output shows a table of all general purpose file
@@ -175,12 +184,8 @@ systems that were mounted while the job was running. Each line uses the
 following format:
 
 ----
-<device> <mount point> <fs type>
+<mount point> <fs type>
 ----
-
-The device field is the device ID as reported by the stat() system call.
-Note that this device ID may change if the node is rebooted or the file
-system is remounted.
 
 ==== Format of I/O characterization fields
 
@@ -188,125 +193,183 @@ The remainder of the output will show characteristics for each file that was
 opened by the application. Each line uses the following format:
 
 ----
-<rank> <file name hash> <counter name> <counter value> <file name suffix> <mount point> <fs type>
+<module> <rank> <record id> <counter name> <counter value> <file name> <mount point> <fs type>
 ----
 
-The `<rank>` column indicates the rank of the process that opened the file. A
-rank value of -1 indicates that all processes opened the same file. In that
-case, the value of the counter represents an aggregate across all processes. The
-`<file name hash>` is a 64 bit hash of the file path/name that was opened. It
-is used as a way to uniquely differentiate each file. The `<counter name>` is
-the name of the statistic that the line is reporting, while the `<counter
-value>` is the value of that statistic. A value of -1 indicates that Darshan
-was unable to collect statistics for that particular counter, and the value
-should be ignored.  The `<file name suffix>` shows the last
-11 characters of the file name. The `<mount point>` is the mount point of the
-file system that this file belongs to. The `<fs type>` is the type of file
-system.
+The `<module>` column specifies the module responsible for recording this piece
+of I/O characterization data. The `<rank>` column indicates the rank of the process
+that opened the file. A rank value of -1 indicates that all processes opened the
+same file. In that case, the value of the counter represents an aggregate across all
+processes. The `<record id>` is a 64 bit hash of the file path/name that was opened.
+It is used as a way to uniquely differentiate each file. The `<counter name>` is
+the name of the statistic that the line is reporting, while the `<counter value>` is
+the value of that statistic. A value of -1 indicates that Darshan was unable to
+collect statistics for that particular counter, and the value should be ignored.
+The `<file name>` field shows the complete file name the record corresponds to. The
+`<mount point>` is the mount point of the file system that this file belongs to and
+`<fs type>` is the type of that file system.
 
 ==== I/O characterization fields
 
-The following table shows a list of integer statistics that are available
-for each file, along with a description of each.
-Unless otherwise noted, counters include all variants of the call in
-question, such a `read()`, `pread()`, and `readv()` for CP_POSIX_READS.
+The following tables show a list of integer statistics that are available for each of
+Darshan's current instrumentation modules, along with a description of each. Unless
+otherwise noted, counters include all variants of the call in question, such as
+`read()`, `pread()`, and `readv()` for POSIX_READS.
 
-
+.POSIX module
 [cols="40%,60%",options="header"]
 |====
-| output line | description
-| CP_POSIX_READS |  Count of POSIX read operations
-| CP_POSIX_WRITES | Count of POSIX write operations
-| CP_POSIX_OPENS |  Count of how many times the file was opened
-| CP_POSIX_SEEKS |  Count of POSIX seek operations
-| CP_POSIX_STATS |  Count of POSIX stat operations
-| CP_POSIX_MMAPS |  Count of POSIX mmap operations
-| CP_POSIX_FREADS | Count of stream read operations
-| CP_POSIX_FWRITES |    Count of stream write operations
-| CP_POSIX_FOPENS | Count of stream open operations
-| CP_POSIX_FSEEKS | Count of stream seek operations
-| CP_POSIX_FSYNCS | Count of fsync operations
-| CP_POSIX_FDSYNCS |    Count of fdatasync operations
-| CP_INDEP_OPENS |  Count of non-collective MPI opens
-| CP_COLL_OPENS |   Count of collective MPI opens
-| CP_INDEP_READS |  Count of non-collective MPI reads
-| CP_INDEP_WRITES | Count of non-collective MPI writes
-| CP_COLL_READS |   Count of collective MPI reads
-| CP_COLL_WRITES |  Count of collective MPI writes
-| CP_SPLIT_READS |  Count of MPI split collective reads
-| CP_SPLIT_WRITES | Count of MPI split collective writes
-| CP_NB_READS | Count of MPI non-blocking reads
-| CP_NB_WRITES |    Count of MPI non-blocking writes
-| CP_SYNCS |    Count of MPI file syncs
-| CP_INDEP_NC_OPENS |   Count of independent Parallel NetCDF opens
-| CP_COLL_NC_OPENS |    Count of collective Parallel NetCDF opens
-| CP_HDF5_OPENS |   Count of HDF5 opens
-| CP_COMBINER_* |   Count of each type of MPI datatype (both in memory and in file)
-| CP_HINTS |    Count of MPI file hints used
-| CP_VIEWS |    Count of MPI file views used
-| CP_MODE | Mode that the file was last opened in
-| CP_BYTES_READ |   Total number of bytes that were read from the file
-| CP_BYTES_WRITTEN |    Total number of bytes written to the file
-| CP_MAX_BYTE_READ |    Highest offset in the file that was read
-| CP_MAX_BYTE_WRITTEN | Highest offset in the file that was written
-| CP_CONSEC_READS | Number of consecutive reads (that were immediately adjacent to the previous access)
-| CP_CONSEC_WRITES |    Number of consecutive writes (that were immediately adjacent to the previous access)
-| CP_SEQ_READS |    Number of sequential reads (at a higher offset than where the previous access left off)
-| CP_SEQ_WRITES |   Number of sequential writes (at a higher offset than where the previous access left off)
-| CP_RW_SWITCHES |  Number of times that access toggled between read and write in consecutive operations
-| CP_MEM_NOT_ALIGNED |  Number of times that a read or write was not aligned in memory
-| CP_MEM_ALIGNMENT |    Memory alignment value (chosen at compile time)
-| CP_FILE_NOT_ALIGNED | Number of times that a read or write was not aligned in file
-| CP_FILE_ALIGNMENT |   File alignment value.  This value is detected at
+| counter name | description
+| POSIX_OPENS | Count of how many times the file was opened
+| POSIX_READS | Count of POSIX read operations
+| POSIX_WRITES | Count of POSIX write operations
+| POSIX_SEEKS | Count of POSIX seek operations
+| POSIX_STATS | Count of POSIX stat operations
+| POSIX_MMAPS | Count of POSIX mmap operations
+| POSIX_FOPENS | Count of POSIX stream open operations
+| POSIX_FREADS | Count of POSIX stream read operations
+| POSIX_FWRITES | Count of POSIX stream write operations
+| POSIX_FSEEKS | Count of POSIX stream seek operations
+| POSIX_FSYNCS | Count of POSIX fsync operations
+| POSIX_FDSYNCS | Count of POSIX fdatasync operations
+| POSIX_MODE | Mode that the file was last opened in
+| POSIX_BYTES_READ | Total number of bytes that were read from the file
+| POSIX_BYTES_WRITTEN | Total number of bytes written to the file
+| POSIX_MAX_BYTE_READ | Highest offset in the file that was read
+| POSIX_MAX_BYTE_WRITTEN | Highest offset in the file that was written
+| POSIX_CONSEC_READS | Number of consecutive reads (that were immediately adjacent to the previous access)
+| POSIX_CONSEC_WRITES | Number of consecutive writes (that were immediately adjacent to the previous access)
+| POSIX_SEQ_READS | Number of sequential reads (at a higher offset than where the previous access left off)
+| POSIX_SEQ_WRITES | Number of sequential writes (at a higher offset than where the previous access left off)
+| POSIX_RW_SWITCHES | Number of times that access toggled between read and write in consecutive operations
+| POSIX_MEM_NOT_ALIGNED | Number of times that a read or write was not aligned in memory
+| POSIX_MEM_ALIGNMENT | Memory alignment value (chosen at compile time)
+| POSIX_FILE_NOT_ALIGNED | Number of times that a read or write was not aligned in file
+| POSIX_FILE_ALIGNMENT | File alignment value.  This value is detected at
 runtime on most file systems.  On Lustre, however, Darshan assumes a default
 value of 1 MiB for optimal file alignment.
-| CP_MAX_READ_TIME_SIZE |   Size of the slowest POSIX read operation
-| CP_MAX_WRITE_TIME_SIZE |  Size of the slowest POSIX write operation
-| CP_SIZE_READ_* |  Histogram of read access sizes at POSIX level
-| CP_SIZE_READ_AGG_* |  Histogram of total size of read accesses at MPI level, even if access is noncontiguous
-| CP_EXTENT_READ_* |    Histogram of read extents
-| CP_SIZE_WRITE_* | Histogram of write access sizes at POSIX level
-| CP_SIZE_WRITE_AGG_* | Histogram of total size of write accesses at MPI level, even if access is noncontiguous
-| CP_EXTENT_WRITE_* |   Histogram of write extents
-| CP_STRIDE[1-4]_STRIDE |   Size of 4 most common stride patterns
-| CP_STRIDE[1-4]_COUNT |    Count of 4 most common stride patterns
-| CP_ACCESS[1-4]_ACCESS |   4 most common access sizes
-| CP_ACCESS[1-4]_COUNT |    Count of 4 most common access sizes
-| CP_DEVICE |   File system identifier; correlates with mount table shown earlier.  In Darshan 2.2.5 and earlier, this is the device ID reported by stat(), in Darshan 2.2.6 and later, this is an opaque identifier generated by Darshan.
-| CP_SIZE_AT_OPEN | Size of file at first open time
-| CP_FASTEST_RANK | The MPI rank of the rank with smallest time spent in I/O
-| CP_FASTEST_RANK_BYTES |   The number of bytes transferred by the rank with smallest time spent in I/O
-| CP_SLOWEST_RANK | The MPI rank of the rank with largest time spent in I/O
-| CP_SLOWEST_RANK_BYTES |   The number of bytes transferred by the rank with the largest time spent in I/O
+| POSIX_MAX_READ_TIME_SIZE | Size of the slowest POSIX read operation
+| POSIX_MAX_WRITE_TIME_SIZE | Size of the slowest POSIX write operation
+| POSIX_SIZE_READ_* | Histogram of read access sizes at POSIX level
+| POSIX_SIZE_WRITE_* | Histogram of write access sizes at POSIX level
+| POSIX_STRIDE[1-4]_STRIDE | Size of 4 most common stride patterns
+| POSIX_STRIDE[1-4]_COUNT | Count of 4 most common stride patterns
+| POSIX_ACCESS[1-4]_ACCESS | 4 most common POSIX access sizes
+| POSIX_ACCESS[1-4]_COUNT | Count of 4 most common POSIX access sizes
+| POSIX_FASTEST_RANK | The MPI rank of the rank with smallest time spent in POSIX I/O
+| POSIX_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in POSIX I/O
+| POSIX_SLOWEST_RANK | The MPI rank of the rank with largest time spent in POSIX I/O
+| POSIX_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in POSIX I/O
+| POSIX_F_OPEN_TIMESTAMP | Timestamp of first time that the file was opened
+| POSIX_F_READ_START_TIMESTAMP | Timestamp that the first POSIX read operation began
+| POSIX_F_WRITE_START_TIMESTAMP | Timestamp that the first POSIX write operation began
+| POSIX_F_READ_END_TIMESTAMP | Timestamp that the last POSIX read operation ended
+| POSIX_F_WRITE_END_TIMESTAMP | Timestamp that the last POSIX write operation ended
+| POSIX_F_CLOSE_TIMESTAMP | Timestamp of the last time that the file was closed
+| POSIX_F_READ_TIME | Cumulative time spent reading at the POSIX level
+| POSIX_F_WRITE_TIME | Cumulative time spent in write, fsync, and fdatasync at the POSIX level
+| POSIX_F_META_TIME | Cumulative time spent in open, close, stat, and seek at the POSIX level
+| POSIX_F_MAX_READ_TIME | Duration of the slowest individual POSIX read operation
+| POSIX_F_MAX_WRITE_TIME | Duration of the slowest individual POSIX write operation
+| POSIX_F_FASTEST_RANK_TIME | The time of the rank which had the smallest amount of time spent in POSIX I/O (cumulative read, write, and meta times)
+| POSIX_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in POSIX I/O
+| POSIX_F_VARIANCE_RANK_TIME | The population variance for POSIX I/O time of all the ranks
+| POSIX_F_VARIANCE_RANK_BYTES | The population variance for bytes transferred of all the ranks
 |====
 
-The following is a list of floating point statistics that are available for
-each file:
-
+.MPI-IO module
 [cols="40%,60%",options="header"]
 |====
-| output line |  description
-| CP_F_OPEN_TIMESTAMP | Timestamp of first time that the file was opened
-| CP_F_CLOSE_TIMESTAMP |    Timestamp of the last time that the file was closed
-| CP_F_READ_START_TIMESTAMP |   Timestamp that the first read operation began
-| CP_F_READ_END_TIMESTAMP | Timestamp that the last read operation ended
-| CP_F_WRITE_START_TIMESTAMP |  Timestamp that the first write operation begin
-| CP_F_WRITE_END_TIMESTAMP |    Timestamp that the last write operation ended
-| CP_F_POSIX_READ_TIME |    Cumulative time spent reading at the POSIX level
-| CP_F_POSIX_WRITE_TIME |   Cumulative time spent in write, fsync, and fdatasync at the POSIX level
-| CP_F_POSIX_META_TIME |    Cumulative time spent in open, close, stat, and seek at the POSIX level
-| CP_F_MPI_META_TIME |  Cumulative time spent in open and close at the MPI-IO level
-| CP_F_MPI_READ_TIME |  Cumulative time spent reading at the MPI-IO level
-| CP_F_MPI_WRITE_TIME | Cumulative time spent write and sync at the MPI-IO level
-| CP_F_MAX_READ_TIME |  Duration of the slowest individual POSIX read operation
-| CP_F_MAX_WRITE_TIME | Duration of the slowest individual POSIX write operation
-| CP_F_FASTEST_RANK_TIME |  The time of the rank which had the smallest amount of time spent in I/O.  If the file was accessed usign MPI-IO it combines the MPI meta, read, and write time.  If the file was not accessed with MPI-IO then it combines the posix meta, read, and write time.
-| CP_F_SLOWEST_RANK_TIME |  The time of the rank which had the largest amount of time spent in I/O
-| CP_F_VARIANCE_RANK_TIME | The population variance for I/O time of all the ranks
-| CP_F_VARIANCE_RANK_BYTES |    The population variance for bytes transferred of all the ranks
+| counter name | description
+| MPIIO_INDEP_OPENS | Count of non-collective MPI opens
+| MPIIO_COLL_OPENS | Count of collective MPI opens
+| MPIIO_INDEP_READS | Count of non-collective MPI reads
+| MPIIO_INDEP_WRITES | Count of non-collective MPI writes
+| MPIIO_COLL_READS | Count of collective MPI reads
+| MPIIO_COLL_WRITES | Count of collective MPI writes
+| MPIIO_SPLIT_READS | Count of MPI split collective reads
+| MPIIO_SPLIT_WRITES | Count of MPI split collective writes
+| MPIIO_NB_READS | Count of MPI non-blocking reads
+| MPIIO_NB_WRITES | Count of MPI non-blocking writes
+| MPIIO_SYNCS | Count of MPI file syncs
+| MPIIO_HINTS | Count of MPI file hints used
+| MPIIO_VIEWS | Count of MPI file views used
+| MPIIO_MODE | MPI mode that the file was last opened in
+| MPIIO_BYTES_READ | Total number of bytes that were read from the file at MPI level
+| MPIIO_BYTES_WRITTEN | Total number of bytes written to the file at MPI level
+| MPIIO_RW_SWITCHES | Number of times that access toggled between read and write in consecutive MPI operations
+| MPIIO_MAX_READ_TIME_SIZE | Size of the slowest MPI read operation
+| MPIIO_MAX_WRITE_TIME_SIZE | Size of the slowest MPI write operation
+| MPIIO_SIZE_READ_AGG_* | Histogram of total size of read accesses at MPI level, even if access is noncontiguous
+| MPIIO_SIZE_WRITE_AGG_* | Histogram of total size of write accesses at MPI level, even if access is noncontiguous
+| MPIIO_ACCESS[1-4]_ACCESS | 4 most common MPI aggregate access sizes
+| MPIIO_ACCESS[1-4]_COUNT | Count of 4 most common MPI aggregate access sizes
+| MPIIO_FASTEST_RANK | The MPI rank of the rank with smallest time spent in MPI I/O
+| MPIIO_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in MPI I/O
+| MPIIO_SLOWEST_RANK | The MPI rank of the rank with largest time spent in MPI I/O
+| MPIIO_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in MPI I/O
+| MPIIO_F_OPEN_TIMESTAMP | Timestamp of first time that the file was opened at MPI level
+| MPIIO_F_READ_START_TIMESTAMP | Timestamp that the first MPI read operation began
+| MPIIO_F_WRITE_START_TIMESTAMP | Timestamp that the first MPI write operation begin
+| MPIIO_F_READ_END_TIMESTAMP | Timestamp that the last MPI read operation ended
+| MPIIO_F_WRITE_END_TIMESTAMP | Timestamp that the last MPI write operation ended
+| MPIIO_F_CLOSE_TIMESTAMP | Timestamp of the last time that the file was closed at MPI level
+| MPIIO_READ_TIME | Cumulative time spent reading at MPI level
+| MPIIO_WRITE_TIME | Cumulative time spent write and sync at MPI level
+| MPIIO_META_TIME | Cumulative time spent in open and close at MPI level
+| MPIIO_F_MAX_READ_TIME | Duration of the slowest individual MPI read operation
+| MPIIO_F_MAX_WRITE_TIME | Duration of the slowest individual MPI write operation
+| CP_F_FASTEST_RANK_TIME | The time of the rank which had the smallest amount of time spent in MPI I/O (cumulative read, write, and meta times)
+| CP_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in MPI I/O
+| CP_F_VARIANCE_RANK_TIME | The population variance for MPI I/O time of all the ranks
+| CP_F_VARIANCE_RANK_BYTES | The population variance for bytes transferred of all the ranks at MPI level
+|====
+
+.HDF5 module
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| HDF5_OPENS | Count of HDF5 opens
+| HDF5_F_OPEN_TIMESTAMP | Timestamp of first time that the file was opened at HDF5 level
+| HDF5_F_CLOSE_TIMESTAMP | Timestamp of the last time that the file was closed at HDF5 level
+|====
+
+.PnetCDF module
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| PNETCDF_INDEP_OPENS | Count of PnetCDF independent opens
+| PNETCDF_COLL_OPENS | Count of PnetCDF collective opens
+| PNETCDF_F_OPEN_TIMESTAMP | Timestamp of first time that the file was opened at PnetCDF level
+| PNETCDF_F_CLOSE_TIMESTAMP | Timestamp of the last time that the file was closed at PnetCDF level
+|====
+
+===== Additional modules 
+
+.BG/Q module (if enabled on BG/Q systems)
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| BGQ_CSJOBID | Control system job ID
+| BGQ_NNODES | Total number of BG/Q compute nodes
+| BGQ_RANKSPERNODE | Number of MPI ranks per compute node
+| BGQ_DDRPERNODE | Size of compute node DDR in MiB
+| BGQ_INODES | Total number of BG/Q I/O nodes
+| BGQ_ANODES | Dimension of A torus
+| BGQ_BNODES | Dimension of B torus
+| BGQ_CNODES | Dimension of C torus
+| BGQ_DNODES | Dimension of D torus
+| BGQ_ENODES | Dimension of E torus
+| BGQ_TORUSENABLED | Bitfield indicating enabled torus dimensions
+| BGQ_F_TIMESTAMP | Timestamp of when BG/Q data was collected
 |====
 
 ==== Additional summary output
+
+The following sections describe addtitional parser options that provide
+summary I/O characterization data for the given log.
+
+*NOTE*: These options are currently only supported by the POSIX and MPI-IO modules.
 
 ===== Performance
 
@@ -377,20 +440,19 @@ it doesn't make sense to aggregate the data.
 
 .Example output
 ----
-total_CP_INDEP_OPENS: 0
-total_CP_COLL_OPENS: 196608
-total_CP_INDEP_READS: 0
-total_CP_INDEP_WRITES: 0
-total_CP_COLL_READS: 0
-total_CP_COLL_WRITES: 0
-total_CP_SPLIT_READS: 0
-total_CP_SPLIT_WRITES: 1179648
-total_CP_NB_READS: 0
-total_CP_NB_WRITES: 0
-total_CP_SYNCS: 0
-total_CP_POSIX_READS: 983045
-total_CP_POSIX_WRITES: 33795
-total_CP_POSIX_OPENS: 230918
+total_POSIX_OPENS: 1024
+total_POSIX_READS: 0
+total_POSIX_WRITES: 16384
+total_POSIX_SEEKS: 16384
+total_POSIX_STATS: 1024
+total_POSIX_MMAPS: 0
+total_POSIX_FOPENS: 0
+total_POSIX_FREADS: 0
+total_POSIX_FWRITES: 0
+total_POSIX_BYTES_READ: 0
+total_POSIX_BYTES_WRITTEN: 68719476736
+total_POSIX_MAX_BYTE_READ: 0
+total_POSIX_MAX_BYTE_WRITTEN: 67108863
 ...
 ----
 
@@ -403,15 +465,14 @@ file.
 .Example output
 ----
 # Per-file summary of I/O activity.
-# <hash>: hash of file name
-# <suffix>: last 15 characters of file name
-# <type>: MPI or POSIX
+# <record_id>: darshan record id for this file
+# <file_name>: full file name
 # <nprocs>: number of processes that opened the file
 # <slowest>: (estimated) time in seconds consumed in IO by slowest process
 # <avg>: average time in seconds consumed in IO per process
 
-# <hash>    <suffix>    <type>  <nprocs>    <slowest>   <avg>
-17028232952633024488    amples/boom.dat MPI 2   0.000363    0.012262
+# <record_id>   <file_name> <nprocs>    <slowest>   <avg>
+5041708885572677970 /projects/SSSPPg/snyder/ior/ior.dat 1024    16.342061   1.705930
 ----
 
 ===== Detailed file list
@@ -420,14 +481,14 @@ The `--file-list-detailed` is the same as --file-list except that it
 produces many columns of output containing statistics broken down by file.
 This option is mainly useful for automated analysis.
 
-=== Other command line utilities
+=== Other darshan-util utilities
 
 The darshan-util package includes a number of other utilies that can be
 summarized briefly as follows:
 
 * darshan-convert: converts an existing log file to the newest log format.
-If the output file has a .bz2 extension, then it will be re-compressed in
-bz2 format rather than gz format.  It also has command line options for
+If the `--bzip2` flag is given, then the output file will be re-compressed in
+bzip2 format rather than libz format.  It also has command line options for
 anonymizing personal data, adding metadata annotation to the log header, and
 restricting the output to a specific instrumented file.
 * darshan-diff: compares two darshan log files and shows counters that
