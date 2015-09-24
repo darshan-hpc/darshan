@@ -96,7 +96,7 @@ void darshan_log_close(darshan_fd file);
 
 /* convenience macros for printing Darshan counters */
 #define DARSHAN_PRINT_HEADER() \
-    printf("\n#<module>\t<rank>\t<file>\t<counter>\t<value>" \
+    printf("\n#<module>\t<rank>\t<record id>\t<counter>\t<value>" \
            "\t<file name>\t<mount pt>\t<fs type>\n")
 
 #define DARSHAN_COUNTER_PRINT(__mod_name, __rank, __file_id, \

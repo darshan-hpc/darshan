@@ -986,6 +986,12 @@ sub process_file_record
     my(%file_record) = %{$_[1]};
     my $rank = $file_record{'RANK'};
 
+    if(!defined $file_record{'POSIX_OPENS'})
+    {
+        # ignore data records that don't have POSIX & MPI data
+        return;
+    }
+
     if($file_record{'POSIX_OPENS'} == 0 &&
         $file_record{'POSIX_FOPENS'} == 0 &&
         (!defined $file_record{'MPIIO_INDEP_OPENS'} ||

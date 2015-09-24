@@ -298,8 +298,8 @@ int main(int argc, char **argv)
         printf("# metadata: %s = %s\n", key, value);
     }
 
-    /* print breakdown of each log file component's contribution to file size */
-    printf("\n# log file component sizes (compressed)\n");
+    /* print breakdown of each log file region's contribution to file size */
+    printf("\n# log file region sizes (compressed)\n");
     printf("# -------------------------------------------------------\n");
     printf("# header: %zu bytes (uncompressed)\n", sizeof(struct darshan_header));
     printf("# job data: %zu bytes\n", fd->job_map.len);
@@ -345,12 +345,17 @@ int main(int argc, char **argv)
             empty_mods++;
             continue;
         }
+        /* skip modules with no logutil definitions */
         else if(!mod_logutils[i])
         {
             fprintf(stderr, "Warning: no log utility handlers defined "
                 "for module %s, SKIPPING.\n", darshan_module_names[i]);
             continue;
         }
+        /* currently we only do base parsing for non MPI & POSIX modules */
+        else if((i != DARSHAN_POSIX_MOD) && (i != DARSHAN_MPIIO_MOD) &&
+                !(mask & OPTION_BASE))
+            continue;
 
         /* this module has data to be parsed and printed */
         memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
@@ -1404,7 +1409,7 @@ void posix_file_list(hash_entry_t *file_hash,
         printf("\n# Per-file summary of I/O activity.\n");
 
     printf("# <record_id>: darshan record id for this file\n");
-    printf("# <file_name>: file name\n");
+    printf("# <file_name>: full file name\n");
     printf("# <nprocs>: number of processes that opened the file\n");
     printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
     printf("# <avg>: average time in seconds consumed in IO per process\n");
@@ -1417,7 +1422,7 @@ void posix_file_list(hash_entry_t *file_hash,
         printf("# <POSIX_SIZE_WRITE_*>: POSIX write size histogram\n");
     }
     
-    printf("\n# <file_id>\t<file_name>\t<nprocs>\t<slowest>\t<avg>");
+    printf("\n# <record_id>\t<file_name>\t<nprocs>\t<slowest>\t<avg>");
     if(detail_flag)
     {
         printf("\t<start_open>\t<start_read>\t<start_write>");
@@ -1496,7 +1501,7 @@ void mpiio_file_list(hash_entry_t *file_hash,
         printf("\n# Per-file summary of I/O activity.\n");
 
     printf("# <record_id>: darshan record id for this file\n");
-    printf("# <file_name>: file name\n");
+    printf("# <file_name>: full file name\n");
     printf("# <nprocs>: number of processes that opened the file\n");
     printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
     printf("# <avg>: average time in seconds consumed in IO per process\n");
@@ -1510,7 +1515,7 @@ void mpiio_file_list(hash_entry_t *file_hash,
         printf("# <MPIIO_SIZE_WRITE_AGG_*>: MPI-IO aggregate write size histogram\n");
     }
     
-    printf("\n# <file_id>\t<file_name>\t<nprocs>\t<slowest>\t<avg>");
+    printf("\n# <record_id>\t<file_name>\t<nprocs>\t<slowest>\t<avg>");
     if(detail_flag)
     {
         printf("\t<start_open>\t<start_read>\t<start_write>");
