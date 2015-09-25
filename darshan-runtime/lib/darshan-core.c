@@ -1566,9 +1566,14 @@ void darshan_core_register_record(
     {
         /* record not found -- add it to the hash if we aren't already tracking the
          * maximum number of records
-         */               
+         */
+  
         if(darshan_core->rec_count >= DARSHAN_CORE_MAX_RECORDS)
         {
+            /* if we are already tracking the max records, set a flag to indicate
+             * that this log file has partial results
+             */
+            darshan_core->log_header.partial_flag = 1;
             DARSHAN_CORE_UNLOCK();
             return;
         }

@@ -99,6 +99,7 @@ struct darshan_header
     char version_string[8];
     int64_t magic_nr;
     unsigned char comp_type;
+    unsigned char partial_flag;
     struct darshan_log_map rec_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
 };
