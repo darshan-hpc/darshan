@@ -5,7 +5,7 @@ productivity or to gain insight into trends in large-scale computing
 systems.
 
 Please see the 
-[Darshan web page](https://www.mcs.anl.gov/research/projects/darshan)
+[Darshan web page](http://www.mcs.anl.gov/research/projects/darshan)
 for more in-depth news and documentation.
 
 The Darshan source tree is divided into two main parts:
