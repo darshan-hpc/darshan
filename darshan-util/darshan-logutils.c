@@ -159,7 +159,8 @@ darshan_fd darshan_log_open(const char *name)
  *
  * returns file descriptor on success, NULL on failure
  */
-darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type)
+darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type,
+    int partial_flag)
 {
     darshan_fd tmp_fd;
     int ret;
@@ -188,6 +189,7 @@ darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type
     }
     tmp_fd->state->creat_flag = 1;
     tmp_fd->state->comp_type = comp_type;
+    tmp_fd->partial_flag = partial_flag;
     strncpy(tmp_fd->state->logfile_path, name, PATH_MAX);
 
     /* position file pointer to prealloc space for the log file header
@@ -882,6 +884,7 @@ static int darshan_log_getheader(darshan_fd fd)
     }
 
     state->comp_type = header.comp_type;
+    fd->partial_flag = header.partial_flag;
 
     /* save the mapping of data within log file to this file descriptor */
     fd->job_map.off = sizeof(struct darshan_header);
@@ -913,6 +916,7 @@ static int darshan_log_putheader(darshan_fd fd)
     strcpy(header.version_string, DARSHAN_LOG_VERSION);
     header.magic_nr = DARSHAN_MAGIC_NR;
     header.comp_type = state->comp_type;
+    header.partial_flag = fd->partial_flag;
 
     /* copy the mapping information to the header */
     memcpy(&header.rec_map, &fd->rec_map, sizeof(struct darshan_log_map));

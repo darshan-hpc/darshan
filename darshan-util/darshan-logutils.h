@@ -27,6 +27,8 @@ struct darshan_fd_s
     /* flag indicating whether byte swapping needs to be
      * performed on log file data */
     int swap_flag;
+    /* flag indicating whether a log file contains partial data */
+    int partial_flag;
     /* log file offset/length maps for each log file region */
     struct darshan_log_map job_map;
     struct darshan_log_map rec_map;
@@ -82,7 +84,8 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[];
 #include "darshan-bgq-logutils.h"
 
 darshan_fd darshan_log_open(const char *name);
-darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type);
+darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type,
+    int partial_flag);
 int darshan_log_getjob(darshan_fd fd, struct darshan_job *job);
 int darshan_log_putjob(darshan_fd fd, struct darshan_job *job);
 int darshan_log_getexe(darshan_fd fd, char *buf);

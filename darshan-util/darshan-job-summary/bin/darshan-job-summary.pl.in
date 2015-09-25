@@ -36,6 +36,7 @@ my %posix_access_hash = ();
 my %mpiio_access_hash = ();
 my @access_size = ();
 my %hash_files = ();
+my $partial_flag = 0;
 
 # data structures for calculating performance
 my %hash_unique_file_time = ();
@@ -93,10 +94,21 @@ while($line = <PARSE_OUT>)
     {
         if ($line =~ /^# exe: /)
         {
+            $f_save = "";
             ($junk, $cmdline) = split(':', $line, 2);
+
+            print("PRE: $cmdline\n");
             # add escape characters if needed for special characters in
             # command line
-            $cmdline = encode('latex', $cmdline);
+            if ($cmdline =~ /<unknown args>/)
+            {
+                # fortran "<unknown args> seems to throw things off,
+                # so we don't encode that if it's present
+                $f_save = substr($cmdline, -14);
+                $cmdline = substr($cmdline, 0, -14); 
+            }
+            $cmdline = encode('latex', $cmdline) . $f_save;
+            print("POST: $cmdline\n");
         }
         elsif ($line =~ /^# nprocs: /)
         {
@@ -122,6 +134,10 @@ while($line = <PARSE_OUT>)
         {
             ($junk, $version) = split(':', $line, 2);
             $version =~ s/^\s+//;
+        }
+        elsif ($line =~ /^# \*WARNING\*: This Darshan log contains incomplete data!/)
+        {
+            $partial_flag = 1;
         }
     }
     else
@@ -952,11 +968,18 @@ my $latex_cmd_line = "\"\\def\\titlecmd{$cmd} \\
     \\input{summary.tex}\" \\
     @__DARSHAN_PDFLATEX_HALT_ON_ERROR@";
 
+if ($partial_flag == 1)
+{
+    my $partial_log_flags = "\\def\\incompletelog{1} \\";
+    $latex_cmd_line = substr($latex_cmd_line, 0, 1) . $partial_log_flags . substr($latex_cmd_line, 1);
+}
+
 if (defined $summary{MPIIO_INDEP_OPENS})
 {
-    my $mpiio_latex_flags = "\\def\\inclmpiio{1} \\\n";
+    my $mpiio_latex_flags = "\\def\\inclmpiio{1} \\";
     $latex_cmd_line = substr($latex_cmd_line, 0, 1) . $mpiio_latex_flags . substr($latex_cmd_line, 1);
 }
+
 
 $system_rc = system "$pdflatex $latex_cmd_line > latex.output";
 if($system_rc)

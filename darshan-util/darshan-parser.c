@@ -321,6 +321,12 @@ int main(int argc, char **argv)
         printf("# mount entry:\t%s\t%s\n", mnt_pts[i], fs_types[i]);
     }
 
+    /* warn user if this log file is incomplete */
+    if(fd->partial_flag)
+        printf("\n# *WARNING*: This Darshan log contains incomplete data!\n"
+               "#            This happens when an application creates\n"
+               "#            more records than Darshan can track.\n");
+
     pdata.rank_cumul_io_time = malloc(sizeof(double)*job.nprocs);
     pdata.rank_cumul_md_time = malloc(sizeof(double)*job.nprocs);
     if (!pdata.rank_cumul_io_time || !pdata.rank_cumul_md_time)

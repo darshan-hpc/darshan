@@ -6,6 +6,7 @@
 \usepackage{subfigure}
 \usepackage{multirow}
 \usepackage{threeparttable}
+\usepackage{color}
 
 %
 % GET THE MARGINS RIGHT, THE UGLY WAY
@@ -31,6 +32,17 @@
 \selectfont
 
 \pagestyle{fancy}
+
+\ifdefined\incompletelog
+\twocolumn[
+\vspace{3.5in}
+\center
+{\bf \textcolor{red}{WARNING}}: This Darshan log contains incomplete data
+which may skew results in this document.
+\endcenter
+]
+\newpage
+\fi
 
 \begin{figure*}[!h]
 \centering
