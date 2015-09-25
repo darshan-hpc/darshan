@@ -1549,6 +1549,8 @@ void darshan_core_register_record(
     darshan_record_id tmp_rec_id;
     struct darshan_core_record_ref *ref;
 
+    *rec_id = 0;
+
     if(!darshan_core)
         return;
 

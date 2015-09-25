@@ -122,7 +122,7 @@ void bgq_runtime_initialize()
     if(bgq_runtime || instrumentation_disabled)
         return;
 
-    /* register the "NULL" module with the darshan-core component */
+    /* register the BG/Q module with the darshan-core component */
     darshan_core_register_module(
         DARSHAN_BGQ_MOD,
         &bgq_mod_fns,
@@ -160,6 +160,18 @@ void bgq_runtime_initialize()
         DARSHAN_BGQ_MOD,
         &bgq_runtime->record.f_id,
         &bgq_runtime->record.alignment);
+
+    /* if record is set to 0, darshan-core is out of space and will not
+     * track this record, so we should avoid tracking it, too
+     */
+    if(bgq_runtime->record.f_id == 0)
+    {
+        instrumentation_disabled = 1;
+        free(bgq_runtime);
+        bgq_runtime = NULL;
+        BGQ_UNLOCK();
+        return;
+    }
 
     capture(&bgq_runtime->record);
 

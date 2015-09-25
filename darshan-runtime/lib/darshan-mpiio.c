@@ -895,6 +895,16 @@ static struct mpiio_file_runtime* mpiio_file_by_name(const char *name)
         &file_id,
         NULL);
 
+    /* if record is set to 0, darshan-core is out of space and will not
+     * track this record, so we should avoid tracking it, too
+     */
+    if(file_id == 0)
+    {
+        if(newname != name)
+            free(newname);
+        return(NULL);
+    }
+
     /* search the hash table for this file record, and return if found */
     HASH_FIND(hlink, mpiio_runtime->file_hash, &file_id, sizeof(darshan_record_id), file);
     if(file)

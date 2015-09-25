@@ -26,7 +26,7 @@
 /* Environment variable to override __DARSHAN_MEM_ALIGNMENT */
 #define DARSHAN_MEM_ALIGNMENT_OVERRIDE "DARSHAN_MEMALIGN"
 
-#define DARSHAN_CORE_MAX_RECORDS 4096
+#define DARSHAN_CORE_MAX_RECORDS 2048
 
 /* TODO: revisit this default size if we change memory per module */
 #define DARSHAN_CORE_COMP_BUF_SIZE (2 * 1024 * 1024)
