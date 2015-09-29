@@ -1,5 +1,7 @@
 all: lib/libdarshan.a lib/libdarshan-stubs.a lib/darshan-null.o
 
+#TODO: each module provides own makefile with module-specific objects, build options, etc.
+
 DESTDIR =
 srcdir = @srcdir@
 prefix = @prefix@

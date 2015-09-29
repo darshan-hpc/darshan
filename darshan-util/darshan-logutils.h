@@ -48,13 +48,18 @@ struct darshan_record_ref
  */
 struct darshan_mod_logutil_funcs
 {
-    /* retrieve a single module record from the log file */
+    /* retrieve a single module record from the log file. 
+     * return 1 on successful read of record, 0 on no more
+     * module data, -1 on error
+     */
     int (*log_get_record)(
         darshan_fd fd,
         void* buf,
         darshan_record_id* rec_id
     );
-    /* put a single module record into the log file */
+    /* put a single module record into the log file.
+     * return 0 on success, -1 on error
+     */
     int (*log_put_record)(
         darshan_fd fd,
         void *buf
@@ -89,7 +94,7 @@ int darshan_log_putmounts(darshan_fd fd, char** mnt_pts,
 int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash);
 int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash);
 int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
-    void *buf, int len);
+    void *mod_buf, int mod_buf_sz);
 int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz);
 void darshan_log_close(darshan_fd file);

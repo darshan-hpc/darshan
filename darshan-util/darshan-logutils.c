@@ -86,8 +86,6 @@ static int darshan_log_bzip2_flush(darshan_fd fd, int region_id);
 static int darshan_log_dzload(darshan_fd fd, struct darshan_log_map map);
 static int darshan_log_dzunload(darshan_fd fd, struct darshan_log_map *map_p);
 
-/* TODO: check comments on functions to make sure they are right /cleanup */
-
 /* each module's implementation of the darshan logutil functions */
 #define X(a, b, c) c,
 struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
@@ -685,10 +683,10 @@ int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash)
  *
  * get a chunk of module data from the darshan log file
  *
- * returns 0 on success, -1 on failure
+ * returns number of bytes read on success, -1 on failure
  */
 int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
-    void *buf, int len)
+    void *mod_buf, int mod_buf_sz)
 {
     struct darshan_fd_int_state *state = fd->state;
     int ret;
@@ -705,7 +703,7 @@ int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
         return(0); /* no data corresponding to this mod_id */
 
     /* read this module's data from the log file */
-    ret = darshan_log_dzread(fd, mod_id, buf, len);
+    ret = darshan_log_dzread(fd, mod_id, mod_buf, mod_buf_sz);
     if(ret < 0)
     {
         fprintf(stderr,
@@ -727,7 +725,7 @@ int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
  * should be called in order of increasing module identifiers,
  * as the darshan log file format expects this ordering.
  *
- * returns 0 on success, -1 on failure
+ * returns number of bytes written on success, -1 on failure
  */
 int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz)
@@ -762,7 +760,6 @@ int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
  *
  * close an open darshan file descriptor, freeing any resources
  *
- * returns 0 on success, -1 on failure
  */
 void darshan_log_close(darshan_fd fd)
 {

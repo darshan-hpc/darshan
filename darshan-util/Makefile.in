@@ -1,4 +1,4 @@
-all: libdarshan-util.a darshan-analyzer darshan-convert darshan-parser jenkins-hash-gen
+all: libdarshan-util.a darshan-null-logutils.o darshan-analyzer darshan-convert darshan-parser jenkins-hash-gen
 
 DESTDIR =
 srcdir = @srcdir@
@@ -21,7 +21,7 @@ DARSHAN_ENABLE_SHARED=@DARSHAN_ENABLE_SHARED@
 VPATH = $(srcdir)
 
 ifeq ($(DARSHAN_ENABLE_SHARED),1)
-all: libdarshan-util.so
+all: libdarshan-util.so darshan-null-logutils.po
 endif
 cp_zlib_link_flags = @__DARSHAN_ZLIB_LINK_FLAGS@
 cp_zlib_include_flags = @__DARSHAN_ZLIB_INCLUDE_FLAGS@
@@ -47,6 +47,11 @@ uthash-1.9.2:
 darshan-logutils.o: darshan-logutils.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) | uthash-1.9.2
 	$(CC) $(CFLAGS) -c  $< -o $@
 darshan-logutils.po: darshan-logutils.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) | uthash-1.9.2
+	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
+
+darshan-null-logutils.o: darshan-null-logutils.c darshan-logutils.h darshan-null-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-null-log-format.h | uthash-1.9.2
+	$(CC) $(CFLAGS) -c  $< -o $@
+darshan-null-logutils.po: darshan-null-logutils.c darshan-logutils.h darshan-null-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-null-log-format.h | uthash-1.9.2
 	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
 
 darshan-posix-logutils.o: darshan-posix-logutils.c darshan-logutils.h darshan-posix-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-posix-log-format.h | uthash-1.9.2
@@ -135,7 +140,7 @@ endif
 
 
 clean::
-	rm -f *.o *.a darshan-analyzer darshan-convert darshan-parser jenkins-hash-gen
+	rm -f *.o *.po *.a darshan-analyzer darshan-convert darshan-parser jenkins-hash-gen
 
 distclean:: clean
 	rm -f darshan-runtime-config.h aclocal.m4 autom4te.cache/* config.status config.log Makefile util/bin/darshan-job-summary.pl
