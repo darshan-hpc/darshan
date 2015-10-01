@@ -131,11 +131,10 @@ specified file.
 
 === darshan-parser
 
-In order to obtained a full, human readable dump of all information
-contained in a log file, you can use the `darshan-parser` command
-line utility.  It does not require any additional command line tools.
-The following example essentially converts the contents of the log file
-into a fully expanded text file:
+You can use the `darshan-parser` command line utility to obtain a
+complete, human-readable, text-format dump of all information contained
+in a log file.   The following example converts the contents of the
+log file into a fully expanded text file:
 
 ----
 darshan-parser carns_my-app_id114525_7-27-58921_19.darshan.gz > ~/job-characterization.txt
@@ -146,8 +145,14 @@ The format of this output is described in the following section.
 === Guide to darshan-parser output
 
 The beginning of the output from darshan-parser displays a summary of
-overall information about the job. The following table defines the meaning
-of each line:
+overall information about the job. Additional job-level summary information
+can also be produced using the `--perf`, `--file`, `--file-list`, or
+`--file-list-detailed` command line options.  See the
+<<addsummary,Additional summary output>> section for more information about
+those options.
+
+The following table defines the meaning
+of each line in the default header section of the output:
 
 [cols="25%,75%",options="header"]
 |====
@@ -365,6 +370,7 @@ value of 1 MiB for optimal file alignment.
 |====
 
 ==== Additional summary output
+[[addsummary]]
 
 The following sections describe addtitional parser options that provide
 summary I/O characterization data for the given log.
@@ -373,8 +379,7 @@ summary I/O characterization data for the given log.
 
 ===== Performance
 
-Use the '--perf' option to get performance approximations using four
-different computations.
+Job performance information can be generated using the `--perf` command-line option.
 
 .Example output
 ----
@@ -407,6 +412,54 @@ different computations.
 # agg_perf_by_slowest: 2206.983935
 ----
 
+The `total_bytes` line shows the total number of bytes transferred
+(read/written) by the job.  That is followed by three sections:
+
+.I/O timing for unique files
+
+This section reports information about any files that were *not* opened
+by every rank in the job.  This includes independent files (opened by
+1 process) and partially shared files (opened by a proper subset of
+the job's processes). The I/O time for this category of file access
+is reported based on the *slowest* rank of all processes that performed this
+type of file access.
+
+* unique files: slowest_rank_io_time: total I/O time for unique files
+  (including both metadata + data transfer time)
+* unique files: slowest_rank_meta_time: metadata time for unique files
+* unique files: slowest_rank: the rank of the slowest process
+
+.I/O timing for shared files
+
+This section reports information about files that were globally shared (i.e.
+opened by every rank in the job).  This section estimates performance for
+globally shared files using four different methods.  The `time_by_slowest`
+is generally the most accurate, but it may not available in some older Darshan
+log files. 
+
+* shared files: time_by_cumul_*: adds the cumulative time across all
+  processes and divides by the number of processes (inaccurate when there is
+  high variance among processes).
+** shared files: time_by_cumul_io_only: include metadata AND data transfer
+   time for global shared files
+** shared files: time_by_cumul_meta_only: metadata time for global shared
+   files
+* shared files: time_by_open: difference between timestamp of open and
+  close (inaccurate if file is left open without I/O activity)
+* shared files: time_by_open_lastio: difference between timestamp of open
+  and the timestamp of last I/O (similar to above but fixes case where file is
+  left open after I/O is complete)
+* shared files: time_by_slowest : measures time according to which rank was
+  the slowest to perform both metadata operations and data transfer for each
+  shared file. (most accurate but requires newer log version)
+
+.Aggregate performance
+
+Performance is calculated by dividing the total bytes by the I/O time
+(shared files and unique files combined) computed
+using each of the four methods described in the previous output section. Note the unit for total bytes is
+Byte and for the aggregate performance is MiB/s (1024*1024 Bytes/s).
+
 ===== Files
 Use the `--file` option to get totals based on file usage.
 The first column is the count of files for that type, the second column is
@@ -416,8 +469,13 @@ accessed.
 * total: All files
 * read_only: Files that were only read from
 * write_only: Files that were only written to
+* read_write: Files that were both read and written
 * unique: Files that were opened on only one rank
 * shared: File that were opened by more than one rank
+
+Each line has 3 columns. The first column is the count of files for that
+type of file, the second column is number of bytes for that type, and the third
+column is the maximum offset accessed.
 
 .Example output
 ----

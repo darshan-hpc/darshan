@@ -27,6 +27,16 @@ Darshan-3.0.0-pre1
       darshan-util components are mostly the same and still located in
       their respective directories ('darshan-runtime/doc' and 'darshan-util/doc')
 
+darshan-2.3.2-pre1
+=============
+* Fix gnuplot version number check to allow darshan-job-summary.pl to work
+  with gnuplot 5.0 (Kay Thust)
+* Fix function pointer mapping typo in lio_listio64 wrapper (Shane Snyder)
+* Fix faulty logic in extracting I/O data from the aio_return 
+  wrapper (Shane Snyder)
+* Fix bug in common access counter logic (Shane Snyder)
+* Expand and clarify darshan-parser documentation (Huong Luu)
+
 darshan-2.3.1
 =============
 * added documentation and example configuration files for using the -profile
