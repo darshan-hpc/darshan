@@ -4,6 +4,28 @@ Darshan Release Change Log
 
 Darshan-3.0.0-pre1
 =============
+* new version of Darshan with the following features/improvements:
+    - hooks for developers to add their own instrumentation module
+      implementations to capture new I/O characterization data
+        - these instrumentation modules can be used to instrument new
+          I/O interfaces or gather system-specific parameters, for instance
+    - modularized log format allows new module-specific utilities to
+      access their I/O characterization data independently
+        - this new format also allows new counters to be added to existing
+          instrumentation modules without breaking existing utilities
+    - Darshan logs now contain a mapping of Darshan's unique record
+      identifiers to full file names, instead of fix-sized file name
+      suffixes
+    - a new instrumentation module for capturing BG/Q-specific parameters
+      (BG/Q environment is automatically detected at configure time)
+    - new darshan-parser and darshan-job-summary output to utilize the
+      new modularized log format
+* updated documentation outlining changes in this release, as well as
+  steps for adding new instrumentation modules is given in the top-level
+  'doc' directory.
+    - documentation for configuring and using the darshan-runtime and
+      darshan-util components are mostly the same and still located in
+      their respective directories ('darshan-runtime/doc' and 'darshan-util/doc')
 
 darshan-2.3.1
 =============
