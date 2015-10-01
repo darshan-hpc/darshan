@@ -491,10 +491,11 @@ column is the maximum offset accessed.
 
 ===== Totals
 
-Use the `--total` option to get all statistics as an aggregate total.
-Statistics that make sense to be aggregated are aggregated. Other statistics
-may be a minimum or maximum if that makes sense. Other data maybe zeroed if
-it doesn't make sense to aggregate the data.
+Use the `--total` option to get all statistics as an aggregate total rather
+than broken down per file.  Each field is either summed across files and
+process (for values such as number of opens), set to global minimums and
+maximums (for values such as open time and close time), or zeroed out (for
+statistics that are nonsensical in aggregate).
 
 .Example output
 ----
@@ -533,11 +534,18 @@ file.
 5041708885572677970 /projects/SSSPPg/snyder/ior/ior.dat 1024    16.342061   1.705930
 ----
 
+This data could be post-processed to compute more in-depth statistics, such as
+the total number of MPI files and total number of POSIX files used in a
+job, categorizing files into independent/unique/local files (opened by
+1 process), subset/partially shared files (opened by a proper subset of
+processes) or globally shared files (opened by all processes), and ranking
+files according to how much time was spent performing I/O in each file.
+
 ===== Detailed file list
 
 The `--file-list-detailed` is the same as --file-list except that it
 produces many columns of output containing statistics broken down by file.
-This option is mainly useful for automated analysis.
+This option is mainly useful for more detailed automated analysis.
 
 === Other darshan-util utilities
 
