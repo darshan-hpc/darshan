@@ -80,10 +80,8 @@ typedef uint64_t darshan_record_id;
 
 /* the darshan_log_map structure is used to indicate the location of
  * specific module data in a Darshan log. Note that 'off' and 'len' are
- * the respective offset and length of the data in the file, in *uncompressed*
- * terms -- this is nonintuitive since the data is compressed, but this is
- * done so we can utilize the gzread interface for all Darshan log reading
- * utilities. 
+ * the respective offset and length of the data in the file, in
+ * *uncompressed* terms
  */
 struct darshan_log_map
 {

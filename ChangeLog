@@ -18,6 +18,7 @@ Darshan-3.0.0-pre1
       suffixes
     - a new instrumentation module for capturing BG/Q-specific parameters
       (BG/Q environment is automatically detected at configure time)
+      (implemented by Kevin Harms)
     - new darshan-parser and darshan-job-summary output to utilize the
       new modularized log format
 * updated documentation outlining changes in this release, as well as
