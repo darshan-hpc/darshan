@@ -55,6 +55,8 @@ struct pnetcdf_runtime
     int file_array_ndx;
     struct pnetcdf_file_runtime *file_hash;
     struct pnetcdf_file_runtime_ref* ncid_hash;
+
+    struct darshan_pnetcdf_file *total_file;
 };
 
 static struct pnetcdf_runtime *pnetcdf_runtime = NULL;
@@ -209,13 +211,15 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
 /* initialize internal PNETCDF module data strucutres and register with darshan-core */
 static void pnetcdf_runtime_initialize()
 {
-    int mem_limit;
     struct darshan_module_funcs pnetcdf_mod_fns =
     {
         .begin_shutdown = &pnetcdf_begin_shutdown,
         .get_output_data = &pnetcdf_get_output_data,
         .shutdown = &pnetcdf_shutdown
     };
+    void *mmap_buf;
+    int mmap_buf_size;
+    int mem_limit;
 
     /* don't do anything if already initialized or instrumenation is disabled */
     if(pnetcdf_runtime || instrumentation_disabled)
@@ -227,6 +231,8 @@ static void pnetcdf_runtime_initialize()
         &pnetcdf_mod_fns,
         &my_rank,
         &mem_limit,
+        &mmap_buf,
+        &mmap_buf_size,
         NULL);
 
     /* return if no memory assigned by darshan-core */
@@ -247,6 +253,7 @@ static void pnetcdf_runtime_initialize()
     /* allocate array of runtime file records */
     pnetcdf_runtime->file_runtime_array = malloc(pnetcdf_runtime->file_array_size *
                                                  sizeof(struct pnetcdf_file_runtime));
+    /* XXX-MMAP */
     pnetcdf_runtime->file_record_array = malloc(pnetcdf_runtime->file_array_size *
                                                 sizeof(struct darshan_pnetcdf_file));
     if(!pnetcdf_runtime->file_runtime_array || !pnetcdf_runtime->file_record_array)

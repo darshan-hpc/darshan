@@ -103,6 +103,8 @@ struct mpiio_runtime
     int file_array_ndx;
     struct mpiio_file_runtime* file_hash;
     struct mpiio_file_runtime_ref* fh_hash;
+
+    struct darshan_mpiio_file* total_file;
 };
 
 static struct mpiio_runtime *mpiio_runtime = NULL;
@@ -820,13 +822,15 @@ int MPI_File_close(MPI_File *fh)
 /* initialize data structures and register with darshan-core component */
 static void mpiio_runtime_initialize()
 {
-    int mem_limit;
     struct darshan_module_funcs mpiio_mod_fns =
     {
         .begin_shutdown = &mpiio_begin_shutdown,
         .get_output_data = &mpiio_get_output_data,
         .shutdown = &mpiio_shutdown
     };
+    void *mmap_buf;
+    int mmap_buf_size;
+    int mem_limit;
 
     /* don't do anything if already initialized or instrumenation is disabled */
     if(mpiio_runtime || instrumentation_disabled)
@@ -838,6 +842,8 @@ static void mpiio_runtime_initialize()
         &mpiio_mod_fns,
         &my_rank,
         &mem_limit,
+        &mmap_buf,
+        &mmap_buf_size,
         NULL);
 
     /* return if no memory assigned by darshan core */

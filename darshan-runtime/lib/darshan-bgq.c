@@ -39,6 +39,9 @@
 struct bgq_runtime
 {
     struct darshan_bgq_record record;
+
+    /* TODO: we don't need the mmap and regular buffer, both */
+    struct darshan_bgq_record *mmap_buf;
 };
 
 static struct bgq_runtime *bgq_runtime = NULL;
@@ -114,6 +117,8 @@ void bgq_runtime_initialize()
         .shutdown = bgq_shutdown
     };
     int mem_limit;
+    void *mmap_buf;
+    int mmap_buf_size;
     char *recname = "darshan-internal-bgq";
 
     BGQ_LOCK();
@@ -128,6 +133,8 @@ void bgq_runtime_initialize()
         &bgq_mod_fns,
         &my_rank,
         &mem_limit,
+        &mmap_buf,
+        &mmap_buf_size,
         &darshan_mem_alignment);
 
     /* return if no memory assigned by darshan-core */

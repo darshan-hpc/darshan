@@ -59,6 +59,8 @@ struct hdf5_runtime
     int file_array_ndx;
     struct hdf5_file_runtime *file_hash;
     struct hdf5_file_runtime_ref* hid_hash;
+
+    struct darshan_hdf5_file *total_file;
 };
 
 static struct hdf5_runtime *hdf5_runtime = NULL;
@@ -197,13 +199,15 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 /* initialize internal HDF5 module data strucutres and register with darshan-core */
 static void hdf5_runtime_initialize()
 {
-    int mem_limit;
     struct darshan_module_funcs hdf5_mod_fns =
     {
         .begin_shutdown = &hdf5_begin_shutdown,
         .get_output_data = &hdf5_get_output_data,
         .shutdown = &hdf5_shutdown
     };
+    void *mmap_buf;
+    int mmap_buf_size;
+    int mem_limit;
 
     /* don't do anything if already initialized or instrumenation is disabled */
     if(hdf5_runtime || instrumentation_disabled)
@@ -215,6 +219,8 @@ static void hdf5_runtime_initialize()
         &hdf5_mod_fns,
         &my_rank,
         &mem_limit,
+        &mmap_buf,
+        &mmap_buf_size,
         NULL);
 
     /* return if no memory assigned by darshan-core */
@@ -235,6 +241,7 @@ static void hdf5_runtime_initialize()
     /* allocate array of runtime file records */
     hdf5_runtime->file_runtime_array = malloc(hdf5_runtime->file_array_size *
                                               sizeof(struct hdf5_file_runtime));
+    /* XXX-MMAP */
     hdf5_runtime->file_record_array = malloc(hdf5_runtime->file_array_size *
                                              sizeof(struct darshan_hdf5_file));
     if(!hdf5_runtime->file_runtime_array || !hdf5_runtime->file_record_array)

@@ -80,9 +80,6 @@ struct darshan_module_funcs
     void (*shutdown)(void);
 };
 
-/* paths that darshan will not trace */
-extern char* darshan_path_exclusions[]; /* defined in lib/darshan-core.c */
-
 /*****************************************************
 * darshan-core functions exported to darshan modules *
 *****************************************************/
@@ -103,6 +100,8 @@ void darshan_core_register_module(
     struct darshan_module_funcs *funcs,
     int *my_rank,
     int *mod_mem_limit,
+    void **mmap_buf,
+    int *mmap_buf_size,
     int *sys_mem_alignment);
 
 /* darshan_core_unregister_module()
@@ -150,5 +149,13 @@ void darshan_core_unregister_record(
  * the application.
  */
 double darshan_core_wtime(void);
+
+/* darshan_core_excluded_path()
+ *
+ * Returns true (1) if the given file path is in Darshan's list of
+ * excluded file paths, false (0) otherwise.
+ */
+int darshan_core_excluded_path(
+    const char * path);
 
 #endif /* __DARSHAN_H */

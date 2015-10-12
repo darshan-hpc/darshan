@@ -177,6 +177,8 @@ struct posix_runtime
     int file_array_ndx;
     struct posix_file_runtime* file_hash;
     struct posix_file_runtime_ref* fd_hash;
+
+    struct posix_file_runtime agg_file_runtime;
 };
 
 static struct posix_runtime *posix_runtime = NULL;
@@ -209,15 +211,8 @@ static void posix_shutdown(void);
 
 #define POSIX_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
     struct posix_file_runtime* file; \
-    char* exclude; \
-    int tmp_index = 0; \
     if(__ret < 0) break; \
-    while((exclude = darshan_path_exclusions[tmp_index])) { \
-        if(!(strncmp(exclude, __path, strlen(exclude)))) \
-            break; \
-        tmp_index++; \
-    } \
-    if(exclude) break; \
+    if(darshan_core_excluded_path(__path)) break; \
     file = posix_file_by_name_setfd(__path, __ret); \
     if(!file) break; \
     if(__mode) \
@@ -337,15 +332,8 @@ static void posix_shutdown(void);
 } while(0)
 
 #define POSIX_LOOKUP_RECORD_STAT(__path, __statbuf, __tm1, __tm2) do { \
-    char* exclude; \
-    int tmp_index = 0; \
     struct posix_file_runtime* file; \
-    while((exclude = darshan_path_exclusions[tmp_index])) { \
-        if(!(strncmp(exclude, __path, strlen(exclude)))) \
-            break; \
-        tmp_index++; \
-    } \
-    if(exclude) break; \
+    if(darshan_core_excluded_path(__path)) break; \
     file = posix_file_by_name(__path); \
     if(file) \
     { \
@@ -1449,13 +1437,15 @@ int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb64 *const aiocb_list[],
 /* initialize internal POSIX module data structures and register with darshan-core */
 static void posix_runtime_initialize()
 {
-    int mem_limit;
     struct darshan_module_funcs posix_mod_fns =
     {
         .begin_shutdown = &posix_begin_shutdown,
         .get_output_data = &posix_get_output_data,
         .shutdown = &posix_shutdown
     };
+    int mem_limit;
+    void *mmap_buf;
+    int mmap_buf_size;
 
     /* don't do anything if already initialized or instrumenation is disabled */
     if(posix_runtime || instrumentation_disabled)
@@ -1467,6 +1457,8 @@ static void posix_runtime_initialize()
         &posix_mod_fns,
         &my_rank,
         &mem_limit,
+        &mmap_buf,
+        &mmap_buf_size,
         &darshan_mem_alignment);
 
     /* return if no memory assigned by darshan core */
@@ -1499,6 +1491,17 @@ static void posix_runtime_initialize()
     memset(posix_runtime->file_record_array, 0, posix_runtime->file_array_size *
            sizeof(struct darshan_posix_file));
 
+    /* XXX-MMAP */
+    if(mmap_buf_size >= sizeof(struct darshan_posix_file))
+    {
+        memset(&(posix_runtime->agg_file_runtime), 0,
+            sizeof(struct posix_file_runtime));
+        posix_runtime->agg_file_runtime.file_record =
+            (struct darshan_posix_file *)mmap_buf;
+        posix_runtime->agg_file_runtime.file_record->f_id = DARSHAN_POSIX_MOD;
+        posix_runtime->agg_file_runtime.file_record->rank = my_rank;
+    }
+
     return;
 }
 
@@ -1513,6 +1516,8 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
     if(!posix_runtime || instrumentation_disabled)
         return(NULL);
 
+    return(&(posix_runtime->agg_file_runtime));
+#if 0
     newname = darshan_clean_file_path(name);
     if(!newname)
         newname = (char*)name;
@@ -1564,6 +1569,7 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
     if(newname != name)
         free(newname);
     return(file);
+#endif
 }
 
 /* get a POSIX file record for the given file path, and also create a
@@ -1580,6 +1586,7 @@ static struct posix_file_runtime* posix_file_by_name_setfd(const char* name, int
     /* find file record by name first */
     file = posix_file_by_name(name);
 
+#if 0
     if(!file)
         return(NULL);
 
@@ -1605,6 +1612,7 @@ static struct posix_file_runtime* posix_file_by_name_setfd(const char* name, int
     ref->file = file;
     ref->fd = fd;    
     HASH_ADD(hlink, posix_runtime->fd_hash, fd, sizeof(int), ref);
+#endif
 
     return(file);
 }
@@ -1617,12 +1625,16 @@ static struct posix_file_runtime* posix_file_by_fd(int fd)
     if(!posix_runtime || instrumentation_disabled)
         return(NULL);
 
+    return(posix_file_by_name(NULL));
+
+#if 0
     /* search hash table for existing file ref for this fd */
     HASH_FIND(hlink, posix_runtime->fd_hash, &fd, sizeof(int), ref);
     if(ref)
         return(ref->file);
 
     return(NULL);
+#endif
 }
 
 /* free up reference data structures for the given file descriptor */
@@ -1633,6 +1645,7 @@ static void posix_file_close_fd(int fd)
     if(!posix_runtime || instrumentation_disabled)
         return;
 
+#if 0
     /* search hash table for this fd */
     HASH_FIND(hlink, posix_runtime->fd_hash, &fd, sizeof(int), ref);
     if(ref)
@@ -1641,6 +1654,7 @@ static void posix_file_close_fd(int fd)
         HASH_DELETE(hlink, posix_runtime->fd_hash, ref);
         free(ref);
     }
+#endif
 
     return;
 }
@@ -1714,8 +1728,6 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
     struct darshan_posix_file *infile = infile_v;
     struct darshan_posix_file *inoutfile = inoutfile_v;
     int i, j, k;
-
-    assert(posix_runtime);
 
     for(i=0; i<*len; i++)
     {

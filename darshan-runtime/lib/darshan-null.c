@@ -96,6 +96,14 @@ struct null_runtime
      * currently maintained by the "NULL" module.
      */
     struct null_record_runtime* record_hash;
+
+    /* total_record is a pointer to a buffer for storing an aggregate record for
+     * all "NULL" module records. This buffer is pointed at the appropriate
+     * region of a mmapped partial log file managed by darshan-core -- this
+     * partial log file is used to get at least *some* i/o data out to a log
+     * file if Darshan does not shut down properly.
+     */
+    struct darshan_null_record *total_record;
 };
 
 /* null_runtime is the global data structure encapsulating "NULL" module state */
@@ -200,6 +208,7 @@ int DARSHAN_DECL(foo)(const char* name, int arg1, int arg2)
 /* Initialize internal POSIX module data structures and register with darshan-core. */
 static void null_runtime_initialize()
 {
+    int mmap_buf_size;
     /* struct of function pointers for interfacing with darshan-core */
     struct darshan_module_funcs null_mod_fns =
     {
@@ -219,6 +228,8 @@ static void null_runtime_initialize()
         &null_mod_fns,
         &my_rank,
         &mem_limit,
+        (void **)&null_runtime->total_record,
+        &mmap_buf_size,
         NULL);
 
     /* return if no memory assigned by darshan-core */

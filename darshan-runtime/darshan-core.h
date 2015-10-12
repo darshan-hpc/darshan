@@ -26,10 +26,14 @@
 /* Environment variable to override __DARSHAN_MEM_ALIGNMENT */
 #define DARSHAN_MEM_ALIGNMENT_OVERRIDE "DARSHAN_MEMALIGN"
 
+/* maximum number of records that can be tracked on a single process */
 #define DARSHAN_CORE_MAX_RECORDS 2048
 
 /* TODO: revisit this default size if we change memory per module */
 #define DARSHAN_CORE_COMP_BUF_SIZE (2 * 1024 * 1024)
+
+/* this controls the maximum mmapped memory each module can use */
+#define DARSHAN_MMAP_CHUNK_SIZE (4 * 1024)
 
 #define DARSHAN_CORE_MOD_SET(flags, id) (flags | (1 << id))
 #define DARSHAN_CORE_MOD_UNSET(flags, id) (flags & ~(1 << id))
@@ -38,15 +42,18 @@
 /* in memory structure to keep up with job level data */
 struct darshan_core_runtime
 {
-    struct darshan_header log_header;
-    struct darshan_job log_job;
-    char exe[DARSHAN_EXE_LEN+1];
+    /* XXX-MMAP */
+    void *mmap_p;
+    struct darshan_job *mmap_job_p;
+    char *mmap_exe_mnt_p;
+    void *mmap_mod_p;
+    /* XXX-MMAP */
+
     struct darshan_core_record_ref *rec_hash;
     int rec_count;
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
     char comp_buf[DARSHAN_CORE_COMP_BUF_SIZE];
     double wtime_offset;
-    char *trailing_data;
 };
 
 struct darshan_core_module
