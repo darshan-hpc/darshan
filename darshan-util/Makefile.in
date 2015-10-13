@@ -127,6 +127,19 @@ ifeq ($(DARSHAN_ENABLE_SHARED),1)
 	install -m 755 libdarshan-util.so $(libdir)
 endif
 	install -m 644 $(srcdir)/darshan-logutils.h $(includedir)
+	install -m 644 $(srcdir)/darshan-posix-logutils.h $(includedir)
+	install -m 644 $(srcdir)/darshan-mpiio-logutils.h $(includedir)
+	install -m 644 $(srcdir)/darshan-hdf5-logutils.h $(includedir)
+	install -m 644 $(srcdir)/darshan-pnetcdf-logutils.h $(includedir)
+	install -m 644 $(srcdir)/darshan-bgq-logutils.h $(includedir)
+	install -m 644 $(srcdir)/../darshan-posix-log-format.h $(includedir)
+	install -m 644 $(srcdir)/../darshan-mpiio-log-format.h $(includedir)
+	install -m 644 $(srcdir)/../darshan-hdf5-log-format.h $(includedir)
+	install -m 644 $(srcdir)/../darshan-pnetcdf-log-format.h $(includedir)
+	install -m 644 $(srcdir)/../darshan-bgq-log-format.h $(includedir)
+	install -d $(includedir)/uthash-1.9.2
+	install -d $(includedir)/uthash-1.9.2/src
+	install -m 644 uthash-1.9.2/src/uthash.h $(includedir)/uthash-1.9.2/src/
 	install -m 644 $(DARSHAN_LOG_FORMAT) $(includedir)
 	install -m 755 darshan-job-summary/bin/darshan-job-summary.pl $(bindir)
 	install -d $(libdir)/TeX
