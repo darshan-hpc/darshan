@@ -693,7 +693,7 @@ with_log_hints
 with_log_path
 with_jobid_env
 enable_bgq_mod
-with_max_records
+with_mod_mem
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1331,7 +1331,7 @@ Optional Packages:
   --with-jobid-env=<name> Name of environment variable that stores the jobid
     (specify "NONE" if no appropriate environment variable is available:
     Darshan will use rank 0's pid instead)
-  --with-max-records=<num>  Maximum records for Darshan to track at runtime
+  --with-mod-mem=<num>  Maximum amount of memory (in MiB) for each Darshan module
 
 Some influential environment variables:
   CC          C compiler command
@@ -4281,14 +4281,14 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 fi
 
 
-# Check whether --with-max-records was given.
-if test "${with_max_records+set}" = set; then :
-  withval=$with_max_records; if test x$withval = xyes; then
-        as_fn_error $? "--with-max-records must be given a number" "$LINENO" 5
+# Check whether --with-mod-mem was given.
+if test "${with_mod_mem+set}" = set; then :
+  withval=$with_mod_mem; if test x$withval = xyes; then
+        as_fn_error $? "--with-mod-mem must be given a number" "$LINENO" 5
     else
 
 cat >>confdefs.h <<_ACEOF
-#define __DARSHAN_MAX_RECORDS ${withval}
+#define __DARSHAN_MOD_MEM_MAX ${withval}
 _ACEOF
 
     fi

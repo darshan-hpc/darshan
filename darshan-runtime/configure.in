@@ -300,12 +300,12 @@ if test x$enable_bgq_mod != xno; then
             []))
 fi
 
-AC_ARG_WITH(max-records,
-[  --with-max-records=<num>  Maximum records for Darshan to track at runtime],
+AC_ARG_WITH(mod-mem,
+[  --with-mod-mem=<num>  Maximum amount of memory (in MiB) for each Darshan module],
     if test x$withval = xyes; then
-        AC_MSG_ERROR(--with-max-records must be given a number)
+        AC_MSG_ERROR(--with-mod-mem must be given a number)
     else
-        AC_DEFINE_UNQUOTED(__DARSHAN_MAX_RECORDS, ${withval}, Maximum Darshan records to track at runtime)
+        AC_DEFINE_UNQUOTED(__DARSHAN_MOD_MEM_MAX, ${withval}, Maximum memory (in MiB) for each Darshan module)
     fi
 )
 

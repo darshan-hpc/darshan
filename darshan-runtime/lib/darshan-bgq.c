@@ -156,8 +156,9 @@ void bgq_runtime_initialize()
     darshan_core_register_record(
         recname,
         strlen(recname),
-        1,
         DARSHAN_BGQ_MOD,
+        1,
+        0,
         &bgq_runtime->record.f_id,
         &bgq_runtime->record.alignment);
 

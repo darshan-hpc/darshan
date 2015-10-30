@@ -102,11 +102,11 @@
 /* Location to store log files at run time */
 #undef __DARSHAN_LOG_PATH
 
-/* Maximum Darshan records to track at runtime */
-#undef __DARSHAN_MAX_RECORDS
-
 /* Memory alignment in bytes */
 #undef __DARSHAN_MEM_ALIGNMENT
+
+/* Maximum memory (in MiB) for each Darshan module */
+#undef __DARSHAN_MOD_MEM_MAX
 
 /* Generalized request type for MPI-IO */
 #undef __D_MPI_REQUEST

@@ -256,6 +256,7 @@ static struct hdf5_file_runtime* hdf5_file_by_name(const char *name)
     struct hdf5_file_runtime *file = NULL;
     char *newname = NULL;
     darshan_record_id file_id;
+    int limit_flag;
 
     if(!hdf5_runtime || instrumentation_disabled)
         return(NULL);
@@ -264,12 +265,15 @@ static struct hdf5_file_runtime* hdf5_file_by_name(const char *name)
     if(!newname)
         newname = (char*)name;
 
+    limit_flag = (hdf5_runtime->file_array_ndx >= hdf5_runtime->file_array_size);
+
     /* get a unique id for this file from darshan core */
     darshan_core_register_record(
         (void*)newname,
         strlen(newname),
-        1,
         DARSHAN_HDF5_MOD,
+        1,
+        limit_flag,
         &file_id,
         NULL);
 
@@ -292,19 +296,15 @@ static struct hdf5_file_runtime* hdf5_file_by_name(const char *name)
         return(file);
     }
 
-    if(hdf5_runtime->file_array_ndx < hdf5_runtime->file_array_size);
-    {
-        /* no existing record, assign a new file record from the global array */
-        file = &(hdf5_runtime->file_runtime_array[hdf5_runtime->file_array_ndx]);
-        file->file_record = &(hdf5_runtime->file_record_array[hdf5_runtime->file_array_ndx]);
-        file->file_record->f_id = file_id;
-        file->file_record->rank = my_rank;
+    /* no existing record, assign a new file record from the global array */
+    file = &(hdf5_runtime->file_runtime_array[hdf5_runtime->file_array_ndx]);
+    file->file_record = &(hdf5_runtime->file_record_array[hdf5_runtime->file_array_ndx]);
+    file->file_record->f_id = file_id;
+    file->file_record->rank = my_rank;
 
-        /* add new record to file hash table */
-        HASH_ADD(hlink, hdf5_runtime->file_hash, file_record->f_id, sizeof(darshan_record_id), file);
-
-        hdf5_runtime->file_array_ndx++;
-    }
+    /* add new record to file hash table */
+    HASH_ADD(hlink, hdf5_runtime->file_hash, file_record->f_id, sizeof(darshan_record_id), file);
+    hdf5_runtime->file_array_ndx++;
 
     if(newname != name)
         free(newname);
