@@ -86,7 +86,7 @@ typedef uint64_t darshan_record_id;
 /* the darshan_log_map structure is used to indicate the location of
  * specific module data in a Darshan log. Note that 'off' and 'len' are
  * the respective offset and length of the data in the file, in
- * *uncompressed* terms
+ * *compressed* terms
  */
 struct darshan_log_map
 {

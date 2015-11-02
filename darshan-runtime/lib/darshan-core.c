@@ -209,14 +209,14 @@ void darshan_core_initialize(int argc, char **argv)
 
             /* collect information about command line and mounted file systems */
             darshan_core->trailing_data = darshan_get_exe_and_mounts(darshan_core);
-        }
 
-        /* maybe bootstrap modules with static initializers */
-        i = 0;
-        while(mod_static_init_fns[i])
-        {
-            (*mod_static_init_fns[i])();
-            i++;
+            /* bootstrap any modules with static initialization routines */
+            i = 0;
+            while(mod_static_init_fns[i])
+            {
+                (*mod_static_init_fns[i])();
+                i++;
+            }
         }
     }
 
@@ -980,7 +980,7 @@ static void darshan_get_exe_and_mounts_root(struct darshan_core_runtime *core,
         NULL
     };
 
-    /* length of exe has already been safety checked in darshan-posix.c */
+    /* length of exe has already been safety checked in darshan initialization */
     strcat(trailing_data, core->exe);
     space_left = DARSHAN_EXE_LEN - strlen(trailing_data);
 
