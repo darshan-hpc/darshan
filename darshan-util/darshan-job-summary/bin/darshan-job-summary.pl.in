@@ -97,7 +97,6 @@ while($line = <PARSE_OUT>)
             $f_save = "";
             ($junk, $cmdline) = split(':', $line, 2);
 
-            print("PRE: $cmdline\n");
             # add escape characters if needed for special characters in
             # command line
             if ($cmdline =~ /<unknown args>/)
@@ -108,7 +107,6 @@ while($line = <PARSE_OUT>)
                 $cmdline = substr($cmdline, 0, -14); 
             }
             $cmdline = encode('latex', $cmdline) . $f_save;
-            print("POST: $cmdline\n");
         }
         elsif ($line =~ /^# nprocs: /)
         {
@@ -135,7 +133,7 @@ while($line = <PARSE_OUT>)
             ($junk, $version) = split(':', $line, 2);
             $version =~ s/^\s+//;
         }
-        elsif ($line =~ /^# \*WARNING\*: This Darshan log contains incomplete data!/)
+        elsif ($line =~ /^# \*WARNING\*: .* contains incomplete data!/)
         {
             $partial_flag = 1;
         }
