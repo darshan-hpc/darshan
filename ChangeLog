@@ -2,6 +2,16 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.0.0-pre2
+=============
+* add fix to install appropriate headers for linking external
+  applications with darshan-util (reported by Matthieu Dorier)
+* add darshan-util Ruby bindings for the new modularized version
+  of Darshan (3.0) (Matthieu Dorier)
+* add enhancement to darshan-runtime to allow per-module instrumentation
+  memory to be user configurable using a configure option or a runtime
+  environment variable
+
 Darshan-3.0.0-pre1
 =============
 * new version of Darshan with the following features/improvements:
