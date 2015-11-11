@@ -69,6 +69,11 @@ static char * const darshan_module_names[] =
 };
 #undef X
 
+/* simple macros for accessing module flag bitfields */
+#define DARSHAN_MOD_FLAG_SET(flags, id) flags = (flags | (1 << id))
+#define DARSHAN_MOD_FLAG_UNSET(flags, id) flags = (flags & ~(1 << id))
+#define DARSHAN_MOD_FLAG_ISSET(flags, id) (flags & (1 << id))
+
 /* compression method used on darshan log file */
 enum darshan_comp_type
 {
@@ -80,10 +85,8 @@ typedef uint64_t darshan_record_id;
 
 /* the darshan_log_map structure is used to indicate the location of
  * specific module data in a Darshan log. Note that 'off' and 'len' are
- * the respective offset and length of the data in the file, in *uncompressed*
- * terms -- this is nonintuitive since the data is compressed, but this is
- * done so we can utilize the gzread interface for all Darshan log reading
- * utilities. 
+ * the respective offset and length of the data in the file, in
+ * *compressed* terms
  */
 struct darshan_log_map
 {
@@ -99,7 +102,7 @@ struct darshan_header
     char version_string[8];
     int64_t magic_nr;
     unsigned char comp_type;
-    unsigned char partial_flag;
+    uint32_t partial_flag;
     struct darshan_log_map rec_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
 };

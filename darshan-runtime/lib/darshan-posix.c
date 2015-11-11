@@ -1694,6 +1694,7 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
     char *newname = NULL;
     darshan_record_id file_id;
     int file_alignment;
+    int limit_flag;
 
     if(!posix_runtime || instrumentation_disabled)
         return(NULL);
@@ -1704,17 +1705,20 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
     if(!newname)
         newname = (char*)name;
 
+    limit_flag = (posix_runtime->file_array_ndx >= posix_runtime->file_array_size);
+
     /* get a unique id for this file from darshan core */
     darshan_core_register_record(
         (void*)newname,
         strlen(newname),
-        1,
         DARSHAN_POSIX_MOD,
+        1,
+        limit_flag,
         &file_id,
         &file_alignment);
 
-    /* if record is set to 0, darshan-core is out of space and will not
-     * track this record, so we should avoid tracking it, too
+    /* the file record id is set to 0 if no memory is available for tracking
+     * new records -- just fall through and ignore this record
      */
     if(file_id == 0)
     {
@@ -1732,21 +1736,17 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
         return(file);
     }
 
-    if(posix_runtime->file_array_ndx < posix_runtime->file_array_size);
-    {
-        /* no existing record, assign a new file record from the global array */
-        file = &(posix_runtime->file_runtime_array[posix_runtime->file_array_ndx]);
-        file->file_record = &(posix_runtime->file_record_array[posix_runtime->file_array_ndx]);
-        file->file_record->f_id = file_id;
-        file->file_record->rank = my_rank;
-        file->file_record->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
-        file->file_record->counters[POSIX_FILE_ALIGNMENT] = file_alignment;
+    /* no existing record, assign a new file record from the global array */
+    file = &(posix_runtime->file_runtime_array[posix_runtime->file_array_ndx]);
+    file->file_record = &(posix_runtime->file_record_array[posix_runtime->file_array_ndx]);
+    file->file_record->f_id = file_id;
+    file->file_record->rank = my_rank;
+    file->file_record->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
+    file->file_record->counters[POSIX_FILE_ALIGNMENT] = file_alignment;
 
-        /* add new record to file hash table */
-        HASH_ADD(hlink, posix_runtime->file_hash, file_record->f_id, sizeof(darshan_record_id), file);
-
-        posix_runtime->file_array_ndx++;
-    }
+    /* add new record to file hash table */
+    HASH_ADD(hlink, posix_runtime->file_hash, file_record->f_id, sizeof(darshan_record_id), file);
+    posix_runtime->file_array_ndx++;
 
     if(newname != name)
         free(newname);

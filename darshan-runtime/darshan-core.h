@@ -26,18 +26,18 @@
 /* Environment variable to override __DARSHAN_MEM_ALIGNMENT */
 #define DARSHAN_MEM_ALIGNMENT_OVERRIDE "DARSHAN_MEMALIGN"
 
-/* maximum number of records that can be tracked on a single process */
-#define DARSHAN_CORE_MAX_RECORDS 2048
+/* Environment variable to override memory per module */
+#define DARSHAN_MOD_MEM_OVERRIDE "DARSHAN_MODMEM"
 
-/* TODO: revisit this default size if we change memory per module */
-#define DARSHAN_CORE_COMP_BUF_SIZE (2 * 1024 * 1024)
+/* Maximum amount of memory per instrumentation module in MiB */
+#ifdef __DARSHAN_MOD_MEM_MAX
+#define DARSHAN_MOD_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024 * 1024)
+#else
+#define DARSHAN_MOD_MEM_MAX (2 * 1024 * 1024) /* 2 MiB default */
+#endif
 
-/* this controls the maximum mmapped memory each module can use */
-#define DARSHAN_MMAP_CHUNK_SIZE (4 * 1024)
-
-#define DARSHAN_CORE_MOD_SET(flags, id) (flags | (1 << id))
-#define DARSHAN_CORE_MOD_UNSET(flags, id) (flags & ~(1 << id))
-#define DARSHAN_CORE_MOD_ISSET(flags, id) (flags & (1 << id))
+/* Default runtime compression buffer size */
+#define DARSHAN_COMP_BUF_SIZE DARSHAN_MOD_MEM_MAX
 
 /* in memory structure to keep up with job level data */
 struct darshan_core_runtime
@@ -52,7 +52,7 @@ struct darshan_core_runtime
     struct darshan_core_record_ref *rec_hash;
     int rec_count;
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
-    char comp_buf[DARSHAN_CORE_COMP_BUF_SIZE];
+    char comp_buf[DARSHAN_COMP_BUF_SIZE];
     double wtime_offset;
 };
 

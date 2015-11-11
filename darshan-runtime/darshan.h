@@ -117,18 +117,21 @@ void darshan_core_unregister_module(
  * Register the Darshan record given by 'name' with the darshan-core
  * runtime, allowing it to be properly tracked and (potentially)
  * correlated with records from other modules. 'len' is the size of
- * the name pointer (string length for string names), 'printable_flag'
- * indicates whether the name is a string, and 'mod_id' is the identifier
- * of the calling module. 'rec_id' is an output pointer storing the
- * correspoing Darshan record identifier and 'file_alignment' is an
- * output pointer storing the file system alignment value for the given
- * record.
+ * the name pointer (string length for string names), and 'printable_flag'
+ * indicates whether the name is a string. 'mod_limit_flag' is set if
+ * the calling module is out of memory (to prevent darshan-core from
+ * creating new records and to just search existing records)  and 'mod_id'
+ * is the identifier of the calling module. 'rec_id' is an output pointer
+ * storing the correspoing Darshan record identifier and 'file_alignment'
+ * is an output pointer storing the file system alignment value for the
+ * given record.
  */
 void darshan_core_register_record(
     void *name,
     int len,
-    int printable_flag,
     darshan_module_id mod_id,
+    int printable_flag,
+    int mod_limit_flag,
     darshan_record_id *rec_id,
     int *file_alignment);
 

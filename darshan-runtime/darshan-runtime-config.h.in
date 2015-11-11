@@ -105,5 +105,8 @@
 /* Memory alignment in bytes */
 #undef __DARSHAN_MEM_ALIGNMENT
 
+/* Maximum memory (in MiB) for each Darshan module */
+#undef __DARSHAN_MOD_MEM_MAX
+
 /* Generalized request type for MPI-IO */
 #undef __D_MPI_REQUEST

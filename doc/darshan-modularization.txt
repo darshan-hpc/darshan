@@ -224,9 +224,10 @@ a module developer must provide to interface with the darshan-core runtime.
 * _my_rank_ is a pointer to an integer to store the calling process's application MPI rank in
 
 * _mod_mem_limit_ is a pointer to an integer which will store the amount of memory Darshan
-allows this module to use at runtime. Currently, `darshan-core` will hardcode this value to 2 MiB,
-but in the future this may be changed to optimize Darshan's memory footprint. Note that Darshan
-does not allocate any memory for modules, it just informs a module how much memory it can use.
+allows this module to use at runtime. Darshan's default module memory limit is currently set to
+2 MiB, but the user can choose a different value at configure time (using the `--with-mod-mem`
+configure option) or at runtime (using the DARSHAN_MODMEM environment variable). Note that Darshan
+does not allocate any memory for modules; it just informs a module how much memory it can use.
 
 * _sys_mem_alignment_ is a pointer to an integer which will store the system memory alignment value
 Darshan was configured with. This parameter may be set to `NULL` if a module is not concerned with the
@@ -248,8 +249,9 @@ any I/O data.
 void darshan_core_register_record(
     void *name,
     int len,
-    int printable_flag,
     darshan_module_id mod_id,
+    int printable_flag,
+    int mod_limit_flag,
     darshan_record_id *rec_id,
     int *file_alignment);
 
@@ -269,9 +271,13 @@ been previously registered.
 string length, but for nonprintable record names (e.g., an integer object identifier), this
 is the size of the record name type.
 
+* _mod_id_ is the identifier for the module attempting to register this record.
+
 * _printable_flag_ indicates whether the input record name is a printable ASCII string.
 
-* _mod_id_ is the identifier for the module attempting to register this record.
+* _mod_limit_flag_ indicates whether the calling module is out of memory to instrument new
+records or not. If this flag is set, darshan-core will not create new records and instead just
+search existing records for one corresponding to input _name_. 
 
 * _rec_id_ is a pointer to a variable which will store the unique record identifier generated
 by Darshan.

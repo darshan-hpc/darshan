@@ -322,11 +322,6 @@ int main(int argc, char **argv)
     }
 
     /* warn user if this log file is incomplete */
-    if(fd->partial_flag)
-        printf("\n# *WARNING*: This Darshan log contains incomplete data!\n"
-               "#            This happens when an application creates\n"
-               "#            more records than Darshan can track.\n");
-
     pdata.rank_cumul_io_time = malloc(sizeof(double)*job.nprocs);
     pdata.rank_cumul_md_time = malloc(sizeof(double)*job.nprocs);
     if (!pdata.rank_cumul_io_time || !pdata.rank_cumul_md_time)
@@ -369,6 +364,13 @@ int main(int argc, char **argv)
         printf("\n# *******************************************************\n");
         printf("# %s module data\n", darshan_module_names[i]);
         printf("# *******************************************************\n");
+
+        /* print warning if this module only stored partial data */
+        if(DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i))
+            printf("\n# *WARNING*: The %s module contains incomplete data!\n"
+                   "#            This happens when a module runs out of\n"
+                   "#            memory to store new record data.\n",
+                   darshan_module_names[i]);
 
         if(mask & OPTION_BASE)
         {

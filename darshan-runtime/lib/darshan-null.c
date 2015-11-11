@@ -275,6 +275,7 @@ static struct null_record_runtime* null_record_by_name(const char *name)
 {
     struct null_record_runtime *rec = NULL;
     darshan_record_id rec_id;
+    int limit_flag;
 
     /* Don't search for a record if the "NULL" module is not initialized or
      * if instrumentation has been toggled off.
@@ -282,14 +283,26 @@ static struct null_record_runtime* null_record_by_name(const char *name)
     if(!null_runtime || instrumentation_disabled)
         return(NULL);
 
+    /* stop tracking new records if we are tracking our maximum count */
+    limit_flag = (null_runtime->rec_array_ndx >= null_runtime->rec_array_size);
+
     /* get a unique record identifier for this record from darshan-core */
     darshan_core_register_record(
         (void*)name,
         strlen(name),
-        1,
         DARSHAN_NULL_MOD,
+        1,
+        limit_flag,
         &rec_id,
         NULL);
+
+    /* the file record id is set to 0 if no memory is available for tracking
+     * new records -- just fall through and ignore this record
+     */
+    if(rec_id == 0)
+    {
+        return(NULL);
+    }
 
     /* search the hash table for this file record, and return if found */
     HASH_FIND(hlink, null_runtime->record_hash, &rec_id, sizeof(darshan_record_id), rec);
@@ -298,21 +311,17 @@ static struct null_record_runtime* null_record_by_name(const char *name)
         return(rec);
     }
 
-    if(null_runtime->rec_array_ndx < null_runtime->rec_array_size);
-    {
-        /* no existing record, assign a new one from the global array */
-        rec = &(null_runtime->runtime_record_array[null_runtime->rec_array_ndx]);
-        rec->record_p = &(null_runtime->record_array[null_runtime->rec_array_ndx]);
+    /* no existing record, assign a new one from the global array */
+    rec = &(null_runtime->runtime_record_array[null_runtime->rec_array_ndx]);
+    rec->record_p = &(null_runtime->record_array[null_runtime->rec_array_ndx]);
 
-        /* set the darshan record id and corresponding process rank for this record */
-        rec->record_p->f_id = rec_id;
-        rec->record_p->rank = my_rank;
+    /* set the darshan record id and corresponding process rank for this record */
+    rec->record_p->f_id = rec_id;
+    rec->record_p->rank = my_rank;
 
-        /* add new record to file hash table */
-        HASH_ADD(hlink, null_runtime->record_hash, record_p->f_id, sizeof(darshan_record_id), rec);
-
-        null_runtime->rec_array_ndx++;
-    }
+    /* add new record to file hash table */
+    HASH_ADD(hlink, null_runtime->record_hash, record_p->f_id, sizeof(darshan_record_id), rec);
+    null_runtime->rec_array_ndx++;
 
     return(rec);
 }
