@@ -240,7 +240,7 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
 
     /* read the compressed job data from the log file */
     ret = darshan_log_dzread(fd, DARSHAN_JOB_REGION_ID, job_buf, job_buf_sz);
-    if(ret <= sizeof(*job))
+    if(ret <= (int)sizeof(*job))
     {
         fprintf(stderr, "Error: failed to read darshan log file job data.\n");
         return(-1);
@@ -299,7 +299,7 @@ int darshan_log_putjob(darshan_fd fd, struct darshan_job *job)
 
     /* write the compressed job data to log file */
     ret = darshan_log_dzwrite(fd, DARSHAN_JOB_REGION_ID, &job_copy, sizeof(*job));
-    if(ret != sizeof(*job))
+    if(ret != (int)sizeof(*job))
     {
         state->err = -1;
         fprintf(stderr, "Error: failed to write darshan log file job data.\n");
@@ -844,7 +844,7 @@ static int darshan_log_getheader(darshan_fd fd)
 
     /* read uncompressed header from log file */
     ret = darshan_log_read(fd, &header, sizeof(header));
-    if(ret != sizeof(header))
+    if(ret != (int)sizeof(header))
     {
         fprintf(stderr, "Error: failed to read darshan log file header.\n");
         return(-1);
@@ -887,10 +887,37 @@ static int darshan_log_getheader(darshan_fd fd)
     fd->partial_flag = header.partial_flag;
 
     /* save the mapping of data within log file to this file descriptor */
-    fd->job_map.off = sizeof(struct darshan_header);
-    fd->job_map.len = header.rec_map.off - fd->job_map.off;
     memcpy(&fd->rec_map, &(header.rec_map), sizeof(struct darshan_log_map));
     memcpy(&fd->mod_map, &(header.mod_map), DARSHAN_MAX_MODS * sizeof(struct darshan_log_map));
+
+    /* there may be nothing following the job data, so safety check map */
+    fd->job_map.off = sizeof(struct darshan_header);
+    if(fd->rec_map.off == 0)
+    {
+        for(i = 0; i < DARSHAN_MAX_MODS; i++)
+        {
+            if(fd->mod_map[i].off != 0)
+            {
+                fd->job_map.len = fd->mod_map[i].off - fd->job_map.off;
+                break;
+            }
+        }
+
+        if(fd->job_map.len == 0)
+        {
+            struct stat sbuf;
+            if(fstat(fd->state->fildes, &sbuf) != 0)
+            {
+                fprintf(stderr, "Error: unable to stat darshan log file.\n");
+                return(-1);
+            }
+            fd->job_map.len = sbuf.st_size - fd->job_map.off;
+        }
+    }
+    else
+    {
+        fd->job_map.len = fd->rec_map.off - fd->job_map.off;
+    }
 
     return(0);
 }
@@ -924,7 +951,7 @@ static int darshan_log_putheader(darshan_fd fd)
 
     /* write header to file */
     ret = darshan_log_write(fd, &header, sizeof(header));
-    if(ret != sizeof(header))
+    if(ret != (int)sizeof(header))
     {
         fprintf(stderr, "Error: failed to write Darshan log file header.\n");
         return(-1);
@@ -1342,7 +1369,6 @@ static int darshan_log_libz_flush(darshan_fd fd, int region_id)
 }
 
 #ifdef HAVE_LIBBZ2
-
 static int darshan_log_bzip2_read(darshan_fd fd, int region_id, void *buf, int len)
 {
     struct darshan_fd_int_state *state = fd->state;
@@ -1532,13 +1558,11 @@ static int darshan_log_bzip2_flush(darshan_fd fd, int region_id)
             bz_strmp->next_out = (char *)state->dz.buf;
         }
     } while (ret != BZ_STREAM_END);
-
     
     BZ2_bzCompressEnd(bz_strmp);
     BZ2_bzCompressInit(bz_strmp, 9, 1, 30);
     return(0);
 }
-
 #endif
 
 static int darshan_log_dzload(darshan_fd fd, struct darshan_log_map map)
