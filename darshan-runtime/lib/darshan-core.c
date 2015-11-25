@@ -264,7 +264,6 @@ void darshan_core_shutdown()
     double header1, header2;
     double tm_end;
     uint64_t gz_fp = 0;
-    uint32_t tmp_partial_flag;
     MPI_File log_fh;
     MPI_Status status;
 
@@ -555,23 +554,28 @@ void darshan_core_shutdown()
             mod2[i] = DARSHAN_MPI_CALL(PMPI_Wtime)();
     }
 
-    /* run a reduction to determine if any application processes had to set the
-     * partial flag for any modules. this happens when a module exhausts its memory
-     * and does not track every possible record
-     */
-    DARSHAN_MPI_CALL(PMPI_Reduce)(&(final_core->log_header.partial_flag),
-        &tmp_partial_flag, 1, MPI_UINT32_T, MPI_BOR, 0, MPI_COMM_WORLD);
-
     if(internal_timing_flag)
         header1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
-    /* rank 0 is responsible for writing the log header */
+    /* write out log header, after running 2 reduction on header variables:
+     *  1) reduce 'partial_flag' variable to determine which modules ran out
+     *     of memory for storing I/O data
+     *  2) reduce 'mod_ver' array to determine which log format version each
+     *     module used for this output log
+     */
     if(my_rank == 0)
     {
+        DARSHAN_MPI_CALL(PMPI_Reduce)(MPI_IN_PLACE,
+            &(final_core->log_header.partial_flag), 1, MPI_UINT32_T,
+            MPI_BOR, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(MPI_IN_PLACE,
+            final_core->log_header.mod_ver, DARSHAN_MAX_MODS, MPI_UINT32_T,
+            MPI_MAX, 0, MPI_COMM_WORLD);
+
+        /* rank 0 is responsible for writing the log header */
         /* initialize the remaining header fields */
         strcpy(final_core->log_header.version_string, DARSHAN_LOG_VERSION);
         final_core->log_header.magic_nr = DARSHAN_MAGIC_NR;
         final_core->log_header.comp_type = DARSHAN_ZLIB_COMP;
-        final_core->log_header.partial_flag = tmp_partial_flag;
 
         all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, 0, &(final_core->log_header),
             sizeof(struct darshan_header), MPI_BYTE, &status);
@@ -581,6 +585,15 @@ void darshan_core_shutdown()
                     logfile_name);
             unlink(logfile_name);
         }
+    }
+    else
+    {
+        DARSHAN_MPI_CALL(PMPI_Reduce)(&(final_core->log_header.partial_flag),
+            &(final_core->log_header.partial_flag), 1, MPI_UINT32_T,
+            MPI_BOR, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(final_core->log_header.mod_ver,
+            final_core->log_header.mod_ver, DARSHAN_MAX_MODS, MPI_UINT32_T,
+            MPI_MAX, 0, MPI_COMM_WORLD);
     }
 
     /* error out if unable to write log header */
@@ -1532,6 +1545,7 @@ void darshan_core_register_module(
 
     /* register module with darshan */
     darshan_core->mod_array[mod_id] = mod;
+    darshan_core->log_header.mod_ver[mod_id] = darshan_module_versions[mod_id];
 
     /* get the calling process's rank */
     DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, my_rank);
