@@ -299,17 +299,17 @@ int main(int argc, char **argv)
     }
 
     /* print breakdown of each log file region's contribution to file size */
-    printf("\n# log file region sizes (compressed)\n");
+    printf("\n# log file regions\n");
     printf("# -------------------------------------------------------\n");
     printf("# header: %zu bytes (uncompressed)\n", sizeof(struct darshan_header));
-    printf("# job data: %zu bytes\n", fd->job_map.len);
-    printf("# record table: %zu bytes\n", fd->rec_map.len);
+    printf("# job data: %zu bytes (compressed)\n", fd->job_map.len);
+    printf("# record table: %zu bytes (compressed)\n", fd->rec_map.len);
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
         if(fd->mod_map[i].len)
         {
-            printf("# %s module: %zu bytes\n", darshan_module_names[i],
-                fd->mod_map[i].len);
+            printf("# %s module: %zu bytes (compressed), ver=%d\n",
+                darshan_module_names[i], fd->mod_map[i].len, fd->mod_ver[i]);
         }
     }
 
@@ -417,7 +417,7 @@ int main(int argc, char **argv)
             {
                 /* print the corresponding module data for this record */
                 mod_logutils[i]->log_print_record(mod_buf, ref->rec.name,
-                    mnt_pt, fs_type);
+                    mnt_pt, fs_type, fd->mod_ver[i]);
             }
 
             /* we calculate more detailed stats for POSIX and MPI-IO modules, 

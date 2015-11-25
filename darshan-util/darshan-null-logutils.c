@@ -34,9 +34,9 @@ char *null_f_counter_names[] = {
 /* prototypes for each of the NULL module's logutil functions */
 static int darshan_log_get_null_record(darshan_fd fd, void* null_buf,
     darshan_record_id* rec_id);
-static int darshan_log_put_null_record(darshan_fd fd, void* null_buf);
+static int darshan_log_put_null_record(darshan_fd fd, void* null_buf, int ver);
 static void darshan_log_print_null_record(void *file_rec,
-    char *file_name, char *mnt_pt, char *fs_type);
+    char *file_name, char *mnt_pt, char *fs_type, int ver);
 
 /* structure storing each function needed for implementing the darshan
  * logutil interface. these functions are used for reading, writing, and
@@ -91,14 +91,14 @@ static int darshan_log_get_null_record(darshan_fd fd, void* null_buf,
 /* write the NULL record stored in 'null_buf' to log file descriptor 'fd'.
  * Return 0 on success, -1 on failure
  */
-static int darshan_log_put_null_record(darshan_fd fd, void* null_buf)
+static int darshan_log_put_null_record(darshan_fd fd, void* null_buf, int ver)
 {
     struct darshan_null_record *rec = (struct darshan_null_record *)null_buf;
     int ret;
 
     /* append NULL record to darshan log file */
     ret = darshan_log_putmod(fd, DARSHAN_NULL_MOD, rec,
-        sizeof(struct darshan_null_record));
+        sizeof(struct darshan_null_record), ver);
     if(ret < 0)
         return(-1);
 
@@ -107,7 +107,7 @@ static int darshan_log_put_null_record(darshan_fd fd, void* null_buf)
 
 /* print all I/O data record statistics for the given NULL record */
 static void darshan_log_print_null_record(void *file_rec, char *file_name,
-    char *mnt_pt, char *fs_type)
+    char *mnt_pt, char *fs_type, int ver)
 {
     int i;
     struct darshan_null_record *null_rec =

@@ -388,7 +388,6 @@ void darshan_core_shutdown()
         {
             fprintf(stderr, "darshan library warning: unable to open log file %s\n",
                 logfile_name);
-            unlink(logfile_name);
         }
         free(logfile_name);
         darshan_core_cleanup(final_core);

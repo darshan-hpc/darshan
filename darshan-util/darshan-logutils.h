@@ -33,6 +33,8 @@ struct darshan_fd_s
     struct darshan_log_map job_map;
     struct darshan_log_map rec_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
+    /* module-specific log-format versions contained in log */
+    uint32_t mod_ver[DARSHAN_MAX_MODS];
 
     /* KEEP OUT -- remaining state hidden in logutils source */
     struct darshan_fd_int_state *state;
@@ -64,14 +66,16 @@ struct darshan_mod_logutil_funcs
      */
     int (*log_put_record)(
         darshan_fd fd,
-        void *buf
+        void *buf,
+        int ver
     );
     /* print the counters for a given log file record */
     void (*log_print_record)(
         void *file_rec,
         char *file_name,
         char *mnt_pt,
-        char *fs_type
+        char *fs_type,
+        int ver
     );
 };
 
@@ -99,7 +103,7 @@ int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash);
 int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz);
 int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
-    void *mod_buf, int mod_buf_sz);
+    void *mod_buf, int mod_buf_sz, int ver);
 void darshan_log_close(darshan_fd file);
 
 /* convenience macros for printing Darshan counters */

@@ -730,7 +730,7 @@ int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
  * returns number of bytes written on success, -1 on failure
  */
 int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
-    void *mod_buf, int mod_buf_sz)
+    void *mod_buf, int mod_buf_sz, int ver)
 {
     struct darshan_fd_int_state *state = fd->state;
     int ret;
@@ -754,6 +754,9 @@ int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
             darshan_module_names[mod_id]);
         return(-1);
     }
+
+    /* set the version number for this module's data */
+    fd->mod_ver[mod_id] = ver;
 
     return(0);
 }
@@ -883,8 +886,10 @@ static int darshan_log_getheader(darshan_fd fd)
         }
     }
 
+    /* set some fd fields based on what's stored in the header */
     state->comp_type = header.comp_type;
     fd->partial_flag = header.partial_flag;
+    memcpy(fd->mod_ver, header.mod_ver, DARSHAN_MAX_MODS * sizeof(uint32_t));
 
     /* save the mapping of data within log file to this file descriptor */
     fd->job_map.off = sizeof(struct darshan_header);

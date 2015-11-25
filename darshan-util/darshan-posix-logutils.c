@@ -32,9 +32,9 @@ char *posix_f_counter_names[] = {
 
 static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf,
     darshan_record_id* rec_id);
-static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf);
+static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver);
 static void darshan_log_print_posix_file(void *file_rec,
-    char *file_name, char *mnt_pt, char *fs_type);
+    char *file_name, char *mnt_pt, char *fs_type, int ver);
 
 struct darshan_mod_logutil_funcs posix_logutils =
 {
@@ -75,13 +75,13 @@ static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf,
     }
 }
 
-static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf)
+static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver)
 {
     struct darshan_posix_file *file = (struct darshan_posix_file *)posix_buf;
     int ret;
 
     ret = darshan_log_putmod(fd, DARSHAN_POSIX_MOD, file,
-        sizeof(struct darshan_posix_file));
+        sizeof(struct darshan_posix_file), ver);
     if(ret < 0)
         return(-1);
 
@@ -89,7 +89,7 @@ static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf)
 }
 
 static void darshan_log_print_posix_file(void *file_rec, char *file_name,
-    char *mnt_pt, char *fs_type)
+    char *mnt_pt, char *fs_type, int ver)
 {
     int i;
     struct darshan_posix_file *posix_file_rec =

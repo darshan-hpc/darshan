@@ -32,9 +32,9 @@ char *bgq_f_counter_names[] = {
 
 static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf,
     darshan_record_id* rec_id);
-static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf);
+static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf, int ver);
 static void darshan_log_print_bgq_rec(void *file_rec,
-    char *file_name, char *mnt_pt, char *fs_type);
+    char *file_name, char *mnt_pt, char *fs_type, int ver);
 
 struct darshan_mod_logutil_funcs bgq_logutils =
 {
@@ -75,13 +75,13 @@ static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf,
     }
 }
 
-static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf)
+static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf, int ver)
 {
     struct darshan_bgq_record *rec = (struct darshan_bgq_record *)bgq_buf;
     int ret;
 
     ret = darshan_log_putmod(fd, DARSHAN_BGQ_MOD, rec,
-        sizeof(struct darshan_bgq_record));
+        sizeof(struct darshan_bgq_record), ver);
     if(ret < 0)
         return(-1);
 
@@ -89,7 +89,7 @@ static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf)
 }
 
 static void darshan_log_print_bgq_rec(void *file_rec, char *file_name,
-    char *mnt_pt, char *fs_type)
+    char *mnt_pt, char *fs_type, int ver)
 {
     int i;
     struct darshan_bgq_record *bgq_file_rec =

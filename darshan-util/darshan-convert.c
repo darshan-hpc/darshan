@@ -373,7 +373,7 @@ int main(int argc, char **argv)
         {
             if(!hash || hash == rec_id)
             {
-                ret = mod_logutils[i]->log_put_record(outfile, mod_buf);
+                ret = mod_logutils[i]->log_put_record(outfile, mod_buf, infile->mod_ver[i]);
                 if(ret < 0)
                 {
                     darshan_log_close(infile);

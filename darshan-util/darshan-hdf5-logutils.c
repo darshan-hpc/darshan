@@ -32,9 +32,9 @@ char *hdf5_f_counter_names[] = {
 
 static int darshan_log_get_hdf5_file(darshan_fd fd, void* hdf5_buf,
     darshan_record_id* rec_id);
-static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf);
+static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf, int ver);
 static void darshan_log_print_hdf5_file(void *file_rec,
-    char *file_name, char *mnt_pt, char *fs_type);
+    char *file_name, char *mnt_pt, char *fs_type, int ver);
 
 struct darshan_mod_logutil_funcs hdf5_logutils =
 {
@@ -75,13 +75,13 @@ static int darshan_log_get_hdf5_file(darshan_fd fd, void* hdf5_buf,
     }
 }
 
-static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf)
+static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf, int ver)
 {
     struct darshan_hdf5_file *file = (struct darshan_hdf5_file *)hdf5_buf;
     int ret;
 
     ret = darshan_log_putmod(fd, DARSHAN_HDF5_MOD, file,
-        sizeof(struct darshan_hdf5_file));
+        sizeof(struct darshan_hdf5_file), ver);
     if(ret < 0)
         return(-1);
 
@@ -89,7 +89,7 @@ static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf)
 }
 
 static void darshan_log_print_hdf5_file(void *file_rec, char *file_name,
-    char *mnt_pt, char *fs_type)
+    char *mnt_pt, char *fs_type, int ver)
 {
     int i;
     struct darshan_hdf5_file *hdf5_file_rec =
