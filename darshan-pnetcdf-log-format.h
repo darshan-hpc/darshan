@@ -7,7 +7,8 @@
 #ifndef __DARSHAN_PNETCDF_LOG_FORMAT_H
 #define __DARSHAN_PNETCDF_LOG_FORMAT_H
 
-#include "darshan-log-format.h"
+/* current PNETCDF log format version */
+#define DARSHAN_PNETCDF_VER 1
 
 #define PNETCDF_COUNTERS \
     /* count of PNETCDF independent opens */\

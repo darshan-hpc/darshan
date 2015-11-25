@@ -16,7 +16,6 @@
 
 #include "uthash.h"
 #include "darshan.h"
-#include "darshan-null-log-format.h"
 
 /* The "NULL" module is an example instrumentation module implementation provided
  * with Darshan, primarily to indicate how arbitrary modules may be integrated

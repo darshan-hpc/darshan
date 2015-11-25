@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include "darshan-pnetcdf-logutils.h"
+#include "darshan-logutils.h"
 
 /* counter name strings for the PNETCDF module */
 #define X(a) #a,

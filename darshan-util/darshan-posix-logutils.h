@@ -7,9 +7,6 @@
 #ifndef __DARSHAN_POSIX_LOG_UTILS_H
 #define __DARSHAN_POSIX_LOG_UTILS_H
 
-#include "darshan-logutils.h"
-#include "darshan-posix-log-format.h"
-
 extern char *posix_counter_names[];
 extern char *posix_f_counter_names[];
 

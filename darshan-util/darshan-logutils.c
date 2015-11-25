@@ -87,7 +87,7 @@ static int darshan_log_dzload(darshan_fd fd, struct darshan_log_map map);
 static int darshan_log_dzunload(darshan_fd fd, struct darshan_log_map *map_p);
 
 /* each module's implementation of the darshan logutil functions */
-#define X(a, b, c) c,
+#define X(a, b, c, d) d,
 struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
 {
     DARSHAN_MODULE_IDS

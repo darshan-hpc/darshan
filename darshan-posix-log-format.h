@@ -6,7 +6,8 @@
 #ifndef __DARSHAN_POSIX_LOG_FORMAT_H
 #define __DARSHAN_POSIX_LOG_FORMAT_H
 
-#include "darshan-log-format.h"
+/* current POSIX log format version */
+#define DARSHAN_POSIX_VER 1
 
 #define POSIX_COUNTERS \
     /* count of posix opens */\

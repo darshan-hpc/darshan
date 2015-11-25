@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include "darshan-bgq-logutils.h"
+#include "darshan-logutils.h"
 
 /* counter name strings for the POSIX module */
 #define X(a, b) #a,

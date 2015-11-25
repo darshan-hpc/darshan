@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include "darshan-hdf5-logutils.h"
+#include "darshan-logutils.h"
 
 /* counter name strings for the HDF5 module */
 #define X(a) #a,

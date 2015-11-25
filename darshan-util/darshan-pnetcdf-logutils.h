@@ -7,9 +7,6 @@
 #ifndef __DARSHAN_PNETCDF_LOG_UTILS_H
 #define __DARSHAN_PNETCDF_LOG_UTILS_H
 
-#include "darshan-logutils.h"
-#include "darshan-pnetcdf-log-format.h"
-
 extern char *pnetcdf_counter_names[];
 extern char *pnetcdf_f_counter_names[];
 

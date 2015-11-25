@@ -93,10 +93,10 @@ lookup3.o: lookup3.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 darshan-analyzer: darshan-analyzer.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_MOD_LOGUTIL_HEADERS) $(DARSHAN_MOD_LOG_FORMATS) libdarshan-util.a | uthash-1.9.2
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $< libdarshan-util.a -o $@ $(LIBS)
 
 darshan-convert: darshan-convert.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) libdarshan-util.a lookup3.o | uthash-1.9.2
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $< lookup3.o libdarshan-util.a -o $@ $(LIBS)
 
 #darshan-diff: darshan-diff.o $(DARSHAN_LOG_FORMAT) darshan-logutils.o darshan-logutils.h
 #	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
@@ -104,7 +104,7 @@ darshan-convert: darshan-convert.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) libd
 #	$(CC) $(CFLAGS) -c  $< -o $@
 
 darshan-parser: darshan-parser.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_MOD_LOGUTIL_HEADERS) $(DARSHAN_MOD_LOG_FORMATS) libdarshan-util.a | uthash-1.9.2
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS) 
+	$(CC) $(CFLAGS) $(LDFLAGS) $< libdarshan-util.a -o $@ $(LIBS) 
 
 #test/gztest: test/gztest.c mktestdir
 #	$(CC) $(CFLAGS)  $(LDFLAGS) -lz $< -o $@

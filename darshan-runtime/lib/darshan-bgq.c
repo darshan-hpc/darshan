@@ -16,7 +16,6 @@
 
 #include "uthash.h"
 #include "darshan.h"
-#include "darshan-bgq-log-format.h"
 #include "darshan-dynamic.h"
 
 #include <mpix.h>

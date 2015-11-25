@@ -22,7 +22,6 @@
 #include "uthash.h"
 
 #include "darshan.h"
-#include "darshan-pnetcdf-log-format.h"
 #include "darshan-dynamic.h"
 
 DARSHAN_FORWARD_DECL(ncmpi_create, int, (MPI_Comm comm, const char *path, int cmode, MPI_Info info, int *ncidp));

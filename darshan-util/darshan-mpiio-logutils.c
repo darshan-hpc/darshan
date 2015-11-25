@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include "darshan-mpiio-logutils.h"
+#include "darshan-logutils.h"
 
 /* counter name strings for the MPI-IO module */
 #define X(a) #a,

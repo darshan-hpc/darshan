@@ -7,8 +7,8 @@
 #ifndef __DARSHAN_BGQ_LOG_FORMAT_H
 #define __DARSHAN_BGQ_LOG_FORMAT_H
 
-#include "darshan-log-format.h"
-
+/* current BGQ log format version */
+#define DARSHAN_BGQ_VER 1
 
 #define BGQ_COUNTERS \
     X(BGQ_CSJOBID, "control system jobid") \

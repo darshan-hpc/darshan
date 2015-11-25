@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include "darshan-null-logutils.h"
+#include "darshan-logutils.h"
 
 /* integer counter name strings for the NULL module */
 #define X(a) #a,

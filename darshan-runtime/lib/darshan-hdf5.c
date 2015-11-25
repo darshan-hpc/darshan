@@ -22,7 +22,6 @@
 #include "uthash.h"
 
 #include "darshan.h"
-#include "darshan-hdf5-log-format.h"
 #include "darshan-dynamic.h"
 
 /* hope this doesn't change any time soon */
