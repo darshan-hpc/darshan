@@ -98,10 +98,9 @@ struct darshan_module_funcs
 void darshan_core_register_module(
     darshan_module_id mod_id,
     struct darshan_module_funcs *funcs,
+    void **mod_buf,
+    int *mod_buf_size,
     int *my_rank,
-    int *mod_mem_limit,
-    void **mmap_buf,
-    int *mmap_buf_size,
     int *sys_mem_alignment);
 
 /* darshan_core_unregister_module()
