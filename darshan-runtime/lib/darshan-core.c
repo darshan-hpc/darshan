@@ -256,7 +256,7 @@ void darshan_core_initialize(int argc, char **argv)
             init_core->log_hdr_p = (struct darshan_header *)
                 (init_core->mmap_p);
             init_core->log_job_p = (struct darshan_job *)
-                (init_core->log_hdr_p + sizeof(struct darshan_header));
+                ((char *)init_core->log_hdr_p + sizeof(struct darshan_header));
             init_core->log_exemnt_p = (char *)
                 (((char *)init_core->log_job_p) + sizeof(struct darshan_job));
             /* TODO: file hash & module memory */
