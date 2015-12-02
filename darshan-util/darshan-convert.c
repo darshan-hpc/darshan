@@ -250,7 +250,7 @@ int main(int argc, char **argv)
     if(!infile)
         return(-1);
  
-    comp_type = bzip2 ? comp_type = DARSHAN_BZIP2_COMP : DARSHAN_ZLIB_COMP;
+    comp_type = bzip2 ? DARSHAN_BZIP2_COMP : DARSHAN_ZLIB_COMP;
     outfile = darshan_log_create(outfile_name, comp_type, infile->partial_flag);
     if(!outfile)
     {

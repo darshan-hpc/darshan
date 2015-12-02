@@ -199,6 +199,7 @@ int main(int argc, char **argv)
     int mask;
     int i, j;
     char *filename;
+    char *comp_str;
     char tmp_string[4096] = {0};
     darshan_fd fd;
     struct darshan_job job;
@@ -263,8 +264,18 @@ int main(int argc, char **argv)
         return(-1);
     }
 
+    if(fd->comp_type == DARSHAN_ZLIB_COMP)
+        comp_str = "ZLIB";
+    else if (fd->comp_type == DARSHAN_BZIP2_COMP)
+        comp_str = "BZIP2";
+    else if (fd->comp_type == DARSHAN_NO_COMP)
+        comp_str = "NONE";
+    else
+        comp_str = "UNKNOWN";
+
     /* print job summary */
     printf("# darshan log version: %s\n", fd->version);
+    printf("# compression method: %s\n", comp_str);
     printf("# exe: %s\n", tmp_string);
     printf("# uid: %" PRId64 "\n", job.uid);
     printf("# jobid: %" PRId64 "\n", job.jobid);

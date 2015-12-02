@@ -77,9 +77,9 @@ static char * const darshan_module_names[] =
 /* compression method used on darshan log file */
 enum darshan_comp_type
 {
-    DARSHAN_NO_COMP, 
     DARSHAN_ZLIB_COMP,
     DARSHAN_BZIP2_COMP,
+    DARSHAN_NO_COMP, 
 };
 
 typedef uint64_t darshan_record_id;
