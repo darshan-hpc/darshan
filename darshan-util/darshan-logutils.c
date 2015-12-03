@@ -508,12 +508,12 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
     int hash_buf_sz;
     char *buf_ptr;
     darshan_record_id *rec_id_ptr;
-    uint32_t *path_len_ptr, tmp_path_len;
     char *path_ptr;
+    char *tmp_p;
     struct darshan_record_ref *ref;
     int read;
     int read_req_sz;
-    int buf_remaining = 0;
+    int buf_rem = 0;
 
     assert(state);
 
@@ -536,9 +536,9 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
         /* read chunks of the darshan record id -> file name mapping from log file,
          * constructing a hash table in the process
          */
-        read_req_sz = hash_buf_sz - buf_remaining;
+        read_req_sz = hash_buf_sz - buf_rem;
         read = darshan_log_dzread(fd, DARSHAN_REC_MAP_REGION_ID,
-            hash_buf + buf_remaining, read_req_sz);
+            hash_buf + buf_rem, read_req_sz);
         if(read < 0)
         {
             fprintf(stderr, "Error: failed to read record hash from darshan log file.\n");
@@ -552,34 +552,32 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
          * to handle incomplete mappings temporarily here
          */
         buf_ptr = hash_buf;
-        buf_remaining += read;
-        while(buf_remaining > (sizeof(darshan_record_id) + sizeof(uint32_t)))
+        buf_rem += read;
+        while(buf_rem > (sizeof(darshan_record_id) + 1))
         {
-            /* see if we have enough buf space to read in the next full record */
-            tmp_path_len = *(uint32_t *)(buf_ptr + sizeof(darshan_record_id));
-            if(fd->swap_flag)
-                DARSHAN_BSWAP32(&tmp_path_len);
-
-            /* we need to read more before we continue deserializing */
-            if(buf_remaining <
-                (sizeof(darshan_record_id) + sizeof(uint32_t) + tmp_path_len))
+            tmp_p = buf_ptr + sizeof(darshan_record_id);
+            while(tmp_p < (buf_ptr + buf_rem))
+            {
+                /* look for terminating null character for record name */
+                if(*tmp_p == '\0')
+                    break;
+                tmp_p++;
+            }
+            if(*tmp_p != '\0')
                 break;
 
             /* get pointers for each field of this darshan record */
             /* NOTE: darshan record hash serialization method: 
-             *          ... darshan_record_id | (uint32_t) path_len | path ...
+             *          ... darshan_record_id | path '\0' ...
              */
             rec_id_ptr = (darshan_record_id *)buf_ptr;
             buf_ptr += sizeof(darshan_record_id);
-            path_len_ptr = (uint32_t *)buf_ptr;
-            buf_ptr += sizeof(uint32_t);
             path_ptr = (char *)buf_ptr;
 
             if(fd->swap_flag)
             {
                 /* we need to sort out endianness issues before deserializing */
                 DARSHAN_BSWAP64(rec_id_ptr);
-                DARSHAN_BSWAP32(path_len_ptr);
             }
 
             HASH_FIND(hlink, *hash, rec_id_ptr, sizeof(darshan_record_id), ref);
@@ -591,7 +589,7 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
                     free(hash_buf);
                     return(-1);
                 }
-                ref->rec.name = malloc(*path_len_ptr + 1);
+                ref->rec.name = malloc(strlen(path_ptr) + 1);
                 if(!ref->rec.name)
                 {
                     free(ref);
@@ -601,26 +599,24 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
 
                 /* set the fields for this record */
                 ref->rec.id = *rec_id_ptr;
-                memcpy(ref->rec.name, path_ptr, *path_len_ptr);
-                ref->rec.name[*path_len_ptr] = '\0';
+                strcpy(ref->rec.name, path_ptr);
 
                 /* add this record to the hash */
                 HASH_ADD(hlink, *hash, rec.id, sizeof(darshan_record_id), ref);
             }
 
-            buf_ptr += *path_len_ptr;
-            buf_remaining -=
-                (sizeof(darshan_record_id) + sizeof(uint32_t) + *path_len_ptr);
+            buf_ptr += strlen(path_ptr) + 1;
+            buf_rem -= (sizeof(darshan_record_id) + strlen(path_ptr) + 1);
         }
 
         /* copy any leftover data to beginning of buffer to parse next */
-        memcpy(hash_buf, buf_ptr, buf_remaining);
+        memcpy(hash_buf, buf_ptr, buf_rem);
 
         /* we keep reading until we get a short read informing us we have
          * read all of the record hash
          */
     } while(read == read_req_sz);
-    assert(buf_remaining == 0);
+    assert(buf_rem == 0);
 
     free(hash_buf);
     return(0);
@@ -1178,6 +1174,7 @@ static int darshan_log_dzread(darshan_fd fd, int region_id, void *buf, int len)
     if(region_id != state->dz.prev_reg_id)
     {
         state->dz.eor = 0;
+        state->dz.size = 0;
         reset_strm_flag = 1; /* reset libz/bzip2 streams */
     }
 
@@ -1602,12 +1599,12 @@ static int darshan_log_noz_read(darshan_fd fd, struct darshan_log_map map,
     if(reset_strm_flag)
         *buf_off = state->dz.size;
 
-    /* we just decompress until the output buffer is full, assuming there
-     * is enough compressed data in file to satisfy the request size.
+    /* we just read data from the given log file region until we have
+     * accumulated 'len' bytes, or until the region ends
      */
     while(total_bytes < len)
     {
-        /* check if we need more compressed data */
+        /* check if we need to load more data from log file */
         if(*buf_off == state->dz.size)
         {
             /* if the eor flag is set, clear it and return -- future
@@ -1642,8 +1639,6 @@ static int darshan_log_dzload(darshan_fd fd, struct darshan_log_map map)
     int ret;
     unsigned int remaining;
     unsigned int read_size;
-
-    state->dz.size = 0;
 
     /* seek to the appropriate portion of the log file, if out of range */
     if((state->pos < map.off) || (state->pos >= (map.off + map.len)))
