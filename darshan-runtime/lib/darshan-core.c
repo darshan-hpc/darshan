@@ -89,8 +89,6 @@ static struct mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
 
 /* prototypes for internal helper functions */
-static void darshan_get_logfile_name(
-    char* logfile_name, int jobid, struct tm* start_tm);
 static void darshan_log_record_hints_and_ver(
     struct darshan_core_runtime* core);
 static void darshan_get_exe_and_mounts_root(
@@ -99,6 +97,8 @@ static void darshan_get_exe_and_mounts(
     struct darshan_core_runtime *core, int argc, char **argv);
 static void darshan_block_size_from_path(
     const char *path, int *block_size);
+static void darshan_get_logfile_name(
+    char* logfile_name, int jobid, struct tm* start_tm);
 static void darshan_get_shared_records(
     struct darshan_core_runtime *core, darshan_record_id **shared_recs,
     int *shared_rec_cnt);
@@ -201,7 +201,8 @@ void darshan_core_initialize(int argc, char **argv)
             assert(sys_page_size > 0);
 
             /* XXX: MMAP */
-            mmap_size = sizeof(struct darshan_header) + DARSHAN_JOB_RECORD_SIZE + DARSHAN_MOD_MEM_MAX;
+            mmap_size = sizeof(struct darshan_header) + DARSHAN_JOB_RECORD_SIZE +
+                DARSHAN_MOD_MEM_MAX;
             if(mmap_size % sys_page_size)
                 mmap_size = ((mmap_size / sys_page_size) + 1) * sys_page_size;
 
@@ -237,9 +238,8 @@ void darshan_core_initialize(int argc, char **argv)
             /* memory map buffers for getting at least some summary i/o data
              * into a log file if darshan does not shut down properly
              */
-            init_core->mmap_p = mmap(NULL, mmap_size, PROT_WRITE, MAP_SHARED,
-                mmap_fd, 0);
-            if(init_core->mmap_p == MAP_FAILED)
+            void *mmap_p = mmap(NULL, mmap_size, PROT_WRITE, MAP_SHARED, mmap_fd, 0);
+            if(mmap_p == MAP_FAILED)
             {
                 fprintf(stderr, "darshan library warning: "
                     "unable to mmap darshan log file %s\n", mmap_log_name);
@@ -253,20 +253,23 @@ void darshan_core_initialize(int argc, char **argv)
             close(mmap_fd);
 
             /* set the memory pointers for each log file region */
-            init_core->log_hdr_p = (struct darshan_header *)
-                (init_core->mmap_p);
+            init_core->log_hdr_p = (struct darshan_header *)mmap_p;
             init_core->log_job_p = (struct darshan_job *)
                 ((char *)init_core->log_hdr_p + sizeof(struct darshan_header));
             init_core->log_exemnt_p = (char *)
-                (((char *)init_core->log_job_p) + sizeof(struct darshan_job));
-            /* TODO: file hash & module memory */
-
+                ((char *)init_core->log_job_p + sizeof(struct darshan_job));
+            init_core->log_rec_p = (void *)
+                ((char *)init_core->log_exemnt_p + DARSHAN_EXE_LEN + 1);
+            init_core->log_mod_p = (void *)
+                ((char *)init_core->log_rec_p + DARSHAN_RECORD_BUF_SIZE);
             /* XXX: MMAP */
 
             /* set known header fields for the log file */
             strcpy(init_core->log_hdr_p->version_string, DARSHAN_LOG_VERSION);
             init_core->log_hdr_p->magic_nr = DARSHAN_MAGIC_NR;
             init_core->log_hdr_p->comp_type = DARSHAN_NO_COMP;
+            init_core->log_hdr_p->rec_map.off =
+                sizeof(struct darshan_header) + DARSHAN_JOB_RECORD_SIZE;
 
             /* set known job-level metadata fields for the log file */
             init_core->log_job_p->uid = getuid();
@@ -368,161 +371,6 @@ void darshan_core_shutdown()
 }
 
 /* *********************************** */
-
-/* construct the darshan log file name */
-static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* start_tm)
-{
-    char* user_logfile_name;
-    char* logpath;
-    char* logname_string;
-    char* logpath_override = NULL;
-#ifdef __DARSHAN_LOG_ENV
-    char env_check[256];
-    char* env_tok;
-#endif
-    uint64_t hlevel;
-    char hname[HOST_NAME_MAX];
-    uint64_t logmod;
-    char cuser[L_cuserid] = {0};
-    int ret;
-
-    /* first, check if user specifies a complete logpath to use */
-    user_logfile_name = getenv("DARSHAN_LOGFILE");
-    if(user_logfile_name)
-    {
-        if(strlen(user_logfile_name) >= (PATH_MAX-1))
-        {
-            fprintf(stderr, "darshan library warning: user log file name too long.\n");
-            logfile_name[0] = '\0';
-        }
-        else
-        {
-            strcpy(logfile_name, user_logfile_name);
-        }
-    }
-    else
-    {
-        /* otherwise, generate the log path automatically */
-
-        /* Use DARSHAN_LOG_PATH_OVERRIDE for the value or __DARSHAN_LOG_PATH */
-        logpath = getenv(DARSHAN_LOG_PATH_OVERRIDE);
-        if(!logpath)
-        {
-#ifdef __DARSHAN_LOG_PATH
-            logpath = __DARSHAN_LOG_PATH;
-#endif
-        }
-
-        /* get the username for this job.  In order we will try each of the
-         * following until one of them succeeds:
-         *
-         * - cuserid()
-         * - getenv("LOGNAME")
-         * - snprintf(..., geteuid());
-         *
-         * Note that we do not use getpwuid() because it generally will not
-         * work in statically compiled binaries.
-         */
-
-#ifndef DARSHAN_DISABLE_CUSERID
-        cuserid(cuser);
-#endif
-
-        /* if cuserid() didn't work, then check the environment */
-        if(strcmp(cuser, "") == 0)
-        {
-            logname_string = getenv("LOGNAME");
-            if(logname_string)
-            {
-                strncpy(cuser, logname_string, (L_cuserid-1));
-            }
-        }
-
-        /* if cuserid() and environment both fail, then fall back to uid */
-        if(strcmp(cuser, "") == 0)
-        {
-            uid_t uid = geteuid();
-            snprintf(cuser, sizeof(cuser), "%u", uid);
-        }
-
-        /* generate a random number to help differentiate the log */
-        hlevel=DARSHAN_MPI_CALL(PMPI_Wtime)() * 1000000;
-        (void)gethostname(hname, sizeof(hname));
-        logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
-
-        /* see if darshan was configured using the --with-logpath-by-env
-         * argument, which allows the user to specify an absolute path to
-         * place logs via an env variable.
-         */
-#ifdef __DARSHAN_LOG_ENV
-        /* just silently skip if the environment variable list is too big */
-        if(strlen(__DARSHAN_LOG_ENV) < 256)
-        {
-            /* copy env variable list to a temporary buffer */
-            strcpy(env_check, __DARSHAN_LOG_ENV);
-            /* tokenize the comma-separated list */
-            env_tok = strtok(env_check, ",");
-            if(env_tok)
-            {
-                do
-                {
-                    /* check each env variable in order */
-                    logpath_override = getenv(env_tok);
-                    if(logpath_override)
-                    {
-                        /* stop as soon as we find a match */
-                        break;
-                    }
-                }while((env_tok = strtok(NULL, ",")));
-            }
-        }
-#endif
-
-        if(logpath_override)
-        {
-            ret = snprintf(logfile_name, PATH_MAX,
-                "%s/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
-                logpath_override,
-                cuser, __progname, jobid,
-                (start_tm->tm_mon+1),
-                start_tm->tm_mday,
-                (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
-                logmod);
-            if(ret == (PATH_MAX-1))
-            {
-                /* file name was too big; squish it down */
-                snprintf(logfile_name, PATH_MAX,
-                    "%s/id%d.darshan_partial",
-                    logpath_override, jobid);
-            }
-        }
-        else if(logpath)
-        {
-            ret = snprintf(logfile_name, PATH_MAX,
-                "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
-                logpath, (start_tm->tm_year+1900),
-                (start_tm->tm_mon+1), start_tm->tm_mday,
-                cuser, __progname, jobid,
-                (start_tm->tm_mon+1),
-                start_tm->tm_mday,
-                (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
-                logmod);
-            if(ret == (PATH_MAX-1))
-            {
-                /* file name was too big; squish it down */
-                snprintf(logfile_name, PATH_MAX,
-                    "%s/id%d.darshan_partial",
-                    logpath, jobid);
-            }
-        }
-        else
-        {
-            logfile_name[0] = '\0';
-        }
-    }
-
-    return;
-}
 
 /* record any hints used to write the darshan log in the job data */
 static void darshan_log_record_hints_and_ver(struct darshan_core_runtime* core)
@@ -764,6 +612,53 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
     return;
 }
 
+static void darshan_add_record_hashref(struct darshan_core_runtime *core,
+    char *name, darshan_record_id id, struct darshan_core_record_ref **ref)
+{
+    int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
+
+    if((record_size + core->rec_hash_sz) > DARSHAN_RECORD_BUF_SIZE)
+        return;
+
+    *ref = malloc(sizeof(**ref));
+    if(*ref)
+    {
+        memset(*ref, 0, sizeof(**ref));
+
+#if 0
+        if(!mmap)
+        {
+            ref->rec.name = malloc(strlen(name) + 1);
+        }
+        else
+#endif
+        {
+            /* store the rec id and full file path in record hash buffer */
+            void *tmp_p = (char *)core->log_rec_p + core->rec_hash_sz;
+            *(darshan_record_id *)tmp_p = id;
+
+            /* set the name pointer for this record to point to the
+             * appropriate location in the record hash buffer
+             */
+            tmp_p = (char *)tmp_p + sizeof(darshan_record_id);
+            (*ref)->rec.name = (char *)tmp_p;
+        }
+
+        /* set record ref fields */
+        (*ref)->rec.id = id;
+        if((*ref)->rec.name)
+            strcpy((*ref)->rec.name, name);
+
+        /* TODO: look at HASH_ADD_KEYPTR, use same strategy (big contig pool) for non-mmap darshan */
+        HASH_ADD(hlink, core->rec_hash, rec.id, sizeof(darshan_record_id), (*ref));
+        core->rec_hash_cnt++;
+        core->rec_hash_sz += record_size;
+        core->log_hdr_p->rec_map.len += record_size;
+    }
+
+    return;
+}
+
 static void darshan_block_size_from_path(const char *path, int *block_size)
 {
     int i;
@@ -781,11 +676,166 @@ static void darshan_block_size_from_path(const char *path, int *block_size)
     return;
 }
 
+/* construct the darshan log file name */
+static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* start_tm)
+{
+    char* user_logfile_name;
+    char* logpath;
+    char* logname_string;
+    char* logpath_override = NULL;
+#ifdef __DARSHAN_LOG_ENV
+    char env_check[256];
+    char* env_tok;
+#endif
+    uint64_t hlevel;
+    char hname[HOST_NAME_MAX];
+    uint64_t logmod;
+    char cuser[L_cuserid] = {0};
+    int ret;
+
+    /* first, check if user specifies a complete logpath to use */
+    user_logfile_name = getenv("DARSHAN_LOGFILE");
+    if(user_logfile_name)
+    {
+        if(strlen(user_logfile_name) >= (PATH_MAX-1))
+        {
+            fprintf(stderr, "darshan library warning: user log file name too long.\n");
+            logfile_name[0] = '\0';
+        }
+        else
+        {
+            strcpy(logfile_name, user_logfile_name);
+        }
+    }
+    else
+    {
+        /* otherwise, generate the log path automatically */
+
+        /* Use DARSHAN_LOG_PATH_OVERRIDE for the value or __DARSHAN_LOG_PATH */
+        logpath = getenv(DARSHAN_LOG_PATH_OVERRIDE);
+        if(!logpath)
+        {
+#ifdef __DARSHAN_LOG_PATH
+            logpath = __DARSHAN_LOG_PATH;
+#endif
+        }
+
+        /* get the username for this job.  In order we will try each of the
+         * following until one of them succeeds:
+         *
+         * - cuserid()
+         * - getenv("LOGNAME")
+         * - snprintf(..., geteuid());
+         *
+         * Note that we do not use getpwuid() because it generally will not
+         * work in statically compiled binaries.
+         */
+
+#ifndef DARSHAN_DISABLE_CUSERID
+        cuserid(cuser);
+#endif
+
+        /* if cuserid() didn't work, then check the environment */
+        if(strcmp(cuser, "") == 0)
+        {
+            logname_string = getenv("LOGNAME");
+            if(logname_string)
+            {
+                strncpy(cuser, logname_string, (L_cuserid-1));
+            }
+        }
+
+        /* if cuserid() and environment both fail, then fall back to uid */
+        if(strcmp(cuser, "") == 0)
+        {
+            uid_t uid = geteuid();
+            snprintf(cuser, sizeof(cuser), "%u", uid);
+        }
+
+        /* generate a random number to help differentiate the log */
+        hlevel=DARSHAN_MPI_CALL(PMPI_Wtime)() * 1000000;
+        (void)gethostname(hname, sizeof(hname));
+        logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
+
+        /* see if darshan was configured using the --with-logpath-by-env
+         * argument, which allows the user to specify an absolute path to
+         * place logs via an env variable.
+         */
+#ifdef __DARSHAN_LOG_ENV
+        /* just silently skip if the environment variable list is too big */
+        if(strlen(__DARSHAN_LOG_ENV) < 256)
+        {
+            /* copy env variable list to a temporary buffer */
+            strcpy(env_check, __DARSHAN_LOG_ENV);
+            /* tokenize the comma-separated list */
+            env_tok = strtok(env_check, ",");
+            if(env_tok)
+            {
+                do
+                {
+                    /* check each env variable in order */
+                    logpath_override = getenv(env_tok);
+                    if(logpath_override)
+                    {
+                        /* stop as soon as we find a match */
+                        break;
+                    }
+                }while((env_tok = strtok(NULL, ",")));
+            }
+        }
+#endif
+
+        if(logpath_override)
+        {
+            ret = snprintf(logfile_name, PATH_MAX,
+                "%s/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                logpath_override,
+                cuser, __progname, jobid,
+                (start_tm->tm_mon+1),
+                start_tm->tm_mday,
+                (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
+                logmod);
+            if(ret == (PATH_MAX-1))
+            {
+                /* file name was too big; squish it down */
+                snprintf(logfile_name, PATH_MAX,
+                    "%s/id%d.darshan_partial",
+                    logpath_override, jobid);
+            }
+        }
+        else if(logpath)
+        {
+            ret = snprintf(logfile_name, PATH_MAX,
+                "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                logpath, (start_tm->tm_year+1900),
+                (start_tm->tm_mon+1), start_tm->tm_mday,
+                cuser, __progname, jobid,
+                (start_tm->tm_mon+1),
+                start_tm->tm_mday,
+                (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
+                logmod);
+            if(ret == (PATH_MAX-1))
+            {
+                /* file name was too big; squish it down */
+                snprintf(logfile_name, PATH_MAX,
+                    "%s/id%d.darshan_partial",
+                    logpath, jobid);
+            }
+        }
+        else
+        {
+            logfile_name[0] = '\0';
+        }
+    }
+
+    return;
+}
+
 static void darshan_get_shared_records(struct darshan_core_runtime *core,
     darshan_record_id **shared_recs, int *shared_rec_cnt)
 {
     int i, j;
-    int tmp_cnt = core->rec_count;
+    int tmp_cnt = core->rec_hash_cnt;
     struct darshan_core_record_ref *tmp, *ref;
     darshan_record_id *id_array;
     uint64_t *mod_flags;
@@ -1020,7 +1070,7 @@ static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_ru
 
     /* allocate a buffer to store at most 64 bytes for each registered record */
     /* NOTE: this buffer may be reallocated if estimate is too small */
-    hash_buf_sz = core->rec_count * 64;
+    hash_buf_sz = core->rec_hash_cnt * 64;
     hash_buf = malloc(hash_buf_sz);
     if(!hash_buf)
     {
@@ -1161,7 +1211,7 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
     HASH_ITER(hlink, core->rec_hash, ref, tmp)
     {
         HASH_DELETE(hlink, core->rec_hash, ref);
-        free(ref->rec.name);
+        /* XXX MMAP:  free(ref->rec.name); */
         free(ref);
     }
 
@@ -1200,10 +1250,6 @@ void darshan_core_register_module(
     if(!darshan_core || (mod_id >= DARSHAN_MAX_MODS))
         return;
 
-    /* XXX */
-    return;
-    /* XXX how do we assign size and address */
-
     if(sys_mem_alignment)
         *sys_mem_alignment = darshan_mem_alignment;
 
@@ -1218,6 +1264,10 @@ void darshan_core_register_module(
         DARSHAN_CORE_UNLOCK();
         return;
     }
+
+    /* XXX how do we assign size and address */
+    *mod_buf = darshan_core->log_mod_p;
+    *mod_buf_size = 2*1024*1024;
 
     /* this module has not been registered yet, allocate and initialize it */
     mod = malloc(sizeof(*mod));
@@ -1306,26 +1356,17 @@ void darshan_core_register_record(
         }
 #endif
 
-        ref = malloc(sizeof(struct darshan_core_record_ref));
-        if(ref)
-        {
-            ref->mod_flags = ref->global_mod_flags = 0;
-            ref->rec.id = tmp_rec_id;
-            ref->rec.name = malloc(strlen(name) + 1);
-            if(ref->rec.name)
-                strcpy(ref->rec.name, name);
-
-            HASH_ADD(hlink, darshan_core->rec_hash, rec.id, sizeof(darshan_record_id), ref);
-            darshan_core->rec_count++;
-        }
+        darshan_add_record_hashref(darshan_core, name, tmp_rec_id, &ref);
     }
-    DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
+    
+    if(ref)
+        DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
     DARSHAN_CORE_UNLOCK();
 
     if(file_alignment)
         darshan_block_size_from_path(name, file_alignment);
 
-    *rec_id = tmp_rec_id;
+    *rec_id = 0; /* XXX */
     return;
 }
 

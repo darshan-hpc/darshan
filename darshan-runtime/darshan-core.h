@@ -36,6 +36,8 @@
 #define DARSHAN_MOD_MEM_MAX (2 * 1024 * 1024) /* 2 MiB default */
 #endif
 
+#define DARSHAN_RECORD_BUF_SIZE (1024 * 100) /* store 1024 records, each of at most 100 bytes */
+
 /* Default runtime compression buffer size */
 #define DARSHAN_COMP_BUF_SIZE DARSHAN_MOD_MEM_MAX
 
@@ -45,13 +47,14 @@ struct darshan_core_runtime
     struct darshan_header *log_hdr_p;
     struct darshan_job *log_job_p;
     char *log_exemnt_p;
-    /* XXX: MMAP */
-    void *mmap_p;
+    void *log_rec_p;
+    void *log_mod_p;
 
     struct darshan_core_record_ref *rec_hash;
-    int rec_count;
+    int rec_hash_sz;
+    int rec_hash_cnt;
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
-    char comp_buf[DARSHAN_COMP_BUF_SIZE]; /* TODO: why is this allocated statically? */
+    char comp_buf[DARSHAN_COMP_BUF_SIZE]; /* TODO: why is this allocated statically? only used in shutdown */
     double wtime_offset;
 };
 
