@@ -638,13 +638,12 @@ int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash)
     int hash_buf_sz;
     struct darshan_record_ref *ref, *tmp;
     char *buf_ptr;
-    int path_len;
     int wrote;
 
     assert(state);
 
     /* allocate memory for largest possible hash record */
-    hash_buf_sz = sizeof(darshan_record_id) + sizeof(uint32_t) + PATH_MAX;
+    hash_buf_sz = sizeof(darshan_record_id) + PATH_MAX + 1;
     hash_buf = malloc(hash_buf_sz);
     if(!hash_buf)
         return(-1);
@@ -654,18 +653,15 @@ int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash)
     HASH_ITER(hlink, hash, ref, tmp)
     {
         buf_ptr = hash_buf;
-        path_len = strlen(ref->rec.name);
 
         /* the hash buffer has space to serialize this record
          * NOTE: darshan record hash serialization method: 
-         *          ... darshan_record_id | (uint32_t) path_len | path ...
+         *          ... darshan_record_id | path '\0' ...
          */
         *((darshan_record_id *)buf_ptr) = ref->rec.id;
         buf_ptr += sizeof(darshan_record_id);
-        *((uint32_t *)buf_ptr) = path_len;
-        buf_ptr += sizeof(uint32_t);
-        memcpy(buf_ptr, ref->rec.name, path_len);
-        buf_ptr += path_len;
+        strcpy(buf_ptr, ref->rec.name);
+        buf_ptr += strlen(ref->rec.name) + 1;
 
         /* write this hash entry to log file */
         wrote = darshan_log_dzwrite(fd, DARSHAN_REC_MAP_REGION_ID,
