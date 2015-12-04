@@ -127,10 +127,10 @@ void darshan_core_unregister_module(
  */
 void darshan_core_register_record(
     void *name,
-    int len,
+    int name_len,
+    int rec_size,
     darshan_module_id mod_id,
     int printable_flag,
-    int mod_limit_flag,
     darshan_record_id *rec_id,
     int *file_alignment);
 

@@ -1677,7 +1677,6 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
     char *newname = NULL;
     darshan_record_id file_id;
     int file_alignment;
-    int limit_flag;
 
     if(!posix_runtime || instrumentation_disabled)
         return(NULL);
@@ -1686,15 +1685,13 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
     if(!newname)
         newname = (char*)name;
 
-    limit_flag = (posix_runtime->file_array_ndx >= posix_runtime->file_array_size);
-
     /* get a unique id for this file from darshan core */
     darshan_core_register_record(
         (void*)newname,
         strlen(newname),
+        sizeof(struct darshan_posix_file),
         DARSHAN_POSIX_MOD,
         1,
-        limit_flag,
         &file_id,
         &file_alignment);
 
@@ -2364,7 +2361,7 @@ static void posix_shutdown()
     HASH_CLEAR(hlink, posix_runtime->file_hash); /* these entries are freed all at once below */
 
     free(posix_runtime->file_runtime_array);
-    free(posix_runtime->file_record_array);
+    /* XXX: MMAP free(posix_runtime->file_record_array); */
     free(posix_runtime);
     posix_runtime = NULL;
 

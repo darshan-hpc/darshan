@@ -310,9 +310,9 @@ int main(int argc, char **argv)
     }
 
     /* print breakdown of each log file region's contribution to file size */
-    printf("\n# log file region sizes (compressed)\n");
+    printf("\n# log file region sizes\n");
     printf("# -------------------------------------------------------\n");
-    printf("# header: %zu bytes (uncompressed)\n", sizeof(struct darshan_header));
+    printf("# header: %zu bytes\n", sizeof(struct darshan_header));
     printf("# job data: %zu bytes\n", fd->job_map.len);
     printf("# record table: %zu bytes\n", fd->rec_map.len);
     for(i=0; i<DARSHAN_MAX_MODS; i++)

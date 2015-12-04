@@ -1265,9 +1265,11 @@ void darshan_core_register_module(
         return;
     }
 
-    /* XXX how do we assign size and address */
+    /* XXX MMAP: how do we assign size and address */
     *mod_buf = darshan_core->log_mod_p;
-    *mod_buf_size = 2*1024*1024;
+    *mod_buf_size = DARSHAN_MOD_MEM_MAX;
+    darshan_core->log_hdr_p->mod_map[mod_id].off =
+        ((char *)darshan_core->log_mod_p - (char *)darshan_core->log_hdr_p);
 
     /* this module has not been registered yet, allocate and initialize it */
     mod = malloc(sizeof(*mod));
@@ -1315,12 +1317,13 @@ void darshan_core_unregister_module(
     return;
 }
 
+/* TODO: maybe a return code to distinguish between id 0 and a failure */
 void darshan_core_register_record(
     void *name,
-    int len,
+    int name_len,
+    int rec_size,
     darshan_module_id mod_id,
     int printable_flag,
-    int mod_limit_flag,
     darshan_record_id *rec_id,
     int *file_alignment)
 {
@@ -1328,14 +1331,16 @@ void darshan_core_register_record(
     struct darshan_core_record_ref *ref;
 
     *rec_id = 0;
+    *file_alignment = 0;
 
     if(!darshan_core)
         return;
 
     /* TODO: what do you do with printable flag? */
+    /* TODO: what about partial flag? */
 
     /* hash the input name to get a unique id for this record */
-    tmp_rec_id = darshan_hash(name, len, 0);
+    tmp_rec_id = darshan_hash(name, name_len, 0);
 
     /* check to see if we've already stored the id->name mapping for this record */
     DARSHAN_CORE_LOCK();
@@ -1345,28 +1350,26 @@ void darshan_core_register_record(
         /* record not found -- add it to the hash if this module has not already used
          * all of its memory
          */
-
-#if 0
-        if(mod_limit_flag)
+        darshan_add_record_hashref(darshan_core, name, tmp_rec_id, &ref);
+        if(!ref)
         {
-            /* if this module is OOM, set a flag in the header to indicate this */
-            DARSHAN_MOD_FLAG_SET(darshan_core->log_header.partial_flag, mod_id);
+            /* just give up and return if adding this record failed */
             DARSHAN_CORE_UNLOCK();
             return;
         }
-#endif
-
-        darshan_add_record_hashref(darshan_core, name, tmp_rec_id, &ref);
     }
-    
-    if(ref)
+
+    if(!DARSHAN_MOD_FLAG_ISSET(ref->mod_flags, mod_id))
+    {
         DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
+        darshan_core->log_hdr_p->mod_map[mod_id].len += rec_size;
+    }
     DARSHAN_CORE_UNLOCK();
 
     if(file_alignment)
         darshan_block_size_from_path(name, file_alignment);
 
-    *rec_id = 0; /* XXX */
+    *rec_id = tmp_rec_id;
     return;
 }
 
