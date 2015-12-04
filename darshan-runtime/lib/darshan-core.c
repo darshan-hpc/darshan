@@ -91,8 +91,6 @@ static int mnt_data_count = 0;
 /* prototypes for internal helper functions */
 static void darshan_log_record_hints_and_ver(
     struct darshan_core_runtime* core);
-static void darshan_get_exe_and_mounts_root(
-    struct darshan_core_runtime *core, int argc, char **argv);
 static void darshan_get_exe_and_mounts(
     struct darshan_core_runtime *core, int argc, char **argv);
 static void darshan_block_size_from_path(
@@ -470,12 +468,12 @@ static void add_entry(char* buf, int* space_left, struct mntent *entry)
     return;
 }
 
-/* darshan_get_exe_and_mounts_root()
+/* darshan_get_exe_and_mounts()
  *
  * collects command line and list of mounted file systems into a string that
  * will be stored with the job-level metadata
  */
-static void darshan_get_exe_and_mounts_root(struct darshan_core_runtime *core,
+static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
     int argc, char **argv)
 {
     FILE* tab;
@@ -581,34 +579,11 @@ static void darshan_get_exe_and_mounts_root(struct darshan_core_runtime *core,
     }
     endmntent(tab);
 
-    /* Sort mount points in order of longest path to shortest path.  This is
+    /* sort mount points in order of longest path to shortest path.  This is
      * necessary so that if we try to match file paths to mount points later
      * we don't match on "/" every time.
      */
     qsort(mnt_data_array, mnt_data_count, sizeof(mnt_data_array[0]), mnt_data_cmp);
-    return;
-}
-
-/* darshan_get_exe_and_mounts()
- *
- * collects command line and list of mounted file systems into a string that
- * will be stored with the job-level metadata
- */
-static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
-    int argc, char **argv)
-{
-    if(my_rank == 0)
-    {
-        darshan_get_exe_and_mounts_root(core, argc, argv);
-    }
-
-    /* broadcast mount count to all nodes */
-    DARSHAN_MPI_CALL(PMPI_Bcast)(&mnt_data_count, 1, MPI_INT, 0,
-        MPI_COMM_WORLD);
-    /* broadcast mount data to all nodes */
-    DARSHAN_MPI_CALL(PMPI_Bcast)(mnt_data_array,
-        mnt_data_count*sizeof(mnt_data_array[0]), MPI_BYTE, 0, MPI_COMM_WORLD);
-
     return;
 }
 
