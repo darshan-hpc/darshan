@@ -1717,13 +1717,14 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
     /* no existing record, assign a new file record from the global array */
     file = &(posix_runtime->file_runtime_array[posix_runtime->file_array_ndx]);
     file->file_record = &(posix_runtime->file_record_array[posix_runtime->file_array_ndx]);
-    file->file_record->f_id = file_id;
-    file->file_record->rank = my_rank;
+    file->file_record->base_rec.id = file_id;
+    file->file_record->base_rec.rank = my_rank;
     file->file_record->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
     file->file_record->counters[POSIX_FILE_ALIGNMENT] = file_alignment;
 
     /* add new record to file hash table */
-    HASH_ADD(hlink, posix_runtime->file_hash, file_record->f_id, sizeof(darshan_record_id), file);
+    HASH_ADD(hlink, posix_runtime->file_hash, file_record->base_rec.id,
+        sizeof(darshan_record_id), file);
     posix_runtime->file_array_ndx++;
 
     if(newname != name)
@@ -1816,9 +1817,9 @@ static int posix_record_compare(const void* a_p, const void* b_p)
     const struct darshan_posix_file* a = a_p;
     const struct darshan_posix_file* b = b_p;
 
-    if(a->rank < b->rank)
+    if(a->base_rec.rank < b->base_rec.rank)
         return 1;
-    if(a->rank > b->rank)
+    if(a->base_rec.rank > b->base_rec.rank)
         return -1;
 
     return 0;
@@ -1883,8 +1884,8 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
     for(i=0; i<*len; i++)
     {
         memset(&tmp_file, 0, sizeof(struct darshan_posix_file));
-        tmp_file.f_id = infile->f_id;
-        tmp_file.rank = -1;
+        tmp_file.base_rec.id = infile->base_rec.id;
+        tmp_file.base_rec.rank = -1;
 
         /* sum */
         for(j=POSIX_OPENS; j<=POSIX_FDSYNCS; j++)
@@ -2265,7 +2266,7 @@ static void posix_get_output_data(
 
             /* initialize fastest/slowest info prior to the reduction */
             file->file_record->counters[POSIX_FASTEST_RANK] =
-                file->file_record->rank;
+                file->file_record->base_rec.rank;
             file->file_record->counters[POSIX_FASTEST_RANK_BYTES] =
                 file->file_record->counters[POSIX_BYTES_READ] +
                 file->file_record->counters[POSIX_BYTES_WRITTEN];
@@ -2283,7 +2284,7 @@ static void posix_get_output_data(
             file->file_record->fcounters[POSIX_F_SLOWEST_RANK_TIME] =
                 file->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME];
 
-            file->file_record->rank = -1;
+            file->file_record->base_rec.rank = -1;
         }
 
         /* sort the array of files descending by rank so that we get all of the 

@@ -170,8 +170,7 @@ enum darshan_posix_f_indices
  */
 struct darshan_posix_file
 {
-    darshan_record_id f_id;
-    int64_t rank;
+    struct darshan_base_record base_rec;
     int64_t counters[POSIX_NUM_INDICES];
     double fcounters[POSIX_F_NUM_INDICES];
 };

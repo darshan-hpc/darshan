@@ -120,11 +120,10 @@ struct darshan_job
     char metadata[DARSHAN_JOB_METADATA_LEN];
 };
 
-/* minimal record stored for each file/object accessed by Darshan */
-struct darshan_record
+struct darshan_base_record
 {
-    char* name;
     darshan_record_id id;
+    int64_t rank;
 };
 
 #endif /* __DARSHAN_LOG_FORMAT_H */
