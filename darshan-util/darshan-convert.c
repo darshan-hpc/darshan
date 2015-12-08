@@ -148,13 +148,13 @@ void obfuscate_filenames(int key, struct darshan_record_ref *rec_hash)
 
     HASH_ITER(hlink, rec_hash, ref, tmp)
     {
-        hashed = darshan_hashlittle(ref->rec.name, strlen(ref->rec.name), key);
+        hashed = darshan_hashlittle(ref->name, strlen(ref->name), key);
         sprintf(tmp_string, "%u", hashed);
-        free(ref->rec.name);
-        ref->rec.name = malloc(strlen(tmp_string) + 1);
-        assert(ref->rec.name);
-        memcpy(ref->rec.name, tmp_string, strlen(tmp_string));
-        ref->rec.name[strlen(tmp_string)] = '\0';
+        free(ref->name);
+        ref->name = malloc(strlen(tmp_string) + 1);
+        assert(ref->name);
+        memcpy(ref->name, tmp_string, strlen(tmp_string));
+        ref->name[strlen(tmp_string)] = '\0';
     }
 
     return;
@@ -208,10 +208,10 @@ static void remove_hash_recs(struct darshan_record_ref **rec_hash, darshan_recor
 
     HASH_ITER(hlink, *rec_hash, ref, tmp)
     {
-        if(ref->rec.id != hash)
+        if(ref->id != hash)
         {
             HASH_DELETE(hlink, *rec_hash, ref);
-            free(ref->rec.name);
+            free(ref->name);
             free(ref);
         }
     }
@@ -403,7 +403,7 @@ int main(int argc, char **argv)
     HASH_ITER(hlink, rec_hash, ref, tmp)
     {
         HASH_DELETE(hlink, rec_hash, ref);
-        free(ref->rec.name);
+        free(ref->name);
         free(ref);
     }
 

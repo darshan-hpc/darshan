@@ -412,7 +412,7 @@ int main(int argc, char **argv)
             /* get mount point and fs type associated with this record */
             for(j=0; j<mount_count; j++)
             {
-                if(strncmp(mnt_pts[j], ref->rec.name, strlen(mnt_pts[j])) == 0)
+                if(strncmp(mnt_pts[j], ref->name, strlen(mnt_pts[j])) == 0)
                 {
                     mnt_pt = mnt_pts[j];
                     fs_type = fs_types[j];
@@ -427,7 +427,7 @@ int main(int argc, char **argv)
             if(mask & OPTION_BASE)
             {
                 /* print the corresponding module data for this record */
-                mod_logutils[i]->log_print_record(mod_buf, ref->rec.name,
+                mod_logutils[i]->log_print_record(mod_buf, ref->name,
                     mnt_pt, fs_type);
             }
 
@@ -623,7 +623,7 @@ cleanup:
     HASH_ITER(hlink, rec_hash, ref, tmp_ref)
     {
         HASH_DELETE(hlink, rec_hash, ref);
-        free(ref->rec.name);
+        free(ref->name);
         free(ref);
     }
 
@@ -1461,7 +1461,7 @@ void posix_file_list(hash_entry_t *file_hash,
 
         printf("%" PRIu64 "\t%s\t%" PRId64 "\t%f\t%f",
             curr->rec_id,
-            ref->rec.name,
+            ref->name,
             curr->procs,
             curr->slowest_time,
             curr->cumul_time/(double)curr->procs);
@@ -1555,7 +1555,7 @@ void mpiio_file_list(hash_entry_t *file_hash,
 
         printf("%" PRIu64 "\t%s\t%" PRId64 "\t%f\t%f",
             curr->rec_id,
-            ref->rec.name,
+            ref->name,
             curr->procs,
             curr->slowest_time,
             curr->cumul_time/(double)curr->procs);

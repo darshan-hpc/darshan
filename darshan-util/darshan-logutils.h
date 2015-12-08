@@ -43,7 +43,8 @@ typedef struct darshan_fd_s* darshan_fd;
 
 struct darshan_record_ref
 {
-    struct darshan_record rec;
+    char *name;
+    darshan_record_id id;
     UT_hash_handle hlink;
 };
 

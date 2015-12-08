@@ -1,12 +1,70 @@
-    #include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <glob.h>
 #include <string.h>
+#include <getopt.h>
+#include <glob.h>
 
 #include "darshan-logutils.h"
 
 #define DEF_MOD_BUF_SIZE 1024 /* 1 KiB is enough for all current mod records ... */
+
+/* TODO: are there any checks we should do to ensure tmp logs belong to the same job */
+/* we can't specifically check the job id, since the pid is used if no job scheduler */
+
+/* TODO: how do we set the output logfile name to be unique, and have necessary semantic info contained */
+
+void usage(char *exename)
+{
+    fprintf(stderr, "Usage: %s [options] <tmp_dir> <job_id>\n", exename);
+    fprintf(stderr, "       TODO: description.\n");
+    fprintf(stderr, "       --shared-redux Reduce globally shared records into a single record.\n");
+
+    exit(1);
+}
+
+void parse_args(int argc, char **argv, char **tmplog_dir, int *tmplog_jobid,
+    int *shared_redux)
+{
+    int index;
+    static struct option long_opts[] =
+    {
+        {"shared-redux", no_argument, NULL, 's'},
+        {0, 0, 0, 0}
+    };
+
+    *shared_redux = 0;
+
+    while(1)
+    {
+        int c = getopt_long(argc, argv, "", long_opts, &index);
+
+        if(c == -1) break;
+
+        switch(c)
+        {
+            case 's':
+                *shared_redux = 1;
+                break;
+            case '?':
+            default:
+                usage(argv[0]);
+                break;
+        }
+    }
+
+    if(optind + 2 == argc)
+    {
+        *tmplog_dir = argv[optind];
+        *tmplog_jobid = atoi(argv[optind+1]);
+    }
+    else
+    {
+        usage(argv[0]);
+    }
+
+    return;
+}
 
 int logfile_path_comp(const void *a, const void *b)
 {
@@ -31,6 +89,7 @@ int logfile_path_comp(const void *a, const void *b)
 
 int main(int argc, char *argv[])
 {
+    int shared_redux;
     char *tmplog_dir;
     int job_id;
     glob_t globbuf;
@@ -50,22 +109,8 @@ int main(int argc, char *argv[])
     int i, j;
     int ret;
 
-    /* TODO: are there any checks we should do to ensure tmp logs belong to the same job */
-    /* we can't specifically check the job id, since the pid is used if no job scheduler */
-
-    /* TODO: how do we set the output logfile name to be unique, and have necessary semantic info contained */
-
-    if(argc != 3)
-    {
-        fprintf(stderr, "Usage: ./darshan-stitch-tmplogs <tmp_dir> <job_id>\n"
-            "\t<tmp_dir> is the directory containing the temporary Darshan logs\n"
-            "\t<job_id> is the job id of the logs we are trying to stitch\n");
-        return(0);
-    }
-
     /* grab command line arguments */
-    tmplog_dir = argv[1];
-    job_id = atoi(argv[2]);
+    parse_args(argc, argv, &tmplog_dir, &job_id, &shared_redux);
 
     /* construct the list of input log files to stitch together */
     snprintf(glob_pstr, 512, "%s/darshan_job%d*", tmplog_dir, job_id);
@@ -169,14 +214,12 @@ int main(int argc, char *argv[])
          */
         HASH_ITER(hlink, in_hash, ref, tmp)
         {
-            HASH_FIND(hlink, stitch_hash, &(ref->rec.id),
-                sizeof(darshan_record_id), found);
+            HASH_FIND(hlink, stitch_hash, &(ref->id), sizeof(darshan_record_id), found);
             if(!found)
             {
-                HASH_ADD(hlink, stitch_hash, rec.id,
-                    sizeof(darshan_record_id), ref);
+                HASH_ADD(hlink, stitch_hash, id, sizeof(darshan_record_id), ref);
             }
-            else if(strcmp(ref->rec.name, found->rec.name))
+            else if(strcmp(ref->name, found->name))
             {
                 fprintf(stderr,
                     "Error: invalid Darshan record table entry.\n");
@@ -250,25 +293,30 @@ int main(int argc, char *argv[])
     }
     memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
 
+    /* iterate over active darshan modules and gather module data to write
+     * to the stitched together output log
+     */
     for(i = 0; i < DARSHAN_MPIIO_MOD; i++)
     {
         if(!mod_logutils[i]) continue;
 
-#if 0
-        /* XXX first build shared record list? */
-        for(j = 0; j < globbuf.gl_pathc; j++)
+        if(shared_redux)
         {
+            /* copy all root's file records into an array */
 
+            /* compare and updated shared records? */
+            for(j = 1; j < globbuf.gl_pathc; j++)
+            {
+            }
+
+            /* XXX aggregate shared records? */
+            for(j = 0; j < globbuf.gl_pathc; j++)
+            {
+
+            }
         }
 
-        /* XXX second aggregate shared records ? */
-        for(j = 0; j < globbuf.gl_pathc; j++)
-        {
-
-        }
-#endif
-
-        /* XXX third write each rank's blobs, with rank 0 writing the shared ones ? */
+        /* XXX third write each rank's blobs, with rank 0 writing the shared ones? */
         for(j = 0; j < globbuf.gl_pathc; j++)
         {
             in_fd = darshan_log_open(globbuf.gl_pathv[j]);

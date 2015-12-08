@@ -589,8 +589,8 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
                     free(hash_buf);
                     return(-1);
                 }
-                ref->rec.name = malloc(strlen(path_ptr) + 1);
-                if(!ref->rec.name)
+                ref->name = malloc(strlen(path_ptr) + 1);
+                if(!ref->name)
                 {
                     free(ref);
                     free(hash_buf);
@@ -598,11 +598,11 @@ int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
                 }
 
                 /* set the fields for this record */
-                ref->rec.id = *rec_id_ptr;
-                strcpy(ref->rec.name, path_ptr);
+                ref->id = *rec_id_ptr;
+                strcpy(ref->name, path_ptr);
 
                 /* add this record to the hash */
-                HASH_ADD(hlink, *hash, rec.id, sizeof(darshan_record_id), ref);
+                HASH_ADD(hlink, *hash, id, sizeof(darshan_record_id), ref);
             }
 
             buf_ptr += strlen(path_ptr) + 1;
@@ -658,10 +658,10 @@ int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash)
          * NOTE: darshan record hash serialization method: 
          *          ... darshan_record_id | path '\0' ...
          */
-        *((darshan_record_id *)buf_ptr) = ref->rec.id;
+        *((darshan_record_id *)buf_ptr) = ref->id;
         buf_ptr += sizeof(darshan_record_id);
-        strcpy(buf_ptr, ref->rec.name);
-        buf_ptr += strlen(ref->rec.name) + 1;
+        strcpy(buf_ptr, ref->name);
+        buf_ptr += strlen(ref->name) + 1;
 
         /* write this hash entry to log file */
         wrote = darshan_log_dzwrite(fd, DARSHAN_REC_MAP_REGION_ID,
@@ -1146,10 +1146,8 @@ static void darshan_log_dzdestroy(darshan_fd fd)
             break;
 #endif
         case DARSHAN_NO_COMP:
-        {
             /* do nothing */
             break;
-        }
         default:
             fprintf(stderr, "Error: invalid compression type.\n");
     }
@@ -1192,10 +1190,8 @@ static int darshan_log_dzread(darshan_fd fd, int region_id, void *buf, int len)
             break;
 #endif
         case DARSHAN_NO_COMP:
-        {
             ret = darshan_log_noz_read(fd, map, buf, len, reset_strm_flag);
             break;
-        }
         default:
             fprintf(stderr, "Error: invalid compression type.\n");
             return(-1);
