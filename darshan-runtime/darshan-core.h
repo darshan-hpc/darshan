@@ -48,7 +48,7 @@ struct darshan_core_runtime
     struct darshan_core_record_ref *rec_hash;
     int rec_count;
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
-    char comp_buf[DARSHAN_COMP_BUF_SIZE];
+    char *comp_buf;
     double wtime_offset;
     char *trailing_data;
 };

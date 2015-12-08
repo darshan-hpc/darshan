@@ -282,6 +282,13 @@ void darshan_core_shutdown()
     final_core = darshan_core;
     darshan_core = NULL;
 
+    final_core->comp_buf = malloc(DARSHAN_COMP_BUF_SIZE);
+    if(!(final_core->comp_buf))
+    {
+        darshan_core_cleanup(final_core);
+        return;
+    }
+
     /* we also need to set which modules were registered on this process and
      * call into those modules and give them a chance to perform any necessary
      * pre-shutdown steps.
