@@ -484,6 +484,8 @@ static void hdf5_get_output_data(
 
     assert(hdf5_runtime);
 
+    HDF5_LOCK();
+
     /* if there are globally shared files, do a shared file reduction */
     /* NOTE: the shared file reduction is also skipped if the 
      * DARSHAN_DISABLE_SHARED_REDUCTION environment variable is set.
@@ -516,7 +518,10 @@ static void hdf5_get_output_data(
         {
             red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_hdf5_file));
             if(!red_recv_buf)
+            {
+                HDF5_UNLOCK();
                 return;
+            }
         }
 
         /* construct a datatype for a HDF5 file record.  This is serving no purpose
@@ -553,6 +558,7 @@ static void hdf5_get_output_data(
     *hdf5_buf = (void *)(hdf5_runtime->file_record_array);
     *hdf5_buf_sz = hdf5_runtime->file_array_ndx * sizeof(struct darshan_hdf5_file);
 
+    HDF5_UNLOCK();
     return;
 }
 
@@ -562,6 +568,7 @@ static void hdf5_shutdown()
 
     assert(hdf5_runtime);
 
+    HDF5_LOCK();
     HASH_ITER(hlink, hdf5_runtime->hid_hash, ref, tmp)
     {
         HASH_DELETE(hlink, hdf5_runtime->hid_hash, ref);
@@ -575,6 +582,7 @@ static void hdf5_shutdown()
     free(hdf5_runtime);
     hdf5_runtime = NULL;
 
+    HDF5_UNLOCK();
     return;
 }
 

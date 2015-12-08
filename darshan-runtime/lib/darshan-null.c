@@ -349,6 +349,8 @@ static void null_get_output_data(
 {
     assert(null_runtime);
 
+    NULL_LOCK();
+
     /* NOTE: this function can be used to run collective operations prior to
      * shutting down the module, as implied by the MPI communicator passed in
      * as the first agrument. Typically, module developers will want to run a
@@ -366,6 +368,7 @@ static void null_get_output_data(
     *null_buf = (void *)(null_runtime->record_array);
     *null_buf_sz = null_runtime->rec_array_ndx * sizeof(struct darshan_null_record);
 
+    NULL_UNLOCK();
     return;
 }
 
@@ -374,6 +377,7 @@ static void null_shutdown()
 {
     assert(null_runtime);
 
+    NULL_LOCK();
     HASH_CLEAR(hlink, null_runtime->record_hash); /* these hash entries are freed all at once below */
 
     free(null_runtime->runtime_record_array);
@@ -381,6 +385,7 @@ static void null_shutdown()
     free(null_runtime);
     null_runtime = NULL;
 
+    NULL_UNLOCK();
     return;
 }
 

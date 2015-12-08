@@ -212,7 +212,6 @@ static void bgq_get_output_data(
     void **buffer,
     int *size)
 {
-
     /* Just set the output buffer to point at the array of the "BGQ" module's
      * I/O records, and set the output size according to the number of records
      * currently being tracked.
@@ -220,6 +219,8 @@ static void bgq_get_output_data(
     int nprocs;
     int result;
     uint64_t *ion_ids;
+
+    BGQ_LOCK();
 
     if (my_rank == 0)
     {
@@ -268,18 +269,21 @@ static void bgq_get_output_data(
         *size   = 0;
     }
 
+    BGQ_UNLOCK();
     return;
 }
 
 /* Shutdown the "BGQ" module by freeing up all data structures. */
 static void bgq_shutdown()
 {
+    BGQ_LOCK();
     if (bgq_runtime)
     {
         free(bgq_runtime);
         bgq_runtime = NULL;
     }
 
+    BGQ_UNLOCK();
     return;
 }
 
