@@ -616,16 +616,16 @@ static void darshan_add_record_hashref(struct darshan_core_runtime *core,
              * appropriate location in the record hash buffer
              */
             tmp_p = (char *)tmp_p + sizeof(darshan_record_id);
-            (*ref)->rec.name = (char *)tmp_p;
+            (*ref)->name = (char *)tmp_p;
         }
 
         /* set record ref fields */
-        (*ref)->rec.id = id;
-        if((*ref)->rec.name)
-            strcpy((*ref)->rec.name, name);
+        (*ref)->id = id;
+        if((*ref)->name)
+            strcpy((*ref)->name, name);
 
         /* TODO: look at HASH_ADD_KEYPTR, use same strategy (big contig pool) for non-mmap darshan */
-        HASH_ADD(hlink, core->rec_hash, rec.id, sizeof(darshan_record_id), (*ref));
+        HASH_ADD(hlink, core->rec_hash, id, sizeof(darshan_record_id), (*ref));
         core->rec_hash_cnt++;
         core->rec_hash_sz += record_size;
         core->log_hdr_p->rec_map.len += record_size;
@@ -836,7 +836,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
         i = 0;
         HASH_ITER(hlink, core->rec_hash, ref, tmp)
         {
-            id_array[i++] = ref->rec.id;           
+            id_array[i++] = ref->id;           
         }
     }
 
@@ -1060,7 +1060,7 @@ static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_ru
         if(my_rank > 0 && ref->global_mod_flags)
             continue;
 
-        name_len = strlen(ref->rec.name);
+        name_len = strlen(ref->name);
         record_sz = sizeof(darshan_record_id) + sizeof(uint32_t) + name_len;
         /* make sure there is room in the buffer for this record */
         if((hash_buf_off + record_sz) > (hash_buf + hash_buf_sz))
@@ -1088,11 +1088,11 @@ static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_ru
          * NOTE: darshan record hash serialization method: 
          *          ... darshan_record_id | (uint32_t) path_len | path ...
          */
-        *((darshan_record_id *)hash_buf_off) = ref->rec.id;
+        *((darshan_record_id *)hash_buf_off) = ref->id;
         hash_buf_off += sizeof(darshan_record_id);
         *((uint32_t *)hash_buf_off) = name_len;
         hash_buf_off += sizeof(uint32_t);
-        memcpy(hash_buf_off, ref->rec.name, name_len);
+        memcpy(hash_buf_off, ref->name, name_len);
         hash_buf_off += name_len;
     }
     hash_buf_sz = hash_buf_off - hash_buf;
@@ -1281,7 +1281,7 @@ void darshan_core_unregister_module(
     /* iterate all records and disassociate this module from them */
     HASH_ITER(hlink, darshan_core->rec_hash, ref, tmp)
     {
-        darshan_core_unregister_record(ref->rec.id, mod_id);
+        darshan_core_unregister_record(ref->id, mod_id);
     }
 
     free(darshan_core->mod_array[mod_id]);

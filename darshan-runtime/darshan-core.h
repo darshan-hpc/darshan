@@ -66,7 +66,8 @@ struct darshan_core_module
 
 struct darshan_core_record_ref
 {
-    struct darshan_record rec;
+    char *name;
+    darshan_record_id id;
     uint64_t mod_flags;
     uint64_t global_mod_flags;
     UT_hash_handle hlink;
