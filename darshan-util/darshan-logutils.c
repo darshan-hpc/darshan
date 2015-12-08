@@ -1051,7 +1051,7 @@ static int darshan_log_dzinit(struct darshan_fd_int_state *state)
             tmp_bzstrm->avail_in = 0;
             tmp_bzstrm->next_in = Z_NULL;
 
-            if(state->creat_flag)
+            if(!(state->creat_flag))
             {
                 /* read only file, init decompress algorithm */
                 ret = BZ2_bzDecompressInit(tmp_bzstrm, 1, 0);
