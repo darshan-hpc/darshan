@@ -68,7 +68,7 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
     {
         f_count   += 1;
 
-        if (psx_rec.rank == -1)
+        if (psx_rec.base_rec.rank == -1)
             *used_shared = 1;
         else
             *used_fpp = 1;

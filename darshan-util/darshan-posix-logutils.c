@@ -62,15 +62,15 @@ static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf,
         if(fd->swap_flag)
         {
             /* swap bytes if necessary */
-            DARSHAN_BSWAP64(&file->f_id);
-            DARSHAN_BSWAP64(&file->rank);
+            DARSHAN_BSWAP64(&file->base_rec.id);
+            DARSHAN_BSWAP64(&file->base_rec.rank);
             for(i=0; i<POSIX_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->counters[i]);
             for(i=0; i<POSIX_F_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->fcounters[i]);
         }
 
-        *rec_id = file->f_id;
+        *rec_id = file->base_rec.id;
         return(1);
     }
 }
@@ -98,15 +98,17 @@ static void darshan_log_print_posix_file(void *file_rec, char *file_name,
     for(i=0; i<POSIX_NUM_INDICES; i++)
     {
         DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-            posix_file_rec->rank, posix_file_rec->f_id, posix_counter_names[i],
-            posix_file_rec->counters[i], file_name, mnt_pt, fs_type);
+            posix_file_rec->base_rec.rank, posix_file_rec->base_rec.id,
+            posix_counter_names[i], posix_file_rec->counters[i],
+            file_name, mnt_pt, fs_type);
     }
 
     for(i=0; i<POSIX_F_NUM_INDICES; i++)
     {
         DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-            posix_file_rec->rank, posix_file_rec->f_id, posix_f_counter_names[i],
-            posix_file_rec->fcounters[i], file_name, mnt_pt, fs_type);
+            posix_file_rec->base_rec.rank, posix_file_rec->base_rec.id,
+            posix_f_counter_names[i], posix_file_rec->fcounters[i],
+            file_name, mnt_pt, fs_type);
     }
 
     return;

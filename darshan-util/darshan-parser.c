@@ -654,7 +654,7 @@ void posix_accum_file(struct darshan_posix_file *pfile,
 
     hfile->procs += 1;
 
-    if(pfile->rank == -1)
+    if(pfile->base_rec.rank == -1)
     {
         hfile->slowest_time = pfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
     }
@@ -666,7 +666,7 @@ void posix_accum_file(struct darshan_posix_file *pfile,
             pfile->fcounters[POSIX_F_WRITE_TIME]));
     }
 
-    if(pfile->rank == -1)
+    if(pfile->base_rec.rank == -1)
     {
         hfile->procs = nprocs;
         hfile->type |= FILETYPE_SHARED;
@@ -1029,7 +1029,7 @@ void posix_accum_perf(struct darshan_posix_file *pfile,
      *     by_slowest: use slowest rank time from log data
      *                 (most accurate but requires newer log version)
      */
-    if(pfile->rank == -1)
+    if(pfile->base_rec.rank == -1)
     {
         /* by_open */
         if(pfile->fcounters[POSIX_F_CLOSE_TIMESTAMP] >
@@ -1080,11 +1080,12 @@ void posix_accum_perf(struct darshan_posix_file *pfile,
      */
     else
     {
-        pdata->rank_cumul_io_time[pfile->rank] +=
+        pdata->rank_cumul_io_time[pfile->base_rec.rank] +=
             (pfile->fcounters[POSIX_F_META_TIME] +
             pfile->fcounters[POSIX_F_READ_TIME] +
             pfile->fcounters[POSIX_F_WRITE_TIME]);
-        pdata->rank_cumul_md_time[pfile->rank] += pfile->fcounters[POSIX_F_META_TIME];
+        pdata->rank_cumul_md_time[pfile->base_rec.rank] +=
+            pfile->fcounters[POSIX_F_META_TIME];
     }
 
     return;
