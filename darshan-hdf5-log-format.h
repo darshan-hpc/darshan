@@ -47,8 +47,7 @@ enum darshan_hdf5_f_indices
  */
 struct darshan_hdf5_file
 {
-    darshan_record_id f_id;
-    int64_t rank;
+    struct darshan_base_record base_rec;
     int64_t counters[HDF5_NUM_INDICES];
     double fcounters[HDF5_F_NUM_INDICES];
 };

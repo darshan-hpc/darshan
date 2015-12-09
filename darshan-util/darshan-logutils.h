@@ -59,8 +59,7 @@ struct darshan_mod_logutil_funcs
      */
     int (*log_get_record)(
         darshan_fd fd,
-        void* buf,
-        darshan_record_id* rec_id
+        void* buf
     );
     /* put a single module record into the log file.
      * return 0 on success, -1 on error

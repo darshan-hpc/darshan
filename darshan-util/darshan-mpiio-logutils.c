@@ -30,8 +30,7 @@ char *mpiio_f_counter_names[] = {
 };
 #undef X
 
-static int darshan_log_get_mpiio_file(darshan_fd fd, void* mpiio_buf,
-    darshan_record_id* rec_id);
+static int darshan_log_get_mpiio_file(darshan_fd fd, void* mpiio_buf);
 static int darshan_log_put_mpiio_file(darshan_fd fd, void* mpiio_buf);
 static void darshan_log_print_mpiio_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type);
@@ -43,8 +42,7 @@ struct darshan_mod_logutil_funcs mpiio_logutils =
     .log_print_record = &darshan_log_print_mpiio_file,
 };
 
-static int darshan_log_get_mpiio_file(darshan_fd fd, void* mpiio_buf,
-    darshan_record_id* rec_id)
+static int darshan_log_get_mpiio_file(darshan_fd fd, void* mpiio_buf)
 {
     struct darshan_mpiio_file *file;
     int i;
@@ -62,15 +60,14 @@ static int darshan_log_get_mpiio_file(darshan_fd fd, void* mpiio_buf,
         if(fd->swap_flag)
         {
             /* swap bytes if necessary */
-            DARSHAN_BSWAP64(&file->f_id);
-            DARSHAN_BSWAP64(&file->rank);
+            DARSHAN_BSWAP64(&(file->base_rec.id));
+            DARSHAN_BSWAP64(&(file->base_rec.rank));
             for(i=0; i<MPIIO_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->counters[i]);
             for(i=0; i<MPIIO_F_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->fcounters[i]);
         }
 
-        *rec_id = file->f_id;
         return(1);
     }
 }
@@ -98,15 +95,17 @@ static void darshan_log_print_mpiio_file(void *file_rec, char *file_name,
     for(i=0; i<MPIIO_NUM_INDICES; i++)
     {
         DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
-            mpiio_file_rec->rank, mpiio_file_rec->f_id, mpiio_counter_names[i],
-            mpiio_file_rec->counters[i], file_name, mnt_pt, fs_type);
+            mpiio_file_rec->base_rec.rank, mpiio_file_rec->base_rec.id,
+            mpiio_counter_names[i], mpiio_file_rec->counters[i],
+            file_name, mnt_pt, fs_type);
     }
 
     for(i=0; i<MPIIO_F_NUM_INDICES; i++)
     {
         DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
-            mpiio_file_rec->rank, mpiio_file_rec->f_id, mpiio_f_counter_names[i],
-            mpiio_file_rec->fcounters[i], file_name, mnt_pt, fs_type);
+            mpiio_file_rec->base_rec.rank, mpiio_file_rec->base_rec.id,
+            mpiio_f_counter_names[i], mpiio_file_rec->fcounters[i],
+            file_name, mnt_pt, fs_type);
     }
 
     return;

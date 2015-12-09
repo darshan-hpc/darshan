@@ -38,7 +38,6 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
     struct darshan_job job;
     struct darshan_mod_logutil_funcs *psx_mod = mod_logutils[DARSHAN_POSIX_MOD];
     struct darshan_posix_file psx_rec;
-    darshan_record_id rec_id;
     int f_count;
     double total_io_time;
     double total_job_time;
@@ -64,7 +63,7 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
     f_count = 0;
     total_io_time = 0.0;
 
-    while((ret = psx_mod->log_get_record(file, &psx_rec, &rec_id)) == 1)
+    while((ret = psx_mod->log_get_record(file, &psx_rec)) == 1)
     {
         f_count   += 1;
 

@@ -30,8 +30,7 @@ char *posix_f_counter_names[] = {
 };
 #undef X
 
-static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf,
-    darshan_record_id* rec_id);
+static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf);
 static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf);
 static void darshan_log_print_posix_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type);
@@ -43,8 +42,7 @@ struct darshan_mod_logutil_funcs posix_logutils =
     .log_print_record = &darshan_log_print_posix_file,
 };
 
-static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf, 
-    darshan_record_id* rec_id)
+static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf)
 {
     struct darshan_posix_file *file;
     int i;
@@ -70,7 +68,6 @@ static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf,
                 DARSHAN_BSWAP64(&file->fcounters[i]);
         }
 
-        *rec_id = file->base_rec.id;
         return(1);
     }
 }

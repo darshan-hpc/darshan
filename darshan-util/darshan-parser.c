@@ -348,7 +348,7 @@ int main(int argc, char **argv)
 
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
-        darshan_record_id rec_id;
+        struct darshan_base_record *base_rec;
         void *save_io, *save_md;
 
         /* check each module for any data */
@@ -389,7 +389,7 @@ int main(int argc, char **argv)
             DARSHAN_PRINT_HEADER();
         }
 
-        ret = mod_logutils[i]->log_get_record(fd, mod_buf, &rec_id);
+        ret = mod_logutils[i]->log_get_record(fd, mod_buf);
         if(ret != 1)
         {
             fprintf(stderr, "Error: failed to parse the first %s module record.\n",
@@ -404,9 +404,10 @@ int main(int argc, char **argv)
             char *mnt_pt = NULL;
             char *fs_type = NULL;
             hash_entry_t *hfile = NULL;
+            base_rec = (struct darshan_base_record *)mod_buf;
 
             /* get the pathname for this record */
-            HASH_FIND(hlink, rec_hash, &rec_id, sizeof(darshan_record_id), ref);
+            HASH_FIND(hlink, rec_hash, &(base_rec->id), sizeof(darshan_record_id), ref);
             assert(ref);
 
             /* get mount point and fs type associated with this record */
@@ -437,7 +438,7 @@ int main(int argc, char **argv)
             if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD)
                 continue;
 
-            HASH_FIND(hlink, file_hash, &rec_id, sizeof(darshan_record_id), hfile);
+            HASH_FIND(hlink, file_hash, &(base_rec->id), sizeof(darshan_record_id), hfile);
             if(!hfile)
             {
                 hfile = malloc(sizeof(*hfile));
@@ -449,14 +450,14 @@ int main(int argc, char **argv)
 
                 /* init */
                 memset(hfile, 0, sizeof(*hfile));
-                hfile->rec_id = rec_id;
+                hfile->rec_id = base_rec->id;
                 hfile->type = 0;
                 hfile->procs = 0;
                 hfile->rec_dat = NULL;
                 hfile->cumul_time = 0.0;
                 hfile->slowest_time = 0.0;
 
-                HASH_ADD(hlink, file_hash, rec_id, sizeof(darshan_record_id), hfile);
+                HASH_ADD(hlink, file_hash,rec_id, sizeof(darshan_record_id), hfile);
             }
 
             if(i == DARSHAN_POSIX_MOD)
@@ -474,7 +475,7 @@ int main(int argc, char **argv)
 
             memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
 
-        } while((ret = mod_logutils[i]->log_get_record(fd, mod_buf, &rec_id)) == 1);
+        } while((ret = mod_logutils[i]->log_get_record(fd, mod_buf)) == 1);
         if (ret < 0)
         {
             ret = -1;
@@ -858,7 +859,7 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
 
     hfile->procs += 1;
 
-    if(mfile->rank == -1)
+    if(mfile->base_rec.rank == -1)
     {
         hfile->slowest_time = mfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
     }
@@ -870,7 +871,7 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
             mfile->fcounters[MPIIO_F_WRITE_TIME]));
     }
 
-    if(mfile->rank == -1)
+    if(mfile->base_rec.rank == -1)
     {
         hfile->procs = nprocs;
         hfile->type |= FILETYPE_SHARED;
@@ -1111,7 +1112,7 @@ void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
      *     by_slowest: use slowest rank time from log data
      *                 (most accurate but requires newer log version)
      */
-    if(mfile->rank == -1)
+    if(mfile->base_rec.rank == -1)
     {
         /* by_open */
         if(mfile->fcounters[MPIIO_F_CLOSE_TIMESTAMP] >
@@ -1162,11 +1163,12 @@ void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
      */
     else
     {
-        pdata->rank_cumul_io_time[mfile->rank] +=
+        pdata->rank_cumul_io_time[mfile->base_rec.rank] +=
             (mfile->fcounters[MPIIO_F_META_TIME] +
             mfile->fcounters[MPIIO_F_READ_TIME] +
             mfile->fcounters[MPIIO_F_WRITE_TIME]);
-        pdata->rank_cumul_md_time[mfile->rank] += mfile->fcounters[MPIIO_F_META_TIME];
+        pdata->rank_cumul_md_time[mfile->base_rec.rank] +=
+            mfile->fcounters[MPIIO_F_META_TIME];
     }
 
     return;

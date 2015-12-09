@@ -50,8 +50,7 @@ enum darshan_null_f_indices
  */
 struct darshan_null_record
 {
-    darshan_record_id f_id;
-    int64_t rank;
+    struct darshan_base_record base_rec;
     int64_t counters[NULL_NUM_INDICES];
     double fcounters[NULL_F_NUM_INDICES];
 };

@@ -32,8 +32,7 @@ char *null_f_counter_names[] = {
 #undef X
 
 /* prototypes for each of the NULL module's logutil functions */
-static int darshan_log_get_null_record(darshan_fd fd, void* null_buf,
-    darshan_record_id* rec_id);
+static int darshan_log_get_null_record(darshan_fd fd, void* null_buf);
 static int darshan_log_put_null_record(darshan_fd fd, void* null_buf);
 static void darshan_log_print_null_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type);
@@ -53,8 +52,7 @@ struct darshan_mod_logutil_funcs null_logutils =
  * buffer in 'null_buf' and the corresponding Darshan record id in
  * 'rec_id'. Return 1 on successful record read, .
  */
-static int darshan_log_get_null_record(darshan_fd fd, void* null_buf, 
-    darshan_record_id* rec_id)
+static int darshan_log_get_null_record(darshan_fd fd, void* null_buf)
 {
     struct darshan_null_record *rec;
     int i;
@@ -74,16 +72,14 @@ static int darshan_log_get_null_record(darshan_fd fd, void* null_buf,
         if(fd->swap_flag)
         {
             /* swap bytes if necessary */
-            DARSHAN_BSWAP64(&rec->f_id);
-            DARSHAN_BSWAP64(&rec->rank);
+            DARSHAN_BSWAP64(&(rec->base_rec.id));
+            DARSHAN_BSWAP64(&(rec->base_rec.rank));
             for(i=0; i<NULL_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&rec->counters[i]);
             for(i=0; i<NULL_F_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&rec->fcounters[i]);
         }
 
-        /* set the output record id */
-        *rec_id = rec->f_id;
         return(1);
     }
 }
@@ -118,16 +114,18 @@ static void darshan_log_print_null_record(void *file_rec, char *file_name,
     {
         /* macro defined in darshan-logutils.h */
         DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-            null_rec->rank, null_rec->f_id, null_counter_names[i],
-            null_rec->counters[i], file_name, mnt_pt, fs_type);
+            null_rec->base_rec.rank, null_rec->base_rec.id,
+            null_counter_names[i], null_rec->counters[i],
+            file_name, mnt_pt, fs_type);
     }
 
     for(i=0; i<NULL_F_NUM_INDICES; i++)
     {
         /* macro defined in darshan-logutils.h */
         DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-            null_rec->rank, null_rec->f_id, null_f_counter_names[i],
-            null_rec->fcounters[i], file_name, mnt_pt, fs_type);
+            null_rec->base_rec.rank, null_rec->base_rec.id,
+            null_f_counter_names[i], null_rec->fcounters[i],
+            file_name, mnt_pt, fs_type);
     }
 
     return;

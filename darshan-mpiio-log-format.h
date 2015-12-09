@@ -146,8 +146,7 @@ enum darshan_mpiio_f_indices
  */
 struct darshan_mpiio_file
 {
-    darshan_record_id f_id;
-    int64_t rank;
+    struct darshan_base_record base_rec;
     int64_t counters[MPIIO_NUM_INDICES];
     double fcounters[MPIIO_F_NUM_INDICES];
 };
