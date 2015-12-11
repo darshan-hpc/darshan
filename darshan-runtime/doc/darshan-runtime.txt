@@ -16,7 +16,10 @@ used by the application.
 The darshan-runtime instrumentation only instruments MPI applications (the
 application must at least call `MPI_Init()` and `MPI_Finalize()`).  However,
 it captures both MPI-IO and POSIX file access.  It also captures limited
-information about HDF5 and PnetCDF access.
+information about HDF5 and PnetCDF access. Darshan also exposes an API that
+can be used to develop and add new instrumentation modules (for other I/O library
+interfaces or to gather system-specific data, for instance), as detailed in
+http://www.mcs.anl.gov/research/projects/darshan/docs/darshan-modularization.html[this document].
 
 This document provides generic installation instructions, but "recipes" for
 several common HPC systems are provided at the end of the document as well.
@@ -311,7 +314,7 @@ Please set your environment to use the GNU programming environment before
 configuring or compiling Darshan.  Although Darshan can be built with a
 variety of compilers, the GNU compilers are recommended because it will
 produce a Darshan library that is interoperable with the widest range
-of compmilers and linkers.  On most Cray systems you can enable the GNU
+of compilers and linkers.  On most Cray systems you can enable the GNU
 programming environment with a command similar to "module swap PrgEnv-pgi
 PrgEnv-gnu".  Please see your site documentation for information about
 how to switch programming environments.

@@ -66,12 +66,16 @@ application will likely be found in a centralized directory, with the path
 and log file name in the following format:
 
 ----
-<YEAR>/<MONTH>/<DAY>/<USERNAME>_<BINARY_NAME>_<JOB_ID>_<DATE>_<UNIQUE_ID>_<TIMING>.darshan.gz
+<YEAR>/<MONTH>/<DAY>/<USERNAME>_<BINARY_NAME>_<JOB_ID>_<DATE>_<UNIQUE_ID>_<TIMING>.darshan
 ----
 
 This is a binary format file that summarizes I/O activity. As of version
 2.0.0 of Darshan, this file is portable and does not have to be analyzed on
-the same system that executed the job. 
+the same system that executed the job. Also, note that Darshan logs generated
+with Darshan versions preceding version 3.0 will have the extension `darshan.gz`
+(or `darshan.bz2` if compressed using bzip2 format). These logs are not compatible
+with Darshan 3.0 utilities, and thus must be analyzed using an appropriate version
+(2.x) of the darshan-util package.
 
 === darshan-job-summary.pl
 
@@ -462,9 +466,9 @@ Byte and for the aggregate performance is MiB/s (1024*1024 Bytes/s).
 
 ===== Files
 Use the `--file` option to get totals based on file usage.
-The first column is the count of files for that type, the second column is
-number of bytes for that type and the third column is the maximum offset
-accessed.
+Each line has 3 columns. The first column is the count of files for that
+type of file, the second column is number of bytes for that type, and the third
+column is the maximum offset accessed.
 
 * total: All files
 * read_only: Files that were only read from
@@ -473,9 +477,6 @@ accessed.
 * unique: Files that were opened on only one rank
 * shared: File that were opened by more than one rank
 
-Each line has 3 columns. The first column is the count of files for that
-type of file, the second column is number of bytes for that type, and the third
-column is the maximum offset accessed.
 
 .Example output
 ----
@@ -557,8 +558,6 @@ If the `--bzip2` flag is given, then the output file will be re-compressed in
 bzip2 format rather than libz format.  It also has command line options for
 anonymizing personal data, adding metadata annotation to the log header, and
 restricting the output to a specific instrumented file.
-* darshan-diff: compares two darshan log files and shows counters that
-differ.
 * darshan-analyzer: walks an entire directory tree of Darshan log files and
 produces a summary of the types of access methods used in those log files.
 * darshan-logutils*: this is a library rather than an executable, but it
