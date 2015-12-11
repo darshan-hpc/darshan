@@ -35,12 +35,14 @@ static int darshan_log_get_pnetcdf_file(darshan_fd fd, void* pnetcdf_buf,
 static int darshan_log_put_pnetcdf_file(darshan_fd fd, void* pnetcdf_buf, int ver);
 static void darshan_log_print_pnetcdf_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
+static void darshan_log_print_pnetcdf_description(void);
 
 struct darshan_mod_logutil_funcs pnetcdf_logutils =
 {
     .log_get_record = &darshan_log_get_pnetcdf_file,
     .log_put_record = &darshan_log_put_pnetcdf_file,
     .log_print_record = &darshan_log_print_pnetcdf_file,
+    .log_print_description = &darshan_log_print_pnetcdf_description
 };
 
 static int darshan_log_get_pnetcdf_file(darshan_fd fd, void* pnetcdf_buf,
@@ -108,6 +110,19 @@ static void darshan_log_print_pnetcdf_file(void *file_rec, char *file_name,
             pnetcdf_file_rec->rank, pnetcdf_file_rec->f_id, pnetcdf_f_counter_names[i],
             pnetcdf_file_rec->fcounters[i], file_name, mnt_pt, fs_type);
     }
+
+    return;
+}
+
+static void darshan_log_print_pnetcdf_description()
+{
+    printf("\n# desription of PNETCDF counters:\n");
+    printf("#   PNETCDF_INDEP_OPENS: PNETCDF independent file open operation counts.\n");
+    printf("#   PNETCDF_COLL_OPENS: PNETCDF collective file open operation counts.\n");
+    printf("#   PNETCDF_F_OPEN_TIMESTAMP: timestamp of first PNETCDF file open.\n");
+    printf("#   PNETCDF_F_CLOSE_TIMESTAMP: timestamp of last PNETCDF file close.\n");
+
+    DARSHAN_PRINT_HEADER();
 
     return;
 }

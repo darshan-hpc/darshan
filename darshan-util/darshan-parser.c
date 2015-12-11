@@ -321,6 +321,21 @@ int main(int argc, char **argv)
         printf("# mount entry:\t%s\t%s\n", mnt_pts[i], fs_types[i]);
     }
 
+    if(mask & OPTION_BASE)
+    {
+        printf("\n# description of columns:\n");
+        printf("#   <module>: module responsible for this I/O record.\n");
+        printf("#   <rank>: MPI rank.  -1 indicates that the file is shared\n");
+        printf("#      across all processes and statistics are aggregated.\n");
+        printf("#   <record id>: hash of the record's file path\n");
+        printf("#   <counter name> and <counter value>: statistical counters.\n");
+        printf("#      A value of -1 indicates that Darshan could not monitor\n");
+        printf("#      that counter, and its value should be ignored.\n");
+        printf("#   <file name>: full file path for the record.\n");
+        printf("#   <mount pt>: mount point that the file resides on.\n");
+        printf("#   <fs type>: type of file system that the file resides on.\n");
+    }
+
     /* warn user if this log file is incomplete */
     pdata.rank_cumul_io_time = malloc(sizeof(double)*job.nprocs);
     pdata.rank_cumul_md_time = malloc(sizeof(double)*job.nprocs);
@@ -374,8 +389,9 @@ int main(int argc, char **argv)
 
         if(mask & OPTION_BASE)
         {
-            /* TODO: does each module print header of what each counter means??? */
-            DARSHAN_PRINT_HEADER();
+            /* print a header describing the module's I/O characterization data */
+            if(mod_logutils[i]->log_print_description)
+                mod_logutils[i]->log_print_description();
         }
 
         ret = mod_logutils[i]->log_get_record(fd, mod_buf, &rec_id);

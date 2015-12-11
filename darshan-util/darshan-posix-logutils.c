@@ -35,12 +35,14 @@ static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf,
 static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver);
 static void darshan_log_print_posix_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
+static void darshan_log_print_posix_description(void);
 
 struct darshan_mod_logutil_funcs posix_logutils =
 {
     .log_get_record = &darshan_log_get_posix_file,
     .log_put_record = &darshan_log_put_posix_file,
     .log_print_record = &darshan_log_print_posix_file,
+    .log_print_description = &darshan_log_print_posix_description
 };
 
 static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf, 
@@ -108,6 +110,41 @@ static void darshan_log_print_posix_file(void *file_rec, char *file_name,
             posix_file_rec->rank, posix_file_rec->f_id, posix_f_counter_names[i],
             posix_file_rec->fcounters[i], file_name, mnt_pt, fs_type);
     }
+
+    return;
+}
+
+static void darshan_log_print_posix_description()
+{
+    printf("\n# desription of POSIX counters:\n");
+    printf("#   POSIX_*: posix operation counts.\n");
+    printf("#   READS,WRITES,OPENS,SEEKS,STATS, and MMAPS are types of operations.\n");
+    printf("#   POSIX_MODE: mode that file was opened in.\n");
+    printf("#   POSIX_BYTES_*: total bytes read and written.\n");
+    printf("#   POSIX_MAX_BYTE_*: highest offset byte read and written.\n");
+    printf("#   POSIX_CONSEC_*: number of exactly adjacent reads and writes.\n");
+    printf("#   POSIX_SEQ_*: number of reads and writes from increasing offsets.\n");
+    printf("#   POSIX_RW_SWITCHES: number of times access alternated between read and write.\n");
+    printf("#   POSIX_*_ALIGNMENT: memory and file alignment.\n");
+    printf("#   POSIX_*_NOT_ALIGNED: number of reads and writes that were not aligned.\n");
+    printf("#   POSIX_MAX_*_TIME_SIZE: size of the slowest read and write operations.\n");
+    printf("#   POSIX_SIZE_*_*: histogram of read and write access sizes.\n");
+    printf("#   POSIX_STRIDE*_STRIDE: the four most common strides detected.\n");
+    printf("#   POSIX_STRIDE*_COUNT: count of the four most common strides.\n");
+    printf("#   POSIX_ACCESS*_ACCESS: the four most common access sizes.\n");
+    printf("#   POSIX_ACCESS*_COUNT: count of the four most common access sizes.\n");
+    printf("#   POSIX_*_RANK: rank of the processes that were the fastest and slowest at I/O (for shared files).\n");
+    printf("#   POSIX_*_RANK_BYTES: bytes transferred by the fastest and slowest ranks (for shared files).\n");
+    printf("#   POSIX_F_OPEN_TIMESTAMP: timestamp of first open.\n");
+    printf("#   POSIX_F_*_START_TIMESTAMP: timestamp of first read/write.\n");
+    printf("#   POSIX_F_*_END_TIMESTAMP: timestamp of last read/write.\n");
+    printf("#   POSIX_F_CLOSE_TIMESTAMP: timestamp of last close.\n");
+    printf("#   POSIX_F_READ/WRITE/META_TIME: cumulative time spent in read, write, or metadata operations.\n");
+    printf("#   POSIX_F_MAX_*_TIME: duration of the slowest read and write operations.\n");
+    printf("#   POSIX_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).\n");
+    printf("#   POSIX_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared files).\n");
+
+    DARSHAN_PRINT_HEADER();
 
     return;
 }

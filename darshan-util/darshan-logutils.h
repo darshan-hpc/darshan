@@ -89,6 +89,8 @@ struct darshan_mod_logutil_funcs
         char *fs_type,
         int ver
     );
+    /* print module-specific description of I/O characterization data */
+    void (*log_print_description)(void);
 };
 
 extern struct darshan_mod_logutil_funcs *mod_logutils[];

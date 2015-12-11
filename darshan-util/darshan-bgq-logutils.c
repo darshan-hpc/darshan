@@ -20,7 +20,7 @@
 #include "darshan-logutils.h"
 
 /* counter name strings for the POSIX module */
-#define X(a, b) #a,
+#define X(a) #a,
 char *bgq_counter_names[] = {
     BGQ_COUNTERS
 };
@@ -35,12 +35,14 @@ static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf,
 static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf, int ver);
 static void darshan_log_print_bgq_rec(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
+static void darshan_log_print_bgq_description(void);
 
 struct darshan_mod_logutil_funcs bgq_logutils =
 {
     .log_get_record = &darshan_log_get_bgq_rec,
     .log_put_record = &darshan_log_put_bgq_rec,
     .log_print_record = &darshan_log_print_bgq_rec,
+    .log_print_description = &darshan_log_print_bgq_description
 };
 
 static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf,
@@ -108,6 +110,23 @@ static void darshan_log_print_bgq_rec(void *file_rec, char *file_name,
             bgq_file_rec->rank, bgq_file_rec->f_id, bgq_f_counter_names[i],
             bgq_file_rec->fcounters[i], file_name, mnt_pt, fs_type);
     }
+
+    return;
+}
+
+static void darshan_log_print_bgq_description()
+{
+    printf("\n# desription of BGQ counters:\n");
+    printf("#   BGQ_CSJOBID: BGQ control system job ID.\n");
+    printf("#   BGQ_NNODES: number of BGQ compute nodes for this job.\n");
+    printf("#   BGQ_RANKSPERNODE: number of MPI ranks per compute node.\n");
+    printf("#   BGQ_DDRPERNODE: size in MB of DDR3 per compute node.\n");
+    printf("#   BGQ_INODES: number of BGQ I/O nodes for this job.\n");
+    printf("#   BGQ_*NODES: dimension of A, B, C, D, & E dimensions of torus.\n");
+    printf("#   BGQ_TORUSENABLED: which dimensions of the torus are enabled.\n");
+    printf("#   BGQ_F_TIMESTAMP: timestamp when the BGQ data was collected.\n");
+
+    DARSHAN_PRINT_HEADER();
 
     return;
 }

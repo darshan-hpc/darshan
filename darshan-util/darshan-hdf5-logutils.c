@@ -35,12 +35,14 @@ static int darshan_log_get_hdf5_file(darshan_fd fd, void* hdf5_buf,
 static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf, int ver);
 static void darshan_log_print_hdf5_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
+static void darshan_log_print_hdf5_description(void);
 
 struct darshan_mod_logutil_funcs hdf5_logutils =
 {
     .log_get_record = &darshan_log_get_hdf5_file,
     .log_put_record = &darshan_log_put_hdf5_file,
     .log_print_record = &darshan_log_print_hdf5_file,
+    .log_print_description = &darshan_log_print_hdf5_description
 };
 
 static int darshan_log_get_hdf5_file(darshan_fd fd, void* hdf5_buf,
@@ -108,6 +110,18 @@ static void darshan_log_print_hdf5_file(void *file_rec, char *file_name,
             hdf5_file_rec->rank, hdf5_file_rec->f_id, hdf5_f_counter_names[i],
             hdf5_file_rec->fcounters[i], file_name, mnt_pt, fs_type);
     }
+
+    return;
+}
+
+static void darshan_log_print_hdf5_description()
+{
+    printf("\n# desription of HDF5 counters:\n");
+    printf("#   HDF5_OPENS: HDF5 file open operation counts.\n");
+    printf("#   HDF5_F_OPEN_TIMESTAMP: timestamp of first HDF5 file open.\n");
+    printf("#   HDF5_F_CLOSE_TIMESTAMP: timestamp of last HDF5 file close.\n");
+
+    DARSHAN_PRINT_HEADER();
 
     return;
 }

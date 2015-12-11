@@ -37,6 +37,7 @@ static int darshan_log_get_null_record(darshan_fd fd, void* null_buf,
 static int darshan_log_put_null_record(darshan_fd fd, void* null_buf, int ver);
 static void darshan_log_print_null_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
+static void darshan_log_print_null_description(void);
 
 /* structure storing each function needed for implementing the darshan
  * logutil interface. these functions are used for reading, writing, and
@@ -47,6 +48,7 @@ struct darshan_mod_logutil_funcs null_logutils =
     .log_get_record = &darshan_log_get_null_record,
     .log_put_record = &darshan_log_put_null_record,
     .log_print_record = &darshan_log_print_null_record,
+    .log_print_description = &darshan_log_print_null_description
 };
 
 /* retrieve a NULL record from log file descriptor 'fd', storing the
@@ -130,6 +132,18 @@ static void darshan_log_print_null_record(void *file_rec, char *file_name,
             null_rec->rank, null_rec->f_id, null_f_counter_names[i],
             null_rec->fcounters[i], file_name, mnt_pt, fs_type);
     }
+
+    return;
+}
+
+/* print out a description of the NULL module record fields */
+static void darshan_log_print_null_description()
+{
+    printf("\n# desription of NULL counters:\n");
+    printf("#   NULL_BARS: number of 'bar' function calls.\n");
+    printf("#   NULL_BAR_DAT: value set by last call to function 'bar'.\n");
+    printf("#   NULL_F_BAR_TIMESTAMP: timestamp of the first call to function 'bar'.\n");
+    printf("#   NULL_F_BAR_DURATION: duration of the last call to function 'bar'.\n");
 
     return;
 }
