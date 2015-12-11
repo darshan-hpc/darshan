@@ -15,6 +15,8 @@ pkgconfigdir = $(DESTDIR)$(libdir)/pkgconfig
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_MOD_LOG_FORMATS = $(srcdir)/../darshan-posix-log-format.h $(srcdir)/../darshan-mpiio-log-format.h $(srcdir)/../darshan-hdf5-log-format.h $(srcdir)/../darshan-pnetcdf-log-format.h
 DARSHAN_MOD_LOGUTIL_HEADERS = darshan-posix-logutils.h darshan-mpiio-logutils.h darshan-hdf5-logutils.h darshan-pnetcdf-logutils.h
+DARSHAN_STATIC_MOD_OBJS = darshan-posix-logutils.o darshan-mpiio-logutils.o darshan-hdf5-logutils.o darshan-pnetcdf-logutils.o darshan-bgq-logutils.o
+DARSHAN_DYNAMIC_MOD_OBJS = darshan-posix-logutils.po darshan-mpiio-logutils.po darshan-hdf5-logutils.po darshan-pnetcdf-logutils.po darshan-bgq-logutils.po
 
 DARSHAN_ENABLE_SHARED=@DARSHAN_ENABLE_SHARED@
 
@@ -79,13 +81,12 @@ darshan-bgq-logutils.o: darshan-bgq-logutils.c darshan-logutils.h darshan-bgq-lo
 darshan-bgq-logutils.po: darshan-bgq-logutils.c darshan-logutils.h darshan-bgq-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-bgq-log-format.h | uthash-1.9.2
 	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
 
-
-libdarshan-util.so: darshan-logutils.po darshan-posix-logutils.po darshan-mpiio-logutils.po darshan-hdf5-logutils.po darshan-pnetcdf-logutils.po darshan-bgq-logutils.po
-	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ $(LIBS)
-	
-libdarshan-util.a: darshan-logutils.o darshan-posix-logutils.o darshan-mpiio-logutils.o darshan-hdf5-logutils.o darshan-pnetcdf-logutils.o darshan-bgq-logutils.o
+libdarshan-util.a: darshan-logutils.o $(DARSHAN_STATIC_MOD_OBJS)
 	ar rcs libdarshan-util.a $^
 
+libdarshan-util.so: darshan-logutils.po $(DARSHAN_DYNAMIC_MOD_OBJS)
+	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ $(LIBS)
+	
 jenkins-hash-gen: jenkins-hash-gen.c lookup3.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
 

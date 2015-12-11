@@ -690,8 +690,7 @@ void posix_accum_file(struct darshan_posix_file *pfile,
         case POSIX_MODE:
         case POSIX_MEM_ALIGNMENT:
         case POSIX_FILE_ALIGNMENT:
-            if(POSIX_FILE_PARTIAL(tmp))
-                tmp->counters[i] = pfile->counters[i];
+            tmp->counters[i] = pfile->counters[i];
             break;
         case POSIX_MAX_BYTE_READ:
         case POSIX_MAX_BYTE_WRITTEN:

@@ -50,7 +50,7 @@ static int instrumentation_disabled = 0;
 static int my_rank = -1;
 static int darshan_mem_alignment = 1;
 
-/* internal helper functions for the "NULL" module */
+/* internal helper functions for the BGQ module */
 void bgq_runtime_initialize(void);
 
 /* forward declaration for module functions needed to interface with darshan-core */
@@ -58,7 +58,7 @@ static void bgq_begin_shutdown(void);
 static void bgq_get_output_data(MPI_Comm mod_comm, darshan_record_id *shared_recs, int shared_rec_count, void **buffer, int *size);
 static void bgq_shutdown(void);
 
-/* macros for obtaining/releasing the "NULL" module lock */
+/* macros for obtaining/releasing the BGQ module lock */
 #define BGQ_LOCK() pthread_mutex_lock(&bgq_runtime_mutex)
 #define BGQ_UNLOCK() pthread_mutex_unlock(&bgq_runtime_mutex)
 
@@ -133,13 +133,15 @@ void bgq_runtime_initialize()
     if(mem_limit == 0)
     {
         instrumentation_disabled = 1;
+        BGQ_UNLOCK();
         return;
     }
 
-    /* no enough memory to fit bgq module */
+    /* not enough memory to fit bgq module */
     if (mem_limit < sizeof(*bgq_runtime))
     {
         instrumentation_disabled = 1;
+        BGQ_UNLOCK();
         return;
     }
 
@@ -148,6 +150,7 @@ void bgq_runtime_initialize()
     if(!bgq_runtime)
     {
         instrumentation_disabled = 1;
+        BGQ_UNLOCK();
         return;
     }
     memset(bgq_runtime, 0, sizeof(*bgq_runtime));
@@ -180,7 +183,7 @@ void bgq_runtime_initialize()
     return;
 }
 
-/* Perform any necessary steps prior to shutting down for the "NULL" module. */
+/* Perform any necessary steps prior to shutting down for the BGQ module. */
 static void bgq_begin_shutdown()
 {
     BGQ_LOCK();
@@ -204,7 +207,7 @@ static int cmpr(const void *p1, const void *p2)
     return ((*a == *b) ?  0 : ((*a < *b) ? -1 : 1));
 }
 
-/* Pass output data for the "BGQ" module back to darshan-core to log to file. */
+/* Pass output data for the BGQ module back to darshan-core to log to file. */
 static void bgq_get_output_data(
     MPI_Comm mod_comm,
     darshan_record_id *shared_recs,
@@ -212,7 +215,7 @@ static void bgq_get_output_data(
     void **buffer,
     int *size)
 {
-    /* Just set the output buffer to point at the array of the "BGQ" module's
+    /* Just set the output buffer to point at the array of the BGQ module's
      * I/O records, and set the output size according to the number of records
      * currently being tracked.
      */
@@ -273,7 +276,7 @@ static void bgq_get_output_data(
     return;
 }
 
-/* Shutdown the "BGQ" module by freeing up all data structures. */
+/* Shutdown the BGQ module by freeing up all data structures. */
 static void bgq_shutdown()
 {
     BGQ_LOCK();

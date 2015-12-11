@@ -55,6 +55,9 @@ struct darshan_mod_logutil_funcs
     /* retrieve a single module record from the log file. 
      * return 1 on successful read of record, 0 on no more
      * module data, -1 on error
+     *      - 'fd' is the file descriptor to get record from
+     *      - 'buf' is the buffer to store the record in
+     *      - 'rec_id' is the corresponding darshan record id
      */
     int (*log_get_record)(
         darshan_fd fd,
@@ -63,13 +66,22 @@ struct darshan_mod_logutil_funcs
     );
     /* put a single module record into the log file.
      * return 0 on success, -1 on error
+     *      - 'fd' is the file descriptor to put record into
+     *      - 'buf' is the buffer containing the record data
+     *      - 'rec_id' is the corresponding darshan record id
      */
     int (*log_put_record)(
         darshan_fd fd,
         void *buf,
         int ver
     );
-    /* print the counters for a given log file record */
+    /* print the counters for a given log record
+     *      - 'file_rec' is the record's data buffer
+     *      - 'file_name' is the file path string for the record
+     *      - 'mnt-pt' is the file path mount point string
+     *      - 'fs_type' is the file system type string
+     *      - 'ver' is the version of the record
+     */
     void (*log_print_record)(
         void *file_rec,
         char *file_name,

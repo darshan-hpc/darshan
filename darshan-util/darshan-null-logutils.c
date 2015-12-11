@@ -51,7 +51,8 @@ struct darshan_mod_logutil_funcs null_logutils =
 
 /* retrieve a NULL record from log file descriptor 'fd', storing the
  * buffer in 'null_buf' and the corresponding Darshan record id in
- * 'rec_id'. Return 1 on successful record read, .
+ * 'rec_id'. Return 1 on successful record read, 0 on no more data,
+ * and -1 on error.
  */
 static int darshan_log_get_null_record(darshan_fd fd, void* null_buf, 
     darshan_record_id* rec_id)

@@ -39,8 +39,6 @@ typedef int64_t off64_t;
 #define aiocb64 aiocb
 #endif
 
-/* TODO: more libc, fgetc, etc etc etc. */
-
 DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(open64, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(creat, int, (const char* path, mode_t mode));
@@ -1728,10 +1726,7 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
-        if(POSIX_FILE_PARTIAL(infile))
-            tmp_file.counters[POSIX_MODE] = inoutfile->counters[POSIX_MODE];
-        else
-            tmp_file.counters[POSIX_MODE] = infile->counters[POSIX_MODE];
+        tmp_file.counters[POSIX_MODE] = infile->counters[POSIX_MODE];
 
         /* sum */
         for(j=POSIX_BYTES_READ; j<=POSIX_BYTES_WRITTEN; j++)
@@ -1754,10 +1749,7 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
-        if(POSIX_FILE_PARTIAL(infile))
-            tmp_file.counters[POSIX_MEM_ALIGNMENT] = inoutfile->counters[POSIX_MEM_ALIGNMENT];
-        else
-            tmp_file.counters[POSIX_MEM_ALIGNMENT] = infile->counters[POSIX_MEM_ALIGNMENT];
+        tmp_file.counters[POSIX_MEM_ALIGNMENT] = infile->counters[POSIX_MEM_ALIGNMENT];
 
         /* sum */
         for(j=POSIX_FILE_NOT_ALIGNED; j<=POSIX_FILE_NOT_ALIGNED; j++)
@@ -1765,10 +1757,7 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
-        if(POSIX_FILE_PARTIAL(infile))
-            tmp_file.counters[POSIX_FILE_ALIGNMENT] = inoutfile->counters[POSIX_FILE_ALIGNMENT];
-        else
-            tmp_file.counters[POSIX_FILE_ALIGNMENT] = infile->counters[POSIX_FILE_ALIGNMENT];
+        tmp_file.counters[POSIX_FILE_ALIGNMENT] = infile->counters[POSIX_FILE_ALIGNMENT];
 
         /* skip POSIX_MAX_*_TIME_SIZE; handled in floating point section */
 
