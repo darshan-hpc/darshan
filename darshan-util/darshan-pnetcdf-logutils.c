@@ -34,12 +34,14 @@ static int darshan_log_get_pnetcdf_file(darshan_fd fd, void* pnetcdf_buf);
 static int darshan_log_put_pnetcdf_file(darshan_fd fd, void* pnetcdf_buf);
 static void darshan_log_print_pnetcdf_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type);
+static void darshan_log_agg_pnetcdf_files(void *rec, void *agg_rec, int init_flag);
 
 struct darshan_mod_logutil_funcs pnetcdf_logutils =
 {
     .log_get_record = &darshan_log_get_pnetcdf_file,
     .log_put_record = &darshan_log_put_pnetcdf_file,
     .log_print_record = &darshan_log_print_pnetcdf_file,
+    .log_agg_records = &darshan_log_agg_pnetcdf_files
 };
 
 static int darshan_log_get_pnetcdf_file(darshan_fd fd, void* pnetcdf_buf)
@@ -107,6 +109,12 @@ static void darshan_log_print_pnetcdf_file(void *file_rec, char *file_name,
             pnetcdf_f_counter_names[i], pnetcdf_file_rec->fcounters[i],
             file_name, mnt_pt, fs_type);
     }
+
+    return;
+}
+
+static void darshan_log_agg_pnetcdf_files(void *rec, void *agg_rec, int init_flag)
+{
 
     return;
 }

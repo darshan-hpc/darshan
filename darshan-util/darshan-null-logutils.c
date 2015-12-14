@@ -36,6 +36,7 @@ static int darshan_log_get_null_record(darshan_fd fd, void* null_buf);
 static int darshan_log_put_null_record(darshan_fd fd, void* null_buf);
 static void darshan_log_print_null_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type);
+static void darshan_log_agg_null_records(void *rec, void *agg_rec, int init_flag);
 
 /* structure storing each function needed for implementing the darshan
  * logutil interface. these functions are used for reading, writing, and
@@ -46,6 +47,7 @@ struct darshan_mod_logutil_funcs null_logutils =
     .log_get_record = &darshan_log_get_null_record,
     .log_put_record = &darshan_log_put_null_record,
     .log_print_record = &darshan_log_print_null_record,
+    .log_agg_records = &darshan_log_agg_null_records
 };
 
 /* retrieve a NULL record from log file descriptor 'fd', storing the
@@ -127,6 +129,12 @@ static void darshan_log_print_null_record(void *file_rec, char *file_name,
             null_f_counter_names[i], null_rec->fcounters[i],
             file_name, mnt_pt, fs_type);
     }
+
+    return;
+}
+
+static void darshan_log_agg_null_records(void *rec, void *agg_rec, int init_flag)
+{
 
     return;
 }

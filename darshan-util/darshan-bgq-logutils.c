@@ -40,6 +40,7 @@ struct darshan_mod_logutil_funcs bgq_logutils =
     .log_get_record = &darshan_log_get_bgq_rec,
     .log_put_record = &darshan_log_put_bgq_rec,
     .log_print_record = &darshan_log_print_bgq_rec,
+    .log_agg_records = NULL /* TODO: how would aggregation work for the BG/Q module ? */
 };
 
 static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf)

@@ -75,6 +75,12 @@ struct darshan_mod_logutil_funcs
         char *mnt_pt,
         char *fs_type
     );
+    /* combine two records into a single aggregate record */
+    void (*log_agg_records)(
+        void *rec,
+        void *agg_rec,
+        int init_flag
+    );
 };
 
 extern struct darshan_mod_logutil_funcs *mod_logutils[];

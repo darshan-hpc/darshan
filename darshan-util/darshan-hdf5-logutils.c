@@ -34,12 +34,14 @@ static int darshan_log_get_hdf5_file(darshan_fd fd, void* hdf5_buf);
 static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf);
 static void darshan_log_print_hdf5_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type);
+static void darshan_log_agg_hdf5_files(void *rec, void *agg_rec, int init_flag);
 
 struct darshan_mod_logutil_funcs hdf5_logutils =
 {
     .log_get_record = &darshan_log_get_hdf5_file,
     .log_put_record = &darshan_log_put_hdf5_file,
     .log_print_record = &darshan_log_print_hdf5_file,
+    .log_agg_records = &darshan_log_agg_hdf5_files
 };
 
 static int darshan_log_get_hdf5_file(darshan_fd fd, void* hdf5_buf)
@@ -107,6 +109,12 @@ static void darshan_log_print_hdf5_file(void *file_rec, char *file_name,
             hdf5_f_counter_names[i], hdf5_file_rec->fcounters[i],
             file_name, mnt_pt, fs_type);
     }
+
+    return;
+}
+
+static void darshan_log_agg_hdf5_files(void *rec, void *agg_rec, int init_flag)
+{
 
     return;
 }

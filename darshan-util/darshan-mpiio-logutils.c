@@ -34,12 +34,14 @@ static int darshan_log_get_mpiio_file(darshan_fd fd, void* mpiio_buf);
 static int darshan_log_put_mpiio_file(darshan_fd fd, void* mpiio_buf);
 static void darshan_log_print_mpiio_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type);
+static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag);
 
 struct darshan_mod_logutil_funcs mpiio_logutils =
 {
     .log_get_record = &darshan_log_get_mpiio_file,
     .log_put_record = &darshan_log_put_mpiio_file,
     .log_print_record = &darshan_log_print_mpiio_file,
+    .log_agg_records = &darshan_log_agg_mpiio_files
 };
 
 static int darshan_log_get_mpiio_file(darshan_fd fd, void* mpiio_buf)
@@ -107,6 +109,12 @@ static void darshan_log_print_mpiio_file(void *file_rec, char *file_name,
             mpiio_f_counter_names[i], mpiio_file_rec->fcounters[i],
             file_name, mnt_pt, fs_type);
     }
+
+    return;
+}
+
+static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag)
+{
 
     return;
 }
