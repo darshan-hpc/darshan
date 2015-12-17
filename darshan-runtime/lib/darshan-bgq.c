@@ -223,8 +223,6 @@ static void bgq_get_output_data(
     int result;
     uint64_t *ion_ids;
 
-    BGQ_LOCK();
-
     if (my_rank == 0)
     {
         DARSHAN_MPI_CALL(PMPI_Comm_size)(mod_comm, &nprocs);
@@ -272,21 +270,18 @@ static void bgq_get_output_data(
         *size   = 0;
     }
 
-    BGQ_UNLOCK();
     return;
 }
 
 /* Shutdown the BGQ module by freeing up all data structures. */
 static void bgq_shutdown()
 {
-    BGQ_LOCK();
     if (bgq_runtime)
     {
         free(bgq_runtime);
         bgq_runtime = NULL;
     }
 
-    BGQ_UNLOCK();
     return;
 }
 

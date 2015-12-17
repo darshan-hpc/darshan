@@ -1320,8 +1320,6 @@ static void mpiio_get_output_data(
 
     assert(mpiio_runtime);
 
-    MPIIO_LOCK();
-
     /* go through and set the 4 most common access sizes for MPI-IO */
     for(i = 0; i < mpiio_runtime->file_array_ndx; i++)
     {
@@ -1391,7 +1389,6 @@ static void mpiio_get_output_data(
             red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_mpiio_file));
             if(!red_recv_buf)
             {
-                MPIIO_UNLOCK();
                 return;
             }
         }
@@ -1434,7 +1431,6 @@ static void mpiio_get_output_data(
     *mpiio_buf = (void *)(mpiio_runtime->file_record_array);
     *mpiio_buf_sz = mpiio_runtime->file_array_ndx * sizeof(struct darshan_mpiio_file);
 
-    MPIIO_UNLOCK();
     return;
 }
 
@@ -1444,7 +1440,6 @@ static void mpiio_shutdown()
 
     assert(mpiio_runtime);
 
-    MPIIO_LOCK();
     HASH_ITER(hlink, mpiio_runtime->fh_hash, ref, tmp)
     {
         HASH_DELETE(hlink, mpiio_runtime->fh_hash, ref);
@@ -1458,7 +1453,6 @@ static void mpiio_shutdown()
     free(mpiio_runtime);
     mpiio_runtime = NULL;
 
-    MPIIO_UNLOCK();
     return;
 }
 

@@ -496,8 +496,6 @@ static void pnetcdf_get_output_data(
 
     assert(pnetcdf_runtime);
 
-    PNETCDF_LOCK();
-
     /* if there are globally shared files, do a shared file reduction */
     /* NOTE: the shared file reduction is also skipped if the 
      * DARSHAN_DISABLE_SHARED_REDUCTION environment variable is set.
@@ -531,7 +529,6 @@ static void pnetcdf_get_output_data(
             red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_pnetcdf_file));
             if(!red_recv_buf)
             {
-                PNETCDF_UNLOCK();
                 return;
             }
         }
@@ -570,7 +567,6 @@ static void pnetcdf_get_output_data(
     *pnetcdf_buf = (void *)(pnetcdf_runtime->file_record_array);
     *pnetcdf_buf_sz = pnetcdf_runtime->file_array_ndx * sizeof(struct darshan_pnetcdf_file);
 
-    PNETCDF_UNLOCK();
     return;
 }
 
@@ -580,7 +576,6 @@ static void pnetcdf_shutdown()
 
     assert(pnetcdf_runtime);
 
-    PNETCDF_LOCK();
     HASH_ITER(hlink, pnetcdf_runtime->ncid_hash, ref, tmp)
     {
         HASH_DELETE(hlink, pnetcdf_runtime->ncid_hash, ref);
@@ -594,7 +589,6 @@ static void pnetcdf_shutdown()
     free(pnetcdf_runtime);
     pnetcdf_runtime = NULL;
 
-    PNETCDF_UNLOCK();
     return;
 }
 

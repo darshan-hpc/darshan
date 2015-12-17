@@ -2051,8 +2051,6 @@ static void posix_get_output_data(
 
     assert(posix_runtime);
 
-    POSIX_LOCK();
-
     /* go through file access data for each record and set the 4 most common
      * stride/access size counters.
      */
@@ -2129,7 +2127,6 @@ static void posix_get_output_data(
             if(!red_recv_buf)
             {
                 return;
-                POSIX_UNLOCK();
             }
         }
 
@@ -2171,7 +2168,6 @@ static void posix_get_output_data(
     *posix_buf = (void *)(posix_runtime->file_record_array);
     *posix_buf_sz = posix_runtime->file_array_ndx * sizeof(struct darshan_posix_file);
 
-    POSIX_UNLOCK();
     return;
 }
 
@@ -2181,7 +2177,6 @@ static void posix_shutdown()
 
     assert(posix_runtime);
 
-    POSIX_LOCK();
     HASH_ITER(hlink, posix_runtime->fd_hash, ref, tmp)
     {
         HASH_DELETE(hlink, posix_runtime->fd_hash, ref);
@@ -2195,7 +2190,6 @@ static void posix_shutdown()
     free(posix_runtime);
     posix_runtime = NULL;
     
-    POSIX_UNLOCK();
     return;
 }
 
