@@ -188,6 +188,7 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
             case POSIX_SIZE_WRITE_4M_10M:
             case POSIX_SIZE_WRITE_10M_100M:
             case POSIX_SIZE_WRITE_100M_1G:
+            case POSIX_SIZE_WRITE_1G_PLUS:
                 /* sum */
                 agg_psx_rec->counters[i] += psx_rec->counters[i];
                 break;
@@ -233,9 +234,10 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
             case POSIX_F_OPEN_TIMESTAMP:
             case POSIX_F_READ_START_TIMESTAMP:
             case POSIX_F_WRITE_START_TIMESTAMP:
-                /* minimum */
-                if(psx_rec->fcounters[i] > 0 &&
-                    (psx_rec->fcounters[i] < agg_psx_rec->fcounters[i]))
+                /* minimum non-zero */
+                if((psx_rec->fcounters[i] > 0)  &&
+                    ((agg_psx_rec->fcounters[i] == 0) ||
+                    (psx_rec->fcounters[i] < agg_psx_rec->fcounters[i])))
                 {
                     agg_psx_rec->fcounters[i] = psx_rec->fcounters[i];
                 }

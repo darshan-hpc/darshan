@@ -209,6 +209,7 @@ int main(int argc, char **argv)
     char** mnt_pts;
     char** fs_types;
     time_t tmp_time = 0;
+    int64_t run_time = 0;
     char *token;
     char *save;
     char buffer[DARSHAN_JOB_METADATA_LEN];
@@ -287,7 +288,9 @@ int main(int argc, char **argv)
     tmp_time += job.end_time;
     printf("# end_time_asci: %s", ctime(&tmp_time));
     printf("# nprocs: %" PRId64 "\n", job.nprocs);
-    printf("# run time: %" PRId64 "\n", job.end_time - job.start_time + 1);
+    if(job.end_time >= job.start_time)
+        run_time = job.end_time - job.start_time + 1;
+    printf("# run time: %" PRId64 "\n", run_time);
     for(token=strtok_r(job.metadata, "\n", &save);
         token != NULL;
         token=strtok_r(NULL, "\n", &save))
