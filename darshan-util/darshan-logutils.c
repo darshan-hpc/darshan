@@ -133,6 +133,7 @@ darshan_fd darshan_log_open(const char *name)
     ret = darshan_log_getheader(tmp_fd);
     if(ret < 0)
     {
+        fprintf(stderr, "Error: failed to read darshan log file header.\n");
         close(tmp_fd->state->fildes);
         free(tmp_fd->state);
         free(tmp_fd);
@@ -845,6 +846,30 @@ static int darshan_log_getheader(darshan_fd fd)
         return(-1);
     }
 
+    /* read the version number so we know how to process this log */
+    ret = darshan_log_read(fd, &fd->version, 8);
+    if(ret < 8)
+    {
+        fprintf(stderr, "Error: invalid log file (failed to read version).\n");
+        return(-1);
+    }
+
+    /* other log file versions can be detected and handled here */
+    if(strcmp(fd->version, "3.00"))
+    {
+        fprintf(stderr, "Error: incompatible darshan file.\n");
+        fprintf(stderr, "Error: expected version %s\n", DARSHAN_LOG_VERSION);
+        return(-1);
+    }
+
+    /* seek back so we can read the entire header */
+    ret = darshan_log_seek(fd, 0);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to seek in darshan log file.\n");
+        return(-1);
+    }
+
     /* read uncompressed header from log file */
     ret = darshan_log_read(fd, &header, sizeof(header));
     if(ret != sizeof(header))
@@ -852,9 +877,6 @@ static int darshan_log_getheader(darshan_fd fd)
         fprintf(stderr, "Error: failed to read darshan log file header.\n");
         return(-1);
     }
-
-    /* save the version string */
-    strncpy(fd->version, header.version_string, 8);
 
     if(header.magic_nr == DARSHAN_MAGIC_NR)
     {
