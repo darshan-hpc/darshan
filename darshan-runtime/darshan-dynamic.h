@@ -114,10 +114,22 @@ DARSHAN_EXTERN_DECL(PMPI_Type_get_envelope, int, (MPI_Datatype datatype, int *nu
 DARSHAN_EXTERN_DECL(PMPI_Type_size, int, (MPI_Datatype datatype, int *size));
 DARSHAN_EXTERN_DECL(PMPI_Op_create, int, (MPI_User_function *function, int commute, MPI_Op *op));
 DARSHAN_EXTERN_DECL(PMPI_Op_free, int, (MPI_Op *op));
+#ifdef HAVE_MPIIO_CONST
+DARSHAN_EXTERN_DECL(PMPI_Reduce, int, (const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm));
+#else
 DARSHAN_EXTERN_DECL(PMPI_Reduce, int, (void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm));
+#endif
+#ifdef HAVE_MPIIO_CONST
+DARSHAN_EXTERN_DECL(PMPI_Send, int, (const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm));
+#else
 DARSHAN_EXTERN_DECL(PMPI_Send, int, (void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm));
+#endif
 DARSHAN_EXTERN_DECL(PMPI_Recv, int, (void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status *status));
+#ifdef HAVE_MPIIO_CONST
 DARSHAN_EXTERN_DECL(PMPI_Gather, int, (const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm));
+#else
+DARSHAN_EXTERN_DECL(PMPI_Gather, int, (void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm));
+#endif
 
 #endif
 
