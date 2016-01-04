@@ -116,7 +116,7 @@ static void darshan_log_print_posix_file(void *file_rec, char *file_name,
 
 static void darshan_log_print_posix_description()
 {
-    printf("\n# desription of POSIX counters:\n");
+    printf("\n# description of POSIX counters:\n");
     printf("#   POSIX_*: posix operation counts.\n");
     printf("#   READS,WRITES,OPENS,SEEKS,STATS, and MMAPS are types of operations.\n");
     printf("#   POSIX_MODE: mode that file was opened in.\n");

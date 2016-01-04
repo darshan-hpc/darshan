@@ -139,7 +139,7 @@ static void darshan_log_print_null_record(void *file_rec, char *file_name,
 /* print out a description of the NULL module record fields */
 static void darshan_log_print_null_description()
 {
-    printf("\n# desription of NULL counters:\n");
+    printf("\n# description of NULL counters:\n");
     printf("#   NULL_BARS: number of 'bar' function calls.\n");
     printf("#   NULL_BAR_DAT: value set by last call to function 'bar'.\n");
     printf("#   NULL_F_BAR_TIMESTAMP: timestamp of the first call to function 'bar'.\n");

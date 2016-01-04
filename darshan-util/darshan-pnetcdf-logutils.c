@@ -116,7 +116,7 @@ static void darshan_log_print_pnetcdf_file(void *file_rec, char *file_name,
 
 static void darshan_log_print_pnetcdf_description()
 {
-    printf("\n# desription of PNETCDF counters:\n");
+    printf("\n# description of PNETCDF counters:\n");
     printf("#   PNETCDF_INDEP_OPENS: PNETCDF independent file open operation counts.\n");
     printf("#   PNETCDF_COLL_OPENS: PNETCDF collective file open operation counts.\n");
     printf("#   PNETCDF_F_OPEN_TIMESTAMP: timestamp of first PNETCDF file open.\n");

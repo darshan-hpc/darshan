@@ -116,7 +116,7 @@ static void darshan_log_print_mpiio_file(void *file_rec, char *file_name,
 
 static void darshan_log_print_mpiio_description()
 {
-    printf("\n# desription of MPIIO counters:\n");
+    printf("\n# description of MPIIO counters:\n");
     printf("#   MPIIO_INDEP_*: MPI independent operation counts.\n");
     printf("#   MPIIO_COLL_*: MPI collective operation counts.\n");
     printf("#   MPIIO_SPLIT_*: MPI split collective operation counts.\n");

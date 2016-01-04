@@ -116,7 +116,7 @@ static void darshan_log_print_bgq_rec(void *file_rec, char *file_name,
 
 static void darshan_log_print_bgq_description()
 {
-    printf("\n# desription of BGQ counters:\n");
+    printf("\n# description of BGQ counters:\n");
     printf("#   BGQ_CSJOBID: BGQ control system job ID.\n");
     printf("#   BGQ_NNODES: number of BGQ compute nodes for this job.\n");
     printf("#   BGQ_RANKSPERNODE: number of MPI ranks per compute node.\n");
