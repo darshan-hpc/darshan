@@ -36,13 +36,16 @@ static int darshan_log_put_mpiio_file(darshan_fd fd, void* mpiio_buf, int ver);
 static void darshan_log_print_mpiio_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
 static void darshan_log_print_mpiio_description(void);
+static void darshan_log_print_mpiio_file_diff(void *file_rec1, char *file_name1,
+    void *file_rec2, char *file_name2);
 
 struct darshan_mod_logutil_funcs mpiio_logutils =
 {
     .log_get_record = &darshan_log_get_mpiio_file,
     .log_put_record = &darshan_log_put_mpiio_file,
     .log_print_record = &darshan_log_print_mpiio_file,
-    .log_print_description = &darshan_log_print_mpiio_description
+    .log_print_description = &darshan_log_print_mpiio_description,
+    .log_print_diff = &darshan_log_print_mpiio_file_diff
 };
 
 static int darshan_log_get_mpiio_file(darshan_fd fd, void* mpiio_buf,
@@ -147,6 +150,79 @@ static void darshan_log_print_mpiio_description()
 
     return;
 }
+
+static void darshan_log_print_mpiio_file_diff(void *file_rec1, char *file_name1,
+    void *file_rec2, char *file_name2)
+{
+    struct darshan_mpiio_file *file1 = (struct darshan_mpiio_file *)file_rec1;
+    struct darshan_mpiio_file *file2 = (struct darshan_mpiio_file *)file_rec2;
+    int i;
+
+    /* NOTE: we assume that both input records are the same module format version */
+
+    for(i=0; i<MPIIO_NUM_INDICES; i++)
+    {
+        if(!file2)
+        {
+            printf("- ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
+                file1->rank, file1->f_id, mpiio_counter_names[i],
+                file1->counters[i], file_name1, "", "");
+
+        }
+        else if(!file1)
+        {
+            printf("+ ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
+                file2->rank, file2->f_id, mpiio_counter_names[i],
+                file2->counters[i], file_name2, "", "");
+        }
+        else if(file1->counters[i] != file2->counters[i])
+        {
+            printf("- ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
+                file1->rank, file1->f_id, mpiio_counter_names[i],
+                file1->counters[i], file_name1, "", "");
+            printf("+ ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
+                file2->rank, file2->f_id, mpiio_counter_names[i],
+                file2->counters[i], file_name2, "", "");
+        }
+    }
+
+    for(i=0; i<MPIIO_F_NUM_INDICES; i++)
+    {
+        if(!file2)
+        {
+            printf("- ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
+                file1->rank, file1->f_id, mpiio_f_counter_names[i],
+                file1->fcounters[i], file_name1, "", "");
+
+        }
+        else if(!file1)
+        {
+            printf("+ ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
+                file2->rank, file2->f_id, mpiio_f_counter_names[i],
+                file2->fcounters[i], file_name2, "", "");
+        }
+        else if(file1->fcounters[i] != file2->fcounters[i])
+        {
+            printf("- ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
+                file1->rank, file1->f_id, mpiio_f_counter_names[i],
+                file1->fcounters[i], file_name1, "", "");
+            printf("+ ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
+                file2->rank, file2->f_id, mpiio_f_counter_names[i],
+                file2->fcounters[i], file_name2, "", "");
+        }
+    }
+
+    return;
+}
+
 
 /*
  * Local variables:

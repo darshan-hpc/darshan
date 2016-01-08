@@ -38,6 +38,8 @@ static int darshan_log_put_null_record(darshan_fd fd, void* null_buf, int ver);
 static void darshan_log_print_null_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
 static void darshan_log_print_null_description(void);
+static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1,
+    void *file_rec2, char *file_name2);
 
 /* structure storing each function needed for implementing the darshan
  * logutil interface. these functions are used for reading, writing, and
@@ -48,7 +50,8 @@ struct darshan_mod_logutil_funcs null_logutils =
     .log_get_record = &darshan_log_get_null_record,
     .log_put_record = &darshan_log_put_null_record,
     .log_print_record = &darshan_log_print_null_record,
-    .log_print_description = &darshan_log_print_null_description
+    .log_print_description = &darshan_log_print_null_description,
+    .log_print_diff = &darshan_log_print_null_record_diff
 };
 
 /* retrieve a NULL record from log file descriptor 'fd', storing the
@@ -147,6 +150,79 @@ static void darshan_log_print_null_description()
 
     return;
 }
+
+static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1,
+    void *file_rec2, char *file_name2)
+{
+    struct darshan_null_record *file1 = (struct darshan_null_record *)file_rec1;
+    struct darshan_null_record *file2 = (struct darshan_null_record *)file_rec2;
+    int i;
+
+    /* NOTE: we assume that both input records are the same module format version */
+
+    for(i=0; i<NULL_NUM_INDICES; i++)
+    {
+        if(!file2)
+        {
+            printf("- ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
+                file1->rank, file1->f_id, null_counter_names[i],
+                file1->counters[i], file_name1, "", "");
+
+        }
+        else if(!file1)
+        {
+            printf("+ ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
+                file2->rank, file2->f_id, null_counter_names[i],
+                file2->counters[i], file_name2, "", "");
+        }
+        else if(file1->counters[i] != file2->counters[i])
+        {
+            printf("- ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
+                file1->rank, file1->f_id, null_counter_names[i],
+                file1->counters[i], file_name1, "", "");
+            printf("+ ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
+                file2->rank, file2->f_id, null_counter_names[i],
+                file2->counters[i], file_name2, "", "");
+        }
+    }
+
+    for(i=0; i<NULL_F_NUM_INDICES; i++)
+    {
+        if(!file2)
+        {
+            printf("- ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
+                file1->rank, file1->f_id, null_f_counter_names[i],
+                file1->fcounters[i], file_name1, "", "");
+
+        }
+        else if(!file1)
+        {
+            printf("+ ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
+                file2->rank, file2->f_id, null_f_counter_names[i],
+                file2->fcounters[i], file_name2, "", "");
+        }
+        else if(file1->fcounters[i] != file2->fcounters[i])
+        {
+            printf("- ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
+                file1->rank, file1->f_id, null_f_counter_names[i],
+                file1->fcounters[i], file_name1, "", "");
+            printf("+ ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
+                file2->rank, file2->f_id, null_f_counter_names[i],
+                file2->fcounters[i], file_name2, "", "");
+        }
+    }
+
+    return;
+}
+
 
 /*
  * Local variables:
