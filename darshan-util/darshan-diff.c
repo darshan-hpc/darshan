@@ -408,11 +408,24 @@ static int darshan_build_global_record_hash(
                 mod_rec->rank = base_rec->rank;
 
                 HASH_FIND(hlink, *rec_hash, &tmp_rec_id, sizeof(darshan_record_id), file_rec);
-                if(file_rec)
+                if(!file_rec)
                 {
-                    /* the global record already exists, so we need to just add the
-                     * module record to the linked list of records for this module
+                    /* there is no entry in the global hash table of darshan records
+                     * for this log file, so create one and add it.
                      */
+                    file_rec = malloc(sizeof(struct darshan_file_record_ref));
+                    assert(file_rec);
+
+                    memset(file_rec, 0, sizeof(struct darshan_file_record_ref));
+                    file_rec->rec_id = tmp_rec_id;
+                    HASH_ADD(hlink, *rec_hash, rec_id, sizeof(darshan_record_id), file_rec);
+
+                }
+
+                /* add new record into the linked list of this module's records */
+                if(file_rec->mod_recs[i])
+                {
+                    /* there is already an initialized linked list for this module */
 
                     /* we start at the end of the list and work backwards to insert this
                      * record (the list is sorted according to increasing ranks, and in
@@ -449,17 +462,9 @@ static int darshan_build_global_record_hash(
                 }
                 else
                 {
-                    /* there is no entry in the global hash table of darshan records
-                     * for this log file, so create one and add it.
+                    /* there are currently no records for this module, so just
+                     * initialize a new linked list
                      */
-                    file_rec = malloc(sizeof(struct darshan_file_record_ref));
-                    assert(file_rec);
-
-                    memset(file_rec, 0, sizeof(struct darshan_file_record_ref));
-                    file_rec->rec_id = tmp_rec_id;
-                    HASH_ADD(hlink, *rec_hash, rec_id, sizeof(darshan_record_id), file_rec);
-
-                    /* also, add this record to this module's linked list of records */
                     mod_rec->prev = mod_rec->next = mod_rec;
                     file_rec->mod_recs[i] = mod_rec;
                 }
