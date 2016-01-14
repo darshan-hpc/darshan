@@ -246,14 +246,14 @@ int main(int argc, char *argv[])
                 /* get corresponding file name for each record */
                 if(mod_buf1)
                 {
-                    HASH_FIND(hlink, name_hash1, &(base_rec1->f_id),
+                    HASH_FIND(hlink, name_hash1, &(base_rec1->id),
                         sizeof(darshan_record_id), name_ref1);
                     assert(name_ref1);
                     file_name1 = name_ref1->name;
                 }
                 if(mod_buf2)
                 {
-                    HASH_FIND(hlink, name_hash2, &(base_rec2->f_id),
+                    HASH_FIND(hlink, name_hash2, &(base_rec2->id),
                         sizeof(darshan_record_id), name_ref2);
                     assert(name_ref2);
                     file_name2 = name_ref2->name;
@@ -316,7 +316,7 @@ int main(int argc, char *argv[])
                 mod_rec2 = rec_ref2->mod_recs[i];
                 base_rec2 = (struct darshan_base_record *)mod_rec2->mod_dat;
 
-                HASH_FIND(hlink, name_hash2, &(base_rec2->f_id),
+                HASH_FIND(hlink, name_hash2, &(base_rec2->id),
                     sizeof(darshan_record_id), name_ref2);
                 assert(name_ref2);
                 file_name2 = name_ref2->name;
