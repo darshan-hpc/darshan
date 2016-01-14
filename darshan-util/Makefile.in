@@ -1,4 +1,4 @@
-all: libdarshan-util.a darshan-null-logutils.o darshan-analyzer darshan-convert darshan-parser darshan-stitch-logs jenkins-hash-gen
+all: libdarshan-util.a darshan-null-logutils.o darshan-analyzer darshan-convert darshan-diff darshan-parser darshan-stitch-logs jenkins-hash-gen
 
 DESTDIR =
 srcdir = @srcdir@
@@ -98,10 +98,8 @@ darshan-analyzer: darshan-analyzer.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(
 darshan-convert: darshan-convert.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) libdarshan-util.a lookup3.o | uthash-1.9.2
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-#darshan-diff: darshan-diff.o $(DARSHAN_LOG_FORMAT) darshan-logutils.o darshan-logutils.h
-#	$(CC) $(CFLAGS)  $(LDFLAGS) $< darshan-logutils.o -o $@ $(LIBS)
-#darshan-diff.o: darshan-diff.c
-#	$(CC) $(CFLAGS) -c  $< -o $@
+darshan-diff: darshan-diff.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_MOD_LOGUTIL_HEADERS) $(DARSHAN_MOD_LOG_FORMATS) libdarshan-util.a | uthash-1.9.2
+	$(CC) $(CFLAGS) $(LDFLAGS) $< libdarshan-util.a -o $@ $(LIBS) 
 
 darshan-parser: darshan-parser.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_MOD_LOGUTIL_HEADERS) $(DARSHAN_MOD_LOG_FORMATS) libdarshan-util.a | uthash-1.9.2
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS) 
