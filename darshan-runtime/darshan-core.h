@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdint.h>
+#include <limits.h>
 
 #include "uthash.h"
 #include "darshan-log-format.h"
@@ -50,8 +51,8 @@ struct darshan_core_runtime
     void *log_rec_p;
     void *log_mod_p;
 
+    char mmap_log_name[PATH_MAX];
     struct darshan_core_record_ref *rec_hash;
-    int rec_hash_sz;
     int rec_hash_cnt;
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
     char comp_buf[DARSHAN_COMP_BUF_SIZE]; /* TODO: why is this allocated statically? only used in shutdown */

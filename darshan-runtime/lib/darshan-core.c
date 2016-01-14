@@ -124,7 +124,6 @@ void darshan_core_initialize(int argc, char **argv)
     struct darshan_core_runtime *init_core = NULL;
     int internal_timing_flag = 0;
     double init_start, init_time, init_max;
-    char mmap_log_name[PATH_MAX];
     int mmap_fd;
     int mmap_size;
     int sys_page_size;
@@ -171,32 +170,32 @@ void darshan_core_initialize(int argc, char **argv)
             darshan_mem_alignment = 1;
         }
 
+        /* Use DARSHAN_JOBID_OVERRIDE for the env var for __DARSHAN_JOBID */
+        envstr = getenv(DARSHAN_JOBID_OVERRIDE);
+        if(!envstr)
+        {
+            envstr = __DARSHAN_JOBID;
+        }
+
+        /* find a job id */
+        jobid_str = getenv(envstr);
+        if(jobid_str)
+        {
+            /* in cobalt we can find it in env var */
+            ret = sscanf(jobid_str, "%d", &jobid);
+        }
+        if(!jobid_str || ret != 1)
+        {
+            /* use pid as fall back */
+            jobid = getpid();
+        }
+
         /* allocate structure to track darshan core runtime information */
         init_core = malloc(sizeof(*init_core));
         if(init_core)
         {
             memset(init_core, 0, sizeof(*init_core));
             init_core->wtime_offset = DARSHAN_MPI_CALL(PMPI_Wtime)();
-
-            /* Use DARSHAN_JOBID_OVERRIDE for the env var for __DARSHAN_JOBID */
-            envstr = getenv(DARSHAN_JOBID_OVERRIDE);
-            if(!envstr)
-            {
-                envstr = __DARSHAN_JOBID;
-            }
-
-            /* find a job id */
-            jobid_str = getenv(envstr);
-            if(jobid_str)
-            {
-                /* in cobalt we can find it in env var */
-                ret = sscanf(jobid_str, "%d", &jobid);
-            }
-            if(!jobid_str || ret != 1)
-            {
-                /* use pid as fall back */
-                jobid = getpid();
-            }
 
             sys_page_size = sysconf(_SC_PAGESIZE);
             assert(sys_page_size > 0);
@@ -210,15 +209,15 @@ void darshan_core_initialize(int argc, char **argv)
             /* construct a unique temporary log file name for this process
              * to write mmap log data to
              */
-            snprintf(mmap_log_name, PATH_MAX, "/tmp/darshan_job%d.%d",
+            snprintf(init_core->mmap_log_name, PATH_MAX, "/tmp/darshan_job%d.%d",
                 jobid, my_rank);
 
             /* create the temporary mmapped darshan log */
-            mmap_fd = open(mmap_log_name, O_CREAT|O_RDWR|O_EXCL , 0644);
+            mmap_fd = open(init_core->mmap_log_name, O_CREAT|O_RDWR|O_EXCL , 0644);
             if(mmap_fd < 0)
             {
                 fprintf(stderr, "darshan library warning: "
-                    "unable to create darshan log file %s\n", mmap_log_name);
+                    "unable to create darshan log file %s\n", init_core->mmap_log_name);
                 free(init_core);
                 return;
             }
@@ -229,10 +228,10 @@ void darshan_core_initialize(int argc, char **argv)
             if(ret < 0)
             {
                 fprintf(stderr, "darshan library warning: "
-                    "unable to allocate darshan log file %s\n", mmap_log_name);
+                    "unable to allocate darshan log file %s\n", init_core->mmap_log_name);
                 free(init_core);
                 close(mmap_fd);
-                unlink(mmap_log_name);
+                unlink(init_core->mmap_log_name);
                 return;
             }
 
@@ -243,10 +242,10 @@ void darshan_core_initialize(int argc, char **argv)
             if(mmap_p == MAP_FAILED)
             {
                 fprintf(stderr, "darshan library warning: "
-                    "unable to mmap darshan log file %s\n", mmap_log_name);
+                    "unable to mmap darshan log file %s\n", init_core->mmap_log_name);
                 free(init_core);
                 close(mmap_fd);
-                unlink(mmap_log_name);
+                unlink(init_core->mmap_log_name);
                 return;
             }
 
@@ -713,7 +712,8 @@ void darshan_core_shutdown()
         }
     }
 
-    /* TODO: remove temporary log files after successfully creating darshan log */
+    /* remove the temporary mmap log files */
+    unlink(final_core->mmap_log_name);
 
     free(logfile_name);
     darshan_core_cleanup(final_core);
@@ -996,7 +996,7 @@ static void darshan_add_record_hashref(struct darshan_core_runtime *core,
 {
     int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
 
-    if((record_size + core->rec_hash_sz) > DARSHAN_RECORD_BUF_SIZE)
+    if((record_size + core->log_hdr_p->rec_map.len) > DARSHAN_RECORD_BUF_SIZE)
         return;
 
     *ref = malloc(sizeof(**ref));
@@ -1013,7 +1013,7 @@ static void darshan_add_record_hashref(struct darshan_core_runtime *core,
 #endif
         {
             /* store the rec id and full file path in record hash buffer */
-            void *tmp_p = (char *)core->log_rec_p + core->rec_hash_sz;
+            void *tmp_p = (char *)core->log_rec_p + core->log_hdr_p->rec_map.len;
             *(darshan_record_id *)tmp_p = id;
 
             /* set the name pointer for this record to point to the
@@ -1031,7 +1031,6 @@ static void darshan_add_record_hashref(struct darshan_core_runtime *core,
         /* TODO: look at HASH_ADD_KEYPTR, use same strategy (big contig pool) for non-mmap darshan */
         HASH_ADD(hlink, core->rec_hash, id, sizeof(darshan_record_id), (*ref));
         core->rec_hash_cnt++;
-        core->rec_hash_sz += record_size;
         core->log_hdr_p->rec_map.len += record_size;
     }
 
@@ -1454,7 +1453,7 @@ static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_ru
 
     /* collectively write out the record hash to the darshan log */
     ret = darshan_log_append_all(log_fh, core, core->log_rec_p,
-        core->rec_hash_sz, inout_off);
+        core->log_hdr_p->rec_map.len, inout_off);
 
     return(ret);
 }

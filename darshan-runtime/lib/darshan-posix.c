@@ -1714,6 +1714,8 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
         return(file);
     }
 
+    /* TODO: what happens when there are no more records? */
+
     /* no existing record, assign a new file record from the global array */
     file = &(posix_runtime->file_runtime_array[posix_runtime->file_array_ndx]);
     file->file_record = &(posix_runtime->file_record_array[posix_runtime->file_array_ndx]);
