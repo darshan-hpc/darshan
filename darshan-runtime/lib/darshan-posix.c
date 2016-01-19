@@ -30,7 +30,6 @@
 #include "utlist.h"
 
 #include "darshan.h"
-#include "darshan-posix-log-format.h"
 #include "darshan-dynamic.h"
 
 #ifndef HAVE_OFF64_T
@@ -39,8 +38,6 @@ typedef int64_t off64_t;
 #ifndef HAVE_AIOCB64
 #define aiocb64 aiocb
 #endif
-
-/* TODO: more libc, fgetc, etc etc etc. */
 
 DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(open64, int, (const char *path, int flags, ...));
@@ -1892,10 +1889,7 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
-        if(POSIX_FILE_PARTIAL(infile))
-            tmp_file.counters[POSIX_MODE] = inoutfile->counters[POSIX_MODE];
-        else
-            tmp_file.counters[POSIX_MODE] = infile->counters[POSIX_MODE];
+        tmp_file.counters[POSIX_MODE] = infile->counters[POSIX_MODE];
 
         /* sum */
         for(j=POSIX_BYTES_READ; j<=POSIX_BYTES_WRITTEN; j++)
@@ -1918,10 +1912,7 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
-        if(POSIX_FILE_PARTIAL(infile))
-            tmp_file.counters[POSIX_MEM_ALIGNMENT] = inoutfile->counters[POSIX_MEM_ALIGNMENT];
-        else
-            tmp_file.counters[POSIX_MEM_ALIGNMENT] = infile->counters[POSIX_MEM_ALIGNMENT];
+        tmp_file.counters[POSIX_MEM_ALIGNMENT] = infile->counters[POSIX_MEM_ALIGNMENT];
 
         /* sum */
         for(j=POSIX_FILE_NOT_ALIGNED; j<=POSIX_FILE_NOT_ALIGNED; j++)
@@ -1929,10 +1920,7 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
-        if(POSIX_FILE_PARTIAL(infile))
-            tmp_file.counters[POSIX_FILE_ALIGNMENT] = inoutfile->counters[POSIX_FILE_ALIGNMENT];
-        else
-            tmp_file.counters[POSIX_FILE_ALIGNMENT] = infile->counters[POSIX_FILE_ALIGNMENT];
+        tmp_file.counters[POSIX_FILE_ALIGNMENT] = infile->counters[POSIX_FILE_ALIGNMENT];
 
         /* skip POSIX_MAX_*_TIME_SIZE; handled in floating point section */
 
@@ -2302,7 +2290,9 @@ static void posix_get_output_data(
         {
             red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_posix_file));
             if(!red_recv_buf)
+            {
                 return;
+            }
         }
 
         /* construct a datatype for a POSIX file record.  This is serving no purpose
@@ -2363,7 +2353,7 @@ static void posix_shutdown()
     free(posix_runtime->file_runtime_array);
     free(posix_runtime);
     posix_runtime = NULL;
-
+    
     return;
 }
 

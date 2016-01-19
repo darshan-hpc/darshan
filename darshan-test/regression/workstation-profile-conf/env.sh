@@ -34,5 +34,8 @@ export MPICC_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-cc
 export MPICXX_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-cxx
 export MPIF90_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f
 export MPIF77_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f
+# MPICH 3.1.1 and newer use MPIFORT rather than MPIF90 and MPIF77 in env var
+# name
+export MPIFORT_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f
 
 export DARSHAN_RUNJOB="mpiexec -n $DARSHAN_DEFAULT_NPROCS"

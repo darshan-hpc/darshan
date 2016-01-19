@@ -7,9 +7,6 @@
 #ifndef __DARSHAN_MPIIO_LOG_UTILS_H
 #define __DARSHAN_MPIIO_LOG_UTILS_H
 
-#include "darshan-logutils.h"
-#include "darshan-mpiio-log-format.h"
-
 extern char *mpiio_counter_names[];
 extern char *mpiio_f_counter_names[];
 

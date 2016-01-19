@@ -35,6 +35,8 @@ struct darshan_fd_s
     struct darshan_log_map job_map;
     struct darshan_log_map rec_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
+    /* module-specific log-format versions contained in log */
+    uint32_t mod_ver[DARSHAN_MAX_MODS];
 
     /* KEEP OUT -- remaining state hidden in logutils source */
     struct darshan_fd_int_state *state;
@@ -56,6 +58,9 @@ struct darshan_mod_logutil_funcs
     /* retrieve a single module record from the log file. 
      * return 1 on successful read of record, 0 on no more
      * module data, -1 on error
+     *      - 'fd' is the file descriptor to get record from
+     *      - 'buf' is the buffer to store the record in
+     *      - 'rec_id' is the corresponding darshan record id
      */
     int (*log_get_record)(
         darshan_fd fd,
@@ -63,17 +68,37 @@ struct darshan_mod_logutil_funcs
     );
     /* put a single module record into the log file.
      * return 0 on success, -1 on error
+     *      - 'fd' is the file descriptor to put record into
+     *      - 'buf' is the buffer containing the record data
+     *      - 'rec_id' is the corresponding darshan record id
      */
     int (*log_put_record)(
         darshan_fd fd,
-        void *buf
+        void *buf,
+        int ver
     );
-    /* print the counters for a given log file record */
+    /* print the counters for a given log record
+     *      - 'file_rec' is the record's data buffer
+     *      - 'file_name' is the file path string for the record
+     *      - 'mnt-pt' is the file path mount point string
+     *      - 'fs_type' is the file system type string
+     *      - 'ver' is the version of the record
+     */
     void (*log_print_record)(
         void *file_rec,
         char *file_name,
         char *mnt_pt,
-        char *fs_type
+        char *fs_type,
+        int ver
+    );
+    /* print module-specific description of I/O characterization data */
+    void (*log_print_description)(void);
+    /* print a text diff of 2 module I/O records */
+    void (*log_print_diff)(
+        void *rec1,
+        char *name1,
+        void *rec2,
+        char *name2
     );
     /* combine two records into a single aggregate record */
     void (*log_agg_records)(
@@ -114,7 +139,7 @@ int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash);
 int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz);
 int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
-    void *mod_buf, int mod_buf_sz);
+    void *mod_buf, int mod_buf_sz, int ver);
 void darshan_log_close(darshan_fd file);
 
 /* convenience macros for printing Darshan counters */

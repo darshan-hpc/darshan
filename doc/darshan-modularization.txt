@@ -32,8 +32,8 @@ cd darshan
 git checkout dev-modular
 ----
 
-For details on configuring and building the Darshan runtime and utility repositories,
-consult the documentation from previous versions
+For details on configuring, building, and using the Darshan runtime and utility
+repositories, consult the documentation from previous versions
 (http://www.mcs.anl.gov/research/projects/darshan/docs/darshan-runtime.html[darshan-runtime] and
 http://www.mcs.anl.gov/research/projects/darshan/docs/darshan-util.html[darshan-util]) -- the
 necessary steps for building these repositories should not have changed in the new version of
@@ -121,13 +121,13 @@ component so it is included in the output I/O characterization.
 The static initialization approach is useful for modules that do not have function calls
 that can be intercepted and instead can just grab all I/O characterization data at Darshan
 startup or shutdown time. A module can be statically initialized at Darshan startup time
-by adding it to the `mod_static_init_fns` list at the top of the `lib/darshan-core.c`
-source file.
+by adding its initializatin routine to the `mod_static_init_fns` list at the top of the
+`lib/darshan-core.c` source file.
 
-*NOTE*: Modules which require static initialization should typically provide a corresponding
-configure option to prevent the module from being built and capturing I/O data. The ability
-to disable a module using a configure option is especially necessary for system-specific
-modules which can not be built or used on other systems.
+*NOTE*: Modules may wish to add a corresponding configure option to disable the module
+from attempting to gather I/O data. The ability to disable a module using a configure
+option is especially necessary for system-specific modules which can not be built or
+used on other systems.
 
 Most instrumentation modules can just bootstrap themselves within wrapper functions during
 normal application execution. Each of Darshan's current I/O library instrumentation modules
@@ -197,7 +197,7 @@ Within darshan-runtime, the darshan-core component manages the initialization an
 Darshan environment, provides an interface for modules to register themselves and their data
 records with Darshan, and manages the compressing and the writing of the resultant I/O
 characterization. As illustrated in Figure 1, the darshan-core runtime environment intercepts
-`MPI_Init` and `MPI_Finalize` routines to initialize and shutdown the darshan runtime environment,
+`MPI_Init` and `MPI_Finalize` routines to initialize and shutdown the Darshan runtime environment,
 respectively.
 
 Each of the functions provided by `darshan-core` to interface with instrumentation modules are
@@ -212,8 +212,8 @@ void darshan_core_register_module(
     int *sys_mem_alignment);
 
 The `darshan_core_register_module` function registers Darshan instrumentation modules with the
-`darshan-core` runtime environment. This function needs to be called at least once for any module
-that will contribute data to Darshan's final I/O characterization. 
+`darshan-core` runtime environment. This function needs to be called once for any module that
+will contribute data to Darshan's final I/O characterization. 
 
 * _mod_id_ is a unique identifier for the given module, which is defined in the Darshan log
 format header file (`darshan-log-format.h`).
@@ -398,8 +398,8 @@ struct darshan_record_ref *, which should be initialized to `NULL` for reading).
 is defined by the `uthash` hash table implementation and includes corresponding macros for
 searching, iterating, and deleting records from the hash. For detailed documentation on using this
 hash table, consult `uthash` documentation in `darshan-util/uthash-1.9.2/doc/txt/userguide.txt`.
-The `darshan-posix-parser` utility (for parsing POSIX module information out of a Darshan log)
-provides an example of how this hash table may be used. Returns `0` on success, `-1` on failure.
+The `darshan-parser` utility (for parsing module information out of a Darshan log) provides an
+example of how this hash table may be used. Returns `0` on success, `-1` on failure.
 
 [source,c]
 int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id, void *mod_buf, int mod_buf_sz);
@@ -448,9 +448,10 @@ the module's record structure:
 
 * Add a module identifier to the `DARSHAN_MODULE_IDS` macro at the top of the `darshan-log-format.h`
 header. In this macro, the first field is a corresponding enum value that can be used to
-identify the module, the second field is a string name for the module, and the third field
-is a corresponding pointer to a Darshan log utility implementation for this module (which
-can be set to `NULL` until the module has its own log utility implementation). 
+identify the module, the second field is a string name for the module, the third field is the
+current version number of the given module's log format, and the fourth field is a corresponding
+pointer to a Darshan log utility implementation for this module (which can be set to `NULL`
+until the module has its own log utility implementation). 
 
 * Add a top-level header that defines an I/O data record structure for the module. Consider
 the "NULL" module and POSIX module log format headers for examples (`darshan-null-log-format.h`

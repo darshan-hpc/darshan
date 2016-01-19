@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include "darshan-posix-logutils.h"
+#include "darshan-logutils.h"
 
 /* counter name strings for the POSIX module */
 #define X(a) #a,
@@ -31,20 +31,22 @@ char *posix_f_counter_names[] = {
 #undef X
 
 static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf);
-static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf);
+static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver);
 static void darshan_log_print_posix_file(void *file_rec,
-    char *file_name, char *mnt_pt, char *fs_type);
-static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag);
+    char *file_name, char *mnt_pt, char *fs_type, int ver);
+static void darshan_log_print_posix_description(void);
 static void darshan_log_print_posix_file_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
+static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag);
 
 struct darshan_mod_logutil_funcs posix_logutils =
 {
     .log_get_record = &darshan_log_get_posix_file,
     .log_put_record = &darshan_log_put_posix_file,
     .log_print_record = &darshan_log_print_posix_file,
+    .log_print_description = &darshan_log_print_posix_description,
+    .log_print_diff = &darshan_log_print_posix_file_diff,
     .log_agg_records = &darshan_log_agg_posix_files,
-    .log_print_diff = &darshan_log_print_posix_file_diff
 };
 
 static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf)
@@ -77,13 +79,13 @@ static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf)
     }
 }
 
-static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf)
+static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver)
 {
     struct darshan_posix_file *file = (struct darshan_posix_file *)posix_buf;
     int ret;
 
     ret = darshan_log_putmod(fd, DARSHAN_POSIX_MOD, file,
-        sizeof(struct darshan_posix_file));
+        sizeof(struct darshan_posix_file), ver);
     if(ret < 0)
         return(-1);
 
@@ -91,7 +93,7 @@ static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf)
 }
 
 static void darshan_log_print_posix_file(void *file_rec, char *file_name,
-    char *mnt_pt, char *fs_type)
+    char *mnt_pt, char *fs_type, int ver)
 {
     int i;
     struct darshan_posix_file *posix_file_rec =
@@ -111,6 +113,113 @@ static void darshan_log_print_posix_file(void *file_rec, char *file_name,
             posix_file_rec->base_rec.rank, posix_file_rec->base_rec.id,
             posix_f_counter_names[i], posix_file_rec->fcounters[i],
             file_name, mnt_pt, fs_type);
+    }
+
+    return;
+}
+
+static void darshan_log_print_posix_description()
+{
+    printf("\n# description of POSIX counters:\n");
+    printf("#   POSIX_*: posix operation counts.\n");
+    printf("#   READS,WRITES,OPENS,SEEKS,STATS, and MMAPS are types of operations.\n");
+    printf("#   POSIX_MODE: mode that file was opened in.\n");
+    printf("#   POSIX_BYTES_*: total bytes read and written.\n");
+    printf("#   POSIX_MAX_BYTE_*: highest offset byte read and written.\n");
+    printf("#   POSIX_CONSEC_*: number of exactly adjacent reads and writes.\n");
+    printf("#   POSIX_SEQ_*: number of reads and writes from increasing offsets.\n");
+    printf("#   POSIX_RW_SWITCHES: number of times access alternated between read and write.\n");
+    printf("#   POSIX_*_ALIGNMENT: memory and file alignment.\n");
+    printf("#   POSIX_*_NOT_ALIGNED: number of reads and writes that were not aligned.\n");
+    printf("#   POSIX_MAX_*_TIME_SIZE: size of the slowest read and write operations.\n");
+    printf("#   POSIX_SIZE_*_*: histogram of read and write access sizes.\n");
+    printf("#   POSIX_STRIDE*_STRIDE: the four most common strides detected.\n");
+    printf("#   POSIX_STRIDE*_COUNT: count of the four most common strides.\n");
+    printf("#   POSIX_ACCESS*_ACCESS: the four most common access sizes.\n");
+    printf("#   POSIX_ACCESS*_COUNT: count of the four most common access sizes.\n");
+    printf("#   POSIX_*_RANK: rank of the processes that were the fastest and slowest at I/O (for shared files).\n");
+    printf("#   POSIX_*_RANK_BYTES: bytes transferred by the fastest and slowest ranks (for shared files).\n");
+    printf("#   POSIX_F_OPEN_TIMESTAMP: timestamp of first open.\n");
+    printf("#   POSIX_F_*_START_TIMESTAMP: timestamp of first read/write.\n");
+    printf("#   POSIX_F_*_END_TIMESTAMP: timestamp of last read/write.\n");
+    printf("#   POSIX_F_CLOSE_TIMESTAMP: timestamp of last close.\n");
+    printf("#   POSIX_F_READ/WRITE/META_TIME: cumulative time spent in read, write, or metadata operations.\n");
+    printf("#   POSIX_F_MAX_*_TIME: duration of the slowest read and write operations.\n");
+    printf("#   POSIX_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).\n");
+    printf("#   POSIX_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared files).\n");
+
+    DARSHAN_PRINT_HEADER();
+
+    return;
+}
+
+static void darshan_log_print_posix_file_diff(void *file_rec1, char *file_name1,
+    void *file_rec2, char *file_name2)
+{
+    struct darshan_posix_file *file1 = (struct darshan_posix_file *)file_rec1;
+    struct darshan_posix_file *file2 = (struct darshan_posix_file *)file_rec2;
+    int i;
+
+    /* NOTE: we assume that both input records are the same module format version */
+
+    for(i=0; i<POSIX_NUM_INDICES; i++)
+    {
+        if(!file2)
+        {
+            printf("- ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                file1->base_rec.rank, file1->base_rec.id, posix_counter_names[i],
+                file1->counters[i], file_name1, "", "");
+
+        }
+        else if(!file1)
+        {
+            printf("+ ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                file2->base_rec.rank, file2->base_rec.id, posix_counter_names[i],
+                file2->counters[i], file_name2, "", "");
+        }
+        else if(file1->counters[i] != file2->counters[i])
+        {
+            printf("- ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                file1->base_rec.rank, file1->base_rec.id, posix_counter_names[i],
+                file1->counters[i], file_name1, "", "");
+            printf("+ ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                file2->base_rec.rank, file2->base_rec.id, posix_counter_names[i],
+                file2->counters[i], file_name2, "", "");
+        }
+    }
+
+    for(i=0; i<POSIX_F_NUM_INDICES; i++)
+    {
+        if(!file2)
+        {
+            printf("- ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                file1->base_rec.rank, file1->base_rec.id, posix_f_counter_names[i],
+                file1->fcounters[i], file_name1, "", "");
+
+        }
+        else if(!file1)
+        {
+            printf("+ ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                file2->base_rec.rank, file2->base_rec.id, posix_f_counter_names[i],
+                file2->fcounters[i], file_name2, "", "");
+        }
+        else if(file1->fcounters[i] != file2->fcounters[i])
+        {
+            printf("- ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                file1->base_rec.rank, file1->base_rec.id, posix_f_counter_names[i],
+                file1->fcounters[i], file_name1, "", "");
+            printf("+ ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                file2->base_rec.rank, file2->base_rec.id, posix_f_counter_names[i],
+                file2->fcounters[i], file_name2, "", "");
+        }
     }
 
     return;
@@ -294,78 +403,6 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                 /* TODO: variance */
                 agg_psx_rec->fcounters[i] = -1;
                 break;
-        }
-    }
-
-    return;
-}
-
-static void darshan_log_print_posix_file_diff(void *file_rec1, char *file_name1,
-    void *file_rec2, char *file_name2)
-{
-    struct darshan_posix_file *file1 = (struct darshan_posix_file *)file_rec1;
-    struct darshan_posix_file *file2 = (struct darshan_posix_file *)file_rec2;
-    int i;
-
-    /* NOTE: we assume that both input records are the same module format version */
-
-    for(i=0; i<POSIX_NUM_INDICES; i++)
-    {
-        if(!file2)
-        {
-            printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file1->base_rec.rank, file1->base_rec.id, posix_counter_names[i],
-                file1->counters[i], file_name1, "", "");
-
-        }
-        else if(!file1)
-        {
-            printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file2->base_rec.rank, file2->base_rec.id, posix_counter_names[i],
-                file2->counters[i], file_name2, "", "");
-        }
-        else if(file1->counters[i] != file2->counters[i])
-        {
-            printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file1->base_rec.rank, file1->base_rec.id, posix_counter_names[i],
-                file1->counters[i], file_name1, "", "");
-            printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file2->base_rec.rank, file2->base_rec.id, posix_counter_names[i],
-                file2->counters[i], file_name2, "", "");
-        }
-    }
-
-    for(i=0; i<POSIX_F_NUM_INDICES; i++)
-    {
-        if(!file2)
-        {
-            printf("- ");
-            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file1->base_rec.rank, file1->base_rec.id, posix_f_counter_names[i],
-                file1->fcounters[i], file_name1, "", "");
-
-        }
-        else if(!file1)
-        {
-            printf("+ ");
-            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file2->base_rec.rank, file2->base_rec.id, posix_f_counter_names[i],
-                file2->fcounters[i], file_name2, "", "");
-        }
-        else if(file1->fcounters[i] != file2->fcounters[i])
-        {
-            printf("- ");
-            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file1->base_rec.rank, file1->base_rec.id, posix_f_counter_names[i],
-                file1->fcounters[i], file_name1, "", "");
-            printf("+ ");
-            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file2->base_rec.rank, file2->base_rec.id, posix_f_counter_names[i],
-                file2->fcounters[i], file_name2, "", "");
         }
     }
 

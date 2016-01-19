@@ -7,28 +7,42 @@
 #ifndef __DARSHAN_BGQ_LOG_FORMAT_H
 #define __DARSHAN_BGQ_LOG_FORMAT_H
 
-#include "darshan-log-format.h"
-
+/* current BGQ log format version */
+#define DARSHAN_BGQ_VER 1
 
 #define BGQ_COUNTERS \
-    X(BGQ_CSJOBID, "control system jobid") \
-    X(BGQ_NNODES, "number of BGQ compute nodes") \
-    X(BGQ_RANKSPERNODE, "number of MPI ranks per node") \
-    X(BGQ_DDRPERNODE, "size in MB of DDR3 per node") \
-    X(BGQ_INODES, "number of i/o nodes") \
-    X(BGQ_ANODES, "dimension of A torus") \
-    X(BGQ_BNODES, "dimension of B torus") \
-    X(BGQ_CNODES, "dimension of C torus") \
-    X(BGQ_DNODES, "dimension of D torus") \
-    X(BGQ_ENODES, "dimension of E torus") \
-    X(BGQ_TORUSENABLED, "which dimensions are torus") \
-    X(BGQ_NUM_INDICES, "end of counters")
+    /* control system jobid*/\
+    X(BGQ_CSJOBID) \
+    /* number of BGQ compute nodes */\
+    X(BGQ_NNODES) \
+    /* number of MPI ranks per node */\
+    X(BGQ_RANKSPERNODE) \
+    /* size in MB of DDR3 per node */\
+    X(BGQ_DDRPERNODE) \
+    /* number of i/o nodes */\
+    X(BGQ_INODES) \
+    /* dimension of A torus */\
+    X(BGQ_ANODES) \
+    /* dimension of B torus */\
+    X(BGQ_BNODES) \
+    /* dimension of C torus */\
+    X(BGQ_CNODES) \
+    /* dimension of D torus */\
+    X(BGQ_DNODES) \
+    /* dimension of E torus */\
+    X(BGQ_ENODES) \
+    /* which dimensions are torus */\
+    X(BGQ_TORUSENABLED) \
+    /* end of counters */\
+    X(BGQ_NUM_INDICES)
 
 #define BGQ_F_COUNTERS \
-    X(BGQ_F_TIMESTAMP, "timestamp when data was collected") \
-    X(BGQ_F_NUM_INDICES, "end of counters")
+    /* timestamp when data was collected */\
+    X(BGQ_F_TIMESTAMP) \
+    /* end of counters */\
+    X(BGQ_F_NUM_INDICES)
 
-#define X(a, b) a,
+#define X(a) a,
 /* integer counters for the "BGQ" example module */
 enum darshan_bgq_indices
 {

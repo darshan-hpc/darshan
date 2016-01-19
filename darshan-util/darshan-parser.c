@@ -313,17 +313,17 @@ int main(int argc, char **argv)
     }
 
     /* print breakdown of each log file region's contribution to file size */
-    printf("\n# log file region sizes\n");
+    printf("\n# log file regions\n");
     printf("# -------------------------------------------------------\n");
-    printf("# header: %zu bytes\n", sizeof(struct darshan_header));
-    printf("# job data: %zu bytes\n", fd->job_map.len);
-    printf("# record table: %zu bytes\n", fd->rec_map.len);
+    printf("# header: %zu bytes (uncompressed)\n", sizeof(struct darshan_header));
+    printf("# job data: %zu bytes (compressed)\n", fd->job_map.len);
+    printf("# record table: %zu bytes (compressed)\n", fd->rec_map.len);
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
         if(fd->mod_map[i].len)
         {
-            printf("# %s module: %zu bytes\n", darshan_module_names[i],
-                fd->mod_map[i].len);
+            printf("# %s module: %zu bytes (compressed), ver=%d\n",
+                darshan_module_names[i], fd->mod_map[i].len, fd->mod_ver[i]);
         }
     }
 
@@ -333,6 +333,21 @@ int main(int argc, char **argv)
     for(i=0; i<mount_count; i++)
     {
         printf("# mount entry:\t%s\t%s\n", mnt_pts[i], fs_types[i]);
+    }
+
+    if(mask & OPTION_BASE)
+    {
+        printf("\n# description of columns:\n");
+        printf("#   <module>: module responsible for this I/O record.\n");
+        printf("#   <rank>: MPI rank.  -1 indicates that the file is shared\n");
+        printf("#      across all processes and statistics are aggregated.\n");
+        printf("#   <record id>: hash of the record's file path\n");
+        printf("#   <counter name> and <counter value>: statistical counters.\n");
+        printf("#      A value of -1 indicates that Darshan could not monitor\n");
+        printf("#      that counter, and its value should be ignored.\n");
+        printf("#   <file name>: full file path for the record.\n");
+        printf("#   <mount pt>: mount point that the file resides on.\n");
+        printf("#   <fs type>: type of file system that the file resides on.\n");
     }
 
     /* warn user if this log file is incomplete */
@@ -388,8 +403,9 @@ int main(int argc, char **argv)
 
         if(mask & OPTION_BASE)
         {
-            /* TODO: does each module print header of what each counter means??? */
-            DARSHAN_PRINT_HEADER();
+            /* print a header describing the module's I/O characterization data */
+            if(mod_logutils[i]->log_print_description)
+                mod_logutils[i]->log_print_description();
         }
 
         ret = mod_logutils[i]->log_get_record(fd, mod_buf);
@@ -431,8 +447,8 @@ int main(int argc, char **argv)
             if(mask & OPTION_BASE)
             {
                 /* print the corresponding module data for this record */
-                mod_logutils[i]->log_print_record(mod_buf, ref->name,
-                    mnt_pt, fs_type);
+                mod_logutils[i]->log_print_record(mod_buf, ref->rec.name,
+                    mnt_pt, fs_type, fd->mod_ver[i]);
             }
 
             /* we calculate more detailed stats for POSIX and MPI-IO modules, 
@@ -705,8 +721,7 @@ void posix_accum_file(struct darshan_posix_file *pfile,
         case POSIX_MODE:
         case POSIX_MEM_ALIGNMENT:
         case POSIX_FILE_ALIGNMENT:
-            if(POSIX_FILE_PARTIAL(tmp))
-                tmp->counters[i] = pfile->counters[i];
+            tmp->counters[i] = pfile->counters[i];
             break;
         case POSIX_MAX_BYTE_READ:
         case POSIX_MAX_BYTE_WRITTEN:

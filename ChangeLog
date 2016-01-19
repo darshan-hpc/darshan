@@ -2,6 +2,20 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.0.0-pre3
+=============
+* add module-specific version fields to header to allow utilities
+  to handle different versions of a module's I/O data for backwards
+  compatibility -- NOTE: this breaks the log file parsing for logs
+  obtained using Darshan-3.0.0-pre2 & Darshan-3.0.0-pre1 
+* bug fix in regression test scripts for setting proper environment
+  variables to use MPI profiling configuration for Fortran apps
+* bug fix in bzip2 log writing implementation in darshan-logutils
+* possible race conditions resolved in each module's shutdown code
+* general code, comment, and documentation cleanup
+* addition of module-specific counter descriptions printed prior
+  to parsing a modules I/O data in darshan-parser
+
 Darshan-3.0.0-pre2
 =============
 * add fix to install appropriate headers for linking external

@@ -56,7 +56,7 @@ struct darshan_core_runtime
     int rec_hash_cnt;
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
     int mod_mem_used;
-    char comp_buf[DARSHAN_COMP_BUF_SIZE];
+    char *comp_buf;
     double wtime_offset;
 };
 

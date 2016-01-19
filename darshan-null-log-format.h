@@ -7,7 +7,8 @@
 #ifndef __DARSHAN_NULL_LOG_FORMAT_H
 #define __DARSHAN_NULL_LOG_FORMAT_H
 
-#include "darshan-log-format.h"
+/* current log format version, to support backwards compatibility */
+#define DARSHAN_NULL_VER 1
 
 #define NULL_COUNTERS \
     /* count of number of 'bar' function calls */\

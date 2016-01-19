@@ -7,9 +7,6 @@
 #ifndef __DARSHAN_HDF5_LOG_UTILS_H
 #define __DARSHAN_HDF5_LOG_UTILS_H
 
-#include "darshan-logutils.h"
-#include "darshan-hdf5-log-format.h"
-
 extern char *hdf5_counter_names[];
 extern char *hdf5_f_counter_names[];
 

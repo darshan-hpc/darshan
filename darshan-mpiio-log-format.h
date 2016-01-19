@@ -7,7 +7,8 @@
 #ifndef __DARSHAN_MPIIO_LOG_FORMAT_H
 #define __DARSHAN_MPIIO_LOG_FORMAT_H
 
-#include "darshan-log-format.h"
+/* current MPI-IO log format version */
+#define DARSHAN_MPIIO_VER 1
 
 /* TODO: maybe use a counter to track cases in which a derived datatype is used? */
 

@@ -193,7 +193,6 @@ int main(int argc, char *argv[])
 
         for(i = 0; i < DARSHAN_MAX_MODS; i++)
         {
-#if 0
             /* TODO: skip modules that don't have the same format version, for now */
             if(rec_ref1->mod_recs[i] && rec_ref2 && rec_ref2->mod_recs[i] &&
                 (file1->mod_ver[i] != file2->mod_ver[i]))
@@ -203,7 +202,6 @@ int main(int argc, char *argv[])
                     darshan_module_names[i], file1->mod_ver[i], file2->mod_ver[i]);
                 continue;
             }
-#endif
 
             while(1)
             {
@@ -224,7 +222,6 @@ int main(int argc, char *argv[])
 
                 base_rec1 = (struct darshan_base_record *)mod_buf1;
                 base_rec2 = (struct darshan_base_record *)mod_buf2;
-
                 if(!base_rec1 && !base_rec2)
                 {
                     /* break out if there are no more records for this module */
@@ -307,8 +304,6 @@ int main(int argc, char *argv[])
      */
     HASH_ITER(hlink, rec_hash2, rec_ref2, rec_tmp)
     {
-        printf("\n");
-
         for(i = 0; i < DARSHAN_MAX_MODS; i++)
         {
             while(rec_ref2->mod_recs[i])

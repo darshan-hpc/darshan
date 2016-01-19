@@ -22,7 +22,6 @@
 #include "uthash.h"
 
 #include "darshan.h"
-#include "darshan-pnetcdf-log-format.h"
 #include "darshan-dynamic.h"
 
 DARSHAN_FORWARD_DECL(ncmpi_create, int, (MPI_Comm comm, const char *path, int cmode, MPI_Info info, int *ncidp));
@@ -526,7 +525,9 @@ static void pnetcdf_get_output_data(
         {
             red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_pnetcdf_file));
             if(!red_recv_buf)
+            {
                 return;
+            }
         }
 
         /* construct a datatype for a PNETCDF file record.  This is serving no purpose

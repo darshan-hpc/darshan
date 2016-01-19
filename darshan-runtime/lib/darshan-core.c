@@ -313,6 +313,8 @@ void darshan_core_initialize(int argc, char **argv)
 void darshan_core_shutdown()
 {
     struct darshan_core_runtime *final_core;
+    struct darshan_header out_header;
+    struct darshan_job out_job;
     int internal_timing_flag = 0;
     struct tm *start_tm;
     time_t start_time_tmp;
@@ -336,8 +338,6 @@ void darshan_core_shutdown()
     int all_ret = 0;
     int i;
     uint64_t gz_fp = 0;
-    struct darshan_header out_header;
-    struct darshan_job out_job;
     MPI_File log_fh;
     MPI_Status status;
 
@@ -358,13 +358,13 @@ void darshan_core_shutdown()
     darshan_core = NULL;
     DARSHAN_CORE_UNLOCK();
 
-    memcpy(&out_job, final_core->log_job_p, sizeof(struct darshan_job));
-
     /* XXX just copy mmap files somewhere else to avoid corruption */
     DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
     if(my_rank == 0)
         system("cp /tmp/darshan* ~/Desktop");
     DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
+
+    memcpy(&out_job, final_core->log_job_p, sizeof(struct darshan_job));
 
     /* indicate in the metadata field of the temporary darshan log file that
      * the darshan shutdown process was invoked on the data in the log. since
@@ -376,6 +376,10 @@ void darshan_core_shutdown()
     int meta_remain = DARSHAN_JOB_METADATA_LEN - strlen(final_core->log_job_p->metadata) - 1;
     snprintf(m, meta_remain, "darshan_shutdown=yes\n");
 
+    /* we also need to set which modules were registered on this process and
+     * call into those modules and give them a chance to perform any necessary
+     * pre-shutdown steps.
+     */
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
         if(final_core->mod_array[i])
@@ -383,6 +387,13 @@ void darshan_core_shutdown()
             local_mod_use[i] = 1;
             final_core->mod_array[i]->mod_funcs.begin_shutdown();
         }
+    }
+
+    final_core->comp_buf = malloc(DARSHAN_COMP_BUF_SIZE);
+    if(!(final_core->comp_buf))
+    {
+        darshan_core_cleanup(final_core);
+        return;
     }
 
     logfile_name = malloc(PATH_MAX);
@@ -639,6 +650,9 @@ void darshan_core_shutdown()
      */
     DARSHAN_MPI_CALL(PMPI_Reduce)(&(final_core->log_hdr_p->partial_flag),
         &(out_header.partial_flag), 1, MPI_UINT32_T, MPI_BOR, 0, MPI_COMM_WORLD);
+    DARSHAN_MPI_CALL(PMPI_Reduce)(&(final_core->log_hdr_p->mod_ver),
+        &(out_header.mod_ver), DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX,
+        0, MPI_COMM_WORLD);
     if(my_rank == 0)
     {
         /* rank 0 is responsible for writing the log header */
@@ -1550,6 +1564,8 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
         }
     }
 
+    if(core->comp_buf)
+        free(core->comp_buf);
     free(core);
 
     return;
@@ -1609,6 +1625,7 @@ void darshan_core_register_module(
 
     /* register module with darshan */
     darshan_core->mod_array[mod_id] = mod;
+    darshan_core->log_header.mod_ver[mod_id] = darshan_module_versions[mod_id];
     DARSHAN_CORE_UNLOCK();
 
     /* set the memory alignment and calling process's rank, if desired */

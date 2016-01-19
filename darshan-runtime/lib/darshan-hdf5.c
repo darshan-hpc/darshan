@@ -22,7 +22,6 @@
 #include "uthash.h"
 
 #include "darshan.h"
-#include "darshan-hdf5-log-format.h"
 #include "darshan-dynamic.h"
 
 /* hope this doesn't change any time soon */
@@ -511,7 +510,9 @@ static void hdf5_get_output_data(
         {
             red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_hdf5_file));
             if(!red_recv_buf)
+            {
                 return;
+            }
         }
 
         /* construct a datatype for a HDF5 file record.  This is serving no purpose

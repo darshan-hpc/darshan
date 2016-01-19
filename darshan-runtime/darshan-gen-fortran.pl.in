@@ -271,8 +271,8 @@ print OUTPUT<<"EOF";
     grep -i MPI \$tmpfile >& /dev/null
     rc_mpi=\$?
 
-    # is PMPI being used for any init, finalize, or mpi-io calls?
-    grep -E \\(PMPI_File_\\)\\|\\(PMPI_Init\\)\\|\\(PMPI_Finalize\\) \$tmpfile | grep -v -E \\(mpich.*\\.a\\) |grep \\(PMPI >& /dev/null
+    # is PMPI being used for PMPI_File_open?
+    grep -E PMPI_File_open \$tmpfile | grep -v -E \\(mpich.*\\.a\\) |grep \\(PMPI >& /dev/null
     rc_pmpi=\$?
 
 

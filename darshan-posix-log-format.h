@@ -6,7 +6,8 @@
 #ifndef __DARSHAN_POSIX_LOG_FORMAT_H
 #define __DARSHAN_POSIX_LOG_FORMAT_H
 
-#include "darshan-log-format.h"
+/* current POSIX log format version */
+#define DARSHAN_POSIX_VER 1
 
 #define POSIX_COUNTERS \
     /* count of posix opens */\
@@ -174,12 +175,5 @@ struct darshan_posix_file
     int64_t counters[POSIX_NUM_INDICES];
     double fcounters[POSIX_F_NUM_INDICES];
 };
-
-/* This macro can be used to identify files that have been opened using
- * pnetcdf, hdf5, or mpi-io, but were never opened at the posix level.  As a
- * result the record will not necessarily have all of the expected fields
- * populated.
- */
-#define POSIX_FILE_PARTIAL(__file)((((__file)->counters[POSIX_OPENS] || (__file)->counters[POSIX_FOPENS] || (__file)->counters[POSIX_STATS]) ? 0 : 1))
 
 #endif /* __DARSHAN_POSIX_LOG_FORMAT_H */

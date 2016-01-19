@@ -93,7 +93,7 @@ static int darshan_log_noz_read(darshan_fd fd, struct darshan_log_map map,
     void *buf, int len, int reset_strm_flag);
 
 /* each module's implementation of the darshan logutil functions */
-#define X(a, b, c) c,
+#define X(a, b, c, d) d,
 struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
 {
     DARSHAN_MODULE_IDS
@@ -139,6 +139,7 @@ darshan_fd darshan_log_open(const char *name)
     ret = darshan_log_getheader(tmp_fd);
     if(ret < 0)
     {
+        fprintf(stderr, "Error: failed to read darshan log file header.\n");
         close(tmp_fd->state->fildes);
         free(tmp_fd->state);
         free(tmp_fd);
@@ -728,7 +729,7 @@ int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
  * returns number of bytes written on success, -1 on failure
  */
 int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
-    void *mod_buf, int mod_buf_sz)
+    void *mod_buf, int mod_buf_sz, int ver)
 {
     struct darshan_fd_int_state *state = fd->state;
     int ret;
@@ -752,6 +753,9 @@ int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
             darshan_module_names[mod_id]);
         return(-1);
     }
+
+    /* set the version number for this module's data */
+    fd->mod_ver[mod_id] = ver;
 
     return(0);
 }
@@ -839,6 +843,30 @@ static int darshan_log_getheader(darshan_fd fd)
         return(-1);
     }
 
+    /* read the version number so we know how to process this log */
+    ret = darshan_log_read(fd, &fd->version, 8);
+    if(ret < 8)
+    {
+        fprintf(stderr, "Error: invalid log file (failed to read version).\n");
+        return(-1);
+    }
+
+    /* other log file versions can be detected and handled here */
+    if(strcmp(fd->version, "3.00"))
+    {
+        fprintf(stderr, "Error: incompatible darshan file.\n");
+        fprintf(stderr, "Error: expected version %s\n", DARSHAN_LOG_VERSION);
+        return(-1);
+    }
+
+    /* seek back so we can read the entire header */
+    ret = darshan_log_seek(fd, 0);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to seek in darshan log file.\n");
+        return(-1);
+    }
+
     /* read uncompressed header from log file */
     ret = darshan_log_read(fd, &header, sizeof(header));
     if(ret != (int)sizeof(header))
@@ -846,9 +874,6 @@ static int darshan_log_getheader(darshan_fd fd)
         fprintf(stderr, "Error: failed to read darshan log file header.\n");
         return(-1);
     }
-
-    /* save the version string */
-    strncpy(fd->version, header.version_string, 8);
 
     if(header.magic_nr == DARSHAN_MAGIC_NR)
     {
@@ -880,8 +905,10 @@ static int darshan_log_getheader(darshan_fd fd)
         }
     }
 
+    /* set some fd fields based on what's stored in the header */
     fd->comp_type = header.comp_type;
     fd->partial_flag = header.partial_flag;
+    memcpy(fd->mod_ver, header.mod_ver, DARSHAN_MAX_MODS * sizeof(uint32_t));
 
     /* save the mapping of data within log file to this file descriptor */
     memcpy(&fd->rec_map, &(header.rec_map), sizeof(struct darshan_log_map));

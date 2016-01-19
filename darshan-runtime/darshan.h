@@ -125,17 +125,17 @@ void darshan_core_lookup_record(
 
 /* darshan_core_register_record()
  *
- * Register the Darshan record given by 'name' with the darshan-core
- * runtime, allowing it to be properly tracked and (potentially)
- * correlated with records from other modules. 'len' is the size of
- * the name pointer (string length for string names), and 'printable_flag'
- * indicates whether the name is a string. 'mod_limit_flag' is set if
- * the calling module is out of memory (to prevent darshan-core from
- * creating new records and to just search existing records)  and 'mod_id'
- * is the identifier of the calling module. 'rec_id' is an output pointer
- * storing the correspoing Darshan record identifier and 'file_alignment'
- * is an output pointer storing the file system alignment value for the
- * given record.
+ * Register a record with the darshan-core runtime, allowing it to be
+ * properly tracked and (potentially) correlated with records from other
+ * modules. 'name' is the the name of the Darshan record (e.g., the full
+ * file path) and 'len' is the size of the name pointer (string length
+ * for string names). 'mod_id' is the identifier of the calling module,
+ * 'printable_flag' indicates whether the name is a string, and 
+ * 'mod_limit_flag' is set if the calling module is out of memory (to
+ * prevent darshan-core from creating new records and to just search
+ * through existing records). 'rec_id' is an output pointer storing the
+ * correspoing Darshan record identifier and 'file_alignment' is an output
+ * pointer storing the file system alignment value for the given record.
  */
 int darshan_core_register_record(
     darshan_record_id rec_id,

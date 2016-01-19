@@ -7,9 +7,6 @@
 #ifndef __DARSHAN_NULL_LOG_UTILS_H
 #define __DARSHAN_NULL_LOG_UTILS_H
 
-#include "darshan-logutils.h"
-#include "darshan-null-log-format.h"
-
 /* declare NULL module counter name strings and logutil definition as
  * extern variables so they can be used in other utilities
  */

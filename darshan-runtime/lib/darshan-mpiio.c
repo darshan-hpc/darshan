@@ -23,7 +23,6 @@
 #include "uthash.h"
 
 #include "darshan.h"
-#include "darshan-mpiio-log-format.h"
 #include "darshan-dynamic.h"
 
 /* The mpiio_file_runtime structure maintains necessary runtime metadata
@@ -1386,7 +1385,9 @@ static void mpiio_get_output_data(
         {
             red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_mpiio_file));
             if(!red_recv_buf)
+            {
                 return;
+            }
         }
 
         /* construct a datatype for a MPIIO file record.  This is serving no purpose

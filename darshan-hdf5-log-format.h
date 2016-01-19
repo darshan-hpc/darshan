@@ -7,7 +7,8 @@
 #ifndef __DARSHAN_HDF5_LOG_FORMAT_H
 #define __DARSHAN_HDF5_LOG_FORMAT_H
 
-#include "darshan-log-format.h"
+/* current HDF5 log format version */
+#define DARSHAN_HDF5_VER 1
 
 #define HDF5_COUNTERS \
     /* count of HDF5 opens */\
