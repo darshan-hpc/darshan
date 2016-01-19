@@ -23,8 +23,9 @@ DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_VERSION = @DARSHAN_VERSION@
 
 ifndef DISABLE_LDPRELOAD
-all: lib/libdarshan.so lib/darshan-null.po
+all: lib/libdarshan.so
 endif
+#TODO: lib/darshan-null.po
 
 VPATH = $(srcdir)
 
@@ -34,8 +35,8 @@ CFLAGS_SHARED = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I$(srcdir)
 
 LIBS = -lz @LIBBZ2@
 
-static-mod-objs = lib/darshan-posix.o
-dynamic-mod-objs = lib/darshan-posix.po 
+static-mod-objs = lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-hdf5.o lib/darshan-pnetcdf.o
+dynamic-mod-objs = lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-hdf5.po lib/darshan-pnetcdf.po
 
 lib::
 	@mkdir -p $@

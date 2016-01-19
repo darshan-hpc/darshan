@@ -99,12 +99,9 @@ struct mpiio_runtime
 {
     struct mpiio_file_runtime* file_runtime_array;
     struct darshan_mpiio_file* file_record_array;
-    int file_array_size;
     int file_array_ndx;
     struct mpiio_file_runtime* file_hash;
     struct mpiio_file_runtime_ref* fh_hash;
-
-    struct darshan_mpiio_file* total_file;
 };
 
 static struct mpiio_runtime *mpiio_runtime = NULL;
@@ -828,26 +825,28 @@ static void mpiio_runtime_initialize()
         .get_output_data = &mpiio_get_output_data,
         .shutdown = &mpiio_shutdown
     };
-    void *mmap_buf;
-    int mmap_buf_size;
-    int mem_limit;
+    void *mpiio_buf;
+    int mpiio_buf_size;
+    int file_array_size;
 
     /* don't do anything if already initialized or instrumenation is disabled */
     if(mpiio_runtime || instrumentation_disabled)
         return;
 
+    /* try and store the default number of records for this module */
+    mpiio_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_mpiio_file);
+
     /* register the mpiio module with darshan core */
     darshan_core_register_module(
         DARSHAN_MPIIO_MOD,
         &mpiio_mod_fns,
+        &mpiio_buf_size,
+        &mpiio_buf,
         &my_rank,
-        &mem_limit,
-        &mmap_buf,
-        &mmap_buf_size,
         NULL);
 
-    /* return if no memory assigned by darshan core */
-    if(mem_limit == 0)
+    /* return if darshan-core does not provide enough module memory */
+    if(mpiio_buf_size < sizeof(struct darshan_mpiio_file))
         return;
 
     mpiio_runtime = malloc(sizeof(*mpiio_runtime));
@@ -855,25 +854,27 @@ static void mpiio_runtime_initialize()
         return;
     memset(mpiio_runtime, 0, sizeof(*mpiio_runtime));
 
-    /* set maximum number of file records according to max memory limit */
-    /* NOTE: maximum number of records is based on the size of a mpiio file record */
-    mpiio_runtime->file_array_size = mem_limit / sizeof(struct darshan_mpiio_file);
+    /* set number of trackable files for the MPIIO module according to the
+     * amount of memory returned by darshan-core
+     */
+    file_array_size = mpiio_buf_size / sizeof(struct darshan_mpiio_file);
     mpiio_runtime->file_array_ndx = 0;
 
+    /* store pointer to MPIIO record buffer given by darshan-core */
+    mpiio_runtime->file_record_array = (struct darshan_mpiio_file *)mpiio_buf;
+
     /* allocate array of runtime file records */
-    mpiio_runtime->file_runtime_array = malloc(mpiio_runtime->file_array_size *
+    mpiio_runtime->file_runtime_array = malloc(file_array_size *
                                                sizeof(struct mpiio_file_runtime));
-    mpiio_runtime->file_record_array = malloc(mpiio_runtime->file_array_size *
-                                              sizeof(struct darshan_mpiio_file));
-    if(!mpiio_runtime->file_runtime_array || !mpiio_runtime->file_record_array)
+    if(!mpiio_runtime->file_runtime_array)
     {
-        mpiio_runtime->file_array_size = 0;
+        free(mpiio_runtime);
+        mpiio_runtime = NULL;
+        darshan_core_unregister_module(DARSHAN_MPIIO_MOD);
         return;
     }
-    memset(mpiio_runtime->file_runtime_array, 0, mpiio_runtime->file_array_size *
+    memset(mpiio_runtime->file_runtime_array, 0, file_array_size *
            sizeof(struct mpiio_file_runtime));
-    memset(mpiio_runtime->file_record_array, 0, mpiio_runtime->file_array_size *
-           sizeof(struct darshan_mpiio_file));
 
     return;
 }
@@ -882,9 +883,10 @@ static void mpiio_runtime_initialize()
 static struct mpiio_file_runtime* mpiio_file_by_name(const char *name)
 {
     struct mpiio_file_runtime *file = NULL;
+    struct darshan_mpiio_file *file_rec;
     char *newname = NULL;
     darshan_record_id file_id;
-    int limit_flag;
+    int ret;
 
     if(!mpiio_runtime || instrumentation_disabled)
         return(NULL);
@@ -893,46 +895,36 @@ static struct mpiio_file_runtime* mpiio_file_by_name(const char *name)
     if(!newname)
         newname = (char*)name;
 
-    limit_flag = (mpiio_runtime->file_array_ndx >= mpiio_runtime->file_array_size);
-
-    /* get a unique id for this file from darshan core */
-    darshan_core_register_record(
+    /* lookup the unique id for this filename */
+    darshan_core_lookup_record(
         (void*)newname,
         strlen(newname),
-        DARSHAN_MPIIO_MOD,
-        1,
-        limit_flag,
-        &file_id,
-        NULL);
-
-    /* the file record id is set to 0 if no memory is available for tracking
-     * new records -- just fall through and ignore this record
-     */
-    if(file_id == 0)
-    {
-        if(newname != name)
-            free(newname);
-        return(NULL);
-    }
+        &file_id);
 
     /* search the hash table for this file record, and return if found */
     HASH_FIND(hlink, mpiio_runtime->file_hash, &file_id, sizeof(darshan_record_id), file);
-    if(file)
+    if(!file)
     {
-        if(newname != name)
-            free(newname);
-        return(file);
+        /* register the record with the darshan core component */
+        ret = darshan_core_register_record(file_id, (void *)newname, DARSHAN_MPIIO_MOD,
+            sizeof(struct darshan_mpiio_file), NULL);
+        if(ret == 1)
+        {
+            /* register was successful */
+            file = &(mpiio_runtime->file_runtime_array[mpiio_runtime->file_array_ndx]);
+            file->file_record =
+                &(mpiio_runtime->file_record_array[mpiio_runtime->file_array_ndx]);
+            file_rec = file->file_record;
+
+            file_rec->base_rec.id = file_id;
+            file_rec->base_rec.rank = my_rank;
+
+            /* add new record to file hash table */
+            HASH_ADD(hlink, mpiio_runtime->file_hash, file_record->base_rec.id,
+                sizeof(darshan_record_id), file);
+            mpiio_runtime->file_array_ndx++;
+        }
     }
-
-    /* no existing record, assign a new file record from the global array */
-    file = &(mpiio_runtime->file_runtime_array[mpiio_runtime->file_array_ndx]);
-    file->file_record = &(mpiio_runtime->file_record_array[mpiio_runtime->file_array_ndx]);
-    file->file_record->f_id = file_id;
-    file->file_record->rank = my_rank;
-
-    /* add new record to file hash table */
-    HASH_ADD(hlink, mpiio_runtime->file_hash, file_record->f_id, sizeof(darshan_record_id), file);
-    mpiio_runtime->file_array_ndx++;
 
     if(newname != name)
         free(newname);
@@ -1024,9 +1016,9 @@ static int mpiio_record_compare(const void* a_p, const void* b_p)
     const struct darshan_mpiio_file* a = a_p;
     const struct darshan_mpiio_file* b = b_p;
 
-    if(a->rank < b->rank)
+    if(a->base_rec.rank < b->base_rec.rank)
         return 1;
-    if(a->rank > b->rank)
+    if(a->base_rec.rank > b->base_rec.rank)
         return -1;
 
     return 0;
@@ -1048,9 +1040,8 @@ static void mpiio_record_reduction_op(
     for(i=0; i<*len; i++)
     {
         memset(&tmp_file, 0, sizeof(struct darshan_mpiio_file));
-
-        tmp_file.f_id = infile->f_id;
-        tmp_file.rank = -1;
+        tmp_file.base_rec.id = infile->base_rec.id;
+        tmp_file.base_rec.rank = -1;
 
         /* sum */
         for(j=MPIIO_INDEP_OPENS; j<=MPIIO_VIEWS; j++)
@@ -1358,7 +1349,7 @@ static void mpiio_get_output_data(
 
             /* initialize fastest/slowest info prior to the reduction */
             file->file_record->counters[MPIIO_FASTEST_RANK] =
-                file->file_record->rank;
+                file->file_record->base_rec.rank;
             file->file_record->counters[MPIIO_FASTEST_RANK_BYTES] =
                 file->file_record->counters[MPIIO_BYTES_READ] +
                 file->file_record->counters[MPIIO_BYTES_WRITTEN];
@@ -1376,7 +1367,7 @@ static void mpiio_get_output_data(
             file->file_record->fcounters[MPIIO_F_SLOWEST_RANK_TIME] =
                 file->file_record->fcounters[MPIIO_F_FASTEST_RANK_TIME];
 
-            file->file_record->rank = -1;
+            file->file_record->base_rec.rank = -1;
         }
 
         /* sort the array of files descending by rank so that we get all of the 
@@ -1454,7 +1445,6 @@ static void mpiio_shutdown()
     HASH_CLEAR(hlink, mpiio_runtime->file_hash); /* these entries are freed all at once below */
 
     free(mpiio_runtime->file_runtime_array);
-    free(mpiio_runtime->file_record_array);
     free(mpiio_runtime);
     mpiio_runtime = NULL;
 

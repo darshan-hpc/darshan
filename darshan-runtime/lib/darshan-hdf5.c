@@ -55,12 +55,9 @@ struct hdf5_runtime
 {
     struct hdf5_file_runtime* file_runtime_array;
     struct darshan_hdf5_file* file_record_array;
-    int file_array_size;
     int file_array_ndx;
     struct hdf5_file_runtime *file_hash;
     struct hdf5_file_runtime_ref* hid_hash;
-
-    struct darshan_hdf5_file *total_file;
 };
 
 static struct hdf5_runtime *hdf5_runtime = NULL;
@@ -205,9 +202,9 @@ static void hdf5_runtime_initialize()
         .get_output_data = &hdf5_get_output_data,
         .shutdown = &hdf5_shutdown
     };
-    void *mmap_buf;
-    int mmap_buf_size;
-    int mem_limit;
+    void *hdf5_buf;
+    int hdf5_buf_size;
+    int file_array_size;
 
     /* don't do anything if already initialized or instrumenation is disabled */
     if(hdf5_runtime || instrumentation_disabled)
@@ -217,14 +214,13 @@ static void hdf5_runtime_initialize()
     darshan_core_register_module(
         DARSHAN_HDF5_MOD,
         &hdf5_mod_fns,
+        &hdf5_buf_size,
+        &hdf5_buf,
         &my_rank,
-        &mem_limit,
-        &mmap_buf,
-        &mmap_buf_size,
         NULL);
 
-    /* return if no memory assigned by darshan-core */
-    if(mem_limit == 0)
+    /* return if darshan-core does not provide enough module memory */
+    if(hdf5_buf_size < sizeof(struct darshan_hdf5_file))
         return;
 
     hdf5_runtime = malloc(sizeof(*hdf5_runtime));
@@ -232,27 +228,27 @@ static void hdf5_runtime_initialize()
         return;
     memset(hdf5_runtime, 0, sizeof(*hdf5_runtime));
 
-    /* set maximum number of file records according to max memory limit */
-    /* NOTE: maximum number of records is based on the size of a hdf5 file record */
-    /* TODO: should we base memory usage off file record or total runtime structure sizes? */
-    hdf5_runtime->file_array_size = mem_limit / sizeof(struct darshan_hdf5_file);
+    /* set number of trackable files for the HDF5 module according to the
+     * amount of memory returned by darshan-core
+     */
+    file_array_size = hdf5_buf_size / sizeof(struct darshan_hdf5_file);
     hdf5_runtime->file_array_ndx = 0;
 
+    /* store pointer to HDF5 record buffer given by darshan-core */
+    hdf5_runtime->file_record_array = (struct darshan_hdf5_file *)hdf5_buf;
+
     /* allocate array of runtime file records */
-    hdf5_runtime->file_runtime_array = malloc(hdf5_runtime->file_array_size *
+    hdf5_runtime->file_runtime_array = malloc(file_array_size *
                                               sizeof(struct hdf5_file_runtime));
-    /* XXX-MMAP */
-    hdf5_runtime->file_record_array = malloc(hdf5_runtime->file_array_size *
-                                             sizeof(struct darshan_hdf5_file));
-    if(!hdf5_runtime->file_runtime_array || !hdf5_runtime->file_record_array)
+    if(!hdf5_runtime->file_runtime_array)
     {
-        hdf5_runtime->file_array_size = 0;
+        free(hdf5_runtime);
+        hdf5_runtime = NULL;
+        darshan_core_unregister_module(DARSHAN_HDF5_MOD);
         return;
     }
-    memset(hdf5_runtime->file_runtime_array, 0, hdf5_runtime->file_array_size *
+    memset(hdf5_runtime->file_runtime_array, 0, file_array_size *
            sizeof(struct hdf5_file_runtime));
-    memset(hdf5_runtime->file_record_array, 0, hdf5_runtime->file_array_size *
-           sizeof(struct darshan_hdf5_file));
 
     return;
 }
@@ -261,9 +257,10 @@ static void hdf5_runtime_initialize()
 static struct hdf5_file_runtime* hdf5_file_by_name(const char *name)
 {
     struct hdf5_file_runtime *file = NULL;
+    struct darshan_hdf5_file *file_rec;
     char *newname = NULL;
     darshan_record_id file_id;
-    int limit_flag;
+    int ret;
 
     if(!hdf5_runtime || instrumentation_disabled)
         return(NULL);
@@ -272,46 +269,36 @@ static struct hdf5_file_runtime* hdf5_file_by_name(const char *name)
     if(!newname)
         newname = (char*)name;
 
-    limit_flag = (hdf5_runtime->file_array_ndx >= hdf5_runtime->file_array_size);
-
-    /* get a unique id for this file from darshan core */
-    darshan_core_register_record(
+    /* lookup the unique id for this filename */
+    darshan_core_lookup_record(
         (void*)newname,
         strlen(newname),
-        DARSHAN_HDF5_MOD,
-        1,
-        limit_flag,
-        &file_id,
-        NULL);
-
-    /* if record is set to 0, darshan-core is out of space and will not
-     * track this record, so we should avoid tracking it, too
-     */
-    if(file_id == 0)
-    {
-        if(newname != name)
-            free(newname);
-        return(NULL);
-    }
+        &file_id);
 
     /* search the hash table for this file record, and return if found */
     HASH_FIND(hlink, hdf5_runtime->file_hash, &file_id, sizeof(darshan_record_id), file);
-    if(file)
+    if(!file)
     {
-        if(newname != name)
-            free(newname);
-        return(file);
+        /* register the record with the darshan core component */
+        ret = darshan_core_register_record(file_id, (void *)newname, DARSHAN_HDF5_MOD,
+            sizeof(struct darshan_hdf5_file), NULL);
+        if(ret == 1)
+        {
+            /* register was successful */
+            file = &(hdf5_runtime->file_runtime_array[hdf5_runtime->file_array_ndx]);
+            file->file_record =
+                &(hdf5_runtime->file_record_array[hdf5_runtime->file_array_ndx]);
+            file_rec = file->file_record;
+
+            file_rec->base_rec.id = file_id;
+            file_rec->base_rec.rank = my_rank;
+
+            /* add new record to file hash table */
+            HASH_ADD(hlink, hdf5_runtime->file_hash, file_record->base_rec.id,
+                sizeof(darshan_record_id), file);
+            hdf5_runtime->file_array_ndx++;
+        }
     }
-
-    /* no existing record, assign a new file record from the global array */
-    file = &(hdf5_runtime->file_runtime_array[hdf5_runtime->file_array_ndx]);
-    file->file_record = &(hdf5_runtime->file_record_array[hdf5_runtime->file_array_ndx]);
-    file->file_record->f_id = file_id;
-    file->file_record->rank = my_rank;
-
-    /* add new record to file hash table */
-    HASH_ADD(hlink, hdf5_runtime->file_hash, file_record->f_id, sizeof(darshan_record_id), file);
-    hdf5_runtime->file_array_ndx++;
 
     if(newname != name)
         free(newname);
@@ -403,9 +390,9 @@ static int hdf5_record_compare(const void* a_p, const void* b_p)
     const struct darshan_hdf5_file* a = a_p;
     const struct darshan_hdf5_file* b = b_p;
 
-    if(a->rank < b->rank)
+    if(a->base_rec.rank < b->base_rec.rank)
         return 1;
-    if(a->rank > b->rank)
+    if(a->base_rec.rank > b->base_rec.rank)
         return -1;
 
     return 0;
@@ -424,8 +411,8 @@ static void hdf5_record_reduction_op(void* infile_v, void* inoutfile_v,
     for(i=0; i<*len; i++)
     {
         memset(&tmp_file, 0, sizeof(struct darshan_hdf5_file));
-        tmp_file.f_id = infile->f_id;
-        tmp_file.rank = -1;
+        tmp_file.base_rec.id = infile->base_rec.id;
+        tmp_file.base_rec.rank = -1;
 
         /* sum */
         for(j=HDF5_OPENS; j<=HDF5_OPENS; j++)
@@ -505,7 +492,7 @@ static void hdf5_get_output_data(
                 sizeof(darshan_record_id), file);
             assert(file);
 
-            file->file_record->rank = -1;
+            file->file_record->base_rec.rank = -1;
         }
 
         /* sort the array of files descending by rank so that we get all of the 

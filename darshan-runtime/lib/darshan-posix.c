@@ -1651,8 +1651,9 @@ static void posix_runtime_initialize()
         return;
     memset(posix_runtime, 0, sizeof(*posix_runtime));
 
-    /* set maximum number of file records according to max memory limit */
-    /* NOTE: maximum number of records is based on the size of a posix file record */
+    /* set number of trackable files for the POSIX module according to the
+     * amount of memory returned by darshan-core
+     */
     file_array_size = psx_buf_size / sizeof(struct darshan_posix_file);
     posix_runtime->file_array_ndx = 0;
 
@@ -1671,8 +1672,6 @@ static void posix_runtime_initialize()
     }
     memset(posix_runtime->file_runtime_array, 0, file_array_size *
            sizeof(struct posix_file_runtime));
-    memset(posix_runtime->file_record_array, 0, file_array_size *
-           sizeof(struct darshan_posix_file));
 
     return;
 }
@@ -1694,7 +1693,7 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
     if(!newname)
         newname = (char*)name;
 
-    /* lookup the unique id for this file */
+    /* lookup the unique id for this filename */
     darshan_core_lookup_record(
         (void*)newname,
         strlen(newname),

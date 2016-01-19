@@ -51,12 +51,9 @@ struct pnetcdf_runtime
 {
     struct pnetcdf_file_runtime* file_runtime_array;
     struct darshan_pnetcdf_file* file_record_array;
-    int file_array_size;
     int file_array_ndx;
     struct pnetcdf_file_runtime *file_hash;
     struct pnetcdf_file_runtime_ref* ncid_hash;
-
-    struct darshan_pnetcdf_file *total_file;
 };
 
 static struct pnetcdf_runtime *pnetcdf_runtime = NULL;
@@ -217,26 +214,28 @@ static void pnetcdf_runtime_initialize()
         .get_output_data = &pnetcdf_get_output_data,
         .shutdown = &pnetcdf_shutdown
     };
-    void *mmap_buf;
-    int mmap_buf_size;
-    int mem_limit;
+    void *pnetcdf_buf;
+    int pnetcdf_buf_size;
+    int file_array_size;
 
     /* don't do anything if already initialized or instrumenation is disabled */
     if(pnetcdf_runtime || instrumentation_disabled)
         return;
 
+    /* try and store the default number of records for this module */
+    pnetcdf_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_pnetcdf_file);
+
     /* register pnetcdf module with darshan-core */
     darshan_core_register_module(
         DARSHAN_PNETCDF_MOD,
         &pnetcdf_mod_fns,
+        &pnetcdf_buf_size,
+        &pnetcdf_buf,
         &my_rank,
-        &mem_limit,
-        &mmap_buf,
-        &mmap_buf_size,
         NULL);
 
-    /* return if no memory assigned by darshan-core */
-    if(mem_limit == 0)
+    /* return if darshan-core does not provide enough module memory */
+    if(pnetcdf_buf_size < sizeof(struct darshan_pnetcdf_file))
         return;
 
     pnetcdf_runtime = malloc(sizeof(*pnetcdf_runtime));
@@ -244,27 +243,27 @@ static void pnetcdf_runtime_initialize()
         return;
     memset(pnetcdf_runtime, 0, sizeof(*pnetcdf_runtime));
 
-    /* set maximum number of file records according to max memory limit */
-    /* NOTE: maximum number of records is based on the size of a pnetcdf file record */
-    /* TODO: should we base memory usage off file record or total runtime structure sizes? */
-    pnetcdf_runtime->file_array_size = mem_limit / sizeof(struct darshan_pnetcdf_file);
+    /* set number of trackable files for the PNETCDF module according to the
+     * amount of memory returned by darshan-core
+     */
+    file_array_size = pnetcdf_buf_size / sizeof(struct darshan_pnetcdf_file);
     pnetcdf_runtime->file_array_ndx = 0;
 
+    /* store pointer to PNETCDF record buffer given by darshan-core */
+    pnetcdf_runtime->file_record_array = (struct darshan_pnetcdf_file *)pnetcdf_buf;
+
     /* allocate array of runtime file records */
-    pnetcdf_runtime->file_runtime_array = malloc(pnetcdf_runtime->file_array_size *
+    pnetcdf_runtime->file_runtime_array = malloc(file_array_size *
                                                  sizeof(struct pnetcdf_file_runtime));
-    /* XXX-MMAP */
-    pnetcdf_runtime->file_record_array = malloc(pnetcdf_runtime->file_array_size *
-                                                sizeof(struct darshan_pnetcdf_file));
-    if(!pnetcdf_runtime->file_runtime_array || !pnetcdf_runtime->file_record_array)
+    if(!pnetcdf_runtime->file_runtime_array)
     {
-        pnetcdf_runtime->file_array_size = 0;
+        free(pnetcdf_runtime);
+        pnetcdf_runtime = NULL;
+        darshan_core_unregister_module(DARSHAN_PNETCDF_MOD);
         return;
     }
-    memset(pnetcdf_runtime->file_runtime_array, 0, pnetcdf_runtime->file_array_size *
+    memset(pnetcdf_runtime->file_runtime_array, 0, file_array_size *
            sizeof(struct pnetcdf_file_runtime));
-    memset(pnetcdf_runtime->file_record_array, 0, pnetcdf_runtime->file_array_size *
-           sizeof(struct darshan_pnetcdf_file));
 
     return;
 }
@@ -273,9 +272,10 @@ static void pnetcdf_runtime_initialize()
 static struct pnetcdf_file_runtime* pnetcdf_file_by_name(const char *name)
 {
     struct pnetcdf_file_runtime *file = NULL;
+    struct darshan_pnetcdf_file *file_rec;
     char *newname = NULL;
     darshan_record_id file_id;
-    int limit_flag;
+    int ret;
 
     if(!pnetcdf_runtime || instrumentation_disabled)
         return(NULL);
@@ -284,46 +284,36 @@ static struct pnetcdf_file_runtime* pnetcdf_file_by_name(const char *name)
     if(!newname)
         newname = (char*)name;
 
-    limit_flag = (pnetcdf_runtime->file_array_ndx >= pnetcdf_runtime->file_array_size);
-
-    /* get a unique id for this file from darshan core */
-    darshan_core_register_record(
+    /* lookup the unique id for this filename */
+    darshan_core_lookup_record(
         (void*)newname,
         strlen(newname),
-        DARSHAN_PNETCDF_MOD,
-        1,
-        limit_flag,
-        &file_id,
-        NULL);
-
-    /* the file record id is set to 0 if no memory is available for tracking
-     * new records -- just fall through and ignore this record
-     */
-    if(file_id == 0)
-    {
-        if(newname != name)
-            free(newname);
-        return(NULL);
-    }
+        &file_id);
 
     /* search the hash table for this file record, and return if found */
     HASH_FIND(hlink, pnetcdf_runtime->file_hash, &file_id, sizeof(darshan_record_id), file);
-    if(file)
+    if(!file)
     {
-        if(newname != name)
-            free(newname);
-        return(file);
+        /* register the record with the darshan core component */
+        ret = darshan_core_register_record(file_id, (void *)newname, DARSHAN_PNETCDF_MOD,
+            sizeof(struct darshan_pnetcdf_file), NULL);
+        if(ret == 1)
+        {
+            /* register was successful */
+            file = &(pnetcdf_runtime->file_runtime_array[pnetcdf_runtime->file_array_ndx]);
+            file->file_record =
+                &(pnetcdf_runtime->file_record_array[pnetcdf_runtime->file_array_ndx]);
+            file_rec = file->file_record;
+
+            file_rec->base_rec.id = file_id;
+            file_rec->base_rec.rank = my_rank;
+
+            /* add new record to file hash table */
+            HASH_ADD(hlink, pnetcdf_runtime->file_hash, file_record->base_rec.id,
+                sizeof(darshan_record_id), file);
+            pnetcdf_runtime->file_array_ndx++;
+        }
     }
-
-    /* no existing record, assign a new file record from the global array */
-    file = &(pnetcdf_runtime->file_runtime_array[pnetcdf_runtime->file_array_ndx]);
-    file->file_record = &(pnetcdf_runtime->file_record_array[pnetcdf_runtime->file_array_ndx]);
-    file->file_record->f_id = file_id;
-    file->file_record->rank = my_rank;
-
-    /* add new record to file hash table */
-    HASH_ADD(hlink, pnetcdf_runtime->file_hash, file_record->f_id, sizeof(darshan_record_id), file);
-    pnetcdf_runtime->file_array_ndx++;
 
     if(newname != name)
         free(newname);
@@ -415,9 +405,9 @@ static int pnetcdf_record_compare(const void* a_p, const void* b_p)
     const struct darshan_pnetcdf_file* a = a_p;
     const struct darshan_pnetcdf_file* b = b_p;
 
-    if(a->rank < b->rank)
+    if(a->base_rec.rank < b->base_rec.rank)
         return 1;
-    if(a->rank > b->rank)
+    if(a->base_rec.rank > b->base_rec.rank)
         return -1;
 
     return 0;
@@ -436,8 +426,8 @@ static void pnetcdf_record_reduction_op(void* infile_v, void* inoutfile_v,
     for(i=0; i<*len; i++)
     {
         memset(&tmp_file, 0, sizeof(struct darshan_pnetcdf_file));
-        tmp_file.f_id = infile->f_id;
-        tmp_file.rank = -1;
+        tmp_file.base_rec.id = infile->base_rec.id;
+        tmp_file.base_rec.rank = -1;
 
         /* sum */
         for(j=PNETCDF_INDEP_OPENS; j<=PNETCDF_COLL_OPENS; j++)
@@ -517,7 +507,7 @@ static void pnetcdf_get_output_data(
                 sizeof(darshan_record_id), file);
             assert(file);
 
-            file->file_record->rank = -1;
+            file->file_record->base_rec.rank = -1;
         }
 
         /* sort the array of files descending by rank so that we get all of the 
