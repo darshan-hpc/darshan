@@ -55,14 +55,15 @@ struct darshan_core_runtime
     struct darshan_core_record_ref *rec_hash;
     int rec_hash_cnt;
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
-    char comp_buf[DARSHAN_COMP_BUF_SIZE]; /* TODO: why is this allocated statically? only used in shutdown */
+    int mod_mem_used;
+    char comp_buf[DARSHAN_COMP_BUF_SIZE];
     double wtime_offset;
 };
 
 struct darshan_core_module
 {
-    darshan_module_id id;
     struct darshan_module_funcs mod_funcs;
+    int mem_avail;
 };
 
 struct darshan_core_record_ref

@@ -53,6 +53,9 @@
 
 #endif
 
+/* default number of records to attempt to store for each module */
+#define DARSHAN_DEF_MOD_REC_COUNT 1024
+
 /* module developers provide the following functions to darshan-core */
 struct darshan_module_funcs
 {
@@ -98,8 +101,8 @@ struct darshan_module_funcs
 void darshan_core_register_module(
     darshan_module_id mod_id,
     struct darshan_module_funcs *funcs,
+    int *inout_mod_size,
     void **mod_buf,
-    int *mod_buf_size,
     int *my_rank,
     int *sys_mem_alignment);
 
@@ -110,6 +113,15 @@ void darshan_core_register_module(
  */
 void darshan_core_unregister_module(
     darshan_module_id mod_id);
+
+/* darshan_core_lookup_record()
+ *
+ *
+ */
+void darshan_core_lookup_record(
+    void *name,
+    int name_len,
+    darshan_record_id *rec_id);
 
 /* darshan_core_register_record()
  *
@@ -125,13 +137,11 @@ void darshan_core_unregister_module(
  * is an output pointer storing the file system alignment value for the
  * given record.
  */
-void darshan_core_register_record(
+int darshan_core_register_record(
+    darshan_record_id rec_id,
     void *name,
-    int name_len,
-    int rec_size,
     darshan_module_id mod_id,
-    int printable_flag,
-    darshan_record_id *rec_id,
+    int rec_size,
     int *file_alignment);
 
 /* darshan_core_unregister_record()

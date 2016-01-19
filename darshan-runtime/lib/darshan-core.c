@@ -200,9 +200,8 @@ void darshan_core_initialize(int argc, char **argv)
             sys_page_size = sysconf(_SC_PAGESIZE);
             assert(sys_page_size > 0);
 
-            /* XXX: MMAP */
             mmap_size = sizeof(struct darshan_header) + DARSHAN_JOB_RECORD_SIZE +
-                DARSHAN_MOD_MEM_MAX;
+                + DARSHAN_RECORD_BUF_SIZE + DARSHAN_MOD_MEM_MAX;
             if(mmap_size % sys_page_size)
                 mmap_size = ((mmap_size / sys_page_size) + 1) * sys_page_size;
 
@@ -262,7 +261,6 @@ void darshan_core_initialize(int argc, char **argv)
                 ((char *)init_core->log_exemnt_p + DARSHAN_EXE_LEN + 1);
             init_core->log_mod_p = (void *)
                 ((char *)init_core->log_rec_p + DARSHAN_RECORD_BUF_SIZE);
-            /* XXX: MMAP */
 
             /* set known header fields for the log file */
             strcpy(init_core->log_hdr_p->version_string, DARSHAN_LOG_VERSION);
@@ -1562,29 +1560,21 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
 void darshan_core_register_module(
     darshan_module_id mod_id,
     struct darshan_module_funcs *funcs,
+    int *inout_mod_size,
     void **mod_buf,
-    int *mod_buf_size,
     int *my_rank,
     int *sys_mem_alignment)
 {
-    int ret;
-    int tmpval;
     struct darshan_core_module* mod;
-    char *mod_mem_str = NULL;
+    int mod_mem_req = *inout_mod_size;
+    int mod_mem_avail;
 
-    *mod_buf_size = 0;
     *mod_buf = NULL;
+    *inout_mod_size = 0;
 
     if(!darshan_core || (mod_id >= DARSHAN_MAX_MODS))
         return;
 
-    if(sys_mem_alignment)
-        *sys_mem_alignment = darshan_mem_alignment;
-
-    /* get the calling process's rank */
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, my_rank);
-
-    /* see if this module is already registered */
     DARSHAN_CORE_LOCK();
     if(darshan_core->mod_array[mod_id])
     {
@@ -1593,13 +1583,20 @@ void darshan_core_register_module(
         return;
     }
 
-    /* XXX MMAP: how do we assign size and address */
-    *mod_buf = darshan_core->log_mod_p;
-    *mod_buf_size = DARSHAN_MOD_MEM_MAX;
-    darshan_core->log_hdr_p->mod_map[mod_id].off =
-        ((char *)darshan_core->log_mod_p - (char *)darshan_core->log_hdr_p);
+    /* assign a buffer from Darshan's contiguous module memory range for
+     * this module to use for storing record data
+     */
+    mod_mem_avail = DARSHAN_MOD_MEM_MAX - darshan_core->mod_mem_used;
+    if(mod_mem_avail >= mod_mem_req)
+        *inout_mod_size = mod_mem_req;
+    else
+        *inout_mod_size = mod_mem_avail;
 
-    /* this module has not been registered yet, allocate and initialize it */
+    *mod_buf = darshan_core->log_mod_p + darshan_core->mod_mem_used;
+    darshan_core->mod_mem_used += *inout_mod_size;
+    darshan_core->log_hdr_p->mod_map[mod_id].off =
+        ((char *)*mod_buf - (char *)darshan_core->log_hdr_p);
+
     mod = malloc(sizeof(*mod));
     if(!mod)
     {
@@ -1607,15 +1604,18 @@ void darshan_core_register_module(
         return;
     }
     memset(mod, 0, sizeof(*mod));
-    mod->id = mod_id;
     mod->mod_funcs = *funcs;
+    mod->mem_avail = *inout_mod_size;
 
     /* register module with darshan */
     darshan_core->mod_array[mod_id] = mod;
-
-    /* get the calling process's rank */
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, my_rank);
     DARSHAN_CORE_UNLOCK();
+
+    /* set the memory alignment and calling process's rank, if desired */
+    if(sys_mem_alignment)
+        *sys_mem_alignment = darshan_mem_alignment;
+    if(my_rank)
+        DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, my_rank);
 
     return;
 }
@@ -1645,60 +1645,78 @@ void darshan_core_unregister_module(
     return;
 }
 
-/* TODO: maybe a return code to distinguish between id 0 and a failure */
-void darshan_core_register_record(
+void darshan_core_lookup_record(
     void *name,
     int name_len,
-    int rec_size,
-    darshan_module_id mod_id,
-    int printable_flag,
-    darshan_record_id *rec_id,
-    int *file_alignment)
+    darshan_record_id *rec_id)
 {
     darshan_record_id tmp_rec_id;
-    struct darshan_core_record_ref *ref;
 
-    *rec_id = 0;
-    *file_alignment = 0;
-
-    if(!darshan_core)
-        return;
-
-    /* TODO: what do you do with printable flag? */
-    /* TODO: what about partial flag? */
+    /* TODO: how do we handle potentially non-ascii record names? */
 
     /* hash the input name to get a unique id for this record */
     tmp_rec_id = darshan_hash(name, name_len, 0);
+    *rec_id = tmp_rec_id;
+
+    return;
+}
+
+int darshan_core_register_record(
+    darshan_record_id rec_id,
+    void *name,
+    darshan_module_id mod_id,
+    int rec_size,
+    int *file_alignment)
+{
+    struct darshan_core_record_ref *ref;
+    int mod_oom = 0;
+
+    if(!darshan_core)
+        return 0;
+
+    DARSHAN_CORE_LOCK();
+
+    /* check to see if this module has enough space to store a new record */
+    if(darshan_core->mod_array[mod_id]->mem_avail < rec_size)
+        mod_oom = 1;
 
     /* check to see if we've already stored the id->name mapping for this record */
-    DARSHAN_CORE_LOCK();
-    HASH_FIND(hlink, darshan_core->rec_hash, &tmp_rec_id, sizeof(darshan_record_id), ref);
+    HASH_FIND(hlink, darshan_core->rec_hash, &rec_id, sizeof(darshan_record_id), ref);
+    if(!ref && !mod_oom)
+    {
+        /* no mapping already exists, but this module has memory available for
+         * storing the record being registered, so we create a new id->name
+         * mapping to correspond to the record
+         */
+        darshan_add_record_hashref(darshan_core, name, rec_id, &ref);
+    }
+
     if(!ref)
     {
-        /* record not found -- add it to the hash if this module has not already used
-         * all of its memory
+        /* if there still is no mapping for this record, either the
+         * module is out of memory or there is no more memory available for
+         * id->name mappings. just back out and indicate the record was 
+         * not registered
          */
-        darshan_add_record_hashref(darshan_core, name, tmp_rec_id, &ref);
-        if(!ref)
-        {
-            /* just give up and return if adding this record failed */
-            DARSHAN_CORE_UNLOCK();
-            return;
-        }
+        if(mod_oom)
+            DARSHAN_MOD_FLAG_SET(darshan_core->log_hdr_p->partial_flag, mod_id);
+
+        DARSHAN_CORE_UNLOCK();
+        return 0;
     }
 
     if(!DARSHAN_MOD_FLAG_ISSET(ref->mod_flags, mod_id))
     {
         DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
         darshan_core->log_hdr_p->mod_map[mod_id].len += rec_size;
+        darshan_core->mod_array[mod_id]->mem_avail -= rec_size;
     }
     DARSHAN_CORE_UNLOCK();
 
     if(file_alignment)
         darshan_block_size_from_path(name, file_alignment);
 
-    *rec_id = tmp_rec_id;
-    return;
+    return 1;
 }
 
 /* TODO: test */

@@ -173,7 +173,6 @@ struct posix_runtime
 {
     struct posix_file_runtime* file_runtime_array;
     struct darshan_posix_file* file_record_array;
-    int file_array_size;
     int file_array_ndx;
     struct posix_file_runtime* file_hash;
     struct posix_file_runtime_ref* fd_hash;
@@ -1625,22 +1624,26 @@ static void posix_runtime_initialize()
     };
     void *psx_buf;
     int psx_buf_size;
+    int file_array_size;
 
     /* don't do anything if already initialized or instrumenation is disabled */
     if(posix_runtime || instrumentation_disabled)
         return;
 
+    /* try and store the default number of records for this module */
+    psx_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_posix_file);
+
     /* register the posix module with darshan core */
     darshan_core_register_module(
         DARSHAN_POSIX_MOD,
         &posix_mod_fns,
-        &psx_buf,
         &psx_buf_size,
+        &psx_buf,
         &my_rank,
         &darshan_mem_alignment);
 
-    /* return if no memory assigned by darshan-core */
-    if(psx_buf_size == 0)
+    /* return if darshan-core does not provide enough module memory */
+    if(psx_buf_size < sizeof(struct darshan_posix_file))
         return;
 
     posix_runtime = malloc(sizeof(*posix_runtime));
@@ -1650,22 +1653,26 @@ static void posix_runtime_initialize()
 
     /* set maximum number of file records according to max memory limit */
     /* NOTE: maximum number of records is based on the size of a posix file record */
-    posix_runtime->file_array_size = psx_buf_size / sizeof(struct darshan_posix_file);
+    file_array_size = psx_buf_size / sizeof(struct darshan_posix_file);
     posix_runtime->file_array_ndx = 0;
-
-    /* allocate array of runtime file records */
-    posix_runtime->file_runtime_array = malloc(posix_runtime->file_array_size *
-                                               sizeof(struct posix_file_runtime));
-    if(!posix_runtime->file_runtime_array)
-    {
-        posix_runtime->file_array_size = 0;
-        return;
-    }
-    memset(posix_runtime->file_runtime_array, 0, posix_runtime->file_array_size *
-           sizeof(struct posix_file_runtime));
 
     /* store pointer to POSIX record buffer given by darshan-core */
     posix_runtime->file_record_array = (struct darshan_posix_file *)psx_buf;
+
+    /* allocate array of runtime file records */
+    posix_runtime->file_runtime_array = malloc(file_array_size *
+                                               sizeof(struct posix_file_runtime));
+    if(!posix_runtime->file_runtime_array)
+    {
+        free(posix_runtime);
+        posix_runtime = NULL;
+        darshan_core_unregister_module(DARSHAN_POSIX_MOD);
+        return;
+    }
+    memset(posix_runtime->file_runtime_array, 0, file_array_size *
+           sizeof(struct posix_file_runtime));
+    memset(posix_runtime->file_record_array, 0, file_array_size *
+           sizeof(struct darshan_posix_file));
 
     return;
 }
@@ -1674,9 +1681,11 @@ static void posix_runtime_initialize()
 static struct posix_file_runtime* posix_file_by_name(const char *name)
 {
     struct posix_file_runtime *file = NULL;
+    struct darshan_posix_file *file_rec;
     char *newname = NULL;
     darshan_record_id file_id;
     int file_alignment;
+    int ret;
 
     if(!posix_runtime || instrumentation_disabled)
         return(NULL);
@@ -1685,49 +1694,38 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
     if(!newname)
         newname = (char*)name;
 
-    /* get a unique id for this file from darshan core */
-    darshan_core_register_record(
+    /* lookup the unique id for this file */
+    darshan_core_lookup_record(
         (void*)newname,
         strlen(newname),
-        sizeof(struct darshan_posix_file),
-        DARSHAN_POSIX_MOD,
-        1,
-        &file_id,
-        &file_alignment);
-
-    /* the file record id is set to 0 if no memory is available for tracking
-     * new records -- just fall through and ignore this record
-     */
-    if(file_id == 0)
-    {
-        if(newname != name)
-            free(newname);
-        return(NULL);
-    }
+        &file_id);
 
     /* search the hash table for this file record, and return if found */
     HASH_FIND(hlink, posix_runtime->file_hash, &file_id, sizeof(darshan_record_id), file);
-    if(file)
+    if(!file)
     {
-        if(newname != name)
-            free(newname);
-        return(file);
+        /* register the record with the darshan core component */
+        ret = darshan_core_register_record(file_id, (void *)newname, DARSHAN_POSIX_MOD,
+            sizeof(struct darshan_posix_file), &file_alignment);
+        if(ret == 1)
+        {
+            /* register was successful */
+            file = &(posix_runtime->file_runtime_array[posix_runtime->file_array_ndx]);
+            file->file_record = 
+                &(posix_runtime->file_record_array[posix_runtime->file_array_ndx]);
+            file_rec = file->file_record;
+
+            file_rec->base_rec.id = file_id;
+            file_rec->base_rec.rank = my_rank;
+            file_rec->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
+            file_rec->counters[POSIX_FILE_ALIGNMENT] = file_alignment;
+
+            /* add new record to file hash table */
+            HASH_ADD(hlink, posix_runtime->file_hash, file_record->base_rec.id,
+                sizeof(darshan_record_id), file);
+            posix_runtime->file_array_ndx++;
+        }
     }
-
-    /* TODO: what happens when there are no more records? */
-
-    /* no existing record, assign a new file record from the global array */
-    file = &(posix_runtime->file_runtime_array[posix_runtime->file_array_ndx]);
-    file->file_record = &(posix_runtime->file_record_array[posix_runtime->file_array_ndx]);
-    file->file_record->base_rec.id = file_id;
-    file->file_record->base_rec.rank = my_rank;
-    file->file_record->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
-    file->file_record->counters[POSIX_FILE_ALIGNMENT] = file_alignment;
-
-    /* add new record to file hash table */
-    HASH_ADD(hlink, posix_runtime->file_hash, file_record->base_rec.id,
-        sizeof(darshan_record_id), file);
-    posix_runtime->file_array_ndx++;
 
     if(newname != name)
         free(newname);
@@ -2364,7 +2362,6 @@ static void posix_shutdown()
     HASH_CLEAR(hlink, posix_runtime->file_hash); /* these entries are freed all at once below */
 
     free(posix_runtime->file_runtime_array);
-    /* XXX: MMAP free(posix_runtime->file_record_array); */
     free(posix_runtime);
     posix_runtime = NULL;
 
