@@ -106,13 +106,6 @@ struct darshan_mod_logutil_funcs
         void *agg_rec,
         int init_flag
     );
-        /* print a text diff of 2 module I/O records */
-    void (*log_print_diff)(
-        void *rec1,
-        char *name1,
-        void *rec2,
-        char *name2
-    );
 };
 
 extern struct darshan_mod_logutil_funcs *mod_logutils[];

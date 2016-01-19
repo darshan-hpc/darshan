@@ -404,7 +404,7 @@ int main(int argc, char *argv[])
     /* iterate over active darshan modules and gather module data to write
      * to the stitched together output log
      */
-    for(i = 0; i < DARSHAN_MPIIO_MOD; i++)
+    for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
         if(!mod_logutils[i]) continue;
 
@@ -424,21 +424,6 @@ int main(int argc, char *argv[])
                 return(-1);
             }
 
-            /* write out the shared records first */
-            HASH_ITER(hlink, shared_rec_hash, sref, stmp)
-            {
-                ret = mod_logutils[i]->log_put_record(stitch_fd, sref->agg_rec);
-                if(ret < 0)
-                {
-                    fprintf(stderr,
-                        "Error: unable to write %s module record to output darshan log.\n",
-                        darshan_module_names[i]);
-                    globfree(&globbuf);
-                    darshan_log_close(stitch_fd);
-                    unlink(stitch_logname);
-                    return(-1);
-                }
-            }
         }
 
         for(j = 0; j < globbuf.gl_pathc; j++)
@@ -456,6 +441,25 @@ int main(int argc, char *argv[])
                 return(-1);
             }
 
+            if(j == 0 && shared_rec_hash)
+            {
+                /* write out the shared records first */
+                HASH_ITER(hlink, shared_rec_hash, sref, stmp)
+                {
+                    ret = mod_logutils[i]->log_put_record(stitch_fd, sref->agg_rec, in_fd->mod_ver[i]);
+                    if(ret < 0)
+                    {
+                        fprintf(stderr,
+                            "Error: unable to write %s module record to output darshan log.\n",
+                            darshan_module_names[i]);
+                        globfree(&globbuf);
+                        darshan_log_close(stitch_fd);
+                        unlink(stitch_logname);
+                        return(-1);
+                    }
+                }
+            }
+
             /* loop over module records and write them to output file */
             while((ret = mod_logutils[i]->log_get_record(in_fd, mod_buf)) == 1)
             {
@@ -465,7 +469,7 @@ int main(int argc, char *argv[])
                 if(sref)
                     continue; /* skip shared records */
 
-                ret = mod_logutils[i]->log_put_record(stitch_fd, mod_buf);
+                ret = mod_logutils[i]->log_put_record(stitch_fd, mod_buf, in_fd->mod_ver[i]);
                 if(ret < 0)
                 {
                     fprintf(stderr,

@@ -1625,7 +1625,7 @@ void darshan_core_register_module(
 
     /* register module with darshan */
     darshan_core->mod_array[mod_id] = mod;
-    darshan_core->log_header.mod_ver[mod_id] = darshan_module_versions[mod_id];
+    darshan_core->log_hdr_p->mod_ver[mod_id] = darshan_module_versions[mod_id];
     DARSHAN_CORE_UNLOCK();
 
     /* set the memory alignment and calling process's rank, if desired */

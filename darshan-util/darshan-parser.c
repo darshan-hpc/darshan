@@ -447,7 +447,7 @@ int main(int argc, char **argv)
             if(mask & OPTION_BASE)
             {
                 /* print the corresponding module data for this record */
-                mod_logutils[i]->log_print_record(mod_buf, ref->rec.name,
+                mod_logutils[i]->log_print_record(mod_buf, ref->name,
                     mnt_pt, fs_type, fd->mod_ver[i]);
             }
 

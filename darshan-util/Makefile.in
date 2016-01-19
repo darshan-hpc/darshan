@@ -18,6 +18,8 @@ DARSHAN_MOD_LOGUTIL_HEADERS = darshan-posix-logutils.h darshan-mpiio-logutils.h 
 DARSHAN_STATIC_MOD_OBJS = darshan-posix-logutils.o darshan-mpiio-logutils.o darshan-hdf5-logutils.o darshan-pnetcdf-logutils.o darshan-bgq-logutils.o
 DARSHAN_DYNAMIC_MOD_OBJS = darshan-posix-logutils.po darshan-mpiio-logutils.po darshan-hdf5-logutils.po darshan-pnetcdf-logutils.po darshan-bgq-logutils.po
 
+#XXX BGQ
+
 DARSHAN_ENABLE_SHARED=@DARSHAN_ENABLE_SHARED@
 
 VPATH = $(srcdir)
@@ -106,7 +108,7 @@ darshan-parser: darshan-parser.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARS
 	$(CC) $(CFLAGS) $(LDFLAGS) $< libdarshan-util.a -o $@ $(LIBS) 
 
 darshan-stitch-logs: darshan-stitch-logs.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_MOD_LOGUTIL_HEADERS) $(DARSHAN_MOD_LOG_FORMATS) libdarshan-util.a | uthash-1.9.2
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $< libdarshan-util.a -o $@ $(LIBS)
 
 #test/gztest: test/gztest.c mktestdir
 #	$(CC) $(CFLAGS)  $(LDFLAGS) -lz $< -o $@

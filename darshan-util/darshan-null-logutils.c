@@ -166,7 +166,7 @@ static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1
         {
             printf("- ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file1->rank, file1->f_id, null_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, null_counter_names[i],
                 file1->counters[i], file_name1, "", "");
 
         }
@@ -174,18 +174,18 @@ static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1
         {
             printf("+ ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file2->rank, file2->f_id, null_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, null_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
         else if(file1->counters[i] != file2->counters[i])
         {
             printf("- ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file1->rank, file1->f_id, null_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, null_counter_names[i],
                 file1->counters[i], file_name1, "", "");
             printf("+ ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file2->rank, file2->f_id, null_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, null_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
     }
@@ -196,7 +196,7 @@ static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1
         {
             printf("- ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file1->rank, file1->f_id, null_f_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, null_f_counter_names[i],
                 file1->fcounters[i], file_name1, "", "");
 
         }
@@ -204,18 +204,18 @@ static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1
         {
             printf("+ ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file2->rank, file2->f_id, null_f_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, null_f_counter_names[i],
                 file2->fcounters[i], file_name2, "", "");
         }
         else if(file1->fcounters[i] != file2->fcounters[i])
         {
             printf("- ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file1->rank, file1->f_id, null_f_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, null_f_counter_names[i],
                 file1->fcounters[i], file_name1, "", "");
             printf("+ ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file2->rank, file2->f_id, null_f_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, null_f_counter_names[i],
                 file2->fcounters[i], file_name2, "", "");
         }
     }
