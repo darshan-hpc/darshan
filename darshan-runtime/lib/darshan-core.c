@@ -1551,7 +1551,6 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
     HASH_ITER(hlink, core->rec_hash, ref, tmp)
     {
         HASH_DELETE(hlink, core->rec_hash, ref);
-        /* XXX MMAP:  free(ref->rec.name); */
         free(ref);
     }
 
@@ -1599,6 +1598,14 @@ void darshan_core_register_module(
         return;
     }
 
+    mod = malloc(sizeof(*mod));
+    if(!mod)
+    {
+        DARSHAN_CORE_UNLOCK();
+        return;
+    }
+    memset(mod, 0, sizeof(*mod));
+
     /* assign a buffer from Darshan's contiguous module memory range for
      * this module to use for storing record data
      */
@@ -1607,25 +1614,18 @@ void darshan_core_register_module(
         *inout_mod_size = mod_mem_req;
     else
         *inout_mod_size = mod_mem_avail;
-
     *mod_buf = darshan_core->log_mod_p + darshan_core->mod_mem_used;
-    darshan_core->mod_mem_used += *inout_mod_size;
-    darshan_core->log_hdr_p->mod_map[mod_id].off =
-        ((char *)*mod_buf - (char *)darshan_core->log_hdr_p);
-
-    mod = malloc(sizeof(*mod));
-    if(!mod)
-    {
-        DARSHAN_CORE_UNLOCK();
-        return;
-    }
-    memset(mod, 0, sizeof(*mod));
-    mod->mod_funcs = *funcs;
-    mod->mem_avail = *inout_mod_size;
 
     /* register module with darshan */
+    mod->mod_funcs = *funcs;
+    mod->mem_avail = *inout_mod_size;
     darshan_core->mod_array[mod_id] = mod;
+
+    /* update darshan header and internal structures */
     darshan_core->log_hdr_p->mod_ver[mod_id] = darshan_module_versions[mod_id];
+    darshan_core->log_hdr_p->mod_map[mod_id].off =
+        ((char *)*mod_buf - (char *)darshan_core->log_hdr_p);
+    darshan_core->mod_mem_used += *inout_mod_size;
     DARSHAN_CORE_UNLOCK();
 
     /* set the memory alignment and calling process's rank, if desired */
@@ -1637,7 +1637,6 @@ void darshan_core_register_module(
     return;
 }
 
-/* TODO: test */
 void darshan_core_unregister_module(
     darshan_module_id mod_id)
 {
@@ -1651,11 +1650,20 @@ void darshan_core_unregister_module(
     /* iterate all records and disassociate this module from them */
     HASH_ITER(hlink, darshan_core->rec_hash, ref, tmp)
     {
-        darshan_core_unregister_record(ref->id, mod_id);
+        /* disassociate this module from the given record id */
+        DARSHAN_MOD_FLAG_UNSET(ref->mod_flags, mod_id);
+        if(!(ref->mod_flags))
+        {
+            /* if no other modules are associated with this rec, delete it */
+            HASH_DELETE(hlink, darshan_core->rec_hash, ref);
+        }
     }
 
+    /* update darshan internal structures and header */
     free(darshan_core->mod_array[mod_id]);
     darshan_core->mod_array[mod_id] = NULL;
+    darshan_core->log_hdr_p->mod_map[mod_id].off =
+        darshan_core->log_hdr_p->mod_map[mod_id].len = 0;
 
     DARSHAN_CORE_UNLOCK();
 
@@ -1741,25 +1749,6 @@ void darshan_core_unregister_record(
     darshan_record_id rec_id,
     darshan_module_id mod_id)
 {
-    struct darshan_core_record_ref *ref;
-
-    if(!darshan_core)
-        return;
-
-    DARSHAN_CORE_LOCK();
-    HASH_FIND(hlink, darshan_core->rec_hash, &rec_id, sizeof(darshan_record_id), ref);
-    assert(ref); 
-
-    /* disassociate this module from the given record id */
-    DARSHAN_MOD_FLAG_UNSET(ref->mod_flags, mod_id);
-    if(!(ref->mod_flags))
-    {
-        /* if no other modules are associated with this rec, delete it */
-        HASH_DELETE(hlink, darshan_core->rec_hash, ref);
-    }
-    DARSHAN_CORE_UNLOCK();
-
-    return;
 }
 
 double darshan_core_wtime()

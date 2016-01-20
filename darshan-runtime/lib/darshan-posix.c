@@ -1641,11 +1641,17 @@ static void posix_runtime_initialize()
 
     /* return if darshan-core does not provide enough module memory */
     if(psx_buf_size < sizeof(struct darshan_posix_file))
+    {
+        darshan_core_unregister_module(DARSHAN_POSIX_MOD);
         return;
+    }
 
     posix_runtime = malloc(sizeof(*posix_runtime));
     if(!posix_runtime)
+    {
+        darshan_core_unregister_module(DARSHAN_POSIX_MOD);
         return;
+    }
     memset(posix_runtime, 0, sizeof(*posix_runtime));
 
     /* set number of trackable files for the POSIX module according to the

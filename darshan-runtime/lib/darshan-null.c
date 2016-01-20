@@ -388,7 +388,6 @@ static void null_shutdown()
     HASH_CLEAR(hlink, null_runtime->record_hash); /* these hash entries are freed all at once below */
 
     free(null_runtime->runtime_record_array);
-    free(null_runtime->record_array);
     free(null_runtime);
     null_runtime = NULL;
 

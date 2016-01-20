@@ -235,11 +235,17 @@ static void pnetcdf_runtime_initialize()
 
     /* return if darshan-core does not provide enough module memory */
     if(pnetcdf_buf_size < sizeof(struct darshan_pnetcdf_file))
+    {
+        darshan_core_unregister_module(DARSHAN_PNETCDF_MOD);
         return;
+    }
 
     pnetcdf_runtime = malloc(sizeof(*pnetcdf_runtime));
     if(!pnetcdf_runtime)
+    {
+        darshan_core_unregister_module(DARSHAN_PNETCDF_MOD);
         return;
+    }
     memset(pnetcdf_runtime, 0, sizeof(*pnetcdf_runtime));
 
     /* set number of trackable files for the PNETCDF module according to the
@@ -582,7 +588,6 @@ static void pnetcdf_shutdown()
     HASH_CLEAR(hlink, pnetcdf_runtime->file_hash); /* these entries are freed all at once below */
 
     free(pnetcdf_runtime->file_runtime_array);
-    free(pnetcdf_runtime->file_record_array);
     free(pnetcdf_runtime);
     pnetcdf_runtime = NULL;
 

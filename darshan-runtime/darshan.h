@@ -144,17 +144,6 @@ int darshan_core_register_record(
     int rec_size,
     int *file_alignment);
 
-/* darshan_core_unregister_record()
- *
- * Unregister record identifier 'rec_id' in the darshan-core runtime.
- * This unregister is only in the context of module identifier 'mod_id',
- * meaning that if the file record has other module's associated with
- * it, then the record won't be completely removed.
- */
-void darshan_core_unregister_record(
-    darshan_record_id rec_id,
-    darshan_module_id mod_id);
-
 /* darshan_core_wtime()
  *
  * Returns the elapsed time relative to (roughly) the start of

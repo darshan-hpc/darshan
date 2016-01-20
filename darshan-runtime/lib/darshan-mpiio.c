@@ -846,11 +846,17 @@ static void mpiio_runtime_initialize()
 
     /* return if darshan-core does not provide enough module memory */
     if(mpiio_buf_size < sizeof(struct darshan_mpiio_file))
+    {
+        darshan_core_unregister_module(DARSHAN_MPIIO_MOD);
         return;
+    }
 
     mpiio_runtime = malloc(sizeof(*mpiio_runtime));
     if(!mpiio_runtime)
+    {
+        darshan_core_unregister_module(DARSHAN_MPIIO_MOD);
         return;
+    }
     memset(mpiio_runtime, 0, sizeof(*mpiio_runtime));
 
     /* set number of trackable files for the MPIIO module according to the

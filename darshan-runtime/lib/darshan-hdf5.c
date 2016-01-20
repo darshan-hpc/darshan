@@ -209,6 +209,9 @@ static void hdf5_runtime_initialize()
     if(hdf5_runtime || instrumentation_disabled)
         return;
 
+    /* try and store the default number of records for this module */
+    hdf5_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_hdf5_file);
+
     /* register hdf5 module with darshan-core */
     darshan_core_register_module(
         DARSHAN_HDF5_MOD,
@@ -220,11 +223,17 @@ static void hdf5_runtime_initialize()
 
     /* return if darshan-core does not provide enough module memory */
     if(hdf5_buf_size < sizeof(struct darshan_hdf5_file))
+    {
+        darshan_core_unregister_module(DARSHAN_HDF5_MOD);
         return;
+    }
 
     hdf5_runtime = malloc(sizeof(*hdf5_runtime));
     if(!hdf5_runtime)
+    {
+        darshan_core_unregister_module(DARSHAN_HDF5_MOD);
         return;
+    }
     memset(hdf5_runtime, 0, sizeof(*hdf5_runtime));
 
     /* set number of trackable files for the HDF5 module according to the
@@ -567,7 +576,6 @@ static void hdf5_shutdown()
     HASH_CLEAR(hlink, hdf5_runtime->file_hash); /* these entries are freed all at once below */
 
     free(hdf5_runtime->file_runtime_array);
-    free(hdf5_runtime->file_record_array);
     free(hdf5_runtime);
     hdf5_runtime = NULL;
 
