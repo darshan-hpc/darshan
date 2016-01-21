@@ -137,6 +137,7 @@ int build_mod_shared_rec_hash(glob_t *globbuf, darshan_module_id mod_id,
                     darshan_log_close(in_fd);
                     return(-1);
                 }
+                memset(ref, 0, sizeof(*ref));
 
                 /* initialize the aggregate record with this rank's record */
                 agg_base = (struct darshan_base_record *)ref->agg_rec;
