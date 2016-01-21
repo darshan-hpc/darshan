@@ -204,6 +204,50 @@ static void darshan_log_print_hdf5_file_diff(void *file_rec1, char *file_name1,
 
 static void darshan_log_agg_hdf5_files(void *rec, void *agg_rec, int init_flag)
 {
+    struct darshan_hdf5_file *hdf5_rec = (struct darshan_hdf5_file *)rec;
+    struct darshan_hdf5_file *agg_hdf5_rec = (struct darshan_hdf5_file *)agg_rec;
+    int i;
+
+    for(i = 0; i < HDF5_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case HDF5_OPENS:
+                /* sum */
+                agg_hdf5_rec->counters[i] += hdf5_rec->counters[i];
+                break;
+            default:
+                agg_hdf5_rec->counters[i] = -1;
+                break;
+        }
+    }
+
+    for(i = 0; i < HDF5_F_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case HDF5_F_OPEN_TIMESTAMP:
+                /* minimum non-zero */
+                if((hdf5_rec->fcounters[i] > 0)  &&
+                    ((agg_hdf5_rec->fcounters[i] == 0) ||
+                    (hdf5_rec->fcounters[i] < agg_hdf5_rec->fcounters[i])))
+                {
+                    agg_hdf5_rec->fcounters[i] = hdf5_rec->fcounters[i];
+                }
+                break;
+            case HDF5_F_CLOSE_TIMESTAMP:
+                /* maximum */
+                if(hdf5_rec->fcounters[i] > agg_hdf5_rec->fcounters[i])
+                {
+                    agg_hdf5_rec->fcounters[i] = hdf5_rec->fcounters[i];
+                }
+                break;
+            default:
+                agg_hdf5_rec->fcounters[i] = -1;
+                break;
+        }
+    }
+
     return;
 }
 

@@ -226,6 +226,170 @@ static void darshan_log_print_mpiio_file_diff(void *file_rec1, char *file_name1,
 
 static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag)
 {
+    struct darshan_mpiio_file *mpi_rec = (struct darshan_mpiio_file *)rec;
+    struct darshan_mpiio_file *agg_mpi_rec = (struct darshan_mpiio_file *)agg_rec;
+    int i;
+    double mpi_time = mpi_rec->fcounters[MPIIO_F_READ_TIME] +
+        mpi_rec->fcounters[MPIIO_F_WRITE_TIME] +
+        mpi_rec->fcounters[MPIIO_F_META_TIME];
+
+    /* special case initialization of shared record for
+     * first call of this function
+     */
+    if(init_flag)
+    {
+        /* set fastest/slowest rank counters according to root rank.
+         * these counters will be determined as the aggregation progresses.
+         */
+        agg_mpi_rec->counters[MPIIO_FASTEST_RANK] = mpi_rec->base_rec.rank;
+        agg_mpi_rec->counters[MPIIO_FASTEST_RANK_BYTES] =
+            mpi_rec->counters[MPIIO_BYTES_READ] +
+            mpi_rec->counters[MPIIO_BYTES_WRITTEN];
+        agg_mpi_rec->fcounters[MPIIO_F_FASTEST_RANK_TIME] = mpi_time;
+
+        agg_mpi_rec->counters[MPIIO_SLOWEST_RANK] =
+            agg_mpi_rec->counters[MPIIO_FASTEST_RANK];
+        agg_mpi_rec->counters[MPIIO_SLOWEST_RANK_BYTES] =
+            agg_mpi_rec->counters[MPIIO_FASTEST_RANK_BYTES];
+        agg_mpi_rec->fcounters[MPIIO_F_SLOWEST_RANK_TIME] =
+            agg_mpi_rec->fcounters[MPIIO_F_FASTEST_RANK_TIME];
+    }
+
+    for(i = 0; i < MPIIO_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case MPIIO_INDEP_OPENS:
+            case MPIIO_COLL_OPENS:
+            case MPIIO_INDEP_READS:
+            case MPIIO_INDEP_WRITES:
+            case MPIIO_COLL_READS:
+            case MPIIO_COLL_WRITES:
+            case MPIIO_SPLIT_READS:
+            case MPIIO_SPLIT_WRITES:
+            case MPIIO_NB_READS:
+            case MPIIO_NB_WRITES:
+            case MPIIO_SYNCS:
+            case MPIIO_HINTS:
+            case MPIIO_VIEWS:
+            case MPIIO_BYTES_READ:
+            case MPIIO_BYTES_WRITTEN:
+            case MPIIO_RW_SWITCHES:
+            case MPIIO_SIZE_READ_AGG_0_100:
+            case MPIIO_SIZE_READ_AGG_100_1K:
+            case MPIIO_SIZE_READ_AGG_1K_10K:
+            case MPIIO_SIZE_READ_AGG_10K_100K:
+            case MPIIO_SIZE_READ_AGG_100K_1M:
+            case MPIIO_SIZE_READ_AGG_1M_4M:
+            case MPIIO_SIZE_READ_AGG_4M_10M:
+            case MPIIO_SIZE_READ_AGG_10M_100M:
+            case MPIIO_SIZE_READ_AGG_100M_1G:
+            case MPIIO_SIZE_READ_AGG_1G_PLUS:
+            case MPIIO_SIZE_WRITE_AGG_0_100:
+            case MPIIO_SIZE_WRITE_AGG_100_1K:
+            case MPIIO_SIZE_WRITE_AGG_1K_10K:
+            case MPIIO_SIZE_WRITE_AGG_10K_100K:
+            case MPIIO_SIZE_WRITE_AGG_100K_1M:
+            case MPIIO_SIZE_WRITE_AGG_1M_4M:
+            case MPIIO_SIZE_WRITE_AGG_4M_10M:
+            case MPIIO_SIZE_WRITE_AGG_10M_100M:
+            case MPIIO_SIZE_WRITE_AGG_100M_1G:
+            case MPIIO_SIZE_WRITE_AGG_1G_PLUS:
+                /* sum */
+                agg_mpi_rec->counters[i] += mpi_rec->counters[i];
+                break;
+            case MPIIO_MODE:
+                /* just set to the input value */
+                agg_mpi_rec->counters[i] = mpi_rec->counters[i];
+                break;
+            case MPIIO_MAX_READ_TIME_SIZE:
+            case MPIIO_MAX_WRITE_TIME_SIZE:
+            case MPIIO_FASTEST_RANK:
+            case MPIIO_FASTEST_RANK_BYTES:
+            case MPIIO_SLOWEST_RANK:
+            case MPIIO_SLOWEST_RANK_BYTES:
+                /* these are set with the FP counters */
+                break;
+            default:
+                /* TODO: common access sizes */
+                agg_mpi_rec->counters[i] = -1;
+                break;
+        }
+    }
+
+    for(i = 0; i < MPIIO_F_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case MPIIO_F_READ_TIME:
+            case MPIIO_F_WRITE_TIME:
+            case MPIIO_F_META_TIME:
+                /* sum */
+                agg_mpi_rec->fcounters[i] += mpi_rec->fcounters[i];
+                break;
+            case MPIIO_F_OPEN_TIMESTAMP:
+            case MPIIO_F_READ_START_TIMESTAMP:
+            case MPIIO_F_WRITE_START_TIMESTAMP:
+                /* minimum non-zero */
+                if((mpi_rec->fcounters[i] > 0)  &&
+                    ((agg_mpi_rec->fcounters[i] == 0) ||
+                    (mpi_rec->fcounters[i] < agg_mpi_rec->fcounters[i])))
+                {
+                    agg_mpi_rec->fcounters[i] = mpi_rec->fcounters[i];
+                }
+                break;
+            case MPIIO_F_READ_END_TIMESTAMP:
+            case MPIIO_F_WRITE_END_TIMESTAMP:
+            case MPIIO_F_CLOSE_TIMESTAMP:
+                /* maximum */
+                if(mpi_rec->fcounters[i] > agg_mpi_rec->fcounters[i])
+                {
+                    agg_mpi_rec->fcounters[i] = mpi_rec->fcounters[i];
+                }
+                break;
+            case MPIIO_F_MAX_READ_TIME:
+                if(mpi_rec->fcounters[i] > agg_mpi_rec->fcounters[i])
+                {
+                    agg_mpi_rec->fcounters[i] = mpi_rec->fcounters[i];
+                    agg_mpi_rec->counters[MPIIO_MAX_READ_TIME_SIZE] =
+                        mpi_rec->counters[MPIIO_MAX_READ_TIME_SIZE];
+                }
+                break;
+            case MPIIO_F_MAX_WRITE_TIME:
+                if(mpi_rec->fcounters[i] > agg_mpi_rec->fcounters[i])
+                {
+                    agg_mpi_rec->fcounters[i] = mpi_rec->fcounters[i];
+                    agg_mpi_rec->counters[MPIIO_MAX_WRITE_TIME_SIZE] =
+                        mpi_rec->counters[MPIIO_MAX_WRITE_TIME_SIZE];
+                }
+                break;
+            case MPIIO_F_FASTEST_RANK_TIME:
+                if(mpi_time < agg_mpi_rec->fcounters[MPIIO_F_FASTEST_RANK_TIME])
+                {
+                    agg_mpi_rec->counters[MPIIO_FASTEST_RANK] = mpi_rec->base_rec.rank;
+                    agg_mpi_rec->counters[MPIIO_FASTEST_RANK_BYTES] =
+                        mpi_rec->counters[MPIIO_BYTES_READ] +
+                        mpi_rec->counters[MPIIO_BYTES_WRITTEN];
+                    agg_mpi_rec->fcounters[MPIIO_F_FASTEST_RANK_TIME] = mpi_time;
+                }
+                break;
+            case MPIIO_F_SLOWEST_RANK_TIME:
+                if(mpi_time > agg_mpi_rec->fcounters[MPIIO_F_SLOWEST_RANK_TIME])
+                {
+                    agg_mpi_rec->counters[MPIIO_SLOWEST_RANK] = mpi_rec->base_rec.rank;
+                    agg_mpi_rec->counters[MPIIO_SLOWEST_RANK_BYTES] =
+                        mpi_rec->counters[MPIIO_BYTES_READ] +
+                        mpi_rec->counters[MPIIO_BYTES_WRITTEN];
+                    agg_mpi_rec->fcounters[MPIIO_F_SLOWEST_RANK_TIME] = mpi_time;
+                }
+                break;
+            default:
+                /* TODO: variance */
+                agg_mpi_rec->fcounters[i] = -1;
+                break;
+        }
+    }
+
     return;
 }
 

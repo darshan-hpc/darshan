@@ -205,6 +205,51 @@ static void darshan_log_print_pnetcdf_file_diff(void *file_rec1, char *file_name
 
 static void darshan_log_agg_pnetcdf_files(void *rec, void *agg_rec, int init_flag)
 {
+    struct darshan_pnetcdf_file *pnc_rec = (struct darshan_pnetcdf_file *)rec;
+    struct darshan_pnetcdf_file *agg_pnc_rec = (struct darshan_pnetcdf_file *)agg_rec;
+    int i;
+
+    for(i = 0; i < PNETCDF_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case PNETCDF_INDEP_OPENS:
+            case PNETCDF_COLL_OPENS:
+                /* sum */
+                agg_pnc_rec->counters[i] += pnc_rec->counters[i];
+                break;
+            default:
+                agg_pnc_rec->counters[i] = -1;
+                break;
+        }
+    }
+
+    for(i = 0; i < PNETCDF_F_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case PNETCDF_F_OPEN_TIMESTAMP:
+                /* minimum non-zero */
+                if((pnc_rec->fcounters[i] > 0)  &&
+                    ((agg_pnc_rec->fcounters[i] == 0) ||
+                    (pnc_rec->fcounters[i] < agg_pnc_rec->fcounters[i])))
+                {
+                    agg_pnc_rec->fcounters[i] = pnc_rec->fcounters[i];
+                }
+                break;
+            case PNETCDF_F_CLOSE_TIMESTAMP:
+                /* maximum */
+                if(pnc_rec->fcounters[i] > agg_pnc_rec->fcounters[i])
+                {
+                    agg_pnc_rec->fcounters[i] = pnc_rec->fcounters[i];
+                }
+                break;
+            default:
+                agg_pnc_rec->fcounters[i] = -1;
+                break;
+        }
+    }
+
     return;
 }
 
