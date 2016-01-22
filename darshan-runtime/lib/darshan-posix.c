@@ -340,15 +340,6 @@ static void posix_shutdown(void);
     (__file)->file_record->counters[POSIX_STATS] += 1; \
 } while(0)
 
-static double psx_wrap_time = 0.0;
-
-#define PSX_PRE_WRAP() \
-    double pre_wrap = darshan_core_wtime();
-
-#define PSX_POST_WRAP() \
-    double post_wrap = darshan_core_wtime(); \
-    psx_wrap_time += (post_wrap-pre_wrap);
-
 
 /**********************************************************
  *      Wrappers for POSIX I/O functions of interest      * 
@@ -359,8 +350,6 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
     int mode = 0;
     int ret;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(open);
 
@@ -387,8 +376,6 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
     POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -397,8 +384,6 @@ int DARSHAN_DECL(open64)(const char *path, int flags, ...)
     int mode = 0;
     int ret;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(open64);
 
@@ -425,8 +410,6 @@ int DARSHAN_DECL(open64)(const char *path, int flags, ...)
     POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -434,8 +417,6 @@ int DARSHAN_DECL(creat)(const char* path, mode_t mode)
 {
     int ret;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(creat);
 
@@ -448,8 +429,6 @@ int DARSHAN_DECL(creat)(const char* path, mode_t mode)
     POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -457,8 +436,6 @@ int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
 {
     int ret;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(creat64);
 
@@ -471,8 +448,6 @@ int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
     POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -481,8 +456,6 @@ FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
     FILE* ret;
     int fd;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(fopen);
 
@@ -500,8 +473,6 @@ FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
     POSIX_RECORD_OPEN(fd, path, 0, 1, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -510,8 +481,6 @@ FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
     FILE* ret;
     int fd;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(fopen64);
 
@@ -529,8 +498,6 @@ FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
     POSIX_RECORD_OPEN(fd, path, 0, 1, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -538,8 +505,6 @@ int DARSHAN_DECL(mkstemp)(char* template)
 {
     int ret;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(mkstemp);
 
@@ -552,8 +517,6 @@ int DARSHAN_DECL(mkstemp)(char* template)
     POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -561,8 +524,6 @@ int DARSHAN_DECL(mkostemp)(char* template, int flags)
 {
     int ret;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(mkostemp);
 
@@ -575,8 +536,6 @@ int DARSHAN_DECL(mkostemp)(char* template, int flags)
     POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -584,8 +543,6 @@ int DARSHAN_DECL(mkstemps)(char* template, int suffixlen)
 {
     int ret;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(mkstemps);
 
@@ -598,8 +555,6 @@ int DARSHAN_DECL(mkstemps)(char* template, int suffixlen)
     POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -607,8 +562,6 @@ int DARSHAN_DECL(mkostemps)(char* template, int suffixlen, int flags)
 {
     int ret;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(mkostemps);
 
@@ -621,8 +574,6 @@ int DARSHAN_DECL(mkostemps)(char* template, int suffixlen, int flags)
     POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -631,8 +582,6 @@ ssize_t DARSHAN_DECL(read)(int fd, void *buf, size_t count)
     ssize_t ret;
     int aligned_flag = 0;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(read);
 
@@ -647,8 +596,6 @@ ssize_t DARSHAN_DECL(read)(int fd, void *buf, size_t count)
     POSIX_RECORD_READ(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -657,8 +604,6 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
     ssize_t ret;
     int aligned_flag = 0;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(write);
 
@@ -673,8 +618,6 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
     POSIX_RECORD_WRITE(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -683,8 +626,6 @@ ssize_t DARSHAN_DECL(pread)(int fd, void *buf, size_t count, off_t offset)
     ssize_t ret;
     int aligned_flag = 0;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(pread);
 
@@ -699,8 +640,6 @@ ssize_t DARSHAN_DECL(pread)(int fd, void *buf, size_t count, off_t offset)
     POSIX_RECORD_READ(ret, fd, 1, offset, aligned_flag, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -709,8 +648,6 @@ ssize_t DARSHAN_DECL(pwrite)(int fd, const void *buf, size_t count, off_t offset
     ssize_t ret;
     int aligned_flag = 0;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(pwrite);
 
@@ -725,8 +662,6 @@ ssize_t DARSHAN_DECL(pwrite)(int fd, const void *buf, size_t count, off_t offset
     POSIX_RECORD_WRITE(ret, fd, 1, offset, aligned_flag, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -735,8 +670,6 @@ ssize_t DARSHAN_DECL(pread64)(int fd, void *buf, size_t count, off64_t offset)
     ssize_t ret;
     int aligned_flag = 0;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(pread64);
 
@@ -751,8 +684,6 @@ ssize_t DARSHAN_DECL(pread64)(int fd, void *buf, size_t count, off64_t offset)
     POSIX_RECORD_READ(ret, fd, 1, offset, aligned_flag, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -761,8 +692,6 @@ ssize_t DARSHAN_DECL(pwrite64)(int fd, const void *buf, size_t count, off64_t of
     ssize_t ret;
     int aligned_flag = 0;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(pwrite64);
 
@@ -777,8 +706,6 @@ ssize_t DARSHAN_DECL(pwrite64)(int fd, const void *buf, size_t count, off64_t of
     POSIX_RECORD_WRITE(ret, fd, 1, offset, aligned_flag, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -788,8 +715,6 @@ ssize_t DARSHAN_DECL(readv)(int fd, const struct iovec *iov, int iovcnt)
     int aligned_flag = 1;
     int i;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(readv);
 
@@ -808,8 +733,6 @@ ssize_t DARSHAN_DECL(readv)(int fd, const struct iovec *iov, int iovcnt)
     POSIX_RECORD_READ(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -819,8 +742,6 @@ ssize_t DARSHAN_DECL(writev)(int fd, const struct iovec *iov, int iovcnt)
     int aligned_flag = 1;
     int i;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(writev);
 
@@ -839,8 +760,6 @@ ssize_t DARSHAN_DECL(writev)(int fd, const struct iovec *iov, int iovcnt)
     POSIX_RECORD_WRITE(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -849,8 +768,6 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
     size_t ret;
     int aligned_flag = 0;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(fread);
 
@@ -874,8 +791,6 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
     }
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -884,8 +799,6 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
     size_t ret;
     int aligned_flag = 0;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(fwrite);
 
@@ -909,8 +822,6 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
     }
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -919,8 +830,6 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
     off_t ret;
     struct posix_file_runtime* file;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(lseek);
 
@@ -944,8 +853,6 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
         POSIX_UNLOCK();
     }
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -954,8 +861,6 @@ off_t DARSHAN_DECL(lseek64)(int fd, off_t offset, int whence)
     off_t ret;
     struct posix_file_runtime* file;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(lseek64);
 
@@ -979,8 +884,6 @@ off_t DARSHAN_DECL(lseek64)(int fd, off_t offset, int whence)
         POSIX_UNLOCK();
     }
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -989,8 +892,6 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
     int ret;
     struct posix_file_runtime* file;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(fseek);
 
@@ -1014,8 +915,6 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
         POSIX_UNLOCK();
     }
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1023,8 +922,6 @@ int DARSHAN_DECL(__xstat)(int vers, const char *path, struct stat *buf)
 {
     int ret;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(__xstat);
 
@@ -1040,8 +937,6 @@ int DARSHAN_DECL(__xstat)(int vers, const char *path, struct stat *buf)
     POSIX_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1049,8 +944,6 @@ int DARSHAN_DECL(__xstat64)(int vers, const char *path, struct stat64 *buf)
 {
     int ret;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(__xstat64);
 
@@ -1066,8 +959,6 @@ int DARSHAN_DECL(__xstat64)(int vers, const char *path, struct stat64 *buf)
     POSIX_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1075,8 +966,6 @@ int DARSHAN_DECL(__lxstat)(int vers, const char *path, struct stat *buf)
 {
     int ret;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(__lxstat);
 
@@ -1092,8 +981,6 @@ int DARSHAN_DECL(__lxstat)(int vers, const char *path, struct stat *buf)
     POSIX_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1101,8 +988,6 @@ int DARSHAN_DECL(__lxstat64)(int vers, const char *path, struct stat64 *buf)
 {
     int ret;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(__lxstat64);
 
@@ -1118,8 +1003,6 @@ int DARSHAN_DECL(__lxstat64)(int vers, const char *path, struct stat64 *buf)
     POSIX_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1128,8 +1011,6 @@ int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
     int ret;
     struct posix_file_runtime* file;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(__fxstat);
 
@@ -1149,8 +1030,6 @@ int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
     }
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1159,8 +1038,6 @@ int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
     int ret;
     struct posix_file_runtime* file;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(__fxstat64);
 
@@ -1180,8 +1057,6 @@ int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
     }
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1190,8 +1065,6 @@ void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
 {
     void* ret;
     struct posix_file_runtime* file;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(mmap);
 
@@ -1208,8 +1081,6 @@ void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
     }
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1218,8 +1089,6 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
 {
     void* ret;
     struct posix_file_runtime* file;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(mmap64);
 
@@ -1236,8 +1105,6 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
     }
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1246,8 +1113,6 @@ int DARSHAN_DECL(fsync)(int fd)
     int ret;
     struct posix_file_runtime* file;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(fsync);
 
@@ -1270,8 +1135,6 @@ int DARSHAN_DECL(fsync)(int fd)
     }
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1280,8 +1143,6 @@ int DARSHAN_DECL(fdatasync)(int fd)
     int ret;
     struct posix_file_runtime* file;
     double tm1, tm2;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(fdatasync);
 
@@ -1304,8 +1165,6 @@ int DARSHAN_DECL(fdatasync)(int fd)
     }
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1314,8 +1173,6 @@ int DARSHAN_DECL(close)(int fd)
     struct posix_file_runtime* file;
     double tm1, tm2;
     int ret;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(close);
 
@@ -1339,8 +1196,6 @@ int DARSHAN_DECL(close)(int fd)
     }
     POSIX_UNLOCK();    
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1350,8 +1205,6 @@ int DARSHAN_DECL(fclose)(FILE *fp)
     int fd = fileno(fp);
     double tm1, tm2;
     int ret;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(fclose);
 
@@ -1375,16 +1228,12 @@ int DARSHAN_DECL(fclose)(FILE *fp)
     }
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
 int DARSHAN_DECL(aio_read)(struct aiocb *aiocbp)
 {
     int ret;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(aio_read);
 
@@ -1397,16 +1246,12 @@ int DARSHAN_DECL(aio_read)(struct aiocb *aiocbp)
         POSIX_UNLOCK();
     }
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
 int DARSHAN_DECL(aio_write)(struct aiocb *aiocbp)
 {
     int ret;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(aio_write);
 
@@ -1419,16 +1264,12 @@ int DARSHAN_DECL(aio_write)(struct aiocb *aiocbp)
         POSIX_UNLOCK();
     }
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
 int DARSHAN_DECL(aio_read64)(struct aiocb64 *aiocbp)
 {
     int ret;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(aio_read64);
 
@@ -1441,16 +1282,12 @@ int DARSHAN_DECL(aio_read64)(struct aiocb64 *aiocbp)
         POSIX_UNLOCK();
     }
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
 int DARSHAN_DECL(aio_write64)(struct aiocb64 *aiocbp)
 {
     int ret;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(aio_write64);
 
@@ -1463,8 +1300,6 @@ int DARSHAN_DECL(aio_write64)(struct aiocb64 *aiocbp)
         POSIX_UNLOCK();
     }
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1474,8 +1309,6 @@ ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
     double tm2;
     struct posix_aio_tracker *tmp;
     int aligned_flag = 0;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(aio_return);
 
@@ -1505,8 +1338,6 @@ ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
     }
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1516,8 +1347,6 @@ ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
     double tm2;
     struct posix_aio_tracker *tmp;
     int aligned_flag = 0;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(aio_return64);
 
@@ -1547,8 +1376,6 @@ ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
     }
     POSIX_UNLOCK();
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1557,8 +1384,6 @@ int DARSHAN_DECL(lio_listio)(int mode, struct aiocb *const aiocb_list[],
 {
     int ret;
     int i;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(lio_listio);
 
@@ -1574,8 +1399,6 @@ int DARSHAN_DECL(lio_listio)(int mode, struct aiocb *const aiocb_list[],
         POSIX_UNLOCK();
     }
 
-    PSX_POST_WRAP();
-
     return(ret);
 }
 
@@ -1584,8 +1407,6 @@ int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb64 *const aiocb_list[],
 {
     int ret;
     int i;
-
-    PSX_PRE_WRAP();
 
     MAP_OR_FAIL(lio_listio64);
 
@@ -1600,8 +1421,6 @@ int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb64 *const aiocb_list[],
         }
         POSIX_UNLOCK();
     }
-
-    PSX_POST_WRAP();
 
     return(ret);
 }
@@ -2198,8 +2017,6 @@ static void posix_begin_shutdown()
     /* disable further instrumentation while Darshan shuts down */
     instrumentation_disabled = 1;
     POSIX_UNLOCK();
-
-    fprintf(stderr, "POSIX:wrappers\t%f\n", psx_wrap_time);
 
     return;
 }
