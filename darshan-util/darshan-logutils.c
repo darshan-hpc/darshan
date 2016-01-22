@@ -967,10 +967,9 @@ static int darshan_log_putheader(darshan_fd fd)
     header.magic_nr = DARSHAN_MAGIC_NR;
     header.comp_type = fd->comp_type;
     header.partial_flag = fd->partial_flag;
-
-    /* copy the mapping information to the header */
     memcpy(&header.rec_map, &fd->rec_map, sizeof(struct darshan_log_map));
-    memcpy(&header.mod_map, &fd->mod_map, DARSHAN_MAX_MODS * sizeof(struct darshan_log_map));
+    memcpy(header.mod_map, fd->mod_map, DARSHAN_MAX_MODS * sizeof(struct darshan_log_map));
+    memcpy(header.mod_ver, fd->mod_ver, DARSHAN_MAX_MODS * sizeof(uint32_t));
 
     /* write header to file */
     ret = darshan_log_write(fd, &header, sizeof(header));
