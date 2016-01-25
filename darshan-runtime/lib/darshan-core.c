@@ -98,6 +98,8 @@ static void darshan_add_record_hashref(
     darshan_record_id id, struct darshan_core_record_ref **ref);
 static void darshan_block_size_from_path(
     const char *path, int *block_size);
+static void darshan_get_user_name(
+    char *user);
 static void darshan_get_logfile_name(
     char* logfile_name, int jobid, struct tm* start_tm);
 static void darshan_get_shared_records(
@@ -127,6 +129,7 @@ void darshan_core_initialize(int argc, char **argv)
     int mmap_fd;
     int mmap_size;
     int sys_page_size;
+    char cuser[L_cuserid] = {0};
     char *envstr;
     char *jobid_str;
     int jobid;
@@ -197,6 +200,7 @@ void darshan_core_initialize(int argc, char **argv)
             memset(init_core, 0, sizeof(*init_core));
             init_core->wtime_offset = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
             sys_page_size = sysconf(_SC_PAGESIZE);
             assert(sys_page_size > 0);
 
@@ -205,11 +209,21 @@ void darshan_core_initialize(int argc, char **argv)
             if(mmap_size % sys_page_size)
                 mmap_size = ((mmap_size / sys_page_size) + 1) * sys_page_size;
 
+            char *mmap_log_dir;
+            envstr = getenv(DARSHAN_MMAP_LOG_PATH_OVERRIDE);
+            if(envstr)
+                mmap_log_dir = envstr;
+            else
+                mmap_log_dir = DARSHAN_DEF_MMAP_LOG_PATH;
+
+            darshan_get_user_name(cuser);
+
             /* construct a unique temporary log file name for this process
              * to write mmap log data to
              */
-            snprintf(init_core->mmap_log_name, PATH_MAX, "/tmp/darshan_job%d.%d",
-                jobid, my_rank);
+            snprintf(init_core->mmap_log_name, PATH_MAX,
+                "/%s/%s_%s_id%d_mmap-log-%d.darshan",
+                mmap_log_dir, cuser, __progname, jobid, my_rank);
 
             /* create the temporary mmapped darshan log */
             mmap_fd = open(init_core->mmap_log_name, O_CREAT|O_RDWR|O_EXCL , 0644);
@@ -282,6 +296,9 @@ void darshan_core_initialize(int argc, char **argv)
 
             /* collect information about command line and mounted file systems */
             darshan_get_exe_and_mounts(init_core, argc, argv);
+#else
+    #error "Error: non-mmap code path not ready."
+#endif
 
             /* bootstrap any modules with static initialization routines */
             i = 0;
@@ -360,8 +377,9 @@ void darshan_core_shutdown()
 
     /* XXX just copy mmap files somewhere else to avoid corruption */
     DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
-    if(my_rank == 0)
-        system("cp /tmp/darshan* ~/Desktop");
+    char cp_cmd[500] = {0};
+    sprintf(cp_cmd, "cp %s ~/Desktop", final_core->mmap_log_name);
+    system(cp_cmd);
     DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
 
     memcpy(&out_job, final_core->log_job_p, sizeof(struct darshan_job));
@@ -1003,52 +1021,6 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
     return;
 }
 
-static void darshan_add_record_hashref(struct darshan_core_runtime *core,
-    char *name, darshan_record_id id, struct darshan_core_record_ref **ref)
-{
-    int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
-
-    if((record_size + core->log_hdr_p->rec_map.len) > DARSHAN_RECORD_BUF_SIZE)
-        return;
-
-    *ref = malloc(sizeof(**ref));
-    if(*ref)
-    {
-        memset(*ref, 0, sizeof(**ref));
-
-#if 0
-        if(!mmap)
-        {
-            ref->rec.name = malloc(strlen(name) + 1);
-        }
-        else
-#endif
-        {
-            /* store the rec id and full file path in record hash buffer */
-            void *tmp_p = (char *)core->log_rec_p + core->log_hdr_p->rec_map.len;
-            *(darshan_record_id *)tmp_p = id;
-
-            /* set the name pointer for this record to point to the
-             * appropriate location in the record hash buffer
-             */
-            tmp_p = (char *)tmp_p + sizeof(darshan_record_id);
-            (*ref)->name = (char *)tmp_p;
-        }
-
-        /* set record ref fields */
-        (*ref)->id = id;
-        if((*ref)->name)
-            strcpy((*ref)->name, name);
-
-        /* TODO: look at HASH_ADD_KEYPTR, use same strategy (big contig pool) for non-mmap darshan */
-        HASH_ADD(hlink, core->rec_hash, id, sizeof(darshan_record_id), (*ref));
-        core->rec_hash_cnt++;
-        core->log_hdr_p->rec_map.len += record_size;
-    }
-
-    return;
-}
-
 static void darshan_block_size_from_path(const char *path, int *block_size)
 {
     int i;
@@ -1066,12 +1038,50 @@ static void darshan_block_size_from_path(const char *path, int *block_size)
     return;
 }
 
+static void darshan_get_user_name(char *cuser)
+{
+    char* logname_string;
+
+    /* get the username for this job.  In order we will try each of the
+     * following until one of them succeeds:
+     *
+     * - cuserid()
+     * - getenv("LOGNAME")
+     * - snprintf(..., geteuid());
+     *
+     * Note that we do not use getpwuid() because it generally will not
+     * work in statically compiled binaries.
+     */
+
+#ifndef __DARSHAN_DISABLE_CUSERID
+    cuserid(cuser);
+#endif
+
+    /* if cuserid() didn't work, then check the environment */
+    if(strcmp(cuser, "") == 0)
+    {
+        logname_string = getenv("LOGNAME");
+        if(logname_string)
+        {
+            strncpy(cuser, logname_string, (L_cuserid-1));
+        }
+    }
+
+    /* if cuserid() and environment both fail, then fall back to uid */
+    if(strcmp(cuser, "") == 0)
+    {
+        uid_t uid = geteuid();
+        snprintf(cuser, L_cuserid, "%u", uid);
+    }
+
+    return;
+}
+
 /* construct the darshan log file name */
 static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* start_tm)
 {
     char* user_logfile_name;
     char* logpath;
-    char* logname_string;
     char* logpath_override = NULL;
 #ifdef __DARSHAN_LOG_ENV
     char env_check[256];
@@ -1110,37 +1120,7 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
 #endif
         }
 
-        /* get the username for this job.  In order we will try each of the
-         * following until one of them succeeds:
-         *
-         * - cuserid()
-         * - getenv("LOGNAME")
-         * - snprintf(..., geteuid());
-         *
-         * Note that we do not use getpwuid() because it generally will not
-         * work in statically compiled binaries.
-         */
-
-#ifndef DARSHAN_DISABLE_CUSERID
-        cuserid(cuser);
-#endif
-
-        /* if cuserid() didn't work, then check the environment */
-        if(strcmp(cuser, "") == 0)
-        {
-            logname_string = getenv("LOGNAME");
-            if(logname_string)
-            {
-                strncpy(cuser, logname_string, (L_cuserid-1));
-            }
-        }
-
-        /* if cuserid() and environment both fail, then fall back to uid */
-        if(strcmp(cuser, "") == 0)
-        {
-            uid_t uid = geteuid();
-            snprintf(cuser, sizeof(cuser), "%u", uid);
-        }
+        darshan_get_user_name(cuser);
 
         /* generate a random number to help differentiate the log */
         hlevel=DARSHAN_MPI_CALL(PMPI_Wtime)() * 1000000;
@@ -1216,6 +1196,52 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
         {
             logfile_name[0] = '\0';
         }
+    }
+
+    return;
+}
+
+static void darshan_add_record_hashref(struct darshan_core_runtime *core,
+    char *name, darshan_record_id id, struct darshan_core_record_ref **ref)
+{
+    int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
+
+    if((record_size + core->log_hdr_p->rec_map.len) > DARSHAN_RECORD_BUF_SIZE)
+        return;
+
+    *ref = malloc(sizeof(**ref));
+    if(*ref)
+    {
+        memset(*ref, 0, sizeof(**ref));
+
+#if 0
+        if(!mmap)
+        {
+            ref->rec.name = malloc(strlen(name) + 1);
+        }
+        else
+#endif
+        {
+            /* store the rec id and full file path in record hash buffer */
+            void *tmp_p = (char *)core->log_rec_p + core->log_hdr_p->rec_map.len;
+            *(darshan_record_id *)tmp_p = id;
+
+            /* set the name pointer for this record to point to the
+             * appropriate location in the record hash buffer
+             */
+            tmp_p = (char *)tmp_p + sizeof(darshan_record_id);
+            (*ref)->name = (char *)tmp_p;
+        }
+
+        /* set record ref fields */
+        (*ref)->id = id;
+        if((*ref)->name)
+            strcpy((*ref)->name, name);
+
+        /* TODO: look at HASH_ADD_KEYPTR, use same strategy (big contig pool) for non-mmap darshan */
+        HASH_ADD(hlink, core->rec_hash, id, sizeof(darshan_record_id), (*ref));
+        core->rec_hash_cnt++;
+        core->log_hdr_p->rec_map.len += record_size;
     }
 
     return;

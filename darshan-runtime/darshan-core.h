@@ -30,12 +30,18 @@
 /* Environment variable to override memory per module */
 #define DARSHAN_MOD_MEM_OVERRIDE "DARSHAN_MODMEM"
 
+/* Environment variable to override default mmap log path */
+#define DARSHAN_MMAP_LOG_PATH_OVERRIDE "DARSHAN_MMAP_LOGPATH"
+
 /* Maximum amount of memory per instrumentation module in MiB */
 #ifdef __DARSHAN_MOD_MEM_MAX
 #define DARSHAN_MOD_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024 * 1024)
 #else
 #define DARSHAN_MOD_MEM_MAX (2 * 1024 * 1024) /* 2 MiB default */
 #endif
+
+/* default path for storing mmap log files is '/tmp' */
+#define DARSHAN_DEF_MMAP_LOG_PATH "/tmp"
 
 #define DARSHAN_RECORD_BUF_SIZE (1024 * 100) /* store 1024 records, each of at most 100 bytes */
 
