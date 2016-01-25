@@ -1,4 +1,4 @@
-all: libdarshan-util.a darshan-null-logutils.o darshan-analyzer darshan-convert darshan-diff darshan-parser darshan-stitch-logs jenkins-hash-gen
+all: libdarshan-util.a darshan-null-logutils.o darshan-analyzer darshan-convert darshan-diff darshan-parser darshan-merge jenkins-hash-gen
 
 DESTDIR =
 srcdir = @srcdir@
@@ -107,7 +107,7 @@ darshan-diff: darshan-diff.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_
 darshan-parser: darshan-parser.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_MOD_LOGUTIL_HEADERS) $(DARSHAN_MOD_LOG_FORMATS) libdarshan-util.a | uthash-1.9.2
 	$(CC) $(CFLAGS) $(LDFLAGS) $< libdarshan-util.a -o $@ $(LIBS) 
 
-darshan-stitch-logs: darshan-stitch-logs.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_MOD_LOGUTIL_HEADERS) $(DARSHAN_MOD_LOG_FORMATS) libdarshan-util.a | uthash-1.9.2
+darshan-merge: darshan-merge.c darshan-logutils.h $(DARSHAN_LOG_FORMAT) $(DARSHAN_MOD_LOGUTIL_HEADERS) $(DARSHAN_MOD_LOG_FORMATS) libdarshan-util.a | uthash-1.9.2
 	$(CC) $(CFLAGS) $(LDFLAGS) $< libdarshan-util.a -o $@ $(LIBS)
 
 #test/gztest: test/gztest.c mktestdir
@@ -125,7 +125,7 @@ install:: all
 	install -m 755 darshan-convert $(bindir)
 	install -m 755 darshan-diff $(bindir)
 	install -m 755 darshan-parser $(bindir)
-	install -m 755 darshan-stitch-logs $(bindir)
+	install -m 755 darshan-merge $(bindir)
 	install -m 755 $(srcdir)/darshan-summary-per-file.sh $(bindir)
 	install -m 755 libdarshan-util.a $(libdir)
 ifeq ($(DARSHAN_ENABLE_SHARED),1)
@@ -159,7 +159,7 @@ endif
 
 
 clean::
-	rm -f *.o *.po *.a *.so darshan-analyzer darshan-convert darshan-parser darshan-stitch-logs jenkins-hash-gen
+	rm -f *.o *.po *.a *.so darshan-analyzer darshan-convert darshan-parser darshan-merge jenkins-hash-gen
 
 distclean:: clean
 	rm -f darshan-runtime-config.h aclocal.m4 autom4te.cache/* config.status config.log Makefile util/bin/darshan-job-summary.pl
