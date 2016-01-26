@@ -312,6 +312,10 @@ void darshan_core_initialize(int argc, char **argv)
         }
     }
 
+    /* reduce so all ranks agree on the job start time */
+    DARSHAN_MPI_CALL(PMPI_Allreduce)(MPI_IN_PLACE, &init_core->log_job_p->start_time,
+        1, MPI_INT64_T, MPI_MIN, MPI_COMM_WORLD);
+
     if(internal_timing_flag)
     {
         init_time = DARSHAN_MPI_CALL(PMPI_Wtime)() - init_start;
@@ -335,7 +339,6 @@ void darshan_core_shutdown()
     int internal_timing_flag = 0;
     struct tm *start_tm;
     time_t start_time_tmp;
-    int64_t first_start_time;
     int64_t last_end_time;
     double start_log_time;
     double tm_end;
@@ -445,16 +448,11 @@ void darshan_core_shutdown()
 
     final_core->log_job_p->end_time = time(NULL);
 
-    /* reduce to report first start time and last end time across all ranks
-     * at rank 0
-     */
-    DARSHAN_MPI_CALL(PMPI_Reduce)(&final_core->log_job_p->start_time, &first_start_time,
-        1, MPI_LONG_LONG, MPI_MIN, 0, MPI_COMM_WORLD);
+    /* reduce to report last end time across all ranks at rank 0 */
     DARSHAN_MPI_CALL(PMPI_Reduce)(&final_core->log_job_p->end_time, &last_end_time,
-        1, MPI_LONG_LONG, MPI_MAX, 0, MPI_COMM_WORLD);
+        1, MPI_INT64_T, MPI_MAX, 0, MPI_COMM_WORLD);
     if(my_rank == 0)
     {
-        out_job.start_time = first_start_time;
         out_job.end_time = last_end_time;
     }
 
