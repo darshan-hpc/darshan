@@ -23,29 +23,28 @@ struct darshan_shared_record_ref
 
 void usage(char *exename)
 {
-    fprintf(stderr, "Usage: %s --output-dir <output_dir> [options] <input-logs>\n", exename);
+    fprintf(stderr, "Usage: %s --output <output_path> [options] <input-logs>\n", exename);
     fprintf(stderr, "This utility merges multiple Darshan log files into a single output log file.\n");
     fprintf(stderr, "Options:\n");
-    fprintf(stderr, "\t--output-dir\t(REQUIRED) Output directory to store output log file in.\n");
-    fprintf(stderr, "\t--output-name\tOutput log file name. If unspecified, name generated automatically.\n");
+    fprintf(stderr, "\t--output\t(REQUIRED) Full path of the output darshan log file.\n");
     fprintf(stderr, "\t--shared-redux\tReduce globally shared records into a single record.\n");
 
     exit(1);
 }
 
 void parse_args(int argc, char **argv, char ***infile_list, int *n_files,
-    char **outlog_dir, char **outlog_name, int *shared_redux)
+    char **outlog_path, int *shared_redux)
 {
     int index;
     static struct option long_opts[] =
     {
         {"shared-redux", no_argument, NULL, 's'},
-        {"output-dir", required_argument, NULL, 'd'},
-        {"output-name", required_argument, NULL, 'n'},
+        {"output", required_argument, NULL, 'o'},
         {0, 0, 0, 0}
     };
 
     *shared_redux = 0;
+    *outlog_path = NULL;
 
     while(1)
     {
@@ -58,11 +57,8 @@ void parse_args(int argc, char **argv, char ***infile_list, int *n_files,
             case 's':
                 *shared_redux = 1;
                 break;
-            case 'd':
-                *outlog_dir = optarg;
-                break;
-            case 'n':
-                *outlog_name = optarg;
+            case 'o':
+                *outlog_path = optarg;
                 break;
             case '?':
             default:
@@ -71,7 +67,7 @@ void parse_args(int argc, char **argv, char ***infile_list, int *n_files,
         }
     }
 
-    if(*outlog_dir == NULL)
+    if(*outlog_path == NULL)
     {
         usage(argv[0]);
     }
@@ -177,12 +173,10 @@ int main(int argc, char *argv[])
     char **infile_list;
     int n_infiles;
     int shared_redux;
-    char *outlog_dir = NULL;
-    char *outlog_name = NULL;
-    char outlog_path[512];
+    char *outlog_path;
     darshan_fd in_fd, merge_fd;
     struct darshan_job in_job, merge_job;
-    char merge_exe[DARSHAN_EXE_LEN+1];
+    char merge_exe[DARSHAN_EXE_LEN+1] = {0};
     char **merge_mnt_pts;
     char **merge_fs_types;
     int merge_mnt_count = 0;
@@ -197,8 +191,7 @@ int main(int argc, char *argv[])
     int ret;
 
     /* grab command line arguments */
-    parse_args(argc, argv, &infile_list, &n_infiles, &outlog_dir,
-        &outlog_name, &shared_redux);
+    parse_args(argc, argv, &infile_list, &n_infiles, &outlog_path, &shared_redux);
 
     memset(&merge_job, 0, sizeof(struct darshan_job));
 
@@ -311,13 +304,6 @@ int main(int argc, char *argv[])
 
         darshan_log_close(in_fd);
     }
-
-    if(!outlog_name)
-    {
-        outlog_name = "test123.darshan";
-    }
-
-    sprintf(outlog_path, "%s/%s", outlog_dir, outlog_name); 
 
     /* create the output "merged" log */
     merge_fd = darshan_log_create(outlog_path, DARSHAN_ZLIB_COMP, 1);
