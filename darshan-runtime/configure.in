@@ -345,4 +345,5 @@ share/mpi-profile/darshan-f.conf
 share/mpi-profile/darshan-bg-cc.conf
 share/mpi-profile/darshan-bg-cxx.conf
 share/mpi-profile/darshan-bg-f.conf
+share/darshan-mmap-epilog.sh
 )

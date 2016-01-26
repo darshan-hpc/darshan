@@ -4322,7 +4322,7 @@ DARSHAN_VERSION="3.0.0-pre3"
 
 
 
-ac_config_files="$ac_config_files Makefile darshan-mk-log-dirs.pl darshan-gen-cc.pl darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-base-ld-opts darshan-config share/craype-1.x/darshan-module share/craype-2.x/darshan-module lib/pkgconfig/darshan-runtime.pc share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf share/mpi-profile/darshan-bg-cc.conf share/mpi-profile/darshan-bg-cxx.conf share/mpi-profile/darshan-bg-f.conf"
+ac_config_files="$ac_config_files Makefile darshan-mk-log-dirs.pl darshan-gen-cc.pl darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-base-ld-opts darshan-config share/craype-1.x/darshan-module share/craype-2.x/darshan-module lib/pkgconfig/darshan-runtime.pc share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf share/mpi-profile/darshan-bg-cc.conf share/mpi-profile/darshan-bg-cxx.conf share/mpi-profile/darshan-bg-f.conf share/darshan-mmap-epilog.sh"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5032,6 +5032,7 @@ do
     "share/mpi-profile/darshan-bg-cc.conf") CONFIG_FILES="$CONFIG_FILES share/mpi-profile/darshan-bg-cc.conf" ;;
     "share/mpi-profile/darshan-bg-cxx.conf") CONFIG_FILES="$CONFIG_FILES share/mpi-profile/darshan-bg-cxx.conf" ;;
     "share/mpi-profile/darshan-bg-f.conf") CONFIG_FILES="$CONFIG_FILES share/mpi-profile/darshan-bg-f.conf" ;;
+    "share/darshan-mmap-epilog.sh") CONFIG_FILES="$CONFIG_FILES share/darshan-mmap-epilog.sh" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

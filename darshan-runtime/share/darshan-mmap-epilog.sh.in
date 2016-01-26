@@ -1,0 +1,57 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2015 University of Chicago.
+# See COPYRIGHT notice in top-level directory.
+#
+
+# grab the prefix of the darshan install directory
+DARSHAN_INSTALL_DIR=@prefix@
+
+# use the log dir specified at configure time
+DARSHAN_LOG_DIR=@__DARSHAN_LOG_PATH@
+
+NODE_NAME=$(uname -n)
+
+# use the default mmap log directory (/tmp), unless the 
+# env variable is set to something
+if [ -z "$DARSHAN_MMAP_LOGPATH" ]; then
+    DARSHAN_MMAP_LOG_DIR=/tmp
+else
+    DARSHAN_MMAP_LOG_DIR=$DARSHAN_MMAP_LOGPATH
+fi
+
+DARSHAN_MMAP_LOG_GLOB=${DARSHAN_MMAP_LOG_DIR}/*id${SLURM_JOB_ID}*.darshan
+
+# if no mmap logs found for this job, we have nothing to do
+DARSHAN_TEST_LOG=$(ls $DARSHAN_MMAP_LOG_GLOB 2>/dev/null | head -n 1)
+if [ -z $DARSHAN_TEST_LOG ]; then
+    exit 0
+fi
+
+# get the job start time from the first log file
+JOB_START_DATE=$(${DARSHAN_INSTALL_DIR}/bin/darshan-parser $DARSHAN_TEST_LOG |
+    grep "# start_time_asci" | cut -d':' -f 2- | cut -d' ' -f 2-)
+OUTLOG_YEAR=$(date --date="$(printf "$JOB_START_DATE")" +"%Y")
+OUTLOG_MON=$(date --date="$(printf "$JOB_START_DATE")" +"%-m")
+OUTLOG_DAY=$(date --date="$(printf "$JOB_START_DATE")" +"%-d")
+OUTLOG_SECS=$((
+    ($(date --date="$(printf "$JOB_START_DATE")" +"%-H") * 60 * 60) +
+    ($(date --date="$(printf "$JOB_START_DATE")" +"%-M") * 60) +
+    ($(date --date="$(printf "$JOB_START_DATE")" +"%-S"))
+))
+
+MMAP_LOG_PRE=$(basename $DARSHAN_TEST_LOG | cut -d'_' -f 1-3)
+
+# construct full output log directory name
+OUTLOG_DIR=${DARSHAN_LOG_DIR}/${OUTLOG_YEAR}/${OUTLOG_MON}/${OUTLOG_DAY}/
+OUTLOG_DIR=$OUTLOG_DIR/${MMAP_LOG_PRE}_${OUTLOG_MON}-${OUTLOG_DAY}-${OUTLOG_SECS}
+
+# create the output directory for this job
+mkdir -p $OUTLOG_DIR
+
+# construct the per-node log files and store in the output directory
+$DARSHAN_INSTALL_DIR/bin/darshan-merge --output ${OUTLOG_DIR}/${MMAP_LOG_PRE}_${NODE_NAME}.darshan \
+    $DARSHAN_MMAP_LOG_GLOB
+
+exit 0
