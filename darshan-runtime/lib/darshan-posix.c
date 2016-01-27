@@ -2017,6 +2017,78 @@ static void posix_shared_record_variance(MPI_Comm mod_comm,
     return;
 }
 
+/* posix module shutdown benchmark routine */
+void darshan_posix_shutdown_bench_setup(int test_case)
+{
+    char filepath[256];
+    int *fd_array;
+    int64_t *size_array;
+    int i;
+
+    if(posix_runtime)
+        posix_shutdown();
+
+    posix_runtime_initialize();
+
+    srand(my_rank);
+    fd_array = malloc(1024 * sizeof(int));
+    size_array = malloc(DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT * sizeof(int64_t));
+    assert(fd_array && size_array);
+
+    for(i = 0; i < 1024; i++)
+        fd_array[i] = i;
+    for(i = 0; i < DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT; i++)
+        size_array[i] = rand();
+
+    switch(test_case)
+    {
+        case 1: /* single file-per-process */
+            snprintf(filepath, 256, "fpp-0_rank-%d", my_rank);
+            
+            POSIX_RECORD_OPEN(fd_array[0], filepath, 777, 0, 0, 1);
+            POSIX_RECORD_WRITE(size_array[0], fd_array[0], 0, 0, 1, 0, 1, 2);
+
+            break;
+        case 2: /* single shared file */
+            snprintf(filepath, 256, "shared-0");
+
+            POSIX_RECORD_OPEN(fd_array[0], filepath, 777, 0, 0, 1);
+            POSIX_RECORD_WRITE(size_array[0], fd_array[0], 0, 0, 1, 0, 1, 2);
+
+            break;
+        case 3: /* 1024 unique files per proc */
+            for(i = 0; i < 1024; i++)
+            {
+                snprintf(filepath, 256, "fpp-%d_rank-%d", i , my_rank);
+
+                POSIX_RECORD_OPEN(fd_array[i], filepath, 777, 0, 0, 1);
+                POSIX_RECORD_WRITE(size_array[i % DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT],
+                    fd_array[i], 0, 0, 1, 0, 1, 2);
+            }
+
+            break;
+        case 4: /* 1024 shared files per proc */
+            for(i = 0; i < 1024; i++)
+            {
+                snprintf(filepath, 256, "shared-%d", i);
+
+                POSIX_RECORD_OPEN(fd_array[i], filepath, 777, 0, 0, 1);
+                POSIX_RECORD_WRITE(size_array[i % DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT],
+                    fd_array[i], 0, 0, 1, 0, 1, 2);
+            }
+
+            break;
+        default:
+            fprintf(stderr, "Error: invalid Darshan benchmark test case.\n");
+            return;
+    }
+
+    free(fd_array);
+    free(size_array);
+
+    return;
+}
+
 /************************************************************************
  * Functions exported by this module for coordinating with darshan-core *
  ************************************************************************/
@@ -2189,6 +2261,7 @@ static void posix_shutdown()
     free(posix_runtime->file_record_array);
     free(posix_runtime);
     posix_runtime = NULL;
+    instrumentation_disabled = 0;
     
     return;
 }

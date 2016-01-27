@@ -93,7 +93,7 @@ extern char* darshan_path_exclusions[]; /* defined in lib/darshan-core.c */
  * environment, allowing the module to store I/O characterization data.
  * 'funcs' is a pointer to a structure containing each of the function
  * pointers required by darshan-core to shut down the module. The function
- * returns the following integers passed in as pointers: 'my_rank' is the
+ * returns the following integers passed in as pointers: 'rank' is the
  * MPI rank of the calling process, 'mod_mem_limit' is the maximum amount
  * of memory the module may use, and 'sys_mem_alignment' is the configured
  * memory alignment value Darshan was configured with.
@@ -101,7 +101,7 @@ extern char* darshan_path_exclusions[]; /* defined in lib/darshan-core.c */
 void darshan_core_register_module(
     darshan_module_id mod_id,
     struct darshan_module_funcs *funcs,
-    int *my_rank,
+    int *rank,
     int *mod_mem_limit,
     int *sys_mem_alignment);
 

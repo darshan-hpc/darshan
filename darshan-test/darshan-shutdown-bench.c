@@ -1,5 +1,5 @@
 /*
- *  (C) 2009 by Argonne National Laboratory.
+ *  (C) 2015 by Argonne National Laboratory.
  *      See COPYRIGHT in top-level directory.
  */
 
@@ -20,16 +20,11 @@
  * benchmarking hooks for us.  This should only be used by special-purpose
  * benchmarking tools.
  */
-void darshan_shutdown_bench(int argc, char** argv, int rank, int nprocs);
+void darshan_shutdown_bench(int argc, char** argv);
 
 int main(int argc, char **argv) 
 {
-    int nprocs;
-    int mynod;
-
     MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &mynod);
-    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
     if(argc != 1)
     {
@@ -38,7 +33,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    darshan_shutdown_bench(argc, argv, mynod, nprocs);
+    darshan_shutdown_bench(argc, argv);
 
     MPI_Finalize();
     return(0);
