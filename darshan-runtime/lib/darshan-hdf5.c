@@ -564,8 +564,6 @@ static void hdf5_shutdown()
 
     assert(hdf5_runtime);
 
-    darshan_core_unregister_module(DARSHAN_HDF5_MOD);
-
     HASH_ITER(hlink, hdf5_runtime->hid_hash, ref, tmp)
     {
         HASH_DELETE(hlink, hdf5_runtime->hid_hash, ref);

@@ -576,8 +576,6 @@ static void pnetcdf_shutdown()
 
     assert(pnetcdf_runtime);
 
-    darshan_core_unregister_module(DARSHAN_PNETCDF_MOD);
-
     HASH_ITER(hlink, pnetcdf_runtime->ncid_hash, ref, tmp)
     {
         HASH_DELETE(hlink, pnetcdf_runtime->ncid_hash, ref);

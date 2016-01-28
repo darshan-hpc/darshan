@@ -1514,8 +1514,6 @@ static void mpiio_shutdown()
 
     assert(mpiio_runtime);
 
-    darshan_core_unregister_module(DARSHAN_MPIIO_MOD);
-
     HASH_ITER(hlink, mpiio_runtime->fh_hash, ref, tmp)
     {
         HASH_DELETE(hlink, mpiio_runtime->fh_hash, ref);

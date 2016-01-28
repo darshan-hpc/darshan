@@ -276,8 +276,6 @@ static void bgq_get_output_data(
 /* Shutdown the BGQ module by freeing up all data structures. */
 static void bgq_shutdown()
 {
-    darshan_core_unregister_module(DARSHAN_BGQ_MOD);
-
     if (bgq_runtime)
     {
         free(bgq_runtime);
