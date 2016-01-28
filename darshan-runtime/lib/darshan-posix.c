@@ -2249,6 +2249,8 @@ static void posix_shutdown()
 
     assert(posix_runtime);
 
+    darshan_core_unregister_module(DARSHAN_POSIX_MOD);
+
     HASH_ITER(hlink, posix_runtime->fd_hash, ref, tmp)
     {
         HASH_DELETE(hlink, posix_runtime->fd_hash, ref);

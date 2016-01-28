@@ -1656,7 +1656,6 @@ void darshan_core_register_module(
     return;
 }
 
-/* TODO: test */
 void darshan_core_unregister_module(
     darshan_module_id mod_id)
 {
@@ -1667,15 +1666,17 @@ void darshan_core_unregister_module(
 
     DARSHAN_CORE_LOCK();
 
-    /* iterate all records and disassociate this module from them */
-    HASH_ITER(hlink, darshan_core->rec_hash, ref, tmp)
+    if(darshan_core->mod_array[mod_id])
     {
-        darshan_core_unregister_record(ref->rec.id, mod_id);
+        /* iterate all records and disassociate this module from them */
+        HASH_ITER(hlink, darshan_core->rec_hash, ref, tmp)
+        {
+            darshan_core_unregister_record(ref->rec.id, mod_id);
+        }
+
+        free(darshan_core->mod_array[mod_id]);
+        darshan_core->mod_array[mod_id] = NULL;
     }
-
-    free(darshan_core->mod_array[mod_id]);
-    darshan_core->mod_array[mod_id] = NULL;
-
     DARSHAN_CORE_UNLOCK();
 
     return;

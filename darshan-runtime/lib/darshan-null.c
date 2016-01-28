@@ -374,6 +374,8 @@ static void null_shutdown()
 {
     assert(null_runtime);
 
+    darshan_core_unregister_module(DARSHAN_NULL_MOD);
+
     HASH_CLEAR(hlink, null_runtime->record_hash); /* these hash entries are freed all at once below */
 
     free(null_runtime->runtime_record_array);
