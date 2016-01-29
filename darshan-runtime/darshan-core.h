@@ -43,7 +43,8 @@
 /* default path for storing mmap log files is '/tmp' */
 #define DARSHAN_DEF_MMAP_LOG_PATH "/tmp"
 
-#define DARSHAN_RECORD_BUF_SIZE (1024 * 100) /* store 1024 records, each of at most 100 bytes */
+/* default record buf can store 2048 records of size 100 bytes */
+#define DARSHAN_RECORD_BUF_SIZE (2048 * 100)
 
 /* Default runtime compression buffer size */
 #define DARSHAN_COMP_BUF_SIZE DARSHAN_MOD_MEM_MAX
@@ -51,19 +52,23 @@
 /* in memory structure to keep up with job level data */
 struct darshan_core_runtime
 {
+    /* pointers to each log file component */
     struct darshan_header *log_hdr_p;
     struct darshan_job *log_job_p;
     char *log_exemnt_p;
     void *log_rec_p;
     void *log_mod_p;
 
-    char mmap_log_name[PATH_MAX];
+    /* darshan-core internal data structures */
     struct darshan_core_record_ref *rec_hash;
     int rec_hash_cnt;
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
     int mod_mem_used;
     char *comp_buf;
     double wtime_offset;
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    char mmap_log_name[PATH_MAX];
+#endif
 };
 
 struct darshan_core_module
@@ -74,8 +79,7 @@ struct darshan_core_module
 
 struct darshan_core_record_ref
 {
-    char *name;
-    darshan_record_id id;
+    void *rec_p; /* id & name buffer */
     uint64_t mod_flags;
     uint64_t global_mod_flags;
     UT_hash_handle hlink;

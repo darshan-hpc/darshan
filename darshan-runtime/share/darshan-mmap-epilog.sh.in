@@ -45,7 +45,9 @@ MMAP_LOG_PRE=$(basename $DARSHAN_TEST_LOG | cut -d'_' -f 1-3)
 
 # construct full output log directory name
 OUTLOG_DIR=${DARSHAN_LOG_DIR}/${OUTLOG_YEAR}/${OUTLOG_MON}/${OUTLOG_DAY}/
-OUTLOG_DIR=$OUTLOG_DIR/${MMAP_LOG_PRE}_${OUTLOG_MON}-${OUTLOG_DAY}-${OUTLOG_SECS}
+OUTLOG_DIR=${OUTLOG_DIR}/${MMAP_LOG_PRE}_${OUTLOG_MON}-${OUTLOG_DAY}-${OUTLOG_SECS}
+
+# TODO: do shared reduction and skip mkdir if just one compute node?
 
 # create the output directory for this job
 mkdir -p $OUTLOG_DIR

@@ -93,7 +93,7 @@ struct darshan_module_funcs
  * environment, allowing the module to store I/O characterization data.
  * 'funcs' is a pointer to a structure containing each of the function
  * pointers required by darshan-core to shut down the module. The function
- * returns the following integers passed in as pointers: 'my_rank' is the
+ * returns the following integers passed in as pointers: 'rank' is the
  * MPI rank of the calling process, 'mod_mem_limit' is the maximum amount
  * of memory the module may use, and 'sys_mem_alignment' is the configured
  * memory alignment value Darshan was configured with.
@@ -103,7 +103,7 @@ void darshan_core_register_module(
     struct darshan_module_funcs *funcs,
     int *inout_mod_size,
     void **mod_buf,
-    int *my_rank,
+    int *rank,
     int *sys_mem_alignment);
 
 /* darshan_core_unregister_module()
