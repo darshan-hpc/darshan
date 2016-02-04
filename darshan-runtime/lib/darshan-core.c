@@ -119,6 +119,7 @@ static void darshan_core_cleanup(
 
 void darshan_core_initialize(int argc, char **argv)
 {
+    struct darshan_core_runtime *init_core = NULL;
     int i;
     int internal_timing_flag = 0;
     double init_start, init_time, init_max;
@@ -166,25 +167,25 @@ void darshan_core_initialize(int argc, char **argv)
         }
 
         /* allocate structure to track darshan_core_runtime information */
-        darshan_core = malloc(sizeof(*darshan_core));
-        if(darshan_core)
+        init_core = malloc(sizeof(*init_core));
+        if(init_core)
         {
-            memset(darshan_core, 0, sizeof(*darshan_core));
+            memset(init_core, 0, sizeof(*init_core));
 
-            darshan_core->log_job.uid = getuid();
-            darshan_core->log_job.start_time = time(NULL);
-            darshan_core->log_job.nprocs = nprocs;
-            darshan_core->wtime_offset = DARSHAN_MPI_CALL(PMPI_Wtime)();
+            init_core->log_job.uid = getuid();
+            init_core->log_job.start_time = time(NULL);
+            init_core->log_job.nprocs = nprocs;
+            init_core->wtime_offset = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
             /* record exe and arguments */
             for(i=0; i<argc; i++)
             {
-                chars_left = DARSHAN_EXE_LEN-strlen(darshan_core->exe);
-                strncat(darshan_core->exe, argv[i], chars_left);
+                chars_left = DARSHAN_EXE_LEN-strlen(init_core->exe);
+                strncat(init_core->exe, argv[i], chars_left);
                 if(i < (argc-1))
                 {
-                    chars_left = DARSHAN_EXE_LEN-strlen(darshan_core->exe);
-                    strncat(darshan_core->exe, " ", chars_left);
+                    chars_left = DARSHAN_EXE_LEN-strlen(init_core->exe);
+                    strncat(init_core->exe, " ", chars_left);
                 }
             }
 
@@ -193,22 +194,22 @@ void darshan_core_initialize(int argc, char **argv)
              */
             if(argc == 0)
             {
-                chars_left = DARSHAN_EXE_LEN-strlen(darshan_core->exe);
-                strncat(darshan_core->exe, __progname_full, chars_left);
-                chars_left = DARSHAN_EXE_LEN-strlen(darshan_core->exe);
-                strncat(darshan_core->exe, " <unknown args>", chars_left);
+                chars_left = DARSHAN_EXE_LEN-strlen(init_core->exe);
+                strncat(init_core->exe, __progname_full, chars_left);
+                chars_left = DARSHAN_EXE_LEN-strlen(init_core->exe);
+                strncat(init_core->exe, " <unknown args>", chars_left);
             }
 
             if(chars_left == 0)
             {
                 /* we ran out of room; mark that string was truncated */
                 truncate_offset = DARSHAN_EXE_LEN - strlen(truncate_string);
-                sprintf(&darshan_core->exe[truncate_offset], "%s",
+                sprintf(&init_core->exe[truncate_offset], "%s",
                     truncate_string);
             }
 
             /* collect information about command line and mounted file systems */
-            darshan_core->trailing_data = darshan_get_exe_and_mounts(darshan_core);
+            init_core->trailing_data = darshan_get_exe_and_mounts(init_core);
 
             /* bootstrap any modules with static initialization routines */
             i = 0;
@@ -231,6 +232,10 @@ void darshan_core_initialize(int argc, char **argv)
             fprintf(stderr, "darshan:init\t%d\t%f\n", nprocs, init_max);
         }
     }
+
+    /* if darshan was successfully initialized, set the global pointer */
+    if(init_core)
+        darshan_core = init_core;
 
     return;
 }
