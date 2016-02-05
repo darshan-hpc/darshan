@@ -4,6 +4,9 @@
  *
  */
 
+#define _XOPEN_SOURCE 500
+#define _GNU_SOURCE
+
 #include "darshan-runtime-config.h"
 #include <stdio.h>
 #include <unistd.h>
@@ -17,7 +20,6 @@
 #include <errno.h>
 #include <search.h>
 #include <assert.h>
-#define __USE_GNU
 #include <pthread.h>
 
 #include "uthash.h"
@@ -138,7 +140,9 @@ static void mpiio_shutdown(void);
     DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
     size = size * __count; \
     DARSHAN_BUCKET_INC(&(file->file_record->counters[MPIIO_SIZE_READ_AGG_0_100]), size); \
-    darshan_common_val_counter(&file->access_root, &file->access_count, size); \
+    darshan_common_val_counter(&file->access_root, &file->access_count, size, \
+        &(file->file_record->counters[MPIIO_ACCESS1_ACCESS]), \
+        &(file->file_record->counters[MPIIO_ACCESS1_COUNT])); \
     file->file_record->counters[MPIIO_BYTES_READ] += size; \
     file->file_record->counters[__counter] += 1; \
     if(file->last_io_type == DARSHAN_IO_WRITE) \
@@ -150,7 +154,8 @@ static void mpiio_shutdown(void);
     if(file->file_record->fcounters[MPIIO_F_MAX_READ_TIME] < __elapsed) { \
         file->file_record->fcounters[MPIIO_F_MAX_READ_TIME] = __elapsed; \
         file->file_record->counters[MPIIO_MAX_READ_TIME_SIZE] = size; } \
-    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[MPIIO_F_READ_TIME], __tm1, __tm2, file->last_read_end); \
+    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[MPIIO_F_READ_TIME], \
+        __tm1, __tm2, file->last_read_end); \
 } while(0)
 
 #define MPIIO_RECORD_WRITE(__ret, __fh, __count, __datatype, __counter, __tm1, __tm2) do { \
@@ -163,7 +168,9 @@ static void mpiio_shutdown(void);
     DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
     size = size * __count; \
     DARSHAN_BUCKET_INC(&(file->file_record->counters[MPIIO_SIZE_WRITE_AGG_0_100]), size); \
-    darshan_common_val_counter(&file->access_root, &file->access_count, size); \
+    darshan_common_val_counter(&file->access_root, &file->access_count, size, \
+        &(file->file_record->counters[MPIIO_ACCESS1_ACCESS]), \
+        &(file->file_record->counters[MPIIO_ACCESS1_COUNT])); \
     file->file_record->counters[MPIIO_BYTES_WRITTEN] += size; \
     file->file_record->counters[__counter] += 1; \
     if(file->last_io_type == DARSHAN_IO_READ) \
@@ -175,7 +182,8 @@ static void mpiio_shutdown(void);
     if(file->file_record->fcounters[MPIIO_F_MAX_WRITE_TIME] < __elapsed) { \
         file->file_record->fcounters[MPIIO_F_MAX_WRITE_TIME] = __elapsed; \
         file->file_record->counters[MPIIO_MAX_WRITE_TIME_SIZE] = size; } \
-    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[MPIIO_F_WRITE_TIME], __tm1, __tm2, file->last_write_end); \
+    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[MPIIO_F_WRITE_TIME], \
+        __tm1, __tm2, file->last_write_end); \
 } while(0)
 
 /**********************************************************
@@ -1088,7 +1096,7 @@ static void mpiio_record_reduction_op(
         {
             DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[MPIIO_ACCESS1_ACCESS]),
                 &(tmp_file.counters[MPIIO_ACCESS1_COUNT]), infile->counters[j],
-                infile->counters[j+4]);
+                infile->counters[j+4], 0);
         }
 
         /* second set */
@@ -1096,7 +1104,7 @@ static void mpiio_record_reduction_op(
         {
             DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[MPIIO_ACCESS1_ACCESS]),
                 &(tmp_file.counters[MPIIO_ACCESS1_COUNT]), inoutfile->counters[j],
-                inoutfile->counters[j+4]);
+                inoutfile->counters[j+4], 0);
         }
 
         /* min non-zero (if available) value */
@@ -1328,10 +1336,18 @@ static void mpiio_get_output_data(
     {
         tmp = &(mpiio_runtime->file_runtime_array[i]);
 
+#ifndef __DARSHAN_ENABLE_MMAP_LOGS
+        /* walk common counters to get 4 most common -- only if mmap
+         * feature is disabled (mmap updates counters on the go)
+         */
+
         /* common access sizes */
         darshan_walk_common_vals(tmp->access_root,
             &(tmp->file_record->counters[MPIIO_ACCESS1_ACCESS]),
             &(tmp->file_record->counters[MPIIO_ACCESS1_COUNT]));
+#endif
+
+        tdestroy(tmp->access_root, free);
     }
 
     /* if there are globally shared files, do a shared file reduction */

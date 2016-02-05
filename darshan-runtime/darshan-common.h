@@ -73,18 +73,24 @@
  * base of the value counters (i.e., the first of 4 contiguous common value
  * counters) and __cnt_p is a pointer to the base of the count counters (i.e.
  * the first of 4 contiguous common count counters). It is assumed your counters
- * are stored as int64_t types.
+ * are stored as int64_t types. __online_flag is set if the common val counters are
+ * updated during runtime (as opposed to being updated once at darshan shutdown time).
  */
-#define DARSHAN_COMMON_VAL_COUNTER_INC(__val_p, __cnt_p, __value, __count) do {\
+#define DARSHAN_COMMON_VAL_COUNTER_INC(__val_p, __cnt_p, __value, __count, __online_flag) do {\
     int i; \
     int set = 0; \
     int64_t min = *(__cnt_p); \
     int min_index = 0; \
+    int inc_count; \
     if(__value == 0) break; \
+    if(__online_flag) \
+        inc_count = 1; \
+    else \
+        inc_count = __count; \
     for(i=0; i<4; i++) { \
         /* increment bucket if already exists */ \
         if(*(__val_p + i) == __value) { \
-            *(__cnt_p + i) += __count; \
+            *(__cnt_p + i) += inc_count; \
             set = 1; \
             break; \
         } \
@@ -138,7 +144,7 @@ struct darshan_variance_dt
  * path string.
  */
 char* darshan_clean_file_path(
-    const char* path);
+    const char *path);
 
 /* darshan_common_val_counter()
  *
@@ -148,13 +154,19 @@ char* darshan_clean_file_path(
  * used by a specific module, for instance. 'common_val_root' is the
  * root pointer for the tree which stores common value info, 
  * 'common_val_count' is a pointer to the number of nodes in the 
- * tree (i.e., the number of allocated common value counters), and
- * 'val' is the new value to attempt to add.
+ * tree (i.e., the number of allocated common value counters), 'val'
+ * is the new value to attempt to add, 'val_p' is a pointer to the
+ * base counter (i.e., the first) of the common values (which are
+ * assumed to be 4 total and contiguous in memory), and 'cnt_p' is
+ * a pointer to the base counter of the common counts (which are
+ * again expected to be contiguous in memory).
  */
 void darshan_common_val_counter(
-    void** common_val_root,
-    int* common_val_count,
-    int64_t val);
+    void **common_val_root,
+    int *common_val_count,
+    int64_t val,
+    int64_t *val_p,
+    int64_t *cnt_p);
 
 /* darshan_walk_common_vals()
  *
@@ -168,9 +180,9 @@ void darshan_common_val_counter(
  * (which are again expected to be contiguous in memory).
  */
 void darshan_walk_common_vals(
-    void* common_val_root,
-    int64_t* val_p,
-    int64_t* cnt_p);
+    void *common_val_root,
+    int64_t *val_p,
+    int64_t *cnt_p);
 
 /* darshan_variance_reduce()
  *

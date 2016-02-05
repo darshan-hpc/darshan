@@ -83,7 +83,7 @@ static int64_t* walker_val_p = NULL;
 static int64_t* walker_cnt_p = NULL;
 
 void darshan_common_val_counter(void **common_val_root, int *common_val_count,
-    int64_t val)
+    int64_t val, int64_t *common_val_p, int64_t *common_cnt_p)
 {
     struct darshan_common_val_counter* counter;
     struct darshan_common_val_counter* found;
@@ -102,12 +102,10 @@ void darshan_common_val_counter(void **common_val_root, int *common_val_count,
     {
         found = *(struct darshan_common_val_counter**)tmp;
         found->freq++;
-        return;
     }
-
-    /* we can add a new one as long as we haven't hit the limit */
-    if(*common_val_count < DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT)
+    else if(*common_val_count < DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT)
     {
+        /* we can add a new one as long as we haven't hit the limit */
         counter = malloc(sizeof(*counter));
         if(!counter)
         {
@@ -127,22 +125,28 @@ void darshan_common_val_counter(void **common_val_root, int *common_val_count,
         (*common_val_count)++;
     }
 
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    /* if we are using darshan's mmap feature, update common access
+     * counters as we go
+     */
+    DARSHAN_COMMON_VAL_COUNTER_INC(common_val_p, common_cnt_p,
+        found->val, found->freq, 1);
+#endif
+
     return;
 }
 
-void darshan_walk_common_vals(void *common_val_root, int64_t* val_p,
-    int64_t* cnt_p)
+void darshan_walk_common_vals(void *common_val_root, int64_t *val_p,
+    int64_t *cnt_p)
 {
     walker_val_p = val_p;
     walker_cnt_p = cnt_p;
 
     twalk(common_val_root, darshan_common_val_walker);
-    tdestroy(common_val_root, free);
-
     return;
 }
 
-static void darshan_common_val_walker(const void* nodep, const VISIT which,
+static void darshan_common_val_walker(const void *nodep, const VISIT which,
     const int depth)
 {
     struct darshan_common_val_counter* counter;
@@ -153,7 +157,7 @@ static void darshan_common_val_walker(const void* nodep, const VISIT which,
         case leaf:
             counter = *(struct darshan_common_val_counter**)nodep;
             DARSHAN_COMMON_VAL_COUNTER_INC(walker_val_p, walker_cnt_p,
-                counter->val, counter->freq);
+                counter->val, counter->freq, 0);
         default:
             break;
     }
@@ -161,7 +165,7 @@ static void darshan_common_val_walker(const void* nodep, const VISIT which,
     return;
 }
 
-static int darshan_common_val_compare(const void* a_p, const void* b_p)
+static int darshan_common_val_compare(const void *a_p, const void *b_p)
 {
     const struct darshan_common_val_counter* a = a_p;
     const struct darshan_common_val_counter* b = b_p;

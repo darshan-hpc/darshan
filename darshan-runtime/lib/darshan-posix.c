@@ -220,7 +220,8 @@ static void posix_shutdown(void);
         file->file_record->counters[POSIX_OPENS] += 1; \
     if(file->file_record->fcounters[POSIX_F_OPEN_TIMESTAMP] == 0) \
         file->file_record->fcounters[POSIX_F_OPEN_TIMESTAMP] = __tm1; \
-    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_META_TIME], __tm1, __tm2, file->last_meta_end); \
+    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_META_TIME], \
+        __tm1, __tm2, file->last_meta_end); \
 } while(0)
 
 #define POSIX_RECORD_READ(__ret, __fd, __pread_flag, __pread_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
@@ -255,8 +256,12 @@ static void posix_shutdown(void);
     else \
         file->file_record->counters[POSIX_READS] += 1; \
     DARSHAN_BUCKET_INC(&(file->file_record->counters[POSIX_SIZE_READ_0_100]), __ret); \
-    darshan_common_val_counter(&file->access_root, &file->access_count, __ret); \
-    darshan_common_val_counter(&file->stride_root, &file->stride_count, stride); \
+    darshan_common_val_counter(&file->access_root, &file->access_count, __ret, \
+        &(file->file_record->counters[POSIX_ACCESS1_ACCESS]), \
+        &(file->file_record->counters[POSIX_ACCESS1_COUNT])); \
+    darshan_common_val_counter(&file->stride_root, &file->stride_count, stride, \
+        &(file->file_record->counters[POSIX_STRIDE1_STRIDE]), \
+        &(file->file_record->counters[POSIX_STRIDE1_COUNT])); \
     if(!__aligned) \
         file->file_record->counters[POSIX_MEM_NOT_ALIGNED] += 1; \
     file_alignment = file->file_record->counters[POSIX_FILE_ALIGNMENT]; \
@@ -271,7 +276,8 @@ static void posix_shutdown(void);
     if(file->file_record->fcounters[POSIX_F_MAX_READ_TIME] < __elapsed) { \
         file->file_record->fcounters[POSIX_F_MAX_READ_TIME] = __elapsed; \
         file->file_record->counters[POSIX_MAX_READ_TIME_SIZE] = __ret; } \
-    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_READ_TIME], __tm1, __tm2, file->last_read_end); \
+    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_READ_TIME], \
+        __tm1, __tm2, file->last_read_end); \
 } while(0)
 
 #define POSIX_RECORD_WRITE(__ret, __fd, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
@@ -306,8 +312,12 @@ static void posix_shutdown(void);
     else \
         file->file_record->counters[POSIX_WRITES] += 1; \
     DARSHAN_BUCKET_INC(&(file->file_record->counters[POSIX_SIZE_WRITE_0_100]), __ret); \
-    darshan_common_val_counter(&file->access_root, &file->access_count, __ret); \
-    darshan_common_val_counter(&file->stride_root, &file->stride_count, stride); \
+    darshan_common_val_counter(&file->access_root, &file->access_count, __ret, \
+        &(file->file_record->counters[POSIX_ACCESS1_ACCESS]), \
+        &(file->file_record->counters[POSIX_ACCESS1_COUNT])); \
+    darshan_common_val_counter(&file->stride_root, &file->stride_count, stride, \
+        &(file->file_record->counters[POSIX_STRIDE1_STRIDE]), \
+        &(file->file_record->counters[POSIX_STRIDE1_COUNT])); \
     if(!__aligned) \
         file->file_record->counters[POSIX_MEM_NOT_ALIGNED] += 1; \
     file_alignment = file->file_record->counters[POSIX_FILE_ALIGNMENT]; \
@@ -322,7 +332,8 @@ static void posix_shutdown(void);
     if(file->file_record->fcounters[POSIX_F_MAX_WRITE_TIME] < __elapsed) { \
         file->file_record->fcounters[POSIX_F_MAX_WRITE_TIME] = __elapsed; \
         file->file_record->counters[POSIX_MAX_WRITE_TIME_SIZE] = __ret; } \
-    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_WRITE_TIME], __tm1, __tm2, file->last_write_end); \
+    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_WRITE_TIME], \
+        __tm1, __tm2, file->last_write_end); \
 } while(0)
 
 #define POSIX_LOOKUP_RECORD_STAT(__path, __statbuf, __tm1, __tm2) do { \
@@ -336,8 +347,9 @@ static void posix_shutdown(void);
 } while(0)
 
 #define POSIX_RECORD_STAT(__file, __statbuf, __tm1, __tm2) do { \
-    DARSHAN_TIMER_INC_NO_OVERLAP((__file)->file_record->fcounters[POSIX_F_META_TIME], __tm1, __tm2, (__file)->last_meta_end); \
     (__file)->file_record->counters[POSIX_STATS] += 1; \
+    DARSHAN_TIMER_INC_NO_OVERLAP((__file)->file_record->fcounters[POSIX_F_META_TIME], \
+        __tm1, __tm2, (__file)->last_meta_end); \
 } while(0)
 
 
@@ -1773,14 +1785,14 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
         {
             DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[POSIX_STRIDE1_STRIDE]),
                 &(tmp_file.counters[POSIX_STRIDE1_COUNT]), infile->counters[j],
-                infile->counters[j+4]);
+                infile->counters[j+4], 0);
         }
         /* second set */
         for(j=POSIX_STRIDE1_STRIDE; j<=POSIX_STRIDE4_STRIDE; j++)
         {
             DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[POSIX_STRIDE1_STRIDE]),
                 &(tmp_file.counters[POSIX_STRIDE1_COUNT]), inoutfile->counters[j],
-                inoutfile->counters[j+4]);
+                inoutfile->counters[j+4], 0);
         }
 
         /* same for access counts */
@@ -1804,14 +1816,14 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
         {
             DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[POSIX_ACCESS1_ACCESS]),
                 &(tmp_file.counters[POSIX_ACCESS1_COUNT]), infile->counters[j],
-                infile->counters[j+4]);
+                infile->counters[j+4], 0);
         }
         /* second set */
         for(j=POSIX_ACCESS1_ACCESS; j<=POSIX_ACCESS4_ACCESS; j++)
         {
             DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[POSIX_ACCESS1_ACCESS]),
                 &(tmp_file.counters[POSIX_ACCESS1_COUNT]), inoutfile->counters[j],
-                inoutfile->counters[j+4]);
+                inoutfile->counters[j+4], 0);
         }
 
         /* min non-zero (if available) value */
@@ -2046,6 +2058,11 @@ static void posix_get_output_data(
     {
         tmp = &(posix_runtime->file_runtime_array[i]);
 
+#ifndef __DARSHAN_ENABLE_MMAP_LOGS
+        /* walk common counters to get 4 most common -- only if mmap
+         * feature is disabled (mmap updates counters on the go)
+         */
+
         /* common accesses */
         darshan_walk_common_vals(tmp->access_root,
             &(tmp->file_record->counters[POSIX_ACCESS1_ACCESS]),
@@ -2054,6 +2071,10 @@ static void posix_get_output_data(
         darshan_walk_common_vals(tmp->stride_root,
             &(tmp->file_record->counters[POSIX_STRIDE1_STRIDE]),
             &(tmp->file_record->counters[POSIX_STRIDE1_COUNT]));
+#endif
+
+        tdestroy(tmp->access_root, free);
+        tdestroy(tmp->stride_root, free);
     }
 
     /* if there are globally shared files, do a shared file reduction */
