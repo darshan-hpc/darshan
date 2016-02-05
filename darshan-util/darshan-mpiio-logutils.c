@@ -228,7 +228,10 @@ static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag)
 {
     struct darshan_mpiio_file *mpi_rec = (struct darshan_mpiio_file *)rec;
     struct darshan_mpiio_file *agg_mpi_rec = (struct darshan_mpiio_file *)agg_rec;
-    int i;
+    int i, j, k;
+    int set;
+    int min_ndx;
+    int64_t min;
     double mpi_time = mpi_rec->fcounters[MPIIO_F_READ_TIME] +
         mpi_rec->fcounters[MPIIO_F_WRITE_TIME] +
         mpi_rec->fcounters[MPIIO_F_META_TIME];
@@ -310,8 +313,44 @@ static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag)
             case MPIIO_SLOWEST_RANK_BYTES:
                 /* these are set with the FP counters */
                 break;
+            case MPIIO_ACCESS1_ACCESS:
+                /* increment common value counters */
+                for(j = i; j < i + 4; j++)
+                {
+                    min = agg_mpi_rec->counters[i + 4];
+                    min_ndx = 0;
+                    set = 0;
+                    for(k = 0; k < 4; k++)
+                    {
+                        if(agg_mpi_rec->counters[i + k] == mpi_rec->counters[j])
+                        {
+                            agg_mpi_rec->counters[i + k + 4] += mpi_rec->counters[j + 4];
+                            set = 1;
+                            break;
+                        }
+                        else if(agg_mpi_rec->counters[i + k + 4] < min)
+                        {
+                            min = agg_mpi_rec->counters[i + k + 4];
+                            min_ndx = k;
+                        }
+                    }
+                    if(!set && (mpi_rec->counters[j + 4] > min))
+                    {
+                        agg_mpi_rec->counters[i + min_ndx] = mpi_rec->counters[j];
+                        agg_mpi_rec->counters[i + min_ndx + 4] = mpi_rec->counters[j + 4];
+                    }
+                }
+                break;
+            case MPIIO_ACCESS2_ACCESS:
+            case MPIIO_ACCESS3_ACCESS:
+            case MPIIO_ACCESS4_ACCESS:
+            case MPIIO_ACCESS1_COUNT:
+            case MPIIO_ACCESS2_COUNT:
+            case MPIIO_ACCESS3_COUNT:
+            case MPIIO_ACCESS4_COUNT:
+                /* these are set all at once with common counters above */
+                break;
             default:
-                /* TODO: common access sizes */
                 agg_mpi_rec->counters[i] = -1;
                 break;
         }

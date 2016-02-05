@@ -229,7 +229,10 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
 {
     struct darshan_posix_file *psx_rec = (struct darshan_posix_file *)rec;
     struct darshan_posix_file *agg_psx_rec = (struct darshan_posix_file *)agg_rec;
-    int i;
+    int i, j, k;
+    int set;
+    int min_ndx;
+    int64_t min;
     double psx_time = psx_rec->fcounters[POSIX_F_READ_TIME] +
         psx_rec->fcounters[POSIX_F_WRITE_TIME] +
         psx_rec->fcounters[POSIX_F_META_TIME];
@@ -326,8 +329,52 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
             case POSIX_SLOWEST_RANK_BYTES:
                 /* these are set with the FP counters */
                 break;
+            case POSIX_STRIDE1_STRIDE:
+            case POSIX_ACCESS1_ACCESS:
+                /* increment common value counters */
+                for(j = i; j < i + 4; j++)
+                {
+                    min = agg_psx_rec->counters[i + 4];
+                    min_ndx = 0;
+                    set = 0;
+                    for(k = 0; k < 4; k++)
+                    {
+                        if(agg_psx_rec->counters[i + k] == psx_rec->counters[j])
+                        {
+                            agg_psx_rec->counters[i + k + 4] += psx_rec->counters[j + 4];
+                            set = 1;
+                            break;
+                        }
+                        else if(agg_psx_rec->counters[i + k + 4] < min)
+                        {
+                            min = agg_psx_rec->counters[i + k + 4];
+                            min_ndx = k;
+                        }
+                    }
+                    if(!set && (psx_rec->counters[j + 4] > min))
+                    {
+                        agg_psx_rec->counters[i + min_ndx] = psx_rec->counters[j];
+                        agg_psx_rec->counters[i + min_ndx + 4] = psx_rec->counters[j + 4];
+                    }
+                }
+                break;
+            case POSIX_STRIDE2_STRIDE:
+            case POSIX_STRIDE3_STRIDE:
+            case POSIX_STRIDE4_STRIDE:
+            case POSIX_STRIDE1_COUNT:
+            case POSIX_STRIDE2_COUNT:
+            case POSIX_STRIDE3_COUNT:
+            case POSIX_STRIDE4_COUNT:
+            case POSIX_ACCESS2_ACCESS:
+            case POSIX_ACCESS3_ACCESS:
+            case POSIX_ACCESS4_ACCESS:
+            case POSIX_ACCESS1_COUNT:
+            case POSIX_ACCESS2_COUNT:
+            case POSIX_ACCESS3_COUNT:
+            case POSIX_ACCESS4_COUNT:
+                /* these are set all at once with common counters above */
+                break;
             default:
-                /* TODO: common access counters and strides */
                 agg_psx_rec->counters[i] = -1;
                 break;
         }
