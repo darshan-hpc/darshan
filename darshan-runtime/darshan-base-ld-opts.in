@@ -1,5 +1,0 @@
---undefined=MPI_Init
---undefined=MPI_Wtime
-@@darshan_share_path@/darshan-posix-ld-opts
-@@darshan_share_path@/darshan-hdf5-ld-opts
-@@darshan_share_path@/darshan-pnetcdf-ld-opts

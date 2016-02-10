@@ -325,7 +325,6 @@ darshan-mk-log-dirs.pl
 darshan-gen-cc.pl
 darshan-gen-cxx.pl
 darshan-gen-fortran.pl
-darshan-base-ld-opts
 darshan-config
 share/craype-1.x/darshan-module
 share/craype-2.x/darshan-module
@@ -336,4 +335,5 @@ share/mpi-profile/darshan-f.conf
 share/mpi-profile/darshan-bg-cc.conf
 share/mpi-profile/darshan-bg-cxx.conf
 share/mpi-profile/darshan-bg-f.conf
+share/ld-opts/darshan-base-ld-opts
 )
