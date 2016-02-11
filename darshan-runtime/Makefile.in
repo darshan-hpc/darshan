@@ -154,9 +154,9 @@ endif
 	install -m 755 share/mpi-profile/darshan-bg-f.conf $(datarootdir)/mpi-profile/darshan-bg-f.conf
 	install -d $(datarootdir)/ld-opts
 	install -m 644 share/ld-opts/darshan-base-ld-opts $(datarootdir)/ld-opts/darshan-base-ld-opts
-	install -m 644 share/ld-opts/darshan-posix-ld-opts $(datarootdir)/ld-opts/darshan-posix-ld-opts
-	install -m 644 share/ld-opts/darshan-hdf5-ld-opts $(datarootdir)/ld-opts/darshan-hdf5-ld-opts
-	install -m 644 share/ld-opts/darshan-pnetcdf-ld-opts $(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
+	install -m 644 $(srcdir)/share/ld-opts/darshan-posix-ld-opts $(datarootdir)/ld-opts/darshan-posix-ld-opts
+	install -m 644 $(srcdir)/share/ld-opts/darshan-hdf5-ld-opts $(datarootdir)/ld-opts/darshan-hdf5-ld-opts
+	install -m 644 $(srcdir)/share/ld-opts/darshan-pnetcdf-ld-opts $(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
 	install -d $(libdir)/pkgconfig
 	install -m 644 lib/pkgconfig/darshan-runtime.pc $(libdir)/pkgconfig/darshan-runtime.pc
 
