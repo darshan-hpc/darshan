@@ -2,9 +2,9 @@ Notes on how to release a new version of Darshan
 2013-05
 -----------------------
 
-- check Darshan trac to see if there are any pending tickets for this
+- check Darshan GitLab to see if there are any pending tickets for this
   release/milestone if applicable
-  http://trac.mcs.anl.gov/projects/darshan/roadmap
+  (https://xgitlab.cels.anl.gov/darshan/darshan/milestones)
 - check for any problems in jenkins nightly builds
 - make sure that documentation in darshan-util/doc/ and darshan-runtime/doc/
   are up to date
