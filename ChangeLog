@@ -2,6 +2,21 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.0.0
+=============
+* bug fix for determining minimum non-zero counters in
+shared file reductions in all modules
+* loosen Darshan's PMPI symbol check to prevent inadvertent
+  disabling of Darshan for some MPICH builds
+* update runtime docs to give information on upgrading Darshan
+* bug fix for resolving MPI_Gather and MPI_Barrier when LDPRELOADing
+  Darshan's shared libraries (reported by Richard Hedges and Rob Latham)
+* add more helpful error handling when opening 2.x version log files
+* port darshan-diff utility over to new log file format
+* fix numerous configure bugs on Cray systems
+* add synthetic benchmarking hooks for testing Darshan's shutdown
+  procedure
+
 Darshan-3.0.0-pre3
 =============
 * add module-specific version fields to header to allow utilities
