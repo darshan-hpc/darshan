@@ -1829,11 +1829,11 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
         /* min non-zero (if available) value */
         for(j=POSIX_F_OPEN_TIMESTAMP; j<=POSIX_F_WRITE_START_TIMESTAMP; j++)
         {
-            if(infile->fcounters[j] > inoutfile->fcounters[j] &&
-               inoutfile->fcounters[j] > 0)
-                tmp_file.fcounters[j] = inoutfile->fcounters[j];
-            else
+            if((infile->fcounters[j] < inoutfile->fcounters[j] &&
+               infile->fcounters[j] > 0) || inoutfile->fcounters[j] == 0)
                 tmp_file.fcounters[j] = infile->fcounters[j];
+            else
+                tmp_file.fcounters[j] = inoutfile->fcounters[j];
         }
 
         /* max */
