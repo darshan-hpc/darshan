@@ -1096,10 +1096,11 @@ static void mpiio_record_reduction_op(
         /* min non-zero (if available) value */
         for(j=MPIIO_F_OPEN_TIMESTAMP; j<=MPIIO_F_WRITE_START_TIMESTAMP; j++)
         {
-            if(infile->fcounters[j] > inoutfile->fcounters[j] && inoutfile->fcounters[j] > 0)
-                tmp_file.fcounters[j] = inoutfile->fcounters[j];
-            else
+            if((infile->fcounters[j] < inoutfile->fcounters[j] &&
+               infile->fcounters[j] > 0) || inoutfile->fcounters[j] == 0)
                 tmp_file.fcounters[j] = infile->fcounters[j];
+            else
+                tmp_file.fcounters[j] = inoutfile->fcounters[j];
         }
 
         /* max */

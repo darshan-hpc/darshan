@@ -440,10 +440,11 @@ static void pnetcdf_record_reduction_op(void* infile_v, void* inoutfile_v,
         /* min non-zero (if available) value */
         for(j=PNETCDF_F_OPEN_TIMESTAMP; j<=PNETCDF_F_OPEN_TIMESTAMP; j++)
         {
-            if(infile->fcounters[j] > inoutfile->fcounters[j] && inoutfile->fcounters[j] > 0)
-                tmp_file.fcounters[j] = inoutfile->fcounters[j];
-            else
+            if((infile->fcounters[j] < inoutfile->fcounters[j] &&
+               infile->fcounters[j] > 0) || inoutfile->fcounters[j] == 0) 
                 tmp_file.fcounters[j] = infile->fcounters[j];
+            else
+                tmp_file.fcounters[j] = inoutfile->fcounters[j];
         }
 
         /* max */
