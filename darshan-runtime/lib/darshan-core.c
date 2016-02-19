@@ -1012,6 +1012,7 @@ static void darshan_get_exe_and_mounts_root(struct darshan_core_runtime *core,
      * grab any non-nfs mount points, then on the second pass we grab nfs
      * mount points
      */
+    mnt_data_count = 0;
 
     tab = setmntent("/etc/mtab", "r");
     if(!tab)
