@@ -1,3 +1,4 @@
+--undefined=__wrap_ncmpi_create
 --wrap=ncmpi_create
 --wrap=ncmpi_open
 --wrap=ncmpi_close
