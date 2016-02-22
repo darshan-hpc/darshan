@@ -52,6 +52,7 @@ char* darshan_path_exclusions[] = {
 "/sbin/",
 "/sys/",
 "/proc/",
+"/var/",
 NULL
 };
 
