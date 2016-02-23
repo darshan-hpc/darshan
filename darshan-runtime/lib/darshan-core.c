@@ -1743,6 +1743,10 @@ void darshan_core_register_record(
     DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
     DARSHAN_CORE_UNLOCK();
 
+    /* TODO: call into lustre if functionality enabled and if lustre data has not
+     * already been captured for this file
+     */
+
     if(file_alignment)
         darshan_block_size_from_path(name, file_alignment);
 

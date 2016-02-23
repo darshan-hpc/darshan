@@ -22,25 +22,23 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 
-struct lustre_record_runtime
-{
-    struct darshan_lustre_record *record;
-    UT_hash_handle hlink;
-};
-
+/* Lustre record data is currently immutable, so once it's set it should be
+ * final. Since we won't likely need to search for records after they've been
+ * created, a simple array is fine for storing them instead of a hash table
+ */
 struct lustre_runtime
 {
-    struct lustre_record_runtime *record_runtime_array;
     struct darshan_lustre_record *record_array;
     int record_array_size;
     int record_array_ndx;
-    struct lustre_record_runtime *record_hash;
 };
 
 static struct lustre_runtime *lustre_runtime = NULL;
 static pthread_mutex_t lustre_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int instrumentation_disabled = 0;
 static int my_rank = -1;
+
+static void lustre_runtime_initialize(void);
 
 static void lustre_begin_shutdown(void);
 static void lustre_get_output_data(MPI_Comm mod_comm, darshan_record_id *shared_recs,
@@ -52,8 +50,45 @@ static void lustre_shutdown(void);
 
 void darshan_instrument_lustre_file(char *filepath)
 {
+    /* make sure the lustre module is already initialized */
+    lustre_runtime_initialize();
 
     /* TODO: implement gathering of lustre data */
+
+    return;
+}
+
+static void lustre_runtime_initialize()
+{
+    int mem_limit;
+    struct darshan_module_funcs lustre_mod_fns =
+    {
+        .begin_shutdown = &lustre_begin_shutdown,
+        .get_output_data = &lustre_get_output_data,
+        .shutdown = &lustre_shutdown
+    };
+
+    /* don't do anything if already initialized or instrumenation is disabled */
+    if(lustre_runtime || instrumentation_disabled)
+        return;
+
+    /* register the lustre module with darshan-core */
+    darshan_core_register_module(
+        DARSHAN_LUSTRE_MOD,
+        &lustre_mod_fns,
+        &my_rank,
+        &mem_limit,
+        NULL);
+
+    /* return if no memory assigned by darshan core */
+    if(mem_limit == 0)
+        return;
+
+    lustre_runtime = malloc(sizeof(*lustre_runtime));
+    if(!lustre_runtime)
+        return;
+    memset(lustre_runtime, 0, sizeof(*lustre_runtime));
+
 
     return;
 }
@@ -83,7 +118,11 @@ static void lustre_get_output_data(
 {
     assert(lustre_runtime);
 
-    /* TODO: reduce shared lustre records, and set ouptut buffers */
+    /* TODO: determine lustre record shared across all processes,
+     * and have only rank 0 write these records out. No shared 
+     * reductions should be necessary as the Lustre data for a
+     * given file should be the same on each process
+     */
 
     return;
 }
