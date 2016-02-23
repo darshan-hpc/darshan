@@ -4,6 +4,9 @@
  *
  */
 
+#define _XOPEN_SOURCE 500
+#define _GNU_SOURCE
+
 #include "darshan-runtime-config.h"
 #include <stdio.h>
 #include <unistd.h>
@@ -16,7 +19,6 @@
 #include <errno.h>
 #include <search.h>
 #include <assert.h>
-#define __USE_GNU
 #include <pthread.h>
 
 #include "uthash.h"

@@ -15,6 +15,7 @@
 
 #include "darshan.h"
 #include "darshan-core.h"
+#include "darshan-dynamic.h"
 
 #ifdef DARSHAN_PRELOAD
 
