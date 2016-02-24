@@ -262,12 +262,12 @@ void darshan_core_shutdown()
     darshan_record_id *mod_shared_recs;
     int shared_rec_cnt = 0;
     double start_log_time;
-    double open1, open2;
-    double job1, job2;
-    double rec1, rec2;
+    double open1 = 0, open2 = 0;
+    double job1 = 0, job2 = 0;
+    double rec1 = 0, rec2 = 0;
     double mod1[DARSHAN_MAX_MODS] = {0};
     double mod2[DARSHAN_MAX_MODS] = {0};
-    double header1, header2;
+    double header1 = 0, header2 = 0;
     double tm_end;
     uint64_t gz_fp = 0;
     MPI_File log_fh;
