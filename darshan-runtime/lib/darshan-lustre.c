@@ -22,27 +22,16 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 
-/* TODO: once mmap merge is complete, we can just use an array
- * to store record data rather than a hash table -- in that
- * branch, register_record() returns whether the record 
- * already exists, at which point we won't need to instrument
- * more data, since the Lustre record data is immutable. records
- * could just be appended to the array if there is no need to
- * search for a specific record.
+/* we just use a simple array for storing records. the POSIX module
+ * only calls into the Lustre module for new records, so we will never
+ * have to search for an existing Lustre record (assuming the Lustre
+ * data remains immutable as it is now).
  */
-struct lustre_record_ref
-{
-    struct darshan_lustre_record *record;
-    UT_hash_handle hlink;
-};
-
 struct lustre_runtime
 {
-    struct lustre_record_ref *ref_array;
     struct darshan_lustre_record *record_array;
     int record_array_size;
     int record_array_ndx;
-    struct lustre_record_ref *record_hash;
 };
 
 static struct lustre_runtime *lustre_runtime = NULL;
@@ -69,15 +58,16 @@ static void lustre_shutdown(void);
 
 void darshan_instrument_lustre_file(char *filepath)
 {
-    struct lustre_record_ref *lustre_ref;
+    struct darshan_lustre_record *rec;
     darshan_record_id rec_id;
-    int limit_flag;
 
     LUSTRE_LOCK();
     /* make sure the lustre module is already initialized */
     lustre_runtime_initialize();
 
-    limit_flag = (lustre_runtime->record_array_ndx >= lustre_runtime->record_array_size);
+    /* if the array is full, we just back out */
+    if(lustre_runtime->record_array_ndx >= lustre_runtime->record_array_size)
+        return;
 
     /* register a Lustre file record with Darshan */
     darshan_core_register_record(
@@ -85,7 +75,7 @@ void darshan_instrument_lustre_file(char *filepath)
         strlen(filepath),
         DARSHAN_LUSTRE_MOD,
         1,
-        limit_flag,
+        0,
         &rec_id,
         NULL);
 
@@ -93,24 +83,14 @@ void darshan_instrument_lustre_file(char *filepath)
     if(rec_id == 0)
         return;
 
-    HASH_FIND(hlink, lustre_runtime->record_hash, &rec_id,
-        sizeof(darshan_record_id), lustre_ref);
-    if(!lustre_ref)
-    {
-        /* no existing record, allocate a new one and add it to the hash */
-        lustre_ref = &(lustre_runtime->ref_array[lustre_runtime->record_array_ndx]);
-        lustre_ref->record = &(lustre_runtime->record_array[lustre_runtime->record_array_ndx]);
-        lustre_ref->record->rec_id = rec_id;
-        lustre_ref->record->rank = my_rank;
+    /* allocate a new lustre record and append it to the array */
+    rec = &(lustre_runtime->record_array[lustre_runtime->record_array_ndx++]);
+    rec->rec_id = rec_id;
+    rec->rank = my_rank;
 
-        /* TODO: gather lustre data, store in record hash */
-        /* counters in lustre_ref->record->counters */
-	lustre_ref->record->counters[LUSTRE_TEST_COUNTER] = 88;
-
-        HASH_ADD(hlink, lustre_runtime->record_hash, record->rec_id,
-            sizeof(darshan_record_id), lustre_ref);
-        lustre_runtime->record_array_ndx++;
-    }
+    /* TODO: gather lustre data, store in record hash */
+    /* counters in lustre_ref->record->counters */
+    rec->counters[LUSTRE_TEST_COUNTER] = 88;
 
     LUSTRE_UNLOCK();
     return;
@@ -152,17 +132,13 @@ static void lustre_runtime_initialize()
      */
     lustre_runtime->record_array_size = mem_limit / sizeof(struct darshan_lustre_record);
 
-    lustre_runtime->ref_array = malloc(lustre_runtime->record_array_size *
-                                       sizeof(struct lustre_record_ref));
     lustre_runtime->record_array = malloc(lustre_runtime->record_array_size *
                                           sizeof(struct darshan_lustre_record));
-    if(!lustre_runtime->ref_array || !lustre_runtime->record_array)
+    if(!lustre_runtime->record_array)
     {
         lustre_runtime->record_array_size = 0;
         return;
     }
-    memset(lustre_runtime->ref_array, 0, lustre_runtime->record_array_size *
-        sizeof(struct lustre_record_ref));
     memset(lustre_runtime->record_array, 0, lustre_runtime->record_array_size *
         sizeof(struct darshan_lustre_record));
 
@@ -211,9 +187,6 @@ static void lustre_shutdown(void)
     assert(lustre_runtime);
 
     /* TODO: free data structures */
-    HASH_CLEAR(hlink, lustre_runtime->record_hash);
-
-    free(lustre_runtime->ref_array);
     free(lustre_runtime->record_array);
     free(lustre_runtime);
     lustre_runtime = NULL;
