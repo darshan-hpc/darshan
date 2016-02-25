@@ -80,6 +80,13 @@ struct darshan_module_funcs
     void (*shutdown)(void);
 };
 
+/* stores FS info from statfs calls for a given mount point */
+struct darshan_fs_info
+{
+    int fs_type;
+    int block_size;
+};
+
 /* paths that darshan will not trace */
 extern char* darshan_path_exclusions[]; /* defined in lib/darshan-core.c */
 
@@ -134,7 +141,7 @@ void darshan_core_register_record(
     int printable_flag,
     int mod_limit_flag,
     darshan_record_id *rec_id,
-    int *file_alignment);
+    struct darshan_fs_info *fs_info);
 
 /* darshan_core_unregister_record()
  *

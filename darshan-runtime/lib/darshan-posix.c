@@ -176,6 +176,11 @@ struct posix_runtime
     struct posix_file_runtime_ref* fd_hash;
 };
 
+/* XXX modules don't expose an API for other modules, so use extern to get
+ * Lustre instrumentation function
+ */
+extern void darshan_instrument_lustre_file(char *filepath);
+
 static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int instrumentation_disabled = 0;
@@ -1505,7 +1510,7 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
     struct posix_file_runtime *file = NULL;
     char *newname = NULL;
     darshan_record_id file_id;
-    int file_alignment;
+    struct darshan_fs_info fs_info;
     int limit_flag;
 
     if(!posix_runtime || instrumentation_disabled)
@@ -1525,7 +1530,7 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
         1,
         limit_flag,
         &file_id,
-        &file_alignment);
+        &fs_info);
 
     /* the file record id is set to 0 if no memory is available for tracking
      * new records -- just fall through and ignore this record
@@ -1552,11 +1557,18 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
     file->file_record->f_id = file_id;
     file->file_record->rank = my_rank;
     file->file_record->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
-    file->file_record->counters[POSIX_FILE_ALIGNMENT] = file_alignment;
+    file->file_record->counters[POSIX_FILE_ALIGNMENT] = fs_info.block_size;
 
     /* add new record to file hash table */
     HASH_ADD(hlink, posix_runtime->file_hash, file_record->f_id, sizeof(darshan_record_id), file);
     posix_runtime->file_array_ndx++;
+
+    /* XXX: check for lustre and call in */
+#ifndef LL_SUPER_MAGIC
+#define LL_SUPER_MAGIC 0x0BD00BD0
+#endif
+    if(fs_info.fs_type == LL_SUPER_MAGIC)
+        darshan_instrument_lustre_file(newname);
 
     if(newname != name)
         free(newname);

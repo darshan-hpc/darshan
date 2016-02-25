@@ -79,9 +79,9 @@ void (*mod_static_init_fns[])(void) =
 #define DARSHAN_MAX_MNT_TYPE 32
 struct mnt_data
 {
-    int block_size;
     char path[DARSHAN_MAX_MNT_PATH];
     char type[DARSHAN_MAX_MNT_TYPE];
+    struct darshan_fs_info fs_info;
 };
 static struct mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
@@ -96,8 +96,8 @@ static void darshan_get_exe_and_mounts_root(
     int space_left);
 static char* darshan_get_exe_and_mounts(
     struct darshan_core_runtime *core);
-static void darshan_block_size_from_path(
-    const char *path, int *block_size);
+static void darshan_fs_info_from_path(
+    const char *path, struct darshan_fs_info *fs_info);
 static void darshan_get_shared_records(
     struct darshan_core_runtime *core, darshan_record_id **shared_recs,
     int *shared_rec_cnt);
@@ -952,12 +952,13 @@ static void add_entry(char* trailing_data, int* space_left, struct mntent *entry
 #define LL_SUPER_MAGIC 0x0BD00BD0
 #endif
     ret = statfs(entry->mnt_dir, &statfsbuf);
+    mnt_data_array[mnt_data_count].fs_info.fs_type = statfsbuf.f_type;
     if(ret == 0 && statfsbuf.f_type != LL_SUPER_MAGIC)
-        mnt_data_array[mnt_data_count].block_size = statfsbuf.f_bsize;
+        mnt_data_array[mnt_data_count].fs_info.block_size = statfsbuf.f_bsize;
     else if(ret == 0 && statfsbuf.f_type == LL_SUPER_MAGIC)
-        mnt_data_array[mnt_data_count].block_size = 1024*1024;
+        mnt_data_array[mnt_data_count].fs_info.block_size = 1024*1024;
     else
-        mnt_data_array[mnt_data_count].block_size = 4096;
+        mnt_data_array[mnt_data_count].fs_info.block_size = 4096;
 
     /* store mount information for use in header of darshan log */
     ret = snprintf(tmp_mnt, 256, "\n%s\t%s",
@@ -1097,16 +1098,17 @@ static char* darshan_get_exe_and_mounts(struct darshan_core_runtime *core)
     return(trailing_data);
 }
 
-static void darshan_block_size_from_path(const char *path, int *block_size)
+static void darshan_fs_info_from_path(const char *path, struct darshan_fs_info *fs_info)
 {
     int i;
-    *block_size = -1;
+    fs_info->fs_type = -1;
+    fs_info->block_size = -1;
 
     for(i=0; i<mnt_data_count; i++)
     {
         if(!(strncmp(mnt_data_array[i].path, path, strlen(mnt_data_array[i].path))))
         {
-            *block_size = mnt_data_array[i].block_size;
+            *fs_info = mnt_data_array[i].fs_info;
             return;
         }
     }
@@ -1695,7 +1697,7 @@ void darshan_core_register_record(
     int printable_flag,
     int mod_limit_flag,
     darshan_record_id *rec_id,
-    int *file_alignment)
+    struct darshan_fs_info *fs_info)
 {
     darshan_record_id tmp_rec_id;
     struct darshan_core_record_ref *ref;
@@ -1743,14 +1745,10 @@ void darshan_core_register_record(
     DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
     DARSHAN_CORE_UNLOCK();
 
-    /* TODO: call into lustre if functionality enabled and if lustre data has not
-     * already been captured for this file
-     */
-
-    if(file_alignment)
-        darshan_block_size_from_path(name, file_alignment);
-
     *rec_id = tmp_rec_id;
+    if(fs_info)
+        darshan_fs_info_from_path(name, fs_info);
+
     return;
 }
 
