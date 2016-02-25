@@ -39,4 +39,3 @@ struct darshan_lustre_record
 };
 
 #endif /* __DARSHAN_LUSTRE_LOG_FORMAT_H */
-

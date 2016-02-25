@@ -107,6 +107,7 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[];
 #include "darshan-hdf5-logutils.h"
 #include "darshan-pnetcdf-logutils.h"
 #include "darshan-bgq-logutils.h"
+#include "darshan-lustre-logutils.h"
 
 darshan_fd darshan_log_open(const char *name);
 darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type,

@@ -122,7 +122,7 @@ struct darshan_record
     X(DARSHAN_HDF5_MOD,     "HDF5",     DARSHAN_HDF5_VER,       &hdf5_logutils) \
     X(DARSHAN_PNETCDF_MOD,  "PNETCDF",  DARSHAN_PNETCDF_VER,    &pnetcdf_logutils) \
     X(DARSHAN_BGQ_MOD,      "BG/Q",     DARSHAN_BGQ_VER,        &bgq_logutils) \
-    X(DARSHAN_LUSTRE_MOD,   "LUSTRE",   DARSHAN_LUSTRE_VER,     NULL)
+    X(DARSHAN_LUSTRE_MOD,   "LUSTRE",   DARSHAN_LUSTRE_VER,     &lustre_logutils)
 
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
