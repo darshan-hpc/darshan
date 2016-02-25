@@ -69,7 +69,6 @@ struct darshan_bgq_record
 {
     darshan_record_id f_id;
     int64_t rank;
-    int alignment;
     int64_t counters[BGQ_NUM_INDICES];
     double fcounters[BGQ_F_NUM_INDICES];
 };

@@ -48,7 +48,6 @@ static int instrumentation_disabled = 0;
 
 /* my_rank indicates the MPI rank of this process */
 static int my_rank = -1;
-static int darshan_mem_alignment = 1;
 
 /* internal helper functions for the BGQ module */
 void bgq_runtime_initialize(void);
@@ -127,7 +126,7 @@ void bgq_runtime_initialize()
         &bgq_mod_fns,
         &my_rank,
         &mem_limit,
-        &darshan_mem_alignment);
+        NULL);
 
     /* return if no memory assigned by darshan-core */
     if(mem_limit == 0)
@@ -162,7 +161,7 @@ void bgq_runtime_initialize()
         1,
         0,
         &bgq_runtime->record.f_id,
-        &bgq_runtime->record.alignment);
+        NULL);
 
     /* if record is set to 0, darshan-core is out of space and will not
      * track this record, so we should avoid tracking it, too
