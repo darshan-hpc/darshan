@@ -113,7 +113,7 @@ lib/darshan-pnetcdf-stubs.o: lib/darshan-pnetcdf-stubs.c darshan.h $(DARSHAN_LOG
 lib/darshan-lustre.o: lib/darshan-lustre.c darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-lustre-log-format.h | lib
 	$(CC) $(CFLAGS) -c $< -o $@
 
-lib/darshan-lustre.po: lib/darshan-hdf5.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-lustre-log-format.h | lib
+lib/darshan-lustre.po: lib/darshan-lustre.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-lustre-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
 lib/lookup3.o: lib/lookup3.c
