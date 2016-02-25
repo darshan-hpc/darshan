@@ -12,6 +12,8 @@
 
 /* TODO: add integer counters here (e.g., counter for stripe width, stripe size, etc etc) */
 #define LUSTRE_COUNTERS \
+    /* dummy counter */\
+    X(LUSTRE_TEST_COUNTER) \
     /* end of counters */\
     X(LUSTRE_NUM_INDICES)
 

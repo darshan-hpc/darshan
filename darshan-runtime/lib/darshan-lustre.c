@@ -105,6 +105,7 @@ void darshan_instrument_lustre_file(char *filepath)
 
         /* TODO: gather lustre data, store in record hash */
         /* counters in lustre_ref->record->counters */
+	lustre_ref->record->counters[LUSTRE_TEST_COUNTER] = 88;
 
         HASH_ADD(hlink, lustre_runtime->record_hash, record->rec_id,
             sizeof(darshan_record_id), lustre_ref);
@@ -199,6 +200,9 @@ static void lustre_get_output_data(
      * given file should be the same on each process
      */
 
+    *lustre_buf = (void *)(lustre_runtime->record_array);
+    *lustre_buf_sz = lustre_runtime->record_array_ndx * sizeof(struct darshan_lustre_record);
+
     return;
 }
 
@@ -207,7 +211,11 @@ static void lustre_shutdown(void)
     assert(lustre_runtime);
 
     /* TODO: free data structures */
+    HASH_CLEAR(hlink, lustre_runtime->record_hash);
 
+    free(lustre_runtime->ref_array);
+    free(lustre_runtime->record_array);
+    free(lustre_runtime);
     lustre_runtime = NULL;
 
     return;
