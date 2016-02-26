@@ -11,6 +11,8 @@ DARSHAN_INSTALL_DIR=@prefix@
 # use the log dir specified at configure time
 DARSHAN_LOG_DIR=@__DARSHAN_LOG_PATH@
 
+JOB_END=$(date +"%s")
+
 # use the default mmap log directory (/tmp), unless the 
 # env variable is set to something
 if [ -z "$DARSHAN_MMAP_LOGPATH" ]; then
@@ -53,7 +55,7 @@ if [ $SLURM_NNODES -gt 1 ]; then
     mkdir -p $NODE_LOG_DIR
 
     # construct the per-node log file and store in the output directory
-    $DARSHAN_INSTALL_DIR/bin/darshan-merge \
+    $DARSHAN_INSTALL_DIR/bin/darshan-merge --job-end-time $JOB_END \
         --output ${NODE_LOG_DIR}/${LOG_NAME_PRE}_${NODE_NAME}.darshan \
         $DARSHAN_MMAP_LOG_GLOB
 else
@@ -61,7 +63,7 @@ else
 
     # single node, just create the final output darshan log
     LOG_WRITE_START=$(date +%s)
-    $DARSHAN_INSTALL_DIR/bin/darshan-merge
+    $DARSHAN_INSTALL_DIR/bin/darshan-merge --job-end-time $JOB_END \
         --shared-redux --output ${OUTPUT_LOG_DIR}/${TMP_LOG} \
         $DARSHAN_MMAP_LOG_GLOB
     LOG_WRITE_END=$(date +%s)
@@ -71,5 +73,7 @@ else
 
     mv ${OUTPUT_LOG_DIR}/${TMP_LOG} ${OUTPUT_LOG_DIR}/${FINAL_LOG}
 fi
+
+rm -f $DARSHAN_MMAP_LOG_GLOB
 
 exit 0

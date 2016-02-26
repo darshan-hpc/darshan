@@ -28,23 +28,27 @@ void usage(char *exename)
     fprintf(stderr, "Options:\n");
     fprintf(stderr, "\t--output\t(REQUIRED) Full path of the output darshan log file.\n");
     fprintf(stderr, "\t--shared-redux\tReduce globally shared records into a single record.\n");
+    fprintf(stderr, "\t--job-end-time\tSet the output log's job end time (requires argument of seconds since Epoch).\n");
 
     exit(1);
 }
 
 void parse_args(int argc, char **argv, char ***infile_list, int *n_files,
-    char **outlog_path, int *shared_redux)
+    char **outlog_path, int *shared_redux, int64_t *job_end_time)
 {
     int index;
+    char *check;
     static struct option long_opts[] =
     {
-        {"shared-redux", no_argument, NULL, 's'},
         {"output", required_argument, NULL, 'o'},
+        {"shared-redux", no_argument, NULL, 's'},
+        {"job-end-time", required_argument, NULL, 'e'},
         {0, 0, 0, 0}
     };
 
     *shared_redux = 0;
     *outlog_path = NULL;
+    *job_end_time = 0;
 
     while(1)
     {
@@ -59,6 +63,14 @@ void parse_args(int argc, char **argv, char ***infile_list, int *n_files,
                 break;
             case 'o':
                 *outlog_path = optarg;
+                break;
+            case 'e':
+                *job_end_time = strtol(optarg, &check, 10);
+                if(optarg == check)
+                {
+                    fprintf(stderr, "Error: unable to parse job end time value.\n");
+                    exit(1);
+                }
                 break;
             case '?':
             default:
@@ -173,6 +185,7 @@ int main(int argc, char *argv[])
     char **infile_list;
     int n_infiles;
     int shared_redux;
+    int64_t job_end_time = 0;
     char *outlog_path;
     darshan_fd in_fd, merge_fd;
     struct darshan_job in_job, merge_job;
@@ -191,7 +204,7 @@ int main(int argc, char *argv[])
     int ret;
 
     /* grab command line arguments */
-    parse_args(argc, argv, &infile_list, &n_infiles, &outlog_path, &shared_redux);
+    parse_args(argc, argv, &infile_list, &n_infiles, &outlog_path, &shared_redux, &job_end_time);
 
     memset(&merge_job, 0, sizeof(struct darshan_job));
 
@@ -304,6 +317,10 @@ int main(int argc, char *argv[])
 
         darshan_log_close(in_fd);
     }
+
+    /* if a job end time was passed in, apply it to the output job */
+    if(job_end_time > 0)
+        merge_job.end_time = job_end_time;
 
     /* create the output "merged" log */
     merge_fd = darshan_log_create(outlog_path, DARSHAN_ZLIB_COMP, 1);
