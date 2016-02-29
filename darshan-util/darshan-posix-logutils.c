@@ -225,6 +225,14 @@ static void darshan_log_print_posix_file_diff(void *file_rec1, char *file_name1,
     return;
 }
 
+/* simple helper struct for determining time & byte variances */
+struct var_t
+{
+    double n;
+    double M;
+    double S;
+};
+
 static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
 {
     struct darshan_posix_file *psx_rec = (struct darshan_posix_file *)rec;
@@ -233,31 +241,16 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
     int set;
     int min_ndx;
     int64_t min;
+    double old_M;
     double psx_time = psx_rec->fcounters[POSIX_F_READ_TIME] +
         psx_rec->fcounters[POSIX_F_WRITE_TIME] +
         psx_rec->fcounters[POSIX_F_META_TIME];
-
-    /* special case initialization of shared record for
-     * first call of this function
-     */
-    if(init_flag)
-    {
-        /* set fastest/slowest rank counters according to root rank.
-         * these counters will be determined as the aggregation progresses.
-         */
-        agg_psx_rec->counters[POSIX_FASTEST_RANK] = psx_rec->base_rec.rank;
-        agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES] =
-            psx_rec->counters[POSIX_BYTES_READ] +
-            psx_rec->counters[POSIX_BYTES_WRITTEN];
-        agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME] = psx_time;
-
-        agg_psx_rec->counters[POSIX_SLOWEST_RANK] =
-            agg_psx_rec->counters[POSIX_FASTEST_RANK];
-        agg_psx_rec->counters[POSIX_SLOWEST_RANK_BYTES] =
-            agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES];
-        agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME] =
-            agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME];
-    }
+    double psx_bytes = (double)psx_rec->counters[POSIX_BYTES_READ] +
+        psx_rec->counters[POSIX_BYTES_WRITTEN];
+    struct var_t *var_time_p = (struct var_t *)
+        ((char *)rec + sizeof(struct darshan_posix_file));
+    struct var_t *var_bytes_p = (struct var_t *)
+        ((char *)var_time_p + sizeof(struct var_t));
 
     for(i = 0; i < POSIX_NUM_INDICES; i++)
     {
@@ -427,27 +420,80 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                 }
                 break;
             case POSIX_F_FASTEST_RANK_TIME:
+                if(init_flag)
+                {
+                    /* set fastest rank counters according to root rank. these counters
+                     * will be determined as the aggregation progresses.
+                     */
+                    agg_psx_rec->counters[POSIX_FASTEST_RANK] = psx_rec->base_rec.rank;
+                    agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES] = psx_bytes;
+                    agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME] = psx_time;
+                }
+
                 if(psx_time < agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME])
                 {
                     agg_psx_rec->counters[POSIX_FASTEST_RANK] = psx_rec->base_rec.rank;
-                    agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES] =
-                        psx_rec->counters[POSIX_BYTES_READ] +
-                        psx_rec->counters[POSIX_BYTES_WRITTEN];
+                    agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES] = psx_bytes;
                     agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME] = psx_time;
                 }
                 break;
             case POSIX_F_SLOWEST_RANK_TIME:
+                if(init_flag)
+                {
+                    /* set slowest rank counters according to root rank. these counters
+                     * will be determined as the aggregation progresses.
+                     */
+                    agg_psx_rec->counters[POSIX_SLOWEST_RANK] = psx_rec->base_rec.rank;
+                    agg_psx_rec->counters[POSIX_SLOWEST_RANK_BYTES] = psx_bytes;
+                    agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME] = psx_time;
+                }
+
                 if(psx_time > agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME])
                 {
                     agg_psx_rec->counters[POSIX_SLOWEST_RANK] = psx_rec->base_rec.rank;
-                    agg_psx_rec->counters[POSIX_SLOWEST_RANK_BYTES] =
-                        psx_rec->counters[POSIX_BYTES_READ] +
-                        psx_rec->counters[POSIX_BYTES_WRITTEN];
+                    agg_psx_rec->counters[POSIX_SLOWEST_RANK_BYTES] = psx_bytes;
                     agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME] = psx_time;
                 }
                 break;
+            case POSIX_F_VARIANCE_RANK_TIME:
+                if(init_flag)
+                {
+                    var_time_p->n = 1;
+                    var_time_p->M = psx_time;
+                    var_time_p->S = 0;
+                }
+                else
+                {
+                    old_M = var_time_p->M;
+
+                    var_time_p->n++;
+                    var_time_p->M += (psx_time - var_time_p->M) / var_time_p->n;
+                    var_time_p->S += (psx_time - var_time_p->M) * (psx_time - old_M);
+
+                    agg_psx_rec->fcounters[POSIX_F_VARIANCE_RANK_TIME] =
+                        var_time_p->S / var_time_p->n;
+                }
+                break;
+            case POSIX_F_VARIANCE_RANK_BYTES:
+                if(init_flag)
+                {
+                    var_bytes_p->n = 1;
+                    var_bytes_p->M = psx_bytes;
+                    var_bytes_p->S = 0;
+                }
+                else
+                {
+                    old_M = var_bytes_p->M;
+
+                    var_bytes_p->n++;
+                    var_bytes_p->M += (psx_bytes - var_bytes_p->M) / var_bytes_p->n;
+                    var_bytes_p->S += (psx_bytes - var_bytes_p->M) * (psx_bytes - old_M);
+
+                    agg_psx_rec->fcounters[POSIX_F_VARIANCE_RANK_BYTES] =
+                        var_bytes_p->S / var_bytes_p->n;
+                }
+                break;
             default:
-                /* TODO: variance */
                 agg_psx_rec->fcounters[i] = -1;
                 break;
         }

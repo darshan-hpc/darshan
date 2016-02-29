@@ -11,8 +11,6 @@
 
 #define DEF_MOD_BUF_SIZE 1024 /* 1 KiB is enough for all current mod records ... */
 
-/* TODO: set job end timestamp? */
-
 struct darshan_shared_record_ref
 {
     darshan_record_id id;
@@ -97,7 +95,7 @@ int build_mod_shared_rec_hash(char **infile_list, int n_infiles,
     darshan_fd in_fd;
     struct darshan_base_record *base_rec;
     struct darshan_shared_record_ref *ref, *tmp;
-    int init = 0;
+    int init_rank = -1;
     int ret;
     int i;
 
@@ -116,9 +114,11 @@ int build_mod_shared_rec_hash(char **infile_list, int n_infiles,
         while((ret = mod_logutils[mod_id]->log_get_record(in_fd, mod_buf)) == 1)
         {
             base_rec = (struct darshan_base_record *)mod_buf;
+            if(init_rank == -1)
+                init_rank = base_rec->rank;
 
             /* initialize the hash with the first rank's records */
-            if(!init)
+            if(base_rec->rank == init_rank)
             {
                 struct darshan_base_record *agg_base;
 
@@ -140,10 +140,9 @@ int build_mod_shared_rec_hash(char **infile_list, int n_infiles,
                 ref->id = base_rec->id;
                 ref->ref_cnt = 1;
                 HASH_ADD(hlink, *shared_rec_hash, id, sizeof(darshan_record_id), ref);
-                init = 1;
             }
             else
-            {
+           {
                 /* search for this record in shared record hash */
                 HASH_FIND(hlink, *shared_rec_hash, &(base_rec->id),
                     sizeof(darshan_record_id), ref);
