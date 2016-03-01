@@ -66,7 +66,10 @@
 } while(0)
 
 /* potentially set or increment a common value counter, depending on the __count
- * for the given __value
+ * for the given __value. This macro ensures common values are stored first in
+ * decreasing order of their total count, and second by decreasing order of
+ * their value.
+
  *
  * NOTE: This macro is hardcoded to expect that Darshan will only track the 4
  * most common (i.e., frequently occuring) values. __val_p is a pointer to the
@@ -78,32 +81,50 @@
  */
 #define DARSHAN_COMMON_VAL_COUNTER_INC(__val_p, __cnt_p, __value, __count, __online_flag) do {\
     int i; \
-    int set = 0; \
-    int64_t min = *(__cnt_p); \
-    int min_index = 0; \
-    int inc_count; \
+    int inc_count, total_count; \
+    int64_t tmp_val[4] = {0}; \
+    int64_t tmp_cnt[4] = {0}; \
+    int tmp_ndx = 0; \
     if(__value == 0) break; \
     if(__online_flag) \
         inc_count = 1; \
     else \
         inc_count = __count; \
     for(i=0; i<4; i++) { \
-        /* increment bucket if already exists */ \
         if(*(__val_p + i) == __value) { \
-            *(__cnt_p + i) += inc_count; \
-            set = 1; \
+            total_count = *(__cnt_p + i) + inc_count; \
             break; \
         } \
-        /* otherwise find the least frequently used bucket */ \
-        else if(*(__cnt_p + i) < min) { \
-            min = *(__cnt_p + i); \
-            min_index = i; \
+    } \
+    if(i == 4) total_count = __count; \
+    /* first, copy over any counters that should be sorted above this one \
+     * (counters with higher counts or equal counts and larger values) \
+     */ \
+    for(i=0;i < 4; i++) { \
+        if((*(__cnt_p + i) > total_count) || \
+           ((*(__cnt_p + i) == total_count) && (*(__val_p + i) > __value))) { \
+            tmp_val[tmp_ndx] = *(__val_p + i); \
+            tmp_cnt[tmp_ndx] = *(__cnt_p + i); \
+            tmp_ndx++; \
         } \
+        else break; \
     } \
-    if(!set && (__count > min)) { \
-        *(__cnt_p + min_index) = __count; \
-        *(__val_p + min_index) = __value; \
+    if(tmp_ndx == 4) break; /* all done, updated counter is not added */ \
+    /* next, add the updated counter */ \
+    tmp_val[tmp_ndx] = __value; \
+    tmp_cnt[tmp_ndx] = total_count; \
+    tmp_ndx++; \
+    /* last, copy over any remaining counters to make sure we have 4 sets total */ \
+    while(tmp_ndx != 4) { \
+        if(*(__val_p + i) != __value) { \
+            tmp_val[tmp_ndx] = *(__val_p + i); \
+            tmp_cnt[tmp_ndx] = *(__cnt_p + i); \
+            tmp_ndx++; \
+        } \
+        i++; \
     } \
+    memcpy(__val_p, tmp_val, 4*sizeof(int64_t)); \
+    memcpy(__cnt_p, tmp_cnt, 4*sizeof(int64_t)); \
 } while(0)
 
 /* maximum number of common values that darshan will track per file at

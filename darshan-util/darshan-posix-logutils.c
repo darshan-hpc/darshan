@@ -238,9 +238,10 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
     struct darshan_posix_file *psx_rec = (struct darshan_posix_file *)rec;
     struct darshan_posix_file *agg_psx_rec = (struct darshan_posix_file *)agg_rec;
     int i, j, k;
-    int set;
-    int min_ndx;
-    int64_t min;
+    int total_count;
+    int64_t tmp_val[4];
+    int64_t tmp_cnt[4];
+    int tmp_ndx;
     double old_M;
     double psx_time = psx_rec->fcounters[POSIX_F_READ_TIME] +
         psx_rec->fcounters[POSIX_F_WRITE_TIME] +
@@ -325,30 +326,69 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
             case POSIX_STRIDE1_STRIDE:
             case POSIX_ACCESS1_ACCESS:
                 /* increment common value counters */
+                if(psx_rec->counters[i] == 0) break;
+
+                /* first, collapse duplicates */
                 for(j = i; j < i + 4; j++)
                 {
-                    min = agg_psx_rec->counters[i + 4];
-                    min_ndx = 0;
-                    set = 0;
                     for(k = 0; k < 4; k++)
                     {
                         if(agg_psx_rec->counters[i + k] == psx_rec->counters[j])
                         {
                             agg_psx_rec->counters[i + k + 4] += psx_rec->counters[j + 4];
-                            set = 1;
+                            psx_rec->counters[j] = psx_rec->counters[j + 4] = 0;
+                        }
+                    }
+                }
+
+                /* second, add new counters */
+                for(j = i; j < i + 4; j++)
+                {
+                    tmp_ndx = 0;
+                    memset(tmp_val, 0, 4 * sizeof(int64_t));
+                    memset(tmp_cnt, 0, 4 * sizeof(int64_t));
+
+                    for(k = 0; k < 4; k++)
+                    {
+                        if(agg_psx_rec->counters[i + k] == psx_rec->counters[j])
+                        {
+                            total_count = agg_psx_rec->counters[i + k + 4] +
+                                psx_rec->counters[j + 4];
                             break;
                         }
-                        else if(agg_psx_rec->counters[i + k + 4] < min)
-                        {
-                            min = agg_psx_rec->counters[i + k + 4];
-                            min_ndx = k;
-                        }
                     }
-                    if(!set && (psx_rec->counters[j + 4] > min))
+                    if(k == 4) total_count = psx_rec->counters[j + 4];
+
+                    for(k = 0; k < 4; k++)
                     {
-                        agg_psx_rec->counters[i + min_ndx] = psx_rec->counters[j];
-                        agg_psx_rec->counters[i + min_ndx + 4] = psx_rec->counters[j + 4];
+                        if((agg_psx_rec->counters[i + k + 4] > total_count) ||
+                           ((agg_psx_rec->counters[i + k + 4] == total_count) &&
+                            (agg_psx_rec->counters[i + k] > psx_rec->counters[j])))
+                        {
+                            tmp_val[tmp_ndx] = agg_psx_rec->counters[i + k];
+                            tmp_cnt[tmp_ndx] = agg_psx_rec->counters[i + k + 4];
+                            tmp_ndx++;
+                        }
+                        else break;
                     }
+                    if(tmp_ndx == 4) break;
+
+                    tmp_val[tmp_ndx] = psx_rec->counters[j];
+                    tmp_cnt[tmp_ndx] = psx_rec->counters[j + 4];
+                    tmp_ndx++;
+
+                    while(tmp_ndx != 4)
+                    {
+                        if(agg_psx_rec->counters[i + k] != psx_rec->counters[j])
+                        {
+                            tmp_val[tmp_ndx] = agg_psx_rec->counters[i + k];
+                            tmp_cnt[tmp_ndx] = agg_psx_rec->counters[i + k + 4];
+                            tmp_ndx++;
+                        }
+                        k++;
+                    }
+                    memcpy(&(agg_psx_rec->counters[i]), tmp_val, 4 * sizeof(int64_t));
+                    memcpy(&(agg_psx_rec->counters[i + 4]), tmp_cnt, 4 * sizeof(int64_t));
                 }
                 break;
             case POSIX_STRIDE2_STRIDE:
