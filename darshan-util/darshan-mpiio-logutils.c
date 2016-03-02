@@ -331,6 +331,7 @@ static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag)
                     memset(tmp_val, 0, 4 * sizeof(int64_t));
                     memset(tmp_cnt, 0, 4 * sizeof(int64_t));
 
+                    if(mpi_rec->counters[j] == 0) break;
                     for(k = 0; k < 4; k++)
                     {
                         if(agg_mpi_rec->counters[i + k] == mpi_rec->counters[j])

@@ -326,7 +326,6 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
             case POSIX_STRIDE1_STRIDE:
             case POSIX_ACCESS1_ACCESS:
                 /* increment common value counters */
-                if(psx_rec->counters[i] == 0) break;
 
                 /* first, collapse duplicates */
                 for(j = i; j < i + 4; j++)
@@ -348,6 +347,7 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                     memset(tmp_val, 0, 4 * sizeof(int64_t));
                     memset(tmp_cnt, 0, 4 * sizeof(int64_t));
 
+                    if(psx_rec->counters[j] == 0) break;
                     for(k = 0; k < 4; k++)
                     {
                         if(agg_psx_rec->counters[i + k] == psx_rec->counters[j])
