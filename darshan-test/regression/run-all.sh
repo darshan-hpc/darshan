@@ -45,6 +45,17 @@ fi
 # set up environment for tests according to platform
 source $DARSHAN_TESTDIR/$DARSHAN_PLATFORM/env.sh
 
+# in case of using LD_PRELOAD, it is possible errors with Darshan symbols
+# (e..g, forgetting to resolve a symbol Darshan wraps uses using dlsym) 
+# can cause arbitrary binaries to crash. We check the output of the true
+# command to successfully identify failures like this and exit
+true_out=`/bin/true 2>&1`
+if [ $? -ne 0 -o -n true_out ]; then
+    echo $true_out
+    echo "environment setup failed"
+    exit 1
+fi
+
 failure_count=0
 
 for i in `ls $DARSHAN_TESTDIR/test-cases/*.sh`; do
