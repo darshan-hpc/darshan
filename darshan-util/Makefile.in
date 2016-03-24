@@ -153,7 +153,7 @@ endif
 
 
 clean::
-	rm -f *.o *.po *.a darshan-analyzer darshan-convert darshan-parser jenkins-hash-gen
+	rm -f *.o *.po *.a darshan-analyzer darshan-convert darshan-diff darshan-parser jenkins-hash-gen
 
 distclean:: clean
 	rm -f darshan-runtime-config.h aclocal.m4 autom4te.cache/* config.status config.log Makefile util/bin/darshan-job-summary.pl
