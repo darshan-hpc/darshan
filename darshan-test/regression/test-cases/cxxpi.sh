@@ -3,7 +3,7 @@
 PROG=cxxpi
 
 # set log file path; remove previous log if present
-export DARSHAN_LOGFILE=$DARSHAN_TMP/${PROG}.darshan.gz
+export DARSHAN_LOGFILE=$DARSHAN_TMP/${PROG}.darshan
 rm -f ${DARSHAN_LOGFILE}
 
 # compile
