@@ -4,6 +4,10 @@ Darshan Release Change Log
 
 Darshan-3.0.0
 =============
+* install darshan-null-log-format.h header when installing
+  darshan-util component, otherwise compiler errors are
+  generated when building external tools that use
+  libdarshan-util
 * update docs to give debugging tips for cases where
   Darshan logs are not generated
 * fix shared library regression test script to check for

@@ -132,6 +132,7 @@ endif
 	install -m 644 $(srcdir)/darshan-pnetcdf-logutils.h $(includedir)
 	install -m 644 $(srcdir)/darshan-bgq-logutils.h $(includedir)
 	install -m 644 $(srcdir)/darshan-null-logutils.h $(includedir)
+	install -m 644 $(srcdir)/../darshan-null-log-format.h $(includedir)
 	install -m 644 $(srcdir)/../darshan-posix-log-format.h $(includedir)
 	install -m 644 $(srcdir)/../darshan-mpiio-log-format.h $(includedir)
 	install -m 644 $(srcdir)/../darshan-hdf5-log-format.h $(includedir)
