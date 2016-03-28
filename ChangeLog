@@ -4,6 +4,11 @@ Darshan Release Change Log
 
 Darshan-3.0.0
 =============
+* update docs to give debugging tips for cases where
+  Darshan logs are not generated
+* fix shared library regression test script to check for
+  potential errors with Darshan symbols rather than
+  failing silently in these cases
 * bug fix for determining minimum non-zero counters in
 shared file reductions in all modules
 * loosen Darshan's PMPI symbol check to prevent inadvertent
