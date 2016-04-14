@@ -103,6 +103,7 @@ struct darshan_record
 #include "darshan-hdf5-log-format.h"
 #include "darshan-pnetcdf-log-format.h"
 #include "darshan-bgq-log-format.h"
+#include "darshan-stdio-log-format.h"
 
 /* X-macro for keeping module ordering consistent */
 /* NOTE: first val used to define module enum values, 
@@ -120,7 +121,8 @@ struct darshan_record
     X(DARSHAN_MPIIO_MOD,    "MPI-IO",   DARSHAN_MPIIO_VER,      &mpiio_logutils) \
     X(DARSHAN_HDF5_MOD,     "HDF5",     DARSHAN_HDF5_VER,       &hdf5_logutils) \
     X(DARSHAN_PNETCDF_MOD,  "PNETCDF",  DARSHAN_PNETCDF_VER,    &pnetcdf_logutils) \
-    X(DARSHAN_BGQ_MOD,      "BG/Q",     DARSHAN_BGQ_VER,        &bgq_logutils)
+    X(DARSHAN_BGQ_MOD,      "BG/Q",     DARSHAN_BGQ_VER,        &bgq_logutils) \
+    X(DARSHAN_STDIO_MOD,    "STDIO",    DARSHAN_STDIO_VER,      &stdio_logutils)
 
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
