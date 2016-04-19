@@ -2,8 +2,6 @@
 --wrap=open64
 --wrap=creat
 --wrap=creat64
---wrap=fopen
---wrap=fopen64
 --wrap=mkstemp
 --wrap=mkostemp
 --wrap=mkstemps

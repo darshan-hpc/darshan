@@ -43,8 +43,6 @@ DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(open64, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(creat, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(creat64, int, (const char* path, mode_t mode));
-DARSHAN_FORWARD_DECL(fopen, FILE*, (const char *path, const char *mode));
-DARSHAN_FORWARD_DECL(fopen64, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(mkstemp, int, (char *template));
 DARSHAN_FORWARD_DECL(mkostemp, int, (char *template, int flags));
 DARSHAN_FORWARD_DECL(mkstemps, int, (char *template, int suffixlen));
@@ -460,56 +458,6 @@ int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
     POSIX_LOCK();
     posix_runtime_initialize();
     POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
-    POSIX_UNLOCK();
-
-    return(ret);
-}
-
-FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
-{
-    FILE* ret;
-    int fd;
-    double tm1, tm2;
-
-    MAP_OR_FAIL(fopen);
-
-    tm1 = darshan_core_wtime();
-    ret = __real_fopen(path, mode);
-    tm2 = darshan_core_wtime();
-
-    if(ret == NULL)
-        fd = -1;
-    else
-        fd = fileno(ret);
-
-    POSIX_LOCK();
-    posix_runtime_initialize();
-    POSIX_RECORD_OPEN(fd, path, 0, 1, tm1, tm2);
-    POSIX_UNLOCK();
-
-    return(ret);
-}
-
-FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
-{
-    FILE* ret;
-    int fd;
-    double tm1, tm2;
-
-    MAP_OR_FAIL(fopen64);
-
-    tm1 = darshan_core_wtime();
-    ret = __real_fopen64(path, mode);
-    tm2 = darshan_core_wtime();
-
-    if(ret == NULL)
-        fd = -1;
-    else
-        fd = fileno(ret);
-
-    POSIX_LOCK();
-    posix_runtime_initialize();
-    POSIX_RECORD_OPEN(fd, path, 0, 1, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
