@@ -47,6 +47,12 @@ struct darshan_record_ref
     UT_hash_handle hlink;
 };
 
+struct darshan_mnt_info
+{
+    char mnt_type[DARSHAN_EXE_LEN];
+    char mnt_path[DARSHAN_EXE_LEN];
+};
+
 /* functions to be implemented by each module for integration with
  * darshan log file utilities (e.g., parser & convert tools)
  */
@@ -115,10 +121,10 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job);
 int darshan_log_putjob(darshan_fd fd, struct darshan_job *job);
 int darshan_log_getexe(darshan_fd fd, char *buf);
 int darshan_log_putexe(darshan_fd fd, char *buf);
-int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts,
-    char*** fs_types, int* count);
-int darshan_log_putmounts(darshan_fd fd, char** mnt_pts,
-    char** fs_types, int count);
+int darshan_log_getmounts(darshan_fd fd, struct darshan_mnt_info **mnt_data_array,
+    int* count);
+int darshan_log_putmounts(darshan_fd fd, struct darshan_mnt_info *mnt_data_array,
+    int count);
 int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash);
 int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash);
 int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
