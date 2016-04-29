@@ -135,15 +135,52 @@ static void stdio_shutdown(void);
 #define STDIO_LOCK() pthread_mutex_lock(&stdio_runtime_mutex)
 #define STDIO_UNLOCK() pthread_mutex_unlock(&stdio_runtime_mutex)
 
+/* TODO: remember to clean up stream_flag in posix module */
+/* TODO: remember to update start_timestamp logic in other modules */
+
+#define STDIO_RECORD_OPEN(__ret, __path, __tm1, __tm2) do { \
+    struct stdio_file_runtime* file; \
+    char* exclude; \
+    int tmp_index = 0; \
+    if(__ret == NULL) break; \
+    while((exclude = darshan_path_exclusions[tmp_index])) { \
+        if(!(strncmp(exclude, __path, strlen(exclude)))) \
+            break; \
+        tmp_index++; \
+    } \
+    if(exclude) break; \
+    file = stdio_file_by_name_setstream(__path, __ret); \
+    if(!file) break; \
+    file->offset = 0; \
+    file->last_byte_written = 0; \
+    file->last_byte_read = 0; \
+    file->file_record->counters[STDIO_FOPENS] += 1; \
+    if(file->file_record->fcounters[STDIO_F_OPEN_START_TIMESTAMP] == 0 || \
+     file->file_record->fcounters[STDIO_F_OPEN_START_TIMESTAMP] > __tm1) \
+        file->file_record->fcounters[STDIO_F_OPEN_START_TIMESTAMP] = __tm1; \
+    file->file_record->fcounters[STDIO_F_OPEN_END_TIMESTAMP] = __tm2; \
+    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[STDIO_F_META_TIME], __tm1, __tm2, file->last_meta_end); \
+} while(0)
+
+
+
 FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
 {
     FILE* ret;
+    double tm1, tm2;
 
     fprintf(stderr, "FOO: HELLO WORLD (FOPEN)\n");
 
     MAP_OR_FAIL(fopen);
 
+    tm1 = darshan_core_wtime();
     ret = __real_fopen(path, mode);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    STDIO_RECORD_OPEN(ret, path, tm1, tm2);
+    STDIO_UNLOCK();
 
     return(ret);
 }

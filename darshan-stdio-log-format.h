@@ -56,18 +56,18 @@
  */
 
 #define STDIO_COUNTERS \
-    /* count of number of 'bar' function calls */\
-    X(STDIO_BARS) \
-    /* arbitrary data value set by last call to 'bar' */\
-    X(STDIO_BAR_DAT) \
+    /* count of fopens */\
+    X(STDIO_FOPENS) \
     /* end of counters */\
     X(STDIO_NUM_INDICES)
 
 #define STDIO_F_COUNTERS \
-    /* timestamp of the first call to function 'bar' */\
-    X(STDIO_F_BAR_TIMESTAMP) \
-    /* timer indicating duration of last call to 'bar' */\
-    X(STDIO_F_BAR_DURATION) \
+    /* timestamp of first open */\
+    X(STDIO_F_OPEN_START_TIMESTAMP) \
+    /* timestamp of last open completion */\
+    X(STDIO_F_OPEN_END_TIMESTAMP) \
+    /* cumulative meta time */\
+    X(STDIO_F_META_TIME) \
     /* end of counters */\
     X(STDIO_F_NUM_INDICES)
 
