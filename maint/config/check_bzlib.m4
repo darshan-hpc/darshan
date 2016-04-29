@@ -57,7 +57,7 @@ if test -z "${DISABLE_BZLIB}"
 then
         AC_MSG_RESULT(yes)
         BZLIB_OLD_LDFLAGS=$LDFLAGS
-        BZLIB_OLD_CPPFLAGS=$LDFLAGS
+        BZLIB_OLD_CPPFLAGS=$CPPFLAGS
         LDFLAGS="$LDFLAGS -L${BZLIB_HOME}/lib"
         CPPFLAGS="$CPPFLAGS -I${BZLIB_HOME}/include"
         AC_LANG_SAVE

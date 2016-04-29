@@ -205,8 +205,7 @@ int main(int argc, char **argv)
     struct darshan_record_ref *rec_hash = NULL;
     struct darshan_record_ref *ref, *tmp_ref;
     int mount_count;
-    char** mnt_pts;
-    char** fs_types;
+    struct darshan_mnt_info *mnt_data_array;
     time_t tmp_time = 0;
     char *token;
     char *save;
@@ -248,7 +247,7 @@ int main(int argc, char **argv)
     }
 
     /* get the mount information for this log */
-    ret = darshan_log_getmounts(fd, &mnt_pts, &fs_types, &mount_count);
+    ret = darshan_log_getmounts(fd, &mnt_data_array, &mount_count);
     if(ret < 0)
     {
         darshan_log_close(fd);
@@ -318,7 +317,8 @@ int main(int argc, char **argv)
     printf("# -------------------------------------------------------\n");
     for(i=0; i<mount_count; i++)
     {
-        printf("# mount entry:\t%s\t%s\n", mnt_pts[i], fs_types[i]);
+        printf("# mount entry:\t%s\t%s\n", mnt_data_array[i].mnt_path,
+            mnt_data_array[i].mnt_type);
     }
 
     if(mask & OPTION_BASE)
@@ -417,10 +417,11 @@ int main(int argc, char **argv)
             /* get mount point and fs type associated with this record */
             for(j=0; j<mount_count; j++)
             {
-                if(strncmp(mnt_pts[j], ref->rec.name, strlen(mnt_pts[j])) == 0)
+                if(strncmp(mnt_data_array[j].mnt_path, ref->rec.name,
+                    strlen(mnt_data_array[j].mnt_path)) == 0)
                 {
-                    mnt_pt = mnt_pts[j];
-                    fs_type = fs_types[j];
+                    mnt_pt = mnt_data_array[j].mnt_path;
+                    fs_type = mnt_data_array[j].mnt_type;
                     break;
                 }
             }
@@ -633,15 +634,9 @@ cleanup:
     }
 
     /* free mount info */
-    for(i=0; i<mount_count; i++)
-    {
-        free(mnt_pts[i]);
-        free(fs_types[i]);
-    }
     if(mount_count > 0)
     {
-        free(mnt_pts);
-        free(fs_types);
+        free(mnt_data_array);
     }
 
     return(ret);

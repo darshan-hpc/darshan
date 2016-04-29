@@ -3538,7 +3538,7 @@ then
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
         BZLIB_OLD_LDFLAGS=$LDFLAGS
-        BZLIB_OLD_CPPFLAGS=$LDFLAGS
+        BZLIB_OLD_CPPFLAGS=$CPPFLAGS
         LDFLAGS="$LDFLAGS -L${BZLIB_HOME}/lib"
         CPPFLAGS="$CPPFLAGS -I${BZLIB_HOME}/include"
 
