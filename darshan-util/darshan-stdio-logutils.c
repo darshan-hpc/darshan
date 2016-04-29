@@ -143,10 +143,10 @@ static void darshan_log_print_stdio_record(void *file_rec, char *file_name,
 static void darshan_log_print_stdio_description()
 {
     printf("\n# description of STDIO counters:\n");
-    printf("#   STDIO_BARS: number of 'bar' function calls.\n");
-    printf("#   STDIO_BAR_DAT: value set by last call to function 'bar'.\n");
-    printf("#   STDIO_F_BAR_TIMESTAMP: timestamp of the first call to function 'bar'.\n");
-    printf("#   STDIO_F_BAR_DURATION: duration of the last call to function 'bar'.\n");
+    printf("#   STDIO_FOPENS: number of 'fopen' function calls.\n");
+    printf("#   STDIO_F_OPEN_START_TIMESTAMP: timestamp of the first call to function 'fopen'.\n");
+    printf("#   STDIO_F_OPEN_END_TIMESTAMP: timestamp of the completion of the last call to 'fopen'.\n");
+    printf("#   STDIO_F_META_TIME: cumulative time spent in metadata operations.\n");
 
     return;
 }

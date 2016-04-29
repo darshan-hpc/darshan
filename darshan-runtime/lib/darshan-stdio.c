@@ -35,7 +35,7 @@ DARSHAN_FORWARD_DECL(fopen, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(fopen64, FILE*, (const char *path, const char *mode));
 
 /* The stdio_file_runtime structure maintains necessary runtime metadata
- * for the STDIO file record (darshan_stdio_file structure, defined in
+ * for the STDIO file record (darshan_stdio_record structure, defined in
  * darshan-stdio-log-format.h) pointed to by 'file_record'. This metadata
  * assists with the instrumenting of specific statistics in the file record.
  * 'hlink' is a hash table link structure used to add/remove this record
@@ -44,23 +44,23 @@ DARSHAN_FORWARD_DECL(fopen64, FILE*, (const char *path, const char *mode));
  * RATIONALE: the STDIO module needs to track some stateful, volatile 
  * information about each open file (like the current file offset, most recent 
  * access time, etc.) to aid in instrumentation, but this information can't be
- * stored in the darshan_stdio_file struct because we don't want it to appear in
+ * stored in the darshan_stdio_record struct because we don't want it to appear in
  * the final darshan log file.  We therefore associate a stdio_file_runtime
- * struct with each darshan_stdio_file struct in order to track this information.
+ * struct with each darshan_stdio_record struct in order to track this information.
   *
  * NOTE: There is a one-to-one mapping of stdio_file_runtime structs to
- * darshan_stdio_file structs.
+ * darshan_stdio_record structs.
  *
- * NOTE: The stdio_file_runtime struct contains a pointer to a darshan_stdio_file
+ * NOTE: The stdio_file_runtime struct contains a pointer to a darshan_stdio_record
  * struct (see the *file_record member) rather than simply embedding an entire
- * darshan_stdio_file struct.  This is done so that all of the darshan_stdio_file
+ * darshan_stdio_record struct.  This is done so that all of the darshan_stdio_record
  * structs can be kept contiguous in memory as a single array to simplify
  * reduction, compression, and storage.
  */
 struct stdio_file_runtime
 {
     /* TODO: make sure we need/want all of these fields */
-    struct darshan_stdio_file* file_record;
+    struct darshan_stdio_record* file_record;
     int64_t offset;
     int64_t last_byte_read;
     int64_t last_byte_written;
@@ -108,7 +108,7 @@ struct stdio_file_runtime_ref
 struct stdio_runtime
 {
     struct stdio_file_runtime* file_runtime_array;
-    struct darshan_stdio_file* file_record_array;
+    struct darshan_stdio_record* file_record_array;
     int file_array_size;
     int file_array_ndx;
     struct stdio_file_runtime* file_hash;
@@ -237,14 +237,14 @@ static void stdio_runtime_initialize()
     /* set maximum number of file records according to max memory limit */
     /* NOTE: maximum number of records is based on the size of a stdio file record */
     /* TODO: should we base memory usage off file record or total runtime structure sizes? */
-    stdio_runtime->file_array_size = mem_limit / sizeof(struct darshan_stdio_file);
+    stdio_runtime->file_array_size = mem_limit / sizeof(struct darshan_stdio_record);
     stdio_runtime->file_array_ndx = 0;
 
     /* allocate array of runtime file records */
     stdio_runtime->file_runtime_array = malloc(stdio_runtime->file_array_size *
                                                sizeof(struct stdio_file_runtime));
     stdio_runtime->file_record_array = malloc(stdio_runtime->file_array_size *
-                                              sizeof(struct darshan_stdio_file));
+                                              sizeof(struct darshan_stdio_record));
     if(!stdio_runtime->file_runtime_array || !stdio_runtime->file_record_array)
     {
         stdio_runtime->file_array_size = 0;
@@ -253,7 +253,7 @@ static void stdio_runtime_initialize()
     memset(stdio_runtime->file_runtime_array, 0, stdio_runtime->file_array_size *
            sizeof(struct stdio_file_runtime));
     memset(stdio_runtime->file_record_array, 0, stdio_runtime->file_array_size *
-           sizeof(struct darshan_stdio_file));
+           sizeof(struct darshan_stdio_record));
 
     return;
 }
@@ -426,7 +426,7 @@ static void stdio_get_output_data(
     assert(stdio_runtime);
 
     *stdio_buf = (void *)(stdio_runtime->file_record_array);
-    *stdio_buf_sz = stdio_runtime->file_array_ndx * sizeof(struct darshan_stdio_file);
+    *stdio_buf_sz = stdio_runtime->file_array_ndx * sizeof(struct darshan_stdio_record);
 
     return;
 }

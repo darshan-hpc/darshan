@@ -93,7 +93,7 @@ enum darshan_stdio_f_indices
  *      - integer I/O counters (operation counts, I/O sizes, etc.)
  *      - floating point I/O counters (timestamps, cumulative timers, etc.)
  */
-struct darshan_stdio_file
+struct darshan_stdio_record
 {
     darshan_record_id f_id;
     int64_t rank;
