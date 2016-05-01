@@ -168,8 +168,6 @@ FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
     FILE* ret;
     double tm1, tm2;
 
-    fprintf(stderr, "FOO: HELLO WORLD (FOPEN)\n");
-
     MAP_OR_FAIL(fopen);
 
     tm1 = darshan_core_wtime();
@@ -187,12 +185,18 @@ FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
 FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
 {
     FILE* ret;
+    double tm1, tm2;
 
-    fprintf(stderr, "FOO: HELLO WORLD (FOPEN64)\n");
+    MAP_OR_FAIL(fopen);
 
-    MAP_OR_FAIL(fopen64);
-
+    tm1 = darshan_core_wtime();
     ret = __real_fopen64(path, mode);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    STDIO_RECORD_OPEN(ret, path, tm1, tm2);
+    STDIO_UNLOCK();
 
     return(ret);
 }
