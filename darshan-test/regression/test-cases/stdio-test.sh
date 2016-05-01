@@ -27,14 +27,36 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# TODO: look for "tail" commands in all of these test cases and remove them
+# later.  Right now they are needed to make sure we only check 1 out of 4
+# possible records because reduction is not implemented yet
+
 # check results
+
 # in this case we want to confirm that the STDIO counters were triggered
-# TODO: change this to check aggregate counters; for now we tail -n 1 to get
-# one counter because there is no reduction operator for the stdio module yet
 STDIO_OPENS=`grep STDIO_FOPENS $DARSHAN_TMP/${PROG}.darshan.txt |tail -n 1 |cut -f 5`
 if [ ! "$STDIO_OPENS" -gt 0 ]; then
     echo "Error: STDIO open count of $STDIO_FOPENS is incorrect" 1>&2
     exit 1
 fi
+
+# make sure that some of the floating point counters are valid
+# use bc for floating point comparison
+STDIO_F_OPEN_START_TIMESTAMP=`grep STDIO_F_OPEN_START_TIMESTAMP $DARSHAN_TMP/${PROG}.darshan.txt |tail -n 1 |cut -f 5`
+if [ ! $(echo "$STDIO_F_OPEN_START_TIMESTAMP > 0" | bc -l) ]; then
+    echo "Error: counter is incorrect" 1>&2
+    exit 1
+fi
+STDIO_F_OPEN_END_TIMESTAMP=`grep STDIO_F_OPEN_END_TIMESTAMP $DARSHAN_TMP/${PROG}.darshan.txt |tail -n 1 |cut -f 5`
+if [ ! $(echo "$STDIO_F_OPEN_END_TIMESTAMP > 0" | bc -l) ]; then
+    echo "Error: counter is incorrect" 1>&2
+    exit 1
+fi
+STDIO_F_META_TIME=`grep STDIO_F_META_TIME $DARSHAN_TMP/${PROG}.darshan.txt |tail -n 1 |cut -f 5`
+if [ ! $(echo "$STDIO_F_META_TIME > 0" | bc -l) ]; then
+    echo "Error: counter is incorrect" 1>&2
+    exit 1
+fi
+
 
 exit 0
