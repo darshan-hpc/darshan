@@ -136,7 +136,6 @@ static void stdio_shutdown(void);
 #define STDIO_UNLOCK() pthread_mutex_unlock(&stdio_runtime_mutex)
 
 /* TODO: remember to clean up stream_flag in posix module */
-/* TODO: remember to update start_timestamp logic in other modules */
 
 #define STDIO_RECORD_OPEN(__ret, __path, __tm1, __tm2) do { \
     struct stdio_file_runtime* file; \
