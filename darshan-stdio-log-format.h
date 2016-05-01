@@ -13,13 +13,13 @@
 /*
  * functions for opening streams
  * --------------
- * FILE    *fdopen(int, const char *);
+ * FILE    *fdopen(int, const char *);                     DONE
  * FILE    *fopen(const char *, const char *);
  * FILE    *freopen(const char *, const char *, FILE *);
  *
  * functions for closing streams
  * --------------
- * int      fclose(FILE *);
+ * int      fclose(FILE *);                                DONE
  *
  * functions for flushing streams
  * --------------
