@@ -173,7 +173,8 @@ static void mpiio_shutdown(void);
     if(file->last_io_type == DARSHAN_IO_WRITE) \
         file->file_record->counters[MPIIO_RW_SWITCHES] += 1; \
     file->last_io_type = DARSHAN_IO_READ; \
-    if(file->file_record->fcounters[MPIIO_F_READ_START_TIMESTAMP] == 0) \
+    if(file->file_record->fcounters[MPIIO_F_READ_START_TIMESTAMP] == 0 || \
+     file->file_record->fcounters[MPIIO_F_READ_START_TIMESTAMP] > __tm1) \
         file->file_record->fcounters[MPIIO_F_READ_START_TIMESTAMP] = __tm1; \
     file->file_record->fcounters[MPIIO_F_READ_END_TIMESTAMP] = __tm2; \
     if(file->file_record->fcounters[MPIIO_F_MAX_READ_TIME] < __elapsed) { \
@@ -198,7 +199,8 @@ static void mpiio_shutdown(void);
     if(file->last_io_type == DARSHAN_IO_READ) \
         file->file_record->counters[MPIIO_RW_SWITCHES] += 1; \
     file->last_io_type = DARSHAN_IO_WRITE; \
-    if(file->file_record->fcounters[MPIIO_F_WRITE_START_TIMESTAMP] == 0) \
+    if(file->file_record->fcounters[MPIIO_F_READ_START_TIMESTAMP] == 0 || \
+     file->file_record->fcounters[MPIIO_F_READ_START_TIMESTAMP] > __tm1) \
         file->file_record->fcounters[MPIIO_F_WRITE_START_TIMESTAMP] = __tm1; \
     file->file_record->fcounters[MPIIO_F_WRITE_END_TIMESTAMP] = __tm2; \
     if(file->file_record->fcounters[MPIIO_F_MAX_WRITE_TIME] < __elapsed) { \
