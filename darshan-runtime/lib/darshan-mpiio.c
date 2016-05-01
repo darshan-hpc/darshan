@@ -151,7 +151,8 @@ static void mpiio_shutdown(void);
         file->file_record->counters[MPIIO_COLL_OPENS] += 1; \
     if(__info != MPI_INFO_NULL) \
         file->file_record->counters[MPIIO_HINTS] += 1; \
-    if(file->file_record->fcounters[MPIIO_F_OPEN_TIMESTAMP] == 0) \
+    if(file->file_record->fcounters[MPIIO_F_OPEN_TIMESTAMP] == 0 || \
+     file->file_record->fcounters[MPIIO_F_OPEN_TIMESTAMP] > __tm1) \
         file->file_record->fcounters[MPIIO_F_OPEN_TIMESTAMP] = __tm1; \
     DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[MPIIO_F_META_TIME], __tm1, __tm2, file->last_meta_end); \
 } while(0)
