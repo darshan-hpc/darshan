@@ -198,7 +198,7 @@ static void posix_shutdown(void);
 #define POSIX_LOCK() pthread_mutex_lock(&posix_runtime_mutex)
 #define POSIX_UNLOCK() pthread_mutex_unlock(&posix_runtime_mutex)
 
-#define POSIX_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
+#define POSIX_RECORD_OPEN(__ret, __path, __mode, __tm1, __tm2) do { \
     struct posix_file_runtime* file; \
     char* exclude; \
     int tmp_index = 0; \
@@ -216,17 +216,14 @@ static void posix_shutdown(void);
     file->offset = 0; \
     file->last_byte_written = 0; \
     file->last_byte_read = 0; \
-    if(__stream_flag)\
-        file->file_record->counters[POSIX_FOPENS] += 1; \
-    else \
-        file->file_record->counters[POSIX_OPENS] += 1; \
+    file->file_record->counters[POSIX_OPENS] += 1; \
     if(file->file_record->fcounters[POSIX_F_OPEN_TIMESTAMP] == 0 || \
      file->file_record->fcounters[POSIX_F_OPEN_TIMESTAMP] > __tm1) \
         file->file_record->fcounters[POSIX_F_OPEN_TIMESTAMP] = __tm1; \
     DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_META_TIME], __tm1, __tm2, file->last_meta_end); \
 } while(0)
 
-#define POSIX_RECORD_READ(__ret, __fd, __pread_flag, __pread_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
+#define POSIX_RECORD_READ(__ret, __fd, __pread_flag, __pread_offset, __aligned, __tm1, __tm2) do{ \
     size_t stride; \
     int64_t this_offset; \
     struct posix_file_runtime* file; \
@@ -253,10 +250,7 @@ static void posix_shutdown(void);
     if(file->file_record->counters[POSIX_MAX_BYTE_READ] < (this_offset + __ret - 1)) \
         file->file_record->counters[POSIX_MAX_BYTE_READ] = (this_offset + __ret - 1); \
     file->file_record->counters[POSIX_BYTES_READ] += __ret; \
-    if(__stream_flag) \
-        file->file_record->counters[POSIX_FREADS] += 1; \
-    else \
-        file->file_record->counters[POSIX_READS] += 1; \
+    file->file_record->counters[POSIX_READS] += 1; \
     DARSHAN_BUCKET_INC(&(file->file_record->counters[POSIX_SIZE_READ_0_100]), __ret); \
     darshan_common_val_counter(&file->access_root, &file->access_count, __ret); \
     darshan_common_val_counter(&file->stride_root, &file->stride_count, stride); \
@@ -278,7 +272,7 @@ static void posix_shutdown(void);
     DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_READ_TIME], __tm1, __tm2, file->last_read_end); \
 } while(0)
 
-#define POSIX_RECORD_WRITE(__ret, __fd, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
+#define POSIX_RECORD_WRITE(__ret, __fd, __pwrite_flag, __pwrite_offset, __aligned, __tm1, __tm2) do{ \
     size_t stride; \
     int64_t this_offset; \
     struct posix_file_runtime* file; \
@@ -305,10 +299,7 @@ static void posix_shutdown(void);
     if(file->file_record->counters[POSIX_MAX_BYTE_WRITTEN] < (this_offset + __ret - 1)) \
         file->file_record->counters[POSIX_MAX_BYTE_WRITTEN] = (this_offset + __ret - 1); \
     file->file_record->counters[POSIX_BYTES_WRITTEN] += __ret; \
-    if(__stream_flag) \
-        file->file_record->counters[POSIX_FWRITES] += 1; \
-    else \
-        file->file_record->counters[POSIX_WRITES] += 1; \
+    file->file_record->counters[POSIX_WRITES] += 1; \
     DARSHAN_BUCKET_INC(&(file->file_record->counters[POSIX_SIZE_WRITE_0_100]), __ret); \
     darshan_common_val_counter(&file->access_root, &file->access_count, __ret); \
     darshan_common_val_counter(&file->stride_root, &file->stride_count, stride); \
@@ -384,7 +375,7 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -418,7 +409,7 @@ int DARSHAN_DECL(open64)(const char *path, int flags, ...)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -437,7 +428,7 @@ int DARSHAN_DECL(creat)(const char* path, mode_t mode)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -456,7 +447,7 @@ int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -475,7 +466,7 @@ int DARSHAN_DECL(mkstemp)(char* template)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, template, 0, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -494,7 +485,7 @@ int DARSHAN_DECL(mkostemp)(char* template, int flags)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, template, 0, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -513,7 +504,7 @@ int DARSHAN_DECL(mkstemps)(char* template, int suffixlen)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, template, 0, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -532,7 +523,7 @@ int DARSHAN_DECL(mkostemps)(char* template, int suffixlen, int flags)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, template, 0, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -554,7 +545,7 @@ ssize_t DARSHAN_DECL(read)(int fd, void *buf, size_t count)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_READ(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
+    POSIX_RECORD_READ(ret, fd, 0, 0, aligned_flag, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -576,7 +567,7 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_WRITE(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
+    POSIX_RECORD_WRITE(ret, fd, 0, 0, aligned_flag, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -598,7 +589,7 @@ ssize_t DARSHAN_DECL(pread)(int fd, void *buf, size_t count, off_t offset)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_READ(ret, fd, 1, offset, aligned_flag, 0, tm1, tm2);
+    POSIX_RECORD_READ(ret, fd, 1, offset, aligned_flag, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -620,7 +611,7 @@ ssize_t DARSHAN_DECL(pwrite)(int fd, const void *buf, size_t count, off_t offset
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_WRITE(ret, fd, 1, offset, aligned_flag, 0, tm1, tm2);
+    POSIX_RECORD_WRITE(ret, fd, 1, offset, aligned_flag, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -642,7 +633,7 @@ ssize_t DARSHAN_DECL(pread64)(int fd, void *buf, size_t count, off64_t offset)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_READ(ret, fd, 1, offset, aligned_flag, 0, tm1, tm2);
+    POSIX_RECORD_READ(ret, fd, 1, offset, aligned_flag, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -664,7 +655,7 @@ ssize_t DARSHAN_DECL(pwrite64)(int fd, const void *buf, size_t count, off64_t of
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_WRITE(ret, fd, 1, offset, aligned_flag, 0, tm1, tm2);
+    POSIX_RECORD_WRITE(ret, fd, 1, offset, aligned_flag, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -691,7 +682,7 @@ ssize_t DARSHAN_DECL(readv)(int fd, const struct iovec *iov, int iovcnt)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_READ(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
+    POSIX_RECORD_READ(ret, fd, 0, 0, aligned_flag, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -718,7 +709,7 @@ ssize_t DARSHAN_DECL(writev)(int fd, const struct iovec *iov, int iovcnt)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    POSIX_RECORD_WRITE(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
+    POSIX_RECORD_WRITE(ret, fd, 0, 0, aligned_flag, tm1, tm2);
     POSIX_UNLOCK();
 
     return(ret);
@@ -1161,13 +1152,13 @@ ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
         if(aiocbp->aio_lio_opcode == LIO_WRITE)
         {
             POSIX_RECORD_WRITE(ret, aiocbp->aio_fildes,
-                1, aiocbp->aio_offset, aligned_flag, 0,
+                1, aiocbp->aio_offset, aligned_flag,
                 tmp->tm1, tm2);
         }
         else if(aiocbp->aio_lio_opcode == LIO_READ)
         {
             POSIX_RECORD_READ(ret, aiocbp->aio_fildes,
-                1, aiocbp->aio_offset, aligned_flag, 0,
+                1, aiocbp->aio_offset, aligned_flag,
                 tmp->tm1, tm2);
         }
         free(tmp);
@@ -1199,13 +1190,13 @@ ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
         if(aiocbp->aio_lio_opcode == LIO_WRITE)
         {
             POSIX_RECORD_WRITE(ret, aiocbp->aio_fildes,
-                1, aiocbp->aio_offset, aligned_flag, 0,
+                1, aiocbp->aio_offset, aligned_flag,
                 tmp->tm1, tm2);
         }
         else if(aiocbp->aio_lio_opcode == LIO_READ)
         {
             POSIX_RECORD_READ(ret, aiocbp->aio_fildes,
-                1, aiocbp->aio_offset, aligned_flag, 0,
+                1, aiocbp->aio_offset, aligned_flag,
                 tmp->tm1, tm2);
         }
         free(tmp);
@@ -1867,15 +1858,15 @@ void darshan_posix_shutdown_bench_setup(int test_case)
         case 1: /* single file-per-process */
             snprintf(filepath, 256, "fpp-0_rank-%d", my_rank);
             
-            POSIX_RECORD_OPEN(fd_array[0], filepath, 777, 0, 0, 1);
-            POSIX_RECORD_WRITE(size_array[0], fd_array[0], 0, 0, 1, 0, 1, 2);
+            POSIX_RECORD_OPEN(fd_array[0], filepath, 777, 0, 1);
+            POSIX_RECORD_WRITE(size_array[0], fd_array[0], 0, 0, 1, 1, 2);
 
             break;
         case 2: /* single shared file */
             snprintf(filepath, 256, "shared-0");
 
-            POSIX_RECORD_OPEN(fd_array[0], filepath, 777, 0, 0, 1);
-            POSIX_RECORD_WRITE(size_array[0], fd_array[0], 0, 0, 1, 0, 1, 2);
+            POSIX_RECORD_OPEN(fd_array[0], filepath, 777, 0, 1);
+            POSIX_RECORD_WRITE(size_array[0], fd_array[0], 0, 0, 1, 1, 2);
 
             break;
         case 3: /* 1024 unique files per proc */
@@ -1883,9 +1874,9 @@ void darshan_posix_shutdown_bench_setup(int test_case)
             {
                 snprintf(filepath, 256, "fpp-%d_rank-%d", i , my_rank);
 
-                POSIX_RECORD_OPEN(fd_array[i], filepath, 777, 0, 0, 1);
+                POSIX_RECORD_OPEN(fd_array[i], filepath, 777, 0, 1);
                 POSIX_RECORD_WRITE(size_array[i % DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT],
-                    fd_array[i], 0, 0, 1, 0, 1, 2);
+                    fd_array[i], 0, 0, 1, 1, 2);
             }
 
             break;
@@ -1894,9 +1885,9 @@ void darshan_posix_shutdown_bench_setup(int test_case)
             {
                 snprintf(filepath, 256, "shared-%d", i);
 
-                POSIX_RECORD_OPEN(fd_array[i], filepath, 777, 0, 0, 1);
+                POSIX_RECORD_OPEN(fd_array[i], filepath, 777, 0, 1);
                 POSIX_RECORD_WRITE(size_array[i % DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT],
-                    fd_array[i], 0, 0, 1, 0, 1, 2);
+                    fd_array[i], 0, 0, 1, 1, 2);
             }
 
             break;

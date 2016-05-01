@@ -4,6 +4,14 @@
  *
  */
 
+/* TODO list (general) for this module:
+ * - finish remaining function wrappers, see log format header
+ * - implement reduction operator
+ * - add stdio page to darshan-job-summary
+ * - figure out what to do about posix module compatibility
+ *   - remove stdio counters in POSIX or keep and set to -1?
+ */
+
 #define _XOPEN_SOURCE 500
 #define _GNU_SOURCE
 
@@ -63,10 +71,8 @@ DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
  */
 struct stdio_file_runtime
 {
-    /* TODO: make sure we need/want all of these fields */
     struct darshan_stdio_record* file_record;
     int64_t offset;
-    enum darshan_io_type last_io_type;
     double last_meta_end;
     double last_read_end;
     double last_write_end;
@@ -136,8 +142,6 @@ static void stdio_shutdown(void);
 
 #define STDIO_LOCK() pthread_mutex_lock(&stdio_runtime_mutex)
 #define STDIO_UNLOCK() pthread_mutex_unlock(&stdio_runtime_mutex)
-
-/* TODO: remember to clean up stream_flag in posix module */
 
 #define STDIO_RECORD_OPEN(__ret, __path, __tm1, __tm2) do { \
     struct stdio_file_runtime* file; \
@@ -562,8 +566,6 @@ static void stdio_get_output_data(
     void **stdio_buf,
     int *stdio_buf_sz)
 {
-    /* TODO: implement reduction operator */
-
     assert(stdio_runtime);
 
     *stdio_buf = (void *)(stdio_runtime->file_record_array);
