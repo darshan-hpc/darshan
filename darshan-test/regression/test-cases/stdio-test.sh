@@ -44,6 +44,11 @@ if [ ! "$STDIO_BYTES_WRITTEN" -eq 6 ]; then
     echo "Error: STDIO open count of $STDIO_BYTES_WRITTEN is incorrect" 1>&2
     exit 1
 fi
+STDIO_BYTES_READ=`grep STDIO_BYTES_READ $DARSHAN_TMP/${PROG}.darshan.txt |head -n 1 |cut -f 5`
+if [ ! "$STDIO_BYTES_READ" -eq 6 ]; then
+    echo "Error: STDIO open count of $STDIO_BYTES_READ is incorrect" 1>&2
+    exit 1
+fi
 
 
 # make sure that some of the floating point counters are valid

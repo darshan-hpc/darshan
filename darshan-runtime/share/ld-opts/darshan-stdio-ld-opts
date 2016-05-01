@@ -3,3 +3,4 @@
 --wrap=fopen64
 --wrap=fclose
 --wrap=fwrite
+--wrap=fread

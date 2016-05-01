@@ -143,7 +143,7 @@ static void darshan_log_print_stdio_record(void *file_rec, char *file_name,
 static void darshan_log_print_stdio_description()
 {
     printf("\n# description of STDIO counters:\n");
-    printf("#   STDIO_{OPENS|WRITES} are types of operations.\n");
+    printf("#   STDIO_{OPENS|WRITES|READS} are types of operations.\n");
     printf("#   STDIO_BYTES_*: total bytes read and written.\n");
     printf("#   STDIO_MAX_BYTE_*: highest offset byte read and written.\n");
     printf("#   STDIO_F_*_START_TIMESTAMP: timestamp of the first call to that type of function.\n");

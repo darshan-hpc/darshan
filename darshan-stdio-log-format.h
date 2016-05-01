@@ -13,13 +13,13 @@
 /*
  * functions for opening streams
  * --------------
- * FILE    *fdopen(int, const char *);                     DONE
+ * FILE    *fdopen(int, const char *);                      DONE
  * FILE    *fopen(const char *, const char *);
  * FILE    *freopen(const char *, const char *, FILE *);
  *
  * functions for closing streams
  * --------------
- * int      fclose(FILE *);                                DONE
+ * int      fclose(FILE *);                                 DONE
  *
  * functions for flushing streams
  * --------------
@@ -29,7 +29,7 @@
  * --------------
  * int      fgetc(FILE *);
  * char    *fgets(char *, int, FILE *);
- * size_t   fread(void *, size_t, size_t, FILE *);
+ * size_t   fread(void *, size_t, size_t, FILE *);          DONE
  * int      fscanf(FILE *, const char *, ...);
  * int      getc(FILE *);
  * int      getc_unlocked(FILE *);
@@ -64,6 +64,12 @@
     X(STDIO_BYTES_WRITTEN) \
     /* number of writes */ \
     X(STDIO_WRITES) \
+    /* maximum byte (offset) written */\
+    X(STDIO_MAX_BYTE_READ) \
+    /* total bytes written */ \
+    X(STDIO_BYTES_READ) \
+    /* number of writes */ \
+    X(STDIO_READS) \
     /* end of counters */\
     X(STDIO_NUM_INDICES)
 
@@ -80,10 +86,16 @@
     X(STDIO_F_WRITE_START_TIMESTAMP) \
     /* timestamp of last write completion */\
     X(STDIO_F_WRITE_END_TIMESTAMP) \
+    /* timestamp of first read */\
+    X(STDIO_F_READ_START_TIMESTAMP) \
+    /* timestamp of last read completion */\
+    X(STDIO_F_READ_END_TIMESTAMP) \
     /* cumulative meta time */\
     X(STDIO_F_META_TIME) \
     /* cumulative write time */\
     X(STDIO_F_WRITE_TIME) \
+    /* cumulative read time */\
+    X(STDIO_F_READ_TIME) \
     /* end of counters */\
     X(STDIO_F_NUM_INDICES)
 

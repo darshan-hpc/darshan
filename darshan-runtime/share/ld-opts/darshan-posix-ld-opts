@@ -14,7 +14,6 @@
 --wrap=pwrite64
 --wrap=readv
 --wrap=writev
---wrap=fread
 --wrap=lseek
 --wrap=lseek64
 --wrap=fseek

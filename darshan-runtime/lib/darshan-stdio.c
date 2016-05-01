@@ -35,6 +35,7 @@ DARSHAN_FORWARD_DECL(fopen, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(fopen64, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
+DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
 
 /* The stdio_file_runtime structure maintains necessary runtime metadata
  * for the STDIO file record (darshan_stdio_record structure, defined in
@@ -64,8 +65,6 @@ struct stdio_file_runtime
     /* TODO: make sure we need/want all of these fields */
     struct darshan_stdio_record* file_record;
     int64_t offset;
-    int64_t last_byte_read;
-    int64_t last_byte_written;
     enum darshan_io_type last_io_type;
     double last_meta_end;
     double last_read_end;
@@ -153,8 +152,6 @@ static void stdio_shutdown(void);
     file = stdio_file_by_name_setstream(__path, __ret); \
     if(!file) break; \
     file->offset = 0; \
-    file->last_byte_written = 0; \
-    file->last_byte_read = 0; \
     file->file_record->counters[STDIO_OPENS] += 1; \
     if(file->file_record->fcounters[STDIO_F_OPEN_START_TIMESTAMP] == 0 || \
      file->file_record->fcounters[STDIO_F_OPEN_START_TIMESTAMP] > __tm1) \
@@ -164,13 +161,30 @@ static void stdio_shutdown(void);
 } while(0)
 
 
+#define STDIO_RECORD_READ(__fp, __bytes,  __tm1, __tm2) do{ \
+    int64_t this_offset; \
+    struct stdio_file_runtime* file; \
+    file = stdio_file_by_stream(__fp); \
+    if(!file) break; \
+    this_offset = file->offset; \
+    file->offset = this_offset + __bytes; \
+    if(file->file_record->counters[STDIO_MAX_BYTE_READ] < (this_offset + __bytes - 1)) \
+        file->file_record->counters[STDIO_MAX_BYTE_READ] = (this_offset + __bytes - 1); \
+    file->file_record->counters[STDIO_BYTES_READ] += __bytes; \
+    file->file_record->counters[STDIO_READS] += 1; \
+    if(file->file_record->fcounters[STDIO_F_READ_START_TIMESTAMP] == 0 || \
+     file->file_record->fcounters[STDIO_F_READ_START_TIMESTAMP] > __tm1) \
+        file->file_record->fcounters[STDIO_F_READ_START_TIMESTAMP] = __tm1; \
+    file->file_record->fcounters[STDIO_F_READ_END_TIMESTAMP] = __tm2; \
+    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[STDIO_F_READ_TIME], __tm1, __tm2, file->last_write_end); \
+} while(0)
+
 #define STDIO_RECORD_WRITE(__fp, __bytes,  __tm1, __tm2) do{ \
     int64_t this_offset; \
     struct stdio_file_runtime* file; \
     file = stdio_file_by_stream(__fp); \
     if(!file) break; \
     this_offset = file->offset; \
-    file->last_byte_written = this_offset + __bytes - 1; \
     file->offset = this_offset + __bytes; \
     if(file->file_record->counters[STDIO_MAX_BYTE_WRITTEN] < (this_offset + __bytes - 1)) \
         file->file_record->counters[STDIO_MAX_BYTE_WRITTEN] = (this_offset + __bytes - 1); \
@@ -238,8 +252,6 @@ int DARSHAN_DECL(fclose)(FILE *fp)
     file = stdio_file_by_stream(fp);
     if(file)
     {
-        file->last_byte_written = 0;
-        file->last_byte_read = 0;
         if(file->file_record->fcounters[STDIO_F_CLOSE_START_TIMESTAMP] == 0 ||
          file->file_record->fcounters[STDIO_F_CLOSE_START_TIMESTAMP] > tm1)
            file->file_record->fcounters[STDIO_F_CLOSE_START_TIMESTAMP] = tm1;
@@ -269,6 +281,26 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
     stdio_runtime_initialize();
     if(ret > 0)
         STDIO_RECORD_WRITE(stream, size*ret, tm1, tm2);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
+size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
+{
+    size_t ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fread);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fread(ptr, size, nmemb, stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    if(ret > 0)
+        STDIO_RECORD_READ(stream, size*ret, tm1, tm2);
     STDIO_UNLOCK();
 
     return(ret);

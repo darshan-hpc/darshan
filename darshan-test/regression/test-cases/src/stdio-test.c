@@ -31,6 +31,7 @@ int main(int argc, char **argv)
    int namelen;
    char processor_name[MPI_MAX_PROCESSOR_NAME];
    FILE *file;
+   char buffer[128] = {0};
 
    /* startup MPI and determine the rank of this process */
    MPI_Init(&argc,&argv);
@@ -43,7 +44,7 @@ int main(int argc, char **argv)
 
    if (mynod == 0) printf("# Using stdio calls.\n");
 
-   file = fopen(opt_file, "w");
+   file = fopen(opt_file, "w+");
    if(!file)
    {
       perror("fopen");
@@ -51,7 +52,11 @@ int main(int argc, char **argv)
    }
 
    if(mynod == 0)
+   {
       fwrite("hello", 1, 6, file);
+      fseek(file, 0, SEEK_SET);
+      fread(buffer, 1, 1024, file);
+   }
 
    fclose(file);
 
