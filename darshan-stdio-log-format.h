@@ -48,7 +48,7 @@
  *
  * functions for changing file position
  * --------------
- * int      fseek(FILE *, long int, int);
+ * int      fseek(FILE *, long int, int);                   DONE
  * int      fseeko(FILE *, off_t, int);
  * int      fsetpos(FILE *, const fpos_t *);
  * void     rewind(FILE *);
@@ -64,12 +64,14 @@
     X(STDIO_BYTES_WRITTEN) \
     /* number of writes */ \
     X(STDIO_WRITES) \
-    /* maximum byte (offset) written */\
+    /* maximum byte (offset) read */\
     X(STDIO_MAX_BYTE_READ) \
-    /* total bytes written */ \
+    /* total bytes read */ \
     X(STDIO_BYTES_READ) \
-    /* number of writes */ \
+    /* number of reads */ \
     X(STDIO_READS) \
+    /* count of seeks */\
+    X(STDIO_SEEKS) \
     /* end of counters */\
     X(STDIO_NUM_INDICES)
 

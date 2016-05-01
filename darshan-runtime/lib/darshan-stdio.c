@@ -36,6 +36,7 @@ DARSHAN_FORWARD_DECL(fopen64, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
+DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
 
 /* The stdio_file_runtime structure maintains necessary runtime metadata
  * for the STDIO file record (darshan_stdio_record structure, defined in
@@ -302,6 +303,37 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
     if(ret > 0)
         STDIO_RECORD_READ(stream, size*ret, tm1, tm2);
     STDIO_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
+{
+    int ret;
+    struct stdio_file_runtime* file;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fseek);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fseek(stream, offset, whence);
+    tm2 = darshan_core_wtime();
+
+    if(ret >= 0)
+    {
+        STDIO_LOCK();
+        stdio_runtime_initialize();
+        file = stdio_file_by_stream(stream);
+        if(file)
+        {
+            file->offset = ftell(stream);
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                file->file_record->fcounters[STDIO_F_META_TIME],
+                tm1, tm2, file->last_meta_end);
+            file->file_record->counters[STDIO_SEEKS] += 1;
+        }
+        STDIO_UNLOCK();
+    }
 
     return(ret);
 }

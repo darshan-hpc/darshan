@@ -57,7 +57,6 @@ DARSHAN_FORWARD_DECL(readv, ssize_t, (int fd, const struct iovec *iov, int iovcn
 DARSHAN_FORWARD_DECL(writev, ssize_t, (int fd, const struct iovec *iov, int iovcnt));
 DARSHAN_FORWARD_DECL(lseek, off_t, (int fd, off_t offset, int whence));
 DARSHAN_FORWARD_DECL(lseek64, off64_t, (int fd, off64_t offset, int whence));
-DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
 DARSHAN_FORWARD_DECL(__xstat, int, (int vers, const char* path, struct stat *buf));
 DARSHAN_FORWARD_DECL(__xstat64, int, (int vers, const char* path, struct stat64 *buf));
 DARSHAN_FORWARD_DECL(__lxstat, int, (int vers, const char* path, struct stat *buf));
@@ -780,37 +779,6 @@ off_t DARSHAN_DECL(lseek64)(int fd, off_t offset, int whence)
                 file->file_record->fcounters[POSIX_F_META_TIME],
                 tm1, tm2, file->last_meta_end);
             file->file_record->counters[POSIX_SEEKS] += 1;
-        }
-        POSIX_UNLOCK();
-    }
-
-    return(ret);
-}
-
-int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
-{
-    int ret;
-    struct posix_file_runtime* file;
-    double tm1, tm2;
-
-    MAP_OR_FAIL(fseek);
-
-    tm1 = darshan_core_wtime();
-    ret = __real_fseek(stream, offset, whence);
-    tm2 = darshan_core_wtime();
-
-    if(ret >= 0)
-    {
-        POSIX_LOCK();
-        posix_runtime_initialize();
-        file = posix_file_by_fd(fileno(stream));
-        if(file)
-        {
-            file->offset = ftell(stream);
-            DARSHAN_TIMER_INC_NO_OVERLAP(
-                file->file_record->fcounters[POSIX_F_META_TIME],
-                tm1, tm2, file->last_meta_end);
-            file->file_record->counters[POSIX_FSEEKS] += 1;
         }
         POSIX_UNLOCK();
     }

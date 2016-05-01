@@ -33,10 +33,16 @@ fi
 
 # check results
 
-# in this case we want to confirm that the STDIO counters were triggered
+# check at least one counter from each general open/read/write/seek category
+
 STDIO_OPENS=`grep STDIO_OPENS $DARSHAN_TMP/${PROG}.darshan.txt |head -n 1 |cut -f 5`
 if [ ! "$STDIO_OPENS" -gt 0 ]; then
     echo "Error: STDIO open count of $STDIO_OPENS is incorrect" 1>&2
+    exit 1
+fi
+STDIO_SEEKS=`grep STDIO_SEEKS $DARSHAN_TMP/${PROG}.darshan.txt |head -n 1 |cut -f 5`
+if [ ! "$STDIO_SEEKS" -gt 0 ]; then
+    echo "Error: STDIO open count of $STDIO_SEEKS is incorrect" 1>&2
     exit 1
 fi
 STDIO_BYTES_WRITTEN=`grep STDIO_BYTES_WRITTEN $DARSHAN_TMP/${PROG}.darshan.txt |head -n 1 |cut -f 5`

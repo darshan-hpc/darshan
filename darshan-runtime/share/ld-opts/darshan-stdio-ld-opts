@@ -4,3 +4,4 @@
 --wrap=fclose
 --wrap=fwrite
 --wrap=fread
+--wrap=fseek

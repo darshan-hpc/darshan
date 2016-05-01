@@ -16,7 +16,6 @@
 --wrap=writev
 --wrap=lseek
 --wrap=lseek64
---wrap=fseek
 --wrap=__xstat
 --wrap=__xstat64
 --wrap=__lxstat
