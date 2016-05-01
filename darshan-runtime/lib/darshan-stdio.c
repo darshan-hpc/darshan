@@ -164,10 +164,6 @@ static void stdio_shutdown(void);
 } while(0)
 
 
-/* TODO: fix write start timestamp and read start timestamp logic in other
- * modules
- */
-
 #define STDIO_RECORD_WRITE(__fp, __bytes,  __tm1, __tm2) do{ \
     int64_t this_offset; \
     struct stdio_file_runtime* file; \
