@@ -146,6 +146,8 @@ static void darshan_log_print_stdio_description()
     printf("#   STDIO_FOPENS: number of 'fopen' function calls.\n");
     printf("#   STDIO_F_OPEN_START_TIMESTAMP: timestamp of the first call to function 'fopen'.\n");
     printf("#   STDIO_F_OPEN_END_TIMESTAMP: timestamp of the completion of the last call to 'fopen'.\n");
+    printf("#   STDIO_F_CLOSE_START_TIMESTAMP: timestamp of the first call to function 'fclose'.\n");
+    printf("#   STDIO_F_CLOSE_END_TIMESTAMP: timestamp of the completion of the last call to 'fclose'.\n");
     printf("#   STDIO_F_META_TIME: cumulative time spent in metadata operations.\n");
 
     return;

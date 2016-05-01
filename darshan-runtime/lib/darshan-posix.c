@@ -71,7 +71,6 @@ DARSHAN_FORWARD_DECL(mmap64, void*, (void *addr, size_t length, int prot, int fl
 DARSHAN_FORWARD_DECL(fsync, int, (int fd));
 DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
 DARSHAN_FORWARD_DECL(close, int, (int fd));
-DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(aio_read, int, (struct aiocb *aiocbp));
 DARSHAN_FORWARD_DECL(aio_write, int, (struct aiocb *aiocbp));
 DARSHAN_FORWARD_DECL(aio_read64, int, (struct aiocb64 *aiocbp));
@@ -1158,38 +1157,6 @@ int DARSHAN_DECL(close)(int fd)
         posix_file_close_fd(fd);
     }
     POSIX_UNLOCK();    
-
-    return(ret);
-}
-
-int DARSHAN_DECL(fclose)(FILE *fp)
-{
-    struct posix_file_runtime* file;
-    int fd = fileno(fp);
-    double tm1, tm2;
-    int ret;
-
-    MAP_OR_FAIL(fclose);
-
-    tm1 = darshan_core_wtime();
-    ret = __real_fclose(fp);
-    tm2 = darshan_core_wtime();
-
-    POSIX_LOCK();
-    posix_runtime_initialize();
-    file = posix_file_by_fd(fd);
-    if(file)
-    {
-        file->last_byte_written = 0;
-        file->last_byte_read = 0;
-        file->file_record->fcounters[POSIX_F_CLOSE_TIMESTAMP] =
-            darshan_core_wtime();
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            file->file_record->fcounters[POSIX_F_META_TIME],
-            tm1, tm2, file->last_meta_end);
-        posix_file_close_fd(fd);
-    }
-    POSIX_UNLOCK();
 
     return(ret);
 }

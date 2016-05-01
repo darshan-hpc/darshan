@@ -57,6 +57,16 @@ if [ ! $(echo "$STDIO_F_META_TIME > 0" | bc -l) ]; then
     echo "Error: counter is incorrect" 1>&2
     exit 1
 fi
+STDIO_F_CLOSE_START_TIMESTAMP=`grep STDIO_F_CLOSE_START_TIMESTAMP $DARSHAN_TMP/${PROG}.darshan.txt |tail -n 1 |cut -f 5`
+if [ ! $(echo "$STDIO_F_CLOSE_START_TIMESTAMP > 0" | bc -l) ]; then
+    echo "Error: counter is incorrect" 1>&2
+    exit 1
+fi
+STDIO_F_CLOSE_END_TIMESTAMP=`grep STDIO_F_CLOSE_END_TIMESTAMP $DARSHAN_TMP/${PROG}.darshan.txt |tail -n 1 |cut -f 5`
+if [ ! $(echo "$STDIO_F_CLOSE_END_TIMESTAMP > 0" | bc -l) ]; then
+    echo "Error: counter is incorrect" 1>&2
+    exit 1
+fi
 
 
 exit 0

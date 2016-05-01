@@ -30,7 +30,6 @@
 --wrap=fsync
 --wrap=fdatasync
 --wrap=close
---wrap=fclose
 --wrap=aio_read
 --wrap=aio_write
 --wrap=aio_read64

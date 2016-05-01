@@ -33,6 +33,7 @@
 
 DARSHAN_FORWARD_DECL(fopen, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(fopen64, FILE*, (const char *path, const char *mode));
+DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
 
 /* The stdio_file_runtime structure maintains necessary runtime metadata
  * for the STDIO file record (darshan_stdio_record structure, defined in
@@ -196,6 +197,39 @@ FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
     STDIO_LOCK();
     stdio_runtime_initialize();
     STDIO_RECORD_OPEN(ret, path, tm1, tm2);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(fclose)(FILE *fp)
+{
+    struct stdio_file_runtime* file;
+    double tm1, tm2;
+    int ret;
+
+    MAP_OR_FAIL(fclose);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fclose(fp);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    file = stdio_file_by_stream(fp);
+    if(file)
+    {
+        file->last_byte_written = 0;
+        file->last_byte_read = 0;
+        if(file->file_record->fcounters[STDIO_F_CLOSE_START_TIMESTAMP] == 0 ||
+         file->file_record->fcounters[STDIO_F_CLOSE_START_TIMESTAMP] > tm1)
+           file->file_record->fcounters[STDIO_F_CLOSE_START_TIMESTAMP] = tm1;
+        file->file_record->fcounters[STDIO_F_CLOSE_END_TIMESTAMP] = tm2;
+        DARSHAN_TIMER_INC_NO_OVERLAP(
+            file->file_record->fcounters[STDIO_F_META_TIME],
+            tm1, tm2, file->last_meta_end);
+        stdio_file_close_stream(fp);
+    }
     STDIO_UNLOCK();
 
     return(ret);

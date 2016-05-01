@@ -66,6 +66,10 @@
     X(STDIO_F_OPEN_START_TIMESTAMP) \
     /* timestamp of last open completion */\
     X(STDIO_F_OPEN_END_TIMESTAMP) \
+    /* timestamp of first close */\
+    X(STDIO_F_CLOSE_START_TIMESTAMP) \
+    /* timestamp of last close completion */\
+    X(STDIO_F_CLOSE_END_TIMESTAMP) \
     /* cumulative meta time */\
     X(STDIO_F_META_TIME) \
     /* end of counters */\
