@@ -421,6 +421,7 @@ static void stdio_get_output_data(
     void **stdio_buf,
     int *stdio_buf_sz)
 {
+    /* TODO: implement reduction operator */
 
     assert(stdio_runtime);
 
