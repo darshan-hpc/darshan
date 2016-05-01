@@ -56,7 +56,6 @@ DARSHAN_FORWARD_DECL(pwrite64, ssize_t, (int fd, const void *buf, size_t count, 
 DARSHAN_FORWARD_DECL(readv, ssize_t, (int fd, const struct iovec *iov, int iovcnt));
 DARSHAN_FORWARD_DECL(writev, ssize_t, (int fd, const struct iovec *iov, int iovcnt));
 DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
-DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(lseek, off_t, (int fd, off_t offset, int whence));
 DARSHAN_FORWARD_DECL(lseek64, off64_t, (int fd, off64_t offset, int whence));
 DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
@@ -749,37 +748,6 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
     else
     {
         POSIX_RECORD_READ(ret, fileno(stream), 0, 0,
-            aligned_flag, 1, tm1, tm2);
-    }
-    POSIX_UNLOCK();
-
-    return(ret);
-}
-
-size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *stream)
-{
-    size_t ret;
-    int aligned_flag = 0;
-    double tm1, tm2;
-
-    MAP_OR_FAIL(fwrite);
-
-    if((unsigned long)ptr % darshan_mem_alignment == 0) aligned_flag = 1;
-
-    tm1 = darshan_core_wtime();
-    ret = __real_fwrite(ptr, size, nmemb, stream);
-    tm2 = darshan_core_wtime();
-
-    POSIX_LOCK();
-    posix_runtime_initialize();
-    if(ret > 0)
-    {
-        POSIX_RECORD_WRITE(size*ret, fileno(stream), 0, 0,
-            aligned_flag, 1, tm1, tm2);
-    }
-    else
-    {
-        POSIX_RECORD_WRITE(ret, fileno(stream), 0, 0,
             aligned_flag, 1, tm1, tm2);
     }
     POSIX_UNLOCK();

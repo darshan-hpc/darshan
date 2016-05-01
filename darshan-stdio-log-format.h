@@ -40,7 +40,7 @@
  * int      fprintf(FILE *, const char *, ...);
  * int      fputc(int, FILE *);
  * int      fputs(const char *, FILE *);
- * size_t   fwrite(const void *, size_t, size_t, FILE *);
+ * size_t   fwrite(const void *, size_t, size_t, FILE *);   DONE
  * int      putc(int, FILE *);
  * int      putc_unlocked(int, FILE *);
  * int      putw(int, FILE *);
@@ -57,7 +57,13 @@
 
 #define STDIO_COUNTERS \
     /* count of fopens */\
-    X(STDIO_FOPENS) \
+    X(STDIO_OPENS) \
+    /* maximum byte (offset) written */\
+    X(STDIO_MAX_BYTE_WRITTEN) \
+    /* total bytes written */ \
+    X(STDIO_BYTES_WRITTEN) \
+    /* number of writes */ \
+    X(STDIO_WRITES) \
     /* end of counters */\
     X(STDIO_NUM_INDICES)
 
@@ -70,19 +76,25 @@
     X(STDIO_F_CLOSE_START_TIMESTAMP) \
     /* timestamp of last close completion */\
     X(STDIO_F_CLOSE_END_TIMESTAMP) \
+    /* timestamp of first write */\
+    X(STDIO_F_WRITE_START_TIMESTAMP) \
+    /* timestamp of last write completion */\
+    X(STDIO_F_WRITE_END_TIMESTAMP) \
     /* cumulative meta time */\
     X(STDIO_F_META_TIME) \
+    /* cumulative write time */\
+    X(STDIO_F_WRITE_TIME) \
     /* end of counters */\
     X(STDIO_F_NUM_INDICES)
 
 #define X(a) a,
-/* integer counters for the "STDIO" example module */
+/* integer counters for the "STDIO" module */
 enum darshan_stdio_indices
 {
     STDIO_COUNTERS
 };
 
-/* floating point counters for the "STDIO" example module */
+/* floating point counters for the "STDIO" module */
 enum darshan_stdio_f_indices
 {
     STDIO_F_COUNTERS

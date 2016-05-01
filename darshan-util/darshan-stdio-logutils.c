@@ -143,12 +143,12 @@ static void darshan_log_print_stdio_record(void *file_rec, char *file_name,
 static void darshan_log_print_stdio_description()
 {
     printf("\n# description of STDIO counters:\n");
-    printf("#   STDIO_FOPENS: number of 'fopen' function calls.\n");
-    printf("#   STDIO_F_OPEN_START_TIMESTAMP: timestamp of the first call to function 'fopen'.\n");
-    printf("#   STDIO_F_OPEN_END_TIMESTAMP: timestamp of the completion of the last call to 'fopen'.\n");
-    printf("#   STDIO_F_CLOSE_START_TIMESTAMP: timestamp of the first call to function 'fclose'.\n");
-    printf("#   STDIO_F_CLOSE_END_TIMESTAMP: timestamp of the completion of the last call to 'fclose'.\n");
-    printf("#   STDIO_F_META_TIME: cumulative time spent in metadata operations.\n");
+    printf("#   STDIO_{OPENS|WRITES} are types of operations.\n");
+    printf("#   STDIO_BYTES_*: total bytes read and written.\n");
+    printf("#   STDIO_MAX_BYTE_*: highest offset byte read and written.\n");
+    printf("#   STDIO_F_*_START_TIMESTAMP: timestamp of the first call to that type of function.\n");
+    printf("#   STDIO_F_*_END_TIMESTAMP: timestamp of the completion of the last call to that type of function.\n");
+    printf("#   STDIO_F_*_TIME: cumulative time spent in different types of functions.\n");
 
     return;
 }

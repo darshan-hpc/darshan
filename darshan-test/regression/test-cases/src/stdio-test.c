@@ -50,6 +50,9 @@ int main(int argc, char **argv)
       return(-1);
    }
 
+   if(mynod == 0)
+      fwrite("hello", 1, 6, file);
+
    fclose(file);
 
    MPI_Finalize();

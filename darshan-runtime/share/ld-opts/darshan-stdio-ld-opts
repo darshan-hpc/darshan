@@ -2,3 +2,4 @@
 --wrap=fopen
 --wrap=fopen64
 --wrap=fclose
+--wrap=fwrite
