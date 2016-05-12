@@ -169,8 +169,8 @@ Example for MPICH 3.1 or earlier:
 ----
 export MPICC_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cc
 export MPICXX_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cxx
-export MPICF77_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
-export MPICF90_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
+export MPIF77_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
+export MPIF90_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
 ----
 
 Examples for command line use:
@@ -313,8 +313,8 @@ Blue Gene profiling configuration example:
 ----
 export MPICC_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-cc
 export MPICXX_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-cxx
-export MPICF77_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-f
-export MPICF90_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-f
+export MPIF77_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-f
+export MPIF90_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-f
 ----
 
 === Cray platforms (XE, XC, or similar)
