@@ -287,7 +287,13 @@ print OUTPUT<<"EOF";
         if [ \$rc_cnk_check -eq 0 ] ; then
             FMPICH=-lfmpich.cnk
         else
-            FMPICH=-lfmpich
+            bgqlib_out=`grep -Po "libmpichf\\S\+\-\\S\+" \$tmpfile 2>/dev/null`
+            rc_bgqlib_check=\$?
+            if [ \$rc_bgqlib_check -eq 0 ] ; then
+                FMPICH=`echo \$bgqlib_out | sed 's/libmpich\\(.*\\)-\\(.*\\).a/-lmpich\\1-\\2/'`
+            else
+                FMPICH=-lfmpich
+            fi
         fi
     fi
 
