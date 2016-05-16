@@ -558,7 +558,7 @@ int main(int argc, char **argv)
             printf("# I/O timing for unique files (seconds):\n");
             printf("# ...........................\n");
             printf("# unique files: slowest_rank_io_time: %lf\n", pdata.slowest_rank_time);
-            printf("# unique files: slowest_rank_meta_time: %lf\n", pdata.slowest_rank_meta_time);
+            printf("# unique files: slowest_rank_meta_only_time: %lf\n", pdata.slowest_rank_meta_time);
             printf("# unique files: slowest rank: %d\n", pdata.slowest_rank_rank);
             printf("#\n");
             printf("# I/O timing for shared files (seconds):\n");
@@ -1350,7 +1350,6 @@ void calc_perf(perf_data_t *pdata,
     if (pdata->slowest_rank_time + pdata->shared_time_by_slowest)
     pdata->agg_perf_by_slowest = ((double)pdata->total_bytes / 1048576.0) /
                                      (pdata->slowest_rank_time +
-                                      pdata->slowest_rank_meta_time +
                                       pdata->shared_time_by_slowest);
 
     return;
