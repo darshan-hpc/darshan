@@ -231,7 +231,8 @@ static void posix_shutdown(void);
         file->file_record->counters[POSIX_FOPENS] += 1; \
     else \
         file->file_record->counters[POSIX_OPENS] += 1; \
-    if(file->file_record->fcounters[POSIX_F_OPEN_TIMESTAMP] == 0) \
+    if(file->file_record->fcounters[POSIX_F_OPEN_TIMESTAMP] == 0 || \
+     file->file_record->fcounters[POSIX_F_OPEN_TIMESTAMP] > __tm1) \
         file->file_record->fcounters[POSIX_F_OPEN_TIMESTAMP] = __tm1; \
     DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_META_TIME], __tm1, __tm2, file->last_meta_end); \
 } while(0)
@@ -278,7 +279,8 @@ static void posix_shutdown(void);
     if(file->last_io_type == DARSHAN_IO_WRITE) \
         file->file_record->counters[POSIX_RW_SWITCHES] += 1; \
     file->last_io_type = DARSHAN_IO_READ; \
-    if(file->file_record->fcounters[POSIX_F_READ_START_TIMESTAMP] == 0) \
+    if(file->file_record->fcounters[POSIX_F_READ_START_TIMESTAMP] == 0 || \
+     file->file_record->fcounters[POSIX_F_READ_START_TIMESTAMP] > __tm1) \
         file->file_record->fcounters[POSIX_F_READ_START_TIMESTAMP] = __tm1; \
     file->file_record->fcounters[POSIX_F_READ_END_TIMESTAMP] = __tm2; \
     if(file->file_record->fcounters[POSIX_F_MAX_READ_TIME] < __elapsed) { \
@@ -329,7 +331,8 @@ static void posix_shutdown(void);
     if(file->last_io_type == DARSHAN_IO_READ) \
         file->file_record->counters[POSIX_RW_SWITCHES] += 1; \
     file->last_io_type = DARSHAN_IO_WRITE; \
-    if(file->file_record->fcounters[POSIX_F_WRITE_START_TIMESTAMP] == 0) \
+    if(file->file_record->fcounters[POSIX_F_WRITE_START_TIMESTAMP] == 0 || \
+     file->file_record->fcounters[POSIX_F_WRITE_START_TIMESTAMP] > __tm1) \
         file->file_record->fcounters[POSIX_F_WRITE_START_TIMESTAMP] = __tm1; \
     file->file_record->fcounters[POSIX_F_WRITE_END_TIMESTAMP] = __tm2; \
     if(file->file_record->fcounters[POSIX_F_MAX_WRITE_TIME] < __elapsed) { \

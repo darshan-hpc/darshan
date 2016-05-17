@@ -117,7 +117,8 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
         file = hdf5_file_by_name_sethid(filename, ret);
         if(file)
         {
-            if(file->file_record->fcounters[HDF5_F_OPEN_TIMESTAMP] == 0)
+            if(file->file_record->fcounters[HDF5_F_OPEN_TIMESTAMP] == 0 || 
+             file->file_record->fcounters[HDF5_F_OPEN_TIMESTAMP] > tm1)
                 file->file_record->fcounters[HDF5_F_OPEN_TIMESTAMP] = tm1;
             file->file_record->counters[HDF5_OPENS] += 1;
         }
@@ -156,7 +157,8 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
         file = hdf5_file_by_name_sethid(filename, ret);
         if(file)
         {
-            if(file->file_record->fcounters[HDF5_F_OPEN_TIMESTAMP] == 0)
+            if(file->file_record->fcounters[HDF5_F_OPEN_TIMESTAMP] == 0 || 
+             file->file_record->fcounters[HDF5_F_OPEN_TIMESTAMP] > tm1)
                 file->file_record->fcounters[HDF5_F_OPEN_TIMESTAMP] = tm1;
             file->file_record->counters[HDF5_OPENS] += 1;
         }

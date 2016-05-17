@@ -114,7 +114,8 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
         file = pnetcdf_file_by_name_setncid(path, (*ncidp));
         if(file)
         {
-            if(file->file_record->fcounters[PNETCDF_F_OPEN_TIMESTAMP] == 0)
+            if(file->file_record->fcounters[PNETCDF_F_OPEN_TIMESTAMP] == 0 || 
+             file->file_record->fcounters[PNETCDF_F_OPEN_TIMESTAMP] > tm1)
                 file->file_record->fcounters[PNETCDF_F_OPEN_TIMESTAMP] = tm1;
             DARSHAN_MPI_CALL(PMPI_Comm_size)(comm, &comm_size);
             if(comm_size == 1)
@@ -162,7 +163,8 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
         file = pnetcdf_file_by_name_setncid(path, (*ncidp));
         if(file)
         {
-            if(file->file_record->fcounters[PNETCDF_F_OPEN_TIMESTAMP] == 0)
+            if(file->file_record->fcounters[PNETCDF_F_OPEN_TIMESTAMP] == 0 || 
+             file->file_record->fcounters[PNETCDF_F_OPEN_TIMESTAMP] > tm1)
                 file->file_record->fcounters[PNETCDF_F_OPEN_TIMESTAMP] = tm1;
             DARSHAN_MPI_CALL(PMPI_Comm_size)(comm, &comm_size);
             if(comm_size == 1)

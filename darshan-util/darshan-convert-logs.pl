@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 
 #
 # Copyright (C) 2015 University of Chicago.
@@ -18,6 +18,8 @@
 #	jobid1	key1=val1	key2=val2
 #	jobid2	key1=val1	key2=val2
 #
+
+use warnings;
 
 my $darshan_convert = "./darshan-convert";
 my $jenkins_hash_gen = "./jenkins-hash-gen";

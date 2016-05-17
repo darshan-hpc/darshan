@@ -394,7 +394,7 @@ Job performance information can be generated using the `--perf` command-line opt
 # I/O timing for unique files (seconds):
 # ...........................
 # unique files: slowest_rank_io_time: 0.000000
-# unique files: slowest_rank_meta_time: 0.000000
+# unique files: slowest_rank_meta_only_time: 0.000000
 # unique files: slowest_rank: 0
 #
 # I/O timing for shared files (seconds):
@@ -430,7 +430,7 @@ type of file access.
 
 * unique files: slowest_rank_io_time: total I/O time for unique files
   (including both metadata + data transfer time)
-* unique files: slowest_rank_meta_time: metadata time for unique files
+* unique files: slowest_rank_meta_only_time: metadata time for unique files
 * unique files: slowest_rank: the rank of the slowest process
 
 .I/O timing for shared files

@@ -169,8 +169,8 @@ Example for MPICH 3.1 or earlier:
 ----
 export MPICC_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cc
 export MPICXX_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cxx
-export MPICF77_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
-export MPICF90_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
+export MPIF77_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
+export MPIF90_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
 ----
 
 Examples for command line use:
@@ -213,17 +213,36 @@ environment variable to insert instrumentation at run time.  The executables
 should be compiled using the normal, unmodified MPI compiler.
 
 To use this mechanism, set the `LD_PRELOAD` environment variable to the full
-path to the Darshan shared library, as in this example:
+path to the Darshan shared library. The preferred method of inserting Darshan
+instrumentation in this case is to set the LD_PRELOAD variable specifically
+for the application of interest. Typically this is possible using
+command line arguments offered by the `mpirun` or `mpiexec` scripts or by
+the job scheduler:
+
+----
+mpiexec -n 4 -env LD_PRELOAD /home/carns/darshan-install/lib/libdarshan.so mpi-io-test
+----
+
+----
+srun -n 4 --export=LD_PRELOAD=/home/carns/darshan-install/lib/libdarshan.so mpi-io-test
+----
+
+For sequential programs, the following will set LD_PRELOAD for process duration only:
+
+----
+env LD_PRELOAD=/home/carns/darshan-install/lib/libdarshan.so mpi-io-test
+----
+
+Other environments may have other specific options for controlling this behavior.
+Please check your local site documentation for details.
+
+It is also possible to just export LD_PRELOAD as follows, but it is recommended
+against doing that to prevent Darshan and MPI symbols from being pulled into
+unrelated binaries:
 
 ----
 export LD_PRELOAD=/home/carns/darshan-install/lib/libdarshan.so
 ----
-
-You can then run your application as usual.  Some environments may require a
-special `mpirun` or `mpiexec` command line argument to propagate the
-environment variable to all processes.  Other environments may require a
-scheduler submission option to control this behavior.  Please check your
-local site documentation for details.
 
 === Instrumenting dynamically-linked Fortran applications
 
@@ -294,8 +313,8 @@ Blue Gene profiling configuration example:
 ----
 export MPICC_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-cc
 export MPICXX_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-cxx
-export MPICF77_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-f
-export MPICF90_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-f
+export MPIF77_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-f
+export MPIF90_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-f
 ----
 
 === Cray platforms (XE, XC, or similar)
@@ -511,3 +530,47 @@ behavior at runtime:
 * DARSHAN_LOGPATH: specifies the path to write Darshan log files to. Note that this directory needs to be formatted using the darshan-mk-log-dirs script.
 * DARSHAN_LOGFILE: specifies the path (directory + Darshan log file name) to write the output Darshan log to. This overrides the default Darshan behavior of automatically generating a log file name and adding it to a log file directory formatted using darshan-mk-log-dirs script.
 * DARSHAN_MODMEM: specifies the maximum amount of memory (in MiB) a Darshan instrumentation module can consume at runtime.
+
+== Debugging
+
+=== No log file
+
+In cases where Darshan is not generating a log file for an application, some common things to check are:
+
+* Check stderr to ensure Darshan isn't indicating any internal errors (e.g., invalid log file path)
+
+For statically linked executables:
+
+* Ensure that Darshan symbols are present in the underlying executable by running `nm` on it:
+----
+> nm test | grep darshan
+0000000000772260 b darshan_core
+0000000000404440 t darshan_core_cleanup
+00000000004049b0 T darshan_core_initialize
+000000000076b660 d darshan_core_mutex
+00000000004070a0 T darshan_core_register_module
+----
+
+* Make sure the application executable is statically linked:
+    ** In general, we encourage the use of purely statically linked executables when using the static
+instrumentation method given in link:darshan-runtime.html#_instrumenting_statically_linked_applications[Section 5]
+    ** If purely static executables are not an option, we encourage users to use the LD_PRELOAD method of
+instrumentation given in link:darshan-runtime.html#_instrumenting_dynamically_linked_applications[Section 6]
+    ** Statically linked executables are the default on Cray platforms and the IBM BG platforms; 
+statically linked executables can be explicitly requested using the `-static` compile option to most compilers
+    ** You can verify that an executable is purely statically linked by using the `file` command:
+----
+> file mpi-io-test
+mpi-io-test: ELF 64-bit LSB  executable, x86-64, version 1 (GNU/Linux), statically linked, for GNU/Linux 2.6.24, BuildID[sha1]=9893e599e7a560159ccf547b4c4ba5671f65ba32, not stripped
+----
+
+* Ensure that the linker is correctly linking in Darshan's runtime libraries:
+    ** A common mistake is to explicitly link in the underlying MPI libraries (e.g., `-lmpich` or `-lmpichf90`)
+in the link command, which can interfere with Darshan's instrumentation
+        *** These libraries are usually linked in automatically by the compiler
+        *** MPICH's `mpicc` comipler's `-show` flag can be used to examine the invoked link command, for instance
+    ** The linker's `-y` option can be used to verify that Darshan is properly intercepting MPI_Init
+function (e.g. by setting `CFLAGS='-Wl,-yMPI_Init'`), which it uses to initialize its runtime structures
+----
+/usr/common/software/darshan/3.0.0-pre3/lib/libdarshan.a(darshan-core-init-finalize.o): definition of MPI_Init
+----

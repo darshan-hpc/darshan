@@ -4,13 +4,22 @@ Darshan Release Change Log
 
 Darshan-3.0.0
 =============
+* install darshan-null-log-format.h header when installing
+  darshan-util component, otherwise compiler errors are
+  generated when building external tools that use
+  libdarshan-util
+* update docs to give debugging tips for cases where
+  Darshan logs are not generated
+* fix shared library regression test script to check for
+  potential errors with Darshan symbols rather than
+  failing silently in these cases
 * bug fix for determining minimum non-zero counters in
 shared file reductions in all modules
 * loosen Darshan's PMPI symbol check to prevent inadvertent
   disabling of Darshan for some MPICH builds
 * update runtime docs to give information on upgrading Darshan
-* bug fix for resolving MPI_Gather when LDPRELOADing Darshan's
-  shared libraries (reported by Richard Hedges)
+* bug fix for resolving MPI_Gather and MPI_Barrier when LDPRELOADing
+  Darshan's shared libraries (reported by Richard Hedges and Rob Latham)
 * add more helpful error handling when opening 2.x version log files
 * port darshan-diff utility over to new log file format
 * fix numerous configure bugs on Cray systems

@@ -137,6 +137,7 @@ DARSHAN_FORWARD_DECL(PMPI_Gather, int, (const void *sendbuf, int sendcount, MPI_
 #else
 DARSHAN_FORWARD_DECL(PMPI_Gather, int, (void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm));
 #endif
+DARSHAN_FORWARD_DECL(PMPI_Barrier, int, (MPI_Comm comm));
 
 void resolve_mpi_symbols (void)
 {
@@ -197,6 +198,7 @@ void resolve_mpi_symbols (void)
     MAP_OR_FAIL(PMPI_Send);
     MAP_OR_FAIL(PMPI_Recv);
     MAP_OR_FAIL(PMPI_Gather);
+    MAP_OR_FAIL(PMPI_Barrier);
 
     return;
 }

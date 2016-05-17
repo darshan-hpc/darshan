@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 #
 #  (C) 2015 by Argonne National Laboratory.
 #      See COPYRIGHT in top-level directory.
@@ -7,6 +7,7 @@
 # Set via configure
 my $PREFIX="@prefix@";
 
+use warnings;
 use lib "@prefix@/lib";
 use TeX::Encode;
 use Encode;
