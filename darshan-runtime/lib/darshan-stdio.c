@@ -10,6 +10,11 @@
  * - add stdio page to darshan-job-summary
  * - figure out what to do about posix module compatibility
  *   - remove stdio counters in POSIX or keep and set to -1?
+ *   - affected counters in posix module:
+ *     - POSIX_FOPENS
+ *     - POSIX_FREADS
+ *     - POSIX_FWRITES
+ *     - POSIX_FSEEKS
  */
 
 #define _XOPEN_SOURCE 500
