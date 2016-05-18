@@ -10,51 +10,6 @@
 /* current log format version, to support backwards compatibility */
 #define DARSHAN_STDIO_VER 1
 
-/*
- * functions for opening streams
- * --------------
- * FILE    *fdopen(int, const char *);                      DONE
- * FILE    *fopen(const char *, const char *);
- * FILE    *freopen(const char *, const char *, FILE *);
- *
- * functions for closing streams
- * --------------
- * int      fclose(FILE *);                                 DONE
- *
- * functions for flushing streams
- * --------------
- * int      fflush(FILE *);
- *
- * functions for reading data
- * --------------
- * int      fgetc(FILE *);
- * char    *fgets(char *, int, FILE *);
- * size_t   fread(void *, size_t, size_t, FILE *);          DONE
- * int      fscanf(FILE *, const char *, ...);
- * int      getc(FILE *);
- * int      getc_unlocked(FILE *);
- * int      getw(FILE *);
- *
- * functions for writing data
- * --------------
- * int      fprintf(FILE *, const char *, ...);
- * int      fputc(int, FILE *);
- * int      fputs(const char *, FILE *);
- * size_t   fwrite(const void *, size_t, size_t, FILE *);   DONE
- * int      putc(int, FILE *);
- * int      putc_unlocked(int, FILE *);
- * int      putw(int, FILE *);
- * int      vfprintf(FILE *, const char *, va_list);
- *
- * functions for changing file position
- * --------------
- * int      fseek(FILE *, long int, int);                   DONE
- * int      fseeko(FILE *, off_t, int);
- * int      fsetpos(FILE *, const fpos_t *);
- * void     rewind(FILE *);
- * int      ungetc(int, FILE *);
- */
-
 #define STDIO_COUNTERS \
     /* count of fopens */\
     X(STDIO_OPENS) \
