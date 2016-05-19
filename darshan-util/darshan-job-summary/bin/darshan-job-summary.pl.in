@@ -54,7 +54,7 @@ if ($verbose_flag)
     print "verbose: $tmp_dir\n";
 }
 
-open(PARSE_OUT, "$darshan_parser $input_file |") || die("Can't execute \"$darshan_parser $input_file\": $!\n");
+open(PARSE_OUT, "$darshan_parser --base --perf $input_file |") || die("Can't execute \"$darshan_parser $input_file\": $!\n");
 
 open(FA_READ, ">$tmp_dir/file-access-read.dat") || die("error opening output file: $!\n");
 open(FA_WRITE, ">$tmp_dir/file-access-write.dat") || die("error opening output file: $!\n");
@@ -78,6 +78,9 @@ my $cumul_write_bytes_shared = 0;
 
 my $cumul_meta_shared = 0;
 my $cumul_meta_indep = 0;
+
+my $perf_est = 0.0;
+my $perf_layer = "";
 
 my $first_data_line = 1;
 my %file_record_hash = ();
@@ -133,6 +136,19 @@ while($line = <PARSE_OUT>)
         {
             ($junk, $version) = split(':', $line, 2);
             $version =~ s/^\s+//;
+        }
+        elsif ($line =~ /^# agg_perf_by_slowest: /)
+        {
+            if($perf_layer eq "")
+            {
+                ($junk, $perf_est) = split(':', $line, 2);
+                $perf_layer = "POSIX";
+            }
+            elsif($perf_layer eq "POSIX")
+            {
+                ($junk, $perf_est) = split(':', $line, 2);
+                $perf_layer = "MPI-IO";
+            }
         }
         elsif ($line =~ /^# \*WARNING\*: .* contains incomplete data!/)
         {
@@ -964,6 +980,9 @@ my $latex_cmd_line = "\"\\def\\titlecmd{$cmd} \\
     \\def\\filecwbs{$cwbs} \\
     \\def\\filecmi{$cmi} \\
     \\def\\filecms{$cms} \\
+    \\def\\filecmi{$cmi} \\
+    \\def\\perfest{$perf_est} \\
+    \\def\\perflayer{$perf_layer} \\
     \\input{summary.tex}\" \\
     @__DARSHAN_PDFLATEX_HALT_ON_ERROR@";
 
