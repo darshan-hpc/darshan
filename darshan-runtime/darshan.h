@@ -85,6 +85,8 @@ struct darshan_fs_info
 {
     int fs_type;
     int block_size;
+    int ost_count;
+    int mdt_count;
 };
 
 /* paths that darshan will not trace */
