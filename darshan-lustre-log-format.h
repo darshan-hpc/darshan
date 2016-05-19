@@ -12,8 +12,16 @@
 
 /* TODO: add integer counters here (e.g., counter for stripe width, stripe size, etc etc) */
 #define LUSTRE_COUNTERS \
-    /* dummy counter */\
-    X(LUSTRE_TEST_COUNTER) \
+    /* number of OSTs for file system */\
+    X(LUSTRE_OSTS) \
+    /* number of MDTs for file system */\
+    X(LUSTRE_MDTS) \
+    /* bytes per stripe for file */\
+    X(LUSTRE_STRIPE_SIZE) \
+    /* number of stripes (OSTs) for file */\
+    X(LUSTRE_STRIPE_WIDTH) \
+    /* index of first OST for file */\
+    X(LUSTRE_STRIPE_OFFSET) \
     /* end of counters */\
     X(LUSTRE_NUM_INDICES)
 
