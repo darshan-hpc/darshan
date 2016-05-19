@@ -18,6 +18,8 @@
 #include <time.h>
 #include <limits.h>
 #include <pthread.h>
+#include <dirent.h>
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
@@ -29,6 +31,9 @@
 #include "darshan.h"
 #include "darshan-core.h"
 #include "darshan-dynamic.h"
+
+/* XXX stick this into autoconf .h */
+#include <lustre/lustreapi.h>
 
 extern char* __progname;
 extern char* __progname_full;
@@ -960,6 +965,34 @@ static void add_entry(char* trailing_data, int* space_left, struct mntent *entry
         mnt_data_array[mnt_data_count].fs_info.block_size = 1024*1024;
     else
         mnt_data_array[mnt_data_count].fs_info.block_size = 4096;
+
+    /* attempt to retrieve OST and MDS counts from Lustre */
+    mnt_data_array[mnt_data_count].fs_info.ost_count = -1;
+    mnt_data_array[mnt_data_count].fs_info.mdt_count = -1;
+    if ( statfsbuf.f_type == LL_SUPER_MAGIC )
+    {
+        int n_ost, n_mdt;
+        int ret_ost, ret_mdt;
+        DIR *mount_dir;
+
+        mount_dir = opendir( entry->mnt_dir );
+        if ( mount_dir  ) 
+        {
+            /* n_ost and n_mdt are used for both input and output to ioctl */
+            n_ost = 0;
+            n_mdt = 1;
+
+            ret_ost = ioctl( dirfd(mount_dir), LL_IOC_GETOBDCOUNT, &n_ost );
+            ret_mdt = ioctl( dirfd(mount_dir), LL_IOC_GETOBDCOUNT, &n_mdt );
+
+            if ( ret_ost < 0 || ret_mdt < 0 )
+            {
+                mnt_data_array[mnt_data_count].fs_info.ost_count = n_ost;
+                mnt_data_array[mnt_data_count].fs_info.mdt_count = n_mdt;
+            }
+            closedir( mount_dir );
+        }
+    }
 
     /* store mount information for use in header of darshan log */
     ret = snprintf(tmp_mnt, 256, "\n%s\t%s",
