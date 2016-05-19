@@ -16,6 +16,10 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
+#include <sys/ioctl.h>
+
+/* XXX stick this into autoconf .h */
+#include <lustre/lustreapi.h>
 
 #include "uthash.h"
 
@@ -56,10 +60,14 @@ static void lustre_shutdown(void);
  * worth it, but nice to keep in mind
  */
 
-void darshan_instrument_lustre_file(char *filepath)
+void darshan_instrument_lustre_file(const char* filepath, int fd)
 {
     struct darshan_lustre_record *rec;
+    struct darshan_fs_info fs_info;
     darshan_record_id rec_id;
+    struct lov_user_md *lum;
+    size_t lumsize = sizeof(struct lov_user_md) +
+        LOV_MAX_STRIPE_COUNT * sizeof(struct lov_user_ost_data);
 
     LUSTRE_LOCK();
     /* make sure the lustre module is already initialized */
@@ -77,7 +85,7 @@ void darshan_instrument_lustre_file(char *filepath)
         1,
         0,
         &rec_id,
-        NULL);
+        &fs_info);
 
     /* if record id is 0, darshan has no more memory for instrumenting */
     if(rec_id == 0)
@@ -90,7 +98,24 @@ void darshan_instrument_lustre_file(char *filepath)
 
     /* TODO: gather lustre data, store in record hash */
     /* counters in lustre_ref->record->counters */
-    rec->counters[LUSTRE_TEST_COUNTER] = 88;
+    rec->counters[LUSTRE_OSTS] = fs_info.ost_count;
+    rec->counters[LUSTRE_MDTS] = fs_info.mdt_count;
+
+    /* we must map darshan_lustre_record (or darshan_posix_file, or filename) to an fd */
+    rec->counters[LUSTRE_STRIPE_SIZE] = -1;
+    rec->counters[LUSTRE_STRIPE_WIDTH] = -1;
+    rec->counters[LUSTRE_STRIPE_OFFSET] = -1;
+
+    if ( (lum = calloc(1, lumsize)) != NULL ) {
+        lum->lmm_magic = LOV_USER_MAGIC;
+        /* don't care about the return code for ioctl */
+        ioctl( fd, LL_IOC_LOV_GETSTRIPE, (void *)lum );
+        rec->counters[LUSTRE_STRIPE_SIZE] = lum->lmm_stripe_size;
+        rec->counters[LUSTRE_STRIPE_WIDTH] = lum->lmm_stripe_count;
+        rec->counters[LUSTRE_STRIPE_OFFSET] = lum->lmm_stripe_offset;
+        /* todo: add explicit list of OSTs */
+        free(lum);
+    }
 
     LUSTRE_UNLOCK();
     return;
@@ -168,13 +193,91 @@ static void lustre_get_output_data(
     void **lustre_buf,
     int *lustre_buf_sz)
 {
+    struct hdf5_file_runtime *file;
+    int i;
+    struct darshan_hdf5_file *red_send_buf = NULL;
+    struct darshan_hdf5_file *red_recv_buf = NULL;
+    MPI_Datatype red_type;
+    MPI_Op red_op;
+
     assert(lustre_runtime);
 
-    /* TODO: determine lustre record shared across all processes,
-     * and have only rank 0 write these records out. No shared 
-     * reductions should be necessary as the Lustre data for a
-     * given file should be the same on each process
+    /* if there are globally shared files, do a shared file reduction */
+    /* NOTE: the shared file reduction is also skipped if the 
+     * DARSHAN_DISABLE_SHARED_REDUCTION environment variable is set.
      */
+    if(shared_rec_count && !getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
+    {
+        /* necessary initialization of shared records */
+        for(i = 0; i < shared_rec_count; i++)
+        {
+            HASH_FIND(hlink, lustre_runtime->file_hash, &shared_recs[i],
+                sizeof(darshan_record_id), file);
+            assert(file);
+
+            file->file_record->rank = -1;
+        }
+
+/*******************************************************************************
+ * resume editing here!
+ *
+ * TODO: determine lustre record shared across all processes,
+ * and have only rank 0 write these records out. No shared 
+ * reductions should be necessary as the Lustre data for a
+ * given file should be the same on each process
+ ******************************************************************************/
+
+        /* sort the array of files descending by rank so that we get all of the 
+         * shared files (marked by rank -1) in a contiguous portion at end 
+         * of the array
+         */
+        qsort(hdf5_runtime->file_record_array, hdf5_runtime->file_array_ndx,
+            sizeof(struct darshan_hdf5_file), hdf5_record_compare);
+
+        /* make *send_buf point to the shared files at the end of sorted array */
+        red_send_buf =
+            &(hdf5_runtime->file_record_array[hdf5_runtime->file_array_ndx-shared_rec_count]);
+
+        /* allocate memory for the reduction output on rank 0 */
+        if(my_rank == 0)
+        {
+            red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_hdf5_file));
+            if(!red_recv_buf)
+            {
+                return;
+            }
+        }
+
+        /* construct a datatype for a HDF5 file record.  This is serving no purpose
+         * except to make sure we can do a reduction on proper boundaries
+         */
+        DARSHAN_MPI_CALL(PMPI_Type_contiguous)(sizeof(struct darshan_hdf5_file),
+            MPI_BYTE, &red_type);
+        DARSHAN_MPI_CALL(PMPI_Type_commit)(&red_type);
+
+        /* register a HDF5 file record reduction operator */
+        DARSHAN_MPI_CALL(PMPI_Op_create)(hdf5_record_reduction_op, 1, &red_op);
+
+        /* reduce shared HDF5 file records */
+        DARSHAN_MPI_CALL(PMPI_Reduce)(red_send_buf, red_recv_buf,
+            shared_rec_count, red_type, red_op, 0, mod_comm);
+
+        /* clean up reduction state */
+        if(my_rank == 0)
+        {
+            int tmp_ndx = hdf5_runtime->file_array_ndx - shared_rec_count;
+            memcpy(&(hdf5_runtime->file_record_array[tmp_ndx]), red_recv_buf,
+                shared_rec_count * sizeof(struct darshan_hdf5_file));
+            free(red_recv_buf);
+        }
+        else
+        {
+            hdf5_runtime->file_array_ndx -= shared_rec_count;
+        }
+
+        DARSHAN_MPI_CALL(PMPI_Type_free)(&red_type);
+        DARSHAN_MPI_CALL(PMPI_Op_free)(&red_op);
+    }
 
     *lustre_buf = (void *)(lustre_runtime->record_array);
     *lustre_buf_sz = lustre_runtime->record_array_ndx * sizeof(struct darshan_lustre_record);
