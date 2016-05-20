@@ -985,7 +985,7 @@ static void add_entry(char* trailing_data, int* space_left, struct mntent *entry
             ret_ost = ioctl( dirfd(mount_dir), LL_IOC_GETOBDCOUNT, &n_ost );
             ret_mdt = ioctl( dirfd(mount_dir), LL_IOC_GETOBDCOUNT, &n_mdt );
 
-            if ( ret_ost < 0 || ret_mdt < 0 )
+            if ( !(ret_ost < 0 || ret_mdt < 0) )
             {
                 mnt_data_array[mnt_data_count].fs_info.ost_count = n_ost;
                 mnt_data_array[mnt_data_count].fs_info.mdt_count = n_mdt;
