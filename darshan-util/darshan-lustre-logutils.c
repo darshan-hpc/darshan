@@ -106,7 +106,11 @@ static void darshan_log_print_lustre_description()
 {
     /* TODO: add actual counter descriptions here */
     printf("\n# description of LUSTRE counters:\n");
-    printf("#   LUSTRE_TEST_COUNTER: counter for testing Lustre module.\n");
+    printf("#   LUSTRE_OSTS: number of OSTs across the entire file system.\n");
+    printf("#   LUSTRE_MDTS: number of MDTs across the entire file system.\n");
+    printf("#   LUSTRE_STRIPE_SIZE: stripe size for file in bytes.\n");
+    printf("#   LUSTRE_STRIPE_WIDTH: number of OSTs over which file is striped.\n");
+    printf("#   LUSTRE_STRIPE_OFFSET: OBD index of the file's first stripe.\n");
 
     DARSHAN_PRINT_HEADER();
 
