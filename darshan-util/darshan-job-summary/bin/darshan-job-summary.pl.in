@@ -81,6 +81,7 @@ my $cumul_meta_indep = 0;
 
 my $perf_est = 0.0;
 my $perf_layer = "";
+my $perf_mbytes = 0;
 
 my $first_data_line = 1;
 my %file_record_hash = ();
@@ -142,12 +143,23 @@ while($line = <PARSE_OUT>)
             if($perf_layer eq "")
             {
                 ($junk, $perf_est) = split(':', $line, 2);
+                $perf_est = sprintf("%.2f", $perf_est);
                 $perf_layer = "POSIX";
             }
             elsif($perf_layer eq "POSIX")
             {
                 ($junk, $perf_est) = split(':', $line, 2);
+                $perf_est = sprintf("%.2f", $perf_est);
                 $perf_layer = "MPI-IO";
+            }
+        }
+        elsif ($line =~ /^# total_bytes: /)
+        {
+            if($perf_mbytes == 0)
+            {
+                ($junk, $perf_mbytes) = split(':', $line, 2);
+                $perf_mbytes = $perf_mbytes / 1024 / 1024;
+                $perf_mbytes = sprintf("%.1f", $perf_mbytes);
             }
         }
         elsif ($line =~ /^# \*WARNING\*: .* contains incomplete data!/)
@@ -983,6 +995,7 @@ my $latex_cmd_line = "\"\\def\\titlecmd{$cmd} \\
     \\def\\filecmi{$cmi} \\
     \\def\\perfest{$perf_est} \\
     \\def\\perflayer{$perf_layer} \\
+    \\def\\perfbytes{$perf_mbytes} \\
     \\input{summary.tex}\" \\
     @__DARSHAN_PDFLATEX_HALT_ON_ERROR@";
 
