@@ -42,7 +42,7 @@
  * size_t   fread(void *, size_t, size_t, FILE *);          DONE
  * int      fscanf(FILE *, const char *, ...);              DONE
  * int      vfscanf(FILE *, const char *, va_list);         DONE
- * int      getc(FILE *);
+ * int      getc(FILE *);                                   DONE
  * int      getc_unlocked(FILE *);
  * int      getw(FILE *);
  *
@@ -102,6 +102,7 @@ DARSHAN_FORWARD_DECL(fflush, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fgetc, int, (FILE *stream));
+DARSHAN_FORWARD_DECL(_IO_getc, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(fscanf, int, (FILE *stream, const char *format, ...));
 DARSHAN_FORWARD_DECL(vfscanf, int, (FILE *stream, const char *format, va_list ap));
 DARSHAN_FORWARD_DECL(fgets, char*, (char *s, int size, FILE *stream));
@@ -442,6 +443,27 @@ size_t DARSHAN_DECL(fgetc)(FILE *stream)
 
     tm1 = darshan_core_wtime();
     ret = __real_fgetc(stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    if(ret != EOF)
+        STDIO_RECORD_READ(stream, 1, tm1, tm2);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
+/* NOTE: stdio.h typically implements getc() as a macro pointing to _IO_getc */
+size_t DARSHAN_DECL(_IO_getc)(FILE *stream)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(_IO_getc);
+
+    tm1 = darshan_core_wtime();
+    ret = __real__IO_getc(stream);
     tm2 = darshan_core_wtime();
 
     STDIO_LOCK();
