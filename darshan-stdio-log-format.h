@@ -27,6 +27,8 @@
     X(STDIO_READS) \
     /* count of seeks */\
     X(STDIO_SEEKS) \
+    /* count of flushes */\
+    X(STDIO_FLUSHES) \
     /* end of counters */\
     X(STDIO_NUM_INDICES)
 

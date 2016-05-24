@@ -32,7 +32,7 @@
  *
  * functions for flushing streams
  * --------------
- * int      fflush(FILE *);
+ * int      fflush(FILE *);                                 DONE
  *
  * functions for reading data
  * --------------
@@ -96,6 +96,7 @@ DARSHAN_FORWARD_DECL(fopen64, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(fdopen, FILE*, (int fd, const char *mode));
 DARSHAN_FORWARD_DECL(freopen, FILE*, (const char *path, const char *mode, FILE *stream));
 DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
+DARSHAN_FORWARD_DECL(fflush, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
@@ -238,7 +239,7 @@ static void stdio_shutdown(void);
     DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[STDIO_F_READ_TIME], __tm1, __tm2, file->last_write_end); \
 } while(0)
 
-#define STDIO_RECORD_WRITE(__fp, __bytes,  __tm1, __tm2) do{ \
+#define STDIO_RECORD_WRITE(__fp, __bytes,  __tm1, __tm2, __fflush_flag) do{ \
     int64_t this_offset; \
     struct stdio_file_runtime* file; \
     file = stdio_file_by_stream(__fp); \
@@ -248,7 +249,10 @@ static void stdio_shutdown(void);
     if(file->file_record->counters[STDIO_MAX_BYTE_WRITTEN] < (this_offset + __bytes - 1)) \
         file->file_record->counters[STDIO_MAX_BYTE_WRITTEN] = (this_offset + __bytes - 1); \
     file->file_record->counters[STDIO_BYTES_WRITTEN] += __bytes; \
-    file->file_record->counters[STDIO_WRITES] += 1; \
+    if(__fflush_flag) \
+        file->file_record->counters[STDIO_FLUSHES] += 1; \
+    else \
+        file->file_record->counters[STDIO_WRITES] += 1; \
     if(file->file_record->fcounters[STDIO_F_WRITE_START_TIMESTAMP] == 0 || \
      file->file_record->fcounters[STDIO_F_WRITE_START_TIMESTAMP] > __tm1) \
         file->file_record->fcounters[STDIO_F_WRITE_START_TIMESTAMP] = __tm1; \
@@ -332,6 +336,26 @@ FILE* DARSHAN_DECL(freopen)(const char *path, const char *mode, FILE *stream)
     return(ret);
 }
 
+int DARSHAN_DECL(fflush)(FILE *fp)
+{
+    double tm1, tm2;
+    int ret;
+
+    MAP_OR_FAIL(fflush);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fflush(fp);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    if(ret >= 0)
+        STDIO_RECORD_WRITE(fp, 0, tm1, tm2, 1);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
 int DARSHAN_DECL(fclose)(FILE *fp)
 {
     struct stdio_file_runtime* file;
@@ -377,7 +401,7 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
     STDIO_LOCK();
     stdio_runtime_initialize();
     if(ret > 0)
-        STDIO_RECORD_WRITE(stream, size*ret, tm1, tm2);
+        STDIO_RECORD_WRITE(stream, size*ret, tm1, tm2, 0);
     STDIO_UNLOCK();
 
     return(ret);
