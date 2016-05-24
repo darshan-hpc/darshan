@@ -49,7 +49,7 @@
  * --------------
  * int      fprintf(FILE *, const char *, ...);             DONE
  * int      vfprintf(FILE *, const char *, va_list);        DONE
- * int      fputc(int, FILE *);
+ * int      fputc(int, FILE *);                             DONE
  * int      fputs(const char *, FILE *);
  * size_t   fwrite(const void *, size_t, size_t, FILE *);   DONE
  * int      putc(int, FILE *);
@@ -102,6 +102,7 @@ DARSHAN_FORWARD_DECL(freopen, FILE*, (const char *path, const char *mode, FILE *
 DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fflush, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
+DARSHAN_FORWARD_DECL(fputc, int, (int c, FILE *stream));
 DARSHAN_FORWARD_DECL(fprintf, int, (FILE *stream, const char *format, ...));
 DARSHAN_FORWARD_DECL(vfprintf, int, (FILE *stream, const char *format, va_list));
 DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
@@ -414,6 +415,27 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
     stdio_runtime_initialize();
     if(ret > 0)
         STDIO_RECORD_WRITE(stream, size*ret, tm1, tm2, 0);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
+
+int DARSHAN_DECL(fputc)(int c, FILE *stream)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fputc);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fputc(c, stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    if(ret != EOF)
+        STDIO_RECORD_WRITE(stream, 1, tm1, tm2, 0);
     STDIO_UNLOCK();
 
     return(ret);

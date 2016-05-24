@@ -16,3 +16,4 @@
 --wrap=fseek
 --wrap=fprintf
 --wrap=vfprintf
+--wrap=fputc
