@@ -15,6 +15,7 @@
  *     - POSIX_FREADS
  *     - POSIX_FWRITES
  *     - POSIX_FSEEKS
+ * - add regression test cases for all functions captured here
  */
 
 /* catalog of stdio functions instrumented by this module
@@ -22,7 +23,7 @@
  * functions for opening streams
  * --------------
  * FILE    *fdopen(int, const char *);                      DONE
- * FILE    *fopen(const char *, const char *);
+ * FILE    *fopen(const char *, const char *);              DONE
  * FILE    *freopen(const char *, const char *, FILE *);
  *
  * functions for closing streams
@@ -92,6 +93,7 @@
 
 DARSHAN_FORWARD_DECL(fopen, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(fopen64, FILE*, (const char *path, const char *mode));
+DARSHAN_FORWARD_DECL(fdopen, FILE*, (int fd, const char *mode));
 DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
@@ -252,6 +254,25 @@ static void stdio_shutdown(void);
     file->file_record->fcounters[STDIO_F_WRITE_END_TIMESTAMP] = __tm2; \
     DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[STDIO_F_WRITE_TIME], __tm1, __tm2, file->last_write_end); \
 } while(0)
+
+FILE* DARSHAN_DECL(fdopen)(int fd, const char *mode)
+{
+    FILE* ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fdopen);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fdopen(fd, mode);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    STDIO_RECORD_OPEN(ret, "UNKNOWN-FDOPEN", tm1, tm2);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
 
 FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
 {
