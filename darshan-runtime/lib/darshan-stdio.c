@@ -53,7 +53,7 @@
  * int      fputs(const char *, FILE *);                    DONE
  * size_t   fwrite(const void *, size_t, size_t, FILE *);   DONE
  * int      putc(int, FILE *);                              DONE
- * int      putw(int, FILE *);
+ * int      putw(int, FILE *);                              DONE
  *
  * functions for changing file position
  * --------------
@@ -103,6 +103,7 @@ DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fflush, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fputc, int, (int c, FILE *stream));
+DARSHAN_FORWARD_DECL(putw, int, (int w, FILE *stream));
 DARSHAN_FORWARD_DECL(fputs, int, (const char *s, FILE *stream));
 DARSHAN_FORWARD_DECL(fprintf, int, (FILE *stream, const char *format, ...));
 DARSHAN_FORWARD_DECL(vfprintf, int, (FILE *stream, const char *format, va_list));
@@ -442,6 +443,27 @@ int DARSHAN_DECL(fputc)(int c, FILE *stream)
 
     return(ret);
 }
+
+int DARSHAN_DECL(putw)(int w, FILE *stream)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(putw);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_putw(w, stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    if(ret != EOF)
+        STDIO_RECORD_WRITE(stream, sizeof(int), tm1, tm2, 0);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
 
 
 int DARSHAN_DECL(fputs)(const char *s, FILE *stream)

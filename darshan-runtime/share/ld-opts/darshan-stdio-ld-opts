@@ -19,3 +19,4 @@
 --wrap=vfprintf
 --wrap=fputc
 --wrap=fputs
+--wrap=putw
