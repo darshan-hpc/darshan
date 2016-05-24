@@ -3,6 +3,7 @@
 --wrap=fopen64
 --wrap=fdopen
 --wrap=freopen
+--wrap=freopen64
 --wrap=fflush
 --wrap=fclose
 --wrap=fwrite

@@ -27,7 +27,7 @@
  * FILE    *fopen(const char *, const char *);              DONE
  * FILE    *fopen64(const char *, const char *);            DONE
  * FILE    *freopen(const char *, const char *, FILE *);    DONE
- * FILE    *freopen64(const char *, const char *, FILE *);  
+ * FILE    *freopen64(const char *, const char *, FILE *);  DONE
  *
  * functions for closing streams
  * --------------
@@ -103,6 +103,7 @@ DARSHAN_FORWARD_DECL(fopen, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(fopen64, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(fdopen, FILE*, (int fd, const char *mode));
 DARSHAN_FORWARD_DECL(freopen, FILE*, (const char *path, const char *mode, FILE *stream));
+DARSHAN_FORWARD_DECL(freopen64, FILE*, (const char *path, const char *mode, FILE *stream));
 DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fflush, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
@@ -356,6 +357,26 @@ FILE* DARSHAN_DECL(freopen)(const char *path, const char *mode, FILE *stream)
 
     return(ret);
 }
+
+FILE* DARSHAN_DECL(freopen64)(const char *path, const char *mode, FILE *stream)
+{
+    FILE* ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(freopen64);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_freopen64(path, mode, stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    STDIO_RECORD_OPEN(ret, path, tm1, tm2);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
 
 int DARSHAN_DECL(fflush)(FILE *fp)
 {
