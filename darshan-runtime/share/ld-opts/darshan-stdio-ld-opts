@@ -11,6 +11,7 @@
 --wrap=fscanf
 --wrap=vfscanf
 --wrap=_IO_getc
+--wrap=_IO_putc
 --wrap=getw
 --wrap=fgets
 --wrap=fseek

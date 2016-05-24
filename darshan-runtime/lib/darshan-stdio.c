@@ -52,7 +52,7 @@
  * int      fputc(int, FILE *);                             DONE
  * int      fputs(const char *, FILE *);                    DONE
  * size_t   fwrite(const void *, size_t, size_t, FILE *);   DONE
- * int      putc(int, FILE *);
+ * int      putc(int, FILE *);                              DONE
  * int      putw(int, FILE *);
  *
  * functions for changing file position
@@ -110,6 +110,7 @@ DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE 
 DARSHAN_FORWARD_DECL(fgetc, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(getw, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(_IO_getc, int, (FILE *stream));
+DARSHAN_FORWARD_DECL(_IO_putc, int, (int, FILE *stream));
 DARSHAN_FORWARD_DECL(fscanf, int, (FILE *stream, const char *format, ...));
 DARSHAN_FORWARD_DECL(vfscanf, int, (FILE *stream, const char *format, va_list ap));
 DARSHAN_FORWARD_DECL(fgets, char*, (char *s, int size, FILE *stream));
@@ -577,6 +578,26 @@ size_t DARSHAN_DECL(_IO_getc)(FILE *stream)
     return(ret);
 }
 
+/* NOTE: stdio.h typically implements putc() as a macro pointing to _IO_putc */
+size_t DARSHAN_DECL(_IO_putc)(int c, FILE *stream)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(_IO_putc);
+
+    tm1 = darshan_core_wtime();
+    ret = __real__IO_putc(c, stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    if(ret != EOF)
+        STDIO_RECORD_WRITE(stream, 1, tm1, tm2, 0);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
 size_t DARSHAN_DECL(getw)(FILE *stream)
 {
     int ret;
