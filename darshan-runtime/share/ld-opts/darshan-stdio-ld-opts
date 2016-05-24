@@ -15,6 +15,7 @@
 --wrap=getw
 --wrap=fgets
 --wrap=fseek
+--wrap=fseeko
 --wrap=fprintf
 --wrap=vfprintf
 --wrap=fputc
