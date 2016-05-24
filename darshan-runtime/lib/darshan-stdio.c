@@ -64,7 +64,7 @@
  * int      fseeko64(FILE *, off_t, int);                   DONE
  * int      fsetpos(FILE *, const fpos_t *);                DONE
  * int      fsetpos64(FILE *, const fpos_t *);              DONE
- * void     rewind(FILE *);
+ * void     rewind(FILE *);                                 DONE
  * int      ungetc(int, FILE *);
  *
  * Omissions: _unlocked() variants of the various flush, read, and write
@@ -125,6 +125,7 @@ DARSHAN_FORWARD_DECL(fseeko, int, (FILE *stream, off_t offset, int whence));
 DARSHAN_FORWARD_DECL(fseeko64, int, (FILE *stream, off_t offset, int whence));
 DARSHAN_FORWARD_DECL(fsetpos, int, (FILE *stream, const fpos_t *pos));
 DARSHAN_FORWARD_DECL(fsetpos64, int, (FILE *stream, const fpos_t *pos));
+DARSHAN_FORWARD_DECL(rewind, void, (FILE *stream));
 
 /* The stdio_file_runtime structure maintains necessary runtime metadata
  * for the STDIO file record (darshan_stdio_record structure, defined in
@@ -743,6 +744,33 @@ char* DARSHAN_DECL(fgets)(char *s, int size, FILE *stream)
     return(ret);
 }
 
+
+void DARSHAN_DECL(rewind)(FILE *stream)
+{
+    struct stdio_file_runtime* file;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(rewind);
+
+    tm1 = darshan_core_wtime();
+    __real_rewind(stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    file = stdio_file_by_stream(stream);
+    if(file)
+    {
+        file->offset = 0;
+        DARSHAN_TIMER_INC_NO_OVERLAP(
+            file->file_record->fcounters[STDIO_F_META_TIME],
+            tm1, tm2, file->last_meta_end);
+        file->file_record->counters[STDIO_SEEKS] += 1;
+    }
+    STDIO_UNLOCK();
+
+    return;
+}
 
 int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
 {

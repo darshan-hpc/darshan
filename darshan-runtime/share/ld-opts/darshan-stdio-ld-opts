@@ -25,3 +25,4 @@
 --wrap=putw
 --wrap=fsetpos
 --wrap=fsetpos64
+--wrap=rewind
