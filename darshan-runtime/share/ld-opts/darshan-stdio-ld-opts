@@ -8,4 +8,5 @@
 --wrap=fwrite
 --wrap=fread
 --wrap=fgetc
+--wrap=fgets
 --wrap=fseek
