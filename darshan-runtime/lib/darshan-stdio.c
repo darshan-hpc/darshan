@@ -65,11 +65,12 @@
  * int      fsetpos(FILE *, const fpos_t *);                DONE
  * int      fsetpos64(FILE *, const fpos_t *);              DONE
  * void     rewind(FILE *);                                 DONE
- * int      ungetc(int, FILE *);
  *
- * Omissions: _unlocked() variants of the various flush, read, and write
- *   functions.  There are many of these, but they are not available on all
- *   systems and the man page advises not to use them.
+ * Omissions: 
+ *   - _unlocked() variants of the various flush, read, and write
+ *     functions.  There are many of these, but they are not available on all
+ *     systems and the man page advises not to use them.
+ *   - ungetc()
  */
 
 #define _XOPEN_SOURCE 500
