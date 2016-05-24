@@ -43,7 +43,6 @@
  * int      fscanf(FILE *, const char *, ...);              DONE
  * int      vfscanf(FILE *, const char *, va_list);         DONE
  * int      getc(FILE *);                                   DONE
- * int      getc_unlocked(FILE *);
  * int      getw(FILE *);
  *
  * functions for writing data
@@ -53,7 +52,6 @@
  * int      fputs(const char *, FILE *);
  * size_t   fwrite(const void *, size_t, size_t, FILE *);   DONE
  * int      putc(int, FILE *);
- * int      putc_unlocked(int, FILE *);
  * int      putw(int, FILE *);
  * int      vfprintf(FILE *, const char *, va_list);
  *
@@ -64,6 +62,10 @@
  * int      fsetpos(FILE *, const fpos_t *);
  * void     rewind(FILE *);
  * int      ungetc(int, FILE *);
+ *
+ * Omissions: _unlocked() variants of the various flush, read, and write
+ *   functions.  There are many of these, but they are not available on all
+ *   systems and the man page advises not to use them.
  */
 
 #define _XOPEN_SOURCE 500
