@@ -27,6 +27,7 @@
  * FILE    *fopen(const char *, const char *);              DONE
  * FILE    *fopen64(const char *, const char *);            DONE
  * FILE    *freopen(const char *, const char *, FILE *);    DONE
+ * FILE    *freopen64(const char *, const char *, FILE *);  
  *
  * functions for closing streams
  * --------------
@@ -59,8 +60,10 @@
  * functions for changing file position
  * --------------
  * int      fseek(FILE *, long int, int);                   DONE
- * int      fseeko(FILE *, off_t, int);
+ * int      fseeko(FILE *, off_t, int);                     DONE
+ * int      fseeko64(FILE *, off_t, int);
  * int      fsetpos(FILE *, const fpos_t *);
+ * int      fsetpos64(FILE *, const fpos_t *);
  * void     rewind(FILE *);
  * int      ungetc(int, FILE *);
  *
