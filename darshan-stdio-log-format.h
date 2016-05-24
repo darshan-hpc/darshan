@@ -13,48 +13,48 @@
 #define STDIO_COUNTERS \
     /* count of fopens */\
     X(STDIO_OPENS) \
-    /* maximum byte (offset) written */\
-    X(STDIO_MAX_BYTE_WRITTEN) \
-    /* total bytes written */ \
-    X(STDIO_BYTES_WRITTEN) \
-    /* number of writes */ \
-    X(STDIO_WRITES) \
-    /* maximum byte (offset) read */\
-    X(STDIO_MAX_BYTE_READ) \
-    /* total bytes read */ \
-    X(STDIO_BYTES_READ) \
     /* number of reads */ \
     X(STDIO_READS) \
+    /* number of writes */ \
+    X(STDIO_WRITES) \
     /* count of seeks */\
     X(STDIO_SEEKS) \
     /* count of flushes */\
     X(STDIO_FLUSHES) \
+    /* total bytes written */ \
+    X(STDIO_BYTES_WRITTEN) \
+    /* total bytes read */ \
+    X(STDIO_BYTES_READ) \
+    /* maximum byte (offset) read */\
+    X(STDIO_MAX_BYTE_READ) \
+    /* maximum byte (offset) written */\
+    X(STDIO_MAX_BYTE_WRITTEN) \
     /* end of counters */\
     X(STDIO_NUM_INDICES)
 
 #define STDIO_F_COUNTERS \
-    /* timestamp of first open */\
-    X(STDIO_F_OPEN_START_TIMESTAMP) \
-    /* timestamp of last open completion */\
-    X(STDIO_F_OPEN_END_TIMESTAMP) \
-    /* timestamp of first close */\
-    X(STDIO_F_CLOSE_START_TIMESTAMP) \
-    /* timestamp of last close completion */\
-    X(STDIO_F_CLOSE_END_TIMESTAMP) \
-    /* timestamp of first write */\
-    X(STDIO_F_WRITE_START_TIMESTAMP) \
-    /* timestamp of last write completion */\
-    X(STDIO_F_WRITE_END_TIMESTAMP) \
-    /* timestamp of first read */\
-    X(STDIO_F_READ_START_TIMESTAMP) \
-    /* timestamp of last read completion */\
-    X(STDIO_F_READ_END_TIMESTAMP) \
     /* cumulative meta time */\
     X(STDIO_F_META_TIME) \
     /* cumulative write time */\
     X(STDIO_F_WRITE_TIME) \
     /* cumulative read time */\
     X(STDIO_F_READ_TIME) \
+    /* timestamp of first open */\
+    X(STDIO_F_OPEN_START_TIMESTAMP) \
+    /* timestamp of first close */\
+    X(STDIO_F_CLOSE_START_TIMESTAMP) \
+    /* timestamp of first write */\
+    X(STDIO_F_WRITE_START_TIMESTAMP) \
+    /* timestamp of first read */\
+    X(STDIO_F_READ_START_TIMESTAMP) \
+    /* timestamp of last open completion */\
+    X(STDIO_F_OPEN_END_TIMESTAMP) \
+    /* timestamp of last close completion */\
+    X(STDIO_F_CLOSE_END_TIMESTAMP) \
+    /* timestamp of last write completion */\
+    X(STDIO_F_WRITE_END_TIMESTAMP) \
+    /* timestamp of last read completion */\
+    X(STDIO_F_READ_END_TIMESTAMP) \
     /* end of counters */\
     X(STDIO_F_NUM_INDICES)
 
