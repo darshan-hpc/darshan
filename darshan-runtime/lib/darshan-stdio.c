@@ -5,9 +5,10 @@
  */
 
 /* TODO list (general) for this module:
- * - finish remaining function wrappers, see log format header
  * - implement reduction operator
  * - add stdio page to darshan-job-summary
+ * - add regression test cases for all functions captured here
+ *   - especially the scanf and printf variants with variable arguments
  * - figure out what to do about posix module compatibility
  *   - remove stdio counters in POSIX or keep and set to -1?
  *   - affected counters in posix module:
@@ -15,8 +16,6 @@
  *     - POSIX_FREADS
  *     - POSIX_FWRITES
  *     - POSIX_FSEEKS
- * - add regression test cases for all functions captured here
- *   - especially the scanf and printf variants
  */
 
 /* catalog of stdio functions instrumented by this module
