@@ -36,7 +36,7 @@
  *
  * functions for reading data
  * --------------
- * int      fgetc(FILE *);
+ * int      fgetc(FILE *);                                  DONE
  * char    *fgets(char *, int, FILE *);
  * size_t   fread(void *, size_t, size_t, FILE *);          DONE
  * int      fscanf(FILE *, const char *, ...);
@@ -99,6 +99,7 @@ DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fflush, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
+DARSHAN_FORWARD_DECL(fgetc, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
 
 /* The stdio_file_runtime structure maintains necessary runtime metadata
@@ -422,6 +423,26 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
     stdio_runtime_initialize();
     if(ret > 0)
         STDIO_RECORD_READ(stream, size*ret, tm1, tm2);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
+size_t DARSHAN_DECL(fgetc)(FILE *stream)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fgetc);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fgetc(stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    if(ret != EOF)
+        STDIO_RECORD_READ(stream, 1, tm1, tm2);
     STDIO_UNLOCK();
 
     return(ret);

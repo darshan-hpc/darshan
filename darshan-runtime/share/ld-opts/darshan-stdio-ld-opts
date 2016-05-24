@@ -7,4 +7,5 @@
 --wrap=fclose
 --wrap=fwrite
 --wrap=fread
+--wrap=fgetc
 --wrap=fseek
