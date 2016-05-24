@@ -43,7 +43,7 @@
  * int      fscanf(FILE *, const char *, ...);              DONE
  * int      vfscanf(FILE *, const char *, va_list);         DONE
  * int      getc(FILE *);                                   DONE
- * int      getw(FILE *);
+ * int      getw(FILE *);                                   DONE
  *
  * functions for writing data
  * --------------
@@ -104,6 +104,7 @@ DARSHAN_FORWARD_DECL(fflush, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fgetc, int, (FILE *stream));
+DARSHAN_FORWARD_DECL(getw, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(_IO_getc, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(fscanf, int, (FILE *stream, const char *format, ...));
 DARSHAN_FORWARD_DECL(vfscanf, int, (FILE *stream, const char *format, va_list ap));
@@ -476,6 +477,27 @@ size_t DARSHAN_DECL(_IO_getc)(FILE *stream)
 
     return(ret);
 }
+
+size_t DARSHAN_DECL(getw)(FILE *stream)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(getw);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_getw(stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    if(ret != EOF || ferror(stream) == 0)
+        STDIO_RECORD_READ(stream, sizeof(int), tm1, tm2);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
 
 int DARSHAN_DECL(fscanf)(FILE *stream, const char *format, ...)
 {
