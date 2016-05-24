@@ -23,3 +23,5 @@
 --wrap=fputc
 --wrap=fputs
 --wrap=putw
+--wrap=fsetpos
+--wrap=fsetpos64

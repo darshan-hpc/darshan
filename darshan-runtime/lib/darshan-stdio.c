@@ -62,8 +62,8 @@
  * int      fseek(FILE *, long int, int);                   DONE
  * int      fseeko(FILE *, off_t, int);                     DONE
  * int      fseeko64(FILE *, off_t, int);                   DONE
- * int      fsetpos(FILE *, const fpos_t *);
- * int      fsetpos64(FILE *, const fpos_t *);
+ * int      fsetpos(FILE *, const fpos_t *);                DONE
+ * int      fsetpos64(FILE *, const fpos_t *);              DONE
  * void     rewind(FILE *);
  * int      ungetc(int, FILE *);
  *
@@ -123,6 +123,8 @@ DARSHAN_FORWARD_DECL(fgets, char*, (char *s, int size, FILE *stream));
 DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
 DARSHAN_FORWARD_DECL(fseeko, int, (FILE *stream, off_t offset, int whence));
 DARSHAN_FORWARD_DECL(fseeko64, int, (FILE *stream, off_t offset, int whence));
+DARSHAN_FORWARD_DECL(fsetpos, int, (FILE *stream, const fpos_t *pos));
+DARSHAN_FORWARD_DECL(fsetpos64, int, (FILE *stream, const fpos_t *pos));
 
 /* The stdio_file_runtime structure maintains necessary runtime metadata
  * for the STDIO file record (darshan_stdio_record structure, defined in
@@ -834,6 +836,69 @@ int DARSHAN_DECL(fseeko64)(FILE *stream, off_t offset, int whence)
 
     return(ret);
 }
+
+int DARSHAN_DECL(fsetpos)(FILE *stream, const fpos_t *pos)
+{
+    int ret;
+    struct stdio_file_runtime* file;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fsetpos);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fsetpos(stream, pos);
+    tm2 = darshan_core_wtime();
+
+    if(ret >= 0)
+    {
+        STDIO_LOCK();
+        stdio_runtime_initialize();
+        file = stdio_file_by_stream(stream);
+        if(file)
+        {
+            file->offset = ftell(stream);
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                file->file_record->fcounters[STDIO_F_META_TIME],
+                tm1, tm2, file->last_meta_end);
+            file->file_record->counters[STDIO_SEEKS] += 1;
+        }
+        STDIO_UNLOCK();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(fsetpos64)(FILE *stream, const fpos_t *pos)
+{
+    int ret;
+    struct stdio_file_runtime* file;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fsetpos64);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fsetpos64(stream, pos);
+    tm2 = darshan_core_wtime();
+
+    if(ret >= 0)
+    {
+        STDIO_LOCK();
+        stdio_runtime_initialize();
+        file = stdio_file_by_stream(stream);
+        if(file)
+        {
+            file->offset = ftell(stream);
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                file->file_record->fcounters[STDIO_F_META_TIME],
+                tm1, tm2, file->last_meta_end);
+            file->file_record->counters[STDIO_SEEKS] += 1;
+        }
+        STDIO_UNLOCK();
+    }
+
+    return(ret);
+}
+
 
 /**********************************************************
  * Internal functions for manipulating STDIO module state *
