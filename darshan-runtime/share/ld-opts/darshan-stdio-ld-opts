@@ -14,3 +14,5 @@
 --wrap=getw
 --wrap=fgets
 --wrap=fseek
+--wrap=fprintf
+--wrap=vfprintf

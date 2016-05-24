@@ -47,13 +47,13 @@
  *
  * functions for writing data
  * --------------
- * int      fprintf(FILE *, const char *, ...);
+ * int      fprintf(FILE *, const char *, ...);             DONE
+ * int      vfprintf(FILE *, const char *, va_list);        DONE
  * int      fputc(int, FILE *);
  * int      fputs(const char *, FILE *);
  * size_t   fwrite(const void *, size_t, size_t, FILE *);   DONE
  * int      putc(int, FILE *);
  * int      putw(int, FILE *);
- * int      vfprintf(FILE *, const char *, va_list);
  *
  * functions for changing file position
  * --------------
@@ -102,6 +102,8 @@ DARSHAN_FORWARD_DECL(freopen, FILE*, (const char *path, const char *mode, FILE *
 DARSHAN_FORWARD_DECL(fclose, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fflush, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
+DARSHAN_FORWARD_DECL(fprintf, int, (FILE *stream, const char *format, ...));
+DARSHAN_FORWARD_DECL(vfprintf, int, (FILE *stream, const char *format, va_list));
 DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fgetc, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(getw, int, (FILE *stream));
@@ -417,6 +419,59 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
     return(ret);
 }
 
+int DARSHAN_DECL(vfprintf)(FILE *stream, const char *format, va_list ap)
+{
+    int ret;
+    double tm1, tm2;
+    long start_off, end_off;
+
+    MAP_OR_FAIL(vfprintf);
+
+    tm1 = darshan_core_wtime();
+    start_off = ftell(stream);
+    ret = __real_vfprintf(stream, format, ap);
+    end_off = ftell(stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    if(ret > 0)
+        STDIO_RECORD_WRITE(stream, (end_off-start_off), tm1, tm2, 0);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
+
+int DARSHAN_DECL(fprintf)(FILE *stream, const char *format, ...)
+{
+    int ret;
+    double tm1, tm2;
+    va_list ap;
+    long start_off, end_off;
+
+    MAP_OR_FAIL(vfprintf);
+
+    tm1 = darshan_core_wtime();
+    /* NOTE: we intentionally switch to vfprintf here to handle the variable
+     * length arguments.
+     */
+    start_off = ftell(stream);
+    va_start(ap, format);
+    ret = __real_vfprintf(stream, format, ap);
+    va_end(ap);
+    end_off = ftell(stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    if(ret > 0)
+        STDIO_RECORD_WRITE(stream, (end_off-start_off), tm1, tm2, 0);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
 size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
     size_t ret;
@@ -522,7 +577,7 @@ int DARSHAN_DECL(fscanf)(FILE *stream, const char *format, ...)
     STDIO_LOCK();
     stdio_runtime_initialize();
     if(ret != 0)
-        STDIO_RECORD_READ(stream, end_off-start_off, tm1, tm2);
+        STDIO_RECORD_READ(stream, (end_off-start_off), tm1, tm2);
     STDIO_UNLOCK();
 
     return(ret);
