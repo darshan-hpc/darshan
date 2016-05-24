@@ -8,5 +8,7 @@
 --wrap=fwrite
 --wrap=fread
 --wrap=fgetc
+--wrap=fscanf
+--wrap=vfscanf
 --wrap=fgets
 --wrap=fseek

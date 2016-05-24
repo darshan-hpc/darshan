@@ -16,6 +16,7 @@
  *     - POSIX_FWRITES
  *     - POSIX_FSEEKS
  * - add regression test cases for all functions captured here
+ *   - especially the scanf and printf variants
  */
 
 /* catalog of stdio functions instrumented by this module
@@ -39,7 +40,8 @@
  * int      fgetc(FILE *);                                  DONE
  * char    *fgets(char *, int, FILE *);                     DONE
  * size_t   fread(void *, size_t, size_t, FILE *);          DONE
- * int      fscanf(FILE *, const char *, ...);
+ * int      fscanf(FILE *, const char *, ...);              DONE
+ * int      vfscanf(FILE *, const char *, va_list);         DONE
  * int      getc(FILE *);
  * int      getc_unlocked(FILE *);
  * int      getw(FILE *);
@@ -100,6 +102,8 @@ DARSHAN_FORWARD_DECL(fflush, int, (FILE *fp));
 DARSHAN_FORWARD_DECL(fwrite, size_t, (const void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fgetc, int, (FILE *stream));
+DARSHAN_FORWARD_DECL(fscanf, int, (FILE *stream, const char *format, ...));
+DARSHAN_FORWARD_DECL(vfscanf, int, (FILE *stream, const char *format, va_list ap));
 DARSHAN_FORWARD_DECL(fgets, char*, (char *s, int size, FILE *stream));
 DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
 
@@ -448,6 +452,59 @@ size_t DARSHAN_DECL(fgetc)(FILE *stream)
 
     return(ret);
 }
+
+int DARSHAN_DECL(fscanf)(FILE *stream, const char *format, ...)
+{
+    int ret;
+    double tm1, tm2;
+    va_list ap;
+    long start_off, end_off;
+
+    MAP_OR_FAIL(vfscanf);
+
+    tm1 = darshan_core_wtime();
+    /* NOTE: we intentionally switch to vfscanf here to handle the variable
+     * length arguments.
+     */
+    start_off = ftell(stream);
+    va_start(ap, format);
+    ret = __real_vfscanf(stream, format, ap);
+    va_end(ap);
+    end_off = ftell(stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    if(ret != 0)
+        STDIO_RECORD_READ(stream, end_off-start_off, tm1, tm2);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(vfscanf)(FILE *stream, const char *format, va_list ap)
+{
+    int ret;
+    double tm1, tm2;
+    long start_off, end_off;
+
+    MAP_OR_FAIL(vfscanf);
+
+    tm1 = darshan_core_wtime();
+    start_off = ftell(stream);
+    ret = __real_vfscanf(stream, format, ap);
+    end_off = ftell(stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    if(ret != 0)
+        STDIO_RECORD_READ(stream, end_off-start_off, tm1, tm2);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
 
 char* DARSHAN_DECL(fgets)(char *s, int size, FILE *stream)
 {
