@@ -19,7 +19,7 @@
 #include <sys/ioctl.h>
 
 /* XXX stick this into autoconf .h */
-#include <lustre/lustreapi.h>
+#include <lustre/lustre_user.h>
 
 #include "uthash.h"
 

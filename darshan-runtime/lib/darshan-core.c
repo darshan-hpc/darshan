@@ -33,7 +33,7 @@
 #include "darshan-dynamic.h"
 
 /* XXX stick this into autoconf .h */
-#include <lustre/lustreapi.h>
+#include <lustre/lustre_user.h>
 
 extern char* __progname;
 extern char* __progname_full;
