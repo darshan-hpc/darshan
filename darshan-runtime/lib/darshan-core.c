@@ -93,9 +93,9 @@ static void darshan_log_record_hints_and_ver(
     struct darshan_core_runtime* core);
 static void darshan_get_exe_and_mounts(
     struct darshan_core_runtime *core, int argc, char **argv);
-static void darshan_add_record_hashref(
+static void darshan_add_name_record_ref(
     struct darshan_core_runtime *core, char *name,
-    darshan_record_id id, struct darshan_core_record_ref **ref);
+    darshan_record_id id, struct darshan_core_name_record_ref **ref);
 static int darshan_block_size_from_path(
     const char *path);
 static void darshan_get_user_name(
@@ -110,7 +110,7 @@ static int darshan_log_open_all(
 static int darshan_deflate_buffer(
     void **pointers, int *lengths, int count, char *comp_buf,
     int *comp_buf_length);
-static int darshan_log_write_record_hash(
+static int darshan_log_write_name_record_hash(
     MPI_File log_fh, struct darshan_core_runtime *core,
     uint64_t *inout_off);
 static int darshan_log_append_all(
@@ -208,11 +208,11 @@ void darshan_core_initialize(int argc, char **argv)
             init_core->log_hdr_p = malloc(sizeof(struct darshan_header));
             init_core->log_job_p = malloc(sizeof(struct darshan_job));
             init_core->log_exemnt_p = malloc(DARSHAN_EXE_LEN+1);
-            init_core->log_rec_p = malloc(DARSHAN_RECORD_BUF_SIZE);
+            init_core->log_name_p = malloc(DARSHAN_NAME_RECORD_BUF_SIZE);
             init_core->log_mod_p = malloc(DARSHAN_MOD_MEM_MAX);
 
             if(!(init_core->log_hdr_p) || !(init_core->log_job_p) ||
-               !(init_core->log_exemnt_p) || !(init_core->log_rec_p) ||
+               !(init_core->log_exemnt_p) || !(init_core->log_name_p) ||
                !(init_core->log_mod_p))
             {
                 free(init_core);
@@ -222,7 +222,7 @@ void darshan_core_initialize(int argc, char **argv)
             memset(init_core->log_hdr_p, 0, sizeof(struct darshan_header));
             memset(init_core->log_job_p, 0, sizeof(struct darshan_job));
             memset(init_core->log_exemnt_p, 0, DARSHAN_EXE_LEN+1);
-            memset(init_core->log_rec_p, 0, DARSHAN_RECORD_BUF_SIZE);
+            memset(init_core->log_name_p, 0, DARSHAN_NAME_RECORD_BUF_SIZE);
             memset(init_core->log_mod_p, 0, DARSHAN_MOD_MEM_MAX);
 #else
             /* if mmap logs are enabled, we need to initialize the mmap region
@@ -233,7 +233,7 @@ void darshan_core_initialize(int argc, char **argv)
             assert(sys_page_size > 0);
 
             mmap_size = sizeof(struct darshan_header) + DARSHAN_JOB_RECORD_SIZE +
-                + DARSHAN_RECORD_BUF_SIZE + DARSHAN_MOD_MEM_MAX;
+                + DARSHAN_NAME_RECORD_BUF_SIZE + DARSHAN_MOD_MEM_MAX;
             if(mmap_size % sys_page_size)
                 mmap_size = ((mmap_size / sys_page_size) + 1) * sys_page_size;
 
@@ -298,14 +298,14 @@ void darshan_core_initialize(int argc, char **argv)
                 ((char *)init_core->log_hdr_p + sizeof(struct darshan_header));
             init_core->log_exemnt_p = (char *)
                 ((char *)init_core->log_job_p + sizeof(struct darshan_job));
-            init_core->log_rec_p = (void *)
+            init_core->log_name_p = (void *)
                 ((char *)init_core->log_exemnt_p + DARSHAN_EXE_LEN + 1);
             init_core->log_mod_p = (void *)
-                ((char *)init_core->log_rec_p + DARSHAN_RECORD_BUF_SIZE);
+                ((char *)init_core->log_name_p + DARSHAN_NAME_RECORD_BUF_SIZE);
 
             /* set header fields needed for the mmap log mechanism */
             init_core->log_hdr_p->comp_type = DARSHAN_NO_COMP;
-            init_core->log_hdr_p->rec_map.off =
+            init_core->log_hdr_p->name_map.off =
                 sizeof(struct darshan_header) + DARSHAN_JOB_RECORD_SIZE;
 #endif
 
@@ -564,9 +564,9 @@ void darshan_core_shutdown()
     if(internal_timing_flag)
         rec1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
     /* write the record name->id hash to the log file */
-    out_header.rec_map.off = gz_fp;
-    ret = darshan_log_write_record_hash(log_fh, final_core, &gz_fp);
-    out_header.rec_map.len = gz_fp - out_header.rec_map.off;
+    out_header.name_map.off = gz_fp;
+    ret = darshan_log_write_name_record_hash(log_fh, final_core, &gz_fp);
+    out_header.name_map.len = gz_fp - out_header.name_map.off;
 
     /* error out if unable to write record hash */
     DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
@@ -601,7 +601,7 @@ void darshan_core_shutdown()
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
         struct darshan_core_module* this_mod = final_core->mod_array[i];
-        struct darshan_core_record_ref *ref = NULL;
+        struct darshan_core_name_record_ref *ref = NULL;
         int mod_shared_rec_cnt = 0;
         void* mod_buf = NULL;
         int mod_buf_sz = 0;
@@ -624,7 +624,7 @@ void darshan_core_shutdown()
         memset(mod_shared_recs, 0, shared_rec_cnt * sizeof(darshan_record_id));
         for(j = 0; j < shared_rec_cnt; j++)
         {
-            HASH_FIND(hlink, final_core->rec_hash, &shared_recs[j],
+            HASH_FIND(hlink, final_core->name_hash, &shared_recs[j],
                 sizeof(darshan_record_id), ref);
             assert(ref);
             if(DARSHAN_MOD_FLAG_ISSET(ref->global_mod_flags, i))
@@ -1219,14 +1219,12 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
     return;
 }
 
-static void darshan_add_record_hashref(struct darshan_core_runtime *core,
-    char *name, darshan_record_id id, struct darshan_core_record_ref **ref)
+static void darshan_add_name_record_ref(struct darshan_core_runtime *core, char *name,
+    darshan_record_id id, struct darshan_core_name_record_ref **ref)
 {
     int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
-    darshan_record_id *id_p;
-    char *name_p;
 
-    if((record_size + core->log_hdr_p->rec_map.len) > DARSHAN_RECORD_BUF_SIZE)
+    if((record_size + core->log_hdr_p->name_map.len) > DARSHAN_NAME_RECORD_BUF_SIZE)
         return;
 
     *ref = malloc(sizeof(**ref));
@@ -1234,20 +1232,17 @@ static void darshan_add_record_hashref(struct darshan_core_runtime *core,
     {
         memset(*ref, 0, sizeof(**ref));
 
-        /* serialize the record id and name into the record map buffer */
-        id_p = (darshan_record_id *)
-            ((char *)core->log_rec_p + core->log_hdr_p->rec_map.len);
-        *id_p = id;
-        name_p = (char *)id_p + sizeof(darshan_record_id);
-        strcpy(name_p, name);
-
-        /* save pointer to this record mapping buffer */
-        (*ref)->rec_p = id_p;
+        (*ref)->name_record = (struct darshan_name_record *)
+            ((char *)core->log_name_p + core->log_hdr_p->name_map.len);
+        memset((*ref)->name_record, 0, record_size);
+        (*ref)->name_record->id = id;
+        strcpy((*ref)->name_record->name, name);
 
         /* add the record to the hash table */
-        HASH_ADD_KEYPTR(hlink, core->rec_hash, id_p, sizeof(darshan_record_id), (*ref));
-        core->rec_hash_cnt++;
-        core->log_hdr_p->rec_map.len += record_size;
+        HASH_ADD(hlink, core->name_hash, name_record->id,
+            sizeof(darshan_record_id), (*ref));
+        core->name_hash_cnt++;
+        core->log_hdr_p->name_map.len += record_size;
     }
 
     return;
@@ -1257,8 +1252,8 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     darshan_record_id **shared_recs, int *shared_rec_cnt)
 {
     int i, j;
-    int tmp_cnt = core->rec_hash_cnt;
-    struct darshan_core_record_ref *tmp, *ref;
+    int tmp_cnt = core->name_hash_cnt;
+    struct darshan_core_name_record_ref *tmp, *ref;
     darshan_record_id *id_array;
     uint64_t *mod_flags;
     uint64_t *global_mod_flags;
@@ -1281,10 +1276,9 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     if(my_rank == 0)
     {
         i = 0;
-        HASH_ITER(hlink, core->rec_hash, ref, tmp)
+        HASH_ITER(hlink, core->name_hash, ref, tmp)
         {
-            /* dereference the record pointer to get corresponding id */
-            id_array[i++] = *(darshan_record_id *)ref->rec_p;
+            id_array[i++] = ref->name_record->id;
         }
     }
 
@@ -1295,7 +1289,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     /* everyone looks to see if they opened the same records as root */
     for(i=0; i<tmp_cnt; i++)
     {
-        HASH_FIND(hlink, core->rec_hash, &id_array[i], sizeof(darshan_record_id), ref);
+        HASH_FIND(hlink, core->name_hash, &id_array[i], sizeof(darshan_record_id), ref);
         if(ref)
         {
             /* we opened that record too, save the mod_flags */
@@ -1320,7 +1314,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
              * accessed this module. we need this info to support shared
              * file reductions
              */
-            HASH_FIND(hlink, core->rec_hash, &id_array[i], sizeof(darshan_record_id), ref);
+            HASH_FIND(hlink, core->name_hash, &id_array[i], sizeof(darshan_record_id), ref);
             assert(ref);
             ref->global_mod_flags = global_mod_flags[i];
         }
@@ -1483,14 +1477,14 @@ static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
 /* NOTE: the map written to file may contain duplicate id->name entries if a
  *       record is opened by multiple ranks, but not all ranks
  */
-static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_runtime *core,
-    uint64_t *inout_off)
+static int darshan_log_write_name_record_hash(MPI_File log_fh,
+    struct darshan_core_runtime *core, uint64_t *inout_off)
 {
-    struct darshan_core_record_ref *ref, *tmp;
+    struct darshan_core_name_record_ref *ref, *tmp;
     int ret;
 
     /* serialize the record hash into a buffer for writing */
-    HASH_ITER(hlink, core->rec_hash, ref, tmp)
+    HASH_ITER(hlink, core->name_hash, ref, tmp)
     {
         /* to avoid duplicate records, only rank 0 will write shared records */
         if(my_rank > 0 && ref->global_mod_flags)
@@ -1500,8 +1494,8 @@ static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_ru
     }
 
     /* collectively write out the record hash to the darshan log */
-    ret = darshan_log_append_all(log_fh, core, core->log_rec_p,
-        core->log_hdr_p->rec_map.len, inout_off);
+    ret = darshan_log_append_all(log_fh, core, core->log_name_p,
+        core->log_hdr_p->name_map.len, inout_off);
 
     return(ret);
 }
@@ -1581,12 +1575,12 @@ static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *
 /* free darshan core data structures to shutdown */
 static void darshan_core_cleanup(struct darshan_core_runtime* core)
 {
-    struct darshan_core_record_ref *tmp, *ref;
+    struct darshan_core_name_record_ref *tmp, *ref;
     int i;
 
-    HASH_ITER(hlink, core->rec_hash, ref, tmp)
+    HASH_ITER(hlink, core->name_hash, ref, tmp)
     {
-        HASH_DELETE(hlink, core->rec_hash, ref);
+        HASH_DELETE(hlink, core->name_hash, ref);
         free(ref);
     }
 
@@ -1603,7 +1597,7 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
     free(core->log_hdr_p);
     free(core->log_job_p);
     free(core->log_exemnt_p);
-    free(core->log_rec_p);
+    free(core->log_name_p);
     free(core->log_mod_p);
 #endif
 
@@ -1686,7 +1680,7 @@ void darshan_core_register_module(
 void darshan_core_unregister_module(
     darshan_module_id mod_id)
 {
-    struct darshan_core_record_ref *ref, *tmp;
+    struct darshan_core_name_record_ref *ref, *tmp;
 
     if(!darshan_core)
         return;
@@ -1694,14 +1688,14 @@ void darshan_core_unregister_module(
     DARSHAN_CORE_LOCK();
 
     /* iterate all records and disassociate this module from them */
-    HASH_ITER(hlink, darshan_core->rec_hash, ref, tmp)
+    HASH_ITER(hlink, darshan_core->name_hash, ref, tmp)
     {
         /* disassociate this module from the given record id */
         DARSHAN_MOD_FLAG_UNSET(ref->mod_flags, mod_id);
         if(!(ref->mod_flags))
         {
             /* if no other modules are associated with this rec, delete it */
-            HASH_DELETE(hlink, darshan_core->rec_hash, ref);
+            HASH_DELETE(hlink, darshan_core->name_hash, ref);
         }
     }
 
@@ -1739,7 +1733,7 @@ int darshan_core_register_record(
     int rec_size,
     int *file_alignment)
 {
-    struct darshan_core_record_ref *ref;
+    struct darshan_core_name_record_ref *ref;
     int mod_oom = 0;
 
     if(!darshan_core)
@@ -1752,14 +1746,14 @@ int darshan_core_register_record(
         mod_oom = 1;
 
     /* check to see if we've already stored the id->name mapping for this record */
-    HASH_FIND(hlink, darshan_core->rec_hash, &rec_id, sizeof(darshan_record_id), ref);
+    HASH_FIND(hlink, darshan_core->name_hash, &rec_id, sizeof(darshan_record_id), ref);
     if(!ref && !mod_oom)
     {
         /* no mapping already exists, but this module has memory available for
          * storing the record being registered, so we create a new id->name
          * mapping to correspond to the record
          */
-        darshan_add_record_hashref(darshan_core, name, rec_id, &ref);
+        darshan_add_name_record_ref(darshan_core, name, rec_id, &ref);
     }
 
     if(!ref)

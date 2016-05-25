@@ -69,7 +69,7 @@ struct darshan_header
     int64_t magic_nr;
     unsigned char comp_type;
     uint32_t partial_flag;
-    struct darshan_log_map rec_map;
+    struct darshan_log_map name_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
     uint32_t mod_ver[DARSHAN_MAX_MODS];
 };
@@ -86,6 +86,14 @@ struct darshan_job
     char metadata[DARSHAN_JOB_METADATA_LEN];
 };
 
+/* record to store name->darshan_id mapping for each registered record */
+struct darshan_name_record
+{
+    darshan_record_id id;
+    char name[1];
+};
+
+/* base record definition that can be used by modules */
 struct darshan_base_record
 {
     darshan_record_id id;
