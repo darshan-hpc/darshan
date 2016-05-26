@@ -55,7 +55,7 @@ static int darshan_log_get_hdf5_file(darshan_fd fd, void* hdf5_buf)
     int i;
     int ret;
 
-    ret = darshan_log_getmod(fd, DARSHAN_HDF5_MOD, hdf5_buf,
+    ret = darshan_log_get_mod(fd, DARSHAN_HDF5_MOD, hdf5_buf,
         sizeof(struct darshan_hdf5_file));
     if(ret < 0)
         return(-1);
@@ -84,7 +84,7 @@ static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf, int ver)
     struct darshan_hdf5_file *file = (struct darshan_hdf5_file *)hdf5_buf;
     int ret;
 
-    ret = darshan_log_putmod(fd, DARSHAN_HDF5_MOD, file,
+    ret = darshan_log_put_mod(fd, DARSHAN_HDF5_MOD, file,
         sizeof(struct darshan_hdf5_file), ver);
     if(ret < 0)
         return(-1);

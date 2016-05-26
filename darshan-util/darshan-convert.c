@@ -140,21 +140,25 @@ void obfuscate_exe(int key, char *exe)
     return;
 }
 
-void obfuscate_filenames(int key, struct darshan_record_ref *rec_hash)
+void obfuscate_filenames(int key, struct darshan_name_record_ref *name_hash)
 {
-    struct darshan_record_ref *ref, *tmp;
+    struct darshan_name_record_ref *ref, *tmp;
     uint32_t hashed;
     char tmp_string[128] = {0};
+    darshan_record_id tmp_id;
 
-    HASH_ITER(hlink, rec_hash, ref, tmp)
+    HASH_ITER(hlink, name_hash, ref, tmp)
     {
-        hashed = darshan_hashlittle(ref->name, strlen(ref->name), key);
+        tmp_id = ref->name_record->id;
+        hashed = darshan_hashlittle(ref->name_record->name,
+            strlen(ref->name_record->name), key);
         sprintf(tmp_string, "%u", hashed);
-        free(ref->name);
-        ref->name = malloc(strlen(tmp_string) + 1);
-        assert(ref->name);
-        memcpy(ref->name, tmp_string, strlen(tmp_string));
-        ref->name[strlen(tmp_string)] = '\0';
+        free(ref->name_record);
+        ref->name_record = malloc(sizeof(struct darshan_name_record) +
+            strlen(tmp_string));
+        assert(ref->name_record);
+        ref->name_record->id = tmp_id;
+        strcpy(ref->name_record->name, tmp_string);
     }
 
     return;
@@ -202,16 +206,17 @@ void add_annotation (char *annotation,
     return;
 }
 
-static void remove_hash_recs(struct darshan_record_ref **rec_hash, darshan_record_id hash)
+static void remove_hash_recs(struct darshan_name_record_ref **name_hash,
+    darshan_record_id hash)
 {
-    struct darshan_record_ref *ref, *tmp;
+    struct darshan_name_record_ref *ref, *tmp;
 
-    HASH_ITER(hlink, *rec_hash, ref, tmp)
+    HASH_ITER(hlink, *name_hash, ref, tmp)
     {
-        if(ref->id != hash)
+        if(ref->name_record->id != hash)
         {
-            HASH_DELETE(hlink, *rec_hash, ref);
-            free(ref->name);
+            HASH_DELETE(hlink, *name_hash, ref);
+            free(ref->name_record);
             free(ref);
         }
     }
@@ -232,8 +237,8 @@ int main(int argc, char **argv)
     int mount_count;
     char** mnt_pts;
     char** fs_types;
-    struct darshan_record_ref *rec_hash = NULL;
-    struct darshan_record_ref *ref, *tmp;
+    struct darshan_name_record_ref *name_hash = NULL;
+    struct darshan_name_record_ref *ref, *tmp;
     char mod_buf[DEF_MOD_BUF_SIZE];
     enum darshan_comp_type comp_type;
     int bzip2;
@@ -259,7 +264,7 @@ int main(int argc, char **argv)
     }
 
     /* read job info */
-    ret = darshan_log_getjob(infile, &job);
+    ret = darshan_log_get_job(infile, &job);
     if(ret < 0)
     {
         darshan_log_close(infile);
@@ -272,7 +277,7 @@ int main(int argc, char **argv)
     if (obfuscate) obfuscate_job(key, &job);
     if (annotation) add_annotation(annotation, &job);
 
-    ret = darshan_log_putjob(outfile, &job);
+    ret = darshan_log_put_job(outfile, &job);
     if (ret < 0)
     {
         darshan_log_close(infile);
@@ -280,7 +285,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    ret = darshan_log_getexe(infile, tmp_string);
+    ret = darshan_log_get_exe(infile, tmp_string);
     if(ret < 0)
     {
         darshan_log_close(infile);
@@ -291,7 +296,7 @@ int main(int argc, char **argv)
 
     if (obfuscate) obfuscate_exe(key, tmp_string);
 
-    ret = darshan_log_putexe(outfile, tmp_string);
+    ret = darshan_log_put_exe(outfile, tmp_string);
     if(ret < 0)
     {
         darshan_log_close(infile);
@@ -299,7 +304,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    ret = darshan_log_getmounts(infile, &mnt_pts, &fs_types, &mount_count);
+    ret = darshan_log_get_mounts(infile, &mnt_pts, &fs_types, &mount_count);
     if(ret < 0)
     {
         darshan_log_close(infile);
@@ -308,7 +313,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    ret = darshan_log_putmounts(outfile, mnt_pts, fs_types, mount_count);
+    ret = darshan_log_put_mounts(outfile, mnt_pts, fs_types, mount_count);
     if(ret < 0)
     {
         darshan_log_close(infile);
@@ -316,7 +321,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    ret = darshan_log_gethash(infile, &rec_hash);
+    ret = darshan_log_get_namehash(infile, &name_hash);
     if(ret < 0)
     {
         darshan_log_close(infile);
@@ -328,10 +333,10 @@ int main(int argc, char **argv)
     /* NOTE: obfuscating filepaths breaks the ability to map files
      * to the corresponding FS & mount info maintained by darshan
      */
-    if(obfuscate) obfuscate_filenames(key, rec_hash);
-    if(hash) remove_hash_recs(&rec_hash, hash);
+    if(obfuscate) obfuscate_filenames(key, name_hash);
+    if(hash) remove_hash_recs(&name_hash, hash);
 
-    ret = darshan_log_puthash(outfile, rec_hash);
+    ret = darshan_log_put_namehash(outfile, name_hash);
     if(ret < 0)
     {
         darshan_log_close(infile);
@@ -402,10 +407,10 @@ int main(int argc, char **argv)
         free(fs_types);
     }
 
-    HASH_ITER(hlink, rec_hash, ref, tmp)
+    HASH_ITER(hlink, name_hash, ref, tmp)
     {
-        HASH_DELETE(hlink, rec_hash, ref);
-        free(ref->name);
+        HASH_DELETE(hlink, name_hash, ref);
+        free(ref->name_record);
         free(ref);
     }
 

@@ -67,7 +67,7 @@ static int darshan_log_get_null_record(darshan_fd fd, void* null_buf)
     int ret;
 
     /* read a NULL module record from the darshan log file */
-    ret = darshan_log_getmod(fd, DARSHAN_NULL_MOD, null_buf,
+    ret = darshan_log_get_mod(fd, DARSHAN_NULL_MOD, null_buf,
         sizeof(struct darshan_null_record));
     if(ret < 0)
         return(-1);
@@ -101,7 +101,7 @@ static int darshan_log_put_null_record(darshan_fd fd, void* null_buf, int ver)
     int ret;
 
     /* append NULL record to darshan log file */
-    ret = darshan_log_putmod(fd, DARSHAN_NULL_MOD, rec,
+    ret = darshan_log_put_mod(fd, DARSHAN_NULL_MOD, rec,
         sizeof(struct darshan_null_record), ver);
     if(ret < 0)
         return(-1);

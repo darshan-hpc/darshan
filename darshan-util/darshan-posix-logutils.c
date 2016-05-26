@@ -55,7 +55,7 @@ static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf)
     int i;
     int ret;
 
-    ret = darshan_log_getmod(fd, DARSHAN_POSIX_MOD, posix_buf,
+    ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, posix_buf,
         sizeof(struct darshan_posix_file));
     if(ret < 0)
         return(-1);
@@ -84,7 +84,7 @@ static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver)
     struct darshan_posix_file *file = (struct darshan_posix_file *)posix_buf;
     int ret;
 
-    ret = darshan_log_putmod(fd, DARSHAN_POSIX_MOD, file,
+    ret = darshan_log_put_mod(fd, DARSHAN_POSIX_MOD, file,
         sizeof(struct darshan_posix_file), ver);
     if(ret < 0)
         return(-1);

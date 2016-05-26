@@ -55,7 +55,7 @@ static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf)
     int i;
     int ret;
 
-    ret = darshan_log_getmod(fd, DARSHAN_BGQ_MOD, bgq_buf,
+    ret = darshan_log_get_mod(fd, DARSHAN_BGQ_MOD, bgq_buf,
         sizeof(struct darshan_bgq_record));
     if(ret < 0)
         return(-1);
@@ -84,7 +84,7 @@ static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf, int ver)
     struct darshan_bgq_record *rec = (struct darshan_bgq_record *)bgq_buf;
     int ret;
 
-    ret = darshan_log_putmod(fd, DARSHAN_BGQ_MOD, rec,
+    ret = darshan_log_put_mod(fd, DARSHAN_BGQ_MOD, rec,
         sizeof(struct darshan_bgq_record), ver);
     if(ret < 0)
         return(-1);

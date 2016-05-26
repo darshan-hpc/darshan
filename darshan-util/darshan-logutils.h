@@ -33,7 +33,7 @@ struct darshan_fd_s
     enum darshan_comp_type comp_type;
     /* log file offset/length maps for each log file region */
     struct darshan_log_map job_map;
-    struct darshan_log_map rec_map;
+    struct darshan_log_map name_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
     /* module-specific log-format versions contained in log */
     uint32_t mod_ver[DARSHAN_MAX_MODS];
@@ -43,10 +43,9 @@ struct darshan_fd_s
 };
 typedef struct darshan_fd_s* darshan_fd;
 
-struct darshan_record_ref
+struct darshan_name_record_ref
 {
-    char *name;
-    darshan_record_id id;
+    struct darshan_name_record *name_record;
     UT_hash_handle hlink;
 };
 
@@ -119,19 +118,19 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[];
 darshan_fd darshan_log_open(const char *name);
 darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type,
     int partial_flag);
-int darshan_log_getjob(darshan_fd fd, struct darshan_job *job);
-int darshan_log_putjob(darshan_fd fd, struct darshan_job *job);
-int darshan_log_getexe(darshan_fd fd, char *buf);
-int darshan_log_putexe(darshan_fd fd, char *buf);
-int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts,
+int darshan_log_get_job(darshan_fd fd, struct darshan_job *job);
+int darshan_log_put_job(darshan_fd fd, struct darshan_job *job);
+int darshan_log_get_exe(darshan_fd fd, char *buf);
+int darshan_log_put_exe(darshan_fd fd, char *buf);
+int darshan_log_get_mounts(darshan_fd fd, char*** mnt_pts,
     char*** fs_types, int* count);
-int darshan_log_putmounts(darshan_fd fd, char** mnt_pts,
+int darshan_log_put_mounts(darshan_fd fd, char** mnt_pts,
     char** fs_types, int count);
-int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash);
-int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash);
-int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
+int darshan_log_get_namehash(darshan_fd fd, struct darshan_name_record_ref **hash);
+int darshan_log_put_namehash(darshan_fd fd, struct darshan_name_record_ref *hash);
+int darshan_log_get_mod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz);
-int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
+int darshan_log_put_mod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz, int ver);
 void darshan_log_close(darshan_fd file);
 

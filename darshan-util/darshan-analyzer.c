@@ -52,10 +52,10 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
         return -1;
     }
 
-    ret = darshan_log_getjob(file, &job);
+    ret = darshan_log_get_job(file, &job);
     if (ret < 0)
     {
-        fprintf(stderr, "darshan_log_getjob() failed on file %s.\n", fname);
+        fprintf(stderr, "darshan_log_get_job() failed on file %s.\n", fname);
         darshan_log_close(file);
         return -1;
     }

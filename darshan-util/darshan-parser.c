@@ -107,13 +107,13 @@ void posix_accum_file(struct darshan_posix_file *pfile, hash_entry_t *hfile, int
 void posix_accum_perf(struct darshan_posix_file *pfile, perf_data_t *pdata);
 void posix_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
 void posix_print_total_file(struct darshan_posix_file *pfile);
-void posix_file_list(hash_entry_t *file_hash, struct darshan_record_ref *rec_hash, int detail_flag);
+void posix_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
 
 void mpiio_accum_file(struct darshan_mpiio_file *mfile, hash_entry_t *hfile, int64_t nprocs);
 void mpiio_accum_perf(struct darshan_mpiio_file *mfile, perf_data_t *pdata);
 void mpiio_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
 void mpiio_print_total_file(struct darshan_mpiio_file *mfile);
-void mpiio_file_list(hash_entry_t *file_hash, struct darshan_record_ref *rec_hash, int detail_flag);
+void mpiio_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
 
 void calc_perf(perf_data_t *pdata, int64_t nprocs);
 
@@ -203,8 +203,8 @@ int main(int argc, char **argv)
     char tmp_string[4096] = {0};
     darshan_fd fd;
     struct darshan_job job;
-    struct darshan_record_ref *rec_hash = NULL;
-    struct darshan_record_ref *ref, *tmp_ref;
+    struct darshan_name_record_ref *name_hash = NULL;
+    struct darshan_name_record_ref *ref, *tmp_ref;
     int mount_count;
     char** mnt_pts;
     char** fs_types;
@@ -234,7 +234,7 @@ int main(int argc, char **argv)
         return(-1);
 
     /* read darshan job info */
-    ret = darshan_log_getjob(fd, &job);
+    ret = darshan_log_get_job(fd, &job);
     if(ret < 0)
     {
         darshan_log_close(fd);
@@ -242,7 +242,7 @@ int main(int argc, char **argv)
     }
 
     /* get the original command line for this job */
-    ret = darshan_log_getexe(fd, tmp_string);
+    ret = darshan_log_get_exe(fd, tmp_string);
     if(ret < 0)
     {
         darshan_log_close(fd);
@@ -250,7 +250,7 @@ int main(int argc, char **argv)
     }
 
     /* get the mount information for this log */
-    ret = darshan_log_getmounts(fd, &mnt_pts, &fs_types, &mount_count);
+    ret = darshan_log_get_mounts(fd, &mnt_pts, &fs_types, &mount_count);
     if(ret < 0)
     {
         darshan_log_close(fd);
@@ -258,7 +258,7 @@ int main(int argc, char **argv)
     }
 
     /* read hash of darshan records */
-    ret = darshan_log_gethash(fd, &rec_hash);
+    ret = darshan_log_get_namehash(fd, &name_hash);
     if(ret < 0)
     {
         darshan_log_close(fd);
@@ -317,7 +317,7 @@ int main(int argc, char **argv)
     printf("# -------------------------------------------------------\n");
     printf("# header: %zu bytes (uncompressed)\n", sizeof(struct darshan_header));
     printf("# job data: %zu bytes (compressed)\n", fd->job_map.len);
-    printf("# record table: %zu bytes (compressed)\n", fd->rec_map.len);
+    printf("# record table: %zu bytes (compressed)\n", fd->name_map.len);
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
         if(fd->mod_map[i].len)
@@ -426,13 +426,13 @@ int main(int argc, char **argv)
             base_rec = (struct darshan_base_record *)mod_buf;
 
             /* get the pathname for this record */
-            HASH_FIND(hlink, rec_hash, &(base_rec->id), sizeof(darshan_record_id), ref);
+            HASH_FIND(hlink, name_hash, &(base_rec->id), sizeof(darshan_record_id), ref);
             assert(ref);
 
             /* get mount point and fs type associated with this record */
             for(j=0; j<mount_count; j++)
             {
-                if(strncmp(mnt_pts[j], ref->name, strlen(mnt_pts[j])) == 0)
+                if(strncmp(mnt_pts[j], ref->name_record->name, strlen(mnt_pts[j])) == 0)
                 {
                     mnt_pt = mnt_pts[j];
                     fs_type = fs_types[j];
@@ -447,7 +447,7 @@ int main(int argc, char **argv)
             if(mask & OPTION_BASE)
             {
                 /* print the corresponding module data for this record */
-                mod_logutils[i]->log_print_record(mod_buf, ref->name,
+                mod_logutils[i]->log_print_record(mod_buf, ref->name_record->name,
                     mnt_pt, fs_type, fd->mod_ver[i]);
             }
 
@@ -598,16 +598,16 @@ int main(int argc, char **argv)
             if(i == DARSHAN_POSIX_MOD)
             {
                 if(mask & OPTION_FILE_LIST_DETAILED)
-                    posix_file_list(file_hash, rec_hash, 1);
+                    posix_file_list(file_hash, name_hash, 1);
                 else
-                    posix_file_list(file_hash, rec_hash, 0);
+                    posix_file_list(file_hash, name_hash, 0);
             }
             else if(i == DARSHAN_MPIIO_MOD)
             {
                 if(mask & OPTION_FILE_LIST_DETAILED)
-                    mpiio_file_list(file_hash, rec_hash, 1);
+                    mpiio_file_list(file_hash, name_hash, 1);
                 else
-                    mpiio_file_list(file_hash, rec_hash, 0);
+                    mpiio_file_list(file_hash, name_hash, 0);
             }
         }
 
@@ -640,10 +640,10 @@ cleanup:
     free(pdata.rank_cumul_md_time);
 
     /* free record hash data */
-    HASH_ITER(hlink, rec_hash, ref, tmp_ref)
+    HASH_ITER(hlink, name_hash, ref, tmp_ref)
     {
-        HASH_DELETE(hlink, rec_hash, ref);
-        free(ref->name);
+        HASH_DELETE(hlink, name_hash, ref);
+        free(ref->name_record);
         free(ref);
     }
 
@@ -1413,13 +1413,13 @@ void mpiio_print_total_file(struct darshan_mpiio_file *mfile)
 }
 
 void posix_file_list(hash_entry_t *file_hash,
-                     struct darshan_record_ref *rec_hash,
+                     struct darshan_name_record_ref *name_hash,
                      int detail_flag)
 {
     hash_entry_t *curr = NULL;
     hash_entry_t *tmp = NULL;
     struct darshan_posix_file *file_rec = NULL;
-    struct darshan_record_ref *ref = NULL;
+    struct darshan_name_record_ref *ref = NULL;
     int i;
 
     /* list of columns:
@@ -1477,12 +1477,12 @@ void posix_file_list(hash_entry_t *file_hash,
         file_rec = (struct darshan_posix_file*)curr->rec_dat;
         assert(file_rec);
 
-        HASH_FIND(hlink, rec_hash, &(curr->rec_id), sizeof(darshan_record_id), ref);
+        HASH_FIND(hlink, name_hash, &(curr->rec_id), sizeof(darshan_record_id), ref);
         assert(ref);
 
         printf("%" PRIu64 "\t%s\t%" PRId64 "\t%f\t%f",
             curr->rec_id,
-            ref->name,
+            ref->name_record->name,
             curr->procs,
             curr->slowest_time,
             curr->cumul_time/(double)curr->procs);
@@ -1504,13 +1504,13 @@ void posix_file_list(hash_entry_t *file_hash,
 }
 
 void mpiio_file_list(hash_entry_t *file_hash,
-                     struct darshan_record_ref *rec_hash,
+                     struct darshan_name_record_ref *name_hash,
                      int detail_flag)
 {
     hash_entry_t *curr = NULL;
     hash_entry_t *tmp = NULL;
     struct darshan_mpiio_file *file_rec = NULL;
-    struct darshan_record_ref *ref = NULL;
+    struct darshan_name_record_ref *ref = NULL;
     int i;
 
     /* list of columns:
@@ -1571,12 +1571,12 @@ void mpiio_file_list(hash_entry_t *file_hash,
         file_rec = (struct darshan_mpiio_file*)curr->rec_dat;
         assert(file_rec);
 
-        HASH_FIND(hlink, rec_hash, &(curr->rec_id), sizeof(darshan_record_id), ref);
+        HASH_FIND(hlink, name_hash, &(curr->rec_id), sizeof(darshan_record_id), ref);
         assert(ref);
 
         printf("%" PRIu64 "\t%s\t%" PRId64 "\t%f\t%f",
             curr->rec_id,
-            ref->name,
+            ref->name_record->name,
             curr->procs,
             curr->slowest_time,
             curr->cumul_time/(double)curr->procs);

@@ -192,9 +192,9 @@ int main(int argc, char *argv[])
     char **merge_mnt_pts;
     char **merge_fs_types;
     int merge_mnt_count = 0;
-    struct darshan_record_ref *in_hash = NULL;
-    struct darshan_record_ref *merge_hash = NULL;
-    struct darshan_record_ref *ref, *tmp, *found;
+    struct darshan_name_record_ref *in_hash = NULL;
+    struct darshan_name_record_ref *merge_hash = NULL;
+    struct darshan_name_record_ref *ref, *tmp, *found;
     struct darshan_shared_record_ref *shared_rec_hash = NULL;
     struct darshan_shared_record_ref *sref, *stmp;
     struct darshan_base_record *base_rec;
@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
         }
 
         /* read job-level metadata from the input file */
-        ret = darshan_log_getjob(in_fd, &in_job);
+        ret = darshan_log_get_job(in_fd, &in_job);
         if(ret < 0)
         {
             fprintf(stderr,
@@ -254,7 +254,7 @@ int main(int argc, char *argv[])
             /* get job data, exe, & mounts directly from the first input log */
             memcpy(&merge_job, &in_job, sizeof(struct darshan_job));
 
-            ret = darshan_log_getexe(in_fd, merge_exe);
+            ret = darshan_log_get_exe(in_fd, merge_exe);
             if(ret < 0)
             {
                 fprintf(stderr,
@@ -264,7 +264,7 @@ int main(int argc, char *argv[])
                 return(-1);
             }
 
-            ret = darshan_log_getmounts(in_fd, &merge_mnt_pts,
+            ret = darshan_log_get_mounts(in_fd, &merge_mnt_pts,
                 &merge_fs_types, &merge_mnt_count);
             if(ret < 0)
             {
@@ -285,7 +285,7 @@ int main(int argc, char *argv[])
         }
 
         /* read the hash of ids->names for the input log */
-        ret = darshan_log_gethash(in_fd, &in_hash);
+        ret = darshan_log_get_namehash(in_fd, &in_hash);
         if(ret < 0)
         {
             fprintf(stderr,
@@ -295,17 +295,19 @@ int main(int argc, char *argv[])
             return(-1);
         }
 
-        /* iterate the input hash, copying over record_id->file_name mappings
+        /* iterate the input hash, copying over record id->name mappings
          * that have not already been copied to the output hash
          */
         HASH_ITER(hlink, in_hash, ref, tmp)
         {
-            HASH_FIND(hlink, merge_hash, &(ref->id), sizeof(darshan_record_id), found);
+            HASH_FIND(hlink, merge_hash, &(ref->name_record->id),
+                sizeof(darshan_record_id), found);
             if(!found)
             {
-                HASH_ADD(hlink, merge_hash, id, sizeof(darshan_record_id), ref);
+                HASH_ADD(hlink, merge_hash, name_record->id,
+                    sizeof(darshan_record_id), ref);
             }
-            else if(strcmp(ref->name, found->name))
+            else if(strcmp(ref->name_record->name, found->name_record->name))
             {
                 fprintf(stderr,
                     "Error: invalid Darshan record table entry.\n");
@@ -330,7 +332,7 @@ int main(int argc, char *argv[])
     }
 
     /* write the darshan job info, exe string, and mount data to output file */
-    ret = darshan_log_putjob(merge_fd, &merge_job);
+    ret = darshan_log_put_job(merge_fd, &merge_job);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to write job data to output darshan log.\n");
@@ -339,7 +341,7 @@ int main(int argc, char *argv[])
         return(-1);
     }
 
-    ret = darshan_log_putexe(merge_fd, merge_exe);
+    ret = darshan_log_put_exe(merge_fd, merge_exe);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to write exe string to output darshan log.\n");
@@ -348,7 +350,7 @@ int main(int argc, char *argv[])
         return(-1);
     }
 
-    ret = darshan_log_putmounts(merge_fd, merge_mnt_pts, merge_fs_types, merge_mnt_count);
+    ret = darshan_log_put_mounts(merge_fd, merge_mnt_pts, merge_fs_types, merge_mnt_count);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to write mount data to output darshan log.\n");
@@ -358,7 +360,7 @@ int main(int argc, char *argv[])
     }
 
     /* write the merged table of records to output file */
-    ret = darshan_log_puthash(merge_fd, merge_hash);
+    ret = darshan_log_put_namehash(merge_fd, merge_hash);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to write record table to output darshan log.\n");
