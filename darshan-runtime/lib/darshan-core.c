@@ -1480,22 +1480,83 @@ static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
 static int darshan_log_write_name_record_hash(MPI_File log_fh,
     struct darshan_core_runtime *core, uint64_t *inout_off)
 {
-    struct darshan_core_name_record_ref *ref, *tmp;
+    struct darshan_core_name_record_ref *ref;
+    struct darshan_name_record *name_rec;
+    char *my_buf, *shared_buf;
+    char *tmp_p;
+    int rec_len;
+    int shared_buf_len;
+    int name_rec_buf_len;
     int ret;
 
-    /* serialize the record hash into a buffer for writing */
-    HASH_ITER(hlink, core->name_hash, ref, tmp)
+    name_rec_buf_len = core->log_hdr_p->name_map.len;
+    if(my_rank > 0)
     {
-        /* to avoid duplicate records, only rank 0 will write shared records */
-        if(my_rank > 0 && ref->global_mod_flags)
+        name_rec = core->log_name_p;
+        my_buf = core->log_name_p;
+        shared_buf = core->comp_buf;
+        shared_buf_len = 0;
+        while(name_rec_buf_len > 0)
         {
-            /* TODO: remove ref */
+            HASH_FIND(hlink, core->name_hash, &(name_rec->id),
+                sizeof(darshan_record_id), ref);
+            assert(ref);
+            rec_len = sizeof(darshan_record_id) + strlen(name_rec->name) + 1;
+
+            if(ref->global_mod_flags)
+            {
+                HASH_DELETE(hlink, core->name_hash, ref);
+                memcpy(shared_buf, name_rec, rec_len);
+                ref->name_record = (struct darshan_name_record *)shared_buf;
+                HASH_ADD(hlink, core->name_hash, name_record->id,
+                    sizeof(darshan_record_id), ref);
+
+                shared_buf += rec_len;
+                shared_buf_len += rec_len;
+            }
+            else
+            {
+                if(my_buf != (char *)name_rec)
+                {
+                    HASH_DELETE(hlink, core->name_hash, ref);
+                    memcpy(my_buf, name_rec, rec_len);
+                    ref->name_record =(struct darshan_name_record *)my_buf;
+                    HASH_ADD(hlink, core->name_hash, name_record->id,
+                        sizeof(darshan_record_id), ref);
+                }
+                my_buf += rec_len;
+            }
+
+            tmp_p = (char *)name_rec + rec_len;
+            name_rec = (struct darshan_name_record *)tmp_p;
+            name_rec_buf_len -= rec_len;
+        }
+        name_rec_buf_len = core->log_hdr_p->name_map.len - shared_buf_len;
+
+        name_rec = (struct darshan_name_record *)core->comp_buf;
+        while(shared_buf_len > 0)
+        {
+            HASH_FIND(hlink, core->name_hash, &(name_rec->id),
+                sizeof(darshan_record_id), ref);
+            assert(ref);
+            rec_len = sizeof(darshan_record_id) + strlen(name_rec->name) + 1;
+
+            HASH_DELETE(hlink, core->name_hash, ref);
+            memcpy(my_buf, name_rec, rec_len);
+            ref->name_record = (struct darshan_name_record *)my_buf;
+            HASH_ADD(hlink, core->name_hash, name_record->id,
+                sizeof(darshan_record_id), ref);
+
+            tmp_p = (char *)name_rec + rec_len;
+            name_rec = (struct darshan_name_record *)tmp_p;
+            my_buf += rec_len;
+            shared_buf_len -= rec_len;
         }
     }
 
     /* collectively write out the record hash to the darshan log */
     ret = darshan_log_append_all(log_fh, core, core->log_name_p,
-        core->log_hdr_p->name_map.len, inout_off);
+        name_rec_buf_len, inout_off);
 
     return(ret);
 }
