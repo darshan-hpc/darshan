@@ -291,8 +291,7 @@ static struct pnetcdf_file_runtime* pnetcdf_file_by_name(const char *name)
 
     /* lookup the unique id for this filename */
     darshan_core_lookup_record(
-        (void*)newname,
-        strlen(newname),
+        newname,
         &file_id);
 
     /* search the hash table for this file record, and return if found */
@@ -300,7 +299,7 @@ static struct pnetcdf_file_runtime* pnetcdf_file_by_name(const char *name)
     if(!file)
     {
         /* register the record with the darshan core component */
-        ret = darshan_core_register_record(file_id, (void *)newname, DARSHAN_PNETCDF_MOD,
+        ret = darshan_core_register_record(file_id, newname, DARSHAN_PNETCDF_MOD,
             sizeof(struct darshan_pnetcdf_file), NULL);
         if(ret == 1)
         {

@@ -119,8 +119,7 @@ void darshan_core_unregister_module(
  *
  */
 void darshan_core_lookup_record(
-    void *name,
-    int name_len,
+    char *name,
     darshan_record_id *rec_id);
 
 /* darshan_core_register_record()
@@ -139,7 +138,7 @@ void darshan_core_lookup_record(
  */
 int darshan_core_register_record(
     darshan_record_id rec_id,
-    void *name,
+    char *name,
     darshan_module_id mod_id,
     int rec_size,
     int *file_alignment);
