@@ -6,8 +6,6 @@
 
 /* TODO list (general) for this module:
  * - add stdio page to darshan-job-summary
- * - add regression test cases for all functions captured here
- *   - especially the scanf and printf variants with variable arguments
  * - figure out what to do about posix module compatibility
  *   - remove stdio counters in POSIX or keep and set to -1?
  *   - affected counters in posix module:
@@ -117,6 +115,7 @@ DARSHAN_FORWARD_DECL(getw, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(_IO_getc, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(_IO_putc, int, (int, FILE *stream));
 DARSHAN_FORWARD_DECL(fscanf, int, (FILE *stream, const char *format, ...));
+DARSHAN_FORWARD_DECL(__isoc99_fscanf, int, (FILE *stream, const char *format, ...));
 DARSHAN_FORWARD_DECL(vfscanf, int, (FILE *stream, const char *format, va_list ap));
 DARSHAN_FORWARD_DECL(fgets, char*, (char *s, int size, FILE *stream));
 DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
@@ -667,6 +666,38 @@ size_t DARSHAN_DECL(getw)(FILE *stream)
     stdio_runtime_initialize();
     if(ret != EOF || ferror(stream) == 0)
         STDIO_RECORD_READ(stream, sizeof(int), tm1, tm2);
+    STDIO_UNLOCK();
+
+    return(ret);
+}
+
+/* NOTE: some glibc versions use __isoc99_fscanf as the underlying symbol
+ * rather than fscanf
+ */
+int DARSHAN_DECL(__isoc99_fscanf)(FILE *stream, const char *format, ...)
+{
+    int ret;
+    double tm1, tm2;
+    va_list ap;
+    long start_off, end_off;
+
+    MAP_OR_FAIL(vfscanf);
+
+    tm1 = darshan_core_wtime();
+    /* NOTE: we intentionally switch to vfscanf here to handle the variable
+     * length arguments.
+     */
+    start_off = ftell(stream);
+    va_start(ap, format);
+    ret = __real_vfscanf(stream, format, ap);
+    va_end(ap);
+    end_off = ftell(stream);
+    tm2 = darshan_core_wtime();
+
+    STDIO_LOCK();
+    stdio_runtime_initialize();
+    if(ret != 0)
+        STDIO_RECORD_READ(stream, (end_off-start_off), tm1, tm2);
     STDIO_UNLOCK();
 
     return(ret);

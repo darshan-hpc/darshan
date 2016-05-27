@@ -26,3 +26,4 @@
 --wrap=fsetpos
 --wrap=fsetpos64
 --wrap=rewind
+--wrap=__isoc99_fscanf
