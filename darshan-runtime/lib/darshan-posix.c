@@ -168,9 +168,6 @@ struct posix_file_runtime_ref
  */
 struct posix_runtime
 {
-    struct posix_file_runtime* file_runtime_array;
-    struct darshan_posix_file* file_record_array;
-    int file_array_ndx;
     struct posix_file_runtime* file_hash;
     struct posix_file_runtime_ref* fd_hash;
 };
@@ -1450,9 +1447,7 @@ static void posix_runtime_initialize()
         .get_output_data = &posix_get_output_data,
         .shutdown = &posix_shutdown
     };
-    void *psx_buf;
     int psx_buf_size;
-    int file_array_size;
 
     /* don't do anything if already initialized or instrumenation is disabled */
     if(posix_runtime || instrumentation_disabled)
@@ -1466,7 +1461,6 @@ static void posix_runtime_initialize()
         DARSHAN_POSIX_MOD,
         &posix_mod_fns,
         &psx_buf_size,
-        &psx_buf,
         &my_rank,
         &darshan_mem_alignment);
 
@@ -1485,40 +1479,17 @@ static void posix_runtime_initialize()
     }
     memset(posix_runtime, 0, sizeof(*posix_runtime));
 
-    /* set number of trackable files for the POSIX module according to the
-     * amount of memory returned by darshan-core
-     */
-    file_array_size = psx_buf_size / sizeof(struct darshan_posix_file);
-    posix_runtime->file_array_ndx = 0;
-
-    /* store pointer to POSIX record buffer given by darshan-core */
-    posix_runtime->file_record_array = (struct darshan_posix_file *)psx_buf;
-
-    /* allocate array of runtime file records */
-    posix_runtime->file_runtime_array = malloc(file_array_size *
-                                               sizeof(struct posix_file_runtime));
-    if(!posix_runtime->file_runtime_array)
-    {
-        free(posix_runtime);
-        posix_runtime = NULL;
-        darshan_core_unregister_module(DARSHAN_POSIX_MOD);
-        return;
-    }
-    memset(posix_runtime->file_runtime_array, 0, file_array_size *
-           sizeof(struct posix_file_runtime));
-
     return;
 }
 
 /* get a POSIX file record for the given file path */
 static struct posix_file_runtime* posix_file_by_name(const char *name)
 {
-    struct posix_file_runtime *file = NULL;
-    struct darshan_posix_file *file_rec;
+    struct posix_file_runtime *file_rec_rt;
+    struct darshan_posix_file *file_rec = NULL;
     char *newname = NULL;
     darshan_record_id file_id;
     int file_alignment;
-    int ret;
 
     if(!posix_runtime || instrumentation_disabled)
         return(NULL);
@@ -1527,41 +1498,44 @@ static struct posix_file_runtime* posix_file_by_name(const char *name)
     if(!newname)
         newname = (char*)name;
 
-    /* lookup the unique id for this filename */
-    darshan_core_lookup_record(
-        newname,
-        &file_id);
+    /* lookup the id for this filename */
+    file_id = darshan_core_gen_record_id(newname);
 
     /* search the hash table for this file record, and return if found */
-    HASH_FIND(hlink, posix_runtime->file_hash, &file_id, sizeof(darshan_record_id), file);
-    if(!file)
+    HASH_FIND(hlink, posix_runtime->file_hash, &file_id,
+        sizeof(darshan_record_id), file_rec_rt);
+    if(file_rec_rt == NULL)
     {
-        /* register the record with the darshan core component */
-        ret = darshan_core_register_record(file_id, newname, DARSHAN_POSIX_MOD,
-            sizeof(struct darshan_posix_file), &file_alignment);
-        if(ret == 1)
+        file_rec_rt = malloc(sizeof(*file_rec_rt));
+        if(file_rec_rt)
         {
-            /* register was successful */
-            file = &(posix_runtime->file_runtime_array[posix_runtime->file_array_ndx]);
-            file->file_record = 
-                &(posix_runtime->file_record_array[posix_runtime->file_array_ndx]);
-            file_rec = file->file_record;
+            memset(file_rec_rt, 0, sizeof(*file_rec_rt));
 
+            /* attempt to register the record with darshan core */
+            file_rec = darshan_core_register_record(file_id, newname, DARSHAN_POSIX_MOD,
+                sizeof(struct darshan_posix_file), &file_alignment);
+            if(!file_rec)
+                free(file_rec_rt);
+        }
+
+        if(file_rec != NULL)
+        {
+            /* register was successful, init structures */
             file_rec->base_rec.id = file_id;
             file_rec->base_rec.rank = my_rank;
             file_rec->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
             file_rec->counters[POSIX_FILE_ALIGNMENT] = file_alignment;
+            file_rec_rt->file_record = file_rec;
 
             /* add new record to file hash table */
             HASH_ADD(hlink, posix_runtime->file_hash, file_record->base_rec.id,
-                sizeof(darshan_record_id), file);
-            posix_runtime->file_array_ndx++;
+                sizeof(darshan_record_id), file_rec_rt);
         }
     }
 
     if(newname != name)
         free(newname);
-    return(file);
+    return(file_rec_rt);
 }
 
 /* get a POSIX file record for the given file path, and also create a
@@ -1577,7 +1551,6 @@ static struct posix_file_runtime* posix_file_by_name_setfd(const char* name, int
 
     /* find file record by name first */
     file = posix_file_by_name(name);
-
     if(!file)
         return(NULL);
 
@@ -2039,41 +2012,41 @@ static void posix_get_output_data(
     void **posix_buf,
     int *posix_buf_sz)
 {
-    struct posix_file_runtime *file;
-    struct posix_file_runtime *tmp;
-    int i;
+    struct posix_file_runtime *file_rec_rt, *tmp;
+    struct darshan_posix_file *posix_rec_buf = *(struct darshan_posix_file **)posix_buf;
     double posix_time;
+    int posix_rec_count;
     struct darshan_posix_file *red_send_buf = NULL;
     struct darshan_posix_file *red_recv_buf = NULL;
     MPI_Datatype red_type;
     MPI_Op red_op;
+    int i;
 
     assert(posix_runtime);
+    posix_rec_count = HASH_CNT(hlink, posix_runtime->file_hash);
 
     /* go through file access data for each record and set the 4 most common
      * stride/access size counters.
      */
-    for(i = 0; i < posix_runtime->file_array_ndx; i++)
+    HASH_ITER(hlink, posix_runtime->file_hash, file_rec_rt, tmp)
     {
-        tmp = &(posix_runtime->file_runtime_array[i]);
-
 #ifndef __DARSHAN_ENABLE_MMAP_LOGS
         /* walk common counters to get 4 most common -- only if mmap
          * feature is disabled (mmap updates counters on the go)
          */
 
         /* common accesses */
-        darshan_walk_common_vals(tmp->access_root,
-            &(tmp->file_record->counters[POSIX_ACCESS1_ACCESS]),
-            &(tmp->file_record->counters[POSIX_ACCESS1_COUNT]));
+        darshan_walk_common_vals(file_rec_rt->access_root,
+            &(file_rec_rt->file_record->counters[POSIX_ACCESS1_ACCESS]),
+            &(file_rec_rt->file_record->counters[POSIX_ACCESS1_COUNT]));
         /* common strides */
-        darshan_walk_common_vals(tmp->stride_root,
-            &(tmp->file_record->counters[POSIX_STRIDE1_STRIDE]),
-            &(tmp->file_record->counters[POSIX_STRIDE1_COUNT]));
+        darshan_walk_common_vals(file_rec_rt->stride_root,
+            &(file_rec_rt->file_record->counters[POSIX_STRIDE1_STRIDE]),
+            &(file_rec_rt->file_record->counters[POSIX_STRIDE1_COUNT]));
 #endif
 
-        tdestroy(tmp->access_root, free);
-        tdestroy(tmp->stride_root, free);
+        tdestroy(file_rec_rt->access_root, free);
+        tdestroy(file_rec_rt->stride_root, free);
     }
 
     /* if there are globally shared files, do a shared file reduction */
@@ -2086,56 +2059,53 @@ static void posix_get_output_data(
         for(i = 0; i < shared_rec_count; i++)
         {
             HASH_FIND(hlink, posix_runtime->file_hash, &shared_recs[i],
-                sizeof(darshan_record_id), file);
-            assert(file);
+                sizeof(darshan_record_id), file_rec_rt);
+            assert(file_rec_rt);
 
             posix_time =
-                file->file_record->fcounters[POSIX_F_READ_TIME] +
-                file->file_record->fcounters[POSIX_F_WRITE_TIME] +
-                file->file_record->fcounters[POSIX_F_META_TIME];
+                file_rec_rt->file_record->fcounters[POSIX_F_READ_TIME] +
+                file_rec_rt->file_record->fcounters[POSIX_F_WRITE_TIME] +
+                file_rec_rt->file_record->fcounters[POSIX_F_META_TIME];
 
             /* initialize fastest/slowest info prior to the reduction */
-            file->file_record->counters[POSIX_FASTEST_RANK] =
-                file->file_record->base_rec.rank;
-            file->file_record->counters[POSIX_FASTEST_RANK_BYTES] =
-                file->file_record->counters[POSIX_BYTES_READ] +
-                file->file_record->counters[POSIX_BYTES_WRITTEN];
-            file->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME] =
+            file_rec_rt->file_record->counters[POSIX_FASTEST_RANK] =
+                file_rec_rt->file_record->base_rec.rank;
+            file_rec_rt->file_record->counters[POSIX_FASTEST_RANK_BYTES] =
+                file_rec_rt->file_record->counters[POSIX_BYTES_READ] +
+                file_rec_rt->file_record->counters[POSIX_BYTES_WRITTEN];
+            file_rec_rt->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME] =
                 posix_time;
 
             /* until reduction occurs, we assume that this rank is both
              * the fastest and slowest. It is up to the reduction operator
              * to find the true min and max.
              */
-            file->file_record->counters[POSIX_SLOWEST_RANK] =
-                file->file_record->counters[POSIX_FASTEST_RANK];
-            file->file_record->counters[POSIX_SLOWEST_RANK_BYTES] =
-                file->file_record->counters[POSIX_FASTEST_RANK_BYTES];
-            file->file_record->fcounters[POSIX_F_SLOWEST_RANK_TIME] =
-                file->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME];
+            file_rec_rt->file_record->counters[POSIX_SLOWEST_RANK] =
+                file_rec_rt->file_record->counters[POSIX_FASTEST_RANK];
+            file_rec_rt->file_record->counters[POSIX_SLOWEST_RANK_BYTES] =
+                file_rec_rt->file_record->counters[POSIX_FASTEST_RANK_BYTES];
+            file_rec_rt->file_record->fcounters[POSIX_F_SLOWEST_RANK_TIME] =
+                file_rec_rt->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME];
 
-            file->file_record->base_rec.rank = -1;
+            file_rec_rt->file_record->base_rec.rank = -1;
         }
 
         /* sort the array of files descending by rank so that we get all of the 
          * shared files (marked by rank -1) in a contiguous portion at end 
          * of the array
          */
-        qsort(posix_runtime->file_record_array, posix_runtime->file_array_ndx,
-            sizeof(struct darshan_posix_file), posix_record_compare);
+        qsort(posix_rec_buf, posix_rec_count, sizeof(struct darshan_posix_file),
+            posix_record_compare);
 
         /* make *send_buf point to the shared files at the end of sorted array */
-        red_send_buf =
-            &(posix_runtime->file_record_array[posix_runtime->file_array_ndx-shared_rec_count]);
-        
+        red_send_buf = &(posix_rec_buf[posix_rec_count-shared_rec_count]);
+
         /* allocate memory for the reduction output on rank 0 */
         if(my_rank == 0)
         {
             red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_posix_file));
             if(!red_recv_buf)
-            {
                 return;
-            }
         }
 
         /* construct a datatype for a POSIX file record.  This is serving no purpose
@@ -2159,41 +2129,45 @@ static void posix_get_output_data(
         /* clean up reduction state */
         if(my_rank == 0)
         {
-            int tmp_ndx = posix_runtime->file_array_ndx - shared_rec_count;
-            memcpy(&(posix_runtime->file_record_array[tmp_ndx]), red_recv_buf,
+            int tmp_ndx = posix_rec_count - shared_rec_count;
+            memcpy(&(posix_rec_buf[tmp_ndx]), red_recv_buf,
                 shared_rec_count * sizeof(struct darshan_posix_file));
             free(red_recv_buf);
         }
         else
         {
-            posix_runtime->file_array_ndx -= shared_rec_count;
+            posix_rec_count -= shared_rec_count;
         }
 
         DARSHAN_MPI_CALL(PMPI_Type_free)(&red_type);
         DARSHAN_MPI_CALL(PMPI_Op_free)(&red_op);
     }
 
-    *posix_buf = (void *)(posix_runtime->file_record_array);
-    *posix_buf_sz = posix_runtime->file_array_ndx * sizeof(struct darshan_posix_file);
+    /* update output buffer size to account for shared file reduction */
+    *posix_buf_sz = posix_rec_count * sizeof(struct darshan_posix_file);
 
     return;
 }
 
 static void posix_shutdown()
 {
-    struct posix_file_runtime_ref *ref, *tmp;
+    struct posix_file_runtime_ref *fd_ref, *fd_tmp;
+    struct posix_file_runtime *file_ref, *file_tmp;
 
     assert(posix_runtime);
 
-    HASH_ITER(hlink, posix_runtime->fd_hash, ref, tmp)
+    HASH_ITER(hlink, posix_runtime->fd_hash, fd_ref, fd_tmp)
     {
-        HASH_DELETE(hlink, posix_runtime->fd_hash, ref);
-        free(ref);
+        HASH_DELETE(hlink, posix_runtime->fd_hash, fd_ref);
+        free(fd_ref);
     }
 
-    HASH_CLEAR(hlink, posix_runtime->file_hash); /* these entries are freed all at once below */
+    HASH_ITER(hlink, posix_runtime->file_hash, file_ref, file_tmp)
+    {
+        HASH_DELETE(hlink, posix_runtime->file_hash, file_ref);
+        free(file_ref);
+    }
 
-    free(posix_runtime->file_runtime_array);
     free(posix_runtime);
     posix_runtime = NULL;
     

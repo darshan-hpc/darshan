@@ -101,8 +101,7 @@ struct darshan_module_funcs
 void darshan_core_register_module(
     darshan_module_id mod_id,
     struct darshan_module_funcs *funcs,
-    int *inout_mod_size,
-    void **mod_buf,
+    int *inout_mod_buf_size,
     int *rank,
     int *sys_mem_alignment);
 
@@ -114,13 +113,12 @@ void darshan_core_register_module(
 void darshan_core_unregister_module(
     darshan_module_id mod_id);
 
-/* darshan_core_lookup_record()
+/* darshan_core_gen_record_id()
  *
  *
  */
-void darshan_core_lookup_record(
-    char *name,
-    darshan_record_id *rec_id);
+darshan_record_id darshan_core_gen_record_id(
+    char *name);
 
 /* darshan_core_register_record()
  *
@@ -136,11 +134,11 @@ void darshan_core_lookup_record(
  * correspoing Darshan record identifier and 'file_alignment' is an output
  * pointer storing the file system alignment value for the given record.
  */
-int darshan_core_register_record(
+void *darshan_core_register_record(
     darshan_record_id rec_id,
     char *name,
     darshan_module_id mod_id,
-    int rec_size,
+    int rec_len,
     int *file_alignment);
 
 /* darshan_core_wtime()

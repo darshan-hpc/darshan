@@ -52,8 +52,10 @@
 /* structure to track registered modules */
 struct darshan_core_module
 {
-    struct darshan_module_funcs mod_funcs;
-    int mem_avail;
+    void *rec_buf_start;
+    void *rec_buf_p;
+    int rec_mem_avail;
+    struct darshan_module_funcs funcs;
 };
 
 struct darshan_core_name_record_ref
@@ -78,7 +80,6 @@ struct darshan_core_runtime
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
     int mod_mem_used;
     struct darshan_core_name_record_ref *name_hash;
-    int name_hash_cnt;
     double wtime_offset;
     char *comp_buf;
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS

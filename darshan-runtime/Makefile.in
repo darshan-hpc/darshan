@@ -35,7 +35,8 @@ CFLAGS_SHARED = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I$(srcdir)
 
 LIBS = -lz @LIBBZ2@
 
-DARSHAN_STATIC_MOD_OBJS = lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-hdf5.o lib/darshan-pnetcdf.o
+DARSHAN_STATIC_MOD_OBJS = lib/darshan-posix.o
+# TODO: lib/darshan-mpiio.o lib/darshan-hdf5.o lib/darshan-pnetcdf.o
 DARSHAN_DYNAMIC_MOD_OBJS = lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-hdf5.po lib/darshan-pnetcdf.po
 
 ifdef DARSHAN_USE_BGQ
