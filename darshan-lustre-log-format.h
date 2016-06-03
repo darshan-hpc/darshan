@@ -16,12 +16,12 @@
     X(LUSTRE_OSTS) \
     /* number of MDTs for file system */\
     X(LUSTRE_MDTS) \
+    /* index of first OST for file */\
+    X(LUSTRE_STRIPE_OFFSET) \
     /* bytes per stripe for file */\
     X(LUSTRE_STRIPE_SIZE) \
     /* number of stripes (OSTs) for file */\
     X(LUSTRE_STRIPE_WIDTH) \
-    /* index of first OST for file */\
-    X(LUSTRE_STRIPE_OFFSET) \
     /* end of counters */\
     X(LUSTRE_NUM_INDICES)
 
@@ -44,6 +44,7 @@ struct darshan_lustre_record
     darshan_record_id rec_id;
     int64_t rank;
     int64_t counters[LUSTRE_NUM_INDICES];
+    int64_t ost_ids[1];
 };
 
 #endif /* __DARSHAN_LUSTRE_LOG_FORMAT_H */
