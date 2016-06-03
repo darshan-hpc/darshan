@@ -158,6 +158,7 @@ int main(int argc, char **argv)
         else if ( opt_ioctl )
         {
             lum->lmm_magic = LOV_USER_MAGIC;
+            lum->lmm_stripe_count = LOV_MAX_STRIPE_COUNT;
             ret = ioctl( fd, LL_IOC_LOV_GETSTRIPE, (void *)lum );
         }
 #ifdef DEBUG
