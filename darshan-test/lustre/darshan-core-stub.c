@@ -15,7 +15,7 @@
 /*
  *  Global variables
  */
-static darshan_record_id next_rec_id = 0;
+static darshan_record_id next_rec_id = 1;
 static int my_rank = 0;
 static struct darshan_module_funcs mod_funcs;
 
@@ -87,7 +87,7 @@ int main( int argc, char **argv )
     for ( i = 1; i < argc; i++ )
     {
         fname = argv[i];
-        printf( "\nProcessing %s\n", fname );
+        printf( "File %3d - processing %s\n", i, fname );
         fd = open( fname, O_RDONLY );
         darshan_instrument_lustre_file( fname, fd );
         close(fd);
