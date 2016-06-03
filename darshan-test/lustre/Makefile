@@ -7,10 +7,10 @@ CFLAGS = -O0 -g -I../.. -I../../darshan-runtime
 CFLAGS += -I.
 
 darshan-tester: $(OBJS)
-	$(CC) $(LDFLAGS) $? $(LOADLIBES) $(LDLIBS) -o $@
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 darshan-tester-mpi: $(OBJS)
-	$(CC) $(LDFLAGS) $? $(LOADLIBES) $(LDLIBS) -o $@
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 darshan-lustre.o: ../../darshan-runtime/lib/darshan-lustre.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $? -o $@
