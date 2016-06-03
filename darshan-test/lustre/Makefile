@@ -1,6 +1,6 @@
 .PHONY: clean
 BINS = darshan-tester darshan-tester-mpi
-OBJS = darshan-core-stub.o darshan-lustre.o
+OBJS = darshan-lustre.o darshan-core-stub.o
 CFLAGS = -O0 -g -I../.. -I../../darshan-runtime
 
 ### Include -I. when building non-MPI tests to include the mpi.h stub header

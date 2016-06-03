@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <fcntl.h>
 
+#include "darshan-lustre.h"
+
 /*
  *  Global variables
  */
@@ -20,6 +22,7 @@ static struct darshan_module_funcs mod_funcs;
 /*
  *  Import routines from Lustre module
  */
+extern struct lustre_runtime *lustre_runtime;
 
 void darshan_core_register_record(
     void *name,
@@ -89,6 +92,9 @@ int main( int argc, char **argv )
         darshan_instrument_lustre_file( fname, fd );
         close(fd);
     }
+
+    for ( i = 0; i < lustre_runtime->record_count; i++ )
+        (lustre_runtime->record_runtime_array[i]).record->rank = rand() % 10;
 
     print_lustre_runtime();
 
