@@ -458,18 +458,20 @@ void print_lustre_runtime( void )
         printf( "File %2d\n", i );
         for ( j = 0; j < LUSTRE_NUM_INDICES; j++ )
         {
-            printf( "  Counter %2d: %10ld, addr %ld\n", 
+            printf( "  Counter %-2d: %10ld, addr %ld\n", 
                 j, 
                 rec->counters[j],
                 (char*)(&(rec->counters[j])) - (char*)(lustre_runtime->record_buffer) );
         }
         for ( j = 0; j < rec->counters[LUSTRE_STRIPE_WIDTH]; j++ )
         {
-            printf( "  Stripe  %2d: %10ld, addr %ld\n", 
+            if ( j > 0 && j % 2 == 0 ) printf("\n");
+            printf( "  Stripe  %-2d: %10ld, addr %-9d", 
                 j, 
                 rec->ost_ids[j],
                 (char*)(&(rec->ost_ids[j])) - (char*)(lustre_runtime->record_buffer) );
         }
+        printf( "\n" );
     }
     return;
 }
