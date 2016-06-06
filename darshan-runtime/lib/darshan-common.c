@@ -15,11 +15,122 @@
 #include <search.h>
 #include <assert.h>
 
+#include "uthash.h"
+
 #include "darshan.h"
 
-static int darshan_common_val_compare(const void* a_p, const void* b_p);
-static void darshan_common_val_walker(const void* nodep, const VISIT which,
-    const int depth);
+
+struct darshan_record_ref_tracker
+{
+    void *rec_ref_p;
+    UT_hash_handle hlink;
+};
+
+void *darshan_lookup_record_ref(void *hash_head, void *handle, size_t handle_sz)
+{
+    struct darshan_record_ref_tracker *ref_tracker;
+    struct darshan_record_ref_tracker *ref_tracker_head =
+        (struct darshan_record_ref_tracker *)hash_head;
+
+    HASH_FIND(hlink, ref_tracker_head, handle, handle_sz, ref_tracker);
+    if(ref_tracker)
+        return(ref_tracker->rec_ref_p);
+    else
+        return(NULL);
+}
+
+int darshan_add_record_ref(void **hash_head, void *handle, size_t handle_sz,
+    void *rec_ref_p)
+{
+    struct darshan_record_ref_tracker *ref_tracker;
+    struct darshan_record_ref_tracker *ref_tracker_head =
+        *(struct darshan_record_ref_tracker **)hash_head;
+    void *handle_p;
+
+    ref_tracker = malloc(sizeof(*ref_tracker) + handle_sz);
+    if(!ref_tracker)
+        return(0);
+    memset(ref_tracker, 0, sizeof(*ref_tracker) + handle_sz);
+
+    ref_tracker->rec_ref_p = rec_ref_p;
+    handle_p = (char *)ref_tracker + sizeof(*ref_tracker);
+    memcpy(handle_p, handle, handle_sz);
+    HASH_ADD_KEYPTR(hlink, ref_tracker_head, handle_p, handle_sz, ref_tracker);
+    *hash_head = ref_tracker_head;
+    return(1);
+}
+
+void *darshan_delete_record_ref(void **hash_head, void *handle, size_t handle_sz)
+{
+    struct darshan_record_ref_tracker *ref_tracker;
+    struct darshan_record_ref_tracker *ref_tracker_head =
+        *(struct darshan_record_ref_tracker **)hash_head;
+    void *rec_ref_p;
+
+    HASH_FIND(hlink, ref_tracker_head, handle, handle_sz, ref_tracker);
+    if(!ref_tracker)
+        return(NULL);
+
+    HASH_DELETE(hlink, ref_tracker_head, ref_tracker);
+    *hash_head = ref_tracker_head;
+    rec_ref_p = ref_tracker->rec_ref_p;
+    free(ref_tracker);
+
+    return(rec_ref_p);
+}
+
+void darshan_clear_record_refs(void **hash_head, int free_flag)
+{
+    struct darshan_record_ref_tracker *ref_tracker, *tmp;
+    struct darshan_record_ref_tracker *ref_tracker_head =
+        *(struct darshan_record_ref_tracker **)hash_head;
+
+    HASH_ITER(hlink, ref_tracker_head, ref_tracker, tmp)
+    {
+        HASH_DELETE(hlink, ref_tracker_head, ref_tracker);
+        if(free_flag)
+            free(ref_tracker->rec_ref_p);
+        free(ref_tracker);
+    }
+    *hash_head = ref_tracker_head;
+
+    return;
+}
+
+void darshan_iter_record_refs(void *hash_head, void (*iter_action)(void *))
+{
+    struct darshan_record_ref_tracker *ref_tracker, *tmp;
+    struct darshan_record_ref_tracker *ref_tracker_head =
+        (struct darshan_record_ref_tracker *)hash_head;
+
+    HASH_ITER(hlink, ref_tracker_head, ref_tracker, tmp)
+    {
+        iter_action(ref_tracker->rec_ref_p);
+    }
+
+    return;
+}
+
+darshan_record_id darshan_record_id_from_path(const char *path)
+{
+    char *newpath = NULL;
+    darshan_record_id rec_id;
+
+    newpath = darshan_clean_file_path(path);
+    if(!newpath)
+        newpath = (char *)path;
+
+    rec_id = darshan_record_id_from_name(newpath);
+
+    if(newpath != path)
+        free(newpath);
+    return(rec_id);
+}
+
+darshan_record_id darshan_record_id_from_name(const char *name)
+{
+    return(darshan_core_gen_record_id(name));
+}
 
 char* darshan_clean_file_path(const char* path)
 {
@@ -81,6 +192,37 @@ char* darshan_clean_file_path(const char* path)
 /* HACK: global variables for determining 4 most common values */
 static int64_t* walker_val_p = NULL;
 static int64_t* walker_cnt_p = NULL;
+
+static void darshan_common_val_walker(const void *nodep, const VISIT which,
+    const int depth)
+{
+    struct darshan_common_val_counter* counter;
+
+    switch (which)
+    {
+        case postorder:
+        case leaf:
+            counter = *(struct darshan_common_val_counter**)nodep;
+            DARSHAN_COMMON_VAL_COUNTER_INC(walker_val_p, walker_cnt_p,
+                counter->val, counter->freq, 0);
+        default:
+            break;
+    }
+
+    return;
+}
+
+static int darshan_common_val_compare(const void *a_p, const void *b_p)
+{
+    const struct darshan_common_val_counter* a = a_p;
+    const struct darshan_common_val_counter* b = b_p;
+
+    if(a->val < b->val)
+        return(-1);
+    if(a->val > b->val)
+        return(1);
+    return(0);
+}
 
 void darshan_common_val_counter(void **common_val_root, int *common_val_count,
     int64_t val, int64_t *common_val_p, int64_t *common_cnt_p)
@@ -144,37 +286,6 @@ void darshan_walk_common_vals(void *common_val_root, int64_t *val_p,
 
     twalk(common_val_root, darshan_common_val_walker);
     return;
-}
-
-static void darshan_common_val_walker(const void *nodep, const VISIT which,
-    const int depth)
-{
-    struct darshan_common_val_counter* counter;
-
-    switch (which)
-    {
-        case postorder:
-        case leaf:
-            counter = *(struct darshan_common_val_counter**)nodep;
-            DARSHAN_COMMON_VAL_COUNTER_INC(walker_val_p, walker_cnt_p,
-                counter->val, counter->freq, 0);
-        default:
-            break;
-    }
-
-    return;
-}
-
-static int darshan_common_val_compare(const void *a_p, const void *b_p)
-{
-    const struct darshan_common_val_counter* a = a_p;
-    const struct darshan_common_val_counter* b = b_p;
-
-    if(a->val < b->val)
-        return(-1);
-    if(a->val > b->val)
-        return(1);
-    return(0);
 }
 
 void darshan_variance_reduce(void *invec, void *inoutvec, int *len,

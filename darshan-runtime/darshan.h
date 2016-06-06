@@ -118,7 +118,7 @@ void darshan_core_unregister_module(
  *
  */
 darshan_record_id darshan_core_gen_record_id(
-    char *name);
+    const char *name);
 
 /* darshan_core_register_record()
  *
@@ -136,7 +136,7 @@ darshan_record_id darshan_core_gen_record_id(
  */
 void *darshan_core_register_record(
     darshan_record_id rec_id,
-    char *name,
+    const char *name,
     darshan_module_id mod_id,
     int rec_len,
     int *file_alignment);

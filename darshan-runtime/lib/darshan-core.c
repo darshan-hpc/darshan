@@ -95,7 +95,7 @@ static void darshan_get_exe_and_mounts(
     struct darshan_core_runtime *core, int argc, char **argv);
 static void darshan_add_name_record_ref(
     struct darshan_core_runtime *core, darshan_record_id rec_id,
-    char *name, darshan_module_id mod_id);
+    const char *name, darshan_module_id mod_id);
 static int darshan_block_size_from_path(
     const char *path);
 static void darshan_get_user_name(
@@ -1222,7 +1222,7 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
 }
 
 static void darshan_add_name_record_ref(struct darshan_core_runtime *core,
-    darshan_record_id rec_id, char *name, darshan_module_id mod_id)
+    darshan_record_id rec_id, const char *name, darshan_module_id mod_id)
 {
     struct darshan_core_name_record_ref *ref;
     int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
@@ -1778,7 +1778,7 @@ void darshan_core_unregister_module(
 }
 
 darshan_record_id darshan_core_gen_record_id(
-    char *name)
+    const char *name)
 {
     /* hash the input name to get a unique id for this record */
     return darshan_hash((unsigned char *)name, strlen(name), 0);
@@ -1786,7 +1786,7 @@ darshan_record_id darshan_core_gen_record_id(
 
 void *darshan_core_register_record(
     darshan_record_id rec_id,
-    char *name,
+    const char *name,
     darshan_module_id mod_id,
     int rec_len,
     int *file_alignment)

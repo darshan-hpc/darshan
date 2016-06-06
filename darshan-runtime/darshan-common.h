@@ -157,6 +157,36 @@ struct darshan_variance_dt
 * darshan-common functions for darshan modules *
 ***********************************************/
 
+void *darshan_lookup_record_ref(
+    void *hash_head,
+    void *handle,
+    size_t handle_sz);
+
+int darshan_add_record_ref(
+    void **hash_head,
+    void *handle,
+    size_t handle_sz,
+    void *rec_ref_p);
+
+void *darshan_delete_record_ref(
+    void **hash_head,
+    void *handle,
+    size_t handle_sz);
+
+void darshan_clear_record_refs(
+    void **hash_head,    
+    int free_flag);
+
+void darshan_iter_record_refs(
+    void *hash_head,
+    void (*iter_action)(void *));
+
+darshan_record_id darshan_record_id_from_path(
+    const char *path);
+
+darshan_record_id darshan_record_id_from_name(
+    const char *name);
+
 /* darshan_clean_file_path()
  *
  * Allocate a new string that contains a new cleaned-up version of

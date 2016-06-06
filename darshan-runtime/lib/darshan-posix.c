@@ -26,7 +26,6 @@
 #include <aio.h>
 #include <pthread.h>
 
-#include "uthash.h"
 #include "utlist.h"
 
 #include "darshan.h"
@@ -91,32 +90,9 @@ struct posix_aio_tracker
     struct posix_aio_tracker* next;
 };
 
-/* The posix_file_runtime structure maintains necessary runtime metadata
- * for the POSIX file record (darshan_posix_file structure, defined in
- * darshan-posix-log-format.h) pointed to by 'file_record'. This metadata
- * assists with the instrumenting of specific statistics in the file record.
- * 'hlink' is a hash table link structure used to add/remove this record
- * from the hash table of POSIX file records for this process. 
- *
- * RATIONALE: the POSIX module needs to track some stateful, volatile 
- * information about each open file (like the current file offset, most recent 
- * access time, etc.) to aid in instrumentation, but this information can't be
- * stored in the darshan_posix_file struct because we don't want it to appear in
- * the final darshan log file.  We therefore associate a posix_file_runtime
- * struct with each darshan_posix_file struct in order to track this information.
-  *
- * NOTE: There is a one-to-one mapping of posix_file_runtime structs to
- * darshan_posix_file structs.
- *
- * NOTE: The posix_file_runtime struct contains a pointer to a darshan_posix_file
- * struct (see the *file_record member) rather than simply embedding an entire
- * darshan_posix_file struct.  This is done so that all of the darshan_posix_file
- * structs can be kept contiguous in memory as a single array to simplify
- * reduction, compression, and storage.
- */
-struct posix_file_runtime
+struct posix_file_record_ref
 {
-    struct darshan_posix_file* file_record;
+    struct darshan_posix_file* file_rec;
     int64_t offset;
     int64_t last_byte_read;
     int64_t last_byte_written;
@@ -129,47 +105,13 @@ struct posix_file_runtime
     void* stride_root;
     int stride_count;
     struct posix_aio_tracker* aio_list;
-    UT_hash_handle hlink;
 };
 
-/* The posix_file_runtime_ref structure is used to associate a POSIX
- * file descriptor with an already existing POSIX file record. This is
- * necessary as many POSIX I/O functions take only an input file descriptor,
- * but POSIX file records are indexed by their full file paths (i.e., darshan
- * record identifiers for POSIX files are created by hashing the file path).
- * In other words, this structure is necessary as it allows us to look up a
- * file record either by a pathname (posix_file_runtime) or by POSIX file
- * descriptor (posix_file_runtime_ref), depending on which parameters are
- * available. This structure includes another hash table link, since separate
- * hashes are maintained for posix_file_runtime structures and posix_file_runtime_ref
- * structures.
- *
- * RATIONALE: In theory the fd information could be included in the
- * posix_file_runtime struct rather than in a separate structure here.  The
- * reason we don't do that is because the same file could be opened multiple
- * times by a given process with different file descriptors and thus
- * simulataneously referenced using different file descriptors.  This practice is
- * not common, but we must support it.
- *
- * NOTE: there are potentially multiple posix_file_runtime_ref structures
- * referring to a single posix_file_runtime structure.  Most of the time there is
- * only one, however.
- */
-struct posix_file_runtime_ref
-{
-    struct posix_file_runtime* file;
-    int fd;
-    UT_hash_handle hlink;
-};
-
-/* The posix_runtime structure maintains necessary state for storing
- * POSIX file records and for coordinating with darshan-core at 
- * shutdown time.
- */
 struct posix_runtime
 {
-    struct posix_file_runtime* file_hash;
-    struct posix_file_runtime_ref* fd_hash;
+    void *rec_id_hash;
+    void *fd_hash;
+    int file_rec_count;
 };
 
 static struct posix_runtime *posix_runtime = NULL;
@@ -178,175 +120,194 @@ static int instrumentation_disabled = 0;
 static int my_rank = -1;
 static int darshan_mem_alignment = 1;
 
-static void posix_runtime_initialize(void);
-static struct posix_file_runtime* posix_file_by_name(const char *name);
-static struct posix_file_runtime* posix_file_by_name_setfd(const char* name, int fd);
-static struct posix_file_runtime* posix_file_by_fd(int fd);
-static void posix_file_close_fd(int fd);
-static void posix_aio_tracker_add(int fd, void *aiocbp);
-static struct posix_aio_tracker* posix_aio_tracker_del(int fd, void *aiocbp);
-static int posix_record_compare(const void* a, const void* b);
-static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
-    int *len, MPI_Datatype *datatype);
-static void posix_shared_record_variance(MPI_Comm mod_comm,
-    struct darshan_posix_file *inrec_array, struct darshan_posix_file *outrec_array,
-    int shared_rec_count);
+static void posix_runtime_initialize(
+    void);
+static struct posix_file_record_ref *posix_track_new_file_record(
+    darshan_record_id rec_id, const char *path);
+static void posix_aio_tracker_add(
+    int fd, void *aiocbp);
+static struct posix_aio_tracker* posix_aio_tracker_del(
+    int fd, void *aiocbp);
+static int posix_record_compare(
+    const void* a, const void* b);
+static void posix_record_reduction_op(
+    void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
+static void posix_shared_record_variance(
+    MPI_Comm mod_comm, struct darshan_posix_file *inrec_array,
+    struct darshan_posix_file *outrec_array, int shared_rec_count);
 
-static void posix_begin_shutdown(void);
-static void posix_get_output_data(MPI_Comm mod_comm, darshan_record_id *shared_recs,
+static void posix_begin_shutdown(
+    void);
+static void posix_get_output_data(
+    MPI_Comm mod_comm, darshan_record_id *shared_recs,
     int shared_rec_count, void **posix_buf, int *posix_buf_sz);
-static void posix_shutdown(void);
+static void posix_shutdown(
+    void);
 
 #define POSIX_LOCK() pthread_mutex_lock(&posix_runtime_mutex)
 #define POSIX_UNLOCK() pthread_mutex_unlock(&posix_runtime_mutex)
 
 #define POSIX_RECORD_OPEN(__ret, __path, __mode, __stream_flag, __tm1, __tm2) do { \
-    struct posix_file_runtime* file; \
+    struct posix_file_record_ref *rec_ref; \
+    darshan_record_id rec_id; \
     if(__ret < 0) break; \
+    if(!posix_runtime || instrumentation_disabled) break; /* XXX: PREMABLE??? */\
     if(darshan_core_excluded_path(__path)) break; \
-    file = posix_file_by_name_setfd(__path, __ret); \
-    if(!file) break; \
+    rec_id = darshan_record_id_from_path(__path); \
+    rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
+    if(!rec_ref) { \
+        rec_ref = posix_track_new_file_record(rec_id, __path); \
+        if(!rec_ref) break; \
+    } \
+    if(darshan_add_record_ref(&(posix_runtime->fd_hash), &__ret, sizeof(int), rec_ref) == 0) break; \
     if(__mode) \
-        file->file_record->counters[POSIX_MODE] = __mode; \
-    file->offset = 0; \
-    file->last_byte_written = 0; \
-    file->last_byte_read = 0; \
+        rec_ref->file_rec->counters[POSIX_MODE] = __mode; \
+    rec_ref->offset = 0; \
+    rec_ref->last_byte_written = 0; \
+    rec_ref->last_byte_read = 0; \
     if(__stream_flag)\
-        file->file_record->counters[POSIX_FOPENS] += 1; \
+        rec_ref->file_rec->counters[POSIX_FOPENS] += 1; \
     else \
-        file->file_record->counters[POSIX_OPENS] += 1; \
-    if(file->file_record->fcounters[POSIX_F_OPEN_TIMESTAMP] == 0) \
-        file->file_record->fcounters[POSIX_F_OPEN_TIMESTAMP] = __tm1; \
-    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_META_TIME], \
-        __tm1, __tm2, file->last_meta_end); \
+        rec_ref->file_rec->counters[POSIX_OPENS] += 1; \
+    if(rec_ref->file_rec->fcounters[POSIX_F_OPEN_TIMESTAMP] == 0) \
+        rec_ref->file_rec->fcounters[POSIX_F_OPEN_TIMESTAMP] = __tm1; \
+    DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[POSIX_F_META_TIME], \
+        __tm1, __tm2, rec_ref->last_meta_end); \
 } while(0)
 
-#define POSIX_RECORD_READ(__ret, __fd, __pread_flag, __pread_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
+#define POSIX_RECORD_READ(__ret, __fd, __pread_flag, __pread_offset, __aligned, __stream_flag, __tm1, __tm2) do { \
+    struct posix_file_record_ref* rec_ref; \
     size_t stride; \
     int64_t this_offset; \
-    struct posix_file_runtime* file; \
     int64_t file_alignment; \
     double __elapsed = __tm2-__tm1; \
     if(__ret < 0) break; \
-    file = posix_file_by_fd(__fd); \
-    if(!file) break; \
+    if(!posix_runtime || instrumentation_disabled) break; /* XXX: PREMABLE??? */\
+    rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &(__fd), sizeof(int)); \
+    if(!rec_ref) break; \
     if(__pread_flag) \
         this_offset = __pread_offset; \
     else \
-        this_offset = file->offset; \
-    if(this_offset > file->last_byte_read) \
-        file->file_record->counters[POSIX_SEQ_READS] += 1;  \
-    if(this_offset == (file->last_byte_read + 1)) \
-        file->file_record->counters[POSIX_CONSEC_READS] += 1;  \
-    if(this_offset > 0 && this_offset > file->last_byte_read \
-        && file->last_byte_read != 0) \
-        stride = this_offset - file->last_byte_read - 1; \
+        this_offset = rec_ref->offset; \
+    if(this_offset > rec_ref->last_byte_read) \
+        rec_ref->file_rec->counters[POSIX_SEQ_READS] += 1;  \
+    if(this_offset == (rec_ref->last_byte_read + 1)) \
+        rec_ref->file_rec->counters[POSIX_CONSEC_READS] += 1;  \
+    if(this_offset > 0 && this_offset > rec_ref->last_byte_read \
+        && rec_ref->last_byte_read != 0) \
+        stride = this_offset - rec_ref->last_byte_read - 1; \
     else \
         stride = 0; \
-    file->last_byte_read = this_offset + __ret - 1; \
-    file->offset = this_offset + __ret; \
-    if(file->file_record->counters[POSIX_MAX_BYTE_READ] < (this_offset + __ret - 1)) \
-        file->file_record->counters[POSIX_MAX_BYTE_READ] = (this_offset + __ret - 1); \
-    file->file_record->counters[POSIX_BYTES_READ] += __ret; \
+    rec_ref->last_byte_read = this_offset + __ret - 1; \
+    rec_ref->offset = this_offset + __ret; \
+    if(rec_ref->file_rec->counters[POSIX_MAX_BYTE_READ] < (this_offset + __ret - 1)) \
+        rec_ref->file_rec->counters[POSIX_MAX_BYTE_READ] = (this_offset + __ret - 1); \
+    rec_ref->file_rec->counters[POSIX_BYTES_READ] += __ret; \
     if(__stream_flag) \
-        file->file_record->counters[POSIX_FREADS] += 1; \
+        rec_ref->file_rec->counters[POSIX_FREADS] += 1; \
     else \
-        file->file_record->counters[POSIX_READS] += 1; \
-    DARSHAN_BUCKET_INC(&(file->file_record->counters[POSIX_SIZE_READ_0_100]), __ret); \
-    darshan_common_val_counter(&file->access_root, &file->access_count, __ret, \
-        &(file->file_record->counters[POSIX_ACCESS1_ACCESS]), \
-        &(file->file_record->counters[POSIX_ACCESS1_COUNT])); \
-    darshan_common_val_counter(&file->stride_root, &file->stride_count, stride, \
-        &(file->file_record->counters[POSIX_STRIDE1_STRIDE]), \
-        &(file->file_record->counters[POSIX_STRIDE1_COUNT])); \
+        rec_ref->file_rec->counters[POSIX_READS] += 1; \
+    DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[POSIX_SIZE_READ_0_100]), __ret); \
+    darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, __ret, \
+        &(rec_ref->file_rec->counters[POSIX_ACCESS1_ACCESS]), \
+        &(rec_ref->file_rec->counters[POSIX_ACCESS1_COUNT])); \
+    darshan_common_val_counter(&rec_ref->stride_root, &rec_ref->stride_count, stride, \
+        &(rec_ref->file_rec->counters[POSIX_STRIDE1_STRIDE]), \
+        &(rec_ref->file_rec->counters[POSIX_STRIDE1_COUNT])); \
     if(!__aligned) \
-        file->file_record->counters[POSIX_MEM_NOT_ALIGNED] += 1; \
-    file_alignment = file->file_record->counters[POSIX_FILE_ALIGNMENT]; \
+        rec_ref->file_rec->counters[POSIX_MEM_NOT_ALIGNED] += 1; \
+    file_alignment = rec_ref->file_rec->counters[POSIX_FILE_ALIGNMENT]; \
     if(file_alignment > 0 && (this_offset % file_alignment) != 0) \
-        file->file_record->counters[POSIX_FILE_NOT_ALIGNED] += 1; \
-    if(file->last_io_type == DARSHAN_IO_WRITE) \
-        file->file_record->counters[POSIX_RW_SWITCHES] += 1; \
-    file->last_io_type = DARSHAN_IO_READ; \
-    if(file->file_record->fcounters[POSIX_F_READ_START_TIMESTAMP] == 0) \
-        file->file_record->fcounters[POSIX_F_READ_START_TIMESTAMP] = __tm1; \
-    file->file_record->fcounters[POSIX_F_READ_END_TIMESTAMP] = __tm2; \
-    if(file->file_record->fcounters[POSIX_F_MAX_READ_TIME] < __elapsed) { \
-        file->file_record->fcounters[POSIX_F_MAX_READ_TIME] = __elapsed; \
-        file->file_record->counters[POSIX_MAX_READ_TIME_SIZE] = __ret; } \
-    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_READ_TIME], \
-        __tm1, __tm2, file->last_read_end); \
+        rec_ref->file_rec->counters[POSIX_FILE_NOT_ALIGNED] += 1; \
+    if(rec_ref->last_io_type == DARSHAN_IO_WRITE) \
+        rec_ref->file_rec->counters[POSIX_RW_SWITCHES] += 1; \
+    rec_ref->last_io_type = DARSHAN_IO_READ; \
+    if(rec_ref->file_rec->fcounters[POSIX_F_READ_START_TIMESTAMP] == 0) \
+        rec_ref->file_rec->fcounters[POSIX_F_READ_START_TIMESTAMP] = __tm1; \
+    rec_ref->file_rec->fcounters[POSIX_F_READ_END_TIMESTAMP] = __tm2; \
+    if(rec_ref->file_rec->fcounters[POSIX_F_MAX_READ_TIME] < __elapsed) { \
+        rec_ref->file_rec->fcounters[POSIX_F_MAX_READ_TIME] = __elapsed; \
+        rec_ref->file_rec->counters[POSIX_MAX_READ_TIME_SIZE] = __ret; } \
+    DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[POSIX_F_READ_TIME], \
+        __tm1, __tm2, rec_ref->last_read_end); \
 } while(0)
 
-#define POSIX_RECORD_WRITE(__ret, __fd, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do{ \
+#define POSIX_RECORD_WRITE(__ret, __fd, __pwrite_flag, __pwrite_offset, __aligned, __stream_flag, __tm1, __tm2) do { \
+    struct posix_file_record_ref* rec_ref; \
     size_t stride; \
     int64_t this_offset; \
-    struct posix_file_runtime* file; \
     int64_t file_alignment; \
     double __elapsed = __tm2-__tm1; \
     if(__ret < 0) break; \
-    file = posix_file_by_fd(__fd); \
-    if(!file) break; \
+    if(!posix_runtime || instrumentation_disabled) break; /* XXX: PREMABLE??? */\
+    rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &__fd, sizeof(int)); \
+    if(!rec_ref) break; \
     if(__pwrite_flag) \
         this_offset = __pwrite_offset; \
     else \
-        this_offset = file->offset; \
-    if(this_offset > file->last_byte_written) \
-        file->file_record->counters[POSIX_SEQ_WRITES] += 1; \
-    if(this_offset == (file->last_byte_written + 1)) \
-        file->file_record->counters[POSIX_CONSEC_WRITES] += 1; \
-    if(this_offset > 0 && this_offset > file->last_byte_written \
-        && file->last_byte_written != 0) \
-        stride = this_offset - file->last_byte_written - 1; \
+        this_offset = rec_ref->offset; \
+    if(this_offset > rec_ref->last_byte_written) \
+        rec_ref->file_rec->counters[POSIX_SEQ_WRITES] += 1; \
+    if(this_offset == (rec_ref->last_byte_written + 1)) \
+        rec_ref->file_rec->counters[POSIX_CONSEC_WRITES] += 1; \
+    if(this_offset > 0 && this_offset > rec_ref->last_byte_written \
+        && rec_ref->last_byte_written != 0) \
+        stride = this_offset - rec_ref->last_byte_written - 1; \
     else \
         stride = 0; \
-    file->last_byte_written = this_offset + __ret - 1; \
-    file->offset = this_offset + __ret; \
-    if(file->file_record->counters[POSIX_MAX_BYTE_WRITTEN] < (this_offset + __ret - 1)) \
-        file->file_record->counters[POSIX_MAX_BYTE_WRITTEN] = (this_offset + __ret - 1); \
-    file->file_record->counters[POSIX_BYTES_WRITTEN] += __ret; \
+    rec_ref->last_byte_written = this_offset + __ret - 1; \
+    rec_ref->offset = this_offset + __ret; \
+    if(rec_ref->file_rec->counters[POSIX_MAX_BYTE_WRITTEN] < (this_offset + __ret - 1)) \
+        rec_ref->file_rec->counters[POSIX_MAX_BYTE_WRITTEN] = (this_offset + __ret - 1); \
+    rec_ref->file_rec->counters[POSIX_BYTES_WRITTEN] += __ret; \
     if(__stream_flag) \
-        file->file_record->counters[POSIX_FWRITES] += 1; \
+        rec_ref->file_rec->counters[POSIX_FWRITES] += 1; \
     else \
-        file->file_record->counters[POSIX_WRITES] += 1; \
-    DARSHAN_BUCKET_INC(&(file->file_record->counters[POSIX_SIZE_WRITE_0_100]), __ret); \
-    darshan_common_val_counter(&file->access_root, &file->access_count, __ret, \
-        &(file->file_record->counters[POSIX_ACCESS1_ACCESS]), \
-        &(file->file_record->counters[POSIX_ACCESS1_COUNT])); \
-    darshan_common_val_counter(&file->stride_root, &file->stride_count, stride, \
-        &(file->file_record->counters[POSIX_STRIDE1_STRIDE]), \
-        &(file->file_record->counters[POSIX_STRIDE1_COUNT])); \
+        rec_ref->file_rec->counters[POSIX_WRITES] += 1; \
+    DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[POSIX_SIZE_WRITE_0_100]), __ret); \
+    darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, __ret, \
+        &(rec_ref->file_rec->counters[POSIX_ACCESS1_ACCESS]), \
+        &(rec_ref->file_rec->counters[POSIX_ACCESS1_COUNT])); \
+    darshan_common_val_counter(&rec_ref->stride_root, &rec_ref->stride_count, stride, \
+        &(rec_ref->file_rec->counters[POSIX_STRIDE1_STRIDE]), \
+        &(rec_ref->file_rec->counters[POSIX_STRIDE1_COUNT])); \
     if(!__aligned) \
-        file->file_record->counters[POSIX_MEM_NOT_ALIGNED] += 1; \
-    file_alignment = file->file_record->counters[POSIX_FILE_ALIGNMENT]; \
+        rec_ref->file_rec->counters[POSIX_MEM_NOT_ALIGNED] += 1; \
+    file_alignment = rec_ref->file_rec->counters[POSIX_FILE_ALIGNMENT]; \
     if(file_alignment > 0 && (this_offset % file_alignment) != 0) \
-        file->file_record->counters[POSIX_FILE_NOT_ALIGNED] += 1; \
-    if(file->last_io_type == DARSHAN_IO_READ) \
-        file->file_record->counters[POSIX_RW_SWITCHES] += 1; \
-    file->last_io_type = DARSHAN_IO_WRITE; \
-    if(file->file_record->fcounters[POSIX_F_WRITE_START_TIMESTAMP] == 0) \
-        file->file_record->fcounters[POSIX_F_WRITE_START_TIMESTAMP] = __tm1; \
-    file->file_record->fcounters[POSIX_F_WRITE_END_TIMESTAMP] = __tm2; \
-    if(file->file_record->fcounters[POSIX_F_MAX_WRITE_TIME] < __elapsed) { \
-        file->file_record->fcounters[POSIX_F_MAX_WRITE_TIME] = __elapsed; \
-        file->file_record->counters[POSIX_MAX_WRITE_TIME_SIZE] = __ret; } \
-    DARSHAN_TIMER_INC_NO_OVERLAP(file->file_record->fcounters[POSIX_F_WRITE_TIME], \
-        __tm1, __tm2, file->last_write_end); \
+        rec_ref->file_rec->counters[POSIX_FILE_NOT_ALIGNED] += 1; \
+    if(rec_ref->last_io_type == DARSHAN_IO_READ) \
+        rec_ref->file_rec->counters[POSIX_RW_SWITCHES] += 1; \
+    rec_ref->last_io_type = DARSHAN_IO_WRITE; \
+    if(rec_ref->file_rec->fcounters[POSIX_F_WRITE_START_TIMESTAMP] == 0) \
+        rec_ref->file_rec->fcounters[POSIX_F_WRITE_START_TIMESTAMP] = __tm1; \
+    rec_ref->file_rec->fcounters[POSIX_F_WRITE_END_TIMESTAMP] = __tm2; \
+    if(rec_ref->file_rec->fcounters[POSIX_F_MAX_WRITE_TIME] < __elapsed) { \
+        rec_ref->file_rec->fcounters[POSIX_F_MAX_WRITE_TIME] = __elapsed; \
+        rec_ref->file_rec->counters[POSIX_MAX_WRITE_TIME_SIZE] = __ret; } \
+    DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[POSIX_F_WRITE_TIME], \
+        __tm1, __tm2, rec_ref->last_write_end); \
 } while(0)
 
 #define POSIX_LOOKUP_RECORD_STAT(__path, __statbuf, __tm1, __tm2) do { \
-    struct posix_file_runtime* file; \
+    struct posix_file_record_ref* rec_ref; \
+    darshan_record_id rec_id; \
+    if(!posix_runtime || instrumentation_disabled) break; /* XXX: PREMABLE??? */\
     if(darshan_core_excluded_path(__path)) break; \
-    file = posix_file_by_name(__path); \
-    if(file) \
-    { \
-        POSIX_RECORD_STAT(file, __statbuf, __tm1, __tm2); \
+    rec_id = darshan_record_id_from_path(__path); \
+    rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
+    if(!rec_ref) { \
+        rec_ref = posix_track_new_file_record(rec_id, __path); \
+    } \
+    if(rec_ref) { \
+        POSIX_RECORD_STAT(rec_ref, __statbuf, __tm1, __tm2); \
     } \
 } while(0)
 
-#define POSIX_RECORD_STAT(__file, __statbuf, __tm1, __tm2) do { \
-    (__file)->file_record->counters[POSIX_STATS] += 1; \
-    DARSHAN_TIMER_INC_NO_OVERLAP((__file)->file_record->fcounters[POSIX_F_META_TIME], \
-        __tm1, __tm2, (__file)->last_meta_end); \
+#define POSIX_RECORD_STAT(__rec_ref, __statbuf, __tm1, __tm2) do { \
+    (__rec_ref)->file_rec->counters[POSIX_STATS] += 1; \
+    DARSHAN_TIMER_INC_NO_OVERLAP((__rec_ref)->file_rec->fcounters[POSIX_F_META_TIME], \
+        __tm1, __tm2, (__rec_ref)->last_meta_end); \
 } while(0)
 
 
@@ -776,6 +737,7 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
     size_t ret;
     int aligned_flag = 0;
+    int fd;
     double tm1, tm2;
 
     MAP_OR_FAIL(fread);
@@ -788,15 +750,14 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
 
     POSIX_LOCK();
     posix_runtime_initialize();
+    fd = fileno(stream);
     if(ret > 0)
     {
-        POSIX_RECORD_READ(size*ret, fileno(stream), 0, 0,
-            aligned_flag, 1, tm1, tm2);
+        POSIX_RECORD_READ(size*ret, fd, 0, 0, aligned_flag, 1, tm1, tm2);
     }
     else
     {
-        POSIX_RECORD_READ(ret, fileno(stream), 0, 0,
-            aligned_flag, 1, tm1, tm2);
+        POSIX_RECORD_READ(ret, fd, 0, 0, aligned_flag, 1, tm1, tm2);
     }
     POSIX_UNLOCK();
 
@@ -807,6 +768,7 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
 {
     size_t ret;
     int aligned_flag = 0;
+    int fd;
     double tm1, tm2;
 
     MAP_OR_FAIL(fwrite);
@@ -819,15 +781,14 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
 
     POSIX_LOCK();
     posix_runtime_initialize();
+    fd = fileno(stream);
     if(ret > 0)
     {
-        POSIX_RECORD_WRITE(size*ret, fileno(stream), 0, 0,
-            aligned_flag, 1, tm1, tm2);
+        POSIX_RECORD_WRITE(size*ret, fd, 0, 0, aligned_flag, 1, tm1, tm2);
     }
     else
     {
-        POSIX_RECORD_WRITE(ret, fileno(stream), 0, 0,
-            aligned_flag, 1, tm1, tm2);
+        POSIX_RECORD_WRITE(ret, fd, 0, 0, aligned_flag, 1, tm1, tm2);
     }
     POSIX_UNLOCK();
 
@@ -837,7 +798,7 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
 off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
 {
     off_t ret;
-    struct posix_file_runtime* file;
+    struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
     MAP_OR_FAIL(lseek);
@@ -850,14 +811,15 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
     {
         POSIX_LOCK();
         posix_runtime_initialize();
-        file = posix_file_by_fd(fd);
-        if(file)
+        if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */\
+        rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
+        if(rec_ref)
         {
-            file->offset = ret;
+            rec_ref->offset = ret;
             DARSHAN_TIMER_INC_NO_OVERLAP(
-                file->file_record->fcounters[POSIX_F_META_TIME],
-                tm1, tm2, file->last_meta_end);
-            file->file_record->counters[POSIX_SEEKS] += 1;
+                rec_ref->file_rec->fcounters[POSIX_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->file_rec->counters[POSIX_SEEKS] += 1;
         }
         POSIX_UNLOCK();
     }
@@ -868,7 +830,7 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
 off_t DARSHAN_DECL(lseek64)(int fd, off_t offset, int whence)
 {
     off_t ret;
-    struct posix_file_runtime* file;
+    struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
     MAP_OR_FAIL(lseek64);
@@ -881,14 +843,15 @@ off_t DARSHAN_DECL(lseek64)(int fd, off_t offset, int whence)
     {
         POSIX_LOCK();
         posix_runtime_initialize();
-        file = posix_file_by_fd(fd);
-        if(file)
+        if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+        rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
+        if(rec_ref)
         {
-            file->offset = ret;
+            rec_ref->offset = ret;
             DARSHAN_TIMER_INC_NO_OVERLAP(
-                file->file_record->fcounters[POSIX_F_META_TIME],
-                tm1, tm2, file->last_meta_end);
-            file->file_record->counters[POSIX_SEEKS] += 1;
+                rec_ref->file_rec->fcounters[POSIX_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->file_rec->counters[POSIX_SEEKS] += 1;
         }
         POSIX_UNLOCK();
     }
@@ -899,7 +862,8 @@ off_t DARSHAN_DECL(lseek64)(int fd, off_t offset, int whence)
 int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
 {
     int ret;
-    struct posix_file_runtime* file;
+    struct posix_file_record_ref *rec_ref;
+    int fd;
     double tm1, tm2;
 
     MAP_OR_FAIL(fseek);
@@ -912,14 +876,16 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
     {
         POSIX_LOCK();
         posix_runtime_initialize();
-        file = posix_file_by_fd(fileno(stream));
-        if(file)
+        if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+        fd = fileno(stream);
+        rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
+        if(rec_ref)
         {
-            file->offset = ftell(stream);
+            rec_ref->offset = ftell(stream);
             DARSHAN_TIMER_INC_NO_OVERLAP(
-                file->file_record->fcounters[POSIX_F_META_TIME],
-                tm1, tm2, file->last_meta_end);
-            file->file_record->counters[POSIX_FSEEKS] += 1;
+                rec_ref->file_rec->fcounters[POSIX_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->file_rec->counters[POSIX_FSEEKS] += 1;
         }
         POSIX_UNLOCK();
     }
@@ -1018,7 +984,7 @@ int DARSHAN_DECL(__lxstat64)(int vers, const char *path, struct stat64 *buf)
 int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
 {
     int ret;
-    struct posix_file_runtime* file;
+    struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
     MAP_OR_FAIL(__fxstat);
@@ -1032,10 +998,11 @@ int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    file = posix_file_by_fd(fd);
-    if(file)
+    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
+    if(rec_ref)
     {
-        POSIX_RECORD_STAT(file, buf, tm1, tm2);
+        POSIX_RECORD_STAT(rec_ref, buf, tm1, tm2);
     }
     POSIX_UNLOCK();
 
@@ -1045,7 +1012,7 @@ int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
 int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
 {
     int ret;
-    struct posix_file_runtime* file;
+    struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
     MAP_OR_FAIL(__fxstat64);
@@ -1059,10 +1026,11 @@ int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    file = posix_file_by_fd(fd);
-    if(file)
+    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
+    if(rec_ref)
     {
-        POSIX_RECORD_STAT(file, buf, tm1, tm2);
+        POSIX_RECORD_STAT(rec_ref, buf, tm1, tm2);
     }
     POSIX_UNLOCK();
 
@@ -1073,7 +1041,7 @@ void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
     int fd, off_t offset)
 {
     void* ret;
-    struct posix_file_runtime* file;
+    struct posix_file_record_ref *rec_ref;
 
     MAP_OR_FAIL(mmap);
 
@@ -1083,10 +1051,11 @@ void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    file = posix_file_by_fd(fd);
-    if(file)
+    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
+    if(rec_ref)
     {
-        file->file_record->counters[POSIX_MMAPS] += 1;
+        rec_ref->file_rec->counters[POSIX_MMAPS] += 1;
     }
     POSIX_UNLOCK();
 
@@ -1097,7 +1066,7 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
     int fd, off64_t offset)
 {
     void* ret;
-    struct posix_file_runtime* file;
+    struct posix_file_record_ref *rec_ref;
 
     MAP_OR_FAIL(mmap64);
 
@@ -1107,10 +1076,11 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    file = posix_file_by_fd(fd);
-    if(file)
+    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
+    if(rec_ref)
     {
-        file->file_record->counters[POSIX_MMAPS] += 1;
+        rec_ref->file_rec->counters[POSIX_MMAPS] += 1;
     }
     POSIX_UNLOCK();
 
@@ -1120,7 +1090,7 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
 int DARSHAN_DECL(fsync)(int fd)
 {
     int ret;
-    struct posix_file_runtime* file;
+    struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
     MAP_OR_FAIL(fsync);
@@ -1134,13 +1104,14 @@ int DARSHAN_DECL(fsync)(int fd)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    file = posix_file_by_fd(fd);
-    if(file)
+    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
+    if(rec_ref)
     {
         DARSHAN_TIMER_INC_NO_OVERLAP(
-            file->file_record->fcounters[POSIX_F_WRITE_TIME],
-            tm1, tm2, file->last_write_end);
-        file->file_record->counters[POSIX_FSYNCS] += 1;
+            rec_ref->file_rec->fcounters[POSIX_F_WRITE_TIME],
+            tm1, tm2, rec_ref->last_write_end);
+        rec_ref->file_rec->counters[POSIX_FSYNCS] += 1;
     }
     POSIX_UNLOCK();
 
@@ -1150,7 +1121,7 @@ int DARSHAN_DECL(fsync)(int fd)
 int DARSHAN_DECL(fdatasync)(int fd)
 {
     int ret;
-    struct posix_file_runtime* file;
+    struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
     MAP_OR_FAIL(fdatasync);
@@ -1164,13 +1135,14 @@ int DARSHAN_DECL(fdatasync)(int fd)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    file = posix_file_by_fd(fd);
-    if(file)
+    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
+    if(rec_ref)
     {
         DARSHAN_TIMER_INC_NO_OVERLAP(
-            file->file_record->fcounters[POSIX_F_WRITE_TIME],
-            tm1, tm2, file->last_write_end);
-        file->file_record->counters[POSIX_FDSYNCS] += 1;
+            rec_ref->file_rec->fcounters[POSIX_F_WRITE_TIME],
+            tm1, tm2, rec_ref->last_write_end);
+        rec_ref->file_rec->counters[POSIX_FDSYNCS] += 1;
     }
     POSIX_UNLOCK();
 
@@ -1179,9 +1151,9 @@ int DARSHAN_DECL(fdatasync)(int fd)
 
 int DARSHAN_DECL(close)(int fd)
 {
-    struct posix_file_runtime* file;
-    double tm1, tm2;
     int ret;
+    struct posix_file_record_ref *rec_ref;
+    double tm1, tm2;
 
     MAP_OR_FAIL(close);
 
@@ -1191,17 +1163,18 @@ int DARSHAN_DECL(close)(int fd)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    file = posix_file_by_fd(fd);
-    if(file)
+    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
+    if(rec_ref)
     {
-        file->last_byte_written = 0;
-        file->last_byte_read = 0;
-        file->file_record->fcounters[POSIX_F_CLOSE_TIMESTAMP] =
+        rec_ref->last_byte_written = 0;
+        rec_ref->last_byte_read = 0;
+        rec_ref->file_rec->fcounters[POSIX_F_CLOSE_TIMESTAMP] =
             darshan_core_wtime();
         DARSHAN_TIMER_INC_NO_OVERLAP(
-            file->file_record->fcounters[POSIX_F_META_TIME],
-            tm1, tm2, file->last_meta_end);
-        posix_file_close_fd(fd);
+            rec_ref->file_rec->fcounters[POSIX_F_META_TIME],
+            tm1, tm2, rec_ref->last_meta_end);
+        darshan_delete_record_ref(&(posix_runtime->fd_hash), &fd, sizeof(int));
     }
     POSIX_UNLOCK();    
 
@@ -1210,10 +1183,10 @@ int DARSHAN_DECL(close)(int fd)
 
 int DARSHAN_DECL(fclose)(FILE *fp)
 {
-    struct posix_file_runtime* file;
+    int ret;
+    struct posix_file_record_ref *rec_ref;
     int fd = fileno(fp);
     double tm1, tm2;
-    int ret;
 
     MAP_OR_FAIL(fclose);
 
@@ -1223,17 +1196,18 @@ int DARSHAN_DECL(fclose)(FILE *fp)
 
     POSIX_LOCK();
     posix_runtime_initialize();
-    file = posix_file_by_fd(fd);
-    if(file)
+    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
+    if(rec_ref)
     {
-        file->last_byte_written = 0;
-        file->last_byte_read = 0;
-        file->file_record->fcounters[POSIX_F_CLOSE_TIMESTAMP] =
+        rec_ref->last_byte_written = 0;
+        rec_ref->last_byte_read = 0;
+        rec_ref->file_rec->fcounters[POSIX_F_CLOSE_TIMESTAMP] =
             darshan_core_wtime();
         DARSHAN_TIMER_INC_NO_OVERLAP(
-            file->file_record->fcounters[POSIX_F_META_TIME],
-            tm1, tm2, file->last_meta_end);
-        posix_file_close_fd(fd);
+            rec_ref->file_rec->fcounters[POSIX_F_META_TIME],
+            tm1, tm2, rec_ref->last_meta_end);
+        darshan_delete_record_ref(&(posix_runtime->fd_hash), &fd, sizeof(int));
     }
     POSIX_UNLOCK();
 
@@ -1327,7 +1301,7 @@ ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
     POSIX_LOCK();
     posix_runtime_initialize();
     tmp = posix_aio_tracker_del(aiocbp->aio_fildes, aiocbp);
-    if (tmp)
+    if(tmp)
     {
         if((unsigned long)aiocbp->aio_buf % darshan_mem_alignment == 0)
             aligned_flag = 1;
@@ -1365,7 +1339,7 @@ ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
     POSIX_LOCK();
     posix_runtime_initialize();
     tmp = posix_aio_tracker_del(aiocbp->aio_fildes, aiocbp);
-    if (tmp)
+    if(tmp)
     {
         if((unsigned long)aiocbp->aio_buf % darshan_mem_alignment == 0)
             aligned_flag = 1;
@@ -1482,138 +1456,60 @@ static void posix_runtime_initialize()
     return;
 }
 
-/* get a POSIX file record for the given file path */
-static struct posix_file_runtime* posix_file_by_name(const char *name)
+static struct posix_file_record_ref *posix_track_new_file_record(
+    darshan_record_id rec_id, const char *path)
 {
-    struct posix_file_runtime *file_rec_rt;
     struct darshan_posix_file *file_rec = NULL;
-    char *newname = NULL;
-    darshan_record_id file_id;
+    struct posix_file_record_ref *rec_ref = NULL;
+    char *newpath = NULL;
     int file_alignment;
+    int ret;
 
-    if(!posix_runtime || instrumentation_disabled)
+    rec_ref = malloc(sizeof(*rec_ref));
+    if(!rec_ref)
         return(NULL);
+    memset(rec_ref, 0, sizeof(*rec_ref));
 
-    newname = darshan_clean_file_path(name);
-    if(!newname)
-        newname = (char*)name;
-
-    /* lookup the id for this filename */
-    file_id = darshan_core_gen_record_id(newname);
-
-    /* search the hash table for this file record, and return if found */
-    HASH_FIND(hlink, posix_runtime->file_hash, &file_id,
-        sizeof(darshan_record_id), file_rec_rt);
-    if(file_rec_rt == NULL)
+    /* add a reference to this file record based on record id */
+    ret = darshan_add_record_ref(&(posix_runtime->rec_id_hash), &rec_id,
+        sizeof(darshan_record_id), rec_ref);
+    if(ret == 0)
     {
-        file_rec_rt = malloc(sizeof(*file_rec_rt));
-        if(file_rec_rt)
-        {
-            memset(file_rec_rt, 0, sizeof(*file_rec_rt));
-
-            /* attempt to register the record with darshan core */
-            file_rec = darshan_core_register_record(file_id, newname, DARSHAN_POSIX_MOD,
-                sizeof(struct darshan_posix_file), &file_alignment);
-            if(!file_rec)
-                free(file_rec_rt);
-        }
-
-        if(file_rec != NULL)
-        {
-            /* register was successful, init structures */
-            file_rec->base_rec.id = file_id;
-            file_rec->base_rec.rank = my_rank;
-            file_rec->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
-            file_rec->counters[POSIX_FILE_ALIGNMENT] = file_alignment;
-            file_rec_rt->file_record = file_rec;
-
-            /* add new record to file hash table */
-            HASH_ADD(hlink, posix_runtime->file_hash, file_record->base_rec.id,
-                sizeof(darshan_record_id), file_rec_rt);
-        }
+        free(rec_ref);
+        return(NULL);
     }
 
-    if(newname != name)
-        free(newname);
-    return(file_rec_rt);
-}
+    /* cleanup name and convert to absolute path */
+    newpath = darshan_clean_file_path(path);
+    if(!newpath)
+        newpath = (char *)path;
 
-/* get a POSIX file record for the given file path, and also create a
- * reference structure using the returned file descriptor
- */
-static struct posix_file_runtime* posix_file_by_name_setfd(const char* name, int fd)
-{
-    struct posix_file_runtime* file;
-    struct posix_file_runtime_ref* ref;
-
-    if(!posix_runtime || instrumentation_disabled)
-        return(NULL);
-
-    /* find file record by name first */
-    file = posix_file_by_name(name);
-    if(!file)
-        return(NULL);
-
-    /* search hash table for existing file ref for this fd */
-    HASH_FIND(hlink, posix_runtime->fd_hash, &fd, sizeof(int), ref);
-    if(ref)
-    {
-        /* we have a reference.  Make sure it points to the correct file
-         * and return it
-         */
-        ref->file = file;
-        return(file);
-    }
-
-    /* if we hit this point, then we don't have a reference for this fd
-     * in the table yet.  Add it.
+    /* register the actual file record with darshan-core so it is persisted
+     * in the log file
      */
-    ref = malloc(sizeof(*ref));
-    if(!ref)
-        return(NULL);
-    memset(ref, 0, sizeof(*ref));
-
-    ref->file = file;
-    ref->fd = fd;    
-    HASH_ADD(hlink, posix_runtime->fd_hash, fd, sizeof(int), ref);
-
-    return(file);
-}
-
-/* get a POSIX file record for the given file descriptor */
-static struct posix_file_runtime* posix_file_by_fd(int fd)
-{
-    struct posix_file_runtime_ref* ref;
-
-    if(!posix_runtime || instrumentation_disabled)
-        return(NULL);
-
-    /* search hash table for existing file ref for this fd */
-    HASH_FIND(hlink, posix_runtime->fd_hash, &fd, sizeof(int), ref);
-    if(ref)
-        return(ref->file);
-
-    return(NULL);
-}
-
-/* free up reference data structures for the given file descriptor */
-static void posix_file_close_fd(int fd)
-{
-    struct posix_file_runtime_ref* ref;
-
-    if(!posix_runtime || instrumentation_disabled)
-        return;
-
-    /* search hash table for this fd */
-    HASH_FIND(hlink, posix_runtime->fd_hash, &fd, sizeof(int), ref);
-    if(ref)
+    file_rec = darshan_core_register_record(rec_id, newpath, DARSHAN_POSIX_MOD,
+        sizeof(struct darshan_posix_file), &file_alignment);
+    if(!file_rec)
     {
-        /* we have a reference, delete it */
-        HASH_DELETE(hlink, posix_runtime->fd_hash, ref);
-        free(ref);
+        darshan_delete_record_ref(&(posix_runtime->rec_id_hash),
+            &rec_id, sizeof(darshan_record_id));
+        free(rec_ref);
+        if(newpath != path)
+            free(newpath);
+        return(NULL);
     }
 
-    return;
+    /* registering this file record was successful, so initialize some fields */
+    file_rec->base_rec.id = rec_id;
+    file_rec->base_rec.rank = my_rank;
+    file_rec->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
+    file_rec->counters[POSIX_FILE_ALIGNMENT] = file_alignment;
+    rec_ref->file_rec = file_rec;
+    posix_runtime->file_rec_count++;
+
+    if(newpath != path)
+        free(newpath);
+    return(rec_ref);
 }
 
 /* compare function for sorting file records by descending rank */
@@ -1638,16 +1534,16 @@ static int posix_record_compare(const void* a_p, const void* b_p)
 static struct posix_aio_tracker* posix_aio_tracker_del(int fd, void *aiocbp)
 {
     struct posix_aio_tracker *tracker = NULL, *iter, *tmp;
-    struct posix_file_runtime* file;
+    struct posix_file_record_ref *rec_ref;
 
-    file = posix_file_by_fd(fd);
-    if (file)
+    rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
+    if(rec_ref)
     {
-        LL_FOREACH_SAFE(file->aio_list, iter, tmp)
+        LL_FOREACH_SAFE(rec_ref->aio_list, iter, tmp)
         {
-            if (iter->aiocbp == aiocbp)
+            if(iter->aiocbp == aiocbp)
             {
-                LL_DELETE(file->aio_list, iter);
+                LL_DELETE(rec_ref->aio_list, iter);
                 tracker = iter;
                 break;
             }
@@ -1661,17 +1557,17 @@ static struct posix_aio_tracker* posix_aio_tracker_del(int fd, void *aiocbp)
 static void posix_aio_tracker_add(int fd, void *aiocbp)
 {
     struct posix_aio_tracker* tracker;
-    struct posix_file_runtime* file;
+    struct posix_file_record_ref *rec_ref;
 
-    file = posix_file_by_fd(fd);
-    if (file)
+    rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
+    if(rec_ref)
     {
         tracker = malloc(sizeof(*tracker));
-        if (tracker)
+        if(tracker)
         {
             tracker->tm1 = darshan_core_wtime();
             tracker->aiocbp = aiocbp;
-            LL_PREPEND(file->aio_list, tracker);
+            LL_PREPEND(rec_ref->aio_list, tracker);
         }
     }
 
@@ -2005,6 +1901,32 @@ static void posix_begin_shutdown()
     return;
 }
 
+static void posix_finalize_file_records(void *rec_ref_p)
+{
+    struct posix_file_record_ref *rec_ref =
+        (struct posix_file_record_ref *)rec_ref_p;
+
+#ifndef __DARSHAN_ENABLE_MMAP_LOGS
+    /* walk common counters to get 4 most common -- only if mmap
+     * feature is disabled (mmap updates counters on the go)
+     */
+
+    /* common accesses */
+    darshan_walk_common_vals(rec_ref->access_root,
+        &(rec_ref->file_rec->counters[POSIX_ACCESS1_ACCESS]),
+        &(rec_ref->file_rec->counters[POSIX_ACCESS1_COUNT]));
+    /* common strides */
+    darshan_walk_common_vals(rec_ref->stride_root,
+        &(rec_ref->file_rec->counters[POSIX_STRIDE1_STRIDE]),
+        &(rec_ref->file_rec->counters[POSIX_STRIDE1_COUNT]));
+#endif
+
+    tdestroy(rec_ref->access_root, free);
+    tdestroy(rec_ref->stride_root, free);
+
+    return;
+}
+
 static void posix_get_output_data(
     MPI_Comm mod_comm,
     darshan_record_id *shared_recs,
@@ -2012,10 +1934,10 @@ static void posix_get_output_data(
     void **posix_buf,
     int *posix_buf_sz)
 {
-    struct posix_file_runtime *file_rec_rt, *tmp;
+    struct posix_file_record_ref *rec_ref;
     struct darshan_posix_file *posix_rec_buf = *(struct darshan_posix_file **)posix_buf;
-    double posix_time;
     int posix_rec_count;
+    double posix_time;
     struct darshan_posix_file *red_send_buf = NULL;
     struct darshan_posix_file *red_recv_buf = NULL;
     MPI_Datatype red_type;
@@ -2023,31 +1945,12 @@ static void posix_get_output_data(
     int i;
 
     assert(posix_runtime);
-    posix_rec_count = HASH_CNT(hlink, posix_runtime->file_hash);
+    posix_rec_count = posix_runtime->file_rec_count;
 
-    /* go through file access data for each record and set the 4 most common
-     * stride/access size counters.
+    /* perform any final transformations on POSIX file records before
+     * writing them out to log file
      */
-    HASH_ITER(hlink, posix_runtime->file_hash, file_rec_rt, tmp)
-    {
-#ifndef __DARSHAN_ENABLE_MMAP_LOGS
-        /* walk common counters to get 4 most common -- only if mmap
-         * feature is disabled (mmap updates counters on the go)
-         */
-
-        /* common accesses */
-        darshan_walk_common_vals(file_rec_rt->access_root,
-            &(file_rec_rt->file_record->counters[POSIX_ACCESS1_ACCESS]),
-            &(file_rec_rt->file_record->counters[POSIX_ACCESS1_COUNT]));
-        /* common strides */
-        darshan_walk_common_vals(file_rec_rt->stride_root,
-            &(file_rec_rt->file_record->counters[POSIX_STRIDE1_STRIDE]),
-            &(file_rec_rt->file_record->counters[POSIX_STRIDE1_COUNT]));
-#endif
-
-        tdestroy(file_rec_rt->access_root, free);
-        tdestroy(file_rec_rt->stride_root, free);
-    }
+    darshan_iter_record_refs(posix_runtime->rec_id_hash, &posix_finalize_file_records);
 
     /* if there are globally shared files, do a shared file reduction */
     /* NOTE: the shared file reduction is also skipped if the 
@@ -2058,36 +1961,36 @@ static void posix_get_output_data(
         /* necessary initialization of shared records */
         for(i = 0; i < shared_rec_count; i++)
         {
-            HASH_FIND(hlink, posix_runtime->file_hash, &shared_recs[i],
-                sizeof(darshan_record_id), file_rec_rt);
-            assert(file_rec_rt);
+            rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash,
+                &shared_recs[i], sizeof(darshan_record_id));
+            assert(rec_ref);
 
             posix_time =
-                file_rec_rt->file_record->fcounters[POSIX_F_READ_TIME] +
-                file_rec_rt->file_record->fcounters[POSIX_F_WRITE_TIME] +
-                file_rec_rt->file_record->fcounters[POSIX_F_META_TIME];
+                rec_ref->file_rec->fcounters[POSIX_F_READ_TIME] +
+                rec_ref->file_rec->fcounters[POSIX_F_WRITE_TIME] +
+                rec_ref->file_rec->fcounters[POSIX_F_META_TIME];
 
             /* initialize fastest/slowest info prior to the reduction */
-            file_rec_rt->file_record->counters[POSIX_FASTEST_RANK] =
-                file_rec_rt->file_record->base_rec.rank;
-            file_rec_rt->file_record->counters[POSIX_FASTEST_RANK_BYTES] =
-                file_rec_rt->file_record->counters[POSIX_BYTES_READ] +
-                file_rec_rt->file_record->counters[POSIX_BYTES_WRITTEN];
-            file_rec_rt->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME] =
+            rec_ref->file_rec->counters[POSIX_FASTEST_RANK] =
+                rec_ref->file_rec->base_rec.rank;
+            rec_ref->file_rec->counters[POSIX_FASTEST_RANK_BYTES] =
+                rec_ref->file_rec->counters[POSIX_BYTES_READ] +
+                rec_ref->file_rec->counters[POSIX_BYTES_WRITTEN];
+            rec_ref->file_rec->fcounters[POSIX_F_FASTEST_RANK_TIME] =
                 posix_time;
 
             /* until reduction occurs, we assume that this rank is both
              * the fastest and slowest. It is up to the reduction operator
              * to find the true min and max.
              */
-            file_rec_rt->file_record->counters[POSIX_SLOWEST_RANK] =
-                file_rec_rt->file_record->counters[POSIX_FASTEST_RANK];
-            file_rec_rt->file_record->counters[POSIX_SLOWEST_RANK_BYTES] =
-                file_rec_rt->file_record->counters[POSIX_FASTEST_RANK_BYTES];
-            file_rec_rt->file_record->fcounters[POSIX_F_SLOWEST_RANK_TIME] =
-                file_rec_rt->file_record->fcounters[POSIX_F_FASTEST_RANK_TIME];
+            rec_ref->file_rec->counters[POSIX_SLOWEST_RANK] =
+                rec_ref->file_rec->counters[POSIX_FASTEST_RANK];
+            rec_ref->file_rec->counters[POSIX_SLOWEST_RANK_BYTES] =
+                rec_ref->file_rec->counters[POSIX_FASTEST_RANK_BYTES];
+            rec_ref->file_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME] =
+                rec_ref->file_rec->fcounters[POSIX_F_FASTEST_RANK_TIME];
 
-            file_rec_rt->file_record->base_rec.rank = -1;
+            rec_ref->file_rec->base_rec.rank = -1;
         }
 
         /* sort the array of files descending by rank so that we get all of the 
@@ -2151,22 +2054,10 @@ static void posix_get_output_data(
 
 static void posix_shutdown()
 {
-    struct posix_file_runtime_ref *fd_ref, *fd_tmp;
-    struct posix_file_runtime *file_ref, *file_tmp;
-
     assert(posix_runtime);
 
-    HASH_ITER(hlink, posix_runtime->fd_hash, fd_ref, fd_tmp)
-    {
-        HASH_DELETE(hlink, posix_runtime->fd_hash, fd_ref);
-        free(fd_ref);
-    }
-
-    HASH_ITER(hlink, posix_runtime->file_hash, file_ref, file_tmp)
-    {
-        HASH_DELETE(hlink, posix_runtime->file_hash, file_ref);
-        free(file_ref);
-    }
+    darshan_clear_record_refs(&(posix_runtime->fd_hash), 0);
+    darshan_clear_record_refs(&(posix_runtime->rec_id_hash), 1);
 
     free(posix_runtime);
     posix_runtime = NULL;
