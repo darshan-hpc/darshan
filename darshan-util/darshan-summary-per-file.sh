@@ -9,12 +9,12 @@
 set -o pipefail
 
 if [ $# -ne 2 ]; then
-    echo "Usage: darshan-summary-per-file.sh <input_file.gz> <output_directory>"
+    echo "Usage: darshan-summary-per-file.sh <input_file.darshan> <output_directory>"
     exit 1
 fi
 
 # count number of files present in log
-filecount=`darshan-parser --file-list $1| egrep -v '^(#|$)' | cut -f 1-2 | uniq | wc -l`
+filecount=`darshan-parser --file-list $1| egrep -v '^(#|$)' | cut -f 1-2 | sort -n | uniq | wc -l`
 rc=$?
 if [ $rc -ne 0 ]; then
    exit $rc
@@ -29,21 +29,21 @@ fi
 
 # loop through all files in log
 counter=0
-darshan-parser --file-list $1| egrep -v '^(#|$)' | cut -f 1-2 | uniq |
-while read -r hash suffix stuff ; do
+darshan-parser --file-list $1| egrep -v '^(#|$)' | cut -f 1-2 | sort -n | uniq |
+while read -r hash filepath stuff ; do
         counter=$((counter+1))
-	file=$(basename $suffix)
-	if [ -x $file.gz ] ; then
-		$file = $file.$hash.gz
+	file=$(basename $filepath)
+	if [ -x $file.darshan ] ; then
+		$file = $file.$hash.darshan
 	fi
         echo Status: Generating summary for file $counter of $filecount: $file
         echo =======================================================
-	darshan-convert --file $hash $1 $2/$file.gz
+	darshan-convert --file $hash $1 $2/$file.darshan
         rc=$?
         if [ $rc -ne 0 ]; then
            exit $rc
         fi
-	darshan-job-summary.pl $2/$file.gz --output $2/$file.pdf
+	darshan-job-summary.pl $2/$file.darshan --output $2/$file.pdf
         rc=$?
         if [ $rc -ne 0 ]; then
            exit $rc
