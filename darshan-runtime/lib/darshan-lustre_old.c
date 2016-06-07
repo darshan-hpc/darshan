@@ -237,7 +237,14 @@ static void lustre_get_output_data(
     int *lustre_buf_sz)
 {
     struct lustre_record_runtime *file;
-    int i;
+    int i, ishared;
+    int *rec_lengths;
+    size_t shared_rec_size;
+    struct darshan_lustre_record *red_send_buf = NULL;
+    struct darshan_lustre_record *red_recv_buf = NULL;
+    MPI_Datatype red_type;
+    MPI_Aint *rec_offsets;
+    MPI_Op red_op;
 
     assert(lustre_runtime);
 
@@ -263,9 +270,58 @@ static void lustre_get_output_data(
          */
         sort_lustre_records();
 
+        /* make red_send_buf point to the first shared-file record */
+        ishared = lustre_runtime->record_count - shared_rec_count;
+        red_send_buf =
+            (lustre_runtime->record_runtime_array[ishared]).record;
+
         /* allocate memory for the reduction output on rank 0 */
-        if (my_rank != 0)
+        if (my_rank == 0)
+        {
+            shared_rec_size = lustre_runtime->record_buffer_used - ((char*)red_send_buf - (char*)lustre_runtime->record_buffer);
+            red_recv_buf = malloc(shared_rec_size);
+            if (!red_recv_buf)
+                return;
+        }
+
+        /* need to build rec_lengths (array of ints) and rec_offsets (array of ints) */
+        rec_lengths = malloc(sizeof(*rec_lengths) * shared_rec_count);
+        rec_offsets = malloc(sizeof(*rec_offsets) * shared_rec_count);
+        for ( i = ishared; i < shared_rec_count; i ++ )
+        {
+            rec_lengths[i] = (lustre_runtime->record_runtime_array[i]).record_size;
+            rec_offsets[i] = (char*)((lustre_runtime->record_runtime_array[i]).record) -
+                (char*)((lustre_runtime->record_runtime_array[ishared]).record);
+        }
+
+        /* ... */
+        DARSHAN_MPI_CALL(PMPI_Type_hindexed)(
+            shared_rec_count,
+            rec_lengths,
+            rec_offsets,
+            MPI_BYTE,
+            &red_type
+        );
+        DARSHAN_MPI_CALL(PMPI_Type_commit)(&red_type);
+        DARSHAN_MPI_CALL(PMPI_Op_create)(lustre_record_reduction_op, 1, &red_op);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(red_send_buf, red_recv_buf,
+            shared_rec_count, red_type, red_op, 0, mod_comm);
+
+        /* clean up reduction state */
+        if (my_rank == 0)
+        {
+            memcpy(&(lustre_runtime->record_buffer[ishared]), red_recv_buf,
+                shared_rec_size);
+            free(red_recv_buf);
+        }
+        else
+        {
             lustre_runtime->record_count -= shared_rec_count;
+        }
+        free(rec_lengths);
+        free(rec_offsets);
+        DARSHAN_MPI_CALL(PMPI_Type_free)(&red_type);
+        DARSHAN_MPI_CALL(PMPI_Op_free)(&red_op);
     }
 
     *lustre_buf = (void *)(lustre_runtime->record_buffer);
