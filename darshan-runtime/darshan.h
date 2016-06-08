@@ -134,7 +134,8 @@ darshan_record_id darshan_core_gen_record_id(
  * is the size of the record being registered with Darshan. If given,
  * 'file_alignment' is a pointer to an integer which on return will
  * contain the corresponding file system alignment of the file system
- * path 'name' resides on.
+ * path 'name' resides on. Returns a pointer to the address the record
+ * should be written to on success, NULL on failure.
  */
 void *darshan_core_register_record(
     darshan_record_id rec_id,
