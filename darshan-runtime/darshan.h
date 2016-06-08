@@ -92,11 +92,14 @@ struct darshan_module_funcs
  * Register module identifier 'mod_id' with the darshan-core runtime
  * environment, allowing the module to store I/O characterization data.
  * 'funcs' is a pointer to a structure containing each of the function
- * pointers required by darshan-core to shut down the module. The function
- * returns the following integers passed in as pointers: 'rank' is the
- * MPI rank of the calling process, 'mod_mem_limit' is the maximum amount
- * of memory the module may use, and 'sys_mem_alignment' is the configured
- * memory alignment value Darshan was configured with.
+ * pointers required by darshan-core to shut down the module.
+ * 'inout_mod_buf_size' is an input/output argument, with it being
+ * set to the requested amount of module memory on input, and set to
+ * the amount allocated by darshan-core on output. If given, 'rank' is
+ * a pointer to an integer which will contain the calling process's
+ * MPI rank on return. If given, 'sys_mem_alignment' is a pointer to
+ * an integer which will contain the memory alignment value Darshan
+ * was configured with on return.
  */
 void darshan_core_register_module(
     darshan_module_id mod_id,
@@ -115,7 +118,7 @@ void darshan_core_unregister_module(
 
 /* darshan_core_gen_record_id()
  *
- *
+ * Returns the Darshan record ID correpsonding to input string 'name'.
  */
 darshan_record_id darshan_core_gen_record_id(
     const char *name);
@@ -124,15 +127,14 @@ darshan_record_id darshan_core_gen_record_id(
  *
  * Register a record with the darshan-core runtime, allowing it to be
  * properly tracked and (potentially) correlated with records from other
- * modules. 'name' is the the name of the Darshan record (e.g., the full
- * file path) and 'len' is the size of the name pointer (string length
- * for string names). 'mod_id' is the identifier of the calling module,
- * 'printable_flag' indicates whether the name is a string, and 
- * 'mod_limit_flag' is set if the calling module is out of memory (to
- * prevent darshan-core from creating new records and to just search
- * through existing records). 'rec_id' is an output pointer storing the
- * correspoing Darshan record identifier and 'file_alignment' is an output
- * pointer storing the file system alignment value for the given record.
+ * modules. 'rec_id' is the Darshan record id as given by the
+ * `darshan_core_gen_record_id` function. 'name' is the the name of the
+ * Darshan record (e.g., the full file path), which for now is just a
+ * string. 'mod_id' is the identifier of the calling module. 'rec_len'
+ * is the size of the record being registered with Darshan. If given,
+ * 'file_alignment' is a pointer to an integer which on return will
+ * contain the corresponding file system alignment of the file system
+ * path 'name' resides on.
  */
 void *darshan_core_register_record(
     darshan_record_id rec_id,
@@ -150,8 +152,8 @@ double darshan_core_wtime(void);
 
 /* darshan_core_excluded_path()
  *
- * Returns true (1) if the given file path is in Darshan's list of
- * excluded file paths, false (0) otherwise.
+ * Returns true (1) if the given file path 'path' is in Darshan's
+ * list of excluded file paths, false (0) otherwise.
  */
 int darshan_core_excluded_path(
     const char * path);

@@ -58,6 +58,7 @@ struct darshan_core_module
     struct darshan_module_funcs funcs;
 };
 
+/* strucutre for keeping a reference to registered name records */
 struct darshan_core_name_record_ref
 {
     struct darshan_name_record *name_record;
@@ -80,6 +81,7 @@ struct darshan_core_runtime
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
     int mod_mem_used;
     struct darshan_core_name_record_ref *name_hash;
+    int name_mem_used; 
     double wtime_offset;
     char *comp_buf;
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
