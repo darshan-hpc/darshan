@@ -56,32 +56,22 @@
 /* default number of records to attempt to store for each module */
 #define DARSHAN_DEF_MOD_REC_COUNT 1024
 
-/* module developers provide the following functions to darshan-core */
-struct darshan_module_funcs
-{
-    /* perform any necessary pre-shutdown steps
-     *
-     * NOTE: this typically includes disabling wrapper functions so
-     * darshan-core can shutdown in a consistent state.
-     */
-    void (*begin_shutdown)(void);
-    /* retrieve module data to write to log file
-     *
-     * NOTE: module developers can use this function to run collective
-     * MPI operations at shutdown time. Typically this functionality
-     * has been used to reduce records shared globablly (given in the
-     * 'shared_recs' array) into a single data record.
-     */
-    void (*get_output_data)(
-        MPI_Comm mod_comm,  /* MPI communicator to run collectives with */
-        darshan_record_id *shared_recs, /* list of shared data record ids */
-        int shared_rec_count, /* count of shared data records */
-        void** mod_buf, /* output parameter to save module buffer address */
-        int* mod_buf_sz /* output parameter to save module buffer size */
-    );
-    /* shutdown module data structures */
-    void (*shutdown)(void);
-};
+/* module developers must define a 'darshan_module_shutdown' function
+ * for allowing darshan-core to call into a module and retrieve final
+ * output data to be saved in the log.
+ *
+ * NOTE: module developers can use this function to run collective
+ * MPI operations at shutdown time. Typically this functionality
+ * has been used to reduce records shared globablly (given in the
+ * 'shared_recs' array) into a single data record.
+ */
+typedef void (*darshan_module_shutdown)(
+    MPI_Comm mod_comm,  /* MPI communicator to run collectives with */
+    darshan_record_id *shared_recs, /* list of shared data record ids */
+    int shared_rec_count, /* count of shared data records */
+    void **mod_buf, /* output parameter to save module buffer address */
+    int *mod_buf_sz /* output parameter to save module buffer size */
+);
 
 /*****************************************************
 * darshan-core functions exported to darshan modules *
@@ -103,7 +93,7 @@ struct darshan_module_funcs
  */
 void darshan_core_register_module(
     darshan_module_id mod_id,
-    struct darshan_module_funcs *funcs,
+    darshan_module_shutdown mod_shutdown_func,
     int *inout_mod_buf_size,
     int *rank,
     int *sys_mem_alignment);

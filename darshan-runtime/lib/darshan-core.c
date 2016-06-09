@@ -406,10 +406,7 @@ void darshan_core_shutdown()
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
         if(final_core->mod_array[i])
-        {
             local_mod_use[i] = 1;
-            final_core->mod_array[i]->funcs.begin_shutdown();
-        }
     }
 
     /* reduce the number of times a module was opened globally and bcast to everyone */
@@ -566,7 +563,7 @@ void darshan_core_shutdown()
         {
             mod_buf = final_core->mod_array[i]->rec_buf_start;
             mod_buf_sz = final_core->mod_array[i]->rec_buf_p - mod_buf;
-            this_mod->funcs.get_output_data(MPI_COMM_WORLD, mod_shared_recs,
+            this_mod->mod_shutdown_func(MPI_COMM_WORLD, mod_shared_recs,
                 mod_shared_rec_cnt, &mod_buf, &mod_buf_sz);
         }
 
@@ -593,11 +590,6 @@ void darshan_core_shutdown()
             return;
         }
 
-        /* shutdown module if registered locally */
-        if(this_mod)
-        {
-            this_mod->funcs.shutdown();
-        }
         if(internal_timing_flag)
             mod2[i] = DARSHAN_MPI_CALL(PMPI_Wtime)();
     }
@@ -1692,7 +1684,7 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
 
 void darshan_core_register_module(
     darshan_module_id mod_id,
-    struct darshan_module_funcs *funcs,
+    darshan_module_shutdown mod_shutdown_func,
     int *inout_mod_buf_size,
     int *rank,
     int *sys_mem_alignment)
@@ -1730,7 +1722,7 @@ void darshan_core_register_module(
         mod->rec_mem_avail = mod_mem_avail;
     mod->rec_buf_start = darshan_core->log_mod_p + darshan_core->mod_mem_used;
     mod->rec_buf_p = mod->rec_buf_start;
-    mod->funcs = *funcs;
+    mod->mod_shutdown_func = mod_shutdown_func;
 
     /* register module with darshan */
     darshan_core->mod_array[mod_id] = mod;

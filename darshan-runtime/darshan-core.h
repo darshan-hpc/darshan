@@ -55,7 +55,7 @@ struct darshan_core_module
     void *rec_buf_start;
     void *rec_buf_p;
     int rec_mem_avail;
-    struct darshan_module_funcs funcs;
+    darshan_module_shutdown mod_shutdown_func;
 };
 
 /* strucutre for keeping a reference to registered name records */
