@@ -27,7 +27,6 @@
 #include <pthread.h>
 
 #include "utlist.h"
-
 #include "darshan.h"
 #include "darshan-dynamic.h"
 
@@ -82,14 +81,28 @@ DARSHAN_FORWARD_DECL(aio_return64, ssize_t, (struct aiocb64 *aiocbp));
 DARSHAN_FORWARD_DECL(lio_listio, int, (int mode, struct aiocb *const aiocb_list[], int nitems, struct sigevent *sevp));
 DARSHAN_FORWARD_DECL(lio_listio64, int, (int mode, struct aiocb64 *const aiocb_list[], int nitems, struct sigevent *sevp));
 
-/* struct to track information about aio operations in flight */
-struct posix_aio_tracker
-{
-    double tm1;
-    void *aiocbp;
-    struct posix_aio_tracker* next;
-};
-
+/* The posix_file_record_ref structure maintains necessary runtime metadata
+ * for the POSIX file record (darshan_posix_file structure, defined in
+ * darshan-posix-log-format.h) pointed to by 'file_rec'. This metadata
+ * assists with the instrumenting of specific statistics in the file record.
+ *
+ * RATIONALE: the POSIX module needs to track some stateful, volatile 
+ * information about each open file (like the current file offset, most recent 
+ * access time, etc.) to aid in instrumentation, but this information can't be
+ * stored in the darshan_posix_file struct because we don't want it to appear in
+ * the final darshan log file.  We therefore associate a posix_file_record_ref
+ * struct with each darshan_posix_file struct in order to track this information
+ * (i.e., the mapping between posix_file_record_ref structs to darshan_posix_file
+ * structs is one-to-one).
+ *
+ * NOTE: we use the 'darshan_record_ref' interface (in darshan-common) to
+ * associate different types of handles with this posix_file_record_ref struct.
+ * This allows us to index this struct (and the underlying file record) by using
+ * either the corresponding Darshan record identifier (derived from the filename)
+ * or by a generated file descriptor, for instance. So, while there should only
+ * be a single Darshan record identifier that indexes a posix_file_record_ref,
+ * there could be multiple open file descriptors that index it.
+ */
 struct posix_file_record_ref
 {
     struct darshan_posix_file* file_rec;
@@ -107,6 +120,10 @@ struct posix_file_record_ref
     struct posix_aio_tracker* aio_list;
 };
 
+/* The posix_runtime structure maintains necessary state for storing
+ * POSIX file records and for coordinating with darshan-core at 
+ * shutdown time.
+ */
 struct posix_runtime
 {
     void *rec_id_hash;
@@ -114,11 +131,13 @@ struct posix_runtime
     int file_rec_count;
 };
 
-static struct posix_runtime *posix_runtime = NULL;
-static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-static int instrumentation_disabled = 0;
-static int my_rank = -1;
-static int darshan_mem_alignment = 1;
+/* struct to track information about aio operations in flight */
+struct posix_aio_tracker
+{
+    double tm1;
+    void *aiocbp;
+    struct posix_aio_tracker* next;
+};
 
 static void posix_runtime_initialize(
     void);
@@ -135,14 +154,31 @@ static void posix_record_reduction_op(
 static void posix_shared_record_variance(
     MPI_Comm mod_comm, struct darshan_posix_file *inrec_array,
     struct darshan_posix_file *outrec_array, int shared_rec_count);
-
-static void posix_begin_shutdown(
+static void posix_cleanup_runtime(
     void);
-static void posix_get_output_data(
+
+static void posix_shutdown(
     MPI_Comm mod_comm, darshan_record_id *shared_recs,
     int shared_rec_count, void **posix_buf, int *posix_buf_sz);
-static void posix_shutdown(
-    void);
+
+static struct posix_runtime *posix_runtime = NULL;
+static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static int instrumentation_disabled = 0;
+static int my_rank = -1;
+static int darshan_mem_alignment = 1;
+
+#define POSIX_PRE_RECORD() do { \
+    POSIX_LOCK(); \
+    if(!posix_runtime && !instrumentation_disabled) posix_runtime_initialize(); \
+    if(!posix_runtime) { \
+        POSIX_UNLOCK(); \
+        return(ret); \
+    } \
+} while(0)
+
+#define POSIX_POST_RECORD() do { \
+    POSIX_UNLOCK(); \
+} while(0)
 
 #define POSIX_LOCK() pthread_mutex_lock(&posix_runtime_mutex)
 #define POSIX_UNLOCK() pthread_mutex_unlock(&posix_runtime_mutex)
@@ -151,7 +187,6 @@ static void posix_shutdown(
     struct posix_file_record_ref *rec_ref; \
     darshan_record_id rec_id; \
     if(__ret < 0) break; \
-    if(!posix_runtime || instrumentation_disabled) break; /* XXX: PREMABLE??? */\
     if(darshan_core_excluded_path(__path)) break; \
     rec_id = darshan_record_id_from_path(__path); \
     rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
@@ -182,7 +217,6 @@ static void posix_shutdown(
     int64_t file_alignment; \
     double __elapsed = __tm2-__tm1; \
     if(__ret < 0) break; \
-    if(!posix_runtime || instrumentation_disabled) break; /* XXX: PREMABLE??? */\
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &(__fd), sizeof(int)); \
     if(!rec_ref) break; \
     if(__pread_flag) \
@@ -239,7 +273,6 @@ static void posix_shutdown(
     int64_t file_alignment; \
     double __elapsed = __tm2-__tm1; \
     if(__ret < 0) break; \
-    if(!posix_runtime || instrumentation_disabled) break; /* XXX: PREMABLE??? */\
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &__fd, sizeof(int)); \
     if(!rec_ref) break; \
     if(__pwrite_flag) \
@@ -292,7 +325,6 @@ static void posix_shutdown(
 #define POSIX_LOOKUP_RECORD_STAT(__path, __statbuf, __tm1, __tm2) do { \
     struct posix_file_record_ref* rec_ref; \
     darshan_record_id rec_id; \
-    if(!posix_runtime || instrumentation_disabled) break; /* XXX: PREMABLE??? */\
     if(darshan_core_excluded_path(__path)) break; \
     rec_id = darshan_record_id_from_path(__path); \
     rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
@@ -341,10 +373,9 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
         tm2 = darshan_core_wtime();
     }
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -375,10 +406,9 @@ int DARSHAN_DECL(open64)(const char *path, int flags, ...)
         tm2 = darshan_core_wtime();
     }
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -394,10 +424,9 @@ int DARSHAN_DECL(creat)(const char* path, mode_t mode)
     ret = __real_creat(path, mode);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -413,10 +442,9 @@ int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
     ret = __real_creat64(path, mode);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_OPEN(ret, path, mode, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -438,10 +466,9 @@ FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
     else
         fd = fileno(ret);
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_OPEN(fd, path, 0, 1, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -463,10 +490,9 @@ FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
     else
         fd = fileno(ret);
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_OPEN(fd, path, 0, 1, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -482,10 +508,9 @@ int DARSHAN_DECL(mkstemp)(char* template)
     ret = __real_mkstemp(template);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -501,10 +526,9 @@ int DARSHAN_DECL(mkostemp)(char* template, int flags)
     ret = __real_mkostemp(template, flags);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -520,10 +544,9 @@ int DARSHAN_DECL(mkstemps)(char* template, int suffixlen)
     ret = __real_mkstemps(template, suffixlen);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -539,10 +562,9 @@ int DARSHAN_DECL(mkostemps)(char* template, int suffixlen, int flags)
     ret = __real_mkostemps(template, suffixlen, flags);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_OPEN(ret, template, 0, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -561,10 +583,9 @@ ssize_t DARSHAN_DECL(read)(int fd, void *buf, size_t count)
     ret = __real_read(fd, buf, count);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_READ(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -583,10 +604,9 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
     ret = __real_write(fd, buf, count);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_WRITE(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -605,10 +625,9 @@ ssize_t DARSHAN_DECL(pread)(int fd, void *buf, size_t count, off_t offset)
     ret = __real_pread(fd, buf, count, offset);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_READ(ret, fd, 1, offset, aligned_flag, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -627,10 +646,9 @@ ssize_t DARSHAN_DECL(pwrite)(int fd, const void *buf, size_t count, off_t offset
     ret = __real_pwrite(fd, buf, count, offset);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_WRITE(ret, fd, 1, offset, aligned_flag, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -649,10 +667,9 @@ ssize_t DARSHAN_DECL(pread64)(int fd, void *buf, size_t count, off64_t offset)
     ret = __real_pread64(fd, buf, count, offset);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_READ(ret, fd, 1, offset, aligned_flag, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -671,10 +688,9 @@ ssize_t DARSHAN_DECL(pwrite64)(int fd, const void *buf, size_t count, off64_t of
     ret = __real_pwrite64(fd, buf, count, offset);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_WRITE(ret, fd, 1, offset, aligned_flag, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -698,10 +714,9 @@ ssize_t DARSHAN_DECL(readv)(int fd, const struct iovec *iov, int iovcnt)
     ret = __real_readv(fd, iov, iovcnt);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_READ(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -725,10 +740,9 @@ ssize_t DARSHAN_DECL(writev)(int fd, const struct iovec *iov, int iovcnt)
     ret = __real_writev(fd, iov, iovcnt);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_RECORD_WRITE(ret, fd, 0, 0, aligned_flag, 0, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -748,9 +762,8 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
     ret = __real_fread(ptr, size, nmemb, stream);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
     fd = fileno(stream);
+    POSIX_PRE_RECORD();
     if(ret > 0)
     {
         POSIX_RECORD_READ(size*ret, fd, 0, 0, aligned_flag, 1, tm1, tm2);
@@ -759,7 +772,7 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
     {
         POSIX_RECORD_READ(ret, fd, 0, 0, aligned_flag, 1, tm1, tm2);
     }
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -779,9 +792,8 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
     ret = __real_fwrite(ptr, size, nmemb, stream);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
     fd = fileno(stream);
+    POSIX_PRE_RECORD();
     if(ret > 0)
     {
         POSIX_RECORD_WRITE(size*ret, fd, 0, 0, aligned_flag, 1, tm1, tm2);
@@ -790,7 +802,7 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
     {
         POSIX_RECORD_WRITE(ret, fd, 0, 0, aligned_flag, 1, tm1, tm2);
     }
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -809,9 +821,7 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
 
     if(ret >= 0)
     {
-        POSIX_LOCK();
-        posix_runtime_initialize();
-        if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */\
+        POSIX_PRE_RECORD();
         rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
         if(rec_ref)
         {
@@ -821,7 +831,7 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->file_rec->counters[POSIX_SEEKS] += 1;
         }
-        POSIX_UNLOCK();
+        POSIX_POST_RECORD();
     }
 
     return(ret);
@@ -841,9 +851,7 @@ off_t DARSHAN_DECL(lseek64)(int fd, off_t offset, int whence)
 
     if(ret >= 0)
     {
-        POSIX_LOCK();
-        posix_runtime_initialize();
-        if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+        POSIX_PRE_RECORD();
         rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
         if(rec_ref)
         {
@@ -853,7 +861,7 @@ off_t DARSHAN_DECL(lseek64)(int fd, off_t offset, int whence)
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->file_rec->counters[POSIX_SEEKS] += 1;
         }
-        POSIX_UNLOCK();
+        POSIX_POST_RECORD();
     }
 
     return(ret);
@@ -874,9 +882,7 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
 
     if(ret >= 0)
     {
-        POSIX_LOCK();
-        posix_runtime_initialize();
-        if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+        POSIX_PRE_RECORD();
         fd = fileno(stream);
         rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
         if(rec_ref)
@@ -887,7 +893,7 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->file_rec->counters[POSIX_FSEEKS] += 1;
         }
-        POSIX_UNLOCK();
+        POSIX_POST_RECORD();
     }
 
     return(ret);
@@ -907,10 +913,9 @@ int DARSHAN_DECL(__xstat)(int vers, const char *path, struct stat *buf)
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -929,10 +934,9 @@ int DARSHAN_DECL(__xstat64)(int vers, const char *path, struct stat64 *buf)
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -951,10 +955,9 @@ int DARSHAN_DECL(__lxstat)(int vers, const char *path, struct stat *buf)
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -973,10 +976,9 @@ int DARSHAN_DECL(__lxstat64)(int vers, const char *path, struct stat64 *buf)
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     POSIX_LOOKUP_RECORD_STAT(path, buf, tm1, tm2);
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -996,15 +998,13 @@ int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
-    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    POSIX_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
     if(rec_ref)
     {
         POSIX_RECORD_STAT(rec_ref, buf, tm1, tm2);
     }
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -1024,15 +1024,13 @@ int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
     if(ret < 0 || !S_ISREG(buf->st_mode))
         return(ret);
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
-    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    POSIX_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
     if(rec_ref)
     {
         POSIX_RECORD_STAT(rec_ref, buf, tm1, tm2);
     }
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -1049,15 +1047,13 @@ void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
     if(ret == MAP_FAILED)
         return(ret);
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
-    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    POSIX_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
     if(rec_ref)
     {
         rec_ref->file_rec->counters[POSIX_MMAPS] += 1;
     }
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -1074,15 +1070,13 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
     if(ret == MAP_FAILED)
         return(ret);
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
-    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    POSIX_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
     if(rec_ref)
     {
         rec_ref->file_rec->counters[POSIX_MMAPS] += 1;
     }
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -1102,9 +1096,7 @@ int DARSHAN_DECL(fsync)(int fd)
     if(ret < 0)
         return(ret);
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
-    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    POSIX_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
     if(rec_ref)
     {
@@ -1113,7 +1105,7 @@ int DARSHAN_DECL(fsync)(int fd)
             tm1, tm2, rec_ref->last_write_end);
         rec_ref->file_rec->counters[POSIX_FSYNCS] += 1;
     }
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -1133,9 +1125,7 @@ int DARSHAN_DECL(fdatasync)(int fd)
     if(ret < 0)
         return(ret);
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
-    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    POSIX_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
     if(rec_ref)
     {
@@ -1144,7 +1134,7 @@ int DARSHAN_DECL(fdatasync)(int fd)
             tm1, tm2, rec_ref->last_write_end);
         rec_ref->file_rec->counters[POSIX_FDSYNCS] += 1;
     }
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -1161,9 +1151,7 @@ int DARSHAN_DECL(close)(int fd)
     ret = __real_close(fd);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
-    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    POSIX_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
     if(rec_ref)
     {
@@ -1176,7 +1164,7 @@ int DARSHAN_DECL(close)(int fd)
             tm1, tm2, rec_ref->last_meta_end);
         darshan_delete_record_ref(&(posix_runtime->fd_hash), &fd, sizeof(int));
     }
-    POSIX_UNLOCK();    
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -1194,9 +1182,7 @@ int DARSHAN_DECL(fclose)(FILE *fp)
     ret = __real_fclose(fp);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
-    if(!posix_runtime || instrumentation_disabled) return(ret); /* XXX: PREMABLE??? */
+    POSIX_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(int));
     if(rec_ref)
     {
@@ -1209,7 +1195,7 @@ int DARSHAN_DECL(fclose)(FILE *fp)
             tm1, tm2, rec_ref->last_meta_end);
         darshan_delete_record_ref(&(posix_runtime->fd_hash), &fd, sizeof(int));
     }
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -1223,10 +1209,9 @@ int DARSHAN_DECL(aio_read)(struct aiocb *aiocbp)
     ret = __real_aio_read(aiocbp);
     if(ret == 0)
     {
-        POSIX_LOCK();
-        posix_runtime_initialize();
+        POSIX_PRE_RECORD();
         posix_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
-        POSIX_UNLOCK();
+        POSIX_POST_RECORD();
     }
 
     return(ret);
@@ -1241,10 +1226,9 @@ int DARSHAN_DECL(aio_write)(struct aiocb *aiocbp)
     ret = __real_aio_write(aiocbp);
     if(ret == 0)
     {
-        POSIX_LOCK();
-        posix_runtime_initialize();
+        POSIX_PRE_RECORD();
         posix_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
-        POSIX_UNLOCK();
+        POSIX_POST_RECORD();
     }
 
     return(ret);
@@ -1259,10 +1243,9 @@ int DARSHAN_DECL(aio_read64)(struct aiocb64 *aiocbp)
     ret = __real_aio_read64(aiocbp);
     if(ret == 0)
     {
-        POSIX_LOCK();
-        posix_runtime_initialize();
+        POSIX_PRE_RECORD();
         posix_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
-        POSIX_UNLOCK();
+        POSIX_POST_RECORD();
     }
 
     return(ret);
@@ -1277,10 +1260,9 @@ int DARSHAN_DECL(aio_write64)(struct aiocb64 *aiocbp)
     ret = __real_aio_write64(aiocbp);
     if(ret == 0)
     {
-        POSIX_LOCK();
-        posix_runtime_initialize();
+        POSIX_PRE_RECORD();
         posix_aio_tracker_add(aiocbp->aio_fildes, aiocbp);
-        POSIX_UNLOCK();
+        POSIX_POST_RECORD();
     }
 
     return(ret);
@@ -1298,8 +1280,7 @@ ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
     ret = __real_aio_return(aiocbp);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     tmp = posix_aio_tracker_del(aiocbp->aio_fildes, aiocbp);
     if(tmp)
     {
@@ -1319,7 +1300,7 @@ ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
         }
         free(tmp);
     }
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -1336,8 +1317,7 @@ ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
     ret = __real_aio_return64(aiocbp);
     tm2 = darshan_core_wtime();
 
-    POSIX_LOCK();
-    posix_runtime_initialize();
+    POSIX_PRE_RECORD();
     tmp = posix_aio_tracker_del(aiocbp->aio_fildes, aiocbp);
     if(tmp)
     {
@@ -1357,7 +1337,7 @@ ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
         }
         free(tmp);
     }
-    POSIX_UNLOCK();
+    POSIX_POST_RECORD();
 
     return(ret);
 }
@@ -1373,13 +1353,12 @@ int DARSHAN_DECL(lio_listio)(int mode, struct aiocb *const aiocb_list[],
     ret = __real_lio_listio(mode, aiocb_list, nitems, sevp);
     if(ret == 0)
     {
-        POSIX_LOCK();
-        posix_runtime_initialize();
+        POSIX_PRE_RECORD();
         for(i = 0; i < nitems; i++)
         {
             posix_aio_tracker_add(aiocb_list[i]->aio_fildes, aiocb_list[i]);
         }
-        POSIX_UNLOCK();
+        POSIX_POST_RECORD();
     }
 
     return(ret);
@@ -1396,13 +1375,12 @@ int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb64 *const aiocb_list[],
     ret = __real_lio_listio64(mode, aiocb_list, nitems, sevp);
     if(ret == 0)
     {
-        POSIX_LOCK();
-        posix_runtime_initialize();
+        POSIX_PRE_RECORD();
         for(i = 0; i < nitems; i++)
         {
             posix_aio_tracker_add(aiocb_list[i]->aio_fildes, aiocb_list[i]);
         }
-        POSIX_UNLOCK();
+        POSIX_POST_RECORD();
     }
 
     return(ret);
@@ -1415,25 +1393,15 @@ int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb64 *const aiocb_list[],
 /* initialize internal POSIX module data structures and register with darshan-core */
 static void posix_runtime_initialize()
 {
-    struct darshan_module_funcs posix_mod_fns =
-    {
-        .begin_shutdown = &posix_begin_shutdown,
-        .get_output_data = &posix_get_output_data,
-        .shutdown = &posix_shutdown
-    };
     int psx_buf_size;
 
-    /* don't do anything if already initialized or instrumenation is disabled */
-    if(posix_runtime || instrumentation_disabled)
-        return;
-
-    /* try and store the default number of records for this module */
+    /* try and store a default number of records for this module */
     psx_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_posix_file);
 
-    /* register the posix module with darshan core */
+    /* register the POSIX module with darshan core */
     darshan_core_register_module(
         DARSHAN_POSIX_MOD,
-        &posix_mod_fns,
+        &posix_shutdown,
         &psx_buf_size,
         &my_rank,
         &darshan_mem_alignment);
@@ -1527,7 +1495,7 @@ static int posix_record_compare(const void* a_p, const void* b_p)
 }
 
 /* finds the tracker structure for a given aio operation, removes it from
- * the linked list for the darshan_file structure, and returns a pointer.  
+ * the associated linked list for this file record, and returns a pointer.  
  *
  * returns NULL if aio operation not found
  */
@@ -1911,23 +1879,22 @@ static void posix_shared_record_variance(MPI_Comm mod_comm,
     return;
 }
 
-/************************************************************************
- * Functions exported by this module for coordinating with darshan-core *
- ************************************************************************/
-
-static void posix_begin_shutdown()
+static void posix_cleanup_runtime()
 {
-    assert(posix_runtime);
+    darshan_clear_record_refs(&(posix_runtime->fd_hash), 0);
+    darshan_clear_record_refs(&(posix_runtime->rec_id_hash), 1);
 
-    POSIX_LOCK();
-    /* disable further instrumentation while Darshan shuts down */
-    instrumentation_disabled = 1;
-    POSIX_UNLOCK();
+    free(posix_runtime);
+    posix_runtime = NULL;
 
     return;
 }
 
-static void posix_get_output_data(
+/********************************************************************************
+ * shutdown function exported by this module for coordinating with darshan-core *
+ ********************************************************************************/
+
+static void posix_shutdown(
     MPI_Comm mod_comm,
     darshan_record_id *shared_recs,
     int shared_rec_count,
@@ -1944,6 +1911,7 @@ static void posix_get_output_data(
     MPI_Op red_op;
     int i;
 
+    POSIX_LOCK();
     assert(posix_runtime);
     posix_rec_count = posix_runtime->file_rec_count;
 
@@ -2008,7 +1976,10 @@ static void posix_get_output_data(
         {
             red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_posix_file));
             if(!red_recv_buf)
+            {
+                POSIX_UNLOCK();
                 return;
+            }
         }
 
         /* construct a datatype for a POSIX file record.  This is serving no purpose
@@ -2049,19 +2020,13 @@ static void posix_get_output_data(
     /* update output buffer size to account for shared file reduction */
     *posix_buf_sz = posix_rec_count * sizeof(struct darshan_posix_file);
 
-    return;
-}
+    /* shutdown internal structures used for instrumenting */
+    posix_cleanup_runtime();
 
-static void posix_shutdown()
-{
-    assert(posix_runtime);
+    /* disable further instrumentation */
+    instrumentation_disabled = 1;
 
-    darshan_clear_record_refs(&(posix_runtime->fd_hash), 0);
-    darshan_clear_record_refs(&(posix_runtime->rec_id_hash), 1);
-
-    free(posix_runtime);
-    posix_runtime = NULL;
-    
+    POSIX_UNLOCK();
     return;
 }
 
