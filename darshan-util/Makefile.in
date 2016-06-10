@@ -146,7 +146,7 @@ endif
 	install -m 644 $(srcdir)/../darshan-bgq-log-format.h $(includedir)
 	install -d $(includedir)/uthash-1.9.2
 	install -d $(includedir)/uthash-1.9.2/src
-	install -m 644 uthash-1.9.2/src/uthash.h $(includedir)/uthash-1.9.2/src/
+	install -m 644 $(srcdir)/uthash-1.9.2/src/uthash.h $(includedir)/uthash-1.9.2/src/
 	install -m 644 $(DARSHAN_LOG_FORMAT) $(includedir)
 	install -m 755 darshan-job-summary/bin/darshan-job-summary.pl $(bindir)
 	install -d $(libdir)/TeX
