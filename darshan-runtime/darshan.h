@@ -81,8 +81,8 @@ typedef void (*darshan_module_shutdown)(
  *
  * Register module identifier 'mod_id' with the darshan-core runtime
  * environment, allowing the module to store I/O characterization data.
- * 'funcs' is a pointer to a structure containing each of the function
- * pointers required by darshan-core to shut down the module.
+ * 'mod_shutdown_func is a pointer to a function responsible for
+ * shutting down the module and returning final output data to darshan-core.
  * 'inout_mod_buf_size' is an input/output argument, with it being
  * set to the requested amount of module memory on input, and set to
  * the amount allocated by darshan-core on output. If given, 'rank' is

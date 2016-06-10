@@ -181,12 +181,6 @@ void darshan_iter_record_refs(
     void *hash_head,
     void (*iter_action)(void *));
 
-darshan_record_id darshan_record_id_from_path(
-    const char *path);
-
-darshan_record_id darshan_record_id_from_name(
-    const char *name);
-
 /* darshan_clean_file_path()
  *
  * Allocate a new string that contains a new cleaned-up version of

@@ -111,27 +111,6 @@ void darshan_iter_record_refs(void *hash_head, void (*iter_action)(void *))
     return;
 }
 
-darshan_record_id darshan_record_id_from_path(const char *path)
-{
-    char *newpath = NULL;
-    darshan_record_id rec_id;
-
-    newpath = darshan_clean_file_path(path);
-    if(!newpath)
-        newpath = (char *)path;
-
-    rec_id = darshan_record_id_from_name(newpath);
-
-    if(newpath != path)
-        free(newpath);
-    return(rec_id);
-}
-
-darshan_record_id darshan_record_id_from_name(const char *name)
-{
-    return(darshan_core_gen_record_id(name));
-}
-
 char* darshan_clean_file_path(const char* path)
 {
     char* newpath = NULL;
