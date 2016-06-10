@@ -2,6 +2,51 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.0.1
+=============
+* bug fix in darshan logutil mount parsing code that was
+  causing file paths to be matched to the first mount point
+  with a common prefix rather than the one with the longest
+  common prefix
+* bug fix in the darshan-util bzip2 configure check that
+  was accidentally overwriting Darshan's LDFLAGS
+* minor bug fixes to IO start time counters in all modules
+  to set IO start time to the actual first start time rather
+  than the first IO op to complete
+* update darshan-util perl scripts to get perl bin from
+  user's path, rather than from /usr/lib (reported by
+  Kay Thust)
+* update Darshan's fortran and cxx compiler wrapper generators
+  to automatically detect MPICH library names on BG/Q
+* fix bug that was calculating Darshan's agg_perf_by_slowest
+  performance metric incorrectly
+* add performance estimate info to darshan-job-summary
+  graphs
+
+Darshan-3.0.0
+=============
+* install darshan-null-log-format.h header when installing
+  darshan-util component, otherwise compiler errors are
+  generated when building external tools that use
+  libdarshan-util
+* update docs to give debugging tips for cases where
+  Darshan logs are not generated
+* fix shared library regression test script to check for
+  potential errors with Darshan symbols rather than
+  failing silently in these cases
+* bug fix for determining minimum non-zero counters in
+shared file reductions in all modules
+* loosen Darshan's PMPI symbol check to prevent inadvertent
+  disabling of Darshan for some MPICH builds
+* update runtime docs to give information on upgrading Darshan
+* bug fix for resolving MPI_Gather and MPI_Barrier when LDPRELOADing
+  Darshan's shared libraries (reported by Richard Hedges and Rob Latham)
+* add more helpful error handling when opening 2.x version log files
+* port darshan-diff utility over to new log file format
+* fix numerous configure bugs on Cray systems
+* add synthetic benchmarking hooks for testing Darshan's shutdown
+  procedure
+
 Darshan-3.0.0-pre3
 =============
 * add module-specific version fields to header to allow utilities

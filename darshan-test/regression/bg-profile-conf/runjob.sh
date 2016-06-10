@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # submit job and get job id
-jobid=`qsub --env DARSHAN_LOGFILE=$DARSHAN_LOGFILE --mode c16 --proccount $DARSHAN_DEFAULT_NPROCS -A SSSPPg -t 10 -n 1 --output $DARSHAN_TMP/$$-tmp.out --error $DARSHAN_TMP/$$-tmp.err --debuglog $DARSHAN_TMP/$$-tmp.debuglog "$@"`
+jobid=`qsub --env DARSHAN_LOGFILE=$DARSHAN_LOGFILE --mode c16 --proccount $DARSHAN_DEFAULT_NPROCS -A radix-io -t 10 -n 1 --output $DARSHAN_TMP/$$-tmp.out --error $DARSHAN_TMP/$$-tmp.err --debuglog $DARSHAN_TMP/$$-tmp.debuglog "$@"`
 if [ $? -ne 0 ]; then
 	echo "Error: failed to qsub $@"
 	exit 1

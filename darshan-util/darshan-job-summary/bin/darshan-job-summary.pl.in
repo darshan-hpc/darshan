@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 #
 #  (C) 2015 by Argonne National Laboratory.
 #      See COPYRIGHT in top-level directory.
@@ -7,6 +7,7 @@
 # Set via configure
 my $PREFIX="@prefix@";
 
+use warnings;
 use lib "@prefix@/lib";
 use TeX::Encode;
 use Encode;
@@ -53,7 +54,7 @@ if ($verbose_flag)
     print "verbose: $tmp_dir\n";
 }
 
-open(PARSE_OUT, "$darshan_parser $input_file |") || die("Can't execute \"$darshan_parser $input_file\": $!\n");
+open(PARSE_OUT, "$darshan_parser --base --perf $input_file |") || die("Can't execute \"$darshan_parser $input_file\": $!\n");
 
 open(FA_READ, ">$tmp_dir/file-access-read.dat") || die("error opening output file: $!\n");
 open(FA_WRITE, ">$tmp_dir/file-access-write.dat") || die("error opening output file: $!\n");
@@ -77,6 +78,10 @@ my $cumul_write_bytes_shared = 0;
 
 my $cumul_meta_shared = 0;
 my $cumul_meta_indep = 0;
+
+my $perf_est = 0.0;
+my $perf_layer = "";
+my $perf_mbytes = 0;
 
 my $first_data_line = 1;
 my %file_record_hash = ();
@@ -132,6 +137,30 @@ while($line = <PARSE_OUT>)
         {
             ($junk, $version) = split(':', $line, 2);
             $version =~ s/^\s+//;
+        }
+        elsif ($line =~ /^# agg_perf_by_slowest: /)
+        {
+            if($perf_layer eq "")
+            {
+                ($junk, $perf_est) = split(':', $line, 2);
+                $perf_est = sprintf("%.2f", $perf_est);
+                $perf_layer = "POSIX";
+            }
+            elsif($perf_layer eq "POSIX")
+            {
+                ($junk, $perf_est) = split(':', $line, 2);
+                $perf_est = sprintf("%.2f", $perf_est);
+                $perf_layer = "MPI-IO";
+            }
+        }
+        elsif ($line =~ /^# total_bytes: /)
+        {
+            if($perf_mbytes == 0)
+            {
+                ($junk, $perf_mbytes) = split(':', $line, 2);
+                $perf_mbytes = $perf_mbytes / 1024 / 1024;
+                $perf_mbytes = sprintf("%.1f", $perf_mbytes);
+            }
         }
         elsif ($line =~ /^# \*WARNING\*: .* contains incomplete data!/)
         {
@@ -963,6 +992,10 @@ my $latex_cmd_line = "\"\\def\\titlecmd{$cmd} \\
     \\def\\filecwbs{$cwbs} \\
     \\def\\filecmi{$cmi} \\
     \\def\\filecms{$cms} \\
+    \\def\\filecmi{$cmi} \\
+    \\def\\perfest{$perf_est} \\
+    \\def\\perflayer{$perf_layer} \\
+    \\def\\perfbytes{$perf_mbytes} \\
     \\input{summary.tex}\" \\
     @__DARSHAN_PDFLATEX_HALT_ON_ERROR@";
 

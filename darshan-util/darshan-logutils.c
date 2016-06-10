@@ -66,6 +66,7 @@ struct darshan_fd_int_state
     struct darshan_dz_state dz;
 };
 
+static int darshan_mnt_info_cmp(const void *a, const void *b);
 static int darshan_log_get_header(darshan_fd fd);
 static int darshan_log_put_header(darshan_fd fd);
 static int darshan_log_seek(darshan_fd fd, off_t offset);
@@ -380,14 +381,14 @@ int darshan_log_put_exe(darshan_fd fd, char *buf)
 
 /* darshan_log_get_mounts()
  * 
- * retrieves mount table information from the log. Note that mnt_pts and
- * fs_types are arrays that will be allocated by the function and must be
- * freed by the caller. count will indicate the size of the arrays
+ * retrieves mount table information from the log. Note that mnt_data_array
+ * is an array that will be allocated by the function and must be
+ * freed by the caller. count will indicate the size of the array
  *
  * returns 0 on success, -1 on failure
  */
-int darshan_log_get_mounts(darshan_fd fd, char*** mnt_pts,
-    char*** fs_types, int* count)
+int darshan_log_get_mounts(darshan_fd fd, struct darshan_mnt_info **mnt_data_array,
+    int* count)
 {
     struct darshan_fd_int_state *state = fd->state;
     char *pos;
@@ -422,33 +423,26 @@ int darshan_log_get_mounts(darshan_fd fd, char*** mnt_pts,
     }
 
     /* allocate output arrays */
-    *mnt_pts = malloc((*count)*sizeof(char*));
-    assert(*mnt_pts);
-    *fs_types = malloc((*count)*sizeof(char*));
-    assert(*fs_types);
+    *mnt_data_array = malloc((*count)*sizeof(**mnt_data_array));
+    assert(*mnt_data_array);
 
-    /* work backwards through the table and parse each line (except for
+    /* work through the table and parse each line (except for
      * first, which holds command line information)
      */
-    while((pos = strrchr(state->exe_mnt_data, '\n')) != NULL)
+    pos = state->exe_mnt_data;
+    while((pos = strchr(pos, '\n')) != NULL)
     {
-        /* overestimate string lengths */
-        (*mnt_pts)[array_index] = malloc(DARSHAN_EXE_LEN);
-        assert((*mnt_pts)[array_index]);
-        (*fs_types)[array_index] = malloc(DARSHAN_EXE_LEN);
-        assert((*fs_types)[array_index]);
-
-        ret = sscanf(++pos, "%s\t%s", (*fs_types)[array_index],
-            (*mnt_pts)[array_index]);
+        ret = sscanf(++pos, "%s\t%s", (*mnt_data_array)[array_index].mnt_type,
+            (*mnt_data_array)[array_index].mnt_path);
         if(ret != 2)
         {
             fprintf(stderr, "Error: poorly formatted mount table in darshan log file.\n");
             return(-1);
         }
-        pos--;
-        *pos = '\0';
         array_index++;
     }
+
+    qsort(*mnt_data_array, *count, sizeof(**mnt_data_array), darshan_mnt_info_cmp);
 
     return(0);
 }
@@ -462,7 +456,8 @@ int darshan_log_get_mounts(darshan_fd fd, char*** mnt_pts,
  *
  * returns 0 on success, -1 on failure
  */
-int darshan_log_put_mounts(darshan_fd fd, char** mnt_pts, char** fs_types, int count)
+int darshan_log_put_mounts(darshan_fd fd, struct darshan_mnt_info *mnt_data_array,
+    int count)
 {
     struct darshan_fd_int_state *state = fd->state;
     int i;
@@ -478,7 +473,7 @@ int darshan_log_put_mounts(darshan_fd fd, char** mnt_pts, char** fs_types, int c
     tmp = mnt_dat;
     for(i=count-1; i>=0; i--)
     {
-        sprintf(line, "\n%s\t%s", fs_types[i], mnt_pts[i]);
+        sprintf(line, "\n%s\t%s", mnt_data_array[i].mnt_type, mnt_data_array[i].mnt_path);
 
         memcpy(tmp, line, strlen(line));
         tmp += strlen(line);
@@ -804,6 +799,19 @@ void darshan_log_close(darshan_fd fd)
 }
 
 /* **************************************************** */
+
+static int darshan_mnt_info_cmp(const void *a, const void *b)
+{
+    struct darshan_mnt_info *m_a = (struct darshan_mnt_info *)a;
+    struct darshan_mnt_info *m_b = (struct darshan_mnt_info *)b;
+
+    if(strlen(m_a->mnt_path) > strlen(m_b->mnt_path))
+        return(-1);
+    else if(strlen(m_a->mnt_path) < strlen(m_b->mnt_path))
+        return(1);
+    else
+        return(0);
+}
 
 /* read the header of the darshan log and set internal fd data structures
  * NOTE: this is the only portion of the darshan log that is uncompressed

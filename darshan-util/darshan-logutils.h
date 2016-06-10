@@ -7,7 +7,7 @@
 #ifndef __DARSHAN_LOG_UTILS_H
 #define __DARSHAN_LOG_UTILS_H
 
-#include <linux/limits.h>
+#include <limits.h>
 #include <zlib.h>
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
@@ -47,6 +47,12 @@ struct darshan_name_record_ref
 {
     struct darshan_name_record *name_record;
     UT_hash_handle hlink;
+};
+
+struct darshan_mnt_info
+{
+    char mnt_type[DARSHAN_EXE_LEN];
+    char mnt_path[DARSHAN_EXE_LEN];
 };
 
 /* functions to be implemented by each module for integration with
@@ -122,10 +128,10 @@ int darshan_log_get_job(darshan_fd fd, struct darshan_job *job);
 int darshan_log_put_job(darshan_fd fd, struct darshan_job *job);
 int darshan_log_get_exe(darshan_fd fd, char *buf);
 int darshan_log_put_exe(darshan_fd fd, char *buf);
-int darshan_log_get_mounts(darshan_fd fd, char*** mnt_pts,
-    char*** fs_types, int* count);
-int darshan_log_put_mounts(darshan_fd fd, char** mnt_pts,
-    char** fs_types, int count);
+int darshan_log_get_mounts(darshan_fd fd, struct darshan_mnt_info **mnt_data_array,
+    int* count);
+int darshan_log_put_mounts(darshan_fd fd, struct darshan_mnt_info *mnt_data_array,
+    int count);
 int darshan_log_get_namehash(darshan_fd fd, struct darshan_name_record_ref **hash);
 int darshan_log_put_namehash(darshan_fd fd, struct darshan_name_record_ref *hash);
 int darshan_log_get_mod(darshan_fd fd, darshan_module_id mod_id,

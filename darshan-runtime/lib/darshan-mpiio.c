@@ -110,6 +110,42 @@ static int my_rank = -1;
     MPIIO_UNLOCK(); \
 } while(0)
 
+#define MPIIO_RECORD_OPEN(__ret, __path, __fh, __comm, __mode, __info, __tm1, __tm2) do { \
+    darshan_record_id rec_id; \
+    struct mpiio_file_record_ref *rec_ref; \
+    char *newpath; \
+    int comm_size; \
+    if(__ret != MPI_SUCCESS) break; \
+    newpath = darshan_clean_file_path(__path); \
+    if(!newpath) newpath = (char *)__path; \
+    if(darshan_core_excluded_path(newpath)) { \
+        if(newpath != __path) free(newpath); \
+        break; \
+    } \
+    rec_id = darshan_core_gen_record_id(newpath); \
+    rec_ref = darshan_lookup_record_ref(mpiio_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
+    if(!rec_ref) rec_ref = mpiio_track_new_file_record(rec_id, newpath); \
+    if(!rec_ref) { \
+        if(newpath != __path) free(newpath); \
+        break; \
+    } \
+    rec_ref->file_rec->counters[MPIIO_MODE] = __mode; \
+    DARSHAN_MPI_CALL(PMPI_Comm_size)(__comm, &comm_size); \
+    if(comm_size == 1) \
+        rec_ref->file_rec->counters[MPIIO_INDEP_OPENS] += 1; \
+    else \
+        rec_ref->file_rec->counters[MPIIO_COLL_OPENS] += 1; \
+    if(__info != MPI_INFO_NULL) \
+        rec_ref->file_rec->counters[MPIIO_HINTS] += 1; \
+    if(rec_ref->file_rec->fcounters[MPIIO_F_OPEN_TIMESTAMP] == 0 || \
+     rec_ref->file_rec->fcounters[MPIIO_F_OPEN_TIMESTAMP] > __tm1) \
+        rec_ref->file_rec->fcounters[MPIIO_F_OPEN_TIMESTAMP] = __tm1; \
+    DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[MPIIO_F_META_TIME], \
+        __tm1, __tm2, rec_ref->last_meta_end); \
+    darshan_add_record_ref(&(mpiio_runtime->fh_hash), &__fh, sizeof(MPI_File), rec_ref); \
+    if(newpath != __path) free(newpath); \
+} while(0)
+
 #define MPIIO_RECORD_READ(__ret, __fh, __count, __datatype, __counter, __tm1, __tm2) do { \
     struct mpiio_file_record_ref *rec_ref; \
     int size = 0; \
@@ -128,7 +164,8 @@ static int my_rank = -1;
     if(rec_ref->last_io_type == DARSHAN_IO_WRITE) \
         rec_ref->file_rec->counters[MPIIO_RW_SWITCHES] += 1; \
     rec_ref->last_io_type = DARSHAN_IO_READ; \
-    if(rec_ref->file_rec->fcounters[MPIIO_F_READ_START_TIMESTAMP] == 0) \
+    if(rec_ref->file_rec->fcounters[MPIIO_F_READ_START_TIMESTAMP] == 0 || \
+     rec_ref->file_rec->fcounters[MPIIO_F_READ_START_TIMESTAMP] > __tm1) \
         rec_ref->file_rec->fcounters[MPIIO_F_READ_START_TIMESTAMP] = __tm1; \
     rec_ref->file_rec->fcounters[MPIIO_F_READ_END_TIMESTAMP] = __tm2; \
     if(rec_ref->file_rec->fcounters[MPIIO_F_MAX_READ_TIME] < __elapsed) { \
@@ -156,7 +193,8 @@ static int my_rank = -1;
     if(rec_ref->last_io_type == DARSHAN_IO_READ) \
         rec_ref->file_rec->counters[MPIIO_RW_SWITCHES] += 1; \
     rec_ref->last_io_type = DARSHAN_IO_WRITE; \
-    if(rec_ref->file_rec->fcounters[MPIIO_F_WRITE_START_TIMESTAMP] == 0) \
+    if(rec_ref->file_rec->fcounters[MPIIO_F_WRITE_START_TIMESTAMP] == 0 || \
+     rec_ref->file_rec->fcounters[MPIIO_F_READ_START_TIMESTAMP] > __tm1) \
         rec_ref->file_rec->fcounters[MPIIO_F_WRITE_START_TIMESTAMP] = __tm1; \
     rec_ref->file_rec->fcounters[MPIIO_F_WRITE_END_TIMESTAMP] = __tm2; \
     if(rec_ref->file_rec->fcounters[MPIIO_F_MAX_WRITE_TIME] < __elapsed) { \
@@ -177,77 +215,28 @@ int MPI_File_open(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_F
 #endif
 {
     int ret;
+    MPI_File tmp_fh;
     char* tmp;
-    int comm_size;
-    darshan_record_id rec_id;
-    struct mpiio_file_record_ref *rec_ref;
-    char *newpath;
     double tm1, tm2;
 
     tm1 = darshan_core_wtime();
     ret = DARSHAN_MPI_CALL(PMPI_File_open)(comm, filename, amode, info, fh);
     tm2 = darshan_core_wtime();
 
-    if(ret == MPI_SUCCESS)
-    {
-        /* use ROMIO approach to strip prefix if present */
-        /* strip off prefix if there is one, but only skip prefixes
-         * if they are greater than length one to allow for windows
-         * drive specifications (e.g. c:\...) 
-         */
-        tmp = strchr(filename, ':');
-        if (tmp > filename + 1) {
-            filename = tmp + 1;
-        }
-
-        MPIIO_PRE_RECORD();
-        /* cleanup pathname and check whether we should ignore it */
-        newpath = darshan_clean_file_path(filename);
-        if(!newpath) newpath = (char *)filename;
-        if(darshan_core_excluded_path(newpath))
-        {
-            if(newpath != filename) free(newpath);
-            return(ret);
-        }
-
-        /* lookup the corresponding record, and create a new one if one
-         * does not exist
-         */
-        rec_id = darshan_core_gen_record_id(newpath);
-        rec_ref = darshan_lookup_record_ref(mpiio_runtime->rec_id_hash, &rec_id,
-            sizeof(darshan_record_id));
-        if(!rec_ref) rec_ref = mpiio_track_new_file_record(rec_id, newpath);
-
-        if(rec_ref)
-        {
-            rec_ref->file_rec->counters[MPIIO_MODE] = amode;
-            DARSHAN_MPI_CALL(PMPI_Comm_size)(comm, &comm_size);
-            if(comm_size == 1)
-            {
-                rec_ref->file_rec->counters[MPIIO_INDEP_OPENS] += 1;
-            }
-            else
-            {
-                rec_ref->file_rec->counters[MPIIO_COLL_OPENS] += 1;
-            }
-            if(info != MPI_INFO_NULL)
-            {
-                rec_ref->file_rec->counters[MPIIO_HINTS] += 1;
-            }
-            if(rec_ref->file_rec->fcounters[MPIIO_F_OPEN_TIMESTAMP] == 0)
-                rec_ref->file_rec->fcounters[MPIIO_F_OPEN_TIMESTAMP] = tm1;
-            DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->file_rec->fcounters[MPIIO_F_META_TIME],
-                tm1, tm2, rec_ref->last_meta_end);
-
-            /* add a new record reference based on the MPI file handle */
-            darshan_add_record_ref(&(mpiio_runtime->fh_hash), fh,
-                sizeof(MPI_File), rec_ref);
-        }
-
-        if(newpath != filename) free(newpath);
-        MPIIO_POST_RECORD();
+    /* use ROMIO approach to strip prefix if present */
+    /* strip off prefix if there is one, but only skip prefixes
+     * if they are greater than length one to allow for windows
+     * drive specifications (e.g. c:\...) 
+     */
+    tmp = strchr(filename, ':');
+    if (tmp > filename + 1) {
+        filename = tmp + 1;
     }
+
+    MPIIO_PRE_RECORD();
+    tmp_fh = *fh;
+    MPIIO_RECORD_OPEN(ret, filename, tmp_fh, comm, amode, info, tm1, tm2);
+    MPIIO_POST_RECORD();
 
     return(ret);
 }
@@ -1013,10 +1002,11 @@ static void mpiio_record_reduction_op(
         /* min non-zero (if available) value */
         for(j=MPIIO_F_OPEN_TIMESTAMP; j<=MPIIO_F_WRITE_START_TIMESTAMP; j++)
         {
-            if(infile->fcounters[j] > inoutfile->fcounters[j] && inoutfile->fcounters[j] > 0)
-                tmp_file.fcounters[j] = inoutfile->fcounters[j];
-            else
+            if((infile->fcounters[j] < inoutfile->fcounters[j] &&
+               infile->fcounters[j] > 0) || inoutfile->fcounters[j] == 0)
                 tmp_file.fcounters[j] = infile->fcounters[j];
+            else
+                tmp_file.fcounters[j] = inoutfile->fcounters[j];
         }
 
         /* max */
@@ -1211,9 +1201,86 @@ static void mpiio_cleanup_runtime()
     return;
 }
 
-/**************************************************************************
- * Functions exported by MPI-IO module for coordinating with darshan-core *
- **************************************************************************/
+/* mpiio module shutdown benchmark routine */
+void darshan_mpiio_shutdown_bench_setup(int test_case)
+{
+    char filepath[256];
+    MPI_File *fh_array;
+    int64_t *size_array;
+    int i;
+    intptr_t j;
+
+    if(mpiio_runtime)
+        mpiio_cleanup_runtime();
+
+    mpiio_runtime_initialize();
+
+    srand(my_rank);
+    fh_array = malloc(1024 * sizeof(MPI_File));
+    size_array = malloc(DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT * sizeof(int64_t));
+    assert(fh_array && size_array);
+
+    for(j = 0; j < 1024; j++)
+        fh_array[j] = (MPI_File)j;
+    for(i = 0; i < DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT; i++)
+        size_array[i] = rand();
+
+    switch(test_case)
+    {
+        case 1: /* single file-per-process */
+            snprintf(filepath, 256, "fpp-0_rank-%d", my_rank);
+
+            MPIIO_RECORD_OPEN(MPI_SUCCESS, filepath, fh_array[0], MPI_COMM_SELF,
+                2, MPI_INFO_NULL, 0, 1);
+            MPIIO_RECORD_WRITE(MPI_SUCCESS, fh_array[0], size_array[0], MPI_BYTE,
+                MPIIO_INDEP_WRITES, 1, 2);
+
+            break;
+        case 2: /* single shared file */
+            snprintf(filepath, 256, "shared-0");
+
+            MPIIO_RECORD_OPEN(MPI_SUCCESS, filepath, fh_array[0], MPI_COMM_WORLD,
+                2, MPI_INFO_NULL, 0, 1);
+            MPIIO_RECORD_WRITE(MPI_SUCCESS, fh_array[0], size_array[0], MPI_BYTE,
+                MPIIO_COLL_WRITES, 1, 2);
+
+            break;
+        case 3: /* 1024 unique files per proc */
+            for(i = 0; i < 1024; i++)
+            {
+                snprintf(filepath, 256, "fpp-%d_rank-%d", i , my_rank);
+
+                MPIIO_RECORD_OPEN(MPI_SUCCESS, filepath, fh_array[i], MPI_COMM_SELF,
+                    2, MPI_INFO_NULL, 0, 1);
+                MPIIO_RECORD_WRITE(MPI_SUCCESS, fh_array[i],
+                    size_array[i % DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT],
+                    MPI_BYTE, MPIIO_INDEP_WRITES, 1, 2);
+            }
+
+            break;
+        case 4: /* 1024 shared files per proc */
+            for(i = 0; i < 1024; i++)
+            {
+                snprintf(filepath, 256, "shared-%d", i);
+
+                MPIIO_RECORD_OPEN(MPI_SUCCESS, filepath, fh_array[i], MPI_COMM_WORLD,
+                    2, MPI_INFO_NULL, 0, 1);
+                MPIIO_RECORD_WRITE(MPI_SUCCESS, fh_array[i],
+                    size_array[i % DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT],
+                    MPI_BYTE, MPIIO_COLL_WRITES, 1, 2);
+            }
+            break;
+        default:
+            fprintf(stderr, "Error: invalid Darshan benchmark test case.\n");
+            return;
+    }
+
+    return;
+}
+
+/********************************************************************************
+ * shutdown function exported by this module for coordinating with darshan-core *
+ ********************************************************************************/
 
 static void mpiio_shutdown(
     MPI_Comm mod_comm,

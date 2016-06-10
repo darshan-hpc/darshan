@@ -5,7 +5,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl You may need to use autoheader as well if changing any DEFINEs
 
 dnl sanity checks, output header, location of scripts used here
-AC_INIT([darshan-runtime], [3.0.0-pre3])
+AC_INIT([darshan-runtime], [3.0.1])
 AC_CONFIG_SRCDIR([darshan.h])
 AC_CONFIG_AUX_DIR(../maint/config)
 AC_CONFIG_HEADER(darshan-runtime-config.h)
@@ -312,13 +312,15 @@ AC_CHECK_TYPE([MPIO_Request],
 		AC_DEFINE(__D_MPI_REQUEST, MPI_Request, Generalized request type for MPI-IO)
 	,[#include <mpi.h>])
 
-# attempt to detect librarly naming convention in mpi compiler script
-AC_MSG_CHECKING(for old (pre-3.1.1) style MPICH library naming convention)
-AS_IF([$CC -show foo.c -o foo |grep lmpich >& /dev/null], 
-    AC_MSG_RESULT(yes)
-    MPICH_LIB_OLD=1,
-    AC_MSG_RESULT(no)
-    MPICH_LIB_OLD=0)
+# attempt to detect library naming convention in mpi compiler script
+AS_IF([$CC -show foo.c -o foo >& /dev/null],
+	AC_MSG_CHECKING(for old (pre-3.1.1) style MPICH library naming convention)
+	AS_IF([$CC -show foo.c -o foo |grep lmpich >& /dev/null], 
+	    AC_MSG_RESULT(yes)
+	    MPICH_LIB_OLD=1,
+	    AC_MSG_RESULT(no)
+	    MPICH_LIB_OLD=0),
+	MPICH_LIB_OLD=0)
 
 DARSHAN_VERSION="AC_PACKAGE_VERSION"
 AC_SUBST(darshan_lib_path)
@@ -334,7 +336,6 @@ darshan-mk-log-dirs.pl
 darshan-gen-cc.pl
 darshan-gen-cxx.pl
 darshan-gen-fortran.pl
-darshan-base-ld-opts
 darshan-config
 share/craype-1.x/darshan-module
 share/craype-2.x/darshan-module
@@ -345,5 +346,6 @@ share/mpi-profile/darshan-f.conf
 share/mpi-profile/darshan-bg-cc.conf
 share/mpi-profile/darshan-bg-cxx.conf
 share/mpi-profile/darshan-bg-f.conf
+share/ld-opts/darshan-base-ld-opts
 share/darshan-mmap-epilog.sh
 )

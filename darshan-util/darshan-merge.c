@@ -189,8 +189,7 @@ int main(int argc, char *argv[])
     darshan_fd in_fd, merge_fd;
     struct darshan_job in_job, merge_job;
     char merge_exe[DARSHAN_EXE_LEN+1] = {0};
-    char **merge_mnt_pts;
-    char **merge_fs_types;
+    struct darshan_mnt_info *merge_mnt_array;
     int merge_mnt_count = 0;
     struct darshan_name_record_ref *in_hash = NULL;
     struct darshan_name_record_ref *merge_hash = NULL;
@@ -264,8 +263,7 @@ int main(int argc, char *argv[])
                 return(-1);
             }
 
-            ret = darshan_log_get_mounts(in_fd, &merge_mnt_pts,
-                &merge_fs_types, &merge_mnt_count);
+            ret = darshan_log_get_mounts(in_fd, &merge_mnt_array, &merge_mnt_count);
             if(ret < 0)
             {
                 fprintf(stderr,
@@ -350,7 +348,7 @@ int main(int argc, char *argv[])
         return(-1);
     }
 
-    ret = darshan_log_put_mounts(merge_fd, merge_mnt_pts, merge_fs_types, merge_mnt_count);
+    ret = darshan_log_put_mounts(merge_fd, merge_mnt_array, merge_mnt_count);
     if(ret < 0)
     {
         fprintf(stderr, "Error: unable to write mount data to output darshan log.\n");

@@ -50,13 +50,17 @@ which may skew results in this document.
 {
     \input{job-table.tex}
 }\\
+\vspace{1em}
+I/O performance \emph{estimate} (at the \perflayer \ layer):
+transferred \textcolor{red}{\perfbytes \ MiB} at \textcolor{red}{\perfest \ MiB/s}
+\vspace{3em}
 \subfigure
 {
-    \includegraphics[scale=0.75]{time-summary.pdf}
+    \includegraphics[scale=0.65]{time-summary.pdf}
 }
 \subfigure
 {
-    \includegraphics[scale=0.75]{op-counts.pdf}
+    \includegraphics[scale=0.65]{op-counts.pdf}
 }
 \end{figure*}
 
@@ -64,12 +68,12 @@ which may skew results in this document.
 \centering
 \subfigure
 {
-    \includegraphics[scale=0.75]{posix-access-hist.pdf}
+    \includegraphics[scale=0.65]{posix-access-hist.pdf}
 }
 \ifdefined\inclmpiio
 \subfigure
 {
-    \includegraphics[scale=0.75]{mpiio-access-hist.pdf}
+    \includegraphics[scale=0.65]{mpiio-access-hist.pdf}
 }
 \fi
 \end{figure*}

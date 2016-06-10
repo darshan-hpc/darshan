@@ -55,6 +55,7 @@ char* darshan_path_exclusions[] = {
 "/sbin/",
 "/sys/",
 "/proc/",
+"/var/",
 NULL
 };
 
@@ -291,6 +292,10 @@ void darshan_core_initialize(int argc, char **argv)
             fprintf(stderr, "darshan:init\t%d\t%f\n", nprocs, init_max);
         }
     }
+
+    /* if darshan was successfully initialized, set the global pointer */
+    if(init_core)
+        darshan_core = init_core;
 
     return;
 }
@@ -987,6 +992,7 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
      * grab any non-nfs mount points, then on the second pass we grab nfs
      * mount points
      */
+    mnt_data_count = 0;
 
     tab = setmntent("/etc/mtab", "r");
     if(!tab)
@@ -1680,6 +1686,85 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
     return;
 }
 
+/* crude benchmarking hook into darshan-core to benchmark Darshan
+ * shutdown overhead using a variety of application I/O workloads
+ */
+extern void darshan_posix_shutdown_bench_setup();
+extern void darshan_mpiio_shutdown_bench_setup();
+void darshan_shutdown_bench(int argc, char **argv)
+{
+    /* clear out existing core runtime structure */
+    if(darshan_core)
+    {
+        darshan_core_cleanup(darshan_core);
+        darshan_core = NULL;
+    }
+
+    /***********************************************************/
+    /* restart darshan */
+    darshan_core_initialize(argc, argv);
+
+    darshan_posix_shutdown_bench_setup(1);
+    darshan_mpiio_shutdown_bench_setup(1);
+
+    if(my_rank == 0)
+        printf("# 1 unique file per proc\n");
+    DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
+    darshan_core_shutdown();
+    darshan_core = NULL;
+
+    sleep(1);
+
+    /***********************************************************/
+    /* restart darshan */
+    darshan_core_initialize(argc, argv);
+
+    darshan_posix_shutdown_bench_setup(2);
+    darshan_mpiio_shutdown_bench_setup(2);
+
+    if(my_rank == 0)
+        printf("# 1 shared file per proc\n");
+    DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
+    darshan_core_shutdown();
+    darshan_core = NULL;
+
+    sleep(1);
+
+    /***********************************************************/
+    /* restart darshan */
+    darshan_core_initialize(argc, argv);
+
+    darshan_posix_shutdown_bench_setup(3);
+    darshan_mpiio_shutdown_bench_setup(3);
+
+    if(my_rank == 0)
+        printf("# 1024 unique files per proc\n");
+    DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
+    darshan_core_shutdown();
+    darshan_core = NULL;
+
+    sleep(1);
+
+    /***********************************************************/
+    /* restart darshan */
+    darshan_core_initialize(argc, argv);
+
+    darshan_posix_shutdown_bench_setup(4);
+    darshan_mpiio_shutdown_bench_setup(4);
+
+    if(my_rank == 0)
+        printf("# 1024 shared files per proc\n");
+    DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
+    darshan_core_shutdown();
+    darshan_core = NULL;
+
+    sleep(1);
+
+    /***********************************************************/
+
+    return;
+}
+
 /* ********************************************************* */
 
 void darshan_core_register_module(
@@ -1753,10 +1838,11 @@ void darshan_core_register_module(
 void darshan_core_unregister_module(
     darshan_module_id mod_id)
 {
+    DARSHAN_CORE_LOCK();
+
     if(!darshan_core)
         return;
 
-    DARSHAN_CORE_LOCK();
     /* update darshan internal structures and header */
     free(darshan_core->mod_array[mod_id]);
     darshan_core->mod_array[mod_id] = NULL;
@@ -1765,8 +1851,8 @@ void darshan_core_unregister_module(
     darshan_core->log_hdr_p->mod_map[mod_id].off =
         darshan_core->log_hdr_p->mod_map[mod_id].len = 0;
 #endif
-    DARSHAN_CORE_UNLOCK();
 
+    DARSHAN_CORE_UNLOCK();
     return;
 }
 

@@ -235,8 +235,7 @@ int main(int argc, char **argv)
     darshan_fd outfile;
     int i;
     int mount_count;
-    char** mnt_pts;
-    char** fs_types;
+    struct darshan_mnt_info *mnt_data_array;
     struct darshan_name_record_ref *name_hash = NULL;
     struct darshan_name_record_ref *ref, *tmp;
     char mod_buf[DEF_MOD_BUF_SIZE];
@@ -304,7 +303,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    ret = darshan_log_get_mounts(infile, &mnt_pts, &fs_types, &mount_count);
+    ret = darshan_log_get_mounts(infile, &mnt_data_array, &mount_count);
     if(ret < 0)
     {
         darshan_log_close(infile);
@@ -313,7 +312,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    ret = darshan_log_put_mounts(outfile, mnt_pts, fs_types, mount_count);
+    ret = darshan_log_put_mounts(outfile, mnt_data_array, mount_count);
     if(ret < 0)
     {
         darshan_log_close(infile);
@@ -396,16 +395,8 @@ int main(int argc, char **argv)
     darshan_log_close(infile);
     darshan_log_close(outfile);
 
-    for(i=0; i<mount_count; i++)
-    {
-        free(mnt_pts[i]);
-        free(fs_types[i]);
-    }
     if(mount_count > 0)
-    {
-        free(mnt_pts);
-        free(fs_types);
-    }
+        free(mnt_data_array);
 
     HASH_ITER(hlink, name_hash, ref, tmp)
     {

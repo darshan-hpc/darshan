@@ -282,6 +282,10 @@ print OUTPUT<<"EOF";
     if [ \$? -eq 0 ] ; then
         CXXMPICH=-lmpicxx
     fi
+    bgqlib_out=`grep -m 1 -Po "libmpichcxx-\\S+" \$tmpfile`
+    if [ \$? -eq 0 ] ; then
+        CXXMPICH=`echo \$bgqlib_out | sed 's/libmpichcxx-\\(.*\\)\\.a.*/-lmpichcxx-\\1/'`
+    fi
 
     rm \$tmpfile >& /dev/null
 

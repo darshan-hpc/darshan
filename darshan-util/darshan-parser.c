@@ -206,8 +206,7 @@ int main(int argc, char **argv)
     struct darshan_name_record_ref *name_hash = NULL;
     struct darshan_name_record_ref *ref, *tmp_ref;
     int mount_count;
-    char** mnt_pts;
-    char** fs_types;
+    struct darshan_mnt_info *mnt_data_array;
     time_t tmp_time = 0;
     int64_t run_time = 0;
     char *token;
@@ -250,7 +249,7 @@ int main(int argc, char **argv)
     }
 
     /* get the mount information for this log */
-    ret = darshan_log_get_mounts(fd, &mnt_pts, &fs_types, &mount_count);
+    ret = darshan_log_get_mounts(fd, &mnt_data_array, &mount_count);
     if(ret < 0)
     {
         darshan_log_close(fd);
@@ -332,7 +331,8 @@ int main(int argc, char **argv)
     printf("# -------------------------------------------------------\n");
     for(i=0; i<mount_count; i++)
     {
-        printf("# mount entry:\t%s\t%s\n", mnt_pts[i], fs_types[i]);
+        printf("# mount entry:\t%s\t%s\n", mnt_data_array[i].mnt_path,
+            mnt_data_array[i].mnt_type);
     }
 
     if(mask & OPTION_BASE)
@@ -432,10 +432,11 @@ int main(int argc, char **argv)
             /* get mount point and fs type associated with this record */
             for(j=0; j<mount_count; j++)
             {
-                if(strncmp(mnt_pts[j], ref->name_record->name, strlen(mnt_pts[j])) == 0)
+                if(strncmp(mnt_data_array[j].mnt_path, ref->name_record->name,
+                    strlen(mnt_data_array[j].mnt_path)) == 0)
                 {
-                    mnt_pt = mnt_pts[j];
-                    fs_type = fs_types[j];
+                    mnt_pt = mnt_data_array[j].mnt_path;
+                    fs_type = mnt_data_array[j].mnt_type;
                     break;
                 }
             }
@@ -572,7 +573,7 @@ int main(int argc, char **argv)
             printf("# I/O timing for unique files (seconds):\n");
             printf("# ...........................\n");
             printf("# unique files: slowest_rank_io_time: %lf\n", pdata.slowest_rank_time);
-            printf("# unique files: slowest_rank_meta_time: %lf\n", pdata.slowest_rank_meta_time);
+            printf("# unique files: slowest_rank_meta_only_time: %lf\n", pdata.slowest_rank_meta_time);
             printf("# unique files: slowest rank: %d\n", pdata.slowest_rank_rank);
             printf("#\n");
             printf("# I/O timing for shared files (seconds):\n");
@@ -648,15 +649,9 @@ cleanup:
     }
 
     /* free mount info */
-    for(i=0; i<mount_count; i++)
-    {
-        free(mnt_pts[i]);
-        free(fs_types[i]);
-    }
     if(mount_count > 0)
     {
-        free(mnt_pts);
-        free(fs_types);
+        free(mnt_data_array);
     }
 
     return(ret);
@@ -1372,7 +1367,6 @@ void calc_perf(perf_data_t *pdata,
     if (pdata->slowest_rank_time + pdata->shared_time_by_slowest)
     pdata->agg_perf_by_slowest = ((double)pdata->total_bytes / 1048576.0) /
                                      (pdata->slowest_rank_time +
-                                      pdata->slowest_rank_meta_time +
                                       pdata->shared_time_by_slowest);
 
     return;
