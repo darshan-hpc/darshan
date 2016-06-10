@@ -217,6 +217,7 @@ static int darshan_mem_alignment = 1;
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[POSIX_F_META_TIME], \
         __tm1, __tm2, rec_ref->last_meta_end); \
     darshan_add_record_ref(&(posix_runtime->fd_hash), &__ret, sizeof(int), rec_ref); \
+    if(newpath != __path) free(newpath); \
 } while(0)
 
 #define POSIX_RECORD_READ(__ret, __fd, __pread_flag, __pread_offset, __aligned, __stream_flag, __tm1, __tm2) do { \

@@ -19,8 +19,6 @@
 #define __USE_GNU
 #include <pthread.h>
 
-#include "uthash.h"
-
 #include "darshan.h"
 #include "darshan-dynamic.h"
 
@@ -32,54 +30,79 @@ DARSHAN_FORWARD_DECL(H5Fcreate, hid_t, (const char *filename, unsigned flags, hi
 DARSHAN_FORWARD_DECL(H5Fopen, hid_t, (const char *filename, unsigned flags, hid_t access_plist));
 DARSHAN_FORWARD_DECL(H5Fclose, herr_t, (hid_t file_id));
 
-/* structure to track i/o stats for a given hdf5 file at runtime */
-struct hdf5_file_runtime
+/* structure that can track i/o stats for a given HDF5 file record at runtime */
+struct hdf5_file_record_ref
 {
-    struct darshan_hdf5_file* file_record;
-    UT_hash_handle hlink;
+    struct darshan_hdf5_file* file_rec;
 };
 
-/* structure to associate a HDF5 hid with an existing file runtime structure */
-struct hdf5_file_runtime_ref
-{
-    struct hdf5_file_runtime* file;
-    hid_t hid;
-    UT_hash_handle hlink;
-};
-
-/* necessary state for storing HDF5 file records and coordinating with
- * darshan-core at shutdown time
- */
+/* struct to encapsulate runtime state for the HDF5 module */
 struct hdf5_runtime
 {
-    struct hdf5_file_runtime* file_runtime_array;
-    struct darshan_hdf5_file* file_record_array;
-    int file_array_ndx;
-    struct hdf5_file_runtime *file_hash;
-    struct hdf5_file_runtime_ref* hid_hash;
+    void *rec_id_hash;
+    void *hid_hash;
+    int file_rec_count;
 };
+
+static void hdf5_runtime_initialize(
+    void);
+static struct hdf5_file_record_ref *hdf5_track_new_file_record(
+    darshan_record_id rec_id, const char *path);
+static int hdf5_record_compare(
+    const void* a, const void* b);
+static void hdf5_record_reduction_op(
+    void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
+static void hdf5_cleanup_runtime(
+    void);
+
+static void hdf5_shutdown(
+    MPI_Comm mod_comm, darshan_record_id *shared_recs,
+    int shared_rec_count, void **hdf5_buf, int *hdf5_buf_sz);
 
 static struct hdf5_runtime *hdf5_runtime = NULL;
 static pthread_mutex_t hdf5_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int instrumentation_disabled = 0;
 static int my_rank = -1;
 
-static void hdf5_runtime_initialize(void);
-static struct hdf5_file_runtime* hdf5_file_by_name(const char *name);
-static struct hdf5_file_runtime* hdf5_file_by_name_sethid(const char* name, hid_t hid);
-static struct hdf5_file_runtime* hdf5_file_by_hid(hid_t hid);
-static void hdf5_file_close_hid(hid_t hid);
-static int hdf5_record_compare(const void* a, const void* b);
-static void hdf5_record_reduction_op(void* infile_v, void* inoutfile_v,
-    int *len, MPI_Datatype *datatype);
-
-static void hdf5_begin_shutdown(void);
-static void hdf5_get_output_data(MPI_Comm mod_comm, darshan_record_id *shared_recs,
-    int shared_rec_count, void **hdf5_buf, int *hdf5_buf_sz);
-static void hdf5_shutdown(void);
-
 #define HDF5_LOCK() pthread_mutex_lock(&hdf5_runtime_mutex)
 #define HDF5_UNLOCK() pthread_mutex_unlock(&hdf5_runtime_mutex)
+
+#define HDF5_PRE_RECORD() do { \
+    HDF5_LOCK(); \
+    if(!hdf5_runtime && !instrumentation_disabled) hdf5_runtime_initialize(); \
+    if(!hdf5_runtime) { \
+        HDF5_UNLOCK(); \
+        return(ret); \
+    } \
+} while(0)
+
+#define HDF5_POST_RECORD() do { \
+    HDF5_UNLOCK(); \
+} while(0)
+
+#define HDF5_RECORD_OPEN(__ret, __path, __tm1) do { \
+    darshan_record_id rec_id; \
+    struct hdf5_file_record_ref *rec_ref; \
+    char *newpath; \
+    newpath = darshan_clean_file_path(__path); \
+    if(!newpath) newpath = (char *)__path; \
+    if(darshan_core_excluded_path(newpath)) { \
+        if(newpath != __path) free(newpath); \
+        break; \
+    } \
+    rec_id = darshan_core_gen_record_id(newpath); \
+    rec_ref = darshan_lookup_record_ref(hdf5_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
+    if(!rec_ref) rec_ref = hdf5_track_new_file_record(rec_id, newpath); \
+    if(!rec_ref) { \
+        if(newpath != __path) free(newpath); \
+        break; \
+    } \
+    if(rec_ref->file_rec->fcounters[HDF5_F_OPEN_TIMESTAMP] == 0) \
+        rec_ref->file_rec->fcounters[HDF5_F_OPEN_TIMESTAMP] = __tm1; \
+    rec_ref->file_rec->counters[HDF5_OPENS] += 1; \
+    darshan_add_record_ref(&(hdf5_runtime->hid_hash), &__ret, sizeof(hid_t), rec_ref); \
+    if(newpath != __path) free(newpath); \
+} while(0)
 
 /*********************************************************
  *        Wrappers for HDF5 functions of interest        * 
@@ -89,7 +112,6 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     hid_t create_plist, hid_t access_plist)
 {
     int ret;
-    struct hdf5_file_runtime* file;
     char* tmp;
     double tm1;
 
@@ -109,16 +131,9 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
             filename = tmp + 1;
         }
 
-        HDF5_LOCK();
-        hdf5_runtime_initialize();
-        file = hdf5_file_by_name_sethid(filename, ret);
-        if(file)
-        {
-            if(file->file_record->fcounters[HDF5_F_OPEN_TIMESTAMP] == 0)
-                file->file_record->fcounters[HDF5_F_OPEN_TIMESTAMP] = tm1;
-            file->file_record->counters[HDF5_OPENS] += 1;
-        }
-        HDF5_UNLOCK();
+        HDF5_PRE_RECORD();
+        HDF5_RECORD_OPEN(ret, filename, tm1);
+        HDF5_POST_RECORD();
     }
 
     return(ret);
@@ -128,7 +143,6 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     hid_t access_plist)
 {
     int ret;
-    struct hdf5_file_runtime* file;
     char* tmp;
     double tm1;
 
@@ -148,16 +162,9 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
             filename = tmp + 1;
         }
 
-        HDF5_LOCK();
-        hdf5_runtime_initialize();
-        file = hdf5_file_by_name_sethid(filename, ret);
-        if(file)
-        {
-            if(file->file_record->fcounters[HDF5_F_OPEN_TIMESTAMP] == 0)
-                file->file_record->fcounters[HDF5_F_OPEN_TIMESTAMP] = tm1;
-            file->file_record->counters[HDF5_OPENS] += 1;
-        }
-        HDF5_UNLOCK();
+        HDF5_PRE_RECORD();
+        HDF5_RECORD_OPEN(ret, filename, tm1);
+        HDF5_POST_RECORD();
     }
 
     return(ret);
@@ -166,23 +173,24 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
 
 herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 {
-    struct hdf5_file_runtime* file;
+    struct hdf5_file_record_ref *rec_ref;
     int ret;
 
     MAP_OR_FAIL(H5Fclose);
 
     ret = __real_H5Fclose(file_id);
 
-    HDF5_LOCK();
-    hdf5_runtime_initialize();
-    file = hdf5_file_by_hid(file_id);
-    if(file)
+    HDF5_PRE_RECORD();
+    rec_ref = darshan_lookup_record_ref(hdf5_runtime->hid_hash,
+        &file_id, sizeof(hid_t));
+    if(rec_ref)
     {
-        file->file_record->fcounters[HDF5_F_CLOSE_TIMESTAMP] =
+        rec_ref->file_rec->fcounters[HDF5_F_CLOSE_TIMESTAMP] =
             darshan_core_wtime();
-        hdf5_file_close_hid(file_id);
+        darshan_delete_record_ref(&(hdf5_runtime->hid_hash),
+            &file_id, sizeof(hid_t));
     }
-    HDF5_UNLOCK();
+    HDF5_POST_RECORD();
 
     return(ret);
 
@@ -195,19 +203,7 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 /* initialize internal HDF5 module data strucutres and register with darshan-core */
 static void hdf5_runtime_initialize()
 {
-    struct darshan_module_funcs hdf5_mod_fns =
-    {
-        .begin_shutdown = &hdf5_begin_shutdown,
-        .get_output_data = &hdf5_get_output_data,
-        .shutdown = &hdf5_shutdown
-    };
-    void *hdf5_buf;
     int hdf5_buf_size;
-    int file_array_size;
-
-    /* don't do anything if already initialized or instrumenation is disabled */
-    if(hdf5_runtime || instrumentation_disabled)
-        return;
 
     /* try and store the default number of records for this module */
     hdf5_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_hdf5_file);
@@ -215,9 +211,8 @@ static void hdf5_runtime_initialize()
     /* register hdf5 module with darshan-core */
     darshan_core_register_module(
         DARSHAN_HDF5_MOD,
-        &hdf5_mod_fns,
+        &hdf5_shutdown,
         &hdf5_buf_size,
-        &hdf5_buf,
         &my_rank,
         NULL);
 
@@ -236,159 +231,55 @@ static void hdf5_runtime_initialize()
     }
     memset(hdf5_runtime, 0, sizeof(*hdf5_runtime));
 
-    /* set number of trackable files for the HDF5 module according to the
-     * amount of memory returned by darshan-core
-     */
-    file_array_size = hdf5_buf_size / sizeof(struct darshan_hdf5_file);
-    hdf5_runtime->file_array_ndx = 0;
-
-    /* store pointer to HDF5 record buffer given by darshan-core */
-    hdf5_runtime->file_record_array = (struct darshan_hdf5_file *)hdf5_buf;
-
-    /* allocate array of runtime file records */
-    hdf5_runtime->file_runtime_array = malloc(file_array_size *
-                                              sizeof(struct hdf5_file_runtime));
-    if(!hdf5_runtime->file_runtime_array)
-    {
-        free(hdf5_runtime);
-        hdf5_runtime = NULL;
-        darshan_core_unregister_module(DARSHAN_HDF5_MOD);
-        return;
-    }
-    memset(hdf5_runtime->file_runtime_array, 0, file_array_size *
-           sizeof(struct hdf5_file_runtime));
-
     return;
 }
 
-/* get a HDF5 file record for the given file path */
-static struct hdf5_file_runtime* hdf5_file_by_name(const char *name)
+static struct hdf5_file_record_ref *hdf5_track_new_file_record(
+    darshan_record_id rec_id, const char *path)
 {
-    struct hdf5_file_runtime *file = NULL;
-    struct darshan_hdf5_file *file_rec;
-    char *newname = NULL;
-    darshan_record_id file_id;
+    struct darshan_hdf5_file *file_rec = NULL;
+    struct hdf5_file_record_ref *rec_ref = NULL;
     int ret;
 
-    if(!hdf5_runtime || instrumentation_disabled)
+    rec_ref = malloc(sizeof(*rec_ref));
+    if(!rec_ref)
         return(NULL);
+    memset(rec_ref, 0, sizeof(*rec_ref));
 
-    newname = darshan_clean_file_path(name);
-    if(!newname)
-        newname = (char*)name;
-
-    /* lookup the unique id for this filename */
-    darshan_core_lookup_record(
-        newname,
-        &file_id);
-
-    /* search the hash table for this file record, and return if found */
-    HASH_FIND(hlink, hdf5_runtime->file_hash, &file_id, sizeof(darshan_record_id), file);
-    if(!file)
+    /* add a reference to this file record based on record id */
+    ret = darshan_add_record_ref(&(hdf5_runtime->rec_id_hash), &rec_id,
+        sizeof(darshan_record_id), rec_ref);
+    if(ret == 0)
     {
-        /* register the record with the darshan core component */
-        ret = darshan_core_register_record(file_id, newname, DARSHAN_HDF5_MOD,
-            sizeof(struct darshan_hdf5_file), NULL);
-        if(ret == 1)
-        {
-            /* register was successful */
-            file = &(hdf5_runtime->file_runtime_array[hdf5_runtime->file_array_ndx]);
-            file->file_record =
-                &(hdf5_runtime->file_record_array[hdf5_runtime->file_array_ndx]);
-            file_rec = file->file_record;
-
-            file_rec->base_rec.id = file_id;
-            file_rec->base_rec.rank = my_rank;
-
-            /* add new record to file hash table */
-            HASH_ADD(hlink, hdf5_runtime->file_hash, file_record->base_rec.id,
-                sizeof(darshan_record_id), file);
-            hdf5_runtime->file_array_ndx++;
-        }
+        free(rec_ref);
+        return(NULL);
     }
 
-    if(newname != name)
-        free(newname);
-    return(file);
-}
-
-/* get a HDF5 file record for the given file path, and also create a
- * reference structure using the returned hid
- */
-static struct hdf5_file_runtime* hdf5_file_by_name_sethid(const char* name, hid_t hid)
-{
-    struct hdf5_file_runtime* file;
-    struct hdf5_file_runtime_ref* ref;
-
-    if(!hdf5_runtime || instrumentation_disabled)
-        return(NULL);
-
-    /* find file record by name first */
-    file = hdf5_file_by_name(name);
-
-    if(!file)
-        return(NULL);
-
-    /* search hash table for existing file ref for this fd */
-    HASH_FIND(hlink, hdf5_runtime->hid_hash, &hid, sizeof(hid_t), ref);
-    if(ref)
-    {
-        /* we have a reference.  Make sure it points to the correct file
-         * and return it
-         */
-        ref->file = file;
-        return(file);
-    }
-
-    /* if we hit this point, then we don't have a reference for this fd
-     * in the table yet.  Add it.
+    /* register the actual file record with darshan-core so it is persisted
+     * in the log file
      */
-    ref = malloc(sizeof(*ref));
-    if(!ref)
-        return(NULL);
-    memset(ref, 0, sizeof(*ref));
+    file_rec = darshan_core_register_record(
+        rec_id,
+        path,
+        DARSHAN_HDF5_MOD,
+        sizeof(struct darshan_hdf5_file),
+        NULL);
 
-    ref->file = file;
-    ref->hid = hid;
-    HASH_ADD(hlink, hdf5_runtime->hid_hash, hid, sizeof(hid_t), ref);
-
-    return(file);
-}
-
-/* get a HDF5 file record for the given hid */
-static struct hdf5_file_runtime* hdf5_file_by_hid(hid_t hid)
-{
-    struct hdf5_file_runtime_ref* ref;
-
-    if(!hdf5_runtime || instrumentation_disabled)
-        return(NULL);
-
-    /* search hash table for existing file ref for this hid */
-    HASH_FIND(hlink, hdf5_runtime->hid_hash, &hid, sizeof(hid_t), ref);
-    if(ref)
-        return(ref->file);
-
-    return(NULL);
-}
-
-/* free up HDF5 reference data structures for the given hid */
-static void hdf5_file_close_hid(hid_t hid)
-{
-    struct hdf5_file_runtime_ref* ref;
-
-    if(!hdf5_runtime || instrumentation_disabled)
-        return;
-
-    /* search hash table for this hid */
-    HASH_FIND(hlink, hdf5_runtime->hid_hash, &hid, sizeof(hid_t), ref);
-    if(ref)
+    if(!file_rec)
     {
-        /* we have a reference, delete it */
-        HASH_DELETE(hlink, hdf5_runtime->hid_hash, ref);
-        free(ref);
+        darshan_delete_record_ref(&(hdf5_runtime->rec_id_hash),
+            &rec_id, sizeof(darshan_record_id));
+        free(rec_ref);
+        return(NULL);
     }
 
-    return;
+    /* registering this file record was successful, so initialize some fields */
+    file_rec->base_rec.id = rec_id;
+    file_rec->base_rec.rank = my_rank;
+    rec_ref->file_rec = file_rec;
+    hdf5_runtime->file_rec_count++;
+
+    return(rec_ref);
 }
 
 /* compare function for sorting file records by descending rank */
@@ -454,37 +345,40 @@ static void hdf5_record_reduction_op(void* infile_v, void* inoutfile_v,
     return;
 }
 
-/************************************************************************
- * Functions exported by HDF5 module for coordinating with darshan-core *
- ************************************************************************/
-
-static void hdf5_begin_shutdown()
+static void hdf5_cleanup_runtime()
 {
-    assert(hdf5_runtime);
+    darshan_clear_record_refs(&(hdf5_runtime->hid_hash), 0);
+    darshan_clear_record_refs(&(hdf5_runtime->rec_id_hash), 1);
 
-    HDF5_LOCK();
-    /* disable further instrumentation while Darshan shuts down */
-    instrumentation_disabled = 1;
-    HDF5_UNLOCK();
+    free(hdf5_runtime);
+    hdf5_runtime = NULL;
 
     return;
 }
 
-static void hdf5_get_output_data(
+/************************************************************************
+ * Functions exported by HDF5 module for coordinating with darshan-core *
+ ************************************************************************/
+
+static void hdf5_shutdown(
     MPI_Comm mod_comm,
     darshan_record_id *shared_recs,
     int shared_rec_count,
     void **hdf5_buf,
     int *hdf5_buf_sz)
 {
-    struct hdf5_file_runtime *file;
-    int i;
+    struct hdf5_file_record_ref *rec_ref;
+    struct darshan_hdf5_file *hdf5_rec_buf = *(struct darshan_hdf5_file **)hdf5_buf;
+    int hdf5_rec_count;
     struct darshan_hdf5_file *red_send_buf = NULL;
     struct darshan_hdf5_file *red_recv_buf = NULL;
     MPI_Datatype red_type;
     MPI_Op red_op;
+    int i;
 
+    HDF5_LOCK();
     assert(hdf5_runtime);
+    hdf5_rec_count = hdf5_runtime->file_rec_count;
 
     /* if there are globally shared files, do a shared file reduction */
     /* NOTE: the shared file reduction is also skipped if the 
@@ -495,23 +389,22 @@ static void hdf5_get_output_data(
         /* necessary initialization of shared records */
         for(i = 0; i < shared_rec_count; i++)
         {
-            HASH_FIND(hlink, hdf5_runtime->file_hash, &shared_recs[i],
-                sizeof(darshan_record_id), file);
-            assert(file);
+            rec_ref = darshan_lookup_record_ref(hdf5_runtime->rec_id_hash,
+                &shared_recs[i], sizeof(darshan_record_id));
+            assert(rec_ref);
 
-            file->file_record->base_rec.rank = -1;
+            rec_ref->file_rec->base_rec.rank = -1;
         }
 
         /* sort the array of files descending by rank so that we get all of the 
          * shared files (marked by rank -1) in a contiguous portion at end 
          * of the array
          */
-        qsort(hdf5_runtime->file_record_array, hdf5_runtime->file_array_ndx,
-            sizeof(struct darshan_hdf5_file), hdf5_record_compare);
+        qsort(hdf5_rec_buf, hdf5_rec_count, sizeof(struct darshan_hdf5_file),
+            hdf5_record_compare);
 
         /* make *send_buf point to the shared files at the end of sorted array */
-        red_send_buf =
-            &(hdf5_runtime->file_record_array[hdf5_runtime->file_array_ndx-shared_rec_count]);
+        red_send_buf = &(hdf5_rec_buf[hdf5_rec_count-shared_rec_count]);
 
         /* allocate memory for the reduction output on rank 0 */
         if(my_rank == 0)
@@ -519,6 +412,7 @@ static void hdf5_get_output_data(
             red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_hdf5_file));
             if(!red_recv_buf)
             {
+                HDF5_UNLOCK();
                 return;
             }
         }
@@ -540,44 +434,30 @@ static void hdf5_get_output_data(
         /* clean up reduction state */
         if(my_rank == 0)
         {
-            int tmp_ndx = hdf5_runtime->file_array_ndx - shared_rec_count;
-            memcpy(&(hdf5_runtime->file_record_array[tmp_ndx]), red_recv_buf,
+            int tmp_ndx = hdf5_rec_count - shared_rec_count;
+            memcpy(&(hdf5_rec_buf[tmp_ndx]), red_recv_buf,
                 shared_rec_count * sizeof(struct darshan_hdf5_file));
             free(red_recv_buf);
         }
         else
         {
-            hdf5_runtime->file_array_ndx -= shared_rec_count;
+            hdf5_rec_count -= shared_rec_count;
         }
 
         DARSHAN_MPI_CALL(PMPI_Type_free)(&red_type);
         DARSHAN_MPI_CALL(PMPI_Op_free)(&red_op);
     }
 
-    *hdf5_buf = (void *)(hdf5_runtime->file_record_array);
-    *hdf5_buf_sz = hdf5_runtime->file_array_ndx * sizeof(struct darshan_hdf5_file);
+    /* update output buffer size to account for shared file reduction */
+    *hdf5_buf_sz = hdf5_rec_count * sizeof(struct darshan_hdf5_file);
 
-    return;
-}
+    /* shutdown internal structures used for instrumenting */
+    hdf5_cleanup_runtime();
 
-static void hdf5_shutdown()
-{
-    struct hdf5_file_runtime_ref *ref, *tmp;
+    /* disable further instrumentation */
+    instrumentation_disabled = 1;
 
-    assert(hdf5_runtime);
-
-    HASH_ITER(hlink, hdf5_runtime->hid_hash, ref, tmp)
-    {
-        HASH_DELETE(hlink, hdf5_runtime->hid_hash, ref);
-        free(ref);
-    }
-
-    HASH_CLEAR(hlink, hdf5_runtime->file_hash); /* these entries are freed all at once below */
-
-    free(hdf5_runtime->file_runtime_array);
-    free(hdf5_runtime);
-    hdf5_runtime = NULL;
-
+    HDF5_UNLOCK();
     return;
 }
 
