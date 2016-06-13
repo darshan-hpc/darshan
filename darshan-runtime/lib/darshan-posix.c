@@ -147,8 +147,6 @@ static void posix_aio_tracker_add(
     int fd, void *aiocbp);
 static struct posix_aio_tracker* posix_aio_tracker_del(
     int fd, void *aiocbp);
-static int posix_record_compare(
-    const void* a, const void* b);
 static void posix_finalize_file_records(
     void *rec_ref_p);
 static void posix_record_reduction_op(
@@ -1492,20 +1490,6 @@ static struct posix_file_record_ref *posix_track_new_file_record(
     return(rec_ref);
 }
 
-/* compare function for sorting file records by descending rank */
-static int posix_record_compare(const void* a_p, const void* b_p)
-{
-    const struct darshan_posix_file* a = a_p;
-    const struct darshan_posix_file* b = b_p;
-
-    if(a->base_rec.rank < b->base_rec.rank)
-        return 1;
-    if(a->base_rec.rank > b->base_rec.rank)
-        return -1;
-
-    return 0;
-}
-
 /* finds the tracker structure for a given aio operation, removes it from
  * the associated linked list for this file record, and returns a pointer.  
  *
@@ -2045,12 +2029,11 @@ static void posix_shutdown(
             rec_ref->file_rec->base_rec.rank = -1;
         }
 
-        /* sort the array of files descending by rank so that we get all of the 
-         * shared files (marked by rank -1) in a contiguous portion at end 
-         * of the array
+        /* sort the array of records so we get all of the shared records
+         * (marked by rank -1) in a contiguous portion at end of the array
          */
-        qsort(posix_rec_buf, posix_rec_count, sizeof(struct darshan_posix_file),
-            posix_record_compare);
+        darshan_record_sort(posix_rec_buf, posix_rec_count,
+            sizeof(struct darshan_posix_file));
 
         /* make send_buf point to the shared files at the end of sorted array */
         red_send_buf = &(posix_rec_buf[posix_rec_count-shared_rec_count]);

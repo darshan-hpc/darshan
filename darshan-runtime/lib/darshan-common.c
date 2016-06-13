@@ -168,6 +168,34 @@ char* darshan_clean_file_path(const char* path)
     return(newpath);
 }
 
+/* compare function for sorting file records by descending rank first, then
+ * by ascending record identifiers (which are just unsigned integers)
+ */
+static int darshan_base_record_compare(const void* a_p, const void* b_p)
+{
+    const struct darshan_base_record *a = a_p;
+    const struct darshan_base_record *b = b_p;
+
+    if(a->rank < b->rank)
+        return(1);
+    if(a->rank > b->rank)
+        return(-1);
+
+    /* same rank, sort by ascending record ids */
+    if(a->id > b->id)
+        return(1);
+    if(a->id < b->id)
+        return(-1);
+
+    return(0);
+}
+
+void darshan_record_sort(void *rec_buf, int rec_count, int rec_size)
+{
+    qsort(rec_buf, rec_count, rec_size, darshan_base_record_compare);
+    return;
+}
+
 /* HACK: global variables for determining 4 most common values */
 static int64_t* walker_val_p = NULL;
 static int64_t* walker_cnt_p = NULL;

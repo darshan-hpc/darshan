@@ -48,8 +48,6 @@ static void hdf5_runtime_initialize(
     void);
 static struct hdf5_file_record_ref *hdf5_track_new_file_record(
     darshan_record_id rec_id, const char *path);
-static int hdf5_record_compare(
-    const void* a, const void* b);
 static void hdf5_record_reduction_op(
     void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
 static void hdf5_cleanup_runtime(
@@ -282,20 +280,6 @@ static struct hdf5_file_record_ref *hdf5_track_new_file_record(
     return(rec_ref);
 }
 
-/* compare function for sorting file records by descending rank */
-static int hdf5_record_compare(const void* a_p, const void* b_p)
-{
-    const struct darshan_hdf5_file* a = a_p;
-    const struct darshan_hdf5_file* b = b_p;
-
-    if(a->base_rec.rank < b->base_rec.rank)
-        return 1;
-    if(a->base_rec.rank > b->base_rec.rank)
-        return -1;
-
-    return 0;
-}
-
 static void hdf5_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype)
 {
@@ -397,12 +381,11 @@ static void hdf5_shutdown(
             rec_ref->file_rec->base_rec.rank = -1;
         }
 
-        /* sort the array of files descending by rank so that we get all of the 
-         * shared files (marked by rank -1) in a contiguous portion at end 
-         * of the array
+        /* sort the array of records so we get all of the shared records
+         * (marked by rank -1) in a contiguous portion at end of the array
          */
-        qsort(hdf5_rec_buf, hdf5_rec_count, sizeof(struct darshan_hdf5_file),
-            hdf5_record_compare);
+        darshan_record_sort(hdf5_rec_buf, hdf5_rec_count,
+            sizeof(struct darshan_hdf5_file));
 
         /* make *send_buf point to the shared files at the end of sorted array */
         red_send_buf = &(hdf5_rec_buf[hdf5_rec_count-shared_rec_count]);

@@ -191,6 +191,11 @@ void darshan_iter_record_refs(
 char* darshan_clean_file_path(
     const char *path);
 
+void darshan_record_sort(
+    void *rec_buf,
+    int rec_count,
+    int rec_size);
+
 /* darshan_common_val_counter()
  *
  * Potentially increment an existing common value counter or allocate
