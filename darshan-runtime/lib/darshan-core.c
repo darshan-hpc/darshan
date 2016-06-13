@@ -91,8 +91,10 @@ static struct mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
 
 /* prototypes for internal helper functions */
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
 static void *darshan_init_mmap_log(
     struct darshan_core_runtime* core, int jobid);
+#endif
 static void darshan_log_record_hints_and_ver(
     struct darshan_core_runtime* core);
 static void darshan_get_exe_and_mounts(
@@ -749,6 +751,7 @@ void darshan_core_shutdown()
 
 /* *********************************** */
 
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
 static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
 {
     int ret;
@@ -822,6 +825,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
 
     return(mmap_p);
 }
+#endif
 
 /* record any hints used to write the darshan log in the job data */
 static void darshan_log_record_hints_and_ver(struct darshan_core_runtime* core)
