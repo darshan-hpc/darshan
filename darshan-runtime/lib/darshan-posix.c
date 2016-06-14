@@ -1543,24 +1543,8 @@ static void posix_finalize_file_records(void *rec_ref_p)
     struct posix_file_record_ref *rec_ref =
         (struct posix_file_record_ref *)rec_ref_p;
 
-#ifndef __DARSHAN_ENABLE_MMAP_LOGS
-    /* walk common counters to get 4 most common -- only if mmap
-     * feature is disabled (mmap updates counters on the go)
-     */
-
-    /* common accesses */
-    darshan_walk_common_vals(rec_ref->access_root,
-        &(rec_ref->file_rec->counters[POSIX_ACCESS1_ACCESS]),
-        &(rec_ref->file_rec->counters[POSIX_ACCESS1_COUNT]));
-    /* common strides */
-    darshan_walk_common_vals(rec_ref->stride_root,
-        &(rec_ref->file_rec->counters[POSIX_STRIDE1_STRIDE]),
-        &(rec_ref->file_rec->counters[POSIX_STRIDE1_COUNT]));
-#endif
-
     tdestroy(rec_ref->access_root, free);
     tdestroy(rec_ref->stride_root, free);
-
     return;
 }
 

@@ -196,29 +196,6 @@ void darshan_record_sort(void *rec_buf, int rec_count, int rec_size)
     return;
 }
 
-/* HACK: global variables for determining 4 most common values */
-static int64_t* walker_val_p = NULL;
-static int64_t* walker_cnt_p = NULL;
-
-static void darshan_common_val_walker(const void *nodep, const VISIT which,
-    const int depth)
-{
-    struct darshan_common_val_counter* counter;
-
-    switch (which)
-    {
-        case postorder:
-        case leaf:
-            counter = *(struct darshan_common_val_counter**)nodep;
-            DARSHAN_COMMON_VAL_COUNTER_INC(walker_val_p, walker_cnt_p,
-                counter->val, counter->freq, 0);
-        default:
-            break;
-    }
-
-    return;
-}
-
 static int darshan_common_val_compare(const void *a_p, const void *b_p)
 {
     const struct darshan_common_val_counter* a = a_p;
@@ -274,24 +251,10 @@ void darshan_common_val_counter(void **common_val_root, int *common_val_count,
         (*common_val_count)++;
     }
 
-#ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    /* if we are using darshan's mmap feature, update common access
-     * counters as we go
-     */
+    /* update common access counters as we go */
     DARSHAN_COMMON_VAL_COUNTER_INC(common_val_p, common_cnt_p,
         found->val, found->freq, 1);
-#endif
 
-    return;
-}
-
-void darshan_walk_common_vals(void *common_val_root, int64_t *val_p,
-    int64_t *cnt_p)
-{
-    walker_val_p = val_p;
-    walker_cnt_p = cnt_p;
-
-    twalk(common_val_root, darshan_common_val_walker);
     return;
 }
 
