@@ -68,7 +68,6 @@ enum darshan_bgq_f_indices
 struct darshan_bgq_record
 {
     struct darshan_base_record base_rec;
-    int alignment;
     int64_t counters[BGQ_NUM_INDICES];
     double fcounters[BGQ_F_NUM_INDICES];
 };
