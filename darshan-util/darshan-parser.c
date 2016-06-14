@@ -422,24 +422,35 @@ int main(int argc, char **argv)
         {
             char *mnt_pt = NULL;
             char *fs_type = NULL;
+            char *rec_name = NULL;
             hash_entry_t *hfile = NULL;
             base_rec = (struct darshan_base_record *)mod_buf;
 
             /* get the pathname for this record */
             HASH_FIND(hlink, name_hash, &(base_rec->id), sizeof(darshan_record_id), ref);
-            assert(ref);
 
-            /* get mount point and fs type associated with this record */
-            for(j=0; j<mount_count; j++)
+            if(ref)
             {
-                if(strncmp(mnt_data_array[j].mnt_path, ref->name_record->name,
-                    strlen(mnt_data_array[j].mnt_path)) == 0)
+                rec_name = ref->name_record->name;
+
+                /* get mount point and fs type associated with this record */
+                for(j=0; j<mount_count; j++)
                 {
-                    mnt_pt = mnt_data_array[j].mnt_path;
-                    fs_type = mnt_data_array[j].mnt_type;
-                    break;
+                    if(strncmp(mnt_data_array[j].mnt_path, rec_name,
+                        strlen(mnt_data_array[j].mnt_path)) == 0)
+                    {
+                        mnt_pt = mnt_data_array[j].mnt_path;
+                        fs_type = mnt_data_array[j].mnt_type;
+                        break;
+                    }
                 }
             }
+            else
+            {
+                if(i == DARSHAN_BGQ_MOD)
+                    rec_name = "darshan-bgq-record";
+            }
+
             if(!mnt_pt)
                 mnt_pt = "UNKNOWN";
             if(!fs_type)
@@ -448,7 +459,7 @@ int main(int argc, char **argv)
             if(mask & OPTION_BASE)
             {
                 /* print the corresponding module data for this record */
-                mod_logutils[i]->log_print_record(mod_buf, ref->name_record->name,
+                mod_logutils[i]->log_print_record(mod_buf, rec_name,
                     mnt_pt, fs_type, fd->mod_ver[i]);
             }
 
