@@ -271,14 +271,6 @@ void darshan_core_initialize(int argc, char **argv)
             /* collect information about command line and mounted file systems */
             darshan_get_exe_and_mounts(init_core, argc, argv);
 
-            /* bootstrap any modules with static initialization routines */
-            i = 0;
-            while(mod_static_init_fns[i])
-            {
-                (*mod_static_init_fns[i])();
-                i++;
-            }
-
             darshan_core = init_core;
         }
     }
@@ -295,9 +287,20 @@ void darshan_core_initialize(int argc, char **argv)
         }
     }
 
-    /* if darshan was successfully initialized, set the global pointer */
+    /* if darshan was successfully initialized, set the global pointer and
+     * bootstrap any modules with static initialization routines
+     */
     if(init_core)
+    {
         darshan_core = init_core;
+
+        i = 0;
+        while(mod_static_init_fns[i])
+        {
+            (*mod_static_init_fns[i])();
+            i++;
+        }
+    }
 
     return;
 }
