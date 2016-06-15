@@ -7,10 +7,14 @@
 #ifndef __DARSHAN_LUSTRE_LOG_FORMAT_H
 #define __DARSHAN_LUSTRE_LOG_FORMAT_H
 
+/* NOTE -- redefining the size of OST_ID will require changing the DARSHAN_BSWAP
+ * macro used in darshan-util/darshan-lustre-logutils.c as well
+ */
+typedef int64_t OST_ID;
+
 /* current Lustre log format version */
 #define DARSHAN_LUSTRE_VER 1
 
-/* TODO: add integer counters here (e.g., counter for stripe width, stripe size, etc etc) */
 #define LUSTRE_COUNTERS \
     /* number of OSTs for file system */\
     X(LUSTRE_OSTS) \
@@ -44,7 +48,12 @@ struct darshan_lustre_record
     darshan_record_id rec_id;
     int64_t rank;
     int64_t counters[LUSTRE_NUM_INDICES];
-    int64_t ost_ids[1];
+    OST_ID ost_ids[1];
 };
+
+/*
+ *  helper function to calculate the size of a record
+ */
+#define LUSTRE_RECORD_SIZE( osts ) ( sizeof(struct darshan_lustre_record) + sizeof(OST_ID) * (osts - 1) )
 
 #endif /* __DARSHAN_LUSTRE_LOG_FORMAT_H */

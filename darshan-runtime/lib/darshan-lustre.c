@@ -44,7 +44,6 @@ static void lustre_record_reduction_op(void* infile_v, void* inoutfile_v,
 
 #define LUSTRE_LOCK() pthread_mutex_lock(&lustre_runtime_mutex)
 #define LUSTRE_UNLOCK() pthread_mutex_unlock(&lustre_runtime_mutex)
-#define LUSTRE_RECORD_SIZE( osts ) ( sizeof(struct darshan_lustre_record) + sizeof(int64_t) * (osts - 1) )
 
 void darshan_instrument_lustre_file(const char* filepath, int fd)
 {
@@ -263,9 +262,17 @@ static void lustre_get_output_data(
          */
         sort_lustre_records();
 
-        /* allocate memory for the reduction output on rank 0 */
+        /* simply drop all shared records from non-root ranks by truncating
+         * the record array and recalculating the size of the used buffer
+         */
         if (my_rank != 0)
+        {
             lustre_runtime->record_count -= shared_rec_count;
+            lustre_runtime->record_buffer_used = 0;
+            for ( i = 0; i < lustre_runtime->record_count; i++ )
+                lustre_runtime->record_buffer_used += 
+                    LUSTRE_RECORD_SIZE( (lustre_runtime->record_runtime_array[i]).record->counters[LUSTRE_STRIPE_WIDTH] );
+        }
     }
 
     *lustre_buf = (void *)(lustre_runtime->record_buffer);
