@@ -20,8 +20,6 @@
 
 #include "darshan-logutils.h"
 
-#define DEF_MOD_BUF_SIZE 1024 /* 1 KiB is enough for all current mod records ... */
-
 /*
  * Options
  */
@@ -211,7 +209,7 @@ int main(int argc, char **argv)
     char *save;
     char buffer[DARSHAN_JOB_METADATA_LEN];
     int empty_mods = 0;
-    char mod_buf[DEF_MOD_BUF_SIZE];
+    char *mod_buf;
 
     hash_entry_t *file_hash = NULL;
     hash_entry_t *curr = NULL;
@@ -348,6 +346,12 @@ int main(int argc, char **argv)
     {
         memset(pdata.rank_cumul_io_time, 0, sizeof(double)*job.nprocs);
         memset(pdata.rank_cumul_md_time, 0, sizeof(double)*job.nprocs);
+    }
+
+    mod_buf = malloc(DEF_MOD_BUF_SIZE);
+    if (!mod_buf) {
+        darshan_log_close(fd);
+        return(-1);
     }
 
     for(i=0; i<DARSHAN_MAX_MODS; i++)
@@ -624,6 +628,7 @@ cleanup:
     darshan_log_close(fd);
     free(pdata.rank_cumul_io_time);
     free(pdata.rank_cumul_md_time);
+    free(mod_buf);
 
     /* free record hash data */
     HASH_ITER(hlink, rec_hash, ref, tmp_ref)
