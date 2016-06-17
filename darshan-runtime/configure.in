@@ -57,6 +57,8 @@ AC_ARG_ENABLE(mmap-logs,
 [  --enable-mmmap-logs     Enables ability to mmap I/O data to log file],
 [if test "x$enableval" = "xyes" ; then
     AC_DEFINE(__DARSHAN_ENABLE_MMAP_LOGS, 1, Define if Darshan should mmap data structures to log file)
+    ENABLE_MMAP_LOGS=1
+    AC_CONFIG_FILES(share/darshan-mmap-epilog.sh)
 fi]
 ,)
 
@@ -328,6 +330,7 @@ AC_SUBST(darshan_share_path)
 AC_SUBST(LDFLAGS)
 AC_SUBST(__DARSHAN_LOG_PATH)
 AC_SUBST(DISABLE_LDPRELOAD)
+AC_SUBST(ENABLE_MMAP_LOGS)
 AC_SUBST(DARSHAN_VERSION)
 AC_SUBST(MPICH_LIB_OLD)
 AC_SUBST(DARSHAN_USE_BGQ)
@@ -347,5 +350,4 @@ share/mpi-profile/darshan-bg-cc.conf
 share/mpi-profile/darshan-bg-cxx.conf
 share/mpi-profile/darshan-bg-f.conf
 share/ld-opts/darshan-base-ld-opts
-share/darshan-mmap-epilog.sh
 )
