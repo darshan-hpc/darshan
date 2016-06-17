@@ -60,8 +60,7 @@ enum darshan_bgq_f_indices
  * which would actually be logged to file by Darshan for the "BGQ" example
  * module. This example implementation logs the following data for each
  * record:
- *      - a corresponding Darshan record identifier
- *      - the rank of the process responsible for the record
+ *      - a darshan_base_record structure, which contains the record id & rank
  *      - integer I/O counters (operation counts, I/O sizes, etc.)
  *      - floating point I/O counters (timestamps, cumulative timers, etc.)
  */

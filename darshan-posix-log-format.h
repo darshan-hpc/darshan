@@ -164,8 +164,7 @@ enum darshan_posix_f_indices
 /* file record structure for POSIX files. a record is created and stored for
  * every POSIX file opened by the original application. For the POSIX module,
  * the record includes:
- *      - a corresponding record identifier (created by hashing the file path)
- *      - the rank of the process which opened the file (-1 for shared files)
+ *      - a darshan_base_record structure, which contains the record id & rank
  *      - integer file I/O statistics (open, read/write counts, etc)
  *      - floating point I/O statistics (timestamps, cumulative timers, etc.)
  */
