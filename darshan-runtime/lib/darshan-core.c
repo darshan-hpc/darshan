@@ -195,6 +195,18 @@ void darshan_core_initialize(int argc, char **argv)
             jobid = getpid();
         }
 
+        /* set the memory quota for darshan modules' records */
+        envstr = getenv(DARSHAN_MOD_MEM_OVERRIDE);
+        if(envstr)
+        {
+            ret = sscanf(envstr, "%d", &tmpval);
+            /* silently ignore if the env variable is set poorly */
+            if(ret == 1 && tmpval > 0)
+            {
+                darshan_mod_mem_quota = tmpval * 1024 * 1024; /* convert from MiB */
+            }
+        }
+
         /* allocate structure to track darshan core runtime information */
         init_core = malloc(sizeof(*init_core));
         if(init_core)
