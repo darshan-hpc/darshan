@@ -1,5 +1,4 @@
-all: lib/libdarshan.a lib/libdarshan-stubs.a
-#TODO: lib/darshan-null.o
+all: lib/libdarshan.a lib/libdarshan-stubs.a lib/darshan-null.o
 
 #TODO: each module provides own makefile with module-specific objects, build options, etc.
 
@@ -24,9 +23,8 @@ DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_VERSION = @DARSHAN_VERSION@
 
 ifndef DISABLE_LDPRELOAD
-all: lib/libdarshan.so
+all: lib/libdarshan.so lib/darshan-null.po
 endif
-#TODO: lib/darshan-null.po
 
 VPATH = $(srcdir)
 
