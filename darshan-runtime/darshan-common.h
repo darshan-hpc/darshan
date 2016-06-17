@@ -76,17 +76,17 @@
  * base of the value counters (i.e., the first of 4 contiguous common value
  * counters) and __cnt_p is a pointer to the base of the count counters (i.e.
  * the first of 4 contiguous common count counters). It is assumed your counters
- * are stored as int64_t types. __online_flag is set if the common val counters are
- * updated during runtime (as opposed to being updated once at darshan shutdown time).
+ * are stored as int64_t types. __add_flag is set if the given count should be
+ * added to the common access counter, rather than just incrementing it.
  */
-#define DARSHAN_COMMON_VAL_COUNTER_INC(__val_p, __cnt_p, __value, __count, __online_flag) do {\
+#define DARSHAN_COMMON_VAL_COUNTER_INC(__val_p, __cnt_p, __value, __count, __add_flag) do {\
     int i; \
     int inc_count, total_count; \
     int64_t tmp_val[4] = {0}; \
     int64_t tmp_cnt[4] = {0}; \
     int tmp_ndx = 0; \
     if(__value == 0) break; \
-    if(__online_flag) \
+    if(__add_flag) \
         inc_count = 1; \
     else \
         inc_count = __count; \
@@ -127,10 +127,7 @@
     memcpy(__cnt_p, tmp_cnt, 4*sizeof(int64_t)); \
 } while(0)
 
-/* maximum number of common values that darshan will track per file at
- * runtime; at shutdown time these will be reduced to the 4 most
- * frequently occuring ones
- */
+/* maximum number of common values that darshan will track per file at runtime */
 #define DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT 32
 struct darshan_common_val_counter
 {
@@ -157,26 +154,63 @@ struct darshan_variance_dt
 * darshan-common functions for darshan modules *
 ***********************************************/
 
+/* darshan_lookup_record_ref()
+ *
+ * Lookup a record reference pointer using the given 'handle'.
+ * 'handle_sz' is the size of the handle structure, and 'hash_head'
+ * is the pointer to the hash table to search.
+ * If the handle is found, the corresponding record reference pointer
+ * is returned, otherwise NULL is returned.
+ */
 void *darshan_lookup_record_ref(
     void *hash_head,
     void *handle,
     size_t handle_sz);
 
+/* darshan_add_record_ref()
+ *
+ * Add the given record reference pointer, 'rec_ref_p' to the hash
+ * table whose address is stored in the 'hash_head_p' pointer. The
+ * hash is generated from the given 'handle', with size 'handle_sz'.
+ * If the record reference is successfully added, 1 is returned,
+ * otherwise, 0 is returned.
+ */
 int darshan_add_record_ref(
-    void **hash_head,
+    void **hash_head_p,
     void *handle,
     size_t handle_sz,
     void *rec_ref_p);
 
+/* darshan_delete_record_ref()
+ *
+ * Delete the record reference for the given 'handle', with size
+ * 'handle_sz', from the hash table whose address is stored in
+ * the 'hash_head_p' pointer.
+ * On success deletion, the corresponding record reference pointer
+ * is returned, otherwise NULL is returned.
+ */
 void *darshan_delete_record_ref(
-    void **hash_head,
+    void **hash_head_p,
     void *handle,
     size_t handle_sz);
 
+/* darshan_clear_record_refs()
+ *
+ * Clear all record references from the hash table stored in the
+ * 'hash_head_p' pointer. If 'free_flag' is set, the corresponding
+ * record_reference_pointer is also freed.
+ */
 void darshan_clear_record_refs(
-    void **hash_head,    
+    void **hash_head_p,    
     int free_flag);
 
+/* darshan_iter_record_ref()
+ *
+ * Iterate each record reference stored in the hash table pointed
+ * to by 'hash_head' and perform the given action 'iter_action'. 
+ * The action function takes a single pointer which points to the
+ * corresponding record reference pointer.
+ */
 void darshan_iter_record_refs(
     void *hash_head,
     void (*iter_action)(void *));
@@ -191,6 +225,15 @@ void darshan_iter_record_refs(
 char* darshan_clean_file_path(
     const char *path);
 
+/* darshan_record_sort()
+ *
+ * Sort the records in 'rec_buf' by descending rank to get all
+ * shared records in a contiguous region at the end of the buffer.
+ * Records are secondarily sorted by ascending record identifiers.
+ * 'rec_count' is the number of records in the buffer, and 'rec_size'
+ * is the size of the record structure.
+ * NOTE: this function only works on fixed-length records.
+ */
 void darshan_record_sort(
     void *rec_buf,
     int rec_count,
@@ -215,22 +258,6 @@ void darshan_common_val_counter(
     void **common_val_root,
     int *common_val_count,
     int64_t val,
-    int64_t *val_p,
-    int64_t *cnt_p);
-
-/* darshan_walk_common_vals()
- *
- * Walks the tree of common value counters and determines the 4 most
- * frequently occuring values, storing the common values in the
- * appropriate counter fields of the given record. 'common_val_root'
- * is the root of the tree which stores the common value info, 'val_p'
- * is a pointer to the base counter (i.e., the first) of the common
- * values (which are assumed to be 4 total and contiguous in memory),
- * and 'cnt_p' is a pointer to the base counter of the common counts
- * (which are again expected to be contiguous in memory).
- */
-void darshan_walk_common_vals(
-    void *common_val_root,
     int64_t *val_p,
     int64_t *cnt_p);
 

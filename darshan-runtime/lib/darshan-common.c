@@ -19,7 +19,7 @@
 
 #include "darshan.h"
 
-
+/* track opaque record referencre using a hash link */
 struct darshan_record_ref_tracker
 {
     void *rec_ref_p;
@@ -32,6 +32,7 @@ void *darshan_lookup_record_ref(void *hash_head, void *handle, size_t handle_sz)
     struct darshan_record_ref_tracker *ref_tracker_head =
         (struct darshan_record_ref_tracker *)hash_head;
 
+    /* search the hash table for the given handle */
     HASH_FIND(hlink, ref_tracker_head, handle, handle_sz, ref_tracker);
     if(ref_tracker)
         return(ref_tracker->rec_ref_p);
@@ -39,52 +40,57 @@ void *darshan_lookup_record_ref(void *hash_head, void *handle, size_t handle_sz)
         return(NULL);
 }
 
-int darshan_add_record_ref(void **hash_head, void *handle, size_t handle_sz,
+int darshan_add_record_ref(void **hash_head_p, void *handle, size_t handle_sz,
     void *rec_ref_p)
 {
     struct darshan_record_ref_tracker *ref_tracker;
     struct darshan_record_ref_tracker *ref_tracker_head =
-        *(struct darshan_record_ref_tracker **)hash_head;
+        *(struct darshan_record_ref_tracker **)hash_head_p;
     void *handle_p;
 
+    /* allocate a reference tracker, with room to store the handle at the end */
     ref_tracker = malloc(sizeof(*ref_tracker) + handle_sz);
     if(!ref_tracker)
         return(0);
     memset(ref_tracker, 0, sizeof(*ref_tracker) + handle_sz);
 
+    /* initialize the reference tracker and add it to the hash table */
     ref_tracker->rec_ref_p = rec_ref_p;
     handle_p = (char *)ref_tracker + sizeof(*ref_tracker);
     memcpy(handle_p, handle, handle_sz);
     HASH_ADD_KEYPTR(hlink, ref_tracker_head, handle_p, handle_sz, ref_tracker);
-    *hash_head = ref_tracker_head;
+    *hash_head_p = ref_tracker_head;
     return(1);
 }
 
-void *darshan_delete_record_ref(void **hash_head, void *handle, size_t handle_sz)
+void *darshan_delete_record_ref(void **hash_head_p, void *handle, size_t handle_sz)
 {
     struct darshan_record_ref_tracker *ref_tracker;
     struct darshan_record_ref_tracker *ref_tracker_head =
-        *(struct darshan_record_ref_tracker **)hash_head;
+        *(struct darshan_record_ref_tracker **)hash_head_p;
     void *rec_ref_p;
 
+    /* find the reference tracker for this handle */
     HASH_FIND(hlink, ref_tracker_head, handle, handle_sz, ref_tracker);
     if(!ref_tracker)
         return(NULL);
 
+    /* if found, delete from hash table and return the record reference pointer */
     HASH_DELETE(hlink, ref_tracker_head, ref_tracker);
-    *hash_head = ref_tracker_head;
+    *hash_head_p = ref_tracker_head;
     rec_ref_p = ref_tracker->rec_ref_p;
     free(ref_tracker);
 
     return(rec_ref_p);
 }
 
-void darshan_clear_record_refs(void **hash_head, int free_flag)
+void darshan_clear_record_refs(void **hash_head_p, int free_flag)
 {
     struct darshan_record_ref_tracker *ref_tracker, *tmp;
     struct darshan_record_ref_tracker *ref_tracker_head =
-        *(struct darshan_record_ref_tracker **)hash_head;
+        *(struct darshan_record_ref_tracker **)hash_head_p;
 
+    /* iterate the hash table and remove/free all reference trackers */
     HASH_ITER(hlink, ref_tracker_head, ref_tracker, tmp)
     {
         HASH_DELETE(hlink, ref_tracker_head, ref_tracker);
@@ -92,7 +98,7 @@ void darshan_clear_record_refs(void **hash_head, int free_flag)
             free(ref_tracker->rec_ref_p);
         free(ref_tracker);
     }
-    *hash_head = ref_tracker_head;
+    *hash_head_p = ref_tracker_head;
 
     return;
 }
@@ -103,6 +109,9 @@ void darshan_iter_record_refs(void *hash_head, void (*iter_action)(void *))
     struct darshan_record_ref_tracker *ref_tracker_head =
         (struct darshan_record_ref_tracker *)hash_head;
 
+    /* iterate the hash table, performing the given action for each reference
+     * tracker's corresponding record reference pointer
+     */
     HASH_ITER(hlink, ref_tracker_head, ref_tracker, tmp)
     {
         iter_action(ref_tracker->rec_ref_p);
@@ -168,8 +177,11 @@ char* darshan_clean_file_path(const char* path)
     return(newpath);
 }
 
-/* compare function for sorting file records by descending rank first, then
- * by ascending record identifiers (which are just unsigned integers)
+/* compare function for sorting file records according to their 
+ * darshan_base_record structure. Records are sorted first by
+ * descending rank (to get all shared records, with rank set to -1, in
+ * a contiguous region at the end of the record buffer) then
+ * by ascending record identifiers (which are just unsigned integers).
  */
 static int darshan_base_record_compare(const void* a_p, const void* b_p)
 {
