@@ -17,8 +17,8 @@ DARSHAN_MOD_LOG_FORMATS = $(srcdir)/../darshan-posix-log-format.h $(srcdir)/../d
 DARSHAN_MOD_LOGUTIL_HEADERS = darshan-posix-logutils.h darshan-mpiio-logutils.h darshan-hdf5-logutils.h darshan-pnetcdf-logutils.h
 DARSHAN_STATIC_MOD_OBJS = darshan-posix-logutils.o darshan-mpiio-logutils.o darshan-hdf5-logutils.o darshan-pnetcdf-logutils.o darshan-bgq-logutils.o
 DARSHAN_DYNAMIC_MOD_OBJS = darshan-posix-logutils.po darshan-mpiio-logutils.po darshan-hdf5-logutils.po darshan-pnetcdf-logutils.po darshan-bgq-logutils.po
-
-#XXX BGQ
+DARSHAN_STATIC_COMPAT_OBJS = compat/darshan-logutils-compat.o
+DARSHAN_DYNAMIC_COMPAT_OBJS = compat/darshan-logutils-compat.po
 
 DARSHAN_ENABLE_SHARED=@DARSHAN_ENABLE_SHARED@
 
@@ -32,7 +32,7 @@ cp_zlib_include_flags = @__DARSHAN_ZLIB_INCLUDE_FLAGS@
 
 # deliberately avoid large file support for host side utilities to avoid
 # potentially buggy libz 64 bit offset support
-CFLAGS = -I . -I $(srcdir) -I $(srcdir)/../ -DDARSHAN_CONFIG_H=\"darshan-util-config.h\" @CFLAGS@ @CPPFLAGS@ 
+CFLAGS = -I . -I .. -I $(srcdir) -I $(srcdir)/../ -DDARSHAN_CONFIG_H=\"darshan-util-config.h\" @CFLAGS@ @CPPFLAGS@ 
 CFLAGS_SHARED = $(CFLAGS) -shared -fpic -DPIC 
 LDFLAGS=@LDFLAGS@
 
@@ -83,10 +83,15 @@ darshan-bgq-logutils.o: darshan-bgq-logutils.c darshan-logutils.h darshan-bgq-lo
 darshan-bgq-logutils.po: darshan-bgq-logutils.c darshan-logutils.h darshan-bgq-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-bgq-log-format.h | uthash-1.9.2
 	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
 
-libdarshan-util.a: darshan-logutils.o $(DARSHAN_STATIC_MOD_OBJS)
+compat/darshan-logutils-compat.o: compat/darshan-logutils-compat.c compat/darshan-logutils-compat.h darshan-logutils.h $(DARSHAN_LOG_FORMAT) | uthash-1.9.2
+	$(CC) $(CFLAGS) -c  $< -o $@
+#compat/darshan-logutils-compat.po: compat/darshan-logutils-compat.c compat/darshan-logutils-compat.h darshan-logutils.h $(DARSHAN_LOG_FORMAT) | uthash-1.9.2
+#	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
+
+libdarshan-util.a: darshan-logutils.o $(DARSHAN_STATIC_MOD_OBJS) $(DARSHAN_STATIC_COMPAT_OBJS)
 	ar rcs libdarshan-util.a $^
 
-libdarshan-util.so: darshan-logutils.po $(DARSHAN_DYNAMIC_MOD_OBJS)
+libdarshan-util.so: darshan-logutils.po $(DARSHAN_DYNAMIC_MOD_OBJS) 
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ $(LIBS)
 	
 jenkins-hash-gen: jenkins-hash-gen.c lookup3.o
@@ -160,7 +165,7 @@ endif
 
 
 clean::
-	rm -f *.o *.po *.a *.so darshan-analyzer darshan-convert darshan-diff darshan-parser darshan-merge jenkins-hash-gen
+	rm -f *.o *.po compat/*.o compat/*.po *.a *.so darshan-analyzer darshan-convert darshan-diff darshan-parser darshan-merge jenkins-hash-gen
 
 distclean:: clean
 	rm -f darshan-runtime-config.h aclocal.m4 autom4te.cache/* config.status config.log Makefile util/bin/darshan-job-summary.pl

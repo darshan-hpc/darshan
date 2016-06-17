@@ -18,6 +18,7 @@
 #include <errno.h>
 
 #include "darshan-logutils.h"
+#include "compat/darshan-logutils-compat.h"
 
 /* default input buffer size for decompression algorithm */
 #define DARSHAN_DEF_COMP_BUF_SZ (1024*1024) /* 1 MiB */
@@ -61,12 +62,18 @@ struct darshan_fd_int_state
     char *exe_mnt_data;
     /* whether previous file operations have failed */
     int err;
+    /* log format version-specific function calls for getting
+     * data from the log file
+     */
+    int (*get_namerecs)(void *, int, int, struct darshan_name_record_ref **);
 
     /* compression/decompression stream read/write state */
     struct darshan_dz_state dz;
 };
 
 static int darshan_mnt_info_cmp(const void *a, const void *b);
+static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
+    int swap_flag, struct darshan_name_record_ref **hash);
 static int darshan_log_get_header(darshan_fd fd);
 static int darshan_log_put_header(darshan_fd fd);
 static int darshan_log_seek(darshan_fd fd, off_t offset);
@@ -493,7 +500,8 @@ int darshan_log_put_mounts(darshan_fd fd, struct darshan_mnt_info *mnt_data_arra
 
 /* darshan_log_get_namehash()
  *
- * read the hash of name records from the darshan log file
+ * read the set of name records from the darshan log file and add to the
+ * given hash table
  *
  * returns 0 on success, -1 on failure
  */
@@ -501,14 +509,11 @@ int darshan_log_get_namehash(darshan_fd fd, struct darshan_name_record_ref **has
 {
     struct darshan_fd_int_state *state = fd->state;
     char *name_rec_buf;
-    char *tmp_p;
     int name_rec_buf_sz;
     int read;
     int read_req_sz;
-    struct darshan_name_record_ref *ref;
-    struct darshan_name_record *name_rec;
-    int buf_rem = 0;
-    int rec_len;
+    int buf_len = 0;
+    int buf_processed;
 
     assert(state);
 
@@ -531,78 +536,29 @@ int darshan_log_get_namehash(darshan_fd fd, struct darshan_name_record_ref **has
         /* read chunks of the darshan record id -> name mapping from log file,
          * constructing a hash table in the process
          */
-        read_req_sz = name_rec_buf_sz - buf_rem;
+        read_req_sz = name_rec_buf_sz - buf_len;
         read = darshan_log_dzread(fd, DARSHAN_NAME_MAP_REGION_ID,
-            name_rec_buf + buf_rem, read_req_sz);
+            name_rec_buf + buf_len, read_req_sz);
         if(read < 0)
         {
             fprintf(stderr, "Error: failed to read name hash from darshan log file.\n");
             free(name_rec_buf);
             return(-1);
         }
-        buf_rem += read;
+        buf_len += read;
 
-        /* work through the name record buffer -- deserialize the mapping data and
-         * add to the output hash table
-         * NOTE: these mapping pairs are variable in length, so we have to be able
-         * to handle incomplete mappings temporarily here
-         */
-        name_rec = (struct darshan_name_record *)name_rec_buf;
-        while(buf_rem > sizeof(darshan_record_id) + 1)
-        {
-            if(strnlen(name_rec->name, buf_rem - sizeof(darshan_record_id)) ==
-                (buf_rem - sizeof(darshan_record_id)))
-            {
-                /* if this record name's terminating null character is not
-                 * present, we need to read more of the buffer before continuing
-                 */
-                break;
-            }
-
-            if(fd->swap_flag)
-            {
-                /* we need to sort out endianness issues before deserializing */
-                DARSHAN_BSWAP64(&(name_rec->id));
-            }
-
-            HASH_FIND(hlink, *hash, &(name_rec->id), sizeof(darshan_record_id), ref);
-            if(!ref)
-            {
-                rec_len = sizeof(darshan_record_id) + strlen(name_rec->name) + 1;
-                ref = malloc(sizeof(*ref));
-                if(!ref)
-                {
-                    free(name_rec_buf);
-                    return(-1);
-                }
-                ref->name_record = malloc(rec_len);
-                if(!ref->name_record)
-                {
-                    free(ref);
-                    free(name_rec_buf);
-                    return(-1);
-                }
-
-                /* copy the name record over from the hash buffer */
-                memcpy(ref->name_record, name_rec, rec_len);
-
-                /* add this record to the hash */
-                HASH_ADD(hlink, *hash, name_record->id, sizeof(darshan_record_id), ref);
-            }
-
-            tmp_p = (char *)name_rec + rec_len;
-            name_rec = (struct darshan_name_record *)tmp_p;
-            buf_rem -= rec_len;
-        }
+        /* extract any name records in the buffer */
+        buf_processed = state->get_namerecs(name_rec_buf, buf_len, fd->swap_flag, hash);
 
         /* copy any leftover data to beginning of buffer to parse next */
-        memcpy(name_rec_buf, name_rec, buf_rem);
+        memcpy(name_rec_buf, name_rec_buf + buf_processed, buf_len - buf_processed);
+        buf_len -= buf_processed;
 
         /* we keep reading until we get a short read informing us we have
          * read all of the record hash
          */
     } while(read == read_req_sz);
-    assert(buf_rem == 0);
+    assert(buf_len == 0);
 
     free(name_rec_buf);
     return(0);
@@ -813,6 +769,69 @@ static int darshan_mnt_info_cmp(const void *a, const void *b)
         return(0);
 }
 
+static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
+    int swap_flag, struct darshan_name_record_ref **hash)
+{
+    struct darshan_name_record_ref *ref;
+    struct darshan_name_record *name_rec;
+    char *tmp_p;
+    int buf_processed = 0;
+    int rec_len;
+
+    /* work through the name record buffer -- deserialize the record data
+     * and add to the output hash table
+     * NOTE: these mapping pairs are variable in length, so we have to be able
+     * to handle incomplete mappings temporarily here
+     */
+    name_rec = (struct darshan_name_record *)name_rec_buf;
+    while(buf_len > sizeof(darshan_record_id) + 1)
+    {
+        if(strnlen(name_rec->name, buf_len - sizeof(darshan_record_id)) ==
+            (buf_len - sizeof(darshan_record_id)))
+        {
+            /* if this record name's terminating null character is not
+             * present, we need to read more of the buffer before continuing
+             */
+            break;
+        }
+        rec_len = sizeof(darshan_record_id) + strlen(name_rec->name) + 1;
+
+        if(swap_flag)
+        {
+            /* we need to sort out endianness issues before deserializing */
+            DARSHAN_BSWAP64(&(name_rec->id));
+        }
+
+        HASH_FIND(hlink, *hash, &(name_rec->id), sizeof(darshan_record_id), ref);
+        if(!ref)
+        {
+            ref = malloc(sizeof(*ref));
+            if(!ref)
+                return(-1);
+
+            ref->name_record = malloc(rec_len);
+            if(!ref->name_record)
+            {
+                free(ref);
+                return(-1);
+            }
+
+            /* copy the name record over from the hash buffer */
+            memcpy(ref->name_record, name_rec, rec_len);
+
+            /* add this record to the hash */
+            HASH_ADD(hlink, *hash, name_record->id, sizeof(darshan_record_id), ref);
+        }
+
+        tmp_p = (char *)name_rec + rec_len;
+        name_rec = (struct darshan_name_record *)tmp_p;
+        buf_len -= rec_len;
+        buf_processed += rec_len;
+    }
+
+    return(buf_processed);
+}
+
 /* read the header of the darshan log and set internal fd data structures
  * NOTE: this is the only portion of the darshan log that is uncompressed
  *
@@ -840,10 +859,19 @@ static int darshan_log_get_header(darshan_fd fd)
     }
 
     /* other log file versions can be detected and handled here */
-    if(strcmp(fd->version, "3.00"))
+    if(strcmp(fd->version, "3.00") == 0)
+    {
+        fd->state->get_namerecs = darshan_log_get_namerecs_3_00;
+    }
+    else if(strcmp(fd->version, "3.01") == 0)
+    {
+        fd->state->get_namerecs = darshan_log_get_namerecs;
+    }
+    else
     {
         fprintf(stderr, "Error: incompatible darshan file.\n");
-        fprintf(stderr, "Error: expected version %s\n", DARSHAN_LOG_VERSION);
+        fprintf(stderr, "Error: expected version %s, but got %s\n",
+            DARSHAN_LOG_VERSION, fd->version);
         return(-1);
     }
 
