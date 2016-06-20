@@ -911,6 +911,7 @@ static int darshan_log_get_header(darshan_fd fd)
             {
                 DARSHAN_BSWAP64(&(header.mod_map[i].off));
                 DARSHAN_BSWAP64(&(header.mod_map[i].len));
+                DARSHAN_BSWAP32(&(header.mod_ver[i]));
             }
         }
         else
