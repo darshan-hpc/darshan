@@ -11,7 +11,7 @@
 #define DARSHAN_BGQ_VER 1
 
 #define BGQ_COUNTERS \
-    /* control system jobid*/\
+    /* control system jobid */\
     X(BGQ_CSJOBID) \
     /* number of BGQ compute nodes */\
     X(BGQ_NNODES) \
