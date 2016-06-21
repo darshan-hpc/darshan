@@ -78,7 +78,7 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void* lustre_buf,
         );
         if(ret < 0)
             return(-1);
-        else if(ret < sizeof(struct darshan_lustre_record))
+        else if(ret < (rec->counters[LUSTRE_STRIPE_WIDTH] - 1)*sizeof(OST_ID))
             return(0);
         /* swap bytes if necessary */
         if ( fd->swap_flag )
