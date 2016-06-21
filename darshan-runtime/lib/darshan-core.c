@@ -349,6 +349,8 @@ void darshan_core_shutdown()
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
 
+    /* synchronize before getting start time */
+    DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
     start_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
     /* disable darhan-core while we shutdown */
