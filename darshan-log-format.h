@@ -20,7 +20,7 @@
 #endif
 
 /* update this on file format changes */
-#define DARSHAN_LOG_VERSION "3.00"
+#define DARSHAN_LOG_VERSION "3.01"
 
 /* magic number for validating output files and checking byte order */
 #define DARSHAN_MAGIC_NR 6567223
@@ -44,6 +44,7 @@ enum darshan_comp_type
 {
     DARSHAN_ZLIB_COMP,
     DARSHAN_BZIP2_COMP,
+    DARSHAN_NO_COMP, 
 };
 
 typedef uint64_t darshan_record_id;
@@ -68,7 +69,7 @@ struct darshan_header
     int64_t magic_nr;
     unsigned char comp_type;
     uint32_t partial_flag;
-    struct darshan_log_map rec_map;
+    struct darshan_log_map name_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
     uint32_t mod_ver[DARSHAN_MAX_MODS];
 };
@@ -85,11 +86,18 @@ struct darshan_job
     char metadata[DARSHAN_JOB_METADATA_LEN];
 };
 
-/* minimal record stored for each file/object accessed by Darshan */
-struct darshan_record
+/* record to store name->darshan_id mapping for each registered record */
+struct darshan_name_record
 {
-    char* name;
     darshan_record_id id;
+    char name[1];
+};
+
+/* base record definition that can be used by modules */
+struct darshan_base_record
+{
+    darshan_record_id id;
+    int64_t rank;
 };
 
 

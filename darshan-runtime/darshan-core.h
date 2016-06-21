@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdint.h>
+#include <limits.h>
 
 #include "uthash.h"
 #include "darshan-log-format.h"
@@ -29,6 +30,14 @@
 /* Environment variable to override memory per module */
 #define DARSHAN_MOD_MEM_OVERRIDE "DARSHAN_MODMEM"
 
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+/* Environment variable to override default mmap log path */
+#define DARSHAN_MMAP_LOG_PATH_OVERRIDE "DARSHAN_MMAP_LOGPATH"
+
+/* default path for storing mmap log files is '/tmp' */
+#define DARSHAN_DEF_MMAP_LOG_PATH "/tmp"
+#endif
+
 /* Maximum amount of memory per instrumentation module in MiB */
 #ifdef __DARSHAN_MOD_MEM_MAX
 #define DARSHAN_MOD_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024 * 1024)
@@ -36,35 +45,50 @@
 #define DARSHAN_MOD_MEM_MAX (2 * 1024 * 1024) /* 2 MiB default */
 #endif
 
+/* default name record buf can store 2048 records of size 100 bytes */
+#define DARSHAN_NAME_RECORD_BUF_SIZE (2048 * 100)
+
 /* Default runtime compression buffer size */
 #define DARSHAN_COMP_BUF_SIZE DARSHAN_MOD_MEM_MAX
+
+/* structure to track registered modules */
+struct darshan_core_module
+{
+    void *rec_buf_start;
+    void *rec_buf_p;
+    int rec_mem_avail;
+    darshan_module_shutdown mod_shutdown_func;
+};
+
+/* strucutre for keeping a reference to registered name records */
+struct darshan_core_name_record_ref
+{
+    struct darshan_name_record *name_record;
+    uint64_t mod_flags;
+    uint64_t global_mod_flags;
+    UT_hash_handle hlink;
+};
 
 /* in memory structure to keep up with job level data */
 struct darshan_core_runtime
 {
-    struct darshan_header log_header;
-    struct darshan_job log_job;
-    char exe[DARSHAN_EXE_LEN+1];
-    struct darshan_core_record_ref *rec_hash;
-    int rec_count;
+    /* pointers to each log file component */
+    struct darshan_header *log_hdr_p;
+    struct darshan_job *log_job_p;
+    char *log_exemnt_p;
+    void *log_name_p;
+    void *log_mod_p;
+
+    /* darshan-core internal data structures */
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
-    char *comp_buf;
+    int mod_mem_used;
+    struct darshan_core_name_record_ref *name_hash;
+    int name_mem_used; 
     double wtime_offset;
-    char *trailing_data;
-};
-
-struct darshan_core_module
-{
-    darshan_module_id id;
-    struct darshan_module_funcs mod_funcs;
-};
-
-struct darshan_core_record_ref
-{
-    struct darshan_record rec;
-    uint64_t mod_flags;
-    uint64_t global_mod_flags;
-    UT_hash_handle hlink;
+    char *comp_buf;
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    char mmap_log_name[PATH_MAX];
+#endif
 };
 
 void darshan_core_initialize(int argc, char **argv);

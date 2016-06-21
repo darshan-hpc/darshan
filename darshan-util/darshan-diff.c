@@ -15,13 +15,6 @@
 
 #define DEF_MOD_BUF_SIZE 1024 /* 1 KiB is enough for all current mod records ... */
 
-/* XXX: this structure is a temporary hack to get at the rank for each module's record */
-struct darshan_base_rec
-{
-    darshan_record_id f_id;
-    int64_t rank;
-};
-
 struct darshan_mod_record_ref
 {
     int rank;
@@ -60,13 +53,13 @@ int main(int argc, char *argv[])
     darshan_fd file1, file2;
     struct darshan_job job1, job2;
     char exe1[4096], exe2[4096];
-    struct darshan_record_ref *name_hash1 = NULL, *name_hash2 = NULL;
-    struct darshan_record_ref *name_ref1, *name_ref2;
+    struct darshan_name_record_ref *name_hash1 = NULL, *name_hash2 = NULL;
+    struct darshan_name_record_ref *name_ref1, *name_ref2;
     struct darshan_file_record_ref *rec_hash1 = NULL, *rec_hash2 = NULL;
     struct darshan_file_record_ref *rec_ref1, *rec_ref2, *rec_tmp;
     struct darshan_mod_record_ref *mod_rec1, *mod_rec2;
     void *mod_buf1, *mod_buf2;
-    struct darshan_base_rec *base_rec1, *base_rec2;
+    struct darshan_base_record *base_rec1, *base_rec2;
     char *file_name1, *file_name2;
     int i;
     int ret;
@@ -96,7 +89,7 @@ int main(int argc, char *argv[])
     }
 
     /* get job data for each log file */
-    ret = darshan_log_getjob(file1, &job1);
+    ret = darshan_log_get_job(file1, &job1);
     if(ret < 0)
     {
         darshan_log_close(file1);
@@ -105,7 +98,7 @@ int main(int argc, char *argv[])
         return(-1);
     }
 
-    ret = darshan_log_getjob(file2, &job2);
+    ret = darshan_log_get_job(file2, &job2);
     if(ret < 0)
     {
         darshan_log_close(file1);
@@ -115,7 +108,7 @@ int main(int argc, char *argv[])
     }
 
     /* get exe string for each log file */
-    ret = darshan_log_getexe(file1, exe1);
+    ret = darshan_log_get_exe(file1, exe1);
     if(ret < 0)
     {
         darshan_log_close(file1);
@@ -124,7 +117,7 @@ int main(int argc, char *argv[])
         return(-1);
     }
 
-    ret = darshan_log_getexe(file2, exe2);
+    ret = darshan_log_get_exe(file2, exe2);
     if(ret < 0)
     {
         darshan_log_close(file1);
@@ -151,7 +144,7 @@ int main(int argc, char *argv[])
                 (int64_t)(job2.end_time - job2.start_time + 1));
 
     /* get hash of record ids to file names for each log */
-    ret = darshan_log_gethash(file1, &name_hash1);
+    ret = darshan_log_get_namehash(file1, &name_hash1);
     if(ret < 0)
     {
         darshan_log_close(file1);
@@ -160,7 +153,7 @@ int main(int argc, char *argv[])
         return(-1);
     }
 
-    ret = darshan_log_gethash(file2, &name_hash2);
+    ret = darshan_log_get_namehash(file2, &name_hash2);
     if(ret < 0)
     {
         darshan_log_close(file1);
@@ -227,9 +220,8 @@ int main(int argc, char *argv[])
                 else
                     mod_buf2 = mod_rec2->mod_dat;
 
-                base_rec1 = (struct darshan_base_rec *)mod_buf1;
-                base_rec2 = (struct darshan_base_rec *)mod_buf2;
-
+                base_rec1 = (struct darshan_base_record *)mod_buf1;
+                base_rec2 = (struct darshan_base_record *)mod_buf2;
                 if(!base_rec1 && !base_rec2)
                 {
                     /* break out if there are no more records for this module */
@@ -251,17 +243,17 @@ int main(int argc, char *argv[])
                 /* get corresponding file name for each record */
                 if(mod_buf1)
                 {
-                    HASH_FIND(hlink, name_hash1, &(base_rec1->f_id),
+                    HASH_FIND(hlink, name_hash1, &(base_rec1->id),
                         sizeof(darshan_record_id), name_ref1);
                     assert(name_ref1);
-                    file_name1 = name_ref1->rec.name;
+                    file_name1 = name_ref1->name_record->name;
                 }
                 if(mod_buf2)
                 {
-                    HASH_FIND(hlink, name_hash2, &(base_rec2->f_id),
+                    HASH_FIND(hlink, name_hash2, &(base_rec2->id),
                         sizeof(darshan_record_id), name_ref2);
                     assert(name_ref2);
-                    file_name2 = name_ref2->rec.name;
+                    file_name2 = name_ref2->name_record->name;
                 }
 
                 mod_logutils[i]->log_print_diff(mod_buf1, file_name1, mod_buf2, file_name2);
@@ -312,19 +304,17 @@ int main(int argc, char *argv[])
      */
     HASH_ITER(hlink, rec_hash2, rec_ref2, rec_tmp)
     {
-        printf("\n");
-
         for(i = 0; i < DARSHAN_MAX_MODS; i++)
         {
             while(rec_ref2->mod_recs[i])
             {
                 mod_rec2 = rec_ref2->mod_recs[i];
-                base_rec2 = (struct darshan_base_rec *)mod_rec2->mod_dat;
+                base_rec2 = (struct darshan_base_record *)mod_rec2->mod_dat;
 
-                HASH_FIND(hlink, name_hash2, &(base_rec2->f_id),
+                HASH_FIND(hlink, name_hash2, &(base_rec2->id),
                     sizeof(darshan_record_id), name_ref2);
                 assert(name_ref2);
-                file_name2 = name_ref2->rec.name;
+                file_name2 = name_ref2->name_record->name;
 
                 mod_logutils[i]->log_print_diff(NULL, NULL, mod_rec2->mod_dat, file_name2);
                 
@@ -350,13 +340,13 @@ int main(int argc, char *argv[])
     HASH_ITER(hlink, name_hash1, name_ref1, name_ref2)
     {
         HASH_DELETE(hlink, name_hash1, name_ref1);
-        free(name_ref1->rec.name);
+        free(name_ref1->name_record);
         free(name_ref1);
     }
     HASH_ITER(hlink, name_hash2, name_ref2, name_ref1)
     {
         HASH_DELETE(hlink, name_hash2, name_ref2);
-        free(name_ref2->rec.name);
+        free(name_ref2->name_record);
         free(name_ref2);
     }
 
@@ -372,7 +362,7 @@ static int darshan_build_global_record_hash(
     struct darshan_mod_record_ref *mod_rec;
     struct darshan_file_record_ref *file_rec;
     darshan_record_id tmp_rec_id;
-    struct darshan_base_rec *base_rec;
+    struct darshan_base_record *base_rec;
     int i;
     int ret;
 
@@ -389,7 +379,7 @@ static int darshan_build_global_record_hash(
             assert(mod_rec);
             memset(mod_rec, 0, sizeof(struct darshan_mod_record_ref));
 
-            ret = mod_logutils[i]->log_get_record(fd, mod_rec->mod_dat, &tmp_rec_id);
+            ret = mod_logutils[i]->log_get_record(fd, mod_rec->mod_dat);
             if(ret < 0)
             {
                 fprintf(stderr, "Error: unable to read module %s data from log file.\n",
@@ -404,7 +394,7 @@ static int darshan_build_global_record_hash(
             }
             else
             {
-                base_rec = (struct darshan_base_rec *)mod_rec->mod_dat;
+                base_rec = (struct darshan_base_record *)mod_rec->mod_dat;
                 mod_rec->rank = base_rec->rank;
 
                 HASH_FIND(hlink, *rec_hash, &tmp_rec_id, sizeof(darshan_record_id), file_rec);

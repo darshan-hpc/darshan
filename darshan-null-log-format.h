@@ -44,15 +44,13 @@ enum darshan_null_f_indices
  * which would actually be logged to file by Darshan for the "NULL" example
  * module. This example implementation logs the following data for each
  * record:
- *      - a corresponding Darshan record identifier
- *      - the rank of the process responsible for the record
+ *      - a darshan_base_record structure, which contains the record id & rank
  *      - integer I/O counters (operation counts, I/O sizes, etc.)
  *      - floating point I/O counters (timestamps, cumulative timers, etc.)
  */
 struct darshan_null_record
 {
-    darshan_record_id f_id;
-    int64_t rank;
+    struct darshan_base_record base_rec;
     int64_t counters[NULL_NUM_INDICES];
     double fcounters[NULL_F_NUM_INDICES];
 };

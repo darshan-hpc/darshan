@@ -65,6 +65,7 @@ each Darshan module can consume.
 * `--with-zlib=`: specifies an alternate location for the zlib development
 header and library.
 * `CC=`: specifies the MPI C compiler to use for compilation.
+* `--enable-mmap-logs`: enables the use of Darshan's mmap log file mechanism.
 * `--disable-cuserid`: disables use of cuserid() at runtime.
 * `--disable-ld-preload`: disables building of the Darshan LD_PRELOAD library
 * `--disable-bgq-mod`: disables building of the BG/Q module (default checks
@@ -152,7 +153,7 @@ the darshan-enabled MPI compiler scripts.
 
 [[static-prof]]
 The MPICH MPI implementation supports the specification of a profiling library
-configuration, then it can be used to insert Darshan instrumentation without
+configuration that can be used to insert Darshan instrumentation without
 modifying the existing MPI compiler script.  Example profiling configuration
 files are installed with Darshan 2.3.1 and later.  You can enable a profiling
 configuration using environment variables or command line arguments to the
@@ -339,7 +340,7 @@ PrgEnv-gnu".  Please see your site documentation for information about
 how to switch programming environments.
 
 The following example shows how to configure and build Darshan on a Cray
-system using either the GNU programming environment.  Adjust the 
+system using the GNU programming environment.  Adjust the 
 --with-log-path and --prefix arguments to point to the desired log file path 
 and installation path, respectively.
 
@@ -529,7 +530,8 @@ behavior at runtime:
 * DARSHAN_DISABLE_SHARED_REDUCTION: disables the step in Darshan aggregation in which files that were accessed by all ranks are collapsed into a single cumulative file record at rank 0.  This option retains more per-process information at the expense of creating larger log files. Note that it is up to individual instrumentation module implementations whether this environment variable is actually honored.
 * DARSHAN_LOGPATH: specifies the path to write Darshan log files to. Note that this directory needs to be formatted using the darshan-mk-log-dirs script.
 * DARSHAN_LOGFILE: specifies the path (directory + Darshan log file name) to write the output Darshan log to. This overrides the default Darshan behavior of automatically generating a log file name and adding it to a log file directory formatted using darshan-mk-log-dirs script.
-* DARSHAN_MODMEM: specifies the maximum amount of memory (in MiB) a Darshan instrumentation module can consume at runtime.
+* DARSHAN_MODMEM: specifies the maximum amount of memory (in MiB) Darshan instrumentation modules can collectively consume at runtime (if not specified, Darshan uses a default quota of 2 MiB).
+* DARSHAN_MMAP_LOGPATH: if Darshan's mmap log file mechanism is enabled, this variable specifies what path the mmap log files should be stored in (if not specified, log files will be stored in `/tmp`.
 
 == Debugging
 

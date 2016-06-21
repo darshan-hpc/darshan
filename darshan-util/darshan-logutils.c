@@ -27,20 +27,22 @@
  */
 #define DARSHAN_HEADER_REGION_ID    (-3)
 #define DARSHAN_JOB_REGION_ID       (-2)
-#define DARSHAN_REC_MAP_REGION_ID   (-1)
+#define DARSHAN_NAME_MAP_REGION_ID  (-1)
 
 struct darshan_dz_state
 {
-    /* (libz/bzip2) stream data structure for managing
-     * compression and decompression state */
-    void *strm;
+    /* pointer to arbitrary data structure used for managing
+     * compression/decompression state (e.g., z_stream
+     * structure needed for libz)
+     */
+    void *comp_dat;
     /* buffer for staging compressed data to/from log file */
     unsigned char *buf;
     /* size of staging buffer */
-    int size;
+    unsigned int size;
     /* for reading logs, flag indicating end of log file region */
     int eor;
-    /* the region we last tried reading/writing */
+    /* the region id we last tried reading/writing */
     int prev_reg_id;
 };
 
@@ -53,39 +55,20 @@ struct darshan_fd_int_state
     int64_t pos;
     /* flag indicating whether log file was created (and written) */
     int creat_flag;
-    /* compression type used on log file (libz or bzip2) */
-    enum darshan_comp_type comp_type;
     /* log file path name */
     char logfile_path[PATH_MAX];
     /* pointer to exe & mount data in darshan job data structure */
     char *exe_mnt_data;
     /* whether previous file operations have failed */
     int err;
+    /* log format version-specific function calls for getting
+     * data from the log file
+     */
+    int (*get_namerecs)(void *, int, int, struct darshan_name_record_ref **);
 
-    /* compression/decompression state */
+    /* compression/decompression stream read/write state */
     struct darshan_dz_state dz;
 };
-
-static int darshan_mnt_info_cmp(const void *a, const void *b);
-static int darshan_log_getheader(darshan_fd fd);
-static int darshan_log_putheader(darshan_fd fd);
-static int darshan_log_seek(darshan_fd fd, off_t offset);
-static int darshan_log_read(darshan_fd fd, void *buf, int len);
-static int darshan_log_write(darshan_fd fd, void *buf, int len);
-static int darshan_log_dzinit(struct darshan_fd_int_state *state);
-static void darshan_log_dzdestroy(struct darshan_fd_int_state *state);
-static int darshan_log_dzread(darshan_fd fd, int region_id, void *buf, int len);
-static int darshan_log_dzwrite(darshan_fd fd, int region_id, void *buf, int len);
-static int darshan_log_libz_read(darshan_fd fd, int region_id, void *buf, int len);
-static int darshan_log_libz_write(darshan_fd fd, int region_id, void *buf, int len);
-static int darshan_log_libz_flush(darshan_fd fd, int region_id);
-#ifdef HAVE_LIBBZ2
-static int darshan_log_bzip2_read(darshan_fd fd, int region_id, void *buf, int len);
-static int darshan_log_bzip2_write(darshan_fd fd, int region_id, void *buf, int len);
-static int darshan_log_bzip2_flush(darshan_fd fd, int region_id);
-#endif
-static int darshan_log_dzload(darshan_fd fd, struct darshan_log_map map);
-static int darshan_log_dzunload(darshan_fd fd, struct darshan_log_map *map_p);
 
 /* each module's implementation of the darshan logutil functions */
 #define X(a, b, c, d) d,
@@ -94,6 +77,45 @@ struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
     DARSHAN_MODULE_IDS
 };
 #undef X
+
+/* internal helper functions */
+static int darshan_mnt_info_cmp(const void *a, const void *b);
+static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
+    int swap_flag, struct darshan_name_record_ref **hash);
+static int darshan_log_get_header(darshan_fd fd);
+static int darshan_log_put_header(darshan_fd fd);
+static int darshan_log_seek(darshan_fd fd, off_t offset);
+static int darshan_log_read(darshan_fd fd, void *buf, int len);
+static int darshan_log_write(darshan_fd fd, void *buf, int len);
+static int darshan_log_dzinit(darshan_fd fd);
+static void darshan_log_dzdestroy(darshan_fd fd);
+static int darshan_log_dzread(darshan_fd fd, int region_id, void *buf, int len);
+static int darshan_log_dzwrite(darshan_fd fd, int region_id, void *buf, int len);
+static int darshan_log_libz_read(darshan_fd fd, struct darshan_log_map map, 
+    void *buf, int len, int reset_strm_flag);
+static int darshan_log_libz_write(darshan_fd fd, struct darshan_log_map *map_p,
+    void *buf, int len, int flush_strm_flag);
+static int darshan_log_libz_flush(darshan_fd fd, int region_id);
+#ifdef HAVE_LIBBZ2
+static int darshan_log_bzip2_read(darshan_fd fd, struct darshan_log_map map, 
+    void *buf, int len, int reset_strm_flag);
+static int darshan_log_bzip2_write(darshan_fd fd, struct darshan_log_map *map_p,
+    void *buf, int len, int flush_strm_flag);
+static int darshan_log_bzip2_flush(darshan_fd fd, int region_id);
+#endif
+static int darshan_log_dzload(darshan_fd fd, struct darshan_log_map map);
+static int darshan_log_dzunload(darshan_fd fd, struct darshan_log_map *map_p);
+static int darshan_log_noz_read(darshan_fd fd, struct darshan_log_map map,
+    void *buf, int len, int reset_strm_flag);
+
+/* backwards compatibility functions */
+int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
+    int swap_flag, struct darshan_name_record_ref **hash);
+
+
+/********************************************************
+ *        publically exposed logutil functions          *
+ ********************************************************/
 
 /* darshan_log_open()
  *
@@ -131,7 +153,7 @@ darshan_fd darshan_log_open(const char *name)
     strncpy(tmp_fd->state->logfile_path, name, PATH_MAX);
 
     /* read the header from the log file to init fd data structures */
-    ret = darshan_log_getheader(tmp_fd);
+    ret = darshan_log_get_header(tmp_fd);
     if(ret < 0)
     {
         fprintf(stderr, "Error: failed to read darshan log file header.\n");
@@ -142,7 +164,7 @@ darshan_fd darshan_log_open(const char *name)
     }
 
     /* initialize compression data structures */
-    ret = darshan_log_dzinit(tmp_fd->state);
+    ret = darshan_log_dzinit(tmp_fd);
     if(ret < 0)
     {
         fprintf(stderr, "Error: failed to initialize decompression data structures.\n");
@@ -179,6 +201,7 @@ darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type
         return(NULL);
     }
     memset(tmp_fd->state, 0, sizeof(struct darshan_fd_int_state));
+    tmp_fd->comp_type = comp_type;
 
     /* create the log for writing, making sure to not overwrite existing log */
     tmp_fd->state->fildes = creat(name, 0400);
@@ -190,7 +213,6 @@ darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type
         return(NULL);
     }
     tmp_fd->state->creat_flag = 1;
-    tmp_fd->state->comp_type = comp_type;
     tmp_fd->partial_flag = partial_flag;
     strncpy(tmp_fd->state->logfile_path, name, PATH_MAX);
 
@@ -210,7 +232,7 @@ darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type
     }
 
     /* initialize compression data structures */
-    ret = darshan_log_dzinit(tmp_fd->state);
+    ret = darshan_log_dzinit(tmp_fd);
     if(ret < 0)
     {
         fprintf(stderr, "Error: failed to initialize compression data structures.\n");
@@ -224,13 +246,13 @@ darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type
     return(tmp_fd);
 }
 
-/* darshan_log_getjob()
+/* darshan_log_get_job()
  *
  * read job level metadata from the darshan log file
  *
  * returns 0 on success, -1 on failure
  */
-int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
+int darshan_log_get_job(darshan_fd fd, struct darshan_job *job)
 {
     struct darshan_fd_int_state *state = fd->state;
     char job_buf[DARSHAN_JOB_RECORD_SIZE] = {0};
@@ -242,7 +264,7 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
 
     /* read the compressed job data from the log file */
     ret = darshan_log_dzread(fd, DARSHAN_JOB_REGION_ID, job_buf, job_buf_sz);
-    if(ret <= sizeof(*job))
+    if(ret <= (int)sizeof(*job))
     {
         fprintf(stderr, "Error: failed to read darshan log file job data.\n");
         return(-1);
@@ -270,13 +292,13 @@ int darshan_log_getjob(darshan_fd fd, struct darshan_job *job)
     return(0);
 }
 
-/* darshan_log_putjob()
+/* darshan_log_put_job()
  *
  * write job level metadata to darshan log file
  *
  * returns 0 on success, -1 on failure
  */
-int darshan_log_putjob(darshan_fd fd, struct darshan_job *job)
+int darshan_log_put_job(darshan_fd fd, struct darshan_job *job)
 {
     struct darshan_fd_int_state *state = fd->state;
     struct darshan_job job_copy;
@@ -311,13 +333,13 @@ int darshan_log_putjob(darshan_fd fd, struct darshan_job *job)
     return(0);
 }
 
-/* darshan_log_getexe()
+/* darshan_log_get_exe()
  *
  * reads the application exe name from darshan log file
  * 
  * returns 0 on success, -1 on failure 
  */
-int darshan_log_getexe(darshan_fd fd, char *buf)
+int darshan_log_get_exe(darshan_fd fd, char *buf)
 {
     struct darshan_fd_int_state *state = fd->state;
     char *newline;
@@ -329,7 +351,7 @@ int darshan_log_getexe(darshan_fd fd, char *buf)
     if(!(state->exe_mnt_data))
     {
         struct darshan_job job;
-        ret = darshan_log_getjob(fd, &job);
+        ret = darshan_log_get_job(fd, &job);
 
         if(ret < 0 || !(state->exe_mnt_data))
             return(-1);
@@ -345,7 +367,7 @@ int darshan_log_getexe(darshan_fd fd, char *buf)
     return (0);
 }
 
-/* darshan_log_putexe()
+/* darshan_log_put_exe()
  *
  * wrties the application exe name to darshan log file
  * NOTE: this needs to be called immediately following put_job as it
@@ -354,7 +376,7 @@ int darshan_log_getexe(darshan_fd fd, char *buf)
  *
  * returns 0 on success, -1 on failure 
  */
-int darshan_log_putexe(darshan_fd fd, char *buf)
+int darshan_log_put_exe(darshan_fd fd, char *buf)
 {
     struct darshan_fd_int_state *state = fd->state;
     int len = strlen(buf);
@@ -373,7 +395,7 @@ int darshan_log_putexe(darshan_fd fd, char *buf)
     return(0);
 }
 
-/* darshan_log_getmounts()
+/* darshan_log_get_mounts()
  * 
  * retrieves mount table information from the log. Note that mnt_data_array
  * is an array that will be allocated by the function and must be
@@ -381,7 +403,7 @@ int darshan_log_putexe(darshan_fd fd, char *buf)
  *
  * returns 0 on success, -1 on failure
  */
-int darshan_log_getmounts(darshan_fd fd, struct darshan_mnt_info **mnt_data_array,
+int darshan_log_get_mounts(darshan_fd fd, struct darshan_mnt_info **mnt_data_array,
     int* count)
 {
     struct darshan_fd_int_state *state = fd->state;
@@ -395,7 +417,7 @@ int darshan_log_getmounts(darshan_fd fd, struct darshan_mnt_info **mnt_data_arra
     if(!(state->exe_mnt_data))
     {
         struct darshan_job job;
-        ret = darshan_log_getjob(fd, &job);
+        ret = darshan_log_get_job(fd, &job);
 
         if(ret < 0 || !(state->exe_mnt_data))
             return(-1);
@@ -441,7 +463,7 @@ int darshan_log_getmounts(darshan_fd fd, struct darshan_mnt_info **mnt_data_arra
     return(0);
 }
 
-/* darshan_log_putmounts()
+/* darshan_log_put_mounts()
  *
  * writes mount information to the darshan log file
  * NOTE: this function call should follow immediately after the call
@@ -450,7 +472,7 @@ int darshan_log_getmounts(darshan_fd fd, struct darshan_mnt_info **mnt_data_arra
  *
  * returns 0 on success, -1 on failure
  */
-int darshan_log_putmounts(darshan_fd fd, struct darshan_mnt_info *mnt_data_array,
+int darshan_log_put_mounts(darshan_fd fd, struct darshan_mnt_info *mnt_data_array,
     int count)
 {
     struct darshan_fd_int_state *state = fd->state;
@@ -485,205 +507,126 @@ int darshan_log_putmounts(darshan_fd fd, struct darshan_mnt_info *mnt_data_array
     return(0);
 }
 
-/* darshan_log_gethash()
+/* darshan_log_get_namehash()
  *
- * read the hash of records from the darshan log file
+ * read the set of name records from the darshan log file and add to the
+ * given hash table
  *
  * returns 0 on success, -1 on failure
  */
-int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash)
+int darshan_log_get_namehash(darshan_fd fd, struct darshan_name_record_ref **hash)
 {
     struct darshan_fd_int_state *state = fd->state;
-    char *hash_buf;
-    int hash_buf_sz;
-    char *buf_ptr;
-    darshan_record_id *rec_id_ptr;
-    uint32_t *path_len_ptr, tmp_path_len;
-    char *path_ptr;
-    struct darshan_record_ref *ref;
+    char *name_rec_buf;
+    int name_rec_buf_sz;
     int read;
     int read_req_sz;
-    int buf_remaining = 0;
+    int buf_len = 0;
+    int buf_processed;
 
     assert(state);
 
-    /* just return if there is no record mapping data */
-    if(fd->rec_map.len == 0)
+    /* just return if there is no name record mapping data */
+    if(fd->name_map.len == 0)
     {
         *hash = NULL;
         return(0);
     }
 
-    /* default to hash buffer twice as big as default compression buf */
-    hash_buf = malloc(DARSHAN_DEF_COMP_BUF_SZ * 2);
-    if(!hash_buf)
+    /* default to buffer twice as big as default compression buf */
+    name_rec_buf_sz = DARSHAN_DEF_COMP_BUF_SZ * 2;
+    name_rec_buf = malloc(name_rec_buf_sz);
+    if(!name_rec_buf)
         return(-1);
-    memset(hash_buf, 0, DARSHAN_DEF_COMP_BUF_SZ * 2);
-    hash_buf_sz = DARSHAN_DEF_COMP_BUF_SZ * 2;
+    memset(name_rec_buf, 0, name_rec_buf_sz);
 
     do
     {
-        /* read chunks of the darshan record id -> file name mapping from log file,
+        /* read chunks of the darshan record id -> name mapping from log file,
          * constructing a hash table in the process
          */
-        read_req_sz = hash_buf_sz - buf_remaining;
-        read = darshan_log_dzread(fd, DARSHAN_REC_MAP_REGION_ID,
-            hash_buf + buf_remaining, read_req_sz);
+        read_req_sz = name_rec_buf_sz - buf_len;
+        read = darshan_log_dzread(fd, DARSHAN_NAME_MAP_REGION_ID,
+            name_rec_buf + buf_len, read_req_sz);
         if(read < 0)
         {
-            fprintf(stderr, "Error: failed to read record hash from darshan log file.\n");
-            free(hash_buf);
+            fprintf(stderr, "Error: failed to read name hash from darshan log file.\n");
+            free(name_rec_buf);
             return(-1);
         }
+        buf_len += read;
 
-        /* work through the hash buffer -- deserialize the mapping data and
-         * add to the output hash table
-         * NOTE: these mapping pairs are variable in length, so we have to be able
-         * to handle incomplete mappings temporarily here
-         */
-        buf_ptr = hash_buf;
-        buf_remaining += read;
-        while(buf_remaining > (sizeof(darshan_record_id) + sizeof(uint32_t)))
-        {
-            /* see if we have enough buf space to read in the next full record */
-            tmp_path_len = *(uint32_t *)(buf_ptr + sizeof(darshan_record_id));
-            if(fd->swap_flag)
-                DARSHAN_BSWAP32(&tmp_path_len);
-
-            /* we need to read more before we continue deserializing */
-            if(buf_remaining <
-                (sizeof(darshan_record_id) + sizeof(uint32_t) + tmp_path_len))
-                break;
-
-            /* get pointers for each field of this darshan record */
-            /* NOTE: darshan record hash serialization method: 
-             *          ... darshan_record_id | (uint32_t) path_len | path ...
-             */
-            rec_id_ptr = (darshan_record_id *)buf_ptr;
-            buf_ptr += sizeof(darshan_record_id);
-            path_len_ptr = (uint32_t *)buf_ptr;
-            buf_ptr += sizeof(uint32_t);
-            path_ptr = (char *)buf_ptr;
-
-            if(fd->swap_flag)
-            {
-                /* we need to sort out endianness issues before deserializing */
-                DARSHAN_BSWAP64(rec_id_ptr);
-                DARSHAN_BSWAP32(path_len_ptr);
-            }
-
-            HASH_FIND(hlink, *hash, rec_id_ptr, sizeof(darshan_record_id), ref);
-            if(!ref)
-            {
-                ref = malloc(sizeof(*ref));
-                if(!ref)
-                {
-                    free(hash_buf);
-                    return(-1);
-                }
-                ref->rec.name = malloc(*path_len_ptr + 1);
-                if(!ref->rec.name)
-                {
-                    free(ref);
-                    free(hash_buf);
-                    return(-1);
-                }
-
-                /* set the fields for this record */
-                ref->rec.id = *rec_id_ptr;
-                memcpy(ref->rec.name, path_ptr, *path_len_ptr);
-                ref->rec.name[*path_len_ptr] = '\0';
-
-                /* add this record to the hash */
-                HASH_ADD(hlink, *hash, rec.id, sizeof(darshan_record_id), ref);
-            }
-
-            buf_ptr += *path_len_ptr;
-            buf_remaining -=
-                (sizeof(darshan_record_id) + sizeof(uint32_t) + *path_len_ptr);
-        }
+        /* extract any name records in the buffer */
+        buf_processed = state->get_namerecs(name_rec_buf, buf_len, fd->swap_flag, hash);
 
         /* copy any leftover data to beginning of buffer to parse next */
-        memcpy(hash_buf, buf_ptr, buf_remaining);
+        memcpy(name_rec_buf, name_rec_buf + buf_processed, buf_len - buf_processed);
+        buf_len -= buf_processed;
 
         /* we keep reading until we get a short read informing us we have
          * read all of the record hash
          */
     } while(read == read_req_sz);
-    assert(buf_remaining == 0);
+    assert(buf_len == 0);
 
-    free(hash_buf);
+    free(name_rec_buf);
     return(0);
 }
 
-/* darshan_log_puthash()
+/* darshan_log_put_namehash()
  *
- * writes the hash table of records to the darshan log file
+ * writes the hash table of name records to the darshan log file
  * NOTE: this function call should follow immediately after the call
  * to darshan_log_putmounts(), as it assumes the darshan log file pointer
  * is pointing to the offset immediately following the mount information
  *
  * returns 0 on success, -1 on failure
  */
-int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash)
+int darshan_log_put_namehash(darshan_fd fd, struct darshan_name_record_ref *hash)
 {
     struct darshan_fd_int_state *state = fd->state;
-    char *hash_buf;
-    int hash_buf_sz;
-    struct darshan_record_ref *ref, *tmp;
-    char *buf_ptr;
-    int path_len;
+    struct darshan_name_record_ref *ref, *tmp;
+    struct darshan_name_record_ref *name_rec;
+    int name_rec_len;
     int wrote;
 
     assert(state);
 
     /* allocate memory for largest possible hash record */
-    hash_buf_sz = sizeof(darshan_record_id) + sizeof(uint32_t) + PATH_MAX;
-    hash_buf = malloc(hash_buf_sz);
-    if(!hash_buf)
+    name_rec = malloc(sizeof(struct darshan_name_record) + PATH_MAX);
+    if(!name_rec)
         return(-1);
-    memset(hash_buf, 0, hash_buf_sz);
+    memset(name_rec, 0, sizeof(struct darshan_name_record) + PATH_MAX);
 
     /* individually serialize each hash record and write to log file */
     HASH_ITER(hlink, hash, ref, tmp)
     {
-        buf_ptr = hash_buf;
-        path_len = strlen(ref->rec.name);
-
-        /* the hash buffer has space to serialize this record
-         * NOTE: darshan record hash serialization method: 
-         *          ... darshan_record_id | (uint32_t) path_len | path ...
-         */
-        *((darshan_record_id *)buf_ptr) = ref->rec.id;
-        buf_ptr += sizeof(darshan_record_id);
-        *((uint32_t *)buf_ptr) = path_len;
-        buf_ptr += sizeof(uint32_t);
-        memcpy(buf_ptr, ref->rec.name, path_len);
-        buf_ptr += path_len;
+        name_rec_len = sizeof(struct darshan_name_record) + strlen(ref->name_record->name);
+        memcpy(name_rec, ref->name_record, name_rec_len);
 
         /* write this hash entry to log file */
-        wrote = darshan_log_dzwrite(fd, DARSHAN_REC_MAP_REGION_ID,
-            hash_buf, (buf_ptr - hash_buf));
-        if(wrote != (buf_ptr - hash_buf))
+        wrote = darshan_log_dzwrite(fd, DARSHAN_NAME_MAP_REGION_ID,
+            name_rec, name_rec_len);
+        if(wrote != name_rec_len)
         {
             state->err = -1;
-            fprintf(stderr, "Error: failed to write record hash to darshan log file.\n");
-            free(hash_buf);
+            fprintf(stderr, "Error: failed to write name hash to darshan log file.\n");
+            free(name_rec);
             return(-1);
         }
     }
 
-    free(hash_buf);
+    free(name_rec);
     return(0);
 }
 
-/* darshan_log_getmod()
+/* darshan_log_get_mod()
  *
  * get a chunk of module data from the darshan log file
  *
  * returns number of bytes read on success, -1 on failure
  */
-int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
+int darshan_log_get_mod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz)
 {
     struct darshan_fd_int_state *state = fd->state;
@@ -713,7 +656,7 @@ int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
     return(ret);
 }
 
-/* darshan_log_putmod()
+/* darshan_log_put_mod()
  *
  * write a chunk of module data to the darshan log file
  * NOTE: this function call should be called directly after the
@@ -725,7 +668,7 @@ int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id,
  *
  * returns number of bytes written on success, -1 on failure
  */
-int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id,
+int darshan_log_put_mod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz, int ver)
 {
     struct darshan_fd_int_state *state = fd->state;
@@ -773,7 +716,7 @@ void darshan_log_close(darshan_fd fd)
     if(state->creat_flag)
     {
         /* flush the last region of the log to file */
-        switch(state->comp_type)
+        switch(fd->comp_type)
         {
             case DARSHAN_ZLIB_COMP:
                 ret = darshan_log_libz_flush(fd, state->dz.prev_reg_id);
@@ -795,7 +738,7 @@ void darshan_log_close(darshan_fd fd)
         /* if no errors flushing, write the log header before closing */
         if(state->err != -1)
         {
-            ret = darshan_log_putheader(fd);
+            ret = darshan_log_put_header(fd);
             if(ret < 0)
                 state->err = -1;
         }
@@ -811,7 +754,7 @@ void darshan_log_close(darshan_fd fd)
         unlink(state->logfile_path);
     }
 
-    darshan_log_dzdestroy(state);
+    darshan_log_dzdestroy(fd);
     if(state->exe_mnt_data)
         free(state->exe_mnt_data);
     free(state);
@@ -820,7 +763,9 @@ void darshan_log_close(darshan_fd fd)
     return;
 }
 
-/* **************************************************** */
+/********************************************************
+ *             internal helper functions                *
+ ********************************************************/
 
 static int darshan_mnt_info_cmp(const void *a, const void *b)
 {
@@ -835,14 +780,76 @@ static int darshan_mnt_info_cmp(const void *a, const void *b)
         return(0);
 }
 
+static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
+    int swap_flag, struct darshan_name_record_ref **hash)
+{
+    struct darshan_name_record_ref *ref;
+    struct darshan_name_record *name_rec;
+    char *tmp_p;
+    int buf_processed = 0;
+    int rec_len;
+
+    /* work through the name record buffer -- deserialize the record data
+     * and add to the output hash table
+     * NOTE: these mapping pairs are variable in length, so we have to be able
+     * to handle incomplete mappings temporarily here
+     */
+    name_rec = (struct darshan_name_record *)name_rec_buf;
+    while(buf_len > sizeof(darshan_record_id) + 1)
+    {
+        if(strnlen(name_rec->name, buf_len - sizeof(darshan_record_id)) ==
+            (buf_len - sizeof(darshan_record_id)))
+        {
+            /* if this record name's terminating null character is not
+             * present, we need to read more of the buffer before continuing
+             */
+            break;
+        }
+        rec_len = sizeof(darshan_record_id) + strlen(name_rec->name) + 1;
+
+        if(swap_flag)
+        {
+            /* we need to sort out endianness issues before deserializing */
+            DARSHAN_BSWAP64(&(name_rec->id));
+        }
+
+        HASH_FIND(hlink, *hash, &(name_rec->id), sizeof(darshan_record_id), ref);
+        if(!ref)
+        {
+            ref = malloc(sizeof(*ref));
+            if(!ref)
+                return(-1);
+
+            ref->name_record = malloc(rec_len);
+            if(!ref->name_record)
+            {
+                free(ref);
+                return(-1);
+            }
+
+            /* copy the name record over from the hash buffer */
+            memcpy(ref->name_record, name_rec, rec_len);
+
+            /* add this record to the hash */
+            HASH_ADD(hlink, *hash, name_record->id, sizeof(darshan_record_id), ref);
+        }
+
+        tmp_p = (char *)name_rec + rec_len;
+        name_rec = (struct darshan_name_record *)tmp_p;
+        buf_len -= rec_len;
+        buf_processed += rec_len;
+    }
+
+    return(buf_processed);
+}
+
 /* read the header of the darshan log and set internal fd data structures
  * NOTE: this is the only portion of the darshan log that is uncompressed
  *
  * returns 0 on success, -1 on failure
  */
-static int darshan_log_getheader(darshan_fd fd)
+static int darshan_log_get_header(darshan_fd fd)
 {
-    struct darshan_fd_int_state *state = fd->state;
     struct darshan_header header;
     int i;
     int ret;
@@ -863,10 +870,19 @@ static int darshan_log_getheader(darshan_fd fd)
     }
 
     /* other log file versions can be detected and handled here */
-    if(strcmp(fd->version, "3.00"))
+    if(strcmp(fd->version, "3.00") == 0)
+    {
+        fd->state->get_namerecs = darshan_log_get_namerecs_3_00;
+    }
+    else if(strcmp(fd->version, "3.01") == 0)
+    {
+        fd->state->get_namerecs = darshan_log_get_namerecs;
+    }
+    else
     {
         fprintf(stderr, "Error: incompatible darshan file.\n");
-        fprintf(stderr, "Error: expected version %s\n", DARSHAN_LOG_VERSION);
+        fprintf(stderr, "Error: expected version %s, but got %s\n",
+            DARSHAN_LOG_VERSION, fd->version);
         return(-1);
     }
 
@@ -880,7 +896,7 @@ static int darshan_log_getheader(darshan_fd fd)
 
     /* read uncompressed header from log file */
     ret = darshan_log_read(fd, &header, sizeof(header));
-    if(ret != sizeof(header))
+    if(ret != (int)sizeof(header))
     {
         fprintf(stderr, "Error: failed to read darshan log file header.\n");
         return(-1);
@@ -900,12 +916,13 @@ static int darshan_log_getheader(darshan_fd fd)
             fd->swap_flag = 1;
 
             /* swap the log map variables in the header */
-            DARSHAN_BSWAP64(&(header.rec_map.off));
-            DARSHAN_BSWAP64(&(header.rec_map.len));
+            DARSHAN_BSWAP64(&(header.name_map.off));
+            DARSHAN_BSWAP64(&(header.name_map.len));
             for(i = 0; i < DARSHAN_MAX_MODS; i++)
             {
                 DARSHAN_BSWAP64(&(header.mod_map[i].off));
                 DARSHAN_BSWAP64(&(header.mod_map[i].len));
+                DARSHAN_BSWAP32(&(header.mod_ver[i]));
             }
         }
         else
@@ -917,15 +934,42 @@ static int darshan_log_getheader(darshan_fd fd)
     }
 
     /* set some fd fields based on what's stored in the header */
-    state->comp_type = header.comp_type;
+    fd->comp_type = header.comp_type;
     fd->partial_flag = header.partial_flag;
     memcpy(fd->mod_ver, header.mod_ver, DARSHAN_MAX_MODS * sizeof(uint32_t));
 
     /* save the mapping of data within log file to this file descriptor */
-    fd->job_map.off = sizeof(struct darshan_header);
-    fd->job_map.len = header.rec_map.off - fd->job_map.off;
-    memcpy(&fd->rec_map, &(header.rec_map), sizeof(struct darshan_log_map));
+    memcpy(&fd->name_map, &(header.name_map), sizeof(struct darshan_log_map));
     memcpy(&fd->mod_map, &(header.mod_map), DARSHAN_MAX_MODS * sizeof(struct darshan_log_map));
+
+    /* there may be nothing following the job data, so safety check map */
+    fd->job_map.off = sizeof(struct darshan_header);
+    if(fd->name_map.off == 0)
+    {
+        for(i = 0; i < DARSHAN_MAX_MODS; i++)
+        {
+            if(fd->mod_map[i].off != 0)
+            {
+                fd->job_map.len = fd->mod_map[i].off - fd->job_map.off;
+                break;
+            }
+        }
+
+        if(fd->job_map.len == 0)
+        {
+            struct stat sbuf;
+            if(fstat(fd->state->fildes, &sbuf) != 0)
+            {
+                fprintf(stderr, "Error: unable to stat darshan log file.\n");
+                return(-1);
+            }
+            fd->job_map.len = sbuf.st_size - fd->job_map.off;
+        }
+    }
+    else
+    {
+        fd->job_map.len = fd->name_map.off - fd->job_map.off;
+    }
 
     return(0);
 }
@@ -934,9 +978,8 @@ static int darshan_log_getheader(darshan_fd fd)
  *
  * returns 0 on success, -1 on failure
  */
-static int darshan_log_putheader(darshan_fd fd)
+static int darshan_log_put_header(darshan_fd fd)
 {
-    struct darshan_fd_int_state *state = fd->state;
     struct darshan_header header;
     int ret;
 
@@ -950,16 +993,15 @@ static int darshan_log_putheader(darshan_fd fd)
     memset(&header, 0, sizeof(header));
     strcpy(header.version_string, DARSHAN_LOG_VERSION);
     header.magic_nr = DARSHAN_MAGIC_NR;
-    header.comp_type = state->comp_type;
+    header.comp_type = fd->comp_type;
     header.partial_flag = fd->partial_flag;
-
-    /* copy the mapping information to the header */
-    memcpy(&header.rec_map, &fd->rec_map, sizeof(struct darshan_log_map));
-    memcpy(&header.mod_map, &fd->mod_map, DARSHAN_MAX_MODS * sizeof(struct darshan_log_map));
+    memcpy(&header.name_map, &fd->name_map, sizeof(struct darshan_log_map));
+    memcpy(header.mod_map, fd->mod_map, DARSHAN_MAX_MODS * sizeof(struct darshan_log_map));
+    memcpy(header.mod_ver, fd->mod_ver, DARSHAN_MAX_MODS * sizeof(uint32_t));
 
     /* write header to file */
     ret = darshan_log_write(fd, &header, sizeof(header));
-    if(ret != sizeof(header))
+    if(ret != (int)sizeof(header))
     {
         fprintf(stderr, "Error: failed to write Darshan log file header.\n");
         return(-1);
@@ -994,13 +1036,20 @@ static int darshan_log_read(darshan_fd fd, void* buf, int len)
 {
     struct darshan_fd_int_state *state = fd->state;
     int ret;
+    unsigned int read_so_far = 0;
 
-    /* read data from the log file using the given map */
-    ret = read(state->fildes, buf, len);
-    if(ret > 0)
-        state->pos += ret;
+    do
+    {
+        ret = read(state->fildes, buf + read_so_far, len - read_so_far);
+        if(ret <= 0)
+            break;
+        read_so_far += ret;
+    } while(read_so_far < len);
+    if(ret < 0)
+        return(-1);
 
-    return(ret);
+    state->pos += read_so_far;
+    return(read_so_far);
 }
 
 /* return amount written on success, -1 on failure.
@@ -1009,26 +1058,37 @@ static int darshan_log_write(darshan_fd fd, void* buf, int len)
 {
     struct darshan_fd_int_state *state = fd->state;
     int ret;
+    unsigned int wrote_so_far = 0;
 
-    ret = write(state->fildes, buf, len);
-    if(ret > 0)
-        state->pos += ret;
+    do
+    {
+        ret = write(state->fildes, buf + wrote_so_far, len - wrote_so_far);
+        if(ret <= 0)
+            break;
+        wrote_so_far += ret;
+    } while(wrote_so_far < len);
+    if(ret < 0)
+        return(-1);
 
-    return(ret);
+    state->pos += wrote_so_far;
+    return(wrote_so_far);
 }
 
-static int darshan_log_dzinit(struct darshan_fd_int_state *state)
+static int darshan_log_dzinit(darshan_fd fd)
 {
+    struct darshan_fd_int_state *state = fd->state;
     int ret;
 
-    /* initialize buffers for staging compressed data to/from log file */
+    /* initialize buffers for staging compressed data
+     * to/from log file
+     */
     state->dz.buf = malloc(DARSHAN_DEF_COMP_BUF_SZ);
     if(state->dz.buf == NULL)
         return(-1);
-
+    state->dz.size = 0;
     state->dz.prev_reg_id = DARSHAN_HEADER_REGION_ID;
 
-    switch(state->comp_type)
+    switch(fd->comp_type)
     {
         case DARSHAN_ZLIB_COMP:
         {
@@ -1063,7 +1123,7 @@ static int darshan_log_dzinit(struct darshan_fd_int_state *state)
                 free(state->dz.buf);
                 return(-1);
             }
-            state->dz.strm = tmp_zstrm;
+            state->dz.comp_dat = tmp_zstrm;
             break;
         }
 #ifdef HAVE_LIBBZ2
@@ -1079,7 +1139,7 @@ static int darshan_log_dzinit(struct darshan_fd_int_state *state)
             tmp_bzstrm->bzfree = NULL;
             tmp_bzstrm->opaque = NULL;
             tmp_bzstrm->avail_in = 0;
-            tmp_bzstrm->next_in = Z_NULL;
+            tmp_bzstrm->next_in = NULL;
 
             if(!(state->creat_flag))
             {
@@ -1099,10 +1159,18 @@ static int darshan_log_dzinit(struct darshan_fd_int_state *state)
                 free(state->dz.buf);
                 return(-1);
             }
-            state->dz.strm = tmp_bzstrm;
+            state->dz.comp_dat = tmp_bzstrm;
             break;
         }
 #endif
+        case DARSHAN_NO_COMP:
+        {
+            /* we just track an offset into the staging buffers for no_comp */
+            int *buf_off = malloc(sizeof(int));
+            *buf_off = 0;
+            state->dz.comp_dat = buf_off;
+            break;
+        }
         default:
             fprintf(stderr, "Error: invalid compression type.\n");
             return(-1);
@@ -1111,30 +1179,34 @@ static int darshan_log_dzinit(struct darshan_fd_int_state *state)
     return(0);
 }
 
-static void darshan_log_dzdestroy(struct darshan_fd_int_state *state)
+static void darshan_log_dzdestroy(darshan_fd fd)
 {
-    switch(state->comp_type)
+    struct darshan_fd_int_state *state = fd->state;
+
+    switch(fd->comp_type)
     {
         case DARSHAN_ZLIB_COMP:
             if(!(state->creat_flag))
-                inflateEnd(state->dz.strm);
+                inflateEnd((z_stream *)state->dz.comp_dat);
             else
-                deflateEnd(state->dz.strm);
-            free(state->dz.strm);
+                deflateEnd((z_stream *)state->dz.comp_dat);
             break;
 #ifdef HAVE_LIBBZ2
         case DARSHAN_BZIP2_COMP:
             if(!(state->creat_flag))
-                BZ2_bzDecompressEnd(state->dz.strm);
+                BZ2_bzDecompressEnd((bz_stream *)state->dz.comp_dat);
             else
-                BZ2_bzCompressEnd(state->dz.strm);
-            free(state->dz.strm);
+                BZ2_bzCompressEnd((bz_stream *)state->dz.comp_dat);
             break;
 #endif
+        case DARSHAN_NO_COMP:
+            /* do nothing */
+            break;
         default:
             fprintf(stderr, "Error: invalid compression type.\n");
     }
 
+    free(state->dz.comp_dat);
     free(state->dz.buf);
     return;
 }
@@ -1142,74 +1214,110 @@ static void darshan_log_dzdestroy(struct darshan_fd_int_state *state)
 static int darshan_log_dzread(darshan_fd fd, int region_id, void *buf, int len)
 {
     struct darshan_fd_int_state *state = fd->state;
+    struct darshan_log_map map;
+    int reset_strm_flag = 0;
     int ret;
 
-    switch(state->comp_type)
+    /* if new log region, we reload buffers and clear eor flag */
+    if(region_id != state->dz.prev_reg_id)
+    {
+        state->dz.eor = 0;
+        state->dz.size = 0;
+        reset_strm_flag = 1; /* reset libz/bzip2 streams */
+    }
+
+    if(region_id == DARSHAN_JOB_REGION_ID)
+        map = fd->job_map;
+    else if(region_id == DARSHAN_NAME_MAP_REGION_ID)
+        map = fd->name_map;
+    else
+        map = fd->mod_map[region_id];
+
+    switch(fd->comp_type)
     {
         case DARSHAN_ZLIB_COMP:
-            ret = darshan_log_libz_read(fd, region_id, buf, len);
+            ret = darshan_log_libz_read(fd, map, buf, len, reset_strm_flag);
             break;
 #ifdef HAVE_LIBBZ2
         case DARSHAN_BZIP2_COMP:
-            ret = darshan_log_bzip2_read(fd, region_id, buf, len);
+            ret = darshan_log_bzip2_read(fd, map, buf, len, reset_strm_flag);
             break;
 #endif
+        case DARSHAN_NO_COMP:
+            ret = darshan_log_noz_read(fd, map, buf, len, reset_strm_flag);
+            break;
         default:
             fprintf(stderr, "Error: invalid compression type.\n");
             return(-1);
     }
 
+    state->dz.prev_reg_id = region_id;
     return(ret);
 }
 
 static int darshan_log_dzwrite(darshan_fd fd, int region_id, void *buf, int len)
 {
     struct darshan_fd_int_state *state = fd->state;
+    struct darshan_log_map *map_p;
+    int flush_strm_flag = 0;
     int ret;
 
-    switch(state->comp_type)
+    /* if new log region, finish prev region's zstream and flush to log file */
+    if(region_id != state->dz.prev_reg_id)
+    {
+        /* error out if the region we are writing to precedes the previous
+         * region we wrote -- we shouldn't be moving backwards in the log
+         */
+        if(region_id < state->dz.prev_reg_id)
+            return(-1);
+
+        if(state->dz.prev_reg_id != DARSHAN_HEADER_REGION_ID)
+            flush_strm_flag = 1;
+    }
+
+    if(region_id == DARSHAN_JOB_REGION_ID)
+        map_p = &(fd->job_map);
+    else if(region_id == DARSHAN_NAME_MAP_REGION_ID)
+        map_p = &(fd->name_map);
+    else
+        map_p = &(fd->mod_map[region_id]);
+
+    switch(fd->comp_type)
     {
         case DARSHAN_ZLIB_COMP:
-            ret = darshan_log_libz_write(fd, region_id, buf, len);
+            ret = darshan_log_libz_write(fd, map_p, buf, len, flush_strm_flag);
             break;
 #ifdef HAVE_LIBBZ2
         case DARSHAN_BZIP2_COMP:
-            ret = darshan_log_bzip2_write(fd, region_id, buf, len);
+            ret = darshan_log_bzip2_write(fd, map_p, buf, len, flush_strm_flag);
             break;
 #endif
+        case DARSHAN_NO_COMP:
+            fprintf(stderr,
+                "Error: uncompressed writing of log files is not supported.\n");
+            return(-1);
         default:
             fprintf(stderr, "Error: invalid compression type.\n");
             return(-1);
     }
 
+    state->dz.prev_reg_id = region_id;
     return(ret);
 }
 
-static int darshan_log_libz_read(darshan_fd fd, int region_id, void *buf, int len)
+static int darshan_log_libz_read(darshan_fd fd, struct darshan_log_map map,
+    void *buf, int len, int reset_stream_flag)
 {
     struct darshan_fd_int_state *state = fd->state;
     int ret;
     int total_bytes = 0;
     int tmp_out_bytes;
-    struct darshan_log_map map;
-    z_stream *z_strmp = (z_stream *)state->dz.strm;
+    z_stream *z_strmp = (z_stream *)state->dz.comp_dat;
 
     assert(z_strmp);
 
-    /* if new log region, we reload buffers and clear eor flag */
-    if(region_id != state->dz.prev_reg_id)
-    {
+    if(reset_stream_flag)
         z_strmp->avail_in = 0;
-        state->dz.eor = 0;
-        state->dz.prev_reg_id = region_id;
-    }
-
-    if(region_id == DARSHAN_JOB_REGION_ID)
-        map = fd->job_map;
-    else if(region_id == DARSHAN_REC_MAP_REGION_ID)
-        map = fd->rec_map;
-    else
-        map = fd->mod_map[region_id];
 
     z_strmp->avail_out = len;
     z_strmp->next_out = buf;
@@ -1258,43 +1366,25 @@ static int darshan_log_libz_read(darshan_fd fd, int region_id, void *buf, int le
     return(total_bytes);
 }
 
-static int darshan_log_libz_write(darshan_fd fd, int region_id, void *buf, int len)
+static int darshan_log_libz_write(darshan_fd fd, struct darshan_log_map *map_p,
+    void *buf, int len, int flush_strm_flag)
 {
     struct darshan_fd_int_state *state = fd->state;
     int ret;
     int total_bytes = 0;
     int tmp_in_bytes;
     int tmp_out_bytes;
-    struct darshan_log_map *map_p;
-    z_stream *z_strmp = (z_stream *)state->dz.strm;
+    z_stream *z_strmp = (z_stream *)state->dz.comp_dat;
 
     assert(z_strmp);
 
-    /* if new log region, finish prev region's zstream and flush to log file */
-    if(region_id != state->dz.prev_reg_id)
+    /* flush compressed output buffer if we are moving to a new log region */
+    if(flush_strm_flag)
     {
-        /* error out if the region we are writing to precedes the previous
-         * region we wrote -- we shouldn't be moving backwards in the log
-         */
-        if(region_id < state->dz.prev_reg_id)
+        ret = darshan_log_libz_flush(fd, state->dz.prev_reg_id);
+        if(ret < 0)
             return(-1);
-
-        if(state->dz.prev_reg_id != DARSHAN_HEADER_REGION_ID)
-        {
-            ret = darshan_log_libz_flush(fd, state->dz.prev_reg_id);
-            if(ret < 0)
-                return(-1);
-        }
-
-        state->dz.prev_reg_id = region_id;
     }
-
-    if(region_id == DARSHAN_JOB_REGION_ID)
-        map_p = &(fd->job_map);
-    else if(region_id == DARSHAN_REC_MAP_REGION_ID)
-        map_p = &(fd->rec_map);
-    else
-        map_p = &(fd->mod_map[region_id]);
 
     z_strmp->avail_in = len;
     z_strmp->next_in = buf;
@@ -1336,14 +1426,14 @@ static int darshan_log_libz_flush(darshan_fd fd, int region_id)
     int ret;
     int tmp_out_bytes;
     struct darshan_log_map *map_p;
-    z_stream *z_strmp = (z_stream *)state->dz.strm;
+    z_stream *z_strmp = (z_stream *)state->dz.comp_dat;
 
     assert(z_strmp);
 
     if(region_id == DARSHAN_JOB_REGION_ID)
         map_p = &(fd->job_map);
-    else if(region_id == DARSHAN_REC_MAP_REGION_ID)
-        map_p = &(fd->rec_map);
+    else if(region_id == DARSHAN_NAME_MAP_REGION_ID)
+        map_p = &(fd->name_map);
     else
         map_p = &(fd->mod_map[region_id]);
 
@@ -1377,32 +1467,19 @@ static int darshan_log_libz_flush(darshan_fd fd, int region_id)
 }
 
 #ifdef HAVE_LIBBZ2
-
-static int darshan_log_bzip2_read(darshan_fd fd, int region_id, void *buf, int len)
+static int darshan_log_bzip2_read(darshan_fd fd, struct darshan_log_map map,
+    void *buf, int len, int reset_strm_flag)
 {
     struct darshan_fd_int_state *state = fd->state;
     int ret;
     int total_bytes = 0;
     int tmp_out_bytes;
-    struct darshan_log_map map;
-    bz_stream *bz_strmp = (bz_stream *)state->dz.strm;
+    bz_stream *bz_strmp = (bz_stream *)state->dz.comp_dat;
 
     assert(bz_strmp);
 
-    /* if new log region, we reload buffers and clear eor flag */
-    if(region_id != state->dz.prev_reg_id)
-    {
+    if(reset_strm_flag)
         bz_strmp->avail_in = 0;
-        state->dz.eor = 0;
-        state->dz.prev_reg_id = region_id;
-    }
-
-    if(region_id == DARSHAN_JOB_REGION_ID)
-        map = fd->job_map;
-    else if(region_id == DARSHAN_REC_MAP_REGION_ID)
-        map = fd->rec_map;
-    else
-        map = fd->mod_map[region_id];
 
     bz_strmp->avail_out = len;
     bz_strmp->next_out = buf;
@@ -1454,43 +1531,25 @@ static int darshan_log_bzip2_read(darshan_fd fd, int region_id, void *buf, int l
     return(total_bytes);
 }
 
-static int darshan_log_bzip2_write(darshan_fd fd, int region_id, void *buf, int len)
+static int darshan_log_bzip2_write(darshan_fd fd, struct darshan_log_map *map_p,
+    void *buf, int len, int flush_strm_flag)
 {
     struct darshan_fd_int_state *state = fd->state;
     int ret;
     int total_bytes = 0;
     int tmp_in_bytes;
     int tmp_out_bytes;
-    struct darshan_log_map *map_p;
-    bz_stream *bz_strmp = (bz_stream *)state->dz.strm;
+    bz_stream *bz_strmp = (bz_stream *)state->dz.comp_dat;
 
     assert(bz_strmp);
 
-    /* if new log region, finish prev region's zstream and flush to log file */
-    if(region_id != state->dz.prev_reg_id)
+    /* flush compressed output buffer if we are moving to a new log region */
+    if(flush_strm_flag)
     {
-        /* error out if the region we are writing to precedes the previous
-         * region we wrote -- we shouldn't be moving backwards in the log
-         */
-        if(region_id < state->dz.prev_reg_id)
+        ret = darshan_log_bzip2_flush(fd, state->dz.prev_reg_id);
+        if(ret < 0)
             return(-1);
-
-        if(state->dz.prev_reg_id != DARSHAN_HEADER_REGION_ID)
-        {
-            ret = darshan_log_bzip2_flush(fd, state->dz.prev_reg_id);
-            if(ret < 0)
-                return(-1);
-        }
-
-        state->dz.prev_reg_id = region_id;
     }
-
-    if(region_id == DARSHAN_JOB_REGION_ID)
-        map_p = &(fd->job_map);
-    else if(region_id == DARSHAN_REC_MAP_REGION_ID)
-        map_p = &(fd->rec_map);
-    else
-        map_p = &(fd->mod_map[region_id]);
 
     bz_strmp->avail_in = len;
     bz_strmp->next_in = buf;
@@ -1532,14 +1591,14 @@ static int darshan_log_bzip2_flush(darshan_fd fd, int region_id)
     int ret;
     int tmp_out_bytes;
     struct darshan_log_map *map_p;
-    bz_stream *bz_strmp = (bz_stream *)state->dz.strm;
+    bz_stream *bz_strmp = (bz_stream *)state->dz.comp_dat;
 
     assert(bz_strmp);
 
     if(region_id == DARSHAN_JOB_REGION_ID)
         map_p = &(fd->job_map);
-    else if(region_id == DARSHAN_REC_MAP_REGION_ID)
-        map_p = &(fd->rec_map);
+    else if(region_id == DARSHAN_NAME_MAP_REGION_ID)
+        map_p = &(fd->name_map);
     else
         map_p = &(fd->mod_map[region_id]);
 
@@ -1567,14 +1626,58 @@ static int darshan_log_bzip2_flush(darshan_fd fd, int region_id)
             bz_strmp->next_out = (char *)state->dz.buf;
         }
     } while (ret != BZ_STREAM_END);
-
     
     BZ2_bzCompressEnd(bz_strmp);
     BZ2_bzCompressInit(bz_strmp, 9, 1, 30);
     return(0);
 }
-
 #endif
+
+static int darshan_log_noz_read(darshan_fd fd, struct darshan_log_map map,
+    void *buf, int len, int reset_strm_flag)
+{
+    struct darshan_fd_int_state *state = fd->state;
+    int ret;
+    int total_bytes = 0;
+    int cp_size;
+    int *buf_off = (int *)state->dz.comp_dat;
+
+    if(reset_strm_flag)
+        *buf_off = state->dz.size;
+
+    /* we just read data from the given log file region until we have
+     * accumulated 'len' bytes, or until the region ends
+     */
+    while(total_bytes < len)
+    {
+        /* check if we need to load more data from log file */
+        if(*buf_off == state->dz.size)
+        {
+            /* if the eor flag is set, clear it and return -- future
+             * reads of this log region will restart at the beginning
+             */
+            if(state->dz.eor)
+            {
+                state->dz.eor = 0;
+                break;
+            }
+
+            /* read more data from input file */
+            ret = darshan_log_dzload(fd, map);
+            if(ret < 0)
+                return(-1);
+            assert(state->dz.size > 0);
+        }
+
+        cp_size = (len > (state->dz.size - *buf_off)) ?
+            state->dz.size - *buf_off : len;
+        memcpy(buf, state->dz.buf + *buf_off, cp_size);
+        total_bytes += cp_size;
+        *buf_off += cp_size;
+    }
+
+    return(total_bytes);
+}
 
 static int darshan_log_dzload(darshan_fd fd, struct darshan_log_map map)
 {
@@ -1582,9 +1685,6 @@ static int darshan_log_dzload(darshan_fd fd, struct darshan_log_map map)
     int ret;
     unsigned int remaining;
     unsigned int read_size;
-    unsigned int read_so_far = 0;
-
-    state->dz.size = 0;
 
     /* seek to the appropriate portion of the log file, if out of range */
     if((state->pos < map.off) || (state->pos >= (map.off + map.len)))
@@ -1601,24 +1701,18 @@ static int darshan_log_dzload(darshan_fd fd, struct darshan_log_map map)
     remaining = (map.off + map.len) - state->pos;
     read_size = (remaining > DARSHAN_DEF_COMP_BUF_SZ) ?
         DARSHAN_DEF_COMP_BUF_SZ : remaining;
-    do
-    {
-        ret = darshan_log_read(fd, state->dz.buf + read_so_far,
-            read_size - read_so_far);
-        if(ret <= 0)
-            break;
-        read_so_far += ret;
-    } while(read_so_far < read_size);
-    if(ret < 0)
+
+    ret = darshan_log_read(fd, state->dz.buf, read_size);
+    if(ret < (int)read_size)
     {
         fprintf(stderr, "Error: unable to read compressed data from file.\n");
         return(-1);
     }
-    if((read_size == remaining) || (ret == 0))
+
+    if(ret == (int)remaining)
     {
         state->dz.eor = 1;
     }
-
     state->dz.size = read_size;
     return(0);
 }
@@ -1627,28 +1721,99 @@ static int darshan_log_dzunload(darshan_fd fd, struct darshan_log_map *map_p)
 {
     struct darshan_fd_int_state *state = fd->state;
     int ret;
-    unsigned int write_so_far = 0;
 
     /* initialize map structure for this log region */
     if(map_p->off == 0)
         map_p->off = state->pos;
 
     /* write more compressed data from staging buffer to file */
-    do
+    ret = darshan_log_write(fd, state->dz.buf, state->dz.size);
+    if(ret < (int)state->dz.size)
     {
-        ret = darshan_log_write(fd, state->dz.buf + write_so_far,
-            state->dz.size - write_so_far);
-        if(ret <= 0)
-        {
-            fprintf(stderr, "Error: unable to write compressed data to file.\n");
-            return(-1);
-        }
-        write_so_far += ret;
-    } while(write_so_far < state->dz.size);
+        fprintf(stderr, "Error: unable to write compressed data to file.\n");
+        return(-1);
+    }
 
     map_p->len += state->dz.size;
     state->dz.size = 0;
     return (0);
+}
+
+/********************************************************
+ *          backwards compatibility functions           *
+ ********************************************************/
+
+int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
+    int swap_flag, struct darshan_name_record_ref **hash)
+{
+    struct darshan_name_record_ref *ref;
+    char *buf_ptr;
+    darshan_record_id *rec_id_ptr;
+    uint32_t *path_len_ptr;
+    char *path_ptr;
+    int rec_len;
+    int buf_processed = 0;
+
+    /* work through the name record buffer -- deserialize the mapping data and
+     * add to the output hash table
+     * NOTE: these mapping pairs are variable in length, so we have to be able
+     * to handle incomplete mappings temporarily here
+     */
+    buf_ptr = name_rec_buf;
+    while(buf_len > (sizeof(darshan_record_id) + sizeof(uint32_t)))
+    {
+        /* see if we have enough buf space to read in the next full record */
+        path_len_ptr = (uint32_t *)(buf_ptr + sizeof(darshan_record_id));
+        if(swap_flag)
+            DARSHAN_BSWAP32(path_len_ptr);
+        rec_len = sizeof(darshan_record_id) + sizeof(uint32_t) + *path_len_ptr;
+
+        /* we need to read more before we continue deserializing */
+        if(buf_len < rec_len)
+            break;
+
+        /* get pointers for each field of this darshan record */
+        /* NOTE: darshan record hash serialization method: 
+         *          ... darshan_record_id | (uint32_t) path_len | path ...
+         */
+        rec_id_ptr = (darshan_record_id *)buf_ptr;
+        path_ptr = (char *)(buf_ptr + sizeof(darshan_record_id) + sizeof(uint32_t));
+
+        if(swap_flag)
+            /* we need to sort out endianness issues before deserializing */
+            DARSHAN_BSWAP64(rec_id_ptr);
+
+        HASH_FIND(hlink, *hash, rec_id_ptr, sizeof(darshan_record_id), ref);
+        if(!ref)
+        {
+            ref = malloc(sizeof(*ref));
+            if(!ref)
+                return(-1);
+
+            ref->name_record = malloc(rec_len - sizeof(uint32_t) + 1);
+            if(!ref->name_record)
+            {
+                free(ref);
+                return(-1);
+            }
+
+            /* transform the serialized name record into the zero-length
+             * array structure darshan uses to track name records
+             */
+            ref->name_record->id = *rec_id_ptr;
+            memcpy(ref->name_record->name, path_ptr, *path_len_ptr);
+            ref->name_record->name[*path_len_ptr] = '\0';
+
+            /* add this record to the hash */
+            HASH_ADD(hlink, *hash, name_record->id, sizeof(darshan_record_id), ref);
+        }
+
+        buf_ptr += rec_len;
+        buf_len -= rec_len;
+        buf_processed += rec_len;
+    }
+
+    return(buf_processed);
 }
 
 /*

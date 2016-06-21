@@ -43,15 +43,13 @@ enum darshan_pnetcdf_f_indices
 /* file record structure for PNETCDF files. a record is created and stored for
  * every PNETCDF file opened by the original application. For the PNETCDF module,
  * the record includes:
- *      - a corresponding record identifier (created by hashing the file path)
- *      - the rank of the process which opened the file (-1 for shared files)
+ *      - a darshan_base_record structure, which contains the record id & rank
  *      - integer file I/O statistics (open, read/write counts, etc)
  *      - floating point I/O statistics (timestamps, cumulative timers, etc.)
  */
 struct darshan_pnetcdf_file
 {
-    darshan_record_id f_id;
-    int64_t rank;
+    struct darshan_base_record base_rec;
     int64_t counters[PNETCDF_NUM_INDICES];
     double fcounters[PNETCDF_F_NUM_INDICES];
 };
