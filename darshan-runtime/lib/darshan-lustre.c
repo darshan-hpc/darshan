@@ -57,14 +57,29 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
     size_t lumsize = sizeof(struct lov_user_md) +
         LOV_MAX_STRIPE_COUNT * sizeof(struct lov_user_ost_data);
     size_t rec_size;
+    char *newname = NULL;
 
     LUSTRE_LOCK();
+    if(instrumentation_disabled)
+    {
+        LUSTRE_UNLOCK();
+        return;
+    }
+
     /* make sure the lustre module is already initialized */
     lustre_runtime_initialize();
+    if(!lustre_runtime)
+    {
+        LUSTRE_UNLOCK();
+        return;
+    }
 
     /* if we can't issue ioctl, we have no counter data at all */
     if ( (lum = calloc(1, lumsize)) == NULL )
+    {
+        LUSTRE_UNLOCK();
         return;
+    }
 
     /* find out the OST count of this file so we can allocate memory */
     lum->lmm_magic = LOV_USER_MAGIC;
@@ -74,10 +89,16 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
     if ( ioctl( fd, LL_IOC_LOV_GETSTRIPE, (void *)lum ) == -1 )
     {
         free(lum);
+        LUSTRE_UNLOCK();
         return;
     }
 
     rec_size = LUSTRE_RECORD_SIZE( lum->lmm_stripe_count );
+
+    /* get fully qualified name for record */
+    newname = darshan_clean_file_path(filepath);
+    if(!newname)
+        newname = (char*)filepath;
 
     {
         /* broken out for clarity */
@@ -89,8 +110,8 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
     /* register a Lustre file record with Darshan */
     fs_info.fs_type = -1;
     darshan_core_register_record(
-        (void *)filepath,
-        strlen(filepath),
+        (void *)newname,
+        strlen(newname),
         DARSHAN_LUSTRE_MOD,
         1,
         limit_flag,
