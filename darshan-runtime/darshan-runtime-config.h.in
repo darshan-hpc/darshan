@@ -3,9 +3,6 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
-/* Define if cuserid() should be disabled */
-#undef DARSHAN_DISABLE_CUSERID
-
 /* Define if struct aiocb64 type is defined */
 #undef HAVE_AIOCB64
 
@@ -86,6 +83,12 @@
 #  undef WORDS_BIGENDIAN
 # endif
 #endif
+
+/* Define if cuserid() should be disabled */
+#undef __DARSHAN_DISABLE_CUSERID
+
+/* Define if Darshan should mmap data structures to log file */
+#undef __DARSHAN_ENABLE_MMAP_LOGS
 
 /* Define if Darshan should set log files to be group readable */
 #undef __DARSHAN_GROUP_READABLE_LOGS

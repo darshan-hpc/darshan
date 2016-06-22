@@ -37,26 +37,20 @@
  */
 struct bgq_runtime
 {
-    struct darshan_bgq_record record;
+    struct darshan_bgq_record *record;
 };
 
 static struct bgq_runtime *bgq_runtime = NULL;
 static pthread_mutex_t bgq_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
-/* the instrumentation_disabled flag is used to toggle functions on/off */
-static int instrumentation_disabled = 0;
-
 /* my_rank indicates the MPI rank of this process */
 static int my_rank = -1;
-static int darshan_mem_alignment = 1;
 
 /* internal helper functions for the BGQ module */
 void bgq_runtime_initialize(void);
 
-/* forward declaration for module functions needed to interface with darshan-core */
-static void bgq_begin_shutdown(void);
-static void bgq_get_output_data(MPI_Comm mod_comm, darshan_record_id *shared_recs, int shared_rec_count, void **buffer, int *size);
-static void bgq_shutdown(void);
+/* forward declaration for shutdown function needed to interface with darshan-core */
+static void bgq_shutdown(MPI_Comm mod_comm, darshan_record_id *shared_recs, int shared_rec_count, void **buffer, int *size);
 
 /* macros for obtaining/releasing the BGQ module lock */
 #define BGQ_LOCK() pthread_mutex_lock(&bgq_runtime_mutex)
@@ -65,7 +59,7 @@ static void bgq_shutdown(void);
 /*
  * Function which updates all the counter data
  */
-static void capture(struct darshan_bgq_record *rec)
+static void capture(struct darshan_bgq_record *rec, darshan_record_id rec_id)
 {
     Personality_t person;
     int r;
@@ -93,7 +87,8 @@ static void capture(struct darshan_bgq_record *rec)
         rec->counters[BGQ_DDRPERNODE] = person.DDR_Config.DDRSizeMB;
     }
 
-    rec->rank = my_rank;
+    rec->base_rec.id = rec_id;
+    rec->base_rec.rank = my_rank;
     rec->fcounters[BGQ_F_TIMESTAMP] = darshan_core_wtime();
 
     return;
@@ -105,42 +100,33 @@ static void capture(struct darshan_bgq_record *rec)
 
 void bgq_runtime_initialize()
 {
-    /* struct of function pointers for interfacing with darshan-core */
-    struct darshan_module_funcs bgq_mod_fns =
-    {
-        .begin_shutdown = bgq_begin_shutdown,
-        .get_output_data = bgq_get_output_data,
-        .shutdown = bgq_shutdown
-    };
-    int mem_limit;
-    char *recname = "darshan-internal-bgq";
+    int bgq_buf_size;
+    darshan_record_id rec_id;
 
     BGQ_LOCK();
 
-    /* don't do anything if already initialized or instrumenation is disabled */
-    if(bgq_runtime || instrumentation_disabled)
-        return;
-
-    /* register the BG/Q module with the darshan-core component */
-    darshan_core_register_module(
-        DARSHAN_BGQ_MOD,
-        &bgq_mod_fns,
-        &my_rank,
-        &mem_limit,
-        &darshan_mem_alignment);
-
-    /* return if no memory assigned by darshan-core */
-    if(mem_limit == 0)
+    /* don't do anything if already initialized */
+    if(bgq_runtime)
     {
-        instrumentation_disabled = 1;
         BGQ_UNLOCK();
         return;
     }
 
-    /* not enough memory to fit bgq module */
-    if (mem_limit < sizeof(*bgq_runtime))
+    /* we just need to store one single record */
+    bgq_buf_size = sizeof(struct darshan_bgq_record);
+
+    /* register the BG/Q module with the darshan-core component */
+    darshan_core_register_module(
+        DARSHAN_BGQ_MOD,
+        &bgq_shutdown,
+        &bgq_buf_size,
+        &my_rank,
+        NULL);
+
+    /* not enough memory to fit bgq module record */
+    if(bgq_buf_size < sizeof(struct darshan_bgq_record))
     {
-        instrumentation_disabled = 1;
+        darshan_core_unregister_module(DARSHAN_BGQ_MOD);
         BGQ_UNLOCK();
         return;
     }
@@ -149,51 +135,31 @@ void bgq_runtime_initialize()
     bgq_runtime = malloc(sizeof(*bgq_runtime));
     if(!bgq_runtime)
     {
-        instrumentation_disabled = 1;
+        darshan_core_unregister_module(DARSHAN_BGQ_MOD);
         BGQ_UNLOCK();
         return;
     }
     memset(bgq_runtime, 0, sizeof(*bgq_runtime));
 
-    darshan_core_register_record(
-        recname,
-        strlen(recname),
-        DARSHAN_BGQ_MOD,
-        1,
-        0,
-        &bgq_runtime->record.f_id,
-        &bgq_runtime->record.alignment);
+    rec_id = darshan_core_gen_record_id("darshan-bgq-record");
 
-    /* if record is set to 0, darshan-core is out of space and will not
-     * track this record, so we should avoid tracking it, too
-     */
-    if(bgq_runtime->record.f_id == 0)
+    /* register the bgq file record with darshan-core */
+    bgq_runtime->record = darshan_core_register_record(
+        rec_id,
+        NULL,
+        DARSHAN_BGQ_MOD,
+        sizeof(struct darshan_bgq_record),
+        NULL);
+    if(!(bgq_runtime->record))
     {
-        instrumentation_disabled = 1;
+        darshan_core_unregister_module(DARSHAN_BGQ_MOD);
         free(bgq_runtime);
         bgq_runtime = NULL;
         BGQ_UNLOCK();
         return;
     }
 
-    capture(&bgq_runtime->record);
-
-    BGQ_UNLOCK();
-
-    return;
-}
-
-/* Perform any necessary steps prior to shutting down for the BGQ module. */
-static void bgq_begin_shutdown()
-{
-    BGQ_LOCK();
-
-    /* In general, we want to disable all wrappers while Darshan shuts down. 
-     * This is to avoid race conditions and ensure data consistency, as
-     * executing wrappers could potentially modify module state while Darshan
-     * is in the process of shutting down. 
-     */
-    instrumentation_disabled = 1;
+    capture(bgq_runtime->record, rec_id);
 
     BGQ_UNLOCK();
 
@@ -207,21 +173,24 @@ static int cmpr(const void *p1, const void *p2)
     return ((*a == *b) ?  0 : ((*a < *b) ? -1 : 1));
 }
 
+/********************************************************************************
+ * shutdown function exported by this module for coordinating with darshan-core *
+ ********************************************************************************/
+
 /* Pass output data for the BGQ module back to darshan-core to log to file. */
-static void bgq_get_output_data(
+static void bgq_shutdown(
     MPI_Comm mod_comm,
     darshan_record_id *shared_recs,
     int shared_rec_count,
     void **buffer,
     int *size)
 {
-    /* Just set the output buffer to point at the array of the BGQ module's
-     * I/O records, and set the output size according to the number of records
-     * currently being tracked.
-     */
     int nprocs;
     int result;
     uint64_t *ion_ids;
+
+    BGQ_LOCK();
+    assert(bgq_runtime);
 
     if (my_rank == 0)
     {
@@ -231,12 +200,13 @@ static void bgq_get_output_data(
     }
     DARSHAN_MPI_CALL(PMPI_Bcast)(&result, 1, MPI_INT, 0, mod_comm);
 
-    if (bgq_runtime && result)
+    /* caclulate the number of I/O nodes */
+    if (result)
     {
         int i, found;
         uint64_t val;
 
-        DARSHAN_MPI_CALL(PMPI_Gather)(&bgq_runtime->record.counters[BGQ_INODES],
+        DARSHAN_MPI_CALL(PMPI_Gather)(&bgq_runtime->record->counters[BGQ_INODES],
                                       1,
                                       MPI_LONG_LONG_INT,
                                       ion_ids,
@@ -255,32 +225,21 @@ static void bgq_get_output_data(
                     found += 1;
                 }
             }
-            bgq_runtime->record.counters[BGQ_INODES] = found;
+            bgq_runtime->record->counters[BGQ_INODES] = found;
         }
     }
 
-    if ((bgq_runtime) && (my_rank == 0))
-    {
-        *buffer = &bgq_runtime->record;
-        *size = sizeof(struct darshan_bgq_record);
-    }
-    else
+    /* non-zero ranks throw out their BGQ record */
+    if (my_rank != 0)
     {
         *buffer = NULL;
         *size   = 0;
     }
 
-    return;
-}
+    free(bgq_runtime);
+    bgq_runtime = NULL;
 
-/* Shutdown the BGQ module by freeing up all data structures. */
-static void bgq_shutdown()
-{
-    if (bgq_runtime)
-    {
-        free(bgq_runtime);
-        bgq_runtime = NULL;
-    }
+    BGQ_UNLOCK();
 
     return;
 }

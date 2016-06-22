@@ -1,0 +1,79 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2015 University of Chicago.
+# See COPYRIGHT notice in top-level directory.
+#
+
+# grab the prefix of the darshan install directory
+DARSHAN_INSTALL_DIR=@prefix@
+
+# use the log dir specified at configure time
+DARSHAN_LOG_DIR=@__DARSHAN_LOG_PATH@
+
+JOB_END=$(date +"%s")
+
+# use the default mmap log directory (/tmp), unless the 
+# env variable is set to something
+if [ -z "$DARSHAN_MMAP_LOGPATH" ]; then
+    DARSHAN_MMAP_LOG_DIR=/tmp
+else
+    DARSHAN_MMAP_LOG_DIR=$DARSHAN_MMAP_LOGPATH
+fi
+
+DARSHAN_MMAP_LOG_GLOB=${DARSHAN_MMAP_LOG_DIR}/*id${SLURM_JOB_ID}*.darshan
+
+# if no mmap logs found for this job, we have nothing to do
+DARSHAN_MMAP_LOG1=$(ls $DARSHAN_MMAP_LOG_GLOB 2>/dev/null | head -n 1)
+if [ -z $DARSHAN_MMAP_LOG1 ]; then
+    exit 0
+fi
+
+# get the job start time from the first log file
+JOB_START_DATE=$(${DARSHAN_INSTALL_DIR}/bin/darshan-parser $DARSHAN_MMAP_LOG1 |
+    grep "# start_time_asci" | cut -d':' -f 2- | cut -d' ' -f 2-)
+OUTPUT_YEAR=$(date --date="$(printf "$JOB_START_DATE")" +"%Y")
+OUTPUT_MON=$(date --date="$(printf "$JOB_START_DATE")" +"%-m")
+OUTPUT_DAY=$(date --date="$(printf "$JOB_START_DATE")" +"%-d")
+OUTPUT_SECS=$((
+    ($(date --date="$(printf "$JOB_START_DATE")" +"%-H") * 60 * 60) +
+    ($(date --date="$(printf "$JOB_START_DATE")" +"%-M") * 60) +
+    ($(date --date="$(printf "$JOB_START_DATE")" +"%-S"))
+))
+
+LOG_NAME_PRE=$(basename $DARSHAN_MMAP_LOG1 | cut -d'_' -f 1-3)
+
+# construct full name of directory to store output log(s)
+OUTPUT_LOG_DIR=${DARSHAN_LOG_DIR}/${OUTPUT_YEAR}/${OUTPUT_MON}/${OUTPUT_DAY}/
+OUTPUT_NAME_PRE=${LOG_NAME_PRE}_${OUTPUT_MON}-${OUTPUT_DAY}-${OUTPUT_SECS}
+
+if [ $SLURM_NNODES -gt 1 ]; then
+    NODE_LOG_DIR=${OUTPUT_LOG_DIR}/${OUTPUT_NAME_PRE}
+    NODE_NAME=$(uname -n)
+
+    # multiple nodes, create a node log directory for everyone to write to
+    mkdir -p $NODE_LOG_DIR
+
+    # construct the per-node log file and store in the output directory
+    $DARSHAN_INSTALL_DIR/bin/darshan-merge --job-end-time $JOB_END \
+        --output ${NODE_LOG_DIR}/${LOG_NAME_PRE}_${NODE_NAME}.darshan \
+        $DARSHAN_MMAP_LOG_GLOB
+else
+    TMP_LOG=${OUTPUT_NAME_PRE}.darshan
+
+    # single node, just create the final output darshan log
+    LOG_WRITE_START=$(date +%s)
+    $DARSHAN_INSTALL_DIR/bin/darshan-merge --job-end-time $JOB_END \
+        --shared-redux --output ${OUTPUT_LOG_DIR}/${TMP_LOG} \
+        $DARSHAN_MMAP_LOG_GLOB
+    LOG_WRITE_END=$(date +%s)
+
+    WRITE_TM=$(($LOG_WRITE_END - $LOG_WRITE_START + 1))
+    FINAL_LOG=${OUTPUT_NAME_PRE}-${RANDOM}_${WRITE_TM}.darshan
+
+    mv ${OUTPUT_LOG_DIR}/${TMP_LOG} ${OUTPUT_LOG_DIR}/${FINAL_LOG}
+fi
+
+rm -f $DARSHAN_MMAP_LOG_GLOB
+
+exit 0

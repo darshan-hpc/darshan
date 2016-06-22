@@ -18,8 +18,10 @@
 #include <time.h>
 #include <limits.h>
 #include <pthread.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <sys/vfs.h>
 #include <zlib.h>
 #include <mpi.h>
@@ -39,6 +41,7 @@ static pthread_mutex_t darshan_core_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_
 static int my_rank = -1;
 static int nprocs = -1;
 static int darshan_mem_alignment = 1;
+static long darshan_mod_mem_quota = DARSHAN_MOD_MEM_MAX;
 
 /* paths prefixed with the following directories are not traced by darshan */
 char* darshan_path_exclusions[] = {
@@ -88,17 +91,23 @@ static struct mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
 
 /* prototypes for internal helper functions */
-static void darshan_get_logfile_name(
-    char* logfile_name, int jobid, struct tm* start_tm);
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+static void *darshan_init_mmap_log(
+    struct darshan_core_runtime* core, int jobid);
+#endif
 static void darshan_log_record_hints_and_ver(
     struct darshan_core_runtime* core);
-static void darshan_get_exe_and_mounts_root(
-    struct darshan_core_runtime *core, char* trailing_data,
-    int space_left);
-static char* darshan_get_exe_and_mounts(
-    struct darshan_core_runtime *core);
-static void darshan_block_size_from_path(
-    const char *path, int *block_size);
+static void darshan_get_exe_and_mounts(
+    struct darshan_core_runtime *core, int argc, char **argv);
+static int darshan_add_name_record_ref(
+    struct darshan_core_runtime *core, darshan_record_id rec_id,
+    const char *name, darshan_module_id mod_id);
+static int darshan_block_size_from_path(
+    const char *path);
+static void darshan_get_user_name(
+    char *user);
+static void darshan_get_logfile_name(
+    char* logfile_name, int jobid, struct tm* start_tm);
 static void darshan_get_shared_records(
     struct darshan_core_runtime *core, darshan_record_id **shared_recs,
     int *shared_rec_cnt);
@@ -107,7 +116,7 @@ static int darshan_log_open_all(
 static int darshan_deflate_buffer(
     void **pointers, int *lengths, int count, char *comp_buf,
     int *comp_buf_length);
-static int darshan_log_write_record_hash(
+static int darshan_log_write_name_record_hash(
     MPI_File log_fh, struct darshan_core_runtime *core,
     uint64_t *inout_off);
 static int darshan_log_append_all(
@@ -121,15 +130,14 @@ static void darshan_core_cleanup(
 void darshan_core_initialize(int argc, char **argv)
 {
     struct darshan_core_runtime *init_core = NULL;
-    int i;
     int internal_timing_flag = 0;
     double init_start, init_time, init_max;
     char *envstr;
-    char* truncate_string = "<TRUNCATED>";
-    int truncate_offset;
-    int chars_left = 0;
+    char *jobid_str;
+    int jobid;
     int ret;
     int tmpval;
+    int i;
 
     DARSHAN_MPI_CALL(PMPI_Comm_size)(MPI_COMM_WORLD, &nprocs);
     DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
@@ -162,63 +170,120 @@ void darshan_core_initialize(int argc, char **argv)
         }
 
         /* avoid floating point errors on faulty input */
-        if (darshan_mem_alignment < 1)
+        if(darshan_mem_alignment < 1)
         {
             darshan_mem_alignment = 1;
         }
 
-        /* allocate structure to track darshan_core_runtime information */
+        /* Use DARSHAN_JOBID_OVERRIDE for the env var for __DARSHAN_JOBID */
+        envstr = getenv(DARSHAN_JOBID_OVERRIDE);
+        if(!envstr)
+        {
+            envstr = __DARSHAN_JOBID;
+        }
+
+        /* find a job id */
+        jobid_str = getenv(envstr);
+        if(jobid_str)
+        {
+            /* in cobalt we can find it in env var */
+            ret = sscanf(jobid_str, "%d", &jobid);
+        }
+        if(!jobid_str || ret != 1)
+        {
+            /* use pid as fall back */
+            jobid = getpid();
+        }
+
+        /* set the memory quota for darshan modules' records */
+        envstr = getenv(DARSHAN_MOD_MEM_OVERRIDE);
+        if(envstr)
+        {
+            ret = sscanf(envstr, "%d", &tmpval);
+            /* silently ignore if the env variable is set poorly */
+            if(ret == 1 && tmpval > 0)
+            {
+                darshan_mod_mem_quota = tmpval * 1024 * 1024; /* convert from MiB */
+            }
+        }
+
+        /* allocate structure to track darshan core runtime information */
         init_core = malloc(sizeof(*init_core));
         if(init_core)
         {
             memset(init_core, 0, sizeof(*init_core));
-
-            init_core->log_job.uid = getuid();
-            init_core->log_job.start_time = time(NULL);
-            init_core->log_job.nprocs = nprocs;
             init_core->wtime_offset = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
-            /* record exe and arguments */
-            for(i=0; i<argc; i++)
-            {
-                chars_left = DARSHAN_EXE_LEN-strlen(init_core->exe);
-                strncat(init_core->exe, argv[i], chars_left);
-                if(i < (argc-1))
-                {
-                    chars_left = DARSHAN_EXE_LEN-strlen(init_core->exe);
-                    strncat(init_core->exe, " ", chars_left);
-                }
-            }
+        /* TODO: do we alloc new memory as we go or just do everything up front? */
 
-            /* if we don't see any arguments, then use glibc symbol to get
-             * program name at least (this happens in fortran)
+#ifndef __DARSHAN_ENABLE_MMAP_LOGS
+            /* just allocate memory for each log file region */
+            init_core->log_hdr_p = malloc(sizeof(struct darshan_header));
+            init_core->log_job_p = malloc(sizeof(struct darshan_job));
+            init_core->log_exemnt_p = malloc(DARSHAN_EXE_LEN+1);
+            init_core->log_name_p = malloc(DARSHAN_NAME_RECORD_BUF_SIZE);
+            init_core->log_mod_p = malloc(darshan_mod_mem_quota);
+
+            if(!(init_core->log_hdr_p) || !(init_core->log_job_p) ||
+               !(init_core->log_exemnt_p) || !(init_core->log_name_p) ||
+               !(init_core->log_mod_p))
+            {
+                free(init_core);
+                return;
+            }
+            /* if allocation succeeds, zero fill memory regions */
+            memset(init_core->log_hdr_p, 0, sizeof(struct darshan_header));
+            memset(init_core->log_job_p, 0, sizeof(struct darshan_job));
+            memset(init_core->log_exemnt_p, 0, DARSHAN_EXE_LEN+1);
+            memset(init_core->log_name_p, 0, DARSHAN_NAME_RECORD_BUF_SIZE);
+            memset(init_core->log_mod_p, 0, darshan_mod_mem_quota);
+#else
+            /* if mmap logs are enabled, we need to initialize the mmap region
+             * before setting the corresponding log file region pointers
              */
-            if(argc == 0)
+            void *mmap_p = darshan_init_mmap_log(init_core, jobid);
+            if(!mmap_p)
             {
-                chars_left = DARSHAN_EXE_LEN-strlen(init_core->exe);
-                strncat(init_core->exe, __progname_full, chars_left);
-                chars_left = DARSHAN_EXE_LEN-strlen(init_core->exe);
-                strncat(init_core->exe, " <unknown args>", chars_left);
+                free(init_core);
+                return;
             }
 
-            if(chars_left == 0)
-            {
-                /* we ran out of room; mark that string was truncated */
-                truncate_offset = DARSHAN_EXE_LEN - strlen(truncate_string);
-                sprintf(&init_core->exe[truncate_offset], "%s",
-                    truncate_string);
-            }
+            /* set the memory pointers for each log file region */
+            init_core->log_hdr_p = (struct darshan_header *)mmap_p;
+            init_core->log_job_p = (struct darshan_job *)
+                ((char *)init_core->log_hdr_p + sizeof(struct darshan_header));
+            init_core->log_exemnt_p = (char *)
+                ((char *)init_core->log_job_p + sizeof(struct darshan_job));
+            init_core->log_name_p = (void *)
+                ((char *)init_core->log_exemnt_p + DARSHAN_EXE_LEN + 1);
+            init_core->log_mod_p = (void *)
+                ((char *)init_core->log_name_p + DARSHAN_NAME_RECORD_BUF_SIZE);
+
+            /* set header fields needed for the mmap log mechanism */
+            init_core->log_hdr_p->comp_type = DARSHAN_NO_COMP;
+            init_core->log_hdr_p->name_map.off =
+                ((char *)init_core->log_name_p - (char *)init_core->log_hdr_p);
+#endif
+
+            /* set known header fields for the log file */
+            strcpy(init_core->log_hdr_p->version_string, DARSHAN_LOG_VERSION);
+            init_core->log_hdr_p->magic_nr = DARSHAN_MAGIC_NR;
+
+            /* set known job-level metadata fields for the log file */
+            init_core->log_job_p->uid = getuid();
+            init_core->log_job_p->start_time = time(NULL);
+            init_core->log_job_p->nprocs = nprocs;
+            init_core->log_job_p->jobid = (int64_t)jobid;
+
+            /* if we are using any hints to write the log file, then record those
+             * hints with the darshan job information
+             */
+            darshan_log_record_hints_and_ver(init_core);
 
             /* collect information about command line and mounted file systems */
-            init_core->trailing_data = darshan_get_exe_and_mounts(init_core);
+            darshan_get_exe_and_mounts(init_core, argc, argv);
 
-            /* bootstrap any modules with static initialization routines */
-            i = 0;
-            while(mod_static_init_fns[i])
-            {
-                (*mod_static_init_fns[i])();
-                i++;
-            }
+            darshan_core = init_core;
         }
     }
 
@@ -234,41 +299,49 @@ void darshan_core_initialize(int argc, char **argv)
         }
     }
 
-    /* if darshan was successfully initialized, set the global pointer */
+    /* if darshan was successfully initialized, set the global pointer and
+     * bootstrap any modules with static initialization routines
+     */
     if(init_core)
+    {
         darshan_core = init_core;
+
+        i = 0;
+        while(mod_static_init_fns[i])
+        {
+            (*mod_static_init_fns[i])();
+            i++;
+        }
+    }
 
     return;
 }
 
 void darshan_core_shutdown()
 {
-    int i;
-    char *logfile_name;
     struct darshan_core_runtime *final_core;
     int internal_timing_flag = 0;
-    char *envjobid;
-    char *jobid_str;
-    int jobid;
     struct tm *start_tm;
     time_t start_time_tmp;
-    int ret = 0;
-    int all_ret = 0;
     int64_t first_start_time;
     int64_t last_end_time;
+    double start_log_time;
+    double tm_end;
+    double open1, open2;
+    double job1, job2;
+    double rec1, rec2;
+    double mod1[DARSHAN_MAX_MODS] = {0};
+    double mod2[DARSHAN_MAX_MODS] = {0};
+    double header1, header2;
+    char *logfile_name;
     int local_mod_use[DARSHAN_MAX_MODS] = {0};
     int global_mod_use_count[DARSHAN_MAX_MODS] = {0};
     darshan_record_id *shared_recs;
     darshan_record_id *mod_shared_recs;
     int shared_rec_cnt = 0;
-    double start_log_time;
-    double open1 = 0, open2 = 0;
-    double job1 = 0, job2 = 0;
-    double rec1 = 0, rec2 = 0;
-    double mod1[DARSHAN_MAX_MODS] = {0};
-    double mod2[DARSHAN_MAX_MODS] = {0};
-    double header1 = 0, header2 = 0;
-    double tm_end;
+    int ret = 0;
+    int all_ret = 0;
+    int i;
     uint64_t gz_fp = 0;
     MPI_File log_fh;
     MPI_Status status;
@@ -276,6 +349,8 @@ void darshan_core_shutdown()
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
 
+    /* synchronize before getting start time */
+    DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
     start_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
     /* disable darhan-core while we shutdown */
@@ -287,6 +362,30 @@ void darshan_core_shutdown()
     }
     final_core = darshan_core;
     darshan_core = NULL;
+    DARSHAN_CORE_UNLOCK();
+
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    /* remove the temporary mmap log files */
+    /* NOTE: this unlink is not immediate as it must wait for the mapping
+     * to no longer be referenced, which in our case happens when the
+     * executable exits. If the application terminates mid-shutdown, then
+     * there will be no mmap files and no final log file.
+     */
+    unlink(final_core->mmap_log_name);
+#endif
+
+    final_core->log_job_p->end_time = time(NULL);
+
+    /* reduce to report first start and last end time across all ranks at rank 0 */
+    DARSHAN_MPI_CALL(PMPI_Reduce)(&final_core->log_job_p->start_time, &first_start_time,
+        1, MPI_INT64_T, MPI_MIN, 0, MPI_COMM_WORLD);
+    DARSHAN_MPI_CALL(PMPI_Reduce)(&final_core->log_job_p->end_time, &last_end_time,
+        1, MPI_INT64_T, MPI_MAX, 0, MPI_COMM_WORLD);
+    if(my_rank == 0)
+    {
+        final_core->log_job_p->start_time = first_start_time;
+        final_core->log_job_p->end_time = last_end_time;
+    }
 
     final_core->comp_buf = malloc(DARSHAN_COMP_BUF_SIZE);
     if(!(final_core->comp_buf))
@@ -295,20 +394,6 @@ void darshan_core_shutdown()
         return;
     }
 
-    /* we also need to set which modules were registered on this process and
-     * call into those modules and give them a chance to perform any necessary
-     * pre-shutdown steps.
-     */
-    for(i = 0; i < DARSHAN_MAX_MODS; i++)
-    {
-        if(final_core->mod_array[i])
-        {
-            local_mod_use[i] = 1;
-            final_core->mod_array[i]->mod_funcs.begin_shutdown();
-        }
-    }
-    DARSHAN_CORE_UNLOCK();
-
     logfile_name = malloc(PATH_MAX);
     if(!logfile_name)
     {
@@ -316,42 +401,14 @@ void darshan_core_shutdown()
         return;
     }
 
-    /* set darshan job id/metadata and constuct log file name on rank 0 */
+    /* set the log file name on rank 0 */
     if(my_rank == 0)
     {
-        /* Use DARSHAN_JOBID_OVERRIDE for the env var for __DARSHAN_JOBID */
-        envjobid = getenv(DARSHAN_JOBID_OVERRIDE);
-        if(!envjobid)
-        {
-            envjobid = __DARSHAN_JOBID;
-        }
-
-        /* find a job id */
-        jobid_str = getenv(envjobid);
-        if(jobid_str)
-        {
-            /* in cobalt we can find it in env var */
-            ret = sscanf(jobid_str, "%d", &jobid);
-        }
-        if(!jobid_str || ret != 1)
-        {
-            /* use pid as fall back */
-            jobid = getpid();
-        }
-
-        final_core->log_job.jobid = (int64_t)jobid;
-
-        /* if we are using any hints to write the log file, then record those
-         * hints with the darshan job information
-         */
-        darshan_log_record_hints_and_ver(final_core);
-
         /* use human readable start time format in log filename */
-        start_time_tmp = final_core->log_job.start_time;
+        start_time_tmp = final_core->log_job_p->start_time;
         start_tm = localtime(&start_time_tmp);
 
-        /* construct log file name */
-        darshan_get_logfile_name(logfile_name, jobid, start_tm);
+        darshan_get_logfile_name(logfile_name, final_core->log_job_p->jobid, start_tm);
     }
 
     /* broadcast log file name */
@@ -366,21 +423,19 @@ void darshan_core_shutdown()
         return;
     }
 
-    final_core->log_job.end_time = time(NULL);
-
-    /* reduce to report first start time and last end time across all ranks
-     * at rank 0
+    /* set which modules were registered locally, and call into
+     * them to disable further instrumentation and to perform any
+     * other pre-shutdown steps
      */
-    DARSHAN_MPI_CALL(PMPI_Reduce)(&final_core->log_job.start_time, &first_start_time, 1, MPI_LONG_LONG, MPI_MIN, 0, MPI_COMM_WORLD);
-    DARSHAN_MPI_CALL(PMPI_Reduce)(&final_core->log_job.end_time, &last_end_time, 1, MPI_LONG_LONG, MPI_MAX, 0, MPI_COMM_WORLD);
-    if(my_rank == 0)
+    for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
-        final_core->log_job.start_time = first_start_time;
-        final_core->log_job.end_time = last_end_time;
+        if(final_core->mod_array[i])
+            local_mod_use[i] = 1;
     }
 
-    /* reduce the number of times a module was opened globally and bcast to everyone */   
-    DARSHAN_MPI_CALL(PMPI_Allreduce)(local_mod_use, global_mod_use_count, DARSHAN_MAX_MODS, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    /* reduce the number of times a module was opened globally and bcast to everyone */
+    DARSHAN_MPI_CALL(PMPI_Allreduce)(local_mod_use, global_mod_use_count,
+        DARSHAN_MAX_MODS, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
     /* get a list of records which are shared across all processes */
     darshan_get_shared_records(final_core, &shared_recs, &shared_rec_cnt);
@@ -412,8 +467,8 @@ void darshan_core_shutdown()
     /* rank 0 is responsible for writing the compressed darshan job information */
     if(my_rank == 0)
     {
-        void *pointers[2] = {&final_core->log_job, final_core->trailing_data};
-        int lengths[2] = {sizeof(struct darshan_job), strlen(final_core->trailing_data)};
+        void *pointers[2] = {final_core->log_job_p, final_core->log_exemnt_p};
+        int lengths[2] = {sizeof(struct darshan_job), strlen(final_core->log_exemnt_p)};
         int comp_buf_sz = 0;
 
         /* compress the job info and the trailing mount/exe data */
@@ -432,10 +487,11 @@ void darshan_core_shutdown()
                 final_core->comp_buf, comp_buf_sz, MPI_BYTE, &status);
             if(all_ret != MPI_SUCCESS)
             {
-                fprintf(stderr, "darshan library warning: unable to write job data to log file %s\n",
+                fprintf(stderr,
+                        "darshan library warning: unable to write job data to log file %s\n",
                         logfile_name);
                 unlink(logfile_name);
-                
+
             }
             gz_fp += comp_buf_sz;
         }
@@ -455,18 +511,19 @@ void darshan_core_shutdown()
     if(internal_timing_flag)
         rec1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
     /* write the record name->id hash to the log file */
-    final_core->log_header.rec_map.off = gz_fp;
-    ret = darshan_log_write_record_hash(log_fh, final_core, &gz_fp);
-    final_core->log_header.rec_map.len = gz_fp - final_core->log_header.rec_map.off;
+    final_core->log_hdr_p->name_map.off = gz_fp;
+    ret = darshan_log_write_name_record_hash(log_fh, final_core, &gz_fp);
+    final_core->log_hdr_p->name_map.len = gz_fp - final_core->log_hdr_p->name_map.off;
 
-    /* error out if unable to write record hash */
+    /* error out if unable to write the name record hash */
     DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
         MPI_LOR, MPI_COMM_WORLD);
     if(all_ret != 0)
     {
         if(my_rank == 0)
         {
-            fprintf(stderr, "darshan library warning: unable to write record hash to log file %s\n",
+            fprintf(stderr,
+                "darshan library warning: unable to write record hash to log file %s\n",
                 logfile_name);
             unlink(logfile_name);
         }
@@ -481,17 +538,16 @@ void darshan_core_shutdown()
     assert(mod_shared_recs);
 
     /* loop over globally used darshan modules and:
-     *      - perform shared file reductions, if possible
      *      - get final output buffer
      *      - compress (zlib) provided output buffer
      *      - append compressed buffer to log file
-     *      - add module index info (file offset/length) to log header
+     *      - add module map info (file offset/length) to log header
      *      - shutdown the module
      */
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
         struct darshan_core_module* this_mod = final_core->mod_array[i];
-        struct darshan_core_record_ref *ref = NULL;
+        struct darshan_core_name_record_ref *ref = NULL;
         int mod_shared_rec_cnt = 0;
         void* mod_buf = NULL;
         int mod_buf_sz = 0;
@@ -501,20 +557,19 @@ void darshan_core_shutdown()
         {
             if(my_rank == 0)
             {
-                final_core->log_header.mod_map[i].off = 0;
-                final_core->log_header.mod_map[i].len = 0;
+                final_core->log_hdr_p->mod_map[i].off = 0;
+                final_core->log_hdr_p->mod_map[i].len = 0;
             }
             continue;
         }
- 
+
         if(internal_timing_flag)
             mod1[i] = DARSHAN_MPI_CALL(PMPI_Wtime)();
 
-        /* set the shared file list for this module */
-        memset(mod_shared_recs, 0, shared_rec_cnt * sizeof(darshan_record_id));
+        /* set the shared record list for this module */
         for(j = 0; j < shared_rec_cnt; j++)
         {
-            HASH_FIND(hlink, final_core->rec_hash, &shared_recs[j],
+            HASH_FIND(hlink, final_core->name_hash, &shared_recs[j],
                 sizeof(darshan_record_id), ref);
             assert(ref);
             if(DARSHAN_MOD_FLAG_ISSET(ref->global_mod_flags, i))
@@ -526,19 +581,21 @@ void darshan_core_shutdown()
         /* if module is registered locally, get the corresponding output buffer
          * 
          * NOTE: this function can be used to run collective operations across
-         * modules, if there are file records shared globally.
+         * modules, if there are records shared globally.
          */
         if(this_mod)
         {
-            this_mod->mod_funcs.get_output_data(MPI_COMM_WORLD, mod_shared_recs,
+            mod_buf = final_core->mod_array[i]->rec_buf_start;
+            mod_buf_sz = final_core->mod_array[i]->rec_buf_p - mod_buf;
+            this_mod->mod_shutdown_func(MPI_COMM_WORLD, mod_shared_recs,
                 mod_shared_rec_cnt, &mod_buf, &mod_buf_sz);
         }
 
         /* append this module's data to the darshan log */
-        final_core->log_header.mod_map[i].off = gz_fp;
+        final_core->log_hdr_p->mod_map[i].off = gz_fp;
         ret = darshan_log_append_all(log_fh, final_core, mod_buf, mod_buf_sz, &gz_fp);
-        final_core->log_header.mod_map[i].len =
-            gz_fp - final_core->log_header.mod_map[i].off;
+        final_core->log_hdr_p->mod_map[i].len =
+            gz_fp - final_core->log_hdr_p->mod_map[i].off;
 
         /* error out if the log append failed */
         DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
@@ -557,39 +614,31 @@ void darshan_core_shutdown()
             return;
         }
 
-        /* shutdown module if registered locally */
-        if(this_mod)
-        {
-            this_mod->mod_funcs.shutdown();
-        }
         if(internal_timing_flag)
             mod2[i] = DARSHAN_MPI_CALL(PMPI_Wtime)();
     }
 
     if(internal_timing_flag)
         header1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
-    /* write out log header, after running 2 reduction on header variables:
+    /* write out log header, after running 2 reductions on header variables:
      *  1) reduce 'partial_flag' variable to determine which modules ran out
-     *     of memory for storing I/O data
+     *     of memory for storing data
      *  2) reduce 'mod_ver' array to determine which log format version each
      *     module used for this output log
      */
     if(my_rank == 0)
     {
-        DARSHAN_MPI_CALL(PMPI_Reduce)(MPI_IN_PLACE,
-            &(final_core->log_header.partial_flag), 1, MPI_UINT32_T,
-            MPI_BOR, 0, MPI_COMM_WORLD);
-        DARSHAN_MPI_CALL(PMPI_Reduce)(MPI_IN_PLACE,
-            final_core->log_header.mod_ver, DARSHAN_MAX_MODS, MPI_UINT32_T,
-            MPI_MAX, 0, MPI_COMM_WORLD);
-
         /* rank 0 is responsible for writing the log header */
-        /* initialize the remaining header fields */
-        strcpy(final_core->log_header.version_string, DARSHAN_LOG_VERSION);
-        final_core->log_header.magic_nr = DARSHAN_MAGIC_NR;
-        final_core->log_header.comp_type = DARSHAN_ZLIB_COMP;
+        final_core->log_hdr_p->comp_type = DARSHAN_ZLIB_COMP;
 
-        all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, 0, &(final_core->log_header),
+        DARSHAN_MPI_CALL(PMPI_Reduce)(
+            MPI_IN_PLACE, &(final_core->log_hdr_p->partial_flag),
+            1, MPI_UINT32_T, MPI_BOR, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(
+            MPI_IN_PLACE, &(final_core->log_hdr_p->mod_ver),
+            DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX, 0, MPI_COMM_WORLD);
+
+        all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, 0, final_core->log_hdr_p,
             sizeof(struct darshan_header), MPI_BYTE, &status);
         if(all_ret != MPI_SUCCESS)
         {
@@ -600,12 +649,12 @@ void darshan_core_shutdown()
     }
     else
     {
-        DARSHAN_MPI_CALL(PMPI_Reduce)(&(final_core->log_header.partial_flag),
-            &(final_core->log_header.partial_flag), 1, MPI_UINT32_T,
-            MPI_BOR, 0, MPI_COMM_WORLD);
-        DARSHAN_MPI_CALL(PMPI_Reduce)(final_core->log_header.mod_ver,
-            final_core->log_header.mod_ver, DARSHAN_MAX_MODS, MPI_UINT32_T,
-            MPI_MAX, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(
+            &(final_core->log_hdr_p->partial_flag), &(final_core->log_hdr_p->partial_flag),
+            1, MPI_UINT32_T, MPI_BOR, 0, MPI_COMM_WORLD);
+        DARSHAN_MPI_CALL(PMPI_Reduce)(
+            &(final_core->log_hdr_p->mod_ver), &(final_core->log_hdr_p->mod_ver),
+            DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX, 0, MPI_COMM_WORLD);
     }
 
     /* error out if unable to write log header */
@@ -627,13 +676,14 @@ void darshan_core_shutdown()
      */
     if(my_rank == 0)
     {
+        mode_t chmod_mode = S_IRUSR;
+#ifdef __DARSHAN_GROUP_READABLE_LOGS
+        chmod_mode |= S_IRGRP;
+#endif
+
         if(getenv("DARSHAN_LOGFILE"))
         {
-#ifdef __DARSHAN_GROUP_READABLE_LOGS
-            chmod(logfile_name, (S_IRUSR|S_IRGRP));
-#else
-            chmod(logfile_name, (S_IRUSR));
-#endif
+            chmod(logfile_name, chmod_mode);
         }
         else
         {
@@ -651,17 +701,15 @@ void darshan_core_shutdown()
                 sprintf(tmp_index, "_%d.darshan", (int)(end_log_time-start_log_time+1));
                 rename(logfile_name, new_logfile_name);
                 /* set permissions on log file */
-#ifdef __DARSHAN_GROUP_READABLE_LOGS
-                chmod(new_logfile_name, (S_IRUSR|S_IRGRP));
-#else
-                chmod(new_logfile_name, (S_IRUSR));
-#endif
+                chmod(new_logfile_name, chmod_mode);
                 free(new_logfile_name);
             }
         }
     }
 
     free(logfile_name);
+    free(shared_recs);
+    free(mod_shared_recs);
     darshan_core_cleanup(final_core);
 
     if(internal_timing_flag)
@@ -714,18 +762,367 @@ void darshan_core_shutdown()
             fprintf(stderr, "darshan:core_shutdown\t%d\t%f\n", nprocs, all_slowest);
         }
     }
-    
+
     return;
 }
 
 /* *********************************** */
+
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
+{
+    int ret;
+    int mmap_fd;
+    int mmap_size;
+    int sys_page_size;
+    char cuser[L_cuserid] = {0};
+    char *envstr;
+    char *mmap_log_path;
+    void *mmap_p;
+
+    sys_page_size = sysconf(_SC_PAGESIZE);
+    assert(sys_page_size > 0);
+
+    mmap_size = sizeof(struct darshan_header) + DARSHAN_JOB_RECORD_SIZE +
+        + DARSHAN_NAME_RECORD_BUF_SIZE + darshan_mod_mem_quota;
+    if(mmap_size % sys_page_size)
+        mmap_size = ((mmap_size / sys_page_size) + 1) * sys_page_size;
+
+    envstr = getenv(DARSHAN_MMAP_LOG_PATH_OVERRIDE);
+    if(envstr)
+        mmap_log_path = envstr;
+    else
+        mmap_log_path = DARSHAN_DEF_MMAP_LOG_PATH;
+
+    darshan_get_user_name(cuser);
+
+    /* construct a unique temporary log file name for this process
+     * to write mmap log data to
+     */
+    snprintf(core->mmap_log_name, PATH_MAX,
+        "/%s/%s_%s_id%d_mmap-log-%d.darshan",
+        mmap_log_path, cuser, __progname, jobid, my_rank);
+
+    /* create the temporary mmapped darshan log */
+    mmap_fd = open(core->mmap_log_name, O_CREAT|O_RDWR|O_EXCL , 0644);
+    if(mmap_fd < 0)
+    {
+        fprintf(stderr, "darshan library warning: "
+            "unable to create darshan log file %s\n", core->mmap_log_name);
+        return(NULL);
+    }
+
+    /* TODO: ftruncate or just zero fill? */
+    /* allocate the necessary space in the log file */
+    ret = ftruncate(mmap_fd, mmap_size);
+    if(ret < 0)
+    {
+        fprintf(stderr, "darshan library warning: "
+            "unable to allocate darshan log file %s\n", core->mmap_log_name);
+        close(mmap_fd);
+        unlink(core->mmap_log_name);
+        return(NULL);
+    }
+
+    /* create the memory map for darshan's data structures so they are
+     * persisted to file as the application executes
+     */
+    mmap_p = mmap(NULL, mmap_size, PROT_WRITE, MAP_SHARED, mmap_fd, 0);
+    if(mmap_p == MAP_FAILED)
+    {
+        fprintf(stderr, "darshan library warning: "
+            "unable to mmap darshan log file %s\n", core->mmap_log_name);
+        close(mmap_fd);
+        unlink(core->mmap_log_name);
+        return(NULL);
+    }
+
+    /* close darshan log file (this does *not* unmap the log file) */
+    close(mmap_fd);
+
+    return(mmap_p);
+}
+#endif
+
+/* record any hints used to write the darshan log in the job data */
+static void darshan_log_record_hints_and_ver(struct darshan_core_runtime* core)
+{
+    char* hints;
+    char* job_hints;
+    int meta_remain = 0;
+    char* m;
+
+    /* check environment variable to see if the default MPI file hints have
+     * been overridden
+     */
+    hints = getenv(DARSHAN_LOG_HINTS_OVERRIDE);
+    if(!hints)
+    {
+        hints = __DARSHAN_LOG_HINTS;
+    }
+
+    if(!hints || strlen(hints) < 1)
+        return;
+
+    job_hints = strdup(hints);
+    if(!job_hints)
+        return;
+
+    meta_remain = DARSHAN_JOB_METADATA_LEN -
+        strlen(core->log_job_p->metadata) - 1;
+    if(meta_remain >= (strlen(PACKAGE_VERSION) + 9))
+    {
+        sprintf(core->log_job_p->metadata, "lib_ver=%s\n", PACKAGE_VERSION);
+        meta_remain -= (strlen(PACKAGE_VERSION) + 9);
+    }
+    if(meta_remain >= (3 + strlen(job_hints)))
+    {
+        m = core->log_job_p->metadata + strlen(core->log_job_p->metadata);
+        /* We have room to store the hints in the metadata portion of
+         * the job structure.  We just prepend an h= to the hints list.  The
+         * metadata parser will ignore = characters that appear in the value
+         * portion of the metadata key/value pair.
+         */
+        sprintf(m, "h=%s\n", job_hints);
+    }
+    free(job_hints);
+
+    return;
+}
+
+static int mnt_data_cmp(const void* a, const void* b)
+{
+    const struct mnt_data *d_a = (const struct mnt_data*)a;
+    const struct mnt_data *d_b = (const struct mnt_data*)b;
+
+    if(strlen(d_a->path) > strlen(d_b->path))
+        return(-1);
+    else if(strlen(d_a->path) < strlen(d_b->path))
+        return(1);
+    else
+        return(0);
+}
+
+/* adds an entry to table of mounted file systems */
+static void add_entry(char* buf, int* space_left, struct mntent* entry)
+{
+    int ret;
+    char tmp_mnt[256];
+    struct statfs statfsbuf;
+
+    strncpy(mnt_data_array[mnt_data_count].path, entry->mnt_dir,
+        DARSHAN_MAX_MNT_PATH-1);
+    strncpy(mnt_data_array[mnt_data_count].type, entry->mnt_type,
+        DARSHAN_MAX_MNT_TYPE-1);
+    /* NOTE: we now try to detect the preferred block size for each file 
+     * system using fstatfs().  On Lustre we assume a size of 1 MiB 
+     * because fstatfs() reports 4 KiB. 
+     */
+#ifndef LL_SUPER_MAGIC
+#define LL_SUPER_MAGIC 0x0BD00BD0
+#endif
+    ret = statfs(entry->mnt_dir, &statfsbuf);
+    if(ret == 0 && statfsbuf.f_type != LL_SUPER_MAGIC)
+        mnt_data_array[mnt_data_count].block_size = statfsbuf.f_bsize;
+    else if(ret == 0 && statfsbuf.f_type == LL_SUPER_MAGIC)
+        mnt_data_array[mnt_data_count].block_size = 1024*1024;
+    else
+        mnt_data_array[mnt_data_count].block_size = 4096;
+
+    /* store mount information with the job-level metadata in darshan log */
+    ret = snprintf(tmp_mnt, 256, "\n%s\t%s",
+        entry->mnt_type, entry->mnt_dir);
+    if(ret < 256 && strlen(tmp_mnt) <= (*space_left))
+    {
+        strcat(buf, tmp_mnt);
+        (*space_left) -= strlen(tmp_mnt);
+    }
+
+    mnt_data_count++;
+    return;
+}
+
+/* darshan_get_exe_and_mounts()
+ *
+ * collects command line and list of mounted file systems into a string that
+ * will be stored with the job-level metadata
+ */
+static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
+    int argc, char **argv)
+{
+    FILE* tab;
+    struct mntent *entry;
+    char* exclude;
+    char* truncate_string = "<TRUNCATED>";
+    int truncate_offset;
+    int space_left = DARSHAN_EXE_LEN;
+    int i;
+    int tmp_index = 0;
+    int skip = 0;
+
+    /* skip these fs types */
+    static char* fs_exclusions[] = {
+        "tmpfs",
+        "proc",
+        "sysfs",
+        "devpts",
+        "binfmt_misc",
+        "fusectl",
+        "debugfs",
+        "securityfs",
+        "nfsd",
+        "none",
+        "rpc_pipefs",
+        "hugetlbfs",
+        "cgroup",
+        NULL
+    };
+
+    /* record exe and arguments */
+    for(i=0; i<argc; i++)
+    {
+        strncat(core->log_exemnt_p, argv[i], space_left);
+        space_left = DARSHAN_EXE_LEN-strlen(core->log_exemnt_p);
+        if(i < (argc-1))
+        {
+            strncat(core->log_exemnt_p, " ", space_left);
+            space_left = DARSHAN_EXE_LEN-strlen(core->log_exemnt_p);
+        }
+    }
+
+    /* if we don't see any arguments, then use glibc symbol to get
+     * program name at least (this happens in fortran)
+     */
+    if(argc == 0)
+    {
+        strncat(core->log_exemnt_p, __progname_full, space_left);
+        space_left = DARSHAN_EXE_LEN-strlen(core->log_exemnt_p);
+        strncat(core->log_exemnt_p, " <unknown args>", space_left);
+        space_left = DARSHAN_EXE_LEN-strlen(core->log_exemnt_p);
+    }
+
+    if(space_left == 0)
+    {
+        /* we ran out of room; mark that string was truncated */
+        truncate_offset = DARSHAN_EXE_LEN - strlen(truncate_string);
+        sprintf(&(core->log_exemnt_p[truncate_offset]), "%s",
+            truncate_string);
+    }
+
+    /* we make two passes through mounted file systems; in the first pass we
+     * grab any non-nfs mount points, then on the second pass we grab nfs
+     * mount points
+     */
+    mnt_data_count = 0;
+
+    tab = setmntent("/etc/mtab", "r");
+    if(!tab)
+        return;
+    /* loop through list of mounted file systems */
+    while(mnt_data_count<DARSHAN_MAX_MNTS && (entry = getmntent(tab)) != NULL)
+    {
+        /* filter out excluded fs types */
+        tmp_index = 0;
+        skip = 0;
+        while((exclude = fs_exclusions[tmp_index]))
+        {
+            if(!(strcmp(exclude, entry->mnt_type)))
+            {
+                skip =1;
+                break;
+            }
+            tmp_index++;
+        }
+
+        if(skip || (strcmp(entry->mnt_type, "nfs") == 0))
+            continue;
+
+        add_entry(core->log_exemnt_p, &space_left, entry);
+    }
+    endmntent(tab);
+
+    tab = setmntent("/etc/mtab", "r");
+    if(!tab)
+        return;
+    /* loop through list of mounted file systems */
+    while(mnt_data_count<DARSHAN_MAX_MNTS && (entry = getmntent(tab)) != NULL)
+    {
+        if(strcmp(entry->mnt_type, "nfs") != 0)
+            continue;
+
+        add_entry(core->log_exemnt_p, &space_left, entry);
+    }
+    endmntent(tab);
+
+    /* sort mount points in order of longest path to shortest path.  This is
+     * necessary so that if we try to match file paths to mount points later
+     * we don't match on "/" every time.
+     */
+    qsort(mnt_data_array, mnt_data_count, sizeof(mnt_data_array[0]), mnt_data_cmp);
+    return;
+}
+
+static int darshan_block_size_from_path(const char *path)
+{
+    int i;
+    int block_size = -1;
+
+    for(i=0; i<mnt_data_count; i++)
+    {
+        if(!(strncmp(mnt_data_array[i].path, path, strlen(mnt_data_array[i].path))))
+        {
+            block_size = mnt_data_array[i].block_size;
+            break;;
+        }
+    }
+
+    return block_size;
+}
+
+static void darshan_get_user_name(char *cuser)
+{
+    char* logname_string;
+
+    /* get the username for this job.  In order we will try each of the
+     * following until one of them succeeds:
+     *
+     * - cuserid()
+     * - getenv("LOGNAME")
+     * - snprintf(..., geteuid());
+     *
+     * Note that we do not use getpwuid() because it generally will not
+     * work in statically compiled binaries.
+     */
+
+#ifndef __DARSHAN_DISABLE_CUSERID
+    cuserid(cuser);
+#endif
+
+    /* if cuserid() didn't work, then check the environment */
+    if(strcmp(cuser, "") == 0)
+    {
+        logname_string = getenv("LOGNAME");
+        if(logname_string)
+        {
+            strncpy(cuser, logname_string, (L_cuserid-1));
+        }
+    }
+
+    /* if cuserid() and environment both fail, then fall back to uid */
+    if(strcmp(cuser, "") == 0)
+    {
+        uid_t uid = geteuid();
+        snprintf(cuser, L_cuserid, "%u", uid);
+    }
+
+    return;
+}
 
 /* construct the darshan log file name */
 static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* start_tm)
 {
     char* user_logfile_name;
     char* logpath;
-    char* logname_string;
     char* logpath_override = NULL;
 #ifdef __DARSHAN_LOG_ENV
     char env_check[256];
@@ -764,37 +1161,7 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
 #endif
         }
 
-        /* get the username for this job.  In order we will try each of the
-         * following until one of them succeeds:
-         *
-         * - cuserid()
-         * - getenv("LOGNAME")
-         * - snprintf(..., geteuid());
-         *
-         * Note that we do not use getpwuid() because it generally will not
-         * work in statically compiled binaries.
-         */
-
-#ifndef DARSHAN_DISABLE_CUSERID
-        cuserid(cuser);
-#endif
-
-        /* if cuserid() didn't work, then check the environment */
-        if(strcmp(cuser, "") == 0)
-        {
-            logname_string = getenv("LOGNAME");
-            if(logname_string)
-            {
-                strncpy(cuser, logname_string, (L_cuserid-1));
-            }
-        }
-
-        /* if cuserid() and environment both fail, then fall back to uid */
-        if(strcmp(cuser, "") == 0)
-        {
-            uid_t uid = geteuid();
-            snprintf(cuser, sizeof(cuser), "%u", uid);
-        }
+        darshan_get_user_name(cuser);
 
         /* generate a random number to help differentiate the log */
         hlevel=DARSHAN_MPI_CALL(PMPI_Wtime)() * 1000000;
@@ -875,252 +1242,45 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
     return;
 }
 
-/* record any hints used to write the darshan log in the log header */
-static void darshan_log_record_hints_and_ver(struct darshan_core_runtime* core)
+static int darshan_add_name_record_ref(struct darshan_core_runtime *core,
+    darshan_record_id rec_id, const char *name, darshan_module_id mod_id)
 {
-    char* hints;
-    char* header_hints;
-    int meta_remain = 0;
-    char* m;
+    struct darshan_core_name_record_ref *ref;
+    int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
 
-    /* check environment variable to see if the default MPI file hints have
-     * been overridden
-     */
-    hints = getenv(DARSHAN_LOG_HINTS_OVERRIDE);
-    if(!hints)
-    {
-        hints = __DARSHAN_LOG_HINTS;
-    }
-
-    if(!hints || strlen(hints) < 1)
-        return;
-
-    header_hints = strdup(hints);
-    if(!header_hints)
-        return;
-
-    meta_remain = DARSHAN_JOB_METADATA_LEN -
-        strlen(core->log_job.metadata) - 1;
-    if(meta_remain >= (strlen(PACKAGE_VERSION) + 9))
-    {
-        sprintf(core->log_job.metadata, "lib_ver=%s\n", PACKAGE_VERSION);
-        meta_remain -= (strlen(PACKAGE_VERSION) + 9);
-    }
-    if(meta_remain >= (3 + strlen(header_hints)))
-    {
-        m = core->log_job.metadata + strlen(core->log_job.metadata);
-        /* We have room to store the hints in the metadata portion of
-         * the job header.  We just prepend an h= to the hints list.  The
-         * metadata parser will ignore = characters that appear in the value
-         * portion of the metadata key/value pair.
-         */
-        sprintf(m, "h=%s\n", header_hints);
-    }
-    free(header_hints);
-
-    return;
-}
-
-static int mnt_data_cmp(const void* a, const void* b)
-{
-    const struct mnt_data *d_a = (const struct mnt_data*)a;
-    const struct mnt_data *d_b = (const struct mnt_data*)b;
-
-    if(strlen(d_a->path) > strlen(d_b->path))
-        return(-1);
-    else if(strlen(d_a->path) < strlen(d_b->path))
-        return(1);
-    else
+    if((record_size + core->name_mem_used) > DARSHAN_NAME_RECORD_BUF_SIZE)
         return(0);
-}
 
-/* adds an entry to table of mounted file systems */
-static void add_entry(char* trailing_data, int* space_left, struct mntent *entry)
-{
-    int ret;
-    char tmp_mnt[256];
-    struct statfs statfsbuf;
+    ref = malloc(sizeof(*ref));
+    if(!ref)
+        return(0);
+    memset(ref, 0, sizeof(*ref));
 
-    strncpy(mnt_data_array[mnt_data_count].path, entry->mnt_dir,
-        DARSHAN_MAX_MNT_PATH-1);
-    strncpy(mnt_data_array[mnt_data_count].type, entry->mnt_type,
-        DARSHAN_MAX_MNT_TYPE-1);
-    /* NOTE: we now try to detect the preferred block size for each file 
-     * system using fstatfs().  On Lustre we assume a size of 1 MiB 
-     * because fstatfs() reports 4 KiB. 
-     */
-#ifndef LL_SUPER_MAGIC
-#define LL_SUPER_MAGIC 0x0BD00BD0
+    /* initialize the name record */
+    ref->name_record = (struct darshan_name_record *)
+        ((char *)core->log_name_p + core->name_mem_used);
+    memset(ref->name_record, 0, record_size);
+    ref->name_record->id = rec_id;
+    strcpy(ref->name_record->name, name);
+    DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
+
+    /* add the record to the hash table */
+    HASH_ADD(hlink, core->name_hash, name_record->id,
+        sizeof(darshan_record_id), ref);
+    core->name_mem_used += record_size;
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    core->log_hdr_p->name_map.len += record_size;
 #endif
-    ret = statfs(entry->mnt_dir, &statfsbuf);
-    if(ret == 0 && statfsbuf.f_type != LL_SUPER_MAGIC)
-        mnt_data_array[mnt_data_count].block_size = statfsbuf.f_bsize;
-    else if(ret == 0 && statfsbuf.f_type == LL_SUPER_MAGIC)
-        mnt_data_array[mnt_data_count].block_size = 1024*1024;
-    else
-        mnt_data_array[mnt_data_count].block_size = 4096;
 
-    /* store mount information for use in header of darshan log */
-    ret = snprintf(tmp_mnt, 256, "\n%s\t%s",
-        entry->mnt_type, entry->mnt_dir);
-    if(ret < 256 && strlen(tmp_mnt) <= (*space_left))
-    {
-        strcat(trailing_data, tmp_mnt);
-        (*space_left) -= strlen(tmp_mnt);
-    }
-
-    mnt_data_count++;
-    return;
-}
-
-/* darshan_get_exe_and_mounts_root()
- *
- * collects command line and list of mounted file systems into a string that
- * will be stored with the job header
- */
-static void darshan_get_exe_and_mounts_root(struct darshan_core_runtime *core,
-    char* trailing_data, int space_left)
-{
-    FILE* tab;
-    struct mntent *entry;
-    char* exclude;
-    int tmp_index = 0;
-    int skip = 0;
-
-    /* skip these fs types */
-    static char* fs_exclusions[] = {
-        "tmpfs",
-        "proc",
-        "sysfs",
-        "devpts",
-        "binfmt_misc",
-        "fusectl",
-        "debugfs",
-        "securityfs",
-        "nfsd",
-        "none",
-        "rpc_pipefs",
-        "hugetlbfs",
-        "cgroup",
-        NULL
-    };
-
-    /* length of exe has already been safety checked in darshan initialization */
-    strcat(trailing_data, core->exe);
-    space_left = DARSHAN_EXE_LEN - strlen(trailing_data);
-
-    /* we make two passes through mounted file systems; in the first pass we
-     * grab any non-nfs mount points, then on the second pass we grab nfs
-     * mount points
-     */
-    mnt_data_count = 0;
-
-    tab = setmntent("/etc/mtab", "r");
-    if(!tab)
-        return;
-    /* loop through list of mounted file systems */
-    while(mnt_data_count<DARSHAN_MAX_MNTS && (entry = getmntent(tab)) != NULL)
-    {
-        /* filter out excluded fs types */
-        tmp_index = 0;
-        skip = 0;
-        while((exclude = fs_exclusions[tmp_index]))
-        {
-            if(!(strcmp(exclude, entry->mnt_type)))
-            {
-                skip =1;
-                break;
-            }
-            tmp_index++;
-        }
-
-        if(skip || (strcmp(entry->mnt_type, "nfs") == 0))
-            continue;
-
-        add_entry(trailing_data, &space_left, entry);
-    }
-    endmntent(tab);
-
-    tab = setmntent("/etc/mtab", "r");
-    if(!tab)
-        return;
-    /* loop through list of mounted file systems */
-    while(mnt_data_count<DARSHAN_MAX_MNTS && (entry = getmntent(tab)) != NULL)
-    {
-        if(strcmp(entry->mnt_type, "nfs") != 0)
-            continue;
-
-        add_entry(trailing_data, &space_left, entry);
-    }
-    endmntent(tab);
-
-    /* Sort mount points in order of longest path to shortest path.  This is
-     * necessary so that if we try to match file paths to mount points later
-     * we don't match on "/" every time.
-     */
-    qsort(mnt_data_array, mnt_data_count, sizeof(mnt_data_array[0]), mnt_data_cmp);
-    return;
-}
-
-/* darshan_get_exe_and_mounts()
- *
- * collects command line and list of mounted file systems into a string that
- * will be stored with the job header
- */
-static char* darshan_get_exe_and_mounts(struct darshan_core_runtime *core)
-{
-    char* trailing_data;
-    int space_left;
-
-    space_left = DARSHAN_EXE_LEN + 1;
-    trailing_data = malloc(space_left);
-    if(!trailing_data)
-    {
-        return(NULL);
-    }
-    memset(trailing_data, 0, space_left);
-
-    if(my_rank == 0)
-    {
-        darshan_get_exe_and_mounts_root(core, trailing_data, space_left);
-    }
-
-    /* broadcast trailing data to all nodes */
-    DARSHAN_MPI_CALL(PMPI_Bcast)(trailing_data, space_left, MPI_CHAR, 0,
-        MPI_COMM_WORLD);
-    /* broadcast mount count to all nodes */
-    DARSHAN_MPI_CALL(PMPI_Bcast)(&mnt_data_count, 1, MPI_INT, 0,
-        MPI_COMM_WORLD);
-    /* broadcast mount data to all nodes */
-    DARSHAN_MPI_CALL(PMPI_Bcast)(mnt_data_array,
-        mnt_data_count*sizeof(mnt_data_array[0]), MPI_BYTE, 0, MPI_COMM_WORLD);
-
-    return(trailing_data);
-}
-
-static void darshan_block_size_from_path(const char *path, int *block_size)
-{
-    int i;
-    *block_size = -1;
-
-    for(i=0; i<mnt_data_count; i++)
-    {
-        if(!(strncmp(mnt_data_array[i].path, path, strlen(mnt_data_array[i].path))))
-        {
-            *block_size = mnt_data_array[i].block_size;
-            return;
-        }
-    }
-
-    return;
+    return(1);
 }
 
 static void darshan_get_shared_records(struct darshan_core_runtime *core,
     darshan_record_id **shared_recs, int *shared_rec_cnt)
 {
     int i, j;
-    int tmp_cnt = core->rec_count;
-    struct darshan_core_record_ref *tmp, *ref;
+    int tmp_cnt = HASH_CNT(hlink, core->name_hash);
+    struct darshan_core_name_record_ref *tmp, *ref;
     darshan_record_id *id_array;
     uint64_t *mod_flags;
     uint64_t *global_mod_flags;
@@ -1143,9 +1303,9 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     if(my_rank == 0)
     {
         i = 0;
-        HASH_ITER(hlink, core->rec_hash, ref, tmp)
+        HASH_ITER(hlink, core->name_hash, ref, tmp)
         {
-            id_array[i++] = ref->rec.id;           
+            id_array[i++] = ref->name_record->id;
         }
     }
 
@@ -1156,7 +1316,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     /* everyone looks to see if they opened the same records as root */
     for(i=0; i<tmp_cnt; i++)
     {
-        HASH_FIND(hlink, core->rec_hash, &id_array[i], sizeof(darshan_record_id), ref);
+        HASH_FIND(hlink, core->name_hash, &id_array[i], sizeof(darshan_record_id), ref);
         if(ref)
         {
             /* we opened that record too, save the mod_flags */
@@ -1164,7 +1324,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
         }
     }
 
-    /* now allreduce so everyone agrees which files are shared and
+    /* now allreduce so everyone agrees which records are shared and
      * which modules accessed them collectively
      */
     DARSHAN_MPI_CALL(PMPI_Allreduce)(mod_flags, global_mod_flags, tmp_cnt,
@@ -1179,15 +1339,18 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
 
             /* set global_mod_flags so we know which modules collectively
              * accessed this module. we need this info to support shared
-             * file reductions
+             * record reductions
              */
-            HASH_FIND(hlink, core->rec_hash, &id_array[i], sizeof(darshan_record_id), ref);
+            HASH_FIND(hlink, core->name_hash, &id_array[i], sizeof(darshan_record_id), ref);
             assert(ref);
             ref->global_mod_flags = global_mod_flags[i];
         }
     }
     *shared_rec_cnt = j;
 
+    free(id_array);
+    free(mod_flags);
+    free(global_mod_flags);
     return;
 }
 
@@ -1341,75 +1504,97 @@ static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
 /* NOTE: the map written to file may contain duplicate id->name entries if a
  *       record is opened by multiple ranks, but not all ranks
  */
-static int darshan_log_write_record_hash(MPI_File log_fh, struct darshan_core_runtime *core,
-    uint64_t *inout_off)
+static int darshan_log_write_name_record_hash(MPI_File log_fh,
+    struct darshan_core_runtime *core, uint64_t *inout_off)
 {
+    struct darshan_core_name_record_ref *ref;
+    struct darshan_name_record *name_rec;
+    char *my_buf, *shared_buf;
+    char *tmp_p;
+    int rec_len;
+    int shared_buf_len;
+    int name_rec_buf_len;
     int ret;
-    struct darshan_core_record_ref *ref, *tmp;
-    uint32_t name_len;
-    size_t record_sz;
-    size_t hash_buf_sz = 0;
-    char *hash_buf;
-    char *hash_buf_off;
 
-    /* allocate a buffer to store at most 64 bytes for each registered record */
-    /* NOTE: this buffer may be reallocated if estimate is too small */
-    hash_buf_sz = core->rec_count * 64;
-    hash_buf = malloc(hash_buf_sz);
-    if(!hash_buf)
+    /* remove globally shared name records from non-zero ranks */
+    name_rec_buf_len = core->name_mem_used;
+    if(my_rank > 0)
     {
-        return(-1);
-    }
-
-    /* serialize the record hash into a buffer for writing */
-    hash_buf_off = hash_buf;
-    HASH_ITER(hlink, core->rec_hash, ref, tmp)
-    {
-        /* to avoid duplicate records, only rank 0 will write shared records */
-        if(my_rank > 0 && ref->global_mod_flags)
-            continue;
-
-        name_len = strlen(ref->rec.name);
-        record_sz = sizeof(darshan_record_id) + sizeof(uint32_t) + name_len;
-        /* make sure there is room in the buffer for this record */
-        if((hash_buf_off + record_sz) > (hash_buf + hash_buf_sz))
+        name_rec = core->log_name_p;
+        my_buf = core->log_name_p;
+        shared_buf = core->comp_buf;
+        shared_buf_len = 0;
+        while(name_rec_buf_len > 0)
         {
-            char *tmp_buf;
-            size_t old_buf_sz;
+            HASH_FIND(hlink, core->name_hash, &(name_rec->id),
+                sizeof(darshan_record_id), ref);
+            assert(ref);
+            rec_len = sizeof(darshan_record_id) + strlen(name_rec->name) + 1;
 
-            /* if no room, reallocate the hash buffer at twice the current size */
-            old_buf_sz = hash_buf_off - hash_buf;
-            hash_buf_sz *= 2;
-            tmp_buf = malloc(hash_buf_sz);
-            if(!tmp_buf)
+            if(ref->global_mod_flags)
             {
-                free(hash_buf);
-                return(-1);
+                /* this record is shared globally, move to the temporary
+                 * shared record buffer and update hash references
+                 */
+                HASH_DELETE(hlink, core->name_hash, ref);
+                memcpy(shared_buf, name_rec, rec_len);
+                ref->name_record = (struct darshan_name_record *)shared_buf;
+                HASH_ADD(hlink, core->name_hash, name_record->id,
+                    sizeof(darshan_record_id), ref);
+
+                shared_buf += rec_len;
+                shared_buf_len += rec_len;
+            }
+            else
+            {
+                /* this record is not shared, but we still may need to
+                 * move it forward in our buffer and update hash references
+                 */
+                if(my_buf != (char *)name_rec)
+                {
+                    HASH_DELETE(hlink, core->name_hash, ref);
+                    memcpy(my_buf, name_rec, rec_len);
+                    ref->name_record =(struct darshan_name_record *)my_buf;
+                    HASH_ADD(hlink, core->name_hash, name_record->id,
+                        sizeof(darshan_record_id), ref);
+                }
+                my_buf += rec_len;
             }
 
-            memcpy(tmp_buf, hash_buf, old_buf_sz);
-            free(hash_buf);
-            hash_buf = tmp_buf;
-            hash_buf_off = hash_buf + old_buf_sz;
+            tmp_p = (char *)name_rec + rec_len;
+            name_rec = (struct darshan_name_record *)tmp_p;
+            name_rec_buf_len -= rec_len;
         }
+        name_rec_buf_len = core->name_mem_used - shared_buf_len;
 
-        /* now serialize the record into the hash buffer.
-         * NOTE: darshan record hash serialization method: 
-         *          ... darshan_record_id | (uint32_t) path_len | path ...
+        /* append the shared records back to the end of the name record
+         * buffer and update hash table references so we can still
+         * reference these records as modules shutdown
          */
-        *((darshan_record_id *)hash_buf_off) = ref->rec.id;
-        hash_buf_off += sizeof(darshan_record_id);
-        *((uint32_t *)hash_buf_off) = name_len;
-        hash_buf_off += sizeof(uint32_t);
-        memcpy(hash_buf_off, ref->rec.name, name_len);
-        hash_buf_off += name_len;
+        name_rec = (struct darshan_name_record *)core->comp_buf;
+        while(shared_buf_len > 0)
+        {
+            HASH_FIND(hlink, core->name_hash, &(name_rec->id),
+                sizeof(darshan_record_id), ref);
+            assert(ref);
+            rec_len = sizeof(darshan_record_id) + strlen(name_rec->name) + 1;
+
+            HASH_DELETE(hlink, core->name_hash, ref);
+            memcpy(my_buf, name_rec, rec_len);
+            ref->name_record = (struct darshan_name_record *)my_buf;
+            HASH_ADD(hlink, core->name_hash, name_record->id,
+                sizeof(darshan_record_id), ref);
+
+            tmp_p = (char *)name_rec + rec_len;
+            name_rec = (struct darshan_name_record *)tmp_p;
+            my_buf += rec_len;
+            shared_buf_len -= rec_len;
+        }
     }
-    hash_buf_sz = hash_buf_off - hash_buf;
 
     /* collectively write out the record hash to the darshan log */
-    ret = darshan_log_append_all(log_fh, core, hash_buf, hash_buf_sz, inout_off);
-
-    free(hash_buf);
+    ret = darshan_log_append_all(log_fh, core, core->log_name_p,
+        name_rec_buf_len, inout_off);
 
     return(ret);
 }
@@ -1441,7 +1626,7 @@ static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *
 
     DARSHAN_MPI_CALL(PMPI_Scan)(&send_off, &my_off, 1, MPI_OFFSET,
         MPI_SUM, MPI_COMM_WORLD);
-    /* scan in inclusive; subtract local size back out */
+    /* scan is inclusive; subtract local size back out */
     my_off -= comp_buf_sz;
 
     if(ret == 0)
@@ -1489,13 +1674,12 @@ static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *
 /* free darshan core data structures to shutdown */
 static void darshan_core_cleanup(struct darshan_core_runtime* core)
 {
-    struct darshan_core_record_ref *tmp, *ref;
+    struct darshan_core_name_record_ref *tmp, *ref;
     int i;
 
-    HASH_ITER(hlink, core->rec_hash, ref, tmp)
+    HASH_ITER(hlink, core->name_hash, ref, tmp)
     {
-        HASH_DELETE(hlink, core->rec_hash, ref);
-        free(ref->rec.name);
+        HASH_DELETE(hlink, core->name_hash, ref);
         free(ref);
     }
 
@@ -1508,7 +1692,16 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
         }
     }
 
-    free(core->trailing_data);
+#ifndef __DARSHAN_ENABLE_MMAP_LOGS
+    free(core->log_hdr_p);
+    free(core->log_job_p);
+    free(core->log_exemnt_p);
+    free(core->log_name_p);
+    free(core->log_mod_p);
+#endif
+
+    if(core->comp_buf)
+        free(core->comp_buf);
     free(core);
 
     return;
@@ -1597,34 +1790,28 @@ void darshan_shutdown_bench(int argc, char **argv)
 
 void darshan_core_register_module(
     darshan_module_id mod_id,
-    struct darshan_module_funcs *funcs,
+    darshan_module_shutdown mod_shutdown_func,
+    int *inout_mod_buf_size,
     int *rank,
-    int *mod_mem_limit,
     int *sys_mem_alignment)
 {
-    int ret;
-    int tmpval;
     struct darshan_core_module* mod;
-    char *mod_mem_str = NULL;
-    *mod_mem_limit = 0;
+    int mod_mem_req = *inout_mod_buf_size;
+    int mod_mem_avail;
+
+    *inout_mod_buf_size = 0;
 
     if(!darshan_core || (mod_id >= DARSHAN_MAX_MODS))
         return;
 
-    if(sys_mem_alignment)
-        *sys_mem_alignment = darshan_mem_alignment;
-
-    /* see if this module is already registered */
     DARSHAN_CORE_LOCK();
     if(darshan_core->mod_array[mod_id])
     {
         /* if module is already registered just return */
-        /* NOTE: we do not recalculate memory limit here, just set to 0 */
         DARSHAN_CORE_UNLOCK();
         return;
     }
 
-    /* this module has not been registered yet, allocate and initialize it */
     mod = malloc(sizeof(*mod));
     if(!mod)
     {
@@ -1632,149 +1819,131 @@ void darshan_core_register_module(
         return;
     }
     memset(mod, 0, sizeof(*mod));
-    mod->id = mod_id;
-    mod->mod_funcs = *funcs;
+
+    /* set module's record buffer and max memory usage */
+    mod_mem_avail = darshan_mod_mem_quota - darshan_core->mod_mem_used;
+    if(mod_mem_avail >= mod_mem_req)
+        mod->rec_mem_avail = mod_mem_req;
+    else
+        mod->rec_mem_avail = mod_mem_avail;
+    mod->rec_buf_start = darshan_core->log_mod_p + darshan_core->mod_mem_used;
+    mod->rec_buf_p = mod->rec_buf_start;
+    mod->mod_shutdown_func = mod_shutdown_func;
 
     /* register module with darshan */
     darshan_core->mod_array[mod_id] = mod;
-    darshan_core->log_header.mod_ver[mod_id] = darshan_module_versions[mod_id];
+    darshan_core->mod_mem_used += mod->rec_mem_avail;
+    darshan_core->log_hdr_p->mod_ver[mod_id] = darshan_module_versions[mod_id];
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    darshan_core->log_hdr_p->mod_map[mod_id].off =
+        ((char *)mod->rec_buf_start - (char *)darshan_core->log_hdr_p);
+#endif
 
-    /* get the calling process's rank */
+    *inout_mod_buf_size = mod->rec_mem_avail;
+    DARSHAN_CORE_UNLOCK();
+
+    /* set the memory alignment and calling process's rank, if desired */
+    if(sys_mem_alignment)
+        *sys_mem_alignment = darshan_mem_alignment;
     if(rank)
         *rank = my_rank;
 
-    /* set the maximum amount of memory this module can use */
-    mod_mem_str = getenv(DARSHAN_MOD_MEM_OVERRIDE);
-    if(mod_mem_str)
-    {
-        ret = sscanf(mod_mem_str, "%d", &tmpval);
-        /* silently ignore if the env variable is set poorly */
-        if(ret == 1 && tmpval > 0)
-            *mod_mem_limit = (tmpval * 1024 * 1024); /* convert to MiB */
-        else
-            *mod_mem_limit = DARSHAN_MOD_MEM_MAX;
-    }
-    else
-    {
-        *mod_mem_limit = DARSHAN_MOD_MEM_MAX;
-    }
-    DARSHAN_CORE_UNLOCK();
-
     return;
 }
 
+/* NOTE: we currently don't really have a simple way of returning the
+ * memory allocated to this module back to darshan to hand out to
+ * other modules, so all we do is disable the module so darshan does
+ * not attempt to call into it at shutdown time
+ */
 void darshan_core_unregister_module(
     darshan_module_id mod_id)
 {
-    struct darshan_core_record_ref *ref, *tmp;
+    DARSHAN_CORE_LOCK();
 
     if(!darshan_core)
         return;
 
-    DARSHAN_CORE_LOCK();
+    /* update darshan internal structures and header */
+    free(darshan_core->mod_array[mod_id]);
+    darshan_core->mod_array[mod_id] = NULL;
+    darshan_core->log_hdr_p->mod_ver[mod_id] = 0;
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    darshan_core->log_hdr_p->mod_map[mod_id].off =
+        darshan_core->log_hdr_p->mod_map[mod_id].len = 0;
+#endif
 
-    if(darshan_core->mod_array[mod_id])
-    {
-        /* iterate all records and disassociate this module from them */
-        HASH_ITER(hlink, darshan_core->rec_hash, ref, tmp)
-        {
-            darshan_core_unregister_record(ref->rec.id, mod_id);
-        }
-
-        free(darshan_core->mod_array[mod_id]);
-        darshan_core->mod_array[mod_id] = NULL;
-    }
     DARSHAN_CORE_UNLOCK();
-
     return;
 }
 
-void darshan_core_register_record(
-    void *name,
-    int len,
+darshan_record_id darshan_core_gen_record_id(
+    const char *name)
+{
+    /* hash the input name to get a unique id for this record */
+    return darshan_hash((unsigned char *)name, strlen(name), 0);
+}
+
+void *darshan_core_register_record(
+    darshan_record_id rec_id,
+    const char *name,
     darshan_module_id mod_id,
-    int printable_flag,
-    int mod_limit_flag,
-    darshan_record_id *rec_id,
+    int rec_len,
     int *file_alignment)
 {
-    darshan_record_id tmp_rec_id;
-    struct darshan_core_record_ref *ref;
-
-    *rec_id = 0;
+    struct darshan_core_name_record_ref *ref;
+    void *rec_buf;
+    int ret;
 
     if(!darshan_core)
-        return;
+        return(NULL);
 
-    /* TODO: what do you do with printable flag? */
-
-    /* hash the input name to get a unique id for this record */
-    tmp_rec_id = darshan_hash(name, len, 0);
-
-    /* check to see if we've already stored the id->name mapping for this record */
     DARSHAN_CORE_LOCK();
-    HASH_FIND(hlink, darshan_core->rec_hash, &tmp_rec_id, sizeof(darshan_record_id), ref);
-    if(!ref)
+
+    /* check to see if this module has enough space to store a new record */
+    if(darshan_core->mod_array[mod_id]->rec_mem_avail < rec_len)
     {
-        /* record not found -- add it to the hash if this module has not already used
-         * all of its memory
+        DARSHAN_MOD_FLAG_SET(darshan_core->log_hdr_p->partial_flag, mod_id);
+        DARSHAN_CORE_UNLOCK();
+        return(NULL);
+    }
+
+    /* register a name record if a name is given for this record */
+    if(name)
+    {
+        /* check to see if we've already stored the id->name mapping for
+         * this record, and add a new name record if not
          */
-  
-        if(mod_limit_flag)
+        HASH_FIND(hlink, darshan_core->name_hash, &rec_id,
+            sizeof(darshan_record_id), ref);
+        if(!ref)
         {
-            /* if this module is OOM, set a flag in the header to indicate this */
-            DARSHAN_MOD_FLAG_SET(darshan_core->log_header.partial_flag, mod_id);
-            DARSHAN_CORE_UNLOCK();
-            return;
+            ret = darshan_add_name_record_ref(darshan_core, rec_id, name, mod_id);
+            if(ret == 0)
+            {
+                DARSHAN_MOD_FLAG_SET(darshan_core->log_hdr_p->partial_flag, mod_id);
+                DARSHAN_CORE_UNLOCK();
+                return(NULL);
+            }
         }
-
-        ref = malloc(sizeof(struct darshan_core_record_ref));
-        if(ref)
+        else
         {
-            ref->mod_flags = ref->global_mod_flags = 0;
-            ref->rec.id = tmp_rec_id;
-            ref->rec.name = malloc(strlen(name) + 1);
-            if(ref->rec.name)
-                strcpy(ref->rec.name, name);
-
-            HASH_ADD(hlink, darshan_core->rec_hash, rec.id, sizeof(darshan_record_id), ref);
-            darshan_core->rec_count++;
+            DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
         }
     }
-    DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
+
+    rec_buf = darshan_core->mod_array[mod_id]->rec_buf_p;
+    darshan_core->mod_array[mod_id]->rec_buf_p += rec_len;
+    darshan_core->mod_array[mod_id]->rec_mem_avail -= rec_len;
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    darshan_core->log_hdr_p->mod_map[mod_id].len += rec_len;
+#endif
     DARSHAN_CORE_UNLOCK();
 
     if(file_alignment)
-        darshan_block_size_from_path(name, file_alignment);
+        *file_alignment = darshan_block_size_from_path(name);
 
-    *rec_id = tmp_rec_id;
-    return;
-}
-
-/* TODO: test */
-void darshan_core_unregister_record(
-    darshan_record_id rec_id,
-    darshan_module_id mod_id)
-{
-    struct darshan_core_record_ref *ref;
-
-    if(!darshan_core)
-        return;
-
-    DARSHAN_CORE_LOCK();
-    HASH_FIND(hlink, darshan_core->rec_hash, &rec_id, sizeof(darshan_record_id), ref);
-    assert(ref); 
-
-    /* disassociate this module from the given record id */
-    DARSHAN_MOD_FLAG_UNSET(ref->mod_flags, mod_id);
-    if(!(ref->mod_flags))
-    {
-        /* if no other modules are associated with this rec, delete it */
-        HASH_DELETE(hlink, darshan_core->rec_hash, ref);
-    }
-    DARSHAN_CORE_UNLOCK();
-
-    return;
+    return(rec_buf);;
 }
 
 double darshan_core_wtime()
@@ -1785,6 +1954,20 @@ double darshan_core_wtime()
     }
 
     return(DARSHAN_MPI_CALL(PMPI_Wtime)() - darshan_core->wtime_offset);
+}
+
+int darshan_core_excluded_path(const char *path)
+{
+    char *exclude;
+    int tmp_index = 0;
+
+    while((exclude = darshan_path_exclusions[tmp_index])) {
+        if(!(strncmp(exclude, path, strlen(exclude))))
+            return(1);
+        tmp_index++;
+    }
+
+    return(0);
 }
 
 /*

@@ -32,14 +32,14 @@ char *null_f_counter_names[] = {
 #undef X
 
 /* prototypes for each of the NULL module's logutil functions */
-static int darshan_log_get_null_record(darshan_fd fd, void* null_buf,
-    darshan_record_id* rec_id);
+static int darshan_log_get_null_record(darshan_fd fd, void* null_buf);
 static int darshan_log_put_null_record(darshan_fd fd, void* null_buf, int ver);
 static void darshan_log_print_null_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
 static void darshan_log_print_null_description(void);
 static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
+static void darshan_log_agg_null_records(void *rec, void *agg_rec, int init_flag);
 
 /* structure storing each function needed for implementing the darshan
  * logutil interface. these functions are used for reading, writing, and
@@ -51,7 +51,8 @@ struct darshan_mod_logutil_funcs null_logutils =
     .log_put_record = &darshan_log_put_null_record,
     .log_print_record = &darshan_log_print_null_record,
     .log_print_description = &darshan_log_print_null_description,
-    .log_print_diff = &darshan_log_print_null_record_diff
+    .log_print_diff = &darshan_log_print_null_record_diff,
+    .log_agg_records = &darshan_log_agg_null_records
 };
 
 /* retrieve a NULL record from log file descriptor 'fd', storing the
@@ -59,15 +60,14 @@ struct darshan_mod_logutil_funcs null_logutils =
  * 'rec_id'. Return 1 on successful record read, 0 on no more data,
  * and -1 on error.
  */
-static int darshan_log_get_null_record(darshan_fd fd, void* null_buf, 
-    darshan_record_id* rec_id)
+static int darshan_log_get_null_record(darshan_fd fd, void* null_buf)
 {
     struct darshan_null_record *rec;
     int i;
     int ret;
 
     /* read a NULL module record from the darshan log file */
-    ret = darshan_log_getmod(fd, DARSHAN_NULL_MOD, null_buf,
+    ret = darshan_log_get_mod(fd, DARSHAN_NULL_MOD, null_buf,
         sizeof(struct darshan_null_record));
     if(ret < 0)
         return(-1);
@@ -80,16 +80,14 @@ static int darshan_log_get_null_record(darshan_fd fd, void* null_buf,
         if(fd->swap_flag)
         {
             /* swap bytes if necessary */
-            DARSHAN_BSWAP64(&rec->f_id);
-            DARSHAN_BSWAP64(&rec->rank);
+            DARSHAN_BSWAP64(&(rec->base_rec.id));
+            DARSHAN_BSWAP64(&(rec->base_rec.rank));
             for(i=0; i<NULL_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&rec->counters[i]);
             for(i=0; i<NULL_F_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&rec->fcounters[i]);
         }
 
-        /* set the output record id */
-        *rec_id = rec->f_id;
         return(1);
     }
 }
@@ -103,7 +101,7 @@ static int darshan_log_put_null_record(darshan_fd fd, void* null_buf, int ver)
     int ret;
 
     /* append NULL record to darshan log file */
-    ret = darshan_log_putmod(fd, DARSHAN_NULL_MOD, rec,
+    ret = darshan_log_put_mod(fd, DARSHAN_NULL_MOD, rec,
         sizeof(struct darshan_null_record), ver);
     if(ret < 0)
         return(-1);
@@ -124,16 +122,18 @@ static void darshan_log_print_null_record(void *file_rec, char *file_name,
     {
         /* macro defined in darshan-logutils.h */
         DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-            null_rec->rank, null_rec->f_id, null_counter_names[i],
-            null_rec->counters[i], file_name, mnt_pt, fs_type);
+            null_rec->base_rec.rank, null_rec->base_rec.id,
+            null_counter_names[i], null_rec->counters[i],
+            file_name, mnt_pt, fs_type);
     }
 
     for(i=0; i<NULL_F_NUM_INDICES; i++)
     {
         /* macro defined in darshan-logutils.h */
         DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-            null_rec->rank, null_rec->f_id, null_f_counter_names[i],
-            null_rec->fcounters[i], file_name, mnt_pt, fs_type);
+            null_rec->base_rec.rank, null_rec->base_rec.id,
+            null_f_counter_names[i], null_rec->fcounters[i],
+            file_name, mnt_pt, fs_type);
     }
 
     return;
@@ -166,7 +166,7 @@ static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1
         {
             printf("- ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file1->rank, file1->f_id, null_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, null_counter_names[i],
                 file1->counters[i], file_name1, "", "");
 
         }
@@ -174,18 +174,18 @@ static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1
         {
             printf("+ ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file2->rank, file2->f_id, null_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, null_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
         else if(file1->counters[i] != file2->counters[i])
         {
             printf("- ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file1->rank, file1->f_id, null_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, null_counter_names[i],
                 file1->counters[i], file_name1, "", "");
             printf("+ ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file2->rank, file2->f_id, null_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, null_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
     }
@@ -196,7 +196,7 @@ static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1
         {
             printf("- ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file1->rank, file1->f_id, null_f_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, null_f_counter_names[i],
                 file1->fcounters[i], file_name1, "", "");
 
         }
@@ -204,18 +204,18 @@ static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1
         {
             printf("+ ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file2->rank, file2->f_id, null_f_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, null_f_counter_names[i],
                 file2->fcounters[i], file_name2, "", "");
         }
         else if(file1->fcounters[i] != file2->fcounters[i])
         {
             printf("- ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file1->rank, file1->f_id, null_f_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, null_f_counter_names[i],
                 file1->fcounters[i], file_name1, "", "");
             printf("+ ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
-                file2->rank, file2->f_id, null_f_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, null_f_counter_names[i],
                 file2->fcounters[i], file_name2, "", "");
         }
     }
@@ -223,6 +223,10 @@ static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1
     return;
 }
 
+static void darshan_log_agg_null_records(void *rec, void *agg_rec, int init_flag)
+{
+    return;
+}
 
 /*
  * Local variables:

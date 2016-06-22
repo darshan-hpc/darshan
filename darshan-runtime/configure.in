@@ -5,7 +5,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl You may need to use autoheader as well if changing any DEFINEs
 
 dnl sanity checks, output header, location of scripts used here
-AC_INIT([darshan-runtime], [3.0.0])
+AC_INIT([darshan-runtime], [3.0.1])
 AC_CONFIG_SRCDIR([darshan.h])
 AC_CONFIG_AUX_DIR(../maint/config)
 AC_CONFIG_HEADER(darshan-runtime-config.h)
@@ -24,13 +24,6 @@ AC_TRY_COMPILE([#include <mpi.h>], [int ret = MPI_Init(0, (void*)0)],
 dnl runtime libraries require zlib
 CHECK_ZLIB
 
-AC_ARG_ENABLE(cuserid, 
-[  --disable-cuserid       Disables attempted use of cuserid() at run time], 
-[if test "x$enableval" = "xno" ; then
-    AC_DEFINE(DARSHAN_DISABLE_CUSERID, 1, Define if cuserid() should be disabled)
-fi]
-,)
-
 AC_ARG_ENABLE(ld-preload, 
 [  --disable-ld-preload    Disables support for LD_PRELOAD library], 
 [if test "x$enableval" = "xno" ; then
@@ -38,10 +31,34 @@ AC_ARG_ENABLE(ld-preload,
 fi]
 ,)
 
+AC_ARG_ENABLE(cuserid, 
+[  --disable-cuserid       Disables attempted use of cuserid() at run time], 
+[if test "x$enableval" = "xno" ; then
+    AC_DEFINE(__DARSHAN_DISABLE_CUSERID, 1, Define if cuserid() should be disabled)
+fi]
+,)
+
 AC_ARG_ENABLE(group-readable-logs, 
-[  --enable-group-readable-logs Set log files to be group readable], 
+[  --enable-group-readable-logs
+                          Set log files to be group readable], 
 [if test "x$enableval" = "xyes" ; then
     AC_DEFINE(__DARSHAN_GROUP_READABLE_LOGS, 1, Define if Darshan should set log files to be group readable)
+fi]
+,)
+
+AC_ARG_ENABLE(
+    [bgq_mod],
+    [  --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)],
+    [],
+    [enable_bgq_mod=check]
+)
+
+AC_ARG_ENABLE(mmap-logs,
+[  --enable-mmmap-logs     Enables ability to mmap I/O data to log file],
+[if test "x$enableval" = "xyes" ; then
+    AC_DEFINE(__DARSHAN_ENABLE_MMAP_LOGS, 1, Define if Darshan should mmap data structures to log file)
+    ENABLE_MMAP_LOGS=1
+    AC_CONFIG_FILES(share/darshan-mmap-epilog.sh)
 fi]
 ,)
 
@@ -56,7 +73,9 @@ AC_ARG_WITH(mem-align,
 )
 
 AC_ARG_WITH(log-path-by-env,
-[  --with-log-path-by-env=<env var list> Comma separated list of environment variables to check for log path location before --with-log-path path],
+[  --with-log-path-by-env=<env var list>
+                          Comma separated list of environment variables to check for
+                          log path location before --with-log-path path],
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-log-path-by-env must be given at least one variable name)
     else
@@ -67,7 +86,8 @@ AC_ARG_WITH(log-path-by-env,
 )
 
 AC_ARG_WITH(log-hints,
-[  --with-log-hints=<hint1=x;hint2=y>  Semicolon-separated list of MPI-IO hints for log file write],
+[  --with-log-hints=<hint1=x;hint2=y>
+                          Semicolon-separated list of MPI-IO hints for log file write],
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-log-hints must be given an argument)
     else
@@ -90,8 +110,8 @@ AC_ARG_WITH(log-path,
 
 AC_ARG_WITH(jobid-env,
 [  --with-jobid-env=<name> Name of environment variable that stores the jobid
-    (specify "NONE" if no appropriate environment variable is available: 
-    Darshan will use rank 0's pid instead)],
+                          (specify "NONE" if no appropriate environment variable
+                          is available: Darshan will use rank 0's pid instead)],
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-jobid-env must be given a name)
     else
@@ -100,6 +120,30 @@ AC_ARG_WITH(jobid-env,
         GOT_JOBID=1
     fi
 )
+
+AC_ARG_WITH(mod-mem,
+[  --with-mod-mem=<num>    Maximum amount of memory (in MiB) for each Darshan module],
+    if test x$withval = xyes; then
+        AC_MSG_ERROR(--with-mod-mem must be given a number)
+    else
+        AC_DEFINE_UNQUOTED(__DARSHAN_MOD_MEM_MAX, ${withval}, Maximum memory (in MiB) for each Darshan module)
+    fi
+)
+
+if test x$enable_bgq_mod != xno; then
+    AC_MSG_CHECKING(for BG/Q environment)
+    AC_TRY_COMPILE([
+        #ifndef __bgq__
+        #error __bgq__ not set
+        #endif
+        ], [],
+        AC_MSG_RESULT(yes)
+        DARSHAN_USE_BGQ=1,
+        AC_MSG_RESULT(no)
+        AS_IF([test "x$enable_bgq_mod" = xyes],
+            AC_MSG_ERROR(BG/Q module enabled in non-BG/Q environment),
+            []))
+fi
 
 if test x$GOT_ALIGNMENT != x1; then
     AC_MSG_ERROR(must provide --with-mem-align=<num> argument to configure.)
@@ -280,43 +324,13 @@ AS_IF([$CC -show foo.c -o foo >& /dev/null],
 	    MPICH_LIB_OLD=0),
 	MPICH_LIB_OLD=0)
 
-# check to see whether the bgq instrumentation module should be built
-AC_ARG_ENABLE(
-    [bgq_mod],
-    [  --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)],
-    [],
-    [enable_bgq_mod=check]
-)
-if test x$enable_bgq_mod != xno; then
-    AC_MSG_CHECKING(for BG/Q environment)
-    AC_TRY_COMPILE([
-        #ifndef __bgq__
-        #error __bgq__ not set
-        #endif
-        ], [],
-        AC_MSG_RESULT(yes)
-        DARSHAN_USE_BGQ=1,
-        AC_MSG_RESULT(no)
-        AS_IF([test "x$enable_bgq_mod" = xyes],
-            AC_MSG_ERROR(BG/Q module enabled in non-BG/Q environment),
-            []))
-fi
-
-AC_ARG_WITH(mod-mem,
-[  --with-mod-mem=<num>  Maximum amount of memory (in MiB) for each Darshan module],
-    if test x$withval = xyes; then
-        AC_MSG_ERROR(--with-mod-mem must be given a number)
-    else
-        AC_DEFINE_UNQUOTED(__DARSHAN_MOD_MEM_MAX, ${withval}, Maximum memory (in MiB) for each Darshan module)
-    fi
-)
-
 DARSHAN_VERSION="AC_PACKAGE_VERSION"
 AC_SUBST(darshan_lib_path)
 AC_SUBST(darshan_share_path)
 AC_SUBST(LDFLAGS)
 AC_SUBST(__DARSHAN_LOG_PATH)
 AC_SUBST(DISABLE_LDPRELOAD)
+AC_SUBST(ENABLE_MMAP_LOGS)
 AC_SUBST(DARSHAN_VERSION)
 AC_SUBST(MPICH_LIB_OLD)
 AC_SUBST(DARSHAN_USE_BGQ)

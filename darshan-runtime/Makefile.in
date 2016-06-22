@@ -17,6 +17,7 @@ CC = @CC@
 LD = @LD@
 
 DISABLE_LDPRELOAD = @DISABLE_LDPRELOAD@
+ENABLE_MMAP_LOGS = @ENABLE_MMAP_LOGS@
 DARSHAN_USE_BGQ = @DARSHAN_USE_BGQ@
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_VERSION = @DARSHAN_VERSION@
@@ -164,6 +165,9 @@ endif
 	install -m 644 $(srcdir)/share/ld-opts/darshan-hdf5-ld-opts $(datarootdir)/ld-opts/darshan-hdf5-ld-opts
 	install -m 644 $(srcdir)/share/ld-opts/darshan-pnetcdf-ld-opts $(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
 	install -m 644 $(srcdir)/share/ld-opts/darshan-stdio-ld-opts $(datarootdir)/ld-opts/darshan-stdio-ld-opts
+ifdef ENABLE_MMAP_LOGS
+	install -m 755 share/darshan-mmap-epilog.sh $(datarootdir)/darshan-mmap-epilog.sh
+endif
 	install -d $(libdir)/pkgconfig
 	install -m 644 lib/pkgconfig/darshan-runtime.pc $(libdir)/pkgconfig/darshan-runtime.pc
 
@@ -171,5 +175,5 @@ clean::
 	rm -f *.o *.a lib/*.o lib/*.po lib/*.a lib/*.so 
 
 distclean:: clean
-	rm -f darshan-runtime-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl darshan-config darshan-base-ld-opts aclocal.m4 autom4te.cache/* config.status config.log Makefile 
+	rm -f darshan-runtime-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl darshan-config lib/pkgconfig/darshan-runtime.pc share/craype-1.x/darshan-module share/craype-2.x/darshan-module share/darshan-mmap-epilog.sh share/ld-opts/darshan-base-ld-opts share/mpi-profile/darshan-bg-cc.conf share/mpi-profile/darshan-bg-cxx.conf share/mpi-profile/darshan-bg-f.conf share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf aclocal.m4 autom4te.cache/* config.status config.log Makefile 
 	rm -rf autom4te.cache

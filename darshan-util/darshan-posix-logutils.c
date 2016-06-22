@@ -30,14 +30,14 @@ char *posix_f_counter_names[] = {
 };
 #undef X
 
-static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf,
-    darshan_record_id* rec_id);
+static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf);
 static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver);
 static void darshan_log_print_posix_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
 static void darshan_log_print_posix_description(void);
 static void darshan_log_print_posix_file_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
+static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag);
 
 struct darshan_mod_logutil_funcs posix_logutils =
 {
@@ -45,17 +45,17 @@ struct darshan_mod_logutil_funcs posix_logutils =
     .log_put_record = &darshan_log_put_posix_file,
     .log_print_record = &darshan_log_print_posix_file,
     .log_print_description = &darshan_log_print_posix_description,
-    .log_print_diff = &darshan_log_print_posix_file_diff
+    .log_print_diff = &darshan_log_print_posix_file_diff,
+    .log_agg_records = &darshan_log_agg_posix_files,
 };
 
-static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf, 
-    darshan_record_id* rec_id)
+static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf)
 {
     struct darshan_posix_file *file;
     int i;
     int ret;
 
-    ret = darshan_log_getmod(fd, DARSHAN_POSIX_MOD, posix_buf,
+    ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, posix_buf,
         sizeof(struct darshan_posix_file));
     if(ret < 0)
         return(-1);
@@ -67,15 +67,14 @@ static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf,
         if(fd->swap_flag)
         {
             /* swap bytes if necessary */
-            DARSHAN_BSWAP64(&file->f_id);
-            DARSHAN_BSWAP64(&file->rank);
+            DARSHAN_BSWAP64(&file->base_rec.id);
+            DARSHAN_BSWAP64(&file->base_rec.rank);
             for(i=0; i<POSIX_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->counters[i]);
             for(i=0; i<POSIX_F_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->fcounters[i]);
         }
 
-        *rec_id = file->f_id;
         return(1);
     }
 }
@@ -85,7 +84,7 @@ static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver)
     struct darshan_posix_file *file = (struct darshan_posix_file *)posix_buf;
     int ret;
 
-    ret = darshan_log_putmod(fd, DARSHAN_POSIX_MOD, file,
+    ret = darshan_log_put_mod(fd, DARSHAN_POSIX_MOD, file,
         sizeof(struct darshan_posix_file), ver);
     if(ret < 0)
         return(-1);
@@ -103,15 +102,17 @@ static void darshan_log_print_posix_file(void *file_rec, char *file_name,
     for(i=0; i<POSIX_NUM_INDICES; i++)
     {
         DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-            posix_file_rec->rank, posix_file_rec->f_id, posix_counter_names[i],
-            posix_file_rec->counters[i], file_name, mnt_pt, fs_type);
+            posix_file_rec->base_rec.rank, posix_file_rec->base_rec.id,
+            posix_counter_names[i], posix_file_rec->counters[i],
+            file_name, mnt_pt, fs_type);
     }
 
     for(i=0; i<POSIX_F_NUM_INDICES; i++)
     {
         DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-            posix_file_rec->rank, posix_file_rec->f_id, posix_f_counter_names[i],
-            posix_file_rec->fcounters[i], file_name, mnt_pt, fs_type);
+            posix_file_rec->base_rec.rank, posix_file_rec->base_rec.id,
+            posix_f_counter_names[i], posix_file_rec->fcounters[i],
+            file_name, mnt_pt, fs_type);
     }
 
     return;
@@ -167,26 +168,26 @@ static void darshan_log_print_posix_file_diff(void *file_rec1, char *file_name1,
         {
             printf("- ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file1->rank, file1->f_id, posix_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, posix_counter_names[i],
                 file1->counters[i], file_name1, "", "");
-            
+
         }
         else if(!file1)
         {
             printf("+ ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file2->rank, file2->f_id, posix_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, posix_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
         else if(file1->counters[i] != file2->counters[i])
         {
             printf("- ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file1->rank, file1->f_id, posix_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, posix_counter_names[i],
                 file1->counters[i], file_name1, "", "");
             printf("+ ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file2->rank, file2->f_id, posix_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, posix_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
     }
@@ -197,27 +198,344 @@ static void darshan_log_print_posix_file_diff(void *file_rec1, char *file_name1,
         {
             printf("- ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file1->rank, file1->f_id, posix_f_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, posix_f_counter_names[i],
                 file1->fcounters[i], file_name1, "", "");
-            
+
         }
         else if(!file1)
         {
             printf("+ ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file2->rank, file2->f_id, posix_f_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, posix_f_counter_names[i],
                 file2->fcounters[i], file_name2, "", "");
         }
         else if(file1->fcounters[i] != file2->fcounters[i])
         {
             printf("- ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file1->rank, file1->f_id, posix_f_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, posix_f_counter_names[i],
                 file1->fcounters[i], file_name1, "", "");
             printf("+ ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file2->rank, file2->f_id, posix_f_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, posix_f_counter_names[i],
                 file2->fcounters[i], file_name2, "", "");
+        }
+    }
+
+    return;
+}
+
+/* simple helper struct for determining time & byte variances */
+struct var_t
+{
+    double n;
+    double M;
+    double S;
+};
+
+static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
+{
+    struct darshan_posix_file *psx_rec = (struct darshan_posix_file *)rec;
+    struct darshan_posix_file *agg_psx_rec = (struct darshan_posix_file *)agg_rec;
+    int i, j, k;
+    int total_count;
+    int64_t tmp_val[4];
+    int64_t tmp_cnt[4];
+    int tmp_ndx;
+    double old_M;
+    double psx_time = psx_rec->fcounters[POSIX_F_READ_TIME] +
+        psx_rec->fcounters[POSIX_F_WRITE_TIME] +
+        psx_rec->fcounters[POSIX_F_META_TIME];
+    double psx_bytes = (double)psx_rec->counters[POSIX_BYTES_READ] +
+        psx_rec->counters[POSIX_BYTES_WRITTEN];
+    struct var_t *var_time_p = (struct var_t *)
+        ((char *)rec + sizeof(struct darshan_posix_file));
+    struct var_t *var_bytes_p = (struct var_t *)
+        ((char *)var_time_p + sizeof(struct var_t));
+
+    for(i = 0; i < POSIX_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case POSIX_OPENS:
+            case POSIX_READS:
+            case POSIX_WRITES:
+            case POSIX_SEEKS:
+            case POSIX_STATS:
+            case POSIX_MMAPS:
+            case POSIX_FOPENS:
+            case POSIX_FREADS:
+            case POSIX_FWRITES:
+            case POSIX_FSEEKS:
+            case POSIX_FSYNCS:
+            case POSIX_FDSYNCS:
+            case POSIX_BYTES_READ:
+            case POSIX_BYTES_WRITTEN:
+            case POSIX_CONSEC_READS:
+            case POSIX_CONSEC_WRITES:
+            case POSIX_SEQ_READS:
+            case POSIX_SEQ_WRITES:
+            case POSIX_RW_SWITCHES:
+            case POSIX_MEM_NOT_ALIGNED:
+            case POSIX_FILE_NOT_ALIGNED:
+            case POSIX_SIZE_READ_0_100:
+            case POSIX_SIZE_READ_100_1K:
+            case POSIX_SIZE_READ_1K_10K:
+            case POSIX_SIZE_READ_10K_100K:
+            case POSIX_SIZE_READ_100K_1M:
+            case POSIX_SIZE_READ_1M_4M:
+            case POSIX_SIZE_READ_4M_10M:
+            case POSIX_SIZE_READ_10M_100M:
+            case POSIX_SIZE_READ_100M_1G:
+            case POSIX_SIZE_READ_1G_PLUS:
+            case POSIX_SIZE_WRITE_0_100:
+            case POSIX_SIZE_WRITE_100_1K:
+            case POSIX_SIZE_WRITE_1K_10K:
+            case POSIX_SIZE_WRITE_10K_100K:
+            case POSIX_SIZE_WRITE_100K_1M:
+            case POSIX_SIZE_WRITE_1M_4M:
+            case POSIX_SIZE_WRITE_4M_10M:
+            case POSIX_SIZE_WRITE_10M_100M:
+            case POSIX_SIZE_WRITE_100M_1G:
+            case POSIX_SIZE_WRITE_1G_PLUS:
+                /* sum */
+                agg_psx_rec->counters[i] += psx_rec->counters[i];
+                break;
+            case POSIX_MODE:
+            case POSIX_MEM_ALIGNMENT:
+            case POSIX_FILE_ALIGNMENT:
+                /* just set to the input value */
+                agg_psx_rec->counters[i] = psx_rec->counters[i];
+                break;
+            case POSIX_MAX_BYTE_READ:
+            case POSIX_MAX_BYTE_WRITTEN:
+                /* max */
+                if(psx_rec->counters[i] > agg_psx_rec->counters[i])
+                {
+                    agg_psx_rec->counters[i] = psx_rec->counters[i];
+                }
+                break;
+            case POSIX_MAX_READ_TIME_SIZE:
+            case POSIX_MAX_WRITE_TIME_SIZE:
+            case POSIX_FASTEST_RANK:
+            case POSIX_FASTEST_RANK_BYTES:
+            case POSIX_SLOWEST_RANK:
+            case POSIX_SLOWEST_RANK_BYTES:
+                /* these are set with the FP counters */
+                break;
+            case POSIX_STRIDE1_STRIDE:
+            case POSIX_ACCESS1_ACCESS:
+                /* increment common value counters */
+
+                /* first, collapse duplicates */
+                for(j = i; j < i + 4; j++)
+                {
+                    for(k = 0; k < 4; k++)
+                    {
+                        if(agg_psx_rec->counters[i + k] == psx_rec->counters[j])
+                        {
+                            agg_psx_rec->counters[i + k + 4] += psx_rec->counters[j + 4];
+                            psx_rec->counters[j] = psx_rec->counters[j + 4] = 0;
+                        }
+                    }
+                }
+
+                /* second, add new counters */
+                for(j = i; j < i + 4; j++)
+                {
+                    tmp_ndx = 0;
+                    memset(tmp_val, 0, 4 * sizeof(int64_t));
+                    memset(tmp_cnt, 0, 4 * sizeof(int64_t));
+
+                    if(psx_rec->counters[j] == 0) break;
+                    for(k = 0; k < 4; k++)
+                    {
+                        if(agg_psx_rec->counters[i + k] == psx_rec->counters[j])
+                        {
+                            total_count = agg_psx_rec->counters[i + k + 4] +
+                                psx_rec->counters[j + 4];
+                            break;
+                        }
+                    }
+                    if(k == 4) total_count = psx_rec->counters[j + 4];
+
+                    for(k = 0; k < 4; k++)
+                    {
+                        if((agg_psx_rec->counters[i + k + 4] > total_count) ||
+                           ((agg_psx_rec->counters[i + k + 4] == total_count) &&
+                            (agg_psx_rec->counters[i + k] > psx_rec->counters[j])))
+                        {
+                            tmp_val[tmp_ndx] = agg_psx_rec->counters[i + k];
+                            tmp_cnt[tmp_ndx] = agg_psx_rec->counters[i + k + 4];
+                            tmp_ndx++;
+                        }
+                        else break;
+                    }
+                    if(tmp_ndx == 4) break;
+
+                    tmp_val[tmp_ndx] = psx_rec->counters[j];
+                    tmp_cnt[tmp_ndx] = psx_rec->counters[j + 4];
+                    tmp_ndx++;
+
+                    while(tmp_ndx != 4)
+                    {
+                        if(agg_psx_rec->counters[i + k] != psx_rec->counters[j])
+                        {
+                            tmp_val[tmp_ndx] = agg_psx_rec->counters[i + k];
+                            tmp_cnt[tmp_ndx] = agg_psx_rec->counters[i + k + 4];
+                            tmp_ndx++;
+                        }
+                        k++;
+                    }
+                    memcpy(&(agg_psx_rec->counters[i]), tmp_val, 4 * sizeof(int64_t));
+                    memcpy(&(agg_psx_rec->counters[i + 4]), tmp_cnt, 4 * sizeof(int64_t));
+                }
+                break;
+            case POSIX_STRIDE2_STRIDE:
+            case POSIX_STRIDE3_STRIDE:
+            case POSIX_STRIDE4_STRIDE:
+            case POSIX_STRIDE1_COUNT:
+            case POSIX_STRIDE2_COUNT:
+            case POSIX_STRIDE3_COUNT:
+            case POSIX_STRIDE4_COUNT:
+            case POSIX_ACCESS2_ACCESS:
+            case POSIX_ACCESS3_ACCESS:
+            case POSIX_ACCESS4_ACCESS:
+            case POSIX_ACCESS1_COUNT:
+            case POSIX_ACCESS2_COUNT:
+            case POSIX_ACCESS3_COUNT:
+            case POSIX_ACCESS4_COUNT:
+                /* these are set all at once with common counters above */
+                break;
+            default:
+                agg_psx_rec->counters[i] = -1;
+                break;
+        }
+    }
+
+    for(i = 0; i < POSIX_F_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case POSIX_F_READ_TIME:
+            case POSIX_F_WRITE_TIME:
+            case POSIX_F_META_TIME:
+                /* sum */
+                agg_psx_rec->fcounters[i] += psx_rec->fcounters[i];
+                break;
+            case POSIX_F_OPEN_TIMESTAMP:
+            case POSIX_F_READ_START_TIMESTAMP:
+            case POSIX_F_WRITE_START_TIMESTAMP:
+                /* minimum non-zero */
+                if((psx_rec->fcounters[i] > 0)  &&
+                    ((agg_psx_rec->fcounters[i] == 0) ||
+                    (psx_rec->fcounters[i] < agg_psx_rec->fcounters[i])))
+                {
+                    agg_psx_rec->fcounters[i] = psx_rec->fcounters[i];
+                }
+                break;
+            case POSIX_F_READ_END_TIMESTAMP:
+            case POSIX_F_WRITE_END_TIMESTAMP:
+            case POSIX_F_CLOSE_TIMESTAMP:
+                /* maximum */
+                if(psx_rec->fcounters[i] > agg_psx_rec->fcounters[i])
+                {
+                    agg_psx_rec->fcounters[i] = psx_rec->fcounters[i];
+                }
+                break;
+            case POSIX_F_MAX_READ_TIME:
+                if(psx_rec->fcounters[i] > agg_psx_rec->fcounters[i])
+                {
+                    agg_psx_rec->fcounters[i] = psx_rec->fcounters[i];
+                    agg_psx_rec->counters[POSIX_MAX_READ_TIME_SIZE] =
+                        psx_rec->counters[POSIX_MAX_READ_TIME_SIZE];
+                }
+                break;
+            case POSIX_F_MAX_WRITE_TIME:
+                if(psx_rec->fcounters[i] > agg_psx_rec->fcounters[i])
+                {
+                    agg_psx_rec->fcounters[i] = psx_rec->fcounters[i];
+                    agg_psx_rec->counters[POSIX_MAX_WRITE_TIME_SIZE] =
+                        psx_rec->counters[POSIX_MAX_WRITE_TIME_SIZE];
+                }
+                break;
+            case POSIX_F_FASTEST_RANK_TIME:
+                if(init_flag)
+                {
+                    /* set fastest rank counters according to root rank. these counters
+                     * will be determined as the aggregation progresses.
+                     */
+                    agg_psx_rec->counters[POSIX_FASTEST_RANK] = psx_rec->base_rec.rank;
+                    agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES] = psx_bytes;
+                    agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME] = psx_time;
+                }
+
+                if(psx_time < agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME])
+                {
+                    agg_psx_rec->counters[POSIX_FASTEST_RANK] = psx_rec->base_rec.rank;
+                    agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES] = psx_bytes;
+                    agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME] = psx_time;
+                }
+                break;
+            case POSIX_F_SLOWEST_RANK_TIME:
+                if(init_flag)
+                {
+                    /* set slowest rank counters according to root rank. these counters
+                     * will be determined as the aggregation progresses.
+                     */
+                    agg_psx_rec->counters[POSIX_SLOWEST_RANK] = psx_rec->base_rec.rank;
+                    agg_psx_rec->counters[POSIX_SLOWEST_RANK_BYTES] = psx_bytes;
+                    agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME] = psx_time;
+                }
+
+                if(psx_time > agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME])
+                {
+                    agg_psx_rec->counters[POSIX_SLOWEST_RANK] = psx_rec->base_rec.rank;
+                    agg_psx_rec->counters[POSIX_SLOWEST_RANK_BYTES] = psx_bytes;
+                    agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME] = psx_time;
+                }
+                break;
+            case POSIX_F_VARIANCE_RANK_TIME:
+                if(init_flag)
+                {
+                    var_time_p->n = 1;
+                    var_time_p->M = psx_time;
+                    var_time_p->S = 0;
+                }
+                else
+                {
+                    old_M = var_time_p->M;
+
+                    var_time_p->n++;
+                    var_time_p->M += (psx_time - var_time_p->M) / var_time_p->n;
+                    var_time_p->S += (psx_time - var_time_p->M) * (psx_time - old_M);
+
+                    agg_psx_rec->fcounters[POSIX_F_VARIANCE_RANK_TIME] =
+                        var_time_p->S / var_time_p->n;
+                }
+                break;
+            case POSIX_F_VARIANCE_RANK_BYTES:
+                if(init_flag)
+                {
+                    var_bytes_p->n = 1;
+                    var_bytes_p->M = psx_bytes;
+                    var_bytes_p->S = 0;
+                }
+                else
+                {
+                    old_M = var_bytes_p->M;
+
+                    var_bytes_p->n++;
+                    var_bytes_p->M += (psx_bytes - var_bytes_p->M) / var_bytes_p->n;
+                    var_bytes_p->S += (psx_bytes - var_bytes_p->M) * (psx_bytes - old_M);
+
+                    agg_psx_rec->fcounters[POSIX_F_VARIANCE_RANK_BYTES] =
+                        var_bytes_p->S / var_bytes_p->n;
+                }
+                break;
+            default:
+                agg_psx_rec->fcounters[i] = -1;
+                break;
         }
     }
 

@@ -30,14 +30,23 @@ char *bgq_f_counter_names[] = {
 };
 #undef X
 
-static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf,
-    darshan_record_id* rec_id);
+/* old definitions for enforcing backwards compatibility */
+struct darshan_bgq_record_1
+{
+    struct darshan_base_record base_rec;
+    int alignment;
+    int64_t counters[BGQ_NUM_INDICES];
+    double fcounters[BGQ_F_NUM_INDICES];
+};
+
+static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf);
 static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf, int ver);
 static void darshan_log_print_bgq_rec(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
 static void darshan_log_print_bgq_description(void);
 static void darshan_log_print_bgq_rec_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
+static void darshan_log_agg_bgq_recs(void *rec, void *agg_rec, int init_flag);
 
 struct darshan_mod_logutil_funcs bgq_logutils =
 {
@@ -45,37 +54,63 @@ struct darshan_mod_logutil_funcs bgq_logutils =
     .log_put_record = &darshan_log_put_bgq_rec,
     .log_print_record = &darshan_log_print_bgq_rec,
     .log_print_description = &darshan_log_print_bgq_description,
-    .log_print_diff = &darshan_log_print_bgq_rec_diff
+    .log_print_diff = &darshan_log_print_bgq_rec_diff,
+    .log_agg_records = &darshan_log_agg_bgq_recs
 };
 
-static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf,
-    darshan_record_id* rec_id)
+static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf)
 {
-    struct darshan_bgq_record *rec;
+    int log_rec_len;
+    struct darshan_bgq_record *rec =
+        (struct darshan_bgq_record *)bgq_buf;
     int i;
-    int ret;
+    int ret = -1;
 
-    ret = darshan_log_getmod(fd, DARSHAN_BGQ_MOD, bgq_buf,
-        sizeof(struct darshan_bgq_record));
+    /* read the BGQ record from file, checking the version first so we
+     * can read it correctly
+     */
+    if(fd->mod_ver[DARSHAN_BGQ_MOD] == 1)
+    {
+        struct darshan_bgq_record_1 bgq_rec_1;
+        log_rec_len = sizeof(struct darshan_bgq_record_1);
+
+        ret = darshan_log_get_mod(fd, DARSHAN_BGQ_MOD, &bgq_rec_1,
+            log_rec_len);
+        if(ret == log_rec_len)
+        {
+            /* up-convert old BGQ format to new format */
+            rec->base_rec = bgq_rec_1.base_rec;
+            memcpy(rec->counters, bgq_rec_1.counters,
+                BGQ_NUM_INDICES * sizeof(int64_t));
+            memcpy(rec->fcounters, bgq_rec_1.fcounters,
+                BGQ_F_NUM_INDICES * sizeof(double));
+        }
+    }
+    else if(fd->mod_ver[DARSHAN_BGQ_MOD] == 2)
+    {
+        log_rec_len = sizeof(struct darshan_bgq_record);
+
+        ret = darshan_log_get_mod(fd, DARSHAN_BGQ_MOD, rec,
+            log_rec_len);
+    }
+
     if(ret < 0)
         return(-1);
-    else if(ret < sizeof(struct darshan_bgq_record))
+    else if(ret < log_rec_len)
         return(0);
     else
     {
-        rec = (struct darshan_bgq_record *)bgq_buf;
         if(fd->swap_flag)
         {
             /* swap bytes if necessary */
-            DARSHAN_BSWAP64(&rec->f_id);
-            DARSHAN_BSWAP64(&rec->rank);
+            DARSHAN_BSWAP64(&(rec->base_rec.id));
+            DARSHAN_BSWAP64(&(rec->base_rec.rank));
             for(i=0; i<BGQ_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&rec->counters[i]);
             for(i=0; i<BGQ_F_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&rec->fcounters[i]);
         }
 
-        *rec_id = rec->f_id;
         return(1);
     }
 }
@@ -85,7 +120,7 @@ static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf, int ver)
     struct darshan_bgq_record *rec = (struct darshan_bgq_record *)bgq_buf;
     int ret;
 
-    ret = darshan_log_putmod(fd, DARSHAN_BGQ_MOD, rec,
+    ret = darshan_log_put_mod(fd, DARSHAN_BGQ_MOD, rec,
         sizeof(struct darshan_bgq_record), ver);
     if(ret < 0)
         return(-1);
@@ -103,15 +138,17 @@ static void darshan_log_print_bgq_rec(void *file_rec, char *file_name,
     for(i=0; i<BGQ_NUM_INDICES; i++)
     {
         DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_BGQ_MOD],
-            bgq_file_rec->rank, bgq_file_rec->f_id, bgq_counter_names[i],
-            bgq_file_rec->counters[i], file_name, mnt_pt, fs_type);
+            bgq_file_rec->base_rec.rank, bgq_file_rec->base_rec.id,
+            bgq_counter_names[i], bgq_file_rec->counters[i],
+            file_name, mnt_pt, fs_type);
     }
 
     for(i=0; i<BGQ_F_NUM_INDICES; i++)
     {
         DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_BGQ_MOD],
-            bgq_file_rec->rank, bgq_file_rec->f_id, bgq_f_counter_names[i],
-            bgq_file_rec->fcounters[i], file_name, mnt_pt, fs_type);
+            bgq_file_rec->base_rec.rank, bgq_file_rec->base_rec.id,
+            bgq_f_counter_names[i], bgq_file_rec->fcounters[i],
+            file_name, mnt_pt, fs_type);
     }
 
     return;
@@ -149,7 +186,7 @@ static void darshan_log_print_bgq_rec_diff(void *file_rec1, char *file_name1,
         {
             printf("- ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_BGQ_MOD],
-                file1->rank, file1->f_id, bgq_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, bgq_counter_names[i],
                 file1->counters[i], file_name1, "", "");
 
         }
@@ -157,18 +194,18 @@ static void darshan_log_print_bgq_rec_diff(void *file_rec1, char *file_name1,
         {
             printf("+ ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_BGQ_MOD],
-                file2->rank, file2->f_id, bgq_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, bgq_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
         else if(file1->counters[i] != file2->counters[i])
         {
             printf("- ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_BGQ_MOD],
-                file1->rank, file1->f_id, bgq_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, bgq_counter_names[i],
                 file1->counters[i], file_name1, "", "");
             printf("+ ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_BGQ_MOD],
-                file2->rank, file2->f_id, bgq_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, bgq_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
     }
@@ -179,7 +216,7 @@ static void darshan_log_print_bgq_rec_diff(void *file_rec1, char *file_name1,
         {
             printf("- ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_BGQ_MOD],
-                file1->rank, file1->f_id, bgq_f_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, bgq_f_counter_names[i],
                 file1->fcounters[i], file_name1, "", "");
 
         }
@@ -187,18 +224,18 @@ static void darshan_log_print_bgq_rec_diff(void *file_rec1, char *file_name1,
         {
             printf("+ ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_BGQ_MOD],
-                file2->rank, file2->f_id, bgq_f_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, bgq_f_counter_names[i],
                 file2->fcounters[i], file_name2, "", "");
         }
         else if(file1->fcounters[i] != file2->fcounters[i])
         {
             printf("- ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_BGQ_MOD],
-                file1->rank, file1->f_id, bgq_f_counter_names[i],
+                file1->base_rec.rank, file1->base_rec.id, bgq_f_counter_names[i],
                 file1->fcounters[i], file_name1, "", "");
             printf("+ ");
             DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_BGQ_MOD],
-                file2->rank, file2->f_id, bgq_f_counter_names[i],
+                file2->base_rec.rank, file2->base_rec.id, bgq_f_counter_names[i],
                 file2->fcounters[i], file_name2, "", "");
         }
     }
@@ -206,6 +243,12 @@ static void darshan_log_print_bgq_rec_diff(void *file_rec1, char *file_name1,
     return;
 }
 
+
+static void darshan_log_agg_bgq_recs(void *rec, void *agg_rec, int init_flag)
+{
+    /* TODO: how would aggregation work for the BG/Q module ? */
+    return;
+}
 
 /*
  * Local variables:

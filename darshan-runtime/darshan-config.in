@@ -5,7 +5,7 @@ DARSHAN_SHARE_PATH="@darshan_share_path@"
 DARSHAN_LD_FLAGS="@LDFLAGS@"
 
 # NOTE:
-# - we deliberately list libdarshan-mpi-io twice in the link command.  The
+# - we deliberately list libdarshan twice in the link command.  The
 #   first is necessary to correctly use the MPI profiling interface.  The
 #   final one is necessary to give the linker a change to resolve indirect
 #   dependencies on PnetCDF and HDF5 symbols (if the app used a library which 
