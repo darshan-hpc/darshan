@@ -80,10 +80,9 @@ enum darshan_stdio_f_indices
  *      - integer I/O counters (operation counts, I/O sizes, etc.)
  *      - floating point I/O counters (timestamps, cumulative timers, etc.)
  */
-struct darshan_stdio_record
+struct darshan_stdio_file
 {
-    darshan_record_id f_id;
-    int64_t rank;
+    struct darshan_base_record base_rec;
     int64_t counters[STDIO_NUM_INDICES];
     double fcounters[STDIO_F_NUM_INDICES];
 };
