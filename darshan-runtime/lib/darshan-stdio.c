@@ -923,8 +923,8 @@ static void stdio_runtime_initialize()
     darshan_core_register_module(
         DARSHAN_STDIO_MOD,
         &stdio_shutdown,
-        &my_rank,
         &stdio_buf_size,
+        &my_rank,
         &darshan_mem_alignment);
 
     /* return if darshan-core does not provide enough module memory */
