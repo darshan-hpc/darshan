@@ -229,7 +229,7 @@ static void stdio_cleanup_runtime();
 #define STDIO_RECORD_WRITE(__fp, __bytes,  __tm1, __tm2, __fflush_flag) do{ \
     struct stdio_file_record_ref* rec_ref; \
     int64_t this_offset; \
-    rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &(__fp), sizeof(int)); \
+    rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &(__fp), sizeof(__fp)); \
     if(!rec_ref) break; \
     this_offset = rec_ref->offset; \
     rec_ref->offset = this_offset + __bytes; \
