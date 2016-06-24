@@ -190,7 +190,7 @@ static void stdio_cleanup_runtime();
         break; \
     } \
     rec_id = darshan_core_gen_record_id(newpath); \
-    rec_ref = darshan_lookup_record_ref(stdio_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
+    rec_ref = darshan_lookup_record_ref(stdio_runtime->rec_id_hash, &rec_id, sizeof(rec_id)); \
     if(!rec_ref) rec_ref = stdio_track_new_file_record(rec_id, newpath); \
     if(!rec_ref) { \
         if(newpath != (char*)__path) free(newpath); \
@@ -211,7 +211,7 @@ static void stdio_cleanup_runtime();
 #define STDIO_RECORD_READ(__fp, __bytes,  __tm1, __tm2) do{ \
     struct stdio_file_record_ref* rec_ref; \
     int64_t this_offset; \
-    rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &(__fp), sizeof(int)); \
+    rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &(__fp), sizeof(__fp)); \
     if(!rec_ref) break; \
     this_offset = rec_ref->offset; \
     rec_ref->offset = this_offset + __bytes; \
