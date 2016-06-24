@@ -1139,7 +1139,7 @@ static struct stdio_file_record_ref *stdio_track_new_file_record(
     file_rec = darshan_core_register_record(
         rec_id,
         path,
-        DARSHAN_PNETCDF_MOD,
+        DARSHAN_STDIO_MOD,
         sizeof(struct darshan_stdio_file),
         NULL);
 
