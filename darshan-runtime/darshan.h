@@ -73,6 +73,15 @@ typedef void (*darshan_module_shutdown)(
     int *mod_buf_sz /* output parameter to save module buffer size */
 );
 
+/* stores FS info from statfs calls for a given mount point */
+struct darshan_fs_info
+{
+    int fs_type;
+    int block_size;
+    int ost_count;
+    int mdt_count;
+};
+
 /*****************************************************
 * darshan-core functions exported to darshan modules *
 *****************************************************/
@@ -122,17 +131,18 @@ darshan_record_id darshan_core_gen_record_id(
  * Darshan record (e.g., the full file path), which for now is just a
  * string. 'mod_id' is the identifier of the calling module. 'rec_len'
  * is the size of the record being registered with Darshan. If given,
- * 'file_alignment' is a pointer to an integer which on return will
- * contain the corresponding file system alignment of the file system
- * path 'name' resides on. Returns a pointer to the address the record
- * should be written to on success, NULL on failure.
+ * 'fs_info' is a pointer to a structure containing information on
+ * the underlying FS this record is associated with (determined by
+ * matching the file name prefix with Darshan's list of tracked mount
+ * points). Returns a pointer to the address the record should be
+ * written to on success, NULL on failure.
  */
 void *darshan_core_register_record(
     darshan_record_id rec_id,
     const char *name,
     darshan_module_id mod_id,
     int rec_len,
-    int *file_alignment);
+    struct darshan_fs_info *fs_info);
 
 /* darshan_core_wtime()
  *

@@ -37,6 +37,10 @@ typedef int64_t off64_t;
 #define aiocb64 aiocb
 #endif
 
+#ifndef LL_SUPER_MAGIC
+#define LL_SUPER_MAGIC 0x0BD00BD0
+#endif
+
 DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(open64, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(creat, int, (const char* path, mode_t mode));
@@ -117,6 +121,7 @@ struct posix_file_record_ref
     int access_count;
     void *stride_root;
     int stride_count;
+    int fs_type; /* same as darshan_fs_info->fs_type */
     struct posix_aio_tracker* aio_list;
 };
 
@@ -160,6 +165,11 @@ static void posix_cleanup_runtime(
 static void posix_shutdown(
     MPI_Comm mod_comm, darshan_record_id *shared_recs,
     int shared_rec_count, void **posix_buf, int *posix_buf_sz);
+
+/* XXX modules don't expose an API for other modules, so use extern to get
+ * Lustre instrumentation function
+ */
+extern void darshan_instrument_lustre_file(const char *filepath, int fd);
 
 static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -216,6 +226,8 @@ static int darshan_mem_alignment = 1;
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[POSIX_F_META_TIME], \
         __tm1, __tm2, rec_ref->last_meta_end); \
     darshan_add_record_ref(&(posix_runtime->fd_hash), &__ret, sizeof(int), rec_ref); \
+    if(rec_ref->fs_type == LL_SUPER_MAGIC) \
+        darshan_instrument_lustre_file(__path, __ret); \
     if(newpath != __path) free(newpath); \
 } while(0)
 
@@ -1444,7 +1456,7 @@ static struct posix_file_record_ref *posix_track_new_file_record(
 {
     struct darshan_posix_file *file_rec = NULL;
     struct posix_file_record_ref *rec_ref = NULL;
-    int file_alignment;
+    struct darshan_fs_info fs_info;
     int ret;
 
     rec_ref = malloc(sizeof(*rec_ref));
@@ -1469,7 +1481,7 @@ static struct posix_file_record_ref *posix_track_new_file_record(
         path,
         DARSHAN_POSIX_MOD,
         sizeof(struct darshan_posix_file),
-        &file_alignment);
+        &fs_info);
 
     if(!file_rec)
     {
@@ -1483,8 +1495,9 @@ static struct posix_file_record_ref *posix_track_new_file_record(
     file_rec->base_rec.id = rec_id;
     file_rec->base_rec.rank = my_rank;
     file_rec->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
-    file_rec->counters[POSIX_FILE_ALIGNMENT] = file_alignment;
+    file_rec->counters[POSIX_FILE_ALIGNMENT] = fs_info.block_size;
     rec_ref->file_rec = file_rec;
+    rec_ref->fs_type = fs_info.fs_type;
     posix_runtime->file_rec_count++;
 
     return(rec_ref);

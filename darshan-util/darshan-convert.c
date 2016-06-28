@@ -19,8 +19,6 @@
 
 #include "darshan-logutils.h"
 
-#define DEF_MOD_BUF_SIZE 1024 /* 1 KiB is enough for all current mod records ... */
-
 extern uint32_t darshan_hashlittle(const void *key, size_t length, uint32_t initval);
 
 int usage (char *exename)
@@ -343,6 +341,14 @@ int main(int argc, char **argv)
         return(-1);
     }
 
+    mod_buf = malloc(DEF_MOD_BUF_SIZE);
+    if (!mod_buf)
+    {
+        darshan_log_close(infile);
+        darshan_log_close(outfile);
+        return(-1);
+    }
+
     /* loop over each module and convert it's data to the new format */
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
@@ -369,6 +375,7 @@ int main(int argc, char **argv)
             darshan_log_close(infile);
             darshan_log_close(outfile);
             unlink(outfile_name);
+            free(mod_buf);
             return(-1);
         }
 
@@ -391,6 +398,7 @@ int main(int argc, char **argv)
             }
         } while((ret = mod_logutils[i]->log_get_record(infile, mod_buf)) == 1);
     }
+    free(mod_buf);
 
     darshan_log_close(infile);
     darshan_log_close(outfile);

@@ -19,6 +19,8 @@
 #include <limits.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include <dirent.h>
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -31,6 +33,9 @@
 #include "darshan.h"
 #include "darshan-core.h"
 #include "darshan-dynamic.h"
+
+/* XXX stick this into autoconf .h */
+#include <lustre/lustre_user.h>
 
 extern char* __progname;
 extern char* __progname_full;
@@ -83,9 +88,9 @@ void (*mod_static_init_fns[])(void) =
 #define DARSHAN_MAX_MNT_TYPE 32
 struct mnt_data
 {
-    int block_size;
     char path[DARSHAN_MAX_MNT_PATH];
     char type[DARSHAN_MAX_MNT_TYPE];
+    struct darshan_fs_info fs_info;
 };
 static struct mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
@@ -99,11 +104,11 @@ static void darshan_log_record_hints_and_ver(
     struct darshan_core_runtime* core);
 static void darshan_get_exe_and_mounts(
     struct darshan_core_runtime *core, int argc, char **argv);
+static void darshan_fs_info_from_path(
+    const char *path, struct darshan_fs_info *fs_info);
 static int darshan_add_name_record_ref(
     struct darshan_core_runtime *core, darshan_record_id rec_id,
     const char *name, darshan_module_id mod_id);
-static int darshan_block_size_from_path(
-    const char *path);
 static void darshan_get_user_name(
     char *user);
 static void darshan_get_logfile_name(
@@ -919,12 +924,42 @@ static void add_entry(char* buf, int* space_left, struct mntent* entry)
 #define LL_SUPER_MAGIC 0x0BD00BD0
 #endif
     ret = statfs(entry->mnt_dir, &statfsbuf);
+    mnt_data_array[mnt_data_count].fs_info.fs_type = statfsbuf.f_type;
     if(ret == 0 && statfsbuf.f_type != LL_SUPER_MAGIC)
-        mnt_data_array[mnt_data_count].block_size = statfsbuf.f_bsize;
+        mnt_data_array[mnt_data_count].fs_info.block_size = statfsbuf.f_bsize;
     else if(ret == 0 && statfsbuf.f_type == LL_SUPER_MAGIC)
-        mnt_data_array[mnt_data_count].block_size = 1024*1024;
+        mnt_data_array[mnt_data_count].fs_info.block_size = 1024*1024;
     else
-        mnt_data_array[mnt_data_count].block_size = 4096;
+        mnt_data_array[mnt_data_count].fs_info.block_size = 4096;
+
+    /* XXX */
+    /* attempt to retrieve OST and MDS counts from Lustre */
+    mnt_data_array[mnt_data_count].fs_info.ost_count = -1;
+    mnt_data_array[mnt_data_count].fs_info.mdt_count = -1;
+    if ( statfsbuf.f_type == LL_SUPER_MAGIC )
+    {
+        int n_ost, n_mdt;
+        int ret_ost, ret_mdt;
+        DIR *mount_dir;
+
+        mount_dir = opendir( entry->mnt_dir );
+        if ( mount_dir  ) 
+        {
+            /* n_ost and n_mdt are used for both input and output to ioctl */
+            n_ost = 0;
+            n_mdt = 1;
+
+            ret_ost = ioctl( dirfd(mount_dir), LL_IOC_GETOBDCOUNT, &n_ost );
+            ret_mdt = ioctl( dirfd(mount_dir), LL_IOC_GETOBDCOUNT, &n_mdt );
+
+            if ( !(ret_ost < 0 || ret_mdt < 0) )
+            {
+                mnt_data_array[mnt_data_count].fs_info.ost_count = n_ost;
+                mnt_data_array[mnt_data_count].fs_info.mdt_count = n_mdt;
+            }
+            closedir( mount_dir );
+        }
+    }
 
     /* store mount information with the job-level metadata in darshan log */
     ret = snprintf(tmp_mnt, 256, "\n%s\t%s",
@@ -1059,21 +1094,55 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
     return;
 }
 
-static int darshan_block_size_from_path(const char *path)
+static void darshan_fs_info_from_path(const char *path, struct darshan_fs_info *fs_info)
 {
     int i;
-    int block_size = -1;
+    fs_info->fs_type = -1;
+    fs_info->block_size = -1;
 
     for(i=0; i<mnt_data_count; i++)
     {
         if(!(strncmp(mnt_data_array[i].path, path, strlen(mnt_data_array[i].path))))
         {
-            block_size = mnt_data_array[i].block_size;
-            break;;
+            *fs_info = mnt_data_array[i].fs_info;
+            return;
         }
     }
 
-    return block_size;
+    return;
+}
+
+static int darshan_add_name_record_ref(struct darshan_core_runtime *core,
+    darshan_record_id rec_id, const char *name, darshan_module_id mod_id)
+{
+    struct darshan_core_name_record_ref *ref;
+    int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
+
+    if((record_size + core->name_mem_used) > DARSHAN_NAME_RECORD_BUF_SIZE)
+        return(0);
+
+    ref = malloc(sizeof(*ref));
+    if(!ref)
+        return(0);
+    memset(ref, 0, sizeof(*ref));
+
+    /* initialize the name record */
+    ref->name_record = (struct darshan_name_record *)
+        ((char *)core->log_name_p + core->name_mem_used);
+    memset(ref->name_record, 0, record_size);
+    ref->name_record->id = rec_id;
+    strcpy(ref->name_record->name, name);
+    DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
+
+    /* add the record to the hash table */
+    HASH_ADD(hlink, core->name_hash, name_record->id,
+        sizeof(darshan_record_id), ref);
+    core->name_mem_used += record_size;
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    core->log_hdr_p->name_map.len += record_size;
+#endif
+
+    return(1);
 }
 
 static void darshan_get_user_name(char *cuser)
@@ -1237,39 +1306,6 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
     }
 
     return;
-}
-
-static int darshan_add_name_record_ref(struct darshan_core_runtime *core,
-    darshan_record_id rec_id, const char *name, darshan_module_id mod_id)
-{
-    struct darshan_core_name_record_ref *ref;
-    int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
-
-    if((record_size + core->name_mem_used) > DARSHAN_NAME_RECORD_BUF_SIZE)
-        return(0);
-
-    ref = malloc(sizeof(*ref));
-    if(!ref)
-        return(0);
-    memset(ref, 0, sizeof(*ref));
-
-    /* initialize the name record */
-    ref->name_record = (struct darshan_name_record *)
-        ((char *)core->log_name_p + core->name_mem_used);
-    memset(ref->name_record, 0, record_size);
-    ref->name_record->id = rec_id;
-    strcpy(ref->name_record->name, name);
-    DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
-
-    /* add the record to the hash table */
-    HASH_ADD(hlink, core->name_hash, name_record->id,
-        sizeof(darshan_record_id), ref);
-    core->name_mem_used += record_size;
-#ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    core->log_hdr_p->name_map.len += record_size;
-#endif
-
-    return(1);
 }
 
 static void darshan_get_shared_records(struct darshan_core_runtime *core,
@@ -1889,7 +1925,7 @@ void *darshan_core_register_record(
     const char *name,
     darshan_module_id mod_id,
     int rec_len,
-    int *file_alignment)
+    struct darshan_fs_info *fs_info)
 {
     struct darshan_core_name_record_ref *ref;
     void *rec_buf;
@@ -1942,8 +1978,8 @@ void *darshan_core_register_record(
 #endif
     DARSHAN_CORE_UNLOCK();
 
-    if(file_alignment)
-        *file_alignment = darshan_block_size_from_path(name);
+    if(fs_info)
+        darshan_fs_info_from_path(name, fs_info);
 
     return(rec_buf);;
 }

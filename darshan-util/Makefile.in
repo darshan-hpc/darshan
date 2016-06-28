@@ -13,10 +13,10 @@ libdir = $(DESTDIR)@libdir@
 pkgconfigdir = $(DESTDIR)$(libdir)/pkgconfig
 
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
-DARSHAN_MOD_LOG_FORMATS = $(srcdir)/../darshan-posix-log-format.h $(srcdir)/../darshan-mpiio-log-format.h $(srcdir)/../darshan-hdf5-log-format.h $(srcdir)/../darshan-pnetcdf-log-format.h
-DARSHAN_MOD_LOGUTIL_HEADERS = darshan-posix-logutils.h darshan-mpiio-logutils.h darshan-hdf5-logutils.h darshan-pnetcdf-logutils.h
-DARSHAN_STATIC_MOD_OBJS = darshan-posix-logutils.o darshan-mpiio-logutils.o darshan-hdf5-logutils.o darshan-pnetcdf-logutils.o darshan-bgq-logutils.o
-DARSHAN_DYNAMIC_MOD_OBJS = darshan-posix-logutils.po darshan-mpiio-logutils.po darshan-hdf5-logutils.po darshan-pnetcdf-logutils.po darshan-bgq-logutils.po
+DARSHAN_MOD_LOG_FORMATS = $(srcdir)/../darshan-posix-log-format.h $(srcdir)/../darshan-mpiio-log-format.h $(srcdir)/../darshan-hdf5-log-format.h $(srcdir)/../darshan-pnetcdf-log-format.h $(srcdir)/../darshan-lustre-log-format.h
+DARSHAN_MOD_LOGUTIL_HEADERS = darshan-posix-logutils.h darshan-mpiio-logutils.h darshan-hdf5-logutils.h darshan-pnetcdf-logutils.h darshan-lustre-logutils.h
+DARSHAN_STATIC_MOD_OBJS = darshan-posix-logutils.o darshan-mpiio-logutils.o darshan-hdf5-logutils.o darshan-pnetcdf-logutils.o darshan-bgq-logutils.o darshan-lustre-logutils.o
+DARSHAN_DYNAMIC_MOD_OBJS = darshan-posix-logutils.po darshan-mpiio-logutils.po darshan-hdf5-logutils.po darshan-pnetcdf-logutils.po darshan-bgq-logutils.po darshan-lustre-logutils.po
 
 DARSHAN_ENABLE_SHARED=@DARSHAN_ENABLE_SHARED@
 
@@ -79,6 +79,11 @@ darshan-pnetcdf-logutils.po: darshan-pnetcdf-logutils.c darshan-logutils.h darsh
 darshan-bgq-logutils.o: darshan-bgq-logutils.c darshan-logutils.h darshan-bgq-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-bgq-log-format.h | uthash-1.9.2
 	$(CC) $(CFLAGS) -c  $< -o $@
 darshan-bgq-logutils.po: darshan-bgq-logutils.c darshan-logutils.h darshan-bgq-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-bgq-log-format.h | uthash-1.9.2
+	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
+
+darshan-lustre-logutils.o: darshan-lustre-logutils.c darshan-logutils.h darshan-lustre-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-lustre-log-format.h | uthash-1.9.2
+	$(CC) $(CFLAGS) -c  $< -o $@
+darshan-lustre-logutils.po: darshan-lustre-logutils.c darshan-logutils.h darshan-lustre-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-lustre-log-format.h | uthash-1.9.2
 	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
 
 libdarshan-util.a: darshan-logutils.o $(DARSHAN_STATIC_MOD_OBJS)
