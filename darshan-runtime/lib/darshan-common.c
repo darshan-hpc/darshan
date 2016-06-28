@@ -224,7 +224,7 @@ void darshan_common_val_counter(void **common_val_root, int *common_val_count,
     int64_t val, int64_t *common_val_p, int64_t *common_cnt_p)
 {
     struct darshan_common_val_counter* counter;
-    struct darshan_common_val_counter* found;
+    struct darshan_common_val_counter* found = NULL;
     struct darshan_common_val_counter tmp_counter;
     void* tmp;
 

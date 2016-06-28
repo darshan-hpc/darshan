@@ -330,12 +330,12 @@ void darshan_core_shutdown()
     int64_t last_end_time;
     double start_log_time;
     double tm_end;
-    double open1, open2;
-    double job1, job2;
-    double rec1, rec2;
+    double open1 = 0, open2 = 0;
+    double job1 = 0, job2 = 0;
+    double rec1 = 0, rec2 = 0;
     double mod1[DARSHAN_MAX_MODS] = {0};
     double mod2[DARSHAN_MAX_MODS] = {0};
-    double header1, header2;
+    double header1 = 0, header2 = 0;
     char *logfile_name;
     int local_mod_use[DARSHAN_MAX_MODS] = {0};
     int global_mod_use_count[DARSHAN_MAX_MODS] = {0};
