@@ -34,8 +34,9 @@
 #include "darshan-core.h"
 #include "darshan-dynamic.h"
 
-/* XXX stick this into autoconf .h */
+#ifdef DARSHAN_LUSTRE
 #include <lustre/lustre_user.h>
+#endif
 
 extern char* __progname;
 extern char* __progname_full;
@@ -932,7 +933,7 @@ static void add_entry(char* buf, int* space_left, struct mntent* entry)
     else
         mnt_data_array[mnt_data_count].fs_info.block_size = 4096;
 
-    /* XXX */
+#ifdef DARSHAN_LUSTRE
     /* attempt to retrieve OST and MDS counts from Lustre */
     mnt_data_array[mnt_data_count].fs_info.ost_count = -1;
     mnt_data_array[mnt_data_count].fs_info.mdt_count = -1;
@@ -960,6 +961,7 @@ static void add_entry(char* buf, int* space_left, struct mntent* entry)
             closedir( mount_dir );
         }
     }
+#endif
 
     /* store mount information with the job-level metadata in darshan log */
     ret = snprintf(tmp_mnt, 256, "\n%s\t%s",

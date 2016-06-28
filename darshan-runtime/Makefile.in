@@ -19,6 +19,7 @@ LD = @LD@
 DISABLE_LDPRELOAD = @DISABLE_LDPRELOAD@
 ENABLE_MMAP_LOGS = @ENABLE_MMAP_LOGS@
 DARSHAN_USE_BGQ = @DARSHAN_USE_BGQ@
+DARSHAN_USE_LUSTRE = @DARSHAN_USE_LUSTRE@
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_VERSION = @DARSHAN_VERSION@
 
@@ -37,15 +38,18 @@ LIBS = -lz @LIBBZ2@
 DARSHAN_STATIC_MOD_OBJS = lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-hdf5.o lib/darshan-pnetcdf.o
 DARSHAN_DYNAMIC_MOD_OBJS = lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-hdf5.po lib/darshan-pnetcdf.po
 
-# TODO: make the lustre module enabled using config options
-DARSHAN_STATIC_MOD_OBJS += lib/darshan-lustre.o
-DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-lustre.po
-
 ifdef DARSHAN_USE_BGQ
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-bgq.o
 DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-bgq.po
 CFLAGS += -DDARSHAN_BGQ
 CFLAGS_SHARED += -DDARSHAN_BGQ
+endif
+
+ifdef DARSHAN_USE_LUSTRE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-lustre.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-lustre.po
+CFLAGS += -DDARSHAN_LUSTRE
+CFLAGS_SHARED += -DDARSHAN_LUSTRE
 endif
 
 lib::
@@ -111,10 +115,10 @@ lib/darshan-pnetcdf.po: lib/darshan-pnetcdf.c darshan.h darshan-dynamic.h darsha
 lib/darshan-pnetcdf-stubs.o: lib/darshan-pnetcdf-stubs.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
 	$(CC) $(CFLAGS) -c $< -o $@
 
-lib/darshan-lustre.o: lib/darshan-lustre.c darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-lustre-log-format.h | lib
+lib/darshan-lustre.o: lib/darshan-lustre.c darshan-lustre.h darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-lustre-log-format.h | lib
 	$(CC) $(CFLAGS) -c $< -o $@
 
-lib/darshan-lustre.po: lib/darshan-lustre.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-lustre-log-format.h | lib
+lib/darshan-lustre.po: lib/darshan-lustre.c darshan-lustre.h darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-lustre-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
 lib/lookup3.o: lib/lookup3.c

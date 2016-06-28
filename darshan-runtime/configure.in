@@ -47,10 +47,17 @@ fi]
 ,)
 
 AC_ARG_ENABLE(
-    [bgq_mod],
+    [bgq-mod],
     [  --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)],
     [],
     [enable_bgq_mod=check]
+)
+
+AC_ARG_ENABLE(
+    [lustre-mod],
+    [  --disable-lustre-mod    Disables compilation and use of the Lustre module],
+    [],
+    [enable_lustre_mod=check]
 )
 
 AC_ARG_ENABLE(mmap-logs,
@@ -130,6 +137,7 @@ AC_ARG_WITH(mod-mem,
     fi
 )
 
+# if bgq module not disabled, check to make sure BG/Q environment available
 if test x$enable_bgq_mod != xno; then
     AC_MSG_CHECKING(for BG/Q environment)
     AC_TRY_COMPILE([
@@ -142,6 +150,15 @@ if test x$enable_bgq_mod != xno; then
         AC_MSG_RESULT(no)
         AS_IF([test "x$enable_bgq_mod" = xyes],
             AC_MSG_ERROR(BG/Q module enabled in non-BG/Q environment),
+            []))
+fi
+
+# if lustre module not disabled, check for needed Lustre module header
+if test x$enable_lustre_mod != xno; then
+    AC_CHECK_HEADER([lustre/lustre_user.h],
+        DARSHAN_USE_LUSTRE=1,
+        AS_IF([test "x$enable_lustre_mod" = xyes],
+            AC_MSG_ERROR(Cannot find required headers for the Lustre module),
             []))
 fi
 
@@ -334,6 +351,7 @@ AC_SUBST(ENABLE_MMAP_LOGS)
 AC_SUBST(DARSHAN_VERSION)
 AC_SUBST(MPICH_LIB_OLD)
 AC_SUBST(DARSHAN_USE_BGQ)
+AC_SUBST(DARSHAN_USE_LUSTRE)
 AC_OUTPUT(Makefile
 darshan-mk-log-dirs.pl
 darshan-gen-cc.pl

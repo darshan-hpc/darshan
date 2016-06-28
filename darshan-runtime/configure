@@ -621,6 +621,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+DARSHAN_USE_LUSTRE
 DARSHAN_USE_BGQ
 MPICH_LIB_OLD
 DARSHAN_VERSION
@@ -689,6 +690,7 @@ enable_ld_preload
 enable_cuserid
 enable_group_readable_logs
 enable_bgq_mod
+enable_lustre_mod
 enable_mmap_logs
 with_mem_align
 with_log_path_by_env
@@ -1320,6 +1322,7 @@ Optional Features:
   --enable-group-readable-logs
                           Set log files to be group readable
   --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)
+  --disable-lustre-mod    Disables compilation and use of the Lustre module
   --enable-mmmap-logs     Enables ability to mmap I/O data to log file
 
 Optional Packages:
@@ -3566,11 +3569,20 @@ fi
 fi
 
 
-# Check whether --enable-bgq_mod was given.
+# Check whether --enable-bgq-mod was given.
 if test "${enable_bgq_mod+set}" = set; then :
   enableval=$enable_bgq_mod;
 else
   enable_bgq_mod=check
+
+fi
+
+
+# Check whether --enable-lustre-mod was given.
+if test "${enable_lustre_mod+set}" = set; then :
+  enableval=$enable_lustre_mod;
+else
+  enable_lustre_mod=check
 
 fi
 
@@ -3694,6 +3706,7 @@ _ACEOF
 fi
 
 
+# if bgq module not disabled, check to make sure BG/Q environment available
 if test x$enable_bgq_mod != xno; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BG/Q environment" >&5
 $as_echo_n "checking for BG/Q environment... " >&6; }
@@ -3724,6 +3737,20 @@ $as_echo "no" >&6; }
 fi
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+
+# if lustre module not disabled, check for needed Lustre module header
+if test x$enable_lustre_mod != xno; then
+    ac_fn_c_check_header_mongrel "$LINENO" "lustre/lustre_user.h" "ac_cv_header_lustre_lustre_user_h" "$ac_includes_default"
+if test "x$ac_cv_header_lustre_lustre_user_h" = xyes; then :
+  DARSHAN_USE_LUSTRE=1
+else
+  if test "x$enable_lustre_mod" = xyes; then :
+  as_fn_error $? "Cannot find required headers for the Lustre module" "$LINENO" 5
+fi
+fi
+
+
 fi
 
 if test x$GOT_ALIGNMENT != x1; then
@@ -4322,6 +4349,7 @@ else
 fi
 
 DARSHAN_VERSION="3.0.1"
+
 
 
 
