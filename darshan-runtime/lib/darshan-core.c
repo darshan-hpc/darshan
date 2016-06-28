@@ -283,7 +283,19 @@ void darshan_core_initialize(int argc, char **argv)
             /* collect information about command line and mounted file systems */
             darshan_get_exe_and_mounts(init_core, argc, argv);
 
+            /* if darshan was successfully initialized, set the global pointer
+             * and bootstrap any modules with static initialization routines
+             */
+            DARSHAN_CORE_LOCK();
             darshan_core = init_core;
+            DARSHAN_CORE_UNLOCK();
+
+            i = 0;
+            while(mod_static_init_fns[i])
+            {
+                (*mod_static_init_fns[i])();
+                i++;
+            }
         }
     }
 
@@ -296,21 +308,6 @@ void darshan_core_initialize(int argc, char **argv)
         {
             fprintf(stderr, "#darshan:<op>\t<nprocs>\t<time>\n");
             fprintf(stderr, "darshan:init\t%d\t%f\n", nprocs, init_max);
-        }
-    }
-
-    /* if darshan was successfully initialized, set the global pointer and
-     * bootstrap any modules with static initialization routines
-     */
-    if(init_core)
-    {
-        darshan_core = init_core;
-
-        i = 0;
-        while(mod_static_init_fns[i])
-        {
-            (*mod_static_init_fns[i])();
-            i++;
         }
     }
 
@@ -1801,13 +1798,14 @@ void darshan_core_register_module(
 
     *inout_mod_buf_size = 0;
 
-    if(!darshan_core || (mod_id >= DARSHAN_MAX_MODS))
-        return;
-
     DARSHAN_CORE_LOCK();
-    if(darshan_core->mod_array[mod_id])
+    if((darshan_core == NULL) ||
+       (mod_id >= DARSHAN_MAX_MODS) ||
+       (darshan_core->mod_array[mod_id] != NULL))
     {
-        /* if module is already registered just return */
+        /* just return if darshan not initialized, the module id
+         * is invalid, or if the module is already registered
+         */
         DARSHAN_CORE_UNLOCK();
         return;
     }
@@ -1860,9 +1858,11 @@ void darshan_core_unregister_module(
     darshan_module_id mod_id)
 {
     DARSHAN_CORE_LOCK();
-
     if(!darshan_core)
+    {
+        DARSHAN_CORE_UNLOCK();
         return;
+    }
 
     /* update darshan internal structures and header */
     free(darshan_core->mod_array[mod_id]);
@@ -1895,10 +1895,12 @@ void *darshan_core_register_record(
     void *rec_buf;
     int ret;
 
-    if(!darshan_core)
-        return(NULL);
-
     DARSHAN_CORE_LOCK();
+    if(!darshan_core)
+    {
+        DARSHAN_CORE_UNLOCK();
+        return(NULL);
+    }
 
     /* check to see if this module has enough space to store a new record */
     if(darshan_core->mod_array[mod_id]->rec_mem_avail < rec_len)
@@ -1948,10 +1950,13 @@ void *darshan_core_register_record(
 
 double darshan_core_wtime()
 {
+    DARSHAN_CORE_LOCK();
     if(!darshan_core)
     {
+        DARSHAN_CORE_UNLOCK();
         return(0);
     }
+    DARSHAN_CORE_UNLOCK();
 
     return(DARSHAN_MPI_CALL(PMPI_Wtime)() - darshan_core->wtime_offset);
 }
