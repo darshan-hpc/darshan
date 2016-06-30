@@ -6,6 +6,8 @@
 
 /* TODO list (general) for this module:
  * - add stdio page to darshan-job-summary
+ * - update darshan-parser to include stdio information in any relevant 
+ *   performance estimate / summary modes
  * - figure out what to do about posix module compatibility
  *   - remove stdio counters in POSIX or keep and set to -1?
  *   - affected counters in posix module:
