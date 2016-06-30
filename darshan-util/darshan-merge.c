@@ -9,8 +9,6 @@
 
 #include "darshan-logutils.h"
 
-#define DEF_MOD_BUF_SIZE 1024 /* 1 KiB is enough for all current mod records ... */
-
 struct darshan_shared_record_ref
 {
     darshan_record_id id;

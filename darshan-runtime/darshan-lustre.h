@@ -1,19 +1,17 @@
-struct lustre_record_runtime
+struct lustre_record_ref
 {
     struct darshan_lustre_record *record;
     size_t record_size;
-    UT_hash_handle hlink;
 };
 
 struct lustre_runtime
 {
-    int    record_count;       /* number of records defined */
-    size_t record_buffer_max;  /* size of the allocated buffer pointed to by record_buffer */
-    size_t record_buffer_used; /* size of the allocated buffer actually used */
-    void   *next_free_record;  /* pointer to end of record_buffer */
-    void   *record_buffer;     /* buffer in which records are created */
-    struct lustre_record_runtime *record_runtime_array;
-    struct lustre_record_runtime *record_runtime_hash;
+    int   record_count;         /* number of records stored in record_id_hash */
+    void *record_id_hash;
+    int   record_buffer_size;   /* size of record_buffer in bytes */
+    void *record_buffer;
+    int   record_ref_array_ndx; /* current index into record_ref_array */
+    struct lustre_record_ref **record_ref_array;     
 };
 
 

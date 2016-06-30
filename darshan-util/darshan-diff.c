@@ -13,8 +13,6 @@
 #include "darshan-logutils.h"
 #include "uthash-1.9.2/src/uthash.h"
 
-#define DEF_MOD_BUF_SIZE 1024 /* 1 KiB is enough for all current mod records ... */
-
 struct darshan_mod_record_ref
 {
     int rank;

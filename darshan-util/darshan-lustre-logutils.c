@@ -24,8 +24,7 @@ char *lustre_counter_names[] = {
 };
 #undef X
 
-static int darshan_log_get_lustre_record(darshan_fd fd, void* lustre_buf,
-    darshan_record_id* rec_id);
+static int darshan_log_get_lustre_record(darshan_fd fd, void* lustre_buf);
 static int darshan_log_put_lustre_record(darshan_fd fd, void* lustre_buf, int ver);
 static void darshan_log_print_lustre_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
@@ -42,15 +41,14 @@ struct darshan_mod_logutil_funcs lustre_logutils =
     .log_print_diff = &darshan_log_print_lustre_record_diff
 };
 
-static int darshan_log_get_lustre_record(darshan_fd fd, void* lustre_buf,
-    darshan_record_id* rec_id)
+static int darshan_log_get_lustre_record(darshan_fd fd, void* lustre_buf)
 {
     struct darshan_lustre_record *rec;
     int i;
     int ret;
 
     /* retrieve the fixed-size portion of the record */
-    ret = darshan_log_getmod(fd, DARSHAN_LUSTRE_MOD, lustre_buf,
+    ret = darshan_log_get_mod(fd, DARSHAN_LUSTRE_MOD, lustre_buf,
         sizeof(struct darshan_lustre_record));
     if(ret < 0)
         return(-1);
@@ -62,15 +60,16 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void* lustre_buf,
     /* swap bytes if necessary */
     if(fd->swap_flag)
     {
-        DARSHAN_BSWAP64(&rec->rec_id);
-        DARSHAN_BSWAP64(&rec->rank);
+        DARSHAN_BSWAP64(&rec->base_rec.id);
+        DARSHAN_BSWAP64(&rec->base_rec.rank);
         for(i=0; i<LUSTRE_NUM_INDICES; i++)
             DARSHAN_BSWAP64(&rec->counters[i]);
+        DARSHAN_BSWAP64(&(rec->ost_ids[0]));
     }
 
     /* now read the rest of the record */
     if ( rec->counters[LUSTRE_STRIPE_WIDTH] > 1 ) {
-        ret = darshan_log_getmod(
+        ret = darshan_log_get_mod(
             fd,
             DARSHAN_LUSTRE_MOD,
             (void*)(&(rec->ost_ids[1])),
@@ -86,7 +85,6 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void* lustre_buf,
                 DARSHAN_BSWAP64(&(rec->ost_ids[i]));
     }
 
-    *rec_id = rec->rec_id;
     return(1);
 }
 
@@ -95,7 +93,7 @@ static int darshan_log_put_lustre_record(darshan_fd fd, void* lustre_buf, int ve
     struct darshan_lustre_record *rec = (struct darshan_lustre_record *)lustre_buf;
     int ret;
 
-    ret = darshan_log_putmod(fd, DARSHAN_LUSTRE_MOD, rec,
+    ret = darshan_log_put_mod(fd, DARSHAN_LUSTRE_MOD, rec,
         LUSTRE_RECORD_SIZE(rec->counters[LUSTRE_STRIPE_WIDTH]), ver);
     if(ret < 0)
         return(-1);
@@ -113,7 +111,7 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
     for(i=0; i<LUSTRE_NUM_INDICES; i++)
     {
         DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-            lustre_rec->rank, lustre_rec->rec_id, lustre_counter_names[i],
+            lustre_rec->base_rec.rank, lustre_rec->base_rec.id, lustre_counter_names[i],
             lustre_rec->counters[i], file_name, mnt_pt, fs_type);
     }
 
@@ -122,8 +120,8 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
         char strbuf[25];
         snprintf( strbuf, 25, "LUSTRE_OST_ID_%d", i );
         DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-            lustre_rec->rank,
-            lustre_rec->rec_id,
+            lustre_rec->base_rec.rank,
+            lustre_rec->base_rec.id,
             strbuf,
             lustre_rec->ost_ids[i],
             file_name,
@@ -165,27 +163,27 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
         {
             printf("- ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                lustre_rec1->rank, lustre_rec1->rec_id, lustre_counter_names[i],
-                lustre_rec1->counters[i], file_name1, "", "");
+                lustre_rec1->base_rec.rank, lustre_rec1->base_rec.id,
+                lustre_counter_names[i], lustre_rec1->counters[i], file_name1, "", "");
 
         }
         else if(!lustre_rec1)
         {
             printf("+ ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                lustre_rec2->rank, lustre_rec2->rec_id, lustre_counter_names[i],
-                lustre_rec2->counters[i], file_name2, "", "");
+                lustre_rec2->base_rec.rank, lustre_rec2->base_rec.id,
+                lustre_counter_names[i], lustre_rec2->counters[i], file_name2, "", "");
         }
         else if(lustre_rec1->counters[i] != lustre_rec2->counters[i])
         {
             printf("- ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                lustre_rec1->rank, lustre_rec1->rec_id, lustre_counter_names[i],
-                lustre_rec1->counters[i], file_name1, "", "");
+                lustre_rec1->base_rec.rank, lustre_rec1->base_rec.id,
+                lustre_counter_names[i], lustre_rec1->counters[i], file_name1, "", "");
             printf("+ ");
             DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                lustre_rec2->rank, lustre_rec2->rec_id, lustre_counter_names[i],
-                lustre_rec2->counters[i], file_name2, "", "");
+                lustre_rec2->base_rec.rank, lustre_rec2->base_rec.id,
+                lustre_counter_names[i], lustre_rec2->counters[i], file_name2, "", "");
         }
     }
 
@@ -199,8 +197,8 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
                 snprintf( strbuf, 25, "LUSTRE_OST_ID_%d", i );
                 printf("- ");
                 DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                    lustre_rec1->rank,
-                    lustre_rec1->rec_id,
+                    lustre_rec1->base_rec.rank,
+                    lustre_rec1->base_rec.id,
                     strbuf,
                     lustre_rec1->ost_ids[i],
                     file_name1,
@@ -208,8 +206,8 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
                     "");
                 printf("+ ");
                 DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                    lustre_rec2->rank,
-                    lustre_rec2->rec_id,
+                    lustre_rec2->base_rec.rank,
+                    lustre_rec2->base_rec.id,
                     strbuf,
                     lustre_rec2->ost_ids[i],
                     file_name2,

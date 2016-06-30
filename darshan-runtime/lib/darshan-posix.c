@@ -121,7 +121,6 @@ struct posix_file_record_ref
     int access_count;
     void *stride_root;
     int stride_count;
-    int fs_type; /* same as darshan_fs_info->fs_type */
     struct posix_aio_tracker* aio_list;
 };
 
@@ -147,7 +146,7 @@ struct posix_aio_tracker
 static void posix_runtime_initialize(
     void);
 static struct posix_file_record_ref *posix_track_new_file_record(
-    darshan_record_id rec_id, const char *path);
+    darshan_record_id rec_id, const char *path, int fd);
 static void posix_aio_tracker_add(
     int fd, void *aiocbp);
 static struct posix_aio_tracker* posix_aio_tracker_del(
@@ -166,10 +165,12 @@ static void posix_shutdown(
     MPI_Comm mod_comm, darshan_record_id *shared_recs,
     int shared_rec_count, void **posix_buf, int *posix_buf_sz);
 
+#ifdef DARSHAN_LUSTRE
 /* XXX modules don't expose an API for other modules, so use extern to get
  * Lustre instrumentation function
  */
 extern void darshan_instrument_lustre_file(const char *filepath, int fd);
+#endif
 
 static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -206,7 +207,7 @@ static int darshan_mem_alignment = 1;
     } \
     rec_id = darshan_core_gen_record_id(newpath); \
     rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
-    if(!rec_ref) rec_ref = posix_track_new_file_record(rec_id, newpath); \
+    if(!rec_ref) rec_ref = posix_track_new_file_record(rec_id, newpath, __ret); \
     if(!rec_ref) { \
         if(newpath != __path) free(newpath); \
         break; \
@@ -226,8 +227,6 @@ static int darshan_mem_alignment = 1;
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[POSIX_F_META_TIME], \
         __tm1, __tm2, rec_ref->last_meta_end); \
     darshan_add_record_ref(&(posix_runtime->fd_hash), &__ret, sizeof(int), rec_ref); \
-    if(rec_ref->fs_type == LL_SUPER_MAGIC) \
-        darshan_instrument_lustre_file(__path, __ret); \
     if(newpath != __path) free(newpath); \
 } while(0)
 
@@ -356,7 +355,7 @@ static int darshan_mem_alignment = 1;
     } \
     rec_id = darshan_core_gen_record_id(newpath); \
     rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
-    if(!rec_ref) rec_ref = posix_track_new_file_record(rec_id, newpath); \
+    if(!rec_ref) rec_ref = posix_track_new_file_record(rec_id, newpath, -1); \
     if(newpath != __path) free(newpath); \
     if(rec_ref) { \
         POSIX_RECORD_STAT(rec_ref, __statbuf, __tm1, __tm2); \
@@ -1452,7 +1451,7 @@ static void posix_runtime_initialize()
 }
 
 static struct posix_file_record_ref *posix_track_new_file_record(
-    darshan_record_id rec_id, const char *path)
+    darshan_record_id rec_id, const char *path, int fd)
 {
     struct darshan_posix_file *file_rec = NULL;
     struct posix_file_record_ref *rec_ref = NULL;
@@ -1497,8 +1496,16 @@ static struct posix_file_record_ref *posix_track_new_file_record(
     file_rec->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
     file_rec->counters[POSIX_FILE_ALIGNMENT] = fs_info.block_size;
     rec_ref->file_rec = file_rec;
-    rec_ref->fs_type = fs_info.fs_type;
     posix_runtime->file_rec_count++;
+
+    if(fd >= 0)
+    {
+#ifdef DARSHAN_LUSTRE
+        /* allow lustre to generate a record if we configured with lustre support */
+        if(fs_info.fs_type == LL_SUPER_MAGIC)
+            darshan_instrument_lustre_file(path, fd);
+#endif
+    }
 
     return(rec_ref);
 }

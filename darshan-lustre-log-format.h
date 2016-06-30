@@ -45,8 +45,7 @@ enum darshan_lustre_indices
  */
 struct darshan_lustre_record
 {
-    darshan_record_id rec_id;
-    int64_t rank;
+    struct darshan_base_record base_rec;
     int64_t counters[LUSTRE_NUM_INDICES];
     OST_ID ost_ids[1];
 };
