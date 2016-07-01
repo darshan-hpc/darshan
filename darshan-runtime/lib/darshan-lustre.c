@@ -293,8 +293,8 @@ static void lustre_set_rec_ref_pointers(void *rec_ref_p)
 /* compare function for sorting file records by descending rank */
 static int lustre_record_compare(const void* a_p, const void* b_p)
 {
-    const struct lustre_record_ref* a = a_p;
-    const struct lustre_record_ref* b = b_p;
+    const struct lustre_record_ref* a = *((struct lustre_record_ref **)a_p);
+    const struct lustre_record_ref* b = *((struct lustre_record_ref **)b_p);
 
     if (a->record->base_rec.rank < b->record->base_rec.rank)
         return 1;
@@ -358,7 +358,7 @@ int sort_lustre_records()
     qsort(
         lustre_runtime->record_ref_array,
         lustre_runtime->record_count,
-        sizeof(struct lustre_record_ref),
+        sizeof(struct lustre_record_ref *),
         lustre_record_compare
     );
 
