@@ -121,7 +121,7 @@ DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
 DARSHAN_FORWARD_DECL(fseeko, int, (FILE *stream, off_t offset, int whence));
 DARSHAN_FORWARD_DECL(fseeko64, int, (FILE *stream, off_t offset, int whence));
 DARSHAN_FORWARD_DECL(fsetpos, int, (FILE *stream, const fpos_t *pos));
-DARSHAN_FORWARD_DECL(fsetpos64, int, (FILE *stream, const fpos_t *pos));
+DARSHAN_FORWARD_DECL(fsetpos64, int, (FILE *stream, const fpos64_t *pos));
 DARSHAN_FORWARD_DECL(rewind, void, (FILE *stream));
 
 /* structure to track stdio stats at runtime */
@@ -538,7 +538,7 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
     return(ret);
 }
 
-size_t DARSHAN_DECL(fgetc)(FILE *stream)
+int DARSHAN_DECL(fgetc)(FILE *stream)
 {
     int ret;
     double tm1, tm2;
@@ -558,7 +558,7 @@ size_t DARSHAN_DECL(fgetc)(FILE *stream)
 }
 
 /* NOTE: stdio.h typically implements getc() as a macro pointing to _IO_getc */
-size_t DARSHAN_DECL(_IO_getc)(FILE *stream)
+int DARSHAN_DECL(_IO_getc)(FILE *stream)
 {
     int ret;
     double tm1, tm2;
@@ -578,7 +578,7 @@ size_t DARSHAN_DECL(_IO_getc)(FILE *stream)
 }
 
 /* NOTE: stdio.h typically implements putc() as a macro pointing to _IO_putc */
-size_t DARSHAN_DECL(_IO_putc)(int c, FILE *stream)
+int DARSHAN_DECL(_IO_putc)(int c, FILE *stream)
 {
     int ret;
     double tm1, tm2;
@@ -596,7 +596,8 @@ size_t DARSHAN_DECL(_IO_putc)(int c, FILE *stream)
 
     return(ret);
 }
-size_t DARSHAN_DECL(getw)(FILE *stream)
+
+int DARSHAN_DECL(getw)(FILE *stream)
 {
     int ret;
     double tm1, tm2;
@@ -874,7 +875,7 @@ int DARSHAN_DECL(fsetpos)(FILE *stream, const fpos_t *pos)
     return(ret);
 }
 
-int DARSHAN_DECL(fsetpos64)(FILE *stream, const fpos_t *pos)
+int DARSHAN_DECL(fsetpos64)(FILE *stream, const fpos64_t *pos)
 {
     int ret;
     struct stdio_file_record_ref *rec_ref;
