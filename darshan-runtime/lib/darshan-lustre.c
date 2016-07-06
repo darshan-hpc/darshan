@@ -73,34 +73,34 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
         return;
     }
 
-    /* if we can't issue ioctl, we have no counter data at all */
-    if ( (lum = calloc(1, lumsize)) == NULL )
-    {
-        LUSTRE_UNLOCK();
-        return;
-    }
-
-    /* find out the OST count of this file so we can allocate memory */
-    lum->lmm_magic = LOV_USER_MAGIC;
-    lum->lmm_stripe_count = LOV_MAX_STRIPE_COUNT;
-
-    /* -1 means ioctl failed, likely because file isn't on Lustre */
-    if ( ioctl( fd, LL_IOC_LOV_GETSTRIPE, (void *)lum ) == -1 )
-    {
-        free(lum);
-        LUSTRE_UNLOCK();
-        return;
-    }
-
-    rec_id = darshan_core_gen_record_id(filepath);
-    rec_size = LUSTRE_RECORD_SIZE( lum->lmm_stripe_count );
-
     /* search the hash table for this file record, and initialize if not found */
+    rec_id = darshan_core_gen_record_id(filepath);
     rec_ref = darshan_lookup_record_ref(lustre_runtime->record_id_hash,
         &rec_id, sizeof(darshan_record_id));
     if(!rec_ref)
     {
-        /* not found, allocate and add a new record reference */
+        /* first issue LUSTRE ioctl to see if we can get stripe data */
+
+        /* if we can't issue ioctl, we have no counter data at all */
+        if ( (lum = calloc(1, lumsize)) == NULL )
+        {
+            LUSTRE_UNLOCK();
+            return;
+        }
+
+        /* find out the OST count of this file so we can allocate memory */
+        lum->lmm_magic = LOV_USER_MAGIC;
+        lum->lmm_stripe_count = LOV_MAX_STRIPE_COUNT;
+
+        /* -1 means ioctl failed, likely because file isn't on Lustre */
+        if ( ioctl( fd, LL_IOC_LOV_GETSTRIPE, (void *)lum ) == -1 )
+        {
+            free(lum);
+            LUSTRE_UNLOCK();
+            return;
+        }
+
+        /* allocate and add a new record reference */
         rec_ref = malloc(sizeof(*rec_ref));
         if(!rec_ref)
         {
@@ -118,6 +118,8 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
             LUSTRE_UNLOCK();
             return;
         }
+
+        rec_size = LUSTRE_RECORD_SIZE( lum->lmm_stripe_count );
 
         /* register a Lustre file record with Darshan */
         fs_info.fs_type = -1;
