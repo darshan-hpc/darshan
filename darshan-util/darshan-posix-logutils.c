@@ -30,6 +30,8 @@ char *posix_f_counter_names[] = {
 };
 #undef X
 
+#define DARSHAN_POSIX_FILE_SIZE_1 680
+
 static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf);
 static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver);
 static void darshan_log_print_posix_file(void *file_rec,
@@ -51,19 +53,52 @@ struct darshan_mod_logutil_funcs posix_logutils =
 
 static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf)
 {
-    struct darshan_posix_file *file;
+    struct darshan_posix_file *file = (struct darshan_posix_file *)posix_buf;
+    int rec_len;
+    char *buffer, *p;
     int i;
-    int ret;
+    int ret = -1;
 
-    ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, posix_buf,
-        sizeof(struct darshan_posix_file));
+    /* read the POSIX record from file, checking the version first so we
+     * can correctly up-convert to the current darshan version
+     */
+    if(fd->mod_ver[DARSHAN_POSIX_MOD] == 1)
+    {
+        buffer = malloc(DARSHAN_POSIX_FILE_SIZE_1);
+        if(!buffer)
+            return(-1);
+
+        rec_len = DARSHAN_POSIX_FILE_SIZE_1;
+        ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, buffer, rec_len);
+        if(ret == rec_len)
+        {
+            /* copy record data directly from the temporary buffer into the 
+             * corresponding locations in the output file record
+             */
+            p = buffer;
+            memcpy(&(file->base_rec), p, sizeof(struct darshan_base_record));
+            p += sizeof(struct darshan_base_record);
+            memcpy(&(file->counters[0]), p, 6 * sizeof(int64_t));
+            p += (6 * sizeof(int64_t));
+            p += (4 * sizeof(int64_t)); /* skip old stdio counters */
+            memcpy(&(file->counters[6]), p, 58 * sizeof(int64_t));
+            p += (58 * sizeof(int64_t));
+            memcpy(&(file->fcounters[0]), p, 15 * sizeof(double));
+        }
+        free(buffer);
+    }
+    else if(fd->mod_ver[DARSHAN_POSIX_MOD] == 2)
+    {
+        rec_len = sizeof(struct darshan_posix_file);
+        ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, posix_buf, rec_len);
+    }
+
     if(ret < 0)
         return(-1);
-    else if(ret < sizeof(struct darshan_posix_file))
+    else if(ret < rec_len)
         return(0);
     else
     {
-        file = (struct darshan_posix_file *)posix_buf;
         if(fd->swap_flag)
         {
             /* swap bytes if necessary */
@@ -263,10 +298,6 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
             case POSIX_SEEKS:
             case POSIX_STATS:
             case POSIX_MMAPS:
-            case POSIX_FOPENS:
-            case POSIX_FREADS:
-            case POSIX_FWRITES:
-            case POSIX_FSEEKS:
             case POSIX_FSYNCS:
             case POSIX_FDSYNCS:
             case POSIX_BYTES_READ:

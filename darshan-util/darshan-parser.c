@@ -1223,11 +1223,10 @@ void posix_calc_file(hash_entry_t *file_hash,
         bytes = file_rec->counters[POSIX_BYTES_READ] +
                 file_rec->counters[POSIX_BYTES_WRITTEN];
 
-        r = (file_rec->counters[POSIX_READS]+
-             file_rec->counters[POSIX_FREADS]);
+        /* XXX: need to update this to account for stdio counters, too */
+        r = file_rec->counters[POSIX_READS];
 
-        w = (file_rec->counters[POSIX_WRITES]+
-             file_rec->counters[POSIX_FWRITES]);
+        w = file_rec->counters[POSIX_WRITES];
 
         fdata->total += 1;
         fdata->total_size += bytes;

@@ -7,7 +7,7 @@
 #define __DARSHAN_POSIX_LOG_FORMAT_H
 
 /* current POSIX log format version */
-#define DARSHAN_POSIX_VER 1
+#define DARSHAN_POSIX_VER 2
 
 #define POSIX_COUNTERS \
     /* count of posix opens */\
@@ -22,14 +22,6 @@
     X(POSIX_STATS) \
     /* count of posix mmaps */\
     X(POSIX_MMAPS) \
-    /* count of posix fopens */\
-    X(POSIX_FOPENS) \
-    /* count of posix freads */\
-    X(POSIX_FREADS) \
-    /* count of posix fwrites */\
-    X(POSIX_FWRITES) \
-    /* count of posix fseeks */\
-    X(POSIX_FSEEKS) \
     /* count of posix fsyncs */\
     X(POSIX_FSYNCS) \
     /* count of posix fdatasyncs */\
