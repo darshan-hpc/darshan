@@ -35,8 +35,8 @@ CFLAGS_SHARED = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I$(srcdir)
 
 LIBS = -lz @LIBBZ2@
 
-DARSHAN_STATIC_MOD_OBJS = lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-hdf5.o lib/darshan-pnetcdf.o
-DARSHAN_DYNAMIC_MOD_OBJS = lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-hdf5.po lib/darshan-pnetcdf.po
+DARSHAN_STATIC_MOD_OBJS = lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-hdf5.o lib/darshan-pnetcdf.o lib/darshan-stdio.o
+DARSHAN_DYNAMIC_MOD_OBJS = lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-hdf5.po lib/darshan-pnetcdf.po lib/darshan-stdio.po
 
 ifdef DARSHAN_USE_BGQ
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-bgq.o
@@ -121,6 +121,12 @@ lib/darshan-lustre.o: lib/darshan-lustre.c darshan-lustre.h darshan.h darshan-co
 lib/darshan-lustre.po: lib/darshan-lustre.c darshan-lustre.h darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-lustre-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
+lib/darshan-stdio.o: lib/darshan-stdio.c darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-stdio-log-format.h | lib
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/darshan-stdio.po: lib/darshan-stdio.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-stdio-log-format.h | lib
+	$(CC) $(CFLAGS_SHARED) -c $< -o $@
+
 lib/lookup3.o: lib/lookup3.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -172,6 +178,7 @@ endif
 	install -m 644 $(srcdir)/share/ld-opts/darshan-posix-ld-opts $(datarootdir)/ld-opts/darshan-posix-ld-opts
 	install -m 644 $(srcdir)/share/ld-opts/darshan-hdf5-ld-opts $(datarootdir)/ld-opts/darshan-hdf5-ld-opts
 	install -m 644 $(srcdir)/share/ld-opts/darshan-pnetcdf-ld-opts $(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
+	install -m 644 $(srcdir)/share/ld-opts/darshan-stdio-ld-opts $(datarootdir)/ld-opts/darshan-stdio-ld-opts
 ifdef ENABLE_MMAP_LOGS
 	install -m 755 share/darshan-mmap-epilog.sh $(datarootdir)/darshan-mmap-epilog.sh
 endif
