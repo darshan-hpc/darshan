@@ -146,6 +146,7 @@ int darshan_log_get_mod(darshan_fd fd, darshan_module_id mod_id,
 int darshan_log_put_mod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz, int ver);
 void darshan_log_close(darshan_fd file);
+void darshan_log_print_version_warnings(const char *version_string);
 
 /* convenience macros for printing Darshan counters */
 #define DARSHAN_PRINT_HEADER() \

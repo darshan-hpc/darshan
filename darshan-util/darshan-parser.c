@@ -262,6 +262,9 @@ int main(int argc, char **argv)
         return(-1);
     }
 
+    /* print any warnings related to this log file version */
+    darshan_log_print_version_warnings(fd->version);
+
     if(fd->comp_type == DARSHAN_ZLIB_COMP)
         comp_str = "ZLIB";
     else if (fd->comp_type == DARSHAN_BZIP2_COMP)
