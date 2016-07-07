@@ -29,6 +29,11 @@
     X(STDIO_MAX_BYTE_READ) \
     /* maximum byte (offset) written */\
     X(STDIO_MAX_BYTE_WRITTEN) \
+    /* rank and number of bytes moved for fastest/slowest ranks */\
+    X(STDIO_FASTEST_RANK) \
+    X(STDIO_FASTEST_RANK_BYTES) \
+    X(STDIO_SLOWEST_RANK) \
+    X(STDIO_SLOWEST_RANK_BYTES) \
     /* end of counters */\
     X(STDIO_NUM_INDICES)
 
@@ -55,6 +60,13 @@
     X(STDIO_F_WRITE_END_TIMESTAMP) \
     /* timestamp of last read completion */\
     X(STDIO_F_READ_END_TIMESTAMP) \
+    /* total i/o and meta time consumed for fastest/slowest ranks */\
+    X(STDIO_F_FASTEST_RANK_TIME) \
+    X(STDIO_F_SLOWEST_RANK_TIME) \
+    /* variance of total i/o time and bytes moved across all ranks */\
+    /* NOTE: for shared records only */\
+    X(STDIO_F_VARIANCE_RANK_TIME) \
+    X(STDIO_F_VARIANCE_RANK_BYTES) \
     /* end of counters */\
     X(STDIO_F_NUM_INDICES)
 

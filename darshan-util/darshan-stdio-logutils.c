@@ -141,9 +141,15 @@ static void darshan_log_print_stdio_description()
     printf("#   STDIO_{OPENS|WRITES|READS|SEEKS|FLUSHES} are types of operations.\n");
     printf("#   STDIO_BYTES_*: total bytes read and written.\n");
     printf("#   STDIO_MAX_BYTE_*: highest offset byte read and written.\n");
+    printf("#   STDIO_*_RANK: rank of the processes that were the fastest and slowest at I/O (for shared files).\n");
+    printf("#   STDIO_*_RANK_BYTES: bytes transferred by the fastest and slowest ranks (for shared files).\n");
     printf("#   STDIO_F_*_START_TIMESTAMP: timestamp of the first call to that type of function.\n");
     printf("#   STDIO_F_*_END_TIMESTAMP: timestamp of the completion of the last call to that type of function.\n");
     printf("#   STDIO_F_*_TIME: cumulative time spent in different types of functions.\n");
+    printf("#   STDIO_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).\n");
+    printf("#   STDIO_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared files).\n");
+
+    DARSHAN_PRINT_HEADER();
 
     return;
 }

@@ -160,6 +160,9 @@ static void stdio_shutdown(
     int *stdio_buf_sz);
 static void stdio_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype);
+static void stdio_shared_record_variance(
+    MPI_Comm mod_comm, struct darshan_stdio_file *inrec_array,
+    struct darshan_stdio_file *outrec_array, int shared_rec_count);
 static struct stdio_file_record_ref *stdio_track_new_file_record(
     darshan_record_id rec_id, const char *path);
 static void stdio_cleanup_runtime();
@@ -1006,6 +1009,48 @@ static void stdio_record_reduction_op(void* infile_v, void* inoutfile_v,
                 tmp_file.fcounters[j] = inoutfile->fcounters[j];
         }
 
+        /* min (zeroes are ok here; some procs don't do I/O) */
+        if(infile->fcounters[STDIO_F_FASTEST_RANK_TIME] <
+           inoutfile->fcounters[STDIO_F_FASTEST_RANK_TIME])
+        {
+            tmp_file.counters[STDIO_FASTEST_RANK] =
+                infile->counters[STDIO_FASTEST_RANK];
+            tmp_file.counters[STDIO_FASTEST_RANK_BYTES] =
+                infile->counters[STDIO_FASTEST_RANK_BYTES];
+            tmp_file.fcounters[STDIO_F_FASTEST_RANK_TIME] =
+                infile->fcounters[STDIO_F_FASTEST_RANK_TIME];
+        }
+        else
+        {
+            tmp_file.counters[STDIO_FASTEST_RANK] =
+                inoutfile->counters[STDIO_FASTEST_RANK];
+            tmp_file.counters[STDIO_FASTEST_RANK_BYTES] =
+                inoutfile->counters[STDIO_FASTEST_RANK_BYTES];
+            tmp_file.fcounters[STDIO_F_FASTEST_RANK_TIME] =
+                inoutfile->fcounters[STDIO_F_FASTEST_RANK_TIME];
+        }
+
+        /* max */
+        if(infile->fcounters[STDIO_F_SLOWEST_RANK_TIME] >
+           inoutfile->fcounters[STDIO_F_SLOWEST_RANK_TIME])
+        {
+            tmp_file.counters[STDIO_SLOWEST_RANK] =
+                infile->counters[STDIO_SLOWEST_RANK];
+            tmp_file.counters[STDIO_SLOWEST_RANK_BYTES] =
+                infile->counters[STDIO_SLOWEST_RANK_BYTES];
+            tmp_file.fcounters[STDIO_F_SLOWEST_RANK_TIME] =
+                infile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
+        }
+        else
+        {
+            tmp_file.counters[STDIO_SLOWEST_RANK] =
+                inoutfile->counters[STDIO_SLOWEST_RANK];
+            tmp_file.counters[STDIO_SLOWEST_RANK_BYTES] =
+                inoutfile->counters[STDIO_SLOWEST_RANK_BYTES];
+            tmp_file.fcounters[STDIO_F_SLOWEST_RANK_TIME] =
+                inoutfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
+        }
+
         /* update pointers */
         *inoutfile = tmp_file;
         inoutfile++;
@@ -1030,6 +1075,7 @@ static void stdio_shutdown(
     MPI_Datatype red_type;
     MPI_Op red_op;
     int stdio_rec_count;
+    double stdio_time;
 
     STDIO_LOCK();
     assert(stdio_runtime);
@@ -1047,6 +1093,31 @@ static void stdio_shutdown(
             rec_ref = darshan_lookup_record_ref(stdio_runtime->rec_id_hash,
                 &shared_recs[i], sizeof(darshan_record_id));
             assert(rec_ref);
+
+            stdio_time =
+                rec_ref->file_rec->fcounters[STDIO_F_READ_TIME] +
+                rec_ref->file_rec->fcounters[STDIO_F_WRITE_TIME] +
+                rec_ref->file_rec->fcounters[STDIO_F_META_TIME];
+
+            /* initialize fastest/slowest info prior to the reduction */
+            rec_ref->file_rec->counters[STDIO_FASTEST_RANK] =
+                rec_ref->file_rec->base_rec.rank;
+            rec_ref->file_rec->counters[STDIO_FASTEST_RANK_BYTES] =
+                rec_ref->file_rec->counters[STDIO_BYTES_READ] +
+                rec_ref->file_rec->counters[STDIO_BYTES_WRITTEN];
+            rec_ref->file_rec->fcounters[STDIO_F_FASTEST_RANK_TIME] =
+                stdio_time;
+
+            /* until reduction occurs, we assume that this rank is both
+             * the fastest and slowest. It is up to the reduction operator
+             * to find the true min and max.
+             */
+            rec_ref->file_rec->counters[STDIO_SLOWEST_RANK] =
+                rec_ref->file_rec->counters[STDIO_FASTEST_RANK];
+            rec_ref->file_rec->counters[STDIO_SLOWEST_RANK_BYTES] =
+                rec_ref->file_rec->counters[STDIO_FASTEST_RANK_BYTES];
+            rec_ref->file_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME] =
+                rec_ref->file_rec->fcounters[STDIO_F_FASTEST_RANK_TIME];
 
             rec_ref->file_rec->base_rec.rank = -1;
         }
@@ -1083,6 +1154,10 @@ static void stdio_shutdown(
         /* reduce shared STDIO file records */
         DARSHAN_MPI_CALL(PMPI_Reduce)(red_send_buf, red_recv_buf,
             shared_rec_count, red_type, red_op, 0, mod_comm);
+
+        /* get the time and byte variances for shared files */
+        stdio_shared_record_variance(mod_comm, red_send_buf, red_recv_buf,
+            shared_rec_count);
 
         /* clean up reduction state */
         if(my_rank == 0)
@@ -1174,6 +1249,89 @@ static void stdio_cleanup_runtime()
 
     return;
 }
+
+static void stdio_shared_record_variance(MPI_Comm mod_comm,
+    struct darshan_stdio_file *inrec_array, struct darshan_stdio_file *outrec_array,
+    int shared_rec_count)
+{
+    MPI_Datatype var_dt;
+    MPI_Op var_op;
+    int i;
+    struct darshan_variance_dt *var_send_buf = NULL;
+    struct darshan_variance_dt *var_recv_buf = NULL;
+
+    DARSHAN_MPI_CALL(PMPI_Type_contiguous)(sizeof(struct darshan_variance_dt),
+        MPI_BYTE, &var_dt);
+    DARSHAN_MPI_CALL(PMPI_Type_commit)(&var_dt);
+
+    DARSHAN_MPI_CALL(PMPI_Op_create)(darshan_variance_reduce, 1, &var_op);
+
+    var_send_buf = malloc(shared_rec_count * sizeof(struct darshan_variance_dt));
+    if(!var_send_buf)
+        return;
+
+    if(my_rank == 0)
+    {
+        var_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_variance_dt));
+
+        if(!var_recv_buf)
+            return;
+    }
+
+    /* get total i/o time variances for shared records */
+
+    for(i=0; i<shared_rec_count; i++)
+    {
+        var_send_buf[i].n = 1;
+        var_send_buf[i].S = 0;
+        var_send_buf[i].T = inrec_array[i].fcounters[STDIO_F_READ_TIME] +
+                            inrec_array[i].fcounters[STDIO_F_WRITE_TIME] +
+                            inrec_array[i].fcounters[STDIO_F_META_TIME];
+    }
+
+    DARSHAN_MPI_CALL(PMPI_Reduce)(var_send_buf, var_recv_buf, shared_rec_count,
+        var_dt, var_op, 0, mod_comm);
+
+    if(my_rank == 0)
+    {
+        for(i=0; i<shared_rec_count; i++)
+        {
+            outrec_array[i].fcounters[STDIO_F_VARIANCE_RANK_TIME] =
+                (var_recv_buf[i].S / var_recv_buf[i].n);
+        }
+    }
+
+    /* get total bytes moved variances for shared records */
+
+    for(i=0; i<shared_rec_count; i++)
+    {
+        var_send_buf[i].n = 1;
+        var_send_buf[i].S = 0;
+        var_send_buf[i].T = (double)
+                            inrec_array[i].counters[STDIO_BYTES_READ] +
+                            inrec_array[i].counters[STDIO_BYTES_WRITTEN];
+    }
+
+    DARSHAN_MPI_CALL(PMPI_Reduce)(var_send_buf, var_recv_buf, shared_rec_count,
+        var_dt, var_op, 0, mod_comm);
+
+    if(my_rank == 0)
+    {
+        for(i=0; i<shared_rec_count; i++)
+        {
+            outrec_array[i].fcounters[STDIO_F_VARIANCE_RANK_BYTES] =
+                (var_recv_buf[i].S / var_recv_buf[i].n);
+        }
+    }
+
+    DARSHAN_MPI_CALL(PMPI_Type_free)(&var_dt);
+    DARSHAN_MPI_CALL(PMPI_Op_free)(&var_op);
+    free(var_send_buf);
+    free(var_recv_buf);
+
+    return;
+}
+
 
 /*
  * Local variables:
