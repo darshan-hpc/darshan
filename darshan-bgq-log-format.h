@@ -8,7 +8,7 @@
 #define __DARSHAN_BGQ_LOG_FORMAT_H
 
 /* current BGQ log format version */
-#define DARSHAN_BGQ_VER 1
+#define DARSHAN_BGQ_VER 2
 
 #define BGQ_COUNTERS \
     /* control system jobid */\
