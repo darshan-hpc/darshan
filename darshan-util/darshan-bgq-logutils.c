@@ -30,7 +30,9 @@ char *bgq_f_counter_names[] = {
 };
 #undef X
 
-#define DARSHAN_BGQ_FILE_SIZE_1 (112 + sizeof(int))
+/* NOTE:
+ */
+#define DARSHAN_BGQ_FILE_SIZE_1 (112 + 8)
 
 static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf);
 static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf, int ver);
@@ -70,16 +72,18 @@ static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf)
 
         rec_len = DARSHAN_BGQ_FILE_SIZE_1;
         ret = darshan_log_get_mod(fd, DARSHAN_BGQ_MOD, buffer, rec_len);
-        if(ret == rec_len)
+        if(ret > 0)
         {
             /* up-convert old BGQ format to new format */
             p = buffer;
             memcpy(&(rec->base_rec), p, sizeof(struct darshan_base_record));
-            p += sizeof(struct darshan_base_record);
-            p += sizeof(int);
+            /* skip however long int+padding is */
+            p += (rec_len - (BGQ_NUM_INDICES * sizeof(int64_t)) -
+                (BGQ_F_NUM_INDICES * sizeof(double)));
             memcpy(&(rec->counters[0]), p, BGQ_NUM_INDICES * sizeof(int64_t));
             p += (BGQ_NUM_INDICES * sizeof(int64_t));
             memcpy(&(rec->fcounters[0]), p, BGQ_F_NUM_INDICES * sizeof(double));
+            ret = rec_len;
         }
         free(buffer);
     }
