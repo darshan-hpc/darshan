@@ -20,7 +20,7 @@
 #endif
 
 /* update this on file format changes */
-#define DARSHAN_LOG_VERSION "3.01"
+#define DARSHAN_LOG_VERSION "3.10"
 
 /* magic number for validating output files and checking byte order */
 #define DARSHAN_MAGIC_NR 6567223
