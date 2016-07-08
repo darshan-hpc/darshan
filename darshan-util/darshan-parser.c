@@ -113,6 +113,8 @@ void mpiio_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
 void mpiio_print_total_file(struct darshan_mpiio_file *mfile);
 void mpiio_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
 
+void stdio_accum_perf(struct darshan_stdio_file *pfile, perf_data_t *pdata);
+
 void calc_perf(perf_data_t *pdata, int64_t nprocs);
 
 int usage (char *exename)
@@ -389,9 +391,10 @@ int main(int argc, char **argv)
                 "for module %s, SKIPPING.\n", darshan_module_names[i]);
             continue;
         }
-        /* currently we only do base parsing for non MPI & POSIX modules */
-        else if((i != DARSHAN_POSIX_MOD) && (i != DARSHAN_MPIIO_MOD) &&
-                !(mask & OPTION_BASE))
+        /* currently only POSIX, MPIIO, and STDIO modules support non-base
+         * parsing
+         */
+        else if((i != DARSHAN_POSIX_MOD) && (i != DARSHAN_MPIIO_MOD) && (i != DARSHAN_STDIO_MOD) && !(mask & OPTION_BASE))
             continue;
 
         /* this module has data to be parsed and printed */
@@ -470,10 +473,10 @@ int main(int argc, char **argv)
                     mnt_pt, fs_type, fd->mod_ver[i]);
             }
 
-            /* we calculate more detailed stats for POSIX and MPI-IO modules, 
+            /* we calculate more detailed stats for POSIX, MPI-IO, and STDIO modules, 
              * if the parser is executed with more than the base option
              */
-            if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD)
+            if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD && i != DARSHAN_STDIO_MOD)
                 continue;
 
             HASH_FIND(hlink, file_hash, &(base_rec->id), sizeof(darshan_record_id), hfile);
@@ -510,6 +513,10 @@ int main(int argc, char **argv)
                 mpiio_accum_file((struct darshan_mpiio_file*)mod_buf, hfile, job.nprocs);
                 mpiio_accum_perf((struct darshan_mpiio_file*)mod_buf, &pdata);
             }
+            else if(i == DARSHAN_STDIO_MOD)
+            {
+                stdio_accum_perf((struct darshan_stdio_file*)mod_buf, &pdata);
+            }
 
             memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
 
@@ -523,7 +530,7 @@ int main(int argc, char **argv)
         /* we calculate more detailed stats for POSIX and MPI-IO modules, 
          * if the parser is executed with more than the base option
          */
-        if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD)
+        if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD && i != DARSHAN_STDIO_MOD)
             continue;
 
         /* Total Calc */
@@ -1041,6 +1048,89 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
 
     return;
 }
+
+void stdio_accum_perf(struct darshan_stdio_file *pfile,
+                      perf_data_t *pdata)
+{
+    pdata->total_bytes += pfile->counters[STDIO_BYTES_READ] +
+                          pfile->counters[STDIO_BYTES_WRITTEN];
+
+    /*
+     * Calculation of Shared File Time
+     *   Four Methods!!!!
+     *     by_cumul: sum time counters and divide by nprocs
+     *               (inaccurate if lots of variance between procs)
+     *     by_open: difference between timestamp of open and close
+     *              (inaccurate if file is left open without i/o happening)
+     *     by_open_lastio: difference between timestamp of open and the
+     *                     timestamp of last i/o
+     *                     (similar to above but fixes case where file is left
+     *                      open after io is complete)
+     *     by_slowest: use slowest rank time from log data
+     *                 (most accurate but requires newer log version)
+     */
+    if(pfile->base_rec.rank == -1)
+    {
+        /* by_open */
+        if(pfile->fcounters[STDIO_F_CLOSE_END_TIMESTAMP] >
+            pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP])
+        {
+            pdata->shared_time_by_open +=
+                pfile->fcounters[STDIO_F_CLOSE_END_TIMESTAMP] -
+                pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP];
+        }
+
+        /* by_open_lastio */
+        if(pfile->fcounters[STDIO_F_READ_END_TIMESTAMP] >
+            pfile->fcounters[STDIO_F_WRITE_END_TIMESTAMP])
+        {
+            /* be careful: file may have been opened but not read or written */
+            if(pfile->fcounters[STDIO_F_READ_END_TIMESTAMP] > pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP])
+            {
+                pdata->shared_time_by_open_lastio += 
+                    pfile->fcounters[STDIO_F_READ_END_TIMESTAMP] - 
+                    pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP];
+            }
+        }
+        else
+        {
+            /* be careful: file may have been opened but not read or written */
+            if(pfile->fcounters[STDIO_F_WRITE_END_TIMESTAMP] > pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP])
+            {
+                pdata->shared_time_by_open_lastio += 
+                    pfile->fcounters[STDIO_F_WRITE_END_TIMESTAMP] - 
+                    pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP];
+            }
+        }
+
+        pdata->shared_time_by_cumul +=
+            pfile->fcounters[STDIO_F_META_TIME] +
+            pfile->fcounters[STDIO_F_READ_TIME] +
+            pfile->fcounters[STDIO_F_WRITE_TIME];
+        pdata->shared_meta_time += pfile->fcounters[STDIO_F_META_TIME];
+
+        /* by_slowest */
+        pdata->shared_time_by_slowest +=
+            pfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
+    }
+
+    /*
+     * Calculation of Unique File Time
+     *   record the data for each file and sum it 
+     */
+    else
+    {
+        pdata->rank_cumul_io_time[pfile->base_rec.rank] +=
+            (pfile->fcounters[STDIO_F_META_TIME] +
+            pfile->fcounters[STDIO_F_READ_TIME] +
+            pfile->fcounters[STDIO_F_WRITE_TIME]);
+        pdata->rank_cumul_md_time[pfile->base_rec.rank] +=
+            pfile->fcounters[STDIO_F_META_TIME];
+    }
+
+    return;
+}
+
 
 void posix_accum_perf(struct darshan_posix_file *pfile,
                       perf_data_t *pdata)
