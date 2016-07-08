@@ -393,12 +393,15 @@ system "$cp $PREFIX/share/*.tex $tmp_dir/";
 # summary of time spent in POSIX & MPI-IO functions
 open(TIME_SUMMARY, ">$tmp_dir/time-summary.dat") || die("error opening output file:$!\n");
 print TIME_SUMMARY "# <type>, <app time>, <read>, <write>, <meta>\n";
-print TIME_SUMMARY "POSIX, ", ((($runtime * $nprocs - $summary{POSIX_F_READ_TIME} -
-    $summary{POSIX_F_WRITE_TIME} -
-    $summary{POSIX_F_META_TIME})/($runtime * $nprocs)) * 100);
-print TIME_SUMMARY ", ", (($summary{POSIX_F_READ_TIME}/($runtime * $nprocs))*100);
-print TIME_SUMMARY ", ", (($summary{POSIX_F_WRITE_TIME}/($runtime * $nprocs))*100);
-print TIME_SUMMARY ", ", (($summary{POSIX_F_META_TIME}/($runtime * $nprocs))*100), "\n";
+if (defined $summary{POSIX_OPENS})
+{
+    print TIME_SUMMARY "POSIX, ", ((($runtime * $nprocs - $summary{POSIX_F_READ_TIME} -
+        $summary{POSIX_F_WRITE_TIME} -
+        $summary{POSIX_F_META_TIME})/($runtime * $nprocs)) * 100);
+    print TIME_SUMMARY ", ", (($summary{POSIX_F_READ_TIME}/($runtime * $nprocs))*100);
+    print TIME_SUMMARY ", ", (($summary{POSIX_F_WRITE_TIME}/($runtime * $nprocs))*100);
+    print TIME_SUMMARY ", ", (($summary{POSIX_F_META_TIME}/($runtime * $nprocs))*100), "\n";
+}
 if (defined $summary{MPIIO_INDEP_OPENS})
 {
     print TIME_SUMMARY "MPI-IO, ", ((($runtime * $nprocs - $summary{MPIIO_F_READ_TIME} -
@@ -407,6 +410,15 @@ if (defined $summary{MPIIO_INDEP_OPENS})
     print TIME_SUMMARY ", ", (($summary{MPIIO_F_READ_TIME}/($runtime * $nprocs))*100);
     print TIME_SUMMARY ", ", (($summary{MPIIO_F_WRITE_TIME}/($runtime * $nprocs))*100);
     print TIME_SUMMARY ", ", (($summary{MPIIO_F_META_TIME}/($runtime * $nprocs))*100), "\n";
+}
+if (defined $summary{STDIO_OPENS})
+{
+    print TIME_SUMMARY "STDIO, ", ((($runtime * $nprocs - $summary{STDIO_F_READ_TIME} -
+        $summary{STDIO_F_WRITE_TIME} -
+        $summary{STDIO_F_META_TIME})/($runtime * $nprocs)) * 100);
+    print TIME_SUMMARY ", ", (($summary{STDIO_F_READ_TIME}/($runtime * $nprocs))*100);
+    print TIME_SUMMARY ", ", (($summary{STDIO_F_WRITE_TIME}/($runtime * $nprocs))*100);
+    print TIME_SUMMARY ", ", (($summary{STDIO_F_META_TIME}/($runtime * $nprocs))*100), "\n";
 }
 close TIME_SUMMARY;
 
