@@ -425,14 +425,28 @@ close TIME_SUMMARY;
 # counts of operations
 open(PSX_OP_COUNTS, ">$tmp_dir/posix-op-counts.dat") || die("error opening output file: $!\n");
 print PSX_OP_COUNTS "# <operation>, <POSIX count>\n";
-print PSX_OP_COUNTS
-    "Read, ", $summary{POSIX_READS} + $summary{POSIX_FREADS}, "\n",
-    "Write, ", $summary{POSIX_WRITES} + $summary{POSIX_FWRITES}, "\n",
-    "Open, ", $summary{POSIX_OPENS} + $summary{POSIX_FOPENS}, "\n",
-    "Stat, ", $summary{POSIX_STATS}, "\n",
-    "Seek, ", $summary{POSIX_SEEKS}, "\n",
-    "Mmap, ", $summary{POSIX_MMAPS}, "\n",
-    "Fsync, ", $summary{POSIX_FSYNCS} + $summary{POSIX_FDSYNCS}, "\n";
+if (defined $summary{POSIX_OPENS})
+{
+    print PSX_OP_COUNTS
+        "Read, ", $summary{POSIX_READS}, "\n",
+        "Write, ", $summary{POSIX_WRITES}, "\n",
+        "Open, ", $summary{POSIX_OPENS}, "\n",
+        "Stat, ", $summary{POSIX_STATS}, "\n",
+        "Seek, ", $summary{POSIX_SEEKS}, "\n",
+        "Mmap, ", $summary{POSIX_MMAPS}, "\n",
+        "Fsync, ", $summary{POSIX_FSYNCS} + $summary{POSIX_FDSYNCS}, "\n";
+}
+else
+{
+    print PSX_OP_COUNTS
+        "Read, 0\n",
+        "Write, 0\n",
+        "Open, 0\n",
+        "Stat, 0\n",
+        "Seek, 0\n",
+        "Mmap, 0\n",
+        "Fsync, 0\n";
+}
 close PSX_OP_COUNTS;
 
 if (defined $summary{MPIIO_INDEP_OPENS})
@@ -449,6 +463,21 @@ if (defined $summary{MPIIO_INDEP_OPENS})
         "Mmap, ", "0, 0\n",
         "Fsync, ", "0, ", $summary{MPIIO_SYNCS}, "\n";
     close MPI_OP_COUNTS;
+}
+
+if (defined $summary{STDIO_OPENS})
+{
+    open(STDIO_OP_COUNTS, ">$tmp_dir/stdio-op-counts.dat") || die("error opening output file: $!\n");
+    print STDIO_OP_COUNTS "# <operation>, <STDIO count>\n";
+    print STDIO_OP_COUNTS
+        "Read, ", $summary{STDIO_READS}, "\n",
+        "Write, ", $summary{STDIO_WRITES}, "\n",
+        "Open, ", $summary{STDIO_OPENS}, "\n",
+        "Stat, 0\n",
+        "Seek, ", $summary{STDIO_SEEKS}, "\n",
+        "Mmap, 0\n",
+        "Fsync, ", $summary{STDIO_FLUSHES}, "\n";
+    close STDIO_OP_COUNTS;
 }
 
 # histograms of reads and writes (for POSIX and MPI-IO modules)
@@ -981,6 +1010,18 @@ if (defined $summary{MPIIO_INDEP_OPENS})
     print OP_COUNTS_PLT ", \\
     \"mpiio-op-counts.dat\" using 2:xtic(1) title \"MPI-IO Indep.\", \\
     \"\" using 3 title \"MPI-IO Coll.\"\n";
+    close OP_COUNTS_PLT;
+}
+
+# do any extra work needed for plotting stdio graphs
+if (defined $summary{STDIO_OPENS})
+{
+    open(OP_COUNTS_PLT, ">>$tmp_dir/op-counts-eps.gplt") || die("error opening output file: $!\n");
+    my $tmp_sz = -s "$tmp_dir/op-counts-eps.gplt";
+    # overwrite existing newline
+    truncate(OP_COUNTS_PLT, $tmp_sz-1);
+    print OP_COUNTS_PLT ", \\
+    \"stdio-op-counts.dat\" using 2:xtic(1) title \"STDIO\"\n";
     close OP_COUNTS_PLT;
 }
 
