@@ -79,9 +79,12 @@ my $cumul_write_bytes_shared = 0;
 my $cumul_meta_shared = 0;
 my $cumul_meta_indep = 0;
 
-my $perf_est = 0.0;
 my $perf_layer = "";
+my $perf_est = 0.0;
 my $perf_mbytes = 0;
+my $current_module = "";
+my $stdio_perf_est = 0.0;
+my $stdio_perf_mbytes = 0;
 
 my $first_data_line = 1;
 my %file_record_hash = ();
@@ -140,13 +143,18 @@ while($line = <PARSE_OUT>)
         }
         elsif ($line =~ /^# agg_perf_by_slowest: /)
         {
-            if($perf_layer eq "")
+            if($current_module eq "STDIO")
+            {
+                ($junk, $stdio_perf_est) = split(':', $line, 2);
+                $stdio_perf_est = sprintf("%.2f", $stdio_perf_est);
+            }
+            elsif($current_module eq "POSIX")
             {
                 ($junk, $perf_est) = split(':', $line, 2);
                 $perf_est = sprintf("%.2f", $perf_est);
                 $perf_layer = "POSIX";
             }
-            elsif($perf_layer eq "POSIX")
+            elsif($current_module eq "MPI-IO")
             {
                 ($junk, $perf_est) = split(':', $line, 2);
                 $perf_est = sprintf("%.2f", $perf_est);
@@ -155,7 +163,13 @@ while($line = <PARSE_OUT>)
         }
         elsif ($line =~ /^# total_bytes: /)
         {
-            if($perf_mbytes == 0)
+            if($current_module eq "STDIO")
+            {
+                ($junk, $perf_mbytes) = split(':', $line, 2);
+                $stdio_perf_mbytes = $perf_mbytes / 1024 / 1024;
+                $stdio_perf_mbytes = sprintf("%.1f", $stdio_perf_mbytes);
+            }
+            elsif($perf_mbytes == 0)
             {
                 ($junk, $perf_mbytes) = split(':', $line, 2);
                 $perf_mbytes = $perf_mbytes / 1024 / 1024;
@@ -165,6 +179,10 @@ while($line = <PARSE_OUT>)
         elsif ($line =~ /^# \*WARNING\*: .* contains incomplete data!/)
         {
             $partial_flag = 1;
+        }
+        elsif ($line =~ /^# (.+) module data/)
+        {
+            $current_module = $1;
         }
     }
     else
@@ -993,9 +1011,11 @@ my $latex_cmd_line = "\"\\def\\titlecmd{$cmd} \\
     \\def\\filecmi{$cmi} \\
     \\def\\filecms{$cms} \\
     \\def\\filecmi{$cmi} \\
-    \\def\\perfest{$perf_est} \\
     \\def\\perflayer{$perf_layer} \\
+    \\def\\perfest{$perf_est} \\
     \\def\\perfbytes{$perf_mbytes} \\
+    \\def\\stdioperfest{$stdio_perf_est} \\
+    \\def\\stdioperfbytes{$stdio_perf_mbytes} \\
     \\input{summary.tex}\" \\
     @__DARSHAN_PDFLATEX_HALT_ON_ERROR@";
 
@@ -1011,6 +1031,19 @@ if (defined $summary{MPIIO_INDEP_OPENS})
     $latex_cmd_line = substr($latex_cmd_line, 0, 1) . $mpiio_latex_flags . substr($latex_cmd_line, 1);
 }
 
+if($perf_est > 0)
+{
+    my $perf_latex_flags = "\\def\\inclperf{1} \\";
+    $latex_cmd_line = substr($latex_cmd_line, 0, 1) . $perf_latex_flags . substr($latex_cmd_line, 1);
+
+}
+
+if($stdio_perf_est > 0)
+{
+    my $stdio_latex_flags = "\\def\\inclstdio{1} \\";
+    $latex_cmd_line = substr($latex_cmd_line, 0, 1) . $stdio_latex_flags . substr($latex_cmd_line, 1);
+
+}
 
 $system_rc = system "$pdflatex $latex_cmd_line > latex.output";
 if($system_rc)

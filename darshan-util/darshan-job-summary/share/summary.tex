@@ -51,8 +51,15 @@ which may skew results in this document.
     \input{job-table.tex}
 }\\
 \vspace{1em}
+\ifdefined\inclperf
 I/O performance \emph{estimate} (at the \perflayer \ layer):
-transferred \textcolor{red}{\perfbytes \ MiB} at \textcolor{red}{\perfest \ MiB/s}
+transferred \textcolor{red}{\perfbytes \ MiB} at \textcolor{red}{\perfest \ MiB/s\\}
+\fi
+\ifdefined\inclstdio
+I/O performance \emph{estimate} (at the STDIO layer):
+transferred \textcolor{red}{\stdioperfbytes \ MiB} at \textcolor{red}{\stdioperfest \ MiB/s}
+\fi
+
 \vspace{3em}
 \subfigure
 {
