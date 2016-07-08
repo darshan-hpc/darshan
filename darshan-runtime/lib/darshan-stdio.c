@@ -119,6 +119,7 @@ struct stdio_file_record_ref
     double last_meta_end;
     double last_read_end;
     double last_write_end;
+    int fs_type;
 };
 
 /* The stdio_runtime structure maintains necessary state for storing
@@ -174,6 +175,7 @@ static void stdio_cleanup_runtime();
     darshan_record_id rec_id; \
     struct stdio_file_record_ref* rec_ref; \
     char *newpath; \
+    int __fd; \
     if(__ret == NULL) break; \
     newpath = darshan_clean_file_path(__path); \
     if(!newpath) newpath = (char*)__path; \
@@ -196,6 +198,8 @@ static void stdio_cleanup_runtime();
     rec_ref->file_rec->fcounters[STDIO_F_OPEN_END_TIMESTAMP] = __tm2; \
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[STDIO_F_META_TIME], __tm1, __tm2, rec_ref->last_meta_end); \
     darshan_add_record_ref(&(stdio_runtime->stream_hash), &(__ret), sizeof(__ret), rec_ref); \
+    __fd = fileno(__ret); \
+    darshan_instrument_fs_data(rec_ref->fs_type, newpath, __fd); \
     if(newpath != (char*)__path) free(newpath); \
 } while(0)
 
@@ -1182,6 +1186,7 @@ static struct stdio_file_record_ref *stdio_track_new_file_record(
 {
     struct darshan_stdio_file *file_rec = NULL;
     struct stdio_file_record_ref *rec_ref = NULL;
+    struct darshan_fs_info fs_info;
     int ret;
 
     rec_ref = malloc(sizeof(*rec_ref));
@@ -1206,7 +1211,7 @@ static struct stdio_file_record_ref *stdio_track_new_file_record(
         path,
         DARSHAN_STDIO_MOD,
         sizeof(struct darshan_stdio_file),
-        NULL);
+        &fs_info);
 
     if(!file_rec)
     {
@@ -1219,6 +1224,7 @@ static struct stdio_file_record_ref *stdio_track_new_file_record(
     /* registering this file record was successful, so initialize some fields */
     file_rec->base_rec.id = rec_id;
     file_rec->base_rec.rank = my_rank;
+    rec_ref->fs_type = fs_info.fs_type;
     rec_ref->file_rec = file_rec;
     stdio_runtime->file_rec_count++;
 

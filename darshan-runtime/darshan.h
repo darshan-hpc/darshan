@@ -144,6 +144,12 @@ void *darshan_core_register_record(
     int rec_len,
     struct darshan_fs_info *fs_info);
 
+/* TODO */
+void darshan_instrument_fs_data(
+    int fs_type,
+    const char *path,
+    int fd);
+
 /* darshan_core_wtime()
  *
  * Returns the elapsed time relative to (roughly) the start of
