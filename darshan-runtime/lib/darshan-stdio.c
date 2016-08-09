@@ -160,11 +160,12 @@ static void stdio_cleanup_runtime();
 
 #define STDIO_PRE_RECORD() do { \
     STDIO_LOCK(); \
-    if(!stdio_runtime && !instrumentation_disabled) stdio_runtime_initialize(); \
-    if(!stdio_runtime) { \
-        STDIO_UNLOCK(); \
-        return(ret); \
+    if(!instrumentation_disabled) { \
+        if(!stdio_runtime) stdio_runtime_initialize(); \
+        if(stdio_runtime) break; \
     } \
+    STDIO_UNLOCK(); \
+    return(ret); \
 } while(0)
 
 #define STDIO_POST_RECORD() do { \
@@ -728,7 +729,11 @@ void DARSHAN_DECL(rewind)(FILE *stream)
      * value in this wrapper.
      */
     STDIO_LOCK();
-    if(!stdio_runtime && !instrumentation_disabled) stdio_runtime_initialize();
+    if(instrumentation_disabled) {
+        STDIO_UNLOCK();
+        return;
+    }
+    if(!stdio_runtime) stdio_runtime_initialize();
     if(!stdio_runtime) {
         STDIO_UNLOCK();
         return;
@@ -912,10 +917,6 @@ static void stdio_runtime_initialize()
     /* try to store default number of records for this module */
     stdio_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_stdio_file);
 
-    /* don't do anything if already initialized or instrumenation is disabled */
-    if(stdio_runtime || instrumentation_disabled)
-        return;
-
     /* register the stdio module with darshan core */
     darshan_core_register_module(
         DARSHAN_STDIO_MOD,
@@ -1070,6 +1071,10 @@ static void stdio_shutdown(
 
     STDIO_LOCK();
     assert(stdio_runtime);
+
+    /* disable further instrumentation */
+    instrumentation_disabled = 1;
+
     stdio_rec_count = stdio_runtime->file_rec_count;
 
     /* if there are globally shared files, do a shared file reduction */
@@ -1173,9 +1178,6 @@ static void stdio_shutdown(
     /* shutdown internal structures used for instrumenting */
     stdio_cleanup_runtime();
 
-    /* disable further instrumentation */
-    instrumentation_disabled = 1;
-
     STDIO_UNLOCK();
     
     return;
@@ -1239,6 +1241,7 @@ static void stdio_cleanup_runtime()
 
     free(stdio_runtime);
     stdio_runtime = NULL;
+    instrumentation_disabled = 0;
 
     return;
 }

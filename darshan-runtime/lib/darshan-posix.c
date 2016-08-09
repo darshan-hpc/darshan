@@ -168,11 +168,12 @@ static int darshan_mem_alignment = 1;
 
 #define POSIX_PRE_RECORD() do { \
     POSIX_LOCK(); \
-    if(!posix_runtime && !instrumentation_disabled) posix_runtime_initialize(); \
-    if(!posix_runtime) { \
-        POSIX_UNLOCK(); \
-        return(ret); \
+    if(!instrumentation_disabled) { \
+        if(!posix_runtime) posix_runtime_initialize(); \
+        if(posix_runtime) break; \
     } \
+    POSIX_UNLOCK(); \
+    return(ret); \
 } while(0)
 
 #define POSIX_POST_RECORD() do { \
@@ -1684,6 +1685,7 @@ static void posix_cleanup_runtime()
 
     free(posix_runtime);
     posix_runtime = NULL;
+    instrumentation_disabled = 0;
 
     return;
 }
@@ -1783,6 +1785,10 @@ static void posix_shutdown(
 
     POSIX_LOCK();
     assert(posix_runtime);
+
+    /* disable instrumentation while we shutdown */
+    instrumentation_disabled = 1;
+
     posix_rec_count = posix_runtime->file_rec_count;
 
     /* perform any final transformations on POSIX file records before
@@ -1891,9 +1897,6 @@ static void posix_shutdown(
 
     /* shutdown internal structures used for instrumenting */
     posix_cleanup_runtime();
-
-    /* disable further instrumentation */
-    instrumentation_disabled = 1;
 
     POSIX_UNLOCK();
     return;
