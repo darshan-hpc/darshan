@@ -1247,6 +1247,9 @@ void darshan_mpiio_shutdown_bench_setup(int test_case)
             return;
     }
 
+    free(fh_array);
+    free(size_array);
+
     return;
 }
 
