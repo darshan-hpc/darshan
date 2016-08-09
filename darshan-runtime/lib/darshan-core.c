@@ -1771,7 +1771,7 @@ void darshan_shutdown_bench(int argc, char **argv)
     darshan_mpiio_shutdown_bench_setup(1);
 
     if(my_rank == 0)
-        printf("# 1 unique file per proc\n");
+        fprintf(stderr, "# 1 unique file per proc\n");
     DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
@@ -1786,7 +1786,7 @@ void darshan_shutdown_bench(int argc, char **argv)
     darshan_mpiio_shutdown_bench_setup(2);
 
     if(my_rank == 0)
-        printf("# 1 shared file per proc\n");
+        fprintf(stderr, "# 1 shared file per proc\n");
     DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
@@ -1801,7 +1801,7 @@ void darshan_shutdown_bench(int argc, char **argv)
     darshan_mpiio_shutdown_bench_setup(3);
 
     if(my_rank == 0)
-        printf("# 1024 unique files per proc\n");
+        fprintf(stderr, "# 1024 unique files per proc\n");
     DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
@@ -1816,7 +1816,7 @@ void darshan_shutdown_bench(int argc, char **argv)
     darshan_mpiio_shutdown_bench_setup(4);
 
     if(my_rank == 0)
-        printf("# 1024 shared files per proc\n");
+        fprintf(stderr, "# 1024 shared files per proc\n");
     DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
