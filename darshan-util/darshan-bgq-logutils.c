@@ -120,7 +120,7 @@ static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf, int ver)
     int ret;
 
     ret = darshan_log_put_mod(fd, DARSHAN_BGQ_MOD, rec,
-        sizeof(struct darshan_bgq_record), ver);
+        sizeof(struct darshan_bgq_record), DARSHAN_BGQ_VER);
     if(ret < 0)
         return(-1);
 

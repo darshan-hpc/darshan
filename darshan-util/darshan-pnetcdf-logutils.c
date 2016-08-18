@@ -85,7 +85,7 @@ static int darshan_log_put_pnetcdf_file(darshan_fd fd, void* pnetcdf_buf, int ve
     int ret;
 
     ret = darshan_log_put_mod(fd, DARSHAN_PNETCDF_MOD, file,
-        sizeof(struct darshan_pnetcdf_file), ver);
+        sizeof(struct darshan_pnetcdf_file), DARSHAN_PNETCDF_VER);
     if(ret < 0)
         return(-1);
 

@@ -120,7 +120,7 @@ static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver)
     int ret;
 
     ret = darshan_log_put_mod(fd, DARSHAN_POSIX_MOD, file,
-        sizeof(struct darshan_posix_file), ver);
+        sizeof(struct darshan_posix_file), DARSHAN_POSIX_VER);
     if(ret < 0)
         return(-1);
 
