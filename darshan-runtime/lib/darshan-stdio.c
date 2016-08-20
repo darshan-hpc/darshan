@@ -94,7 +94,9 @@ DARSHAN_FORWARD_DECL(fputc, int, (int c, FILE *stream));
 DARSHAN_FORWARD_DECL(putw, int, (int w, FILE *stream));
 DARSHAN_FORWARD_DECL(fputs, int, (const char *s, FILE *stream));
 DARSHAN_FORWARD_DECL(fprintf, int, (FILE *stream, const char *format, ...));
+DARSHAN_FORWARD_DECL(printf, int, (const char *format, ...));
 DARSHAN_FORWARD_DECL(vfprintf, int, (FILE *stream, const char *format, va_list));
+DARSHAN_FORWARD_DECL(vprintf, int, (const char *format, va_list));
 DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fgetc, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(getw, int, (FILE *stream));
@@ -463,6 +465,25 @@ int DARSHAN_DECL(fputs)(const char *s, FILE *stream)
     return(ret);
 }
 
+int DARSHAN_DECL(vprintf)(const char *format, va_list ap)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(vprintf);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_vprintf(format, ap);
+    tm2 = darshan_core_wtime();
+
+    STDIO_PRE_RECORD();
+    if(ret > 0)
+        STDIO_RECORD_WRITE(stdout, ret, tm1, tm2, 0);
+    STDIO_POST_RECORD();
+
+    return(ret);
+}
+
 int DARSHAN_DECL(vfprintf)(FILE *stream, const char *format, va_list ap)
 {
     int ret;
@@ -472,14 +493,38 @@ int DARSHAN_DECL(vfprintf)(FILE *stream, const char *format, va_list ap)
     MAP_OR_FAIL(vfprintf);
 
     tm1 = darshan_core_wtime();
-    start_off = ftell(stream);
     ret = __real_vfprintf(stream, format, ap);
-    end_off = ftell(stream);
     tm2 = darshan_core_wtime();
 
     STDIO_PRE_RECORD();
     if(ret > 0)
-        STDIO_RECORD_WRITE(stream, (end_off-start_off), tm1, tm2, 0);
+        STDIO_RECORD_WRITE(stream, ret, tm1, tm2, 0);
+    STDIO_POST_RECORD();
+
+    return(ret);
+}
+
+
+int DARSHAN_DECL(printf)(const char *format, ...)
+{
+    int ret;
+    double tm1, tm2;
+    va_list ap;
+
+    MAP_OR_FAIL(vprintf);
+
+    tm1 = darshan_core_wtime();
+    /* NOTE: we intentionally switch to vprintf here to handle the variable
+     * length arguments.
+     */
+    va_start(ap, format);
+    ret = __real_vprintf(format, ap);
+    va_end(ap);
+    tm2 = darshan_core_wtime();
+
+    STDIO_PRE_RECORD();
+    if(ret > 0)
+        STDIO_RECORD_WRITE(stdout, ret, tm1, tm2, 0);
     STDIO_POST_RECORD();
 
     return(ret);
@@ -491,7 +536,6 @@ int DARSHAN_DECL(fprintf)(FILE *stream, const char *format, ...)
     int ret;
     double tm1, tm2;
     va_list ap;
-    long start_off, end_off;
 
     MAP_OR_FAIL(vfprintf);
 
@@ -499,16 +543,14 @@ int DARSHAN_DECL(fprintf)(FILE *stream, const char *format, ...)
     /* NOTE: we intentionally switch to vfprintf here to handle the variable
      * length arguments.
      */
-    start_off = ftell(stream);
     va_start(ap, format);
     ret = __real_vfprintf(stream, format, ap);
     va_end(ap);
-    end_off = ftell(stream);
     tm2 = darshan_core_wtime();
 
     STDIO_PRE_RECORD();
     if(ret > 0)
-        STDIO_RECORD_WRITE(stream, (end_off-start_off), tm1, tm2, 0);
+        STDIO_RECORD_WRITE(stream, ret, tm1, tm2, 0);
     STDIO_POST_RECORD();
 
     return(ret);
@@ -939,6 +981,11 @@ static void stdio_runtime_initialize()
         return;
     }
     memset(stdio_runtime, 0, sizeof(*stdio_runtime));
+
+    /* instantiate records for stdin, stdout, and stderr */
+    STDIO_RECORD_OPEN(stdin, "<STDIN>", 0, 0);
+    STDIO_RECORD_OPEN(stdout, "<STDOUT>", 0, 0);
+    STDIO_RECORD_OPEN(stderr, "<STDERR>", 0, 0);
 }
 
 /************************************************************************
