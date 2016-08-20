@@ -94,7 +94,9 @@ DARSHAN_FORWARD_DECL(fputc, int, (int c, FILE *stream));
 DARSHAN_FORWARD_DECL(putw, int, (int w, FILE *stream));
 DARSHAN_FORWARD_DECL(fputs, int, (const char *s, FILE *stream));
 DARSHAN_FORWARD_DECL(fprintf, int, (FILE *stream, const char *format, ...));
+DARSHAN_FORWARD_DECL(printf, int, (const char *format, ...));
 DARSHAN_FORWARD_DECL(vfprintf, int, (FILE *stream, const char *format, va_list));
+DARSHAN_FORWARD_DECL(vprintf, int, (const char *format, va_list));
 DARSHAN_FORWARD_DECL(fread, size_t, (void *ptr, size_t size, size_t nmemb, FILE *stream));
 DARSHAN_FORWARD_DECL(fgetc, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(getw, int, (FILE *stream));
@@ -119,6 +121,7 @@ struct stdio_file_record_ref
     double last_meta_end;
     double last_read_end;
     double last_write_end;
+    int fs_type;
 };
 
 /* The stdio_runtime structure maintains necessary state for storing
@@ -159,11 +162,12 @@ static void stdio_cleanup_runtime();
 
 #define STDIO_PRE_RECORD() do { \
     STDIO_LOCK(); \
-    if(!stdio_runtime && !instrumentation_disabled) stdio_runtime_initialize(); \
-    if(!stdio_runtime) { \
-        STDIO_UNLOCK(); \
-        return(ret); \
+    if(!instrumentation_disabled) { \
+        if(!stdio_runtime) stdio_runtime_initialize(); \
+        if(stdio_runtime) break; \
     } \
+    STDIO_UNLOCK(); \
+    return(ret); \
 } while(0)
 
 #define STDIO_POST_RECORD() do { \
@@ -174,6 +178,7 @@ static void stdio_cleanup_runtime();
     darshan_record_id rec_id; \
     struct stdio_file_record_ref* rec_ref; \
     char *newpath; \
+    int __fd; \
     if(__ret == NULL) break; \
     newpath = darshan_clean_file_path(__path); \
     if(!newpath) newpath = (char*)__path; \
@@ -196,6 +201,8 @@ static void stdio_cleanup_runtime();
     rec_ref->file_rec->fcounters[STDIO_F_OPEN_END_TIMESTAMP] = __tm2; \
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[STDIO_F_META_TIME], __tm1, __tm2, rec_ref->last_meta_end); \
     darshan_add_record_ref(&(stdio_runtime->stream_hash), &(__ret), sizeof(__ret), rec_ref); \
+    __fd = fileno(__ret); \
+    darshan_instrument_fs_data(rec_ref->fs_type, newpath, __fd); \
     if(newpath != (char*)__path) free(newpath); \
 } while(0)
 
@@ -458,6 +465,25 @@ int DARSHAN_DECL(fputs)(const char *s, FILE *stream)
     return(ret);
 }
 
+int DARSHAN_DECL(vprintf)(const char *format, va_list ap)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(vprintf);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_vprintf(format, ap);
+    tm2 = darshan_core_wtime();
+
+    STDIO_PRE_RECORD();
+    if(ret > 0)
+        STDIO_RECORD_WRITE(stdout, ret, tm1, tm2, 0);
+    STDIO_POST_RECORD();
+
+    return(ret);
+}
+
 int DARSHAN_DECL(vfprintf)(FILE *stream, const char *format, va_list ap)
 {
     int ret;
@@ -467,14 +493,38 @@ int DARSHAN_DECL(vfprintf)(FILE *stream, const char *format, va_list ap)
     MAP_OR_FAIL(vfprintf);
 
     tm1 = darshan_core_wtime();
-    start_off = ftell(stream);
     ret = __real_vfprintf(stream, format, ap);
-    end_off = ftell(stream);
     tm2 = darshan_core_wtime();
 
     STDIO_PRE_RECORD();
     if(ret > 0)
-        STDIO_RECORD_WRITE(stream, (end_off-start_off), tm1, tm2, 0);
+        STDIO_RECORD_WRITE(stream, ret, tm1, tm2, 0);
+    STDIO_POST_RECORD();
+
+    return(ret);
+}
+
+
+int DARSHAN_DECL(printf)(const char *format, ...)
+{
+    int ret;
+    double tm1, tm2;
+    va_list ap;
+
+    MAP_OR_FAIL(vprintf);
+
+    tm1 = darshan_core_wtime();
+    /* NOTE: we intentionally switch to vprintf here to handle the variable
+     * length arguments.
+     */
+    va_start(ap, format);
+    ret = __real_vprintf(format, ap);
+    va_end(ap);
+    tm2 = darshan_core_wtime();
+
+    STDIO_PRE_RECORD();
+    if(ret > 0)
+        STDIO_RECORD_WRITE(stdout, ret, tm1, tm2, 0);
     STDIO_POST_RECORD();
 
     return(ret);
@@ -486,7 +536,6 @@ int DARSHAN_DECL(fprintf)(FILE *stream, const char *format, ...)
     int ret;
     double tm1, tm2;
     va_list ap;
-    long start_off, end_off;
 
     MAP_OR_FAIL(vfprintf);
 
@@ -494,16 +543,14 @@ int DARSHAN_DECL(fprintf)(FILE *stream, const char *format, ...)
     /* NOTE: we intentionally switch to vfprintf here to handle the variable
      * length arguments.
      */
-    start_off = ftell(stream);
     va_start(ap, format);
     ret = __real_vfprintf(stream, format, ap);
     va_end(ap);
-    end_off = ftell(stream);
     tm2 = darshan_core_wtime();
 
     STDIO_PRE_RECORD();
     if(ret > 0)
-        STDIO_RECORD_WRITE(stream, (end_off-start_off), tm1, tm2, 0);
+        STDIO_RECORD_WRITE(stream, ret, tm1, tm2, 0);
     STDIO_POST_RECORD();
 
     return(ret);
@@ -724,7 +771,11 @@ void DARSHAN_DECL(rewind)(FILE *stream)
      * value in this wrapper.
      */
     STDIO_LOCK();
-    if(!stdio_runtime && !instrumentation_disabled) stdio_runtime_initialize();
+    if(instrumentation_disabled) {
+        STDIO_UNLOCK();
+        return;
+    }
+    if(!stdio_runtime) stdio_runtime_initialize();
     if(!stdio_runtime) {
         STDIO_UNLOCK();
         return;
@@ -908,10 +959,6 @@ static void stdio_runtime_initialize()
     /* try to store default number of records for this module */
     stdio_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_stdio_file);
 
-    /* don't do anything if already initialized or instrumenation is disabled */
-    if(stdio_runtime || instrumentation_disabled)
-        return;
-
     /* register the stdio module with darshan core */
     darshan_core_register_module(
         DARSHAN_STDIO_MOD,
@@ -934,6 +981,11 @@ static void stdio_runtime_initialize()
         return;
     }
     memset(stdio_runtime, 0, sizeof(*stdio_runtime));
+
+    /* instantiate records for stdin, stdout, and stderr */
+    STDIO_RECORD_OPEN(stdin, "<STDIN>", 0, 0);
+    STDIO_RECORD_OPEN(stdout, "<STDOUT>", 0, 0);
+    STDIO_RECORD_OPEN(stderr, "<STDERR>", 0, 0);
 }
 
 /************************************************************************
@@ -1066,6 +1118,10 @@ static void stdio_shutdown(
 
     STDIO_LOCK();
     assert(stdio_runtime);
+
+    /* disable further instrumentation */
+    instrumentation_disabled = 1;
+
     stdio_rec_count = stdio_runtime->file_rec_count;
 
     /* if there are globally shared files, do a shared file reduction */
@@ -1169,9 +1225,6 @@ static void stdio_shutdown(
     /* shutdown internal structures used for instrumenting */
     stdio_cleanup_runtime();
 
-    /* disable further instrumentation */
-    instrumentation_disabled = 1;
-
     STDIO_UNLOCK();
     
     return;
@@ -1182,6 +1235,7 @@ static struct stdio_file_record_ref *stdio_track_new_file_record(
 {
     struct darshan_stdio_file *file_rec = NULL;
     struct stdio_file_record_ref *rec_ref = NULL;
+    struct darshan_fs_info fs_info;
     int ret;
 
     rec_ref = malloc(sizeof(*rec_ref));
@@ -1206,7 +1260,7 @@ static struct stdio_file_record_ref *stdio_track_new_file_record(
         path,
         DARSHAN_STDIO_MOD,
         sizeof(struct darshan_stdio_file),
-        NULL);
+        &fs_info);
 
     if(!file_rec)
     {
@@ -1219,6 +1273,7 @@ static struct stdio_file_record_ref *stdio_track_new_file_record(
     /* registering this file record was successful, so initialize some fields */
     file_rec->base_rec.id = rec_id;
     file_rec->base_rec.rank = my_rank;
+    rec_ref->fs_type = fs_info.fs_type;
     rec_ref->file_rec = file_rec;
     stdio_runtime->file_rec_count++;
 
@@ -1233,6 +1288,7 @@ static void stdio_cleanup_runtime()
 
     free(stdio_runtime);
     stdio_runtime = NULL;
+    instrumentation_disabled = 0;
 
     return;
 }

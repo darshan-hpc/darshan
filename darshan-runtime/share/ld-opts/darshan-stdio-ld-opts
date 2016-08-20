@@ -20,6 +20,7 @@
 --wrap=fseeko64
 --wrap=fprintf
 --wrap=vfprintf
+--wrap=vprintf
 --wrap=fputc
 --wrap=fputs
 --wrap=putw
@@ -27,3 +28,4 @@
 --wrap=fsetpos64
 --wrap=rewind
 --wrap=__isoc99_fscanf
+--wrap=printf

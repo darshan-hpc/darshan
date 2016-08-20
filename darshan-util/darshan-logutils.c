@@ -593,15 +593,15 @@ int darshan_log_put_namehash(darshan_fd fd, struct darshan_name_record_ref *hash
     assert(state);
 
     /* allocate memory for largest possible hash record */
-    name_rec = malloc(sizeof(struct darshan_name_record) + PATH_MAX);
+    name_rec = malloc(sizeof(darshan_record_id) + PATH_MAX + 1);
     if(!name_rec)
         return(-1);
-    memset(name_rec, 0, sizeof(struct darshan_name_record) + PATH_MAX);
+    memset(name_rec, 0, sizeof(darshan_record_id) + PATH_MAX + 1);
 
     /* individually serialize each hash record and write to log file */
     HASH_ITER(hlink, hash, ref, tmp)
     {
-        name_rec_len = sizeof(struct darshan_name_record) + strlen(ref->name_record->name);
+        name_rec_len = sizeof(darshan_record_id) + strlen(ref->name_record->name) + 1;
         memcpy(name_rec, ref->name_record, name_rec_len);
 
         /* write this hash entry to log file */

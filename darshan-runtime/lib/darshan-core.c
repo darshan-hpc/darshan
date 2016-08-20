@@ -80,6 +80,13 @@ void (*mod_static_init_fns[])(void) =
     NULL
 };
 
+#ifdef DARSHAN_LUSTRE
+/* XXX need to use extern to get Lustre module's instrumentation function
+ * since modules have no way of providing this to darshan-core
+ */
+extern void darshan_instrument_lustre_file(const char *filepath, int fd);
+#endif
+
 #define DARSHAN_CORE_LOCK() pthread_mutex_lock(&darshan_core_mutex)
 #define DARSHAN_CORE_UNLOCK() pthread_mutex_unlock(&darshan_core_mutex)
 
@@ -1764,7 +1771,7 @@ void darshan_shutdown_bench(int argc, char **argv)
     darshan_mpiio_shutdown_bench_setup(1);
 
     if(my_rank == 0)
-        printf("# 1 unique file per proc\n");
+        fprintf(stderr, "# 1 unique file per proc\n");
     DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
@@ -1779,7 +1786,7 @@ void darshan_shutdown_bench(int argc, char **argv)
     darshan_mpiio_shutdown_bench_setup(2);
 
     if(my_rank == 0)
-        printf("# 1 shared file per proc\n");
+        fprintf(stderr, "# 1 shared file per proc\n");
     DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
@@ -1794,7 +1801,7 @@ void darshan_shutdown_bench(int argc, char **argv)
     darshan_mpiio_shutdown_bench_setup(3);
 
     if(my_rank == 0)
-        printf("# 1024 unique files per proc\n");
+        fprintf(stderr, "# 1024 unique files per proc\n");
     DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
@@ -1809,7 +1816,7 @@ void darshan_shutdown_bench(int argc, char **argv)
     darshan_mpiio_shutdown_bench_setup(4);
 
     if(my_rank == 0)
-        printf("# 1024 shared files per proc\n");
+        fprintf(stderr, "# 1024 shared files per proc\n");
     DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
@@ -1984,6 +1991,19 @@ void *darshan_core_register_record(
         darshan_fs_info_from_path(name, fs_info);
 
     return(rec_buf);;
+}
+
+void darshan_instrument_fs_data(int fs_type, const char *path, int fd)
+{
+#ifdef DARSHAN_LUSTRE
+    /* allow lustre to generate a record if we configured with lustre support */
+    if(fs_type == LL_SUPER_MAGIC)
+    {
+        darshan_instrument_lustre_file(path, fd);
+        return;
+    }
+#endif
+    return;
 }
 
 double darshan_core_wtime()

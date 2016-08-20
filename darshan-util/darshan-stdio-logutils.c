@@ -99,7 +99,7 @@ static int darshan_log_put_stdio_record(darshan_fd fd, void* stdio_buf, int ver)
 
     /* append STDIO record to darshan log file */
     ret = darshan_log_put_mod(fd, DARSHAN_STDIO_MOD, rec,
-        sizeof(struct darshan_stdio_file), ver);
+        sizeof(struct darshan_stdio_file), DARSHAN_STDIO_VER);
     if(ret < 0)
         return(-1);
 

@@ -69,11 +69,12 @@ static int my_rank = -1;
 
 #define HDF5_PRE_RECORD() do { \
     HDF5_LOCK(); \
-    if(!hdf5_runtime && !instrumentation_disabled) hdf5_runtime_initialize(); \
-    if(!hdf5_runtime) { \
-        HDF5_UNLOCK(); \
-        return(ret); \
+    if(!instrumentation_disabled) { \
+        if(!hdf5_runtime) hdf5_runtime_initialize(); \
+        if(hdf5_runtime) break; \
     } \
+    HDF5_UNLOCK(); \
+    return(ret); \
 } while(0)
 
 #define HDF5_POST_RECORD() do { \
@@ -339,6 +340,7 @@ static void hdf5_cleanup_runtime()
 
     free(hdf5_runtime);
     hdf5_runtime = NULL;
+    instrumentation_disabled = 0;
 
     return;
 }
@@ -365,6 +367,10 @@ static void hdf5_shutdown(
 
     HDF5_LOCK();
     assert(hdf5_runtime);
+
+    /* disable further instrumentation */
+    instrumentation_disabled = 1;
+
     hdf5_rec_count = hdf5_runtime->file_rec_count;
 
     /* if there are globally shared files, do a shared file reduction */
@@ -439,9 +445,6 @@ static void hdf5_shutdown(
 
     /* shutdown internal structures used for instrumenting */
     hdf5_cleanup_runtime();
-
-    /* disable further instrumentation */
-    instrumentation_disabled = 1;
 
     HDF5_UNLOCK();
     return;

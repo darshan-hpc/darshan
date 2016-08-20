@@ -116,11 +116,12 @@ static int my_rank = -1;
  */
 #define NULL_PRE_RECORD() do { \
     NULL_LOCK(); \
-    if(!null_runtime && !instrumentation_disabled) null_runtime_initialize(); \
-    if(!null_runtime) { \
-        NULL_UNLOCK(); \
-        return(ret); \
+    if(!instrumentation_disabled) { \
+        if(!null_runtime) null_runtime_initialize(); \
+        if(null_runtime) break; \
     } \
+    NULL_UNLOCK(); \
+    return(ret); \
 } while(0)
 
 /* the NULL_POST_RECORD macro is executed after performing NULL
@@ -294,6 +295,7 @@ static void null_cleanup_runtime()
 
     free(null_runtime);
     null_runtime = NULL;
+    instrumentation_disabled = 0;
 
     return;
 }
@@ -315,6 +317,9 @@ static void null_shutdown(
     NULL_LOCK();
     assert(null_runtime);
 
+    /* disable further instrumentation while we shutdown */
+    instrumentation_disabled = 1;
+
     /* NOTE: this function can be used to run collective operations prior to
      * shutting down the module, as implied by the MPI communicator passed in
      * as the first agrument. Typically, module developers will want to run a
@@ -335,9 +340,6 @@ static void null_shutdown(
 
     /* shutdown internal structures used for instrumenting */
     null_cleanup_runtime();
-
-    /* disable further instrumentation */
-    instrumentation_disabled = 1;
 
     NULL_UNLOCK();
     return;

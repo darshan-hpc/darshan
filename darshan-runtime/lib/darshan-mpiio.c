@@ -97,11 +97,12 @@ static int my_rank = -1;
 
 #define MPIIO_PRE_RECORD() do { \
     MPIIO_LOCK(); \
-    if(!mpiio_runtime && !instrumentation_disabled) mpiio_runtime_initialize(); \
-    if(!mpiio_runtime) { \
-        MPIIO_UNLOCK(); \
-        return(ret); \
+    if(!instrumentation_disabled) { \
+        if(!mpiio_runtime) mpiio_runtime_initialize(); \
+        if(mpiio_runtime) break; \
     } \
+    MPIIO_UNLOCK(); \
+    return(ret); \
 } while(0)
 
 #define MPIIO_POST_RECORD() do { \
@@ -1169,6 +1170,7 @@ static void mpiio_cleanup_runtime()
 
     free(mpiio_runtime);
     mpiio_runtime = NULL;
+    instrumentation_disabled = 0;
 
     return;
 }
@@ -1247,6 +1249,9 @@ void darshan_mpiio_shutdown_bench_setup(int test_case)
             return;
     }
 
+    free(fh_array);
+    free(size_array);
+
     return;
 }
 
@@ -1273,6 +1278,10 @@ static void mpiio_shutdown(
 
     MPIIO_LOCK();
     assert(mpiio_runtime);
+
+    /* disable further instrumentation while we shutdown */
+    instrumentation_disabled = 1;
+
     mpiio_rec_count = mpiio_runtime->file_rec_count;
 
     /* perform any final transformations on MPIIO file records before
@@ -1380,9 +1389,6 @@ static void mpiio_shutdown(
 
     /* shutdown internal structures used for instrumenting */
     mpiio_cleanup_runtime();
-
-    /* disable further instrumentation */
-    instrumentation_disabled = 1;
 
     MPIIO_UNLOCK();
     return;

@@ -65,11 +65,12 @@ static int my_rank = -1;
 
 #define PNETCDF_PRE_RECORD() do { \
     PNETCDF_LOCK(); \
-    if(!pnetcdf_runtime && !instrumentation_disabled) pnetcdf_runtime_initialize(); \
-    if(!pnetcdf_runtime) { \
-        PNETCDF_UNLOCK(); \
-        return(ret); \
+    if(!instrumentation_disabled) { \
+        if(!pnetcdf_runtime) pnetcdf_runtime_initialize(); \
+        if(pnetcdf_runtime) break; \
     } \
+    PNETCDF_UNLOCK(); \
+    return(ret); \
 } while(0)
 
 #define PNETCDF_POST_RECORD() do { \
@@ -336,6 +337,7 @@ static void pnetcdf_cleanup_runtime()
 
     free(pnetcdf_runtime);
     pnetcdf_runtime = NULL;
+    instrumentation_disabled = 0;
 
     return;
 }
@@ -363,6 +365,10 @@ static void pnetcdf_shutdown(
 
     PNETCDF_LOCK();
     assert(pnetcdf_runtime);
+
+    /* disable further instrumentation while we shutdown */
+    instrumentation_disabled = 1;
+
     pnetcdf_rec_count = pnetcdf_runtime->file_rec_count;
 
     /* if there are globally shared files, do a shared file reduction */
@@ -438,9 +444,6 @@ static void pnetcdf_shutdown(
 
     /* shutdown internal structures used for instrumenting */
     pnetcdf_cleanup_runtime();
-
-    /* disable further instrumentation */
-    instrumentation_disabled = 1;
 
     PNETCDF_UNLOCK();
     return;

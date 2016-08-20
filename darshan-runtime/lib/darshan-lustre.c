@@ -61,10 +61,14 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
     int ret;
 
     LUSTRE_LOCK();
+    if(instrumentation_disabled)
+    {
+        LUSTRE_UNLOCK();
+        return;
+    }
 
-    /* try to init module if not already and if instrumentation isn't disabled */
-    if(!lustre_runtime && !instrumentation_disabled)
-        lustre_runtime_initialize();
+    /* try to init module if not already */
+    if(!lustre_runtime) lustre_runtime_initialize();
 
     /* if we aren't initialized, just back out */
     if(!lustre_runtime)
@@ -226,6 +230,10 @@ static void lustre_shutdown(
 
     LUSTRE_LOCK();
     assert(lustre_runtime);
+
+    /* disable further instrumentation while we shutdown */
+    instrumentation_disabled = 1;
+
     lustre_runtime->record_buffer = *lustre_buf;
     lustre_runtime->record_buffer_size = *lustre_buf_sz;
 
@@ -268,9 +276,7 @@ static void lustre_shutdown(
     darshan_clear_record_refs(&(lustre_runtime->record_id_hash), 1);
     free(lustre_runtime);
     lustre_runtime = NULL;
-
-    /* disable further instrumentation */
-    instrumentation_disabled = 1;
+    instrumentation_disabled = 0;
 
     LUSTRE_UNLOCK();
     return;
