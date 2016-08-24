@@ -85,7 +85,7 @@ static int darshan_log_put_mpiio_file(darshan_fd fd, void* mpiio_buf, int ver)
     int ret;
 
     ret = darshan_log_put_mod(fd, DARSHAN_MPIIO_MOD, file,
-        sizeof(struct darshan_mpiio_file), ver);
+        sizeof(struct darshan_mpiio_file), DARSHAN_MPIIO_VER);
     if(ret < 0)
         return(-1);
 

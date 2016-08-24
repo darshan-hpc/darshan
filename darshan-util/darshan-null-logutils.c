@@ -102,7 +102,7 @@ static int darshan_log_put_null_record(darshan_fd fd, void* null_buf, int ver)
 
     /* append NULL record to darshan log file */
     ret = darshan_log_put_mod(fd, DARSHAN_NULL_MOD, rec,
-        sizeof(struct darshan_null_record), ver);
+        sizeof(struct darshan_null_record), DARSHAN_NULL_VER);
     if(ret < 0)
         return(-1);
 

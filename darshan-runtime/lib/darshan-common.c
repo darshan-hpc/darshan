@@ -126,7 +126,11 @@ char* darshan_clean_file_path(const char* path)
     char* cwd = NULL;
     char* filter = NULL;
 
-    if(!path || strlen(path) < 1)
+    /* NOTE: the last check in this if statement is for path strings that
+     * begin with the '<' character.  We assume that these are special
+     * reserved paths used by Darshan, like <STDIN>.
+     */
+    if(!path || strlen(path) < 1 || path[0] == '<')
         return(NULL);
 
     if(path[0] == '/')

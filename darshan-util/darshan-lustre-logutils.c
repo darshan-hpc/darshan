@@ -94,7 +94,7 @@ static int darshan_log_put_lustre_record(darshan_fd fd, void* lustre_buf, int ve
     int ret;
 
     ret = darshan_log_put_mod(fd, DARSHAN_LUSTRE_MOD, rec,
-        LUSTRE_RECORD_SIZE(rec->counters[LUSTRE_STRIPE_WIDTH]), ver);
+        LUSTRE_RECORD_SIZE(rec->counters[LUSTRE_STRIPE_WIDTH]), DARSHAN_LUSTRE_VER);
     if(ret < 0)
         return(-1);
 
