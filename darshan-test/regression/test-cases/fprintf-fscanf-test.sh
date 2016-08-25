@@ -29,21 +29,21 @@ fi
 
 # check results
 
-STDIO_OPENS=`grep STDIO_OPENS $DARSHAN_TMP/${PROG}.darshan.txt | cut -f 5`
+STDIO_OPENS=`grep STDIO_OPENS $DARSHAN_TMP/${PROG}.darshan.txt | grep -vE "STDIN|STDOUT|STDERR" | cut -f 5`
 if [ ! "$STDIO_OPENS" -eq 4 ]; then
     echo "Error: STDIO open count of $STDIO_OPENS is incorrect" 1>&2
     exit 1
 fi
 
 # this will check fprintf counting
-STDIO_BYTES_WRITTEN=`grep STDIO_BYTES_WRITTEN $DARSHAN_TMP/${PROG}.darshan.txt | cut -f 5`
+STDIO_BYTES_WRITTEN=`grep STDIO_BYTES_WRITTEN $DARSHAN_TMP/${PROG}.darshan.txt | grep -vE "STDIN|STDOUT|STDERR" | cut -f 5`
 if [ ! "$STDIO_BYTES_WRITTEN" -eq 15 ]; then
     echo "Error: STDIO bytes written count of $STDIO_BYTES_WRITTEN is incorrect" 1>&2
     exit 1
 fi
 
 # this will check fscanf counting
-STDIO_BYTES_READ=`grep STDIO_BYTES_READ $DARSHAN_TMP/${PROG}.darshan.txt | cut -f 5`
+STDIO_BYTES_READ=`grep STDIO_BYTES_READ $DARSHAN_TMP/${PROG}.darshan.txt | grep -vE "STDIN|STDOUT|STDERR" | cut -f 5`
 if [ ! "$STDIO_BYTES_READ" -eq 15 ]; then
     echo "Error: STDIO bytes read count of $STDIO_BYTES_READ is incorrect" 1>&2
     exit 1
