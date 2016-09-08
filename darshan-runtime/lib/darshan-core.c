@@ -786,6 +786,9 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
     int mmap_size;
     int sys_page_size;
     char cuser[L_cuserid] = {0};
+    uint64_t hlevel;
+    char hname[HOST_NAME_MAX];
+    uint64_t logmod;
     char *envstr;
     char *mmap_log_path;
     void *mmap_p;
@@ -806,12 +809,25 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
 
     darshan_get_user_name(cuser);
 
+    /* generate a random number to help differentiate the temporary log */
+    /* NOTE: job id is not sufficient for constructing a unique log file name,
+     * since a job could be composed of multiple application runs, so we also
+     * add a random number component to the log name
+     */
+    if(my_rank == 0)
+    {
+        hlevel=DARSHAN_MPI_CALL(PMPI_Wtime)() * 1000000;
+        (void)gethostname(hname, sizeof(hname));
+        logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
+    }
+    DARSHAN_MPI_CALL(PMPI_Bcast)(&logmod, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
+
     /* construct a unique temporary log file name for this process
      * to write mmap log data to
      */
     snprintf(core->mmap_log_name, PATH_MAX,
-        "/%s/%s_%s_id%d_mmap-log-%d.darshan",
-        mmap_log_path, cuser, __progname, jobid, my_rank);
+        "/%s/%s_%s_id%d_mmap-log-%" PRIu64 "-%d.darshan",
+        mmap_log_path, cuser, __progname, jobid, logmod, my_rank);
 
     /* create the temporary mmapped darshan log */
     mmap_fd = open(core->mmap_log_name, O_CREAT|O_RDWR|O_EXCL , 0644);
