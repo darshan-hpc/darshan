@@ -138,19 +138,41 @@ void obfuscate_exe(int key, char *exe)
     return;
 }
 
-void obfuscate_filenames(int key, struct darshan_name_record_ref *name_hash)
+void obfuscate_filenames(int key, struct darshan_name_record_ref *name_hash, struct darshan_mnt_info *mnt_data_array, int mount_count )
 {
     struct darshan_name_record_ref *ref, *tmp;
     uint32_t hashed;
-    char tmp_string[128] = {0};
+    char tmp_string[PATH_MAX+128] = {0};
     darshan_record_id tmp_id;
 
     HASH_ITER(hlink, name_hash, ref, tmp)
     {
+        /* find file system */
+        int j;
+        char *mnt_pt = NULL;
+
+        /* get mount point and fs type associated with this record */
+        for(j=0; j<mount_count; j++)
+        {
+            if(strncmp(mnt_data_array[j].mnt_path, ref->name_record->name,
+                strlen(mnt_data_array[j].mnt_path)) == 0)
+            {
+                mnt_pt = mnt_data_array[j].mnt_path;
+                break;
+            }
+        }
+
         tmp_id = ref->name_record->id;
         hashed = darshan_hashlittle(ref->name_record->name,
             strlen(ref->name_record->name), key);
-        sprintf(tmp_string, "%u", hashed);
+        if ( mnt_pt != NULL ) 
+        {
+            sprintf(tmp_string, "%s/%u", mnt_pt, hashed);
+        }
+        else 
+        {
+            sprintf(tmp_string, "%u", hashed);
+        }
         free(ref->name_record);
         ref->name_record = malloc(sizeof(struct darshan_name_record) +
             strlen(tmp_string));
@@ -330,7 +352,7 @@ int main(int argc, char **argv)
     /* NOTE: obfuscating filepaths breaks the ability to map files
      * to the corresponding FS & mount info maintained by darshan
      */
-    if(obfuscate) obfuscate_filenames(key, name_hash);
+    if(obfuscate) obfuscate_filenames(key, name_hash, mnt_data_array, mount_count );
     if(hash) remove_hash_recs(&name_hash, hash);
 
     ret = darshan_log_put_namehash(outfile, name_hash);

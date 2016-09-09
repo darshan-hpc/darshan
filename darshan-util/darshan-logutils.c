@@ -586,7 +586,7 @@ int darshan_log_put_namehash(darshan_fd fd, struct darshan_name_record_ref *hash
 {
     struct darshan_fd_int_state *state = fd->state;
     struct darshan_name_record_ref *ref, *tmp;
-    struct darshan_name_record_ref *name_rec;
+    struct darshan_name_record *name_rec;
     int name_rec_len;
     int wrote;
 
