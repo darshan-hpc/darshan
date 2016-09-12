@@ -396,9 +396,9 @@ close TIME_SUMMARY;
 open(PSX_OP_COUNTS, ">$tmp_dir/posix-op-counts.dat") || die("error opening output file: $!\n");
 print PSX_OP_COUNTS "# <operation>, <POSIX count>\n";
 print PSX_OP_COUNTS
-    "Read, ", $summary{POSIX_READS} + $summary{POSIX_FREADS}, "\n",
-    "Write, ", $summary{POSIX_WRITES} + $summary{POSIX_FWRITES}, "\n",
-    "Open, ", $summary{POSIX_OPENS} + $summary{POSIX_FOPENS}, "\n",
+    "Read, ", $summary{POSIX_READS}, "\n",
+    "Write, ", $summary{POSIX_WRITES}, "\n",
+    "Open, ", $summary{POSIX_OPENS}, "\n",
     "Stat, ", $summary{POSIX_STATS}, "\n",
     "Seek, ", $summary{POSIX_SEEKS}, "\n",
     "Mmap, ", $summary{POSIX_MMAPS}, "\n",
@@ -496,9 +496,9 @@ if (defined $summary{MPIIO_INDEP_OPENS})
 # sequential and consecutive access patterns
 open (PATTERN, ">$tmp_dir/pattern.dat") || die("error opening output file: $!\n");
 print PATTERN "# op total sequential consecutive\n";
-print PATTERN "Read, ", $summary{POSIX_READS} + $summary{POSIX_FREADS}, ", ",
+print PATTERN "Read, ", $summary{POSIX_READS}, ", ",
     $summary{POSIX_SEQ_READS}, ", ", $summary{POSIX_CONSEC_READS}, "\n";
-print PATTERN "Write, ", $summary{POSIX_WRITES} + $summary{POSIX_FWRITES}, ", ",
+print PATTERN "Write, ", $summary{POSIX_WRITES}, ", ",
     $summary{POSIX_SEQ_WRITES}, ", ", $summary{POSIX_CONSEC_WRITES}, "\n";
 close PATTERN;
 
@@ -1047,7 +1047,6 @@ sub process_file_record
     }
 
     if($file_record{'POSIX_OPENS'} == 0 &&
-        $file_record{'POSIX_FOPENS'} == 0 &&
         (!defined $file_record{'MPIIO_INDEP_OPENS'} ||
         ($file_record{'MPIIO_INDEP_OPENS'} == 0 && $file_record{'MPIIO_COLL_OPENS'} == 0)))
     {
@@ -1110,14 +1109,12 @@ sub process_file_record
     else
     {
         # posix file
-        if($file_record{'POSIX_READS'} > 0 ||
-            $file_record{'POSIX_FREADS'} > 0)
+        if($file_record{'POSIX_READS'} > 0)
         {
             # data was read from the file
             $hash_files{$hash}{'was_read'} = 1;
         }
-        if($file_record{'POSIX_WRITES'} > 0 ||
-            $file_record{'POSIX_FWRITES'} > 0)
+        if($file_record{'POSIX_WRITES'} > 0)
         {
             # data was written to the file 
             $hash_files{$hash}{'was_written'} = 1;
