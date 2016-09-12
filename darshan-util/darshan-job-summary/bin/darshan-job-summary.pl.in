@@ -483,36 +483,52 @@ if (defined $summary{STDIO_OPENS})
 # histograms of reads and writes (for POSIX and MPI-IO modules)
 open (IO_HIST, ">$tmp_dir/posix-access-hist.dat") || die("error opening output file: $!\n");
 print IO_HIST "# <size_range>, <POSIX_reads>, <POSIX_writes>\n";
-print IO_HIST "0-100, ",
-              $summary{POSIX_SIZE_READ_0_100}, ", ",
-              $summary{POSIX_SIZE_WRITE_0_100}, "\n";
-print IO_HIST "101-1K, ",
-              $summary{POSIX_SIZE_READ_100_1K}, ", ",
-              $summary{POSIX_SIZE_WRITE_100_1K}, "\n";
-print IO_HIST "1K-10K, ",
-              $summary{POSIX_SIZE_READ_1K_10K}, ", ",
-              $summary{POSIX_SIZE_WRITE_1K_10K}, "\n";
-print IO_HIST "10K-100K, ",
-              $summary{POSIX_SIZE_READ_10K_100K}, ", ",
-              $summary{POSIX_SIZE_WRITE_10K_100K}, "\n";
-print IO_HIST "100K-1M, ",
-              $summary{POSIX_SIZE_READ_100K_1M}, ", ",
-              $summary{POSIX_SIZE_WRITE_100K_1M}, "\n";
-print IO_HIST "1M-4M, ",
-              $summary{POSIX_SIZE_READ_1M_4M}, ", ",
-              $summary{POSIX_SIZE_WRITE_1M_4M}, "\n";
-print IO_HIST "4M-10M, ",
-              $summary{POSIX_SIZE_READ_4M_10M}, ", ",
-              $summary{POSIX_SIZE_WRITE_4M_10M}, "\n";
-print IO_HIST "10M-100M, ",
-              $summary{POSIX_SIZE_READ_10M_100M}, ", ",
-              $summary{POSIX_SIZE_WRITE_10M_100M}, "\n";
-print IO_HIST "100M-1G, ",
-              $summary{POSIX_SIZE_READ_100M_1G}, ", ",
-              $summary{POSIX_SIZE_WRITE_100M_1G}, "\n";
-print IO_HIST "1G+, ",
-              $summary{POSIX_SIZE_READ_1G_PLUS}, ", ",
-              $summary{POSIX_SIZE_WRITE_1G_PLUS}, "\n";
+if (defined $summary{POSIX_OPENS})
+{
+    print IO_HIST "0-100, ",
+                  $summary{POSIX_SIZE_READ_0_100}, ", ",
+                  $summary{POSIX_SIZE_WRITE_0_100}, "\n";
+    print IO_HIST "101-1K, ",
+                  $summary{POSIX_SIZE_READ_100_1K}, ", ",
+                  $summary{POSIX_SIZE_WRITE_100_1K}, "\n";
+    print IO_HIST "1K-10K, ",
+                  $summary{POSIX_SIZE_READ_1K_10K}, ", ",
+                  $summary{POSIX_SIZE_WRITE_1K_10K}, "\n";
+    print IO_HIST "10K-100K, ",
+                  $summary{POSIX_SIZE_READ_10K_100K}, ", ",
+                  $summary{POSIX_SIZE_WRITE_10K_100K}, "\n";
+    print IO_HIST "100K-1M, ",
+                  $summary{POSIX_SIZE_READ_100K_1M}, ", ",
+                  $summary{POSIX_SIZE_WRITE_100K_1M}, "\n";
+    print IO_HIST "1M-4M, ",
+                  $summary{POSIX_SIZE_READ_1M_4M}, ", ",
+                  $summary{POSIX_SIZE_WRITE_1M_4M}, "\n";
+    print IO_HIST "4M-10M, ",
+                  $summary{POSIX_SIZE_READ_4M_10M}, ", ",
+                  $summary{POSIX_SIZE_WRITE_4M_10M}, "\n";
+    print IO_HIST "10M-100M, ",
+                  $summary{POSIX_SIZE_READ_10M_100M}, ", ",
+                  $summary{POSIX_SIZE_WRITE_10M_100M}, "\n";
+    print IO_HIST "100M-1G, ",
+                  $summary{POSIX_SIZE_READ_100M_1G}, ", ",
+                  $summary{POSIX_SIZE_WRITE_100M_1G}, "\n";
+    print IO_HIST "1G+, ",
+                  $summary{POSIX_SIZE_READ_1G_PLUS}, ", ",
+                  $summary{POSIX_SIZE_WRITE_1G_PLUS}, "\n";
+}
+else
+{
+    print IO_HIST "0-100, 0, 0\n";
+    print IO_HIST "101-1K, 0, 0\n";
+    print IO_HIST "1K-10K, 0, 0\n";
+    print IO_HIST "10K-100K, 0, 0\n";
+    print IO_HIST "100K-1M, 0, 0\n";
+    print IO_HIST "1M-4M, 0, 0\n";
+    print IO_HIST "4M-10M, 0, 0\n";
+    print IO_HIST "10M-100M, 0, 0\n";
+    print IO_HIST "100M-1G, 0, 0\n";
+    print IO_HIST "1G+, 0, 0\n";
+}
 close IO_HIST;
 
 if (defined $summary{MPIIO_INDEP_OPENS})
@@ -552,13 +568,21 @@ if (defined $summary{MPIIO_INDEP_OPENS})
     close IO_HIST;
 }
 
-# sequential and consecutive access patterns
+    # sequential and consecutive access patterns
 open (PATTERN, ">$tmp_dir/pattern.dat") || die("error opening output file: $!\n");
 print PATTERN "# op total sequential consecutive\n";
-print PATTERN "Read, ", $summary{POSIX_READS}, ", ",
-    $summary{POSIX_SEQ_READS}, ", ", $summary{POSIX_CONSEC_READS}, "\n";
-print PATTERN "Write, ", $summary{POSIX_WRITES}, ", ",
-    $summary{POSIX_SEQ_WRITES}, ", ", $summary{POSIX_CONSEC_WRITES}, "\n";
+if (defined $summary{POSIX_OPENS})
+{
+    print PATTERN "Read, ", $summary{POSIX_READS}, ", ",
+        $summary{POSIX_SEQ_READS}, ", ", $summary{POSIX_CONSEC_READS}, "\n";
+    print PATTERN "Write, ", $summary{POSIX_WRITES}, ", ",
+        $summary{POSIX_SEQ_WRITES}, ", ", $summary{POSIX_CONSEC_WRITES}, "\n";
+}
+else
+{
+    print PATTERN "Read, 0, 0, 0\n";
+    print PATTERN "Write, 0, 0, 0\n";
+}
 close PATTERN;
 
 # table of common access sizes
