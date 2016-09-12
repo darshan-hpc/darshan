@@ -592,6 +592,7 @@ print ACCESS_TABLE "
 \\begin{tabular}{r|r|r}
 \\multicolumn{3}{c}{ } \\\\
 \\multicolumn{3}{c}{Most Common Access Sizes} \\\\
+\\multicolumn{3}{c}{(POSIX or MPI-IO)} \\\\
 \\hline
 \& access size \& count \\\\
 \\hline
