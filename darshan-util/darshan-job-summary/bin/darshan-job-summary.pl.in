@@ -79,9 +79,12 @@ my $cumul_write_bytes_shared = 0;
 my $cumul_meta_shared = 0;
 my $cumul_meta_indep = 0;
 
-my $perf_est = 0.0;
 my $perf_layer = "";
+my $perf_est = 0.0;
 my $perf_mbytes = 0;
+my $current_module = "";
+my $stdio_perf_est = 0.0;
+my $stdio_perf_mbytes = 0;
 
 my $first_data_line = 1;
 my %file_record_hash = ();
@@ -140,13 +143,18 @@ while($line = <PARSE_OUT>)
         }
         elsif ($line =~ /^# agg_perf_by_slowest: /)
         {
-            if($perf_layer eq "")
+            if($current_module eq "STDIO")
+            {
+                ($junk, $stdio_perf_est) = split(':', $line, 2);
+                $stdio_perf_est = sprintf("%.2f", $stdio_perf_est);
+            }
+            elsif($current_module eq "POSIX")
             {
                 ($junk, $perf_est) = split(':', $line, 2);
                 $perf_est = sprintf("%.2f", $perf_est);
                 $perf_layer = "POSIX";
             }
-            elsif($perf_layer eq "POSIX")
+            elsif($current_module eq "MPI-IO")
             {
                 ($junk, $perf_est) = split(':', $line, 2);
                 $perf_est = sprintf("%.2f", $perf_est);
@@ -155,7 +163,13 @@ while($line = <PARSE_OUT>)
         }
         elsif ($line =~ /^# total_bytes: /)
         {
-            if($perf_mbytes == 0)
+            if($current_module eq "STDIO")
+            {
+                ($junk, $perf_mbytes) = split(':', $line, 2);
+                $stdio_perf_mbytes = $perf_mbytes / 1024 / 1024;
+                $stdio_perf_mbytes = sprintf("%.1f", $stdio_perf_mbytes);
+            }
+            elsif($perf_mbytes == 0)
             {
                 ($junk, $perf_mbytes) = split(':', $line, 2);
                 $perf_mbytes = $perf_mbytes / 1024 / 1024;
@@ -165,6 +179,10 @@ while($line = <PARSE_OUT>)
         elsif ($line =~ /^# \*WARNING\*: .* contains incomplete data!/)
         {
             $partial_flag = 1;
+        }
+        elsif ($line =~ /^# (.+) module data/)
+        {
+            $current_module = $1;
         }
     }
     else
@@ -375,12 +393,15 @@ system "$cp $PREFIX/share/*.tex $tmp_dir/";
 # summary of time spent in POSIX & MPI-IO functions
 open(TIME_SUMMARY, ">$tmp_dir/time-summary.dat") || die("error opening output file:$!\n");
 print TIME_SUMMARY "# <type>, <app time>, <read>, <write>, <meta>\n";
-print TIME_SUMMARY "POSIX, ", ((($runtime * $nprocs - $summary{POSIX_F_READ_TIME} -
-    $summary{POSIX_F_WRITE_TIME} -
-    $summary{POSIX_F_META_TIME})/($runtime * $nprocs)) * 100);
-print TIME_SUMMARY ", ", (($summary{POSIX_F_READ_TIME}/($runtime * $nprocs))*100);
-print TIME_SUMMARY ", ", (($summary{POSIX_F_WRITE_TIME}/($runtime * $nprocs))*100);
-print TIME_SUMMARY ", ", (($summary{POSIX_F_META_TIME}/($runtime * $nprocs))*100), "\n";
+if (defined $summary{POSIX_OPENS})
+{
+    print TIME_SUMMARY "POSIX, ", ((($runtime * $nprocs - $summary{POSIX_F_READ_TIME} -
+        $summary{POSIX_F_WRITE_TIME} -
+        $summary{POSIX_F_META_TIME})/($runtime * $nprocs)) * 100);
+    print TIME_SUMMARY ", ", (($summary{POSIX_F_READ_TIME}/($runtime * $nprocs))*100);
+    print TIME_SUMMARY ", ", (($summary{POSIX_F_WRITE_TIME}/($runtime * $nprocs))*100);
+    print TIME_SUMMARY ", ", (($summary{POSIX_F_META_TIME}/($runtime * $nprocs))*100), "\n";
+}
 if (defined $summary{MPIIO_INDEP_OPENS})
 {
     print TIME_SUMMARY "MPI-IO, ", ((($runtime * $nprocs - $summary{MPIIO_F_READ_TIME} -
@@ -390,19 +411,42 @@ if (defined $summary{MPIIO_INDEP_OPENS})
     print TIME_SUMMARY ", ", (($summary{MPIIO_F_WRITE_TIME}/($runtime * $nprocs))*100);
     print TIME_SUMMARY ", ", (($summary{MPIIO_F_META_TIME}/($runtime * $nprocs))*100), "\n";
 }
+if (defined $summary{STDIO_OPENS})
+{
+    print TIME_SUMMARY "STDIO, ", ((($runtime * $nprocs - $summary{STDIO_F_READ_TIME} -
+        $summary{STDIO_F_WRITE_TIME} -
+        $summary{STDIO_F_META_TIME})/($runtime * $nprocs)) * 100);
+    print TIME_SUMMARY ", ", (($summary{STDIO_F_READ_TIME}/($runtime * $nprocs))*100);
+    print TIME_SUMMARY ", ", (($summary{STDIO_F_WRITE_TIME}/($runtime * $nprocs))*100);
+    print TIME_SUMMARY ", ", (($summary{STDIO_F_META_TIME}/($runtime * $nprocs))*100), "\n";
+}
 close TIME_SUMMARY;
 
 # counts of operations
 open(PSX_OP_COUNTS, ">$tmp_dir/posix-op-counts.dat") || die("error opening output file: $!\n");
 print PSX_OP_COUNTS "# <operation>, <POSIX count>\n";
-print PSX_OP_COUNTS
-    "Read, ", $summary{POSIX_READS}, "\n",
-    "Write, ", $summary{POSIX_WRITES}, "\n",
-    "Open, ", $summary{POSIX_OPENS}, "\n",
-    "Stat, ", $summary{POSIX_STATS}, "\n",
-    "Seek, ", $summary{POSIX_SEEKS}, "\n",
-    "Mmap, ", $summary{POSIX_MMAPS}, "\n",
-    "Fsync, ", $summary{POSIX_FSYNCS} + $summary{POSIX_FDSYNCS}, "\n";
+if (defined $summary{POSIX_OPENS})
+{
+    print PSX_OP_COUNTS
+        "Read, ", $summary{POSIX_READS}, "\n",
+        "Write, ", $summary{POSIX_WRITES}, "\n",
+        "Open, ", $summary{POSIX_OPENS}, "\n",
+        "Stat, ", $summary{POSIX_STATS}, "\n",
+        "Seek, ", $summary{POSIX_SEEKS}, "\n",
+        "Mmap, ", $summary{POSIX_MMAPS}, "\n",
+        "Fsync, ", $summary{POSIX_FSYNCS} + $summary{POSIX_FDSYNCS}, "\n";
+}
+else
+{
+    print PSX_OP_COUNTS
+        "Read, 0\n",
+        "Write, 0\n",
+        "Open, 0\n",
+        "Stat, 0\n",
+        "Seek, 0\n",
+        "Mmap, 0\n",
+        "Fsync, 0\n";
+}
 close PSX_OP_COUNTS;
 
 if (defined $summary{MPIIO_INDEP_OPENS})
@@ -421,39 +465,70 @@ if (defined $summary{MPIIO_INDEP_OPENS})
     close MPI_OP_COUNTS;
 }
 
+if (defined $summary{STDIO_OPENS})
+{
+    open(STDIO_OP_COUNTS, ">$tmp_dir/stdio-op-counts.dat") || die("error opening output file: $!\n");
+    print STDIO_OP_COUNTS "# <operation>, <STDIO count>\n";
+    print STDIO_OP_COUNTS
+        "Read, ", $summary{STDIO_READS}, "\n",
+        "Write, ", $summary{STDIO_WRITES}, "\n",
+        "Open, ", $summary{STDIO_OPENS}, "\n",
+        "Stat, 0\n",
+        "Seek, ", $summary{STDIO_SEEKS}, "\n",
+        "Mmap, 0\n",
+        "Fsync, ", $summary{STDIO_FLUSHES}, "\n";
+    close STDIO_OP_COUNTS;
+}
+
 # histograms of reads and writes (for POSIX and MPI-IO modules)
 open (IO_HIST, ">$tmp_dir/posix-access-hist.dat") || die("error opening output file: $!\n");
 print IO_HIST "# <size_range>, <POSIX_reads>, <POSIX_writes>\n";
-print IO_HIST "0-100, ",
-              $summary{POSIX_SIZE_READ_0_100}, ", ",
-              $summary{POSIX_SIZE_WRITE_0_100}, "\n";
-print IO_HIST "101-1K, ",
-              $summary{POSIX_SIZE_READ_100_1K}, ", ",
-              $summary{POSIX_SIZE_WRITE_100_1K}, "\n";
-print IO_HIST "1K-10K, ",
-              $summary{POSIX_SIZE_READ_1K_10K}, ", ",
-              $summary{POSIX_SIZE_WRITE_1K_10K}, "\n";
-print IO_HIST "10K-100K, ",
-              $summary{POSIX_SIZE_READ_10K_100K}, ", ",
-              $summary{POSIX_SIZE_WRITE_10K_100K}, "\n";
-print IO_HIST "100K-1M, ",
-              $summary{POSIX_SIZE_READ_100K_1M}, ", ",
-              $summary{POSIX_SIZE_WRITE_100K_1M}, "\n";
-print IO_HIST "1M-4M, ",
-              $summary{POSIX_SIZE_READ_1M_4M}, ", ",
-              $summary{POSIX_SIZE_WRITE_1M_4M}, "\n";
-print IO_HIST "4M-10M, ",
-              $summary{POSIX_SIZE_READ_4M_10M}, ", ",
-              $summary{POSIX_SIZE_WRITE_4M_10M}, "\n";
-print IO_HIST "10M-100M, ",
-              $summary{POSIX_SIZE_READ_10M_100M}, ", ",
-              $summary{POSIX_SIZE_WRITE_10M_100M}, "\n";
-print IO_HIST "100M-1G, ",
-              $summary{POSIX_SIZE_READ_100M_1G}, ", ",
-              $summary{POSIX_SIZE_WRITE_100M_1G}, "\n";
-print IO_HIST "1G+, ",
-              $summary{POSIX_SIZE_READ_1G_PLUS}, ", ",
-              $summary{POSIX_SIZE_WRITE_1G_PLUS}, "\n";
+if (defined $summary{POSIX_OPENS})
+{
+    print IO_HIST "0-100, ",
+                  $summary{POSIX_SIZE_READ_0_100}, ", ",
+                  $summary{POSIX_SIZE_WRITE_0_100}, "\n";
+    print IO_HIST "101-1K, ",
+                  $summary{POSIX_SIZE_READ_100_1K}, ", ",
+                  $summary{POSIX_SIZE_WRITE_100_1K}, "\n";
+    print IO_HIST "1K-10K, ",
+                  $summary{POSIX_SIZE_READ_1K_10K}, ", ",
+                  $summary{POSIX_SIZE_WRITE_1K_10K}, "\n";
+    print IO_HIST "10K-100K, ",
+                  $summary{POSIX_SIZE_READ_10K_100K}, ", ",
+                  $summary{POSIX_SIZE_WRITE_10K_100K}, "\n";
+    print IO_HIST "100K-1M, ",
+                  $summary{POSIX_SIZE_READ_100K_1M}, ", ",
+                  $summary{POSIX_SIZE_WRITE_100K_1M}, "\n";
+    print IO_HIST "1M-4M, ",
+                  $summary{POSIX_SIZE_READ_1M_4M}, ", ",
+                  $summary{POSIX_SIZE_WRITE_1M_4M}, "\n";
+    print IO_HIST "4M-10M, ",
+                  $summary{POSIX_SIZE_READ_4M_10M}, ", ",
+                  $summary{POSIX_SIZE_WRITE_4M_10M}, "\n";
+    print IO_HIST "10M-100M, ",
+                  $summary{POSIX_SIZE_READ_10M_100M}, ", ",
+                  $summary{POSIX_SIZE_WRITE_10M_100M}, "\n";
+    print IO_HIST "100M-1G, ",
+                  $summary{POSIX_SIZE_READ_100M_1G}, ", ",
+                  $summary{POSIX_SIZE_WRITE_100M_1G}, "\n";
+    print IO_HIST "1G+, ",
+                  $summary{POSIX_SIZE_READ_1G_PLUS}, ", ",
+                  $summary{POSIX_SIZE_WRITE_1G_PLUS}, "\n";
+}
+else
+{
+    print IO_HIST "0-100, 0, 0\n";
+    print IO_HIST "101-1K, 0, 0\n";
+    print IO_HIST "1K-10K, 0, 0\n";
+    print IO_HIST "10K-100K, 0, 0\n";
+    print IO_HIST "100K-1M, 0, 0\n";
+    print IO_HIST "1M-4M, 0, 0\n";
+    print IO_HIST "4M-10M, 0, 0\n";
+    print IO_HIST "10M-100M, 0, 0\n";
+    print IO_HIST "100M-1G, 0, 0\n";
+    print IO_HIST "1G+, 0, 0\n";
+}
 close IO_HIST;
 
 if (defined $summary{MPIIO_INDEP_OPENS})
@@ -493,13 +568,21 @@ if (defined $summary{MPIIO_INDEP_OPENS})
     close IO_HIST;
 }
 
-# sequential and consecutive access patterns
+    # sequential and consecutive access patterns
 open (PATTERN, ">$tmp_dir/pattern.dat") || die("error opening output file: $!\n");
 print PATTERN "# op total sequential consecutive\n";
-print PATTERN "Read, ", $summary{POSIX_READS}, ", ",
-    $summary{POSIX_SEQ_READS}, ", ", $summary{POSIX_CONSEC_READS}, "\n";
-print PATTERN "Write, ", $summary{POSIX_WRITES}, ", ",
-    $summary{POSIX_SEQ_WRITES}, ", ", $summary{POSIX_CONSEC_WRITES}, "\n";
+if (defined $summary{POSIX_OPENS})
+{
+    print PATTERN "Read, ", $summary{POSIX_READS}, ", ",
+        $summary{POSIX_SEQ_READS}, ", ", $summary{POSIX_CONSEC_READS}, "\n";
+    print PATTERN "Write, ", $summary{POSIX_WRITES}, ", ",
+        $summary{POSIX_SEQ_WRITES}, ", ", $summary{POSIX_CONSEC_WRITES}, "\n";
+}
+else
+{
+    print PATTERN "Read, 0, 0, 0\n";
+    print PATTERN "Write, 0, 0, 0\n";
+}
 close PATTERN;
 
 # table of common access sizes
@@ -954,6 +1037,18 @@ if (defined $summary{MPIIO_INDEP_OPENS})
     close OP_COUNTS_PLT;
 }
 
+# do any extra work needed for plotting stdio graphs
+if (defined $summary{STDIO_OPENS})
+{
+    open(OP_COUNTS_PLT, ">>$tmp_dir/op-counts-eps.gplt") || die("error opening output file: $!\n");
+    my $tmp_sz = -s "$tmp_dir/op-counts-eps.gplt";
+    # overwrite existing newline
+    truncate(OP_COUNTS_PLT, $tmp_sz-1);
+    print OP_COUNTS_PLT ", \\
+    \"stdio-op-counts.dat\" using 2:xtic(1) title \"STDIO\"\n";
+    close OP_COUNTS_PLT;
+}
+
 # execute base gnuplot scripts
 system "$gnuplot time-summary-eps.gplt";
 system "$epstopdf time-summary.eps";
@@ -993,9 +1088,11 @@ my $latex_cmd_line = "\"\\def\\titlecmd{$cmd} \\
     \\def\\filecmi{$cmi} \\
     \\def\\filecms{$cms} \\
     \\def\\filecmi{$cmi} \\
-    \\def\\perfest{$perf_est} \\
     \\def\\perflayer{$perf_layer} \\
+    \\def\\perfest{$perf_est} \\
     \\def\\perfbytes{$perf_mbytes} \\
+    \\def\\stdioperfest{$stdio_perf_est} \\
+    \\def\\stdioperfbytes{$stdio_perf_mbytes} \\
     \\input{summary.tex}\" \\
     @__DARSHAN_PDFLATEX_HALT_ON_ERROR@";
 
@@ -1011,6 +1108,19 @@ if (defined $summary{MPIIO_INDEP_OPENS})
     $latex_cmd_line = substr($latex_cmd_line, 0, 1) . $mpiio_latex_flags . substr($latex_cmd_line, 1);
 }
 
+if($perf_est > 0)
+{
+    my $perf_latex_flags = "\\def\\inclperf{1} \\";
+    $latex_cmd_line = substr($latex_cmd_line, 0, 1) . $perf_latex_flags . substr($latex_cmd_line, 1);
+
+}
+
+if($stdio_perf_est > 0)
+{
+    my $stdio_latex_flags = "\\def\\inclstdio{1} \\";
+    $latex_cmd_line = substr($latex_cmd_line, 0, 1) . $stdio_latex_flags . substr($latex_cmd_line, 1);
+
+}
 
 $system_rc = system "$pdflatex $latex_cmd_line > latex.output";
 if($system_rc)
@@ -1047,6 +1157,7 @@ sub process_file_record
     }
 
     if($file_record{'POSIX_OPENS'} == 0 &&
+        (!defined $file_record{'STDIO_OPENS'}) &&
         (!defined $file_record{'MPIIO_INDEP_OPENS'} ||
         ($file_record{'MPIIO_INDEP_OPENS'} == 0 && $file_record{'MPIIO_COLL_OPENS'} == 0)))
     {
