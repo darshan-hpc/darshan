@@ -1151,14 +1151,14 @@ sub process_file_record
     my(%file_record) = %{$_[1]};
     my $rank = $file_record{'RANK'};
 
-    if(!defined $file_record{'POSIX_OPENS'})
+    if(!defined $file_record{'POSIX_OPENS'} && !defined $file_record{'STDIO_OPENS'})
     {
         # ignore data records that don't have POSIX & MPI data
         return;
     }
 
-    if($file_record{'POSIX_OPENS'} == 0 &&
-        (!defined $file_record{'STDIO_OPENS'}) &&
+    if((!defined $file_record{'POSIX_OPENS'} || $file_record{'POSIX_OPENS'} == 0) &&
+        (!defined $file_record{'STDIO_OPENS'} || $file_record{'STDIO_OPENS'} == 0) &&
         (!defined $file_record{'MPIIO_INDEP_OPENS'} ||
         ($file_record{'MPIIO_INDEP_OPENS'} == 0 && $file_record{'MPIIO_COLL_OPENS'} == 0)))
     {
@@ -1171,19 +1171,41 @@ sub process_file_record
     $hash_files{$hash}{'min_open_size'} = 0;
 
     # record largest size that the file reached at any rank
-    if(!defined($hash_files{$hash}{'max_size'}) ||
-        $hash_files{$hash}{'max_size'} <  
-        ($file_record{'POSIX_MAX_BYTE_READ'} + 1))
+    if(defined $file_record{'POSIX_OPENS'})
     {
-        $hash_files{$hash}{'max_size'} = 
-            $file_record{'POSIX_MAX_BYTE_READ'} + 1;
+        if(!defined($hash_files{$hash}{'max_size'}) ||
+            $hash_files{$hash}{'max_size'} <  
+            ($file_record{'POSIX_MAX_BYTE_READ'} + 1))
+        {
+            $hash_files{$hash}{'max_size'} = 
+                $file_record{'POSIX_MAX_BYTE_READ'} + 1;
+        }
+        if(!defined($hash_files{$hash}{'max_size'}) ||
+            $hash_files{$hash}{'max_size'} <  
+            ($file_record{'POSIX_MAX_BYTE_WRITTEN'} + 1))
+        {
+            $hash_files{$hash}{'max_size'} = 
+                $file_record{'POSIX_MAX_BYTE_WRITTEN'} + 1;
+        }
     }
-    if(!defined($hash_files{$hash}{'max_size'}) ||
-        $hash_files{$hash}{'max_size'} <  
-        ($file_record{'POSIX_MAX_BYTE_WRITTEN'} + 1))
+
+    # for stdio as well
+    if(defined $file_record{'STDIO_OPENS'})
     {
-        $hash_files{$hash}{'max_size'} = 
-            $file_record{'POSIX_MAX_BYTE_WRITTEN'} + 1;
+        if(!defined($hash_files{$hash}{'max_size'}) ||
+            $hash_files{$hash}{'max_size'} <  
+            ($file_record{'STDIO_MAX_BYTE_READ'} + 1))
+        {
+            $hash_files{$hash}{'max_size'} = 
+                $file_record{'STDIO_MAX_BYTE_READ'} + 1;
+        }
+        if(!defined($hash_files{$hash}{'max_size'}) ||
+            $hash_files{$hash}{'max_size'} <  
+            ($file_record{'STDIO_MAX_BYTE_WRITTEN'} + 1))
+        {
+            $hash_files{$hash}{'max_size'} = 
+                $file_record{'STDIO_MAX_BYTE_WRITTEN'} + 1;
+        }
     }
 
     # make sure there is an initial value for read and write flags
@@ -1221,12 +1243,12 @@ sub process_file_record
     else
     {
         # posix file
-        if($file_record{'POSIX_READS'} > 0)
+        if((defined $file_record{'POSIX_READS'} && $file_record{'POSIX_READS'} > 0) || (defined $file_record{'STDIO_READS'} && $file_record{'STDIO_READS'} > 0))
         {
             # data was read from the file
             $hash_files{$hash}{'was_read'} = 1;
         }
-        if($file_record{'POSIX_WRITES'} > 0)
+        if((defined $file_record{'POSIX_WRITES'} && $file_record{'POSIX_WRITES'} > 0) || (defined $file_record{'STDIO_WRITES'} && $file_record{'STDIO_WRITES'} > 0))
         {
             # data was written to the file 
             $hash_files{$hash}{'was_written'} = 1;
@@ -1237,24 +1259,52 @@ sub process_file_record
 
     if ($rank == -1)
     {
-        $hash_files{$hash}{'procs'}          = $nprocs;
-        $hash_files{$hash}{'slowest_rank'}   = $file_record{'POSIX_SLOWEST_RANK'};
-        $hash_files{$hash}{'slowest_time'}   = $file_record{'POSIX_F_SLOWEST_RANK_TIME'};
-        $hash_files{$hash}{'slowest_bytes'}  = $file_record{'POSIX_SLOWEST_RANK_BYTES'};
-        $hash_files{$hash}{'fastest_rank'}   = $file_record{'POSIX_FASTEST_RANK'};
-        $hash_files{$hash}{'fastest_time'}   = $file_record{'POSIX_F_FASTEST_RANK_TIME'};
-        $hash_files{$hash}{'fastest_bytes'}  = $file_record{'POSIX_FASTEST_RANK_BYTES'};
-        $hash_files{$hash}{'variance_time'}  = $file_record{'POSIX_F_VARIANCE_RANK_TIME'};
-        $hash_files{$hash}{'variance_bytes'} = $file_record{'POSIX_F_VARIANCE_RANK_BYTES'};
+        if(defined $file_record{'POSIX_OPENS'} && $file_record{'POSIX_OPENS'} > 0)
+        {
+            $hash_files{$hash}{'procs'}          = $nprocs;
+            $hash_files{$hash}{'slowest_rank'}   = $file_record{'POSIX_SLOWEST_RANK'};
+            $hash_files{$hash}{'slowest_time'}   = $file_record{'POSIX_F_SLOWEST_RANK_TIME'};
+            $hash_files{$hash}{'slowest_bytes'}  = $file_record{'POSIX_SLOWEST_RANK_BYTES'};
+            $hash_files{$hash}{'fastest_rank'}   = $file_record{'POSIX_FASTEST_RANK'};
+            $hash_files{$hash}{'fastest_time'}   = $file_record{'POSIX_F_FASTEST_RANK_TIME'};
+            $hash_files{$hash}{'fastest_bytes'}  = $file_record{'POSIX_FASTEST_RANK_BYTES'};
+            $hash_files{$hash}{'variance_time'}  = $file_record{'POSIX_F_VARIANCE_RANK_TIME'};
+            $hash_files{$hash}{'variance_bytes'} = $file_record{'POSIX_F_VARIANCE_RANK_BYTES'};
+        }
+        elsif(defined $file_record{'STDIO_OPENS'} && $file_record{'STDIO_OPENS'} > 0)
+        {
+            $hash_files{$hash}{'procs'}          = $nprocs;
+            $hash_files{$hash}{'slowest_rank'}   = $file_record{'STDIO_SLOWEST_RANK'};
+            $hash_files{$hash}{'slowest_time'}   = $file_record{'STDIO_F_SLOWEST_RANK_TIME'};
+            $hash_files{$hash}{'slowest_bytes'}  = $file_record{'STDIO_SLOWEST_RANK_BYTES'};
+            $hash_files{$hash}{'fastest_rank'}   = $file_record{'STDIO_FASTEST_RANK'};
+            $hash_files{$hash}{'fastest_time'}   = $file_record{'STDIO_F_FASTEST_RANK_TIME'};
+            $hash_files{$hash}{'fastest_bytes'}  = $file_record{'STDIO_FASTEST_RANK_BYTES'};
+            $hash_files{$hash}{'variance_time'}  = $file_record{'STDIO_F_VARIANCE_RANK_TIME'};
+            $hash_files{$hash}{'variance_bytes'} = $file_record{'STDIO_F_VARIANCE_RANK_BYTES'};
+        }
     }
     else
     {
-        my $total_time = $file_record{'POSIX_F_META_TIME'} +
+        my $total_time = 0;
+        my $total_bytes = 0;
+
+        if(defined $file_record{'POSIX_OPENS'})
+        {
+            $total_time += $file_record{'POSIX_F_META_TIME'} +
                          $file_record{'POSIX_F_READ_TIME'} +
                          $file_record{'POSIX_F_WRITE_TIME'};
-
-        my $total_bytes = $file_record{'POSIX_BYTES_READ'} +
+            $total_bytes += $file_record{'POSIX_BYTES_READ'} +
                           $file_record{'POSIX_BYTES_WRITTEN'};
+        }
+        if(defined $file_record{'STDIO_OPENS'})
+        {
+            $total_time += $file_record{'STDIO_F_META_TIME'} +
+                         $file_record{'STDIO_F_READ_TIME'} +
+                         $file_record{'STDIO_F_WRITE_TIME'};
+            $total_bytes += $file_record{'STDIO_BYTES_READ'} +
+                          $file_record{'STDIO_BYTES_WRITTEN'};
+        }
 
         if(!defined($hash_files{$hash}{'slowest_time'}) ||
            $hash_files{$hash}{'slowest_time'} < $total_time)
@@ -1336,20 +1386,41 @@ sub process_file_record
         }
         else
         {
-            # add up posix times
-            if(defined($hash_unique_file_time{$rank}))
+            if(defined($file_record{POSIX_OPENS}))
             {
-                $hash_unique_file_time{$rank} +=
-                    $file_record{POSIX_F_META_TIME} + 
-                    $file_record{POSIX_F_READ_TIME} + 
-                    $file_record{POSIX_F_WRITE_TIME};
+                # add up posix times
+                if(defined($hash_unique_file_time{$rank}))
+                {
+                    $hash_unique_file_time{$rank} +=
+                        $file_record{POSIX_F_META_TIME} + 
+                        $file_record{POSIX_F_READ_TIME} + 
+                        $file_record{POSIX_F_WRITE_TIME};
+                }
+                else
+                {
+                    $hash_unique_file_time{$rank} =
+                        $file_record{POSIX_F_META_TIME} + 
+                        $file_record{POSIX_F_READ_TIME} + 
+                        $file_record{POSIX_F_WRITE_TIME};
+                }
             }
-            else
+            if(defined($file_record{STDIO_OPENS}))
             {
-                $hash_unique_file_time{$rank} =
-                    $file_record{POSIX_F_META_TIME} + 
-                    $file_record{POSIX_F_READ_TIME} + 
-                    $file_record{POSIX_F_WRITE_TIME};
+                # add up posix times
+                if(defined($hash_unique_file_time{$rank}))
+                {
+                    $hash_unique_file_time{$rank} +=
+                        $file_record{STDIO_F_META_TIME} + 
+                        $file_record{STDIO_F_READ_TIME} + 
+                        $file_record{STDIO_F_WRITE_TIME};
+                }
+                else
+                {
+                    $hash_unique_file_time{$rank} =
+                        $file_record{STDIO_F_META_TIME} + 
+                        $file_record{STDIO_F_READ_TIME} + 
+                        $file_record{STDIO_F_WRITE_TIME};
+                }
             }
         }
     }
@@ -1365,7 +1436,14 @@ sub process_file_record
         }
         else
         {
-            $shared_file_time += $file_record{'POSIX_F_SLOWEST_RANK_TIME'};
+            if(defined $file_record{'POSIX_OPENS'} && $file_record{'POSIX_OPENS'} > 0)
+            {
+                $shared_file_time += $file_record{'POSIX_F_SLOWEST_RANK_TIME'};
+            }
+            elsif(defined $file_record{'STDIO_OPENS'} && $file_record{'STDIO_OPENS'} > 0)
+            {
+                $shared_file_time += $file_record{'STDIO_F_SLOWEST_RANK_TIME'};
+            }
         }
     }
 
@@ -1391,8 +1469,16 @@ sub process_file_record
     else
     {
         # normal case
-        $total_job_bytes += $file_record{'POSIX_BYTES_WRITTEN'} +
-            $file_record{'POSIX_BYTES_READ'};
+        if(defined $file_record{'POSIX_OPENS'})
+        {
+            $total_job_bytes += $file_record{'POSIX_BYTES_WRITTEN'} +
+                $file_record{'POSIX_BYTES_READ'};
+        }
+        if(defined $file_record{'STDIO_OPENS'})
+        {
+            $total_job_bytes += $file_record{'STDIO_BYTES_WRITTEN'} +
+            $file_record{'STDIO_BYTES_READ'};
+        }
     }
 }
 
