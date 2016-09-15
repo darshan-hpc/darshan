@@ -211,7 +211,7 @@ while($line = <PARSE_OUT>)
         $summary{$fields[3]} += $fields[4];
 
         # accumulate independent and shared data as well as fs data
-        if ($fields[3] eq "POSIX_F_READ_TIME")
+        if ($fields[3] eq "POSIX_F_READ_TIME" || $fields[3] eq "STDIO_F_READ_TIME")
         {
             if ($fields[1] == -1)
             {
@@ -222,7 +222,7 @@ while($line = <PARSE_OUT>)
                 $cumul_read_indep += $fields[4];
             }
         }
-        elsif ($fields[3] eq "POSIX_F_WRITE_TIME")
+        elsif ($fields[3] eq "POSIX_F_WRITE_TIME" || $fields[3] eq "STDIO_F_WRITE_TIME")
         {
             if ($fields[1] == -1)
             {
@@ -233,7 +233,7 @@ while($line = <PARSE_OUT>)
                 $cumul_write_indep += $fields[4];
             }
         }
-        elsif ($fields[3] eq "POSIX_F_META_TIME")
+        elsif ($fields[3] eq "POSIX_F_META_TIME" || $fields[3] eq "STDIO_F_META_TIME")
         {
             if ($fields[1] == -1)
             {
@@ -244,7 +244,7 @@ while($line = <PARSE_OUT>)
                 $cumul_meta_indep += $fields[4];
             }
         }
-        elsif ($fields[3] eq "POSIX_BYTES_READ")
+        elsif ($fields[3] eq "POSIX_BYTES_READ" || $fields[3] eq "STDIO_BYTES_READ")
         {
             if ($fields[1] == -1)
             {
@@ -260,7 +260,7 @@ while($line = <PARSE_OUT>)
             }
             $fs_data{$fields[6]}->[0] += $fields[4];
         }
-        elsif ($fields[3] eq "POSIX_BYTES_WRITTEN")
+        elsif ($fields[3] eq "POSIX_BYTES_WRITTEN" || $fields[3] eq "STDIO_BYTES_WRITTEN")
         {
             if ($fields[1] == -1)
             {
@@ -278,12 +278,13 @@ while($line = <PARSE_OUT>)
         }
 
         # record start and end of reads and writes
-        elsif ($fields[3] eq "POSIX_F_READ_START_TIMESTAMP")
+        elsif ($fields[3] eq "POSIX_F_READ_START_TIMESTAMP" ||
+            $fields[3] eq "STDIO_F_READ_START_TIMESTAMP")
         {
             # store until we find the end
             $last_read_start = $fields[4];
         }
-        elsif ($fields[3] eq "POSIX_F_READ_END_TIMESTAMP" && $fields[4] != 0)
+        elsif (($fields[3] eq "POSIX_F_READ_END_TIMESTAMP" || $fields[3] eq "STDIO_F_READ_END_TIMESTAMP") && $fields[4] != 0)
         {
             # assume we got the read start already 
             my $xdelta = $fields[4] - $last_read_start;
@@ -296,12 +297,13 @@ while($line = <PARSE_OUT>)
                 print FA_READ "$last_read_start\t$fields[1]\t$xdelta\t0\n";
             }
         }
-        elsif ($fields[3] eq "POSIX_F_WRITE_START_TIMESTAMP")
+        elsif ($fields[3] eq "POSIX_F_WRITE_START_TIMESTAMP" ||
+            $fields[3] eq "STDIO_F_WRITE_START_TIMESTAMP")
         {
             # store until we find the end
             $last_write_start = $fields[4];
         }
-        elsif ($fields[3] eq "POSIX_F_WRITE_END_TIMESTAMP" && $fields[4] != 0)
+        elsif (($fields[3] eq "POSIX_F_WRITE_END_TIMESTAMP" || $fields[3] eq "STDIO_F_WRITE_END_TIMESTAMP") && $fields[4] != 0)
         {
             # assume we got the write start already 
             my $xdelta = $fields[4] - $last_write_start;
@@ -877,7 +879,7 @@ open(FS_TABLE, ">$tmp_dir/fs-data-table.tex") || die("error opening output files
 print FS_TABLE "
 \\begin{tabular}{c|r|r|r|r}
 \\multicolumn{5}{c}{ } \\\\
-\\multicolumn{5}{c}{Data Transfer Per Filesystem (POSIX)} \\\\
+\\multicolumn{5}{c}{Data Transfer Per Filesystem (POSIX and STDIO)} \\\\
 \\hline
 \\multirow{2}{*}{File System} \& \\multicolumn{2}{c}{Write} \\vline \& \\multicolumn{2}{c}{Read} \\\\
 \\cline{2-5}
@@ -926,7 +928,7 @@ open(VAR_TABLE, ">$tmp_dir/variance-table.tex") || die("error opening output fil
 print VAR_TABLE "
 \\begin{tabular}{c|r|r|r|r|r|r|r|r|r}
 \\multicolumn{10}{c}{} \\\\
-\\multicolumn{10}{c}{Variance in Shared Files (POSIX)} \\\\
+\\multicolumn{10}{c}{Variance in Shared Files (POSIX and STDIO)} \\\\
 \\hline
 File \& Processes \& \\multicolumn{3}{c}{Fastest} \\vline \&
 \\multicolumn{3}{c}{Slowest} \\vline \& \\multicolumn{2}{c}{\$\\sigma\$} \\\\
