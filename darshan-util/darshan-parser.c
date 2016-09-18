@@ -114,6 +114,8 @@ void mpiio_print_total_file(struct darshan_mpiio_file *mfile);
 void mpiio_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
 
 void stdio_accum_perf(struct darshan_stdio_file *pfile, perf_data_t *pdata);
+void stdio_accum_file(struct darshan_stdio_file *pfile, hash_entry_t *hfile, int64_t nprocs);
+void stdio_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
 
 void calc_perf(perf_data_t *pdata, int64_t nprocs);
 
@@ -515,6 +517,8 @@ int main(int argc, char **argv)
             }
             else if(i == DARSHAN_STDIO_MOD)
             {
+                stdio_accum_file((struct darshan_stdio_file*)mod_buf, &total, job.nprocs);
+                stdio_accum_file((struct darshan_stdio_file*)mod_buf, hfile, job.nprocs);
                 stdio_accum_perf((struct darshan_stdio_file*)mod_buf, &pdata);
             }
 
@@ -556,6 +560,10 @@ int main(int argc, char **argv)
             else if(i == DARSHAN_MPIIO_MOD)
             {
                 mpiio_calc_file(file_hash, &fdata);
+            }
+            else if(i == DARSHAN_STDIO_MOD)
+            {
+                stdio_calc_file(file_hash, &fdata);
             }
 
             printf("\n# files\n");
@@ -681,6 +689,117 @@ cleanup:
     }
 
     return(ret);
+}
+
+void stdio_accum_file(struct darshan_stdio_file *pfile,
+                      hash_entry_t *hfile,
+                      int64_t nprocs)
+{
+    int i;
+    struct darshan_stdio_file* tmp;
+
+    hfile->procs += 1;
+
+    if(pfile->base_rec.rank == -1)
+    {
+        hfile->slowest_time = pfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
+    }
+    else
+    {
+        hfile->slowest_time = max(hfile->slowest_time, 
+            (pfile->fcounters[STDIO_F_META_TIME] +
+            pfile->fcounters[STDIO_F_READ_TIME] +
+            pfile->fcounters[STDIO_F_WRITE_TIME]));
+    }
+
+    if(pfile->base_rec.rank == -1)
+    {
+        hfile->procs = nprocs;
+        hfile->type |= FILETYPE_SHARED;
+
+    }
+    else if(hfile->procs > 1)
+    {
+        hfile->type &= (~FILETYPE_UNIQUE);
+        hfile->type |= FILETYPE_PARTSHARED;
+    }
+    else
+    {
+        hfile->type |= FILETYPE_UNIQUE;
+    }
+
+    hfile->cumul_time += pfile->fcounters[STDIO_F_META_TIME] +
+                         pfile->fcounters[STDIO_F_READ_TIME] +
+                         pfile->fcounters[STDIO_F_WRITE_TIME];
+
+    if(hfile->rec_dat == NULL)
+    {
+        hfile->rec_dat = malloc(sizeof(struct darshan_stdio_file));
+        assert(hfile->rec_dat);
+        memset(hfile->rec_dat, 0, sizeof(struct darshan_stdio_file));
+    }
+    tmp = (struct darshan_stdio_file*)hfile->rec_dat;
+
+    for(i = 0; i < STDIO_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+        case STDIO_MAX_BYTE_READ:
+        case STDIO_MAX_BYTE_WRITTEN:
+            if (tmp->counters[i] < pfile->counters[i])
+            {
+                tmp->counters[i] = pfile->counters[i];
+            }
+            break;
+        case POSIX_FASTEST_RANK:
+        case POSIX_SLOWEST_RANK:
+        case POSIX_FASTEST_RANK_BYTES:
+        case POSIX_SLOWEST_RANK_BYTES:
+            tmp->counters[i] = 0;
+            break;
+        default:
+            tmp->counters[i] += pfile->counters[i];
+            break;
+        }
+    }
+
+    for(i = 0; i < STDIO_F_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case STDIO_F_OPEN_START_TIMESTAMP:
+            case STDIO_F_CLOSE_START_TIMESTAMP:
+            case STDIO_F_READ_START_TIMESTAMP:
+            case STDIO_F_WRITE_START_TIMESTAMP:
+                if(tmp->fcounters[i] == 0 || 
+                    tmp->fcounters[i] > pfile->fcounters[i])
+                {
+                    tmp->fcounters[i] = pfile->fcounters[i];
+                }
+                break;
+            case STDIO_F_READ_END_TIMESTAMP:
+            case STDIO_F_WRITE_END_TIMESTAMP:
+            case STDIO_F_OPEN_END_TIMESTAMP:
+            case STDIO_F_CLOSE_END_TIMESTAMP:
+                if(tmp->fcounters[i] == 0 || 
+                    tmp->fcounters[i] < pfile->fcounters[i])
+                {
+                    tmp->fcounters[i] = pfile->fcounters[i];
+                }
+                break;
+            case STDIO_F_FASTEST_RANK_TIME:
+            case STDIO_F_SLOWEST_RANK_TIME:
+            case STDIO_F_VARIANCE_RANK_TIME:
+            case STDIO_F_VARIANCE_RANK_BYTES:
+                tmp->fcounters[i] = 0;
+                break;
+            default:
+                tmp->fcounters[i] += pfile->fcounters[i];
+                break;
+        }
+    }
+
+    return;
 }
 
 void posix_accum_file(struct darshan_posix_file *pfile,
@@ -1296,6 +1415,74 @@ void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
     return;
 }
 
+void stdio_calc_file(hash_entry_t *file_hash, 
+                     file_data_t *fdata)
+{
+    hash_entry_t *curr = NULL;
+    hash_entry_t *tmp = NULL;
+    struct darshan_stdio_file *file_rec;
+
+    memset(fdata, 0, sizeof(*fdata));
+    HASH_ITER(hlink, file_hash, curr, tmp)
+    {
+        int64_t bytes;
+        int64_t r;
+        int64_t w;
+
+        file_rec = (struct darshan_stdio_file*)curr->rec_dat;
+        assert(file_rec);
+
+        bytes = file_rec->counters[STDIO_BYTES_READ] +
+                file_rec->counters[STDIO_BYTES_WRITTEN];
+
+        r = file_rec->counters[STDIO_READS];
+
+        w = file_rec->counters[STDIO_WRITES];
+
+        fdata->total += 1;
+        fdata->total_size += bytes;
+        fdata->total_max = max(fdata->total_max, bytes);
+
+        if (r && !w)
+        {
+            fdata->read_only += 1;
+            fdata->read_only_size += bytes;
+            fdata->read_only_max = max(fdata->read_only_max, bytes);
+        }
+
+        if (!r && w)
+        {
+            fdata->write_only += 1;
+            fdata->write_only_size += bytes;
+            fdata->write_only_max = max(fdata->write_only_max, bytes);
+        }
+
+        if (r && w)
+        {
+            fdata->read_write += 1;
+            fdata->read_write_size += bytes;
+            fdata->read_write_max = max(fdata->read_write_max, bytes);
+        }
+
+        if ((curr->type & (FILETYPE_SHARED|FILETYPE_PARTSHARED)))
+        {
+            fdata->shared += 1;
+            fdata->shared_size += bytes;
+            fdata->shared_max = max(fdata->shared_max, bytes);
+        }
+
+        if ((curr->type & (FILETYPE_UNIQUE)))
+        {
+            fdata->unique += 1;
+            fdata->unique_size += bytes;
+            fdata->unique_max = max(fdata->unique_max, bytes);
+        }
+    }
+
+    return;
+}
+
+
 void posix_calc_file(hash_entry_t *file_hash, 
                      file_data_t *fdata)
 {
@@ -1316,7 +1503,6 @@ void posix_calc_file(hash_entry_t *file_hash,
         bytes = file_rec->counters[POSIX_BYTES_READ] +
                 file_rec->counters[POSIX_BYTES_WRITTEN];
 
-        /* XXX: need to update this to account for stdio counters, too */
         r = file_rec->counters[POSIX_READS];
 
         w = file_rec->counters[POSIX_WRITES];
