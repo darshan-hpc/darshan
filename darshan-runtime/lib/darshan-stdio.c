@@ -78,6 +78,8 @@
 #include <assert.h>
 #include <libgen.h>
 #include <pthread.h>
+#include <stdint.h>
+#include <limits.h>
 
 #include "darshan.h"
 #include "darshan-dynamic.h"
@@ -488,7 +490,6 @@ int DARSHAN_DECL(vfprintf)(FILE *stream, const char *format, va_list ap)
 {
     int ret;
     double tm1, tm2;
-    long start_off, end_off;
 
     MAP_OR_FAIL(vfprintf);
 
@@ -1115,6 +1116,8 @@ static void stdio_shutdown(
     MPI_Op red_op;
     int stdio_rec_count;
     double stdio_time;
+    FILE * fp[3];
+    int trim_records = 0;
 
     STDIO_LOCK();
     assert(stdio_runtime);
@@ -1217,6 +1220,30 @@ static void stdio_shutdown(
 
         DARSHAN_MPI_CALL(PMPI_Type_free)(&red_type);
         DARSHAN_MPI_CALL(PMPI_Op_free)(&red_op);
+    }
+
+    /* filter out any records that have no activity on them; this is
+     * specifically meant to filter out unused stdin, stdout, or stderr
+     * entries
+     *
+     * NOTE: we can no longer use the darshan_lookup_record_ref()
+     * function at this point to find specific records, because the
+     * logic above has likely broken the mapping to the static array.
+     * We walk it manually here instead.
+     */
+    for(i=0; i<stdio_rec_count; i++)
+    {
+        if(stdio_rec_buf[i].counters[STDIO_WRITES] == 0 &&
+            stdio_rec_buf[i].counters[STDIO_READS] == 0)
+        {
+            if(i != (stdio_rec_count-1))
+            {
+                memmove(&stdio_rec_buf[i], &stdio_rec_buf[i+1],
+                    (stdio_rec_count-i-1)*sizeof(stdio_rec_buf[i]));
+                stdio_rec_count--;
+                i--;
+            }
+        }
     }
 
     /* update output buffer size to account for shared file reduction */
