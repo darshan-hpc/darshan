@@ -117,6 +117,7 @@ void stdio_accum_perf(struct darshan_stdio_file *pfile, perf_data_t *pdata);
 void stdio_accum_file(struct darshan_stdio_file *pfile, hash_entry_t *hfile, int64_t nprocs);
 void stdio_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
 void stdio_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
+void stdio_print_total_file(struct darshan_stdio_file *pfile);
 
 void calc_perf(perf_data_t *pdata, int64_t nprocs);
 
@@ -548,6 +549,10 @@ int main(int argc, char **argv)
             else if(i == DARSHAN_MPIIO_MOD)
             {
                 mpiio_print_total_file((struct darshan_mpiio_file*)total.rec_dat);
+            }
+            else if(i == DARSHAN_STDIO_MOD)
+            {
+                stdio_print_total_file((struct darshan_stdio_file*)total.rec_dat);
             }
         }
 
@@ -1671,6 +1676,23 @@ void calc_perf(perf_data_t *pdata,
                                      (pdata->slowest_rank_time +
                                       pdata->shared_time_by_slowest);
 
+    return;
+}
+
+void stdio_print_total_file(struct darshan_stdio_file *pfile)
+{
+    int i;
+    printf("\n");
+    for(i = 0; i < STDIO_NUM_INDICES; i++)
+    {
+        printf("total_%s: %"PRId64"\n",
+            stdio_counter_names[i], pfile->counters[i]);
+    }
+    for(i = 0; i < STDIO_F_NUM_INDICES; i++)
+    {
+        printf("total_%s: %lf\n",
+            stdio_f_counter_names[i], pfile->fcounters[i]);
+    }
     return;
 }
 
