@@ -16,7 +16,7 @@
 struct darshan_mod_record_ref
 {
     int rank;
-    char mod_dat[DEF_MOD_BUF_SIZE];
+    char *mod_dat;
     struct darshan_mod_record_ref *prev;
     struct darshan_mod_record_ref *next;
 };
@@ -269,6 +269,7 @@ int main(int argc, char *argv[])
                         mod_rec1->next->prev = mod_rec1->prev;
                         rec_ref1->mod_recs[i] = mod_rec1->next;
                     }
+                    free(mod_rec1->mod_dat);
                     free(mod_rec1);
                 }
                 if(mod_buf2)
@@ -283,6 +284,7 @@ int main(int argc, char *argv[])
                         mod_rec2->next->prev = mod_rec2->prev;
                         rec_ref2->mod_recs[i] = mod_rec2->next;
                     }
+                    free(mod_rec2->mod_dat);
                     free(mod_rec2);
                 }
             }
@@ -327,6 +329,7 @@ int main(int argc, char *argv[])
                     mod_rec2->next->prev = mod_rec2->prev;
                     rec_ref2->mod_recs[i] = mod_rec2->next;
                 }
+                free(mod_rec2->mod_dat);
                 free(mod_rec2);
             }
         }
@@ -377,16 +380,18 @@ static int darshan_build_global_record_hash(
             assert(mod_rec);
             memset(mod_rec, 0, sizeof(struct darshan_mod_record_ref));
 
-            ret = mod_logutils[i]->log_get_record(fd, mod_rec->mod_dat);
+            ret = mod_logutils[i]->log_get_record(fd, (void **)&(mod_rec->mod_dat));
             if(ret < 0)
             {
                 fprintf(stderr, "Error: unable to read module %s data from log file.\n",
                     darshan_module_names[i]);
+                free(mod_rec->mod_dat);
                 free(mod_rec);
                 return(-1);
             }
             else if(ret == 0)
             {
+                free(mod_rec->mod_dat);
                 free(mod_rec);
                 break;
             }

@@ -109,7 +109,7 @@ int build_mod_shared_rec_hash(char **infile_list, int n_infiles,
             return(-1);
         }
 
-        while((ret = mod_logutils[mod_id]->log_get_record(in_fd, mod_buf)) == 1)
+        while((ret = mod_logutils[mod_id]->log_get_record(in_fd, (void **)&mod_buf)) == 1)
         {
             base_rec = (struct darshan_base_record *)mod_buf;
             if(init_rank == -1)
@@ -422,7 +422,7 @@ int main(int argc, char *argv[])
             }
 
             /* loop over module records and write them to output file */
-            while((ret = mod_logutils[i]->log_get_record(in_fd, mod_buf)) == 1)
+            while((ret = mod_logutils[i]->log_get_record(in_fd, (void **)&mod_buf)) == 1)
             {
                 base_rec = (struct darshan_base_record *)mod_buf;
 

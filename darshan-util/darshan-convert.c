@@ -258,7 +258,7 @@ int main(int argc, char **argv)
     struct darshan_mnt_info *mnt_data_array;
     struct darshan_name_record_ref *name_hash = NULL;
     struct darshan_name_record_ref *ref, *tmp;
-    char mod_buf[DEF_MOD_BUF_SIZE];
+    char *mod_buf;
     enum darshan_comp_type comp_type;
     int bzip2;
     int obfuscate;
@@ -363,6 +363,14 @@ int main(int argc, char **argv)
         return(-1);
     }
 
+    mod_buf = malloc(DEF_MOD_BUF_SIZE);
+    if(!mod_buf)
+    {
+        darshan_log_close(infile);
+        darshan_log_close(outfile);
+        return(-1);
+    }
+
     /* loop over each module and convert it's data to the new format */
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
@@ -381,7 +389,7 @@ int main(int argc, char **argv)
         /* we have module data to convert */
         memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
 
-        ret = mod_logutils[i]->log_get_record(infile, mod_buf);
+        ret = mod_logutils[i]->log_get_record(infile, (void **)&mod_buf);
         if(ret != 1)
         {
             fprintf(stderr, "Error: failed to parse the first %s module record.\n",
@@ -409,7 +417,7 @@ int main(int argc, char **argv)
 
                 memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
             }
-        } while((ret = mod_logutils[i]->log_get_record(infile, mod_buf)) == 1);
+        } while((ret = mod_logutils[i]->log_get_record(infile, (void **)&mod_buf)) == 1);
     }
 
     darshan_log_close(infile);
@@ -424,6 +432,8 @@ int main(int argc, char **argv)
         free(ref->name_record);
         free(ref);
     }
+
+    free(mod_buf);
 
     return(ret);
 }

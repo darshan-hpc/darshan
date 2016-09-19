@@ -422,7 +422,7 @@ int main(int argc, char **argv)
                 mod_logutils[i]->log_print_description();
         }
 
-        ret = mod_logutils[i]->log_get_record(fd, mod_buf);
+        ret = mod_logutils[i]->log_get_record(fd, (void **)&mod_buf);
         if(ret != 1)
         {
             fprintf(stderr, "Error: failed to parse the first %s module record.\n",
@@ -526,7 +526,7 @@ int main(int argc, char **argv)
 
             memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
 
-        } while((ret = mod_logutils[i]->log_get_record(fd, mod_buf)) == 1);
+        } while((ret = mod_logutils[i]->log_get_record(fd, (void **)&mod_buf)) == 1);
         if (ret < 0)
         {
             ret = -1;
