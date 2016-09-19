@@ -32,7 +32,7 @@ char *null_f_counter_names[] = {
 #undef X
 
 /* prototypes for each of the NULL module's logutil functions */
-static int darshan_log_get_null_record(darshan_fd fd, void* null_buf);
+static int darshan_log_get_null_record(darshan_fd fd, void** null_buf_p);
 static int darshan_log_put_null_record(darshan_fd fd, void* null_buf, int ver);
 static void darshan_log_print_null_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
@@ -60,15 +60,34 @@ struct darshan_mod_logutil_funcs null_logutils =
  * 'rec_id'. Return 1 on successful record read, 0 on no more data,
  * and -1 on error.
  */
-static int darshan_log_get_null_record(darshan_fd fd, void* null_buf)
+static int darshan_log_get_null_record(darshan_fd fd, void** null_buf_p)
 {
-    struct darshan_null_record *rec;
+    struct darshan_null_record *rec = *((struct darshan_null_record **)null_buf_p);
     int i;
     int ret;
 
+    if(fd->mod_map[DARSHAN_NULL_MOD].len == 0)
+        return(0);
+
+    if(*null_buf_p == NULL)
+    {
+        rec = malloc(sizeof(*rec));
+        if(!rec)
+            return(-1);
+    }
+
     /* read a NULL module record from the darshan log file */
-    ret = darshan_log_get_mod(fd, DARSHAN_NULL_MOD, null_buf,
+    ret = darshan_log_get_mod(fd, DARSHAN_NULL_MOD, rec,
         sizeof(struct darshan_null_record));
+
+    if(*null_buf_p == NULL)
+    {
+        if(ret == sizeof(struct darshan_null_record))
+            *null_buf_p = rec;
+        else
+            free(rec);
+    }
+
     if(ret < 0)
         return(-1);
     else if(ret < sizeof(struct darshan_null_record))
@@ -76,10 +95,8 @@ static int darshan_log_get_null_record(darshan_fd fd, void* null_buf)
     else
     {
         /* if the read was successful, do any necessary byte-swapping */
-        rec = (struct darshan_null_record *)null_buf;
         if(fd->swap_flag)
         {
-            /* swap bytes if necessary */
             DARSHAN_BSWAP64(&(rec->base_rec.id));
             DARSHAN_BSWAP64(&(rec->base_rec.rank));
             for(i=0; i<NULL_NUM_INDICES; i++)

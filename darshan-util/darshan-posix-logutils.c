@@ -32,7 +32,7 @@ char *posix_f_counter_names[] = {
 
 #define DARSHAN_POSIX_FILE_SIZE_1 680
 
-static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf);
+static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p);
 static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver);
 static void darshan_log_print_posix_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
@@ -51,13 +51,23 @@ struct darshan_mod_logutil_funcs posix_logutils =
     .log_agg_records = &darshan_log_agg_posix_files,
 };
 
-static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf)
+static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p)
 {
-    struct darshan_posix_file *file = (struct darshan_posix_file *)posix_buf;
+    struct darshan_posix_file *file = *((struct darshan_posix_file **)posix_buf_p);
     int rec_len;
     char *buffer, *p;
     int i;
     int ret = -1;
+
+    if(fd->mod_map[DARSHAN_POSIX_MOD].len == 0)
+        return(0);
+
+    if(*posix_buf_p == NULL)
+    {
+        file = malloc(sizeof(*file));
+        if(!file)
+            return(-1);
+    }
 
     /* read the POSIX record from file, checking the version first so we
      * can correctly up-convert to the current darshan version
@@ -66,7 +76,11 @@ static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf)
     {
         buffer = malloc(DARSHAN_POSIX_FILE_SIZE_1);
         if(!buffer)
+        {
+            if(*posix_buf_p == NULL)
+                free(file);
             return(-1);
+        }
 
         rec_len = DARSHAN_POSIX_FILE_SIZE_1;
         ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, buffer, rec_len);
@@ -90,7 +104,15 @@ static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf)
     else if(fd->mod_ver[DARSHAN_POSIX_MOD] == 2)
     {
         rec_len = sizeof(struct darshan_posix_file);
-        ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, posix_buf, rec_len);
+        ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, file, rec_len);
+    }
+
+    if(*posix_buf_p == NULL)
+    {
+        if(ret == rec_len)
+            *posix_buf_p = file;
+        else
+            free(file);
     }
 
     if(ret < 0)
@@ -99,9 +121,9 @@ static int darshan_log_get_posix_file(darshan_fd fd, void* posix_buf)
         return(0);
     else
     {
+        /* if the read was successful, do any necessary byte-swapping */
         if(fd->swap_flag)
         {
-            /* swap bytes if necessary */
             DARSHAN_BSWAP64(&file->base_rec.id);
             DARSHAN_BSWAP64(&file->base_rec.rank);
             for(i=0; i<POSIX_NUM_INDICES; i++)

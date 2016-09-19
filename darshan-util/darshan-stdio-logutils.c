@@ -32,7 +32,7 @@ char *stdio_f_counter_names[] = {
 #undef X
 
 /* prototypes for each of the STDIO module's logutil functions */
-static int darshan_log_get_stdio_record(darshan_fd fd, void* stdio_buf);
+static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p);
 static int darshan_log_put_stdio_record(darshan_fd fd, void* stdio_buf, int ver);
 static void darshan_log_print_stdio_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
@@ -57,15 +57,34 @@ struct darshan_mod_logutil_funcs stdio_logutils =
  * buffer in 'stdio_buf'. Return 1 on successful record read, 0 on no 
  * more data, and -1 on error.
  */
-static int darshan_log_get_stdio_record(darshan_fd fd, void* stdio_buf)
+static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p)
 {
-    struct darshan_stdio_file *file;
+    struct darshan_stdio_file *file = *((struct darshan_stdio_file **)stdio_buf_p);
     int i;
     int ret;
 
+    if(fd->mod_map[DARSHAN_STDIO_MOD].len == 0)
+        return(0);
+
+    if(*stdio_buf_p == NULL)
+    {
+        file = malloc(sizeof(*file));
+        if(!file)
+            return(-1);
+    }
+
     /* read a STDIO module record from the darshan log file */
-    ret = darshan_log_get_mod(fd, DARSHAN_STDIO_MOD, stdio_buf,
+    ret = darshan_log_get_mod(fd, DARSHAN_STDIO_MOD, file,
         sizeof(struct darshan_stdio_file));
+
+    if(*stdio_buf_p == NULL)
+    {
+        if(ret == sizeof(struct darshan_stdio_file))
+            *stdio_buf_p = file;
+        else
+            free(file);
+    }
+
     if(ret < 0)
         return(-1);
     else if(ret < sizeof(struct darshan_stdio_file))
@@ -73,10 +92,8 @@ static int darshan_log_get_stdio_record(darshan_fd fd, void* stdio_buf)
     else
     {
         /* if the read was successful, do any necessary byte-swapping */
-        file = (struct darshan_stdio_file *)stdio_buf;
         if(fd->swap_flag)
         {
-            /* swap bytes if necessary */
             DARSHAN_BSWAP64(&file->base_rec.id);
             DARSHAN_BSWAP64(&file->base_rec.rank);
             for(i=0; i<STDIO_NUM_INDICES; i++)

@@ -30,7 +30,7 @@ char *pnetcdf_f_counter_names[] = {
 };
 #undef X
 
-static int darshan_log_get_pnetcdf_file(darshan_fd fd, void* pnetcdf_buf);
+static int darshan_log_get_pnetcdf_file(darshan_fd fd, void** pnetcdf_buf_p);
 static int darshan_log_put_pnetcdf_file(darshan_fd fd, void* pnetcdf_buf, int ver);
 static void darshan_log_print_pnetcdf_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
@@ -49,24 +49,42 @@ struct darshan_mod_logutil_funcs pnetcdf_logutils =
     .log_agg_records = &darshan_log_agg_pnetcdf_files
 };
 
-static int darshan_log_get_pnetcdf_file(darshan_fd fd, void* pnetcdf_buf)
+static int darshan_log_get_pnetcdf_file(darshan_fd fd, void** pnetcdf_buf_p)
 {
-    struct darshan_pnetcdf_file *file;
+    struct darshan_pnetcdf_file *file = *((struct darshan_pnetcdf_file **)pnetcdf_buf_p);
     int i;
     int ret;
 
-    ret = darshan_log_get_mod(fd, DARSHAN_PNETCDF_MOD, pnetcdf_buf,
+    if(fd->mod_map[DARSHAN_PNETCDF_MOD].len == 0)
+        return(0);
+
+    if(*pnetcdf_buf_p == NULL)
+    {
+        file = malloc(sizeof(*file));
+        if(!file)
+            return(-1);
+    }
+
+    ret = darshan_log_get_mod(fd, DARSHAN_PNETCDF_MOD, file,
         sizeof(struct darshan_pnetcdf_file));
+
+    if(*pnetcdf_buf_p == NULL)
+    {
+        if(ret == sizeof(struct darshan_pnetcdf_file))
+            *pnetcdf_buf_p = file;
+        else
+            free(file);
+    }
+
     if(ret < 0)
         return(-1);
     else if(ret < sizeof(struct darshan_pnetcdf_file))
         return(0);
     else
     {
-        file = (struct darshan_pnetcdf_file *)pnetcdf_buf;
+        /* if the read was successful, do any necessary byte-swapping */
         if(fd->swap_flag)
         {
-            /* swap bytes if necessary */
             DARSHAN_BSWAP64(&(file->base_rec.id));
             DARSHAN_BSWAP64(&(file->base_rec.rank));
             for(i=0; i<PNETCDF_NUM_INDICES; i++)

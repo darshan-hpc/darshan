@@ -34,7 +34,7 @@ char *bgq_f_counter_names[] = {
  */
 #define DARSHAN_BGQ_FILE_SIZE_1 (112 + 8)
 
-static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf);
+static int darshan_log_get_bgq_rec(darshan_fd fd, void** bgq_buf_p);
 static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf, int ver);
 static void darshan_log_print_bgq_rec(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
@@ -53,13 +53,23 @@ struct darshan_mod_logutil_funcs bgq_logutils =
     .log_agg_records = &darshan_log_agg_bgq_recs
 };
 
-static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf)
+static int darshan_log_get_bgq_rec(darshan_fd fd, void** bgq_buf_p)
 {
-    struct darshan_bgq_record *rec = (struct darshan_bgq_record *)bgq_buf;
+    struct darshan_bgq_record *rec = *((struct darshan_bgq_record **)bgq_buf_p);
     int rec_len;
     char *buffer, *p;
     int i;
     int ret = -1;
+
+    if(fd->mod_map[DARSHAN_BGQ_MOD].len == 0)
+        return(0);
+
+    if(*bgq_buf_p == NULL)
+    {
+        rec = malloc(sizeof(*rec));
+        if(!rec)
+            return(-1);
+    }
 
     /* read the BGQ record from file, checking the version first so we
      * can read it correctly
@@ -68,7 +78,11 @@ static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf)
     {
         buffer = malloc(DARSHAN_BGQ_FILE_SIZE_1);
         if(!buffer)
+        {
+            if(*bgq_buf_p == NULL)
+                free(rec);
             return(-1);
+        }
 
         rec_len = DARSHAN_BGQ_FILE_SIZE_1;
         ret = darshan_log_get_mod(fd, DARSHAN_BGQ_MOD, buffer, rec_len);
@@ -91,6 +105,14 @@ static int darshan_log_get_bgq_rec(darshan_fd fd, void* bgq_buf)
     {
         rec_len = sizeof(struct darshan_bgq_record);
         ret = darshan_log_get_mod(fd, DARSHAN_BGQ_MOD, rec, rec_len);
+    }
+
+    if(*bgq_buf_p == NULL)
+    {
+        if(ret == rec_len)
+            *bgq_buf_p = rec;
+        else
+            free(rec);
     }
 
     if(ret < 0)

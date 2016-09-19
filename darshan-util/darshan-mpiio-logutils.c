@@ -30,7 +30,7 @@ char *mpiio_f_counter_names[] = {
 };
 #undef X
 
-static int darshan_log_get_mpiio_file(darshan_fd fd, void* mpiio_buf);
+static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p);
 static int darshan_log_put_mpiio_file(darshan_fd fd, void* mpiio_buf, int ver);
 static void darshan_log_print_mpiio_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
@@ -49,24 +49,42 @@ struct darshan_mod_logutil_funcs mpiio_logutils =
     .log_agg_records = &darshan_log_agg_mpiio_files
 };
 
-static int darshan_log_get_mpiio_file(darshan_fd fd, void* mpiio_buf)
+static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p)
 {
-    struct darshan_mpiio_file *file;
+    struct darshan_mpiio_file *file = *((struct darshan_mpiio_file **)mpiio_buf_p);
     int i;
     int ret;
 
-    ret = darshan_log_get_mod(fd, DARSHAN_MPIIO_MOD, mpiio_buf,
+    if(fd->mod_map[DARSHAN_MPIIO_MOD].len == 0)
+        return(0);
+
+    if(*mpiio_buf_p == NULL)
+    {
+        file = malloc(sizeof(*file));
+        if(!file)
+            return(-1);
+    }
+
+    ret = darshan_log_get_mod(fd, DARSHAN_MPIIO_MOD, file,
         sizeof(struct darshan_mpiio_file));
+
+    if(*mpiio_buf_p == NULL)
+    {
+        if(ret == sizeof(struct darshan_mpiio_file))
+            *mpiio_buf_p = file;
+        else
+            free(file);
+    }
+
     if(ret < 0)
         return(-1);
     else if(ret < sizeof(struct darshan_mpiio_file))
         return(0);
     else
     {
-        file = (struct darshan_mpiio_file *)mpiio_buf;
+        /* if the read was successful, do any necessary byte-swapping */
         if(fd->swap_flag)
         {
-            /* swap bytes if necessary */
             DARSHAN_BSWAP64(&(file->base_rec.id));
             DARSHAN_BSWAP64(&(file->base_rec.rank));
             for(i=0; i<MPIIO_NUM_INDICES; i++)

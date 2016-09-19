@@ -69,18 +69,18 @@ struct darshan_mod_logutil_funcs
      * return 1 on successful read of record, 0 on no more
      * module data, -1 on error
      *      - 'fd' is the file descriptor to get record from
-     *      - 'buf' is the buffer to store the record in
-     *      - 'rec_id' is the corresponding darshan record id
+     *      - 'buf' is a pointer to a buffer address to store the record in
+     *          * NOTE: if the buffer pointed to is NULL, the record memory is malloc'ed
      */
     int (*log_get_record)(
         darshan_fd fd,
-        void* buf
+        void** buf
     );
     /* put a single module record into the log file.
      * return 0 on success, -1 on error
      *      - 'fd' is the file descriptor to put record into
      *      - 'buf' is the buffer containing the record data
-     *      - 'rec_id' is the corresponding darshan record id
+     *      - 'ver' is the version of the record
      */
     int (*log_put_record)(
         darshan_fd fd,
