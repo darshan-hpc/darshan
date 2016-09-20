@@ -212,34 +212,62 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
         }
     }
 
-    /* would it be more or less useful to sort the OST IDs before comparing? */
-    if ( lustre_rec1->counters[LUSTRE_STRIPE_WIDTH] == lustre_rec2->counters[LUSTRE_STRIPE_WIDTH] ) {
-        for (i = 0; i < lustre_rec1->counters[LUSTRE_STRIPE_WIDTH]; i++ )
+    /* TODO: would it be more or less useful to sort the OST IDs before comparing? */
+    i = 0;
+    while (1)
+    {
+        char strbuf[25];
+        snprintf( strbuf, 25, "LUSTRE_OST_ID_%d", i );
+        if (!lustre_rec2 || (i >= lustre_rec2->counters[LUSTRE_STRIPE_WIDTH]))
         {
-            if (lustre_rec1->ost_ids[i] != lustre_rec2->ost_ids[i])
-            {
-                char strbuf[25];
-                snprintf( strbuf, 25, "LUSTRE_OST_ID_%d", i );
-                printf("- ");
-                DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                    lustre_rec1->base_rec.rank,
-                    lustre_rec1->base_rec.id,
-                    strbuf,
-                    lustre_rec1->ost_ids[i],
-                    file_name1,
-                    "",
-                    "");
-                printf("+ ");
-                DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                    lustre_rec2->base_rec.rank,
-                    lustre_rec2->base_rec.id,
-                    strbuf,
-                    lustre_rec2->ost_ids[i],
-                    file_name2,
-                    "",
-                    "");
-            }
+            printf("- ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+                lustre_rec1->base_rec.rank,
+                lustre_rec1->base_rec.id,
+                strbuf,
+                lustre_rec1->ost_ids[i],
+                file_name1,
+                "",
+                "");
         }
+        else if (!lustre_rec1 || (i >= lustre_rec1->counters[LUSTRE_STRIPE_WIDTH]))
+        {
+            printf("+ ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+                lustre_rec2->base_rec.rank,
+                lustre_rec2->base_rec.id,
+                strbuf,
+                lustre_rec2->ost_ids[i],
+                file_name2,
+                "",
+                "");
+        }
+        else if (lustre_rec1->ost_ids[i] != lustre_rec2->ost_ids[i])
+        {
+            printf("- ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+                lustre_rec1->base_rec.rank,
+                lustre_rec1->base_rec.id,
+                strbuf,
+                lustre_rec1->ost_ids[i],
+                file_name1,
+                "",
+                "");
+            printf("+ ");
+            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+                lustre_rec2->base_rec.rank,
+                lustre_rec2->base_rec.id,
+                strbuf,
+                lustre_rec2->ost_ids[i],
+                file_name2,
+                "",
+                "");
+        }
+
+        i++;
+        if ((!lustre_rec1 || (i >= lustre_rec1->counters[LUSTRE_STRIPE_WIDTH])) &&
+            (!lustre_rec2 || (i >= lustre_rec2->counters[LUSTRE_STRIPE_WIDTH])))
+            break;
     }
 
     return;
