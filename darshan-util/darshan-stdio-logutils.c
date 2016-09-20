@@ -39,6 +39,7 @@ static void darshan_log_print_stdio_record(void *file_rec,
 static void darshan_log_print_stdio_description(void);
 static void darshan_log_print_stdio_record_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
+static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_flag);
 
 /* structure storing each function needed for implementing the darshan
  * logutil interface. these functions are used for reading, writing, and
@@ -50,12 +51,13 @@ struct darshan_mod_logutil_funcs stdio_logutils =
     .log_put_record = &darshan_log_put_stdio_record,
     .log_print_record = &darshan_log_print_stdio_record,
     .log_print_description = &darshan_log_print_stdio_description,
-    .log_print_diff = &darshan_log_print_stdio_record_diff
+    .log_print_diff = &darshan_log_print_stdio_record_diff,
+    .log_agg_records = &darshan_log_agg_stdio_records
 };
 
 /* retrieve a STDIO record from log file descriptor 'fd', storing the
- * buffer in 'stdio_buf'. Return 1 on successful record read, 0 on no 
- * more data, and -1 on error.
+ * data in the buffer address pointed to by 'stdio_buf_p'. Return 1 on
+ * successful record read, 0 on no more data, and -1 on error.
  */
 static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p)
 {
@@ -243,6 +245,178 @@ static void darshan_log_print_stdio_record_diff(void *file_rec1, char *file_name
     return;
 }
 
+/* simple helper struct for determining time & byte variances */
+struct var_t
+{
+    double n;
+    double M;
+    double S;
+};
+
+static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_flag)
+{
+    struct darshan_stdio_file *stdio_rec = (struct darshan_stdio_file *)rec;
+    struct darshan_stdio_file *agg_stdio_rec = (struct darshan_stdio_file *)agg_rec;
+    int i;
+    double old_M;
+    double stdio_time = stdio_rec->fcounters[STDIO_F_READ_TIME] +
+        stdio_rec->fcounters[STDIO_F_WRITE_TIME] +
+        stdio_rec->fcounters[STDIO_F_META_TIME];
+    double stdio_bytes = (double)stdio_rec->counters[STDIO_BYTES_READ] +
+        stdio_rec->counters[STDIO_BYTES_WRITTEN];
+    struct var_t *var_time_p = (struct var_t *)
+        ((char *)rec + sizeof(struct darshan_stdio_file));
+    struct var_t *var_bytes_p = (struct var_t *)
+        ((char *)var_time_p + sizeof(struct var_t));
+
+    for(i = 0; i < STDIO_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case STDIO_OPENS:
+            case STDIO_READS:
+            case STDIO_WRITES:
+            case STDIO_SEEKS:
+            case STDIO_FLUSHES:
+            case STDIO_BYTES_WRITTEN:
+            case STDIO_BYTES_READ:
+                /* sum */
+                agg_stdio_rec->counters[i] += stdio_rec->counters[i];
+                break;
+            case STDIO_MAX_BYTE_READ:
+            case STDIO_MAX_BYTE_WRITTEN:
+                /* max */
+                if(stdio_rec->counters[i] > agg_stdio_rec->counters[i])
+                {
+                    agg_stdio_rec->counters[i] = stdio_rec->counters[i];
+                }
+                break;
+            case STDIO_FASTEST_RANK:
+            case STDIO_FASTEST_RANK_BYTES:
+            case STDIO_SLOWEST_RANK:
+            case STDIO_SLOWEST_RANK_BYTES:
+                /* these are set with the FP counters */
+                break;
+            default:
+                agg_stdio_rec->counters[i] = -1;
+                break;
+        }
+    }
+
+    for(i = 0; i < STDIO_F_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case STDIO_F_META_TIME:
+            case STDIO_F_WRITE_TIME:
+            case STDIO_F_READ_TIME:
+                /* sum */
+                agg_stdio_rec->fcounters[i] += stdio_rec->fcounters[i];
+                break;
+            case STDIO_F_OPEN_START_TIMESTAMP:
+            case STDIO_F_CLOSE_START_TIMESTAMP:
+            case STDIO_F_WRITE_START_TIMESTAMP:
+            case STDIO_F_READ_START_TIMESTAMP:
+                /* minimum non-zero */
+                if((stdio_rec->fcounters[i] > 0)  &&
+                    ((agg_stdio_rec->fcounters[i] == 0) ||
+                    (stdio_rec->fcounters[i] < agg_stdio_rec->fcounters[i])))
+                {
+                    agg_stdio_rec->fcounters[i] = stdio_rec->fcounters[i];
+                }
+                break;
+            case STDIO_F_OPEN_END_TIMESTAMP:
+            case STDIO_F_CLOSE_END_TIMESTAMP:
+            case STDIO_F_WRITE_END_TIMESTAMP:
+            case STDIO_F_READ_END_TIMESTAMP:
+                /* maximum */
+                if(stdio_rec->fcounters[i] > agg_stdio_rec->fcounters[i])
+                {
+                    agg_stdio_rec->fcounters[i] = stdio_rec->fcounters[i];
+                }
+                break;
+            case STDIO_F_FASTEST_RANK_TIME:
+                if(init_flag)
+                {
+                    /* set fastest rank counters according to root rank. these counters
+                     * will be determined as the aggregation progresses.
+                     */
+                    agg_stdio_rec->counters[STDIO_FASTEST_RANK] = stdio_rec->base_rec.rank;
+                    agg_stdio_rec->counters[STDIO_FASTEST_RANK_BYTES] = stdio_bytes;
+                    agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME] = stdio_time;
+                }
+
+                if(stdio_time < agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME])
+                {
+                    agg_stdio_rec->counters[STDIO_FASTEST_RANK] = stdio_rec->base_rec.rank;
+                    agg_stdio_rec->counters[STDIO_FASTEST_RANK_BYTES] = stdio_bytes;
+                    agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME] = stdio_time;
+                }
+                break;
+            case STDIO_F_SLOWEST_RANK_TIME:
+                if(init_flag)
+                {
+                    /* set slowest rank counters according to root rank. these counters
+                     * will be determined as the aggregation progresses.
+                     */
+                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK] = stdio_rec->base_rec.rank;
+                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK_BYTES] = stdio_bytes;
+                    agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME] = stdio_time;
+                }
+
+                if(stdio_time > agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME])
+                {
+                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK] = stdio_rec->base_rec.rank;
+                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK_BYTES] = stdio_bytes;
+                    agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME] = stdio_time;
+                }
+                break;
+            case STDIO_F_VARIANCE_RANK_TIME:
+                if(init_flag)
+                {
+                    var_time_p->n = 1;
+                    var_time_p->M = stdio_time;
+                    var_time_p->S = 0;
+                }
+                else
+                {
+                    old_M = var_time_p->M;
+
+                    var_time_p->n++;
+                    var_time_p->M += (stdio_time - var_time_p->M) / var_time_p->n;
+                    var_time_p->S += (stdio_time - var_time_p->M) * (stdio_time - old_M);
+
+                    agg_stdio_rec->fcounters[STDIO_F_VARIANCE_RANK_TIME] =
+                        var_time_p->S / var_time_p->n;
+                }
+                break;
+            case STDIO_F_VARIANCE_RANK_BYTES:
+                if(init_flag)
+                {
+                    var_bytes_p->n = 1;
+                    var_bytes_p->M = stdio_bytes;
+                    var_bytes_p->S = 0;
+                }
+                else
+                {
+                    old_M = var_bytes_p->M;
+
+                    var_bytes_p->n++;
+                    var_bytes_p->M += (stdio_bytes - var_bytes_p->M) / var_bytes_p->n;
+                    var_bytes_p->S += (stdio_bytes - var_bytes_p->M) * (stdio_bytes - old_M);
+
+                    agg_stdio_rec->fcounters[STDIO_F_VARIANCE_RANK_BYTES] =
+                        var_bytes_p->S / var_bytes_p->n;
+                }
+                break;
+            default:
+                agg_stdio_rec->fcounters[i] = -1;
+                break;
+        }
+    }
+
+    return;
+}
 
 /*
  * Local variables:
