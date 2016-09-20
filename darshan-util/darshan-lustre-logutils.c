@@ -31,6 +31,7 @@ static void darshan_log_print_lustre_record(void *file_rec,
 static void darshan_log_print_lustre_description(void);
 static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
     void *rec2, char *file_name2);
+static void darshan_log_agg_lustre_records(void *rec, void *agg_rec, int init_flag);
 
 struct darshan_mod_logutil_funcs lustre_logutils =
 {
@@ -38,7 +39,8 @@ struct darshan_mod_logutil_funcs lustre_logutils =
     .log_put_record = &darshan_log_put_lustre_record,
     .log_print_record = &darshan_log_print_lustre_record,
     .log_print_description = &darshan_log_print_lustre_description,
-    .log_print_diff = &darshan_log_print_lustre_record_diff
+    .log_print_diff = &darshan_log_print_lustre_record_diff,
+    .log_agg_records = &darshan_log_agg_lustre_records
 };
 
 static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
@@ -158,13 +160,12 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
 
 static void darshan_log_print_lustre_description()
 {
-    /* TODO: add actual counter descriptions here */
     printf("\n# description of LUSTRE counters:\n");
     printf("#   LUSTRE_OSTS: number of OSTs across the entire file system.\n");
     printf("#   LUSTRE_MDTS: number of MDTs across the entire file system.\n");
+    printf("#   LUSTRE_STRIPE_OFFSET: OST ID offset specified when the file was created.\n");
     printf("#   LUSTRE_STRIPE_SIZE: stripe size for file in bytes.\n");
     printf("#   LUSTRE_STRIPE_WIDTH: number of OSTs over which file is striped.\n");
-    printf("#   LUSTRE_STRIPE_OFFSET: OST ID offset specified when the file was created.\n");
     printf("#   LUSTRE_OST_ID_*: indices of OSTs over which the file is striped.\n");
 
     DARSHAN_PRINT_HEADER();
@@ -243,6 +244,35 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
 
     return;
 }
+
+static void darshan_log_agg_lustre_records(void *rec, void *agg_rec, int init_flag)
+{
+    struct darshan_lustre_record *lustre_rec = (struct darshan_lustre_record *)rec;
+    struct darshan_lustre_record *agg_lustre_rec = (struct darshan_lustre_record *)agg_rec;
+    int i;
+
+    if(init_flag)
+    {
+        /* when initializing, just copy over the first record */
+        memcpy(agg_lustre_rec, lustre_rec, LUSTRE_RECORD_SIZE(
+            lustre_rec->counters[LUSTRE_STRIPE_WIDTH]));
+    }
+    else
+    {
+        /* for remaining records, just sanity check the records are identical */
+        for(i = 0; i < LUSTRE_NUM_INDICES; i++)
+        {
+            assert(lustre_rec->counters[i] == agg_lustre_rec->counters[i]);
+        }
+        for(i = 0; i < agg_lustre_rec->counters[LUSTRE_STRIPE_WIDTH]; i++)
+        {
+            assert(lustre_rec->ost_ids[i] == agg_lustre_rec->ost_ids[i]);
+        }
+    }
+
+    return;
+}
+
 
 /*
  * Local variables:
