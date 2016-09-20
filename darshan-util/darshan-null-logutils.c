@@ -56,9 +56,8 @@ struct darshan_mod_logutil_funcs null_logutils =
 };
 
 /* retrieve a NULL record from log file descriptor 'fd', storing the
- * buffer in 'null_buf' and the corresponding Darshan record id in
- * 'rec_id'. Return 1 on successful record read, 0 on no more data,
- * and -1 on error.
+ * data in the buffer address pointed to by 'null_buf_p'. Return 1 on
+ * successful record read, 0 on no more data, and -1 on error.
  */
 static int darshan_log_get_null_record(darshan_fd fd, void** null_buf_p)
 {
@@ -109,8 +108,8 @@ static int darshan_log_get_null_record(darshan_fd fd, void** null_buf_p)
     }
 }
 
-/* write the NULL record stored in 'null_buf' to log file descriptor 'fd'.
- * Return 0 on success, -1 on failure
+/* write the NULL record stored in 'null_buf' (with version number 'ver')
+ * to log file descriptor 'fd'. Return 0 on success, -1 on failure
  */
 static int darshan_log_put_null_record(darshan_fd fd, void* null_buf, int ver)
 {
@@ -160,14 +159,15 @@ static void darshan_log_print_null_record(void *file_rec, char *file_name,
 static void darshan_log_print_null_description()
 {
     printf("\n# description of NULL counters:\n");
-    printf("#   NULL_BARS: number of 'bar' function calls.\n");
-    printf("#   NULL_BAR_DAT: value set by last call to function 'bar'.\n");
-    printf("#   NULL_F_BAR_TIMESTAMP: timestamp of the first call to function 'bar'.\n");
-    printf("#   NULL_F_BAR_DURATION: duration of the last call to function 'bar'.\n");
+    printf("#   NULL_FOOS: number of 'foo' function calls.\n");
+    printf("#   NULL_FOO_MAX_DAT: maximum data value set by calls to 'foo'.\n");
+    printf("#   NULL_F_FOO_TIMESTAMP: timestamp of the first call to function 'foo'.\n");
+    printf("#   NULL_F_FOO_MAX_DURATION: timer indicating duration of call to 'foo' with max NULL_FOO_MAX_DAT value.\n");
 
     return;
 }
 
+/* print a diff of two NULL records (with the same record id) */
 static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2)
 {
@@ -240,8 +240,57 @@ static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1
     return;
 }
 
+/* aggregate the input NULL record 'rec'  into the output record 'agg_rec' */
 static void darshan_log_agg_null_records(void *rec, void *agg_rec, int init_flag)
 {
+    struct darshan_null_record *null_rec = (struct darshan_null_record *)rec;
+    struct darshan_null_record *agg_null_rec = (struct darshan_null_record *)agg_rec;
+    int i;
+
+    for(i = 0; i < NULL_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case NULL_FOOS:
+                /* sum */
+                agg_null_rec->counters[i] += null_rec->counters[i];
+                break;
+            case NULL_FOO_MAX_DAT:
+                /* max */
+                if(null_rec->counters[i] > agg_null_rec->counters[i])
+                {
+                    agg_null_rec->counters[i] = null_rec->counters[i];
+                    agg_null_rec->fcounters[NULL_F_FOO_MAX_DURATION] =
+                        null_rec->fcounters[NULL_F_FOO_MAX_DURATION];
+                }
+                break;
+            default:
+                /* if we don't know how to aggregate this counter, just set to -1 */
+                agg_null_rec->counters[i] = -1;
+                break;
+        }
+    }
+
+    for(i = 0; i < NULL_F_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case NULL_F_FOO_TIMESTAMP:
+                /* min non-zero */
+                if((null_rec->fcounters[i] > 0)  &&
+                    ((agg_null_rec->fcounters[i] == 0) ||
+                    (null_rec->fcounters[i] < agg_null_rec->fcounters[i])))
+                {
+                    agg_null_rec->fcounters[i] = null_rec->fcounters[i];
+                }
+                break;
+            default:
+                /* if we don't know how to aggregate this counter, just set to -1 */
+                agg_null_rec->fcounters[i] = -1;
+                break;
+        }
+    }
+
     return;
 }
 

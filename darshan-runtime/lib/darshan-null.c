@@ -32,7 +32,7 @@
  * declarations for wrapped funcions, regardless of whether Darshan is used with
  * statically or dynamically linked executables.
  */
-DARSHAN_FORWARD_DECL(foo, int, (const char *name, int arg1, int arg2));
+DARSHAN_FORWARD_DECL(foo, int, (const char *name, int arg1));
 
 /* The null_record_ref structure maintains necessary runtime metadata
  * for the NULL module record (darshan_null_record structure, defined in
@@ -132,9 +132,6 @@ static int my_rank = -1;
 } while(0)
 
 /* macro for instrumenting the "NULL" module's foo function */
-/* NOTE: this macro makes use of the DARSHAN_COUNTER_* macros defined
- * and documented in darshan.h.
- */
 #define NULL_RECORD_FOO(__ret, __name, __dat, __tm1, __tm2) do{ \
     darshan_record_id rec_id; \
     struct null_record_ref *rec_ref; \
@@ -149,14 +146,17 @@ static int my_rank = -1;
     if(!rec_ref) null_track_new_record(rec_id, __name); \
     /* if we still don't have a valid reference, back out */ \
     if(!rec_ref) break; \
-    /* increment counter indicating number of calls to 'bar' */ \
-    rec_ref->record_p->counters[NULL_BARS] += 1; \
-    /* store data value for most recent call to 'bar' */ \
-    rec_ref->record_p->counters[NULL_BAR_DAT] = __dat; \
-    /* store timestamp of most recent call to 'bar' */ \
-    rec_ref->record_p->fcounters[NULL_F_BAR_TIMESTAMP] = __tm1; \
-    /* store duration of most recent call to 'bar' */ \
-    rec_ref->record_p->fcounters[NULL_F_BAR_DURATION] = __elapsed; \
+    /* increment counter indicating number of calls to 'foo' */ \
+    rec_ref->record_p->counters[NULL_FOOS] += 1; \
+    /* store max data value for calls to 'foo', and corresponding time duration */ \
+    if(rec_ref->record_p->counters[NULL_FOO_MAX_DAT] < __dat) { \
+        rec_ref->record_p->counters[NULL_FOO_MAX_DAT] = __dat; \
+        rec_ref->record_p->fcounters[NULL_F_FOO_MAX_DURATION] = __elapsed; \
+    } \
+    /* store timestamp of first call to 'foo' */ \
+    if(rec_ref->record_p->fcounters[NULL_F_FOO_TIMESTAMP] == 0 || \
+     rec_ref->record_p->fcounters[NULL_F_FOO_TIMESTAMP] > __tm1) \
+        rec_ref->record_p->fcounters[NULL_F_FOO_TIMESTAMP] = __tm1; \
 } while(0)
 
 /**********************************************************
@@ -166,7 +166,7 @@ static int my_rank = -1;
 /* The DARSHAN_DECL macro provides the appropriate wrapper function names,
  * depending on whether the Darshan library is statically or dynamically linked.
  */
-int DARSHAN_DECL(foo)(const char* name, int arg1, int arg2)
+int DARSHAN_DECL(foo)(const char* name, int arg1)
 {
     ssize_t ret;
     double tm1, tm2;
@@ -182,12 +182,12 @@ int DARSHAN_DECL(foo)(const char* name, int arg1, int arg2)
      * given wrapper function. Timers are used to record the duration of this
      * operation. */
     tm1 = darshan_core_wtime();
-    ret = __real_foo(name, arg1, arg2);
+    ret = __real_foo(name, arg1);
     tm2 = darshan_core_wtime();
 
     NULL_PRE_RECORD();
     /* Call macro for instrumenting data for foo function calls. */
-    NULL_RECORD_FOO(ret, name, arg1+arg2, tm1, tm2);
+    NULL_RECORD_FOO(ret, name, arg1, tm1, tm2);
     NULL_POST_RECORD();
 
     return(ret);

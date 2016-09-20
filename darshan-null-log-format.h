@@ -11,18 +11,18 @@
 #define DARSHAN_NULL_VER 1
 
 #define NULL_COUNTERS \
-    /* count of number of 'bar' function calls */\
-    X(NULL_BARS) \
-    /* arbitrary data value set by last call to 'bar' */\
-    X(NULL_BAR_DAT) \
+    /* number of 'foo' function calls */\
+    X(NULL_FOOS) \
+    /* maximum data value set by calls to 'foo' */\
+    X(NULL_FOO_MAX_DAT) \
     /* end of counters */\
     X(NULL_NUM_INDICES)
 
 #define NULL_F_COUNTERS \
-    /* timestamp of the first call to function 'bar' */\
-    X(NULL_F_BAR_TIMESTAMP) \
-    /* timer indicating duration of last call to 'bar' */\
-    X(NULL_F_BAR_DURATION) \
+    /* timestamp of the first call to function 'foo' */\
+    X(NULL_F_FOO_TIMESTAMP) \
+    /* timer indicating duration of call to 'foo' with max NULL_FOO_MAX_DAT value */\
+    X(NULL_F_FOO_MAX_DURATION) \
     /* end of counters */\
     X(NULL_F_NUM_INDICES)
 
