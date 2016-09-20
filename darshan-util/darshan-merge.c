@@ -130,10 +130,10 @@ int build_mod_shared_rec_hash(char **infile_list, int n_infiles,
                 memset(ref, 0, sizeof(*ref));
 
                 /* initialize the aggregate record with this rank's record */
+                mod_logutils[mod_id]->log_agg_records(mod_buf, ref->agg_rec, 1);
                 agg_base = (struct darshan_base_record *)ref->agg_rec;
                 agg_base->id = base_rec->id;
                 agg_base->rank = -1;
-                mod_logutils[mod_id]->log_agg_records(mod_buf, ref->agg_rec, 1);
 
                 ref->id = base_rec->id;
                 ref->ref_cnt = 1;
@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
     struct darshan_shared_record_ref *shared_rec_hash = NULL;
     struct darshan_shared_record_ref *sref, *stmp;
     struct darshan_base_record *base_rec;
-    char mod_buf[DEF_MOD_BUF_SIZE];
+    char *mod_buf;
     int i, j;
     int ret;
 
@@ -365,6 +365,15 @@ int main(int argc, char *argv[])
         return(-1);
     }
 
+    mod_buf = malloc(DEF_MOD_BUF_SIZE);
+    if(!mod_buf)
+    {
+        fprintf(stderr, "Error: unable to write record table to output darshan log.\n");
+        darshan_log_close(merge_fd);
+        unlink(outlog_path);
+        return(-1);
+    }
+
     /* iterate over active darshan modules and gather module data to write
      * to the merged output log
      */
@@ -384,6 +393,7 @@ int main(int argc, char *argv[])
                     darshan_module_names[i]);
                 darshan_log_close(merge_fd);
                 unlink(outlog_path);
+                free(mod_buf);
                 return(-1);
             }
 
@@ -399,6 +409,7 @@ int main(int argc, char *argv[])
                     infile_list[j]);
                 darshan_log_close(merge_fd);
                 unlink(outlog_path);
+                free(mod_buf);
                 return(-1);
             }
 
@@ -416,6 +427,7 @@ int main(int argc, char *argv[])
                         darshan_log_close(in_fd);
                         darshan_log_close(merge_fd);
                         unlink(outlog_path);
+                        free(mod_buf);
                         return(-1);
                     }
                 }
@@ -439,6 +451,7 @@ int main(int argc, char *argv[])
                     darshan_log_close(in_fd);
                     darshan_log_close(merge_fd);
                     unlink(outlog_path);
+                    free(mod_buf);
                     return(-1);
                 }
             }
@@ -450,6 +463,7 @@ int main(int argc, char *argv[])
                 darshan_log_close(in_fd);
                 darshan_log_close(merge_fd);
                 unlink(outlog_path);
+                free(mod_buf);
                 return(-1);
             }
 
@@ -466,6 +480,8 @@ int main(int argc, char *argv[])
             }
         }
     }
+
+    free(mod_buf);
 
     darshan_log_close(merge_fd);
 
