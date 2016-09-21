@@ -932,9 +932,20 @@ static int mnt_data_cmp(const void* a, const void* b)
 /* adds an entry to table of mounted file systems */
 static void add_entry(char* buf, int* space_left, struct mntent* entry)
 {
+    int i;
     int ret;
     char tmp_mnt[256];
     struct statfs statfsbuf;
+
+    /* avoid adding the same mount points multiple times -- to limit
+     * storage space and potential statfs, ioctl, etc calls
+     */
+    for(i = 0; i < mnt_data_count; i++)
+    {
+        if((strncmp(mnt_data_array[i].path, entry->mnt_dir, DARSHAN_MAX_MNT_PATH) == 0) &&
+           (strncmp(mnt_data_array[i].type, entry->mnt_type, DARSHAN_MAX_MNT_PATH) == 0))
+            return;
+    }
 
     strncpy(mnt_data_array[mnt_data_count].path, entry->mnt_dir,
         DARSHAN_MAX_MNT_PATH-1);
