@@ -194,9 +194,13 @@ static void bgq_shutdown(
 
     if (my_rank == 0)
     {
+        bgq_runtime->record->base_rec.rank = -1;
+
         DARSHAN_MPI_CALL(PMPI_Comm_size)(mod_comm, &nprocs);
         ion_ids = malloc(sizeof(*ion_ids)*nprocs);
-        result = (ion_ids != NULL); 
+        result = (ion_ids != NULL);
+        if(!result)
+            bgq_runtime->record->counters[BGQ_INODES] = -1;
     }
     DARSHAN_MPI_CALL(PMPI_Bcast)(&result, 1, MPI_INT, 0, mod_comm);
 
