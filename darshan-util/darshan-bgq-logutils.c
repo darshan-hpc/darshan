@@ -267,7 +267,43 @@ static void darshan_log_print_bgq_rec_diff(void *file_rec1, char *file_name1,
 
 static void darshan_log_agg_bgq_recs(void *rec, void *agg_rec, int init_flag)
 {
-    /* TODO: how would aggregation work for the BG/Q module ? */
+    struct darshan_bgq_record *bgq_rec = (struct darshan_bgq_record *)rec;
+    struct darshan_bgq_record *agg_bgq_rec = (struct darshan_bgq_record *)agg_rec;
+    int i;
+
+    if(init_flag)
+    {
+        /* when initializing, just copy over the first record */
+        memcpy(agg_bgq_rec, bgq_rec, sizeof(struct darshan_bgq_record));
+
+        /* TODO: each record stores the ID of the corresponding rank's BG/Q
+         * inode. Currently, this log aggregation interface assumes we can
+         * aggregate logs one at a time, without having to know the value of
+         * a counter on all processes. What we need here is a way to determine
+         * the inode IDs used for every process, filter out duplicates, then
+         * count the total number to set this counter. Will have to think
+         * more about how we can calculate this value using this interface
+         */
+        agg_bgq_rec->counters[BGQ_INODES] = -1;
+    }
+    else
+    {
+        /* for remaining records, just sanity check the records are identical */
+        for(i = 0; i < BGQ_NUM_INDICES; i++)
+        {
+            /* TODO: ignore BGQ_INODES counter since it might be different in
+             * each record (more details in note above)
+             */
+            if(i == BGQ_INODES)
+                continue;
+            assert(bgq_rec->counters[i] == agg_bgq_rec->counters[i]);
+        }
+
+        /* NOTE: ignore BGQ_F_TIMESTAMP counter -- just use the value from the
+         * record that we initialized with
+         */
+    }
+
     return;
 }
 
