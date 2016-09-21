@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/vfs.h>
+#include <pwd.h>
 #include <zlib.h>
 #include <mpi.h>
 #include <assert.h>
@@ -117,7 +118,7 @@ static void darshan_fs_info_from_path(
 static int darshan_add_name_record_ref(
     struct darshan_core_runtime *core, darshan_record_id rec_id,
     const char *name, darshan_module_id mod_id);
-static void darshan_get_user_name(
+static void darshan_get_username(
     char *user);
 static void darshan_get_logfile_name(
     char* logfile_name, int jobid, struct tm* start_tm);
@@ -785,7 +786,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
     int mmap_fd;
     int mmap_size;
     int sys_page_size;
-    char cuser[L_cuserid] = {0};
+    char username[DARSHAN_USERNAME_LEN_MAX] = {0};
     uint64_t hlevel;
     char hname[HOST_NAME_MAX];
     uint64_t logmod;
@@ -807,7 +808,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
     else
         mmap_log_path = DARSHAN_DEF_MMAP_LOG_PATH;
 
-    darshan_get_user_name(cuser);
+    darshan_get_username(username);
 
     /* generate a random number to help differentiate the temporary log */
     /* NOTE: job id is not sufficient for constructing a unique log file name,
@@ -827,7 +828,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
      */
     snprintf(core->mmap_log_name, PATH_MAX,
         "/%s/%s_%s_id%d_mmap-log-%" PRIu64 "-%d.darshan",
-        mmap_log_path, cuser, __progname, jobid, logmod, my_rank);
+        mmap_log_path, username, __progname, jobid, logmod, my_rank);
 
     /* create the temporary mmapped darshan log */
     mmap_fd = open(core->mmap_log_name, O_CREAT|O_RDWR|O_EXCL , 0644);
@@ -1170,14 +1171,15 @@ static int darshan_add_name_record_ref(struct darshan_core_runtime *core,
     return(1);
 }
 
-static void darshan_get_user_name(char *cuser)
+static void darshan_get_username(char *username)
 {
+    struct passwd *pwd;
     char* logname_string;
 
     /* get the username for this job.  In order we will try each of the
      * following until one of them succeeds:
      *
-     * - cuserid()
+     * - getpwuid(geteuid())
      * - getenv("LOGNAME")
      * - snprintf(..., geteuid());
      *
@@ -1185,25 +1187,25 @@ static void darshan_get_user_name(char *cuser)
      * work in statically compiled binaries.
      */
 
-#ifndef __DARSHAN_DISABLE_CUSERID
-    cuserid(cuser);
-#endif
+    pwd = getpwuid(geteuid());
+    if(pwd)
+        strncpy(username, pwd->pw_name, (DARSHAN_USERNAME_LEN_MAX-1));
 
-    /* if cuserid() didn't work, then check the environment */
-    if(strcmp(cuser, "") == 0)
+    /* if getpwuid() didn't work, then check the environment */
+    if(strcmp(username, "") == 0)
     {
         logname_string = getenv("LOGNAME");
         if(logname_string)
         {
-            strncpy(cuser, logname_string, (L_cuserid-1));
+            strncpy(username, logname_string, (DARSHAN_USERNAME_LEN_MAX-1));
         }
     }
 
-    /* if cuserid() and environment both fail, then fall back to uid */
-    if(strcmp(cuser, "") == 0)
+    /* if getpwuid() and environment both fail, then fall back to uid */
+    if(strcmp(username, "") == 0)
     {
         uid_t uid = geteuid();
-        snprintf(cuser, L_cuserid, "%u", uid);
+        snprintf(username, DARSHAN_USERNAME_LEN_MAX, "%u", uid);
     }
 
     return;
@@ -1222,7 +1224,7 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
     uint64_t hlevel;
     char hname[HOST_NAME_MAX];
     uint64_t logmod;
-    char cuser[L_cuserid] = {0};
+    char username[DARSHAN_USERNAME_LEN_MAX] = {0};
     int ret;
 
     /* first, check if user specifies a complete logpath to use */
@@ -1252,7 +1254,7 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
 #endif
         }
 
-        darshan_get_user_name(cuser);
+        darshan_get_username(username);
 
         /* generate a random number to help differentiate the log */
         hlevel=DARSHAN_MPI_CALL(PMPI_Wtime)() * 1000000;
@@ -1292,7 +1294,7 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
             ret = snprintf(logfile_name, PATH_MAX,
                 "%s/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
                 logpath_override,
-                cuser, __progname, jobid,
+                username, __progname, jobid,
                 (start_tm->tm_mon+1),
                 start_tm->tm_mday,
                 (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
@@ -1311,7 +1313,7 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
                 "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
                 logpath, (start_tm->tm_year+1900),
                 (start_tm->tm_mon+1), start_tm->tm_mday,
-                cuser, __progname, jobid,
+                username, __progname, jobid,
                 (start_tm->tm_mon+1),
                 start_tm->tm_mday,
                 (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),

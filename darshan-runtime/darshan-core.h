@@ -51,6 +51,9 @@
 /* Default runtime compression buffer size */
 #define DARSHAN_COMP_BUF_SIZE DARSHAN_MOD_MEM_MAX
 
+/* Maximum length of a username corresponding to a Darshan log */
+#define DARSHAN_USERNAME_LEN_MAX 32
+
 /* structure to track registered modules */
 struct darshan_core_module
 {
