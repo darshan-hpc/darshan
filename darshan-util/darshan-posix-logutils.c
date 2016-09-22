@@ -31,6 +31,7 @@ char *posix_f_counter_names[] = {
 #undef X
 
 #define DARSHAN_POSIX_FILE_SIZE_1 680
+#define DARSHAN_POSIX_FILE_SIZE_2 648
 
 static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p);
 static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver);
@@ -97,11 +98,42 @@ static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p)
             p += (4 * sizeof(int64_t)); /* skip old stdio counters */
             memcpy(&(file->counters[6]), p, 58 * sizeof(int64_t));
             p += (58 * sizeof(int64_t));
-            memcpy(&(file->fcounters[0]), p, 15 * sizeof(double));
+            memcpy(&(file->fcounters[0]), p, 3 * sizeof(double));
+            file->fcounters[POSIX_F_CLOSE_START_TIMESTAMP] = -1;
+            file->fcounters[POSIX_F_OPEN_END_TIMESTAMP] = -1;
+            p += 3 * sizeof(double);
+            memcpy(&(file->fcounters[POSIX_F_READ_END_TIMESTAMP]), p, 12 * sizeof(double));
         }
         free(buffer);
     }
     else if(fd->mod_ver[DARSHAN_POSIX_MOD] == 2)
+    {
+        buffer = malloc(DARSHAN_POSIX_FILE_SIZE_2);
+        if(!buffer)
+        {
+            if(*posix_buf_p == NULL)
+                free(file);
+            return(-1);
+        }
+
+        rec_len = DARSHAN_POSIX_FILE_SIZE_2;
+        ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, buffer, rec_len);
+        if(ret == rec_len)
+        {
+            p = buffer;
+            memcpy(&(file->base_rec), p, sizeof(struct darshan_base_record));
+            p += sizeof(struct darshan_base_record);
+            memcpy(&(file->counters[0]), p, POSIX_NUM_INDICES * sizeof(int64_t));
+            p += POSIX_NUM_INDICES * sizeof(int64_t);
+            memcpy(&(file->fcounters[0]), p, 3 * sizeof(double));
+            file->fcounters[POSIX_F_CLOSE_START_TIMESTAMP] = -1;
+            file->fcounters[POSIX_F_OPEN_END_TIMESTAMP] = -1;
+            p += 3 * sizeof(double);
+            memcpy(&(file->fcounters[POSIX_F_READ_END_TIMESTAMP]), p, 12 * sizeof(double));
+        }
+        free(buffer);
+    }
+    else if(fd->mod_ver[DARSHAN_POSIX_MOD] == 3)
     {
         rec_len = sizeof(struct darshan_posix_file);
         ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, file, rec_len);

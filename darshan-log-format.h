@@ -20,6 +20,10 @@
 #endif
 
 /* update this on file format changes */
+/* NOTE: this should be updated when general changes are made to the
+ * log format version, NOT when a new version of a module record is
+ * introduced -- we have module-specific versions to handle that
+ */
 #define DARSHAN_LOG_VERSION "3.10"
 
 /* magic number for validating output files and checking byte order */

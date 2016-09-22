@@ -7,7 +7,7 @@
 #define __DARSHAN_POSIX_LOG_FORMAT_H
 
 /* current POSIX log format version */
-#define DARSHAN_POSIX_VER 2
+#define DARSHAN_POSIX_VER 3
 
 #define POSIX_COUNTERS \
     /* count of posix opens */\
