@@ -108,17 +108,21 @@
 
 #define POSIX_F_COUNTERS \
     /* timestamp of first open */\
-    X(POSIX_F_OPEN_TIMESTAMP) \
+    X(POSIX_F_OPEN_START_TIMESTAMP) \
     /* timestamp of first read */\
     X(POSIX_F_READ_START_TIMESTAMP) \
     /* timestamp of first write */\
     X(POSIX_F_WRITE_START_TIMESTAMP) \
+    /* timestamp of first close */\
+    X(POSIX_F_CLOSE_START_TIMESTAMP) \
+    /* timestamp of last open */\
+    X(POSIX_F_OPEN_END_TIMESTAMP) \
     /* timestamp of last read */\
     X(POSIX_F_READ_END_TIMESTAMP) \
     /* timestamp of last write */\
     X(POSIX_F_WRITE_END_TIMESTAMP) \
     /* timestamp of last close */\
-    X(POSIX_F_CLOSE_TIMESTAMP) \
+    X(POSIX_F_CLOSE_END_TIMESTAMP) \
     /* cumulative posix read time */\
     X(POSIX_F_READ_TIME) \
     /* cumulative posix write time */\

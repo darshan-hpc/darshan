@@ -969,18 +969,20 @@ void posix_accum_file(struct darshan_posix_file *pfile,
     {
         switch(i)
         {
-            case POSIX_F_OPEN_TIMESTAMP:
+            case POSIX_F_OPEN_START_TIMESTAMP:
             case POSIX_F_READ_START_TIMESTAMP:
             case POSIX_F_WRITE_START_TIMESTAMP:
+            case POSIX_F_CLOSE_START_TIMESTAMP:
                 if(tmp->fcounters[i] == 0 || 
                     tmp->fcounters[i] > pfile->fcounters[i])
                 {
                     tmp->fcounters[i] = pfile->fcounters[i];
                 }
                 break;
+            case POSIX_F_OPEN_END_TIMESTAMP:
             case POSIX_F_READ_END_TIMESTAMP:
             case POSIX_F_WRITE_END_TIMESTAMP:
-            case POSIX_F_CLOSE_TIMESTAMP:
+            case POSIX_F_CLOSE_END_TIMESTAMP:
                 if(tmp->fcounters[i] == 0 || 
                     tmp->fcounters[i] < pfile->fcounters[i])
                 {
@@ -1287,12 +1289,12 @@ void posix_accum_perf(struct darshan_posix_file *pfile,
     if(pfile->base_rec.rank == -1)
     {
         /* by_open */
-        if(pfile->fcounters[POSIX_F_CLOSE_TIMESTAMP] >
-            pfile->fcounters[POSIX_F_OPEN_TIMESTAMP])
+        if(pfile->fcounters[POSIX_F_CLOSE_END_TIMESTAMP] >
+            pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP])
         {
             pdata->shared_time_by_open +=
-                pfile->fcounters[POSIX_F_CLOSE_TIMESTAMP] -
-                pfile->fcounters[POSIX_F_OPEN_TIMESTAMP];
+                pfile->fcounters[POSIX_F_CLOSE_END_TIMESTAMP] -
+                pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP];
         }
 
         /* by_open_lastio */
@@ -1300,21 +1302,21 @@ void posix_accum_perf(struct darshan_posix_file *pfile,
             pfile->fcounters[POSIX_F_WRITE_END_TIMESTAMP])
         {
             /* be careful: file may have been opened but not read or written */
-            if(pfile->fcounters[POSIX_F_READ_END_TIMESTAMP] > pfile->fcounters[POSIX_F_OPEN_TIMESTAMP])
+            if(pfile->fcounters[POSIX_F_READ_END_TIMESTAMP] > pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP])
             {
                 pdata->shared_time_by_open_lastio += 
                     pfile->fcounters[POSIX_F_READ_END_TIMESTAMP] - 
-                    pfile->fcounters[POSIX_F_OPEN_TIMESTAMP];
+                    pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP];
             }
         }
         else
         {
             /* be careful: file may have been opened but not read or written */
-            if(pfile->fcounters[POSIX_F_WRITE_END_TIMESTAMP] > pfile->fcounters[POSIX_F_OPEN_TIMESTAMP])
+            if(pfile->fcounters[POSIX_F_WRITE_END_TIMESTAMP] > pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP])
             {
                 pdata->shared_time_by_open_lastio += 
                     pfile->fcounters[POSIX_F_WRITE_END_TIMESTAMP] - 
-                    pfile->fcounters[POSIX_F_OPEN_TIMESTAMP];
+                    pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP];
             }
         }
 
@@ -1867,8 +1869,8 @@ void posix_file_list(hash_entry_t *file_hash,
     printf("\n# <record_id>\t<file_name>\t<nprocs>\t<slowest>\t<avg>");
     if(detail_flag)
     {
-        printf("\t<start_open>\t<start_read>\t<start_write>");
-        printf("\t<end_read>\t<end_write>\t<end_close>\t<posix_opens>");
+        printf("\t<start_open>\t<start_read>\t<start_write>\t<start_close>");
+        printf("\t<end_open>\t<end_read>\t<end_write>\t<end_close>\t<posix_opens>");
         for(i=POSIX_SIZE_READ_0_100; i<= POSIX_SIZE_WRITE_1G_PLUS; i++)
             printf("\t<%s>", posix_counter_names[i]);
     }
@@ -1891,7 +1893,7 @@ void posix_file_list(hash_entry_t *file_hash,
 
         if(detail_flag)
         {
-            for(i=POSIX_F_OPEN_TIMESTAMP; i<=POSIX_F_CLOSE_TIMESTAMP; i++)
+            for(i=POSIX_F_OPEN_START_TIMESTAMP; i<=POSIX_F_CLOSE_END_TIMESTAMP; i++)
             {
                 printf("\t%f", file_rec->fcounters[i]);
             }

@@ -204,9 +204,10 @@ static int darshan_mem_alignment = 1;
     rec_ref->last_byte_written = 0; \
     rec_ref->last_byte_read = 0; \
     rec_ref->file_rec->counters[POSIX_OPENS] += 1; \
-    if(rec_ref->file_rec->fcounters[POSIX_F_OPEN_TIMESTAMP] == 0 || \
-     rec_ref->file_rec->fcounters[POSIX_F_OPEN_TIMESTAMP] > __tm1) \
-        rec_ref->file_rec->fcounters[POSIX_F_OPEN_TIMESTAMP] = __tm1; \
+    if(rec_ref->file_rec->fcounters[POSIX_F_OPEN_START_TIMESTAMP] == 0 || \
+     rec_ref->file_rec->fcounters[POSIX_F_OPEN_START_TIMESTAMP] > __tm1) \
+        rec_ref->file_rec->fcounters[POSIX_F_OPEN_START_TIMESTAMP] = __tm1; \
+    rec_ref->file_rec->fcounters[POSIX_F_OPEN_END_TIMESTAMP] = __tm2; \
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[POSIX_F_META_TIME], \
         __tm1, __tm2, rec_ref->last_meta_end); \
     darshan_add_record_ref(&(posix_runtime->fd_hash), &__ret, sizeof(int), rec_ref); \
@@ -1021,8 +1022,10 @@ int DARSHAN_DECL(close)(int fd)
     {
         rec_ref->last_byte_written = 0;
         rec_ref->last_byte_read = 0;
-        rec_ref->file_rec->fcounters[POSIX_F_CLOSE_TIMESTAMP] =
-            darshan_core_wtime();
+        if(rec_ref->file_rec->fcounters[POSIX_F_CLOSE_START_TIMESTAMP] == 0 ||
+         rec_ref->file_rec->fcounters[POSIX_F_CLOSE_START_TIMESTAMP] > tm1)
+           rec_ref->file_rec->fcounters[POSIX_F_CLOSE_START_TIMESTAMP] = tm1;
+        rec_ref->file_rec->fcounters[POSIX_F_CLOSE_END_TIMESTAMP] = tm2;
         DARSHAN_TIMER_INC_NO_OVERLAP(
             rec_ref->file_rec->fcounters[POSIX_F_META_TIME],
             tm1, tm2, rec_ref->last_meta_end);
@@ -1488,7 +1491,7 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
         }
 
         /* min non-zero (if available) value */
-        for(j=POSIX_F_OPEN_TIMESTAMP; j<=POSIX_F_WRITE_START_TIMESTAMP; j++)
+        for(j=POSIX_F_OPEN_START_TIMESTAMP; j<=POSIX_F_CLOSE_START_TIMESTAMP; j++)
         {
             if((infile->fcounters[j] < inoutfile->fcounters[j] &&
                infile->fcounters[j] > 0) || inoutfile->fcounters[j] == 0)
@@ -1498,7 +1501,7 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
         }
 
         /* max */
-        for(j=POSIX_F_READ_END_TIMESTAMP; j<=POSIX_F_CLOSE_TIMESTAMP; j++)
+        for(j=POSIX_F_OPEN_END_TIMESTAMP; j<=POSIX_F_CLOSE_END_TIMESTAMP; j++)
         {
             if(infile->fcounters[j] > inoutfile->fcounters[j])
                 tmp_file.fcounters[j] = infile->fcounters[j];

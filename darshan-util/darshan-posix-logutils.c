@@ -196,10 +196,8 @@ static void darshan_log_print_posix_description()
     printf("#   POSIX_ACCESS*_COUNT: count of the four most common access sizes.\n");
     printf("#   POSIX_*_RANK: rank of the processes that were the fastest and slowest at I/O (for shared files).\n");
     printf("#   POSIX_*_RANK_BYTES: bytes transferred by the fastest and slowest ranks (for shared files).\n");
-    printf("#   POSIX_F_OPEN_TIMESTAMP: timestamp of first open.\n");
-    printf("#   POSIX_F_*_START_TIMESTAMP: timestamp of first read/write.\n");
-    printf("#   POSIX_F_*_END_TIMESTAMP: timestamp of last read/write.\n");
-    printf("#   POSIX_F_CLOSE_TIMESTAMP: timestamp of last close.\n");
+    printf("#   POSIX_F_*_START_TIMESTAMP: timestamp of first open/read/write/close.\n");
+    printf("#   POSIX_F_*_END_TIMESTAMP: timestamp of last open/read/write/close.\n");
     printf("#   POSIX_F_READ/WRITE/META_TIME: cumulative time spent in read, write, or metadata operations.\n");
     printf("#   POSIX_F_MAX_*_TIME: duration of the slowest read and write operations.\n");
     printf("#   POSIX_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).\n");
@@ -476,9 +474,10 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                 /* sum */
                 agg_psx_rec->fcounters[i] += psx_rec->fcounters[i];
                 break;
-            case POSIX_F_OPEN_TIMESTAMP:
+            case POSIX_F_OPEN_START_TIMESTAMP:
             case POSIX_F_READ_START_TIMESTAMP:
             case POSIX_F_WRITE_START_TIMESTAMP:
+            case POSIX_F_CLOSE_START_TIMESTAMP:
                 /* minimum non-zero */
                 if((psx_rec->fcounters[i] > 0)  &&
                     ((agg_psx_rec->fcounters[i] == 0) ||
@@ -487,9 +486,10 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                     agg_psx_rec->fcounters[i] = psx_rec->fcounters[i];
                 }
                 break;
+            case POSIX_F_OPEN_END_TIMESTAMP:
             case POSIX_F_READ_END_TIMESTAMP:
             case POSIX_F_WRITE_END_TIMESTAMP:
-            case POSIX_F_CLOSE_TIMESTAMP:
+            case POSIX_F_CLOSE_END_TIMESTAMP:
                 /* maximum */
                 if(psx_rec->fcounters[i] > agg_psx_rec->fcounters[i])
                 {
