@@ -971,7 +971,7 @@ static void stdio_runtime_initialize()
     /* return if darshan-core does not provide enough module memory */
     if(stdio_buf_size < sizeof(struct darshan_stdio_file))
     {
-        darshan_core_unregister_module(DARSHAN_POSIX_MOD);
+        darshan_core_unregister_module(DARSHAN_STDIO_MOD);
         return;
     }
 
