@@ -56,7 +56,6 @@ static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p)
 {
     struct darshan_posix_file *file = *((struct darshan_posix_file **)posix_buf_p);
     int rec_len;
-    char *buffer, *p;
     int i;
     int ret = -1;
 
@@ -70,75 +69,59 @@ static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p)
             return(-1);
     }
 
-    /* read the POSIX record from file, checking the version first so we
-     * can correctly up-convert to the current darshan version
-     */
-    if(fd->mod_ver[DARSHAN_POSIX_MOD] == 1)
+    if(fd->mod_ver[DARSHAN_POSIX_MOD] == DARSHAN_POSIX_VER) 
     {
-        buffer = malloc(DARSHAN_POSIX_FILE_SIZE_1);
-        if(!buffer)
-        {
-            if(*posix_buf_p == NULL)
-                free(file);
-            return(-1);
-        }
-
-        rec_len = DARSHAN_POSIX_FILE_SIZE_1;
-        ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, buffer, rec_len);
-        if(ret == rec_len)
-        {
-            /* copy record data directly from the temporary buffer into the 
-             * corresponding locations in the output file record
-             */
-            p = buffer;
-            memcpy(&(file->base_rec), p, sizeof(struct darshan_base_record));
-            p += sizeof(struct darshan_base_record);
-            memcpy(&(file->counters[0]), p, 6 * sizeof(int64_t));
-            p += (6 * sizeof(int64_t));
-            p += (4 * sizeof(int64_t)); /* skip old stdio counters */
-            memcpy(&(file->counters[6]), p, 58 * sizeof(int64_t));
-            p += (58 * sizeof(int64_t));
-            memcpy(&(file->fcounters[0]), p, 3 * sizeof(double));
-            file->fcounters[POSIX_F_CLOSE_START_TIMESTAMP] = -1;
-            file->fcounters[POSIX_F_OPEN_END_TIMESTAMP] = -1;
-            p += 3 * sizeof(double);
-            memcpy(&(file->fcounters[POSIX_F_READ_END_TIMESTAMP]), p, 12 * sizeof(double));
-        }
-        free(buffer);
-    }
-    else if(fd->mod_ver[DARSHAN_POSIX_MOD] == 2)
-    {
-        buffer = malloc(DARSHAN_POSIX_FILE_SIZE_2);
-        if(!buffer)
-        {
-            if(*posix_buf_p == NULL)
-                free(file);
-            return(-1);
-        }
-
-        rec_len = DARSHAN_POSIX_FILE_SIZE_2;
-        ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, buffer, rec_len);
-        if(ret == rec_len)
-        {
-            p = buffer;
-            memcpy(&(file->base_rec), p, sizeof(struct darshan_base_record));
-            p += sizeof(struct darshan_base_record);
-            memcpy(&(file->counters[0]), p, POSIX_NUM_INDICES * sizeof(int64_t));
-            p += POSIX_NUM_INDICES * sizeof(int64_t);
-            memcpy(&(file->fcounters[0]), p, 3 * sizeof(double));
-            file->fcounters[POSIX_F_CLOSE_START_TIMESTAMP] = -1;
-            file->fcounters[POSIX_F_OPEN_END_TIMESTAMP] = -1;
-            p += 3 * sizeof(double);
-            memcpy(&(file->fcounters[POSIX_F_READ_END_TIMESTAMP]), p, 12 * sizeof(double));
-        }
-        free(buffer);
-    }
-    else if(fd->mod_ver[DARSHAN_POSIX_MOD] == 3)
-    {
+        /* log format is in current version, so we don't need to do any
+         * translation of counters while reading
+         */
         rec_len = sizeof(struct darshan_posix_file);
         ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, file, rec_len);
     }
+    else
+    {
+        char scratch[1024] = {0};
+        char *src_p, *dest_p;
+        int len;
 
+        if(fd->mod_ver[DARSHAN_POSIX_MOD] == 1)
+        {
+            rec_len = DARSHAN_POSIX_FILE_SIZE_1;
+            ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, scratch, rec_len);
+            if(ret != rec_len)
+                goto exit;
+
+            /* upconvert version 1 to version 2 in-place */
+            dest_p = scratch + (sizeof(struct darshan_base_record) + 
+                (6 * sizeof(int64_t)));
+            src_p = dest_p + (4 * sizeof(int64_t));
+            len = rec_len - (src_p - scratch);
+            memmove(dest_p, src_p, len);
+        }
+        if(fd->mod_ver[DARSHAN_POSIX_MOD] <= 2)
+        {
+            if(fd->mod_ver[DARSHAN_POSIX_MOD] == 2)
+            {
+                rec_len = DARSHAN_POSIX_FILE_SIZE_2;
+                ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, scratch, rec_len);
+                if(ret != rec_len)
+                    goto exit;
+            }
+
+            /* upconvert version 2 to version 3 in-place */
+            dest_p = scratch + (sizeof(struct darshan_base_record) +
+                (64 * sizeof(int64_t)) + (5 * sizeof(double)));
+            src_p = dest_p - (2 * sizeof(double));
+            len = (12 * sizeof(double));
+            memmove(dest_p, src_p, len);
+            /* set F_CLOSE_START and F_OPEN_END to -1 */
+            *((double *)src_p) = -1;
+            *((double *)(src_p + sizeof(double))) = -1;
+        }
+
+        memcpy(file, scratch, sizeof(struct darshan_posix_file));
+    }
+
+exit:
     if(*posix_buf_p == NULL)
     {
         if(ret == rec_len)
@@ -161,7 +144,16 @@ static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p)
             for(i=0; i<POSIX_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->counters[i]);
             for(i=0; i<POSIX_F_NUM_INDICES; i++)
+            {
+                /* skip counters we explicitly set to -1 since they don't
+                 * need to be byte swapped
+                 */
+                if((fd->mod_ver[DARSHAN_POSIX_MOD] < 3) &&
+                    ((i == POSIX_F_CLOSE_START_TIMESTAMP) ||
+                     (i == POSIX_F_OPEN_END_TIMESTAMP)))
+                    continue;
                 DARSHAN_BSWAP64(&file->fcounters[i]);
+            }
         }
 
         return(1);
