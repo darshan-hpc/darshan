@@ -169,17 +169,18 @@ int main(int argc, char **argv)
     }
 
     printf ("log dir: %s\n", base);
-    printf ("  total: %d\n", total_count);
-    printf (" shared: %lf [%d]\n", (double)total_shared/(double)total_count, total_shared);
-    printf ("    fpp: %lf [%d]\n", (double)total_fpp/(double)total_count, total_fpp);
-    printf ("   mpio: %lf [%d]\n", (double)total_mpio/(double)total_count, total_mpio);
-    printf ("   pnet: %lf [%d]\n", (double)total_pnet/(double)total_count, total_pnet);
-    printf ("   hdf5: %lf [%d]\n", (double)total_hdf5/(double)total_count, total_hdf5);
+    printf ("total logs: %d\n", total_count);
+    printf ("      shared file access: %lf [%d]\n", (double)total_shared/(double)total_count, total_shared);
+    printf ("file-per-proccess access: %lf [%d]\n", (double)total_fpp/(double)total_count, total_fpp);
+    printf ("             mpio access: %lf [%d]\n", (double)total_mpio/(double)total_count, total_mpio);
+    printf ("          pnetcdf access: %lf [%d]\n", (double)total_pnet/(double)total_count, total_pnet);
+    printf ("             hdf5 access: %lf [%d]\n", (double)total_hdf5/(double)total_count, total_hdf5);
+    printf("\nI/O percentage of runtime:\n");
     printf ("%.2lf-%.2lf: %d\n", (double)0.0,     (double)BUCKET1, bucket1);
     printf ("%.2lf-%.2lf: %d\n", (double)BUCKET1, (double)BUCKET2, bucket2);
     printf ("%.2lf-%.2lf: %d\n", (double)BUCKET2, (double)BUCKET3, bucket3);
     printf ("%.2lf-%.2lf: %d\n", (double)BUCKET3, (double)BUCKET4, bucket4);
-    printf ("%.2lf-%.2lf: %d\n", (double)BUCKET4, (double)100.0,   bucket5);
+    printf ("%.2lf-%.2lf: %d\n", (double)BUCKET4, (double)1.0,   bucket5);
     return 0;
 }
 
