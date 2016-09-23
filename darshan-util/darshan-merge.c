@@ -19,8 +19,9 @@ struct darshan_shared_record_ref
 
 void usage(char *exename)
 {
-    fprintf(stderr, "Usage: %s --output <output_path> [options] <input-logs>\n", exename);
+    fprintf(stderr, "Usage: %s --output <output_path> [options] <input_log_glob>\n", exename);
     fprintf(stderr, "This utility merges multiple Darshan log files into a single output log file.\n");
+    fprintf(stderr, "<input_log_glob> is a pattern that matches all input log files (e.g., /log-path/*.darshan).\n");
     fprintf(stderr, "Options:\n");
     fprintf(stderr, "\t--output\t(REQUIRED) Full path of the output darshan log file.\n");
     fprintf(stderr, "\t--shared-redux\tReduce globally shared records into a single record.\n");
