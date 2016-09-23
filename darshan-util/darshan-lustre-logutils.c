@@ -25,7 +25,7 @@ char *lustre_counter_names[] = {
 #undef X
 
 static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p);
-static int darshan_log_put_lustre_record(darshan_fd fd, void* lustre_buf, int ver);
+static int darshan_log_put_lustre_record(darshan_fd fd, void* lustre_buf);
 static void darshan_log_print_lustre_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
 static void darshan_log_print_lustre_description(int ver);
@@ -114,7 +114,7 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
     return(ret);
 }
 
-static int darshan_log_put_lustre_record(darshan_fd fd, void* lustre_buf, int ver)
+static int darshan_log_put_lustre_record(darshan_fd fd, void* lustre_buf)
 {
     struct darshan_lustre_record *rec = (struct darshan_lustre_record *)lustre_buf;
     int ret;

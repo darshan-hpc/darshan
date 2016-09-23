@@ -33,7 +33,7 @@ char *stdio_f_counter_names[] = {
 
 /* prototypes for each of the STDIO module's logutil functions */
 static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p);
-static int darshan_log_put_stdio_record(darshan_fd fd, void* stdio_buf, int ver);
+static int darshan_log_put_stdio_record(darshan_fd fd, void* stdio_buf);
 static void darshan_log_print_stdio_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
 static void darshan_log_print_stdio_description(int ver);
@@ -111,7 +111,7 @@ static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p)
 /* write the STDIO record stored in 'stdio_buf' to log file descriptor 'fd'.
  * Return 0 on success, -1 on failure
  */
-static int darshan_log_put_stdio_record(darshan_fd fd, void* stdio_buf, int ver)
+static int darshan_log_put_stdio_record(darshan_fd fd, void* stdio_buf)
 {
     struct darshan_stdio_file *rec = (struct darshan_stdio_file *)stdio_buf;
     int ret;

@@ -34,7 +34,7 @@ char *posix_f_counter_names[] = {
 #define DARSHAN_POSIX_FILE_SIZE_2 648
 
 static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p);
-static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver);
+static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf);
 static void darshan_log_print_posix_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
 static void darshan_log_print_posix_description(int ver);
@@ -160,7 +160,7 @@ exit:
     }
 }
 
-static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver)
+static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf)
 {
     struct darshan_posix_file *file = (struct darshan_posix_file *)posix_buf;
     int ret;

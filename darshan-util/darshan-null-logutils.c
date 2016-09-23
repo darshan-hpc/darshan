@@ -33,7 +33,7 @@ char *null_f_counter_names[] = {
 
 /* prototypes for each of the NULL module's logutil functions */
 static int darshan_log_get_null_record(darshan_fd fd, void** null_buf_p);
-static int darshan_log_put_null_record(darshan_fd fd, void* null_buf, int ver);
+static int darshan_log_put_null_record(darshan_fd fd, void* null_buf);
 static void darshan_log_print_null_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
 static void darshan_log_print_null_description(int ver);
@@ -108,10 +108,10 @@ static int darshan_log_get_null_record(darshan_fd fd, void** null_buf_p)
     }
 }
 
-/* write the NULL record stored in 'null_buf' (with version number 'ver')
- * to log file descriptor 'fd'. Return 0 on success, -1 on failure
+/* write the NULL record stored in 'null_buf' to log file descriptor 'fd'.
+ * Return 0 on success, -1 on failure
  */
-static int darshan_log_put_null_record(darshan_fd fd, void* null_buf, int ver)
+static int darshan_log_put_null_record(darshan_fd fd, void* null_buf)
 {
     struct darshan_null_record *rec = (struct darshan_null_record *)null_buf;
     int ret;

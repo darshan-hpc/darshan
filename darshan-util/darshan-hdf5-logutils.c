@@ -31,7 +31,7 @@ char *hdf5_f_counter_names[] = {
 #undef X
 
 static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p);
-static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf, int ver);
+static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf);
 static void darshan_log_print_hdf5_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
 static void darshan_log_print_hdf5_description(int ver);
@@ -97,7 +97,7 @@ static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p)
     }
 }
 
-static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf, int ver)
+static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf)
 {
     struct darshan_hdf5_file *file = (struct darshan_hdf5_file *)hdf5_buf;
     int ret;

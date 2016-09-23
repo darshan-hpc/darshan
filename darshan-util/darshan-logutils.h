@@ -80,12 +80,10 @@ struct darshan_mod_logutil_funcs
      * return 0 on success, -1 on error
      *      - 'fd' is the file descriptor to put record into
      *      - 'buf' is the buffer containing the record data
-     *      - 'ver' is the version of the record
      */
     int (*log_put_record)(
         darshan_fd fd,
-        void *buf,
-        int ver
+        void *buf
     );
     /* print the counters for a given log record
      *      - 'file_rec' is the record's data buffer

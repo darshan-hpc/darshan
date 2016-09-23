@@ -419,7 +419,7 @@ int main(int argc, char *argv[])
                 /* write out the shared records first */
                 HASH_ITER(hlink, shared_rec_hash, sref, stmp)
                 {
-                    ret = mod_logutils[i]->log_put_record(merge_fd, sref->agg_rec, in_fd->mod_ver[i]);
+                    ret = mod_logutils[i]->log_put_record(merge_fd, sref->agg_rec);
                     if(ret < 0)
                     {
                         fprintf(stderr,
@@ -443,7 +443,7 @@ int main(int argc, char *argv[])
                 if(sref)
                     continue; /* skip shared records */
 
-                ret = mod_logutils[i]->log_put_record(merge_fd, mod_buf, in_fd->mod_ver[i]);
+                ret = mod_logutils[i]->log_put_record(merge_fd, mod_buf);
                 if(ret < 0)
                 {
                     fprintf(stderr,
