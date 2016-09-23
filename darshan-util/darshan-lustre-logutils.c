@@ -168,8 +168,6 @@ static void darshan_log_print_lustre_description()
     printf("#   LUSTRE_STRIPE_WIDTH: number of OSTs over which file is striped.\n");
     printf("#   LUSTRE_OST_ID_*: indices of OSTs over which the file is striped.\n");
 
-    DARSHAN_PRINT_HEADER();
-
     return;
 }
 

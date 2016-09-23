@@ -227,8 +227,6 @@ static void darshan_log_print_posix_description()
     printf("#   POSIX_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).\n");
     printf("#   POSIX_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared files).\n");
 
-    DARSHAN_PRINT_HEADER();
-
     return;
 }
 

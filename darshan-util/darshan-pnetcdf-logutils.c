@@ -144,8 +144,6 @@ static void darshan_log_print_pnetcdf_description()
     printf("#   PNETCDF_F_OPEN_TIMESTAMP: timestamp of first PNETCDF file open.\n");
     printf("#   PNETCDF_F_CLOSE_TIMESTAMP: timestamp of last PNETCDF file close.\n");
 
-    DARSHAN_PRINT_HEADER();
-
     return;
 }
 

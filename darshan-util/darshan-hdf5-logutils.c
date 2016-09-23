@@ -143,8 +143,6 @@ static void darshan_log_print_hdf5_description()
     printf("#   HDF5_F_OPEN_TIMESTAMP: timestamp of first HDF5 file open.\n");
     printf("#   HDF5_F_CLOSE_TIMESTAMP: timestamp of last HDF5 file close.\n");
 
-    DARSHAN_PRINT_HEADER();
-
     return;
 }
 

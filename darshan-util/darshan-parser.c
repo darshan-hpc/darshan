@@ -419,7 +419,10 @@ int main(int argc, char **argv)
         {
             /* print a header describing the module's I/O characterization data */
             if(mod_logutils[i]->log_print_description)
+            {
                 mod_logutils[i]->log_print_description();
+                DARSHAN_PRINT_HEADER();
+            }
         }
 
         ret = mod_logutils[i]->log_get_record(fd, (void **)&mod_buf);
@@ -572,8 +575,18 @@ int main(int argc, char **argv)
                 stdio_calc_file(file_hash, &fdata);
             }
 
-            printf("\n# files\n");
+            printf("\n# Total file counts\n");
             printf("# -----\n");
+            printf("# <file_type>: type of file access:\n");
+            printf("#    *read_only: file was only read\n");
+            printf("#    *write_only: file was only written\n");
+            printf("#    *read_write: file was read and written\n");
+            printf("#    *unique: file was opened by a single process only\n");
+            printf("#    *shared: file was accessed by a group of processes (maybe all processes)\n");
+            printf("# <file_count> total number of files of this type\n");
+            printf("# <total_bytes> total number of bytes moved to/from files of this type\n");
+            printf("# <max_byte_offset> maximum byte offset accessed for a file of this type\n");
+            printf("\n# <file_type> <file_count> <total_bytes> <max_byte_offset>\n");
             printf("# total: %" PRId64 " %" PRId64 " %" PRId64 "\n",
                    fdata.total,
                    fdata.total_size,
@@ -1684,6 +1697,8 @@ void calc_perf(perf_data_t *pdata,
 void stdio_print_total_file(struct darshan_stdio_file *pfile)
 {
     int i;
+
+    mod_logutils[DARSHAN_STDIO_MOD]->log_print_description();
     printf("\n");
     for(i = 0; i < STDIO_NUM_INDICES; i++)
     {
@@ -1701,6 +1716,8 @@ void stdio_print_total_file(struct darshan_stdio_file *pfile)
 void posix_print_total_file(struct darshan_posix_file *pfile)
 {
     int i;
+
+    mod_logutils[DARSHAN_POSIX_MOD]->log_print_description();
     printf("\n");
     for(i = 0; i < POSIX_NUM_INDICES; i++)
     {
@@ -1718,6 +1735,8 @@ void posix_print_total_file(struct darshan_posix_file *pfile)
 void mpiio_print_total_file(struct darshan_mpiio_file *mfile)
 {
     int i;
+
+    mod_logutils[DARSHAN_MPIIO_MOD]->log_print_description();
     printf("\n");
     for(i = 0; i < MPIIO_NUM_INDICES; i++)
     {
@@ -1765,6 +1784,7 @@ void stdio_file_list(hash_entry_t *file_hash,
         printf("\n# Per-file summary of I/O activity (detailed).\n");
     else
         printf("\n# Per-file summary of I/O activity.\n");
+    printf("# -----\n");
 
     printf("# <record_id>: darshan record id for this file\n");
     printf("# <file_name>: full file name\n");
@@ -1851,6 +1871,7 @@ void posix_file_list(hash_entry_t *file_hash,
         printf("\n# Per-file summary of I/O activity (detailed).\n");
     else
         printf("\n# Per-file summary of I/O activity.\n");
+    printf("# -----\n");
 
     printf("# <record_id>: darshan record id for this file\n");
     printf("# <file_name>: full file name\n");
@@ -1859,8 +1880,8 @@ void posix_file_list(hash_entry_t *file_hash,
     printf("# <avg>: average time in seconds consumed in IO per process\n");
     if(detail_flag)
     {
-        printf("# <start_{open/read/write}>: start timestamp of first open, read, or write\n");
-        printf("# <end_{read/write/close}>: end timestamp of last read, write, or close\n");
+        printf("# <start_{open/read/write/close}>: start timestamp of first open, read, write, or close\n");
+        printf("# <end_{open/read/write/close}>: end timestamp of last open, read, write, or close\n");
         printf("# <posix_opens>: POSIX open calls\n");
         printf("# <POSIX_SIZE_READ_*>: POSIX read size histogram\n");
         printf("# <POSIX_SIZE_WRITE_*>: POSIX write size histogram\n");
@@ -1943,6 +1964,7 @@ void mpiio_file_list(hash_entry_t *file_hash,
         printf("\n# Per-file summary of I/O activity (detailed).\n");
     else
         printf("\n# Per-file summary of I/O activity.\n");
+    printf("# -----\n");
 
     printf("# <record_id>: darshan record id for this file\n");
     printf("# <file_name>: full file name\n");

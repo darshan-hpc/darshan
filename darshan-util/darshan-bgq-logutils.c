@@ -187,8 +187,6 @@ static void darshan_log_print_bgq_description()
     printf("#   BGQ_TORUSENABLED: which dimensions of the torus are enabled.\n");
     printf("#   BGQ_F_TIMESTAMP: timestamp when the BGQ data was collected.\n");
 
-    DARSHAN_PRINT_HEADER();
-
     return;
 }
 
