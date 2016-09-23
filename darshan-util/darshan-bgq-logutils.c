@@ -37,7 +37,7 @@ char *bgq_f_counter_names[] = {
 static int darshan_log_get_bgq_rec(darshan_fd fd, void** bgq_buf_p);
 static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf);
 static void darshan_log_print_bgq_rec(void *file_rec,
-    char *file_name, char *mnt_pt, char *fs_type, int ver);
+    char *file_name, char *mnt_pt, char *fs_type);
 static void darshan_log_print_bgq_description(int ver);
 static void darshan_log_print_bgq_rec_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
@@ -150,7 +150,7 @@ static int darshan_log_put_bgq_rec(darshan_fd fd, void* bgq_buf)
 }
 
 static void darshan_log_print_bgq_rec(void *file_rec, char *file_name,
-    char *mnt_pt, char *fs_type, int ver)
+    char *mnt_pt, char *fs_type)
 {
     int i;
     struct darshan_bgq_record *bgq_file_rec =

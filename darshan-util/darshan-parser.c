@@ -477,7 +477,7 @@ int main(int argc, char **argv)
             {
                 /* print the corresponding module data for this record */
                 mod_logutils[i]->log_print_record(mod_buf, rec_name,
-                    mnt_pt, fs_type, fd->mod_ver[i]);
+                    mnt_pt, fs_type);
             }
 
             /* we calculate more detailed stats for POSIX, MPI-IO, and STDIO modules, 

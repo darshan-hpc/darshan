@@ -35,7 +35,7 @@ char *null_f_counter_names[] = {
 static int darshan_log_get_null_record(darshan_fd fd, void** null_buf_p);
 static int darshan_log_put_null_record(darshan_fd fd, void* null_buf);
 static void darshan_log_print_null_record(void *file_rec,
-    char *file_name, char *mnt_pt, char *fs_type, int ver);
+    char *file_name, char *mnt_pt, char *fs_type);
 static void darshan_log_print_null_description(int ver);
 static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
@@ -127,7 +127,7 @@ static int darshan_log_put_null_record(darshan_fd fd, void* null_buf)
 
 /* print all I/O data record statistics for the given NULL record */
 static void darshan_log_print_null_record(void *file_rec, char *file_name,
-    char *mnt_pt, char *fs_type, int ver)
+    char *mnt_pt, char *fs_type)
 {
     int i;
     struct darshan_null_record *null_rec =

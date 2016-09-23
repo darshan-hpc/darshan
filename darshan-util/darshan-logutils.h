@@ -30,7 +30,8 @@ struct darshan_fd_s
     /* log file version */
     char version[8];
     /* flag indicating whether byte swapping needs to be
-     * performed on log file data */
+     * performed on log file data
+     */
     int swap_flag;
     /* flag indicating whether a log file contains partial data */
     int partial_flag;
@@ -90,21 +91,19 @@ struct darshan_mod_logutil_funcs
      *      - 'file_name' is the file path string for the record
      *      - 'mnt-pt' is the file path mount point string
      *      - 'fs_type' is the file system type string
-     *      - 'ver' is the version of the record
      */
     void (*log_print_record)(
         void *file_rec,
         char *file_name,
         char *mnt_pt,
-        char *fs_type,
-        int ver
+        char *fs_type
     );
     /* print module-specific description of I/O characterization data
      *      - 'ver' is the version of the record
      */
     void (*log_print_description)(
         int ver);
-    /* print a text diff of 2 module I/O records */
+    /* print a text diff of 2 module records */
     void (*log_print_diff)(
         void *rec1,
         char *name1,
