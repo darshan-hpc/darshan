@@ -20,6 +20,10 @@ information about HDF5 and PnetCDF access. Darshan also exposes an API that
 can be used to develop and add new instrumentation modules (for other I/O library
 interfaces or to gather system-specific data, for instance), as detailed in
 http://www.mcs.anl.gov/research/projects/darshan/docs/darshan-modularization.html[this document].
+Newly contributed modules include a module for gathering system-specific parameters
+for jobs running on BG/Q systems, a module for gathering Lustre striping data for
+files on Lustre file systems, and a module for instrumenting stdio (i.e., stream I/O
+functions like `fopen()`, `fread()`, etc).
 
 This document provides generic installation instructions, but "recipes" for
 several common HPC systems are provided at the end of the document as well.
@@ -531,7 +535,7 @@ behavior at runtime:
 * DARSHAN_LOGPATH: specifies the path to write Darshan log files to. Note that this directory needs to be formatted using the darshan-mk-log-dirs script.
 * DARSHAN_LOGFILE: specifies the path (directory + Darshan log file name) to write the output Darshan log to. This overrides the default Darshan behavior of automatically generating a log file name and adding it to a log file directory formatted using darshan-mk-log-dirs script.
 * DARSHAN_MODMEM: specifies the maximum amount of memory (in MiB) Darshan instrumentation modules can collectively consume at runtime (if not specified, Darshan uses a default quota of 2 MiB).
-* DARSHAN_MMAP_LOGPATH: if Darshan's mmap log file mechanism is enabled, this variable specifies what path the mmap log files should be stored in (if not specified, log files will be stored in `/tmp`.
+* DARSHAN_MMAP_LOGPATH: if Darshan's mmap log file mechanism is enabled, this variable specifies what path the mmap log files should be stored in (if not specified, log files will be stored in `/tmp`).
 
 == Debugging
 
