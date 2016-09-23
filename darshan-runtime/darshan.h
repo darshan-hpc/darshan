@@ -128,8 +128,8 @@ darshan_record_id darshan_core_gen_record_id(
  * properly tracked and (potentially) correlated with records from other
  * modules. 'rec_id' is the Darshan record id as given by the
  * `darshan_core_gen_record_id` function. 'name' is the the name of the
- * Darshan record (e.g., the full file path), which for now is just a
- * string. 'mod_id' is the identifier of the calling module. 'rec_len'
+ * Darshan record (e.g., the full file path), which is ignored if NULL is
+ * passed. 'mod_id' is the identifier of the calling module. 'rec_len'
  * is the size of the record being registered with Darshan. If given,
  * 'fs_info' is a pointer to a structure containing information on
  * the underlying FS this record is associated with (determined by
@@ -144,7 +144,15 @@ void *darshan_core_register_record(
     int rec_len,
     struct darshan_fs_info *fs_info);
 
-/* TODO */
+/* darshan_instrument_fs_data()
+ *
+ * Allow file system-specific modules to instrument data for the file
+ * stored at 'path'. 'fs_type' is checked to determine the underlying
+ * filesystem and calls into the corresponding file system instrumentation
+ * module, if defined -- currently we only have a Lustre module. 'fd' is
+ * the file descriptor corresponding to the file, which may be needed by
+ * the file system to retrieve specific parameters.
+ */
 void darshan_instrument_fs_data(
     int fs_type,
     const char *path,
