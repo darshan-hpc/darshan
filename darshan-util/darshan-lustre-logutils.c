@@ -28,7 +28,7 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p);
 static int darshan_log_put_lustre_record(darshan_fd fd, void* lustre_buf, int ver);
 static void darshan_log_print_lustre_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
-static void darshan_log_print_lustre_description(void);
+static void darshan_log_print_lustre_description(int ver);
 static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
     void *rec2, char *file_name2);
 static void darshan_log_agg_lustre_records(void *rec, void *agg_rec, int init_flag);
@@ -158,7 +158,7 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
     return;
 }
 
-static void darshan_log_print_lustre_description()
+static void darshan_log_print_lustre_description(int ver)
 {
     printf("\n# description of LUSTRE counters:\n");
     printf("#   LUSTRE_OSTS: number of OSTs across the entire file system.\n");

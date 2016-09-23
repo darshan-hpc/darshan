@@ -37,7 +37,7 @@ static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p);
 static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf, int ver);
 static void darshan_log_print_posix_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
-static void darshan_log_print_posix_description(void);
+static void darshan_log_print_posix_description(int ver);
 static void darshan_log_print_posix_file_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
 static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag);
@@ -199,7 +199,7 @@ static void darshan_log_print_posix_file(void *file_rec, char *file_name,
     return;
 }
 
-static void darshan_log_print_posix_description()
+static void darshan_log_print_posix_description(int ver)
 {
     printf("\n# description of POSIX counters:\n");
     printf("#   POSIX_*: posix operation counts.\n");
@@ -226,6 +226,20 @@ static void darshan_log_print_posix_description()
     printf("#   POSIX_F_MAX_*_TIME: duration of the slowest read and write operations.\n");
     printf("#   POSIX_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).\n");
     printf("#   POSIX_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared files).\n");
+
+    if(ver <= 1)
+    {
+        printf("\n# WARNING: POSIX module log format version 1 has the following limitations:\n");
+        printf("# - Partial instrumentation of stdio stream I/O functions not parsable by Darshan versions >= 3.1.0\n");
+        printf("#     * Using darshan-logutils versions < 3.1.0, this data can be found in the following POSIX counters:\n");
+        printf("#         * POSIX_FOPENS, POSIX_FREADS, POSIX_FWRITES, POSIX_FSEEKS\n");
+    }
+    if(ver <= 2)
+    {
+        printf("\n# WARNING: POSIX module log format version <=2 does not support the following counters:\n");
+        printf("# - POSIX_F_CLOSE_START_TIMESTAMP\n");
+        printf("# - POSIX_F_OPEN_END_TIMESTAMP\n");
+    }
 
     return;
 }

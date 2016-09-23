@@ -101,8 +101,11 @@ struct darshan_mod_logutil_funcs
         char *fs_type,
         int ver
     );
-    /* print module-specific description of I/O characterization data */
-    void (*log_print_description)(void);
+    /* print module-specific description of I/O characterization data
+     *      - 'ver' is the version of the record
+     */
+    void (*log_print_description)(
+        int ver);
     /* print a text diff of 2 module I/O records */
     void (*log_print_diff)(
         void *rec1,

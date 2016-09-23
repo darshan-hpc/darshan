@@ -765,14 +765,6 @@ void darshan_log_close(darshan_fd fd)
 
 void darshan_log_print_version_warnings(const char *version_string)
 {
-    if(strcmp(version_string, "3.00") == 0)
-    {
-        printf("# WARNING: version 3.00 log format has the following limitations:\n");
-        printf("# - Partial instrumentation of stdio stream I/O functions not parsable by Darshan versions >= 3.1.0\n");
-        printf("#     * Using darshan-logutils versions < 3.1.0, this data can be found in the following POSIX counters:\n");
-        printf("#         * POSIX_FOPENS, POSIX_FREADS, POSIX_FWRITES, POSIX_FSEEKS\n");
-    }
-
     return;
 }
 

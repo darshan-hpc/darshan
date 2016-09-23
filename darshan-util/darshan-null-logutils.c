@@ -36,7 +36,7 @@ static int darshan_log_get_null_record(darshan_fd fd, void** null_buf_p);
 static int darshan_log_put_null_record(darshan_fd fd, void* null_buf, int ver);
 static void darshan_log_print_null_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
-static void darshan_log_print_null_description(void);
+static void darshan_log_print_null_description(int ver);
 static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
 static void darshan_log_agg_null_records(void *rec, void *agg_rec, int init_flag);
@@ -156,7 +156,7 @@ static void darshan_log_print_null_record(void *file_rec, char *file_name,
 }
 
 /* print out a description of the NULL module record fields */
-static void darshan_log_print_null_description()
+static void darshan_log_print_null_description(int ver)
 {
     printf("\n# description of NULL counters:\n");
     printf("#   NULL_FOOS: number of 'foo' function calls.\n");

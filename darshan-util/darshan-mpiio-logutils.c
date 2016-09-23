@@ -34,7 +34,7 @@ static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p);
 static int darshan_log_put_mpiio_file(darshan_fd fd, void* mpiio_buf, int ver);
 static void darshan_log_print_mpiio_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
-static void darshan_log_print_mpiio_description(void);
+static void darshan_log_print_mpiio_description(int ver);
 static void darshan_log_print_mpiio_file_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
 static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag);
@@ -136,7 +136,7 @@ static void darshan_log_print_mpiio_file(void *file_rec, char *file_name,
     return;
 }
 
-static void darshan_log_print_mpiio_description()
+static void darshan_log_print_mpiio_description(int ver)
 {
     printf("\n# description of MPIIO counters:\n");
     printf("#   MPIIO_INDEP_*: MPI independent operation counts.\n");

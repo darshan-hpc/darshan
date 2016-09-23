@@ -34,7 +34,7 @@ static int darshan_log_get_pnetcdf_file(darshan_fd fd, void** pnetcdf_buf_p);
 static int darshan_log_put_pnetcdf_file(darshan_fd fd, void* pnetcdf_buf, int ver);
 static void darshan_log_print_pnetcdf_file(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
-static void darshan_log_print_pnetcdf_description(void);
+static void darshan_log_print_pnetcdf_description(int ver);
 static void darshan_log_print_pnetcdf_file_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
 static void darshan_log_agg_pnetcdf_files(void *rec, void *agg_rec, int init_flag);
@@ -136,7 +136,7 @@ static void darshan_log_print_pnetcdf_file(void *file_rec, char *file_name,
     return;
 }
 
-static void darshan_log_print_pnetcdf_description()
+static void darshan_log_print_pnetcdf_description(int ver)
 {
     printf("\n# description of PNETCDF counters:\n");
     printf("#   PNETCDF_INDEP_OPENS: PNETCDF independent file open operation counts.\n");

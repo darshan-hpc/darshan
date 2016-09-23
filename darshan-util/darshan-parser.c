@@ -104,20 +104,20 @@ typedef struct perf_data_s
 void posix_accum_file(struct darshan_posix_file *pfile, hash_entry_t *hfile, int64_t nprocs);
 void posix_accum_perf(struct darshan_posix_file *pfile, perf_data_t *pdata);
 void posix_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
-void posix_print_total_file(struct darshan_posix_file *pfile);
+void posix_print_total_file(struct darshan_posix_file *pfile, int posix_ver);
 void posix_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
 
 void mpiio_accum_file(struct darshan_mpiio_file *mfile, hash_entry_t *hfile, int64_t nprocs);
 void mpiio_accum_perf(struct darshan_mpiio_file *mfile, perf_data_t *pdata);
 void mpiio_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
-void mpiio_print_total_file(struct darshan_mpiio_file *mfile);
+void mpiio_print_total_file(struct darshan_mpiio_file *mfile, int mpiio_ver);
 void mpiio_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
 
 void stdio_accum_perf(struct darshan_stdio_file *pfile, perf_data_t *pdata);
 void stdio_accum_file(struct darshan_stdio_file *pfile, hash_entry_t *hfile, int64_t nprocs);
 void stdio_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
 void stdio_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
-void stdio_print_total_file(struct darshan_stdio_file *pfile);
+void stdio_print_total_file(struct darshan_stdio_file *pfile, int stdio_ver);
 
 void calc_perf(perf_data_t *pdata, int64_t nprocs);
 
@@ -420,7 +420,7 @@ int main(int argc, char **argv)
             /* print a header describing the module's I/O characterization data */
             if(mod_logutils[i]->log_print_description)
             {
-                mod_logutils[i]->log_print_description();
+                mod_logutils[i]->log_print_description(fd->mod_ver[i]);
                 DARSHAN_PRINT_HEADER();
             }
         }
@@ -547,15 +547,15 @@ int main(int argc, char **argv)
         {
             if(i == DARSHAN_POSIX_MOD)
             {
-                posix_print_total_file((struct darshan_posix_file*)total.rec_dat);
+                posix_print_total_file((struct darshan_posix_file*)total.rec_dat, fd->mod_ver[i]);
             }
             else if(i == DARSHAN_MPIIO_MOD)
             {
-                mpiio_print_total_file((struct darshan_mpiio_file*)total.rec_dat);
+                mpiio_print_total_file((struct darshan_mpiio_file*)total.rec_dat, fd->mod_ver[i]);
             }
             else if(i == DARSHAN_STDIO_MOD)
             {
-                stdio_print_total_file((struct darshan_stdio_file*)total.rec_dat);
+                stdio_print_total_file((struct darshan_stdio_file*)total.rec_dat, fd->mod_ver[i]);
             }
         }
 
@@ -1694,11 +1694,11 @@ void calc_perf(perf_data_t *pdata,
     return;
 }
 
-void stdio_print_total_file(struct darshan_stdio_file *pfile)
+void stdio_print_total_file(struct darshan_stdio_file *pfile, int stdio_ver)
 {
     int i;
 
-    mod_logutils[DARSHAN_STDIO_MOD]->log_print_description();
+    mod_logutils[DARSHAN_STDIO_MOD]->log_print_description(stdio_ver);
     printf("\n");
     for(i = 0; i < STDIO_NUM_INDICES; i++)
     {
@@ -1713,11 +1713,11 @@ void stdio_print_total_file(struct darshan_stdio_file *pfile)
     return;
 }
 
-void posix_print_total_file(struct darshan_posix_file *pfile)
+void posix_print_total_file(struct darshan_posix_file *pfile, int posix_ver)
 {
     int i;
 
-    mod_logutils[DARSHAN_POSIX_MOD]->log_print_description();
+    mod_logutils[DARSHAN_POSIX_MOD]->log_print_description(posix_ver);
     printf("\n");
     for(i = 0; i < POSIX_NUM_INDICES; i++)
     {
@@ -1732,11 +1732,11 @@ void posix_print_total_file(struct darshan_posix_file *pfile)
     return;
 }
 
-void mpiio_print_total_file(struct darshan_mpiio_file *mfile)
+void mpiio_print_total_file(struct darshan_mpiio_file *mfile, int mpiio_ver)
 {
     int i;
 
-    mod_logutils[DARSHAN_MPIIO_MOD]->log_print_description();
+    mod_logutils[DARSHAN_MPIIO_MOD]->log_print_description(mpiio_ver);
     printf("\n");
     for(i = 0; i < MPIIO_NUM_INDICES; i++)
     {

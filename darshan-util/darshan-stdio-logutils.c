@@ -36,7 +36,7 @@ static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p);
 static int darshan_log_put_stdio_record(darshan_fd fd, void* stdio_buf, int ver);
 static void darshan_log_print_stdio_record(void *file_rec,
     char *file_name, char *mnt_pt, char *fs_type, int ver);
-static void darshan_log_print_stdio_description(void);
+static void darshan_log_print_stdio_description(int ver);
 static void darshan_log_print_stdio_record_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
 static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_flag);
@@ -154,7 +154,7 @@ static void darshan_log_print_stdio_record(void *file_rec, char *file_name,
 }
 
 /* print out a description of the STDIO module record fields */
-static void darshan_log_print_stdio_description()
+static void darshan_log_print_stdio_description(int ver)
 {
     printf("\n# description of STDIO counters:\n");
     printf("#   STDIO_{OPENS|WRITES|READS|SEEKS|FLUSHES} are types of operations.\n");
