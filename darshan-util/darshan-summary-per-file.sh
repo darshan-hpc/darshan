@@ -31,19 +31,31 @@ fi
 counter=0
 darshan-parser --file-list $1| egrep -v '^(#|$)' | cut -f 1-2 | sort -n | uniq |
 while read -r hash filepath stuff ; do
-        counter=$((counter+1))
-	file=$(basename $filepath)
-	if [ -x $file.darshan ] ; then
-		$file = $file.$hash.darshan
-	fi
-        echo Status: Generating summary for file $counter of $filecount: $file
-        echo =======================================================
-	darshan-convert --file $hash $1 $2/$file.darshan
+    counter=$((counter+1))
+    file=$(basename $filepath)
+
+    if [ -x $file.darshan ] ; then
+        $file = $file.$hash.darshan
+    fi
+
+    echo Status: Generating summary for file $counter of $filecount: $file
+    echo =======================================================
+    darshan-convert --file $hash $1 $2/$file.darshan
         rc=$?
         if [ $rc -ne 0 ]; then
            exit $rc
         fi
-	darshan-job-summary.pl $2/$file.darshan --output $2/$file.pdf
+
+    # XXX: manually escape STDIO stdin/stdout/stderr name strings before passing to perl
+    if [ $file == "<STDIN>" ] ; then
+        file="\<STDIN\>"
+    elif [ $file == "<STDOUT>" ] ; then
+        file="\<STDOUT\>"
+    elif [ $file == "<STDERR>" ] ; then
+        file="\<STDERR\>"
+    fi
+
+    darshan-job-summary.pl $2/$file.darshan --output $2/$file.pdf
         rc=$?
         if [ $rc -ne 0 ]; then
            exit $rc
