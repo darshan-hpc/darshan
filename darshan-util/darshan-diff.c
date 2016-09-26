@@ -362,7 +362,6 @@ static int darshan_build_global_record_hash(
 {
     struct darshan_mod_record_ref *mod_rec;
     struct darshan_file_record_ref *file_rec;
-    darshan_record_id tmp_rec_id;
     struct darshan_base_record *base_rec;
     int i;
     int ret;
@@ -372,10 +371,10 @@ static int darshan_build_global_record_hash(
      */
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
+        if(!mod_logutils[i]) break;
+
         while(1)
         {
-            if(!mod_logutils[i]) break;
-
             mod_rec = malloc(sizeof(struct darshan_mod_record_ref));
             assert(mod_rec);
             memset(mod_rec, 0, sizeof(struct darshan_mod_record_ref));
@@ -400,7 +399,7 @@ static int darshan_build_global_record_hash(
                 base_rec = (struct darshan_base_record *)mod_rec->mod_dat;
                 mod_rec->rank = base_rec->rank;
 
-                HASH_FIND(hlink, *rec_hash, &tmp_rec_id, sizeof(darshan_record_id), file_rec);
+                HASH_FIND(hlink, *rec_hash, &(base_rec->id), sizeof(darshan_record_id), file_rec);
                 if(!file_rec)
                 {
                     /* there is no entry in the global hash table of darshan records
@@ -410,7 +409,7 @@ static int darshan_build_global_record_hash(
                     assert(file_rec);
 
                     memset(file_rec, 0, sizeof(struct darshan_file_record_ref));
-                    file_rec->rec_id = tmp_rec_id;
+                    file_rec->rec_id = base_rec->id;
                     HASH_ADD(hlink, *rec_hash, rec_id, sizeof(darshan_record_id), file_rec);
 
                 }
