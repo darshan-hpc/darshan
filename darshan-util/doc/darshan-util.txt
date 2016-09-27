@@ -150,8 +150,8 @@ The format of this output is described in the following section.
 
 The beginning of the output from darshan-parser displays a summary of
 overall information about the job. Additional job-level summary information
-can also be produced using the `--perf`, `--file`, `--file-list`, or
-`--file-list-detailed` command line options.  See the
+can also be produced using the `--perf`, `--file`, `--file-list`,
+`--file-list-detailed`, or `--total` command line options.  See the
 <<addsummary,Additional summary output>> section for more information about
 those options.
 
@@ -235,10 +235,6 @@ otherwise noted, counters include all variants of the call in question, such as
 | POSIX_SEEKS | Count of POSIX seek operations
 | POSIX_STATS | Count of POSIX stat operations
 | POSIX_MMAPS | Count of POSIX mmap operations
-| POSIX_FOPENS | Count of POSIX stream open operations
-| POSIX_FREADS | Count of POSIX stream read operations
-| POSIX_FWRITES | Count of POSIX stream write operations
-| POSIX_FSEEKS | Count of POSIX stream seek operations
 | POSIX_FSYNCS | Count of POSIX fsync operations
 | POSIX_FDSYNCS | Count of POSIX fdatasync operations
 | POSIX_MODE | Mode that the file was last opened in
@@ -265,16 +261,12 @@ value of 1 MiB for optimal file alignment.
 | POSIX_STRIDE[1-4]_COUNT | Count of 4 most common stride patterns
 | POSIX_ACCESS[1-4]_ACCESS | 4 most common POSIX access sizes
 | POSIX_ACCESS[1-4]_COUNT | Count of 4 most common POSIX access sizes
-| POSIX_FASTEST_RANK | The MPI rank of the rank with smallest time spent in POSIX I/O
+| POSIX_FASTEST_RANK | The MPI rank with smallest time spent in POSIX I/O
 | POSIX_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in POSIX I/O
-| POSIX_SLOWEST_RANK | The MPI rank of the rank with largest time spent in POSIX I/O
+| POSIX_SLOWEST_RANK | The MPI rank with largest time spent in POSIX I/O
 | POSIX_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in POSIX I/O
-| POSIX_F_OPEN_TIMESTAMP | Timestamp of first time that the file was opened
-| POSIX_F_READ_START_TIMESTAMP | Timestamp that the first POSIX read operation began
-| POSIX_F_WRITE_START_TIMESTAMP | Timestamp that the first POSIX write operation began
-| POSIX_F_READ_END_TIMESTAMP | Timestamp that the last POSIX read operation ended
-| POSIX_F_WRITE_END_TIMESTAMP | Timestamp that the last POSIX write operation ended
-| POSIX_F_CLOSE_TIMESTAMP | Timestamp of the last time that the file was closed
+| POSIX_F_*_START_TIMESTAMP | Timestamp that the first POSIX file open/read/write/close operation began
+| POSIX_F_*_END_TIMESTAMP | Timestamp that the last POSIX file open/read/write/close operation ended
 | POSIX_F_READ_TIME | Cumulative time spent reading at the POSIX level
 | POSIX_F_WRITE_TIME | Cumulative time spent in write, fsync, and fdatasync at the POSIX level
 | POSIX_F_META_TIME | Cumulative time spent in open, close, stat, and seek at the POSIX level
@@ -313,9 +305,9 @@ value of 1 MiB for optimal file alignment.
 | MPIIO_SIZE_WRITE_AGG_* | Histogram of total size of write accesses at MPI level, even if access is noncontiguous
 | MPIIO_ACCESS[1-4]_ACCESS | 4 most common MPI aggregate access sizes
 | MPIIO_ACCESS[1-4]_COUNT | Count of 4 most common MPI aggregate access sizes
-| MPIIO_FASTEST_RANK | The MPI rank of the rank with smallest time spent in MPI I/O
+| MPIIO_FASTEST_RANK | The MPI rank with smallest time spent in MPI I/O
 | MPIIO_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in MPI I/O
-| MPIIO_SLOWEST_RANK | The MPI rank of the rank with largest time spent in MPI I/O
+| MPIIO_SLOWEST_RANK | The MPI rank with largest time spent in MPI I/O
 | MPIIO_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in MPI I/O
 | MPIIO_F_OPEN_TIMESTAMP | Timestamp of first time that the file was opened at MPI level
 | MPIIO_F_READ_START_TIMESTAMP | Timestamp that the first MPI read operation began
@@ -328,10 +320,39 @@ value of 1 MiB for optimal file alignment.
 | MPIIO_META_TIME | Cumulative time spent in open and close at MPI level
 | MPIIO_F_MAX_READ_TIME | Duration of the slowest individual MPI read operation
 | MPIIO_F_MAX_WRITE_TIME | Duration of the slowest individual MPI write operation
-| CP_F_FASTEST_RANK_TIME | The time of the rank which had the smallest amount of time spent in MPI I/O (cumulative read, write, and meta times)
-| CP_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in MPI I/O
-| CP_F_VARIANCE_RANK_TIME | The population variance for MPI I/O time of all the ranks
-| CP_F_VARIANCE_RANK_BYTES | The population variance for bytes transferred of all the ranks at MPI level
+| MPIIO_F_FASTEST_RANK_TIME | The time of the rank which had the smallest amount of time spent in MPI I/O (cumulative read, write, and meta times)
+| MPIIO_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in MPI I/O
+| MPIIO_F_VARIANCE_RANK_TIME | The population variance for MPI I/O time of all the ranks
+| MPIIO_F_VARIANCE_RANK_BYTES | The population variance for bytes transferred of all the ranks at MPI level
+|====
+
+
+.STDIO module
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| STDIO_OPENS | Count of how many times the file was opened using the stdio interface (e.g., `fopen()`)
+| STDIO_READS | Count of stdio read operations
+| STDIO_WRITES | Count of stdio write operations
+| STDIO_SEEKS | Count of stdio seek operations
+| STDIO_FLUSHES | Count of stdio flush operations
+| STDIO_BYTES_WRITTEN | Total number of bytes written to the file using stdio operations
+| STDIO_BYTES_READ | Total number of bytes read from the file using stdio operations
+| STDIO_MAX_BYTE_READ | Highest offset in the file that was read
+| STDIO_MAX_BYTE_WRITTEN | Highest offset in the file that was written
+| STDIO_FASTEST_RANK | The MPI rank with the smallest time spent in stdio operations
+| STDIO_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with the smallest time spent in stdio operations
+| STDIO_SLOWEST_RANK | The MPI rank with the largest time spent in stdio operations
+| STDIO_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in stdio operations
+| STDIO_META_TIME | Cumulative time spent in stdio open/close/seek operations
+| STDIO_WRITE_TIME | Cumulative time spent in stdio write operations
+| STDIO_READ_TIME | Cumulative time spent in stdio read operations
+| STDIO_*_START_TIMESTAMP | Timestamp that the first stdio file open/read/write/close operation began
+| STDIO_*_END_TIMESTAMP | Timestamp that the last stdio file open/read/write/close operation ended
+| STDIO_F_FASTEST_RANK_TIME | The time of the rank which had the smallest time spent in stdio I/O (cumulative read, write, and meta times)
+| STDIO_F_SLOWEST_RANK_TIME | The time of the rank which had the largest time spent in stdio I/O
+| STDIO_F_VARIANCE_RANK_TIME | The population variance for stdio I/O time of all the ranks
+| STDIO_F_VARIANCE_RANK_BYTES | The population variance for bytes transferred of all the ranks
 |====
 
 .HDF5 module
@@ -373,13 +394,26 @@ value of 1 MiB for optimal file alignment.
 | BGQ_F_TIMESTAMP | Timestamp of when BG/Q data was collected
 |====
 
+
+.Lustre module (if enabled, for Lustre file systems)
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| LUSTRE_OSTS | number of OSTs (object storage targets) for the file system
+| LUSTRE_MDTS | number of MDTs (metadata targets) for the file system
+| LUSTRE_STRIPE_OFFSET | OST id offset specified at file creation time
+| LUSTRE_STRIPE_SIZE | stripe size for the file in bytes
+| LUSTRE_STRIPE_WIDTH | number of OSTs over which the file is striped
+| LUSTRE_OST_ID_* | indices of OSTs over which the file is striped
+|====
+
 ==== Additional summary output
 [[addsummary]]
 
 The following sections describe addtitional parser options that provide
 summary I/O characterization data for the given log.
 
-*NOTE*: These options are currently only supported by the POSIX and MPI-IO modules.
+*NOTE*: These options are currently only supported by the POSIX, MPI-IO, and stdio modules.
 
 ===== Performance
 
@@ -475,19 +509,18 @@ column is the maximum offset accessed.
 * write_only: Files that were only written to
 * read_write: Files that were both read and written
 * unique: Files that were opened on only one rank
-* shared: File that were opened by more than one rank
+* shared: Files that were opened by more than one rank
 
 
 .Example output
 ----
-# files
-# -----
-# total: 1542 236572244952 154157611
-# read_only: 3 133998651 122805519
-# write_only: 1539 236438246301 154157611
+# <file_type> <file_count> <total_bytes> <max_byte_offset>
+# total: 5 4371499438884 4364699616485
+# read_only: 2 4370100334589 4364699616485
+# write_only: 1 1399104295 1399104295
 # read_write: 0 0 0
-# unique: 2 11193132 11193063
-# shared: 1540 236561051820 154157611
+# unique: 0 0 0
+# shared: 5 4371499438884 4364699616485
 ----
 
 ===== Totals
@@ -525,6 +558,7 @@ file.
 .Example output
 ----
 # Per-file summary of I/O activity.
+# -----
 # <record_id>: darshan record id for this file
 # <file_name>: full file name
 # <nprocs>: number of processes that opened the file
@@ -558,6 +592,8 @@ If the `--bzip2` flag is given, then the output file will be re-compressed in
 bzip2 format rather than libz format.  It also has command line options for
 anonymizing personal data, adding metadata annotation to the log header, and
 restricting the output to a specific instrumented file.
+* darshan-diff: provides a text diff of two Darshan log files, comparing both
+job-level metadata and module data records between the files.
 * darshan-analyzer: walks an entire directory tree of Darshan log files and
 produces a summary of the types of access methods used in those log files.
 * darshan-logutils*: this is a library rather than an executable, but it

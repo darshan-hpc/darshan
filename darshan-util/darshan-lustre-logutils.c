@@ -165,7 +165,7 @@ static void darshan_log_print_lustre_description(int ver)
     printf("#   LUSTRE_MDTS: number of MDTs across the entire file system.\n");
     printf("#   LUSTRE_STRIPE_OFFSET: OST ID offset specified when the file was created.\n");
     printf("#   LUSTRE_STRIPE_SIZE: stripe size for file in bytes.\n");
-    printf("#   LUSTRE_STRIPE_WIDTH: number of OSTs over which file is striped.\n");
+    printf("#   LUSTRE_STRIPE_WIDTH: number of OSTs over which the file is striped.\n");
     printf("#   LUSTRE_OST_ID_*: indices of OSTs over which the file is striped.\n");
 
     return;
