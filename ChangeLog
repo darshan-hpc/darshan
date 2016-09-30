@@ -14,7 +14,7 @@ Darshan-3.1.0
     - this handles instrumentation of file stream I/O functions
       like fopen(), fprintf(), fscanf(), etc.
     - this module also captures stats on the standard streams (stdin,
-      stdout, & stdin)
+      stdout, & stderr)
 * add Lustre instrumentation module (Glenn Lockwood)
     - this module provides Lustre striping details (e.g., stripe
       width, stripe size, list of OSTs a file is striped over)
