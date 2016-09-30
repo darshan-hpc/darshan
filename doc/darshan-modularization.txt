@@ -1,7 +1,7 @@
 :data-uri:
 
-Darshan modularization branch development notes
-===============================================
+Modularized I/O characterization using Darshan 3.x
+==================================================
 
 == Introduction
 
@@ -16,30 +16,7 @@ modules, which are responsible for gathering I/O data from a specific system com
 manage these modules at runtime and create a valid Darshan log regardless of how many
 or what types of modules are used.
 
-== Checking out and building the modularization branch
-
-The Darshan source code is available at the following GitLab project page:
-https://xgitlab.cels.anl.gov/darshan/darshan. It is worth noting that this page
-also provides issue tracking to provide users the ability to browse known issues
-with the code or to report new issues.
-
-The following commands can be used to clone the Darshan source code and checkout
-the modularization branch:
-
-----
-git clone git@xgitlab.cels.anl.gov:darshan/darshan.git
-cd darshan
-git checkout dev-modular
-----
-
-For details on configuring, building, and using the Darshan runtime and utility
-repositories, consult the documentation from previous versions
-(http://www.mcs.anl.gov/research/projects/darshan/docs/darshan-runtime.html[darshan-runtime] and
-http://www.mcs.anl.gov/research/projects/darshan/docs/darshan-util.html[darshan-util]) -- the
-necessary steps for building these repositories should not have changed in the new version of
-Darshan.
-
-== Darshan dev-modular overview
+== Overview of Darshan's modularized architecture
 
 The Darshan source tree is organized into two primary components:
 
@@ -121,7 +98,7 @@ component so it is included in the output I/O characterization.
 The static initialization approach is useful for modules that do not have function calls
 that can be intercepted and instead can just grab all I/O characterization data at Darshan
 startup or shutdown time. A module can be statically initialized at Darshan startup time
-by adding its initializatin routine to the `mod_static_init_fns` list at the top of the
+by adding its initializatin routine to the `mod_static_init_fns` array at the top of the
 `lib/darshan-core.c` source file.
 
 *NOTE*: Modules may wish to add a corresponding configure option to disable the module
@@ -131,7 +108,7 @@ used on other systems.
 
 Most instrumentation modules can just bootstrap themselves within wrapper functions during
 normal application execution. Each of Darshan's current I/O library instrumentation modules
-(POSIX, MPI-IO, HDF5, PnetCDF) follow this approach. Each wrapper function should just include
+(POSIX, MPI-IO, stdio, HDF5, PnetCDF) follow this approach. Each wrapper function should just include
 logic to initialize data structures and register with `darshan-core` if this initialization
 has not already occurred. Darshan intercepts function calls of interest by inserting these
 wrappers at compile time for statically linked executables (e.g., using the linkers
@@ -144,36 +121,23 @@ minimizing Darshan's impact on application I/O performance.
 
 When the instrumented application terminates and Darshan begins its shutdown procedure, it requires
 a way to interface with any active modules that have data to contribute to the output I/O characterization.
-Darshan requires that module developers implement the following functions to allow the Darshan runtime
-environment to coordinate with modules while shutting down:
+The following function is implemented by each module to finalize (and perhaps reorganize) module records
+before returning the record memory back to darshan-core to be compressed and written to file.
 
 [source,c]
-struct darshan_module_funcs
-{
-    void (*begin_shutdown)(void);
-    void (*get_output_data)(
-        MPI_Comm mod_comm,
-        darshan_record_id *shared_recs,
-        int shared_rec_count,
-        void** mod_buf,
-        int* mod_buf_sz
-    );
-    void (*shutdown)(void);
-};
+typedef void (*darshan_module_shutdown)(
+    MPI_Comm mod_comm,
+    darshan_record_id *shared_recs,
+    int shared_rec_count,
+    void** mod_buf,
+    int* mod_buf_sz
+);
 
-`begin_shutdown()`
-
-This function informs the module that Darshan is about to begin shutting down. It should disable
-all wrappers to prevent the module from making future updates to internal data structures, primarily
-to ensure data consistency and avoid other race conditions.
-
-`get_output_data()`
-
-This function is responsible for packing all module I/O data into a single buffer to be written
-to the output I/O characterization. This function can be used to run collective MPI operations on
-module data; for instance, Darshan typically tries to reduce file records which are shared across
-all application processes into a single data record (more details on the shared file reduction
-mechanism are given in link:darshan-modularization.html#_shared_record_reductions[Section 5]).
+This function can be used to run collective MPI operations on module data; for instance, Darshan
+typically tries to reduce file records which are shared across all application processes into a
+single data record (more details on the shared file reduction mechanism are given in
+link:darshan-modularization.html#_shared_record_reductions[Section 5]). This function also serves
+as a final opportunity for modules to cleanup and free any allocated data structures, etc.
 
 * _mod_comm_ is the MPI communicator to use for collective communication
 
@@ -182,14 +146,11 @@ processes
 
 * _shared_rec_count_ is the size of the shared record list
 
-* _mod_buf_ is a pointer to the buffer of this module's I/O characterization data
+* _mod_buf_ is a pointer to the buffer address of the module's contiguous set of data records
 
-* _mod_buf_sz_ is the size of the module's output buffer
-
-`shutdown()`
-
-This function is a signal from Darshan that it is safe to shutdown. It should clean up and free
-all internal data structures.
+* _mod_buf_sz_ is a pointer to a variable storing the aggregate size of the module's records. On
+input, the pointed to value indicates the aggregate size of the module's registered records; on
+ouptut, the value may be updated if, for instance, certain records are discarded
 
 ==== darshan-core
 
@@ -206,9 +167,9 @@ described in detail below.
 [source,c]
 void darshan_core_register_module(
     darshan_module_id mod_id,
-    struct darshan_module_funcs *funcs,
-    int *my_rank,
+    darshan_module_shutdown mod_shutdown_func,
     int *mod_mem_limit,
+    int *rank,
     int *sys_mem_alignment);
 
 The `darshan_core_register_module` function registers Darshan instrumentation modules with the
@@ -218,20 +179,18 @@ will contribute data to Darshan's final I/O characterization.
 * _mod_id_ is a unique identifier for the given module, which is defined in the Darshan log
 format header file (`darshan-log-format.h`).
 
-* _funcs_ is the structure of function pointers (as described above in the previous section) that
-a module developer must provide to interface with the darshan-core runtime. 
+* _mod_shutdown_func_ is the function pointer to the module shutdown function described in the
+previous section.
 
-* _my_rank_ is a pointer to an integer to store the calling process's application MPI rank in
+* _inout_mod_buf_size_ is an input/output argument that stores the amount of module memory
+being requested when calling the function and the amount of memory actually reserved by
+darshan-core when returning.
 
-* _mod_mem_limit_ is a pointer to an integer which will store the amount of memory Darshan
-allows this module to use at runtime. Darshan's default module memory limit is currently set to
-2 MiB, but the user can choose a different value at configure time (using the `--with-mod-mem`
-configure option) or at runtime (using the DARSHAN_MODMEM environment variable). Note that Darshan
-does not allocate any memory for modules; it just informs a module how much memory it can use.
+* _rank_ is a pointer to an integer to store the calling process's application MPI rank in.
+`NULL` may be passed in to ignore this value.
 
 * _sys_mem_alignment_ is a pointer to an integer which will store the system memory alignment value
-Darshan was configured with. This parameter may be set to `NULL` if a module is not concerned with the
-memory alignment value.
+Darshan was configured with. `NULL` may be passed in to ignore this value.
 
 [source,c]
 void darshan_core_unregister_module(
@@ -241,64 +200,56 @@ The `darshan_core_unregister_module` function disassociates the given module fro
 `darshan-core` runtime. Consequentially, Darshan does not interface with the given module at
 shutdown time and will not log any I/O data from the module. This function should only be used
 if a module registers itself with darshan-core but later decides it does not want to contribute
-any I/O data.
+any I/O data. Note that, in the current implementation, Darshan does not have the ability to
+reclaim the record memory allocated to the calling module to assign to other modules.
 
 * _mod_id_ is the unique identifer for the module being unregistered.
 
 [source,c]
-void darshan_core_register_record(
-    void *name,
-    int len,
+darshan_record_id darshan_core_gen_record_id(
+    const char *name);
+
+The `darshan_core_gen_record_id` function simply generates a unique record identifier for a
+given record name. This function is generally called to convert a name string to a unique record
+identifier that is needed to register a data record with darshan-core. The generation of IDs
+is consistent, such that modules which reference records with the same names will store these
+records using the same unique IDs, simplifying the correlation of these records for analysis.
+
+* _name_ is the name of the corresponding data record (often times this is just a file name).
+
+[source,c]
+void *darshan_core_register_record(
+    darshan_record_id rec_id,
+    const char *name,
     darshan_module_id mod_id,
-    int printable_flag,
-    int mod_limit_flag,
-    darshan_record_id *rec_id,
-    int *file_alignment);
+    int rec_len,
+    int *fs_info);
 
-The `darshan_core_register_record` function registers some data record with the darshan-core
-runtime. This record could reference a POSIX file or perhaps an object identifier for an
-object storage system, for instance.  A unique identifier for the given record name is
-generated by Darshan, which should then be used by the module for referencing the corresponding
-record.  This allows multiple modules to refer to a specific data record in a consistent manner
-and also provides a mechanism for mapping these records back to important metadata stored by
-darshan-core. It is safe (and likely necessary) to call this function many times for the same
-record -- darshan-core will just set the corresponding record identifier if the record has
-been previously registered.
+The `darshan_core_register_record` function registers a data record with the darshan-core
+runtime, allocating memory for the record so that it is persisted in the output log file.
+This record could reference a POSIX file or perhaps an object identifier for an
+object storage system, for instance. This function should only be called once for each
+record being tracked by a module to avoid duplicating record memory. This function returns
+the address which the record should be stored at or `NULL` if there is insufficient
+memory for storing the record.
 
-* _name_ is just the name of the data record, which could be a file path, object ID, etc.
+* _rec_id_ is a unique integer identifier for this record (generally generated using the
+`darshan_core_gen_record_id` function).
 
-* _len_ is the size of the input record name. For string record names, this would just be the
-string length, but for nonprintable record names (e.g., an integer object identifier), this
-is the size of the record name type.
+* _name_ is the string name of the data record, which could be a file path, object ID, etc.
+If given, darshan-core will associate the given name with the record identifier and store
+this mapping in the log file so it can be retrieved for analysis. `NULL` may be passed in
+to generate an anonymous (unnamed) record.
 
 * _mod_id_ is the identifier for the module attempting to register this record.
 
-* _printable_flag_ indicates whether the input record name is a printable ASCII string.
+* _rec_len_ is the length of the record.
 
-* _mod_limit_flag_ indicates whether the calling module is out of memory to instrument new
-records or not. If this flag is set, darshan-core will not create new records and instead just
-search existing records for one corresponding to input _name_. 
-
-* _rec_id_ is a pointer to a variable which will store the unique record identifier generated
-by Darshan.
-
-* _file_alignment_ is a pointer to an integer which will store the the file alignment (block size)
-of the underlying storage system. This parameter may be set to `NULL` if it is not applicable to a
-given module.
-
-[source,c]
-void darshan_core_unregister_record(
-    darshan_record_id rec_id,
-    darshan_module_id mod_id);
-
-The `darshan_core_unregister_record` function disassociates the given module identifier from the
-given record identifier. If no other modules are associated with the given record identifier, then
-Darshan removes all internal references to the record. This function should only be used if a
-module registers a record with darshan-core, but later decides not to store the record internally.
-
-* _rec_id_ is the record identifier we want to unregister.
-
-* _mod_id_ is the module identifier that is unregistering _rec_id_.
+* _fs_info_ is a pointer to a structure of relevant info for the file system associated
+with the given record -- this structure is defined in the `darshan.h` header. Note that this
+functionality only works for record names that are absolute file paths, since we determine
+the file system by matching the file path to the list of mount points Darshan is aware of.
+`NULL` may be passed in to ignore this value.
 
 [source,c]
 double darshan_core_wtime(void);
@@ -306,6 +257,16 @@ double darshan_core_wtime(void);
 The `darshan_core_wtime` function simply returns a floating point number of seconds since
 Darshan was initialized. This functionality can be used to time the duration of application
 I/O calls or to store timestamps of when functions of interest were called.
+
+[source,c]
+double darshan_core_excluded_path(
+    const char *path);
+
+The `darshan_core_excluded_path` function checks to see if a given file path is in Darshan's
+list of excluded file paths (i.e., paths that we don't instrument I/O to/from, such as /etc,
+/dev, /usr, etc.).
+
+* _path_ is the absolute file path we are checking.
 
 ==== darshan-common
 
@@ -333,17 +294,20 @@ simplifying maintenance.
 
 === Darshan-util
 
-The darshan-util component is composed of a log parsing library (libdarshan-util) and a
-corresponding set of utility programs that can parse and analyze Darshan I/O characterization
-logs using this library. The log parsing library includes a generic interface (see
-`darshan-logutils.h`) for retrieving specific portions of a given log file. Specifically,
-this interface allows utilities to retrieve a log's header metadata, job details, record
-identifier mapping, and any module-specific data contained within the log.
+The darshan-util component is composed of a helper library for accessing log file data
+records (`libdarshan-util`) and a set of utilities that use this library to analyze
+application I/O behavior. `libdarhan-util` includes a generic interface (`darshan-logutils`)
+for retrieving specific components of a given log file. Specifically, this interface allows
+utilities to retrieve a log's header metadata, job details, record ID to name mapping, and
+any module-specific data contained within the log.
 
-Module developers may wish to define additional interfaces for parsing module-specific data
-that can then be integrated into the log parsing library. This extended functionality can be
-implemented in terms of the generic functions offered by darshan-logutils and by module-specific
-formatting information.
+`libdarshan-util` additionally includes the definition of a generic module interface (`darshan-mod-logutils`)
+that may be implemented by modules to provide a consistent way for Darshan utilities to interact
+with module data stored in log files. This interface is necessary since each module has records
+of varying size and format, so module-specific code is needed to interact with the records in a
+generic manner. This interface is used by the `darshan-parser` utility, for instance, to extract
+data records from all modules contained in a log file and to print these records in a consistent
+format that is amenable to further analysis by other tools.
 
 ==== darshan-logutils
 
@@ -366,22 +330,22 @@ denotes whether the log is storing partial data (that is, all possible applicati
 were not tracked by darshan). Returns a Darshan file descriptor on success or `NULL` on error.
 
 [source,c]
-int darshan_log_getjob(darshan_fd fd, struct darshan_job *job);
-int darshan_log_putjob(darshan_fd fd, struct darshan_job *job);
+int darshan_log_get_job(darshan_fd fd, struct darshan_job *job);
+int darshan_log_put_job(darshan_fd fd, struct darshan_job *job);
 
 Reads/writes `job` structure from/to the log file referenced by descriptor `fd`. The `darshan_job`
 structure is defined in `darshan-log-format.h`. Returns `0` on success, `-1` on failure.
 
 [source,c]
-int darshan_log_getexe(darshan_fd fd, char *buf);
-int darshan_log_putexe(darshan_fd fd, char *buf);
+int darshan_log_get_exe(darshan_fd fd, char *buf);
+int darshan_log_put_exe(darshan_fd fd, char *buf);
 
 Reads/writes the corresponding executable string (exe name and command line arguments)
 from/to the Darshan log referenced by `fd`. Returns `0` on success, `-1` on failure.
 
 [source,c]
-int darshan_log_getmounts(darshan_fd fd, char*** mnt_pts, char*** fs_types, int* count);
-int darshan_log_putmounts(darshan_fd fd, char** mnt_pts, char** fs_types, int count);
+int darshan_log_get_mounts(darshan_fd fd, char*** mnt_pts, char*** fs_types, int* count);
+int darshan_log_put_mounts(darshan_fd fd, char** mnt_pts, char** fs_types, int count);
 
 Reads/writes mounted file system information for the Darshan log referenced by `fd`. `mnt_pnts` points
 to an array of strings storing mount points, `fs_types` points to an array of strings storing file
@@ -389,12 +353,12 @@ system types (e.g., ext4, nfs, etc.), and `count` points to an integer storing t
 of mounted file systems recorded by Darshan. Returns `0` on success, `-1` on failure.
 
 [source,c]
-int darshan_log_gethash(darshan_fd fd, struct darshan_record_ref **hash);
-int darshan_log_puthash(darshan_fd fd, struct darshan_record_ref *hash);
+int darshan_log_get_namehash(darshan_fd fd, struct darshan_name_record_ref **hash);
+int darshan_log_put_namehash(darshan_fd fd, struct darshan_name_record_ref *hash);
 
 Reads/writes the hash table of Darshan record identifiers to full names for all records
 contained in the Darshan log referenced by `fd`. `hash` is a pointer to the hash table (of type
-struct darshan_record_ref *, which should be initialized to `NULL` for reading). This hash table
+struct darshan_name_record_ref *), which should be initialized to `NULL` for reading. This hash table
 is defined by the `uthash` hash table implementation and includes corresponding macros for
 searching, iterating, and deleting records from the hash. For detailed documentation on using this
 hash table, consult `uthash` documentation in `darshan-util/uthash-1.9.2/doc/txt/userguide.txt`.
@@ -402,18 +366,19 @@ The `darshan-parser` utility (for parsing module information out of a Darshan lo
 example of how this hash table may be used. Returns `0` on success, `-1` on failure.
 
 [source,c]
-int darshan_log_getmod(darshan_fd fd, darshan_module_id mod_id, void *mod_buf, int mod_buf_sz);
-int darshan_log_putmod(darshan_fd fd, darshan_module_id mod_id, void *mod_buf, int mod_buf_sz);
+int darshan_log_get_mod(darshan_fd fd, darshan_module_id mod_id, void *mod_buf, int mod_buf_sz);
+int darshan_log_put_mod(darshan_fd fd, darshan_module_id mod_id, void *mod_buf, int mod_buf_sz, int ver);
 
 Reads/writes a chunk of (uncompressed) module data for the module identified by `mod_id` from/to
-the Darshan log referenced by `fd`. `mod_buf_sz` specifies the number of uncompressed bytes to
-read/write from/to the file and store in `mod_buf`. The `darshan_log_getmod` routine can be
+the Darshan log referenced by `fd`. `mod_buf` is the buffer to read data into or write data from,
+and `mod_buf_sz` is the corresponding size of the buffer. The `darshan_log_getmod` routine can be
 repeatedly called to retrieve chunks of uncompressed data from a specific module region of the
 log file given by `fd`. The `darshan_log_putmod` routine just continually appends data to a
-specific module region in the log file given by `fd`. This function returns the number of bytes
-read/written on success, `-1` on failure.
+specific module region in the log file given by `fd` and accepts an additional `ver` parameter
+indicating the version number for the module data records being written. These functions return
+the number of bytes read/written on success, `-1` on failure.
 
-*NOTE*: Darshan use a reader makes right conversion strategy to rectify endianness issues
+*NOTE*: Darshan use a "reader makes right" conversion strategy to rectify endianness issues
 between the machine a log was generated on and a machine analyzing the log. Accordingly,
 module-specific log utility functions will need to check the `swap_flag` variable of the Darshan
 file descriptor to determine if byte swapping is necessary. 32-bit and 64-bit byte swapping
@@ -430,6 +395,42 @@ correct order, since the log file write routines basically are appending data to
 The correct order for writing all log file data to file is: (1) job data, (2) exe string, (3)
 mount data, (4) record id -> file name map, (5) each module's data, in increasing order of
 module identifiers.
+
+==== darshan-mod-logutils
+
+The `darshan-mod-logutils` interface provides a convenient way to implement new log functionality
+across all Darshan instrumentation modules, which can potentially greatly simplify the developent
+of new Darshan log utilies. These functions are defined in the `darshan_mod_logutil_funcs` structure
+in `darshan-logutils.h` -- instrumentation modules simply provide their own implementation of each
+function, then utilities can leverage this functionality using the `mod_logutils` array defined in
+`darshan-logutils.c`. A description of some of the currently implemented functions are provided below.
+
+[source,c]
+int log_get_record(darshan_fd fd, void **buf);
+int log_put_record(darshan_fd fd, void *buf);
+
+Reads/writes the module record stored in `buf` to the log referenced by `fd`. Notice that a
+size parameter is not needed since the utilities calling this interface will likely not know
+the record size -- the module-specific log utility code can determine the corresponding size
+before reading/writing the record from/to file.
+
+*NOTE*: `log_get_record` takes a pointer to a buffer address rather than just the buffer address.
+If the pointed to address is equal to `NULL`, then record memory should be allocated instead. This
+functionality helps optimize memory usage, since utilities often don't know the size of records
+being accessed but still must provide a buffer to read them into.
+
+[source,c]
+void log_print_record(void *rec, char *name, char *mnt_pt, char *fs_type);
+
+Prints all data associated with the record pointed to by `rec`. `name` holds the corresponding name
+string for this record. `mnt_pt` and `fs_type` hold the corresponding mount point path and file
+system type strings associated with the record (only valid for records with names that are absolute
+file paths).
+
+[source,c]
+void log_print_description(int ver);
+
+Prints a description of the data stored within records for this module (with version number `ver`).
 
 == Adding new instrumentation modules
 
@@ -487,11 +488,10 @@ provide the following notes to assist module developers:
 
 * Modules only need to include the `darshan.h` header to interface with darshan-core.
 
-* The file record identifier given when registering a record with darshan-core can be used
+* The file record identifier given when registering a record with darshan-core should be used
 to store the record structure in a hash table or some other structure.
-    - The `darshan_core_register_record` function is really more like a lookup function. It
-    may be called multiple times for the same record -- if the record already exists, the function
-    simply returns its record ID.
+    - Subsequent calls that need to modify this record can then use the corresponding record
+    identifier to lookup the record in this local hash table.
     - It may be necessary to maintain a separate hash table for other handles which the module
     may use to refer to a given record. For instance, the POSIX module may need to look up a
     file record based on a given file descriptor, rather than a path name.
@@ -527,8 +527,8 @@ data record, module developers should consider implementing this functionality e
 is not strictly required. 
 
 Module developers should implement the shared record reduction mechanism within the module's
-`get_output_data()` function, as it provides an MPI communicator for the module to use for
-collective communication and a list of record identifiers which are shared globally by the
+`darshan_module_shutdown()` function, as it provides an MPI communicator for the module to use
+for collective communication and a list of record identifiers which are shared globally by the
 module (as described in link:darshan-modularization.html#_darshan_runtime[Section 3.1]).
 
 In general, implementing a shared record reduction involves the following steps:
