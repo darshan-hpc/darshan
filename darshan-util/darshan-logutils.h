@@ -87,13 +87,13 @@ struct darshan_mod_logutil_funcs
         void *buf
     );
     /* print the counters for a given log record
-     *      - 'file_rec' is the record's data buffer
-     *      - 'file_name' is the file path string for the record
-     *      - 'mnt-pt' is the file path mount point string
+     *      - 'rec' is the record's data buffer
+     *      - 'name' is the name string associated with this record (or NULL if there isn't one)
+     *      - 'mnt_pt' is the file path mount point string
      *      - 'fs_type' is the file system type string
      */
     void (*log_print_record)(
-        void *file_rec,
+        void *rec,
         char *file_name,
         char *mnt_pt,
         char *fs_type
