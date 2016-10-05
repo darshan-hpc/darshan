@@ -121,6 +121,9 @@ void stdio_print_total_file(struct darshan_stdio_file *pfile, int stdio_ver);
 
 void calc_perf(perf_data_t *pdata, int64_t nprocs);
 
+/* DXLT */
+extern void dxlt_logutils_cleanup();
+
 int usage (char *exename)
 {
     fprintf(stderr, "Usage: %s [options] <filename>\n", exename);
@@ -689,6 +692,9 @@ int main(int argc, char **argv)
             if(curr->rec_dat) free(curr->rec_dat);
             free(curr);
         }
+
+        /* DXLT */
+        dxlt_logutils_cleanup();
     }
     if(empty_mods == DARSHAN_MAX_MODS)
         printf("\n# no module data available.\n");
