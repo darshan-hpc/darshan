@@ -2,6 +2,12 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.1.1
+=============
+* bug fix to MPIIO_F_WRITE_START_TIMESTAMP, which may have produced incorrect
+  timestamps in some cases
+  - reported by Wucherl (William) Yoo
+
 Darshan-3.1.0
 =============
 * add stdio I/O library instrumentation module (Philip Carns)
