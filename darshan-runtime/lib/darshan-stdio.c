@@ -271,7 +271,7 @@ FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
     FILE* ret;
     double tm1, tm2;
 
-    MAP_OR_FAIL(fopen);
+    MAP_OR_FAIL(fopen64);
 
     tm1 = darshan_core_wtime();
     ret = __real_fopen64(path, mode);

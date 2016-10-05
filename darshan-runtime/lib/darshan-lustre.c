@@ -177,6 +177,27 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
     return;
 }
 
+/* DXLT */
+void dxlt_get_lustre_stripe_info(
+        darshan_record_id rec_id,
+        struct dxlt_file_record *file_rec)
+{
+    struct lustre_record_ref *rec_ref;
+    int ost_ids_size = 0;
+
+    rec_ref = darshan_lookup_record_ref(lustre_runtime->record_id_hash,
+        &rec_id, sizeof(darshan_record_id));
+    assert(rec_ref);
+
+    file_rec->stripe_count = rec_ref->record->counters[LUSTRE_STRIPE_WIDTH];
+    file_rec->stripe_size = rec_ref->record->counters[LUSTRE_STRIPE_SIZE];
+
+    ost_ids_size = file_rec->stripe_count * sizeof(OST_ID);
+    file_rec->ost_ids = (OST_ID*) malloc(ost_ids_size);
+
+    memcpy(file_rec->ost_ids, rec_ref->record->ost_ids, ost_ids_size);
+}
+
 static void lustre_runtime_initialize()
 {
     int lustre_buf_size;

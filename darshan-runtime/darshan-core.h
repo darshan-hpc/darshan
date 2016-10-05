@@ -38,11 +38,12 @@
 #define DARSHAN_DEF_MMAP_LOG_PATH "/tmp"
 #endif
 
+/* DXLT */
 /* Maximum amount of memory per instrumentation module in MiB */
 #ifdef __DARSHAN_MOD_MEM_MAX
 #define DARSHAN_MOD_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024 * 1024)
 #else
-#define DARSHAN_MOD_MEM_MAX (2 * 1024 * 1024) /* 2 MiB default */
+#define DARSHAN_MOD_MEM_MAX (4 * 1024 * 1024) /* 4 MiB default */
 #endif
 
 /* default name record buf can store 2048 records of size 100 bytes */
