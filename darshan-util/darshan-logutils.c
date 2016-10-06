@@ -643,6 +643,17 @@ int darshan_log_get_mod(darshan_fd fd, darshan_module_id mod_id,
     if(fd->mod_map[mod_id].len == 0)
         return(0); /* no data corresponding to this mod_id */
 
+    /* assume module will support backwards compatibility, but we obviously
+     * can't provide any sort of "forwards" compatibility
+     */
+    if(fd->mod_ver[mod_id] > darshan_module_versions[mod_id])
+    {
+        fprintf(stderr, "Error: invalid %s module log format version "
+                "(expected %d, got %d)\n", darshan_module_names[mod_id],
+                darshan_module_versions[mod_id], fd->mod_ver[mod_id]);
+        return(-1);
+    }
+
     /* read this module's data from the log file */
     ret = darshan_log_dzread(fd, mod_id, mod_buf, mod_buf_sz);
     if(ret < 0)

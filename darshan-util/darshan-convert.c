@@ -360,6 +360,7 @@ int main(int argc, char **argv)
     {
         darshan_log_close(infile);
         darshan_log_close(outfile);
+        unlink(outfile_name);
         return(-1);
     }
 
@@ -368,6 +369,7 @@ int main(int argc, char **argv)
     {
         darshan_log_close(infile);
         darshan_log_close(outfile);
+        unlink(outfile_name);
         return(-1);
     }
 
@@ -389,19 +391,8 @@ int main(int argc, char **argv)
         /* we have module data to convert */
         memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
 
-        ret = mod_logutils[i]->log_get_record(infile, (void **)&mod_buf);
-        if(ret != 1)
-        {
-            fprintf(stderr, "Error: failed to parse the first %s module record.\n",
-                darshan_module_names[i]);
-            darshan_log_close(infile);
-            darshan_log_close(outfile);
-            unlink(outfile_name);
-            return(-1);
-        }
-
         /* loop over each of the module's records and convert */
-        do
+        while((ret = mod_logutils[i]->log_get_record(infile, (void **)&mod_buf)) == 1)
         {
             base_rec = (struct darshan_base_record *)mod_buf;
 
@@ -412,12 +403,22 @@ int main(int argc, char **argv)
                 {
                     darshan_log_close(infile);
                     darshan_log_close(outfile);
+                    unlink(outfile_name);
                     return(-1);
                 }
 
                 memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
             }
-        } while((ret = mod_logutils[i]->log_get_record(infile, (void **)&mod_buf)) == 1);
+        }
+        if(ret < 0)
+        {
+            fprintf(stderr, "Error: failed to parse %s module record.\n",
+                darshan_module_names[i]);
+            darshan_log_close(infile);
+            darshan_log_close(outfile);
+            unlink(outfile_name);
+            return(-1);
+        }
     }
 
     darshan_log_close(infile);

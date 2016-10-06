@@ -398,7 +398,8 @@ int main(int argc, char **argv)
         /* currently only POSIX, MPIIO, and STDIO modules support non-base
          * parsing
          */
-        else if((i != DARSHAN_POSIX_MOD) && (i != DARSHAN_MPIIO_MOD) && (i != DARSHAN_STDIO_MOD) && !(mask & OPTION_BASE))
+        else if((i != DARSHAN_POSIX_MOD) && (i != DARSHAN_MPIIO_MOD) &&
+                (i != DARSHAN_STDIO_MOD) && !(mask & OPTION_BASE))
             continue;
 
         /* this module has data to be parsed and printed */
@@ -425,22 +426,24 @@ int main(int argc, char **argv)
             }
         }
 
-        ret = mod_logutils[i]->log_get_record(fd, (void **)&mod_buf);
-        if(ret != 1)
-        {
-            fprintf(stderr, "Error: failed to parse the first %s module record.\n",
-                darshan_module_names[i]);
-            ret = -1;
-            goto cleanup;
-        }
-
         /* loop over each of this module's records and print them */
-        do
+        while(1)
         {
             char *mnt_pt = NULL;
             char *fs_type = NULL;
             char *rec_name = NULL;
             hash_entry_t *hfile = NULL;
+
+            ret = mod_logutils[i]->log_get_record(fd, (void **)&mod_buf);
+            if(ret < 1)
+            {
+                if(ret == -1)
+                {
+                    fprintf(stderr, "Error: failed to parse %s module record.\n",
+                        darshan_module_names[i]);
+                }
+                break;
+            }
             base_rec = (struct darshan_base_record *)mod_buf;
 
             /* get the pathname for this record */
@@ -528,13 +531,9 @@ int main(int argc, char **argv)
             }
 
             memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
-
-        } while((ret = mod_logutils[i]->log_get_record(fd, (void **)&mod_buf)) == 1);
-        if (ret < 0)
-        {
-            ret = -1;
-            goto cleanup;
         }
+        if(ret == -1)
+            continue; /* move on to the next module if there was an error with this one */
 
         /* we calculate more detailed stats for POSIX and MPI-IO modules, 
          * if the parser is executed with more than the base option
