@@ -2,6 +2,11 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.1.2
+=============
+* bug fix in resolving underlying call to fopen64 when using the LD_PRELOAD
+  instrumentation mechanism
+
 Darshan-3.1.1
 =============
 * bug fix to MPIIO_F_WRITE_START_TIMESTAMP, which may have produced incorrect
