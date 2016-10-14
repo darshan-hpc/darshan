@@ -62,6 +62,8 @@ struct dxlt_record_ref_tracker
 struct dxlt_file_record_ref
 {
     struct dxlt_file_record *file_rec;
+    int64_t write_available_buf;
+    int64_t read_available_buf;
     int fs_type; /* same as darshan_fs_info->fs_type */
 };
 
@@ -93,8 +95,10 @@ void dxlt_mpiio_track_new_file_record(
     darshan_record_id rec_id, const char *path);
 void dxlt_posix_add_record_ref(darshan_record_id rec_id, int fd);
 void dxlt_mpiio_add_record_ref(darshan_record_id rec_id, MPI_File fh);
+#if 0
 static void dxlt_instrument_fs_data(
     darshan_record_id rec_id, int fs_type, struct dxlt_file_record *file_rec);
+#endif
 static void dxlt_posix_cleanup_runtime(
     void);
 static void dxlt_mpiio_cleanup_runtime(
@@ -139,10 +143,12 @@ static int darshan_mem_alignment = 1;
  *      Wrappers for DXLT I/O functions of interest      *
  **********************************************************/
 
-void check_io_trace_buf(struct dxlt_file_record *file_rec)
+void check_io_trace_buf(struct dxlt_file_record_ref *rec_ref)
 {
+    struct dxlt_file_record *file_rec = rec_ref->file_rec;
+
     int write_count = file_rec->write_count;
-    int write_available_buf = file_rec->write_available_buf;
+    int write_available_buf = rec_ref->write_available_buf;
 
     if (write_count >= write_available_buf) {
         write_available_buf += IO_TRACE_BUF_SIZE;
@@ -151,11 +157,11 @@ void check_io_trace_buf(struct dxlt_file_record *file_rec)
             (segment_info *)realloc(file_rec->write_traces,
                     write_available_buf * sizeof(segment_info));
 
-        file_rec->write_available_buf = write_available_buf;
+        rec_ref->write_available_buf = write_available_buf;
     }
 
     int read_count = file_rec->read_count;
-    int read_available_buf = file_rec->read_available_buf;
+    int read_available_buf = rec_ref->read_available_buf;
 
     if (read_count >= read_available_buf) {
         read_available_buf += IO_TRACE_BUF_SIZE;
@@ -164,7 +170,7 @@ void check_io_trace_buf(struct dxlt_file_record *file_rec)
             (segment_info *)realloc(file_rec->read_traces,
                     read_available_buf * sizeof(segment_info));
 
-        file_rec->read_available_buf = read_available_buf;
+        rec_ref->read_available_buf = read_available_buf;
     }
 }
 
@@ -183,7 +189,7 @@ void dxlt_posix_write(int fd, int64_t offset, int64_t length,
 
     file_rec = rec_ref->file_rec;
     if (dxlt_posix_runtime) {
-        check_io_trace_buf(file_rec);
+        check_io_trace_buf(rec_ref);
     }
 
     file_rec->write_traces[file_rec->write_count].offset = offset;
@@ -208,7 +214,7 @@ void dxlt_posix_read(int fd, int64_t offset, int64_t length,
 
     file_rec = rec_ref->file_rec;
     if (dxlt_posix_runtime) {
-        check_io_trace_buf(file_rec);
+        check_io_trace_buf(rec_ref);
     }
 
     file_rec->read_traces[file_rec->read_count].offset = offset;
@@ -233,7 +239,7 @@ void dxlt_mpiio_write(MPI_File fh, int64_t length,
 
     file_rec = rec_ref->file_rec;
     if (dxlt_mpiio_runtime) {
-        check_io_trace_buf(file_rec);
+        check_io_trace_buf(rec_ref);
     }
 
     file_rec->write_traces[file_rec->write_count].length = length;
@@ -257,7 +263,7 @@ void dxlt_mpiio_read(MPI_File fh, int64_t length,
 
     file_rec = rec_ref->file_rec;
     if (dxlt_mpiio_runtime) {
-        check_io_trace_buf(file_rec);
+        check_io_trace_buf(rec_ref);
     }
 
     file_rec->read_traces[file_rec->read_count].length = length;
@@ -385,16 +391,16 @@ void dxlt_posix_track_new_file_record(
     file_rec->base_rec.rank = posix_my_rank;
 
     file_rec->write_count = 0;
-    file_rec->write_available_buf = IO_TRACE_BUF_SIZE;
     file_rec->write_traces = malloc(IO_TRACE_BUF_SIZE *
             sizeof(segment_info));
 
     file_rec->read_count = 0;
-    file_rec->read_available_buf = IO_TRACE_BUF_SIZE;
     file_rec->read_traces = malloc(IO_TRACE_BUF_SIZE *
             sizeof(segment_info));
 
     rec_ref->file_rec = file_rec;
+    rec_ref->write_available_buf = IO_TRACE_BUF_SIZE;
+    rec_ref->read_available_buf = IO_TRACE_BUF_SIZE;
     rec_ref->fs_type = fs_info.fs_type;
 
     dxlt_posix_runtime->file_rec_count++;
@@ -447,16 +453,16 @@ void dxlt_mpiio_track_new_file_record(
     file_rec->base_rec.rank = mpiio_my_rank;
 
     file_rec->write_count = 0;
-    file_rec->write_available_buf = IO_TRACE_BUF_SIZE;
     file_rec->write_traces = malloc(IO_TRACE_BUF_SIZE *
             sizeof(segment_info));
 
     file_rec->read_count = 0;
-    file_rec->read_available_buf = IO_TRACE_BUF_SIZE;
     file_rec->read_traces = malloc(IO_TRACE_BUF_SIZE *
             sizeof(segment_info));
 
     rec_ref->file_rec = file_rec;
+    rec_ref->write_available_buf = IO_TRACE_BUF_SIZE;
+    rec_ref->read_available_buf = IO_TRACE_BUF_SIZE;
     rec_ref->fs_type = fs_info.fs_type;
 
     dxlt_mpiio_runtime->file_rec_count++;
@@ -475,9 +481,11 @@ void dxlt_posix_add_record_ref(darshan_record_id rec_id, int fd)
     darshan_add_record_ref(&(dxlt_posix_runtime->fd_hash), &fd,
             sizeof(int), rec_ref);
 
+#if 0
     /* get Lustre stripe information */
     file_rec = rec_ref->file_rec;
     dxlt_instrument_fs_data(rec_id, rec_ref->fs_type, file_rec);
+#endif
 }
 
 void dxlt_mpiio_add_record_ref(darshan_record_id rec_id, MPI_File fh)
@@ -492,6 +500,7 @@ void dxlt_mpiio_add_record_ref(darshan_record_id rec_id, MPI_File fh)
             sizeof(MPI_File), rec_ref);
 }
 
+#if 0
 static void dxlt_instrument_fs_data(
         darshan_record_id rec_id, int fs_type, struct dxlt_file_record *file_rec)
 {
@@ -505,6 +514,7 @@ static void dxlt_instrument_fs_data(
 #endif
     return;
 }
+#endif
 
 void dxlt_clear_record_refs(void **hash_head_p, int free_flag)
 {
@@ -514,6 +524,7 @@ void dxlt_clear_record_refs(void **hash_head_p, int free_flag)
     struct dxlt_file_record_ref *rec_ref;
     struct dxlt_file_record *file_rec;
 
+#if 0    
     /* iterate the hash table and remove/free all reference trackers */
     HASH_ITER(hlink, ref_tracker_head, ref_tracker, tmp)
     {
@@ -521,9 +532,6 @@ void dxlt_clear_record_refs(void **hash_head_p, int free_flag)
         if (free_flag) {
             rec_ref = (struct dxlt_file_record_ref *)ref_tracker->rec_ref_p;
             file_rec = rec_ref->file_rec;
-
-            if (file_rec->ost_ids)
-                free(file_rec->ost_ids);
 
             if (file_rec->write_traces)
                 free(file_rec->write_traces);
@@ -536,6 +544,7 @@ void dxlt_clear_record_refs(void **hash_head_p, int free_flag)
         free(ref_tracker);
     }
     *hash_head_p = ref_tracker_head;
+#endif
 
     return;
 }
@@ -589,12 +598,6 @@ static void dxlt_posix_shutdown(
     int64_t record_read_count = 0;
     void *tmp_buf_ptr = *dxlt_posix_buf;
 
-    int32_t stripe_size;
-    int32_t stripe_count;
-    int32_t ost_idx;
-    int64_t cur_offset;
-    OST_ID *ost_ids;
-
     assert(dxlt_posix_runtime);
 
     DXLT_POSIX_LOCK();
@@ -613,8 +616,6 @@ static void dxlt_posix_shutdown(
 
         record_write_count = file_rec->write_count;
         record_read_count = file_rec->read_count;
-        stripe_count = file_rec->stripe_count;
-        stripe_size = file_rec->stripe_size;
 
         if (record_write_count == 0 && record_read_count == 0)
             continue;
@@ -624,7 +625,6 @@ static void dxlt_posix_shutdown(
          * dxlt_file_record + ost_ids + write_traces + read_traces
          */
         record_size = sizeof(struct dxlt_file_record) +
-                stripe_count * sizeof(OST_ID) +
                 (record_write_count + record_read_count) * sizeof(segment_info);
 
         if (*dxlt_posix_buf_sz == 0) {
@@ -638,11 +638,6 @@ static void dxlt_posix_shutdown(
         /*Copy struct dxlt_file_record */
         memcpy(tmp_buf_ptr, (void *)file_rec, sizeof(struct dxlt_file_record));
         tmp_buf_ptr = ((void *)tmp_buf_ptr) + sizeof(struct dxlt_file_record);
-
-        /*Copy ost_ids record */
-        memcpy(tmp_buf_ptr, (void *)(file_rec->ost_ids),
-                stripe_count * sizeof(OST_ID));
-        tmp_buf_ptr = ((void *)tmp_buf_ptr) + stripe_count * sizeof(OST_ID);
 
         /*Copy write record */
         memcpy(tmp_buf_ptr, (void *)(file_rec->write_traces),
@@ -660,8 +655,8 @@ static void dxlt_posix_shutdown(
 
 #if 0
         printf("DXLT, record_id: %" PRIu64 "\n", rec_ref->file_rec->base_rec.id);
-        printf("DXLT, file_rec->write_count is: %d\n",
-                    file_rec->write_count);
+        printf("DXLT, write_count is: %d read_count is: %d\n",
+                    file_rec->write_count, file_rec->read_count);
 
         for (i = 0; i < file_rec->write_count; i++) {
             rank = file_rec->base_rec.rank;
@@ -670,24 +665,7 @@ static void dxlt_posix_shutdown(
             start_time = file_rec->write_traces[i].start_time;
             end_time = file_rec->write_traces[i].end_time;
 
-            printf("DXLT, rank %d writes segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]", rank, i, offset, length, start_time, end_time);
-
-            stripe_size = file_rec->stripe_size;
-            stripe_count = file_rec->stripe_count;
-            ost_ids = file_rec->ost_ids;
-
-            if (stripe_size != 0 && stripe_count != 0) {
-                cur_offset = offset;
-                ost_idx = (offset / stripe_size) % stripe_count;
-
-                while (cur_offset < offset + length) {
-                    printf(" [OST: %d]", file_rec->ost_ids[ost_idx]);
-                    cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
-                    ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
-                }
-            }
-
-            printf("\n");
+            printf("DXLT, rank %d writes segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
         }
 
         for (i = 0; i < file_rec->read_count; i++) {
@@ -697,24 +675,7 @@ static void dxlt_posix_shutdown(
             start_time = file_rec->read_traces[i].start_time;
             end_time = file_rec->read_traces[i].end_time;
 
-            printf("DXLT, rank %d reads segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]", rank, i, offset, length, start_time, end_time);
-
-            stripe_size = file_rec->stripe_size;
-            stripe_count = file_rec->stripe_count;
-            ost_ids = file_rec->ost_ids;
-
-            if (stripe_size != 0 && stripe_count != 0) {
-                cur_offset = offset;
-                ost_idx = (offset / stripe_size) % stripe_count;
-
-                while (cur_offset < offset + length) {
-                    printf(" [OST: %d]", file_rec->ost_ids[ost_idx]);
-                    cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
-                    ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
-                }
-            }
-
-            printf("\n");
+            printf("DXLT, rank %d reads segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
         }
 #endif
     }
@@ -752,11 +713,6 @@ static void dxlt_mpiio_shutdown(
     int64_t record_read_count = 0;
     void *tmp_buf_ptr = *dxlt_mpiio_buf;
 
-    int32_t stripe_count;
-    int32_t ost_idx;
-    int64_t cur_offset;
-    OST_ID *ost_ids;
-
     assert(dxlt_mpiio_runtime);
 
     DXLT_MPIIO_LOCK();
@@ -775,8 +731,6 @@ static void dxlt_mpiio_shutdown(
 
         record_write_count = file_rec->write_count;
         record_read_count = file_rec->read_count;
-        stripe_count = file_rec->stripe_count;
-
         if (record_write_count == 0 && record_read_count == 0)
             continue;
 
@@ -785,7 +739,6 @@ static void dxlt_mpiio_shutdown(
          * dxlt_file_record + ost_ids + write_traces + read_traces
          */
         record_size = sizeof(struct dxlt_file_record) +
-                stripe_count * sizeof(OST_ID) +
                 (record_write_count + record_read_count) * sizeof(segment_info);
 
         if (*dxlt_mpiio_buf_sz == 0) {
@@ -799,11 +752,6 @@ static void dxlt_mpiio_shutdown(
         /*Copy struct dxlt_file_record */
         memcpy(tmp_buf_ptr, (void *)file_rec, sizeof(struct dxlt_file_record));
         tmp_buf_ptr = ((void *)tmp_buf_ptr) + sizeof(struct dxlt_file_record);
-
-        /*Copy ost_ids record */
-        memcpy(tmp_buf_ptr, (void *)(file_rec->ost_ids),
-                stripe_count * sizeof(OST_ID));
-        tmp_buf_ptr = ((void *)tmp_buf_ptr) + stripe_count * sizeof(OST_ID);
 
         /*Copy write record */
         memcpy(tmp_buf_ptr, (void *)(file_rec->write_traces),

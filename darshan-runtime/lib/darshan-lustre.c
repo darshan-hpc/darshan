@@ -178,6 +178,7 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
 }
 
 /* DXLT */
+#if 0
 void dxlt_get_lustre_stripe_info(
         darshan_record_id rec_id,
         struct dxlt_file_record *file_rec)
@@ -199,6 +200,7 @@ void dxlt_get_lustre_stripe_info(
 
     memcpy(file_rec->ost_ids, rec_ref->record->ost_ids, ost_ids_size);
 }
+#endif
 
 static void lustre_runtime_initialize()
 {

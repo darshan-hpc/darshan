@@ -35,17 +35,11 @@ struct dxlt_file_record {
     struct darshan_base_record base_rec;
     int64_t shared_record; /* -1 means it is a shared file record */
 
-    int32_t stripe_size;
-    int32_t stripe_count;
-    OST_ID *ost_ids;
-
     int64_t write_count;
-    int64_t write_available_buf;
-    segment_info *write_traces;
-
     int64_t read_count;
-    int64_t read_available_buf;
-    segment_info *read_traces;
+
+    segment_info *write_traces;
+	segment_info *read_traces;
 };
 
 #endif /* __DARSHAN_DXLT_LOG_FORMAT_H */
