@@ -248,19 +248,21 @@ static void dxlt_log_print_posix_file(void *posix_file_rec, char *file_name,
 
         printf("%8s%8d%7s%9lld%16lld%13lld%12.4f%12.4f", "POSIX", rank, "write", i, offset, length, start_time, end_time);
 
-        cur_offset = offset;
-        ost_idx = (offset / stripe_size) % stripe_count;
+        if (stripe_count != 0 && stripe_size != 0) {
+            cur_offset = offset;
+            ost_idx = (offset / stripe_size) % stripe_count;
 
-        print_count = 0;
-        while (cur_offset < offset + length) {
-            printf("  [%3d]", ost_ids[ost_idx]);
+            print_count = 0;
+            while (cur_offset < offset + length) {
+                printf("  [%3d]", ost_ids[ost_idx]);
 
-            cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
-            ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
+                cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
+                ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
 
-            print_count++;
-            if (print_count >= stripe_count)
-                break;
+                print_count++;
+                if (print_count >= stripe_count)
+                    break;
+            }
         }
 
         printf("\n");
@@ -274,19 +276,21 @@ static void dxlt_log_print_posix_file(void *posix_file_rec, char *file_name,
 
         printf("%8s%8d%7s%9lld%16lld%13lld%12.4f%12.4f", "POSIX", rank, "read", i - write_count, offset, length, start_time, end_time);
 
-        cur_offset = offset;
-        ost_idx = (offset / stripe_size) % stripe_count;
+        if (stripe_count != 0 && stripe_size != 0) {
+            cur_offset = offset;
+            ost_idx = (offset / stripe_size) % stripe_count;
 
-        print_count = 0;
-        while (cur_offset < offset + length) {
-            printf("  [%3d]", ost_ids[ost_idx]);
+            print_count = 0;
+            while (cur_offset < offset + length) {
+                printf("  [%3d]", ost_ids[ost_idx]);
 
-            cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
-            ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
+                cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
+                ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
 
-            print_count++;
-            if (print_count >= stripe_count)
-                break;
+                print_count++;
+                if (print_count >= stripe_count)
+                    break;
+            }
         }
 
         printf("\n");

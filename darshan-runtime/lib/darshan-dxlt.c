@@ -676,19 +676,20 @@ static void dxlt_posix_shutdown(
             stripe_count = file_rec->stripe_count;
             ost_ids = file_rec->ost_ids;
 
-            cur_offset = offset;
-            ost_idx = (offset / stripe_size) % stripe_count;
+            if (stripe_size != 0 && stripe_count != 0) {
+                cur_offset = offset;
+                ost_idx = (offset / stripe_size) % stripe_count;
 
-            while (cur_offset < offset + length) {
-                printf(" [OST: %d]", file_rec->ost_ids[ost_idx]);
-                cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
-                ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
+                while (cur_offset < offset + length) {
+                    printf(" [OST: %d]", file_rec->ost_ids[ost_idx]);
+                    cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
+                    ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
+                }
             }
 
             printf("\n");
         }
 
-        DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
         for (i = 0; i < file_rec->read_count; i++) {
             rank = file_rec->base_rec.rank;
             offset = file_rec->read_traces[i].offset;
@@ -702,13 +703,15 @@ static void dxlt_posix_shutdown(
             stripe_count = file_rec->stripe_count;
             ost_ids = file_rec->ost_ids;
 
-            cur_offset = offset;
-            ost_idx = (offset / stripe_size) % stripe_count;
+            if (stripe_size != 0 && stripe_count != 0) {
+                cur_offset = offset;
+                ost_idx = (offset / stripe_size) % stripe_count;
 
-            while (cur_offset < offset + length) {
-                printf(" [OST: %d]", file_rec->ost_ids[ost_idx]);
-                cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
-                ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
+                while (cur_offset < offset + length) {
+                    printf(" [OST: %d]", file_rec->ost_ids[ost_idx]);
+                    cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
+                    ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
+                }
             }
 
             printf("\n");
@@ -831,7 +834,6 @@ static void dxlt_mpiio_shutdown(
             printf("DXLT, rank %d writes segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
         }
 
-        DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
         for (i = 0; i < file_rec->read_count; i++) {
             rank = file_rec->base_rec.rank;
             offset = file_rec->read_traces[i].offset;

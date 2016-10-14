@@ -187,7 +187,9 @@ void dxlt_get_lustre_stripe_info(
 
     rec_ref = darshan_lookup_record_ref(lustre_runtime->record_id_hash,
         &rec_id, sizeof(darshan_record_id));
-    assert(rec_ref);
+    if(!rec_ref) {
+        return;
+    }
 
     file_rec->stripe_count = rec_ref->record->counters[LUSTRE_STRIPE_WIDTH];
     file_rec->stripe_size = rec_ref->record->counters[LUSTRE_STRIPE_SIZE];
