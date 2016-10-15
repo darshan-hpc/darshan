@@ -21,8 +21,8 @@
 
 static int dxlt_log_get_posix_file(darshan_fd fd, void** dxlt_posix_buf);
 static int dxlt_log_put_posix_file(darshan_fd fd, void* dxlt_posix_buf);
-static void dxlt_log_print_posix_file(void *file_rec,
-    char *file_name, char *mnt_pt, char *fs_type);
+static void dxlt_log_print_posix_file(void *file_rec, char *file_name,
+        char *mnt_pt, char *fs_type, struct darshan_name_record_ref *ref);
 static void dxlt_log_print_posix_description(int ver);
 static void dxlt_log_print_posix_file_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
@@ -31,7 +31,7 @@ static void dxlt_log_agg_posix_files(void *rec, void *agg_rec, int init_flag);
 static int dxlt_log_get_mpiio_file(darshan_fd fd, void** dxlt_mpiio_buf);
 static int dxlt_log_put_mpiio_file(darshan_fd fd, void* dxlt_mpiio_buf);
 static void dxlt_log_print_mpiio_file(void *file_rec,
-    char *file_name, char *mnt_pt, char *fs_type);
+        char *file_name, char *mnt_pt, char *fs_type);
 static void dxlt_log_print_mpiio_description(int ver);
 static void dxlt_log_print_mpiio_file_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
@@ -44,7 +44,7 @@ struct darshan_mod_logutil_funcs dxlt_posix_logutils =
 {
     .log_get_record = &dxlt_log_get_posix_file,
     .log_put_record = &dxlt_log_put_posix_file,
-    .log_print_record = &dxlt_log_print_posix_file,
+    .log_print_record_dxlt = &dxlt_log_print_posix_file,
 //    .log_print_description = &dxlt_log_print_posix_description,
     .log_print_diff = &dxlt_log_print_posix_file_diff,
     .log_agg_records = &dxlt_log_agg_posix_files,
@@ -200,7 +200,7 @@ static int dxlt_log_put_mpiio_file(darshan_fd fd, void* dxlt_mpiio_buf)
 }
 
 static void dxlt_log_print_posix_file(void *posix_file_rec, char *file_name,
-    char *mnt_pt, char *fs_type)
+    char *mnt_pt, char *fs_type, struct darshan_name_record_ref *ref)
 {
     struct dxlt_file_record *file_rec =
                 (struct dxlt_file_record *)posix_file_rec;
@@ -208,31 +208,74 @@ static void dxlt_log_print_posix_file(void *posix_file_rec, char *file_name,
     int64_t length;
     double start_time;
     double end_time;
-    int64_t cur_offset;
-    int ost_idx;
     int i;
-    int print_count;
 
     darshan_record_id f_id = file_rec->base_rec.id;
     int64_t rank = file_rec->base_rec.rank;
 
     int64_t write_count = file_rec->write_count;
     int64_t read_count = file_rec->read_count;
-
     segment_info *io_trace = (segment_info *)parser_buf;
 
-    printf("\n# DXLT, file_id: %" PRIu64 ", file_name: %s, file_type: %s\n", f_id, file_name, fs_type);
-    printf("# DXLT, rank: %d, write_count: %d, read_count: %d\n", rank, write_count, read_count);
+    /* Lustre File System */
+    int lustreFS = !strcmp(fs_type, "lustre");
+    int32_t stripe_size;
+    int32_t stripe_count;
+    int64_t cur_offset;
+    int print_count;
+    int ost_idx;
+    
 
-    printf("# Module    Rank  Wt/Rd  Segment          Offset       Length    Start(s)      End(s)\n");
+    printf("\n# DXLT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
+    printf("# DXLT, rank: %d, write_count: %d, read_count: %d\n",
+                rank, write_count, read_count);
 
+    if (lustreFS) {
+        stripe_size = ref->stripe_size;
+        stripe_count = ref->stripe_count;
+
+        printf("# DXLT, mnt_pt: %s, fs_type: %s\n", mnt_pt, fs_type);
+        printf("# DXLT, stripe_size: %d, stripe_count: %d\n", stripe_size, stripe_count);
+        for (i = 0; i < ref->stripe_count; i++) {
+            printf("# DXLT, OST: %d\n", (ref->ost_ids)[i]);
+        }
+    }
+
+    /* Print header */
+    printf("# Module    Rank  Wt/Rd  Segment          Offset       Length    Start(s)      End(s)");
+
+    if (lustreFS) {
+        printf("  [OST]");
+    }
+    printf("\n");
+
+    /* Print IO Traces information */
     for (i = 0; i < write_count; i++) {
         offset = io_trace[i].offset;
         length = io_trace[i].length;
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
 
-        printf("%8s%8d%7s%9lld%16lld%13lld%12.4f%12.4f\n", "X_POSIX", rank, "write", i, offset, length, start_time, end_time);
+        printf("%8s%8d%7s%9lld%16lld%13lld%12.4f%12.4f", "X_POSIX", rank, "write", i, offset, length, start_time, end_time);
+
+        if (lustreFS) {
+            cur_offset = offset;
+            ost_idx = (offset / stripe_size) % stripe_count;
+
+            print_count = 0;
+            while (cur_offset < offset + length) {
+                printf("  [%3d]", (ref->ost_ids)[ost_idx]);
+
+                cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
+                ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
+
+                print_count++;
+                if (print_count >= stripe_count)
+                    break;
+            }
+        }
+
+        printf("\n");
     }
 
     for (i = write_count; i < write_count + read_count; i++) {
@@ -241,7 +284,26 @@ static void dxlt_log_print_posix_file(void *posix_file_rec, char *file_name,
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
 
-        printf("%8s%8d%7s%9lld%16lld%13lld%12.4f%12.4f\n", "X_POSIX", rank, "read", i - write_count, offset, length, start_time, end_time);
+        printf("%8s%8d%7s%9lld%16lld%13lld%12.4f%12.4f", "X_POSIX", rank, "read", i - write_count, offset, length, start_time, end_time);
+
+        if (lustreFS) {
+            cur_offset = offset;
+            ost_idx = (offset / stripe_size) % stripe_count;
+
+            print_count = 0;
+            while (cur_offset < offset + length) {
+                printf("  [%3d]", (ref->ost_ids)[ost_idx]);
+
+                cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
+                ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
+
+                print_count++;
+                if (print_count >= stripe_count)
+                    break;
+            }
+        }
+
+        printf("\n");
     }
     return;
 }
@@ -256,8 +318,6 @@ static void dxlt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
     int64_t length;
     double start_time;
     double end_time;
-    int cur_offset;
-    int ost_idx;
     int i;
 
     darshan_record_id f_id = file_rec->base_rec.id;
@@ -268,12 +328,16 @@ static void dxlt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
 
     segment_info *io_trace = (segment_info *)parser_buf;
 
-    printf("\n# DXLT, file_id: %" PRIu64 ", file_name: %s, file_type: %s\n", f_id, file_name, fs_type);
+    printf("\n# DXLT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
     printf("# DXLT, rank: %d, write_count: %d, read_count: %d\n",
                 rank, write_count, read_count);
 
+    printf("# DXLT, mnt_pt: %s, fs_type: %s\n", mnt_pt, fs_type);
+
+    /* Print header */
     printf("# Module    Rank  Wt/Rd  Segment       Length    Start(s)      End(s)\n");
 
+    /* Print IO Traces information */
     for (i = 0; i < write_count; i++) {
         offset = io_trace[i].offset;
         length = io_trace[i].length;
