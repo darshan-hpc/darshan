@@ -38,7 +38,7 @@
 #define DARSHAN_DEF_MMAP_LOG_PATH "/tmp"
 #endif
 
-/* DXLT */
+/* DXT */
 /* Maximum amount of memory per instrumentation module in MiB */
 #ifdef __DARSHAN_MOD_MEM_MAX
 #define DARSHAN_MOD_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024 * 1024)

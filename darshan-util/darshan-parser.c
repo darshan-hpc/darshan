@@ -121,8 +121,8 @@ void stdio_print_total_file(struct darshan_stdio_file *pfile, int stdio_ver);
 
 void calc_perf(perf_data_t *pdata, int64_t nprocs);
 
-/* DXLT */
-extern void dxlt_logutils_cleanup();
+/* DXT */
+extern void dxt_logutils_cleanup();
 
 int usage (char *exename)
 {
@@ -476,7 +476,7 @@ int main(int argc, char **argv)
             if(!fs_type)
                 fs_type = "UNKNOWN";
 
-            /* DXLT */
+            /* DXT */
             if (i == DARSHAN_LUSTRE_MOD && ref) {
                 /* LUSTRE MODULE */
                 struct darshan_lustre_record *file_rec = 
@@ -493,9 +493,9 @@ int main(int argc, char **argv)
 
             if(mask & OPTION_BASE)
             {
-                /* DXLT */
-                if (i == DXLT_POSIX_MOD) {
-                    mod_logutils[i]->log_print_record_dxlt(mod_buf, rec_name,
+                /* DXT */
+                if (i == DXT_POSIX_MOD) {
+                    mod_logutils[i]->log_print_record_dxt(mod_buf, rec_name,
                             mnt_pt, fs_type, ref);
                 } else {
                     /* print the corresponding module data for this record */
@@ -714,8 +714,8 @@ int main(int argc, char **argv)
             free(curr);
         }
 
-        /* DXLT */
-        dxlt_logutils_cleanup();
+        /* DXT */
+        dxt_logutils_cleanup();
     }
     if(empty_mods == DARSHAN_MAX_MODS)
         printf("\n# no module data available.\n");

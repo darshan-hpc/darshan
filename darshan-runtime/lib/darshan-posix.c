@@ -157,15 +157,15 @@ static void posix_shutdown(
     MPI_Comm mod_comm, darshan_record_id *shared_recs,
     int shared_rec_count, void **posix_buf, int *posix_buf_sz);
 
-/* DXLT */
-extern void dxlt_posix_runtime_initialize();
-extern void dxlt_posix_track_new_file_record(
+/* DXT */
+extern void dxt_posix_runtime_initialize();
+extern void dxt_posix_track_new_file_record(
     darshan_record_id rec_id, const char *path);
-extern void dxlt_posix_add_record_ref(
+extern void dxt_posix_add_record_ref(
     darshan_record_id rec_id, int fd);
-extern void dxlt_posix_write(int fd, int64_t offset, int64_t length,
+extern void dxt_posix_write(int fd, int64_t offset, int64_t length,
     double start_time, double end_time);
-extern void dxlt_posix_read(int fd, int64_t offset, int64_t length,
+extern void dxt_posix_read(int fd, int64_t offset, int64_t length,
     double start_time, double end_time);
 
 static struct posix_runtime *posix_runtime = NULL;
@@ -182,9 +182,9 @@ static int darshan_mem_alignment = 1;
     if(!instrumentation_disabled) { \
         if(!posix_runtime) { \
             posix_runtime_initialize(); \
-            /* DXLT */ \
-            if (getenv("ENABLE_DXLT_IO_TRACE")) { \
-                dxlt_posix_runtime_initialize(); \
+            /* DXT */ \
+            if (getenv("ENABLE_DXT_IO_TRACE")) { \
+                dxt_posix_runtime_initialize(); \
             } \
         } \
         if(posix_runtime) break; \
@@ -212,9 +212,9 @@ static int darshan_mem_alignment = 1;
     rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
     if(!rec_ref) { \
         rec_ref = posix_track_new_file_record(rec_id, newpath); \
-        /* DXLT */ \
-        if (getenv("ENABLE_DXLT_IO_TRACE")) { \
-            dxlt_posix_track_new_file_record(rec_id, newpath); \
+        /* DXT */ \
+        if (getenv("ENABLE_DXT_IO_TRACE")) { \
+            dxt_posix_track_new_file_record(rec_id, newpath); \
         } \
     } \
     if(!rec_ref) { \
@@ -236,9 +236,9 @@ static int darshan_mem_alignment = 1;
     darshan_add_record_ref(&(posix_runtime->fd_hash), &__ret, sizeof(int), rec_ref); \
     darshan_instrument_fs_data(rec_ref->fs_type, newpath, __ret); \
     if(newpath != __path) free(newpath); \
-    /* DXLT */ \
-    if (getenv("ENABLE_DXLT_IO_TRACE")) { \
-        dxlt_posix_add_record_ref(rec_id, __ret); \
+    /* DXT */ \
+    if (getenv("ENABLE_DXT_IO_TRACE")) { \
+        dxt_posix_add_record_ref(rec_id, __ret); \
     } \
 } while(0)
 
@@ -255,9 +255,9 @@ static int darshan_mem_alignment = 1;
         this_offset = __pread_offset; \
     else \
         this_offset = rec_ref->offset; \
-    /* DXLT to record detailed read tracing information */ \
-    if (getenv("ENABLE_DXLT_IO_TRACE")) { \
-        dxlt_posix_read(__fd, this_offset, __ret, __tm1, __tm2); \
+    /* DXT to record detailed read tracing information */ \
+    if (getenv("ENABLE_DXT_IO_TRACE")) { \
+        dxt_posix_read(__fd, this_offset, __ret, __tm1, __tm2); \
     } \
     if(this_offset > rec_ref->last_byte_read) \
         rec_ref->file_rec->counters[POSIX_SEQ_READS] += 1;  \
@@ -313,9 +313,9 @@ static int darshan_mem_alignment = 1;
         this_offset = __pwrite_offset; \
     else \
         this_offset = rec_ref->offset; \
-    /* DXLT to record detailed write tracing information */ \
-    if (getenv("ENABLE_DXLT_IO_TRACE")) { \
-        dxlt_posix_write(__fd, this_offset, __ret, __tm1, __tm2); \
+    /* DXT to record detailed write tracing information */ \
+    if (getenv("ENABLE_DXT_IO_TRACE")) { \
+        dxt_posix_write(__fd, this_offset, __ret, __tm1, __tm2); \
     } \
     if(this_offset > rec_ref->last_byte_written) \
         rec_ref->file_rec->counters[POSIX_SEQ_WRITES] += 1; \

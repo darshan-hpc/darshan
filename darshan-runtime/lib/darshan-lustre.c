@@ -177,11 +177,11 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
     return;
 }
 
-/* DXLT */
+/* DXT */
 #if 0
-void dxlt_get_lustre_stripe_info(
+void dxt_get_lustre_stripe_info(
         darshan_record_id rec_id,
-        struct dxlt_file_record *file_rec)
+        struct dxt_file_record *file_rec)
 {
     struct lustre_record_ref *rec_ref;
     int ost_ids_size = 0;

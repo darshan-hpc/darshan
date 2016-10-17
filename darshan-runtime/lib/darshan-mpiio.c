@@ -87,15 +87,15 @@ static void mpiio_shutdown(
     MPI_Comm mod_comm, darshan_record_id *shared_recs,
     int shared_rec_count, void **mpiio_buf, int *mpiio_buf_sz);
 
-/* DXLT */
-extern void dxlt_mpiio_runtime_initialize();
-extern void dxlt_mpiio_track_new_file_record(
+/* DXT */
+extern void dxt_mpiio_runtime_initialize();
+extern void dxt_mpiio_track_new_file_record(
     darshan_record_id rec_id, const char *path);
-extern void dxlt_mpiio_add_record_ref(
+extern void dxt_mpiio_add_record_ref(
     darshan_record_id rec_id, MPI_File fh);
-extern void dxlt_mpiio_write(MPI_File fh, int64_t length,
+extern void dxt_mpiio_write(MPI_File fh, int64_t length,
     double start_time, double end_time);
-extern void dxlt_mpiio_read(MPI_File fh, int64_t length,
+extern void dxt_mpiio_read(MPI_File fh, int64_t length,
     double start_time, double end_time);
 
 static struct mpiio_runtime *mpiio_runtime = NULL;
@@ -111,9 +111,9 @@ static int my_rank = -1;
     if(!instrumentation_disabled) { \
         if(!mpiio_runtime) { \
             mpiio_runtime_initialize(); \
-            /* DXLT */ \
-            if (getenv("ENABLE_DXLT_IO_TRACE")) { \
-                dxlt_mpiio_runtime_initialize(); \
+            /* DXT */ \
+            if (getenv("ENABLE_DXT_IO_TRACE")) { \
+                dxt_mpiio_runtime_initialize(); \
             } \
         } \
         if(mpiio_runtime) break; \
@@ -142,9 +142,9 @@ static int my_rank = -1;
     rec_ref = darshan_lookup_record_ref(mpiio_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
     if(!rec_ref) { \
         rec_ref = mpiio_track_new_file_record(rec_id, newpath); \
-        /* DXLT */ \
-        if (getenv("ENABLE_DXLT_IO_TRACE")) { \
-            dxlt_mpiio_track_new_file_record(rec_id, newpath); \
+        /* DXT */ \
+        if (getenv("ENABLE_DXT_IO_TRACE")) { \
+            dxt_mpiio_track_new_file_record(rec_id, newpath); \
         } \
     } \
     if(!rec_ref) { \
@@ -166,9 +166,9 @@ static int my_rank = -1;
         __tm1, __tm2, rec_ref->last_meta_end); \
     darshan_add_record_ref(&(mpiio_runtime->fh_hash), &__fh, sizeof(MPI_File), rec_ref); \
     if(newpath != __path) free(newpath); \
-    /* DXLT */ \
-    if (getenv("ENABLE_DXLT_IO_TRACE")) { \
-        dxlt_mpiio_add_record_ref(rec_id, __fh); \
+    /* DXT */ \
+    if (getenv("ENABLE_DXT_IO_TRACE")) { \
+        dxt_mpiio_add_record_ref(rec_id, __fh); \
     } \
 } while(0)
 
@@ -181,9 +181,9 @@ static int my_rank = -1;
     if(!rec_ref) break; \
     DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
     size = size * __count; \
-    /* DXLT to record detailed read tracing information */ \
-    if (getenv("ENABLE_DXLT_IO_TRACE")) { \
-        dxlt_mpiio_read(__fh, size, __tm1, __tm2); \
+    /* DXT to record detailed read tracing information */ \
+    if (getenv("ENABLE_DXT_IO_TRACE")) { \
+        dxt_mpiio_read(__fh, size, __tm1, __tm2); \
     } \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_READ_AGG_0_100]), size); \
     darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, size, \
@@ -214,9 +214,9 @@ static int my_rank = -1;
     if(!rec_ref) break; \
     DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
     size = size * __count; \
-     /* DXLT to record detailed write tracing information */ \
-    if (getenv("ENABLE_DXLT_IO_TRACE")) { \
-        dxlt_mpiio_write(__fh, size, __tm1, __tm2); \
+     /* DXT to record detailed write tracing information */ \
+    if (getenv("ENABLE_DXT_IO_TRACE")) { \
+        dxt_mpiio_write(__fh, size, __tm1, __tm2); \
     } \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_WRITE_AGG_0_100]), size); \
     darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, size, \

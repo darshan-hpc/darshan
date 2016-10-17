@@ -54,7 +54,7 @@ struct darshan_name_record_ref
     struct darshan_name_record *name_record;
     UT_hash_handle hlink;
 
-	/* DXLT Lustre */
+	/* DXT Lustre */
 	int32_t stripe_size;
 	int32_t stripe_count;
 	OST_ID *ost_ids;
@@ -122,8 +122,8 @@ struct darshan_mod_logutil_funcs
         int init_flag
     );
 
-	/* DXLT */
-    void (*log_print_record_dxlt)(
+	/* DXT */
+    void (*log_print_record_dxt)(
         void *rec,
         char *file_name,
         char *mnt_pt,
@@ -142,8 +142,8 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[];
 #include "darshan-lustre-logutils.h"
 #include "darshan-stdio-logutils.h"
 
-/* DXLT */
-#include "darshan-dxlt-logutils.h"
+/* DXT */
+#include "darshan-dxt-logutils.h"
 
 darshan_fd darshan_log_open(const char *name);
 darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type,
