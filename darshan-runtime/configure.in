@@ -61,7 +61,7 @@ AC_ARG_ENABLE(
 )
 
 AC_ARG_ENABLE(mmap-logs,
-[  --enable-mmmap-logs     Enables ability to mmap I/O data to log file],
+[  --enable-mmap-logs      Enables ability to mmap I/O data to log file],
 [if test "x$enableval" = "xyes" ; then
     AC_DEFINE(__DARSHAN_ENABLE_MMAP_LOGS, 1, Define if Darshan should mmap data structures to log file)
     ENABLE_MMAP_LOGS=1
