@@ -280,21 +280,22 @@ void dxt_mpiio_read(MPI_File fh, int64_t length,
 /* initialize internal DXT module data structures and register with darshan-core */
 void dxt_posix_runtime_initialize()
 {
-    int psx_buf_size;
-
-    /* try and store a default number of records for this module */
-    psx_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct dxt_file_record);
+    /* DXT modules request 0 memory -- buffers will be managed internally by DXT
+     * and passed back to darshan-core at shutdown time to allow DXT more control
+     * over realloc'ing module memory as needed.
+     */
+    int dxt_psx_buf_size = 0;
 
     /* register the DXT module with darshan core */
     darshan_core_register_module(
         DXT_POSIX_MOD,
         &dxt_posix_shutdown,
-        &psx_buf_size,
+        &dxt_psx_buf_size,
         &posix_my_rank,
         &darshan_mem_alignment);
 
-    /* return if darshan-core does not provide enough module memory */
-    if(psx_buf_size < sizeof(struct dxt_file_record))
+    /* return if darshan-core allocates an unexpected amount of memory */
+    if(dxt_psx_buf_size != 0)
     {
         darshan_core_unregister_module(DXT_POSIX_MOD);
         return;
@@ -313,21 +314,22 @@ void dxt_posix_runtime_initialize()
 
 void dxt_mpiio_runtime_initialize()
 {
-    int psx_buf_size;
-
-    /* try and store a default number of records for this module */
-    psx_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct dxt_file_record);
+    /* DXT modules request 0 memory -- buffers will be managed internally by DXT
+     * and passed back to darshan-core at shutdown time to allow DXT more control
+     * over realloc'ing module memory as needed.
+     */
+    int dxt_mpiio_buf_size = 0;
 
     /* register the DXT module with darshan core */
     darshan_core_register_module(
         DXT_MPIIO_MOD,
         &dxt_mpiio_shutdown,
-        &psx_buf_size,
+        &dxt_mpiio_buf_size,
         &mpiio_my_rank,
         &darshan_mem_alignment);
 
-    /* return if darshan-core does not provide enough module memory */
-    if(psx_buf_size < sizeof(struct dxt_file_record))
+    /* return if darshan-core allocates an unexpected amount of memory */
+    if(dxt_mpiio_buf_size != 0)
     {
         darshan_core_unregister_module(DXT_MPIIO_MOD);
         return;
