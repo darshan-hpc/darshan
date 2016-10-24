@@ -65,7 +65,6 @@ struct dxt_file_record_ref
     struct dxt_file_record *file_rec;
     int64_t write_available_buf;
     int64_t read_available_buf;
-    int fs_type; /* same as darshan_fs_info->fs_type */
 };
 
 /* The dxt_runtime structure maintains necessary state for storing
@@ -81,7 +80,6 @@ struct dxt_posix_runtime
 struct dxt_mpiio_runtime
 {
     void *rec_id_hash;
-    void *fh_hash;
     int file_rec_count;
 };
 
@@ -90,6 +88,10 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
         int64_t length, double start_time, double end_time);
 void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
         int64_t length, double start_time, double end_time);
+void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
+        double start_time, double end_time);
+void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
+        double start_time, double end_time);
 
 static void check_wr_trace_buf(
     struct dxt_file_record_ref *rec_ref);
@@ -97,13 +99,12 @@ static void check_rd_trace_buf(
     struct dxt_file_record_ref *rec_ref);
 static void dxt_posix_runtime_initialize(
     void);
-void dxt_mpiio_runtime_initialize(
+static void dxt_mpiio_runtime_initialize(
     void);
 static struct dxt_file_record_ref *dxt_posix_track_new_file_record(
     darshan_record_id rec_id);
-void dxt_mpiio_track_new_file_record(
-    darshan_record_id rec_id, const char *path);
-void dxt_mpiio_add_record_ref(darshan_record_id rec_id, MPI_File fh);
+static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
+    darshan_record_id rec_id);
 static void dxt_posix_cleanup_runtime(
     void);
 static void dxt_mpiio_cleanup_runtime(
@@ -270,23 +271,33 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     file_rec->read_count += 1;
 }
 
-void dxt_mpiio_write(MPI_File fh, int64_t length,
+void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
         double start_time, double end_time)
 {
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
 
-    rec_ref = darshan_lookup_record_ref(dxt_mpiio_runtime->fh_hash,
-                &fh, sizeof(MPI_File));
-    if (!rec_ref) {
-        fprintf(stderr, "Error: dxt_mpiio_write unable to find rec_ref.\n");
-        return;
+    /* make sure dxt mpiio runtime is initialized properly */
+    if(instrumentation_disabled) return;
+    if(!dxt_mpiio_runtime)
+    {
+        dxt_mpiio_runtime_initialize();
+        if(!dxt_mpiio_runtime) return;
+    }
+
+    rec_ref = darshan_lookup_record_ref(dxt_mpiio_runtime->rec_id_hash,
+                &rec_id, sizeof(darshan_record_id));
+    if(!rec_ref)
+    {
+        /* track new dxt file record */
+        rec_ref = dxt_mpiio_track_new_file_record(rec_id);
+        if(!rec_ref) return;
     }
 
     file_rec = rec_ref->file_rec;
-    if (dxt_mpiio_runtime) {
-        check_wr_trace_buf(rec_ref);
-    }
+    check_wr_trace_buf(rec_ref);
+    if(file_rec->write_count == rec_ref->write_available_buf)
+        return; /* no more memory for i/o segments ... back out */
 
     file_rec->write_traces[file_rec->write_count].length = length;
     file_rec->write_traces[file_rec->write_count].start_time = start_time;
@@ -294,23 +305,33 @@ void dxt_mpiio_write(MPI_File fh, int64_t length,
     file_rec->write_count += 1;
 }
 
-void dxt_mpiio_read(MPI_File fh, int64_t length,
+void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
         double start_time, double end_time)
 {
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
 
-    rec_ref = darshan_lookup_record_ref(dxt_mpiio_runtime->fh_hash,
-                &fh, sizeof(MPI_File));
-    if (!rec_ref) {
-        fprintf(stderr, "Error: dxt_mpiio_read unable to find rec_ref.\n");
-        return;
+    /* make sure dxt mpiio runtime is initialized properly */
+    if(instrumentation_disabled) return;
+    if(!dxt_mpiio_runtime)
+    {
+        dxt_mpiio_runtime_initialize();
+        if(!dxt_mpiio_runtime) return;
+    }
+
+    rec_ref = darshan_lookup_record_ref(dxt_mpiio_runtime->rec_id_hash,
+                &rec_id, sizeof(darshan_record_id));
+    if(!rec_ref)
+    {
+        /* track new dxt file record */
+        rec_ref = dxt_mpiio_track_new_file_record(rec_id);
+        if(!rec_ref) return;
     }
 
     file_rec = rec_ref->file_rec;
-    if (dxt_mpiio_runtime) {
-        check_rd_trace_buf(rec_ref);
-    }
+    check_rd_trace_buf(rec_ref);
+    if(file_rec->read_count == rec_ref->read_available_buf)
+        return; /* no more memory for i/o segments ... back out */
 
     file_rec->read_traces[file_rec->read_count].length = length;
     file_rec->read_traces[file_rec->read_count].start_time = start_time;
@@ -448,78 +469,60 @@ static struct dxt_file_record_ref *dxt_posix_track_new_file_record(
     return(rec_ref);
 }
 
-void dxt_mpiio_track_new_file_record(
-    darshan_record_id rec_id, const char *path)
+static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
+    darshan_record_id rec_id)
 {
     struct dxt_file_record *file_rec = NULL;
     struct dxt_file_record_ref *rec_ref = NULL;
-    struct darshan_fs_info fs_info;
     int ret;
+
+    /* check if we have enough room for a new DXT record */
+    DXT_LOCK();
+    if(dxt_mem_remaining < sizeof(struct dxt_file_record))
+    {
+        DXT_UNLOCK();
+        return(NULL);
+    }
 
     rec_ref = malloc(sizeof(*rec_ref));
     if(!rec_ref)
-        return;
+    {
+        DXT_UNLOCK();
+        return(NULL);
+    }
     memset(rec_ref, 0, sizeof(*rec_ref));
+
+    file_rec = malloc(sizeof(*file_rec));
+    if(!file_rec)
+    {
+        free(rec_ref);
+        DXT_UNLOCK();
+        return(NULL);
+    }
+    memset(file_rec, 0, sizeof(*file_rec));
 
     /* add a reference to this file record based on record id */
     ret = darshan_add_record_ref(&(dxt_mpiio_runtime->rec_id_hash), &rec_id,
             sizeof(darshan_record_id), rec_ref);
     if(ret == 0)
     {
+        free(file_rec);
         free(rec_ref);
+        DXT_UNLOCK();
         return;
     }
 
-    /* register the actual file record with darshan-core so it is persisted
-     * in the log file
-     */
-    file_rec = darshan_core_register_record(
-            rec_id,
-            path,
-            DXT_MPIIO_MOD,
-            sizeof(struct dxt_file_record),
-            &fs_info);
+    dxt_mem_remaining -= sizeof(struct dxt_file_record);
+    DXT_UNLOCK();
 
-    if(!file_rec)
-    {
-        darshan_delete_record_ref(&(dxt_mpiio_runtime->rec_id_hash),
-                &rec_id, sizeof(darshan_record_id));
-        free(rec_ref);
-        return;
-    }
-
-    /* registering this file record was successful, so initialize
-     * some fields
-     */
+    /* initialize record and record reference fields */
     file_rec->base_rec.id = rec_id;
     file_rec->base_rec.rank = mpiio_my_rank;
 
-    file_rec->write_count = 0;
-    file_rec->write_traces = malloc(IO_TRACE_BUF_SIZE *
-            sizeof(segment_info));
-
-    file_rec->read_count = 0;
-    file_rec->read_traces = malloc(IO_TRACE_BUF_SIZE *
-            sizeof(segment_info));
-
     rec_ref->file_rec = file_rec;
-    rec_ref->write_available_buf = IO_TRACE_BUF_SIZE;
-    rec_ref->read_available_buf = IO_TRACE_BUF_SIZE;
-    rec_ref->fs_type = fs_info.fs_type;
-
     dxt_mpiio_runtime->file_rec_count++;
-}
 
-void dxt_mpiio_add_record_ref(darshan_record_id rec_id, MPI_File fh)
-{
-    struct dxt_file_record_ref *rec_ref = NULL;
-
-    rec_ref = darshan_lookup_record_ref(dxt_mpiio_runtime->rec_id_hash, &rec_id,
-                sizeof(darshan_record_id));
-    assert(rec_ref);
-
-    darshan_add_record_ref(&(dxt_mpiio_runtime->fh_hash), &fh,
-            sizeof(MPI_File), rec_ref);
+    return(rec_ref);
 }
 
 void dxt_clear_record_refs(void **hash_head_p, int free_flag)
@@ -567,7 +570,6 @@ static void dxt_posix_cleanup_runtime()
 
 static void dxt_mpiio_cleanup_runtime()
 {
-    dxt_clear_record_refs(&(dxt_mpiio_runtime->fh_hash), 0);
     dxt_clear_record_refs(&(dxt_mpiio_runtime->rec_id_hash), 1);
 
     free(dxt_mpiio_runtime);

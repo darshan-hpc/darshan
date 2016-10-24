@@ -87,21 +87,17 @@ static void mpiio_shutdown(
     MPI_Comm mod_comm, darshan_record_id *shared_recs,
     int shared_rec_count, void **mpiio_buf, int *mpiio_buf_sz);
 
-/* DXT */
-extern void dxt_mpiio_runtime_initialize();
-extern void dxt_mpiio_track_new_file_record(
-    darshan_record_id rec_id, const char *path);
-extern void dxt_mpiio_add_record_ref(
-    darshan_record_id rec_id, MPI_File fh);
-extern void dxt_mpiio_write(MPI_File fh, int64_t length,
+/* extern DXT function defs */
+extern void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
     double start_time, double end_time);
-extern void dxt_mpiio_read(MPI_File fh, int64_t length,
+extern void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
     double start_time, double end_time);
 
 static struct mpiio_runtime *mpiio_runtime = NULL;
 static pthread_mutex_t mpiio_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int instrumentation_disabled = 0;
 static int my_rank = -1;
+static int enable_dxt_io_trace = 0;
 
 #define MPIIO_LOCK() pthread_mutex_lock(&mpiio_runtime_mutex)
 #define MPIIO_UNLOCK() pthread_mutex_unlock(&mpiio_runtime_mutex)
@@ -111,10 +107,6 @@ static int my_rank = -1;
     if(!instrumentation_disabled) { \
         if(!mpiio_runtime) { \
             mpiio_runtime_initialize(); \
-            /* DXT */ \
-            if (getenv("ENABLE_DXT_IO_TRACE")) { \
-                dxt_mpiio_runtime_initialize(); \
-            } \
         } \
         if(mpiio_runtime) break; \
     } \
@@ -140,13 +132,7 @@ static int my_rank = -1;
     } \
     rec_id = darshan_core_gen_record_id(newpath); \
     rec_ref = darshan_lookup_record_ref(mpiio_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
-    if(!rec_ref) { \
-        rec_ref = mpiio_track_new_file_record(rec_id, newpath); \
-        /* DXT */ \
-        if (getenv("ENABLE_DXT_IO_TRACE")) { \
-            dxt_mpiio_track_new_file_record(rec_id, newpath); \
-        } \
-    } \
+    if(!rec_ref) rec_ref = mpiio_track_new_file_record(rec_id, newpath); \
     if(!rec_ref) { \
         if(newpath != __path) free(newpath); \
         break; \
@@ -166,10 +152,6 @@ static int my_rank = -1;
         __tm1, __tm2, rec_ref->last_meta_end); \
     darshan_add_record_ref(&(mpiio_runtime->fh_hash), &__fh, sizeof(MPI_File), rec_ref); \
     if(newpath != __path) free(newpath); \
-    /* DXT */ \
-    if (getenv("ENABLE_DXT_IO_TRACE")) { \
-        dxt_mpiio_add_record_ref(rec_id, __fh); \
-    } \
 } while(0)
 
 #define MPIIO_RECORD_READ(__ret, __fh, __count, __datatype, __counter, __tm1, __tm2) do { \
@@ -182,8 +164,8 @@ static int my_rank = -1;
     DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
     size = size * __count; \
     /* DXT to record detailed read tracing information */ \
-    if (getenv("ENABLE_DXT_IO_TRACE")) { \
-        dxt_mpiio_read(__fh, size, __tm1, __tm2); \
+    if(enable_dxt_io_trace) { \
+        dxt_mpiio_read(rec_ref->file_rec->base_rec.id, size, __tm1, __tm2); \
     } \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_READ_AGG_0_100]), size); \
     darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, size, \
@@ -215,8 +197,8 @@ static int my_rank = -1;
     DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
     size = size * __count; \
      /* DXT to record detailed write tracing information */ \
-    if (getenv("ENABLE_DXT_IO_TRACE")) { \
-        dxt_mpiio_write(__fh, size, __tm1, __tm2); \
+    if(enable_dxt_io_trace) { \
+        dxt_mpiio_write(rec_ref->file_rec->base_rec.id, size, __tm1, __tm2); \
     } \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_WRITE_AGG_0_100]), size); \
     darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, size, \
@@ -878,6 +860,11 @@ static void mpiio_runtime_initialize()
         return;
     }
     memset(mpiio_runtime, 0, sizeof(*mpiio_runtime));
+
+    /* check if DXT (Darshan extended tracing) should be enabled */
+    if (getenv("ENABLE_DXT_IO_TRACE")) {
+        enable_dxt_io_trace = 1;
+    }
 
     return;
 }
