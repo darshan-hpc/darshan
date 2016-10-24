@@ -525,42 +525,19 @@ static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
     return(rec_ref);
 }
 
-void dxt_clear_record_refs(void **hash_head_p, int free_flag)
+static void dxt_free_trace_buffers(void *rec_ref_p)
 {
-    struct dxt_record_ref_tracker *ref_tracker, *tmp;
-    struct dxt_record_ref_tracker *ref_tracker_head =
-        *(struct dxt_record_ref_tracker **)hash_head_p;
-    struct dxt_file_record_ref *rec_ref;
-    struct dxt_file_record *file_rec;
+    struct dxt_file_record_ref *dxt_rec_ref = (struct dxt_file_record_ref *)rec_ref_p;
 
-#if 0    
-    /* iterate the hash table and remove/free all reference trackers */
-    HASH_ITER(hlink, ref_tracker_head, ref_tracker, tmp)
-    {
-        HASH_DELETE(hlink, ref_tracker_head, ref_tracker);
-        if (free_flag) {
-            rec_ref = (struct dxt_file_record_ref *)ref_tracker->rec_ref_p;
-            file_rec = rec_ref->file_rec;
-
-            if (file_rec->write_traces)
-                free(file_rec->write_traces);
-
-            if (file_rec->read_traces)
-                free(file_rec->read_traces);
-
-            free(rec_ref);
-        }
-        free(ref_tracker);
-    }
-    *hash_head_p = ref_tracker_head;
-#endif
-
-    return;
+    /* TODO: update these pointer addresses once {write/read}_traces are moved to rec_ref structure */
+    free(dxt_rec_ref->file_rec->write_traces);
+    free(dxt_rec_ref->file_rec->read_traces);
 }
 
 static void dxt_posix_cleanup_runtime()
 {
-    dxt_clear_record_refs(&(dxt_posix_runtime->rec_id_hash), 1);
+    darshan_iter_record_refs(&(dxt_posix_runtime->rec_id_hash), dxt_free_trace_buffers);
+    darshan_clear_record_refs(&(dxt_posix_runtime->rec_id_hash), 1);
 
     free(dxt_posix_runtime);
     dxt_posix_runtime = NULL;
@@ -570,7 +547,8 @@ static void dxt_posix_cleanup_runtime()
 
 static void dxt_mpiio_cleanup_runtime()
 {
-    dxt_clear_record_refs(&(dxt_mpiio_runtime->rec_id_hash), 1);
+    darshan_iter_record_refs(&(dxt_mpiio_runtime->rec_id_hash), dxt_free_trace_buffers);
+    darshan_clear_record_refs(&(dxt_mpiio_runtime->rec_id_hash), 1);
 
     free(dxt_mpiio_runtime);
     dxt_mpiio_runtime = NULL;
