@@ -68,9 +68,6 @@ void dxt_swap_file_record(struct dxt_file_record *file_rec)
 
     DARSHAN_BSWAP64(&file_rec->write_count);
     DARSHAN_BSWAP64(&file_rec->read_count);
-
-    DARSHAN_BSWAP64(&file_rec->write_traces);
-    DARSHAN_BSWAP64(&file_rec->read_traces);
 }
 
 static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf)

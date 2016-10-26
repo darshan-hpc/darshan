@@ -57,8 +57,12 @@ typedef int64_t off64_t;
 struct dxt_file_record_ref
 {
     struct dxt_file_record *file_rec;
+
     int64_t write_available_buf;
     int64_t read_available_buf;
+
+    segment_info *write_traces;
+    segment_info *read_traces;
 };
 
 /* The dxt_runtime structure maintains necessary state for storing
@@ -158,8 +162,8 @@ static void check_wr_trace_buf(struct dxt_file_record_ref *rec_ref)
         if(write_count_inc > 0)
         {
             write_available_buf += write_count_inc;
-            file_rec->write_traces =
-                (segment_info *)realloc(file_rec->write_traces,
+            rec_ref->write_traces =
+                (segment_info *)realloc(rec_ref->write_traces,
                         write_available_buf * sizeof(segment_info));
 
             rec_ref->write_available_buf = write_available_buf;
@@ -191,8 +195,8 @@ static void check_rd_trace_buf(struct dxt_file_record_ref *rec_ref)
         if(read_count_inc > 0)
         {
             read_available_buf += read_count_inc;
-            file_rec->read_traces =
-                (segment_info *)realloc(file_rec->read_traces,
+            rec_ref->read_traces =
+                (segment_info *)realloc(rec_ref->read_traces,
                         read_available_buf * sizeof(segment_info));
             
             rec_ref->read_available_buf = read_available_buf;
@@ -228,10 +232,10 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
     if(file_rec->write_count == rec_ref->write_available_buf)
         return; /* no more memory for i/o segments ... back out */
 
-    file_rec->write_traces[file_rec->write_count].offset = offset;
-    file_rec->write_traces[file_rec->write_count].length = length;
-    file_rec->write_traces[file_rec->write_count].start_time = start_time;
-    file_rec->write_traces[file_rec->write_count].end_time = end_time;
+    rec_ref->write_traces[file_rec->write_count].offset = offset;
+    rec_ref->write_traces[file_rec->write_count].length = length;
+    rec_ref->write_traces[file_rec->write_count].start_time = start_time;
+    rec_ref->write_traces[file_rec->write_count].end_time = end_time;
     file_rec->write_count += 1;
 }
 
@@ -262,10 +266,10 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     if(file_rec->read_count == rec_ref->read_available_buf)
         return; /* no more memory for i/o segments ... back out */
 
-    file_rec->read_traces[file_rec->read_count].offset = offset;
-    file_rec->read_traces[file_rec->read_count].length = length;
-    file_rec->read_traces[file_rec->read_count].start_time = start_time;
-    file_rec->read_traces[file_rec->read_count].end_time = end_time;
+    rec_ref->read_traces[file_rec->read_count].offset = offset;
+    rec_ref->read_traces[file_rec->read_count].length = length;
+    rec_ref->read_traces[file_rec->read_count].start_time = start_time;
+    rec_ref->read_traces[file_rec->read_count].end_time = end_time;
     file_rec->read_count += 1;
 }
 
@@ -297,9 +301,9 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
     if(file_rec->write_count == rec_ref->write_available_buf)
         return; /* no more memory for i/o segments ... back out */
 
-    file_rec->write_traces[file_rec->write_count].length = length;
-    file_rec->write_traces[file_rec->write_count].start_time = start_time;
-    file_rec->write_traces[file_rec->write_count].end_time = end_time;
+    rec_ref->write_traces[file_rec->write_count].length = length;
+    rec_ref->write_traces[file_rec->write_count].start_time = start_time;
+    rec_ref->write_traces[file_rec->write_count].end_time = end_time;
     file_rec->write_count += 1;
 }
 
@@ -331,9 +335,9 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
     if(file_rec->read_count == rec_ref->read_available_buf)
         return; /* no more memory for i/o segments ... back out */
 
-    file_rec->read_traces[file_rec->read_count].length = length;
-    file_rec->read_traces[file_rec->read_count].start_time = start_time;
-    file_rec->read_traces[file_rec->read_count].end_time = end_time;
+    rec_ref->read_traces[file_rec->read_count].length = length;
+    rec_ref->read_traces[file_rec->read_count].start_time = start_time;
+    rec_ref->read_traces[file_rec->read_count].end_time = end_time;
     file_rec->read_count += 1;
 }
 
@@ -528,8 +532,8 @@ static void dxt_free_record_data(void *rec_ref_p)
     struct dxt_file_record_ref *dxt_rec_ref = (struct dxt_file_record_ref *)rec_ref_p;
 
     /* TODO: update these pointer addresses once {write/read}_traces are moved to rec_ref structure */
-    free(dxt_rec_ref->file_rec->write_traces);
-    free(dxt_rec_ref->file_rec->read_traces);
+    free(dxt_rec_ref->write_traces);
+    free(dxt_rec_ref->read_traces);
     free(dxt_rec_ref->file_rec);
 }
 
@@ -580,7 +584,7 @@ static void dxt_serialize_posix_records(void *rec_ref_p)
 
     /*
      * Buffer format:
-     * dxt_file_record + ost_ids + write_traces + read_traces
+     * dxt_file_record + write_traces + read_traces
      */
     record_size = sizeof(struct dxt_file_record) +
             (record_write_count + record_read_count) * sizeof(segment_info);
@@ -593,13 +597,13 @@ static void dxt_serialize_posix_records(void *rec_ref_p)
     tmp_buf_ptr = (void *)(tmp_buf_ptr + sizeof(struct dxt_file_record));
 
     /*Copy write record */
-    memcpy(tmp_buf_ptr, (void *)(file_rec->write_traces),
+    memcpy(tmp_buf_ptr, (void *)(rec_ref->write_traces),
             record_write_count * sizeof(segment_info));
     tmp_buf_ptr = (void *)(tmp_buf_ptr +
                 record_write_count * sizeof(segment_info));
 
     /*Copy read record */
-    memcpy(tmp_buf_ptr, (void *)(file_rec->read_traces),
+    memcpy(tmp_buf_ptr, (void *)(rec_ref->read_traces),
             record_read_count * sizeof(segment_info));
     tmp_buf_ptr = (void *)(tmp_buf_ptr +
                 record_read_count * sizeof(segment_info));
@@ -620,20 +624,20 @@ static void dxt_serialize_posix_records(void *rec_ref_p)
 
     for (i = 0; i < file_rec->write_count; i++) {
         rank = file_rec->base_rec.rank;
-        offset = file_rec->write_traces[i].offset;
-        length = file_rec->write_traces[i].length;
-        start_time = file_rec->write_traces[i].start_time;
-        end_time = file_rec->write_traces[i].end_time;
+        offset = rec_ref->write_traces[i].offset;
+        length = rec_ref->write_traces[i].length;
+        start_time = rec_ref->write_traces[i].start_time;
+        end_time = rec_ref->write_traces[i].end_time;
 
         printf("DXT, rank %d writes segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
     }
 
     for (i = 0; i < file_rec->read_count; i++) {
         rank = file_rec->base_rec.rank;
-        offset = file_rec->read_traces[i].offset;
-        length = file_rec->read_traces[i].length;
-        start_time = file_rec->read_traces[i].start_time;
-        end_time = file_rec->read_traces[i].end_time;
+        offset = rec_ref->read_traces[i].offset;
+        length = rec_ref->read_traces[i].length;
+        start_time = rec_ref->read_traces[i].start_time;
+        end_time = rec_ref->read_traces[i].end_time;
 
         printf("DXT, rank %d reads segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
     }
@@ -693,7 +697,7 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p)
 
     /*
      * Buffer format:
-     * dxt_file_record + ost_ids + write_traces + read_traces
+     * dxt_file_record + write_traces + read_traces
      */
     record_size = sizeof(struct dxt_file_record) +
             (record_write_count + record_read_count) * sizeof(segment_info);
@@ -706,13 +710,13 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p)
     tmp_buf_ptr = (void *)(tmp_buf_ptr + sizeof(struct dxt_file_record));
 
     /*Copy write record */
-    memcpy(tmp_buf_ptr, (void *)(file_rec->write_traces),
+    memcpy(tmp_buf_ptr, (void *)(rec_ref->write_traces),
             record_write_count * sizeof(segment_info));
     tmp_buf_ptr = (void *)(tmp_buf_ptr +
                 record_write_count * sizeof(segment_info));
 
     /*Copy read record */
-    memcpy(tmp_buf_ptr, (void *)(file_rec->read_traces),
+    memcpy(tmp_buf_ptr, (void *)(rec_ref->read_traces),
             record_read_count * sizeof(segment_info));
     tmp_buf_ptr = (void *)(tmp_buf_ptr +
                 record_read_count * sizeof(segment_info));
@@ -733,20 +737,20 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p)
 
     for (i = 0; i < file_rec->write_count; i++) {
         rank = file_rec->base_rec.rank;
-        offset = file_rec->write_traces[i].offset;
-        length = file_rec->write_traces[i].length;
-        start_time = file_rec->write_traces[i].start_time;
-        end_time = file_rec->write_traces[i].end_time;
+        offset = rec_ref->write_traces[i].offset;
+        length = rec_ref->write_traces[i].length;
+        start_time = rec_ref->write_traces[i].start_time;
+        end_time = rec_ref->write_traces[i].end_time;
 
         printf("DXT, rank %d writes segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
     }
 
     for (i = 0; i < file_rec->read_count; i++) {
         rank = file_rec->base_rec.rank;
-        offset = file_rec->read_traces[i].offset;
-        length = file_rec->read_traces[i].length;
-        start_time = file_rec->read_traces[i].start_time;
-        end_time = file_rec->read_traces[i].end_time;
+        offset = rec_ref->read_traces[i].offset;
+        length = rec_ref->read_traces[i].length;
+        start_time = rec_ref->read_traces[i].start_time;
+        end_time = rec_ref->read_traces[i].end_time;
 
         printf("DXT, rank %d reads segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
     }

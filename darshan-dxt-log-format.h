@@ -37,9 +37,6 @@ struct dxt_file_record {
 
     int64_t write_count;
     int64_t read_count;
-
-    segment_info *write_traces;
-	segment_info *read_traces;
 };
 
 #endif /* __DARSHAN_DXT_LOG_FORMAT_H */
