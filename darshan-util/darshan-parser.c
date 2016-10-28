@@ -121,9 +121,6 @@ void stdio_print_total_file(struct darshan_stdio_file *pfile, int stdio_ver);
 
 void calc_perf(perf_data_t *pdata, int64_t nprocs);
 
-/* DXT */
-extern void dxt_logutils_cleanup();
-
 int usage (char *exename)
 {
     fprintf(stderr, "Usage: %s [options] <filename>\n", exename);
@@ -401,7 +398,8 @@ int main(int argc, char **argv)
         /* currently only POSIX, MPIIO, and STDIO modules support non-base
          * parsing
          */
-        else if((i != DARSHAN_POSIX_MOD) && (i != DARSHAN_MPIIO_MOD) && (i != DARSHAN_STDIO_MOD) && !(mask & OPTION_BASE))
+        else if((i != DARSHAN_POSIX_MOD) && (i != DARSHAN_MPIIO_MOD) &&
+                (i != DARSHAN_STDIO_MOD) && !(mask & OPTION_BASE))
             continue;
 
         /* this module has data to be parsed and printed */
@@ -428,22 +426,24 @@ int main(int argc, char **argv)
             }
         }
 
-        ret = mod_logutils[i]->log_get_record(fd, (void **)&mod_buf);
-        if(ret != 1)
-        {
-            fprintf(stderr, "Error: failed to parse the first %s module record.\n",
-                darshan_module_names[i]);
-            ret = -1;
-            goto cleanup;
-        }
-
         /* loop over each of this module's records and print them */
-        do
+        while(1)
         {
             char *mnt_pt = NULL;
             char *fs_type = NULL;
             char *rec_name = NULL;
             hash_entry_t *hfile = NULL;
+
+            ret = mod_logutils[i]->log_get_record(fd, (void **)&mod_buf);
+            if(ret < 1)
+            {
+                if(ret == -1)
+                {
+                    fprintf(stderr, "Error: failed to parse %s module record.\n",
+                        darshan_module_names[i]);
+                }
+                break;
+            }
             base_rec = (struct darshan_base_record *)mod_buf;
 
             /* get the pathname for this record */
@@ -476,32 +476,11 @@ int main(int argc, char **argv)
             if(!fs_type)
                 fs_type = "UNKNOWN";
 
-            /* DXT */
-            if (i == DARSHAN_LUSTRE_MOD && ref) {
-                /* LUSTRE MODULE */
-                struct darshan_lustre_record *file_rec = 
-                            (struct darshan_lustre_record *)mod_buf;
-
-                ref->stripe_size = file_rec->counters[LUSTRE_STRIPE_SIZE];
-                ref->stripe_count = file_rec->counters[LUSTRE_STRIPE_WIDTH];
-
-                int ost_ids_size = ref->stripe_count * sizeof(OST_ID);
-                ref->ost_ids = (OST_ID *) malloc(ost_ids_size);
-                memcpy((void *)(ref->ost_ids), (void *)(file_rec->ost_ids),
-                                    ost_ids_size);
-            }
-
             if(mask & OPTION_BASE)
             {
-                /* DXT */
-                if (i == DXT_POSIX_MOD) {
-                    mod_logutils[i]->log_print_record_dxt(mod_buf, rec_name,
-                            mnt_pt, fs_type, ref);
-                } else {
-                    /* print the corresponding module data for this record */
-                    mod_logutils[i]->log_print_record(mod_buf, rec_name,
-                            mnt_pt, fs_type);
-                }
+                /* print the corresponding module data for this record */
+                mod_logutils[i]->log_print_record(mod_buf, rec_name,
+                    mnt_pt, fs_type);
             }
 
             /* we calculate more detailed stats for POSIX, MPI-IO, and STDIO modules, 
@@ -552,13 +531,9 @@ int main(int argc, char **argv)
             }
 
             memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
-
-        } while((ret = mod_logutils[i]->log_get_record(fd, (void **)&mod_buf)) == 1);
-        if (ret < 0)
-        {
-            ret = -1;
-            goto cleanup;
         }
+        if(ret == -1)
+            continue; /* move on to the next module if there was an error with this one */
 
         /* we calculate more detailed stats for POSIX and MPI-IO modules, 
          * if the parser is executed with more than the base option
@@ -713,9 +688,6 @@ int main(int argc, char **argv)
             if(curr->rec_dat) free(curr->rec_dat);
             free(curr);
         }
-
-        /* DXT */
-        dxt_logutils_cleanup();
     }
     if(empty_mods == DARSHAN_MAX_MODS)
         printf("\n# no module data available.\n");

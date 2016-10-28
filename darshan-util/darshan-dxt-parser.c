@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 University of Chicago.
+ * Copyright (C) 2015 University of Chicago.
  * See COPYRIGHT notice in top-level directory.
  *
  */
@@ -20,13 +20,11 @@
 
 #include "darshan-logutils.h"
 
-struct lustre_record_ref
-{
-    UT_hash_handle hlink;
-    struct darshan_lustre_record *rec;
-};
-
 extern void dxt_logutils_cleanup();
+extern void dxt_log_print_posix_file(void *file_rec, char *file_name,
+        char *mnt_pt, char *fs_type, struct darshan_lustre_record *ref);
+extern void dxt_log_print_mpiio_file(void *file_rec, char *file_name,
+        char *mnt_pt, char *fs_type);
 
 int usage (char *exename)
 {
@@ -45,7 +43,7 @@ int main(int argc, char **argv)
     darshan_fd fd;
     struct darshan_job job;
     struct darshan_name_record_ref *name_hash = NULL;
-    struct darshan_name_record_ref *name_rec_ref, *tmp_name_rec_ref;
+    struct darshan_name_record_ref *ref, *tmp_ref;
     int mount_count;
     struct darshan_mnt_info *mnt_data_array;
     time_t tmp_time = 0;
@@ -55,24 +53,21 @@ int main(int argc, char **argv)
     char buffer[DARSHAN_JOB_METADATA_LEN];
     struct lustre_record_ref *lustre_rec_ref, *tmp_lustre_rec_ref;
     struct lustre_record_ref *lustre_rec_hash = NULL;
-    struct darshan_base_record *base_rec;
+    int empty_mods = 0;
     char *mod_buf = NULL;
-    char *mnt_pt;
-    char *fs_type;
-    char *rec_name;
 
-    if(argc != 2)
+    if (argc != 2)
         usage(argv[0]);
 
     filename = argv[1];
 
     fd = darshan_log_open(filename);
-    if(!fd)
+    if (!fd)
         return(-1);
 
     /* read darshan job info */
     ret = darshan_log_get_job(fd, &job);
-    if(ret < 0)
+    if (ret < 0)
     {
         darshan_log_close(fd);
         return(-1);
@@ -80,7 +75,7 @@ int main(int argc, char **argv)
 
     /* get the original command line for this job */
     ret = darshan_log_get_exe(fd, tmp_string);
-    if(ret < 0)
+    if (ret < 0)
     {
         darshan_log_close(fd);
         return(-1);
@@ -88,7 +83,7 @@ int main(int argc, char **argv)
 
     /* get the mount information for this log */
     ret = darshan_log_get_mounts(fd, &mnt_data_array, &mount_count);
-    if(ret < 0)
+    if (ret < 0)
     {
         darshan_log_close(fd);
         return(-1);
@@ -96,13 +91,16 @@ int main(int argc, char **argv)
 
     /* read hash of darshan records */
     ret = darshan_log_get_namehash(fd, &name_hash);
-    if(ret < 0)
-        goto cleanup;
+    if (ret < 0)
+    {
+        darshan_log_close(fd);
+        return(-1);
+    }
 
     /* print any warnings related to this log file version */
     darshan_log_print_version_warnings(fd->version);
 
-    if(fd->comp_type == DARSHAN_ZLIB_COMP)
+    if (fd->comp_type == DARSHAN_ZLIB_COMP)
         comp_str = "ZLIB";
     else if (fd->comp_type == DARSHAN_BZIP2_COMP)
         comp_str = "BZIP2";
@@ -125,12 +123,12 @@ int main(int argc, char **argv)
     tmp_time += job.end_time;
     printf("# end_time_asci: %s", ctime(&tmp_time));
     printf("# nprocs: %" PRId64 "\n", job.nprocs);
-    if(job.end_time >= job.start_time)
+    if (job.end_time >= job.start_time)
         run_time = job.end_time - job.start_time + 1;
     printf("# run time: %" PRId64 "\n", run_time);
-    for(token=strtok_r(job.metadata, "\n", &save);
+    for (token = strtok_r(job.metadata, "\n", &save);
         token != NULL;
-        token=strtok_r(NULL, "\n", &save))
+        token = strtok_r(NULL, "\n", &save))
     {
         char *key;
         char *value;
@@ -155,9 +153,9 @@ int main(int argc, char **argv)
     printf("# header: %zu bytes (uncompressed)\n", sizeof(struct darshan_header));
     printf("# job data: %zu bytes (compressed)\n", fd->job_map.len);
     printf("# record table: %zu bytes (compressed)\n", fd->name_map.len);
-    for(i=0; i<DARSHAN_MAX_MODS; i++)
+    for (i = 0; i < DARSHAN_MAX_MODS; i++)
     {
-        if(fd->mod_map[i].len)
+        if (fd->mod_map[i].len)
         {
             printf("# %s module: %zu bytes (compressed), ver=%d\n",
                 darshan_module_names[i], fd->mod_map[i].len, fd->mod_ver[i]);
@@ -167,7 +165,7 @@ int main(int argc, char **argv)
     /* print table of mounted file systems */
     printf("\n# mounted file systems (mount point and fs type)\n");
     printf("# -------------------------------------------------------\n");
-    for(i=0; i<mount_count; i++)
+    for (i = 0; i < mount_count; i++)
     {
         printf("# mount entry:\t%s\t%s\n", mnt_data_array[i].mnt_path,
             mnt_data_array[i].mnt_type);
@@ -180,178 +178,149 @@ int main(int argc, char **argv)
         goto cleanup;
     }
 
-    if(fd->mod_map[DARSHAN_LUSTRE_MOD].len > 0 &&
-        mod_logutils[DARSHAN_LUSTRE_MOD])
-    {
-        /* get lustre module data, put in hash table */
-        while(1)
-        {
-            lustre_rec_ref = malloc(sizeof(*lustre_rec_ref));
-            assert(lustre_rec_ref);
-            memset(lustre_rec_ref, 0, sizeof(*lustre_rec_ref));
-
-            ret = mod_logutils[DARSHAN_LUSTRE_MOD]->log_get_record(fd,
-                (void **)&(lustre_rec_ref->rec));
-            if(ret < 1)
-            {
-                if(ret == -1)
-                {
-                    fprintf(stderr, "Error: failed to parse Lustre module record.\n");
-                    goto cleanup;
-                }
-                break;
-            }
-            else
-            {
-                HASH_ADD(hlink, lustre_rec_hash, rec->base_rec.id,
-                    sizeof(darshan_record_id), lustre_rec_ref);
-            }
-        } 
+    mod_buf = malloc(DEF_MOD_BUF_SIZE);
+    if (!mod_buf) {
+        goto cleanup;
     }
 
-    mod_buf = malloc(DEF_MOD_BUF_SIZE);
-    if (!mod_buf)
-        goto cleanup;
-
-    /* iterate over DXT POSIX records and print them out */
-    if(fd->mod_map[DXT_POSIX_MOD].len > 0 && mod_logutils[DXT_POSIX_MOD])
+    for (i = 0; i < DARSHAN_MAX_MODS; i++)
     {
+        struct darshan_base_record *base_rec;
+
+        /* check each module for any data */
+        if (fd->mod_map[i].len == 0)
+        {
+            empty_mods++;
+            continue;
+        }
+        /* skip modules with no logutil definitions */
+        else if (!mod_logutils[i])
+        {
+            fprintf(stderr, "Warning: no log utility handlers defined "
+                "for module %s, SKIPPING.\n", darshan_module_names[i]);
+            continue;
+        }
+
+        /* this module has data to be parsed and printed */
+        memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
+
+        if (i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD) {
+            printf("\n# ***************************************************\n");
+            printf("# %s module data\n", darshan_module_names[i]);
+            printf("# ***************************************************\n");
+        }
+
+        /* loop over each of this module's records and print them */
         while(1)
         {
-            mnt_pt = NULL;
-            fs_type = NULL;
-            rec_name = NULL;
+            char *mnt_pt = NULL;
+            char *fs_type = NULL;
+            char *rec_name = NULL;
 
-            ret = mod_logutils[DXT_POSIX_MOD]->log_get_record(fd, (void **)&mod_buf);
-            if(ret < 1)
+            if (i == DARSHAN_LUSTRE_MOD) {
+                lustre_rec_ref = malloc(sizeof(*lustre_rec_ref));
+                assert(lustre_rec_ref);
+                memset(lustre_rec_ref, 0, sizeof(*lustre_rec_ref));
+
+                ret = mod_logutils[i]->log_get_record(fd,
+                        (void **)&(lustre_rec_ref->rec));
+            } else {
+                ret = mod_logutils[i]->log_get_record(fd, (void **)&mod_buf);
+            }
+
+            if (ret < 1)
             {
-                if(ret == -1)
+                if (ret == -1)
                 {
-                    fprintf(stderr, "Error: failed to parse DXT POSIX module record.\n");
+                    fprintf(stderr, "Error: failed to parse %s module record.\n",
+                        darshan_module_names[i]);
                     goto cleanup;
                 }
                 break;
             }
-            else
+
+            if (i == DARSHAN_LUSTRE_MOD) {
+                HASH_ADD(hlink, lustre_rec_hash, rec->base_rec.id,
+                        sizeof(darshan_record_id), lustre_rec_ref);
+            }
+
+            if ((i != DXT_POSIX_MOD) && (i != DXT_MPIIO_MOD))
+                continue;
+
+            base_rec = (struct darshan_base_record *)mod_buf;
+
+            /* get the pathname for this record */
+            HASH_FIND(hlink, name_hash, &(base_rec->id),
+                    sizeof(darshan_record_id), ref);
+
+            if (ref)
             {
-                /* got a record */
-                base_rec = (struct darshan_base_record *)mod_buf;
+                rec_name = ref->name_record->name;
 
-                /* get the pathname for this record */
-                HASH_FIND(hlink, name_hash, &(base_rec->id),
-                    sizeof(darshan_record_id), name_rec_ref);
-                if(name_rec_ref)
+                /* get mount point and fs type associated with this record */
+                for (j = 0; j < mount_count; j++)
                 {
-                    rec_name = name_rec_ref->name_record->name;
-
-                    /* get mount point and fs type associated with this record */
-                    for(j=0; j<mount_count; j++)
+                    if(strncmp(mnt_data_array[j].mnt_path, rec_name,
+                        strlen(mnt_data_array[j].mnt_path)) == 0)
                     {
-                        if(strncmp(mnt_data_array[j].mnt_path, rec_name,
-                            strlen(mnt_data_array[j].mnt_path)) == 0)
-                        {
-                            mnt_pt = mnt_data_array[j].mnt_path;
-                            fs_type = mnt_data_array[j].mnt_type;
-                            break;
-                        }
+                        mnt_pt = mnt_data_array[j].mnt_path;
+                        fs_type = mnt_data_array[j].mnt_type;
+                        break;
                     }
                 }
-                if(!mnt_pt)
-                    mnt_pt = "UNKNOWN";
-                if(!fs_type)
-                    fs_type = "UNKNOWN";
+            }
 
+            if (!mnt_pt)
+                mnt_pt = "UNKNOWN";
+            if (!fs_type)
+                fs_type = "UNKNOWN";
+
+            if (i == DXT_POSIX_MOD) {
                 /* look for corresponding lustre record and print DXT data */
                 HASH_FIND(hlink, lustre_rec_hash, &(base_rec->id),
-                    sizeof(darshan_record_id), lustre_rec_ref);
-                if(lustre_rec_ref)
-                {
-                    /* Lustre record found, data in lustre_rec_ref->rec */
-                }
-                else
-                {
-                    /* no Lustre record found */
-                }
+                        sizeof(darshan_record_id), lustre_rec_ref);
+
+                dxt_log_print_posix_file(mod_buf, rec_name,
+                        mnt_pt, fs_type, lustre_rec_ref->rec);
+            } else if (i == DXT_MPIIO_MOD){
+                dxt_log_print_mpiio_file(mod_buf, rec_name,
+                        mnt_pt, fs_type);
+            
             }
+
+            memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
         }
     }
 
-    /* iterate over DXT MPI-IO records and print them out */
-    if(fd->mod_map[DXT_MPIIO_MOD].len > 0 && mod_logutils[DXT_MPIIO_MOD])
-    {
-        while(1)
-        {
-            mnt_pt = NULL;
-            fs_type = NULL;
-            rec_name = NULL;
-
-            ret = mod_logutils[DXT_MPIIO_MOD]->log_get_record(fd, (void **)&mod_buf);
-            if(ret < 1)
-            {
-                if(ret == -1)
-                {
-                    fprintf(stderr, "Error: failed to parse DXT POSIX module record.\n");
-                    goto cleanup;
-                }
-                break;
-            }
-            else
-            {
-                /* got a record */
-                base_rec = (struct darshan_base_record *)mod_buf;
-
-                /* get the pathname for this record */
-                HASH_FIND(hlink, name_hash, &(base_rec->id),
-                    sizeof(darshan_record_id), name_rec_ref);
-                if(name_rec_ref)
-                {
-                    rec_name = name_rec_ref->name_record->name;
-
-                    /* get mount point and fs type associated with this record */
-                    for(j=0; j<mount_count; j++)
-                    {   
-                        if(strncmp(mnt_data_array[j].mnt_path, rec_name,
-                            strlen(mnt_data_array[j].mnt_path)) == 0)
-                        {   
-                            mnt_pt = mnt_data_array[j].mnt_path;
-                            fs_type = mnt_data_array[j].mnt_type;
-                            break;
-                        }
-                    }
-                }
-                if(!mnt_pt)
-                    mnt_pt = "UNKNOWN";
-                if(!fs_type)
-                    fs_type = "UNKNOWN";
-            }
-        }
-    }
-
+    if (empty_mods == DARSHAN_MAX_MODS)
+        printf("\n# no module data available.\n");
     ret = 0;
 
+    /* DXT */
+    dxt_logutils_cleanup();
+
 cleanup:
+    darshan_log_close(fd);
     free(mod_buf);
 
-    darshan_log_close(fd);
-
     /* free record hash data */
-    HASH_ITER(hlink, name_hash, name_rec_ref, tmp_name_rec_ref)
+    HASH_ITER(hlink, name_hash, ref, tmp_ref)
     {
-        HASH_DELETE(hlink, name_hash, name_rec_ref);
-        free(name_rec_ref->name_record);
-        free(name_rec_ref);
+        HASH_DELETE(hlink, name_hash, ref);
+        free(ref->name_record);
+        free(ref);
     }
 
     /* free lustre record data */
     HASH_ITER(hlink, lustre_rec_hash, lustre_rec_ref, tmp_lustre_rec_ref)
-    {
+    {   
         HASH_DELETE(hlink, lustre_rec_hash, lustre_rec_ref);
         free(lustre_rec_ref->rec);
         free(lustre_rec_ref);
-    }
+    } 
 
     /* free mount info */
-    if(mount_count > 0)
+    if (mount_count > 0)
     {
         free(mnt_data_array);
     }

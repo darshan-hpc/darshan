@@ -21,8 +21,8 @@
 
 static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf);
 static int dxt_log_put_posix_file(darshan_fd fd, void* dxt_posix_buf);
-static void dxt_log_print_posix_file(void *file_rec, char *file_name,
-        char *mnt_pt, char *fs_type, struct darshan_name_record_ref *ref);
+void dxt_log_print_posix_file(void *file_rec, char *file_name,
+        char *mnt_pt, char *fs_type, struct darshan_lustre_record *ref);
 static void dxt_log_print_posix_description(int ver);
 static void dxt_log_print_posix_file_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
@@ -30,7 +30,7 @@ static void dxt_log_agg_posix_files(void *rec, void *agg_rec, int init_flag);
 
 static int dxt_log_get_mpiio_file(darshan_fd fd, void** dxt_mpiio_buf);
 static int dxt_log_put_mpiio_file(darshan_fd fd, void* dxt_mpiio_buf);
-static void dxt_log_print_mpiio_file(void *file_rec,
+void dxt_log_print_mpiio_file(void *file_rec,
         char *file_name, char *mnt_pt, char *fs_type);
 static void dxt_log_print_mpiio_description(int ver);
 static void dxt_log_print_mpiio_file_diff(void *file_rec1, char *file_name1,
@@ -44,7 +44,6 @@ struct darshan_mod_logutil_funcs dxt_posix_logutils =
 {
     .log_get_record = &dxt_log_get_posix_file,
     .log_put_record = &dxt_log_put_posix_file,
-    .log_print_record_dxt = &dxt_log_print_posix_file,
 //    .log_print_description = &dxt_log_print_posix_description,
     .log_print_diff = &dxt_log_print_posix_file_diff,
     .log_agg_records = &dxt_log_agg_posix_files,
@@ -54,7 +53,6 @@ struct darshan_mod_logutil_funcs dxt_mpiio_logutils =
 {
     .log_get_record = &dxt_log_get_mpiio_file,
     .log_put_record = &dxt_log_put_mpiio_file,
-    .log_print_record = &dxt_log_print_mpiio_file,
 //    .log_print_description = &dxt_log_print_mpiio_description,
     .log_print_diff = &dxt_log_print_mpiio_file_diff,
     .log_agg_records = &dxt_log_agg_mpiio_files,
@@ -196,8 +194,8 @@ static int dxt_log_put_mpiio_file(darshan_fd fd, void* dxt_mpiio_buf)
     return(0);
 }
 
-static void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
-    char *mnt_pt, char *fs_type, struct darshan_name_record_ref *ref)
+void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
+    char *mnt_pt, char *fs_type, struct darshan_lustre_record *ref)
 {
     struct dxt_file_record *file_rec =
                 (struct dxt_file_record *)posix_file_rec;
@@ -222,18 +220,21 @@ static void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     int print_count;
     int ost_idx;
     
+    if (!ref) {
+        lustreFS = 0;
+    }
 
     printf("\n# DXT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
     printf("# DXT, rank: %d, write_count: %d, read_count: %d\n",
                 rank, write_count, read_count);
 
     if (lustreFS) {
-        stripe_size = ref->stripe_size;
-        stripe_count = ref->stripe_count;
+        stripe_size = ref->counters[LUSTRE_STRIPE_SIZE];
+        stripe_count = ref->counters[LUSTRE_STRIPE_WIDTH];
 
         printf("# DXT, mnt_pt: %s, fs_type: %s\n", mnt_pt, fs_type);
         printf("# DXT, stripe_size: %d, stripe_count: %d\n", stripe_size, stripe_count);
-        for (i = 0; i < ref->stripe_count; i++) {
+        for (i = 0; i < stripe_count; i++) {
             printf("# DXT, OST: %d\n", (ref->ost_ids)[i]);
         }
     }
@@ -305,7 +306,7 @@ static void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     return;
 }
 
-static void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
+void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
     char *mnt_pt, char *fs_type)
 {
     struct dxt_file_record *file_rec =

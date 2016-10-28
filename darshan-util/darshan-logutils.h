@@ -53,11 +53,13 @@ struct darshan_name_record_ref
 {
     struct darshan_name_record *name_record;
     UT_hash_handle hlink;
+};
 
-	/* DXT Lustre */
-	int32_t stripe_size;
-	int32_t stripe_count;
-	OST_ID *ost_ids;
+/* DXT */
+struct lustre_record_ref
+{
+	struct darshan_lustre_record *rec;
+	UT_hash_handle hlink;
 };
 
 struct darshan_mnt_info
@@ -120,15 +122,6 @@ struct darshan_mod_logutil_funcs
         void *rec,
         void *agg_rec,
         int init_flag
-    );
-
-	/* DXT */
-    void (*log_print_record_dxt)(
-        void *rec,
-        char *file_name,
-        char *mnt_pt,
-        char *fs_type,
-		struct darshan_name_record_ref *ref
     );
 };
 
