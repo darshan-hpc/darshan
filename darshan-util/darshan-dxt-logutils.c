@@ -21,6 +21,8 @@
 
 static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf);
 static int dxt_log_put_posix_file(darshan_fd fd, void* dxt_posix_buf);
+static void dxt_log_print_file(void *file_rec,
+        char *file_name, char *mnt_pt, char *fs_type);
 void dxt_log_print_posix_file(void *file_rec, char *file_name,
         char *mnt_pt, char *fs_type, struct darshan_lustre_record *ref);
 static void dxt_log_print_posix_description(int ver);
@@ -44,6 +46,7 @@ struct darshan_mod_logutil_funcs dxt_posix_logutils =
 {
     .log_get_record = &dxt_log_get_posix_file,
     .log_put_record = &dxt_log_put_posix_file,
+    .log_print_record = &dxt_log_print_file,
 //    .log_print_description = &dxt_log_print_posix_description,
     .log_print_diff = &dxt_log_print_posix_file_diff,
     .log_agg_records = &dxt_log_agg_posix_files,
@@ -53,6 +56,7 @@ struct darshan_mod_logutil_funcs dxt_mpiio_logutils =
 {
     .log_get_record = &dxt_log_get_mpiio_file,
     .log_put_record = &dxt_log_put_mpiio_file,
+    .log_print_record = &dxt_log_print_file,
 //    .log_print_description = &dxt_log_print_mpiio_description,
     .log_print_diff = &dxt_log_print_mpiio_file_diff,
     .log_agg_records = &dxt_log_agg_mpiio_files,
@@ -192,6 +196,12 @@ static int dxt_log_put_mpiio_file(darshan_fd fd, void* dxt_mpiio_buf)
         return(-1);
 
     return(0);
+}
+
+static void dxt_log_print_file(void *file_rec, char *file_name,
+    char *mnt_pt, char *fs_type)
+{
+//    printf("DXT logs, use darshan-dxt-parser to parse DXT logs\n");
 }
 
 void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
