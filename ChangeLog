@@ -6,6 +6,9 @@ Darshan-3.1.2
 =============
 * bug fix in resolving underlying call to fopen64 when using the LD_PRELOAD
   instrumentation mechanism
+* bug fix to make sure Lustre module headers are installed when installing
+  darshan-util
+  - reported by Matthieu Dorrier
 
 Darshan-3.1.1
 =============
