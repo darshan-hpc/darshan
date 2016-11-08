@@ -464,6 +464,7 @@ static struct dxt_file_record_ref *dxt_posix_track_new_file_record(
     /* initialize record and record reference fields */
     file_rec->base_rec.id = rec_id;
     file_rec->base_rec.rank = posix_my_rank;
+    gethostname(file_rec->hostname, HOSTNAME_SIZE);
 
     rec_ref->file_rec = file_rec;
     dxt_posix_runtime->file_rec_count++;
@@ -520,6 +521,7 @@ static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
     /* initialize record and record reference fields */
     file_rec->base_rec.id = rec_id;
     file_rec->base_rec.rank = mpiio_my_rank;
+    gethostname(file_rec->hostname, HOSTNAME_SIZE);
 
     rec_ref->file_rec = file_rec;
     dxt_mpiio_runtime->file_rec_count++;
@@ -612,34 +614,37 @@ static void dxt_serialize_posix_records(void *rec_ref_p)
 
 #if 0
     int i;
+    int64_t rank;
+    char *hostname;
     int64_t offset;
     int64_t length;
-    int64_t rank;
     double start_time;
     double end_time;
 
-    printf("DXT, record_id: %" PRIu64 "\n", rec_ref->file_rec->base_rec.id);
-    printf("DXT, write_count is: %d read_count is: %d\n",
+    rank = file_rec->base_rec.rank;
+    hostname = file_rec->hostname;
+
+    printf("X_POSIX, record_id: %" PRIu64 "\n", rec_ref->file_rec->base_rec.id);
+    printf("X_POSIX, write_count is: %d read_count is: %d\n",
                 file_rec->write_count, file_rec->read_count);
+    printf("X_POSIX, rank: %d hostname: %s\n", rank, hostname);
 
     for (i = 0; i < file_rec->write_count; i++) {
-        rank = file_rec->base_rec.rank;
         offset = rec_ref->write_traces[i].offset;
         length = rec_ref->write_traces[i].length;
         start_time = rec_ref->write_traces[i].start_time;
         end_time = rec_ref->write_traces[i].end_time;
 
-        printf("DXT, rank %d writes segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
+        printf("X_POSIX, rank %d writes segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
     }
 
     for (i = 0; i < file_rec->read_count; i++) {
-        rank = file_rec->base_rec.rank;
         offset = rec_ref->read_traces[i].offset;
         length = rec_ref->read_traces[i].length;
         start_time = rec_ref->read_traces[i].start_time;
         end_time = rec_ref->read_traces[i].end_time;
 
-        printf("DXT, rank %d reads segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
+        printf("X_POSIX, rank %d reads segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
     }
 #endif
 }
@@ -725,34 +730,34 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p)
 
 #if 0
     int i;
-    int64_t offset;
-    int64_t length;
     int64_t rank;
+    char *hostname;
+    int64_t length;
     double start_time;
     double end_time;
 
-    printf("Cong, record_id: %" PRIu64 "\n", rec_ref->file_rec->base_rec.id);
-    printf("DXT, file_rec->write_count is: %d\n",
-                file_rec->write_count);
+    rank = file_rec->base_rec.rank;
+    hostname = file_rec->hostname;
+
+    printf("X_MPIIO, record_id: %" PRIu64 "\n", rec_ref->file_rec->base_rec.id);
+    printf("X_MPIIO, write_count is: %d read_count is: %d\n",
+                file_rec->write_count, file_rec->read_count);
+    printf("X_MPIIO, rank: %d hostname: %s\n", rank, hostname);
 
     for (i = 0; i < file_rec->write_count; i++) {
-        rank = file_rec->base_rec.rank;
-        offset = rec_ref->write_traces[i].offset;
         length = rec_ref->write_traces[i].length;
         start_time = rec_ref->write_traces[i].start_time;
         end_time = rec_ref->write_traces[i].end_time;
 
-        printf("DXT, rank %d writes segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
+        printf("X_MPIIO, rank %d writes segment %lld [length: %lld start_time: %fs end_time: %fs]\n", rank, i, length, start_time, end_time);
     }
 
     for (i = 0; i < file_rec->read_count; i++) {
-        rank = file_rec->base_rec.rank;
-        offset = rec_ref->read_traces[i].offset;
         length = rec_ref->read_traces[i].length;
         start_time = rec_ref->read_traces[i].start_time;
         end_time = rec_ref->read_traces[i].end_time;
 
-        printf("DXT, rank %d reads segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
+        printf("X_MPIIO, rank %d reads segment %lld [length: %lld start_time: %fs end_time: %fs]\n", rank, i, length, start_time, end_time);
     }
 #endif
 }

@@ -47,7 +47,6 @@ struct darshan_mod_logutil_funcs dxt_posix_logutils =
     .log_get_record = &dxt_log_get_posix_file,
     .log_put_record = &dxt_log_put_posix_file,
     .log_print_record = &dxt_log_print_file,
-//    .log_print_description = &dxt_log_print_posix_description,
     .log_print_diff = &dxt_log_print_posix_file_diff,
     .log_agg_records = &dxt_log_agg_posix_files,
 };
@@ -57,16 +56,21 @@ struct darshan_mod_logutil_funcs dxt_mpiio_logutils =
     .log_get_record = &dxt_log_get_mpiio_file,
     .log_put_record = &dxt_log_put_mpiio_file,
     .log_print_record = &dxt_log_print_file,
-//    .log_print_description = &dxt_log_print_mpiio_description,
     .log_print_diff = &dxt_log_print_mpiio_file_diff,
     .log_agg_records = &dxt_log_agg_mpiio_files,
 };
 
 void dxt_swap_file_record(struct dxt_file_record *file_rec)
 {
+    int i;
+
     DARSHAN_BSWAP64(&file_rec->base_rec.id);
     DARSHAN_BSWAP64(&file_rec->base_rec.rank);
     DARSHAN_BSWAP64(&file_rec->shared_record);
+
+    for (i = 0; i < HOSTNAME_SIZE; i++) {
+        DARSHAN_BSWAP64(&file_rec->hostname[i]);
+    }   
 
     DARSHAN_BSWAP64(&file_rec->write_count);
     DARSHAN_BSWAP64(&file_rec->read_count);
@@ -217,6 +221,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
 
     darshan_record_id f_id = file_rec->base_rec.id;
     int64_t rank = file_rec->base_rec.rank;
+    char *hostname = file_rec->hostname;
 
     int64_t write_count = file_rec->write_count;
     int64_t read_count = file_rec->read_count;
@@ -235,8 +240,9 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     }
 
     printf("\n# DXT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
-    printf("# DXT, rank: %d, write_count: %d, read_count: %d\n",
-                rank, write_count, read_count);
+    printf("# DXT, rank: %d, hostname: %s\n", rank, hostname);
+    printf("# DXT, write_count: %d, read_count: %d\n",
+                write_count, read_count);
 
     if (lustreFS) {
         stripe_size = ref->counters[LUSTRE_STRIPE_SIZE];
@@ -330,6 +336,7 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
 
     darshan_record_id f_id = file_rec->base_rec.id;
     int64_t rank = file_rec->base_rec.rank;
+    char *hostname = file_rec->hostname;
 
     int64_t write_count = file_rec->write_count;
     int64_t read_count = file_rec->read_count;
@@ -337,8 +344,9 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
     segment_info *io_trace = (segment_info *)parser_buf;
 
     printf("\n# DXT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
-    printf("# DXT, rank: %d, write_count: %d, read_count: %d\n",
-                rank, write_count, read_count);
+    printf("# DXT, rank: %d, hostname: %s\n", rank, hostname);
+    printf("# DXT, write_count: %d, read_count: %d\n",
+                write_count, read_count);
 
     printf("# DXT, mnt_pt: %s, fs_type: %s\n", mnt_pt, fs_type);
 

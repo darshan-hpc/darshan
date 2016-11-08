@@ -10,6 +10,8 @@
 #define DXT_POSIX_VER 1
 #define DXT_MPIIO_VER 1
 
+#define HOSTNAME_SIZE 64
+
 /*
  * DXT, the segment_info structure maintains detailed Segment IO tracing
  * information
@@ -34,6 +36,7 @@ typedef struct segment_info {
 struct dxt_file_record {
     struct darshan_base_record base_rec;
     int64_t shared_record; /* -1 means it is a shared file record */
+    char hostname[HOSTNAME_SIZE];
 
     int64_t write_count;
     int64_t read_count;
