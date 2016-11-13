@@ -25,8 +25,13 @@
 #include "darshan-dynamic.h"
 
 /* hope this doesn't change any time soon */
-typedef int hid_t;
-typedef int herr_t;
+typedef int herr_t;     //hf5-1.10.0p1: H5public.h:126
+
+#ifdef __DARSHAN_ENABLE_HDF5110
+  typedef int64_t hid_t;  //hf5-1.10.0p1: H5Ipublic.h:56
+#else
+  typedef int hid_t;
+#endif
 
 DARSHAN_FORWARD_DECL(H5Fcreate, hid_t, (const char *filename, unsigned flags, hid_t create_plist, hid_t access_plist));
 DARSHAN_FORWARD_DECL(H5Fopen, hid_t, (const char *filename, unsigned flags, hid_t access_plist));
@@ -112,7 +117,7 @@ static int my_rank = -1;
 hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     hid_t create_plist, hid_t access_plist)
 {
-    int ret;
+    hid_t ret;
     char* tmp;
     double tm1;
 
@@ -143,7 +148,7 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
 hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     hid_t access_plist)
 {
-    int ret;
+    hid_t ret;
     char* tmp;
     double tm1;
 
@@ -175,7 +180,7 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
 herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 {
     struct hdf5_file_record_ref *rec_ref;
-    int ret;
+    herr_t ret;
 
     MAP_OR_FAIL(H5Fclose);
 

@@ -46,6 +46,13 @@ AC_ARG_ENABLE(group-readable-logs,
 fi]
 ,)
 
+AC_ARG_ENABLE(HDF5_1.10,
+[  --enable-HDF5_1.10       Compile for use with HDF5 1.10.x],
+[if test "x$enableval" = "xyes" ; then
+    AC_DEFINE(__DARSHAN_ENABLE_HDF5110, 1, Set for compatibility with HDF5_1.10.x, breaks use with 1.8.x)
+fi]
+,)
+
 AC_ARG_ENABLE(
     [bgq-mod],
     [  --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)],
