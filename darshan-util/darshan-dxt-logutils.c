@@ -24,7 +24,7 @@ static int dxt_log_put_posix_file(darshan_fd fd, void* dxt_posix_buf);
 static void dxt_log_print_file(void *file_rec,
         char *file_name, char *mnt_pt, char *fs_type);
 void dxt_log_print_posix_file(void *file_rec, char *file_name,
-        char *mnt_pt, char *fs_type, struct darshan_lustre_record *ref);
+        char *mnt_pt, char *fs_type, struct lustre_record_ref *rec_ref);
 static void dxt_log_print_posix_description(int ver);
 static void dxt_log_print_posix_file_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
@@ -209,7 +209,7 @@ static void dxt_log_print_file(void *file_rec, char *file_name,
 }
 
 void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
-    char *mnt_pt, char *fs_type, struct darshan_lustre_record *ref)
+    char *mnt_pt, char *fs_type, struct lustre_record_ref *lustre_rec_ref)
 {
     struct dxt_file_record *file_rec =
                 (struct dxt_file_record *)posix_file_rec;
@@ -228,6 +228,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     segment_info *io_trace = (segment_info *)parser_buf;
 
     /* Lustre File System */
+    struct darshan_lustre_record *rec;
     int lustreFS = !strcmp(fs_type, "lustre");
     int32_t stripe_size;
     int32_t stripe_count;
@@ -235,7 +236,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     int print_count;
     int ost_idx;
     
-    if (!ref) {
+    if (!lustre_rec_ref) {
         lustreFS = 0;
     }
 
@@ -245,13 +246,14 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
                 write_count, read_count);
 
     if (lustreFS) {
-        stripe_size = ref->counters[LUSTRE_STRIPE_SIZE];
-        stripe_count = ref->counters[LUSTRE_STRIPE_WIDTH];
+        rec = lustre_rec_ref->rec;
+        stripe_size = rec->counters[LUSTRE_STRIPE_SIZE];
+        stripe_count = rec->counters[LUSTRE_STRIPE_WIDTH];
 
         printf("# DXT, mnt_pt: %s, fs_type: %s\n", mnt_pt, fs_type);
         printf("# DXT, stripe_size: %d, stripe_count: %d\n", stripe_size, stripe_count);
         for (i = 0; i < stripe_count; i++) {
-            printf("# DXT, OST: %d\n", (ref->ost_ids)[i]);
+            printf("# DXT, OST: %d\n", (rec->ost_ids)[i]);
         }
     }
 
@@ -278,7 +280,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
 
             print_count = 0;
             while (cur_offset < offset + length) {
-                printf("  [%3d]", (ref->ost_ids)[ost_idx]);
+                printf("  [%3d]", (rec->ost_ids)[ost_idx]);
 
                 cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
                 ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
@@ -306,7 +308,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
 
             print_count = 0;
             while (cur_offset < offset + length) {
-                printf("  [%3d]", (ref->ost_ids)[ost_idx]);
+                printf("  [%3d]", (rec->ost_ids)[ost_idx]);
 
                 cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
                 ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;

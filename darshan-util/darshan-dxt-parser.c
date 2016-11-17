@@ -22,7 +22,7 @@
 
 extern void dxt_logutils_cleanup();
 extern void dxt_log_print_posix_file(void *file_rec, char *file_name,
-        char *mnt_pt, char *fs_type, struct darshan_lustre_record *ref);
+        char *mnt_pt, char *fs_type, struct lustre_record_ref *ref);
 extern void dxt_log_print_mpiio_file(void *file_rec, char *file_name,
         char *mnt_pt, char *fs_type);
 
@@ -281,7 +281,7 @@ int main(int argc, char **argv)
                         sizeof(darshan_record_id), lustre_rec_ref);
 
                 dxt_log_print_posix_file(mod_buf, rec_name,
-                        mnt_pt, fs_type, lustre_rec_ref->rec);
+                        mnt_pt, fs_type, lustre_rec_ref);
             } else if (i == DXT_MPIIO_MOD){
                 dxt_log_print_mpiio_file(mod_buf, rec_name,
                         mnt_pt, fs_type);
