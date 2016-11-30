@@ -124,10 +124,7 @@ static struct dxt_mpiio_runtime *dxt_mpiio_runtime = NULL;
 static pthread_mutex_t dxt_runtime_mutex =
             PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
-static int posix_my_rank = -1;
-static int mpiio_my_rank = -1;
-static int instrumentation_disabled = 0;
-static int darshan_mem_alignment = 1;
+static int dxt_my_rank = -1;
 static int dxt_mem_remaining = DXT_IO_TRACE_MEM_MAX;
 
 #define DXT_LOCK() pthread_mutex_lock(&dxt_runtime_mutex)
@@ -211,7 +208,6 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
     struct dxt_file_record *file_rec;
 
     /* make sure dxt posix runtime is initialized properly */
-    if(instrumentation_disabled) return;
     if(!dxt_posix_runtime)
     {
         dxt_posix_runtime_initialize();
@@ -246,7 +242,6 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     struct dxt_file_record *file_rec;
 
     /* make sure dxt posix runtime is initialized properly */
-    if(instrumentation_disabled) return;
     if(!dxt_posix_runtime)
     {
         dxt_posix_runtime_initialize();
@@ -280,7 +275,6 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
     struct dxt_file_record *file_rec;
 
     /* make sure dxt mpiio runtime is initialized properly */
-    if(instrumentation_disabled) return;
     if(!dxt_mpiio_runtime)
     {
         dxt_mpiio_runtime_initialize();
@@ -314,7 +308,6 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
     struct dxt_file_record *file_rec;
 
     /* make sure dxt mpiio runtime is initialized properly */
-    if(instrumentation_disabled) return;
     if(!dxt_mpiio_runtime)
     {
         dxt_mpiio_runtime_initialize();
@@ -360,8 +353,8 @@ static void dxt_posix_runtime_initialize()
         DXT_POSIX_MOD,
         &dxt_posix_shutdown,
         &dxt_psx_buf_size,
-        &posix_my_rank,
-        &darshan_mem_alignment);
+        &dxt_my_rank,
+        NULL);
 
     /* return if darshan-core allocates an unexpected amount of memory */
     if(dxt_psx_buf_size != 0)
@@ -394,8 +387,8 @@ void dxt_mpiio_runtime_initialize()
         DXT_MPIIO_MOD,
         &dxt_mpiio_shutdown,
         &dxt_mpiio_buf_size,
-        &mpiio_my_rank,
-        &darshan_mem_alignment);
+        &dxt_my_rank,
+        NULL);
 
     /* return if darshan-core allocates an unexpected amount of memory */
     if(dxt_mpiio_buf_size != 0)
@@ -463,7 +456,7 @@ static struct dxt_file_record_ref *dxt_posix_track_new_file_record(
 
     /* initialize record and record reference fields */
     file_rec->base_rec.id = rec_id;
-    file_rec->base_rec.rank = posix_my_rank;
+    file_rec->base_rec.rank = dxt_my_rank;
     gethostname(file_rec->hostname, HOSTNAME_SIZE);
 
     rec_ref->file_rec = file_rec;
@@ -520,7 +513,7 @@ static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
 
     /* initialize record and record reference fields */
     file_rec->base_rec.id = rec_id;
-    file_rec->base_rec.rank = mpiio_my_rank;
+    file_rec->base_rec.rank = dxt_my_rank;
     gethostname(file_rec->hostname, HOSTNAME_SIZE);
 
     rec_ref->file_rec = file_rec;
@@ -533,7 +526,6 @@ static void dxt_free_record_data(void *rec_ref_p)
 {
     struct dxt_file_record_ref *dxt_rec_ref = (struct dxt_file_record_ref *)rec_ref_p;
 
-    /* TODO: update these pointer addresses once {write/read}_traces are moved to rec_ref structure */
     free(dxt_rec_ref->write_traces);
     free(dxt_rec_ref->read_traces);
     free(dxt_rec_ref->file_rec);
@@ -676,9 +668,6 @@ static void dxt_posix_shutdown(
     /* shutdown internal structures used for instrumenting */
     dxt_posix_cleanup_runtime();
 
-    /* disable further instrumentation */
-    instrumentation_disabled = 1;
-
     return;
 }
 
@@ -788,9 +777,6 @@ static void dxt_mpiio_shutdown(
 
     /* shutdown internal structures used for instrumenting */
     dxt_mpiio_cleanup_runtime();
-
-    /* disable further instrumentation */
-    instrumentation_disabled = 1;
 
     return;
 }
