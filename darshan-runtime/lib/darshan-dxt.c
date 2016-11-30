@@ -41,6 +41,18 @@ typedef int64_t off64_t;
 /* NOTE: when this size is exceeded, the buffer size is doubled */
 #define IO_TRACE_BUF_SIZE       64
 
+/* XXX: dirty hack -- If DXT runs out of memory to store trace data in,
+ * we should set a flag so that log parsers know that the log has
+ * incomplete data. This functionality is typically handled automatically
+ * when registering records with Darshan, but DXT modules don't
+ * register records and manage their own memory. Since DXT modules request
+ * 0 memory when registering themselves, any attempt to register a record
+ * will result in setting the partial flag for the module, which is
+ * exactly what we do here.
+ */
+#define SET_DXT_MOD_PARTIAL_FLAG(mod_id) \
+    darshan_core_register_record(0, NULL, mod_id, 1, NULL);
+
 /* The dxt_file_record_ref structure maintains necessary runtime metadata
  * for the DXT file record (dxt_file_record structure, defined in
  * darshan-dxt-log-format.h) pointed to by 'file_rec'. This metadata
@@ -226,7 +238,11 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
     file_rec = rec_ref->file_rec;
     check_wr_trace_buf(rec_ref);
     if(file_rec->write_count == rec_ref->write_available_buf)
-        return; /* no more memory for i/o segments ... back out */
+    {
+        /* no more memory for i/o segments ... back out */
+        SET_DXT_MOD_PARTIAL_FLAG(DXT_POSIX_MOD);
+        return;
+    }
 
     rec_ref->write_traces[file_rec->write_count].offset = offset;
     rec_ref->write_traces[file_rec->write_count].length = length;
@@ -259,7 +275,11 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     file_rec = rec_ref->file_rec;
     check_rd_trace_buf(rec_ref);
     if(file_rec->read_count == rec_ref->read_available_buf)
-        return; /* no more memory for i/o segments ... back out */
+    {
+        /* no more memory for i/o segments ... back out */
+        SET_DXT_MOD_PARTIAL_FLAG(DXT_POSIX_MOD);
+        return;
+    }
 
     rec_ref->read_traces[file_rec->read_count].offset = offset;
     rec_ref->read_traces[file_rec->read_count].length = length;
@@ -293,7 +313,11 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
     file_rec = rec_ref->file_rec;
     check_wr_trace_buf(rec_ref);
     if(file_rec->write_count == rec_ref->write_available_buf)
-        return; /* no more memory for i/o segments ... back out */
+    {
+        /* no more memory for i/o segments ... back out */
+        SET_DXT_MOD_PARTIAL_FLAG(DXT_MPIIO_MOD);
+        return;
+    }
 
     rec_ref->write_traces[file_rec->write_count].length = length;
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
@@ -326,7 +350,11 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
     file_rec = rec_ref->file_rec;
     check_rd_trace_buf(rec_ref);
     if(file_rec->read_count == rec_ref->read_available_buf)
-        return; /* no more memory for i/o segments ... back out */
+    {
+        /* no more memory for i/o segments ... back out */
+        SET_DXT_MOD_PARTIAL_FLAG(DXT_MPIIO_MOD);
+        return;
+    }
 
     rec_ref->read_traces[file_rec->read_count].length = length;
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
@@ -419,6 +447,7 @@ static struct dxt_file_record_ref *dxt_posix_track_new_file_record(
     DXT_LOCK();
     if(dxt_mem_remaining < sizeof(struct dxt_file_record))
     {
+        SET_DXT_MOD_PARTIAL_FLAG(DXT_POSIX_MOD);
         DXT_UNLOCK();
         return(NULL);
     }
@@ -476,6 +505,7 @@ static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
     DXT_LOCK();
     if(dxt_mem_remaining < sizeof(struct dxt_file_record))
     {
+        SET_DXT_MOD_PARTIAL_FLAG(DXT_MPIIO_MOD);
         DXT_UNLOCK();
         return(NULL);
     }
