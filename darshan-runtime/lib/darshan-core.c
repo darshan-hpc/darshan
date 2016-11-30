@@ -607,6 +607,12 @@ void darshan_core_shutdown()
         final_core->log_hdr_p->mod_map[i].len =
             gz_fp - final_core->log_hdr_p->mod_map[i].off;
 
+        /* XXX: DXT manages its own module memory buffers, so we need to
+         * explicitly free them
+         */
+        if(i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD)
+            free(mod_buf);
+
         /* error out if the log append failed */
         DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
             MPI_LOR, MPI_COMM_WORLD);
