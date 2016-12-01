@@ -53,7 +53,6 @@ int main(int argc, char **argv)
     char buffer[DARSHAN_JOB_METADATA_LEN];
     struct lustre_record_ref *lustre_rec_ref, *tmp_lustre_rec_ref;
     struct lustre_record_ref *lustre_rec_hash = NULL;
-    int empty_mods = 0;
     char *mod_buf = NULL;
 
     if (argc != 2)
@@ -189,10 +188,7 @@ int main(int argc, char **argv)
 
         /* check each module for any data */
         if (fd->mod_map[i].len == 0)
-        {
-            empty_mods++;
             continue;
-        }
         /* skip modules with no logutil definitions */
         else if (!mod_logutils[i])
         {
@@ -209,6 +205,8 @@ int main(int argc, char **argv)
             printf("# %s module data\n", darshan_module_names[i]);
             printf("# ***************************************************\n");
         }
+        else if (i != DARSHAN_LUSTRE_MOD)
+            continue;
 
         /* loop over each of this module's records and print them */
         while(1)
@@ -224,6 +222,9 @@ int main(int argc, char **argv)
 
                 ret = mod_logutils[i]->log_get_record(fd,
                         (void **)&(lustre_rec_ref->rec));
+
+                HASH_ADD(hlink, lustre_rec_hash, rec->base_rec.id,
+                        sizeof(darshan_record_id), lustre_rec_ref);
             } else {
                 ret = mod_logutils[i]->log_get_record(fd, (void **)&mod_buf);
             }
@@ -238,14 +239,6 @@ int main(int argc, char **argv)
                 }
                 break;
             }
-
-            if (i == DARSHAN_LUSTRE_MOD) {
-                HASH_ADD(hlink, lustre_rec_hash, rec->base_rec.id,
-                        sizeof(darshan_record_id), lustre_rec_ref);
-            }
-
-            if ((i != DXT_POSIX_MOD) && (i != DXT_MPIIO_MOD))
-                continue;
 
             base_rec = (struct darshan_base_record *)mod_buf;
 
@@ -292,8 +285,6 @@ int main(int argc, char **argv)
         }
     }
 
-    if (empty_mods == DARSHAN_MAX_MODS)
-        printf("\n# no module data available.\n");
     ret = 0;
 
     /* DXT */
