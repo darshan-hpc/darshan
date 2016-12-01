@@ -63,17 +63,23 @@ struct darshan_mod_logutil_funcs dxt_mpiio_logutils =
 void dxt_swap_file_record(struct dxt_file_record *file_rec)
 {
     int i;
+    segment_info *tmp_seg;
 
     DARSHAN_BSWAP64(&file_rec->base_rec.id);
     DARSHAN_BSWAP64(&file_rec->base_rec.rank);
     DARSHAN_BSWAP64(&file_rec->shared_record);
-
-    for (i = 0; i < HOSTNAME_SIZE; i++) {
-        DARSHAN_BSWAP64(&file_rec->hostname[i]);
-    }   
-
     DARSHAN_BSWAP64(&file_rec->write_count);
     DARSHAN_BSWAP64(&file_rec->read_count);
+
+    tmp_seg = (segment_info *)((void *)file_rec + sizeof(struct dxt_file_record));
+    for(i = 0; i < (file_rec->write_count + file_rec->read_count); i++)
+    {
+        DARSHAN_BSWAP64(&tmp_seg->offset);
+        DARSHAN_BSWAP64(&tmp_seg->length);
+        DARSHAN_BSWAP64(&tmp_seg->start_time);
+        DARSHAN_BSWAP64(&tmp_seg->end_time);
+        tmp_seg++;
+    }
 }
 
 static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf)
