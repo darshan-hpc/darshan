@@ -20,12 +20,6 @@
 
 #include "darshan-logutils.h"
 
-extern void dxt_logutils_cleanup();
-extern void dxt_log_print_posix_file(void *file_rec, char *file_name,
-        char *mnt_pt, char *fs_type, struct lustre_record_ref *ref);
-extern void dxt_log_print_mpiio_file(void *file_rec, char *file_name,
-        char *mnt_pt, char *fs_type);
-
 int usage (char *exename)
 {
     fprintf(stderr, "Usage: %s <filename>\n", exename);
@@ -286,9 +280,6 @@ int main(int argc, char **argv)
     }
 
     ret = 0;
-
-    /* DXT */
-    dxt_logutils_cleanup();
 
 cleanup:
     darshan_log_close(fd);

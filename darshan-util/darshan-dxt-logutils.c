@@ -19,57 +19,48 @@
 
 #include "darshan-logutils.h"
 
-static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf);
+static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf_p);
 static int dxt_log_put_posix_file(darshan_fd fd, void* dxt_posix_buf);
-static void dxt_log_print_file(void *file_rec,
-        char *file_name, char *mnt_pt, char *fs_type);
-void dxt_log_print_posix_file(void *file_rec, char *file_name,
-        char *mnt_pt, char *fs_type, struct lustre_record_ref *rec_ref);
-static void dxt_log_print_posix_description(int ver);
-static void dxt_log_print_posix_file_diff(void *file_rec1, char *file_name1,
-    void *file_rec2, char *file_name2);
-static void dxt_log_agg_posix_files(void *rec, void *agg_rec, int init_flag);
 
-static int dxt_log_get_mpiio_file(darshan_fd fd, void** dxt_mpiio_buf);
+static int dxt_log_get_mpiio_file(darshan_fd fd, void** dxt_mpiio_buf_p);
 static int dxt_log_put_mpiio_file(darshan_fd fd, void* dxt_mpiio_buf);
-void dxt_log_print_mpiio_file(void *file_rec,
-        char *file_name, char *mnt_pt, char *fs_type);
-static void dxt_log_print_mpiio_description(int ver);
-static void dxt_log_print_mpiio_file_diff(void *file_rec1, char *file_name1,
-    void *file_rec2, char *file_name2);
-static void dxt_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag);
 
-static void *parser_buf = NULL;
-static int64_t parser_buf_sz = 0;
+static void dxt_swap_file_record(struct dxt_file_record *file_rec);
+static void dxt_swap_file_record(struct dxt_file_record *file_rec);
 
 struct darshan_mod_logutil_funcs dxt_posix_logutils =
 {
     .log_get_record = &dxt_log_get_posix_file,
     .log_put_record = &dxt_log_put_posix_file,
-    .log_print_record = &dxt_log_print_file,
-    .log_print_diff = &dxt_log_print_posix_file_diff,
-    .log_agg_records = &dxt_log_agg_posix_files,
+    .log_print_record = NULL,
+    .log_print_description = NULL,
+    .log_print_diff = NULL,
+    .log_agg_records = NULL,
 };
 
 struct darshan_mod_logutil_funcs dxt_mpiio_logutils =
 {
     .log_get_record = &dxt_log_get_mpiio_file,
     .log_put_record = &dxt_log_put_mpiio_file,
-    .log_print_record = &dxt_log_print_file,
-    .log_print_diff = &dxt_log_print_mpiio_file_diff,
-    .log_agg_records = &dxt_log_agg_mpiio_files,
+    .log_print_record = NULL,
+    .log_print_description = NULL,
+    .log_print_diff = NULL,
+    .log_agg_records = NULL,
 };
 
-void dxt_swap_file_record(struct dxt_file_record *file_rec)
+static void dxt_swap_file_record(struct dxt_file_record *file_rec)
 {
-    int i;
-    segment_info *tmp_seg;
-
     DARSHAN_BSWAP64(&file_rec->base_rec.id);
     DARSHAN_BSWAP64(&file_rec->base_rec.rank);
     DARSHAN_BSWAP64(&file_rec->shared_record);
     DARSHAN_BSWAP64(&file_rec->write_count);
     DARSHAN_BSWAP64(&file_rec->read_count);
+}
+
+static void dxt_swap_segments(struct dxt_file_record *file_rec)
+{
+    int i;
+    segment_info *tmp_seg;
 
     tmp_seg = (segment_info *)((void *)file_rec + sizeof(struct dxt_file_record));
     for(i = 0; i < (file_rec->write_count + file_rec->read_count); i++)
@@ -82,112 +73,152 @@ void dxt_swap_file_record(struct dxt_file_record *file_rec)
     }
 }
 
-static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf)
+static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf_p)
 {
-    struct dxt_file_record *file_rec;
-    int i, ret;
+    struct dxt_file_record *rec = *((struct dxt_file_record **)dxt_posix_buf_p);
+    struct dxt_file_record tmp_rec;
+    int ret;
     int64_t io_trace_size;
 
-    ret = darshan_log_get_mod(fd, DXT_POSIX_MOD, *dxt_posix_buf,
+    if(fd->mod_map[DXT_POSIX_MOD].len == 0)
+        return(0);
+
+    ret = darshan_log_get_mod(fd, DXT_POSIX_MOD, &tmp_rec,
                 sizeof(struct dxt_file_record));
     if(ret < 0)
         return (-1);
     else if(ret < sizeof(struct dxt_file_record))
         return (0);
-    else
+
+    if (fd->swap_flag)
     {
-        file_rec = (struct dxt_file_record *)(*dxt_posix_buf);
-        if (fd->swap_flag)
-        {
-            /* swap bytes if necessary */
-            dxt_swap_file_record(file_rec);
-        }
+        /* swap bytes if necessary */
+        dxt_swap_file_record(&tmp_rec);
     }
 
-    io_trace_size = (file_rec->write_count + file_rec->read_count) *
+    io_trace_size = (tmp_rec.write_count + tmp_rec.read_count) *
                         sizeof(segment_info);
 
-    if (parser_buf_sz == 0) {
-        parser_buf = (void *)malloc(io_trace_size);
-        parser_buf_sz = io_trace_size;
-    } else {
-        if (parser_buf_sz < io_trace_size) {
-            parser_buf = (void *)realloc(parser_buf, io_trace_size);
-            parser_buf_sz = io_trace_size;
+    if (*dxt_posix_buf_p == NULL)
+    {
+        rec = malloc(sizeof(struct dxt_file_record) + io_trace_size);
+        if (!rec)
+            return(-1);
+    }
+    memcpy(rec, &tmp_rec, sizeof(struct dxt_file_record));
+
+    if (io_trace_size > 0)
+    {
+        void *tmp_p = (void *)rec + sizeof(struct dxt_file_record);
+
+        ret = darshan_log_get_mod(fd, DXT_POSIX_MOD, tmp_p,
+                    io_trace_size);
+        if (ret < io_trace_size)
+            ret = -1;
+        else
+        {
+            ret = 1;
+            if(fd->swap_flag)
+            {
+                /* byte swap trace data if necessary */
+                dxt_swap_segments(rec);
+            }
         }
     }
-
-    ret = darshan_log_get_mod(fd, DXT_POSIX_MOD, parser_buf,
-                io_trace_size);
-
-    if  (ret < 0) {
-        return (-1);
-    } else {
-        if (ret < io_trace_size) {
-            return (0);
-        } else {
-            return (1);
-        }
+    else
+    {
+        ret = 1;
     }
+
+    if(*dxt_posix_buf_p == NULL)
+    {   
+        if(ret == 1)
+            *dxt_posix_buf_p = rec;
+        else
+            free(rec);
+    }
+
+    return(ret);
 }
 
-static int dxt_log_get_mpiio_file(darshan_fd fd, void** dxt_mpiio_buf)
+static int dxt_log_get_mpiio_file(darshan_fd fd, void** dxt_mpiio_buf_p)
 {
-    struct dxt_file_record *file_rec;
-    int i, ret;
+    struct dxt_file_record *rec = *((struct dxt_file_record **)dxt_mpiio_buf_p);
+    struct dxt_file_record tmp_rec;
+    int ret;
     int64_t io_trace_size;
 
-    ret = darshan_log_get_mod(fd, DXT_MPIIO_MOD, *dxt_mpiio_buf,
-        sizeof(struct dxt_file_record));
-    if(ret < 0)
-        return(-1);
-    else if(ret < sizeof(struct dxt_file_record))
+    if(fd->mod_map[DXT_MPIIO_MOD].len == 0)
         return(0);
-    else
+
+    ret = darshan_log_get_mod(fd, DXT_MPIIO_MOD, &tmp_rec,
+                sizeof(struct dxt_file_record));
+    if(ret < 0)
+        return (-1);
+    else if(ret < sizeof(struct dxt_file_record))
+        return (0);
+
+    if (fd->swap_flag)
     {
-        file_rec = (struct dxt_file_record *)(*dxt_mpiio_buf);
-        if (fd->swap_flag)
-        {
-            /* swap bytes if necessary */
-            dxt_swap_file_record(file_rec);
-        }
+        /* swap bytes if necessary */
+        dxt_swap_file_record(&tmp_rec);
     }
 
-    io_trace_size = (file_rec->write_count + file_rec->read_count) *
+    io_trace_size = (tmp_rec.write_count + tmp_rec.read_count) *
                         sizeof(segment_info);
 
-    if (parser_buf_sz == 0) {
-        parser_buf = (void *)malloc(io_trace_size);
-        parser_buf_sz = io_trace_size;
-    } else {
-        if (parser_buf_sz < io_trace_size) {
-            parser_buf = (void *)realloc(parser_buf, io_trace_size);
-            parser_buf_sz = io_trace_size;
+    if (*dxt_mpiio_buf_p == NULL)
+    {
+        rec = malloc(sizeof(struct dxt_file_record) + io_trace_size);
+        if (!rec)
+            return(-1);
+    }
+    memcpy(rec, &tmp_rec, sizeof(struct dxt_file_record));
+
+    if (io_trace_size > 0)
+    {
+        void *tmp_p = (void *)rec + sizeof(struct dxt_file_record);
+
+        ret = darshan_log_get_mod(fd, DXT_MPIIO_MOD, tmp_p,
+                    io_trace_size);
+        if (ret < io_trace_size)
+            ret = -1;
+        else
+        {
+            ret = 1;
+            if(fd->swap_flag)
+            {
+                /* byte swap trace data if necessary */
+                dxt_swap_segments(rec);
+            }
         }
     }
-
-    ret = darshan_log_get_mod(fd, DXT_MPIIO_MOD, parser_buf,
-                io_trace_size);
-
-    if  (ret < 0) {
-        return (-1);
-    } else {
-        if (ret < io_trace_size) {
-            return (0);
-        } else {
-            return (1);
-        }
+    else
+    {
+        ret = 1;
     }
+
+    if(*dxt_mpiio_buf_p == NULL)
+    {
+        if(ret == 1)
+            *dxt_mpiio_buf_p = rec;
+        else
+            free(rec);
+    }
+
+    return(ret);
 }
 
 static int dxt_log_put_posix_file(darshan_fd fd, void* dxt_posix_buf)
 {
     struct dxt_file_record *file_rec =
                 (struct dxt_file_record *)dxt_posix_buf;
+    int rec_size = sizeof(struct dxt_file_record) + (sizeof(segment_info) * 
+        (file_rec->write_count + file_rec->read_count));
     int ret;
 
     ret = darshan_log_put_mod(fd, DXT_POSIX_MOD, file_rec,
-                sizeof(struct dxt_file_record), DXT_POSIX_VER);
+                rec_size, DXT_POSIX_VER);
     if(ret < 0)
         return(-1);
 
@@ -198,20 +229,16 @@ static int dxt_log_put_mpiio_file(darshan_fd fd, void* dxt_mpiio_buf)
 {
     struct dxt_file_record *file_rec =
                 (struct dxt_file_record *)dxt_mpiio_buf;
+    int rec_size = sizeof(struct dxt_file_record) + (sizeof(segment_info) * 
+        (file_rec->write_count + file_rec->read_count));
     int ret;
 
     ret = darshan_log_put_mod(fd, DXT_MPIIO_MOD, file_rec,
-                sizeof(struct dxt_file_record), DXT_MPIIO_VER);
+                rec_size, DXT_MPIIO_VER);
     if(ret < 0)
         return(-1);
 
     return(0);
-}
-
-static void dxt_log_print_file(void *file_rec, char *file_name,
-    char *mnt_pt, char *fs_type)
-{
-//    printf("DXT logs, use darshan-dxt-parser to parse DXT logs\n");
 }
 
 void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
@@ -231,7 +258,8 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
 
     int64_t write_count = file_rec->write_count;
     int64_t read_count = file_rec->read_count;
-    segment_info *io_trace = (segment_info *)parser_buf;
+    segment_info *io_trace = (segment_info *)
+        ((void *)file_rec + sizeof(struct dxt_file_record));
 
     /* Lustre File System */
     struct darshan_lustre_record *rec;
@@ -251,15 +279,15 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     printf("# DXT, write_count: %d, read_count: %d\n",
                 write_count, read_count);
 
+    printf("# DXT, mnt_pt: %s, fs_type: %s\n", mnt_pt, fs_type);
     if (lustreFS) {
         rec = lustre_rec_ref->rec;
         stripe_size = rec->counters[LUSTRE_STRIPE_SIZE];
         stripe_count = rec->counters[LUSTRE_STRIPE_WIDTH];
 
-        printf("# DXT, mnt_pt: %s, fs_type: %s\n", mnt_pt, fs_type);
-        printf("# DXT, stripe_size: %d, stripe_count: %d\n", stripe_size, stripe_count);
+        printf("# DXT, Lustre stripe_size: %d, Lustre stripe_count: %d\n", stripe_size, stripe_count);
         for (i = 0; i < stripe_count; i++) {
-            printf("# DXT, OST: %d\n", (rec->ost_ids)[i]);
+            printf("# DXT, Lustre OSTs: %d\n", (rec->ost_ids)[i]);
         }
     }
 
@@ -349,7 +377,8 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
     int64_t write_count = file_rec->write_count;
     int64_t read_count = file_rec->read_count;
 
-    segment_info *io_trace = (segment_info *)parser_buf;
+    segment_info *io_trace = (segment_info *)
+        ((void *)file_rec + sizeof(struct dxt_file_record));
 
     printf("\n# DXT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
     printf("# DXT, rank: %d, hostname: %s\n", rank, hostname);
@@ -407,15 +436,6 @@ static void dxt_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
 
 static void dxt_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag)
 {
-}
-
-void dxt_logutils_cleanup()
-{
-    if (parser_buf_sz != 0 || parser_buf) {
-        free(parser_buf);
-    }
-
-    parser_buf_sz = 0;
 }
 
 /*
