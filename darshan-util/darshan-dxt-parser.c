@@ -171,11 +171,6 @@ int main(int argc, char **argv)
         goto cleanup;
     }
 
-    mod_buf = malloc(DEF_MOD_BUF_SIZE);
-    if (!mod_buf) {
-        goto cleanup;
-    }
-
     for (i = 0; i < DARSHAN_MAX_MODS; i++)
     {
         struct darshan_base_record *base_rec;
@@ -191,9 +186,6 @@ int main(int argc, char **argv)
             continue;
         }
 
-        /* this module has data to be parsed and printed */
-        memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
-
         if (i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD) {
             printf("\n# ***************************************************\n");
             printf("# %s module data\n", darshan_module_names[i]);
@@ -201,6 +193,13 @@ int main(int argc, char **argv)
         }
         else if (i != DARSHAN_LUSTRE_MOD)
             continue;
+
+        /* print warning if this module only stored partial data */
+        if(DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i))
+            printf("\n# *WARNING*: The %s module contains incomplete data!\n"
+                   "#            This happens when a module runs out of\n"
+                   "#            memory to store new record data.\n",
+                   darshan_module_names[i]);
 
         /* loop over each of this module's records and print them */
         while(1)
@@ -233,6 +232,8 @@ int main(int argc, char **argv)
                 }
                 break;
             }
+
+            if(i == DARSHAN_LUSTRE_MOD) continue;
 
             base_rec = (struct darshan_base_record *)mod_buf;
 
@@ -272,10 +273,10 @@ int main(int argc, char **argv)
             } else if (i == DXT_MPIIO_MOD){
                 dxt_log_print_mpiio_file(mod_buf, rec_name,
                         mnt_pt, fs_type);
-            
             }
 
-            memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
+            free(mod_buf);
+            mod_buf = NULL;
         }
     }
 
@@ -283,7 +284,6 @@ int main(int argc, char **argv)
 
 cleanup:
     darshan_log_close(fd);
-    free(mod_buf);
 
     /* free record hash data */
     HASH_ITER(hlink, name_hash, ref, tmp_ref)
