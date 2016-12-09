@@ -215,9 +215,6 @@ int main(int argc, char **argv)
 
                 ret = mod_logutils[i]->log_get_record(fd,
                         (void **)&(lustre_rec_ref->rec));
-
-                HASH_ADD(hlink, lustre_rec_hash, rec->base_rec.id,
-                        sizeof(darshan_record_id), lustre_rec_ref);
             } else {
                 ret = mod_logutils[i]->log_get_record(fd, (void **)&mod_buf);
             }
@@ -233,7 +230,11 @@ int main(int argc, char **argv)
                 break;
             }
 
-            if(i == DARSHAN_LUSTRE_MOD) continue;
+            if(i == DARSHAN_LUSTRE_MOD) { 
+                HASH_ADD(hlink, lustre_rec_hash, rec->base_rec.id,
+                        sizeof(darshan_record_id), lustre_rec_ref);
+                continue;
+            }
 
             base_rec = (struct darshan_base_record *)mod_buf;
 
