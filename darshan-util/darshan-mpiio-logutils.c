@@ -64,7 +64,7 @@ static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p)
         if(!file)
             return(-1);
     }
-
+    
     ret = darshan_log_get_mod(fd, DARSHAN_MPIIO_MOD, file,
         sizeof(struct darshan_mpiio_file));
 
@@ -164,6 +164,12 @@ static void darshan_log_print_mpiio_description(int ver)
     printf("#   MPIIO_F_MAX_*_TIME: duration of the slowest MPI-IO read and write operations.\n");
     printf("#   MPIIO_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).\n");
     printf("#   MPIIO_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared files).\n");
+
+    if(ver < 2)
+    {
+        printf("\n# WARNING: MPIIO module log format version 1 has the following limitations:\n");
+        printf("# - MPIIO_F_WRITE_START_TIMESTAMP may not be accurate.\n");
+    }
 
     return;
 }

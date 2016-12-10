@@ -210,7 +210,7 @@ static int enable_dxt_io_trace = 0;
         rec_ref->file_rec->counters[MPIIO_RW_SWITCHES] += 1; \
     rec_ref->last_io_type = DARSHAN_IO_WRITE; \
     if(rec_ref->file_rec->fcounters[MPIIO_F_WRITE_START_TIMESTAMP] == 0 || \
-     rec_ref->file_rec->fcounters[MPIIO_F_READ_START_TIMESTAMP] > __tm1) \
+     rec_ref->file_rec->fcounters[MPIIO_F_WRITE_START_TIMESTAMP] > __tm1) \
         rec_ref->file_rec->fcounters[MPIIO_F_WRITE_START_TIMESTAMP] = __tm1; \
     rec_ref->file_rec->fcounters[MPIIO_F_WRITE_END_TIMESTAMP] = __tm2; \
     if(rec_ref->file_rec->fcounters[MPIIO_F_MAX_WRITE_TIME] < __elapsed) { \

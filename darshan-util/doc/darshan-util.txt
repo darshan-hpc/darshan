@@ -39,7 +39,6 @@ make
 make install
 ----
 
-[NOTE]
 The darshan-util package is intended to be used on a login node or
 workstation.  For most use cases this means that you should
 either leave CC to its default setting or specify a local compiler.  This is
@@ -96,6 +95,12 @@ You can also manually specify the name of the output file using the
 
 An example of the output produced by darshan-job-summary.pl can be found
 link:http://www.mcs.anl.gov/research/projects/darshan/docs/ssnyder_ior-hdf5_id3655016_9-23-29011-12333993518351519212_1.darshan.pdf[HERE].
+
+*NOTE*: The darshan-job-summary tool depends on a few LaTeX packages that may not
+be availalble by default on all systems, including: lastpage, subfigure, and
+threeparttable. These packages can be found and installed using your system's package
+manager. For instance, the packages can be installed on Debian or Ubuntu systems as
+follows: `apt-get install texlive-latex-extra`
 
 === darshan-summary-per-file.sh
 

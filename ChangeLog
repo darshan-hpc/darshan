@@ -2,13 +2,27 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.1.2
+=============
+* bug fix in resolving underlying call to fopen64 when using the LD_PRELOAD
+  instrumentation mechanism
+* bug fix to make sure Lustre module headers are installed when installing
+  darshan-util
+  - reported by Matthieu Dorrier
+
+Darshan-3.1.1
+=============
+* bug fix to MPIIO_F_WRITE_START_TIMESTAMP, which may have produced incorrect
+  timestamps in some cases
+  - reported by Wucherl (William) Yoo
+
 Darshan-3.1.0
 =============
 * add stdio I/O library instrumentation module (Philip Carns)
     - this handles instrumentation of file stream I/O functions
       like fopen(), fprintf(), fscanf(), etc.
     - this module also captures stats on the standard streams (stdin,
-      stdout, & stdin)
+      stdout, & stderr)
 * add Lustre instrumentation module (Glenn Lockwood)
     - this module provides Lustre striping details (e.g., stripe
       width, stripe size, list of OSTs a file is striped over)

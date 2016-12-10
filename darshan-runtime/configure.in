@@ -5,7 +5,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl You may need to use autoheader as well if changing any DEFINEs
 
 dnl sanity checks, output header, location of scripts used here
-AC_INIT([darshan-runtime], [3.1.0])
+AC_INIT([darshan-runtime], [3.1.2])
 AC_CONFIG_SRCDIR([darshan.h])
 AC_CONFIG_AUX_DIR(../maint/config)
 AC_CONFIG_HEADER(darshan-runtime-config.h)
@@ -61,7 +61,7 @@ AC_ARG_ENABLE(
 )
 
 AC_ARG_ENABLE(mmap-logs,
-[  --enable-mmmap-logs     Enables ability to mmap I/O data to log file],
+[  --enable-mmap-logs      Enables ability to mmap I/O data to log file],
 [if test "x$enableval" = "xyes" ; then
     AC_DEFINE(__DARSHAN_ENABLE_MMAP_LOGS, 1, Define if Darshan should mmap data structures to log file)
     ENABLE_MMAP_LOGS=1

@@ -384,13 +384,11 @@ static int darshan_build_global_record_hash(
             {
                 fprintf(stderr, "Error: unable to read module %s data from log file.\n",
                     darshan_module_names[i]);
-                free(mod_rec->mod_dat);
                 free(mod_rec);
                 return(-1);
             }
             else if(ret == 0)
             {
-                free(mod_rec->mod_dat);
                 free(mod_rec);
                 break;
             }

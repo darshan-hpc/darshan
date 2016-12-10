@@ -155,6 +155,7 @@ endif
 	install -m 644 $(srcdir)/darshan-pnetcdf-logutils.h $(includedir)
 	install -m 644 $(srcdir)/darshan-bgq-logutils.h $(includedir)
 	install -m 644 $(srcdir)/darshan-null-logutils.h $(includedir)
+	install -m 644 $(srcdir)/darshan-lustre-logutils.h $(includedir)
 	install -m 644 $(srcdir)/darshan-stdio-logutils.h $(includedir)
 	install -m 644 $(srcdir)/darshan-dxt-logutils.h $(includedir)
 	install -m 644 $(srcdir)/../darshan-null-log-format.h $(includedir)
@@ -163,6 +164,7 @@ endif
 	install -m 644 $(srcdir)/../darshan-hdf5-log-format.h $(includedir)
 	install -m 644 $(srcdir)/../darshan-pnetcdf-log-format.h $(includedir)
 	install -m 644 $(srcdir)/../darshan-bgq-log-format.h $(includedir)
+	install -m 644 $(srcdir)/../darshan-lustre-log-format.h $(includedir)
 	install -m 644 $(srcdir)/../darshan-stdio-log-format.h $(includedir)
 	install -m 644 $(srcdir)/../darshan-dxt-log-format.h $(includedir)
 	install -d $(includedir)/uthash-1.9.2
