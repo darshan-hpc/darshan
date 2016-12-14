@@ -294,6 +294,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     int64_t length;
     double start_time;
     double end_time;
+    char *extra_info;
     int i, j;
 
     darshan_record_id f_id = file_rec->base_rec.id;
@@ -362,8 +363,10 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         length = io_trace[i].length;
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
+        extra_info = io_trace[i].extra_info;
+        if (*extra_info == '\0') *extra_info = "";
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f   ", "X_POSIX", rank, "write", i, offset, length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f %s", "X_POSIX", rank, "write", i, offset, length, start_time, end_time, extra_info);
 
         if (lustreFS) {
             cur_file_offset = offset;
@@ -408,8 +411,10 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         length = io_trace[i].length;
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
+        extra_info = io_trace[i].extra_info;
+        if (extra_info == NULL) extra_info = "";
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f   ", "X_POSIX", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f %s", "X_POSIX", rank, "read", (int)(i - write_count), offset, length, start_time, end_time, extra_info);
 
         if (lustreFS) {
             cur_file_offset = offset;
@@ -461,6 +466,7 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
     int64_t offset;
     double start_time;
     double end_time;
+    char * extra_info;
     int i;
 
     darshan_record_id f_id = file_rec->base_rec.id;
@@ -489,8 +495,10 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
         length = io_trace[i].length;
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
+        extra_info = io_trace[i].extra_info;
+        if (extra_info == NULL) extra_info = "";
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f\n", "X_MPIIO", rank, "write", i, offset, length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f %s\n", "X_MPIIO", rank, "write", i, offset, length, start_time, end_time, extra_info);
     }
 
     for (i = write_count; i < write_count + read_count; i++) {
@@ -499,7 +507,7 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f\n", "X_MPIIO", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f %s\n", "X_MPIIO", rank, "read", (int)(i - write_count), offset, length, start_time, end_time, extra_info);
     }
 
     return;
