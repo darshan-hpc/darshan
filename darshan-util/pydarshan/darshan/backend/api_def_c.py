@@ -205,6 +205,7 @@ typedef struct segment_info {
     int64_t length;
     double start_time;
     double end_time;
+    unsigned long pthread_id;
 } segment_info;
 
 /* counter names */
