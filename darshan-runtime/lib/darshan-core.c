@@ -1083,10 +1083,10 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
                   ii = 0;
                 }
             }
+            fclose(fh);
         } else {
            sprintf(cmdl, " <unknown args>");
         }
-        fclose(fh);
         strncat(core->log_exemnt_p, cmdl, space_left);
         space_left = DARSHAN_EXE_LEN-strlen(core->log_exemnt_p);
     }
