@@ -1451,8 +1451,7 @@ static int darshan_log_open_all(char *logfile_name, MPI_File *log_fh)
         hints = __DARSHAN_LOG_HINTS;
     }
 
-    /* DXT */
-    if(hints && strlen(hints) > 0 && !getenv("ENABLE_DXT_IO_TRACE"))
+    if(hints && strlen(hints) > 0)
     {
         tok_str = strdup(hints);
         if(tok_str)
