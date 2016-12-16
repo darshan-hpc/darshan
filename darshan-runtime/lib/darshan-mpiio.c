@@ -87,10 +87,17 @@ static void mpiio_shutdown(
     MPI_Comm mod_comm, darshan_record_id *shared_recs,
     int shared_rec_count, void **mpiio_buf, int *mpiio_buf_sz);
 
+/* extern DXT function defs */
+extern void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
+    double start_time, double end_time);
+extern void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
+    double start_time, double end_time);
+
 static struct mpiio_runtime *mpiio_runtime = NULL;
 static pthread_mutex_t mpiio_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int instrumentation_disabled = 0;
 static int my_rank = -1;
+static int enable_dxt_io_trace = 0;
 
 #define MPIIO_LOCK() pthread_mutex_lock(&mpiio_runtime_mutex)
 #define MPIIO_UNLOCK() pthread_mutex_unlock(&mpiio_runtime_mutex)
@@ -98,7 +105,9 @@ static int my_rank = -1;
 #define MPIIO_PRE_RECORD() do { \
     MPIIO_LOCK(); \
     if(!instrumentation_disabled) { \
-        if(!mpiio_runtime) mpiio_runtime_initialize(); \
+        if(!mpiio_runtime) { \
+            mpiio_runtime_initialize(); \
+        } \
         if(mpiio_runtime) break; \
     } \
     MPIIO_UNLOCK(); \
@@ -154,6 +163,10 @@ static int my_rank = -1;
     if(!rec_ref) break; \
     DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
     size = size * __count; \
+    /* DXT to record detailed read tracing information */ \
+    if(enable_dxt_io_trace) { \
+        dxt_mpiio_read(rec_ref->file_rec->base_rec.id, size, __tm1, __tm2); \
+    } \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_READ_AGG_0_100]), size); \
     darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, size, \
         &(rec_ref->file_rec->counters[MPIIO_ACCESS1_ACCESS]), \
@@ -183,6 +196,10 @@ static int my_rank = -1;
     if(!rec_ref) break; \
     DARSHAN_MPI_CALL(PMPI_Type_size)(__datatype, &size);  \
     size = size * __count; \
+     /* DXT to record detailed write tracing information */ \
+    if(enable_dxt_io_trace) { \
+        dxt_mpiio_write(rec_ref->file_rec->base_rec.id, size, __tm1, __tm2); \
+    } \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_WRITE_AGG_0_100]), size); \
     darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, size, \
         &(rec_ref->file_rec->counters[MPIIO_ACCESS1_ACCESS]), \
@@ -843,6 +860,11 @@ static void mpiio_runtime_initialize()
         return;
     }
     memset(mpiio_runtime, 0, sizeof(*mpiio_runtime));
+
+    /* check if DXT (Darshan extended tracing) should be enabled */
+    if (getenv("ENABLE_DXT_IO_TRACE")) {
+        enable_dxt_io_trace = 1;
+    }
 
     return;
 }

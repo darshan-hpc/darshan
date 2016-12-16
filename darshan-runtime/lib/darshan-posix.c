@@ -157,11 +157,18 @@ static void posix_shutdown(
     MPI_Comm mod_comm, darshan_record_id *shared_recs,
     int shared_rec_count, void **posix_buf, int *posix_buf_sz);
 
+/* extern DXT function defs */
+extern void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
+    int64_t length, double start_time, double end_time);
+extern void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
+    int64_t length, double start_time, double end_time);
+
 static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int instrumentation_disabled = 0;
 static int my_rank = -1;
 static int darshan_mem_alignment = 1;
+static int enable_dxt_io_trace = 0;
 
 #define POSIX_LOCK() pthread_mutex_lock(&posix_runtime_mutex)
 #define POSIX_UNLOCK() pthread_mutex_unlock(&posix_runtime_mutex)
@@ -169,7 +176,9 @@ static int darshan_mem_alignment = 1;
 #define POSIX_PRE_RECORD() do { \
     POSIX_LOCK(); \
     if(!instrumentation_disabled) { \
-        if(!posix_runtime) posix_runtime_initialize(); \
+        if(!posix_runtime) { \
+            posix_runtime_initialize(); \
+        } \
         if(posix_runtime) break; \
     } \
     POSIX_UNLOCK(); \
@@ -228,6 +237,10 @@ static int darshan_mem_alignment = 1;
         this_offset = __pread_offset; \
     else \
         this_offset = rec_ref->offset; \
+    /* DXT to record detailed read tracing information */ \
+    if(enable_dxt_io_trace) { \
+        dxt_posix_read(rec_ref->file_rec->base_rec.id, this_offset, __ret, __tm1, __tm2); \
+    } \
     if(this_offset > rec_ref->last_byte_read) \
         rec_ref->file_rec->counters[POSIX_SEQ_READS] += 1;  \
     if(this_offset == (rec_ref->last_byte_read + 1)) \
@@ -282,6 +295,10 @@ static int darshan_mem_alignment = 1;
         this_offset = __pwrite_offset; \
     else \
         this_offset = rec_ref->offset; \
+    /* DXT to record detailed write tracing information */ \
+    if(enable_dxt_io_trace) { \
+        dxt_posix_write(rec_ref->file_rec->base_rec.id, this_offset, __ret, __tm1, __tm2); \
+    } \
     if(this_offset > rec_ref->last_byte_written) \
         rec_ref->file_rec->counters[POSIX_SEQ_WRITES] += 1; \
     if(this_offset == (rec_ref->last_byte_written + 1)) \
@@ -1256,6 +1273,11 @@ static void posix_runtime_initialize()
         return;
     }
     memset(posix_runtime, 0, sizeof(*posix_runtime));
+
+    /* check if DXT (Darshan extended tracing) should be enabled */
+    if (getenv("ENABLE_DXT_IO_TRACE")) {
+        enable_dxt_io_trace = 1;
+    }
 
     return;
 }

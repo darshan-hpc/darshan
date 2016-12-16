@@ -61,6 +61,16 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
     else if(ret < sizeof(struct darshan_lustre_record))
         return(0);
 
+    /* swap bytes if necessary */
+    if(fd->swap_flag)
+    {
+        DARSHAN_BSWAP64(&tmp_rec.base_rec.id);
+        DARSHAN_BSWAP64(&tmp_rec.base_rec.rank);
+        for(i=0; i<LUSTRE_NUM_INDICES; i++)
+            DARSHAN_BSWAP64(&tmp_rec.counters[i]);
+        DARSHAN_BSWAP64(&tmp_rec.ost_ids[0]);
+    }
+
     if(*lustre_buf_p == NULL)
     {
         rec = malloc(LUSTRE_RECORD_SIZE(tmp_rec.counters[LUSTRE_STRIPE_WIDTH]));
@@ -68,16 +78,6 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
             return(-1);
     }
     memcpy(rec, &tmp_rec, sizeof(struct darshan_lustre_record));
-
-    /* swap bytes if necessary */
-    if(fd->swap_flag)
-    {
-        DARSHAN_BSWAP64(&rec->base_rec.id);
-        DARSHAN_BSWAP64(&rec->base_rec.rank);
-        for(i=0; i<LUSTRE_NUM_INDICES; i++)
-            DARSHAN_BSWAP64(&rec->counters[i]);
-        DARSHAN_BSWAP64(&(rec->ost_ids[0]));
-    }
 
     /* now read the rest of the record */
     if ( rec->counters[LUSTRE_STRIPE_WIDTH] > 1 ) {
@@ -87,16 +87,16 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
             (void*)(&(rec->ost_ids[1])),
             (rec->counters[LUSTRE_STRIPE_WIDTH] - 1)*sizeof(OST_ID)
         );
-        if(ret < 0)
+        if(ret < (rec->counters[LUSTRE_STRIPE_WIDTH] - 1)*sizeof(OST_ID))
             ret = -1;
-        else if(ret < (rec->counters[LUSTRE_STRIPE_WIDTH] - 1)*sizeof(OST_ID))
-            ret = 0;
         else
+        {
             ret = 1;
-        /* swap bytes if necessary */
-        if ( fd->swap_flag )
-            for (i = 1; i < rec->counters[LUSTRE_STRIPE_WIDTH]; i++ )
-                DARSHAN_BSWAP64(&(rec->ost_ids[i]));
+            /* swap bytes if necessary */
+            if ( fd->swap_flag )
+                for (i = 1; i < rec->counters[LUSTRE_STRIPE_WIDTH]; i++ )
+                    DARSHAN_BSWAP64(&(rec->ost_ids[i]));
+        }
     }
     else
     {

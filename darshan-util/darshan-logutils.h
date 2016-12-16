@@ -20,7 +20,7 @@
 /* Maximum size of a record - Lustre OST lists can get huge, but 81920 is enough
  * for 10K OSTs 
  */
-#define DEF_MOD_BUF_SIZE 81920 /* 640 KiB */
+#define DEF_MOD_BUF_SIZE 81920
 
 struct darshan_fd_int_state;
 
@@ -53,6 +53,13 @@ struct darshan_name_record_ref
 {
     struct darshan_name_record *name_record;
     UT_hash_handle hlink;
+};
+
+/* DXT */
+struct lustre_record_ref
+{
+	struct darshan_lustre_record *rec;
+	UT_hash_handle hlink;
 };
 
 struct darshan_mnt_info
@@ -127,6 +134,9 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[];
 #include "darshan-bgq-logutils.h"
 #include "darshan-lustre-logutils.h"
 #include "darshan-stdio-logutils.h"
+
+/* DXT */
+#include "darshan-dxt-logutils.h"
 
 darshan_fd darshan_log_open(const char *name);
 darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type,
