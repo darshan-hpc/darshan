@@ -1024,7 +1024,9 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
     char* truncate_string = "<TRUNCATED>";
     int truncate_offset;
     int space_left = DARSHAN_EXE_LEN;
-    int i;
+    FILE *fh;
+    int i, ii;
+    char cmdl[DARSHAN_EXE_LEN];
     int tmp_index = 0;
     int skip = 0;
 
@@ -1065,9 +1067,6 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
     {
         /* get the name of the executable and the arguments from 
            /proc/self/cmdline */
-        FILE *fh;
-        int i, ii;
-        char cmdl[DARSHAN_EXE_LEN];
 
         cmdl[0] = '\0';
         fh = fopen("/proc/self/cmdline","r");
@@ -1085,7 +1084,7 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
             }
             fclose(fh);
         } else {
-           sprintf(cmdl, " <unknown args>");
+           sprintf(cmdl, "%s <unknown args>", __progname_full);
         }
         strncat(core->log_exemnt_p, cmdl, space_left);
         space_left = DARSHAN_EXE_LEN-strlen(core->log_exemnt_p);
