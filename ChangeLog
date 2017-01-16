@@ -2,6 +2,12 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.1.3-pre1
+=============
+* add --enable-HDF5_1.10 configure option to explicitly enable HDF5 1.10+
+  support, needed on some platforms for API compatibility 
+  - contributed by Karl-Ulrich Bamberg
+
 Darshan-3.1.2
 =============
 * bug fix in resolving underlying call to fopen64 when using the LD_PRELOAD
