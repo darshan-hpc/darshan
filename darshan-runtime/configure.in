@@ -47,9 +47,9 @@ fi]
 ,)
 
 AC_ARG_ENABLE(HDF5_1.10,
-[  --enable-HDF5_1.10       Compile for use with HDF5 1.10.x],
+[  --enable-HDF5_1.10      Enable explicit support for HDF5 1.10.x API],
 [if test "x$enableval" = "xyes" ; then
-    AC_DEFINE(__DARSHAN_ENABLE_HDF5110, 1, Set for compatibility with HDF5_1.10.x, breaks use with 1.8.x)
+    AC_DEFINE(__DARSHAN_ENABLE_HDF5110, 1, Explicitly enable HDF5_1.10.x support, will break 1.8.x compatibility on 32bit platforms)
 fi]
 ,)
 
