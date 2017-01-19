@@ -7,6 +7,9 @@ Darshan-3.1.3-pre1
 * add --enable-HDF5_1.10 configure option to explicitly enable HDF5 1.10+
   support, needed on some platforms for API compatibility 
   - contributed by Karl-Ulrich Bamberg
+* skip instrumentation attempts for anonymous mmap() calls; this avoids a
+  potentential deadlock condition when used with hugepages on Cray systems.
+  Reported by Glenn Lockwood and Cristian Simarro.
 
 Darshan-3.1.2
 =============
