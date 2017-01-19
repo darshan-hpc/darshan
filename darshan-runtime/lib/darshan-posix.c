@@ -1085,6 +1085,14 @@ void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
 
     MAP_OR_FAIL(mmap);
 
+    if(fd < 0 || (flags & MAP_ANONYMOUS))
+    {
+        /* mmap is not associated with a backing file; skip all Darshan
+         * characterization attempts.
+         */
+        return(__real_mmap(addr, length, prot, flags, fd, offset));
+    }
+
     ret = __real_mmap(addr, length, prot, flags, fd, offset);
     if(ret == MAP_FAILED)
         return(ret);
@@ -1108,6 +1116,14 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
     struct posix_file_runtime* file;
 
     MAP_OR_FAIL(mmap64);
+
+    if(fd < 0 || (flags & MAP_ANONYMOUS))
+    {
+        /* mmap is not associated with a backing file; skip all Darshan
+         * characterization attempts.
+         */
+        return(__real_mmap64(addr, length, prot, flags, fd, offset));
+    }
 
     ret = __real_mmap64(addr, length, prot, flags, fd, offset);
     if(ret == MAP_FAILED)

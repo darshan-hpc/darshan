@@ -2,6 +2,12 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.0.1.1
+=============
+* skip instrumentation attempts for anonymous mmap() calls; this avoids a
+  potentential deadlock condition when used with hugepages on Cray systems.
+  Reported by Glenn Lockwood and Cristian Simarro.
+
 Darshan-3.0.1
 =============
 * bug fix in darshan logutil mount parsing code that was
