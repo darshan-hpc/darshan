@@ -1322,7 +1322,7 @@ Optional Features:
   --disable-cuserid       Disables attempted use of cuserid() at run time
   --enable-group-readable-logs
                           Set log files to be group readable
-  --enable-HDF5_1.10      Enable explicit support for HDF5 1.10.x API
+  --enable-HDF5_1.10       Compile for use with HDF5 1.10.x
   --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)
   --disable-lustre-mod    Disables compilation and use of the Lustre module
   --enable-mmap-logs      Enables ability to mmap I/O data to log file
