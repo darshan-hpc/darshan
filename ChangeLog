@@ -10,6 +10,9 @@ Darshan-3.1.3-pre1
 * skip instrumentation attempts for anonymous mmap() calls; this avoids a
   potentential deadlock condition when used with hugepages on Cray systems.
   Reported by Glenn Lockwood and Cristian Simarro.
+* fix segmentation fault in statistics collection for applications that issue
+  operations with a large number of distince access sizes or strides on the
+  same file.  Reported by Glenn Lockwood.
 
 Darshan-3.1.2
 =============

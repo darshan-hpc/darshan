@@ -267,9 +267,13 @@ void darshan_common_val_counter(void **common_val_root, int *common_val_count,
         (*common_val_count)++;
     }
 
-    /* update common access counters as we go */
-    DARSHAN_COMMON_VAL_COUNTER_INC(common_val_p, common_cnt_p,
-        found->val, found->freq, 1);
+    /* update common access counters as we go, as long as we haven't already
+     * hit the limit in the number we are willing to track */
+    if(found)
+    {
+        DARSHAN_COMMON_VAL_COUNTER_INC(common_val_p, common_cnt_p,
+            found->val, found->freq, 1);
+    }
 
     return;
 }
