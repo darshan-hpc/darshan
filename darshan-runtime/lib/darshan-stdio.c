@@ -1116,8 +1116,6 @@ static void stdio_shutdown(
     MPI_Op red_op;
     int stdio_rec_count;
     double stdio_time;
-    FILE * fp[3];
-    int trim_records = 0;
 
     STDIO_LOCK();
     assert(stdio_runtime);
