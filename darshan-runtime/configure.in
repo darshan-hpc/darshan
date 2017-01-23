@@ -46,13 +46,6 @@ AC_ARG_ENABLE(group-readable-logs,
 fi]
 ,)
 
-AC_ARG_ENABLE(HDF5_1.10,
-[  --enable-HDF5_1.10       Compile for use with HDF5 1.10.x],
-[if test "x$enableval" = "xyes" ; then
-    AC_DEFINE(__DARSHAN_ENABLE_HDF5110, 1, Set for compatibility with HDF5_1.10.x, breaks use with 1.8.x)
-fi]
-,)
-
 AC_ARG_ENABLE(
     [bgq-mod],
     [  --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)],
@@ -262,6 +255,19 @@ eval darshan_share_path=$datarootdir
 prefix=$savePrefix
 exec_prefix=$saveExecprefix
 
+BUILD_HDF5_MODULE=
+DARSHAN_HDF5_LD_OPTS=
+
+AC_ARG_ENABLE(HDF5-post-1.10-abi,
+[  --enable-HDF5-post-1.10-abi
+                          Enable HDF5 module for HDF5 version 1.10 or later],
+[if test "x$enableval" = "xyes" ; then
+    AC_DEFINE(__DARSHAN_ENABLE_HDF5110, 1, Set for compatibility with HDF5_1.10.x, breaks use with 1.8.x)
+    BUILD_HDF5_MODULE=1
+    DARSHAN_HDF5_LD_OPTS="${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
+fi]
+,)
+
 # determine if the MPI library includes MPI-IO functions or not
 AC_MSG_CHECKING(for MPI-IO support in MPI)
 AC_TRY_LINK([#include <mpi.h>], [
@@ -359,6 +365,8 @@ AC_SUBST(DARSHAN_VERSION)
 AC_SUBST(MPICH_LIB_OLD)
 AC_SUBST(DARSHAN_USE_BGQ)
 AC_SUBST(DARSHAN_USE_LUSTRE)
+AC_SUBST(BUILD_HDF5_MODULE)
+AC_SUBST(DARSHAN_HDF5_LD_OPTS)
 AC_OUTPUT(Makefile
 darshan-mk-log-dirs.pl
 darshan-gen-cc.pl

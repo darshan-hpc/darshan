@@ -1,6 +1,6 @@
 --undefined=MPI_Init
 --undefined=MPI_Wtime
 @@darshan_share_path@/ld-opts/darshan-posix-ld-opts
-@@darshan_share_path@/ld-opts/darshan-hdf5-ld-opts
 @@darshan_share_path@/ld-opts/darshan-pnetcdf-ld-opts
 @@darshan_share_path@/ld-opts/darshan-stdio-ld-opts
+@@DARSHAN_HDF5_LD_OPTS@
