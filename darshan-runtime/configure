@@ -701,7 +701,8 @@ with_log_hints
 with_log_path
 with_jobid_env
 with_mod_mem
-enable_HDF5_post_1_10_abi
+enable_HDF5_post_1_10
+enable_HDF5_pre_1_10
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1339,8 +1340,10 @@ Optional Features:
   --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)
   --disable-lustre-mod    Disables compilation and use of the Lustre module
   --enable-mmap-logs      Enables ability to mmap I/O data to log file
-  --enable-HDF5-post-1.10-abi
+  --enable-HDF5-post-1.10
                           Enable HDF5 module for HDF5 version 1.10 or later
+  --enable-HDF5-pre-1.10
+                          Enable HDF5 module for HDF5 version 1.8 or earlier
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -4203,12 +4206,28 @@ exec_prefix=$saveExecprefix
 BUILD_HDF5_MODULE=
 DARSHAN_HDF5_LD_OPTS=
 
-# Check whether --enable-HDF5-post-1.10-abi was given.
-if test "${enable_HDF5_post_1_10_abi+set}" = set; then :
-  enableval=$enable_HDF5_post_1_10_abi; if test "x$enableval" = "xyes" ; then
+# see if user explicitly enabled support for an HDF5 API
+# Check whether --enable-HDF5-post-1.10 was given.
+if test "${enable_HDF5_post_1_10+set}" = set; then :
+  enableval=$enable_HDF5_post_1_10; if test "x$enableval" = "xyes" ; then
 
 $as_echo "#define __DARSHAN_ENABLE_HDF5110 1" >>confdefs.h
 
+    if test "x$BUILD_HDF5_MODULE" = "x1"; then
+        as_fn_error $? "Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10" "$LINENO" 5
+    fi
+    BUILD_HDF5_MODULE=1
+    DARSHAN_HDF5_LD_OPTS="${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
+fi
+
+fi
+
+# Check whether --enable-HDF5-pre-1.10 was given.
+if test "${enable_HDF5_pre_1_10+set}" = set; then :
+  enableval=$enable_HDF5_pre_1_10; if test "x$enableval" = "xyes" ; then
+    if test "x$BUILD_HDF5_MODULE" = "x1"; then
+        as_fn_error $? "Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10" "$LINENO" 5
+    fi
     BUILD_HDF5_MODULE=1
     DARSHAN_HDF5_LD_OPTS="${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
 fi

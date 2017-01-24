@@ -258,11 +258,26 @@ exec_prefix=$saveExecprefix
 BUILD_HDF5_MODULE=
 DARSHAN_HDF5_LD_OPTS=
 
-AC_ARG_ENABLE(HDF5-post-1.10-abi,
-[  --enable-HDF5-post-1.10-abi
+# see if user explicitly enabled support for an HDF5 API
+AC_ARG_ENABLE(HDF5-post-1.10,
+[  --enable-HDF5-post-1.10
                           Enable HDF5 module for HDF5 version 1.10 or later],
 [if test "x$enableval" = "xyes" ; then
-    AC_DEFINE(__DARSHAN_ENABLE_HDF5110, 1, Set for compatibility with HDF5_1.10.x, breaks use with 1.8.x)
+    AC_DEFINE(__DARSHAN_ENABLE_HDF5110, 1, Set for compatibility with HDF5 1.10.x, breaks use with 1.8.x)
+    if test "x$BUILD_HDF5_MODULE" = "x1"; then
+        AC_MSG_ERROR([Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10])
+    fi
+    BUILD_HDF5_MODULE=1
+    DARSHAN_HDF5_LD_OPTS="${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
+fi]
+,)
+AC_ARG_ENABLE(HDF5-pre-1.10,
+[  --enable-HDF5-pre-1.10
+                          Enable HDF5 module for HDF5 version 1.8 or earlier],
+[if test "x$enableval" = "xyes" ; then
+    if test "x$BUILD_HDF5_MODULE" = "x1"; then
+        AC_MSG_ERROR([Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10])
+    fi
     BUILD_HDF5_MODULE=1
     DARSHAN_HDF5_LD_OPTS="${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
 fi]
