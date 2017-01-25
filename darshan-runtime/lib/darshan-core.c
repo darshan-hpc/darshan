@@ -68,8 +68,6 @@ char* darshan_path_exclusions[] = {
  * they share a root with a path listed in darshan_path_exclusions
  */
 char* darshan_path_inclusions[] = {
-    "/dev/shm/",
-    "/var/tmp/",
     "/var/opt/cray/dws/mounts/",
     NULL
 };
