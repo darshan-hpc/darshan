@@ -49,20 +49,29 @@ static int nprocs = -1;
 static int darshan_mem_alignment = 1;
 static long darshan_mod_mem_quota = DARSHAN_MOD_MEM_MAX;
 
-/* paths prefixed with the following directories are not traced by darshan */
+/* paths prefixed with the following directories are not tracked by darshan */
 char* darshan_path_exclusions[] = {
-"/etc/",
-"/dev/",
-"/usr/",
-"/bin/",
-"/boot/",
-"/lib/",
-"/opt/",
-"/sbin/",
-"/sys/",
-"/proc/",
-"/var/",
-NULL
+    "/etc/",
+    "/dev/",
+    "/usr/",
+    "/bin/",
+    "/boot/",
+    "/lib/",
+    "/opt/",
+    "/sbin/",
+    "/sys/",
+    "/proc/",
+    "/var/",
+    NULL
+};
+/* paths prefixed with the following directories are tracked by darshan even if
+ * they share a root with a path listed in darshan_path_exclusions
+ */
+char* darshan_path_inclusions[] = {
+    "/dev/shm/",
+    "/var/tmp/",
+    "/var/opt/cray/dws/mounts/",
+    NULL
 };
 
 #ifdef DARSHAN_BGQ
@@ -2075,15 +2084,24 @@ double darshan_core_wtime()
 
 int darshan_core_excluded_path(const char *path)
 {
-    char *exclude;
+    char *exclude, *include;
     int tmp_index = 0;
+    int tmp_jndex;
 
-    while((exclude = darshan_path_exclusions[tmp_index])) {
-        if(!(strncmp(exclude, path, strlen(exclude))))
-            return(1);
-        tmp_index++;
+    /* scan blacklist for paths to exclude */
+    while((exclude = darshan_path_exclusions[tmp_index++])) {
+        if(!(strncmp(exclude, path, strlen(exclude)))) {
+            /* before excluding path, ensure it's not in whitelist */
+            tmp_jndex = 0;
+            while((include = darshan_path_inclusions[tmp_jndex++])) {
+                if(!(strncmp(include, path, strlen(include))))
+                    return(0); /* whitelist hits are always tracked */
+            }
+            return(1); /* if not in whitelist, then blacklist it */
+        }
     }
 
+    /* if not in blacklist, no problem */
     return(0);
 }
 
