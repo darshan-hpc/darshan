@@ -47,6 +47,9 @@ static int my_rank = -1;
 #define LUSTRE_LOCK() pthread_mutex_lock(&lustre_runtime_mutex)
 #define LUSTRE_UNLOCK() pthread_mutex_unlock(&lustre_runtime_mutex)
 
+#ifndef LOV_MAX_STRIPE_COUNT /* for Lustre < 2.4 */
+    #define LOV_MAX_STRIPE_COUNT 2000
+#endif
 void darshan_instrument_lustre_file(const char* filepath, int fd)
 {
     struct lustre_record_ref *rec_ref;
