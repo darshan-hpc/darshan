@@ -2,3 +2,4 @@
 --wrap=H5Fcreate
 --wrap=H5Fopen
 --wrap=H5Fclose
+--wrap=H5get_libversion
