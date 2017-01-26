@@ -76,6 +76,10 @@ header and library.
 and only builds if BG/Q environment detected).
 * `--enable-group-readable-logs`: sets darshan log file permissions to allow
 group read access.
+* `--enable-HDF5-pre-1.10`: enables the Darshan HDF5 instrumentation module,
+with support for HDF5 versions prior to 1.10
+* `--enable-HDF5-post-1.10`: enables the Darshan HDF5 instrumentation module,
+with support for HDF5 versions 1.10 or higher
 
 === Cross compilation
 
