@@ -70,6 +70,21 @@ herr_t H5Fclose(hid_t file_id)
     return(-1);
 }
 
+herr_t H5get_libversion(unsigned *majnum, unsigned *minnum, unsigned *relnum) __attribute__((weak));
+
+herr_t H5get_libversion(unsigned *majnum, unsigned *minnum, unsigned *relnum)
+{
+    int rank;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if(rank == 0)
+    {
+        fprintf(stderr, "WARNING: Darshan H5get_libversion() stub called; this is probably the result of a link-time problem.\n");
+    }
+
+    return(-1);
+}
+
 /*
  * Local variables:
  *  c-indent-level: 4
