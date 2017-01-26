@@ -126,11 +126,13 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     MAP_OR_FAIL(H5get_libversion);
     __real_H5get_libversion(&majnum, &minnum, &relnum);
 #ifdef __DARSHAN_ENABLE_HDF5110
-    if((ret < 0) || (majnum < 1 || (majnum == 1 && minnum < 10)))
+    if(majnum < 1 || (majnum == 1 && minnum < 10))
 #else
-    if((ret < 0) || (majnum > 1 || (majnum == 1 && minnum >= 10)))
+    if(majnum > 1 || (majnum == 1 && minnum >= 10))
 #endif
     {
+        if(my_rank < 0)
+            MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
         if(my_rank == 0)
         {
             fprintf(stderr, "Darshan HDF5 module error: runtime library version does not match Darshan module.\n");
@@ -173,11 +175,13 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     MAP_OR_FAIL(H5get_libversion);
     __real_H5get_libversion(&majnum, &minnum, &relnum);
 #ifdef __DARSHAN_ENABLE_HDF5110
-    if((ret < 0) || (majnum < 1 || (majnum == 1 && minnum < 10)))
+    if(majnum < 1 || (majnum == 1 && minnum < 10))
 #else
-    if((ret < 0) || (majnum > 1 || (majnum == 1 && minnum >= 10)))
+    if(majnum > 1 || (majnum == 1 && minnum >= 10))
 #endif
     {
+        if(my_rank < 0)
+            MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
         if(my_rank == 0)
         {
             fprintf(stderr, "Darshan HDF5 module error: runtime library version does not match Darshan module.\n");
