@@ -263,7 +263,7 @@ AC_ARG_ENABLE(HDF5-post-1.10,
 [  --enable-HDF5-post-1.10
                           Enable HDF5 module for HDF5 version 1.10 or later],
 [if test "x$enableval" = "xyes" ; then
-    AC_DEFINE(__DARSHAN_ENABLE_HDF5110, 1, Set for compatibility with HDF5 1.10.x, breaks use with 1.8.x)
+    AC_DEFINE(__DARSHAN_ENABLE_HDF5110, 1, Set for compatibility with HDF5 1.10.x, breaks use with versions earlier than 1.10)
     if test "x$BUILD_HDF5_MODULE" = "x1"; then
         AC_MSG_ERROR([Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10])
     fi
@@ -273,7 +273,7 @@ fi]
 ,)
 AC_ARG_ENABLE(HDF5-pre-1.10,
 [  --enable-HDF5-pre-1.10
-                          Enable HDF5 module for HDF5 version 1.8 or earlier],
+                          Enable HDF5 module for HDF5 versions earlier than 1.10],
 [if test "x$enableval" = "xyes" ; then
     if test "x$BUILD_HDF5_MODULE" = "x1"; then
         AC_MSG_ERROR([Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10])
