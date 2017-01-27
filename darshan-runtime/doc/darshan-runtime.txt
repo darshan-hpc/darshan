@@ -65,7 +65,7 @@ determine the log path at run time.
 * `--with-log-hints=`: specifies hints to use when writing the Darshan log
 file.  See `./configure --help` for details.
 * `--with-mod-mem=`: specifies the maximum amount of memory (in MiB) that
-each Darshan module can consume.
+active Darshan instrumentation modules can collectively consume.
 * `--with-zlib=`: specifies an alternate location for the zlib development
 header and library.
 * `CC=`: specifies the MPI C compiler to use for compilation.
