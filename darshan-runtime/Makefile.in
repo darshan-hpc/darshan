@@ -35,8 +35,15 @@ CFLAGS_SHARED = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I$(srcdir)
 
 LIBS = -lz @LIBBZ2@
 
-DARSHAN_STATIC_MOD_OBJS = lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-hdf5.o lib/darshan-pnetcdf.o lib/darshan-stdio.o lib/darshan-dxt.o
-DARSHAN_DYNAMIC_MOD_OBJS = lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-hdf5.po lib/darshan-pnetcdf.po lib/darshan-stdio.po lib/darshan-dxt.po
+BUILD_HDF5_MODULE = @BUILD_HDF5_MODULE@
+
+DARSHAN_STATIC_MOD_OBJS = lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-pnetcdf.o lib/darshan-stdio.o lib/darshan-dxt.o
+DARSHAN_DYNAMIC_MOD_OBJS = lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-pnetcdf.po lib/darshan-stdio.po lib/darshan-dxt.po
+
+ifdef BUILD_HDF5_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-hdf5.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-hdf5.po
+endif
 
 ifdef DARSHAN_USE_BGQ
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-bgq.o
@@ -151,8 +158,13 @@ lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darsha
 lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po $(DARSHAN_DYNAMIC_MOD_OBJS) lib/lookup3.po lib/lookup8.po
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ -lpthread -lrt -lz -ldl
 
+ifdef BUILD_HDF5_MODULE
 lib/libdarshan-stubs.a: lib/darshan-hdf5-stubs.o lib/darshan-pnetcdf-stubs.o
 	ar rcs $@ $^
+else
+lib/libdarshan-stubs.a: lib/darshan-pnetcdf-stubs.o
+	ar rcs $@ $^
+endif
 
 
 install:: all
@@ -182,7 +194,9 @@ endif
 	install -d $(datarootdir)/ld-opts
 	install -m 644 share/ld-opts/darshan-base-ld-opts $(datarootdir)/ld-opts/darshan-base-ld-opts
 	install -m 644 $(srcdir)/share/ld-opts/darshan-posix-ld-opts $(datarootdir)/ld-opts/darshan-posix-ld-opts
+ifdef BUILD_HDF5_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-hdf5-ld-opts $(datarootdir)/ld-opts/darshan-hdf5-ld-opts
+endif
 	install -m 644 $(srcdir)/share/ld-opts/darshan-pnetcdf-ld-opts $(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
 	install -m 644 $(srcdir)/share/ld-opts/darshan-stdio-ld-opts $(datarootdir)/ld-opts/darshan-stdio-ld-opts
 ifdef ENABLE_MMAP_LOGS
