@@ -141,7 +141,8 @@ static pthread_mutex_t dxt_runtime_mutex =
             PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 static int dxt_my_rank = -1;
-static int dxt_mem_remaining = DXT_IO_TRACE_MEM_MAX;
+static int dxt_total_mem = DXT_IO_TRACE_MEM_MAX;
+static int dxt_mem_remaining = 0;
 
 #define DXT_LOCK() pthread_mutex_lock(&dxt_runtime_mutex)
 #define DXT_UNLOCK() pthread_mutex_unlock(&dxt_runtime_mutex)
@@ -416,9 +417,10 @@ static void dxt_posix_runtime_initialize()
         /* silently ignore if the env variable is set poorly */
         if(ret == 1 && tmpfloat > 0)
         {
-            dxt_mem_remaining = tmpfloat * 1024 * 1024; /* convert from MiB */
+            dxt_total_mem = tmpfloat * 1024 * 1024; /* convert from MiB */
         }
     }
+    dxt_mem_remaining = dxt_total_mem;
     DXT_UNLOCK();
 
     return;
@@ -468,9 +470,10 @@ void dxt_mpiio_runtime_initialize()
         /* silently ignore if the env variable is set poorly */
         if(ret == 1 && tmpfloat > 0)
         {
-            dxt_mem_remaining = tmpfloat * 1024 * 1024; /* convert from MiB */
+            dxt_total_mem = tmpfloat * 1024 * 1024; /* convert from MiB */
         }
     }
+    dxt_mem_remaining = dxt_total_mem;
     DXT_UNLOCK();
 
     return;
@@ -722,10 +725,10 @@ static void dxt_posix_shutdown(
 
     *dxt_posix_buf_sz = 0;
 
-    dxt_posix_runtime->record_buf = malloc(DXT_IO_TRACE_MEM_MAX);
+    dxt_posix_runtime->record_buf = malloc(dxt_total_mem);
     if(!(dxt_posix_runtime->record_buf))
         return;
-    memset(dxt_posix_runtime->record_buf, 0, DXT_IO_TRACE_MEM_MAX);
+    memset(dxt_posix_runtime->record_buf, 0, dxt_total_mem);
     dxt_posix_runtime->record_buf_size = 0;
 
     /* iterate all dxt posix records and serialize them to the output buffer */
@@ -832,10 +835,10 @@ static void dxt_mpiio_shutdown(
 
     *dxt_mpiio_buf_sz = 0;
 
-    dxt_mpiio_runtime->record_buf = malloc(DXT_IO_TRACE_MEM_MAX);
+    dxt_mpiio_runtime->record_buf = malloc(dxt_total_mem);
     if(!(dxt_mpiio_runtime->record_buf))
         return;
-    memset(dxt_mpiio_runtime->record_buf, 0, DXT_IO_TRACE_MEM_MAX);
+    memset(dxt_mpiio_runtime->record_buf, 0, dxt_total_mem);
     dxt_mpiio_runtime->record_buf_size = 0;
 
     /* iterate all dxt posix records and serialize them to the output buffer */
