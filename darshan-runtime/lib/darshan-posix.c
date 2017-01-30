@@ -1291,7 +1291,7 @@ static void posix_runtime_initialize()
     memset(posix_runtime, 0, sizeof(*posix_runtime));
 
     /* check if DXT (Darshan extended tracing) should be enabled */
-    if (getenv("ENABLE_DXT_IO_TRACE")) {
+    if (getenv("ENABLE_DXT_IO_TRACE_MEM")) {
         enable_dxt_io_trace = 1;
     }
 

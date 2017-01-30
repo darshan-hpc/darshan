@@ -35,7 +35,11 @@ typedef int64_t off64_t;
 #endif
 
 /* maximum amount of memory to use for storing DXT records */
-#define DXT_IO_TRACE_MEM_MAX (4 * 1024 * 1024) /* 4 MiB */
+#ifdef __DARSHAN_MOD_MEM_MAX
+#define DXT_IO_TRACE_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024 * 1024)
+#else
+#define DXT_IO_TRACE_MEM_MAX (4 * 1024 * 1024) /* 4 MiB default */
+#endif
 
 /* initial size of read/write trace buffer (in number of segments) */
 /* NOTE: when this size is exceeded, the buffer size is doubled */
@@ -375,6 +379,8 @@ static void dxt_posix_runtime_initialize()
      * over realloc'ing module memory as needed.
      */
     int dxt_psx_buf_size = 0;
+    int ret, tmpval;
+    char *envstr;
 
     /* register the DXT module with darshan core */
     darshan_core_register_module(
@@ -391,13 +397,28 @@ static void dxt_posix_runtime_initialize()
         return;
     }
 
+    DXT_LOCK();
     dxt_posix_runtime = malloc(sizeof(*dxt_posix_runtime));
     if(!dxt_posix_runtime)
     {
         darshan_core_unregister_module(DXT_POSIX_MOD);
+        DXT_UNLOCK();
         return;
     }
     memset(dxt_posix_runtime, 0, sizeof(*dxt_posix_runtime));
+
+    /* set the memory quota for DXT, if it has not been initialized */
+    envstr = getenv("ENABLE_DXT_IO_TRACE_MEM");
+    if(envstr && dxt_mpiio_runtime == NULL)
+    {
+        ret = sscanf(envstr, "%d", &tmpval);
+        /* silently ignore if the env variable is set poorly */
+        if(ret == 1 && tmpval > 0)
+        {
+            dxt_mem_remaining = tmpval * 1024 * 1024; /* convert from MiB */
+        }
+    }
+    DXT_UNLOCK();
 
     return;
 }
@@ -409,6 +430,8 @@ void dxt_mpiio_runtime_initialize()
      * over realloc'ing module memory as needed.
      */
     int dxt_mpiio_buf_size = 0;
+    int ret, tmpval;
+    char *envstr;
 
     /* register the DXT module with darshan core */
     darshan_core_register_module(
@@ -425,13 +448,28 @@ void dxt_mpiio_runtime_initialize()
         return;
     }
 
+    DXT_LOCK();
     dxt_mpiio_runtime = malloc(sizeof(*dxt_mpiio_runtime));
     if(!dxt_mpiio_runtime)
     {
         darshan_core_unregister_module(DXT_MPIIO_MOD);
+        DXT_UNLOCK();
         return;
     }
     memset(dxt_mpiio_runtime, 0, sizeof(*dxt_mpiio_runtime));
+
+    /* set the memory quota for DXT, if it has not been initialized */
+    envstr = getenv("ENABLE_DXT_IO_TRACE_MEM");
+    if(envstr && dxt_posix_runtime == NULL)
+    {
+        ret = sscanf(envstr, "%d", &tmpval);
+        /* silently ignore if the env variable is set poorly */
+        if(ret == 1 && tmpval > 0)
+        {
+            dxt_mem_remaining = tmpval * 1024 * 1024; /* convert from MiB */
+        }
+    }
+    DXT_UNLOCK();
 
     return;
 }
