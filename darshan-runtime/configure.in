@@ -268,7 +268,7 @@ AC_ARG_ENABLE(HDF5-post-1.10,
         AC_MSG_ERROR([Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10])
     fi
     BUILD_HDF5_MODULE=1
-    DARSHAN_HDF5_LD_OPTS="${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
+    DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
 fi]
 ,)
 AC_ARG_ENABLE(HDF5-pre-1.10,
@@ -279,7 +279,7 @@ AC_ARG_ENABLE(HDF5-pre-1.10,
         AC_MSG_ERROR([Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10])
     fi
     BUILD_HDF5_MODULE=1
-    DARSHAN_HDF5_LD_OPTS="${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
+    DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
 fi]
 ,)
 

@@ -3,4 +3,4 @@
 @@darshan_share_path@/ld-opts/darshan-posix-ld-opts
 @@darshan_share_path@/ld-opts/darshan-pnetcdf-ld-opts
 @@darshan_share_path@/ld-opts/darshan-stdio-ld-opts
-@@DARSHAN_HDF5_LD_OPTS@
+@DARSHAN_HDF5_LD_OPTS@
