@@ -379,7 +379,8 @@ static void dxt_posix_runtime_initialize()
      * over realloc'ing module memory as needed.
      */
     int dxt_psx_buf_size = 0;
-    int ret, tmpval;
+    int ret;
+    double tmpfloat;
     char *envstr;
 
     /* register the DXT module with darshan core */
@@ -411,11 +412,11 @@ static void dxt_posix_runtime_initialize()
     envstr = getenv("ENABLE_DXT_IO_TRACE_MEM");
     if(envstr && dxt_mpiio_runtime == NULL)
     {
-        ret = sscanf(envstr, "%d", &tmpval);
+        ret = sscanf(envstr, "%lf", &tmpfloat);
         /* silently ignore if the env variable is set poorly */
-        if(ret == 1 && tmpval > 0)
+        if(ret == 1 && tmpfloat > 0)
         {
-            dxt_mem_remaining = tmpval * 1024 * 1024; /* convert from MiB */
+            dxt_mem_remaining = tmpfloat * 1024 * 1024; /* convert from MiB */
         }
     }
     DXT_UNLOCK();
@@ -430,7 +431,8 @@ void dxt_mpiio_runtime_initialize()
      * over realloc'ing module memory as needed.
      */
     int dxt_mpiio_buf_size = 0;
-    int ret, tmpval;
+    int ret;
+    double tmpfloat;
     char *envstr;
 
     /* register the DXT module with darshan core */
@@ -462,11 +464,11 @@ void dxt_mpiio_runtime_initialize()
     envstr = getenv("ENABLE_DXT_IO_TRACE_MEM");
     if(envstr && dxt_posix_runtime == NULL)
     {
-        ret = sscanf(envstr, "%d", &tmpval);
+        ret = sscanf(envstr, "%lf", &tmpfloat);
         /* silently ignore if the env variable is set poorly */
-        if(ret == 1 && tmpval > 0)
+        if(ret == 1 && tmpfloat > 0)
         {
-            dxt_mem_remaining = tmpval * 1024 * 1024; /* convert from MiB */
+            dxt_mem_remaining = tmpfloat * 1024 * 1024; /* convert from MiB */
         }
     }
     DXT_UNLOCK();

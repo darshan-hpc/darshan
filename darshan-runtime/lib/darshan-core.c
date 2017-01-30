@@ -156,8 +156,9 @@ void darshan_core_initialize(int argc, char **argv)
     char *jobid_str;
     int jobid;
     int ret;
-    int tmpval;
     int i;
+    int tmpval;
+    double tmpfloat;
 
     DARSHAN_MPI_CALL(PMPI_Comm_size)(MPI_COMM_WORLD, &nprocs);
     DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
@@ -219,11 +220,11 @@ void darshan_core_initialize(int argc, char **argv)
         envstr = getenv(DARSHAN_MOD_MEM_OVERRIDE);
         if(envstr)
         {
-            ret = sscanf(envstr, "%d", &tmpval);
+            ret = sscanf(envstr, "%lf", &tmpfloat);
             /* silently ignore if the env variable is set poorly */
-            if(ret == 1 && tmpval > 0)
+            if(ret == 1 && tmpfloat > 0)
             {
-                darshan_mod_mem_quota = tmpval * 1024 * 1024; /* convert from MiB */
+                darshan_mod_mem_quota = tmpfloat * 1024 * 1024; /* convert from MiB */
             }
         }
 
