@@ -472,7 +472,7 @@ void darshan_core_shutdown()
     {
         if(my_rank == 0)
         {
-            fprintf(stderr, "darshan library warning: unable to open log file %s\n",
+            fprintf(stderr, "darshan library warning: unable to create log file %s\n",
                 logfile_name);
         }
         free(logfile_name);
