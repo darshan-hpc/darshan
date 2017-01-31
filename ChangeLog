@@ -4,6 +4,16 @@ Darshan Release Change Log
 
 Darshan-3.1.3-pre1
 =============
+* add new DxT instrumentation modules to provide fine-grained read/write
+  operation tracing at both the POSIX and MPI-IO layers
+    - this functionality should be enabled at runtime by exporting the
+      DXT_ENABLE_IO_TRACE environment variable
+    - trace output is stored within Darshan's traditional log file format
+    - a corresponding trace parser (darshan-dxt-parser) is offered within
+      darshan-util to allow the DxT trace modules to be parsed and displayed
+    - this software was contributed by Cong Xu and Intel's HPDD division.a
+* add logic to allow Darshan to capture command line arguments from Fortran
+  applications (contributed by Cristian Simarro)
 * skip instrumentation attempts for anonymous mmap() calls; this avoids a
   potentential deadlock condition when used with hugepages on Cray systems.
   Reported by Glenn Lockwood and Cristian Simarro.
@@ -15,6 +25,10 @@ Darshan-3.1.3-pre1
   vary the wrapper prototypes to match the corresponding HDF5 library ABI.
   The initial patch for HDF5 1.10 compatibility was contributed by 
   Karl-Ulrich Bamberg.
+* modified Darshan's path exclusion logic to include a whitelist to prevent
+  I/O to/from Cray's Datawarp service from being filtered out (it is located
+  within the /var directory, which historically has been excluded). Reported
+  by Glenn Lockwood.
 
 Darshan-3.1.2
 =============
