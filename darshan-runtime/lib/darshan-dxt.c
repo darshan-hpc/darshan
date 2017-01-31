@@ -410,7 +410,7 @@ static void dxt_posix_runtime_initialize()
     memset(dxt_posix_runtime, 0, sizeof(*dxt_posix_runtime));
 
     /* set the memory quota for DXT, if it has not been initialized */
-    envstr = getenv("ENABLE_DXT_IO_TRACE_MEM");
+    envstr = getenv("DXT_ENABLE_IO_TRACE");
     if(envstr && dxt_mpiio_runtime == NULL)
     {
         ret = sscanf(envstr, "%lf", &tmpfloat);
@@ -463,7 +463,7 @@ void dxt_mpiio_runtime_initialize()
     memset(dxt_mpiio_runtime, 0, sizeof(*dxt_mpiio_runtime));
 
     /* set the memory quota for DXT, if it has not been initialized */
-    envstr = getenv("ENABLE_DXT_IO_TRACE_MEM");
+    envstr = getenv("DXT_ENABLE_IO_TRACE");
     if(envstr && dxt_posix_runtime == NULL)
     {
         ret = sscanf(envstr, "%lf", &tmpfloat);
