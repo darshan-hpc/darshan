@@ -25,6 +25,13 @@ for jobs running on BG/Q systems, a module for gathering Lustre striping data fo
 files on Lustre file systems, and a module for instrumenting stdio (i.e., stream I/O
 functions like `fopen()`, `fread()`, etc).
 
+Starting in version 3.1.3, Darshan also allows for full tracing of application I/O
+workloads using the newly developed Darshan eXtended Tracing (DXT) instrumentation
+module. This module can be selectively enabled at runtime to provide high-fidelity
+traces of an application's I/O workload, as opposed to the coarse-grained I/O summary
+data that Darshan has traditionally provided. Currently, DXT only traces at the POSIX
+and MPI-IO layers.
+
 This document provides generic installation instructions, but "recipes" for
 several common HPC systems are provided at the end of the document as well.
 
@@ -546,6 +553,7 @@ behavior at runtime:
 * DARSHAN_LOGFILE: specifies the path (directory + Darshan log file name) to write the output Darshan log to. This overrides the default Darshan behavior of automatically generating a log file name and adding it to a log file directory formatted using darshan-mk-log-dirs script.
 * DARSHAN_MODMEM: specifies the maximum amount of memory (in MiB) Darshan instrumentation modules can collectively consume at runtime (if not specified, Darshan uses a default quota of 2 MiB).
 * DARSHAN_MMAP_LOGPATH: if Darshan's mmap log file mechanism is enabled, this variable specifies what path the mmap log files should be stored in (if not specified, log files will be stored in `/tmp`).
+* DXT_ENABLE_IO_TRACE: setting this environment variable enables the DXT (Darshan eXtended Tracing) modules at runtime. Users can specify a numeric value for this variable to set the number of MiB to use for tracing per process; if no value is specified, Darshan will use a default value of 4 MiB.
 
 == Debugging
 
