@@ -140,8 +140,8 @@ struct darshan_base_record
     X(DARSHAN_LUSTRE_MOD,   "LUSTRE",   DARSHAN_LUSTRE_VER,     &lustre_logutils) \
     X(DARSHAN_STDIO_MOD,    "STDIO",    DARSHAN_STDIO_VER,      &stdio_logutils) \
     /* DXT */ \
-    X(DXT_POSIX_MOD,       "X_POSIX",  DXT_POSIX_VER,         &dxt_posix_logutils) \
-    X(DXT_MPIIO_MOD,       "X_MPIIO",  DXT_MPIIO_VER,         &dxt_mpiio_logutils)
+    X(DXT_POSIX_MOD,       "DXT_POSIX",  DXT_POSIX_VER,         &dxt_posix_logutils) \
+    X(DXT_MPIIO_MOD,       "DXT_MPIIO",  DXT_MPIIO_VER,         &dxt_mpiio_logutils)
 
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
