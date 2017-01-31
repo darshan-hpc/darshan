@@ -48,9 +48,6 @@
 /* default name record buf can store 2048 records of size 100 bytes */
 #define DARSHAN_NAME_RECORD_BUF_SIZE (2048 * 100)
 
-/* Default runtime compression buffer size */
-#define DARSHAN_COMP_BUF_SIZE DARSHAN_MOD_MEM_MAX
-
 /* structure to track registered modules */
 struct darshan_core_module
 {

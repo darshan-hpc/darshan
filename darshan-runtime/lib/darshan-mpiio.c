@@ -862,7 +862,7 @@ static void mpiio_runtime_initialize()
     memset(mpiio_runtime, 0, sizeof(*mpiio_runtime));
 
     /* check if DXT (Darshan extended tracing) should be enabled */
-    if (getenv("ENABLE_DXT_IO_TRACE")) {
+    if (getenv("ENABLE_DXT_IO_TRACE_MEM")) {
         enable_dxt_io_trace = 1;
     }
 

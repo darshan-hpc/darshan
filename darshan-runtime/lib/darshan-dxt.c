@@ -35,7 +35,11 @@ typedef int64_t off64_t;
 #endif
 
 /* maximum amount of memory to use for storing DXT records */
-#define DXT_IO_TRACE_MEM_MAX (4 * 1024 * 1024) /* 4 MiB */
+#ifdef __DARSHAN_MOD_MEM_MAX
+#define DXT_IO_TRACE_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024 * 1024)
+#else
+#define DXT_IO_TRACE_MEM_MAX (4 * 1024 * 1024) /* 4 MiB default */
+#endif
 
 /* initial size of read/write trace buffer (in number of segments) */
 /* NOTE: when this size is exceeded, the buffer size is doubled */
@@ -137,7 +141,8 @@ static pthread_mutex_t dxt_runtime_mutex =
             PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 static int dxt_my_rank = -1;
-static int dxt_mem_remaining = DXT_IO_TRACE_MEM_MAX;
+static int dxt_total_mem = DXT_IO_TRACE_MEM_MAX;
+static int dxt_mem_remaining = 0;
 
 #define DXT_LOCK() pthread_mutex_lock(&dxt_runtime_mutex)
 #define DXT_UNLOCK() pthread_mutex_unlock(&dxt_runtime_mutex)
@@ -375,6 +380,9 @@ static void dxt_posix_runtime_initialize()
      * over realloc'ing module memory as needed.
      */
     int dxt_psx_buf_size = 0;
+    int ret;
+    double tmpfloat;
+    char *envstr;
 
     /* register the DXT module with darshan core */
     darshan_core_register_module(
@@ -391,13 +399,29 @@ static void dxt_posix_runtime_initialize()
         return;
     }
 
+    DXT_LOCK();
     dxt_posix_runtime = malloc(sizeof(*dxt_posix_runtime));
     if(!dxt_posix_runtime)
     {
         darshan_core_unregister_module(DXT_POSIX_MOD);
+        DXT_UNLOCK();
         return;
     }
     memset(dxt_posix_runtime, 0, sizeof(*dxt_posix_runtime));
+
+    /* set the memory quota for DXT, if it has not been initialized */
+    envstr = getenv("ENABLE_DXT_IO_TRACE_MEM");
+    if(envstr && dxt_mpiio_runtime == NULL)
+    {
+        ret = sscanf(envstr, "%lf", &tmpfloat);
+        /* silently ignore if the env variable is set poorly */
+        if(ret == 1 && tmpfloat > 0)
+        {
+            dxt_total_mem = tmpfloat * 1024 * 1024; /* convert from MiB */
+        }
+    }
+    dxt_mem_remaining = dxt_total_mem;
+    DXT_UNLOCK();
 
     return;
 }
@@ -409,6 +433,9 @@ void dxt_mpiio_runtime_initialize()
      * over realloc'ing module memory as needed.
      */
     int dxt_mpiio_buf_size = 0;
+    int ret;
+    double tmpfloat;
+    char *envstr;
 
     /* register the DXT module with darshan core */
     darshan_core_register_module(
@@ -425,13 +452,29 @@ void dxt_mpiio_runtime_initialize()
         return;
     }
 
+    DXT_LOCK();
     dxt_mpiio_runtime = malloc(sizeof(*dxt_mpiio_runtime));
     if(!dxt_mpiio_runtime)
     {
         darshan_core_unregister_module(DXT_MPIIO_MOD);
+        DXT_UNLOCK();
         return;
     }
     memset(dxt_mpiio_runtime, 0, sizeof(*dxt_mpiio_runtime));
+
+    /* set the memory quota for DXT, if it has not been initialized */
+    envstr = getenv("ENABLE_DXT_IO_TRACE_MEM");
+    if(envstr && dxt_posix_runtime == NULL)
+    {
+        ret = sscanf(envstr, "%lf", &tmpfloat);
+        /* silently ignore if the env variable is set poorly */
+        if(ret == 1 && tmpfloat > 0)
+        {
+            dxt_total_mem = tmpfloat * 1024 * 1024; /* convert from MiB */
+        }
+    }
+    dxt_mem_remaining = dxt_total_mem;
+    DXT_UNLOCK();
 
     return;
 }
@@ -682,10 +725,10 @@ static void dxt_posix_shutdown(
 
     *dxt_posix_buf_sz = 0;
 
-    dxt_posix_runtime->record_buf = malloc(DXT_IO_TRACE_MEM_MAX);
+    dxt_posix_runtime->record_buf = malloc(dxt_total_mem);
     if(!(dxt_posix_runtime->record_buf))
         return;
-    memset(dxt_posix_runtime->record_buf, 0, DXT_IO_TRACE_MEM_MAX);
+    memset(dxt_posix_runtime->record_buf, 0, dxt_total_mem);
     dxt_posix_runtime->record_buf_size = 0;
 
     /* iterate all dxt posix records and serialize them to the output buffer */
@@ -792,10 +835,10 @@ static void dxt_mpiio_shutdown(
 
     *dxt_mpiio_buf_sz = 0;
 
-    dxt_mpiio_runtime->record_buf = malloc(DXT_IO_TRACE_MEM_MAX);
+    dxt_mpiio_runtime->record_buf = malloc(dxt_total_mem);
     if(!(dxt_mpiio_runtime->record_buf))
         return;
-    memset(dxt_mpiio_runtime->record_buf, 0, DXT_IO_TRACE_MEM_MAX);
+    memset(dxt_mpiio_runtime->record_buf, 0, dxt_total_mem);
     dxt_mpiio_runtime->record_buf_size = 0;
 
     /* iterate all dxt posix records and serialize them to the output buffer */
