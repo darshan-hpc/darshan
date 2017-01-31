@@ -405,7 +405,7 @@ void darshan_core_shutdown()
         final_core->log_job_p->end_time = last_end_time;
     }
 
-    final_core->comp_buf = malloc(DARSHAN_COMP_BUF_SIZE);
+    final_core->comp_buf = malloc(darshan_mod_mem_quota);
     if(!(final_core->comp_buf))
     {
         darshan_core_cleanup(final_core);
@@ -1558,7 +1558,7 @@ static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
     }
 
     tmp_stream.next_out = (unsigned char *)comp_buf;
-    tmp_stream.avail_out = DARSHAN_COMP_BUF_SIZE;
+    tmp_stream.avail_out = darshan_mod_mem_quota;
 
     /* loop over the input pointers */
     for(i = 0; i < count; i++)
