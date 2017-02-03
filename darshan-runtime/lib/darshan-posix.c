@@ -62,8 +62,10 @@ DARSHAN_FORWARD_DECL(__lxstat, int, (int vers, const char* path, struct stat *bu
 DARSHAN_FORWARD_DECL(__lxstat64, int, (int vers, const char* path, struct stat64 *buf));
 DARSHAN_FORWARD_DECL(__fxstat, int, (int vers, int fd, struct stat *buf));
 DARSHAN_FORWARD_DECL(__fxstat64, int, (int vers, int fd, struct stat64 *buf));
+#ifdef DARSHAN_WRAP_MMAP
 DARSHAN_FORWARD_DECL(mmap, void*, (void *addr, size_t length, int prot, int flags, int fd, off_t offset));
 DARSHAN_FORWARD_DECL(mmap64, void*, (void *addr, size_t length, int prot, int flags, int fd, off64_t offset));
+#endif /* DARSHAN_WRAP_MMAP */
 DARSHAN_FORWARD_DECL(fsync, int, (int fd));
 DARSHAN_FORWARD_DECL(fdatasync, int, (int fd));
 DARSHAN_FORWARD_DECL(close, int, (int fd));
@@ -917,6 +919,7 @@ int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
     return(ret);
 }
 
+#ifdef DARSHAN_WRAP_MMAP
 void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
     int fd, off_t offset)
 {
@@ -947,7 +950,9 @@ void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
 
     return(ret);
 }
+#endif /* DARSHAN_WRAP_MMAP */
 
+#ifdef DARSHAN_WRAP_MMAP
 void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
     int fd, off64_t offset)
 {
@@ -978,6 +983,7 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
 
     return(ret);
 }
+#endif /* DARSHAN_WRAP_MMAP */
 
 int DARSHAN_DECL(fsync)(int fd)
 {
