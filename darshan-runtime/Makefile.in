@@ -87,7 +87,7 @@ lib/darshan-null.po: lib/darshan-null.c darshan.h darshan-dynamic.h darshan-comm
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
 lib/darshan-posix.o: lib/darshan-posix.c darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-posix-log-format.h | lib
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -DDARSHAN_WRAP_MMAP -c $< -o $@
 
 lib/darshan-posix.po: lib/darshan-posix.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-posix-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@

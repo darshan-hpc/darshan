@@ -16,7 +16,10 @@ Darshan-3.1.3-pre1
   applications (contributed by Cristian Simarro)
 * skip instrumentation attempts for anonymous mmap() calls; this avoids a
   potentential deadlock condition when used with hugepages on Cray systems.
-  Reported by Glenn Lockwood and Cristian Simarro.
+  Reported by Glenn Lockwood for static linking case.
+* disable instrumentation for mmap when dynamically linking; this avoids a
+  potential deadlock condition on Cray systems using dynamically linked
+  executabes.  Reported by Cristian Simarro for dynamic linking case.
 * fix segmentation fault in statistics collection for applications that issue
   operations with a large number of distince access sizes or strides on the
   same file.  Reported by Glenn Lockwood.
