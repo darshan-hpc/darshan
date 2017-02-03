@@ -1349,6 +1349,10 @@ static struct posix_file_record_ref *posix_track_new_file_record(
     file_rec->base_rec.rank = my_rank;
     file_rec->counters[POSIX_MEM_ALIGNMENT] = darshan_mem_alignment;
     file_rec->counters[POSIX_FILE_ALIGNMENT] = fs_info.block_size;
+#ifndef DARSHAN_WRAP_MMAP
+    /* set invalid value here if MMAP instrumentation is disabled */
+    file_rec->counters[POSIX_MMAPS] = -1;
+#endif /* undefined DARSHAN_WRAP_MMAP */
     rec_ref->fs_type = fs_info.fs_type;
     rec_ref->file_rec = file_rec;
     posix_runtime->file_rec_count++;
