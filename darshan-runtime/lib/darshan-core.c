@@ -436,6 +436,7 @@ void darshan_core_shutdown()
     if(strlen(logfile_name) == 0)
     {
         /* failed to generate log file name */
+        fprintf(stderr, "darshan library warning: unable to determine log file path\n");
         free(logfile_name);
         darshan_core_cleanup(final_core);
         return;
