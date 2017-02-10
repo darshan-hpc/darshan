@@ -26,11 +26,13 @@ files on Lustre file systems, and a module for instrumenting stdio (i.e., stream
 functions like `fopen()`, `fread()`, etc).
 
 Starting in version 3.1.3, Darshan also allows for full tracing of application I/O
-workloads using the newly developed Darshan eXtended Tracing (DXT) instrumentation
+workloads using the newly developed Darshan eXtended Tracing (DxT) instrumentation
 module. This module can be selectively enabled at runtime to provide high-fidelity
 traces of an application's I/O workload, as opposed to the coarse-grained I/O summary
-data that Darshan has traditionally provided. Currently, DXT only traces at the POSIX
-and MPI-IO layers.
+data that Darshan has traditionally provided. Currently, DxT only traces at the POSIX
+and MPI-IO layers. Initial link:DXT-overhead.pdf[performance results] demonstrate the
+low overhead of DxT tracing, offering comparable performance to Darshan's traditional
+coarse-grained instrumentation methods.
 
 This document provides generic installation instructions, but "recipes" for
 several common HPC systems are provided at the end of the document as well.
