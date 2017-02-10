@@ -2,6 +2,12 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.1.3
+=============
+* disable instrumentation for mmap when dynamically linking; this avoids a
+  potential deadlock condition on Cray systems using dynamically linked
+  executabes.  Reported by Cristian Simarro for dynamic linking case.
+
 Darshan-3.1.3-pre1
 =============
 * add new DxT instrumentation modules to provide fine-grained read/write
@@ -11,15 +17,12 @@ Darshan-3.1.3-pre1
     - trace output is stored within Darshan's traditional log file format
     - a corresponding trace parser (darshan-dxt-parser) is offered within
       darshan-util to allow the DxT trace modules to be parsed and displayed
-    - this software was contributed by Cong Xu and Intel's HPDD division.a
+    - this software was contributed by Cong Xu and Intel's HPDD division.
 * add logic to allow Darshan to capture command line arguments from Fortran
   applications (contributed by Cristian Simarro)
 * skip instrumentation attempts for anonymous mmap() calls; this avoids a
   potentential deadlock condition when used with hugepages on Cray systems.
   Reported by Glenn Lockwood for static linking case.
-* disable instrumentation for mmap when dynamically linking; this avoids a
-  potential deadlock condition on Cray systems using dynamically linked
-  executabes.  Reported by Cristian Simarro for dynamic linking case.
 * fix segmentation fault in statistics collection for applications that issue
   operations with a large number of distince access sizes or strides on the
   same file.  Reported by Glenn Lockwood.
