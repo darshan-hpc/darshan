@@ -25,6 +25,11 @@ static int dxt_log_put_posix_file(darshan_fd fd, void* dxt_posix_buf);
 static int dxt_log_get_mpiio_file(darshan_fd fd, void** dxt_mpiio_buf_p);
 static int dxt_log_put_mpiio_file(darshan_fd fd, void* dxt_mpiio_buf);
 
+static void dxt_log_print_posix_file_darshan(void *file_rec,
+            char *file_name, char *mnt_pt, char *fs_type);
+static void dxt_log_print_mpiio_file_darshan(void *file_rec,
+            char *file_name, char *mnt_pt, char *fs_type);
+
 static void dxt_swap_file_record(struct dxt_file_record *file_rec);
 static void dxt_swap_file_record(struct dxt_file_record *file_rec);
 
@@ -32,7 +37,7 @@ struct darshan_mod_logutil_funcs dxt_posix_logutils =
 {
     .log_get_record = &dxt_log_get_posix_file,
     .log_put_record = &dxt_log_put_posix_file,
-    .log_print_record = NULL,
+    .log_print_record = &dxt_log_print_posix_file_darshan,
     .log_print_description = NULL,
     .log_print_diff = NULL,
     .log_agg_records = NULL,
@@ -42,7 +47,7 @@ struct darshan_mod_logutil_funcs dxt_mpiio_logutils =
 {
     .log_get_record = &dxt_log_get_mpiio_file,
     .log_put_record = &dxt_log_put_mpiio_file,
-    .log_print_record = NULL,
+    .log_print_record = &dxt_log_print_mpiio_file_darshan,
     .log_print_description = NULL,
     .log_print_diff = NULL,
     .log_agg_records = NULL,
@@ -241,6 +246,16 @@ static int dxt_log_put_mpiio_file(darshan_fd fd, void* dxt_mpiio_buf)
     return(0);
 }
 
+static void dxt_log_print_posix_file_darshan(void *file_rec, char *file_name,
+    char *mnt_pt, char *fs_type)
+{
+}
+
+static void dxt_log_print_mpiio_file_darshan(void *file_rec, char *file_name,
+    char *mnt_pt, char *fs_type)
+{
+}
+
 void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     char *mnt_pt, char *fs_type, struct lustre_record_ref *lustre_rec_ref)
 {
@@ -286,9 +301,12 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         stripe_count = rec->counters[LUSTRE_STRIPE_WIDTH];
 
         printf("# DXT, Lustre stripe_size: %d, Lustre stripe_count: %d\n", stripe_size, stripe_count);
+
+        printf("# DXT, Lustre OST obdidx:");
         for (i = 0; i < stripe_count; i++) {
-            printf("# DXT, Lustre OSTs: %d\n", (rec->ost_ids)[i]);
+            printf(" %d", (rec->ost_ids)[i]);
         }
+        printf("\n");
     }
 
     /* Print header */

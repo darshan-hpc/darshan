@@ -395,6 +395,9 @@ int main(int argc, char **argv)
                 "for module %s, SKIPPING.\n", darshan_module_names[i]);
             continue;
         }
+        /* always ignore DXT modules -- those have a standalone parsing utility */
+        else if (i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD)
+            continue;
         /* currently only POSIX, MPIIO, and STDIO modules support non-base
          * parsing
          */
