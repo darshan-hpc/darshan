@@ -40,4 +40,12 @@ if [ ! "$MPI_OPENS" -gt 0 ]; then
     exit 1
 fi
 
+# also, ensure that darshan-dxt-parser doesn't complain if given a log file that
+# does not have DXT data present
+$DARSHAN_PATH/bin/darshan-dxt-parser $DARSHAN_LOGFILE > /dev/null
+if [ $? -ne 0 ]; then
+    echo "Error: darshan-dxt-parser failed to handle ${DARSHAN_LOGFILE}" 1>&2
+    exit 1
+fi
+
 exit 0
