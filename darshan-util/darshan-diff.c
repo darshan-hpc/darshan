@@ -191,6 +191,10 @@ int main(int argc, char *argv[])
 
         for(i = 0; i < DARSHAN_MAX_MODS; i++)
         {
+            /* skip the DXT modules -- we won't be diff'ing traces */
+            if(i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD)
+                continue;
+
             /* TODO: skip modules that don't have the same format version, for now */
             if(rec_ref1->mod_recs[i] && rec_ref2 && rec_ref2->mod_recs[i] &&
                 (file1->mod_ver[i] != file2->mod_ver[i]))
