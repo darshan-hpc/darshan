@@ -371,7 +371,7 @@ static int darshan_build_global_record_hash(
      */
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
-        if(!mod_logutils[i]) break;
+        if(!mod_logutils[i]) continue;
 
         while(1)
         {
