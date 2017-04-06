@@ -2,6 +2,12 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.1.4
+=============
+* bug fix to prevent darshan-parser segfault when parsing logs with
+  DXT module data present. Reported by James Dickson.
+* bug fixes to make the darshan-diff utility functional again.
+
 Darshan-3.1.3
 =============
 * disable instrumentation for mmap when dynamically linking; this avoids a
