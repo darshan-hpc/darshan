@@ -24,7 +24,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # parse log
-$DARSHAN_PATH/bin/darshan-dxt-parser $DARSHAN_LOGFILE > $DARSHAN_TMP/${PROG}.darshan.txt
+$DARSHAN_PATH/bin/darshan-dxt-parser $DARSHAN_LOGFILE > $DARSHAN_TMP/${PROG}-dxt.darshan.txt
 if [ $? -ne 0 ]; then
     echo "Error: failed to parse ${DARSHAN_LOGFILE}" 1>&2
     exit 1
