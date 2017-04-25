@@ -72,6 +72,9 @@ char* darshan_path_inclusions[] = {
     NULL
 };
 
+/* allow users to override the path exclusions */
+char** user_darshan_path_exclusions = NULL;
+
 #ifdef DARSHAN_BGQ
 extern void bgq_runtime_initialize();
 #endif
@@ -1044,6 +1047,9 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
     char cmdl[DARSHAN_EXE_LEN];
     int tmp_index = 0;
     int skip = 0;
+    char* env_exclusions;
+    char* string;
+    char* token;
 
     /* skip these fs types */
     static char* fs_exclusions[] = {
@@ -1062,6 +1068,42 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
         "cgroup",
         NULL
     };
+
+    /* Check if user has set the env variable DARSHAN_EXCLUDE_DIRS */
+    env_exclusions = getenv("DARSHAN_EXCLUDE_DIRS");
+    if(env_exclusions)
+    {
+        fs_exclusions[0]=NULL;
+        /* if DARSHAN_EXCLUDE_DIRS=none, do not exclude any dir */
+        if(strncmp(env_exclusions,"none",strlen(env_exclusions))>=0)
+        {
+            if (my_rank == 0) 
+                fprintf(stderr, "INFO: no system dir will be excluded\n");
+            darshan_path_exclusions[0]=NULL;
+        }
+        else
+        {
+            if (my_rank == 0) 
+                fprintf(stderr, "INFO: darshan will exclude these dirs: %s\n",env_exclusions);
+            string = strdupa(env_exclusions);
+            i = 0;
+            /* get the comma separated number of directories */
+            while ((token = strsep(&string, ",")) != NULL)
+            {
+               i++;
+            }
+            user_darshan_path_exclusions=(char **)malloc((i+1)*sizeof(char *));
+            i = 0;
+            string = strdupa(env_exclusions);
+            while ((token = strsep(&string, ",")) != NULL)
+            {
+                user_darshan_path_exclusions[i]=(char *)malloc(strlen(token)+1);
+                strcpy(user_darshan_path_exclusions[i],token);
+                i++;
+            }
+            user_darshan_path_exclusions[i]=NULL;
+        }
+    }
 
     /* record exe and arguments */
     for(i=0; i<argc; i++)
@@ -2088,16 +2130,26 @@ int darshan_core_excluded_path(const char *path)
     int tmp_index = 0;
     int tmp_jndex;
 
-    /* scan blacklist for paths to exclude */
-    while((exclude = darshan_path_exclusions[tmp_index++])) {
-        if(!(strncmp(exclude, path, strlen(exclude)))) {
-            /* before excluding path, ensure it's not in whitelist */
-            tmp_jndex = 0;
-            while((include = darshan_path_inclusions[tmp_jndex++])) {
-                if(!(strncmp(include, path, strlen(include))))
-                    return(0); /* whitelist hits are always tracked */
+    /* if user has set DARSHAN_EXCLUDE_DIRS, override the default ones */
+    if (user_darshan_path_exclusions != NULL) {
+        while((exclude = user_darshan_path_exclusions[tmp_index++])) {
+            if(!(strncmp(exclude, path, strlen(exclude))))
+                return(1);
+        }
+    }
+    else
+    {
+        /* scan blacklist for paths to exclude */
+        while((exclude = darshan_path_exclusions[tmp_index++])) {
+            if(!(strncmp(exclude, path, strlen(exclude)))) {
+                /* before excluding path, ensure it's not in whitelist */
+                tmp_jndex = 0;
+                while((include = darshan_path_inclusions[tmp_jndex++])) {
+                    if(!(strncmp(include, path, strlen(include))))
+                        return(0); /* whitelist hits are always tracked */
+                }
+                return(1); /* if not in whitelist, then blacklist it */
             }
-            return(1); /* if not in whitelist, then blacklist it */
         }
     }
 
