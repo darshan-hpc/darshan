@@ -1078,13 +1078,14 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
         if(strncmp(env_exclusions,"none",strlen(env_exclusions))>=0)
         {
             if (my_rank == 0) 
-                fprintf(stderr, "INFO: no system dir will be excluded\n");
+                fprintf(stderr, "Darshan info: no system dirs will be excluded\n");
             darshan_path_exclusions[0]=NULL;
         }
         else
         {
             if (my_rank == 0) 
-                fprintf(stderr, "INFO: darshan will exclude these dirs: %s\n",env_exclusions);
+                fprintf(stderr, "Darshan info: the following system dirs will be excluded: %s\n",
+                    env_exclusions);
             string = strdup(env_exclusions);
             i = 0;
             /* get the comma separated number of directories */
