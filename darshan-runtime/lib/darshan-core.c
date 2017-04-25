@@ -1078,30 +1078,39 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
         if(strncmp(env_exclusions,"none",strlen(env_exclusions))>=0)
         {
             if (my_rank == 0) 
-                fprintf(stderr, "INFO: no system dir will be excluded\n");
+                fprintf(stderr, "Darshan info: no system dirs will be excluded\n");
             darshan_path_exclusions[0]=NULL;
         }
         else
         {
             if (my_rank == 0) 
-                fprintf(stderr, "INFO: darshan will exclude these dirs: %s\n",env_exclusions);
-            string = strdupa(env_exclusions);
+                fprintf(stderr, "Darshan info: the following system dirs will be excluded: %s\n",
+                    env_exclusions);
+            string = strdup(env_exclusions);
             i = 0;
             /* get the comma separated number of directories */
-            while ((token = strsep(&string, ",")) != NULL)
+            token = strtok(string, ",");
+            while (token != NULL)
             {
-               i++;
+                i++;
+                token = strtok(NULL, ",");
             }
             user_darshan_path_exclusions=(char **)malloc((i+1)*sizeof(char *));
+            assert(user_darshan_path_exclusions);
+
             i = 0;
-            string = strdupa(env_exclusions);
-            while ((token = strsep(&string, ",")) != NULL)
+            strcpy(string, env_exclusions);
+            token = strtok(string, ",");
+            while (token != NULL)
             {
                 user_darshan_path_exclusions[i]=(char *)malloc(strlen(token)+1);
+                assert(user_darshan_path_exclusions[i]);
                 strcpy(user_darshan_path_exclusions[i],token);
                 i++;
+                token = strtok(NULL, ",");
             }
             user_darshan_path_exclusions[i]=NULL;
+            free(string);
         }
     }
 
