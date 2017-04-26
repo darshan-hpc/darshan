@@ -37,6 +37,7 @@ AC_ARG_WITH(bzlib,
   then
     BZLIB_HOME="$withval"
   else
+    BZLIB_HOME=/usr/local
     AC_MSG_WARN([Sorry, $withval does not exist, checking usual places])
   fi
 else
@@ -44,17 +45,16 @@ else
   AC_MSG_RESULT(no)
 fi])
 
-BZLIB_HOME=/usr/local
-if test ! -f "${BZLIB_HOME}/include/bzlib.h"
-then
-        BZLIB_HOME=/usr
-fi
-
 #
 # Locate bzlib, if wanted
 #
 if test -z "${DISABLE_BZLIB}" 
 then
+        if test ! -f "${BZLIB_HOME}/include/bzlib.h"
+        then
+            BZLIB_HOME=/usr
+        fi
+
         AC_MSG_RESULT(yes)
         BZLIB_OLD_LDFLAGS=$LDFLAGS
         BZLIB_OLD_CPPFLAGS=$CPPFLAGS

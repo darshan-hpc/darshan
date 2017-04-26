@@ -3525,6 +3525,7 @@ if test "${with_bzlib+set}" = set; then :
   then
     BZLIB_HOME="$withval"
   else
+    BZLIB_HOME=/usr/local
     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Sorry, $withval does not exist, checking usual places" >&5
 $as_echo "$as_me: WARNING: Sorry, $withval does not exist, checking usual places" >&2;}
   fi
@@ -3536,17 +3537,16 @@ fi
 fi
 
 
-BZLIB_HOME=/usr/local
-if test ! -f "${BZLIB_HOME}/include/bzlib.h"
-then
-        BZLIB_HOME=/usr
-fi
-
 #
 # Locate bzlib, if wanted
 #
 if test -z "${DISABLE_BZLIB}"
 then
+        if test ! -f "${BZLIB_HOME}/include/bzlib.h"
+        then
+            BZLIB_HOME=/usr
+        fi
+
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
         BZLIB_OLD_LDFLAGS=$LDFLAGS
