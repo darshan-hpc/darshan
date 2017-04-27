@@ -31,4 +31,5 @@ export DARSHAN_F90=ftn
 
 export DARSHAN_RUNJOB="cray-module-alcf/runjob.sh"
 
+module unload darshan >& /dev/null
 module load $DARSHAN_PATH/share/craype-2.x/modulefiles/
