@@ -14,6 +14,7 @@
 #include <mpi.h>
 #include <errno.h>
 #include <getopt.h>
+#include <sys/stat.h>
 
 /* DEFAULT VALUES FOR OPTIONS */
 static char    opt_file[256] = "test.out";
