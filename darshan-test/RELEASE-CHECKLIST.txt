@@ -26,7 +26,7 @@ Notes on how to release a new version of Darshan
 - TESTING
   - manually trigger jenkins test
   - run regression tests on BG platform (see
-    darshan-test/regression/README.BG.txt)
+    darshan-test/regression/README.BG.ALCF.txt)
 - export the tag and tar gzip it
   - easiest method is to do a fresh checkout and remove the .git
     subdirectory

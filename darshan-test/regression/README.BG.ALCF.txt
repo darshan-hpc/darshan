@@ -23,7 +23,7 @@ To run regression tests:
   export PATH=/bgsys/drivers/V1R2M2/ppc64/comm/bin/gcc:$PATH
 
 - run regression tests
-  ./run-all.sh /home/carns/working/darshan/install-cetus /projects/SSSPPg/carns/darshan-test bg-profile-conf
+  ./run-all.sh /home/carns/working/darshan/install-cetus /projects/SSSPPg/carns/darshan-test bg-profile-conf-alcf
   note: the f90 test is expected to fail due to a known problem in the profiling interface for the 
     F90 MPICH implementation on Mira.
 

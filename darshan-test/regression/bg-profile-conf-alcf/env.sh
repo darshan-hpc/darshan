@@ -16,7 +16,7 @@
 # variables (as in a dynamically linked environment), or generate mpicc
 # wrappers (as in a statically linked environment).
 
-# Notes specific to this platform (bg-profile-conf)
+# Notes specific to this platform (bg-profile-conf-alcf)
 ########################
 # This particular env script assumes that mpicc and its variants for other 
 # languages are already in the path, and that they will produce static 
@@ -36,4 +36,4 @@ export MPICXX_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-bg-cxx
 export MPIF90_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-bg-f
 export MPIF77_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-bg-f
 
-export DARSHAN_RUNJOB="bg-profile-conf/runjob.sh"
+export DARSHAN_RUNJOB="bg-profile-conf-alcf/runjob.sh"
