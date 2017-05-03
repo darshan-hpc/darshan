@@ -628,7 +628,7 @@ int main(int argc, char **argv)
             printf("# ...........................\n");
             printf("# unique files: slowest_rank_io_time: %lf\n", pdata.slowest_rank_time);
             printf("# unique files: slowest_rank_meta_only_time: %lf\n", pdata.slowest_rank_meta_time);
-            printf("# unique files: slowest rank: %d\n", pdata.slowest_rank_rank);
+            printf("# unique files: slowest_rank: %d\n", pdata.slowest_rank_rank);
             printf("#\n");
             printf("# I/O timing for shared files (seconds):\n");
             printf("# (multiple estimates shown; time_by_slowest is generally the most accurate)\n");
