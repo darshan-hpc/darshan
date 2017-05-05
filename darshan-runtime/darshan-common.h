@@ -18,10 +18,10 @@
 #define DARSHAN_TIMER_INC_NO_OVERLAP(__timer, __tm1, __tm2, __last) do{ \
     if(__tm1 > __last) \
         __timer += (__tm2 - __tm1); \
-    else \
+    else if(__tm2 > __last) {\
         __timer += (__tm2 - __last); \
-    if(__tm2 > __last) \
         __last = __tm2; \
+    }\
 } while(0)
 
 /* increment histogram bucket depending on the given __value
