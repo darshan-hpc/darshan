@@ -956,10 +956,12 @@ int DARSHAN_DECL(fsetpos64)(FILE *stream, const fpos64_t *pos)
 static void stdio_runtime_initialize()
 {
     int stdio_buf_size;
+    struct stdio_file_record_ref *rec_ref;
 
     /* try to store default number of records for this module */
     stdio_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_stdio_file);
 
+    STDIO_LOCK();
     /* register the stdio module with darshan core */
     darshan_core_register_module(
         DARSHAN_STDIO_MOD,
@@ -972,6 +974,7 @@ static void stdio_runtime_initialize()
     if(stdio_buf_size < sizeof(struct darshan_stdio_file))
     {
         darshan_core_unregister_module(DARSHAN_STDIO_MOD);
+        STDIO_UNLOCK();
         return;
     }
 
@@ -979,14 +982,31 @@ static void stdio_runtime_initialize()
     if(!stdio_runtime)
     {
         darshan_core_unregister_module(DARSHAN_STDIO_MOD);
+        STDIO_UNLOCK();
         return;
     }
     memset(stdio_runtime, 0, sizeof(*stdio_runtime));
 
     /* instantiate records for stdin, stdout, and stderr */
+    /* NOTE: the RECORD_OPEN initializes a record, but then we immediately zero out the
+     * open count because we did not actual observe an explicit open call for these streams
+     */
     STDIO_RECORD_OPEN(stdin, "<STDIN>", 0, 0);
+    rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &stdin, sizeof(stdin));
+    assert(rec_ref);
+    rec_ref->file_rec->counters[STDIO_OPENS] = 0;
+
     STDIO_RECORD_OPEN(stdout, "<STDOUT>", 0, 0);
+    rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &stdout, sizeof(stdout));
+    assert(rec_ref);
+    rec_ref->file_rec->counters[STDIO_OPENS] = 0;
+
     STDIO_RECORD_OPEN(stderr, "<STDERR>", 0, 0);
+    rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &stderr, sizeof(stderr));
+    assert(rec_ref);
+    rec_ref->file_rec->counters[STDIO_OPENS] = 0;
+
+    STDIO_UNLOCK();
 }
 
 /************************************************************************
@@ -1231,8 +1251,9 @@ static void stdio_shutdown(
      */
     for(i=0; i<stdio_rec_count; i++)
     {
-        if(stdio_rec_buf[i].counters[STDIO_WRITES] == 0 &&
-            stdio_rec_buf[i].counters[STDIO_READS] == 0)
+        if(stdio_rec_buf[i].counters[STDIO_OPENS] == 0 &&
+            stdio_rec_buf[i].counters[STDIO_READS] == 0 &&
+            stdio_rec_buf[i].counters[STDIO_WRITES] == 0)
         {
             if(i != (stdio_rec_count-1))
             {
