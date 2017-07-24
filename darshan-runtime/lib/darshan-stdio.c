@@ -139,7 +139,6 @@ struct stdio_runtime
 
 static struct stdio_runtime *stdio_runtime = NULL;
 static pthread_mutex_t stdio_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-static int instrumentation_disabled = 0;
 static int darshan_mem_alignment = 1;
 static int my_rank = -1;
 
@@ -164,7 +163,7 @@ static void stdio_cleanup_runtime();
 
 #define STDIO_PRE_RECORD() do { \
     STDIO_LOCK(); \
-    if(!instrumentation_disabled) { \
+    if(!darshan_core_disabled_instrumentation()) { \
         if(!stdio_runtime) stdio_runtime_initialize(); \
         if(stdio_runtime) break; \
     } \
@@ -772,7 +771,7 @@ void DARSHAN_DECL(rewind)(FILE *stream)
      * value in this wrapper.
      */
     STDIO_LOCK();
-    if(instrumentation_disabled) {
+    if(darshan_core_disabled_instrumentation()) {
         STDIO_UNLOCK();
         return;
     }
@@ -1120,9 +1119,6 @@ static void stdio_shutdown(
     STDIO_LOCK();
     assert(stdio_runtime);
 
-    /* disable further instrumentation */
-    instrumentation_disabled = 1;
-
     stdio_rec_count = stdio_runtime->file_rec_count;
 
     /* if there are globally shared files, do a shared file reduction */
@@ -1313,7 +1309,6 @@ static void stdio_cleanup_runtime()
 
     free(stdio_runtime);
     stdio_runtime = NULL;
-    instrumentation_disabled = 0;
 
     return;
 }

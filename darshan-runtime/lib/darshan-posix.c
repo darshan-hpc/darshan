@@ -167,7 +167,6 @@ extern void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
 
 static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-static int instrumentation_disabled = 0;
 static int my_rank = -1;
 static int darshan_mem_alignment = 1;
 static int enable_dxt_io_trace = 0;
@@ -177,7 +176,7 @@ static int enable_dxt_io_trace = 0;
 
 #define POSIX_PRE_RECORD() do { \
     POSIX_LOCK(); \
-    if(!instrumentation_disabled) { \
+    if(!darshan_core_disabled_instrumentation()) { \
         if(!posix_runtime) { \
             posix_runtime_initialize(); \
         } \
@@ -1736,7 +1735,6 @@ static void posix_cleanup_runtime()
 
     free(posix_runtime);
     posix_runtime = NULL;
-    instrumentation_disabled = 0;
 
     return;
 }
@@ -1836,9 +1834,6 @@ static void posix_shutdown(
 
     POSIX_LOCK();
     assert(posix_runtime);
-
-    /* disable instrumentation while we shutdown */
-    instrumentation_disabled = 1;
 
     posix_rec_count = posix_runtime->file_rec_count;
 
