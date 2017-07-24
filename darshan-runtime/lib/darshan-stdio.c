@@ -1238,9 +1238,9 @@ static void stdio_shutdown(
             {
                 memmove(&stdio_rec_buf[i], &stdio_rec_buf[i+1],
                     (stdio_rec_count-i-1)*sizeof(stdio_rec_buf[i]));
-                stdio_rec_count--;
                 i--;
             }
+            stdio_rec_count--;
         }
     }
 
