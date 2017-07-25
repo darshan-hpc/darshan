@@ -16,6 +16,8 @@
  * I/O operation (which we don't want to overlap with).
  */
 #define DARSHAN_TIMER_INC_NO_OVERLAP(__timer, __tm1, __tm2, __last) do{ \
+    if (__tm1 == 0.0 || __tm2 == 0.0) \
+        break; \
     if(__tm1 > __last) \
         __timer += (__tm2 - __tm1); \
     else \
