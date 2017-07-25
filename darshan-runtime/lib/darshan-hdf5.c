@@ -67,7 +67,6 @@ static void hdf5_shutdown(
 
 static struct hdf5_runtime *hdf5_runtime = NULL;
 static pthread_mutex_t hdf5_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-static int instrumentation_disabled = 0;
 static int my_rank = -1;
 
 #define HDF5_LOCK() pthread_mutex_lock(&hdf5_runtime_mutex)
@@ -75,7 +74,7 @@ static int my_rank = -1;
 
 #define HDF5_PRE_RECORD() do { \
     HDF5_LOCK(); \
-    if(!instrumentation_disabled) { \
+    if(!darshan_core_disabled_instrumentation()) { \
         if(!hdf5_runtime) hdf5_runtime_initialize(); \
         if(hdf5_runtime) break; \
     } \
@@ -382,7 +381,6 @@ static void hdf5_cleanup_runtime()
 
     free(hdf5_runtime);
     hdf5_runtime = NULL;
-    instrumentation_disabled = 0;
 
     return;
 }
@@ -409,9 +407,6 @@ static void hdf5_shutdown(
 
     HDF5_LOCK();
     assert(hdf5_runtime);
-
-    /* disable further instrumentation */
-    instrumentation_disabled = 1;
 
     hdf5_rec_count = hdf5_runtime->file_rec_count;
 

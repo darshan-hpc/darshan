@@ -57,7 +57,6 @@ static void pnetcdf_shutdown(
 
 static struct pnetcdf_runtime *pnetcdf_runtime = NULL;
 static pthread_mutex_t pnetcdf_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-static int instrumentation_disabled = 0;
 static int my_rank = -1;
 
 #define PNETCDF_LOCK() pthread_mutex_lock(&pnetcdf_runtime_mutex)
@@ -65,7 +64,7 @@ static int my_rank = -1;
 
 #define PNETCDF_PRE_RECORD() do { \
     PNETCDF_LOCK(); \
-    if(!instrumentation_disabled) { \
+    if(!darshan_core_disabled_instrumentation()) { \
         if(!pnetcdf_runtime) pnetcdf_runtime_initialize(); \
         if(pnetcdf_runtime) break; \
     } \
@@ -337,7 +336,6 @@ static void pnetcdf_cleanup_runtime()
 
     free(pnetcdf_runtime);
     pnetcdf_runtime = NULL;
-    instrumentation_disabled = 0;
 
     return;
 }
@@ -365,9 +363,6 @@ static void pnetcdf_shutdown(
 
     PNETCDF_LOCK();
     assert(pnetcdf_runtime);
-
-    /* disable further instrumentation while we shutdown */
-    instrumentation_disabled = 1;
 
     pnetcdf_rec_count = pnetcdf_runtime->file_rec_count;
 

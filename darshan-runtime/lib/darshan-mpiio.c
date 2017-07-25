@@ -95,7 +95,6 @@ extern void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
 
 static struct mpiio_runtime *mpiio_runtime = NULL;
 static pthread_mutex_t mpiio_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-static int instrumentation_disabled = 0;
 static int my_rank = -1;
 static int enable_dxt_io_trace = 0;
 
@@ -104,7 +103,7 @@ static int enable_dxt_io_trace = 0;
 
 #define MPIIO_PRE_RECORD() do { \
     MPIIO_LOCK(); \
-    if(!instrumentation_disabled) { \
+    if(!darshan_core_disabled_instrumentation()) { \
         if(!mpiio_runtime) { \
             mpiio_runtime_initialize(); \
         } \
@@ -1192,7 +1191,6 @@ static void mpiio_cleanup_runtime()
 
     free(mpiio_runtime);
     mpiio_runtime = NULL;
-    instrumentation_disabled = 0;
 
     return;
 }
@@ -1300,9 +1298,6 @@ static void mpiio_shutdown(
 
     MPIIO_LOCK();
     assert(mpiio_runtime);
-
-    /* disable further instrumentation while we shutdown */
-    instrumentation_disabled = 1;
 
     mpiio_rec_count = mpiio_runtime->file_rec_count;
 

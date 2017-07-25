@@ -173,4 +173,13 @@ double darshan_core_wtime(void);
 int darshan_core_excluded_path(
     const char * path);
 
+/* darshan_core_disabled_instrumentation
+ *
+ * Returns true (1) if Darshan has currently disabled instrumentation,
+ * false (0) otherwise. If instrumentation is disabled, modules should
+ * no longer update any file records as part of the intercepted function
+ * wrappers.
+ */
+int darshan_core_disabled_instrumentation(void);
+
 #endif /* __DARSHAN_H */

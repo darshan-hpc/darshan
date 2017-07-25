@@ -41,7 +41,6 @@ static void lustre_shutdown(
 
 struct lustre_runtime *lustre_runtime = NULL;
 static pthread_mutex_t lustre_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-static int instrumentation_disabled = 0;
 static int my_rank = -1;
 
 #define LUSTRE_LOCK() pthread_mutex_lock(&lustre_runtime_mutex)
@@ -64,11 +63,6 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
     int ret;
 
     LUSTRE_LOCK();
-    if(instrumentation_disabled)
-    {
-        LUSTRE_UNLOCK();
-        return;
-    }
 
     /* try to init module if not already */
     if(!lustre_runtime) lustre_runtime_initialize();
@@ -234,9 +228,6 @@ static void lustre_shutdown(
     LUSTRE_LOCK();
     assert(lustre_runtime);
 
-    /* disable further instrumentation while we shutdown */
-    instrumentation_disabled = 1;
-
     lustre_runtime->record_buffer = *lustre_buf;
     lustre_runtime->record_buffer_size = *lustre_buf_sz;
 
@@ -279,7 +270,6 @@ static void lustre_shutdown(
     darshan_clear_record_refs(&(lustre_runtime->record_id_hash), 1);
     free(lustre_runtime);
     lustre_runtime = NULL;
-    instrumentation_disabled = 0;
 
     LUSTRE_UNLOCK();
     return;

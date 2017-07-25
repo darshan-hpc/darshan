@@ -100,8 +100,6 @@ static struct null_runtime *null_runtime = NULL;
  * may not be necessary for all instrumentation modules.
  */
 static pthread_mutex_t null_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-/* the instrumentation_disabled flag is used to toggle wrapper functions on/off */
-static int instrumentation_disabled = 0;
 /* my_rank indicates the MPI rank of this process */
 static int my_rank = -1;
 
@@ -116,7 +114,7 @@ static int my_rank = -1;
  */
 #define NULL_PRE_RECORD() do { \
     NULL_LOCK(); \
-    if(!instrumentation_disabled) { \
+    if(!darshan_core_disabled_instrumentation()) { \
         if(!null_runtime) null_runtime_initialize(); \
         if(null_runtime) break; \
     } \
@@ -295,7 +293,6 @@ static void null_cleanup_runtime()
 
     free(null_runtime);
     null_runtime = NULL;
-    instrumentation_disabled = 0;
 
     return;
 }
@@ -316,9 +313,6 @@ static void null_shutdown(
 {
     NULL_LOCK();
     assert(null_runtime);
-
-    /* disable further instrumentation while we shutdown */
-    instrumentation_disabled = 1;
 
     /* NOTE: this function can be used to run collective operations prior to
      * shutting down the module, as implied by the MPI communicator passed in

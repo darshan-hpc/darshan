@@ -139,7 +139,6 @@ struct stdio_runtime
 
 static struct stdio_runtime *stdio_runtime = NULL;
 static pthread_mutex_t stdio_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-static int instrumentation_disabled = 0;
 static int darshan_mem_alignment = 1;
 static int my_rank = -1;
 
@@ -164,7 +163,7 @@ static void stdio_cleanup_runtime();
 
 #define STDIO_PRE_RECORD() do { \
     STDIO_LOCK(); \
-    if(!instrumentation_disabled) { \
+    if(!darshan_core_disabled_instrumentation()) { \
         if(!stdio_runtime) stdio_runtime_initialize(); \
         if(stdio_runtime) break; \
     } \
@@ -224,7 +223,7 @@ static void stdio_cleanup_runtime();
      rec_ref->file_rec->fcounters[STDIO_F_READ_START_TIMESTAMP] > __tm1) \
         rec_ref->file_rec->fcounters[STDIO_F_READ_START_TIMESTAMP] = __tm1; \
     rec_ref->file_rec->fcounters[STDIO_F_READ_END_TIMESTAMP] = __tm2; \
-    DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[STDIO_F_READ_TIME], __tm1, __tm2, rec_ref->last_write_end); \
+    DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[STDIO_F_READ_TIME], __tm1, __tm2, rec_ref->last_read_end); \
 } while(0)
 
 #define STDIO_RECORD_WRITE(__fp, __bytes,  __tm1, __tm2, __fflush_flag) do{ \
@@ -772,7 +771,7 @@ void DARSHAN_DECL(rewind)(FILE *stream)
      * value in this wrapper.
      */
     STDIO_LOCK();
-    if(instrumentation_disabled) {
+    if(darshan_core_disabled_instrumentation()) {
         STDIO_UNLOCK();
         return;
     }
@@ -1120,9 +1119,6 @@ static void stdio_shutdown(
     STDIO_LOCK();
     assert(stdio_runtime);
 
-    /* disable further instrumentation */
-    instrumentation_disabled = 1;
-
     stdio_rec_count = stdio_runtime->file_rec_count;
 
     /* if there are globally shared files, do a shared file reduction */
@@ -1238,9 +1234,9 @@ static void stdio_shutdown(
             {
                 memmove(&stdio_rec_buf[i], &stdio_rec_buf[i+1],
                     (stdio_rec_count-i-1)*sizeof(stdio_rec_buf[i]));
-                stdio_rec_count--;
                 i--;
             }
+            stdio_rec_count--;
         }
     }
 
@@ -1313,7 +1309,6 @@ static void stdio_cleanup_runtime()
 
     free(stdio_runtime);
     stdio_runtime = NULL;
-    instrumentation_disabled = 0;
 
     return;
 }
