@@ -205,10 +205,9 @@ void resolve_mpi_symbols (void)
 
 #endif
 
-int MPI_Init(int *argc, char ***argv)
+int DARSHAN_MPI_DECL(MPI_Init)(int *argc, char ***argv)
 {
     int ret;
-
 #ifdef DARSHAN_PRELOAD
     resolve_mpi_symbols();
 #endif
@@ -231,6 +230,8 @@ int MPI_Init(int *argc, char ***argv)
 
     return(ret);
 }
+
+DARSHAN_MPI_MAP(MPI_Init, int, (int *argc, char ***argv), MPI_Init(argc,argv))
 
 int MPI_Init_thread(int *argc, char ***argv, int required, int *provided)
 {
@@ -259,7 +260,7 @@ int MPI_Init_thread(int *argc, char ***argv, int required, int *provided)
     return(ret);
 }
 
-int MPI_Finalize(void)
+int DARSHAN_MPI_DECL(MPI_Finalize)(void)
 {
     int ret;
 
@@ -268,6 +269,7 @@ int MPI_Finalize(void)
     ret = DARSHAN_MPI_CALL(PMPI_Finalize)();
     return(ret);
 }
+DARSHAN_MPI_MAP(MPI_Finalize, int, (void), MPI_Finalize())
 
 /*
  * Local variables:

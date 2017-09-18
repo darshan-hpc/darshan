@@ -28,6 +28,20 @@
 
 #define DARSHAN_DECL(__func) __func
 
+#define DARSHAN_MPI_DECL(__func) __wrap_ ## __func
+
+#define DARSHAN_MPI_MAP(__func,__ret,__args,__fcall) \
+	__ret __func __args { \
+		__ret i; \
+		i = __wrap_ ## __fcall; \
+		return i; \
+	} \
+	__ret P ## __func __args { \
+		__ret i; \
+		i = __wrap_ ## __fcall; \
+		return i; \
+	}
+
 #define DARSHAN_MPI_CALL(__func) __real_ ## __func
 
 #define MAP_OR_FAIL(__func) \
@@ -46,6 +60,10 @@
   extern __ret __real_ ## __name __args;
 
 #define DARSHAN_DECL(__name) __wrap_ ## __name
+
+#define DARSHAN_MPI_DECL(__func) __func
+
+#define DARSHAN_MPI_MAP(__func,__ret,__args,__fcall)
 
 #define DARSHAN_MPI_CALL(__func) __func
 
@@ -181,5 +199,6 @@ int darshan_core_excluded_path(
  * wrappers.
  */
 int darshan_core_disabled_instrumentation(void);
+
 
 #endif /* __DARSHAN_H */
