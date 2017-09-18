@@ -144,6 +144,7 @@ install:: all
 	install -m 755 darshan-dxt-parser $(bindir)
 	install -m 755 darshan-merge $(bindir)
 	install -m 755 $(srcdir)/darshan-summary-per-file.sh $(bindir)
+	install -m 755 dxt_analyzer.py $(bindir)
 	install -m 755 libdarshan-util.a $(libdir)
 ifeq ($(DARSHAN_ENABLE_SHARED),1)
 	install -m 755 libdarshan-util.so $(libdir)
