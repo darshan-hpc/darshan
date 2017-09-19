@@ -94,7 +94,7 @@ static int my_rank = -1;
         if(newpath != __path) free(newpath); \
         break; \
     } \
-    DARSHAN_MPI_CALL(PMPI_Comm_size)(__comm, &comm_size); \
+    PMPI_Comm_size(__comm, &comm_size); \
     if(rec_ref->file_rec->fcounters[PNETCDF_F_OPEN_TIMESTAMP] == 0) \
         rec_ref->file_rec->fcounters[PNETCDF_F_OPEN_TIMESTAMP] = __tm1; \
     if(comm_size == 1) rec_ref->file_rec->counters[PNETCDF_INDEP_OPENS] += 1; \
@@ -406,15 +406,15 @@ static void pnetcdf_shutdown(
         /* construct a datatype for a PNETCDF file record.  This is serving no purpose
          * except to make sure we can do a reduction on proper boundaries
          */
-        DARSHAN_MPI_CALL(PMPI_Type_contiguous)(sizeof(struct darshan_pnetcdf_file),
+        PMPI_Type_contiguous(sizeof(struct darshan_pnetcdf_file),
             MPI_BYTE, &red_type);
-        DARSHAN_MPI_CALL(PMPI_Type_commit)(&red_type);
+        PMPI_Type_commit(&red_type);
 
         /* register a PNETCDF file record reduction operator */
-        DARSHAN_MPI_CALL(PMPI_Op_create)(pnetcdf_record_reduction_op, 1, &red_op);
+        PMPI_Op_create(pnetcdf_record_reduction_op, 1, &red_op);
 
         /* reduce shared PNETCDF file records */
-        DARSHAN_MPI_CALL(PMPI_Reduce)(red_send_buf, red_recv_buf,
+        PMPI_Reduce(red_send_buf, red_recv_buf,
             shared_rec_count, red_type, red_op, 0, mod_comm);
 
         /* clean up reduction state */
@@ -430,8 +430,8 @@ static void pnetcdf_shutdown(
             pnetcdf_rec_count -= shared_rec_count;
         }
 
-        DARSHAN_MPI_CALL(PMPI_Type_free)(&red_type);
-        DARSHAN_MPI_CALL(PMPI_Op_free)(&red_op);
+        PMPI_Type_free(&red_type);
+        PMPI_Op_free(&red_op);
     }
 
     /* update output buffer size to account for shared file reduction */

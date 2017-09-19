@@ -163,14 +163,14 @@ void darshan_core_initialize(int argc, char **argv)
     int tmpval;
     double tmpfloat;
 
-    DARSHAN_MPI_CALL(PMPI_Comm_size)(MPI_COMM_WORLD, &nprocs);
-    DARSHAN_MPI_CALL(PMPI_Comm_rank)(MPI_COMM_WORLD, &my_rank);
+    PMPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+    PMPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
 
     if(internal_timing_flag)
-        init_start = DARSHAN_MPI_CALL(PMPI_Wtime)();
+        init_start = PMPI_Wtime();
 
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if(!getenv("DARSHAN_DISABLE") && !darshan_core)
@@ -236,7 +236,7 @@ void darshan_core_initialize(int argc, char **argv)
         if(init_core)
         {
             memset(init_core, 0, sizeof(*init_core));
-            init_core->wtime_offset = DARSHAN_MPI_CALL(PMPI_Wtime)();
+            init_core->wtime_offset = PMPI_Wtime();
 
         /* TODO: do we alloc new memory as we go or just do everything up front? */
 
@@ -325,8 +325,8 @@ void darshan_core_initialize(int argc, char **argv)
 
     if(internal_timing_flag)
     {
-        init_time = DARSHAN_MPI_CALL(PMPI_Wtime)() - init_start;
-        DARSHAN_MPI_CALL(PMPI_Reduce)(&init_time, &init_max, 1,
+        init_time = PMPI_Wtime() - init_start;
+        PMPI_Reduce(&init_time, &init_max, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
         if(my_rank == 0)
         {
@@ -371,8 +371,8 @@ void darshan_core_shutdown()
         internal_timing_flag = 1;
 
     /* synchronize before getting start time */
-    DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
-    start_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
+    PMPI_Barrier(MPI_COMM_WORLD);
+    start_log_time = PMPI_Wtime();
 
     /* disable darhan-core while we shutdown */
     DARSHAN_CORE_LOCK();
@@ -398,9 +398,9 @@ void darshan_core_shutdown()
     final_core->log_job_p->end_time = time(NULL);
 
     /* reduce to report first start and last end time across all ranks at rank 0 */
-    DARSHAN_MPI_CALL(PMPI_Reduce)(&final_core->log_job_p->start_time, &first_start_time,
+    PMPI_Reduce(&final_core->log_job_p->start_time, &first_start_time,
         1, MPI_INT64_T, MPI_MIN, 0, MPI_COMM_WORLD);
-    DARSHAN_MPI_CALL(PMPI_Reduce)(&final_core->log_job_p->end_time, &last_end_time,
+    PMPI_Reduce(&final_core->log_job_p->end_time, &last_end_time,
         1, MPI_INT64_T, MPI_MAX, 0, MPI_COMM_WORLD);
     if(my_rank == 0)
     {
@@ -433,7 +433,7 @@ void darshan_core_shutdown()
     }
 
     /* broadcast log file name */
-    DARSHAN_MPI_CALL(PMPI_Bcast)(logfile_name, PATH_MAX, MPI_CHAR, 0,
+    PMPI_Bcast(logfile_name, PATH_MAX, MPI_CHAR, 0,
         MPI_COMM_WORLD);
 
     if(strlen(logfile_name) == 0)
@@ -456,21 +456,21 @@ void darshan_core_shutdown()
     }
 
     /* reduce the number of times a module was opened globally and bcast to everyone */
-    DARSHAN_MPI_CALL(PMPI_Allreduce)(local_mod_use, global_mod_use_count,
+    PMPI_Allreduce(local_mod_use, global_mod_use_count,
         DARSHAN_MAX_MODS, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
     /* get a list of records which are shared across all processes */
     darshan_get_shared_records(final_core, &shared_recs, &shared_rec_cnt);
 
     if(internal_timing_flag)
-        open1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
+        open1 = PMPI_Wtime();
     /* collectively open the darshan log file */
     ret = darshan_log_open_all(logfile_name, &log_fh);
     if(internal_timing_flag)
-        open2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
+        open2 = PMPI_Wtime();
 
     /* error out if unable to open log file */
-    DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
+    PMPI_Allreduce(&ret, &all_ret, 1, MPI_INT,
         MPI_LOR, MPI_COMM_WORLD);
     if(all_ret != 0)
     {
@@ -485,7 +485,7 @@ void darshan_core_shutdown()
     }
 
     if(internal_timing_flag)
-        job1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
+        job1 = PMPI_Wtime();
     /* rank 0 is responsible for writing the compressed darshan job information */
     if(my_rank == 0)
     {
@@ -505,7 +505,7 @@ void darshan_core_shutdown()
         {
             /* write the job information, preallocing space for the log header */
             gz_fp += sizeof(struct darshan_header);
-            all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, gz_fp,
+            all_ret = PMPI_File_write_at(log_fh, gz_fp,
                 final_core->comp_buf, comp_buf_sz, MPI_BYTE, &status);
             if(all_ret != MPI_SUCCESS)
             {
@@ -520,7 +520,7 @@ void darshan_core_shutdown()
     }
 
     /* error out if unable to write job information */
-    DARSHAN_MPI_CALL(PMPI_Bcast)(&all_ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    PMPI_Bcast(&all_ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
     if(all_ret != 0)
     {
         free(logfile_name);
@@ -528,17 +528,17 @@ void darshan_core_shutdown()
         return;
     }
     if(internal_timing_flag)
-        job2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
+        job2 = PMPI_Wtime();
 
     if(internal_timing_flag)
-        rec1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
+        rec1 = PMPI_Wtime();
     /* write the record name->id hash to the log file */
     final_core->log_hdr_p->name_map.off = gz_fp;
     ret = darshan_log_write_name_record_hash(log_fh, final_core, &gz_fp);
     final_core->log_hdr_p->name_map.len = gz_fp - final_core->log_hdr_p->name_map.off;
 
     /* error out if unable to write the name record hash */
-    DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
+    PMPI_Allreduce(&ret, &all_ret, 1, MPI_INT,
         MPI_LOR, MPI_COMM_WORLD);
     if(all_ret != 0)
     {
@@ -554,7 +554,7 @@ void darshan_core_shutdown()
         return;
     }
     if(internal_timing_flag)
-        rec2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
+        rec2 = PMPI_Wtime();
 
     mod_shared_recs = malloc(shared_rec_cnt * sizeof(darshan_record_id));
     assert(mod_shared_recs);
@@ -586,7 +586,7 @@ void darshan_core_shutdown()
         }
 
         if(internal_timing_flag)
-            mod1[i] = DARSHAN_MPI_CALL(PMPI_Wtime)();
+            mod1[i] = PMPI_Wtime();
 
         /* set the shared record list for this module */
         for(j = 0; j < shared_rec_cnt; j++)
@@ -626,7 +626,7 @@ void darshan_core_shutdown()
             free(mod_buf);
 
         /* error out if the log append failed */
-        DARSHAN_MPI_CALL(PMPI_Allreduce)(&ret, &all_ret, 1, MPI_INT,
+        PMPI_Allreduce(&ret, &all_ret, 1, MPI_INT,
             MPI_LOR, MPI_COMM_WORLD);
         if(all_ret != 0)
         {
@@ -643,11 +643,11 @@ void darshan_core_shutdown()
         }
 
         if(internal_timing_flag)
-            mod2[i] = DARSHAN_MPI_CALL(PMPI_Wtime)();
+            mod2[i] = PMPI_Wtime();
     }
 
     if(internal_timing_flag)
-        header1 = DARSHAN_MPI_CALL(PMPI_Wtime)();
+        header1 = PMPI_Wtime();
     /* write out log header, after running 2 reductions on header variables:
      *  1) reduce 'partial_flag' variable to determine which modules ran out
      *     of memory for storing data
@@ -659,14 +659,14 @@ void darshan_core_shutdown()
         /* rank 0 is responsible for writing the log header */
         final_core->log_hdr_p->comp_type = DARSHAN_ZLIB_COMP;
 
-        DARSHAN_MPI_CALL(PMPI_Reduce)(
+        PMPI_Reduce(
             MPI_IN_PLACE, &(final_core->log_hdr_p->partial_flag),
             1, MPI_UINT32_T, MPI_BOR, 0, MPI_COMM_WORLD);
-        DARSHAN_MPI_CALL(PMPI_Reduce)(
+        PMPI_Reduce(
             MPI_IN_PLACE, &(final_core->log_hdr_p->mod_ver),
             DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX, 0, MPI_COMM_WORLD);
 
-        all_ret = DARSHAN_MPI_CALL(PMPI_File_write_at)(log_fh, 0, final_core->log_hdr_p,
+        all_ret = PMPI_File_write_at(log_fh, 0, final_core->log_hdr_p,
             sizeof(struct darshan_header), MPI_BYTE, &status);
         if(all_ret != MPI_SUCCESS)
         {
@@ -677,16 +677,16 @@ void darshan_core_shutdown()
     }
     else
     {
-        DARSHAN_MPI_CALL(PMPI_Reduce)(
+        PMPI_Reduce(
             &(final_core->log_hdr_p->partial_flag), &(final_core->log_hdr_p->partial_flag),
             1, MPI_UINT32_T, MPI_BOR, 0, MPI_COMM_WORLD);
-        DARSHAN_MPI_CALL(PMPI_Reduce)(
+        PMPI_Reduce(
             &(final_core->log_hdr_p->mod_ver), &(final_core->log_hdr_p->mod_ver),
             DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX, 0, MPI_COMM_WORLD);
     }
 
     /* error out if unable to write log header */
-    DARSHAN_MPI_CALL(PMPI_Bcast)(&all_ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    PMPI_Bcast(&all_ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
     if(all_ret != 0)
     {
         free(logfile_name);
@@ -694,9 +694,9 @@ void darshan_core_shutdown()
         return;
     }
     if(internal_timing_flag)
-        header2 = DARSHAN_MPI_CALL(PMPI_Wtime)();
+        header2 = PMPI_Wtime();
 
-    DARSHAN_MPI_CALL(PMPI_File_close)(&log_fh);
+    PMPI_File_close(&log_fh);
 
     /* if we got this far, there are no errors, so rename from *.darshan_partial
      * to *-<logwritetime>.darshan, which indicates that this log file is
@@ -723,7 +723,7 @@ void darshan_core_shutdown()
             if(new_logfile_name)
             {
                 new_logfile_name[0] = '\0';
-                end_log_time = DARSHAN_MPI_CALL(PMPI_Wtime)();
+                end_log_time = PMPI_Wtime();
                 strcat(new_logfile_name, logfile_name);
                 tmp_index = strstr(new_logfile_name, ".darshan_partial");
                 sprintf(tmp_index, "_%d.darshan", (int)(end_log_time-start_log_time+1));
@@ -749,7 +749,7 @@ void darshan_core_shutdown()
         double mod_tm[DARSHAN_MAX_MODS], mod_slowest[DARSHAN_MAX_MODS];
         double all_tm, all_slowest;
 
-        tm_end = DARSHAN_MPI_CALL(PMPI_Wtime)();
+        tm_end = PMPI_Wtime();
 
         open_tm = open2 - open1;
         header_tm = header2 - header1;
@@ -761,17 +761,17 @@ void darshan_core_shutdown()
             mod_tm[i] = mod2[i] - mod1[i];
         }
 
-        DARSHAN_MPI_CALL(PMPI_Reduce)(&open_tm, &open_slowest, 1,
+        PMPI_Reduce(&open_tm, &open_slowest, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        DARSHAN_MPI_CALL(PMPI_Reduce)(&header_tm, &header_slowest, 1,
+        PMPI_Reduce(&header_tm, &header_slowest, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        DARSHAN_MPI_CALL(PMPI_Reduce)(&job_tm, &job_slowest, 1,
+        PMPI_Reduce(&job_tm, &job_slowest, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        DARSHAN_MPI_CALL(PMPI_Reduce)(&rec_tm, &rec_slowest, 1,
+        PMPI_Reduce(&rec_tm, &rec_slowest, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        DARSHAN_MPI_CALL(PMPI_Reduce)(&all_tm, &all_slowest, 1,
+        PMPI_Reduce(&all_tm, &all_slowest, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        DARSHAN_MPI_CALL(PMPI_Reduce)(mod_tm, mod_slowest, DARSHAN_MAX_MODS,
+        PMPI_Reduce(mod_tm, mod_slowest, DARSHAN_MAX_MODS,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
         if(my_rank == 0)
@@ -834,11 +834,11 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
      */
     if(my_rank == 0)
     {
-        hlevel=DARSHAN_MPI_CALL(PMPI_Wtime)() * 1000000;
+        hlevel=PMPI_Wtime() * 1000000;
         (void)gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
     }
-    DARSHAN_MPI_CALL(PMPI_Bcast)(&logmod, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
+    PMPI_Bcast(&logmod, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
 
     /* construct a unique temporary log file name for this process
      * to write mmap log data to
@@ -1353,7 +1353,7 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
         darshan_get_user_name(cuser);
 
         /* generate a random number to help differentiate the log */
-        hlevel=DARSHAN_MPI_CALL(PMPI_Wtime)() * 1000000;
+        hlevel=PMPI_Wtime() * 1000000;
         (void)gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
 
@@ -1442,7 +1442,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     uint64_t *global_mod_flags;
 
     /* broadcast root's number of records to all other processes */
-    DARSHAN_MPI_CALL(PMPI_Bcast)(&tmp_cnt, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    PMPI_Bcast(&tmp_cnt, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     /* use root record count to allocate data structures */
     id_array = malloc(tmp_cnt * sizeof(darshan_record_id));
@@ -1466,7 +1466,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     }
 
     /* broadcast root's list of records to all other processes */
-    DARSHAN_MPI_CALL(PMPI_Bcast)(id_array, (tmp_cnt * sizeof(darshan_record_id)),
+    PMPI_Bcast(id_array, (tmp_cnt * sizeof(darshan_record_id)),
         MPI_BYTE, 0, MPI_COMM_WORLD);
 
     /* everyone looks to see if they opened the same records as root */
@@ -1483,7 +1483,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     /* now allreduce so everyone agrees which records are shared and
      * which modules accessed them collectively
      */
-    DARSHAN_MPI_CALL(PMPI_Allreduce)(mod_flags, global_mod_flags, tmp_cnt,
+    PMPI_Allreduce(mod_flags, global_mod_flags, tmp_cnt,
         MPI_UINT64_T, MPI_BAND, MPI_COMM_WORLD);
 
     j = 0;
@@ -1562,7 +1562,7 @@ static int darshan_log_open_all(char *logfile_name, MPI_File *log_fh)
     }
 
     /* open the darshan log file for writing */
-    ret = DARSHAN_MPI_CALL(PMPI_File_open)(MPI_COMM_WORLD, logfile_name,
+    ret = PMPI_File_open(MPI_COMM_WORLD, logfile_name,
         MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, info, log_fh);
     if(ret != MPI_SUCCESS)
         return(-1);
@@ -1780,7 +1780,7 @@ static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *
         send_off += *inout_off; /* rank 0 knows the beginning offset */
     }
 
-    DARSHAN_MPI_CALL(PMPI_Scan)(&send_off, &my_off, 1, MPI_OFFSET,
+    PMPI_Scan(&send_off, &my_off, 1, MPI_OFFSET,
         MPI_SUM, MPI_COMM_WORLD);
     /* scan is inclusive; subtract local size back out */
     my_off -= comp_buf_sz;
@@ -1788,7 +1788,7 @@ static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *
     if(ret == 0)
     {
         /* no compression errors, proceed with the collective write */
-        ret = DARSHAN_MPI_CALL(PMPI_File_write_at_all)(log_fh, my_off,
+        ret = PMPI_File_write_at_all(log_fh, my_off,
             core->comp_buf, comp_buf_sz, MPI_BYTE, &status);
     }
     else
@@ -1796,7 +1796,7 @@ static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *
         /* error during compression. preserve and return error to caller,
          * but participate in collective write to avoid deadlock.
          */
-        (void)DARSHAN_MPI_CALL(PMPI_File_write_at_all)(log_fh, my_off,
+        (void)PMPI_File_write_at_all(log_fh, my_off,
             core->comp_buf, comp_buf_sz, MPI_BYTE, &status);
     }
 
@@ -1806,12 +1806,12 @@ static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *
         if(my_rank == (nprocs-1))
         {
             my_off += comp_buf_sz;
-            DARSHAN_MPI_CALL(PMPI_Send)(&my_off, 1, MPI_OFFSET, 0, 0,
+            PMPI_Send(&my_off, 1, MPI_OFFSET, 0, 0,
                 MPI_COMM_WORLD);
         }
         if(my_rank == 0)
         {
-            DARSHAN_MPI_CALL(PMPI_Recv)(&my_off, 1, MPI_OFFSET, (nprocs-1), 0,
+            PMPI_Recv(&my_off, 1, MPI_OFFSET, (nprocs-1), 0,
                 MPI_COMM_WORLD, &status);
 
             *inout_off = my_off;
@@ -1886,7 +1886,7 @@ void darshan_shutdown_bench(int argc, char **argv)
 
     if(my_rank == 0)
         fprintf(stderr, "# 1 unique file per proc\n");
-    DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
+    PMPI_Barrier(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
 
@@ -1901,7 +1901,7 @@ void darshan_shutdown_bench(int argc, char **argv)
 
     if(my_rank == 0)
         fprintf(stderr, "# 1 shared file per proc\n");
-    DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
+    PMPI_Barrier(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
 
@@ -1916,7 +1916,7 @@ void darshan_shutdown_bench(int argc, char **argv)
 
     if(my_rank == 0)
         fprintf(stderr, "# 1024 unique files per proc\n");
-    DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
+    PMPI_Barrier(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
 
@@ -1931,7 +1931,7 @@ void darshan_shutdown_bench(int argc, char **argv)
 
     if(my_rank == 0)
         fprintf(stderr, "# 1024 shared files per proc\n");
-    DARSHAN_MPI_CALL(PMPI_Barrier)(MPI_COMM_WORLD);
+    PMPI_Barrier(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
 
@@ -2130,7 +2130,7 @@ double darshan_core_wtime()
     }
     DARSHAN_CORE_UNLOCK();
 
-    return(DARSHAN_MPI_CALL(PMPI_Wtime)() - darshan_core->wtime_offset);
+    return(PMPI_Wtime() - darshan_core->wtime_offset);
 }
 
 int darshan_core_excluded_path(const char *path)

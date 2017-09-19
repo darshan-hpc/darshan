@@ -196,13 +196,13 @@ static void bgq_shutdown(
     {
         bgq_runtime->record->base_rec.rank = -1;
 
-        DARSHAN_MPI_CALL(PMPI_Comm_size)(mod_comm, &nprocs);
+        PMPI_Comm_size(mod_comm, &nprocs);
         ion_ids = malloc(sizeof(*ion_ids)*nprocs);
         result = (ion_ids != NULL);
         if(!result)
             bgq_runtime->record->counters[BGQ_INODES] = -1;
     }
-    DARSHAN_MPI_CALL(PMPI_Bcast)(&result, 1, MPI_INT, 0, mod_comm);
+    PMPI_Bcast(&result, 1, MPI_INT, 0, mod_comm);
 
     /* caclulate the number of I/O nodes */
     if (result)
@@ -210,7 +210,7 @@ static void bgq_shutdown(
         int i, found;
         uint64_t val;
 
-        DARSHAN_MPI_CALL(PMPI_Gather)(&bgq_runtime->record->counters[BGQ_INODES],
+        PMPI_Gather(&bgq_runtime->record->counters[BGQ_INODES],
                                       1,
                                       MPI_LONG_LONG_INT,
                                       ion_ids,
