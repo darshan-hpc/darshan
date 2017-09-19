@@ -199,6 +199,7 @@ ifdef BUILD_HDF5_MODULE
 endif
 	install -m 644 $(srcdir)/share/ld-opts/darshan-pnetcdf-ld-opts $(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
 	install -m 644 $(srcdir)/share/ld-opts/darshan-stdio-ld-opts $(datarootdir)/ld-opts/darshan-stdio-ld-opts
+	install -m 644 $(srcdir)/share/ld-opts/darshan-mpiio-ld-opts $(datarootdir)/ld-opts/darshan-mpiio-ld-opts
 ifdef ENABLE_MMAP_LOGS
 	install -m 755 share/darshan-mmap-epilog.sh $(datarootdir)/darshan-mmap-epilog.sh
 endif
