@@ -478,7 +478,6 @@ DARSHAN_WRAPPER_MAP(PMPI_File_read_all, int, (MPI_File fh, void * buf, int count
 #ifdef HAVE_MPIIO_CONST
 int DARSHAN_DECL(MPI_File_write_all)(MPI_File fh, const void * buf, int count, MPI_Datatype datatype, MPI_Status *status)
 #else
-        MPI_File_write_all(fh, buf, count, datatype, status))
 int DARSHAN_DECL(MPI_File_write_all)(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MPI_Status *status)
 #endif
 {
