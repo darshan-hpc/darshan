@@ -21,7 +21,6 @@ DARSHAN_FORWARD_DECL(PMPI_Finalize, int, ());
 DARSHAN_FORWARD_DECL(PMPI_Init, int, (int *argc, char ***argv));
 DARSHAN_FORWARD_DECL(PMPI_Init_thread, int, (int *argc, char ***argv, int required, int *provided));
 
-DARSHAN_WRAPPER_MAP(PMPI_Init, int, (int *argc, char ***argv), MPI_Init(argc,argv))
 int DARSHAN_DECL(MPI_Init)(int *argc, char ***argv)
 {
     int ret;
@@ -46,8 +45,8 @@ int DARSHAN_DECL(MPI_Init)(int *argc, char ***argv)
 
     return(ret);
 }
+DARSHAN_WRAPPER_MAP(PMPI_Init, int, (int *argc, char ***argv), MPI_Init(argc,argv))
 
-DARSHAN_WRAPPER_MAP(PMPI_Init_thread, int, (int *argc, char ***argv, int required, int *provided), MPI_Init_thread(argc,argv,required,provided))
 int DARSHAN_DECL(MPI_Init_thread)(int *argc, char ***argv, int required, int *provided)
 {
     int ret;
@@ -72,8 +71,8 @@ int DARSHAN_DECL(MPI_Init_thread)(int *argc, char ***argv, int required, int *pr
 
     return(ret);
 }
+DARSHAN_WRAPPER_MAP(PMPI_Init_thread, int, (int *argc, char ***argv, int required, int *provided), MPI_Init_thread(argc,argv,required,provided))
 
-DARSHAN_WRAPPER_MAP(PMPI_Finalize, int, (void), MPI_Finalize())
 int DARSHAN_DECL(MPI_Finalize)(void)
 {
     int ret;
@@ -85,6 +84,7 @@ int DARSHAN_DECL(MPI_Finalize)(void)
     ret = __real_PMPI_Finalize();
     return(ret);
 }
+DARSHAN_WRAPPER_MAP(PMPI_Finalize, int, (void), MPI_Finalize())
 
 /*
  * Local variables:
