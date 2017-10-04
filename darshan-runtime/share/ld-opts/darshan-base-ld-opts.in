@@ -1,5 +1,11 @@
 --undefined=MPI_Init
 --undefined=MPI_Wtime
+--wrap=MPI_Init
+--wrap=MPI_Init_thread
+--wrap=MPI_Finalize
+--wrap=PMPI_Init
+--wrap=PMPI_Init_thread
+--wrap=PMPI_Finalize
 @@darshan_share_path@/ld-opts/darshan-posix-ld-opts
 @@darshan_share_path@/ld-opts/darshan-pnetcdf-ld-opts
 @@darshan_share_path@/ld-opts/darshan-stdio-ld-opts

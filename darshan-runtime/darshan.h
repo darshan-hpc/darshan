@@ -31,8 +31,8 @@
 /* creates P* variant of MPI symbols for LD_PRELOAD so that we can handle
  * language bindings that map to MPI or PMPI symbols under the covers.
  */
-#define DARSHAN_PMPI_MAP(__func,__ret,__args,__fcall) \
-	__ret P ## __func __args { \
+#define DARSHAN_WRAPPER_MAP(__func,__ret,__args,__fcall) \
+	__ret __func __args { \
 		__ret i; \
 		i = __fcall; \
 		return i; \
@@ -47,11 +47,8 @@
     { \
         __real_ ## __func = dlsym(RTLD_NEXT, #__func); \
         if(!(__real_ ## __func)) { \
-            __real_ ## __func = dlsym(RTLD_NEXT, "P" #__func); \
-            if(!(__real_ ## __func)) { \
-                fprintf(stderr, "Darshan failed to map symbol: %s\n", #__func); \
-                exit(1); \
-            } \
+            fprintf(stderr, "Darshan failed to map symbol: %s\n", #__func); \
+            exit(1); \
        } \
     }
 
@@ -62,7 +59,15 @@
 
 #define DARSHAN_DECL(__name) __wrap_ ## __name
 
-#define DARSHAN_PMPI_MAP(__func,__ret,__args,__fcall)
+/* creates P* variant of MPI symbols for static linking so that we can handle
+ * language bindings that map to MPI or PMPI symbols under the covers.
+ */
+#define DARSHAN_WRAPPER_MAP(__func,__ret,__args,__fcall) \
+	__ret __wrap_ ## __func __args { \
+		__ret i; \
+		i = __wrap_ ## __fcall; \
+		return i; \
+	}
 
 #define MAP_OR_FAIL(__func)
 
