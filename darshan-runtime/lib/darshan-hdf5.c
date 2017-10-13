@@ -449,15 +449,15 @@ static void hdf5_shutdown(
         /* construct a datatype for a HDF5 file record.  This is serving no purpose
          * except to make sure we can do a reduction on proper boundaries
          */
-        DARSHAN_MPI_CALL(PMPI_Type_contiguous)(sizeof(struct darshan_hdf5_file),
+        PMPI_Type_contiguous(sizeof(struct darshan_hdf5_file),
             MPI_BYTE, &red_type);
-        DARSHAN_MPI_CALL(PMPI_Type_commit)(&red_type);
+        PMPI_Type_commit(&red_type);
 
         /* register a HDF5 file record reduction operator */
-        DARSHAN_MPI_CALL(PMPI_Op_create)(hdf5_record_reduction_op, 1, &red_op);
+        PMPI_Op_create(hdf5_record_reduction_op, 1, &red_op);
 
         /* reduce shared HDF5 file records */
-        DARSHAN_MPI_CALL(PMPI_Reduce)(red_send_buf, red_recv_buf,
+        PMPI_Reduce(red_send_buf, red_recv_buf,
             shared_rec_count, red_type, red_op, 0, mod_comm);
 
         /* clean up reduction state */
@@ -473,8 +473,8 @@ static void hdf5_shutdown(
             hdf5_rec_count -= shared_rec_count;
         }
 
-        DARSHAN_MPI_CALL(PMPI_Type_free)(&red_type);
-        DARSHAN_MPI_CALL(PMPI_Op_free)(&red_op);
+        PMPI_Type_free(&red_type);
+        PMPI_Op_free(&red_op);
     }
 
     /* update output buffer size to account for shared file reduction */
