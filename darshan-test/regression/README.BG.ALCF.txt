@@ -12,7 +12,7 @@ To run regression tests:
   make install
 
   # darshan util
-  ../configure --prefix=/home/carns/working/darshan/install
+  ../configure --prefix=/home/carns/working/darshan/install-cetus
   make install
 
 - start a screen session by running "screen"
