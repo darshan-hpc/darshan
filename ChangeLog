@@ -2,6 +2,24 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.1.5-pre1
+=============
+* modify Darshan MPI instrumentation method to intercept both MPI and
+  PMPI symbols to workaround MPI implementations that are calling
+  PMPI routines directly (e.g., the Fortran bindings of OpenMPI2).
+  Contributed in part by Chris Zimmer.
+* add a new python utility for analzying DXT trace files (dxt_analyzer).
+  Contributed by Alex Sim.
+* bug fix to disable Darshan module instrumentation after the
+  Darshan shutdown procedure has began, an issue that was
+  leading to negative timers in some cases
+* bug fix for autoconf ignoring specified libbz2 location. Contributed
+  by Glenn Lockwood.
+* add regression tests harnesses for Cray systems at ALCF & NERSC
+* add support for DARSHAN_EXCLUDE_DIRS environment variable to
+  explicitly disable instrumentation for files in given
+  directories. Contributed by Cristian Simarro.
+
 Darshan-3.1.4
 =============
 * bug fix to prevent darshan-parser segfault when parsing logs with
