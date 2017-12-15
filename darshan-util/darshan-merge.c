@@ -98,6 +98,10 @@ int build_mod_shared_rec_hash(char **infile_list, int n_infiles,
     int ret;
     int i;
 
+    /* if this module has no method for aggregating shared records, do nothing */
+    if(!(mod_logutils[mod_id]->log_agg_records))
+        return(0);
+
     /* loop over each input log file */
     for(i = 0; i < n_infiles; i++)
     {
@@ -233,6 +237,8 @@ int main(int argc, char *argv[])
             return(-1);
         }
 
+#if 0
+        /* XXX: the darshan_shutdown tag is never set in darshan-core, currently */
         /* if the input darshan log has metadata set indicating the darshan
          * shutdown procedure was called on the log, then we error out. if the
          * shutdown procedure was started, then it's possible the log has
@@ -246,6 +252,7 @@ int main(int argc, char *argv[])
             darshan_log_close(in_fd);
             return(-1);
         }
+#endif
 
         if(i == 0)
         {
