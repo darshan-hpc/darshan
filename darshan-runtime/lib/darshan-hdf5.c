@@ -36,7 +36,11 @@ typedef int herr_t;     //hf5-1.10.0p1: H5public.h:126
 DARSHAN_FORWARD_DECL(H5Fcreate, hid_t, (const char *filename, unsigned flags, hid_t create_plist, hid_t access_plist));
 DARSHAN_FORWARD_DECL(H5Fopen, hid_t, (const char *filename, unsigned flags, hid_t access_plist));
 DARSHAN_FORWARD_DECL(H5Fclose, herr_t, (hid_t file_id));
-DARSHAN_FORWARD_DECL(H5get_libversion, herr_t, (unsigned *majnum, unsigned *minnum, unsigned *relnum));
+
+/* prototype for HDF symbols that we will call directly from within other
+ * wrappers if HDF is linked in
+ */
+extern herr_t H5get_libversion(unsigned *majnum, unsigned *minnum, unsigned *relnum);
 
 /* structure that can track i/o stats for a given HDF5 file record at runtime */
 struct hdf5_file_record_ref
@@ -122,8 +126,7 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     double tm1;
     unsigned majnum, minnum, relnum;
 
-    MAP_OR_FAIL(H5get_libversion);
-    __real_H5get_libversion(&majnum, &minnum, &relnum);
+    H5get_libversion(&majnum, &minnum, &relnum);
 #ifdef __DARSHAN_ENABLE_HDF5110
     if(majnum < 1 || (majnum == 1 && minnum < 10))
 #else
@@ -171,8 +174,7 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     double tm1;
     unsigned majnum, minnum, relnum;
 
-    MAP_OR_FAIL(H5get_libversion);
-    __real_H5get_libversion(&majnum, &minnum, &relnum);
+    H5get_libversion(&majnum, &minnum, &relnum);
 #ifdef __DARSHAN_ENABLE_HDF5110
     if(majnum < 1 || (majnum == 1 && minnum < 10))
 #else
