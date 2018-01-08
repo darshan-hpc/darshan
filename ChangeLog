@@ -21,6 +21,8 @@ Darshan-3.1.5
   directories. Contributed by Cristian Simarro.
 * correct "undefined reference to `__wrap_H5get_libversion'" linker failure
   when compiling some HDF5 programs, reported by Jialin Liu
+* bug fix in darshan-merge utility related to logs containing DXT trace
+  data. Reported by Glenn Lockwood.
 
 Darshan-3.1.4
 =============
