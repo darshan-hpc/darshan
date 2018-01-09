@@ -706,4 +706,5 @@ provides a C interface for opening and parsing Darshan log files.  This is
 the recommended method for writing custom utilities, as darshan-logutils
 provides a relatively stable interface across different versions of Darshan
 and different log formats.
-
+* dxt_analyzer: plots the read or write activity of a job using data obtained
+from Darshan's DXT modules (if DXT is enabled).
