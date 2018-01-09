@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # convert DXT env setting
-if [ -n $DXT_ENABLE_IO_TRACE ]; then
-	DXT_ENV="--env DXT_ENABLE_IO_TRACE="
+if [ -n "${DXT_ENABLE_IO_TRACE+defined}" ]; then
+	DXT_ENV="--env DXT_ENABLE_IO_TRACE=$DXT_ENABLE_IO_TRACE"
 fi
 
 # submit job and get job id
