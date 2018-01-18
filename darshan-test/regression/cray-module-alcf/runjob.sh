@@ -1,7 +1,12 @@
 #!/bin/bash
 
+# convert DXT env setting
+if [ -n "${DXT_ENABLE_IO_TRACE+defined}" ]; then
+        DXT_ENV="--env DXT_ENABLE_IO_TRACE=$DXT_ENABLE_IO_TRACE"
+fi
+
 # submit job and get job id
-jobid=`qsub --env DARSHAN_LOGFILE=$DARSHAN_LOGFILE --env DARSHAN_DEFAULT_NPROCS=$DARSHAN_DEFAULT_NPROCS --proccount $DARSHAN_DEFAULT_NPROCS -A EarlyPerf_theta -t 20 -n 1 --output $DARSHAN_TMP/$$-tmp.out --error $DARSHAN_TMP/$$-tmp.err --debuglog $DARSHAN_TMP/$$-tmp.debuglog $DARSHAN_TESTDIR/$DARSHAN_PLATFORM/cobalt-submit.sh "$@"`
+jobid=`qsub --env DARSHAN_LOGFILE=$DARSHAN_LOGFILE --env DARSHAN_DEFAULT_NPROCS=$DARSHAN_DEFAULT_NPROCS $DXT_ENV --proccount $DARSHAN_DEFAULT_NPROCS -A radix-io -q debug-cache-quad -t 20 -n 1 --output $DARSHAN_TMP/$$-tmp.out --error $DARSHAN_TMP/$$-tmp.err --debuglog $DARSHAN_TMP/$$-tmp.debuglog $DARSHAN_TESTDIR/$DARSHAN_PLATFORM/cobalt-submit.sh "$@"`
 
 if [ $? -ne 0 ]; then
         echo "Error: failed to qsub $@"

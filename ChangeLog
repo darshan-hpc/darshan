@@ -2,7 +2,7 @@
 Darshan Release Change Log
 --------------------------
 
-Darshan-3.1.5-pre1
+Darshan-3.1.5
 =============
 * modify Darshan MPI instrumentation method to intercept both MPI and
   PMPI symbols to workaround MPI implementations that are calling
@@ -19,6 +19,10 @@ Darshan-3.1.5-pre1
 * add support for DARSHAN_EXCLUDE_DIRS environment variable to
   explicitly disable instrumentation for files in given
   directories. Contributed by Cristian Simarro.
+* correct "undefined reference to `__wrap_H5get_libversion'" linker failure
+  when compiling some HDF5 programs, reported by Jialin Liu
+* bug fix in darshan-merge utility related to logs containing DXT trace
+  data. Reported by Glenn Lockwood.
 
 Darshan-3.1.4
 =============

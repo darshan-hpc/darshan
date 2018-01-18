@@ -589,9 +589,9 @@ This option is mainly useful for more detailed automated analysis.
 
 === darshan-dxt-parser
 
-The `darshan-dxt-parser` utility can be used to parse DxT traces out of Darshan
-log files, assuming the corresponding application was executed with the DxT
-modules enabled. The following example parses all DxT trace information out
+The `darshan-dxt-parser` utility can be used to parse DXT traces out of Darshan
+log files, assuming the corresponding application was executed with the DXT
+modules enabled. The following example parses all DXT trace information out
 of a Darshan log file and stores it in a text file:
 
 ----
@@ -604,7 +604,7 @@ The preamble to `darshan-dxt-parser` output is identical to that of the traditio
 `darshan-parser` utility, which is described above.
 
 `darshan-dxt-parser` displays detailed trace information contained within a Darshan log
-that was generated with DxT instrumentation enabled. Trace data is captured from both
+that was generated with DXT instrumentation enabled. Trace data is captured from both
 POSIX and MPI-IO interfaces. Example output is given below:
 
 .Example output
@@ -646,15 +646,15 @@ POSIX and MPI-IO interfaces. Example output is given below:
  X_MPIIO       0   read        3       262144      0.0050      0.0051
 ----
 
-===== DxT POSIX module
+===== DXT POSIX module
 
 This module provides details on each read or write access at the POSIX layer.
 The trace output is organized first by file then by process rank. So, for each
-file accessed by the application, DxT will provide each process's I/O trace
+file accessed by the application, DXT will provide each process's I/O trace
 segments in separate blocks, ordered by increasing process rank. Within each
 file/rank block, I/O trace segments are ordered chronologically.
 
-Before providing details on each I/O operation, DxT provides a short preamble
+Before providing details on each I/O operation, DXT provides a short preamble
 for each file/rank trace block with the following bits of information: the Darshan
 identifier for the file (which is equivalent to the identifers used by Darshan in its
 traditional modules), the full file path, the corresponding MPI rank the current
@@ -668,7 +668,7 @@ The output format for each indvidual I/O operation segment is:
 # Module    Rank  Wt/Rd  Segment          Offset       Length    Start(s)      End(s)
 ----
 
-* Module: corresponding DxT module (DXT_POSIX or DXT_MPIIO)
+* Module: corresponding DXT module (DXT_POSIX or DXT_MPIIO)
 * Rank: process rank responsible for I/O operation
 * Wt/Rd: whether the operation was a write or read
 * Segment: The operation number for this segment (first operation is segment 0)
@@ -677,14 +677,14 @@ The output format for each indvidual I/O operation segment is:
 * Start: timestamp of the start of the operation (w.r.t. application start time)
 * End: timestamp of the end of the operation (w.r.t. application start time)
 
-===== DxT MPI-IO module
+===== DXT MPI-IO module
 
 If the MPI-IO interface is used by an application, this module provides details on
 each read or write access at the MPI-IO layer. This data is often useful in
 understanding how MPI-IO read or write operations map to underlying POSIX read
 or write operations issued to the traced file.
 
-The output format for the DxT MPI-IO module is essentially identical to the DxT
+The output format for the DXT MPI-IO module is essentially identical to the DXT
 POSIX module, except that the offset of file operations is not tracked.
 
 === Other darshan-util utilities
@@ -706,4 +706,5 @@ provides a C interface for opening and parsing Darshan log files.  This is
 the recommended method for writing custom utilities, as darshan-logutils
 provides a relatively stable interface across different versions of Darshan
 and different log formats.
-
+* dxt_analyzer: plots the read or write activity of a job using data obtained
+from Darshan's DXT modules (if DXT is enabled).

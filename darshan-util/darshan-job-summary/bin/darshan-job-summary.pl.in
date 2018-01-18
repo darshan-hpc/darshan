@@ -32,6 +32,7 @@ my $gnuplot        = "gnuplot";
 my $orig_dir = getcwd;
 my $output_file = "summary.pdf";
 my $verbose_flag = 0;
+my $summary_flag = 0;
 my $input_file = "";
 my %posix_access_hash = ();
 my %mpiio_access_hash = ();
@@ -989,6 +990,12 @@ my $tmp_total_time = $slowest_uniq_time+$shared_file_time;
 print("Total absolute I/O time: $tmp_total_time\n");
 print("**NOTE: above shared and unique file times calculated using MPI-IO timers if MPI-IO interface used on a given file, POSIX timers otherwise.\n");
 
+#Exit here if user ask only for a summary
+if ($summary_flag)
+{
+        exit(0);
+}
+
 # move to tmp_dir
 chdir $tmp_dir;
 
@@ -1486,12 +1493,13 @@ sub process_file_record
 
 sub process_args
 {
-    use vars qw( $opt_help $opt_output $opt_verbose );
+    use vars qw( $opt_help $opt_output $opt_verbose $opt_summary);
 
     Getopt::Long::Configure("no_ignore_case", "bundling");
     GetOptions( "help",
         "output=s",
-        "verbose");
+        "verbose",
+        "summary");
 
     if($opt_help)
     {
@@ -1509,6 +1517,11 @@ sub process_args
         $verbose_flag = $opt_verbose;
     }
 
+    if($opt_summary)
+    {
+        $summary_flag = $opt_summary;
+    }
+    
     # there should only be one remaining argument: the input file 
     if($#ARGV != 0)
     {
@@ -1611,6 +1624,7 @@ Usage: $PROGRAM_NAME <options> input_file
     --help          Prints this help message
     --output        Specifies a file to write pdf output to
                     (defaults to ./summary.pdf)
+    --summary       Print a very succinct I/O timing summary and exit
     --verbose       Prints and retains tmpdir used for LaTeX output
 
 Purpose:
