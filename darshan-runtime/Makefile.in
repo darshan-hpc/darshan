@@ -59,6 +59,10 @@ CFLAGS += -DDARSHAN_LUSTRE
 CFLAGS_SHARED += -DDARSHAN_LUSTRE
 endif
 
+ifdef DARSHAN_USE_APXC
+include $(srcdir)/../modules/autoperf/crayxc/Makefile.darshan
+endif
+
 lib::
 	@mkdir -p $@
 
