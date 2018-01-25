@@ -119,6 +119,9 @@ struct darshan_base_record
 #include "darshan-stdio-log-format.h"
 /* DXT */
 #include "darshan-dxt-log-format.h"
+#ifdef DARSHAN_USE_APXC
+#include "darshan-apxc-log-format.h"
+#endif
 
 /* X-macro for keeping module ordering consistent */
 /* NOTE: first val used to define module enum values, 
@@ -139,9 +142,9 @@ struct darshan_base_record
     X(DARSHAN_BGQ_MOD,      "BG/Q",     DARSHAN_BGQ_VER,        &bgq_logutils) \
     X(DARSHAN_LUSTRE_MOD,   "LUSTRE",   DARSHAN_LUSTRE_VER,     &lustre_logutils) \
     X(DARSHAN_STDIO_MOD,    "STDIO",    DARSHAN_STDIO_VER,      &stdio_logutils) \
-    /* DXT */ \
     X(DXT_POSIX_MOD,       "DXT_POSIX",  DXT_POSIX_VER,         &dxt_posix_logutils) \
-    X(DXT_MPIIO_MOD,       "DXT_MPIIO",  DXT_MPIIO_VER,         &dxt_mpiio_logutils)
+    X(DXT_MPIIO_MOD,       "DXT_MPIIO",  DXT_MPIIO_VER,         &dxt_mpiio_logutils) \
+    X(DARSHAN_APXC_MOD,    "DARSHAN_APXC", DARSHAN_APXC_VER,    &apxc_logutils) 
 
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]

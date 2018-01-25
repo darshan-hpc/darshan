@@ -63,7 +63,7 @@ AC_ARG_ENABLE(
 AC_ARG_ENABLE(
     [autoperf-crayxc],
     [  --enable-autoperf-crayxc    Enables compilation and use of the AutoPerf Cray XC module],
-    [enable_apxc_mod=check],
+    [enable_autoperf_crayxc=yes],
     []
 )
 
@@ -169,7 +169,8 @@ if test x$enable_lustre_mod != xno; then
             []))
 fi
 
-if test x$enable_apxc_mod = xyes; then
+AC_MSG_NOTICE([value for $enable_autoperf_crayxc])
+if test x$enable_autoperf_crayxc = xyes; then
     DARSHAN_USE_APXC=1
 fi
 
@@ -391,6 +392,7 @@ AC_SUBST(DARSHAN_VERSION)
 AC_SUBST(MPICH_LIB_OLD)
 AC_SUBST(DARSHAN_USE_BGQ)
 AC_SUBST(DARSHAN_USE_LUSTRE)
+AC_SUBST(DARSHAN_USE_APXC)
 AC_SUBST(BUILD_HDF5_MODULE)
 AC_SUBST(DARSHAN_HDF5_LD_OPTS)
 AC_OUTPUT(Makefile
