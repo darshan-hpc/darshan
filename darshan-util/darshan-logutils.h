@@ -138,6 +138,10 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[];
 /* DXT */
 #include "darshan-dxt-logutils.h"
 
+#ifdef DARSHAN_USE_APXC
+#include "darshan-apxc-logutils.h"
+#endif
+
 darshan_fd darshan_log_open(const char *name);
 darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type,
     int partial_flag);
@@ -167,6 +171,22 @@ void darshan_log_print_version_warnings(const char *version_string);
                               __counter, __counter_val, __file_name, \
                               __mnt_pt, __fs_type) do { \
     printf("%s\t%" PRId64 "\t%" PRIu64 "\t%s\t%" PRId64 "\t%s\t%s\t%s\n", \
+        __mod_name, __rank, __file_id, __counter, __counter_val, \
+        __file_name, __mnt_pt, __fs_type); \
+} while(0)
+
+#define DARSHAN_I_COUNTER_PRINT(__mod_name, __rank, __file_id, \
+                              __counter, __counter_val, __file_name, \
+                              __mnt_pt, __fs_type) do { \
+    printf("%s\t%" PRId64 "\t%" PRIu64 "\t%s\t%d\t%s\t%s\t%s\n", \
+        __mod_name, __rank, __file_id, __counter, __counter_val, \
+        __file_name, __mnt_pt, __fs_type); \
+} while(0)
+
+#define DARSHAN_S_COUNTER_PRINT(__mod_name, __rank, __file_id, \
+                              __counter, __counter_val, __file_name, \
+                              __mnt_pt, __fs_type) do { \
+    printf("%s\t%" PRId64 "\t%" PRIu64 "\t%s\t%s\t%s\t%s\t%s\n", \
         __mod_name, __rank, __file_id, __counter, __counter_val, \
         __file_name, __mnt_pt, __fs_type); \
 } while(0)

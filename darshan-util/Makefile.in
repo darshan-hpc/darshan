@@ -12,6 +12,8 @@ bindir = $(DESTDIR)@bindir@
 libdir = $(DESTDIR)@libdir@
 pkgconfigdir = $(DESTDIR)$(libdir)/pkgconfig
 
+DARSHAN_USE_APXC = @DARSHAN_USE_APXC@
+
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_MOD_LOG_FORMATS = $(srcdir)/../darshan-posix-log-format.h $(srcdir)/../darshan-mpiio-log-format.h $(srcdir)/../darshan-hdf5-log-format.h $(srcdir)/../darshan-pnetcdf-log-format.h $(srcdir)/../darshan-bgq-log-format.h $(srcdir)/../darshan-lustre-log-format.h $(srcdir)/../darshan-stdio-log-format.h $(srcdir)/../darshan-dxt-log-format.h
 DARSHAN_MOD_LOGUTIL_HEADERS = darshan-posix-logutils.h darshan-mpiio-logutils.h darshan-hdf5-logutils.h darshan-pnetcdf-logutils.h darshan-bgq-logutils.h darshan-lustre-logutils.h darshan-stdio-logutils.h darshan-dxt-logutils.h
@@ -39,6 +41,10 @@ LD=@LD@
 AR=@AR@
 
 LIBS = -lz @LIBBZ2@
+
+ifdef DARSHAN_USE_APXC
+include $(srcdir)/../modules/autoperf/crayxc/util/Makefile.darshan
+endif
 
 mktestdir::
 	mkdir -p test

@@ -79,8 +79,8 @@ char** user_darshan_path_exclusions = NULL;
 extern void bgq_runtime_initialize();
 #endif
 
-#ifdef DARSHAN_CRAYXC
-extern void crayxc_runtime_intialize();
+#ifdef DARSHAN_USE_APXC
+extern void apxc_runtime_initialize();
 #endif
 
 /* array of init functions for modules which need to be statically
@@ -91,8 +91,8 @@ void (*mod_static_init_fns[])(void) =
 #ifdef DARSHAN_BGQ
     &bgq_runtime_initialize,
 #endif
-#ifdef DARSHAN_CRAYXC
-    &crayxc_runtime_intialize,
+#ifdef DARSHAN_USE_APXC
+    &apxc_runtime_initialize,
 #endif
     NULL
 };
