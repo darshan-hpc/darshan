@@ -169,8 +169,15 @@ if test x$enable_lustre_mod != xno; then
             []))
 fi
 
-AC_MSG_NOTICE([value for $enable_autoperf_crayxc])
 if test x$enable_autoperf_crayxc = xyes; then
+    AC_CHECK_HEADER([papi.h],
+                    with_papi=-lpapi,
+                    [AC_MSG_ERROR([Cannot find required header for papi])],
+                    [])
+    AC_REQUIRE_AUX_FILE([modules/autoperf/crayxc/darshan-apxc-log-format.h])
+dnl    AC_CHECK_FILE([modules/autoperf/crayxc/darshan-apxc-log-format.h],
+dnl                  DARSHAN_USE_APXC=1,
+dnl                  [AC_MSG_ERROR([AutoPerf submodule not initialized])])
     DARSHAN_USE_APXC=1
 fi
 
@@ -395,6 +402,7 @@ AC_SUBST(DARSHAN_USE_LUSTRE)
 AC_SUBST(DARSHAN_USE_APXC)
 AC_SUBST(BUILD_HDF5_MODULE)
 AC_SUBST(DARSHAN_HDF5_LD_OPTS)
+AC_SUBST(with_papi)
 AC_OUTPUT(Makefile
 darshan-mk-log-dirs.pl
 darshan-gen-cc.pl

@@ -1833,6 +1833,52 @@ int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
 }
 
 /*
+ * Support functions for use with other languages
+ */
+
+/*
+ * darshan_log_get_modules
+ *
+ * Gets list of modules present in logs and returns the info
+ */
+void darshan_log_get_modules (darshan_fd fd,
+                              struct darshan_mod_info **mods,
+                              int* count)
+{
+    int i;
+    int j;
+
+    *mods = malloc(sizeof(**mods) * DARSHAN_MAX_MODS);
+    assert(*mods);
+
+    for (i = 0, j = 0; i < DARSHAN_MAX_MODS; i++)
+    {
+        if (fd->mod_map[i].len)
+        {
+            (*mods)[j].name = darshan_module_names[i];
+            (*mods)[j].len  = fd->mod_map[i].len;
+            (*mods)[j].ver  = fd->mod_ver[i];
+            (*mods)[j].idx  = i;
+            j += 1;
+        }
+    }
+
+    *count = j;
+    return;
+}
+
+int  darshan_log_get_record (darshan_fd fd,
+                             int mod_idx,
+                             void **buf)
+{
+    int r;
+
+    r = mod_logutils[mod_idx]->log_get_record(fd, buf);
+
+    return r;
+}
+
+/*
  * Local variables:
  *  c-indent-level: 4
  *  c-basic-offset: 4
