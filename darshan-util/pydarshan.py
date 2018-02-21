@@ -120,14 +120,15 @@ int darshan_log_get_record(void*, int, void **);
 
 ffi = cffi.FFI()
 ffi.cdef(API_def_c)
-libdutil = ffi.dlopen("/home/harms/working/darshan/theta/install/lib/libdarshan-util.so")
+libdutil = ffi.dlopen("/home/harms/working/darshan/cooley/install/lib/libdarshan-util.so")
 
 modules = {}
 
 def log_open(filename):
   b_fname = filename.encode()
   log = libdutil.darshan_log_open(b_fname)
-  mods = log_get_modules(log)
+  if log:
+    mods = log_get_modules(log)
   return log
 
 def log_close(log):
@@ -198,8 +199,7 @@ def counter_names(mod_name, fcnts=False):
   if fcnts:
     F = "f_"
   else:
-   F1 = ""
-   F2 = ""
+   F = ""
   end = "{0}_{1}NUM_INDICES".format(mod_name.upper(), F.upper())
   var_name = "{0}_{1}counter_names".format(mod_name.lower(), F.lower())
   while True: 
@@ -220,7 +220,7 @@ def fcounter_names(mod_name):
   return counter_names(mod_name, fcnts=True)
 
 def log_get_bgq_record(log):
-  return log_get_generic_record(log, "BGQ", "struct darshan_bgq_file **")
+  return log_get_generic_record(log, "BG/Q", "struct darshan_bgq_record **")
 
 def log_get_hdf5_record(log):
   return log_get_generic_record(log, "HDF5", "struct darshan_hdf5_file **")
