@@ -12,3 +12,4 @@
 @@darshan_share_path@/ld-opts/darshan-stdio-ld-opts
 @@darshan_share_path@/ld-opts/darshan-mpiio-ld-opts
 @DARSHAN_HDF5_LD_OPTS@
+@DARSHAN_MDHIM_LD_OPTS@

@@ -36,6 +36,7 @@ CFLAGS_SHARED = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I$(srcdir)
 LIBS = -lz @LIBBZ2@
 
 BUILD_HDF5_MODULE = @BUILD_HDF5_MODULE@
+BUILD_MDHIM_MODULE = @BUILD_MDHIM_MODULE@
 
 DARSHAN_STATIC_MOD_OBJS = lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-pnetcdf.o lib/darshan-stdio.o lib/darshan-dxt.o
 DARSHAN_DYNAMIC_MOD_OBJS = lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-pnetcdf.po lib/darshan-stdio.po lib/darshan-dxt.po
@@ -57,6 +58,13 @@ DARSHAN_STATIC_MOD_OBJS += lib/darshan-lustre.o
 DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-lustre.po
 CFLAGS += -DDARSHAN_LUSTRE
 CFLAGS_SHARED += -DDARSHAN_LUSTRE
+endif
+
+ifdef BUILD_MDHIM_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-mdhim.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-mdhim.po
+CFLAGS += -DDARSHAN_MDHIM
+CFLAGS_SHARED += -DDARSHAN_MDHIM
 endif
 
 lib::
@@ -140,6 +148,13 @@ lib/darshan-dxt.o: lib/darshan-dxt.c darshan.h darshan-common.h $(DARSHAN_LOG_FO
 lib/darshan-dxt.po: lib/darshan-dxt.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-dxt-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
+lib/darshan-mdhim.o: lib/darshan-mdhim.c darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mdhim-log-format.h | lib
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/darshan-mdhim.po: lib/darshan-mdhim.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mdhim-log-format.h | lib
+	$(CC) $(CFLAGS_SHARED) -c $< -o $@
+
+
 lib/lookup3.o: lib/lookup3.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -196,6 +211,9 @@ endif
 	install -m 644 $(srcdir)/share/ld-opts/darshan-posix-ld-opts $(datarootdir)/ld-opts/darshan-posix-ld-opts
 ifdef BUILD_HDF5_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-hdf5-ld-opts $(datarootdir)/ld-opts/darshan-hdf5-ld-opts
+endif
+ifdef BUILD_MDHIM_MODULE
+	install -m 644 $(srcdir)/share/ld-opts/darshan-mdhim-ld-opts $(datarootdir)/ld-opts/darshan-mdhim-ld-opts
 endif
 	install -m 644 $(srcdir)/share/ld-opts/darshan-pnetcdf-ld-opts $(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
 	install -m 644 $(srcdir)/share/ld-opts/darshan-stdio-ld-opts $(datarootdir)/ld-opts/darshan-stdio-ld-opts
