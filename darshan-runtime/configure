@@ -621,6 +621,8 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+DARSHAN_MDHIM_LD_OPTS
+BUILD_MDHIM_MODULE
 DARSHAN_HDF5_LD_OPTS
 BUILD_HDF5_MODULE
 DARSHAN_USE_LUSTRE
@@ -702,6 +704,7 @@ with_jobid_env
 with_mod_mem
 enable_HDF5_post_1_10
 enable_HDF5_pre_1_10
+enable_mdhim
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1332,6 +1335,7 @@ Optional Features:
                           Enable HDF5 module for HDF5 version 1.10 or later
   --enable-HDF5-pre-1.10
                           Enable HDF5 module for HDF5 versions earlier than 1.10
+  --enable-mdhim          Enable mdhim module
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -3761,6 +3765,7 @@ fi
 
 fi
 
+
 if test x$GOT_ALIGNMENT != x1; then
     as_fn_error $? "must provide --with-mem-align=<num> argument to configure." "$LINENO" 5
 fi
@@ -4223,6 +4228,33 @@ fi
 fi
 
 
+BUILD_MDHIM_MODULE=
+DARSHAN_MDHIM_LD_OPTS=
+# Check whether --enable-mdhim was given.
+if test "${enable_mdhim+set}" = set; then :
+  enableval=$enable_mdhim;
+fi
+
+if test "x$enable_mdhim" = "xyes"; then :
+  BUILD_MDHIM_MODULE=1
+      DARSHAN_MDHIM_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-mdhim-ld-opts"
+      for ac_header in mdhim.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "mdhim.h" "ac_cv_header_mdhim_h" "$ac_includes_default"
+if test "x$ac_cv_header_mdhim_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_MDHIM_H 1
+_ACEOF
+
+else
+  as_fn_error $? "mdhim requested but headers cannot be found" "$LINENO" 5
+fi
+
+done
+
+fi
+
+
 # determine if the MPI library includes MPI-IO functions or not
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for MPI-IO support in MPI" >&5
 $as_echo_n "checking for MPI-IO support in MPI... " >&6; }
@@ -4389,6 +4421,8 @@ else
 fi
 
 DARSHAN_VERSION="3.1.6"
+
+
 
 
 

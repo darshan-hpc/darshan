@@ -162,6 +162,7 @@ if test x$enable_lustre_mod != xno; then
             []))
 fi
 
+
 if test x$GOT_ALIGNMENT != x1; then
     AC_MSG_ERROR(must provide --with-mem-align=<num> argument to configure.)
 fi
@@ -283,6 +284,22 @@ AC_ARG_ENABLE(HDF5-pre-1.10,
 fi]
 ,)
 
+BUILD_MDHIM_MODULE=
+DARSHAN_MDHIM_LD_OPTS=
+AC_ARG_ENABLE([mdhim],
+	      AS_HELP_STRING([--enable-mdhim], [Enable mdhim module]),
+	      [],[] )
+AS_IF([test "x$enable_mdhim" = "xyes"],
+      BUILD_MDHIM_MODULE=1
+      DARSHAN_MDHIM_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-mdhim-ld-opts"
+      AC_CHECK_HEADERS([mdhim.h],
+		       [],
+		       AC_MSG_ERROR([mdhim requested but headers cannot be found]) ),
+      []
+
+      )
+
+
 # determine if the MPI library includes MPI-IO functions or not
 AC_MSG_CHECKING(for MPI-IO support in MPI)
 AC_TRY_LINK([#include <mpi.h>], [
@@ -382,6 +399,8 @@ AC_SUBST(DARSHAN_USE_BGQ)
 AC_SUBST(DARSHAN_USE_LUSTRE)
 AC_SUBST(BUILD_HDF5_MODULE)
 AC_SUBST(DARSHAN_HDF5_LD_OPTS)
+AC_SUBST(BUILD_MDHIM_MODULE)
+AC_SUBST(DARSHAN_MDHIM_LD_OPTS)
 AC_OUTPUT(Makefile
 darshan-mk-log-dirs.pl
 darshan-gen-cc.pl
