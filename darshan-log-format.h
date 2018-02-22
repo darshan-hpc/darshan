@@ -133,6 +133,18 @@ struct darshan_base_record
  * component -- NULL can be passed if there are no
  * logutil definitions)
  */
+
+/* NOTE: if APXC support is not enabled, we still want to hold it's spot
+ * in the module id space
+ */
+#ifdef DARSHAN_USE_APXC
+#define __DARSHAN_APXC_VER DARSHAN_APXC_VER
+#define __apxc_logutils = &apx_logutils;
+#else
+#define __DARSHAN_APXC_VER 0
+#define __apxc_logutils NULL
+#endif
+
 #define DARSHAN_MODULE_IDS \
     X(DARSHAN_NULL_MOD,     "NULL",     DARSHAN_NULL_VER,       NULL) \
     X(DARSHAN_POSIX_MOD,    "POSIX",    DARSHAN_POSIX_VER,      &posix_logutils) \
@@ -144,7 +156,7 @@ struct darshan_base_record
     X(DARSHAN_STDIO_MOD,    "STDIO",    DARSHAN_STDIO_VER,      &stdio_logutils) \
     X(DXT_POSIX_MOD,       "DXT_POSIX",  DXT_POSIX_VER,         &dxt_posix_logutils) \
     X(DXT_MPIIO_MOD,       "DXT_MPIIO",  DXT_MPIIO_VER,         &dxt_mpiio_logutils) \
-    X(DARSHAN_APXC_MOD,    "DARSHAN_APXC", DARSHAN_APXC_VER,    &apxc_logutils) 
+    X(DARSHAN_APXC_MOD,    "DARSHAN_APXC", __DARSHAN_APXC_VER,  __apxc_logutils) 
 
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
