@@ -78,6 +78,25 @@ AC_ARG_ENABLE(shared,
 fi]
 ,)
 
+AC_ARG_ENABLE(
+    [autoperf-crayxc],
+    [  --enable-autoperf-crayxc    Enables compilation and use of the AutoPerf Cray XC module],
+    [enable_autoperf_crayxc=yes],
+    []
+)
+
+if test x$enable_autoperf_crayxc = xyes; then
+    AC_CHECK_HEADER([papi.h],
+                    with_papi=-lpapi,
+                    [AC_MSG_ERROR([Cannot find required header for papi])],
+                    [])
+    AC_REQUIRE_AUX_FILE([modules/autoperf/crayxc/darshan-apxc-log-format.h])
+dnl    AC_CHECK_FILE([modules/autoperf/crayxc/darshan-apxc-log-format.h],
+dnl                  DARSHAN_USE_APXC=1,
+dnl                  [AC_MSG_ERROR([AutoPerf submodule not initialized])])
+    DARSHAN_USE_APXC=1
+fi
+
 AC_CHECK_FUNCS([strndup])
 
 DARSHAN_UTIL_VERSION="AC_PACKAGE_VERSION"
@@ -87,6 +106,7 @@ AC_SUBST(__DARSHAN_ZLIB_INCLUDE_FLAGS)
 AC_SUBST(__DARSHAN_PDFLATEX_HALT_ON_ERROR)
 AC_SUBST(DARSHAN_ENABLE_SHARED)
 AC_SUBST(DARSHAN_UTIL_VERSION)
+AC_SUBST(DARSHAN_USE_APXC)
 AC_OUTPUT(Makefile
 darshan-job-summary/bin/darshan-job-summary.pl
 maint/darshan-util.pc

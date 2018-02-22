@@ -621,6 +621,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+DARSHAN_USE_APXC
 DARSHAN_UTIL_VERSION
 DARSHAN_ENABLE_SHARED
 __DARSHAN_PDFLATEX_HALT_ON_ERROR
@@ -687,6 +688,7 @@ enable_option_checking
 with_zlib
 with_bzlib
 enable_shared
+enable_autoperf_crayxc
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1318,6 +1320,7 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-shared   enables building of shared darshan-util library
+  --enable-autoperf-crayxc    Enables compilation and use of the AutoPerf Cray XC module
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -4105,6 +4108,25 @@ fi
 fi
 
 
+# Check whether --enable-autoperf-crayxc was given.
+if test "${enable_autoperf_crayxc+set}" = set; then :
+  enableval=$enable_autoperf_crayxc; enable_autoperf_crayxc=yes
+fi
+
+
+if test x$enable_autoperf_crayxc = xyes; then
+    ac_fn_c_check_header_mongrel "$LINENO" "papi.h" "ac_cv_header_papi_h" "$ac_includes_default"
+if test "x$ac_cv_header_papi_h" = xyes; then :
+  with_papi=-lpapi
+else
+  as_fn_error $? "Cannot find required header for papi" "$LINENO" 5
+fi
+
+
+
+    DARSHAN_USE_APXC=1
+fi
+
 for ac_func in strndup
 do :
   ac_fn_c_check_func "$LINENO" "strndup" "ac_cv_func_strndup"
@@ -4118,6 +4140,7 @@ done
 
 
 DARSHAN_UTIL_VERSION="3.1.5"
+
 
 
 
