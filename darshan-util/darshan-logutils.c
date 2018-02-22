@@ -477,27 +477,32 @@ int darshan_log_put_mounts(darshan_fd fd, struct darshan_mnt_info *mnt_data_arra
 {
     struct darshan_fd_int_state *state = fd->state;
     int i;
-    char line[1024];
     char mnt_dat[DARSHAN_EXE_LEN] = {0};
-    int mnt_dat_sz = 0;
-    char *tmp;
     int ret;
+    int left = DARSHAN_EXE_LEN;
+    int pos = 0;
 
     assert(state);
 
     /* write each mount entry to file */
-    tmp = mnt_dat;
     for(i=count-1; i>=0; i--)
     {
-        sprintf(line, "\n%s\t%s", mnt_data_array[i].mnt_type, mnt_data_array[i].mnt_path);
-
-        memcpy(tmp, line, strlen(line));
-        tmp += strlen(line);
-        mnt_dat_sz += strlen(line);
+        if((strlen(mnt_data_array[i].mnt_type) + strlen(mnt_data_array[i].mnt_path) + 2) < left)
+        {
+            ret = snprintf(&mnt_dat[pos], left, "\n%s\t%s", mnt_data_array[i].mnt_type, mnt_data_array[i].mnt_path);
+            left -= ret;
+            assert(left >= 0);
+            pos += ret;
+        }
+        else
+        {
+            break;
+        }
     }
+    pos++;
 
-    ret = darshan_log_dzwrite(fd, DARSHAN_JOB_REGION_ID, mnt_dat, mnt_dat_sz);
-    if (ret != mnt_dat_sz)
+    ret = darshan_log_dzwrite(fd, DARSHAN_JOB_REGION_ID, mnt_dat, pos);
+    if (ret != pos)
     {
         state->err = -1;
         fprintf(stderr, "Error: failed to write darshan log mount data.\n");
