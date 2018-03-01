@@ -459,7 +459,7 @@ int DARSHAN_DECL(MPI_File_read_all)(MPI_File fh, void * buf, int count, MPI_Data
     int ret;
     double tm1, tm2;
 
-    MAP_OR_FAIL(PMPI_File_write_at);
+    MAP_OR_FAIL(PMPI_File_read_all);
 
     tm1 = darshan_core_wtime();
     ret = __real_PMPI_File_read_all(fh, buf, count,
