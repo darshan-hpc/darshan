@@ -141,7 +141,7 @@ static int my_rank = -1;
     /* look up a record reference for this record id using darshan rec_ref interface */ \
     rec_ref = darshan_lookup_record_ref(null_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
     /* if no reference was found, track a new one for this record */ \
-    if(!rec_ref) null_track_new_record(rec_id, __name); \
+    if(!rec_ref) rec_ref = null_track_new_record(rec_id, __name); \
     /* if we still don't have a valid reference, back out */ \
     if(!rec_ref) break; \
     /* increment counter indicating number of calls to 'foo' */ \
