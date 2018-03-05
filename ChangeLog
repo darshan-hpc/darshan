@@ -2,6 +2,13 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.1.6
+=============
+* bug fix for linker failures caused when linking external libraries
+that use MPI internally (e.g., PETSc). Reported by Bilel Hadri.
+* bug fix in mapping of Darshan's MPI_File_read_all wrapper to the
+  underlying MPI library call in dynamic linking case
+
 Darshan-3.1.5
 =============
 * modify Darshan MPI instrumentation method to intercept both MPI and
