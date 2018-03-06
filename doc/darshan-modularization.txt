@@ -471,7 +471,7 @@ new instrumentation modules:
 * Necessary linker flags for inserting this module's wrapper functions need to be added to a
 module-specific file which is used when linking applications with Darshan. For an example,
 consider `darshan-runtime/share/ld-opts/darshan-posix-ld-opts`, the required linker options for the POSIX
-module. The base linker options file for Darshan (`darshan-runtime/darshan-base-ld-opts.in`)
+module. The base linker options file for Darshan (`darshan-runtime/share/ld-opts/darshan-base-ld-opts.in`)
 must also be updated to point to the new module-specific linker options file.
 
 * Targets must be added to `Makefile.in` to build static and shared objects for the module's
