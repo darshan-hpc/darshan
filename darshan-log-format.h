@@ -139,7 +139,7 @@ struct darshan_base_record
  */
 #ifdef DARSHAN_USE_APXC
 #define __DARSHAN_APXC_VER DARSHAN_APXC_VER
-#define __apxc_logutils = &apx_logutils;
+#define __apxc_logutils &apxc_logutils
 #else
 #define __DARSHAN_APXC_VER 0
 #define __apxc_logutils NULL
