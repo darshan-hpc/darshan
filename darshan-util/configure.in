@@ -86,10 +86,6 @@ AC_ARG_ENABLE(
 )
 
 if test x$enable_autoperf_crayxc = xyes; then
-    AC_CHECK_HEADER([papi.h],
-                    with_papi=-lpapi,
-                    [AC_MSG_ERROR([Cannot find required header for papi])],
-                    [])
     AC_REQUIRE_AUX_FILE([modules/autoperf/crayxc/darshan-apxc-log-format.h])
 dnl    AC_CHECK_FILE([modules/autoperf/crayxc/darshan-apxc-log-format.h],
 dnl                  DARSHAN_USE_APXC=1,
