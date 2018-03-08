@@ -50,7 +50,13 @@ struct darshan_mod_logutil_funcs bgq_logutils =
     .log_print_record = &darshan_log_print_bgq_rec,
     .log_print_description = &darshan_log_print_bgq_description,
     .log_print_diff = &darshan_log_print_bgq_rec_diff,
-    .log_agg_records = &darshan_log_agg_bgq_recs
+    .log_agg_records = &darshan_log_agg_bgq_recs,
+    .log_accum_file = NULL,
+    .log_accum_perf = NULL,
+    .log_calc_file = NULL,
+    .log_print_total_file = NULL,
+    .log_file_list = NULL,
+    .log_calc_perf = NULL
 };
 
 static int darshan_log_get_bgq_rec(darshan_fd fd, void** bgq_buf_p)

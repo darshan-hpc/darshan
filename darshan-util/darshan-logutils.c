@@ -1837,8 +1837,50 @@ int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
     return(buf_processed);
 }
 
+void darshan_calc_perf(perf_data_t *pdata, int64_t nprocs)
+{
+    int64_t i;
+
+    pdata->shared_time_by_cumul =
+        pdata->shared_time_by_cumul / (double)nprocs;
+
+    pdata->shared_meta_time = pdata->shared_meta_time / (double)nprocs;
+
+    for (i=0; i<nprocs; i++)
+    {
+        if (pdata->rank_cumul_io_time[i] > pdata->slowest_rank_time)
+        {
+            pdata->slowest_rank_time = pdata->rank_cumul_io_time[i];
+            pdata->slowest_rank_meta_time = pdata->rank_cumul_md_time[i];
+            pdata->slowest_rank_rank = i;
+        }
+    }
+
+    if (pdata->slowest_rank_time + pdata->shared_time_by_cumul)
+    pdata->agg_perf_by_cumul = ((double)pdata->total_bytes / 1048576.0) /
+                                  (pdata->slowest_rank_time +
+                                   pdata->shared_time_by_cumul);
+
+    if (pdata->slowest_rank_time + pdata->shared_time_by_open)
+    pdata->agg_perf_by_open  = ((double)pdata->total_bytes / 1048576.0) /
+                                   (pdata->slowest_rank_time +
+                                    pdata->shared_time_by_open);
+
+    if (pdata->slowest_rank_time + pdata->shared_time_by_open_lastio)
+    pdata->agg_perf_by_open_lastio = ((double)pdata->total_bytes / 1048576.0) /
+                                     (pdata->slowest_rank_time +
+                                      pdata->shared_time_by_open_lastio);
+
+    if (pdata->slowest_rank_time + pdata->shared_time_by_slowest)
+    pdata->agg_perf_by_slowest = ((double)pdata->total_bytes / 1048576.0) /
+                                     (pdata->slowest_rank_time +
+                                      pdata->shared_time_by_slowest);
+
+    return;
+}
+
 /*
- * Support functions for use with other languages
+ * Support functions for use with other language bindings
  */
 
 /*
@@ -1872,6 +1914,11 @@ void darshan_log_get_modules (darshan_fd fd,
     return;
 }
 
+/*
+ * darshan_log_get_record 
+ *
+ *   Wrapper to hide the mod_logutils callback functions.
+ */
 int  darshan_log_get_record (darshan_fd fd,
                              int mod_idx,
                              void **buf)
@@ -1882,6 +1929,86 @@ int  darshan_log_get_record (darshan_fd fd,
 
     return r;
 }
+
+/*
+ * darshan_log_stats
+ *
+ *  Loops over the POSIX, MPIIO and STDIO module records to generate
+ *  derived stats. This is the same as the parser '--perf' and '--total'
+ *  options.
+ */
+int darshan_log_stats (darshan_fd fd)
+{
+    int mod_list[] = { DARSHAN_POSIX_MOD,
+                       DARSHAN_MPIIO_MOD,
+                       DARSHAN_STDIO_MOD };
+    int i;
+    int idx;
+    int ret;
+    char *buf;
+    struct darshan_base_record *base_rec;
+    hash_entry_t *file_hash = NULL;
+    hash_entry_t total;
+    file_data_t fdata;
+    perf_data_t pdata;
+
+    memset(&total, 0, sizeof(total));
+    memset(&fdata, 0, sizeof(fdata));
+    memset(&pdata, 0, sizeof(pdata));
+
+    buf = malloc(DEF_MOD_BUF_SIZE);
+    if (!buf)
+    {
+        return(-1);
+    }
+
+    for (i = 0; i < sizeof(mod_list)/sizeof(int); i++)
+    {
+        idx = mod_list[i];
+        if (fd->mod_map[idx].len == 0)
+        {
+            continue;
+        }
+        memset(buf, 0, DEF_MOD_BUF_SIZE);
+
+        while(1)
+        {
+            int r;
+            hash_entry_t *hfile = NULL;
+
+            r = mod_logutils[i]->log_get_record(fd, (void**)&buf);
+            if (r < 1)
+            {
+                break;
+            }
+            base_rec = (struct darshan_base_record *) buf;
+
+            HASH_FIND(hlink, file_hash, &(base_rec->id), sizeof(darshan_record_id), hfile);
+            if (!hfile)
+            {
+                hfile = malloc(sizeof(*hfile));
+                if (!hfile)
+                {
+                    ret = -1;
+                    //goto cleanup;
+                }
+
+                memset(hfile, 0, sizeof(*hfile));
+                hfile->rec_id = base_rec->id;
+                hfile->type = 0;
+                hfile->procs = 0;
+                hfile->rec_dat = NULL;
+                hfile->cumul_time = 0.0;
+                hfile->slowest_time = 0.0;
+
+                HASH_ADD(hlink, file_hash, rec_id, sizeof(darshan_record_id), hfile);
+            }
+        }
+    }
+
+    return;
+}
+
 
 /*
  * Local variables:

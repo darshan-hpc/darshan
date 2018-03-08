@@ -41,6 +41,12 @@ struct darshan_mod_logutil_funcs dxt_posix_logutils =
     .log_print_description = NULL,
     .log_print_diff = NULL,
     .log_agg_records = NULL,
+    .log_accum_file = NULL,
+    .log_accum_perf = NULL,
+    .log_calc_file = NULL,
+    .log_print_total_file = NULL,
+    .log_file_list = NULL,
+    .log_calc_perf = NULL
 };
 
 struct darshan_mod_logutil_funcs dxt_mpiio_logutils =

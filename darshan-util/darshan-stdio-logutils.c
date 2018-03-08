@@ -40,6 +40,11 @@ static void darshan_log_print_stdio_description(int ver);
 static void darshan_log_print_stdio_record_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
 static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_flag);
+static void darshan_log_stdio_accum_perf(void *pfile, perf_data_t *pdata);
+static void darshan_log_stdio_accum_file(void *pfile, hash_entry_t *hfile, int64_t nprocs);
+static void darshan_log_stdio_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
+static void darshan_log_stdio_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
+static void darshan_log_stdio_print_total_file(void *pfile, int stdio_ver);
 
 /* structure storing each function needed for implementing the darshan
  * logutil interface. these functions are used for reading, writing, and
@@ -52,7 +57,13 @@ struct darshan_mod_logutil_funcs stdio_logutils =
     .log_print_record = &darshan_log_print_stdio_record,
     .log_print_description = &darshan_log_print_stdio_description,
     .log_print_diff = &darshan_log_print_stdio_record_diff,
-    .log_agg_records = &darshan_log_agg_stdio_records
+    .log_agg_records = &darshan_log_agg_stdio_records,
+    .log_accum_file = &darshan_log_stdio_accum_file,
+    .log_accum_perf = &darshan_log_stdio_accum_perf,
+    .log_calc_file = &darshan_log_stdio_calc_file,
+    .log_print_total_file = &darshan_log_stdio_print_total_file,
+    .log_file_list = &darshan_log_stdio_file_list,
+    .log_calc_perf = &darshan_calc_perf
 };
 
 /* retrieve a STDIO record from log file descriptor 'fd', storing the
@@ -411,6 +422,375 @@ static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_fla
                 agg_stdio_rec->fcounters[i] = -1;
                 break;
         }
+    }
+
+    return;
+}
+
+static void darshan_log_stdio_accum_file(void *infile,
+                                         hash_entry_t *hfile,
+                                         int64_t nprocs)
+{
+    struct darshan_stdio_file *pfile = infile;
+    int i;
+    struct darshan_stdio_file* tmp;
+
+    hfile->procs += 1;
+
+    if(pfile->base_rec.rank == -1)
+    {
+        hfile->slowest_time = pfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
+    }
+    else
+    {
+        hfile->slowest_time = max(hfile->slowest_time,
+            (pfile->fcounters[STDIO_F_META_TIME] +
+            pfile->fcounters[STDIO_F_READ_TIME] +
+            pfile->fcounters[STDIO_F_WRITE_TIME]));
+    }
+
+    if(pfile->base_rec.rank == -1)
+    {
+        hfile->procs = nprocs;
+        hfile->type |= FILETYPE_SHARED;
+
+    }
+    else if(hfile->procs > 1)
+    {
+        hfile->type &= (~FILETYPE_UNIQUE);
+        hfile->type |= FILETYPE_PARTSHARED;
+    }
+    else
+    {
+        hfile->type |= FILETYPE_UNIQUE;
+    }
+
+    hfile->cumul_time += pfile->fcounters[STDIO_F_META_TIME] +
+                         pfile->fcounters[STDIO_F_READ_TIME] +
+                         pfile->fcounters[STDIO_F_WRITE_TIME];
+
+    if(hfile->rec_dat == NULL)
+    {
+        hfile->rec_dat = malloc(sizeof(struct darshan_stdio_file));
+        assert(hfile->rec_dat);
+        memset(hfile->rec_dat, 0, sizeof(struct darshan_stdio_file));
+    }
+    tmp = (struct darshan_stdio_file*)hfile->rec_dat;
+
+    for(i = 0; i < STDIO_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+        case STDIO_MAX_BYTE_READ:
+        case STDIO_MAX_BYTE_WRITTEN:
+            if (tmp->counters[i] < pfile->counters[i])
+            {
+                tmp->counters[i] = pfile->counters[i];
+            }
+            break;
+        case POSIX_FASTEST_RANK:
+        case POSIX_SLOWEST_RANK:
+        case POSIX_FASTEST_RANK_BYTES:
+        case POSIX_SLOWEST_RANK_BYTES:
+            tmp->counters[i] = 0;
+            break;
+        default:
+            tmp->counters[i] += pfile->counters[i];
+            break;
+        }
+    }
+
+    for(i = 0; i < STDIO_F_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case STDIO_F_OPEN_START_TIMESTAMP:
+            case STDIO_F_CLOSE_START_TIMESTAMP:
+            case STDIO_F_READ_START_TIMESTAMP:
+            case STDIO_F_WRITE_START_TIMESTAMP:
+                if(tmp->fcounters[i] == 0 ||
+                    tmp->fcounters[i] > pfile->fcounters[i])
+                {
+                    tmp->fcounters[i] = pfile->fcounters[i];
+                }
+                break;
+            case STDIO_F_READ_END_TIMESTAMP:
+            case STDIO_F_WRITE_END_TIMESTAMP:
+            case STDIO_F_OPEN_END_TIMESTAMP:
+            case STDIO_F_CLOSE_END_TIMESTAMP:
+                if(tmp->fcounters[i] == 0 ||
+                    tmp->fcounters[i] < pfile->fcounters[i])
+                {
+                    tmp->fcounters[i] = pfile->fcounters[i];
+                }
+                break;
+            case STDIO_F_FASTEST_RANK_TIME:
+            case STDIO_F_SLOWEST_RANK_TIME:
+            case STDIO_F_VARIANCE_RANK_TIME:
+            case STDIO_F_VARIANCE_RANK_BYTES:
+                tmp->fcounters[i] = 0;
+                break;
+            default:
+                tmp->fcounters[i] += pfile->fcounters[i];
+                break;
+        }
+    }
+
+    return;
+}
+
+static void darshan_log_stdio_accum_perf(void *infile,
+                                         perf_data_t *pdata)
+{
+    struct darshan_stdio_file *pfile = infile;
+    pdata->total_bytes += pfile->counters[STDIO_BYTES_READ] +
+                          pfile->counters[STDIO_BYTES_WRITTEN];
+
+    /*
+     * Calculation of Shared File Time
+     *   Four Methods!!!!
+     *     by_cumul: sum time counters and divide by nprocs
+     *               (inaccurate if lots of variance between procs)
+     *     by_open: difference between timestamp of open and close
+     *              (inaccurate if file is left open without i/o happening)
+     *     by_open_lastio: difference between timestamp of open and the
+     *                     timestamp of last i/o
+     *                     (similar to above but fixes case where file is left
+     *                      open after io is complete)
+     *     by_slowest: use slowest rank time from log data
+     *                 (most accurate but requires newer log version)
+     */
+    if(pfile->base_rec.rank == -1)
+    {
+        /* by_open */
+        if(pfile->fcounters[STDIO_F_CLOSE_END_TIMESTAMP] >
+            pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP])
+        {
+            pdata->shared_time_by_open +=
+                pfile->fcounters[STDIO_F_CLOSE_END_TIMESTAMP] -
+                pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP];
+        }
+
+        /* by_open_lastio */
+        if(pfile->fcounters[STDIO_F_READ_END_TIMESTAMP] >
+            pfile->fcounters[STDIO_F_WRITE_END_TIMESTAMP])
+        {
+            /* be careful: file may have been opened but not read or written */
+            if(pfile->fcounters[STDIO_F_READ_END_TIMESTAMP] > pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP])
+            {
+                pdata->shared_time_by_open_lastio +=
+                    pfile->fcounters[STDIO_F_READ_END_TIMESTAMP] -
+                    pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP];
+            }
+        }
+        else
+        {
+            /* be careful: file may have been opened but not read or written */
+            if(pfile->fcounters[STDIO_F_WRITE_END_TIMESTAMP] > pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP])
+            {
+                pdata->shared_time_by_open_lastio +=
+                    pfile->fcounters[STDIO_F_WRITE_END_TIMESTAMP] -
+                    pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP];
+            }
+        }
+
+        pdata->shared_time_by_cumul +=
+            pfile->fcounters[STDIO_F_META_TIME] +
+            pfile->fcounters[STDIO_F_READ_TIME] +
+            pfile->fcounters[STDIO_F_WRITE_TIME];
+        pdata->shared_meta_time += pfile->fcounters[STDIO_F_META_TIME];
+
+        /* by_slowest */
+        pdata->shared_time_by_slowest +=
+           pfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
+    }
+
+    /*
+     * Calculation of Unique File Time
+     *   record the data for each file and sum it 
+     */
+    else
+    {
+        pdata->rank_cumul_io_time[pfile->base_rec.rank] +=
+            (pfile->fcounters[STDIO_F_META_TIME] +
+            pfile->fcounters[STDIO_F_READ_TIME] +
+            pfile->fcounters[STDIO_F_WRITE_TIME]);
+        pdata->rank_cumul_md_time[pfile->base_rec.rank] +=
+            pfile->fcounters[STDIO_F_META_TIME];
+    }
+
+    return;
+}
+
+static void darshan_log_stdio_calc_file(hash_entry_t *file_hash,
+                                        file_data_t *fdata)
+{
+    hash_entry_t *curr = NULL;
+    hash_entry_t *tmp = NULL;
+    struct darshan_stdio_file *file_rec;
+
+    memset(fdata, 0, sizeof(*fdata));
+    HASH_ITER(hlink, file_hash, curr, tmp)
+    {
+        int64_t bytes;
+        int64_t r;
+        int64_t w;
+
+        file_rec = (struct darshan_stdio_file*)curr->rec_dat;
+        assert(file_rec);
+
+        bytes = file_rec->counters[STDIO_BYTES_READ] +
+                file_rec->counters[STDIO_BYTES_WRITTEN];
+
+        r = file_rec->counters[STDIO_READS];
+
+        w = file_rec->counters[STDIO_WRITES];
+
+        fdata->total += 1;
+        fdata->total_size += bytes;
+        fdata->total_max = max(fdata->total_max, bytes);
+
+        if (r && !w)
+        {
+            fdata->read_only += 1;
+            fdata->read_only_size += bytes;
+            fdata->read_only_max = max(fdata->read_only_max, bytes);
+        }
+
+        if (!r && w)
+        {
+            fdata->write_only += 1;
+            fdata->write_only_size += bytes;
+            fdata->write_only_max = max(fdata->write_only_max, bytes);
+        }
+
+        if (r && w)
+        {
+            fdata->read_write += 1;
+            fdata->read_write_size += bytes;
+            fdata->read_write_max = max(fdata->read_write_max, bytes);
+        }
+
+        if ((curr->type & (FILETYPE_SHARED|FILETYPE_PARTSHARED)))
+        {
+            fdata->shared += 1;
+            fdata->shared_size += bytes;
+            fdata->shared_max = max(fdata->shared_max, bytes);
+        }
+
+        if ((curr->type & (FILETYPE_UNIQUE)))
+        {
+            fdata->unique += 1;
+            fdata->unique_size += bytes;
+            fdata->unique_max = max(fdata->unique_max, bytes);
+        }
+    }
+
+    return;
+}
+
+static void darshan_log_stdio_print_total_file(
+    void *infile,
+    int stdio_ver)
+{
+    struct darshan_stdio_file *pfile = infile;
+    int i;
+
+    mod_logutils[DARSHAN_STDIO_MOD]->log_print_description(stdio_ver);
+    printf("\n");
+    for(i = 0; i < STDIO_NUM_INDICES; i++)
+    {
+        printf("total_%s: %"PRId64"\n",
+            stdio_counter_names[i], pfile->counters[i]);
+    }
+    for(i = 0; i < STDIO_F_NUM_INDICES; i++)
+    {
+        printf("total_%s: %lf\n",
+            stdio_f_counter_names[i], pfile->fcounters[i]);
+    }
+    return;
+}
+
+static void darshan_log_stdio_file_list(
+    hash_entry_t *file_hash,
+    struct darshan_name_record_ref *name_hash,
+    int detail_flag)
+{
+    hash_entry_t *curr = NULL;
+    hash_entry_t *tmp = NULL;
+    struct darshan_stdio_file *file_rec = NULL;
+    struct darshan_name_record_ref *ref = NULL;
+    int i;
+
+    /* list of columns:
+     *
+     * normal mode
+     * - file id
+     * - file name
+     * - nprocs
+     * - slowest I/O time
+     * - average cumulative I/O time
+     *
+     * detailed mode
+     * - first open
+     * - first read
+     * - first write
+     * - last read
+     * - last write
+     * - last close
+     * - STDIO opens
+     */
+
+    if(detail_flag)
+        printf("\n# Per-file summary of I/O activity (detailed).\n");
+    else
+        printf("\n# Per-file summary of I/O activity.\n");
+    printf("# -----\n");
+
+    printf("# <record_id>: darshan record id for this file\n");
+    printf("# <file_name>: full file name\n");
+    printf("# <nprocs>: number of processes that opened the file\n");
+    printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
+    printf("# <avg>: average time in seconds consumed in IO per process\n");
+    if(detail_flag)
+    {
+        printf("# <start_{open/close/write/read}>: start timestamp of first open, close, write, or read\n");
+        printf("# <end_{open/close/write/read}>: end timestamp of last open, close, write, or read\n");
+        printf("# <stdio_opens>: STDIO open calls\n");
+    }
+
+    printf("\n# <record_id>\t<file_name>\t<nprocs>\t<slowest>\t<avg>");
+    if(detail_flag)
+    {
+        printf("\t<start_open>\t<start_close>\t<start_write>\t<start_read>");
+        printf("\t<end_open>\t<end_close>\t<end_write>\t<end_read>\t<stdio_opens>");
+    }
+    printf("\n");
+
+    HASH_ITER(hlink, file_hash, curr, tmp)
+    {
+        file_rec = (struct darshan_stdio_file*)curr->rec_dat;
+        assert(file_rec);
+
+        HASH_FIND(hlink, name_hash, &(curr->rec_id), sizeof(darshan_record_id), ref);
+        assert(ref);
+
+        printf("%" PRIu64 "\t%s\t%" PRId64 "\t%f\t%f",
+            curr->rec_id,
+            ref->name_record->name,
+            curr->procs,
+            curr->slowest_time,
+            curr->cumul_time/(double)curr->procs);
+
+        if(detail_flag)
+        {
+            for(i=STDIO_F_OPEN_START_TIMESTAMP; i<=STDIO_F_READ_END_TIMESTAMP; i++)
+            {
+                printf("\t%f", file_rec->fcounters[i]);
+            }
+            printf("\t%" PRId64, file_rec->counters[STDIO_OPENS]);
+        }
+        printf("\n");
     }
 
     return;

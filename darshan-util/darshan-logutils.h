@@ -22,6 +22,12 @@
  */
 #define DEF_MOD_BUF_SIZE 81920
 
+#define FILETYPE_SHARED (1 << 0)
+#define FILETYPE_UNIQUE (1 << 1)
+#define FILETYPE_PARTSHARED (1 << 2)
+
+#define max(a,b) (((a) > (b)) ? (a) : (b))
+
 struct darshan_fd_int_state;
 
 /* darshan file descriptor definition */
@@ -61,6 +67,58 @@ struct lustre_record_ref
 	struct darshan_lustre_record *rec;
 	UT_hash_handle hlink;
 };
+
+typedef struct hash_entry_s
+{
+    UT_hash_handle hlink;
+    darshan_record_id rec_id;
+    int64_t type;
+    int64_t procs;
+    void *rec_dat;
+    double cumul_time;
+    double slowest_time;
+} hash_entry_t;
+
+typedef struct file_data_s
+{
+    int64_t total;
+    int64_t total_size;
+    int64_t total_max;
+    int64_t read_only;
+    int64_t read_only_size;
+    int64_t read_only_max;
+    int64_t write_only;
+    int64_t write_only_size;
+    int64_t write_only_max;
+    int64_t read_write;
+    int64_t read_write_size;
+    int64_t read_write_max;
+    int64_t unique;
+    int64_t unique_size;
+    int64_t unique_max;
+    int64_t shared;
+    int64_t shared_size;
+    int64_t shared_max;
+} file_data_t;
+
+typedef struct perf_data_s
+{
+    int64_t total_bytes;
+    double slowest_rank_time;
+    double slowest_rank_meta_time;
+    int slowest_rank_rank;
+    double shared_time_by_cumul;
+    double shared_time_by_open;
+    double shared_time_by_open_lastio;
+    double shared_time_by_slowest;
+    double shared_meta_time;
+    double agg_perf_by_cumul;
+    double agg_perf_by_open;
+    double agg_perf_by_open_lastio;
+    double agg_perf_by_slowest;
+    double *rank_cumul_io_time;
+    double *rank_cumul_md_time;
+} perf_data_t;
 
 struct darshan_mnt_info
 {
@@ -131,6 +189,38 @@ struct darshan_mod_logutil_funcs
         void *agg_rec,
         int init_flag
     );
+    /* accumulate file statistics across processes */
+    void (*log_accum_file)(
+        void *rec,
+        hash_entry_t *hfile,
+        int64_t nprocs
+    );
+    /* accumulate data for performance estimate */
+    void (*log_accum_perf)(
+        void *rec,
+        perf_data_t *pdata
+    );
+    /* accumulate statistics about files and file counts */
+    void (*log_calc_file)(
+        hash_entry_t *hfile,
+        file_data_t *fdata
+    );
+    /* print out the aggregate file stats */
+    void (*log_print_total_file)(
+        void *rec,
+        int ver
+    );
+    /* print out statistics on a per file basis */
+    void (*log_file_list)(
+        hash_entry_t *hfile,
+        struct darshan_name_record_ref *name_hash,
+        int detail_flag
+    );
+    /* calculate performance estimate */
+    void (*log_calc_perf)(
+        perf_data_t *pdata,
+        int64_t nprocs
+    );
 };
 
 extern struct darshan_mod_logutil_funcs *mod_logutils[];
@@ -171,6 +261,7 @@ void darshan_log_close(darshan_fd file);
 void darshan_log_print_version_warnings(const char *version_string);
 void darshan_log_get_modules (darshan_fd fd, struct darshan_mod_info **mods, int* count);
 int darshan_log_get_record (darshan_fd fd, int mod_idx, void **buf);
+void darshan_calc_perf(perf_data_t *pdata, int64_t nprocs);
 
 /* convenience macros for printing Darshan counters */
 #define DARSHAN_PRINT_HEADER() \
