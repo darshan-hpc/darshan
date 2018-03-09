@@ -34,6 +34,8 @@ DARSHAN_FORWARD_DECL(mdhimPut, struct mdhim_brm_t *, (mdhim_t *md,
 DARSHAN_FORWARD_DECL(mdhimGet, struct mdhim_bgetrm_t *, (mdhim_t *md,
         struct index_t *index, void *key, int key_len, int op));
 
+DARSHAN_FORWARD_DECL(mdhimInit, int, (mdhim_t *md, mdhim_options_t *opts));
+
 /* The mdhim_record_ref structure maintains necessary runtime metadata
  * for the MDHIM module record (darshan_mdhim_record structure, defined in
  * darshan-mdhim-log-format.h) pointed to by 'record_p'. This metadata
@@ -81,7 +83,7 @@ struct mdhim_runtime
 static void mdhim_runtime_initialize(
     void);
 static struct mdhim_record_ref *mdhim_track_new_record(
-    darshan_record_id rec_id, const char *name);
+    darshan_record_id rec_id, int nr_servers, const char *name);
 static void mdhim_cleanup_runtime(
     void);
 
@@ -123,7 +125,6 @@ static int my_rank = -1;
         if(mdhim_runtime) break; \
     } \
     MDHIM_UNLOCK(); \
-    return(ret); \
 } while(0)
 
 /* the MDHIM_POST_RECORD macro is executed after performing MDHIM
@@ -134,7 +135,7 @@ static int my_rank = -1;
 } while(0)
 
 /* macro for instrumenting the "MDHIM" module's put function */
-#define MDHIM_RECORD_PUT(__ret, __md, __vallen, __tm1, __tm2) do{ \
+#define MDHIM_RECORD_PUT(__ret, __md, __id, __vallen, __tm1, __tm2) do{ \
     darshan_record_id rec_id; \
     struct mdhim_record_ref *rec_ref; \
     double __elapsed = __tm2 - __tm1; \
@@ -145,9 +146,7 @@ static int my_rank = -1;
     rec_id = darshan_core_gen_record_id(RECORD_STRING); \
     /* look up a record reference for this record id using darshan rec_ref interface */ \
     rec_ref = darshan_lookup_record_ref(mdhim_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
-    /* if no reference was found, track a new one for this record */ \
-    if(!rec_ref) rec_ref = mdhim_track_new_record(rec_id, RECORD_STRING); \
-    /* if we still don't have a valid reference, back out */ \
+    /* if no reference was found, that's odd: was init not called? */ \
     if(!rec_ref) break; \
     /* increment counter indicating number of calls to 'put' */ \
     rec_ref->record_p->counters[MDHIM_PUTS] += 1; \
@@ -160,10 +159,12 @@ static int my_rank = -1;
     if(rec_ref->record_p->fcounters[MDHIM_F_PUT_TIMESTAMP] == 0 || \
      rec_ref->record_p->fcounters[MDHIM_F_PUT_TIMESTAMP] > __tm1) \
         rec_ref->record_p->fcounters[MDHIM_F_PUT_TIMESTAMP] = __tm1; \
+    /* record which server gets this request */ \
+    rec_ref->record_p->server_histogram[(__id)]++; \
 } while(0)
 
 /* macro for instrumenting the "MDHIM" module's get function */
-#define MDHIM_RECORD_GET(__ret, __md, __keylen, __tm1, __tm2) do{ \
+#define MDHIM_RECORD_GET(__ret, __md, __id, __keylen, __tm1, __tm2) do{ \
     darshan_record_id rec_id; \
     struct mdhim_record_ref *rec_ref; \
     double __elapsed = __tm2 - __tm1; \
@@ -174,9 +175,7 @@ static int my_rank = -1;
     rec_id = darshan_core_gen_record_id(RECORD_STRING); \
     /* look up a record reference for this record id using darshan rec_ref interface */ \
     rec_ref = darshan_lookup_record_ref(mdhim_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
-    /* if no reference was found, track a new one for this record */ \
-    if(!rec_ref) rec_ref = mdhim_track_new_record(rec_id, RECORD_STRING); \
-    /* if we still don't have a valid reference, back out */ \
+    /* if no reference was found, we're in trouble */ \
     if(!rec_ref) break; \
     /* increment counter indicating number of calls to 'get' */ \
     rec_ref->record_p->counters[MDHIM_GETS] += 1; \
@@ -189,6 +188,8 @@ static int my_rank = -1;
     if(rec_ref->record_p->fcounters[MDHIM_F_GET_TIMESTAMP] == 0 || \
      rec_ref->record_p->fcounters[MDHIM_F_GET_TIMESTAMP] > __tm1) \
         rec_ref->record_p->fcounters[MDHIM_F_GET_TIMESTAMP] = __tm1; \
+    /* server distribution */ \
+    rec_ref->record_p->server_histogram[(__id)]++; \
 } while(0)
 
 /**********************************************************
@@ -199,6 +200,40 @@ static int my_rank = -1;
  * names, depending on whether the Darshan library is statically or
  * dynamically linked.
  */
+
+int DARSHAN_DECL(mdhimInit)(mdhim_t *md, mdhim_options_t *opts)
+{
+    /* not counting or tracking anything in this routine, but grabbing a
+     * bit of information about the mdhim instance */
+
+    int ret;
+    darshan_record_id rec_id;
+    struct mdhim_record_ref *rec_ref;
+    int nr_servers;
+
+    MPI_Comm_size(opts->comm, &nr_servers);
+
+    MDHIM_PRE_RECORD();
+    /* posix uses '__name' to generate a unique Darshan record id
+       but mdhim doesn't use string names for its keyval store. Assumes
+       one MDHIM instance */
+    rec_id = darshan_core_gen_record_id(RECORD_STRING);
+    /* look up a record reference for this record id using darshan
+     * rec_ref interface */
+    rec_ref = darshan_lookup_record_ref(mdhim_runtime->rec_id_hash,
+            &rec_id, sizeof(darshan_record_id));
+    /* if no reference was found, track a new one for this record */
+    if(!rec_ref) rec_ref = mdhim_track_new_record(rec_id,
+            nr_servers, RECORD_STRING);
+    /* if we still don't have a valid reference, well that's too dang bad */
+    if (rec_ref) rec_ref->record_p->counters[MDHIM_SERVERS] = nr_servers;
+    MDHIM_POST_RECORD();
+
+    MAP_OR_FAIL(mdhimInit);
+    ret = __real_mdhimInit(md, opts);
+    return ret;
+
+}
 struct mdhim_brm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
         void *key, int key_len,
         void *value, int value_len,
@@ -223,11 +258,14 @@ struct mdhim_brm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
             secondary_global_info, secondary_global_info);
     tm2 = darshan_core_wtime();
 
+    int server_id = mdhimWhichServer(md, key, key_len);
+
     MDHIM_PRE_RECORD();
     /* Call macro for instrumenting data for mdhimPut function calls. */
     /* TODO: call the mdhim hash routines and instrument which servers
      * get this request */
-    MDHIM_RECORD_PUT(ret, md, value_len, tm1, tm2);
+    MDHIM_RECORD_PUT(ret, md, server_id, value_len, tm1, tm2);
+
     MDHIM_POST_RECORD();
 
     return(ret);
@@ -248,9 +286,11 @@ struct mdhim_bgetrm_t * DARSHAN_DECL(mdhimGet)(mdhim_t *md,
     ret = __real_mdhimGet(md, index, key, key_len, op);
     tm2 = darshan_core_wtime();
 
+    int server_id = mdhimWhichServer(md, key, key_len);
+
     MDHIM_PRE_RECORD();
     /* Call macro for instrumenting data for get function calls. */
-    MDHIM_RECORD_GET(ret, md, key_len, tm1, tm2);
+    MDHIM_RECORD_GET(ret, md, server_id, key_len, tm1, tm2);
     MDHIM_POST_RECORD();
     return ret;
 }
@@ -298,11 +338,12 @@ static void mdhim_runtime_initialize()
 
 /* allocate and track a new MDHIM module record */
 static struct mdhim_record_ref *mdhim_track_new_record(
-    darshan_record_id rec_id, const char *name)
+    darshan_record_id rec_id, int nr_servers, const char *name)
 {
     struct darshan_mdhim_record *record_p = NULL;
     struct mdhim_record_ref *rec_ref = NULL;
     int ret;
+    size_t rec_size;
 
     rec_ref = calloc(1, sizeof(*rec_ref));
     if(!rec_ref)
@@ -319,6 +360,7 @@ static struct mdhim_record_ref *mdhim_track_new_record(
         return(NULL);
     }
 
+    rec_size = MDHIM_RECORD_SIZE(nr_servers);
     /* register the actual file record with darshan-core so it is persisted
      * in the log file
      */
@@ -326,7 +368,7 @@ static struct mdhim_record_ref *mdhim_track_new_record(
         rec_id,
         name,
         DARSHAN_MDHIM_MOD,
-        sizeof(struct darshan_mdhim_record),
+        rec_size,
         NULL);
 
     if(!record_p)

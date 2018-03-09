@@ -19,6 +19,8 @@
     X(MDHIM_GETS) \
     /* largest get */ \
     X(MDHIM_GET_MAX_SIZE) \
+    /* how many servers? */ \
+    X(MDHIM_SERVERS) \
     /* end of counters */ \
     X(MDHIM_NUM_INDICES)
 
@@ -59,6 +61,11 @@ struct darshan_mdhim_record
     struct darshan_base_record base_rec;
     int64_t counters[MDHIM_NUM_INDICES];
     double fcounters[MDHIM_F_NUM_INDICES];
+    /* when we allocate this struct, we'll do so with enough extra memory to
+     * hold N servers.  Compare to approach taken with darshan_lustre_record */
+    int32_t server_histogram[1];
 };
 
+/* '-1' because d_m_r already allocated with space for one */
+#define MDHIM_RECORD_SIZE(servers) (sizeof(struct darshan_mdhim_record) + sizeof(int32_t) * ((servers) - 1) )
 #endif /* __DARSHAN_MDHIM_LOG_FORMAT_H */
