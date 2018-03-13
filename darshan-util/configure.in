@@ -86,11 +86,11 @@ AC_ARG_ENABLE(
 )
 
 if test x$enable_autoperf_crayxc = xyes; then
-    AC_REQUIRE_AUX_FILE([modules/autoperf/crayxc/darshan-apxc-log-format.h])
-dnl    AC_CHECK_FILE([modules/autoperf/crayxc/darshan-apxc-log-format.h],
-dnl                  DARSHAN_USE_APXC=1,
-dnl                  [AC_MSG_ERROR([AutoPerf submodule not initialized])])
-    DARSHAN_USE_APXC=1
+    abssrcdir=$(readlink -f ${srcdir})
+    AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/crayxc/darshan-apxc-log-format.h],
+                    DARSHAN_USE_APXC=1,
+                    [AC_MSG_ERROR([The autoperf module is not present])],
+                    [-]) # this last part tells it to only check for presence
 fi
 
 AC_CHECK_FUNCS([strndup])

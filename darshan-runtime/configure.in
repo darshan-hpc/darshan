@@ -170,15 +170,15 @@ if test x$enable_lustre_mod != xno; then
 fi
 
 if test x$enable_autoperf_crayxc = xyes; then
+    abssrcdir=$(readlink -f ${srcdir})
     AC_CHECK_HEADER([papi.h],
                     with_papi=-lpapi,
                     [AC_MSG_ERROR([Cannot find required header for papi])],
                     [])
-    AC_REQUIRE_AUX_FILE([modules/autoperf/crayxc/darshan-apxc-log-format.h])
-dnl    AC_CHECK_FILE([modules/autoperf/crayxc/darshan-apxc-log-format.h],
-dnl                  DARSHAN_USE_APXC=1,
-dnl                  [AC_MSG_ERROR([AutoPerf submodule not initialized])])
-    DARSHAN_USE_APXC=1
+    AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/crayxc/darshan-apxc-log-format.h],
+                    DARSHAN_USE_APXC=1,
+                    [AC_MSG_ERROR([The autoperf module is not present])],
+                    [-]) # this last part tells it to only check for presence
 fi
 
 if test x$GOT_ALIGNMENT != x1; then
