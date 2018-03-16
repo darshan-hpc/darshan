@@ -1956,6 +1956,8 @@ int darshan_log_stats (darshan_fd fd)
     memset(&fdata, 0, sizeof(fdata));
     memset(&pdata, 0, sizeof(pdata));
 
+    assert(0); // not ready for primetime yet
+
     buf = malloc(DEF_MOD_BUF_SIZE);
     if (!buf)
     {
@@ -2006,7 +2008,7 @@ int darshan_log_stats (darshan_fd fd)
         }
     }
 
-    return;
+    return 0;
 }
 
 
