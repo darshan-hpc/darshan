@@ -26,13 +26,13 @@
  * declarations for wrapped funcions, regardless of whether Darshan is used with
  * statically or dynamically linked executables.
  */
-DARSHAN_FORWARD_DECL(mdhimPut, struct mdhim_brm_t *, (mdhim_t *md,
+DARSHAN_FORWARD_DECL(mdhimPut, mdhim_brm_t *, (mdhim_t *md,
             void *key, int key_len, void *value, int value_len,
             struct secondary_info *secondary_global_info,
             struct secondary_info *secondary_local_info));
 
-DARSHAN_FORWARD_DECL(mdhimGet, struct mdhim_bgetrm_t *, (mdhim_t *md,
-        struct index_t *index, void *key, int key_len, int op));
+DARSHAN_FORWARD_DECL(mdhimGet, mdhim_getrm_t *, (mdhim_t *md,
+        struct index *index, void *key, int key_len, int op));
 
 DARSHAN_FORWARD_DECL(mdhimInit, int, (mdhim_t *md, mdhim_options_t *opts));
 
@@ -234,13 +234,13 @@ int DARSHAN_DECL(mdhimInit)(mdhim_t *md, mdhim_options_t *opts)
     return ret;
 
 }
-struct mdhim_brm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
+mdhim_brm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
         void *key, int key_len,
         void *value, int value_len,
-        struct secondary_info *secondary_global_info,
-        struct secondary_info * secondary_local_info)
+        secondary_info_t *secondary_global_info,
+        secondary_info_t *secondary_local_info)
 {
-    struct mdhim_brm_t *ret;
+    mdhim_brm_t *ret;
     double tm1, tm2;
 
     /* The MAP_OR_FAIL macro attempts to obtain the address of the actual
@@ -271,10 +271,11 @@ struct mdhim_brm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
     return(ret);
 }
 
-struct mdhim_bgetrm_t * DARSHAN_DECL(mdhimGet)(mdhim_t *md,
-        struct index_t *index, void *key, int key_len, int op)
+mdhim_getrm_t * DARSHAN_DECL(mdhimGet)(mdhim_t *md,
+        struct index *index, void *key, int key_len,
+        enum TransportGetMessageOp op)
 {
-    struct mdhim_bgetrm_t *ret;
+    mdhim_getrm_t *ret;
     double tm1, tm2;
 
     MAP_OR_FAIL(mdhimGet);
