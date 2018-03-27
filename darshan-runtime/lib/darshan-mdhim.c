@@ -26,13 +26,12 @@
  * declarations for wrapped funcions, regardless of whether Darshan is used with
  * statically or dynamically linked executables.
  */
-DARSHAN_FORWARD_DECL(mdhimPut, struct mdhim_brm_t *, (mdhim_t *md,
-            void *key, int key_len, void *value, int value_len,
-            struct secondary_info *secondary_global_info,
-            struct secondary_info *secondary_local_info));
+DARSHAN_FORWARD_DECL(mdhimPut, mdhim_rm_t *, (mdhim_t *md,
+            index_t *index, void *primary_key, size_t primary_key_len,
+            void *value, int value_len));
 
-DARSHAN_FORWARD_DECL(mdhimGet, struct mdhim_bgetrm_t *, (mdhim_t *md,
-        struct index_t *index, void *key, int key_len, int op));
+DARSHAN_FORWARD_DECL(mdhimGet, mdhim_grm_t *, (mdhim_t *md,
+        index_t *index, void *key, size_t key_len, int op));
 
 DARSHAN_FORWARD_DECL(mdhimInit, int, (mdhim_t *md, mdhim_options_t *opts));
 
@@ -234,13 +233,12 @@ int DARSHAN_DECL(mdhimInit)(mdhim_t *md, mdhim_options_t *opts)
     return ret;
 
 }
-struct mdhim_brm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
-        void *key, int key_len,
-        void *value, int value_len,
-        struct secondary_info *secondary_global_info,
-        struct secondary_info * secondary_local_info)
+mdhim_rm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
+        index_t *index,
+        void *key, size_t key_len,
+        void *value, size_t value_len)
 {
-    struct mdhim_brm_t *ret;
+    mdhim_rm_t *ret;
     double tm1, tm2;
 
     /* The MAP_OR_FAIL macro attempts to obtain the address of the actual
@@ -254,11 +252,10 @@ struct mdhim_brm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
      * given wrapper function. Timers are used to record the duration of this
      * operation. */
     tm1 = darshan_core_wtime();
-    ret = __real_mdhimPut(md, key, key_len, value, value_len,
-            secondary_global_info, secondary_global_info);
+    ret = __real_mdhimPut(md, index, key, key_len, value, value_len);
     tm2 = darshan_core_wtime();
 
-    int server_id = mdhimWhichServer(md, key, key_len);
+    int server_id = mdhimWhichDB(md, key, key_len);
 
     MDHIM_PRE_RECORD();
     /* Call macro for instrumenting data for mdhimPut function calls. */
@@ -271,10 +268,11 @@ struct mdhim_brm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
     return(ret);
 }
 
-struct mdhim_bgetrm_t * DARSHAN_DECL(mdhimGet)(mdhim_t *md,
-        struct index_t *index, void *key, int key_len, int op)
+mdhim_grm_t * DARSHAN_DECL(mdhimGet)(mdhim_t *md,
+        index_t *index, void *key, size_t key_len,
+        enum TransportGetMessageOp op)
 {
-    struct mdhim_bgetrm_t *ret;
+    mdhim_grm_t *ret;
     double tm1, tm2;
 
     MAP_OR_FAIL(mdhimGet);
@@ -286,7 +284,7 @@ struct mdhim_bgetrm_t * DARSHAN_DECL(mdhimGet)(mdhim_t *md,
     ret = __real_mdhimGet(md, index, key, key_len, op);
     tm2 = darshan_core_wtime();
 
-    int server_id = mdhimWhichServer(md, key, key_len);
+    int server_id = mdhimWhichDB(md, key, key_len);
 
     MDHIM_PRE_RECORD();
     /* Call macro for instrumenting data for get function calls. */
