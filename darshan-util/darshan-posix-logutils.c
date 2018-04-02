@@ -86,13 +86,26 @@ static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p)
         if(fd->mod_ver[DARSHAN_POSIX_MOD] == 1)
         {
             rec_len = DARSHAN_POSIX_FILE_SIZE_1;
-            ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, scratch, rec_len);
+            int64_t *fopen_counter;
+            
+            /* This version of the posix module had some stdio counters
+             * mixed in with the posix counters.  If the fopen counters are
+             * 0, then we can simply update the record format to skip those
+             * counters.  If the fopen counters are non-zero, then we omit
+             * the entire record because there is no clean way to properly
+             * up-convert it.
+             */
+            dest_p = scratch + (sizeof(struct darshan_base_record) + 
+                (6 * sizeof(int64_t)));
+            fopen_counter = (int64_t*)dest_p;
+            do
+            {
+                ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, scratch, rec_len);
+            } while(ret == rec_len && *fopen_counter > 0);
             if(ret != rec_len)
                 goto exit;
 
             /* upconvert version 1 to version 2 in-place */
-            dest_p = scratch + (sizeof(struct darshan_base_record) + 
-                (6 * sizeof(int64_t)));
             src_p = dest_p + (4 * sizeof(int64_t));
             len = rec_len - (src_p - scratch);
             memmove(dest_p, src_p, len);
@@ -230,9 +243,9 @@ static void darshan_log_print_posix_description(int ver)
     if(ver <= 1)
     {
         printf("\n# WARNING: POSIX module log format version 1 has the following limitations:\n");
-        printf("# - Partial instrumentation of stdio stream I/O functions not parsable by Darshan versions >= 3.1.0\n");
-        printf("#     * Using darshan-logutils versions < 3.1.0, this data can be found in the following POSIX counters:\n");
-        printf("#         * POSIX_FOPENS, POSIX_FREADS, POSIX_FWRITES, POSIX_FSEEKS\n");
+        printf("# - Darshan version 3.1.0 and earlier had only partial instrumentation of stdio stream I/O functions.\n");
+        printf("#   File records with stdio counters present will be omitted from output.\n");
+        printf("#   Use darshan-logutils < 3.1.0 to retrieve those records.\n");
     }
     if(ver <= 2)
     {
