@@ -70,14 +70,7 @@ static int darshan_log_get_mdhim_record(darshan_fd fd, void** mdhim_buf_p)
     if(fd->mod_map[DARSHAN_MDHIM_MOD].len == 0)
         return(0);
 
-    if(*mdhim_buf_p == NULL)
-    {
-        rec = malloc(sizeof(*rec));
-        if(!rec)
-            return(-1);
-    }
-
-    /* read the fixed-sized portion of the bdMDHIM module record from the
+    /* read the fixed-sized portion of the MDHIM module record from the
      * darshan log file */
     ret = darshan_log_get_mod(fd, DARSHAN_MDHIM_MOD, &tmp_rec,
         sizeof(struct darshan_mdhim_record));
@@ -96,8 +89,7 @@ static int darshan_log_get_mdhim_record(darshan_fd fd, void** mdhim_buf_p)
             DARSHAN_BSWAP64(&tmp_rec.counters[i]);
         for (i=0; i< MDHIM_F_NUM_INDICES; i++)
             DARSHAN_BSWAP64(&tmp_rec.fcounters[i]);
-        for (i=0; i< tmp_rec.counters[MDHIM_SERVERS]; i++)
-            DARSHAN_BSWAP32(&tmp_rec.server_histogram[i]);
+        DARSHAN_BSWAP32(&(tmp_rec.server_histogram[0]) );
     }
 
     if(*mdhim_buf_p == NULL)
@@ -112,6 +104,7 @@ static int darshan_log_get_mdhim_record(darshan_fd fd, void** mdhim_buf_p)
         ret = darshan_log_get_mod(fd, DARSHAN_MDHIM_MOD,
                 &(rec->server_histogram[1]),
                 (rec->counters[MDHIM_SERVERS] - 1)*sizeof(int32_t));
+
         if (ret < (rec->counters[MDHIM_SERVERS] -1)*sizeof(int32_t))
             ret = -1;
         else
