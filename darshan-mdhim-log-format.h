@@ -14,10 +14,10 @@
     /* number of 'put' function calls */\
     X(MDHIM_PUTS) \
     /* larget payload for a 'put' */ \
-    X(MDHIM_PUT_MAX_SIZE)\
-    /* number of 'get' function calls */\
     X(MDHIM_GETS) \
     /* largest get */ \
+    X(MDHIM_PUT_MAX_SIZE)\
+    /* number of 'get' function calls */\
     X(MDHIM_GET_MAX_SIZE) \
     /* how many servers? */ \
     X(MDHIM_SERVERS) \
@@ -27,9 +27,9 @@
 #define MDHIM_F_COUNTERS \
     /* timestamp of the first call to a 'put' function */\
     X(MDHIM_F_PUT_TIMESTAMP) \
-    /* timer indicating duration of call to 'foo' with max MDHIM_PUT_MAX_DAT value */\
-    X(MDHIM_F_PUT_MAX_DURATION) \
     X(MDHIM_F_GET_TIMESTAMP) \
+    /* timer indicating longest (slowest) call to put/get */\
+    X(MDHIM_F_PUT_MAX_DURATION) \
     X(MDHIM_F_GET_MAX_DURATION) \
     /* end of counters */\
     X(MDHIM_F_NUM_INDICES)
