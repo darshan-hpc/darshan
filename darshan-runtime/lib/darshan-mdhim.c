@@ -405,6 +405,28 @@ static void mdhim_cleanup_runtime()
     return;
 }
 
+static void dump_record(struct darshan_mdhim_record *rec)
+{
+    int i, len;
+    char output[256];
+    len = snprintf(output, 256,
+            " put: %ld get: %ld put_max %ld get_max %ld num_servers %ld "
+            "put_t: %f get_t: %f put_max_t: %f get_max_t %f ",
+            rec->counters[MDHIM_PUTS], rec->counters[MDHIM_GETS],
+            rec->counters[MDHIM_PUT_MAX_SIZE],
+            rec->counters[MDHIM_GET_MAX_SIZE],
+            rec->counters[MDHIM_SERVERS],
+            rec->fcounters[MDHIM_F_PUT_TIMESTAMP],
+            rec->fcounters[MDHIM_F_GET_TIMESTAMP],
+            rec->fcounters[MDHIM_F_PUT_MAX_DURATION],
+            rec->fcounters[MDHIM_F_GET_MAX_DURATION]);
+    for (i=0; i< rec->counters[MDHIM_SERVERS]; i++) {
+        len += snprintf(output+len, 256-len,
+                "server %d: %d ", i, rec->server_histogram[i]);
+    }
+    printf("%s\n", output);
+}
+
 static void mdhim_record_reduction_op(void *infile_v, void *inoutfile_v,
         int *len, MPI_Datatype *datatype)
 {
@@ -456,9 +478,14 @@ static void mdhim_record_reduction_op(void *infile_v, void *inoutfile_v,
          * data lives at the end of the struct (remember, alocated based on
          * MDHIM_RECORD_SIZE macro)  */
         for (j=0; j< tmp_rec->counters[MDHIM_SERVERS]; j++) {
+            printf("%d: inrec %d inoutred %d\n",
+                    j,
+                    inrec->server_histogram[j],
+                    inoutrec->server_histogram[j]);
             tmp_rec->server_histogram[j] = inrec->server_histogram[j] +
                 inoutrec->server_histogram[j];
         }
+        dump_record(tmp_rec);
         memcpy(inoutrec, tmp_rec,
                 MDHIM_RECORD_SIZE(tmp_rec->counters[MDHIM_SERVERS]));
         free(tmp_rec);
@@ -556,6 +583,7 @@ static void mdhim_shutdown(
         PMPI_Type_free(&red_type);
         PMPI_Op_free(&red_op);
     }
+    dump_record(mdhim_rec_buf);
     *mdhim_buf_sz = shared_rec_count * sizeof (struct darshan_mdhim_record);
 
     /* shutdown internal structures used for instrumenting */
