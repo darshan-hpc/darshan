@@ -9,8 +9,12 @@ runtime_result=""
 util_result=""
 thedate=$(date)
 
+# unload any darshan module and use GNU compilers
+module unload darshan
+module switch PrgEnv-intel PrgEnv-gnu
+
 cd build/darshan-runtime
-../../darshan-runtime/configure --prefix=$basedir/install --with-mem-align=16 --with-jobid-env=DARSHAN_JOBID --with-log-path=$basedir/logs CC=mpicc
+../../darshan-runtime/configure --prefix=$basedir/install --with-mem-align=64 --with-jobid-env=COBALT_JOBID --with-log-path=$basedir/logs --disable-cuserid --host=x86_64 CC=cc
 runtime_status=$?
 if [ $runtime_status -ne 0 ]; then
   fcount=$((fcount+1));

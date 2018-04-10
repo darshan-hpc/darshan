@@ -9,6 +9,10 @@ if [[ $NODE_LABELS =~ "mcs" ]];
 then
   source darshan-test/automated/mcs/configure.sh
   status=$?
+elif [[ $NODE_LABELS =~ "Theta" ]];
+then
+  source darshan-test/automated/theta/configure.sh
+  status=$?
 else
   # unknown machine
   status=100
