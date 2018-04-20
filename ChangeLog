@@ -2,6 +2,11 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.1.7
+=============
+* bug fix to MiB reported in I/O performance estimate of
+  darshan-job-summary.pl when both posix and stdio access is present
+
 Darshan-3.1.6
 =============
 * bug fix for linker failures caused when linking external libraries
