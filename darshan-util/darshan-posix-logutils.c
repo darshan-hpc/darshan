@@ -387,6 +387,8 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
             case POSIX_SIZE_WRITE_1G_PLUS:
                 /* sum */
                 agg_psx_rec->counters[i] += psx_rec->counters[i];
+                if(agg_psx_rec->counters[i] < 0) /* make sure invalid counters are -1 exactly */
+                    agg_psx_rec->counters[i] = -1;
                 break;
             case POSIX_MODE:
             case POSIX_MEM_ALIGNMENT:
