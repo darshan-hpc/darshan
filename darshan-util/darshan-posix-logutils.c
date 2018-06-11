@@ -100,6 +100,7 @@ static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p)
             fopen_counter = (int64_t*)dest_p;
             do
             {
+                /* pull POSIX records until we find one that doesn't have STDIO data */
                 ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, scratch, rec_len);
             } while(ret == rec_len && *fopen_counter > 0);
             if(ret != rec_len)
