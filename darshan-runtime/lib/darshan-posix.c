@@ -1435,6 +1435,8 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
         for(j=POSIX_OPENS; j<=POSIX_FDSYNCS; j++)
         {
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
+            if(tmp_file.counters[j] < 0) /* make sure invalid counters are -1 exactly */
+                tmp_file.counters[j] = -1;
         }
 
         tmp_file.counters[POSIX_MODE] = infile->counters[POSIX_MODE];

@@ -5,9 +5,13 @@
 
 status=0
 
-if [[ $NODE_LABELS =~ "mcs" ]];
+if [[ $NODE_LABELS =~ "CINOW" || $NODE_LABELS =~ "mcs" ]];
 then
-  source darshan-test/automated/mcs/configure.sh
+  source darshan-test/automated/generic/configure.sh
+  status=$?
+elif [[ $NODE_LABELS =~ "Theta" ]];
+then
+  source darshan-test/automated/theta/configure.sh
   status=$?
 else
   # unknown machine

@@ -7,6 +7,8 @@ Darshan-3.1.7
 * bug fix for darshan-parser backwards compatibility: Darshan logs generated
   by Darshan versions prior to 3.1.0 may have included stdio counters that
   were not properly up-converted.  Reported by Teng Wang.
+* bug fix to MiB reported in I/O performance estimate of
+  darshan-job-summary.pl when both posix and stdio access is present
 
 Darshan-3.1.6
 =============

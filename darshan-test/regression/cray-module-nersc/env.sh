@@ -29,7 +29,7 @@ export DARSHAN_CXX=CC
 export DARSHAN_F77=ftn
 export DARSHAN_F90=ftn
 
-export DARSHAN_RUNJOB="cray-module-nersc/runjob.sh"
+export DARSHAN_RUNJOB=$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/runjob.sh
 
 module unload darshan >& /dev/null
 module load $DARSHAN_PATH/share/craype-2.x/modulefiles/
