@@ -469,7 +469,6 @@ static void mdhim_record_reduction_op(void *infile_v, void *inoutfile_v,
             MDHIM_RECORD_SIZE(tmp_rec->counters[MDHIM_SERVERS]);
         inoutfile_v = (char *)inoutfile_v +
             MDHIM_RECORD_SIZE(tmp_rec->counters[MDHIM_SERVERS]);
-        /* XXX: when is it ok to free tmp_rec? */
     }
     return;
 }
@@ -524,7 +523,14 @@ static void mdhim_shutdown(
 
     if (shared_rec_count && !getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
     {
-        /* there is probably only one shared record */
+        /* already have the zeroth record because we checked how many
+         * servers there were */
+        rec_ref->record_p->base_rec.rank = -1;
+
+        /* there is probably only one shared record, but go ahead and
+         * check for any other shared records, setting their rank to -1.
+         * We will remove those from the report later */
+        /* starting from '1' since we grabbed the first record above */
         for (i=1; i< shared_rec_count; i++)
         {
             rec_ref = darshan_lookup_record_ref(mdhim_runtime->rec_id_hash,
@@ -575,7 +581,7 @@ static void mdhim_shutdown(
                     &mdhim_subtract_shared_rec_size);
         }
     }
-    *mdhim_buf_sz = mdhim_runtime->record_buffer_size;
+    *mdhim_buf_sz = mdhim_rec_count * mdhim_runtime->record_buffer_size;
 
     /* shutdown internal structures used for instrumenting */
     mdhim_cleanup_runtime();
