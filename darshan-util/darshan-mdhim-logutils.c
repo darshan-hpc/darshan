@@ -89,7 +89,7 @@ static int darshan_log_get_mdhim_record(darshan_fd fd, void** mdhim_buf_p)
             DARSHAN_BSWAP64(&tmp_rec.counters[i]);
         for (i=0; i< MDHIM_F_NUM_INDICES; i++)
             DARSHAN_BSWAP64(&tmp_rec.fcounters[i]);
-        DARSHAN_BSWAP32(&(tmp_rec.server_histogram[0]) );
+        DARSHAN_BSWAP64(&(tmp_rec.server_histogram[0]) );
     }
 
     if(*mdhim_buf_p == NULL)
@@ -103,16 +103,16 @@ static int darshan_log_get_mdhim_record(darshan_fd fd, void** mdhim_buf_p)
     if (rec->counters[MDHIM_SERVERS] > 1) {
         ret = darshan_log_get_mod(fd, DARSHAN_MDHIM_MOD,
                 &(rec->server_histogram[1]),
-                (rec->counters[MDHIM_SERVERS] - 1)*sizeof(int32_t));
+                (rec->counters[MDHIM_SERVERS] - 1)*sizeof(int64_t));
 
-        if (ret < (rec->counters[MDHIM_SERVERS] -1)*sizeof(int32_t))
+        if (ret < (rec->counters[MDHIM_SERVERS] -1)*sizeof(int64_t))
             ret = -1;
         else
         {
             ret = 1;
             if (fd->swap_flag)
                 for(i=1; i< rec->counters[MDHIM_SERVERS]; i++)
-                    DARSHAN_BSWAP32(&(rec->server_histogram[i]));
+                    DARSHAN_BSWAP64(&(rec->server_histogram[i]));
         }
     }
     else

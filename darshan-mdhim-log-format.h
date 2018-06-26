@@ -63,9 +63,12 @@ struct darshan_mdhim_record
     double fcounters[MDHIM_F_NUM_INDICES];
     /* when we allocate this struct, we'll do so with enough extra memory to
      * hold N servers.  Compare to approach taken with darshan_lustre_record */
-    int32_t server_histogram[1];
+    /* be mindful of struct alignment here:  If one reads "sizeof(struct
+     * darshan_mdhim_record)", one might end up reading more than expected.
+     * Second read will then end up reading less than needed */
+    int64_t server_histogram[1];
 };
 
 /* '-1' because d_m_r already allocated with space for one */
-#define MDHIM_RECORD_SIZE(servers) (sizeof(struct darshan_mdhim_record) + sizeof(int32_t) * ((servers) - 1) )
+#define MDHIM_RECORD_SIZE(servers) (sizeof(struct darshan_mdhim_record) + sizeof(int64_t) * ((servers) - 1) )
 #endif /* __DARSHAN_MDHIM_LOG_FORMAT_H */
