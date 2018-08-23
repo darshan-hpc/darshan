@@ -40,6 +40,7 @@ static int opt_lseek = 0;
 static int opt_realpath = 0;
 static int opt_ioctl = 0;
 static int opt_llapi = 0;
+static int opt_llapi_fd = 0;
 static int opt_fpp = 0;
 static int rank = -1;
 
@@ -135,7 +136,7 @@ int main(int argc, char **argv)
       else
         free(new_path);
    }
-   else if ( opt_llapi || opt_ioctl )
+   else if ( opt_llapi || opt_ioctl || opt_llapi_fd)
    {
 #ifdef NO_LUSTRE
       fprintf(stderr, "Not compiled with Lustre support\n");
@@ -157,10 +158,18 @@ int main(int argc, char **argv)
         }
         else if ( opt_ioctl )
         {
+				memset(lum, 0, lumsize);
             lum->lmm_magic = LOV_USER_MAGIC;
             lum->lmm_stripe_count = LOV_MAX_STRIPE_COUNT;
             ret = ioctl( fd, LL_IOC_LOV_GETSTRIPE, (void *)lum );
         }
+		  else if (opt_llapi_fd) {
+				struct llapi_layout *layout;
+				layout = llapi_layout_get_by_fd(fd, 0);
+				llapi_layout_stripe_count_get(layout, &(lum->lmm_stripe_count));
+				llapi_layout_stripe_size_get(layout, &(lum->lmm_stripe_size));
+				llapi_layout_ost_index_get(layout,  0, &(lum->lmm_stripe_offset));
+		  }
 #ifdef DEBUG
         /* different API/ioctl calls populate only parts of lum */
         printf( "stripe_width=%d stripe_size=%d starting_ost=%d\n",
@@ -202,7 +211,7 @@ int main(int argc, char **argv)
 
    if(rank == 0)
    {
-      printf("opt_file: %s, opt_create: %d, opt_fstat: %d, opt_lseek: %d, opt_realpath: %d, opt_llapi: %d, opt_ioctl: %d, opt_fpp: %d, nprocs: %d, time: %f ms\n",
+      printf("opt_file: %s, opt_create: %d, opt_fstat: %d, opt_lseek: %d, opt_realpath: %d, opt_llapi: %d, opt_ioctl: %d, opt_fpp: %d, opt_llapi_fd: %d, nprocs: %d, time: %f ms\n",
         opt_file,
         opt_create,
         opt_fstat,
@@ -211,6 +220,7 @@ int main(int argc, char **argv)
         opt_llapi,
         opt_ioctl,
         opt_fpp,
+		  opt_llapi_fd,
         nprocs,
         slowest);
    }
@@ -223,7 +233,7 @@ static int parse_args(int argc, char **argv)
 {
    int c;
    
-   while ((c = getopt(argc, argv, "fclripa")) != EOF) {
+   while ((c = getopt(argc, argv, "fclripaA")) != EOF) {
       switch (c) {
          case 'c': /* create file */
             opt_create = 1;
@@ -243,6 +253,9 @@ static int parse_args(int argc, char **argv)
          case 'a': /* use llapi test*/
             opt_llapi = 1;
             break;
+			case 'A': /* use llapi test with fd */
+				opt_llapi_fd = 1;
+				break;
          case 'p': /* file per process instead of shared file */
             opt_fpp = 1;
             break;
@@ -259,9 +272,9 @@ static int parse_args(int argc, char **argv)
       }
    }
 
-   if(opt_lseek + opt_fstat + opt_realpath + opt_ioctl + opt_llapi > 1)
+   if(opt_lseek + opt_fstat + opt_realpath + opt_ioctl + opt_llapi + opt_llapi_fd > 1)
    {
-      fprintf(stderr, "Error: Only specify one of -l, -f, -i, -a, or -r.\n");
+      fprintf(stderr, "Error: Only specify one of -l, -f, -i, -a, -A, or -r.\n");
       usage();
       exit(1);
    }
@@ -296,7 +309,8 @@ static void usage(void)
     printf(" -f       use fstat instead of stat\n");
     printf(" -l       use lseek instead of stat\n");
     printf(" -r       use realpath instead of stat\n");
-    printf(" -a       use Lustre API test\n");
+    printf(" -a       use Lustre API test (filename version)\n");
+    printf(" -A       use Lustre API test (fd version) \n");
     printf(" -i       use ioctl Lustre test\n");
     printf(" -h       print this help\n");
 }
