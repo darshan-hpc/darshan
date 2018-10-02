@@ -20,7 +20,7 @@ else
   AC_MSG_ERROR(zlib is required)
 fi])
 
-AC_CHECK_HEADER(zlib.h, [],[AC_MSG_ERROR(z.h not found)])
+AC_CHECK_HEADER(zlib.h, [],[AC_MSG_ERROR(zlib.h not found)])
 AC_CHECK_LIB(z, inflateEnd, [],[AC_MSG_ERROR(libz not found)])
 
 ])
