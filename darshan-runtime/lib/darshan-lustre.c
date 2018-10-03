@@ -242,9 +242,16 @@ static void lustre_shutdown(
         {
             rec_ref = darshan_lookup_record_ref(lustre_runtime->record_id_hash,
                 &shared_recs[i], sizeof(darshan_record_id));
-            assert(rec_ref);
-
-            rec_ref->record->base_rec.rank = -1;
+            /* As in other modules, it should not be possible to lose a
+             * record after we have already performed a collective to
+             * identify that it is shared with other ranks.  We print an
+             * error msg and continue rather than asserting in this case,
+             * though, see #243.
+             */
+            if(rec_ref)
+                rec_ref->record->base_rec.rank = -1;
+            else
+                fprintf(stderr, "WARNING: unexpected condition in Darshan, possibly triggered by memory corruption.  Darshan log may be incorrect.\n");
         }
 
         /* sort the array of files descending by rank so that we get all of the 
