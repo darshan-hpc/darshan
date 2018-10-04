@@ -195,6 +195,8 @@ endif
 	install -m 755 darshan-gen-cxx.pl $(bindir)
 	install -m 755 darshan-gen-fortran.pl $(bindir)
 	install -m 755 darshan-config $(bindir)
+	install -d $(includedir)
+	install -m 644 $(srcdir)/darshan-module-api.h $(includedir)
 	install -d $(datarootdir)/craype-1.x/modulefiles/darshan
 	install -m 755 share/craype-1.x/darshan-module $(datarootdir)/craype-1.x/modulefiles/darshan/$(DARSHAN_VERSION)
 	install -d $(datarootdir)/craype-2.x/modulefiles/darshan
