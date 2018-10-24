@@ -392,10 +392,10 @@ AS_IF([test "x$ENABLE_MPI" = "x1"], [
 # determine if the MPI library includes MPI-IO functions or not
 AC_MSG_CHECKING(for MPI-IO support in MPI)
 AC_TRY_LINK([#include <mpi.h>], [
-    MPI_Comm comm;
-    char* filename;
-    int amode;
-    MPI_Info info;
+    MPI_Comm comm=0;
+    char* filename=0;
+    int amode=0;
+    MPI_Info info=0;
     MPI_File fh;
             MPI_File_open(comm, filename, amode, info, &fh);],
     AC_MSG_RESULT(yes),
