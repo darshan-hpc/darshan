@@ -165,8 +165,8 @@ while($line = <PARSE_OUT>)
         {
             if($current_module eq "STDIO")
             {
-                ($junk, $perf_mbytes) = split(':', $line, 2);
-                $stdio_perf_mbytes = $perf_mbytes / 1024 / 1024;
+                ($junk, $stdio_perf_mbytes) = split(':', $line, 2);
+                $stdio_perf_mbytes = $stdio_perf_mbytes / 1024 / 1024;
                 $stdio_perf_mbytes = sprintf("%.1f", $stdio_perf_mbytes);
             }
             elsif($perf_mbytes == 0)
