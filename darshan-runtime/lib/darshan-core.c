@@ -147,6 +147,8 @@ static int darshan_log_append_all(
     int count, uint64_t *inout_off);
 static void darshan_core_cleanup(
     struct darshan_core_runtime* core);
+static double darshan_wtime();
+
 
 /* *********************************** */
 
@@ -161,16 +163,22 @@ void darshan_core_initialize(int argc, char **argv)
     int ret;
     int i;
     int tmpval;
+    int using_mpi;
     double tmpfloat;
 
-    PMPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-    PMPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    PMPI_Initialized(&using_mpi);
+
+    if (using_mpi)
+    {
+        PMPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+        PMPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    }
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
 
     if(internal_timing_flag)
-        init_start = PMPI_Wtime();
+        init_start = darshan_wtime();
 
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if(!getenv("DARSHAN_DISABLE") && !darshan_core)
@@ -236,7 +244,7 @@ void darshan_core_initialize(int argc, char **argv)
         if(init_core)
         {
             memset(init_core, 0, sizeof(*init_core));
-            init_core->wtime_offset = PMPI_Wtime();
+            init_core->wtime_offset = darshan_wtime();
 
         /* TODO: do we alloc new memory as we go or just do everything up front? */
 
@@ -325,7 +333,7 @@ void darshan_core_initialize(int argc, char **argv)
 
     if(internal_timing_flag)
     {
-        init_time = PMPI_Wtime() - init_start;
+        init_time = darshan_wtime() - init_start;
         PMPI_Reduce(&init_time, &init_max, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
         if(my_rank == 0)
@@ -372,7 +380,7 @@ void darshan_core_shutdown()
 
     /* synchronize before getting start time */
     PMPI_Barrier(MPI_COMM_WORLD);
-    start_log_time = PMPI_Wtime();
+    start_log_time = darshan_wtime();
 
     /* disable darhan-core while we shutdown */
     DARSHAN_CORE_LOCK();
@@ -463,11 +471,11 @@ void darshan_core_shutdown()
     darshan_get_shared_records(final_core, &shared_recs, &shared_rec_cnt);
 
     if(internal_timing_flag)
-        open1 = PMPI_Wtime();
+        open1 = darshan_wtime();
     /* collectively open the darshan log file */
     ret = darshan_log_open_all(logfile_name, &log_fh);
     if(internal_timing_flag)
-        open2 = PMPI_Wtime();
+        open2 = darshan_wtime();
 
     /* error out if unable to open log file */
     PMPI_Allreduce(&ret, &all_ret, 1, MPI_INT,
@@ -485,7 +493,7 @@ void darshan_core_shutdown()
     }
 
     if(internal_timing_flag)
-        job1 = PMPI_Wtime();
+        job1 = darshan_wtime();
     /* rank 0 is responsible for writing the compressed darshan job information */
     if(my_rank == 0)
     {
@@ -528,10 +536,10 @@ void darshan_core_shutdown()
         return;
     }
     if(internal_timing_flag)
-        job2 = PMPI_Wtime();
+        job2 = darshan_wtime();
 
     if(internal_timing_flag)
-        rec1 = PMPI_Wtime();
+        rec1 = darshan_wtime();
     /* write the record name->id hash to the log file */
     final_core->log_hdr_p->name_map.off = gz_fp;
     ret = darshan_log_write_name_record_hash(log_fh, final_core, &gz_fp);
@@ -554,7 +562,7 @@ void darshan_core_shutdown()
         return;
     }
     if(internal_timing_flag)
-        rec2 = PMPI_Wtime();
+        rec2 = darshan_wtime();
 
     mod_shared_recs = malloc(shared_rec_cnt * sizeof(darshan_record_id));
     assert(mod_shared_recs);
@@ -586,7 +594,7 @@ void darshan_core_shutdown()
         }
 
         if(internal_timing_flag)
-            mod1[i] = PMPI_Wtime();
+            mod1[i] = darshan_wtime();
 
         /* set the shared record list for this module */
         for(j = 0; j < shared_rec_cnt; j++)
@@ -643,11 +651,11 @@ void darshan_core_shutdown()
         }
 
         if(internal_timing_flag)
-            mod2[i] = PMPI_Wtime();
+            mod2[i] = darshan_wtime();
     }
 
     if(internal_timing_flag)
-        header1 = PMPI_Wtime();
+        header1 = darshan_wtime();
     /* write out log header, after running 2 reductions on header variables:
      *  1) reduce 'partial_flag' variable to determine which modules ran out
      *     of memory for storing data
@@ -694,7 +702,7 @@ void darshan_core_shutdown()
         return;
     }
     if(internal_timing_flag)
-        header2 = PMPI_Wtime();
+        header2 = darshan_wtime();
 
     PMPI_File_close(&log_fh);
 
@@ -723,7 +731,7 @@ void darshan_core_shutdown()
             if(new_logfile_name)
             {
                 new_logfile_name[0] = '\0';
-                end_log_time = PMPI_Wtime();
+                end_log_time = darshan_wtime();
                 strcat(new_logfile_name, logfile_name);
                 tmp_index = strstr(new_logfile_name, ".darshan_partial");
                 sprintf(tmp_index, "_%d.darshan", (int)(end_log_time-start_log_time+1));
@@ -749,7 +757,7 @@ void darshan_core_shutdown()
         double mod_tm[DARSHAN_MAX_MODS], mod_slowest[DARSHAN_MAX_MODS];
         double all_tm, all_slowest;
 
-        tm_end = PMPI_Wtime();
+        tm_end = darshan_wtime();
 
         open_tm = open2 - open1;
         header_tm = header2 - header1;
@@ -834,7 +842,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
      */
     if(my_rank == 0)
     {
-        hlevel=PMPI_Wtime() * 1000000;
+        hlevel = darshan_wtime() * 1000000;
         (void)gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
     }
@@ -1353,7 +1361,7 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
         darshan_get_user_name(cuser);
 
         /* generate a random number to help differentiate the log */
-        hlevel=PMPI_Wtime() * 1000000;
+        hlevel = darshan_wtime() * 1000000;
         (void)gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
 
@@ -2130,7 +2138,7 @@ double darshan_core_wtime()
     }
     DARSHAN_CORE_UNLOCK();
 
-    return(PMPI_Wtime() - darshan_core->wtime_offset);
+    return(darshan_wtime() - darshan_core->wtime_offset);
 }
 
 int darshan_core_excluded_path(const char *path)
@@ -2178,6 +2186,17 @@ int darshan_core_disabled_instrumentation()
     DARSHAN_CORE_UNLOCK();
 
     return(ret);
+}
+
+static double darshan_wtime()
+{
+    struct timespec t;
+
+    if (nprocs > 0) /* MPI available */
+        return PMPI_Wtime();
+
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (double)(t.tv_sec) + (double)(t.tv_nsec) * 1.0e-9;
 }
 
 /*
