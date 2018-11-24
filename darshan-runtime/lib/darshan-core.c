@@ -114,6 +114,18 @@ struct mnt_data
 static struct mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
 
+/* to handle both serial and MPI-based log I/O */
+struct darshan_mpi_file {
+    enum {
+        FH_TYPE_POSIX,
+        FH_TYPE_MPI
+    } fhtype;
+    union {
+        int posix;
+        MPI_File mpi;
+    } fh;
+};
+
 /* prototypes for internal helper functions */
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
 static void *darshan_init_mmap_log(
@@ -136,25 +148,30 @@ static void darshan_get_shared_records(
     struct darshan_core_runtime *core, darshan_record_id **shared_recs,
     int *shared_rec_cnt);
 static int darshan_log_open_all(
-    char *logfile_name, MPI_File *log_fh);
+    char *logfile_name, struct darshan_mpi_file *log_fh);
 static int darshan_deflate_buffer(
     void **pointers, int *lengths, int count, char *comp_buf,
     int *comp_buf_length);
 static int darshan_log_write_name_record_hash(
-    MPI_File log_fh, struct darshan_core_runtime *core,
+    struct darshan_mpi_file log_fh, struct darshan_core_runtime *core,
     uint64_t *inout_off);
 static int darshan_log_append_all(
-    MPI_File log_fh, struct darshan_core_runtime *core, void *buf,
+    struct darshan_mpi_file log_fh, struct darshan_core_runtime *core, void *buf,
     int count, uint64_t *inout_off);
 static void darshan_core_cleanup(
     struct darshan_core_runtime* core);
 
 /* Darshan MPI stubs */
 static double darshan_mpi_wtime();
-static int darshan_mpi_allreduce(void *sendbuf, void *recvbuf, int count,
-    MPI_Datatype datatype, MPI_Op op, MPI_Comm comm);
+static int darshan_mpi_comm_size(MPI_Comm comm, int *_nprocs);
+static int darshan_mpi_comm_rank(MPI_Comm comm, int *me);
+static int darshan_mpi_allreduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm);
 static int darshan_mpi_barrier(MPI_Comm comm);
 static int darshan_mpi_bcast(void *buf, int count, MPI_Datatype datatype, int root, MPI_Comm comm);
+static int darshan_mpi_file_open(MPI_Comm comm, const char *filename, int amode, MPI_Info info, struct darshan_mpi_file *fh);
+static int darshan_mpi_file_close(struct darshan_mpi_file *fh);
+static int darshan_mpi_file_write_at(struct darshan_mpi_file fh, MPI_Offset offset, const void *buf, int count, MPI_Datatype datatype, MPI_Status *status);
+static int darshan_mpi_file_write_at_all(struct darshan_mpi_file fh, MPI_Offset offset, const void *buf, int count, MPI_Datatype datatype, MPI_Status *status);
 
 /* *********************************** */
 
@@ -173,16 +190,8 @@ void darshan_core_initialize(int argc, char **argv)
 
     PMPI_Initialized(&using_mpi);
 
-    if (using_mpi)
-    {
-        PMPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-        PMPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-    }
-    else
-    {
-        nprocs = 1;
-        my_rank = 0;
-    }
+    darshan_mpi_comm_size(MPI_COMM_WORLD, &nprocs);
+    darshan_mpi_comm_rank(MPI_COMM_WORLD, &my_rank);
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
@@ -382,8 +391,8 @@ void darshan_core_shutdown()
     int all_ret = 0;
     int i;
     uint64_t gz_fp = 0;
-    MPI_File log_fh;
-    MPI_Status status;
+    struct darshan_mpi_file log_fh;
+    MPI_Status status; /* if used, darshan_mpi_file_* needs to be updated */
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
@@ -521,7 +530,7 @@ void darshan_core_shutdown()
         {
             /* write the job information, preallocing space for the log header */
             gz_fp += sizeof(struct darshan_header);
-            all_ret = PMPI_File_write_at(log_fh, gz_fp,
+            all_ret = darshan_mpi_file_write_at(log_fh, gz_fp,
                 final_core->comp_buf, comp_buf_sz, MPI_BYTE, &status);
             if(all_ret != MPI_SUCCESS)
             {
@@ -680,7 +689,7 @@ void darshan_core_shutdown()
             MPI_IN_PLACE, &(final_core->log_hdr_p->mod_ver),
             DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX, 0, MPI_COMM_WORLD);
 
-        all_ret = PMPI_File_write_at(log_fh, 0, final_core->log_hdr_p,
+        all_ret = darshan_mpi_file_write_at(log_fh, 0, final_core->log_hdr_p,
             sizeof(struct darshan_header), MPI_BYTE, &status);
         if(all_ret != MPI_SUCCESS)
         {
@@ -710,7 +719,7 @@ void darshan_core_shutdown()
     if(internal_timing_flag)
         header2 = darshan_mpi_wtime();
 
-    PMPI_File_close(&log_fh);
+    darshan_mpi_file_close(&log_fh);
 
     /* if we got this far, there are no errors, so rename from *.darshan_partial
      * to *-<logwritetime>.darshan, which indicates that this log file is
@@ -1523,7 +1532,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     return;
 }
 
-static int darshan_log_open_all(char *logfile_name, MPI_File *log_fh)
+static int darshan_log_open_all(char *logfile_name, struct darshan_mpi_file *log_fh)
 {
     char *hints;
     char *tok_str;
@@ -1575,7 +1584,7 @@ static int darshan_log_open_all(char *logfile_name, MPI_File *log_fh)
     }
 
     /* open the darshan log file for writing */
-    ret = PMPI_File_open(MPI_COMM_WORLD, logfile_name,
+    ret = darshan_mpi_file_open(MPI_COMM_WORLD, logfile_name,
         MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, info, log_fh);
     if(ret != MPI_SUCCESS)
         return(-1);
@@ -1673,7 +1682,7 @@ static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
 /* NOTE: the map written to file may contain duplicate id->name entries if a
  *       record is opened by multiple ranks, but not all ranks
  */
-static int darshan_log_write_name_record_hash(MPI_File log_fh,
+static int darshan_log_write_name_record_hash(struct darshan_mpi_file log_fh,
     struct darshan_core_runtime *core, uint64_t *inout_off)
 {
     struct darshan_core_name_record_ref *ref;
@@ -1772,11 +1781,11 @@ static int darshan_log_write_name_record_hash(MPI_File log_fh,
  *       of the call, and contains the ending offset at the end of the call.
  *       This variable is only valid on the root rank (rank 0).
  */
-static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *core,
+static int darshan_log_append_all(struct darshan_mpi_file log_fh, struct darshan_core_runtime *core,
     void *buf, int count, uint64_t *inout_off)
 {
     MPI_Offset send_off, my_off;
-    MPI_Status status;
+    MPI_Status status; /* if used, darshan_mpi_file_* needs to be updated */
     int comp_buf_sz = 0;
     int ret;
 
@@ -1801,7 +1810,7 @@ static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *
     if(ret == 0)
     {
         /* no compression errors, proceed with the collective write */
-        ret = PMPI_File_write_at_all(log_fh, my_off,
+        ret = darshan_mpi_file_write_at_all(log_fh, my_off,
             core->comp_buf, comp_buf_sz, MPI_BYTE, &status);
     }
     else
@@ -1809,7 +1818,7 @@ static int darshan_log_append_all(MPI_File log_fh, struct darshan_core_runtime *
         /* error during compression. preserve and return error to caller,
          * but participate in collective write to avoid deadlock.
          */
-        (void)PMPI_File_write_at_all(log_fh, my_off,
+        (void)darshan_mpi_file_write_at_all(log_fh, my_off,
             core->comp_buf, comp_buf_sz, MPI_BYTE, &status);
     }
 
@@ -2193,6 +2202,26 @@ int darshan_core_disabled_instrumentation()
     return(ret);
 }
 
+/*
+ * Darshan MPI stubs: pass through to PMPI_* if MPI is initialized; otherwise
+ * fake the MPI call.
+ */
+static int darshan_mpi_comm_size(MPI_Comm comm, int *_nprocs)
+{
+    if (using_mpi)
+        return PMPI_Comm_size(comm, _nprocs);
+    *_nprocs = 1;
+    return MPI_SUCCESS;
+}
+
+static int darshan_mpi_comm_rank(MPI_Comm comm, int *me)
+{
+    if (using_mpi)
+        return PMPI_Comm_rank(comm, me);
+    *me = 0;
+    return MPI_SUCCESS;
+}
+
 static double darshan_mpi_wtime()
 {
     struct timespec t;
@@ -2204,13 +2233,9 @@ static double darshan_mpi_wtime()
     return (double)(t.tv_sec) + (double)(t.tv_nsec) * 1.0e-9;
 }
 
-static int darshan_mpi_allreduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
+size_t sizeof_mpi_datatype(MPI_Datatype datatype)
 {
     size_t size;
-
-    if (using_mpi)
-        return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
-
     switch (datatype)
     {
         case MPI_INT:       size = sizeof(int); break;
@@ -2223,6 +2248,17 @@ static int darshan_mpi_allreduce(void *sendbuf, void *recvbuf, int count, MPI_Da
         case MPI_UINT64_T:  size = sizeof(uint64_t); break;
         default:            size = 0;
     }
+    return size;
+}
+
+static int darshan_mpi_allreduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
+{
+    size_t size;
+
+    if (using_mpi)
+        return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
+
+    size = sizeof_mpi_datatype(datatype);
 
     if (size > 0)
     {
@@ -2248,6 +2284,70 @@ static int darshan_mpi_bcast(void *buf, int count, MPI_Datatype datatype, int ro
 
     return MPI_SUCCESS;
 }
+
+static int darshan_mpi_file_open(MPI_Comm comm, const char *filename, int amode, MPI_Info info, struct darshan_mpi_file *fh)
+{
+    int ret;
+    int posix_flags = 0;
+    if (using_mpi)
+    {
+        ret = PMPI_File_open(comm, filename, amode, info, &(fh->fh.mpi));
+        fh->fhtype = FH_TYPE_MPI;
+        return ret;
+    }
+
+    if (amode & MPI_MODE_RDWR) posix_flags |= O_RDWR;
+    if (amode & MPI_MODE_RDONLY) posix_flags |= O_RDONLY;
+    if (amode & MPI_MODE_WRONLY) posix_flags |= O_WRONLY;
+    if (amode & MPI_MODE_CREATE) posix_flags |= O_CREAT;
+    if (amode & MPI_MODE_EXCL) posix_flags |= O_EXCL;
+    if (amode & MPI_MODE_APPEND) posix_flags |= O_APPEND;
+
+    /* note that darshan_mpi_file_open is only called after instrumentation has
+     * been disabled so it's safe to use the otherwise-instrumented open() call
+     */
+    if (posix_flags & O_CREAT)
+        fh->fh.posix = open(filename, posix_flags, S_IRUSR|S_IWUSR);
+    else
+        fh->fh.posix = open(filename, posix_flags);
+    fh->fhtype = FH_TYPE_POSIX;
+
+    return MPI_SUCCESS;
+}
+
+static int darshan_mpi_file_close(struct darshan_mpi_file *fh)
+{
+    if (fh->fhtype == FH_TYPE_MPI)
+        return PMPI_File_close(&(fh->fh.mpi));
+
+    close(fh->fh.posix);
+    return MPI_SUCCESS;
+}
+
+static int darshan_mpi_file_write_at(struct darshan_mpi_file fh, MPI_Offset offset,
+    const void *buf, int count, MPI_Datatype datatype, MPI_Status *status)
+{
+    ssize_t ret;
+    if (fh.fhtype == FH_TYPE_MPI)
+        return PMPI_File_write_at(fh.fh.mpi, offset, buf, count, datatype, status);
+
+    ret = pwrite(fh.fh.posix, buf, count * sizeof_mpi_datatype(datatype), offset);
+    /* note that at this stage, status is left untouched because Darshan never
+       actually checks it!  if we ever check status, we will have to create a
+       union object to pass meaningful info back via both MPI and non-MPI
+       mechanisms */
+    return MPI_SUCCESS;
+}
+
+static int darshan_mpi_file_write_at_all(struct darshan_mpi_file fh, MPI_Offset offset,
+    const void *buf, int count, MPI_Datatype datatype, MPI_Status *status)
+{
+    if (fh.fhtype == FH_TYPE_MPI)
+        return PMPI_File_write_at_all(fh.fh.mpi, offset, buf, count, datatype, status);
+
+    return darshan_mpi_file_write_at(fh, offset, buf, count, datatype, status);
+}
+
 
 /*
  * Local variables:
