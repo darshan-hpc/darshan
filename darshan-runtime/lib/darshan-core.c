@@ -153,6 +153,7 @@ static void darshan_core_cleanup(
 static double darshan_mpi_wtime();
 static int darshan_mpi_allreduce(void *sendbuf, void *recvbuf, int count,
     MPI_Datatype datatype, MPI_Op op, MPI_Comm comm);
+static int darshan_mpi_barrier(MPI_Comm comm);
 
 /* *********************************** */
 
@@ -387,7 +388,7 @@ void darshan_core_shutdown()
         internal_timing_flag = 1;
 
     /* synchronize before getting start time */
-    PMPI_Barrier(MPI_COMM_WORLD);
+    darshan_mpi_barrier(MPI_COMM_WORLD);
     start_log_time = darshan_mpi_wtime();
 
     /* disable darhan-core while we shutdown */
@@ -1897,7 +1898,7 @@ void darshan_shutdown_bench(int argc, char **argv)
 
     if(my_rank == 0)
         fprintf(stderr, "# 1 unique file per proc\n");
-    PMPI_Barrier(MPI_COMM_WORLD);
+    darshan_mpi_barrier(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
 
@@ -1912,7 +1913,7 @@ void darshan_shutdown_bench(int argc, char **argv)
 
     if(my_rank == 0)
         fprintf(stderr, "# 1 shared file per proc\n");
-    PMPI_Barrier(MPI_COMM_WORLD);
+    darshan_mpi_barrier(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
 
@@ -1927,7 +1928,7 @@ void darshan_shutdown_bench(int argc, char **argv)
 
     if(my_rank == 0)
         fprintf(stderr, "# 1024 unique files per proc\n");
-    PMPI_Barrier(MPI_COMM_WORLD);
+    darshan_mpi_barrier(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
 
@@ -1942,7 +1943,7 @@ void darshan_shutdown_bench(int argc, char **argv)
 
     if(my_rank == 0)
         fprintf(stderr, "# 1024 shared files per proc\n");
-    PMPI_Barrier(MPI_COMM_WORLD);
+    darshan_mpi_barrier(MPI_COMM_WORLD);
     darshan_core_shutdown();
     darshan_core = NULL;
 
@@ -2229,6 +2230,14 @@ static int darshan_mpi_allreduce(void *sendbuf, void *recvbuf, int count, MPI_Da
     }
 
     return MPI_ERR_TYPE;
+}
+
+static int darshan_mpi_barrier(MPI_Comm comm)
+{
+    if (using_mpi)
+        return PMPI_Barrier(comm);
+
+    return 0;
 }
 
 /*
