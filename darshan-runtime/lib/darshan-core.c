@@ -172,6 +172,7 @@ static int darshan_mpi_file_open(MPI_Comm comm, const char *filename, int amode,
 static int darshan_mpi_file_close(struct darshan_mpi_file *fh);
 static int darshan_mpi_file_write_at(struct darshan_mpi_file fh, MPI_Offset offset, const void *buf, int count, MPI_Datatype datatype, MPI_Status *status);
 static int darshan_mpi_file_write_at_all(struct darshan_mpi_file fh, MPI_Offset offset, const void *buf, int count, MPI_Datatype datatype, MPI_Status *status);
+static int darshan_mpi_reduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm);
 
 /* *********************************** */
 
@@ -353,7 +354,7 @@ void darshan_core_initialize(int argc, char **argv)
     if(internal_timing_flag)
     {
         init_time = darshan_mpi_wtime() - init_start;
-        PMPI_Reduce(&init_time, &init_max, 1,
+        darshan_mpi_reduce(&init_time, &init_max, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
         if(my_rank == 0)
         {
@@ -425,9 +426,9 @@ void darshan_core_shutdown()
     final_core->log_job_p->end_time = time(NULL);
 
     /* reduce to report first start and last end time across all ranks at rank 0 */
-    PMPI_Reduce(&final_core->log_job_p->start_time, &first_start_time,
+    darshan_mpi_reduce(&final_core->log_job_p->start_time, &first_start_time,
         1, MPI_INT64_T, MPI_MIN, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(&final_core->log_job_p->end_time, &last_end_time,
+    darshan_mpi_reduce(&final_core->log_job_p->end_time, &last_end_time,
         1, MPI_INT64_T, MPI_MAX, 0, MPI_COMM_WORLD);
     if(my_rank == 0)
     {
@@ -682,10 +683,10 @@ void darshan_core_shutdown()
         /* rank 0 is responsible for writing the log header */
         final_core->log_hdr_p->comp_type = DARSHAN_ZLIB_COMP;
 
-        PMPI_Reduce(
+        darshan_mpi_reduce(
             MPI_IN_PLACE, &(final_core->log_hdr_p->partial_flag),
             1, MPI_UINT32_T, MPI_BOR, 0, MPI_COMM_WORLD);
-        PMPI_Reduce(
+        darshan_mpi_reduce(
             MPI_IN_PLACE, &(final_core->log_hdr_p->mod_ver),
             DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX, 0, MPI_COMM_WORLD);
 
@@ -700,10 +701,10 @@ void darshan_core_shutdown()
     }
     else
     {
-        PMPI_Reduce(
+        darshan_mpi_reduce(
             &(final_core->log_hdr_p->partial_flag), &(final_core->log_hdr_p->partial_flag),
             1, MPI_UINT32_T, MPI_BOR, 0, MPI_COMM_WORLD);
-        PMPI_Reduce(
+        darshan_mpi_reduce(
             &(final_core->log_hdr_p->mod_ver), &(final_core->log_hdr_p->mod_ver),
             DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX, 0, MPI_COMM_WORLD);
     }
@@ -784,17 +785,17 @@ void darshan_core_shutdown()
             mod_tm[i] = mod2[i] - mod1[i];
         }
 
-        PMPI_Reduce(&open_tm, &open_slowest, 1,
+        darshan_mpi_reduce(&open_tm, &open_slowest, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        PMPI_Reduce(&header_tm, &header_slowest, 1,
+        darshan_mpi_reduce(&header_tm, &header_slowest, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        PMPI_Reduce(&job_tm, &job_slowest, 1,
+        darshan_mpi_reduce(&job_tm, &job_slowest, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        PMPI_Reduce(&rec_tm, &rec_slowest, 1,
+        darshan_mpi_reduce(&rec_tm, &rec_slowest, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        PMPI_Reduce(&all_tm, &all_slowest, 1,
+        darshan_mpi_reduce(&all_tm, &all_slowest, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        PMPI_Reduce(mod_tm, mod_slowest, DARSHAN_MAX_MODS,
+        darshan_mpi_reduce(mod_tm, mod_slowest, DARSHAN_MAX_MODS,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
         if(my_rank == 0)
@@ -2245,7 +2246,9 @@ size_t sizeof_mpi_datatype(MPI_Datatype datatype)
         case MPI_BYTE:      size = sizeof(char); break;
         case MPI_LONG:      size = sizeof(long); break;
         case MPI_LONG_LONG:
+        case MPI_UINT32_T:  size = sizeof(uint32_t); break;
         case MPI_UINT64_T:  size = sizeof(uint64_t); break;
+        case MPI_INT64_T:   size = sizeof(int64_t); break;
         default:            size = 0;
     }
     return size;
@@ -2267,6 +2270,14 @@ static int darshan_mpi_allreduce(void *sendbuf, void *recvbuf, int count, MPI_Da
     }
 
     return MPI_ERR_TYPE;
+}
+
+static int darshan_mpi_reduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm)
+{
+    if (using_mpi)
+        return PMPI_Reduce(sendbuf, recvbuf, count, datatype, op, root, comm);
+
+    return darshan_mpi_allreduce(sendbuf, recvbuf, count, datatype, op, comm);
 }
 
 static int darshan_mpi_barrier(MPI_Comm comm)
