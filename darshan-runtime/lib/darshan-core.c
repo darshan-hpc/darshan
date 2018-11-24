@@ -154,6 +154,7 @@ static double darshan_mpi_wtime();
 static int darshan_mpi_allreduce(void *sendbuf, void *recvbuf, int count,
     MPI_Datatype datatype, MPI_Op op, MPI_Comm comm);
 static int darshan_mpi_barrier(MPI_Comm comm);
+static int darshan_mpi_bcast(void *buf, int count, MPI_Datatype datatype, int root, MPI_Comm comm);
 
 /* *********************************** */
 
@@ -450,7 +451,7 @@ void darshan_core_shutdown()
     }
 
     /* broadcast log file name */
-    PMPI_Bcast(logfile_name, PATH_MAX, MPI_CHAR, 0,
+    darshan_mpi_bcast(logfile_name, PATH_MAX, MPI_CHAR, 0,
         MPI_COMM_WORLD);
 
     if(strlen(logfile_name) == 0)
@@ -535,7 +536,7 @@ void darshan_core_shutdown()
     }
 
     /* error out if unable to write job information */
-    PMPI_Bcast(&all_ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    darshan_mpi_bcast(&all_ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
     if(all_ret != 0)
     {
         free(logfile_name);
@@ -699,7 +700,7 @@ void darshan_core_shutdown()
     }
 
     /* error out if unable to write log header */
-    PMPI_Bcast(&all_ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    darshan_mpi_bcast(&all_ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
     if(all_ret != 0)
     {
         free(logfile_name);
@@ -851,7 +852,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
         (void)gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
     }
-    PMPI_Bcast(&logmod, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
+    darshan_mpi_bcast(&logmod, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
 
     /* construct a unique temporary log file name for this process
      * to write mmap log data to
@@ -1455,7 +1456,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     uint64_t *global_mod_flags;
 
     /* broadcast root's number of records to all other processes */
-    PMPI_Bcast(&tmp_cnt, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    darshan_mpi_bcast(&tmp_cnt, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     /* use root record count to allocate data structures */
     id_array = malloc(tmp_cnt * sizeof(darshan_record_id));
@@ -1479,7 +1480,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     }
 
     /* broadcast root's list of records to all other processes */
-    PMPI_Bcast(id_array, (tmp_cnt * sizeof(darshan_record_id)),
+    darshan_mpi_bcast(id_array, (tmp_cnt * sizeof(darshan_record_id)),
         MPI_BYTE, 0, MPI_COMM_WORLD);
 
     /* everyone looks to see if they opened the same records as root */
@@ -2237,7 +2238,15 @@ static int darshan_mpi_barrier(MPI_Comm comm)
     if (using_mpi)
         return PMPI_Barrier(comm);
 
-    return 0;
+    return MPI_SUCCESS;
+}
+
+static int darshan_mpi_bcast(void *buf, int count, MPI_Datatype datatype, int root, MPI_Comm comm)
+{
+    if (using_mpi)
+        return PMPI_Bcast(buf, count, datatype, root, comm);
+
+    return MPI_SUCCESS;
 }
 
 /*
