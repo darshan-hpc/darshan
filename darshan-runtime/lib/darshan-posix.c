@@ -752,7 +752,7 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
     return(ret);
 }
 
-off_t DARSHAN_DECL(lseek64)(int fd, off_t offset, int whence)
+off64_t DARSHAN_DECL(lseek64)(int fd, off64_t offset, int whence)
 {
     off_t ret;
     struct posix_file_record_ref *rec_ref;
