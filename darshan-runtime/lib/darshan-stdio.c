@@ -83,6 +83,7 @@
 
 #include "darshan.h"
 #include "darshan-dynamic.h"
+#include "darshan-mpi.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
@@ -1193,10 +1194,10 @@ static void stdio_shutdown(
         PMPI_Type_commit(&red_type);
 
         /* register a STDIO file record reduction operator */
-        PMPI_Op_create(stdio_record_reduction_op, 1, &red_op);
+        darshan_mpi_op_create(stdio_record_reduction_op, 1, &red_op);
 
         /* reduce shared STDIO file records */
-        PMPI_Reduce(red_send_buf, red_recv_buf,
+        darshan_mpi_reduce(red_send_buf, red_recv_buf,
             shared_rec_count, red_type, red_op, 0, mod_comm);
 
         /* get the time and byte variances for shared files */
@@ -1217,7 +1218,7 @@ static void stdio_shutdown(
         }
 
         PMPI_Type_free(&red_type);
-        PMPI_Op_free(&red_op);
+        darshan_mpi_op_free(&red_op);
     }
 
     /* filter out any records that have no activity on them; this is
@@ -1331,7 +1332,7 @@ static void stdio_shared_record_variance(MPI_Comm mod_comm,
         MPI_BYTE, &var_dt);
     PMPI_Type_commit(&var_dt);
 
-    PMPI_Op_create(darshan_variance_reduce, 1, &var_op);
+    darshan_mpi_op_create(darshan_variance_reduce, 1, &var_op);
 
     var_send_buf = malloc(shared_rec_count * sizeof(struct darshan_variance_dt));
     if(!var_send_buf)
@@ -1356,7 +1357,7 @@ static void stdio_shared_record_variance(MPI_Comm mod_comm,
                             inrec_array[i].fcounters[STDIO_F_META_TIME];
     }
 
-    PMPI_Reduce(var_send_buf, var_recv_buf, shared_rec_count,
+    darshan_mpi_reduce(var_send_buf, var_recv_buf, shared_rec_count,
         var_dt, var_op, 0, mod_comm);
 
     if(my_rank == 0)
@@ -1379,7 +1380,7 @@ static void stdio_shared_record_variance(MPI_Comm mod_comm,
                             inrec_array[i].counters[STDIO_BYTES_WRITTEN];
     }
 
-    PMPI_Reduce(var_send_buf, var_recv_buf, shared_rec_count,
+    darshan_mpi_reduce(var_send_buf, var_recv_buf, shared_rec_count,
         var_dt, var_op, 0, mod_comm);
 
     if(my_rank == 0)
@@ -1392,7 +1393,7 @@ static void stdio_shared_record_variance(MPI_Comm mod_comm,
     }
 
     PMPI_Type_free(&var_dt);
-    PMPI_Op_free(&var_op);
+    darshan_mpi_op_free(&var_op);
     free(var_send_buf);
     free(var_recv_buf);
 

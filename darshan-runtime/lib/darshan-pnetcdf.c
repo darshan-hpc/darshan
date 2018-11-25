@@ -23,6 +23,7 @@
 
 #include "darshan.h"
 #include "darshan-dynamic.h"
+#include "darshan-mpi.h"
 
 DARSHAN_FORWARD_DECL(ncmpi_create, int, (MPI_Comm comm, const char *path, int cmode, MPI_Info info, int *ncidp));
 DARSHAN_FORWARD_DECL(ncmpi_open, int, (MPI_Comm comm, const char *path, int omode, MPI_Info info, int *ncidp));
@@ -411,10 +412,10 @@ static void pnetcdf_shutdown(
         PMPI_Type_commit(&red_type);
 
         /* register a PNETCDF file record reduction operator */
-        PMPI_Op_create(pnetcdf_record_reduction_op, 1, &red_op);
+        darshan_mpi_op_create(pnetcdf_record_reduction_op, 1, &red_op);
 
         /* reduce shared PNETCDF file records */
-        PMPI_Reduce(red_send_buf, red_recv_buf,
+        darshan_mpi_reduce(red_send_buf, red_recv_buf,
             shared_rec_count, red_type, red_op, 0, mod_comm);
 
         /* clean up reduction state */
@@ -431,7 +432,7 @@ static void pnetcdf_shutdown(
         }
 
         PMPI_Type_free(&red_type);
-        PMPI_Op_free(&red_op);
+        darshan_mpi_op_free(&red_op);
     }
 
     /* update output buffer size to account for shared file reduction */

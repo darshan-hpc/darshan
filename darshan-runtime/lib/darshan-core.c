@@ -33,6 +33,7 @@
 #include "darshan.h"
 #include "darshan-core.h"
 #include "darshan-dynamic.h"
+#include "darshan-mpi.h"
 
 #ifdef DARSHAN_LUSTRE
 #include <lustre/lustre_user.h>
@@ -114,18 +115,6 @@ struct mnt_data
 static struct mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
 
-/* to handle both serial and MPI-based log I/O */
-struct darshan_mpi_file {
-    enum {
-        FH_TYPE_POSIX,
-        FH_TYPE_MPI
-    } fhtype;
-    union {
-        int posix;
-        MPI_File mpi;
-    } fh;
-};
-
 /* prototypes for internal helper functions */
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
 static void *darshan_init_mmap_log(
@@ -160,19 +149,6 @@ static int darshan_log_append_all(
     int count, uint64_t *inout_off);
 static void darshan_core_cleanup(
     struct darshan_core_runtime* core);
-
-/* Darshan MPI stubs */
-static double darshan_mpi_wtime();
-static int darshan_mpi_comm_size(MPI_Comm comm, int *_nprocs);
-static int darshan_mpi_comm_rank(MPI_Comm comm, int *me);
-static int darshan_mpi_allreduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm);
-static int darshan_mpi_barrier(MPI_Comm comm);
-static int darshan_mpi_bcast(void *buf, int count, MPI_Datatype datatype, int root, MPI_Comm comm);
-static int darshan_mpi_file_open(MPI_Comm comm, const char *filename, int amode, MPI_Info info, struct darshan_mpi_file *fh);
-static int darshan_mpi_file_close(struct darshan_mpi_file *fh);
-static int darshan_mpi_file_write_at(struct darshan_mpi_file fh, MPI_Offset offset, const void *buf, int count, MPI_Datatype datatype, MPI_Status *status);
-static int darshan_mpi_file_write_at_all(struct darshan_mpi_file fh, MPI_Offset offset, const void *buf, int count, MPI_Datatype datatype, MPI_Status *status);
-static int darshan_mpi_reduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm);
 
 /* *********************************** */
 
@@ -1803,7 +1779,7 @@ static int darshan_log_append_all(struct darshan_mpi_file log_fh, struct darshan
         send_off += *inout_off; /* rank 0 knows the beginning offset */
     }
 
-    PMPI_Scan(&send_off, &my_off, 1, MPI_OFFSET,
+    darshan_mpi_scan(&send_off, &my_off, 1, MPI_OFFSET,
         MPI_SUM, MPI_COMM_WORLD);
     /* scan is inclusive; subtract local size back out */
     my_off -= comp_buf_sz;
@@ -1825,7 +1801,11 @@ static int darshan_log_append_all(struct darshan_mpi_file log_fh, struct darshan
 
     if(nprocs > 1)
     {
-        /* send the ending offset from rank (n-1) to rank 0 */
+        /* send the ending offset from rank (n-1) to rank 0 
+         *
+         * we don't bother factoring out MPI_Send because it should never be
+         * called in serial mode when nprocs == 1
+         */
         if(my_rank == (nprocs-1))
         {
             my_off += comp_buf_sz;
@@ -2207,35 +2187,9 @@ int darshan_core_disabled_instrumentation()
  * Darshan MPI stubs: pass through to PMPI_* if MPI is initialized; otherwise
  * fake the MPI call.
  */
-static int darshan_mpi_comm_size(MPI_Comm comm, int *_nprocs)
+static size_t sizeof_mpi_datatype(MPI_Datatype datatype)
 {
-    if (using_mpi)
-        return PMPI_Comm_size(comm, _nprocs);
-    *_nprocs = 1;
-    return MPI_SUCCESS;
-}
-
-static int darshan_mpi_comm_rank(MPI_Comm comm, int *me)
-{
-    if (using_mpi)
-        return PMPI_Comm_rank(comm, me);
-    *me = 0;
-    return MPI_SUCCESS;
-}
-
-static double darshan_mpi_wtime()
-{
-    struct timespec t;
-
-    if (using_mpi)
-        return PMPI_Wtime();
-
-    clock_gettime(CLOCK_MONOTONIC, &t);
-    return (double)(t.tv_sec) + (double)(t.tv_nsec) * 1.0e-9;
-}
-
-size_t sizeof_mpi_datatype(MPI_Datatype datatype)
-{
+    int i;
     size_t size;
     switch (datatype)
     {
@@ -2249,19 +2203,42 @@ size_t sizeof_mpi_datatype(MPI_Datatype datatype)
         case MPI_UINT32_T:  size = sizeof(uint32_t); break;
         case MPI_UINT64_T:  size = sizeof(uint64_t); break;
         case MPI_INT64_T:   size = sizeof(int64_t); break;
+        case MPI_OFFSET:    size = sizeof(off_t); break;
         default:            size = 0;
     }
     return size;
 }
 
-static int darshan_mpi_allreduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
+double darshan_mpi_wtime()
 {
-    size_t size;
+    struct timespec t;
 
     if (using_mpi)
-        return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
+        return PMPI_Wtime();
 
-    size = sizeof_mpi_datatype(datatype);
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (double)(t.tv_sec) + (double)(t.tv_nsec) * 1.0e-9;
+}
+
+int darshan_mpi_comm_size(MPI_Comm comm, int *_nprocs)
+{
+    if (using_mpi)
+        return PMPI_Comm_size(comm, _nprocs);
+    *_nprocs = 1;
+    return MPI_SUCCESS;
+}
+
+int darshan_mpi_comm_rank(MPI_Comm comm, int *me)
+{
+    if (using_mpi)
+        return PMPI_Comm_rank(comm, me);
+    *me = 0;
+    return MPI_SUCCESS;
+}
+
+int generic_serial_reduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype)
+{
+    size_t size = sizeof_mpi_datatype(datatype);
 
     if (size > 0)
     {
@@ -2272,15 +2249,39 @@ static int darshan_mpi_allreduce(void *sendbuf, void *recvbuf, int count, MPI_Da
     return MPI_ERR_TYPE;
 }
 
-static int darshan_mpi_reduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm)
+int darshan_mpi_allreduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
+{
+    if (using_mpi)
+        return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
+
+    return generic_serial_reduce(sendbuf, recvbuf, count, datatype);
+}
+
+int darshan_mpi_reduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm)
 {
     if (using_mpi)
         return PMPI_Reduce(sendbuf, recvbuf, count, datatype, op, root, comm);
 
-    return darshan_mpi_allreduce(sendbuf, recvbuf, count, datatype, op, comm);
+    return generic_serial_reduce(sendbuf, recvbuf, count, datatype);
 }
 
-static int darshan_mpi_barrier(MPI_Comm comm)
+int darshan_mpi_scan(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
+{
+    if (using_mpi)
+        return PMPI_Scan(sendbuf, recvbuf, count, datatype, op, comm);
+
+    return generic_serial_reduce(sendbuf, recvbuf, count, datatype);
+}
+
+int darshan_mpi_gather(void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm)
+{
+    if (using_mpi)
+        return PMPI_Gather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm);
+
+    return generic_serial_reduce(sendbuf, recvbuf, sendcount, sendtype);
+}
+
+int darshan_mpi_barrier(MPI_Comm comm)
 {
     if (using_mpi)
         return PMPI_Barrier(comm);
@@ -2288,7 +2289,7 @@ static int darshan_mpi_barrier(MPI_Comm comm)
     return MPI_SUCCESS;
 }
 
-static int darshan_mpi_bcast(void *buf, int count, MPI_Datatype datatype, int root, MPI_Comm comm)
+int darshan_mpi_bcast(void *buf, int count, MPI_Datatype datatype, int root, MPI_Comm comm)
 {
     if (using_mpi)
         return PMPI_Bcast(buf, count, datatype, root, comm);
@@ -2296,7 +2297,26 @@ static int darshan_mpi_bcast(void *buf, int count, MPI_Datatype datatype, int ro
     return MPI_SUCCESS;
 }
 
-static int darshan_mpi_file_open(MPI_Comm comm, const char *filename, int amode, MPI_Info info, struct darshan_mpi_file *fh)
+int darshan_mpi_op_create(MPI_User_function *user_fn, int commute, MPI_Op *op)
+{
+    if (using_mpi)
+        return PMPI_Op_create(user_fn, commute, op);
+
+    return MPI_SUCCESS;
+}
+
+int darshan_mpi_op_free(MPI_Op *op)
+{
+    if (using_mpi)
+        return PMPI_Op_free(op);
+
+    return MPI_SUCCESS;
+}
+
+/*
+ * Emulate MPI-IO
+ */
+int darshan_mpi_file_open(MPI_Comm comm, const char *filename, int amode, MPI_Info info, struct darshan_mpi_file *fh)
 {
     int ret;
     int posix_flags = 0;
@@ -2326,7 +2346,7 @@ static int darshan_mpi_file_open(MPI_Comm comm, const char *filename, int amode,
     return MPI_SUCCESS;
 }
 
-static int darshan_mpi_file_close(struct darshan_mpi_file *fh)
+int darshan_mpi_file_close(struct darshan_mpi_file *fh)
 {
     if (fh->fhtype == FH_TYPE_MPI)
         return PMPI_File_close(&(fh->fh.mpi));
@@ -2335,7 +2355,7 @@ static int darshan_mpi_file_close(struct darshan_mpi_file *fh)
     return MPI_SUCCESS;
 }
 
-static int darshan_mpi_file_write_at(struct darshan_mpi_file fh, MPI_Offset offset,
+int darshan_mpi_file_write_at(struct darshan_mpi_file fh, MPI_Offset offset,
     const void *buf, int count, MPI_Datatype datatype, MPI_Status *status)
 {
     ssize_t ret;
@@ -2350,7 +2370,7 @@ static int darshan_mpi_file_write_at(struct darshan_mpi_file fh, MPI_Offset offs
     return MPI_SUCCESS;
 }
 
-static int darshan_mpi_file_write_at_all(struct darshan_mpi_file fh, MPI_Offset offset,
+int darshan_mpi_file_write_at_all(struct darshan_mpi_file fh, MPI_Offset offset,
     const void *buf, int count, MPI_Datatype datatype, MPI_Status *status)
 {
     if (fh.fhtype == FH_TYPE_MPI)
@@ -2359,6 +2379,35 @@ static int darshan_mpi_file_write_at_all(struct darshan_mpi_file fh, MPI_Offset 
     return darshan_mpi_file_write_at(fh, offset, buf, count, datatype, status);
 }
 
+/*
+ * Emulate derived MPI datatypes
+ */
+int darshan_mpi_type_contiguous(int count, MPI_Datatype oldtype, MPI_Datatype *newtype)
+{
+    if (using_mpi)
+        return PMPI_Type_contiguous(count, oldtype, newtype);
+
+/*  newtype->indextype = DT_INDEX_NONMPI;
+    newtype->datatype.size = sizeof_mpi_datatype(oldtype) * count;
+*/
+    return MPI_SUCCESS;
+}
+
+int darshan_mpi_type_commit(MPI_Datatype *datatype)
+{
+    if (using_mpi)
+        return PMPI_Type_commit(datatype);
+
+    return MPI_SUCCESS;
+}
+
+int darshan_mpi_type_free(MPI_Datatype *datatype)
+{
+    if (using_mpi)
+        return PMPI_Type_free(datatype);
+
+    return MPI_SUCCESS;
+}
 
 /*
  * Local variables:

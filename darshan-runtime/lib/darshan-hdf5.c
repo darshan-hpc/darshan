@@ -23,6 +23,7 @@
 
 #include "darshan.h"
 #include "darshan-dynamic.h"
+#include "darshan-mpi.h"
 
 /* hope this doesn't change any time soon */
 typedef int herr_t;     //hf5-1.10.0p1: H5public.h:126
@@ -456,10 +457,10 @@ static void hdf5_shutdown(
         PMPI_Type_commit(&red_type);
 
         /* register a HDF5 file record reduction operator */
-        PMPI_Op_create(hdf5_record_reduction_op, 1, &red_op);
+        darshan_mpi_op_create(hdf5_record_reduction_op, 1, &red_op);
 
         /* reduce shared HDF5 file records */
-        PMPI_Reduce(red_send_buf, red_recv_buf,
+        darshan_mpi_reduce(red_send_buf, red_recv_buf,
             shared_rec_count, red_type, red_op, 0, mod_comm);
 
         /* clean up reduction state */
@@ -476,7 +477,7 @@ static void hdf5_shutdown(
         }
 
         PMPI_Type_free(&red_type);
-        PMPI_Op_free(&red_op);
+        darshan_mpi_op_free(&red_op);
     }
 
     /* update output buffer size to account for shared file reduction */
