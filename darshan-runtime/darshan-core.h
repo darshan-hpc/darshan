@@ -34,6 +34,9 @@
 /* Environment variable to override default mmap log path */
 #define DARSHAN_MMAP_LOG_PATH_OVERRIDE "DARSHAN_MMAP_LOGPATH"
 
+/* Environment variable to enable profiling without MPI */
+#define DARSHAN_NO_MPI "DARSHAN_NOMPI"
+
 /* default path for storing mmap log files is '/tmp' */
 #define DARSHAN_DEF_MMAP_LOG_PATH "/tmp"
 #endif

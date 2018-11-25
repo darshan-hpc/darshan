@@ -28,6 +28,9 @@
 #include <zlib.h>
 #include <mpi.h>
 #include <assert.h>
+#ifdef __DARSHAN_TRAP_SIGNALS
+#include <signal.h>
+#endif
 
 #include "uthash.h"
 #include "darshan.h"
@@ -149,8 +152,17 @@ static int darshan_log_append_all(
     int count, uint64_t *inout_off);
 static void darshan_core_cleanup(
     struct darshan_core_runtime* core);
+static void darshan_sig_handler(int sig);
 
 /* *********************************** */
+
+#ifdef __DARSHAN_ATEXIT_HANDLER
+void darshan_atexit_handler(void)
+{
+    darshan_core_shutdown();
+    return;
+}
+#endif
 
 void darshan_core_initialize(int argc, char **argv)
 {
@@ -325,6 +337,29 @@ void darshan_core_initialize(int argc, char **argv)
                 i++;
             }
         }
+#ifdef __DARSHAN_ATEXIT_HANDLER
+        /* if we've made it this far, go ahead and install the exit handlers
+        */
+        if (!using_mpi)
+        {
+            ret = atexit(darshan_atexit_handler);
+            if (ret != 0)
+                fprintf(stderr, "atexit handler could not be installed\n");
+            else
+                fprintf(stderr, "atexit handler is installed\n");
+        }
+#endif
+
+#ifdef __DARSHAN_SIGNAL_HANDLER
+        /* install signal handlers to produce something on a soft abort
+         * may be risky business though--if the core is locked when a signal is
+         * trapped, we rely on recursive mutexes sorting themselves out to
+         * prevent a deadlock.  not necessarily worth biting off at this point.
+         */
+        signal(SIGXCPU, darshan_sig_handler);
+        signal(SIGTERM, darshan_sig_handler);
+        signal(SIGABRT, darshan_sig_handler);
+#endif
     }
 
     if(internal_timing_flag)
@@ -1523,7 +1558,7 @@ static int darshan_log_open_all(char *logfile_name, struct darshan_mpi_file *log
     /* check environment variable to see if the default MPI file hints have
      * been overridden
      */
-    MPI_Info_create(&info);
+    darshan_mpi_info_create(&info);
 
     hints = getenv(DARSHAN_LOG_HINTS_OVERRIDE);
     if(!hints)
@@ -1552,7 +1587,7 @@ static int darshan_log_open_all(char *logfile_name, struct darshan_mpi_file *log
                         value[0] = '\0';
                         value++;
                         if(strlen(key) > 0)
-                            MPI_Info_set(info, key, value);
+                            darshan_mpi_info_set(info, key, value);
                     }
                 }
             }while(key != NULL);
@@ -1566,7 +1601,7 @@ static int darshan_log_open_all(char *logfile_name, struct darshan_mpi_file *log
     if(ret != MPI_SUCCESS)
         return(-1);
 
-    MPI_Info_free(&info);
+    darshan_mpi_info_free(&info);
     return(0);
 }
 
@@ -1865,6 +1900,15 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
 
     return;
 }
+
+#ifdef __DARSHAN_SIGNAL_HANDLER
+static void darshan_sig_handler(int sig)
+{
+    if (sig == SIGTERM || sig == SIGXCPU || sig == SIGABRT)
+        darshan_core_shutdown();
+    return;
+}
+#endif
 
 /* crude benchmarking hook into darshan-core to benchmark Darshan
  * shutdown overhead using a variety of application I/O workloads
@@ -2183,6 +2227,8 @@ int darshan_core_disabled_instrumentation()
     return(ret);
 }
 
+
+
 /*
  * Darshan MPI stubs: pass through to PMPI_* if MPI is initialized; otherwise
  * fake the MPI call.
@@ -2240,6 +2286,9 @@ int generic_serial_reduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype 
 {
     size_t size = sizeof_mpi_datatype(datatype);
 
+    if (sendbuf == MPI_IN_PLACE || recvbuf == MPI_IN_PLACE)
+        return MPI_SUCCESS;
+
     if (size > 0)
     {
         memcpy(recvbuf, sendbuf, count * size);
@@ -2286,7 +2335,7 @@ int darshan_mpi_reduce_records(void *sendbuf, void *recvbuf, int count, int reco
         /* clean up */
         PMPI_Type_free(&red_type);
     }
-    else
+    else if (sendbuf != MPI_IN_PLACE && recvbuf != MPI_IN_PLACE)
         memcpy(recvbuf, sendbuf, count * record_size);
 
     return MPI_SUCCESS;
@@ -2406,17 +2455,30 @@ int darshan_mpi_file_write_at_all(struct darshan_mpi_file fh, MPI_Offset offset,
     return darshan_mpi_file_write_at(fh, offset, buf, count, datatype, status);
 }
 
+int darshan_mpi_info_create(MPI_Info *info)
+{
+    if (using_mpi)
+        return MPI_Info_create(info);
+    return MPI_SUCCESS;
+}
+
+int darshan_mpi_info_set(MPI_Info info, char *key, char *value)
+{
+    if (using_mpi)
+        return MPI_Info_set(info, key, value);
+    return MPI_SUCCESS;
+}
+
+int darshan_mpi_info_free(MPI_Info *info)
+{
+    if (using_mpi)
+        return MPI_Info_free(info);
+    return MPI_SUCCESS;
+}
+
 /*
  * Emulate derived MPI datatypes
  */
-#define MAX_MPI_DERIVED_DATATYPES 32
-struct {
-    MPI_Datatype datatype;
-    size_t size;
-} derived_mpi_datatypes[MAX_MPI_DERIVED_DATATYPES];
-int num_derived_datatypes = 0;
-int last_mpi_datatype = -606060; /* arbitrary starting point for derived datatype indices */
-
 int darshan_mpi_type_contiguous(int count, MPI_Datatype oldtype, MPI_Datatype *newtype)
 {
     if (using_mpi)
