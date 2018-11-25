@@ -498,7 +498,6 @@ static void mdhim_shutdown(
         *(struct darshan_mdhim_record **)mdhim_buf;
     struct darshan_mdhim_record *red_send_buf = NULL;
     struct darshan_mdhim_record *red_recv_buf = NULL;
-    MPI_Datatype red_type;
     MPI_Op red_op;
     int mdhim_rec_count;
 
@@ -556,12 +555,10 @@ static void mdhim_shutdown(
                 return;
             }
         }
-        PMPI_Type_contiguous(MDHIM_RECORD_SIZE(nr_servers),
-                MPI_BYTE, &red_type);
-        PMPI_Type_commit(&red_type);
         darshan_mpi_op_create(mdhim_record_reduction_op, 1, &red_op);
-        darshan_mpi_reduce(red_send_buf, red_recv_buf,
-                shared_rec_count, red_type, red_op, 0, mod_comm);
+
+        darshan_mpi_reduce(red_send_buf, red_recv_buf, shared_rec_count,
+            MDHIM_RECORD_SIZE(nr_servers), red_op, 0, mod_comm);
 
         if (my_rank == 0)
         {
@@ -571,7 +568,6 @@ static void mdhim_shutdown(
             free(red_recv_buf);
         }
 
-        PMPI_Type_free(&red_type);
         darshan_mpi_op_free(&red_op);
         /* drop shared records from non-root ranks or we'll end up writing too
          * much */

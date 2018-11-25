@@ -404,7 +404,6 @@ static void hdf5_shutdown(
     int hdf5_rec_count;
     struct darshan_hdf5_file *red_send_buf = NULL;
     struct darshan_hdf5_file *red_recv_buf = NULL;
-    MPI_Datatype red_type;
     MPI_Op red_op;
     int i;
 
@@ -449,19 +448,11 @@ static void hdf5_shutdown(
             }
         }
 
-        /* construct a datatype for a HDF5 file record.  This is serving no purpose
-         * except to make sure we can do a reduction on proper boundaries
-         */
-        PMPI_Type_contiguous(sizeof(struct darshan_hdf5_file),
-            MPI_BYTE, &red_type);
-        PMPI_Type_commit(&red_type);
-
         /* register a HDF5 file record reduction operator */
         darshan_mpi_op_create(hdf5_record_reduction_op, 1, &red_op);
 
         /* reduce shared HDF5 file records */
-        darshan_mpi_reduce(red_send_buf, red_recv_buf,
-            shared_rec_count, red_type, red_op, 0, mod_comm);
+        darshan_mpi_reduce_records(red_send_buf, red_recv_buf, shared_rec_count, sizeof(struct darshan_hdf5_file), red_op, 0, mod_comm);
 
         /* clean up reduction state */
         if(my_rank == 0)
@@ -476,7 +467,6 @@ static void hdf5_shutdown(
             hdf5_rec_count -= shared_rec_count;
         }
 
-        PMPI_Type_free(&red_type);
         darshan_mpi_op_free(&red_op);
     }
 

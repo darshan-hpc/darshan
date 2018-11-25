@@ -358,7 +358,6 @@ static void pnetcdf_shutdown(
     int pnetcdf_rec_count;
     struct darshan_pnetcdf_file *red_send_buf = NULL;
     struct darshan_pnetcdf_file *red_recv_buf = NULL;
-    MPI_Datatype red_type;
     MPI_Op red_op;
     int i;
 
@@ -404,19 +403,12 @@ static void pnetcdf_shutdown(
             }
         }
 
-        /* construct a datatype for a PNETCDF file record.  This is serving no purpose
-         * except to make sure we can do a reduction on proper boundaries
-         */
-        PMPI_Type_contiguous(sizeof(struct darshan_pnetcdf_file),
-            MPI_BYTE, &red_type);
-        PMPI_Type_commit(&red_type);
-
         /* register a PNETCDF file record reduction operator */
         darshan_mpi_op_create(pnetcdf_record_reduction_op, 1, &red_op);
 
         /* reduce shared PNETCDF file records */
-        darshan_mpi_reduce(red_send_buf, red_recv_buf,
-            shared_rec_count, red_type, red_op, 0, mod_comm);
+        darshan_mpi_reduce_records(red_send_buf, red_recv_buf, shared_rec_count,
+            sizeof(struct darshan_pnetcdf_file), red_op, 0, mod_comm);
 
         /* clean up reduction state */
         if(my_rank == 0)
@@ -431,7 +423,6 @@ static void pnetcdf_shutdown(
             pnetcdf_rec_count -= shared_rec_count;
         }
 
-        PMPI_Type_free(&red_type);
         darshan_mpi_op_free(&red_op);
     }
 

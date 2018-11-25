@@ -2265,6 +2265,33 @@ int darshan_mpi_reduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype dat
     return generic_serial_reduce(sendbuf, recvbuf, count, datatype);
 }
 
+int darshan_mpi_reduce_records(void *sendbuf, void *recvbuf, int count, int record_size, MPI_Op op, int root, MPI_Comm comm)
+{
+    /* this rolls up MPI_Type_contiguous, MPI_Type_commit, MPI_Reduce, and
+     * MPI_Type_free into a single function so that we don't have to implement
+     * MPI derived types for serial mode */
+
+    MPI_Datatype red_type;
+    if (using_mpi)
+    {
+        /* construct a datatype for a module's file record.  This is serving no
+         * purpose except to make sure we can do a reduction on proper boundaries
+         */
+        PMPI_Type_contiguous(record_size, MPI_BYTE, &red_type);
+        PMPI_Type_commit(&red_type);
+
+        /* reduce shared file records */
+        PMPI_Reduce(sendbuf, recvbuf, count, red_type, op, 0, comm);
+
+        /* clean up */
+        PMPI_Type_free(&red_type);
+    }
+    else
+        memcpy(recvbuf, sendbuf, count * record_size);
+
+    return MPI_SUCCESS;
+}
+
 int darshan_mpi_scan(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
 {
     if (using_mpi)
@@ -2382,14 +2409,20 @@ int darshan_mpi_file_write_at_all(struct darshan_mpi_file fh, MPI_Offset offset,
 /*
  * Emulate derived MPI datatypes
  */
+#define MAX_MPI_DERIVED_DATATYPES 32
+struct {
+    MPI_Datatype datatype;
+    size_t size;
+} derived_mpi_datatypes[MAX_MPI_DERIVED_DATATYPES];
+int num_derived_datatypes = 0;
+int last_mpi_datatype = -606060; /* arbitrary starting point for derived datatype indices */
+
 int darshan_mpi_type_contiguous(int count, MPI_Datatype oldtype, MPI_Datatype *newtype)
 {
     if (using_mpi)
         return PMPI_Type_contiguous(count, oldtype, newtype);
 
-/*  newtype->indextype = DT_INDEX_NONMPI;
-    newtype->datatype.size = sizeof_mpi_datatype(oldtype) * count;
-*/
+    *newtype = MPI_DATATYPE_NULL;
     return MPI_SUCCESS;
 }
 

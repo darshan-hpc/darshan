@@ -1653,15 +1653,11 @@ static void posix_shared_record_variance(MPI_Comm mod_comm,
     struct darshan_posix_file *inrec_array, struct darshan_posix_file *outrec_array,
     int shared_rec_count)
 {
-    MPI_Datatype var_dt;
+    MPI_Datatype var_dt = MPI_DATATYPE_NULL;
     MPI_Op var_op;
     int i;
     struct darshan_variance_dt *var_send_buf = NULL;
     struct darshan_variance_dt *var_recv_buf = NULL;
-
-    PMPI_Type_contiguous(sizeof(struct darshan_variance_dt),
-        MPI_BYTE, &var_dt);
-    PMPI_Type_commit(&var_dt);
 
     darshan_mpi_op_create(darshan_variance_reduce, 1, &var_op);
 
@@ -1688,8 +1684,17 @@ static void posix_shared_record_variance(MPI_Comm mod_comm,
                             inrec_array[i].fcounters[POSIX_F_META_TIME];
     }
 
-    darshan_mpi_reduce(var_send_buf, var_recv_buf, shared_rec_count,
-        var_dt, var_op, 0, mod_comm);
+    /* If MPI is enabled, use an MPI datatype.  Otherwise just use the record
+     * size directly
+     */
+    darshan_mpi_type_contiguous(sizeof(struct darshan_variance_dt), MPI_BYTE, &var_dt);
+    darshan_mpi_type_commit(&var_dt);
+    if (var_dt != MPI_DATATYPE_NULL)
+        darshan_mpi_reduce(var_send_buf, var_recv_buf, shared_rec_count,
+            var_dt, var_op, 0, mod_comm);
+    else
+        darshan_mpi_reduce_records(var_send_buf, var_recv_buf, shared_rec_count,
+            sizeof(struct darshan_variance_dt), var_op, 0, mod_comm);
 
     if(my_rank == 0)
     {
@@ -1711,8 +1716,15 @@ static void posix_shared_record_variance(MPI_Comm mod_comm,
                             inrec_array[i].counters[POSIX_BYTES_WRITTEN];
     }
 
-    darshan_mpi_reduce(var_send_buf, var_recv_buf, shared_rec_count,
-        var_dt, var_op, 0, mod_comm);
+    /* If MPI is enabled, use an MPI datatype.  Otherwise just use the record
+     * size directly
+     */
+    if (var_dt != MPI_DATATYPE_NULL)
+        darshan_mpi_reduce(var_send_buf, var_recv_buf, shared_rec_count,
+            var_dt, var_op, 0, mod_comm);
+    else
+        darshan_mpi_reduce_records(var_send_buf, var_recv_buf, shared_rec_count,
+            sizeof(struct darshan_variance_dt), var_op, 0, mod_comm);
 
     if(my_rank == 0)
     {
@@ -1723,7 +1735,7 @@ static void posix_shared_record_variance(MPI_Comm mod_comm,
         }
     }
 
-    PMPI_Type_free(&var_dt);
+    darshan_mpi_type_free(&var_dt);
     darshan_mpi_op_free(&var_op);
     free(var_send_buf);
     free(var_recv_buf);
@@ -1831,7 +1843,6 @@ static void posix_shutdown(
     double posix_time;
     struct darshan_posix_file *red_send_buf = NULL;
     struct darshan_posix_file *red_recv_buf = NULL;
-    MPI_Datatype red_type;
     MPI_Op red_op;
     int i;
 
@@ -1906,19 +1917,12 @@ static void posix_shutdown(
             }
         }
 
-        /* construct a datatype for a POSIX file record.  This is serving no purpose
-         * except to make sure we can do a reduction on proper boundaries
-         */
-        PMPI_Type_contiguous(sizeof(struct darshan_posix_file),
-            MPI_BYTE, &red_type);
-        PMPI_Type_commit(&red_type);
-
         /* register a POSIX file record reduction operator */
         darshan_mpi_op_create(posix_record_reduction_op, 1, &red_op);
 
         /* reduce shared POSIX file records */
-        darshan_mpi_reduce(red_send_buf, red_recv_buf,
-            shared_rec_count, red_type, red_op, 0, mod_comm);
+        darshan_mpi_reduce_records(red_send_buf, red_recv_buf, shared_rec_count,
+            sizeof(struct darshan_posix_file), red_op, 0, mod_comm);
 
         /* get the time and byte variances for shared files */
         posix_shared_record_variance(mod_comm, red_send_buf, red_recv_buf,
@@ -1937,7 +1941,6 @@ static void posix_shutdown(
             posix_rec_count -= shared_rec_count;
         }
 
-        PMPI_Type_free(&red_type);
         darshan_mpi_op_free(&red_op);
     }
 
