@@ -1386,7 +1386,7 @@ static void mpiio_shared_record_variance(MPI_Comm mod_comm,
     struct darshan_mpiio_file *inrec_array, struct darshan_mpiio_file *outrec_array,
     int shared_rec_count)
 {
-    MPI_Datatype var_dt;
+    MPI_Datatype var_dt = MPI_DATATYPE_NULL;
     MPI_Op var_op;
     int i;
     struct darshan_variance_dt *var_send_buf = NULL;
