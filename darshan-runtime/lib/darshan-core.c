@@ -177,6 +177,10 @@ void darshan_core_initialize(int argc, char **argv)
     int tmpval;
     double tmpfloat;
 
+    /* bail out _before_ attempting to [re]set using_mpi */
+    if (darshan_core != NULL)
+        return;
+
     PMPI_Initialized(&using_mpi);
 
     darshan_mpi_comm_size(MPI_COMM_WORLD, &nprocs);
