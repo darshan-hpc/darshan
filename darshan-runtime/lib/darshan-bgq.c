@@ -17,6 +17,7 @@
 #include "uthash.h"
 #include "darshan.h"
 #include "darshan-dynamic.h"
+#include "darshan-mpi.h"
 
 #include <mpix.h>
 #include <spi/include/kernel/location.h>
