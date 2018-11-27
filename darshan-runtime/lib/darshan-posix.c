@@ -40,6 +40,7 @@ typedef int64_t off64_t;
 
 DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(open64, int, (const char *path, int flags, ...));
+DARSHAN_FORWARD_DECL(__open_2, int, (const char *path, int oflag));
 DARSHAN_FORWARD_DECL(creat, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(creat64, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(mkstemp, int, (char *template));
@@ -398,6 +399,24 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
 
     POSIX_PRE_RECORD();
     POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2);
+    POSIX_POST_RECORD();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(__open_2)(const char *path, int oflag)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(__open_2);
+
+    tm1 = darshan_core_wtime();
+    ret = __real___open_2(path, oflag);
+    tm2 = darshan_core_wtime();
+
+    POSIX_PRE_RECORD();
+    POSIX_RECORD_OPEN(ret, path, 0, tm1, tm2);
     POSIX_POST_RECORD();
 
     return(ret);

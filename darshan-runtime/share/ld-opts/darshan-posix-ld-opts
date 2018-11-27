@@ -1,5 +1,6 @@
 --wrap=open
 --wrap=open64
+--wrap=__open_2
 --wrap=creat
 --wrap=creat64
 --wrap=mkstemp
