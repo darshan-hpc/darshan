@@ -156,14 +156,6 @@ static void darshan_sig_handler(int sig);
 
 /* *********************************** */
 
-#ifdef __DARSHAN_ATEXIT_HANDLER
-void darshan_atexit_handler(void)
-{
-    darshan_core_shutdown();
-    return;
-}
-#endif
-
 void darshan_core_initialize(int argc, char **argv)
 {
     struct darshan_core_runtime *init_core = NULL;
@@ -341,29 +333,6 @@ void darshan_core_initialize(int argc, char **argv)
                 i++;
             }
         }
-#ifdef __DARSHAN_ATEXIT_HANDLER
-        /* if we've made it this far, go ahead and install the exit handlers
-        */
-        if (!using_mpi)
-        {
-            ret = atexit(darshan_atexit_handler);
-            if (ret != 0)
-                fprintf(stderr, "atexit handler could not be installed\n");
-            else
-                fprintf(stderr, "atexit handler is installed\n");
-        }
-#endif
-
-#ifdef __DARSHAN_SIGNAL_HANDLER
-        /* install signal handlers to produce something on a soft abort
-         * may be risky business though--if the core is locked when a signal is
-         * trapped, we rely on recursive mutexes sorting themselves out to
-         * prevent a deadlock.  not necessarily worth biting off at this point.
-         */
-        signal(SIGXCPU, darshan_sig_handler);
-        signal(SIGTERM, darshan_sig_handler);
-        signal(SIGABRT, darshan_sig_handler);
-#endif
     }
 
     if(internal_timing_flag)
@@ -1904,15 +1873,6 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
 
     return;
 }
-
-#ifdef __DARSHAN_SIGNAL_HANDLER
-static void darshan_sig_handler(int sig)
-{
-    if (sig == SIGTERM || sig == SIGXCPU || sig == SIGABRT)
-        darshan_core_shutdown();
-    return;
-}
-#endif
 
 /* crude benchmarking hook into darshan-core to benchmark Darshan
  * shutdown overhead using a variety of application I/O workloads
