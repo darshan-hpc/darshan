@@ -2133,6 +2133,25 @@ double darshan_core_wtime()
     return(PMPI_Wtime() - darshan_core->wtime_offset);
 }
 
+#ifdef DARSHAN_PRELOAD
+extern int (*__real_vfprintf)(FILE *stream, const char *format, va_list);
+#else
+extern int __real_vfprintf(FILE *stream, const char *format, va_list);
+#endif
+void darshan_core_fprintf(
+    FILE *stream, const char *format, ...)
+{
+    va_list ap;
+
+    MAP_OR_FAIL(vfprintf);
+
+    va_start(ap, format);
+    __real_vfprintf(stream, format, ap);
+    va_end(ap);
+
+    return;
+}
+
 int darshan_core_excluded_path(const char *path)
 {
     char *exclude, *include;
