@@ -251,7 +251,7 @@ static void lustre_shutdown(
             if(rec_ref)
                 rec_ref->record->base_rec.rank = -1;
             else
-                fprintf(stderr, "WARNING: unexpected condition in Darshan, possibly triggered by memory corruption.  Darshan log may be incorrect.\n");
+                darshan_core_fprintf(stderr, "WARNING: unexpected condition in Darshan, possibly triggered by memory corruption.  Darshan log may be incorrect.\n");
         }
 
         /* sort the array of files descending by rank so that we get all of the 

@@ -137,7 +137,7 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
             MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
         if(my_rank == 0)
         {
-            fprintf(stderr, "Darshan HDF5 module error: runtime library version does not match Darshan module.\n");
+            darshan_core_fprintf(stderr, "Darshan HDF5 module error: runtime library version does not match Darshan module.\n");
         }
         return(-1);
     }
@@ -185,7 +185,7 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
             MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
         if(my_rank == 0)
         {
-            fprintf(stderr, "Darshan HDF5 module error: runtime library version does not match Darshan module.\n");
+            darshan_core_fprintf(stderr, "Darshan HDF5 module error: runtime library version does not match Darshan module.\n");
         }
         return(-1);
     }
