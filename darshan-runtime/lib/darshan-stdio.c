@@ -84,6 +84,10 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 
+#ifndef HAVE_OFF64_T
+typedef int64_t off64_t;
+#endif
+
 DARSHAN_FORWARD_DECL(fopen, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(fopen64, FILE*, (const char *path, const char *mode));
 DARSHAN_FORWARD_DECL(fdopen, FILE*, (int fd, const char *mode));
@@ -110,7 +114,7 @@ DARSHAN_FORWARD_DECL(vfscanf, int, (FILE *stream, const char *format, va_list ap
 DARSHAN_FORWARD_DECL(fgets, char*, (char *s, int size, FILE *stream));
 DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
 DARSHAN_FORWARD_DECL(fseeko, int, (FILE *stream, off_t offset, int whence));
-DARSHAN_FORWARD_DECL(fseeko64, int, (FILE *stream, off_t offset, int whence));
+DARSHAN_FORWARD_DECL(fseeko64, int, (FILE *stream, off64_t offset, int whence));
 DARSHAN_FORWARD_DECL(fsetpos, int, (FILE *stream, const fpos_t *pos));
 DARSHAN_FORWARD_DECL(fsetpos64, int, (FILE *stream, const fpos64_t *pos));
 DARSHAN_FORWARD_DECL(rewind, void, (FILE *stream));
@@ -855,7 +859,7 @@ int DARSHAN_DECL(fseeko)(FILE *stream, off_t offset, int whence)
     return(ret);
 }
 
-int DARSHAN_DECL(fseeko64)(FILE *stream, off_t offset, int whence)
+int DARSHAN_DECL(fseeko64)(FILE *stream, off64_t offset, int whence)
 {
     int ret;
     struct stdio_file_record_ref *rec_ref;
