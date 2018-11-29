@@ -530,7 +530,6 @@ int DARSHAN_DECL(printf)(const char *format, ...)
     return(ret);
 }
 
-
 int DARSHAN_DECL(fprintf)(FILE *stream, const char *format, ...)
 {
     int ret;
