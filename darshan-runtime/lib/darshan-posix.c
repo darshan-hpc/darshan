@@ -1843,7 +1843,6 @@ static void posix_reduce_records(
     MPI_Op red_op;
     int i;
 
-    /* if there are globally shared files, do a shared file reduction */
     /* NOTE: the shared file reduction is also skipped if the 
      * DARSHAN_DISABLE_SHARED_REDUCTION environment variable is set.
      */
@@ -1901,10 +1900,7 @@ static void posix_reduce_records(
     {
         red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_posix_file));
         if(!red_recv_buf)
-        {
-            POSIX_UNLOCK();
             return;
-        }
     }
 
     /* register a POSIX file record reduction operator */
@@ -1935,7 +1931,7 @@ static void posix_reduce_records(
 
     /* update output buffer size to account for shared file reduction */
     *posix_buf_sz = posix_rec_count * sizeof(struct darshan_posix_file);
-#endif
+#endif /* #ifdef HAVE_MPI */
 
     return;
 }
@@ -1959,6 +1955,7 @@ static void posix_shutdown(
      */
     darshan_iter_record_refs(posix_runtime->rec_id_hash, &posix_finalize_file_records);
 
+    /* if there are globally shared files, do a shared file reduction */
     posix_reduce_records(mod_comm, shared_recs, shared_rec_count, posix_buf, posix_buf_sz);
 
     /* shutdown internal structures used for instrumenting */
