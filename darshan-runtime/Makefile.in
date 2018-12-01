@@ -37,9 +37,39 @@ LIBS = -lz @LIBBZ2@
 
 BUILD_HDF5_MODULE = @BUILD_HDF5_MODULE@
 BUILD_MDHIM_MODULE = @BUILD_MDHIM_MODULE@
+BUILD_POSIX_MODULE = @BUILD_POSIX_MODULE@
+BUILD_MPIIO_MODULE = @BUILD_MPIIO_MODULE@
+BUILD_PNETCDF_MODULE = @BUILD_PNETCDF_MODULE@
+BUILD_STDIO_MODULE = @BUILD_STDIO_MODULE@
+BUILD_DXT_MODULE = @BUILD_DXT_MODULE@
 
-DARSHAN_STATIC_MOD_OBJS = lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-pnetcdf.o lib/darshan-stdio.o lib/darshan-dxt.o
-DARSHAN_DYNAMIC_MOD_OBJS = lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-pnetcdf.po lib/darshan-stdio.po lib/darshan-dxt.po
+DARSHAN_STATIC_MOD_OBJS =
+DARSHAN_DYNAMIC_MOD_OBJS =
+
+ifdef BUILD_POSIX_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-posix.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-posix.po
+endif
+
+ifdef BUILD_MPIIO_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-mpiio.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-mpiio.po
+endif
+
+ifdef BUILD_PNETCDF_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-pnetcdf.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-pnetcdf.po
+endif
+
+ifdef BUILD_STDIO_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-stdio.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-stdio.po
+endif
+
+ifdef BUILD_DXT_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-dxt.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-dxt.po
+endif
 
 ifdef BUILD_HDF5_MODULE
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-hdf5.o

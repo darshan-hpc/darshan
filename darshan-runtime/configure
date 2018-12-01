@@ -623,6 +623,15 @@ ac_subst_vars='LTLIBOBJS
 LIBOBJS
 DARSHAN_MDHIM_LD_OPTS
 BUILD_MDHIM_MODULE
+BUILD_DXT_MODULE
+DARSHAN_STDIO_LD_OPTS
+BUILD_STDIO_MODULE
+DARSHAN_PNETCDF_LD_OPTS
+BUILD_PNETCDF_MODULE
+DARSHAN_MPIIO_LD_OPTS
+BUILD_MPIIO_MODULE
+DARSHAN_POSIX_LD_OPTS
+BUILD_POSIX_MODULE
 DARSHAN_HDF5_LD_OPTS
 BUILD_HDF5_MODULE
 DARSHAN_USE_LUSTRE
@@ -667,6 +676,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -693,6 +703,11 @@ with_zlib
 enable_ld_preload
 enable_cuserid
 enable_group_readable_logs
+enable_posix_mod
+enable_mpiio_mod
+enable_stdio_mod
+enable_pnetcdf_mod
+enable_dxt_mod
 enable_bgq_mod
 enable_lustre_mod
 enable_mmap_logs
@@ -753,6 +768,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1005,6 +1021,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1142,7 +1167,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1295,6 +1320,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -1328,6 +1354,11 @@ Optional Features:
   --disable-cuserid       Disables attempted use of cuserid() at run time
   --enable-group-readable-logs
                           Set log files to be group readable
+  --disable-posix-mod     Disables compilation and use of POSIX module
+  --disable-mpiio-mod     Disables compilation and use of MPI-IO module
+  --disable-stdio-mod     Disables compilation and use of STDIO module
+  --disable-pnetcdf-mod   Disables compilation and use of PnetCDF module
+  --disable-dxt-mod       Disables compilation and use of DXT module
   --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)
   --disable-lustre-mod    Disables compilation and use of the Lustre module
   --enable-mmap-logs      Enables ability to mmap I/O data to log file
@@ -2159,6 +2190,7 @@ fi
 ac_config_guess="$SHELL $ac_aux_dir/config.guess"  # Please don't use this var.
 ac_config_sub="$SHELL $ac_aux_dir/config.sub"  # Please don't use this var.
 ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
+
 
 
 ac_config_headers="$ac_config_headers darshan-runtime-config.h"
@@ -3496,7 +3528,7 @@ ac_fn_c_check_header_mongrel "$LINENO" "zlib.h" "ac_cv_header_zlib_h" "$ac_inclu
 if test "x$ac_cv_header_zlib_h" = xyes; then :
 
 else
-  as_fn_error $? "z.h not found" "$LINENO" 5
+  as_fn_error $? "zlib.h not found" "$LINENO" 5
 fi
 
 
@@ -3580,6 +3612,70 @@ fi
 
 fi
 
+
+# Check for specific module enable/disable options
+# POSIX module
+BUILD_POSIX_MODULE=1
+DARSHAN_POSIX_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-posix-ld-opts"
+# Check whether --enable-posix-mod was given.
+if test "${enable_posix_mod+set}" = set; then :
+  enableval=$enable_posix_mod;
+fi
+
+if test "x$enable_posix_mod" = "xno"; then :
+  BUILD_POSIX_MODULE=
+      DARSHAN_POSIX_LD_OPTS=
+fi
+
+# MPI-IO module
+BUILD_MPIIO_MODULE=1
+DARSHAN_MPIIO_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-mpiio-ld-opts"
+# Check whether --enable-mpiio-mod was given.
+if test "${enable_mpiio_mod+set}" = set; then :
+  enableval=$enable_mpiio_mod;
+fi
+
+if test "x$enable_mpiio_mod" = "xno"; then :
+  BUILD_MPIIO_MODULE=
+      DARSHAN_MPIIO_LD_OPTS=
+fi
+
+# STDIO module
+BUILD_STDIO_MODULE=1
+DARSHAN_STDIO_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-stdio-ld-opts"
+# Check whether --enable-stdio-mod was given.
+if test "${enable_stdio_mod+set}" = set; then :
+  enableval=$enable_stdio_mod;
+fi
+
+if test "x$enable_stdio_mod" = "xno"; then :
+  BUILD_STDIO_MODULE=
+      DARSHAN_STDIO_LD_OPTS=
+fi
+
+# PNETCDF module
+BUILD_PNETCDF_MODULE=1
+DARSHAN_PNETCDF_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-pnetcdf-ld-opts"
+# Check whether --enable-pnetcdf-mod was given.
+if test "${enable_pnetcdf_mod+set}" = set; then :
+  enableval=$enable_pnetcdf_mod;
+fi
+
+if test "x$enable_pnetcdf_mod" = "xno"; then :
+  BUILD_PNETCDF_MODULE=
+      DARSHAN_PNETCDF_LD_OPTS=
+fi
+
+# DXT module
+BUILD_DXT_MODULE=1
+# Check whether --enable-dxt-mod was given.
+if test "${enable_dxt_mod+set}" = set; then :
+  enableval=$enable_dxt_mod;
+fi
+
+if test "x$enable_dxt_mod" = "xno"; then :
+  BUILD_DXT_MODULE=
+fi
 
 # Check whether --enable-bgq-mod was given.
 if test "${enable_bgq_mod+set}" = set; then :
@@ -4221,6 +4317,7 @@ if test "${enable_HDF5_pre_1_10+set}" = set; then :
     if test "x$BUILD_HDF5_MODULE" = "x1"; then
         as_fn_error $? "Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10" "$LINENO" 5
     fi
+    BUILD_HDF5_PRE110=1
     BUILD_HDF5_MODULE=1
     DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
 fi
@@ -4421,6 +4518,15 @@ else
 fi
 
 DARSHAN_VERSION="3.1.6"
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5732,3 +5838,75 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: Building Darshan with the following features" >&5
+$as_echo "$as_me: Building Darshan with the following features" >&6;}
+if test "x$BUILD_POSIX_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: POSIX module support:   no" >&5
+$as_echo "$as_me: POSIX module support:   no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: POSIX module support:   yes" >&5
+$as_echo "$as_me: POSIX module support:   yes" >&6;}
+fi
+if test "x$BUILD_MPIIO_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: MPIIO module support:   no" >&5
+$as_echo "$as_me: MPIIO module support:   no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: MPIIO module support:   yes" >&5
+$as_echo "$as_me: MPIIO module support:   yes" >&6;}
+fi
+if test "x$BUILD_STDIO_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: STDIO module support:   no" >&5
+$as_echo "$as_me: STDIO module support:   no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: STDIO module support:   yes" >&5
+$as_echo "$as_me: STDIO module support:   yes" >&6;}
+fi
+if test "x$BUILD_PNETCDF_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: PnetCDF module support: no" >&5
+$as_echo "$as_me: PnetCDF module support: no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: PnetCDF module support: yes" >&5
+$as_echo "$as_me: PnetCDF module support: yes" >&6;}
+fi
+if test "x$BUILD_HDF5_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: HDF5 module support:    no" >&5
+$as_echo "$as_me: HDF5 module support:    no" >&6;}
+elif if test "x$BUILD_HDF5_PRE110" = "x1"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: HDF5 module support:    1.10+" >&5
+$as_echo "$as_me: HDF5 module support:    1.10+" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: HDF5 module support:    pre-1.10" >&5
+$as_echo "$as_me: HDF5 module support:    pre-1.10" >&6;}
+
+fi; then :
+
+fi
+if test "x$BUILD_DXT_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: DXT module support:     no" >&5
+$as_echo "$as_me: DXT module support:     no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: DXT module support:     yes" >&5
+$as_echo "$as_me: DXT module support:     yes" >&6;}
+fi
+if test "x$DARSHAN_USE_MDHIM" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: MDHIM module support:   no" >&5
+$as_echo "$as_me: MDHIM module support:   no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: MDHIM module support:   yes" >&5
+$as_echo "$as_me: MDHIM module support:   yes" >&6;}
+fi
+if test "x$DARSHAN_USE_LUSTRE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Lustre module support:  no" >&5
+$as_echo "$as_me: Lustre module support:  no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Lustre module support:  yes" >&5
+$as_echo "$as_me: Lustre module support:  yes" >&6;}
+fi
+if test "x$DARSHAN_USE_BGQ" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: BG/Q module support:    no" >&5
+$as_echo "$as_me: BG/Q module support:    no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: BG/Q module support:    yes" >&5
+$as_echo "$as_me: BG/Q module support:    yes" >&6;}
+fi

@@ -7,9 +7,9 @@
 --wrap=PMPI_Init
 --wrap=PMPI_Init_thread
 --wrap=PMPI_Finalize
-@@darshan_share_path@/ld-opts/darshan-posix-ld-opts
-@@darshan_share_path@/ld-opts/darshan-pnetcdf-ld-opts
-@@darshan_share_path@/ld-opts/darshan-stdio-ld-opts
-@@darshan_share_path@/ld-opts/darshan-mpiio-ld-opts
+@DARSHAN_POSIX_LD_OPTS@
+@DARSHAN_MPIIO_LD_OPTS@
+@DARSHAN_STDIO_LD_OPTS@
+@DARSHAN_PNETCDF_LD_OPTS@
 @DARSHAN_HDF5_LD_OPTS@
 @DARSHAN_MDHIM_LD_OPTS@
