@@ -616,9 +616,10 @@ void darshan_core_shutdown()
          */
         if(this_mod)
         {
+            MPI_Comm mod_comm = MPI_COMM_WORLD;
             mod_buf = final_core->mod_array[i]->rec_buf_start;
             mod_buf_sz = final_core->mod_array[i]->rec_buf_p - mod_buf;
-            this_mod->mod_shutdown_func(MPI_COMM_WORLD, mod_shared_recs,
+            this_mod->mod_shutdown_func(&mod_comm, mod_shared_recs,
                 mod_shared_rec_cnt, &mod_buf, &mod_buf_sz);
         }
 

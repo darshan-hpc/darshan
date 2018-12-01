@@ -86,7 +86,7 @@
  * 'shared_recs' array) into a single data record.
  */
 typedef void (*darshan_module_shutdown)(
-    MPI_Comm mod_comm,  /* MPI communicator to run collectives with */
+    void *mod_comm,  /* MPI communicator to run collectives with */
     darshan_record_id *shared_recs, /* list of shared data record ids */
     int shared_rec_count, /* count of shared data records */
     void **mod_buf, /* output parameter to save module buffer address */

@@ -30,12 +30,12 @@
 /* Environment variable to override memory per module */
 #define DARSHAN_MOD_MEM_OVERRIDE "DARSHAN_MODMEM"
 
+/* Environment variable to enable profiling without MPI */
+#define DARSHAN_ENABLE_NONMPI "DARSHAN_ENABLE_NONMPI"
+
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
 /* Environment variable to override default mmap log path */
 #define DARSHAN_MMAP_LOG_PATH_OVERRIDE "DARSHAN_MMAP_LOGPATH"
-
-/* Environment variable to enable profiling without MPI */
-#define DARSHAN_ENABLE_NONMPI "DARSHAN_ENABLE_NONMPI"
 
 /* default path for storing mmap log files is '/tmp' */
 #define DARSHAN_DEF_MMAP_LOG_PATH "/tmp"

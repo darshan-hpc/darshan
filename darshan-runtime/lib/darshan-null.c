@@ -87,7 +87,7 @@ static void null_cleanup_runtime(
 /* forward declaration for NULL shutdown function needed to interface
  * with darshan-core
  */
-static void null_shutdown(MPI_Comm mod_comm, darshan_record_id *shared_recs,
+static void null_shutdown(void *mod_comm, darshan_record_id *shared_recs,
     int shared_rec_count, void **null_buf, int *null_buf_sz);
 
 /* null_runtime is the global data structure encapsulating "NULL" module state */
@@ -305,7 +305,7 @@ static void null_cleanup_runtime()
  * and shutdown/free internal data structures.
  */
 static void null_shutdown(
-    MPI_Comm mod_comm,
+    void *mod_comm,
     darshan_record_id *shared_recs,
     int shared_rec_count,
     void **null_buf,
