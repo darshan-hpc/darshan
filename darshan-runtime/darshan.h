@@ -10,7 +10,9 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdint.h>
+#ifdef HAVE_MPI
 #include <mpi.h>
+#endif
 
 #include "darshan-log-format.h"
 #include "darshan-common.h"

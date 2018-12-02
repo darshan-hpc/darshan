@@ -24,7 +24,9 @@
 
 #include "darshan.h"
 #include "darshan-dynamic.h"
+#ifdef HAVE_MPI
 #include "darshan-mpi.h"
+#endif
 
 DARSHAN_FORWARD_DECL(PMPI_File_close, int, (MPI_File *fh));
 DARSHAN_FORWARD_DECL(PMPI_File_iread_at, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));

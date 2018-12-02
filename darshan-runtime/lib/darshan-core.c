@@ -26,7 +26,6 @@
 #include <sys/mman.h>
 #include <sys/vfs.h>
 #include <zlib.h>
-#include <mpi.h>
 #include <assert.h>
 #ifdef __DARSHAN_TRAP_SIGNALS
 #include <signal.h>
@@ -139,20 +138,34 @@ static void darshan_get_logfile_name(
 static void darshan_get_shared_records(
     struct darshan_core_runtime *core, darshan_record_id **shared_recs,
     int *shared_rec_cnt);
+#ifdef HAVE_MPI
 static int darshan_log_open_all(
     char *logfile_name, struct darshan_mpi_file *log_fh);
+#else
+static int darshan_log_open_all(
+    char *logfile_name, int *log_fh);
+#endif
 static int darshan_deflate_buffer(
     void **pointers, int *lengths, int count, char *comp_buf,
     int *comp_buf_length);
+#ifdef HAVE_MPI
 static int darshan_log_write_name_record_hash(
     struct darshan_mpi_file log_fh, struct darshan_core_runtime *core,
     uint64_t *inout_off);
 static int darshan_log_append_all(
     struct darshan_mpi_file log_fh, struct darshan_core_runtime *core, void *buf,
     int count, uint64_t *inout_off);
+#else
+static int darshan_log_write_name_record_hash(
+    int log_fh, struct darshan_core_runtime *core,
+    uint64_t *inout_off);
+static int darshan_log_append_all(
+    int log_fh, struct darshan_core_runtime *core, void *buf,
+    int count, uint64_t *inout_off);
+#endif /* #ifdef HAVE_MPI */
 static void darshan_core_cleanup(
     struct darshan_core_runtime* core);
-static void darshan_sig_handler(int sig);
+static double time_nanoseconds();
 
 /* *********************************** */
 
@@ -173,16 +186,21 @@ void darshan_core_initialize(int argc, char **argv)
     if (darshan_core != NULL)
         return;
 
+#ifdef HAVE_MPI
     PMPI_Initialized(&using_mpi);
 
     darshan_mpi_comm_size(MPI_COMM_WORLD, &nprocs);
     darshan_mpi_comm_rank(MPI_COMM_WORLD, &my_rank);
+#else
+    my_rank = 0;
+    nprocs = 1;
+#endif
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
 
     if(internal_timing_flag)
-        init_start = darshan_mpi_wtime();
+        init_start = time_nanoseconds();
 
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if(!getenv("DARSHAN_DISABLE") && !darshan_core)
@@ -248,7 +266,7 @@ void darshan_core_initialize(int argc, char **argv)
         if(init_core)
         {
             memset(init_core, 0, sizeof(*init_core));
-            init_core->wtime_offset = darshan_mpi_wtime();
+            init_core->wtime_offset = time_nanoseconds();
 
         /* TODO: do we alloc new memory as we go or just do everything up front? */
 
@@ -337,9 +355,13 @@ void darshan_core_initialize(int argc, char **argv)
 
     if(internal_timing_flag)
     {
-        init_time = darshan_mpi_wtime() - init_start;
+        init_time = time_nanoseconds() - init_start;
+#ifdef HAVE_MPI
         darshan_mpi_reduce(&init_time, &init_max, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+#else
+        init_max = init_time;
+#endif
         if(my_rank == 0)
         {
             fprintf(stderr, "#darshan:<op>\t<nprocs>\t<time>\n");
@@ -376,15 +398,21 @@ void darshan_core_shutdown()
     int all_ret = 0;
     int i;
     uint64_t gz_fp = 0;
+#ifdef HAVE_MPI
     struct darshan_mpi_file log_fh;
     MPI_Status status; /* if used, darshan_mpi_file_* needs to be updated */
+#else
+    int log_fh;
+#endif
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         internal_timing_flag = 1;
 
     /* synchronize before getting start time */
+#ifdef HAVE_MPI
     darshan_mpi_barrier(MPI_COMM_WORLD);
-    start_log_time = darshan_mpi_wtime();
+#endif
+    start_log_time = time_nanoseconds();
 
     /* disable darhan-core while we shutdown */
     DARSHAN_CORE_LOCK();
@@ -409,6 +437,7 @@ void darshan_core_shutdown()
 
     final_core->log_job_p->end_time = time(NULL);
 
+#ifdef HAVE_MPI
     /* reduce to report first start and last end time across all ranks at rank 0 */
     darshan_mpi_reduce(&final_core->log_job_p->start_time, &first_start_time,
         1, MPI_INT64_T, MPI_MIN, 0, MPI_COMM_WORLD);
@@ -419,6 +448,7 @@ void darshan_core_shutdown()
         final_core->log_job_p->start_time = first_start_time;
         final_core->log_job_p->end_time = last_end_time;
     }
+#endif
 
     final_core->comp_buf = malloc(darshan_mod_mem_quota);
     if(!(final_core->comp_buf))
@@ -444,9 +474,11 @@ void darshan_core_shutdown()
         darshan_get_logfile_name(logfile_name, final_core->log_job_p->jobid, start_tm);
     }
 
+#ifdef HAVE_MPI
     /* broadcast log file name */
     darshan_mpi_bcast(logfile_name, PATH_MAX, MPI_CHAR, 0,
         MPI_COMM_WORLD);
+#endif
 
     if(strlen(logfile_name) == 0)
     {
@@ -467,19 +499,25 @@ void darshan_core_shutdown()
             local_mod_use[i] = 1;
     }
 
+#ifdef HAVE_MPI
     /* reduce the number of times a module was opened globally and bcast to everyone */
     darshan_mpi_allreduce(local_mod_use, global_mod_use_count, DARSHAN_MAX_MODS, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+#else
+    memcpy(global_mod_use_count, local_mod_use, DARSHAN_MAX_MODS * sizeof(*local_mod_use));
+#endif
 
     /* get a list of records which are shared across all processes */
     darshan_get_shared_records(final_core, &shared_recs, &shared_rec_cnt);
 
+
     if(internal_timing_flag)
-        open1 = darshan_mpi_wtime();
+        open1 = time_nanoseconds();
     /* collectively open the darshan log file */
     ret = darshan_log_open_all(logfile_name, &log_fh);
     if(internal_timing_flag)
-        open2 = darshan_mpi_wtime();
+        open2 = time_nanoseconds();
 
+#ifdef HAVE_MPI
     /* error out if unable to open log file */
     darshan_mpi_allreduce(&ret, &all_ret, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
     if(all_ret != 0)
@@ -493,15 +531,17 @@ void darshan_core_shutdown()
         darshan_core_cleanup(final_core);
         return;
     }
+#endif
 
     if(internal_timing_flag)
-        job1 = darshan_mpi_wtime();
+        job1 = time_nanoseconds();
     /* rank 0 is responsible for writing the compressed darshan job information */
     if(my_rank == 0)
     {
         void *pointers[2] = {final_core->log_job_p, final_core->log_exemnt_p};
         int lengths[2] = {sizeof(struct darshan_job), strlen(final_core->log_exemnt_p)};
         int comp_buf_sz = 0;
+        ssize_t written;
 
         /* compress the job info and the trailing mount/exe data */
         all_ret = darshan_deflate_buffer(pointers, lengths, 2,
@@ -515,9 +555,15 @@ void darshan_core_shutdown()
         {
             /* write the job information, preallocing space for the log header */
             gz_fp += sizeof(struct darshan_header);
+#ifdef HAVE_MPI
             all_ret = darshan_mpi_file_write_at(log_fh, gz_fp,
                 final_core->comp_buf, comp_buf_sz, MPI_BYTE, &status);
             if(all_ret != MPI_SUCCESS)
+#else
+            /*ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset);*/
+            written = pwrite(log_fh, final_core->comp_buf, comp_buf_sz, gz_fp);
+            if (written != comp_buf_sz)
+#endif
             {
                 fprintf(stderr,
                         "darshan library warning: unable to write job data to log file %s\n",
@@ -529,6 +575,7 @@ void darshan_core_shutdown()
         }
     }
 
+#ifdef HAVE_MPI
     /* error out if unable to write job information */
     darshan_mpi_bcast(&all_ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
     if(all_ret != 0)
@@ -537,16 +584,18 @@ void darshan_core_shutdown()
         darshan_core_cleanup(final_core);
         return;
     }
+#endif
     if(internal_timing_flag)
-        job2 = darshan_mpi_wtime();
+        job2 = time_nanoseconds();
 
     if(internal_timing_flag)
-        rec1 = darshan_mpi_wtime();
+        rec1 = time_nanoseconds();
     /* write the record name->id hash to the log file */
     final_core->log_hdr_p->name_map.off = gz_fp;
     ret = darshan_log_write_name_record_hash(log_fh, final_core, &gz_fp);
     final_core->log_hdr_p->name_map.len = gz_fp - final_core->log_hdr_p->name_map.off;
 
+#ifdef HAVE_MPI
     /* error out if unable to write the name record hash */
     darshan_mpi_allreduce(&ret, &all_ret, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
     if(all_ret != 0)
@@ -562,8 +611,9 @@ void darshan_core_shutdown()
         darshan_core_cleanup(final_core);
         return;
     }
+#endif
     if(internal_timing_flag)
-        rec2 = darshan_mpi_wtime();
+        rec2 = time_nanoseconds();
 
     mod_shared_recs = malloc(shared_rec_cnt * sizeof(darshan_record_id));
     assert(mod_shared_recs);
@@ -595,7 +645,7 @@ void darshan_core_shutdown()
         }
 
         if(internal_timing_flag)
-            mod1[i] = darshan_mpi_wtime();
+            mod1[i] = time_nanoseconds();
 
         /* set the shared record list for this module */
         for(j = 0; j < shared_rec_cnt; j++)
@@ -616,7 +666,11 @@ void darshan_core_shutdown()
          */
         if(this_mod)
         {
+#ifdef HAVE_MPI
             MPI_Comm mod_comm = MPI_COMM_WORLD;
+#else
+            int mod_comm = 0;
+#endif
             mod_buf = final_core->mod_array[i]->rec_buf_start;
             mod_buf_sz = final_core->mod_array[i]->rec_buf_p - mod_buf;
             this_mod->mod_shutdown_func(&mod_comm, mod_shared_recs,
@@ -635,6 +689,7 @@ void darshan_core_shutdown()
         if(i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD)
             free(mod_buf);
 
+#ifdef HAVE_MPI
         /* error out if the log append failed */
         darshan_mpi_allreduce(&ret, &all_ret, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
         if(all_ret != 0)
@@ -650,13 +705,14 @@ void darshan_core_shutdown()
             darshan_core_cleanup(final_core);
             return;
         }
+#endif
 
         if(internal_timing_flag)
-            mod2[i] = darshan_mpi_wtime();
+            mod2[i] = time_nanoseconds();
     }
 
     if(internal_timing_flag)
-        header1 = darshan_mpi_wtime();
+        header1 = time_nanoseconds();
     /* write out log header, after running 2 reductions on header variables:
      *  1) reduce 'partial_flag' variable to determine which modules ran out
      *     of memory for storing data
@@ -665,9 +721,11 @@ void darshan_core_shutdown()
      */
     if(my_rank == 0)
     {
+        ssize_t written;
         /* rank 0 is responsible for writing the log header */
         final_core->log_hdr_p->comp_type = DARSHAN_ZLIB_COMP;
 
+#ifdef HAVE_MPI
         darshan_mpi_reduce(
             MPI_IN_PLACE, &(final_core->log_hdr_p->partial_flag),
             1, MPI_UINT32_T, MPI_BOR, 0, MPI_COMM_WORLD);
@@ -675,15 +733,22 @@ void darshan_core_shutdown()
             MPI_IN_PLACE, &(final_core->log_hdr_p->mod_ver),
             DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX, 0, MPI_COMM_WORLD);
 
+
         all_ret = darshan_mpi_file_write_at(log_fh, 0, final_core->log_hdr_p,
             sizeof(struct darshan_header), MPI_BYTE, &status);
         if(all_ret != MPI_SUCCESS)
+#else
+        written = pwrite(log_fh, final_core->log_hdr_p, sizeof(struct darshan_header), 0);
+
+        if (written != sizeof(struct darshan_header))
+#endif
         {
             fprintf(stderr, "darshan library warning: unable to write header to log file %s\n",
                     logfile_name);
             unlink(logfile_name);
         }
     }
+#ifdef HAVE_MPI
     else
     {
         darshan_mpi_reduce(
@@ -702,10 +767,15 @@ void darshan_core_shutdown()
         darshan_core_cleanup(final_core);
         return;
     }
+#endif
     if(internal_timing_flag)
-        header2 = darshan_mpi_wtime();
+        header2 = time_nanoseconds();
 
+#ifdef HAVE_MPI
     darshan_mpi_file_close(&log_fh);
+#else
+    close(log_fh);
+#endif
 
     /* if we got this far, there are no errors, so rename from *.darshan_partial
      * to *-<logwritetime>.darshan, which indicates that this log file is
@@ -732,7 +802,7 @@ void darshan_core_shutdown()
             if(new_logfile_name)
             {
                 new_logfile_name[0] = '\0';
-                end_log_time = darshan_mpi_wtime();
+                end_log_time = time_nanoseconds();
                 strcat(new_logfile_name, logfile_name);
                 tmp_index = strstr(new_logfile_name, ".darshan_partial");
                 sprintf(tmp_index, "_%d.darshan", (int)(end_log_time-start_log_time+1));
@@ -758,7 +828,7 @@ void darshan_core_shutdown()
         double mod_tm[DARSHAN_MAX_MODS], mod_slowest[DARSHAN_MAX_MODS];
         double all_tm, all_slowest;
 
-        tm_end = darshan_mpi_wtime();
+        tm_end = time_nanoseconds();
 
         open_tm = open2 - open1;
         header_tm = header2 - header1;
@@ -770,6 +840,7 @@ void darshan_core_shutdown()
             mod_tm[i] = mod2[i] - mod1[i];
         }
 
+#ifdef HAVE_MPI
         darshan_mpi_reduce(&open_tm, &open_slowest, 1,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
         darshan_mpi_reduce(&header_tm, &header_slowest, 1,
@@ -782,6 +853,14 @@ void darshan_core_shutdown()
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
         darshan_mpi_reduce(mod_tm, mod_slowest, DARSHAN_MAX_MODS,
             MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+#else
+        open_slowest = open_tm;
+        header_slowest = header_tm;
+        job_slowest = job_tm;
+        rec_slowest = rec_tm;
+        all_slowest = all_tm;
+        memcpy(mod_slowest, mod_tm, sizeof(*mod_tm) * DARSHAN_MAX_MODS);
+#endif
 
         if(my_rank == 0)
         {
@@ -843,11 +922,13 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
      */
     if(my_rank == 0)
     {
-        hlevel = darshan_mpi_wtime() * 1000000;
+        hlevel = time_nanoseconds() * 1000000;
         (void)gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
     }
+#ifdef HAVE_MPI
     darshan_mpi_bcast(&logmod, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
+#endif
 
     /* construct a unique temporary log file name for this process
      * to write mmap log data to
@@ -1362,7 +1443,7 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
         darshan_get_user_name(cuser);
 
         /* generate a random number to help differentiate the log */
-        hlevel = darshan_mpi_wtime() * 1000000;
+        hlevel = time_nanoseconds() * 1000000;
         (void)gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
 
@@ -1443,6 +1524,7 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
 static void darshan_get_shared_records(struct darshan_core_runtime *core,
     darshan_record_id **shared_recs, int *shared_rec_cnt)
 {
+#ifdef HAVE_MPI
     int i, j;
     int tmp_cnt = HASH_CNT(hlink, core->name_hash);
     struct darshan_core_name_record_ref *tmp, *ref;
@@ -1515,9 +1597,27 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     free(id_array);
     free(mod_flags);
     free(global_mod_flags);
+#else
+    int j;
+    struct darshan_core_name_record_ref *tmp, *ref;
+
+    /* allocate the thing we're returning */
+    *shared_recs = malloc(HASH_CNT(hlink, core->name_hash) * sizeof(darshan_record_id));
+    assert(*shared_recs);
+
+    /* do a gather of all record ids */
+    j = 0;
+    HASH_ITER(hlink, core->name_hash, ref, tmp)
+    {
+        (*shared_recs)[j++] = ref->name_record->id;
+    }
+    *shared_rec_cnt = j;
+
+#endif /* #ifdef HAVE_MPI */
     return;
 }
 
+#ifdef HAVE_MPI
 static int darshan_log_open_all(char *logfile_name, struct darshan_mpi_file *log_fh)
 {
     char *hints;
@@ -1578,6 +1678,15 @@ static int darshan_log_open_all(char *logfile_name, struct darshan_mpi_file *log
     darshan_mpi_info_free(&info);
     return(0);
 }
+#else
+static int darshan_log_open_all(char *logfile_name, int *log_fh)
+{
+    /* open the darshan log file for writing */
+    *log_fh = open(logfile_name, O_CREAT|O_WRONLY|O_EXCL, S_IRWXU|S_IRWXG|S_IRWXO);
+
+    return(0);
+}
+#endif
 
 static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
     char *comp_buf, int *comp_buf_length)
@@ -1668,6 +1777,7 @@ static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
 /* NOTE: the map written to file may contain duplicate id->name entries if a
  *       record is opened by multiple ranks, but not all ranks
  */
+#ifdef HAVE_MPI
 static int darshan_log_write_name_record_hash(struct darshan_mpi_file log_fh,
     struct darshan_core_runtime *core, uint64_t *inout_off)
 {
@@ -1762,11 +1872,19 @@ static int darshan_log_write_name_record_hash(struct darshan_mpi_file log_fh,
 
     return(ret);
 }
+#else
+static int darshan_log_write_name_record_hash(int log_fh,
+    struct darshan_core_runtime *core, uint64_t *inout_off)
+{
+    return darshan_log_append_all(log_fh, core, core->log_name_p, core->name_mem_used, inout_off);
+}
+#endif /* #ifdef HAVE_MPI */
 
 /* NOTE: inout_off contains the starting offset of this append at the beginning
  *       of the call, and contains the ending offset at the end of the call.
  *       This variable is only valid on the root rank (rank 0).
  */
+#ifdef HAVE_MPI
 static int darshan_log_append_all(struct darshan_mpi_file log_fh, struct darshan_core_runtime *core,
     void *buf, int count, uint64_t *inout_off)
 {
@@ -1838,6 +1956,29 @@ static int darshan_log_append_all(struct darshan_mpi_file log_fh, struct darshan
         return(-1);
     return(0);
 }
+#else
+static int darshan_log_append_all(int log_fh, struct darshan_core_runtime *core,
+    void *buf, int count, uint64_t *inout_off)
+{
+    ssize_t written;
+    int comp_buf_sz = 0;
+    int ret;
+
+    /* compress the input buffer */
+    ret = darshan_deflate_buffer((void **)&buf, &count, 1, core->comp_buf, &comp_buf_sz);
+
+    if(ret != 0)
+        return(-1);
+
+    written = pwrite(log_fh, core->comp_buf, comp_buf_sz, *inout_off);
+
+    if (written != comp_buf_sz)
+        return(-1);
+
+    *inout_off += comp_buf_sz;
+    return(0);
+}
+#endif /* #ifdef HAVE_MPI */
 
 /* free darshan core data structures to shutdown */
 static void darshan_core_cleanup(struct darshan_core_runtime* core)
@@ -1898,7 +2039,9 @@ void darshan_shutdown_bench(int argc, char **argv)
 
     if(my_rank == 0)
         fprintf(stderr, "# 1 unique file per proc\n");
+#ifdef HAVE_MPI
     darshan_mpi_barrier(MPI_COMM_WORLD);
+#endif
     darshan_core_shutdown();
     darshan_core = NULL;
 
@@ -1913,7 +2056,9 @@ void darshan_shutdown_bench(int argc, char **argv)
 
     if(my_rank == 0)
         fprintf(stderr, "# 1 shared file per proc\n");
+#ifdef HAVE_MPI
     darshan_mpi_barrier(MPI_COMM_WORLD);
+#endif
     darshan_core_shutdown();
     darshan_core = NULL;
 
@@ -1928,7 +2073,9 @@ void darshan_shutdown_bench(int argc, char **argv)
 
     if(my_rank == 0)
         fprintf(stderr, "# 1024 unique files per proc\n");
+#ifdef HAVE_MPI
     darshan_mpi_barrier(MPI_COMM_WORLD);
+#endif
     darshan_core_shutdown();
     darshan_core = NULL;
 
@@ -1943,7 +2090,9 @@ void darshan_shutdown_bench(int argc, char **argv)
 
     if(my_rank == 0)
         fprintf(stderr, "# 1024 shared files per proc\n");
+#ifdef HAVE_MPI
     darshan_mpi_barrier(MPI_COMM_WORLD);
+#endif
     darshan_core_shutdown();
     darshan_core = NULL;
 
@@ -2142,7 +2291,7 @@ double darshan_core_wtime()
     }
     DARSHAN_CORE_UNLOCK();
 
-    return(darshan_mpi_wtime() - darshan_core->wtime_offset);
+    return(time_nanoseconds() - darshan_core->wtime_offset);
 }
 
 int darshan_core_excluded_path(const char *path)
@@ -2198,6 +2347,21 @@ int darshan_core_disabled_instrumentation()
  * Darshan MPI stubs: pass through to PMPI_* if MPI is initialized; otherwise
  * fake the MPI call.
  */
+#ifdef HAVE_MPI
+static double time_nanoseconds()
+{
+    return darshan_mpi_wtime();
+}
+#else
+static double time_nanoseconds()
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (double)(t.tv_sec) + (double)(t.tv_nsec) * 1.0e-9;
+}
+#endif
+
+#ifdef HAVE_MPI
 static size_t sizeof_mpi_datatype(MPI_Datatype datatype)
 {
     int i;
@@ -2468,6 +2632,7 @@ int darshan_mpi_type_free(MPI_Datatype *datatype)
 
     return MPI_SUCCESS;
 }
+#endif /* #ifdef HAVE_MPI */
 
 /*
  * Local variables:

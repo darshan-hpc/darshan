@@ -1,6 +1,7 @@
 #ifndef __DARSHAN_MPI_H
 #define __DARSHAN_MPI_H
 
+#ifdef HAVE_MPI
 #include <mpi.h>
 
 struct darshan_mpi_file {
@@ -42,5 +43,6 @@ int darshan_mpi_info_free(MPI_Info *info);
 int darshan_mpi_type_contiguous(int count, MPI_Datatype oldtype, MPI_Datatype *newtype);
 int darshan_mpi_type_commit(MPI_Datatype *datatype);
 int darshan_mpi_type_free(MPI_Datatype *datatype);
+#endif /* #ifdef HAVE_MPI */
 
 #endif /* __DARSHAN_MPI_H */

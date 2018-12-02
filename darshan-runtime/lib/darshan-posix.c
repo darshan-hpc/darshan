@@ -29,7 +29,9 @@
 #include "utlist.h"
 #include "darshan.h"
 #include "darshan-dynamic.h"
+#ifdef HAVE_MPI
 #include "darshan-mpi.h"
+#endif
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
@@ -148,11 +150,14 @@ static struct posix_aio_tracker* posix_aio_tracker_del(
     int fd, void *aiocbp);
 static void posix_finalize_file_records(
     void *rec_ref_p);
+
+#ifdef HAVE_MPI
 static void posix_record_reduction_op(
     void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
 static void posix_shared_record_variance(
     MPI_Comm mod_comm, struct darshan_posix_file *inrec_array,
     struct darshan_posix_file *outrec_array, int shared_rec_count);
+#endif
 static void posix_cleanup_runtime(
     void);
 
@@ -1418,6 +1423,7 @@ static void posix_finalize_file_records(void *rec_ref_p)
     return;
 }
 
+#ifdef HAVE_MPI
 static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype)
 {
@@ -1742,6 +1748,7 @@ static void posix_shared_record_variance(MPI_Comm mod_comm,
 
     return;
 }
+#endif /* #ifdef HAVE_MPI */
 
 static void posix_cleanup_runtime()
 {

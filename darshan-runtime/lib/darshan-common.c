@@ -278,6 +278,7 @@ void darshan_common_val_counter(void **common_val_root, int *common_val_count,
     return;
 }
 
+#ifdef HAVE_MPI
 void darshan_variance_reduce(void *invec, void *inoutvec, int *len,
     MPI_Datatype *dt)
 {
@@ -298,6 +299,7 @@ void darshan_variance_reduce(void *invec, void *inoutvec, int *len,
 
     return;
 }
+#endif
 
 /*
  * Local variables:

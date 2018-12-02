@@ -263,6 +263,7 @@ void darshan_common_val_counter(
     int64_t *val_p,
     int64_t *cnt_p);
 
+#ifdef HAVE_MPI
 /* darshan_variance_reduce()
  *
  * MPI reduction operation to calculate variances on counters in
@@ -279,5 +280,6 @@ void darshan_variance_reduce(
     void *inoutvec,
     int *len,
     MPI_Datatype *dt);
+#endif
 
 #endif /* __DARSHAN_COMMON_H */
