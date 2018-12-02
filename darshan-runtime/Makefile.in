@@ -45,6 +45,8 @@ BUILD_DXT_MODULE = @BUILD_DXT_MODULE@
 
 DARSHAN_STATIC_MOD_OBJS =
 DARSHAN_DYNAMIC_MOD_OBJS =
+DARSHAN_STUB_OBJS =
+
 
 ifdef BUILD_POSIX_MODULE
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-posix.o
@@ -59,6 +61,7 @@ endif
 ifdef BUILD_PNETCDF_MODULE
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-pnetcdf.o
 DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-pnetcdf.po
+DARSHAN_STUB_OBJS += lib/darshan-pnetcdf-stubs.o
 endif
 
 ifdef BUILD_STDIO_MODULE
@@ -74,6 +77,7 @@ endif
 ifdef BUILD_HDF5_MODULE
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-hdf5.o
 DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-hdf5.po
+DARSHAN_STUB_OBJS += lib/darshan-hdf5-stubs.o
 endif
 
 ifdef DARSHAN_USE_BGQ
@@ -96,6 +100,7 @@ DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-mdhim.po
 CFLAGS += -DDARSHAN_MDHIM
 CFLAGS_SHARED += -DDARSHAN_MDHIM
 endif
+
 
 lib::
 	@mkdir -p $@
@@ -203,13 +208,8 @@ lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darsha
 lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po $(DARSHAN_DYNAMIC_MOD_OBJS) lib/lookup3.po lib/lookup8.po
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ -lpthread -lrt -lz -ldl
 
-ifdef BUILD_HDF5_MODULE
-lib/libdarshan-stubs.a: lib/darshan-hdf5-stubs.o lib/darshan-pnetcdf-stubs.o
+lib/libdarshan-stubs.a: $(DARSHAN_STUB_OBJS)
 	ar rcs $@ $^
-else
-lib/libdarshan-stubs.a: lib/darshan-pnetcdf-stubs.o
-	ar rcs $@ $^
-endif
 
 
 install:: all
