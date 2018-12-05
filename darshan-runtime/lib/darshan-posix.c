@@ -1434,7 +1434,6 @@ static void posix_aio_tracker_add(int fd, void *aiocbp)
 int darshan_posix_add_open_fd(int fd, char *rec_name, int counter,
     double tm1, double tm2)
 {
-    struct posix_file_record_ref *rec_ref;
     int ret = 0;
 
     POSIX_PRE_RECORD();
