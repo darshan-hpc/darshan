@@ -1228,18 +1228,26 @@ static void stdio_shutdown(
      * logic above has likely broken the mapping to the static array.
      * We walk it manually here instead.
      */
+    darshan_record_id stdin_rec_id = darshan_core_gen_record_id("<STDIN>");
+    darshan_record_id stdout_rec_id = darshan_core_gen_record_id("<STDOUT>");
+    darshan_record_id stderr_rec_id = darshan_core_gen_record_id("<STDERR>");
     for(i=0; i<stdio_rec_count; i++)
     {
-        if(stdio_rec_buf[i].counters[STDIO_WRITES] == 0 &&
-            stdio_rec_buf[i].counters[STDIO_READS] == 0)
+        if((stdio_rec_buf[i].base_rec.id == stdin_rec_id) ||
+           (stdio_rec_buf[i].base_rec.id == stdout_rec_id) ||
+           (stdio_rec_buf[i].base_rec.id == stderr_rec_id))
         {
-            if(i != (stdio_rec_count-1))
+            if(stdio_rec_buf[i].counters[STDIO_WRITES] == 0 &&
+                stdio_rec_buf[i].counters[STDIO_READS] == 0)
             {
-                memmove(&stdio_rec_buf[i], &stdio_rec_buf[i+1],
-                    (stdio_rec_count-i-1)*sizeof(stdio_rec_buf[i]));
-                i--;
+                if(i != (stdio_rec_count-1))
+                {
+                    memmove(&stdio_rec_buf[i], &stdio_rec_buf[i+1],
+                        (stdio_rec_count-i-1)*sizeof(stdio_rec_buf[i]));
+                    i--;
+                }
+                stdio_rec_count--;
             }
-            stdio_rec_count--;
         }
     }
 
