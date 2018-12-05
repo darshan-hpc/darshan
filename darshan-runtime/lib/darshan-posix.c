@@ -166,6 +166,10 @@ extern void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
 extern void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     int64_t length, double start_time, double end_time);
 
+/* function for registering a newly opened file descriptor with the POSIX module */
+int darshan_posix_add_open_fd(int fd, char *rec_name, int64_t counter,
+    double tm1, double tm2);
+
 static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int my_rank = -1;
@@ -1424,6 +1428,20 @@ static void posix_aio_tracker_add(int fd, void *aiocbp)
     }
 
     return;
+}
+
+int darshan_posix_add_open_fd(int fd, char *rec_name, int64_t counter,
+    double tm1, double tm2)
+{
+    struct posix_file_record_ref *rec_ref;
+    int ret = 0;
+
+    POSIX_PRE_RECORD();
+    POSIX_RECORD_OPEN(fd, rec_name, 0, tm1, tm2);
+    /* XXX */
+    POSIX_POST_RECORD();
+
+    return(ret);
 }
 
 static void posix_finalize_file_records(void *rec_ref_p)
