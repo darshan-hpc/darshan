@@ -166,7 +166,7 @@ static void stdio_cleanup_runtime();
 /* external prototype from POSIX module used to register new POSIX file
  * records corresponding to file descriptors returned by STDIO fileno()
  */
-extern int darshan_posix_add_open_fd(int fd, char *rec_name, int64_t counter,
+extern int darshan_posix_add_open_fd(int fd, char *rec_name, int counter,
     double tm1, double tm2);
 
 #define STDIO_LOCK() pthread_mutex_lock(&stdio_runtime_mutex)
@@ -978,7 +978,7 @@ int DARSHAN_DECL(fileno)(FILE *stream)
             char *rec_name = darshan_core_lookup_record_name(
                 rec_ref->file_rec->base_rec.id);
             /* register this new FD with the POSIX module so we can track it */
-            darshan_posix_add_open_fd(ret, rec_name, 00, tm1, tm2);
+            darshan_posix_add_open_fd(ret, rec_name, POSIX_FILENOS, tm1, tm2);
         }
         STDIO_POST_RECORD();
     }

@@ -167,7 +167,7 @@ extern void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     int64_t length, double start_time, double end_time);
 
 /* function for registering a newly opened file descriptor with the POSIX module */
-int darshan_posix_add_open_fd(int fd, char *rec_name, int64_t counter,
+int darshan_posix_add_open_fd(int fd, char *rec_name, int counter,
     double tm1, double tm2);
 
 static struct posix_runtime *posix_runtime = NULL;
@@ -195,7 +195,7 @@ static int enable_dxt_io_trace = 0;
     POSIX_UNLOCK(); \
 } while(0)
 
-#define POSIX_RECORD_OPEN(__ret, __path, __mode, __tm1, __tm2) do { \
+#define POSIX_RECORD_OPEN(__ret, __path, __mode, __tm1, __tm2, __linked_counter) do { \
     darshan_record_id rec_id; \
     struct posix_file_record_ref *rec_ref; \
     char *newpath; \
@@ -219,6 +219,7 @@ static int enable_dxt_io_trace = 0;
     rec_ref->last_byte_written = 0; \
     rec_ref->last_byte_read = 0; \
     rec_ref->file_rec->counters[POSIX_OPENS] += 1; \
+    if(__linked_counter >= 0) rec_ref->file_rec->counters[__linked_counter] += 1; \
     if(rec_ref->file_rec->fcounters[POSIX_F_OPEN_START_TIMESTAMP] == 0 || \
      rec_ref->file_rec->fcounters[POSIX_F_OPEN_START_TIMESTAMP] > __tm1) \
         rec_ref->file_rec->fcounters[POSIX_F_OPEN_START_TIMESTAMP] = __tm1; \
@@ -402,7 +403,7 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
     }
 
     POSIX_PRE_RECORD();
-    POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2, -1);
     POSIX_POST_RECORD();
 
     return(ret);
@@ -420,7 +421,7 @@ int DARSHAN_DECL(__open_2)(const char *path, int oflag)
     tm2 = darshan_core_wtime();
 
     POSIX_PRE_RECORD();
-    POSIX_RECORD_OPEN(ret, path, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, path, 0, tm1, tm2, -1);
     POSIX_POST_RECORD();
 
     return(ret);
@@ -453,7 +454,7 @@ int DARSHAN_DECL(open64)(const char *path, int flags, ...)
     }
 
     POSIX_PRE_RECORD();
-    POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2, -1);
     POSIX_POST_RECORD();
 
     return(ret);
@@ -471,7 +472,7 @@ int DARSHAN_DECL(creat)(const char* path, mode_t mode)
     tm2 = darshan_core_wtime();
 
     POSIX_PRE_RECORD();
-    POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2, -1);
     POSIX_POST_RECORD();
 
     return(ret);
@@ -489,7 +490,7 @@ int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
     tm2 = darshan_core_wtime();
 
     POSIX_PRE_RECORD();
-    POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2, -1);
     POSIX_POST_RECORD();
 
     return(ret);
@@ -507,7 +508,7 @@ int DARSHAN_DECL(mkstemp)(char* template)
     tm2 = darshan_core_wtime();
 
     POSIX_PRE_RECORD();
-    POSIX_RECORD_OPEN(ret, template, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, template, 0, tm1, tm2, -1);
     POSIX_POST_RECORD();
 
     return(ret);
@@ -525,7 +526,7 @@ int DARSHAN_DECL(mkostemp)(char* template, int flags)
     tm2 = darshan_core_wtime();
 
     POSIX_PRE_RECORD();
-    POSIX_RECORD_OPEN(ret, template, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, template, 0, tm1, tm2, -1);
     POSIX_POST_RECORD();
 
     return(ret);
@@ -543,7 +544,7 @@ int DARSHAN_DECL(mkstemps)(char* template, int suffixlen)
     tm2 = darshan_core_wtime();
 
     POSIX_PRE_RECORD();
-    POSIX_RECORD_OPEN(ret, template, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, template, 0, tm1, tm2, -1);
     POSIX_POST_RECORD();
 
     return(ret);
@@ -561,7 +562,7 @@ int DARSHAN_DECL(mkostemps)(char* template, int suffixlen, int flags)
     tm2 = darshan_core_wtime();
 
     POSIX_PRE_RECORD();
-    POSIX_RECORD_OPEN(ret, template, 0, tm1, tm2);
+    POSIX_RECORD_OPEN(ret, template, 0, tm1, tm2, -1);
     POSIX_POST_RECORD();
 
     return(ret);
@@ -1430,15 +1431,14 @@ static void posix_aio_tracker_add(int fd, void *aiocbp)
     return;
 }
 
-int darshan_posix_add_open_fd(int fd, char *rec_name, int64_t counter,
+int darshan_posix_add_open_fd(int fd, char *rec_name, int counter,
     double tm1, double tm2)
 {
     struct posix_file_record_ref *rec_ref;
     int ret = 0;
 
     POSIX_PRE_RECORD();
-    POSIX_RECORD_OPEN(fd, rec_name, 0, tm1, tm2);
-    /* XXX */
+    POSIX_RECORD_OPEN(fd, rec_name, 0, tm1, tm2, counter);
     POSIX_POST_RECORD();
 
     return(ret);
@@ -1806,14 +1806,14 @@ void darshan_posix_shutdown_bench_setup(int test_case)
         case 1: /* single file-per-process */
             snprintf(filepath, 256, "fpp-0_rank-%d", my_rank);
             
-            POSIX_RECORD_OPEN(fd_array[0], filepath, 777, 0, 1);
+            POSIX_RECORD_OPEN(fd_array[0], filepath, 777, 0, 1, -1);
             POSIX_RECORD_WRITE(size_array[0], fd_array[0], 0, 0, 1, 1, 2);
 
             break;
         case 2: /* single shared file */
             snprintf(filepath, 256, "shared-0");
 
-            POSIX_RECORD_OPEN(fd_array[0], filepath, 777, 0, 1);
+            POSIX_RECORD_OPEN(fd_array[0], filepath, 777, 0, 1, -1);
             POSIX_RECORD_WRITE(size_array[0], fd_array[0], 0, 0, 1, 1, 2);
 
             break;
@@ -1822,7 +1822,7 @@ void darshan_posix_shutdown_bench_setup(int test_case)
             {
                 snprintf(filepath, 256, "fpp-%d_rank-%d", i , my_rank);
 
-                POSIX_RECORD_OPEN(fd_array[i], filepath, 777, 0, 1);
+                POSIX_RECORD_OPEN(fd_array[i], filepath, 777, 0, 1, -1);
                 POSIX_RECORD_WRITE(size_array[i % DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT],
                     fd_array[i], 0, 0, 1, 1, 2);
             }
@@ -1833,7 +1833,7 @@ void darshan_posix_shutdown_bench_setup(int test_case)
             {
                 snprintf(filepath, 256, "shared-%d", i);
 
-                POSIX_RECORD_OPEN(fd_array[i], filepath, 777, 0, 1);
+                POSIX_RECORD_OPEN(fd_array[i], filepath, 777, 0, 1, -1);
                 POSIX_RECORD_WRITE(size_array[i % DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT],
                     fd_array[i], 0, 0, 1, 1, 2);
             }
