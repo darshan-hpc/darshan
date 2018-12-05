@@ -118,6 +118,7 @@ DARSHAN_FORWARD_DECL(fseeko64, int, (FILE *stream, off64_t offset, int whence));
 DARSHAN_FORWARD_DECL(fsetpos, int, (FILE *stream, const fpos_t *pos));
 DARSHAN_FORWARD_DECL(fsetpos64, int, (FILE *stream, const fpos64_t *pos));
 DARSHAN_FORWARD_DECL(rewind, void, (FILE *stream));
+DARSHAN_FORWARD_DECL(fileno, int, (FILE *stream));
 
 /* structure to track stdio stats at runtime */
 struct stdio_file_record_ref
@@ -162,6 +163,12 @@ static struct stdio_file_record_ref *stdio_track_new_file_record(
     darshan_record_id rec_id, const char *path);
 static void stdio_cleanup_runtime();
 
+/* external prototype from POSIX module used to register new POSIX file
+ * records corresponding to file descriptors returned by STDIO fileno()
+ */
+extern int darshan_posix_add_open_fd(int fd, char *rec_name, int64_t counter,
+    double tm1, double tm2);
+
 #define STDIO_LOCK() pthread_mutex_lock(&stdio_runtime_mutex)
 #define STDIO_UNLOCK() pthread_mutex_unlock(&stdio_runtime_mutex)
 
@@ -184,6 +191,7 @@ static void stdio_cleanup_runtime();
     struct stdio_file_record_ref* rec_ref; \
     char *newpath; \
     int __fd; \
+    MAP_OR_FAIL(fileno); \
     if(__ret == NULL) break; \
     newpath = darshan_clean_file_path(__path); \
     if(!newpath) newpath = (char*)__path; \
@@ -206,7 +214,7 @@ static void stdio_cleanup_runtime();
     rec_ref->file_rec->fcounters[STDIO_F_OPEN_END_TIMESTAMP] = __tm2; \
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[STDIO_F_META_TIME], __tm1, __tm2, rec_ref->last_meta_end); \
     darshan_add_record_ref(&(stdio_runtime->stream_hash), &(__ret), sizeof(__ret), rec_ref); \
-    __fd = fileno(__ret); \
+    __fd = __real_fileno(__ret); \
     darshan_instrument_fs_data(rec_ref->fs_type, newpath, __fd); \
     if(newpath != (char*)__path) free(newpath); \
 } while(0)
@@ -949,6 +957,34 @@ int DARSHAN_DECL(fsetpos64)(FILE *stream, const fpos64_t *pos)
     return(ret);
 }
 
+int DARSHAN_DECL(fileno)(FILE *stream)
+{
+    int ret;
+    struct stdio_file_record_ref *rec_ref;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(fileno);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fileno(stream);
+    tm2 = darshan_core_wtime();
+
+    if(ret >= 0)
+    {
+        STDIO_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &stream, sizeof(stream));
+        if(rec_ref)
+        {
+            char *rec_name = darshan_core_lookup_record_name(
+                rec_ref->file_rec->base_rec.id);
+            /* register this new FD with the POSIX module so we can track it */
+            darshan_posix_add_open_fd(ret, rec_name, 00, tm1, tm2);
+        }
+        STDIO_POST_RECORD();
+    }
+
+    return(ret);
+}
 
 /**********************************************************
  * Internal functions for manipulating STDIO module state *

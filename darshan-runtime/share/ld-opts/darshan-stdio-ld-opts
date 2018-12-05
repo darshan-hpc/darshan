@@ -29,3 +29,4 @@
 --wrap=rewind
 --wrap=__isoc99_fscanf
 --wrap=printf
+--wrap=fileno
