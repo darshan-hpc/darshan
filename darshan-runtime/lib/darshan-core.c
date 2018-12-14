@@ -19,6 +19,7 @@
 #include <limits.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <dirent.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
