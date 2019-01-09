@@ -3,6 +3,9 @@
 --wrap=__open_2
 --wrap=creat
 --wrap=creat64
+--wrap=dup
+--wrap=dup2
+--wrap=dup3
 --wrap=mkstemp
 --wrap=mkostemp
 --wrap=mkstemps
