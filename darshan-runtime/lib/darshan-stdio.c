@@ -118,7 +118,6 @@ DARSHAN_FORWARD_DECL(fseeko64, int, (FILE *stream, off64_t offset, int whence));
 DARSHAN_FORWARD_DECL(fsetpos, int, (FILE *stream, const fpos_t *pos));
 DARSHAN_FORWARD_DECL(fsetpos64, int, (FILE *stream, const fpos64_t *pos));
 DARSHAN_FORWARD_DECL(rewind, void, (FILE *stream));
-DARSHAN_FORWARD_DECL(fileno, int, (FILE *stream));
 
 /* structure to track stdio stats at runtime */
 struct stdio_file_record_ref
@@ -163,11 +162,12 @@ static struct stdio_file_record_ref *stdio_track_new_file_record(
     darshan_record_id rec_id, const char *path);
 static void stdio_cleanup_runtime();
 
-/* external prototype from POSIX module used to register new POSIX file
- * records corresponding to file descriptors returned by STDIO fileno()
- */
-extern int darshan_posix_add_open_fd(int fd, char *rec_name, int counter,
-    double tm1, double tm2);
+/* we need access to fileno (defined in POSIX module) for instrumenting fopen calls */
+#ifdef DARSHAN_PRELOAD
+extern int (*__real_fileno)(FILE *stream);
+#else
+extern int __real_fileno(FILE *stream);
+#endif
 
 #define STDIO_LOCK() pthread_mutex_lock(&stdio_runtime_mutex)
 #define STDIO_UNLOCK() pthread_mutex_unlock(&stdio_runtime_mutex)
@@ -957,35 +957,6 @@ int DARSHAN_DECL(fsetpos64)(FILE *stream, const fpos64_t *pos)
     return(ret);
 }
 
-int DARSHAN_DECL(fileno)(FILE *stream)
-{
-    int ret;
-    struct stdio_file_record_ref *rec_ref;
-    double tm1, tm2;
-
-    MAP_OR_FAIL(fileno);
-
-    tm1 = darshan_core_wtime();
-    ret = __real_fileno(stream);
-    tm2 = darshan_core_wtime();
-
-    if(ret >= 0)
-    {
-        STDIO_PRE_RECORD();
-        rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &stream, sizeof(stream));
-        if(rec_ref)
-        {
-            char *rec_name = darshan_core_lookup_record_name(
-                rec_ref->file_rec->base_rec.id);
-            /* register this new FD with the POSIX module so we can track it */
-            darshan_posix_add_open_fd(ret, rec_name, POSIX_FILENOS, tm1, tm2);
-        }
-        STDIO_POST_RECORD();
-    }
-
-    return(ret);
-}
-
 /**********************************************************
  * Internal functions for manipulating STDIO module state *
  **********************************************************/
@@ -1442,6 +1413,23 @@ static void stdio_shared_record_variance(MPI_Comm mod_comm,
     return;
 }
 
+char *darshan_stdio_lookup_record_name(FILE *stream)
+{
+    struct stdio_file_record_ref *rec_ref;
+    char *rec_name = NULL;
+
+    STDIO_LOCK();
+    if(stdio_runtime)
+    {
+        rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash,
+            &stream, sizeof(stream));
+        if(rec_ref)
+            rec_name = darshan_core_lookup_record_name(rec_ref->file_rec->base_rec.id);
+    }
+    STDIO_UNLOCK();
+
+    return(rec_name);
+}
 
 /*
  * Local variables:

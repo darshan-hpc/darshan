@@ -46,6 +46,7 @@ DARSHAN_FORWARD_DECL(creat64, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(dup, int, (int oldfd));
 DARSHAN_FORWARD_DECL(dup2, int, (int oldfd, int newfd));
 DARSHAN_FORWARD_DECL(dup3, int, (int oldfd, int newfd, int flags));
+DARSHAN_FORWARD_DECL(fileno, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(mkstemp, int, (char *template));
 DARSHAN_FORWARD_DECL(mkostemp, int, (char *template, int flags));
 DARSHAN_FORWARD_DECL(mkstemps, int, (char *template, int suffixlen));
@@ -169,9 +170,8 @@ extern void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
 extern void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     int64_t length, double start_time, double end_time);
 
-/* function for registering a newly opened file descriptor with the POSIX module */
-int darshan_posix_add_open_fd(int fd, char *rec_name, int counter,
-    double tm1, double tm2);
+/* extern function def for querying record name from a STDIO stream */
+extern char *darshan_stdio_lookup_record_name(FILE *stream);
 
 static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -576,6 +576,38 @@ int DARSHAN_DECL(dup3)(int oldfd, int newfd, int flags)
             &oldfd, sizeof(oldfd));
         POSIX_RECORD_REFOPEN(ret, rec_ref, tm1, tm2, POSIX_DUPS);
         POSIX_POST_RECORD();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(fileno)(FILE *stream)
+{
+    int ret;
+    double tm1, tm2;
+    darshan_record_id rec_id;
+    struct posix_file_record_ref *rec_ref;
+
+    MAP_OR_FAIL(fileno);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fileno(stream);
+    tm2 = darshan_core_wtime();
+
+    if(ret >= 0)
+    {
+        char *rec_name = darshan_stdio_lookup_record_name(stream);
+        if(rec_name)
+        {
+            POSIX_PRE_RECORD();
+            rec_id = darshan_core_gen_record_id(rec_name);
+            rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash,
+                &rec_id, sizeof(darshan_record_id));
+            if(!rec_ref)
+                rec_ref = posix_track_new_file_record(rec_id, rec_name);
+            POSIX_RECORD_REFOPEN(ret, rec_ref, tm1, tm2, POSIX_FILENOS);
+            POSIX_POST_RECORD();
+        }
     }
 
     return(ret);
@@ -1514,26 +1546,6 @@ static void posix_aio_tracker_add(int fd, void *aiocbp)
     }
 
     return;
-}
-
-int darshan_posix_add_open_fd(int fd, char *rec_name, int counter,
-    double tm1, double tm2)
-{
-    darshan_record_id rec_id;
-    struct posix_file_record_ref *rec_ref;
-    int ret = 0;
-
-    POSIX_PRE_RECORD();
-    rec_id = darshan_core_gen_record_id(rec_name);
-    rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &rec_id,
-        sizeof(darshan_record_id));
-    if(!rec_ref)
-        rec_ref = posix_track_new_file_record(rec_id, rec_name);
-
-    POSIX_RECORD_REFOPEN(fd, rec_ref, tm1, tm2, counter);
-    POSIX_POST_RECORD();
-
-    return(ret);
 }
 
 static void posix_finalize_file_records(void *rec_ref_p)
