@@ -13,6 +13,8 @@
 #define STDIO_COUNTERS \
     /* count of fopens */\
     X(STDIO_OPENS) \
+    /* count of fdopens */\
+    X(STDIO_FDOPENS) \
     /* number of reads */ \
     X(STDIO_READS) \
     /* number of writes */ \

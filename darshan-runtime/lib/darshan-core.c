@@ -2108,6 +2108,21 @@ void *darshan_core_register_record(
     return(rec_buf);;
 }
 
+char *darshan_core_lookup_record_name(darshan_record_id rec_id)
+{
+    struct darshan_core_name_record_ref *ref;
+    char *name = NULL;
+
+    DARSHAN_CORE_LOCK();
+    HASH_FIND(hlink, darshan_core->name_hash, &rec_id,
+        sizeof(darshan_record_id), ref);
+    if(ref)
+        name = ref->name_record->name;
+    DARSHAN_CORE_UNLOCK();
+
+    return(name);
+}
+
 void darshan_instrument_fs_data(int fs_type, const char *path, int fd)
 {
 #ifdef DARSHAN_LUSTRE

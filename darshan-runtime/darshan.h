@@ -178,6 +178,14 @@ void *darshan_core_register_record(
     int rec_len,
     struct darshan_fs_info *fs_info);
 
+
+/* darshan_core_lookup_record_name()
+ *
+ * Looks up the name associated with a given Darshan record ID.
+ */
+char *darshan_core_lookup_record_name(
+    darshan_record_id rec_id);
+
 /* darshan_core_wtime()
  *
  * Returns the elapsed time relative to (roughly) the start of

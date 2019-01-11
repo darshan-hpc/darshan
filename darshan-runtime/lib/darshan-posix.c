@@ -43,6 +43,10 @@ DARSHAN_FORWARD_DECL(open64, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(__open_2, int, (const char *path, int oflag));
 DARSHAN_FORWARD_DECL(creat, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(creat64, int, (const char* path, mode_t mode));
+DARSHAN_FORWARD_DECL(dup, int, (int oldfd));
+DARSHAN_FORWARD_DECL(dup2, int, (int oldfd, int newfd));
+DARSHAN_FORWARD_DECL(dup3, int, (int oldfd, int newfd, int flags));
+DARSHAN_FORWARD_DECL(fileno, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(mkstemp, int, (char *template));
 DARSHAN_FORWARD_DECL(mkostemp, int, (char *template, int flags));
 DARSHAN_FORWARD_DECL(mkstemps, int, (char *template, int suffixlen));
@@ -166,6 +170,9 @@ extern void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
 extern void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     int64_t length, double start_time, double end_time);
 
+/* extern function def for querying record name from a STDIO stream */
+extern char *darshan_stdio_lookup_record_name(FILE *stream);
+
 static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int my_rank = -1;
@@ -192,38 +199,49 @@ static int enable_dxt_io_trace = 0;
 } while(0)
 
 #define POSIX_RECORD_OPEN(__ret, __path, __mode, __tm1, __tm2) do { \
-    darshan_record_id rec_id; \
-    struct posix_file_record_ref *rec_ref; \
-    char *newpath; \
+    darshan_record_id __rec_id; \
+    struct posix_file_record_ref *__rec_ref; \
+    char *__newpath; \
     if(__ret < 0) break; \
-    newpath = darshan_clean_file_path(__path); \
-    if(!newpath) newpath = (char *)__path; \
-    if(darshan_core_excluded_path(newpath)) { \
-        if(newpath != __path) free(newpath); \
+    __newpath = darshan_clean_file_path(__path); \
+    if(!__newpath) __newpath = (char *)__path; \
+    if(darshan_core_excluded_path(__newpath)) { \
+        if(__newpath != __path) free(__newpath); \
         break; \
     } \
-    rec_id = darshan_core_gen_record_id(newpath); \
-    rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
-    if(!rec_ref) rec_ref = posix_track_new_file_record(rec_id, newpath); \
-    if(!rec_ref) { \
-        if(newpath != __path) free(newpath); \
+    __rec_id = darshan_core_gen_record_id(__newpath); \
+    __rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &__rec_id, sizeof(darshan_record_id)); \
+    if(!__rec_ref) __rec_ref = posix_track_new_file_record(__rec_id, __newpath); \
+    if(!__rec_ref) { \
+        if(__newpath != __path) free(__newpath); \
         break; \
     } \
-    if(__mode) \
-        rec_ref->file_rec->counters[POSIX_MODE] = __mode; \
-    rec_ref->offset = 0; \
-    rec_ref->last_byte_written = 0; \
-    rec_ref->last_byte_read = 0; \
-    rec_ref->file_rec->counters[POSIX_OPENS] += 1; \
-    if(rec_ref->file_rec->fcounters[POSIX_F_OPEN_START_TIMESTAMP] == 0 || \
-     rec_ref->file_rec->fcounters[POSIX_F_OPEN_START_TIMESTAMP] > __tm1) \
-        rec_ref->file_rec->fcounters[POSIX_F_OPEN_START_TIMESTAMP] = __tm1; \
-    rec_ref->file_rec->fcounters[POSIX_F_OPEN_END_TIMESTAMP] = __tm2; \
-    DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[POSIX_F_META_TIME], \
-        __tm1, __tm2, rec_ref->last_meta_end); \
-    darshan_add_record_ref(&(posix_runtime->fd_hash), &__ret, sizeof(int), rec_ref); \
-    darshan_instrument_fs_data(rec_ref->fs_type, newpath, __ret); \
-    if(newpath != __path) free(newpath); \
+    _POSIX_RECORD_OPEN(__ret, __rec_ref, __mode, __tm1, __tm2, 1, -1); \
+    darshan_instrument_fs_data(__rec_ref->fs_type, __newpath, __ret); \
+    if(__newpath != __path) free(__newpath); \
+} while(0)
+
+#define POSIX_RECORD_REFOPEN(__ret, __rec_ref, __tm1, __tm2, __ref_counter) do { \
+    if(__ret < 0 || !__rec_ref) break; \
+    _POSIX_RECORD_OPEN(__ret, __rec_ref, 0, __tm1, __tm2, 0, __ref_counter); \
+} while(0)
+
+#define _POSIX_RECORD_OPEN(__ret, __rec_ref, __mode, __tm1, __tm2, __reset_flag, __ref_counter) do { \
+    if(__mode) __rec_ref->file_rec->counters[POSIX_MODE] = __mode; \
+    if(__reset_flag) { \
+        __rec_ref->offset = 0; \
+        __rec_ref->last_byte_written = 0; \
+        __rec_ref->last_byte_read = 0; \
+    } \
+    __rec_ref->file_rec->counters[POSIX_OPENS] += 1; \
+    if(__ref_counter >= 0) __rec_ref->file_rec->counters[__ref_counter] += 1; \
+    if(__rec_ref->file_rec->fcounters[POSIX_F_OPEN_START_TIMESTAMP] == 0 || \
+     __rec_ref->file_rec->fcounters[POSIX_F_OPEN_START_TIMESTAMP] > __tm1) \
+        __rec_ref->file_rec->fcounters[POSIX_F_OPEN_START_TIMESTAMP] = __tm1; \
+    __rec_ref->file_rec->fcounters[POSIX_F_OPEN_END_TIMESTAMP] = __tm2; \
+    DARSHAN_TIMER_INC_NO_OVERLAP(__rec_ref->file_rec->fcounters[POSIX_F_META_TIME], \
+        __tm1, __tm2, __rec_ref->last_meta_end); \
+    darshan_add_record_ref(&(posix_runtime->fd_hash), &__ret, sizeof(int), __rec_ref); \
 } while(0)
 
 #define POSIX_RECORD_READ(__ret, __fd, __pread_flag, __pread_offset, __aligned, __tm1, __tm2) do { \
@@ -487,6 +505,111 @@ int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
     POSIX_PRE_RECORD();
     POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2);
     POSIX_POST_RECORD();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(dup)(int oldfd)
+{
+    int ret;
+    struct posix_file_record_ref *rec_ref;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(dup);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_dup(oldfd);
+    tm2 = darshan_core_wtime();
+
+    if(ret >= 0)
+    {
+        POSIX_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash,
+            &oldfd, sizeof(oldfd));
+        POSIX_RECORD_REFOPEN(ret, rec_ref, tm1, tm2, POSIX_DUPS);
+        POSIX_POST_RECORD();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(dup2)(int oldfd, int newfd)
+{
+    int ret;
+    struct posix_file_record_ref *rec_ref;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(dup2);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_dup2(oldfd, newfd);
+    tm2 = darshan_core_wtime();
+
+    if(ret >=0)
+    {
+        POSIX_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash,
+            &oldfd, sizeof(oldfd));
+        POSIX_RECORD_REFOPEN(ret, rec_ref, tm1, tm2, POSIX_DUPS);
+        POSIX_POST_RECORD();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(dup3)(int oldfd, int newfd, int flags)
+{
+    int ret;
+    struct posix_file_record_ref *rec_ref;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(dup3);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_dup3(oldfd, newfd, flags);
+    tm2 = darshan_core_wtime();
+
+    if(ret >=0)
+    {
+        POSIX_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash,
+            &oldfd, sizeof(oldfd));
+        POSIX_RECORD_REFOPEN(ret, rec_ref, tm1, tm2, POSIX_DUPS);
+        POSIX_POST_RECORD();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(fileno)(FILE *stream)
+{
+    int ret;
+    double tm1, tm2;
+    darshan_record_id rec_id;
+    struct posix_file_record_ref *rec_ref;
+
+    MAP_OR_FAIL(fileno);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_fileno(stream);
+    tm2 = darshan_core_wtime();
+
+    if(ret >= 0)
+    {
+        char *rec_name = darshan_stdio_lookup_record_name(stream);
+        if(rec_name)
+        {
+            rec_id = darshan_core_gen_record_id(rec_name);
+
+            POSIX_PRE_RECORD();
+            rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash,
+                &rec_id, sizeof(darshan_record_id));
+            if(!rec_ref)
+                rec_ref = posix_track_new_file_record(rec_id, rec_name);
+            POSIX_RECORD_REFOPEN(ret, rec_ref, tm1, tm2, POSIX_FILENOS);
+            POSIX_POST_RECORD();
+        }
+    }
 
     return(ret);
 }
@@ -1758,6 +1881,24 @@ static void posix_cleanup_runtime()
     posix_runtime = NULL;
 
     return;
+}
+
+char *darshan_posix_lookup_record_name(int fd)
+{
+    struct posix_file_record_ref *rec_ref;
+    char *rec_name = NULL;
+
+    POSIX_LOCK();
+    if(posix_runtime)
+    {
+        rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash,
+            &fd, sizeof(fd));
+        if(rec_ref)
+            rec_name = darshan_core_lookup_record_name(rec_ref->file_rec->base_rec.id);
+    }
+    POSIX_UNLOCK();
+
+    return(rec_name);
 }
 
 /* posix module shutdown benchmark routine */

@@ -3,6 +3,9 @@
 --wrap=__open_2
 --wrap=creat
 --wrap=creat64
+--wrap=dup
+--wrap=dup2
+--wrap=dup3
 --wrap=mkstemp
 --wrap=mkostemp
 --wrap=mkstemps
@@ -36,3 +39,4 @@
 --wrap=aio_return64
 --wrap=lio_listio
 --wrap=lio_listio64
+--wrap=fileno
