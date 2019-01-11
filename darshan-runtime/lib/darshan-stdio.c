@@ -162,6 +162,9 @@ static struct stdio_file_record_ref *stdio_track_new_file_record(
     darshan_record_id rec_id, const char *path);
 static void stdio_cleanup_runtime();
 
+/* extern function def for querying record name from a POSIX fd */
+extern char *darshan_posix_lookup_record_name(int fd);
+
 /* we need access to fileno (defined in POSIX module) for instrumenting fopen calls */
 #ifdef DARSHAN_PRELOAD
 extern int (*__real_fileno)(FILE *stream);
@@ -187,36 +190,46 @@ extern int __real_fileno(FILE *stream);
 } while(0)
 
 #define STDIO_RECORD_OPEN(__ret, __path, __tm1, __tm2) do { \
-    darshan_record_id rec_id; \
-    struct stdio_file_record_ref* rec_ref; \
-    char *newpath; \
+    darshan_record_id __rec_id; \
+    struct stdio_file_record_ref *__rec_ref; \
+    char *__newpath; \
     int __fd; \
     MAP_OR_FAIL(fileno); \
-    if(__ret == NULL) break; \
-    newpath = darshan_clean_file_path(__path); \
-    if(!newpath) newpath = (char*)__path; \
-    if(darshan_core_excluded_path(newpath)) { \
-        if(newpath != (char*)__path) free(newpath); \
+    if(!__ret || !__path) break; \
+    __newpath = darshan_clean_file_path(__path); \
+    if(!__newpath) __newpath = (char*)__path; \
+    if(darshan_core_excluded_path(__newpath)) { \
+        if(__newpath != (char*)__path) free(__newpath); \
         break; \
     } \
-    rec_id = darshan_core_gen_record_id(newpath); \
-    rec_ref = darshan_lookup_record_ref(stdio_runtime->rec_id_hash, &rec_id, sizeof(rec_id)); \
-    if(!rec_ref) rec_ref = stdio_track_new_file_record(rec_id, newpath); \
-    if(!rec_ref) { \
-        if(newpath != (char*)__path) free(newpath); \
+    __rec_id = darshan_core_gen_record_id(__newpath); \
+    __rec_ref = darshan_lookup_record_ref(stdio_runtime->rec_id_hash, &__rec_id, sizeof(darshan_record_id)); \
+    if(!__rec_ref) __rec_ref = stdio_track_new_file_record(__rec_id, __newpath); \
+    if(!__rec_ref) { \
+        if(__newpath != (char*)__path) free(__newpath); \
         break; \
     } \
-    rec_ref->offset = 0; \
-    rec_ref->file_rec->counters[STDIO_OPENS] += 1; \
-    if(rec_ref->file_rec->fcounters[STDIO_F_OPEN_START_TIMESTAMP] == 0 || \
-     rec_ref->file_rec->fcounters[STDIO_F_OPEN_START_TIMESTAMP] > __tm1) \
-        rec_ref->file_rec->fcounters[STDIO_F_OPEN_START_TIMESTAMP] = __tm1; \
-    rec_ref->file_rec->fcounters[STDIO_F_OPEN_END_TIMESTAMP] = __tm2; \
-    DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[STDIO_F_META_TIME], __tm1, __tm2, rec_ref->last_meta_end); \
-    darshan_add_record_ref(&(stdio_runtime->stream_hash), &(__ret), sizeof(__ret), rec_ref); \
+    _STDIO_RECORD_OPEN(__ret, __rec_ref, __tm1, __tm2, 1, -1); \
     __fd = __real_fileno(__ret); \
-    darshan_instrument_fs_data(rec_ref->fs_type, newpath, __fd); \
-    if(newpath != (char*)__path) free(newpath); \
+    darshan_instrument_fs_data(__rec_ref->fs_type, __newpath, __fd); \
+    if(__newpath != (char*)__path) free(__newpath); \
+} while(0)
+
+#define STDIO_RECORD_REFOPEN(__ret, __rec_ref, __tm1, __tm2, __ref_counter) do { \
+    if(!ret || !rec_ref) break; \
+    _STDIO_RECORD_OPEN(__ret, __rec_ref, __tm1, __tm2, 0, __ref_counter); \
+} while(0)
+
+#define _STDIO_RECORD_OPEN(__ret, __rec_ref, __tm1, __tm2, __reset_flag, __ref_counter) do { \
+    if(__reset_flag) __rec_ref->offset = 0; \
+    __rec_ref->file_rec->counters[STDIO_OPENS] += 1; \
+    if(__ref_counter >= 0) __rec_ref->file_rec->counters[__ref_counter] += 1; \
+    if(__rec_ref->file_rec->fcounters[STDIO_F_OPEN_START_TIMESTAMP] == 0 || \
+     __rec_ref->file_rec->fcounters[STDIO_F_OPEN_START_TIMESTAMP] > __tm1) \
+        __rec_ref->file_rec->fcounters[STDIO_F_OPEN_START_TIMESTAMP] = __tm1; \
+    __rec_ref->file_rec->fcounters[STDIO_F_OPEN_END_TIMESTAMP] = __tm2; \
+    DARSHAN_TIMER_INC_NO_OVERLAP(__rec_ref->file_rec->fcounters[STDIO_F_META_TIME], __tm1, __tm2, __rec_ref->last_meta_end); \
+    darshan_add_record_ref(&(stdio_runtime->stream_hash), &(__ret), sizeof(__ret), __rec_ref); \
 } while(0)
 
 
@@ -299,6 +312,8 @@ FILE* DARSHAN_DECL(fdopen)(int fd, const char *mode)
 {
     FILE* ret;
     double tm1, tm2;
+    darshan_record_id rec_id;
+    struct stdio_file_record_ref *rec_ref;
 
     MAP_OR_FAIL(fdopen);
 
@@ -306,9 +321,23 @@ FILE* DARSHAN_DECL(fdopen)(int fd, const char *mode)
     ret = __real_fdopen(fd, mode);
     tm2 = darshan_core_wtime();
 
-    STDIO_PRE_RECORD();
-    STDIO_RECORD_OPEN(ret, "UNKNOWN-FDOPEN", tm1, tm2);
-    STDIO_POST_RECORD();
+    if(ret)
+    {
+        char *rec_name = darshan_posix_lookup_record_name(fd);
+        if(rec_name)
+        {
+            rec_id = darshan_core_gen_record_id(rec_name);
+
+            STDIO_PRE_RECORD();
+            rec_ref = darshan_lookup_record_ref(stdio_runtime->rec_id_hash,
+                &rec_id, sizeof(darshan_record_id));
+            if(!rec_ref)
+                rec_ref = stdio_track_new_file_record(rec_id, rec_name);
+            STDIO_RECORD_REFOPEN(ret, rec_ref, tm1, tm2, STDIO_FDOPENS);
+            STDIO_POST_RECORD();
+        }
+    }
+
 
     return(ret);
 }

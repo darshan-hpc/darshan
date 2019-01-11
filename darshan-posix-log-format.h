@@ -12,6 +12,10 @@
 #define POSIX_COUNTERS \
     /* count of posix opens */\
     X(POSIX_OPENS) \
+    /* count of number of filenos */\
+    X(POSIX_FILENOS) \
+    /* count of number of dups */\
+    X(POSIX_DUPS) \
     /* count of posix reads */\
     X(POSIX_READS) \
     /* count of posix writes */\
@@ -26,10 +30,6 @@
     X(POSIX_FSYNCS) \
     /* count of posix fdatasyncs */\
     X(POSIX_FDSYNCS) \
-    /* count of number of filenos */\
-    X(POSIX_FILENOS) \
-    /* count of number of dups */\
-    X(POSIX_DUPS) \
     /* mode of file */\
     X(POSIX_MODE) \
     /* total bytes read */\

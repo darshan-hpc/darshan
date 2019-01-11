@@ -599,8 +599,9 @@ int DARSHAN_DECL(fileno)(FILE *stream)
         char *rec_name = darshan_stdio_lookup_record_name(stream);
         if(rec_name)
         {
-            POSIX_PRE_RECORD();
             rec_id = darshan_core_gen_record_id(rec_name);
+
+            POSIX_PRE_RECORD();
             rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash,
                 &rec_id, sizeof(darshan_record_id));
             if(!rec_ref)
@@ -1880,6 +1881,24 @@ static void posix_cleanup_runtime()
     posix_runtime = NULL;
 
     return;
+}
+
+char *darshan_posix_lookup_record_name(int fd)
+{
+    struct posix_file_record_ref *rec_ref;
+    char *rec_name = NULL;
+
+    POSIX_LOCK();
+    if(posix_runtime)
+    {
+        rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash,
+            &fd, sizeof(fd));
+        if(rec_ref)
+            rec_name = darshan_core_lookup_record_name(rec_ref->file_rec->base_rec.id);
+    }
+    POSIX_UNLOCK();
+
+    return(rec_name);
 }
 
 /* posix module shutdown benchmark routine */
