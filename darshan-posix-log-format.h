@@ -30,6 +30,10 @@
     X(POSIX_FSYNCS) \
     /* count of posix fdatasyncs */\
     X(POSIX_FDSYNCS) \
+    /* count of renames (as source file) */\
+    X(POSIX_RENAME_SOURCES) \
+    /* count of renames (as target file) */\
+    X(POSIX_RENAME_TARGETS) \
     /* mode of file */\
     X(POSIX_MODE) \
     /* total bytes read */\

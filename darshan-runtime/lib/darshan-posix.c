@@ -82,6 +82,7 @@ DARSHAN_FORWARD_DECL(aio_return, ssize_t, (struct aiocb *aiocbp));
 DARSHAN_FORWARD_DECL(aio_return64, ssize_t, (struct aiocb64 *aiocbp));
 DARSHAN_FORWARD_DECL(lio_listio, int, (int mode, struct aiocb *const aiocb_list[], int nitems, struct sigevent *sevp));
 DARSHAN_FORWARD_DECL(lio_listio64, int, (int mode, struct aiocb64 *const aiocb_list[], int nitems, struct sigevent *sevp));
+DARSHAN_FORWARD_DECL(rename, int, (const char *oldpath, const char *newpath));
 
 /* The posix_file_record_ref structure maintains necessary runtime metadata
  * for the POSIX file record (darshan_posix_file structure, defined in
@@ -1397,6 +1398,70 @@ int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb64 *const aiocb_list[],
             posix_aio_tracker_add(aiocb_list[i]->aio_fildes, aiocb_list[i]);
         }
         POSIX_POST_RECORD();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(rename)(const char *oldpath, const char *newpath)
+{
+    int ret;
+    double tm1, tm2;
+    char *oldpath_clean, *newpath_clean;
+    darshan_record_id old_rec_id, new_rec_id;
+    struct posix_file_record_ref *old_rec_ref, *new_rec_ref;
+
+    MAP_OR_FAIL(rename);
+
+    tm1 = darshan_core_wtime();
+    ret = __real_rename(oldpath, newpath);
+    tm2 = darshan_core_wtime();
+
+    if(ret == 0)
+    {
+        oldpath_clean = darshan_clean_file_path(oldpath);
+        if(!oldpath_clean) oldpath_clean = (char *)oldpath;
+        if(darshan_core_excluded_path(oldpath_clean))
+        {
+            if(oldpath_clean != oldpath) free(oldpath_clean);
+            return(ret);
+        }
+        old_rec_id = darshan_core_gen_record_id(oldpath_clean);
+
+        POSIX_PRE_RECORD();
+        old_rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash,
+            &old_rec_id, sizeof(darshan_record_id));
+        if(!old_rec_ref)
+        {
+            POSIX_POST_RECORD();
+            if(oldpath_clean != oldpath) free(oldpath_clean);
+            return(ret);
+        }
+        old_rec_ref->file_rec->counters[POSIX_RENAME_SOURCES] += 1;
+        DARSHAN_TIMER_INC_NO_OVERLAP(old_rec_ref->file_rec->fcounters[POSIX_F_META_TIME],
+            tm1, tm2, old_rec_ref->last_meta_end);
+
+        newpath_clean = darshan_clean_file_path(newpath);
+        if(!newpath_clean) newpath_clean = (char *)newpath;
+        if(darshan_core_excluded_path(newpath_clean))
+        {
+            POSIX_POST_RECORD();
+            if(oldpath_clean != oldpath) free(oldpath_clean);
+            if(newpath_clean != newpath) free(newpath_clean);
+            return(ret);
+        }
+        new_rec_id = darshan_core_gen_record_id(newpath_clean);
+
+        new_rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash,
+            &new_rec_id, sizeof(darshan_record_id));
+        if(!new_rec_ref)
+            new_rec_ref = posix_track_new_file_record(new_rec_id, newpath_clean);
+        if(new_rec_ref)
+            new_rec_ref->file_rec->counters[POSIX_RENAME_TARGETS] += 1;
+
+        POSIX_POST_RECORD();
+        if(oldpath_clean != oldpath) free(oldpath_clean);
+        if(newpath_clean != newpath) free(newpath_clean);
     }
 
     return(ret);
