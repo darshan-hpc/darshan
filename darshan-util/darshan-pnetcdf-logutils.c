@@ -30,6 +30,8 @@ char *pnetcdf_f_counter_names[] = {
 };
 #undef X
 
+#define DARSHAN_PNETCDF_FILE_SIZE_1 48
+
 static int darshan_log_get_pnetcdf_file(darshan_fd fd, void** pnetcdf_buf_p);
 static int darshan_log_put_pnetcdf_file(darshan_fd fd, void* pnetcdf_buf);
 static void darshan_log_print_pnetcdf_file(void *file_rec,
@@ -52,6 +54,7 @@ struct darshan_mod_logutil_funcs pnetcdf_logutils =
 static int darshan_log_get_pnetcdf_file(darshan_fd fd, void** pnetcdf_buf_p)
 {
     struct darshan_pnetcdf_file *file = *((struct darshan_pnetcdf_file **)pnetcdf_buf_p);
+    int rec_len;
     int i;
     int ret;
 
@@ -65,12 +68,42 @@ static int darshan_log_get_pnetcdf_file(darshan_fd fd, void** pnetcdf_buf_p)
             return(-1);
     }
 
-    ret = darshan_log_get_mod(fd, DARSHAN_PNETCDF_MOD, file,
-        sizeof(struct darshan_pnetcdf_file));
+    if(fd->mod_ver[DARSHAN_PNETCDF_MOD] == DARSHAN_PNETCDF_VER)
+    {
+        /* log format is in current version, so we don't need to do any
+         * translation of counters while reading
+         */
+        rec_len = sizeof(struct darshan_pnetcdf_file);
+        ret = darshan_log_get_mod(fd, DARSHAN_PNETCDF_MOD, file, rec_len);
+    }
+    else
+    {
+        char scratch[1024] = {0};
+        char *src_p, *dest_p;
+        int len;
 
+        rec_len = DARSHAN_PNETCDF_FILE_SIZE_1;
+        ret = darshan_log_get_mod(fd, DARSHAN_PNETCDF_MOD, scratch, rec_len);
+        if(ret != rec_len)
+            goto exit;
+
+        /* upconvert version 1 to version 2 in-place */
+        dest_p = scratch + (sizeof(struct darshan_base_record) +
+            (2 * sizeof(int64_t)) + (3 * sizeof(double)));
+        src_p = dest_p - (2 * sizeof(double));
+        len = sizeof(double);
+        memmove(dest_p, src_p, len);
+        /* set F_CLOSE_START and F_OPEN_END to -1 */
+        *((double *)src_p) = -1;
+        *((double *)(src_p + sizeof(double))) = -1;
+
+        memcpy(file, scratch, sizeof(struct darshan_pnetcdf_file));
+    }
+
+exit:
     if(*pnetcdf_buf_p == NULL)
     {
-        if(ret == sizeof(struct darshan_pnetcdf_file))
+        if(ret == rec_len)
             *pnetcdf_buf_p = file;
         else
             free(file);
@@ -78,7 +111,7 @@ static int darshan_log_get_pnetcdf_file(darshan_fd fd, void** pnetcdf_buf_p)
 
     if(ret < 0)
         return(-1);
-    else if(ret < sizeof(struct darshan_pnetcdf_file))
+    else if(ret < rec_len)
         return(0);
     else
     {
@@ -90,7 +123,16 @@ static int darshan_log_get_pnetcdf_file(darshan_fd fd, void** pnetcdf_buf_p)
             for(i=0; i<PNETCDF_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->counters[i]);
             for(i=0; i<PNETCDF_F_NUM_INDICES; i++)
+            {
+                /* skip counters we explicitly set to -1 since they don't
+                 * need to be byte swapped
+                 */
+                if((fd->mod_ver[DARSHAN_PNETCDF_MOD] == 1) &&
+                    ((i == PNETCDF_F_CLOSE_START_TIMESTAMP) ||
+                     (i == PNETCDF_F_OPEN_END_TIMESTAMP)))
+                    continue;
                 DARSHAN_BSWAP64(&file->fcounters[i]);
+            }
         }
 
         return(1);
@@ -141,8 +183,15 @@ static void darshan_log_print_pnetcdf_description(int ver)
     printf("\n# description of PNETCDF counters:\n");
     printf("#   PNETCDF_INDEP_OPENS: PNETCDF independent file open operation counts.\n");
     printf("#   PNETCDF_COLL_OPENS: PNETCDF collective file open operation counts.\n");
-    printf("#   PNETCDF_F_OPEN_TIMESTAMP: timestamp of first PNETCDF file open.\n");
-    printf("#   PNETCDF_F_CLOSE_TIMESTAMP: timestamp of last PNETCDF file close.\n");
+    printf("#   PNETCDF_F_*_START_TIMESTAMP: timestamp of first PNETCDF file open/close.\n");
+    printf("#   PNETCDF_F_*_END_TIMESTAMP: timestamp of last PNETCDF file open/close.\n");
+
+    if(ver == 1)
+    {
+        printf("\n# WARNING: PNETCDF module log format version 1 does not support the following counters:\n");
+        printf("# - PNETCDF_F_CLOSE_START_TIMESTAMP\n");
+        printf("# - PNETCDF_F_OPEN_END_TIMESTAMP\n");
+    }
 
     return;
 }
@@ -244,7 +293,8 @@ static void darshan_log_agg_pnetcdf_files(void *rec, void *agg_rec, int init_fla
     {
         switch(i)
         {
-            case PNETCDF_F_OPEN_TIMESTAMP:
+            case PNETCDF_F_OPEN_START_TIMESTAMP:
+            case PNETCDF_F_CLOSE_START_TIMESTAMP:
                 /* minimum non-zero */
                 if((pnc_rec->fcounters[i] > 0)  &&
                     ((agg_pnc_rec->fcounters[i] == 0) ||
@@ -253,7 +303,8 @@ static void darshan_log_agg_pnetcdf_files(void *rec, void *agg_rec, int init_fla
                     agg_pnc_rec->fcounters[i] = pnc_rec->fcounters[i];
                 }
                 break;
-            case PNETCDF_F_CLOSE_TIMESTAMP:
+            case PNETCDF_F_OPEN_END_TIMESTAMP:
+            case PNETCDF_F_CLOSE_END_TIMESTAMP:
                 /* maximum */
                 if(pnc_rec->fcounters[i] > agg_pnc_rec->fcounters[i])
                 {

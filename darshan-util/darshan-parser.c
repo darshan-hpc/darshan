@@ -1149,18 +1149,20 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
     {
         switch(i)
         {
-            case MPIIO_F_OPEN_TIMESTAMP:
+            case MPIIO_F_OPEN_START_TIMESTAMP:
             case MPIIO_F_READ_START_TIMESTAMP:
             case MPIIO_F_WRITE_START_TIMESTAMP:
+            case MPIIO_F_CLOSE_START_TIMESTAMP:
                 if(tmp->fcounters[i] == 0 || 
                     tmp->fcounters[i] > mfile->fcounters[i])
                 {
                     tmp->fcounters[i] = mfile->fcounters[i];
                 }
                 break;
+            case MPIIO_F_OPEN_END_TIMESTAMP:
             case MPIIO_F_READ_END_TIMESTAMP:
             case MPIIO_F_WRITE_END_TIMESTAMP:
-            case MPIIO_F_CLOSE_TIMESTAMP:
+            case MPIIO_F_CLOSE_END_TIMESTAMP:
                 if(tmp->fcounters[i] == 0 || 
                     tmp->fcounters[i] < mfile->fcounters[i])
                 {
@@ -1386,12 +1388,12 @@ void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
     if(mfile->base_rec.rank == -1)
     {
         /* by_open */
-        if(mfile->fcounters[MPIIO_F_CLOSE_TIMESTAMP] >
-            mfile->fcounters[MPIIO_F_OPEN_TIMESTAMP])
+        if(mfile->fcounters[MPIIO_F_CLOSE_END_TIMESTAMP] >
+            mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP])
         {
             pdata->shared_time_by_open +=
-                mfile->fcounters[MPIIO_F_CLOSE_TIMESTAMP] -
-                mfile->fcounters[MPIIO_F_OPEN_TIMESTAMP];
+                mfile->fcounters[MPIIO_F_CLOSE_END_TIMESTAMP] -
+                mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP];
         }
 
         /* by_open_lastio */
@@ -1399,21 +1401,21 @@ void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
             mfile->fcounters[MPIIO_F_WRITE_END_TIMESTAMP])
         {
             /* be careful: file may have been opened but not read or written */
-            if(mfile->fcounters[MPIIO_F_READ_END_TIMESTAMP] > mfile->fcounters[MPIIO_F_OPEN_TIMESTAMP])
+            if(mfile->fcounters[MPIIO_F_READ_END_TIMESTAMP] > mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP])
             {
                 pdata->shared_time_by_open_lastio += 
                     mfile->fcounters[MPIIO_F_READ_END_TIMESTAMP] - 
-                    mfile->fcounters[MPIIO_F_OPEN_TIMESTAMP];
+                    mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP];
             }
         }
         else
         {
             /* be careful: file may have been opened but not read or written */
-            if(mfile->fcounters[MPIIO_F_WRITE_END_TIMESTAMP] > mfile->fcounters[MPIIO_F_OPEN_TIMESTAMP])
+            if(mfile->fcounters[MPIIO_F_WRITE_END_TIMESTAMP] > mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP])
             {
                 pdata->shared_time_by_open_lastio += 
                     mfile->fcounters[MPIIO_F_WRITE_END_TIMESTAMP] - 
-                    mfile->fcounters[MPIIO_F_OPEN_TIMESTAMP];
+                    mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP];
             }
         }
 
@@ -2011,7 +2013,7 @@ void mpiio_file_list(hash_entry_t *file_hash,
 
         if(detail_flag)
         {
-            for(i=MPIIO_F_OPEN_TIMESTAMP; i<=MPIIO_F_CLOSE_TIMESTAMP; i++)
+            for(i=MPIIO_F_OPEN_START_TIMESTAMP; i<=MPIIO_F_CLOSE_END_TIMESTAMP; i++)
             {
                 printf("\t%f", file_rec->fcounters[i]);
             }

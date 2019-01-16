@@ -8,7 +8,7 @@
 #define __DARSHAN_HDF5_LOG_FORMAT_H
 
 /* current HDF5 log format version */
-#define DARSHAN_HDF5_VER 1
+#define DARSHAN_HDF5_VER 2
 
 #define HDF5_COUNTERS \
     /* count of HDF5 opens */\
@@ -18,9 +18,13 @@
 
 #define HDF5_F_COUNTERS \
     /* timestamp of first open */\
-    X(HDF5_F_OPEN_TIMESTAMP) \
+    X(HDF5_F_OPEN_START_TIMESTAMP) \
+    /* timestamp of first close */\
+    X(HDF5_F_CLOSE_START_TIMESTAMP) \
+    /* timestamp of last open */\
+    X(HDF5_F_OPEN_END_TIMESTAMP) \
     /* timestamp of last close */\
-    X(HDF5_F_CLOSE_TIMESTAMP) \
+    X(HDF5_F_CLOSE_END_TIMESTAMP) \
     /* end of counters*/\
     X(HDF5_F_NUM_INDICES)
 

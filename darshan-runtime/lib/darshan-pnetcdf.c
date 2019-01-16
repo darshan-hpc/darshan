@@ -76,7 +76,7 @@ static int my_rank = -1;
     PNETCDF_UNLOCK(); \
 } while(0)
 
-#define PNETCDF_RECORD_OPEN(__ncidp, __path, __comm, __tm1) do { \
+#define PNETCDF_RECORD_OPEN(__ncidp, __path, __comm, __tm1, __tm2) do { \
     darshan_record_id rec_id; \
     struct pnetcdf_file_record_ref *rec_ref; \
     char *newpath; \
@@ -95,8 +95,10 @@ static int my_rank = -1;
         break; \
     } \
     PMPI_Comm_size(__comm, &comm_size); \
-    if(rec_ref->file_rec->fcounters[PNETCDF_F_OPEN_TIMESTAMP] == 0) \
-        rec_ref->file_rec->fcounters[PNETCDF_F_OPEN_TIMESTAMP] = __tm1; \
+    if(rec_ref->file_rec->fcounters[PNETCDF_F_OPEN_START_TIMESTAMP] == 0 || \
+     rec_ref->file_rec->fcounters[PNETCDF_F_OPEN_START_TIMESTAMP] > __tm1) \
+        rec_ref->file_rec->fcounters[PNETCDF_F_OPEN_START_TIMESTAMP] = __tm1; \
+    rec_ref->file_rec->fcounters[PNETCDF_F_OPEN_END_TIMESTAMP] = __tm2; \
     if(comm_size == 1) rec_ref->file_rec->counters[PNETCDF_INDEP_OPENS] += 1; \
     else rec_ref->file_rec->counters[PNETCDF_COLL_OPENS] += 1; \
     darshan_add_record_ref(&(pnetcdf_runtime->ncid_hash), __ncidp, sizeof(int), rec_ref); \
@@ -112,12 +114,13 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
 {
     int ret;
     char* tmp;
-    double tm1;
+    double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_create);
 
     tm1 = darshan_core_wtime();
     ret = __real_ncmpi_create(comm, path, cmode, info, ncidp);
+    tm2 = darshan_core_wtime();
     if(ret == 0)
     {
         /* use ROMIO approach to strip prefix if present */
@@ -131,7 +134,7 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
         }
 
         PNETCDF_PRE_RECORD();
-        PNETCDF_RECORD_OPEN(ncidp, path, comm, tm1);
+        PNETCDF_RECORD_OPEN(ncidp, path, comm, tm1, tm2);
         PNETCDF_POST_RECORD();
     }
 
@@ -143,12 +146,13 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
 {
     int ret;
     char* tmp;
-    double tm1;
+    double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_open);
 
     tm1 = darshan_core_wtime();
     ret = __real_ncmpi_open(comm, path, omode, info, ncidp);
+    tm2 = darshan_core_wtime();
     if(ret == 0)
     {
         /* use ROMIO approach to strip prefix if present */
@@ -162,7 +166,7 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
         }
 
         PNETCDF_PRE_RECORD();
-        PNETCDF_RECORD_OPEN(ncidp, path, comm, tm1);
+        PNETCDF_RECORD_OPEN(ncidp, path, comm, tm1, tm2);
         PNETCDF_POST_RECORD();
     }
 
@@ -173,18 +177,23 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
 {
     struct pnetcdf_file_record_ref *rec_ref;
     int ret;
+    double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_close);
 
+    tm1 = darshan_core_wtime();
     ret = __real_ncmpi_close(ncid);
+    tm2 = darshan_core_wtime();
 
     PNETCDF_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(pnetcdf_runtime->ncid_hash,
         &ncid, sizeof(int));
     if(rec_ref)
     {
-        rec_ref->file_rec->fcounters[PNETCDF_F_CLOSE_TIMESTAMP] =
-            darshan_core_wtime();
+        if(rec_ref->file_rec->fcounters[PNETCDF_F_CLOSE_START_TIMESTAMP] == 0 ||
+         rec_ref->file_rec->fcounters[PNETCDF_F_CLOSE_START_TIMESTAMP] > tm1)
+           rec_ref->file_rec->fcounters[PNETCDF_F_CLOSE_START_TIMESTAMP] = tm1;
+        rec_ref->file_rec->fcounters[PNETCDF_F_CLOSE_END_TIMESTAMP] = tm2;
         darshan_delete_record_ref(&(pnetcdf_runtime->ncid_hash),
             &ncid, sizeof(int));
     }
@@ -302,7 +311,7 @@ static void pnetcdf_record_reduction_op(void* infile_v, void* inoutfile_v,
         }
 
         /* min non-zero (if available) value */
-        for(j=PNETCDF_F_OPEN_TIMESTAMP; j<=PNETCDF_F_OPEN_TIMESTAMP; j++)
+        for(j=PNETCDF_F_OPEN_START_TIMESTAMP; j<=PNETCDF_F_CLOSE_START_TIMESTAMP; j++)
         {
             if((infile->fcounters[j] < inoutfile->fcounters[j] &&
                infile->fcounters[j] > 0) || inoutfile->fcounters[j] == 0) 
@@ -312,7 +321,7 @@ static void pnetcdf_record_reduction_op(void* infile_v, void* inoutfile_v,
         }
 
         /* max */
-        for(j=PNETCDF_F_CLOSE_TIMESTAMP; j<=PNETCDF_F_CLOSE_TIMESTAMP; j++)
+        for(j=PNETCDF_F_OPEN_END_TIMESTAMP; j<=PNETCDF_F_CLOSE_END_TIMESTAMP; j++)
         {
             if(infile->fcounters[j] > inoutfile->fcounters[j])
                 tmp_file.fcounters[j] = infile->fcounters[j];
