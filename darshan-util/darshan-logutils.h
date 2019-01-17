@@ -164,10 +164,18 @@ void darshan_log_print_version_warnings(const char *version_string);
     printf("\n#<module>\t<rank>\t<record id>\t<counter>\t<value>" \
            "\t<file name>\t<mount pt>\t<fs type>\n")
 
-#define DARSHAN_COUNTER_PRINT(__mod_name, __rank, __file_id, \
+#define DARSHAN_D_COUNTER_PRINT(__mod_name, __rank, __file_id, \
                               __counter, __counter_val, __file_name, \
                               __mnt_pt, __fs_type) do { \
     printf("%s\t%" PRId64 "\t%" PRIu64 "\t%s\t%" PRId64 "\t%s\t%s\t%s\n", \
+        __mod_name, __rank, __file_id, __counter, __counter_val, \
+        __file_name, __mnt_pt, __fs_type); \
+} while(0)
+
+#define DARSHAN_U_COUNTER_PRINT(__mod_name, __rank, __file_id, \
+                              __counter, __counter_val, __file_name, \
+                              __mnt_pt, __fs_type) do { \
+    printf("%s\t%" PRId64 "\t%" PRIu64 "\t%s\t%" PRIu64 "\t%s\t%s\t%s\n", \
         __mod_name, __rank, __file_id, __counter, __counter_val, \
         __file_name, __mnt_pt, __fs_type); \
 } while(0)

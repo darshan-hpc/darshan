@@ -136,7 +136,7 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
 
     for(i=0; i<LUSTRE_NUM_INDICES; i++)
     {
-        DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+        DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
             lustre_rec->base_rec.rank, lustre_rec->base_rec.id, lustre_counter_names[i],
             lustre_rec->counters[i], file_name, mnt_pt, fs_type);
     }
@@ -145,7 +145,7 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
     {
         char strbuf[25];
         snprintf( strbuf, 25, "LUSTRE_OST_ID_%d", i );
-        DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+        DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
             lustre_rec->base_rec.rank,
             lustre_rec->base_rec.id,
             strbuf,
@@ -185,7 +185,7 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
         if(!lustre_rec2)
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
                 lustre_rec1->base_rec.rank, lustre_rec1->base_rec.id,
                 lustre_counter_names[i], lustre_rec1->counters[i], file_name1, "", "");
 
@@ -193,18 +193,18 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
         else if(!lustre_rec1)
         {
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
                 lustre_rec2->base_rec.rank, lustre_rec2->base_rec.id,
                 lustre_counter_names[i], lustre_rec2->counters[i], file_name2, "", "");
         }
         else if(lustre_rec1->counters[i] != lustre_rec2->counters[i])
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
                 lustre_rec1->base_rec.rank, lustre_rec1->base_rec.id,
                 lustre_counter_names[i], lustre_rec1->counters[i], file_name1, "", "");
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
                 lustre_rec2->base_rec.rank, lustre_rec2->base_rec.id,
                 lustre_counter_names[i], lustre_rec2->counters[i], file_name2, "", "");
         }
@@ -219,7 +219,7 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
         if (!lustre_rec2 || (i >= lustre_rec2->counters[LUSTRE_STRIPE_WIDTH]))
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
                 lustre_rec1->base_rec.rank,
                 lustre_rec1->base_rec.id,
                 strbuf,
@@ -231,7 +231,7 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
         else if (!lustre_rec1 || (i >= lustre_rec1->counters[LUSTRE_STRIPE_WIDTH]))
         {
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
                 lustre_rec2->base_rec.rank,
                 lustre_rec2->base_rec.id,
                 strbuf,
@@ -243,7 +243,7 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
         else if (lustre_rec1->ost_ids[i] != lustre_rec2->ost_ids[i])
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
                 lustre_rec1->base_rec.rank,
                 lustre_rec1->base_rec.id,
                 strbuf,
@@ -252,7 +252,7 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
                 "",
                 "");
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
                 lustre_rec2->base_rec.rank,
                 lustre_rec2->base_rec.id,
                 strbuf,

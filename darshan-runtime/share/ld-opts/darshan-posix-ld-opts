@@ -40,3 +40,4 @@
 --wrap=lio_listio
 --wrap=lio_listio64
 --wrap=fileno
+--wrap=rename

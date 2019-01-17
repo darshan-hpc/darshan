@@ -161,7 +161,7 @@ static void darshan_log_print_hdf5_file(void *file_rec, char *file_name,
 
     for(i=0; i<HDF5_NUM_INDICES; i++)
     {
-        DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
+        DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
             hdf5_file_rec->base_rec.rank, hdf5_file_rec->base_rec.id,
             hdf5_counter_names[i], hdf5_file_rec->counters[i],
             file_name, mnt_pt, fs_type);
@@ -209,7 +209,7 @@ static void darshan_log_print_hdf5_file_diff(void *file_rec1, char *file_name1,
         if(!file2)
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
                 file1->base_rec.rank, file1->base_rec.id, hdf5_counter_names[i],
                 file1->counters[i], file_name1, "", "");
 
@@ -217,18 +217,18 @@ static void darshan_log_print_hdf5_file_diff(void *file_rec1, char *file_name1,
         else if(!file1)
         {
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
                 file2->base_rec.rank, file2->base_rec.id, hdf5_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
         else if(file1->counters[i] != file2->counters[i])
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
                 file1->base_rec.rank, file1->base_rec.id, hdf5_counter_names[i],
                 file1->counters[i], file_name1, "", "");
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
                 file2->base_rec.rank, file2->base_rec.id, hdf5_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
