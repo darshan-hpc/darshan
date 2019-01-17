@@ -137,7 +137,7 @@ static void darshan_log_print_stdio_record(void *file_rec, char *file_name,
     for(i=0; i<STDIO_NUM_INDICES; i++)
     {
         /* macro defined in darshan-logutils.h */
-        DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_STDIO_MOD],
+        DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_STDIO_MOD],
             stdio_rec->base_rec.rank, stdio_rec->base_rec.id, stdio_counter_names[i],
             stdio_rec->counters[i], file_name, mnt_pt, fs_type);
     }
@@ -185,7 +185,7 @@ static void darshan_log_print_stdio_record_diff(void *file_rec1, char *file_name
         if(!file2)
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_STDIO_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_STDIO_MOD],
                 file1->base_rec.rank, file1->base_rec.id, stdio_counter_names[i],
                 file1->counters[i], file_name1, "", "");
 
@@ -193,18 +193,18 @@ static void darshan_log_print_stdio_record_diff(void *file_rec1, char *file_name
         else if(!file1)
         {
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_STDIO_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_STDIO_MOD],
                 file2->base_rec.rank, file2->base_rec.id, stdio_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
         else if(file1->counters[i] != file2->counters[i])
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_STDIO_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_STDIO_MOD],
                 file1->base_rec.rank, file1->base_rec.id, stdio_counter_names[i],
                 file1->counters[i], file_name1, "", "");
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_STDIO_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_STDIO_MOD],
                 file2->base_rec.rank, file2->base_rec.id, stdio_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }

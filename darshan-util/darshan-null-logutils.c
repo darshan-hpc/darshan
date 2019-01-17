@@ -137,7 +137,7 @@ static void darshan_log_print_null_record(void *file_rec, char *file_name,
     for(i=0; i<NULL_NUM_INDICES; i++)
     {
         /* macro defined in darshan-logutils.h */
-        DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
+        DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
             null_rec->base_rec.rank, null_rec->base_rec.id,
             null_counter_names[i], null_rec->counters[i],
             file_name, mnt_pt, fs_type);
@@ -182,7 +182,7 @@ static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1
         if(!file2)
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
                 file1->base_rec.rank, file1->base_rec.id, null_counter_names[i],
                 file1->counters[i], file_name1, "", "");
 
@@ -190,18 +190,18 @@ static void darshan_log_print_null_record_diff(void *file_rec1, char *file_name1
         else if(!file1)
         {
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
                 file2->base_rec.rank, file2->base_rec.id, null_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
         else if(file1->counters[i] != file2->counters[i])
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
                 file1->base_rec.rank, file1->base_rec.id, null_counter_names[i],
                 file1->counters[i], file_name1, "", "");
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_NULL_MOD],
                 file2->base_rec.rank, file2->base_rec.id, null_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }

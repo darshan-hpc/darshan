@@ -34,6 +34,8 @@
     X(POSIX_RENAME_SOURCES) \
     /* count of renames (as target file) */\
     X(POSIX_RENAME_TARGETS) \
+    /* Darshan record ID of first rename source */\
+    X(POSIX_RENAMED_FROM) \
     /* mode of file */\
     X(POSIX_MODE) \
     /* total bytes read */\

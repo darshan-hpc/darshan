@@ -1457,7 +1457,11 @@ int DARSHAN_DECL(rename)(const char *oldpath, const char *newpath)
         if(!new_rec_ref)
             new_rec_ref = posix_track_new_file_record(new_rec_id, newpath_clean);
         if(new_rec_ref)
+        {
             new_rec_ref->file_rec->counters[POSIX_RENAME_TARGETS] += 1;
+            if(new_rec_ref->file_rec->counters[POSIX_RENAMED_FROM] == 0)
+                new_rec_ref->file_rec->counters[POSIX_RENAMED_FROM] = old_rec_id;
+        }
 
         POSIX_POST_RECORD();
         if(oldpath_clean != oldpath) free(oldpath_clean);
@@ -1639,13 +1643,14 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
         tmp_file.base_rec.rank = -1;
 
         /* sum */
-        for(j=POSIX_OPENS; j<=POSIX_FDSYNCS; j++)
+        for(j=POSIX_OPENS; j<=POSIX_RENAME_TARGETS; j++)
         {
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
             if(tmp_file.counters[j] < 0) /* make sure invalid counters are -1 exactly */
                 tmp_file.counters[j] = -1;
         }
 
+        tmp_file.counters[POSIX_RENAMED_FROM] = infile->counters[POSIX_RENAMED_FROM];
         tmp_file.counters[POSIX_MODE] = infile->counters[POSIX_MODE];
 
         /* sum */

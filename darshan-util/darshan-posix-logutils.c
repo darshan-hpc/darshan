@@ -196,10 +196,16 @@ static void darshan_log_print_posix_file(void *file_rec, char *file_name,
 
     for(i=0; i<POSIX_NUM_INDICES; i++)
     {
-        DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-            posix_file_rec->base_rec.rank, posix_file_rec->base_rec.id,
-            posix_counter_names[i], posix_file_rec->counters[i],
-            file_name, mnt_pt, fs_type);
+        if(i == POSIX_RENAMED_FROM)
+            DARSHAN_U_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                posix_file_rec->base_rec.rank, posix_file_rec->base_rec.id,
+                posix_counter_names[i], posix_file_rec->counters[i],
+                file_name, mnt_pt, fs_type);
+        else
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                posix_file_rec->base_rec.rank, posix_file_rec->base_rec.id,
+                posix_counter_names[i], posix_file_rec->counters[i],
+                file_name, mnt_pt, fs_type);
     }
 
     for(i=0; i<POSIX_F_NUM_INDICES; i++)
@@ -272,28 +278,48 @@ static void darshan_log_print_posix_file_diff(void *file_rec1, char *file_name1,
         if(!file2)
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file1->base_rec.rank, file1->base_rec.id, posix_counter_names[i],
-                file1->counters[i], file_name1, "", "");
+            if(i == POSIX_RENAMED_FROM)
+                DARSHAN_U_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                    file1->base_rec.rank, file1->base_rec.id, posix_counter_names[i],
+                    file1->counters[i], file_name1, "", "");
+            else
+                DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                    file1->base_rec.rank, file1->base_rec.id, posix_counter_names[i],
+                    file1->counters[i], file_name1, "", "");
 
         }
         else if(!file1)
         {
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file2->base_rec.rank, file2->base_rec.id, posix_counter_names[i],
-                file2->counters[i], file_name2, "", "");
+            if(i == POSIX_RENAMED_FROM)
+                DARSHAN_U_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                    file2->base_rec.rank, file2->base_rec.id, posix_counter_names[i],
+                    file2->counters[i], file_name2, "", "");
+            else
+                DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                    file2->base_rec.rank, file2->base_rec.id, posix_counter_names[i],
+                    file2->counters[i], file_name2, "", "");
         }
         else if(file1->counters[i] != file2->counters[i])
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file1->base_rec.rank, file1->base_rec.id, posix_counter_names[i],
-                file1->counters[i], file_name1, "", "");
+            if(i == POSIX_RENAMED_FROM)
+                DARSHAN_U_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                    file1->base_rec.rank, file1->base_rec.id, posix_counter_names[i],
+                    file1->counters[i], file_name1, "", "");
+            else
+                DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                    file1->base_rec.rank, file1->base_rec.id, posix_counter_names[i],
+                    file1->counters[i], file_name1, "", "");
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
-                file2->base_rec.rank, file2->base_rec.id, posix_counter_names[i],
-                file2->counters[i], file_name2, "", "");
+            if(i == POSIX_RENAMED_FROM)
+                DARSHAN_U_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                    file2->base_rec.rank, file2->base_rec.id, posix_counter_names[i],
+                    file2->counters[i], file_name2, "", "");
+            else
+                DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_POSIX_MOD],
+                    file2->base_rec.rank, file2->base_rec.id, posix_counter_names[i],
+                    file2->counters[i], file_name2, "", "");
         }
     }
 
