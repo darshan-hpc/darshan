@@ -11,7 +11,7 @@
 #define DARSHAN_STDIO_VER 2
 
 #define STDIO_COUNTERS \
-    /* count of fopens */\
+    /* count of fopens (INCLUDING fdopen operations)  */\
     X(STDIO_OPENS) \
     /* count of fdopens */\
     X(STDIO_FDOPENS) \

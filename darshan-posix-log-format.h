@@ -10,7 +10,7 @@
 #define DARSHAN_POSIX_VER 4
 
 #define POSIX_COUNTERS \
-    /* count of posix opens */\
+    /* count of posix opens (INCLUDING fileno and dup operations) */\
     X(POSIX_OPENS) \
     /* count of number of filenos */\
     X(POSIX_FILENOS) \

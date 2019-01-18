@@ -234,7 +234,9 @@ otherwise noted, counters include all variants of the call in question, such as
 [cols="40%,60%",options="header"]
 |====
 | counter name | description
-| POSIX_OPENS | Count of how many times the file was opened
+| POSIX_OPENS | Count of how many times the file was opened (INCLUDING `fileno` and `dup` operations)
+| POSIX_FILENOS| Count of POSIX fileno operations
+| POSIX_DUPS| Count of POSIX dup operations
 | POSIX_READS | Count of POSIX read operations
 | POSIX_WRITES | Count of POSIX write operations
 | POSIX_SEEKS | Count of POSIX seek operations
@@ -242,6 +244,9 @@ otherwise noted, counters include all variants of the call in question, such as
 | POSIX_MMAPS | Count of POSIX mmap operations
 | POSIX_FSYNCS | Count of POSIX fsync operations
 | POSIX_FDSYNCS | Count of POSIX fdatasync operations
+| POSIX_RENAME_SOURCES| Number of times this file was the source of a rename operation
+| POSIX_RENAME_TARGETS| Number of times this file was the target of a rename operation
+| POSIX_RENAMED_FROM | If this file was a rename target, the Darshan record ID of the first rename source
 | POSIX_MODE | Mode that the file was last opened in
 | POSIX_BYTES_READ | Total number of bytes that were read from the file
 | POSIX_BYTES_WRITTEN | Total number of bytes written to the file
@@ -336,7 +341,8 @@ value of 1 MiB for optimal file alignment.
 [cols="40%,60%",options="header"]
 |====
 | counter name | description
-| STDIO_OPENS | Count of how many times the file was opened using the stdio interface (e.g., `fopen()`)
+| STDIO_OPENS | Count of stdio file open operations (INCLUDING `fdopen` operations)
+| STDIO_FDOPENS| Count of stdio fdopen operations
 | STDIO_READS | Count of stdio read operations
 | STDIO_WRITES | Count of stdio write operations
 | STDIO_SEEKS | Count of stdio seek operations
