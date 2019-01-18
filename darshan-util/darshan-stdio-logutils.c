@@ -31,6 +31,8 @@ char *stdio_f_counter_names[] = {
 };
 #undef X
 
+#define DARSHAN_STDIO_FILE_SIZE_1 240
+
 /* prototypes for each of the STDIO module's logutil functions */
 static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p);
 static int darshan_log_put_stdio_record(darshan_fd fd, void* stdio_buf);
@@ -62,6 +64,7 @@ struct darshan_mod_logutil_funcs stdio_logutils =
 static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p)
 {
     struct darshan_stdio_file *file = *((struct darshan_stdio_file **)stdio_buf_p);
+    int rec_len;
     int i;
     int ret;
 
@@ -75,13 +78,44 @@ static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p)
             return(-1);
     }
 
-    /* read a STDIO module record from the darshan log file */
-    ret = darshan_log_get_mod(fd, DARSHAN_STDIO_MOD, file,
-        sizeof(struct darshan_stdio_file));
+    if(fd->mod_ver[DARSHAN_STDIO_MOD] == DARSHAN_STDIO_VER)
+    {
+        /* log format is in current version, so we don't need to do any
+         * translation of counters while reading
+         */
+        rec_len = sizeof(struct darshan_stdio_file);
+        ret = darshan_log_get_mod(fd, DARSHAN_STDIO_MOD, file, rec_len);
+    }
+    else
+    {
+        char scratch[1024] = {0};
+        char *src_p, *dest_p;
+        int len;
 
+        if(fd->mod_ver[DARSHAN_STDIO_MOD] == 1)
+        {
+            rec_len = DARSHAN_STDIO_FILE_SIZE_1;
+            ret = darshan_log_get_mod(fd, DARSHAN_STDIO_MOD, scratch, rec_len);
+            if(ret != rec_len)
+                goto exit;
+
+            /* upconvert version 1 to version 2 in-place */
+            dest_p = scratch + sizeof(struct darshan_base_record) +
+                (2 * sizeof(int64_t));
+            src_p = dest_p - sizeof(int64_t);
+            len = rec_len - (src_p - scratch);
+            memmove(dest_p, src_p, len);
+            /* set FDOPENS to -1 */
+            *((int64_t *)src_p) = -1;
+        }
+
+        memcpy(file, scratch, sizeof(struct darshan_posix_file));
+    }
+
+exit:
     if(*stdio_buf_p == NULL)
     {
-        if(ret == sizeof(struct darshan_stdio_file))
+        if(ret == rec_len)
             *stdio_buf_p = file;
         else
             free(file);
@@ -89,7 +123,7 @@ static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p)
 
     if(ret < 0)
         return(-1);
-    else if(ret < sizeof(struct darshan_stdio_file))
+    else if(ret < rec_len)
         return(0);
     else
     {
@@ -99,7 +133,15 @@ static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p)
             DARSHAN_BSWAP64(&file->base_rec.id);
             DARSHAN_BSWAP64(&file->base_rec.rank);
             for(i=0; i<STDIO_NUM_INDICES; i++)
+            {
+                /* skip counters we explicitly set since they don't
+                 * need to be byte swapped
+                 */
+                if((fd->mod_ver[DARSHAN_STDIO_MOD] == 1) &&
+                    (i == STDIO_FDOPENS))
+                    continue;
                 DARSHAN_BSWAP64(&file->counters[i]);
+            }
             for(i=0; i<STDIO_F_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->fcounters[i]);
         }
@@ -157,7 +199,7 @@ static void darshan_log_print_stdio_record(void *file_rec, char *file_name,
 static void darshan_log_print_stdio_description(int ver)
 {
     printf("\n# description of STDIO counters:\n");
-    printf("#   STDIO_{OPENS|WRITES|READS|SEEKS|FLUSHES} are types of operations.\n");
+    printf("#   STDIO_{OPENS|FDOPENS|WRITES|READS|SEEKS|FLUSHES} are types of operations.\n");
     printf("#   STDIO_BYTES_*: total bytes read and written.\n");
     printf("#   STDIO_MAX_BYTE_*: highest offset byte read and written.\n");
     printf("#   STDIO_*_RANK: rank of the processes that were the fastest and slowest at I/O (for shared files).\n");
@@ -167,6 +209,13 @@ static void darshan_log_print_stdio_description(int ver)
     printf("#   STDIO_F_*_TIME: cumulative time spent in different types of functions.\n");
     printf("#   STDIO_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).\n");
     printf("#   STDIO_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared files).\n");
+
+    if(ver == 1)
+    {
+        printf("\n# WARNING: STDIO module log format version 1 has the following limitations:\n");
+        printf("# - No support for properly instrumenting fdopen operations (STDIO_FDOPENS)\n");
+    }
+
 
     return;
 }
@@ -272,6 +321,7 @@ static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_fla
         switch(i)
         {
             case STDIO_OPENS:
+            case STDIO_FDOPENS:
             case STDIO_READS:
             case STDIO_WRITES:
             case STDIO_SEEKS:

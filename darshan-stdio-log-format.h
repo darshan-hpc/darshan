@@ -8,7 +8,7 @@
 #define __DARSHAN_STDIO_LOG_FORMAT_H
 
 /* current log format version, to support backwards compatibility */
-#define DARSHAN_STDIO_VER 1
+#define DARSHAN_STDIO_VER 2
 
 #define STDIO_COUNTERS \
     /* count of fopens */\

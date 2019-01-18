@@ -32,6 +32,7 @@ char *posix_f_counter_names[] = {
 
 #define DARSHAN_POSIX_FILE_SIZE_1 680
 #define DARSHAN_POSIX_FILE_SIZE_2 648
+#define DARSHAN_POSIX_FILE_SIZE_3 664
 
 static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p);
 static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf);
@@ -131,7 +132,38 @@ static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p)
             *((double *)src_p) = -1;
             *((double *)(src_p + sizeof(double))) = -1;
         }
+        if(fd->mod_ver[DARSHAN_POSIX_MOD] <=3)
+        {
+            if(fd->mod_ver[DARSHAN_POSIX_MOD] == 3)
+            {
+                rec_len = DARSHAN_POSIX_FILE_SIZE_3;
+                ret = darshan_log_get_mod(fd, DARSHAN_POSIX_MOD, scratch, rec_len);
+                if(ret != rec_len)
+                    goto exit;
+            }
 
+            /* upconvert version 3 to version 4 in-place */
+            dest_p = scratch + sizeof(struct darshan_base_record) +
+                (3 * sizeof(int64_t));
+            src_p = dest_p - (2 * sizeof(int64_t));
+            len = rec_len - (src_p - scratch);
+            memmove(dest_p, src_p, len);
+            /* set FILENOS and DUPS to -1 */
+            *((int64_t *)src_p) = -1;
+            *((int64_t *)(src_p + sizeof(int64_t))) = -1;
+
+            dest_p = scratch + sizeof(struct darshan_base_record) +
+                (13 * sizeof(int64_t));
+            src_p = dest_p - (3 * sizeof(int64_t));
+            len = rec_len - (src_p - scratch);
+            memmove(dest_p, src_p, len);
+            /* set RENAME_SOURCES and RENAME_TARGETS to -1 */
+            *((int64_t *)src_p) = -1;
+            *((int64_t *)(src_p + sizeof(int64_t))) = -1;
+            /* set RENAMED_FROM to 0 (-1 not possible since this is a uint) */
+            *((int64_t *)(src_p + (2 * sizeof(int64_t)))) = 0;
+        }
+        
         memcpy(file, scratch, sizeof(struct darshan_posix_file));
     }
 
@@ -159,12 +191,16 @@ exit:
                 DARSHAN_BSWAP64(&file->counters[i]);
             for(i=0; i<POSIX_F_NUM_INDICES; i++)
             {
-                /* skip counters we explicitly set to -1 since they don't
+                /* skip counters we explicitly set since they don't
                  * need to be byte swapped
                  */
                 if((fd->mod_ver[DARSHAN_POSIX_MOD] < 3) &&
                     ((i == POSIX_F_CLOSE_START_TIMESTAMP) ||
                      (i == POSIX_F_OPEN_END_TIMESTAMP)))
+                    continue;
+                if ((fd->mod_ver[DARSHAN_POSIX_MOD] < 4) &&
+                     ((i == POSIX_RENAME_SOURCES) || (i == POSIX_RENAME_TARGETS) ||
+                      (i == POSIX_RENAMED_FROM)))
                     continue;
                 DARSHAN_BSWAP64(&file->fcounters[i]);
             }
@@ -223,7 +259,9 @@ static void darshan_log_print_posix_description(int ver)
 {
     printf("\n# description of POSIX counters:\n");
     printf("#   POSIX_*: posix operation counts.\n");
-    printf("#   READS,WRITES,OPENS,SEEKS,STATS, and MMAPS are types of operations.\n");
+    printf("#   READS,WRITES,OPENS,SEEKS,STATS,MMAPS,SYNCS,FILENOS,DUPS are types of operations.\n");
+    printf("#   POSIX_RENAME_SOURCES/TARGETS: total count file was source or target of a rename operation\n");
+    printf("#   POSIX_RENAMED_FROM: Darshan record ID of the first rename source, if file was a rename target\n");
     printf("#   POSIX_MODE: mode that file was opened in.\n");
     printf("#   POSIX_BYTES_*: total bytes read and written.\n");
     printf("#   POSIX_MAX_BYTE_*: highest offset byte read and written.\n");
@@ -247,7 +285,7 @@ static void darshan_log_print_posix_description(int ver)
     printf("#   POSIX_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).\n");
     printf("#   POSIX_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared files).\n");
 
-    if(ver <= 1)
+    if(ver == 1)
     {
         printf("\n# WARNING: POSIX module log format version 1 has the following limitations:\n");
         printf("# - Darshan version 3.1.0 and earlier had only partial instrumentation of stdio stream I/O functions.\n");
@@ -256,9 +294,20 @@ static void darshan_log_print_posix_description(int ver)
     }
     if(ver <= 2)
     {
-        printf("\n# WARNING: POSIX module log format version <=2 does not support the following counters:\n");
-        printf("# - POSIX_F_CLOSE_START_TIMESTAMP\n");
-        printf("# - POSIX_F_OPEN_END_TIMESTAMP\n");
+        printf("\n# WARNING: POSIX module log format version <=2 has the following limitations:\n");
+        printf("# - No support for the following timers:\n");
+        printf("# \t- POSIX_F_CLOSE_START_TIMESTAMP\n");
+        printf("# \t- POSIX_F_OPEN_END_TIMESTAMP\n");
+    }
+    if(ver <=3)
+    {
+        printf("\n# WARNING: POSIX module log format version <=3 has the following limitations:\n");
+        printf("# - No support for the following counters to properly instrument dup, fileno, and rename operations:\n");
+        printf("# \t- POSIX_FILENOS\n");
+        printf("# \t- POSIX_DUPS\n");
+        printf("# \t- POSIX_RENAME_SOURCES\n");
+        printf("# \t- POSIX_RENAME_TARGETS\n");
+        printf("# \t- POSIX_RENAMED_FROM\n");
     }
 
     return;
@@ -389,6 +438,8 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
         switch(i)
         {
             case POSIX_OPENS:
+            case POSIX_FILENOS:
+            case POSIX_DUPS:
             case POSIX_READS:
             case POSIX_WRITES:
             case POSIX_SEEKS:
@@ -396,6 +447,8 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
             case POSIX_MMAPS:
             case POSIX_FSYNCS:
             case POSIX_FDSYNCS:
+            case POSIX_RENAME_SOURCES:
+            case POSIX_RENAME_TARGETS:
             case POSIX_BYTES_READ:
             case POSIX_BYTES_WRITTEN:
             case POSIX_CONSEC_READS:
@@ -430,6 +483,7 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                 if(agg_psx_rec->counters[i] < 0) /* make sure invalid counters are -1 exactly */
                     agg_psx_rec->counters[i] = -1;
                 break;
+            case POSIX_RENAMED_FROM:
             case POSIX_MODE:
             case POSIX_MEM_ALIGNMENT:
             case POSIX_FILE_ALIGNMENT:
