@@ -11,6 +11,9 @@ Darshan-3.1.7
   darshan-job-summary.pl when both posix and stdio access is present
 * added wrapper for __open_2(), bug reported by Cormac Garvey in which open
   calls are not intercepted with some versions of glibc/gcc
+* added an instrumentation module for the MDHIM key/val storage system
+* added support for properly instrumenting dup(), fileno(), fdopen(), and
+  rename() calls
 
 Darshan-3.1.6
 =============
