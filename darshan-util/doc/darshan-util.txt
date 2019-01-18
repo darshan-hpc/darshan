@@ -319,12 +319,8 @@ value of 1 MiB for optimal file alignment.
 | MPIIO_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in MPI I/O
 | MPIIO_SLOWEST_RANK | The MPI rank with largest time spent in MPI I/O
 | MPIIO_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in MPI I/O
-| MPIIO_F_OPEN_TIMESTAMP | Timestamp of first time that the file was opened at MPI level
-| MPIIO_F_READ_START_TIMESTAMP | Timestamp that the first MPI read operation began
-| MPIIO_F_WRITE_START_TIMESTAMP | Timestamp that the first MPI write operation begin
-| MPIIO_F_READ_END_TIMESTAMP | Timestamp that the last MPI read operation ended
-| MPIIO_F_WRITE_END_TIMESTAMP | Timestamp that the last MPI write operation ended
-| MPIIO_F_CLOSE_TIMESTAMP | Timestamp of the last time that the file was closed at MPI level
+| MPIIO_F_*_START_TIMESTAMP | Timestamp that the first MPIIO file open/read/write/close operation began
+| MPIIO_F_*_END_TIMESTAMP | Timestamp that the last MPIIO file open/read/write/close operation ended
 | MPIIO_READ_TIME | Cumulative time spent reading at MPI level
 | MPIIO_WRITE_TIME | Cumulative time spent write and sync at MPI level
 | MPIIO_META_TIME | Cumulative time spent in open and close at MPI level
@@ -371,8 +367,8 @@ value of 1 MiB for optimal file alignment.
 |====
 | counter name | description
 | HDF5_OPENS | Count of HDF5 opens
-| HDF5_F_OPEN_TIMESTAMP | Timestamp of first time that the file was opened at HDF5 level
-| HDF5_F_CLOSE_TIMESTAMP | Timestamp of the last time that the file was closed at HDF5 level
+| HDF5_F_*_START_TIMESTAMP | Timestamp that the first HDF5 file open/close operation began
+| HDF5_F_*_END_TIMESTAMP | Timestamp that the last HDF5 file open/close operation ended
 |====
 
 .PnetCDF module
@@ -381,8 +377,8 @@ value of 1 MiB for optimal file alignment.
 | counter name | description
 | PNETCDF_INDEP_OPENS | Count of PnetCDF independent opens
 | PNETCDF_COLL_OPENS | Count of PnetCDF collective opens
-| PNETCDF_F_OPEN_TIMESTAMP | Timestamp of first time that the file was opened at PnetCDF level
-| PNETCDF_F_CLOSE_TIMESTAMP | Timestamp of the last time that the file was closed at PnetCDF level
+| PNETCDF_F_*_START_TIMESTAMP | Timestamp that the first PNETCDF file open/close operation began
+| PNETCDF_F_*_END_TIMESTAMP | Timestamp that the last PNETCDF file open/close operation ended
 |====
 
 ===== Additional modules 
