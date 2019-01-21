@@ -310,6 +310,13 @@ static void darshan_log_print_posix_description(int ver)
         printf("# \t- POSIX_RENAMED_FROM\n");
     }
 
+    if(ver >= 4)
+    {
+        printf("\n# WARNING: POSIX_OPENS counter includes both POSIX_FILENOS and POSIX_DUPS counts\n");
+        printf("\n# WARNING: POSIX counters related to file offsets may be incorrect if a file is simultaneously accessed by both POSIX and STDIO (e.g., using fileno())\n");
+        printf("# \t- Affected counters include: MAX_BYTE_{READ|WRITTEN}, CONSEC_{READS|WRITES}, SEQ_{READS|WRITES}, {MEM|FILE}_NOT_ALIGNED, STRIDE*_STRIDE\n");
+    }
+
     return;
 }
 

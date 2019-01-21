@@ -216,6 +216,12 @@ static void darshan_log_print_stdio_description(int ver)
         printf("# - No support for properly instrumenting fdopen operations (STDIO_FDOPENS)\n");
     }
 
+    if(ver >= 2)
+    {
+        printf("\n# WARNING: STDIO_OPENS counter includes STDIO_FDOPENS count\n");
+        printf("\n# WARNING: STDIO counters related to file offsets may be incorrect if a file is simultaneously accessed by both STDIO and POSIX (e.g., using fdopen())\n");
+        printf("# \t- Affected counters include: MAX_BYTE_{READ|WRITTEN}\n");
+    }
 
     return;
 }
