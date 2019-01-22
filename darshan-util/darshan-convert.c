@@ -258,7 +258,7 @@ int main(int argc, char **argv)
     struct darshan_mnt_info *mnt_data_array;
     struct darshan_name_record_ref *name_hash = NULL;
     struct darshan_name_record_ref *ref, *tmp;
-    char *mod_buf;
+    char *mod_buf, *tmp_mod_buf;
     enum darshan_comp_type comp_type;
     int bzip2;
     int obfuscate;
@@ -388,26 +388,46 @@ int main(int argc, char **argv)
             continue;
         }
 
-        /* we have module data to convert */
-        memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
+        /* for dxt, don't use static record buffer and instead have
+         * darshan-logutils malloc us memory for the trace data
+         */
+        if(i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD)
+        {
+            tmp_mod_buf = NULL;
+        }
+        else
+        {
+            tmp_mod_buf = mod_buf;
+            memset(tmp_mod_buf, 0, DEF_MOD_BUF_SIZE);
+        }
 
         /* loop over each of the module's records and convert */
-        while((ret = mod_logutils[i]->log_get_record(infile, (void **)&mod_buf)) == 1)
+        while((ret = mod_logutils[i]->log_get_record(infile, (void **)&tmp_mod_buf)) == 1)
         {
-            base_rec = (struct darshan_base_record *)mod_buf;
+            base_rec = (struct darshan_base_record *)tmp_mod_buf;
 
             if(!hash || hash == base_rec->id)
             {
-                ret = mod_logutils[i]->log_put_record(outfile, mod_buf);
+                ret = mod_logutils[i]->log_put_record(outfile, tmp_mod_buf);
                 if(ret < 0)
                 {
+                    if(i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD)
+                        free(tmp_mod_buf);
                     darshan_log_close(infile);
                     darshan_log_close(outfile);
                     unlink(outfile_name);
                     return(-1);
                 }
+            }
 
-                memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
+            if(i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD)
+            {
+                free(tmp_mod_buf);
+                tmp_mod_buf = NULL;
+            }
+            else
+            {
+                memset(tmp_mod_buf, 0, DEF_MOD_BUF_SIZE);
             }
         }
         if(ret < 0)
