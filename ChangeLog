@@ -4,6 +4,8 @@ Darshan Release Change Log
 
 Darshan-3.1.7
 =============
+* bug fix for handling DXT data in darshan-convert utility. Bug reported
+  by Mahzad Khoshlessan.
 * bug fix for darshan-parser backwards compatibility: Darshan logs generated
   by Darshan versions prior to 3.1.0 may have included stdio counters that
   were not properly up-converted.  Reported by Teng Wang.
