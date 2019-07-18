@@ -4,11 +4,18 @@ Darshan Release Change Log
 
 Darshan-3.1.7
 =============
+* bug fix for handling DXT data in darshan-convert utility. Bug reported
+  by Mahzad Khoshlessan.
 * bug fix for darshan-parser backwards compatibility: Darshan logs generated
   by Darshan versions prior to 3.1.0 may have included stdio counters that
   were not properly up-converted.  Reported by Teng Wang.
 * bug fix to MiB reported in I/O performance estimate of
   darshan-job-summary.pl when both posix and stdio access is present
+* added wrapper for __open_2(), bug reported by Cormac Garvey in which open
+  calls are not intercepted with some versions of glibc/gcc
+* added an instrumentation module for the MDHIM key/val storage system
+* added support for properly instrumenting dup(), fileno(), fdopen(), and
+  rename() calls
 
 Darshan-3.1.6
 =============

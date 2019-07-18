@@ -30,6 +30,8 @@ char *hdf5_f_counter_names[] = {
 };
 #undef X
 
+#define DARSHAN_HDF5_FILE_SIZE_1 40
+
 static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p);
 static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf);
 static void darshan_log_print_hdf5_file(void *file_rec,
@@ -52,6 +54,7 @@ struct darshan_mod_logutil_funcs hdf5_logutils =
 static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p)
 {
     struct darshan_hdf5_file *file = *((struct darshan_hdf5_file **)hdf5_buf_p);
+    int rec_len;
     int i;
     int ret;
 
@@ -65,12 +68,42 @@ static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p)
             return(-1);
     }
 
-    ret = darshan_log_get_mod(fd, DARSHAN_HDF5_MOD, file,
-        sizeof(struct darshan_hdf5_file));
+    if(fd->mod_ver[DARSHAN_HDF5_MOD] == DARSHAN_HDF5_VER)
+    {
+        /* log format is in current version, so we don't need to do any
+         * translation of counters while reading
+         */
+        rec_len = sizeof(struct darshan_hdf5_file);
+        ret = darshan_log_get_mod(fd, DARSHAN_HDF5_MOD, file, rec_len);
+    }
+    else
+    {
+        char scratch[1024] = {0};
+        char *src_p, *dest_p;
+        int len;
 
+        rec_len = DARSHAN_HDF5_FILE_SIZE_1;
+        ret = darshan_log_get_mod(fd, DARSHAN_HDF5_MOD, scratch, rec_len);
+        if(ret != rec_len)
+            goto exit;
+
+        /* upconvert version 1 to version 2 in-place */
+        dest_p = scratch + (sizeof(struct darshan_base_record) +
+            (1 * sizeof(int64_t)) + (3 * sizeof(double)));
+        src_p = dest_p - (2 * sizeof(double));
+        len = sizeof(double);
+        memmove(dest_p, src_p, len);
+        /* set F_CLOSE_START and F_OPEN_END to -1 */
+        *((double *)src_p) = -1;
+        *((double *)(src_p + sizeof(double))) = -1;
+
+        memcpy(file, scratch, sizeof(struct darshan_hdf5_file));
+    }
+
+exit:
     if(*hdf5_buf_p == NULL)
     {
-        if(ret == sizeof(struct darshan_hdf5_file))
+        if(ret == rec_len)
             *hdf5_buf_p = file;
         else
             free(file);
@@ -78,7 +111,7 @@ static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p)
 
     if(ret < 0)
         return(-1);
-    else if(ret < sizeof(struct darshan_hdf5_file))
+    else if(ret < rec_len)
         return(0);
     else
     {
@@ -90,7 +123,16 @@ static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p)
             for(i=0; i<HDF5_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->counters[i]);
             for(i=0; i<HDF5_F_NUM_INDICES; i++)
+            {
+                /* skip counters we explicitly set to -1 since they don't
+                 * need to be byte swapped
+                 */
+                if((fd->mod_ver[DARSHAN_HDF5_MOD] == 1) &&
+                    ((i == HDF5_F_CLOSE_START_TIMESTAMP) ||
+                     (i == HDF5_F_OPEN_END_TIMESTAMP)))
+                    continue;
                 DARSHAN_BSWAP64(&file->fcounters[i]);
+            }
         }
 
         return(1);
@@ -119,7 +161,7 @@ static void darshan_log_print_hdf5_file(void *file_rec, char *file_name,
 
     for(i=0; i<HDF5_NUM_INDICES; i++)
     {
-        DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
+        DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
             hdf5_file_rec->base_rec.rank, hdf5_file_rec->base_rec.id,
             hdf5_counter_names[i], hdf5_file_rec->counters[i],
             file_name, mnt_pt, fs_type);
@@ -140,8 +182,15 @@ static void darshan_log_print_hdf5_description(int ver)
 {
     printf("\n# description of HDF5 counters:\n");
     printf("#   HDF5_OPENS: HDF5 file open operation counts.\n");
-    printf("#   HDF5_F_OPEN_TIMESTAMP: timestamp of first HDF5 file open.\n");
-    printf("#   HDF5_F_CLOSE_TIMESTAMP: timestamp of last HDF5 file close.\n");
+    printf("#   HDF5_F_*_START_TIMESTAMP: timestamp of first HDF5 file open/close.\n");
+    printf("#   HDF5_F_*_END_TIMESTAMP: timestamp of last HDF5 file open/close.\n");
+
+    if(ver == 1)
+    {
+        printf("\n# WARNING: HDF5 module log format version 1 does not support the following counters:\n");
+        printf("# - HDF5_F_CLOSE_START_TIMESTAMP\n");
+        printf("# - HDF5_F_OPEN_END_TIMESTAMP\n");
+    }
 
     return;
 }
@@ -160,7 +209,7 @@ static void darshan_log_print_hdf5_file_diff(void *file_rec1, char *file_name1,
         if(!file2)
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
                 file1->base_rec.rank, file1->base_rec.id, hdf5_counter_names[i],
                 file1->counters[i], file_name1, "", "");
 
@@ -168,18 +217,18 @@ static void darshan_log_print_hdf5_file_diff(void *file_rec1, char *file_name1,
         else if(!file1)
         {
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
                 file2->base_rec.rank, file2->base_rec.id, hdf5_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
         else if(file1->counters[i] != file2->counters[i])
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
                 file1->base_rec.rank, file1->base_rec.id, hdf5_counter_names[i],
                 file1->counters[i], file_name1, "", "");
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
                 file2->base_rec.rank, file2->base_rec.id, hdf5_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
@@ -242,7 +291,8 @@ static void darshan_log_agg_hdf5_files(void *rec, void *agg_rec, int init_flag)
     {
         switch(i)
         {
-            case HDF5_F_OPEN_TIMESTAMP:
+            case HDF5_F_OPEN_START_TIMESTAMP:
+            case HDF5_F_CLOSE_START_TIMESTAMP:
                 /* minimum non-zero */
                 if((hdf5_rec->fcounters[i] > 0)  &&
                     ((agg_hdf5_rec->fcounters[i] == 0) ||
@@ -251,7 +301,8 @@ static void darshan_log_agg_hdf5_files(void *rec, void *agg_rec, int init_flag)
                     agg_hdf5_rec->fcounters[i] = hdf5_rec->fcounters[i];
                 }
                 break;
-            case HDF5_F_CLOSE_TIMESTAMP:
+            case HDF5_F_OPEN_END_TIMESTAMP:
+            case HDF5_F_CLOSE_END_TIMESTAMP:
                 /* maximum */
                 if(hdf5_rec->fcounters[i] > agg_hdf5_rec->fcounters[i])
                 {

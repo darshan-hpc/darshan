@@ -7,11 +7,15 @@
 #define __DARSHAN_POSIX_LOG_FORMAT_H
 
 /* current POSIX log format version */
-#define DARSHAN_POSIX_VER 3
+#define DARSHAN_POSIX_VER 4
 
 #define POSIX_COUNTERS \
-    /* count of posix opens */\
+    /* count of posix opens (INCLUDING fileno and dup operations) */\
     X(POSIX_OPENS) \
+    /* count of number of filenos */\
+    X(POSIX_FILENOS) \
+    /* count of number of dups */\
+    X(POSIX_DUPS) \
     /* count of posix reads */\
     X(POSIX_READS) \
     /* count of posix writes */\
@@ -26,6 +30,12 @@
     X(POSIX_FSYNCS) \
     /* count of posix fdatasyncs */\
     X(POSIX_FDSYNCS) \
+    /* count of renames (as source file) */\
+    X(POSIX_RENAME_SOURCES) \
+    /* count of renames (as target file) */\
+    X(POSIX_RENAME_TARGETS) \
+    /* Darshan record ID of first rename source */\
+    X(POSIX_RENAMED_FROM) \
     /* mode of file */\
     X(POSIX_MODE) \
     /* total bytes read */\

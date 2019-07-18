@@ -8,7 +8,7 @@
 #define __DARSHAN_MPIIO_LOG_FORMAT_H
 
 /* current MPI-IO log format version */
-#define DARSHAN_MPIIO_VER 2
+#define DARSHAN_MPIIO_VER 3
 
 /* TODO: maybe use a counter to track cases in which a derived datatype is used? */
 
@@ -92,17 +92,21 @@
 
 #define MPIIO_F_COUNTERS \
     /* timestamp of first open */\
-    X(MPIIO_F_OPEN_TIMESTAMP) \
+    X(MPIIO_F_OPEN_START_TIMESTAMP) \
     /* timestamp of first read */\
     X(MPIIO_F_READ_START_TIMESTAMP) \
     /* timestamp of first write */\
     X(MPIIO_F_WRITE_START_TIMESTAMP) \
+    /* timestamp of first close */\
+    X(MPIIO_F_CLOSE_START_TIMESTAMP) \
+    /* timestamp of last open */\
+    X(MPIIO_F_OPEN_END_TIMESTAMP) \
     /* timestamp of last read */\
     X(MPIIO_F_READ_END_TIMESTAMP) \
     /* timestamp of last write */\
     X(MPIIO_F_WRITE_END_TIMESTAMP) \
     /* timestamp of last close */\
-    X(MPIIO_F_CLOSE_TIMESTAMP) \
+    X(MPIIO_F_CLOSE_END_TIMESTAMP) \
     /* cumulative MPI-IO read time */\
     X(MPIIO_F_READ_TIME) \
     /* cumulative MPI-IO write time */\

@@ -8,7 +8,7 @@
 #define __DARSHAN_PNETCDF_LOG_FORMAT_H
 
 /* current PNETCDF log format version */
-#define DARSHAN_PNETCDF_VER 1
+#define DARSHAN_PNETCDF_VER 2
 
 #define PNETCDF_COUNTERS \
     /* count of PNETCDF independent opens */\
@@ -20,9 +20,13 @@
 
 #define PNETCDF_F_COUNTERS \
     /* timestamp of first open */\
-    X(PNETCDF_F_OPEN_TIMESTAMP) \
+    X(PNETCDF_F_OPEN_START_TIMESTAMP) \
+    /* timestamp of first close */\
+    X(PNETCDF_F_CLOSE_START_TIMESTAMP) \
+    /* timestamp of last open */\
+    X(PNETCDF_F_OPEN_END_TIMESTAMP) \
     /* timestamp of last close */\
-    X(PNETCDF_F_CLOSE_TIMESTAMP) \
+    X(PNETCDF_F_CLOSE_END_TIMESTAMP) \
     /* end of counters*/\
     X(PNETCDF_F_NUM_INDICES)
 

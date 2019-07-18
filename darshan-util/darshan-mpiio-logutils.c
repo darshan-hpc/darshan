@@ -30,6 +30,8 @@ char *mpiio_f_counter_names[] = {
 };
 #undef X
 
+#define DARSHAN_MPIIO_FILE_SIZE_1 544
+
 static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p);
 static int darshan_log_put_mpiio_file(darshan_fd fd, void* mpiio_buf);
 static void darshan_log_print_mpiio_file(void *file_rec,
@@ -52,6 +54,7 @@ struct darshan_mod_logutil_funcs mpiio_logutils =
 static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p)
 {
     struct darshan_mpiio_file *file = *((struct darshan_mpiio_file **)mpiio_buf_p);
+    int rec_len;
     int i;
     int ret;
 
@@ -64,13 +67,43 @@ static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p)
         if(!file)
             return(-1);
     }
-    
-    ret = darshan_log_get_mod(fd, DARSHAN_MPIIO_MOD, file,
-        sizeof(struct darshan_mpiio_file));
 
+    if(fd->mod_ver[DARSHAN_MPIIO_MOD] == DARSHAN_MPIIO_VER)
+    {
+        /* log format is in current version, so we don't need to do any
+         * translation of counters while reading
+         */
+        rec_len = sizeof(struct darshan_mpiio_file);
+        ret = darshan_log_get_mod(fd, DARSHAN_MPIIO_MOD, file, rec_len);
+    }
+    else
+    {
+        char scratch[1024] = {0};
+        char *src_p, *dest_p;
+        int len;
+
+        rec_len = DARSHAN_MPIIO_FILE_SIZE_1;
+        ret = darshan_log_get_mod(fd, DARSHAN_MPIIO_MOD, scratch, rec_len);
+        if(ret != rec_len)
+            goto exit;
+
+        /* upconvert versions 1/2 to version 3 in-place */
+        dest_p = scratch + (sizeof(struct darshan_base_record) +
+            (51 * sizeof(int64_t)) + (5 * sizeof(double)));
+        src_p = dest_p - (2 * sizeof(double));
+        len = (12 * sizeof(double));
+        memmove(dest_p, src_p, len);
+        /* set F_CLOSE_START and F_OPEN_END to -1 */
+        *((double *)src_p) = -1;
+        *((double *)(src_p + sizeof(double))) = -1;
+
+        memcpy(file, scratch, sizeof(struct darshan_mpiio_file));
+    }
+   
+exit:
     if(*mpiio_buf_p == NULL)
     {
-        if(ret == sizeof(struct darshan_mpiio_file))
+        if(ret == rec_len)
             *mpiio_buf_p = file;
         else
             free(file);
@@ -78,7 +111,7 @@ static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p)
 
     if(ret < 0)
         return(-1);
-    else if(ret < sizeof(struct darshan_mpiio_file))
+    else if(ret < rec_len)
         return(0);
     else
     {
@@ -90,7 +123,16 @@ static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p)
             for(i=0; i<MPIIO_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->counters[i]);
             for(i=0; i<MPIIO_F_NUM_INDICES; i++)
+            {
+                /* skip counters we explicitly set to -1 since they don't
+                 * need to be byte swapped
+                 */
+                if((fd->mod_ver[DARSHAN_MPIIO_MOD] < 3) &&
+                    ((i == MPIIO_F_CLOSE_START_TIMESTAMP) ||
+                     (i == MPIIO_F_OPEN_END_TIMESTAMP)))
+                    continue;
                 DARSHAN_BSWAP64(&file->fcounters[i]);
+            }
         }
 
         return(1);
@@ -119,7 +161,7 @@ static void darshan_log_print_mpiio_file(void *file_rec, char *file_name,
 
     for(i=0; i<MPIIO_NUM_INDICES; i++)
     {
-        DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
+        DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
             mpiio_file_rec->base_rec.rank, mpiio_file_rec->base_rec.id,
             mpiio_counter_names[i], mpiio_file_rec->counters[i],
             file_name, mnt_pt, fs_type);
@@ -156,19 +198,23 @@ static void darshan_log_print_mpiio_description(int ver)
     printf("#   MPIIO_ACCESS*_COUNT: count of the four most common total access sizes.\n");
     printf("#   MPIIO_*_RANK: rank of the processes that were the fastest and slowest at I/O (for shared files).\n");
     printf("#   MPIIO_*_RANK_BYTES: total bytes transferred at MPI-IO layer by the fastest and slowest ranks (for shared files).\n");
-    printf("#   MPIIO_F_OPEN_TIMESTAMP: timestamp of first open.\n");
-    printf("#   MPIIO_F_*_START_TIMESTAMP: timestamp of first MPI-IO read/write.\n");
-    printf("#   MPIIO_F_*_END_TIMESTAMP: timestamp of last MPI-IO read/write.\n");
-    printf("#   MPIIO_F_CLOSE_TIMESTAMP: timestamp of last close.\n");
+    printf("#   MPIIO_F_*_START_TIMESTAMP: timestamp of first MPI-IO open/read/write/close.\n");
+    printf("#   MPIIO_F_*_END_TIMESTAMP: timestamp of last MPI-IO open/read/write/close.\n");
     printf("#   MPIIO_F_READ/WRITE/META_TIME: cumulative time spent in MPI-IO read, write, or metadata operations.\n");
     printf("#   MPIIO_F_MAX_*_TIME: duration of the slowest MPI-IO read and write operations.\n");
     printf("#   MPIIO_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).\n");
     printf("#   MPIIO_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared files).\n");
 
-    if(ver < 2)
+    if(ver == 1)
     {
         printf("\n# WARNING: MPIIO module log format version 1 has the following limitations:\n");
         printf("# - MPIIO_F_WRITE_START_TIMESTAMP may not be accurate.\n");
+    }
+    if(ver <= 2)
+    {
+        printf("\n# WARNING: MPIIO module log format version <=2 does not support the following counters:\n");
+        printf("# - MPIIO_F_CLOSE_START_TIMESTAMP\n");
+        printf("# - MPIIO_F_OPEN_END_TIMESTAMP\n");
     }
 
     return;
@@ -188,7 +234,7 @@ static void darshan_log_print_mpiio_file_diff(void *file_rec1, char *file_name1,
         if(!file2)
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
                 file1->base_rec.rank, file1->base_rec.id, mpiio_counter_names[i],
                 file1->counters[i], file_name1, "", "");
 
@@ -196,18 +242,18 @@ static void darshan_log_print_mpiio_file_diff(void *file_rec1, char *file_name1,
         else if(!file1)
         {
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
                 file2->base_rec.rank, file2->base_rec.id, mpiio_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
         else if(file1->counters[i] != file2->counters[i])
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
                 file1->base_rec.rank, file1->base_rec.id, mpiio_counter_names[i],
                 file1->counters[i], file_name1, "", "");
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MPIIO_MOD],
                 file2->base_rec.rank, file2->base_rec.id, mpiio_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
@@ -422,9 +468,10 @@ static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag)
                 /* sum */
                 agg_mpi_rec->fcounters[i] += mpi_rec->fcounters[i];
                 break;
-            case MPIIO_F_OPEN_TIMESTAMP:
+            case MPIIO_F_OPEN_START_TIMESTAMP:
             case MPIIO_F_READ_START_TIMESTAMP:
             case MPIIO_F_WRITE_START_TIMESTAMP:
+            case MPIIO_F_CLOSE_START_TIMESTAMP:
                 /* minimum non-zero */
                 if((mpi_rec->fcounters[i] > 0)  &&
                     ((agg_mpi_rec->fcounters[i] == 0) ||
@@ -433,9 +480,10 @@ static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag)
                     agg_mpi_rec->fcounters[i] = mpi_rec->fcounters[i];
                 }
                 break;
+            case MPIIO_F_OPEN_END_TIMESTAMP:
             case MPIIO_F_READ_END_TIMESTAMP:
             case MPIIO_F_WRITE_END_TIMESTAMP:
-            case MPIIO_F_CLOSE_TIMESTAMP:
+            case MPIIO_F_CLOSE_END_TIMESTAMP:
                 /* maximum */
                 if(mpi_rec->fcounters[i] > agg_mpi_rec->fcounters[i])
                 {

@@ -29,12 +29,12 @@ fi
 
 # check results
 # in this case we want to confirm that both the MPI and POSIX open counters were triggered
-POSIX_OPENS=`grep POSIX_OPENS $DARSHAN_TMP/${PROG}.darshan.txt |cut -f 5`
+POSIX_OPENS=`grep POSIX_OPENS $DARSHAN_TMP/${PROG}.darshan.txt |grep -vE "^#" |cut -f 5`
 if [ ! "$POSIX_OPENS" -gt 0 ]; then
     echo "Error: POSIX open count of $POSIX_OPENS is incorrect" 1>&2
     exit 1
 fi
-MPI_OPENS=`grep COLL_OPENS $DARSHAN_TMP/${PROG}.darshan.txt |cut -f 5`
+MPI_OPENS=`grep COLL_OPENS $DARSHAN_TMP/${PROG}.darshan.txt |grep -vE "^#" |cut -f 5`
 if [ ! "$MPI_OPENS" -gt 0 ]; then
     echo "Error: MPI open count of $MPI_OPENS is incorrect" 1>&2
     exit 1

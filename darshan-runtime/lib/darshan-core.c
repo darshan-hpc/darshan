@@ -19,6 +19,7 @@
 #include <limits.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <dirent.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -364,8 +365,8 @@ void darshan_core_initialize(int argc, char **argv)
 #endif
         if(my_rank == 0)
         {
-            fprintf(stderr, "#darshan:<op>\t<nprocs>\t<time>\n");
-            fprintf(stderr, "darshan:init\t%d\t%f\n", nprocs, init_max);
+            darshan_core_fprintf(stderr, "#darshan:<op>\t<nprocs>\t<time>\n");
+            darshan_core_fprintf(stderr, "darshan:init\t%d\t%f\n", nprocs, init_max);
         }
     }
 
@@ -483,7 +484,7 @@ void darshan_core_shutdown()
     if(strlen(logfile_name) == 0)
     {
         /* failed to generate log file name */
-        fprintf(stderr, "darshan library warning: unable to determine log file path\n");
+        darshan_core_fprintf(stderr, "darshan library warning: unable to determine log file path\n");
         free(logfile_name);
         darshan_core_cleanup(final_core);
         return;
@@ -524,7 +525,7 @@ void darshan_core_shutdown()
     {
         if(my_rank == 0)
         {
-            fprintf(stderr, "darshan library warning: unable to create log file %s\n",
+            darshan_core_fprintf(stderr, "darshan library warning: unable to create log file %s\n",
                 logfile_name);
         }
         free(logfile_name);
@@ -548,7 +549,7 @@ void darshan_core_shutdown()
             final_core->comp_buf, &comp_buf_sz);
         if(all_ret)
         {
-            fprintf(stderr, "darshan library warning: unable to compress job data\n");
+            darshan_core_fprintf(stderr, "darshan library warning: unable to compress job data\n");
             unlink(logfile_name);
         }
         else
@@ -565,7 +566,7 @@ void darshan_core_shutdown()
             if (written != comp_buf_sz)
 #endif
             {
-                fprintf(stderr,
+                darshan_core_fprintf(stderr,
                         "darshan library warning: unable to write job data to log file %s\n",
                         logfile_name);
                 unlink(logfile_name);
@@ -602,7 +603,7 @@ void darshan_core_shutdown()
     {
         if(my_rank == 0)
         {
-            fprintf(stderr,
+            darshan_core_fprintf(stderr,
                 "darshan library warning: unable to write record hash to log file %s\n",
                 logfile_name);
             unlink(logfile_name);
@@ -696,7 +697,7 @@ void darshan_core_shutdown()
         {
             if(my_rank == 0)
             {
-                fprintf(stderr,
+                darshan_core_fprintf(stderr,
                     "darshan library warning: unable to write %s module data to log file %s\n",
                     darshan_module_names[i], logfile_name);
                 unlink(logfile_name);
@@ -743,7 +744,7 @@ void darshan_core_shutdown()
         if (written != sizeof(struct darshan_header))
 #endif
         {
-            fprintf(stderr, "darshan library warning: unable to write header to log file %s\n",
+            darshan_core_fprintf(stderr, "darshan library warning: unable to write header to log file %s\n",
                     logfile_name);
             unlink(logfile_name);
         }
@@ -864,18 +865,18 @@ void darshan_core_shutdown()
 
         if(my_rank == 0)
         {
-            fprintf(stderr, "#darshan:<op>\t<nprocs>\t<time>\n");
-            fprintf(stderr, "darshan:log_open\t%d\t%f\n", nprocs, open_slowest);
-            fprintf(stderr, "darshan:job_write\t%d\t%f\n", nprocs, job_slowest);
-            fprintf(stderr, "darshan:hash_write\t%d\t%f\n", nprocs, rec_slowest);
-            fprintf(stderr, "darshan:header_write\t%d\t%f\n", nprocs, header_slowest);
+            darshan_core_fprintf(stderr, "#darshan:<op>\t<nprocs>\t<time>\n");
+            darshan_core_fprintf(stderr, "darshan:log_open\t%d\t%f\n", nprocs, open_slowest);
+            darshan_core_fprintf(stderr, "darshan:job_write\t%d\t%f\n", nprocs, job_slowest);
+            darshan_core_fprintf(stderr, "darshan:hash_write\t%d\t%f\n", nprocs, rec_slowest);
+            darshan_core_fprintf(stderr, "darshan:header_write\t%d\t%f\n", nprocs, header_slowest);
             for(i = 0; i < DARSHAN_MAX_MODS; i++)
             {
                 if(global_mod_use_count[i])
-                    fprintf(stderr, "darshan:%s_shutdown\t%d\t%f\n", darshan_module_names[i],
+                    darshan_core_fprintf(stderr, "darshan:%s_shutdown\t%d\t%f\n", darshan_module_names[i],
                         nprocs, mod_slowest[i]);
             }
-            fprintf(stderr, "darshan:core_shutdown\t%d\t%f\n", nprocs, all_slowest);
+            darshan_core_fprintf(stderr, "darshan:core_shutdown\t%d\t%f\n", nprocs, all_slowest);
         }
     }
 
@@ -941,7 +942,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
     mmap_fd = open(core->mmap_log_name, O_CREAT|O_RDWR|O_EXCL , 0644);
     if(mmap_fd < 0)
     {
-        fprintf(stderr, "darshan library warning: "
+        darshan_core_fprintf(stderr, "darshan library warning: "
             "unable to create darshan log file %s\n", core->mmap_log_name);
         return(NULL);
     }
@@ -951,7 +952,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
     ret = ftruncate(mmap_fd, mmap_size);
     if(ret < 0)
     {
-        fprintf(stderr, "darshan library warning: "
+        darshan_core_fprintf(stderr, "darshan library warning: "
             "unable to allocate darshan log file %s\n", core->mmap_log_name);
         close(mmap_fd);
         unlink(core->mmap_log_name);
@@ -964,7 +965,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
     mmap_p = mmap(NULL, mmap_size, PROT_WRITE, MAP_SHARED, mmap_fd, 0);
     if(mmap_p == MAP_FAILED)
     {
-        fprintf(stderr, "darshan library warning: "
+        darshan_core_fprintf(stderr, "darshan library warning: "
             "unable to mmap darshan log file %s\n", core->mmap_log_name);
         close(mmap_fd);
         unlink(core->mmap_log_name);
@@ -1168,13 +1169,13 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
         if(strncmp(env_exclusions,"none",strlen(env_exclusions))>=0)
         {
             if (my_rank == 0) 
-                fprintf(stderr, "Darshan info: no system dirs will be excluded\n");
+                darshan_core_fprintf(stderr, "Darshan info: no system dirs will be excluded\n");
             darshan_path_exclusions[0]=NULL;
         }
         else
         {
             if (my_rank == 0) 
-                fprintf(stderr, "Darshan info: the following system dirs will be excluded: %s\n",
+                darshan_core_fprintf(stderr, "Darshan info: the following system dirs will be excluded: %s\n",
                     env_exclusions);
             string = strdup(env_exclusions);
             i = 0;
@@ -1419,7 +1420,7 @@ static void darshan_get_logfile_name(char* logfile_name, int jobid, struct tm* s
     {
         if(strlen(user_logfile_name) >= (PATH_MAX-1))
         {
-            fprintf(stderr, "darshan library warning: user log file name too long.\n");
+            darshan_core_fprintf(stderr, "darshan library warning: user log file name too long.\n");
             logfile_name[0] = '\0';
         }
         else
@@ -2268,6 +2269,21 @@ void *darshan_core_register_record(
     return(rec_buf);;
 }
 
+char *darshan_core_lookup_record_name(darshan_record_id rec_id)
+{
+    struct darshan_core_name_record_ref *ref;
+    char *name = NULL;
+
+    DARSHAN_CORE_LOCK();
+    HASH_FIND(hlink, darshan_core->name_hash, &rec_id,
+        sizeof(darshan_record_id), ref);
+    if(ref)
+        name = ref->name_record->name;
+    DARSHAN_CORE_UNLOCK();
+
+    return(name);
+}
+
 void darshan_instrument_fs_data(int fs_type, const char *path, int fd)
 {
 #ifdef DARSHAN_LUSTRE
@@ -2292,6 +2308,25 @@ double darshan_core_wtime()
     DARSHAN_CORE_UNLOCK();
 
     return(time_nanoseconds() - darshan_core->wtime_offset);
+}
+
+#ifdef DARSHAN_PRELOAD
+extern int (*__real_vfprintf)(FILE *stream, const char *format, va_list);
+#else
+extern int __real_vfprintf(FILE *stream, const char *format, va_list);
+#endif
+void darshan_core_fprintf(
+    FILE *stream, const char *format, ...)
+{
+    va_list ap;
+
+    MAP_OR_FAIL(vfprintf);
+
+    va_start(ap, format);
+    __real_vfprintf(stream, format, ap);
+    va_end(ap);
+
+    return;
 }
 
 int darshan_core_excluded_path(const char *path)

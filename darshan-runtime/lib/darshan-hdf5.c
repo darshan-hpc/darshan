@@ -91,7 +91,7 @@ static int my_rank = -1;
     HDF5_UNLOCK(); \
 } while(0)
 
-#define HDF5_RECORD_OPEN(__ret, __path, __tm1) do { \
+#define HDF5_RECORD_OPEN(__ret, __path, __tm1, __tm2) do { \
     darshan_record_id rec_id; \
     struct hdf5_file_record_ref *rec_ref; \
     char *newpath; \
@@ -108,8 +108,10 @@ static int my_rank = -1;
         if(newpath != __path) free(newpath); \
         break; \
     } \
-    if(rec_ref->file_rec->fcounters[HDF5_F_OPEN_TIMESTAMP] == 0) \
-        rec_ref->file_rec->fcounters[HDF5_F_OPEN_TIMESTAMP] = __tm1; \
+    if(rec_ref->file_rec->fcounters[HDF5_F_OPEN_START_TIMESTAMP] == 0 || \
+     rec_ref->file_rec->fcounters[HDF5_F_OPEN_START_TIMESTAMP] > __tm1) \
+        rec_ref->file_rec->fcounters[HDF5_F_OPEN_START_TIMESTAMP] = __tm1; \
+    rec_ref->file_rec->fcounters[HDF5_F_OPEN_END_TIMESTAMP] = __tm2; \
     rec_ref->file_rec->counters[HDF5_OPENS] += 1; \
     darshan_add_record_ref(&(hdf5_runtime->hid_hash), &__ret, sizeof(hid_t), rec_ref); \
     if(newpath != __path) free(newpath); \
@@ -124,7 +126,7 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
 {
     hid_t ret;
     char* tmp;
-    double tm1;
+    double tm1, tm2;
     unsigned majnum, minnum, relnum;
 
     H5get_libversion(&majnum, &minnum, &relnum);
@@ -138,7 +140,7 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
             MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
         if(my_rank == 0)
         {
-            fprintf(stderr, "Darshan HDF5 module error: runtime library version does not match Darshan module.\n");
+            darshan_core_fprintf(stderr, "Darshan HDF5 module error: runtime library version does not match Darshan module.\n");
         }
         return(-1);
     }
@@ -147,6 +149,7 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
 
     tm1 = darshan_core_wtime();
     ret = __real_H5Fcreate(filename, flags, create_plist, access_plist);
+    tm2 = darshan_core_wtime();
     if(ret >= 0)
     {
         /* use ROMIO approach to strip prefix if present */
@@ -160,7 +163,7 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
         }
 
         HDF5_PRE_RECORD();
-        HDF5_RECORD_OPEN(ret, filename, tm1);
+        HDF5_RECORD_OPEN(ret, filename, tm1, tm2);
         HDF5_POST_RECORD();
     }
 
@@ -172,7 +175,7 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
 {
     hid_t ret;
     char* tmp;
-    double tm1;
+    double tm1, tm2;
     unsigned majnum, minnum, relnum;
 
     H5get_libversion(&majnum, &minnum, &relnum);
@@ -186,7 +189,7 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
             MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
         if(my_rank == 0)
         {
-            fprintf(stderr, "Darshan HDF5 module error: runtime library version does not match Darshan module.\n");
+            darshan_core_fprintf(stderr, "Darshan HDF5 module error: runtime library version does not match Darshan module.\n");
         }
         return(-1);
     }
@@ -195,6 +198,7 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
 
     tm1 = darshan_core_wtime();
     ret = __real_H5Fopen(filename, flags, access_plist);
+    tm2 = darshan_core_wtime();
     if(ret >= 0)
     {
         /* use ROMIO approach to strip prefix if present */
@@ -208,7 +212,7 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
         }
 
         HDF5_PRE_RECORD();
-        HDF5_RECORD_OPEN(ret, filename, tm1);
+        HDF5_RECORD_OPEN(ret, filename, tm1, tm2);
         HDF5_POST_RECORD();
     }
 
@@ -219,19 +223,24 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
 herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 {
     struct hdf5_file_record_ref *rec_ref;
+    double tm1, tm2;
     herr_t ret;
 
     MAP_OR_FAIL(H5Fclose);
 
+    tm1 = darshan_core_wtime();
     ret = __real_H5Fclose(file_id);
+    tm2 = darshan_core_wtime();
 
     HDF5_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(hdf5_runtime->hid_hash,
         &file_id, sizeof(hid_t));
     if(rec_ref)
     {
-        rec_ref->file_rec->fcounters[HDF5_F_CLOSE_TIMESTAMP] =
-            darshan_core_wtime();
+        if(rec_ref->file_rec->fcounters[HDF5_F_CLOSE_START_TIMESTAMP] == 0 ||
+         rec_ref->file_rec->fcounters[HDF5_F_CLOSE_START_TIMESTAMP] > tm1)
+           rec_ref->file_rec->fcounters[HDF5_F_CLOSE_START_TIMESTAMP] = tm1;
+        rec_ref->file_rec->fcounters[HDF5_F_CLOSE_END_TIMESTAMP] = tm2;
         darshan_delete_record_ref(&(hdf5_runtime->hid_hash),
             &file_id, sizeof(hid_t));
     }
@@ -350,7 +359,7 @@ static void hdf5_record_reduction_op(void* infile_v, void* inoutfile_v,
         }
 
         /* min non-zero (if available) value */
-        for(j=HDF5_F_OPEN_TIMESTAMP; j<=HDF5_F_OPEN_TIMESTAMP; j++)
+        for(j=HDF5_F_OPEN_START_TIMESTAMP; j<=HDF5_F_CLOSE_START_TIMESTAMP; j++)
         {
             if((infile->fcounters[j] < inoutfile->fcounters[j] &&
                infile->fcounters[j] > 0) || inoutfile->fcounters[j] == 0) 
@@ -360,7 +369,7 @@ static void hdf5_record_reduction_op(void* infile_v, void* inoutfile_v,
         }
 
         /* max */
-        for(j=HDF5_F_CLOSE_TIMESTAMP; j<=HDF5_F_CLOSE_TIMESTAMP; j++)
+        for(j=HDF5_F_OPEN_END_TIMESTAMP; j<=HDF5_F_CLOSE_END_TIMESTAMP; j++)
         {
             if(infile->fcounters[j] > inoutfile->fcounters[j])
                 tmp_file.fcounters[j] = infile->fcounters[j];

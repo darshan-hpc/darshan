@@ -1,0 +1,29 @@
+stages:
+  - build
+  - test
+
+build_darshan:
+  tags:
+    - shell
+    - ecp-theta
+
+  stage: build
+
+  script:
+    - source darshan-test/automated/common/setup.sh
+    - source darshan-test/automated/common/configure.sh
+    - source darshan-test/automated/common/build.sh
+
+test_darshan:
+  variables:
+    # XXX this info is hard-coded in our regression scripts
+    #SCHEDULER_PARAMETERS: "-A radix-io -n 1  -t 10 -q default"
+
+  tags:
+    - batch
+    - ecp-theta
+
+  stage: test
+
+  script:
+    - darshan-test/regression/run-all.sh install scratch cray-module-alcf

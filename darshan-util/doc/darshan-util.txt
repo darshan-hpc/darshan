@@ -234,7 +234,9 @@ otherwise noted, counters include all variants of the call in question, such as
 [cols="40%,60%",options="header"]
 |====
 | counter name | description
-| POSIX_OPENS | Count of how many times the file was opened
+| POSIX_OPENS | Count of how many times the file was opened (INCLUDING `fileno` and `dup` operations)
+| POSIX_FILENOS| Count of POSIX fileno operations
+| POSIX_DUPS| Count of POSIX dup operations
 | POSIX_READS | Count of POSIX read operations
 | POSIX_WRITES | Count of POSIX write operations
 | POSIX_SEEKS | Count of POSIX seek operations
@@ -242,6 +244,9 @@ otherwise noted, counters include all variants of the call in question, such as
 | POSIX_MMAPS | Count of POSIX mmap operations
 | POSIX_FSYNCS | Count of POSIX fsync operations
 | POSIX_FDSYNCS | Count of POSIX fdatasync operations
+| POSIX_RENAME_SOURCES| Number of times this file was the source of a rename operation
+| POSIX_RENAME_TARGETS| Number of times this file was the target of a rename operation
+| POSIX_RENAMED_FROM | If this file was a rename target, the Darshan record ID of the first rename source
 | POSIX_MODE | Mode that the file was last opened in
 | POSIX_BYTES_READ | Total number of bytes that were read from the file
 | POSIX_BYTES_WRITTEN | Total number of bytes written to the file
@@ -314,12 +319,8 @@ value of 1 MiB for optimal file alignment.
 | MPIIO_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in MPI I/O
 | MPIIO_SLOWEST_RANK | The MPI rank with largest time spent in MPI I/O
 | MPIIO_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in MPI I/O
-| MPIIO_F_OPEN_TIMESTAMP | Timestamp of first time that the file was opened at MPI level
-| MPIIO_F_READ_START_TIMESTAMP | Timestamp that the first MPI read operation began
-| MPIIO_F_WRITE_START_TIMESTAMP | Timestamp that the first MPI write operation begin
-| MPIIO_F_READ_END_TIMESTAMP | Timestamp that the last MPI read operation ended
-| MPIIO_F_WRITE_END_TIMESTAMP | Timestamp that the last MPI write operation ended
-| MPIIO_F_CLOSE_TIMESTAMP | Timestamp of the last time that the file was closed at MPI level
+| MPIIO_F_*_START_TIMESTAMP | Timestamp that the first MPIIO file open/read/write/close operation began
+| MPIIO_F_*_END_TIMESTAMP | Timestamp that the last MPIIO file open/read/write/close operation ended
 | MPIIO_READ_TIME | Cumulative time spent reading at MPI level
 | MPIIO_WRITE_TIME | Cumulative time spent write and sync at MPI level
 | MPIIO_META_TIME | Cumulative time spent in open and close at MPI level
@@ -336,7 +337,8 @@ value of 1 MiB for optimal file alignment.
 [cols="40%,60%",options="header"]
 |====
 | counter name | description
-| STDIO_OPENS | Count of how many times the file was opened using the stdio interface (e.g., `fopen()`)
+| STDIO_OPENS | Count of stdio file open operations (INCLUDING `fdopen` operations)
+| STDIO_FDOPENS| Count of stdio fdopen operations
 | STDIO_READS | Count of stdio read operations
 | STDIO_WRITES | Count of stdio write operations
 | STDIO_SEEKS | Count of stdio seek operations
@@ -365,8 +367,8 @@ value of 1 MiB for optimal file alignment.
 |====
 | counter name | description
 | HDF5_OPENS | Count of HDF5 opens
-| HDF5_F_OPEN_TIMESTAMP | Timestamp of first time that the file was opened at HDF5 level
-| HDF5_F_CLOSE_TIMESTAMP | Timestamp of the last time that the file was closed at HDF5 level
+| HDF5_F_*_START_TIMESTAMP | Timestamp that the first HDF5 file open/close operation began
+| HDF5_F_*_END_TIMESTAMP | Timestamp that the last HDF5 file open/close operation ended
 |====
 
 .PnetCDF module
@@ -375,8 +377,8 @@ value of 1 MiB for optimal file alignment.
 | counter name | description
 | PNETCDF_INDEP_OPENS | Count of PnetCDF independent opens
 | PNETCDF_COLL_OPENS | Count of PnetCDF collective opens
-| PNETCDF_F_OPEN_TIMESTAMP | Timestamp of first time that the file was opened at PnetCDF level
-| PNETCDF_F_CLOSE_TIMESTAMP | Timestamp of the last time that the file was closed at PnetCDF level
+| PNETCDF_F_*_START_TIMESTAMP | Timestamp that the first PNETCDF file open/close operation began
+| PNETCDF_F_*_END_TIMESTAMP | Timestamp that the last PNETCDF file open/close operation ended
 |====
 
 ===== Additional modules 

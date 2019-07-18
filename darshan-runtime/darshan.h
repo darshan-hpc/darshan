@@ -49,7 +49,7 @@
     { \
         __real_ ## __func = dlsym(RTLD_NEXT, #__func); \
         if(!(__real_ ## __func)) { \
-            fprintf(stderr, "Darshan failed to map symbol: %s\n", #__func); \
+            darshan_core_fprintf(stderr, "Darshan failed to map symbol: %s\n", #__func); \
             exit(1); \
        } \
     }
@@ -180,12 +180,29 @@ void *darshan_core_register_record(
     int rec_len,
     struct darshan_fs_info *fs_info);
 
+
+/* darshan_core_lookup_record_name()
+ *
+ * Looks up the name associated with a given Darshan record ID.
+ */
+char *darshan_core_lookup_record_name(
+    darshan_record_id rec_id);
+
 /* darshan_core_wtime()
  *
  * Returns the elapsed time relative to (roughly) the start of
  * the application.
  */
 double darshan_core_wtime(void);
+
+/* darshan_core_fprintf()
+ *
+ * Prints internal Darshan output on a given stream.
+ */
+void darshan_core_fprintf(
+    FILE *stream,
+    const char *format,
+    ...);
 
 /* darshan_core_excluded_path()
  *

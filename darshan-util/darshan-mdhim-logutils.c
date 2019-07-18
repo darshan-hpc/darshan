@@ -158,7 +158,7 @@ static void darshan_log_print_mdhim_record(void *file_rec, char *file_name,
     for(i=0; i<MDHIM_NUM_INDICES; i++)
     {
         /* macro defined in darshan-logutils.h */
-        DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
+        DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
             mdhim_rec->base_rec.rank, mdhim_rec->base_rec.id,
             mdhim_counter_names[i], mdhim_rec->counters[i],
             file_name, mnt_pt, fs_type);
@@ -176,7 +176,7 @@ static void darshan_log_print_mdhim_record(void *file_rec, char *file_name,
     {
         char strbuf[25];
         snprintf(strbuf, 25, "MDHIM_SERVER_%d", i);
-        DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
+        DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
                 mdhim_rec->base_rec.rank,
                 mdhim_rec->base_rec.id,
                 strbuf,
@@ -215,7 +215,7 @@ static void darshan_log_print_mdhim_record_diff(void *file_rec1, char *file_name
         if(!file2)
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
                 file1->base_rec.rank, file1->base_rec.id, mdhim_counter_names[i],
                 file1->counters[i], file_name1, "", "");
 
@@ -223,18 +223,18 @@ static void darshan_log_print_mdhim_record_diff(void *file_rec1, char *file_name
         else if(!file1)
         {
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
                 file2->base_rec.rank, file2->base_rec.id, mdhim_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
         else if(file1->counters[i] != file2->counters[i])
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
                 file1->base_rec.rank, file1->base_rec.id, mdhim_counter_names[i],
                 file1->counters[i], file_name1, "", "");
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
                 file2->base_rec.rank, file2->base_rec.id, mdhim_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
@@ -277,7 +277,7 @@ static void darshan_log_print_mdhim_record_diff(void *file_rec1, char *file_name
         if (!file2 || (i >= file2->counters[MDHIM_SERVERS]))
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
                     file1->base_rec.rank,
                     file1->base_rec.id,
                     strbuf,
@@ -287,7 +287,7 @@ static void darshan_log_print_mdhim_record_diff(void *file_rec1, char *file_name
         else if (!file1 || (i >= file1->counters[MDHIM_SERVERS]))
         {
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
                     file2->base_rec.rank,
                     file2->base_rec.id,
                     strbuf,
@@ -297,14 +297,14 @@ static void darshan_log_print_mdhim_record_diff(void *file_rec1, char *file_name
         else if (file1->server_histogram[i] != file2->server_histogram[i])
         {
             printf("- ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
                     file1->base_rec.rank,
                     file1->base_rec.id,
                     strbuf,
                     (int64_t)file1->server_histogram[i],
                     file_name1, "", "");
             printf("+ ");
-            DARSHAN_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_MDHIM_MOD],
                     file2->base_rec.rank,
                     file2->base_rec.id,
                     strbuf,
