@@ -8,43 +8,100 @@ dnl sanity checks, output header, location of scripts used here
 AC_INIT([darshan-runtime], [3.1.7])
 AC_CONFIG_SRCDIR([darshan.h])
 AC_CONFIG_AUX_DIR(../maint/config)
+AC_CONFIG_MACRO_DIR(../maint/config)
 AC_CONFIG_HEADER(darshan-runtime-config.h)
 
 AC_PROG_INSTALL
 
+dnl Check for MPI
+ENABLE_MPI=1
+AC_ARG_WITH(mpi,
+            AS_HELP_STRING([--without-mpi], [Build without support for MPI]))
+AS_IF([test "x$with_mpi" = "xno"],
+      ENABLE_MPI=,
+      [AC_DEFINE([HAVE_MPI], [], [Define if build is MPI-enabled])])
+
+
 dnl Check to see if CC is an MPI compiler
 dnl TODO: better error message here
-AC_MSG_CHECKING(whether the mpicc compiler works)
-AC_TRY_COMPILE([#include <mpi.h>], [int ret = MPI_Init(0, (void*)0)],
+AS_IF([test "x$ENABLE_MPI" = "x1"],
+      [AC_MSG_CHECKING(whether the mpicc compiler works)
+       AC_TRY_COMPILE([#include <mpi.h>], [int ret = MPI_Init(0, (void*)0)],
     AC_MSG_RESULT(yes),
     AC_MSG_RESULT(no)
-    AC_MSG_ERROR(CC doesn't appear to be a valid MPI compiler.  See INSTALL document or try adding CC=mpicc to your configure command line.)
-)
+                      AC_MSG_ERROR(CC doesn't appear to be a valid MPI compiler.  See INSTALL document or try adding CC=mpicc to your configure command line.))],
+       AC_MSG_NOTICE(not checking whether the mpicc compiler works))
 
 dnl runtime libraries require zlib
 CHECK_ZLIB
 
-AC_ARG_ENABLE(ld-preload, 
-[  --disable-ld-preload    Disables support for LD_PRELOAD library], 
+AC_ARG_ENABLE(ld-preload,
+[  --disable-ld-preload    Disables support for LD_PRELOAD library],
 [if test "x$enableval" = "xno" ; then
     DISABLE_LDPRELOAD="1"
 fi]
 ,)
 
-AC_ARG_ENABLE(cuserid, 
-[  --disable-cuserid       Disables attempted use of cuserid() at run time], 
+AC_ARG_ENABLE(cuserid,
+[  --disable-cuserid       Disables attempted use of cuserid() at run time],
 [if test "x$enableval" = "xno" ; then
     AC_DEFINE(__DARSHAN_DISABLE_CUSERID, 1, Define if cuserid() should be disabled)
 fi]
 ,)
 
-AC_ARG_ENABLE(group-readable-logs, 
+AC_ARG_ENABLE(group-readable-logs,
 [  --enable-group-readable-logs
-                          Set log files to be group readable], 
+                          Set log files to be group readable],
 [if test "x$enableval" = "xyes" ; then
     AC_DEFINE(__DARSHAN_GROUP_READABLE_LOGS, 1, Define if Darshan should set log files to be group readable)
 fi]
 ,)
+
+#
+# Check for specific module enable/disable options
+#
+# POSIX module
+BUILD_POSIX_MODULE=1
+DARSHAN_POSIX_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-posix-ld-opts"
+AC_ARG_ENABLE(posix-mod,
+              AS_HELP_STRING([--disable-posix-mod], [Disables compilation and use of POSIX module]))
+AS_IF([test "x$enable_posix_mod" = "xno"],
+      BUILD_POSIX_MODULE=
+      DARSHAN_POSIX_LD_OPTS=)
+
+# MPI-IO module
+BUILD_MPIIO_MODULE=1
+DARSHAN_MPIIO_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-mpiio-ld-opts"
+AC_ARG_ENABLE(mpiio-mod,
+              AS_HELP_STRING([--disable-mpiio-mod], [Disables compilation and use of MPI-IO module (requires MPI)]))
+AS_IF([test "x$enable_mpiio_mod" = "xno" || test "x$ENABLE_MPI" = "x"],
+      BUILD_MPIIO_MODULE=
+      DARSHAN_MPIIO_LD_OPTS=)
+
+# STDIO module
+BUILD_STDIO_MODULE=1
+DARSHAN_STDIO_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-stdio-ld-opts"
+AC_ARG_ENABLE(stdio-mod,
+              AS_HELP_STRING([--disable-stdio-mod], [Disables compilation and use of STDIO module]))
+AS_IF([test "x$enable_stdio_mod" = "xno"],
+      BUILD_STDIO_MODULE=
+      DARSHAN_STDIO_LD_OPTS=)
+
+# PNETCDF module
+BUILD_PNETCDF_MODULE=1
+DARSHAN_PNETCDF_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-pnetcdf-ld-opts"
+AC_ARG_ENABLE(pnetcdf-mod,
+              AS_HELP_STRING([--disable-pnetcdf-mod], [Disables compilation and use of PnetCDF module (requires MPI)]))
+AS_IF([test "x$enable_pnetcdf_mod" = "xno"],
+      BUILD_PNETCDF_MODULE=
+      DARSHAN_PNETCDF_LD_OPTS=)
+
+# DXT module
+BUILD_DXT_MODULE=1
+AC_ARG_ENABLE(dxt-mod,
+              AS_HELP_STRING([--disable-dxt-mod], [Disables compilation and use of DXT module]))
+AS_IF([test "x$enable_dxt_mod" = "xno"],
+      BUILD_DXT_MODULE=)
 
 AC_ARG_ENABLE(
     [bgq-mod],
@@ -237,11 +294,11 @@ CFLAGS="$old_cflags"
 
 AC_CHECK_HEADERS(mntent.h sys/mount.h)
 
-# We need to know the value of the $libdir and $bindir variables so that 
-# we can reference the correct path in the darshan compiler wrappers.  
-# Unfortunately, those two variables are not normally evaluated by autoconf.  
-# They are evaluated at build time using Makefile variable substitutions.  
-# 
+# We need to know the value of the $libdir and $bindir variables so that
+# we can reference the correct path in the darshan compiler wrappers.
+# Unfortunately, those two variables are not normally evaluated by autoconf.
+# They are evaluated at build time using Makefile variable substitutions.
+#
 # The following logic was copied from mpich2 1.3.1 to resolve the $libdir
 # variable at configure time.
 #
@@ -299,6 +356,11 @@ AS_IF([test "x$enable_mdhim" = "xyes"],
 
       )
 
+#
+# Begin tests for MPI-enabled builds
+#
+
+AS_IF([test "x$ENABLE_MPI" = "x1"], [
 
 # determine if the MPI library includes MPI-IO functions or not
 AC_MSG_CHECKING(for MPI-IO support in MPI)
@@ -308,11 +370,9 @@ AC_TRY_LINK([#include <mpi.h>], [
     int amode;
     MPI_Info info;
     MPI_File fh;
-    MPI_File_open(comm, filename, amode, info, &fh);
-],
+            MPI_File_open(comm, filename, amode, info, &fh);],
     AC_MSG_RESULT(yes),
-    AC_MSG_ERROR(Darshan requires a version of MPI with MPI-IO support)
-)
+            AC_MSG_ERROR(Darshan requires a version of MPI with MPI-IO support))
 
 # At some point MPI-IO converted most API functions to be const correct.  We
 # need to test for this to determine how to define MPI-IO wrappers in
@@ -321,7 +381,7 @@ AC_MSG_CHECKING(for MPI-IO prototypes without const qualifier)
 AC_TRY_COMPILE(
     [
     #include <mpi.h>
-    int MPI_File_open(MPI_Comm comm, char *filename, int amode, 
+    int MPI_File_open(MPI_Comm comm, char *filename, int amode,
         MPI_Info info, MPI_File *fh)
         {return 0;}
     ],
@@ -335,7 +395,7 @@ AC_TRY_COMPILE(
     AC_TRY_COMPILE(
         [
         #include <mpi.h>
-        int MPI_File_open(MPI_Comm comm, const char *filename, int amode, 
+        int MPI_File_open(MPI_Comm comm, const char *filename, int amode,
             MPI_Info info, MPI_File *fh)
             {return 0;}
         ],
@@ -365,26 +425,31 @@ AC_TRY_LINK([#include <mpi.h>], [
 CFLAGS="$old_cflags"
 LIBS="$old_libs"
 
-# if this version of mpi defines an MPIO_Request type, then we assume that 
-# we should use it in the nonblocking MPI-IO functions.  This is necessary 
-# for MPI 1.x implementations that did not use generalized requests yet in 
+# if this version of mpi defines an MPIO_Request type, then we assume that
+# we should use it in the nonblocking MPI-IO functions.  This is necessary
+# for MPI 1.x implementations that did not use generalized requests yet in
 # MPI-IO.  Later MPI implementations might typedef MPIO_Request to MPI_Request
 # so there is no  harm in using the former if it is available there.
-AC_CHECK_TYPE([MPIO_Request], 
+AC_CHECK_TYPE([MPIO_Request],
 		AC_DEFINE(__D_MPI_REQUEST, MPIO_Request, Generalized request type for MPI-IO)
-	, 
+	,
 		AC_DEFINE(__D_MPI_REQUEST, MPI_Request, Generalized request type for MPI-IO)
 	,[#include <mpi.h>])
 
 # attempt to detect library naming convention in mpi compiler script
 AS_IF([$CC -show foo.c -o foo >& /dev/null],
 	AC_MSG_CHECKING(for old (pre-3.1.1) style MPICH library naming convention)
-	AS_IF([$CC -show foo.c -o foo |grep lmpich >& /dev/null], 
+	AS_IF([$CC -show foo.c -o foo |grep lmpich >& /dev/null],
 	    AC_MSG_RESULT(yes)
 	    MPICH_LIB_OLD=1,
 	    AC_MSG_RESULT(no)
 	    MPICH_LIB_OLD=0),
 	MPICH_LIB_OLD=0)
+
+])
+#
+# End of MPI-only checks
+#
 
 DARSHAN_VERSION="AC_PACKAGE_VERSION"
 AC_SUBST(darshan_lib_path)
@@ -399,6 +464,15 @@ AC_SUBST(DARSHAN_USE_BGQ)
 AC_SUBST(DARSHAN_USE_LUSTRE)
 AC_SUBST(BUILD_HDF5_MODULE)
 AC_SUBST(DARSHAN_HDF5_LD_OPTS)
+AC_SUBST(BUILD_POSIX_MODULE)
+AC_SUBST(DARSHAN_POSIX_LD_OPTS)
+AC_SUBST(BUILD_MPIIO_MODULE)
+AC_SUBST(DARSHAN_MPIIO_LD_OPTS)
+AC_SUBST(BUILD_PNETCDF_MODULE)
+AC_SUBST(DARSHAN_PNETCDF_LD_OPTS)
+AC_SUBST(BUILD_STDIO_MODULE)
+AC_SUBST(DARSHAN_STDIO_LD_OPTS)
+AC_SUBST(BUILD_DXT_MODULE)
 AC_SUBST(BUILD_MDHIM_MODULE)
 AC_SUBST(DARSHAN_MDHIM_LD_OPTS)
 AC_OUTPUT(Makefile
@@ -418,3 +492,22 @@ share/mpi-profile/darshan-bg-cxx.conf
 share/mpi-profile/darshan-bg-f.conf
 share/ld-opts/darshan-base-ld-opts
 )
+
+AC_MSG_NOTICE(Building Darshan with the following features:)
+AS_IF([test "x$BUILD_POSIX_MODULE" = "x"],   [AC_MSG_NOTICE(POSIX module support:   no)], [AC_MSG_NOTICE(POSIX module support:   yes)])
+AS_IF([test "x$BUILD_MPIIO_MODULE" = "x"],   [AC_MSG_NOTICE(MPIIO module support:   no)], [AC_MSG_NOTICE(MPIIO module support:   yes)])
+AS_IF([test "x$BUILD_STDIO_MODULE" = "x"],   [AC_MSG_NOTICE(STDIO module support:   no)], [AC_MSG_NOTICE(STDIO module support:   yes)])
+AS_IF([test "x$BUILD_PNETCDF_MODULE" = "x"], [AC_MSG_NOTICE(PnetCDF module support: no)], [AC_MSG_NOTICE(PnetCDF module support: yes)])
+AS_IF(
+    [test "x$BUILD_HDF5_MODULE" = "x"],
+    [AC_MSG_NOTICE(HDF5 module support:    no)],
+    [AS_IF(
+        [test "x$BUILD_HDF5_PRE110" = "x1"],
+        [AC_MSG_NOTICE(HDF5 module support:    1.10+)],
+        [AC_MSG_NOTICE(HDF5 module support:    pre-1.10)]
+    )],
+)
+AS_IF([test "x$BUILD_DXT_MODULE" = "x"],    [AC_MSG_NOTICE(DXT module support:     no)], [AC_MSG_NOTICE(DXT module support:     yes)])
+AS_IF([test "x$DARSHAN_USE_MDHIM" = "x"],   [AC_MSG_NOTICE(MDHIM module support:   no)], [AC_MSG_NOTICE(MDHIM module support:   yes)])
+AS_IF([test "x$DARSHAN_USE_LUSTRE" = "x"],  [AC_MSG_NOTICE(Lustre module support:  no)], [AC_MSG_NOTICE(Lustre module support:  yes)])
+AS_IF([test "x$DARSHAN_USE_BGQ" = "x"],     [AC_MSG_NOTICE(BG/Q module support:    no)], [AC_MSG_NOTICE(BG/Q module support:    yes)])
