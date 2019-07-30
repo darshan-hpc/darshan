@@ -7,12 +7,19 @@
 #ifndef __DARSHAN_CORE_H
 #define __DARSHAN_CORE_H
 
+#include "darshan-runtime-config.h"
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdint.h>
 #include <limits.h>
 
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif
+
 #include "uthash.h"
+#include "darshan.h"
 #include "darshan-log-format.h"
 
 /* Environment variable to override __DARSHAN_JOBID */
@@ -48,13 +55,32 @@
 /* default name record buf can store 2048 records of size 100 bytes */
 #define DARSHAN_NAME_RECORD_BUF_SIZE (2048 * 100)
 
+typedef union
+{
+    int nompi_fd;
+#ifdef HAVE_MPI
+    MPI_File mpi_fh;
+#endif
+} darshan_core_log_fh;
+
+/* FS mount information */
+#define DARSHAN_MAX_MNTS 64
+#define DARSHAN_MAX_MNT_PATH 256
+#define DARSHAN_MAX_MNT_TYPE 32
+struct darshan_core_mnt_data
+{
+    char path[DARSHAN_MAX_MNT_PATH];
+    char type[DARSHAN_MAX_MNT_TYPE];
+    struct darshan_fs_info fs_info;
+};
+
 /* structure to track registered modules */
 struct darshan_core_module
 {
     void *rec_buf_start;
     void *rec_buf_p;
     int rec_mem_avail;
-    darshan_module_shutdown mod_shutdown_func;
+    darshan_module_funcs mod_funcs;
 };
 
 /* strucutre for keeping a reference to registered name records */
