@@ -149,6 +149,7 @@ static int darshan_deflate_buffer(
     int *comp_buf_length);
 static void darshan_core_cleanup(
     struct darshan_core_runtime* core);
+static double darshan_core_wtime_absolute(void);
 
 #define DARSHAN_CORE_LOCK() pthread_mutex_lock(&darshan_core_mutex)
 #define DARSHAN_CORE_UNLOCK() pthread_mutex_unlock(&darshan_core_mutex)
@@ -284,7 +285,10 @@ void darshan_core_initialize(int argc, char **argv)
         if(init_core)
         {
             memset(init_core, 0, sizeof(*init_core));
-            init_core->wtime_offset = PMPI_Wtime();
+            /* record absolute start time at startup so that we can later
+             * generate relative times with this as a reference point.
+             */
+            init_core->wtime_offset = darshan_core_wtime_absolute();
 
         /* TODO: do we alloc new memory as we go or just do everything up front? */
 
@@ -718,7 +722,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
      */
     if(my_rank == 0)
     {
-        hlevel=PMPI_Wtime() * 1000000;
+        hlevel = darshan_core_wtime_absolute() * 1000000;
         (void)gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
     }
@@ -1834,7 +1838,7 @@ void darshan_log_finalize(char *logfile_name, double start_log_time)
         if(new_logfile_name)
         {
             new_logfile_name[0] = '\0';
-            end_log_time = PMPI_Wtime();
+            end_log_time = darshan_core_wtime_absolute();
             strcat(new_logfile_name, logfile_name);
             tmp_index = strstr(new_logfile_name, ".darshan_partial");
             sprintf(tmp_index, "_%d.darshan", (int)(end_log_time-start_log_time+1));
@@ -2242,26 +2246,37 @@ void darshan_instrument_fs_data(int fs_type, const char *path, int fd)
     return;
 }
 
+/* retrieve the wtime relative to execution start time */
 double darshan_core_wtime()
 {
+    double wtime_offset;
+
     DARSHAN_CORE_LOCK();
     if(!darshan_core)
     {
         DARSHAN_CORE_UNLOCK();
         return(0);
     }
+    else
+    {
+        wtime_offset = darshan_core->wtime_offset;
+    }
     DARSHAN_CORE_UNLOCK();
 
+    return(darshan_core_wtime_absolute() - wtime_offset);
+}
+
+/* retrieve absolute wtime */
+static double darshan_core_wtime_absolute(void)
+{
 #ifdef HAVE_MPI
     if(using_mpi)
-        return(PMPI_Wtime() - darshan_core->wtime_offset);
-#endif
-
+        return(PMPI_Wtime());
+#else
     struct timeval tval;
-    double secs;
     gettimeofday(&tval, NULL);
-    secs = tval.tv_sec + (tval.tv_usec / 1000000.0);
-    return(secs - darshan_core->wtime_offset);
+    return(tval.tv_sec + (tval.tv_usec / 1000000.0));
+#endif
 }
 
 #ifdef DARSHAN_PRELOAD
