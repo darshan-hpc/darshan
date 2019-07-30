@@ -563,8 +563,9 @@ void darshan_core_shutdown()
             }
 
             /* allow the module an opportunity to reduce shared files */
-            if(this_mod->mod_funcs.mod_redux_func)
-                this_mod->mod_funcs.mod_redux_func(MPI_COMM_WORLD, mod_shared_recs,
+            if(this_mod->mod_funcs.mod_redux_func && (mod_shared_recs > 0) &&
+               (!getenv("DARSHAN_DISABLE_SHARED_REDUCTION")))
+                this_mod->mod_funcs.mod_redux_func(mod_buf, MPI_COMM_WORLD, mod_shared_recs,
                     mod_shared_rec_cnt); 
         }
 #endif

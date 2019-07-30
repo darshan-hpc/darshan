@@ -88,6 +88,7 @@
  * avoid any reduction steps.
  */
 typedef void (*darshan_module_redux)(
+    void *mod_buf, /* input parameter indicating module's buffer address */
     MPI_Comm mod_comm,  /* MPI communicator to run collectives with */
     darshan_record_id *shared_recs, /* list of shared data record ids */
     int shared_rec_count /* count of shared data records */
