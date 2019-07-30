@@ -623,6 +623,15 @@ ac_subst_vars='LTLIBOBJS
 LIBOBJS
 DARSHAN_MDHIM_LD_OPTS
 BUILD_MDHIM_MODULE
+BUILD_DXT_MODULE
+DARSHAN_STDIO_LD_OPTS
+BUILD_STDIO_MODULE
+DARSHAN_PNETCDF_LD_OPTS
+BUILD_PNETCDF_MODULE
+DARSHAN_MPIIO_LD_OPTS
+BUILD_MPIIO_MODULE
+DARSHAN_POSIX_LD_OPTS
+BUILD_POSIX_MODULE
 DARSHAN_HDF5_LD_OPTS
 BUILD_HDF5_MODULE
 DARSHAN_USE_LUSTRE
@@ -690,10 +699,16 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+with_mpi
 with_zlib
 enable_ld_preload
 enable_cuserid
 enable_group_readable_logs
+enable_posix_mod
+enable_mpiio_mod
+enable_stdio_mod
+enable_pnetcdf_mod
+enable_dxt_mod
 enable_bgq_mod
 enable_lustre_mod
 enable_mmap_logs
@@ -1340,6 +1355,13 @@ Optional Features:
   --disable-cuserid       Disables attempted use of cuserid() at run time
   --enable-group-readable-logs
                           Set log files to be group readable
+  --disable-posix-mod     Disables compilation and use of POSIX module
+  --disable-mpiio-mod     Disables compilation and use of MPI-IO module
+                          (requires MPI)
+  --disable-stdio-mod     Disables compilation and use of STDIO module
+  --disable-pnetcdf-mod   Disables compilation and use of PnetCDF module
+                          (requires MPI)
+  --disable-dxt-mod       Disables compilation and use of DXT module
   --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)
   --disable-lustre-mod    Disables compilation and use of the Lustre module
   --enable-mmap-logs      Enables ability to mmap I/O data to log file
@@ -1352,6 +1374,7 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --without-mpi           Build without support for MPI
   --with-zlib=DIR root directory path of zlib installation defaults to
                     /usr/local or /usr if not found in /usr/local
   --without-zlib to disable zlib usage completely
@@ -2173,6 +2196,7 @@ ac_config_sub="$SHELL $ac_aux_dir/config.sub"  # Please don't use this var.
 ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
 
 
+
 ac_config_headers="$ac_config_headers darshan-runtime-config.h"
 
 
@@ -2270,8 +2294,22 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL}'
 test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the mpicc compiler works" >&5
-$as_echo_n "checking whether the mpicc compiler works... " >&6; }
+ENABLE_MPI=1
+
+# Check whether --with-mpi was given.
+if test "${with_mpi+set}" = set; then :
+  withval=$with_mpi;
+fi
+
+if test "x$with_mpi" = "xno"; then :
+  ENABLE_MPI=
+else
+
+$as_echo "#define HAVE_MPI /**/" >>confdefs.h
+
+fi
+
+
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
 ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
@@ -3062,7 +3100,10 @@ ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+if test "x$ENABLE_MPI" = "x1"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the mpicc compiler works" >&5
+$as_echo_n "checking whether the mpicc compiler works... " >&6; }
+       cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <mpi.h>
 int
@@ -3079,10 +3120,13 @@ $as_echo "yes" >&6; }
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-    as_fn_error $? "CC doesn't appear to be a valid MPI compiler.  See INSTALL document or try adding CC=mpicc to your configure command line." "$LINENO" 5
-
+                      as_fn_error $? "CC doesn't appear to be a valid MPI compiler.  See INSTALL document or try adding CC=mpicc to your configure command line." "$LINENO" 5
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: not checking whether the mpicc compiler works" >&5
+$as_echo "$as_me: not checking whether the mpicc compiler works" >&6;}
+fi
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -3592,6 +3636,72 @@ fi
 
 fi
 
+
+#
+# Check for specific module enable/disable options
+#
+# POSIX module
+BUILD_POSIX_MODULE=1
+DARSHAN_POSIX_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-posix-ld-opts"
+# Check whether --enable-posix-mod was given.
+if test "${enable_posix_mod+set}" = set; then :
+  enableval=$enable_posix_mod;
+fi
+
+if test "x$enable_posix_mod" = "xno"; then :
+  BUILD_POSIX_MODULE=
+      DARSHAN_POSIX_LD_OPTS=
+fi
+
+# MPI-IO module
+BUILD_MPIIO_MODULE=1
+DARSHAN_MPIIO_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-mpiio-ld-opts"
+# Check whether --enable-mpiio-mod was given.
+if test "${enable_mpiio_mod+set}" = set; then :
+  enableval=$enable_mpiio_mod;
+fi
+
+if test "x$enable_mpiio_mod" = "xno" || test "x$ENABLE_MPI" = "x"; then :
+  BUILD_MPIIO_MODULE=
+      DARSHAN_MPIIO_LD_OPTS=
+fi
+
+# STDIO module
+BUILD_STDIO_MODULE=1
+DARSHAN_STDIO_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-stdio-ld-opts"
+# Check whether --enable-stdio-mod was given.
+if test "${enable_stdio_mod+set}" = set; then :
+  enableval=$enable_stdio_mod;
+fi
+
+if test "x$enable_stdio_mod" = "xno"; then :
+  BUILD_STDIO_MODULE=
+      DARSHAN_STDIO_LD_OPTS=
+fi
+
+# PNETCDF module
+BUILD_PNETCDF_MODULE=1
+DARSHAN_PNETCDF_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-pnetcdf-ld-opts"
+# Check whether --enable-pnetcdf-mod was given.
+if test "${enable_pnetcdf_mod+set}" = set; then :
+  enableval=$enable_pnetcdf_mod;
+fi
+
+if test "x$enable_pnetcdf_mod" = "xno"; then :
+  BUILD_PNETCDF_MODULE=
+      DARSHAN_PNETCDF_LD_OPTS=
+fi
+
+# DXT module
+BUILD_DXT_MODULE=1
+# Check whether --enable-dxt-mod was given.
+if test "${enable_dxt_mod+set}" = set; then :
+  enableval=$enable_dxt_mod;
+fi
+
+if test "x$enable_dxt_mod" = "xno"; then :
+  BUILD_DXT_MODULE=
+fi
 
 # Check whether --enable-bgq-mod was given.
 if test "${enable_bgq_mod+set}" = set; then :
@@ -4266,6 +4376,12 @@ done
 
 fi
 
+#
+# Begin tests for MPI-enabled builds
+#
+
+if test "x$ENABLE_MPI" = "x1"; then :
+
 
 # determine if the MPI library includes MPI-IO functions or not
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for MPI-IO support in MPI" >&5
@@ -4282,8 +4398,7 @@ main ()
     int amode;
     MPI_Info info;
     MPI_File fh;
-    MPI_File_open(comm, filename, amode, info, &fh);
-
+            MPI_File_open(comm, filename, amode, info, &fh);
   ;
   return 0;
 }
@@ -4293,7 +4408,6 @@ if ac_fn_c_try_link "$LINENO"; then :
 $as_echo "yes" >&6; }
 else
   as_fn_error $? "Darshan requires a version of MPI with MPI-IO support" "$LINENO" 5
-
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
@@ -4432,7 +4546,22 @@ else
   MPICH_LIB_OLD=0
 fi
 
+
+fi
+#
+# End of MPI-only checks
+#
+
 DARSHAN_VERSION="3.1.7"
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5744,3 +5873,75 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: Building Darshan with the following features:" >&5
+$as_echo "$as_me: Building Darshan with the following features:" >&6;}
+if test "x$BUILD_POSIX_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: POSIX module support:   no" >&5
+$as_echo "$as_me: POSIX module support:   no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: POSIX module support:   yes" >&5
+$as_echo "$as_me: POSIX module support:   yes" >&6;}
+fi
+if test "x$BUILD_MPIIO_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: MPIIO module support:   no" >&5
+$as_echo "$as_me: MPIIO module support:   no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: MPIIO module support:   yes" >&5
+$as_echo "$as_me: MPIIO module support:   yes" >&6;}
+fi
+if test "x$BUILD_STDIO_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: STDIO module support:   no" >&5
+$as_echo "$as_me: STDIO module support:   no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: STDIO module support:   yes" >&5
+$as_echo "$as_me: STDIO module support:   yes" >&6;}
+fi
+if test "x$BUILD_PNETCDF_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: PnetCDF module support: no" >&5
+$as_echo "$as_me: PnetCDF module support: no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: PnetCDF module support: yes" >&5
+$as_echo "$as_me: PnetCDF module support: yes" >&6;}
+fi
+if test "x$BUILD_HDF5_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: HDF5 module support:    no" >&5
+$as_echo "$as_me: HDF5 module support:    no" >&6;}
+elif if test "x$BUILD_HDF5_PRE110" = "x1"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: HDF5 module support:    1.10+" >&5
+$as_echo "$as_me: HDF5 module support:    1.10+" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: HDF5 module support:    pre-1.10" >&5
+$as_echo "$as_me: HDF5 module support:    pre-1.10" >&6;}
+
+fi; then :
+
+fi
+if test "x$BUILD_DXT_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: DXT module support:     no" >&5
+$as_echo "$as_me: DXT module support:     no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: DXT module support:     yes" >&5
+$as_echo "$as_me: DXT module support:     yes" >&6;}
+fi
+if test "x$DARSHAN_USE_MDHIM" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: MDHIM module support:   no" >&5
+$as_echo "$as_me: MDHIM module support:   no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: MDHIM module support:   yes" >&5
+$as_echo "$as_me: MDHIM module support:   yes" >&6;}
+fi
+if test "x$DARSHAN_USE_LUSTRE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Lustre module support:  no" >&5
+$as_echo "$as_me: Lustre module support:  no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Lustre module support:  yes" >&5
+$as_echo "$as_me: Lustre module support:  yes" >&6;}
+fi
+if test "x$DARSHAN_USE_BGQ" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: BG/Q module support:    no" >&5
+$as_echo "$as_me: BG/Q module support:    no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: BG/Q module support:    yes" >&5
+$as_echo "$as_me: BG/Q module support:    yes" >&6;}
+fi
