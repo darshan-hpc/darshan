@@ -24,7 +24,7 @@ libdutil = ffi.dlopen(DARSHAN_PATH + "/lib/libdarshan-util.so")
 #print(DARSHAN_PATH + "/lib/libdarshan-util.so")
 
 
-modules = {}
+#modules = {}
 
 
 def log_open(filename):
@@ -51,7 +51,7 @@ def log_close(log):
     Closes the logfile and releases allocated memory.
     """
     libdutil.darshan_log_close(log)
-    modules = {}
+    #modules = {}
     return
 
 
@@ -120,6 +120,8 @@ def log_get_modules(log):
         dict: Modules with additional info for current log.
 
     """
+    modules = {}
+
     mods = ffi.new("struct darshan_mod_info **")
     cnt    = ffi.new("int *")
     libdutil.darshan_log_get_modules(log, mods, cnt)
@@ -171,6 +173,8 @@ def log_get_generic_record(log, mod_name, mod_type):
     {'counters': array([...], dtype=uint64), 'fcounters': array([...])}
     
     """
+    modules = log_get_modules(log)
+
     rec = {}
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log, modules[mod_name]['idx'], buf)
@@ -325,6 +329,9 @@ def log_get_apxc_record(log):
         dict: log record
     """
     rec = {}
+
+    modules = log_get_modules(log)
+
     memory_modes = ['unknown', 'flat', 'equal', 'split', 'cache']
     cluster_modes = ['unknown', 'all2all', 'quad', 'hemi', 'snc4', 'snc2']
     buf = ffi.new("void **")
