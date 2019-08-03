@@ -122,9 +122,11 @@ static int darshan_add_name_record_ref(
     const char *name, darshan_module_id mod_id);
 static void darshan_get_user_name(
     char *user);
+#ifdef HAVE_MPI
 static void darshan_get_shared_records(
     struct darshan_core_runtime *core, darshan_record_id **shared_recs,
     int *shared_rec_cnt);
+#endif
 static void darshan_get_logfile_name(
     char* logfile_name, int jobid, time_t start_time);
 static int darshan_log_open(
@@ -210,9 +212,11 @@ void darshan_core_initialize(int argc, char **argv)
 
 #ifdef HAVE_MPI
     PMPI_Initialized(&using_mpi);
-
-    PMPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-    PMPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    if(using_mpi)
+    {
+        PMPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+        PMPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    }
 #endif
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
@@ -379,8 +383,11 @@ void darshan_core_initialize(int argc, char **argv)
     {
         init_time = darshan_core_wtime() - init_start;
 #ifdef HAVE_MPI
-        PMPI_Reduce(MPI_IN_PLACE, &init_time, 1,
-            MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        if(using_mpi)
+        {
+            PMPI_Reduce(MPI_IN_PLACE, &init_time, 1,
+                MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        }
         if(my_rank > 0) return;
 #endif
 
@@ -674,8 +681,11 @@ void darshan_core_shutdown()
 
 exit:
 #ifdef HAVE_MPI
-    free(shared_recs);
-    free(mod_shared_recs);
+    if(using_mpi)
+    {
+        free(shared_recs);
+        free(mod_shared_recs);
+    }
 #endif
     free(logfile_name);
     darshan_core_cleanup(final_core);
@@ -1024,10 +1034,11 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
            /proc/self/cmdline */
 
         cmdl[0] = '\0';
+        char* s;
         fh = fopen("/proc/self/cmdline","r");
         if(fh) {
             ii = 0;
-            fgets(cmdl,DARSHAN_EXE_LEN,fh);
+            s = fgets(cmdl,DARSHAN_EXE_LEN,fh);
             for(i=1;i<DARSHAN_EXE_LEN;i++)  {
                 if(cmdl[i]==0 && ii == 0) {
                   cmdl[i]=' '; ii = 1;
@@ -1196,6 +1207,7 @@ static void darshan_get_user_name(char *cuser)
     return;
 }
 
+#ifdef HAVE_MPI
 static void darshan_get_shared_records(struct darshan_core_runtime *core,
     darshan_record_id **shared_recs, int *shared_rec_cnt)
 {
@@ -1274,6 +1286,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
     free(global_mod_flags);
     return;
 }
+#endif
 
 /* construct the darshan log file name */
 static void darshan_get_logfile_name(char* logfile_name, int jobid, time_t start_time)
@@ -1980,6 +1993,7 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
  */
 extern void darshan_posix_shutdown_bench_setup();
 extern void darshan_mpiio_shutdown_bench_setup();
+#ifdef HAVE_MPI
 void darshan_shutdown_bench(int argc, char **argv)
 {
     /* clear out existing core runtime structure */
@@ -2053,6 +2067,14 @@ void darshan_shutdown_bench(int argc, char **argv)
 
     return;
 }
+#else
+void darshan_shutdown_bench(int argc, char **argv)
+{
+    fprintf(stderr, "Error: darshan_shutdown_bench() not implemented for non-mpi builds.\n");
+    assert(0);
+    return;
+}
+#endif
 
 /* ********************************************************* */
 
