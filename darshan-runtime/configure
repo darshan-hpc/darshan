@@ -621,6 +621,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+BUILD_NULL_MODULE
 DARSHAN_MDHIM_LD_OPTS
 BUILD_MDHIM_MODULE
 BUILD_DXT_MODULE
@@ -708,6 +709,7 @@ enable_posix_mod
 enable_mpiio_mod
 enable_stdio_mod
 enable_pnetcdf_mod
+enable_null_mod
 enable_dxt_mod
 enable_bgq_mod
 enable_lustre_mod
@@ -1361,6 +1363,7 @@ Optional Features:
   --disable-stdio-mod     Disables compilation and use of STDIO module
   --disable-pnetcdf-mod   Disables compilation and use of PnetCDF module
                           (requires MPI)
+  --disable-null-mod      Disables compilation and use of NULL module
   --disable-dxt-mod       Disables compilation and use of DXT module
   --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)
   --disable-lustre-mod    Disables compilation and use of the Lustre module
@@ -3692,6 +3695,17 @@ if test "x$enable_pnetcdf_mod" = "xno"; then :
       DARSHAN_PNETCDF_LD_OPTS=
 fi
 
+# NULL module
+BUILD_NULL_MODULE=1
+# Check whether --enable-null-mod was given.
+if test "${enable_null_mod+set}" = set; then :
+  enableval=$enable_null_mod;
+fi
+
+if test "x$enable_null_mod" = "xno"; then :
+  BUILD_NULL_MODULE=
+fi
+
 # DXT module
 BUILD_DXT_MODULE=1
 # Check whether --enable-dxt-mod was given.
@@ -4553,6 +4567,7 @@ fi
 #
 
 DARSHAN_VERSION="3.1.7"
+
 
 
 
@@ -5876,6 +5891,20 @@ fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: Building Darshan with the following features:" >&5
 $as_echo "$as_me: Building Darshan with the following features:" >&6;}
+if test "x$BUILD_NULL_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: NULL module support:    no" >&5
+$as_echo "$as_me: NULL module support:    no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: NULL module support:    yes" >&5
+$as_echo "$as_me: NULL module support:    yes" >&6;}
+fi
+if test "x$BUILD_MPIIO_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: MPIIO module support:   no" >&5
+$as_echo "$as_me: MPIIO module support:   no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: MPIIO module support:   yes" >&5
+$as_echo "$as_me: MPIIO module support:   yes" >&6;}
+fi
 if test "x$BUILD_POSIX_MODULE" = "x"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: POSIX module support:   no" >&5
 $as_echo "$as_me: POSIX module support:   no" >&6;}
