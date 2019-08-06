@@ -132,7 +132,7 @@ static void darshan_get_logfile_name(
 static int darshan_log_open(
     char *logfile_name, darshan_core_log_fh *log_fh);
 static int darshan_log_write_job_record(
-    darshan_core_log_fh log_fh, struct darshan_core_runtime *core,   
+    darshan_core_log_fh log_fh, struct darshan_core_runtime *core,
     uint64_t *inout_off);
 static int darshan_log_write_name_record_hash(
     darshan_core_log_fh log_fh, struct darshan_core_runtime *core,
@@ -573,12 +573,12 @@ void darshan_core_shutdown()
             if(this_mod->mod_funcs.mod_redux_func && (mod_shared_recs > 0) &&
                (!getenv("DARSHAN_DISABLE_SHARED_REDUCTION")))
                 this_mod->mod_funcs.mod_redux_func(mod_buf, MPI_COMM_WORLD, mod_shared_recs,
-                    mod_shared_rec_cnt); 
+                    mod_shared_rec_cnt);
         }
 #endif
 
         /* if module is registered locally, get the corresponding output buffer
-         * 
+         *
          * NOTE: this function can be used to run collective operations across
          * modules, if there are records shared globally.
          */
@@ -868,9 +868,9 @@ static void add_entry(char* buf, int* space_left, struct mntent* entry)
         DARSHAN_MAX_MNT_PATH-1);
     strncpy(mnt_data_array[mnt_data_count].type, entry->mnt_type,
         DARSHAN_MAX_MNT_TYPE-1);
-    /* NOTE: we now try to detect the preferred block size for each file 
-     * system using fstatfs().  On Lustre we assume a size of 1 MiB 
-     * because fstatfs() reports 4 KiB. 
+    /* NOTE: we now try to detect the preferred block size for each file
+     * system using fstatfs().  On Lustre we assume a size of 1 MiB
+     * because fstatfs() reports 4 KiB.
      */
 #ifndef LL_SUPER_MAGIC
 #define LL_SUPER_MAGIC 0x0BD00BD0
@@ -895,7 +895,7 @@ static void add_entry(char* buf, int* space_left, struct mntent* entry)
         DIR *mount_dir;
 
         mount_dir = opendir( entry->mnt_dir );
-        if ( mount_dir  ) 
+        if ( mount_dir  )
         {
             /* n_ost and n_mdt are used for both input and output to ioctl */
             n_ost = 0;
@@ -976,13 +976,13 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
         /* if DARSHAN_EXCLUDE_DIRS=none, do not exclude any dir */
         if(strncmp(env_exclusions,"none",strlen(env_exclusions))>=0)
         {
-            if (my_rank == 0) 
+            if (my_rank == 0)
                 darshan_core_fprintf(stderr, "Darshan info: no system dirs will be excluded\n");
             darshan_path_exclusions[0]=NULL;
         }
         else
         {
-            if (my_rank == 0) 
+            if (my_rank == 0)
                 darshan_core_fprintf(stderr, "Darshan info: the following system dirs will be excluded: %s\n",
                     env_exclusions);
             string = strdup(env_exclusions);
@@ -1030,7 +1030,7 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
      */
     if(argc == 0)
     {
-        /* get the name of the executable and the arguments from 
+        /* get the name of the executable and the arguments from
            /proc/self/cmdline */
 
         cmdl[0] = '\0';
@@ -1598,7 +1598,7 @@ static int darshan_log_write_name_record_hash(darshan_core_log_fh log_fh,
             rec_len = sizeof(darshan_record_id) + strlen(name_rec->name) + 1;
 
             if(ref->global_mod_flags)
-            {   
+            {
                 /* this record is shared globally, move to the temporary
                  * shared record buffer and update hash references
                  */
@@ -1612,7 +1612,7 @@ static int darshan_log_write_name_record_hash(darshan_core_log_fh log_fh,
                 shared_buf_len += rec_len;
             }
             else
-            {   
+            {
                 /* this record is not shared, but we still may need to
                  * move it forward in our buffer and update hash references
                  */
@@ -1697,15 +1697,14 @@ static int darshan_log_write_header(darshan_core_log_fh log_fh,
         ret = PMPI_File_write_at(log_fh.mpi_fh, 0, core->log_hdr_p,
             sizeof(struct darshan_header), MPI_BYTE, &status);
         if(ret != MPI_SUCCESS)
-        {   
+        {
             DARSHAN_WARN("error writing darshan log header");
             ret = -1;
         }
         else
-        {   
+        {
             ret = 0;
         }
-            
         return(ret);
     }
 #endif
@@ -1802,7 +1801,7 @@ static int darshan_log_append(darshan_core_log_fh log_fh, struct darshan_core_ru
 #endif
 
     ret = pwrite(log_fh.nompi_fd, core->comp_buf, comp_buf_sz, *inout_off);
-    if(ret != comp_buf_sz)  
+    if(ret != comp_buf_sz)
         return(-1);
     *inout_off += comp_buf_sz;
     return(0);
@@ -1967,7 +1966,7 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
     {
         if(core->mod_array[i])
-        {        
+        {
             free(core->mod_array[i]);
             core->mod_array[i] = NULL;
         }
