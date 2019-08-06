@@ -12,6 +12,7 @@
 #define DARSHAN_EXTERN_DECL(name,ret,args) \
   extern ret (*__real_ ## name)args;
 
+#ifdef HAVE_MPI
 DARSHAN_EXTERN_DECL(PMPI_File_close, int, (MPI_File *fh));
 DARSHAN_EXTERN_DECL(PMPI_File_iread_at, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
 DARSHAN_EXTERN_DECL(PMPI_File_iread, int, (MPI_File fh, void  *buf, int  count, MPI_Datatype  datatype, __D_MPI_REQUEST  *request));
@@ -131,6 +132,7 @@ DARSHAN_EXTERN_DECL(PMPI_Gather, int, (const void *sendbuf, int sendcount, MPI_D
 DARSHAN_EXTERN_DECL(PMPI_Gather, int, (void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm));
 #endif
 DARSHAN_EXTERN_DECL(PMPI_Barrier, int, (MPI_Comm comm));
+#endif /* HAVE_MPI */
 
 #endif
 
