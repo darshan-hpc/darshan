@@ -225,8 +225,8 @@ endif
 	install -m 644 lib/pkgconfig/darshan-runtime.pc $(libdir)/pkgconfig/darshan-runtime.pc
 
 clean::
-	rm -f *.o *.a lib/*.o lib/*.po lib/*.a lib/*.so 
+	rm -f *.o *.a lib/*.o lib/*.po lib/*.a lib/*.so
 
 distclean:: clean
-	rm -f darshan-runtime-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl darshan-config lib/pkgconfig/darshan-runtime.pc share/craype-1.x/darshan-module share/craype-2.x/darshan-module share/darshan-mmap-epilog.sh share/ld-opts/darshan-base-ld-opts share/mpi-profile/darshan-bg-cc.conf share/mpi-profile/darshan-bg-cxx.conf share/mpi-profile/darshan-bg-f.conf share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf aclocal.m4 autom4te.cache/* config.status config.log Makefile 
+	rm -f darshan-runtime-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl darshan-config lib/pkgconfig/darshan-runtime.pc share/craype-1.x/darshan-module share/craype-2.x/darshan-module share/darshan-mmap-epilog.sh share/ld-opts/darshan-base-ld-opts share/mpi-profile/darshan-bg-cc.conf share/mpi-profile/darshan-bg-cxx.conf share/mpi-profile/darshan-bg-f.conf share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf aclocal.m4 autom4te.cache/* config.status config.log Makefile
 	rm -rf autom4te.cache
