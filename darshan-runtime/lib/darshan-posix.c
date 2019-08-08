@@ -153,7 +153,7 @@ static void posix_aio_tracker_add(
 static struct posix_aio_tracker* posix_aio_tracker_del(
     int fd, void *aiocbp);
 static void posix_finalize_file_records(
-    void *rec_ref_p);
+    void *rec_ref_p, void *user_ptr);
 static void posix_record_reduction_op(
     void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
 static void posix_shared_record_variance(
@@ -1606,7 +1606,7 @@ static void posix_aio_tracker_add(int fd, void *aiocbp)
     return;
 }
 
-static void posix_finalize_file_records(void *rec_ref_p)
+static void posix_finalize_file_records(void *rec_ref_p, void *user_ptr)
 {
     struct posix_file_record_ref *rec_ref =
         (struct posix_file_record_ref *)rec_ref_p;
@@ -2060,7 +2060,8 @@ static void posix_shutdown(
     /* perform any final transformations on POSIX file records before
      * writing them out to log file
      */
-    darshan_iter_record_refs(posix_runtime->rec_id_hash, &posix_finalize_file_records);
+    darshan_iter_record_refs(posix_runtime->rec_id_hash,
+        &posix_finalize_file_records, NULL);
 
     /* if there are globally shared files, do a shared file reduction */
     /* NOTE: the shared file reduction is also skipped if the 

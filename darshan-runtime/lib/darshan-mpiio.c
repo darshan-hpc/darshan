@@ -160,7 +160,7 @@ static void mpiio_runtime_initialize(
 static struct mpiio_file_record_ref *mpiio_track_new_file_record(
     darshan_record_id rec_id, const char *path);
 static void mpiio_finalize_file_records(
-    void *rec_ref_p);
+    void *rec_ref_p, void *user_ptr);
 static void mpiio_record_reduction_op(
     void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
 static void mpiio_shared_record_variance(
@@ -1186,7 +1186,7 @@ static struct mpiio_file_record_ref *mpiio_track_new_file_record(
     return(rec_ref);
 }
 
-static void mpiio_finalize_file_records(void *rec_ref_p)
+static void mpiio_finalize_file_records(void *rec_ref_p, void *user_ptr)
 {
     struct mpiio_file_record_ref *rec_ref =
         (struct mpiio_file_record_ref *)rec_ref_p;
@@ -1574,7 +1574,8 @@ static void mpiio_shutdown(
     /* perform any final transformations on MPIIO file records before
      * writing them out to log file
      */
-    darshan_iter_record_refs(mpiio_runtime->rec_id_hash, &mpiio_finalize_file_records);
+    darshan_iter_record_refs(mpiio_runtime->rec_id_hash,
+        &mpiio_finalize_file_records, NULL);
 
     /* if there are globally shared files, do a shared file reduction */
     /* NOTE: the shared file reduction is also skipped if the 

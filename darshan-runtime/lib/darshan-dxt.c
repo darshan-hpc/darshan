@@ -752,7 +752,7 @@ static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
     return(rec_ref);
 }
 
-static void dxt_free_record_data(void *rec_ref_p)
+static void dxt_free_record_data(void *rec_ref_p, void *user_ptr)
 {
     struct dxt_file_record_ref *dxt_rec_ref = (struct dxt_file_record_ref *)rec_ref_p;
 
@@ -763,7 +763,8 @@ static void dxt_free_record_data(void *rec_ref_p)
 
 static void dxt_posix_cleanup_runtime()
 {
-    darshan_iter_record_refs(dxt_posix_runtime->rec_id_hash, dxt_free_record_data);
+    darshan_iter_record_refs(dxt_posix_runtime->rec_id_hash,
+        dxt_free_record_data, NULL);
     darshan_clear_record_refs(&(dxt_posix_runtime->rec_id_hash), 1);
 
     free(dxt_posix_runtime);
@@ -774,7 +775,8 @@ static void dxt_posix_cleanup_runtime()
 
 static void dxt_mpiio_cleanup_runtime()
 {
-    darshan_iter_record_refs(dxt_mpiio_runtime->rec_id_hash, dxt_free_record_data);
+    darshan_iter_record_refs(dxt_mpiio_runtime->rec_id_hash,
+        dxt_free_record_data, NULL);
     darshan_clear_record_refs(&(dxt_mpiio_runtime->rec_id_hash), 1);
 
     free(dxt_mpiio_runtime);
@@ -787,7 +789,7 @@ static void dxt_mpiio_cleanup_runtime()
  * shutdown function exported by this module for coordinating with darshan-core *
  ********************************************************************************/
 
-static void dxt_serialize_posix_records(void *rec_ref_p)
+static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
 {
     struct dxt_file_record_ref *rec_ref = (struct dxt_file_record_ref *)rec_ref_p;
     struct dxt_file_record *file_rec;
@@ -888,7 +890,8 @@ static void dxt_posix_shutdown(
     dxt_posix_runtime->record_buf_size = 0;
 
     /* iterate all dxt posix records and serialize them to the output buffer */
-    darshan_iter_record_refs(dxt_posix_runtime->rec_id_hash, dxt_serialize_posix_records);
+    darshan_iter_record_refs(dxt_posix_runtime->rec_id_hash,
+        dxt_serialize_posix_records, NULL);
 
     /* set output */
     *dxt_posix_buf = dxt_posix_runtime->record_buf;
@@ -900,7 +903,7 @@ static void dxt_posix_shutdown(
     return;
 }
 
-static void dxt_serialize_mpiio_records(void *rec_ref_p)
+static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
 {
     struct dxt_file_record_ref *rec_ref = (struct dxt_file_record_ref *)rec_ref_p;
     struct dxt_file_record *file_rec;
@@ -998,7 +1001,8 @@ static void dxt_mpiio_shutdown(
     dxt_mpiio_runtime->record_buf_size = 0;
 
     /* iterate all dxt posix records and serialize them to the output buffer */
-    darshan_iter_record_refs(dxt_mpiio_runtime->rec_id_hash, dxt_serialize_mpiio_records);
+    darshan_iter_record_refs(dxt_mpiio_runtime->rec_id_hash,
+        dxt_serialize_mpiio_records, NULL);
 
     /* set output */ 
     *dxt_mpiio_buf = dxt_mpiio_runtime->record_buf;
