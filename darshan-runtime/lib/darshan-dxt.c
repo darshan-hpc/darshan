@@ -387,10 +387,15 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
 
+    DXT_LOCK();
+
     /* check whether we should actually trace */
     if(!dxt_posix_runtime || (!dxt_should_trace_file(rec_id) && !dxt_trace_all &&
        !dxt_use_dynamic_triggers))
+    {
+        DXT_UNLOCK();
         return;
+    }
 
     rec_ref = darshan_lookup_record_ref(dxt_posix_runtime->rec_id_hash,
         &rec_id, sizeof(darshan_record_id));
@@ -398,7 +403,11 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
     {
         /* track new dxt file record */
         rec_ref = dxt_posix_track_new_file_record(rec_id);
-        if(!rec_ref) return;
+        if(!rec_ref)
+        {
+            DXT_UNLOCK();
+            return;
+        }
     }
 
     file_rec = rec_ref->file_rec;
@@ -407,6 +416,7 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
     {
         /* no more memory for i/o segments ... back out */
         SET_DXT_MOD_PARTIAL_FLAG(DXT_POSIX_MOD);
+        DXT_UNLOCK();
         return;
     }
 
@@ -415,6 +425,8 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
     file_rec->write_count += 1;
+
+    DXT_UNLOCK();
 }
 
 void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
@@ -423,17 +435,26 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
 
+    DXT_LOCK();
+
     /* check whether we should actually trace */
     if(!dxt_posix_runtime || (!dxt_should_trace_file(rec_id) && !dxt_trace_all &&
        !dxt_use_dynamic_triggers))
+    {
+        DXT_UNLOCK();
         return;
+    }
 
     rec_ref = darshan_lookup_record_ref(dxt_posix_runtime->rec_id_hash,
                 &rec_id, sizeof(darshan_record_id));
     if (!rec_ref) {
         /* track new dxt file record */
         rec_ref = dxt_posix_track_new_file_record(rec_id);
-        if(!rec_ref) return;
+        if(!rec_ref)
+        {
+            DXT_UNLOCK();
+            return;
+        }
     }
 
     file_rec = rec_ref->file_rec;
@@ -442,6 +463,7 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     {
         /* no more memory for i/o segments ... back out */
         SET_DXT_MOD_PARTIAL_FLAG(DXT_POSIX_MOD);
+        DXT_UNLOCK();
         return;
     }
 
@@ -450,6 +472,8 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
     file_rec->read_count += 1;
+
+    DXT_UNLOCK();
 }
 
 void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
@@ -458,10 +482,15 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
 
+    DXT_LOCK();
+
     /* check whether we should actually trace */
     if(!dxt_posix_runtime || (!dxt_should_trace_file(rec_id) && !dxt_trace_all &&
        !dxt_use_dynamic_triggers))
+    {
+        DXT_UNLOCK();
         return;
+    }
 
     rec_ref = darshan_lookup_record_ref(dxt_mpiio_runtime->rec_id_hash,
                 &rec_id, sizeof(darshan_record_id));
@@ -469,7 +498,11 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
     {
         /* track new dxt file record */
         rec_ref = dxt_mpiio_track_new_file_record(rec_id);
-        if(!rec_ref) return;
+        if(!rec_ref)
+        {
+            DXT_UNLOCK();
+            return;
+        }
     }
 
     file_rec = rec_ref->file_rec;
@@ -478,6 +511,7 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
     {
         /* no more memory for i/o segments ... back out */
         SET_DXT_MOD_PARTIAL_FLAG(DXT_MPIIO_MOD);
+        DXT_UNLOCK();
         return;
     }
 
@@ -485,6 +519,8 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
     file_rec->write_count += 1;
+
+    DXT_UNLOCK();
 }
 
 void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
@@ -493,10 +529,15 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
 
+    DXT_LOCK();
+
     /* check whether we should actually trace */
     if(!dxt_posix_runtime || (!dxt_should_trace_file(rec_id) && !dxt_trace_all &&
        !dxt_use_dynamic_triggers))
+    {
+        DXT_UNLOCK();
         return;
+    }
 
     rec_ref = darshan_lookup_record_ref(dxt_mpiio_runtime->rec_id_hash,
                 &rec_id, sizeof(darshan_record_id));
@@ -504,7 +545,11 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
     {
         /* track new dxt file record */
         rec_ref = dxt_mpiio_track_new_file_record(rec_id);
-        if(!rec_ref) return;
+        if(!rec_ref)
+        {
+            DXT_UNLOCK();
+            return;
+        }
     }
 
     file_rec = rec_ref->file_rec;
@@ -513,6 +558,7 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
     {
         /* no more memory for i/o segments ... back out */
         SET_DXT_MOD_PARTIAL_FLAG(DXT_MPIIO_MOD);
+        DXT_UNLOCK();
         return;
     }
 
@@ -520,6 +566,34 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
     file_rec->read_count += 1;
+
+    DXT_UNLOCK();
+}
+
+static void dxt_posix_filter_dynamic_traces_iterator(void *rec_ref_p, void *user_ptr)
+{
+    struct dxt_file_record_ref *rec_ref;
+    struct darshan_posix_file *(*rec_id_to_psx_file)(darshan_record_id);
+    struct darshan_posix_file *psx_file;
+
+    rec_ref = (struct dxt_file_record_ref *)rec_ref_p;
+    rec_id_to_psx_file = (struct darshan_posix_file *(*)(darshan_record_id))user_ptr;
+    psx_file = rec_id_to_psx_file(rec_ref->file_rec->base_rec.id);
+
+    return;
+}
+
+void dxt_posix_filter_dynamic_traces(
+    struct darshan_posix_file *(*rec_id_to_psx_file)(darshan_record_id))
+{
+    DXT_LOCK()
+
+    darshan_iter_record_refs(dxt_posix_runtime->rec_id_hash,
+        dxt_posix_filter_dynamic_traces_iterator, rec_id_to_psx_file);
+
+    DXT_UNLOCK();
+
+    return;
 }
 
 /***********************************

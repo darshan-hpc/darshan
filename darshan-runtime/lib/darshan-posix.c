@@ -1959,6 +1959,18 @@ char *darshan_posix_lookup_record_name(int fd)
     return(rec_name);
 }
 
+static struct darshan_posix_file *darshan_posix_rec_id_to_file(darshan_record_id rec_id)
+{
+    struct posix_file_record_ref *rec_ref;
+
+    rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash,
+        &rec_id, sizeof(darshan_record_id));
+    if(rec_ref)
+        return(rec_ref->file_rec);
+    else
+        return(NULL);
+}
+
 /* posix module shutdown benchmark routine */
 void darshan_posix_shutdown_bench_setup(int test_case)
 {
@@ -2054,6 +2066,9 @@ static void posix_shutdown(
 
     POSIX_LOCK();
     assert(posix_runtime);
+
+    /* allow DXT a chance to filter traces based on dynamic triggers */
+    dxt_posix_filter_dynamic_traces(darshan_posix_rec_id_to_file);
 
     posix_rec_count = posix_runtime->file_rec_count;
 
