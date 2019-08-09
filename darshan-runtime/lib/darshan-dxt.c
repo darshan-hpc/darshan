@@ -81,6 +81,8 @@ struct dxt_file_record_ref
 
     segment_info *write_traces;
     segment_info *read_traces;
+
+    char trace_enabled;
 };
 
 /* The dxt_runtime structure maintains necessary state for storing
@@ -115,8 +117,22 @@ struct dxt_trigger_info
 {
     int type;
     union {
-        regex_t regex;
-        double pct;
+        struct
+        {
+            regex_t regex;
+        } file;
+        struct
+        {
+            regex_t regex;
+        } rank;
+        struct
+        {
+            double thresh_pct;
+        } small_io;
+        struct
+        {
+            double thresh_pct;
+        } unaligned_io;
     } u;
 };
 
@@ -202,7 +218,7 @@ void dxt_load_trigger_conf(
         {
             next_trigger->type = DXT_FILE_TRIGGER;
             tok += strlen(tok) + 1;
-            ret = regcomp(&next_trigger->u.regex, tok, REG_EXTENDED);
+            ret = regcomp(&next_trigger->u.file.regex, tok, REG_EXTENDED);
             if(ret)
             {
                 darshan_core_fprintf(stderr, "darshan library warning: "\
@@ -215,7 +231,7 @@ void dxt_load_trigger_conf(
         {
             next_trigger->type = DXT_RANK_TRIGGER;
             tok += strlen(tok) + 1;
-            ret = regcomp(&next_trigger->u.regex, tok, REG_EXTENDED);
+            ret = regcomp(&next_trigger->u.rank.regex, tok, REG_EXTENDED);
             if(ret)
             {
                 darshan_core_fprintf(stderr, "darshan library warning: "\
@@ -228,17 +244,15 @@ void dxt_load_trigger_conf(
         {
             next_trigger->type = DXT_SMALL_IO_TRIGGER;
             tok += strlen(tok) + 1;
-            next_trigger->u.pct = atof(tok);
+            next_trigger->u.small_io.thresh_pct = atof(tok);
             dxt_use_dynamic_triggers= 1;
-            continue;
         }
         else if(strcmp(tok, "UNALIGNED_IO") == 0)
         {
             next_trigger->type = DXT_UNALIGNED_IO_TRIGGER;
             tok += strlen(tok) + 1;
-            next_trigger->u.pct = atof(tok);
+            next_trigger->u.unaligned_io.thresh_pct = atof(tok);
             dxt_use_dynamic_triggers= 1;
-            continue;
         }
         else
         {
@@ -313,9 +327,6 @@ void dxt_posix_runtime_initialize()
     dxt_mem_remaining = dxt_total_mem;
     DXT_UNLOCK();
 
-    char *strs[2] = {"no", "yes"};
-    printf("*****DXT-POSIX INIT %d: trace_all=%s dynamic_trace=%s, file_trace=%s\n", dxt_my_rank, strs[dxt_trace_all], strs[dxt_use_dynamic_triggers], strs[dxt_use_file_triggers]);
-
     return;
 }
 
@@ -386,12 +397,11 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
 {
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
+    int should_trace_file;
 
     DXT_LOCK();
 
-    /* check whether we should actually trace */
-    if(!dxt_posix_runtime || (!dxt_should_trace_file(rec_id) && !dxt_trace_all &&
-       !dxt_use_dynamic_triggers))
+    if(!dxt_posix_runtime)
     {
         DXT_UNLOCK();
         return;
@@ -401,6 +411,14 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
         &rec_id, sizeof(darshan_record_id));
     if(!rec_ref)
     {
+        /* check whether we should actually trace */
+        should_trace_file = dxt_should_trace_file(rec_id);
+        if(!should_trace_file && !dxt_trace_all && !dxt_use_dynamic_triggers)
+        {
+            DXT_UNLOCK();
+            return;
+        }
+
         /* track new dxt file record */
         rec_ref = dxt_posix_track_new_file_record(rec_id);
         if(!rec_ref)
@@ -408,6 +426,8 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
+        if(should_trace_file)
+            rec_ref->trace_enabled = 1;
     }
 
     file_rec = rec_ref->file_rec;
@@ -434,12 +454,11 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
 {
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
+    int should_trace_file;
 
     DXT_LOCK();
 
-    /* check whether we should actually trace */
-    if(!dxt_posix_runtime || (!dxt_should_trace_file(rec_id) && !dxt_trace_all &&
-       !dxt_use_dynamic_triggers))
+    if(!dxt_posix_runtime)
     {
         DXT_UNLOCK();
         return;
@@ -447,7 +466,16 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
 
     rec_ref = darshan_lookup_record_ref(dxt_posix_runtime->rec_id_hash,
                 &rec_id, sizeof(darshan_record_id));
-    if (!rec_ref) {
+    if (!rec_ref)
+    {
+        /* check whether we should actually trace */
+        should_trace_file = dxt_should_trace_file(rec_id);
+        if(!should_trace_file && !dxt_trace_all && !dxt_use_dynamic_triggers)
+        {
+            DXT_UNLOCK();
+            return;
+        }
+
         /* track new dxt file record */
         rec_ref = dxt_posix_track_new_file_record(rec_id);
         if(!rec_ref)
@@ -455,6 +483,8 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
+        if(should_trace_file)
+            rec_ref->trace_enabled = 1;
     }
 
     file_rec = rec_ref->file_rec;
@@ -481,12 +511,11 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
 {
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
+    int should_trace_file;
 
     DXT_LOCK();
 
-    /* check whether we should actually trace */
-    if(!dxt_posix_runtime || (!dxt_should_trace_file(rec_id) && !dxt_trace_all &&
-       !dxt_use_dynamic_triggers))
+    if(!dxt_mpiio_runtime)
     {
         DXT_UNLOCK();
         return;
@@ -496,6 +525,14 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
                 &rec_id, sizeof(darshan_record_id));
     if(!rec_ref)
     {
+        /* check whether we should actually trace */
+        should_trace_file = dxt_should_trace_file(rec_id);
+        if(!should_trace_file && !dxt_trace_all && !dxt_use_dynamic_triggers)
+        {
+            DXT_UNLOCK();
+            return;
+        }
+
         /* track new dxt file record */
         rec_ref = dxt_mpiio_track_new_file_record(rec_id);
         if(!rec_ref)
@@ -503,6 +540,8 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
             DXT_UNLOCK();
             return;
         }
+        if(should_trace_file)
+            rec_ref->trace_enabled = 1;
     }
 
     file_rec = rec_ref->file_rec;
@@ -528,12 +567,11 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
 {
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
+    int should_trace_file;
 
     DXT_LOCK();
 
-    /* check whether we should actually trace */
-    if(!dxt_posix_runtime || (!dxt_should_trace_file(rec_id) && !dxt_trace_all &&
-       !dxt_use_dynamic_triggers))
+    if(!dxt_mpiio_runtime)
     {
         DXT_UNLOCK();
         return;
@@ -543,6 +581,14 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
                 &rec_id, sizeof(darshan_record_id));
     if(!rec_ref)
     {
+        /* check whether we should actually trace */
+        should_trace_file = dxt_should_trace_file(rec_id);
+        if(!should_trace_file && !dxt_trace_all && !dxt_use_dynamic_triggers)
+        {
+            DXT_UNLOCK();
+            return;
+        }
+
         /* track new dxt file record */
         rec_ref = dxt_mpiio_track_new_file_record(rec_id);
         if(!rec_ref)
@@ -550,6 +596,8 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
             DXT_UNLOCK();
             return;
         }
+        if(should_trace_file)
+            rec_ref->trace_enabled = 1;
     }
 
     file_rec = rec_ref->file_rec;
@@ -572,13 +620,82 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
 
 static void dxt_posix_filter_dynamic_traces_iterator(void *rec_ref_p, void *user_ptr)
 {
-    struct dxt_file_record_ref *rec_ref;
+    struct dxt_file_record_ref *psx_rec_ref, *mpiio_rec_ref;
     struct darshan_posix_file *(*rec_id_to_psx_file)(darshan_record_id);
     struct darshan_posix_file *psx_file;
+    int i;
+    int should_keep = 0;
 
-    rec_ref = (struct dxt_file_record_ref *)rec_ref_p;
+    psx_rec_ref = (struct dxt_file_record_ref *)rec_ref_p;
+    if(psx_rec_ref->trace_enabled)
+        return; /* we're already tracing this file */
+
     rec_id_to_psx_file = (struct darshan_posix_file *(*)(darshan_record_id))user_ptr;
-    psx_file = rec_id_to_psx_file(rec_ref->file_rec->base_rec.id);
+    psx_file = rec_id_to_psx_file(psx_rec_ref->file_rec->base_rec.id);
+
+    /* analyze dynamic triggers to determine whether we should keep the record */
+    for(i = 0; i < num_dxt_triggers; i++)
+    {
+        switch(dxt_triggers[i].type)
+        {
+            case DXT_SMALL_IO_TRIGGER:
+            {
+                int total_ops = psx_file->counters[POSIX_WRITES] +
+                    psx_file->counters[POSIX_READS];
+                int small_ops = psx_file->counters[POSIX_SIZE_WRITE_0_100] +
+                    psx_file->counters[POSIX_SIZE_WRITE_100_1K] + 
+                    psx_file->counters[POSIX_SIZE_WRITE_1K_10K] +
+                    psx_file->counters[POSIX_SIZE_READ_0_100] +
+                    psx_file->counters[POSIX_SIZE_READ_100_1K] + 
+                    psx_file->counters[POSIX_SIZE_READ_1K_10K];
+                double small_pct = (small_ops / (double)(total_ops));
+                if(small_pct > dxt_triggers[i].u.small_io.thresh_pct)
+                    should_keep = 1;
+                break;
+            }
+            case DXT_UNALIGNED_IO_TRIGGER:
+            {
+                int total_ops = psx_file->counters[POSIX_WRITES] +
+                    psx_file->counters[POSIX_READS];
+                int unaligned_ops = psx_file->counters[POSIX_FILE_NOT_ALIGNED];
+                double unaligned_pct = (unaligned_ops / (double)(total_ops));
+                if(unaligned_pct > dxt_triggers[i].u.unaligned_io.thresh_pct)
+                    should_keep = 1;
+                break;
+            }
+            default:
+                continue;
+        }
+        if(should_keep)
+            break;
+    }
+
+    /* drop the record if no dynamic trace triggers occurred */
+    if(!should_keep)
+    {
+        printf("DROP RECORD %lu on rank %d\n", psx_file->base_rec.id, dxt_my_rank);
+        /* first check the MPI-IO traces to see if we should drop there */
+        mpiio_rec_ref = darshan_delete_record_ref(&dxt_mpiio_runtime->rec_id_hash,
+            &psx_file->base_rec.id, sizeof(darshan_record_id));
+        if(mpiio_rec_ref)
+        {
+            free(mpiio_rec_ref->write_traces);
+            free(mpiio_rec_ref->read_traces);
+            free(mpiio_rec_ref->file_rec);
+            free(mpiio_rec_ref);
+        }
+
+        /* then delete the POSIX trace records */
+        psx_rec_ref = darshan_delete_record_ref(&dxt_posix_runtime->rec_id_hash,
+            &psx_file->base_rec.id, sizeof(darshan_record_id));
+        if(psx_rec_ref)
+        {
+            free(psx_rec_ref->write_traces);
+            free(psx_rec_ref->read_traces);
+            free(psx_rec_ref->file_rec);
+            free(psx_rec_ref);
+        }
+    }
 
     return;
 }
@@ -586,7 +703,13 @@ static void dxt_posix_filter_dynamic_traces_iterator(void *rec_ref_p, void *user
 void dxt_posix_filter_dynamic_traces(
     struct darshan_posix_file *(*rec_id_to_psx_file)(darshan_record_id))
 {
-    DXT_LOCK()
+    DXT_LOCK();
+
+    if(!dxt_posix_runtime || !dxt_use_dynamic_triggers || dxt_trace_all)
+    {
+        DXT_UNLOCK();
+        return;
+    }
 
     darshan_iter_record_refs(dxt_posix_runtime->rec_id_hash,
         dxt_posix_filter_dynamic_traces_iterator, rec_id_to_psx_file);
@@ -613,7 +736,7 @@ static int dxt_should_trace_rank(int my_rank)
     for(i = 0; i < num_dxt_triggers; i++)
     {
         if((dxt_triggers[i].type == DXT_RANK_TRIGGER) &&
-           (regexec(&dxt_triggers[i].u.regex, rank_str, 0, NULL, 0) == 0))
+           (regexec(&dxt_triggers[i].u.rank.regex, rank_str, 0, NULL, 0) == 0))
             return(1);
     }
 
@@ -635,7 +758,7 @@ static int dxt_should_trace_file(darshan_record_id rec_id)
         for(i = 0; i < num_dxt_triggers; i++)
         {
             if((dxt_triggers[i].type == DXT_FILE_TRIGGER) &&
-               (regexec(&dxt_triggers[i].u.regex, rec_name, 0, NULL, 0) == 0))
+               (regexec(&dxt_triggers[i].u.file.regex, rec_name, 0, NULL, 0) == 0))
                 return(1);
         }
     }
