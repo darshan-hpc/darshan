@@ -503,7 +503,6 @@ share/ld-opts/darshan-base-ld-opts
 
 AC_MSG_NOTICE(Building Darshan with the following features:)
 AS_IF([test "x$BUILD_NULL_MODULE" = "x"],   [AC_MSG_NOTICE(NULL module support:    no)], [AC_MSG_NOTICE(NULL module support:    yes)])
-AS_IF([test "x$BUILD_MPIIO_MODULE" = "x"],   [AC_MSG_NOTICE(MPIIO module support:   no)], [AC_MSG_NOTICE(MPIIO module support:   yes)])
 AS_IF([test "x$BUILD_POSIX_MODULE" = "x"],   [AC_MSG_NOTICE(POSIX module support:   no)], [AC_MSG_NOTICE(POSIX module support:   yes)])
 AS_IF([test "x$BUILD_MPIIO_MODULE" = "x"],   [AC_MSG_NOTICE(MPIIO module support:   no)], [AC_MSG_NOTICE(MPIIO module support:   yes)])
 AS_IF([test "x$BUILD_STDIO_MODULE" = "x"],   [AC_MSG_NOTICE(STDIO module support:   no)], [AC_MSG_NOTICE(STDIO module support:   yes)])

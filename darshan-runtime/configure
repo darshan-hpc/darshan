@@ -5898,13 +5898,6 @@ else
   { $as_echo "$as_me:${as_lineno-$LINENO}: NULL module support:    yes" >&5
 $as_echo "$as_me: NULL module support:    yes" >&6;}
 fi
-if test "x$BUILD_MPIIO_MODULE" = "x"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: MPIIO module support:   no" >&5
-$as_echo "$as_me: MPIIO module support:   no" >&6;}
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: MPIIO module support:   yes" >&5
-$as_echo "$as_me: MPIIO module support:   yes" >&6;}
-fi
 if test "x$BUILD_POSIX_MODULE" = "x"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: POSIX module support:   no" >&5
 $as_echo "$as_me: POSIX module support:   no" >&6;}
