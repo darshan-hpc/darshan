@@ -48,7 +48,7 @@ docs: ## generate Sphinx HTML documentation, including API docs
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
 
-open-docs: docs
+docs-show: docs
 	xdg-open docs/_build/html/index.html
 
 servedocs: docs ## compile the docs watching for changes

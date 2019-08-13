@@ -28,7 +28,6 @@ print(r)
 print('-'*80)
 
 
-# fails, symbol not found => fixed with pull request
 print('log_get_modules:')
 darshan.log_get_modules(log)
 print(r)
@@ -56,6 +55,19 @@ print('-'*80)
 
 print('log_get_posix_record:')
 r = darshan.log_get_posix_record(log)
+print(r)
+print('-'*80)
+
+
+
+print('log_get_mpiio_record:')
+r = darshan.log_get_mpiio_record(log)
+print(r)
+print('-'*80)
+
+
+print('log_get_stdio_record:')
+r = darshan.log_get_stdio_record(log)
 print(r)
 print('-'*80)
 
