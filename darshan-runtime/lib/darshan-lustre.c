@@ -27,9 +27,9 @@
 static void lustre_runtime_initialize(
     void);
 static void lustre_subtract_shared_rec_size(
-    void *rec_ref_p);
+    void *rec_ref_p, void *user_ptr);
 static void lustre_set_rec_ref_pointers(
-    void *rec_ref_p);
+    void *rec_ref_p, void *user_ptr);
 static int lustre_record_compare(
     const void* a_p, const void* b_p);
 int sort_lustre_records(
@@ -266,7 +266,7 @@ static void lustre_shutdown(
         if (my_rank != 0)
         {
             darshan_iter_record_refs(lustre_runtime->record_id_hash, 
-                &lustre_subtract_shared_rec_size);
+                &lustre_subtract_shared_rec_size, NULL);
         }
     }
 
@@ -282,7 +282,7 @@ static void lustre_shutdown(
     return;
 }
 
-static void lustre_subtract_shared_rec_size(void *rec_ref_p)
+static void lustre_subtract_shared_rec_size(void *rec_ref_p, void *user_ptr)
 {
     struct lustre_record_ref *l_rec_ref = (struct lustre_record_ref *)rec_ref_p;
 
@@ -291,7 +291,7 @@ static void lustre_subtract_shared_rec_size(void *rec_ref_p)
             LUSTRE_RECORD_SIZE( l_rec_ref->record->counters[LUSTRE_STRIPE_WIDTH] );
 }
 
-static void lustre_set_rec_ref_pointers(void *rec_ref_p)
+static void lustre_set_rec_ref_pointers(void *rec_ref_p, void *user_ptr)
 {
     lustre_runtime->record_ref_array[lustre_runtime->record_ref_array_ndx] = rec_ref_p;
     lustre_runtime->record_ref_array_ndx++;
@@ -356,7 +356,7 @@ int sort_lustre_records()
 
     /* build the array of record reference pointers we want to sort */
     darshan_iter_record_refs(lustre_runtime->record_id_hash,
-        &lustre_set_rec_ref_pointers);
+        &lustre_set_rec_ref_pointers, NULL);
 
     /* qsort breaks the hash table, so delete it now to free its memory buffers
      * and prevent later confusion */

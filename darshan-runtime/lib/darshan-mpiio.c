@@ -24,6 +24,7 @@
 
 #include "darshan.h"
 #include "darshan-dynamic.h"
+#include "darshan-dxt.h"
 
 DARSHAN_FORWARD_DECL(PMPI_File_close, int, (MPI_File *fh));
 DARSHAN_FORWARD_DECL(PMPI_File_iread_at, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
@@ -159,7 +160,7 @@ static void mpiio_runtime_initialize(
 static struct mpiio_file_record_ref *mpiio_track_new_file_record(
     darshan_record_id rec_id, const char *path);
 static void mpiio_finalize_file_records(
-    void *rec_ref_p);
+    void *rec_ref_p, void *user_ptr);
 static void mpiio_record_reduction_op(
     void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
 static void mpiio_shared_record_variance(
@@ -172,16 +173,9 @@ static void mpiio_shutdown(
     MPI_Comm mod_comm, darshan_record_id *shared_recs,
     int shared_rec_count, void **mpiio_buf, int *mpiio_buf_sz);
 
-/* extern DXT function defs */
-extern void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
-    double start_time, double end_time);
-extern void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
-    double start_time, double end_time);
-
 static struct mpiio_runtime *mpiio_runtime = NULL;
 static pthread_mutex_t mpiio_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int my_rank = -1;
-static int enable_dxt_io_trace = 0;
 
 #define MPIIO_LOCK() pthread_mutex_lock(&mpiio_runtime_mutex)
 #define MPIIO_UNLOCK() pthread_mutex_unlock(&mpiio_runtime_mutex)
@@ -249,9 +243,7 @@ static int enable_dxt_io_trace = 0;
     PMPI_Type_size(__datatype, &size);  \
     size = size * __count; \
     /* DXT to record detailed read tracing information */ \
-    if(enable_dxt_io_trace) { \
-        dxt_mpiio_read(rec_ref->file_rec->base_rec.id, size, __tm1, __tm2); \
-    } \
+    dxt_mpiio_read(rec_ref->file_rec->base_rec.id, size, __tm1, __tm2); \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_READ_AGG_0_100]), size); \
     darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, size, \
         &(rec_ref->file_rec->counters[MPIIO_ACCESS1_ACCESS]), \
@@ -281,10 +273,8 @@ static int enable_dxt_io_trace = 0;
     if(!rec_ref) break; \
     PMPI_Type_size(__datatype, &size);  \
     size = size * __count; \
-     /* DXT to record detailed write tracing information */ \
-    if(enable_dxt_io_trace) { \
-        dxt_mpiio_write(rec_ref->file_rec->base_rec.id, size, __tm1, __tm2); \
-    } \
+    /* DXT to record detailed write tracing information */ \
+    dxt_mpiio_write(rec_ref->file_rec->base_rec.id, size, __tm1, __tm2); \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_WRITE_AGG_0_100]), size); \
     darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, size, \
         &(rec_ref->file_rec->counters[MPIIO_ACCESS1_ACCESS]), \
@@ -1142,10 +1132,8 @@ static void mpiio_runtime_initialize()
     }
     memset(mpiio_runtime, 0, sizeof(*mpiio_runtime));
 
-    /* check if DXT (Darshan extended tracing) should be enabled */
-    if (getenv("DXT_ENABLE_IO_TRACE")) {
-        enable_dxt_io_trace = 1;
-    }
+    /* allow DXT module to initialize if needed */
+    dxt_mpiio_runtime_initialize();
 
     return;
 }
@@ -1198,7 +1186,7 @@ static struct mpiio_file_record_ref *mpiio_track_new_file_record(
     return(rec_ref);
 }
 
-static void mpiio_finalize_file_records(void *rec_ref_p)
+static void mpiio_finalize_file_records(void *rec_ref_p, void *user_ptr)
 {
     struct mpiio_file_record_ref *rec_ref =
         (struct mpiio_file_record_ref *)rec_ref_p;
@@ -1586,7 +1574,8 @@ static void mpiio_shutdown(
     /* perform any final transformations on MPIIO file records before
      * writing them out to log file
      */
-    darshan_iter_record_refs(mpiio_runtime->rec_id_hash, &mpiio_finalize_file_records);
+    darshan_iter_record_refs(mpiio_runtime->rec_id_hash,
+        &mpiio_finalize_file_records, NULL);
 
     /* if there are globally shared files, do a shared file reduction */
     /* NOTE: the shared file reduction is also skipped if the 

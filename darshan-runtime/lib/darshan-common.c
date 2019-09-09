@@ -103,7 +103,8 @@ void darshan_clear_record_refs(void **hash_head_p, int free_flag)
     return;
 }
 
-void darshan_iter_record_refs(void *hash_head, void (*iter_action)(void *))
+void darshan_iter_record_refs(void *hash_head, void (*iter_action)(void *, void *),
+    void *user_ptr)
 {
     struct darshan_record_ref_tracker *ref_tracker, *tmp;
     struct darshan_record_ref_tracker *ref_tracker_head =
@@ -114,7 +115,7 @@ void darshan_iter_record_refs(void *hash_head, void (*iter_action)(void *))
      */
     HASH_ITER(hlink, ref_tracker_head, ref_tracker, tmp)
     {
-        iter_action(ref_tracker->rec_ref_p);
+        iter_action(ref_tracker->rec_ref_p, user_ptr);
     }
 
     return;

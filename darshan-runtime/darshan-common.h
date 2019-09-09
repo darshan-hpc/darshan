@@ -210,12 +210,16 @@ void darshan_clear_record_refs(
  *
  * Iterate each record reference stored in the hash table pointed
  * to by 'hash_head' and perform the given action 'iter_action'. 
- * The action function takes a single pointer which points to the
- * corresponding record reference pointer.
+ * The action function takes two pointers as input: the first
+ * points to the corresponding record reference pointer and the
+ * second is a user-supplied pointer provided for the action.
+ * 'user_ptr' is the user-supplied pointer that will be passed
+ * as the 2nd argument to 'iter_action'.
  */
 void darshan_iter_record_refs(
     void *hash_head,
-    void (*iter_action)(void *));
+    void (*iter_action)(void *, void *),
+    void *user_ptr);
 
 /* darshan_clean_file_path()
  *
