@@ -578,7 +578,7 @@ static void mdhim_shutdown(
         if (my_rank != 0)
         {
             darshan_iter_record_refs(mdhim_runtime->rec_id_hash,
-                    &mdhim_subtract_shared_rec_size);
+                    &mdhim_subtract_shared_rec_size, NULL);
         }
     }
     *mdhim_buf_sz = mdhim_rec_count * mdhim_runtime->record_buffer_size;
