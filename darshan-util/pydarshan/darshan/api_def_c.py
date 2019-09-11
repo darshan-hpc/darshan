@@ -73,6 +73,14 @@ struct darshan_bgq_record
     double fcounters[1];
 };
 
+struct darshan_decaf_record
+{
+    struct darshan_base_record base_rec;
+    int64_t counters[4];
+    double fcounters[4];
+};
+
+
 /* from darshan-apxc-log-format.h */
 struct darshan_apxc_header_record
 {
@@ -104,6 +112,8 @@ char *posix_counter_names[];
 char *posix_f_counter_names[];
 char *stdio_counter_names[];
 char *stdio_f_counter_names[];
+char *decaf_counter_names[];
+char *decaf_f_counter_names[];
 
 /* Supported Functions */
 void* darshan_log_open(char *);

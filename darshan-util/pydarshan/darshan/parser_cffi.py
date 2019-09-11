@@ -131,26 +131,6 @@ def log_get_modules(log):
     return modules
 
 
-def log_agg_stdio_records(log):
-    """
-    Returns aggregated STDIO log records.
-
-    Args:
-        log: handle returned by darshan.open
-    """
-    #cnt    = ffi.new("int *")
-    #libdutil.darshan_log_agg_stdio_records(log, mods, cnt)
-
-    rec = {}
-    rbuf = ffi.new("struct darshan_stdio_file **")
-    clst = []
-    for i in range(0, len(rbuf[0].counters)):
-        clst.append(rbuf[0].counters[i])
-    rec['counters'] = numpy.array(clst, dtype=numpy.uint64)
-
-    return rec
-
-
 def log_get_generic_record(log, mod_name, mod_type):
     """
     Returns a dictionary holding a generic darshan log record.
