@@ -20,7 +20,9 @@ API_def_c = load_darshan_header()
 ffi = cffi.FFI()
 ffi.cdef(API_def_c)
 
+
 libdutil = ffi.dlopen(DARSHAN_PATH + "/lib/libdarshan-util.so")
+#libdutil = ffi.dlopen("/home/pq/p/software/darshan-cffi/darshan-util/libdarshan-util.so")
 #print(DARSHAN_PATH + "/lib/libdarshan-util.so")
 
 
@@ -131,27 +133,53 @@ def log_get_modules(log):
     return modules
 
 
-def log_get_generic_record(log, mod_name, mod_type):
+
+def log_get_name_records(log):
+    """
+    Return a dictionary resovling hash to string (typically a filepath).
+
+    Args:
+        log: handle returned by darshan.open
+        hash: hash-value (a number)
+
+    Return:
+        dict: the name records
+    """
+    name_records = {}
+
+    nrecs = ffi.new("struct darshan_name_record **")
+    cnt = ffi.new("int *")
+    libdutil.darshan_log_get_name_records(log, nrecs, cnt)
+
+    for i in range(0, cnt[0]):
+        name_records[nrecs[0][i].id] = ffi.string(nrecs[0][i].name).decode("utf-8")
+
+    return name_records
+
+
+
+def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
     """
     Returns a dictionary holding a generic darshan log record.
-    
+
     Args:
         log: Handle returned by darshan.open
         mod_name (str): Name of the Darshan module
-        mod_type (str): String containing the C type 
+        mod_type (str): String containing the C type
 
-    Returns:
-        dict: generic log record 
+    Return:
+        dict: generic log record
 
     Example
     -------
-    
+
     The typical darshan log record provides two arrays, on for integer counters
     and one for floating point counters:
 
     >>> darshan.log_get_generic_record(log, "POSIX", "struct darshan_posix_file **")
     {'counters': array([...], dtype=uint64), 'fcounters': array([...])}
-    
+
+
     """
     modules = log_get_modules(log)
 
@@ -162,6 +190,9 @@ def log_get_generic_record(log, mod_name, mod_type):
         return None
     rbuf = ffi.cast(mod_type, buf)
     clst = []
+
+    rec['id'] = rbuf[0].base_rec.id
+    rec['rank'] = rbuf[0].base_rec.rank
 
     for i in range(0, len(rbuf[0].counters)):
         clst.append(rbuf[0].counters[i])
@@ -189,6 +220,10 @@ def counter_names(mod_name, fcnts=False):
         list: Counter names as strings.
 
     """
+
+    if mod_name == 'MPI-IO':
+        mod_name = 'MPIIO'
+
     names = []
     i = 0
     if fcnts:

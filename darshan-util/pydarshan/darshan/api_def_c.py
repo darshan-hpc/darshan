@@ -98,6 +98,18 @@ struct darshan_apxc_perf_record
     int64_t counters[396];
 };
 
+
+
+typedef uint64_t darshan_record_id;
+
+struct darshan_name_record
+{
+    darshan_record_id id;
+    char* name;
+};
+
+
+
 /* counter names */
 char *apxc_counter_names[];
 char *bgq_counter_names[];
@@ -122,7 +134,14 @@ void darshan_log_close(void*);
 int darshan_log_get_exe(void*, char *);
 int darshan_log_get_mounts(void*, struct darshan_mnt_info **, int*);
 void darshan_log_get_modules(void*, struct darshan_mod_info **, int*);
-int darshan_log_get_record(void*, int, void **);"""
+int darshan_log_get_record(void*, int, void **);
+
+int darshan_log_get_namehash(void*, struct darshan_name_record_ref **hash);
+
+void darshan_log_get_name_records(void*, struct darshan_name_record **, int*);
+
+"""
+
 
 
 def load_darshan_header():
