@@ -673,27 +673,32 @@ static void dxt_posix_filter_dynamic_traces_iterator(void *rec_ref_p, void *user
     /* drop the record if no dynamic trace triggers occurred */
     if(!should_keep)
     {
-        printf("DROP RECORD %lu on rank %d\n", psx_file->base_rec.id, dxt_my_rank);
-        /* first check the MPI-IO traces to see if we should drop there */
-        mpiio_rec_ref = darshan_delete_record_ref(&dxt_mpiio_runtime->rec_id_hash,
-            &psx_file->base_rec.id, sizeof(darshan_record_id));
-        if(mpiio_rec_ref)
+        if(dxt_mpiio_runtime && dxt_mpiio_runtime->rec_id_hash)
         {
-            free(mpiio_rec_ref->write_traces);
-            free(mpiio_rec_ref->read_traces);
-            free(mpiio_rec_ref->file_rec);
-            free(mpiio_rec_ref);
+            /* first check the MPI-IO traces to see if we should drop there */
+            mpiio_rec_ref = darshan_delete_record_ref(&dxt_mpiio_runtime->rec_id_hash,
+                &psx_file->base_rec.id, sizeof(darshan_record_id));
+            if(mpiio_rec_ref)
+            {
+                free(mpiio_rec_ref->write_traces);
+                free(mpiio_rec_ref->read_traces);
+                free(mpiio_rec_ref->file_rec);
+                free(mpiio_rec_ref);
+            }
         }
 
-        /* then delete the POSIX trace records */
-        psx_rec_ref = darshan_delete_record_ref(&dxt_posix_runtime->rec_id_hash,
-            &psx_file->base_rec.id, sizeof(darshan_record_id));
-        if(psx_rec_ref)
+        if(dxt_posix_runtime && dxt_posix_runtime->rec_id_hash)
         {
-            free(psx_rec_ref->write_traces);
-            free(psx_rec_ref->read_traces);
-            free(psx_rec_ref->file_rec);
-            free(psx_rec_ref);
+            /* then delete the POSIX trace records */
+            psx_rec_ref = darshan_delete_record_ref(&dxt_posix_runtime->rec_id_hash,
+                &psx_file->base_rec.id, sizeof(darshan_record_id));
+            if(psx_rec_ref)
+            {
+                free(psx_rec_ref->write_traces);
+                free(psx_rec_ref->read_traces);
+                free(psx_rec_ref->file_rec);
+                free(psx_rec_ref);
+            }
         }
     }
 
