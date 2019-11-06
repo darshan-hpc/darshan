@@ -310,7 +310,7 @@ void darshan_core_initialize(int argc, char **argv)
             darshan_get_exe_and_mounts(init_core, argc, argv);
 
             /* determine if/when DXT should be enabled by looking for triggers */
-            char *trigger_conf = getenv("DARSHAN_DXT_TRIGGER_CONF_PATH");
+            char *trigger_conf = getenv("DXT_TRIGGER_CONF_PATH");
             if(trigger_conf)
             {
                 dxt_load_trigger_conf(trigger_conf);
