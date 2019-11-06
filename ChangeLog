@@ -4,6 +4,12 @@ Darshan Release Change Log
 
 Darshan-3.1.7
 =============
+* added dynamic trace triggering functionality, allowing Darshan to
+  decide at runtime whether or not to trace specific files with DXT,
+  with this decision based on triggers in a user-provided config file
+
+Darshan-3.1.7
+=============
 * bug fix for handling DXT data in darshan-convert utility. Bug reported
   by Mahzad Khoshlessan.
 * bug fix for darshan-parser backwards compatibility: Darshan logs generated
