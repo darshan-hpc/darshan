@@ -2,7 +2,7 @@
 Darshan Release Change Log
 --------------------------
 
-Darshan-3.1.7
+Darshan-3.1.8
 =============
 * added dynamic trace triggering functionality, allowing Darshan to
   decide at runtime whether or not to trace specific files with DXT,
