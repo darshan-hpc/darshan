@@ -153,17 +153,14 @@ static struct posix_aio_tracker* posix_aio_tracker_del(
     int fd, void *aiocbp);
 static void posix_finalize_file_records(
     void *rec_ref_p);
+static void posix_cleanup_runtime(
+    void);
 #ifdef HAVE_MPI
 static void posix_record_reduction_op(
     void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
 static void posix_shared_record_variance(
     MPI_Comm mod_comm, struct darshan_posix_file *inrec_array,
     struct darshan_posix_file *outrec_array, int shared_rec_count);
-#endif
-static void posix_cleanup_runtime(
-    void);
-
-#ifdef HAVE_MPI
 static void posix_mpi_redux(
     void *posix_buf, MPI_Comm mod_comm,
     darshan_record_id *shared_recs, int shared_rec_count);
@@ -1640,6 +1637,17 @@ static void posix_finalize_file_records(void *rec_ref_p)
     return;
 }
 
+static void posix_cleanup_runtime()
+{
+    darshan_clear_record_refs(&(posix_runtime->fd_hash), 0);
+    darshan_clear_record_refs(&(posix_runtime->rec_id_hash), 1);
+
+    free(posix_runtime);
+    posix_runtime = NULL;
+
+    return;
+}
+
 #ifdef HAVE_MPI
 static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype)
@@ -1956,17 +1964,6 @@ static void posix_shared_record_variance(MPI_Comm mod_comm,
 }
 #endif
 
-static void posix_cleanup_runtime()
-{
-    darshan_clear_record_refs(&(posix_runtime->fd_hash), 0);
-    darshan_clear_record_refs(&(posix_runtime->rec_id_hash), 1);
-
-    free(posix_runtime);
-    posix_runtime = NULL;
-
-    return;
-}
-
 char *darshan_posix_lookup_record_name(int fd)
 {
     struct posix_file_record_ref *rec_ref;
@@ -2063,12 +2060,14 @@ void darshan_posix_shutdown_bench_setup(int test_case)
 
 #ifdef HAVE_MPI
 static void posix_mpi_redux(
-    void *posix_buf, MPI_Comm mod_comm,
-    darshan_record_id *shared_recs, int shared_rec_count)
+    void *posix_buf,
+    MPI_Comm mod_comm,
+    darshan_record_id *shared_recs,
+    int shared_rec_count)
 {
     int posix_rec_count;
     struct posix_file_record_ref *rec_ref;
-    struct darshan_posix_file *posix_rec_buf = *(struct darshan_posix_file **)posix_buf;
+    struct darshan_posix_file *posix_rec_buf = (struct darshan_posix_file *)posix_buf;
     double posix_time;
     struct darshan_posix_file *red_send_buf = NULL;
     struct darshan_posix_file *red_recv_buf = NULL;

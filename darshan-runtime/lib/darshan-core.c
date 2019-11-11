@@ -430,6 +430,7 @@ void darshan_core_shutdown()
     DARSHAN_CORE_UNLOCK();
 
     /* grab some initial timing information */
+    /* XXX move to MPI_Finalize wrapper */
 #ifdef HAVE_MPI
     /* if using mpi, sync across procs first */
     if(using_mpi)

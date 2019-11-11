@@ -146,10 +146,10 @@ void darshan_instrument_fs_data(
  * shutdown functionality (including a possible data reduction step when
  * using MPI). 'inout_mod_buf_size' is an input/output argument, with it
  * being set to the requested amount of module memory on input, and set to
- * the amount allocated by darshan-core on output. If given, 'rank' is
- * a pointer to an integer which will contain the calling process's
- * MPI rank on return. If given, 'sys_mem_alignment' is a pointer to
- * an integer which will contain the memory alignment value Darshan
+ * the amount allocated by darshan-core on output. If Darshan is built with
+ * MPI support, 'rank' is a pointer to an integer which will contain the
+ * calling process's MPI rank on return. If given, 'sys_mem_alignment' is a
+ * pointer to an integer which will contain the memory alignment value Darshan
  * was configured with on return.
  */
 void darshan_core_register_module(

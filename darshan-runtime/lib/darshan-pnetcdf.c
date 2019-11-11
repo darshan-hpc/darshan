@@ -46,14 +46,17 @@ static void pnetcdf_runtime_initialize(
     void);
 static struct pnetcdf_file_record_ref *pnetcdf_track_new_file_record(
     darshan_record_id rec_id, const char *path);
-static void pnetcdf_record_reduction_op(
-    void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
 static void pnetcdf_cleanup_runtime(
     void);
-
+#ifdef HAVE_MPI
+static void pnetcdf_record_reduction_op(
+    void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
+static void pnetcdf_mpi_redux(
+    void *pnetcdf_buf, MPI_Comm mod_comm,
+    darshan_record_id *shared_recs, int shared_rec_count);
+#endif
 static void pnetcdf_shutdown(
-    MPI_Comm mod_comm, darshan_record_id *shared_recs,
-    int shared_rec_count, void **pnetcdf_buf, int *pnetcdf_buf_sz);
+    void **pnetcdf_buf, int *pnetcdf_buf_sz);
 
 static struct pnetcdf_runtime *pnetcdf_runtime = NULL;
 static pthread_mutex_t pnetcdf_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -210,6 +213,12 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
 static void pnetcdf_runtime_initialize()
 {
     int pnetcdf_buf_size;
+    darshan_module_funcs mod_funcs = {
+#ifdef HAVE_MPI
+    .mod_redux_func = &pnetcdf_mpi_redux,
+#endif
+    .mod_shutdown_func = &pnetcdf_shutdown
+    };
 
     /* try and store the default number of records for this module */
     pnetcdf_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_pnetcdf_file);
@@ -217,7 +226,7 @@ static void pnetcdf_runtime_initialize()
     /* register pnetcdf module with darshan-core */
     darshan_core_register_module(
         DARSHAN_PNETCDF_MOD,
-        &pnetcdf_shutdown,
+        mod_funcs,
         &pnetcdf_buf_size,
         &my_rank,
         NULL);
@@ -288,6 +297,18 @@ static struct pnetcdf_file_record_ref *pnetcdf_track_new_file_record(
     return(rec_ref);
 }
 
+static void pnetcdf_cleanup_runtime()
+{
+    darshan_clear_record_refs(&(pnetcdf_runtime->ncid_hash), 0);
+    darshan_clear_record_refs(&(pnetcdf_runtime->rec_id_hash), 1);
+
+    free(pnetcdf_runtime);
+    pnetcdf_runtime = NULL;
+
+    return;
+}
+
+#ifdef HAVE_MPI
 static void pnetcdf_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype)
 {
@@ -337,33 +358,22 @@ static void pnetcdf_record_reduction_op(void* infile_v, void* inoutfile_v,
 
     return;
 }
-
-static void pnetcdf_cleanup_runtime()
-{
-    darshan_clear_record_refs(&(pnetcdf_runtime->ncid_hash), 0);
-    darshan_clear_record_refs(&(pnetcdf_runtime->rec_id_hash), 1);
-
-    free(pnetcdf_runtime);
-    pnetcdf_runtime = NULL;
-
-    return;
-}
+#endif
 
 /***************************************************************************
  * Functions exported by PNETCDF module for coordinating with darshan-core *
  ***************************************************************************/
 
-static void pnetcdf_shutdown(
+#ifdef HAVE_MPI
+static void pnetcdf_mpi_redux(
+    void *pnetcdf_buf,
     MPI_Comm mod_comm,
     darshan_record_id *shared_recs,
-    int shared_rec_count,
-    void **pnetcdf_buf,
-    int *pnetcdf_buf_sz)
+    int shared_rec_count)
 {
-    struct pnetcdf_file_record_ref *rec_ref;
-    struct darshan_pnetcdf_file *pnetcdf_rec_buf =
-        *(struct darshan_pnetcdf_file **)pnetcdf_buf;
     int pnetcdf_rec_count;
+    struct pnetcdf_file_record_ref *rec_ref;
+    struct darshan_pnetcdf_file *pnetcdf_rec_buf = (struct darshan_pnetcdf_file *)pnetcdf_buf;
     struct darshan_pnetcdf_file *red_send_buf = NULL;
     struct darshan_pnetcdf_file *red_recv_buf = NULL;
     MPI_Datatype red_type;
@@ -375,79 +385,87 @@ static void pnetcdf_shutdown(
 
     pnetcdf_rec_count = pnetcdf_runtime->file_rec_count;
 
-    /* if there are globally shared files, do a shared file reduction */
-    /* NOTE: the shared file reduction is also skipped if the 
-     * DARSHAN_DISABLE_SHARED_REDUCTION environment variable is set.
-     */
-    if(shared_rec_count && !getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
+    /* necessary initialization of shared records */
+    for(i = 0; i < shared_rec_count; i++)
     {
-        /* necessary initialization of shared records */
-        for(i = 0; i < shared_rec_count; i++)
-        {
-            rec_ref = darshan_lookup_record_ref(pnetcdf_runtime->rec_id_hash,
-                &shared_recs[i], sizeof(darshan_record_id));
-            assert(rec_ref);
+        rec_ref = darshan_lookup_record_ref(pnetcdf_runtime->rec_id_hash,
+            &shared_recs[i], sizeof(darshan_record_id));
+        assert(rec_ref);
 
-            rec_ref->file_rec->base_rec.rank = -1;
-        }
-
-
-        /* sort the array of records so we get all of the shared records
-         * (marked by rank -1) in a contiguous portion at end of the array
-         */
-        darshan_record_sort(pnetcdf_rec_buf, pnetcdf_rec_count,
-            sizeof(struct darshan_pnetcdf_file));
-
-        /* make *send_buf point to the shared files at the end of sorted array */
-        red_send_buf = &(pnetcdf_rec_buf[pnetcdf_rec_count-shared_rec_count]);
-
-        /* allocate memory for the reduction output on rank 0 */
-        if(my_rank == 0)
-        {
-            red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_pnetcdf_file));
-            if(!red_recv_buf)
-            {
-                PNETCDF_UNLOCK();
-                return;
-            }
-        }
-
-        /* construct a datatype for a PNETCDF file record.  This is serving no purpose
-         * except to make sure we can do a reduction on proper boundaries
-         */
-        PMPI_Type_contiguous(sizeof(struct darshan_pnetcdf_file),
-            MPI_BYTE, &red_type);
-        PMPI_Type_commit(&red_type);
-
-        /* register a PNETCDF file record reduction operator */
-        PMPI_Op_create(pnetcdf_record_reduction_op, 1, &red_op);
-
-        /* reduce shared PNETCDF file records */
-        PMPI_Reduce(red_send_buf, red_recv_buf,
-            shared_rec_count, red_type, red_op, 0, mod_comm);
-
-        /* clean up reduction state */
-        if(my_rank == 0)
-        {
-            int tmp_ndx = pnetcdf_rec_count - shared_rec_count;
-            memcpy(&(pnetcdf_rec_buf[tmp_ndx]), red_recv_buf,
-                shared_rec_count * sizeof(struct darshan_pnetcdf_file));
-            free(red_recv_buf);
-        }
-        else
-        {
-            pnetcdf_rec_count -= shared_rec_count;
-        }
-
-        PMPI_Type_free(&red_type);
-        PMPI_Op_free(&red_op);
+        rec_ref->file_rec->base_rec.rank = -1;
     }
 
-    /* update output buffer size to account for shared file reduction */
-    *pnetcdf_buf_sz = pnetcdf_rec_count * sizeof(struct darshan_pnetcdf_file);
+    /* sort the array of records so we get all of the shared records
+     * (marked by rank -1) in a contiguous portion at end of the array
+     */
+    darshan_record_sort(pnetcdf_rec_buf, pnetcdf_rec_count,
+        sizeof(struct darshan_pnetcdf_file));
+
+    /* make *send_buf point to the shared files at the end of sorted array */
+    red_send_buf = &(pnetcdf_rec_buf[pnetcdf_rec_count-shared_rec_count]);
+
+    /* allocate memory for the reduction output on rank 0 */
+    if(my_rank == 0)
+    {
+        red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_pnetcdf_file));
+        if(!red_recv_buf)
+        {
+            PNETCDF_UNLOCK();
+            return;
+        }
+    }
+
+    /* construct a datatype for a PNETCDF file record.  This is serving no purpose
+     * except to make sure we can do a reduction on proper boundaries
+     */
+    PMPI_Type_contiguous(sizeof(struct darshan_pnetcdf_file),
+        MPI_BYTE, &red_type);
+    PMPI_Type_commit(&red_type);
+
+    /* register a PNETCDF file record reduction operator */
+    PMPI_Op_create(pnetcdf_record_reduction_op, 1, &red_op);
+
+    /* reduce shared PNETCDF file records */
+    PMPI_Reduce(red_send_buf, red_recv_buf,
+        shared_rec_count, red_type, red_op, 0, mod_comm);
+
+    /* clean up reduction state */
+    if(my_rank == 0)
+    {
+        int tmp_ndx = pnetcdf_rec_count - shared_rec_count;
+        memcpy(&(pnetcdf_rec_buf[tmp_ndx]), red_recv_buf,
+            shared_rec_count * sizeof(struct darshan_pnetcdf_file));
+        free(red_recv_buf);
+    }
+    else
+    {
+        pnetcdf_rec_count -= shared_rec_count;
+    }
+
+    PMPI_Type_free(&red_type);
+    PMPI_Op_free(&red_op);
+
+    PNETCDF_UNLOCK();
+    return;
+}
+#endif
+
+static void pnetcdf_shutdown(
+    void **pnetcdf_buf,
+    int *pnetcdf_buf_sz)
+{
+    int pnetcdf_rec_count;
+
+    PNETCDF_LOCK();
+    assert(pnetcdf_runtime);
+
+    pnetcdf_rec_count = pnetcdf_runtime->file_rec_count;
 
     /* shutdown internal structures used for instrumenting */
     pnetcdf_cleanup_runtime();
+
+    /* update output buffer size to account for shared file reduction */
+    *pnetcdf_buf_sz = pnetcdf_rec_count * sizeof(struct darshan_pnetcdf_file);
 
     PNETCDF_UNLOCK();
     return;
