@@ -129,11 +129,9 @@ static void dxt_mpiio_cleanup_runtime(
     void);
 
 static void dxt_posix_shutdown(
-    MPI_Comm mod_comm, darshan_record_id *shared_recs,
-    int shared_rec_count, void **dxt_buf, int *dxt_buf_sz);
+    void **dxt_buf, int *dxt_buf_sz);
 static void dxt_mpiio_shutdown(
-    MPI_Comm mod_comm, darshan_record_id *shared_recs,
-    int shared_rec_count, void **dxt_buf, int *dxt_buf_sz);
+    void **dxt_buf, int *dxt_buf_sz);
 
 static struct dxt_posix_runtime *dxt_posix_runtime = NULL;
 static struct dxt_mpiio_runtime *dxt_mpiio_runtime = NULL;
@@ -380,6 +378,12 @@ static void dxt_posix_runtime_initialize()
      * over realloc'ing module memory as needed.
      */
     int dxt_psx_buf_size = 0;
+    darshan_module_funcs mod_funcs = {
+#ifdef HAVE_MPI
+    .mod_redux_func = NULL,
+#endif
+    .mod_shutdown_func = &dxt_posix_shutdown
+    };
     int ret;
     double tmpfloat;
     char *envstr;
@@ -387,7 +391,7 @@ static void dxt_posix_runtime_initialize()
     /* register the DXT module with darshan core */
     darshan_core_register_module(
         DXT_POSIX_MOD,
-        &dxt_posix_shutdown,
+        mod_funcs,
         &dxt_psx_buf_size,
         &dxt_my_rank,
         NULL);
@@ -433,6 +437,12 @@ void dxt_mpiio_runtime_initialize()
      * over realloc'ing module memory as needed.
      */
     int dxt_mpiio_buf_size = 0;
+    darshan_module_funcs mod_funcs = {
+#ifdef HAVE_MPI
+    .mod_redux_func = NULL,
+#endif
+    .mod_shutdown_func = &dxt_mpiio_shutdown
+    };
     int ret;
     double tmpfloat;
     char *envstr;
@@ -440,7 +450,7 @@ void dxt_mpiio_runtime_initialize()
     /* register the DXT module with darshan core */
     darshan_core_register_module(
         DXT_MPIIO_MOD,
-        &dxt_mpiio_shutdown,
+        mod_funcs,
         &dxt_mpiio_buf_size,
         &dxt_my_rank,
         NULL);
@@ -715,9 +725,6 @@ static void dxt_serialize_posix_records(void *rec_ref_p)
 }
 
 static void dxt_posix_shutdown(
-    MPI_Comm mod_comm,
-    darshan_record_id *shared_recs,
-    int shared_rec_count,
     void **dxt_posix_buf,
     int *dxt_posix_buf_sz)
 {
@@ -825,9 +832,6 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p)
 }
 
 static void dxt_mpiio_shutdown(
-    MPI_Comm mod_comm,
-    darshan_record_id *shared_recs,
-    int shared_rec_count,
     void **dxt_mpiio_buf,
     int *dxt_mpiio_buf_sz)
 {
