@@ -37,6 +37,7 @@ LIBS = -lz @LIBBZ2@
 
 BUILD_HDF5_MODULE = @BUILD_HDF5_MODULE@
 BUILD_MDHIM_MODULE = @BUILD_MDHIM_MODULE@
+BUILD_ABCXYZ_MODULE = @BUILD_ABCXYZ_MODULE@
 
 DARSHAN_STATIC_MOD_OBJS = lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-pnetcdf.o lib/darshan-stdio.o lib/darshan-dxt.o
 DARSHAN_DYNAMIC_MOD_OBJS = lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-pnetcdf.po lib/darshan-stdio.po lib/darshan-dxt.po
@@ -67,6 +68,13 @@ CFLAGS += -DDARSHAN_MDHIM
 CFLAGS_SHARED += -DDARSHAN_MDHIM
 endif
 
+ifdef BUILD_ABCXYZ_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-abcxyz.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-abcxyz.po
+CFLAGS += -DDARSHAN_ABCXYZ
+CFLAGS_SHARED += -DDARSHAN_ABCXYZ
+endif
+
 lib::
 	@mkdir -p $@
 
@@ -92,6 +100,12 @@ lib/darshan-null.o: lib/darshan-null.c darshan.h darshan-common.h $(DARSHAN_LOG_
 	$(CC) $(CFLAGS) -c $< -o $@
 
 lib/darshan-null.po: lib/darshan-null.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-null-log-format.h | lib
+	$(CC) $(CFLAGS_SHARED) -c $< -o $@
+
+lib/darshan-abcxyz.o: lib/darshan-abcxyz.c darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-abcxyz-log-format.h | lib
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/darshan-abcxyz.po: lib/darshan-abcxyz.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-abcxyz-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
 lib/darshan-posix.o: lib/darshan-posix.c darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-posix-log-format.h | lib

@@ -21,7 +21,8 @@ DARSHAN_MOD_LOG_FORMATS = $(srcdir)/../darshan-posix-log-format.h \
 			  $(srcdir)/../darshan-lustre-log-format.h \
 			  $(srcdir)/../darshan-stdio-log-format.h \
 			  $(srcdir)/../darshan-dxt-log-format.h \
-			  $(srcdir)/../darshan-mdhim-log-format.h
+			  $(srcdir)/../darshan-mdhim-log-format.h \
+			  $(srcdir)/../darshan-abcxyz-log-format.h
 
 DARSHAN_MOD_LOGUTIL_HEADERS = darshan-posix-logutils.h \
 			      darshan-mpiio-logutils.h \
@@ -31,7 +32,8 @@ DARSHAN_MOD_LOGUTIL_HEADERS = darshan-posix-logutils.h \
 			      darshan-lustre-logutils.h \
 			      darshan-stdio-logutils.h \
 			      darshan-dxt-logutils.h \
-			      darshan-mdhim-logutils.h
+			      darshan-mdhim-logutils.h \
+			      darshan-abcxyz-logutils.h
 
 DARSHAN_STATIC_MOD_OBJS = darshan-posix-logutils.o \
 			  darshan-mpiio-logutils.o \
@@ -41,7 +43,8 @@ DARSHAN_STATIC_MOD_OBJS = darshan-posix-logutils.o \
 			  darshan-lustre-logutils.o \
 			  darshan-stdio-logutils.o \
 			  darshan-dxt-logutils.o \
-			  darshan-mdhim-logutils.o
+			  darshan-mdhim-logutils.o \
+			  darshan-abcxyz-logutils.o
 
 DARSHAN_DYNAMIC_MOD_OBJS = darshan-posix-logutils.po \
 			   darshan-mpiio-logutils.po \
@@ -51,7 +54,8 @@ DARSHAN_DYNAMIC_MOD_OBJS = darshan-posix-logutils.po \
 			   darshan-lustre-logutils.po \
 			   darshan-stdio-logutils.po \
 			   darshan-dxt-logutils.po \
-			   darshan-mdhim-logutils.po
+			   darshan-mdhim-logutils.po \
+			   darshan-abcxyz-logutils.po
 
 DARSHAN_ENABLE_SHARED=@DARSHAN_ENABLE_SHARED@
 
@@ -89,6 +93,11 @@ darshan-logutils.po: darshan-logutils.c darshan-logutils.h $(DARSHAN_LOG_FORMAT)
 darshan-null-logutils.o: darshan-null-logutils.c darshan-logutils.h darshan-null-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-null-log-format.h | uthash-1.9.2
 	$(CC) $(CFLAGS) -c  $< -o $@
 darshan-null-logutils.po: darshan-null-logutils.c darshan-logutils.h darshan-null-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-null-log-format.h | uthash-1.9.2
+	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
+
+darshan-abcxyz-logutils.o: darshan-abcxyz-logutils.c darshan-logutils.h darshan-abcxyz-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-abcxyz-log-format.h | uthash-1.9.2
+	$(CC) $(CFLAGS) -c  $< -o $@
+darshan-abcxyz-logutils.po: darshan-abcxyz-logutils.c darshan-logutils.h darshan-abcxyz-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-abcxyz-log-format.h | uthash-1.9.2
 	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
 
 darshan-posix-logutils.o: darshan-posix-logutils.c darshan-logutils.h darshan-posix-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-posix-log-format.h | uthash-1.9.2
@@ -196,11 +205,12 @@ endif
 	install -m 644 $(srcdir)/darshan-hdf5-logutils.h $(includedir)
 	install -m 644 $(srcdir)/darshan-pnetcdf-logutils.h $(includedir)
 	install -m 644 $(srcdir)/darshan-bgq-logutils.h $(includedir)
-	install -m 644 $(srcdir)/darshan-null-logutils.h $(includedir)
+	install -m 644 $(srcdir)/darshan-abcxyz-logutils.h $(includedir)
 	install -m 644 $(srcdir)/darshan-lustre-logutils.h $(includedir)
 	install -m 644 $(srcdir)/darshan-stdio-logutils.h $(includedir)
 	install -m 644 $(srcdir)/darshan-dxt-logutils.h $(includedir)
 	install -m 644 $(srcdir)/darshan-mdhim-logutils.h $(includedir)
+	install -m 644 $(srcdir)/darshan-null-logutils.h $(includedir)
 	install -m 644 $(srcdir)/../darshan-null-log-format.h $(includedir)
 	install -m 644 $(srcdir)/../darshan-posix-log-format.h $(includedir)
 	install -m 644 $(srcdir)/../darshan-mpiio-log-format.h $(includedir)
@@ -211,6 +221,7 @@ endif
 	install -m 644 $(srcdir)/../darshan-stdio-log-format.h $(includedir)
 	install -m 644 $(srcdir)/../darshan-dxt-log-format.h $(includedir)
 	install -m 644 $(srcdir)/../darshan-mdhim-log-format.h $(includedir)
+	install -m 644 $(srcdir)/../darshan-abcxyz-log-format.h $(includedir)
 	install -d $(includedir)/uthash-1.9.2
 	install -d $(includedir)/uthash-1.9.2/src
 	install -m 644 uthash-1.9.2/src/uthash.h $(includedir)/uthash-1.9.2/src/

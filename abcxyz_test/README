@@ -1,0 +1,30 @@
+# abcxyz Darshan Mod Example
+
+This directory provides boilerplate to quickly verify and test if the wrapper
+is working. Darshan has to be build with the new module enabled (see below).
+
+Build the example library and application by issuing make:
+
+	make
+
+A shared object and a executeable should have been created. To run example you
+can convieniently use the procedure outlined in run.sh or just call it directly
+to test your wrapper:
+
+	./run.sh
+
+To verify if the darshan log include all expected records you can double-check
+using the parser.sh file:
+
+	./parser.sh
+
+
+## Building Darshan with the new mod enabled
+
+By default darshan-runtime will not include instrumentation for the new mod.
+Therefor when configuring darshan-runtime build as follows:
+
+	./configure CC=mpicc --with-mem-align=8 \
+		--with-log-path-by-env=DARSHAN_LOG_DIR_PATH \
+		--with-jobid-env=NONE --enable-abcxyz
+	make -j

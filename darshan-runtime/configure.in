@@ -299,6 +299,21 @@ AS_IF([test "x$enable_mdhim" = "xyes"],
 
       )
 
+# ABCYXZ Module:
+BUILD_ABCXYZ_MODULE=
+DARSHAN_ABCXYZ_LD_OPTS=
+AC_ARG_ENABLE([abcxyz],
+	      AS_HELP_STRING([--enable-abcxyz], [Enable abcxyz module]),
+	      [],[] )
+AS_IF([test "x$enable_abcxyz" = "xyes"],
+      BUILD_ABCXYZ_MODULE=1
+      DARSHAN_ABCXYZ_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-abcxyz-ld-opts"
+      #AC_CHECK_HEADERS([abcxyz.h],
+	  #	       [],
+	  #	       AC_MSG_ERROR([abcxyz requested but headers cannot be found]) ),
+      []
+
+      )
 
 # determine if the MPI library includes MPI-IO functions or not
 AC_MSG_CHECKING(for MPI-IO support in MPI)
