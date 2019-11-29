@@ -156,6 +156,10 @@ struct darshan_variance_dt
 * darshan-common functions for darshan modules *
 ***********************************************/
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* darshan_lookup_record_ref()
  *
  * Lookup a record reference pointer using the given 'handle'.
@@ -279,5 +283,9 @@ void darshan_variance_reduce(
     void *inoutvec,
     int *len,
     MPI_Datatype *dt);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __DARSHAN_COMMON_H */

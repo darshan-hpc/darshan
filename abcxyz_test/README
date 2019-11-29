@@ -24,7 +24,7 @@ using the parser.sh file:
 By default darshan-runtime will not include instrumentation for the new mod.
 Therefor when configuring darshan-runtime build as follows:
 
-	./configure CC=mpicc --with-mem-align=8 \
+	./configure CC=mpicc CXX=mpic++ --with-mem-align=8 \
 		--with-log-path-by-env=DARSHAN_LOG_DIR_PATH \
 		--with-jobid-env=NONE --enable-abcxyz
 	make -j

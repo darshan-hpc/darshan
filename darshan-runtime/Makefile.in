@@ -103,10 +103,10 @@ lib/darshan-null.po: lib/darshan-null.c darshan.h darshan-dynamic.h darshan-comm
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
 lib/darshan-abcxyz.o: lib/darshan-abcxyz.c darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-abcxyz-log-format.h | lib
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CXX) $(CFLAGS) -fpermissive -c $< -o $@
 
 lib/darshan-abcxyz.po: lib/darshan-abcxyz.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-abcxyz-log-format.h | lib
-	$(CC) $(CFLAGS_SHARED) -c $< -o $@
+	$(CXX) $(CFLAGS_SHARED) -fpermissive -c $< -o $@
 
 lib/darshan-posix.o: lib/darshan-posix.c darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-posix-log-format.h | lib
 	$(CC) $(CFLAGS) -DDARSHAN_WRAP_MMAP -c $< -o $@
@@ -185,7 +185,7 @@ lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darsha
 	ar rcs $@ $^
 
 lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po $(DARSHAN_DYNAMIC_MOD_OBJS) lib/lookup3.po lib/lookup8.po
-	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ -lpthread -lrt -lz -ldl
+	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ -lpthread -lrt -lz -ldl -lstdc++
 
 ifdef BUILD_HDF5_MODULE
 lib/libdarshan-stubs.a: lib/darshan-hdf5-stubs.o lib/darshan-pnetcdf-stubs.o

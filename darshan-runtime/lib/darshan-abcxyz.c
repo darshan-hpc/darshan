@@ -7,6 +7,8 @@
 #define _XOPEN_SOURCE 500
 #define _GNU_SOURCE
 
+#define OMPI_SKIP_MPICXX
+
 #include "darshan-runtime-config.h"
 #include <stdio.h>
 #include <unistd.h>
@@ -15,8 +17,15 @@
 #include <string.h>
 #include <assert.h>
 
+#include <dlfcn.h>
+
 #include "darshan.h"
 #include "darshan-dynamic.h"
+
+#ifdef __cplusplus
+#include <iostream>
+#include <typeinfo>
+#endif
 
 /* The "ABCXYZ" module is an example instrumentation module implementation provided
  * with Darshan, primarily to indicate how arbitrary modules may be integrated
@@ -28,11 +37,24 @@
  * that may be reused and expanded on by developers adding new instrumentation modules.
  */
 
+
 /* The DARSHAN_FORWARD_DECL macro (defined in darshan.h) is used to provide forward
  * declarations for wrapped funcions, regardless of whether Darshan is used with
  * statically or dynamically linked executables.
+ * 
+ * NOTE: Unfortuntely, this level of convienience can not be offered using standard
+ *       C++ mechanisms, but requires to include a dependency to perform name mangling.
  */
-DARSHAN_FORWARD_DECL(foo, int, (const char *name, int arg1));
+//DARSHAN_FORWARD_DECL(foo, int, (const char *name, int arg1));
+
+class X
+{
+    public:
+        void fn1(const char* name, int arg1);
+        void fn2();
+        void fn3();
+};
+
 
 /* The abcxyz_record_ref structure maintains necessary runtime metadata
  * for the ABCXYZ module record (darshan_abcxyz_record structure, defined in
@@ -163,33 +185,76 @@ static int my_rank = -1;
 
 /* The DARSHAN_DECL macro provides the appropriate wrapper function names,
  * depending on whether the Darshan library is statically or dynamically linked.
+ *
+ * NOTE: Unfortuntely, this level of convienience can not be offered using standard
+ *       C++ mechanisms. It could be provided by including an implmentation of e.g.
+ *       the commonly used itanium ABI mangler which seems consistent to GCC/LLVM. 
  */
-int DARSHAN_DECL(foo)(const char* name, int arg1)
+// Kept for comparison ;)
+//int DARSHAN_DECL(foo)(const char* name, int arg1)
+//{
+//    ssize_t ret;
+//    double tm1, tm2;
+//
+//    /* The MAP_OR_FAIL macro attempts to obtain the address of the actual
+//     * underlying foo function call (__real_foo), in the case of LD_PRELOADing
+//     * the Darshan library. For statically linked executables, this macro is
+//     * just a NOP. 
+//     */
+//    MAP_OR_FAIL(foo);
+//
+//    /* In general, Darshan wrappers begin by calling the real version of the
+//     * given wrapper function. Timers are used to record the duration of this
+//     * operation. */
+//    tm1 = darshan_core_wtime();
+//    ret = __real_foo(name, arg1);
+//    tm2 = darshan_core_wtime();
+//
+//    ABCXYZ_PRE_RECORD();
+//    /* Call macro for instrumenting data for foo function calls. */
+//    ABCXYZ_RECORD_FOO(ret, name, arg1, tm1, tm2);
+//    ABCXYZ_POST_RECORD();
+//
+//    return(ret);
+//}
+
+/* Use/nest namespaces as required to match original.
+ */
+//namespace mynamespace {
+
+void X::fn1(const char* name, int arg1)
 {
-    ssize_t ret;
+//    void X::fn1(const char* name, int arg1);
+//    _ZN1X3fn1EPKci
+    bool ret;
     double tm1, tm2;
 
-    /* The MAP_OR_FAIL macro attempts to obtain the address of the actual
-     * underlying foo function call (__real_foo), in the case of LD_PRELOADing
-     * the Darshan library. For statically linked executables, this macro is
-     * just a NOP. 
-     */
-    MAP_OR_FAIL(foo);
+    // REMAP: compare to Darshan's MAP_OR_FAIL(name)
+    typedef bool (X::*fn1)(const char* name, int arg1);
+    static fn1 _realMethod = NULL;
+    if (_realMethod == NULL) {
+        void *tmpPtr = dlsym(RTLD_NEXT, "_ZN1X3fn1EPKci");
+        memcpy(&_realMethod, &tmpPtr, sizeof(void *));
+    }
 
     /* In general, Darshan wrappers begin by calling the real version of the
      * given wrapper function. Timers are used to record the duration of this
      * operation. */
     tm1 = darshan_core_wtime();
-    ret = __real_foo(name, arg1);
+    ret = (this->*_realMethod)(name, arg1);
     tm2 = darshan_core_wtime();
 
+    // LOG
     ABCXYZ_PRE_RECORD();
-    /* Call macro for instrumenting data for foo function calls. */
-    ABCXYZ_RECORD_FOO(ret, name, arg1, tm1, tm2);
+    ABCXYZ_RECORD_FOO(ret, name, -1, tm1, tm2);
     ABCXYZ_POST_RECORD();
 
-    return(ret);
+    //return(ret);
 }
+
+//} // mynamespace end
+
+
 
 /**********************************************************
  * Internal functions for manipulating ABCXYZ module state *
@@ -267,7 +332,7 @@ static struct abcxyz_record_ref *abcxyz_track_new_record(
         NULL);
 
     if(!record_p)
-    {
+    {            
         /* if registration fails, delete record reference and return */
         darshan_delete_record_ref(&(abcxyz_runtime->rec_id_hash),
             &rec_id, sizeof(darshan_record_id));

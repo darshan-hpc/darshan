@@ -120,6 +120,10 @@ void darshan_instrument_fs_data(
 * darshan-core functions exported to darshan modules *
 *****************************************************/
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* darshan_core_register_module()
  *
  * Register module identifier 'mod_id' with the darshan-core runtime
@@ -218,5 +222,9 @@ int darshan_core_excluded_path(
  * wrappers.
  */
 int darshan_core_disabled_instrumentation(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __DARSHAN_H */

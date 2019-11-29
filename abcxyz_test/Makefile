@@ -1,24 +1,19 @@
-
-CC=mpicc
 CLFAGS=-g
+
 
 all: abcxyz
 
 
-libabcxyz:
-	${CC} ${CLFAGS} -fPIC -c -Wall $@.c
-	${CC} -shared -Wl,-soname,$@.so.1 -o $@.so.1.0.1 $@.o
-	ln -s $@.so.1.0.1 $@.so
-	ln -s $@.so.1.0.1 $@.so.1
+mycpplib:
+	g++ -fPIC -shared -o lib$@.so $@.cpp
 
-
-abcxyz: libabcxyz
-	${CC} ${CFLAGS} -o $@ $@.c -L. -l$@
+abcxyz: mycpplib
+	# NOTE: mpic++!
+	mpic++ $(CFLAGS) abcxyz.cpp -o $@ -L. -lmycpplib
 
 
 run:
 	./run.sh
-
 
 
 clean:
@@ -26,4 +21,3 @@ clean:
 	rm -rf *.o
 	rm -f *.so*
 	rm -f abcxyz
-
