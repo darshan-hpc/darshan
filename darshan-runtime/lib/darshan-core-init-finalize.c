@@ -11,12 +11,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef HAVE_MPI
 #include <mpi.h>
+#endif
 
 #include "darshan.h"
 #include "darshan-core.h"
 #include "darshan-dynamic.h"
 
+#ifdef HAVE_MPI
 DARSHAN_FORWARD_DECL(PMPI_Finalize, int, ());
 DARSHAN_FORWARD_DECL(PMPI_Init, int, (int *argc, char ***argv));
 DARSHAN_FORWARD_DECL(PMPI_Init_thread, int, (int *argc, char ***argv, int required, int *provided));
@@ -85,6 +88,7 @@ int DARSHAN_DECL(MPI_Finalize)(void)
     return(ret);
 }
 DARSHAN_WRAPPER_MAP(PMPI_Finalize, int, (void), MPI_Finalize())
+#endif
 
 /*
  * Initialization hook that does not rely on MPI
