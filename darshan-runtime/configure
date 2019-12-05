@@ -3380,7 +3380,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
 
 else
   if test "x$with_gcc" = "xyes"; then :
-  as_fn_error which is strongly recommended for building Darshan. To force use of a non-GCC compatible compiler "CC doesn't appear to be a GNU-compatible compiler" "$LINENO" 5
+  as_fn_error $? "CC doesn't appear to be a GNU-compatible compiler, which is strongly recommended for building Darshan. To force use of a non-GCC compatible compiler, add --without-gcc to your configure command line." "$LINENO" 5
 fi
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext

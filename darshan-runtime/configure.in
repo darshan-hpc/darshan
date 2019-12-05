@@ -27,7 +27,7 @@ ENABLE_MPI=1
 AS_IF([test "x$use_mpi" = "xno"],
       [ENABLE_MPI=
        AS_IF([test "x$with_mpi" = "xyes"],
-             [AC_MSG_ERROR(CC doesn't appear to be a valid MPI compiler and MPI support was requested. See INSTALL document or try adding CC=mpicc to your configure command line.)],)],
+             [AC_MSG_ERROR([CC doesn't appear to be a valid MPI compiler and MPI support was requested. See INSTALL document or try adding CC=mpicc to your configure command line.])],)],
       [ENABLE_MPI=1
        AC_DEFINE([HAVE_MPI], [], [Define if build is MPI-enabled])])
 
@@ -45,7 +45,7 @@ AC_COMPILE_IFELSE([
     ])],
     [],
     [AS_IF([test "x$with_gcc" = "xyes"],
-           [AC_MSG_ERROR(CC doesn't appear to be a GNU-compatible compiler, which is strongly recommended for building Darshan. To force use of a non-GCC compatible compiler, add --without-gcc to your configure command line.)],)])
+           [AC_MSG_ERROR([CC doesn't appear to be a GNU-compatible compiler, which is strongly recommended for building Darshan. To force use of a non-GCC compatible compiler, add --without-gcc to your configure command line.])],)])
 
 dnl runtime libraries require zlib
 CHECK_ZLIB
