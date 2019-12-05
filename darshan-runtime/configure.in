@@ -14,23 +14,38 @@ AC_CONFIG_HEADER(darshan-runtime-config.h)
 AC_PROG_INSTALL
 
 dnl Check for MPI
-ENABLE_MPI=1
 AC_ARG_WITH(mpi,
-            AS_HELP_STRING([--without-mpi], [Build without support for MPI]))
-AS_IF([test "x$with_mpi" = "xno"],
-      ENABLE_MPI=,
-      [AC_DEFINE([HAVE_MPI], [], [Define if build is MPI-enabled])])
+            [AS_HELP_STRING([--without-mpi], [Build without support for MPI])],
+            ,
+            [with_mpi=auto])
 
+AX_PROG_CC_MPI([test x"$with_mpi" != xno],
+               [use_mpi=yes],
+               [use_mpi=no])
 
-dnl Check to see if CC is an MPI compiler
-dnl TODO: better error message here
-AS_IF([test "x$ENABLE_MPI" = "x1"],
-      [AC_MSG_CHECKING(whether the mpicc compiler works)
-       AC_TRY_COMPILE([#include <mpi.h>], [int ret = MPI_Init(0, (void*)0)],
-    AC_MSG_RESULT(yes),
-    AC_MSG_RESULT(no)
-                      AC_MSG_ERROR(CC doesn't appear to be a valid MPI compiler.  See INSTALL document or try adding CC=mpicc to your configure command line.))],
-       AC_MSG_NOTICE(not checking whether the mpicc compiler works))
+ENABLE_MPI=1
+AS_IF([test "x$use_mpi" = "xno"],
+      [ENABLE_MPI=
+       AS_IF([test "x$with_mpi" = "xyes"],
+             [AC_MSG_ERROR(CC doesn't appear to be a valid MPI compiler and MPI support was requested. See INSTALL document or try adding CC=mpicc to your configure command line.)],)],
+      [ENABLE_MPI=1
+       AC_DEFINE([HAVE_MPI], [], [Define if build is MPI-enabled])])
+
+dnl check for GCC compiler support
+AC_ARG_WITH(gcc,
+            [AS_HELP_STRING([--without-gcc], [Build without a GCC-compatible compiler])],
+            ,
+            [with_gcc=yes])
+
+AC_COMPILE_IFELSE([
+    AC_LANG_PROGRAM(,[
+        #ifndef __GNUC__
+        #error GCC ERROR
+        #endif
+    ])],
+    [],
+    [AS_IF([test "x$with_gcc" = "xyes"],
+           [AC_MSG_ERROR(CC doesn't appear to be a GNU-compatible compiler, which is strongly recommended for building Darshan. To force use of a non-GCC compatible compiler, add --without-gcc to your configure command line.)],)])
 
 dnl runtime libraries require zlib
 CHECK_ZLIB
@@ -501,7 +516,8 @@ share/mpi-profile/darshan-bg-f.conf
 share/ld-opts/darshan-base-ld-opts
 )
 
-AC_MSG_NOTICE(Building Darshan with the following features:)
+msg="Building Darshan with CC=$CC and with the following features:"
+AC_MSG_NOTICE($msg)
 AS_IF([test "x$BUILD_NULL_MODULE" = "x"],   [AC_MSG_NOTICE(NULL module support:    no)], [AC_MSG_NOTICE(NULL module support:    yes)])
 AS_IF([test "x$BUILD_POSIX_MODULE" = "x"],   [AC_MSG_NOTICE(POSIX module support:   no)], [AC_MSG_NOTICE(POSIX module support:   yes)])
 AS_IF([test "x$BUILD_MPIIO_MODULE" = "x"],   [AC_MSG_NOTICE(MPIIO module support:   no)], [AC_MSG_NOTICE(MPIIO module support:   yes)])
