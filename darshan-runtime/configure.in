@@ -17,7 +17,7 @@ dnl Check for MPI
 AC_ARG_WITH(mpi,
             [AS_HELP_STRING([--without-mpi], [Build without support for MPI])],
             ,
-            [with_mpi=auto])
+            [with_mpi=check])
 
 AX_PROG_CC_MPI([test x"$with_mpi" != xno],
                [use_mpi=yes],
@@ -30,6 +30,9 @@ AS_IF([test "x$use_mpi" = "xno"],
              [AC_MSG_ERROR([CC doesn't appear to be a valid MPI compiler and MPI support was requested. See INSTALL document or try adding CC=mpicc to your configure command line.])],)],
       [ENABLE_MPI=1
        AC_DEFINE([HAVE_MPI], [], [Define if build is MPI-enabled])])
+
+AS_IF([test "x$ENABLE_MPI" = "x"],
+      DISABLE_STATIC_LIB=1,)  
 
 dnl check for GCC compiler support
 AC_ARG_WITH(gcc,
@@ -53,6 +56,9 @@ CHECK_ZLIB
 AC_ARG_ENABLE(ld-preload,
 [  --disable-ld-preload    Disables support for LD_PRELOAD library],
 [if test "x$enableval" = "xno" ; then
+    if test "x$ENABLE_MPI" = "x" ; then
+        AC_MSG_ERROR([Can not disable building of LD_PRELOAD library when building Darshan without MPI support.])
+    fi
     DISABLE_LDPRELOAD="1"
 fi]
 ,)
@@ -71,73 +77,6 @@ AC_ARG_ENABLE(group-readable-logs,
     AC_DEFINE(__DARSHAN_GROUP_READABLE_LOGS, 1, Define if Darshan should set log files to be group readable)
 fi]
 ,)
-
-#
-# Check for specific module enable/disable options
-#
-# POSIX module
-BUILD_POSIX_MODULE=1
-DARSHAN_POSIX_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-posix-ld-opts"
-AC_ARG_ENABLE(posix-mod,
-              AS_HELP_STRING([--disable-posix-mod], [Disables compilation and use of POSIX module]))
-AS_IF([test "x$enable_posix_mod" = "xno"],
-      BUILD_POSIX_MODULE=
-      DARSHAN_POSIX_LD_OPTS=)
-
-# MPI-IO module
-BUILD_MPIIO_MODULE=1
-DARSHAN_MPIIO_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-mpiio-ld-opts"
-AC_ARG_ENABLE(mpiio-mod,
-              AS_HELP_STRING([--disable-mpiio-mod], [Disables compilation and use of MPI-IO module (requires MPI)]))
-AS_IF([test "x$enable_mpiio_mod" = "xno" || test "x$ENABLE_MPI" = "x"],
-      BUILD_MPIIO_MODULE=
-      DARSHAN_MPIIO_LD_OPTS=)
-
-# STDIO module
-BUILD_STDIO_MODULE=1
-DARSHAN_STDIO_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-stdio-ld-opts"
-AC_ARG_ENABLE(stdio-mod,
-              AS_HELP_STRING([--disable-stdio-mod], [Disables compilation and use of STDIO module]))
-AS_IF([test "x$enable_stdio_mod" = "xno"],
-      BUILD_STDIO_MODULE=
-      DARSHAN_STDIO_LD_OPTS=)
-
-# PNETCDF module
-BUILD_PNETCDF_MODULE=1
-DARSHAN_PNETCDF_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-pnetcdf-ld-opts"
-AC_ARG_ENABLE(pnetcdf-mod,
-              AS_HELP_STRING([--disable-pnetcdf-mod], [Disables compilation and use of PnetCDF module (requires MPI)]))
-AS_IF([test "x$enable_pnetcdf_mod" = "xno"],
-      BUILD_PNETCDF_MODULE=
-      DARSHAN_PNETCDF_LD_OPTS=)
-
-# NULL module
-BUILD_NULL_MODULE=1
-AC_ARG_ENABLE(null-mod,
-              AS_HELP_STRING([--disable-null-mod], [Disables compilation and use of NULL module]))
-AS_IF([test "x$enable_null_mod" = "xno"],
-      BUILD_NULL_MODULE=)
-
-# DXT module
-BUILD_DXT_MODULE=1
-AC_ARG_ENABLE(dxt-mod,
-              AS_HELP_STRING([--disable-dxt-mod], [Disables compilation and use of DXT module]))
-AS_IF([test "x$enable_dxt_mod" = "xno"],
-      BUILD_DXT_MODULE=)
-
-AC_ARG_ENABLE(
-    [bgq-mod],
-    [  --disable-bgq-mod       Disables compilation and use of BG/Q module (for BG/Q systems)],
-    [],
-    [enable_bgq_mod=check]
-)
-
-AC_ARG_ENABLE(
-    [lustre-mod],
-    [  --disable-lustre-mod    Disables compilation and use of the Lustre module],
-    [],
-    [enable_lustre_mod=check]
-)
 
 AC_ARG_ENABLE(mmap-logs,
 [  --enable-mmap-logs      Enables ability to mmap I/O data to log file],
@@ -197,7 +136,7 @@ AC_ARG_WITH(log-path,
 AC_ARG_WITH(jobid-env,
 [  --with-jobid-env=<name> Name of environment variable that stores the jobid
                           (specify "NONE" if no appropriate environment variable
-                          is available: Darshan will use rank 0's pid instead)],
+                          is available: Darshan will use the pid of rank 0)],
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-jobid-env must be given a name)
     else
@@ -216,6 +155,95 @@ AC_ARG_WITH(mod-mem,
     fi
 )
 
+#
+# Check for specific module enable/disable options
+#
+
+# NULL module
+BUILD_NULL_MODULE=1
+AC_ARG_ENABLE(null-mod,
+              AS_HELP_STRING([--disable-null-mod], [Disables compilation of NULL module]))
+AS_IF([test "x$enable_null_mod" = "xno"],
+      BUILD_NULL_MODULE=)
+
+# POSIX module
+BUILD_POSIX_MODULE=1
+DARSHAN_POSIX_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-posix-ld-opts"
+AC_ARG_ENABLE(posix-mod,
+              AS_HELP_STRING([--disable-posix-mod], [Disables compilation and use of POSIX module]))
+AS_IF([test "x$enable_posix_mod" = "xno"],
+      BUILD_POSIX_MODULE=
+      DARSHAN_POSIX_LD_OPTS=)
+
+# STDIO module
+BUILD_STDIO_MODULE=1
+DARSHAN_STDIO_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-stdio-ld-opts"
+AC_ARG_ENABLE(stdio-mod,
+              AS_HELP_STRING([--disable-stdio-mod], [Disables compilation and use of STDIO module]))
+AS_IF([test "x$enable_stdio_mod" = "xno"],
+      BUILD_STDIO_MODULE=
+      DARSHAN_STDIO_LD_OPTS=)
+
+# DXT module
+BUILD_DXT_MODULE=1
+AC_ARG_ENABLE(dxt-mod,
+              AS_HELP_STRING([--disable-dxt-mod], [Disables compilation and use of DXT module]))
+AS_IF([test "x$enable_dxt_mod" = "xno"],
+      BUILD_DXT_MODULE=)
+
+# MPI-IO module
+BUILD_MPIIO_MODULE=1
+DARSHAN_MPIIO_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-mpiio-ld-opts"
+AC_ARG_ENABLE(mpiio-mod,
+              AS_HELP_STRING([--disable-mpiio-mod], [Disables compilation and use of MPI-IO module (requires MPI)]))
+AS_IF([test "x$enable_mpiio_mod" = "xno" || test "x$ENABLE_MPI" = "x"],
+      BUILD_MPIIO_MODULE=
+      DARSHAN_MPIIO_LD_OPTS=)
+
+# PNETCDF module
+BUILD_PNETCDF_MODULE=1
+DARSHAN_PNETCDF_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-pnetcdf-ld-opts"
+AC_ARG_ENABLE(pnetcdf-mod,
+              AS_HELP_STRING([--disable-pnetcdf-mod], [Disables compilation and use of PnetCDF module (requires MPI)]))
+AS_IF([test "x$enable_pnetcdf_mod" = "xno" || test "x$ENABLE_MPI" = "x"],
+      BUILD_PNETCDF_MODULE=
+      DARSHAN_PNETCDF_LD_OPTS=)
+
+# HDF5 module
+BUILD_HDF5_MODULE=
+DARSHAN_HDF5_LD_OPTS=
+
+# see if user explicitly enabled support for an HDF5 API
+AC_ARG_ENABLE(HDF5-post-1.10,
+[  --enable-HDF5-post-1.10
+                          Enable HDF5 module for HDF5 version 1.10 or later],
+[if test "x$enableval" = "xyes" ; then
+    AC_DEFINE(__DARSHAN_ENABLE_HDF5110, 1, Set for compatibility with HDF5 1.10.x, breaks use with versions earlier than 1.10)
+    if test "x$BUILD_HDF5_MODULE" = "x1"; then
+        AC_MSG_ERROR([Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10])
+    fi
+    BUILD_HDF5_MODULE=1
+    DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
+fi]
+,)
+AC_ARG_ENABLE(HDF5-pre-1.10,
+[  --enable-HDF5-pre-1.10
+                          Enable HDF5 module for HDF5 versions earlier than 1.10],
+[if test "x$enableval" = "xyes" ; then
+    if test "x$BUILD_HDF5_MODULE" = "x1"; then
+        AC_MSG_ERROR([Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10])
+    fi
+    BUILD_HDF5_MODULE=1
+    DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
+fi]
+,)
+
+# BG/Q module
+BUILD_BGQ_MODULE=
+AC_ARG_ENABLE(bgq-mod,
+              AS_HELP_STRING([--disable-bgq-mod], [Disables compilation and use of BG/Q module (for BG/Q systems)]),
+              [],
+              [enable_bgq_mod=check])
 # if bgq module not disabled, check to make sure BG/Q environment available
 if test x$enable_bgq_mod != xno; then
     AC_MSG_CHECKING(for BG/Q environment)
@@ -225,23 +253,44 @@ if test x$enable_bgq_mod != xno; then
         #endif
         ], [],
         AC_MSG_RESULT(yes)
-        DARSHAN_USE_BGQ=1,
+        BUILD_BGQ_MODULE=1,
         AC_MSG_RESULT(no)
         AS_IF([test "x$enable_bgq_mod" = xyes],
             AC_MSG_ERROR(BG/Q module enabled in non-BG/Q environment),
             []))
 fi
 
+# Lustre module
+BUILD_LUSTRE_MODULE=
+AC_ARG_ENABLE(lustre-mod,
+              AS_HELP_STRING([--disable-lustre-mod], [Disables compilation and use of Lustre module]),
+              [],
+              [enable_lustre_mod=check])
 # if lustre module not disabled, check for needed Lustre module header
 if test x$enable_lustre_mod != xno; then
     AC_CHECK_HEADER([lustre/lustre_user.h],
-        DARSHAN_USE_LUSTRE=1,
+        BUILD_LUSTRE_MODULE=1,
         AS_IF([test "x$enable_lustre_mod" = xyes],
             AC_MSG_ERROR(Cannot find required headers for the Lustre module),
             []))
 fi
 
+BUILD_MDHIM_MODULE=
+DARSHAN_MDHIM_LD_OPTS=
+AC_ARG_ENABLE([mdhim],
+	      AS_HELP_STRING([--enable-mdhim], [Enable mdhim module]),
+	      [],[] )
+AS_IF([test "x$enable_mdhim" = "xyes"],
+      BUILD_MDHIM_MODULE=1
+      DARSHAN_MDHIM_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-mdhim-ld-opts"
+      AC_CHECK_HEADERS([mdhim.h],
+		       [],
+		       AC_MSG_ERROR([mdhim requested but headers cannot be found]) ),
+      []
 
+      )
+
+dnl sanity check some config parameters
 if test x$GOT_ALIGNMENT != x1; then
     AC_MSG_ERROR(must provide --with-mem-align=<num> argument to configure.)
 fi
@@ -334,49 +383,6 @@ eval darshan_lib_path=$libdir
 eval darshan_share_path=$datarootdir
 prefix=$savePrefix
 exec_prefix=$saveExecprefix
-
-BUILD_HDF5_MODULE=
-DARSHAN_HDF5_LD_OPTS=
-
-# see if user explicitly enabled support for an HDF5 API
-AC_ARG_ENABLE(HDF5-post-1.10,
-[  --enable-HDF5-post-1.10
-                          Enable HDF5 module for HDF5 version 1.10 or later],
-[if test "x$enableval" = "xyes" ; then
-    AC_DEFINE(__DARSHAN_ENABLE_HDF5110, 1, Set for compatibility with HDF5 1.10.x, breaks use with versions earlier than 1.10)
-    if test "x$BUILD_HDF5_MODULE" = "x1"; then
-        AC_MSG_ERROR([Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10])
-    fi
-    BUILD_HDF5_MODULE=1
-    DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
-fi]
-,)
-AC_ARG_ENABLE(HDF5-pre-1.10,
-[  --enable-HDF5-pre-1.10
-                          Enable HDF5 module for HDF5 versions earlier than 1.10],
-[if test "x$enableval" = "xyes" ; then
-    if test "x$BUILD_HDF5_MODULE" = "x1"; then
-        AC_MSG_ERROR([Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10])
-    fi
-    BUILD_HDF5_MODULE=1
-    DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
-fi]
-,)
-
-BUILD_MDHIM_MODULE=
-DARSHAN_MDHIM_LD_OPTS=
-AC_ARG_ENABLE([mdhim],
-	      AS_HELP_STRING([--enable-mdhim], [Enable mdhim module]),
-	      [],[] )
-AS_IF([test "x$enable_mdhim" = "xyes"],
-      BUILD_MDHIM_MODULE=1
-      DARSHAN_MDHIM_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-mdhim-ld-opts"
-      AC_CHECK_HEADERS([mdhim.h],
-		       [],
-		       AC_MSG_ERROR([mdhim requested but headers cannot be found]) ),
-      []
-
-      )
 
 #
 # Begin tests for MPI-enabled builds
@@ -478,26 +484,27 @@ AC_SUBST(darshan_lib_path)
 AC_SUBST(darshan_share_path)
 AC_SUBST(LDFLAGS)
 AC_SUBST(__DARSHAN_LOG_PATH)
+AC_SUBST(DISABLE_STATIC_LIB)
 AC_SUBST(DISABLE_LDPRELOAD)
 AC_SUBST(ENABLE_MMAP_LOGS)
 AC_SUBST(DARSHAN_VERSION)
 AC_SUBST(MPICH_LIB_OLD)
-AC_SUBST(DARSHAN_USE_BGQ)
-AC_SUBST(DARSHAN_USE_LUSTRE)
-AC_SUBST(BUILD_HDF5_MODULE)
-AC_SUBST(DARSHAN_HDF5_LD_OPTS)
+AC_SUBST(BUILD_NULL_MODULE)
 AC_SUBST(BUILD_POSIX_MODULE)
 AC_SUBST(DARSHAN_POSIX_LD_OPTS)
+AC_SUBST(BUILD_STDIO_MODULE)
+AC_SUBST(DARSHAN_STDIO_LD_OPTS)
+AC_SUBST(BUILD_DXT_MODULE)
 AC_SUBST(BUILD_MPIIO_MODULE)
 AC_SUBST(DARSHAN_MPIIO_LD_OPTS)
 AC_SUBST(BUILD_PNETCDF_MODULE)
 AC_SUBST(DARSHAN_PNETCDF_LD_OPTS)
-AC_SUBST(BUILD_STDIO_MODULE)
-AC_SUBST(DARSHAN_STDIO_LD_OPTS)
-AC_SUBST(BUILD_DXT_MODULE)
+AC_SUBST(BUILD_HDF5_MODULE)
+AC_SUBST(DARSHAN_HDF5_LD_OPTS)
+AC_SUBST(BUILD_BGQ_MODULE)
+AC_SUBST(BUILD_LUSTRE_MODULE)
 AC_SUBST(BUILD_MDHIM_MODULE)
 AC_SUBST(DARSHAN_MDHIM_LD_OPTS)
-AC_SUBST(BUILD_NULL_MODULE)
 AC_OUTPUT(Makefile
 darshan-mk-log-dirs.pl
 darshan-gen-cc.pl
@@ -520,8 +527,9 @@ msg="Building Darshan with CC=$CC and with the following features:"
 AC_MSG_NOTICE($msg)
 AS_IF([test "x$BUILD_NULL_MODULE" = "x"],   [AC_MSG_NOTICE(NULL module support:    no)], [AC_MSG_NOTICE(NULL module support:    yes)])
 AS_IF([test "x$BUILD_POSIX_MODULE" = "x"],   [AC_MSG_NOTICE(POSIX module support:   no)], [AC_MSG_NOTICE(POSIX module support:   yes)])
-AS_IF([test "x$BUILD_MPIIO_MODULE" = "x"],   [AC_MSG_NOTICE(MPIIO module support:   no)], [AC_MSG_NOTICE(MPIIO module support:   yes)])
 AS_IF([test "x$BUILD_STDIO_MODULE" = "x"],   [AC_MSG_NOTICE(STDIO module support:   no)], [AC_MSG_NOTICE(STDIO module support:   yes)])
+AS_IF([test "x$BUILD_DXT_MODULE" = "x"],    [AC_MSG_NOTICE(DXT module support:     no)], [AC_MSG_NOTICE(DXT module support:     yes)])
+AS_IF([test "x$BUILD_MPIIO_MODULE" = "x"],   [AC_MSG_NOTICE(MPIIO module support:   no)], [AC_MSG_NOTICE(MPIIO module support:   yes)])
 AS_IF([test "x$BUILD_PNETCDF_MODULE" = "x"], [AC_MSG_NOTICE(PnetCDF module support: no)], [AC_MSG_NOTICE(PnetCDF module support: yes)])
 AS_IF(
     [test "x$BUILD_HDF5_MODULE" = "x"],
@@ -532,7 +540,6 @@ AS_IF(
         [AC_MSG_NOTICE(HDF5 module support:    pre-1.10)]
     )],
 )
-AS_IF([test "x$BUILD_DXT_MODULE" = "x"],    [AC_MSG_NOTICE(DXT module support:     no)], [AC_MSG_NOTICE(DXT module support:     yes)])
-AS_IF([test "x$DARSHAN_USE_MDHIM" = "x"],   [AC_MSG_NOTICE(MDHIM module support:   no)], [AC_MSG_NOTICE(MDHIM module support:   yes)])
-AS_IF([test "x$DARSHAN_USE_LUSTRE" = "x"],  [AC_MSG_NOTICE(Lustre module support:  no)], [AC_MSG_NOTICE(Lustre module support:  yes)])
-AS_IF([test "x$DARSHAN_USE_BGQ" = "x"],     [AC_MSG_NOTICE(BG/Q module support:    no)], [AC_MSG_NOTICE(BG/Q module support:    yes)])
+AS_IF([test "x$BUILD_BGQ_MODULE" = "x"],     [AC_MSG_NOTICE(BG/Q module support:    no)], [AC_MSG_NOTICE(BG/Q module support:    yes)])
+AS_IF([test "x$BUILD_LUSTRE_MODULE" = "x"],  [AC_MSG_NOTICE(Lustre module support:  no)], [AC_MSG_NOTICE(Lustre module support:  yes)])
+AS_IF([test "x$BUILD_MDHIM_MODULE" = "x"],   [AC_MSG_NOTICE(MDHIM module support:   no)], [AC_MSG_NOTICE(MDHIM module support:   yes)])

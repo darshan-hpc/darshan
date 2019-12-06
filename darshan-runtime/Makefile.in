@@ -1,5 +1,3 @@
-all: lib/libdarshan.a lib/libdarshan-stubs.a
-
 #TODO: each module provides own makefile with module-specific objects, build options, etc.
 
 DESTDIR =
@@ -16,13 +14,15 @@ LDFLAGS = @LDFLAGS@
 CC = @CC@
 LD = @LD@
 
+DISABLE_STATIC_LIB = @DISABLE_STATIC_LIB@
 DISABLE_LDPRELOAD = @DISABLE_LDPRELOAD@
 ENABLE_MMAP_LOGS = @ENABLE_MMAP_LOGS@
-DARSHAN_USE_BGQ = @DARSHAN_USE_BGQ@
-DARSHAN_USE_LUSTRE = @DARSHAN_USE_LUSTRE@
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_VERSION = @DARSHAN_VERSION@
 
+ifndef DISABLE_STATIC_LIB
+all: lib/libdarshan.a lib/libdarshan-stubs.a
+endif
 ifndef DISABLE_LDPRELOAD
 all: lib/libdarshan.so
 endif
@@ -35,31 +35,28 @@ CFLAGS_SHARED = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I$(srcdir)
 
 LIBS = -lz @LIBBZ2@
 
-BUILD_HDF5_MODULE = @BUILD_HDF5_MODULE@
-BUILD_MDHIM_MODULE = @BUILD_MDHIM_MODULE@
+BUILD_NULL_MODULE = @BUILD_NULL_MODULE@
 BUILD_POSIX_MODULE = @BUILD_POSIX_MODULE@
-BUILD_MPIIO_MODULE = @BUILD_MPIIO_MODULE@
-BUILD_PNETCDF_MODULE = @BUILD_PNETCDF_MODULE@
 BUILD_STDIO_MODULE = @BUILD_STDIO_MODULE@
 BUILD_DXT_MODULE = @BUILD_DXT_MODULE@
-BUILD_NULL_MODULE = @BUILD_NULL_MODULE@
+BUILD_MPIIO_MODULE = @BUILD_MPIIO_MODULE@
+BUILD_PNETCDF_MODULE = @BUILD_PNETCDF_MODULE@
+BUILD_HDF5_MODULE = @BUILD_HDF5_MODULE@
+BUILD_BGQ_MODULE = @BUILD_BGQ_MODULE@
+BUILD_LUSTRE_MODULE = @BUILD_LUSTRE_MODULE@
+BUILD_MDHIM_MODULE = @BUILD_MDHIM_MODULE@
 
 DARSHAN_STATIC_MOD_OBJS =
 DARSHAN_DYNAMIC_MOD_OBJS =
 
+ifdef BUILD_NULL_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-null.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-null.po
+endif
+
 ifdef BUILD_POSIX_MODULE
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-posix.o
 DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-posix.po
-endif
-
-ifdef BUILD_MPIIO_MODULE
-DARSHAN_STATIC_MOD_OBJS += lib/darshan-mpiio.o
-DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-mpiio.po
-endif
-
-ifdef BUILD_PNETCDF_MODULE
-DARSHAN_STATIC_MOD_OBJS += lib/darshan-pnetcdf.o
-DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-pnetcdf.po
 endif
 
 ifdef BUILD_STDIO_MODULE
@@ -72,24 +69,29 @@ DARSHAN_STATIC_MOD_OBJS += lib/darshan-dxt.o
 DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-dxt.po
 endif
 
+ifdef BUILD_MPIIO_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-mpiio.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-mpiio.po
+endif
+
+ifdef BUILD_PNETCDF_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-pnetcdf.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-pnetcdf.po
+endif
+
 ifdef BUILD_HDF5_MODULE
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-hdf5.o
 DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-hdf5.po
 endif
 
-ifdef BUILD_NULL_MODULE
-DARSHAN_STATIC_MOD_OBJS += lib/darshan-null.o
-DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-null.po
-endif
-
-ifdef DARSHAN_USE_BGQ
+ifdef BUILD_BGQ_MODULE
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-bgq.o
 DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-bgq.po
 CFLAGS += -DDARSHAN_BGQ
 CFLAGS_SHARED += -DDARSHAN_BGQ
 endif
 
-ifdef DARSHAN_USE_LUSTRE
+ifdef BUILD_LUSTRE_MODULE
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-lustre.o
 DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-lustre.po
 CFLAGS += -DDARSHAN_LUSTRE
@@ -220,8 +222,10 @@ endif
 
 install:: all
 	install -d $(libdir)
+ifndef DISABLE_STATIC_LIB
 	install -m 755 lib/libdarshan.a $(libdir)
 	install -m 755 lib/libdarshan-stubs.a $(libdir)
+endif
 ifndef DISABLE_LDPRELOAD
 	install -m 755 lib/libdarshan.so $(libdir)
 endif
