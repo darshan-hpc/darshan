@@ -248,16 +248,24 @@ endif
 	install -m 755 share/mpi-profile/darshan-bg-f.conf $(datarootdir)/mpi-profile/darshan-bg-f.conf
 	install -d $(datarootdir)/ld-opts
 	install -m 644 share/ld-opts/darshan-base-ld-opts $(datarootdir)/ld-opts/darshan-base-ld-opts
+ifdef BUILD_POSIX_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-posix-ld-opts $(datarootdir)/ld-opts/darshan-posix-ld-opts
+endif
+ifdef BUILD_STDIO_MODULE
+	install -m 644 $(srcdir)/share/ld-opts/darshan-stdio-ld-opts $(datarootdir)/ld-opts/darshan-stdio-ld-opts
+endif
+ifdef BUILD_MPIIO_MODULE
+	install -m 644 $(srcdir)/share/ld-opts/darshan-mpiio-ld-opts $(datarootdir)/ld-opts/darshan-mpiio-ld-opts
+endif
+ifdef BUILD_PNETCDF_MODULE
+	install -m 644 $(srcdir)/share/ld-opts/darshan-pnetcdf-ld-opts $(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
+endif
 ifdef BUILD_HDF5_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-hdf5-ld-opts $(datarootdir)/ld-opts/darshan-hdf5-ld-opts
 endif
 ifdef BUILD_MDHIM_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-mdhim-ld-opts $(datarootdir)/ld-opts/darshan-mdhim-ld-opts
 endif
-	install -m 644 $(srcdir)/share/ld-opts/darshan-pnetcdf-ld-opts $(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
-	install -m 644 $(srcdir)/share/ld-opts/darshan-stdio-ld-opts $(datarootdir)/ld-opts/darshan-stdio-ld-opts
-	install -m 644 $(srcdir)/share/ld-opts/darshan-mpiio-ld-opts $(datarootdir)/ld-opts/darshan-mpiio-ld-opts
 ifdef ENABLE_MMAP_LOGS
 	install -m 755 share/darshan-mmap-epilog.sh $(datarootdir)/darshan-mmap-epilog.sh
 endif
