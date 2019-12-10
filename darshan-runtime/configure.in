@@ -211,6 +211,7 @@ AS_IF([test "x$enable_pnetcdf_mod" = "xno" || test "x$ENABLE_MPI" = "x"],
 
 # HDF5 module
 BUILD_HDF5_MODULE=
+BUILD_HDF5_POST110=
 DARSHAN_HDF5_LD_OPTS=
 
 # see if user explicitly enabled support for an HDF5 API
@@ -223,6 +224,7 @@ AC_ARG_ENABLE(HDF5-post-1.10,
         AC_MSG_ERROR([Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10])
     fi
     BUILD_HDF5_MODULE=1
+    BUILD_HDF5_POST110=1
     DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
 fi]
 ,)
@@ -535,7 +537,7 @@ AS_IF(
     [test "x$BUILD_HDF5_MODULE" = "x"],
     [AC_MSG_NOTICE(HDF5 module support:    no)],
     [AS_IF(
-        [test "x$BUILD_HDF5_PRE110" = "x1"],
+        [test "x$BUILD_HDF5_POST110" = "x1"],
         [AC_MSG_NOTICE(HDF5 module support:    1.10+)],
         [AC_MSG_NOTICE(HDF5 module support:    pre-1.10)]
     )],
