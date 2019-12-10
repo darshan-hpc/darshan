@@ -35,9 +35,13 @@ static int lustre_record_compare(
 int sort_lustre_records(
     void);
 
+#ifdef HAVE_MPI
+static void lustre_mpi_redux(
+    void *lustre_buf, MPI_Comm mod_comm,
+    darshan_record_id *shared_recs, int shared_rec_count);
+#endif
 static void lustre_shutdown(
-    MPI_Comm mod_comm, darshan_record_id *shared_recs,
-    int shared_rec_count, void **lustre_buf, int *lustre_buf_sz);
+    void **lustre_buf, int *lustre_buf_sz);
 
 struct lustre_runtime *lustre_runtime = NULL;
 static pthread_mutex_t lustre_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -49,6 +53,7 @@ static int my_rank = -1;
 #ifndef LOV_MAX_STRIPE_COUNT /* for Lustre < 2.4 */
     #define LOV_MAX_STRIPE_COUNT 2000
 #endif
+
 void darshan_instrument_lustre_file(const char* filepath, int fd)
 {
     struct lustre_record_ref *rec_ref;
@@ -177,6 +182,13 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
 static void lustre_runtime_initialize()
 {
     int lustre_buf_size;
+    darshan_module_funcs mod_funcs = {
+#ifdef HAVE_MPI
+        .mod_redux_func = &lustre_mpi_redux,
+#endif
+        .mod_shutdown_func = &lustre_shutdown
+        };
+
 
     /* try and store a default number of records for this module, assuming
      * each file uses 64 OSTs
@@ -186,7 +198,7 @@ static void lustre_runtime_initialize()
     /* register the lustre module with darshan-core */
     darshan_core_register_module(
         DARSHAN_LUSTRE_MOD,
-        &lustre_shutdown,
+        mod_funcs,
         &lustre_buf_size,
         &my_rank,
         NULL);
@@ -215,21 +227,18 @@ static void lustre_runtime_initialize()
  * Functions exported by Lustre module for coordinating with darshan-core *
  **************************************************************************/
 
-static void lustre_shutdown(
+#ifdef HAVE_MPI
+static void lustre_mpi_redux(
+    void *posix_buf,
     MPI_Comm mod_comm,
     darshan_record_id *shared_recs,
-    int shared_rec_count,
-    void **lustre_buf,
-    int *lustre_buf_sz)
+    int shared_rec_count)
 {
     struct lustre_record_ref *rec_ref;
     int i;
 
     LUSTRE_LOCK();
     assert(lustre_runtime);
-
-    lustre_runtime->record_buffer = *lustre_buf;
-    lustre_runtime->record_buffer_size = *lustre_buf_sz;
 
     /* if there are globally shared files, do a shared file reduction */
     /* NOTE: the shared file reduction is also skipped if the 
@@ -253,21 +262,36 @@ static void lustre_shutdown(
             else
                 darshan_core_fprintf(stderr, "WARNING: unexpected condition in Darshan, possibly triggered by memory corruption.  Darshan log may be incorrect.\n");
         }
+    }
 
-        /* sort the array of files descending by rank so that we get all of the 
-         * shared files (marked by rank -1) in a contiguous portion at end 
-         * of the array
-         */
-        sort_lustre_records();
+    LUSTRE_UNLOCK();
+    return;
+}
+#endif
 
-        /* simply drop all shared records from the end of the record array on
-         * non-root ranks simply by recalculating the size of the buffer
-         */
-        if (my_rank != 0)
-        {
-            darshan_iter_record_refs(lustre_runtime->record_id_hash, 
-                &lustre_subtract_shared_rec_size);
-        }
+static void lustre_shutdown(
+    void **lustre_buf,
+    int *lustre_buf_sz)
+{
+    LUSTRE_LOCK();
+    assert(lustre_runtime);
+
+    lustre_runtime->record_buffer = *lustre_buf;
+    lustre_runtime->record_buffer_size = *lustre_buf_sz;
+
+    /* sort the array of files descending by rank so that we get all of the 
+     * shared files (marked by rank -1) in a contiguous portion at end 
+     * of the array
+     */
+    sort_lustre_records();
+
+    /* simply drop all shared records from the end of the record array on
+     * non-root ranks simply by recalculating the size of the buffer
+     */
+    if (my_rank != 0)
+    {
+        darshan_iter_record_refs(lustre_runtime->record_id_hash, 
+            &lustre_subtract_shared_rec_size);
     }
 
     /* modify output buffer size to account for any shared records that were removed */
