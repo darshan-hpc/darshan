@@ -15,6 +15,7 @@
 #include <string.h>
 #include <assert.h>
 
+#include <mpi.h>
 #include <mdhim.h>
 
 #include "darshan.h"
@@ -76,8 +77,7 @@ struct mdhim_runtime
     void *rec_id_hash;
     /* number of records currently tracked */
     int rec_count;
-    int record_buffer_size;
-    void *record_buffer;
+    int record_size;
 };
 
 /* internal helper functions for the MDHIM module */
@@ -88,13 +88,14 @@ static struct mdhim_record_ref *mdhim_track_new_record(
 static void mdhim_cleanup_runtime(
     void);
 
-static void mdhim_subtract_shared_rec_size(void * rec_ref_p);
-
 /* forward declaration for MDHIM shutdown function needed to interface
  * with darshan-core
  */
-static void mdhim_shutdown(MPI_Comm mod_comm, darshan_record_id *shared_recs,
-    int shared_rec_count, void **mdhim_buf, int *mdhim_buf_sz);
+static void mdhim_mpi_redux(
+    void *mdhim_buf, MPI_Comm mod_comm,
+    darshan_record_id *shared_recs, int shared_rec_count);
+static void mdhim_shutdown(
+    void **mdhim_buf, int *mdhim_buf_sz);
 
 /* mdhim_runtime is the global data structure encapsulating "MDHIM"
  * module state */
@@ -307,6 +308,10 @@ mdhim_grm_t * DARSHAN_DECL(mdhimGet)(mdhim_t *md,
 static void mdhim_runtime_initialize()
 {
     int mdhim_buf_size;
+    darshan_module_funcs mod_funcs = {
+    .mod_redux_func = &mdhim_mpi_redux,
+    .mod_shutdown_func = &mdhim_shutdown
+    };
 
     /* try and store a default number of records for this module */
     mdhim_buf_size = DARSHAN_DEF_MOD_REC_COUNT *
@@ -315,7 +320,7 @@ static void mdhim_runtime_initialize()
     /* register the MDHIM module with the darshan-core component */
     darshan_core_register_module(
         DARSHAN_MDHIM_MOD,   /* Darshan module identifier, defined in darshan-log-format.h */
-        &mdhim_shutdown,
+        mod_funcs,
         &mdhim_buf_size,
         &my_rank,
         NULL);
@@ -477,55 +482,42 @@ static void mdhim_record_reduction_op(void *infile_v, void *inoutfile_v,
  * darshan-core *
  ***********************************************************************/
 
-/* Pass output data for the MDHIM module back to darshan-core to log to
- * file, and shutdown/free internal data structures.
- */
-static void mdhim_shutdown(
-    MPI_Comm mod_comm,
-    darshan_record_id *shared_recs,
-    int shared_rec_count,
-    void **mdhim_buf,
-    int *mdhim_buf_sz)
+static void mdhim_mpi_redux(
+    void *mdhim_buf, MPI_Comm mod_comm,
+    darshan_record_id *shared_recs, int shared_rec_count)
 {
-
     int i, nr_servers=0;
-    /* other modules can declar this temporary record on the stack but I need a
-     * bit more space because of the server histogram */
     struct mdhim_record_ref *rec_ref;
-    /* walking through these arrays will be awkward if there is more than one
-     * record: the 'server_histogram' field is variable */
-    struct darshan_mdhim_record *mdhim_rec_buf =
-        *(struct darshan_mdhim_record **)mdhim_buf;
     struct darshan_mdhim_record *red_send_buf = NULL;
     struct darshan_mdhim_record *red_recv_buf = NULL;
     MPI_Datatype red_type;
     MPI_Op red_op;
+    /* walking through these arrays will be awkward if there is more than one
+     * record: the 'server_histogram' field is variable */
+    struct darshan_mdhim_record *mdhim_rec_buf =
+        *(struct darshan_mdhim_record **)mdhim_buf;
     int mdhim_rec_count;
 
     MDHIM_LOCK();
     assert(mdhim_runtime);
 
     mdhim_rec_count = mdhim_runtime->rec_count;
-    mdhim_runtime->record_buffer = *mdhim_buf;
-    mdhim_runtime->record_buffer_size = *mdhim_buf_sz;
 
     /* taking the approach in darshan-mpiio.c, except MDHIM is always a
      * "shared file" for now. */
-    assert(mdhim_runtime->rec_count == shared_rec_count);
-
-    /* can the number of mdhim servers change? I suppose if there were
-     * multiple mdhim instances, each instance could have a different
-     * number of servers.  If that's the case, I'll have to make some of
-     * the memory allocations variable (and I don't do that yet) */
-    rec_ref = darshan_lookup_record_ref(mdhim_runtime->rec_id_hash,
-            &shared_recs[0], sizeof(darshan_record_id));
-    nr_servers = rec_ref->record_p->counters[MDHIM_SERVERS];
+    assert(mdhim_rec_count == shared_rec_count);
 
     if (shared_rec_count && !getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
     {
-        /* already have the zeroth record because we checked how many
-         * servers there were */
+        /* can the number of mdhim servers change? I suppose if there were
+         * multiple mdhim instances, each instance could have a different
+         * number of servers.  If that's the case, I'll have to make some of
+         * the memory allocations variable (and I don't do that yet) */
+        rec_ref = darshan_lookup_record_ref(mdhim_runtime->rec_id_hash,
+                &shared_recs[0], sizeof(darshan_record_id));
         rec_ref->record_p->base_rec.rank = -1;
+        nr_servers = rec_ref->record_p->counters[MDHIM_SERVERS];
+        mdhim_runtime->record_size = MDHIM_RECORD_SIZE(nr_servers);
 
         /* there is probably only one shared record, but go ahead and
          * check for any other shared records, setting their rank to -1.
@@ -556,6 +548,7 @@ static void mdhim_shutdown(
                 return;
             }
         }
+
         PMPI_Type_contiguous(MDHIM_RECORD_SIZE(nr_servers),
                 MPI_BYTE, &red_type);
         PMPI_Type_commit(&red_type);
@@ -570,18 +563,32 @@ static void mdhim_shutdown(
                     MDHIM_RECORD_SIZE(nr_servers));
             free(red_recv_buf);
         }
+        else
+        {
+            /* drop shared records from non-root ranks or we'll end up writing too
+             * much */
+            mdhim_runtime->rec_count -= shared_rec_count;
+        }
 
         PMPI_Type_free(&red_type);
         PMPI_Op_free(&red_op);
-        /* drop shared records from non-root ranks or we'll end up writing too
-         * much */
-        if (my_rank != 0)
-        {
-            darshan_iter_record_refs(mdhim_runtime->rec_id_hash,
-                    &mdhim_subtract_shared_rec_size, NULL);
-        }
     }
-    *mdhim_buf_sz = mdhim_rec_count * mdhim_runtime->record_buffer_size;
+
+    MDHIM_UNLOCK();
+    return;
+}
+
+/* Pass output data for the MDHIM module back to darshan-core to log to
+ * file, and shutdown/free internal data structures.
+ */
+static void mdhim_shutdown(
+    void **mdhim_buf,
+    int *mdhim_buf_sz)
+{
+    MDHIM_LOCK();
+    assert(mdhim_runtime);
+
+    *mdhim_buf_sz = mdhim_runtime->rec_count * mdhim_runtime->record_size;
 
     /* shutdown internal structures used for instrumenting */
     mdhim_cleanup_runtime();
@@ -590,13 +597,6 @@ static void mdhim_shutdown(
     return;
 }
 
-static void mdhim_subtract_shared_rec_size(void * rec_ref_p)
-{
-    struct mdhim_record_ref *m_rec_ref = (struct mdhim_record_ref *)rec_ref_p;
-    if (m_rec_ref->record_p->base_rec.rank == -1)
-        mdhim_runtime->record_buffer_size -=
-            MDHIM_RECORD_SIZE(m_rec_ref->record_p->counters[MDHIM_SERVERS] );
-}
 /*
  * Local variables:
  *  c-indent-level: 4

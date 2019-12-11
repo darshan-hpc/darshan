@@ -10,7 +10,10 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdint.h>
+
+#ifdef HAVE_MPI
 #include <mpi.h>
+#endif
 
 #include "darshan-log-format.h"
 #include "darshan-common.h"
@@ -76,22 +79,37 @@
 /* default number of records to attempt to store for each module */
 #define DARSHAN_DEF_MOD_REC_COUNT 1024
 
-/* module developers must define a 'darshan_module_shutdown' function
- * for allowing darshan-core to call into a module and retrieve final
- * output data to be saved in the log.
- *
- * NOTE: module developers can use this function to run collective
- * MPI operations at shutdown time. Typically this functionality
- * has been used to reduce records shared globablly (given in the
- * 'shared_recs' array) into a single data record.
+#ifdef HAVE_MPI
+/*
+ * module developers _can_ define a 'darshan_module_redux' function
+ * to run collective MPI operations at shutdown time. Typically this
+ * functionality has been used to reduce records shared globablly (given
+ * in the 'shared_recs' array) into a single data record. Set to NULL
+ * avoid any reduction steps.
  */
-typedef void (*darshan_module_shutdown)(
+typedef void (*darshan_module_redux)(
+    void *mod_buf, /* input parameter indicating module's buffer address */
     MPI_Comm mod_comm,  /* MPI communicator to run collectives with */
     darshan_record_id *shared_recs, /* list of shared data record ids */
-    int shared_rec_count, /* count of shared data records */
+    int shared_rec_count /* count of shared data records */
+);
+#endif
+/*
+ * module developers _must_ define a 'darshan_module_shutdown' function
+ * for allowing darshan-core to call into a module and retrieve final
+ * output data to be saved in the log.
+ */
+typedef void (*darshan_module_shutdown)(
     void **mod_buf, /* output parameter to save module buffer address */
     int *mod_buf_sz /* output parameter to save module buffer size */
 );
+typedef struct darshan_module_funcs
+{
+#ifdef HAVE_MPI
+    darshan_module_redux mod_redux_func;
+#endif
+    darshan_module_shutdown mod_shutdown_func;
+} darshan_module_funcs;
 
 /* stores FS info from statfs calls for a given mount point */
 struct darshan_fs_info
@@ -124,19 +142,19 @@ void darshan_instrument_fs_data(
  *
  * Register module identifier 'mod_id' with the darshan-core runtime
  * environment, allowing the module to store I/O characterization data.
- * 'mod_shutdown_func is a pointer to a function responsible for
- * shutting down the module and returning final output data to darshan-core.
- * 'inout_mod_buf_size' is an input/output argument, with it being
- * set to the requested amount of module memory on input, and set to
- * the amount allocated by darshan-core on output. If given, 'rank' is
- * a pointer to an integer which will contain the calling process's
- * MPI rank on return. If given, 'sys_mem_alignment' is a pointer to
- * an integer which will contain the memory alignment value Darshan
+ * 'mod_funcs' is a set of function pointers that implement module-specific
+ * shutdown functionality (including a possible data reduction step when
+ * using MPI). 'inout_mod_buf_size' is an input/output argument, with it
+ * being set to the requested amount of module memory on input, and set to
+ * the amount allocated by darshan-core on output. If Darshan is built with
+ * MPI support, 'rank' is a pointer to an integer which will contain the
+ * calling process's MPI rank on return. If given, 'sys_mem_alignment' is a
+ * pointer to an integer which will contain the memory alignment value Darshan
  * was configured with on return.
  */
 void darshan_core_register_module(
     darshan_module_id mod_id,
-    darshan_module_shutdown mod_shutdown_func,
+    darshan_module_funcs mod_funcs,
     int *inout_mod_buf_size,
     int *rank,
     int *sys_mem_alignment);

@@ -87,8 +87,7 @@ static void null_cleanup_runtime(
 /* forward declaration for NULL shutdown function needed to interface
  * with darshan-core
  */
-static void null_shutdown(MPI_Comm mod_comm, darshan_record_id *shared_recs,
-    int shared_rec_count, void **null_buf, int *null_buf_sz);
+static void null_shutdown(void **null_buf, int *null_buf_sz);
 
 /* null_runtime is the global data structure encapsulating "NULL" module state */
 static struct null_runtime *null_runtime = NULL;
@@ -199,6 +198,20 @@ int DARSHAN_DECL(foo)(const char* name, int arg1)
 static void null_runtime_initialize()
 {
     int null_buf_size;
+    darshan_module_funcs mod_funcs = {
+#ifdef HAVE_MPI
+    /* NOTE: the redux function can be used to run collective operations prior to
+     * shutting down the module. Typically, module developers will want to run a
+     * reduction on shared data records (passed in in the 'shared_recs' array),
+     * but other collective routines can be run here as well. For a detailed
+     * example illustrating how to run shared file reductions, consider the
+     * POSIX or MPIIO instrumentation modules, as they both implement this
+     * functionality.
+     */
+    .mod_redux_func = NULL,
+#endif
+    .mod_shutdown_func = &null_shutdown
+    };
 
     /* try and store a default number of records for this module */
     null_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_null_record);
@@ -206,7 +219,7 @@ static void null_runtime_initialize()
     /* register the NULL module with the darshan-core component */
     darshan_core_register_module(
         DARSHAN_NULL_MOD,   /* Darshan module identifier, defined in darshan-log-format.h */
-        &null_shutdown,
+        mod_funcs,
         &null_buf_size,
         &my_rank,
         NULL);
@@ -305,24 +318,11 @@ static void null_cleanup_runtime()
  * and shutdown/free internal data structures.
  */
 static void null_shutdown(
-    MPI_Comm mod_comm,
-    darshan_record_id *shared_recs,
-    int shared_rec_count,
     void **null_buf,
     int *null_buf_sz)
 {
     NULL_LOCK();
     assert(null_runtime);
-
-    /* NOTE: this function can be used to run collective operations prior to
-     * shutting down the module, as implied by the MPI communicator passed in
-     * as the first agrument. Typically, module developers will want to run a
-     * reduction on shared data records (passed in in the 'shared_recs' array),
-     * but other collective routines can be run here as well. For a detailed
-     * example illustrating how to run shared file reductions, consider the
-     * POSIX or MPIIO instrumentation modules, as they both implement this
-     * functionality.
-     */
 
     /* Just set the output size according to the number of records currently
      * being tracked. In general, the module can decide to throw out records

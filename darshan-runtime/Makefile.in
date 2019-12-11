@@ -1,5 +1,3 @@
-all: lib/libdarshan.a lib/libdarshan-stubs.a lib/darshan-null.o
-
 #TODO: each module provides own makefile with module-specific objects, build options, etc.
 
 DESTDIR =
@@ -16,15 +14,17 @@ LDFLAGS = @LDFLAGS@
 CC = @CC@
 LD = @LD@
 
+DISABLE_STATIC_LIB = @DISABLE_STATIC_LIB@
 DISABLE_LDPRELOAD = @DISABLE_LDPRELOAD@
 ENABLE_MMAP_LOGS = @ENABLE_MMAP_LOGS@
-DARSHAN_USE_BGQ = @DARSHAN_USE_BGQ@
-DARSHAN_USE_LUSTRE = @DARSHAN_USE_LUSTRE@
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_VERSION = @DARSHAN_VERSION@
 
+ifndef DISABLE_STATIC_LIB
+all: lib/libdarshan.a lib/libdarshan-stubs.a
+endif
 ifndef DISABLE_LDPRELOAD
-all: lib/libdarshan.so lib/darshan-null.po
+all: lib/libdarshan.so
 endif
 
 VPATH = $(srcdir)
@@ -35,25 +35,63 @@ CFLAGS_SHARED = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I$(srcdir)
 
 LIBS = -lz @LIBBZ2@
 
+BUILD_NULL_MODULE = @BUILD_NULL_MODULE@
+BUILD_POSIX_MODULE = @BUILD_POSIX_MODULE@
+BUILD_STDIO_MODULE = @BUILD_STDIO_MODULE@
+BUILD_DXT_MODULE = @BUILD_DXT_MODULE@
+BUILD_MPIIO_MODULE = @BUILD_MPIIO_MODULE@
+BUILD_PNETCDF_MODULE = @BUILD_PNETCDF_MODULE@
 BUILD_HDF5_MODULE = @BUILD_HDF5_MODULE@
+BUILD_BGQ_MODULE = @BUILD_BGQ_MODULE@
+BUILD_LUSTRE_MODULE = @BUILD_LUSTRE_MODULE@
 BUILD_MDHIM_MODULE = @BUILD_MDHIM_MODULE@
 
-DARSHAN_STATIC_MOD_OBJS = lib/darshan-posix.o lib/darshan-mpiio.o lib/darshan-pnetcdf.o lib/darshan-stdio.o lib/darshan-dxt.o
-DARSHAN_DYNAMIC_MOD_OBJS = lib/darshan-posix.po lib/darshan-mpiio.po lib/darshan-pnetcdf.po lib/darshan-stdio.po lib/darshan-dxt.po
+DARSHAN_STATIC_MOD_OBJS =
+DARSHAN_DYNAMIC_MOD_OBJS =
+
+ifdef BUILD_NULL_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-null.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-null.po
+endif
+
+ifdef BUILD_POSIX_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-posix.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-posix.po
+endif
+
+ifdef BUILD_STDIO_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-stdio.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-stdio.po
+endif
+
+ifdef BUILD_DXT_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-dxt.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-dxt.po
+endif
+
+ifdef BUILD_MPIIO_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-mpiio.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-mpiio.po
+endif
+
+ifdef BUILD_PNETCDF_MODULE
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-pnetcdf.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-pnetcdf.po
+endif
 
 ifdef BUILD_HDF5_MODULE
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-hdf5.o
 DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-hdf5.po
 endif
 
-ifdef DARSHAN_USE_BGQ
+ifdef BUILD_BGQ_MODULE
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-bgq.o
 DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-bgq.po
 CFLAGS += -DDARSHAN_BGQ
 CFLAGS_SHARED += -DDARSHAN_BGQ
 endif
 
-ifdef DARSHAN_USE_LUSTRE
+ifdef BUILD_LUSTRE_MODULE
 DARSHAN_STATIC_MOD_OBJS += lib/darshan-lustre.o
 DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-lustre.po
 CFLAGS += -DDARSHAN_LUSTRE
@@ -184,8 +222,10 @@ endif
 
 install:: all
 	install -d $(libdir)
+ifndef DISABLE_STATIC_LIB
 	install -m 755 lib/libdarshan.a $(libdir)
 	install -m 755 lib/libdarshan-stubs.a $(libdir)
+endif
 ifndef DISABLE_LDPRELOAD
 	install -m 755 lib/libdarshan.so $(libdir)
 endif
@@ -208,16 +248,24 @@ endif
 	install -m 755 share/mpi-profile/darshan-bg-f.conf $(datarootdir)/mpi-profile/darshan-bg-f.conf
 	install -d $(datarootdir)/ld-opts
 	install -m 644 share/ld-opts/darshan-base-ld-opts $(datarootdir)/ld-opts/darshan-base-ld-opts
+ifdef BUILD_POSIX_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-posix-ld-opts $(datarootdir)/ld-opts/darshan-posix-ld-opts
+endif
+ifdef BUILD_STDIO_MODULE
+	install -m 644 $(srcdir)/share/ld-opts/darshan-stdio-ld-opts $(datarootdir)/ld-opts/darshan-stdio-ld-opts
+endif
+ifdef BUILD_MPIIO_MODULE
+	install -m 644 $(srcdir)/share/ld-opts/darshan-mpiio-ld-opts $(datarootdir)/ld-opts/darshan-mpiio-ld-opts
+endif
+ifdef BUILD_PNETCDF_MODULE
+	install -m 644 $(srcdir)/share/ld-opts/darshan-pnetcdf-ld-opts $(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
+endif
 ifdef BUILD_HDF5_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-hdf5-ld-opts $(datarootdir)/ld-opts/darshan-hdf5-ld-opts
 endif
 ifdef BUILD_MDHIM_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-mdhim-ld-opts $(datarootdir)/ld-opts/darshan-mdhim-ld-opts
 endif
-	install -m 644 $(srcdir)/share/ld-opts/darshan-pnetcdf-ld-opts $(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
-	install -m 644 $(srcdir)/share/ld-opts/darshan-stdio-ld-opts $(datarootdir)/ld-opts/darshan-stdio-ld-opts
-	install -m 644 $(srcdir)/share/ld-opts/darshan-mpiio-ld-opts $(datarootdir)/ld-opts/darshan-mpiio-ld-opts
 ifdef ENABLE_MMAP_LOGS
 	install -m 755 share/darshan-mmap-epilog.sh $(datarootdir)/darshan-mmap-epilog.sh
 endif
@@ -225,8 +273,8 @@ endif
 	install -m 644 lib/pkgconfig/darshan-runtime.pc $(libdir)/pkgconfig/darshan-runtime.pc
 
 clean::
-	rm -f *.o *.a lib/*.o lib/*.po lib/*.a lib/*.so 
+	rm -f *.o *.a lib/*.o lib/*.po lib/*.a lib/*.so
 
 distclean:: clean
-	rm -f darshan-runtime-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl darshan-config lib/pkgconfig/darshan-runtime.pc share/craype-1.x/darshan-module share/craype-2.x/darshan-module share/darshan-mmap-epilog.sh share/ld-opts/darshan-base-ld-opts share/mpi-profile/darshan-bg-cc.conf share/mpi-profile/darshan-bg-cxx.conf share/mpi-profile/darshan-bg-f.conf share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf aclocal.m4 autom4te.cache/* config.status config.log Makefile 
+	rm -f darshan-runtime-config.h darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-gen-cc.pl darshan-mk-log-dirs.pl darshan-config lib/pkgconfig/darshan-runtime.pc share/craype-1.x/darshan-module share/craype-2.x/darshan-module share/darshan-mmap-epilog.sh share/ld-opts/darshan-base-ld-opts share/mpi-profile/darshan-bg-cc.conf share/mpi-profile/darshan-bg-cxx.conf share/mpi-profile/darshan-bg-f.conf share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf aclocal.m4 autom4te.cache/* config.status config.log Makefile
 	rm -rf autom4te.cache

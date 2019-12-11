@@ -21,6 +21,9 @@
 /* Define to 1 if you have the <mntent.h> header file. */
 #undef HAVE_MNTENT_H
 
+/* Define if build is MPI-enabled */
+#undef HAVE_MPI
+
 /* Define if MPI-IO prototypes use const qualifier */
 #undef HAVE_MPIIO_CONST
 
