@@ -567,42 +567,40 @@ void darshan_core_shutdown()
         if(internal_timing_flag)
             mod1[i] = darshan_core_wtime();
 
-#ifdef HAVE_MPI
-        struct darshan_core_name_record_ref *ref = NULL;
-        int mod_shared_rec_cnt = 0;
-        int j;
-
-        if(using_mpi)
-        {
-            /* set the shared record list for this module */
-            for(j = 0; j < shared_rec_cnt; j++)
-            {
-                HASH_FIND(hlink, final_core->name_hash, &shared_recs[j],
-                    sizeof(darshan_record_id), ref);
-                assert(ref);
-                if(DARSHAN_MOD_FLAG_ISSET(ref->global_mod_flags, i))
-                {
-                    mod_shared_recs[mod_shared_rec_cnt++] = shared_recs[j];
-                }
-            }
-
-            /* allow the module an opportunity to reduce shared files */
-            if(this_mod->mod_funcs.mod_redux_func && (mod_shared_recs > 0) &&
-               (!getenv("DARSHAN_DISABLE_SHARED_REDUCTION")))
-                this_mod->mod_funcs.mod_redux_func(mod_buf, final_core->mpi_comm,
-                    mod_shared_recs, mod_shared_rec_cnt);
-        }
-#endif
-
-        /* if module is registered locally, get the corresponding output buffer
-         *
-         * NOTE: this function can be used to run collective operations across
-         * modules, if there are records shared globally.
-         */
+        /* if module is registered locally, perform module shutdown operations */
         if(this_mod)
         {
             mod_buf = final_core->mod_array[i]->rec_buf_start;
             mod_buf_sz = final_core->mod_array[i]->rec_buf_p - mod_buf;
+
+#ifdef HAVE_MPI
+            if(using_mpi)
+            {
+                struct darshan_core_name_record_ref *ref = NULL;
+                int mod_shared_rec_cnt = 0;
+                int j;
+
+                /* set the shared record list for this module */
+                for(j = 0; j < shared_rec_cnt; j++)
+                {
+                    HASH_FIND(hlink, final_core->name_hash, &shared_recs[j],
+                        sizeof(darshan_record_id), ref);
+                    assert(ref);
+                    if(DARSHAN_MOD_FLAG_ISSET(ref->global_mod_flags, i))
+                    {
+                        mod_shared_recs[mod_shared_rec_cnt++] = shared_recs[j];
+                    }
+                }
+
+                /* allow the module an opportunity to reduce shared files */
+                if(this_mod->mod_funcs.mod_redux_func && (mod_shared_recs > 0) &&
+                   (!getenv("DARSHAN_DISABLE_SHARED_REDUCTION")))
+                    this_mod->mod_funcs.mod_redux_func(mod_buf, final_core->mpi_comm,
+                        mod_shared_recs, mod_shared_rec_cnt);
+            }
+#endif
+
+            /* get the final output buffer */
             this_mod->mod_funcs.mod_shutdown_func(&mod_buf, &mod_buf_sz);
         }
 
