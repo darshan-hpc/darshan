@@ -1415,7 +1415,7 @@ static void stdio_mpi_redux(
     }
     else
     {
-        stdio_rec_count -= shared_rec_count;
+        stdio_runtime->file_rec_count -= shared_rec_count;
     }
 
     PMPI_Type_free(&red_type);

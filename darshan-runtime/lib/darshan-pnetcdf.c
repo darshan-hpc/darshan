@@ -439,7 +439,7 @@ static void pnetcdf_mpi_redux(
     }
     else
     {
-        pnetcdf_rec_count -= shared_rec_count;
+        pnetcdf_runtime->file_rec_count -= shared_rec_count;
     }
 
     PMPI_Type_free(&red_type);

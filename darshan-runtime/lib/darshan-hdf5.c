@@ -484,7 +484,7 @@ static void hdf5_mpi_redux(
     }
     else
     {
-        hdf5_rec_count -= shared_rec_count;
+        hdf5_runtime->file_rec_count -= shared_rec_count;
     }
 
     PMPI_Type_free(&red_type);

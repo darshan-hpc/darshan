@@ -1662,7 +1662,7 @@ static void mpiio_mpi_redux(
     }
     else
     {
-        mpiio_rec_count -= shared_rec_count;
+        mpiio_runtime->file_rec_count -= shared_rec_count;
     }
 
     PMPI_Type_free(&red_type);

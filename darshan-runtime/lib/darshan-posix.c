@@ -2166,7 +2166,7 @@ static void posix_mpi_redux(
     }
     else
     {
-        posix_rec_count -= shared_rec_count;
+        posix_runtime->file_rec_count -= shared_rec_count;
     }
 
     PMPI_Type_free(&red_type);
