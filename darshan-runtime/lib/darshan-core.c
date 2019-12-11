@@ -383,10 +383,18 @@ void darshan_core_initialize(int argc, char **argv)
 #ifdef HAVE_MPI
         if(using_mpi)
         {
-            PMPI_Reduce(MPI_IN_PLACE, &init_time, 1,
-                MPI_DOUBLE, MPI_MAX, 0, darshan_core->mpi_comm);
+            if(my_rank == 0)
+            {
+                PMPI_Reduce(MPI_IN_PLACE, &init_time, 1,
+                    MPI_DOUBLE, MPI_MAX, 0, darshan_core->mpi_comm);
+            }
+            else
+            {
+                PMPI_Reduce(&init_time, &init_time, 1,
+                    MPI_DOUBLE, MPI_MAX, 0, darshan_core->mpi_comm);
+                return; /* return early so every rank doesn't print */
+            }
         }
-        if(my_rank > 0) return;
 #endif
 
         darshan_core_fprintf(stderr, "#darshan:<op>\t<nprocs>\t<time>\n");
@@ -473,10 +481,22 @@ void darshan_core_shutdown()
             MPI_SUM, final_core->mpi_comm);
 
         /* reduce to report first start and last end time across all ranks at rank 0 */
-        PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->start_time,
-            1, MPI_INT64_T, MPI_MIN, 0, final_core->mpi_comm);
-        PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->end_time,
-            1, MPI_INT64_T, MPI_MAX, 0, final_core->mpi_comm);
+        if(my_rank == 0)
+        {
+            PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->start_time,
+                1, MPI_INT64_T, MPI_MIN, 0, final_core->mpi_comm);
+            PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->end_time,
+                1, MPI_INT64_T, MPI_MAX, 0, final_core->mpi_comm);
+        }
+        else
+        {
+            PMPI_Reduce(&final_core->log_job_p->start_time,
+                &final_core->log_job_p->start_time,
+                1, MPI_INT64_T, MPI_MIN, 0, final_core->mpi_comm);
+            PMPI_Reduce(&final_core->log_job_p->end_time,
+                &final_core->log_job_p->end_time,
+                1, MPI_INT64_T, MPI_MAX, 0, final_core->mpi_comm);
+        }
 
         /* get a list of records which are shared across all processes */
         darshan_get_shared_records(final_core, &shared_recs, &shared_rec_cnt);
@@ -643,22 +663,39 @@ void darshan_core_shutdown()
 #ifdef HAVE_MPI
         if(using_mpi)
         {
-            PMPI_Reduce(MPI_IN_PLACE, &open_tm, 1,
-                MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
-            PMPI_Reduce(MPI_IN_PLACE, &header_tm, 1,
-                MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
-            PMPI_Reduce(MPI_IN_PLACE, &job_tm, 1,
-                MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
-            PMPI_Reduce(MPI_IN_PLACE, &rec_tm, 1,
-                MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
-            PMPI_Reduce(MPI_IN_PLACE, &all_tm, 1,
-                MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
-            PMPI_Reduce(MPI_IN_PLACE, mod_tm, DARSHAN_MAX_MODS,
-                MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
+            if(my_rank == 0)
+            {
+                PMPI_Reduce(MPI_IN_PLACE, &open_tm, 1,
+                    MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
+                PMPI_Reduce(MPI_IN_PLACE, &header_tm, 1,
+                    MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
+                PMPI_Reduce(MPI_IN_PLACE, &job_tm, 1,
+                    MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
+                PMPI_Reduce(MPI_IN_PLACE, &rec_tm, 1,
+                    MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
+                PMPI_Reduce(MPI_IN_PLACE, &all_tm, 1,
+                    MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
+                PMPI_Reduce(MPI_IN_PLACE, mod_tm, DARSHAN_MAX_MODS,
+                    MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
+            }
+            else
+            {
+                PMPI_Reduce(&open_tm, &open_tm, 1,
+                    MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
+                PMPI_Reduce(&header_tm, &header_tm, 1,
+                    MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
+                PMPI_Reduce(&job_tm, &job_tm, 1,
+                    MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
+                PMPI_Reduce(&rec_tm, &rec_tm, 1,
+                    MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
+                PMPI_Reduce(&all_tm, &all_tm, 1,
+                    MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
+                PMPI_Reduce(mod_tm, mod_tm, DARSHAN_MAX_MODS,
+                    MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
 
-            /* let rank 0 report the timing info */
-            if(my_rank > 0)
+                /* let rank 0 report the timing info */
                 goto exit;
+            }
         }
 #endif
 
@@ -1678,7 +1715,7 @@ static int darshan_log_write_header(darshan_core_log_fh log_fh,
 
 #ifdef HAVE_MPI
     MPI_Status status;
-    if (using_mpi)
+    if(using_mpi)
     {
         /* write out log header, after running 2 reductions on header variables:
          *  1) reduce 'partial_flag' variable to determine which modules ran out
@@ -1686,16 +1723,25 @@ static int darshan_log_write_header(darshan_core_log_fh log_fh,
          *  2) reduce 'mod_ver' array to determine which log format version each
          *     module used for this output log
          */
-        PMPI_Reduce(
-            MPI_IN_PLACE, &(core->log_hdr_p->partial_flag),
-            1, MPI_UINT32_T, MPI_BOR, 0, core->mpi_comm);
-        PMPI_Reduce(
-            MPI_IN_PLACE, &(core->log_hdr_p->mod_ver),
-            DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX, 0, core->mpi_comm);
-
-        /* only rank 0 writes the header */
-        if(my_rank > 0)
-            return(0);
+        if(my_rank == 0)
+        {
+            PMPI_Reduce(
+                MPI_IN_PLACE, &(core->log_hdr_p->partial_flag),
+                1, MPI_UINT32_T, MPI_BOR, 0, core->mpi_comm);
+            PMPI_Reduce(
+                MPI_IN_PLACE, &(core->log_hdr_p->mod_ver),
+                DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX, 0, core->mpi_comm);
+        }
+        else
+        {
+            PMPI_Reduce(
+                &(core->log_hdr_p->partial_flag), &(core->log_hdr_p->partial_flag),
+                1, MPI_UINT32_T, MPI_BOR, 0, core->mpi_comm);
+            PMPI_Reduce(
+                &(core->log_hdr_p->mod_ver), &(core->log_hdr_p->mod_ver),
+                DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX, 0, core->mpi_comm);
+            return(0); /* only rank 0 writes the header */
+        }
 
         /* write the header using MPI */
         ret = PMPI_File_write_at(log_fh.mpi_fh, 0, core->log_hdr_p,
