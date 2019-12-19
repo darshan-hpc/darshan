@@ -420,7 +420,7 @@ static void hdf5_mpi_redux(
 {
     int hdf5_rec_count;
     struct hdf5_file_record_ref *rec_ref;
-    struct darshan_hdf5_file *hdf5_rec_buf = *(struct darshan_hdf5_file **)hdf5_buf;
+    struct darshan_hdf5_file *hdf5_rec_buf = (struct darshan_hdf5_file *)hdf5_buf;
     struct darshan_hdf5_file *red_send_buf = NULL;
     struct darshan_hdf5_file *red_recv_buf = NULL;
     MPI_Datatype red_type;
@@ -429,6 +429,8 @@ static void hdf5_mpi_redux(
 
     HDF5_LOCK();
     assert(hdf5_runtime);
+
+    hdf5_rec_count = hdf5_runtime->file_rec_count;
 
     /* necessary initialization of shared records */
     for(i = 0; i < shared_rec_count; i++)
