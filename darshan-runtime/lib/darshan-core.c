@@ -279,10 +279,6 @@ void darshan_core_initialize(int argc, char **argv)
     if(init_core)
     {
         memset(init_core, 0, sizeof(*init_core));
-        /* record absolute start time at startup so that we can later
-         * generate relative times with this as a reference point.
-         */
-        init_core->wtime_offset = darshan_core_wtime_absolute();
 
 #ifdef HAVE_MPI
         PMPI_Initialized(&using_mpi);
@@ -293,6 +289,11 @@ void darshan_core_initialize(int argc, char **argv)
             PMPI_Comm_rank(init_core->mpi_comm, &my_rank);
         }
 #endif
+
+        /* record absolute start time at startup so that we can later
+         * generate relative times with this as a reference point.
+         */
+        init_core->wtime_offset = darshan_core_wtime_absolute();
 
     /* TODO: do we alloc new memory as we go or just do everything up front? */
 
@@ -2352,11 +2353,11 @@ static double darshan_core_wtime_absolute(void)
 #ifdef HAVE_MPI
     if(using_mpi)
         return(PMPI_Wtime());
-#else
+#endif
+
     struct timeval tval;
     gettimeofday(&tval, NULL);
     return(tval.tv_sec + (tval.tv_usec / 1000000.0));
-#endif
 }
 
 #ifdef DARSHAN_PRELOAD
