@@ -260,6 +260,7 @@ with open(dxt_logname) as infile:
     finfo_dict = {}
     curr_fname = ''
     logdata = []
+    jobid="NO_JOBID"
     for line in infile:
         curr_fname, data, flag = parse_dxt_log_line(line, curr_fname, finfo_dict)
         if flag == -11:
