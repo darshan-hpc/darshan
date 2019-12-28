@@ -158,6 +158,57 @@ def log_get_name_records(log):
 
 
 
+def log_get_dxt_record(log, mod_name, mod_type, mode='numpy'):
+    """
+    Returns a dictionary holding a dxt darshan log record.
+
+    Args:
+        log: Handle returned by darshan.open
+        mod_name (str): Name of the Darshan module
+        mod_type (str): String containing the C type
+
+    Return:
+        dict: generic log record
+
+    Example
+    -------
+
+    The typical darshan log record provides two arrays, on for integer counters
+    and one for floating point counters:
+
+    >>> darshan.log_get_dxt_record(log, "POSIX", "struct darshan_posix_file **")
+    {'rank': 42, 'read_segments': array([...])}
+
+
+    """
+
+
+
+    modules = log_get_modules(log)
+
+    rec = {}
+    buf = ffi.new("void **")
+    r = libdutil.darshan_log_get_record(log, modules[mod_name]['idx'], buf)
+    if r < 1:
+        return None
+    rbuf = ffi.cast(mod_type, buf)
+    clst = []
+
+    rec['id'] = rbuf[0].base_rec.id
+    rec['rank'] = rbuf[0].base_rec.rank
+    rec['write_count'] = rbuf[0].write_count
+    rec['read_count'] = rbuf[0].read_count
+    
+    rec['write_segments'] = []
+    rec['read_segments'] = []
+
+    return rec
+
+
+
+
+
+
 def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
     """
     Returns a dictionary holding a generic darshan log record.
@@ -318,6 +369,7 @@ def log_get_posix_record(log):
         dict: log record
     """
     return log_get_generic_record(log, "POSIX", "struct darshan_posix_file **")
+
 
 
 def log_get_stdio_record(log):

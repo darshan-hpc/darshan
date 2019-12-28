@@ -100,6 +100,19 @@ struct darshan_apxc_perf_record
 
 
 
+struct dxt_file_record {
+    struct darshan_base_record base_rec;
+    int64_t shared_record;  /* -1 means it is a shared file record */
+    char hostname[64];      /* size defined via macro */
+
+    int64_t write_count;
+    int64_t read_count;
+};
+
+
+
+
+
 typedef uint64_t darshan_record_id;
 
 struct darshan_name_record

@@ -2,9 +2,40 @@
 Usage
 =====
 
+
+Darshan Report Object Interface
+-------------------------------
+
 To use pydarshan in a project::
 
-    import darshan
+	import darshan
+
+	report = darshan.DarshanReport(filename)
+
+	# read metadata, log records and name records
+	report.read_all()
+
+	# calculate or update aggregate statistics for currently loaded records
+	report.summarize()
+
+
+	print(report.report)
+	
+
+
+
+
+Directly interfacing through the CFFI Interface Wrappers
+--------------------------------------------------------
+
+Generally, it is more convienient to access a darshan log from Python using the default report object interface which also caches already fetched information such as log records on a per module basis.
+If this seems like an unwanted overhead the CFFI interface can be used which allows fine grained control on which information are loaded.
+
+
+To use pydarshan.cffi_parser in a project::
+
+    import darshan.cffi_parser as darshan
+
     log = darshan.log_open("example.darshan")
 
     # Access various job information

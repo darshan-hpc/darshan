@@ -43,6 +43,8 @@ coverage: ## check code coverage quickly with the default Python
 
 docs: ## generate Sphinx HTML documentation, including API docs
 	rm -f docs/darshan.rst
+	rm -f docs/darshan.backend.rst
+	rm -f docs/darshan.plots.rst
 	rm -f docs/modules.rst
 	sphinx-apidoc -o docs/ darshan
 	$(MAKE) -C docs clean

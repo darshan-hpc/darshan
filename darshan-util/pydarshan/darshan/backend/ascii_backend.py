@@ -642,7 +642,7 @@ class AsciiDarshanLog(object):
         logdata = self.logdata
 
 
-        # Original:
+        # Original, Target:
         ## <type>, <app time>, <read>, <write>, <meta>
         #POSIX, 98.837925, 0.150075, 0.5991, 0.4129
         #MPI-IO, 97.293875, 0.051575, 0.126525, 2.528025
