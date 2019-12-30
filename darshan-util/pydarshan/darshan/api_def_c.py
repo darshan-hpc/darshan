@@ -109,6 +109,17 @@ struct dxt_file_record {
     int64_t read_count;
 };
 
+typedef struct segment_info {
+    int64_t offset;
+    int64_t length;
+    double start_time;
+    double end_time;
+} segment_info;
+
+
+
+
+
 
 
 

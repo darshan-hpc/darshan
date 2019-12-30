@@ -134,6 +134,7 @@ def log_get_modules(log):
 
 
 
+
 def log_get_name_records(log):
     """
     Return a dictionary resovling hash to string (typically a filepath).
@@ -158,7 +159,8 @@ def log_get_name_records(log):
 
 
 
-def log_get_dxt_record(log, mod_name, mod_type, mode='numpy'):
+
+def log_get_dxt_record(log, mod_name, mod_type, mode='dict'):
     """
     Returns a dictionary holding a dxt darshan log record.
 
@@ -176,13 +178,11 @@ def log_get_dxt_record(log, mod_name, mod_type, mode='numpy'):
     The typical darshan log record provides two arrays, on for integer counters
     and one for floating point counters:
 
-    >>> darshan.log_get_dxt_record(log, "POSIX", "struct darshan_posix_file **")
-    {'rank': 42, 'read_segments': array([...])}
+    >>> darshan.log_get_dxt_record(log, "DXT_POSIX", "struct dxt_file_record **")
+    {'rank': 42, 'read_count': 11, 'read_segments': array([...]), ...}
 
 
     """
-
-
 
     modules = log_get_modules(log)
 
@@ -191,22 +191,47 @@ def log_get_dxt_record(log, mod_name, mod_type, mode='numpy'):
     r = libdutil.darshan_log_get_record(log, modules[mod_name]['idx'], buf)
     if r < 1:
         return None
-    rbuf = ffi.cast(mod_type, buf)
+    filerec = ffi.cast(mod_type, buf)
     clst = []
 
-    rec['id'] = rbuf[0].base_rec.id
-    rec['rank'] = rbuf[0].base_rec.rank
-    rec['write_count'] = rbuf[0].write_count
-    rec['read_count'] = rbuf[0].read_count
-    
+    rec['id'] = filerec[0].base_rec.id
+    rec['rank'] = filerec[0].base_rec.rank
+    rec['hostname'] = ffi.string(filerec[0].hostname).decode("utf-8")
+
+    wcnt = filerec[0].write_count
+    rcnt = filerec[0].read_count
+
+    rec['write_count'] = wcnt
+    rec['read_count'] = rcnt
+ 
     rec['write_segments'] = []
     rec['read_segments'] = []
 
+
+    size_of = ffi.sizeof("struct dxt_file_record")
+    segments = ffi.cast("struct segment_info *", buf[0] + size_of  )
+
+
+    for i in range(wcnt):
+        seg = {
+            "offset": segments[i].offset,
+            "length": segments[i].length,
+            "start_time": segments[i].start_time,
+            "end_time": segments[i].end_time
+        }
+        rec['write_segments'].append(seg)
+
+
+    for i in range(rcnt):
+        seg = {
+            "offset": segments[i].offset,
+            "length": segments[i].length,
+            "start_time": segments[i].start_time,
+            "end_time": segments[i].end_time
+        }
+        rec['read_segments'].append(seg)
+
     return rec
-
-
-
-
 
 
 def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
