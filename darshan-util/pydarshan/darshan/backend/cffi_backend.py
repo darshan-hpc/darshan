@@ -40,10 +40,7 @@ def log_open(filename):
         log handle
     """
     b_fname = filename.encode()
-    log = libdutil.darshan_log_open(b_fname)
-    #if log:
-    #    # TODO: decide where if modules are to be cached this should happen
-    #    modules = log_get_modules(log)
+    log = {"handle": libdutil.darshan_log_open(b_fname), 'modules': None, 'name_records': None}
 
     return log
 
@@ -52,7 +49,7 @@ def log_close(log):
     """
     Closes the logfile and releases allocated memory.
     """
-    libdutil.darshan_log_close(log)
+    libdutil.darshan_log_close(log['handle'])
     #modules = {}
     return
 
@@ -63,7 +60,7 @@ def log_get_job(log):
     """
     job = {}
     jobrec = ffi.new("struct darshan_job *")
-    libdutil.darshan_log_get_job(log, jobrec)
+    libdutil.darshan_log_get_job(log['handle'], jobrec)
     job['jobid'] = jobrec[0].jobid
     job['uid'] = jobrec[0].uid
     job['start_time'] = jobrec[0].start_time
@@ -89,7 +86,7 @@ def log_get_exe(log):
     """
 
     exestr = ffi.new("char[]", 4096)
-    libdutil.darshan_log_get_exe(log, exestr)
+    libdutil.darshan_log_get_exe(log['handle'], exestr)
     return ffi.string(exestr).decode("utf-8")
 
 
@@ -103,7 +100,7 @@ def log_get_mounts(log):
     mntlst = []
     mnts = ffi.new("struct darshan_mnt_info **")
     cnt = ffi.new("int *")
-    libdutil.darshan_log_get_mounts(log, mnts, cnt)
+    libdutil.darshan_log_get_mounts(log['handle'], mnts, cnt)
     for i in range(0, cnt[0]):
         mntlst.append((ffi.string(mnts[0][i].mnt_path).decode("utf-8"),
             ffi.string(mnts[0][i].mnt_type).decode("utf-8")))
@@ -122,14 +119,25 @@ def log_get_modules(log):
         dict: Modules with additional info for current log.
 
     """
+
+    # used cached module index if already present
+    if log['modules'] != None:
+        return log['modules']
+
+    
     modules = {}
 
     mods = ffi.new("struct darshan_mod_info **")
     cnt    = ffi.new("int *")
-    libdutil.darshan_log_get_modules(log, mods, cnt)
+    libdutil.darshan_log_get_modules(log['handle'], mods, cnt)
     for i in range(0, cnt[0]):
         modules[ffi.string(mods[0][i].name).decode("utf-8")] = \
                 {'len': mods[0][i].len, 'ver': mods[0][i].ver, 'idx': mods[0][i].idx}
+
+
+    # add to cache
+    log['modules'] = modules
+
     return modules
 
 
@@ -146,14 +154,24 @@ def log_get_name_records(log):
     Return:
         dict: the name records
     """
+
+    # used cached name_records if already present
+    if log['name_records'] != None:
+        return log['name_records']
+
+
     name_records = {}
 
     nrecs = ffi.new("struct darshan_name_record **")
     cnt = ffi.new("int *")
-    libdutil.darshan_log_get_name_records(log, nrecs, cnt)
+    libdutil.darshan_log_get_name_records(log['handle'], nrecs, cnt)
 
     for i in range(0, cnt[0]):
         name_records[nrecs[0][i].id] = ffi.string(nrecs[0][i].name).decode("utf-8")
+
+
+    # add to cache
+    log['name_records'] = name_records
 
     return name_records
 
@@ -179,16 +197,17 @@ def log_get_dxt_record(log, mod_name, mod_type, mode='dict'):
     and one for floating point counters:
 
     >>> darshan.log_get_dxt_record(log, "DXT_POSIX", "struct dxt_file_record **")
-    {'rank': 42, 'read_count': 11, 'read_segments': array([...]), ...}
+    {'rank': 0, 'read_count': 11, 'read_segments': array([...]), ...}
 
 
     """
 
     modules = log_get_modules(log)
+    name_records = log_get_name_records(log)
 
     rec = {}
     buf = ffi.new("void **")
-    r = libdutil.darshan_log_get_record(log, modules[mod_name]['idx'], buf)
+    r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
     if r < 1:
         return None
     filerec = ffi.cast(mod_type, buf)
@@ -197,6 +216,7 @@ def log_get_dxt_record(log, mod_name, mod_type, mode='dict'):
     rec['id'] = filerec[0].base_rec.id
     rec['rank'] = filerec[0].base_rec.rank
     rec['hostname'] = ffi.string(filerec[0].hostname).decode("utf-8")
+    rec['filename'] = name_records[rec['id']]
 
     wcnt = filerec[0].write_count
     rcnt = filerec[0].read_count
@@ -261,7 +281,7 @@ def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
 
     rec = {}
     buf = ffi.new("void **")
-    r = libdutil.darshan_log_get_record(log, modules[mod_name]['idx'], buf)
+    r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
     if r < 1:
         return None
     rbuf = ffi.cast(mod_type, buf)
@@ -427,7 +447,7 @@ def log_get_apxc_record(log):
     memory_modes = ['unknown', 'flat', 'equal', 'split', 'cache']
     cluster_modes = ['unknown', 'all2all', 'quad', 'hemi', 'snc4', 'snc2']
     buf = ffi.new("void **")
-    r = libdutil.darshan_log_get_record(log, modules['DARSHAN_APXC']['idx'], buf)
+    r = libdutil.darshan_log_get_record(log['handle'], modules['DARSHAN_APXC']['idx'], buf)
     if r < 1:
         return None
     prf = ffi.cast("struct darshan_apxc_perf_record **", buf)

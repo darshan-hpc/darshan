@@ -8,6 +8,8 @@ import re
 import copy
 
 
+
+
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
@@ -23,14 +25,15 @@ class DarshanReport(object):
     a number of common aggregations can be performed.
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, mode='dict'):
         self.filename = filename
 
+
+        # initialize actual report dictionary
         self.report = {'version': 1}
         self.report['records'] = {}
 
-
-        self.filehashes = {}
+        
 
         self.log = backend.log_open(self.filename)
 
@@ -96,7 +99,7 @@ class DarshanReport(object):
 
     def mod_read_all_dxt_records(self, mod, mode='numpy'):
         """
-        Reads all records for module
+        Reads all dxt records for provided module.
 
         Args:
             mod (str): Identifier of module to fetch all records
@@ -394,6 +397,8 @@ class DarshanReport(object):
                 #}
 
             else:
+                # POSIX and STDIO share most counter names and are handled 
+                # together for this reason, except for metadata/sync counter 
                 tmp = {
                     'Read':  agg[mod + '_READS'],
                     'Write': agg[mod + '_WRITES'],
@@ -409,6 +414,7 @@ class DarshanReport(object):
                     tmp['Stat']
                     tmp['Stat']
                     pass    
+
                 elif mod == 'STDIO':
                     tmp['Stat']
                     tmp['Mmap']
@@ -433,10 +439,28 @@ class DarshanReport(object):
 
 
 
+    def create_timeline(self, group_by='rank'):
+        """
+        Generate/update a timeline from dxt tracing records of current report.
+
+        Args:
+            group_by (str): By which factor to group entries (default: rank)
+                            Allowed Parameters: rank, filename
+        """
+
+        
+        self.mod_read_all_dxt_records("DXT_POSIX")
+        #self.mod_read_all_dxt_records("DXT_MPIIO")
+
+
+
+        pass
+
 
     def create_sankey(self):
         """
-        Generate a summary that shows the dataflow from ranks to files to mnts.
+        Generate a summary that shows the dataflow between ranks, files and
+        their mountpoints.
         """
 
         # convienience
