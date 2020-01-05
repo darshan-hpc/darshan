@@ -6,7 +6,7 @@ import json
 import numpy as np
 import re
 import copy
-
+import datetime
 
 
 
@@ -109,6 +109,12 @@ class DarshanReport(object):
             None
 
         """
+
+        if mod not in self.report['modules']:
+            print("Skipping. Log does not contain data for mod:", mod)
+            return
+
+
         supported =  ['DXT_POSIX', 'DXT_MPIIO']
 
         if mod not in supported:
@@ -173,7 +179,7 @@ class DarshanReport(object):
             None
 
         """
-        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE']
+        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE', 'STDIO']
 
         if mod in unsupported:
             print("Skipping. Currently unsupported:", mod)
@@ -450,7 +456,173 @@ class DarshanReport(object):
 
         
         self.mod_read_all_dxt_records("DXT_POSIX")
-        #self.mod_read_all_dxt_records("DXT_MPIIO")
+        self.mod_read_all_dxt_records("DXT_MPIIO")
+
+
+        self.report['timeline'] = {'groups': [], 'items': []}
+
+        
+        groups = self.report['timeline']['groups']
+        items = self.report['timeline']['items']
+        
+
+        start_time = datetime.datetime.fromtimestamp( self.report['job']['start_time'] )
+
+
+
+        def groupify(rec, mod):
+            for seg in rec['write_segments']:
+                seg.update( {'type': 'w'} )
+
+            for seg in rec['read_segments']:
+                seg.update( {'type': 'r'} )
+
+
+            segments = rec['write_segments'] + rec['read_segments']
+            segments = sorted(segments, key=lambda k: k['start_time'])
+            
+            
+            start = float('inf')
+            end = float('-inf')
+
+
+            trace = []
+            minsize = 0
+            for seg in segments:
+                trace += [ seg['type'], seg['offset'], seg['length'], seg['start_time'], seg['end_time'] ]
+
+                seg_minsize = seg['offset'] + seg['length']
+                if minsize < seg_minsize:
+                    minsize = seg_minsize
+
+                if start > seg['start_time']:
+                    start = seg['start_time']
+
+                if end < seg['end_time']:
+                    end = seg['end_time']
+
+            # reconstruct timestamps
+            start = start_time + datetime.timedelta(seconds=start)
+            end = start_time + datetime.timedelta(seconds=end)
+
+            rid = "%s:%d:%d" % (mod, rec['id'], rec['rank'])
+
+            item = {
+                "id": rid,
+                "rank": rec['rank'],
+                "hostname": rec['hostname'],
+                "filename": rec['filename'],
+
+                "group": rid,
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "limitSize": False,  # required to prevent rendering glitches
+                "data": {
+                    "duration": (end-start).total_seconds(),
+                    "start": segments[0]['start_time'],
+                    "size": minsize,       # minimal estimated filesize
+                    "trace": trace, 
+                }
+            }
+
+            items.append(item)
+
+
+            group = {
+                "id": rid,
+                "content": "[%s] " % (mod) + rec['filename'][-84:],
+                "order": seg['start_time']
+            }
+            groups.append(group)
+
+
+
+        supported = ['DXT_POSIX', 'DXT_MPIIO']
+        for mod in supported:
+            if mod in self.report['records']:
+                for rec in self.report['records'][mod]:
+                    groupify(rec, mod)
+
+
+
+
+
+
+#        self.report['timeline'] = {
+# "groups": [
+#
+#  {                                                                             
+#   "id": "17679126075047334459:m10805:0000",                                     
+#   "content": "m10805:0000"                                                     
+#  },                                                                            
+#  {                                                                             
+#   "id": "17679126075047334459",                                                 
+#   "content": "ted_prog_vars_DOM01_ML_20130424T000430Z.nc [1R 62MiB]",          
+#   "order": 36.3767,                                                            
+#   "showNested": True,                                                         
+#   "nestedGroups": [                                                            
+#    "17679126075047334459:m10805:0000"                                           
+#   ]                                                                            
+#  }
+#
+#	],  
+#
+# "items": [
+#  {                                                                             
+#   "id": "17679126075047334459:m10805:0000",                                     
+#   "group": "17679126075047334459:m10805:0000",                                  
+#   "start": "2018-06-20T15:46:39.376700",                                       
+#   "end": "2018-06-20T15:46:39.931800",                                         
+#   "limitSize": False,
+#   "data": {                                                                    
+#    "duration": 0.5551,                                                         
+#    "start": 36.3767,                                                           
+#    "size": 65664716,                                                           
+#    "trace": [                                                                  
+#     "w",24,8,36.3767,36.3771,"w",0,732,36.3774,36.3774,"w",0,1212636,36.3781,36.3791,
+#     "w",0,1213996,36.3792,36.3796,"w",0,1214584,36.3798,36.3802,"w",0,1215084,36.3812,36.3817,
+#     "w",0,1215084,36.3817,36.3822,"w",0,1220188,36.3826,36.383,"w",0,4194304, 36.4375 ,36.4405,
+#     "r",8388608,0,36.441,36.441,"w",4194304,4194304,36.4734,36.477,"r",12582912,0,36.4774,36.4775,
+#     "w",20971520,4194304,36.6157,36.619,"r",29360128,0,36.6195,36.6196,"w",25165824,4194304,36.6513,36.6547,
+#     "r",33554432,0,36.6552,36.6552,"w",29360128,4194304,36.6873,36.6911,"r",37748736,0,36.6916,36.6916,
+#     "w",33554432,4194304,36.7222,36.7255,"r",41943040,0,36.726,36.7261,"w",37748736,4194304,36.7585,36.7618,
+#     "r",46137344,0,36.7623,36.7623,"w",41943040,4194304,36.7933,36.7966,"r",50331648,0,36.7971,36.7971,
+#     "w",46137344,4194304,36.8297,36.8331, "r",54525952,0,36.8335,36.8336,"w",50331648,4194304,36.8656,36.8689,
+#     "r",58720256,0,36.8694,36.8694,"w",54525952,4194304,36.9009,36.9042,"r",62914560,0,36.9047,36.9047,"w",58720256,6944460,36.9255,36.9318
+#    ]                                                                           
+#   }                                                                            
+#  },                                                                            
+#  {                                                                             
+#   "id": "17679126075047334459",                                                 
+#   "group": "17679126075047334459",                                              
+#   "content": "",                                                               
+#   "start": "2018-06-20T15:46:39.376700",                                       
+#   "end": "2018-06-20T15:46:39.931800",                                         
+#   "limitSize": False,
+#   "data": {                                                                    
+#    "duration": 0.5551,                                                         
+#    "start": 36.3767,                                                           
+#    "size": 65664716,                                                           
+#    "trace": [                                                                  
+#     "w",24,8,36.3767,36.3771,"w",0,732,36.3774,36.3774,"w",0,1212636,36.3781,36.3791,
+#     "w",0,1213996,36.3792,36.3796,"w",0,1214584,36.3798,36.3802,"w",0,1215084,36.3812,36.3817,
+#     "w",0,1215084,36.3817,36.3822,"w",0,1220188,36.3826,36.383,"w",0,4194304,36.4375,36.4405,
+#     "w",8388608,4194304,36.5089,36.5123,"r",16777216,0,36.5128,36.5129,"w",12582912,4194304,36.5436,36.5469,
+#     "r",20971520,0,36.5474,36.5474,"w", 16777216,4194304,36.5806,36.5839,"r",25165824,0,36.5844,36.5844,
+#     "w",20971520,4194304,36.6157,36.619,"r",29360128,0,36.6195,36.6196,"w",25165824,4194304,36.6513,36.6547,
+#     "r",33554432,0,36.6552,36.6552,"w",29360128,4194304,36.6873,36.6911,"r",37748736,0,36.6916,36.6916,
+#     "r",46137344,0,36.7623,36.7623,"w",41943040,4194304,36.7933,36.7966,"r",50331648,0,36.7971,36.7971,
+#     "w",46137344,4194304,36.8297,36.8331, "r",54525952,0,36.8335,36.8336,"w",50331648,4194304,36.8656,36.8689,
+#     "r",58720256,0,36.8694,36.8694,"w",54525952,4194304,36.9009,36.9042,"r",62914560,0,36.9047,36.9047,"w",58720256,6944460,36.9255,36.9318
+#    ]                                                                           
+#   }                                                                            
+#  }
+#
+# ] 
+#}
+
+
+
 
 
 
