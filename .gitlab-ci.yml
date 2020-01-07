@@ -1,3 +1,7 @@
+variables:
+  #ANL_THETA_SCHEDULER_PARAMETERS: "-A radix-io"
+  ANL_THETA_PROJECT_SERVICE_USER: "darshan"
+
 stages:
   - build
   - test
