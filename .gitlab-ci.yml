@@ -15,8 +15,8 @@ build_darshan:
 
   script:
     - source darshan-test/automated/common/setup.sh
-    - ls
-#    - source darshan-test/automated/common/configure.sh
+    - cat setup-result.xml
+    - source darshan-test/automated/common/configure.sh
 #    - source darshan-test/automated/common/build.sh
 
 #.test_darshan:
