@@ -14,8 +14,8 @@ build_darshan:
   stage: build
 
   script:
-    - echo "Hello world"
-#    - source darshan-test/automated/common/setup.sh
+    - source darshan-test/automated/common/setup.sh
+    - ls
 #    - source darshan-test/automated/common/configure.sh
 #    - source darshan-test/automated/common/build.sh
 
