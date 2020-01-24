@@ -171,7 +171,7 @@ static double darshan_core_wtime_absolute(void);
         PMPI_Allreduce(MPI_IN_PLACE, &__ret, 1, MPI_INT, MPI_LOR, final_core->mpi_comm); \
     if(__ret != 0) { \
         if(my_rank == 0) { \
-            DARSHAN_WARN(__err_str); \
+            DARSHAN_WARN(__err_str, ## __VA_ARGS__); \
             if(log_created) \
                 unlink(logfile_name); \
         } \
@@ -184,7 +184,7 @@ static double darshan_core_wtime_absolute(void);
 /* Non-MPI variant of darshan logging helpers */
 #define DARSHAN_CHECK_ERR(__ret, __err_str, ...) do { \
     if(__ret != 0) { \
-        DARSHAN_WARN(__err_str); \
+        DARSHAN_WARN(__err_str, ## __VA_ARGS__); \
         if(log_created) \
             unlink(logfile_name); \
         goto exit; \
