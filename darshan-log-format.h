@@ -159,7 +159,7 @@ typedef enum
 
 /* module name strings */
 #define X(a, b, c, d) b,
-static char * const darshan_module_names[] =
+static const char * const darshan_module_names[] =
 {
     DARSHAN_MODULE_IDS
 };
