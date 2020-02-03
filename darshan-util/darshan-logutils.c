@@ -897,6 +897,10 @@ static int darshan_log_get_header(darshan_fd fd)
     }
     else if(strcmp(fd->version, "3.10") == 0)
     {
+        /* XXX */
+    }
+    else if(strcmp(fd->version, "3.20") == 0)
+    {
         fd->state->get_namerecs = darshan_log_get_namerecs;
     }
     else

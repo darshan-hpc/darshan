@@ -21,34 +21,59 @@
 
 /* counter name strings for the HDF5 module */
 #define X(a) #a,
-char *hdf5_counter_names[] = {
-    HDF5_COUNTERS
+char *h5f_counter_names[] = {
+    H5F_COUNTERS
+};
+char *h5f_f_counter_names[] = {
+    H5F_F_COUNTERS
 };
 
-char *hdf5_f_counter_names[] = {
-    HDF5_F_COUNTERS
+char *h5d_counter_names[] = {
+    H5D_COUNTERS
+};
+char *h5d_f_counter_names[] = {
+    H5D_F_COUNTERS
 };
 #undef X
 
-#define DARSHAN_HDF5_FILE_SIZE_1 40
+#define DARSHAN_H5F_FILE_SIZE_1 40
 
 static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p);
 static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf);
-static void darshan_log_print_hdf5_file(void *file_rec,
-    char *file_name, char *mnt_pt, char *fs_type);
-static void darshan_log_print_hdf5_description(int ver);
-static void darshan_log_print_hdf5_file_diff(void *file_rec1, char *file_name1,
-    void *file_rec2, char *file_name2);
+static void darshan_log_print_hdf5_file(void *ds_rec,
+    char *ds_name, char *mnt_pt, char *fs_type);
+static void darshan_log_print_hdf5_file_description(int ver);
+static void darshan_log_print_hdf5_file_diff(void *ds_rec1, char *ds_name1,
+    void *ds_rec2, char *ds_name2);
 static void darshan_log_agg_hdf5_files(void *rec, void *agg_rec, int init_flag);
 
-struct darshan_mod_logutil_funcs hdf5_logutils =
+static int darshan_log_get_hdf5_dataset(darshan_fd fd, void** hdf5_buf_p);
+static int darshan_log_put_hdf5_dataset(darshan_fd fd, void* hdf5_buf);
+static void darshan_log_print_hdf5_dataset(void *ds_rec,
+    char *ds_name, char *mnt_pt, char *fs_type);
+static void darshan_log_print_hdf5_dataset_description(int ver);
+static void darshan_log_print_hdf5_dataset_diff(void *ds_rec1, char *ds_name1,
+    void *ds_rec2, char *ds_name2);
+static void darshan_log_agg_hdf5_datasets(void *rec, void *agg_rec, int init_flag);
+
+struct darshan_mod_logutil_funcs hdf5_file_logutils =
 {
     .log_get_record = &darshan_log_get_hdf5_file,
     .log_put_record = &darshan_log_put_hdf5_file,
     .log_print_record = &darshan_log_print_hdf5_file,
-    .log_print_description = &darshan_log_print_hdf5_description,
+    .log_print_description = &darshan_log_print_hdf5_file_description,
     .log_print_diff = &darshan_log_print_hdf5_file_diff,
     .log_agg_records = &darshan_log_agg_hdf5_files
+};
+
+struct darshan_mod_logutil_funcs hdf5_dataset_logutils =
+{
+    .log_get_record = &darshan_log_get_hdf5_dataset,
+    .log_put_record = &darshan_log_put_hdf5_dataset,
+    .log_print_record = &darshan_log_print_hdf5_dataset,
+    .log_print_description = &darshan_log_print_hdf5_dataset_description,
+    .log_print_diff = &darshan_log_print_hdf5_dataset_diff,
+    .log_agg_records = &darshan_log_agg_hdf5_datasets
 };
 
 static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p)
@@ -58,7 +83,7 @@ static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p)
     int i;
     int ret;
 
-    if(fd->mod_map[DARSHAN_HDF5_MOD].len == 0)
+    if(fd->mod_map[DARSHAN_H5F_MOD].len == 0)
         return(0);
 
     if(*hdf5_buf_p == NULL)
@@ -68,13 +93,13 @@ static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p)
             return(-1);
     }
 
-    if(fd->mod_ver[DARSHAN_HDF5_MOD] == DARSHAN_HDF5_VER)
+    if(fd->mod_ver[DARSHAN_H5F_MOD] == DARSHAN_H5F_VER)
     {
         /* log format is in current version, so we don't need to do any
          * translation of counters while reading
          */
         rec_len = sizeof(struct darshan_hdf5_file);
-        ret = darshan_log_get_mod(fd, DARSHAN_HDF5_MOD, file, rec_len);
+        ret = darshan_log_get_mod(fd, DARSHAN_H5F_MOD, file, rec_len);
     }
     else
     {
@@ -82,8 +107,8 @@ static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p)
         char *src_p, *dest_p;
         int len;
 
-        rec_len = DARSHAN_HDF5_FILE_SIZE_1;
-        ret = darshan_log_get_mod(fd, DARSHAN_HDF5_MOD, scratch, rec_len);
+        rec_len = DARSHAN_H5F_FILE_SIZE_1;
+        ret = darshan_log_get_mod(fd, DARSHAN_H5F_MOD, scratch, rec_len);
         if(ret != rec_len)
             goto exit;
 
@@ -120,19 +145,75 @@ exit:
         {
             DARSHAN_BSWAP64(&(file->base_rec.id));
             DARSHAN_BSWAP64(&(file->base_rec.rank));
-            for(i=0; i<HDF5_NUM_INDICES; i++)
+            for(i=0; i<H5F_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->counters[i]);
-            for(i=0; i<HDF5_F_NUM_INDICES; i++)
+            for(i=0; i<H5F_F_NUM_INDICES; i++)
             {
                 /* skip counters we explicitly set to -1 since they don't
                  * need to be byte swapped
                  */
-                if((fd->mod_ver[DARSHAN_HDF5_MOD] == 1) &&
-                    ((i == HDF5_F_CLOSE_START_TIMESTAMP) ||
-                     (i == HDF5_F_OPEN_END_TIMESTAMP)))
+                if((fd->mod_ver[DARSHAN_H5F_MOD] == 1) &&
+                    ((i == H5F_F_CLOSE_START_TIMESTAMP) ||
+                     (i == H5F_F_OPEN_END_TIMESTAMP)))
                     continue;
                 DARSHAN_BSWAP64(&file->fcounters[i]);
             }
+        }
+
+        return(1);
+    }
+}
+
+static int darshan_log_get_hdf5_dataset(darshan_fd fd, void** hdf5_buf_p)
+{
+    struct darshan_hdf5_dataset *ds = *((struct darshan_hdf5_dataset **)hdf5_buf_p);
+    int rec_len;
+    int i;
+    int ret;
+
+    if(fd->mod_map[DARSHAN_H5D_MOD].len == 0)
+        return(0);
+
+    if(*hdf5_buf_p == NULL)
+    {
+        ds = malloc(sizeof(*ds));
+        if(!ds)
+            return(-1);
+    }
+
+    if(fd->mod_ver[DARSHAN_H5D_MOD] == DARSHAN_H5D_VER)
+    {
+        /* log format is in current version, so we don't need to do any
+         * translation of counters while reading
+         */
+        rec_len = sizeof(struct darshan_hdf5_dataset);
+        ret = darshan_log_get_mod(fd, DARSHAN_H5D_MOD, ds, rec_len);
+    }
+
+exit:
+    if(*hdf5_buf_p == NULL)
+    {
+        if(ret == rec_len)
+            *hdf5_buf_p = ds;
+        else
+            free(ds);
+    }
+
+    if(ret < 0)
+        return(-1);
+    else if(ret < rec_len)
+        return(0);
+    else
+    {
+        /* if the read was successful, do any necessary byte-swapping */
+        if(fd->swap_flag)
+        {
+            DARSHAN_BSWAP64(&(ds->base_rec.id));
+            DARSHAN_BSWAP64(&(ds->base_rec.rank));
+            for(i=0; i<H5D_NUM_INDICES; i++)
+                DARSHAN_BSWAP64(&ds->counters[i]);
+            for(i=0; i<H5D_F_NUM_INDICES; i++)
+                DARSHAN_BSWAP64(&ds->fcounters[i]);
         }
 
         return(1);
@@ -144,8 +225,21 @@ static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf)
     struct darshan_hdf5_file *file = (struct darshan_hdf5_file *)hdf5_buf;
     int ret;
 
-    ret = darshan_log_put_mod(fd, DARSHAN_HDF5_MOD, file,
-        sizeof(struct darshan_hdf5_file), DARSHAN_HDF5_VER);
+    ret = darshan_log_put_mod(fd, DARSHAN_H5F_MOD, file,
+        sizeof(struct darshan_hdf5_file), DARSHAN_H5F_VER);
+    if(ret < 0)
+        return(-1);
+
+    return(0);
+}
+
+static int darshan_log_put_hdf5_dataset(darshan_fd fd, void* hdf5_buf)
+{
+    struct darshan_hdf5_dataset *ds = (struct darshan_hdf5_dataset *)hdf5_buf;
+    int ret;
+
+    ret = darshan_log_put_mod(fd, DARSHAN_H5D_MOD, ds,
+        sizeof(struct darshan_hdf5_dataset), DARSHAN_H5D_VER);
     if(ret < 0)
         return(-1);
 
@@ -159,38 +253,98 @@ static void darshan_log_print_hdf5_file(void *file_rec, char *file_name,
     struct darshan_hdf5_file *hdf5_file_rec =
         (struct darshan_hdf5_file *)file_rec;
 
-    for(i=0; i<HDF5_NUM_INDICES; i++)
+    for(i=0; i<H5F_NUM_INDICES; i++)
     {
-        DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
+        DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_H5F_MOD],
             hdf5_file_rec->base_rec.rank, hdf5_file_rec->base_rec.id,
-            hdf5_counter_names[i], hdf5_file_rec->counters[i],
+            h5f_counter_names[i], hdf5_file_rec->counters[i],
             file_name, mnt_pt, fs_type);
     }
 
-    for(i=0; i<HDF5_F_NUM_INDICES; i++)
+    for(i=0; i<H5F_F_NUM_INDICES; i++)
     {
-        DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
+        DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_H5F_MOD],
             hdf5_file_rec->base_rec.rank, hdf5_file_rec->base_rec.id,
-            hdf5_f_counter_names[i], hdf5_file_rec->fcounters[i],
+            h5f_f_counter_names[i], hdf5_file_rec->fcounters[i],
             file_name, mnt_pt, fs_type);
     }
 
     return;
 }
 
-static void darshan_log_print_hdf5_description(int ver)
+static void darshan_log_print_hdf5_dataset(void *ds_rec, char *ds_name,
+    char *mnt_pt, char *fs_type)
+{
+    int i;
+    struct darshan_hdf5_dataset *hdf5_ds_rec =
+        (struct darshan_hdf5_dataset *)ds_rec;
+
+    for(i=0; i<H5D_NUM_INDICES; i++)
+    {
+        DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_H5D_MOD],
+            hdf5_ds_rec->base_rec.rank, hdf5_ds_rec->base_rec.id,
+            h5d_counter_names[i], hdf5_ds_rec->counters[i],
+            ds_name, mnt_pt, fs_type);
+    }
+
+    for(i=0; i<H5D_F_NUM_INDICES; i++)
+    {
+        DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_H5D_MOD],
+            hdf5_ds_rec->base_rec.rank, hdf5_ds_rec->base_rec.id,
+            h5d_f_counter_names[i], hdf5_ds_rec->fcounters[i],
+            ds_name, mnt_pt, fs_type);
+    }
+
+    return;
+}
+
+static void darshan_log_print_hdf5_file_description(int ver)
 {
     printf("\n# description of HDF5 counters:\n");
-    printf("#   HDF5_OPENS: HDF5 file open operation counts.\n");
-    printf("#   HDF5_F_*_START_TIMESTAMP: timestamp of first HDF5 file open/close.\n");
-    printf("#   HDF5_F_*_END_TIMESTAMP: timestamp of last HDF5 file open/close.\n");
+    printf("#   H5F_OPENS: HDF5 file open/create operation counts.\n");
+    printf("#   H5F_FLUSHES: HDF5 file flush operation counts.\n");
+    printf("#   H5F_USE_MPIIO: flag indicating whether MPI-IO was used to access this file.\n");
+    printf("#   H5F_F_*_START_TIMESTAMP: timestamp of first HDF5 file open/close.\n");
+    printf("#   H5F_F_*_END_TIMESTAMP: timestamp of last HDF5 file open/close.\n");
+    printf("#   H5F_F_META_TIME: cumulative time spent in HDF5 metadata operations.\n");
 
     if(ver == 1)
     {
         printf("\n# WARNING: HDF5 module log format version 1 does not support the following counters:\n");
-        printf("# - HDF5_F_CLOSE_START_TIMESTAMP\n");
-        printf("# - HDF5_F_OPEN_END_TIMESTAMP\n");
+        printf("# - H5F_F_CLOSE_START_TIMESTAMP\n");
+        printf("# - H5F_F_OPEN_END_TIMESTAMP\n");
     }
+
+    return;
+}
+
+static void darshan_log_print_hdf5_dataset_description(int ver)
+{
+    printf("\n# description of HDF5 counters:\n");
+    printf("#   H5D_OPENS: HDF5 dataset open/create operation counts.\n");
+    printf("#   H5D_READS: HDF5 dataset read operation counts.\n");
+    printf("#   H5D_WRITES: HDF5 dataset write operation counts.\n");
+    printf("#   H5D_FLUSHES: HDF5 dataset flush operation counts.\n");
+    printf("#   H5D_BYTES_*: total bytes read and written at HDF5 dataset layer.\n");
+    printf("#   H5D_RW_SWITCHES: number of times access alternated between read and write.\n");
+    printf("#   H5D_*_SELECTS: number of different access selections (regular/irregular hyperslab or points).\n");
+    printf("#   H5D_MAX_*_TIME_SIZE: size of the slowest read and write operations.\n");
+    printf("#   H5D_SIZE_*_AGG_*: histogram of H5D total access sizes for read and write operations.\n");
+    printf("#   H5D_ACCESS*_ACCESS: the four most common total access sizes.\n");
+    printf("#   H5D_ACCESS*_COUNT: count of the four most common total access sizes.\n");
+    printf("#   H5D_DATASPACE_NDIMS: number of dimensions in dataset's dataspace.\n");
+    printf("#   H5D_DATASPACE_NPOINTS: number of points in dataset's dataspace.\n");
+    printf("#   H5D_DATATYPE_SIZE: size of each dataset element.\n");
+    printf("#   H5F_USE_MPIIO_COLLECTIVE: flag indicating whether MPI-IO collectives were used to access this file.\n");
+    printf("#   H5F_USE_DEPRECATED: flag indicating whether deprecated H5D calls were used.\n");
+    printf("#   H5D_*_RANK: rank of the processes that were the fastest and slowest at I/O (for shared files).\n");
+    printf("#   H5D_*_RANK_BYTES: total bytes transferred at H5D layer by the fastest and slowest ranks (for shared files).\n");
+    printf("#   H5D_F_*_START_TIMESTAMP: timestamp of first HDF5 file open/read/write/close.\n");
+    printf("#   H5D_F_*_END_TIMESTAMP: timestamp of last HDF5 file open/read/write/close.\n");
+    printf("#   H5D_F_READ/WRITE/META_TIME: cumulative time spent in H5D read, write, or metadata operations.\n");
+    printf("#   H5D_F_MAX_*_TIME: duration of the slowest H5D read and write operations.\n");
+    printf("#   H5D_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).\n");
+    printf("#   H5D_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared files).\n");
 
     return;
 }
@@ -204,63 +358,135 @@ static void darshan_log_print_hdf5_file_diff(void *file_rec1, char *file_name1,
 
     /* NOTE: we assume that both input records are the same module format version */
 
-    for(i=0; i<HDF5_NUM_INDICES; i++)
+    for(i=0; i<H5F_NUM_INDICES; i++)
     {
         if(!file2)
         {
             printf("- ");
-            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
-                file1->base_rec.rank, file1->base_rec.id, hdf5_counter_names[i],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_H5F_MOD],
+                file1->base_rec.rank, file1->base_rec.id, h5f_counter_names[i],
                 file1->counters[i], file_name1, "", "");
 
         }
         else if(!file1)
         {
             printf("+ ");
-            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
-                file2->base_rec.rank, file2->base_rec.id, hdf5_counter_names[i],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_H5F_MOD],
+                file2->base_rec.rank, file2->base_rec.id, h5f_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
         else if(file1->counters[i] != file2->counters[i])
         {
             printf("- ");
-            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
-                file1->base_rec.rank, file1->base_rec.id, hdf5_counter_names[i],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_H5F_MOD],
+                file1->base_rec.rank, file1->base_rec.id, h5f_counter_names[i],
                 file1->counters[i], file_name1, "", "");
             printf("+ ");
-            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
-                file2->base_rec.rank, file2->base_rec.id, hdf5_counter_names[i],
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_H5F_MOD],
+                file2->base_rec.rank, file2->base_rec.id, h5f_counter_names[i],
                 file2->counters[i], file_name2, "", "");
         }
     }
 
-    for(i=0; i<HDF5_F_NUM_INDICES; i++)
+    for(i=0; i<H5F_F_NUM_INDICES; i++)
     {
         if(!file2)
         {
             printf("- ");
-            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
-                file1->base_rec.rank, file1->base_rec.id, hdf5_f_counter_names[i],
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_H5F_MOD],
+                file1->base_rec.rank, file1->base_rec.id, h5f_f_counter_names[i],
                 file1->fcounters[i], file_name1, "", "");
 
         }
         else if(!file1)
         {
             printf("+ ");
-            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
-                file2->base_rec.rank, file2->base_rec.id, hdf5_f_counter_names[i],
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_H5F_MOD],
+                file2->base_rec.rank, file2->base_rec.id, h5f_f_counter_names[i],
                 file2->fcounters[i], file_name2, "", "");
         }
         else if(file1->fcounters[i] != file2->fcounters[i])
         {
             printf("- ");
-            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
-                file1->base_rec.rank, file1->base_rec.id, hdf5_f_counter_names[i],
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_H5F_MOD],
+                file1->base_rec.rank, file1->base_rec.id, h5f_f_counter_names[i],
                 file1->fcounters[i], file_name1, "", "");
             printf("+ ");
-            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_HDF5_MOD],
-                file2->base_rec.rank, file2->base_rec.id, hdf5_f_counter_names[i],
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_H5F_MOD],
+                file2->base_rec.rank, file2->base_rec.id, h5f_f_counter_names[i],
                 file2->fcounters[i], file_name2, "", "");
+        }
+    }
+
+    return;
+}
+
+static void darshan_log_print_hdf5_dataset_diff(void *ds_rec1, char *ds_name1,
+    void *ds_rec2, char *ds_name2)
+{
+    struct darshan_hdf5_dataset *ds1 = (struct darshan_hdf5_dataset *)ds_rec1;
+    struct darshan_hdf5_dataset *ds2 = (struct darshan_hdf5_dataset *)ds_rec2;
+    int i;
+
+    /* NOTE: we assume that both input records are the same module format version */
+
+    for(i=0; i<H5D_NUM_INDICES; i++)
+    {
+        if(!ds2)
+        {
+            printf("- ");
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_H5D_MOD],
+                ds1->base_rec.rank, ds1->base_rec.id, h5d_counter_names[i],
+                ds1->counters[i], ds_name1, "", "");
+
+        }
+        else if(!ds1)
+        {
+            printf("+ ");
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_H5D_MOD],
+                ds2->base_rec.rank, ds2->base_rec.id, h5d_counter_names[i],
+                ds2->counters[i], ds_name2, "", "");
+        }
+        else if(ds1->counters[i] != ds2->counters[i])
+        {
+            printf("- ");
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_H5D_MOD],
+                ds1->base_rec.rank, ds1->base_rec.id, h5d_counter_names[i],
+                ds1->counters[i], ds_name1, "", "");
+            printf("+ ");
+            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_H5D_MOD],
+                ds2->base_rec.rank, ds2->base_rec.id, h5d_counter_names[i],
+                ds2->counters[i], ds_name2, "", "");
+        }
+    }
+
+    for(i=0; i<H5D_F_NUM_INDICES; i++)
+    {
+        if(!ds2)
+        {
+            printf("- ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_H5D_MOD],
+                ds1->base_rec.rank, ds1->base_rec.id, h5d_f_counter_names[i],
+                ds1->fcounters[i], ds_name1, "", "");
+
+        }
+        else if(!ds1)
+        {
+            printf("+ ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_H5D_MOD],
+                ds2->base_rec.rank, ds2->base_rec.id, h5d_f_counter_names[i],
+                ds2->fcounters[i], ds_name2, "", "");
+        }
+        else if(ds1->fcounters[i] != ds2->fcounters[i])
+        {
+            printf("- ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_H5D_MOD],
+                ds1->base_rec.rank, ds1->base_rec.id, h5d_f_counter_names[i],
+                ds1->fcounters[i], ds_name1, "", "");
+            printf("+ ");
+            DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_H5D_MOD],
+                ds2->base_rec.rank, ds2->base_rec.id, h5d_f_counter_names[i],
+                ds2->fcounters[i], ds_name2, "", "");
         }
     }
 
@@ -273,13 +499,18 @@ static void darshan_log_agg_hdf5_files(void *rec, void *agg_rec, int init_flag)
     struct darshan_hdf5_file *agg_hdf5_rec = (struct darshan_hdf5_file *)agg_rec;
     int i;
 
-    for(i = 0; i < HDF5_NUM_INDICES; i++)
+    for(i = 0; i < H5F_NUM_INDICES; i++)
     {
         switch(i)
         {
-            case HDF5_OPENS:
+            case H5F_OPENS:
+            case H5F_FLUSHES:
                 /* sum */
                 agg_hdf5_rec->counters[i] += hdf5_rec->counters[i];
+                break;
+            case H5F_USE_MPIIO:
+                if(hdf5_rec->counters[i] > 0)
+                    agg_hdf5_rec->counters[i] = 1;
                 break;
             default:
                 agg_hdf5_rec->counters[i] = -1;
@@ -287,12 +518,12 @@ static void darshan_log_agg_hdf5_files(void *rec, void *agg_rec, int init_flag)
         }
     }
 
-    for(i = 0; i < HDF5_F_NUM_INDICES; i++)
+    for(i = 0; i < H5F_F_NUM_INDICES; i++)
     {
         switch(i)
         {
-            case HDF5_F_OPEN_START_TIMESTAMP:
-            case HDF5_F_CLOSE_START_TIMESTAMP:
+            case H5F_F_OPEN_START_TIMESTAMP:
+            case H5F_F_CLOSE_START_TIMESTAMP:
                 /* minimum non-zero */
                 if((hdf5_rec->fcounters[i] > 0)  &&
                     ((agg_hdf5_rec->fcounters[i] == 0) ||
@@ -301,12 +532,305 @@ static void darshan_log_agg_hdf5_files(void *rec, void *agg_rec, int init_flag)
                     agg_hdf5_rec->fcounters[i] = hdf5_rec->fcounters[i];
                 }
                 break;
-            case HDF5_F_OPEN_END_TIMESTAMP:
-            case HDF5_F_CLOSE_END_TIMESTAMP:
+            case H5F_F_OPEN_END_TIMESTAMP:
+            case H5F_F_CLOSE_END_TIMESTAMP:
                 /* maximum */
                 if(hdf5_rec->fcounters[i] > agg_hdf5_rec->fcounters[i])
                 {
                     agg_hdf5_rec->fcounters[i] = hdf5_rec->fcounters[i];
+                }
+                break;
+            case H5F_F_META_TIME:
+                /* sum */
+                agg_hdf5_rec->counters[i] += hdf5_rec->counters[i];
+                break;
+            default:
+                agg_hdf5_rec->fcounters[i] = -1;
+                break;
+        }
+    }
+
+    return;
+}
+
+/* simple helper struct for determining time & byte variances */
+struct var_t
+{
+    double n;
+    double M;
+    double S;
+};
+
+static void darshan_log_agg_hdf5_datasets(void *rec, void *agg_rec, int init_flag)
+{
+    struct darshan_hdf5_dataset *hdf5_rec = (struct darshan_hdf5_dataset *)rec;
+    struct darshan_hdf5_dataset *agg_hdf5_rec = (struct darshan_hdf5_dataset *)agg_rec;
+    int i, j, k;
+    int total_count;
+    int64_t tmp_val[4];
+    int64_t tmp_cnt[4];
+    int tmp_ndx;
+    double old_M;
+    double hdf5_time = hdf5_rec->fcounters[H5D_F_READ_TIME] +
+        hdf5_rec->fcounters[H5D_F_WRITE_TIME] +
+        hdf5_rec->fcounters[H5D_F_META_TIME];
+    double hdf5_bytes = (double)hdf5_rec->counters[H5D_BYTES_READ] +
+        hdf5_rec->counters[H5D_BYTES_WRITTEN];
+    struct var_t *var_time_p = (struct var_t *)
+        ((char *)rec + sizeof(struct darshan_hdf5_dataset));
+    struct var_t *var_bytes_p = (struct var_t *)
+        ((char *)var_time_p + sizeof(struct var_t));
+
+    for(i = 0; i < H5D_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case H5D_OPENS:
+            case H5D_READS:
+            case H5D_WRITES:
+            case H5D_FLUSHES:
+            case H5D_BYTES_READ:
+            case H5D_BYTES_WRITTEN:
+            case H5D_RW_SWITCHES:
+            case H5D_REGULAR_HYPERSLAB_SELECTS:
+            case H5D_IRREGULAR_HYPERSLAB_SELECTS:
+            case H5D_POINT_SELECTS:
+            case H5D_SIZE_READ_AGG_0_100:
+            case H5D_SIZE_READ_AGG_100_1K:
+            case H5D_SIZE_READ_AGG_1K_10K:
+            case H5D_SIZE_READ_AGG_10K_100K:
+            case H5D_SIZE_READ_AGG_100K_1M:
+            case H5D_SIZE_READ_AGG_1M_4M:
+            case H5D_SIZE_READ_AGG_4M_10M:
+            case H5D_SIZE_READ_AGG_10M_100M:
+            case H5D_SIZE_READ_AGG_100M_1G:
+            case H5D_SIZE_READ_AGG_1G_PLUS:
+            case H5D_SIZE_WRITE_AGG_0_100:
+            case H5D_SIZE_WRITE_AGG_100_1K:
+            case H5D_SIZE_WRITE_AGG_1K_10K:
+            case H5D_SIZE_WRITE_AGG_10K_100K:
+            case H5D_SIZE_WRITE_AGG_100K_1M:
+            case H5D_SIZE_WRITE_AGG_1M_4M:
+            case H5D_SIZE_WRITE_AGG_4M_10M:
+            case H5D_SIZE_WRITE_AGG_10M_100M:
+            case H5D_SIZE_WRITE_AGG_100M_1G:
+            case H5D_SIZE_WRITE_AGG_1G_PLUS:
+                /* sum */
+                agg_hdf5_rec->counters[i] += hdf5_rec->counters[i];
+                break;
+            case H5D_MAX_READ_TIME_SIZE:
+            case H5D_MAX_WRITE_TIME_SIZE:
+            case H5D_FASTEST_RANK:
+            case H5D_FASTEST_RANK_BYTES:
+            case H5D_SLOWEST_RANK:
+            case H5D_SLOWEST_RANK_BYTES:
+                /* these are set with the FP counters */
+                break;
+            case H5D_ACCESS1_ACCESS:
+                /* increment common value counters */
+                if(hdf5_rec->counters[i] == 0) break;
+
+                /* first, collapse duplicates */
+                for(j = i; j < i + 4; j++)
+                {
+                    for(k = 0; k < 4; k++)
+                    {
+                        if(agg_hdf5_rec->counters[i + k] == hdf5_rec->counters[j])
+                        {
+                            agg_hdf5_rec->counters[i + k + 4] += hdf5_rec->counters[j + 4];
+                            hdf5_rec->counters[j] = hdf5_rec->counters[j + 4] = 0;
+                        }
+                    }
+                }
+
+                /* second, add new counters */
+                for(j = i; j < i + 4; j++)
+                {
+                    tmp_ndx = 0;
+                    memset(tmp_val, 0, 4 * sizeof(int64_t));
+                    memset(tmp_cnt, 0, 4 * sizeof(int64_t));
+
+                    if(hdf5_rec->counters[j] == 0) break;
+                    for(k = 0; k < 4; k++)
+                    {
+                        if(agg_hdf5_rec->counters[i + k] == hdf5_rec->counters[j])
+                        {
+                            total_count = agg_hdf5_rec->counters[i + k + 4] +
+                                hdf5_rec->counters[j + 4];
+                            break;
+                        }
+                    }
+                    if(k == 4) total_count = hdf5_rec->counters[j + 4];
+
+                    for(k = 0; k < 4; k++)
+                    {
+                        if((agg_hdf5_rec->counters[i + k + 4] > total_count) ||
+                           ((agg_hdf5_rec->counters[i + k + 4] == total_count) &&
+                            (agg_hdf5_rec->counters[i + k] > hdf5_rec->counters[j])))
+                        {
+                            tmp_val[tmp_ndx] = agg_hdf5_rec->counters[i + k];
+                            tmp_cnt[tmp_ndx] = agg_hdf5_rec->counters[i + k + 4];
+                            tmp_ndx++;
+                        }
+                        else break;
+                    }
+                    if(tmp_ndx == 4) break;
+
+                    tmp_val[tmp_ndx] = hdf5_rec->counters[j];
+                    tmp_cnt[tmp_ndx] = hdf5_rec->counters[j + 4];
+                    tmp_ndx++;
+
+                    while(tmp_ndx != 4)
+                    {
+                        if(agg_hdf5_rec->counters[i + k] != hdf5_rec->counters[j])
+                        {
+                            tmp_val[tmp_ndx] = agg_hdf5_rec->counters[i + k];
+                            tmp_cnt[tmp_ndx] = agg_hdf5_rec->counters[i + k + 4];
+                            tmp_ndx++;
+                        }
+                        k++;
+                    }
+                    memcpy(&(agg_hdf5_rec->counters[i]), tmp_val, 4 * sizeof(int64_t));
+                    memcpy(&(agg_hdf5_rec->counters[i + 4]), tmp_cnt, 4 * sizeof(int64_t));
+                }
+                break;
+            case H5D_DATASPACE_NDIMS:
+            case H5D_DATASPACE_NPOINTS:
+            case H5D_DATATYPE_SIZE:
+                /* just set to the input value */
+                agg_hdf5_rec->counters[i] = hdf5_rec->counters[i];
+                break;
+            case H5D_USE_MPIIO_COLLECTIVE:
+            case H5D_USE_DEPRECATED:
+                if(hdf5_rec->counters[i] > 0)
+                    agg_hdf5_rec->counters[i] = 1;
+                break;
+            default:
+                agg_hdf5_rec->counters[i] = -1;
+                break;
+        }
+    }
+
+    for(i = 0; i < H5D_F_NUM_INDICES; i++)
+    {
+        switch(i)
+        {
+            case H5D_F_READ_TIME:
+            case H5D_F_WRITE_TIME:
+            case H5D_F_META_TIME:
+                /* sum */
+                agg_hdf5_rec->fcounters[i] += hdf5_rec->fcounters[i];
+                break;
+            case H5D_F_OPEN_START_TIMESTAMP:
+            case H5D_F_READ_START_TIMESTAMP:
+            case H5D_F_WRITE_START_TIMESTAMP:
+            case H5D_F_CLOSE_START_TIMESTAMP:
+                /* minimum non-zero */
+                if((hdf5_rec->fcounters[i] > 0)  &&
+                    ((agg_hdf5_rec->fcounters[i] == 0) ||
+                    (hdf5_rec->fcounters[i] < agg_hdf5_rec->fcounters[i])))
+                {
+                    agg_hdf5_rec->fcounters[i] = hdf5_rec->fcounters[i];
+                }
+                break;
+            case H5D_F_OPEN_END_TIMESTAMP:
+            case H5D_F_READ_END_TIMESTAMP:
+            case H5D_F_WRITE_END_TIMESTAMP:
+            case H5D_F_CLOSE_END_TIMESTAMP:
+                /* maximum */
+                if(hdf5_rec->fcounters[i] > agg_hdf5_rec->fcounters[i])
+                {
+                    agg_hdf5_rec->fcounters[i] = hdf5_rec->fcounters[i];
+                }
+                break;
+            case H5D_F_MAX_READ_TIME:
+                if(hdf5_rec->fcounters[i] > agg_hdf5_rec->fcounters[i])
+                {
+                    agg_hdf5_rec->fcounters[i] = hdf5_rec->fcounters[i];
+                    agg_hdf5_rec->counters[H5D_MAX_READ_TIME_SIZE] =
+                        hdf5_rec->counters[H5D_MAX_READ_TIME_SIZE];
+                }
+                break;
+            case H5D_F_MAX_WRITE_TIME:
+                if(hdf5_rec->fcounters[i] > agg_hdf5_rec->fcounters[i])
+                {
+                    agg_hdf5_rec->fcounters[i] = hdf5_rec->fcounters[i];
+                    agg_hdf5_rec->counters[H5D_MAX_WRITE_TIME_SIZE] =
+                        hdf5_rec->counters[H5D_MAX_WRITE_TIME_SIZE];
+                }
+                break;
+            case H5D_F_FASTEST_RANK_TIME:
+                if(init_flag)
+                {
+                    /* set fastest rank counters according to root rank. these counters
+                     * will be determined as the aggregation progresses.
+                     */
+                    agg_hdf5_rec->counters[H5D_FASTEST_RANK] = hdf5_rec->base_rec.rank;
+                    agg_hdf5_rec->counters[H5D_FASTEST_RANK_BYTES] = hdf5_bytes;
+                    agg_hdf5_rec->fcounters[H5D_F_FASTEST_RANK_TIME] = hdf5_time;
+                }
+
+                if(hdf5_time < agg_hdf5_rec->fcounters[H5D_F_FASTEST_RANK_TIME])
+                {
+                    agg_hdf5_rec->counters[H5D_FASTEST_RANK] = hdf5_rec->base_rec.rank;
+                    agg_hdf5_rec->counters[H5D_FASTEST_RANK_BYTES] = hdf5_bytes;
+                    agg_hdf5_rec->fcounters[H5D_F_FASTEST_RANK_TIME] = hdf5_time;
+                }
+                break;
+            case H5D_F_SLOWEST_RANK_TIME:
+                if(init_flag)
+                {   
+                    /* set slowest rank counters according to root rank. these counters
+                     * will be determined as the aggregation progresses.
+                     */
+                    agg_hdf5_rec->counters[H5D_SLOWEST_RANK] = hdf5_rec->base_rec.rank;
+                    agg_hdf5_rec->counters[H5D_SLOWEST_RANK_BYTES] = hdf5_bytes;
+                    agg_hdf5_rec->fcounters[H5D_F_SLOWEST_RANK_TIME] = hdf5_time;
+                }   
+                    
+                if(hdf5_time > agg_hdf5_rec->fcounters[H5D_F_SLOWEST_RANK_TIME])
+                {
+                    agg_hdf5_rec->counters[H5D_SLOWEST_RANK] = hdf5_rec->base_rec.rank;
+                    agg_hdf5_rec->counters[H5D_SLOWEST_RANK_BYTES] = hdf5_bytes;
+                    agg_hdf5_rec->fcounters[H5D_F_SLOWEST_RANK_TIME] = hdf5_time;
+                }
+                break;
+            case H5D_F_VARIANCE_RANK_TIME:
+                if(init_flag)
+                {   
+                    var_time_p->n = 1;
+                    var_time_p->M = hdf5_time;
+                    var_time_p->S = 0;
+                }
+                else
+                {
+                    old_M = var_time_p->M;
+
+                    var_time_p->n++;
+                    var_time_p->M += (hdf5_time - var_time_p->M) / var_time_p->n;
+                    var_time_p->S += (hdf5_time - var_time_p->M) * (hdf5_time - old_M);
+
+                    agg_hdf5_rec->fcounters[H5D_F_VARIANCE_RANK_TIME] =
+                        var_time_p->S / var_time_p->n;
+                }
+                break;
+            case H5D_F_VARIANCE_RANK_BYTES:
+                if(init_flag)
+                {
+                    var_bytes_p->n = 1;
+                    var_bytes_p->M = hdf5_bytes;
+                    var_bytes_p->S = 0;
+                }
+                else
+                {
+                    old_M = var_bytes_p->M;
+
+                    var_bytes_p->n++;
+                    var_bytes_p->M += (hdf5_bytes - var_bytes_p->M) / var_bytes_p->n;
+                    var_bytes_p->S += (hdf5_bytes - var_bytes_p->M) * (hdf5_bytes - old_M);
+
+                    agg_hdf5_rec->fcounters[H5D_F_VARIANCE_RANK_BYTES] =
+                        var_bytes_p->S / var_bytes_p->n;
                 }
                 break;
             default:
