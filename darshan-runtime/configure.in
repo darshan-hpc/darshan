@@ -485,11 +485,10 @@ AC_MSG_CHECKING(for fscanf redirect)
 AC_TRY_COMPILE(
     [
     #include <stdio.h>
-    ],
-    [
     int fscanf(FILE *stream, const char *format, ...) {return(0);}
     int __isoc99_fscanf(FILE *stream, const char *format, ...) {return(0);}
     ],
+    [],
     AC_MSG_RESULT(no),
     AC_MSG_RESULT(yes)
     AC_DEFINE(HAVE_FSCANF_REDIRECT, 1, Define if fscanf is redirected to another function)

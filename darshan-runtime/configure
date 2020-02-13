@@ -4838,13 +4838,12 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
     #include <stdio.h>
+    int fscanf(FILE *stream, const char *format, ...) {return(0);}
+    int __isoc99_fscanf(FILE *stream, const char *format, ...) {return(0);}
 
 int
 main ()
 {
-
-    int fscanf(FILE *stream, const char *format, ...) {return(0);}
-    int __isoc99_fscanf(FILE *stream, const char *format, ...) {return(0);}
 
   ;
   return 0;
