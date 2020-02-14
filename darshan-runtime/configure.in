@@ -481,6 +481,21 @@ AS_IF([$CC -show foo.c -o foo >& /dev/null],
 # End of MPI-only checks
 #
 
+AC_MSG_CHECKING(for fscanf redirect)
+AC_TRY_COMPILE(
+    [
+    #define _GNU_SOURCE
+    #include <stdio.h>
+    int fscanf(FILE *stream, const char *format, ...) {return(0);}
+    int __isoc99_fscanf(FILE *stream, const char *format, ...) {return(0);}
+    ],
+    [],
+    AC_MSG_RESULT(no),
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_FSCANF_REDIRECT, 1, Define if fscanf is redirected to another function)
+)
+
+
 DARSHAN_VERSION="AC_PACKAGE_VERSION"
 AC_SUBST(darshan_lib_path)
 AC_SUBST(darshan_share_path)

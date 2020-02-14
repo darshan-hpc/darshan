@@ -6,6 +6,9 @@
 /* Define if struct aiocb64 type is defined */
 #undef HAVE_AIOCB64
 
+/* Define if fscanf is redirected to another function */
+#undef HAVE_FSCANF_REDIRECT
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
