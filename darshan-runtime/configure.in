@@ -484,6 +484,7 @@ AS_IF([$CC -show foo.c -o foo >& /dev/null],
 AC_MSG_CHECKING(for fscanf redirect)
 AC_TRY_COMPILE(
     [
+    #define _GNU_SOURCE
     #include <stdio.h>
     int fscanf(FILE *stream, const char *format, ...) {return(0);}
     int __isoc99_fscanf(FILE *stream, const char *format, ...) {return(0);}

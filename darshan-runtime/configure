@@ -4837,6 +4837,7 @@ $as_echo_n "checking for fscanf redirect... " >&6; }
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
+    #define _GNU_SOURCE
     #include <stdio.h>
     int fscanf(FILE *stream, const char *format, ...) {return(0);}
     int __isoc99_fscanf(FILE *stream, const char *format, ...) {return(0);}
