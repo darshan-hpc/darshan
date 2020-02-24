@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
 
+"""
+The api_def_c carries a copy of CFFI compatible headers for libdarshan-util.so.
+"""
+
+
 header = """/* from darshan-logutils.h */
 struct darshan_mnt_info
 {
@@ -135,21 +140,21 @@ struct darshan_name_record
 
 
 /* counter names */
-char *apxc_counter_names[];
-char *bgq_counter_names[];
-char *bgq_f_counter_names[];
-char *hdf5_counter_names[];
-char *hdf5_f_counter_names[];
-char *mpiio_counter_names[];
-char *mpiio_f_counter_names[];
-char *pnetcdf_counter_names[];
-char *pnetcdf_f_counter_names[];
-char *posix_counter_names[];
-char *posix_f_counter_names[];
-char *stdio_counter_names[];
-char *stdio_f_counter_names[];
-char *decaf_counter_names[];
-char *decaf_f_counter_names[];
+extern char *apxc_counter_names[];
+extern char *bgq_counter_names[];
+extern char *bgq_f_counter_names[];
+extern char *hdf5_counter_names[];
+extern char *hdf5_f_counter_names[];
+extern char *mpiio_counter_names[];
+extern char *mpiio_f_counter_names[];
+extern char *pnetcdf_counter_names[];
+extern char *pnetcdf_f_counter_names[];
+extern char *posix_counter_names[];
+extern char *posix_f_counter_names[];
+extern char *stdio_counter_names[];
+extern char *stdio_f_counter_names[];
+extern char *decaf_counter_names[];
+extern char *decaf_f_counter_names[];
 
 /* Supported Functions */
 void* darshan_log_open(char *);

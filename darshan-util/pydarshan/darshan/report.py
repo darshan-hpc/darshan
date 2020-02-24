@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+The darshan.repport module provides the DarshanReport class for convienient
+interaction and aggregation of Darshan logs using Python.
+"""
+
+
 import darshan.backend.cffi_backend as backend
 import json
 import numpy as np
@@ -10,11 +16,19 @@ import datetime
 
 
 
+
+
 class NumpyEncoder(json.JSONEncoder):
+    """
+    Helper class for JSON serialization if the report contains numpy
+    log records, which are not handled by the default json encoder.
+    """
     def default(self, obj):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
+
+
 
 
 
@@ -38,7 +52,7 @@ class DarshanReport(object):
         self.log = backend.log_open(self.filename)
 
         # state dependent book-keeping
-        self.converted_records = False  # true if convert_records() was called (unnumpyfiy)
+        self.converted_records = False  # true if convert_records() was called (unnumpyfy)
 
         # when using report algebra this log allows to untangle potentially
         # unfair aggregations (e.g., double accounting)
@@ -52,19 +66,22 @@ class DarshanReport(object):
 
 
     def __add__(self, other):
-
         new_report = self.copy()
         #new_report = copy.deepcopy(self)
         new_report.provenance_log.append(("add", self, other))
 
-
         return new_report
 
 
-
     def read_all(self):
+        self.read_all_generic_records()
+        self.read_all_dxt_records()
+        return
+
+
+    def read_all_generic_records(self):
         """
-        Read all available information from darshan log and return das dictionary.
+        Read all available information from darshan log and return as dictionary.
 
         Args:
             None
@@ -77,6 +94,25 @@ class DarshanReport(object):
             self.mod_read_all_records(mod)
 
         pass
+
+
+    def read_all_dxt_records(self):
+        """
+        Read all available information from darshan log and return as dictionary.
+
+        Args:
+            None
+
+        Return:
+            None
+        """
+
+        for mod in self.report['modules']:
+            self.mod_read_all_dxt_records(mod)
+
+        pass
+
+
 
 
     def read_metadata(self):
@@ -94,6 +130,79 @@ class DarshanReport(object):
         self.report["exe"] = backend.log_get_exe(self.log)
         self.report["mounts"] = backend.log_get_mounts(self.log)
         self.report["modules"] = backend.log_get_modules(self.log)
+
+
+
+
+    def mod_read_all_records(self, mod, mode='numpy'):
+        """
+        Reads all generic records for module
+
+        Args:
+            mod (str): Identifier of module to fetch all records
+            mode (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+
+        Return:
+            None
+
+        """
+        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE']
+        unsupported.append('STDIO')   # TODO: reenable when segfault resolved
+
+        if mod in unsupported:
+            print("Skipping. Currently unsupported:", mod)
+            # skip mod
+            return 
+
+
+        structdefs = {
+            "BG/Q": "struct darshan_bgq_record **",
+            "HDF5": "struct darshan_hdf5_file **",
+            "MPI-IO": "struct darshan_mpiio_file **",
+            "PNETCDF": "struct darshan_pnetcdf_file **",
+            "POSIX": "struct darshan_posix_file **",
+            "STDIO": "struct darshan_stdio_file **",
+            "DECAF": "struct darshan_decaf_record **",
+            "DXT_POSIX": "struct dxt_file_record **",
+        }
+
+
+        self.report['records'][mod] = []
+
+        cn = backend.counter_names(mod)
+        fcn = backend.fcounter_names(mod)
+
+        self.report['modules'][mod]['counters'] = cn 
+        self.report['modules'][mod]['fcounters'] = fcn
+        self.report['modules'][mod]['num_records'] = 0
+
+
+
+
+
+
+        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
+        while rec != None:
+            # TODO: performance hog and hacky ;)
+            #recs = json.dumps(rec, cls=NumpyEncoder)
+            #rec = json.loads(recs)
+
+            if mode == 'numpy': 
+                self.report['records'][mod].append(rec)
+            else:
+                c = dict(zip(cn, rec['counters']))
+                fc = dict(zip(fcn, rec['fcounters']))
+                self.report['records'][mod].append([c, fc])
+
+
+            self.report['modules'][mod]['num_records'] += 1
+
+            # fetch next
+            rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
+
+        pass
+
+
 
 
 
@@ -163,76 +272,6 @@ class DarshanReport(object):
         pass
 
 
-
-
-
-
-    def mod_read_all_records(self, mod, mode='numpy'):
-        """
-        Reads all records for module
-
-        Args:
-            mod (str): Identifier of module to fetch all records
-            mode (str): 'numpy' for ndarray (default), 'dict' for python dictionary
-
-        Return:
-            None
-
-        """
-        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE', 'STDIO']
-
-        if mod in unsupported:
-            print("Skipping. Currently unsupported:", mod)
-            # skip mod
-            return 
-
-
-        structdefs = {
-            "BG/Q": "struct darshan_bgq_record **",
-            "HDF5": "struct darshan_hdf5_file **",
-            "MPI-IO": "struct darshan_mpiio_file **",
-            "PNETCDF": "struct darshan_pnetcdf_file **",
-            "POSIX": "struct darshan_posix_file **",
-            "STDIO": "struct darshan_stdio_file **",
-            "DECAF": "struct darshan_decaf_record **",
-            "DXT_POSIX": "struct dxt_file_record **",
-        }
-
-
-        self.report['records'][mod] = []
-
-        cn = backend.counter_names(mod)
-        fcn = backend.fcounter_names(mod)
-
-        self.report['modules'][mod]['counters'] = cn 
-        self.report['modules'][mod]['fcounters'] = fcn
-        self.report['modules'][mod]['num_records'] = 0
-
-
-
-
-
-
-        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
-        while rec != None:
-            # TODO: performance hog and hacky ;)
-            #recs = json.dumps(rec, cls=NumpyEncoder)
-            #rec = json.loads(recs)
-
-            if mode == 'numpy': 
-                self.report['records'][mod].append(rec)
-            else:
-                c = dict(zip(cn, rec['counters']))
-                fc = dict(zip(fcn, rec['fcounters']))
-                self.report['records'][mod].append([c, fc])
-
-
-            self.report['modules'][mod]['num_records'] += 1
-
-            # fetch next
-            rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
-
-        pass
 
 
 
@@ -429,7 +468,7 @@ class DarshanReport(object):
 
                 
                 ctx[mod] = agg
-                ctx[mod + '_final'] = tmp
+                ctx[mod + '_simple'] = tmp
 
 
 
@@ -621,12 +660,6 @@ class DarshanReport(object):
 # ] 
 #}
 
-
-
-
-
-
-        pass
 
 
     def create_sankey(self):

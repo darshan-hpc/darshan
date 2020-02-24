@@ -8,7 +8,6 @@ pydarshan Documentation
    readme
    installation
    usage
-   history
 
 .. toctree::
    :maxdepth: 2

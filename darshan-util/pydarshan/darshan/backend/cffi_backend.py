@@ -14,19 +14,18 @@ from darshan.api_def_c import load_darshan_header
 
 DARSHAN_PATH = discover_darshan()
 API_def_c = load_darshan_header()
-# print(API_def_c)
 
 
 ffi = cffi.FFI()
 ffi.cdef(API_def_c)
 
 
-libdutil = ffi.dlopen(DARSHAN_PATH + "/lib/libdarshan-util.so")
+#libdutil = ffi.dlopen(DARSHAN_PATH + "/lib/libdarshan-util.so")
+libdutil = ffi.dlopen("libdarshan-util.so")
 #libdutil = ffi.dlopen("/home/pq/p/software/darshan-cffi/darshan-util/libdarshan-util.so")
 #print(DARSHAN_PATH + "/lib/libdarshan-util.so")
 
 
-#modules = {}
 
 
 def log_open(filename):

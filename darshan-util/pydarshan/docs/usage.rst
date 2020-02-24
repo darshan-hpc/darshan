@@ -13,7 +13,7 @@ To use pydarshan in a project::
 	report = darshan.DarshanReport(filename)
 
 	# read metadata, log records and name records
-	report.read_all()
+	report.read_all_generic_records()
 
 	# calculate or update aggregate statistics for currently loaded records
 	report.summarize()
@@ -34,7 +34,7 @@ If this seems like an unwanted overhead the CFFI interface can be used which all
 
 To use pydarshan.cffi_parser in a project::
 
-    import darshan.cffi_parser as darshan
+    import darshan.backends.cffi_backend as darshan
 
     log = darshan.log_open("example.darshan")
 

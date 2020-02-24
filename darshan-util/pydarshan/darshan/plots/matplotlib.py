@@ -5,7 +5,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-import darshan
+import darshan.backend.cffi_backend as backend
+
 
 
 def plot_access_histogram(log, filter=None, data=None):
@@ -28,12 +29,12 @@ def plot_access_histogram(log, filter=None, data=None):
     write_vals = [0, 0, 0, 0, 0,  0, 0, 0, 0, 0]
 
 
-    mods = darshan.log_get_modules(log)
+    mods = backend.log_get_modules(log)
 
 
     if str(filter).upper() == "POSIX":
-        posix_record = darshan.log_get_posix_record(log)
-        posix = dict(zip(darshan.counter_names("POSIX"), posix_record['counters']))
+        posix_record = backend.log_get_posix_record(log)
+        posix = dict(zip(backend.counter_names("POSIX"), posix_record['counters']))
 
         read_vals = [
             posix['POSIX_SIZE_READ_0_100'],
@@ -62,8 +63,8 @@ def plot_access_histogram(log, filter=None, data=None):
         ]
 
     elif str(filter).upper() == "MPIIO":
-        mpiio_record = darshan.log_get_mpiio_record(log)
-        mpiio = dict(zip(darshan.counter_names("mpiio"), mpiio_record['counters']))
+        mpiio_record = backend.log_get_mpiio_record(log)
+        mpiio = dict(zip(backend.counter_names("mpiio"), mpiio_record['counters']))
 
         read_vals = [
             mpiio['MPIIO_SIZE_READ_AGG_0_100'],
@@ -158,12 +159,12 @@ def plot_opcounts(log=None, filter=None, data=None):
     stdio_vals = [0, 0, 0, 0, 0, 0, 0]
 
 
-    mods = darshan.log_get_modules(log)
+    mods = backend.log_get_modules(log)
 
     # Gather POSIX
     if 'POSIX' in mods:
-        posix_record = darshan.log_get_posix_record(log)
-        posix = dict(zip(darshan.counter_names("POSIX"), posix_record['counters']))
+        posix_record = backend.log_get_posix_record(log)
+        posix = dict(zip(backend.counter_names("POSIX"), posix_record['counters']))
 
         posix_vals = [
             posix['POSIX_READS'],
@@ -177,8 +178,8 @@ def plot_opcounts(log=None, filter=None, data=None):
 
     # Gather MPIIO
     if 'MPI-IO' in mods:
-        mpiio_record = darshan.log_get_mpiio_record(log)
-        mpiio = dict(zip(darshan.counter_names("mpiio"), mpiio_record['counters']))
+        mpiio_record = backend.log_get_mpiio_record(log)
+        mpiio = dict(zip(backend.counter_names("mpiio"), mpiio_record['counters']))
 
         mpiind_vals = [
             mpiio['MPIIO_INDEP_READS'],
@@ -202,8 +203,8 @@ def plot_opcounts(log=None, filter=None, data=None):
 
     # Gather Stdio
 #    if 'STDIO' in mods:
-#        stdio_record = darshan.log_get_stdio_record(log)
-#        stdio = dict(zip(darshan.counter_names("STDIO"), stdio_record['counters']))
+#        stdio_record = backend.log_get_stdio_record(log)
+#        stdio = dict(zip(backend.counter_names("STDIO"), stdio_record['counters']))
 #
 #        stdio_vals = [
 #            stdio['STDIO_READS'],

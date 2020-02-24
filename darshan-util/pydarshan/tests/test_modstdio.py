@@ -5,8 +5,7 @@
 
 import pytest
 
-
-import darshan
+import darshan.backend.cffi_backend as backend
 
 
 @pytest.fixture
@@ -22,18 +21,18 @@ def response():
 def test_counters():
     """Sample for an expected property in counters."""
 
-    log = darshan.log_open("tests/input/sample.darshan")
+    log = backend.log_open("tests/input/sample.darshan")
 
-    rec = darshan.log_get_stdio_record(log)
+    rec = backend.log_get_stdio_record(log)
     assert rec['counters'][1] == 18446744073709551615
 
 
 def test_fcounters():
     """Sample for an expected property in fcounters."""
 
-    log = darshan.log_open("tests/input/sample.darshan")
+    log = backend.log_open("tests/input/sample.darshan")
 
-    rec = darshan.log_get_stdio_record(log)
+    rec = backend.log_get_stdio_record(log)
     assert rec['fcounters'][3] == 6.
 
 
@@ -41,12 +40,12 @@ def test_fcounters():
 def test_repeated_access():
     """ Check if repeated access is working."""
 
-    log = darshan.log_open("tests/input/sample.darshan")
+    log = backend.log_open("tests/input/sample.darshan")
 
-    rec1 = darshan.log_get_stdio_record(log)
-    rec2 = darshan.log_get_stdio_record(log)
+    rec1 = backend.log_get_stdio_record(log)
+    rec2 = backend.log_get_stdio_record(log)
 
-    assert rec1 == rec2
+    assert rec2 == None
 
 
 def test_ishouldrun():

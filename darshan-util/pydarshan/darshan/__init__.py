@@ -5,5 +5,8 @@
 __version__ = '0.1.0'
 
 
-from darshan.backend.cffi_backend import *
-from darshan.report import *
+options = {}
+
+
+#from darshan.backend.cffi_backend import *
+from darshan.report import DarshanReport

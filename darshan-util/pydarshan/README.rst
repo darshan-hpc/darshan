@@ -3,11 +3,12 @@ pydarshan
 =========
 
 Python utilities to interact with darshan log records of HPC applications.
-pydarshan requires that you have darshan-util 
+pydarshan requires darshan-utils (3.2.0+) to be installed.
 
 Features
 --------
 
+* Darshan Report Object Wrapper
 * CFFI bindings to access darshan log files
 * Plots typically found in the darshan reports (matplotlib)
 * Auto-discover darshan-util.so (via darshan-parser in $PATH)
@@ -17,41 +18,29 @@ Usage
 -----
 
 For examples and a jupyter notebook to get started with pydarshan make sure
-to check out the `examples` subdirectory.
+to check out the `notebooks` subdirectory.
 
 A brief examples showing some of the basic functionality is the following::
 
     import darshan
-    log = darshan.log_open("example.darshan")
 
-    # Access Job Information
-    darshan.log_get_job(log)
-    # Example Return:
-    # {'jobid': 4478544,
-    # 'uid': 69615,
-    # 'start_time': 1490000867,
-    # 'end_time': 1490000983,
-    # 'metadata': {'lib_ver': '3.1.3', 'h': 'romio_no_indep_rw=true;cb_nodes=4'}}
+    # open darshan log
+    report = darshan.DarshanReport('example.darshan')
 
+    # load some report data
+    report.mod_read_all_records('POSIX')
+    report.mod_read_all_records('MPI-IO')
+    # or fetch all
+    report.read_all_generic_records()
 
-    # Access available modules and modules
-    darshan.log_get_modules(log)
-    # Returns:
-    # {'POSIX': {'len': 186, 'ver': 3, 'idx': 1},
-    #  'MPI-IO': {'len': 154, 'ver': 2, 'idx': 2},
-    #  'LUSTRE': {'len': 87, 'ver': 1, 'idx': 6},
-    #  'STDIO': {'len': 3234, 'ver': 1, 'idx': 7}}
+    # ...    
+    # generate summaries for currently loaded data
+    report.summarize()
 
-
-    # Access different record types as numpy arrays, with integer and float counters seperated
-    # Example Return: {'counters': array([...], dtype=uint64), 'fcounters': array([...])}
-    posix_record = darshan.log_get_posix_record(log)
-    mpiio_record = darshan.log_get_mpiio_record(log)
-    stdio_record = darshan.log_get_stdio_record(log)
     # ...
-
-
-    darshan.log_close(log)
+    # generate a timeline from dxt records
+    report.read_all_dxt_records()
+    report.create_timeline()
 
 
 Installation

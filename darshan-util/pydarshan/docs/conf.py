@@ -121,6 +121,20 @@ html_static_path = ['static']
 htmlhelp_basename = 'darshandoc'
 
 
+
+
+# -- Options for manual page output ------------------------------------
+
+# One entry per manual page. List of tuples
+# (source start file, name, description, authors, manual section).
+man_pages = [
+    (master_doc, 'pydarshan',
+     u'pydarshan Documentation',
+     [author], 1)
+]
+
+
+
 # -- Options for LaTeX output ------------------------------------------
 
 latex_elements = {
@@ -151,17 +165,6 @@ latex_documents = [
 ]
 
 
-# -- Options for manual page output ------------------------------------
-
-# One entry per manual page. List of tuples
-# (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, 'pydarshan',
-     u'pydarshan Documentation',
-     [author], 1)
-]
-
-
 # -- Options for Texinfo output ----------------------------------------
 
 # Grouping the document tree into Texinfo files. List of tuples
@@ -175,12 +178,6 @@ texinfo_documents = [
      'One line description of project.',
      'Miscellaneous'),
 ]
-
-
-
-
-
-
 
 
 intersphinx_mapping = {
