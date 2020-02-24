@@ -49,8 +49,15 @@ static int my_rank = -1;
 /* internal helper functions for the BGQ module */
 void bgq_runtime_initialize(void);
 
-/* forward declaration for shutdown function needed to interface with darshan-core */
-static void bgq_shutdown(MPI_Comm mod_comm, darshan_record_id *shared_recs, int shared_rec_count, void **buffer, int *size);
+/* forward declaration for shutdown functions needed to interface with darshan-core */
+static void bgq_mpi_redux(
+    void *buffer,
+    MPI_Comm mod_comm,
+    darshan_record_id *shared_recs,
+    int shared_rec_count);
+static void bgq_shutdown(
+    void **buffer,
+    int *size);
 
 /* macros for obtaining/releasing the BGQ module lock */
 #define BGQ_LOCK() pthread_mutex_lock(&bgq_runtime_mutex)
@@ -102,6 +109,12 @@ void bgq_runtime_initialize()
 {
     int bgq_buf_size;
     darshan_record_id rec_id;
+    darshan_module_funcs mod_funcs = {
+#ifdef HAVE_MPI
+        .mod_redux_func = &bgq_mpi_redux,
+#endif
+        .mod_shutdown_func = &bgq_shutdown
+        };
 
     BGQ_LOCK();
 
@@ -118,7 +131,7 @@ void bgq_runtime_initialize()
     /* register the BG/Q module with the darshan-core component */
     darshan_core_register_module(
         DARSHAN_BGQ_MOD,
-        &bgq_shutdown,
+        mod_funcs,
         &bgq_buf_size,
         &my_rank,
         NULL);
@@ -177,13 +190,11 @@ static int cmpr(const void *p1, const void *p2)
  * shutdown function exported by this module for coordinating with darshan-core *
  ********************************************************************************/
 
-/* Pass output data for the BGQ module back to darshan-core to log to file. */
-static void bgq_shutdown(
+static void bgq_mpi_redux(
+    void *posix_buf,
     MPI_Comm mod_comm,
     darshan_record_id *shared_recs,
-    int shared_rec_count,
-    void **buffer,
-    int *size)
+    int shared_rec_count)
 {
     int nprocs;
     int result;
@@ -232,6 +243,19 @@ static void bgq_shutdown(
             bgq_runtime->record->counters[BGQ_INODES] = found;
         }
     }
+
+    BGQ_UNLOCK();
+
+    return;
+}
+
+/* Pass output data for the BGQ module back to darshan-core to log to file. */
+static void bgq_shutdown(
+    void **buffer,
+    int *size)
+{
+    BGQ_LOCK();
+    assert(bgq_runtime);
 
     /* non-zero ranks throw out their BGQ record */
     if (my_rank != 0)

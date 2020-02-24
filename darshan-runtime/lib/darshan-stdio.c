@@ -109,7 +109,9 @@ DARSHAN_FORWARD_DECL(getw, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(_IO_getc, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(_IO_putc, int, (int, FILE *stream));
 DARSHAN_FORWARD_DECL(fscanf, int, (FILE *stream, const char *format, ...));
+#ifndef HAVE_FSCANF_REDIRECT
 DARSHAN_FORWARD_DECL(__isoc99_fscanf, int, (FILE *stream, const char *format, ...));
+#endif
 DARSHAN_FORWARD_DECL(vfscanf, int, (FILE *stream, const char *format, va_list ap));
 DARSHAN_FORWARD_DECL(fgets, char*, (char *s, int size, FILE *stream));
 DARSHAN_FORWARD_DECL(fseek, int, (FILE *stream, long offset, int whence));
@@ -146,21 +148,24 @@ static pthread_mutex_t stdio_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER
 static int darshan_mem_alignment = 1;
 static int my_rank = -1;
 
-static void stdio_runtime_initialize(void);
-static void stdio_shutdown(
-    MPI_Comm mod_comm,
-    darshan_record_id *shared_recs,
-    int shared_rec_count,
-    void **stdio_buf,
-    int *stdio_buf_sz);
+static void stdio_runtime_initialize(
+    void);
+static struct stdio_file_record_ref *stdio_track_new_file_record(
+    darshan_record_id rec_id, const char *path);
+static void stdio_cleanup_runtime(
+    void);
+#ifdef HAVE_MPI
 static void stdio_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype);
 static void stdio_shared_record_variance(
     MPI_Comm mod_comm, struct darshan_stdio_file *inrec_array,
     struct darshan_stdio_file *outrec_array, int shared_rec_count);
-static struct stdio_file_record_ref *stdio_track_new_file_record(
-    darshan_record_id rec_id, const char *path);
-static void stdio_cleanup_runtime();
+static void stdio_mpi_redux(
+    void *stdio_buf, MPI_Comm mod_comm,
+    darshan_record_id *shared_recs, int shared_rec_count);
+#endif
+static void stdio_shutdown(
+    void **stdio_buf, int *stdio_buf_sz);
 
 /* extern function def for querying record name from a POSIX fd */
 extern char *darshan_posix_lookup_record_name(int fd);
@@ -693,6 +698,7 @@ int DARSHAN_DECL(getw)(FILE *stream)
     return(ret);
 }
 
+#ifndef HAVE_FSCANF_REDIRECT
 /* NOTE: some glibc versions use __isoc99_fscanf as the underlying symbol
  * rather than fscanf
  */
@@ -723,7 +729,7 @@ int DARSHAN_DECL(__isoc99_fscanf)(FILE *stream, const char *format, ...)
 
     return(ret);
 }
-
+#endif
 
 int DARSHAN_DECL(fscanf)(FILE *stream, const char *format, ...)
 {
@@ -994,6 +1000,12 @@ int DARSHAN_DECL(fsetpos64)(FILE *stream, const fpos64_t *pos)
 static void stdio_runtime_initialize()
 {
     int stdio_buf_size;
+    darshan_module_funcs mod_funcs = {
+#ifdef HAVE_MPI
+    .mod_redux_func = &stdio_mpi_redux,
+#endif
+    .mod_shutdown_func = &stdio_shutdown
+    };
 
     /* try to store default number of records for this module */
     stdio_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_stdio_file);
@@ -1001,7 +1013,7 @@ static void stdio_runtime_initialize()
     /* register the stdio module with darshan core */
     darshan_core_register_module(
         DARSHAN_STDIO_MOD,
-        &stdio_shutdown,
+        mod_funcs,
         &stdio_buf_size,
         &my_rank,
         &darshan_mem_alignment);
@@ -1027,10 +1039,68 @@ static void stdio_runtime_initialize()
     STDIO_RECORD_OPEN(stderr, "<STDERR>", 0, 0);
 }
 
-/************************************************************************
- * Functions exported by this module for coordinating with darshan-core *
- ************************************************************************/
+static struct stdio_file_record_ref *stdio_track_new_file_record(
+    darshan_record_id rec_id, const char *path)
+{
+    struct darshan_stdio_file *file_rec = NULL;
+    struct stdio_file_record_ref *rec_ref = NULL;
+    struct darshan_fs_info fs_info;
+    int ret;
 
+    rec_ref = malloc(sizeof(*rec_ref));
+    if(!rec_ref)
+        return(NULL);
+    memset(rec_ref, 0, sizeof(*rec_ref));
+
+    /* add a reference to this file record based on record id */
+    ret = darshan_add_record_ref(&(stdio_runtime->rec_id_hash), &rec_id,
+        sizeof(darshan_record_id), rec_ref);
+    if(ret == 0)
+    {
+        free(rec_ref);
+        return(NULL);
+    }
+
+    /* register the actual file record with darshan-core so it is persisted
+     * in the log file
+     */
+    file_rec = darshan_core_register_record(
+        rec_id,
+        path,
+        DARSHAN_STDIO_MOD,
+        sizeof(struct darshan_stdio_file),
+        &fs_info);
+
+    if(!file_rec)
+    {
+        darshan_delete_record_ref(&(stdio_runtime->rec_id_hash),
+            &rec_id, sizeof(darshan_record_id));
+        free(rec_ref);
+        return(NULL);
+    }
+
+    /* registering this file record was successful, so initialize some fields */
+    file_rec->base_rec.id = rec_id;
+    file_rec->base_rec.rank = my_rank;
+    rec_ref->fs_type = fs_info.fs_type;
+    rec_ref->file_rec = file_rec;
+    stdio_runtime->file_rec_count++;
+
+    return(rec_ref);
+}
+
+static void stdio_cleanup_runtime()
+{
+    darshan_clear_record_refs(&(stdio_runtime->stream_hash), 0);
+    darshan_clear_record_refs(&(stdio_runtime->rec_id_hash), 1);
+
+    free(stdio_runtime);
+    stdio_runtime = NULL;
+
+    return;
+}
+
+#ifdef HAVE_MPI
 static void stdio_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype)
 {
@@ -1138,228 +1208,6 @@ static void stdio_record_reduction_op(void* infile_v, void* inoutfile_v,
     return;
 }
 
-static void stdio_shutdown(
-    MPI_Comm mod_comm,
-    darshan_record_id *shared_recs,
-    int shared_rec_count,
-    void **stdio_buf,
-    int *stdio_buf_sz)
-{
-    struct stdio_file_record_ref *rec_ref;
-    struct darshan_stdio_file *stdio_rec_buf = *(struct darshan_stdio_file **)stdio_buf;
-    int i;
-    struct darshan_stdio_file *red_send_buf = NULL;
-    struct darshan_stdio_file *red_recv_buf = NULL;
-    MPI_Datatype red_type;
-    MPI_Op red_op;
-    int stdio_rec_count;
-    double stdio_time;
-
-    STDIO_LOCK();
-    assert(stdio_runtime);
-
-    stdio_rec_count = stdio_runtime->file_rec_count;
-
-    /* if there are globally shared files, do a shared file reduction */
-    /* NOTE: the shared file reduction is also skipped if the 
-     * DARSHAN_DISABLE_SHARED_REDUCTION environment variable is set.
-     */
-    if(shared_rec_count && !getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
-    {
-        /* necessary initialization of shared records */
-        for(i = 0; i < shared_rec_count; i++)
-        {
-            rec_ref = darshan_lookup_record_ref(stdio_runtime->rec_id_hash,
-                &shared_recs[i], sizeof(darshan_record_id));
-            assert(rec_ref);
-
-            stdio_time =
-                rec_ref->file_rec->fcounters[STDIO_F_READ_TIME] +
-                rec_ref->file_rec->fcounters[STDIO_F_WRITE_TIME] +
-                rec_ref->file_rec->fcounters[STDIO_F_META_TIME];
-
-            /* initialize fastest/slowest info prior to the reduction */
-            rec_ref->file_rec->counters[STDIO_FASTEST_RANK] =
-                rec_ref->file_rec->base_rec.rank;
-            rec_ref->file_rec->counters[STDIO_FASTEST_RANK_BYTES] =
-                rec_ref->file_rec->counters[STDIO_BYTES_READ] +
-                rec_ref->file_rec->counters[STDIO_BYTES_WRITTEN];
-            rec_ref->file_rec->fcounters[STDIO_F_FASTEST_RANK_TIME] =
-                stdio_time;
-
-            /* until reduction occurs, we assume that this rank is both
-             * the fastest and slowest. It is up to the reduction operator
-             * to find the true min and max.
-             */
-            rec_ref->file_rec->counters[STDIO_SLOWEST_RANK] =
-                rec_ref->file_rec->counters[STDIO_FASTEST_RANK];
-            rec_ref->file_rec->counters[STDIO_SLOWEST_RANK_BYTES] =
-                rec_ref->file_rec->counters[STDIO_FASTEST_RANK_BYTES];
-            rec_ref->file_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME] =
-                rec_ref->file_rec->fcounters[STDIO_F_FASTEST_RANK_TIME];
-
-            rec_ref->file_rec->base_rec.rank = -1;
-        }
-
-        /* sort the array of files descending by rank so that we get all of the 
-         * shared files (marked by rank -1) in a contiguous portion at end 
-         * of the array
-         */
-        darshan_record_sort(stdio_rec_buf, stdio_rec_count, sizeof(struct darshan_stdio_file));
-
-        /* make *send_buf point to the shared files at the end of sorted array */
-        red_send_buf = &(stdio_rec_buf[stdio_rec_count-shared_rec_count]);
-
-        /* allocate memory for the reduction output on rank 0 */
-        if(my_rank == 0)
-        {
-            red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_stdio_file));
-            if(!red_recv_buf)
-            {
-                return;
-            }
-        }
-
-        /* construct a datatype for a STDIO file record.  This is serving no purpose
-         * except to make sure we can do a reduction on proper boundaries
-         */
-        PMPI_Type_contiguous(sizeof(struct darshan_stdio_file),
-            MPI_BYTE, &red_type);
-        PMPI_Type_commit(&red_type);
-
-        /* register a STDIO file record reduction operator */
-        PMPI_Op_create(stdio_record_reduction_op, 1, &red_op);
-
-        /* reduce shared STDIO file records */
-        PMPI_Reduce(red_send_buf, red_recv_buf,
-            shared_rec_count, red_type, red_op, 0, mod_comm);
-
-        /* get the time and byte variances for shared files */
-        stdio_shared_record_variance(mod_comm, red_send_buf, red_recv_buf,
-            shared_rec_count);
-
-        /* clean up reduction state */
-        if(my_rank == 0)
-        {
-            int tmp_ndx = stdio_rec_count - shared_rec_count;
-            memcpy(&(stdio_rec_buf[tmp_ndx]), red_recv_buf,
-                shared_rec_count * sizeof(struct darshan_stdio_file));
-            free(red_recv_buf);
-        }
-        else
-        {
-            stdio_rec_count -= shared_rec_count;
-        }
-
-        PMPI_Type_free(&red_type);
-        PMPI_Op_free(&red_op);
-    }
-
-    /* filter out any records that have no activity on them; this is
-     * specifically meant to filter out unused stdin, stdout, or stderr
-     * entries
-     *
-     * NOTE: we can no longer use the darshan_lookup_record_ref()
-     * function at this point to find specific records, because the
-     * logic above has likely broken the mapping to the static array.
-     * We walk it manually here instead.
-     */
-    darshan_record_id stdin_rec_id = darshan_core_gen_record_id("<STDIN>");
-    darshan_record_id stdout_rec_id = darshan_core_gen_record_id("<STDOUT>");
-    darshan_record_id stderr_rec_id = darshan_core_gen_record_id("<STDERR>");
-    for(i=0; i<stdio_rec_count; i++)
-    {
-        if((stdio_rec_buf[i].base_rec.id == stdin_rec_id) ||
-           (stdio_rec_buf[i].base_rec.id == stdout_rec_id) ||
-           (stdio_rec_buf[i].base_rec.id == stderr_rec_id))
-        {
-            if(stdio_rec_buf[i].counters[STDIO_WRITES] == 0 &&
-                stdio_rec_buf[i].counters[STDIO_READS] == 0)
-            {
-                if(i != (stdio_rec_count-1))
-                {
-                    memmove(&stdio_rec_buf[i], &stdio_rec_buf[i+1],
-                        (stdio_rec_count-i-1)*sizeof(stdio_rec_buf[i]));
-                    i--;
-                }
-                stdio_rec_count--;
-            }
-        }
-    }
-
-    /* update output buffer size to account for shared file reduction */
-    *stdio_buf_sz = stdio_rec_count * sizeof(struct darshan_stdio_file);
-
-    /* shutdown internal structures used for instrumenting */
-    stdio_cleanup_runtime();
-
-    STDIO_UNLOCK();
-    
-    return;
-}
-
-static struct stdio_file_record_ref *stdio_track_new_file_record(
-    darshan_record_id rec_id, const char *path)
-{
-    struct darshan_stdio_file *file_rec = NULL;
-    struct stdio_file_record_ref *rec_ref = NULL;
-    struct darshan_fs_info fs_info;
-    int ret;
-
-    rec_ref = malloc(sizeof(*rec_ref));
-    if(!rec_ref)
-        return(NULL);
-    memset(rec_ref, 0, sizeof(*rec_ref));
-
-    /* add a reference to this file record based on record id */
-    ret = darshan_add_record_ref(&(stdio_runtime->rec_id_hash), &rec_id,
-        sizeof(darshan_record_id), rec_ref);
-    if(ret == 0)
-    {
-        free(rec_ref);
-        return(NULL);
-    }
-
-    /* register the actual file record with darshan-core so it is persisted
-     * in the log file
-     */
-    file_rec = darshan_core_register_record(
-        rec_id,
-        path,
-        DARSHAN_STDIO_MOD,
-        sizeof(struct darshan_stdio_file),
-        &fs_info);
-
-    if(!file_rec)
-    {
-        darshan_delete_record_ref(&(stdio_runtime->rec_id_hash),
-            &rec_id, sizeof(darshan_record_id));
-        free(rec_ref);
-        return(NULL);
-    }
-
-    /* registering this file record was successful, so initialize some fields */
-    file_rec->base_rec.id = rec_id;
-    file_rec->base_rec.rank = my_rank;
-    rec_ref->fs_type = fs_info.fs_type;
-    rec_ref->file_rec = file_rec;
-    stdio_runtime->file_rec_count++;
-
-    return(rec_ref);
-
-}
-
-static void stdio_cleanup_runtime()
-{
-    darshan_clear_record_refs(&(stdio_runtime->stream_hash), 0);
-    darshan_clear_record_refs(&(stdio_runtime->rec_id_hash), 1);
-
-    free(stdio_runtime);
-    stdio_runtime = NULL;
-
-    return;
-}
-
 static void stdio_shared_record_variance(MPI_Comm mod_comm,
     struct darshan_stdio_file *inrec_array, struct darshan_stdio_file *outrec_array,
     int shared_rec_count)
@@ -1441,6 +1289,7 @@ static void stdio_shared_record_variance(MPI_Comm mod_comm,
 
     return;
 }
+#endif
 
 char *darshan_stdio_lookup_record_name(FILE *stream)
 {
@@ -1458,6 +1307,182 @@ char *darshan_stdio_lookup_record_name(FILE *stream)
     STDIO_UNLOCK();
 
     return(rec_name);
+}
+
+/************************************************************************
+ * Functions exported by this module for coordinating with darshan-core *
+ ************************************************************************/
+
+#ifdef HAVE_MPI
+static void stdio_mpi_redux(
+    void *stdio_buf,
+    MPI_Comm mod_comm,
+    darshan_record_id *shared_recs,
+    int shared_rec_count)
+{
+    int stdio_rec_count;
+    struct stdio_file_record_ref *rec_ref;
+    struct darshan_stdio_file *stdio_rec_buf = (struct darshan_stdio_file *)stdio_buf;
+    double stdio_time;
+    struct darshan_stdio_file *red_send_buf = NULL;
+    struct darshan_stdio_file *red_recv_buf = NULL;
+    MPI_Datatype red_type;
+    MPI_Op red_op;
+    int i;
+
+    STDIO_LOCK();
+    assert(stdio_runtime);
+
+    stdio_rec_count = stdio_runtime->file_rec_count;
+
+    /* necessary initialization of shared records */
+    for(i = 0; i < shared_rec_count; i++)
+    {
+        rec_ref = darshan_lookup_record_ref(stdio_runtime->rec_id_hash,
+            &shared_recs[i], sizeof(darshan_record_id));
+        assert(rec_ref);
+
+        stdio_time =
+            rec_ref->file_rec->fcounters[STDIO_F_READ_TIME] +
+            rec_ref->file_rec->fcounters[STDIO_F_WRITE_TIME] +
+            rec_ref->file_rec->fcounters[STDIO_F_META_TIME];
+
+        /* initialize fastest/slowest info prior to the reduction */
+        rec_ref->file_rec->counters[STDIO_FASTEST_RANK] =
+            rec_ref->file_rec->base_rec.rank;
+        rec_ref->file_rec->counters[STDIO_FASTEST_RANK_BYTES] =
+            rec_ref->file_rec->counters[STDIO_BYTES_READ] +
+            rec_ref->file_rec->counters[STDIO_BYTES_WRITTEN];
+        rec_ref->file_rec->fcounters[STDIO_F_FASTEST_RANK_TIME] =
+            stdio_time;
+
+        /* until reduction occurs, we assume that this rank is both
+         * the fastest and slowest. It is up to the reduction operator
+         * to find the true min and max.
+         */
+        rec_ref->file_rec->counters[STDIO_SLOWEST_RANK] =
+            rec_ref->file_rec->counters[STDIO_FASTEST_RANK];
+        rec_ref->file_rec->counters[STDIO_SLOWEST_RANK_BYTES] =
+            rec_ref->file_rec->counters[STDIO_FASTEST_RANK_BYTES];
+        rec_ref->file_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME] =
+            rec_ref->file_rec->fcounters[STDIO_F_FASTEST_RANK_TIME];
+
+        rec_ref->file_rec->base_rec.rank = -1;
+    }
+
+    /* sort the array of files descending by rank so that we get all of the 
+     * shared files (marked by rank -1) in a contiguous portion at end 
+     * of the array
+     */
+    darshan_record_sort(stdio_rec_buf, stdio_rec_count, sizeof(struct darshan_stdio_file));
+
+    /* make *send_buf point to the shared files at the end of sorted array */
+    red_send_buf = &(stdio_rec_buf[stdio_rec_count-shared_rec_count]);
+
+    /* allocate memory for the reduction output on rank 0 */
+    if(my_rank == 0)
+    {
+        red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_stdio_file));
+        if(!red_recv_buf)
+        {
+            STDIO_UNLOCK();
+            return;
+        }
+    }
+
+    /* construct a datatype for a STDIO file record.  This is serving no purpose
+     * except to make sure we can do a reduction on proper boundaries
+     */
+    PMPI_Type_contiguous(sizeof(struct darshan_stdio_file),
+        MPI_BYTE, &red_type);
+    PMPI_Type_commit(&red_type);
+
+    /* register a STDIO file record reduction operator */
+    PMPI_Op_create(stdio_record_reduction_op, 1, &red_op);
+
+    /* reduce shared STDIO file records */
+    PMPI_Reduce(red_send_buf, red_recv_buf,
+        shared_rec_count, red_type, red_op, 0, mod_comm);
+
+    /* get the time and byte variances for shared files */
+    stdio_shared_record_variance(mod_comm, red_send_buf, red_recv_buf,
+        shared_rec_count);
+
+    /* clean up reduction state */
+    if(my_rank == 0)
+    {
+        int tmp_ndx = stdio_rec_count - shared_rec_count;
+        memcpy(&(stdio_rec_buf[tmp_ndx]), red_recv_buf,
+            shared_rec_count * sizeof(struct darshan_stdio_file));
+        free(red_recv_buf);
+    }
+    else
+    {
+        stdio_runtime->file_rec_count -= shared_rec_count;
+    }
+
+    PMPI_Type_free(&red_type);
+    PMPI_Op_free(&red_op);
+
+    STDIO_UNLOCK();
+    return;
+}
+#endif
+
+static void stdio_shutdown(
+    void **stdio_buf,
+    int *stdio_buf_sz)
+{
+    int stdio_rec_count;
+    struct darshan_stdio_file *stdio_rec_buf = *(struct darshan_stdio_file **)stdio_buf;
+    int i;
+
+    STDIO_LOCK();
+    assert(stdio_runtime);
+
+    stdio_rec_count = stdio_runtime->file_rec_count;
+
+    /* filter out any records that have no activity on them; this is
+     * specifically meant to filter out unused stdin, stdout, or stderr
+     * entries
+     *
+     * NOTE: we can no longer use the darshan_lookup_record_ref()
+     * function at this point to find specific records, because the
+     * logic above has likely broken the mapping to the static array.
+     * We walk it manually here instead.
+     */
+    darshan_record_id stdin_rec_id = darshan_core_gen_record_id("<STDIN>");
+    darshan_record_id stdout_rec_id = darshan_core_gen_record_id("<STDOUT>");
+    darshan_record_id stderr_rec_id = darshan_core_gen_record_id("<STDERR>");
+    for(i=0; i<stdio_rec_count; i++)
+    {
+        if((stdio_rec_buf[i].base_rec.id == stdin_rec_id) ||
+           (stdio_rec_buf[i].base_rec.id == stdout_rec_id) ||
+           (stdio_rec_buf[i].base_rec.id == stderr_rec_id))
+        {
+            if(stdio_rec_buf[i].counters[STDIO_WRITES] == 0 &&
+                stdio_rec_buf[i].counters[STDIO_READS] == 0)
+            {
+                if(i != (stdio_rec_count-1))
+                {
+                    memmove(&stdio_rec_buf[i], &stdio_rec_buf[i+1],
+                        (stdio_rec_count-i-1)*sizeof(stdio_rec_buf[i]));
+                    i--;
+                }
+                stdio_rec_count--;
+            }
+        }
+    }
+
+    /* shutdown internal structures used for instrumenting */
+    stdio_cleanup_runtime();
+
+    /* update output buffer size to account for shared file reduction */
+    *stdio_buf_sz = stdio_rec_count * sizeof(struct darshan_stdio_file);
+
+    STDIO_UNLOCK();
+    
+    return;
 }
 
 /*

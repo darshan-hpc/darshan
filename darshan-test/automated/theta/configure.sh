@@ -31,6 +31,8 @@ fi
 
 cd ../../;
 
+module list
+
 echo "
 <testsuites>
   <testsuite name='configure' tests='2' failures='$fcount' time='$thedate'>

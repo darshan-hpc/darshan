@@ -2,6 +2,19 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.2.0-pre1
+=============
+* added support for non-MPI instrumenation to Darshan, using GCC
+construct/destructor attributes for bootstrapping rather than
+intercepting MPI_Init()/MPI_Finalize(). This mechanism only
+works for Darshan's shared library instrumentation
+
+Darshan-3.1.8
+=============
+* added dynamic trace triggering functionality, allowing Darshan to
+  decide at runtime whether or not to trace specific files with DXT,
+  with this decision based on triggers in a user-provided config file
+
 Darshan-3.1.7
 =============
 * bug fix for handling DXT data in darshan-convert utility. Bug reported

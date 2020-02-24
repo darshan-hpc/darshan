@@ -156,11 +156,9 @@ static void dxt_mpiio_cleanup_runtime(
 
 /* DXT shutdown routines for darshan-core */
 static void dxt_posix_shutdown(
-    MPI_Comm mod_comm, darshan_record_id *shared_recs,
-    int shared_rec_count, void **dxt_buf, int *dxt_buf_sz);
+    void **dxt_buf, int *dxt_buf_sz);
 static void dxt_mpiio_shutdown(
-    MPI_Comm mod_comm, darshan_record_id *shared_recs,
-    int shared_rec_count, void **dxt_buf, int *dxt_buf_sz);
+    void **dxt_buf, int *dxt_buf_sz);
 
 static struct dxt_posix_runtime *dxt_posix_runtime = NULL;
 static struct dxt_mpiio_runtime *dxt_mpiio_runtime = NULL;
@@ -268,6 +266,7 @@ void dxt_load_trigger_conf(
     return;
 }
 
+/* initialize internal DXT module data structures and register with darshan-core */
 void dxt_posix_runtime_initialize()
 {
     /* DXT modules request 0 memory -- buffers will be managed internally by DXT
@@ -275,6 +274,12 @@ void dxt_posix_runtime_initialize()
      * over realloc'ing module memory as needed.
      */
     int dxt_psx_buf_size = 0;
+    darshan_module_funcs mod_funcs = {
+#ifdef HAVE_MPI
+    .mod_redux_func = NULL,
+#endif
+    .mod_shutdown_func = &dxt_posix_shutdown
+    };
     int ret;
     double tmpfloat;
     char *envstr;
@@ -288,7 +293,7 @@ void dxt_posix_runtime_initialize()
     /* register the DXT module with darshan core */
     darshan_core_register_module(
         DXT_POSIX_MOD,
-        &dxt_posix_shutdown,
+        mod_funcs,
         &dxt_psx_buf_size,
         &dxt_my_rank,
         NULL);
@@ -337,6 +342,12 @@ void dxt_mpiio_runtime_initialize()
      * over realloc'ing module memory as needed.
      */
     int dxt_mpiio_buf_size = 0;
+    darshan_module_funcs mod_funcs = {
+#ifdef HAVE_MPI
+    .mod_redux_func = NULL,
+#endif
+    .mod_shutdown_func = &dxt_mpiio_shutdown
+    };
     int ret;
     double tmpfloat;
     char *envstr;
@@ -350,7 +361,7 @@ void dxt_mpiio_runtime_initialize()
     /* register the DXT module with darshan core */
     darshan_core_register_module(
         DXT_MPIIO_MOD,
-        &dxt_mpiio_shutdown,
+        mod_funcs,
         &dxt_mpiio_buf_size,
         &dxt_my_rank,
         NULL);
@@ -673,27 +684,32 @@ static void dxt_posix_filter_dynamic_traces_iterator(void *rec_ref_p, void *user
     /* drop the record if no dynamic trace triggers occurred */
     if(!should_keep)
     {
-        printf("DROP RECORD %lu on rank %d\n", psx_file->base_rec.id, dxt_my_rank);
-        /* first check the MPI-IO traces to see if we should drop there */
-        mpiio_rec_ref = darshan_delete_record_ref(&dxt_mpiio_runtime->rec_id_hash,
-            &psx_file->base_rec.id, sizeof(darshan_record_id));
-        if(mpiio_rec_ref)
+        if(dxt_mpiio_runtime && dxt_mpiio_runtime->rec_id_hash)
         {
-            free(mpiio_rec_ref->write_traces);
-            free(mpiio_rec_ref->read_traces);
-            free(mpiio_rec_ref->file_rec);
-            free(mpiio_rec_ref);
+            /* first check the MPI-IO traces to see if we should drop there */
+            mpiio_rec_ref = darshan_delete_record_ref(&dxt_mpiio_runtime->rec_id_hash,
+                &psx_file->base_rec.id, sizeof(darshan_record_id));
+            if(mpiio_rec_ref)
+            {
+                free(mpiio_rec_ref->write_traces);
+                free(mpiio_rec_ref->read_traces);
+                free(mpiio_rec_ref->file_rec);
+                free(mpiio_rec_ref);
+            }
         }
 
-        /* then delete the POSIX trace records */
-        psx_rec_ref = darshan_delete_record_ref(&dxt_posix_runtime->rec_id_hash,
-            &psx_file->base_rec.id, sizeof(darshan_record_id));
-        if(psx_rec_ref)
+        if(dxt_posix_runtime && dxt_posix_runtime->rec_id_hash)
         {
-            free(psx_rec_ref->write_traces);
-            free(psx_rec_ref->read_traces);
-            free(psx_rec_ref->file_rec);
-            free(psx_rec_ref);
+            /* then delete the POSIX trace records */
+            psx_rec_ref = darshan_delete_record_ref(&dxt_posix_runtime->rec_id_hash,
+                &psx_file->base_rec.id, sizeof(darshan_record_id));
+            if(psx_rec_ref)
+            {
+                free(psx_rec_ref->write_traces);
+                free(psx_rec_ref->read_traces);
+                free(psx_rec_ref->file_rec);
+                free(psx_rec_ref);
+            }
         }
     }
 
@@ -1070,9 +1086,6 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
 }
 
 static void dxt_posix_shutdown(
-    MPI_Comm mod_comm,
-    darshan_record_id *shared_recs,
-    int shared_rec_count,
     void **dxt_posix_buf,
     int *dxt_posix_buf_sz)
 {
@@ -1181,9 +1194,6 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
 }
 
 static void dxt_mpiio_shutdown(
-    MPI_Comm mod_comm,
-    darshan_record_id *shared_recs,
-    int shared_rec_count,
     void **dxt_mpiio_buf,
     int *dxt_mpiio_buf_sz)
 {
