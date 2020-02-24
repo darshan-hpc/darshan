@@ -10,7 +10,6 @@ mandir = $(DESTDIR)@mandir@
 sbindir = $(DESTDIR)@sbindir@
 bindir = $(DESTDIR)@bindir@
 libdir = $(DESTDIR)@libdir@
-pkgconfigdir = $(DESTDIR)$(libdir)/pkgconfig
 
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_MOD_LOG_FORMATS = $(srcdir)/../darshan-posix-log-format.h \
@@ -177,7 +176,6 @@ install:: all
 	install -d $(bindir)
 	install -d $(libdir)
 	install -d $(includedir)
-	install -d $(pkgconfigdir)
 	install -m 755 darshan-analyzer $(bindir)
 	install -m 755 darshan-convert $(bindir)
 	install -m 755 darshan-diff $(bindir)
@@ -223,7 +221,8 @@ endif
 	install -m 644 $(srcdir)/darshan-job-summary/lib/Number/Bytes/Human.pm $(libdir)/Number/Bytes
 	install -d $(datarootdir)
 	install -m 644 $(srcdir)/darshan-job-summary/share/* $(datarootdir)
-	install -m 644 maint/darshan-util.pc $(pkgconfigdir)
+	install -d $(libdir)/pkgconfig
+	install -m 644 maint/darshan-util.pc $(libdir)/pkgconfig/darshan-util.pc
 
 
 clean::
