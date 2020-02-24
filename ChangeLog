@@ -4,6 +4,8 @@ Darshan Release Change Log
 
 Darshan-3.2.0-pre1
 =============
+* corrected pkgconfig path for darshan-util when using DESTDIR (reported by
+  Matthew Curry)
 * added support for non-MPI instrumenation to Darshan, using GCC
 construct/destructor attributes for bootstrapping rather than
 intercepting MPI_Init()/MPI_Finalize(). This mechanism only
