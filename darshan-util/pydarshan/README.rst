@@ -24,23 +24,25 @@ A brief examples showing some of the basic functionality is the following::
 
     import darshan
 
-    # open darshan log
+    # Open darshan log
     report = darshan.DarshanReport('example.darshan')
 
-    # load some report data
+    # Load some report data
     report.mod_read_all_records('POSIX')
     report.mod_read_all_records('MPI-IO')
     # or fetch all
     report.read_all_generic_records()
 
     # ...    
-    # generate summaries for currently loaded data
+    # Generate summaries for currently loaded data
+    # Note: aggregations are still experimental and have to be activated:
+    darshan.enable_experimental()
     report.summarize()
 
     # ...
-    # generate a timeline from dxt records
+    # Generate a timeline from dxt records
     report.read_all_dxt_records()
-    report.create_timeline()
+    report.create_timeline()        # experimental
 
 
 Installation
