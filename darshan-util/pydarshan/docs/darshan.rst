@@ -6,9 +6,7 @@ Subpackages
 
 .. toctree::
 
-    darshan.aggregators
     darshan.backend
-    darshan.plots
 
 Submodules
 ----------

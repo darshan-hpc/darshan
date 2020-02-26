@@ -6,9 +6,6 @@ from setuptools import setup, find_packages
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-with open('HISTORY.rst') as history_file:
-    history = history_file.read()
-
 
 requirements = ['cffi', 'numpy', 'matplotlib']
 setup_requirements = ['pytest-runner', ]
@@ -32,7 +29,7 @@ setup(
     ],
     description="Python tools to interact with darshan log records of HPC applications.",
     install_requires=requirements,
-    long_description=readme + '\n\n' + history,
+    long_description=readme,
     include_package_data=True,
     keywords='darshan',
     name='darshan',

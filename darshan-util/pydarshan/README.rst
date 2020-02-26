@@ -2,8 +2,8 @@
 pydarshan
 =========
 
-Python utilities to interact with darshan log records of HPC applications.
-pydarshan requires darshan-utils (3.2.0+) to be installed.
+Python utilities to interact with Darshan log records of HPC applications.
+pydarshan requires darshan-utils (3.3.0+) to be installed.
 
 Features
 --------
@@ -17,8 +17,8 @@ Features
 Usage
 -----
 
-For examples and a jupyter notebook to get started with pydarshan make sure
-to check out the `notebooks` subdirectory.
+For examples and Jupyter notebooks to get started with pydarshan make sure
+to check out the `examples` subdirectory.
 
 A brief examples showing some of the basic functionality is the following::
 

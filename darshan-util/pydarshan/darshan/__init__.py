@@ -11,6 +11,13 @@ from darshan.report import DarshanReport
 
 
 def enable_experimental(verbose=True):
+    """
+    Enable experimental features such as aggregation methods for reports.
+
+    Args:
+        verbose (bool): Display log of enabled features. (Default: True)
+
+    """
     import os
     import glob
     import importlib

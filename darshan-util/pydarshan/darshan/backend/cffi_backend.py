@@ -6,20 +6,14 @@ import numpy
 from darshan.discover_darshan import discover_darshan
 from darshan.api_def_c import load_darshan_header
 
-DARSHAN_PATH = discover_darshan()
+#DARSHAN_PATH = discover_darshan()
 API_def_c = load_darshan_header()
 
 
 ffi = cffi.FFI()
 ffi.cdef(API_def_c)
 
-
-#libdutil = ffi.dlopen(DARSHAN_PATH + "/lib/libdarshan-util.so")
 libdutil = ffi.dlopen("libdarshan-util.so")
-#libdutil = ffi.dlopen("/home/pq/p/software/darshan-cffi/darshan-util/libdarshan-util.so")
-#print(DARSHAN_PATH + "/lib/libdarshan-util.so")
-
-
 
 
 
@@ -184,8 +178,7 @@ def log_get_dxt_record(log, mod_name, mod_type, mode='dict'):
     Return:
         dict: generic log record
 
-    Example
-    -------
+    Example:
 
     The typical darshan log record provides two arrays, on for integer counters
     and one for floating point counters:
@@ -260,8 +253,7 @@ def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
     Return:
         dict: generic log record
 
-    Example
-    -------
+    Example:
 
     The typical darshan log record provides two arrays, on for integer counters
     and one for floating point counters:
