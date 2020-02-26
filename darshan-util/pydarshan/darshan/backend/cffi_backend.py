@@ -1,11 +1,5 @@
 # -*- coding: utf-8 -*-
 
-"""
-The darshan.parser_cffi module makes use of darshan-utils C library
-for high performance and low memory footprint when accessing darschan
-log files.
-"""
-
 import cffi
 import numpy
 
@@ -24,6 +18,7 @@ ffi.cdef(API_def_c)
 libdutil = ffi.dlopen("libdarshan-util.so")
 #libdutil = ffi.dlopen("/home/pq/p/software/darshan-cffi/darshan-util/libdarshan-util.so")
 #print(DARSHAN_PATH + "/lib/libdarshan-util.so")
+
 
 
 
