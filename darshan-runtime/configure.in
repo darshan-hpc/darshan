@@ -107,13 +107,13 @@ fi]
 ,)
 
 AC_ARG_WITH(mem-align,
-[  --with-mem-align=<num>  Memory alignment in bytes],
-    if test x$withval = xyes; then
+[  --with-mem-align=<num>  Memory alignment in bytes @<:@default=8@:>@],
+    [if test x$withval = xyes; then
         AC_MSG_ERROR(--with-mem-align must be given a number in bytes)
     else
         AC_DEFINE_UNQUOTED(__DARSHAN_MEM_ALIGNMENT, ${withval}, Memory alignment in bytes)
-        GOT_ALIGNMENT=1
-    fi
+    fi],
+    [AC_DEFINE([__DARSHAN_MEM_ALIGNMENT], [8], [Memory alignment in bytes])]
 )
 
 AC_ARG_WITH(log-path-by-env,
@@ -312,9 +312,6 @@ AS_IF([test "x$enable_mdhim" = "xyes"],
       )
 
 dnl sanity check some config parameters
-if test x$GOT_ALIGNMENT != x1; then
-    AC_MSG_ERROR(must provide --with-mem-align=<num> argument to configure.)
-fi
 if test x$GOT_LOG_PATH != x1; then
     AC_MSG_ERROR(must provide --with-log-path=<path> _or_ --with-log-path-by-env=<variable list> argument to configure.)
 fi
