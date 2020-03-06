@@ -8,8 +8,10 @@
 #define __DARSHAN_HDF5_LOG_FORMAT_H
 
 /* current HDF5 log format versions */
-#define DARSHAN_H5F_VER 2
+#define DARSHAN_H5F_VER 3
 #define DARSHAN_H5D_VER 1
+
+#define H5D_MAX_NDIMS 5
 
 #define H5F_COUNTERS \
     /* count of HDF5 file opens/creates */\
@@ -81,11 +83,53 @@
     X(H5D_SIZE_WRITE_AGG_10M_100M) \
     X(H5D_SIZE_WRITE_AGG_100M_1G) \
     X(H5D_SIZE_WRITE_AGG_1G_PLUS) \
-    /* the four most frequently appearing H5D access sizes */\
+    /* the four most frequently appearing H5D accesses, identified by
+     * access size and access lengths (count * block) and strides
+     * in last 5 hyperslab dimensions */\
     X(H5D_ACCESS1_ACCESS) \
+    X(H5D_ACCESS1_LENGTH_D1) \
+    X(H5D_ACCESS1_LENGTH_D2) \
+    X(H5D_ACCESS1_LENGTH_D3) \
+    X(H5D_ACCESS1_LENGTH_D4) \
+    X(H5D_ACCESS1_LENGTH_D5) \
+    X(H5D_ACCESS1_STRIDE_D1) \
+    X(H5D_ACCESS1_STRIDE_D2) \
+    X(H5D_ACCESS1_STRIDE_D3) \
+    X(H5D_ACCESS1_STRIDE_D4) \
+    X(H5D_ACCESS1_STRIDE_D5) \
     X(H5D_ACCESS2_ACCESS) \
+    X(H5D_ACCESS2_LENGTH_D1) \
+    X(H5D_ACCESS2_LENGTH_D2) \
+    X(H5D_ACCESS2_LENGTH_D3) \
+    X(H5D_ACCESS2_LENGTH_D4) \
+    X(H5D_ACCESS2_LENGTH_D5) \
+    X(H5D_ACCESS2_STRIDE_D1) \
+    X(H5D_ACCESS2_STRIDE_D2) \
+    X(H5D_ACCESS2_STRIDE_D3) \
+    X(H5D_ACCESS2_STRIDE_D4) \
+    X(H5D_ACCESS2_STRIDE_D5) \
     X(H5D_ACCESS3_ACCESS) \
+    X(H5D_ACCESS3_LENGTH_D1) \
+    X(H5D_ACCESS3_LENGTH_D2) \
+    X(H5D_ACCESS3_LENGTH_D3) \
+    X(H5D_ACCESS3_LENGTH_D4) \
+    X(H5D_ACCESS3_LENGTH_D5) \
+    X(H5D_ACCESS3_STRIDE_D1) \
+    X(H5D_ACCESS3_STRIDE_D2) \
+    X(H5D_ACCESS3_STRIDE_D3) \
+    X(H5D_ACCESS3_STRIDE_D4) \
+    X(H5D_ACCESS3_STRIDE_D5) \
     X(H5D_ACCESS4_ACCESS) \
+    X(H5D_ACCESS4_LENGTH_D1) \
+    X(H5D_ACCESS4_LENGTH_D2) \
+    X(H5D_ACCESS4_LENGTH_D3) \
+    X(H5D_ACCESS4_LENGTH_D4) \
+    X(H5D_ACCESS4_LENGTH_D5) \
+    X(H5D_ACCESS4_STRIDE_D1) \
+    X(H5D_ACCESS4_STRIDE_D2) \
+    X(H5D_ACCESS4_STRIDE_D3) \
+    X(H5D_ACCESS4_STRIDE_D4) \
+    X(H5D_ACCESS4_STRIDE_D5) \
     /* count of each of the most frequent H5D access sizes */\
     X(H5D_ACCESS1_COUNT) \
     X(H5D_ACCESS2_COUNT) \
@@ -97,6 +141,13 @@
     X(H5D_DATASPACE_NPOINTS) \
     /* size of dataset elements in bytes */\
     X(H5D_DATATYPE_SIZE) \
+    /* chunk sizes in the last 5 dimensions of the dataset */\
+    /* NOTE: D1 is the last dimension (i.e., row) , D2 is 2nd to last (i.e., column), and so on */\
+    X(H5D_CHUNK_SIZE_D1) \
+    X(H5D_CHUNK_SIZE_D2) \
+    X(H5D_CHUNK_SIZE_D3) \
+    X(H5D_CHUNK_SIZE_D4) \
+    X(H5D_CHUNK_SIZE_D5) \
     /* flag indicating use of MPI-IO collectives */\
     X(H5D_USE_MPIIO_COLLECTIVE) \
     /* flag indicating whether deprecated create/open calls were used */\

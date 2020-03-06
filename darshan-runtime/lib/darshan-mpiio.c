@@ -240,6 +240,8 @@ static int my_rank = -1;
     struct mpiio_file_record_ref *rec_ref; \
     int size = 0; \
     MPI_Offset displacement=0;\
+    int64_t size_ll; \
+    struct darshan_common_val_counter *cvc; \
     double __elapsed = __tm2-__tm1; \
     if(__ret != MPI_SUCCESS) break; \
     rec_ref = darshan_lookup_record_ref(mpiio_runtime->fh_hash, &(__fh), sizeof(MPI_File)); \
@@ -250,9 +252,13 @@ static int my_rank = -1;
     /* DXT to record detailed read tracing information */ \
     dxt_mpiio_read(rec_ref->file_rec->base_rec.id, displacement, size, __tm1, __tm2); \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_READ_AGG_0_100]), size); \
-    darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, size, \
+    size_ll = size; \
+    cvc = darshan_track_common_val_counters(&rec_ref->access_root, &size_ll, 1, \
+        &rec_ref->access_count); \
+    if(cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
         &(rec_ref->file_rec->counters[MPIIO_ACCESS1_ACCESS]), \
-        &(rec_ref->file_rec->counters[MPIIO_ACCESS1_COUNT])); \
+        &(rec_ref->file_rec->counters[MPIIO_ACCESS1_COUNT]), \
+        cvc->vals, 1, cvc->freq, 0); \
     rec_ref->file_rec->counters[MPIIO_BYTES_READ] += size; \
     rec_ref->file_rec->counters[__counter] += 1; \
     if(rec_ref->last_io_type == DARSHAN_IO_WRITE) \
@@ -273,6 +279,8 @@ static int my_rank = -1;
     struct mpiio_file_record_ref *rec_ref; \
     int size = 0; \
     MPI_Offset displacement; \
+    int64_t size_ll; \
+    struct darshan_common_val_counter *cvc; \
     double __elapsed = __tm2-__tm1; \
     if(__ret != MPI_SUCCESS) break; \
     rec_ref = darshan_lookup_record_ref(mpiio_runtime->fh_hash, &(__fh), sizeof(MPI_File)); \
@@ -283,9 +291,13 @@ static int my_rank = -1;
     MPI_File_get_byte_offset(__fh, __offset, &displacement); \
     dxt_mpiio_write(rec_ref->file_rec->base_rec.id, displacement, size, __tm1, __tm2); \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_WRITE_AGG_0_100]), size); \
-    darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, size, \
+    size_ll = size; \
+    cvc = darshan_track_common_val_counters(&rec_ref->access_root, &size_ll, 1, \
+        &rec_ref->access_count); \
+    if(cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
         &(rec_ref->file_rec->counters[MPIIO_ACCESS1_ACCESS]), \
-        &(rec_ref->file_rec->counters[MPIIO_ACCESS1_COUNT])); \
+        &(rec_ref->file_rec->counters[MPIIO_ACCESS1_COUNT]), \
+        cvc->vals, 1, cvc->freq, 0); \
     rec_ref->file_rec->counters[MPIIO_BYTES_WRITTEN] += size; \
     rec_ref->file_rec->counters[__counter] += 1; \
     if(rec_ref->last_io_type == DARSHAN_IO_READ) \
@@ -1304,17 +1316,19 @@ static void mpiio_record_reduction_op(void* infile_v, void* inoutfile_v,
         /* first set */
         for(j=MPIIO_ACCESS1_ACCESS; j<=MPIIO_ACCESS4_ACCESS; j++)
         {
-            DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[MPIIO_ACCESS1_ACCESS]),
-                &(tmp_file.counters[MPIIO_ACCESS1_COUNT]), infile->counters[j],
-                infile->counters[j+4], 0);
+            DARSHAN_UPDATE_COMMON_VAL_COUNTERS(
+                &(tmp_file.counters[MPIIO_ACCESS1_ACCESS]),
+                &(tmp_file.counters[MPIIO_ACCESS1_COUNT]),
+                &infile->counters[j], 1, infile->counters[j+4], 1);
         }
 
         /* second set */
         for(j=MPIIO_ACCESS1_ACCESS; j<=MPIIO_ACCESS4_ACCESS; j++)
         {
-            DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[MPIIO_ACCESS1_ACCESS]),
-                &(tmp_file.counters[MPIIO_ACCESS1_COUNT]), inoutfile->counters[j],
-                inoutfile->counters[j+4], 0);
+            DARSHAN_UPDATE_COMMON_VAL_COUNTERS(
+                &(tmp_file.counters[MPIIO_ACCESS1_ACCESS]),
+                &(tmp_file.counters[MPIIO_ACCESS1_COUNT]),
+                &inoutfile->counters[j], 1, inoutfile->counters[j+4], 1);
         }
 
         /* min non-zero (if available) value */
