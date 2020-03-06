@@ -58,7 +58,7 @@ http://www.mcs.anl.gov/darshan[Darshan web site].
 ----
 tar -xvzf darshan-<version-number>.tar.gz
 cd darshan-<version-number>/darshan-runtime
-./configure --with-mem-align=8 --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID CC=mpicc
+./configure --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID CC=mpicc
 make
 make install
 ----
@@ -67,15 +67,15 @@ make install
 ----
 tar -xvzf darshan-<version-number>.tar.gz
 cd darshan-<version-number>/darshan-runtime
-./configure --with-mem-align=8 --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID --without-mpi CC=gcc
+./configure --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID --without-mpi CC=gcc
 make
 make install
 ----
 
 .Explanation of configure arguments:
-* `--with-mem-align=` (mandatory): This value is system-dependent and will be
+* `--with-mem-align=`: This value is system-dependent and will be
 used by Darshan to determine if the buffer for a read or write operation is
-aligned in memory.
+aligned in memory (default is 8).
 * `--with-jobid-env=` (mandatory): this specifies the environment variable that
 Darshan should check to determine the jobid of a job.  Common values are
 `PBS_JOBID` or `COBALT_JOBID`.  If you are not using a scheduler (or your
@@ -465,7 +465,7 @@ and installation path, respectively.
 
 ----
 module swap PrgEnv-pgi PrgEnv-gnu
-./configure --with-mem-align=8 \
+./configure \
  --with-log-path=/shared-file-system/darshan-logs \
  --prefix=/soft/darshan-2.2.3 \
  --with-jobid-env=PBS_JOBID --disable-cuserid CC=cc
@@ -540,7 +540,7 @@ Most Intel MPI installations produce dynamic executables by default.  To
 configure Darshan in this environment you can use the following example:
 
 ----
-./configure --with-mem-align=8 --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID CC=mpicc
+./configure --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID CC=mpicc
 ----
 
 .Rationale
