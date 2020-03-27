@@ -242,9 +242,9 @@ endif
 	install -m 755 share/mpi-profile/darshan-cc.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-cc.conf
 	install -m 755 share/mpi-profile/darshan-cxx.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-cxx.conf
 	install -m 755 share/mpi-profile/darshan-f.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-f.conf
-	install -m 755 share/mpi-profile/darshan-bg-cc.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-bg-cc.conf
-	install -m 755 share/mpi-profile/darshan-bg-cxx.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-bg-cxx.conf
-	install -m 755 share/mpi-profile/darshan-bg-f.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-bg-f.conf
+	install -m 755 share/mpi-profile/darshan-cc-static.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-cc-static.conf
+	install -m 755 share/mpi-profile/darshan-cxx-static.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-cxx-static.conf
+	install -m 755 share/mpi-profile/darshan-f-static.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-f-static.conf
 	install -d $(DESTDIR)$(datarootdir)/ld-opts
 	install -m 644 share/ld-opts/darshan-base-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-base-ld-opts
 ifdef BUILD_POSIX_MODULE

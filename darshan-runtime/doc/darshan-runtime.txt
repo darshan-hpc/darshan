@@ -7,18 +7,17 @@ This document describes darshan-runtime, which is the instrumentation
 portion of the Darshan characterization tool.  It should be installed on the
 system where you intend to collect I/O characterization information.
 
-Darshan instruments applications via either compile time wrappers for static
-executables or dynamic library preloading for dynamic executables.  An
-application that has been instrumented with Darshan will produce a single
-log file each time it is executed.  This log summarizes the I/O access patterns
-used by the application.
+Darshan instruments applications via either compile time wrappers or
+dynamic library preloading.  An application that has been instrumented
+with Darshan will produce a single log file each time it is executed.
+This log summarizes the I/O access patterns used by the application.
 
 The darshan-runtime instrumentation has traditionally only supported MPI
 applications (specifically, those that call `MPI_Init()` and `MPI_Finalize()`),
 but, as of version 3.2.0, Darshan also supports instrumentation of non-MPI
 applications. Regardless of whether MPI is used, Darshan provides detailed
 statistics about POSIX level file accesses made by the application.
-In the case of MPI applications, Darshan additionally captures detals on MPI-IO
+In the case of MPI applications, Darshan additionally captures details on MPI-IO
 level access, as well as limited information about HDF5 and PnetCDF access.
 Note that instrumentation of non-MPI applications is currently only supported
 in Darshan's shared library, which applications must `LD_PRELOAD`.
@@ -44,12 +43,12 @@ coarse-grained instrumentation methods.
 This document provides generic installation instructions, but "recipes" for
 several common HPC systems are provided at the end of the document as well.
 
-More information about Darshan can be found at the 
+More information about Darshan can be found at the
 http://www.mcs.anl.gov/darshan[Darshan web site].
 
 == Requirements
 
-* C compiler (preferrably GCC-compatible)
+* C compiler (preferably GCC-compatible)
 * zlib development headers and library
 
 == Compilation
@@ -108,23 +107,10 @@ with support for HDF5 versions prior to 1.10
 * `--enable-HDF5-post-1.10`: enables the Darshan HDF5 instrumentation module,
 with support for HDF5 versions 1.10 or higher
 
-=== Cross compilation
-
-On some systems (notably the IBM Blue Gene series), the login nodes do not
-have the same architecture or runtime environment as the compute nodes.  In
-this case, you must configure darshan-runtime to be built using a cross
-compiler.  The following configure arguments show an example for the BG/P system:
-
-----
---host=powerpc-bgp-linux CC=/bgsys/drivers/ppcfloor/comm/default/bin/mpicc 
-----
-
 == Environment preparation
 
 Once darshan-runtime has been installed, you must prepare a location
 in which to store the Darshan log files and configure an instrumentation method.
-
-=== Log directory
 
 This step can be safely skipped if you configured darshan-runtime using the
 `--with-log-path-by-env` option.  A more typical configuration uses a static
@@ -138,7 +124,7 @@ placed. The deepest subdirectories will have sticky permissions to enable
 multiple users to write to the same directory.  If the log directory is
 shared system-wide across many users then the following script should be run
 as root.
- 
+
 ----
 darshan-mk-log-dirs.pl
 ----
@@ -161,36 +147,75 @@ administrators group
 * recursively set the setgid bit on the log directories
 ====
 
+== Instrumenting applications
 
-=== Instrumentation method
+[NOTE]
+====
+More specific installation "recipes" are provided later in this document for
+some platforms.  This section of the documentation covers general techniques.
+====
 
-The instrumentation method to use depends on whether the executables
-produced by your compiler are statically or dynamically linked.  If you
-are unsure, you can check by running `ldd <executable_name>` on an example
-executable.  Dynamically-linked executables will produce a list of shared
-libraries when this command is executed.
+Once Darshan has been installed and a log path has been prepared, the next
+step is to actually instrument applications. The preferred method is to
+instrument applications at compile time.
 
-Some compilers allow you to toggle dynamic or static linking via options
-such as `-dynamic` or `-static`.  Please check your compiler man page
-for details if you intend to force one mode or the other.
+=== Option 1: Instrumenting MPI applications at compile time
 
-== Instrumenting statically-linked MPI applications
+This method is applicable to C, Fortran, and C++ MPI applications
+(regardless of whether they are static or dynamicly linked) and is the most
+straightforward method to apply transparently system-wide.  It works by
+injecting additional libraries and options into the linker command line to
+intercept relevant I/O calls.
 
-Statically linked executables must be instrumented at compile time.
-The simplest methods to do this are to either generate a customized
-MPI compiler script (e.g. `mpicc`) that includes the link options and
-libraries needed by Darshan, or to use existing profiling configuration
-hooks for MPI compiler scripts.  Once this is done, Darshan
-instrumentation is transparent; you simply compile applications using
-the Darshan-enabled MPI compiler scripts.
+On Cray platforms you can enable the compile time instrumentation by simply
+loading the Darshan module.  It can then be enabled for all users by placing
+that module in the default environment. As of Darshan 3.2.0 this will
+instrument both static and dynamic executables, while in previous versions
+of Darshan this was only sufficient for static executables.  See the Cray
+installation recipe for more details.
 
-=== Using a profile configuration 
+For other general MPICH-based MPI implementations, you can generate
+Darshan-enabled variants of the standard mpicc/mpicxx/mpif90/mpif77
+wrappers using the following commands:
 
-[[static-prof]]
+----
+darshan-gen-cc.pl `which mpicc` --output mpicc.darshan
+darshan-gen-cxx.pl `which mpicxx` --output mpicxx.darshan
+darshan-gen-fortran.pl `which mpif77` --output mpif77.darshan
+darshan-gen-fortran.pl `which mpif90` --output mpif90.darshan
+-----
+
+The resulting *.darshan wrappers will transparently inject Darshan
+instrumentation into the link step without any explicit user intervention.
+They can be renamed and placed in an appropriate
+PATH to enable automatic instrumentation.  This method also works correctly
+for both static and dynamic executables as of Darshan 3.2.0.
+
+For other systems you can enable compile-time instrumentation by either
+manually adding the appropriate link options to your command line or
+modifying your default MPI compiler script.  The `darshan-config` command
+line tool can be used to display the options that you should use:
+
+----
+# Linker options to use for dynamic linking (default on most platforms)
+#   These arguments should go *before* the MPI libraries in the underlying
+#   linker command line to ensure that Darshan can be activated.  It should
+#   also ideally go before other libraries that may issue I/O function calls.
+darshan-config --dyn-ld-flags
+
+# linker options to use for static linking
+#   The first set of arguments should go early in the link command line
+#   (before MPI, while the second set should go at the end of the link command
+#   line
+darshan-config --pre-ld-flags
+darshan-config --post-ld-flags
+----
+
+==== Using a profile configuration
+
 The MPICH MPI implementation supports the specification of a profiling library
 configuration that can be used to insert Darshan instrumentation without
-modifying the existing MPI compiler script.  Example profiling configuration
-files are installed with Darshan 2.3.1 and later.  You can enable a profiling
+modifying the existing MPI compiler script. You can enable a profiling
 configuration using environment variables or command line arguments to the
 compiler scripts:
 
@@ -201,14 +226,6 @@ export MPICXX_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cxx
 export MPIFORT_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
 ----
 
-Example for MPICH 3.1 or earlier:
-----
-export MPICC_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cc
-export MPICXX_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-cxx
-export MPIF77_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
-export MPIF90_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-f
-----
-
 Examples for command line use:
 ----
 mpicc -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-c <args>
@@ -217,36 +234,20 @@ mpif77 -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-f <args>
 mpif90 -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-f <args>
 ----
 
-=== Using customized compiler wrapper scripts
+Note that unlike the previously described methods in this section, this
+method *will not* automatically adapt to static and dynamic linking options.
+The example profile configurations show above only support dynamic linking.
 
-[[static-wrapper]]
-For MPICH-based MPI libraries, such as MPICH1, MPICH2, or MVAPICH,
-custom wrapper scripts can be generated to automatically include Darshan
-instrumentation.  The following example illustrates how to produce
-wrappers for C, C++, and Fortran compilers:
+Example profile configurations are also provided with a "-static" suffix if
+you need examples for static linking.
 
-----
-darshan-gen-cc.pl `which mpicc` --output mpicc.darshan
-darshan-gen-cxx.pl `which mpicxx` --output mpicxx.darshan
-darshan-gen-fortran.pl `which mpif77` --output mpif77.darshan
-darshan-gen-fortran.pl `which mpif90` --output mpif90.darshan
------
+=== Option 2: Instrumenting MPI applications at run time
 
-=== Other configurations
-
-Please see the Cray recipe in this document for instructions on
-instrumenting statically-linked applications on that platform.
-
-For other MPI Libraries you must manually modify the MPI compiler scripts to
-add the necessary link options and libraries.  Please see the
-`darshan-gen-*` scripts for examples or contact the Darshan users mailing
-list for help.
-
-== Instrumenting dynamically-linked MPI applications
-
-For dynamically-linked executables, Darshan relies on the `LD_PRELOAD`
-environment variable to insert instrumentation at run time.  The executables
-should be compiled using the normal, unmodified MPI compiler.
+This method is applicable to pre-compiled dynamically linked executables
+as well as interpreted languages such as Python.  You do not need to
+change your compile options in any way.  This method works by injecting
+instrumentation at run time.  It will not work for statically linked
+executables.
 
 To use this mechanism, set the `LD_PRELOAD` environment variable to the full
 path to the Darshan shared library. The preferred method of inserting Darshan
@@ -285,28 +286,7 @@ For SGI systems running the MPT environment, it may be necessary to set the `MPI
 environment variable equal to `true` to avoid deadlock when preloading the Darshan shared
 library.
 
-=== Instrumenting dynamically-linked Fortran applications
-
-Please follow the general steps outlined in the previous section.  For
-Fortran applications compiled with MPICH you may have to take the additional
-step of adding
-`libfmpich.so` to your `LD_PRELOAD` environment variable. For example:
-
-----
-export LD_PRELOAD=/path/to/mpi/used/by/executable/lib/libfmpich.so:/home/carns/darshan-install/lib/libdarshan.so
-----
-
-[NOTE]
-The full path to the libfmpich.so library can be omitted if the rpath
-variable points to the correct path.  Be careful to check the rpath of the
-darshan library and the executable before using this configuration, however.
-They may provide conflicting paths.  Ideally the rpath to the  MPI library
-would *not* be set by the Darshan library, but would instead be specified
-exclusively by the executable itself.  You can check the rpath of the
-darshan library by running `objdump -x
-/home/carns/darshan-install/lib/libdarshan.so |grep RPATH`.
-
-== Instrumenting dynamically-linked non-MPI applications
+=== Option 3: Instrumenting non-MPI applications at run time
 
 Similar to the process described in the previous section, Darshan relies on the
 `LD_PRELOAD` mechanism for instrumenting dynamically-linked non-MPI applications.
@@ -335,6 +315,17 @@ env LD_PRELOAD=/home/carns/darshan-install/lib/libdarshan.so io-test
 Recall that Darshan instrumentation of non-MPI applications is only possible with 
 dynamically-linked applications.
 
+=== Using other profiling tools at the same time as Darshan
+
+As of Darshan version 3.2.0, Darshan does not necessarily interfere with
+other profiling tools (particularly those using the PMPI profiling
+interface).  Darshan itself does not use the PMPI interface, and instead
+uses dynamic linker symbol interception or --wrap function interception for
+static executables.
+
+As a rule of thumb most profiling tools should appear in the linker command
+line *before* -ldarshan if possible.
+
 == Using the Darshan eXtended Tracing (DXT) module
 
 DXT support is disabled by default in Darshan, requiring the user to either explicitly
@@ -349,7 +340,7 @@ export DXT_ENABLE_IO_TRACE=1
 ----
 
 To enable tracing for particular files, DXT additionally offers a trace
-triggering mechansim, with users specifying triggers used to decide whether or
+triggering mechanism, with users specifying triggers used to decide whether or
 not to trace a particular file at runtime. Files that do not match any trace
 trigger will not store trace data in the Darshan log. Currently, DXT supports
 the following types of trace triggers:
@@ -360,7 +351,7 @@ the following types of trace triggers:
 
 Users simply need to specify one or more of these triggers in a text file that is passed
 to DXT at runtime -- when multiple triggers are specified, DXT will keep any file traces
-that match at least one trigger (i.e., the trace decision is a logical OR accross given triggers).
+that match at least one trigger (i.e., the trace decision is a logical OR across given triggers).
 An example configuration file is given below, illustrating the syntax to use for currently
 supported triggers:
 
@@ -391,76 +382,26 @@ The following recipes provide examples for prominent HPC systems.
 These are intended to be used as a starting point.  You will most likely have to adjust paths and options to
 reflect the specifics of your system.
 
-=== IBM Blue Gene (BG/P or BG/Q)
-
-IBM Blue Gene systems produces static executables by default, uses a
-different architecture for login and compute nodes, and uses an MPI
-environment based on MPICH.
-
-The following example shows how to configure Darshan on a BG/P system:
-
-----
-./configure --with-mem-align=16 \
- --with-log-path=/home/carns/working/darshan/releases/logs \
- --prefix=/home/carns/working/darshan/install --with-jobid-env=COBALT_JOBID \
- --with-zlib=/soft/apps/zlib-1.2.3/ \
- --host=powerpc-bgp-linux CC=/bgsys/drivers/ppcfloor/comm/default/bin/mpicc 
-----
-
-.Rationale
-[NOTE]
-====
-The memory alignment is set to 16 not because that is the proper alignment
-for the BG/P CPU architecture, but because that is the optimal alignment for
-the network transport used between compute nodes and I/O nodes in the
-system.  The jobid environment variable is set to `COBALT_JOBID` in this
-case for use with the Cobalt scheduler, but other BG/P systems may use
-different schedulers.  The `--with-zlib` argument is used to point to a
-version of zlib that has been compiled for use on the compute nodes rather
-than the login node.  The `--host` argument is used to force cross-compilation
-of Darshan.  The `CC` variable is set to point to a stock MPI compiler.
-====
-
-Once Darshan has been installed, you can use one of the static
-instrumentation methods described earlier in this document.  If you
-use the profiling configuration file method, then please note that the
-Darshan installation includes profiling configuration files that have been
-adapted specifically for the Blue Gene environment.  Set the following
-environment variables to enable them, and then use your normal compiler
-scripts.  This method is compatible with both GNU and IBM compilers.
-
-Blue Gene profiling configuration example:
-----
-export MPICC_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-cc
-export MPICXX_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-cxx
-export MPIF77_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-f
-export MPIF90_PROFILE=$DARSHAN_PREFIX/share/mpi-profile/darshan-bg-f
-----
-
 === Cray platforms (XE, XC, or similar)
 
-The Cray programming environment produces static executables by default,
-which means that Darshan instrumentation must be inserted at compile
-time.  This can be accomplished by loading a software module that sets
-appropriate environment variables to modify the Cray compiler script link
-behavior.  This section describes how to compile and install Darshan,
+This section describes how to compile and install Darshan,
 as well as how to use a software module to enable and disable Darshan
-instrumentation.
+instrumentation on Cray systems.
 
 ==== Building and installing Darshan
 
 Please set your environment to use the GNU programming environment before
 configuring or compiling Darshan.  Although Darshan can be built with a
-variety of compilers, the GNU compilers are recommended because it will
+variety of compilers, the GNU compiler is recommended because it will
 produce a Darshan library that is interoperable with the widest range
 of compilers and linkers.  On most Cray systems you can enable the GNU
-programming environment with a command similar to "module swap PrgEnv-pgi
+programming environment with a command similar to "module swap PrgEnv-intel
 PrgEnv-gnu".  Please see your site documentation for information about
 how to switch programming environments.
 
 The following example shows how to configure and build Darshan on a Cray
-system using the GNU programming environment.  Adjust the 
---with-log-path and --prefix arguments to point to the desired log file path 
+system using the GNU programming environment.  Adjust the
+--with-log-path and --prefix arguments to point to the desired log file path
 and installation path, respectively.
 
 ----
@@ -488,8 +429,8 @@ Darshan will typically use the LOGNAME environment variable to determine a
 userid.
 ====
 
-As in any Darshan installation, the darshan-mk-log-dirs.pl script can then be 
-used to create the appropriate directory hierarchy for storing Darshan log 
+As in any Darshan installation, the darshan-mk-log-dirs.pl script can then be
+used to create the appropriate directory hierarchy for storing Darshan log
 files in the --with-log-path directory.
 
 Note that Darshan is not currently capable of detecting the stripe size
@@ -497,7 +438,7 @@ Note that Darshan is not currently capable of detecting the stripe size
 If a Lustre file system is detected, then Darshan assumes an optimal
 file alignment of 1 MiB.
 
-==== Enabling Darshan instrumentation 
+==== Enabling Darshan instrumentation
 
 Darshan will automatically install example software module files in the
 following locations (depending on how you specified the --prefix option in
@@ -531,10 +472,25 @@ command:
 module use /soft/darshan-2.2.3/share/craype-<VERSION>/modulefiles
 ----
 
-From this point, Darshan instrumenation can be enabled for all future
+From this point, Darshan instrumentation can be enabled for all future
 application compilations by running "module load darshan".
 
-=== Linux clusters using Intel MPI 
+=== Linux clusters using MPICH
+
+Most MPICH installations produce dynamic executables by default.  To
+configure Darshan in this environment you can use the following example.  We
+recommend using mpicc with GNU compilers to compile Darshan.
+
+----
+./configure --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID CC=mpicc
+----
+
+The darshan-gen-* scripts described earlier in this document can be used
+to create variants of the standard mpicc/mpicxx/mpif77/mpif90 scipts
+that are Darshan enabled.  These scripts will work correctly for both
+dynamic and statically linked executables.
+
+=== Linux clusters using Intel MPI
 
 Most Intel MPI installations produce dynamic executables by default.  To
 configure Darshan in this environment you can use the following example:
@@ -551,29 +507,11 @@ the underlying GNU compilers rather than the Intel ICC compilers to compile
 Darshan itself.
 ====
 
-You can use the `LD_PRELOAD` method described earlier in this document to
-instrument executables compiled with the Intel MPI compiler scripts.  This
-method has been briefly tested using both GNU and Intel compilers.
+You can enable Darshan instrumentation at compile time by adding
+`darshan-config --dyn-ld-flags` options to your linker command line.
 
-=== Linux clusters using MPICH 
-
-Follow the generic instructions provided at the top of this document.  For MPICH versions 3.1 and
-later, MPICH uses shared libraries by default, so you may need to consider the dynamic linking
-instrumentation approach.  
-
-The static linking method can be used if MPICH is configured to use static
-linking by default, or if you are using a version prior to 3.1.
-The only modification is to make sure that the `CC` used for compilation is
-based on a GNU compiler.  Once Darshan has been installed, it should be
-capable of instrumenting executables built with GNU, Intel, and PGI
-compilers.
-
-[NOTE]
-MPICH versions 3.1, 3.1.1, 3.1.2, and 3.1.3 may produce link-time errors when building static
-executables (i.e. using the -static option) if MPICH is built with shared library support.
-Please see http://trac.mpich.org/projects/mpich/ticket/2190 for more details.  The workaround if you
-wish to use static linking is to configure MPICH with `--enable-shared=no --enable-static=yes` to
-force it to use static MPI libraries with correct dependencies.
+Alternatively you can use `LD_PRELOAD` runtime instrumentation method to
+instrument executables that have already been compiled.
 
 === Linux clusters using Open MPI
 
@@ -581,13 +519,11 @@ Follow the generic instructions provided at the top of this document for
 compilation, and make sure that the `CC` used for compilation is based on a
 GNU compiler.
 
-Open MPI typically produces dynamically linked executables by default, which
-means that you should use the `LD_PRELOAD` method to instrument executables
-that have been built with Open MPI.  Darshan is only compatible with Open
-MPI 1.6.4 and newer.  For more details on why Darshan is not compatible with
-older versions of Open MPI, please refer to the following mailing list discussion:
+You can enable Darshan instrumentation at compile time by adding
+`darshan-config --dyn-ld-flags` options to your linker command line.
 
-http://www.open-mpi.org/community/lists/devel/2013/01/11907.php
+Alternatively you can use `LD_PRELOAD` runtime instrumentation method to
+instrument executables that have already been compiled.
 
 == Upgrading to Darshan 3.x from 2.x
 
@@ -661,18 +597,20 @@ For statically linked executables:
 00000000004070a0 T darshan_core_register_module
 ----
 
-* Make sure the application executable is statically linked:
-    ** In general, we encourage the use of purely statically linked executables when using the static
-instrumentation method given in link:darshan-runtime.html#_instrumenting_statically_linked_applications[Section 5]
-    ** If purely static executables are not an option, we encourage users to use the LD_PRELOAD method of
-instrumentation given in link:darshan-runtime.html#_instrumenting_dynamically_linked_applications[Section 6]
-    ** Statically linked executables are the default on Cray platforms and the IBM BG platforms; 
-statically linked executables can be explicitly requested using the `-static` compile option to most compilers
-    ** You can verify that an executable is purely statically linked by using the `file` command:
+For dynamically linked executables:
+
+* Ensure that the Darshan library is present in the list of shared libraries
+  to be used by the application, and that it appears before the MPI library:
 ----
-> file mpi-io-test
-mpi-io-test: ELF 64-bit LSB  executable, x86-64, version 1 (GNU/Linux), statically linked, for GNU/Linux 2.6.24, BuildID[sha1]=9893e599e7a560159ccf547b4c4ba5671f65ba32, not stripped
+> ldd mpi-io-test
+	linux-vdso.so.1 (0x00007ffd83925000)
+	libdarshan.so => /home/carns/working/install/lib/libdarshan.so (0x00007f0f4a7a6000)
+	libmpi.so.12 => /home/carns/working/src/spack/opt/spack/linux-ubuntu19.10-skylake/gcc-9.2.1/mpich-3.3.2-h3dybprufq7i5kt4hcyfoyihnrnbaogk/lib/libmpi.so.12 (0x00007f0f4a44f000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f0f4a241000)
+        ...
 ----
+
+General:
 
 * Ensure that the linker is correctly linking in Darshan's runtime libraries:
     ** A common mistake is to explicitly link in the underlying MPI libraries (e.g., `-lmpich` or `-lmpichf90`)

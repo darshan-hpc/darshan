@@ -5,17 +5,23 @@ DARSHAN_SHARE_PATH="@darshan_share_path@"
 DARSHAN_LD_FLAGS="@LDFLAGS@"
 
 # NOTE:
-# - we deliberately list libdarshan twice in the link command.  The
-#   first is necessary to correctly use the MPI profiling interface.  The
-#   final one is necessary to give the linker a change to resolve indirect
-#   dependencies on PnetCDF and HDF5 symbols (if the app used a library which 
-#   in turn used one of those HLLs).
+# - we deliberately list libdarshan twice in the link command when
+#   statically linking.  The first sets symbol wrapping options early in the
+#   link line. The final one is necessary to give the linker a change to
+#   resolve indirect dependencies on PnetCDF and HDF5 symbols (if the
+#   app used a library which in turn used one of those HLLs).
 
 PRE_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -ldarshan -lz -Wl,@$DARSHAN_SHARE_PATH/ld-opts/darshan-base-ld-opts"
 POST_LD_FLAGS="-L$DARSHAN_LIB_PATH -Wl,--start-group -ldarshan -ldarshan-stubs -Wl,--end-group -lz -lrt -lpthread"
 
+# NOTE:
+# - when dynamic linking there is no need for wrapping options, we simply
+#   need to get the darshan symbol definitions early enough in the link
+#   order.  We also set no-as-needed for linkers that may not identify
+DYN_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -Wl,-rpath=$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -Wl,-no-as-needed -ldarshan"
+
 usage="\
-Usage: darshan-config [--pre-ld-flags] [--post-ld-flags]"
+Usage: darshan-config [--pre-ld-flags] [--post-ld-flags] [--dyn-ld-flags]"
 
 if test $# -eq 0; then
       echo "${usage}" 1>&2
@@ -34,6 +40,9 @@ while test $# -gt 0; do
       ;;
     --post-ld-flags)
       echo $POST_LD_FLAGS
+      ;;
+    --dyn-ld-flags)
+      echo $DYN_LD_FLAGS
       ;;
     *)
       echo "${usage}" 1>&2
