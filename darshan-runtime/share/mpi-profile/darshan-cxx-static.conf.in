@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Example Darshan profiling configuration file for MPICH when statically
+# linking.
+
+DARSHAN_PREFIX=@prefix@
+MPICH_LIB_OLD=@MPICH_LIB_OLD@
+
+# Libraries (and paths) to include before the MPI library
+if [ $MPICH_LIB_OLD -eq 1 ]; then
+    export PROFILE_PRELIB="-lmpichcxx `$DARSHAN_PREFIX/bin/darshan-config --pre-ld-flags`"
+else
+    export PROFILE_PRELIB="-lmpicxx `$DARSHAN_PREFIX/bin/darshan-config --pre-ld-flags`"
+fi
+
+# Libraries to include after the MPI library
+export PROFILE_POSTLIB=`$DARSHAN_PREFIX/bin/darshan-config --post-ld-flags`

@@ -83,6 +83,7 @@ $FC_from_link=$1;
 $link_cmd_prefix=$2;
 $base_link_cmd_suffix="\"\$\{allargs\[\@\]\}\" $4";
 $link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" \$FMPICH `$PREFIX/bin/darshan-config --pre-ld-flags` $4 `$PREFIX/bin/darshan-config --post-ld-flags`";
+$dyn_link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" \$FMPICH `$PREFIX/bin/darshan-config --dyn-ld-flags` $4";
 
 # repeat the above step for the compilation command line
 if(!($compile_cmd =~ /(\S+)(.+)(-c foo.c)\s+(.*)/))
@@ -206,13 +207,6 @@ if [ "$linking" = yes ] ; then
     fi
 EOF
 print OUTPUT<<"EOF";
-    # Trial run to generate a symbol listing.  We only enable Darshan if:
-    # a) MPI is used
-    # b) PMPI is _not_ used
-    #
-    # We want Darshan to get out of the way if the user is doing a runtime
-    # test in configure (in which case MPI objects break the executable) or
-    # if the user is using another PMPI based tool
 
     # if allargs includes any libraries, then we need to get 
     # -ldarshan in there first
@@ -252,6 +246,14 @@ print OUTPUT<<"EOF";
 
     used_darshan=0
 
+    # Perform a test link before the real link.  This allows us to check
+    # for two things:
+    # 1) Are MPI symbols present? Technically Darshan should not harm
+    #    non-MPI programs, but it may bring in unwanted dependencies or
+    #    interfere with autoconf checks.
+    # 2) Is this link command line going to produce a static or dynamic
+    #    linked executable?  We will adjust Darshan link strategy accordingly.
+
     # create a temporary file
     tmpfile=`mktemp`
     binfile=`mktemp`
@@ -271,10 +273,9 @@ print OUTPUT<<"EOF";
     grep -i MPI \$tmpfile >& /dev/null
     rc_mpi=\$?
 
-    # is PMPI being used for PMPI_File_open?
-    grep -E PMPI_File_open \$tmpfile | grep -v -E \\(mpich.*\\.a\\) |grep \\(PMPI >& /dev/null
-    rc_pmpi=\$?
-
+    # did the link options produce a dynamic executable?
+    ldd \$binfile >& /dev/null
+    rc_dyn=\$?
 
     # find appropriate fortran library name for profiling
     grep -E libmpifort \$tmpfile >& /dev/null
@@ -298,27 +299,17 @@ print OUTPUT<<"EOF";
     fi
 
     rm \$tmpfile >& /dev/null
-
-    # is MPI_Init a weak symbol?
-    # disable darshan if it is not
-    if [ -e \$binfile ];
-    then
-        nm \$binfile | grep -i "mpi_init" | grep -i "w" >& /dev/null
-        rc_weak=\$?
-    else
-        rc_weak=1
-    fi
     rm \$binfile >& /dev/null
 
-    # disable darshan if the executable is not an MPI program (this feature
-    # mainly allows runtime configure tests to work
-    if [ \$rc_mpi -eq 0 ] ; then
-        # disable darshan if something else is already using PMPI; we don't
-        # want to cause any symbol conflicts
-        if [ \$rc_pmpi -ne 0 ] && [ \$compiler_check -eq 0 ] && [ \$rc_weak -eq 0 ]; then
+    # disable darshan if the executable is not an MPI program or we've
+    # detected an incompatible compiler
+    if [ \$rc_mpi -eq 0 ] && [ \$compiler_check -eq 0 ]; then
+        if [ \$rc_dyn -eq 0 ]; then
+            \$Show \$FC $link_cmd_prefix $dyn_link_cmd_suffix
+        else
             \$Show \$FC $link_cmd_prefix $link_cmd_suffix
-            used_darshan=1
         fi
+        used_darshan=1
     fi
 
     # otherwise use the normal command line
