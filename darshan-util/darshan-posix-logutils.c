@@ -63,6 +63,14 @@ static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p)
     if(fd->mod_map[DARSHAN_POSIX_MOD].len == 0)
         return(0);
 
+    if(fd->mod_ver[DARSHAN_POSIX_MOD] == 0 ||
+        fd->mod_ver[DARSHAN_POSIX_MOD] > DARSHAN_POSIX_VER)
+    {
+        fprintf(stderr, "Error: Invalid POSIX module version number (got %d)\n",
+            fd->mod_ver[DARSHAN_POSIX_MOD]);
+        return(-1);
+    }
+
     if(*posix_buf_p == NULL)
     {
         file = malloc(sizeof(*file));
@@ -198,7 +206,7 @@ exit:
                     ((i == POSIX_F_CLOSE_START_TIMESTAMP) ||
                      (i == POSIX_F_OPEN_END_TIMESTAMP)))
                     continue;
-                if ((fd->mod_ver[DARSHAN_POSIX_MOD] < 4) &&
+                if((fd->mod_ver[DARSHAN_POSIX_MOD] < 4) &&
                      ((i == POSIX_RENAME_SOURCES) || (i == POSIX_RENAME_TARGETS) ||
                       (i == POSIX_RENAMED_FROM)))
                     continue;

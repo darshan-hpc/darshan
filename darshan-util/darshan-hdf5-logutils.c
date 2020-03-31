@@ -37,6 +37,7 @@ char *h5d_f_counter_names[] = {
 #undef X
 
 #define DARSHAN_H5F_FILE_SIZE_1 40
+#define DARSHAN_H5F_FILE_SIZE_2 56
 
 static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p);
 static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf);
@@ -86,6 +87,14 @@ static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p)
     if(fd->mod_map[DARSHAN_H5F_MOD].len == 0)
         return(0);
 
+    if(fd->mod_ver[DARSHAN_H5F_MOD] == 0 ||
+        fd->mod_ver[DARSHAN_H5F_MOD] > DARSHAN_H5F_VER)
+    {
+        fprintf(stderr, "Error: Invalid H5F module version number (got %d)\n",
+            fd->mod_ver[DARSHAN_H5F_MOD]);
+        return(-1);
+    }
+
     if(*hdf5_buf_p == NULL)
     {
         file = malloc(sizeof(*file));
@@ -107,20 +116,45 @@ static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p)
         char *src_p, *dest_p;
         int len;
 
-        rec_len = DARSHAN_H5F_FILE_SIZE_1;
-        ret = darshan_log_get_mod(fd, DARSHAN_H5F_MOD, scratch, rec_len);
-        if(ret != rec_len)
-            goto exit;
+        if(fd->mod_ver[DARSHAN_H5F_MOD] == 1)
+        {
+            rec_len = DARSHAN_H5F_FILE_SIZE_1;
+            ret = darshan_log_get_mod(fd, DARSHAN_H5F_MOD, scratch, rec_len);
+            if(ret != rec_len)
+                goto exit;
 
-        /* upconvert version 1 to version 2 in-place */
-        dest_p = scratch + (sizeof(struct darshan_base_record) +
-            (1 * sizeof(int64_t)) + (3 * sizeof(double)));
-        src_p = dest_p - (2 * sizeof(double));
-        len = sizeof(double);
-        memmove(dest_p, src_p, len);
-        /* set F_CLOSE_START and F_OPEN_END to -1 */
-        *((double *)src_p) = -1;
-        *((double *)(src_p + sizeof(double))) = -1;
+            /* upconvert version 1 to version 2 in-place */
+            dest_p = scratch + (sizeof(struct darshan_base_record) +
+                (1 * sizeof(int64_t)) + (3 * sizeof(double)));
+            src_p = dest_p - (2 * sizeof(double));
+            len = sizeof(double);
+            memmove(dest_p, src_p, len);
+            /* set F_CLOSE_START and F_OPEN_END to -1 */
+            *((double *)src_p) = -1;
+            *((double *)(src_p + sizeof(double))) = -1;
+        }
+        if(fd->mod_ver[DARSHAN_H5F_MOD] <= 2)
+        {
+            if(fd->mod_ver[DARSHAN_H5F_MOD] == 2)
+            {
+                rec_len = DARSHAN_H5F_FILE_SIZE_2;
+                ret = darshan_log_get_mod(fd, DARSHAN_H5F_MOD, scratch, rec_len);
+                if(ret != rec_len)
+                    goto exit;
+            }
+
+            /* upconvert version 2 to version 3 in-place */
+            dest_p = scratch + (sizeof(struct darshan_base_record) +
+                (3 * sizeof(int64_t)));
+            src_p = dest_p - (2 * sizeof(int64_t));
+            len = 4 * sizeof(double);
+            memmove(dest_p, src_p, len);
+            /* set H5F_FLUSHES, H5F_USE_MPIIO to -1 */
+            *((int64_t *)src_p) = -1;
+            *((int64_t *)(src_p + sizeof(int64_t))) = -1;
+            /* set H5F_F_META_TIME to -1 */
+            *((double *)(dest_p + (4 * sizeof(double)))) = -1;
+        }
 
         memcpy(file, scratch, sizeof(struct darshan_hdf5_file));
     }
@@ -146,7 +180,15 @@ exit:
             DARSHAN_BSWAP64(&(file->base_rec.id));
             DARSHAN_BSWAP64(&(file->base_rec.rank));
             for(i=0; i<H5F_NUM_INDICES; i++)
+            {
+                /* skip counters we explicitly set to -1 since they don't
+                 * need to be byte swapped
+                 */
+                if((fd->mod_ver[DARSHAN_H5F_MOD] < 3) &&
+                    ((i == H5F_FLUSHES) || (i == H5F_USE_MPIIO)))
+                    continue;
                 DARSHAN_BSWAP64(&file->counters[i]);
+            }
             for(i=0; i<H5F_F_NUM_INDICES; i++)
             {
                 /* skip counters we explicitly set to -1 since they don't
@@ -155,6 +197,9 @@ exit:
                 if((fd->mod_ver[DARSHAN_H5F_MOD] == 1) &&
                     ((i == H5F_F_CLOSE_START_TIMESTAMP) ||
                      (i == H5F_F_OPEN_END_TIMESTAMP)))
+                    continue;
+                if((fd->mod_ver[DARSHAN_H5F_MOD] < 3) &&
+                    (i == H5F_F_META_TIME))
                     continue;
                 DARSHAN_BSWAP64(&file->fcounters[i]);
             }
@@ -173,6 +218,14 @@ static int darshan_log_get_hdf5_dataset(darshan_fd fd, void** hdf5_buf_p)
 
     if(fd->mod_map[DARSHAN_H5D_MOD].len == 0)
         return(0);
+
+    if(fd->mod_ver[DARSHAN_H5D_MOD] == 0 ||
+        fd->mod_ver[DARSHAN_H5D_MOD] > DARSHAN_H5D_VER)
+    {
+        fprintf(stderr, "Error: Invalid H5D module version number (got %d)\n",
+            fd->mod_ver[DARSHAN_H5D_MOD]);
+        return(-1);
+    }
 
     if(*hdf5_buf_p == NULL)
     {
@@ -310,9 +363,14 @@ static void darshan_log_print_hdf5_file_description(int ver)
 
     if(ver == 1)
     {
-        printf("\n# WARNING: HDF5 module log format version 1 does not support the following counters:\n");
+        printf("\n# WARNING: H5F module log format version 1 does not support the following counters:\n");
         printf("# - H5F_F_CLOSE_START_TIMESTAMP\n");
         printf("# - H5F_F_OPEN_END_TIMESTAMP\n");
+    }
+    if(ver <= 2)
+    {
+        printf("\n# WARNING: H5F module log format version <=2 does not support the following counters:\n");
+        printf("# \t- H5F_F_META_TIME\n");
     }
 
     return;
@@ -330,21 +388,22 @@ static void darshan_log_print_hdf5_dataset_description(int ver)
     printf("#   H5D_*_SELECTS: number of different access selections (regular/irregular hyperslab or points).\n");
     printf("#   H5D_MAX_*_TIME_SIZE: size of the slowest read and write operations.\n");
     printf("#   H5D_SIZE_*_AGG_*: histogram of H5D total access sizes for read and write operations.\n");
-    printf("#   H5D_ACCESS*_ACCESS: the four most common total access sizes.\n");
+    printf("#   H5D_ACCESS*_*: the four most common total accesses, in terms of size and length/stride (in last 5 dimensions).\n");
     printf("#   H5D_ACCESS*_COUNT: count of the four most common total access sizes.\n");
     printf("#   H5D_DATASPACE_NDIMS: number of dimensions in dataset's dataspace.\n");
     printf("#   H5D_DATASPACE_NPOINTS: number of points in dataset's dataspace.\n");
     printf("#   H5D_DATATYPE_SIZE: size of each dataset element.\n");
-    printf("#   H5F_USE_MPIIO_COLLECTIVE: flag indicating whether MPI-IO collectives were used to access this file.\n");
-    printf("#   H5F_USE_DEPRECATED: flag indicating whether deprecated H5D calls were used.\n");
-    printf("#   H5D_*_RANK: rank of the processes that were the fastest and slowest at I/O (for shared files).\n");
-    printf("#   H5D_*_RANK_BYTES: total bytes transferred at H5D layer by the fastest and slowest ranks (for shared files).\n");
-    printf("#   H5D_F_*_START_TIMESTAMP: timestamp of first HDF5 file open/read/write/close.\n");
-    printf("#   H5D_F_*_END_TIMESTAMP: timestamp of last HDF5 file open/read/write/close.\n");
+    printf("#   H5D_CHUNK_SIZE_D*: chunk size in last 5 dimensions of dataset.\n");
+    printf("#   H5D_USE_MPIIO_COLLECTIVE: flag indicating whether MPI-IO collectives were used to access this dataset.\n");
+    printf("#   H5D_USE_DEPRECATED: flag indicating whether deprecated H5D calls were used.\n");
+    printf("#   H5D_*_RANK: rank of the processes that were the fastest and slowest at I/O (for shared datasets).\n");
+    printf("#   H5D_*_RANK_BYTES: total bytes transferred at H5D layer by the fastest and slowest ranks (for shared datasets).\n");
+    printf("#   H5D_F_*_START_TIMESTAMP: timestamp of first HDF5 dataset open/read/write/close.\n");
+    printf("#   H5D_F_*_END_TIMESTAMP: timestamp of last HDF5 datset open/read/write/close.\n");
     printf("#   H5D_F_READ/WRITE/META_TIME: cumulative time spent in H5D read, write, or metadata operations.\n");
     printf("#   H5D_F_MAX_*_TIME: duration of the slowest H5D read and write operations.\n");
-    printf("#   H5D_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).\n");
-    printf("#   H5D_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared files).\n");
+    printf("#   H5D_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared datasets).\n");
+    printf("#   H5D_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared datasets).\n");
 
     return;
 }
@@ -565,9 +624,9 @@ static void darshan_log_agg_hdf5_datasets(void *rec, void *agg_rec, int init_fla
 {
     struct darshan_hdf5_dataset *hdf5_rec = (struct darshan_hdf5_dataset *)rec;
     struct darshan_hdf5_dataset *agg_hdf5_rec = (struct darshan_hdf5_dataset *)agg_rec;
-    int i, j, k;
+    int i, j, j2, k, k2;
     int total_count;
-    int64_t tmp_val[4];
+    int64_t tmp_val[4 * (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1)];
     int64_t tmp_cnt[4];
     int tmp_ndx;
     double old_M;
@@ -631,72 +690,145 @@ static void darshan_log_agg_hdf5_datasets(void *rec, void *agg_rec, int init_fla
                 if(hdf5_rec->counters[i] == 0) break;
 
                 /* first, collapse duplicates */
-                for(j = i; j < i + 4; j++)
+                for(j = i, j2 = H5D_ACCESS1_COUNT; j <= H5D_ACCESS4_ACCESS;
+                    j += (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1), j2++)
                 {
-                    for(k = 0; k < 4; k++)
+                    for(k = i, k2 = H5D_ACCESS1_COUNT; k <= H5D_ACCESS4_ACCESS;
+                        k += (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1), k2++)
                     {
-                        if(agg_hdf5_rec->counters[i + k] == hdf5_rec->counters[j])
+                        if(!memcmp(&hdf5_rec->counters[j], &agg_hdf5_rec->counters[k],
+                            sizeof(int64_t) * (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1)))
                         {
-                            agg_hdf5_rec->counters[i + k + 4] += hdf5_rec->counters[j + 4];
-                            hdf5_rec->counters[j] = hdf5_rec->counters[j + 4] = 0;
+                            memset(&hdf5_rec->counters[j], 0, sizeof(int64_t) *
+                                (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1));
+                            agg_hdf5_rec->counters[k2] += hdf5_rec->counters[j2];
+                            hdf5_rec->counters[j2] = 0;
                         }
                     }
                 }
 
                 /* second, add new counters */
-                for(j = i; j < i + 4; j++)
+                for(j = i, j2 = H5D_ACCESS1_COUNT; j <= H5D_ACCESS4_ACCESS;
+                    j += (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1), j2++)
                 {
                     tmp_ndx = 0;
-                    memset(tmp_val, 0, 4 * sizeof(int64_t));
+                    memset(tmp_val, 0, 4 * (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1) * sizeof(int64_t));
                     memset(tmp_cnt, 0, 4 * sizeof(int64_t));
 
                     if(hdf5_rec->counters[j] == 0) break;
-                    for(k = 0; k < 4; k++)
+                    for(k = i, k2 = H5D_ACCESS1_COUNT; k <= H5D_ACCESS4_ACCESS;
+                        k += (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1), k2++)
                     {
-                        if(agg_hdf5_rec->counters[i + k] == hdf5_rec->counters[j])
+                        if(!memcmp(&hdf5_rec->counters[j], &agg_hdf5_rec->counters[k],
+                            sizeof(int64_t) * (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1)))
                         {
-                            total_count = agg_hdf5_rec->counters[i + k + 4] +
-                                hdf5_rec->counters[j + 4];
+                            total_count = agg_hdf5_rec->counters[k2] +
+                                hdf5_rec->counters[j2];
                             break;
                         }
                     }
-                    if(k == 4) total_count = hdf5_rec->counters[j + 4];
+                    if(k > H5D_ACCESS4_ACCESS) total_count = hdf5_rec->counters[j2];
 
-                    for(k = 0; k < 4; k++)
+                    for(k = i, k2 = H5D_ACCESS1_COUNT; k <= H5D_ACCESS4_ACCESS;
+                        k += (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1), k2++)
                     {
-                        if((agg_hdf5_rec->counters[i + k + 4] > total_count) ||
-                           ((agg_hdf5_rec->counters[i + k + 4] == total_count) &&
-                            (agg_hdf5_rec->counters[i + k] > hdf5_rec->counters[j])))
+                        if((agg_hdf5_rec->counters[k2] > total_count) ||
+                           ((agg_hdf5_rec->counters[k2] == total_count) &&
+                            (agg_hdf5_rec->counters[k] > hdf5_rec->counters[j])))
                         {
-                            tmp_val[tmp_ndx] = agg_hdf5_rec->counters[i + k];
-                            tmp_cnt[tmp_ndx] = agg_hdf5_rec->counters[i + k + 4];
+                            memcpy(&tmp_val[tmp_ndx * (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1)],
+                                &agg_hdf5_rec->counters[k],
+                                sizeof(int64_t) * (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1));
+                            tmp_cnt[tmp_ndx] = agg_hdf5_rec->counters[k2];
                             tmp_ndx++;
                         }
                         else break;
                     }
                     if(tmp_ndx == 4) break;
 
-                    tmp_val[tmp_ndx] = hdf5_rec->counters[j];
-                    tmp_cnt[tmp_ndx] = hdf5_rec->counters[j + 4];
+                    memcpy(&tmp_val[tmp_ndx * (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1)],
+                        &hdf5_rec->counters[j],
+                        sizeof(int64_t) * (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1));
+                    tmp_cnt[tmp_ndx] = hdf5_rec->counters[j2];
                     tmp_ndx++;
 
                     while(tmp_ndx != 4)
                     {
-                        if(agg_hdf5_rec->counters[i + k] != hdf5_rec->counters[j])
+                        if(memcmp(&agg_hdf5_rec->counters[k], &hdf5_rec->counters[j],
+                            sizeof(int64_t) * (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1)))
                         {
-                            tmp_val[tmp_ndx] = agg_hdf5_rec->counters[i + k];
-                            tmp_cnt[tmp_ndx] = agg_hdf5_rec->counters[i + k + 4];
+                            memcpy(&tmp_val[tmp_ndx * (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1)],
+                                &agg_hdf5_rec->counters[k],
+                                sizeof(int64_t) * (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1));
+                            tmp_cnt[tmp_ndx] = agg_hdf5_rec->counters[k2];
                             tmp_ndx++;
                         }
-                        k++;
+                        k += (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1);
+                        k2++;
                     }
-                    memcpy(&(agg_hdf5_rec->counters[i]), tmp_val, 4 * sizeof(int64_t));
-                    memcpy(&(agg_hdf5_rec->counters[i + 4]), tmp_cnt, 4 * sizeof(int64_t));
+                    memcpy(&(agg_hdf5_rec->counters[H5D_ACCESS1_ACCESS]), tmp_val,
+                        4 * (H5D_MAX_NDIMS+H5D_MAX_NDIMS+1) * sizeof(int64_t));
+                    memcpy(&(agg_hdf5_rec->counters[H5D_ACCESS1_COUNT]), tmp_cnt,
+                        4 * sizeof(int64_t));
                 }
+                break;
+            case H5D_ACCESS1_LENGTH_D1:
+            case H5D_ACCESS1_LENGTH_D2:
+            case H5D_ACCESS1_LENGTH_D3:
+            case H5D_ACCESS1_LENGTH_D4:
+            case H5D_ACCESS1_LENGTH_D5:
+            case H5D_ACCESS1_STRIDE_D1:
+            case H5D_ACCESS1_STRIDE_D2:
+            case H5D_ACCESS1_STRIDE_D3:
+            case H5D_ACCESS1_STRIDE_D4:
+            case H5D_ACCESS1_STRIDE_D5:
+            case H5D_ACCESS2_ACCESS:
+            case H5D_ACCESS2_LENGTH_D1:
+            case H5D_ACCESS2_LENGTH_D2:
+            case H5D_ACCESS2_LENGTH_D3:
+            case H5D_ACCESS2_LENGTH_D4:
+            case H5D_ACCESS2_LENGTH_D5:
+            case H5D_ACCESS2_STRIDE_D1:
+            case H5D_ACCESS2_STRIDE_D2:
+            case H5D_ACCESS2_STRIDE_D3:
+            case H5D_ACCESS2_STRIDE_D4:
+            case H5D_ACCESS2_STRIDE_D5:
+            case H5D_ACCESS3_ACCESS:
+            case H5D_ACCESS3_LENGTH_D1:
+            case H5D_ACCESS3_LENGTH_D2:
+            case H5D_ACCESS3_LENGTH_D3:
+            case H5D_ACCESS3_LENGTH_D4:
+            case H5D_ACCESS3_LENGTH_D5:
+            case H5D_ACCESS3_STRIDE_D1:
+            case H5D_ACCESS3_STRIDE_D2:
+            case H5D_ACCESS3_STRIDE_D3:
+            case H5D_ACCESS3_STRIDE_D4:
+            case H5D_ACCESS3_STRIDE_D5:
+            case H5D_ACCESS4_ACCESS:
+            case H5D_ACCESS4_LENGTH_D1:
+            case H5D_ACCESS4_LENGTH_D2:
+            case H5D_ACCESS4_LENGTH_D3:
+            case H5D_ACCESS4_LENGTH_D4:
+            case H5D_ACCESS4_LENGTH_D5:
+            case H5D_ACCESS4_STRIDE_D1:
+            case H5D_ACCESS4_STRIDE_D2:
+            case H5D_ACCESS4_STRIDE_D3:
+            case H5D_ACCESS4_STRIDE_D4:
+            case H5D_ACCESS4_STRIDE_D5:
+            case H5D_ACCESS1_COUNT:
+            case H5D_ACCESS2_COUNT:
+            case H5D_ACCESS3_COUNT:
+            case H5D_ACCESS4_COUNT:
+                /* these are set all at once with common counters above */
                 break;
             case H5D_DATASPACE_NDIMS:
             case H5D_DATASPACE_NPOINTS:
             case H5D_DATATYPE_SIZE:
+            case H5D_CHUNK_SIZE_D1:
+            case H5D_CHUNK_SIZE_D2:
+            case H5D_CHUNK_SIZE_D3:
+            case H5D_CHUNK_SIZE_D4:
+            case H5D_CHUNK_SIZE_D5:
                 /* just set to the input value */
                 agg_hdf5_rec->counters[i] = hdf5_rec->counters[i];
                 break;
