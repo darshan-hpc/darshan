@@ -370,6 +370,8 @@ static void darshan_log_print_hdf5_file_description(int ver)
     if(ver <= 2)
     {
         printf("\n# WARNING: H5F module log format version <=2 does not support the following counters:\n");
+        printf("# \t- H5F_FLUSHES\n");
+        printf("# \t- H5F_USE_MPIIO\n");
         printf("# \t- H5F_F_META_TIME\n");
     }
 
