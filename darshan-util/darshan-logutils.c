@@ -872,6 +872,7 @@ static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
 static int darshan_log_get_header(darshan_fd fd)
 {
     struct darshan_header header;
+    double log_ver_val;
     int i;
     int ret;
 
@@ -895,11 +896,8 @@ static int darshan_log_get_header(darshan_fd fd)
     {
         fd->state->get_namerecs = darshan_log_get_namerecs_3_00;
     }
-    else if(strcmp(fd->version, "3.10") == 0)
-    {
-        /* XXX */
-    }
-    else if(strcmp(fd->version, "3.20") == 0)
+    else if((strcmp(fd->version, "3.10") == 0) ||
+            (strcmp(fd->version, "3.20") == 0))
     {
         fd->state->get_namerecs = darshan_log_get_namerecs;
     }
@@ -966,6 +964,18 @@ static int darshan_log_get_header(darshan_fd fd)
     /* save the mapping of data within log file to this file descriptor */
     memcpy(&fd->name_map, &(header.name_map), sizeof(struct darshan_log_map));
     memcpy(&fd->mod_map, &(header.mod_map), DARSHAN_MAX_MODS * sizeof(struct darshan_log_map));
+
+    log_ver_val = atof(fd->version);
+    if(log_ver_val < 3.2)
+    {
+        /* perform module index shift to account for H5D module from 3.2.0 */
+        memmove(&fd->mod_map[DARSHAN_H5D_MOD+1], &fd->mod_map[DARSHAN_H5D_MOD],
+            (DARSHAN_MAX_MODS-DARSHAN_H5D_MOD-1) * sizeof(struct darshan_log_map));
+        memmove(&fd->mod_ver[DARSHAN_H5D_MOD+1], &fd->mod_ver[DARSHAN_H5D_MOD],
+            (DARSHAN_MAX_MODS-DARSHAN_H5D_MOD-1) * sizeof(uint32_t));
+        fd->mod_map[DARSHAN_H5D_MOD].len = fd->mod_map[DARSHAN_H5D_MOD].off = 0;
+        fd->mod_ver[DARSHAN_H5D_MOD] = 0;
+    }
 
     /* there may be nothing following the job data, so safety check map */
     fd->job_map.off = sizeof(struct darshan_header);
