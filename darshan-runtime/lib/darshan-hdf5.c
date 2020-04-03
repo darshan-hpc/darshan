@@ -168,7 +168,7 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     unsigned majnum, minnum, relnum;
 
     H5get_libversion(&majnum, &minnum, &relnum);
-    if((majnum != H5_VERS_MAJOR) && (minnum != H5_VERS_MINOR))
+    if((majnum != H5_VERS_MAJOR) || (minnum != H5_VERS_MINOR))
     {
         if(my_rank < 0)
             MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
@@ -214,7 +214,7 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     unsigned majnum, minnum, relnum;
 
     H5get_libversion(&majnum, &minnum, &relnum);
-    if((majnum != H5_VERS_MAJOR) && (minnum != H5_VERS_MINOR))
+    if((majnum != H5_VERS_MAJOR) || (minnum != H5_VERS_MINOR))
     {
         if(my_rank < 0)
             MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
