@@ -96,9 +96,6 @@
 /* Define if cuserid() should be disabled */
 #undef __DARSHAN_DISABLE_CUSERID
 
-/* Set for compatibility with HDF5 1.10.x */
-#undef __DARSHAN_ENABLE_HDF5110
-
 /* Define if Darshan should mmap data structures to log file */
 #undef __DARSHAN_ENABLE_MMAP_LOGS
 

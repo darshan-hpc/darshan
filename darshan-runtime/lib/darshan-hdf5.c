@@ -165,15 +165,10 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     hid_t ret;
     char* tmp;
     double tm1, tm2;
-#if 0
     unsigned majnum, minnum, relnum;
 
     H5get_libversion(&majnum, &minnum, &relnum);
-#ifdef __DARSHAN_ENABLE_HDF5110
-    if(majnum < 1 || (majnum == 1 && minnum < 10))
-#else
-    if(majnum > 1 || (majnum == 1 && minnum >= 10))
-#endif
+    if((majnum != H5_VERS_MAJOR) && (minnum != H5_VERS_MINOR))
     {
         if(my_rank < 0)
             MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
@@ -183,7 +178,6 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
         }
         return(-1);
     }
-#endif
 
     MAP_OR_FAIL(H5Fcreate);
 
@@ -217,15 +211,10 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     hid_t ret;
     char* tmp;
     double tm1, tm2;
-#if 0
     unsigned majnum, minnum, relnum;
 
     H5get_libversion(&majnum, &minnum, &relnum);
-#ifdef __DARSHAN_ENABLE_HDF5110
-    if(majnum < 1 || (majnum == 1 && minnum < 10))
-#else
-    if(majnum > 1 || (majnum == 1 && minnum >= 10))
-#endif
+    if((majnum != H5_VERS_MAJOR) && (minnum != H5_VERS_MINOR))
     {
         if(my_rank < 0)
             MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
@@ -235,7 +224,6 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
         }
         return(-1);
     }
-#endif
 
     MAP_OR_FAIL(H5Fopen);
 

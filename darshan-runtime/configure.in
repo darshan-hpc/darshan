@@ -219,6 +219,15 @@ AS_IF([test "x$enable_mpiio_mod" = "xno" || test "x$ENABLE_MPI" = "x"],
       BUILD_MPIIO_MODULE=
       DARSHAN_MPIIO_LD_OPTS=)
 
+# HDF5 module (disabled by default)
+BUILD_HDF5_MODULE=
+DARSHAN_HDF5_LD_OPTS=
+AC_ARG_ENABLE(hdf5-mod,
+              AS_HELP_STRING([--enable-hdf5-mod], [Enables compilation and use of HDF5 module]))
+AS_IF([test "x$enable_hdf5_mod" = "xyes"],
+    BUILD_HDF5_MODULE=1
+    DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts")
+
 # PNETCDF module
 BUILD_PNETCDF_MODULE=1
 DARSHAN_PNETCDF_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-pnetcdf-ld-opts"
@@ -227,37 +236,6 @@ AC_ARG_ENABLE(pnetcdf-mod,
 AS_IF([test "x$enable_pnetcdf_mod" = "xno" || test "x$ENABLE_MPI" = "x"],
       BUILD_PNETCDF_MODULE=
       DARSHAN_PNETCDF_LD_OPTS=)
-
-# HDF5 module
-BUILD_HDF5_MODULE=
-BUILD_HDF5_POST110=
-DARSHAN_HDF5_LD_OPTS=
-
-# see if user explicitly enabled support for an HDF5 API
-AC_ARG_ENABLE(HDF5-post-1.10,
-[  --enable-HDF5-post-1.10
-                          Enable HDF5 module for HDF5 version 1.10 or later],
-[if test "x$enableval" = "xyes" ; then
-    AC_DEFINE(__DARSHAN_ENABLE_HDF5110, 1, Set for compatibility with HDF5 1.10.x, breaks use with versions earlier than 1.10)
-    if test "x$BUILD_HDF5_MODULE" = "x1"; then
-        AC_MSG_ERROR([Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10])
-    fi
-    BUILD_HDF5_MODULE=1
-    BUILD_HDF5_POST110=1
-    DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
-fi]
-,)
-AC_ARG_ENABLE(HDF5-pre-1.10,
-[  --enable-HDF5-pre-1.10
-                          Enable HDF5 module for HDF5 versions earlier than 1.10],
-[if test "x$enableval" = "xyes" ; then
-    if test "x$BUILD_HDF5_MODULE" = "x1"; then
-        AC_MSG_ERROR([Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10])
-    fi
-    BUILD_HDF5_MODULE=1
-    DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
-fi]
-,)
 
 # BG/Q module
 BUILD_BGQ_MODULE=
@@ -549,16 +527,8 @@ AS_IF([test "x$BUILD_POSIX_MODULE" = "x"],   [AC_MSG_NOTICE(POSIX module support
 AS_IF([test "x$BUILD_STDIO_MODULE" = "x"],   [AC_MSG_NOTICE(STDIO module support:   no)], [AC_MSG_NOTICE(STDIO module support:   yes)])
 AS_IF([test "x$BUILD_DXT_MODULE" = "x"],    [AC_MSG_NOTICE(DXT module support:     no)], [AC_MSG_NOTICE(DXT module support:     yes)])
 AS_IF([test "x$BUILD_MPIIO_MODULE" = "x"],   [AC_MSG_NOTICE(MPIIO module support:   no)], [AC_MSG_NOTICE(MPIIO module support:   yes)])
+AS_IF([test "x$BUILD_HDF5_MODULE" = "x"], [AC_MSG_NOTICE(HDF5 module support:    no)], [AC_MSG_NOTICE(HDF5 module support:    yes)])
 AS_IF([test "x$BUILD_PNETCDF_MODULE" = "x"], [AC_MSG_NOTICE(PnetCDF module support: no)], [AC_MSG_NOTICE(PnetCDF module support: yes)])
-AS_IF(
-    [test "x$BUILD_HDF5_MODULE" = "x"],
-    [AC_MSG_NOTICE(HDF5 module support:    no)],
-    [AS_IF(
-        [test "x$BUILD_HDF5_POST110" = "x1"],
-        [AC_MSG_NOTICE(HDF5 module support:    1.10+)],
-        [AC_MSG_NOTICE(HDF5 module support:    pre-1.10)]
-    )],
-)
 AS_IF([test "x$BUILD_BGQ_MODULE" = "x"],     [AC_MSG_NOTICE(BG/Q module support:    no)], [AC_MSG_NOTICE(BG/Q module support:    yes)])
 AS_IF([test "x$BUILD_LUSTRE_MODULE" = "x"],  [AC_MSG_NOTICE(Lustre module support:  no)], [AC_MSG_NOTICE(Lustre module support:  yes)])
 AS_IF([test "x$BUILD_MDHIM_MODULE" = "x"],   [AC_MSG_NOTICE(MDHIM module support:   no)], [AC_MSG_NOTICE(MDHIM module support:   yes)])
