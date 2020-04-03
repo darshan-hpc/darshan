@@ -587,6 +587,7 @@ herr_t H5Dread(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id,
                 file_sel_npoints = H5Sget_select_npoints(file_space_id);
                 file_sel_type = H5Sget_select_type(file_space_id);
             }
+#if (H5_VERS_MAJOR > 1) || ((H5_VERS_MAJOR == 1) && (H5_VERS_MINOR >= 10))
             if(file_sel_type == H5S_SEL_ALL)
                 rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] += 1;
             else if(file_sel_type == H5S_SEL_POINTS)
@@ -609,6 +610,16 @@ herr_t H5Dread(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id,
                 else
                     rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS] += 1;
             }
+#else
+            rec_ref->dataset_rec->counters[H5D_POINT_SELECTS] = -1;
+            rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] = -1;
+            rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS] = -1;
+            for(i = 0; i < H5D_MAX_NDIMS; i++)
+            {
+                common_access_vals[1+i] = -1;
+                common_access_vals[1+i+H5D_MAX_NDIMS] = -1;
+            }
+#endif
             type_size = rec_ref->dataset_rec->counters[H5D_DATATYPE_SIZE];
             access_size = file_sel_npoints * type_size;
             rec_ref->dataset_rec->counters[H5D_BYTES_READ] += access_size;
@@ -695,10 +706,11 @@ herr_t H5Dwrite(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id,
                 file_sel_npoints = H5Sget_select_npoints(file_space_id);
                 file_sel_type = H5Sget_select_type(file_space_id);
             }
-            if(file_sel_type == H5S_SEL_POINTS)
-                rec_ref->dataset_rec->counters[H5D_POINT_SELECTS] += 1;
-            else if(file_sel_type == H5S_SEL_ALL)
+#if (H5_VERS_MAJOR > 1) || ((H5_VERS_MAJOR == 1) && (H5_VERS_MINOR >= 10))
+            if(file_sel_type == H5S_SEL_ALL)
                 rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] += 1;
+            else if(file_sel_type == H5S_SEL_POINTS)
+                rec_ref->dataset_rec->counters[H5D_POINT_SELECTS] += 1;
             else
             {
                 if(H5Sis_regular_hyperslab(file_space_id))
@@ -717,6 +729,16 @@ herr_t H5Dwrite(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id,
                 else
                     rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS] += 1;
             }
+#else
+            rec_ref->dataset_rec->counters[H5D_POINT_SELECTS] = -1;
+            rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] = -1;
+            rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS] = -1;
+            for(i = 0; i < H5D_MAX_NDIMS; i++)
+            {
+                common_access_vals[1+i] = -1;
+                common_access_vals[1+i+H5D_MAX_NDIMS] = -1;
+            }
+#endif
             type_size = rec_ref->dataset_rec->counters[H5D_DATATYPE_SIZE];
             access_size = file_sel_npoints * type_size;
             rec_ref->dataset_rec->counters[H5D_BYTES_WRITTEN] += access_size;
