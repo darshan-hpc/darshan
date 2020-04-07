@@ -632,6 +632,7 @@ BUILD_PNETCDF_MODULE
 DARSHAN_MPIIO_LD_OPTS
 BUILD_MPIIO_MODULE
 BUILD_DXT_MODULE
+DARSHAN_STDIO_ADD_FSCANF_LD_OPTS
 DARSHAN_STDIO_LD_OPTS
 BUILD_STDIO_MODULE
 DARSHAN_POSIX_LD_OPTS
@@ -4853,12 +4854,14 @@ _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
+    DARSHAN_STDIO_ADD_FSCANF_LD_OPTS="--wrap=__isoc99_fscanf"
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
 $as_echo "#define HAVE_FSCANF_REDIRECT 1" >>confdefs.h
 
+    DARSHAN_STDIO_ADD_FSCANF_LD_OPTS=""
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
@@ -4890,7 +4893,8 @@ DARSHAN_VERSION="3.2.0-pre1"
 
 
 
-ac_config_files="$ac_config_files Makefile darshan-mk-log-dirs.pl darshan-gen-cc.pl darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-config share/craype-1.x/darshan-module share/craype-2.x/darshan-module lib/pkgconfig/darshan-runtime.pc share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf share/mpi-profile/darshan-cc-static.conf share/mpi-profile/darshan-cxx-static.conf share/mpi-profile/darshan-f-static.conf share/ld-opts/darshan-base-ld-opts"
+
+ac_config_files="$ac_config_files Makefile darshan-mk-log-dirs.pl darshan-gen-cc.pl darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-config share/craype-1.x/darshan-module share/craype-2.x/darshan-module lib/pkgconfig/darshan-runtime.pc share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf share/mpi-profile/darshan-cc-static.conf share/mpi-profile/darshan-cxx-static.conf share/mpi-profile/darshan-f-static.conf share/ld-opts/darshan-base-ld-opts share/ld-opts/darshan-stdio-ld-opts"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5601,6 +5605,7 @@ do
     "share/mpi-profile/darshan-cxx-static.conf") CONFIG_FILES="$CONFIG_FILES share/mpi-profile/darshan-cxx-static.conf" ;;
     "share/mpi-profile/darshan-f-static.conf") CONFIG_FILES="$CONFIG_FILES share/mpi-profile/darshan-f-static.conf" ;;
     "share/ld-opts/darshan-base-ld-opts") CONFIG_FILES="$CONFIG_FILES share/ld-opts/darshan-base-ld-opts" ;;
+    "share/ld-opts/darshan-stdio-ld-opts") CONFIG_FILES="$CONFIG_FILES share/ld-opts/darshan-stdio-ld-opts" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
