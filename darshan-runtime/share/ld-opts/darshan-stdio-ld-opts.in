@@ -27,5 +27,5 @@
 --wrap=fsetpos
 --wrap=fsetpos64
 --wrap=rewind
---wrap=__isoc99_fscanf
 --wrap=printf
+@DARSHAN_STDIO_ADD_FSCANF_LD_OPTS@

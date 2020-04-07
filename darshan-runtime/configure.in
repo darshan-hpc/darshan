@@ -487,9 +487,11 @@ AC_TRY_COMPILE(
     int __isoc99_fscanf(FILE *stream, const char *format, ...) {return(0);}
     ],
     [],
-    AC_MSG_RESULT(no),
+    AC_MSG_RESULT(no)
+    DARSHAN_STDIO_ADD_FSCANF_LD_OPTS="--wrap=__isoc99_fscanf",
     AC_MSG_RESULT(yes)
     AC_DEFINE(HAVE_FSCANF_REDIRECT, 1, Define if fscanf is redirected to another function)
+    DARSHAN_STDIO_ADD_FSCANF_LD_OPTS=""
 )
 
 
@@ -508,6 +510,7 @@ AC_SUBST(BUILD_POSIX_MODULE)
 AC_SUBST(DARSHAN_POSIX_LD_OPTS)
 AC_SUBST(BUILD_STDIO_MODULE)
 AC_SUBST(DARSHAN_STDIO_LD_OPTS)
+AC_SUBST(DARSHAN_STDIO_ADD_FSCANF_LD_OPTS)
 AC_SUBST(BUILD_DXT_MODULE)
 AC_SUBST(BUILD_MPIIO_MODULE)
 AC_SUBST(DARSHAN_MPIIO_LD_OPTS)
@@ -535,6 +538,7 @@ share/mpi-profile/darshan-cc-static.conf
 share/mpi-profile/darshan-cxx-static.conf
 share/mpi-profile/darshan-f-static.conf
 share/ld-opts/darshan-base-ld-opts
+share/ld-opts/darshan-stdio-ld-opts
 )
 
 msg="Building Darshan with CC=$CC and with the following features:"

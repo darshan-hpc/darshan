@@ -251,7 +251,7 @@ ifdef BUILD_POSIX_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-posix-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-posix-ld-opts
 endif
 ifdef BUILD_STDIO_MODULE
-	install -m 644 $(srcdir)/share/ld-opts/darshan-stdio-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-stdio-ld-opts
+	install -m 644 share/ld-opts/darshan-stdio-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-stdio-ld-opts
 endif
 ifdef BUILD_MPIIO_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-mpiio-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-mpiio-ld-opts
