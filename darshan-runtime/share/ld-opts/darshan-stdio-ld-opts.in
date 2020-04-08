@@ -1,4 +1,3 @@
---undefined=__wrap_fopen
 --wrap=fopen
 --wrap=fopen64
 --wrap=fdopen

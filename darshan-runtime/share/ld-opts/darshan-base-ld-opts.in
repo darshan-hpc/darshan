@@ -1,6 +1,3 @@
---undefined=MPI_Init
---undefined=__wrap_MPI_Init
---undefined=MPI_Wtime
 --wrap=MPI_Init
 --wrap=MPI_Init_thread
 --wrap=MPI_Finalize
