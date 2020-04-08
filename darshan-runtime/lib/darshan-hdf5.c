@@ -252,7 +252,7 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
 
 }
 
-herr_t H5Fflush(hid_t object_id, H5F_scope_t scope)
+herr_t DARSHAN_DECL(H5Fflush)(hid_t object_id, H5F_scope_t scope)
 {
     struct hdf5_file_record_ref *rec_ref;
     hid_t file_id;
@@ -404,7 +404,7 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     darshan_add_record_ref(&(hdf5_dataset_runtime->hid_hash), &__ret, sizeof(hid_t), __rec_ref); \
 } while(0)
 
-hid_t H5Dcreate1(hid_t loc_id, const char *name, hid_t type_id, hid_t space_id, hid_t dcpl_id)
+hid_t DARSHAN_DECL(H5Dcreate1)(hid_t loc_id, const char *name, hid_t type_id, hid_t space_id, hid_t dcpl_id)
 {
     double tm1, tm2;
     hid_t ret;
@@ -425,7 +425,7 @@ hid_t H5Dcreate1(hid_t loc_id, const char *name, hid_t type_id, hid_t space_id, 
     return(ret);
 }
 
-hid_t H5Dcreate2(hid_t loc_id, const char *name, hid_t dtype_id, hid_t space_id,
+hid_t DARSHAN_DECL(H5Dcreate2)(hid_t loc_id, const char *name, hid_t dtype_id, hid_t space_id,
     hid_t lcpl_id, hid_t dcpl_id, hid_t dapl_id)
 {
     double tm1, tm2;
@@ -447,7 +447,7 @@ hid_t H5Dcreate2(hid_t loc_id, const char *name, hid_t dtype_id, hid_t space_id,
     return(ret);
 }
 
-hid_t H5Dopen1(hid_t loc_id, const char *name)
+hid_t DARSHAN_DECL(H5Dopen1)(hid_t loc_id, const char *name)
 {
     hid_t dtype_id;
     hid_t space_id;
@@ -493,7 +493,7 @@ hid_t H5Dopen1(hid_t loc_id, const char *name)
     return(ret);
 }
 
-hid_t H5Dopen2(hid_t loc_id, const char *name, hid_t dapl_id)
+hid_t DARSHAN_DECL(H5Dopen2)(hid_t loc_id, const char *name, hid_t dapl_id)
 {
     hid_t dtype_id;
     hid_t space_id;
@@ -539,7 +539,7 @@ hid_t H5Dopen2(hid_t loc_id, const char *name, hid_t dapl_id)
     return(ret);
 }
 
-herr_t H5Dread(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id,
+herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id,
     hid_t file_space_id, hid_t xfer_plist_id, void * buf)
 {
     struct hdf5_dataset_record_ref *rec_ref;
@@ -658,7 +658,7 @@ herr_t H5Dread(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id,
     return(ret);
 }
 
-herr_t H5Dwrite(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id,
+herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id,
     hid_t file_space_id, hid_t xfer_plist_id, const void * buf)
 {
     struct hdf5_dataset_record_ref *rec_ref;
@@ -777,7 +777,7 @@ herr_t H5Dwrite(hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id,
     return(ret);
 }
 
-herr_t H5Dflush(hid_t dataset_id)
+herr_t DARSHAN_DECL(H5Dflush)(hid_t dataset_id)
 {
     struct hdf5_dataset_record_ref *rec_ref;
     double tm1, tm2;
@@ -807,7 +807,7 @@ herr_t H5Dflush(hid_t dataset_id)
     return(ret);
 }
 
-herr_t H5Dclose(hid_t dataset_id)
+herr_t DARSHAN_DECL(H5Dclose)(hid_t dataset_id)
 {
     struct hdf5_dataset_record_ref *rec_ref;
     double tm1, tm2;
