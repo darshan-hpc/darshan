@@ -16,4 +16,4 @@ darshan_linkopts="-Wl,@${darshan_share}/ld-opts/darshan-base-ld-opts"
 
 Cflags:
 Libs: -ldarshan
-Libs.private: ${darshan_linkopts} ${darshan_libdir} -lfmpich -lmpichcxx -Wl,--start-group -ldarshan -ldarshan-stubs -Wl,--end-group
+Libs.private: ${darshan_linkopts} ${darshan_libdir} -lfmpich -lmpichcxx -ldarshan
