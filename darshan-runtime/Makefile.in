@@ -20,7 +20,7 @@ DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_VERSION = @DARSHAN_VERSION@
 
 ifndef DISABLE_STATIC_LIB
-all: lib/libdarshan.a lib/libdarshan-stubs.a
+all: lib/libdarshan.a
 endif
 ifndef DISABLE_LDPRELOAD
 all: lib/libdarshan.so
@@ -155,17 +155,11 @@ lib/darshan-hdf5.o: lib/darshan-hdf5.c darshan.h darshan-common.h $(DARSHAN_LOG_
 lib/darshan-hdf5.po: lib/darshan-hdf5.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-hdf5-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
-lib/darshan-hdf5-stubs.o: lib/darshan-hdf5-stubs.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
-	$(CC) $(CFLAGS) -c $< -o $@
-
 lib/darshan-pnetcdf.o: lib/darshan-pnetcdf.c darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-pnetcdf-log-format.h | lib
 	$(CC) $(CFLAGS) -c $< -o $@
 
 lib/darshan-pnetcdf.po: lib/darshan-pnetcdf.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-pnetcdf-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
-
-lib/darshan-pnetcdf-stubs.o: lib/darshan-pnetcdf-stubs.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
-	$(CC) $(CFLAGS) -c $< -o $@
 
 lib/darshan-lustre.o: lib/darshan-lustre.c darshan-lustre.h darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-lustre-log-format.h | lib
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -210,20 +204,11 @@ lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darsha
 lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po $(DARSHAN_DYNAMIC_MOD_OBJS) lib/lookup3.po lib/lookup8.po
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ -lpthread -lrt -lz -ldl
 
-ifdef BUILD_HDF5_MODULE
-lib/libdarshan-stubs.a: lib/darshan-hdf5-stubs.o lib/darshan-pnetcdf-stubs.o
-	ar rcs $@ $^
-else
-lib/libdarshan-stubs.a: lib/darshan-pnetcdf-stubs.o
-	ar rcs $@ $^
-endif
-
 
 install:: all
 	install -d $(DESTDIR)$(libdir)
 ifndef DISABLE_STATIC_LIB
 	install -m 755 lib/libdarshan.a $(DESTDIR)$(libdir)
-	install -m 755 lib/libdarshan-stubs.a $(DESTDIR)$(libdir)
 endif
 ifndef DISABLE_LDPRELOAD
 	install -m 755 lib/libdarshan.so $(DESTDIR)$(libdir)
