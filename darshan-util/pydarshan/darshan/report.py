@@ -35,37 +35,57 @@ class DarshanReport(object):
     a number of common aggregations can be performed.
     """
 
-    def __init__(self, filename, mode='dict'):
+    def __init__(self, filename=None, data_format='numpy', automatic_summary=False):
         self.filename = filename
 
-
-        # initialize actual report dictionary
-        self.report = {'version': 1}
-        self.report['records'] = {}
-
-        
-
-        self.log = backend.log_open(self.filename)
+        # options
+        self.data_format = data_format    # Experimental: preferred internal representation: numpy useful for aggregations, dict good for export/REST
+                                          # might require alternative granularity: e.g., records, vs summaries?
+        self.automatic_summary = automatic_summary
 
         # state dependent book-keeping
-        self.converted_records = False  # true if convert_records() was called (unnumpyfy)
+        self.converted_records = False    # true if convert_records() was called (unnumpyfy)
+
+
+        # initialize data namespace
+        self.data_revision = 0          # counter for consistency checks
+        self.data = {'version': 1}
+        self.data['records'] = {}
+        self.data['metadata'] = {}
+
+
+        # initialize report/summary namespace
+        self.summary_revision = 0       # counter to check if summary needs update
+        self.summary = {}
+
+
 
         # when using report algebra this log allows to untangle potentially
         # unfair aggregations (e.g., double accounting)
         self.provenance_log = []
+        self.provenance_reports = {}
+
+
+        if filename:
+            self.log = backend.log_open(self.filename)
+            self.read_metadata()
+            self.data["name_records"] = backend.log_get_name_records(self.log)
 
 
 
-        self.read_metadata()
-        self.report["name_records"] = backend.log_get_name_records(self.log)
 
 
     def __add__(self, other):
-        new_report = self.copy()
-        #new_report = copy.deepcopy(self)
-        new_report.provenance_log.append(("add", self, other))
+        nr = DarshanReport()
+        nr.provenance_reports[self.filename] = copy.copy(self)
+        nr.provenance_reports[other.filename] = copy.copy(other)
+        nr.provenance_log.append(("add", self, other, datetime.datetime.now()))
 
-        return new_report
+        # pull in records
+
+
+
+        return nr
 
 
     def read_all(self):
@@ -85,7 +105,7 @@ class DarshanReport(object):
             None
         """
 
-        for mod in self.report['modules']:
+        for mod in self.data['modules']:
             self.mod_read_all_records(mod)
 
         pass
@@ -102,7 +122,7 @@ class DarshanReport(object):
             None
         """
 
-        for mod in self.report['modules']:
+        for mod in self.data['modules']:
             self.mod_read_all_dxt_records(mod)
 
         pass
@@ -119,10 +139,11 @@ class DarshanReport(object):
             None
 
         """
-        self.report["job"] = backend.log_get_job(self.log)
-        self.report["exe"] = backend.log_get_exe(self.log)
-        self.report["mounts"] = backend.log_get_mounts(self.log)
-        self.report["modules"] = backend.log_get_modules(self.log)
+        self.data['metadata']['job'] = backend.log_get_job(self.log)
+        self.data['metadata']['exe'] = backend.log_get_exe(self.log)
+        self.data['metadata']['mounts'] = backend.log_get_mounts(self.log)
+
+        self.data['modules'] = backend.log_get_modules(self.log)
 
 
     def mod_read_all_records(self, mod, mode='numpy'):
@@ -158,14 +179,14 @@ class DarshanReport(object):
         }
 
 
-        self.report['records'][mod] = []
+        self.data['records'][mod] = []
 
         cn = backend.counter_names(mod)
         fcn = backend.fcounter_names(mod)
 
-        self.report['modules'][mod]['counters'] = cn 
-        self.report['modules'][mod]['fcounters'] = fcn
-        self.report['modules'][mod]['num_records'] = 0
+        self.data['modules'][mod]['counters'] = cn 
+        self.data['modules'][mod]['fcounters'] = fcn
+        self.data['modules'][mod]['num_records'] = 0
 
 
 
@@ -176,14 +197,14 @@ class DarshanReport(object):
             #rec = json.loads(recs)
 
             if mode == 'numpy': 
-                self.report['records'][mod].append(rec)
+                self.data['records'][mod].append(rec)
             else:
                 c = dict(zip(cn, rec['counters']))
                 fc = dict(zip(fcn, rec['fcounters']))
-                self.report['records'][mod].append([c, fc])
+                self.data['records'][mod].append([c, fc])
 
 
-            self.report['modules'][mod]['num_records'] += 1
+            self.data['modules'][mod]['num_records'] += 1
 
             # fetch next
             rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
@@ -204,7 +225,7 @@ class DarshanReport(object):
 
         """
 
-        if mod not in self.report['modules']:
+        if mod not in self.data['modules']:
             print("Skipping. Log does not contain data for mod:", mod)
             return
 
@@ -223,8 +244,8 @@ class DarshanReport(object):
         }
 
 
-        self.report['records'][mod] = []
-        self.report['modules'][mod]['num_records'] = 0
+        self.data['records'][mod] = []
+        self.data['modules'][mod]['num_records'] = 0
 
 
 
@@ -235,18 +256,18 @@ class DarshanReport(object):
             #rec = json.loads(recs)
 
             if mode == 'numpy': 
-                self.report['records'][mod].append(rec)
+                self.data['records'][mod].append(rec)
             else:
                 print("Not implemented.")
                 exit(1)
 
                 #c = dict(zip(cn, rec['counters']))
                 #fc = dict(zip(fcn, rec['fcounters']))
-                #self.report['records'][mod].append([c, fc])
+                #self.data['records'][mod].append([c, fc])
                 pass
 
 
-            self.report['modules'][mod]['num_records'] += 1
+            self.data['modules'][mod]['num_records'] += 1
 
             # fetch next
             rec = backend.log_get_dxt_record(self.log, mod, structdefs[mod])
@@ -298,10 +319,10 @@ class DarshanReport(object):
             None
         """
 
-        recs = self.report['records']
+        recs = self.data['records']
 
         for mod in recs:
-            for i, rec in enumerate(self.report['records'][mod]):
+            for i, rec in enumerate(self.data['records'][mod]):
                 recs[mod][i]['counters'] = rec['counters'].tolist()
                 recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
 

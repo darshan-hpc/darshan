@@ -14,14 +14,14 @@ def create_timeline(self, group_by='rank'):
     self.mod_read_all_dxt_records("DXT_MPIIO")
 
 
-    self.report['timeline'] = {'groups': [], 'items': []}
+    self.data['timeline'] = {'groups': [], 'items': []}
 
     
-    groups = self.report['timeline']['groups']
-    items = self.report['timeline']['items']
+    groups = self.data['timeline']['groups']
+    items = self.data['timeline']['items']
     
 
-    start_time = datetime.datetime.fromtimestamp( self.report['job']['start_time'] )
+    start_time = datetime.datetime.fromtimestamp( self.data['metadata']['job']['start_time'] )
 
 
 
@@ -94,8 +94,8 @@ def create_timeline(self, group_by='rank'):
 
     supported = ['DXT_POSIX', 'DXT_MPIIO']
     for mod in supported:
-        if mod in self.report['records']:
-            for rec in self.report['records'][mod]:
+        if mod in self.data['records']:
+            for rec in self.data['records'][mod]:
                 groupify(rec, mod)
 
 

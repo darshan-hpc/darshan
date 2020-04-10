@@ -12,7 +12,7 @@ def mod_agg_iohist(self, mod, mode='append'):
     """
 
     # convienience
-    recs = self.report['records']
+    recs = self.data['records']
     ctx = {}
 
 
@@ -56,9 +56,9 @@ def mod_agg_iohist(self, mod, mode='append'):
 
 
     if mode == 'append':
-        if 'agg_iohist' not in self.report:
-            self.report['agg_iohist'] = {}
-        self.report['agg_iohist'][mod] = ctx
+        if 'agg_iohist' not in self.data:
+            self.data['agg_iohist'] = {}
+        self.data['agg_iohist'][mod] = ctx
     else:
         return ctx
 

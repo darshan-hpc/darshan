@@ -20,7 +20,7 @@ def agg_ioops(self, mode='append'):
 
 
     # convienience
-    recs = self.report['records']
+    recs = self.data['records']
     ctx = {}
 
     # aggragate
@@ -106,7 +106,7 @@ def agg_ioops(self, mode='append'):
 
     # reset summary target
     if mode == 'append':
-        self.report['agg_ioops'] = ctx
+        self.data['agg_ioops'] = ctx
     else:
         return ctx
 

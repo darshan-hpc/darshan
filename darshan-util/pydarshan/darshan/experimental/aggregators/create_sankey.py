@@ -7,14 +7,14 @@ def create_sankey(self):
     """
 
     # convienience
-    recs = self.report['records']
-    nrecs = self.report['name_records']
+    recs = self.data['records']
+    nrecs = self.data['name_records']
     ctx = {}
 
 
     # check records for module are present
     if 'POSIX' not in recs:
-        self.report['sankey'] = None
+        self.data['sankey'] = None
         return
 
     ranks = {}
@@ -27,7 +27,7 @@ def create_sankey(self):
 
     # build mnt list
     mnts = []
-    for mnt in self.report['mounts']:
+    for mnt in self.data['mounts']:
         mnts.append(mnt[0])
 
 
@@ -78,7 +78,7 @@ def create_sankey(self):
     tmp = json.dumps(ctx, cls=NumpyEncoder)
     tmp = json.loads(tmp)
 
-    self.report['sankey'] = tmp
+    self.data['sankey'] = tmp
 
 
 
