@@ -625,6 +625,7 @@ DARSHAN_MDHIM_LD_OPTS
 BUILD_MDHIM_MODULE
 BUILD_LUSTRE_MODULE
 BUILD_BGQ_MODULE
+DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS
 DARSHAN_HDF5_LD_OPTS
 BUILD_HDF5_MODULE
 DARSHAN_PNETCDF_LD_OPTS
@@ -4118,6 +4119,34 @@ fi
 if test "x$enable_hdf5_mod" = "xyes"; then :
   BUILD_HDF5_MODULE=1
     DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        #include <hdf5.h>
+
+int
+main ()
+{
+
+        #if (H5_VERS_MAJOR > 1) || ((H5_VERS_MAJOR == 1) && (H5_VERS_MINOR >= 10))
+        #error H5_VERS 1.10+
+        #endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS=""
+else
+
+$as_echo "#define DARSHAN_HDF5_VERS_1_10_PLUS 1" >>confdefs.h
+
+        DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS="--undefined=H5Dflush --wrap=H5Dflush"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
 fi
 
 # PNETCDF module
@@ -4870,7 +4899,8 @@ DARSHAN_VERSION="3.2.0-pre1"
 
 
 
-ac_config_files="$ac_config_files Makefile darshan-mk-log-dirs.pl darshan-gen-cc.pl darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-config share/craype-1.x/darshan-module share/craype-2.x/darshan-module lib/pkgconfig/darshan-runtime.pc share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf share/mpi-profile/darshan-cc-static.conf share/mpi-profile/darshan-cxx-static.conf share/mpi-profile/darshan-f-static.conf share/ld-opts/darshan-base-ld-opts share/ld-opts/darshan-stdio-ld-opts"
+
+ac_config_files="$ac_config_files Makefile darshan-mk-log-dirs.pl darshan-gen-cc.pl darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-config share/craype-1.x/darshan-module share/craype-2.x/darshan-module lib/pkgconfig/darshan-runtime.pc share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf share/mpi-profile/darshan-cc-static.conf share/mpi-profile/darshan-cxx-static.conf share/mpi-profile/darshan-f-static.conf share/ld-opts/darshan-base-ld-opts share/ld-opts/darshan-stdio-ld-opts share/ld-opts/darshan-hdf5-ld-opts"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5582,6 +5612,7 @@ do
     "share/mpi-profile/darshan-f-static.conf") CONFIG_FILES="$CONFIG_FILES share/mpi-profile/darshan-f-static.conf" ;;
     "share/ld-opts/darshan-base-ld-opts") CONFIG_FILES="$CONFIG_FILES share/ld-opts/darshan-base-ld-opts" ;;
     "share/ld-opts/darshan-stdio-ld-opts") CONFIG_FILES="$CONFIG_FILES share/ld-opts/darshan-stdio-ld-opts" ;;
+    "share/ld-opts/darshan-hdf5-ld-opts") CONFIG_FILES="$CONFIG_FILES share/ld-opts/darshan-hdf5-ld-opts" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

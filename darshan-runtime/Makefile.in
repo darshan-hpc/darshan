@@ -245,7 +245,7 @@ ifdef BUILD_PNETCDF_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-pnetcdf-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
 endif
 ifdef BUILD_HDF5_MODULE
-	install -m 644 $(srcdir)/share/ld-opts/darshan-hdf5-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-hdf5-ld-opts
+	install -m 644 share/ld-opts/darshan-hdf5-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-hdf5-ld-opts
 endif
 ifdef BUILD_MDHIM_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-mdhim-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-mdhim-ld-opts

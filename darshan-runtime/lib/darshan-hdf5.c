@@ -39,7 +39,9 @@ DARSHAN_FORWARD_DECL(H5Dopen1, hid_t, (hid_t loc_id, const char *name));
 DARSHAN_FORWARD_DECL(H5Dopen2, hid_t, (hid_t loc_id, const char *name, hid_t dapl_id));
 DARSHAN_FORWARD_DECL(H5Dread, herr_t, (hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id, void * buf));
 DARSHAN_FORWARD_DECL(H5Dwrite, herr_t, (hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id, const void * buf));
+#ifdef DARSHAN_HDF5_VERS_1_10_PLUS
 DARSHAN_FORWARD_DECL(H5Dflush, herr_t, (hid_t dataset_id));
+#endif
 DARSHAN_FORWARD_DECL(H5Dclose, herr_t, (hid_t dataset_id));
 
 /* structure that can track i/o stats for a given HDF5 file record at runtime */
@@ -587,7 +589,7 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
                 file_sel_npoints = H5Sget_select_npoints(file_space_id);
                 file_sel_type = H5Sget_select_type(file_space_id);
             }
-#if (H5_VERS_MAJOR > 1) || ((H5_VERS_MAJOR == 1) && (H5_VERS_MINOR >= 10))
+#ifdef DARSHAN_HDF5_VERS_1_10_PLUS
             if(file_sel_type == H5S_SEL_ALL)
                 rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] += 1;
             else if(file_sel_type == H5S_SEL_POINTS)
@@ -706,7 +708,7 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
                 file_sel_npoints = H5Sget_select_npoints(file_space_id);
                 file_sel_type = H5Sget_select_type(file_space_id);
             }
-#if (H5_VERS_MAJOR > 1) || ((H5_VERS_MAJOR == 1) && (H5_VERS_MINOR >= 10))
+#ifdef DARSHAN_HDF5_VERS_1_10_PLUS
             if(file_sel_type == H5S_SEL_ALL)
                 rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] += 1;
             else if(file_sel_type == H5S_SEL_POINTS)
@@ -777,6 +779,7 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
     return(ret);
 }
 
+#ifdef DARSHAN_HDF5_VERS_1_10_PLUS
 herr_t DARSHAN_DECL(H5Dflush)(hid_t dataset_id)
 {
     struct hdf5_dataset_record_ref *rec_ref;
@@ -806,6 +809,7 @@ herr_t DARSHAN_DECL(H5Dflush)(hid_t dataset_id)
 
     return(ret);
 }
+#endif
 
 herr_t DARSHAN_DECL(H5Dclose)(hid_t dataset_id)
 {
@@ -1015,6 +1019,11 @@ static struct hdf5_dataset_record_ref *hdf5_track_new_dataset_record(
     dataset_rec->base_rec.rank = my_rank;
     rec_ref->dataset_rec = dataset_rec;
     hdf5_dataset_runtime->rec_count++;
+
+#ifndef DARSHAN_HDF5_VERS_1_10_PLUS
+    /* flushes weren't introduced until H5 version 1.10+ */
+    rec_ref->dataset_rec->counters[H5D_FLUSHES] = -1;
+#endif
 
     return(rec_ref);
 }
