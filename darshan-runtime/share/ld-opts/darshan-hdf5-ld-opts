@@ -1,3 +1,4 @@
+--undefined=H5Dcreate1
 --wrap=H5Fcreate
 --wrap=H5Fopen
 --wrap=H5Fflush
