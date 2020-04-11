@@ -42,21 +42,24 @@ class DarshanReport(object):
         self.data_format = data_format    # Experimental: preferred internal representation: numpy useful for aggregations, dict good for export/REST
                                           # might require alternative granularity: e.g., records, vs summaries?
         self.automatic_summary = automatic_summary
+        self.record_provenance = True
+
 
         # state dependent book-keeping
         self.converted_records = False    # true if convert_records() was called (unnumpyfy)
 
-
         # initialize data namespace
         self.data_revision = 0          # counter for consistency checks
         self.data = {'version': 1}
-        self.data['records'] = {}
         self.data['metadata'] = {}
+        self.data['records'] = {}
+        self.data['summary'] = {}
 
+        self.records = self.data['records']
 
         # initialize report/summary namespace
         self.summary_revision = 0       # counter to check if summary needs update
-        self.summary = {}
+        self.summary = self.data['summary']
 
 
 
@@ -76,13 +79,20 @@ class DarshanReport(object):
 
 
     def __add__(self, other):
+        # new report
         nr = DarshanReport()
         nr.provenance_reports[self.filename] = copy.copy(self)
         nr.provenance_reports[other.filename] = copy.copy(other)
         nr.provenance_log.append(("add", self, other, datetime.datetime.now()))
 
-        # pull in records
-
+        # copy over records
+        for report in [self, other]:
+            for key, records in report.data['records'].items():
+                print(report, key)
+                if key not in nr.records:
+                    nr.records[key] = copy.copy(records)
+                else:
+                    nr.records[key] += copy.copy(records)
 
 
         return nr
@@ -141,8 +151,8 @@ class DarshanReport(object):
         """
         self.data['metadata']['job'] = backend.log_get_job(self.log)
         self.data['metadata']['exe'] = backend.log_get_exe(self.log)
-        self.data['metadata']['mounts'] = backend.log_get_mounts(self.log)
 
+        self.data['mounts'] = backend.log_get_mounts(self.log)
         self.data['modules'] = backend.log_get_modules(self.log)
 
 
@@ -162,7 +172,7 @@ class DarshanReport(object):
         unsupported.append('STDIO')   # TODO: reenable when segfault resolved
 
         if mod in unsupported:
-            print("Skipping. Currently unsupported:", mod)
+            print("Skipping. Currently unsupported:", mod, "in mod_read_all_records().")
             # skip mod
             return 
 
@@ -329,3 +339,18 @@ class DarshanReport(object):
         self.converted_records = True
 
 
+    def as_json(self):
+        """
+        Return JSON representatino of report data as string.
+
+        Args:
+            None
+
+        Return:
+            JSON String
+        """
+
+        # TODO: decide how to best issue conversion
+        data = self.data
+
+        return json.dumps(data)

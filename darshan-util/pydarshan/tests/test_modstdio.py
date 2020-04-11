@@ -45,7 +45,7 @@ def test_repeated_access():
     rec1 = backend.log_get_stdio_record(log)
     rec2 = backend.log_get_stdio_record(log)
 
-    assert rec2 == None
+    assert rec2['counters'][3] == 68
 
 
 def test_ishouldrun():
