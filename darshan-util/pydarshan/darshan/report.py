@@ -42,7 +42,6 @@ class DarshanReport(object):
         self.data_format = data_format    # Experimental: preferred internal representation: numpy useful for aggregations, dict good for export/REST
                                           # might require alternative granularity: e.g., records, vs summaries?
         self.automatic_summary = automatic_summary
-        self.record_provenance = True
 
 
         # state dependent book-keeping
@@ -65,6 +64,7 @@ class DarshanReport(object):
 
         # when using report algebra this log allows to untangle potentially
         # unfair aggregations (e.g., double accounting)
+        self.provenance_enabled = True
         self.provenance_log = []
         self.provenance_reports = {}
 
@@ -81,14 +81,21 @@ class DarshanReport(object):
     def __add__(self, other):
         # new report
         nr = DarshanReport()
-        nr.provenance_reports[self.filename] = copy.copy(self)
-        nr.provenance_reports[other.filename] = copy.copy(other)
-        nr.provenance_log.append(("add", self, other, datetime.datetime.now()))
 
-        # copy over records
+        # keep provenance?
+        if self.provenance_enabled or other.provenance_enabled:
+            # Currently, assume logs remain in memomry to create prov. tree on demand
+            # Alternative: maintain a tree with simpler refs? (modified reports would not work then)
+
+            nr.provenance_reports[self.filename] = copy.copy(self)
+            nr.provenance_reports[other.filename] = copy.copy(other)
+            nr.provenance_log.append(("add", self, other, datetime.datetime.now()))
+
+
+        # copy over records (references, under assumption single records are not altered)
         for report in [self, other]:
             for key, records in report.data['records'].items():
-                print(report, key)
+                #print(report, key)
                 if key not in nr.records:
                     nr.records[key] = copy.copy(records)
                 else:
@@ -99,6 +106,15 @@ class DarshanReport(object):
 
 
     def read_all(self):
+        """
+        Read all available records from darshan log and return as dictionary.
+
+        Args:
+            None
+
+        Return:
+            None
+        """
         self.read_all_generic_records()
         self.read_all_dxt_records()
         return
@@ -106,7 +122,7 @@ class DarshanReport(object):
 
     def read_all_generic_records(self):
         """
-        Read all available information from darshan log and return as dictionary.
+        Read all generic records from darshan log and return as dictionary.
 
         Args:
             None
@@ -123,7 +139,7 @@ class DarshanReport(object):
 
     def read_all_dxt_records(self):
         """
-        Read all available information from darshan log and return as dictionary.
+        Read all dxt records from darshan log and return as dictionary.
 
         Args:
             None
@@ -169,7 +185,6 @@ class DarshanReport(object):
 
         """
         unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE']
-        unsupported.append('STDIO')   # TODO: reenable when segfault resolved
 
         if mod in unsupported:
             print("Skipping. Currently unsupported:", mod, "in mod_read_all_records().")
@@ -243,7 +258,7 @@ class DarshanReport(object):
         supported =  ['DXT_POSIX', 'DXT_MPIIO']
 
         if mod not in supported:
-            print("Skipping. Currently unsupported:", mod)
+            print("Skipping. Currently unsupported:", mod, 'in mod_read_all_dxt_records().')
             # skip mod
             return 
 

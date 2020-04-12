@@ -46,28 +46,30 @@ def agg_ioops(self, mode='append'):
 
         # append aggregated statistics for module to report
         if mod == 'MPI-IO':
-            ctx[mod + ' Indep.'] = agg
-
-            #agg_indep = {
-            #    'Read':  agg['MPIIO_'],
-            #    'Write': agg['MPIIO_'],
-            #    'Open':  agg['MPIIO_'],
-            #    'Stat':  agg['MPIIO_'],
-            #    'Seek':  agg['MPIIO_'],
-            #    'Mmap':  agg['MPIIO_'],
-            #    'Fsync': agg['MPIIO_']
-            #}
+            agg_indep = {
+                'Read':  agg['MPIIO_INDEP_READS'],
+                'Write': agg['MPIIO_INDEP_WRITES'],
+                'Open':  agg['MPIIO_INDEP_OPENS'],
+                'Stat':  0,
+                'Seek':  0,
+                'Mmap':  0,
+                'Fsync': 0
+            }
 
             #ctx[mod + ' Coll.'] = agg
-            #agg_coll = {
-            #    'Read':  agg['MPIIO_'],
-            #    'Write': agg['MPIIO_'],
-            #    'Open':  agg['MPIIO_'],
-            #    'Stat':  agg['MPIIO_'],
-            #    'Seek':  agg['MPIIO_'],
-            #    'Mmap':  agg['MPIIO_'],
-            #    'Fsync': agg['MPIIO_']
-            #}
+            agg_coll = {
+                'Read':  agg['MPIIO_COLL_READS'],
+                'Write': agg['MPIIO_COLL_WRITES'],
+                'Open':  agg['MPIIO_COLL_OPENS'],
+                'Stat':  0,
+                'Seek':  0,
+                'Mmap':  0,
+                'Fsync': agg['MPIIO_SYNCS']
+            }
+
+            ctx[mod] = agg
+            ctx[mod + '_indep_simple'] = agg_indep
+            ctx[mod + '_coll_simple'] = agg_coll
 
         else:
             # POSIX and STDIO share most counter names and are handled 

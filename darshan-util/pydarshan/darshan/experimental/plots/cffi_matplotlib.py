@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 
 
-from darshan.report import *
-
-
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
+import darshan.backend.cffi_backend as backend
 
 
-def plot_access_histogram(self, mod, filter=None, data=None):
+
+def plot_access_histogram(log, filter=None, data=None):
     """
     Plots a histogram of access sizes for specified module.
 
@@ -19,13 +18,9 @@ def plot_access_histogram(self, mod, filter=None, data=None):
     :param data: Array/Dictionary for use with custom data. 
     """
 
-    # TODO: change to self.summary
-    if 'mod_agg_iohist' in dir(self):
-        print("Summarizing... iohist", mod)
-        self.mod_agg_iohist(mod)
-    else:
-        print("Can not create summary, mod_agg_iohist aggregator is not registered with the report clase.")
-
+    print("log:", log)
+    print("filter:", filter)
+    print("data:", data)
 
 
     # defaults
@@ -33,38 +28,69 @@ def plot_access_histogram(self, mod, filter=None, data=None):
     read_vals = [0, 0, 0, 0, 0,  0, 0, 0, 0, 0]
     write_vals = [0, 0, 0, 0, 0,  0, 0, 0, 0, 0]
 
-    
+
+    mods = backend.log_get_modules(log)
 
 
+    if str(filter).upper() == "POSIX":
+        posix_record = backend.log_get_posix_record(log)
+        posix = dict(zip(backend.counter_names("POSIX"), posix_record['counters']))
 
+        read_vals = [
+            posix['POSIX_SIZE_READ_0_100'],
+            posix['POSIX_SIZE_READ_100_1K'],
+            posix['POSIX_SIZE_READ_1K_10K'],
+            posix['POSIX_SIZE_READ_10K_100K'],
+            posix['POSIX_SIZE_READ_100K_1M'],
+            posix['POSIX_SIZE_READ_1M_4M'],
+            posix['POSIX_SIZE_READ_4M_10M'],
+            posix['POSIX_SIZE_READ_10M_100M'],
+            posix['POSIX_SIZE_READ_100M_1G'],
+            posix['POSIX_SIZE_READ_1G_PLUS']
+        ]
 
-    posix = self.data['agg_iohist'][mod]
+        write_vals = [
+            posix['POSIX_SIZE_WRITE_0_100'],
+            posix['POSIX_SIZE_WRITE_100_1K'],
+            posix['POSIX_SIZE_WRITE_1K_10K'],
+            posix['POSIX_SIZE_WRITE_10K_100K'],
+            posix['POSIX_SIZE_WRITE_100K_1M'],
+            posix['POSIX_SIZE_WRITE_1M_4M'],
+            posix['POSIX_SIZE_WRITE_4M_10M'],
+            posix['POSIX_SIZE_WRITE_10M_100M'],
+            posix['POSIX_SIZE_WRITE_100M_1G'],
+            posix['POSIX_SIZE_WRITE_1G_PLUS']
+        ]
 
-    read_vals = [
-        posix['READ_0_100'],
-        posix['READ_100_1K'],
-        posix['READ_1K_10K'],
-        posix['READ_10K_100K'],
-        posix['READ_100K_1M'],
-        posix['READ_1M_4M'],
-        posix['READ_4M_10M'],
-        posix['READ_10M_100M'],
-        posix['READ_100M_1G'],
-        posix['READ_1G_PLUS']
-    ]
+    elif str(filter).upper() == "MPIIO":
+        mpiio_record = backend.log_get_mpiio_record(log)
+        mpiio = dict(zip(backend.counter_names("mpiio"), mpiio_record['counters']))
 
-    write_vals = [
-        posix['WRITE_0_100'],
-        posix['WRITE_100_1K'],
-        posix['WRITE_1K_10K'],
-        posix['WRITE_10K_100K'],
-        posix['WRITE_100K_1M'],
-        posix['WRITE_1M_4M'],
-        posix['WRITE_4M_10M'],
-        posix['WRITE_10M_100M'],
-        posix['WRITE_100M_1G'],
-        posix['WRITE_1G_PLUS']
-    ]
+        read_vals = [
+            mpiio['MPIIO_SIZE_READ_AGG_0_100'],
+            mpiio['MPIIO_SIZE_READ_AGG_100_1K'],
+            mpiio['MPIIO_SIZE_READ_AGG_1K_10K'],
+            mpiio['MPIIO_SIZE_READ_AGG_10K_100K'],
+            mpiio['MPIIO_SIZE_READ_AGG_100K_1M'],
+            mpiio['MPIIO_SIZE_READ_AGG_1M_4M'],
+            mpiio['MPIIO_SIZE_READ_AGG_4M_10M'],
+            mpiio['MPIIO_SIZE_READ_AGG_10M_100M'],
+            mpiio['MPIIO_SIZE_READ_AGG_100M_1G'],
+            mpiio['MPIIO_SIZE_READ_AGG_1G_PLUS'],
+        ]
+
+        write_vals = [
+            mpiio['MPIIO_SIZE_WRITE_AGG_0_100'],
+            mpiio['MPIIO_SIZE_WRITE_AGG_100_1K'],
+            mpiio['MPIIO_SIZE_WRITE_AGG_1K_10K'],
+            mpiio['MPIIO_SIZE_WRITE_AGG_10K_100K'],
+            mpiio['MPIIO_SIZE_WRITE_AGG_100K_1M'],
+            mpiio['MPIIO_SIZE_WRITE_AGG_1M_4M'],
+            mpiio['MPIIO_SIZE_WRITE_AGG_4M_10M'],
+            mpiio['MPIIO_SIZE_WRITE_AGG_10M_100M'],
+            mpiio['MPIIO_SIZE_WRITE_AGG_100M_1G'],
+            mpiio['MPIIO_SIZE_WRITE_AGG_1G_PLUS'],
+        ]
 
 
 
@@ -77,7 +103,7 @@ def plot_access_histogram(self, mod, filter=None, data=None):
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_ylabel('Count')
-    ax.set_title('Historgram of Access Sizes: ' + str(mod))
+    ax.set_title('Historgram of Access Sizes: ' + str(filter))
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=45, ha='right')
     ax.legend()
@@ -103,7 +129,7 @@ def plot_access_histogram(self, mod, filter=None, data=None):
     pass
 
 
-def plot_time_summary(self, filter=None, data=None):
+def plot_time_summary(log=None, filter=None, data=None):
     """
     TODO: Not implemented.
 
@@ -116,7 +142,7 @@ def plot_time_summary(self, filter=None, data=None):
 
 
 
-def plot_opcounts(self, filter=None, data=None):
+def plot_opcounts(log=None, filter=None, data=None):
     """
     Generates a baor chart summary for operation counts.
 
@@ -133,24 +159,12 @@ def plot_opcounts(self, filter=None, data=None):
     stdio_vals = [0, 0, 0, 0, 0, 0, 0]
 
 
-    # TODO: change to self.summary
-    if 'agg_ioops' in dir(self):
-        print("Summarizing... agg_ioops")
-        self.agg_ioops()
-    else:
-        print("Can not create summary, agg_ioops aggregator is not registered with the report clase.")
-
-
-
-
-
-    mods = self.data['agg_ioops']
+    mods = backend.log_get_modules(log)
 
     # Gather POSIX
     if 'POSIX' in mods:
-        #posix_record = backend.log_get_posix_record(log)
-        #posix = dict(zip(backend.counter_names("POSIX"), posix_record['counters']))
-        posix = mods['POSIX']
+        posix_record = backend.log_get_posix_record(log)
+        posix = dict(zip(backend.counter_names("POSIX"), posix_record['counters']))
 
         posix_vals = [
             posix['POSIX_READS'],
@@ -164,10 +178,8 @@ def plot_opcounts(self, filter=None, data=None):
 
     # Gather MPIIO
     if 'MPI-IO' in mods:
-        #mpiio_record = backend.log_get_mpiio_record(log)
-        #mpiio = dict(zip(backend.counter_names("mpiio"), mpiio_record['counters']))
-
-        mpiio = mods['MPI-IO']
+        mpiio_record = backend.log_get_mpiio_record(log)
+        mpiio = dict(zip(backend.counter_names("mpiio"), mpiio_record['counters']))
 
         mpiind_vals = [
             mpiio['MPIIO_INDEP_READS'],
@@ -191,10 +203,8 @@ def plot_opcounts(self, filter=None, data=None):
 
     # Gather Stdio
     if 'STDIO' in mods:
-        #stdio_record = backend.log_get_stdio_record(log)
-        #stdio = dict(zip(backend.counter_names("STDIO"), stdio_record['counters']))
-
-        stdio = mods['STDIO']
+        stdio_record = backend.log_get_stdio_record(log)
+        stdio = dict(zip(backend.counter_names("STDIO"), stdio_record['counters']))
 
         stdio_vals = [
             stdio['STDIO_READS'],
@@ -231,10 +241,10 @@ def plot_opcounts(self, filter=None, data=None):
             height = rect.get_height()
             ax.annotate(
                 '{}'.format(height),
-                xy=(rect.get_x() + rect.get_width() / 4 + rect.get_width(), height),
+                xy=(rect.get_x() + rect.get_width() / 4, height),
                 xytext=(0, 3),  # 3 points vertical offset
                 textcoords="offset points",
-                ha='center', va='bottom', rotation=45
+                ha='center', va='bottom', rotation=0
                 )
 
 
@@ -251,7 +261,7 @@ def plot_opcounts(self, filter=None, data=None):
 
 
 
-def plot_timeline(self, filter=None, data=None):
+def plot_timeline(log=None, filter=None, data=None):
     """
     Plots a timeline of opened files.
 
