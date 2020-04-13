@@ -49,10 +49,11 @@ def log_get_job(log):
     job = {}
     jobrec = ffi.new("struct darshan_job *")
     libdutil.darshan_log_get_job(log['handle'], jobrec)
-    job['jobid'] = jobrec[0].jobid
     job['uid'] = jobrec[0].uid
     job['start_time'] = jobrec[0].start_time
     job['end_time'] = jobrec[0].end_time
+    job['nprocs'] = jobrec[0].nprocs
+    job['jobid'] = jobrec[0].jobid
     mstr = ffi.string(jobrec[0].metadata).decode("utf-8")
     md = {}
     for kv in mstr.split('\n')[:-1]:

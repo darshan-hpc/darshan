@@ -33,9 +33,7 @@ def plot_access_histogram(self, mod, filter=None, data=None):
     read_vals = [0, 0, 0, 0, 0,  0, 0, 0, 0, 0]
     write_vals = [0, 0, 0, 0, 0,  0, 0, 0, 0, 0]
 
-    
-
-
+  
 
 
     posix = self.data['agg_iohist'][mod]

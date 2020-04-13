@@ -13,7 +13,7 @@ import numpy as np
 import re
 import copy
 import datetime
-
+import sys
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -35,7 +35,7 @@ class DarshanReport(object):
     a number of common aggregations can be performed.
     """
 
-    def __init__(self, filename=None, data_format='numpy', automatic_summary=False):
+    def __init__(self, filename=None, data_format='numpy', automatic_summary=False, read_all=False):
         self.filename = filename
 
         # options
@@ -50,16 +50,23 @@ class DarshanReport(object):
         # initialize data namespace
         self.data_revision = 0          # counter for consistency checks
         self.data = {'version': 1}
-        self.data['metadata'] = {}
+        self.data['metadata'] = {'start_time': float('inf'), 'end_time': float('-inf')}
         self.data['records'] = {}
         self.data['summary'] = {}
+        self.data['modules'] = {}
+        self.data['counters'] = {}          
+        self.data['name_records'] = {}
 
+        self.metadata = self.data['metadata']
+        self.modules = self.data['modules']
+        self.counters = self.data['counters']
         self.records = self.data['records']
+        self.name_records = self.data['name_records']
+
 
         # initialize report/summary namespace
         self.summary_revision = 0       # counter to check if summary needs update
         self.summary = self.data['summary']
-
 
 
         # when using report algebra this log allows to untangle potentially
@@ -72,8 +79,9 @@ class DarshanReport(object):
         if filename:
             self.log = backend.log_open(self.filename)
             self.read_metadata()
-            self.data["name_records"] = backend.log_get_name_records(self.log)
 
+            if read_all:
+                self.read_all()
 
 
 
@@ -92,6 +100,18 @@ class DarshanReport(object):
             nr.provenance_log.append(("add", self, other, datetime.datetime.now()))
 
 
+        # update metadata
+        def update_metadata(report):
+            if report.metadata['start_time'] < nr.metadata['start_time']:
+                nr.metadata['start_time'] = report.metadata['start_time']
+
+            if report.metadata['end_time'] > nr.metadata['end_time']:
+                nr.metadata['end_time'] = report.metadata['end_time']
+
+        update_metadata(self)
+        update_metadata(other)
+
+
         # copy over records (references, under assumption single records are not altered)
         for report in [self, other]:
             for key, records in report.data['records'].items():
@@ -103,6 +123,32 @@ class DarshanReport(object):
 
 
         return nr
+
+
+    def read_metadata(self):
+        """
+        Read metadata such as the job, the executables and available modules.
+
+        Args:
+            None
+
+        Return:
+            None
+
+        """
+        self.data['metadata']['job'] = backend.log_get_job(self.log)
+        self.data['metadata']['exe'] = backend.log_get_exe(self.log)
+
+        self.metadata['start_time'] = self.metadata['job']['start_time']
+        self.metadata['end_time'] = self.metadata['job']['end_time']
+
+        self.data['mounts'] = backend.log_get_mounts(self.log)
+
+        self.data['modules'] = backend.log_get_modules(self.log)
+        self.modules = self.data['modules']
+
+        self.data["name_records"] = backend.log_get_name_records(self.log)
+        self.name_records = self.data['name_records']
 
 
     def read_all(self):
@@ -132,7 +178,7 @@ class DarshanReport(object):
         """
 
         for mod in self.data['modules']:
-            self.mod_read_all_records(mod)
+            self.mod_read_all_records(mod, warnings=False)
 
         pass
 
@@ -149,30 +195,12 @@ class DarshanReport(object):
         """
 
         for mod in self.data['modules']:
-            self.mod_read_all_dxt_records(mod)
+            self.mod_read_all_dxt_records(mod, warnings=False)
 
         pass
 
 
-    def read_metadata(self):
-        """
-        Read metadata such as the job, the executables and available modules.
-
-        Args:
-            None
-
-        Return:
-            None
-
-        """
-        self.data['metadata']['job'] = backend.log_get_job(self.log)
-        self.data['metadata']['exe'] = backend.log_get_exe(self.log)
-
-        self.data['mounts'] = backend.log_get_mounts(self.log)
-        self.data['modules'] = backend.log_get_modules(self.log)
-
-
-    def mod_read_all_records(self, mod, mode='numpy'):
+    def mod_read_all_records(self, mod, mode='numpy', warnings=True):
         """
         Reads all generic records for module
 
@@ -187,7 +215,8 @@ class DarshanReport(object):
         unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE']
 
         if mod in unsupported:
-            print("Skipping. Currently unsupported:", mod, "in mod_read_all_records().")
+            if warnings:
+                print("Skipping. Currently unsupported:", mod, "in mod_read_all_records().", file=sys.stderr)
             # skip mod
             return 
 
@@ -209,9 +238,14 @@ class DarshanReport(object):
         cn = backend.counter_names(mod)
         fcn = backend.fcounter_names(mod)
 
-        self.data['modules'][mod]['counters'] = cn 
-        self.data['modules'][mod]['fcounters'] = fcn
-        self.data['modules'][mod]['num_records'] = 0
+
+        self.modules[mod]['num_records'] = 0
+
+        
+        if mod not in self.counters:
+            self.counters[mod] = {}
+        self.counters[mod]['counters'] = cn 
+        self.counters[mod]['fcounters'] = fcn
 
 
 
@@ -222,14 +256,14 @@ class DarshanReport(object):
             #rec = json.loads(recs)
 
             if mode == 'numpy': 
-                self.data['records'][mod].append(rec)
+                self.records[mod].append(rec)
             else:
                 c = dict(zip(cn, rec['counters']))
                 fc = dict(zip(fcn, rec['fcounters']))
-                self.data['records'][mod].append([c, fc])
+                self.records[mod].append([c, fc])
 
 
-            self.data['modules'][mod]['num_records'] += 1
+            self.modules[mod]['num_records'] += 1
 
             # fetch next
             rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
@@ -237,7 +271,7 @@ class DarshanReport(object):
         pass
 
 
-    def mod_read_all_dxt_records(self, mod, mode='numpy'):
+    def mod_read_all_dxt_records(self, mod, mode='numpy', warnings=True):
         """
         Reads all dxt records for provided module.
 
@@ -251,14 +285,16 @@ class DarshanReport(object):
         """
 
         if mod not in self.data['modules']:
-            print("Skipping. Log does not contain data for mod:", mod)
+            if warnings:
+                print("Skipping. Log does not contain data for mod:", mod, file=sys.stderr)
             return
 
 
         supported =  ['DXT_POSIX', 'DXT_MPIIO']
 
         if mod not in supported:
-            print("Skipping. Currently unsupported:", mod, 'in mod_read_all_dxt_records().')
+            if warnings:
+                print("Skipping. Currently unsupported:", mod, 'in mod_read_all_dxt_records().', file=sys.stderr)
             # skip mod
             return 
 
@@ -269,9 +305,12 @@ class DarshanReport(object):
         }
 
 
-        self.data['records'][mod] = []
-        self.data['modules'][mod]['num_records'] = 0
+        self.records[mod] = []
+        self.modules[mod]['num_records'] = 0
 
+
+        if mod not in self.counters:
+            self.counters[mod] = {}
 
 
         rec = backend.log_get_dxt_record(self.log, mod, structdefs[mod])
@@ -281,7 +320,7 @@ class DarshanReport(object):
             #rec = json.loads(recs)
 
             if mode == 'numpy': 
-                self.data['records'][mod].append(rec)
+                self.records[mod].append(rec)
             else:
                 print("Not implemented.")
                 exit(1)

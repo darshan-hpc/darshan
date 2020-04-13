@@ -11,14 +11,16 @@ def mod_agg_iohist(self, mod, mode='append'):
         None
     """
 
-    # convienience
-    recs = self.data['records']
-    ctx = {}
-
-
+    # sanitation and guards
     supported = ["POSIX", "MPI-IO"]
     if mod not in supported:
         raise Exception("Unsupported mod_name for aggregated iohist.")
+
+
+    # convienience
+    recs = self.records
+    ctx = {}
+
 
 
     # check records for module are present
@@ -59,8 +61,7 @@ def mod_agg_iohist(self, mod, mode='append'):
         if 'agg_iohist' not in self.data:
             self.data['agg_iohist'] = {}
         self.data['agg_iohist'][mod] = ctx
-    else:
-        return ctx
-
+    
+    return ctx
 
 
