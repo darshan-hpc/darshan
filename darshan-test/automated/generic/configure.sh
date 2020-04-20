@@ -39,4 +39,5 @@ echo "
   </testsuite>
 </testsuites>
 " > configure-result.xml
-exit $fcount
+
+return $fcount
