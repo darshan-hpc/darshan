@@ -40,4 +40,4 @@ echo "
 </testsuites>
 " > build-result.xml
 
-exit $fcount
+return $fcount

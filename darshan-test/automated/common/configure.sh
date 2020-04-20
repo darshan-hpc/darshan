@@ -18,4 +18,4 @@ else
   status=100
 fi
 
-exit $status
+return $status
