@@ -16,7 +16,7 @@
 # variables (as in a dynamically linked environment), or generate mpicc
 # wrappers (as in a statically linked environment).
 
-# Notes specific to this platform (workstation-static)
+# Notes specific to this platform (workstation-cc-wrapper)
 ########################
 # This particular env script assumes that mpicc and its variants for other 
 # languages are already in the path.  The compiler scripts to be used in
