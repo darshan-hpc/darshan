@@ -16,10 +16,10 @@
 # variables (as in a dynamically linked environment), or generate mpicc
 # wrappers (as in a statically linked environment).
 
-# Notes specific to this platform (workstation-dynamic)_
+# Notes specific to this platform (workstation-profile-conf-dynamic)
 ########################
 # This particular env script assumes that mpicc and its variants for other 
-# languages are already in the path, and that they will produce static 
+# languages are already in the path, and that they will produce dynamic 
 # executables by default.  Darshan instrumentation is added by specifying
 # a profiling configuration file using environment variables.
 
