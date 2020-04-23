@@ -16,11 +16,11 @@
 # variables (as in a dynamically linked environment), or generate mpicc
 # wrappers (as in a statically linked environment).
 
-# Notes specific to this platform (workstation-dynamic)_
+# Notes specific to this platform (workstation-ld-preload)
 ########################
 # This particular env script assumes that mpicc and its variants for other 
 # languages are already in the path, and that they will produce dynamic
-# executables by default.  Test programs are compile usign the existing
+# executables by default.  Test programs are compiled using the existing
 # scripts, and LD_PRELOAD is set to enable instrumentation.
 
 # The runjob command is just mpiexec, no scheduler
