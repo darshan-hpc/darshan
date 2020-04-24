@@ -3,7 +3,8 @@ variables:
 
 stages:
   - build
-  - test
+  - test_static
+  - test_dynamic
 
 build_darshan:
   tags:
@@ -29,7 +30,7 @@ build_darshan:
     paths:
       - install/
 
-test_darshan:
+test_darshan_static:
   tags:
     - shell
     - ecp-theta
@@ -40,12 +41,41 @@ test_darshan:
     - if: '$CI_PIPELINE_SOURCE == "schedules" && $RUN_TESTS == "true"'
       when: on_success
 
-  stage: test
+  stage: test_static
 
   script:
-    - ls $PWD/install
-    - ls $PWD/install/bin
+    - export CRAYPE_LINK_TYPE=dynamic
     - darshan-test/regression/run-all.sh $PWD/install $PWD/scratch cray-module-alcf
+    - ldd $PWD/scratch/mpi-io-test
+    - nm $PWD/scratch/mpi-io-test | grep darshan
+    - nm $PWD/scratch/mpi-io-test | grep MPI
+
+  artifacts:
+    paths:
+        - $PWD/scratch/*.darshan
+        - $PWD/scratch/*.debuglog
+        - $PWD/scratch/*.out
+        - $PWD/scratch/*.err
+
+test_darshan_dynamic:
+  tags:
+    - shell
+    - ecp-theta
+
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $RUN_TESTS == "true"'
+      when: on_success
+    - if: '$CI_PIPELINE_SOURCE == "schedules" && $RUN_TESTS == "true"'
+      when: on_success
+
+  stage: test_dynamic
+
+  script:
+    - export CRAYPE_LINK_TYPE=dynamic
+    - darshan-test/regression/run-all.sh $PWD/install $PWD/scratch cray-module-alcf
+    - ldd $PWD/scratch/mpi-io-test
+    - nm $PWD/scratch/mpi-io-test | grep darshan
+    - nm $PWD/scratch/mpi-io-test | grep MPI
 
   artifacts:
     paths:
