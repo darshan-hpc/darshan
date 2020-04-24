@@ -44,7 +44,7 @@ test_darshan_static:
   stage: test_static
 
   script:
-    - export CRAYPE_LINK_TYPE=dynamic
+    - export CRAYPE_LINK_TYPE=static
     - darshan-test/regression/run-all.sh $PWD/install $PWD/scratch cray-module-alcf
     - ldd $PWD/scratch/mpi-io-test
     - nm $PWD/scratch/mpi-io-test | grep darshan
