@@ -265,7 +265,8 @@ print OUTPUT<<"EOF";
     rc_mpi=\$?
 
     # did the link options produce a dynamic executable?
-    ldd \$binfile >& /dev/null
+    # we look for dynamic MPI_Init symbol to confirm
+    nm --dynamic \$binfile | grep MPI_Init >& /dev/null
     rc_dyn=\$?
 
     rm \$tmpfile >& /dev/null

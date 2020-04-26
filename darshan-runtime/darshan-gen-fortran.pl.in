@@ -274,7 +274,8 @@ print OUTPUT<<"EOF";
     rc_mpi=\$?
 
     # did the link options produce a dynamic executable?
-    ldd \$binfile >& /dev/null
+    # we look for dynamic MPI_Init symbol to confirm, but we have to be wary of mangling...
+    nm --dynamic \$binfile | grep mpi_init >& /dev/null
     rc_dyn=\$?
 
     # find appropriate fortran library name for profiling
