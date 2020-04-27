@@ -84,6 +84,7 @@ specified environment variable is not set.
 * `--with-log-path=` (this, or `--with-log-path-by-env`, is mandatory): This
 specifies the parent directory for the directory tree where Darshan logs
 will be placed.
+** NOTE: after installation, any user can display the configured path with the `darshan-config --log-path` command
 * `--with-log-path-by-env=`: specifies an environment variable to use to
 determine the log path at run time.
 * `--with-log-hints=`: specifies hints to use when writing the Darshan log
@@ -128,6 +129,15 @@ as root.
 ----
 darshan-mk-log-dirs.pl
 ----
+
+.A note about finding log paths after installation
+[NOTE]
+====
+Regardless of whether a Darshan installation is using the --with-log-path or
+--with-log-path-by-env option, end users can display the path (and/or
+environment variables) at any time by running `darshan-config --log-path`
+on the command line.
+====
 
 .A note about log directory permissions
 [NOTE]
@@ -582,6 +592,9 @@ behavior at runtime:
 === No log file
 
 In cases where Darshan is not generating a log file for an application, some common things to check are:
+
+* Make sure you are looking in the correct place for logs.  Confirm the
+  location with the `darshan-config --log-path` command.
 
 * Check stderr to ensure Darshan isn't indicating any internal errors (e.g., invalid log file path)
 

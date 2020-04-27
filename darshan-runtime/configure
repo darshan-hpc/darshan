@@ -643,6 +643,7 @@ DARSHAN_VERSION
 ENABLE_MMAP_LOGS
 DISABLE_LDPRELOAD
 DISABLE_STATIC_LIB
+__DARSHAN_LOG_ENV
 __DARSHAN_LOG_PATH
 darshan_share_path
 darshan_lib_path
@@ -4868,6 +4869,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
 
 DARSHAN_VERSION="3.2.0-pre1"
+
 
 
 
