@@ -150,6 +150,7 @@ static int dxt_log_get_mpiio_file(darshan_fd fd, void** dxt_mpiio_buf_p)
 {
     struct dxt_file_record *rec = *((struct dxt_file_record **)dxt_mpiio_buf_p);
     struct dxt_file_record tmp_rec;
+    int i;
     int ret;
     int64_t io_trace_size;
 
@@ -195,6 +196,15 @@ static int dxt_log_get_mpiio_file(darshan_fd fd, void** dxt_mpiio_buf_p)
             {
                 /* byte swap trace data if necessary */
                 dxt_swap_segments(rec);
+            }
+
+            if(fd->mod_ver[DXT_MPIIO_MOD] == 1)
+            {
+                /* make sure to indicate offsets are invalid in version 1 */
+                for(i = 0; i < (tmp_rec.write_count + tmp_rec.read_count); i++)
+                {
+                    ((segment_info *)tmp_p)[i].offset = -1;
+                }
             }
         }
     }
@@ -383,6 +393,7 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
                 (struct dxt_file_record *)mpiio_file_rec;
 
     int64_t length;
+    int64_t offset;
     double start_time;
     double end_time;
     int i;
@@ -405,23 +416,25 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
     printf("# DXT, mnt_pt: %s, fs_type: %s\n", mnt_pt, fs_type);
 
     /* Print header */
-    printf("# Module    Rank  Wt/Rd  Segment       Length    Start(s)      End(s)\n");
+    printf("# Module    Rank  Wt/Rd  Segment          Offset       Length    Start(s)      End(s)\n");
 
     /* Print IO Traces information */
     for (i = 0; i < write_count; i++) {
+        offset = io_trace[i].offset;
         length = io_trace[i].length;
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%12.4f%12.4f\n", "X_MPIIO", rank, "write", i, length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f\n", "X_MPIIO", rank, "write", i, offset, length, start_time, end_time);
     }
 
     for (i = write_count; i < write_count + read_count; i++) {
+        offset = io_trace[i].offset;
         length = io_trace[i].length;
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%12.4f%12.4f\n", "X_MPIIO", rank, "read", (int)(i - write_count), length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f\n", "X_MPIIO", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
     }
 
     return;

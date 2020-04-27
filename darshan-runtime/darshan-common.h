@@ -82,7 +82,7 @@
  * added to the common access counter, rather than just incrementing it.
  */
 #define DARSHAN_COMMON_VAL_COUNTER_INC(__val_p, __cnt_p, __value, __count, __add_flag) do {\
-    int i; \
+    int i_; \
     int inc_count, total_count; \
     int64_t tmp_val[4] = {0}; \
     int64_t tmp_cnt[4] = {0}; \
@@ -92,21 +92,21 @@
         inc_count = 1; \
     else \
         inc_count = __count; \
-    for(i=0; i<4; i++) { \
-        if(*(__val_p + i) == __value) { \
-            total_count = *(__cnt_p + i) + inc_count; \
+    for(i_=0; i_<4; i_++) { \
+        if(*(__val_p + i_) == __value) { \
+            total_count = *(__cnt_p + i_) + inc_count; \
             break; \
         } \
     } \
-    if(i == 4) total_count = __count; \
+    if(i_ == 4) total_count = __count; \
     /* first, copy over any counters that should be sorted above this one \
      * (counters with higher counts or equal counts and larger values) \
      */ \
-    for(i=0;i < 4; i++) { \
-        if((*(__cnt_p + i) > total_count) || \
-           ((*(__cnt_p + i) == total_count) && (*(__val_p + i) > __value))) { \
-            tmp_val[tmp_ndx] = *(__val_p + i); \
-            tmp_cnt[tmp_ndx] = *(__cnt_p + i); \
+    for(i_=0;i_ < 4; i_++) { \
+        if((*(__cnt_p + i_) > total_count) || \
+           ((*(__cnt_p + i_) == total_count) && (*(__val_p + i_) > __value))) { \
+            tmp_val[tmp_ndx] = *(__val_p + i_); \
+            tmp_cnt[tmp_ndx] = *(__cnt_p + i_); \
             tmp_ndx++; \
         } \
         else break; \
@@ -118,12 +118,12 @@
     tmp_ndx++; \
     /* last, copy over any remaining counters to make sure we have 4 sets total */ \
     while(tmp_ndx != 4) { \
-        if(*(__val_p + i) != __value) { \
-            tmp_val[tmp_ndx] = *(__val_p + i); \
-            tmp_cnt[tmp_ndx] = *(__cnt_p + i); \
+        if(*(__val_p + i_) != __value) { \
+            tmp_val[tmp_ndx] = *(__val_p + i_); \
+            tmp_cnt[tmp_ndx] = *(__cnt_p + i_); \
             tmp_ndx++; \
         } \
-        i++; \
+        i_++; \
     } \
     memcpy(__val_p, tmp_val, 4*sizeof(int64_t)); \
     memcpy(__cnt_p, tmp_cnt, 4*sizeof(int64_t)); \

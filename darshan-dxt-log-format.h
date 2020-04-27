@@ -8,7 +8,7 @@
 
 /* current DXT log format version */
 #define DXT_POSIX_VER 1
-#define DXT_MPIIO_VER 1
+#define DXT_MPIIO_VER 2
 
 #define HOSTNAME_SIZE 64
 

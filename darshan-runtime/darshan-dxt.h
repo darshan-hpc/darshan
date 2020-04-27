@@ -45,10 +45,10 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
  * with 'length' size. 'start_time' and 'end_time' are starting and ending
  * timestamps for the operation, respectively.
  */
-void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
-        double start_time, double end_time);
-void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
-        double start_time, double end_time);
+void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
+        int64_t length, double start_time, double end_time);
+void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
+        int64_t length, double start_time, double end_time);
 
 void dxt_posix_filter_dynamic_traces(
     struct darshan_posix_file *(*rec_id_to_psx_file)(darshan_record_id));
