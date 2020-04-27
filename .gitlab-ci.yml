@@ -3,8 +3,7 @@ variables:
 
 stages:
   - build
-  - test_static
-  - test_dynamic
+  - test
 
 build_darshan:
   tags:
@@ -41,14 +40,11 @@ test_darshan_static:
     - if: '$CI_PIPELINE_SOURCE == "schedules" && $RUN_TESTS == "true"'
       when: on_success
 
-  stage: test_static
+  stage: test
 
   script:
     - export CRAYPE_LINK_TYPE=static
     - darshan-test/regression/run-all.sh $PWD/install $PWD/scratch cray-module-alcf
-    - ldd $PWD/scratch/mpi-io-test
-    - nm $PWD/scratch/mpi-io-test | grep darshan
-    - nm $PWD/scratch/mpi-io-test | grep MPI
 
   artifacts:
     paths:
@@ -56,6 +52,8 @@ test_darshan_static:
         - $PWD/scratch/*.debuglog
         - $PWD/scratch/*.out
         - $PWD/scratch/*.err
+
+  resource_group: debug-queue
 
 test_darshan_dynamic:
   tags:
@@ -68,14 +66,11 @@ test_darshan_dynamic:
     - if: '$CI_PIPELINE_SOURCE == "schedules" && $RUN_TESTS == "true"'
       when: on_success
 
-  stage: test_dynamic
+  stage: test
 
   script:
     - export CRAYPE_LINK_TYPE=dynamic
     - darshan-test/regression/run-all.sh $PWD/install $PWD/scratch cray-module-alcf
-    - ldd $PWD/scratch/mpi-io-test
-    - nm $PWD/scratch/mpi-io-test | grep darshan
-    - nm $PWD/scratch/mpi-io-test | grep MPI
 
   artifacts:
     paths:
@@ -83,3 +78,5 @@ test_darshan_dynamic:
         - $PWD/scratch/*.debuglog
         - $PWD/scratch/*.out
         - $PWD/scratch/*.err
+
+  resource_group: debug-queue
