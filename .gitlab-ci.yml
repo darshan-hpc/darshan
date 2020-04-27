@@ -29,31 +29,31 @@ build_darshan:
     paths:
       - install/
 
-test_darshan_static:
-  tags:
-    - shell
-    - ecp-theta
-
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "web" && $RUN_TESTS == "true"'
-      when: on_success
-    - if: '$CI_PIPELINE_SOURCE == "schedules" && $RUN_TESTS == "true"'
-      when: on_success
-
-  stage: test
-
-  script:
-    - export CRAYPE_LINK_TYPE=static
-    - darshan-test/regression/run-all.sh $PWD/install $PWD/scratch cray-module-alcf
-
-  artifacts:
-    paths:
-        - $PWD/scratch/*.darshan
-        - $PWD/scratch/*.debuglog
-        - $PWD/scratch/*.out
-        - $PWD/scratch/*.err
-
-  resource_group: debug-queue
+#test_darshan_static:
+#  tags:
+#    - shell
+#    - ecp-theta
+#
+#  rules:
+#    - if: '$CI_PIPELINE_SOURCE == "web" && $RUN_TESTS == "true"'
+#      when: on_success
+#    - if: '$CI_PIPELINE_SOURCE == "schedules" && $RUN_TESTS == "true"'
+#      when: on_success
+#
+#  stage: test
+#
+#  script:
+#    - export CRAYPE_LINK_TYPE=static
+#    - darshan-test/regression/run-all.sh $PWD/install $PWD/scratch cray-module-alcf
+#
+#  artifacts:
+#    paths:
+#        - $PWD/scratch/*.darshan
+#        - $PWD/scratch/*.debuglog
+#        - $PWD/scratch/*.out
+#        - $PWD/scratch/*.err
+#
+#  resource_group: debug-queue
 
 test_darshan_dynamic:
   tags:
@@ -71,6 +71,9 @@ test_darshan_dynamic:
   script:
     - export CRAYPE_LINK_TYPE=dynamic
     - darshan-test/regression/run-all.sh $PWD/install $PWD/scratch cray-module-alcf
+    - ldd $PWD/scratch/mpi-io-test
+    - nm $PWD/scratch/mpi-io-test | grep darshan
+    - nm $PWD/scratch/mpi-io-test | grep MPI
 
   artifacts:
     paths:
