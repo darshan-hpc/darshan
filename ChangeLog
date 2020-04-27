@@ -5,6 +5,8 @@ Darshan Release Change Log
 Darshan-3.2.0-pre2
 =============
 * silence stdout from darshan-job-summary.pl and remove --summary option
+* added `darshan-config --log-path` command option to display the log path(s)
+  configured for use with Darshan
 
 Darshan-3.2.0-pre1
 =============
