@@ -47,7 +47,8 @@ source $DARSHAN_TESTDIR/$DARSHAN_PLATFORM/env.sh
 
 failure_count=0
 
-for i in `ls $DARSHAN_TESTDIR/test-cases/*.sh`; do
+#for i in `ls $DARSHAN_TESTDIR/test-cases/*.sh`; do
+for i in `ls $DARSHAN_TESTDIR/test-cases/mpi-io-test.sh`; do
     echo Running ${i}...
     $i
     if [ $? -ne 0 ]; then
