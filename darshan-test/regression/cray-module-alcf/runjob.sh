@@ -6,7 +6,7 @@ if [ -n "${DXT_ENABLE_IO_TRACE+defined}" ]; then
 fi
 
 # submit job and get job id
-jobid=`qsub --env DARSHAN_LOGFILE=$DARSHAN_LOGFILE --env DARSHAN_DEFAULT_NPROCS=$DARSHAN_DEFAULT_NPROCS $DXT_ENV --proccount $DARSHAN_DEFAULT_NPROCS -A CSC250STDM12 -q debug-cache-quad -t 20 -n 1 --output $DARSHAN_TMP/$$-tmp.out --error $DARSHAN_TMP/$$-tmp.err --debuglog $DARSHAN_TMP/$$-tmp.debuglog $DARSHAN_TESTDIR/$DARSHAN_PLATFORM/cobalt-submit.sh "$@"`
+jobid=`qsub --env DARSHAN_LOGFILE=$DARSHAN_LOGFILE --env DARSHAN_DEFAULT_NPROCS=$DARSHAN_DEFAULT_NPROCS $DXT_ENV --proccount $DARSHAN_DEFAULT_NPROCS -A CSC250STDM12 -q debug-cache-quad -t 20 -n 1 --run_project --output $DARSHAN_TMP/$$-tmp.out --error $DARSHAN_TMP/$$-tmp.err --debuglog $DARSHAN_TMP/$$-tmp.debuglog $DARSHAN_TESTDIR/$DARSHAN_PLATFORM/cobalt-submit.sh "$@"`
 
 if [ $? -ne 0 ]; then
         echo "Error: failed to qsub $@"
