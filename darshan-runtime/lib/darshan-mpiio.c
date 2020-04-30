@@ -1544,8 +1544,8 @@ void darshan_mpiio_shutdown_bench_setup(int test_case)
 
             MPIIO_RECORD_OPEN(MPI_SUCCESS, filepath, fh_array[0], MPI_COMM_SELF,
                 2, MPI_INFO_NULL, 0, 1);
-            MPIIO_RECORD_WRITE(MPI_SUCCESS, fh_array[0], size_array[0], offset_array[0],
-                MPI_BYTE, MPIIO_INDEP_WRITES, 1, 2);
+            MPIIO_RECORD_WRITE(MPI_SUCCESS, fh_array[0], size_array[0], MPI_BYTE,
+                offset_array[0], MPIIO_INDEP_WRITES, 1, 2);
 
             break;
         case 2: /* single shared file */
@@ -1553,8 +1553,8 @@ void darshan_mpiio_shutdown_bench_setup(int test_case)
 
             MPIIO_RECORD_OPEN(MPI_SUCCESS, filepath, fh_array[0], MPI_COMM_WORLD,
                 2, MPI_INFO_NULL, 0, 1);
-            MPIIO_RECORD_WRITE(MPI_SUCCESS, fh_array[0], size_array[0], offset_array[0],
-                MPI_BYTE, MPIIO_COLL_WRITES, 1, 2);
+            MPIIO_RECORD_WRITE(MPI_SUCCESS, fh_array[0], size_array[0], MPI_BYTE,
+                offset_array[0], MPIIO_COLL_WRITES, 1, 2);
 
             break;
         case 3: /* 1024 unique files per proc */
@@ -1566,8 +1566,9 @@ void darshan_mpiio_shutdown_bench_setup(int test_case)
                     2, MPI_INFO_NULL, 0, 1);
                 MPIIO_RECORD_WRITE(MPI_SUCCESS, fh_array[i],
                     size_array[i % DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT],
+                    MPI_BYTE,
                     offset_array[i % DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT],
-                    MPI_BYTE, MPIIO_INDEP_WRITES, 1, 2);
+                    MPIIO_INDEP_WRITES, 1, 2);
             }
 
             break;
@@ -1580,8 +1581,9 @@ void darshan_mpiio_shutdown_bench_setup(int test_case)
                     2, MPI_INFO_NULL, 0, 1);
                 MPIIO_RECORD_WRITE(MPI_SUCCESS, fh_array[i],
                     size_array[i % DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT],
+                    MPI_BYTE,
                     offset_array[i % DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT],
-                    MPI_BYTE, MPIIO_COLL_WRITES, 1, 2);
+                    MPIIO_COLL_WRITES, 1, 2);
             }
             break;
         default:
