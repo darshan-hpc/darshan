@@ -109,7 +109,7 @@ static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p)
             *((int64_t *)src_p) = -1;
         }
 
-        memcpy(file, scratch, sizeof(struct darshan_posix_file));
+        memcpy(file, scratch, sizeof(struct darshan_stdio_file));
     }
 
 exit:

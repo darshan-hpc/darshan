@@ -68,6 +68,22 @@ struct darshan_mnt_info
     char mnt_path[DARSHAN_EXE_LEN];
 };
 
+struct darshan_mod_info
+{
+    char *name;
+    int  len;
+    int  ver;
+    int  idx;
+};
+
+struct darshan_name_record_info
+{
+    darshan_record_id id;
+    char *name;
+};
+
+
+
 /* functions to be implemented by each module for integration with
  * darshan log file utilities (e.g., parser & convert tools)
  */
@@ -158,6 +174,11 @@ int darshan_log_put_mod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz, int ver);
 void darshan_log_close(darshan_fd file);
 void darshan_log_print_version_warnings(const char *version_string);
+void darshan_log_get_modules (darshan_fd fd, struct darshan_mod_info **mods, int* count);
+void darshan_log_get_name_records(darshan_fd fd,
+                              struct darshan_name_record_info **mods,
+                              int* count);
+int darshan_log_get_record (darshan_fd fd, int mod_idx, void **buf);
 
 /* convenience macros for printing Darshan counters */
 #define DARSHAN_PRINT_HEADER() \
