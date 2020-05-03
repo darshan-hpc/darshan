@@ -20,7 +20,7 @@ def agg_ioops(self, mode='append'):
 
 
     # convienience
-    recs = self.data['records']
+    recs = self.records
     ctx = {}
 
     # aggragate
@@ -106,10 +106,13 @@ def agg_ioops(self, mode='append'):
     tmp = json.dumps(ctx, cls=NumpyEncoder)
     ctx = json.loads(tmp)
 
-    # reset summary target
+    
+
+
+    # overwrite existing summary entry
     if mode == 'append':
-        self.data['agg_ioops'] = ctx
-    else:
-        return ctx
+        self.summary['agg_ioops'] = ctx
+    
+    return ctx
 
 

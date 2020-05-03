@@ -1,2 +1,17 @@
 jupyter
 notebook
+
+
+
+
+
+
+# altair (has svg well exposed)
+altair
+
+
+
+# for bokeh + svg export
+# but bokeh is almost as verbose to use as matplotlib
+bokeh
+selenium

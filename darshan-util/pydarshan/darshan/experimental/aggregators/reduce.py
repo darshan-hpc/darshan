@@ -65,8 +65,8 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
 
 
 
-    print(mods)
-    print(name_records)
+    #print(mods)
+    #print(name_records)
 
 
     if name_records != None:
@@ -91,10 +91,35 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
                         nrec_pattern = nrec
 
 
-                    if nrec not in ctx[mod]:
-                        ctx[mod][nrec_pattern] = rec['counters']
-                    else:
-                        ctx[mod][nrec_pattern] = np.add(ctx[mod][nrec_pattern], rec['counters'])
+                    for counters in ['counters', 'fcounters']:
+                        if nrec_pattern not in ctx[mod]:
+                            ctx[mod][nrec_pattern] = {}
+
+
+                        if counters not in rec:
+                            continue
+
+
+                        if counters not in ctx[mod][nrec_pattern]:
+                            ctx[mod][nrec_pattern][counters] = rec[counters]
+                        else:
+                            ctx[mod][nrec_pattern][counters] = np.add(ctx[mod][nrec_pattern][counters], rec[counters])
+
+
+
+    # convert records back to list
+    result = {}
+    for mod, name_records in ctx.items():
+        if mod not in result:
+            result[mod] = []
+        
+        for name_record, val in name_records.items():
+            rec = {"id": name_record, "rank": -1}
+            rec.update({"id": name_record, "rank": -1})            
+            rec.update(val)  
+
+            result[mod].append(rec)            
+
 
 
 
@@ -103,5 +128,5 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
         if name not in self.summary:
             self.summary[name] = {}
         self.data[name] = ctx
-    
-    return ctx
+
+    return result

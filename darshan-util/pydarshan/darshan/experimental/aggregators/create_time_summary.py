@@ -1,6 +1,6 @@
 from darshan.report import *
 
-def create_time_summary(self):
+def create_time_summary(self, mode="append"):
     """
     TODO: port to new object report
 
@@ -14,6 +14,8 @@ def create_time_summary(self):
     #POSIX, 98.837925, 0.150075, 0.5991, 0.4129
     #MPI-IO, 97.293875, 0.051575, 0.126525, 2.528025
     #STDIO, 99.261425, 0, 0.738575, 0
+
+    ctx = {}
 
     # convienience links
     summary = logdata['summary']
@@ -37,5 +39,16 @@ def create_time_summary(self):
 
             entry['app_time'] = ((runtime * nprocs - io_time) / (runtime * nprocs)) * 100
             time_summary[layer] = entry
+
+
+
+
+
+    # overwrite existing summary entry
+    if mode == "append":
+        self.summary['time_summary'] = ctx
+    
+
+    return ctx
 
 

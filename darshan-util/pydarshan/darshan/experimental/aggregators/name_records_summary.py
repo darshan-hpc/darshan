@@ -16,12 +16,11 @@ def name_records_summary(self):
     for mod, records in self.records.items():
         for rec in records:
             if rec['id'] not in counts:
-                counts[rec['id']] = {}
-                
-            ctx = counts[rec['id']]
-            if mod not in ctx:
-                ctx[mod] = 1
+                counts[rec['id']] = {'name': self.name_records[rec['id']], 'counts': {}}
+
+            if mod not in counts[rec['id']]['counts']:
+                counts[rec['id']]['counts'][mod] = 1
             else:
-                ctx[mod] += 1
+                counts[rec['id']]['counts'][mod] += 1
 
     return counts

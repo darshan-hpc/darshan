@@ -1,6 +1,6 @@
 from darshan.report import *
 
-def create_timeline(self, group_by='rank'):
+def create_timeline(self, group_by='rank', mode="append"):
     """
     Generate/update a timeline from dxt tracing records of current report.
 
@@ -14,11 +14,12 @@ def create_timeline(self, group_by='rank'):
     self.mod_read_all_dxt_records("DXT_MPIIO")
 
 
-    self.data['timeline'] = {'groups': [], 'items': []}
 
-    
-    groups = self.data['timeline']['groups']
-    items = self.data['timeline']['items']
+    ctx = {'groups': [], 'items': []}
+
+
+    groups = ctx['groups']
+    items = ctx['items']
     
 
     start_time = datetime.datetime.fromtimestamp( self.data['metadata']['job']['start_time'] )
@@ -99,5 +100,15 @@ def create_timeline(self, group_by='rank'):
                 groupify(rec, mod)
 
 
+
+
+
+
+    # overwrite existing summary entry
+    if mode == "append":
+        self.summary['timeline'] = ctx
+    
+
+    return ctx
 
 

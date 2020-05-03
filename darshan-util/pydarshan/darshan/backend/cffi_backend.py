@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import cffi
-import numpy
+import numpy as np
+import pandas as pd
+
 
 from darshan.discover_darshan import discover_darshan
 from darshan.api_def_c import load_darshan_header
@@ -167,7 +169,7 @@ def log_get_name_records(log):
 
 
 
-def log_get_dxt_record(log, mod_name, mod_type, mode='dict'):
+def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='pandas'):
     """
     Returns a dictionary holding a dxt darshan log record.
 
@@ -239,6 +241,10 @@ def log_get_dxt_record(log, mod_name, mod_type, mode='dict'):
         }
         rec['read_segments'].append(seg)
 
+
+    #pd.DataFrame([rec])
+
+
     return rec
 
 
@@ -279,12 +285,12 @@ def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
 
     for i in range(0, len(rbuf[0].counters)):
         clst.append(rbuf[0].counters[i])
-    rec['counters'] = numpy.array(clst, dtype=numpy.uint64)
+    rec['counters'] = np.array(clst, dtype=np.uint64)
     flst = []
 
     for i in range(0, len(rbuf[0].fcounters)):
         flst.append(rbuf[0].fcounters[i])
-    rec['fcounters'] = numpy.array(clst, dtype=numpy.float64)
+    rec['fcounters'] = np.array(clst, dtype=np.float64)
 
     return rec
 
@@ -455,5 +461,5 @@ def log_get_apxc_record(log):
         clst = []
         for i in range(0, len(prf[0].counters)):
             clst.append(prf[0].counters[i])
-        rec['counters'] = numpy.array(clst, dtype=numpy.uint64)
+        rec['counters'] = np.array(clst, dtype=np.uint64)
     return rec

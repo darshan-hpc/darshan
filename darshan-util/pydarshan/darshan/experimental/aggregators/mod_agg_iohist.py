@@ -59,8 +59,8 @@ def mod_agg_iohist(self, mod, mode='append'):
 
     if mode == 'append':
         if 'agg_iohist' not in self.data:
-            self.data['agg_iohist'] = {}
-        self.data['agg_iohist'][mod] = ctx
+            self.summary['agg_iohist'] = {}
+        self.summary['agg_iohist'][mod] = ctx
     
     return ctx
 

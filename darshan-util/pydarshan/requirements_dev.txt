@@ -16,3 +16,5 @@ matplotlib
 pytest==3.8.2
 pytest-runner==4.2
 nose
+
+scalene

@@ -8,12 +8,15 @@ interaction and aggregation of Darshan logs using Python.
 
 
 import darshan.backend.cffi_backend as backend
+
 import json
-import numpy as np
 import re
 import copy
 import datetime
 import sys
+
+import numpy as np
+import pandas as pd
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -77,6 +80,16 @@ class DarshanReport(object):
 
 
         if filename:
+            self.open(filename, read_all=read_all)    
+
+
+
+
+    def open(self, filename, read_all=False):
+
+        self.filename = filename
+
+        if filename:
             self.log = backend.log_open(self.filename)
             self.read_metadata()
 
@@ -87,6 +100,9 @@ class DarshanReport(object):
 
 
     def __add__(self, other):
+        """
+        Allow reports to be combined/merged overloading the addition operation.
+        """
         # new report
         nr = DarshanReport()
 
@@ -95,20 +111,29 @@ class DarshanReport(object):
             # Currently, assume logs remain in memomry to create prov. tree on demand
             # Alternative: maintain a tree with simpler refs? (modified reports would not work then)
 
-            nr.provenance_reports[self.filename] = copy.copy(self)
-            nr.provenance_reports[other.filename] = copy.copy(other)
+            #nr.provenance_reports[self.filename] = copy.copy(self)
+            #nr.provenance_reports[other.filename] = copy.copy(other)
+
+            nr.provenance_reports[self.filename] = None
+            nr.provenance_reports[other.filename] = None
+
             nr.provenance_log.append(("add", self, other, datetime.datetime.now()))
 
 
         # update metadata
-        def update_metadata(report):
+        def update_metadata(report, force=False):
+            if force:
+                nr.metadata['start_time'] = report.metadata['start_time']
+                nr.metadata['end_time'] = report.metadata['end_time']
+                return
+
             if report.metadata['start_time'] < nr.metadata['start_time']:
                 nr.metadata['start_time'] = report.metadata['start_time']
 
             if report.metadata['end_time'] > nr.metadata['end_time']:
                 nr.metadata['end_time'] = report.metadata['end_time']
 
-        update_metadata(self)
+        update_metadata(self, force=True)
         update_metadata(other)
 
 
@@ -121,6 +146,21 @@ class DarshanReport(object):
                 else:
                     nr.records[key] += copy.copy(records)
 
+            for key, mod in report.modules.items():
+                if key not in nr.modules:
+                    nr.modules[key] = copy.copy(mod)
+                    # TODO: invalidate len/counters
+
+            for key, counter in report.counters.items():
+                if key not in nr.counters:
+                    nr.counters[key] = copy.copy(counter)
+                    # TODO: invalidate len/counters
+
+
+            for key, nrec in report.name_records.items():
+                if key not in nr.counters:
+                    nr.name_records[key] = copy.copy(nrec)
+                    # TODO: verify colliding name_records?
 
         return nr
 
@@ -136,11 +176,11 @@ class DarshanReport(object):
             None
 
         """
-        self.data['metadata']['job'] = backend.log_get_job(self.log)
-        self.data['metadata']['exe'] = backend.log_get_exe(self.log)
+        self.metadata['job'] = backend.log_get_job(self.log)
+        self.metadata['exe'] = backend.log_get_exe(self.log)
 
-        self.metadata['start_time'] = self.metadata['job']['start_time']
-        self.metadata['end_time'] = self.metadata['job']['end_time']
+        self.metadata['start_time'] = datetime.datetime.fromtimestamp(self.metadata['job']['start_time'])
+        self.metadata['end_time'] = datetime.datetime.fromtimestamp(self.metadata['job']['end_time'])
 
         self.data['mounts'] = backend.log_get_mounts(self.log)
 
@@ -183,7 +223,7 @@ class DarshanReport(object):
         pass
 
 
-    def read_all_dxt_records(self):
+    def read_all_dxt_records(self, reads=True, writes=True):
         """
         Read all dxt records from darshan log and return as dictionary.
 
@@ -195,7 +235,7 @@ class DarshanReport(object):
         """
 
         for mod in self.data['modules']:
-            self.mod_read_all_dxt_records(mod, warnings=False)
+            self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes)
 
         pass
 
@@ -271,7 +311,7 @@ class DarshanReport(object):
         pass
 
 
-    def mod_read_all_dxt_records(self, mod, mode='numpy', warnings=True):
+    def mod_read_all_dxt_records(self, mod, mode='numpy', warnings=True, reads=True, writes=True):
         """
         Reads all dxt records for provided module.
 
@@ -334,7 +374,7 @@ class DarshanReport(object):
             self.data['modules'][mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_dxt_record(self.log, mod, structdefs[mod])
+            rec = backend.log_get_dxt_record(self.log, mod, structdefs[mod], reads=reads, writes=writes)
 
         pass
 
@@ -383,7 +423,7 @@ class DarshanReport(object):
             None
         """
 
-        recs = self.data['records']
+        recs = self.records
 
         for mod in recs:
             for i, rec in enumerate(self.data['records'][mod]):
@@ -391,6 +431,51 @@ class DarshanReport(object):
                 recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
 
         self.converted_records = True
+
+
+
+    def info(self):
+        """
+        Print information about the record for inspection.
+
+        Args:
+            None
+
+        Return:
+            None
+        """
+
+        print("DarshanReport:    ", id(self))
+        print("Modules in logfile:", [self.modules.keys()])
+        for mod in self.records:
+            print("Loaded Records:", mod, ", Entries:", len(self.records[mod]))
+
+        print("Name Records:", len(self.name_records))
+    
+    
+        def get_size(obj, seen=None):
+            """Recursively finds size of objects"""
+            size = sys.getsizeof(obj)
+            if seen is None:
+                seen = set()
+            obj_id = id(obj)
+            if obj_id in seen:
+                return 0
+            # Important mark as seen *before* entering recursion to gracefully handle
+            # self-referential objects
+            seen.add(obj_id)
+            if isinstance(obj, dict):
+                size += sum([get_size(v, seen) for v in obj.values()])
+                size += sum([get_size(k, seen) for k in obj.keys()])
+            elif hasattr(obj, '__dict__'):
+                size += get_size(obj.__dict__, seen)
+            elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
+                size += sum([get_size(i, seen) for i in obj])
+            return size
+
+        #print("Memory:", get_size(self), 'bytes')
+
+
 
 
     def as_json(self):
@@ -404,7 +489,13 @@ class DarshanReport(object):
             JSON String
         """
 
-        # TODO: decide how to best issue conversion
-        data = self.data
+        data = copy.deepcopy(self.data)
+
+        recs = data['records']
+        for mod in recs:
+            for i, rec in enumerate(data['records'][mod]):
+                recs[mod][i]['counters'] = rec['counters'].tolist()
+                recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
+
 
         return json.dumps(data)

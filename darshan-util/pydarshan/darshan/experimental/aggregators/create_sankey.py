@@ -1,6 +1,6 @@
 from darshan.report import *
 
-def create_sankey(self):
+def create_sankey(self, mode="append"):
     """
     Generate a summary that shows the dataflow between ranks, files and
     their mountpoints.
@@ -78,9 +78,11 @@ def create_sankey(self):
     tmp = json.dumps(ctx, cls=NumpyEncoder)
     tmp = json.loads(tmp)
 
-    self.data['sankey'] = tmp
 
-
-
+    # overwrite existing summary entry
+    if mode == "append":
+        self.summary['sankey'] = tmp
+    
+    return ctx
 
 

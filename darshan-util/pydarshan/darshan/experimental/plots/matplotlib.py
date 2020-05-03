@@ -97,8 +97,9 @@ def plot_access_histogram(self, mod, filter=None, data=None):
 
     fig.tight_layout()
 
-    plt.show()
-    pass
+    #plt.show()
+   
+    return plt
 
 
 def plot_time_summary(self, filter=None, data=None):
@@ -114,7 +115,7 @@ def plot_time_summary(self, filter=None, data=None):
 
 
 
-def plot_opcounts(self, filter=None, data=None):
+def plot_opcounts(self, filter=None, data=None, return_csv=False):
     """
     Generates a baor chart summary for operation counts.
 
@@ -156,7 +157,7 @@ def plot_opcounts(self, filter=None, data=None):
             posix['POSIX_OPENS'],
             posix['POSIX_STATS'],
             posix['POSIX_SEEKS'],
-            posix['POSIX_MMAPS'],
+            0, # faulty? posix['POSIX_MMAPS'],
             posix['POSIX_FSYNCS'] + posix['POSIX_FDSYNCS']
         ]
 
@@ -206,6 +207,21 @@ def plot_opcounts(self, filter=None, data=None):
 
 
 
+    def as_csv():
+        text = ""
+        text += ','.join(labels) +  ',Layer' + "\n"
+        text += ','.join(str(x) for x in posix_vals) + ',POSIX' + "\n"
+        text += ','.join(str(x) for x in mpiind_vals) + ',MPIIND' + "\n"
+        text += ','.join(str(x) for x in mpicol_vals) + ',MPICOL' + "\n"
+        text += ','.join(str(x) for x in stdio_vals) + ',STDIO' + "\n"
+
+        return text
+
+
+
+    print(as_csv())
+
+
     x = np.arange(len(labels))  # the label locations
     width = 0.15  # the width of the bars
 
@@ -243,8 +259,13 @@ def plot_opcounts(self, filter=None, data=None):
 
     fig.tight_layout()
 
-    plt.show()
-    pass
+    #plt.show()
+    
+
+    if return_csv:
+        return plt, as_csv()
+    else:
+        return plt
 
 
 

@@ -15,6 +15,9 @@ def filter(self, mods=None, name_records=None, data_format='numpy', mode='append
         None
     """
 
+
+
+
     # convienience
     recs = self.records
     ctx = {}
