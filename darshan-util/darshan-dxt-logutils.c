@@ -88,6 +88,14 @@ static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf_p)
     if(fd->mod_map[DXT_POSIX_MOD].len == 0)
         return(0);
 
+    if(fd->mod_ver[DXT_POSIX_MOD] == 0 ||
+        fd->mod_ver[DXT_POSIX_MOD] > DXT_POSIX_VER)
+    {
+        fprintf(stderr, "Error: Invalid DXT POSIX module version number (got %d)\n",
+            fd->mod_ver[DXT_POSIX_MOD]);
+        return(-1);
+    }
+
     ret = darshan_log_get_mod(fd, DXT_POSIX_MOD, &tmp_rec,
                 sizeof(struct dxt_file_record));
     if(ret < 0)
@@ -156,6 +164,14 @@ static int dxt_log_get_mpiio_file(darshan_fd fd, void** dxt_mpiio_buf_p)
 
     if(fd->mod_map[DXT_MPIIO_MOD].len == 0)
         return(0);
+
+    if(fd->mod_ver[DXT_MPIIO_MOD] == 0 ||
+        fd->mod_ver[DXT_MPIIO_MOD] > DXT_MPIIO_VER)
+    {
+        fprintf(stderr, "Error: Invalid DXT MPIIO module version number (got %d)\n",
+            fd->mod_ver[DXT_MPIIO_MOD]);
+        return(-1);
+    }
 
     ret = darshan_log_get_mod(fd, DXT_MPIIO_MOD, &tmp_rec,
                 sizeof(struct dxt_file_record));

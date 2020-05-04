@@ -61,6 +61,14 @@ static int darshan_log_get_pnetcdf_file(darshan_fd fd, void** pnetcdf_buf_p)
     if(fd->mod_map[DARSHAN_PNETCDF_MOD].len == 0)
         return(0);
 
+    if(fd->mod_ver[DARSHAN_PNETCDF_MOD] == 0 ||
+        fd->mod_ver[DARSHAN_PNETCDF_MOD] > DARSHAN_PNETCDF_VER)
+    {
+        fprintf(stderr, "Error: Invalid PNetCDF module version number (got %d)\n",
+            fd->mod_ver[DARSHAN_PNETCDF_MOD]);
+        return(-1);
+    }
+
     if(*pnetcdf_buf_p == NULL)
     {
         file = malloc(sizeof(*file));

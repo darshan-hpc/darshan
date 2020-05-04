@@ -247,6 +247,7 @@ static int darshan_mem_alignment = 1;
     size_t stride; \
     int64_t this_offset; \
     int64_t file_alignment; \
+    struct darshan_common_val_counter *cvc; \
     double __elapsed = __tm2-__tm1; \
     if(__ret < 0) break; \
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &(__fd), sizeof(int)); \
@@ -273,12 +274,18 @@ static int darshan_mem_alignment = 1;
     rec_ref->file_rec->counters[POSIX_BYTES_READ] += __ret; \
     rec_ref->file_rec->counters[POSIX_READS] += 1; \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[POSIX_SIZE_READ_0_100]), __ret); \
-    darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, __ret, \
+    cvc = darshan_track_common_val_counters(&rec_ref->access_root, &__ret, 1, \
+        &rec_ref->access_count); \
+    if(cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
         &(rec_ref->file_rec->counters[POSIX_ACCESS1_ACCESS]), \
-        &(rec_ref->file_rec->counters[POSIX_ACCESS1_COUNT])); \
-    darshan_common_val_counter(&rec_ref->stride_root, &rec_ref->stride_count, stride, \
+        &(rec_ref->file_rec->counters[POSIX_ACCESS1_COUNT]), \
+        cvc->vals, 1, cvc->freq, 0); \
+    cvc = darshan_track_common_val_counters(&rec_ref->stride_root, &stride, 1, \
+        &rec_ref->stride_count); \
+    if(cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
         &(rec_ref->file_rec->counters[POSIX_STRIDE1_STRIDE]), \
-        &(rec_ref->file_rec->counters[POSIX_STRIDE1_COUNT])); \
+        &(rec_ref->file_rec->counters[POSIX_STRIDE1_COUNT]), \
+        cvc->vals, 1, cvc->freq, 0); \
     if(!__aligned) \
         rec_ref->file_rec->counters[POSIX_MEM_NOT_ALIGNED] += 1; \
     file_alignment = rec_ref->file_rec->counters[POSIX_FILE_ALIGNMENT]; \
@@ -303,6 +310,7 @@ static int darshan_mem_alignment = 1;
     size_t stride; \
     int64_t this_offset; \
     int64_t file_alignment; \
+    struct darshan_common_val_counter *cvc; \
     double __elapsed = __tm2-__tm1; \
     if(__ret < 0) break; \
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &__fd, sizeof(int)); \
@@ -329,12 +337,18 @@ static int darshan_mem_alignment = 1;
     rec_ref->file_rec->counters[POSIX_BYTES_WRITTEN] += __ret; \
     rec_ref->file_rec->counters[POSIX_WRITES] += 1; \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[POSIX_SIZE_WRITE_0_100]), __ret); \
-    darshan_common_val_counter(&rec_ref->access_root, &rec_ref->access_count, __ret, \
+    cvc = darshan_track_common_val_counters(&rec_ref->access_root, &__ret, 1, \
+        &rec_ref->access_count); \
+    if(cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
         &(rec_ref->file_rec->counters[POSIX_ACCESS1_ACCESS]), \
-        &(rec_ref->file_rec->counters[POSIX_ACCESS1_COUNT])); \
-    darshan_common_val_counter(&rec_ref->stride_root, &rec_ref->stride_count, stride, \
+        &(rec_ref->file_rec->counters[POSIX_ACCESS1_COUNT]), \
+        cvc->vals, 1, cvc->freq, 0); \
+    cvc = darshan_track_common_val_counters(&rec_ref->stride_root, &stride, 1, \
+        &rec_ref->stride_count); \
+    if(cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
         &(rec_ref->file_rec->counters[POSIX_STRIDE1_STRIDE]), \
-        &(rec_ref->file_rec->counters[POSIX_STRIDE1_COUNT])); \
+        &(rec_ref->file_rec->counters[POSIX_STRIDE1_COUNT]), \
+        cvc->vals, 1, cvc->freq, 0); \
     if(!__aligned) \
         rec_ref->file_rec->counters[POSIX_MEM_NOT_ALIGNED] += 1; \
     file_alignment = rec_ref->file_rec->counters[POSIX_FILE_ALIGNMENT]; \
@@ -1280,7 +1294,7 @@ int DARSHAN_DECL(aio_write64)(struct aiocb64 *aiocbp)
 
 ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
 {
-    int ret;
+    ssize_t ret;
     double tm2;
     struct posix_aio_tracker *tmp;
     int aligned_flag = 0;
@@ -1317,7 +1331,7 @@ ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
 
 ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
 {
-    int ret;
+    ssize_t ret;
     double tm2;
     struct posix_aio_tracker *tmp;
     int aligned_flag = 0;
@@ -1717,16 +1731,18 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
         /* first set */
         for(j=POSIX_STRIDE1_STRIDE; j<=POSIX_STRIDE4_STRIDE; j++)
         {
-            DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[POSIX_STRIDE1_STRIDE]),
-                &(tmp_file.counters[POSIX_STRIDE1_COUNT]), infile->counters[j],
-                infile->counters[j+4], 0);
+            DARSHAN_UPDATE_COMMON_VAL_COUNTERS(
+                &(tmp_file.counters[POSIX_STRIDE1_STRIDE]),
+                &(tmp_file.counters[POSIX_STRIDE1_COUNT]),
+                &infile->counters[j], 1, infile->counters[j+4], 1);
         }
         /* second set */
         for(j=POSIX_STRIDE1_STRIDE; j<=POSIX_STRIDE4_STRIDE; j++)
         {
-            DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[POSIX_STRIDE1_STRIDE]),
-                &(tmp_file.counters[POSIX_STRIDE1_COUNT]), inoutfile->counters[j],
-                inoutfile->counters[j+4], 0);
+            DARSHAN_UPDATE_COMMON_VAL_COUNTERS(
+                &(tmp_file.counters[POSIX_STRIDE1_STRIDE]),
+                &(tmp_file.counters[POSIX_STRIDE1_COUNT]),
+                &inoutfile->counters[j], 1, inoutfile->counters[j+4], 1);
         }
 
         /* same for access counts */
@@ -1748,16 +1764,18 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
         /* first set */
         for(j=POSIX_ACCESS1_ACCESS; j<=POSIX_ACCESS4_ACCESS; j++)
         {
-            DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[POSIX_ACCESS1_ACCESS]),
-                &(tmp_file.counters[POSIX_ACCESS1_COUNT]), infile->counters[j],
-                infile->counters[j+4], 0);
+            DARSHAN_UPDATE_COMMON_VAL_COUNTERS(
+                &(tmp_file.counters[POSIX_ACCESS1_ACCESS]),
+                &(tmp_file.counters[POSIX_ACCESS1_COUNT]),
+                &infile->counters[j], 1, infile->counters[j+4], 1);
         }
         /* second set */
         for(j=POSIX_ACCESS1_ACCESS; j<=POSIX_ACCESS4_ACCESS; j++)
         {
-            DARSHAN_COMMON_VAL_COUNTER_INC(&(tmp_file.counters[POSIX_ACCESS1_ACCESS]),
-                &(tmp_file.counters[POSIX_ACCESS1_COUNT]), inoutfile->counters[j],
-                inoutfile->counters[j+4], 0);
+            DARSHAN_UPDATE_COMMON_VAL_COUNTERS(
+                &(tmp_file.counters[POSIX_ACCESS1_ACCESS]),
+                &(tmp_file.counters[POSIX_ACCESS1_COUNT]),
+                &inoutfile->counters[j], 1, inoutfile->counters[j+4], 1);
         }
 
         /* min non-zero (if available) value */
