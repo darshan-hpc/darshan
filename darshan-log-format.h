@@ -131,7 +131,6 @@ struct darshan_base_record
  * component -- NULL can be passed if there are no
  * logutil definitions)
  */
-/* XXX verify no back compat issues when adding HDF5 DATASETS in middle of this list */
 #define DARSHAN_MODULE_IDS \
     X(DARSHAN_NULL_MOD,     "NULL",     DARSHAN_NULL_VER,       NULL) \
     X(DARSHAN_POSIX_MOD,    "POSIX",    DARSHAN_POSIX_VER,      &posix_logutils) \
