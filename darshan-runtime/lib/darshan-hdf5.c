@@ -170,16 +170,29 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     unsigned majnum, minnum, relnum;
 
     H5get_libversion(&majnum, &minnum, &relnum);
-    if((majnum != H5_VERS_MAJOR) || (minnum != H5_VERS_MINOR))
+#ifdef DARSHAN_HDF5_VERS_1_10_PLUS
+    if((majnum == 1) && (minnum < 10))
     {
         if(my_rank < 0)
             MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
         if(my_rank == 0)
         {
-            darshan_core_fprintf(stderr, "Darshan HDF5 module error: runtime library version does not match Darshan module.\n");
+            darshan_core_fprintf(stderr, "Darshan HDF5 module error: runtime library version (%d.%d) incompatible with Darshan module (1.10+).\n", majnum, minnum);
         }
         return(-1);
     }
+#else
+    if((majnum > 1) || (minnum >= 10))
+    {
+        if(my_rank < 0)
+            MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+        if(my_rank == 0)
+        {
+            darshan_core_fprintf(stderr, "Darshan HDF5 module error: runtime library version (%d.%d) incompatible with Darshan module (1.10-).\n", majnum, minnum);
+        }
+        return(-1);
+    }
+#endif
 
     MAP_OR_FAIL(H5Fcreate);
 
@@ -216,16 +229,29 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     unsigned majnum, minnum, relnum;
 
     H5get_libversion(&majnum, &minnum, &relnum);
-    if((majnum != H5_VERS_MAJOR) || (minnum != H5_VERS_MINOR))
+#ifdef DARSHAN_HDF5_VERS_1_10_PLUS
+    if((majnum == 1) && (minnum < 10))
     {
         if(my_rank < 0)
             MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
         if(my_rank == 0)
         {
-            darshan_core_fprintf(stderr, "Darshan HDF5 module error: runtime library version does not match Darshan module.\n");
+            darshan_core_fprintf(stderr, "Darshan HDF5 module error: runtime library version (%d.%d) incompatible with Darshan module (1.10+).\n", majnum, minnum);
         }
         return(-1);
     }
+#else
+    if((majnum > 1) || (minnum >= 10))
+    {
+        if(my_rank < 0)
+            MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+        if(my_rank == 0)
+        {
+            darshan_core_fprintf(stderr, "Darshan HDF5 module error: runtime library version (%d.%d) incompatible with Darshan module (1.10-).\n", majnum, minnum);
+        }
+        return(-1);
+    }
+#endif
 
     MAP_OR_FAIL(H5Fopen);
 

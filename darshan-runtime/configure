@@ -621,6 +621,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+DARSHAN_HDF5_LD_FLAGS
 DARSHAN_MDHIM_LD_OPTS
 BUILD_MDHIM_MODULE
 BUILD_LUSTRE_MODULE
@@ -4114,10 +4115,19 @@ DARSHAN_HDF5_LD_OPTS=
 # Check whether --enable-hdf5-mod was given.
 if test "${enable_hdf5_mod+set}" = set; then :
   enableval=$enable_hdf5_mod;
+else
+  enable_hdf5_mod=no
 fi
 
-if test "x$enable_hdf5_mod" = "xyes"; then :
-  BUILD_HDF5_MODULE=1
+if test "x$enable_hdf5_mod" != "xno"; then :
+  if test -d "$enable_hdf5_mod"; then :
+  CFLAGS="${CFLAGS} -I${enable_hdf5_mod}/include"
+        DARSHAN_HDF5_LD_FLAGS="-L${enable_hdf5_mod}/lib -Wl,-rpath=${enable_hdf5_mod}/lib -lhdf5"
+else
+  as_fn_error $? "enableval for hdf5-mod is required and must be a valid install prefix path for HDF5 library" "$LINENO" 5
+
+fi
+    BUILD_HDF5_MODULE=1
     DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
