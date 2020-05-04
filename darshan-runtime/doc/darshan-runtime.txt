@@ -18,7 +18,7 @@ but, as of version 3.2.0, Darshan also supports instrumentation of non-MPI
 applications. Regardless of whether MPI is used, Darshan provides detailed
 statistics about POSIX level file accesses made by the application.
 In the case of MPI applications, Darshan additionally captures details on MPI-IO
-level access, as well as limited information about HDF5 and PnetCDF access.
+and HDF5 level access, as well as limited information about PnetCDF access.
 Note that instrumentation of non-MPI applications is currently only supported
 in Darshan's shared library, which applications must `LD_PRELOAD`.
 
@@ -93,20 +93,27 @@ file.  See `./configure --help` for details.
 active Darshan instrumentation modules can collectively consume.
 * `--with-zlib=`: specifies an alternate location for the zlib development
 header and library.
-* `CC=`: specifies the C compiler to use for compilation.
 * `--without-mpi`: disables MPI support when building Darshan - MPI support is
 assumed if not specified.
 * `--enable-mmap-logs`: enables the use of Darshan's mmap log file mechanism.
 * `--disable-cuserid`: disables use of cuserid() at runtime.
 * `--disable-ld-preload`: disables building of the Darshan LD_PRELOAD library
-* `--disable-bgq-mod`: disables building of the BG/Q module (default checks
-and only builds if BG/Q environment detected).
 * `--enable-group-readable-logs`: sets Darshan log file permissions to allow
 group read access.
-* `--enable-HDF5-pre-1.10`: enables the Darshan HDF5 instrumentation module,
-with support for HDF5 versions prior to 1.10
-* `--enable-HDF5-post-1.10`: enables the Darshan HDF5 instrumentation module,
-with support for HDF5 versions 1.10 or higher
+* `CC=`: specifies the C compiler to use for compilation.
+
+.Configure arguments for controlling which Darshan modules to use:
+* `--disable-posix-mod`: disables compilation and use of Darshan's POSIX module (default=enabled)
+* `--disable-mpiio-mod`: disables compilation and usee of Darshan's MPI-IO module (default=enabled)
+* `--disable-stdio-mod`: disables compilation and use of Darshan's STDIO module (default=enabled)
+* `--disable-dxt-mod`: disables compilation and use of Darshan's DXT module (default=enabled)
+* `--enable-hdf5-mod`: enables compilation and use of Darshan's HDF5 module (default=disabled)
+** NOTE: This option requires the HDF5 install prefix as an argument (e.g., `--enable-hdf5-mod=/path/to/hdf5/`)
+** NOTE: HDF5 instrumentation only works on HDF5 library versions >=1.8, and further requires that the HDF5 library used to build Darshan and the HDF5 library being linked in either both be version >=1.10 or both be version <1.10
+** NOTE: This option does not work with the profile configuration instrumentation method described in the "Instrumenting applications" section (link:darshan-runtime.html#_using_a_profile_configuration[Using a profile configuration])
+* `--disable-pnetcdf-mod`: disables compilation and use of Darshan's PNetCDF module (default=enabled)
+* `--disable-lustre-mod`: disables compilation and use of Darshan's Lustre module (default=enabled)
+* `--disable-mdhim-mod`: disables compilation and use of Darshan's MDHIM module (default=disabled)
 
 == Environment preparation
 
@@ -439,6 +446,27 @@ Darshan will typically use the LOGNAME environment variable to determine a
 userid.
 ====
 
+If instrumentation of the HDF5 library is desired, additionally load an
+acceptable HDF5 module (e.g., `module load cray-hdf5-parallel`) prior to
+building and and use the the `--enable-hdf5-mod=/path/to/hdf5/installation/prefix`
+configure argument. We additionally recommend that you modify Darshan's
+generated Cray software module to include a dependency on the HDF5 software module used
+-- this is necessary to ensure Darshan library dependencies are satisfied at 
+application link and run time.
+
+----
+prereq cray-hdf5-parallel
+----
+
+Note that the Darshan-enabled Cray compiler wrappers will always prefer
+user-supplied HDF5 libraries over the library used to build Darshan.
+However, due to ABI changes in the HDF5 library, the two HDF5 libraries
+used must be compatible. Specifically, the HDF5 library versions need to
+be either both greater than or equal to 1.10 or both less than 1.10. If
+users use an HDF5 version that is incompatible with Darshan, either
+link or runtime errors will occur and the user will have to  switch
+HDF5 versions or unload the Darshan module.
+
 As in any Darshan installation, the darshan-mk-log-dirs.pl script can then be
 used to create the appropriate directory hierarchy for storing Darshan log
 files in the --with-log-path directory.
@@ -534,37 +562,6 @@ You can enable Darshan instrumentation at compile time by adding
 
 Alternatively you can use `LD_PRELOAD` runtime instrumentation method to
 instrument executables that have already been compiled.
-
-== Upgrading to Darshan 3.x from 2.x
-
-Beginning with Darshan 3.0.0, Darshan has been rewritten to modularize its runtime environment
-and log file format to simplify the addition of new I/O characterization data. The process of
-compiling and installing the Darshan 3.x source code should essentially be identical to this
-process on Darshan 2.x. Therefore, the installation recipes given in the previous section
-should work irrespective of the Darshan version being used. Similarly, the manner in which
-Darshan is used should be the same across versions -- the sections in this document regarding
-Darshan link:darshan-runtime.html#_environment_preparation[environment preparation],
-instrumenting link:darshan-runtime.html#_instrumenting_statically_linked_applications[statically
-linked applications] and link:darshan-runtime.html#_instrumenting_dynamically_linked_applications[
-dynamically linked applications], and using link:darshan-runtime.html#_runtime_environment_variables[
-runtime environment variables] are equally applicable to both versions.
-
-However, we do provide some suggestions and expectations for system administrators to keep in
-mind when upgrading to Darshan 3.x:
-
-* Darshan 2.x and Darshan 3.x produce incompatible log file formats
-    ** log files named *.darshan.gz or *.darshan.bz2: Darshan 2.x format
-    ** log files named *.darshan: Darshan 3.x format
-        *** a field in the log file header indicates underlying compression method in 3.x logs
-    ** There is currently no tool for converting 2.x logs into the 3.x log format.
-    ** The `darshan-logutils` library will provide error messages to indicate whether a given
-log file is incompatible with the correspnonding library version. 
-
-* We encourage administrators to use the same log file directory for version 3.x as had been
-used for version 2.x.
-    ** Within this directory, the determination on which set of log utilities (version 2.x
-or version 3.x) to use can be based on the file extension for a given log (as explained
-above).
 
 == Runtime environment variables
 
