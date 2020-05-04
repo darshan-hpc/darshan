@@ -14,7 +14,7 @@ Notes on how to release a new version of Darshan
   - in both darshan-util/ and darshan-runtime/
   - re-run ./prepare in both darshan-util and darshan-runtime
   - commit
-- generate example output files on x86_64, ppc32, and ppc64, commit in
+- generate example output files on x86_64 and commit in
   darshan-test/example-output/ directory
 - use "git status" to make sure that all changes have been committed and
   pushed to origin/master

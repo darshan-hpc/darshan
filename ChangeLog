@@ -2,14 +2,32 @@
 Darshan Release Change Log
 --------------------------
 
-Darshan-3.2.0-pre2
+Darshan-3.2.0
 =============
-* silence stdout from darshan-job-summary.pl and remove --summary option
+* added detailed instrumentation of HDF5 library file and dataset
+  interfaces
+* added new logutil functions: darshan_log_get_modules,
+  darshan_log_get_name_records, and darshan_log_get_record (contributed
+  by Jakob Luettgau)
+* extended DXT MPIIO module to trace file offsets
+* added "--log-path" option to darshan-config to allow users to more
+  easily determine where Darshan logs are stored
+* silenced stdout from darshan-job-summary.pl and remove --summary option
+* removed Darshan stubs library traditionally used in static linking test
+  cases and other general simplifications of Darshan's static linking options
+* fixed bug related to multiple definitions of fscanf symbols when building
+  Darshan (reported by Francois Trahay)
+* updated Darshan's compiler wrapper generators, MPICH profiling config
+  hooks, and Cray software modules to explicitly link in Darshan in
+  dynamic linking cases using rpath
 * added `darshan-config --log-path` command option to display the log path(s)
   configured for use with Darshan
-
-Darshan-3.2.0-pre1
-=============
+* reimplemented Darshan's MPI/PMPI wrapper macros (using functiona aliases)
+  to avoid potential deadlock with other PMPI tools
+* made use of DESTDIR match standard automake practice (contributed by
+  Christopher Morrone)
+* made "--with-mem-align" option optional, with a default of 8 (contributed
+  by Christopher Morrone)
 * corrected pkgconfig path for darshan-util when using DESTDIR (reported by
   Matthew Curry)
 * added support for non-MPI instrumenation to Darshan, using GCC
