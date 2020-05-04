@@ -24,7 +24,7 @@
  * log format version, NOT when a new version of a module record is
  * introduced -- we have module-specific versions to handle that
  */
-#define DARSHAN_LOG_VERSION "3.10"
+#define DARSHAN_LOG_VERSION "3.20"
 
 /* magic number for validating output files and checking byte order */
 #define DARSHAN_MAGIC_NR 6567223
@@ -135,7 +135,8 @@ struct darshan_base_record
     X(DARSHAN_NULL_MOD,     "NULL",     DARSHAN_NULL_VER,       NULL) \
     X(DARSHAN_POSIX_MOD,    "POSIX",    DARSHAN_POSIX_VER,      &posix_logutils) \
     X(DARSHAN_MPIIO_MOD,    "MPI-IO",   DARSHAN_MPIIO_VER,      &mpiio_logutils) \
-    X(DARSHAN_HDF5_MOD,     "HDF5",     DARSHAN_HDF5_VER,       &hdf5_logutils) \
+    X(DARSHAN_H5F_MOD,      "H5F",      DARSHAN_H5F_VER,        &hdf5_file_logutils) \
+    X(DARSHAN_H5D_MOD,      "H5D",      DARSHAN_H5D_VER,        &hdf5_dataset_logutils) \
     X(DARSHAN_PNETCDF_MOD,  "PNETCDF",  DARSHAN_PNETCDF_VER,    &pnetcdf_logutils) \
     X(DARSHAN_BGQ_MOD,      "BG/Q",     DARSHAN_BGQ_VER,        &bgq_logutils) \
     X(DARSHAN_LUSTRE_MOD,   "LUSTRE",   DARSHAN_LUSTRE_VER,     &lustre_logutils) \

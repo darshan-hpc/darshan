@@ -621,10 +621,12 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+DARSHAN_HDF5_LD_FLAGS
 DARSHAN_MDHIM_LD_OPTS
 BUILD_MDHIM_MODULE
 BUILD_LUSTRE_MODULE
 BUILD_BGQ_MODULE
+DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS
 DARSHAN_HDF5_LD_OPTS
 BUILD_HDF5_MODULE
 DARSHAN_PNETCDF_LD_OPTS
@@ -722,9 +724,8 @@ enable_posix_mod
 enable_stdio_mod
 enable_dxt_mod
 enable_mpiio_mod
+enable_hdf5_mod
 enable_pnetcdf_mod
-enable_HDF5_post_1_10
-enable_HDF5_pre_1_10
 enable_bgq_mod
 enable_lustre_mod
 enable_mdhim
@@ -1370,12 +1371,9 @@ Optional Features:
   --disable-dxt-mod       Disables compilation and use of DXT module
   --disable-mpiio-mod     Disables compilation and use of MPI-IO module
                           (requires MPI)
+  --enable-hdf5-mod       Enables compilation and use of HDF5 module
   --disable-pnetcdf-mod   Disables compilation and use of PnetCDF module
                           (requires MPI)
-  --enable-HDF5-post-1.10
-                          Enable HDF5 module for HDF5 version 1.10 or later
-  --enable-HDF5-pre-1.10
-                          Enable HDF5 module for HDF5 versions earlier than 1.10
   --disable-bgq-mod       Disables compilation and use of BG/Q module (for
                           BG/Q systems)
   --disable-lustre-mod    Disables compilation and use of Lustre module
@@ -4111,6 +4109,56 @@ if test "x$enable_mpiio_mod" = "xno" || test "x$ENABLE_MPI" = "x"; then :
       DARSHAN_MPIIO_LD_OPTS=
 fi
 
+# HDF5 module (disabled by default)
+BUILD_HDF5_MODULE=
+DARSHAN_HDF5_LD_OPTS=
+# Check whether --enable-hdf5-mod was given.
+if test "${enable_hdf5_mod+set}" = set; then :
+  enableval=$enable_hdf5_mod;
+else
+  enable_hdf5_mod=no
+fi
+
+if test "x$enable_hdf5_mod" != "xno"; then :
+  if test -d "$enable_hdf5_mod"; then :
+  CFLAGS="${CFLAGS} -I${enable_hdf5_mod}/include"
+        DARSHAN_HDF5_LD_FLAGS="-L${enable_hdf5_mod}/lib -Wl,-rpath=${enable_hdf5_mod}/lib -lhdf5"
+else
+  as_fn_error $? "enableval for hdf5-mod is required and must be a valid install prefix path for HDF5 library" "$LINENO" 5
+
+fi
+    BUILD_HDF5_MODULE=1
+    DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        #include <hdf5.h>
+
+int
+main ()
+{
+
+        #if (H5_VERS_MAJOR > 1) || ((H5_VERS_MAJOR == 1) && (H5_VERS_MINOR >= 10))
+        #error H5_VERS 1.10+
+        #endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS=""
+else
+
+$as_echo "#define DARSHAN_HDF5_VERS_1_10_PLUS 1" >>confdefs.h
+
+        DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS="--undefined=H5Dflush --wrap=H5Dflush"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+fi
+
 # PNETCDF module
 BUILD_PNETCDF_MODULE=1
 DARSHAN_PNETCDF_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-pnetcdf-ld-opts"
@@ -4123,41 +4171,6 @@ if test "x$enable_pnetcdf_mod" = "xno" || test "x$ENABLE_MPI" = "x"; then :
   BUILD_PNETCDF_MODULE=
       DARSHAN_PNETCDF_LD_OPTS=
 fi
-
-# HDF5 module
-BUILD_HDF5_MODULE=
-BUILD_HDF5_POST110=
-DARSHAN_HDF5_LD_OPTS=
-
-# see if user explicitly enabled support for an HDF5 API
-# Check whether --enable-HDF5-post-1.10 was given.
-if test "${enable_HDF5_post_1_10+set}" = set; then :
-  enableval=$enable_HDF5_post_1_10; if test "x$enableval" = "xyes" ; then
-
-$as_echo "#define __DARSHAN_ENABLE_HDF5110 1" >>confdefs.h
-
-    if test "x$BUILD_HDF5_MODULE" = "x1"; then
-        as_fn_error $? "Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10" "$LINENO" 5
-    fi
-    BUILD_HDF5_MODULE=1
-    BUILD_HDF5_POST110=1
-    DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
-fi
-
-fi
-
-# Check whether --enable-HDF5-pre-1.10 was given.
-if test "${enable_HDF5_pre_1_10+set}" = set; then :
-  enableval=$enable_HDF5_pre_1_10; if test "x$enableval" = "xyes" ; then
-    if test "x$BUILD_HDF5_MODULE" = "x1"; then
-        as_fn_error $? "Cannot set both --enable-HDF5-post-1.10 and --enable-HDF5-pre-1.10" "$LINENO" 5
-    fi
-    BUILD_HDF5_MODULE=1
-    DARSHAN_HDF5_LD_OPTS="@${darshan_share_path}/ld-opts/darshan-hdf5-ld-opts"
-fi
-
-fi
-
 
 # BG/Q module
 BUILD_BGQ_MODULE=
@@ -4896,7 +4909,8 @@ DARSHAN_VERSION="3.2.0-pre1"
 
 
 
-ac_config_files="$ac_config_files Makefile darshan-mk-log-dirs.pl darshan-gen-cc.pl darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-config share/craype-1.x/darshan-module share/craype-2.x/darshan-module lib/pkgconfig/darshan-runtime.pc share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf share/mpi-profile/darshan-cc-static.conf share/mpi-profile/darshan-cxx-static.conf share/mpi-profile/darshan-f-static.conf share/ld-opts/darshan-base-ld-opts share/ld-opts/darshan-stdio-ld-opts"
+
+ac_config_files="$ac_config_files Makefile darshan-mk-log-dirs.pl darshan-gen-cc.pl darshan-gen-cxx.pl darshan-gen-fortran.pl darshan-config share/craype-1.x/darshan-module share/craype-2.x/darshan-module lib/pkgconfig/darshan-runtime.pc share/mpi-profile/darshan-cc.conf share/mpi-profile/darshan-cxx.conf share/mpi-profile/darshan-f.conf share/mpi-profile/darshan-cc-static.conf share/mpi-profile/darshan-cxx-static.conf share/mpi-profile/darshan-f-static.conf share/ld-opts/darshan-base-ld-opts share/ld-opts/darshan-stdio-ld-opts share/ld-opts/darshan-hdf5-ld-opts"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5608,6 +5622,7 @@ do
     "share/mpi-profile/darshan-f-static.conf") CONFIG_FILES="$CONFIG_FILES share/mpi-profile/darshan-f-static.conf" ;;
     "share/ld-opts/darshan-base-ld-opts") CONFIG_FILES="$CONFIG_FILES share/ld-opts/darshan-base-ld-opts" ;;
     "share/ld-opts/darshan-stdio-ld-opts") CONFIG_FILES="$CONFIG_FILES share/ld-opts/darshan-stdio-ld-opts" ;;
+    "share/ld-opts/darshan-hdf5-ld-opts") CONFIG_FILES="$CONFIG_FILES share/ld-opts/darshan-hdf5-ld-opts" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
@@ -6233,25 +6248,19 @@ else
   { $as_echo "$as_me:${as_lineno-$LINENO}: MPIIO module support:   yes" >&5
 $as_echo "$as_me: MPIIO module support:   yes" >&6;}
 fi
+if test "x$BUILD_HDF5_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: HDF5 module support:    no" >&5
+$as_echo "$as_me: HDF5 module support:    no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: HDF5 module support:    yes" >&5
+$as_echo "$as_me: HDF5 module support:    yes" >&6;}
+fi
 if test "x$BUILD_PNETCDF_MODULE" = "x"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: PnetCDF module support: no" >&5
 $as_echo "$as_me: PnetCDF module support: no" >&6;}
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: PnetCDF module support: yes" >&5
 $as_echo "$as_me: PnetCDF module support: yes" >&6;}
-fi
-if test "x$BUILD_HDF5_MODULE" = "x"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: HDF5 module support:    no" >&5
-$as_echo "$as_me: HDF5 module support:    no" >&6;}
-elif if test "x$BUILD_HDF5_POST110" = "x1"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: HDF5 module support:    1.10+" >&5
-$as_echo "$as_me: HDF5 module support:    1.10+" >&6;}
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: HDF5 module support:    pre-1.10" >&5
-$as_echo "$as_me: HDF5 module support:    pre-1.10" >&6;}
-
-fi; then :
-
 fi
 if test "x$BUILD_BGQ_MODULE" = "x"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: BG/Q module support:    no" >&5

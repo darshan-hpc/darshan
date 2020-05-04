@@ -61,6 +61,14 @@ static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p)
     if(fd->mod_map[DARSHAN_MPIIO_MOD].len == 0)
         return(0);
 
+    if(fd->mod_ver[DARSHAN_MPIIO_MOD] == 0 ||
+        fd->mod_ver[DARSHAN_MPIIO_MOD] > DARSHAN_MPIIO_VER)
+    {
+        fprintf(stderr, "Error: Invalid MPIIO module version number (got %d)\n",
+            fd->mod_ver[DARSHAN_MPIIO_MOD]);
+        return(-1);
+    }
+
     if(*mpiio_buf_p == NULL)
     {
         file = malloc(sizeof(*file));

@@ -3,6 +3,9 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
+/* Define if HDF5 module built with version 1.10+ */
+#undef DARSHAN_HDF5_VERS_1_10_PLUS
+
 /* Define if struct aiocb64 type is defined */
 #undef HAVE_AIOCB64
 
@@ -95,9 +98,6 @@
 
 /* Define if cuserid() should be disabled */
 #undef __DARSHAN_DISABLE_CUSERID
-
-/* Set for compatibility with HDF5 1.10.x */
-#undef __DARSHAN_ENABLE_HDF5110
 
 /* Define if Darshan should mmap data structures to log file */
 #undef __DARSHAN_ENABLE_MMAP_LOGS

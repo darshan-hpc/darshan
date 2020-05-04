@@ -1,0 +1,13 @@
+--undefined=H5Dcreate1
+--wrap=H5Fcreate
+--wrap=H5Fopen
+--wrap=H5Fflush
+--wrap=H5Fclose
+--wrap=H5Dcreate1
+--wrap=H5Dcreate2
+--wrap=H5Dopen1
+--wrap=H5Dopen2
+--wrap=H5Dread
+--wrap=H5Dwrite
+--wrap=H5Dclose
+@DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS@
