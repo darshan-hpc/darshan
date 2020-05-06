@@ -46,14 +46,14 @@ class DarshanReport(object):
         self.filename = filename
 
         # options
-        self.data_format = data_format     # Experimental: preferred internal representation: numpy useful for aggregations, dict good for export/REST
-                                           # might require alternative granularity: e.g., records, vs summaries?
-                                           # vs dict/pandas?  dict/native?
+        self.data_format = data_format  # Experimental: preferred internal representation: numpy useful for aggregations, dict good for export/REST
+                                        # might require alternative granularity: e.g., records, vs summaries?
+                                        # vs dict/pandas?  dict/native?
         self.automatic_summary = automatic_summary
 
 
         # state dependent book-keeping
-        self.converted_records = False      # true if convert_records() was called (unnumpyfy)
+        self.converted_records = False  # true if convert_records() was called (unnumpyfy)
 
         # 
         self.start_time = float('inf')
@@ -355,39 +355,6 @@ class DarshanReport(object):
         pass
 
 
-    def mod_agg(self, mod, ranks=None, files=None, preserve_rank=False, preserve_file=False):
-        """
-        Aggregate counters for a given module name and return updated dictionary.
-        
-        Args:
-            mod (str): Name of the mod to aggregate.
-            ranks (int or list): Only aggregate if rank is matched
-            files (int or list): Only aggregate if file is matched
-            preserve_rank: do not collapse ranks into single value
-            preserve_file: do not collapse files into single value
-
-        Return:
-            List of aggregated records
-        """
-
-
-        # TODO: assert
-
-        c = None
-        fc = None
-
-        # aggragate
-        for rec in recs[mod]:
-            if mod not in ctx:
-                c = rec['counters']
-                fc = rec['counters']
-            else:
-                c = np.add(ctx[mod], rec['counters'])
-                fc = np.add(ctx[mod], rec['fcounters'])
-
-        return {'counters': c, 'fcounter': fc}
-
-
     def info(self, metadata=False):
         """
         Print information about the record for inspection.
@@ -455,7 +422,7 @@ class DarshanReport(object):
 
     def to_dict():
         """
-        Return dictionary representatino of report data.
+        Return dictionary representation of report data.
 
         Args:
             None
@@ -477,7 +444,7 @@ class DarshanReport(object):
 
     def to_json(self):
         """
-        Return JSON representatino of report data as string.
+        Return JSON representation of report data as string.
 
         Args:
             None
@@ -493,6 +460,5 @@ class DarshanReport(object):
             for i, rec in enumerate(data['records'][mod]):
                 recs[mod][i]['counters'] = rec['counters'].tolist()
                 recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
-
 
         return json.dumps(data, cls=DarshanReportJSONEncoder)

@@ -40,10 +40,10 @@ def test_repeated_access():
 
     log = backend.log_open("tests/input/sample.darshan")
 
-    rec1 = backend.log_get_posix_record(log)
-    rec2 = backend.log_get_posix_record(log)
+    rec = backend.log_get_posix_record(log)
+    rec = backend.log_get_posix_record(log)     # fetch next
 
-    assert rec2 == None
+    assert rec is None
 
 
 def test_ishouldrun():

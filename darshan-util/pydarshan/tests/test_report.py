@@ -23,7 +23,7 @@ def test_metadata():
     report = darshan.DarshanReport("tests/input/sample.darshan")
 
     # check a metadata field
-    assert 4478544 == report.data['metadata']['job']['jobid']
+    assert 4478544 == report.metadata['job']['jobid']
 
 
 def test_modules():
@@ -32,8 +32,8 @@ def test_modules():
     report = darshan.DarshanReport("tests/input/sample.darshan")
 
     # check if number of modules matches
-    assert 4 == len(report.data['modules'])
-    assert 154 == report.data['modules']['MPI-IO']['len']
+    assert 4 == len(report.modules)
+    assert 154 == report.modules['MPI-IO']['len']
 
 
 def test_load_records():
@@ -41,17 +41,19 @@ def test_load_records():
 
     report = darshan.DarshanReport("tests/input/sample.darshan")
 
-    report.mod_read_all_records("POSIX") 
+    report.mod_read_all_records("POSIX")
 
     assert 1 == len(report.data['records']['POSIX'])
 
 
 def test_internal_references():
-    """Test if the reference ids match. This tests mainly serves to make regressions verbose when the behavior is changed."""
+    """
+    Test if the reference ids match. This tests mainly serves to make
+    regressions verbose when the behavior is changed.
+    """
 
     report = darshan.DarshanReport()
-    
+
     # check the convienience refs are working fine
     check = id(report.records) == id(report.data['records'])
-    assert True == check
-
+    assert check is True

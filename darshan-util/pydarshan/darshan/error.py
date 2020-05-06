@@ -21,8 +21,7 @@ class DarshanVersionError(NotImplementedError):
         self.version = "0.0.0"
 
     def __repr__(self):
-        return "DarshanVersionError('%s')" % str(sefl)
+        return "DarshanVersionError('%s')" % str(self)
 
     def __str__(self):
         return "%s requires libdarshanutil >= %s, have %s" % (self.msg, self.min_version, self.version)
-

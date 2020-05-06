@@ -48,19 +48,25 @@ def log_get_job(log):
     """
     Returns a dictionary with information about the current job.
     """
+
     job = {}
+
     jobrec = ffi.new("struct darshan_job *")
     libdutil.darshan_log_get_job(log['handle'], jobrec)
+
     job['uid'] = jobrec[0].uid
     job['start_time'] = jobrec[0].start_time
     job['end_time'] = jobrec[0].end_time
     job['nprocs'] = jobrec[0].nprocs
     job['jobid'] = jobrec[0].jobid
+
     mstr = ffi.string(jobrec[0].metadata).decode("utf-8")
     md = {}
+
     for kv in mstr.split('\n')[:-1]:
         k,v = kv.split('=', maxsplit=1)
         md[k] = v
+
     job['metadata'] = md
     return job
 
@@ -92,9 +98,11 @@ def log_get_mounts(log):
     mnts = ffi.new("struct darshan_mnt_info **")
     cnt = ffi.new("int *")
     libdutil.darshan_log_get_mounts(log['handle'], mnts, cnt)
+
     for i in range(0, cnt[0]):
         mntlst.append((ffi.string(mnts[0][i].mnt_path).decode("utf-8"),
             ffi.string(mnts[0][i].mnt_type).decode("utf-8")))
+
     return mntlst
 
 
@@ -111,11 +119,10 @@ def log_get_modules(log):
 
     """
 
-    # used cached module index if already present
+    # use cached module index if already present
     if log['modules'] != None:
         return log['modules']
 
-    
     modules = {}
 
     mods = ffi.new("struct darshan_mod_info **")
@@ -125,12 +132,10 @@ def log_get_modules(log):
         modules[ffi.string(mods[0][i].name).decode("utf-8")] = \
                 {'len': mods[0][i].len, 'ver': mods[0][i].ver, 'idx': mods[0][i].idx}
 
-
     # add to cache
     log['modules'] = modules
 
     return modules
-
 
 
 
@@ -169,7 +174,7 @@ def log_get_name_records(log):
 
 
 
-def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='pandas'):
+def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='dict'):
     """
     Returns a dictionary holding a dxt darshan log record.
 
@@ -242,8 +247,10 @@ def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='p
         rec['read_segments'].append(seg)
 
 
-    #pd.DataFrame([rec])
 
+    if mode == "pandas":
+        rec['read_segments'] = pd.DataFrame(rec['read_segments'])
+        rec['write_segments'] = pd.DataFrame(rec['write_segments'])
 
     return rec
 
@@ -268,7 +275,6 @@ def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
     >>> darshan.log_get_generic_record(log, "POSIX", "struct darshan_posix_file **")
     {'counters': array([...], dtype=uint64), 'fcounters': array([...])}
 
-
     """
     modules = log_get_modules(log)
 
@@ -291,6 +297,11 @@ def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
     for i in range(0, len(rbuf[0].fcounters)):
         flst.append(rbuf[0].fcounters[i])
     rec['fcounters'] = np.array(clst, dtype=np.float64)
+
+
+
+    if mode == "pandas":
+        pass
 
     return rec
 
@@ -315,12 +326,15 @@ def counter_names(mod_name, fcnts=False):
 
     names = []
     i = 0
+
     if fcnts:
         F = "f_"
     else:
         F = ""
+
     end = "{0}_{1}NUM_INDICES".format(mod_name.upper(), F.upper())
     var_name = "{0}_{1}counter_names".format(mod_name.lower(), F.lower())
+
     while True: 
         try:
             var = getattr(libdutil, var_name)
@@ -441,10 +455,13 @@ def log_get_apxc_record(log):
     cluster_modes = ['unknown', 'all2all', 'quad', 'hemi', 'snc4', 'snc2']
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules['DARSHAN_APXC']['idx'], buf)
+
     if r < 1:
         return None
+
     prf = ffi.cast("struct darshan_apxc_perf_record **", buf)
     hdr = ffi.cast("struct darshan_apxc_header_record **", buf)
+
     if hdr[0].magic == 4707761685111591494:
         mm = hdr[0].memory_mode & ~(1 << 31)
         cm = hdr[0].cluster_mode & ~(1 << 31)
@@ -462,4 +479,5 @@ def log_get_apxc_record(log):
         for i in range(0, len(prf[0].counters)):
             clst.append(prf[0].counters[i])
         rec['counters'] = np.array(clst, dtype=np.uint64)
+
     return rec

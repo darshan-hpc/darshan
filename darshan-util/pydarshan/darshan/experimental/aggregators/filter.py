@@ -64,12 +64,9 @@ def filter(self, mods=None, name_records=None, pattern=None, regex=None):
 
             # whitelist names that match pattern
             if pattern != None or regex != None:
-
                 if re.match(pattern, value):
-                    print("YES", pattern, value)
                     ids.append(key)
-                else:
-                    print("NO", pattern, value)
+
 
         # convert filenames/name_records mix into list of ids only
         if name_records != None:

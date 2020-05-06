@@ -42,10 +42,10 @@ def test_repeated_access():
 
     log = backend.log_open("tests/input/sample.darshan")
 
-    rec1 = backend.log_get_stdio_record(log)
-    rec2 = backend.log_get_stdio_record(log)
+    rec = backend.log_get_stdio_record(log)
+    rec = backend.log_get_stdio_record(log)     # fetch next
 
-    assert rec2['counters'][3] == 68
+    assert rec['counters'][3] == 68
 
 
 def test_ishouldrun():
