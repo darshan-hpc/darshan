@@ -5,12 +5,18 @@
 __version__ = '0.1.0'
 
 
+
+options = {
+
+}
+
+
 #from darshan.backend.cffi_backend import *
 from darshan.report import DarshanReport
 
 
 
-def enable_experimental(verbose=True):
+def enable_experimental(verbose=False):
     """
     Enable experimental features such as aggregation methods for reports.
 

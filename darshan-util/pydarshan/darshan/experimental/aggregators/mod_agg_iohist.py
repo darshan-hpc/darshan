@@ -48,7 +48,7 @@ def mod_agg_iohist(self, mod, mode='append'):
         name = "%s_%s_%s" % (typ, name[-2], name[-1])
         return name
 
-    tmp = json.dumps(ctx[mod], cls=NumpyEncoder)
+    tmp = json.dumps(ctx[mod], cls=DarshanReportJSONEncoder)
     tmp = json.loads(tmp)
     cn = backend.counter_names(mod)
     c = dict(zip(cn, tmp))

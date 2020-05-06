@@ -36,7 +36,7 @@ def plot_access_histogram(self, mod, filter=None, data=None):
   
 
 
-    posix = self.data['agg_iohist'][mod]
+    posix = self.summary['agg_iohist'][mod]
 
     read_vals = [
         posix['READ_0_100'],
@@ -143,7 +143,7 @@ def plot_opcounts(self, filter=None, data=None, return_csv=False):
 
 
 
-    mods = self.data['agg_ioops']
+    mods = self.summary['agg_ioops']
 
     # Gather POSIX
     if 'POSIX' in mods:

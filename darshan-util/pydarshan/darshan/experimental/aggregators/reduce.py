@@ -17,8 +17,11 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
     """
 
 
+    r = copy.deepcopy(self)
+
+
     # convienience
-    recs = self.records
+    recs = r.records
     ctx = {}
 
 
@@ -43,15 +46,15 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
     
     # change inputs to whitelists
     if mods == None:
-        mods = self.records.keys()
+        mods = r.records.keys()
 
 
     if name_records == None:
-        name_records = list(self.name_records.keys())
+        name_records = list(r.name_records.keys())
 
     else:
         resolve_table = {}
-        for key, value in self.name_records.items():
+        for key, value in r.name_records.items():
             resolve_table[key] = key
             resolve_table[value] = key
 
@@ -72,7 +75,7 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
     if name_records != None:
 
         # aggragate
-        for mod, recs in self.records.items():
+        for mod, recs in r.records.items():
 
             if mod not in mods:
                 continue
@@ -121,12 +124,7 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
             result[mod].append(rec)            
 
 
+    r.records = result
 
 
-    if mode == 'append':
-        name = 'reduction'
-        if name not in self.summary:
-            self.summary[name] = {}
-        self.data[name] = ctx
-
-    return result
+    return r

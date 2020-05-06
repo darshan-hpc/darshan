@@ -1,9 +1,11 @@
 from darshan.report import *
 
 import sys
+import copy
+import re
 
 
-def filter(self, mods=None, name_records=None, data_format='numpy', mode='append'):
+def filter(self, mods=None, name_records=None, pattern=None, regex=None):
     """
     Return filtered list of records.
 
@@ -15,11 +17,12 @@ def filter(self, mods=None, name_records=None, data_format='numpy', mode='append
         None
     """
 
-
+    
+    r = copy.deepcopy(self)
 
 
     # convienience
-    recs = self.records
+    recs = r.records
     ctx = {}
 
 
@@ -36,38 +39,51 @@ def filter(self, mods=None, name_records=None, data_format='numpy', mode='append
         name_records = None
 
     
-    # change inputs to whitelists
+    # whitelist all mods
     if mods == None:
-        mods = self.records.keys()
+        mods = r.records.keys()
 
 
-    if name_records == None:
-        name_records = list(self.name_records.keys())
+    if pattern != None:
+        pattern = pattern.replace("*", "(.*?)")
+    elif regex:
+        pattern = regex
 
+
+    # whitelist name_records
+    if name_records == None and pattern == None and regex == None:
+        # allow all name records if no critirium provided
+        name_records = list(r.name_records.keys())
     else:
         resolve_table = {}
-        for key, value in self.name_records.items():
+        ids = []
+
+        for key, value in r.name_records.items():
             resolve_table[key] = key
             resolve_table[value] = key
 
-        ids = []
-        for nrec in name_records:
-            if nrec in resolve_table:
-                ids.append(resolve_table[nrec])
+            # whitelist names that match pattern
+            if pattern != None or regex != None:
+
+                if re.match(pattern, value):
+                    print("YES", pattern, value)
+                    ids.append(key)
+                else:
+                    print("NO", pattern, value)
+
+        # convert filenames/name_records mix into list of ids only
+        if name_records != None:
+            for nrec in name_records:
+                if nrec in resolve_table:
+                    ids.append(resolve_table[nrec])
 
         # TODO: decide if overwriting kargs is really a good idea.. currently considering it a sanitation step
         name_records = ids
 
 
-
-    print(mods)
-    print(name_records)
-
-
     if name_records != None:
-
         # aggragate
-        for mod, recs in self.records.items():
+        for mod, recs in r.records.items():
 
             if mod not in mods:
                 continue
@@ -82,13 +98,7 @@ def filter(self, mods=None, name_records=None, data_format='numpy', mode='append
                     ctx[mod].append(rec)
 
 
+    r.records = ctx
 
 
-    if mode == 'append':
-        name = 'filter'
-        if name not in self.summary:
-            self.summary[name] = {}
-        self.data[name] = ctx
-    
-    return ctx
-
+    return r

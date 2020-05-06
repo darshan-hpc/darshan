@@ -43,12 +43,8 @@ def create_time_summary(self, mode="append"):
 
 
 
-
     # overwrite existing summary entry
     if mode == "append":
         self.summary['time_summary'] = ctx
-    
 
     return ctx
-
-

@@ -103,7 +103,7 @@ def agg_ioops(self, mode='append'):
 
 
     # cleanup and prepare for json serialization?
-    tmp = json.dumps(ctx, cls=NumpyEncoder)
+    tmp = json.dumps(ctx, cls=DarshanReportJSONEncoder)
     ctx = json.loads(tmp)
 
     
