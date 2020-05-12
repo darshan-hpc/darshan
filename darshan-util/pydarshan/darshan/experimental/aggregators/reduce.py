@@ -43,13 +43,13 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
         name_records_wildcard = True
         name_records = None
 
-    
+
     # change inputs to whitelists
-    if mods == None:
+    if mods is None:
         mods = r.records.keys()
 
 
-    if name_records == None:
+    if name_records is None:
         name_records = list(r.name_records.keys())
 
     else:
@@ -72,11 +72,9 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
     #print(name_records)
 
 
-    if name_records != None:
-
+    if name_records is not None:
         # aggragate
         for mod, recs in r.records.items():
-
             if mod not in mods:
                 continue
 
@@ -93,15 +91,12 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
                     else:
                         nrec_pattern = nrec
 
-
                     for counters in ['counters', 'fcounters']:
                         if nrec_pattern not in ctx[mod]:
                             ctx[mod][nrec_pattern] = {}
 
-
                         if counters not in rec:
                             continue
-
 
                         if counters not in ctx[mod][nrec_pattern]:
                             ctx[mod][nrec_pattern][counters] = rec[counters]
@@ -109,22 +104,19 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
                             ctx[mod][nrec_pattern][counters] = np.add(ctx[mod][nrec_pattern][counters], rec[counters])
 
 
-
     # convert records back to list
     result = {}
     for mod, name_records in ctx.items():
         if mod not in result:
             result[mod] = []
-        
+
         for name_record, val in name_records.items():
             rec = {"id": name_record, "rank": -1}
-            rec.update({"id": name_record, "rank": -1})            
-            rec.update(val)  
+            rec.update({"id": name_record, "rank": -1})
+            rec.update(val)
 
-            result[mod].append(rec)            
-
+            result[mod].append(rec)
 
     r.records = result
-
 
     return r

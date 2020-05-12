@@ -1,17 +1,16 @@
 from darshan.report import *
 
-import sys
+import datetime
 import copy
+
 
 def merge(self, other, reduce_first=False):
     """
     Merge two darshan reports and return a new combined report.
 
-
     Args:
         mods:           Name(s) of modules to preserve (reduced)
         name_records:   Id(s)/Name(s) of name_records to preserve (reduced)
-
 
     Return:
         None
