@@ -872,6 +872,7 @@ static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
 static int darshan_log_get_header(darshan_fd fd)
 {
     struct darshan_header header;
+    double log_ver_val;
     int i;
     int ret;
 
@@ -895,7 +896,8 @@ static int darshan_log_get_header(darshan_fd fd)
     {
         fd->state->get_namerecs = darshan_log_get_namerecs_3_00;
     }
-    else if(strcmp(fd->version, "3.10") == 0)
+    else if((strcmp(fd->version, "3.10") == 0) ||
+            (strcmp(fd->version, "3.20") == 0))
     {
         fd->state->get_namerecs = darshan_log_get_namerecs;
     }
@@ -962,6 +964,18 @@ static int darshan_log_get_header(darshan_fd fd)
     /* save the mapping of data within log file to this file descriptor */
     memcpy(&fd->name_map, &(header.name_map), sizeof(struct darshan_log_map));
     memcpy(&fd->mod_map, &(header.mod_map), DARSHAN_MAX_MODS * sizeof(struct darshan_log_map));
+
+    log_ver_val = atof(fd->version);
+    if(log_ver_val < 3.2)
+    {
+        /* perform module index shift to account for H5D module from 3.2.0 */
+        memmove(&fd->mod_map[DARSHAN_H5D_MOD+1], &fd->mod_map[DARSHAN_H5D_MOD],
+            (DARSHAN_MAX_MODS-DARSHAN_H5D_MOD-1) * sizeof(struct darshan_log_map));
+        memmove(&fd->mod_ver[DARSHAN_H5D_MOD+1], &fd->mod_ver[DARSHAN_H5D_MOD],
+            (DARSHAN_MAX_MODS-DARSHAN_H5D_MOD-1) * sizeof(uint32_t));
+        fd->mod_map[DARSHAN_H5D_MOD].len = fd->mod_map[DARSHAN_H5D_MOD].off = 0;
+        fd->mod_ver[DARSHAN_H5D_MOD] = 0;
+    }
 
     /* there may be nothing following the job data, so safety check map */
     fd->job_map.off = sizeof(struct darshan_header);
@@ -1835,6 +1849,98 @@ int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
     }
 
     return(buf_processed);
+}
+
+/*
+ * Support functions for use with other languages
+ */
+
+/*
+ * darshan_log_get_modules
+ *
+ * Gets list of modules present in logs and returns the info
+ */
+void darshan_log_get_modules (darshan_fd fd,
+                              struct darshan_mod_info **mods,
+                              int* count)
+{
+    int i;
+    int j;
+
+    *mods = malloc(sizeof(**mods) * DARSHAN_MAX_MODS);
+    assert(*mods);
+
+    for (i = 0, j = 0; i < DARSHAN_MAX_MODS; i++)
+    {
+        if (fd->mod_map[i].len)
+        {
+            (*mods)[j].name = darshan_module_names[i];
+            (*mods)[j].len  = fd->mod_map[i].len;
+            (*mods)[j].ver  = fd->mod_ver[i];
+            (*mods)[j].idx  = i;
+            j += 1;
+        }
+    }
+
+    *count = j;
+}
+
+
+/*
+ * darshan_log_get_name_records
+ *
+ * Gets list of hashed name_records present in logs and returns the info
+ */
+void darshan_log_get_name_records(darshan_fd fd,
+                              struct darshan_name_record_info **name_records,
+                              int* count)
+{
+
+    int ret;
+    struct darshan_name_record_ref *name_hash = NULL;
+    struct darshan_name_record_ref *ref = NULL;
+    struct darshan_name_record_ref *tmp = NULL;
+    struct darshan_name_record_ref *curr = NULL;
+
+    /* read hash of darshan records */
+    ret = darshan_log_get_namehash(fd, &name_hash);
+    if(ret < 0)
+    {
+        darshan_log_close(fd);
+        return(-1);
+    }
+
+    int num = HASH_CNT(hlink, name_hash);
+    *name_records = malloc(sizeof(**name_records) * num);
+    assert(*name_records);
+
+    int i = 0;
+    HASH_ITER(hlink, name_hash, curr, tmp)
+    {
+        (*name_records)[i].id = curr->name_record->id;
+        (*name_records)[i].name = curr->name_record->name;
+        i++;
+    }
+ 
+    *count = num;
+    return;
+}
+
+
+/*
+ * darshan_log_get_record 
+ *
+ *   Wrapper to hide the mod_logutils callback functions.
+ */
+int  darshan_log_get_record (darshan_fd fd,
+                             int mod_idx,
+                             void **buf)
+{
+    int r;
+
+    r = mod_logutils[mod_idx]->log_get_record(fd, buf);
+
+    return r;
 }
 
 /*

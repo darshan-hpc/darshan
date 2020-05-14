@@ -213,34 +213,29 @@ void darshan_record_sort(void *rec_buf, int rec_count, int rec_size)
     return;
 }
 
-static int darshan_common_val_compare(const void *a_p, const void *b_p)
+static int darshan_common_vals_compare(const void *a_p, const void *b_p)
 {
     const struct darshan_common_val_counter* a = a_p;
     const struct darshan_common_val_counter* b = b_p;
 
-    if(a->val < b->val)
-        return(-1);
-    if(a->val > b->val)
-        return(1);
-    return(0);
+    return(memcmp(a->vals, b->vals, sizeof(*(a->vals)) * a->nvals));
 }
 
-void darshan_common_val_counter(void **common_val_root, int *common_val_count,
-    int64_t val, int64_t *common_val_p, int64_t *common_cnt_p)
+struct darshan_common_val_counter *darshan_track_common_val_counters(
+    void **common_val_root, int64_t *vals, int nvals, int *common_val_count)
 {
     struct darshan_common_val_counter* counter;
     struct darshan_common_val_counter* found = NULL;
     struct darshan_common_val_counter tmp_counter;
     void* tmp;
 
-    /* don't count any values of 0 */
-    if(val == 0)
-        return;
+    assert(nvals <= DARSHAN_COMMON_VAL_MAX_NCOUNTERS);
 
     /* check to see if this val is already recorded */
-    tmp_counter.val = val;
+    memcpy(tmp_counter.vals, vals, sizeof(*vals) * nvals);
+    tmp_counter.nvals = nvals;
     tmp_counter.freq = 1;
-    tmp = tfind(&tmp_counter, common_val_root, darshan_common_val_compare);
+    tmp = tfind(&tmp_counter, common_val_root, darshan_common_vals_compare);
     if(tmp)
     {
         found = *(struct darshan_common_val_counter**)tmp;
@@ -252,13 +247,14 @@ void darshan_common_val_counter(void **common_val_root, int *common_val_count,
         counter = malloc(sizeof(*counter));
         if(!counter)
         {
-            return;
+            return(NULL);
         }
 
-        counter->val = val;
+        memcpy(counter->vals, vals, sizeof(*vals) * nvals);
+        counter->nvals = nvals;
         counter->freq = 1;
 
-        tmp = tsearch(counter, common_val_root, darshan_common_val_compare);
+        tmp = tsearch(counter, common_val_root, darshan_common_vals_compare);
         found = *(struct darshan_common_val_counter**)tmp;
         /* if we get a new answer out here we are in trouble; this was
          * already checked with the tfind()
@@ -268,15 +264,7 @@ void darshan_common_val_counter(void **common_val_root, int *common_val_count,
         (*common_val_count)++;
     }
 
-    /* update common access counters as we go, as long as we haven't already
-     * hit the limit in the number we are willing to track */
-    if(found)
-    {
-        DARSHAN_COMMON_VAL_COUNTER_INC(common_val_p, common_cnt_p,
-            found->val, found->freq, 1);
-    }
-
-    return;
+    return(found);
 }
 
 #ifdef HAVE_MPI

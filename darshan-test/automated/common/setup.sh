@@ -26,4 +26,5 @@ echo "
   </testsuite>
 </testsuites>
 " > setup-result.xml
-exit $status
+
+return $status

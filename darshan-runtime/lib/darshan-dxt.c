@@ -517,8 +517,8 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     DXT_UNLOCK();
 }
 
-void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
-        double start_time, double end_time)
+void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
+        int64_t length, double start_time, double end_time)
 {
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
@@ -566,6 +566,7 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
     }
 
     rec_ref->write_traces[file_rec->write_count].length = length;
+    rec_ref->write_traces[file_rec->write_count].offset = offset;
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
     file_rec->write_count += 1;
@@ -573,8 +574,8 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t length,
     DXT_UNLOCK();
 }
 
-void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
-        double start_time, double end_time)
+void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
+        int64_t length, double start_time, double end_time)
 {
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
@@ -622,6 +623,7 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t length,
     }
 
     rec_ref->read_traces[file_rec->read_count].length = length;
+    rec_ref->read_traces[file_rec->read_count].offset = offset;
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
     file_rec->read_count += 1;

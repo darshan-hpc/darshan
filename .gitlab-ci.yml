@@ -1,6 +1,5 @@
 variables:
-  ANL_THETA_SCHEDULER_PARAMETERS: "-A radix-io"
-  ANL_THETA_PROJECT_SERVICE_USER: "darshan"
+  ANL_THETA_PROJECT_SERVICE_USER: "ecpcscstdm"
 
 stages:
   - build
@@ -11,24 +10,46 @@ build_darshan:
     - shell
     - ecp-theta
 
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "schedules"'
+      when: always
+    - if: '$CI_COMMIT_REF_NAME == "master"'
+      when: always
+
   stage: build
 
   script:
     - source darshan-test/automated/common/setup.sh
-    - cat setup-result.xml
-    - source darshan-test/automated/common/configure.sh
-#    - source darshan-test/automated/common/build.sh
+    - source darshan-test/automated/theta/configure.sh
+    - source darshan-test/automated/common/build.sh
 
-#.test_darshan:
-#  variables:
-#    # XXX this info is hard-coded in our regression scripts
-#    #SCHEDULER_PARAMETERS: "-A radix-io -n 1  -t 10 -q default"
+  artifacts:
+    paths:
+      - install/
 
-#  tags:
-#    - batch
-#    - ecp-theta
+test_darshan:
+  tags:
+    - shell
+    - ecp-theta
 
-#  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $RUN_TESTS == "true"'
+      when: on_success
+    - if: '$CI_PIPELINE_SOURCE == "schedules" && $RUN_TESTS == "true"'
+      when: on_success
 
-#  script:
-#    - darshan-test/regression/run-all.sh install scratch cray-module-alcf
+  stage: test
+
+  script:
+    - ls $PWD/install
+    - ls $PWD/install/bin
+    - darshan-test/regression/run-all.sh $PWD/install $PWD/scratch cray-module-alcf
+
+  artifacts:
+    paths:
+        - $PWD/scratch/*.darshan
+        - $PWD/scratch/*.debuglog
+        - $PWD/scratch/*.out
+        - $PWD/scratch/*.err

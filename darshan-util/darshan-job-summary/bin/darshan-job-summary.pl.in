@@ -32,7 +32,6 @@ my $gnuplot        = "gnuplot";
 my $orig_dir = getcwd;
 my $output_file = "summary.pdf";
 my $verbose_flag = 0;
-my $summary_flag = 0;
 my $input_file = "";
 my %posix_access_hash = ();
 my %mpiio_access_hash = ();
@@ -977,25 +976,6 @@ close VAR_TABLE;
 # calculate performance
 ##########################################################################
 
-# what was the slowest time by any proc for unique file access?
-my $slowest_uniq_time = 0;
-if(keys %hash_unique_file_time > 0)
-{
-    $slowest_uniq_time < $_ and $slowest_uniq_time = $_ for values %hash_unique_file_time;
-}
-print("Slowest unique file time: $slowest_uniq_time\n");
-print("Slowest shared file time: $shared_file_time\n");
-print("Total bytes read and written by app (may be incorrect): $total_job_bytes\n");
-my $tmp_total_time = $slowest_uniq_time+$shared_file_time;
-print("Total absolute I/O time: $tmp_total_time\n");
-print("**NOTE: above shared and unique file times calculated using MPI-IO timers if MPI-IO interface used on a given file, POSIX timers otherwise.\n");
-
-#Exit here if user ask only for a summary
-if ($summary_flag)
-{
-        exit(0);
-}
-
 # move to tmp_dir
 chdir $tmp_dir;
 
@@ -1493,13 +1473,12 @@ sub process_file_record
 
 sub process_args
 {
-    use vars qw( $opt_help $opt_output $opt_verbose $opt_summary);
+    use vars qw( $opt_help $opt_output $opt_verbose);
 
     Getopt::Long::Configure("no_ignore_case", "bundling");
     GetOptions( "help",
         "output=s",
-        "verbose",
-        "summary");
+        "verbose");
 
     if($opt_help)
     {
@@ -1517,11 +1496,6 @@ sub process_args
         $verbose_flag = $opt_verbose;
     }
 
-    if($opt_summary)
-    {
-        $summary_flag = $opt_summary;
-    }
-    
     # there should only be one remaining argument: the input file 
     if($#ARGV != 0)
     {
@@ -1623,8 +1597,7 @@ Usage: $PROGRAM_NAME <options> input_file
 
     --help          Prints this help message
     --output        Specifies a file to write pdf output to
-                    (defaults to ./summary.pdf)
-    --summary       Print a very succinct I/O timing summary and exit
+                    (defaults to ./<input_file>.pdf)
     --verbose       Prints and retains tmpdir used for LaTeX output
 
 Purpose:

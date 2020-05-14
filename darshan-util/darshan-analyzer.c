@@ -88,7 +88,7 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
 
     if (file->mod_map[DARSHAN_MPIIO_MOD].len > 0)
         *used_mpio += 1;
-    if (file->mod_map[DARSHAN_HDF5_MOD].len > 0)
+    if (file->mod_map[DARSHAN_H5F_MOD].len > 0 || file->mod_map[DARSHAN_H5D_MOD].len > 0)
         *used_hdf5 += 1;
     if (file->mod_map[DARSHAN_PNETCDF_MOD].len > 0)
         *used_pnet += 1;

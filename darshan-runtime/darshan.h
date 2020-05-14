@@ -33,13 +33,13 @@
 
 /* creates P* variant of MPI symbols for LD_PRELOAD so that we can handle
  * language bindings that map to MPI or PMPI symbols under the covers.
- */
+ *
+ * We use an alias attribute rather than generating a function shim in order
+ * to prevent accidental function call loop if there a conventional PMPI
+ * profiler is attempting to intercept the same function name.
+  */
 #define DARSHAN_WRAPPER_MAP(__func,__ret,__args,__fcall) \
-	__ret __func __args { \
-		__ret i; \
-		i = __fcall; \
-		return i; \
-	}
+    __ret __func __args __attribute__ ((alias (#__fcall)));
 
 /* Map the desired function call to a pointer called __real_NAME at run
  * time.  Note that we fall back to looking for the same symbol with a P
@@ -64,13 +64,13 @@
 
 /* creates P* variant of MPI symbols for static linking so that we can handle
  * language bindings that map to MPI or PMPI symbols under the covers.
+ *
+ * We use an alias attribute rather than generating a function shim in order
+ * to prevent accidental function call loop if there a conventional PMPI
+ * profiler is attempting to intercept the same function name.
  */
 #define DARSHAN_WRAPPER_MAP(__func,__ret,__args,__fcall) \
-	__ret __wrap_ ## __func __args { \
-		__ret i; \
-		i = __wrap_ ## __fcall; \
-		return i; \
-	}
+    __ret __wrap_ ## __func __args __attribute__ ((alias ("__wrap_" #__fcall)));
 
 #define MAP_OR_FAIL(__func)
 

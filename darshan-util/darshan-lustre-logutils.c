@@ -53,6 +53,14 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
     if(fd->mod_map[DARSHAN_LUSTRE_MOD].len == 0)
         return(0);
 
+    if(fd->mod_ver[DARSHAN_LUSTRE_MOD] == 0 ||
+        fd->mod_ver[DARSHAN_LUSTRE_MOD] > DARSHAN_LUSTRE_VER)
+    {
+        fprintf(stderr, "Error: Invalid Lustre module version number (got %d)\n",
+            fd->mod_ver[DARSHAN_LUSTRE_MOD]);
+        return(-1);
+    }
+
     /* retrieve the fixed-size portion of the record */
     ret = darshan_log_get_mod(fd, DARSHAN_LUSTRE_MOD, &tmp_rec,
         sizeof(struct darshan_lustre_record));

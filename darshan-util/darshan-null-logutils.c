@@ -68,6 +68,14 @@ static int darshan_log_get_null_record(darshan_fd fd, void** null_buf_p)
     if(fd->mod_map[DARSHAN_NULL_MOD].len == 0)
         return(0);
 
+    if(fd->mod_ver[DARSHAN_NULL_MOD] == 0 ||
+        fd->mod_ver[DARSHAN_NULL_MOD] > DARSHAN_NULL_VER)
+    {
+        fprintf(stderr, "Error: Invalid NHLL module version number (got %d)\n",
+            fd->mod_ver[DARSHAN_NULL_MOD]);
+        return(-1);
+    }
+
     if(*null_buf_p == NULL)
     {
         rec = malloc(sizeof(*rec));

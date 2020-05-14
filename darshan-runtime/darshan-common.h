@@ -67,8 +67,13 @@
         *(__bucket_base_p + 9) += 1; \
 } while(0)
 
-/* potentially set or increment a common value counter, depending on the __count
- * for the given __value. This macro ensures common values are stored first in
+/* maximum number of common values that darshan will track per file at runtime */
+#define DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT 32
+/* maximum number of counters in each common value */
+#define DARSHAN_COMMON_VAL_MAX_NCOUNTERS 12
+
+/* potentially set or add common value counters, depending on the __val_count
+ * for the given __vals. This macro ensures common values are stored first in
  * decreasing order of their total count, and second by decreasing order of
  * their value.
 
@@ -79,61 +84,61 @@
  * counters) and __cnt_p is a pointer to the base of the count counters (i.e.
  * the first of 4 contiguous common count counters). It is assumed your counters
  * are stored as int64_t types. __add_flag is set if the given count should be
- * added to the common access counter, rather than just incrementing it.
+ * added to the common access counter, rather than just setting it.
  */
-#define DARSHAN_COMMON_VAL_COUNTER_INC(__val_p, __cnt_p, __value, __count, __add_flag) do {\
-    int i; \
-    int inc_count, total_count; \
-    int64_t tmp_val[4] = {0}; \
+#define DARSHAN_UPDATE_COMMON_VAL_COUNTERS(__val_p, __cnt_p, __vals, __val_size, __val_count, __add_flag) do {\
+    int i_; \
+    int total_count = __val_count; \
+    int64_t tmp_val[4*DARSHAN_COMMON_VAL_MAX_NCOUNTERS] = {0}; \
     int64_t tmp_cnt[4] = {0}; \
     int tmp_ndx = 0; \
-    if(__value == 0) break; \
-    if(__add_flag) \
-        inc_count = 1; \
-    else \
-        inc_count = __count; \
-    for(i=0; i<4; i++) { \
-        if(*(__val_p + i) == __value) { \
-            total_count = *(__cnt_p + i) + inc_count; \
+    if(*(int64_t *)__vals == 0) break; \
+    for(i_=0; i_<4; i_++) { \
+        if(__add_flag && \
+            !memcmp(__val_p + (i_ * sizeof(*__vals) * __val_size), \
+                __vals, sizeof(*__vals) * __val_size)) { \
+            total_count += *(__cnt_p + i_); \
             break; \
         } \
     } \
-    if(i == 4) total_count = __count; \
     /* first, copy over any counters that should be sorted above this one \
      * (counters with higher counts or equal counts and larger values) \
      */ \
-    for(i=0;i < 4; i++) { \
-        if((*(__cnt_p + i) > total_count) || \
-           ((*(__cnt_p + i) == total_count) && (*(__val_p + i) > __value))) { \
-            tmp_val[tmp_ndx] = *(__val_p + i); \
-            tmp_cnt[tmp_ndx] = *(__cnt_p + i); \
+    for(i_=0; i_ < 4; i_++) { \
+        if((*(__cnt_p + i_) > total_count) || \
+           ((*(__cnt_p + i_) == total_count) && \
+           (*(__val_p + (i_ * sizeof(*__vals) * __val_size)) > *(int64_t *)__vals))) { \
+            memcpy(&tmp_val[tmp_ndx * __val_size], __val_p + (i_ * sizeof(*__vals) * __val_size), \
+                sizeof(*__vals) * __val_size); \
+            tmp_cnt[tmp_ndx] = *(__cnt_p + i_); \
             tmp_ndx++; \
         } \
         else break; \
     } \
     if(tmp_ndx == 4) break; /* all done, updated counter is not added */ \
     /* next, add the updated counter */ \
-    tmp_val[tmp_ndx] = __value; \
+    memcpy(&tmp_val[tmp_ndx * __val_size], __vals, sizeof(*__vals) * __val_size); \
     tmp_cnt[tmp_ndx] = total_count; \
     tmp_ndx++; \
     /* last, copy over any remaining counters to make sure we have 4 sets total */ \
     while(tmp_ndx != 4) { \
-        if(*(__val_p + i) != __value) { \
-            tmp_val[tmp_ndx] = *(__val_p + i); \
-            tmp_cnt[tmp_ndx] = *(__cnt_p + i); \
+        if(memcmp(__val_p + (i_ * sizeof(*__vals) * __val_size), \
+                __vals, sizeof(*__vals) * __val_size)) { \
+            memcpy(&tmp_val[tmp_ndx * __val_size], __val_p + (i_ * sizeof(*__vals) * __val_size), \
+                sizeof(*__vals) * __val_size); \
+            tmp_cnt[tmp_ndx] = *(__cnt_p + i_); \
             tmp_ndx++; \
         } \
-        i++; \
+        i_++; \
     } \
-    memcpy(__val_p, tmp_val, 4*sizeof(int64_t)); \
+    memcpy(__val_p, tmp_val, 4*sizeof(int64_t)*__val_size); \
     memcpy(__cnt_p, tmp_cnt, 4*sizeof(int64_t)); \
 } while(0)
 
-/* maximum number of common values that darshan will track per file at runtime */
-#define DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT 32
 struct darshan_common_val_counter
 {
-    int64_t val;
+    int64_t vals[DARSHAN_COMMON_VAL_MAX_NCOUNTERS];
+    int nvals;
     int freq;
 };
 
@@ -245,7 +250,7 @@ void darshan_record_sort(
     int rec_count,
     int rec_size);
 
-/* darshan_common_val_counter()
+/* darshan_track_common_val_counters()
  *
  * Potentially increment an existing common value counter or allocate
  * a new one to keep track of commonly occuring values. Example use
@@ -253,19 +258,15 @@ void darshan_record_sort(
  * used by a specific module, for instance. 'common_val_root' is the
  * root pointer for the tree which stores common value info, 
  * 'common_val_count' is a pointer to the number of nodes in the 
- * tree (i.e., the number of allocated common value counters), 'val'
- * is the new value to attempt to add, 'val_p' is a pointer to the
- * base counter (i.e., the first) of the common values (which are
- * assumed to be 4 total and contiguous in memory), and 'cnt_p' is
- * a pointer to the base counter of the common counts (which are
- * again expected to be contiguous in memory).
+ * tree (i.e., the number of allocated common value counters), 'vals'
+ * is the set of new values to attempt to add, and 'nvals' is the
+ * total number of values in the 'vals' pointer.
  */
-void darshan_common_val_counter(
+struct darshan_common_val_counter *darshan_track_common_val_counters(
     void **common_val_root,
-    int *common_val_count,
-    int64_t val,
-    int64_t *val_p,
-    int64_t *cnt_p);
+    int64_t *vals,
+    int nvals,
+    int *common_val_count);
 
 #ifdef HAVE_MPI
 /* darshan_variance_reduce()

@@ -1,15 +1,14 @@
 #TODO: each module provides own makefile with module-specific objects, build options, etc.
 
-DESTDIR =
 srcdir = @srcdir@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
-datarootdir = $(DESTDIR)@datarootdir@
-includedir = $(DESTDIR)@includedir@
-mandir = $(DESTDIR)@mandir@
-sbindir = $(DESTDIR)@sbindir@
-bindir = $(DESTDIR)@bindir@
-libdir = $(DESTDIR)@libdir@
+datarootdir = @datarootdir@
+includedir = @includedir@
+mandir = @mandir@
+sbindir = @sbindir@
+bindir = @bindir@
+libdir = @libdir@
 LDFLAGS = @LDFLAGS@
 CC = @CC@
 LD = @LD@
@@ -21,7 +20,7 @@ DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_VERSION = @DARSHAN_VERSION@
 
 ifndef DISABLE_STATIC_LIB
-all: lib/libdarshan.a lib/libdarshan-stubs.a
+all: lib/libdarshan.a
 endif
 ifndef DISABLE_LDPRELOAD
 all: lib/libdarshan.so
@@ -156,17 +155,11 @@ lib/darshan-hdf5.o: lib/darshan-hdf5.c darshan.h darshan-common.h $(DARSHAN_LOG_
 lib/darshan-hdf5.po: lib/darshan-hdf5.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-hdf5-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
-lib/darshan-hdf5-stubs.o: lib/darshan-hdf5-stubs.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
-	$(CC) $(CFLAGS) -c $< -o $@
-
 lib/darshan-pnetcdf.o: lib/darshan-pnetcdf.c darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-pnetcdf-log-format.h | lib
 	$(CC) $(CFLAGS) -c $< -o $@
 
 lib/darshan-pnetcdf.po: lib/darshan-pnetcdf.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-pnetcdf-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
-
-lib/darshan-pnetcdf-stubs.o: lib/darshan-pnetcdf-stubs.c darshan.h $(DARSHAN_LOG_FORMAT) | lib
-	$(CC) $(CFLAGS) -c $< -o $@
 
 lib/darshan-lustre.o: lib/darshan-lustre.c darshan-lustre.h darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-lustre-log-format.h | lib
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -211,66 +204,57 @@ lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darsha
 lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po $(DARSHAN_DYNAMIC_MOD_OBJS) lib/lookup3.po lib/lookup8.po
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ -lpthread -lrt -lz -ldl
 
-ifdef BUILD_HDF5_MODULE
-lib/libdarshan-stubs.a: lib/darshan-hdf5-stubs.o lib/darshan-pnetcdf-stubs.o
-	ar rcs $@ $^
-else
-lib/libdarshan-stubs.a: lib/darshan-pnetcdf-stubs.o
-	ar rcs $@ $^
-endif
-
 
 install:: all
-	install -d $(libdir)
+	install -d $(DESTDIR)$(libdir)
 ifndef DISABLE_STATIC_LIB
-	install -m 755 lib/libdarshan.a $(libdir)
-	install -m 755 lib/libdarshan-stubs.a $(libdir)
+	install -m 755 lib/libdarshan.a $(DESTDIR)$(libdir)
 endif
 ifndef DISABLE_LDPRELOAD
-	install -m 755 lib/libdarshan.so $(libdir)
+	install -m 755 lib/libdarshan.so $(DESTDIR)$(libdir)
 endif
-	install -d $(bindir)
-	install -m 755 darshan-mk-log-dirs.pl $(bindir)
-	install -m 755 darshan-gen-cc.pl $(bindir)
-	install -m 755 darshan-gen-cxx.pl $(bindir)
-	install -m 755 darshan-gen-fortran.pl $(bindir)
-	install -m 755 darshan-config $(bindir)
-	install -d $(datarootdir)/craype-1.x/modulefiles/darshan
-	install -m 755 share/craype-1.x/darshan-module $(datarootdir)/craype-1.x/modulefiles/darshan/$(DARSHAN_VERSION)
-	install -d $(datarootdir)/craype-2.x/modulefiles/darshan
-	install -m 755 share/craype-2.x/darshan-module $(datarootdir)/craype-2.x/modulefiles/darshan/$(DARSHAN_VERSION)
-	install -d $(datarootdir)/mpi-profile
-	install -m 755 share/mpi-profile/darshan-cc.conf $(datarootdir)/mpi-profile/darshan-cc.conf
-	install -m 755 share/mpi-profile/darshan-cxx.conf $(datarootdir)/mpi-profile/darshan-cxx.conf
-	install -m 755 share/mpi-profile/darshan-f.conf $(datarootdir)/mpi-profile/darshan-f.conf
-	install -m 755 share/mpi-profile/darshan-bg-cc.conf $(datarootdir)/mpi-profile/darshan-bg-cc.conf
-	install -m 755 share/mpi-profile/darshan-bg-cxx.conf $(datarootdir)/mpi-profile/darshan-bg-cxx.conf
-	install -m 755 share/mpi-profile/darshan-bg-f.conf $(datarootdir)/mpi-profile/darshan-bg-f.conf
-	install -d $(datarootdir)/ld-opts
-	install -m 644 share/ld-opts/darshan-base-ld-opts $(datarootdir)/ld-opts/darshan-base-ld-opts
+	install -d $(DESTDIR)$(bindir)
+	install -m 755 darshan-mk-log-dirs.pl $(DESTDIR)$(bindir)
+	install -m 755 darshan-gen-cc.pl $(DESTDIR)$(bindir)
+	install -m 755 darshan-gen-cxx.pl $(DESTDIR)$(bindir)
+	install -m 755 darshan-gen-fortran.pl $(DESTDIR)$(bindir)
+	install -m 755 darshan-config $(DESTDIR)$(bindir)
+	install -d $(DESTDIR)$(datarootdir)/craype-1.x/modulefiles/darshan
+	install -m 755 share/craype-1.x/darshan-module $(DESTDIR)$(datarootdir)/craype-1.x/modulefiles/darshan/$(DARSHAN_VERSION)
+	install -d $(DESTDIR)$(datarootdir)/craype-2.x/modulefiles/darshan
+	install -m 755 share/craype-2.x/darshan-module $(DESTDIR)$(datarootdir)/craype-2.x/modulefiles/darshan/$(DARSHAN_VERSION)
+	install -d $(DESTDIR)$(datarootdir)/mpi-profile
+	install -m 755 share/mpi-profile/darshan-cc.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-cc.conf
+	install -m 755 share/mpi-profile/darshan-cxx.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-cxx.conf
+	install -m 755 share/mpi-profile/darshan-f.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-f.conf
+	install -m 755 share/mpi-profile/darshan-cc-static.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-cc-static.conf
+	install -m 755 share/mpi-profile/darshan-cxx-static.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-cxx-static.conf
+	install -m 755 share/mpi-profile/darshan-f-static.conf $(DESTDIR)$(datarootdir)/mpi-profile/darshan-f-static.conf
+	install -d $(DESTDIR)$(datarootdir)/ld-opts
+	install -m 644 share/ld-opts/darshan-base-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-base-ld-opts
 ifdef BUILD_POSIX_MODULE
-	install -m 644 $(srcdir)/share/ld-opts/darshan-posix-ld-opts $(datarootdir)/ld-opts/darshan-posix-ld-opts
+	install -m 644 $(srcdir)/share/ld-opts/darshan-posix-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-posix-ld-opts
 endif
 ifdef BUILD_STDIO_MODULE
-	install -m 644 $(srcdir)/share/ld-opts/darshan-stdio-ld-opts $(datarootdir)/ld-opts/darshan-stdio-ld-opts
+	install -m 644 share/ld-opts/darshan-stdio-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-stdio-ld-opts
 endif
 ifdef BUILD_MPIIO_MODULE
-	install -m 644 $(srcdir)/share/ld-opts/darshan-mpiio-ld-opts $(datarootdir)/ld-opts/darshan-mpiio-ld-opts
+	install -m 644 $(srcdir)/share/ld-opts/darshan-mpiio-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-mpiio-ld-opts
 endif
 ifdef BUILD_PNETCDF_MODULE
-	install -m 644 $(srcdir)/share/ld-opts/darshan-pnetcdf-ld-opts $(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
+	install -m 644 $(srcdir)/share/ld-opts/darshan-pnetcdf-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-pnetcdf-ld-opts
 endif
 ifdef BUILD_HDF5_MODULE
-	install -m 644 $(srcdir)/share/ld-opts/darshan-hdf5-ld-opts $(datarootdir)/ld-opts/darshan-hdf5-ld-opts
+	install -m 644 share/ld-opts/darshan-hdf5-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-hdf5-ld-opts
 endif
 ifdef BUILD_MDHIM_MODULE
-	install -m 644 $(srcdir)/share/ld-opts/darshan-mdhim-ld-opts $(datarootdir)/ld-opts/darshan-mdhim-ld-opts
+	install -m 644 $(srcdir)/share/ld-opts/darshan-mdhim-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-mdhim-ld-opts
 endif
 ifdef ENABLE_MMAP_LOGS
-	install -m 755 share/darshan-mmap-epilog.sh $(datarootdir)/darshan-mmap-epilog.sh
+	install -m 755 share/darshan-mmap-epilog.sh $(DESTDIR)$(datarootdir)/darshan-mmap-epilog.sh
 endif
-	install -d $(libdir)/pkgconfig
-	install -m 644 lib/pkgconfig/darshan-runtime.pc $(libdir)/pkgconfig/darshan-runtime.pc
+	install -d $(DESTDIR)$(libdir)/pkgconfig
+	install -m 644 lib/pkgconfig/darshan-runtime.pc $(DESTDIR)$(libdir)/pkgconfig/darshan-runtime.pc
 
 clean::
 	rm -f *.o *.a lib/*.o lib/*.po lib/*.a lib/*.so

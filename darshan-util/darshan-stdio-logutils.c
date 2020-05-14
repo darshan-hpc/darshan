@@ -71,6 +71,14 @@ static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p)
     if(fd->mod_map[DARSHAN_STDIO_MOD].len == 0)
         return(0);
 
+    if(fd->mod_ver[DARSHAN_STDIO_MOD] == 0 ||
+        fd->mod_ver[DARSHAN_STDIO_MOD] > DARSHAN_STDIO_VER)
+    {
+        fprintf(stderr, "Error: Invalid STDIO module version number (got %d)\n",
+            fd->mod_ver[DARSHAN_STDIO_MOD]);
+        return(-1);
+    }
+
     if(*stdio_buf_p == NULL)
     {
         file = malloc(sizeof(*file));
@@ -109,7 +117,7 @@ static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p)
             *((int64_t *)src_p) = -1;
         }
 
-        memcpy(file, scratch, sizeof(struct darshan_posix_file));
+        memcpy(file, scratch, sizeof(struct darshan_stdio_file));
     }
 
 exit:

@@ -1,4 +1,0 @@
---undefined=__wrap_H5Fcreate
---wrap=H5Fcreate
---wrap=H5Fopen
---wrap=H5Fclose
