@@ -2,6 +2,12 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.2.1
+=============
+* fixed bug causing corruption of Darshan common access
+  counters (POSIX, MPI-IO, and HDF5 modules) and potentially
+  other preceding counters (reported by Gerd Heber)
+
 Darshan-3.2.0
 =============
 * added detailed instrumentation of HDF5 library file and dataset
