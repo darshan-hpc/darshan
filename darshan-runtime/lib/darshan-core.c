@@ -203,6 +203,7 @@ void darshan_core_initialize(int argc, char **argv)
     char *envstr;
     char *jobid_str;
     int jobid;
+    int init_pid = getpid();
     int ret;
     int i;
     int tmpval;
@@ -259,7 +260,7 @@ void darshan_core_initialize(int argc, char **argv)
     if(!jobid_str || ret != 1)
     {
         /* use pid as fall back */
-        jobid = getpid();
+        jobid = init_pid;
     }
 
     /* set the memory quota for darshan modules' records */
@@ -295,7 +296,10 @@ void darshan_core_initialize(int argc, char **argv)
          */
         init_core->wtime_offset = darshan_core_wtime_absolute();
 
-    /* TODO: do we alloc new memory as we go or just do everything up front? */
+        /* set PID that initialized Darshan runtime */
+        init_core->pid = init_pid;
+
+        /* TODO: do we alloc new memory as we go or just do everything up front? */
 
 #ifndef __DARSHAN_ENABLE_MMAP_LOGS
         /* just allocate memory for each log file region */
@@ -430,6 +434,9 @@ void darshan_core_shutdown()
     char *logfile_name = NULL;
     darshan_core_log_fh log_fh;
     int log_created = 0;
+    int shutdown_pid = getpid();
+    int meta_remain = 0;
+    char *m;
     int i;
     int ret;
 
@@ -514,6 +521,25 @@ void darshan_core_shutdown()
         assert(mod_shared_recs);
     }
 #endif
+
+    /* detect whether our PID changed since init, which is caused by fork() */
+    /* NOTE: this should only be triggered in non-MPI cases, since MPI mode still
+     * bootstraps the shutdown procedure on MPI_Finalize, which forked processes
+     * will not call
+     */
+    if(shutdown_pid != final_core->pid)
+    {
+        /* set fork metadata */
+        meta_remain = DARSHAN_JOB_METADATA_LEN -
+            strlen(final_core->log_job_p->metadata) - 1;
+        if(meta_remain >= 18)
+        {
+            m = final_core->log_job_p->metadata +
+                strlen(final_core->log_job_p->metadata);
+            sprintf(m, "fork_parent=%d\n", final_core->pid);
+        }
+        final_core->pid = shutdown_pid;
+    }
 
     /* get the log file name */
     darshan_get_logfile_name(logfile_name, final_core);
@@ -1353,6 +1379,7 @@ static void darshan_get_logfile_name(
     char cuser[L_cuserid] = {0};
     struct tm *start_tm;
     int jobid;
+    int pid;
     time_t start_time;
     int ret;
 
@@ -1362,6 +1389,7 @@ static void darshan_get_logfile_name(
 #endif
 
     jobid = core->log_job_p->jobid;
+    pid = core->pid;
     start_time = core->log_job_p->start_time;
 
     /* first, check if user specifies a complete logpath to use */
@@ -1432,9 +1460,9 @@ static void darshan_get_logfile_name(
         if(logpath_override)
         {
             ret = snprintf(logfile_name, PATH_MAX,
-                "%s/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                "%s/%s_%s_id%d-%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
                 logpath_override,
-                cuser, __progname, jobid,
+                cuser, __progname, jobid, pid,
                 (start_tm->tm_mon+1),
                 start_tm->tm_mday,
                 (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
@@ -1450,10 +1478,10 @@ static void darshan_get_logfile_name(
         else if(logpath)
         {
             ret = snprintf(logfile_name, PATH_MAX,
-                "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                "%s/%d/%d/%d/%s_%s_id%d-%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
                 logpath, (start_tm->tm_year+1900),
                 (start_tm->tm_mon+1), start_tm->tm_mday,
-                cuser, __progname, jobid,
+                cuser, __progname, jobid, pid,
                 (start_tm->tm_mon+1),
                 start_tm->tm_mday,
                 (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),

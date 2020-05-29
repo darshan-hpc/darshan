@@ -118,6 +118,7 @@ struct darshan_core_runtime
 #ifdef HAVE_MPI
     MPI_Comm mpi_comm;
 #endif
+    int pid;
 };
 
 void darshan_core_initialize(int argc, char **argv);
