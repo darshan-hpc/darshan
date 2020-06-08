@@ -2036,7 +2036,8 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
 #endif
 
 #ifdef HAVE_MPI
-    PMPI_Comm_free(&core->mpi_comm);
+    if(using_mpi)
+        PMPI_Comm_free(&core->mpi_comm);
 #endif
 
     if(core->comp_buf)
