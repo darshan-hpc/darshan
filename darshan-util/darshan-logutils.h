@@ -70,7 +70,7 @@ struct darshan_mnt_info
 
 struct darshan_mod_info
 {
-    char *name;
+    const char *name;
     int  len;
     int  ver;
     int  idx;

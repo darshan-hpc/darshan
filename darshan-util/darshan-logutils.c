@@ -1915,7 +1915,7 @@ void darshan_log_get_name_records(darshan_fd fd,
     if(ret < 0)
     {
         darshan_log_close(fd);
-        return(-1);
+        return;
     }
 
     int num = HASH_CNT(hlink, name_hash);
