@@ -1,6 +1,8 @@
 --wrap=open
 --wrap=open64
 --wrap=__open_2
+--wrap=openat
+--wrap=openat64
 --wrap=creat
 --wrap=creat64
 --wrap=dup
