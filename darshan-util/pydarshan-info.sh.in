@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# See COPYRIGHT notice in top-level directory.
+#
+
+# Example utility based on-top of the PyDarshan usgin a Shell-Wrapper
+
+
+# add hard-coded darshan utils path and ensure they take precedence
+PREFIX="@prefix@";
+export PYTHONPATH=$PREFIX/pydarshan:$PYTHONPATH
+
+python -m darshan.cli info $@
