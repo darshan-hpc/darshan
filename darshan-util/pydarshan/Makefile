@@ -8,14 +8,14 @@ clean-build:  # remove build artifacts
 	rm -rf dist/
 	rm -rf .eggs/
 	rm -rf docs/_build
-	find . -name '*.egg-info' -exec rm -fr {} +
-	find . -name '*.egg' -exec rm -f {} +
+	find . -name '*.egg-info' -exec rm -rf {} +
+	find . -name '*.egg' -exec rm -rf {} +
 
 clean-pyc:  # remove Python file artifacts
 	find . -name '*.pyc' -exec rm -f {} +
 	find . -name '*.pyo' -exec rm -f {} +
-	find . -name '*~' -exec rm -f {} +
-	find . -name '__pycache__' -exec rm -fr {} +
+	find . -name '*~' -exec rm -rf {} +
+	find . -name '__pycache__' -exec rm -rf {} +
 
 clean-test:  # remove test and coverage artifacts
 	rm -rf .tox/
@@ -57,8 +57,8 @@ servedocs: docs  # compile the docs watching for changes
 
 
 release: dist # package and upload a release
-	twine upload --repository testpypi dist/*
-	#twine upload dist/*
+	#twine upload --repository testpypi dist/*
+	twine upload dist/*
 
 dist: clean  # builds source and wheel package
 	python setup.py sdist
