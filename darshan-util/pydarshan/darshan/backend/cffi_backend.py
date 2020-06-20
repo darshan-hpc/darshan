@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import cffi
+import ctypes
+
 import numpy as np
 import pandas as pd
 
@@ -15,7 +17,8 @@ API_def_c = load_darshan_header()
 ffi = cffi.FFI()
 ffi.cdef(API_def_c)
 
-libdutil = ffi.dlopen("libdarshan-util.so")
+#libdutil = ffi.dlopen("libdarshan-util.so")
+libdutil = ffi.dlopen("//home/pq/p/software/darshan-pydarshan/darshan-util/libdarshan-util.so")
 
 
 
@@ -94,6 +97,7 @@ def log_get_mounts(log):
     Args:
         log: handle returned by darshan.open
     """
+
     mntlst = []
     mnts = ffi.new("struct darshan_mnt_info **")
     cnt = ffi.new("int *")
@@ -138,7 +142,6 @@ def log_get_modules(log):
     return modules
 
 
-
 def log_get_name_records(log):
     """
     Return a dictionary resovling hash to string (typically a filepath).
@@ -170,6 +173,51 @@ def log_get_name_records(log):
     log['name_records'] = name_records
 
     return name_records
+
+
+
+def log_lookup_name_records(log, ids=[]):
+    """
+    Resolve a single hash to it's name record string (typically a filepath).
+
+    Args:
+        log: handle returned by darshan.open
+        hash: hash-value (a number)
+
+    Return:
+        dict: the name records
+    """
+
+    # used cached name_records if already present
+    if log['name_records'] != None:
+        return log['name_records']
+
+    name_records = {}
+
+
+    print(ids)
+
+    #cids = ffi.new("darshan_record_id *") * len(ids)
+    whitelist = (ctypes.c_ulonglong * len(ids))(*ids)
+    whitelist_cnt = len(ids)
+
+
+    whitelistp = ffi.from_buffer(whitelist)
+
+    nrecs = ffi.new("struct darshan_name_record **")
+    cnt = ffi.new("int *")
+    libdutil.darshan_log_get_filtered_name_records(log['handle'], nrecs, cnt, ffi.cast("darshan_record_id *", whitelistp), whitelist_cnt)
+
+
+    for i in range(0, cnt[0]):
+        name_records[nrecs[0][i].id] = ffi.string(nrecs[0][i].name).decode("utf-8")
+
+
+    # add to cache
+    log['name_records'] = name_records
+
+    return name_records
+
 
 
 
@@ -247,12 +295,12 @@ def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='d
         rec['read_segments'].append(seg)
 
 
-
     if mode == "pandas":
         rec['read_segments'] = pd.DataFrame(rec['read_segments'])
         rec['write_segments'] = pd.DataFrame(rec['write_segments'])
 
     return rec
+
 
 
 def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
@@ -300,8 +348,18 @@ def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
 
 
 
+    if mode == "dict":
+        cdict = dict(zip(counter_names(mod_name), rec['counters']))
+        fcdict = dict(zip(fcounter_names(mod_name), rec['fcounters']))
+        rec = {'counters': cdict, 'fcounter': fcdict}
+
     if mode == "pandas":
-        pass
+        cdict = dict(zip(counter_names(mod_name), rec['counters']))
+        fcdict = dict(zip(fcounter_names(mod_name), rec['fcounters']))
+        rec = {
+                'counters': pd.DataFrame(cdict, index=[0]),
+                'fcounters': pd.DataFrame(fcdict, index=[0])
+                }
 
     return rec
 
@@ -435,49 +493,3 @@ def log_get_stdio_record(log):
         dict: log record
     """
     return log_get_generic_record(log, "STDIO", "struct darshan_stdio_file **")
-
-
-def log_get_apxc_record(log):
-    """
-    Returns a darshan log record for APCX.
-
-    Args:
-        log: handle returned by darshan.open
-
-    Returns:
-        dict: log record
-    """
-    rec = {}
-
-    modules = log_get_modules(log)
-
-    memory_modes = ['unknown', 'flat', 'equal', 'split', 'cache']
-    cluster_modes = ['unknown', 'all2all', 'quad', 'hemi', 'snc4', 'snc2']
-    buf = ffi.new("void **")
-    r = libdutil.darshan_log_get_record(log['handle'], modules['DARSHAN_APXC']['idx'], buf)
-
-    if r < 1:
-        return None
-
-    prf = ffi.cast("struct darshan_apxc_perf_record **", buf)
-    hdr = ffi.cast("struct darshan_apxc_header_record **", buf)
-
-    if hdr[0].magic == 4707761685111591494:
-        mm = hdr[0].memory_mode & ~(1 << 31)
-        cm = hdr[0].cluster_mode & ~(1 << 31)
-        rec['nblades'] = hdr[0].nblades
-        rec['nchassis'] = hdr[0].nchassis
-        rec['ngroups'] = hdr[0].ngroups
-        rec['memory_mode'] = memory_modes[mm]
-        rec['cluster_mode'] = cluster_modes[cm]
-    else:
-        rec['group'] = prf[0].counters[0]
-        rec['chassis'] = prf[0].counters[1]
-        rec['blade'] = prf[0].counters[2]
-        rec['node'] = prf[0].counters[3]
-        clst = []
-        for i in range(0, len(prf[0].counters)):
-            clst.append(prf[0].counters[i])
-        rec['counters'] = np.array(clst, dtype=np.uint64)
-
-    return rec

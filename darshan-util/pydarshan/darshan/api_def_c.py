@@ -86,22 +86,7 @@ struct darshan_decaf_record
 };
 
 
-/* from darshan-apxc-log-format.h */
-struct darshan_apxc_header_record
-{
-    struct darshan_base_record base_rec;
-    int64_t magic;
-    int nblades;
-    int nchassis;
-    int ngroups;
-    int memory_mode;
-    int cluster_mode;
-};
-struct darshan_apxc_perf_record
-{
-    struct darshan_base_record base_rec;
-    int64_t counters[396];
-};
+
 
 
 
@@ -168,6 +153,7 @@ int darshan_log_get_record(void*, int, void **);
 int darshan_log_get_namehash(void*, struct darshan_name_record_ref **hash);
 
 void darshan_log_get_name_records(void*, struct darshan_name_record **, int*);
+void darshan_log_get_filtered_name_records(void*, struct darshan_name_record **, int*, darshan_record_id*, int);
 
 """
 
