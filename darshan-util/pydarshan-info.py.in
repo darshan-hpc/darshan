@@ -6,7 +6,7 @@
 # Example utility based on-top of the PyDarshan using a Python-Wrapper
 
 
-# add hard-coded darshan utils path and ensure they take precedence
+# add hard-coded pydarshan utils path and ensure they take precedence
 import sys
 sys.path.insert(0, "@prefix@")
 

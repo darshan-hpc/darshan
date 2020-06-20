@@ -21,8 +21,8 @@ import pandas as pd
 
 class DarshanReportJSONEncoder(json.JSONEncoder):
     """
-    Helper class for JSON serialization if the report contains numpy
-    log records, which are not handled by the default JSON encoder.
+    Helper class for JSON serialization if the report contains, for example,
+    numpy or dates records, which are not handled by the default JSON encoder.
     """
     def default(self, obj):
         if isinstance(obj, np.ndarray):
@@ -42,14 +42,16 @@ class DarshanReport(object):
     a number of common aggregations can be performed.
     """
 
-    def __init__(self, filename=None, data_format='numpy', automatic_summary=False, read_all=True):
+    def __init__(self, filename=None, data_format='pandas', automatic_summary=False,
+            read_all=True, lookup_name_records=True):
         self.filename = filename
 
         # options
-        self.data_format = data_format  # Experimental: preferred internal representation: numpy useful for aggregations, dict good for export/REST
+        self.data_format = data_format  # Experimental: preferred internal representation: pandas/numpy useful for aggregations, dict good for export/REST
                                         # might require alternative granularity: e.g., records, vs summaries?
                                         # vs dict/pandas?  dict/native?
         self.automatic_summary = automatic_summary
+        self.lookup_name_records = lookup_name_records
 
 
         # state dependent book-keeping
@@ -139,7 +141,7 @@ class DarshanReport(object):
         memo[id(self)] = result
         for k, v in self.__dict__.items():
             if k in ["log"]:
-                # blacklist of members not copy
+                # blacklist of members not to copy
                 continue
             setattr(result, k, copy.deepcopy(v, memo))
         return result
@@ -171,8 +173,9 @@ class DarshanReport(object):
         self.data['modules'] = backend.log_get_modules(self.log)
         self.modules = self.data['modules']
 
-        self.data["name_records"] = backend.log_get_name_records(self.log)
-        self.name_records = self.data['name_records']
+        if self.read_all == True:
+            self.data["name_records"] = backend.log_get_name_records(self.log)
+            self.name_records = self.data['name_records']
 
 
     def read_all(self):
@@ -275,6 +278,8 @@ class DarshanReport(object):
 
         rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
         while rec != None:
+            if mode == 'pandas':
+                self.records[mod].append(rec)
             if mode == 'numpy': 
                 self.records[mod].append(rec)
             else:
@@ -371,11 +376,14 @@ class DarshanReport(object):
         tdelta = self.end_time - self.start_time
         print("Times:          ", self.start_time, " to ", self.end_time, " (Duration ", tdelta, ")", sep="")
 
-        print("Executeable:    ", self.metadata['exe'], sep="")
-        print("Processes:      ", self.metadata['job']['nprocs'], sep="")
-        print("JobID:          ", self.metadata['job']['jobid'], sep="")
-        print("UID:            ", self.metadata['job']['uid'], sep="")
-        print("Modules in Log: ", list(self.modules.keys()), sep="")
+        if 'exe' in self.metadata:
+            print("Executeable:    ", self.metadata['exe'], sep="")
+
+        if 'job' in self.metadata:
+            print("Processes:      ", self.metadata['job']['nprocs'], sep="")
+            print("JobID:          ", self.metadata['job']['jobid'], sep="")
+            print("UID:            ", self.metadata['job']['uid'], sep="")
+            print("Modules in Log: ", list(self.modules.keys()), sep="")
 
         loaded = {}
         for mod in self.records:
@@ -384,7 +392,8 @@ class DarshanReport(object):
 
         print("Name Records:   ", len(self.name_records), sep="")
         
-        print("Darshan/Hints:  ", self.metadata['job']['metadata'], sep="")
+        if 'job' in self.metadata:
+            print("Darshan/Hints:  ", self.metadata['job']['metadata'], sep="")
         print("DarshanReport:  id(", id(self), ") (tmp)", sep="")
 
 

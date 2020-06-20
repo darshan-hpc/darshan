@@ -6,7 +6,7 @@
 # Example utility based on-top of the PyDarshan usgin a Shell-Wrapper
 
 
-# add hard-coded darshan utils path and ensure they take precedence
+# add hard-coded pydarshan utils path and ensure they take precedence
 PREFIX="@prefix@";
 export PYTHONPATH=$PREFIX/pydarshan:$PYTHONPATH
 

@@ -7,7 +7,7 @@ with open('README.rst') as readme_file:
     readme = readme_file.read()
 
 
-requirements = ['cffi', 'numpy', 'matplotlib']
+requirements = ['cffi', 'numpy', 'pandas', 'matplotlib']
 setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest']
 
@@ -33,7 +33,7 @@ setup(
     include_package_data=True,
     keywords='darshan',
     name='darshan',
-    packages=find_packages(include=['darshan']),
+    packages=find_packages(include=['darshan*']),
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
