@@ -24,7 +24,7 @@
  * log format version, NOT when a new version of a module record is
  * introduced -- we have module-specific versions to handle that
  */
-#define DARSHAN_LOG_VERSION "3.20"
+#define DARSHAN_LOG_VERSION "3.21"
 
 /* magic number for validating output files and checking byte order */
 #define DARSHAN_MAGIC_NR 6567223
