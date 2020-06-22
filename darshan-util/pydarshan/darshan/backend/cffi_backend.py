@@ -7,18 +7,22 @@ import numpy as np
 import pandas as pd
 
 
-from darshan.discover_darshan import discover_darshan
 from darshan.api_def_c import load_darshan_header
+from darshan.discover_darshan import find_utils
+from darshan.discover_darshan import check_version
 
-#DARSHAN_PATH = discover_darshan()
 API_def_c = load_darshan_header()
 
 
 ffi = cffi.FFI()
 ffi.cdef(API_def_c)
 
-#libdutil = ffi.dlopen("libdarshan-util.so")
-libdutil = ffi.dlopen("//home/pq/p/software/darshan-pydarshan/darshan-util/libdarshan-util.so")
+libdutil = None
+libdutil = find_utils(ffi, libdutil)
+
+
+
+
 
 
 
@@ -33,7 +37,8 @@ def log_open(filename):
         log handle
     """
     b_fname = filename.encode()
-    log = {"handle": libdutil.darshan_log_open(b_fname), 'modules': None, 'name_records': None}
+    handle = libdutil.darshan_log_open(b_fname)
+    log = {"handle": handle, 'modules': None, 'name_records': None}
 
     return log
 
@@ -194,13 +199,9 @@ def log_lookup_name_records(log, ids=[]):
 
     name_records = {}
 
-
-    print(ids)
-
     #cids = ffi.new("darshan_record_id *") * len(ids)
     whitelist = (ctypes.c_ulonglong * len(ids))(*ids)
     whitelist_cnt = len(ids)
-
 
     whitelistp = ffi.from_buffer(whitelist)
 
@@ -208,10 +209,8 @@ def log_lookup_name_records(log, ids=[]):
     cnt = ffi.new("int *")
     libdutil.darshan_log_get_filtered_name_records(log['handle'], nrecs, cnt, ffi.cast("darshan_record_id *", whitelistp), whitelist_cnt)
 
-
     for i in range(0, cnt[0]):
         name_records[nrecs[0][i].id] = ffi.string(nrecs[0][i].name).decode("utf-8")
-
 
     # add to cache
     log['name_records'] = name_records
@@ -246,7 +245,7 @@ def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='d
     """
 
     modules = log_get_modules(log)
-    name_records = log_get_name_records(log)
+    #name_records = log_get_name_records(log)
 
     rec = {}
     buf = ffi.new("void **")
@@ -259,7 +258,7 @@ def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='d
     rec['id'] = filerec[0].base_rec.id
     rec['rank'] = filerec[0].base_rec.rank
     rec['hostname'] = ffi.string(filerec[0].hostname).decode("utf-8")
-    rec['filename'] = name_records[rec['id']]
+    #rec['filename'] = name_records[rec['id']]
 
     wcnt = filerec[0].write_count
     rcnt = filerec[0].read_count

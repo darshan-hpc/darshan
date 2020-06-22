@@ -66,6 +66,7 @@ class DarshanReport(object):
         self.modules = {}
         self.counters = {}
         self.records = {}
+        self.mounts = {}
         self.name_records = {}
 
         # initialize report/summary namespace
@@ -113,7 +114,7 @@ class DarshanReport(object):
 
         if filename:
             self.log = backend.log_open(self.filename)
-            self.read_metadata()
+            self.read_metadata(read_all=read_all)
 
             if read_all:
                 self.read_all()
@@ -151,7 +152,7 @@ class DarshanReport(object):
         return result
 
 
-    def read_metadata(self):
+    def read_metadata(self, read_all=False):
         """
         Read metadata such as the job, the executables and available modules.
 
@@ -169,13 +170,51 @@ class DarshanReport(object):
         self.end_time = datetime.datetime.fromtimestamp(self.metadata['job']['end_time'])
 
         self.data['mounts'] = backend.log_get_mounts(self.log)
+        self.mounts = self.data['mounts']
 
         self.data['modules'] = backend.log_get_modules(self.log)
         self.modules = self.data['modules']
 
-        if self.read_all == True:
+        if read_all == True:
             self.data["name_records"] = backend.log_get_name_records(self.log)
             self.name_records = self.data['name_records']
+
+
+    def update_name_records(self, mod=None):
+        """
+        Update (and prune unused) name records from resolve table.
+
+        First reindexes all used name record identifiers and then queries 
+        darshan-utils library to compile filtered list of name records.
+
+        Args:
+            None
+
+        Return:
+            None
+
+        """
+
+        # sanitize inputs
+        mods = mod
+        if mods is None:
+            mods = self.records
+        else:
+            mods = [mod]
+
+        
+        # state
+        ids = set()
+
+        for mod in mods:
+            for rec in self.records[mod]:
+                ids.add(rec['id'])
+
+
+        self.name_records = backend.log_lookup_name_records(self.log, ids)
+        
+
+
 
 
     def read_all(self):
