@@ -114,6 +114,9 @@ class DarshanReport(object):
 
         if filename:
             self.log = backend.log_open(self.filename)
+            if not bool(self.log['handle']):
+                raise RuntimeError("Failed to open file.")
+
             self.read_metadata(read_all=read_all)
 
             if read_all:
@@ -207,6 +210,7 @@ class DarshanReport(object):
         ids = set()
 
         for mod in mods:
+            print(mod)
             for rec in self.records[mod]:
                 ids.add(rec['id'])
 
@@ -295,7 +299,6 @@ class DarshanReport(object):
             "POSIX": "struct darshan_posix_file **",
             "STDIO": "struct darshan_stdio_file **",
             "DECAF": "struct darshan_decaf_record **",
-            "DXT_POSIX": "struct dxt_file_record **",
         }
 
 
@@ -315,7 +318,7 @@ class DarshanReport(object):
 
 
 
-        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
+        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], mode=mode)
         while rec != None:
             if mode == 'pandas':
                 self.records[mod].append(rec)
