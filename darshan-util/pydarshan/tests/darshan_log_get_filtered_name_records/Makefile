@@ -5,4 +5,8 @@ darshan=${PWD}/../../../
 
 
 all:
-	gcc -g -o program program.c -I ../../../ -I ../../../../  -L ../../../ -ldarshan-util
+	gcc -g -o test test.c -I ../../../ -I ../../../../  -L ../../../ -ldarshan-util
+
+
+
+

@@ -5,7 +5,7 @@
 import darshan.backend.cffi_backend as backend
 
 
-log = backend.log_open("sample.darshan")
+log = backend.log_open("example.darshan")
 mods = backend.log_get_modules(log)
 
 
