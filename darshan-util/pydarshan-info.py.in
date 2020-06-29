@@ -7,8 +7,8 @@
 
 
 # add hard-coded pydarshan utils path and ensure they take precedence
-import sys
-sys.path.insert(0, "@prefix@")
+import site
+site.addsitedir("@DARSHAN_PYDARSHAN_PATH@")
 
 
 import darshan
