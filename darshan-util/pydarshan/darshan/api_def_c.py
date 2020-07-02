@@ -149,6 +149,7 @@ int darshan_log_get_exe(void*, char *);
 int darshan_log_get_mounts(void*, struct darshan_mnt_info **, int*);
 void darshan_log_get_modules(void*, struct darshan_mod_info **, int*);
 int darshan_log_get_record(void*, int, void **);
+char* darshan_log_get_lib_version(void);
 
 int darshan_log_get_namehash(void*, struct darshan_name_record_ref **hash);
 

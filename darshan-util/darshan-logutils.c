@@ -117,6 +117,7 @@ static int darshan_log_get_filtered_namerecs(void *name_rec_buf, int buf_len, in
 int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
     int swap_flag, struct darshan_name_record_ref **hash);
 
+static char *darshan_util_lib_ver = PACKAGE_VERSION;
 
 /********************************************************
  *        publically exposed logutil functions          *
@@ -873,6 +874,11 @@ void darshan_log_print_version_warnings(const char *version_string)
     }
 
     return;
+}
+
+char *darshan_log_get_lib_version(void)
+{
+    return darshan_util_lib_ver;
 }
 
 /********************************************************
