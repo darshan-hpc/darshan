@@ -106,6 +106,9 @@ DARSHAN_ENABLE_PYDARSHAN=0
 AC_ARG_ENABLE(pydarshan,
 [  --enable-pydarshan   enables build/install of pydarshan module and tools],
 [if test "x$enableval" = "xyes" ; then
+    if test "x$DARSHAN_ENABLE_SHARED" != "x1" ; then
+        AC_MSG_ERROR(--enable-pydarshan requires --enable-shared configure option)
+    fi
     DARSHAN_ENABLE_PYDARSHAN=1
     DARSHAN_PYDARSHAN_PATH=${darshan_lib_path}/pydarshan/lib/python`${PYTHON} -c 'import sys; version=sys.version_info@<:@:2@:>@; print("{0}.{1}".format(*version))'`/site-packages
     AC_CONFIG_FILES([pydarshan-info.py pydarshan-info.sh])

@@ -4355,6 +4355,9 @@ DARSHAN_ENABLE_PYDARSHAN=0
 # Check whether --enable-pydarshan was given.
 if test "${enable_pydarshan+set}" = set; then :
   enableval=$enable_pydarshan; if test "x$enableval" = "xyes" ; then
+    if test "x$DARSHAN_ENABLE_SHARED" != "x1" ; then
+        as_fn_error $? "--enable-pydarshan requires --enable-shared configure option" "$LINENO" 5
+    fi
     DARSHAN_ENABLE_PYDARSHAN=1
     DARSHAN_PYDARSHAN_PATH=${darshan_lib_path}/pydarshan/lib/python`${PYTHON} -c 'import sys; version=sys.version_info[:2]; print("{0}.{1}".format(*version))'`/site-packages
     ac_config_files="$ac_config_files pydarshan-info.py pydarshan-info.sh"
