@@ -71,17 +71,13 @@ def find_utils(ffi, libdutil):
     if libdutil is None:
         try:
             libdutil = ffi.dlopen("libdarshan-util.so")
-            print("dlopen ok")
         except:
-            print("dlopen failed")
             libdutil = None
 
     if libdutil is None:
         try:
             DARSHAN_PATH = discover_darshan_shutil()
-            print(DARSHAN_PATH)
             libdutil = ffi.dlopen(DARSHAN_PATH + "/lib/libdarshan-util.so")
-            print("shutil ok")
         except:
             libdutil = None
             print("shutil failed")
@@ -89,12 +85,9 @@ def find_utils(ffi, libdutil):
     if libdutil is None:
         try:
             DARSHAN_PATH = discover_darshan_pkgconfig()
-            print(DARSHAN_PATH)
             libdutil = ffi.dlopen(DARSHAN_PATH + "/lib/libdarshan-util.so")
-            print("pkg-config ok")
         except:
             libdutil = None
-            print("pkg-config failed")
 
     if libdutil is None:
         raise RuntimeError('Could not find libdarshan-util.so! Is darshan-util installed? Please ensure one of the the following: 1) export LD_LIBRARY_PATH=<path-to-libdarshan-util.so>, or 2) darshan-parser can found using the PATH variable, or 3) pkg-config can resolve pkg-config --path darshan-util')
