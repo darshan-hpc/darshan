@@ -7,7 +7,6 @@
 
 
 # add hard-coded pydarshan utils path and ensure they take precedence
-PREFIX="@prefix@";
-export PYTHONPATH=$PREFIX/pydarshan:$PYTHONPATH
+export PYTHONPATH=@DARSHAN_PYDARSHAN_PATH@:$PYTHONPATH
 
 python -m darshan.cli info $@

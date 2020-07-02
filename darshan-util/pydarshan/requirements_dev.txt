@@ -11,6 +11,7 @@ sphinx_rtd_theme
 
 cffi
 numpy
+pandas
 matplotlib
 
 pytest==3.8.2

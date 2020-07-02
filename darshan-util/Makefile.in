@@ -52,6 +52,12 @@ DARSHAN_DYNAMIC_MOD_OBJS = darshan-posix-logutils.po \
 			   darshan-mdhim-logutils.po
 
 DARSHAN_ENABLE_SHARED=@DARSHAN_ENABLE_SHARED@
+DARSHAN_ENABLE_PYDARSHAN=@DARSHAN_ENABLE_PYDARSHAN@
+
+ifeq ($(DARSHAN_ENABLE_PYDARSHAN),1)
+PYTHON=@PYTHON@
+DARSHAN_PYDARSHAN_PATH=@DARSHAN_PYDARSHAN_PATH@
+endif
 
 VPATH = $(srcdir)
 
@@ -222,6 +228,14 @@ endif
 	install -m 644 $(srcdir)/darshan-job-summary/share/* $(DESTDIR)$(datarootdir)
 	install -d $(DESTDIR)$(libdir)/pkgconfig
 	install -m 644 maint/darshan-util.pc $(DESTDIR)$(libdir)/pkgconfig/darshan-util.pc
+ifeq ($(DARSHAN_ENABLE_PYDARSHAN),1)
+	install -d $(DARSHAN_PYDARSHAN_PATH)
+	cd $(srcdir)/pydarshan && \
+        export PYTHONPATH=$(DARSHAN_PYDARSHAN_PATH):$(PYTHONPATH) && \
+        $(PYTHON) setup.py install --prefix=$(DESTDIR)$(libdir)/pydarshan
+	install -m 755 pydarshan-info.py $(DESTDIR)$(bindir)
+	install -m 755 pydarshan-info.sh $(DESTDIR)$(bindir)
+endif
 
 
 clean::
