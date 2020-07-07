@@ -193,10 +193,6 @@ def log_lookup_name_records(log, ids=[]):
         dict: the name records
     """
 
-    # used cached name_records if already present
-    if log['name_records'] != None:
-        return log['name_records']
-
     name_records = {}
 
     #cids = ffi.new("darshan_record_id *") * len(ids)

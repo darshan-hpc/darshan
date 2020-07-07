@@ -34,6 +34,19 @@ class DarshanReportJSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
+structdefs = {
+    "BG/Q": "struct darshan_bgq_record **",
+    "DECAF": "struct darshan_decaf_record **",
+    "DXT_MPIIO": "struct dxt_file_record **",
+    "DXT_POSIX": "struct dxt_file_record **",
+    "HDF5": "struct darshan_hdf5_file **",
+    "MPI-IO": "struct darshan_mpiio_file **",
+    "PNETCDF": "struct darshan_pnetcdf_file **",
+    "POSIX": "struct darshan_posix_file **",
+    "STDIO": "struct darshan_stdio_file **",
+}
+
+
 
 class DarshanReport(object):
     """
@@ -197,7 +210,6 @@ class DarshanReport(object):
             None
 
         """
-
         # sanitize inputs
         mods = mod
         if mods is None:
@@ -217,9 +229,6 @@ class DarshanReport(object):
 
         self.name_records = backend.log_lookup_name_records(self.log, ids)
         
-
-
-
 
     def read_all(self):
         """
@@ -246,7 +255,6 @@ class DarshanReport(object):
         Return:
             None
         """
-
         for mod in self.data['modules']:
             self.mod_read_all_records(mod, warnings=False)
 
@@ -263,7 +271,6 @@ class DarshanReport(object):
         Return:
             None
         """
-
         for mod in self.data['modules']:
             self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes)
 
@@ -291,17 +298,6 @@ class DarshanReport(object):
             return 
 
 
-        structdefs = {
-            "BG/Q": "struct darshan_bgq_record **",
-            "HDF5": "struct darshan_hdf5_file **",
-            "MPI-IO": "struct darshan_mpiio_file **",
-            "PNETCDF": "struct darshan_pnetcdf_file **",
-            "POSIX": "struct darshan_posix_file **",
-            "STDIO": "struct darshan_stdio_file **",
-            "DECAF": "struct darshan_decaf_record **",
-        }
-
-
         self.data['records'][mod] = []
 
         cn = backend.counter_names(mod)
@@ -315,7 +311,6 @@ class DarshanReport(object):
             self.counters[mod] = {}
         self.counters[mod]['counters'] = cn 
         self.counters[mod]['fcounters'] = fcn
-
 
 
         rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], mode=mode)
@@ -350,7 +345,6 @@ class DarshanReport(object):
             None
 
         """
-
         if mod not in self.data['modules']:
             if warnings:
                 print("Skipping. Log does not contain data for mod:", mod, file=sys.stderr)
@@ -366,10 +360,10 @@ class DarshanReport(object):
             return 
 
 
-        structdefs = {
-            "DXT_POSIX": "struct dxt_file_record **",
-            "DXT_MPIIO": "struct dxt_file_record **",
-        }
+        #structdefs = {
+        #    "DXT_POSIX": "struct dxt_file_record **",
+        #    "DXT_MPIIO": "struct dxt_file_record **",
+        #}
 
 
         self.records[mod] = []
@@ -402,17 +396,46 @@ class DarshanReport(object):
         pass
 
 
+    def mod_records(self, mod, mode='numpy', warnings=True):
+        """
+        Return generator for lazy record loading and traversal.
+        
+        WARNING: Can't be used for now when alternating between different modules.
+
+        Args:
+            mod (str): Identifier of module to fetch records for
+            mode (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+
+        Return:
+            None
+
+        """
+        cn = backend.counter_names(mod)
+        fcn = backend.fcounter_names(mod)
+
+        if mod not in self.counters:
+            self.counters[mod] = {}
+        self.counters[mod]['counters'] = cn 
+        self.counters[mod]['fcounters'] = fcn
+
+        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], mode=mode)
+        while rec != None:
+            yield rec
+
+            # fetch next
+            rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
+
+
     def info(self, metadata=False):
         """
         Print information about the record for inspection.
 
         Args:
-            None
+            metadata (bool): show detailed metadata (default: False)
 
         Return:
             None
         """
-
         print("Filename:       ", self.filename, sep="")
 
         tdelta = self.end_time - self.start_time
@@ -481,7 +504,6 @@ class DarshanReport(object):
         Return:
             dict
         """
-
         data = copy.deepcopy(self.data)
 
         recs = data['records']
@@ -503,7 +525,6 @@ class DarshanReport(object):
         Return:
             JSON String
         """
-
         data = copy.deepcopy(self.data)
 
         recs = data['records']
