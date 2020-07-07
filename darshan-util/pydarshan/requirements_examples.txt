@@ -2,13 +2,8 @@ jupyter
 notebook
 
 
-
-
-
-
 # altair (has svg well exposed)
 altair
-
 
 
 # for bokeh + svg export

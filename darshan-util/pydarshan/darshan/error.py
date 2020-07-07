@@ -11,7 +11,7 @@ class DarshanBaseError(Exception):
 
 class DarshanVersionError(NotImplementedError):
     """
-    Raised when using a features is used which is not provided by libdarshanutil.
+    Raised when using a feature which is not provided by libdarshanutil.
     """
     min_version = None
 
