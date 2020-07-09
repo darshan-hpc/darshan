@@ -95,8 +95,8 @@
     if(*(int64_t *)__vals == 0) break; \
     for(i_=0; i_<4; i_++) { \
         if(__add_flag && \
-            !memcmp(__val_p + (i_ * __val_size), \
-                __vals, sizeof(*__vals) * __val_size)) { \
+            !memcmp(__val_p + (i_ * (__val_size)), \
+                __vals, sizeof(*__vals) * (__val_size))) { \
             total_count += *(__cnt_p + i_); \
             break; \
         } \
@@ -107,9 +107,9 @@
     for(i_=0; i_ < 4; i_++) { \
         if((*(__cnt_p + i_) > total_count) || \
            ((*(__cnt_p + i_) == total_count) && \
-           (*(__val_p + (i_ * __val_size)) > *(int64_t *)__vals))) { \
-            memcpy(&tmp_val[tmp_ndx * __val_size], __val_p + (i_ * __val_size), \
-                sizeof(*__vals) * __val_size); \
+           (*(__val_p + (i_ * (__val_size))) > *(int64_t *)__vals))) { \
+            memcpy(&tmp_val[tmp_ndx * (__val_size)], __val_p + (i_ * (__val_size)), \
+                sizeof(*__vals) * (__val_size)); \
             tmp_cnt[tmp_ndx] = *(__cnt_p + i_); \
             tmp_ndx++; \
         } \
@@ -117,21 +117,21 @@
     } \
     if(tmp_ndx == 4) break; /* all done, updated counter is not added */ \
     /* next, add the updated counter */ \
-    memcpy(&tmp_val[tmp_ndx * __val_size], __vals, sizeof(*__vals) * __val_size); \
+    memcpy(&tmp_val[tmp_ndx * (__val_size)], __vals, sizeof(*__vals) * (__val_size)); \
     tmp_cnt[tmp_ndx] = total_count; \
     tmp_ndx++; \
     /* last, copy over any remaining counters to make sure we have 4 sets total */ \
     while(tmp_ndx != 4) { \
-        if(memcmp(__val_p + (i_ * __val_size), \
-                __vals, sizeof(*__vals) * __val_size)) { \
-            memcpy(&tmp_val[tmp_ndx * __val_size], __val_p + (i_ * __val_size), \
-                sizeof(*__vals) * __val_size); \
+        if(memcmp(__val_p + (i_ * (__val_size)), \
+                __vals, sizeof(*__vals) * (__val_size))) { \
+            memcpy(&tmp_val[tmp_ndx * (__val_size)], __val_p + (i_ * (__val_size)), \
+                sizeof(*__vals) * (__val_size)); \
             tmp_cnt[tmp_ndx] = *(__cnt_p + i_); \
             tmp_ndx++; \
         } \
         i_++; \
     } \
-    memcpy(__val_p, tmp_val, 4*sizeof(int64_t)*__val_size); \
+    memcpy(__val_p, tmp_val, 4*sizeof(int64_t)*(__val_size)); \
     memcpy(__cnt_p, tmp_cnt, 4*sizeof(int64_t)); \
 } while(0)
 

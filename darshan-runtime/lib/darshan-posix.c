@@ -25,6 +25,7 @@
 #include <libgen.h>
 #include <aio.h>
 #include <pthread.h>
+#include <limits.h>
 
 #include "utlist.h"
 #include "darshan.h"
@@ -42,6 +43,8 @@ typedef int64_t off64_t;
 DARSHAN_FORWARD_DECL(open, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(open64, int, (const char *path, int flags, ...));
 DARSHAN_FORWARD_DECL(__open_2, int, (const char *path, int oflag));
+DARSHAN_FORWARD_DECL(openat, int, (int dirfd, const char *pathname, int flags, ...));
+DARSHAN_FORWARD_DECL(openat64, int, (int dirfd, const char *pathname, int flags, ...));
 DARSHAN_FORWARD_DECL(creat, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(creat64, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(dup, int, (int oldfd));
@@ -476,6 +479,148 @@ int DARSHAN_DECL(open64)(const char *path, int flags, ...)
 
     POSIX_PRE_RECORD();
     POSIX_RECORD_OPEN(ret, path, mode, tm1, tm2);
+    POSIX_POST_RECORD();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(openat)(int dirfd, const char *pathname, int flags, ...)
+{
+    int mode = 0;
+    int ret;
+    double tm1, tm2;
+    struct posix_file_record_ref *rec_ref;
+    char tmp_path[PATH_MAX] = {0};
+    char *dirpath = NULL;
+
+    MAP_OR_FAIL(openat);
+
+    if(flags & O_CREAT)
+    {
+        va_list arg;
+        va_start(arg, flags);
+        mode = va_arg(arg, int);
+        va_end(arg);
+
+        tm1 = darshan_core_wtime();
+        ret = __real_openat(dirfd, pathname, flags, mode);
+        tm2 = darshan_core_wtime();
+    }
+    else
+    {
+        tm1 = darshan_core_wtime();
+        ret = __real_openat(dirfd, pathname, flags);
+        tm2 = darshan_core_wtime();
+    }
+
+    POSIX_PRE_RECORD();
+    if(pathname[0] == '/' || dirfd == AT_FDCWD)
+    {
+        /* ignore dirfd in these cases:
+         *    - absolute path
+         *    - dirfd equal to CWD
+         */
+        POSIX_RECORD_OPEN(ret, pathname, mode, tm1, tm2);
+    }
+    else
+    {
+        /* construct path relative to dirfd */
+        rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash,
+            &dirfd, sizeof(dirfd));
+        if(rec_ref)
+        {
+            dirpath = darshan_core_lookup_record_name(rec_ref->file_rec->base_rec.id);
+            if(dirpath)
+            {
+                strcat(tmp_path, dirpath);
+                if(dirpath[strlen(dirpath)-1] != '/')
+                    strcat(tmp_path, "/");
+                strcat(tmp_path, pathname);
+            }
+        }
+
+        if(dirpath)
+        {
+            /* we were able to construct an absolute path */
+            POSIX_RECORD_OPEN(ret, tmp_path, mode, tm1, tm2);
+        }
+        else
+        {
+            /* fallback to relative path if Darshan doesn't know dirfd path */
+            POSIX_RECORD_OPEN(ret, pathname, mode, tm1, tm2);
+        }
+    }
+    POSIX_POST_RECORD();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(openat64)(int dirfd, const char *pathname, int flags, ...)
+{
+    int mode = 0;
+    int ret;
+    double tm1, tm2;
+    struct posix_file_record_ref *rec_ref;
+    char tmp_path[PATH_MAX] = {0};
+    char *dirpath = NULL;
+
+    MAP_OR_FAIL(openat64);
+
+    if(flags & O_CREAT)
+    {
+        va_list arg;
+        va_start(arg, flags);
+        mode = va_arg(arg, int);
+        va_end(arg);
+
+        tm1 = darshan_core_wtime();
+        ret = __real_openat64(dirfd, pathname, flags, mode);
+        tm2 = darshan_core_wtime();
+    }
+    else
+    {
+        tm1 = darshan_core_wtime();
+        ret = __real_openat64(dirfd, pathname, flags);
+        tm2 = darshan_core_wtime();
+    }
+
+    POSIX_PRE_RECORD();
+    if(pathname[0] == '/' || dirfd == AT_FDCWD)
+    {
+        /* ignore dirfd in these cases:
+         *    - absolute path
+         *    - dirfd equal to CWD
+         */
+        POSIX_RECORD_OPEN(ret, pathname, mode, tm1, tm2);
+    }
+    else
+    {
+        /* construct path relative to dirfd */
+        rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash,
+            &dirfd, sizeof(dirfd));
+        if(rec_ref)
+        {
+            dirpath = darshan_core_lookup_record_name(rec_ref->file_rec->base_rec.id);
+            if(dirpath)
+            {
+                strcat(tmp_path, dirpath);
+                if(dirpath[strlen(dirpath)-1] != '/')
+                    strcat(tmp_path, "/");
+                strcat(tmp_path, pathname);
+            }
+        }
+
+        if(dirpath)
+        {
+            /* we were able to construct an absolute path */
+            POSIX_RECORD_OPEN(ret, tmp_path, mode, tm1, tm2);
+        }
+        else
+        {
+            /* fallback to relative path if Darshan doesn't know dirfd path */
+            POSIX_RECORD_OPEN(ret, pathname, mode, tm1, tm2);
+        }
+    }
     POSIX_POST_RECORD();
 
     return(ret);
