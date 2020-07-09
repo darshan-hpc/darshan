@@ -174,11 +174,19 @@ int darshan_log_put_mod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz, int ver);
 void darshan_log_close(darshan_fd file);
 void darshan_log_print_version_warnings(const char *version_string);
+char *darshan_log_get_lib_version(void);
 void darshan_log_get_modules (darshan_fd fd, struct darshan_mod_info **mods, int* count);
 void darshan_log_get_name_records(darshan_fd fd,
                               struct darshan_name_record_info **mods,
                               int* count);
 int darshan_log_get_record (darshan_fd fd, int mod_idx, void **buf);
+
+void darshan_log_get_filtered_name_records(darshan_fd fd,
+                              struct darshan_name_record_info **mods,
+                              int* count,
+                              darshan_record_id *whitelist, int whitelist_count
+                              );
+
 
 /* convenience macros for printing Darshan counters */
 #define DARSHAN_PRINT_HEADER() \

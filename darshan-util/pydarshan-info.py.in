@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+#
+# See COPYRIGHT notice in top-level directory.
+#
+
+# Example utility based on-top of the PyDarshan using a Python-Wrapper
+
+
+# add hard-coded pydarshan utils path and ensure they take precedence
+import site
+site.addsitedir("@DARSHAN_PYDARSHAN_PATH@")
+
+
+import darshan
+
+
+
+def main():
+    # Do things.
+    # Note: Check if logic here might be better placed under pydarshan/darshan/cli 
+
+    # when parsing arguments prefer argparse over directly using sys.argv[]
+    import argparse
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('input', help='darshan log file', nargs='?', default='example.darshan')
+    parser.add_argument('--verbose', help='', action='store_true')
+    parser.add_argument('--debug', help='', action='store_true')
+
+    args = parser.parse_args()
+    if args.debug:
+        print(args)
+
+    report = darshan.DarshanReport("example.darshan", read_all=True)  # Default behavior
+    report.info()
+
+
+
+if __name__ == "__main__":
+    main()
