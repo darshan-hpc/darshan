@@ -424,15 +424,68 @@ def log_get_bgq_record(log):
     return log_get_generic_record(log, "BG/Q", "struct darshan_bgq_record **")
 
 
-def log_get_hdf5_record(log):
+def log_get_hdf5_file_record(log):
     """
-    Returns a darshan log record for HDF5.
+    Returns a darshan log record for an HDF5 file.
 
     Args:
         log: handle returned by darshan.open
     """
-    return log_get_generic_record(log, "HDF5", "struct darshan_hdf5_file **")
+    return log_get_generic_record(log, "H5F", "struct darshan_hdf5_file **")
 
+def log_get_hdf5_dataset_record(log):
+    """
+    Returns a darshan log record for an HDF5 dataset.
+
+    Args:
+        log: handle returned by darshan.open
+    """
+    return log_get_generic_record(log, "H5D", "struct darshan_hdf5_dataset **")
+
+def log_get_lustre_record(log):
+    """
+    Returns a darshan log record for Lustre.
+
+    Args:
+        log: handle returned by darshan.open
+    """
+    modules = log_get_modules(log)
+
+    rec = {}
+    buf = ffi.new("void **")
+    r = libdutil.darshan_log_get_record(log['handle'], modules['LUSTRE']['idx'], buf)
+    if r < 1:
+        return None
+    rbuf = ffi.cast("struct darshan_lustre_record **", buf)
+
+    rec['id'] = rbuf[0].base_rec.id
+    rec['rank'] = rbuf[0].base_rec.rank
+
+    clst = []
+    for i in range(0, len(rbuf[0].counters)):
+        clst.append(rbuf[0].counters[i])
+    rec['counters'] = np.array(clst, dtype=np.int64)
+    cdict = dict(zip(counter_names('LUSTRE'), rec['counters']))
+
+    # FIXME
+    ostlst = []
+    for i in range(0, cdict['LUSTRE_STRIPE_WIDTH']):
+        print(rbuf[0].ost_ids[i])
+    rec['ost_ids'] = np.array(ostlst, dtype=np.int64)
+
+    print(rec['ost_ids'])
+    sys.exit()
+
+    if mode == "dict":
+        rec = {'counters': cdict, 'fcounter': fcdict}
+
+    if mode == "pandas":
+        rec = {
+                'counters': pd.DataFrame(cdict, index=[0]),
+                'fcounters': pd.DataFrame(fcdict, index=[0])
+                }
+
+    return rec
 
 def log_get_mpiio_record(log):
     """
