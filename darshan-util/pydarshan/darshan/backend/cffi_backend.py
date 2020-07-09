@@ -281,6 +281,7 @@ def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='d
 
 
     for i in range(rcnt):
+        i = i + wcnt
         seg = {
             "offset": segments[i].offset,
             "length": segments[i].length,
