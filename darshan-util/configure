@@ -622,10 +622,21 @@ ac_includes_default="\
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
 DARSHAN_UTIL_VERSION
+DARSHAN_PYDARSHAN_PATH
+DARSHAN_ENABLE_PYDARSHAN
 DARSHAN_ENABLE_SHARED
 __DARSHAN_PDFLATEX_HALT_ON_ERROR
 __DARSHAN_ZLIB_INCLUDE_FLAGS
 __DARSHAN_ZLIB_LINK_FLAGS
+pkgpyexecdir
+pyexecdir
+pkgpythondir
+pythondir
+PYTHON_PLATFORM
+PYTHON_EXEC_PREFIX
+PYTHON_PREFIX
+PYTHON_VERSION
+PYTHON
 HAVE_PDFLATEX
 PRI_MACROS_BROKEN
 LIBBZ2
@@ -687,6 +698,7 @@ enable_option_checking
 with_zlib
 with_bzlib
 enable_shared
+enable_pydarshan
 '
       ac_precious_vars='build_alias
 host_alias
@@ -696,7 +708,8 @@ CFLAGS
 LDFLAGS
 LIBS
 CPPFLAGS
-CPP'
+CPP
+PYTHON'
 
 
 # Initialize some variables set by options.
@@ -1318,6 +1331,7 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-shared   enables building of shared darshan-util library
+  --enable-pydarshan   enables build/install of pydarshan module and tools
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -1338,6 +1352,7 @@ Some influential environment variables:
   CPPFLAGS    (Objective) C/C++ preprocessor flags, e.g. -I<include dir> if
               you have headers in a nonstandard directory <include dir>
   CPP         C preprocessor
+  PYTHON      the Python interpreter
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -3693,6 +3708,29 @@ fi
 
 
 
+ac_config_files="$ac_config_files Makefile darshan-job-summary/bin/darshan-job-summary.pl maint/darshan-util.pc"
+
+
+# We need to know the value of the $libdir variable so that
+# we can reference the correct path in the pydarshan utilities.
+# Unfortunately, those two variables are not normally evaluated by autoconf.
+# They are evaluated at build time using Makefile variable substitutions.
+#
+# The following logic was copied from mpich2 1.3.1 to resolve the $libdir
+# variable at configure time.
+#
+# Temporarily replace the default NONE value for exec_prefix
+# and prefix with the actual, default values.
+savePrefix=$prefix
+saveExecprefix=$exec_prefix
+test "x$prefix" = xNONE && prefix=$ac_default_prefix
+test "x$exec_prefix" = xNONE && exec_prefix=$prefix
+eval darshan_lib_path=$libdir
+eval darshan_share_path=$datarootdir
+prefix=$savePrefix
+exec_prefix=$saveExecprefix
+
+
 # checks to see how we can print 64 bit values on this architecture
 
   for ac_header in inttypes.h
@@ -4105,6 +4143,230 @@ fi
 fi
 
 
+
+
+
+
+
+
+        # Find any Python interpreter.
+    if test -z "$PYTHON"; then
+      for ac_prog in python python2 python3  python3.9 python3.8 python3.7 python3.6 python3.5 python3.4 python3.3  python3.2 python3.1 python3.0  python2.7 python2.6 python2.5 python2.4 python2.3 python2.2 python2.1  python2.0
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PYTHON+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PYTHON in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PYTHON="$PYTHON" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PYTHON="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PYTHON=$ac_cv_path_PYTHON
+if test -n "$PYTHON"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PYTHON" >&5
+$as_echo "$PYTHON" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+  test -n "$PYTHON" && break
+done
+test -n "$PYTHON" || PYTHON=":"
+
+    fi
+    am_display_PYTHON=python
+
+
+  if test "$PYTHON" = :; then
+      as_fn_error $? "no suitable Python interpreter found" "$LINENO" 5
+  else
+
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $am_display_PYTHON version" >&5
+$as_echo_n "checking for $am_display_PYTHON version... " >&6; }
+if ${am_cv_python_version+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  am_cv_python_version=`$PYTHON -c "import sys; sys.stdout.write(sys.version[:3])"`
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $am_cv_python_version" >&5
+$as_echo "$am_cv_python_version" >&6; }
+  PYTHON_VERSION=$am_cv_python_version
+
+
+
+  PYTHON_PREFIX='${prefix}'
+
+  PYTHON_EXEC_PREFIX='${exec_prefix}'
+
+
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $am_display_PYTHON platform" >&5
+$as_echo_n "checking for $am_display_PYTHON platform... " >&6; }
+if ${am_cv_python_platform+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  am_cv_python_platform=`$PYTHON -c "import sys; sys.stdout.write(sys.platform)"`
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $am_cv_python_platform" >&5
+$as_echo "$am_cv_python_platform" >&6; }
+  PYTHON_PLATFORM=$am_cv_python_platform
+
+
+  # Just factor out some code duplication.
+  am_python_setup_sysconfig="\
+import sys
+# Prefer sysconfig over distutils.sysconfig, for better compatibility
+# with python 3.x.  See automake bug#10227.
+try:
+    import sysconfig
+except ImportError:
+    can_use_sysconfig = 0
+else:
+    can_use_sysconfig = 1
+# Can't use sysconfig in CPython 2.7, since it's broken in virtualenvs:
+# <https://github.com/pypa/virtualenv/issues/118>
+try:
+    from platform import python_implementation
+    if python_implementation() == 'CPython' and sys.version[:3] == '2.7':
+        can_use_sysconfig = 0
+except ImportError:
+    pass"
+
+
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $am_display_PYTHON script directory" >&5
+$as_echo_n "checking for $am_display_PYTHON script directory... " >&6; }
+if ${am_cv_python_pythondir+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test "x$prefix" = xNONE
+     then
+       am_py_prefix=$ac_default_prefix
+     else
+       am_py_prefix=$prefix
+     fi
+     am_cv_python_pythondir=`$PYTHON -c "
+$am_python_setup_sysconfig
+if can_use_sysconfig:
+    sitedir = sysconfig.get_path('purelib', vars={'base':'$am_py_prefix'})
+else:
+    from distutils import sysconfig
+    sitedir = sysconfig.get_python_lib(0, 0, prefix='$am_py_prefix')
+sys.stdout.write(sitedir)"`
+     case $am_cv_python_pythondir in
+     $am_py_prefix*)
+       am__strip_prefix=`echo "$am_py_prefix" | sed 's|.|.|g'`
+       am_cv_python_pythondir=`echo "$am_cv_python_pythondir" | sed "s,^$am__strip_prefix,$PYTHON_PREFIX,"`
+       ;;
+     *)
+       case $am_py_prefix in
+         /usr|/System*) ;;
+         *)
+	  am_cv_python_pythondir=$PYTHON_PREFIX/lib/python$PYTHON_VERSION/site-packages
+	  ;;
+       esac
+       ;;
+     esac
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $am_cv_python_pythondir" >&5
+$as_echo "$am_cv_python_pythondir" >&6; }
+  pythondir=$am_cv_python_pythondir
+
+
+
+  pkgpythondir=\${pythondir}/$PACKAGE
+
+
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $am_display_PYTHON extension module directory" >&5
+$as_echo_n "checking for $am_display_PYTHON extension module directory... " >&6; }
+if ${am_cv_python_pyexecdir+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test "x$exec_prefix" = xNONE
+     then
+       am_py_exec_prefix=$am_py_prefix
+     else
+       am_py_exec_prefix=$exec_prefix
+     fi
+     am_cv_python_pyexecdir=`$PYTHON -c "
+$am_python_setup_sysconfig
+if can_use_sysconfig:
+    sitedir = sysconfig.get_path('platlib', vars={'platbase':'$am_py_prefix'})
+else:
+    from distutils import sysconfig
+    sitedir = sysconfig.get_python_lib(1, 0, prefix='$am_py_prefix')
+sys.stdout.write(sitedir)"`
+     case $am_cv_python_pyexecdir in
+     $am_py_exec_prefix*)
+       am__strip_prefix=`echo "$am_py_exec_prefix" | sed 's|.|.|g'`
+       am_cv_python_pyexecdir=`echo "$am_cv_python_pyexecdir" | sed "s,^$am__strip_prefix,$PYTHON_EXEC_PREFIX,"`
+       ;;
+     *)
+       case $am_py_exec_prefix in
+         /usr|/System*) ;;
+         *)
+	   am_cv_python_pyexecdir=$PYTHON_EXEC_PREFIX/lib/python$PYTHON_VERSION/site-packages
+	   ;;
+       esac
+       ;;
+     esac
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $am_cv_python_pyexecdir" >&5
+$as_echo "$am_cv_python_pyexecdir" >&6; }
+  pyexecdir=$am_cv_python_pyexecdir
+
+
+
+  pkgpyexecdir=\${pyexecdir}/$PACKAGE
+
+
+
+  fi
+
+
+
+DARSHAN_ENABLE_PYDARSHAN=0
+# Check whether --enable-pydarshan was given.
+if test "${enable_pydarshan+set}" = set; then :
+  enableval=$enable_pydarshan; if test "x$enableval" = "xyes" ; then
+    if test "x$DARSHAN_ENABLE_SHARED" != "x1" ; then
+        as_fn_error $? "--enable-pydarshan requires --enable-shared configure option" "$LINENO" 5
+    fi
+    DARSHAN_ENABLE_PYDARSHAN=1
+    DARSHAN_PYDARSHAN_PATH=${darshan_lib_path}/pydarshan/lib/python`${PYTHON} -c 'import sys; version=sys.version_info[:2]; print("{0}.{1}".format(*version))'`/site-packages
+    ac_config_files="$ac_config_files pydarshan-info.py pydarshan-info.sh"
+
+fi
+
+fi
+
+
 for ac_func in strndup
 do :
   ac_fn_c_check_func "$LINENO" "strndup" "ac_cv_func_strndup"
@@ -4124,7 +4386,9 @@ DARSHAN_UTIL_VERSION="3.2.1"
 
 
 
-ac_config_files="$ac_config_files Makefile darshan-job-summary/bin/darshan-job-summary.pl maint/darshan-util.pc"
+
+
+
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -4821,6 +5085,8 @@ do
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "darshan-job-summary/bin/darshan-job-summary.pl") CONFIG_FILES="$CONFIG_FILES darshan-job-summary/bin/darshan-job-summary.pl" ;;
     "maint/darshan-util.pc") CONFIG_FILES="$CONFIG_FILES maint/darshan-util.pc" ;;
+    "pydarshan-info.py") CONFIG_FILES="$CONFIG_FILES pydarshan-info.py" ;;
+    "pydarshan-info.sh") CONFIG_FILES="$CONFIG_FILES pydarshan-info.sh" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

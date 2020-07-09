@@ -1,0 +1,22 @@
+*** include.org/darshan-log-format.h	2018-06-30 18:43:37.815199355 -0400
+--- include/darshan-log-format.h	2018-06-30 18:51:50.942544439 -0400
+***************
+*** 7,23 ****
+  #ifndef __DARSHAN_LOG_FORMAT_H
+  #define __DARSHAN_LOG_FORMAT_H
+  
+- #include <unistd.h>
+- #include <sys/types.h>
+- #include <stdint.h>
+- #include <inttypes.h>
+- 
+- #if !defined PRId64
+- #error failed to detect PRId64
+- #endif
+- #if !defined PRIu64
+- #error failed to detect PRIu64
+- #endif
+  
+  /* update this on file format changes */
+  /* NOTE: this should be updated when general changes are made to the
+--- 7,12 ----
