@@ -36,10 +36,11 @@ class DarshanReportJSONEncoder(json.JSONEncoder):
 
 structdefs = {
     "BG/Q": "struct darshan_bgq_record **",
-    "DECAF": "struct darshan_decaf_record **",
     "DXT_MPIIO": "struct dxt_file_record **",
     "DXT_POSIX": "struct dxt_file_record **",
-    "HDF5": "struct darshan_hdf5_file **",
+    "H5F": "struct darshan_hdf5_file **",
+    "H5D": "struct darshan_hdf5_dataset **",
+    "LUSTRE": "struct darshan_lustre_record **",
     "MPI-IO": "struct darshan_mpiio_file **",
     "PNETCDF": "struct darshan_pnetcdf_file **",
     "POSIX": "struct darshan_posix_file **",
