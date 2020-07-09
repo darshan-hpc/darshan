@@ -317,7 +317,7 @@ def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
     and one for floating point counters:
 
     >>> darshan.log_get_generic_record(log, "POSIX", "struct darshan_posix_file **")
-    {'counters': array([...], dtype=uint64), 'fcounters': array([...])}
+    {'counters': array([...], dtype=int64), 'fcounters': array([...])}
 
     """
     modules = log_get_modules(log)
@@ -328,30 +328,26 @@ def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
     if r < 1:
         return None
     rbuf = ffi.cast(mod_type, buf)
-    clst = []
 
     rec['id'] = rbuf[0].base_rec.id
     rec['rank'] = rbuf[0].base_rec.rank
 
+    clst = []
     for i in range(0, len(rbuf[0].counters)):
         clst.append(rbuf[0].counters[i])
-    rec['counters'] = np.array(clst, dtype=np.uint64)
-    flst = []
+    rec['counters'] = np.array(clst, dtype=np.int64)
+    cdict = dict(zip(counter_names(mod_name), rec['counters']))
 
+    flst = []
     for i in range(0, len(rbuf[0].fcounters)):
         flst.append(rbuf[0].fcounters[i])
-    rec['fcounters'] = np.array(clst, dtype=np.float64)
-
-
+    rec['fcounters'] = np.array(flst, dtype=np.float64)
+    fcdict = dict(zip(fcounter_names(mod_name), rec['fcounters']))
 
     if mode == "dict":
-        cdict = dict(zip(counter_names(mod_name), rec['counters']))
-        fcdict = dict(zip(fcounter_names(mod_name), rec['fcounters']))
         rec = {'counters': cdict, 'fcounter': fcdict}
 
     if mode == "pandas":
-        cdict = dict(zip(counter_names(mod_name), rec['counters']))
-        fcdict = dict(zip(fcounter_names(mod_name), rec['fcounters']))
         rec = {
                 'counters': pd.DataFrame(cdict, index=[0]),
                 'fcounters': pd.DataFrame(fcdict, index=[0])
