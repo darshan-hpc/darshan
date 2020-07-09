@@ -21,6 +21,8 @@ struct darshan_mod_info
 };
 
 /* from darshan-log-format.h */
+typedef uint64_t darshan_record_id;
+
 struct darshan_job
 {
     int64_t uid;
@@ -30,23 +32,30 @@ struct darshan_job
     int64_t jobid;
     char metadata[1024];
 };
+
 struct darshan_base_record
 {
-    uint64_t id;
+    darshan_record_id id;
     int64_t rank;
+};
+
+struct darshan_name_record
+{
+    darshan_record_id id;
+    char *name;
 };
 
 struct darshan_posix_file
 {
     struct darshan_base_record base_rec;
-    int64_t counters[64];
+    int64_t counters[69];
     double fcounters[17];
 };
 
 struct darshan_stdio_file
 {
     struct darshan_base_record base_rec;
-    int64_t counters[13];
+    int64_t counters[14];
     double fcounters[15];
 };
 
@@ -54,21 +63,28 @@ struct darshan_mpiio_file
 {
     struct darshan_base_record base_rec;
     int64_t counters[51];
-    double fcounters[15];
+    double fcounters[17];
 };
 
 struct darshan_hdf5_file
 {
     struct darshan_base_record base_rec;
-    int64_t counters[1];
-    double fcounters[2];
+    int64_t counters[3];
+    double fcounters[5];
+};
+
+struct darshan_hdf5_dataset
+{
+    struct darshan_base_record base_rec;
+    int64_t counters[94];
+    double fcounters[17];
 };
 
 struct darshan_pnetcdf_file
 {
     struct darshan_base_record base_rec;
     int64_t counters[2];
-    double fcounters[2];
+    double fcounters[4];
 };
 
 struct darshan_bgq_record
@@ -78,16 +94,12 @@ struct darshan_bgq_record
     double fcounters[1];
 };
 
-struct darshan_decaf_record
+struct darshan_lustre_record
 {
     struct darshan_base_record base_rec;
-    int64_t counters[4];
-    double fcounters[4];
+    int64_t counters[5];
+    int64_t *ost_ids;
 };
-
-
-
-
 
 
 struct dxt_file_record {
@@ -109,27 +121,14 @@ typedef struct segment_info {
 
 
 
-
-
-
-
-
-typedef uint64_t darshan_record_id;
-
-struct darshan_name_record
-{
-    darshan_record_id id;
-    char* name;
-};
-
-
-
 /* counter names */
-extern char *apxc_counter_names[];
 extern char *bgq_counter_names[];
 extern char *bgq_f_counter_names[];
-extern char *hdf5_counter_names[];
-extern char *hdf5_f_counter_names[];
+extern char *h5d_counter_names[];
+extern char *h5d_f_counter_names[];
+extern char *h5f_counter_names[];
+extern char *h5f_f_counter_names[];
+extern char *lustre_counter_names[];
 extern char *mpiio_counter_names[];
 extern char *mpiio_f_counter_names[];
 extern char *pnetcdf_counter_names[];
@@ -138,8 +137,6 @@ extern char *posix_counter_names[];
 extern char *posix_f_counter_names[];
 extern char *stdio_counter_names[];
 extern char *stdio_f_counter_names[];
-extern char *decaf_counter_names[];
-extern char *decaf_f_counter_names[];
 
 /* Supported Functions */
 void* darshan_log_open(char *);
