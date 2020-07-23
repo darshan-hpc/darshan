@@ -7,6 +7,7 @@ Subpackages
 .. toctree::
 
     darshan.backend
+    darshan.cli
     darshan.experimental
 
 Submodules

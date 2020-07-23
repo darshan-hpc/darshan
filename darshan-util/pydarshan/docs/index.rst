@@ -8,7 +8,7 @@ This documenation is only for the Darshan Python bindings, for documentation for
    :caption: Contents:
 
    readme
-   installation
+   setup
    usage
 
 .. toctree::
