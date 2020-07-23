@@ -8,21 +8,46 @@ import os
 
 
 
-def check_version():
+def check_version(ffi=None, libdutil=None):
     """
     Get version from pkg-config and return info.
 
     :return: Path to a darshan-util installation.
     """
+    lib_version = None
 
-    import subprocess
+    # query library directly (preferred)
+    if ffi is not None and libdutil is not None:
+        ver = ffi.new("char **")
+        ver = libdutil.darshan_log_get_lib_version()
+        lib_version = ffi.string(ver).decode("utf-8")
 
-    args = ['pkg-config', '--modversion', 'darshan-util']
-    p = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd='.')
-    out,err = p.communicate()
-    retval = p.wait()
+    # pkgconfig fallback
+    if lib_version is None:
+        print("WARNING: Using pk-config fallback.")
+        import subprocess
+        args = ['pkg-config', '--modversion', 'darshan-util']
+        p = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd='.')
+        out,err = p.communicate()
+        retval = p.wait()
+        lib_version = out.decode('ascii').strip()
 
-    return out.decode('ascii').strip()
+
+    import darshan
+   
+    package_version = darshan.__version__.split(".")
+    lib_version = lib_version.split(".")
+    
+    if package_version[0:3] != lib_version[0:3]:
+        from darshan.error import DarshanVersionError
+        raise DarshanVersionError(
+                target_version = ".".join(package_version[0:3]),
+                provided_version = ".".join(lib_version), 
+                msg="This version of PyDarshan")
+
+
+    return lib_version
+
 
 
 def discover_darshan_pkgconfig():

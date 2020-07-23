@@ -1,9 +1,4 @@
-# -*- coding: utf-8 -*-
-
-"""Top-level package for pydarshan."""
-
-__version__ = '0.1.0'
-
+__version__ = '3.2.1'
 
 
 options = {

@@ -20,10 +20,24 @@ ffi.cdef(API_def_c)
 libdutil = None
 libdutil = find_utils(ffi, libdutil)
 
+check_version(ffi, libdutil)
 
 
 
-
+def get_lib_version():
+    """
+    Return the version information hardcoded into the shared library.
+    
+    Args:
+        None
+        
+    Return:
+        version (str): library version number
+    """
+    ver = ffi.new("char **")
+    ver = libdutil.darshan_log_get_lib_version()
+    version = ffi.string(ver).decode("utf-8")
+    return version
 
 
 def log_open(filename):
@@ -538,3 +552,6 @@ def log_get_stdio_record(log):
         dict: log record
     """
     return log_get_generic_record(log, "STDIO", "struct darshan_stdio_file **")
+    
+    
+
