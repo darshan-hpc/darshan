@@ -117,14 +117,14 @@ int main(int argc, char **argv) {
     /* Each process writes 3 integers to the file region visible to it.
      * Note the file pointer will advance 3x4 bytes after this call.
      */
-    err = MPI_File_write_all(fh, &buf[0], 300, MPI_CHAR, &status);
+    err = MPI_File_write_all(fh, &buf[0], 1000, MPI_CHAR, &status);
     CHECK_ERR(MPI_File_set_view);
 
-    /* Each process continues to write next 7 integers to the file region
+    /* Each process continues to write next 5 integers to the file region
      * visible to it, starting from the file pointer updated from the previous
      * write call.
      */
-    err = MPI_File_write_all(fh, &buf[3], 700, MPI_CHAR, &status);
+    err = MPI_File_write_all(fh, &buf[3], 1000, MPI_CHAR, &status);
     CHECK_ERR(MPI_File_set_view);
 
     /* close the file collectively */

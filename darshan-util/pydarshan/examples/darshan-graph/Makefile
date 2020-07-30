@@ -7,7 +7,7 @@ all:
 	${CC} -o app_read -DREAD app.c
 	${CC} -o app_readAB_writeC app_rw_mpiio.c
 
-run: all
+run: clean all
 	./run.sh
 
 clean:
