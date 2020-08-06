@@ -231,7 +231,7 @@ def log_lookup_name_records(log, ids=[]):
 
 
 
-def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='dict'):
+def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, dtype='dict'):
     """
     Returns a dictionary holding a dxt darshan log record.
 
@@ -305,7 +305,7 @@ def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='d
         rec['read_segments'].append(seg)
 
 
-    if mode == "pandas":
+    if dtype == "pandas":
         rec['read_segments'] = pd.DataFrame(rec['read_segments'])
         rec['write_segments'] = pd.DataFrame(rec['write_segments'])
 
@@ -313,7 +313,7 @@ def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='d
 
 
 
-def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
+def log_get_generic_record(log, mod_name, mod_type, dtype='numpy'):
     """
     Returns a dictionary holding a generic darshan log record.
 
@@ -358,13 +358,13 @@ def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
     rec['fcounters'] = np.array(flst, dtype=np.float64)
     fcdict = dict(zip(fcounter_names(mod_name), rec['fcounters']))
 
-    if mode == "dict":
+    if dtype == "dict":
         rec.update({
             'counters': cdict, 
             'fcounters': fcdict
             })
 
-    if mode == "pandas":
+    if dtype == "pandas":
         rec.update({
             'counters': pd.DataFrame(cdict, index=[0]),
             'fcounters': pd.DataFrame(fcdict, index=[0])
@@ -491,16 +491,24 @@ def log_get_lustre_record(log):
     rec['ost_ids'] = np.array(ostlst, dtype=np.int64)
 
     print(rec['ost_ids'])
+
+    return rec
+
+
+
     sys.exit()
 
-    if mode == "dict":
-        rec = {'counters': cdict, 'fcounter': fcdict}
+    if dtype == "dict":
+        rec.update({
+            'counters': cdict, 
+            'fcounters': fcdict
+            })
 
-    if mode == "pandas":
-        rec = {
-                'counters': pd.DataFrame(cdict, index=[0]),
-                'fcounters': pd.DataFrame(fcdict, index=[0])
-                }
+    if dtype == "pandas":
+        rec.update({
+            'counters': pd.DataFrame(cdict, index=[0]),
+            'fcounters': pd.DataFrame(fcdict, index=[0])
+            })
 
     return rec
 

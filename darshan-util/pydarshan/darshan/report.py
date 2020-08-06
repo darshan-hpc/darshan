@@ -314,7 +314,7 @@ class DarshanReport(object):
         self.counters[mod]['fcounters'] = fcn
 
 
-        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], mode=dtype)
+        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], dtype=dtype)
         while rec != None:
             if dtype == 'pandas':
                 self.records[mod].append(rec)
@@ -431,7 +431,7 @@ class DarshanReport(object):
         self.counters[mod]['counters'] = cn 
         self.counters[mod]['fcounters'] = fcn
 
-        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], mode=dtype)
+        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], dtype=dtype)
         while rec != None:
             yield rec
 
