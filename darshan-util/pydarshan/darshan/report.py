@@ -278,13 +278,13 @@ class DarshanReport(object):
         pass
 
 
-    def mod_read_all_records(self, mod, mode='numpy', warnings=True):
+    def mod_read_all_records(self, mod, dtype='numpy', warnings=True):
         """
         Reads all generic records for module
 
         Args:
             mod (str): Identifier of module to fetch all records
-            mode (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary, 'pandas'
 
         Return:
             None
@@ -314,16 +314,18 @@ class DarshanReport(object):
         self.counters[mod]['fcounters'] = fcn
 
 
-        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], mode=mode)
+        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], mode=dtype)
         while rec != None:
-            if mode == 'pandas':
+            if dtype == 'pandas':
                 self.records[mod].append(rec)
-            if mode == 'numpy': 
+            if dtype == 'numpy': 
                 self.records[mod].append(rec)
             else:
-                c = dict(zip(cn, rec['counters']))
-                fc = dict(zip(fcn, rec['fcounters']))
-                self.records[mod].append([c, fc])
+                self.records[mod].append(rec)
+
+                #c = dict(zip(cn, rec['counters']))
+                #fc = dict(zip(fcn, rec['fcounters']))
+                #self.records[mod].append([c])
 
 
             self.modules[mod]['num_records'] += 1
@@ -331,16 +333,26 @@ class DarshanReport(object):
             # fetch next
             rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
 
+
+
+        # process/combine records if the format dtype allows for this
+        if dtype == 'pandas':
+            # TODO: merge pandas
+            #self.records[mod].append(rec)
+            pass
+
+
+
         pass
 
 
-    def mod_read_all_dxt_records(self, mod, mode='numpy', warnings=True, reads=True, writes=True):
+    def mod_read_all_dxt_records(self, mod, dtype='numpy', warnings=True, reads=True, writes=True):
         """
         Reads all dxt records for provided module.
 
         Args:
             mod (str): Identifier of module to fetch all records
-            mode (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
 
         Return:
             None
@@ -377,7 +389,7 @@ class DarshanReport(object):
 
         rec = backend.log_get_dxt_record(self.log, mod, structdefs[mod])
         while rec != None:
-            if mode == 'numpy': 
+            if dtype == 'numpy': 
                 self.records[mod].append(rec)
             else:
                 print("Not implemented.")
@@ -397,7 +409,7 @@ class DarshanReport(object):
         pass
 
 
-    def mod_records(self, mod, mode='numpy', warnings=True):
+    def mod_records(self, mod, dtype='numpy', warnings=True):
         """
         Return generator for lazy record loading and traversal.
         
@@ -405,7 +417,7 @@ class DarshanReport(object):
 
         Args:
             mod (str): Identifier of module to fetch records for
-            mode (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
 
         Return:
             None
@@ -419,7 +431,7 @@ class DarshanReport(object):
         self.counters[mod]['counters'] = cn 
         self.counters[mod]['fcounters'] = fcn
 
-        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], mode=mode)
+        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], mode=dtype)
         while rec != None:
             yield rec
 

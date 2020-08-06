@@ -359,13 +359,16 @@ def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
     fcdict = dict(zip(fcounter_names(mod_name), rec['fcounters']))
 
     if mode == "dict":
-        rec = {'counters': cdict, 'fcounter': fcdict}
+        rec.update({
+            'counters': cdict, 
+            'fcounters': fcdict
+            })
 
     if mode == "pandas":
-        rec = {
-                'counters': pd.DataFrame(cdict, index=[0]),
-                'fcounters': pd.DataFrame(fcdict, index=[0])
-                }
+        rec.update({
+            'counters': pd.DataFrame(cdict, index=[0]),
+            'fcounters': pd.DataFrame(fcdict, index=[0])
+            })
 
     return rec
 
