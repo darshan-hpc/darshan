@@ -365,9 +365,27 @@ def log_get_generic_record(log, mod_name, mod_type, dtype='numpy'):
             })
 
     if dtype == "pandas":
+
+        df_c = pd.DataFrame(cdict, index=[0])
+        df_fc = pd.DataFrame(fcdict, index=[0])
+
+        # flip column order
+        df_c = df_c[df_c.columns[::-1]]
+        df_fc = df_fc[df_fc.columns[::-1]]
+
+        df_c['id'] = rec['id']
+        df_c['rank'] = rec['rank']
+
+        df_fc['id'] = rec['id']
+        df_fc['rank'] = rec['rank']
+
+        # flip column order
+        df_c = df_c[df_c.columns[::-1]]
+        df_fc = df_fc[df_fc.columns[::-1]]
+
         rec.update({
-            'counters': pd.DataFrame(cdict, index=[0]),
-            'fcounters': pd.DataFrame(fcdict, index=[0])
+            'counters': df_c,
+            'fcounters': df_fc
             })
 
     return rec

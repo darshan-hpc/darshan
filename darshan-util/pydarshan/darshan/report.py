@@ -49,6 +49,8 @@ structdefs = {
 
 
 
+
+
 class DarshanReport(object):
     """
     The DarshanReport class provides a convienient wrapper to access darshan
@@ -331,17 +333,39 @@ class DarshanReport(object):
             self.modules[mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
+            rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], dtype=dtype)
 
+
+        if self.lookup_name_records:
+            self.update_name_records()
 
 
         # process/combine records if the format dtype allows for this
         if dtype == 'pandas':
-            # TODO: merge pandas
-            #self.records[mod].append(rec)
-            pass
+            combined_c = None
+            combined_fc = None
 
+            for rec in self.records[mod]:
+                obj = rec['counters']
+                #print(type(obj))
+                #display(obj)
+                
+                if combined_c is None:
+                    combined_c = rec['counters']
+                else:
+                    combined_c = pd.concat([combined_c, rec['counters']])
+                    
+                if combined_fc is None:
+                    combined_fc = rec['fcounters']
+                else:
+                    combined_fc = pd.concat([combined_fc, rec['fcounters']])
 
+            self.records[mod] = [{
+                'rank': -1,
+                'id': -1,
+                'counters': combined_c,
+                'fcounters': combined_fc
+                }]
 
         pass
 
@@ -387,7 +411,7 @@ class DarshanReport(object):
             self.counters[mod] = {}
 
 
-        rec = backend.log_get_dxt_record(self.log, mod, structdefs[mod])
+        rec = backend.log_get_dxt_record(self.log, mod, structdefs[mod], dtype=dtype)
         while rec != None:
             if dtype == 'numpy': 
                 self.records[mod].append(rec)
@@ -404,7 +428,7 @@ class DarshanReport(object):
             self.data['modules'][mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_dxt_record(self.log, mod, structdefs[mod], reads=reads, writes=writes)
+            rec = backend.log_get_dxt_record(self.log, mod, structdefs[mod], reads=reads, writes=writes, dtype=dtype)
 
         pass
 
