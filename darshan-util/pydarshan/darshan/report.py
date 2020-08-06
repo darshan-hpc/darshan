@@ -19,6 +19,10 @@ import numpy as np
 import pandas as pd
 
 
+import logging
+
+
+
 class DarshanReportJSONEncoder(json.JSONEncoder):
     """
     Helper class for JSON serialization if the report contains, for example,
@@ -264,7 +268,7 @@ class DarshanReport(object):
         pass
 
 
-    def read_all_dxt_records(self, reads=True, writes=True):
+    def read_all_dxt_records(self, reads=True, writes=True, dtype=None):
         """
         Read all dxt records from darshan log and return as dictionary.
 
@@ -275,7 +279,7 @@ class DarshanReport(object):
             None
         """
         for mod in self.data['modules']:
-            self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes)
+            self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes, dtype=dtype)
 
         pass
 
@@ -416,12 +420,9 @@ class DarshanReport(object):
             if dtype == 'numpy': 
                 self.records[mod].append(rec)
             else:
-                print("Not implemented.")
-                exit(1)
+                self.records[mod].append(rec)
 
-                #c = dict(zip(cn, rec['counters']))
-                #fc = dict(zip(fcn, rec['fcounters']))
-                #self.data['records'][mod].append([c, fc])
+
                 pass
 
 
