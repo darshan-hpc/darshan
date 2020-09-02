@@ -1,3 +1,3 @@
 if __name__ == "__main__":
-    import darshan.cli
-    darshan.cli.main()
+    from .cli import main
+    main()
