@@ -224,6 +224,9 @@ endif
 	install -d $(DESTDIR)$(libdir)/Number
 	install -d $(DESTDIR)$(libdir)/Number/Bytes
 	install -m 644 $(srcdir)/darshan-job-summary/lib/Number/Bytes/Human.pm $(DESTDIR)$(libdir)/Number/Bytes
+	install -d $(DESTDIR)$(libdir)/Pod
+	install -m 644 $(srcdir)/darshan-job-summary/lib/Pod/Constants.pm $(DESTDIR)$(libdir)/Pod/
+	install -m 644 $(srcdir)/darshan-job-summary/lib/Pod/LaTeX.pm $(DESTDIR)$(libdir)/Pod/
 	install -d $(DESTDIR)$(datarootdir)
 	install -m 644 $(srcdir)/darshan-job-summary/share/* $(DESTDIR)$(datarootdir)
 	install -d $(DESTDIR)$(libdir)/pkgconfig
