@@ -10,7 +10,7 @@ import os
 
 def check_version(ffi=None, libdutil=None):
     """
-    Get version from pkg-config and return info.
+    Get version from shared library or pkg-config and return info.
 
     :return: Path to a darshan-util installation.
     """

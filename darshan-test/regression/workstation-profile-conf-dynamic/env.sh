@@ -16,24 +16,26 @@
 # variables (as in a dynamically linked environment), or generate mpicc
 # wrappers (as in a statically linked environment).
 
-# Notes specific to this platform (bg-profile-conf-alcf)
+# Notes specific to this platform (workstation-profile-conf-dynamic)
 ########################
 # This particular env script assumes that mpicc and its variants for other 
-# languages are already in the path, and that they will produce static 
+# languages are already in the path, and that they will produce dynamic 
 # executables by default.  Darshan instrumentation is added by specifying
 # a profiling configuration file using environment variables.
 
-# the RUNJOB command is the most complex part here.  We use a script that submits
-# a cobalt job, waits for its completion, and checks its return status
+# The runjob command is just mpiexec, no scheduler
 
 export DARSHAN_CC=mpicc
 export DARSHAN_CXX=mpicxx
 export DARSHAN_F77=mpif77
 export DARSHAN_F90=mpif90
 
-export MPICC_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-bg-cc
-export MPICXX_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-bg-cxx
-export MPIF90_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-bg-f
-export MPIF77_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-bg-f
+export MPICC_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-cc
+export MPICXX_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-cxx
+export MPIF90_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f
+export MPIF77_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f
+# MPICH 3.1.1 and newer use MPIFORT rather than MPIF90 and MPIF77 in env var
+# name
+export MPIFORT_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f
 
-export DARSHAN_RUNJOB="bg-profile-conf-alcf/runjob.sh"
+export DARSHAN_RUNJOB="mpiexec -n $DARSHAN_DEFAULT_NPROCS"

@@ -16,7 +16,7 @@
 # variables (as in a dynamically linked environment), or generate mpicc
 # wrappers (as in a statically linked environment).
 
-# Notes specific to this platform (workstation-dynamic)_
+# Notes specific to this platform (workstation-profile-conf-static)
 ########################
 # This particular env script assumes that mpicc and its variants for other 
 # languages are already in the path, and that they will produce static 
@@ -30,12 +30,12 @@ export DARSHAN_CXX=mpicxx
 export DARSHAN_F77=mpif77
 export DARSHAN_F90=mpif90
 
-export MPICC_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-cc
-export MPICXX_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-cxx
-export MPIF90_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f
-export MPIF77_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f
+export MPICC_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-cc-static
+export MPICXX_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-cxx-static
+export MPIF90_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f-static
+export MPIF77_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f-static
 # MPICH 3.1.1 and newer use MPIFORT rather than MPIF90 and MPIF77 in env var
 # name
-export MPIFORT_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f
+export MPIFORT_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f-static
 
 export DARSHAN_RUNJOB="mpiexec -n $DARSHAN_DEFAULT_NPROCS"
