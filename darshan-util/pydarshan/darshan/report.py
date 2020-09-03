@@ -38,7 +38,7 @@ class DarshanReportJSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-structdefs = {
+_structdefs = {
     "BG/Q": "struct darshan_bgq_record **",
     "DXT_MPIIO": "struct dxt_file_record **",
     "DXT_POSIX": "struct dxt_file_record **",
@@ -320,7 +320,7 @@ class DarshanReport(object):
         self.counters[mod]['fcounters'] = fcn
 
 
-        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], dtype=dtype)
+        rec = backend.log_get_generic_record(self.log, mod, _structdefs[mod], dtype=dtype)
         while rec != None:
             if dtype == 'pandas':
                 self.records[mod].append(rec)
@@ -337,7 +337,7 @@ class DarshanReport(object):
             self.modules[mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], dtype=dtype)
+            rec = backend.log_get_generic_record(self.log, mod, _structdefs[mod], dtype=dtype)
 
 
         if self.lookup_name_records:
@@ -401,7 +401,7 @@ class DarshanReport(object):
             return 
 
 
-        #structdefs = {
+        #_structdefs = {
         #    "DXT_POSIX": "struct dxt_file_record **",
         #    "DXT_MPIIO": "struct dxt_file_record **",
         #}
@@ -415,7 +415,7 @@ class DarshanReport(object):
             self.counters[mod] = {}
 
 
-        rec = backend.log_get_dxt_record(self.log, mod, structdefs[mod], dtype=dtype)
+        rec = backend.log_get_dxt_record(self.log, mod, _structdefs[mod], dtype=dtype)
         while rec != None:
             if dtype == 'numpy': 
                 self.records[mod].append(rec)
@@ -429,7 +429,7 @@ class DarshanReport(object):
             self.data['modules'][mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_dxt_record(self.log, mod, structdefs[mod], reads=reads, writes=writes, dtype=dtype)
+            rec = backend.log_get_dxt_record(self.log, mod, _structdefs[mod], reads=reads, writes=writes, dtype=dtype)
 
         pass
 
@@ -456,12 +456,12 @@ class DarshanReport(object):
         self.counters[mod]['counters'] = cn 
         self.counters[mod]['fcounters'] = fcn
 
-        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], dtype=dtype)
+        rec = backend.log_get_generic_record(self.log, mod, _structdefs[mod], dtype=dtype)
         while rec != None:
             yield rec
 
             # fetch next
-            rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
+            rec = backend.log_get_generic_record(self.log, mod, _structdefs[mod])
 
 
     def info(self, metadata=False):
