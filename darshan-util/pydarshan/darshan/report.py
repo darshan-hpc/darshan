@@ -38,6 +38,7 @@ class DarshanReportJSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
+
 _structdefs = {
     "BG/Q": "struct darshan_bgq_record **",
     "DXT_MPIIO": "struct dxt_file_record **",
@@ -50,8 +51,6 @@ _structdefs = {
     "POSIX": "struct darshan_posix_file **",
     "STDIO": "struct darshan_stdio_file **",
 }
-
-
 
 
 
@@ -156,7 +155,8 @@ class DarshanReport(object):
         """
         Creates a deepcopy of report.
 
-        NOTE: Needed to purge reference to self.log as Cdata can not be pickled:
+        .. note::
+            Needed to purge reference to self.log as Cdata can not be pickled:
             TypeError: can't pickle _cffi_backend.CData objects
         """
 
@@ -329,11 +329,6 @@ class DarshanReport(object):
             else:
                 self.records[mod].append(rec)
 
-                #c = dict(zip(cn, rec['counters']))
-                #fc = dict(zip(fcn, rec['fcounters']))
-                #self.records[mod].append([c])
-
-
             self.modules[mod]['num_records'] += 1
 
             # fetch next
@@ -401,12 +396,6 @@ class DarshanReport(object):
             return 
 
 
-        #_structdefs = {
-        #    "DXT_POSIX": "struct dxt_file_record **",
-        #    "DXT_MPIIO": "struct dxt_file_record **",
-        #}
-
-
         self.records[mod] = []
         self.modules[mod]['num_records'] = 0
 
@@ -437,8 +426,13 @@ class DarshanReport(object):
     def mod_records(self, mod, dtype='numpy', warnings=True):
         """
         Return generator for lazy record loading and traversal.
-        
-        WARNING: Can't be used for now when alternating between different modules.
+
+        .. warning::
+            Can't be used for now when alternating between different modules.
+            A temporary workaround can be to open the same log multiple times,
+            as this ways buffers are not shared between get_record invocations
+            in the lower level library.
+
 
         Args:
             mod (str): Identifier of module to fetch records for

@@ -39,10 +39,6 @@ A brief examples showing some of the basic functionality is the following::
     darshan.enable_experimental()
     report.summarize()
 
-    # ...
-    # Generate a timeline from dxt records
-    report.read_all_dxt_records()
-    report.create_timeline()        # experimental
 
 
 Installation
