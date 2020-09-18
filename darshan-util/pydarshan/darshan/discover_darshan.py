@@ -5,6 +5,8 @@
 
 import os
 
+import logging
+logger = logging.getLogger(__name__)
 
 
 
@@ -16,21 +18,24 @@ def check_version(ffi=None, libdutil=None):
     """
     lib_version = None
 
+
     # query library directly (preferred)
     if ffi is not None and libdutil is not None:
         ver = ffi.new("char **")
         ver = libdutil.darshan_log_get_lib_version()
         lib_version = ffi.string(ver).decode("utf-8")
+        logger.debug(f" Found lib_version={lib_version} via ffi.")
 
     # pkgconfig fallback
     if lib_version is None:
-        print("WARNING: Using pk-config fallback.")
+        logger.warning("WARNING: Using pk-config fallback.")
         import subprocess
         args = ['pkg-config', '--modversion', 'darshan-util']
         p = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd='.')
         out,err = p.communicate()
         retval = p.wait()
         lib_version = out.decode('ascii').strip()
+        logger.debug(f" Found lib_version={lib_version} via pkgconfig.")
 
 
     import darshan
@@ -132,7 +137,7 @@ def load_darshan_header():
     filepath = os.path.join(curdir, 'data', 'darshan-api.h')
     # filepath = os.path.join(curdir, 'data', 'generated.h')
 
-    print(filepath)
+    logger.debug(f" load_darshan_header using filepath={filepath}")
 
     with open(filepath, 'r') as f:
         try:

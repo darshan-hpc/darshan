@@ -6,6 +6,10 @@ import ctypes
 import numpy as np
 import pandas as pd
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from darshan.api_def_c import load_darshan_header
 from darshan.discover_darshan import find_utils
 from darshan.discover_darshan import check_version
@@ -35,9 +39,6 @@ _structdefs = {
     "POSIX": "struct darshan_posix_file **",
     "STDIO": "struct darshan_stdio_file **",
 }
-
-
-
 
 
 

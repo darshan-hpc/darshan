@@ -18,8 +18,8 @@ import sys
 import numpy as np
 import pandas as pd
 
-
 import logging
+logger = logging.getLogger(__name__)
 
 
 
@@ -61,7 +61,9 @@ class DarshanReport(object):
     a number of common aggregations can be performed.
     """
 
-    def __init__(self, filename=None, data_format='pandas', automatic_summary=False,
+    def __init__(self, 
+            filename=None, data_format='pandas', 
+            automatic_summary=False,
             read_all=True, lookup_name_records=True):
         self.filename = filename
 
@@ -229,7 +231,7 @@ class DarshanReport(object):
         ids = set()
 
         for mod in mods:
-            print(mod)
+            logger.debug(f" Refreshing name_records for mod={mod}")
             for rec in self.records[mod]:
                 ids.add(rec['id'])
 
@@ -247,8 +249,11 @@ class DarshanReport(object):
         Return:
             None
         """
+        
         self.read_all_generic_records()
         self.read_all_dxt_records()
+        self.mod_read_all_lustre_records()
+        
         return
 
 
@@ -284,6 +289,9 @@ class DarshanReport(object):
         pass
 
 
+
+
+
     def mod_read_all_records(self, mod, dtype='numpy', warnings=True):
         """
         Reads all generic records for module
@@ -300,7 +308,7 @@ class DarshanReport(object):
 
         if mod in unsupported:
             if warnings:
-                print("Skipping. Currently unsupported:", mod, "in mod_read_all_records().", file=sys.stderr)
+                logger.warning(f" Skipping. Currently unsupported: {mod} in mod_read_all_records().")
             # skip mod
             return 
 
@@ -383,7 +391,7 @@ class DarshanReport(object):
         """
         if mod not in self.data['modules']:
             if warnings:
-                print("Skipping. Log does not contain data for mod:", mod, file=sys.stderr)
+                logger.warning(f"Skipping. Log does not contain data for mod: {mod}")
             return
 
 
@@ -391,7 +399,7 @@ class DarshanReport(object):
 
         if mod not in supported:
             if warnings:
-                print("Skipping. Currently unsupported:", mod, 'in mod_read_all_dxt_records().', file=sys.stderr)
+                logger.warning(f" Skipping. Unsupported module: {mod} in in mod_read_all_dxt_records(). Supported: {supported}")
             # skip mod
             return 
 
@@ -421,6 +429,55 @@ class DarshanReport(object):
             rec = backend.log_get_dxt_record(self.log, mod, _structdefs[mod], reads=reads, writes=writes, dtype=dtype)
 
         pass
+
+
+
+    def mod_read_all_lustre_records(self, mod="LUSTRE", dtype='numpy', warnings=True):
+        """
+        Reads all dxt records for provided module.
+
+        Args:
+            mod (str): Identifier of module to fetch all records
+            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+
+        Return:
+            None
+
+        """
+        if mod not in self.data['modules']:
+            if warnings:
+                logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
+            return
+
+
+        supported =  ['LUSTRE']
+
+        if mod not in supported:
+            if warnings:
+                logger.warning(f" Skipping. Unsupported module: {mod} in in mod_read_all_dxt_records(). Supported: {supported}")
+            # skip mod
+            return 
+
+
+        self.records[mod] = []
+        self.modules[mod]['num_records'] = 0
+
+
+        if mod not in self.counters:
+            self.counters[mod] = {}
+
+
+        rec = backend.log_get_record(self.log, mod, dtype=dtype)
+        while rec != None:
+            self.records[mod].append(rec)
+            self.data['modules'][mod]['num_records'] += 1
+
+            # fetch next
+            rec = backend.log_get_record(self.log, mod, dtype=dtype)
+
+        pass
+
+
 
 
     def mod_records(self, mod, dtype='numpy', warnings=True):
@@ -562,7 +619,16 @@ class DarshanReport(object):
         recs = data['records']
         for mod in recs:
             for i, rec in enumerate(data['records'][mod]):
-                recs[mod][i]['counters'] = rec['counters'].tolist()
-                recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
+                try:
+                    recs[mod][i]['counters'] = rec['counters'].tolist()
+                except KeyError:
+                    logger.debug(f" to_json: mod={mod} does not include counters")
+                    pass
+                    
+                try: 
+                    recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
+                except KeyError:
+                    logger.debug(f" to_json: mod={mod} does not include fcounters")
+                    pass
 
         return json.dumps(data, cls=DarshanReportJSONEncoder)
