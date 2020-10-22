@@ -50,8 +50,8 @@ docs: clean-docs # generate Sphinx HTML documentation, including API docs
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
 
-docs-show: docs
-	xdg-open docs/_build/html/index.html
+docs-show:
+	xdg-open docs/build/html/index.html
 
 servedocs: docs  # compile the docs watching for changes
 	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .

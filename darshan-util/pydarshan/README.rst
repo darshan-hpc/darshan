@@ -1,6 +1,6 @@
-=========
-pydarshan
-=========
+=======================
+PyDarshan Documentation
+=======================
 
 Python utilities to interact with Darshan log records of HPC applications.
 pydarshan requires darshan-utils (3.2.2+) to be installed.
@@ -44,13 +44,11 @@ A brief examples showing some of the basic functionality is the following::
 Installation
 ------------
 
-To install use either::
+To install in most cases the following will work::
 
-    make install
+    pip install darshan
 
-Or::
-
-	python setup.py install
+For alternative installation instructions and installation from source refer to :doc:`install`.
 
 
 Testing

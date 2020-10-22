@@ -1,14 +1,17 @@
-pydarshan Documentation
-=======================
+.. note::
+    This documenation is only for the Darshan Python bindings, for information on the runtime and utility components refer to `Darshan Runtime and Utilities Documentation <https://www.mcs.anl.gov/research/projects/darshan/>`__.
 
-This documenation is only for the Darshan Python bindings, for documentation for the runtime and utility components refer to <https://www.mcs.anl.gov/research/projects/darshan/>.
+
+
+.. include:: ../README.rst
+
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
    readme
-   setup
+   install
    usage
 
 .. toctree::
