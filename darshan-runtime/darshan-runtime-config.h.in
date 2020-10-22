@@ -3,6 +3,9 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
+/* Define if HDF5 built with parallel support */
+#undef DARSHAN_HDF5_PAR_BUILD
+
 /* Define if HDF5 module built with version 1.10+ */
 #undef DARSHAN_HDF5_VERS_1_10_PLUS
 
