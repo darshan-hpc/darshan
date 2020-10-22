@@ -1,0 +1,47 @@
+Notes on how to release a new version of PyDarshan
+2020-06
+-----------------------
+
+ - Ensure python dev environment with dev dependencies, if not already present
+    (- python3 -m venv venv)
+    (- source venv/bin/activate)
+    (- pip install -r requirements_dev.txt    # deps for packaging, testing, and docs generation)
+
+    If present:
+    - source venv/bin/activate
+    - export LD_LIBRARY_PATH=<libdarshanutils-path-to-test-against>/
+
+ - Make sure documentation in docs/ is up to date
+    - commit
+    - (might connect this with readthedocs to have this automatically, otherwise upload docs/_build/html/*)
+ - Update changelog or history.rst
+    - TODO: this does not apply when the release cycle coincides with darshan
+    - commit
+ - Update version numbers in:
+    setup.py
+    setup.cfg
+    darshan/__init__.py
+
+ - Run tests with tox against different python versions
+    - make test-all
+    - TODO: CI?
+
+ - Submit to PyPi using twine:
+    - make release
+        (be prompted for username/password)
+
+ - Add/update spack package: py-darshan
+    - add version entry
+    - add hash of release tar.gz from pypi (because that one should always exist) / or use mcs darshan mirror
+    - check if new dependencies are required (compare to requirements.txt)
+    - submit as pull request to https://github.com/spack/spack
+
+ - Announce:
+    - Regular Darshan Release: Copy release notes for PyDarshan and attach as seperate section (mailinglist, website/blog)
+    - PyDarshan only: Post release note section of PyDarshan (mailinglist, website/blog)
+    
+    
+    
+Note on Versionsformat:
+    Whenever libdarshan-utils has a version change, PyDarshan is bumped accordingly.
+    4th position version numbers allows for PyDarshan to be on a faster release cycle.
