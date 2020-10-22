@@ -583,7 +583,7 @@ class DarshanReport(object):
         #print("Memory:", get_size(self), 'bytes')
 
 
-    def to_dict():
+    def to_dict(self):
         """
         Return dictionary representation of report data.
 
@@ -598,8 +598,17 @@ class DarshanReport(object):
         recs = data['records']
         for mod in recs:
             for i, rec in enumerate(data['records'][mod]):
-                recs[mod][i]['counters'] = rec['counters'].tolist()
-                recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
+                try:
+                    recs[mod][i]['counters'] = rec['counters'].tolist()
+                except KeyError:
+                    logger.debug(f" to_json: mod={mod} does not include counters")
+                    pass
+                    
+                try: 
+                    recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
+                except KeyError:
+                    logger.debug(f" to_json: mod={mod} does not include fcounters")
+                    pass
 
         return data
 
