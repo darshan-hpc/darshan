@@ -131,7 +131,7 @@ static int my_rank = -1;
     HDF5_UNLOCK(); \
 } while(0)
 
-#define H5F_RECORD_OPEN(__ret, __path, __fapl, __tm1, __tm2) do { \
+#define H5F_RECORD_OPEN(__ret, __path, __use_mpio, __tm1, __tm2) do { \
     darshan_record_id __rec_id; \
     struct hdf5_file_record_ref *__rec_ref; \
     char *__newpath; \
@@ -148,8 +148,7 @@ static int my_rank = -1;
         if(__newpath != __path) free(__newpath); \
         break; \
     } \
-    if(__fapl != H5P_DEFAULT && H5Pget_fapl_mpio(__fapl, NULL, NULL) >= 0) \
-        __rec_ref->file_rec->counters[H5F_USE_MPIIO] = 1; \
+    __rec_ref->file_rec->counters[H5F_USE_MPIIO] = __use_mpio; \
     __rec_ref->file_rec->counters[H5F_OPENS] += 1; \
     if(__rec_ref->file_rec->fcounters[H5F_F_OPEN_START_TIMESTAMP] == 0 || \
      __rec_ref->file_rec->fcounters[H5F_F_OPEN_START_TIMESTAMP] > __tm1) \
@@ -169,6 +168,7 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     double tm1, tm2;
     unsigned majnum, minnum, relnum;
     int tmp_rank = my_rank;
+    int use_mpio = 0;
 
     H5get_libversion(&majnum, &minnum, &relnum);
 #ifdef DARSHAN_HDF5_VERS_1_10_PLUS
@@ -223,8 +223,13 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
             filename = tmp + 1;
         }
 
+#ifdef DARSHAN_HDF5_PAR_BUILD
+        if(access_plist != H5P_DEFAULT && H5Pget_fapl_mpio(access_plist, NULL, NULL) >= 0)
+            use_mpio = 1;
+#endif
+
         H5F_PRE_RECORD();
-        H5F_RECORD_OPEN(ret, filename, access_plist, tm1, tm2);
+        H5F_RECORD_OPEN(ret, filename, use_mpio, tm1, tm2);
         H5F_POST_RECORD();
     }
 
@@ -239,6 +244,7 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     double tm1, tm2;
     unsigned majnum, minnum, relnum;
     int tmp_rank = my_rank;
+    int use_mpio = 0;
 
     H5get_libversion(&majnum, &minnum, &relnum);
 #ifdef DARSHAN_HDF5_VERS_1_10_PLUS
@@ -293,8 +299,13 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
             filename = tmp + 1;
         }
 
+#ifdef DARSHAN_HDF5_PAR_BUILD
+        if(access_plist != H5P_DEFAULT && H5Pget_fapl_mpio(access_plist, NULL, NULL) >= 0)
+            use_mpio = 1;
+#endif
+
         H5F_PRE_RECORD();
-        H5F_RECORD_OPEN(ret, filename, access_plist, tm1, tm2);
+        H5F_RECORD_OPEN(ret, filename, use_mpio, tm1, tm2);
         H5F_POST_RECORD();
     }
 
@@ -602,7 +613,6 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
     hsize_t count_dims[H5D_MAX_NDIMS] = {0};
     hsize_t block_dims[H5D_MAX_NDIMS] = {0};
     int64_t common_access_vals[H5D_MAX_NDIMS+H5D_MAX_NDIMS+1] = {0};
-    H5FD_mpio_xfer_t xfer_mode;
     struct darshan_common_val_counter *cvc;
     int i;
     double tm1, tm2, elapsed;
@@ -682,12 +692,15 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
                 &(rec_ref->dataset_rec->counters[H5D_ACCESS1_ACCESS]),
                 &(rec_ref->dataset_rec->counters[H5D_ACCESS1_COUNT]),
                 cvc->vals, cvc->nvals, cvc->freq, 0);
+#ifdef DARSHAN_HDF5_PAR_BUILD
             if(xfer_plist_id != H5P_DEFAULT)
             {
+                H5FD_mpio_xfer_t xfer_mode;
                 tmp_ret = H5Pget_dxpl_mpio(xfer_plist_id, &xfer_mode);
                 if(tmp_ret >= 0 && xfer_mode == H5FD_MPIO_COLLECTIVE)
                     rec_ref->dataset_rec->counters[H5D_USE_MPIIO_COLLECTIVE] = 1;
             }
+#endif
             if(rec_ref->dataset_rec->fcounters[H5D_F_READ_START_TIMESTAMP] == 0 ||
              rec_ref->dataset_rec->fcounters[H5D_F_READ_START_TIMESTAMP] > tm1)
                 rec_ref->dataset_rec->fcounters[H5D_F_READ_START_TIMESTAMP] = tm1;
@@ -721,7 +734,6 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
     hsize_t count_dims[H5D_MAX_NDIMS] = {0};
     hsize_t block_dims[H5D_MAX_NDIMS] = {0};
     int64_t common_access_vals[H5D_MAX_NDIMS+H5D_MAX_NDIMS+1] = {0};
-    H5FD_mpio_xfer_t xfer_mode;
     struct darshan_common_val_counter *cvc;
     int i;
     double tm1, tm2, elapsed;
@@ -801,12 +813,15 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
                 &(rec_ref->dataset_rec->counters[H5D_ACCESS1_ACCESS]),
                 &(rec_ref->dataset_rec->counters[H5D_ACCESS1_COUNT]),
                 cvc->vals, cvc->nvals, cvc->freq, 0);
+#ifdef DARSHAN_HDF5_PAR_BUILD
             if(xfer_plist_id != H5P_DEFAULT)
             {
+                H5FD_mpio_xfer_t xfer_mode;
                 tmp_ret = H5Pget_dxpl_mpio(xfer_plist_id, &xfer_mode);
                 if(tmp_ret >= 0 && xfer_mode == H5FD_MPIO_COLLECTIVE)
                     rec_ref->dataset_rec->counters[H5D_USE_MPIIO_COLLECTIVE] = 1;
             }
+#endif
             if(rec_ref->dataset_rec->fcounters[H5D_F_WRITE_START_TIMESTAMP] == 0 ||
              rec_ref->dataset_rec->fcounters[H5D_F_WRITE_START_TIMESTAMP] > tm1)
                 rec_ref->dataset_rec->fcounters[H5D_F_WRITE_START_TIMESTAMP] = tm1;
