@@ -778,7 +778,10 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
         (void)gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
     }
-    PMPI_Bcast(&logmod, 1, MPI_UINT64_T, 0, core->mpi_comm);
+#ifdef HAVE_MPI
+    if(using_mpi)
+        PMPI_Bcast(&logmod, 1, MPI_UINT64_T, 0, core->mpi_comm);
+#endif
 
     /* construct a unique temporary log file name for this process
      * to write mmap log data to
