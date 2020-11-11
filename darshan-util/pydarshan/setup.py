@@ -26,6 +26,8 @@ setup(
         'Programming Language :: Python :: 3.7',
     ],
     description="Python tools to interact with darshan log records of HPC applications.",
+    #options={"bdist_wheel": {"universal": False}},
+    #libraries=["darshanutils"],
     install_requires=requirements,
     long_description=readme,
     include_package_data=True,

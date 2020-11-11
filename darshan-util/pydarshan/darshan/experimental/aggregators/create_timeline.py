@@ -67,7 +67,8 @@ def create_timeline(self, group_by='rank', mode="append"):
             "id": rid,
             "rank": rec['rank'],
             "hostname": rec['hostname'],
-            "filename": rec['filename'],
+            #"filename": rec['filename'],
+            "filename": "FIXME: NEED FILENAME",
 
             "group": rid,
             "start": start.isoformat(),
@@ -86,7 +87,8 @@ def create_timeline(self, group_by='rank', mode="append"):
 
         group = {
             "id": rid,
-            "content": "[%s] " % (mod) + rec['filename'][-84:],
+            #"content": "[%s] " % (mod) + rec['filename'][-84:],
+            "content": "[%s] " % (mod) + "NEED FILENAME",
             "order": seg['start_time']
         }
         groups.append(group)

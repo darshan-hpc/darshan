@@ -325,7 +325,6 @@ def log_get_generic_record(log, mod_name, mod_type, dtype='numpy'):
             })
 
     if dtype == "pandas":
-
         df_c = pd.DataFrame(cdict, index=[0])
         df_fc = pd.DataFrame(fcdict, index=[0])
 
