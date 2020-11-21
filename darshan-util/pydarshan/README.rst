@@ -48,7 +48,7 @@ To install in most cases the following will work::
 
     pip install darshan
 
-For alternative installation instructions and installation from source refer to :doc:`install`.
+For alternative installation instructions and installation from source refer to <docs/install.rst>
 
 
 Testing
