@@ -67,6 +67,16 @@ release: #dist # package and upload a release
 dist: clean  # builds source and wheel package
 	python setup.py sdist
 	python setup.py bdist_wheel
+
+	# might want to remove none-any wheel, but more specific wheels seem to take precedence
+	# rm -r dist/*non-any.whl
+
+	# gather binary wheels
+	# pip >= 19.0
+	find ./wheelhouse/manylinux2010* -name *manylinux*.whl -exec cp {} ./dist \;
+	# pip >= 8.1.0, may overwrite previously copied, but these have greater compatability
+	find ./wheelhouse/manylinux1* -name *manylinux*.whl -exec cp {} ./dist \;
+
 	ls -l dist
 
 
