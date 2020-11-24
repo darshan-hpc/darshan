@@ -7,10 +7,6 @@ Notes on how to release a new version of PyDarshan
     (- source venv/bin/activate)
     (- pip install -r requirements_dev.txt    # deps for packaging, testing, and docs generation)
 
-    If present:
-    - source venv/bin/activate
-    - export LD_LIBRARY_PATH=<libdarshanutils-path-to-test-against>/
-
  - Make sure documentation in docs/ is up to date
     - commit
     - (might connect this with readthedocs to have this automatically, otherwise upload docs/_build/html/*)
@@ -27,7 +23,9 @@ Notes on how to release a new version of PyDarshan
     - TODO: CI?
 
  - Submit to PyPi using twine:
-    - make release
+    - make wheels       # requires docker, creates ./wheelhouse and builds architecture-specific *.whl that include libdarshan-util
+    - make dist         # gathers relevant wheels build earlier, adds non-binary wheel and a source distribution (zip/tgz)
+    - make release      # pushes contents of ./dist/* to PyPi
         (be prompted for username/password)
 
  - Add/update spack package: py-darshan
@@ -44,4 +42,4 @@ Notes on how to release a new version of PyDarshan
     
 Note on Versionsformat:
     Whenever libdarshan-utils has a version change, PyDarshan is bumped accordingly.
-    4th position version numbers allows for PyDarshan to be on a faster release cycle.
+    4th position version numbers allows for PyDarshan to be on a faster release cycle
