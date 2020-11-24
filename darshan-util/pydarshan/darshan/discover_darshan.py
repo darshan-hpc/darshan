@@ -109,6 +109,20 @@ def discover_darshan_wheel():
         raise RuntimeError('Could not discover darshan! Is darshan-util installed and set in your PATH?')
 
 
+def discover_darshan_pyinstaller():
+    """
+    Discovers darshan-util if installed as as part of a pyinstaller bundle.
+
+    :return: Path to a darshan-util installation.
+    """
+
+    path = os.path.dirname(__file__)
+
+    if path:
+        return os.path.realpath(path + '/../')
+    else:
+        raise RuntimeError('Could not discover darshan! Is darshan-util installed and set in your PATH?')
+
 
 
 def find_utils(ffi, libdutil):
@@ -131,38 +145,43 @@ def find_utils(ffi, libdutil):
             libdutil = ffi.dlopen("libdarshan-util.so")
         except:
             libdutil = None
-            print("ffi.dlopen failed")
 
     if libdutil is None:
         try:
-            DARSHAN_PATH = discover_darshan_shutil()
-            libdutil = ffi.dlopen(DARSHAN_PATH + "/lib/libdarshan-util.so")
+            library_path = discover_darshan_shutil()
+            libdutil = ffi.dlopen(library_path + "/lib/libdarshan-util.so")
         except:
             libdutil = None
-            print("shutil failed")
 
     if libdutil is None:
         try:
-            DARSHAN_PATH = discover_darshan_pkgconfig()
-            libdutil = ffi.dlopen(DARSHAN_PATH + "/lib/libdarshan-util.so")
+            library_path = discover_darshan_pkgconfig()
+            libdutil = ffi.dlopen(library_path + "/lib/libdarshan-util.so")
         except:
             libdutil = None
-            print("pkgconfig failed")
 
     if libdutil is None:
         try:
             DARSHAN_PATH = discover_darshan_wheel()
             import glob
-            DARSHAN_SO = glob.glob(f'{DARSHAN_PATH}/libdarshan-util*.so')[0]
-            libdutil = ffi.dlopen(DARSHAN_SO)
+            library_path = glob.glob(f'{DARSHAN_PATH}/libdarshan-util*.so')[0]
+            libdutil = ffi.dlopen(library_path)
         except:
             libdutil = None
-            print("")
+
+    if libdutil is None:
+        try:
+            DARSHAN_PATH = discover_darshan_pyinstaller()
+            import glob
+            library_path = glob.glob(f'{DARSHAN_PATH}/libdarshan-util*.so')[0]
+            libdutil = ffi.dlopen(library_path)
+        except:
+            libdutil = None
   
     
 
     if libdutil is None:
-        raise RuntimeError('Could not find libdarshan-util.so! Is darshan-util installed? Please ensure one of the the following: 1) export LD_LIBRARY_PATH=<path-to-libdarshan-util.so>, or 2) darshan-parser can found using the PATH variable, or 3) pkg-config can resolve pkg-config --path darshan-util')
+        raise RuntimeError('Could not find libdarshan-util.so! Is darshan-util installed? Please ensure one of the the following: 1) export LD_LIBRARY_PATH=<path-to-libdarshan-util.so>, or 2) darshan-parser can found using the PATH variable, or 3) pkg-config can resolve pkg-config --path darshan-util, or 4) install a wheel that includes darshan-utils via pip.')
 
     return libdutil
 

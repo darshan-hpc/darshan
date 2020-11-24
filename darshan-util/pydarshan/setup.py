@@ -45,26 +45,20 @@ setup(
     author='',
     author_email='',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
+        'Intended Audience :: Science/Research',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-#        'Programming Language :: Python :: 3.4',
-#        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.9'
     ],
     description="Python tools to interact with darshan log records of HPC applications.",
     #long_description=readme,
     long_description="PyDarshan",
-
-    #options={"bdist_wheel": {"universal": False}},
-    
-    
-    ext_modules = ext_modules,
-    
+    ext_modules = ext_modules,  
     install_requires=requirements,
     include_package_data=True,
     keywords='darshan',
@@ -74,6 +68,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://www.mcs.anl.gov/research/projects/darshan/',
-    version='0.0.2',
+    version='0.0.3',
     zip_safe=False,
 )
