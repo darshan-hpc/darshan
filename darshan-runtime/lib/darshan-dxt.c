@@ -280,9 +280,6 @@ void dxt_posix_runtime_initialize()
 #endif
     .mod_shutdown_func = &dxt_posix_shutdown
     };
-    int ret;
-    double tmpfloat;
-    char *envstr;
 
     /* determine whether tracing should be generally disabled/enabled */
     if(getenv("DXT_ENABLE_IO_TRACE"))
@@ -348,9 +345,6 @@ void dxt_mpiio_runtime_initialize()
 #endif
     .mod_shutdown_func = &dxt_mpiio_shutdown
     };
-    int ret;
-    double tmpfloat;
-    char *envstr;
 
     /* determine whether tracing should be generally disabled/enabled */
     if(getenv("DXT_ENABLE_IO_TRACE"))

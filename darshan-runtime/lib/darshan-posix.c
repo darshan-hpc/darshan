@@ -247,7 +247,7 @@ static int darshan_mem_alignment = 1;
 
 #define POSIX_RECORD_READ(__ret, __fd, __pread_flag, __pread_offset, __aligned, __tm1, __tm2) do { \
     struct posix_file_record_ref* rec_ref; \
-    size_t stride; \
+    int64_t stride; \
     int64_t this_offset; \
     int64_t file_alignment; \
     struct darshan_common_val_counter *cvc; \
@@ -310,7 +310,7 @@ static int darshan_mem_alignment = 1;
 
 #define POSIX_RECORD_WRITE(__ret, __fd, __pwrite_flag, __pwrite_offset, __aligned, __tm1, __tm2) do { \
     struct posix_file_record_ref* rec_ref; \
-    size_t stride; \
+    int64_t stride; \
     int64_t this_offset; \
     int64_t file_alignment; \
     struct darshan_common_val_counter *cvc; \
