@@ -224,14 +224,18 @@ static int darshan_log_get_hdf5_dataset(darshan_fd fd, void** hdf5_buf_p)
     {
         fprintf(stderr, "Error: Invalid H5D module version number (got %d)\n",
             fd->mod_ver[DARSHAN_H5D_MOD]);
-        return(-1);
+        ret = -1;
+        goto exit;
     }
 
     if(*hdf5_buf_p == NULL)
     {
         ds = malloc(sizeof(*ds));
         if(!ds)
-            return(-1);
+        {
+            ret = -1;
+            goto exit;
+        }
     }
 
     if(fd->mod_ver[DARSHAN_H5D_MOD] == DARSHAN_H5D_VER)

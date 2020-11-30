@@ -1083,13 +1083,17 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
         if(fh) {
             ii = 0;
             s = fgets(cmdl,DARSHAN_EXE_LEN,fh);
-            for(i=1;i<DARSHAN_EXE_LEN;i++)  {
-                if(cmdl[i]==0 && ii == 0) {
-                  cmdl[i]=' '; ii = 1;
-                } else if(cmdl[i]==0 && ii == 1) {
-                  break;
-                } else {
-                  ii = 0;
+            if(!s)
+                sprintf(cmdl, "%s <unknown args>", __progname_full);
+            else {
+                for(i=1;i<DARSHAN_EXE_LEN;i++)  {
+                    if(cmdl[i]==0 && ii == 0) {
+                      cmdl[i]=' '; ii = 1;
+                    } else if(cmdl[i]==0 && ii == 1) {
+                      break;
+                    } else {
+                      ii = 0;
+                    }
                 }
             }
             fclose(fh);
