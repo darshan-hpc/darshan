@@ -19,7 +19,15 @@
 --wrap=pread64
 --wrap=pwrite64
 --wrap=readv
+--wrap=preadv
+--wrap=preadv2
+--wrap=preadv64
+--wrap=preadv64v2
 --wrap=writev
+--wrap=pwritev
+--wrap=pwritev2
+--wrap=pwritev64
+--wrap=pwritev64v2
 --wrap=lseek
 --wrap=lseek64
 --wrap=__xstat

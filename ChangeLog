@@ -2,6 +2,11 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.2.2
+=============
+* add wrappers for preadv, preadv2, pwritev, and pwritev2 (improves profiling
+  of ompio)
+
 Darshan-3.2.1
 =============
 * fixed bug causing corruption of Darshan common access
