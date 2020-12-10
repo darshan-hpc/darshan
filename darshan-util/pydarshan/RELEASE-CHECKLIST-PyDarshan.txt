@@ -9,9 +9,10 @@ Notes on how to release a new version of PyDarshan
 
  - Make sure documentation in docs/ is up to date
     - commit
-    - (might connect this with readthedocs to have this automatically, otherwise upload docs/_build/html/*)
- - Update changelog or history.rst
-    - TODO: this does not apply when the release cycle coincides with darshan
+    - make docs
+    - upload docs/build/html contents to /mcs/web/research/projects/darshan/docs
+    - (might eventually connect this with readthedocs to have this automatically uploaded)
+ - Update CHANGELOG.rst
     - commit
  - Update version numbers in:
     setup.py
@@ -20,6 +21,7 @@ Notes on how to release a new version of PyDarshan
 
  - Run tests with tox against different python versions
     - make test-all
+        (ensure pytest tests work, but can ignore flake8 syntax warnings)
     - TODO: CI?
 
  - Submit to PyPi using twine:
