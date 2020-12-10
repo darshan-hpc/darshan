@@ -22,7 +22,7 @@ def test_counters():
 
     log = backend.log_open("tests/input/sample.darshan")
 
-    rec = backend.log_get_mpiio_record(log)
+    rec = backend.log_get_record(log, "MPI-IO")
     assert rec['counters'][1] == 2048
 
 
@@ -31,8 +31,8 @@ def test_fcounters():
 
     log = backend.log_open("tests/input/sample.darshan")
 
-    rec = backend.log_get_mpiio_record(log)
-    assert rec['fcounters'][1] == 2.04800000e+03
+    rec = backend.log_get_record(log, "MPI-IO")
+    assert rec['fcounters'][0] == 3.912783145904541
 
 
 def test_repeated_access():
@@ -40,8 +40,8 @@ def test_repeated_access():
 
     log = backend.log_open("tests/input/sample.darshan")
 
-    rec = backend.log_get_mpiio_record(log)
-    rec = backend.log_get_mpiio_record(log)     # fetch next
+    rec = backend.log_get_record(log, "MPI-IO")
+    rec = backend.log_get_record(log, "MPI-IO")     # fetch next
 
     assert rec is None
 

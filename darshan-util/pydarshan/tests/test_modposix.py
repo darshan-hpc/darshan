@@ -22,7 +22,7 @@ def test_counters():
 
     log = backend.log_open("tests/input/sample.darshan")
 
-    rec = backend.log_get_posix_record(log)
+    rec = backend.log_get_record(log, "POSIX")
     assert rec['counters'][0] == 2049
 
 
@@ -31,8 +31,8 @@ def test_fcounters():
 
     log = backend.log_open("tests/input/sample.darshan")
 
-    rec = backend.log_get_posix_record(log)
-    assert rec['fcounters'][0] == 2.04900000e+03
+    rec = backend.log_get_record(log, "POSIX")
+    assert rec['fcounters'][0] == 3.9191410541534424
 
 
 def test_repeated_access():
@@ -40,8 +40,8 @@ def test_repeated_access():
 
     log = backend.log_open("tests/input/sample.darshan")
 
-    rec = backend.log_get_posix_record(log)
-    rec = backend.log_get_posix_record(log)     # fetch next
+    rec = backend.log_get_record(log, "POSIX")
+    rec = backend.log_get_record(log, "POSIX")     # fetch next
 
     assert rec is None
 

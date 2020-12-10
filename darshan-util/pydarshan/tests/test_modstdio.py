@@ -23,8 +23,8 @@ def test_counters():
 
     log = backend.log_open("tests/input/sample.darshan")
 
-    rec = backend.log_get_stdio_record(log)
-    assert rec['counters'][1] == 18446744073709551615
+    rec = backend.log_get_record(log, "STDIO")
+    assert rec['counters'][6] == 280
 
 
 def test_fcounters():
@@ -32,8 +32,8 @@ def test_fcounters():
 
     log = backend.log_open("tests/input/sample.darshan")
 
-    rec = backend.log_get_stdio_record(log)
-    assert rec['fcounters'][3] == 6.
+    rec = backend.log_get_record(log, "STDIO")
+    assert rec['fcounters'][3] == 0.0
 
 
 
@@ -42,8 +42,8 @@ def test_repeated_access():
 
     log = backend.log_open("tests/input/sample.darshan")
 
-    rec = backend.log_get_stdio_record(log)
-    rec = backend.log_get_stdio_record(log)     # fetch next
+    rec = backend.log_get_record(log, "STDIO")
+    rec = backend.log_get_record(log, "STDIO")     # fetch next
 
     assert rec['counters'][3] == 68
 
