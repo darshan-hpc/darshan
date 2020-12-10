@@ -602,7 +602,7 @@ void darshan_core_shutdown()
                 }
 
                 /* allow the module an opportunity to reduce shared files */
-                if(this_mod->mod_funcs.mod_redux_func && (mod_shared_recs > 0) &&
+                if(this_mod->mod_funcs.mod_redux_func && (mod_shared_rec_cnt > 0) &&
                    (!getenv("DARSHAN_DISABLE_SHARED_REDUCTION")))
                     this_mod->mod_funcs.mod_redux_func(mod_buf, final_core->mpi_comm,
                         mod_shared_recs, mod_shared_rec_cnt);
@@ -778,7 +778,10 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
         (void)gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
     }
-    PMPI_Bcast(&logmod, 1, MPI_UINT64_T, 0, core->mpi_comm);
+#ifdef HAVE_MPI
+    if(using_mpi)
+        PMPI_Bcast(&logmod, 1, MPI_UINT64_T, 0, core->mpi_comm);
+#endif
 
     /* construct a unique temporary log file name for this process
      * to write mmap log data to
@@ -1080,13 +1083,17 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
         if(fh) {
             ii = 0;
             s = fgets(cmdl,DARSHAN_EXE_LEN,fh);
-            for(i=1;i<DARSHAN_EXE_LEN;i++)  {
-                if(cmdl[i]==0 && ii == 0) {
-                  cmdl[i]=' '; ii = 1;
-                } else if(cmdl[i]==0 && ii == 1) {
-                  break;
-                } else {
-                  ii = 0;
+            if(!s)
+                sprintf(cmdl, "%s <unknown args>", __progname_full);
+            else {
+                for(i=1;i<DARSHAN_EXE_LEN;i++)  {
+                    if(cmdl[i]==0 && ii == 0) {
+                      cmdl[i]=' '; ii = 1;
+                    } else if(cmdl[i]==0 && ii == 1) {
+                      break;
+                    } else {
+                      ii = 0;
+                    }
                 }
             }
             fclose(fh);

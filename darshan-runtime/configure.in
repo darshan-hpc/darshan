@@ -247,6 +247,8 @@ AS_IF([test "x$enable_hdf5_mod" != "xno"],
         AC_DEFINE(DARSHAN_HDF5_VERS_1_10_PLUS, 1, Define if HDF5 module built with version 1.10+)
         DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS="--undefined=H5Dflush --wrap=H5Dflush"
     )
+    AC_CHECK_PROG(H5PCC_CHECK, h5pcc, "yes", "no", "${enable_hdf5_mod}/bin")
+    AS_IF([test x"$H5PCC_CHECK" = x"yes"], [AC_DEFINE(DARSHAN_HDF5_PAR_BUILD, 1, Define if HDF5 built with parallel support)])
 )
 
 # PNETCDF module
@@ -493,6 +495,11 @@ AC_TRY_COMPILE(
     DARSHAN_STDIO_ADD_FSCANF_LD_OPTS=""
 )
 
+# look for glibc-specific functions
+AC_CHECK_FUNCS([pwritev],[],[])
+AC_CHECK_FUNCS([preadv],[],[])
+AC_CHECK_FUNCS([pwritev2],[],[])
+AC_CHECK_FUNCS([preadv2],[],[])
 
 DARSHAN_VERSION="AC_PACKAGE_VERSION"
 AC_SUBST(darshan_lib_path)

@@ -25,7 +25,12 @@ umask(0);
 # go through the end of next year
 for ($i=$year; $i<($year+2); $i++)
 {
-    mkdir("$LOGDIR/$i", 0755) or die("Error: could not mkdir $LOGDIR/$i.\n");
+    if(!mkdir("$LOGDIR/$i", 0755))
+    {
+        print STDERR "Error: mkdir($LOGDIR/$i): $!.\n";
+        print STDERR "Error: please make sure that the $LOGDIR directory already exists and is writeable.\n";
+        exit(1);
+    }
     for ($j=1; $j<13; $j++)
     {
         mkdir("$LOGDIR/$i/$j", 0755) or die("Error: could not mkdir $LOGDIR/$i/$j.\n");

@@ -62,7 +62,23 @@ DARSHAN_FORWARD_DECL(pwrite, ssize_t, (int fd, const void *buf, size_t count, of
 DARSHAN_FORWARD_DECL(pread64, ssize_t, (int fd, void *buf, size_t count, off64_t offset));
 DARSHAN_FORWARD_DECL(pwrite64, ssize_t, (int fd, const void *buf, size_t count, off64_t offset));
 DARSHAN_FORWARD_DECL(readv, ssize_t, (int fd, const struct iovec *iov, int iovcnt));
+#ifdef HAVE_PREADV
+    DARSHAN_FORWARD_DECL(preadv, ssize_t, (int fd, const struct iovec *iov, int iovcnt, off_t offset));
+    DARSHAN_FORWARD_DECL(preadv64, ssize_t, (int fd, const struct iovec *iov, int iovcnt, off64_t offset));
+#endif
+#ifdef HAVE_PREADV2
+    DARSHAN_FORWARD_DECL(preadv2, ssize_t, (int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags));
+    DARSHAN_FORWARD_DECL(preadv64v2, ssize_t, (int fd, const struct iovec *iov, int iovcnt, off64_t offset, int flags));
+#endif
 DARSHAN_FORWARD_DECL(writev, ssize_t, (int fd, const struct iovec *iov, int iovcnt));
+#ifdef HAVE_PWRITEV
+    DARSHAN_FORWARD_DECL(pwritev, ssize_t, (int fd, const struct iovec *iov, int iovcnt, off_t offset));
+    DARSHAN_FORWARD_DECL(pwritev64, ssize_t, (int fd, const struct iovec *iov, int iovcnt, off64_t offset));
+#endif
+#ifdef HAVE_PWRITEV2
+    DARSHAN_FORWARD_DECL(pwritev2, ssize_t, (int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags));
+    DARSHAN_FORWARD_DECL(pwritev64v2, ssize_t, (int fd, const struct iovec *iov, int iovcnt, off64_t offset, int flags));
+#endif
 DARSHAN_FORWARD_DECL(lseek, off_t, (int fd, off_t offset, int whence));
 DARSHAN_FORWARD_DECL(lseek64, off64_t, (int fd, off64_t offset, int whence));
 DARSHAN_FORWARD_DECL(__xstat, int, (int vers, const char* path, struct stat *buf));
@@ -247,7 +263,7 @@ static int darshan_mem_alignment = 1;
 
 #define POSIX_RECORD_READ(__ret, __fd, __pread_flag, __pread_offset, __aligned, __tm1, __tm2) do { \
     struct posix_file_record_ref* rec_ref; \
-    size_t stride; \
+    int64_t stride; \
     int64_t this_offset; \
     int64_t file_alignment; \
     struct darshan_common_val_counter *cvc; \
@@ -310,7 +326,7 @@ static int darshan_mem_alignment = 1;
 
 #define POSIX_RECORD_WRITE(__ret, __fd, __pwrite_flag, __pwrite_offset, __aligned, __tm1, __tm2) do { \
     struct posix_file_record_ref* rec_ref; \
-    size_t stride; \
+    int64_t stride; \
     int64_t this_offset; \
     int64_t file_alignment; \
     struct darshan_common_val_counter *cvc; \
@@ -991,6 +1007,115 @@ ssize_t DARSHAN_DECL(readv)(int fd, const struct iovec *iov, int iovcnt)
     return(ret);
 }
 
+#ifdef HAVE_PREADV
+ssize_t DARSHAN_DECL(preadv)(int fd, const struct iovec *iov, int iovcnt, off_t offset)
+{
+    ssize_t ret;
+    int aligned_flag = 1;
+    int i;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(preadv);
+
+    for(i=0; i<iovcnt; i++)
+    {
+        if(((unsigned long)iov[i].iov_base % darshan_mem_alignment) != 0)
+            aligned_flag = 0;
+    }
+
+    tm1 = darshan_core_wtime();
+    ret = __real_preadv(fd, iov, iovcnt, offset);
+    tm2 = darshan_core_wtime();
+
+    POSIX_PRE_RECORD();
+    POSIX_RECORD_READ(ret, fd, 1, offset, aligned_flag, tm1, tm2);
+    POSIX_POST_RECORD();
+
+    return(ret);
+}
+
+ssize_t DARSHAN_DECL(preadv64)(int fd, const struct iovec *iov, int iovcnt, off64_t offset)
+{
+    ssize_t ret;
+    int aligned_flag = 1;
+    int i;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(preadv64);
+
+    for(i=0; i<iovcnt; i++)
+    {
+        if(((unsigned long)iov[i].iov_base % darshan_mem_alignment) != 0)
+            aligned_flag = 0;
+    }
+
+    tm1 = darshan_core_wtime();
+    ret = __real_preadv64(fd, iov, iovcnt, offset);
+    tm2 = darshan_core_wtime();
+
+    POSIX_PRE_RECORD();
+    POSIX_RECORD_READ(ret, fd, 1, offset, aligned_flag, tm1, tm2);
+    POSIX_POST_RECORD();
+
+    return(ret);
+}
+
+#endif /* HAVE_PREADV */
+
+#ifdef HAVE_PREADV2
+ssize_t DARSHAN_DECL(preadv2)(int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags)
+{
+    ssize_t ret;
+    int aligned_flag = 1;
+    int i;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(preadv2);
+
+    for(i=0; i<iovcnt; i++)
+    {
+        if(((unsigned long)iov[i].iov_base % darshan_mem_alignment) != 0)
+            aligned_flag = 0;
+    }
+
+    tm1 = darshan_core_wtime();
+    ret = __real_preadv2(fd, iov, iovcnt, offset, flags);
+    tm2 = darshan_core_wtime();
+
+    POSIX_PRE_RECORD();
+    POSIX_RECORD_READ(ret, fd, 1, offset, aligned_flag, tm1, tm2);
+    POSIX_POST_RECORD();
+
+    return(ret);
+}
+
+ssize_t DARSHAN_DECL(preadv64v2)(int fd, const struct iovec *iov, int iovcnt, off64_t offset, int flags)
+{
+    ssize_t ret;
+    int aligned_flag = 1;
+    int i;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(preadv64v2);
+
+    for(i=0; i<iovcnt; i++)
+    {
+        if(((unsigned long)iov[i].iov_base % darshan_mem_alignment) != 0)
+            aligned_flag = 0;
+    }
+
+    tm1 = darshan_core_wtime();
+    ret = __real_preadv64v2(fd, iov, iovcnt, offset, flags);
+    tm2 = darshan_core_wtime();
+
+    POSIX_PRE_RECORD();
+    POSIX_RECORD_READ(ret, fd, 1, offset, aligned_flag, tm1, tm2);
+    POSIX_POST_RECORD();
+
+    return(ret);
+}
+#endif /* HAVE_PREADV2 */
+
 ssize_t DARSHAN_DECL(writev)(int fd, const struct iovec *iov, int iovcnt)
 {
     ssize_t ret;
@@ -1016,6 +1141,115 @@ ssize_t DARSHAN_DECL(writev)(int fd, const struct iovec *iov, int iovcnt)
 
     return(ret);
 }
+
+#ifdef HAVE_PWRITEV
+ssize_t DARSHAN_DECL(pwritev)(int fd, const struct iovec *iov, int iovcnt, off_t offset)
+{
+    ssize_t ret;
+    int aligned_flag = 1;
+    int i;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(pwritev);
+
+    for(i=0; i<iovcnt; i++)
+    {
+        if(((unsigned long)iov[i].iov_base % darshan_mem_alignment) != 0)
+            aligned_flag = 0;
+    }
+
+    tm1 = darshan_core_wtime();
+    ret = __real_pwritev(fd, iov, iovcnt, offset);
+    tm2 = darshan_core_wtime();
+
+    POSIX_PRE_RECORD();
+    POSIX_RECORD_WRITE(ret, fd, 1, offset, aligned_flag, tm1, tm2);
+    POSIX_POST_RECORD();
+
+    return(ret);
+}
+
+ssize_t DARSHAN_DECL(pwritev64)(int fd, const struct iovec *iov, int iovcnt, off64_t offset)
+{
+    ssize_t ret;
+    int aligned_flag = 1;
+    int i;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(pwritev64);
+
+    for(i=0; i<iovcnt; i++)
+    {
+        if(((unsigned long)iov[i].iov_base % darshan_mem_alignment) != 0)
+            aligned_flag = 0;
+    }
+
+    tm1 = darshan_core_wtime();
+    ret = __real_pwritev64(fd, iov, iovcnt, offset);
+    tm2 = darshan_core_wtime();
+
+    POSIX_PRE_RECORD();
+    POSIX_RECORD_WRITE(ret, fd, 1, offset, aligned_flag, tm1, tm2);
+    POSIX_POST_RECORD();
+
+    return(ret);
+}
+#endif /* HAVE_PWRITEV */
+
+#ifdef HAVE_PWRITEV2
+ssize_t DARSHAN_DECL(pwritev2)(int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags)
+{
+    ssize_t ret;
+    int aligned_flag = 1;
+    int i;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(pwritev2);
+
+    for(i=0; i<iovcnt; i++)
+    {
+        if(((unsigned long)iov[i].iov_base % darshan_mem_alignment) != 0)
+            aligned_flag = 0;
+    }
+
+    tm1 = darshan_core_wtime();
+    ret = __real_pwritev2(fd, iov, iovcnt, offset, flags);
+    tm2 = darshan_core_wtime();
+
+    POSIX_PRE_RECORD();
+    POSIX_RECORD_WRITE(ret, fd, 1, offset, aligned_flag, tm1, tm2);
+    POSIX_POST_RECORD();
+
+    return(ret);
+}
+
+ssize_t DARSHAN_DECL(pwritev64v2)(int fd, const struct iovec *iov, int iovcnt, off64_t offset, int flags)
+{
+    ssize_t ret;
+    int aligned_flag = 1;
+    int i;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(pwritev64v2);
+
+    for(i=0; i<iovcnt; i++)
+    {
+        if(((unsigned long)iov[i].iov_base % darshan_mem_alignment) != 0)
+            aligned_flag = 0;
+    }
+
+    tm1 = darshan_core_wtime();
+    ret = __real_pwritev64v2(fd, iov, iovcnt, offset, flags);
+    tm2 = darshan_core_wtime();
+
+    POSIX_PRE_RECORD();
+    POSIX_RECORD_WRITE(ret, fd, 1, offset, aligned_flag, tm1, tm2);
+    POSIX_POST_RECORD();
+
+    return(ret);
+}
+
+#endif
 
 off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
 {

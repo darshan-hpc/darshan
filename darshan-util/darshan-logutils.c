@@ -2097,7 +2097,6 @@ void darshan_log_get_name_records(darshan_fd fd,
 {
     int ret;
     struct darshan_name_record_ref *name_hash = NULL;
-    struct darshan_name_record_ref *ref = NULL;
     struct darshan_name_record_ref *tmp = NULL;
     struct darshan_name_record_ref *curr = NULL;
 
@@ -2140,7 +2139,6 @@ void darshan_log_get_filtered_name_records(darshan_fd fd,
 
     int ret;
     struct darshan_name_record_ref *name_hash = NULL;
-    struct darshan_name_record_ref *ref = NULL;
     struct darshan_name_record_ref *tmp = NULL;
     struct darshan_name_record_ref *curr = NULL;
 

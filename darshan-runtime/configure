@@ -650,6 +650,7 @@ __DARSHAN_LOG_PATH
 darshan_share_path
 darshan_lib_path
 PRI_MACROS_BROKEN
+H5PCC_CHECK
 EGREP
 GREP
 CPP
@@ -1824,6 +1825,73 @@ $as_echo "$ac_res" >&6; }
   eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
 
 } # ac_fn_c_check_type
+
+# ac_fn_c_check_func LINENO FUNC VAR
+# ----------------------------------
+# Tests whether FUNC exists, setting the cache variable VAR accordingly
+ac_fn_c_check_func ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
+$as_echo_n "checking for $2... " >&6; }
+if eval \${$3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+/* Define $2 to an innocuous variant, in case <limits.h> declares $2.
+   For example, HP-UX 11i <limits.h> declares gettimeofday.  */
+#define $2 innocuous_$2
+
+/* System header to define __stub macros and hopefully few prototypes,
+    which can conflict with char $2 (); below.
+    Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
+    <limits.h> exists even on freestanding compilers.  */
+
+#ifdef __STDC__
+# include <limits.h>
+#else
+# include <assert.h>
+#endif
+
+#undef $2
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char $2 ();
+/* The GNU C library defines this for functions which it implements
+    to always fail with ENOSYS.  Some functions are actually named
+    something starting with __ and the normal name is an alias.  */
+#if defined __stub_$2 || defined __stub___$2
+choke me
+#endif
+
+int
+main ()
+{
+return $2 ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$3=yes"
+else
+  eval "$3=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+fi
+eval ac_res=\$$3
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+
+} # ac_fn_c_check_func
 cat >config.log <<_ACEOF
 This file contains any messages produced by compilers while
 running configure, to aid debugging if configure makes a mistake.
@@ -4156,6 +4224,49 @@ $as_echo "#define DARSHAN_HDF5_VERS_1_10_PLUS 1" >>confdefs.h
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+    # Extract the first word of "h5pcc", so it can be a program name with args.
+set dummy h5pcc; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_H5PCC_CHECK+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$H5PCC_CHECK"; then
+  ac_cv_prog_H5PCC_CHECK="$H5PCC_CHECK" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in "${enable_hdf5_mod}/bin"
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_H5PCC_CHECK=""yes""
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_prog_H5PCC_CHECK" && ac_cv_prog_H5PCC_CHECK=""no""
+fi
+fi
+H5PCC_CHECK=$ac_cv_prog_H5PCC_CHECK
+if test -n "$H5PCC_CHECK"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $H5PCC_CHECK" >&5
+$as_echo "$H5PCC_CHECK" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+    if test x"$H5PCC_CHECK" = x"yes"; then :
+
+$as_echo "#define DARSHAN_HDF5_PAR_BUILD 1" >>confdefs.h
+
+fi
 
 fi
 
@@ -4879,6 +4990,51 @@ $as_echo "#define HAVE_FSCANF_REDIRECT 1" >>confdefs.h
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+# look for glibc-specific functions
+for ac_func in pwritev
+do :
+  ac_fn_c_check_func "$LINENO" "pwritev" "ac_cv_func_pwritev"
+if test "x$ac_cv_func_pwritev" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PWRITEV 1
+_ACEOF
+
+fi
+done
+
+for ac_func in preadv
+do :
+  ac_fn_c_check_func "$LINENO" "preadv" "ac_cv_func_preadv"
+if test "x$ac_cv_func_preadv" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PREADV 1
+_ACEOF
+
+fi
+done
+
+for ac_func in pwritev2
+do :
+  ac_fn_c_check_func "$LINENO" "pwritev2" "ac_cv_func_pwritev2"
+if test "x$ac_cv_func_pwritev2" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PWRITEV2 1
+_ACEOF
+
+fi
+done
+
+for ac_func in preadv2
+do :
+  ac_fn_c_check_func "$LINENO" "preadv2" "ac_cv_func_preadv2"
+if test "x$ac_cv_func_preadv2" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PREADV2 1
+_ACEOF
+
+fi
+done
 
 
 DARSHAN_VERSION="3.2.1"

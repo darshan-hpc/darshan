@@ -3,6 +3,9 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
+/* Define if HDF5 built with parallel support */
+#undef DARSHAN_HDF5_PAR_BUILD
+
 /* Define if HDF5 module built with version 1.10+ */
 #undef DARSHAN_HDF5_VERS_1_10_PLUS
 
@@ -35,6 +38,18 @@
 
 /* Define if off64_t type is defined */
 #undef HAVE_OFF64_T
+
+/* Define to 1 if you have the `preadv' function. */
+#undef HAVE_PREADV
+
+/* Define to 1 if you have the `preadv2' function. */
+#undef HAVE_PREADV2
+
+/* Define to 1 if you have the `pwritev' function. */
+#undef HAVE_PWRITEV
+
+/* Define to 1 if you have the `pwritev2' function. */
+#undef HAVE_PWRITEV2
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
