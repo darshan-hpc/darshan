@@ -20,8 +20,9 @@ Notes on how to release a new version of PyDarshan
     darshan/__init__.py
 
  - Run tests with tox against different python versions
-    - make test-all
-        (ensure pytest tests work, but can ignore flake8 syntax warnings)
+    - make test
+        (may extent to test-all which would run against different python verions
+        (flake8 syntax warnings can be ignored)
     - TODO: CI?
 
  - Submit to PyPi using twine:

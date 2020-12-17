@@ -27,12 +27,15 @@ clean-test:  # remove test and coverage artifacts
 	rm -f .coverage
 	rm -rf htmlcov/
 	rm -rf .pytest_cache
+	rm -rf pkgtest
 
 clean-devenv:
 	rm -rf venv
+	rm -rf libdarshanutil
 
 
 devenv:
+	./devel/build-libdarshanutil.sh
 	python3 -m venv venv
 	source venv/bin/activate && pip install -r requirements_dev.txt
 

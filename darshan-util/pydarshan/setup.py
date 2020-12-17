@@ -43,7 +43,6 @@ setup(
     ],
     description="Python tools to interact with darshan log records of HPC applications.",
     long_description=readme,
-    long_description="PyDarshan",
     ext_modules = ext_modules,  
     install_requires=requirements,
     include_package_data=True,
