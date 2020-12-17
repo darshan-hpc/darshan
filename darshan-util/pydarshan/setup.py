@@ -21,24 +21,10 @@ if '--with-extension' in sys.argv:
         'darshan.extension',
         #optional=True,
         sources=['darshan/extension.c'],
-        library_dirs=['/usr/lib64/atlas/', '/usr/lib/atlas'],
         include_dirs=['/usr/include'],
         libraries=['darshan-util']
         ))
     sys.argv.remove('--with-extension')
-
-
-
-#ext_modules.append(Extension(
-#    'darshan.extension',
-#    #optional=True,
-#    sources=['darshan/extension.c'],
-#    library_dirs=['/usr/lib64/atlas/', '/usr/lib/atlas'],
-#    include_dirs=['/usr/include'],
-#    libraries=['darshan-util']
-#    ))
-
-
 
 
 setup(
@@ -56,7 +42,7 @@ setup(
         'Programming Language :: Python :: 3.9'
     ],
     description="Python tools to interact with darshan log records of HPC applications.",
-    #long_description=readme,
+    long_description=readme,
     long_description="PyDarshan",
     ext_modules = ext_modules,  
     install_requires=requirements,

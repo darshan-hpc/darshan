@@ -28,6 +28,13 @@ clean-test:  # remove test and coverage artifacts
 	rm -rf htmlcov/
 	rm -rf .pytest_cache
 
+clean-devenv:
+	rm -rf venv
+
+
+devenv:
+	python3 -m venv venv
+	source venv/bin/activate && pip install -r requirements_dev.txt
 
 lint:  # check style with flake8
 	flake8 darshan tests
