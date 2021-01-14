@@ -168,7 +168,10 @@ def find_utils(ffi, libdutil):
             import glob
             library_path = glob.glob(f'{darshan_path}/libdarshan-util*.so')[0]
             logger.debug(f"Attempting library_path={library_path} in case of binary wheel.")
+            save = os.getcwd()
+            os.chdir(darshan_path)
             libdutil = ffi.dlopen(library_path)
+            os.chdir(save)
         except:
             libdutil = None
 
@@ -178,7 +181,10 @@ def find_utils(ffi, libdutil):
             import glob
             library_path = glob.glob(f'{darshan_path}/libdarshan-util*.so')[0]
             logger.debug(f"Attempting library_path={library_path} for pyinstaller bundles.")
+            save = os.getcwd()
+            os.chdir(darshan_path)
             libdutil = ffi.dlopen(library_path)
+            os.chdir(save)
         except:
             libdutil = None
   
