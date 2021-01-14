@@ -149,6 +149,7 @@ def find_utils(ffi, libdutil):
     if libdutil is None:
         try:
             library_path = discover_darshan_shutil()
+            logger.debug(f"Attempting library_path={library_path} via shutil discovery.")
             libdutil = ffi.dlopen(library_path + "/lib/libdarshan-util.so")
         except:
             libdutil = None
@@ -156,24 +157,27 @@ def find_utils(ffi, libdutil):
     if libdutil is None:
         try:
             library_path = discover_darshan_pkgconfig()
+            logger.debug(f"Attempting library_path={library_path} via pkgconfig discovery.")
             libdutil = ffi.dlopen(library_path + "/lib/libdarshan-util.so")
         except:
             libdutil = None
 
     if libdutil is None:
         try:
-            DARSHAN_PATH = discover_darshan_wheel()
+            darshan_path = discover_darshan_wheel()
             import glob
-            library_path = glob.glob(f'{DARSHAN_PATH}/libdarshan-util*.so')[0]
+            library_path = glob.glob(f'{darshan_path}/libdarshan-util*.so')[0]
+            logger.debug(f"Attempting library_path={library_path} in case of binary wheel.")
             libdutil = ffi.dlopen(library_path)
         except:
             libdutil = None
 
     if libdutil is None:
         try:
-            DARSHAN_PATH = discover_darshan_pyinstaller()
+            darshan_path = discover_darshan_pyinstaller()
             import glob
-            library_path = glob.glob(f'{DARSHAN_PATH}/libdarshan-util*.so')[0]
+            library_path = glob.glob(f'{darshan_path}/libdarshan-util*.so')[0]
+            logger.debug(f"Attempting library_path={library_path} for pyinstaller bundles.")
             libdutil = ffi.dlopen(library_path)
         except:
             libdutil = None
