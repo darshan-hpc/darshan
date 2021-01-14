@@ -165,7 +165,10 @@ def find_utils(ffi, libdutil):
             DARSHAN_PATH = discover_darshan_wheel()
             import glob
             library_path = glob.glob(f'{DARSHAN_PATH}/libdarshan-util*.so')[0]
+            save = os.getcwd()
+            os.chdir(DARSHAN_PATH)
             libdutil = ffi.dlopen(library_path)
+            os.chdir(save)
         except:
             libdutil = None
 
