@@ -104,6 +104,11 @@ CFLAGS += -DDARSHAN_MDHIM
 CFLAGS_SHARED += -DDARSHAN_MDHIM
 endif
 
+#XXX DAOS
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-daos.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-daos.po
+
+
 lib::
 	@mkdir -p $@
 
@@ -183,6 +188,12 @@ lib/darshan-mdhim.o: lib/darshan-mdhim.c darshan.h darshan-common.h $(DARSHAN_LO
 	$(CC) $(CFLAGS) -c $< -o $@
 
 lib/darshan-mdhim.po: lib/darshan-mdhim.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-mdhim-log-format.h | lib
+	$(CC) $(CFLAGS_SHARED) -c $< -o $@
+
+lib/darshan-daos.o: lib/darshan-daos.c darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-daos-log-format.h | lib
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/darshan-daos.po: lib/darshan-daos.c darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../darshan-daos-log-format.h | lib
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
 
