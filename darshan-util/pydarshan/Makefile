@@ -30,14 +30,15 @@ clean-test:  # remove test and coverage artifacts
 	rm -rf pkgtest
 
 clean-devenv:
-	rm -rf venv
-	rm -rf libdarshanutil
+	rm -rf devenv/venv
+	rm -rf devenv/libdarshanutil
+	rm -rf devenv
 
 
 devenv:
 	./devel/build-libdarshanutil.sh
-	python3 -m venv venv
-	source venv/bin/activate && pip install -r requirements_dev.txt
+	python3 -m venv devenv/venv
+	source devenv/venv/bin/activate && pip install -r requirements_dev.txt
 
 lint:  # check style with flake8
 	flake8 darshan tests
