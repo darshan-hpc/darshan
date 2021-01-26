@@ -1,4 +1,5 @@
-__version__ = '0.0.5'
+__version__ = '0.0.6'
+__darshanutil_version__ = '3.2.1'
 
 
 options = {

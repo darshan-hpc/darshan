@@ -39,7 +39,7 @@ def check_version(ffi=None, libdutil=None):
 
     import darshan
    
-    package_version = darshan.__version__.split(".")
+    package_version = darshan.__darshanutil_version__.split(".")
     lib_version = lib_version.split(".")
     
     if package_version[0:3] != lib_version[0:3]:
