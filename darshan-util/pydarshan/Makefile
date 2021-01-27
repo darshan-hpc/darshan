@@ -16,6 +16,9 @@ clean-docs:
 	rm -f docs/darshan.*.rst
 	rm -f docs/modules.rst
 
+clean-wheels:
+	rm -rf wheelhouse
+
 clean-pyc:  # remove Python file artifacts
 	find . -name '*.pyc' -exec rm -f {} +
 	find . -name '*.pyo' -exec rm -f {} +
@@ -66,6 +69,10 @@ docs-show:
 
 servedocs: docs  # compile the docs watching for changes
 	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
+
+
+bump-minior:
+
 
 
 wheels:
