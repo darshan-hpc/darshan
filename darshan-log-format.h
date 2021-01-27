@@ -120,6 +120,7 @@ struct darshan_base_record
 /* DXT */
 #include "darshan-dxt-log-format.h"
 #include "darshan-mdhim-log-format.h"
+#include "darshan-daos-log-format.h"
 
 /* X-macro for keeping module ordering consistent */
 /* NOTE: first val used to define module enum values, 
@@ -144,7 +145,8 @@ struct darshan_base_record
     /* DXT */ \
     X(DXT_POSIX_MOD,       "DXT_POSIX",  DXT_POSIX_VER,         &dxt_posix_logutils) \
     X(DXT_MPIIO_MOD,       "DXT_MPIIO",  DXT_MPIIO_VER,         &dxt_mpiio_logutils) \
-    X(DARSHAN_MDHIM_MOD,   "MDHIM",      DARSHAN_MDHIM_VER,     &mdhim_logutils)
+    X(DARSHAN_MDHIM_MOD,   "MDHIM",      DARSHAN_MDHIM_VER,     &mdhim_logutils) \
+    X(DARSHAN_DFS_MOD,     "DFS",        DARSHAN_DFS_VER,       &dfs_logutils)
 
 
 /* unique identifiers to distinguish between available darshan modules */

@@ -261,6 +261,7 @@ endif
 ifdef BUILD_MDHIM_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-mdhim-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-mdhim-ld-opts
 endif
+	install -m 644 $(srcdir)/share/ld-opts/darshan-daos-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-daos-ld-opts
 ifdef ENABLE_MMAP_LOGS
 	install -m 755 share/darshan-mmap-epilog.sh $(DESTDIR)$(datarootdir)/darshan-mmap-epilog.sh
 endif
