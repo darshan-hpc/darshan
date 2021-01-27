@@ -5,7 +5,7 @@ import importlib
 import sys
 
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 
@@ -77,9 +77,34 @@ def main():
     Darshan CLI wrapper, to expose individual commands as subcommands.
     """
 
+    # early parsing for selected arguments
+    preparser = argparse.ArgumentParser(usage="darshan <command>", description='PyDarshan CLI Utilities', formatter_class=CustomHelpFormatter)
+
+    preparser.add_argument('--debug', help='', action='store_true', default=False)
+    preparser.add_argument('--version', help='', action='store_true', default=False)
+
+    # parse selected args early
+    args, unkown_args = preparser.parse_known_args()
+
+    # be verbose for debugging
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+        # TODO: Unfortunetly, this does not propagate to the libdarshan discovery utility process which already happened at this point
+
+        #for name in logging.root.manager.loggerDict:
+        #    print(name)
+        #    logging.getLogger(name).setLevel(logging.DEBUG)
+        print(args)
+
+    if args.version:
+        import darshan
+        print(darshan.__version__)
+        sys.exit()
+
+
+
     #parser = argparse.ArgumentParser(usage="darshan <command>", description='Darshan CLI Utilities', formatter_class=ArgumentDefaultsHelpFormatter)
     parser = argparse.ArgumentParser(usage="darshan <command>", description='PyDarshan CLI Utilities', formatter_class=CustomHelpFormatter)
-
 
     # Shared Optional Arguments
     optionals = parser.add_argument_group()
@@ -94,16 +119,17 @@ def main():
     optionals.add_argument("--no-timestamp", dest='no_timestamp', action='store_true',
                             help='Removes timestamp from log events')
 
-    optionals.add_argument('--debug', help='', action='store_true')
+    optionals.add_argument('--debug', help='', action='store_true', default=False)
+    optionals.add_argument('--version', help='', action='store_true', default=False)
 
+
+
+    # setup parser for sub-commands
     subparsers = parser.add_subparsers(dest='action')
 
     # custom help messge
     parser._positionals.title = "commands"
 
-
-
-    # 
     subcmds = discover_subcommands()
     for subcmd in subcmds:
         subcmd_parser = subparsers.add_parser(subcmd)
@@ -112,17 +138,17 @@ def main():
         mod.setup_parser(subcmd_parser)
 
 
-
     args = parser.parse_args()
+
+    # be verbose for debugging (again now with full known options)
+    if args.debug:
+        print(args)
+
 
     # default behavior when no arguments provided: show help
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(0)
-
-    # be verbose for debugging
-    if args.debug:
-        print(args)
 
     # route subcommands
     if args.action in subcmds:

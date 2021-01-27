@@ -9,6 +9,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+verbose_discovery = False
+if verbose_discovery:
+    logging.basicConfig()           # ensure out streams exist
+    logger.setLevel(logging.DEBUG)  # set log-level
+
+
 def check_version(ffi=None, libdutil=None):
     """
     Get version from shared library or pkg-config and return info.
