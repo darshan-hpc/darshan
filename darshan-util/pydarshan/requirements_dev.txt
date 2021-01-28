@@ -1,4 +1,3 @@
-pip==18.1
 bumpversion==0.5.3
 wheel==0.32.1
 watchdog==0.9.0
@@ -13,9 +12,10 @@ cffi
 numpy
 pandas
 matplotlib
+jupyterlab
 
 pytest==3.8.2
 pytest-runner==4.2
 nose
 
-scalene
+#scalene

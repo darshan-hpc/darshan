@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
+__version__ = '0.0.6'
+__darshanutil_version__ = '3.2.1'
 
-"""Top-level package for pydarshan."""
-
-__version__ = '0.1.0'
-
+import logging
+logger = logging.getLogger(__name__)
 
 
 options = {

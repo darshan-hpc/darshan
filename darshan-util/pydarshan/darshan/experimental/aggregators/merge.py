@@ -31,7 +31,7 @@ def merge(self, other, reduce_first=False):
         nr.provenance_reports[self.filename] = None
         nr.provenance_reports[other.filename] = None
 
-        nr.provenance_log.append(("add", self, other, datetime.datetime.now()))
+        nr.provenance_graph.append(("add", self, other, datetime.datetime.now()))
 
 
     # update metadata helper

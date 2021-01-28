@@ -6,6 +6,9 @@ import ctypes
 import numpy as np
 import pandas as pd
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 from darshan.api_def_c import load_darshan_header
 from darshan.discover_darshan import find_utils
@@ -20,10 +23,39 @@ ffi.cdef(API_def_c)
 libdutil = None
 libdutil = find_utils(ffi, libdutil)
 
+check_version(ffi, libdutil)
 
 
 
+_structdefs = {
+    "BG/Q": "struct darshan_bgq_record **",
+    "DXT_MPIIO": "struct dxt_file_record **",
+    "DXT_POSIX": "struct dxt_file_record **",
+    "H5F": "struct darshan_hdf5_file **",
+    "H5D": "struct darshan_hdf5_dataset **",
+    "LUSTRE": "struct darshan_lustre_record **",
+    "MPI-IO": "struct darshan_mpiio_file **",
+    "PNETCDF": "struct darshan_pnetcdf_file **",
+    "POSIX": "struct darshan_posix_file **",
+    "STDIO": "struct darshan_stdio_file **",
+}
 
+
+
+def get_lib_version():
+    """
+    Return the version information hardcoded into the shared library.
+    
+    Args:
+        None
+        
+    Return:
+        version (str): library version number
+    """
+    ver = ffi.new("char **")
+    ver = libdutil.darshan_log_get_lib_version()
+    version = ffi.string(ver).decode("utf-8")
+    return version
 
 
 def log_open(filename):
@@ -217,7 +249,232 @@ def log_lookup_name_records(log, ids=[]):
 
 
 
-def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='dict'):
+def log_get_record(log, mod, dtype='numpy'):
+    """
+    Standard entry point fetch records via mod string.
+
+    Args:
+        log: Handle returned by darshan.open
+        mod_name (str): Name of the Darshan module
+
+    Return:
+        log record of type dtype
+    
+    """
+
+    if mod in ['LUSTRE']:
+        rec = _log_get_lustre_record(log, dtype=dtype)
+    elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
+        rec = log_get_dxt_record(log, mod, _structdefs[mod], dtype=dtype)
+    else:
+        rec = log_get_generic_record(log, mod, _structdefs[mod], dtype=dtype)
+
+    return rec
+
+
+
+def log_get_generic_record(log, mod_name, mod_type, dtype='numpy'):
+    """
+    Returns a dictionary holding a generic darshan log record.
+
+    Args:
+        log: Handle returned by darshan.open
+        mod_name (str): Name of the Darshan module
+        mod_type (str): String containing the C type
+
+    Return:
+        dict: generic log record
+
+    Example:
+
+    The typical darshan log record provides two arrays, on for integer counters
+    and one for floating point counters:
+
+    >>> darshan.log_get_generic_record(log, "POSIX", "struct darshan_posix_file **")
+    {'counters': array([...], dtype=int64), 'fcounters': array([...])}
+
+    """
+    modules = log_get_modules(log)
+
+    rec = {}
+    buf = ffi.new("void **")
+    r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
+    if r < 1:
+        return None
+    rbuf = ffi.cast(mod_type, buf)
+
+    rec['id'] = rbuf[0].base_rec.id
+    rec['rank'] = rbuf[0].base_rec.rank
+
+    clst = []
+    for i in range(0, len(rbuf[0].counters)):
+        clst.append(rbuf[0].counters[i])
+    rec['counters'] = np.array(clst, dtype=np.int64)
+    cdict = dict(zip(counter_names(mod_name), rec['counters']))
+
+    flst = []
+    for i in range(0, len(rbuf[0].fcounters)):
+        flst.append(rbuf[0].fcounters[i])
+    rec['fcounters'] = np.array(flst, dtype=np.float64)
+    fcdict = dict(zip(fcounter_names(mod_name), rec['fcounters']))
+
+    if dtype == "dict":
+        rec.update({
+            'counters': cdict, 
+            'fcounters': fcdict
+            })
+
+    if dtype == "pandas":
+        df_c = pd.DataFrame(cdict, index=[0])
+        df_fc = pd.DataFrame(fcdict, index=[0])
+
+        # flip column order (to prepend id and rank)
+        df_c = df_c[df_c.columns[::-1]]
+        df_fc = df_fc[df_fc.columns[::-1]]
+
+        # attach id and rank to counters and fcounters
+        df_c['id'] = rec['id']
+        df_c['rank'] = rec['rank']
+
+        df_fc['id'] = rec['id']
+        df_fc['rank'] = rec['rank']
+
+        # flip column order
+        df_c = df_c[df_c.columns[::-1]]
+        df_fc = df_fc[df_fc.columns[::-1]]
+
+        rec.update({
+            'counters': df_c,
+            'fcounters': df_fc
+            })
+
+    return rec
+
+
+def counter_names(mod_name, fcnts=False):
+    """
+    Returns a list of available counter names for the module.
+    By default only integer counter names are listed, unless fcnts is set to
+    true in which case only the floating point counter names are listed.
+
+    Args:
+        mod_name (str): Name of the module to return counter names.
+        fcnts (bool): Switch to request floating point counters instead of integer. (Default: False)
+
+    Return:
+        list: Counter names as strings.
+
+    """
+
+    if mod_name == 'MPI-IO':
+        mod_name = 'MPIIO'
+
+    names = []
+    i = 0
+
+    if fcnts:
+        F = "f_"
+    else:
+        F = ""
+
+    end = "{0}_{1}NUM_INDICES".format(mod_name.upper(), F.upper())
+    var_name = "{0}_{1}counter_names".format(mod_name.lower(), F.lower())
+
+    while True: 
+        try:
+            var = getattr(libdutil, var_name)
+        except:
+            var = None
+        if not var:
+            return None
+        name = ffi.string(var[i]).decode("utf-8")
+        if name == end:
+            break
+        names.append(name)
+        i += 1
+    return names
+
+
+def fcounter_names(mod_name):
+    """
+    Returns a list of available floating point counter names for the module.
+
+    Args:
+        mod_name (str): Name of the module to return counter names.
+
+    Return:
+        list: Available floiting point counter names as strings.
+
+    """
+    return counter_names(mod_name, fcnts=True)
+
+
+def _log_get_lustre_record(log, dtype='numpy'):
+    """
+    Returns a darshan log record for Lustre.
+
+    Args:
+        log: handle returned by darshan.open
+    """
+    modules = log_get_modules(log)
+
+    rec = {}
+    buf = ffi.new("void **")
+    r = libdutil.darshan_log_get_record(log['handle'], modules['LUSTRE']['idx'], buf)
+    if r < 1:
+        return None
+    rbuf = ffi.cast("struct darshan_lustre_record **", buf)
+
+    rec['id'] = rbuf[0].base_rec.id
+    rec['rank'] = rbuf[0].base_rec.rank
+
+    clst = []
+    for i in range(0, len(rbuf[0].counters)):
+        clst.append(rbuf[0].counters[i])
+    rec['counters'] = np.array(clst, dtype=np.int64)
+   
+    # counters
+    cdict = dict(zip(counter_names('LUSTRE'), rec['counters']))
+
+    # ost_ids 
+    sizeof_64 = ffi.sizeof("int64_t")
+    sizeof_base = ffi.sizeof("struct darshan_base_record")
+    offset = sizeof_base + sizeof_64 * len(rbuf[0].counters)
+    offset = int(offset/sizeof_64)
+
+    ost_ids = ffi.cast("int64_t *", rbuf[0])
+    ostlst = []
+    for i in range(offset, cdict['LUSTRE_STRIPE_WIDTH']+offset):
+        ostlst.append(ost_ids[i])
+    rec['ost_ids'] = np.array(ostlst, dtype=np.int64)
+
+
+    # dtype conversion
+    if dtype == "dict":
+        rec.update({
+            'counters': cdict, 
+            'ost_ids': ostlst
+            })
+
+    if dtype == "pandas":
+        df_c = pd.DataFrame(cdict, index=[0])
+
+        # prepend id and rank
+        df_c = df_c[df_c.columns[::-1]] # flip colum order
+        df_c['id'] = rec['id']
+        df_c['rank'] = rec['rank']
+        df_c = df_c[df_c.columns[::-1]] # flip back
+
+        rec.update({
+            'counters': df_c,
+            'ost_ids': pd.DataFrame(rec['ost_ids'], columns=['ost_ids']),
+            })
+
+    return rec
+
+
+
+def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, dtype='dict'):
     """
     Returns a dictionary holding a dxt darshan log record.
 
@@ -291,7 +548,7 @@ def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='d
         rec['read_segments'].append(seg)
 
 
-    if mode == "pandas":
+    if dtype == "pandas":
         rec['read_segments'] = pd.DataFrame(rec['read_segments'])
         rec['write_segments'] = pd.DataFrame(rec['write_segments'])
 
@@ -299,242 +556,4 @@ def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, mode='d
 
 
 
-def log_get_generic_record(log, mod_name, mod_type, mode='numpy'):
-    """
-    Returns a dictionary holding a generic darshan log record.
 
-    Args:
-        log: Handle returned by darshan.open
-        mod_name (str): Name of the Darshan module
-        mod_type (str): String containing the C type
-
-    Return:
-        dict: generic log record
-
-    Example:
-
-    The typical darshan log record provides two arrays, on for integer counters
-    and one for floating point counters:
-
-    >>> darshan.log_get_generic_record(log, "POSIX", "struct darshan_posix_file **")
-    {'counters': array([...], dtype=int64), 'fcounters': array([...])}
-
-    """
-    modules = log_get_modules(log)
-
-    rec = {}
-    buf = ffi.new("void **")
-    r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
-    if r < 1:
-        return None
-    rbuf = ffi.cast(mod_type, buf)
-
-    rec['id'] = rbuf[0].base_rec.id
-    rec['rank'] = rbuf[0].base_rec.rank
-
-    clst = []
-    for i in range(0, len(rbuf[0].counters)):
-        clst.append(rbuf[0].counters[i])
-    rec['counters'] = np.array(clst, dtype=np.int64)
-    cdict = dict(zip(counter_names(mod_name), rec['counters']))
-
-    flst = []
-    for i in range(0, len(rbuf[0].fcounters)):
-        flst.append(rbuf[0].fcounters[i])
-    rec['fcounters'] = np.array(flst, dtype=np.float64)
-    fcdict = dict(zip(fcounter_names(mod_name), rec['fcounters']))
-
-    if mode == "dict":
-        rec = {'counters': cdict, 'fcounter': fcdict}
-
-    if mode == "pandas":
-        rec = {
-                'counters': pd.DataFrame(cdict, index=[0]),
-                'fcounters': pd.DataFrame(fcdict, index=[0])
-                }
-
-    return rec
-
-
-def counter_names(mod_name, fcnts=False):
-    """
-    Returns a list of available counter names for the module.
-    By default only integer counter names are listed, unless fcnts is set to
-    true in which case only the floating point counter names are listed.
-
-    Args:
-        mod_name (str): Name of the module to return counter names.
-        fcnts (bool): Switch to request floating point counters instead of integer. (Default: False)
-
-    Return:
-        list: Counter names as strings.
-
-    """
-
-    if mod_name == 'MPI-IO':
-        mod_name = 'MPIIO'
-
-    names = []
-    i = 0
-
-    if fcnts:
-        F = "f_"
-    else:
-        F = ""
-
-    end = "{0}_{1}NUM_INDICES".format(mod_name.upper(), F.upper())
-    var_name = "{0}_{1}counter_names".format(mod_name.lower(), F.lower())
-
-    while True: 
-        try:
-            var = getattr(libdutil, var_name)
-        except:
-            var = None
-        if not var:
-            return None
-        name = ffi.string(var[i]).decode("utf-8")
-        if name == end:
-            break
-        names.append(name)
-        i += 1
-    return names
-
-
-def fcounter_names(mod_name):
-    """
-    Returns a list of available floating point counter names for the module.
-
-    Args:
-        mod_name (str): Name of the module to return counter names.
-
-    Return:
-        list: Available floiting point counter names as strings.
-
-    """
-    return counter_names(mod_name, fcnts=True)
-
-
-def log_get_bgq_record(log):
-    """
-    Returns a darshan log record for BG/Q.
-
-    Args:
-        log: handle returned by darshan.open
-    """
-    return log_get_generic_record(log, "BG/Q", "struct darshan_bgq_record **")
-
-
-def log_get_hdf5_file_record(log):
-    """
-    Returns a darshan log record for an HDF5 file.
-
-    Args:
-        log: handle returned by darshan.open
-    """
-    return log_get_generic_record(log, "H5F", "struct darshan_hdf5_file **")
-
-def log_get_hdf5_dataset_record(log):
-    """
-    Returns a darshan log record for an HDF5 dataset.
-
-    Args:
-        log: handle returned by darshan.open
-    """
-    return log_get_generic_record(log, "H5D", "struct darshan_hdf5_dataset **")
-
-def log_get_lustre_record(log):
-    """
-    Returns a darshan log record for Lustre.
-
-    Args:
-        log: handle returned by darshan.open
-    """
-    modules = log_get_modules(log)
-
-    rec = {}
-    buf = ffi.new("void **")
-    r = libdutil.darshan_log_get_record(log['handle'], modules['LUSTRE']['idx'], buf)
-    if r < 1:
-        return None
-    rbuf = ffi.cast("struct darshan_lustre_record **", buf)
-
-    rec['id'] = rbuf[0].base_rec.id
-    rec['rank'] = rbuf[0].base_rec.rank
-
-    clst = []
-    for i in range(0, len(rbuf[0].counters)):
-        clst.append(rbuf[0].counters[i])
-    rec['counters'] = np.array(clst, dtype=np.int64)
-    cdict = dict(zip(counter_names('LUSTRE'), rec['counters']))
-
-    # FIXME
-    ostlst = []
-    for i in range(0, cdict['LUSTRE_STRIPE_WIDTH']):
-        print(rbuf[0].ost_ids[i])
-    rec['ost_ids'] = np.array(ostlst, dtype=np.int64)
-
-    print(rec['ost_ids'])
-    sys.exit()
-
-    if mode == "dict":
-        rec = {'counters': cdict, 'fcounter': fcdict}
-
-    if mode == "pandas":
-        rec = {
-                'counters': pd.DataFrame(cdict, index=[0]),
-                'fcounters': pd.DataFrame(fcdict, index=[0])
-                }
-
-    return rec
-
-def log_get_mpiio_record(log):
-    """
-    Returns a darshan log record for MPI-IO.
-
-    Args:
-        log: handle returned by darshan.open
-
-    Returns:
-        dict: log record
-    """
-    return log_get_generic_record(log, "MPI-IO", "struct darshan_mpiio_file **")
-
-
-def log_get_pnetcdf_record(log):
-    """
-    Returns a darshan log record for PnetCDF.
-
-    Args:
-        log: handle returned by darshan.open
-
-    Returns:
-        dict: log record
-    """
-    return log_get_generic_record(log, "PNETCDF", "struct darshan_pnetcdf_file **")
-
-
-def log_get_posix_record(log):
-    """
-    Returns a darshan log record for 
-
-    Args:
-        log: handle returned by darshan.open
-
-    Returns:
-        dict: log record
-    """
-    return log_get_generic_record(log, "POSIX", "struct darshan_posix_file **")
-
-
-
-def log_get_stdio_record(log):
-    """
-    Returns a darshan log record for STDIO.
-
-    Args:
-        log: handle returned by darshan.open
-
-    Returns:
-        dict: log record
-    """
-    return log_get_generic_record(log, "STDIO", "struct darshan_stdio_file **")

@@ -18,6 +18,10 @@ import sys
 import numpy as np
 import pandas as pd
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 class DarshanReportJSONEncoder(json.JSONEncoder):
     """
@@ -34,7 +38,8 @@ class DarshanReportJSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-structdefs = {
+
+_structdefs = {
     "BG/Q": "struct darshan_bgq_record **",
     "DXT_MPIIO": "struct dxt_file_record **",
     "DXT_POSIX": "struct dxt_file_record **",
@@ -56,26 +61,46 @@ class DarshanReport(object):
     a number of common aggregations can be performed.
     """
 
-    def __init__(self, filename=None, data_format='pandas', automatic_summary=False,
+    # a way to conser memory?
+    #__slots__ = ['attr1', 'attr2']
+
+
+    def __init__(self, 
+            filename=None, dtype='pandas', 
+            start_time=None, end_time=None,
+            automatic_summary=False,
             read_all=True, lookup_name_records=True):
+        """
+        Args:
+            filename (str): filename to open (optional)
+            dtype (str): default dtype for internal structures
+            automatic_summary (bool): automatically generate summary after loading
+            read_all (bool): whether to read all records for log
+            lookup_name_records (bool): lookup and update name_records as records are loaded
+
+        Return:
+            None
+
+        """
         self.filename = filename
 
-        # options
-        self.data_format = data_format  # Experimental: preferred internal representation: pandas/numpy useful for aggregations, dict good for export/REST
+        # Behavioral Options
+        self.dtype = dtype  # Experimental: preferred internal representation: pandas/numpy useful for aggregations, dict good for export/REST
                                         # might require alternative granularity: e.g., records, vs summaries?
                                         # vs dict/pandas?  dict/native?
         self.automatic_summary = automatic_summary
         self.lookup_name_records = lookup_name_records
 
-
-        # state dependent book-keeping
+        # State dependent book-keeping
         self.converted_records = False  # true if convert_records() was called (unnumpyfy)
 
-        # 
-        self.start_time = float('inf')
-        self.end_time = float('-inf')
 
-        # initialize data namespaces
+        # Report Metadata
+        self.start_time = start_time if start_time else float('inf')
+        self.end_time = end_time if end_time else float('-inf')
+        self.timebase = self.start_time
+
+        # Initialize data namespaces
         self.metadata = {}
         self.modules = {}
         self.counters = {}
@@ -84,7 +109,7 @@ class DarshanReport(object):
         self.name_records = {}
 
         # initialize report/summary namespace
-        self.summary_revision = 0       # counter to check if summary needs update
+        self.summary_revision = 0       # counter to check if summary needs update (see data_revision)
         self.summary = {}
 
 
@@ -103,7 +128,7 @@ class DarshanReport(object):
         # when using report algebra this log allows to untangle potentially
         # unfair aggregations (e.g., double accounting)
         self.provenance_enabled = True
-        self.provenance_log = []
+        self.provenance_graph = []
         self.provenance_reports = {}
 
 
@@ -150,7 +175,8 @@ class DarshanReport(object):
         """
         Creates a deepcopy of report.
 
-        NOTE: Needed to purge reference to self.log as Cdata can not be pickled:
+        .. note::
+            Needed to purge reference to self.log as Cdata can not be pickled:
             TypeError: can't pickle _cffi_backend.CData objects
         """
 
@@ -223,15 +249,15 @@ class DarshanReport(object):
         ids = set()
 
         for mod in mods:
-            print(mod)
+            logger.debug(f" Refreshing name_records for mod={mod}")
             for rec in self.records[mod]:
                 ids.add(rec['id'])
 
 
-        self.name_records = backend.log_lookup_name_records(self.log, ids)
+        self.name_records.update(backend.log_lookup_name_records(self.log, ids))
         
 
-    def read_all(self):
+    def read_all(self, dtype=None):
         """
         Read all available records from darshan log and return as dictionary.
 
@@ -241,12 +267,15 @@ class DarshanReport(object):
         Return:
             None
         """
-        self.read_all_generic_records()
-        self.read_all_dxt_records()
+
+        self.read_all_generic_records(dtype=dtype)
+        self.read_all_dxt_records(dtype=dtype)
+        self.mod_read_all_lustre_records(dtype=dtype)
+        
         return
 
 
-    def read_all_generic_records(self, counters=True, fcounters=True):
+    def read_all_generic_records(self, counters=True, fcounters=True, dtype=None):
         """
         Read all generic records from darshan log and return as dictionary.
 
@@ -256,13 +285,16 @@ class DarshanReport(object):
         Return:
             None
         """
+
+        dtype = dtype if dtype else self.dtype
+
         for mod in self.data['modules']:
-            self.mod_read_all_records(mod, warnings=False)
+            self.mod_read_all_records(mod, dtype=dtype, warnings=False)
 
         pass
 
 
-    def read_all_dxt_records(self, reads=True, writes=True):
+    def read_all_dxt_records(self, reads=True, writes=True, dtype=None):
         """
         Read all dxt records from darshan log and return as dictionary.
 
@@ -272,19 +304,22 @@ class DarshanReport(object):
         Return:
             None
         """
+
+        dtype = dtype if dtype else self.dtype
+
         for mod in self.data['modules']:
-            self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes)
+            self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes, dtype=dtype)
 
         pass
 
 
-    def mod_read_all_records(self, mod, mode='numpy', warnings=True):
+    def mod_read_all_records(self, mod, dtype=None, warnings=True):
         """
         Reads all generic records for module
 
         Args:
             mod (str): Identifier of module to fetch all records
-            mode (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary, 'pandas'
 
         Return:
             None
@@ -294,53 +329,83 @@ class DarshanReport(object):
 
         if mod in unsupported:
             if warnings:
-                print("Skipping. Currently unsupported:", mod, "in mod_read_all_records().", file=sys.stderr)
+                logger.warning(f" Skipping. Currently unsupported: {mod} in mod_read_all_records().")
             # skip mod
             return 
 
 
-        self.data['records'][mod] = []
+        # handling options
+        dtype = dtype if dtype else self.dtype
 
+
+        self.data['records'][mod] = []
         cn = backend.counter_names(mod)
         fcn = backend.fcounter_names(mod)
 
-
+        # update module metadata
         self.modules[mod]['num_records'] = 0
-
-        
         if mod not in self.counters:
             self.counters[mod] = {}
-        self.counters[mod]['counters'] = cn 
-        self.counters[mod]['fcounters'] = fcn
+            self.counters[mod]['counters'] = cn 
+            self.counters[mod]['fcounters'] = fcn
 
 
-        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], mode=mode)
+        # fetch records
+        rec = backend.log_get_generic_record(self.log, mod, _structdefs[mod], dtype=dtype)
         while rec != None:
-            if mode == 'pandas':
+            if dtype == 'pandas':
                 self.records[mod].append(rec)
-            if mode == 'numpy': 
+            if dtype == 'numpy': 
                 self.records[mod].append(rec)
             else:
-                c = dict(zip(cn, rec['counters']))
-                fc = dict(zip(fcn, rec['fcounters']))
-                self.records[mod].append([c, fc])
-
+                self.records[mod].append(rec)
 
             self.modules[mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
+            rec = backend.log_get_generic_record(self.log, mod, _structdefs[mod], dtype=dtype)
+
+
+        if self.lookup_name_records:
+            self.update_name_records()
+
+        # process/combine records if the format dtype allows for this
+        if dtype == 'pandas':
+            combined_c = None
+            combined_fc = None
+
+            for rec in self.records[mod]:
+                obj = rec['counters']
+                #print(type(obj))
+                #display(obj)
+                
+                if combined_c is None:
+                    combined_c = rec['counters']
+                else:
+                    combined_c = pd.concat([combined_c, rec['counters']])
+                    
+                if combined_fc is None:
+                    combined_fc = rec['fcounters']
+                else:
+                    combined_fc = pd.concat([combined_fc, rec['fcounters']])
+
+            self.records[mod] = [{
+                'rank': -1,
+                'id': -1,
+                'counters': combined_c,
+                'fcounters': combined_fc
+                }]
 
         pass
 
 
-    def mod_read_all_dxt_records(self, mod, mode='numpy', warnings=True, reads=True, writes=True):
+    def mod_read_all_dxt_records(self, mod, dtype=None, warnings=True, reads=True, writes=True):
         """
         Reads all dxt records for provided module.
 
         Args:
             mod (str): Identifier of module to fetch all records
-            mode (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
 
         Return:
             None
@@ -348,7 +413,7 @@ class DarshanReport(object):
         """
         if mod not in self.data['modules']:
             if warnings:
-                print("Skipping. Log does not contain data for mod:", mod, file=sys.stderr)
+                logger.warning(f"Skipping. Log does not contain data for mod: {mod}")
             return
 
 
@@ -356,56 +421,140 @@ class DarshanReport(object):
 
         if mod not in supported:
             if warnings:
-                print("Skipping. Currently unsupported:", mod, 'in mod_read_all_dxt_records().', file=sys.stderr)
+                logger.warning(f" Skipping. Unsupported module: {mod} in in mod_read_all_dxt_records(). Supported: {supported}")
             # skip mod
             return 
 
 
-        #structdefs = {
-        #    "DXT_POSIX": "struct dxt_file_record **",
-        #    "DXT_MPIIO": "struct dxt_file_record **",
-        #}
+        # handling options
+        dtype = dtype if dtype else self.dtype
 
 
         self.records[mod] = []
+
+        # update module metadata
         self.modules[mod]['num_records'] = 0
-
-
         if mod not in self.counters:
             self.counters[mod] = {}
 
 
-        rec = backend.log_get_dxt_record(self.log, mod, structdefs[mod])
+        # fetch records
+        rec = backend.log_get_dxt_record(self.log, mod, _structdefs[mod], dtype=dtype)
         while rec != None:
-            if mode == 'numpy': 
+            if dtype == 'numpy': 
                 self.records[mod].append(rec)
             else:
-                print("Not implemented.")
-                exit(1)
-
-                #c = dict(zip(cn, rec['counters']))
-                #fc = dict(zip(fcn, rec['fcounters']))
-                #self.data['records'][mod].append([c, fc])
-                pass
-
+                self.records[mod].append(rec)
 
             self.data['modules'][mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_dxt_record(self.log, mod, structdefs[mod], reads=reads, writes=writes)
+            rec = backend.log_get_dxt_record(self.log, mod, _structdefs[mod], reads=reads, writes=writes, dtype=dtype)
+
+
+        if self.lookup_name_records:
+            self.update_name_records()
 
         pass
 
 
-    def mod_records(self, mod, mode='numpy', warnings=True):
+
+    def mod_read_all_lustre_records(self, mod="LUSTRE", dtype=None, warnings=True):
+        """
+        Reads all dxt records for provided module.
+
+        Args:
+            mod (str): Identifier of module to fetch all records
+            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+
+        Return:
+            None
+
+        """
+        if mod not in self.data['modules']:
+            if warnings:
+                logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
+            return
+
+
+        supported =  ['LUSTRE']
+
+        if mod not in supported:
+            if warnings:
+                logger.warning(f" Skipping. Unsupported module: {mod} in in mod_read_all_dxt_records(). Supported: {supported}")
+            # skip mod
+            return 
+
+
+        # handling options
+        dtype = dtype if dtype else self.dtype
+
+
+        self.records[mod] = []
+        cn = backend.counter_names(mod)
+
+        # update module metadata
+        self.modules[mod]['num_records'] = 0
+        if mod not in self.counters:
+            self.counters[mod] = {}
+            self.counters[mod]['counters'] = cn 
+
+
+        # fetch records
+        rec = backend.log_get_record(self.log, mod, dtype=dtype)
+        while rec != None:
+            self.records[mod].append(rec)
+            self.data['modules'][mod]['num_records'] += 1
+
+            # fetch next
+            rec = backend.log_get_record(self.log, mod, dtype=dtype)
+
+
+        if self.lookup_name_records:
+            self.update_name_records()
+
+        # process/combine records if the format dtype allows for this
+        if dtype == 'pandas':
+            combined_c = None
+
+            for rec in self.records[mod]:
+                obj = rec['counters']
+                #print(type(obj))
+                #display(obj)
+                
+                if combined_c is None:
+                    combined_c = rec['counters']
+                else:
+                    combined_c = pd.concat([combined_c, rec['counters']])
+                    
+
+            self.records[mod] = [{
+                'rank': -1,
+                'id': -1,
+                'counters': combined_c,
+                }]
+
+
+        pass
+
+
+
+
+    def mod_records(self, mod, 
+                    dtype='numpy', warnings=True):
         """
         Return generator for lazy record loading and traversal.
-        
-        WARNING: Can't be used for now when alternating between different modules.
+
+        .. warning::
+            Can't be used for now when alternating between different modules.
+            A temporary workaround can be to open the same log multiple times,
+            as this ways buffers are not shared between get_record invocations
+            in the lower level library.
+
 
         Args:
             mod (str): Identifier of module to fetch records for
-            mode (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
 
         Return:
             None
@@ -419,12 +568,12 @@ class DarshanReport(object):
         self.counters[mod]['counters'] = cn 
         self.counters[mod]['fcounters'] = fcn
 
-        rec = backend.log_get_generic_record(self.log, mod, structdefs[mod], mode=mode)
+        rec = backend.log_get_generic_record(self.log, mod, _structdefs[mod], dtype=dtype)
         while rec != None:
             yield rec
 
             # fetch next
-            rec = backend.log_get_generic_record(self.log, mod, structdefs[mod])
+            rec = backend.log_get_generic_record(self.log, mod, _structdefs[mod])
 
 
     def info(self, metadata=False):
@@ -495,7 +644,33 @@ class DarshanReport(object):
         #print("Memory:", get_size(self), 'bytes')
 
 
-    def to_dict():
+    ###########################################################################
+    # Internal Organisation
+    ###########################################################################
+    def rebase_timestamps(records=None, inplace=False, timebase=False):
+        """
+        Updates all records in the report to use timebase (defaults: start_time).
+        This might allow to conserve memory as reports are merged.
+
+        Args:
+            records (dict, list):  records to rebase
+            inplace (bool): weather to merel return a copy or to update records
+            timebase (datetime.datetime): new timebase to use
+
+        Return:
+            rebased_records (same type as provided to records)
+        """
+        rebase_records = copy.deepcopy(record)
+
+        # TODO: apply timestamp rebase
+        # TODO: settle on format
+
+        return rebased_records
+
+    ###########################################################################
+    # Conversion 
+    ###########################################################################
+    def to_dict(self):
         """
         Return dictionary representation of report data.
 
@@ -510,8 +685,17 @@ class DarshanReport(object):
         recs = data['records']
         for mod in recs:
             for i, rec in enumerate(data['records'][mod]):
-                recs[mod][i]['counters'] = rec['counters'].tolist()
-                recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
+                try:
+                    recs[mod][i]['counters'] = rec['counters'].tolist()
+                except KeyError:
+                    logger.debug(f" to_json: mod={mod} does not include counters")
+                    pass
+                    
+                try: 
+                    recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
+                except KeyError:
+                    logger.debug(f" to_json: mod={mod} does not include fcounters")
+                    pass
 
         return data
 
@@ -531,7 +715,23 @@ class DarshanReport(object):
         recs = data['records']
         for mod in recs:
             for i, rec in enumerate(data['records'][mod]):
-                recs[mod][i]['counters'] = rec['counters'].tolist()
-                recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
+                try:
+                    recs[mod][i]['counters'] = rec['counters'].tolist()
+                except KeyError:
+                    logger.debug(f" to_json: mod={mod} does not include counters")
+                    pass
+                    
+                try: 
+                    recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
+                except KeyError:
+                    logger.debug(f" to_json: mod={mod} does not include fcounters")
+                    pass
 
         return json.dumps(data, cls=DarshanReportJSONEncoder)
+
+
+
+
+    @staticmethod
+    def from_string(string):
+        return DarshanReport()

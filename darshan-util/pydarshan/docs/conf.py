@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# pydarshan documentation build configuration file, created by
+# Documentation build configuration file, created by
 # sphinx-quickstart on Fri Jun  9 13:47:02 2017.
 #
 # This file is execfile()d with the current directory set to its
@@ -63,7 +63,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'darshan'
+project = u'Darshan'
 copyright = u"2019, ANL"
 author = u""
 
@@ -128,9 +128,7 @@ htmlhelp_basename = 'darshandoc'
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'pydarshan',
-     u'pydarshan Documentation',
-     [author], 1)
+    (master_doc, 'pydarshan', u'pydarshan Documentation', [author], 1)
 ]
 
 
@@ -159,9 +157,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass
 # [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'pydarshan.tex',
-     u'pydarshan Documentation',
-     u'Argonne National Laboratory', 'manual'),
+    (master_doc, 'pydarshan.tex', u'pydarshan Documentation', u'Argonne National Laboratory', 'manual'),
 ]
 
 
@@ -171,12 +167,7 @@ latex_documents = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'pydarshan',
-     u'pydarshan Documentation',
-     author,
-     'pydarshan',
-     'One line description of project.',
-     'Miscellaneous'),
+    (master_doc, 'pydarshan', u'pydarshan Documentation', author, 'pydarshan', 'Python utilities for Darshan HPC I/O instrumentation.', 'Miscellaneous'),
 ]
 
 

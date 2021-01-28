@@ -1,0 +1,33 @@
+
+
+To build manylinux compliant python packages:
+https://github.com/pypa/python-manylinux-demo
+
+
+Alternatively, consider cibuildwheel, e.g. for mac builds.
+https://cibuildwheel.readthedocs.io/en/stable/setup/
+
+
+
+
+
+
+
+# Debugging the Build Process
+
+To debug the build process ensure the docker image is pulled and start in interactive session as follows:
+
+	DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64
+	PLAT=manylinux1_x86_64
+
+	docker pull $DOCKER_IMAGE
+	docker run -e PLAT=$PLAT -v `pwd`/../:/io -v `pwd`/../../..:/darshan -it $DOCKER_IMAGE /bin/bash
+
+
+Or to jump into a running docker container:
+
+	docker exec -it <NAME> bash
+
+
+
+

@@ -5,24 +5,59 @@
 
 import os
 
+import logging
+logger = logging.getLogger(__name__)
 
 
+verbose_discovery = False
+if verbose_discovery:
+    logging.basicConfig()           # ensure out streams exist
+    logger.setLevel(logging.DEBUG)  # set log-level
 
-def check_version():
+
+def check_version(ffi=None, libdutil=None):
     """
-    Get version from pkg-config and return info.
+    Get version from shared library or pkg-config and return info.
 
     :return: Path to a darshan-util installation.
     """
+    lib_version = None
 
-    import subprocess
 
-    args = ['pkg-config', '--modversion', 'darshan-util']
-    p = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd='.')
-    out,err = p.communicate()
-    retval = p.wait()
+    # query library directly (preferred)
+    if ffi is not None and libdutil is not None:
+        ver = ffi.new("char **")
+        ver = libdutil.darshan_log_get_lib_version()
+        lib_version = ffi.string(ver).decode("utf-8")
+        logger.debug(f" Found lib_version={lib_version} via ffi.")
 
-    return out.decode('ascii').strip()
+    # pkgconfig fallback
+    if lib_version is None:
+        logger.warning("WARNING: Using pk-config fallback.")
+        import subprocess
+        args = ['pkg-config', '--modversion', 'darshan-util']
+        p = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd='.')
+        out,err = p.communicate()
+        retval = p.wait()
+        lib_version = out.decode('ascii').strip()
+        logger.debug(f" Found lib_version={lib_version} via pkgconfig.")
+
+
+    import darshan
+   
+    package_version = darshan.__darshanutil_version__.split(".")
+    lib_version = lib_version.split(".")
+    
+    if package_version[0:3] != lib_version[0:3]:
+        from darshan.error import DarshanVersionError
+        raise DarshanVersionError(
+                target_version = ".".join(package_version[0:3]),
+                provided_version = ".".join(lib_version), 
+                msg="This version of PyDarshan")
+
+
+    return lib_version
+
 
 
 def discover_darshan_pkgconfig():
@@ -65,9 +100,52 @@ def discover_darshan_shutil():
         raise RuntimeError('Could not discover darshan! Is darshan-util installed and set in your PATH?')
 
 
+def discover_darshan_wheel():
+    """
+    Discovers darshan-util if installed as as part of the wheel.
+
+    :return: Path to a darshan-util installation.
+    """
+
+    path = os.path.dirname(__file__)
+
+    if path:
+        return os.path.realpath(path + '/../darshan.libs')
+    else:
+        raise RuntimeError('Could not discover darshan! Is darshan-util installed and set in your PATH?')
+
+
+def discover_darshan_pyinstaller():
+    """
+    Discovers darshan-util if installed as as part of a pyinstaller bundle.
+
+    :return: Path to a darshan-util installation.
+    """
+
+    path = os.path.dirname(__file__)
+
+    if path:
+        return os.path.realpath(path + '/../')
+    else:
+        raise RuntimeError('Could not discover darshan! Is darshan-util installed and set in your PATH?')
+
 
 
 def find_utils(ffi, libdutil):
+    """
+    Try different methods to discover darshan-util:
+
+    Precedence:
+    1) Try if the current environment allows dlopen to load libdarshan-util
+    2) Try if darshan-parser is exposed via PATH, and attempt loading relative to it.
+    3) Try if darshan is exposed via pkgconfig
+    4) Fallback on binary distributed along with Python package
+
+    Args:
+        ffi: existing ffi instance to use
+        libdutil: reference to libdutil to populate
+
+    """
     if libdutil is None:
         try:
             libdutil = ffi.dlopen("libdarshan-util.so")
@@ -76,21 +154,50 @@ def find_utils(ffi, libdutil):
 
     if libdutil is None:
         try:
-            DARSHAN_PATH = discover_darshan_shutil()
-            libdutil = ffi.dlopen(DARSHAN_PATH + "/lib/libdarshan-util.so")
+            library_path = discover_darshan_shutil()
+            logger.debug(f"Attempting library_path={library_path} via shutil discovery.")
+            libdutil = ffi.dlopen(library_path + "/lib/libdarshan-util.so")
         except:
             libdutil = None
-            print("shutil failed")
 
     if libdutil is None:
         try:
-            DARSHAN_PATH = discover_darshan_pkgconfig()
-            libdutil = ffi.dlopen(DARSHAN_PATH + "/lib/libdarshan-util.so")
+            library_path = discover_darshan_pkgconfig()
+            logger.debug(f"Attempting library_path={library_path} via pkgconfig discovery.")
+            libdutil = ffi.dlopen(library_path + "/lib/libdarshan-util.so")
         except:
             libdutil = None
 
     if libdutil is None:
-        raise RuntimeError('Could not find libdarshan-util.so! Is darshan-util installed? Please ensure one of the the following: 1) export LD_LIBRARY_PATH=<path-to-libdarshan-util.so>, or 2) darshan-parser can found using the PATH variable, or 3) pkg-config can resolve pkg-config --path darshan-util')
+        try:
+            darshan_path = discover_darshan_wheel()
+            import glob
+            library_path = glob.glob(f'{darshan_path}/libdarshan-util*.so')[0]
+            logger.debug(f"Attempting library_path={library_path} in case of binary wheel.")
+            save = os.getcwd()
+            os.chdir(darshan_path)
+            libdutil = ffi.dlopen(library_path)
+            os.chdir(save)
+        except:
+            libdutil = None
+
+    if libdutil is None:
+        try:
+            darshan_path = discover_darshan_pyinstaller()
+            import glob
+            library_path = glob.glob(f'{darshan_path}/libdarshan-util*.so')[0]
+            logger.debug(f"Attempting library_path={library_path} for pyinstaller bundles.")
+            save = os.getcwd()
+            os.chdir(darshan_path)
+            libdutil = ffi.dlopen(library_path)
+            os.chdir(save)
+        except:
+            libdutil = None
+  
+    
+
+    if libdutil is None:
+        raise RuntimeError('Could not find libdarshan-util.so! Is darshan-util installed? Please ensure one of the the following: 1) export LD_LIBRARY_PATH=<path-to-libdarshan-util.so>, or 2) darshan-parser can found using the PATH variable, or 3) pkg-config can resolve pkg-config --path darshan-util, or 4) install a wheel that includes darshan-utils via pip.')
 
     return libdutil
 
@@ -107,7 +214,7 @@ def load_darshan_header():
     filepath = os.path.join(curdir, 'data', 'darshan-api.h')
     # filepath = os.path.join(curdir, 'data', 'generated.h')
 
-    print(filepath)
+    logger.debug(f" load_darshan_header using filepath={filepath}")
 
     with open(filepath, 'r') as f:
         try:

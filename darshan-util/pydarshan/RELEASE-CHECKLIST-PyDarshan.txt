@@ -1,0 +1,48 @@
+Notes on how to release a new version of PyDarshan
+2020-06
+-----------------------
+
+ - Ensure python dev environment with dev dependencies, if not already present
+    (- python3 -m venv venv)
+    (- source venv/bin/activate)
+    (- pip install -r requirements_dev.txt    # deps for packaging, testing, and docs generation)
+
+ - Make sure documentation in docs/ is up to date
+    - commit
+    - make docs
+    - upload docs/build/html contents to /mcs/web/research/projects/darshan/docs
+    - (might eventually connect this with readthedocs to have this automatically uploaded)
+ - Update CHANGELOG.rst
+    - commit
+ - Update version numbers in:
+    setup.py
+    setup.cfg
+    darshan/__init__.py
+
+ - Run tests with tox against different python versions
+    - make test
+        (may extent to test-all which would run against different python verions
+        (flake8 syntax warnings can be ignored)
+    - TODO: CI?
+
+ - Submit to PyPi using twine:
+    - make wheels       # requires docker, creates ./wheelhouse and builds architecture-specific *.whl that include libdarshan-util
+    - make dist         # gathers relevant wheels build earlier, adds non-binary wheel and a source distribution (zip/tgz)
+    - make release      # pushes contents of ./dist/* to PyPi
+        (be prompted for username/password)
+
+ - Add/update spack package: py-darshan
+    - add version entry
+    - add hash of release tar.gz from pypi (because that one should always exist) / or use mcs darshan mirror
+    - check if new dependencies are required (compare to requirements.txt)
+    - submit as pull request to https://github.com/spack/spack
+
+ - Announce:
+    - Regular Darshan Release: Copy release notes for PyDarshan and attach as seperate section (mailinglist, website/blog)
+    - PyDarshan only: Post release note section of PyDarshan (mailinglist, website/blog)
+    
+    
+    
+Note on Versionsformat:
+    Whenever libdarshan-utils has a version change, PyDarshan is bumped accordingly.
+    4th position version numbers allows for PyDarshan to be on a faster release cycle

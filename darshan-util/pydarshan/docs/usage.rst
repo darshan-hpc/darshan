@@ -17,7 +17,7 @@ To use pydarshan in a project::
 
 
     # Python aggregations are still experimental and have to be activated:
-	# calculate or update aggregate statistics for currently loaded records
+    # calculate or update aggregate statistics for currently loaded records
     darshan.enable_experimental()
 	report.summarize()
 

@@ -1,0 +1,63 @@
+# Getting started with PyDarshan
+
+On a Linux distribution with python3 available, the following steps get you
+started. Step 1 could be ommitted, but generally it is recommended not to mess
+with the Python provided by the distribution.
+
+
+
+1) Setup a "virtual environment", activate it and install pydarshan:
+
+python3 -m venv ./venv       # create a new virtual environment and store everything it requires into ./venv
+source ./venv/bin/activate   # activate the environment
+pip install darshan          # install darshan (and it's dependencies) to the virtual environment
+
+
+
+2) Run as a prepared script:
+
+$ python hello.py
+$ python plot.py
+$ python tojson.py 
+
+$ python tojson.py --help
+$ python tojson.py ior_hdf5_example.darshan
+$ ./tojson.py --help
+$ ./tojson.py ior_hdf5_example.darshan
+
+
+
+3) Or interactively using the python intepreter shell:
+
+$ python
+Python 3.8.6 (default, Sep 25 2020, 00:00:00) 
+[GCC 10.2.1 20200723 (Red Hat 10.2.1-1)] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import darshan
+>>> r = darshan.DarshanReport("ior_hdf5_example.darshan", dtype="numpy")    # open a log
+>>> r.info()                                                                # print some basic info 
+Filename:       ior_hdf5_example.darshan
+Times:          2020-07-07 22:57:40 to 2020-07-07 22:57:40 (Duration 0:00:00)
+Executeable:    /global/u2/s/ssnyder/software/ior/build/src/ior -a HDF5 -o /global/cscratch1/sd/ssnyder/test123.h5
+Processes:      4
+JobID:          32324925
+UID:            69628
+Modules in Log: ['POSIX', 'MPI-IO', 'H5F', 'H5D', 'LUSTRE', 'STDIO', 'DXT_POSIX', 'DXT_MPIIO']
+Loaded Records: {'POSIX': 1, 'MPI-IO': 1, 'H5F': 3, 'H5D': 3, 'STDIO': 1, 'DXT_POSIX': 4, 'DXT_MPIIO': 4, 'LUSTRE': 1}
+Name Records:   5
+Darshan/Hints:  {'lib_ver': '3.2.1', 'h': 'romio_no_indep_rw=true;cb_nodes=4'}
+DarshanReport:  id(139904067953952) (tmp)
+>>> 
+>>> 
+>>> # let's plot something
+>>> darshan.enable_experimental()
+>>> from darshan.experimental.plots.matplotlib import *    # provides plot_opcounts, plot_iohist
+>>> plot_opcounts(r).show()
+Summarizing... agg_ioops
+Read,Write,Open,Stat,Seek,Mmap,Fsync,Layer
+36,23,22,4,53,0,0,POSIX
+36,23,1,0,0,0,0,MPIIND
+0,0,16,0,0,0,0,MPICOL
+0,128,1,0,0,0,9,STDIO
+
+>>> quit()
