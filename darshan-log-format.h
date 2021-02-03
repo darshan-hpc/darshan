@@ -144,6 +144,7 @@ struct darshan_base_record
     /* DXT */ \
     X(DXT_POSIX_MOD,       "DXT_POSIX",  DXT_POSIX_VER,         &dxt_posix_logutils) \
     X(DXT_MPIIO_MOD,       "DXT_MPIIO",  DXT_MPIIO_VER,         &dxt_mpiio_logutils) \
+    X(DXT_STDIO_MOD,       "DXT_STDIO",  DXT_STDIO_VER,         &dxt_stdio_logutils) \
     X(DARSHAN_MDHIM_MOD,   "MDHIM",      DARSHAN_MDHIM_VER,     &mdhim_logutils)
 
 

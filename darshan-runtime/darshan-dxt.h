@@ -28,6 +28,12 @@ void dxt_posix_runtime_initialize(void);
  */
 void dxt_mpiio_runtime_initialize(void);
 
+/* dxt_stdio_runtime_initialize()
+ *
+ * DXT function exposed to STDIO module for initializing DXT-MPIIO runtime.
+ */
+void dxt_stdio_runtime_initialize(void);
+
 /* dxt_posix_write(), dxt_posix_read()
  *
  * DXT function to trace a POSIX write/read call to file record 'rec_id',
@@ -48,6 +54,17 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
 void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
         int64_t length, double start_time, double end_time);
 void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
+        int64_t length, double start_time, double end_time);
+
+/* dxt_stdio_write(), dxt_stdio_read()
+ *
+ * DXT function to trace a STDIO write/read call to file record 'rec_id',
+ * at offset 'offset' and with 'length' size. 'start_time' and 'end_time'
+ * are starting and ending timestamps for the operation, respectively.
+ */
+void dxt_stdio_write(darshan_record_id rec_id, int64_t offset,
+        int64_t length, double start_time, double end_time);
+void dxt_stdio_read(darshan_record_id rec_id, int64_t offset,
         int64_t length, double start_time, double end_time);
 
 void dxt_posix_filter_dynamic_traces(

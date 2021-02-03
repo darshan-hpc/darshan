@@ -245,9 +245,9 @@ extern int __real_fileno(FILE *stream);
     rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &(__fp), sizeof(__fp)); \
     if(!rec_ref) break; \
     this_offset = rec_ref->offset; \
-    rec_ref->offset = this_offset + __bytes; \
     /* DXT to record detailed read tracing information */ \
-    dxt_stdio_read(rec_ref->file_rec->base_rec.id, rec_ref->offset, __fp, __tm1, __tm2); \
+    dxt_stdio_read(rec_ref->file_rec->base_rec.id, this_offset, __bytes, __tm1, __tm2); \
+    rec_ref->offset = this_offset + __bytes; \
     if(rec_ref->file_rec->counters[STDIO_MAX_BYTE_READ] < (this_offset + __bytes - 1)) \
         rec_ref->file_rec->counters[STDIO_MAX_BYTE_READ] = (this_offset + __bytes - 1); \
     rec_ref->file_rec->counters[STDIO_BYTES_READ] += __bytes; \
@@ -265,9 +265,9 @@ extern int __real_fileno(FILE *stream);
     rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &(__fp), sizeof(__fp)); \
     if(!rec_ref) break; \
     this_offset = rec_ref->offset; \
-    rec_ref->offset = this_offset + __bytes; \
     /* DXT to record detailed write tracing information */ \
-    dxt_stdio_write(rec_ref->file_rec->base_rec.id, rec_ref->offset, __fp, __tm1, __tm2); \
+    dxt_stdio_write(rec_ref->file_rec->base_rec.id, this_offset, __bytes, __tm1, __tm2); \
+    rec_ref->offset = this_offset + __bytes; \
     if(rec_ref->file_rec->counters[STDIO_MAX_BYTE_WRITTEN] < (this_offset + __bytes - 1)) \
         rec_ref->file_rec->counters[STDIO_MAX_BYTE_WRITTEN] = (this_offset + __bytes - 1); \
     rec_ref->file_rec->counters[STDIO_BYTES_WRITTEN] += __bytes; \
@@ -1321,7 +1321,7 @@ static struct darshan_stdio_file *darshan_stdio_rec_id_to_file(darshan_record_id
 {
     struct stdio_file_record_ref *rec_ref;
 
-    rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash,
+    rec_ref = darshan_lookup_record_ref(stdio_runtime->rec_id_hash,
         &rec_id, sizeof(darshan_record_id));
     if(rec_ref)
         return(rec_ref->file_rec);
@@ -1352,9 +1352,6 @@ static void stdio_mpi_redux(
 
     STDIO_LOCK();
     assert(stdio_runtime);
-
-    /* allow DXT a chance to filter traces based on dynamic triggers */
-    dxt_stdio_filter_dynamic_traces(darshan_stdio_rec_id_to_file);
 
     stdio_rec_count = stdio_runtime->file_rec_count;
 
