@@ -224,7 +224,7 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
         }
 
 #ifdef DARSHAN_HDF5_PAR_BUILD
-        if(access_plist != H5P_DEFAULT && H5Pget_fapl_mpio(access_plist, NULL, NULL) >= 0)
+        if(access_plist != H5P_DEFAULT && H5Pget_driver(access_plist) == H5FD_MPIO)
             use_mpio = 1;
 #endif
 
@@ -300,7 +300,7 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
         }
 
 #ifdef DARSHAN_HDF5_PAR_BUILD
-        if(access_plist != H5P_DEFAULT && H5Pget_fapl_mpio(access_plist, NULL, NULL) >= 0)
+        if(access_plist != H5P_DEFAULT && H5Pget_driver(access_plist) == H5FD_MPIO)
             use_mpio = 1;
 #endif
 
