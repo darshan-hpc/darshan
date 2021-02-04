@@ -55,9 +55,11 @@ static void bgq_mpi_redux(
     MPI_Comm mod_comm,
     darshan_record_id *shared_recs,
     int shared_rec_count);
-static void bgq_shutdown(
+static void bgq_output(
     void **buffer,
     int *size);
+static void bgq_cleanup(
+    void);
 
 /* macros for obtaining/releasing the BGQ module lock */
 #define BGQ_LOCK() pthread_mutex_lock(&bgq_runtime_mutex)
@@ -113,7 +115,8 @@ void bgq_runtime_initialize()
 #ifdef HAVE_MPI
         .mod_redux_func = &bgq_mpi_redux,
 #endif
-        .mod_shutdown_func = &bgq_shutdown
+        .mod_output_func = &bgq_output,
+        .mod_output_func = &bgq_cleanup
         };
 
     BGQ_LOCK();
@@ -187,7 +190,7 @@ static int cmpr(const void *p1, const void *p2)
 }
 
 /********************************************************************************
- * shutdown function exported by this module for coordinating with darshan-core *
+ *      functions exported by this module for coordinating with darshan-core    *
  ********************************************************************************/
 
 static void bgq_mpi_redux(
@@ -264,11 +267,19 @@ static void bgq_shutdown(
         *size   = 0;
     }
 
+    BGQ_UNLOCK();
+    return;
+}
+
+static void bgq_cleanup()
+{
+    BGQ_LOCK();
+    assert(bgq_runtime);
+
     free(bgq_runtime);
     bgq_runtime = NULL;
 
     BGQ_UNLOCK();
-
     return;
 }
 

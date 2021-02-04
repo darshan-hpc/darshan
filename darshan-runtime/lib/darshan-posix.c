@@ -173,8 +173,6 @@ static struct posix_aio_tracker* posix_aio_tracker_del(
     int fd, void *aiocbp);
 static void posix_finalize_file_records(
     void *rec_ref_p, void *user_ptr);
-static void posix_cleanup_runtime(
-    void);
 #ifdef HAVE_MPI
 static void posix_record_reduction_op(
     void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
@@ -185,8 +183,10 @@ static void posix_mpi_redux(
     void *posix_buf, MPI_Comm mod_comm,
     darshan_record_id *shared_recs, int shared_rec_count);
 #endif
-static void posix_shutdown(
+static void posix_output(
     void **posix_buf, int *posix_buf_sz);
+static void posix_cleanup(
+    void);
 
 /* extern function def for querying record name from a STDIO stream */
 extern char *darshan_stdio_lookup_record_name(FILE *stream);
@@ -1869,7 +1869,8 @@ static void posix_runtime_initialize()
 #ifdef HAVE_MPI
         .mod_redux_func = &posix_mpi_redux,
 #endif
-        .mod_shutdown_func = &posix_shutdown
+        .mod_output_func = &posix_output,
+        .mod_cleanup_func = &posix_cleanup
         };
 
     /* try and store a default number of records for this module */
@@ -2015,17 +2016,6 @@ static void posix_finalize_file_records(void *rec_ref_p, void *user_ptr)
 
     tdestroy(rec_ref->access_root, free);
     tdestroy(rec_ref->stride_root, free);
-    return;
-}
-
-static void posix_cleanup_runtime()
-{
-    darshan_clear_record_refs(&(posix_runtime->fd_hash), 0);
-    darshan_clear_record_refs(&(posix_runtime->rec_id_hash), 1);
-
-    free(posix_runtime);
-    posix_runtime = NULL;
-
     return;
 }
 
@@ -2388,7 +2378,7 @@ void darshan_posix_shutdown_bench_setup(int test_case)
     int i;
 
     if(posix_runtime)
-        posix_cleanup_runtime();
+        posix_cleanup();
 
     posix_runtime_initialize();
 
@@ -2574,7 +2564,7 @@ static void posix_mpi_redux(
 }
 #endif
 
-static void posix_shutdown(
+static void posix_output(
     void **posix_buf,
     int *posix_buf_sz)
 {
@@ -2585,17 +2575,26 @@ static void posix_shutdown(
 
     posix_rec_count = posix_runtime->file_rec_count;
 
-    /* perform any final transformations on POSIX file records before
-     * writing them out to log file
-     */
-    darshan_iter_record_refs(posix_runtime->rec_id_hash,
-        &posix_finalize_file_records, NULL);
-
-    /* shutdown internal structures used for instrumenting */
-    posix_cleanup_runtime();
-
     /* update output buffer size to account for shared file reduction */
     *posix_buf_sz = posix_rec_count * sizeof(struct darshan_posix_file);
+
+    POSIX_UNLOCK();
+    return;
+}
+
+static void posix_cleanup()
+{
+    POSIX_LOCK();
+    assert(posix_runtime);
+
+    /* shutdown internal structures used for instrumenting */
+    darshan_iter_record_refs(posix_runtime->rec_id_hash,
+        &posix_finalize_file_records, NULL);
+    darshan_clear_record_refs(&(posix_runtime->fd_hash), 0);
+    darshan_clear_record_refs(&(posix_runtime->rec_id_hash), 1);
+
+    free(posix_runtime);
+    posix_runtime = NULL;
 
     POSIX_UNLOCK();
     return;

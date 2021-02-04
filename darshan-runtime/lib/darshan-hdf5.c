@@ -81,10 +81,6 @@ static struct hdf5_dataset_record_ref *hdf5_track_new_dataset_record(
     darshan_record_id rec_id, const char *rec_name);
 static void hdf5_finalize_dataset_records(
     void *rec_ref_p, void *user_ptr);
-static void hdf5_cleanup_file_runtime(
-    void);
-static void hdf5_cleanup_dataset_runtime(
-    void);
 #ifdef HAVE_MPI
 static void hdf5_file_record_reduction_op(
     void* inrec_v, void* inoutrec_v, int *len, MPI_Datatype *datatype);
@@ -100,10 +96,14 @@ static void hdf5_dataset_mpi_redux(
     void *hdf5_buf, MPI_Comm mod_comm,
     darshan_record_id *shared_recs, int shared_rec_count);
 #endif
-static void hdf5_file_shutdown(
+static void hdf5_file_output(
     void **hdf5_buf, int *hdf5_buf_sz);
-static void hdf5_dataset_shutdown(
+static void hdf5_dataset_output(
     void **hdf5_buf, int *hdf5_buf_sz);
+static void hdf5_file_cleanup(
+    void);
+static void hdf5_dataset_cleanup(
+    void);
 
 static struct hdf5_runtime *hdf5_file_runtime = NULL;
 static struct hdf5_runtime *hdf5_dataset_runtime = NULL;
@@ -919,7 +919,8 @@ static void hdf5_file_runtime_initialize()
 #ifdef HAVE_MPI
     .mod_redux_func = &hdf5_file_mpi_redux,
 #endif
-    .mod_shutdown_func = &hdf5_file_shutdown
+    .mod_output_func = &hdf5_file_output,
+    .mod_cleanup_func = &hdf5_file_cleanup
     };
 
     /* try and store the default number of records for this module */
@@ -958,7 +959,8 @@ static void hdf5_dataset_runtime_initialize()
 #ifdef HAVE_MPI
     .mod_redux_func = &hdf5_dataset_mpi_redux,
 #endif
-    .mod_shutdown_func = &hdf5_dataset_shutdown
+    .mod_output_func = &hdf5_dataset_output,
+    .mod_cleanup_func = &hdf5_dataset_cleanup
     };
 
     /* try and store the default number of records for this module */
@@ -1097,28 +1099,6 @@ static void hdf5_finalize_dataset_records(void *rec_ref_p, void *user_ptr)
         (struct hdf5_dataset_record_ref *)rec_ref_p;
 
     tdestroy(rec_ref->access_root, free);
-    return;
-}
-
-static void hdf5_cleanup_file_runtime()
-{
-    darshan_clear_record_refs(&(hdf5_file_runtime->hid_hash), 0);
-    darshan_clear_record_refs(&(hdf5_file_runtime->rec_id_hash), 1);
-
-    free(hdf5_file_runtime);
-    hdf5_file_runtime = NULL;
-
-    return;
-}
-
-static void hdf5_cleanup_dataset_runtime()
-{
-    darshan_clear_record_refs(&(hdf5_dataset_runtime->hid_hash), 0);
-    darshan_clear_record_refs(&(hdf5_dataset_runtime->rec_id_hash), 1);
-
-    free(hdf5_dataset_runtime);
-    hdf5_dataset_runtime = NULL;
-
     return;
 }
 
@@ -1657,7 +1637,7 @@ static void hdf5_dataset_mpi_redux(
 }
 #endif
 
-static void hdf5_file_shutdown(
+static void hdf5_file_output(
     void **hdf5_buf,
     int *hdf5_buf_sz)
 {
@@ -1668,9 +1648,6 @@ static void hdf5_file_shutdown(
 
     rec_count = hdf5_file_runtime->rec_count;
 
-    /* shutdown internal structures used for instrumenting */
-    hdf5_cleanup_file_runtime();
-
     /* update output buffer size to account for shared dataset reduction */
     *hdf5_buf_sz = rec_count * sizeof(struct darshan_hdf5_file);
 
@@ -1678,7 +1655,7 @@ static void hdf5_file_shutdown(
     return;
 }
 
-static void hdf5_dataset_shutdown(
+static void hdf5_dataset_output(
     void **hdf5_buf,
     int *hdf5_buf_sz)
 {
@@ -1689,17 +1666,42 @@ static void hdf5_dataset_shutdown(
 
     rec_count = hdf5_dataset_runtime->rec_count;
 
-    /* perform any final transformations on MPIIO file records before
-     * writing them out to log file
-     */
-    darshan_iter_record_refs(hdf5_dataset_runtime->rec_id_hash,
-        &hdf5_finalize_dataset_records, NULL);
-
-    /* shutdown internal structures used for instrumenting */
-    hdf5_cleanup_dataset_runtime();
-
     /* update output buffer size to account for shared dataset reduction */
     *hdf5_buf_sz = rec_count * sizeof(struct darshan_hdf5_dataset);
+
+    HDF5_UNLOCK();
+    return;
+}
+
+static void hdf5_file_cleanup()
+{
+    HDF5_LOCK();
+    assert(hdf5_file_runtime);
+
+    /* cleanup internal structures used for instrumenting */
+    darshan_clear_record_refs(&(hdf5_file_runtime->hid_hash), 0);
+    darshan_clear_record_refs(&(hdf5_file_runtime->rec_id_hash), 1);
+
+    free(hdf5_file_runtime);
+    hdf5_file_runtime = NULL;
+
+    HDF5_UNLOCK();
+    return;
+}
+
+static void hdf5_dataset_cleanup()
+{
+    HDF5_LOCK();
+    assert(hdf5_dataset_runtime);
+
+    /* cleanup internal structures used for instrumenting */
+    darshan_iter_record_refs(hdf5_dataset_runtime->rec_id_hash,
+        &hdf5_finalize_dataset_records, NULL);
+    darshan_clear_record_refs(&(hdf5_dataset_runtime->hid_hash), 0);
+    darshan_clear_record_refs(&(hdf5_dataset_runtime->rec_id_hash), 1);
+
+    free(hdf5_dataset_runtime);
+    hdf5_dataset_runtime = NULL;
 
     HDF5_UNLOCK();
     return;

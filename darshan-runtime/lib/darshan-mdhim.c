@@ -85,17 +85,17 @@ static void mdhim_runtime_initialize(
     void);
 static struct mdhim_record_ref *mdhim_track_new_record(
     darshan_record_id rec_id, int nr_servers, const char *name);
-static void mdhim_cleanup_runtime(
-    void);
 
-/* forward declaration for MDHIM shutdown function needed to interface
+/* forward declaration for MDHIM functions needed to interface
  * with darshan-core
  */
 static void mdhim_mpi_redux(
     void *mdhim_buf, MPI_Comm mod_comm,
     darshan_record_id *shared_recs, int shared_rec_count);
-static void mdhim_shutdown(
+static void mdhim_output(
     void **mdhim_buf, int *mdhim_buf_sz);
+static void mdhim_cleanup(
+    void);
 
 /* mdhim_runtime is the global data structure encapsulating "MDHIM"
  * module state */
@@ -310,7 +310,8 @@ static void mdhim_runtime_initialize()
     int mdhim_buf_size;
     darshan_module_funcs mod_funcs = {
     .mod_redux_func = &mdhim_mpi_redux,
-    .mod_shutdown_func = &mdhim_shutdown
+    .mod_output_func = &mdhim_output,
+    .mod_cleanup_func = &mdhim_cleanup
     };
 
     /* try and store a default number of records for this module */
@@ -399,18 +400,6 @@ static struct mdhim_record_ref *mdhim_track_new_record(
     return(rec_ref);
 }
 
-/* cleanup MDHIM module internal data structures */
-static void mdhim_cleanup_runtime()
-{
-    /* iterate the hash of record references and free them */
-    darshan_clear_record_refs(&(mdhim_runtime->rec_id_hash), 1);
-
-    free(mdhim_runtime);
-    mdhim_runtime = NULL;
-
-    return;
-}
-
 static void mdhim_record_reduction_op(void *infile_v, void *inoutfile_v,
         int *len, MPI_Datatype *datatype)
 {
@@ -477,10 +466,9 @@ static void mdhim_record_reduction_op(void *infile_v, void *inoutfile_v,
     }
     return;
 }
-/***********************************************************************
- * shutdown function exported by the MDHIM module for coordinating with
- * darshan-core *
- ***********************************************************************/
+/*****************************************************************************
+ * functions exported by the MDHIM module for coordinating with darshan-core *
+ *****************************************************************************/
 
 static void mdhim_mpi_redux(
     void *mdhim_buf, MPI_Comm mod_comm,
@@ -578,10 +566,9 @@ static void mdhim_mpi_redux(
     return;
 }
 
-/* Pass output data for the MDHIM module back to darshan-core to log to
- * file, and shutdown/free internal data structures.
+/* Pass output data for the MDHIM module back to darshan-core to log to file
  */
-static void mdhim_shutdown(
+static void mdhim_output(
     void **mdhim_buf,
     int *mdhim_buf_sz)
 {
@@ -590,8 +577,20 @@ static void mdhim_shutdown(
 
     *mdhim_buf_sz = mdhim_runtime->rec_count * mdhim_runtime->record_size;
 
-    /* shutdown internal structures used for instrumenting */
-    mdhim_cleanup_runtime();
+    MDHIM_UNLOCK();
+    return;
+}
+
+static void mdhim_cleanup()
+{
+    MDHIM_LOCK();
+    assert(mdhim_runtime);
+
+    /* iterate the hash of record references and free them */
+    darshan_clear_record_refs(&(mdhim_runtime->rec_id_hash), 1);
+
+    free(mdhim_runtime);
+    mdhim_runtime = NULL;
 
     MDHIM_UNLOCK();
     return;

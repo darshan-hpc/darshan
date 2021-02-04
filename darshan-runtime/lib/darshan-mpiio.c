@@ -161,8 +161,6 @@ static struct mpiio_file_record_ref *mpiio_track_new_file_record(
     darshan_record_id rec_id, const char *path);
 static void mpiio_finalize_file_records(
     void *rec_ref_p, void *user_ptr);
-static void mpiio_cleanup_runtime(
-    void);
 #ifdef HAVE_MPI
 static void mpiio_record_reduction_op(
     void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
@@ -173,8 +171,10 @@ static void mpiio_mpi_redux(
     void *mpiio_buf, MPI_Comm mod_comm,
     darshan_record_id *shared_recs, int shared_rec_count);
 #endif
-static void mpiio_shutdown(
+static void mpiio_output(
     void **mpiio_buf, int *mpiio_buf_sz);
+static void mpiio_cleanup(
+    void);
 
 static struct mpiio_runtime *mpiio_runtime = NULL;
 static pthread_mutex_t mpiio_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -1160,7 +1160,8 @@ static void mpiio_runtime_initialize()
 #ifdef HAVE_MPI
     .mod_redux_func = &mpiio_mpi_redux,
 #endif
-    .mod_shutdown_func = &mpiio_shutdown
+    .mod_output_func = &mpiio_output,
+    .mod_cleanup_func = &mpiio_cleanup
     };
 
     /* try and store the default number of records for this module */
@@ -1249,17 +1250,6 @@ static void mpiio_finalize_file_records(void *rec_ref_p, void *user_ptr)
         (struct mpiio_file_record_ref *)rec_ref_p;
 
     tdestroy(rec_ref->access_root, free);
-    return;
-}
-
-static void mpiio_cleanup_runtime()
-{
-    darshan_clear_record_refs(&(mpiio_runtime->fh_hash), 0);
-    darshan_clear_record_refs(&(mpiio_runtime->rec_id_hash), 1);
-
-    free(mpiio_runtime);
-    mpiio_runtime = NULL;
-
     return;
 }
 
@@ -1534,7 +1524,7 @@ void darshan_mpiio_shutdown_bench_setup(int test_case)
     intptr_t j;
 
     if(mpiio_runtime)
-        mpiio_cleanup_runtime();
+        mpiio_cleanup();
 
     mpiio_runtime_initialize();
 
@@ -1612,7 +1602,7 @@ void darshan_mpiio_shutdown_bench_setup(int test_case)
 }
 
 /********************************************************************************
- * shutdown function exported by this module for coordinating with darshan-core *
+ *     functions exported by this module for coordinating with darshan-core     *
  ********************************************************************************/
 
 #ifdef HAVE_MPI
@@ -1731,7 +1721,7 @@ static void mpiio_mpi_redux(
 }
 #endif
 
-static void mpiio_shutdown(
+static void mpiio_output(
     void **mpiio_buf,
     int *mpiio_buf_sz)
 {
@@ -1742,16 +1732,25 @@ static void mpiio_shutdown(
 
     mpiio_rec_count = mpiio_runtime->file_rec_count;
 
-    /* perform any final transformations on MPIIO file records before
-     * writing them out to log file
-     */
+    *mpiio_buf_sz = mpiio_rec_count * sizeof(struct darshan_mpiio_file);
+
+    MPIIO_UNLOCK();
+    return;
+}
+
+static void mpiio_cleanup()
+{
+    MPIIO_LOCK();
+    assert(mpiio_runtime);
+
+    /* cleanup internal structures used for instrumenting */
     darshan_iter_record_refs(mpiio_runtime->rec_id_hash,
         &mpiio_finalize_file_records, NULL);
+    darshan_clear_record_refs(&(mpiio_runtime->fh_hash), 0);
+    darshan_clear_record_refs(&(mpiio_runtime->rec_id_hash), 1);
 
-    /* shutdown internal structures used for instrumenting */
-    mpiio_cleanup_runtime();
-
-    *mpiio_buf_sz = mpiio_rec_count * sizeof(struct darshan_mpiio_file);
+    free(mpiio_runtime);
+    mpiio_runtime = NULL;
 
     MPIIO_UNLOCK();
     return;

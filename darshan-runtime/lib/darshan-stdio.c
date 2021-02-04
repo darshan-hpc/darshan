@@ -152,8 +152,6 @@ static void stdio_runtime_initialize(
     void);
 static struct stdio_file_record_ref *stdio_track_new_file_record(
     darshan_record_id rec_id, const char *path);
-static void stdio_cleanup_runtime(
-    void);
 #ifdef HAVE_MPI
 static void stdio_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype);
@@ -164,8 +162,10 @@ static void stdio_mpi_redux(
     void *stdio_buf, MPI_Comm mod_comm,
     darshan_record_id *shared_recs, int shared_rec_count);
 #endif
-static void stdio_shutdown(
+static void stdio_output(
     void **stdio_buf, int *stdio_buf_sz);
+static void stdio_cleanup(
+    void);
 
 /* extern function def for querying record name from a POSIX fd */
 extern char *darshan_posix_lookup_record_name(int fd);
@@ -1004,7 +1004,8 @@ static void stdio_runtime_initialize()
 #ifdef HAVE_MPI
     .mod_redux_func = &stdio_mpi_redux,
 #endif
-    .mod_shutdown_func = &stdio_shutdown
+    .mod_output_func = &stdio_output,
+    .mod_cleanup_func = &stdio_cleanup
     };
 
     /* try to store default number of records for this module */
@@ -1087,17 +1088,6 @@ static struct stdio_file_record_ref *stdio_track_new_file_record(
     stdio_runtime->file_rec_count++;
 
     return(rec_ref);
-}
-
-static void stdio_cleanup_runtime()
-{
-    darshan_clear_record_refs(&(stdio_runtime->stream_hash), 0);
-    darshan_clear_record_refs(&(stdio_runtime->rec_id_hash), 1);
-
-    free(stdio_runtime);
-    stdio_runtime = NULL;
-
-    return;
 }
 
 #ifdef HAVE_MPI
@@ -1429,7 +1419,7 @@ static void stdio_mpi_redux(
 }
 #endif
 
-static void stdio_shutdown(
+static void stdio_output(
     void **stdio_buf,
     int *stdio_buf_sz)
 {
@@ -1474,14 +1464,26 @@ static void stdio_shutdown(
         }
     }
 
-    /* shutdown internal structures used for instrumenting */
-    stdio_cleanup_runtime();
-
     /* update output buffer size to account for shared file reduction */
     *stdio_buf_sz = stdio_rec_count * sizeof(struct darshan_stdio_file);
 
     STDIO_UNLOCK();
-    
+    return;
+}
+
+static void stdio_cleanup()
+{
+    STDIO_LOCK();
+    assert(stdio_runtime);
+
+    /* shutdown internal structures used for instrumenting */
+    darshan_clear_record_refs(&(stdio_runtime->stream_hash), 0);
+    darshan_clear_record_refs(&(stdio_runtime->rec_id_hash), 1);
+
+    free(stdio_runtime);
+    stdio_runtime = NULL;
+
+    STDIO_UNLOCK();
     return;
 }
 

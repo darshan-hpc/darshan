@@ -149,16 +149,16 @@ static struct dxt_file_record_ref *dxt_posix_track_new_file_record(
     darshan_record_id rec_id);
 static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
     darshan_record_id rec_id);
-static void dxt_posix_cleanup_runtime(
-    void);
-static void dxt_mpiio_cleanup_runtime(
-    void);
 
-/* DXT shutdown routines for darshan-core */
-static void dxt_posix_shutdown(
+/* DXT output/cleanup routines for darshan-core */
+static void dxt_posix_output(
     void **dxt_buf, int *dxt_buf_sz);
-static void dxt_mpiio_shutdown(
+static void dxt_mpiio_output(
     void **dxt_buf, int *dxt_buf_sz);
+static void dxt_posix_cleanup(
+    void);
+static void dxt_mpiio_cleanup(
+    void);
 
 static struct dxt_posix_runtime *dxt_posix_runtime = NULL;
 static struct dxt_mpiio_runtime *dxt_mpiio_runtime = NULL;
@@ -278,7 +278,8 @@ void dxt_posix_runtime_initialize()
 #ifdef HAVE_MPI
     .mod_redux_func = NULL,
 #endif
-    .mod_shutdown_func = &dxt_posix_shutdown
+    .mod_output_func = &dxt_posix_output,
+    .mod_cleanup_func = &dxt_posix_cleanup
     };
 
     /* determine whether tracing should be generally disabled/enabled */
@@ -343,7 +344,8 @@ void dxt_mpiio_runtime_initialize()
 #ifdef HAVE_MPI
     .mod_redux_func = NULL,
 #endif
-    .mod_shutdown_func = &dxt_mpiio_shutdown
+    .mod_output_func = &dxt_mpiio_output,
+    .mod_cleanup_func = &dxt_mpiio_cleanup
     };
 
     /* determine whether tracing should be generally disabled/enabled */
@@ -970,32 +972,8 @@ static void dxt_free_record_data(void *rec_ref_p, void *user_ptr)
     free(dxt_rec_ref->file_rec);
 }
 
-static void dxt_posix_cleanup_runtime()
-{
-    darshan_iter_record_refs(dxt_posix_runtime->rec_id_hash,
-        dxt_free_record_data, NULL);
-    darshan_clear_record_refs(&(dxt_posix_runtime->rec_id_hash), 1);
-
-    free(dxt_posix_runtime);
-    dxt_posix_runtime = NULL;
-
-    return;
-}
-
-static void dxt_mpiio_cleanup_runtime()
-{
-    darshan_iter_record_refs(dxt_mpiio_runtime->rec_id_hash,
-        dxt_free_record_data, NULL);
-    darshan_clear_record_refs(&(dxt_mpiio_runtime->rec_id_hash), 1);
-
-    free(dxt_mpiio_runtime);
-    dxt_mpiio_runtime = NULL;
-
-    return;
-}
-
 /********************************************************************************
- * shutdown function exported by this module for coordinating with darshan-core *
+ *     functions exported by this module for coordinating with darshan-core     *
  ********************************************************************************/
 
 static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
@@ -1081,7 +1059,7 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
 #endif
 }
 
-static void dxt_posix_shutdown(
+static void dxt_posix_output(
     void **dxt_posix_buf,
     int *dxt_posix_buf_sz)
 {
@@ -1103,8 +1081,22 @@ static void dxt_posix_shutdown(
     *dxt_posix_buf = dxt_posix_runtime->record_buf;
     *dxt_posix_buf_sz = dxt_posix_runtime->record_buf_size;
 
+    return;
+}
+
+static void dxt_posix_cleanup()
+{
+    assert(dxt_posix_runtime);
+
+    free(dxt_posix_runtime->record_buf);
+
     /* shutdown internal structures used for instrumenting */
-    dxt_posix_cleanup_runtime();
+    darshan_iter_record_refs(dxt_posix_runtime->rec_id_hash,
+        dxt_free_record_data, NULL);
+    darshan_clear_record_refs(&(dxt_posix_runtime->rec_id_hash), 1);
+
+    free(dxt_posix_runtime);
+    dxt_posix_runtime = NULL;
 
     return;
 }
@@ -1189,7 +1181,7 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
 #endif
 }
 
-static void dxt_mpiio_shutdown(
+static void dxt_mpiio_output(
     void **dxt_mpiio_buf,
     int *dxt_mpiio_buf_sz)
 {
@@ -1211,8 +1203,22 @@ static void dxt_mpiio_shutdown(
     *dxt_mpiio_buf = dxt_mpiio_runtime->record_buf;
     *dxt_mpiio_buf_sz = dxt_mpiio_runtime->record_buf_size;
 
+    return;
+}
+
+static void dxt_mpiio_cleanup()
+{
+    assert(dxt_mpiio_runtime);
+
+    free(dxt_mpiio_runtime->record_buf);
+
     /* shutdown internal structures used for instrumenting */
-    dxt_mpiio_cleanup_runtime();
+    darshan_iter_record_refs(dxt_mpiio_runtime->rec_id_hash,
+        dxt_free_record_data, NULL);
+    darshan_clear_record_refs(&(dxt_mpiio_runtime->rec_id_hash), 1);
+
+    free(dxt_mpiio_runtime);
+    dxt_mpiio_runtime = NULL;
 
     return;
 }
