@@ -396,7 +396,7 @@ int main(int argc, char **argv)
             continue;
         }
         /* always ignore DXT modules -- those have a standalone parsing utility */
-        else if (i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD)
+        else if (i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD || i == DXT_STDIO_MOD)
             continue;
         /* currently only POSIX, MPIIO, and STDIO modules support non-base
          * parsing
