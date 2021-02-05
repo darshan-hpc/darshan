@@ -22,24 +22,28 @@ my $k;
 
 umask(0);
 
+if(not -d "$LOGDIR")
+{
+    print STDERR "Error: please make sure that the $LOGDIR directory already exists.\n";
+    exit(1)
+}
+
+if(not -w "$LOGDIR")
+{
+    print STDERR "Error: please make sure that the $LOGDIR directory is writeable.\n";
+    exit(1)
+}
+
 # go through the end of next year
 for ($i=$year; $i<($year+2); $i++)
 {
-    if(!mkdir("$LOGDIR/$i", 0755))
-    {
-        print STDERR "Error: mkdir($LOGDIR/$i): $!.\n";
-        print STDERR "Error: please make sure that the $LOGDIR directory already exists and is writeable.\n";
-        exit(1);
-    }
+    die("Error: could not mkdir $LOGDIR/$i: $!.\n") unless(-e "$LOGDIR/$i" or mkdir("$LOGDIR/$i", 0755));
     for ($j=1; $j<13; $j++)
     {
-        mkdir("$LOGDIR/$i/$j", 0755) or die("Error: could not mkdir $LOGDIR/$i/$j.\n");
+        die("Error: could not mkdir $LOGDIR/$i/$j: $!.\n") unless(-e "$LOGDIR/$i/$j" or mkdir("$LOGDIR/$i/$j", 0755));
         for ($k=1; $k<32; $k++)
         {
-            mkdir("$LOGDIR/$i/$j/$k", 01777) or die("Error: could not mkdir $LOGDIR/$i/$j/$k.\n");
-
+            die("Error: could not mkdir $LOGDIR/$i/$j/$k: $!.\n") unless(-e "$LOGDIR/$i/$j/$k" or mkdir("$LOGDIR/$i/$j/$k", 0755));
         }
     }
 }
-
-
