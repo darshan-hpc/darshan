@@ -226,7 +226,7 @@ AC_ARG_ENABLE(hdf5-mod,
               AS_HELP_STRING([--enable-hdf5-mod], [Enables compilation and use of HDF5 module]),
               [],
               [enable_hdf5_mod=no])
-AS_IF([test "x$enable_hdf5_mod" != "xno"],
+AS_IF([test "x$enable_hdf5_mod" != "xno"],[
     AS_IF([test -d "$enable_hdf5_mod"],
         [CFLAGS="${CFLAGS} -I${enable_hdf5_mod}/include"
         DARSHAN_HDF5_LD_FLAGS="-L${enable_hdf5_mod}/lib [-Wl,-rpath=${enable_hdf5_mod}/lib -lhdf5]"],
@@ -249,7 +249,7 @@ AS_IF([test "x$enable_hdf5_mod" != "xno"],
     )
     AC_CHECK_PROG(H5PCC_CHECK, h5pcc, "yes", "no", "${enable_hdf5_mod}/bin")
     AS_IF([test x"$H5PCC_CHECK" = x"yes"], [AC_DEFINE(DARSHAN_HDF5_PAR_BUILD, 1, Define if HDF5 built with parallel support)])
-)
+])
 
 # PNETCDF module
 BUILD_PNETCDF_MODULE=1
