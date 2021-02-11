@@ -2152,8 +2152,8 @@ void darshan_core_register_module(
     int *sys_mem_alignment)
 {
     struct darshan_core_module* mod;
-    int mod_mem_req = *inout_mod_buf_size;
-    int mod_mem_avail;
+    long mod_mem_req = *inout_mod_buf_size;
+    long mod_mem_avail;
 
     *inout_mod_buf_size = 0;
 
