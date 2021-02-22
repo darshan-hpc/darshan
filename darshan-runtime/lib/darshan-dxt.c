@@ -38,7 +38,7 @@ typedef int64_t off64_t;
 
 /* maximum amount of memory to use for storing DXT records */
 #ifdef __DARSHAN_MOD_MEM_MAX
-#define DXT_IO_TRACE_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024 * 1024)
+#define DXT_IO_TRACE_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024L * 1024L)
 #else
 #define DXT_IO_TRACE_MEM_MAX (4 * 1024 * 1024) /* 4 MiB default */
 #endif
@@ -166,8 +166,8 @@ static pthread_mutex_t dxt_runtime_mutex =
             PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 static int dxt_my_rank = -1;
-static int dxt_total_mem = DXT_IO_TRACE_MEM_MAX;
-static int dxt_mem_remaining = 0;
+static long dxt_total_mem = DXT_IO_TRACE_MEM_MAX;
+static long dxt_mem_remaining = 0;
 
 #define MAX_DXT_TRIGGERS 20
 static int num_dxt_triggers = 0;

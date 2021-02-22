@@ -50,7 +50,7 @@
 
 /* Maximum amount of memory per instrumentation module in MiB */
 #ifdef __DARSHAN_MOD_MEM_MAX
-#define DARSHAN_MOD_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024 * 1024)
+#define DARSHAN_MOD_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024L * 1024L)
 #else
 #define DARSHAN_MOD_MEM_MAX (2 * 1024 * 1024) /* 2 MiB default */
 #endif
@@ -82,7 +82,7 @@ struct darshan_core_module
 {
     void *rec_buf_start;
     void *rec_buf_p;
-    int rec_mem_avail;
+    long rec_mem_avail;
     darshan_module_funcs mod_funcs;
 };
 
@@ -107,9 +107,9 @@ struct darshan_core_runtime
 
     /* darshan-core internal data structures */
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
-    int mod_mem_used;
+    long mod_mem_used;
     struct darshan_core_name_record_ref *name_hash;
-    int name_mem_used; 
+    long name_mem_used;
     double wtime_offset;
     char *comp_buf;
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
