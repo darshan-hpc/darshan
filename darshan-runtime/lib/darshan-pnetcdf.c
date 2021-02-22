@@ -212,7 +212,7 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
 /* initialize internal PNETCDF module data strucutres and register with darshan-core */
 static void pnetcdf_runtime_initialize()
 {
-    int pnetcdf_buf_size;
+    size_t pnetcdf_buf_size;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = &pnetcdf_mpi_redux,

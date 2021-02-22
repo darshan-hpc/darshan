@@ -999,7 +999,7 @@ int DARSHAN_DECL(fsetpos64)(FILE *stream, const fpos64_t *pos)
 /* initialize internal STDIO module data structures and register with darshan-core */
 static void stdio_runtime_initialize()
 {
-    int stdio_buf_size;
+    size_t stdio_buf_size;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = &stdio_mpi_redux,

@@ -307,7 +307,7 @@ mdhim_grm_t * DARSHAN_DECL(mdhimGet)(mdhim_t *md,
  * darshan-core. */
 static void mdhim_runtime_initialize()
 {
-    int mdhim_buf_size;
+    size_t mdhim_buf_size;
     darshan_module_funcs mod_funcs = {
     .mod_redux_func = &mdhim_mpi_redux,
     .mod_shutdown_func = &mdhim_shutdown

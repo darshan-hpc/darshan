@@ -197,7 +197,7 @@ int DARSHAN_DECL(foo)(const char* name, int arg1)
 /* Initialize internal NULL module data structures and register with darshan-core. */
 static void null_runtime_initialize()
 {
-    int null_buf_size;
+    size_t null_buf_size;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     /* NOTE: the redux function can be used to run collective operations prior to

@@ -914,7 +914,7 @@ herr_t DARSHAN_DECL(H5Dclose)(hid_t dataset_id)
 /* initialize internal HDF5 module data strucutres and register with darshan-core */
 static void hdf5_file_runtime_initialize()
 {
-    int hdf5_buf_size;
+    size_t hdf5_buf_size;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = &hdf5_file_mpi_redux,

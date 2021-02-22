@@ -1155,7 +1155,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_close, int, (MPI_File *fh), MPI_File_close)
 /* initialize data structures and register with darshan-core component */
 static void mpiio_runtime_initialize()
 {
-    int mpiio_buf_size;
+    size_t mpiio_buf_size;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = &mpiio_mpi_redux,

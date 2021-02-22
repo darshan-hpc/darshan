@@ -54,7 +54,7 @@ static int using_mpi = 0;
 static int my_rank = 0;
 static int nprocs = 1;
 static int darshan_mem_alignment = 1;
-static long darshan_mod_mem_quota = DARSHAN_MOD_MEM_MAX;
+static size_t darshan_mod_mem_quota = DARSHAN_MOD_MEM_MAX;
 
 static struct darshan_core_mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
@@ -741,7 +741,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
 {
     int ret;
     int mmap_fd;
-    int mmap_size;
+    size_t mmap_size;
     int sys_page_size;
     char cuser[L_cuserid] = {0};
     uint64_t hlevel;
@@ -2147,13 +2147,13 @@ void darshan_shutdown_bench(int argc, char **argv)
 void darshan_core_register_module(
     darshan_module_id mod_id,
     darshan_module_funcs mod_funcs,
-    int *inout_mod_buf_size,
+    size_t *inout_mod_buf_size,
     int *rank,
     int *sys_mem_alignment)
 {
     struct darshan_core_module* mod;
-    long mod_mem_req = *inout_mod_buf_size;
-    long mod_mem_avail;
+    size_t mod_mem_req = *inout_mod_buf_size;
+    size_t mod_mem_avail;
 
     *inout_mod_buf_size = 0;
 

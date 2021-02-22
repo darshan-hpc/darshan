@@ -181,7 +181,7 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
 
 static void lustre_runtime_initialize()
 {
-    int lustre_buf_size;
+    size_t lustre_buf_size;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
         .mod_redux_func = &lustre_mpi_redux,

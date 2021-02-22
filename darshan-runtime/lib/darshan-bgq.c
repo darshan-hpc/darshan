@@ -107,7 +107,7 @@ static void capture(struct darshan_bgq_record *rec, darshan_record_id rec_id)
 
 void bgq_runtime_initialize()
 {
-    int bgq_buf_size;
+    size_t bgq_buf_size;
     darshan_record_id rec_id;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI

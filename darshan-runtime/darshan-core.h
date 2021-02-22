@@ -82,7 +82,7 @@ struct darshan_core_module
 {
     void *rec_buf_start;
     void *rec_buf_p;
-    long rec_mem_avail;
+    size_t rec_mem_avail;
     darshan_module_funcs mod_funcs;
 };
 
@@ -107,9 +107,9 @@ struct darshan_core_runtime
 
     /* darshan-core internal data structures */
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
-    long mod_mem_used;
+    size_t mod_mem_used;
     struct darshan_core_name_record_ref *name_hash;
-    long name_mem_used;
+    size_t name_mem_used;
     double wtime_offset;
     char *comp_buf;
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS

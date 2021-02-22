@@ -166,8 +166,8 @@ static pthread_mutex_t dxt_runtime_mutex =
             PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 static int dxt_my_rank = -1;
-static long dxt_total_mem = DXT_IO_TRACE_MEM_MAX;
-static long dxt_mem_remaining = 0;
+static size_t dxt_total_mem = DXT_IO_TRACE_MEM_MAX;
+static size_t dxt_mem_remaining = 0;
 
 #define MAX_DXT_TRIGGERS 20
 static int num_dxt_triggers = 0;
@@ -273,7 +273,7 @@ void dxt_posix_runtime_initialize()
      * and passed back to darshan-core at shutdown time to allow DXT more control
      * over realloc'ing module memory as needed.
      */
-    int dxt_psx_buf_size = 0;
+    size_t dxt_psx_buf_size = 0;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = NULL,
@@ -338,7 +338,7 @@ void dxt_mpiio_runtime_initialize()
      * and passed back to darshan-core at shutdown time to allow DXT more control
      * over realloc'ing module memory as needed.
      */
-    int dxt_mpiio_buf_size = 0;
+    size_t dxt_mpiio_buf_size = 0;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = NULL,

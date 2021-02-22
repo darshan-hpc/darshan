@@ -155,7 +155,7 @@ void darshan_instrument_fs_data(
 void darshan_core_register_module(
     darshan_module_id mod_id,
     darshan_module_funcs mod_funcs,
-    int *inout_mod_buf_size,
+    size_t *inout_mod_buf_size,
     int *rank,
     int *sys_mem_alignment);
 

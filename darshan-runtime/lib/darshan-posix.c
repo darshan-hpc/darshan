@@ -1864,7 +1864,7 @@ int DARSHAN_DECL(rename)(const char *oldpath, const char *newpath)
 /* initialize internal POSIX module data structures and register with darshan-core */
 static void posix_runtime_initialize()
 {
-    int psx_buf_size;
+    size_t psx_buf_size;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
         .mod_redux_func = &posix_mpi_redux,
