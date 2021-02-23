@@ -953,7 +953,7 @@ static void hdf5_file_runtime_initialize()
 
 static void hdf5_dataset_runtime_initialize()
 {
-    int hdf5_buf_size;
+    size_t hdf5_buf_size;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = &hdf5_dataset_mpi_redux,
