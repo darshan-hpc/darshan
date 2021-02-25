@@ -1,3 +1,6 @@
+"""The `info` subcommand provides a basic dump of information about
+the darshan log equivalent to DarshanReport.info().
+"""
 import sys
 import argparse
 import darshan

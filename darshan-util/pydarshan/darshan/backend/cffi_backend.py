@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+"""The cfii_backend package will read a darshan log
+using the functions defined in libdarshan-util.so
+and is interfaced via the python CFFI module.
+"""
 
 import cffi
 import ctypes

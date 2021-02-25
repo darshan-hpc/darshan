@@ -1,9 +1,9 @@
-=======================
-PyDarshan Documentation
-=======================
+========
+Overview 
+========
 
 Python utilities to interact with Darshan log records of HPC applications.
-pydarshan requires darshan-utils (3.2.2+) to be installed.
+pydarshan requires darshan-utils version 3.3 or higher to be installed.
 
 Features
 --------
@@ -46,7 +46,7 @@ Installation
 
 To install in most cases the following will work::
 
-    pip install darshan
+    pip install --user darshan
 
 For alternative installation instructions and installation from source refer to <docs/install.rst>
 
@@ -72,7 +72,6 @@ Conformance to PEPs can be tested using flake8 via::
     make lint
 
 
-
 Documentation
 -------------
 
@@ -83,3 +82,29 @@ documentation can be build using make as follows::
 
     pip install -r requirements_dev.txt
     make docs
+
+File List
+---------
+
+* darshan::
+    core darshan python module code
+* devel::
+    scripts for building python wheel
+* docs::
+    markdown documentation used by sphinx to auto-generate HTML RTD style doc
+* examples::
+    Jupyter notebooks showing pydarshan usage with log files
+* tests::
+    pydarshan specific test cases
+* requirements.txt::
+    pip requirement file for minimum set of depednencies
+* requirements_dev.txt::
+    pip requirement file for depednencies needed to run development tools
+* setup.py::
+    python file for building/generating pydarshan package
+* setup.cfg::
+    input for setup.py
+* MANIFEST.in::
+    input files for setup.py package
+* tox.ini::
+    input for tox which runs the automated testing

@@ -1,4 +1,9 @@
-__version__ = '0.0.6'
+"""
+PyDarshan provides direct log access for reading binary Darshan logs.
+PyDarshan also provides a suite of analysis utilities.
+"""
+
+__version__ = '3.3.0'
 __darshanutil_version__ = '3.2.1'
 
 import logging
