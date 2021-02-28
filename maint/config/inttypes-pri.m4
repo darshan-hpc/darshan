@@ -16,13 +16,12 @@ AC_DEFUN([gt_INTTYPES_PRI],
   AC_CHECK_HEADERS([inttypes.h])
   if test $ac_cv_header_inttypes_h = yes; then
     AC_CACHE_CHECK([whether the inttypes.h PRIxNN macros are broken],
-      gt_cv_inttypes_pri_broken,
-      [
-        AC_TRY_COMPILE([#include <inttypes.h>
+      [gt_cv_inttypes_pri_broken],
+      [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <inttypes.h>]], [[
 #ifdef PRId32
 char *p = PRId32;
 #endif
-], [], gt_cv_inttypes_pri_broken=no, gt_cv_inttypes_pri_broken=yes)
+      ]])], [gt_cv_inttypes_pri_broken=no], [gt_cv_inttypes_pri_broken=yes])
       ])
   fi
   if test "$gt_cv_inttypes_pri_broken" = yes; then
