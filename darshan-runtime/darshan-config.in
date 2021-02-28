@@ -1,7 +1,9 @@
 #!/bin/sh
 
-DARSHAN_LIB_PATH="@darshan_lib_path@"
-DARSHAN_SHARE_PATH="@darshan_share_path@"
+prefix="@prefix@"
+exec_prefix="@exec_prefix@"
+DARSHAN_LIB_PATH="@libdir@"
+DARSHAN_SHARE_PATH="@datarootdir@"
 DARSHAN_LD_FLAGS="@LDFLAGS@"
 DARSHAN_LOG_PATH="@__DARSHAN_LOG_PATH@"
 DARSHAN_LOG_ENV="@__DARSHAN_LOG_ENV@"
