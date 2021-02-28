@@ -58,10 +58,13 @@
  *   - ungetc()
  */
 
+#ifdef HAVE_CONFIG_H
+# include <darshan-runtime-config.h>
+#endif
+
 #define _XOPEN_SOURCE 500
 #define _GNU_SOURCE
 
-#include "darshan-runtime-config.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
