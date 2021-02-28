@@ -30,21 +30,31 @@ work in other Unix-like environments as well.
 
 == Compilation and installation
 
-.Configure and build example
+.Configure and build example without Darshan runtime libraries
 ----
 tar -xvzf darshan-<version-number>.tar.gz
-cd darshan-<version-number>/darshan-util
-./configure
+./configure --disable-darshan-runtime CC=gcc
+make
+make install
+----
+
+.Configure and build example with Darshan runtime libraries
+----
+tar -xvzf darshan-<version-number>.tar.gz
+./configure --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID MPICC=mpicc CC=gcc
 make
 make install
 ----
 
 The darshan-util package is intended to be used on a login node or
 workstation.  For most use cases this means that you should
-either leave CC to its default setting or specify a local compiler.  This is
-in contrast to the darshan-runtime documentation, which suggests setting CC
+either leave `CC` to its default setting or specify a local compiler.  This is
+in contrast to the darshan-runtime documentation, which suggests setting `MPICC`
 to mpicc because the runtime library will be used in the compute node
-environment.
+environment. Users are encouraged to set both `CC` and `MPICC` at the configure
+time, where `CC`, pointing to a serial C compiler, will be used to build Darshan
+utility tools, and `MPICC`, pointing to an MPI compiler, will be used to build
+Darshan runtime libraries.
 
 You can specify `--prefix` to install darshan-util in a specific location
 (such as in your home directory for non-root installations).  See
