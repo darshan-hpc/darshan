@@ -4,8 +4,11 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+# include "darshan-util-config.h"
+#endif
+
 #define _GNU_SOURCE
-#include "darshan-util-config.h"
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
