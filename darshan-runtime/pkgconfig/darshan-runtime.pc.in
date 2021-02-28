@@ -8,8 +8,9 @@ Version: @DARSHAN_VERSION@
 Requires: zlib mpich
 Requires.private:
 
-darshan_prefix=@prefix@
-darshan_share=@darshan_share_path@
+prefix=@prefix@
+darshan_prefix=${prefix}
+darshan_share=@datarootdir@
 darshan_includedir=
 darshan_libdir= -L${darshan_prefix}/lib
 darshan_linkopts="-Wl,@${darshan_share}/ld-opts/darshan-base-ld-opts"
