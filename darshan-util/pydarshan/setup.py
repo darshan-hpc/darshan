@@ -16,16 +16,6 @@ test_requirements = ['pytest']
 
 ext_modules = []
 
-if '--with-extension' in sys.argv:
-    ext_modules.append(Extension(
-        'darshan.extension',
-        #optional=True,
-        sources=['darshan/extension.c'],
-        include_dirs=['/usr/include'],
-        libraries=['darshan-util']
-        ))
-    sys.argv.remove('--with-extension')
-
 
 setup(
     author='',
