@@ -20,7 +20,6 @@ from darshan.discover_darshan import check_version
 
 API_def_c = load_darshan_header()
 
-
 ffi = cffi.FFI()
 ffi.cdef(API_def_c)
 
@@ -269,22 +268,21 @@ def log_get_record(log, mod, dtype='numpy'):
     if mod in ['LUSTRE']:
         rec = _log_get_lustre_record(log, dtype=dtype)
     elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
-        rec = log_get_dxt_record(log, mod, _structdefs[mod], dtype=dtype)
+        rec = log_get_dxt_record(log, mod, dtype=dtype)
     else:
-        rec = log_get_generic_record(log, mod, _structdefs[mod], dtype=dtype)
+        rec = log_get_generic_record(log, mod, dtype=dtype)
 
     return rec
 
 
 
-def log_get_generic_record(log, mod_name, mod_type, dtype='numpy'):
+def log_get_generic_record(log, mod_name, dtype='numpy'):
     """
     Returns a dictionary holding a generic darshan log record.
 
     Args:
         log: Handle returned by darshan.open
         mod_name (str): Name of the Darshan module
-        mod_type (str): String containing the C type
 
     Return:
         dict: generic log record
@@ -299,6 +297,7 @@ def log_get_generic_record(log, mod_name, mod_type, dtype='numpy'):
 
     """
     modules = log_get_modules(log)
+    mod_type = _structdefs[mod_name]
 
     rec = {}
     buf = ffi.new("void **")
@@ -478,7 +477,7 @@ def _log_get_lustre_record(log, dtype='numpy'):
 
 
 
-def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, dtype='dict'):
+def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     """
     Returns a dictionary holding a dxt darshan log record.
 
@@ -502,6 +501,7 @@ def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, dtype='
     """
 
     modules = log_get_modules(log)
+    mod_type = _structdefs[mod_name]
     #name_records = log_get_name_records(log)
 
     rec = {}
