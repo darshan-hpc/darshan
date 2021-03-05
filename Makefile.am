@@ -5,14 +5,14 @@
 
 ACLOCAL_AMFLAGS = -I maint/config
 
-SUBDIRS = include
+SUBDIRS =
 
 if BUILD_DARSHAN_RUNTIME
    SUBDIRS += darshan-runtime
 endif
 
 if BUILD_DARSHAN_UTIL
-   SUBDIRS += darshan-util
+   SUBDIRS += darshan-util include
 endif
 
 EXTRA_DIST = doc \
