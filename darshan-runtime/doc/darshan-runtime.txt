@@ -88,51 +88,64 @@ make install
 ----
 
 .Explanation of configure arguments:
-* `--disable-darshan-runtime`: build without Darshan runtime libraries, useful for building only Darshan utility tools (default=enabled)
-* `--disable-darshan-util`: build without Darshan utility tools (default=enabled)
-* `--with-mem-align=`: This value is system-dependent and will be
-used by Darshan to determine if the buffer for a read or write operation is
-aligned in memory (default is 8).
-* `--with-jobid-env=` (mandatory): this specifies the environment variable that
-Darshan should check to determine the jobid of a job.  Common values are
-`PBS_JOBID` or `COBALT_JOBID`.  If you are not using a scheduler (or your
-scheduler does not advertise the job ID) then you can specify `NONE` here.
-Darshan will fall back to using the pid of the rank 0 process if the
-specified environment variable is not set.
-* `--with-log-path=` (this, or `--with-log-path-by-env`, is mandatory): This
-specifies the parent directory for the directory tree where Darshan logs
-will be placed.
+* `--disable-darshan-runtime`: build without Darshan runtime libraries, useful
+  for building only Darshan utility tools (default=enabled)
+* `--disable-darshan-util`: build without Darshan utility tools
+  (default=enabled)
+* `--with-mem-align[=NUM]`: This value is system-dependent and will be used by
+  Darshan to determine if the buffer for a read or write operation is aligned
+  in memory (default is 8).
+* `--with-jobid-env=NAME` (mandatory): this specifies the environment variable
+  that Darshan should check to determine the jobid of a job.  Common values are
+  `PBS_JOBID` or `COBALT_JOBID`.  If you are not using a scheduler (or your
+  scheduler does not advertise the job ID) then you can specify `NONE` here.
+  Darshan will fall back to using the pid of the rank 0 process if the
+  specified environment variable is not set.
+* `--with-log-path=DIR` (this, or `--with-log-path-by-env`, is mandatory): This
+  specifies the parent directory for the directory tree where Darshan logs will
+  be placed.
 ** NOTE: after installation, any user can display the configured path with the `darshan-config --log-path` command
-* `--with-log-path-by-env=`: specifies an environment variable to use to
-determine the log path at run time.
-* `--with-log-hints=`: specifies hints to use when writing the Darshan log
-file.  See `./configure --help` for details.
-* `--with-mod-mem=`: specifies the maximum amount of memory (in MiB) that
-active Darshan instrumentation modules can collectively consume.
-* `--with-zlib=`: specifies an alternate location for the zlib development
-header and library.
+* `--with-log-path-by-env=NAME1,NAME2,...`: specifies a comma separated list of
+  environment variables to check at run time for log path location before the
+  one set by `--with-log-path=DIR` at configure time.
+* `--with-log-hints=hint1=x;hint2=y,...`: specifies hints to use when writing
+  the Darshan log file.  See `./configure --help` for details.
+* `--with-mod-mem=NUM`: specifies the maximum amount of memory (in MiB) that
+  active Darshan instrumentation modules can collectively consume.
+* `--with-zlib=DIR`: specifies an alternate location for the zlib development
+  header and library.
 * `--without-mpi`: disables MPI support when building Darshan - MPI support is
-assumed if not specified.
+  assumed if not specified.
 * `--enable-mmap-logs`: enables the use of Darshan's mmap log file mechanism.
 * `--disable-cuserid`: disables use of cuserid() at runtime.
 * `--disable-ld-preload`: disables building of the Darshan LD_PRELOAD library
 * `--enable-group-readable-logs`: sets Darshan log file permissions to allow
-group read access.
-* `CC=`: specifies the serial C compiler to use for compiling Darshan utility tools.
-* `MPICC=`: specifies the MPI C compiler to use for compiling Darshan runtime libraries.
+  group read access.
+* `CC=`: specifies the serial C compiler to use for compiling Darshan utility
+  tools.
+* `MPICC=`: specifies the MPI C compiler to use for compiling Darshan runtime
+  libraries.
 
 .Configure arguments for controlling which Darshan modules to use:
-* `--disable-posix-mod`: disables compilation and use of Darshan's POSIX module (default=enabled)
-* `--disable-mpiio-mod`: disables compilation and usee of Darshan's MPI-IO module (default=enabled)
-* `--disable-stdio-mod`: disables compilation and use of Darshan's STDIO module (default=enabled)
-* `--disable-dxt-mod`: disables compilation and use of Darshan's DXT module (default=enabled)
-* `--with-hdf5-mod`: enables compilation and use of Darshan's HDF5 module (default=without)
+* `--disable-posix-mod`: disables compilation and use of Darshan's POSIX module
+  (default=enabled)
+* `--disable-mpiio-mod`: disables compilation and usee of Darshan's MPI-IO
+  module (default=enabled)
+* `--disable-stdio-mod`: disables compilation and use of Darshan's STDIO module
+  (default=enabled)
+* `--disable-dxt-mod`: disables compilation and use of Darshan's DXT module
+  (default=enabled)
+* `--with-hdf5-mod[=DIR]`: enables compilation and use of Darshan's HDF5 module
+  (default=without)
 ** NOTE: This option requires the HDF5 install prefix as an argument (e.g., `--with-hdf5-mod=/path/to/hdf5/`)
 ** NOTE: HDF5 instrumentation only works on HDF5 library versions >=1.8, and further requires that the HDF5 library used to build Darshan and the HDF5 library being linked in either both be version >=1.10 or both be version <1.10
 ** NOTE: This option does not work with the profile configuration instrumentation method described in the "Instrumenting applications" section (link:darshan-runtime.html#_using_a_profile_configuration[Using a profile configuration])
-* `--disable-pnetcdf-mod`: disables compilation and use of Darshan's PNetCDF module (default=enabled)
-* `--disable-lustre-mod`: disables compilation and use of Darshan's Lustre module (default=enabled)
-* `--enable-mdhim-mod`: disables compilation and use of Darshan's MDHIM module (default=disabled)
+* `--disable-pnetcdf-mod`: disables compilation and use of Darshan's PNetCDF
+  module (default=enabled)
+* `--disable-lustre-mod`: disables compilation and use of Darshan's Lustre
+  module (default=enabled)
+* `--enable-mdhim-mod`: disables compilation and use of Darshan's MDHIM module
+  (default=disabled)
 
 === Environment preparation
 
