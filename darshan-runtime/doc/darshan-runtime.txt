@@ -51,7 +51,9 @@ http://www.mcs.anl.gov/darshan[Darshan web site].
 * C compiler (preferably GCC-compatible)
 * zlib development headers and library
 
-== Compilation
+== Conventional installation
+
+=== Compilation
 
 .Configure and build example (with MPI support)
 ----
@@ -115,7 +117,7 @@ group read access.
 * `--disable-lustre-mod`: disables compilation and use of Darshan's Lustre module (default=enabled)
 * `--disable-mdhim-mod`: disables compilation and use of Darshan's MDHIM module (default=disabled)
 
-== Environment preparation
+=== Environment preparation
 
 Once darshan-runtime has been installed, you must prepare a location
 in which to store the Darshan log files and configure an instrumentation method.
@@ -163,6 +165,56 @@ following steps:
 administrators group
 * recursively set the setgid bit on the log directories
 ====
+
+== Spack installation
+
+You can also install Darshan via https://spack.io/[Spack] as an alternative
+to manual download, compilation, and installation.  This may be
+especially convenient for single-user installs.  Darshan is divided
+into two separate packages for the command line utilities and runtime
+instrumentation.  You can install either or both as follows:
+
+----
+spack install darshan-util
+spack install darshan-runtime
+----
+
+[NOTE]
+====
+Darshan will generally compile and install fine using a variety of
+compilers, but we advise using a gcc compiler in Spack to compile Darshan
+(regardless of what compiler you will use for your applications) to
+ensure maximum runtime compatibility.
+====
+
+You can use the `spack info darshan-runtime` query to view the full list of
+variants available for the darshan-runtime Spack package.  For example, adding a `+slurm` to
+the command line (`spack install darshan-runtime+slurm`) will cause Darshan
+to be compiled with support for gathering job ID information from the Slurm
+scheduler.
+
+The following commands will load the Darshan packages once they have been
+installed:
+
+----
+spack load -r darshan-util
+spack load -r darshan-runtime
+----
+
+Note that the spack install of darshan-runtime will use an environment
+variable named `$DARSHAN_LOG_DIR_PATH` to indicate where it should store log
+files.  This variable is set to the user's home directory by default when
+the package is loaded, but it may be overridden.
+
+On Cray systems, you can also perform an additional step to load a
+Cray-specific module file. This will make a module called `darshan`
+available as described later in this document in the Cray platform recipe.
+It enables automatic instrumentation when using the standard Cray compiler
+wrappers.
+
+----
+module use `spack location -i darshan-runtime`/share/craype-2.x/modulefiles
+----
 
 == Instrumenting applications
 
