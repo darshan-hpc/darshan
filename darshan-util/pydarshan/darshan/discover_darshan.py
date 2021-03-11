@@ -15,6 +15,23 @@ if verbose_discovery:
     logger.setLevel(logging.DEBUG)  # set log-level
 
 
+
+class DarshanVersionError(NotImplementedError):
+    """
+    Raised when using a feature which is not provided by libdarshanutil.
+    """
+    def __init__(self, target_version, provided_version, msg="Feature"):
+        self.msg = msg
+        self.target_version = target_version
+        self.provided_version = provided_version
+
+    def __repr__(self):
+        return "DarshanVersionError('%s')" % str(self)
+
+    def __str__(self):
+        return "%s requires libdarshan-util %s, but found %s" % (self.msg, self.target_version, self.provided_version)
+
+
 def check_version(ffi=None, libdutil=None):
     """
     Get version from shared library or pkg-config and return info.
@@ -49,7 +66,6 @@ def check_version(ffi=None, libdutil=None):
     lib_version = lib_version.split(".")
     
     if package_version[0:3] != lib_version[0:3]:
-        from darshan.error import DarshanVersionError
         raise DarshanVersionError(
                 target_version = ".".join(package_version[0:3]),
                 provided_version = ".".join(lib_version), 

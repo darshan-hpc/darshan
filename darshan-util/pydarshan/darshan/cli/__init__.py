@@ -1,3 +1,7 @@
+"""The cli package provides a basis for building future python
+based command line utilities. Currently, the existing commands
+provide basic examples with limited functionality.
+"""
 import argparse
 import logging
 from argparse import ArgumentDefaultsHelpFormatter

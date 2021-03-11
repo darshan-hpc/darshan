@@ -2,6 +2,8 @@
 
 """
 The api_def_c carries a copy of CFFI compatible headers for libdarshan-util.so.
+These definitions must match the structure definitions for the associated 
+darshan release.
 """
 
 

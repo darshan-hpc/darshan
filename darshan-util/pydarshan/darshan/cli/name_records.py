@@ -1,3 +1,6 @@
+"""The `name_records` subcommand provides a list of all the file names
+list in the darshan log hash table.
+"""
 import sys
 import argparse
 import darshan

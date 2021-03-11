@@ -39,21 +39,6 @@ class DarshanReportJSONEncoder(json.JSONEncoder):
 
 
 
-_structdefs = {
-    "BG/Q": "struct darshan_bgq_record **",
-    "DXT_MPIIO": "struct dxt_file_record **",
-    "DXT_POSIX": "struct dxt_file_record **",
-    "H5F": "struct darshan_hdf5_file **",
-    "H5D": "struct darshan_hdf5_dataset **",
-    "LUSTRE": "struct darshan_lustre_record **",
-    "MPI-IO": "struct darshan_mpiio_file **",
-    "PNETCDF": "struct darshan_pnetcdf_file **",
-    "POSIX": "struct darshan_posix_file **",
-    "STDIO": "struct darshan_stdio_file **",
-}
-
-
-
 class DarshanReport(object):
     """
     The DarshanReport class provides a convienient wrapper to access darshan
@@ -351,19 +336,13 @@ class DarshanReport(object):
 
 
         # fetch records
-        rec = backend.log_get_generic_record(self.log, mod, _structdefs[mod], dtype=dtype)
+        rec = backend.log_get_generic_record(self.log, mod, dtype=dtype)
         while rec != None:
-            if dtype == 'pandas':
-                self.records[mod].append(rec)
-            if dtype == 'numpy': 
-                self.records[mod].append(rec)
-            else:
-                self.records[mod].append(rec)
-
+            self.records[mod].append(rec)
             self.modules[mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_generic_record(self.log, mod, _structdefs[mod], dtype=dtype)
+            rec = backend.log_get_generic_record(self.log, mod, dtype=dtype)
 
 
         if self.lookup_name_records:
@@ -439,17 +418,13 @@ class DarshanReport(object):
 
 
         # fetch records
-        rec = backend.log_get_dxt_record(self.log, mod, _structdefs[mod], dtype=dtype)
+        rec = backend.log_get_dxt_record(self.log, mod, dtype=dtype)
         while rec != None:
-            if dtype == 'numpy': 
-                self.records[mod].append(rec)
-            else:
-                self.records[mod].append(rec)
-
+            self.records[mod].append(rec)
             self.data['modules'][mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_dxt_record(self.log, mod, _structdefs[mod], reads=reads, writes=writes, dtype=dtype)
+            rec = backend.log_get_dxt_record(self.log, mod, reads=reads, writes=writes, dtype=dtype)
 
 
         if self.lookup_name_records:
@@ -568,12 +543,12 @@ class DarshanReport(object):
         self.counters[mod]['counters'] = cn 
         self.counters[mod]['fcounters'] = fcn
 
-        rec = backend.log_get_generic_record(self.log, mod, _structdefs[mod], dtype=dtype)
+        rec = backend.log_get_generic_record(self.log, mod, dtype=dtype)
         while rec != None:
             yield rec
 
             # fetch next
-            rec = backend.log_get_generic_record(self.log, mod, _structdefs[mod])
+            rec = backend.log_get_generic_record(self.log, mod, dtype=dtype)
 
 
     def info(self, metadata=False):
