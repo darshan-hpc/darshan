@@ -1398,7 +1398,8 @@ Optional Packages:
   --with-jobid-env=<name> Name of environment variable that stores the jobid
                           (specify "NONE" if no appropriate environment variable
                           is available: Darshan will use the pid of rank 0)
-  --with-mod-mem=<num>    Maximum amount of memory (in MiB) for each Darshan module
+  --with-mod-mem=<num>    Maximum runtime memory consumption per process
+                          (in MiB) across all instrumentation modules
 
 Some influential environment variables:
   MPICC       MPI C compiler command
@@ -4188,7 +4189,8 @@ else
 fi
 
 if test "x$enable_hdf5_mod" != "xno"; then :
-  if test -d "$enable_hdf5_mod"; then :
+
+    if test -d "$enable_hdf5_mod"; then :
   CFLAGS="${CFLAGS} -I${enable_hdf5_mod}/include"
         DARSHAN_HDF5_LD_FLAGS="-L${enable_hdf5_mod}/lib -Wl,-rpath=${enable_hdf5_mod}/lib -lhdf5"
 else

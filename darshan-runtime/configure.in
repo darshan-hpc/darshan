@@ -166,11 +166,12 @@ AC_ARG_WITH(jobid-env,
 )
 
 AC_ARG_WITH(mod-mem,
-[  --with-mod-mem=<num>    Maximum amount of memory (in MiB) for each Darshan module],
+[  --with-mod-mem=<num>    Maximum runtime memory consumption per process
+                          (in MiB) across all instrumentation modules],
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-mod-mem must be given a number)
     else
-        AC_DEFINE_UNQUOTED(__DARSHAN_MOD_MEM_MAX, ${withval}, Maximum memory (in MiB) for each Darshan module)
+        AC_DEFINE_UNQUOTED(__DARSHAN_MOD_MEM_MAX, ${withval}, Maximum runtime memory consumption per process (in MiB) across all instrumentation modules)
     fi
 )
 

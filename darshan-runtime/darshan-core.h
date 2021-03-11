@@ -48,7 +48,9 @@
 #define DARSHAN_DEF_MMAP_LOG_PATH "/tmp"
 #endif
 
-/* Maximum amount of memory per instrumentation module in MiB */
+/* Maximum runtime memory consumption per process (in MiB) across
+ * all instrumentation modules
+ */
 #ifdef __DARSHAN_MOD_MEM_MAX
 #define DARSHAN_MOD_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024L * 1024L)
 #else
