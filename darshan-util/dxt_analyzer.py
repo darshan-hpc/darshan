@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 ###
 #
@@ -73,6 +73,7 @@ python dxt_analyzer.py -i darshan_dxt-v.txt
 
 '''
 
+from builtins import str
 import numpy as np
 import matplotlib
 #matplotlib.use('PDF')
@@ -111,7 +112,7 @@ def store_useful_comment(pieces, finfo_dict, curr_fname):
     attribute = pieces[0].replace('# DXT, ', '')
     if attribute=='file_id':
         curr_fname = pieces[2].replace(' ','').rstrip('\n')
-        if curr_fname not in finfo_dict.keys():
+        if curr_fname not in list(finfo_dict.keys()):
             finfo_dict[curr_fname] = {'mount':'', 'fs':'', 'stripe_size':-1, 'stripe_width':-1, 'OST_list':[]}
         return curr_fname
     elif attribute=='mnt_pt':
@@ -185,9 +186,9 @@ def parse_dxt_log_line(line, curr_fname, finfo_dict):
 def get_verts_file(data, module, fname, action):
     '''make a list of rectangle vertices to plot the posix/mpi read/write activity for each rank for a specific file'''
     keyword = module+'_'+action
-    filedata = map(lambda x: x[1], filter(lambda x: x[0]==fname, data))
-    filtered = map(lambda x: x[1], filter(lambda x: x[0]==keyword, filedata))
-    activities = map(lambda x: (x[0], (x[2], x[3])), filtered)
+    filedata = [x[1] for x in [x for x in data if x[0]==fname]]
+    filtered = [x[1] for x in [x for x in filedata if x[0]==keyword]]
+    activities = [(x[0], (x[2], x[3])) for x in filtered]
     verts = np.zeros((1,4,2))
     for entry in activities:
         lx,rx,by,ty = entry[1][0], entry[1][1], entry[0] - 0.5 , entry[0] + 0.5
@@ -199,9 +200,9 @@ def get_verts_file(data, module, fname, action):
 def get_verts_all(data, module, action):
     '''make a list of rectangle vertices to plot the posix/mpi read/write activity for each rank'''
     keyword = module+'_'+action
-    IOdata = map(lambda x: x[1], data)
-    filtered = map(lambda x: x[1], filter(lambda x: x[0]==keyword, IOdata))
-    activities = map(lambda x: (x[0], (x[2], x[3])), filtered)
+    IOdata = [x[1] for x in data]
+    filtered = [x[1] for x in [x for x in IOdata if x[0]==keyword]]
+    activities = [(x[0], (x[2], x[3])) for x in filtered]
     verts = np.zeros((1,4,2))
     for entry in activities:
         lx,rx,by,ty = entry[1][0], entry[1][1], entry[0] - 0.5 , entry[0] + 0.5
