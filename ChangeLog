@@ -2,10 +2,12 @@
 Darshan Release Change Log
 --------------------------
 
-Darshan-3.2.2
+Darshan-3.3
 =============
 * add wrappers for preadv, preadv2, pwritev, and pwritev2 (improves profiling
   of ompio)
+* improve error handling in command line parsers to make incomplete logs more
+  obvious to users
 
 Darshan-3.2.1
 =============

@@ -1018,13 +1018,6 @@ static void stdio_runtime_initialize()
         &my_rank,
         &darshan_mem_alignment);
 
-    /* return if darshan-core does not provide enough module memory */
-    if(stdio_buf_size < sizeof(struct darshan_stdio_file))
-    {
-        darshan_core_unregister_module(DARSHAN_STDIO_MOD);
-        return;
-    }
-
     stdio_runtime = malloc(sizeof(*stdio_runtime));
     if(!stdio_runtime)
     {

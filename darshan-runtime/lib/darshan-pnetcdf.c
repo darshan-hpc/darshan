@@ -231,13 +231,6 @@ static void pnetcdf_runtime_initialize()
         &my_rank,
         NULL);
 
-    /* return if darshan-core does not provide enough module memory */
-    if(pnetcdf_buf_size < sizeof(struct darshan_pnetcdf_file))
-    {
-        darshan_core_unregister_module(DARSHAN_PNETCDF_MOD);
-        return;
-    }
-
     pnetcdf_runtime = malloc(sizeof(*pnetcdf_runtime));
     if(!pnetcdf_runtime)
     {

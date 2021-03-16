@@ -1174,13 +1174,6 @@ static void mpiio_runtime_initialize()
         &my_rank,
         NULL);
 
-    /* return if darshan-core does not provide enough module memory */
-    if(mpiio_buf_size < sizeof(struct darshan_mpiio_file))
-    {
-        darshan_core_unregister_module(DARSHAN_MPIIO_MOD);
-        return;
-    }
-
     mpiio_runtime = malloc(sizeof(*mpiio_runtime));
     if(!mpiio_runtime)
     {

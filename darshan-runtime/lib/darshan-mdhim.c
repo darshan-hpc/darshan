@@ -325,14 +325,6 @@ static void mdhim_runtime_initialize()
         &my_rank,
         NULL);
 
-    /* return if darshan-core does not provide enough module memory for at 
-     * least one MDHIM record
-     */
-    if(mdhim_buf_size < sizeof(struct darshan_mdhim_record))
-    {
-        darshan_core_unregister_module(DARSHAN_MDHIM_MOD);
-        return;
-    }
 
     /* initialize module's global state */
     mdhim_runtime = calloc(1, sizeof(*mdhim_runtime));

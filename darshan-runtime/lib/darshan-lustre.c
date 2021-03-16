@@ -203,15 +203,6 @@ static void lustre_runtime_initialize()
         &my_rank,
         NULL);
 
-    if(lustre_buf_size < LUSTRE_RECORD_SIZE(1))
-    {
-        /* unregister module if we aren't allocated enough space for
-         * the smallest possible record
-         */
-        darshan_core_unregister_module(DARSHAN_LUSTRE_MOD);
-        return;
-    }
-
     lustre_runtime = malloc(sizeof(*lustre_runtime));
     if(!lustre_runtime)
     {
