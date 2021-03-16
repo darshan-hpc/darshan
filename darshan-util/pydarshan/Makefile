@@ -32,6 +32,17 @@ clean-test:  # remove test and coverage artifacts
 	rm -rf .pytest_cache
 	rm -rf pkgtest
 
+clean-devenv:
+	rm -rf devenv/venv
+	rm -rf devenv/libdarshanutil
+	rm -rf devenv
+
+
+devenv:
+	./devel/build-libdarshanutil.sh
+	python3 -m venv devenv/venv
+	source devenv/venv/bin/activate && pip install -r requirements_dev.txt
+
 lint:  # check style with flake8
 	flake8 darshan tests
 
@@ -48,7 +59,7 @@ coverage:  # check code coverage quickly with the default Python
 
 
 docs: clean-docs # generate Sphinx HTML documentation, including API docs
-	sphinx-apidoc -M -H PyDarshan -o docs/ darshan
+	sphinx-apidoc -M -H PyDarshan -o docs/api/pydarshan darshan
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
 
