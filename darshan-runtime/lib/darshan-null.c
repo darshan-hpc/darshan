@@ -224,15 +224,6 @@ static void null_runtime_initialize()
         &my_rank,
         NULL);
 
-    /* return if darshan-core does not provide enough module memory for at 
-     * least one NULL record
-     */
-    if(null_buf_size < sizeof(struct darshan_null_record))
-    {
-        darshan_core_unregister_module(DARSHAN_NULL_MOD);
-        return;
-    }
-
     /* initialize module's global state */
     null_runtime = malloc(sizeof(*null_runtime));
     if(!null_runtime)

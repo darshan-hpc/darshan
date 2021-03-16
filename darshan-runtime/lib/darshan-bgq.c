@@ -136,14 +136,6 @@ void bgq_runtime_initialize()
         &my_rank,
         NULL);
 
-    /* not enough memory to fit bgq module record */
-    if(bgq_buf_size < sizeof(struct darshan_bgq_record))
-    {
-        darshan_core_unregister_module(DARSHAN_BGQ_MOD);
-        BGQ_UNLOCK();
-        return;
-    }
-
     /* initialize module's global state */
     bgq_runtime = malloc(sizeof(*bgq_runtime));
     if(!bgq_runtime)

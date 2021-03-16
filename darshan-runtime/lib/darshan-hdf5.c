@@ -933,13 +933,6 @@ static void hdf5_file_runtime_initialize()
         &my_rank,
         NULL);
 
-    /* return if darshan-core does not provide enough module memory */
-    if(hdf5_buf_size < sizeof(struct darshan_hdf5_file))
-    {
-        darshan_core_unregister_module(DARSHAN_H5F_MOD);
-        return;
-    }
-
     hdf5_file_runtime = malloc(sizeof(*hdf5_file_runtime));
     if(!hdf5_file_runtime)
     {
@@ -971,13 +964,6 @@ static void hdf5_dataset_runtime_initialize()
         &hdf5_buf_size,
         &my_rank,
         NULL);
-
-    /* return if darshan-core does not provide enough module memory */
-    if(hdf5_buf_size < sizeof(struct darshan_hdf5_dataset))
-    {
-        darshan_core_unregister_module(DARSHAN_H5D_MOD);
-        return;
-    }
 
     hdf5_dataset_runtime = malloc(sizeof(*hdf5_dataset_runtime));
     if(!hdf5_dataset_runtime)

@@ -1883,13 +1883,6 @@ static void posix_runtime_initialize()
         &my_rank,
         &darshan_mem_alignment);
 
-    /* return if darshan-core does not provide enough module memory */
-    if(psx_buf_size < sizeof(struct darshan_posix_file))
-    {
-        darshan_core_unregister_module(DARSHAN_POSIX_MOD);
-        return;
-    }
-
     posix_runtime = malloc(sizeof(*posix_runtime));
     if(!posix_runtime)
     {
