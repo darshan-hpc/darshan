@@ -18,7 +18,7 @@
    :maxdepth: 2
    :caption: API Reference:
 
-   modules
+   api/pydarshan/modules
 
 Indices and tables
 ==================

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Auxiliary to discover darshan-util install directory."""
+"""Auxiliary to discover a darshan-util installation."""
 
 
 import os

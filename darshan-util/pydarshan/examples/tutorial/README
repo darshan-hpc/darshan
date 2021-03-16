@@ -1,29 +1,30 @@
 # Getting started with PyDarshan
 
-On a Linux distribution with python3 available, the following steps get you
-started. Step 1 could be ommitted, but generally it is recommended not to mess
-with the Python provided by the distribution.
+On a Linux distribution, using a Bash Shell and python3 available,
+the following steps get you started. Step 1 could be ommitted, but 
+generally it is recommended not to mess with the Python provided 
+by the distribution.
 
 
+1) Setup a "virtual environment", activate it and install pydarshan.
+We assume python-venv is installed on your system but some distributions do not include it by default.
 
-1) Setup a "virtual environment", activate it and install pydarshan:
-
-python3 -m venv ./venv       # create a new virtual environment and store everything it requires into ./venv
-source ./venv/bin/activate   # activate the environment
-pip install darshan          # install darshan (and it's dependencies) to the virtual environment
-
+python3 -m venv ./venv    # create a new virtual environment and store everything it requires into ./venv
+. ./venv/bin/activate     # activate the environment
+pip install darshan       # install darshan (and it's dependencies) to the virtual environment
 
 
 2) Run as a prepared script:
 
 $ python hello.py
-$ python plot.py
+$ python plot.py          # This uses the interactive mode and may require you to install python3-tk
 $ python tojson.py 
 
 $ python tojson.py --help
 $ python tojson.py ior_hdf5_example.darshan
 $ ./tojson.py --help
 $ ./tojson.py ior_hdf5_example.darshan
+
 
 
 

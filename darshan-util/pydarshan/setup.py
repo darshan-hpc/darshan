@@ -14,7 +14,22 @@ setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest']
 
 
+# NOTE: The Python C extension is currently only used to automate
+# the build process of binary wheels for distribution via PyPi.
+#
+# If you are building darshan yourself and make libdarshan-util.so 
+# discoverable in the environment by means of LD_LIBRARY_PATH or 
+# pkg-config there is no need to build the extension.
 ext_modules = []
+if '--with-extension' in sys.argv:
+    ext_modules.append(Extension(
+        'darshan.extension',
+        #optional=True,
+        sources=['darshan/extension.c'],
+        include_dirs=['/usr/include'],
+        libraries=['darshan-util']
+        ))
+    sys.argv.remove('--with-extension')
 
 
 setup(
@@ -43,6 +58,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://www.mcs.anl.gov/research/projects/darshan/',
-    version='0.0.6',
+    version='0.0.7',
     zip_safe=False,
 )

@@ -1,17 +1,17 @@
-========
-Overview 
-========
+=======================
+PyDarshan Documentation
+=======================
 
 Python utilities to interact with Darshan log records of HPC applications.
-pydarshan requires darshan-utils version 3.3 or higher to be installed.
+PyDarshan requires darshan-utils version 3.3 or higher to be installed.
 
 Features
 --------
 
-* Darshan Report Object Wrapper
-* CFFI bindings to access darshan log files
+* Darshan Report Object for common interactive analysis tasks
+* Low-level CFFI bindings for efficient access to darshan log files
 * Plots typically found in the darshan reports (matplotlib)
-* Auto-discover darshan-util.so (via darshan-parser in $PATH)
+* Bundled with darshan-utils while allowing site's darshan-utils to take precedence
 
 
 Usage
@@ -25,7 +25,7 @@ A brief examples showing some of the basic functionality is the following::
     import darshan
 
     # Open darshan log
-    report = darshan.DarshanReport('example.darshan')
+    report = darshan.DarshanReport('example.darshan', read_all=False)
 
     # Load some report data
     report.mod_read_all_records('POSIX')
