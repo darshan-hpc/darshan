@@ -59,6 +59,9 @@ static size_t darshan_mod_mem_quota = DARSHAN_MOD_MEM_MAX;
 static struct darshan_core_mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
 
+static struct darshan_core_symlink_info sym_mnt_array[DARSHAN_MAX_MNTS];
+static int sym_mnt_count = 0;
+
 /* paths prefixed with the following directories are not tracked by darshan */
 char* darshan_path_exclusions[] = {
     "/etc/",
@@ -1168,9 +1171,15 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
 static void darshan_fs_info_from_path(const char *path, struct darshan_fs_info *fs_info)
 {
     int i;
+    char *real_path;
+    char *mnt_rel_path;
+    char *sym_rel_path;
+    char tmp_char;
+
     fs_info->fs_type = -1;
     fs_info->block_size = -1;
 
+    /* first pass should account for all mounts registered with Darshan */
     for(i=0; i<mnt_data_count; i++)
     {
         if(!(strncmp(mnt_data_array[i].path, path, strlen(mnt_data_array[i].path))))
@@ -1178,6 +1187,55 @@ static void darshan_fs_info_from_path(const char *path, struct darshan_fs_info *
             *fs_info = mnt_data_array[i].fs_info;
             return;
         }
+    }
+
+    /* second pass to check known symlinks */
+    for(i=0; i<sym_mnt_count; i++)
+    {
+        if(!(strncmp(sym_mnt_array[i].symlink_mount_dir, path,
+            strlen(sym_mnt_array[i].symlink_mount_dir))))
+        {
+            *fs_info = *(sym_mnt_array[i].fs_info);
+            return;
+        }
+    }
+
+    /* third pass if no match was found --
+     * use realpath to resolve symlinks and store any match that is found
+     */
+    real_path = realpath(path, NULL);
+    if(real_path)
+    {
+        for(i=0; i<mnt_data_count; i++)
+        {
+            if(!(strncmp(mnt_data_array[i].path, real_path, strlen(mnt_data_array[i].path))))
+            {
+                /* we were able to match the fully-resolved path to something Darshan
+                 * knows about. extract the symlink information and try to cache it
+                 * so future calls will not need to use realpath
+                 */
+                if(sym_mnt_count < DARSHAN_MAX_MNTS)
+                {
+                    /* XXX extract symlink mountdir (get non-mount portion of realpath, subtract it from given path) */
+                    mnt_rel_path = &real_path[strlen(mnt_data_array[i].path)];
+                    sym_rel_path = strstr(path, mnt_rel_path);
+                    if(sym_rel_path)
+                    {
+                        tmp_char = *sym_rel_path;
+                        *sym_rel_path = '\0';
+                        sym_mnt_array[sym_mnt_count].symlink_mount_dir = strdup(path);
+                        sym_mnt_array[sym_mnt_count].fs_info = &mnt_data_array[i].fs_info;
+                        sym_mnt_count++;
+                        *sym_rel_path = tmp_char;
+                    }
+                }
+
+                *fs_info = mnt_data_array[i].fs_info;
+                free(real_path);
+                return;
+            }
+        }
+        free(real_path);
     }
 
     return;
@@ -2033,6 +2091,9 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
             core->mod_array[i] = NULL;
         }
     }
+
+    for(i = 0; i < sym_mnt_count; i++)
+        free(sym_mnt_array[i].symlink_mount_dir);
 
 #ifndef __DARSHAN_ENABLE_MMAP_LOGS
     free(core->log_hdr_p);

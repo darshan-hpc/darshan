@@ -97,6 +97,12 @@ struct darshan_core_name_record_ref
     UT_hash_handle hlink;
 };
 
+struct darshan_core_symlink_info
+{
+    char *symlink_mount_dir;
+    struct darshan_fs_info *fs_info;
+};
+
 /* in memory structure to keep up with job level data */
 struct darshan_core_runtime
 {
