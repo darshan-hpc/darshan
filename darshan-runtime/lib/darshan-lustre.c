@@ -16,9 +16,10 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
-#include <sys/ioctl.h>
+#include <limits.h>
+#include <sys/xattr.h>
 
-#include <lustre/lustre_user.h>
+#include <lustre/lustreapi.h>
 
 #include "darshan.h"
 #include "darshan-dynamic.h"
@@ -50,10 +51,6 @@ static int my_rank = -1;
 #define LUSTRE_LOCK() pthread_mutex_lock(&lustre_runtime_mutex)
 #define LUSTRE_UNLOCK() pthread_mutex_unlock(&lustre_runtime_mutex)
 
-#ifndef LOV_MAX_STRIPE_COUNT /* for Lustre < 2.4 */
-    #define LOV_MAX_STRIPE_COUNT 2000
-#endif
-
 void darshan_instrument_lustre_file(const char* filepath, int fd)
 {
     struct lustre_record_ref *rec_ref;
@@ -61,9 +58,12 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
     struct darshan_fs_info fs_info;
     darshan_record_id rec_id;
     int i;
-    struct lov_user_md *lum;
-    size_t lumsize = sizeof(struct lov_user_md) +
-        LOV_MAX_STRIPE_COUNT * sizeof(struct lov_user_ost_data);
+    void *lustre_xattr_val;
+    size_t lustre_xattr_size = XATTR_SIZE_MAX;
+    struct llapi_layout *lustre_layout;
+    uint64_t stripe_size;
+    uint64_t stripe_count;
+    uint64_t tmp_ost;
     size_t rec_size;
     int ret;
 
@@ -85,23 +85,40 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
         &rec_id, sizeof(darshan_record_id));
     if(!rec_ref)
     {
-        /* first issue LUSTRE ioctl to see if we can get stripe data */
-
-        /* if we can't issue ioctl, we have no counter data at all */
-        if ( (lum = calloc(1, lumsize)) == NULL )
+        if ( (lustre_xattr_val = calloc(1, lustre_xattr_size)) == NULL )
         {
             LUSTRE_UNLOCK();
             return;
         }
 
-        /* find out the OST count of this file so we can allocate memory */
-        lum->lmm_magic = LOV_USER_MAGIC;
-        lum->lmm_stripe_count = LOV_MAX_STRIPE_COUNT;
-
-        /* -1 means ioctl failed, likely because file isn't on Lustre */
-        if ( ioctl( fd, LL_IOC_LOV_GETSTRIPE, (void *)lum ) == -1 )
+        /* -1 means fgetxattr failed, likely because file isn't on Lustre, but maybe because
+         * the Lustre version doesn't support this method of obtaining striping info
+         */
+        if ( (lustre_xattr_size = fgetxattr( fd, "lustre.lov", lustre_xattr_val, lustre_xattr_size)) == -1 )
         {
-            free(lum);
+            free(lustre_xattr_val);
+            LUSTRE_UNLOCK();
+            return;
+        }
+
+        /* get corresponding Lustre file layout, then extract stripe params */
+        if ( (lustre_layout = llapi_layout_get_by_xattr(lustre_xattr_val, lustre_xattr_size, 0)) == NULL)
+        {
+            free(lustre_xattr_val);
+            LUSTRE_UNLOCK();
+            return;
+        }
+        if (llapi_layout_stripe_size_get(lustre_layout, &stripe_size) == -1)
+        {
+            llapi_layout_free(lustre_layout);
+            free(lustre_xattr_val);
+            LUSTRE_UNLOCK();
+            return;
+        }
+        if (llapi_layout_stripe_count_get(lustre_layout, &stripe_count) == -1)
+        {
+            llapi_layout_free(lustre_layout);
+            free(lustre_xattr_val);
             LUSTRE_UNLOCK();
             return;
         }
@@ -110,7 +127,8 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
         rec_ref = malloc(sizeof(*rec_ref));
         if(!rec_ref)
         {
-            free(lum);
+            llapi_layout_free(lustre_layout);
+            free(lustre_xattr_val);
             LUSTRE_UNLOCK();
             return;
         }
@@ -120,12 +138,13 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
         if(ret == 0)
         {
             free(rec_ref);
-            free(lum);
+            llapi_layout_free(lustre_layout);
+            free(lustre_xattr_val);
             LUSTRE_UNLOCK();
             return;
         }
 
-        rec_size = LUSTRE_RECORD_SIZE( lum->lmm_stripe_count );
+        rec_size = LUSTRE_RECORD_SIZE( stripe_count );
 
         /* register a Lustre file record with Darshan */
         fs_info.fs_type = -1;
@@ -142,7 +161,8 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
             darshan_delete_record_ref(&(lustre_runtime->record_id_hash),
                 &rec_id, sizeof(darshan_record_id));
             free(rec_ref);
-            free(lum);
+            llapi_layout_free(lustre_layout);
+            free(lustre_xattr_val);
             LUSTRE_UNLOCK();
             return;
         }
@@ -161,12 +181,25 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
             rec->counters[LUSTRE_MDTS] = -1;
         }
 
-        rec->counters[LUSTRE_STRIPE_SIZE] = lum->lmm_stripe_size;
-        rec->counters[LUSTRE_STRIPE_WIDTH] = lum->lmm_stripe_count;
-        rec->counters[LUSTRE_STRIPE_OFFSET] = lum->lmm_stripe_offset;
-        for ( i = 0; i < lum->lmm_stripe_count; i++ )
-            rec->ost_ids[i] = lum->lmm_objects[i].l_ost_idx;
-        free(lum);
+        rec->counters[LUSTRE_STRIPE_SIZE] = stripe_size;
+        rec->counters[LUSTRE_STRIPE_WIDTH] = stripe_count;
+        rec->counters[LUSTRE_STRIPE_OFFSET] = -1; // no longer captured
+        for ( i = 0; i < stripe_count; i++ )
+        {
+            if (llapi_layout_ost_index_get(lustre_layout, i, &tmp_ost) == -1)
+            {
+                darshan_delete_record_ref(&(lustre_runtime->record_id_hash),
+                    &rec_id, sizeof(darshan_record_id));
+                free(rec_ref);
+                llapi_layout_free(lustre_layout);
+                free(lustre_xattr_val);
+                LUSTRE_UNLOCK();
+                return;
+            }
+            rec->ost_ids[i] = (int64_t)tmp_ost;
+        }
+        free(lustre_xattr_val);
+        llapi_layout_free(lustre_layout);
 
         rec->base_rec.id = rec_id;
         rec->base_rec.rank = my_rank;
