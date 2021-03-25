@@ -16,7 +16,6 @@ def merge(self, other, reduce_first=False):
         None
     """
 
-
     # new report
     nr = DarshanReport()
 
@@ -59,7 +58,7 @@ def merge(self, other, reduce_first=False):
             if key not in nr.records:
                 nr.records[key] = copy.copy(records)
             else:
-                nr.records[key] += copy.copy(records)
+                nr.records[key]._records = nr.records[key]._records + copy.copy(records._records)
 
         for key, mod in report.modules.items():
             if key not in nr.modules:
@@ -69,8 +68,6 @@ def merge(self, other, reduce_first=False):
         for key, counter in report.counters.items():
             if key not in nr.counters:
                 nr.counters[key] = copy.copy(counter)
-                # TODO: invalidate len/counters
-
 
         for key, nrec in report.name_records.items():
             if key not in nr.counters:

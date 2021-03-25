@@ -78,7 +78,7 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
             if mod not in mods:
                 continue
 
-            for rec in recs:
+            for i, rec in enumerate(recs):
                 nrec = rec['id'] 
 
                 if nrec in name_records:
@@ -95,7 +95,7 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
                         if nrec_pattern not in ctx[mod]:
                             ctx[mod][nrec_pattern] = {}
 
-                        if counters not in rec:
+                        if counters not in rec._records[0]:
                             continue
 
                         if counters not in ctx[mod][nrec_pattern]:
@@ -108,7 +108,7 @@ def reduce(self, operation="sum", mods=None, name_records=None, mode='append', d
     result = {}
     for mod, name_records in ctx.items():
         if mod not in result:
-            result[mod] = []
+            result[mod] = DarshanRecordCollection(mod=mod, report=r)
 
         for name_record, val in name_records.items():
             rec = {"id": name_record, "rank": -1}

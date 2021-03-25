@@ -90,9 +90,9 @@ def filter(self, mods=None, name_records=None, pattern=None, regex=None):
 
                 if nrec in name_records:
                     if mod not in ctx:
-                        ctx[mod] = []
+                        ctx[mod] = DarshanRecordCollection(mod=mod, report=r)
 
-                    ctx[mod].append(rec)
+                    ctx[mod].append(rec._records[0])
 
 
     r.records = ctx
