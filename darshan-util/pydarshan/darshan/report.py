@@ -18,6 +18,8 @@ import sys
 import numpy as np
 import pandas as pd
 
+import collections.abc
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,248 @@ class DarshanReportJSONEncoder(json.JSONEncoder):
 
 
 
+class DarshanRecordCollection(collections.abc.MutableSequence):
+    """
+    Darshan log records may nest various properties (e.g., DXT, Lustre).
+    As such they can not faithfully represented using only a single
+    Numpy array or a Pandas dataframe.
+
+    The DarshanRecordCollection is used as a wrapper to offer
+    users a stable API to DarshanReports and contained records
+    in various popular formats while allowing to optimize 
+    memory and internal representations as necessary.
+    """
+
+    def __init__(self, mod=None, report=None):     
+        super(DarshanRecordCollection, self).__init__()
+        self.mod = mod             # collections should be homogenous in module type
+        self.report = report       # reference the report offering lookup for, e.g., counter names
+
+        self.rank = None           # if all records in collection share rank, save memory
+        self.id = None             # if all records in collection share id/nrec, save memory
+
+        self.timebase = None       # allow fast time rebase without touching every record
+        self.start_time = None
+        self.end_time = None
+
+        self._type = "collection"  # collection => list(), single => [record], nested => [[], ... ,[]]
+        self._records = list()     # internal format before user conversion
+        pass
+    
+    def __len__(self):
+        return len(self._records)
+    
+    def __setitem__(self, key, val):
+        self._records[key] = val
+
+    def __getitem__(self, key):
+        if self._type == "record":
+            if isinstance(key, collections.abc.Hashable):
+                #TODO: might extend this style access to collection/nested type as well
+                #      but do not want to offer an access which might not be feasible to maintain
+                return self._records[0][key]
+            else:
+                return self._records[0]
+
+        # Wrap single record in RecordCollection to attach conversions: to_json, to_dict, to_df, ...
+        # This way conversion logic can be shared.
+        record = DarshanRecordCollection(mod=self.mod, report=self.report)
+
+        if isinstance(key, slice):
+            record._type = "collection"
+            record._records = self._records[key]
+        else:
+            record._type = "record"
+            record.append(self._records[key])
+        return record
+
+    def __delitem__(self, key):
+        del self._list[ii]
+
+    def insert(self, key, val):
+        self._records.insert(key, val)
+
+    def append(self, val):
+        self.insert(len(self._records), val)
+
+
+    def __repr__(self):
+        if self._type == "record":
+            return self._records[0].__repr__()
+        
+        return object.__repr__(self)
+
+    #def __repr__(self):
+    #    print("DarshanRecordCollection.__repr__")
+    #    repr = ""
+    #    for rec in self._records:
+    #        repr += f"{rec}\n"
+    #    return repr
+
+    def info(self, describe=False, plot=False):
+        """
+        Print information about the record for inspection.
+
+        Args:
+            describe (bool): show detailed summary and statistics (default: False)
+            plot (bool): show plots for quick value overview for counters and fcounters (default: False)
+
+        Return:
+            None
+        """
+        mod = self.mod
+        records = self._records
+
+        print("Module:       ", mod, sep="")
+        print("Records:      ", len(self), sep="")
+        print("Coll. Type:   ", self._type, sep="")
+
+        if mod in ['LUSTRE']:
+            for i, rec in enumerate(records):
+                pass
+        elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
+            ids = set()
+            ranks = set()
+            hostnames = set()
+            reads = 0
+            writes = 0
+            for i, rec in enumerate(records):
+                ids.add(rec['id']) 
+                ranks.add(rec['rank']) 
+                hostnames.add(rec['hostname']) 
+                reads += rec['read_count']
+                writes += rec['write_count']
+            print("Ranks:        ", str(ranks), sep="")
+            print("Name Records: ", str(ids), sep="")
+            print("Hostnames:    ", str(hostnames), sep="")
+            print("Read Events:  ", str(reads), sep="")
+            print("Write Events: ", str(writes), sep="")
+
+
+            if describe or plot:
+                logger.warn("No plots/descriptions defined for DXT records info.")
+
+        else:
+            ids = set()
+            ranks = set()
+            for i, rec in enumerate(records):
+                ids.add(rec['id']) 
+                ranks.add(rec['rank']) 
+            print("Ranks:        ", str(ranks), sep="")
+            print("Name Records: ", str(ids), sep="")
+
+
+            if describe or plot:
+                df = self.to_df(attach=None)
+                pd_max_rows = pd.get_option('display.max_rows')
+                pd_max_columns = pd.get_option('display.max_columns')
+                pd.set_option('display.max_rows', None)
+
+                if plot:
+                    figw = 7
+                    lh = 0.3    # lineheight
+                    # get number of counters for plot height adjustment
+                    nc = self[0]['counters'].size
+                    nfc = self[0]['fcounters'].size
+
+                    display(df['counters'].plot.box(vert=False, figsize=(figw, nc*lh)))
+                    display(df['fcounters'].plot.box(vert=False, figsize=(figw, nfc*lh)))
+
+                if describe:
+                    display(df['counters'].describe().transpose())
+                    display(df['fcounters'].describe().transpose())
+
+                pd.set_option('display.max_rows', pd_max_rows)
+
+
+
+    ###########################################################################
+    # Export Conversions (following the pandas naming conventions)
+    ###########################################################################
+    def to_numpy(self):
+        records = copy.deepcopy(self._records)
+        return records
+
+    def to_list(self):
+        mod = self.mod
+        records = copy.deepcopy(self._records)
+
+        if mod in ['LUSTRE']:
+            raise NotImplementedError
+        elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
+            raise NotImplementedError
+        else:
+            for i, rec in enumerate(records):
+                rec['counters'] = rec['counters'].tolist()
+                rec['fcounters'] = rec['fcounters'].tolist()
+        return records
+
+    def to_dict(self):
+        mod = self.mod
+        records = copy.deepcopy(self._records)
+        counters = self.report.counters[self.mod]
+        if mod in ['LUSTRE']:
+            raise NotImplementedError
+        elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
+            # format already in a dict format, but may offer switches for expansion
+            logger.warn("WARNING: The output of DarshanRecordCollection.to_dict() may change in the future.")
+            pass
+        else:
+            for i, rec in enumerate(records):
+                rec['counters'] = dict(zip(counters['counters'], rec['counters']))
+                rec['fcounters'] = dict(zip(counters['fcounters'], rec['fcounters']))
+        return records
+
+    def to_json(self):
+        records = self.to_list()
+        return json.dumps(records, cls=DarshanReportJSONEncoder)
+
+    def to_df(self, attach="default"):
+        if attach == "default":
+            attach = ['id', 'rank']
+
+        mod = self.mod
+        records = copy.deepcopy(self._records)
+
+        if mod in ['LUSTRE']:
+            for i, rec in enumerate(records):
+                rec = rec
+        elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
+            for i, rec in enumerate(records):
+                rec['read_segments'] = pd.DataFrame(rec['read_segments'])
+                rec['write_segments'] = pd.DataFrame(rec['write_segments'])
+        else:
+            counters = []
+            fcounters = []
+            ids = []
+            ranks = []
+
+            for i, rec in enumerate(records):
+                counters.append(rec['counters'])
+                fcounters.append(rec['fcounters'])
+                ids.append(rec['id'])
+                ranks.append(rec['rank'])
+            
+            records = {"counters": None, "fcounters": None}
+            records['counters'] = pd.DataFrame(counters, columns=self.report.counters[mod]['counters'])
+            records['fcounters'] = pd.DataFrame(fcounters, columns=self.report.counters[mod]['fcounters'])
+
+            def flip_column_order(df):
+                return df[df.columns[::-1]]
+
+            # attach ids and ranks
+            if attach is not None:
+                for counter_type in ['counters', 'fcounters']:
+                    records[counter_type] = flip_column_order(records[counter_type])
+                    if 'id' in attach:
+                        records[counter_type]['id'] = ids
+                    if 'rank' in attach:
+                        records[counter_type]['rank'] = ranks
+                    records[counter_type] = flip_column_order(records[counter_type])
+
+        return records
+
+
 class DarshanReport(object):
     """
     The DarshanReport class provides a convienient wrapper to access darshan
@@ -46,12 +290,12 @@ class DarshanReport(object):
     a number of common aggregations can be performed.
     """
 
-    # a way to conser memory?
+    # a way to conserve memory?
     #__slots__ = ['attr1', 'attr2']
 
 
     def __init__(self, 
-            filename=None, dtype='pandas', 
+            filename=None, dtype='numpy', 
             start_time=None, end_time=None,
             automatic_summary=False,
             read_all=True, lookup_name_records=True):
@@ -70,9 +314,7 @@ class DarshanReport(object):
         self.filename = filename
 
         # Behavioral Options
-        self.dtype = dtype  # Experimental: preferred internal representation: pandas/numpy useful for aggregations, dict good for export/REST
-                                        # might require alternative granularity: e.g., records, vs summaries?
-                                        # vs dict/pandas?  dict/native?
+        self.dtype = dtype                                  # default dtype to return when viewing records
         self.automatic_summary = automatic_summary
         self.lookup_name_records = lookup_name_records
 
@@ -81,16 +323,18 @@ class DarshanReport(object):
 
 
         # Report Metadata
+        #
+        # Start/End + Timebase are 
         self.start_time = start_time if start_time else float('inf')
         self.end_time = end_time if end_time else float('-inf')
         self.timebase = self.start_time
 
         # Initialize data namespaces
-        self.metadata = {}
-        self.modules = {}
-        self.counters = {}
+        self._metadata = {}
+        self._modules = {}
+        self._counters = {}
         self.records = {}
-        self.mounts = {}
+        self._mounts = {}
         self.name_records = {}
 
         # initialize report/summary namespace
@@ -101,10 +345,10 @@ class DarshanReport(object):
         # legacy references (deprecate before 1.0?)
         self.data_revision = 0          # counter for consistency checks
         self.data = {'version': 1}
-        self.data['metadata'] = self.metadata
+        self.data['metadata'] = self._metadata
         self.data['records'] = self.records
         self.data['summary'] = self.summary
-        self.data['modules'] = self.modules
+        self.data['modules'] = self._modules
         self.data['counters'] = self.counters
         self.data['name_records'] = self.name_records
 
@@ -120,6 +364,33 @@ class DarshanReport(object):
         if filename:
             self.open(filename, read_all=read_all)    
 
+
+    @property
+    def metadata(self):
+        return self._metadata
+
+    @property
+    def modules(self):
+        return self._modules
+
+    @property
+    def counters(self):
+        return self._counters
+
+#    @property
+#    def counters(self):
+#        return self._counters
+#
+#    @property
+#    def name_records(self):
+#        return self._name_records
+#
+#
+#    @property
+#    def summary(self):
+#        return self._summary
+#   
+      
 
     def open(self, filename, read_all=False):
         """
@@ -145,7 +416,6 @@ class DarshanReport(object):
 
             if read_all:
                 self.read_all()
-
 
 
     def __add__(self, other):
@@ -201,7 +471,7 @@ class DarshanReport(object):
         self.mounts = self.data['mounts']
 
         self.data['modules'] = backend.log_get_modules(self.log)
-        self.modules = self.data['modules']
+        self._modules = self.data['modules']
 
         if read_all == True:
             self.data["name_records"] = backend.log_get_name_records(self.log)
@@ -323,12 +593,12 @@ class DarshanReport(object):
         dtype = dtype if dtype else self.dtype
 
 
-        self.data['records'][mod] = []
+        self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
         cn = backend.counter_names(mod)
         fcn = backend.fcounter_names(mod)
 
         # update module metadata
-        self.modules[mod]['num_records'] = 0
+        self._modules[mod]['num_records'] = 0
         if mod not in self.counters:
             self.counters[mod] = {}
             self.counters[mod]['counters'] = cn 
@@ -339,7 +609,7 @@ class DarshanReport(object):
         rec = backend.log_get_generic_record(self.log, mod, dtype=dtype)
         while rec != None:
             self.records[mod].append(rec)
-            self.modules[mod]['num_records'] += 1
+            self._modules[mod]['num_records'] += 1
 
             # fetch next
             rec = backend.log_get_generic_record(self.log, mod, dtype=dtype)
@@ -409,10 +679,10 @@ class DarshanReport(object):
         dtype = dtype if dtype else self.dtype
 
 
-        self.records[mod] = []
+        self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
 
         # update module metadata
-        self.modules[mod]['num_records'] = 0
+        self._modules[mod]['num_records'] = 0
         if mod not in self.counters:
             self.counters[mod] = {}
 
@@ -465,11 +735,11 @@ class DarshanReport(object):
         dtype = dtype if dtype else self.dtype
 
 
-        self.records[mod] = []
+        self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
         cn = backend.counter_names(mod)
 
         # update module metadata
-        self.modules[mod]['num_records'] = 0
+        self._modules[mod]['num_records'] = 0
         if mod not in self.counters:
             self.counters[mod] = {}
             self.counters[mod]['counters'] = cn 
@@ -523,7 +793,7 @@ class DarshanReport(object):
         .. warning::
             Can't be used for now when alternating between different modules.
             A temporary workaround can be to open the same log multiple times,
-            as this ways buffers are not shared between get_record invocations
+            as this way buffers are not shared between get_record invocations
             in the lower level library.
 
 
@@ -573,7 +843,7 @@ class DarshanReport(object):
             print("Processes:      ", self.metadata['job']['nprocs'], sep="")
             print("JobID:          ", self.metadata['job']['jobid'], sep="")
             print("UID:            ", self.metadata['job']['uid'], sep="")
-            print("Modules in Log: ", list(self.modules.keys()), sep="")
+            print("Modules in Log: ", list(self._modules.keys()), sep="")
 
         loaded = {}
         for mod in self.records:
@@ -643,7 +913,7 @@ class DarshanReport(object):
         return rebased_records
 
     ###########################################################################
-    # Conversion 
+    # Export Conversions
     ###########################################################################
     def to_dict(self):
         """
@@ -659,18 +929,13 @@ class DarshanReport(object):
 
         recs = data['records']
         for mod in recs:
-            for i, rec in enumerate(data['records'][mod]):
-                try:
-                    recs[mod][i]['counters'] = rec['counters'].tolist()
-                except KeyError:
-                    logger.debug(f" to_json: mod={mod} does not include counters")
-                    pass
-                    
-                try: 
-                    recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
-                except KeyError:
-                    logger.debug(f" to_json: mod={mod} does not include fcounters")
-                    pass
+            try:
+                #recs[mod] = recs[mod].to_dict()
+                recs[mod] = recs[mod].to_list()
+            except:
+                recs[mod] = "Not implemented."
+
+
 
         return data
 
@@ -689,24 +954,14 @@ class DarshanReport(object):
 
         recs = data['records']
         for mod in recs:
-            for i, rec in enumerate(data['records'][mod]):
-                try:
-                    recs[mod][i]['counters'] = rec['counters'].tolist()
-                except KeyError:
-                    logger.debug(f" to_json: mod={mod} does not include counters")
-                    pass
-                    
-                try: 
-                    recs[mod][i]['fcounters'] = rec['fcounters'].tolist()
-                except KeyError:
-                    logger.debug(f" to_json: mod={mod} does not include fcounters")
-                    pass
+            try:
+                recs[mod] = recs[mod].to_list()
+            except:
+                recs[mod] = "Not implemented."
 
         return json.dumps(data, cls=DarshanReportJSONEncoder)
 
 
 
 
-    @staticmethod
-    def from_string(string):
-        return DarshanReport()
+

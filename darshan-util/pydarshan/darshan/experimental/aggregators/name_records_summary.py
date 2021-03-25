@@ -8,7 +8,7 @@ def name_records_summary(self):
         mod_name (str): 
 
     Return:
-        None
+        dict with counts nested <nrec-id>/<mod>
     """
 
     counts = {}
