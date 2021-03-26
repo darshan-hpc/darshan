@@ -239,6 +239,7 @@ struct darshan_hdf5_file
  * every HDF5 dataset opened by the original application. For the HDF5 module,
  * the record includes:
  *      - a darshan_base_record structure, which contains the record id & rank
+ *      - the Darshan record ID of the file the dataset belongs to
  *      - integer dataset I/O statistics (open, read/write counts, etc)
  *      - floating point dataset I/O statistics (timestamps, cumulative timers, etc.)
  */

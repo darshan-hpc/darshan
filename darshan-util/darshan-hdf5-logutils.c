@@ -446,7 +446,7 @@ static void darshan_log_print_hdf5_dataset_description(int ver)
     printf("#   H5D_F_MAX_*_TIME: duration of the slowest H5D read and write operations.\n");
     printf("#   H5D_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared datasets).\n");
     printf("#   H5D_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared datasets).\n");
-    printf("#   H5D_FILE_REC_ID: Darshan record ID corresponding to the dataset.\n");
+    printf("#   H5D_FILE_REC_ID: Darshan file record ID of the file the dataset belongs to.\n");
 
     if(ver == 1)
     {

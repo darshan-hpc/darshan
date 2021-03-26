@@ -417,6 +417,7 @@ value of 1 MiB for optimal file alignment.
 | H5D_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in H5D I/O
 | H5D_F_VARIANCE_RANK_TIME | The population variance for H5D I/O time of all the ranks
 | H5D_F_VARIANCE_RANK_BYTES | The population variance for bytes transferred of all the ranks at H5D level
+| H5D_FILE_REC_ID | Darshan file record ID of the file the dataset belongs to
 |====
 
 .PnetCDF module
