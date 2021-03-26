@@ -78,6 +78,7 @@ struct darshan_hdf5_file
 struct darshan_hdf5_dataset
 {
     struct darshan_base_record base_rec;
+    uint64_t file_rec_id;
     int64_t counters[94];
     double fcounters[17];
 };

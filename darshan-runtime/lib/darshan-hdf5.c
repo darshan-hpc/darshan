@@ -410,7 +410,7 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     char *__file_path, *__tmp_ptr; \
     char __rec_name[DARSHAN_HDF5_MAX_NAME_LEN] = {0}; \
     ssize_t __req_name_len = DARSHAN_HDF5_MAX_NAME_LEN-1, __ret_name_len; \
-    darshan_record_id __rec_id; \
+    darshan_record_id __rec_id, __file_rec_id = 0; \
     struct hdf5_dataset_record_ref *__rec_ref; \
     hsize_t __chunk_dims[H5D_MAX_NDIMS] = {0}; \
     int __i, __n_chunk_dims = 0; \
@@ -424,6 +424,7 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
             free(__file_path); \
             break; \
         } \
+        __file_rec_id = darshan_core_gen_record_id(__file_path); \
         strncpy(__rec_name, __file_path, __req_name_len); \
         free(__file_path); \
         if(strlen(__rec_name) + 2 <= __req_name_len) { \
@@ -462,6 +463,7 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
             __rec_ref->dataset_rec->counters[H5D_CHUNK_SIZE_D1 + __i] = __chunk_dims[__n_chunk_dims - __i - 1]; \
     } \
     __rec_ref->dataset_rec->counters[H5D_DATATYPE_SIZE] = H5Tget_size(__type_id); \
+    __rec_ref->dataset_rec->file_rec_id = __file_rec_id; \
     darshan_add_record_ref(&(hdf5_dataset_runtime->hid_hash), &__ret, sizeof(hid_t), __rec_ref); \
 } while(0)
 
@@ -1177,6 +1179,7 @@ static void hdf5_dataset_record_reduction_op(void* inrec_v, void* inoutrec_v,
         memset(&tmp_dataset, 0, sizeof(struct darshan_hdf5_dataset));
         tmp_dataset.base_rec.id = inrec->base_rec.id;
         tmp_dataset.base_rec.rank = -1;
+        tmp_dataset.file_rec_id = inrec->file_rec_id;
 
         /* sum */
         for(j=H5D_OPENS; j<=H5D_POINT_SELECTS; j++)

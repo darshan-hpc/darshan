@@ -9,7 +9,7 @@
 
 /* current HDF5 log format versions */
 #define DARSHAN_H5F_VER 3
-#define DARSHAN_H5D_VER 1
+#define DARSHAN_H5D_VER 2
 
 #define H5D_MAX_NDIMS 5
 
@@ -245,6 +245,7 @@ struct darshan_hdf5_file
 struct darshan_hdf5_dataset
 {
     struct darshan_base_record base_rec;
+    uint64_t file_rec_id;
     int64_t counters[H5D_NUM_INDICES];
     double fcounters[H5D_F_NUM_INDICES];
 };
