@@ -308,6 +308,8 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
 
     rec['id'] = rbuf[0].base_rec.id
     rec['rank'] = rbuf[0].base_rec.rank
+    if mod_name == 'H5D':
+        rec['file_rec_id'] = rbuf[0].file_rec_id
 
     clst = []
     for i in range(0, len(rbuf[0].counters)):
