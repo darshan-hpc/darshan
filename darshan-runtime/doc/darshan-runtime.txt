@@ -231,7 +231,7 @@ instrument applications at compile time.
 === Option 1: Instrumenting MPI applications at compile time
 
 This method is applicable to C, Fortran, and C++ MPI applications
-(regardless of whether they are static or dynamicly linked) and is the most
+(regardless of whether they are static or dynamically linked) and is the most
 straightforward method to apply transparently system-wide.  It works by
 injecting additional libraries and options into the linker command line to
 intercept relevant I/O calls.
@@ -576,7 +576,7 @@ recommend using mpicc with GNU compilers to compile Darshan.
 ----
 
 The darshan-gen-* scripts described earlier in this document can be used
-to create variants of the standard mpicc/mpicxx/mpif77/mpif90 scipts
+to create variants of the standard mpicc/mpicxx/mpif77/mpif90 scripts
 that are Darshan enabled.  These scripts will work correctly for both
 dynamic and statically linked executables.
 
