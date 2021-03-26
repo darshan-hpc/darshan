@@ -39,6 +39,8 @@ char *h5d_f_counter_names[] = {
 #define DARSHAN_H5F_FILE_SIZE_1 40
 #define DARSHAN_H5F_FILE_SIZE_2 56
 
+#define DARSHAN_H5D_DATASET_SIZE_1 904
+
 static int darshan_log_get_hdf5_file(darshan_fd fd, void** hdf5_buf_p);
 static int darshan_log_put_hdf5_file(darshan_fd fd, void* hdf5_buf);
 static void darshan_log_print_hdf5_file(void *ds_rec,
@@ -246,6 +248,30 @@ static int darshan_log_get_hdf5_dataset(darshan_fd fd, void** hdf5_buf_p)
         rec_len = sizeof(struct darshan_hdf5_dataset);
         ret = darshan_log_get_mod(fd, DARSHAN_H5D_MOD, ds, rec_len);
     }
+    else
+    {
+        char scratch[1024] = {0};
+        char *src_p, *dest_p;
+        int len;
+
+        if(fd->mod_ver[DARSHAN_H5D_MOD] == 1)
+        {
+            rec_len = DARSHAN_H5D_DATASET_SIZE_1;
+            ret = darshan_log_get_mod(fd, DARSHAN_H5D_MOD, scratch, rec_len);
+            if(ret != rec_len)
+                goto exit;
+
+            /* upconvert version 1 to version 2 in-place */
+            dest_p = scratch + sizeof(struct darshan_base_record) + sizeof(uint64_t);
+            src_p = dest_p - sizeof(uint64_t);
+            len = DARSHAN_H5D_DATASET_SIZE_1 - sizeof(struct darshan_base_record);
+            memmove(dest_p, src_p, len);
+            /* set FILE_REC_ID to 0 */
+            *((uint64_t *)src_p) = 0;
+        }
+
+        memcpy(ds, scratch, sizeof(struct darshan_hdf5_dataset));
+    }
 
 exit:
     if(*hdf5_buf_p == NULL)
@@ -267,6 +293,11 @@ exit:
         {
             DARSHAN_BSWAP64(&(ds->base_rec.id));
             DARSHAN_BSWAP64(&(ds->base_rec.rank));
+            /* skip counters we explicitly set to 0 since they don't
+             * need to be byte swapped
+             */
+            if(fd->mod_ver[DARSHAN_H5F_MOD] >= 2)
+                DARSHAN_BSWAP64(&ds->file_rec_id);
             for(i=0; i<H5D_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&ds->counters[i]);
             for(i=0; i<H5D_F_NUM_INDICES; i++)
@@ -352,6 +383,11 @@ static void darshan_log_print_hdf5_dataset(void *ds_rec, char *ds_name,
             ds_name, mnt_pt, fs_type);
     }
 
+    DARSHAN_U_COUNTER_PRINT(darshan_module_names[DARSHAN_H5D_MOD],
+        hdf5_ds_rec->base_rec.rank, hdf5_ds_rec->base_rec.id,
+        "H5D_FILE_REC_ID", hdf5_ds_rec->file_rec_id,
+        ds_name, mnt_pt, fs_type);
+
     return;
 }
 
@@ -410,6 +446,13 @@ static void darshan_log_print_hdf5_dataset_description(int ver)
     printf("#   H5D_F_MAX_*_TIME: duration of the slowest H5D read and write operations.\n");
     printf("#   H5D_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared datasets).\n");
     printf("#   H5D_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared datasets).\n");
+    printf("#   H5D_FILE_REC_ID: Darshan record ID corresponding to the dataset.\n");
+
+    if(ver == 1)
+    {
+        printf("\n# WARNING: H5D module log format version 1 does not support the following counters:\n");
+        printf("# - H5D_FILE_REC_ID\n");
+    }
 
     return;
 }
@@ -646,6 +689,7 @@ static void darshan_log_agg_hdf5_datasets(void *rec, void *agg_rec, int init_fla
     struct var_t *var_bytes_p = (struct var_t *)
         ((char *)var_time_p + sizeof(struct var_t));
 
+    agg_hdf5_rec->file_rec_id = hdf5_rec->file_rec_id;
     for(i = 0; i < H5D_NUM_INDICES; i++)
     {
         switch(i)
