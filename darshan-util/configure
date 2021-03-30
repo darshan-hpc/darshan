@@ -621,6 +621,8 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+DARSHAN_USE_APMPI
+DARSHAN_USE_APXC
 DARSHAN_UTIL_VERSION
 DARSHAN_PYDARSHAN_PATH
 DARSHAN_ENABLE_PYDARSHAN
@@ -699,6 +701,8 @@ with_zlib
 with_bzlib
 enable_shared
 enable_pydarshan
+enable_autoperf_apxc
+enable_autoperf_apmpi
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1332,6 +1336,8 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-shared   enables building of shared darshan-util library
   --enable-pydarshan   enables build/install of pydarshan module and tools
+  --enable-autoperf-apxc    Enables compilation and use of the AutoPerf Cray XC module
+  --enable-autoperf-apmpi    Enables compilation and use of the AutoPerf MPI module
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -1714,6 +1720,35 @@ fi
   as_fn_set_status $ac_retval
 
 } # ac_fn_c_try_link
+
+# ac_fn_c_check_header_preproc LINENO HEADER VAR
+# ----------------------------------------------
+# Tests whether HEADER is present, setting the cache variable VAR accordingly.
+ac_fn_c_check_header_preproc ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
+$as_echo_n "checking for $2... " >&6; }
+if eval \${$3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <$2>
+_ACEOF
+if ac_fn_c_try_cpp "$LINENO"; then :
+  eval "$3=yes"
+else
+  eval "$3=no"
+fi
+rm -f conftest.err conftest.i conftest.$ac_ext
+fi
+eval ac_res=\$$3
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+
+} # ac_fn_c_check_header_preproc
 
 # ac_fn_c_check_func LINENO FUNC VAR
 # ----------------------------------
@@ -4367,6 +4402,42 @@ fi
 fi
 
 
+# Check whether --enable-autoperf-apxc was given.
+if test "${enable_autoperf_apxc+set}" = set; then :
+  enableval=$enable_autoperf_apxc; enable_autoperf_apxc=yes
+fi
+
+# Check whether --enable-autoperf-apmpi was given.
+if test "${enable_autoperf_apmpi+set}" = set; then :
+  enableval=$enable_autoperf_apmpi; enable_autoperf_apmpi=yes
+fi
+
+
+if test x$enable_autoperf_apxc = xyes; then
+    abssrcdir=$(readlink -f ${srcdir})
+    as_ac_Header=`$as_echo "ac_cv_header_${abssrcdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h" | $as_tr_sh`
+ac_fn_c_check_header_preproc "$LINENO" "${abssrcdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h" "$as_ac_Header"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  DARSHAN_USE_APXC=1
+else
+  as_fn_error $? "The autoperf APXC module is not present" "$LINENO" 5
+fi
+
+ # this last part tells it to only check for presence
+fi
+if test x$enable_autoperf_apmpi = xyes; then
+    abssrcdir=$(readlink -f ${srcdir})
+    as_ac_Header=`$as_echo "ac_cv_header_${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h" | $as_tr_sh`
+ac_fn_c_check_header_preproc "$LINENO" "${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h" "$as_ac_Header"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  DARSHAN_USE_APMPI=1
+else
+  as_fn_error $? "The autoperf MPI module is not present" "$LINENO" 5
+fi
+
+ # this last part tells it to only check for presence
+fi
+
 for ac_func in strndup
 do :
   ac_fn_c_check_func "$LINENO" "strndup" "ac_cv_func_strndup"
@@ -4380,6 +4451,8 @@ done
 
 
 DARSHAN_UTIL_VERSION="3.2.1"
+
+
 
 
 

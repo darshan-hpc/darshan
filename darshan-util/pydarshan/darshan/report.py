@@ -40,7 +40,6 @@ class DarshanReportJSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-
 class DarshanRecordCollection(collections.abc.MutableSequence):
     """
     Darshan log records may nest various properties (e.g., DXT, Lustre).
@@ -193,7 +192,6 @@ class DarshanRecordCollection(collections.abc.MutableSequence):
                     display(df['fcounters'].describe().transpose())
 
                 pd.set_option('display.max_rows', pd_max_rows)
-
 
 
     ###########################################################################
@@ -647,7 +645,65 @@ class DarshanReport(object):
 
         pass
 
+    def mod_read_all_apmpi_records(self, mod, dtype=None, warnings=True):
+        """ 
+        Reads all APMPI records for provided module.
 
+        Args:
+            mod (str): Identifier of module to fetch all records
+            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+
+        Return:
+            None
+
+        """
+        if mod not in self.data['modules']:
+            if warnings:
+                logger.warning(f"Skipping. Log does not contain data for mod: {mod}")
+            return
+
+
+        supported =  ['APMPI'] 
+        if mod not in supported:
+            if warnings:
+                logger.warning(f" Skipping. Unsupported module: {mod} in in mod_read_all_apmpi_records(). Supported: {supported}")
+            # skip mod
+            return
+
+        #print(mod+"-HEADER")
+        #print(_structdefs[mod+"-HEADER"])
+        # handling options
+        dtype = dtype if dtype else self.dtype
+
+        self.records[mod] = []
+        # update module metadata
+        self.modules[mod]['num_records'] = 0
+        if mod not in self.counters:
+            self.counters[mod] = {}
+
+        # fetch header record
+        header_rec = backend.log_get_apmpi_record(self.log, _structdefs[mod+"-HEADER"])
+        self.records[mod].append(header_rec)
+
+        # fetch records
+        rec = backend.log_get_apmpi_record(self.log, _structdefs[mod+"-PERF"])
+        while rec != None:
+            if dtype == 'numpy':
+                self.records[mod].append(rec)
+            else:
+                self.records[mod].append(rec)
+
+            self.data['modules'][mod]['num_records'] += 1
+
+            # fetch next
+            rec = backend.log_get_apmpi_record(self.log, _structdefs[mod+"-PERF"])
+
+
+        if self.lookup_name_records:
+            self.update_name_records()
+   
+        pass 
+ 
     def mod_read_all_dxt_records(self, mod, dtype=None, warnings=True, reads=True, writes=True):
         """
         Reads all dxt records for provided module.
@@ -778,7 +834,6 @@ class DarshanReport(object):
                 'id': -1,
                 'counters': combined_c,
                 }]
-
 
         pass
 

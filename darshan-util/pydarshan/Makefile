@@ -74,8 +74,8 @@ release: #dist # package and upload a release
 	twine upload dist/*
 
 dist: clean  # builds source and wheel package
-	python setup.py sdist
-	python setup.py bdist_wheel
+	python3 setup.py sdist
+	python3 setup.py bdist_wheel
 
 	# might want to remove none-any wheel, but more specific wheels seem to take precedence
 	# rm -r dist/*non-any.whl
@@ -90,4 +90,4 @@ dist: clean  # builds source and wheel package
 
 
 install: clean  # install the package to the active Python's site-packages
-	python setup.py install
+	python3 setup.py install 

@@ -155,6 +155,13 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[];
 #include "darshan-dxt-logutils.h"
 #include "darshan-mdhim-logutils.h"
 
+#ifdef DARSHAN_USE_APXC
+#include "darshan-apxc-logutils.h"
+#endif
+#ifdef DARSHAN_USE_APMPI
+#include "darshan-apmpi-logutils.h"
+#endif
+
 darshan_fd darshan_log_open(const char *name);
 darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type,
     int partial_flag);
@@ -209,10 +216,26 @@ void darshan_log_get_filtered_name_records(darshan_fd fd,
         __file_name, __mnt_pt, __fs_type); \
 } while(0)
 
+#define DARSHAN_I_COUNTER_PRINT(__mod_name, __rank, __file_id, \
+                              __counter, __counter_val, __file_name, \
+                              __mnt_pt, __fs_type) do { \
+    printf("%s\t%" PRId64 "\t%" PRIu64 "\t%s\t%d\t%s\t%s\t%s\n", \
+        __mod_name, __rank, __file_id, __counter, __counter_val, \
+        __file_name, __mnt_pt, __fs_type); \
+} while(0)
+
 #define DARSHAN_F_COUNTER_PRINT(__mod_name, __rank, __file_id, \
                                 __counter, __counter_val, __file_name, \
                                 __mnt_pt, __fs_type) do { \
     printf("%s\t%" PRId64 "\t%" PRIu64 "\t%s\t%f\t%s\t%s\t%s\n", \
+        __mod_name, __rank, __file_id, __counter, __counter_val, \
+        __file_name, __mnt_pt, __fs_type); \
+} while(0)
+
+#define DARSHAN_S_COUNTER_PRINT(__mod_name, __rank, __file_id, \
+                              __counter, __counter_val, __file_name, \
+                              __mnt_pt, __fs_type) do { \
+    printf("%s\t%" PRId64 "\t%" PRIu64 "\t%s\t%s\t%s\t%s\t%s\n", \
         __mod_name, __rank, __file_id, __counter, __counter_val, \
         __file_name, __mnt_pt, __fs_type); \
 } while(0)

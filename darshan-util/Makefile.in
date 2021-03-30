@@ -10,6 +10,9 @@ sbindir = @sbindir@
 bindir = @bindir@
 libdir = @libdir@
 
+DARSHAN_USE_APXC = @DARSHAN_USE_APXC@
+DARSHAN_USE_APMPI = @DARSHAN_USE_APMPI@
+
 DARSHAN_LOG_FORMAT = $(srcdir)/../darshan-log-format.h
 DARSHAN_MOD_LOG_FORMATS = $(srcdir)/../darshan-posix-log-format.h \
 			  $(srcdir)/../darshan-mpiio-log-format.h \
@@ -78,6 +81,13 @@ LD=@LD@
 AR=@AR@
 
 LIBS = -lz @LIBBZ2@
+
+ifdef DARSHAN_USE_APXC
+include $(srcdir)/../modules/autoperf/apxc/util/Makefile.darshan
+endif
+ifdef DARSHAN_USE_APMPI
+include $(srcdir)/../modules/autoperf/apmpi/util/Makefile.darshan
+endif
 
 mktestdir::
 	mkdir -p test

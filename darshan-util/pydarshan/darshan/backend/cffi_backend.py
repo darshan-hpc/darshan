@@ -18,7 +18,27 @@ from darshan.backend.api_def_c import load_darshan_header
 from darshan.discover_darshan import find_utils
 from darshan.discover_darshan import check_version
 
-API_def_c = load_darshan_header()
+addins = ""
+
+#
+# Optional APXC module
+#
+try:
+  from darshan.backend.apxc import *
+  addins += get_apxc_defs()
+except:
+  pass
+
+#
+# Optional APMPI module
+#
+try:
+  from darshan.backend.apmpi import *
+  addins += get_apmpi_defs()
+except:
+  pass
+
+API_def_c = load_darshan_header(addins)
 
 ffi = cffi.FFI()
 ffi.cdef(API_def_c)
@@ -41,6 +61,10 @@ _structdefs = {
     "PNETCDF": "struct darshan_pnetcdf_file **",
     "POSIX": "struct darshan_posix_file **",
     "STDIO": "struct darshan_stdio_file **",
+    "APXC-HEADER": "struct darshan_apxc_header_record **",
+    "APXC-PERF": "struct darshan_apxc_perf_record **",
+    "APMPI-HEADER": "struct darshan_apmpi_header_record **",
+    "APMPI-PERF": "struct darshan_apmpi_perf_record **",
 }
 
 
@@ -356,7 +380,7 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
     return rec
 
 
-def counter_names(mod_name, fcnts=False):
+def counter_names(mod_name, fcnts=False, special=''):
     """
     Returns a list of available counter names for the module.
     By default only integer counter names are listed, unless fcnts is set to
@@ -382,8 +406,8 @@ def counter_names(mod_name, fcnts=False):
     else:
         F = ""
 
-    end = "{0}_{1}NUM_INDICES".format(mod_name.upper(), F.upper())
-    var_name = "{0}_{1}counter_names".format(mod_name.lower(), F.lower())
+    end = "{0}_{1}{2}NUM_INDICES".format(mod_name.upper(), F.upper(), special.upper())
+    var_name = "{0}_{1}{2}counter_names".format(mod_name.lower(), F.lower(), special.lower())
 
     while True: 
         try:

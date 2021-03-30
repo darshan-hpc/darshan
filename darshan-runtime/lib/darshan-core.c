@@ -89,6 +89,10 @@ char** user_darshan_path_exclusions = NULL;
 extern void bgq_runtime_initialize();
 #endif
 
+#ifdef DARSHAN_USE_APXC
+extern void apxc_runtime_initialize();
+#endif
+
 /* array of init functions for modules which need to be statically
  * initialized by darshan at startup time
  */
@@ -96,6 +100,9 @@ void (*mod_static_init_fns[])(void) =
 {
 #ifdef DARSHAN_BGQ
     &bgq_runtime_initialize,
+#endif
+#ifdef DARSHAN_USE_APXC
+    &apxc_runtime_initialize,
 #endif
     NULL
 };
@@ -602,6 +609,7 @@ void darshan_core_shutdown()
                     HASH_FIND(hlink, final_core->name_hash, &shared_recs[j],
                         sizeof(darshan_record_id), ref);
                     assert(ref);
+
                     if(DARSHAN_MOD_FLAG_ISSET(ref->global_mod_flags, i))
                     {
                         mod_shared_recs[mod_shared_rec_cnt++] = shared_recs[j];
@@ -611,8 +619,10 @@ void darshan_core_shutdown()
                 /* allow the module an opportunity to reduce shared files */
                 if(this_mod->mod_funcs.mod_redux_func && (mod_shared_rec_cnt > 0) &&
                    (!getenv("DARSHAN_DISABLE_SHARED_REDUCTION")))
+                {
                     this_mod->mod_funcs.mod_redux_func(mod_buf, final_core->mpi_comm,
                         mod_shared_recs, mod_shared_rec_cnt);
+                }
             }
 #endif
 
