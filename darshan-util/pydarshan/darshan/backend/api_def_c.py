@@ -121,9 +121,6 @@ typedef struct segment_info {
     double end_time;
 } segment_info;
 
-
-
-
 /* counter names */
 extern char *bgq_counter_names[];
 extern char *bgq_f_counter_names[];
@@ -160,10 +157,10 @@ void darshan_log_get_filtered_name_records(void*, struct darshan_name_record **,
 
 
 
-def load_darshan_header():
+def load_darshan_header(addins=''):
     """
     Returns a CFFI compatible header for darshan-utlil as a string.
 
     :return: String with a CFFI compatible header for darshan-util.
     """
-    return header
+    return header + addins

@@ -373,6 +373,7 @@ int darshan_log_get_exe(darshan_fd fd, char *buf)
     return (0);
 }
 
+
 /* darshan_log_put_exe()
  *
  * wrties the application exe name to darshan log file

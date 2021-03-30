@@ -44,6 +44,8 @@ BUILD_HDF5_MODULE = @BUILD_HDF5_MODULE@
 BUILD_BGQ_MODULE = @BUILD_BGQ_MODULE@
 BUILD_LUSTRE_MODULE = @BUILD_LUSTRE_MODULE@
 BUILD_MDHIM_MODULE = @BUILD_MDHIM_MODULE@
+BUILD_APMPI_MODULE = @BUILD_APMPI_MODULE@
+BUILD_APXC_MODULE = @BUILD_APXC_MODULE@
 
 DARSHAN_STATIC_MOD_OBJS =
 DARSHAN_DYNAMIC_MOD_OBJS =
@@ -102,6 +104,13 @@ DARSHAN_STATIC_MOD_OBJS += lib/darshan-mdhim.o
 DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-mdhim.po
 CFLAGS += -DDARSHAN_MDHIM
 CFLAGS_SHARED += -DDARSHAN_MDHIM
+endif
+
+ifdef BUILD_APXC_MODULE
+include $(srcdir)/../modules/autoperf/apxc/Makefile.darshan
+endif
+ifdef BUILD_APMPI_MODULE
+include $(srcdir)/../modules/autoperf/apmpi/Makefile.darshan
 endif
 
 lib::
@@ -249,6 +258,9 @@ ifdef BUILD_HDF5_MODULE
 endif
 ifdef BUILD_MDHIM_MODULE
 	install -m 644 $(srcdir)/share/ld-opts/darshan-mdhim-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/darshan-mdhim-ld-opts
+endif
+ifdef BUILD_APMPI_MODULE
+	install -m 644 $(srcdir)/../modules/autoperf/apmpi/share/ld-opts/autoperf-apmpi-ld-opts $(DESTDIR)$(datarootdir)/ld-opts/autoperf-apmpi-ld-opts
 endif
 ifdef ENABLE_MMAP_LOGS
 	install -m 755 share/darshan-mmap-epilog.sh $(DESTDIR)$(datarootdir)/darshan-mmap-epilog.sh

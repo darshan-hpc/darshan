@@ -120,6 +120,12 @@ struct darshan_base_record
 /* DXT */
 #include "darshan-dxt-log-format.h"
 #include "darshan-mdhim-log-format.h"
+#ifdef DARSHAN_USE_APXC
+#include "darshan-apxc-log-format.h"
+#endif
+#ifdef DARSHAN_USE_APMPI
+#include "darshan-apmpi-log-format.h"
+#endif
 
 /* X-macro for keeping module ordering consistent */
 /* NOTE: first val used to define module enum values, 
@@ -131,21 +137,40 @@ struct darshan_base_record
  * component -- NULL can be passed if there are no
  * logutil definitions)
  */
-#define DARSHAN_MODULE_IDS \
-    X(DARSHAN_NULL_MOD,     "NULL",     DARSHAN_NULL_VER,       NULL) \
-    X(DARSHAN_POSIX_MOD,    "POSIX",    DARSHAN_POSIX_VER,      &posix_logutils) \
-    X(DARSHAN_MPIIO_MOD,    "MPI-IO",   DARSHAN_MPIIO_VER,      &mpiio_logutils) \
-    X(DARSHAN_H5F_MOD,      "H5F",      DARSHAN_H5F_VER,        &hdf5_file_logutils) \
-    X(DARSHAN_H5D_MOD,      "H5D",      DARSHAN_H5D_VER,        &hdf5_dataset_logutils) \
-    X(DARSHAN_PNETCDF_MOD,  "PNETCDF",  DARSHAN_PNETCDF_VER,    &pnetcdf_logutils) \
-    X(DARSHAN_BGQ_MOD,      "BG/Q",     DARSHAN_BGQ_VER,        &bgq_logutils) \
-    X(DARSHAN_LUSTRE_MOD,   "LUSTRE",   DARSHAN_LUSTRE_VER,     &lustre_logutils) \
-    X(DARSHAN_STDIO_MOD,    "STDIO",    DARSHAN_STDIO_VER,      &stdio_logutils) \
-    /* DXT */ \
-    X(DXT_POSIX_MOD,       "DXT_POSIX",  DXT_POSIX_VER,         &dxt_posix_logutils) \
-    X(DXT_MPIIO_MOD,       "DXT_MPIIO",  DXT_MPIIO_VER,         &dxt_mpiio_logutils) \
-    X(DARSHAN_MDHIM_MOD,   "MDHIM",      DARSHAN_MDHIM_VER,     &mdhim_logutils)
 
+/* NOTE: if APXC support is not enabled, we still want to hold it's spot
+ * in the module id space
+ */
+#ifdef DARSHAN_USE_APXC
+#define __APXC_VER APXC_VER
+#define __apxc_logutils &apxc_logutils
+#else
+#define __APXC_VER 0
+#define __apxc_logutils NULL
+#endif
+#ifdef DARSHAN_USE_APMPI
+#define __APMPI_VER APMPI_VER
+#define __apmpi_logutils &apmpi_logutils
+#else
+#define __APMPI_VER 0
+#define __apmpi_logutils NULL
+#endif
+
+#define DARSHAN_MODULE_IDS \
+    X(DARSHAN_NULL_MOD,     "NULL",       DARSHAN_NULL_VER,      NULL) \
+    X(DARSHAN_POSIX_MOD,    "POSIX",      DARSHAN_POSIX_VER,     &posix_logutils) \
+    X(DARSHAN_MPIIO_MOD,    "MPI-IO",     DARSHAN_MPIIO_VER,     &mpiio_logutils) \
+    X(DARSHAN_H5F_MOD,      "H5F",        DARSHAN_H5F_VER,       &hdf5_file_logutils) \
+    X(DARSHAN_H5D_MOD,      "H5D",        DARSHAN_H5D_VER,       &hdf5_dataset_logutils) \
+    X(DARSHAN_PNETCDF_MOD,  "PNETCDF",    DARSHAN_PNETCDF_VER,   &pnetcdf_logutils) \
+    X(DARSHAN_BGQ_MOD,      "BG/Q",       DARSHAN_BGQ_VER,       &bgq_logutils) \
+    X(DARSHAN_LUSTRE_MOD,   "LUSTRE",     DARSHAN_LUSTRE_VER,    &lustre_logutils) \
+    X(DARSHAN_STDIO_MOD,    "STDIO",      DARSHAN_STDIO_VER,     &stdio_logutils) \
+    X(DXT_POSIX_MOD,        "DXT_POSIX",  DXT_POSIX_VER,         &dxt_posix_logutils) \
+    X(DXT_MPIIO_MOD,        "DXT_MPIIO",  DXT_MPIIO_VER,         &dxt_mpiio_logutils) \
+    X(DARSHAN_MDHIM_MOD,    "MDHIM",      DARSHAN_MDHIM_VER,     &mdhim_logutils) \
+    X(DARSHAN_APXC_MOD,     "APXC", 	  __APXC_VER,            __apxc_logutils) \
+    X(DARSHAN_APMPI_MOD,    "APMPI",      __APMPI_VER,           __apmpi_logutils) 
 
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
