@@ -151,7 +151,8 @@ darshan_fd darshan_log_open(const char *name)
     tmp_fd->state->fildes = open(name, O_RDONLY);
     if(tmp_fd->state->fildes < 0)
     {
-        fprintf(stderr, "Error: failed to open darshan log file %s.\n", name);
+        fprintf(stderr, "Error: %s failed to open darshan log file %s: %s.\n", __func__,
+                name, strerror(errno));
         free(tmp_fd->state);
         free(tmp_fd);
         return(NULL);
@@ -162,7 +163,8 @@ darshan_fd darshan_log_open(const char *name)
     ret = darshan_log_get_header(tmp_fd);
     if(ret < 0)
     {
-        fprintf(stderr, "Error: failed to read darshan log file header.\n");
+        fprintf(stderr, "Error: %s failed to read darshan log file header.\n",
+                __func__, strerror(errno));
         close(tmp_fd->state->fildes);
         free(tmp_fd->state);
         free(tmp_fd);
@@ -213,7 +215,8 @@ darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type
     tmp_fd->state->fildes = creat(name, 0400);
     if(tmp_fd->state->fildes < 0)
     {
-        fprintf(stderr, "Error: failed to open darshan log file %s.\n", name);
+        fprintf(stderr, "Error: %s failed to open darshan log file %s: %s.\n",
+                __func__, name, strerror(errno));
         free(tmp_fd->state);
         free(tmp_fd);
         return(NULL);
