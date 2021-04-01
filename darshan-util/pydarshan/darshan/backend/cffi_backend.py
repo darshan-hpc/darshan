@@ -421,6 +421,7 @@ def counter_names(mod_name, fcnts=False, special=''):
             break
         names.append(name)
         i += 1
+
     return names
 
 

@@ -670,40 +670,82 @@ class DarshanReport(object):
             # skip mod
             return
 
-        #print(mod+"-HEADER")
-        #print(_structdefs[mod+"-HEADER"])
         # handling options
         dtype = dtype if dtype else self.dtype
 
-        self.records[mod] = []
+        self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
+
         # update module metadata
-        self.modules[mod]['num_records'] = 0
+        self._modules[mod]['num_records'] = 0
         if mod not in self.counters:
             self.counters[mod] = {}
 
-        # fetch header record
-        header_rec = backend.log_get_apmpi_record(self.log, _structdefs[mod+"-HEADER"])
-        self.records[mod].append(header_rec)
-
         # fetch records
-        rec = backend.log_get_apmpi_record(self.log, _structdefs[mod+"-PERF"])
+        # fetch header record
+        rec = backend.log_get_apmpi_record(self.log, mod, "HEADER", dtype=dtype)
         while rec != None:
-            if dtype == 'numpy':
-                self.records[mod].append(rec)
-            else:
-                self.records[mod].append(rec)
-
+            self.records[mod].append(rec)
             self.data['modules'][mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_apmpi_record(self.log, _structdefs[mod+"-PERF"])
+            rec = backend.log_get_apmpi_record(self.log, mod, "PERF", dtype=dtype)
 
 
         if self.lookup_name_records:
             self.update_name_records()
-   
-        pass 
- 
+
+        pass
+
+    def mod_read_all_apxc_records(self, mod, dtype=None, warnings=True):
+        """ 
+        Reads all APXC records for provided module.
+
+        Args:
+            mod (str): Identifier of module to fetch all records
+            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+
+        Return:
+            None
+
+        """
+        if mod not in self.data['modules']:
+            if warnings:
+                logger.warning(f"Skipping. Log does not contain data for mod: {mod}")
+            return
+
+        supported =  ['APXC'] 
+        if mod not in supported:
+            if warnings:
+                logger.warning(f" Skipping. Unsupported module: {mod} in in mod_read_all_apxc_records(). Supported: {supported}")
+            # skip mod
+            return
+
+        # handling options
+        dtype = dtype if dtype else self.dtype
+
+        self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
+        cn = backend.counter_names(mod)
+
+        # update module metadata
+        self._modules[mod]['num_records'] = 0
+        if mod not in self.counters:
+            self.counters[mod] = {}
+
+        # fetch records
+        # fetch header record
+        rec = backend.log_get_apxc_record(self.log, mod, "HEADER", dtype=dtype)
+        while rec != None:
+            self.records[mod].append(rec)
+            self.data['modules'][mod]['num_records'] += 1
+
+            # fetch next
+            rec = backend.log_get_apxc_record(self.log, mod, "PERF", dtype=dtype)
+
+        if self.lookup_name_records:
+            self.update_name_records()
+
+        pass
+
     def mod_read_all_dxt_records(self, mod, dtype=None, warnings=True, reads=True, writes=True):
         """
         Reads all dxt records for provided module.
