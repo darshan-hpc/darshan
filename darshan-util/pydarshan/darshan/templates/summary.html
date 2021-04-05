@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:py="http://genshi.edgewall.org/">
+<head>
+  <title>Darshan Report</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css"/>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+</head>
+<body>
+
+<div class="panel panel-primary">
+	<div class="panel-heading">Darshan Summary Report for <b>${var.exe.split()[0].split('/')[-1]}</b> on ${var.date.date()}</div>
+    <div class="panel-body">${var.exe}</div>
+</div>
+
+<div class="container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Jobid</th>
+                <th>uid</th>
+                <th>processes</th>
+                <th>runtime (seconds)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+		<td>${var.jid}</td>
+		<td>${var.uid}</td>
+		<td>${var.nprocs}</td>
+		<td>${var.runtime}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="panel panel-default">
+    <div class="panel-heading">Performance Estimate</div>
+    <div class="panel-body">I/O performance estimate (at the POSIX layer): transferred 107835432.9 MiB at 44357.76 MiB/s</div>
+</div>
+
+<div class="panel-group">
+    <div class="panel panel-primary">
+        <div class="panel-heading">
+            <h4 class="panel-title">
+                <a data-toggle="collapse" href="#collapse0">Documentation</a>
+            </h4>
+        </div>
+        <div id="collapse0" class="panel-collapse collapse">
+            <div class="panel-body">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="list-group">
+                                <a class="list-group-item" href="https://www.mcs.anl.gov/research/projects/darshan/">Darshan Home</a>
+                                <a class="list-group-item" href="https://www.mcs.anl.gov/research/projects/darshan/documentation/">Darshan Documentation</a>
+                                <a class="list-group-item" href="https://www.mcs.anl.gov/research/projects/darshan/docs/darshan-util.html#_guide_to_darshan_parser_output">Counter Documentation</a>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <img src="https://www.mcs.anl.gov/research/projects/darshan/wp-content/uploads/sites/54/2018/05/darshan-web-logo.png" class="img-rounded" alt="darshan logo"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h4 class="panel-title">
+            <a data-toggle="collapse" href="#collapse1">Overview</a>
+        </h4>
+    </div>
+    <div id="collapse1" class="panel-collapse collapse in">
+    <div class="panel-body">
+        <div class="container">
+        <div class="row">
+            <div class="col-lg-6">
+		    <img class="img-rounded" alt="avg-io-per-proc" src="data:image/png;base64,${var.plot_io_cost}"/>
+            </div>
+            <div class="col-lg-6">
+		    <img class="img-rounded" alt="io-counts" src="data:image/png;base64,${var.plot_op_count}"/>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-6">
+                <h3>Data Transer Per Filesystem (POSIX and STDIO)</h3>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">File System</th>
+                            <th colspan="2">Write</th>
+                            <th colspan="2">Read</th>
+                        </tr>
+                        <tr>
+                            <th>MiB</th>
+                            <th>Ratio</th>
+                            <th>MiB</th>
+                            <th>Ratio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+			<py:for each="key in var.fs_data">
+                            <tr>
+				<td>${key}</td>
+				<td>${var.fs_data[key]['write'] / (1024*1024)}</td>
+				<td>${var.fs_data[key]['write_rt']}</td>
+				<td>${var.fs_data[key]['read'] / (1024*1024)}</td>
+				<td>${var.fs_data[key]['read_rt']}</td>
+                            </tr>
+			</py:for>
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-lg-6">
+                <h3>File Count Summary<br/>(estimated by POSIX I/O access offsets)</h3>
+                <table class="table">
+                <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Number of Files</th>
+                    <th>Avg. Size</th>
+                    <th>Max Size</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>Total Opened</td>
+                    <td>2838</td>
+                    <td>38G</td>
+                    <td>113G</td>
+                </tr>
+                <tr>
+                    <td>read-only files</td>
+                    <td>129</td>
+                    <td>66G</td>
+                    <td>70G</td>
+                </tr>
+                <tr>
+                    <td>write-only files</td>
+                    <td>2451</td>
+                    <td>34G</td>
+                    <td>113G</td>
+                </tr>
+                <tr>
+                    <td>read/write files</td>
+                    <td>258</td>
+                    <td>67G</td>
+                    <td>72G</td>
+                </tr>
+                <tr>
+                    <td>created files</td>
+                    <td>2709</td>
+                    <td>37G</td>
+                    <td>113G</td>
+                </tr>
+                </tbody>
+                </table>
+            </div>
+	    <!-- </div> -->
+	    <!-- </div> -->
+    </div>
+    </div>
+    </div>
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h4 class="panel-title">
+            <a data-toggle="collapse" href="#collapse2">I/O Access</a>
+        </h4>
+    </div>
+    <div id="collapse2" class="panel-collapse collapse in">
+        <div class="panel-body">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-6">
+                        <img src="plot2.png" class="img-rounded" alt="io-access"/>
+                    </div>
+                    <div class="col-lg-6">
+                        <figure>
+                            <img src="plot4.png" class="img-rounded" alt="io-count"/>
+                            <figcaption>sequential: An I/O op issued at an offset greter than wehre th previous I/O op ended.<br/>
+                                consecutive: An I/O op issued at the offset immediately following the end of the previous I/O op.
+                            </figcaption>
+                        </figure>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-4">
+                        <h3>Most Common Access Size<br/>(POSIX or MPI-IO)</h3>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Access Size</th>
+                                    <th>Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>POSIX</td>
+                                    <td>11632</td>
+                                    <td>1536</td>
+                                </tr>
+                                <tr>
+                                    <td></td>
+                                    <td>153548</td>
+                                    <td>912</td>
+                                </tr>
+                                <tr>
+                                    <td></td>
+                                    <td>135976</td>
+                                    <td>912</td>
+                                </tr>
+                                <tr>
+                                    <td></td>
+                                    <td>171392</td>
+                                    <td>912</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-lg-8">
+                        <h3>Average I/O per process (POSIX or MPI-IO)</h3>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Cumulative time spent in I/O functions (seconds)</th>
+                                    <th>Amount of I/O (MB)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Independent reads</td>
+                                    <td>1.8266612705078</td>
+                                    <td>266.787112236954</td>
+                                </tr>
+                                <tr>
+                                    <td>Independent writes</td>
+                                    <td>9.22240010139975</td>
+                                    <td>4121.04788513078</td>
+                                </tr>
+                                <tr>
+                                    <td>Indepednent metadata</td>
+                                    <td>1686.44261747184</td>
+                                    <td>N/A</td>
+                                </tr>
+                                <tr>
+                                    <td>Shared reads</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                </tr>
+                                <tr>
+                                    <td>Shared writes</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                </tr>
+                                <tr>
+                                    <td>Shared metadata</td>
+                                    <td>0</td>
+                                    <td>N/A</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h4 class="panel-title">
+            <a data-toggle="collapse" href="#collapse3">I/O Timeline</a>
+        </h4>
+    </div>
+    <div id="collapse3" class="panel-collapse collapse in">
+        <div class="panel-body">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-6">
+                        <img src="plot5.png" class="img-rounded" alt="read-timeline"/>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-6">
+                        <img src="plot6.png" class="img-rounded" alt="write-timeline"/>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-6">
+                        <img src="plot7.png" class="img-rounded" alt="shared-timeline"/>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h4 class="panel-title">
+            <a data-toggle="collapse" href="#collapse4">I/O Variance</a>
+        </h4>
+    </div>
+    <div id="collapse4" class="panel-collapse collapse in">
+        <div class="panel-body">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <h3>Variance in Shared File (POSIX and STDIO)</h3>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">File Suffix</th>
+                                    <th rowspan="2">Processes</th>
+                                    <th colspan="3">Fastest</th>
+                                    <th colspan="3">Slowest</th>
+                                    <th colspan="2">&sigma;</th>
+                                </tr>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Time</th>
+                                    <th>Bytes</th>
+                                    <th>Rank</th>
+                                    <th>Time</th>
+                                    <th>Bytes</th>
+                                    <th>Time</th>
+                                    <th>Bytes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>blah.txt</td>
+                                    <td>100</td>
+                                    <td>1</td>
+                                    <td>2</td>
+                                    <td>3</td>
+                                    <td>0</td>
+                                    <td>4</td>
+                                    <td>5</td>
+                                    <td>6</td>
+                                    <td>7</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+</div>
+</div>
+
+</body>
+</html>
