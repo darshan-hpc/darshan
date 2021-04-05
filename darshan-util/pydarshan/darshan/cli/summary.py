@@ -274,6 +274,7 @@ def apmpi_process(apmpi_dict):
     encoded.append(base64.b64encode(buf.read()))
     return encoded
   
+    
 def main(args=None):
 
     if args is None:
