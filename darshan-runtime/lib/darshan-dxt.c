@@ -418,7 +418,7 @@ void dxt_stdio_runtime_initialize()
      * and passed back to darshan-core at shutdown time to allow DXT more control
      * over realloc'ing module memory as needed.
      */
-    int dxt_stdio_buf_size = 0;
+    size_t dxt_stdio_buf_size = 0;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = NULL,
