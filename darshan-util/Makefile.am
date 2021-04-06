@@ -10,14 +10,6 @@ AM_CPPFLAGS = -I${top_srcdir}/../include
 
 SUBDIRS = darshan-job-summary
 
-if DARSHAN_USE_APXC
-   SUBDIRS += modules/autoperf/apxc/util
-endif
-if DARSHAN_USE_APMPI
-   SUBDIRS += modules/autoperf/apmpi/util
-endif
-
-
 lib_LTLIBRARIES = libdarshan-util.la
 
 libdarshan_util_la_SOURCES = darshan-null-logutils.c \
@@ -85,6 +77,33 @@ uthash-1.9.2:
 	tar xjf $(srcdir)/extern/uthash-1.9.2.tar.bz2
 
 nobase_include_HEADERS = uthash-1.9.2/src/uthash.h
+
+CLEANFILES =
+apxc_root = $(top_srcdir)/../modules/autoperf/apxc
+if DARSHAN_USE_APXC
+   include_HEADERS += $(apxc_root)/darshan-apxc-log-format.h \
+                      $(apxc_root)/util/darshan-apxc-logutils.h
+   BUILT_SOURCES += darshan-apxc-logutils.c
+   CLEANFILES += darshan-apxc-logutils.c
+   libdarshan_util_la_SOURCES += darshan-apxc-logutils.c
+   AM_CPPFLAGS += -DDARSHAN_USE_APXC \
+                  -I$(apxc_root) -I$(apxc_root)/util
+endif
+darshan-apxc-logutils.c:
+	$(LN_S) $(apxc_root)/util/darshan-apxc-logutils.c .
+
+apmpi_root = $(top_srcdir)/../modules/autoperf/apmpi
+if DARSHAN_USE_APMPI
+   include_HEADERS += $(apmpi_root)/darshan-apmpi-log-format.h \
+                      $(apmpi_root)/util/darshan-apmpi-logutils.h
+   BUILT_SOURCES += darshan-apmpi-logutils.c
+   CLEANFILES += darshan-apmpi-logutils.c
+   libdarshan_util_la_SOURCES += darshan-apmpi-logutils.c
+   AM_CPPFLAGS += -DDARSHAN_USE_APMPI \
+                  -I$(apmpi_root) -I$(apmpi_root)/util
+endif
+darshan-apmpi-logutils.c:
+	$(LN_S) $(apmpi_root)/util/darshan-apmpi-logutils.c .
 
 distclean-local: distclean-local-check
 distclean-local-check:

@@ -101,7 +101,7 @@ DARSHAN_EXTERN_DECL(PMPI_Finalize, int, ());
 DARSHAN_EXTERN_DECL(PMPI_Init, int, (int *argc, char ***argv));
 DARSHAN_EXTERN_DECL(PMPI_Init_thread, int, (int *argc, char ***argv, int required, int *provided));
 DARSHAN_EXTERN_DECL(PMPI_Wtime, double, ());
-#ifdef MPI_VERSION >= 3
+#if MPI_VERSION >= 3
 DARSHAN_EXTERN_DECL(PMPI_Allreduce, int, (const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm));
 #else
 DARSHAN_EXTERN_DECL(PMPI_Allreduce, int, (void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm));
@@ -109,7 +109,7 @@ DARSHAN_EXTERN_DECL(PMPI_Allreduce, int, (void *sendbuf, void *recvbuf, int coun
 DARSHAN_EXTERN_DECL(PMPI_Bcast, int, (void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm comm));
 DARSHAN_EXTERN_DECL(PMPI_Comm_rank, int, (MPI_Comm comm, int *rank));
 DARSHAN_EXTERN_DECL(PMPI_Comm_size, int, (MPI_Comm comm, int *size));
-#ifdef MPI_VERSION >= 3
+#if MPI_VERSION >= 3
 DARSHAN_EXTERN_DECL(PMPI_Scan, int, (const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm));
 #else
 DARSHAN_EXTERN_DECL(PMPI_Scan, int, (void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm));
@@ -118,7 +118,7 @@ DARSHAN_EXTERN_DECL(PMPI_Type_commit, int, (MPI_Datatype *datatype));
 DARSHAN_EXTERN_DECL(PMPI_Type_contiguous, int, (int count, MPI_Datatype oldtype, MPI_Datatype *newtype));
 DARSHAN_EXTERN_DECL(PMPI_Type_extent, int, (MPI_Datatype datatype, MPI_Aint *extent));
 DARSHAN_EXTERN_DECL(PMPI_Type_free, int, (MPI_Datatype *datatype));
-#ifdef MPI_VERSION >= 3
+#if MPI_VERSION >= 3
 DARSHAN_EXTERN_DECL(PMPI_Type_hindexed, int, (int count, const int *array_of_blocklengths, MPI_Aint *array_of_displacements, MPI_Datatype oldtype, MPI_Datatype *newtype));
 #else
 DARSHAN_EXTERN_DECL(PMPI_Type_hindexed, int, (int count, int *array_of_blocklengths, MPI_Aint *array_of_displacements, MPI_Datatype oldtype, MPI_Datatype *newtype));

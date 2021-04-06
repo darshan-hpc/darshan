@@ -482,7 +482,7 @@ AutoPerf offers two additional Darshan instrumentation modules that may be enabl
 * APMPI: Instrumentation of over 70 MPI-3 communication routines, providing operation counts, datatype sizes, and timing information for each application MPI rank.
 * APXC: Instrumentation of Cray XC environments to provide network and compute counters of interest, via PAPI.
 
-Users can request Darshan to build the APMPI and APXC modules by passing `--enable-apmpi-mod` and `--enable-apxc-mod` options to configure, respectively. Note that these options can be requested independently (i.e., you can build Darshan with APMPI support but not APXC support, and vice versa).
+Users can request Darshan to build the APMPI and APXC modules by passing `--enable-apmpi` and `--enable-apxc` options to configure, respectively. Note that these options can be requested independently (i.e., you can build Darshan with APMPI support but not APXC support, and vice versa).
 
 The only prerequsisite for the APMPI module is that Darsan be configured with a MPI-3 compliant compiler. For APXC, the user must obviously be using a Cray XC system and must make the PAPI interace available to Darshan (i.e., by running `module load papi`, before building Darshan).
 

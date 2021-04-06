@@ -64,6 +64,34 @@ endif
 libdarshan_la_SOURCES = $(C_SRCS)
 libdarshan_la_LIBADD = -lpthread -lrt -lz -ldl $(DARSHAN_LUSTRE_LD_FLAGS)
 
+BUILT_SOURCES =
+CLEANFILES =
+include_HEADERS =
+apxc_root = $(top_srcdir)/../modules/autoperf/apxc
+if BUILD_APXC_MODULE
+   include_HEADERS += $(apxc_root)/darshan-apxc-log-format.h \
+                      $(apxc_root)/lib/darshan-apxc-utils.h
+   BUILT_SOURCES += darshan-apxc.c
+   CLEANFILES += darshan-apxc.c
+   libdarshan_la_SOURCES += darshan-apxc.c
+   AM_CPPFLAGS += -DDARSHAN_USE_APXC \
+                  -I$(apxc_root) -I$(apxc_root)/lib
+endif
+darshan-apxc.c:
+	$(LN_S) $(apxc_root)/lib/darshan-apxc.c .
+
+apmpi_root = $(top_srcdir)/../modules/autoperf/apmpi
+if BUILD_APMPI_MODULE
+   include_HEADERS += $(apmpi_root)/darshan-apmpi-log-format.h
+   BUILT_SOURCES += darshan-apmpi.c
+   CLEANFILES += darshan-apmpi.c
+   libdarshan_la_SOURCES += darshan-apmpi.c
+   AM_CPPFLAGS += -DDARSHAN_USE_APMPI \
+                  -I$(apmpi_root) -I$(apmpi_root)/lib
+endif
+darshan-apmpi.c:
+	$(LN_S) $(apmpi_root)/lib/darshan-apmpi.c .
+
 H_SRCS = darshan-common.h \
          darshan.h \
          darshan-core.h \

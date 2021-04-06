@@ -244,14 +244,14 @@ if test "x$enable_darshan_runtime" = xyes ; then
    fi
 
    # AUTOPERF MPI module
-   AC_ARG_ENABLE([apmpi-mod],
-      [AS_HELP_STRING([--enable-apmpi-mod],
+   AC_ARG_ENABLE([apmpi],
+      [AS_HELP_STRING([--enable-apmpi],
                       [Enables compilation and use of AUTOPERF MPI module (requires MPI)])],
-      [], [enable_apmpi_mod=no]
+      [], [enable_apmpi=no]
    )
-   if test "x$enable_apmpi_mod" = xyes ; then
+   if test "x$enable_apmpi" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
-         AC_MSG_ERROR([--enable-apmpi-mod Autoperf MPI module requires MPI support])
+         AC_MSG_ERROR([--enable-apmpi Autoperf MPI module requires MPI support])
       fi
       abssrcdir=$(readlink -f ${srcdir})
       AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
@@ -273,14 +273,14 @@ if test "x$enable_darshan_runtime" = xyes ; then
    fi
 
    #AUTOPERF APXC module
-   AC_ARG_ENABLE([apxc-mod],
-      [AS_HELP_STRING([--enable-apxc-mod],
+   AC_ARG_ENABLE([apxc],
+      [AS_HELP_STRING([--enable-apxc],
                       [Enables compilation and use of AUTOPERF APXC module (requires MPI)])],
-      [], [enable_apxc_mod=no]
+      [], [enable_apxc=no]
    )
-   if test "x$enable_apxc_mod" = xyes ; then
+   if test "x$enable_apxc" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
-         AC_MSG_ERROR([--enable-apxc-mod Autoperf XC module requires MPI support])
+         AC_MSG_ERROR([--enable-apxc Autoperf XC module requires MPI support])
       fi
       abssrcdir=$(readlink -f ${srcdir})
       AC_CHECK_HEADER([papi.h],
@@ -394,8 +394,14 @@ if test "x$enable_darshan_runtime" = xyes ; then
    )
    # if lustre module not disabled, check for needed Lustre module header
    if test x$enable_lustre_mod != xno; then
-      AC_CHECK_HEADER([lustre/lustre_user.h],
-         [AS_IF([test "x$enable_lustre_mod" = xyes],
+      AC_CHECK_HEADER([lustre/lustreapi.h],
+         [AC_CHECK_LIB(lustreapi, llapi_layout_get_by_xattr,
+             [BUILD_LUSTRE_MODULE=1
+	      DARSHAN_LUSTRE_LD_FLAGS="-llustreapi"],
+	     [AS_IF([test "x$enable_lustre_mod" = xyes],
+                 [AC_MSG_ERROR(Cannot find required llapi_layout_get_by_xattr function for the Lustre module)])
+             ])
+          AS_IF([test "x$enable_lustre_mod" = xyes],
                 [AC_MSG_ERROR(Cannot find required headers for the Lustre module)])
           enable_lustre_mod=yes],
          [enable_lustre_mod=no])
@@ -587,6 +593,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    AC_SUBST(DARSHAN_APMPI_LD_OPTS)
    AC_SUBST(DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS)
    AC_SUBST(DARSHAN_HDF5_LD_FLAGS)
+   AC_SUBST(DARSHAN_LUSTRE_LD_FLAGS)
    AC_SUBST(with_papi)
 else
    enable_mmap_logs=no
@@ -595,8 +602,8 @@ else
    enable_stdio_mod=no
    enable_dxt_mod=no
    enable_mpiio_mod=no
-   enable_apmpi_mod=no
-   enable_apxc_mod=no
+   enable_apmpi=no
+   enable_apxc=no
    with_hdf5_mod=no
    enable_pnetcdf_mod=no
    enable_bgq_mod=no
@@ -620,8 +627,8 @@ AM_CONDITIONAL(BUILD_BGQ_MODULE,    [test "x$enable_bgq_mod"     = xyes])
 AM_CONDITIONAL(BUILD_LUSTRE_MODULE, [test "x$enable_lustre_mod"  = xyes])
 AM_CONDITIONAL(BUILD_MDHIM_MODULE,  [test "x$enable_mdhim"       = xyes])
 AM_CONDITIONAL(ENABLE_LDPRELOAD,    [test "x$enable_ld_preload"  = xyes])
-AM_CONDITIONAL(BUILD_APMPI_MODULE,  [test "x$enable_apmpi_mod"   = xyes])
-AM_CONDITIONAL(BUILD_APXC_MODULE,   [test "x$enable_apxc_mod"    = xyes])
+AM_CONDITIONAL(BUILD_APMPI_MODULE,  [test "x$enable_apmpi"       = xyes])
+AM_CONDITIONAL(BUILD_APXC_MODULE,   [test "x$enable_apxc"        = xyes])
 
 dnl When MPI is enabled, CC has been set to the MPI C compiler.
 dnl MPICC will substitute CC in all Makefile.am files
@@ -673,8 +680,9 @@ if test "x$enable_darshan_runtime" = xyes ; then
            STDIO         module support  - $enable_stdio_mod
            DXT           module support  - $enable_dxt_mod
            MPI-IO        module support  - $enable_mpiio_mod
-           AUTOPERF MPI  module support  - $enable_apmpi_mod
-           AUTOPERF APXC module support  - $enable_apxc_mod
+           AUTOPERF MPI  module support  - $enable_apmpi
+           AUTOPERF MPI sync collectives - $enable_apmpi_coll_sync
+           AUTOPERF APXC module support  - $enable_apxc
            HDF5          module support  - $with_hdf5_mod
            PnetCDF       module support  - $enable_pnetcdf_mod
            BG/Q          module support  - $enable_bgq_mod

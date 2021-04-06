@@ -66,7 +66,7 @@ method of compilation.
 The `--enable-shared` argument to configure can be used to enable
 compilation of a shared version of the darshan-util library.
 
-The `--enable-autoperf-apmpi` and `--enable-autoperf-apxc` configure 
+The `--enable-apmpi` and `--enable-apxc` configure 
 arguments must be specified to build darshan-util with support for AutoPerf
 APMPI and APXC modules, respectively.
 
