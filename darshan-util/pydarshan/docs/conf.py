@@ -63,8 +63,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Darshan'
-copyright = u"2019, ANL"
+project = u'PyDarshan'
+copyright = u"2021, Argonne National Laboratory"
 author = u""
 
 # The version info for the project you're documenting, acts as replacement

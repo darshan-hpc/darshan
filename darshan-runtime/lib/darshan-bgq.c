@@ -107,7 +107,7 @@ static void capture(struct darshan_bgq_record *rec, darshan_record_id rec_id)
 
 void bgq_runtime_initialize()
 {
-    int bgq_buf_size;
+    size_t bgq_buf_size;
     darshan_record_id rec_id;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
@@ -135,14 +135,6 @@ void bgq_runtime_initialize()
         &bgq_buf_size,
         &my_rank,
         NULL);
-
-    /* not enough memory to fit bgq module record */
-    if(bgq_buf_size < sizeof(struct darshan_bgq_record))
-    {
-        darshan_core_unregister_module(DARSHAN_BGQ_MOD);
-        BGQ_UNLOCK();
-        return;
-    }
 
     /* initialize module's global state */
     bgq_runtime = malloc(sizeof(*bgq_runtime));

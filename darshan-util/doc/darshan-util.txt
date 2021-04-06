@@ -56,6 +56,19 @@ method of compilation.
 The `--enable-shared` argument to configure can be used to enable
 compilation of a shared version of the darshan-util library.
 
+The `--enable-autoperf-apmpi` and `--enable-autoperf-apxc` configure 
+arguments must be specified to build darshan-util with support for AutoPerf
+APMPI and APXC modules, respectively.
+
+[NOTE]
+====
+AutoPerf log analysis code is provided as Git submodules to Darshan's main repository, so if building Darshan source that has been cloned from Git, it is neccessary to first retrieve the AutoPerf submodules by running the following command:
+
+----
+git submodule update --init
+----
+====
+
 == Analyzing log files
 
 Each time a darshan-instrumented application is executed, it will generate a
@@ -417,6 +430,7 @@ value of 1 MiB for optimal file alignment.
 | H5D_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in H5D I/O
 | H5D_F_VARIANCE_RANK_TIME | The population variance for H5D I/O time of all the ranks
 | H5D_F_VARIANCE_RANK_BYTES | The population variance for bytes transferred of all the ranks at H5D level
+| H5D_FILE_REC_ID | Darshan file record ID of the file the dataset belongs to
 |====
 
 .PnetCDF module
@@ -431,6 +445,70 @@ value of 1 MiB for optimal file alignment.
 |====
 
 ===== Additional modules 
+
+.Lustre module (if enabled, for Lustre file systems)
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| LUSTRE_OSTS | number of OSTs (object storage targets) for the file system
+| LUSTRE_MDTS | number of MDTs (metadata targets) for the file system
+| LUSTRE_STRIPE_OFFSET | OST id offset specified at file creation time
+| LUSTRE_STRIPE_SIZE | stripe size for the file in bytes
+| LUSTRE_STRIPE_WIDTH | number of OSTs over which the file is striped
+| LUSTRE_OST_ID_* | indices of OSTs over which the file is striped
+|====
+
+.APXC module header record (if enabled, for Cray XC systems)
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| APXC_GROUPS | total number of groups for the job
+| APXC_CHASSIS | total number of chassis for the job
+| APXC_BLADES | total number of blades for the job
+| APXC_MEMORY_MODE | Intel Xeon memory mode
+| APXC_CLUSTER_MODE | Intel Xeon NUMA configuration
+| APXC_MEMORY_MODE_CONSISTENT | Intel Xeon memory mode consistent across all nodes
+| APXC_CLUSTER_MODE_CONSISTENT | Intel Xeon cluster mode consistent across all nodes
+|====
+
+.APXC module per-router record (if enabled, for Cray XC systems)
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| APXC_GROUP | group this router is on
+| APXC_CHASSIS | chassis this router is on
+| APXC_BLADE | blade this router is on
+| APXC_NODE | node connected to this router
+| APXC_AR_RTR_x_y_INQ_PRF_INCOMING_FLIT_VC[0-7] | flits on VCs of x y tile for router-router ports
+| APXC_AR_RTR_x_y_INQ_PRF_ROWBUS_STALL_CNT | stalls on x y tile for router-router ports
+| APXC_AR_RTR_PT_x_y_INQ_PRF_INCOMING_FLIT_VC[0,4] | flits on VCs of x y tile for router-nic ports
+| APXC_AR_RTR_PT_x_y_INQ_PRF_REQ_ROWBUS_STALL_CNT | stalls on x y tile for router-nic ports
+|====
+
+.APMPI module header record (if enabled, for MPI applications)
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| MPI_TOTAL_COMM_TIME_VARIANCE | variance in total communication time across all the processes
+| MPI_TOTAL_COMM_SYNC_TIME_VARIANCE | variance in total sync time across all the processes, if enabled
+|====
+
+.APMPI module per-process record (if enabled, for MPI applications)
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| MPI_PROCESSOR_NAME | name of the processor used by the MPI process
+| MPI_*_CALL_COUNT | total call count for an MPI op
+| MPI_*_TOTAL_BYTES | total bytes (i.e., cumulative across all calls) moved with an MPI op
+| MPI_*\_MSG_SIZE_AGG_* | histogram of total bytes moved for all the calls of an MPI op
+| MPI_*_TOTAL_TIME | total time (i.e, cumulative across all calls) of an MPI op
+| MPI_*_MIN_TIME | minimum time across all calls of an MPI op
+| MPI_*_MAX_TIME | maximum time across all calls of an MPI op
+| MPI_*_TOTAL_SYNC_TIME | total sync time (cumulative across all calls of an op) of an MPI op, if enabled
+| MPI_TOTAL_COMM_TIME | total communication (MPI) time of a process across all the MPI ops
+| MPI_TOTAL_COMM_SYNC_TIME | total sync time of a process across all the MPI ops, if enabled
+|====
+
 
 .BG/Q module (if enabled on BG/Q systems)
 [cols="40%,60%",options="header"]
@@ -448,19 +526,6 @@ value of 1 MiB for optimal file alignment.
 | BGQ_ENODES | Dimension of E torus
 | BGQ_TORUSENABLED | Bitfield indicating enabled torus dimensions
 | BGQ_F_TIMESTAMP | Timestamp of when BG/Q data was collected
-|====
-
-
-.Lustre module (if enabled, for Lustre file systems)
-[cols="40%,60%",options="header"]
-|====
-| counter name | description
-| LUSTRE_OSTS | number of OSTs (object storage targets) for the file system
-| LUSTRE_MDTS | number of MDTs (metadata targets) for the file system
-| LUSTRE_STRIPE_OFFSET | OST id offset specified at file creation time
-| LUSTRE_STRIPE_SIZE | stripe size for the file in bytes
-| LUSTRE_STRIPE_WIDTH | number of OSTs over which the file is striped
-| LUSTRE_OST_ID_* | indices of OSTs over which the file is striped
 |====
 
 ==== Additional summary output

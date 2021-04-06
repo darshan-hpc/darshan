@@ -54,7 +54,10 @@ if ($verbose_flag)
     print "verbose: $tmp_dir\n";
 }
 
-open(PARSE_OUT, "$darshan_parser --base --perf $input_file |") || die("Can't execute \"$darshan_parser $input_file\": $!\n");
+# Note that we use the --show-incomplete option here because
+# darshan-job-summary will display a clear warning if this condition is
+# encountered anyway.
+open(PARSE_OUT, "$darshan_parser --show-incomplete --base --perf $input_file |") || die("Can't execute \"$darshan_parser $input_file\": $!\n");
 
 open(FA_READ, ">$tmp_dir/file-access-read.dat") || die("error opening output file: $!\n");
 open(FA_WRITE, ">$tmp_dir/file-access-write.dat") || die("error opening output file: $!\n");

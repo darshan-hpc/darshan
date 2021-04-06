@@ -51,7 +51,9 @@ http://www.mcs.anl.gov/darshan[Darshan web site].
 * C compiler (preferably GCC-compatible)
 * zlib development headers and library
 
-== Compilation
+== Conventional installation
+
+=== Compilation
 
 .Configure and build example (with MPI support)
 ----
@@ -115,7 +117,7 @@ group read access.
 * `--disable-lustre-mod`: disables compilation and use of Darshan's Lustre module (default=enabled)
 * `--disable-mdhim-mod`: disables compilation and use of Darshan's MDHIM module (default=disabled)
 
-== Environment preparation
+=== Environment preparation
 
 Once darshan-runtime has been installed, you must prepare a location
 in which to store the Darshan log files and configure an instrumentation method.
@@ -164,6 +166,56 @@ administrators group
 * recursively set the setgid bit on the log directories
 ====
 
+== Spack installation
+
+You can also install Darshan via https://spack.io/[Spack] as an alternative
+to manual download, compilation, and installation.  This may be
+especially convenient for single-user installs.  Darshan is divided
+into two separate packages for the command line utilities and runtime
+instrumentation.  You can install either or both as follows:
+
+----
+spack install darshan-util
+spack install darshan-runtime
+----
+
+[NOTE]
+====
+Darshan will generally compile and install fine using a variety of
+compilers, but we advise using a gcc compiler in Spack to compile Darshan
+(regardless of what compiler you will use for your applications) to
+ensure maximum runtime compatibility.
+====
+
+You can use the `spack info darshan-runtime` query to view the full list of
+variants available for the darshan-runtime Spack package.  For example, adding a `+slurm` to
+the command line (`spack install darshan-runtime+slurm`) will cause Darshan
+to be compiled with support for gathering job ID information from the Slurm
+scheduler.
+
+The following commands will load the Darshan packages once they have been
+installed:
+
+----
+spack load -r darshan-util
+spack load -r darshan-runtime
+----
+
+Note that the spack install of darshan-runtime will use an environment
+variable named `$DARSHAN_LOG_DIR_PATH` to indicate where it should store log
+files.  This variable is set to the user's home directory by default when
+the package is loaded, but it may be overridden.
+
+On Cray systems, you can also perform an additional step to load a
+Cray-specific module file. This will make a module called `darshan`
+available as described later in this document in the Cray platform recipe.
+It enables automatic instrumentation when using the standard Cray compiler
+wrappers.
+
+----
+module use `spack location -i darshan-runtime`/share/craype-2.x/modulefiles
+----
+
 == Instrumenting applications
 
 [NOTE]
@@ -179,7 +231,7 @@ instrument applications at compile time.
 === Option 1: Instrumenting MPI applications at compile time
 
 This method is applicable to C, Fortran, and C++ MPI applications
-(regardless of whether they are static or dynamicly linked) and is the most
+(regardless of whether they are static or dynamically linked) and is the most
 straightforward method to apply transparently system-wide.  It works by
 injecting additional libraries and options into the linker command line to
 intercept relevant I/O calls.
@@ -393,6 +445,28 @@ configuration file:
 export DXT_TRIGGER_CONF_PATH=/path/to/dxt/config/file
 ----
 
+== Using AutoPerf instrumentation modules
+
+AutoPerf offers two additional Darshan instrumentation modules that may be enabled for MPI applications.
+
+* APMPI: Instrumentation of over 70 MPI-3 communication routines, providing operation counts, datatype sizes, and timing information for each application MPI rank.
+* APXC: Instrumentation of Cray XC environments to provide network and compute counters of interest, via PAPI.
+
+Users can request Darshan to build the APMPI and APXC modules by passing `--enable-apmpi-mod` and `--enable-apxc-mod` options to configure, respectively. Note that these options can be requested independently (i.e., you can build Darshan with APMPI support but not APXC support, and vice versa).
+
+The only prerequsisite for the APMPI module is that Darsan be configured with a MPI-3 compliant compiler. For APXC, the user must obviously be using a Cray XC system and must make the PAPI interace available to Darshan (i.e., by running `module load papi`, before building Darshan).
+
+If using the APMPI module, users can additionally specify the `--enable-apmpi-coll-sync` configure option to force Darshan to synchronize before calling underlying MPI routines and to capture additional timing information on how synchronized processes are. Users should note this option will impose additional overheads, but can be useful to help diagnose whether applications are spending a lot of time synchronizing as part of collective communication calls. For this reason, we do not recommend users setting this particular option for production Darshan deployments.
+
+[NOTE]
+====
+The AutoPerf instrumentation modules are provided as Git submodules to Darshan's main repository, so if building Darshan source that has been cloned from Git, it is neccessary to first retrieve the AutoPerf submodules by running the following command:
+
+----
+git submodule update --init
+----
+====
+
 == Darshan installation recipes
 
 The following recipes provide examples for prominent HPC systems.
@@ -524,7 +598,7 @@ recommend using mpicc with GNU compilers to compile Darshan.
 ----
 
 The darshan-gen-* scripts described earlier in this document can be used
-to create variants of the standard mpicc/mpicxx/mpif77/mpif90 scipts
+to create variants of the standard mpicc/mpicxx/mpif77/mpif90 scripts
 that are Darshan enabled.  These scripts will work correctly for both
 dynamic and statically linked executables.
 

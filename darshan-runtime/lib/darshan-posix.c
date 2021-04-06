@@ -1796,12 +1796,23 @@ int DARSHAN_DECL(rename)(const char *oldpath, const char *newpath)
     char *oldpath_clean, *newpath_clean;
     darshan_record_id old_rec_id, new_rec_id;
     struct posix_file_record_ref *old_rec_ref, *new_rec_ref;
+    int disabled = 0;
+
+    /* This is a special case to avoid attempting to instrument final rename
+     * performed by darshan itself when finalizing
+     */
+    POSIX_LOCK();
+    disabled = darshan_core_disabled_instrumentation();
+    POSIX_UNLOCK();
 
     MAP_OR_FAIL(rename);
 
     tm1 = darshan_core_wtime();
     ret = __real_rename(oldpath, newpath);
     tm2 = darshan_core_wtime();
+
+    if(disabled)
+        return(ret);
 
     if(ret == 0)
     {
@@ -1864,7 +1875,7 @@ int DARSHAN_DECL(rename)(const char *oldpath, const char *newpath)
 /* initialize internal POSIX module data structures and register with darshan-core */
 static void posix_runtime_initialize()
 {
-    int psx_buf_size;
+    size_t psx_buf_size;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
         .mod_redux_func = &posix_mpi_redux,
@@ -1882,13 +1893,6 @@ static void posix_runtime_initialize()
         &psx_buf_size,
         &my_rank,
         &darshan_mem_alignment);
-
-    /* return if darshan-core does not provide enough module memory */
-    if(psx_buf_size < sizeof(struct darshan_posix_file))
-    {
-        darshan_core_unregister_module(DARSHAN_POSIX_MOD);
-        return;
-    }
 
     posix_runtime = malloc(sizeof(*posix_runtime));
     if(!posix_runtime)

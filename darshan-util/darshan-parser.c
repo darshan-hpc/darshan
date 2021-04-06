@@ -29,13 +29,15 @@
 #define OPTION_FILE  (1 << 3)  /* file count totals */
 #define OPTION_FILE_LIST  (1 << 4)  /* per-file summaries */
 #define OPTION_FILE_LIST_DETAILED  (1 << 6)  /* per-file summaries with extra detail */
+#define OPTION_SHOW_INCOMPLETE  (1 << 7)  /* show what we have, even if log is incomplete */
 #define OPTION_ALL (\
   OPTION_BASE|\
   OPTION_TOTAL|\
   OPTION_PERF|\
   OPTION_FILE|\
   OPTION_FILE_LIST|\
-  OPTION_FILE_LIST_DETAILED)
+  OPTION_FILE_LIST_DETAILED|\
+  OPTION_SHOW_INCOMPLETE)
 
 #define FILETYPE_SHARED (1 << 0)
 #define FILETYPE_UNIQUE (1 << 1)
@@ -131,6 +133,7 @@ int usage (char *exename)
     fprintf(stderr, "    --file-list-detailed  : per-file summaries with additional detail\n");
     fprintf(stderr, "    --perf  : derived perf data\n");
     fprintf(stderr, "    --total : aggregated darshan field data\n");
+    fprintf(stderr, "    --show-incomplete : display results even if log is incomplete\n");
 
     exit(1);
 }
@@ -148,6 +151,7 @@ int parse_args (int argc, char **argv, char **filename)
         {"file-list-detailed",  0, NULL, OPTION_FILE_LIST_DETAILED},
         {"perf",  0, NULL, OPTION_PERF},
         {"total", 0, NULL, OPTION_TOTAL},
+        {"show-incomplete", 0, NULL, OPTION_SHOW_INCOMPLETE},
         {"help",  0, NULL, 0},
         {0, 0, 0, 0}
     };
@@ -169,6 +173,7 @@ int parse_args (int argc, char **argv, char **filename)
             case OPTION_FILE_LIST_DETAILED:
             case OPTION_PERF:
             case OPTION_TOTAL:
+            case OPTION_SHOW_INCOMPLETE:
                 mask |= c;
                 break;
             case 0:
@@ -189,9 +194,9 @@ int parse_args (int argc, char **argv, char **filename)
     }
 
     /* default mask value if none specified */
-    if (mask == 0)
+    if (mask == 0 || mask == OPTION_SHOW_INCOMPLETE)
     {
-        mask = OPTION_BASE;
+        mask |= OPTION_BASE;
     }
 
     return mask;
@@ -326,7 +331,7 @@ int main(int argc, char **argv)
     printf("# record table: %zu bytes (compressed)\n", fd->name_map.len);
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
-        if(fd->mod_map[i].len)
+        if(fd->mod_map[i].len || DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i))
         {
             printf("# %s module: %zu bytes (compressed), ver=%d\n",
                 darshan_module_names[i], fd->mod_map[i].len, fd->mod_ver[i]);
@@ -357,7 +362,6 @@ int main(int argc, char **argv)
         printf("#   <fs type>: type of file system that the file resides on.\n");
     }
 
-    /* warn user if this log file is incomplete */
     pdata.rank_cumul_io_time = malloc(sizeof(double)*job.nprocs);
     pdata.rank_cumul_md_time = malloc(sizeof(double)*job.nprocs);
     if (!pdata.rank_cumul_io_time || !pdata.rank_cumul_md_time)
@@ -386,7 +390,8 @@ int main(int argc, char **argv)
         if(fd->mod_map[i].len == 0)
         {
             empty_mods++;
-            continue;
+            if(!DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i))
+                continue;
         }
         /* skip modules with no logutil definitions */
         else if(!mod_logutils[i])
@@ -413,11 +418,43 @@ int main(int argc, char **argv)
         printf("# *******************************************************\n");
 
         /* print warning if this module only stored partial data */
-        if(DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i))
-            printf("\n# *WARNING*: The %s module contains incomplete data!\n"
-                   "#            This happens when a module runs out of\n"
-                   "#            memory to store new record data.\n",
-                   darshan_module_names[i]);
+        if(DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i)) {
+            if(mask & OPTION_SHOW_INCOMPLETE)
+            {
+                /* user requested that we show the data we have anyway */
+                printf("\n# *WARNING*: "
+                       "The %s module contains incomplete data!\n"
+                       "#            This happens when a module runs out of\n"
+                       "#            memory to store new record data.\n",
+                       darshan_module_names[i]);
+                printf(
+                       "\n# To avoid this error, consult the darshan-runtime\n"
+                       "# documentation and consider setting the\n"
+                       "# DARSHAN_EXCLUDE_DIRS environment variable to prevent\n"
+                       "# Darshan from instrumenting unecessary files.\n");
+                if(fd->mod_map[i].len == 0)
+                    continue; // no data to parse
+            }
+            else
+            {
+                /* hard error */
+                fprintf(stderr, "\n# *ERROR*: "
+                       "The %s module contains incomplete data!\n"
+                       "#            This happens when a module runs out of\n"
+                       "#            memory to store new record data.\n",
+                       darshan_module_names[i]);
+                fprintf(stderr,
+                       "\n# To avoid this error, consult the darshan-runtime\n"
+                       "# documentation and consider setting the\n"
+                       "# DARSHAN_EXCLUDE_DIRS environment variable to prevent\n"
+                       "# Darshan from instrumenting unecessary files.\n");
+                fprintf(stderr,
+                        "\n# You can display the (incomplete) data that is\n"
+                        "# present in this log using the --show-incomplete\n"
+                        "# option to darshan-parser.\n");
+                return(-1);
+            }
+        }
 
         if(mask & OPTION_BASE)
         {

@@ -2,6 +2,8 @@
 
 """
 The api_def_c carries a copy of CFFI compatible headers for libdarshan-util.so.
+These definitions must match the structure definitions for the associated 
+darshan release.
 """
 
 
@@ -76,6 +78,7 @@ struct darshan_hdf5_file
 struct darshan_hdf5_dataset
 {
     struct darshan_base_record base_rec;
+    uint64_t file_rec_id;
     int64_t counters[94];
     double fcounters[17];
 };
@@ -118,9 +121,6 @@ typedef struct segment_info {
     double end_time;
 } segment_info;
 
-
-
-
 /* counter names */
 extern char *bgq_counter_names[];
 extern char *bgq_f_counter_names[];
@@ -157,10 +157,10 @@ void darshan_log_get_filtered_name_records(void*, struct darshan_name_record **,
 
 
 
-def load_darshan_header():
+def load_darshan_header(addins=''):
     """
     Returns a CFFI compatible header for darshan-utlil as a string.
 
     :return: String with a CFFI compatible header for darshan-util.
     """
-    return header
+    return header + addins

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Auxiliary to discover darshan-util install directory."""
+"""Auxiliary to discover a darshan-util installation."""
 
 
 import os
@@ -13,6 +13,23 @@ verbose_discovery = False
 if verbose_discovery:
     logging.basicConfig()           # ensure out streams exist
     logger.setLevel(logging.DEBUG)  # set log-level
+
+
+
+class DarshanVersionError(NotImplementedError):
+    """
+    Raised when using a feature which is not provided by libdarshanutil.
+    """
+    def __init__(self, target_version, provided_version, msg="Feature"):
+        self.msg = msg
+        self.target_version = target_version
+        self.provided_version = provided_version
+
+    def __repr__(self):
+        return "DarshanVersionError('%s')" % str(self)
+
+    def __str__(self):
+        return "%s requires libdarshan-util %s, but found %s" % (self.msg, self.target_version, self.provided_version)
 
 
 def check_version(ffi=None, libdutil=None):
@@ -49,7 +66,6 @@ def check_version(ffi=None, libdutil=None):
     lib_version = lib_version.split(".")
     
     if package_version[0:3] != lib_version[0:3]:
-        from darshan.error import DarshanVersionError
         raise DarshanVersionError(
                 target_version = ".".join(package_version[0:3]),
                 provided_version = ".".join(lib_version), 
@@ -180,7 +196,7 @@ def find_utils(ffi, libdutil):
             os.chdir(save)
         except:
             libdutil = None
-
+    
     if libdutil is None:
         try:
             darshan_path = discover_darshan_pyinstaller()
@@ -195,7 +211,7 @@ def find_utils(ffi, libdutil):
             libdutil = None
   
     
-
+    
     if libdutil is None:
         raise RuntimeError('Could not find libdarshan-util.so! Is darshan-util installed? Please ensure one of the the following: 1) export LD_LIBRARY_PATH=<path-to-libdarshan-util.so>, or 2) darshan-parser can found using the PATH variable, or 3) pkg-config can resolve pkg-config --path darshan-util, or 4) install a wheel that includes darshan-utils via pip.')
 

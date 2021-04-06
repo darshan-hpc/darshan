@@ -1004,7 +1004,7 @@ int DARSHAN_DECL(fsetpos64)(FILE *stream, const fpos64_t *pos)
 /* initialize internal STDIO module data structures and register with darshan-core */
 static void stdio_runtime_initialize()
 {
-    int stdio_buf_size;
+    size_t stdio_buf_size;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = &stdio_mpi_redux,
@@ -1022,13 +1022,6 @@ static void stdio_runtime_initialize()
         &stdio_buf_size,
         &my_rank,
         &darshan_mem_alignment);
-
-    /* return if darshan-core does not provide enough module memory */
-    if(stdio_buf_size < sizeof(struct darshan_stdio_file))
-    {
-        darshan_core_unregister_module(DARSHAN_STDIO_MOD);
-        return;
-    }
 
     stdio_runtime = malloc(sizeof(*stdio_runtime));
     if(!stdio_runtime)

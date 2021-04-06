@@ -48,11 +48,13 @@
 #define DARSHAN_DEF_MMAP_LOG_PATH "/tmp"
 #endif
 
-/* Maximum amount of memory per instrumentation module in MiB */
+/* Maximum runtime memory consumption per process (in MiB) across
+ * all instrumentation modules
+ */
 #ifdef __DARSHAN_MOD_MEM_MAX
-#define DARSHAN_MOD_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024 * 1024)
+#define DARSHAN_MOD_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024L * 1024L)
 #else
-#define DARSHAN_MOD_MEM_MAX (2 * 1024 * 1024) /* 2 MiB default */
+#define DARSHAN_MOD_MEM_MAX (4 * 1024 * 1024) /* 2 MiB default */
 #endif
 
 /* default name record buf can store 2048 records of size 100 bytes */
@@ -82,7 +84,7 @@ struct darshan_core_module
 {
     void *rec_buf_start;
     void *rec_buf_p;
-    int rec_mem_avail;
+    size_t rec_mem_avail;
     darshan_module_funcs mod_funcs;
 };
 
@@ -107,9 +109,9 @@ struct darshan_core_runtime
 
     /* darshan-core internal data structures */
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
-    int mod_mem_used;
+    size_t mod_mem_used;
     struct darshan_core_name_record_ref *name_hash;
-    int name_mem_used; 
+    size_t name_mem_used;
     double wtime_offset;
     char *comp_buf;
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS

@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+"""The cfii_backend package will read a darshan log
+using the functions defined in libdarshan-util.so
+and is interfaced via the python CFFI module.
+"""
 
 import cffi
 import ctypes
@@ -10,12 +14,31 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from darshan.api_def_c import load_darshan_header
+from darshan.backend.api_def_c import load_darshan_header
 from darshan.discover_darshan import find_utils
 from darshan.discover_darshan import check_version
 
-API_def_c = load_darshan_header()
+addins = ""
 
+#
+# Optional APXC module
+#
+try:
+  from darshan.backend.apxc import *
+  addins += get_apxc_defs()
+except:
+  pass
+
+#
+# Optional APMPI module
+#
+try:
+  from darshan.backend.apmpi import *
+  addins += get_apmpi_defs()
+except:
+  pass
+
+API_def_c = load_darshan_header(addins)
 
 ffi = cffi.FFI()
 ffi.cdef(API_def_c)
@@ -38,6 +61,10 @@ _structdefs = {
     "PNETCDF": "struct darshan_pnetcdf_file **",
     "POSIX": "struct darshan_posix_file **",
     "STDIO": "struct darshan_stdio_file **",
+    "APXC-HEADER": "struct darshan_apxc_header_record **",
+    "APXC-PERF": "struct darshan_apxc_perf_record **",
+    "APMPI-HEADER": "struct darshan_apmpi_header_record **",
+    "APMPI-PERF": "struct darshan_apmpi_perf_record **",
 }
 
 
@@ -265,22 +292,21 @@ def log_get_record(log, mod, dtype='numpy'):
     if mod in ['LUSTRE']:
         rec = _log_get_lustre_record(log, dtype=dtype)
     elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
-        rec = log_get_dxt_record(log, mod, _structdefs[mod], dtype=dtype)
+        rec = log_get_dxt_record(log, mod, dtype=dtype)
     else:
-        rec = log_get_generic_record(log, mod, _structdefs[mod], dtype=dtype)
+        rec = log_get_generic_record(log, mod, dtype=dtype)
 
     return rec
 
 
 
-def log_get_generic_record(log, mod_name, mod_type, dtype='numpy'):
+def log_get_generic_record(log, mod_name, dtype='numpy'):
     """
     Returns a dictionary holding a generic darshan log record.
 
     Args:
         log: Handle returned by darshan.open
         mod_name (str): Name of the Darshan module
-        mod_type (str): String containing the C type
 
     Return:
         dict: generic log record
@@ -295,6 +321,7 @@ def log_get_generic_record(log, mod_name, mod_type, dtype='numpy'):
 
     """
     modules = log_get_modules(log)
+    mod_type = _structdefs[mod_name]
 
     rec = {}
     buf = ffi.new("void **")
@@ -305,6 +332,8 @@ def log_get_generic_record(log, mod_name, mod_type, dtype='numpy'):
 
     rec['id'] = rbuf[0].base_rec.id
     rec['rank'] = rbuf[0].base_rec.rank
+    if mod_name == 'H5D':
+        rec['file_rec_id'] = rbuf[0].file_rec_id
 
     clst = []
     for i in range(0, len(rbuf[0].counters)):
@@ -351,7 +380,7 @@ def log_get_generic_record(log, mod_name, mod_type, dtype='numpy'):
     return rec
 
 
-def counter_names(mod_name, fcnts=False):
+def counter_names(mod_name, fcnts=False, special=''):
     """
     Returns a list of available counter names for the module.
     By default only integer counter names are listed, unless fcnts is set to
@@ -377,8 +406,8 @@ def counter_names(mod_name, fcnts=False):
     else:
         F = ""
 
-    end = "{0}_{1}NUM_INDICES".format(mod_name.upper(), F.upper())
-    var_name = "{0}_{1}counter_names".format(mod_name.lower(), F.lower())
+    end = "{0}_{1}{2}NUM_INDICES".format(mod_name.upper(), F.upper(), special.upper())
+    var_name = "{0}_{1}{2}counter_names".format(mod_name.lower(), F.lower(), special.lower())
 
     while True: 
         try:
@@ -392,6 +421,7 @@ def counter_names(mod_name, fcnts=False):
             break
         names.append(name)
         i += 1
+
     return names
 
 
@@ -474,7 +504,7 @@ def _log_get_lustre_record(log, dtype='numpy'):
 
 
 
-def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, dtype='dict'):
+def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     """
     Returns a dictionary holding a dxt darshan log record.
 
@@ -498,6 +528,7 @@ def log_get_dxt_record(log, mod_name, mod_type, reads=True, writes=True, dtype='
     """
 
     modules = log_get_modules(log)
+    mod_type = _structdefs[mod_name]
     #name_records = log_get_name_records(log)
 
     rec = {}

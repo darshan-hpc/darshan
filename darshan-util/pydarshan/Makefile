@@ -56,24 +56,15 @@ coverage:  # check code coverage quickly with the default Python
 	coverage run --source darshan -m pytest
 	coverage report -m
 	coverage html
-	xdg-open htmlcov/index.html
 
 
 docs: clean-docs # generate Sphinx HTML documentation, including API docs
-	sphinx-apidoc -o docs/ darshan
+	sphinx-apidoc -M -H PyDarshan -o docs/api/pydarshan darshan
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
 
 docs-show:
 	xdg-open docs/build/html/index.html
-
-servedocs: docs  # compile the docs watching for changes
-	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
-
-
-bump-minior:
-
-
 
 wheels:
 	./devel/build-all.sh
@@ -83,8 +74,8 @@ release: #dist # package and upload a release
 	twine upload dist/*
 
 dist: clean  # builds source and wheel package
-	python setup.py sdist
-	python setup.py bdist_wheel
+	python3 setup.py sdist
+	python3 setup.py bdist_wheel
 
 	# might want to remove none-any wheel, but more specific wheels seem to take precedence
 	# rm -r dist/*non-any.whl
@@ -99,4 +90,4 @@ dist: clean  # builds source and wheel package
 
 
 install: clean  # install the package to the active Python's site-packages
-	python setup.py install
+	python3 setup.py install 

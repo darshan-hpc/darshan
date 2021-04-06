@@ -28,8 +28,9 @@ Notes on how to release a new version of Darshan
   - run regression tests on BG platform (see
     darshan-test/regression/README.BG.ALCF.txt)
 - export the tag and tar gzip it
-  - easiest method is to do a fresh checkout and remove the .git
-    subdirectory
+  - do a fresh checkout of the Darshan tag
+  - make sure to pull in AutoPerf submodule (git submodule update --init)
+  - remove the .git subdirectory
   - upload .tar.gz file to /mcs/ftp/pub/darshan/releases
 - generate web documentation from asciidoc by running make in
   darshan-util/doc/ and darshan-runtime/doc/ directories
