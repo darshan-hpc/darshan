@@ -220,7 +220,7 @@ class DarshanRecordCollection(collections.abc.MutableSequence):
         counters = self.report.counters[self.mod]
         if mod in ['LUSTRE']:
             raise NotImplementedError
-        elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
+        elif mod in ['DXT_POSIX', 'DXT_MPIIO', 'APMPI', 'APXC']:
             # format already in a dict format, but may offer switches for expansion
             logger.warn("WARNING: The output of DarshanRecordCollection.to_dict() may change in the future.")
         else:
@@ -688,7 +688,6 @@ class DarshanReport(object):
             # fetch next
             rec = backend.log_get_apmpi_record(self.log, mod, "PERF", dtype=dtype)
 
-
         if self.lookup_name_records:
             self.update_name_records()
 
@@ -721,7 +720,6 @@ class DarshanReport(object):
         dtype = dtype if dtype else self.dtype
 
         self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
-        cn = backend.counter_names(mod)
 
         # update module metadata
         self._modules[mod]['num_records'] = 0
