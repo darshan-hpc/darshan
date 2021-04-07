@@ -10,13 +10,16 @@ import numpy
 import pandas
 import pytz
 import sys
+import pprint
+import pandas as pd
+import seaborn as sns
 
 import darshan
 import darshan.templates
 
 def setup_parser(parser):
     # setup arguments
-    parser.add_argument('input', help='darshan log file', nargs='?')
+    parser.add_argument('--input', help='darshan log file', nargs='?')
     parser.add_argument('--output', action='store', help='output file name')
     parser.add_argument('--verbose', help='', action='store_true')
     parser.add_argument('--debug', help='', action='store_true')
@@ -149,7 +152,128 @@ def data_transfer_filesystem(report, posix_df, stdio_df):
         fs_data[fs]['write_rt'] = fs_data[fs]['write'] / total_wr_bytes
 
     return fs_data
+
+def apmpi_process(apmpi_dict):
     
+    header_rec = apmpi_dict[0]
+    sync_flag = header_rec["sync_flag"]
+    print("sync_flag= ", sync_flag)
+    print(
+        "APMPI Variance in total mpi time: ", header_rec["variance_total_mpitime"], "\n"
+    )
+    if sync_flag:
+        print(
+            "APMPI Variance in total mpi sync time: ",
+            header_rec["variance_total_mpisynctime"],
+        )
+
+    df_apmpi = pd.DataFrame()
+    list_mpiop = []
+    list_rank = []
+    for rec in apmpi_dict[1:]:  # skip the first record which is header record
+        mpi_nonzero_callcount = []
+        for k, v in rec["all_counters"].items():
+            if k.endswith("_CALL_COUNT") and v > 0:
+                mpi_nonzero_callcount.append(k[: -(len("CALL_COUNT"))])
+
+        df_rank = pd.DataFrame()
+        for mpiop in mpi_nonzero_callcount:
+            ncall = mpiop
+            ncount = mpiop + "CALL_COUNT"
+            nsize = mpiop + "TOTAL_BYTES"
+            h0 = mpiop + "MSG_SIZE_AGG_0_256"
+            h1 = mpiop + "MSG_SIZE_AGG_256_1K"
+            h2 = mpiop + "MSG_SIZE_AGG_1K_8K"
+            h3 = mpiop + "MSG_SIZE_AGG_8K_256K"
+            h4 = mpiop + "MSG_SIZE_AGG_256K_1M"
+            h5 = mpiop + "MSG_SIZE_AGG_1M_PLUS"
+            ntime = mpiop + "TOTAL_TIME"
+            mintime = mpiop + "MIN_TIME"
+            maxtime = mpiop + "MAX_TIME"
+            if sync_flag:
+                totalsync = mpiop + "TOTAL_SYNC_TIME"
+
+            mpiopstat = {}
+            mpiopstat["Rank"] = rec["rank"]
+            mpiopstat["Node_ID"] = rec["node_name"]
+            mpiopstat["Call"] = ncall[:-1]
+            mpiopstat["Total_Time"] = rec["all_counters"][ntime]
+            mpiopstat["Count"] = rec["all_counters"][ncount]
+            mpiopstat["Total_Bytes"] = rec["all_counters"].get(nsize, None)
+            mpiopstat["[0-256B]"] = rec["all_counters"].get(h0, None)
+            mpiopstat["[1K-8KB]"] = rec["all_counters"].get(h2, None)
+            mpiopstat["[8K-256KB]"] = rec["all_counters"].get(h3, None)
+            mpiopstat["256K-1MB"] = rec["all_counters"].get(h4, None)
+            mpiopstat["[>1MB]"] = rec["all_counters"].get(h5, None)
+            mpiopstat["Min_Time"] = rec["all_counters"][mintime]
+            mpiopstat["Max_Time"] = rec["all_counters"][maxtime]
+            if sync_flag and (totalsync in rec["all_counters"]):
+                mpiopstat["Total_SYNC_Time"] = rec["all_counters"][totalsync]
+
+            list_mpiop.append(mpiopstat)
+
+        rankstat = {}
+        rankstat["Rank"] = rec["rank"]
+        rankstat["Node_ID"] = rec["node_name"]
+        rankstat["Call"] = "Total_MPI_time"
+        rankstat["Total_Time"] = rec["all_counters"]["MPI_TOTAL_COMM_TIME"]
+        list_rank.append(rankstat)
+    df_rank = pd.DataFrame(list_rank)
+    avg_total_time = df_rank["Total_Time"].mean()
+    max_total_time = df_rank["Total_Time"].max()
+    min_total_time = df_rank["Total_Time"].min()
+    max_rank = df_rank.loc[df_rank["Total_Time"].idxmax()]["Rank"]
+    min_rank = df_rank.loc[df_rank["Total_Time"].idxmin()]["Rank"]
+    # assumption: row index and rank id are same in df_rank 
+    # .. need to check if that is an incorrect assumption
+    mean_rank = (
+        (df_rank["Total_Time"] - df_rank["Total_Time"].mean()).abs().argsort()[:1][0]
+    )
+    pd.set_option("display.max_rows", None, "display.max_columns", None)
+
+    list_combined = list_mpiop + list_rank
+    df_apmpi = pd.DataFrame(list_combined)
+    df_apmpi = df_apmpi.sort_values(by=["Rank", "Total_Time"], ascending=[True, False])
+    df_call = df_apmpi[['Call', 'Total_Time']]
+    #print("MPI stats for rank with maximum MPI time")#, border_style="blue")
+    print("MPI stats for rank with maximum MPI time\n", df_apmpi.loc[df_apmpi["Rank"] == max_rank])
+    print("\n\n")
+    print("MPI stats for rank with minimum MPI time")# border_style="blue")
+    print(df_apmpi.loc[df_apmpi["Rank"] == min_rank])
+    print("\n\n")
+    print("MPI stats for rank with mean MPI time")#, border_style="blue")
+    print(df_apmpi.loc[df_apmpi["Rank"] == mean_rank])
+    # print(df_apmpi)
+    #df_apmpi.to_csv('apmpi.csv', index=False)
+    #df_rank.to_csv('apmpi_rank.csv', index=False)
+   
+    encoded = []
+    buf = io.BytesIO()
+    fig, ax = pyplot.subplots()
+
+    sns_violin = sns.violinplot(x="Call", y="Total_Time", ax=ax, data=df_call)
+    sns_violin.set_xticklabels(sns_violin.get_xticklabels(), rotation=60, size=6.5)
+    sns_violin.set_yticklabels(sns_violin.get_yticks(), rotation=0, size=6.5)
+    sns_violin.set_xlabel('')
+    sns_violin.set_ylabel('Time (seconds)', size=7)
+    #sns.despine();
+    pyplot.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    encoded.append(base64.b64encode(buf.read()))
+
+    buf = io.BytesIO()
+    fig, ax = pyplot.subplots()
+    sns_plot = sns.scatterplot(x="Rank", y="Total_Time", ax=ax, data=df_apmpi, s=3)
+    sns_plot.set_xticklabels(sns_plot.get_xticklabels(), rotation=0, size=6.5)
+    sns_plot.set_yticklabels(sns_plot.get_yticks(), rotation=0, size=6.5)
+    sns_plot.set_xlabel('Rank', size=8)
+    sns_plot.set_ylabel('Time (seconds)', size=8)
+    #sns.despine();
+    pyplot.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    encoded.append(base64.b64encode(buf.read()))
+    return encoded
+  
 def main(args=None):
 
     if args is None:
@@ -162,6 +286,7 @@ def main(args=None):
 
     variables = {}
     report = darshan.DarshanReport(args.input, read_all=True)
+    report.info()
 
     #
     # Setup template header variabels
@@ -192,6 +317,16 @@ def main(args=None):
         stdio_df = report.records['STDIO'].to_df()
     else:
         stdio_df = None
+    
+    if 'APXC' in report.modules:
+        apxc_dict = report.records['APXC'].to_dict()
+    else:
+        apxc_dict = None
+
+    if 'APMPI' in report.modules:
+        apmpi_dict = report.records['APMPI'].to_dict()
+    else:
+        apmpi_dict = None
 
     #
     # Plot I/O cost
@@ -204,6 +339,9 @@ def main(args=None):
     variables['plot_op_count'] = plot_op_count(posix_df, mpiio_df, stdio_df).decode('utf-8')
 
     variables['fs_data'] = data_transfer_filesystem(report, posix_df, stdio_df)
+    apmpi_encoded = apmpi_process(apmpi_dict)
+    variables['apmpi_call_time'] = apmpi_encoded[0].decode('utf-8')
+    variables['apmpi_rank_totaltime'] = apmpi_encoded[1].decode('utf-8')
 
     template_path = pkg_resources.path(darshan.templates, '')
     with template_path as path:
@@ -214,7 +352,6 @@ def main(args=None):
        with open(args.output, 'w') as f:
            f.write(stream.render('html'))
            f.close()
-
     return
 
 if __name__ == "__main__":
