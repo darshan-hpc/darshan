@@ -520,10 +520,11 @@ class DarshanReport(object):
         Return:
             None
         """
-
         self.read_all_generic_records(dtype=dtype)
         self.read_all_dxt_records(dtype=dtype)
         self.mod_read_all_lustre_records(dtype=dtype)
+        self.mod_read_all_apxc_records("APXC", dtype=dtype)
+        self.mod_read_all_apmpi_records("APMPI", dtype=dtype)
         
         return
 
@@ -578,7 +579,7 @@ class DarshanReport(object):
             None
 
         """
-        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE']
+        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE', 'APXC', 'APMPI']
 
         if mod in unsupported:
             if warnings:
@@ -713,7 +714,7 @@ class DarshanReport(object):
                 logger.warning(f"Skipping. Log does not contain data for mod: {mod}")
             return
 
-        supported =  ['APXC'] 
+        supported =  ['APXC']
         if mod not in supported:
             if warnings:
                 logger.warning(f" Skipping. Unsupported module: {mod} in in mod_read_all_apxc_records(). Supported: {supported}")
@@ -730,7 +731,6 @@ class DarshanReport(object):
         self._modules[mod]['num_records'] = 0
         if mod not in self.counters:
             self.counters[mod] = {}
-
         # fetch records
         # fetch header record
         rec = backend.log_get_apxc_record(self.log, mod, "HEADER", dtype=dtype)
