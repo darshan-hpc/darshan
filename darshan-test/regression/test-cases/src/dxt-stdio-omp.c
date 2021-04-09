@@ -30,11 +30,7 @@ int main(int argc, char **argv)
 {
    int namelen;
    char processor_name[MPI_MAX_PROCESSOR_NAME];
-   FILE *file;
    char buffer[128] = {0};
-   int number = 0;
-   fpos_t pos;
-
    /* startup MPI and determine the rank of this process */
    MPI_Init(&argc,&argv);
    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
@@ -46,34 +42,43 @@ int main(int argc, char **argv)
 
    if (mynod == 0) printf("# Using stdio calls.\n");
 
-   file = fopen(opt_file, "w+");
-   if(!file)
-   {
-      perror("fopen");
-      return(-1);
-   }
-
    if(mynod == 0)
    {
-      fprintf(file, "a number: %d", 12345);  /* assert: write 15 at 0 */
-      fseek(file, 0, SEEK_SET);
-      putw((int)5, file);                    /* assert: write sizeof(int) at 0 */
-      number = getw(file);                   /* assert: read sizeof(int) at sizeof(int) */
-      fseeko(file, (size_t)0, SEEK_SET);
-      fgetpos(file, &pos);
-      fputc('a', file);                      /* assert: write 1 at 0 */
-      fputs(" number", file);                /* assert: write 7 at 1 */
-      fflush(file);                          /* assert: write 0 at 8 */
-      fsetpos(file, &pos);
-      buffer[0] = fgetc(file);               /* assert: read 1 at 0 */
-      buffer[1] = fgetc(file);               /* assert: read 1 at 1 */
-      rewind(file);
-      fgets(buffer, 5, file);                /* assert: read 4 at 0 */
-      fseek(file, 0, SEEK_SET);
-      fscanf(file, "a number: %d", &number); /* assert: read 15 at 0 */
-   }
+      #pragma omp parallel for
+      for (int i = 0; i < 4; i++)
+      {
+         FILE *file;
+         int number = 0;
+         fpos_t pos;
 
-   fclose(file);
+         file = fopen(opt_file, "w+");
+         if(!file)
+         {
+            perror("fopen");
+         }
+         else
+         {
+            fprintf(file, "a number: %d", 12345);  /* assert: write 15 at 0 */
+            fseek(file, 0, SEEK_SET);
+            putw((int)5, file);                    /* assert: write sizeof(int) at 0 */
+            number = getw(file);                   /* assert: read sizeof(int) at sizeof(int) */
+            fseeko(file, (size_t)0, SEEK_SET);
+            fgetpos(file, &pos);
+            fputc('a', file);                      /* assert: write 1 at 0 */
+            fputs(" number", file);                /* assert: write 7 at 1 */
+            fflush(file);                          /* assert: write 0 at 8 */
+            fsetpos(file, &pos);
+            buffer[0] = fgetc(file);               /* assert: read 1 at 0 */
+            buffer[1] = fgetc(file);               /* assert: read 1 at 1 */
+            rewind(file);
+            fgets(buffer, 5, file);                /* assert: read 4 at 0 */
+            fseek(file, 0, SEEK_SET);
+            fscanf(file, "a number: %d", &number); /* assert: read 15 at 0 */
+
+            fclose(file);
+         }
+      }
+   }
 
    MPI_Finalize();
    return(0);
@@ -116,5 +121,3 @@ static void usage(void)
  * vim: ts=3
  * End:
  */ 
-
-
