@@ -2,12 +2,35 @@
 Darshan Release Change Log
 --------------------------
 
-Darshan-3.3
+Darshan-3.3.0-pre1
 =============
-* add wrappers for preadv, preadv2, pwritev, and pwritev2 (improves profiling
-  of ompio)
-* improve error handling in command line parsers to make incomplete logs more
+* added first version of PyDarshan, which provides interfaces for
+  accessing Darshan log file data from Python applications
+* added AutoPerf modules for tracking MPI communication usage (APMPI) and
+  for tracking Cray XC performance counters (APXC)
+* modified Lustre module to use 'fgetxattr' rather than 'ioctl' for
+  querying stripe info to avoid known bug in Lustre that could cause
+  application crashes
+* fixed bug leading to potential deadlock when reducing shared file records
+  for MPI applications (known to affect mvapich2)
+* fixed bug preventing usage of Darshan's non-MPI mode in builds that use
+  MPI compilers
+* boosted Darshan's default internal memory allocation from 2 MiB to 4 MiB
+* added wrappers for openat, preadv, preadv2, pwritev, and pwritev2 (improves
+  profiling of ompio)
+* various bug fixes to enable usage of HDF5 modules in non-MPI applications
+* fixed HDF5 module bug leading to warnings on stdout for applications using
+  non-MPIIO VFD for HDF5
+* fixed HDF5 module bug leading to potentially incorrect values in H5D module
+  common access counters
+* added new H5D record value to indicate corresponding H5F record ID, to
+  allow easier mapping of HDF5 datasets to files they belong to
+* improved error handling in command line parsers to make incomplete logs more
   obvious to users
+* fixed bug leading to incorrect internal timing information at Darshan
+  shutdown time
+* fixed bug causing negative Darshan counter values from being plotted when
+  using the darshan-job-summary tool
 
 Darshan-3.2.1
 =============
