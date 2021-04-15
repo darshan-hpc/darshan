@@ -57,3 +57,26 @@ def test_internal_references():
     # check the convienience refs are working fine
     check = id(report.records) == id(report.data['records'])
     assert check is True
+
+def test_info_contents(capsys):
+    # regression guard for the output from the info()
+    # method of DarshanReport
+    report = darshan.DarshanReport("tests/input/sample.darshan")
+    report.info()
+    captured = capsys.readouterr()
+    expected_keys = ['Times',
+                     'Executeable',
+                     'Processes',
+                     'JobID',
+                     'UID',
+                     'Modules in Log',
+                     'Loaded Records',
+                     'Name Records',
+                     'Darshan/Hints',
+                     'DarshanReport']
+
+    expected_values = ['2048', '4478544', '69615']
+    expected_strings = expected_keys + expected_values
+
+    for expected_string in expected_strings:
+        assert expected_string in captured.out
