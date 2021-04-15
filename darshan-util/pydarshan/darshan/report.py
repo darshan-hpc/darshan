@@ -66,7 +66,6 @@ class DarshanRecordCollection(collections.abc.MutableSequence):
 
         self._type = "collection"  # collection => list(), single => [record], nested => [[], ... ,[]]
         self._records = list()     # internal format before user conversion
-        pass
     
     def __len__(self):
         return len(self._records)
@@ -224,7 +223,6 @@ class DarshanRecordCollection(collections.abc.MutableSequence):
         elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
             # format already in a dict format, but may offer switches for expansion
             logger.warn("WARNING: The output of DarshanRecordCollection.to_dict() may change in the future.")
-            pass
         else:
             for i, rec in enumerate(records):
                 rec['counters'] = dict(zip(counters['counters'], rec['counters']))
@@ -544,7 +542,6 @@ class DarshanReport(object):
         for mod in self.data['modules']:
             self.mod_read_all_records(mod, dtype=dtype, warnings=False)
 
-        pass
 
 
     def read_all_dxt_records(self, reads=True, writes=True, dtype=None):
@@ -563,7 +560,6 @@ class DarshanReport(object):
         for mod in self.data['modules']:
             self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes, dtype=dtype)
 
-        pass
 
 
     def mod_read_all_records(self, mod, dtype=None, warnings=True):
@@ -643,7 +639,6 @@ class DarshanReport(object):
                 'fcounters': combined_fc
                 }]
 
-        pass
 
     def mod_read_all_apmpi_records(self, mod, dtype=None, warnings=True):
         """ 
@@ -694,7 +689,6 @@ class DarshanReport(object):
         if self.lookup_name_records:
             self.update_name_records()
 
-        pass
 
     def mod_read_all_apxc_records(self, mod, dtype=None, warnings=True):
         """ 
@@ -744,7 +738,6 @@ class DarshanReport(object):
         if self.lookup_name_records:
             self.update_name_records()
 
-        pass
 
     def mod_read_all_dxt_records(self, mod, dtype=None, warnings=True, reads=True, writes=True):
         """
@@ -798,7 +791,6 @@ class DarshanReport(object):
         if self.lookup_name_records:
             self.update_name_records()
 
-        pass
 
 
 
@@ -877,7 +869,6 @@ class DarshanReport(object):
                 'counters': combined_c,
                 }]
 
-        pass
 
 
 
