@@ -57,3 +57,19 @@ def test_internal_references():
     # check the convienience refs are working fine
     check = id(report.records) == id(report.data['records'])
     assert check is True
+
+@pytest.mark.parametrize("invalid_filepath", [
+    # messy path that does not exist
+    '#!$%',
+    # path that exists but has no
+    # actual log file
+    '.',
+    ]
+    )
+def test_report_invalid_file(invalid_filepath):
+    # verify appropriate error handling for
+    # provision of an invalid file path to
+    # DarshanReport
+
+    with pytest.raises(RuntimeError, match='Failed to open file'):
+        darshan.DarshanReport(invalid_filepath)
