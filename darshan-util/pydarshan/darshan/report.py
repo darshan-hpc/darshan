@@ -445,7 +445,6 @@ class DarshanReport(object):
 
         # TODO: might consider treating self.log as list of open logs to not deactivate load functions?
 
-        return result
 
 
     def read_metadata(self, read_all=False):
