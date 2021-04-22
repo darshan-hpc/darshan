@@ -654,7 +654,7 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
                 rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] += 1;
             else if(file_sel_type == H5S_SEL_POINTS)
                 rec_ref->dataset_rec->counters[H5D_POINT_SELECTS] += 1;
-            else
+            else if (file_sel_type == H5S_SEL_HYPERSLABS)
             {
                 if(H5Sis_regular_hyperslab(file_space_id))
                 {
@@ -775,7 +775,7 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
                 rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] += 1;
             else if(file_sel_type == H5S_SEL_POINTS)
                 rec_ref->dataset_rec->counters[H5D_POINT_SELECTS] += 1;
-            else
+            else if (file_sel_type == H5S_SEL_HYPERSLABS)
             {
                 if(H5Sis_regular_hyperslab(file_space_id))
                 {
