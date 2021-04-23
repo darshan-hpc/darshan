@@ -39,6 +39,9 @@
 /* Define if off64_t type is defined */
 #undef HAVE_OFF64_T
 
+/* Define if OpenMPI is being used */
+#undef HAVE_OPEN_MPI
+
 /* Define to 1 if you have the `preadv' function. */
 #undef HAVE_PREADV
 

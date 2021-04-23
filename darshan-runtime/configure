@@ -5206,6 +5206,40 @@ fi
 done
 
 
+# check for OpenMPI
+# NOTE: this check is needed due to a bug observed in some OpenMPI
+# versions triggered by Darshan's MPI-IO module usage of the
+# MPI_File_get_byte_offset() routine. For applications that create
+# zero-length datatypes, then read/write to them, it can trigger a
+# seg fault due to a divide by zero condition in OpenMPI. See the
+# following Darshan issue for more details:
+#   https://xgitlab.cels.anl.gov/darshan/darshan/-/issues/317
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+
+        #include <mpi.h>
+        #ifdef OPEN_MPI
+        #error OPENMPI FOUND
+        #endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+else
+
+$as_echo "#define HAVE_OPEN_MPI 1" >>confdefs.h
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
 DARSHAN_VERSION="3.3.0-pre1"
 
 

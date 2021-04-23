@@ -557,6 +557,24 @@ AC_CHECK_FUNCS([preadv],[],[])
 AC_CHECK_FUNCS([pwritev2],[],[])
 AC_CHECK_FUNCS([preadv2],[],[])
 
+# check for OpenMPI
+# NOTE: this check is needed due to a bug observed in some OpenMPI
+# versions triggered by Darshan's MPI-IO module usage of the
+# MPI_File_get_byte_offset() routine. For applications that create
+# zero-length datatypes, then read/write to them, it can trigger a
+# seg fault due to a divide by zero condition in OpenMPI. See the
+# following Darshan issue for more details:
+#   https://xgitlab.cels.anl.gov/darshan/darshan/-/issues/317
+AC_COMPILE_IFELSE([
+    AC_LANG_PROGRAM(,[
+        #include <mpi.h>
+        #ifdef OPEN_MPI
+        #error OPENMPI FOUND
+        #endif
+    ])],
+    [],
+    [AC_DEFINE(HAVE_OPEN_MPI, 1, Define if OpenMPI is being used)])
+
 DARSHAN_VERSION="AC_PACKAGE_VERSION"
 AC_SUBST(darshan_lib_path)
 AC_SUBST(darshan_share_path)
