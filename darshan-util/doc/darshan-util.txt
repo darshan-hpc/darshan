@@ -824,3 +824,15 @@ provides a relatively stable interface across different versions of Darshan
 and different log formats.
 * dxt_analyzer: plots the read or write activity of a job using data obtained
 from Darshan's DXT modules (if DXT is enabled).
+
+=== PyDarshan
+
+PyDarshan is a Python package that provides functionality for analyzing Darshan
+log files, first introduced as part of Darshan 3.3.0. This package provides
+easier to use Python interfaces to Darshan log file data (compared to the C-based
+darshan-util library), enabling Darshan users to develop their own custom log file
+analysis utilities.
+
+PyDarshan has independent documentation outlining how to install and use this package
+which can be found
+link:https://www.mcs.anl.gov/research/projects/darshan/docs/pydarshan/index.html[HERE].
