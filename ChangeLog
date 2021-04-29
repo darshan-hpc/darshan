@@ -2,6 +2,16 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.3.0-pre2
+=============
+* fixed bug in HDF5 module resulting in warning messages for instrumented
+  datasets that use H5S_SELECT_NONE (reported by Marta Garcia Martinez)
+* disabled DXT's MPI-IO offset tracing for Darshan builds using OpenMPI
+  to workaround an OpenMPI bug (reported by Tobias Meisel)
+* modified Darshan to query Lustre striping information for all
+  instrumented files to workaround issue of retrieving striping info for
+  Lustre files that are symlinked to other file systems
+
 Darshan-3.3.0-pre1
 =============
 * added first version of PyDarshan, which provides interfaces for
