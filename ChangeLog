@@ -16,8 +16,6 @@ Darshan-3.3.0-pre1
 =============
 * added first version of PyDarshan, which provides interfaces for
   accessing Darshan log file data from Python applications
-* added AutoPerf modules for tracking MPI communication usage (APMPI) and
-  for tracking Cray XC performance counters (APXC)
 * modified Lustre module to use 'fgetxattr' rather than 'ioctl' for
   querying stripe info to avoid known bug in Lustre that could cause
   application crashes
