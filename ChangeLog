@@ -2,6 +2,11 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.3.0
+=============
+* added AutoPerf modules for tracking MPI communication usage (APMPI) and
+  for tracking Cray XC performance counters (APXC)
+
 Darshan-3.3.0-pre2
 =============
 * fixed bug in HDF5 module resulting in warning messages for instrumented
