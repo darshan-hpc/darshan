@@ -54,8 +54,8 @@ Darshan-3.2.0
   darshan_log_get_name_records, and darshan_log_get_record (contributed
   by Jakob Luettgau)
 * extended DXT MPIIO module to trace file offsets
-* added "--log-path" option to darshan-config to allow users to more
-  easily determine where Darshan logs are stored
+* added `darshan-config --log-path` command option to display the log path(s)
+  configured for use with Darshan
 * silenced stdout from darshan-job-summary.pl and remove --summary option
 * removed Darshan stubs library traditionally used in static linking test
   cases and other general simplifications of Darshan's static linking options
@@ -64,8 +64,6 @@ Darshan-3.2.0
 * updated Darshan's compiler wrapper generators, MPICH profiling config
   hooks, and Cray software modules to explicitly link in Darshan in
   dynamic linking cases using rpath
-* added `darshan-config --log-path` command option to display the log path(s)
-  configured for use with Darshan
 * reimplemented Darshan's MPI/PMPI wrapper macros (using functiona aliases)
   to avoid potential deadlock with other PMPI tools
 * made use of DESTDIR match standard automake practice (contributed by
@@ -75,9 +73,10 @@ Darshan-3.2.0
 * corrected pkgconfig path for darshan-util when using DESTDIR (reported by
   Matthew Curry)
 * added support for non-MPI instrumenation to Darshan, using GCC
-construct/destructor attributes for bootstrapping rather than
-intercepting MPI_Init()/MPI_Finalize(). This mechanism only
-works for Darshan's shared library instrumentation
+  construct/destructor attributes for bootstrapping rather than
+  intercepting MPI_Init()/MPI_Finalize(). This mechanism only
+  works for Darshan's shared library instrumentation (implemented with the
+  help of Glenn Lockwood)
 
 Darshan-3.1.8
 =============
