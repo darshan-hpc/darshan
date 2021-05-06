@@ -523,7 +523,12 @@ class DarshanReport(object):
 
         self.read_all_generic_records(dtype=dtype)
         self.read_all_dxt_records(dtype=dtype)
-        self.mod_read_all_lustre_records(dtype=dtype)
+        if "LUSTRE" in self.data['modules']:
+            self.mod_read_all_lustre_records(dtype=dtype)
+        if "APMPI" in self.data['modules']:
+            self.mod_read_all_apmpi_records(dtype=dtype)
+        if "APXC" in self.data['modules']:
+            self.mod_read_all_apxc_records(dtype=dtype)
         
         return
 
@@ -578,7 +583,7 @@ class DarshanReport(object):
             None
 
         """
-        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE']
+        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE', 'APMPI', 'APXC']
 
         if mod in unsupported:
             if warnings:
@@ -645,7 +650,7 @@ class DarshanReport(object):
 
         pass
 
-    def mod_read_all_apmpi_records(self, mod, dtype=None, warnings=True):
+    def mod_read_all_apmpi_records(self, mod="APMPI", dtype=None, warnings=True):
         """ 
         Reads all APMPI records for provided module.
 
@@ -659,7 +664,7 @@ class DarshanReport(object):
         """
         if mod not in self.data['modules']:
             if warnings:
-                logger.warning(f"Skipping. Log does not contain data for mod: {mod}")
+                logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
             return
 
 
@@ -696,7 +701,7 @@ class DarshanReport(object):
 
         pass
 
-    def mod_read_all_apxc_records(self, mod, dtype=None, warnings=True):
+    def mod_read_all_apxc_records(self, mod="APXC", dtype=None, warnings=True):
         """ 
         Reads all APXC records for provided module.
 
@@ -710,7 +715,7 @@ class DarshanReport(object):
         """
         if mod not in self.data['modules']:
             if warnings:
-                logger.warning(f"Skipping. Log does not contain data for mod: {mod}")
+                logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
             return
 
         supported =  ['APXC'] 
@@ -760,7 +765,7 @@ class DarshanReport(object):
         """
         if mod not in self.data['modules']:
             if warnings:
-                logger.warning(f"Skipping. Log does not contain data for mod: {mod}")
+                logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
             return
 
 
