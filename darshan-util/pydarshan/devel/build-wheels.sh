@@ -18,7 +18,7 @@ yum install -y zlib zlib-devel
 
 # Build and install darshan-util
 cd /darshan/darshan-util
-./configure --enable-shared
+./configure --enable-shared --enable-autoperf-apxc --enable-autoperf-apmpi
 make install
 make distclean
 

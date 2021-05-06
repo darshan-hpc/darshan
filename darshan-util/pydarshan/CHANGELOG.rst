@@ -1,7 +1,6 @@
 PyDarshan-3.3.0.3
 =================
-* fixed bug resulting in errors when reading logs with AutoPerf data
-  accessed using the Darshan Report interface with option 'read_all=True'
+* Added support for Darshan's AutoPerf modules
 
 PyDarshan-3.3.0.2
 =================

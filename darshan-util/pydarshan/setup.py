@@ -44,7 +44,7 @@ for root, dirs, files in os.walk("../../modules"):
         if f.endswith("-backend.py"):
             fname = f.replace("-backend", "")
             try:
-                os.symlink("../../" + os.path.join(root, f), f"darshan/backend/{fname}")
+                os.link("../../" + os.path.join(root, f), f"darshan/backend/{fname}")
             except:
                 pass
             print("Adding {0} to backends.".format(os.path.join(root, f)))
