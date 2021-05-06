@@ -9,7 +9,8 @@ MNT_DARSHAN=`pwd`/../..
 
 
 
-DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64
+#DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64
+DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64:2021-05-01-78330c5
 PLAT=manylinux1_x86_64
 PRE_CMD=
 
@@ -22,7 +23,8 @@ docker run --rm -e PLAT=$PLAT \
 
 
 
-DOCKER_IMAGE=quay.io/pypa/manylinux1_i686
+#DOCKER_IMAGE=quay.io/pypa/manylinux1_i686
+DOCKER_IMAGE=quay.io/pypa/manylinux1_i686:2021-05-01-78330c5
 PLAT=manylinux1_i686
 PRE_CMD=linux32
 
@@ -34,7 +36,8 @@ docker run --rm -e PLAT=$PLAT \
 
 
 
-DOCKER_IMAGE=quay.io/pypa/manylinux2010_x86_64
+#DOCKER_IMAGE=quay.io/pypa/manylinux2010_x86_64
+DOCKER_IMAGE=quay.io/pypa/manylinux2010_x86_64:2021-05-01-28d233a
 PLAT=manylinux2010_x86_64
 PRE_CMD=
 
