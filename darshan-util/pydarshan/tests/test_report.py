@@ -109,3 +109,27 @@ def test_report_invalid_file(invalid_filepath):
 
     with pytest.raises(RuntimeError, match='Failed to open file'):
         darshan.DarshanReport(invalid_filepath)
+
+def test_json_fidelity():
+    # regression test for provision of appropriate
+    # data by to_json() method of DarshanReport class
+    report = darshan.DarshanReport("tests/input/sample.darshan")
+    actual_json = report.to_json()
+
+    for expected_key in ["version",
+                         "metadata",
+                         "job",
+                         "uid",
+                         "start_time",
+                         "end_time",
+                         "nprocs"]:
+        assert expected_key in actual_json
+
+    for expected_value in ['69615',
+                           '1490000867',
+                           '1490000983',
+                           '2048',
+                           'lustre',
+                           'dvs',
+                           'rootfs']:
+        assert expected_value in actual_json
