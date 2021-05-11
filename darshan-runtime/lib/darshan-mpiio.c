@@ -236,10 +236,20 @@ static int my_rank = -1;
     if(newpath != __path) free(newpath); \
 } while(0)
 
+/* XXX: this check is needed to work around an OpenMPI bug that is triggered by
+ * Darshan's MPI-IO read/write wrappers usage of 'MPI_File_get_byte_offset()'
+ * for some workloads. For more details, see comments in 'darshan-runtime/configure.in'.
+ */
+#ifndef HAVE_OPEN_MPI
+static int get_byte_offset = 1;
+#else
+static int get_byte_offset = 0;
+#endif
+
 #define MPIIO_RECORD_READ(__ret, __fh, __count, __datatype, __offset, __counter, __tm1, __tm2) do { \
     struct mpiio_file_record_ref *rec_ref; \
     int size = 0; \
-    MPI_Offset displacement=0;\
+    MPI_Offset displacement=-1;\
     int64_t size_ll; \
     struct darshan_common_val_counter *cvc; \
     double __elapsed = __tm2-__tm1; \
@@ -248,7 +258,7 @@ static int my_rank = -1;
     if(!rec_ref) break; \
     PMPI_Type_size(__datatype, &size);  \
     size = size * __count; \
-    MPI_File_get_byte_offset(__fh, __offset, &displacement);\
+    if(get_byte_offset) MPI_File_get_byte_offset(__fh, __offset, &displacement);\
     /* DXT to record detailed read tracing information */ \
     dxt_mpiio_read(rec_ref->file_rec->base_rec.id, displacement, size, __tm1, __tm2); \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_READ_AGG_0_100]), size); \
@@ -278,7 +288,7 @@ static int my_rank = -1;
 #define MPIIO_RECORD_WRITE(__ret, __fh, __count, __datatype, __offset, __counter, __tm1, __tm2) do { \
     struct mpiio_file_record_ref *rec_ref; \
     int size = 0; \
-    MPI_Offset displacement; \
+    MPI_Offset displacement=-1; \
     int64_t size_ll; \
     struct darshan_common_val_counter *cvc; \
     double __elapsed = __tm2-__tm1; \
@@ -288,7 +298,7 @@ static int my_rank = -1;
     PMPI_Type_size(__datatype, &size);  \
     size = size * __count; \
     /* DXT to record detailed write tracing information */ \
-    MPI_File_get_byte_offset(__fh, __offset, &displacement); \
+    if(get_byte_offset) MPI_File_get_byte_offset(__fh, __offset, &displacement); \
     dxt_mpiio_write(rec_ref->file_rec->base_rec.id, displacement, size, __tm1, __tm2); \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_WRITE_AGG_0_100]), size); \
     size_ll = size; \

@@ -2342,8 +2342,16 @@ char *darshan_core_lookup_record_name(darshan_record_id rec_id)
 void darshan_instrument_fs_data(int fs_type, const char *path, int fd)
 {
 #ifdef DARSHAN_LUSTRE
-    /* allow lustre to generate a record if we configured with lustre support */
-    if(fs_type == LL_SUPER_MAGIC)
+    /* allow Lustre to generate a record if we configured with Lustre support */
+    /* XXX: Note that we short-circuit this Lustre file system check and try to
+     * query Lustre striping stats for *all* files instrumented by Darshan (i.e.,
+     * Lustre files or not). We do this so that symlinks to Lustre files are
+     * properly instrumented, since these symlinks might live on other non-Lustre
+     * file systems. We have instrumented this Lustre file system check on a number
+     * of file systems and believe it is low overhead enough to not be noticable by
+     * users.
+     */
+    if(1 || fs_type == LL_SUPER_MAGIC)
     {
         darshan_instrument_lustre_file(path, fd);
         return;

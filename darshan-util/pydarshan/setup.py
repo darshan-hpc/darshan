@@ -76,6 +76,6 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     url='https://www.mcs.anl.gov/research/projects/darshan/',
-    version='0.0.8.4',
+    version='3.3.0.3',
     zip_safe=False,
 )

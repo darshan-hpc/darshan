@@ -146,7 +146,7 @@ def log_get_exe(log):
         log: handle returned by darshan.open
 
     Return:
-        string: executeable path and arguments
+        string: executable path and arguments
     """
 
     exestr = ffi.new("char[]", 4096)
@@ -425,6 +425,7 @@ def counter_names(mod_name, fcnts=False, special=''):
             break
         names.append(name)
         i += 1
+
     return names
 
 

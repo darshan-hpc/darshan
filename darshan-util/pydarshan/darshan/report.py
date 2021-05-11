@@ -66,7 +66,6 @@ class DarshanRecordCollection(collections.abc.MutableSequence):
 
         self._type = "collection"  # collection => list(), single => [record], nested => [[], ... ,[]]
         self._records = list()     # internal format before user conversion
-        pass
     
     def __len__(self):
         return len(self._records)
@@ -224,7 +223,6 @@ class DarshanRecordCollection(collections.abc.MutableSequence):
         elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
             # format already in a dict format, but may offer switches for expansion
             logger.warn("WARNING: The output of DarshanRecordCollection.to_dict() may change in the future.")
-            pass
         else:
             for i, rec in enumerate(records):
                 rec['counters'] = dict(zip(counters['counters'], rec['counters']))
@@ -445,7 +443,6 @@ class DarshanReport(object):
 
         # TODO: might consider treating self.log as list of open logs to not deactivate load functions?
 
-        return result
 
 
     def read_metadata(self, read_all=False):
@@ -523,7 +520,12 @@ class DarshanReport(object):
 
         self.read_all_generic_records(dtype=dtype)
         self.read_all_dxt_records(dtype=dtype)
-        self.mod_read_all_lustre_records(dtype=dtype)
+        if "LUSTRE" in self.data['modules']:
+            self.mod_read_all_lustre_records(dtype=dtype)
+        if "APMPI" in self.data['modules']:
+            self.mod_read_all_apmpi_records(dtype=dtype)
+        if "APXC" in self.data['modules']:
+            self.mod_read_all_apxc_records(dtype=dtype)
         
         return
 
@@ -544,7 +546,6 @@ class DarshanReport(object):
         for mod in self.data['modules']:
             self.mod_read_all_records(mod, dtype=dtype, warnings=False)
 
-        pass
 
 
     def read_all_dxt_records(self, reads=True, writes=True, dtype=None):
@@ -563,7 +564,6 @@ class DarshanReport(object):
         for mod in self.data['modules']:
             self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes, dtype=dtype)
 
-        pass
 
 
     def mod_read_all_records(self, mod, dtype=None, warnings=True):
@@ -578,7 +578,7 @@ class DarshanReport(object):
             None
 
         """
-        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE']
+        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE', 'APMPI', 'APXC']
 
         if mod in unsupported:
             if warnings:
@@ -643,9 +643,8 @@ class DarshanReport(object):
                 'fcounters': combined_fc
                 }]
 
-        pass
 
-    def mod_read_all_apmpi_records(self, mod, dtype=None, warnings=True):
+    def mod_read_all_apmpi_records(self, mod="APMPI", dtype=None, warnings=True):
         """ 
         Reads all APMPI records for provided module.
 
@@ -659,7 +658,7 @@ class DarshanReport(object):
         """
         if mod not in self.data['modules']:
             if warnings:
-                logger.warning(f"Skipping. Log does not contain data for mod: {mod}")
+                logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
             return
 
 
@@ -670,40 +669,80 @@ class DarshanReport(object):
             # skip mod
             return
 
-        #print(mod+"-HEADER")
-        #print(_structdefs[mod+"-HEADER"])
         # handling options
         dtype = dtype if dtype else self.dtype
 
-        self.records[mod] = []
+        self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
+
         # update module metadata
-        self.modules[mod]['num_records'] = 0
+        self._modules[mod]['num_records'] = 0
         if mod not in self.counters:
             self.counters[mod] = {}
 
-        # fetch header record
-        header_rec = backend.log_get_apmpi_record(self.log, _structdefs[mod+"-HEADER"])
-        self.records[mod].append(header_rec)
-
         # fetch records
-        rec = backend.log_get_apmpi_record(self.log, _structdefs[mod+"-PERF"])
+        # fetch header record
+        rec = backend.log_get_apmpi_record(self.log, mod, "HEADER", dtype=dtype)
         while rec != None:
-            if dtype == 'numpy':
-                self.records[mod].append(rec)
-            else:
-                self.records[mod].append(rec)
-
+            self.records[mod].append(rec)
             self.data['modules'][mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_apmpi_record(self.log, _structdefs[mod+"-PERF"])
+            rec = backend.log_get_apmpi_record(self.log, mod, "PERF", dtype=dtype)
 
 
         if self.lookup_name_records:
             self.update_name_records()
-   
-        pass 
- 
+
+
+    def mod_read_all_apxc_records(self, mod="APXC", dtype=None, warnings=True):
+        """ 
+        Reads all APXC records for provided module.
+
+        Args:
+            mod (str): Identifier of module to fetch all records
+            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+
+        Return:
+            None
+
+        """
+        if mod not in self.data['modules']:
+            if warnings:
+                logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
+            return
+
+        supported =  ['APXC'] 
+        if mod not in supported:
+            if warnings:
+                logger.warning(f" Skipping. Unsupported module: {mod} in in mod_read_all_apxc_records(). Supported: {supported}")
+            # skip mod
+            return
+
+        # handling options
+        dtype = dtype if dtype else self.dtype
+
+        self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
+        cn = backend.counter_names(mod)
+
+        # update module metadata
+        self._modules[mod]['num_records'] = 0
+        if mod not in self.counters:
+            self.counters[mod] = {}
+
+        # fetch records
+        # fetch header record
+        rec = backend.log_get_apxc_record(self.log, mod, "HEADER", dtype=dtype)
+        while rec != None:
+            self.records[mod].append(rec)
+            self.data['modules'][mod]['num_records'] += 1
+
+            # fetch next
+            rec = backend.log_get_apxc_record(self.log, mod, "PERF", dtype=dtype)
+
+        if self.lookup_name_records:
+            self.update_name_records()
+
+
     def mod_read_all_dxt_records(self, mod, dtype=None, warnings=True, reads=True, writes=True):
         """
         Reads all dxt records for provided module.
@@ -718,7 +757,7 @@ class DarshanReport(object):
         """
         if mod not in self.data['modules']:
             if warnings:
-                logger.warning(f"Skipping. Log does not contain data for mod: {mod}")
+                logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
             return
 
 
@@ -756,7 +795,6 @@ class DarshanReport(object):
         if self.lookup_name_records:
             self.update_name_records()
 
-        pass
 
 
 
@@ -835,7 +873,6 @@ class DarshanReport(object):
                 'counters': combined_c,
                 }]
 
-        pass
 
 
 
@@ -892,7 +929,7 @@ class DarshanReport(object):
         print("Times:          ", self.start_time, " to ", self.end_time, " (Duration ", tdelta, ")", sep="")
 
         if 'exe' in self.metadata:
-            print("Executeable:    ", self.metadata['exe'], sep="")
+            print("Executable:    ", self.metadata['exe'], sep="")
 
         if 'job' in self.metadata:
             print("Processes:      ", self.metadata['job']['nprocs'], sep="")

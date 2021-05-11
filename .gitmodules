@@ -1,4 +1,4 @@
 [submodule "modules/autoperf"]
 	path = modules/autoperf
-	url = git@xgitlab.cels.anl.gov:AutoPerf/autoperf.git
+	url = https://xgitlab.cels.anl.gov/AutoPerf/autoperf.git
 	branch = master

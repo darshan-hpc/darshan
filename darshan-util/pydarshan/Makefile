@@ -1,7 +1,7 @@
 .PHONY: clean clean-test clean-pyc clean-build docs help
 
 
-clean: clean-build clean-docs clean-pyc clean-test  # remove all build, test, coverage and Python artifacts
+clean: clean-build clean-docs clean-pyc clean-test clean-modules  # remove all build, test, coverage and Python artifacts
 
 clean-build:  # remove build artifacts
 	rm -rf build/
@@ -37,6 +37,10 @@ clean-devenv:
 	rm -rf devenv/libdarshanutil
 	rm -rf devenv
 
+clean-modules:
+	for file in `find ../../modules/ -name "*backend.py"` ; do \
+		rm -rf darshan/backend/`basename $$file | cut -d '-' -f 1`.py ; \
+	done
 
 devenv:
 	./devel/build-libdarshanutil.sh
@@ -65,6 +69,12 @@ docs: clean-docs # generate Sphinx HTML documentation, including API docs
 
 docs-show:
 	xdg-open docs/build/html/index.html
+
+# add AutoPef Python packages...
+add-modules:
+	for file in `find ../../modules/ -name "*-backend.py"` ; do \
+		cp $$file darshan/backend/`basename $$file | cut -d '-' -f 1`.py ; \
+	done
 
 wheels:
 	./devel/build-all.sh
