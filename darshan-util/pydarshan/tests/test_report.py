@@ -78,7 +78,7 @@ def test_info_contents(capsys):
     report.info()
     captured = capsys.readouterr()
     expected_keys = ['Times',
-                     'Executeable',
+                     'Executable',
                      'Processes',
                      'JobID',
                      'UID',

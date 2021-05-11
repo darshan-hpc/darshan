@@ -929,7 +929,7 @@ class DarshanReport(object):
         print("Times:          ", self.start_time, " to ", self.end_time, " (Duration ", tdelta, ")", sep="")
 
         if 'exe' in self.metadata:
-            print("Executeable:    ", self.metadata['exe'], sep="")
+            print("Executable:    ", self.metadata['exe'], sep="")
 
         if 'job' in self.metadata:
             print("Processes:      ", self.metadata['job']['nprocs'], sep="")

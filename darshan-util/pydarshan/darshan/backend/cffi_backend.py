@@ -146,7 +146,7 @@ def log_get_exe(log):
         log: handle returned by darshan.open
 
     Return:
-        string: executeable path and arguments
+        string: executable path and arguments
     """
 
     exestr = ffi.new("char[]", 4096)
