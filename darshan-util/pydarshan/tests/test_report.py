@@ -47,7 +47,7 @@ def test_load_records():
 
 
 @pytest.mark.parametrize("unsupported_record",
-        ["DXT_POSIX", "DXT_MPIIO", "LUSTRE"]
+        ["DXT_POSIX", "DXT_MPIIO", "LUSTRE", "APMPI", "APXC"]
         )
 def test_unsupported_record_load(caplog, unsupported_record):
     # check for appropriate logger warning when attempting to
