@@ -93,3 +93,19 @@ def test_info_contents(capsys):
 
     for expected_string in expected_strings:
         assert expected_string in captured.out
+
+@pytest.mark.parametrize("invalid_filepath", [
+    # messy path that does not exist
+    '#!$%',
+    # path that exists but has no
+    # actual log file
+    '.',
+    ]
+    )
+def test_report_invalid_file(invalid_filepath):
+    # verify appropriate error handling for
+    # provision of an invalid file path to
+    # DarshanReport
+
+    with pytest.raises(RuntimeError, match='Failed to open file'):
+        darshan.DarshanReport(invalid_filepath)
