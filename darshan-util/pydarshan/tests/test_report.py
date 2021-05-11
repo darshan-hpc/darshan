@@ -46,6 +46,19 @@ def test_load_records():
     assert 1 == len(report.data['records']['POSIX'])
 
 
+@pytest.mark.parametrize("unsupported_record",
+        ["DXT_POSIX", "DXT_MPIIO", "LUSTRE"]
+        )
+def test_unsupported_record_load(caplog, unsupported_record):
+    # check for appropriate logger warning when attempting to
+    # load unsupported record
+    report = darshan.DarshanReport("tests/input/sample.darshan")
+    report.mod_read_all_records(mod=unsupported_record)
+    for record in caplog.records:
+        assert 'Currently unsupported' in record.message
+        assert unsupported_record in record.message
+
+
 def test_internal_references():
     """
     Test if the reference ids match. This tests mainly serves to make
