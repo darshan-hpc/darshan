@@ -3,7 +3,11 @@
 
 """Tests for `pydarshan` package."""
 
+import copy
+
 import pytest
+import numpy as np
+from numpy.testing import assert_allclose
 
 import darshan
 
@@ -133,3 +137,20 @@ def test_json_fidelity():
                            'dvs',
                            'rootfs']:
         assert expected_value in actual_json
+
+@pytest.mark.parametrize("key", ['POSIX', 'MPI-IO', 'STDIO'])
+@pytest.mark.parametrize("subkey", ['counters', 'fcounters'])
+def test_deepcopy_fidelity_darshan_report(key, subkey):
+    # regression guard for the __deepcopy__() method
+    # of DarshanReport class
+    # note that to_numpy() also performs a deepcopy
+    report = darshan.DarshanReport("tests/input/sample.darshan")
+    report_deepcopy = copy.deepcopy(report)
+    # the deepcopied records should be identical
+    # within floating point tolerance
+    assert_allclose(report_deepcopy.data['records'][key].to_numpy()[0][subkey],
+                    report.data['records'][key].to_numpy()[0][subkey])
+    # a deepcopy should not share memory bounds
+    # with the original object (or deepcopies thereof)
+    assert not np.may_share_memory(report_deepcopy.data['records'][key].to_numpy()[0][subkey],
+                                   report.data['records'][key].to_numpy()[0][subkey])
