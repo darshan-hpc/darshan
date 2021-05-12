@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$NERSC_HOST" == "cori" ]; then
+if [ "$NERSC_HOST" == "cori" -o "$NERSC_HOST" == "gerty" ]; then
     NODE_CONSTRAINTS="-C haswell"
 fi
 

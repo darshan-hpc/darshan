@@ -161,7 +161,9 @@ int main(int argc, char **argv)
     }
 
     /* just exit if there is no DXT data in this log file */
-    if(fd->mod_map[DXT_POSIX_MOD].len == 0 && fd->mod_map[DXT_MPIIO_MOD].len == 0)
+    if(fd->mod_map[DXT_POSIX_MOD].len == 0
+    && fd->mod_map[DXT_MPIIO_MOD].len == 0
+    && fd->mod_map[DXT_STDIO_MOD].len == 0)
     {
         printf("\n# no DXT module data available for this Darshan log.\n");
         goto cleanup;
@@ -182,7 +184,7 @@ int main(int argc, char **argv)
             continue;
         }
 
-        if (i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD) {
+        if (i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD || i == DXT_STDIO_MOD) {
             printf("\n# ***************************************************\n");
             printf("# %s module data\n", darshan_module_names[i]);
             printf("# ***************************************************\n");
@@ -303,7 +305,15 @@ int main(int argc, char **argv)
             } else if (i == DXT_MPIIO_MOD){
                 dxt_log_print_mpiio_file(mod_buf, rec_name,
                         mnt_pt, fs_type);
+            } else if (i == DXT_STDIO_MOD) {
+                /* look for corresponding lustre record and print DXT data */
+                HASH_FIND(hlink, lustre_rec_hash, &(base_rec->id),
+                        sizeof(darshan_record_id), lustre_rec_ref);
+
+                dxt_log_print_stdio_file(mod_buf, rec_name,
+                        mnt_pt, fs_type, lustre_rec_ref);
             }
+            
 
             free(mod_buf);
             mod_buf = NULL;
