@@ -191,11 +191,7 @@ def log_get_modules(log):
     if log['modules'] != None:
         return log['modules']
 
-    if log['handle'] == None:
-        return None
-
     modules = {}
-
 
     mods = ffi.new("struct darshan_mod_info **")
     cnt    = ffi.new("int *")
