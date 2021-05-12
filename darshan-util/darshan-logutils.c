@@ -163,7 +163,7 @@ darshan_fd darshan_log_open(const char *name)
     ret = darshan_log_get_header(tmp_fd);
     if(ret < 0)
     {
-        fprintf(stderr, "Error: %s failed to read darshan log file header.\n",
+        fprintf(stderr, "Error: %s failed to read darshan log file header: %s.\n",
                 __func__, strerror(errno));
         close(tmp_fd->state->fildes);
         free(tmp_fd->state);
