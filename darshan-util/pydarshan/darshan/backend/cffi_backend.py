@@ -321,6 +321,8 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
 
     """
     modules = log_get_modules(log)
+    if mod_name not in modules:
+        return None
     mod_type = _structdefs[mod_name]
 
     rec = {}
@@ -447,6 +449,8 @@ def _log_get_lustre_record(log, dtype='numpy'):
         log: handle returned by darshan.open
     """
     modules = log_get_modules(log)
+    if 'LUSTRE' not in modules:
+        return None
 
     rec = {}
     buf = ffi.new("void **")
@@ -528,6 +532,8 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     """
 
     modules = log_get_modules(log)
+    if mod_name not in modules:
+        return None
     mod_type = _structdefs[mod_name]
     #name_records = log_get_name_records(log)
 
