@@ -263,11 +263,17 @@ darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type
  */
 int darshan_log_get_job(darshan_fd fd, struct darshan_job *job)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     char job_buf[DARSHAN_JOB_RECORD_SIZE] = {0};
     int job_buf_sz = DARSHAN_JOB_RECORD_SIZE;
     int ret;
 
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return(-1);
+    }
+    state = fd->state;
     assert(state);
     assert(fd->job_map.len > 0 && fd->job_map.off > 0);
 
@@ -309,11 +315,17 @@ int darshan_log_get_job(darshan_fd fd, struct darshan_job *job)
  */
 int darshan_log_put_job(darshan_fd fd, struct darshan_job *job)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     struct darshan_job job_copy;
     int len;
     int ret;
 
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return(-1);
+    }
+    state = fd->state;
     assert(state);
 
     memset(&job_copy, 0, sizeof(*job));
@@ -350,10 +362,16 @@ int darshan_log_put_job(darshan_fd fd, struct darshan_job *job)
  */
 int darshan_log_get_exe(darshan_fd fd, char *buf)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     char *newline;
     int ret;
 
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return(-1);
+    }
+    state = fd->state;
     assert(state);
 
     /* if the exe/mount data has not been saved yet, read in the job info */
@@ -388,11 +406,17 @@ int darshan_log_get_exe(darshan_fd fd, char *buf)
  */
 int darshan_log_put_exe(darshan_fd fd, char *buf)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int len = strlen(buf);
     int ret;
 
-    assert(fd->state);
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return(-1);
+    }
+    state = fd->state;
+    assert(state);
 
     ret = darshan_log_dzwrite(fd, DARSHAN_JOB_REGION_ID, buf, len);
     if(ret != len)
@@ -416,11 +440,17 @@ int darshan_log_put_exe(darshan_fd fd, char *buf)
 int darshan_log_get_mounts(darshan_fd fd, struct darshan_mnt_info **mnt_data_array,
     int* count)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     char *pos;
     int array_index = 0;
     int ret;
 
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return(-1);
+    }
+    state = fd->state;
     assert(state);
 
     /* if the exe/mount data has not been saved yet, read in the job info */
@@ -485,13 +515,19 @@ int darshan_log_get_mounts(darshan_fd fd, struct darshan_mnt_info **mnt_data_arr
 int darshan_log_put_mounts(darshan_fd fd, struct darshan_mnt_info *mnt_data_array,
     int count)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int i;
     char mnt_dat[DARSHAN_EXE_LEN] = {0};
     int ret;
     int left = DARSHAN_EXE_LEN;
     int pos = 0;
 
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return(-1);
+    }
+    state = fd->state;
     assert(state);
 
     /* write each mount entry to file */
@@ -531,7 +567,7 @@ int darshan_log_put_mounts(darshan_fd fd, struct darshan_mnt_info *mnt_data_arra
  */
 int darshan_log_get_namehash(darshan_fd fd, struct darshan_name_record_ref **hash)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     char *name_rec_buf;
     int name_rec_buf_sz;
     int read;
@@ -539,6 +575,12 @@ int darshan_log_get_namehash(darshan_fd fd, struct darshan_name_record_ref **has
     int buf_len = 0;
     int buf_processed;
 
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return(-1);
+    }
+    state = fd->state;
     assert(state);
 
     /* just return if there is no name record mapping data */
@@ -603,7 +645,7 @@ int darshan_log_get_filtered_namehash(darshan_fd fd,
         darshan_record_id *whitelist, int whitelist_count
         )
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     char *name_rec_buf;
     int name_rec_buf_sz;
     int read;
@@ -611,6 +653,12 @@ int darshan_log_get_filtered_namehash(darshan_fd fd,
     int buf_len = 0;
     int buf_processed;
 
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return(-1);
+    }
+    state = fd->state;
     assert(state);
 
     /* just return if there is no name record mapping data */
@@ -678,12 +726,18 @@ int darshan_log_get_filtered_namehash(darshan_fd fd,
  */
 int darshan_log_put_namehash(darshan_fd fd, struct darshan_name_record_ref *hash)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     struct darshan_name_record_ref *ref, *tmp;
     struct darshan_name_record *name_rec;
     int name_rec_len;
     int wrote;
 
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return(-1);
+    }
+    state = fd->state;
     assert(state);
 
     /* allocate memory for largest possible hash record */
@@ -723,9 +777,15 @@ int darshan_log_put_namehash(darshan_fd fd, struct darshan_name_record_ref *hash
 int darshan_log_get_mod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
 
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return(-1);
+    }
+    state = fd->state;
     assert(state);
 
     if(mod_id < 0 || mod_id >= DARSHAN_MAX_MODS)
@@ -776,9 +836,15 @@ int darshan_log_get_mod(darshan_fd fd, darshan_module_id mod_id,
 int darshan_log_put_mod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz, int ver)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
 
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return(-1);
+    }
+    state = fd->state;
     assert(state);
 
     if(mod_id < 0 || mod_id >= DARSHAN_MAX_MODS)
@@ -812,9 +878,15 @@ int darshan_log_put_mod(darshan_fd fd, darshan_module_id mod_id,
  */
 void darshan_log_close(darshan_fd fd)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
 
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return;
+    }
+    state = fd->state;
     assert(state);
 
     /* if the file was created for writing */
@@ -2071,6 +2143,13 @@ void darshan_log_get_modules (darshan_fd fd,
     int i;
     int j;
 
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        *count = 0;
+        return;
+    }
+
     *mods = malloc(sizeof(**mods) * DARSHAN_MAX_MODS);
     assert(*mods);
 
@@ -2151,7 +2230,7 @@ void darshan_log_get_filtered_name_records(darshan_fd fd,
     if(ret < 0)
     {
         darshan_log_close(fd);
-        //return(-1);
+        return;
     }
 
     int num = HASH_CNT(hlink, name_hash);
