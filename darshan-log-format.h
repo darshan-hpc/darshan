@@ -156,6 +156,11 @@ struct darshan_base_record
 #define __apmpi_logutils NULL
 #endif
 
+/* unique identifiers to distinguish between available darshan modules */
+/* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
+ *        - order of ids control module shutdown order (and consequently, order in log file)
+ *        - new modules MUST be added at the end because of this!
+ */
 #define DARSHAN_MODULE_IDS \
     X(DARSHAN_NULL_MOD,     "NULL",       DARSHAN_NULL_VER,      NULL) \
     X(DARSHAN_POSIX_MOD,    "POSIX",      DARSHAN_POSIX_VER,     &posix_logutils) \
@@ -170,12 +175,9 @@ struct darshan_base_record
     X(DXT_MPIIO_MOD,        "DXT_MPIIO",  DXT_MPIIO_VER,         &dxt_mpiio_logutils) \
     X(DARSHAN_MDHIM_MOD,    "MDHIM",      DARSHAN_MDHIM_VER,     &mdhim_logutils) \
     X(DARSHAN_APXC_MOD,     "APXC", 	  __APXC_VER,            __apxc_logutils) \
-    X(DARSHAN_APMPI_MOD,    "APMPI",      __APMPI_VER,           __apmpi_logutils) 
+    X(DARSHAN_APMPI_MOD,    "APMPI",      __APMPI_VER,           __apmpi_logutils) \
+    X(DXT_STDIO_MOD,        "DXT_STDIO",  DXT_STDIO_VER,         &dxt_stdio_logutils)
 
-/* unique identifiers to distinguish between available darshan modules */
-/* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
- *        - order of ids control module shutdown order (and consequently, order in log file)
- */
 #define X(a, b, c, d) a,
 typedef enum
 {

@@ -83,6 +83,7 @@
 
 #include "darshan.h"
 #include "darshan-dynamic.h"
+#include "darshan-dxt.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
@@ -244,6 +245,8 @@ extern int __real_fileno(FILE *stream);
     rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &(__fp), sizeof(__fp)); \
     if(!rec_ref) break; \
     this_offset = rec_ref->offset; \
+    /* DXT to record detailed read tracing information */ \
+    dxt_stdio_read(rec_ref->file_rec->base_rec.id, this_offset, __bytes, __tm1, __tm2); \
     rec_ref->offset = this_offset + __bytes; \
     if(rec_ref->file_rec->counters[STDIO_MAX_BYTE_READ] < (this_offset + __bytes - 1)) \
         rec_ref->file_rec->counters[STDIO_MAX_BYTE_READ] = (this_offset + __bytes - 1); \
@@ -262,6 +265,8 @@ extern int __real_fileno(FILE *stream);
     rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &(__fp), sizeof(__fp)); \
     if(!rec_ref) break; \
     this_offset = rec_ref->offset; \
+    /* DXT to record detailed write tracing information */ \
+    dxt_stdio_write(rec_ref->file_rec->base_rec.id, this_offset, __bytes, __tm1, __tm2); \
     rec_ref->offset = this_offset + __bytes; \
     if(rec_ref->file_rec->counters[STDIO_MAX_BYTE_WRITTEN] < (this_offset + __bytes - 1)) \
         rec_ref->file_rec->counters[STDIO_MAX_BYTE_WRITTEN] = (this_offset + __bytes - 1); \
@@ -1026,6 +1031,9 @@ static void stdio_runtime_initialize()
     }
     memset(stdio_runtime, 0, sizeof(*stdio_runtime));
 
+    /* allow DXT module to initialize if needed */
+    dxt_stdio_runtime_initialize();
+
     /* instantiate records for stdin, stdout, and stderr */
     STDIO_RECORD_OPEN(stdin, "<STDIN>", 0, 0);
     STDIO_RECORD_OPEN(stdout, "<STDOUT>", 0, 0);
@@ -1300,6 +1308,18 @@ char *darshan_stdio_lookup_record_name(FILE *stream)
     STDIO_UNLOCK();
 
     return(rec_name);
+}
+
+static struct darshan_stdio_file *darshan_stdio_rec_id_to_file(darshan_record_id rec_id)
+{
+    struct stdio_file_record_ref *rec_ref;
+
+    rec_ref = darshan_lookup_record_ref(stdio_runtime->rec_id_hash,
+        &rec_id, sizeof(darshan_record_id));
+    if(rec_ref)
+        return(rec_ref->file_rec);
+    else
+        return(NULL);
 }
 
 /************************************************************************
