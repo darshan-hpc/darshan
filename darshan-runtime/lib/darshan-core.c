@@ -17,7 +17,6 @@
 #endif
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <limits.h>
 #include <pthread.h>
 #include <fcntl.h>
@@ -27,7 +26,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <sys/time.h>
 #include <sys/vfs.h>
 #include <zlib.h>
 #include <assert.h>
@@ -38,7 +36,6 @@
 
 #include "uthash.h"
 #include "darshan.h"
-#include "darshan-core.h"
 #include "darshan-dynamic.h"
 #include "darshan-dxt.h"
 
@@ -48,10 +45,10 @@
 
 extern char* __progname;
 extern char* __progname_full;
+pthread_mutex_t __darshan_core_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+struct darshan_core_runtime *__darshan_core = NULL;
 
 /* internal variable delcarations */
-static struct darshan_core_runtime *darshan_core = NULL;
-static pthread_mutex_t darshan_core_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int using_mpi = 0;
 static int my_rank = 0;
 static int nprocs = 1;
@@ -222,7 +219,7 @@ void darshan_core_initialize(int argc, char **argv)
     double tmpfloat;
 
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
-    if (darshan_core != NULL || getenv("DARSHAN_DISABLE"))
+    if (__darshan_core != NULL || getenv("DARSHAN_DISABLE"))
         return;
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
@@ -399,9 +396,9 @@ void darshan_core_initialize(int argc, char **argv)
         /* if darshan was successfully initialized, set the global pointer
          * and bootstrap any modules with static initialization routines
          */
-        DARSHAN_CORE_LOCK();
-        darshan_core = init_core;
-        DARSHAN_CORE_UNLOCK();
+        __DARSHAN_CORE_LOCK();
+        __darshan_core = init_core;
+        __DARSHAN_CORE_UNLOCK();
 
         i = 0;
         while(mod_static_init_fns[i])
@@ -420,12 +417,12 @@ void darshan_core_initialize(int argc, char **argv)
             if(my_rank == 0)
             {
                 PMPI_Reduce(MPI_IN_PLACE, &init_time, 1,
-                    MPI_DOUBLE, MPI_MAX, 0, darshan_core->mpi_comm);
+                    MPI_DOUBLE, MPI_MAX, 0, __darshan_core->mpi_comm);
             }
             else
             {
                 PMPI_Reduce(&init_time, &init_time, 1,
-                    MPI_DOUBLE, MPI_MAX, 0, darshan_core->mpi_comm);
+                    MPI_DOUBLE, MPI_MAX, 0, __darshan_core->mpi_comm);
                 return; /* return early so every rank doesn't print */
             }
         }
@@ -466,15 +463,15 @@ void darshan_core_shutdown(int write_log)
 #endif
 
     /* disable darhan-core while we shutdown */
-    DARSHAN_CORE_LOCK();
-    if(!darshan_core)
+    __DARSHAN_CORE_LOCK();
+    if(!__darshan_core)
     {
-        DARSHAN_CORE_UNLOCK();
+        __DARSHAN_CORE_UNLOCK();
         return;
     }
-    final_core = darshan_core;
-    darshan_core = NULL;
-    DARSHAN_CORE_UNLOCK();
+    final_core = __darshan_core;
+    __darshan_core = NULL;
+    __DARSHAN_CORE_UNLOCK();
 
     /* skip to cleanup if not writing a log */
     if(!write_log)
@@ -2119,7 +2116,7 @@ static void darshan_core_fork_child_cb(void)
     /* hold onto the original parent PID, which we will use as jobid if the user didn't
      * provide a jobid env variable
      */
-    parent_pid = darshan_core->pid;
+    parent_pid = __darshan_core->pid;
     if(!orig_parent_pid)
         orig_parent_pid = parent_pid;
 
@@ -2139,10 +2136,10 @@ extern void darshan_mpiio_shutdown_bench_setup();
 void darshan_shutdown_bench(int argc, char **argv)
 {
     /* clear out existing core runtime structure */
-    if(darshan_core)
+    if(__darshan_core)
     {
-        darshan_core_cleanup(darshan_core);
-        darshan_core = NULL;
+        darshan_core_cleanup(__darshan_core);
+        __darshan_core = NULL;
     }
 
     /***********************************************************/
@@ -2156,7 +2153,7 @@ void darshan_shutdown_bench(int argc, char **argv)
         fprintf(stderr, "# 1 unique file per proc\n");
     PMPI_Barrier(MPI_COMM_WORLD);
     darshan_core_shutdown(1);
-    darshan_core = NULL;
+    __darshan_core = NULL;
 
     sleep(1);
 
@@ -2171,7 +2168,7 @@ void darshan_shutdown_bench(int argc, char **argv)
         fprintf(stderr, "# 1 shared file per proc\n");
     PMPI_Barrier(MPI_COMM_WORLD);
     darshan_core_shutdown(1);
-    darshan_core = NULL;
+    __darshan_core = NULL;
 
     sleep(1);
 
@@ -2186,7 +2183,7 @@ void darshan_shutdown_bench(int argc, char **argv)
         fprintf(stderr, "# 1024 unique files per proc\n");
     PMPI_Barrier(MPI_COMM_WORLD);
     darshan_core_shutdown(1);
-    darshan_core = NULL;
+    __darshan_core = NULL;
 
     sleep(1);
 
@@ -2201,7 +2198,7 @@ void darshan_shutdown_bench(int argc, char **argv)
         fprintf(stderr, "# 1024 shared files per proc\n");
     PMPI_Barrier(MPI_COMM_WORLD);
     darshan_core_shutdown(1);
-    darshan_core = NULL;
+    __darshan_core = NULL;
 
     sleep(1);
 
@@ -2233,47 +2230,47 @@ void darshan_core_register_module(
 
     *inout_mod_buf_size = 0;
 
-    DARSHAN_CORE_LOCK();
-    if((darshan_core == NULL) ||
+    __DARSHAN_CORE_LOCK();
+    if((__darshan_core == NULL) ||
        (mod_id >= DARSHAN_MAX_MODS) ||
-       (darshan_core->mod_array[mod_id] != NULL))
+       (__darshan_core->mod_array[mod_id] != NULL))
     {
         /* just return if darshan not initialized, the module id
          * is invalid, or if the module is already registered
          */
-        DARSHAN_CORE_UNLOCK();
+        __DARSHAN_CORE_UNLOCK();
         return;
     }
 
     mod = malloc(sizeof(*mod));
     if(!mod)
     {
-        DARSHAN_CORE_UNLOCK();
+        __DARSHAN_CORE_UNLOCK();
         return;
     }
     memset(mod, 0, sizeof(*mod));
 
     /* set module's record buffer and max memory usage */
-    mod_mem_avail = darshan_mod_mem_quota - darshan_core->mod_mem_used;
+    mod_mem_avail = darshan_mod_mem_quota - __darshan_core->mod_mem_used;
     if(mod_mem_avail >= mod_mem_req)
         mod->rec_mem_avail = mod_mem_req;
     else
         mod->rec_mem_avail = mod_mem_avail;
-    mod->rec_buf_start = darshan_core->log_mod_p + darshan_core->mod_mem_used;
+    mod->rec_buf_start = __darshan_core->log_mod_p + __darshan_core->mod_mem_used;
     mod->rec_buf_p = mod->rec_buf_start;
     mod->mod_funcs = mod_funcs;
 
     /* register module with darshan */
-    darshan_core->mod_array[mod_id] = mod;
-    darshan_core->mod_mem_used += mod->rec_mem_avail;
-    darshan_core->log_hdr_p->mod_ver[mod_id] = darshan_module_versions[mod_id];
+    __darshan_core->mod_array[mod_id] = mod;
+    __darshan_core->mod_mem_used += mod->rec_mem_avail;
+    __darshan_core->log_hdr_p->mod_ver[mod_id] = darshan_module_versions[mod_id];
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    darshan_core->log_hdr_p->mod_map[mod_id].off =
-        ((char *)mod->rec_buf_start - (char *)darshan_core->log_hdr_p);
+    __darshan_core->log_hdr_p->mod_map[mod_id].off =
+        ((char *)mod->rec_buf_start - (char *)__darshan_core->log_hdr_p);
 #endif
 
     *inout_mod_buf_size = mod->rec_mem_avail;
-    DARSHAN_CORE_UNLOCK();
+    __DARSHAN_CORE_UNLOCK();
 
     /* set the memory alignment and calling process's rank, if desired */
     if(sys_mem_alignment)
@@ -2292,23 +2289,23 @@ void darshan_core_register_module(
 void darshan_core_unregister_module(
     darshan_module_id mod_id)
 {
-    DARSHAN_CORE_LOCK();
-    if(!darshan_core)
+    __DARSHAN_CORE_LOCK();
+    if(!__darshan_core)
     {
-        DARSHAN_CORE_UNLOCK();
+        __DARSHAN_CORE_UNLOCK();
         return;
     }
 
     /* update darshan internal structures and header */
-    free(darshan_core->mod_array[mod_id]);
-    darshan_core->mod_array[mod_id] = NULL;
-    darshan_core->log_hdr_p->mod_ver[mod_id] = 0;
+    free(__darshan_core->mod_array[mod_id]);
+    __darshan_core->mod_array[mod_id] = NULL;
+    __darshan_core->log_hdr_p->mod_ver[mod_id] = 0;
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    darshan_core->log_hdr_p->mod_map[mod_id].off =
-        darshan_core->log_hdr_p->mod_map[mod_id].len = 0;
+    __darshan_core->log_hdr_p->mod_map[mod_id].off =
+        __darshan_core->log_hdr_p->mod_map[mod_id].len = 0;
 #endif
 
-    DARSHAN_CORE_UNLOCK();
+    __DARSHAN_CORE_UNLOCK();
     return;
 }
 
@@ -2330,18 +2327,18 @@ void *darshan_core_register_record(
     void *rec_buf;
     int ret;
 
-    DARSHAN_CORE_LOCK();
-    if(!darshan_core)
+    __DARSHAN_CORE_LOCK();
+    if(!__darshan_core)
     {
-        DARSHAN_CORE_UNLOCK();
+        __DARSHAN_CORE_UNLOCK();
         return(NULL);
     }
 
     /* check to see if this module has enough space to store a new record */
-    if(darshan_core->mod_array[mod_id]->rec_mem_avail < rec_len)
+    if(__darshan_core->mod_array[mod_id]->rec_mem_avail < rec_len)
     {
-        DARSHAN_MOD_FLAG_SET(darshan_core->log_hdr_p->partial_flag, mod_id);
-        DARSHAN_CORE_UNLOCK();
+        DARSHAN_MOD_FLAG_SET(__darshan_core->log_hdr_p->partial_flag, mod_id);
+        __DARSHAN_CORE_UNLOCK();
         return(NULL);
     }
 
@@ -2351,15 +2348,15 @@ void *darshan_core_register_record(
         /* check to see if we've already stored the id->name mapping for
          * this record, and add a new name record if not
          */
-        HASH_FIND(hlink, darshan_core->name_hash, &rec_id,
+        HASH_FIND(hlink, __darshan_core->name_hash, &rec_id,
             sizeof(darshan_record_id), ref);
         if(!ref)
         {
-            ret = darshan_add_name_record_ref(darshan_core, rec_id, name, mod_id);
+            ret = darshan_add_name_record_ref(__darshan_core, rec_id, name, mod_id);
             if(ret == 0)
             {
-                DARSHAN_MOD_FLAG_SET(darshan_core->log_hdr_p->partial_flag, mod_id);
-                DARSHAN_CORE_UNLOCK();
+                DARSHAN_MOD_FLAG_SET(__darshan_core->log_hdr_p->partial_flag, mod_id);
+                __DARSHAN_CORE_UNLOCK();
                 return(NULL);
             }
         }
@@ -2369,13 +2366,13 @@ void *darshan_core_register_record(
         }
     }
 
-    rec_buf = darshan_core->mod_array[mod_id]->rec_buf_p;
-    darshan_core->mod_array[mod_id]->rec_buf_p += rec_len;
-    darshan_core->mod_array[mod_id]->rec_mem_avail -= rec_len;
+    rec_buf = __darshan_core->mod_array[mod_id]->rec_buf_p;
+    __darshan_core->mod_array[mod_id]->rec_buf_p += rec_len;
+    __darshan_core->mod_array[mod_id]->rec_mem_avail -= rec_len;
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    darshan_core->log_hdr_p->mod_map[mod_id].len += rec_len;
+    __darshan_core->log_hdr_p->mod_map[mod_id].len += rec_len;
 #endif
-    DARSHAN_CORE_UNLOCK();
+    __DARSHAN_CORE_UNLOCK();
 
     if(fs_info)
         darshan_fs_info_from_path(name, fs_info);
@@ -2388,12 +2385,12 @@ char *darshan_core_lookup_record_name(darshan_record_id rec_id)
     struct darshan_core_name_record_ref *ref;
     char *name = NULL;
 
-    DARSHAN_CORE_LOCK();
-    HASH_FIND(hlink, darshan_core->name_hash, &rec_id,
+    __DARSHAN_CORE_LOCK();
+    HASH_FIND(hlink, __darshan_core->name_hash, &rec_id,
         sizeof(darshan_record_id), ref);
     if(ref)
         name = ref->name_record->name;
-    DARSHAN_CORE_UNLOCK();
+    __DARSHAN_CORE_UNLOCK();
 
     return(name);
 }
@@ -2417,39 +2414,6 @@ void darshan_instrument_fs_data(int fs_type, const char *path, int fd)
     }
 #endif
     return;
-}
-
-/* retrieve the wtime relative to execution start time */
-double darshan_core_wtime()
-{
-    double wtime_offset;
-
-    DARSHAN_CORE_LOCK();
-    if(!darshan_core)
-    {
-        DARSHAN_CORE_UNLOCK();
-        return(0);
-    }
-    else
-    {
-        wtime_offset = darshan_core->wtime_offset;
-    }
-    DARSHAN_CORE_UNLOCK();
-
-    return(darshan_core_wtime_absolute() - wtime_offset);
-}
-
-/* retrieve absolute wtime */
-static double darshan_core_wtime_absolute(void)
-{
-#ifdef HAVE_MPI
-    if(using_mpi)
-        return(PMPI_Wtime());
-#endif
-
-    struct timeval tval;
-    gettimeofday(&tval, NULL);
-    return(tval.tv_sec + (tval.tv_usec / 1000000.0));
 }
 
 #ifdef DARSHAN_PRELOAD
@@ -2508,12 +2472,12 @@ int darshan_core_disabled_instrumentation()
 {
     int ret;
 
-    DARSHAN_CORE_LOCK();
-    if(darshan_core)
+    __DARSHAN_CORE_LOCK();
+    if(__darshan_core)
         ret = 0;
     else
         ret = 1;
-    DARSHAN_CORE_UNLOCK();
+    __DARSHAN_CORE_UNLOCK();
 
     return(ret);
 }
