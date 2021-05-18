@@ -16,7 +16,6 @@
 #endif
 
 #include "darshan.h"
-#include "darshan-core.h"
 #include "darshan-dynamic.h"
 
 #ifdef HAVE_MPI
