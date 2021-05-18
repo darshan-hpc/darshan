@@ -7,19 +7,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_access_histogram(self, mod, filter=None, data=None):
+def plot_access_histogram(report, mod):
     """
     Plots a histogram of access sizes for specified module.
 
-    :param log: Handle for an opened darshan log.
-    :param str filter: Name of the module to generate plot for.
-    :param data: Array/Dictionary for use with custom data. 
+	Args:
+		report (darshan.DarshanReport): report to gneerate plot from
+		mod (str): mod-string for which to generate access_histogram
+
     """
 
-    # TODO: change to self.summary
-    if 'mod_agg_iohist' in dir(self):
+    # TODO: change to report.summary
+    if 'mod_agg_iohist' in dir(report):
         print("Summarizing... iohist", mod)
-        self.mod_agg_iohist(mod)
+        report.mod_agg_iohist(mod)
     else:
         print("Can not create summary, mod_agg_iohist aggregator is not registered with the report class.")
 
@@ -33,7 +34,7 @@ def plot_access_histogram(self, mod, filter=None, data=None):
   
 
 
-    posix = self.summary['agg_iohist'][mod]
+    posix = report.summary['agg_iohist'][mod]
 
     read_vals = [
         posix['READ_0_100'],

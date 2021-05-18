@@ -7,13 +7,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_opcounts(self, filter=None, data=None, return_csv=False):
+def plot_opcounts(report):
     """
-    Generates a baor chart summary for operation counts.
+    Generates a bar chart summary for operation counts.
 
-    :param log: Handle for an opened darshan log.
-    :param str filter: Name of the module to generate plot for.
-    :param data: Array/Dictionary for use with custom data. 
+	Args:
+    	report (DarshanReport): darshan report object to plot
     """
 
     # defaults
@@ -24,18 +23,15 @@ def plot_opcounts(self, filter=None, data=None, return_csv=False):
     stdio_vals = [0, 0, 0, 0, 0, 0, 0]
 
 
-    # TODO: change to self.summary
-    if 'agg_ioops' in dir(self):
+    # TODO: change to report.summary
+    if 'agg_ioops' in dir(report):
         print("Summarizing... agg_ioops")
-        self.agg_ioops()
+        report.agg_ioops()
     else:
         print("Can not create summary, agg_ioops aggregator is not registered with the report clase.")
 
 
-
-
-
-    mods = self.summary['agg_ioops']
+    mods = report.summary['agg_ioops']
 
     # Gather POSIX
     if 'POSIX' in mods:
@@ -154,10 +150,7 @@ def plot_opcounts(self, filter=None, data=None, return_csv=False):
     #plt.show()
     
 
-    if return_csv:
-        return plt, as_csv()
-    else:
-        return plt
+    return plt
 
 
 
