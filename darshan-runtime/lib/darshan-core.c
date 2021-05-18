@@ -2405,20 +2405,6 @@ int darshan_core_excluded_path(const char *path)
     return(0);
 }
 
-int darshan_core_disabled_instrumentation()
-{
-    int ret;
-
-    __DARSHAN_CORE_LOCK();
-    if(__darshan_core)
-        ret = 0;
-    else
-        ret = 1;
-    __DARSHAN_CORE_UNLOCK();
-
-    return(ret);
-}
-
 /*
  * Local variables:
  *  c-indent-level: 4

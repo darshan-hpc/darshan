@@ -245,6 +245,27 @@ void *darshan_core_register_record(
 char *darshan_core_lookup_record_name(
     darshan_record_id rec_id);
 
+/* darshan_core_disabled_instrumentation
+ *
+ * Returns true (1) if Darshan has currently disabled instrumentation,
+ * false (0) otherwise. If instrumentation is disabled, modules should
+ * no longer update any file records as part of the intercepted function
+ * wrappers.
+ */
+static inline int darshan_core_disabled_instrumentation(void)
+{
+    int ret;
+
+    __DARSHAN_CORE_LOCK();
+    if(__darshan_core)
+        ret = 0;
+    else
+        ret = 1;
+    __DARSHAN_CORE_UNLOCK();
+
+    return(ret);
+}
+
 /* retrieve absolute wtime */
 static inline double darshan_core_wtime_absolute(void)
 {
@@ -304,15 +325,6 @@ void darshan_core_fprintf(
  */
 int darshan_core_excluded_path(
     const char * path);
-
-/* darshan_core_disabled_instrumentation
- *
- * Returns true (1) if Darshan has currently disabled instrumentation,
- * false (0) otherwise. If instrumentation is disabled, modules should
- * no longer update any file records as part of the intercepted function
- * wrappers.
- */
-int darshan_core_disabled_instrumentation(void);
 
 void darshan_core_initialize(int argc, char **argv);
 void darshan_core_shutdown(void);
