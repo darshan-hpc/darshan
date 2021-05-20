@@ -1,0 +1,27 @@
+    #def np: read_csv ->  vs open?
+
+
+    #def copy() -> np: create deep copy
+    #def view() -> np: creates a view?! wiht the same data.. 
+
+    #def info()
+    #def size()
+    #def astype(typestring/object, numpy/pandas?)
+
+    # comparisons:  ==, < 
+    # comparison: np: array_equal   (array_wise comparison)
+
+    #add
+    #multiply
+    #exp
+
+    #sum    (np: array wise)
+    #cumsum (np: all elems)
+    #min
+    #max
+    #median
+    #mean
+    #std
+    #corrcoef   ?? interpretation? seems to make more sense for two different reports? that can work i think
+        # special treatmet dxt? -> corr over time?
+

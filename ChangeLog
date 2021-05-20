@@ -2,10 +2,48 @@
 Darshan Release Change Log
 --------------------------
 
-Darshan-3.2.2
+Darshan-3.3.0
 =============
-* add wrappers for preadv, preadv2, pwritev, and pwritev2 (improves profiling
-  of ompio)
+* added AutoPerf modules for tracking MPI communication usage (APMPI) and
+  for tracking Cray XC performance counters (APXC)
+
+Darshan-3.3.0-pre2
+=============
+* fixed bug in HDF5 module resulting in warning messages for instrumented
+  datasets that use H5S_SELECT_NONE (reported by Marta Garcia Martinez)
+* disabled DXT's MPI-IO offset tracing for Darshan builds using OpenMPI
+  to workaround an OpenMPI bug (reported by Tobias Meisel)
+* modified Darshan to query Lustre striping information for all
+  instrumented files to workaround issue of retrieving striping info for
+  Lustre files that are symlinked to other file systems
+
+Darshan-3.3.0-pre1
+=============
+* added first version of PyDarshan, which provides interfaces for
+  accessing Darshan log file data from Python applications
+* modified Lustre module to use 'fgetxattr' rather than 'ioctl' for
+  querying stripe info to avoid known bug in Lustre that could cause
+  application crashes
+* fixed bug leading to potential deadlock when reducing shared file records
+  for MPI applications (known to affect mvapich2)
+* fixed bug preventing usage of Darshan's non-MPI mode in builds that use
+  MPI compilers
+* boosted Darshan's default internal memory allocation from 2 MiB to 4 MiB
+* added wrappers for openat, preadv, preadv2, pwritev, and pwritev2 (improves
+  profiling of ompio)
+* various bug fixes to enable usage of HDF5 modules in non-MPI applications
+* fixed HDF5 module bug leading to warnings on stdout for applications using
+  non-MPIIO VFD for HDF5
+* fixed HDF5 module bug leading to potentially incorrect values in H5D module
+  common access counters
+* added new H5D record value to indicate corresponding H5F record ID, to
+  allow easier mapping of HDF5 datasets to files they belong to
+* improved error handling in command line parsers to make incomplete logs more
+  obvious to users
+* fixed bug leading to incorrect internal timing information at Darshan
+  shutdown time
+* fixed bug causing negative Darshan counter values from being plotted when
+  using the darshan-job-summary tool
 
 Darshan-3.2.1
 =============
@@ -21,8 +59,8 @@ Darshan-3.2.0
   darshan_log_get_name_records, and darshan_log_get_record (contributed
   by Jakob Luettgau)
 * extended DXT MPIIO module to trace file offsets
-* added "--log-path" option to darshan-config to allow users to more
-  easily determine where Darshan logs are stored
+* added `darshan-config --log-path` command option to display the log path(s)
+  configured for use with Darshan
 * silenced stdout from darshan-job-summary.pl and remove --summary option
 * removed Darshan stubs library traditionally used in static linking test
   cases and other general simplifications of Darshan's static linking options
@@ -31,8 +69,6 @@ Darshan-3.2.0
 * updated Darshan's compiler wrapper generators, MPICH profiling config
   hooks, and Cray software modules to explicitly link in Darshan in
   dynamic linking cases using rpath
-* added `darshan-config --log-path` command option to display the log path(s)
-  configured for use with Darshan
 * reimplemented Darshan's MPI/PMPI wrapper macros (using functiona aliases)
   to avoid potential deadlock with other PMPI tools
 * made use of DESTDIR match standard automake practice (contributed by
@@ -42,9 +78,10 @@ Darshan-3.2.0
 * corrected pkgconfig path for darshan-util when using DESTDIR (reported by
   Matthew Curry)
 * added support for non-MPI instrumenation to Darshan, using GCC
-construct/destructor attributes for bootstrapping rather than
-intercepting MPI_Init()/MPI_Finalize(). This mechanism only
-works for Darshan's shared library instrumentation
+  construct/destructor attributes for bootstrapping rather than
+  intercepting MPI_Init()/MPI_Finalize(). This mechanism only
+  works for Darshan's shared library instrumentation (implemented with the
+  help of Glenn Lockwood)
 
 Darshan-3.1.8
 =============

@@ -33,11 +33,14 @@
 /* Define if build is MPI-enabled */
 #undef HAVE_MPI
 
-/* Define if MPI-IO prototypes use const qualifier */
-#undef HAVE_MPIIO_CONST
+/* Define if MPI prototypes use const qualifier */
+#undef HAVE_MPI_CONST
 
 /* Define if off64_t type is defined */
 #undef HAVE_OFF64_T
+
+/* Define if OpenMPI is being used */
+#undef HAVE_OPEN_MPI
 
 /* Define to 1 if you have the `preadv' function. */
 #undef HAVE_PREADV
@@ -111,6 +114,9 @@
 # endif
 #endif
 
+/* Define if APMPI should enable sync time calculation for MPI collectives */
+#undef __APMPI_COLL_SYNC
+
 /* Define if cuserid() should be disabled */
 #undef __DARSHAN_DISABLE_CUSERID
 
@@ -135,7 +141,8 @@
 /* Memory alignment in bytes */
 #undef __DARSHAN_MEM_ALIGNMENT
 
-/* Maximum memory (in MiB) for each Darshan module */
+/* Maximum runtime memory consumption per process (in MiB) across all
+   instrumentation modules */
 #undef __DARSHAN_MOD_MEM_MAX
 
 /* Generalized request type for MPI-IO */

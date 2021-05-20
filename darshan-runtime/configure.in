@@ -5,7 +5,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl You may need to use autoheader as well if changing any DEFINEs
 
 dnl sanity checks, output header, location of scripts used here
-AC_INIT([darshan-runtime], [3.2.1])
+AC_INIT([darshan-runtime], [3.3.0])
 AC_CONFIG_SRCDIR([darshan.h])
 AC_CONFIG_AUX_DIR(../maint/config)
 AC_CONFIG_MACRO_DIR(../maint/config)
@@ -97,6 +97,7 @@ AC_ARG_ENABLE(group-readable-logs,
 fi]
 ,)
 
+
 AC_ARG_ENABLE(mmap-logs,
 [  --enable-mmap-logs      Enables ability to mmap I/O data to log file],
 [if test "x$enableval" = "xyes" ; then
@@ -166,11 +167,12 @@ AC_ARG_WITH(jobid-env,
 )
 
 AC_ARG_WITH(mod-mem,
-[  --with-mod-mem=<num>    Maximum amount of memory (in MiB) for each Darshan module],
+[  --with-mod-mem=<num>    Maximum runtime memory consumption per process
+                          (in MiB) across all instrumentation modules],
     if test x$withval = xyes; then
         AC_MSG_ERROR(--with-mod-mem must be given a number)
     else
-        AC_DEFINE_UNQUOTED(__DARSHAN_MOD_MEM_MAX, ${withval}, Maximum memory (in MiB) for each Darshan module)
+        AC_DEFINE_UNQUOTED(__DARSHAN_MOD_MEM_MAX, ${withval}, Maximum runtime memory consumption per process (in MiB) across all instrumentation modules)
     fi
 )
 
@@ -219,6 +221,53 @@ AS_IF([test "x$enable_mpiio_mod" = "xno" || test "x$ENABLE_MPI" = "x"],
       BUILD_MPIIO_MODULE=
       DARSHAN_MPIIO_LD_OPTS=)
 
+# AUTOPERF MPI module
+BUILD_APMPI_MODULE=
+DARSHAN_APMPI_LD_OPTS=
+AC_ARG_ENABLE(apmpi-mod,
+              AS_HELP_STRING([--enable-apmpi-mod], [Enables compilation and use of AUTOPERF MPI module (requires MPI)]))
+AS_IF([test "x$enable_apmpi_mod" = "xyes"], [
+    AS_IF([test "x$ENABLE_MPI" = "x"],
+        [AC_MSG_ERROR(Autoperf MPI module requires MPI support)]
+    )
+    abssrcdir=$(readlink -f ${srcdir})
+    AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
+                    [],
+                    [AC_MSG_ERROR([The Autoperf MPI module is not present])],
+                    [-]) # this last part tells it to only check for presence
+    BUILD_APMPI_MODULE=1
+    DARSHAN_APMPI_LD_OPTS="@${darshan_share_path}/ld-opts/autoperf-apmpi-ld-opts"
+])
+
+AC_ARG_ENABLE(apmpi-coll-sync,
+[  --enable-apmpi-coll-sync
+                          Enable sync time calculation for MPI collectives],
+[if test "x$enableval" = "xyes" ; then
+    AC_DEFINE(__APMPI_COLL_SYNC, 1, Define if APMPI should enable sync time calculation for MPI collectives)
+fi]
+,)
+
+#AUTOPERF APXC module
+BUILD_APXC_MODULE=
+AC_ARG_ENABLE(apxc-mod,
+              AS_HELP_STRING([--enable-apxc-mod], [Enables compilation and use of AUTOPERF APXC module (requires MPI)])
+)
+AS_IF([test "x$enable_apxc_mod" = "xyes"], [
+    AS_IF([test "x$ENABLE_MPI" = "x"],
+        [AC_MSG_ERROR(Autoperf XC module requires MPI support)]
+    )
+    abssrcdir=$(readlink -f ${srcdir})
+    AC_CHECK_HEADER([papi.h],
+                    [with_papi=-lpapi],
+                    [AC_MSG_ERROR([Cannot find papi header required for Autoperf XC module])],
+                    [])
+    AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
+                    [],
+                    [AC_MSG_ERROR([The Autoperf XC git submodule is not present])],
+                    [-]) # this last part tells it to only check for presence
+    BUILD_APXC_MODULE=1
+])
+
 # HDF5 module (disabled by default)
 BUILD_HDF5_MODULE=
 DARSHAN_HDF5_LD_OPTS=
@@ -226,7 +275,7 @@ AC_ARG_ENABLE(hdf5-mod,
               AS_HELP_STRING([--enable-hdf5-mod], [Enables compilation and use of HDF5 module]),
               [],
               [enable_hdf5_mod=no])
-AS_IF([test "x$enable_hdf5_mod" != "xno"],
+AS_IF([test "x$enable_hdf5_mod" != "xno"],[
     AS_IF([test -d "$enable_hdf5_mod"],
         [CFLAGS="${CFLAGS} -I${enable_hdf5_mod}/include"
         DARSHAN_HDF5_LD_FLAGS="-L${enable_hdf5_mod}/lib [-Wl,-rpath=${enable_hdf5_mod}/lib -lhdf5]"],
@@ -249,7 +298,7 @@ AS_IF([test "x$enable_hdf5_mod" != "xno"],
     )
     AC_CHECK_PROG(H5PCC_CHECK, h5pcc, "yes", "no", "${enable_hdf5_mod}/bin")
     AS_IF([test x"$H5PCC_CHECK" = x"yes"], [AC_DEFINE(DARSHAN_HDF5_PAR_BUILD, 1, Define if HDF5 built with parallel support)])
-)
+])
 
 # PNETCDF module
 BUILD_PNETCDF_MODULE=1
@@ -290,8 +339,13 @@ AC_ARG_ENABLE(lustre-mod,
               [enable_lustre_mod=check])
 # if lustre module not disabled, check for needed Lustre module header
 if test x$enable_lustre_mod != xno; then
-    AC_CHECK_HEADER([lustre/lustre_user.h],
-        BUILD_LUSTRE_MODULE=1,
+    AC_CHECK_HEADER([lustre/lustreapi.h],
+        [AC_CHECK_LIB(lustreapi, llapi_layout_get_by_xattr,
+            [BUILD_LUSTRE_MODULE=1
+	     DARSHAN_LUSTRE_LD_FLAGS="-llustreapi"],
+	    AS_IF([test "x$enable_lustre_mod" = xyes],
+                AC_MSG_ERROR(Cannot find required llapi_layout_get_by_xattr function for the Lustre module),
+                []))],
         AS_IF([test "x$enable_lustre_mod" = xyes],
             AC_MSG_ERROR(Cannot find required headers for the Lustre module),
             []))
@@ -402,10 +456,10 @@ AC_TRY_LINK([#include <mpi.h>], [
     AC_MSG_RESULT(yes),
             AC_MSG_ERROR(Darshan requires a version of MPI with MPI-IO support))
 
-# At some point MPI-IO converted most API functions to be const correct.  We
-# need to test for this to determine how to define MPI-IO wrappers in
+# At some point MPI converted most API functions to be const correct.  We
+# need to test for this to determine how to define MPI wrappers in
 # Darshan.  First we try compiling without cost qualifiers.
-AC_MSG_CHECKING(for MPI-IO prototypes without const qualifier)
+AC_MSG_CHECKING(for MPI prototypes without const qualifier)
 AC_TRY_COMPILE(
     [
     #include <mpi.h>
@@ -414,12 +468,14 @@ AC_TRY_COMPILE(
         {return 0;}
     ],
     [],
-    AC_MSG_RESULT(yes),
-    AC_MSG_RESULT(no)
+    [AC_MSG_RESULT(yes)
+     AS_IF([test "x$BUILD_APMPI_MODULE" = "x1"],
+	   AC_MSG_ERROR(APMPI module requires MPI version 3+))],
+    [AC_MSG_RESULT(no)
 
     # unable to compile without const qualifiers.  Let's try again with
     # const qualifiers.
-    AC_MSG_CHECKING(for MPI-IO prototypes with const qualifier)
+    AC_MSG_CHECKING(for MPI prototypes with const qualifier)
     AC_TRY_COMPILE(
         [
         #include <mpi.h>
@@ -429,10 +485,10 @@ AC_TRY_COMPILE(
         ],
         [],
         AC_MSG_RESULT(yes)
-        AC_DEFINE(HAVE_MPIIO_CONST, 1, Define if MPI-IO prototypes use const qualifier),
+        AC_DEFINE(HAVE_MPI_CONST, 1, Define if MPI prototypes use const qualifier),
         ,
         AC_MSG_ERROR(Darshan is unable to find a compatible MPI_File_open prototype)
-    )
+    )]
 )
 
 # determine if mpicc can create shared libraries that use MPI functions
@@ -501,6 +557,24 @@ AC_CHECK_FUNCS([preadv],[],[])
 AC_CHECK_FUNCS([pwritev2],[],[])
 AC_CHECK_FUNCS([preadv2],[],[])
 
+# check for OpenMPI
+# NOTE: this check is needed due to a bug observed in some OpenMPI
+# versions triggered by Darshan's MPI-IO module usage of the
+# MPI_File_get_byte_offset() routine. For applications that create
+# zero-length datatypes, then read/write to them, it can trigger a
+# seg fault due to a divide by zero condition in OpenMPI. See the
+# following Darshan issue for more details:
+#   https://xgitlab.cels.anl.gov/darshan/darshan/-/issues/317
+AC_COMPILE_IFELSE([
+    AC_LANG_PROGRAM(,[
+        #include <mpi.h>
+        #ifdef OPEN_MPI
+        #error OPENMPI FOUND
+        #endif
+    ])],
+    [],
+    [AC_DEFINE(HAVE_OPEN_MPI, 1, Define if OpenMPI is being used)])
+
 DARSHAN_VERSION="AC_PACKAGE_VERSION"
 AC_SUBST(darshan_lib_path)
 AC_SUBST(darshan_share_path)
@@ -523,14 +597,19 @@ AC_SUBST(BUILD_MPIIO_MODULE)
 AC_SUBST(DARSHAN_MPIIO_LD_OPTS)
 AC_SUBST(BUILD_PNETCDF_MODULE)
 AC_SUBST(DARSHAN_PNETCDF_LD_OPTS)
+AC_SUBST(BUILD_APXC_MODULE)
+AC_SUBST(BUILD_APMPI_MODULE)
+AC_SUBST(DARSHAN_APMPI_LD_OPTS)
 AC_SUBST(BUILD_HDF5_MODULE)
 AC_SUBST(DARSHAN_HDF5_LD_OPTS)
 AC_SUBST(DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS)
 AC_SUBST(DARSHAN_HDF5_LD_FLAGS)
 AC_SUBST(BUILD_BGQ_MODULE)
 AC_SUBST(BUILD_LUSTRE_MODULE)
+AC_SUBST(DARSHAN_LUSTRE_LD_FLAGS)
 AC_SUBST(BUILD_MDHIM_MODULE)
 AC_SUBST(DARSHAN_MDHIM_LD_OPTS)
+AC_SUBST(with_papi)
 AC_OUTPUT(Makefile
 darshan-mk-log-dirs.pl
 darshan-gen-cc.pl
@@ -563,3 +642,5 @@ AS_IF([test "x$BUILD_PNETCDF_MODULE" = "x"], [AC_MSG_NOTICE(PnetCDF module suppo
 AS_IF([test "x$BUILD_BGQ_MODULE" = "x"],     [AC_MSG_NOTICE(BG/Q module support:    no)], [AC_MSG_NOTICE(BG/Q module support:    yes)])
 AS_IF([test "x$BUILD_LUSTRE_MODULE" = "x"],  [AC_MSG_NOTICE(Lustre module support:  no)], [AC_MSG_NOTICE(Lustre module support:  yes)])
 AS_IF([test "x$BUILD_MDHIM_MODULE" = "x"],   [AC_MSG_NOTICE(MDHIM module support:   no)], [AC_MSG_NOTICE(MDHIM module support:   yes)])
+AS_IF([test "x$BUILD_APXC_MODULE" = "x"],   [AC_MSG_NOTICE(AUTOPERF APXC module support:   no)], [AC_MSG_NOTICE(AUTOPERF APXC module support:   yes)])
+AS_IF([test "x$BUILD_APMPI_MODULE" = "x"],   [AC_MSG_NOTICE(AUTOPERF MPI module support:   no)], [AC_MSG_NOTICE(AUTOPERF MPI module support:   yes)])

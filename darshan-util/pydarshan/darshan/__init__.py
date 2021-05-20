@@ -1,5 +1,10 @@
-__version__ = '0.0.6'
-__darshanutil_version__ = '3.2.1'
+"""
+PyDarshan provides direct log access for reading binary Darshan logs.
+PyDarshan also provides a suite of analysis utilities.
+"""
+
+__version__ = '3.3.0.3'
+__darshanutil_version__ = '3.3.0'
 
 import logging
 logger = logging.getLogger(__name__)
@@ -28,16 +33,17 @@ def enable_experimental(verbose=False):
     import importlib
     import darshan    
 
-    paths = glob.glob(darshan.__path__[0] + "/experimental/aggregators/*.py")
-    for path in paths:
-        base = os.path.basename(path)
-        name = os.path.splitext(base)[0]
-        
-        if name == "__init__":
-            continue
+    for subdir in ['aggregators', 'operations']:
+        paths = glob.glob(darshan.__path__[0] + f"/experimental/{subdir}/*.py")
+        for path in paths:
+            base = os.path.basename(path)
+            name = os.path.splitext(base)[0]
+            
+            if name == "__init__":
+                continue
 
-        mod = importlib.import_module('darshan.experimental.aggregators.{0}'.format(name))
-        setattr(DarshanReport, name, getattr(mod, name))
-    
-        if verbose:
-            print("Added method {} to DarshanReport.".format(name))
+            mod = importlib.import_module(f"darshan.experimental.{subdir}.{name}")
+            setattr(DarshanReport, name, getattr(mod, name))
+        
+            if verbose:
+                print(f"Added method {mod.__name__} to DarshanReport.")

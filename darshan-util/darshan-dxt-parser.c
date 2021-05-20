@@ -20,15 +20,14 @@
 
 #include "darshan-logutils.h"
 
-int usage (char *exename)
-{
-    fprintf(stderr, "Usage: %s <filename>\n", exename);
+#define OPTION_SHOW_INCOMPLETE  (1 << 7)  /* show what we have, even if log is incomplete */
 
-    exit(1);
-}
+static int usage (char *exename);
+static int parse_args (int argc, char **argv, char **filename);
 
 int main(int argc, char **argv)
 {
+    int mask;
     int ret;
     int i, j;
     char *filename;
@@ -49,10 +48,7 @@ int main(int argc, char **argv)
     struct lustre_record_ref *lustre_rec_hash = NULL;
     char *mod_buf = NULL;
 
-    if (argc != 2)
-        usage(argv[0]);
-
-    filename = argv[1];
+    mask = parse_args(argc, argv, &filename);
 
     fd = darshan_log_open(filename);
     if (!fd)
@@ -195,11 +191,44 @@ int main(int argc, char **argv)
             continue;
 
         /* print warning if this module only stored partial data */
-        if(DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i))
-            printf("\n# *WARNING*: The %s module contains incomplete data!\n"
-                   "#            This happens when a module runs out of\n"
-                   "#            memory to store new record data.\n",
-                   darshan_module_names[i]);
+        if(DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i)) {
+            if(mask & OPTION_SHOW_INCOMPLETE)
+            {
+                /* user requested that we show the data we have anyway */
+                printf("\n# *WARNING*: "
+                       "The %s module contains incomplete data!\n"
+                       "#            This happens when a module runs out of\n"
+                       "#            memory to store new record data.\n",
+                       darshan_module_names[i]);
+                printf(
+                       "\n# To avoid this error, consult the darshan-runtime\n"
+                       "# documentation and consider setting the\n"
+                       "# DARSHAN_EXCLUDE_DIRS or DXT_TRIGGER_CONF_PATH\n"
+                       "# environment variable to prevent Darshan from\n"
+                       "# instrumenting unecessary files.\n");
+            }
+            else
+            {
+                /* hard error */
+                fprintf(stderr, "\n# *ERROR*: "
+                       "The %s module contains incomplete data!\n"
+                       "#            This happens when a module runs out of\n"
+                       "#            memory to store new record data.\n",
+                       darshan_module_names[i]);
+                fprintf(stderr,
+                       "\n# To avoid this error, consult the darshan-runtime\n"
+                       "# documentation and consider setting the\n"
+                       "# DARSHAN_EXCLUDE_DIRS or DXT_TRIGGER_CONF_PATH\n"
+                       "# environment variable to prevent Darshan from\n"
+                       "# instrumenting unecessary files.\n");
+                fprintf(stderr,
+                        "\n# You can display the (incomplete) data that is\n"
+                        "# present in this log using the --show-incomplete\n"
+                        "# option to darshan-dxt-parser.\n");
+                return(-1);
+            }
+
+        }
 
         /* loop over each of this module's records and print them */
         while(1)
@@ -310,6 +339,59 @@ cleanup:
 
     return(ret);
 }
+
+static int parse_args (int argc, char **argv, char **filename)
+{
+    int index;
+    int mask;
+    static struct option long_opts[] =
+    {
+        {"show-incomplete", 0, NULL, OPTION_SHOW_INCOMPLETE},
+        {"help",  0, NULL, 0},
+        {0, 0, 0, 0}
+    };
+
+    mask = 0;
+
+    while(1)
+    {
+        int c = getopt_long(argc, argv, "", long_opts, &index);
+
+        if (c == -1) break;
+
+        switch(c)
+        {
+            case OPTION_SHOW_INCOMPLETE:
+                mask |= c;
+                break;
+            case 0:
+            case '?':
+            default:
+                usage(argv[0]);
+                break;
+        }
+    }
+
+    if (optind < argc)
+    {
+        *filename = argv[optind];
+    }
+    else
+    {
+        usage(argv[0]);
+    }
+
+    return mask;
+}
+
+static int usage (char *exename)
+{
+    fprintf(stderr, "Usage: %s [options] <filename>\n", exename);
+    fprintf(stderr, "    --show-incomplete : display results even if log is incomplete\n");
+
+    exit(1);
+}
+
 
 /*
  * Local variables:

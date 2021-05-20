@@ -9,7 +9,7 @@
 
 /* current HDF5 log format versions */
 #define DARSHAN_H5F_VER 3
-#define DARSHAN_H5D_VER 1
+#define DARSHAN_H5D_VER 2
 
 #define H5D_MAX_NDIMS 5
 
@@ -239,12 +239,14 @@ struct darshan_hdf5_file
  * every HDF5 dataset opened by the original application. For the HDF5 module,
  * the record includes:
  *      - a darshan_base_record structure, which contains the record id & rank
+ *      - the Darshan record ID of the file the dataset belongs to
  *      - integer dataset I/O statistics (open, read/write counts, etc)
  *      - floating point dataset I/O statistics (timestamps, cumulative timers, etc.)
  */
 struct darshan_hdf5_dataset
 {
     struct darshan_base_record base_rec;
+    uint64_t file_rec_id;
     int64_t counters[H5D_NUM_INDICES];
     double fcounters[H5D_F_NUM_INDICES];
 };

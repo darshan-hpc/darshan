@@ -54,7 +54,7 @@ static int using_mpi = 0;
 static int my_rank = 0;
 static int nprocs = 1;
 static int darshan_mem_alignment = 1;
-static long darshan_mod_mem_quota = DARSHAN_MOD_MEM_MAX;
+static size_t darshan_mod_mem_quota = DARSHAN_MOD_MEM_MAX;
 static int orig_parent_pid = 0;
 static int parent_pid;
 
@@ -91,6 +91,10 @@ char** user_darshan_path_exclusions = NULL;
 extern void bgq_runtime_initialize();
 #endif
 
+#ifdef DARSHAN_USE_APXC
+extern void apxc_runtime_initialize();
+#endif
+
 /* array of init functions for modules which need to be statically
  * initialized by darshan at startup time
  */
@@ -98,6 +102,9 @@ void (*mod_static_init_fns[])(void) =
 {
 #ifdef DARSHAN_BGQ
     &bgq_runtime_initialize,
+#endif
+#ifdef DARSHAN_USE_APXC
+    &apxc_runtime_initialize,
 #endif
     NULL
 };
@@ -471,13 +478,20 @@ void darshan_core_shutdown(int write_log)
     if(!write_log)
         goto cleanup;
 
+    /* NOTE: from this point on, this function must use
+     * darshan_core_wtime_absolute() rather than darshan_core_wtime() to
+     * collect timestamps for internal timing calculations.  The former no
+     * longer works because it relies on runtime state to calculate
+     * timestamps relative to job start.
+     */
+
     /* grab some initial timing information */
 #ifdef HAVE_MPI
     /* if using mpi, sync across procs first */
     if(using_mpi)
         PMPI_Barrier(final_core->mpi_comm);
 #endif
-    start_log_time = darshan_core_wtime();
+    start_log_time = darshan_core_wtime_absolute();
     final_core->log_job_p->end_time = time(NULL);
 
     if(getenv("DARSHAN_INTERNAL_TIMING"))
@@ -565,31 +579,31 @@ void darshan_core_shutdown(int write_log)
     }
 
     if(internal_timing_flag)
-        open1 = darshan_core_wtime();
+        open1 = darshan_core_wtime_absolute();
     /* open the darshan log file */
     ret = darshan_log_open(logfile_name, final_core, &log_fh);
     if(internal_timing_flag)
-        open2 = darshan_core_wtime();
+        open2 = darshan_core_wtime_absolute();
     /* error out if unable to open log file */
     DARSHAN_CHECK_ERR(ret, "unable to create log file %s", logfile_name);
     log_created = 1;
 
     if(internal_timing_flag)
-        job1 = darshan_core_wtime();
+        job1 = darshan_core_wtime_absolute();
     /* write the the compressed darshan job information */
     ret = darshan_log_write_job_record(log_fh, final_core, &gz_fp);
     if(internal_timing_flag)
-        job2 = darshan_core_wtime();
+        job2 = darshan_core_wtime_absolute();
     /* error out if unable to write job information */
     DARSHAN_CHECK_ERR(ret, "unable to write job record to file %s", logfile_name);
 
     if(internal_timing_flag)
-        rec1 = darshan_core_wtime();
+        rec1 = darshan_core_wtime_absolute();
     /* write the record name->id hash to the log file */
     final_core->log_hdr_p->name_map.off = gz_fp;
     ret = darshan_log_write_name_record_hash(log_fh, final_core, &gz_fp);
     if(internal_timing_flag)
-        rec2 = darshan_core_wtime();
+        rec2 = darshan_core_wtime_absolute();
     final_core->log_hdr_p->name_map.len = gz_fp - final_core->log_hdr_p->name_map.off;
     /* error out if unable to write name records */
     DARSHAN_CHECK_ERR(ret, "unable to write name records to log file %s", logfile_name);
@@ -615,7 +629,7 @@ void darshan_core_shutdown(int write_log)
         }
 
         if(internal_timing_flag)
-            mod1[i] = darshan_core_wtime();
+            mod1[i] = darshan_core_wtime_absolute();
 
         /* if module is registered locally, perform module shutdown operations */
         if(this_mod)
@@ -636,6 +650,7 @@ void darshan_core_shutdown(int write_log)
                     HASH_FIND(hlink, final_core->name_hash, &shared_recs[j],
                         sizeof(darshan_record_id), ref);
                     assert(ref);
+
                     if(DARSHAN_MOD_FLAG_ISSET(ref->global_mod_flags, i))
                     {
                         mod_shared_recs[mod_shared_rec_cnt++] = shared_recs[j];
@@ -645,8 +660,10 @@ void darshan_core_shutdown(int write_log)
                 /* allow the module an opportunity to reduce shared files */
                 if(this_mod->mod_funcs.mod_redux_func && (mod_shared_rec_cnt > 0) &&
                    (!getenv("DARSHAN_DISABLE_SHARED_REDUCTION")))
+                {
                     this_mod->mod_funcs.mod_redux_func(mod_buf, final_core->mpi_comm,
                         mod_shared_recs, mod_shared_rec_cnt);
+                }
             }
 #endif
 
@@ -661,7 +678,7 @@ void darshan_core_shutdown(int write_log)
             gz_fp - final_core->log_hdr_p->mod_map[i].off;
 
         if(internal_timing_flag)
-            mod2[i] = darshan_core_wtime();
+            mod2[i] = darshan_core_wtime_absolute();
 
         /* error out if unable to write module data */
         DARSHAN_CHECK_ERR(ret, "unable to write %s module data to log file %s",
@@ -669,10 +686,10 @@ void darshan_core_shutdown(int write_log)
     }
 
     if(internal_timing_flag)
-        header1 = darshan_core_wtime();
+        header1 = darshan_core_wtime_absolute();
     ret = darshan_log_write_header(log_fh, final_core);
     if(internal_timing_flag)
-        header2 = darshan_core_wtime();
+        header2 = darshan_core_wtime_absolute();
     DARSHAN_CHECK_ERR(ret, "unable to write header to file %s", logfile_name);
 
     /* done writing data, close the log file */
@@ -690,7 +707,7 @@ void darshan_core_shutdown(int write_log)
         double mod_tm[DARSHAN_MAX_MODS];
         double all_tm;
 
-        tm_end = darshan_core_wtime();
+        tm_end = darshan_core_wtime_absolute();
 
         open_tm = open2 - open1;
         header_tm = header2 - header1;
@@ -779,7 +796,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
 {
     int ret;
     int mmap_fd;
-    int mmap_size;
+    size_t mmap_size;
     int sys_page_size;
     char cuser[L_cuserid] = {0};
     uint64_t hlevel;
@@ -2203,13 +2220,13 @@ void darshan_shutdown_bench(int argc, char **argv)
 void darshan_core_register_module(
     darshan_module_id mod_id,
     darshan_module_funcs mod_funcs,
-    int *inout_mod_buf_size,
+    size_t *inout_mod_buf_size,
     int *rank,
     int *sys_mem_alignment)
 {
     struct darshan_core_module* mod;
-    int mod_mem_req = *inout_mod_buf_size;
-    int mod_mem_avail;
+    size_t mod_mem_req = *inout_mod_buf_size;
+    size_t mod_mem_avail;
 
     *inout_mod_buf_size = 0;
 
@@ -2381,8 +2398,16 @@ char *darshan_core_lookup_record_name(darshan_record_id rec_id)
 void darshan_instrument_fs_data(int fs_type, const char *path, int fd)
 {
 #ifdef DARSHAN_LUSTRE
-    /* allow lustre to generate a record if we configured with lustre support */
-    if(fs_type == LL_SUPER_MAGIC)
+    /* allow Lustre to generate a record if we configured with Lustre support */
+    /* XXX: Note that we short-circuit this Lustre file system check and try to
+     * query Lustre striping stats for *all* files instrumented by Darshan (i.e.,
+     * Lustre files or not). We do this so that symlinks to Lustre files are
+     * properly instrumented, since these symlinks might live on other non-Lustre
+     * file systems. We have instrumented this Lustre file system check on a number
+     * of file systems and believe it is low overhead enough to not be noticable by
+     * users.
+     */
+    if(1 || fs_type == LL_SUPER_MAGIC)
     {
         darshan_instrument_lustre_file(path, fd);
         return;

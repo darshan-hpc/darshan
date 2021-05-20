@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# make sourceable from everywhere
+THIS=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+>&2 echo $THIS
+
+
+# activate python environment containing dev tools
+. $THIS/../devenv/venv/bin/activate
+
+# expose darshan-util libs and binaries
+export PATH=$THIS/../devenv/libdarshanutil/bin:$PATH
+export LD_LIBRARY_PATH=$THIS/../devenv/libdarshanutil/lib:$LD_LIBRARY_PATH
+
+
+# ensure pydarshan is found
+export PYTHONPATH=$THIS/../:$PYTHONPATH
+

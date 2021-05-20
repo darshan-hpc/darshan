@@ -24,7 +24,7 @@ def plot_access_histogram(self, mod, filter=None, data=None):
         print("Summarizing... iohist", mod)
         self.mod_agg_iohist(mod)
     else:
-        print("Can not create summary, mod_agg_iohist aggregator is not registered with the report clase.")
+        print("Can not create summary, mod_agg_iohist aggregator is not registered with the report class.")
 
 
 

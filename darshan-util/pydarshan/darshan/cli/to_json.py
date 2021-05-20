@@ -1,3 +1,5 @@
+"""The `to_json` subcommand dumps the darshan log to json format.
+"""
 import sys
 import argparse
 import darshan
