@@ -1,5 +1,5 @@
 """
-Draft code for the `data access by filesystem` section
+Draft code for the `data access by category` section
 of Phil's hand drawing of future report layout.
 """
 
@@ -119,8 +119,16 @@ def plot_series_files_rw(file_rd_series, file_wr_series, ax, log_filename):
 
     # ax is a matplotlib axis object
 
-    file_rd_series.plot(ax=ax, kind='barh', xlabel=None, ylabel=None, color='red', alpha=0.5, width=0.1)
-    file_wr_series.plot(ax=ax, kind='barh', xlabel=None, ylabel=None, color='blue', alpha=0.5, width=0.1)
+    df = pd.concat([file_rd_series, file_wr_series], axis=1)
+    df.columns = ['read', 'write']
+    #file_rd_series.plot(ax=ax, kind='barh', xlabel=None, ylabel=None, color='red', alpha=0.5, width=0.1)
+    #file_wr_series.plot(ax=ax, kind='barh', xlabel=None, ylabel=None, color='blue', alpha=0.5, width=0.1)
+    width = 0.1
+    df.plot(ax=ax, kind='barh', xlabel=None, ylabel=None, alpha=0.5, width=width)
+    print("df:", df)
+    # put values next to bars
+    [ax.text(v, i - width, '{:.0f}'.format(v)) for i, v in enumerate(file_rd_series)]
+    [ax.text(v, i, '{:.0f}'.format(v)) for i, v in enumerate(file_wr_series)]
     ax.set_xlabel('# unique files')
     ax.set_ylabel('')
     ax.legend(['read', 'write'])
@@ -132,7 +140,7 @@ if __name__ == '__main__':
     log_files = ['sample-dxt-simple.darshan', 'sample.darshan', 'sample-goodost.darshan']
     for idx, log_file in enumerate(log_files):
         fig = plt.figure()
-        fig.suptitle(f"Data Access by Filesystem for log file: '{log_file}'")
+        fig.suptitle(f"Data Access by Category for log file: '{log_file}'")
         ax_bytes = fig.add_subplot(1, 2, 1)
         ax_files = fig.add_subplot(1, 2, 2)
         log_path = os.path.join(root_path, log_file)
@@ -148,4 +156,4 @@ if __name__ == '__main__':
 
         fig.set_size_inches(12, 4)
         fig.tight_layout()
-        fig.savefig(f'{log_file}_data_access_by_filesystem.png', dpi=300)
+        fig.savefig(f'{log_file}_data_access_by_category.png', dpi=300)
