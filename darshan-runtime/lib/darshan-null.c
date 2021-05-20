@@ -299,7 +299,7 @@ static struct null_record_ref *null_track_new_record(
 }
 
 /**************************************************************************************
- * shutdown function exported by the "NULL" module for coordinating with darshan-core *
+ *    functions exported by the "NULL" module for coordinating with darshan-core      *
  **************************************************************************************/
 
 /* Pass output data for the "NULL" module back to darshan-core to log to file
@@ -323,11 +323,11 @@ static void null_output(
     return;
 }
 
-/* Shutdown/free internal data structures
+/* Cleanup/free internal data structures
  */
 static void null_cleanup()
 {
-    /* shutdown internal structures used for instrumenting */
+    /* cleanup internal structures used for instrumenting */
     NULL_LOCK();
 
     /* iterate the hash of record references and free them */

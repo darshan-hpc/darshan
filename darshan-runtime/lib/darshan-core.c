@@ -548,7 +548,7 @@ void darshan_core_shutdown(int write_log)
         /* set fork metadata */
         meta_remain = DARSHAN_JOB_METADATA_LEN -
             strlen(final_core->log_job_p->metadata) - 1;
-        if(meta_remain >= 18)
+        if(meta_remain >= 18) // 18 bytes enough for meta string + max PID (5 chars)
         {
             m = final_core->log_job_p->metadata +
                 strlen(final_core->log_job_p->metadata);

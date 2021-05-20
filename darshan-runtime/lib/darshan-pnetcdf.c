@@ -298,6 +298,7 @@ static struct pnetcdf_file_record_ref *pnetcdf_track_new_file_record(
     return(rec_ref);
 }
 
+#ifdef HAVE_MPI
 static void pnetcdf_record_reduction_op(void* infile_v, void* inoutfile_v,
     int *len, MPI_Datatype *datatype)
 {
@@ -418,9 +419,10 @@ static void pnetcdf_mpi_redux(
     PMPI_Reduce(red_send_buf, red_recv_buf,
         shared_rec_count, red_type, red_op, 0, mod_comm);
 
-    /* clean up reduction state */
+    /* update module state to account for shared file reduction */
     if(my_rank == 0)
     {
+        /* overwrite local shared records with globally reduced records */
         int tmp_ndx = pnetcdf_rec_count - shared_rec_count;
         memcpy(&(pnetcdf_rec_buf[tmp_ndx]), red_recv_buf,
             shared_rec_count * sizeof(struct darshan_pnetcdf_file));
@@ -428,6 +430,7 @@ static void pnetcdf_mpi_redux(
     }
     else
     {
+        /* drop shared records on non-zero ranks */
         pnetcdf_runtime->file_rec_count -= shared_rec_count;
     }
 
@@ -448,9 +451,8 @@ static void pnetcdf_output(
     PNETCDF_LOCK();
     assert(pnetcdf_runtime);
 
+    /* just pass back our updated total buffer size -- no need to update buffer */
     pnetcdf_rec_count = pnetcdf_runtime->file_rec_count;
-
-    /* update output buffer size to account for shared file reduction */
     *pnetcdf_buf_sz = pnetcdf_rec_count * sizeof(struct darshan_pnetcdf_file);
 
     PNETCDF_UNLOCK();

@@ -1503,9 +1503,10 @@ static void hdf5_file_mpi_redux(
     PMPI_Reduce(red_send_buf, red_recv_buf,
         shared_rec_count, red_type, red_op, 0, mod_comm);
 
-    /* clean up reduction state */
+    /* update module state to account for shared file reduction */
     if(my_rank == 0)
     {
+        /* overwrite local shared records with globally reduced records */
         int tmp_ndx = rec_count - shared_rec_count;
         memcpy(&(hdf5_rec_buf[tmp_ndx]), red_recv_buf,
             shared_rec_count * sizeof(struct darshan_hdf5_file));
@@ -1513,6 +1514,7 @@ static void hdf5_file_mpi_redux(
     }
     else
     {
+        /* drop shared records on non-zero ranks */
         hdf5_file_runtime->rec_count -= shared_rec_count;
     }
 
@@ -1616,9 +1618,10 @@ static void hdf5_dataset_mpi_redux(
     hdf5_shared_dataset_record_variance(mod_comm, red_send_buf, red_recv_buf,
         shared_rec_count);
 
-    /* clean up reduction state */
+    /* update module state to account for shared file reduction */
     if(my_rank == 0)
     {
+        /* overwrite local shared records with globally reduced records */
         int tmp_ndx = rec_count - shared_rec_count;
         memcpy(&(hdf5_rec_buf[tmp_ndx]), red_recv_buf,
             shared_rec_count * sizeof(struct darshan_hdf5_dataset));
@@ -1626,6 +1629,7 @@ static void hdf5_dataset_mpi_redux(
     }
     else
     {
+        /* drop shared records on non-zero ranks */
         hdf5_dataset_runtime->rec_count -= shared_rec_count;
     }
 
@@ -1646,9 +1650,8 @@ static void hdf5_file_output(
     HDF5_LOCK();
     assert(hdf5_file_runtime);
 
+    /* just pass back our updated total buffer size -- no need to update buffer */
     rec_count = hdf5_file_runtime->rec_count;
-
-    /* update output buffer size to account for shared dataset reduction */
     *hdf5_buf_sz = rec_count * sizeof(struct darshan_hdf5_file);
 
     HDF5_UNLOCK();
@@ -1664,9 +1667,8 @@ static void hdf5_dataset_output(
     HDF5_LOCK();
     assert(hdf5_dataset_runtime);
 
+    /* just pass back our updated total buffer size -- no need to update buffer */
     rec_count = hdf5_dataset_runtime->rec_count;
-
-    /* update output buffer size to account for shared dataset reduction */
     *hdf5_buf_sz = rec_count * sizeof(struct darshan_hdf5_dataset);
 
     HDF5_UNLOCK();

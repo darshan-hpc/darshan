@@ -1398,9 +1398,10 @@ static void stdio_mpi_redux(
     stdio_shared_record_variance(mod_comm, red_send_buf, red_recv_buf,
         shared_rec_count);
 
-    /* clean up reduction state */
+    /* update module state to account for shared file reduction */
     if(my_rank == 0)
     {
+        /* overwrite local shared records with globally reduced records */
         int tmp_ndx = stdio_rec_count - shared_rec_count;
         memcpy(&(stdio_rec_buf[tmp_ndx]), red_recv_buf,
             shared_rec_count * sizeof(struct darshan_stdio_file));
@@ -1408,6 +1409,7 @@ static void stdio_mpi_redux(
     }
     else
     {
+        /* drop shared records on non-zero ranks */
         stdio_runtime->file_rec_count -= shared_rec_count;
     }
 
@@ -1464,7 +1466,7 @@ static void stdio_output(
         }
     }
 
-    /* update output buffer size to account for shared file reduction */
+    /* just pass back our updated total buffer size -- no need to update buffer */
     *stdio_buf_sz = stdio_rec_count * sizeof(struct darshan_stdio_file);
 
     STDIO_UNLOCK();
@@ -1476,7 +1478,7 @@ static void stdio_cleanup()
     STDIO_LOCK();
     assert(stdio_runtime);
 
-    /* shutdown internal structures used for instrumenting */
+    /* cleanup internal structures used for instrumenting */
     darshan_clear_record_refs(&(stdio_runtime->stream_hash), 0);
     darshan_clear_record_refs(&(stdio_runtime->rec_id_hash), 1);
 

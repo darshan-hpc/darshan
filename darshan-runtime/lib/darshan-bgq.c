@@ -49,7 +49,7 @@ static int my_rank = -1;
 /* internal helper functions for the BGQ module */
 void bgq_runtime_initialize(void);
 
-/* forward declaration for shutdown functions needed to interface with darshan-core */
+/* forward declaration for functions needed to interface with darshan-core */
 static void bgq_mpi_redux(
     void *buffer,
     MPI_Comm mod_comm,
@@ -253,7 +253,7 @@ static void bgq_mpi_redux(
 }
 
 /* Pass output data for the BGQ module back to darshan-core to log to file. */
-static void bgq_shutdown(
+static void bgq_output(
     void **buffer,
     int *size)
 {

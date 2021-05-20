@@ -2543,9 +2543,10 @@ static void posix_mpi_redux(
     posix_shared_record_variance(mod_comm, red_send_buf, red_recv_buf,
         shared_rec_count);
 
-    /* clean up reduction state */
+    /* update module state to account for shared file reduction */
     if(my_rank == 0)
     {
+        /* overwrite local shared records with globally reduced records */
         int tmp_ndx = posix_rec_count - shared_rec_count;
         memcpy(&(posix_rec_buf[tmp_ndx]), red_recv_buf,
             shared_rec_count * sizeof(struct darshan_posix_file));
@@ -2553,6 +2554,7 @@ static void posix_mpi_redux(
     }
     else
     {
+        /* drop shared records on non-zero ranks */
         posix_runtime->file_rec_count -= shared_rec_count;
     }
 
@@ -2573,9 +2575,8 @@ static void posix_output(
     POSIX_LOCK();
     assert(posix_runtime);
 
+    /* just pass back our updated total buffer size -- no need to update buffer */
     posix_rec_count = posix_runtime->file_rec_count;
-
-    /* update output buffer size to account for shared file reduction */
     *posix_buf_sz = posix_rec_count * sizeof(struct darshan_posix_file);
 
     POSIX_UNLOCK();
@@ -2587,7 +2588,7 @@ static void posix_cleanup()
     POSIX_LOCK();
     assert(posix_runtime);
 
-    /* shutdown internal structures used for instrumenting */
+    /* cleanup internal structures used for instrumenting */
     darshan_iter_record_refs(posix_runtime->rec_id_hash,
         &posix_finalize_file_records, NULL);
     darshan_clear_record_refs(&(posix_runtime->fd_hash), 0);

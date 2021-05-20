@@ -1090,7 +1090,7 @@ static void dxt_posix_cleanup()
 
     free(dxt_posix_runtime->record_buf);
 
-    /* shutdown internal structures used for instrumenting */
+    /* cleanup internal structures used for instrumenting */
     darshan_iter_record_refs(dxt_posix_runtime->rec_id_hash,
         dxt_free_record_data, NULL);
     darshan_clear_record_refs(&(dxt_posix_runtime->rec_id_hash), 1);
@@ -1212,7 +1212,7 @@ static void dxt_mpiio_cleanup()
 
     free(dxt_mpiio_runtime->record_buf);
 
-    /* shutdown internal structures used for instrumenting */
+    /* cleanup internal structures used for instrumenting */
     darshan_iter_record_refs(dxt_mpiio_runtime->rec_id_hash,
         dxt_free_record_data, NULL);
     darshan_clear_record_refs(&(dxt_mpiio_runtime->rec_id_hash), 1);

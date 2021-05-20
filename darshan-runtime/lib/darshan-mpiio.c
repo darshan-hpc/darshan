@@ -1700,9 +1700,10 @@ static void mpiio_mpi_redux(
     mpiio_shared_record_variance(mod_comm, red_send_buf, red_recv_buf,
         shared_rec_count);
 
-    /* clean up reduction state */
+    /* update module state to account for shared file reduction */
     if(my_rank == 0)
     {
+        /* overwrite local shared records with globally reduced records */
         int tmp_ndx = mpiio_rec_count - shared_rec_count;
         memcpy(&(mpiio_rec_buf[tmp_ndx]), red_recv_buf,
             shared_rec_count * sizeof(struct darshan_mpiio_file));
@@ -1710,6 +1711,7 @@ static void mpiio_mpi_redux(
     }
     else
     {
+        /* drop shared records on non-zero ranks */
         mpiio_runtime->file_rec_count -= shared_rec_count;
     }
 
@@ -1730,8 +1732,8 @@ static void mpiio_output(
     MPIIO_LOCK();
     assert(mpiio_runtime);
 
+    /* just pass back our updated total buffer size -- no need to update buffer */
     mpiio_rec_count = mpiio_runtime->file_rec_count;
-
     *mpiio_buf_sz = mpiio_rec_count * sizeof(struct darshan_mpiio_file);
 
     MPIIO_UNLOCK();
