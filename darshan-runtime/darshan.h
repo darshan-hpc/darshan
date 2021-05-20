@@ -81,7 +81,7 @@
 
 #ifdef HAVE_MPI
 /*
- * module developers _can_ define a 'darshan_module_redux' function
+ * module developers _may_ define a 'darshan_module_redux' function
  * to run collective MPI operations at shutdown time. Typically this
  * functionality has been used to reduce records shared globablly (given
  * in the 'shared_recs' array) into a single data record. Set to NULL
@@ -95,20 +95,27 @@ typedef void (*darshan_module_redux)(
 );
 #endif
 /*
- * module developers _must_ define a 'darshan_module_shutdown' function
+ * module developers _must_ define a 'darshan_module_output' function
  * for allowing darshan-core to call into a module and retrieve final
  * output data to be saved in the log.
  */
-typedef void (*darshan_module_shutdown)(
+typedef void (*darshan_module_output)(
     void **mod_buf, /* output parameter to save module buffer address */
     int *mod_buf_sz /* output parameter to save module buffer size */
 );
+/*
+ * module developers _must_ define a 'darshan_module_cleanup' function
+ * for allowing darshan-core to call into a module and cleanup its
+ * runtime state (i.e., drop tracked file records and free all memory).
+ */
+typedef void (*darshan_module_cleanup)(void);
 typedef struct darshan_module_funcs
 {
 #ifdef HAVE_MPI
     darshan_module_redux mod_redux_func;
 #endif
-    darshan_module_shutdown mod_shutdown_func;
+    darshan_module_output mod_output_func;
+    darshan_module_cleanup mod_cleanup_func;
 } darshan_module_funcs;
 
 /* stores FS info from statfs calls for a given mount point */

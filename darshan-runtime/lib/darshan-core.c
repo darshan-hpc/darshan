@@ -55,6 +55,8 @@ static int my_rank = 0;
 static int nprocs = 1;
 static int darshan_mem_alignment = 1;
 static size_t darshan_mod_mem_quota = DARSHAN_MOD_MEM_MAX;
+static int orig_parent_pid = 0;
+static int parent_pid;
 
 static struct darshan_core_mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
@@ -161,6 +163,7 @@ static int darshan_deflate_buffer(
 static void darshan_core_cleanup(
     struct darshan_core_runtime* core);
 static double darshan_core_wtime_absolute(void);
+static void darshan_core_fork_child_cb(void);
 
 #define DARSHAN_CORE_LOCK() pthread_mutex_lock(&darshan_core_mutex)
 #define DARSHAN_CORE_UNLOCK() pthread_mutex_unlock(&darshan_core_mutex)
@@ -182,7 +185,7 @@ static double darshan_core_wtime_absolute(void);
             if(log_created) \
                 unlink(logfile_name); \
         } \
-        goto exit; \
+        goto cleanup; \
     } \
 } while(0)
 
@@ -194,7 +197,7 @@ static double darshan_core_wtime_absolute(void);
         DARSHAN_WARN(__err_str, ## __VA_ARGS__); \
         if(log_created) \
             unlink(logfile_name); \
-        goto exit; \
+        goto cleanup; \
     } \
 } while(0)
 
@@ -210,6 +213,7 @@ void darshan_core_initialize(int argc, char **argv)
     char *envstr;
     char *jobid_str;
     int jobid;
+    int init_pid = getpid();
     int ret;
     int i;
     int tmpval;
@@ -266,7 +270,10 @@ void darshan_core_initialize(int argc, char **argv)
     if(!jobid_str || ret != 1)
     {
         /* use pid as fall back */
-        jobid = getpid();
+        if(!orig_parent_pid)
+            jobid = init_pid;
+        else
+            jobid = orig_parent_pid;
     }
 
     /* set the memory quota for darshan modules' records */
@@ -297,12 +304,21 @@ void darshan_core_initialize(int argc, char **argv)
         }
 #endif
 
+        /* setup fork handlers if not using MPI */
+        if(!using_mpi && !orig_parent_pid)
+        {
+            pthread_atfork(NULL, NULL, &darshan_core_fork_child_cb);
+        }
+
         /* record absolute start time at startup so that we can later
          * generate relative times with this as a reference point.
          */
         init_core->wtime_offset = darshan_core_wtime_absolute();
 
-    /* TODO: do we alloc new memory as we go or just do everything up front? */
+        /* set PID that initialized Darshan runtime */
+        init_core->pid = init_pid;
+
+        /* TODO: do we alloc new memory as we go or just do everything up front? */
 
 #ifndef __DARSHAN_ENABLE_MMAP_LOGS
         /* just allocate memory for each log file region */
@@ -420,7 +436,7 @@ void darshan_core_initialize(int argc, char **argv)
     return;
 }
 
-void darshan_core_shutdown()
+void darshan_core_shutdown(int write_log)
 {
     struct darshan_core_runtime *final_core;
     double start_log_time;
@@ -437,8 +453,15 @@ void darshan_core_shutdown()
     char *logfile_name = NULL;
     darshan_core_log_fh log_fh;
     int log_created = 0;
+    int meta_remain = 0;
+    char *m;
     int i;
     int ret;
+#ifdef HAVE_MPI
+    darshan_record_id *shared_recs = NULL;
+    darshan_record_id *mod_shared_recs = NULL;
+    int shared_rec_cnt = 0;
+#endif
 
     /* disable darhan-core while we shutdown */
     DARSHAN_CORE_LOCK();
@@ -450,6 +473,10 @@ void darshan_core_shutdown()
     final_core = darshan_core;
     darshan_core = NULL;
     DARSHAN_CORE_UNLOCK();
+
+    /* skip to cleanup if not writing a log */
+    if(!write_log)
+        goto cleanup;
 
     /* NOTE: from this point on, this function must use
      * darshan_core_wtime_absolute() rather than darshan_core_wtime() to
@@ -483,7 +510,7 @@ void darshan_core_shutdown()
     final_core->comp_buf = malloc(darshan_mod_mem_quota);
     logfile_name = malloc(PATH_MAX);
     if(!final_core->comp_buf || !logfile_name)
-        goto exit;
+        goto cleanup;
 
     /* set which modules were used locally */
     for(i = 0; i < DARSHAN_MAX_MODS; i++)
@@ -493,10 +520,6 @@ void darshan_core_shutdown()
     }
 
 #ifdef HAVE_MPI
-    darshan_record_id *shared_recs = NULL;
-    darshan_record_id *mod_shared_recs = NULL;
-    int shared_rec_cnt = 0;
-
     if(using_mpi)
     {
         /* allreduce locally active mods to determine globally active mods */
@@ -529,12 +552,30 @@ void darshan_core_shutdown()
     }
 #endif
 
+    /* detect whether we forked, saving the parent pid in the log metadata if so */
+    /* NOTE: this should only be triggered in non-MPI cases, since MPI mode still
+     * bootstraps the shutdown procedure on MPI_Finalize, which forked processes
+     * will not call
+     */
+    if(orig_parent_pid)
+    {
+        /* set fork metadata */
+        meta_remain = DARSHAN_JOB_METADATA_LEN -
+            strlen(final_core->log_job_p->metadata) - 1;
+        if(meta_remain >= 18) // 18 bytes enough for meta string + max PID (5 chars)
+        {
+            m = final_core->log_job_p->metadata +
+                strlen(final_core->log_job_p->metadata);
+            sprintf(m, "fork_parent=%d\n", parent_pid);
+        }
+    }
+
     /* get the log file name */
     darshan_get_logfile_name(logfile_name, final_core);
     if(strlen(logfile_name) == 0)
     {
         /* failed to generate log file name */
-        goto exit;
+        goto cleanup;
     }
 
     if(internal_timing_flag)
@@ -627,7 +668,7 @@ void darshan_core_shutdown()
 #endif
 
             /* get the final output buffer */
-            this_mod->mod_funcs.mod_shutdown_func(&mod_buf, &mod_buf_sz);
+            this_mod->mod_funcs.mod_output_func(&mod_buf, &mod_buf_sz);
         }
 
         /* append this module's data to the darshan log */
@@ -635,12 +676,6 @@ void darshan_core_shutdown()
         ret = darshan_log_append(log_fh, final_core, mod_buf, mod_buf_sz, &gz_fp);
         final_core->log_hdr_p->mod_map[i].len =
             gz_fp - final_core->log_hdr_p->mod_map[i].off;
-
-        /* XXX: DXT manages its own module memory buffers, so we need to
-         * explicitly free them
-         */
-        if(i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD)
-            free(mod_buf);
 
         if(internal_timing_flag)
             mod2[i] = darshan_core_wtime_absolute();
@@ -718,7 +753,7 @@ void darshan_core_shutdown()
                     MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
 
                 /* let rank 0 report the timing info */
-                goto exit;
+                goto cleanup;
             }
         }
 #endif
@@ -737,7 +772,11 @@ void darshan_core_shutdown()
         darshan_core_fprintf(stderr, "darshan:core_shutdown\t%d\t%f\n", nprocs, all_tm);
     }
 
-exit:
+cleanup:
+    for(i = 0; i < DARSHAN_MAX_MODS; i++)
+        if(final_core->mod_array[i])
+            final_core->mod_array[i]->mod_funcs.mod_cleanup_func();
+    darshan_core_cleanup(final_core);
 #ifdef HAVE_MPI
     if(using_mpi)
     {
@@ -746,7 +785,6 @@ exit:
     }
 #endif
     free(logfile_name);
-    darshan_core_cleanup(final_core);
 
     return;
 }
@@ -1370,6 +1408,7 @@ static void darshan_get_logfile_name(
     char cuser[L_cuserid] = {0};
     struct tm *start_tm;
     int jobid;
+    int pid;
     time_t start_time;
     int ret;
 
@@ -1379,6 +1418,7 @@ static void darshan_get_logfile_name(
 #endif
 
     jobid = core->log_job_p->jobid;
+    pid = core->pid;
     start_time = core->log_job_p->start_time;
 
     /* first, check if user specifies a complete logpath to use */
@@ -1449,9 +1489,9 @@ static void darshan_get_logfile_name(
         if(logpath_override)
         {
             ret = snprintf(logfile_name, PATH_MAX,
-                "%s/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                "%s/%s_%s_id%d-%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
                 logpath_override,
-                cuser, __progname, jobid,
+                cuser, __progname, jobid, pid,
                 (start_tm->tm_mon+1),
                 start_tm->tm_mday,
                 (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
@@ -1467,10 +1507,10 @@ static void darshan_get_logfile_name(
         else if(logpath)
         {
             ret = snprintf(logfile_name, PATH_MAX,
-                "%s/%d/%d/%d/%s_%s_id%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                "%s/%d/%d/%d/%s_%s_id%d-%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
                 logpath, (start_tm->tm_year+1900),
                 (start_tm->tm_mon+1), start_tm->tm_mday,
-                cuser, __progname, jobid,
+                cuser, __progname, jobid, pid,
                 (start_tm->tm_mon+1),
                 start_tm->tm_mday,
                 (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
@@ -2071,6 +2111,22 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
     return;
 }
 
+static void darshan_core_fork_child_cb(void)
+{
+    /* hold onto the original parent PID, which we will use as jobid if the user didn't
+     * provide a jobid env variable
+     */
+    parent_pid = darshan_core->pid;
+    if(!orig_parent_pid)
+        orig_parent_pid = parent_pid;
+
+    /* shutdown and re-init darshan, making sure to not write out a log file */
+    darshan_core_shutdown(0);
+    darshan_core_initialize(0, NULL);
+
+    return;
+}
+
 /* crude benchmarking hook into darshan-core to benchmark Darshan
  * shutdown overhead using a variety of application I/O workloads
  */
@@ -2096,7 +2152,7 @@ void darshan_shutdown_bench(int argc, char **argv)
     if(my_rank == 0)
         fprintf(stderr, "# 1 unique file per proc\n");
     PMPI_Barrier(MPI_COMM_WORLD);
-    darshan_core_shutdown();
+    darshan_core_shutdown(1);
     darshan_core = NULL;
 
     sleep(1);
@@ -2111,7 +2167,7 @@ void darshan_shutdown_bench(int argc, char **argv)
     if(my_rank == 0)
         fprintf(stderr, "# 1 shared file per proc\n");
     PMPI_Barrier(MPI_COMM_WORLD);
-    darshan_core_shutdown();
+    darshan_core_shutdown(1);
     darshan_core = NULL;
 
     sleep(1);
@@ -2126,7 +2182,7 @@ void darshan_shutdown_bench(int argc, char **argv)
     if(my_rank == 0)
         fprintf(stderr, "# 1024 unique files per proc\n");
     PMPI_Barrier(MPI_COMM_WORLD);
-    darshan_core_shutdown();
+    darshan_core_shutdown(1);
     darshan_core = NULL;
 
     sleep(1);
@@ -2141,7 +2197,7 @@ void darshan_shutdown_bench(int argc, char **argv)
     if(my_rank == 0)
         fprintf(stderr, "# 1024 shared files per proc\n");
     PMPI_Barrier(MPI_COMM_WORLD);
-    darshan_core_shutdown();
+    darshan_core_shutdown(1);
     darshan_core = NULL;
 
     sleep(1);

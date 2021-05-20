@@ -120,10 +120,11 @@ struct darshan_core_runtime
 #ifdef HAVE_MPI
     MPI_Comm mpi_comm;
 #endif
+    int pid;
 };
 
 void darshan_core_initialize(int argc, char **argv);
-void darshan_core_shutdown(void);
+void darshan_core_shutdown(int write_log);
 
 uint32_t darshan_hashlittle(const void *key, size_t length, uint32_t initval);
 uint64_t darshan_hash(const register unsigned char *k, register uint64_t length, register uint64_t level);

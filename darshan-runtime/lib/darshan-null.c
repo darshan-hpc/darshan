@@ -81,13 +81,12 @@ static void null_runtime_initialize(
     void);
 static struct null_record_ref *null_track_new_record(
     darshan_record_id rec_id, const char *name);
-static void null_cleanup_runtime(
-    void);
 
-/* forward declaration for NULL shutdown function needed to interface
+/* forward declaration for NULL output/cleanup functions needed to interface
  * with darshan-core
  */
-static void null_shutdown(void **null_buf, int *null_buf_sz);
+static void null_output(void **null_buf, int *null_buf_sz);
+static void null_cleanup(void);
 
 /* null_runtime is the global data structure encapsulating "NULL" module state */
 static struct null_runtime *null_runtime = NULL;
@@ -210,7 +209,8 @@ static void null_runtime_initialize()
      */
     .mod_redux_func = NULL,
 #endif
-    .mod_shutdown_func = &null_shutdown
+    .mod_output_func = &null_output,
+    .mod_cleanup_func = &null_cleanup
     };
 
     /* try and store a default number of records for this module */
@@ -289,26 +289,13 @@ static struct null_record_ref *null_track_new_record(
     return(rec_ref);
 }
 
-/* cleanup NULL module internal data structures */
-static void null_cleanup_runtime()
-{
-    /* iterate the hash of record references and free them */
-    darshan_clear_record_refs(&(null_runtime->rec_id_hash), 1);
-
-    free(null_runtime);
-    null_runtime = NULL;
-
-    return;
-}
-
 /**************************************************************************************
- * shutdown function exported by the "NULL" module for coordinating with darshan-core *
+ *    functions exported by the "NULL" module for coordinating with darshan-core      *
  **************************************************************************************/
 
-/* Pass output data for the "NULL" module back to darshan-core to log to file,
- * and shutdown/free internal data structures.
+/* Pass output data for the "NULL" module back to darshan-core to log to file
  */
-static void null_shutdown(
+static void null_output(
     void **null_buf,
     int *null_buf_sz)
 {
@@ -323,8 +310,22 @@ static void null_shutdown(
      */
     *null_buf_sz = null_runtime->rec_count * sizeof(struct darshan_null_record);
 
-    /* shutdown internal structures used for instrumenting */
-    null_cleanup_runtime();
+    NULL_UNLOCK();
+    return;
+}
+
+/* Cleanup/free internal data structures
+ */
+static void null_cleanup()
+{
+    /* cleanup internal structures used for instrumenting */
+    NULL_LOCK();
+
+    /* iterate the hash of record references and free them */
+    darshan_clear_record_refs(&(null_runtime->rec_id_hash), 1);
+
+    free(null_runtime);
+    null_runtime = NULL;
 
     NULL_UNLOCK();
     return;

@@ -41,8 +41,10 @@ static void lustre_mpi_redux(
     void *lustre_buf, MPI_Comm mod_comm,
     darshan_record_id *shared_recs, int shared_rec_count);
 #endif
-static void lustre_shutdown(
+static void lustre_output(
     void **lustre_buf, int *lustre_buf_sz);
+static void lustre_cleanup(
+    void);
 
 struct lustre_runtime *lustre_runtime = NULL;
 static pthread_mutex_t lustre_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -219,7 +221,8 @@ static void lustre_runtime_initialize()
 #ifdef HAVE_MPI
         .mod_redux_func = &lustre_mpi_redux,
 #endif
-        .mod_shutdown_func = &lustre_shutdown
+        .mod_output_func = &lustre_output,
+        .mod_cleanup_func = &lustre_cleanup
         };
 
 
@@ -265,10 +268,7 @@ static void lustre_mpi_redux(
     assert(lustre_runtime);
 
     /* if there are globally shared files, do a shared file reduction */
-    /* NOTE: the shared file reduction is also skipped if the 
-     * DARSHAN_DISABLE_SHARED_REDUCTION environment variable is set.
-     */
-    if (shared_rec_count && !getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
+    if (shared_rec_count)
     {
         /* necessary initialization of shared records */
         for(i = 0; i < shared_rec_count; i++)
@@ -293,7 +293,7 @@ static void lustre_mpi_redux(
 }
 #endif
 
-static void lustre_shutdown(
+static void lustre_output(
     void **lustre_buf,
     int *lustre_buf_sz)
 {
@@ -320,6 +320,15 @@ static void lustre_shutdown(
 
     /* modify output buffer size to account for any shared records that were removed */
     *lustre_buf_sz = lustre_runtime->record_buffer_size;
+
+    LUSTRE_UNLOCK();
+    return;
+}
+
+static void lustre_cleanup()
+{
+    LUSTRE_LOCK();
+    assert(lustre_runtime);
 
     /* cleanup data structures */
     darshan_clear_record_refs(&(lustre_runtime->record_id_hash), 1);

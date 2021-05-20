@@ -82,7 +82,7 @@ int DARSHAN_DECL(MPI_Finalize)(void)
 
     MAP_OR_FAIL(PMPI_Finalize);
 
-    darshan_core_shutdown();
+    darshan_core_shutdown(1);
 
     ret = __real_PMPI_Finalize();
     return(ret);
@@ -108,7 +108,7 @@ __attribute__((destructor)) void serial_finalize(void)
     char *no_mpi;
     no_mpi = getenv(DARSHAN_ENABLE_NONMPI);
     if (no_mpi)
-        darshan_core_shutdown();
+        darshan_core_shutdown(1);
     return;
 }
 #endif
