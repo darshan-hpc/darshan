@@ -459,6 +459,8 @@ AC_TRY_LINK([#include <mpi.h>], [
 # At some point MPI converted most API functions to be const correct.  We
 # need to test for this to determine how to define MPI wrappers in
 # Darshan.  First we try compiling without cost qualifiers.
+old_cflags="$CFLAGS"
+CFLAGS="$CFLAGS -Werror"
 AC_MSG_CHECKING(for MPI prototypes without const qualifier)
 AC_TRY_COMPILE(
     [
@@ -490,6 +492,7 @@ AC_TRY_COMPILE(
         AC_MSG_ERROR(Darshan is unable to find a compatible MPI_File_open prototype)
     )]
 )
+CFLAGS="$old_cflags"
 
 # determine if mpicc can create shared libraries that use MPI functions
 old_cflags="$CFLAGS"
