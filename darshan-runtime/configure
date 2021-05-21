@@ -4987,6 +4987,8 @@ rm -f core conftest.err conftest.$ac_objext \
 # At some point MPI converted most API functions to be const correct.  We
 # need to test for this to determine how to define MPI wrappers in
 # Darshan.  First we try compiling without cost qualifiers.
+old_cflags="$CFLAGS"
+CFLAGS="$CFLAGS -Werror"
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for MPI prototypes without const qualifier" >&5
 $as_echo_n "checking for MPI prototypes without const qualifier... " >&6; }
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -5046,6 +5048,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+CFLAGS="$old_cflags"
 
 # determine if mpicc can create shared libraries that use MPI functions
 old_cflags="$CFLAGS"
