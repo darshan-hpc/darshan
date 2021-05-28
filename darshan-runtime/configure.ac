@@ -266,7 +266,6 @@ if test "x$enable_darshan_runtime" = xyes ; then
          #if MPI_VERSION < 3
          #error MPI_VERSION < 3 detected
          #endif]])], [],
-         ]])],
          [AC_MSG_ERROR([APMPI module requires MPI version 3+.])]
       )
 
