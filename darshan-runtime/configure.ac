@@ -258,6 +258,17 @@ if test "x$enable_darshan_runtime" = xyes ; then
                       [],
                       [AC_MSG_ERROR([The Autoperf MPI module is not present])],
                       [-]) # this last part tells it to only check for presence
+
+      # APMPI only support MPI v3 or higher
+      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+         #include <mpi.h>
+         #if MPI_VERSION < 3
+         #error MPI_VERSION < 3 detected
+         #endif]])], [],
+         ]])],
+         [AC_MSG_ERROR([APMPI module requires MPI version 3+.])]
+      )
+
       DARSHAN_APMPI_LD_OPTS="@${darshan_share_path}/ld-opts/autoperf-apmpi-ld-opts"
    else
       DARSHAN_APMPI_LD_OPTS=""
