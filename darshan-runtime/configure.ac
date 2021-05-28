@@ -72,7 +72,8 @@ if test "x$enable_darshan_runtime" = xyes ; then
    fi
 
    dnl runtime libraries require zlib
-   CHECK_ZLIB
+   AC_CHECK_HEADER([zlib.h], [],[AC_MSG_ERROR(zlib.h not found)])
+   AC_SEARCH_LIBS([inflateEnd],[z],[],[AC_MSG_ERROR(libz not found)])
 
    AC_ARG_ENABLE([ld-preload],
       [AS_HELP_STRING([--disable-ld-preload],
@@ -470,6 +471,24 @@ if test "x$enable_darshan_runtime" = xyes ; then
    #
 
    if test "x$ENABLE_MPI" = xyes ; then
+
+      # check for OpenMPI
+      # NOTE: this check is needed due to a bug observed in some OpenMPI
+      # versions triggered by Darshan's MPI-IO module usage of the
+      # MPI_File_get_byte_offset() routine. For applications that create
+      # zero-length datatypes, then read/write to them, it can trigger a
+      # seg fault due to a divide by zero condition in OpenMPI. See the
+      # following Darshan issue for more details:
+      #   https://xgitlab.cels.anl.gov/darshan/darshan/-/issues/317
+      AC_COMPILE_IFELSE([AC_LANG_PROGRAM(,[
+         #include <mpi.h>
+         #ifdef OPEN_MPI
+         #error OPENMPI FOUND
+         #endif
+         ])],
+         [],
+      [AC_DEFINE(HAVE_OPEN_MPI, 1, Define if OpenMPI is being used)])
+
       # determine if the MPI library includes MPI-IO functions or not
       AC_MSG_CHECKING(for MPI-IO support in MPI)
       AC_CHECK_FUNC([MPI_File_open],[],
@@ -575,24 +594,6 @@ if test "x$enable_darshan_runtime" = xyes ; then
 
    # look for glibc-specific functions
    AC_CHECK_FUNCS([pwritev preadv pwritev2 preadv2])
-
-    # check for OpenMPI
-    # NOTE: this check is needed due to a bug observed in some OpenMPI
-    # versions triggered by Darshan's MPI-IO module usage of the
-    # MPI_File_get_byte_offset() routine. For applications that create
-    # zero-length datatypes, then read/write to them, it can trigger a
-    # seg fault due to a divide by zero condition in OpenMPI. See the
-    # following Darshan issue for more details:
-    #   https://xgitlab.cels.anl.gov/darshan/darshan/-/issues/317
-    AC_COMPILE_IFELSE([
-        AC_LANG_PROGRAM(,[
-            #include <mpi.h>
-            #ifdef OPEN_MPI
-            #error OPENMPI FOUND
-            #endif
-        ])],
-        [],
-        [AC_DEFINE(HAVE_OPEN_MPI, 1, Define if OpenMPI is being used)])
 
    DARSHAN_VERSION="AC_PACKAGE_VERSION"
    AC_SUBST(LDFLAGS)
