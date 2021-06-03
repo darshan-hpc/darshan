@@ -168,8 +168,8 @@ extern struct darshan_core_runtime *__darshan_core;
             darshan_core_fprintf(stderr, "Darshan failed to map symbol: %s\n", #__func); \
             exit(1); \
        } \
-    }
-
+    } \
+    int __darshan_disabled = darshan_core_disabled_instrumentation();
 #else
 
 #define DARSHAN_FORWARD_DECL(__name,__ret,__args) \
@@ -187,7 +187,8 @@ extern struct darshan_core_runtime *__darshan_core;
 #define DARSHAN_WRAPPER_MAP(__func,__ret,__args,__fcall) \
     __ret __wrap_ ## __func __args __attribute__ ((alias ("__wrap_" #__fcall)));
 
-#define MAP_OR_FAIL(__func)
+#define MAP_OR_FAIL(__func) \
+    int __darshan_disabled = darshan_core_disabled_instrumentation()
 
 #endif
 
@@ -331,19 +332,7 @@ static inline double darshan_core_wtime_absolute(void)
  */
 static inline double darshan_core_wtime(void)
 {
-    double wtime_offset;
-
-    __DARSHAN_CORE_LOCK();
-    if(!__darshan_core)
-    {
-        __DARSHAN_CORE_UNLOCK();
-        return(0);
-    }
-    else
-    {
-        wtime_offset = __darshan_core->wtime_offset;
-    }
-    __DARSHAN_CORE_UNLOCK();
+    double wtime_offset = __darshan_core ? __darshan_core->wtime_offset : 0;
 
     return(darshan_core_wtime_absolute() - wtime_offset);
 }
