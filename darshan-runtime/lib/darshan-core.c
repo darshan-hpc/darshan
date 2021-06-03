@@ -43,7 +43,7 @@
 
 extern char* __progname;
 extern char* __progname_full;
-pthread_mutex_t __darshan_core_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+pthread_mutex_t __darshan_core_mutex = PTHREAD_MUTEX_INITIALIZER;
 struct darshan_core_runtime *__darshan_core = NULL;
 
 /* internal variable delcarations */
@@ -1197,15 +1197,31 @@ static int darshan_add_name_record_ref(struct darshan_core_runtime *core,
     darshan_record_id rec_id, const char *name, darshan_module_id mod_id)
 {
     struct darshan_core_name_record_ref *ref;
+    struct darshan_core_name_record_ref *check_ref;
     int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
 
     if((record_size + core->name_mem_used) > DARSHAN_NAME_RECORD_BUF_SIZE)
         return(0);
 
+    /* drop core lock while we allocate reference.  Note that
+     * this means we must check for existence again in hash table once we
+     * re-acquire the lock, but this code path will only happen once per
+     * file.
+     */
+    __DARSHAN_CORE_UNLOCK();
     ref = malloc(sizeof(*ref));
+    __DARSHAN_CORE_LOCK();
     if(!ref)
+    {
         return(0);
+    }
     memset(ref, 0, sizeof(*ref));
+
+    /* make sure no one else added it while we dropped the lock */
+    HASH_FIND(hlink, core->name_hash, &rec_id,
+        sizeof(darshan_record_id), check_ref);
+    if(check_ref)
+        return(1);
 
     /* initialize the name record */
     ref->name_record = (struct darshan_name_record *)
@@ -1215,7 +1231,6 @@ static int darshan_add_name_record_ref(struct darshan_core_runtime *core,
     strcpy(ref->name_record->name, name);
     DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
 
-    /* add the record to the hash table */
     HASH_ADD(hlink, core->name_hash, name_record->id,
         sizeof(darshan_record_id), ref);
     core->name_mem_used += record_size;
@@ -2167,6 +2182,11 @@ void darshan_core_register_module(
 
     *inout_mod_buf_size = 0;
 
+    /* do this early before acquiring lock */
+    mod = malloc(sizeof(*mod));
+    if(!mod) return;
+    memset(mod, 0, sizeof(*mod));
+
     __DARSHAN_CORE_LOCK();
     if((__darshan_core == NULL) ||
        (mod_id >= DARSHAN_MAX_MODS) ||
@@ -2176,16 +2196,9 @@ void darshan_core_register_module(
          * is invalid, or if the module is already registered
          */
         __DARSHAN_CORE_UNLOCK();
+        free(mod);
         return;
     }
-
-    mod = malloc(sizeof(*mod));
-    if(!mod)
-    {
-        __DARSHAN_CORE_UNLOCK();
-        return;
-    }
-    memset(mod, 0, sizeof(*mod));
 
     /* set module's record buffer and max memory usage */
     mod_mem_avail = darshan_mod_mem_quota - __darshan_core->mod_mem_used;
@@ -2226,6 +2239,8 @@ void darshan_core_register_module(
 void darshan_core_unregister_module(
     darshan_module_id mod_id)
 {
+    struct darshan_core_module* mod;
+
     __DARSHAN_CORE_LOCK();
     if(!__darshan_core)
     {
@@ -2234,15 +2249,17 @@ void darshan_core_unregister_module(
     }
 
     /* update darshan internal structures and header */
-    free(__darshan_core->mod_array[mod_id]);
+    /* NOTE: save pointer to free module after lock is released */
+    mod = __darshan_core->mod_array[mod_id];
     __darshan_core->mod_array[mod_id] = NULL;
     __darshan_core->log_hdr_p->mod_ver[mod_id] = 0;
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
     __darshan_core->log_hdr_p->mod_map[mod_id].off =
         __darshan_core->log_hdr_p->mod_map[mod_id].len = 0;
 #endif
-
     __DARSHAN_CORE_UNLOCK();
+    free(mod);
+
     return;
 }
 
