@@ -105,7 +105,7 @@ if test "x$enable_darshan_util" = xyes ; then
    fi
 
    AC_ARG_ENABLE([apxc],
-      [AS_HELP_STRING([--enable-apxc],
+      [AS_HELP_STRING([--enable-apxc-mod],
                       [enables compilation and use of the AutoPerf Cray XC module])],
       [], [enable_apxc=no]
    )
@@ -117,7 +117,7 @@ if test "x$enable_darshan_util" = xyes ; then
                       [-]) # this last part tells it to only check for presence
    fi
    AC_ARG_ENABLE([apmpi],
-      [AS_HELP_STRING([--enable-apmpi],
+      [AS_HELP_STRING([--enable-apmpi-mod],
                       [enables compilation and use of the AutoPerf MPI module])],
       [], [enable_apmpi=no]
    )

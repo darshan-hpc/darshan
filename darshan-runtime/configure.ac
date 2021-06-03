@@ -246,13 +246,13 @@ if test "x$enable_darshan_runtime" = xyes ; then
 
    # AUTOPERF MPI module
    AC_ARG_ENABLE([apmpi],
-      [AS_HELP_STRING([--enable-apmpi],
+      [AS_HELP_STRING([--enable-apmpi-mod],
                       [Enables compilation and use of AUTOPERF MPI module (requires MPI)])],
       [], [enable_apmpi=no]
    )
    if test "x$enable_apmpi" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
-         AC_MSG_ERROR([--enable-apmpi Autoperf MPI module requires MPI support])
+         AC_MSG_ERROR([--enable-apmpi-mod Autoperf MPI module requires MPI support])
       fi
       abssrcdir=$(readlink -f ${srcdir})
       AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
@@ -285,13 +285,13 @@ if test "x$enable_darshan_runtime" = xyes ; then
 
    #AUTOPERF APXC module
    AC_ARG_ENABLE([apxc],
-      [AS_HELP_STRING([--enable-apxc],
+      [AS_HELP_STRING([--enable-apxc-mod],
                       [Enables compilation and use of AUTOPERF APXC module (requires MPI)])],
       [], [enable_apxc=no]
    )
    if test "x$enable_apxc" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
-         AC_MSG_ERROR([--enable-apxc Autoperf XC module requires MPI support])
+         AC_MSG_ERROR([--enable-apxc-mod Autoperf XC module requires MPI support])
       fi
       abssrcdir=$(readlink -f ${srcdir})
       AC_CHECK_HEADER([papi.h],
