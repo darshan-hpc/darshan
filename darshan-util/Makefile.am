@@ -54,19 +54,19 @@ jenkins_hash_gen_SOURCES = jenkins-hash-gen.c lookup3.c
 jenkins_hash_gen_LDADD = libdarshan-util.la
 
 darshan_analyzer_SOURCES = darshan-analyzer.c
-darshan_analyzer_LDADD = libdarshan-util.la 
+darshan_analyzer_LDADD = libdarshan-util.la
 
 darshan_convert_SOURCES = darshan-convert.c lookup3.c
-darshan_convert_LDADD = libdarshan-util.la 
+darshan_convert_LDADD = libdarshan-util.la
 
 darshan_diff_SOURCES = darshan-diff.c
-darshan_diff_LDADD = libdarshan-util.la 
+darshan_diff_LDADD = libdarshan-util.la
 
 darshan_parser_SOURCES = darshan-parser.c
-darshan_parser_LDADD = libdarshan-util.la 
+darshan_parser_LDADD = libdarshan-util.la
 
 darshan_dxt_parser_SOURCES = darshan-dxt-parser.c
-darshan_dxt_parser_LDADD = libdarshan-util.la 
+darshan_dxt_parser_LDADD = libdarshan-util.la
 
 darshan_merge_SOURCES = darshan-merge.c
 darshan_merge_LDADD = libdarshan-util.la
