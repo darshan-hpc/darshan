@@ -34,7 +34,18 @@ include_HEADERS = darshan-null-logutils.h \
                   darshan-lustre-logutils.h \
                   darshan-stdio-logutils.h \
                   darshan-dxt-logutils.h \
-                  darshan-mdhim-logutils.h
+                  darshan-mdhim-logutils.h \
+		  ../include/darshan-bgq-log-format.h \
+                  ../include/darshan-dxt-log-format.h \
+                  ../include/darshan-hdf5-log-format.h \
+                  ../include/darshan-log-format.h \
+                  ../include/darshan-lustre-log-format.h \
+                  ../include/darshan-mdhim-log-format.h \
+                  ../include/darshan-mpiio-log-format.h \
+                  ../include/darshan-null-log-format.h \
+                  ../include/darshan-pnetcdf-log-format.h \
+                  ../include/darshan-posix-log-format.h \
+                  ../include/darshan-stdio-log-format.h
 
 bin_PROGRAMS = darshan-analyzer \
                darshan-convert \

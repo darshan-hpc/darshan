@@ -40,7 +40,7 @@ dnl must configure subpackages even if they are not built
 AC_CONFIG_SUBDIRS([darshan-util])
 AC_CONFIG_SUBDIRS([darshan-runtime])
 
-AC_CONFIG_FILES(Makefile include/Makefile)
+AC_CONFIG_FILES(Makefile)
 
 AC_OUTPUT
 

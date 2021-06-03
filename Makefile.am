@@ -12,7 +12,7 @@ if BUILD_DARSHAN_RUNTIME
 endif
 
 if BUILD_DARSHAN_UTIL
-   SUBDIRS += darshan-util include
+   SUBDIRS += darshan-util
 endif
 
 EXTRA_DIST = doc \
