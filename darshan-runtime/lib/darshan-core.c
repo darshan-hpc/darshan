@@ -43,8 +43,12 @@
 
 extern char* __progname;
 extern char* __progname_full;
-pthread_mutex_t __darshan_core_mutex = PTHREAD_MUTEX_INITIALIZER;
 struct darshan_core_runtime *__darshan_core = NULL;
+#ifdef HAVE_STDATOMIC_H
+atomic_flag __darshan_core_mutex = ATOMIC_FLAG_INIT;
+#else
+pthread_mutex_t __darshan_core_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 /* internal variable delcarations */
 static int using_mpi = 0;
