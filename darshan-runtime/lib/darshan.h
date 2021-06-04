@@ -18,6 +18,9 @@
 #ifdef HAVE_MPI
 #include <mpi.h>
 #endif
+#ifdef HAVE_STDATOMIC_H
+#include <stdatomic.h>
+#endif
 
 #include "uthash.h"
 #include "darshan-log-format.h"
@@ -128,10 +131,18 @@ struct darshan_core_runtime
  * denotes that these should not be accessed directly by Darshan modules or
  * other Darshan library components.
  */
-extern pthread_mutex_t __darshan_core_mutex;
 extern struct darshan_core_runtime *__darshan_core;
+#ifdef HAVE_STDATOMIC_H
+extern atomic_flag __darshan_core_mutex;
+#define __DARSHAN_CORE_LOCK() \
+    while (atomic_flag_test_and_set(&__darshan_core_mutex))
+#define __DARSHAN_CORE_UNLOCK() \
+    atomic_flag_clear(&__darshan_core_mutex)
+#else
+extern pthread_mutex_t __darshan_core_mutex;
 #define __DARSHAN_CORE_LOCK() pthread_mutex_lock(&__darshan_core_mutex)
 #define __DARSHAN_CORE_UNLOCK() pthread_mutex_unlock(&__darshan_core_mutex)
+#endif
 
 /* macros for declaring wrapper functions and calling MPI routines
  * consistently regardless of whether static or dynamic linking is used
