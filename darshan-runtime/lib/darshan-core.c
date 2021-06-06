@@ -13,6 +13,9 @@
 #ifdef HAVE_MNTENT_H
 #include <mntent.h>
 #endif
+#ifdef HAVE_STDATOMIC_H
+#include <stdatomic.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
