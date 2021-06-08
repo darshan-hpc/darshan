@@ -675,6 +675,16 @@ AC_CONFIG_FILES(Makefile \
 AC_OUTPUT
 
 if test "x$enable_darshan_runtime" = xyes ; then
+   if test "x$with_log_path_by_env" != xno ; then
+      __log_path_by_env=$with_log_path_by_env
+   else
+      __log_path_by_env="N/A"
+   fi
+   if test "x$with_log_path" != xno ; then
+      __log_path=$with_log_path
+   else
+      __log_path="N/A"
+   fi
    echo "------------------------------------------------------------------------------
    ${PACKAGE_NAME} Version ${PACKAGE_VERSION} configured with the following features:"
    if test "x$ENABLE_MPI" = xyes ; then
@@ -700,8 +710,8 @@ if test "x$enable_darshan_runtime" = xyes ; then
            Lustre        module support  - $enable_lustre_mod
            MDHIM         module support  - $enable_mdhim
            Memory alignment in bytes     - $with_mem_align
-           Log file env variables        - $__DARSHAN_LOG_ENV
-           Location of Darshan log files - $with_log_path
+           Log file env variables        - $__log_path_by_env
+           Location of Darshan log files - $__log_path
            Job ID env variable           - $with_jobid_env
            MPI-IO hints                  - $__DARSHAN_LOG_HINTS"
 fi
