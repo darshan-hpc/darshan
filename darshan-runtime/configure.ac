@@ -245,12 +245,12 @@ if test "x$enable_darshan_runtime" = xyes ; then
    fi
 
    # AUTOPERF MPI module
-   AC_ARG_ENABLE([apmpi],
+   AC_ARG_ENABLE([apmpi-mod],
       [AS_HELP_STRING([--enable-apmpi-mod],
                       [Enables compilation and use of AUTOPERF MPI module (requires MPI)])],
-      [], [enable_apmpi=no]
+      [], [enable_apmpi_mod=no]
    )
-   if test "x$enable_apmpi" = xyes ; then
+   if test "x$enable_apmpi_mod" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
          AC_MSG_ERROR([--enable-apmpi-mod Autoperf MPI module requires MPI support])
       fi
@@ -283,13 +283,13 @@ if test "x$enable_darshan_runtime" = xyes ; then
       AC_DEFINE(__APMPI_COLL_SYNC, 1, Define if APMPI should enable sync time calculation for MPI collectives)
    fi
 
-   #AUTOPERF APXC module
-   AC_ARG_ENABLE([apxc],
+   #AUTOPERF XC module
+   AC_ARG_ENABLE([apxc-mod],
       [AS_HELP_STRING([--enable-apxc-mod],
-                      [Enables compilation and use of AUTOPERF APXC module (requires MPI)])],
-      [], [enable_apxc=no]
+                      [Enables compilation and use of AUTOPERF XC module (requires MPI)])],
+      [], [enable_apxc_mod=no]
    )
-   if test "x$enable_apxc" = xyes ; then
+   if test "x$enable_apxc_mod" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
          AC_MSG_ERROR([--enable-apxc-mod Autoperf XC module requires MPI support])
       fi
@@ -418,11 +418,11 @@ if test "x$enable_darshan_runtime" = xyes ; then
          [enable_lustre_mod=no])
    fi
 
-   AC_ARG_ENABLE([mdhim],
-      [AS_HELP_STRING([--enable-mdhim], [Enable mdhim module])],
-      [], [enable_mdhim=no]
+   AC_ARG_ENABLE([mdhim-mod],
+      [AS_HELP_STRING([--enable-mdhim-mod], [Enable mdhim module])],
+      [], [enable_mdhim_mod=no]
    )
-   if test "x$enable_mdhim" = xyes ; then
+   if test "x$enable_mdhim_mod" = xyes ; then
       AC_CHECK_HEADERS([mdhim.h],
          [], [AC_MSG_ERROR([mdhim requested but headers cannot be found])])
    fi
@@ -608,38 +608,38 @@ if test "x$enable_darshan_runtime" = xyes ; then
    AC_SUBST(with_papi)
 else
    enable_mmap_logs=no
+   enable_ld_preload=no
    enable_null_mod=no
    enable_posix_mod=no
    enable_stdio_mod=no
    enable_dxt_mod=no
    enable_mpiio_mod=no
-   enable_apmpi=no
-   enable_apxc=no
    with_hdf5_mod=no
+   enable_apmpi_mod=no
+   enable_apxc_mod=no
    enable_pnetcdf_mod=no
    enable_bgq_mod=no
    enable_lustre_mod=no
-   enable_mdhim=no
-   enable_ld_preload=no
+   enable_mdhim_mod=no
    with_log_path=
    with_jobid_env=
 fi
 
 
-AM_CONDITIONAL(ENABLE_MMAP_LOGS,    [test "x${enable_mmap_logs}" = xyes])
-AM_CONDITIONAL(BUILD_NULL_MODULE,   [test "x${enable_null_mod}" != xno])
-AM_CONDITIONAL(BUILD_POSIX_MODULE,  [test "x$enable_posix_mod"  != xno])
-AM_CONDITIONAL(BUILD_STDIO_MODULE,  [test "x$enable_stdio_mod"  != xno])
-AM_CONDITIONAL(BUILD_DXT_MODULE,    [test "x$enable_dxt_mod"    != xno])
+AM_CONDITIONAL(ENABLE_MMAP_LOGS,    [test "x$enable_mmap_logs"   = xyes])
+AM_CONDITIONAL(ENABLE_LDPRELOAD,    [test "x$enable_ld_preload"  = xyes])
+AM_CONDITIONAL(BUILD_NULL_MODULE,   [test "x$enable_null_mod"    = xyes])
+AM_CONDITIONAL(BUILD_POSIX_MODULE,  [test "x$enable_posix_mod"   = xyes])
+AM_CONDITIONAL(BUILD_STDIO_MODULE,  [test "x$enable_stdio_mod"   = xyes])
+AM_CONDITIONAL(BUILD_DXT_MODULE,    [test "x$enable_dxt_mod"     = xyes])
 AM_CONDITIONAL(BUILD_MPIIO_MODULE,  [test "x$enable_mpiio_mod"   = xyes])
 AM_CONDITIONAL(BUILD_HDF5_MODULE,   [test "x$with_hdf5_mod"      = xyes])
 AM_CONDITIONAL(BUILD_PNETCDF_MODULE,[test "x$enable_pnetcdf_mod" = xyes])
 AM_CONDITIONAL(BUILD_BGQ_MODULE,    [test "x$enable_bgq_mod"     = xyes])
 AM_CONDITIONAL(BUILD_LUSTRE_MODULE, [test "x$enable_lustre_mod"  = xyes])
-AM_CONDITIONAL(BUILD_MDHIM_MODULE,  [test "x$enable_mdhim"       = xyes])
-AM_CONDITIONAL(ENABLE_LDPRELOAD,    [test "x$enable_ld_preload"  = xyes])
-AM_CONDITIONAL(BUILD_APMPI_MODULE,  [test "x$enable_apmpi"       = xyes])
-AM_CONDITIONAL(BUILD_APXC_MODULE,   [test "x$enable_apxc"        = xyes])
+AM_CONDITIONAL(BUILD_MDHIM_MODULE,  [test "x$enable_mdhim_mod"   = xyes])
+AM_CONDITIONAL(BUILD_APMPI_MODULE,  [test "x$enable_apmpi_mod"   = xyes])
+AM_CONDITIONAL(BUILD_APXC_MODULE,   [test "x$enable_apxc_mod"    = xyes])
 
 dnl When MPI is enabled, CC has been set to the MPI C compiler.
 dnl MPICC will substitute CC in all Makefile.am files
@@ -701,14 +701,14 @@ if test "x$enable_darshan_runtime" = xyes ; then
            STDIO         module support  - $enable_stdio_mod
            DXT           module support  - $enable_dxt_mod
            MPI-IO        module support  - $enable_mpiio_mod
-           AUTOPERF MPI  module support  - $enable_apmpi
+           AUTOPERF MPI  module support  - $enable_apmpi_mod
            AUTOPERF MPI sync collectives - $enable_apmpi_coll_sync
-           AUTOPERF APXC module support  - $enable_apxc
            HDF5          module support  - $with_hdf5_mod
+           AUTOPERF XC   module support  - $enable_apxc_mod
            PnetCDF       module support  - $enable_pnetcdf_mod
            BG/Q          module support  - $enable_bgq_mod
            Lustre        module support  - $enable_lustre_mod
-           MDHIM         module support  - $enable_mdhim
+           MDHIM         module support  - $enable_mdhim_mod
            Memory alignment in bytes     - $with_mem_align
            Log file env variables        - $__log_path_by_env
            Location of Darshan log files - $__log_path
