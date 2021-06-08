@@ -157,15 +157,14 @@ def apmpi_process(apmpi_dict):
     
     header_rec = apmpi_dict[0]
     sync_flag = header_rec["sync_flag"]
-    print("sync_flag= ", sync_flag)
-    print(
-        "APMPI Variance in total mpi time: ", header_rec["variance_total_mpitime"], "\n"
-    )
-    if sync_flag:
-        print(
-            "APMPI Variance in total mpi sync time: ",
-            header_rec["variance_total_mpisynctime"],
-        )
+    #print(
+    #    "APMPI Variance in total mpi time: ", header_rec["variance_total_mpitime"], "\n"
+    #)
+    #if sync_flag:
+    #    print(
+    #        "APMPI Variance in total mpi sync time: ",
+    #        header_rec["variance_total_mpisynctime"],
+    #    )
 
     df_apmpi = pd.DataFrame()
     list_mpiop = []
@@ -235,17 +234,6 @@ def apmpi_process(apmpi_dict):
     df_apmpi = pd.DataFrame(list_combined)
     df_apmpi = df_apmpi.sort_values(by=["Rank", "Total_Time"], ascending=[True, False])
     df_call = df_apmpi[['Call', 'Total_Time']]
-    #print("MPI stats for rank with maximum MPI time")#, border_style="blue")
-    print("MPI stats for rank with maximum MPI time\n", df_apmpi.loc[df_apmpi["Rank"] == max_rank])
-    print("\n\n")
-    print("MPI stats for rank with minimum MPI time")# border_style="blue")
-    print(df_apmpi.loc[df_apmpi["Rank"] == min_rank])
-    print("\n\n")
-    print("MPI stats for rank with mean MPI time")#, border_style="blue")
-    print(df_apmpi.loc[df_apmpi["Rank"] == mean_rank])
-    # print(df_apmpi)
-    #df_apmpi.to_csv('apmpi.csv', index=False)
-    #df_rank.to_csv('apmpi_rank.csv', index=False)
    
     encoded = []
     buf = io.BytesIO()
@@ -272,6 +260,12 @@ def apmpi_process(apmpi_dict):
     pyplot.savefig(buf, format='png', bbox_inches='tight')
     buf.seek(0)
     encoded.append(base64.b64encode(buf.read()))
+    df_max_rank = df_apmpi.loc[df_apmpi["Rank"] == max_rank]
+    df_min_rank = df_apmpi.loc[df_apmpi["Rank"] == min_rank]
+    df_mean_rank = df_apmpi.loc[df_apmpi["Rank"] == mean_rank]
+    encoded.append(df_max_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
+    encoded.append(df_min_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
+    encoded.append(df_mean_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
     return encoded
   
 def main(args=None):
@@ -340,9 +334,25 @@ def main(args=None):
 
     variables['fs_data'] = data_transfer_filesystem(report, posix_df, stdio_df)
     apmpi_encoded = apmpi_process(apmpi_dict)
-    variables['apmpi_call_time'] = apmpi_encoded[0].decode('utf-8')
-    variables['apmpi_rank_totaltime'] = apmpi_encoded[1].decode('utf-8')
+    if apmpi_encoded:
+       variables['apmpi_call_time'] = apmpi_encoded[0].decode('utf-8')
+       variables['apmpi_rank_totaltime'] = apmpi_encoded[1].decode('utf-8')
 
+       variables['apmpi_max_rank'] = []
+       for row in apmpi_encoded[2].iterrows():
+           variables['apmpi_max_rank'].append(row[1].values)
+       variables['apmpi_min_rank'] = []
+       for row in apmpi_encoded[3].iterrows():
+           variables['apmpi_min_rank'].append(row[1].values)
+       variables['apmpi_mean_rank'] = []
+       for row in apmpi_encoded[4].iterrows():
+           variables['apmpi_mean_rank'].append(row[1].values)
+    else:
+       variables['apmpi_call_time'] = None
+       variables['apmpi_rank_totaltime'] = None
+       variables['apmpi_max_rank'] = None
+       variables['apmpi_min_rank'] = None
+       variables['apmpi_mean_rank'] = None
     template_path = pkg_resources.path(darshan.templates, '')
     with template_path as path:
        loader = genshi.template.TemplateLoader(str(path))
