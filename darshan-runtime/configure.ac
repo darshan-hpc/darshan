@@ -692,6 +692,7 @@ AC_CONFIG_FILES(Makefile \
 AC_OUTPUT
 
 if test "x$enable_darshan_runtime" = xyes ; then
+   # sanitize log path output
    if test "x$with_log_path_by_env" != xno ; then
       __log_path_by_env=$with_log_path_by_env
    else
@@ -701,6 +702,15 @@ if test "x$enable_darshan_runtime" = xyes ; then
       __log_path=$with_log_path
    else
       __log_path="N/A"
+   fi
+   # add extra details for HDF5 and APMPI if enabled
+   if test "x$enable_hdf5_mod" = xyes ; then
+      enable_hdf5_mod="yes (using HDF5 $hdf5_version)"
+   fi
+   if test "x$enable_apmpi_mod" = xyes ; then
+      if test "x$enable_apmpi_coll_sync" = xyes ; then
+         enable_apmpi_mod="yes (collective sync mode)"
+      fi
    fi
    echo "------------------------------------------------------------------------------
    ${PACKAGE_NAME} Version ${PACKAGE_VERSION} configured with the following features:"
@@ -719,7 +729,6 @@ if test "x$enable_darshan_runtime" = xyes ; then
            DXT           module support  - $enable_dxt_mod
            MPI-IO        module support  - $enable_mpiio_mod
            AUTOPERF MPI  module support  - $enable_apmpi_mod
-           AUTOPERF MPI sync collectives - $enable_apmpi_coll_sync
            AUTOPERF XC   module support  - $enable_apxc_mod
            HDF5          module support  - $enable_hdf5_mod
            PnetCDF       module support  - $enable_pnetcdf_mod
