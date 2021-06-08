@@ -116,7 +116,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    fi
 
    AC_ARG_WITH([mem-align],
-      [AS_HELP_STRING([--with-mem-alignd@<:@=NUM@:>@],
+      [AS_HELP_STRING([--with-mem-aligned@<:@=NUM@:>@],
                       [Memory alignment in bytes @<:@default=8@:>@])],
       [], [with_mem_align=no]
    )
@@ -238,7 +238,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    )
    if test "x$enable_mpiio_mod" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
-         AC_MSG_ERROR([--enable-moiio-mod is used but MPI feature is disabled])
+         AC_MSG_ERROR([--enable-mpiio-mod is used but MPI feature is disabled])
       fi
    else
       enable_mpiio_mod=$ENABLE_MPI
