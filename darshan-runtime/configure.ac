@@ -304,27 +304,42 @@ if test "x$enable_darshan_runtime" = xyes ; then
                       [-]) # this last part tells it to only check for presence
    fi
 
-   # HDF5 module (disabled by default)
-   AC_ARG_WITH([hdf5-mod],
-      [AS_HELP_STRING([--with-hdf5-mod@<:@=DIR@:>@],
-                      [Enables compilation and use of HDF5 module])],
-      [], [with_hdf5_mod=no]
+   # inform about HDF5 installs not found in default locations
+   AC_ARG_WITH([hdf5],
+      [AS_HELP_STRING([--with-hdf5@<:@=DIR@:>@],
+                      [Installation directory for HDF5.])],
+      [], [with_hdf5=no]
    )
-   if test "x$with_hdf5_mod" != xno ; then
-      if test -d "$with_hdf5_mod" ; then
-         CFLAGS="${CFLAGS} -I${with_hdf5_mod}/include"
-         DARSHAN_HDF5_LD_FLAGS="-L${with_hdf5_mod}/lib [-Wl,-rpath=${with_hdf5_mod}/lib -lhdf5]"
+
+   # HDF5 module (disabled by default)
+   AC_ARG_ENABLE([hdf5-mod],
+      [AS_HELP_STRING([--enable-hdf5-mod],
+                      [Enables compilation and use of HDF5 module])],
+      [], [enable_hdf5_mod=no]
+   )
+   if test "x$enable_hdf5_mod" = xyes ; then
+      if test -d "$with_hdf5" ; then
+         AC_PATH_PROG(H5DUMP_CHECK, h5dump, "no", "${with_hdf5}/bin")
       else
-         AC_MSG_ERROR(withval for hdf5-mod is required and must be a valid install prefix path for HDF5 library)
+         AC_PATH_PROG(H5DUMP_CHECK, h5dump, "no")
+         # autodetect HDF5 install prefix and set with_hdf5
+         with_hdf5=$(dirname $(dirname $H5DUMP_CHECK))
       fi
+      if test "x$H5DUMP_CHECK" = xno ; then
+         AC_MSG_ERROR(m4_normalize([Darshan HDF5 module enabled but no valid HDF5 install found,
+                       use --with-hdf5 to provide the HDF5 install prefix, if needed.]))
+      fi
+
+      CFLAGS="${CFLAGS} -I${with_hdf5}/include"
+      DARSHAN_HDF5_LD_FLAGS="-L${with_hdf5}/lib [-Wl,-rpath=${with_hdf5}/lib -lhdf5]"
 
       # Checking hdf5.h is not effective, as compilation may fail for not able to
       # include mpi.h, if MPI is disabled but HDF5 is built with parallel support.
       AC_MSG_CHECKING([whether HDF5 version is at least 1.10.0])
-      hdf5_verision=`${with_hdf5_mod}/bin/h5dump --version | cut -d' ' -f3`
-      hdf5_verision_major=`echo ${hdf5_verision} | cut -d. -f1`
-      hdf5_verision_minor=`echo ${hdf5_verision} | cut -d. -f2`
-      if test $hdf5_verision_major -gt 1 || (test $hdf5_verision_major -eq 1 && test $hdf5_verision_minor -ge 10) ; then
+      hdf5_version=`${with_hdf5}/bin/h5dump --version | cut -d' ' -f3`
+      hdf5_version_major=`echo ${hdf5_version} | cut -d. -f1`
+      hdf5_version_minor=`echo ${hdf5_version} | cut -d. -f2`
+      if test $hdf5_version_major -gt 1 || (test $hdf5_version_major -eq 1 && test $hdf5_version_minor -ge 10) ; then
          AC_DEFINE([DARSHAN_HDF5_VERS_1_10_PLUS], 1,
                    [Define if HDF5 module built with version 1.10+])
          DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS="--undefined=H5Dflush --wrap=H5Dflush"
@@ -350,16 +365,18 @@ if test "x$enable_darshan_runtime" = xyes ; then
       dnl check parallel settings against HDF5 configuration's parallel support
       if test "x$ENABLE_MPI" = xyes ; then
          if test "x$h5_have_parallel" != xyes ; then
-            AC_MSG_ERROR([MPI feature is enabled, but the specified HDF5 is not built with parallel support.
-                          Please use an HDF5 built with parallel support.])
+            AC_MSG_ERROR(m4_normalize([MPI feature is enabled, but the specified HDF5 is not built with parallel support.
+                         Please use an HDF5 built with parallel support.]))
          fi
       else
          if test "x$h5_have_parallel" = xyes ; then
-            AC_MSG_ERROR([MPI feature is disabled, but the specified HDF5 is built with parallel support.
-                          Please use an HDF5 built without parallel support.])
+            AC_MSG_ERROR(m4_normalize([MPI feature is disabled, but the specified HDF5 is built with parallel support.
+                         Please use an HDF5 built without parallel support.]))
          fi
       fi
-      with_hdf5_mod=yes
+   elif test "x$enable_hdf5_mod" != xno ; then
+      AC_MSG_ERROR(m4_normalize([--enable-hdf5-mod does not take any argument,
+                   use --with-hdf5 to provide the HDF5 install prefix, if needed.]))
    fi
 
    # PNETCDF module
@@ -614,9 +631,9 @@ else
    enable_stdio_mod=no
    enable_dxt_mod=no
    enable_mpiio_mod=no
-   with_hdf5_mod=no
    enable_apmpi_mod=no
    enable_apxc_mod=no
+   enable_hdf5_mod=no
    enable_pnetcdf_mod=no
    enable_bgq_mod=no
    enable_lustre_mod=no
@@ -633,7 +650,7 @@ AM_CONDITIONAL(BUILD_POSIX_MODULE,  [test "x$enable_posix_mod"   = xyes])
 AM_CONDITIONAL(BUILD_STDIO_MODULE,  [test "x$enable_stdio_mod"   = xyes])
 AM_CONDITIONAL(BUILD_DXT_MODULE,    [test "x$enable_dxt_mod"     = xyes])
 AM_CONDITIONAL(BUILD_MPIIO_MODULE,  [test "x$enable_mpiio_mod"   = xyes])
-AM_CONDITIONAL(BUILD_HDF5_MODULE,   [test "x$with_hdf5_mod"      = xyes])
+AM_CONDITIONAL(BUILD_HDF5_MODULE,   [test "x$enable_hdf5_mod"    = xyes])
 AM_CONDITIONAL(BUILD_PNETCDF_MODULE,[test "x$enable_pnetcdf_mod" = xyes])
 AM_CONDITIONAL(BUILD_BGQ_MODULE,    [test "x$enable_bgq_mod"     = xyes])
 AM_CONDITIONAL(BUILD_LUSTRE_MODULE, [test "x$enable_lustre_mod"  = xyes])
@@ -703,8 +720,8 @@ if test "x$enable_darshan_runtime" = xyes ; then
            MPI-IO        module support  - $enable_mpiio_mod
            AUTOPERF MPI  module support  - $enable_apmpi_mod
            AUTOPERF MPI sync collectives - $enable_apmpi_coll_sync
-           HDF5          module support  - $with_hdf5_mod
            AUTOPERF XC   module support  - $enable_apxc_mod
+           HDF5          module support  - $enable_hdf5_mod
            PnetCDF       module support  - $enable_pnetcdf_mod
            BG/Q          module support  - $enable_bgq_mod
            Lustre        module support  - $enable_lustre_mod
