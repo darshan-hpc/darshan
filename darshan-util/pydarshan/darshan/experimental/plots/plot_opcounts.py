@@ -25,10 +25,9 @@ def plot_opcounts(report):
 
     # TODO: change to report.summary
     if 'agg_ioops' in dir(report):
-        print("Summarizing... agg_ioops")
         report.agg_ioops()
     else:
-        print("Can not create summary, agg_ioops aggregator is not registered with the report clase.")
+        print("Can not create summary, agg_ioops aggregator is not registered with the report class.")
 
 
     mods = report.summary['agg_ioops']
@@ -93,8 +92,6 @@ def plot_opcounts(report):
             stdio['STDIO_FLUSHES']
         ]
 
-
-
     def as_csv():
         text = ""
         text += ','.join(labels) +  ',Layer' + "\n"
@@ -104,11 +101,6 @@ def plot_opcounts(report):
         text += ','.join(str(x) for x in stdio_vals) + ',STDIO' + "\n"
 
         return text
-
-
-
-    print(as_csv())
-
 
     x = np.arange(len(labels))  # the label locations
     width = 0.15  # the width of the bars
@@ -139,7 +131,6 @@ def plot_opcounts(report):
                 ha='center', va='bottom', rotation=45
                 )
 
-
     autolabel(rects1)
     autolabel(rects2)
     autolabel(rects3)
@@ -147,10 +138,7 @@ def plot_opcounts(report):
 
     fig.tight_layout()
 
-    #plt.show()
-    
-
-    return plt
+    return fig
 
 
 
