@@ -12,27 +12,21 @@ def plot_access_histogram(report, mod):
     Plots a histogram of access sizes for specified module.
 
 	Args:
-		report (darshan.DarshanReport): report to gneerate plot from
+		report (darshan.DarshanReport): report to generate plot from
 		mod (str): mod-string for which to generate access_histogram
 
     """
 
     # TODO: change to report.summary
     if 'mod_agg_iohist' in dir(report):
-        print("Summarizing... iohist", mod)
         report.mod_agg_iohist(mod)
     else:
         print("Can not create summary, mod_agg_iohist aggregator is not registered with the report class.")
-
-
 
     # defaults
     labels = ['0-100', '101-1K', '1K-10K', '10K-100K', '100K-1M', '1M-4M', '4M-10M', '10M-100M', '100M-1G', '1G+']
     read_vals = [0, 0, 0, 0, 0,  0, 0, 0, 0, 0]
     write_vals = [0, 0, 0, 0, 0,  0, 0, 0, 0, 0]
-
-  
-
 
     posix = report.summary['agg_iohist'][mod]
 
@@ -63,7 +57,6 @@ def plot_access_histogram(report, mod):
     ]
 
 
-
     x = np.arange(len(labels))  # the label locations
     width = 0.35  # the width of the bars
 
@@ -78,7 +71,6 @@ def plot_access_histogram(report, mod):
     ax.set_xticklabels(labels, rotation=45, ha='right')
     ax.legend()
 
-
     def autolabel(rects):
         """Attach a text label above each bar in *rects*, displaying its height."""
         for rect in rects:
@@ -89,12 +81,9 @@ def plot_access_histogram(report, mod):
                         textcoords="offset points",
                         ha='center', va='bottom', rotation=0)
 
-
     autolabel(rects1)
     autolabel(rects2)
 
     fig.tight_layout()
 
-    #plt.show()
-   
-    return plt
+    return fig
