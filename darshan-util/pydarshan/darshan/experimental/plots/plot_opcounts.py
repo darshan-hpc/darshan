@@ -27,7 +27,7 @@ def plot_opcounts(report):
     if 'agg_ioops' in dir(report):
         report.agg_ioops()
     else:
-        print("Can not create summary, agg_ioops aggregator is not registered with the report class.")
+        print("Can not create summary, agg_ioops aggregator is not registered with the report class. Be sure to call darshan.experimental() once before invoking this plot.")
 
 
     mods = report.summary['agg_ioops']
