@@ -7,13 +7,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_opcounts(report):
+def plot_opcounts(report, ax=None):
     """
     Generates a bar chart summary for operation counts.
 
 	Args:
     	report (DarshanReport): darshan report object to plot
     """
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = None
 
     # defaults
     labels = ['Read', 'Write', 'Open', 'Stat', 'Seek', 'Mmap', 'Fsync']
@@ -28,7 +33,6 @@ def plot_opcounts(report):
         report.agg_ioops()
     else:
         print("Can not create summary, agg_ioops aggregator is not registered with the report class. Be sure to call darshan.experimental() once before invoking this plot.")
-
 
     mods = report.summary['agg_ioops']
 
@@ -105,7 +109,6 @@ def plot_opcounts(report):
     x = np.arange(len(labels))  # the label locations
     width = 0.15  # the width of the bars
 
-    fig, ax = plt.subplots()
     rects1 = ax.bar(x - width/2 - width, posix_vals, width, label='POSIX')
     rects2 = ax.bar(x - width/2, mpiind_vals, width, label='MPI-IO Indep.')
     rects3 = ax.bar(x + width/2, mpicol_vals, width, label='MPI-IO Coll.')
@@ -136,10 +139,11 @@ def plot_opcounts(report):
     autolabel(rects3)
     autolabel(rects4)
 
-    fig.tight_layout()
+    plt.tight_layout()
 
-    return fig
-
+    if fig is not None:
+        plt.close()
+        return fig
 
 
 
