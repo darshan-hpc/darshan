@@ -1,41 +1,98 @@
 """
-Draft code for the `data access by category` section
+Draft utility code for the `data access by category` section
 of Phil's hand drawing of future report layout.
 """
 
-import os
 import pathlib
-import collections
+from typing import List, Dict, Optional, Any
 
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import pandas as pd
 import darshan
 
 
-def convert_file_path_to_root_path(file_path):
+def convert_file_path_to_root_path(file_path: str) -> str:
+    """
+    Paramaters
+    ----------
+
+    file_path: a string containing the absolute file path
+
+    Returns: 
+    --------
+    A string containing the root path.
+
+    Examples:
+    ---------
+
+    >>> filesystem_root = convert_file_path_to_root_path("/scratch1/scratchdirs/glock/testFile.00000046")
+    >>> filesystem_root
+    '/scratch1'
+
+    """
     path_parts = pathlib.Path(file_path).parts
     filesystem_root = ''.join(path_parts[:2])
     return filesystem_root
 
-def convert_file_id_to_path(input_id, file_id_dict):
-    result_found = False
+def convert_file_id_to_path(input_id: float, file_id_dict: Dict[int, str]) -> Optional[str]:
+    """
+    Paramaters
+    ----------
+
+    input_id: a float representing the file hash
+
+    file_id_dict: a dictionary mapping integer file hash values
+                  to string values corresponding to their respective
+                  paths
+
+    Returns
+    -------
+    A string containing the file path path corresponding to ``input_id``,
+    or ``None`` if no matching file path was found for the input hash.
+
+    Examples
+    --------
+
+    >>> # file_id_dict typically comes from `report.data["name_records"]`
+    >>> file_id_dict = {210703578647777632: '/yellow/usr/projects/eap/users/treddy/simple_dxt_mpi_io_darshan/test.out.locktest.0',
+    ...                 9457796068806373448: '/yellow/usr/projects/eap/users/treddy/simple_dxt_mpi_io_darshan/test.out'}
+    >>> # input_id may came from i.e., a pandas dataframe of the record data
+    >>> result = convert_file_id_to_path(input_id=9.457796068806373e+18, file_id_dict=file_id_dict)
+    >>> result
+    '/yellow/usr/projects/eap/users/treddy/simple_dxt_mpi_io_darshan/test.out'
+
+    """
     for file_id_hash, file_path in file_id_dict.items():
         if np.allclose(input_id, file_id_hash):
-            result_found = True
             return file_path
-    if not result_found:
-        msg = f'could not find path for file ID: {input_id}'
-        raise ValueError(msg)
+    return None
 
-def identify_filesystems(file_id_dict, verbose=False):
-    # file_id_dict is from report.data["name_records"]
+def identify_filesystems(file_id_dict: Dict[int, str], verbose: bool = False) -> List[str]:
+    """
+    Paramaters
+    ----------
+    file_id_dict: a dictionary mapping integer file hash values
+                  to string values corresponding to their respective
+                  paths
 
-    # the function returns a list of unique filesystems
-    # (path roots)
+    verbose: if ``True``, will print the filesystem root paths that
+             are identified
 
+    Returns
+    -------
+    A list of strings containing the unique filesystem root paths
+    parsed from the input dictionary.
+
+    Examples
+    --------
+
+    >>> # file_id_dict is typically from report.data["name_records"]
+    >>> file_id_dict = {210703578647777632: '/yellow/usr/projects/eap/users/treddy/simple_dxt_mpi_io_darshan/test.out.locktest.0',
+    ...                 14388265063268455899: '/tmp/ompi.sn176.28751/jf.29186/1/test.out_cid-0-3400.sm'}
+
+    >>> filesystem_roots = identify_filesystems(file_id_dict=file_id_dict, verbose=True)
+    filesystem_roots: ['/yellow', '/tmp']
+    """
     filesystem_roots = []
     excluded = ['<STDIN>', '<STDOUT>', '<STDERR>']
     for file_id_hash, file_path in file_id_dict.items():
@@ -47,30 +104,57 @@ def identify_filesystems(file_id_dict, verbose=False):
         print("filesystem_roots:", filesystem_roots)
     return filesystem_roots
 
-def per_filesystem_unique_file_read_write_counter_posix(report, filesystem_roots, verbose=False):
-    # we are interested in finding all unique files that we have read
-    # at least 1 byte from, or written at least 1 byte to
-    # and then summing those counts per filesystem
+def unique_fs_rw_counter(report: Any,
+                         filesystem_roots: List[str],
+                         file_id_dict: Dict[int, str],
+                         mod: str = 'POSIX',
+                         verbose: bool = False):
+    """
+    For each filesystem root path, count the unique files
+    from which at least 1 byte has been read,
+    or to which at least 1 byte has been written.
 
-    # report is a darshan.DarshanReport()
-    # filesystem_roots is a list of unique filesystem root paths
-    # from identify_filesystems()
+    Paramaters:
+    -----------
+    report: a darshan.DarshanReport()
 
-    # returns: tuple
-    # (read_groups, write_groups)
-    # where each element of the tuple is a pandas
-    # Series object with a format like the one shown below
+    filesystem_roots: a list of strings containing unique filesystem root paths
 
-    # filesystem_root
+    file_id_dict: a dictionary mapping integer file hash values
+                  to string values corresponding to their respective
+                  paths
+
+    mod: a string indicating the darshan module to use for parsing
+         (default: ``POSIX``)
+
+    verbose: if ``True``, print the calculated values of ``read_groups``
+    and ``write_groups``
+
+    Returns:
+    --------
+    tuple of form: (read_groups, write_groups)
+
+    Where each element of the tuple is a pandas
+    ``Series`` object with a format like the one shown below
+
+    # filesystem_root count
     # /tmp       1
     # /yellow    1
 
-    # the int64 values in the Series are the counts
-    # of unique files to which a single byte has been read
-    # (or written) on a given filesystem (index)
+    The ``int64`` values in the ``Series`` are the counts
+    of unique files to which a single byte has been read
+    (or written) on a given filesystem (index).
 
-    report.mod_read_all_records('POSIX', dtype='pandas')
-    rec_counters = report.records['POSIX'][0]['counters']
+    Raises:
+    -------
+    NotImplementedError: for unsupported modules
+    """
+
+    if not mod == 'POSIX':
+        raise NotImplementedError("Only the POSIX module is currently supported")
+
+    report.mod_read_all_records(mod, dtype='pandas')
+    rec_counters = report.records[mod][0]['counters']
     
     # first, filter to produce a dataframe where POSIX_BYTES_READ >= 1
     # for each row (tracked event for a given rank or group of ranks)
@@ -109,51 +193,3 @@ def per_filesystem_unique_file_read_write_counter_posix(report, filesystem_roots
         print("write_groups:\n", write_groups)
     return (read_groups, write_groups)
 
-def plot_series_files_rw(file_rd_series, file_wr_series, ax, log_filename):
-    # plot the number of unique files per filesystem to which a single
-    # byte has been read or written
-
-    # file_rd_series and file_wr_series are pandas
-    # Series objects with filesystems for indices
-    # and int64 counts of unique files for values
-
-    # ax is a matplotlib axis object
-
-    df = pd.concat([file_rd_series, file_wr_series], axis=1)
-    df.columns = ['read', 'write']
-    #file_rd_series.plot(ax=ax, kind='barh', xlabel=None, ylabel=None, color='red', alpha=0.5, width=0.1)
-    #file_wr_series.plot(ax=ax, kind='barh', xlabel=None, ylabel=None, color='blue', alpha=0.5, width=0.1)
-    width = 0.1
-    df.plot(ax=ax, kind='barh', xlabel=None, ylabel=None, alpha=0.5, width=width)
-    print("df:", df)
-    # put values next to bars
-    [ax.text(v, i - width, '{:.0f}'.format(v)) for i, v in enumerate(file_rd_series)]
-    [ax.text(v, i, '{:.0f}'.format(v)) for i, v in enumerate(file_wr_series)]
-    ax.set_xlabel('# unique files')
-    ax.set_ylabel('')
-    ax.legend(['read', 'write'])
-
-if __name__ == '__main__':
-    # produce sample plots for some of the logs
-    # available in our test suite
-    root_path = 'tests/input'
-    log_files = ['sample-dxt-simple.darshan', 'sample.darshan', 'sample-goodost.darshan']
-    for idx, log_file in enumerate(log_files):
-        fig = plt.figure()
-        fig.suptitle(f"Data Access by Category for log file: '{log_file}'")
-        ax_bytes = fig.add_subplot(1, 2, 1)
-        ax_files = fig.add_subplot(1, 2, 2)
-        log_path = os.path.join(root_path, log_file)
-        filename = os.path.basename(log_path)
-        report = darshan.DarshanReport(log_path, read_all=True)
-        file_id_dict = report.data["name_records"]
-        filesystem_roots = identify_filesystems(file_id_dict=file_id_dict, verbose=True)
-        file_rd_series, file_wr_series = per_filesystem_unique_file_read_write_counter_posix(report=report, filesystem_roots=filesystem_roots, verbose=True)
-        plot_series_files_rw(file_rd_series=file_rd_series,
-                             file_wr_series=file_wr_series,
-                             ax=ax_files,
-                             log_filename=log_file)
-
-        fig.set_size_inches(12, 4)
-        fig.tight_layout()
-        fig.savefig(f'{log_file}_data_access_by_category.png', dpi=300)
