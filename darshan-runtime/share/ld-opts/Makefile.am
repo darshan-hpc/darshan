@@ -6,7 +6,7 @@
 ld_optsdir = $(datadir)/ld-opts
 
 dist_ld_opts_DATA =
-nodist_ld_opts_DATA = darshan-base-ld-opts
+nodist_ld_opts_DATA = darshan-ld-opts
 
 if BUILD_POSIX_MODULE
    dist_ld_opts_DATA += darshan-posix-ld-opts
@@ -27,7 +27,7 @@ if BUILD_MDHIM_MODULE
    dist_ld_opts_DATA += darshan-mdhim-ld-opts
 endif
 
-darshan-base-ld-opts: darshan-base-ld-opts.in
+darshan-ld-opts: darshan-base-ld-opts
 	cat $< > $@
 if BUILD_POSIX_MODULE
 	echo '@$(datadir)/ld-opts/darshan-posix-ld-opts' >> $@
@@ -48,9 +48,8 @@ if BUILD_MDHIM_MODULE
 	echo '@$(datadir)/ld-opts/darshan-mdhim-ld-opts' >> $@
 endif
 
-EXTRA_DIST = darshan-base-ld-opts.in \
-             darshan-hdf5-ld-opts.in \
+EXTRA_DIST = darshan-hdf5-ld-opts.in \
              darshan-stdio-ld-opts.in
 
-CLEANFILES = darshan-base-ld-opts
+CLEANFILES = darshan-ld-opts
 

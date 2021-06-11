@@ -13,7 +13,7 @@ darshan_prefix=${prefix}
 darshan_share=@datarootdir@
 darshan_includedir=
 darshan_libdir= -L${darshan_prefix}/lib
-darshan_linkopts="-Wl,@${darshan_share}/ld-opts/darshan-base-ld-opts"
+darshan_linkopts="-Wl,@${darshan_share}/ld-opts/darshan-ld-opts"
 
 Cflags:
 Libs: ${darshan_libdir} -Wl,-rpath=${darshan_prefix}/lib -Wl,-no-as-needed -ldarshan @DARSHAN_LUSTRE_LD_FLAGS@ @DARSHAN_HDF5_LD_FLAGS@ @with_papi@
