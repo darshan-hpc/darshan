@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_access_histogram(report, mod):
+def plot_access_histogram(report, mod, ax=None):
     """
     Plots a histogram of access sizes for specified module.
 
@@ -16,6 +16,11 @@ def plot_access_histogram(report, mod):
 		mod (str): mod-string for which to generate access_histogram
 
     """
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = None
 
     # TODO: change to report.summary
     if 'mod_agg_iohist' in dir(report):
@@ -28,39 +33,38 @@ def plot_access_histogram(report, mod):
     read_vals = [0, 0, 0, 0, 0,  0, 0, 0, 0, 0]
     write_vals = [0, 0, 0, 0, 0,  0, 0, 0, 0, 0]
 
-    posix = report.summary['agg_iohist'][mod]
+    agg = report.summary['agg_iohist'][mod]
 
     read_vals = [
-        posix['READ_0_100'],
-        posix['READ_100_1K'],
-        posix['READ_1K_10K'],
-        posix['READ_10K_100K'],
-        posix['READ_100K_1M'],
-        posix['READ_1M_4M'],
-        posix['READ_4M_10M'],
-        posix['READ_10M_100M'],
-        posix['READ_100M_1G'],
-        posix['READ_1G_PLUS']
+        agg['READ_0_100'],
+        agg['READ_100_1K'],
+        agg['READ_1K_10K'],
+        agg['READ_10K_100K'],
+        agg['READ_100K_1M'],
+        agg['READ_1M_4M'],
+        agg['READ_4M_10M'],
+        agg['READ_10M_100M'],
+        agg['READ_100M_1G'],
+        agg['READ_1G_PLUS']
     ]
 
     write_vals = [
-        posix['WRITE_0_100'],
-        posix['WRITE_100_1K'],
-        posix['WRITE_1K_10K'],
-        posix['WRITE_10K_100K'],
-        posix['WRITE_100K_1M'],
-        posix['WRITE_1M_4M'],
-        posix['WRITE_4M_10M'],
-        posix['WRITE_10M_100M'],
-        posix['WRITE_100M_1G'],
-        posix['WRITE_1G_PLUS']
+        agg['WRITE_0_100'],
+        agg['WRITE_100_1K'],
+        agg['WRITE_1K_10K'],
+        agg['WRITE_10K_100K'],
+        agg['WRITE_100K_1M'],
+        agg['WRITE_1M_4M'],
+        agg['WRITE_4M_10M'],
+        agg['WRITE_10M_100M'],
+        agg['WRITE_100M_1G'],
+        agg['WRITE_1G_PLUS']
     ]
 
 
     x = np.arange(len(labels))  # the label locations
     width = 0.35  # the width of the bars
 
-    fig, ax = plt.subplots()
     rects1 = ax.bar(x - width/2, read_vals, width, label='Read')
     rects2 = ax.bar(x + width/2, write_vals, width, label='Write')
 
@@ -72,7 +76,7 @@ def plot_access_histogram(report, mod):
     ax.legend()
 
     def autolabel(rects):
-        """Attach a text label above each bar in *rects*, displaying its height."""
+        """Attach a text label above each bar in *rects*, displaying its value."""
         for rect in rects:
             height = rect.get_height()
             ax.annotate('{}'.format(height),
@@ -84,6 +88,8 @@ def plot_access_histogram(report, mod):
     autolabel(rects1)
     autolabel(rects2)
 
-    fig.tight_layout()
+    plt.tight_layout()
 
-    return fig
+    if fig is not None:
+        plt.close()
+        return fig

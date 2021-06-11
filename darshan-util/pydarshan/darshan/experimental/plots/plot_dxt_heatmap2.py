@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable 
 import numpy as np
 
-def plot_dxt_heatmap(report, 
+def plot_dxt_heatmap2(report, 
         xbins=10, ybins=None, 
         group_by="rank", 
         mods=None, ops=None, 
-        display_values=False, cmap=None, figsize=None, 
+        display_values=False, cmap=None, figsize=None, ax=None,
         amplify=False):
     """
     Generates a heatmap plot from a report with DXT traces.
@@ -97,9 +97,11 @@ def plot_dxt_heatmap(report,
                                 events[ybin - sur][xbin] += 1
 
 
-
-                    
-    fig, ax = plt.subplots(figsize=figsize, sharey=True)
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize, sharey=True)
+    else:
+        fig = None
+          
     im = ax.imshow(events, cmap=cmap, aspect='auto')
     
     divider = make_axes_locatable(ax)
@@ -119,6 +121,9 @@ def plot_dxt_heatmap(report,
     ax.set_title(f"DXT Heatmap mods={mods}, ops={ops}")
     ax.set_ylabel(ylabel)
     ax.set_xlabel(f"Time (binsize={runtime/xbins} seconds)")
-    #fig.tight_layout()
 
-    return fig
+    plt.tight_layout()
+
+    if fig is not None:
+        plt.close()
+        return fig
