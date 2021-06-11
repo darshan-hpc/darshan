@@ -240,8 +240,6 @@ if test "x$enable_darshan_runtime" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
          AC_MSG_ERROR([--enable-mpiio-mod is used but MPI feature is disabled])
       fi
-   else
-      enable_mpiio_mod=$ENABLE_MPI
    fi
 
    # AUTOPERF MPI module
@@ -388,8 +386,6 @@ if test "x$enable_darshan_runtime" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
          AC_MSG_ERROR([--enable-pnetcdf-mod is used but MPI feature is disabled])
       fi
-   else
-      enable_pnetcdf_mod=$ENABLE_MPI
    fi
 
    # BG/Q module
