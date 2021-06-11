@@ -234,7 +234,8 @@ if test "x$enable_darshan_runtime" = xyes ; then
    # MPI-IO module
    AC_ARG_ENABLE([mpiio-mod],
       [AS_HELP_STRING([--disable-mpiio-mod],
-                      [Disables compilation and use of MPI-IO module (requires MPI)])]
+                      [Disables compilation and use of MPI-IO module (requires MPI)])],
+      [], [enable_mpiio_mod=$ENABLE_MPI]
    )
    if test "x$enable_mpiio_mod" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
@@ -266,10 +267,6 @@ if test "x$enable_darshan_runtime" = xyes ; then
          #endif]])], [],
          [AC_MSG_ERROR([APMPI module requires MPI version 3+.])]
       )
-
-      DARSHAN_APMPI_LD_OPTS="@${darshan_share_path}/ld-opts/autoperf-apmpi-ld-opts"
-   else
-      DARSHAN_APMPI_LD_OPTS=""
    fi
 
    AC_ARG_ENABLE([apmpi-coll-sync],
@@ -380,7 +377,8 @@ if test "x$enable_darshan_runtime" = xyes ; then
    # PNETCDF module
    AC_ARG_ENABLE([pnetcdf-mod],
       [AS_HELP_STRING([--disable-pnetcdf-mod],
-                      [Disables compilation and use of PnetCDF module (requires MPI)])]
+                      [Disables compilation and use of PnetCDF module (requires MPI)])],
+      [], [enable_pnetcdf_mod=$ENABLE_MPI]
    )
    if test "x$enable_pnetcdf_mod" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
@@ -614,7 +612,6 @@ if test "x$enable_darshan_runtime" = xyes ; then
    AC_SUBST(DARSHAN_VERSION)
    AC_SUBST(MPICH_LIB_OLD)
    AC_SUBST(DARSHAN_STDIO_ADD_FSCANF_LD_OPTS)
-   AC_SUBST(DARSHAN_APMPI_LD_OPTS)
    AC_SUBST(DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS)
    AC_SUBST(DARSHAN_HDF5_LD_FLAGS)
    AC_SUBST(DARSHAN_LUSTRE_LD_FLAGS)
