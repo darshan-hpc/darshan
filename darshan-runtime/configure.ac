@@ -85,7 +85,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    fi
 
    AC_ARG_ENABLE([cuserid],
-      [AS_HELP_STRING([--disable-ld-preload],
+      [AS_HELP_STRING([--disable-cuserid],
                       [Disables attempted use of cuserid() at run time])],
       [], [enable_cuserid=yes]
    )
