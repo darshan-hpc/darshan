@@ -110,6 +110,7 @@ static struct mdhim_runtime *mdhim_runtime = NULL;
  * instrumentation modules.
  */
 static pthread_mutex_t mdhim_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static int mdhim_runtime_init_attempted = 0;
 /* my_rank indicates the MPI rank of this process */
 static int my_rank = -1;
 
@@ -125,7 +126,8 @@ static int my_rank = -1;
 #define MDHIM_PRE_RECORD() do { \
     MDHIM_LOCK(); \
     if(!darshan_core_disabled_instrumentation()) { \
-        if(!mdhim_runtime) mdhim_runtime_initialize(); \
+        if(!mdhim_runtime && !mdhim_runtime_init_attempted) \
+            mdhim_runtime_initialize(); \
         if(mdhim_runtime) break; \
     } \
     MDHIM_UNLOCK(); \
@@ -307,24 +309,29 @@ mdhim_grm_t * DARSHAN_DECL(mdhimGet)(mdhim_t *md,
  * darshan-core. */
 static void mdhim_runtime_initialize()
 {
-    size_t mdhim_buf_size;
+    int ret;
+    size_t mdhim_rec_count;
     darshan_module_funcs mod_funcs = {
     .mod_redux_func = &mdhim_mpi_redux,
     .mod_shutdown_func = &mdhim_shutdown
     };
 
+    /* if this attempt at initializing fails, we won't try again */
+    mdhim_runtime_init_attempted = 1;
+
     /* try and store a default number of records for this module */
-    mdhim_buf_size = DARSHAN_DEF_MOD_REC_COUNT *
-        sizeof(struct darshan_mdhim_record);
+    mdhim_rec_count = DARSHAN_DEF_MOD_REC_COUNT;
 
     /* register the MDHIM module with the darshan-core component */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DARSHAN_MDHIM_MOD,   /* Darshan module identifier, defined in darshan-log-format.h */
         mod_funcs,
-        &mdhim_buf_size,
+        sizeof(struct darshan_mdhim_record),
+        &mdhim_rec_count,
         &my_rank,
         NULL);
-
+    if(ret < 0)
+        return;
 
     /* initialize module's global state */
     mdhim_runtime = calloc(1, sizeof(*mdhim_runtime));

@@ -27,6 +27,8 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/vfs.h>
+#include <ctype.h>
+#include <regex.h>
 #include <zlib.h>
 #include <assert.h>
 
@@ -35,6 +37,7 @@
 #endif
 
 #include "uthash.h"
+#include "utlist.h"
 #include "darshan.h"
 #include "darshan-core.h"
 #include "darshan-dynamic.h"
@@ -201,6 +204,42 @@ static double darshan_core_wtime_absolute(void);
 #endif
 
 /* *********************************** */
+
+uint64_t darshan_module_csv_to_flags(char *mod_csv)
+{
+    char *tok;
+    int i;
+    int max = sizeof(darshan_module_names) / sizeof(*darshan_module_names);
+    int found;
+    uint64_t mod_flags = 0;
+
+    tok = strtok(mod_csv, ",");
+    if(tok == NULL)
+        darshan_core_fprintf(stderr, "darshan library warning: "\
+            "unable to parse Darshan config module csv \"%s\"\n", mod_csv);
+    else if(strcmp(tok, "*") == 0)
+        return ((1 << max) - 1); // set all modules if given wildcard '*'
+
+    while(tok != NULL)
+    {
+        found = 0;
+        for(i = 0; i < max; i++)
+        {
+            if(strcmp(tok, darshan_module_names[i]) == 0)
+            {
+                DARSHAN_MOD_FLAG_SET(mod_flags, i);
+                found = 1;
+            }
+        }
+        if(!found)
+            darshan_core_fprintf(stderr, "darshan library warning: "\
+                "unknown module \"%s\" in Darshan config module csv\n", tok);
+
+        tok = strtok(NULL, ",");
+    }
+
+    return mod_flags;
+}
 
 void darshan_core_initialize(int argc, char **argv)
 {
@@ -371,12 +410,114 @@ void darshan_core_initialize(int argc, char **argv)
         /* collect information about command line and mounted file systems */
         darshan_get_exe_and_mounts(init_core, argc, argv);
 
+        /* enable all modules except DXT by default */
+        DARSHAN_MOD_FLAG_SET(init_core->mod_disabled, DXT_POSIX_MOD);
+        DARSHAN_MOD_FLAG_SET(init_core->mod_disabled, DXT_MPIIO_MOD);
+
+        /* XXX: get log filters file */
+        char *darshan_conf = getenv("DARSHAN_CONF_PATH");
+        FILE *fp;
+        char *line = NULL;
+        size_t len = 0;
+        char *key, *val, *mods;
+        uint64_t tmp_mod_flags;
+
+        if(darshan_conf)
+        {
+            fp = fopen(darshan_conf, "r");
+            if(!fp)
+            {
+                /* XXX WARNING */
+                darshan_core_fprintf(stderr, "darshan library warning: "\
+                    "unable to open Darshan config at path %s\n", darshan_conf);
+            }
+
+            while(getline(&line, &len, fp) != -1)
+            {
+                const char *c = line;
+                while(isspace((unsigned char)*c))
+                    c++;
+                if(*c == '\0')
+                    continue; // skip lines with only whitespace
+
+                /* remove newline if present */
+                if(line[strlen(line) - 1] == '\n')
+                    line[strlen(line) - 1] = '\0';
+
+                /* extract setting key and parameters */
+                key = strtok(line, " \t");
+                if(key[0] == '#')
+                    continue; // skip comments
+
+                if(strcmp(key, "MOD_ENABLE") == 0)
+                {
+                    mods = strtok(NULL, " \t");
+                    fprintf(stderr, "%s %s\n", key, mods);
+                    tmp_mod_flags = darshan_module_csv_to_flags(mods);
+                    init_core->mod_disabled &= ~tmp_mod_flags;
+                }
+                else if(strcmp(key, "MOD_DISABLE") == 0)
+                {
+                    mods = strtok(NULL, " \t");
+                    fprintf(stderr, "%s %s\n", key, mods);
+                    tmp_mod_flags = darshan_module_csv_to_flags(mods);
+                    init_core->mod_disabled |= tmp_mod_flags;
+                }
+                else if(strcmp(key, "MAX_RECORDS") == 0)
+                {
+                    size_t tmpmax;
+                    val = strtok(NULL, " \t");
+                    ret = sscanf(val, "%lu", &tmpmax);
+                    if(ret != 1 || tmpmax <= 0)
+                    {
+                        darshan_core_fprintf(stderr, "darshan library warning: "\
+                            "unable to parse Darshan config %s value for %s\n",
+                            key, val);
+                        continue;
+                    }
+                    mods = strtok(NULL, " \t");
+                    fprintf(stderr, "%s %lu %s\n", key, tmpmax, mods);
+                    tmp_mod_flags = darshan_module_csv_to_flags(mods);
+                    for(i = 0; i < DARSHAN_MAX_MODS; i++)
+                    {
+                        if(DARSHAN_MOD_FLAG_ISSET(tmp_mod_flags, i))
+                            init_core->mod_max_records_override[i] = tmpmax;
+                    }
+                }
+                else if (strcmp(key, "NAME_EXCLUDE") == 0)
+                {
+                    struct darshan_core_name_regex *tmp_regex;
+                    val = strtok(NULL, " \t");
+                    mods = strtok(NULL, " \t");
+                    fprintf(stderr, "%s %s %s\n", key, val, mods);
+                    tmp_regex = malloc(sizeof(*tmp_regex));
+                    if(!tmp_regex) break;
+                    tmp_regex->mod_flags = darshan_module_csv_to_flags(mods);
+                    ret = regcomp(&tmp_regex->regex, val, REG_EXTENDED);
+                    if(ret)
+                    {
+                        darshan_core_fprintf(stderr, "darshan library warning: "\
+                            "unable to compile Darshan config %s regex %s\n",
+                            key, val);
+                        continue;
+                    }
+                    LL_PREPEND(init_core->exclude_list, tmp_regex);
+                }
+            }
+
+            fclose(fp);
+            free(line);
+        }
+
+
+#if 0
         /* determine if/when DXT should be enabled by looking for triggers */
         char *trigger_conf = getenv("DXT_TRIGGER_CONF_PATH");
         if(trigger_conf)
         {
             dxt_load_trigger_conf(trigger_conf);
         }
+#endif
 
         /* if darshan was successfully initialized, set the global pointer
          * and bootstrap any modules with static initialization routines
@@ -2161,45 +2302,61 @@ void darshan_shutdown_bench(int argc, char **argv)
 
 /* ********************************************************* */
 
-void darshan_core_register_module(
+int darshan_core_register_module(
     darshan_module_id mod_id,
     darshan_module_funcs mod_funcs,
-    size_t *inout_mod_buf_size,
+    size_t rec_size,
+    size_t *inout_rec_count,
     int *rank,
     int *sys_mem_alignment)
 {
     struct darshan_core_module* mod;
-    size_t mod_mem_req = *inout_mod_buf_size;
-    size_t mod_mem_avail;
+    size_t mod_recs_req = *inout_rec_count;
+    size_t mod_mem_avail, mod_mem_req;
 
-    *inout_mod_buf_size = 0;
+    *inout_rec_count = 0;
 
     DARSHAN_CORE_LOCK();
     if((darshan_core == NULL) ||
        (mod_id >= DARSHAN_MAX_MODS) ||
-       (darshan_core->mod_array[mod_id] != NULL))
+       (darshan_core->mod_array[mod_id] != NULL) ||
+       (DARSHAN_MOD_FLAG_ISSET(darshan_core->mod_disabled, mod_id)))
     {
-        /* just return if darshan not initialized, the module id
-         * is invalid, or if the module is already registered
+        /* fail if:
+         *   - Darshan is not currently instrumenting
+         *   - the module ID is invalid
+         *   - the module is already registered
+         *   - the module is set as disabled at runtime
          */
         DARSHAN_CORE_UNLOCK();
-        return;
+        return -1;
     }
 
     mod = malloc(sizeof(*mod));
     if(!mod)
     {
         DARSHAN_CORE_UNLOCK();
-        return;
+        return -1;
     }
     memset(mod, 0, sizeof(*mod));
 
+    if(darshan_core->mod_max_records_override[mod_id])
+        mod_recs_req = darshan_core->mod_max_records_override[mod_id];
+
     /* set module's record buffer and max memory usage */
+    mod_mem_req = mod_recs_req * rec_size;
     mod_mem_avail = darshan_mod_mem_quota - darshan_core->mod_mem_used;
     if(mod_mem_avail >= mod_mem_req)
+    {
         mod->rec_mem_avail = mod_mem_req;
+        *inout_rec_count = mod_recs_req;
+    }
     else
-        mod->rec_mem_avail = mod_mem_avail;
+    {
+        int tmp_rec_count = mod_mem_avail / rec_size;
+        mod->rec_mem_avail = tmp_rec_count * rec_size;
+        *inout_rec_count = tmp_rec_count;
+    }
     mod->rec_buf_start = darshan_core->log_mod_p + darshan_core->mod_mem_used;
     mod->rec_buf_p = mod->rec_buf_start;
     mod->mod_funcs = mod_funcs;
@@ -2212,8 +2369,6 @@ void darshan_core_register_module(
     darshan_core->log_hdr_p->mod_map[mod_id].off =
         ((char *)mod->rec_buf_start - (char *)darshan_core->log_hdr_p);
 #endif
-
-    *inout_mod_buf_size = mod->rec_mem_avail;
     DARSHAN_CORE_UNLOCK();
 
     /* set the memory alignment and calling process's rank, if desired */
@@ -2222,7 +2377,7 @@ void darshan_core_register_module(
     if(rank)
         *rank = my_rank;
 
-    return;
+    return 0;
 }
 
 /* NOTE: we currently don't really have a simple way of returning the
@@ -2264,10 +2419,11 @@ void *darshan_core_register_record(
     darshan_record_id rec_id,
     const char *name,
     darshan_module_id mod_id,
-    int rec_len,
+    size_t rec_size,
     struct darshan_fs_info *fs_info)
 {
     struct darshan_core_name_record_ref *ref;
+    struct darshan_core_name_regex *tmp_regex;
     void *rec_buf;
     int ret;
 
@@ -2279,7 +2435,7 @@ void *darshan_core_register_record(
     }
 
     /* check to see if this module has enough space to store a new record */
-    if(darshan_core->mod_array[mod_id]->rec_mem_avail < rec_len)
+    if(darshan_core->mod_array[mod_id]->rec_mem_avail < rec_size)
     {
         DARSHAN_MOD_FLAG_SET(darshan_core->log_hdr_p->partial_flag, mod_id);
         DARSHAN_CORE_UNLOCK();
@@ -2289,6 +2445,16 @@ void *darshan_core_register_record(
     /* register a name record if a name is given for this record */
     if(name)
     {
+        /* check to see if this name is in the exclusion list for this module */
+        LL_FOREACH(darshan_core->exclude_list, tmp_regex)
+        {
+            if(regexec(&tmp_regex->regex, name, 0, NULL, 0) == 0)
+            {
+                DARSHAN_CORE_UNLOCK();
+                return(NULL);
+            }
+        }
+
         /* check to see if we've already stored the id->name mapping for
          * this record, and add a new name record if not
          */
@@ -2311,10 +2477,10 @@ void *darshan_core_register_record(
     }
 
     rec_buf = darshan_core->mod_array[mod_id]->rec_buf_p;
-    darshan_core->mod_array[mod_id]->rec_buf_p += rec_len;
-    darshan_core->mod_array[mod_id]->rec_mem_avail -= rec_len;
+    darshan_core->mod_array[mod_id]->rec_buf_p += rec_size;
+    darshan_core->mod_array[mod_id]->rec_mem_avail -= rec_size;
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    darshan_core->log_hdr_p->mod_map[mod_id].len += rec_len;
+    darshan_core->log_hdr_p->mod_map[mod_id].len += rec_size;
 #endif
     DARSHAN_CORE_UNLOCK();
 

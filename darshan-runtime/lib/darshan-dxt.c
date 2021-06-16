@@ -169,6 +169,7 @@ static int dxt_my_rank = -1;
 static size_t dxt_total_mem = DXT_IO_TRACE_MEM_MAX;
 static size_t dxt_mem_remaining = 0;
 
+#if 0
 #define MAX_DXT_TRIGGERS 20
 static int num_dxt_triggers = 0;
 static struct dxt_trigger_info dxt_triggers[MAX_DXT_TRIGGERS];
@@ -176,6 +177,7 @@ static int dxt_use_file_triggers = 0;
 static int dxt_use_rank_triggers = 0;
 static int dxt_use_dynamic_triggers = 0;
 static int dxt_trace_all = 0;
+#endif
 
 #define DXT_LOCK() pthread_mutex_lock(&dxt_runtime_mutex)
 #define DXT_UNLOCK() pthread_mutex_unlock(&dxt_runtime_mutex)
@@ -184,6 +186,7 @@ static int dxt_trace_all = 0;
  *  DXT routines exposed to Darshan core and other modules  *
  ************************************************************/
 
+#if 0
 void dxt_load_trigger_conf(
     char *trigger_conf_path)
 {
@@ -265,6 +268,7 @@ void dxt_load_trigger_conf(
     free(line);
     return;
 }
+#endif
 
 /* initialize internal DXT module data structures and register with darshan-core */
 void dxt_posix_runtime_initialize()
@@ -273,35 +277,35 @@ void dxt_posix_runtime_initialize()
      * and passed back to darshan-core at shutdown time to allow DXT more control
      * over realloc'ing module memory as needed.
      */
-    size_t dxt_psx_buf_size = 0;
+    size_t dxt_psx_rec_count = 0;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = NULL,
 #endif
     .mod_shutdown_func = &dxt_posix_shutdown
     };
+    int ret;
 
+#if 0
     /* determine whether tracing should be generally disabled/enabled */
     if(getenv("DXT_ENABLE_IO_TRACE"))
         dxt_trace_all = 1;
     else if(getenv("DXT_DISABLE_IO_TRACE"))
         return;
+#endif
 
     /* register the DXT module with darshan core */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DXT_POSIX_MOD,
         mod_funcs,
-        &dxt_psx_buf_size,
+        0,
+        &dxt_psx_rec_count,
         &dxt_my_rank,
         NULL);
-
-    /* return if darshan-core allocates an unexpected amount of memory */
-    if(dxt_psx_buf_size != 0)
-    {
-        darshan_core_unregister_module(DXT_POSIX_MOD);
+    if(ret < 0)
         return;
-    }
 
+#if 0
     /* determine whether we should avoid tracing on this rank */
     if(!dxt_should_trace_rank(dxt_my_rank))
     {
@@ -316,6 +320,7 @@ void dxt_posix_runtime_initialize()
     {
         dxt_trace_all = 1; /* trace everything */
     }
+#endif
 
     DXT_LOCK();
     dxt_posix_runtime = malloc(sizeof(*dxt_posix_runtime));
@@ -338,35 +343,35 @@ void dxt_mpiio_runtime_initialize()
      * and passed back to darshan-core at shutdown time to allow DXT more control
      * over realloc'ing module memory as needed.
      */
-    size_t dxt_mpiio_buf_size = 0;
+    size_t dxt_mpiio_rec_count = 0;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = NULL,
 #endif
     .mod_shutdown_func = &dxt_mpiio_shutdown
     };
+    int ret;
 
+#if 0
     /* determine whether tracing should be generally disabled/enabled */
     if(getenv("DXT_ENABLE_IO_TRACE"))
         dxt_trace_all = 1;
     else if(getenv("DXT_DISABLE_IO_TRACE"))
         return;
+#endif
 
     /* register the DXT module with darshan core */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DXT_MPIIO_MOD,
         mod_funcs,
-        &dxt_mpiio_buf_size,
+        0,
+        &dxt_mpiio_rec_count,
         &dxt_my_rank,
         NULL);
-
-    /* return if darshan-core allocates an unexpected amount of memory */
-    if(dxt_mpiio_buf_size != 0)
-    {
-        darshan_core_unregister_module(DXT_MPIIO_MOD);
+    if(ret < 0)
         return;
-    }
 
+#if 0
     /* determine whether we should avoid tracing on this rank */
     if(!dxt_should_trace_rank(dxt_my_rank))
     {
@@ -381,6 +386,7 @@ void dxt_mpiio_runtime_initialize()
     {
         dxt_trace_all = 1; /* trace everything */
     }
+#endif
 
     DXT_LOCK();
     dxt_mpiio_runtime = malloc(sizeof(*dxt_mpiio_runtime));
@@ -416,6 +422,7 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
         &rec_id, sizeof(darshan_record_id));
     if(!rec_ref)
     {
+#if 0
         /* check whether we should actually trace */
         should_trace_file = dxt_should_trace_file(rec_id);
         if(!should_trace_file && !dxt_trace_all && !dxt_use_dynamic_triggers)
@@ -423,6 +430,7 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
+#endif
 
         /* track new dxt file record */
         rec_ref = dxt_posix_track_new_file_record(rec_id);
@@ -431,8 +439,10 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
+#if 0
         if(should_trace_file)
             rec_ref->trace_enabled = 1;
+#endif
     }
 
     file_rec = rec_ref->file_rec;
@@ -473,6 +483,7 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
                 &rec_id, sizeof(darshan_record_id));
     if (!rec_ref)
     {
+#if 0
         /* check whether we should actually trace */
         should_trace_file = dxt_should_trace_file(rec_id);
         if(!should_trace_file && !dxt_trace_all && !dxt_use_dynamic_triggers)
@@ -480,6 +491,7 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
+#endif
 
         /* track new dxt file record */
         rec_ref = dxt_posix_track_new_file_record(rec_id);
@@ -488,8 +500,10 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
+#if 0
         if(should_trace_file)
             rec_ref->trace_enabled = 1;
+#endif
     }
 
     file_rec = rec_ref->file_rec;
@@ -530,6 +544,7 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
                 &rec_id, sizeof(darshan_record_id));
     if(!rec_ref)
     {
+#if 0
         /* check whether we should actually trace */
         should_trace_file = dxt_should_trace_file(rec_id);
         if(!should_trace_file && !dxt_trace_all && !dxt_use_dynamic_triggers)
@@ -537,6 +552,7 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
+#endif
 
         /* track new dxt file record */
         rec_ref = dxt_mpiio_track_new_file_record(rec_id);
@@ -545,8 +561,10 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
+#if 0
         if(should_trace_file)
             rec_ref->trace_enabled = 1;
+#endif
     }
 
     file_rec = rec_ref->file_rec;
@@ -587,6 +605,7 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
                 &rec_id, sizeof(darshan_record_id));
     if(!rec_ref)
     {
+#if 0
         /* check whether we should actually trace */
         should_trace_file = dxt_should_trace_file(rec_id);
         if(!should_trace_file && !dxt_trace_all && !dxt_use_dynamic_triggers)
@@ -594,6 +613,7 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
+#endif
 
         /* track new dxt file record */
         rec_ref = dxt_mpiio_track_new_file_record(rec_id);
@@ -602,8 +622,11 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
+#if 0
         if(should_trace_file)
             rec_ref->trace_enabled = 1;
+#endif
+
     }
 
     file_rec = rec_ref->file_rec;
@@ -625,6 +648,7 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
     DXT_UNLOCK();
 }
 
+#if 0
 static void dxt_posix_filter_dynamic_traces_iterator(void *rec_ref_p, void *user_ptr)
 {
     struct dxt_file_record_ref *psx_rec_ref, *mpiio_rec_ref;
@@ -730,11 +754,13 @@ void dxt_posix_filter_dynamic_traces(
 
     return;
 }
+#endif
 
 /***********************************
  *  internal DXT helper routines   *
  ***********************************/
 
+#if 0 
 static int dxt_should_trace_rank(int my_rank)
 {
     int i;
@@ -777,6 +803,7 @@ static int dxt_should_trace_file(darshan_record_id rec_id)
 
     return(0);
 }
+#endif
 
 static void check_wr_trace_buf(struct dxt_file_record_ref *rec_ref)
 {
@@ -889,7 +916,6 @@ static struct dxt_file_record_ref *dxt_posix_track_new_file_record(
     }
 
     dxt_mem_remaining -= sizeof(struct dxt_file_record);
-    DXT_UNLOCK();
 
     /* initialize record and record reference fields */
     file_rec->base_rec.id = rec_id;
@@ -898,6 +924,8 @@ static struct dxt_file_record_ref *dxt_posix_track_new_file_record(
 
     rec_ref->file_rec = file_rec;
     dxt_posix_runtime->file_rec_count++;
+
+    DXT_UNLOCK();
 
     return(rec_ref);
 }
@@ -948,7 +976,6 @@ static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
     }
 
     dxt_mem_remaining -= sizeof(struct dxt_file_record);
-    DXT_UNLOCK();
 
     /* initialize record and record reference fields */
     file_rec->base_rec.id = rec_id;
@@ -957,6 +984,8 @@ static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
 
     rec_ref->file_rec = file_rec;
     dxt_mpiio_runtime->file_rec_count++;
+
+    DXT_UNLOCK();
 
     return(rec_ref);
 }

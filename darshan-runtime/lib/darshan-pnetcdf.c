@@ -60,6 +60,7 @@ static void pnetcdf_shutdown(
 
 static struct pnetcdf_runtime *pnetcdf_runtime = NULL;
 static pthread_mutex_t pnetcdf_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static int pnetcdf_runtime_init_attempted = 0;
 static int my_rank = -1;
 
 #define PNETCDF_LOCK() pthread_mutex_lock(&pnetcdf_runtime_mutex)
@@ -68,7 +69,8 @@ static int my_rank = -1;
 #define PNETCDF_PRE_RECORD() do { \
     PNETCDF_LOCK(); \
     if(!darshan_core_disabled_instrumentation()) { \
-        if(!pnetcdf_runtime) pnetcdf_runtime_initialize(); \
+        if(!pnetcdf_runtime && !pnetcdf_runtime_init_attempted) \
+            pnetcdf_runtime_initialize(); \
         if(pnetcdf_runtime) break; \
     } \
     PNETCDF_UNLOCK(); \
@@ -212,7 +214,8 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
 /* initialize internal PNETCDF module data strucutres and register with darshan-core */
 static void pnetcdf_runtime_initialize()
 {
-    size_t pnetcdf_buf_size;
+    int ret;
+    size_t pnetcdf_rec_count;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = &pnetcdf_mpi_redux,
@@ -220,16 +223,22 @@ static void pnetcdf_runtime_initialize()
     .mod_shutdown_func = &pnetcdf_shutdown
     };
 
+    /* if this attempt at initializing fails, we won't try again */
+    pnetcdf_runtime_init_attempted = 1;
+
     /* try and store the default number of records for this module */
-    pnetcdf_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_pnetcdf_file);
+    pnetcdf_rec_count = DARSHAN_DEF_MOD_REC_COUNT;
 
     /* register pnetcdf module with darshan-core */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DARSHAN_PNETCDF_MOD,
         mod_funcs,
-        &pnetcdf_buf_size,
+        sizeof(struct darshan_pnetcdf_file),
+        &pnetcdf_rec_count,
         &my_rank,
         NULL);
+    if(ret < 0)
+        return;
 
     pnetcdf_runtime = malloc(sizeof(*pnetcdf_runtime));
     if(!pnetcdf_runtime)

@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <limits.h>
+#include <regex.h>
 
 #ifdef HAVE_MPI
 #include <mpi.h>
@@ -97,6 +98,13 @@ struct darshan_core_name_record_ref
     UT_hash_handle hlink;
 };
 
+struct darshan_core_name_regex
+{
+    regex_t regex;
+    uint64_t mod_flags;
+    struct darshan_core_name_regex *next;
+};
+
 /* in memory structure to keep up with job level data */
 struct darshan_core_runtime
 {
@@ -109,6 +117,9 @@ struct darshan_core_runtime
 
     /* darshan-core internal data structures */
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
+    uint64_t mod_disabled;
+    size_t mod_max_records_override[DARSHAN_MAX_MODS];
+    struct darshan_core_name_regex *exclude_list;
     size_t mod_mem_used;
     struct darshan_core_name_record_ref *name_hash;
     size_t name_mem_used;

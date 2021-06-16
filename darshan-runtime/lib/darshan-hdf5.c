@@ -108,6 +108,8 @@ static void hdf5_dataset_shutdown(
 static struct hdf5_runtime *hdf5_file_runtime = NULL;
 static struct hdf5_runtime *hdf5_dataset_runtime = NULL;
 static pthread_mutex_t hdf5_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static int h5f_runtime_init_attempted = 0;
+static int h5d_runtime_init_attempted = 0;
 static int my_rank = -1;
 
 #define HDF5_LOCK() pthread_mutex_lock(&hdf5_runtime_mutex)
@@ -120,7 +122,8 @@ static int my_rank = -1;
 #define H5F_PRE_RECORD() do { \
     HDF5_LOCK(); \
     if(!darshan_core_disabled_instrumentation()) { \
-        if(!hdf5_file_runtime) hdf5_file_runtime_initialize(); \
+        if(!hdf5_file_runtime && !h5f_runtime_init_attempted) \
+            hdf5_file_runtime_initialize(); \
         if(hdf5_file_runtime) break; \
     } \
     HDF5_UNLOCK(); \
@@ -395,7 +398,8 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 #define H5D_PRE_RECORD() do { \
     HDF5_LOCK(); \
     if(!darshan_core_disabled_instrumentation()) { \
-        if(!hdf5_dataset_runtime) hdf5_dataset_runtime_initialize(); \
+        if(!hdf5_dataset_runtime && !h5d_runtime_init_attempted) \
+            hdf5_dataset_runtime_initialize(); \
         if(hdf5_dataset_runtime) break; \
     } \
     HDF5_UNLOCK(); \
@@ -916,7 +920,8 @@ herr_t DARSHAN_DECL(H5Dclose)(hid_t dataset_id)
 /* initialize internal HDF5 module data strucutres and register with darshan-core */
 static void hdf5_file_runtime_initialize()
 {
-    size_t hdf5_buf_size;
+    int ret;
+    size_t hdf5_rec_count;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = &hdf5_file_mpi_redux,
@@ -924,16 +929,22 @@ static void hdf5_file_runtime_initialize()
     .mod_shutdown_func = &hdf5_file_shutdown
     };
 
+    /* if this attempt at initializing fails, we won't try again */
+    h5f_runtime_init_attempted = 1;
+
     /* try and store the default number of records for this module */
-    hdf5_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_hdf5_file);
+    hdf5_rec_count = DARSHAN_DEF_MOD_REC_COUNT;
 
     /* register hdf5 module with darshan-core */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DARSHAN_H5F_MOD,
         mod_funcs,
-        &hdf5_buf_size,
+        sizeof(struct darshan_hdf5_file),
+        &hdf5_rec_count,
         &my_rank,
         NULL);
+    if(ret < 0)
+        return;
 
     hdf5_file_runtime = malloc(sizeof(*hdf5_file_runtime));
     if(!hdf5_file_runtime)
@@ -948,7 +959,8 @@ static void hdf5_file_runtime_initialize()
 
 static void hdf5_dataset_runtime_initialize()
 {
-    size_t hdf5_buf_size;
+    int ret;
+    size_t hdf5_buf_rec_count;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = &hdf5_dataset_mpi_redux,
@@ -956,16 +968,22 @@ static void hdf5_dataset_runtime_initialize()
     .mod_shutdown_func = &hdf5_dataset_shutdown
     };
 
+    /* if this attempt at initializing fails, we won't try again */
+    h5d_runtime_init_attempted = 1;
+
     /* try and store the default number of records for this module */
-    hdf5_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_hdf5_dataset);
+    hdf5_buf_rec_count = DARSHAN_DEF_MOD_REC_COUNT;
 
     /* register hdf5 module with darshan-core */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DARSHAN_H5D_MOD,
         mod_funcs,
-        &hdf5_buf_size,
+        sizeof(struct darshan_hdf5_dataset),
+        &hdf5_buf_rec_count,
         &my_rank,
         NULL);
+    if(ret < 0)
+        return;
 
     hdf5_dataset_runtime = malloc(sizeof(*hdf5_dataset_runtime));
     if(!hdf5_dataset_runtime)

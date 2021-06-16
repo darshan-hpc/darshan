@@ -145,6 +145,7 @@ struct stdio_runtime
 
 static struct stdio_runtime *stdio_runtime = NULL;
 static pthread_mutex_t stdio_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static int stdio_runtime_init_attempted = 0;
 static int darshan_mem_alignment = 1;
 static int my_rank = -1;
 
@@ -183,7 +184,8 @@ extern int __real_fileno(FILE *stream);
 #define STDIO_PRE_RECORD() do { \
     STDIO_LOCK(); \
     if(!darshan_core_disabled_instrumentation()) { \
-        if(!stdio_runtime) stdio_runtime_initialize(); \
+        if(!stdio_runtime && !stdio_runtime_init_attempted) \
+            stdio_runtime_initialize(); \
         if(stdio_runtime) break; \
     } \
     STDIO_UNLOCK(); \
@@ -999,7 +1001,8 @@ int DARSHAN_DECL(fsetpos64)(FILE *stream, const fpos64_t *pos)
 /* initialize internal STDIO module data structures and register with darshan-core */
 static void stdio_runtime_initialize()
 {
-    size_t stdio_buf_size;
+    int ret;
+    size_t stdio_buf_rec_count;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = &stdio_mpi_redux,
@@ -1007,16 +1010,22 @@ static void stdio_runtime_initialize()
     .mod_shutdown_func = &stdio_shutdown
     };
 
+    /* if this attempt at initializing fails, we won't try again */
+    stdio_runtime_init_attempted = 1;
+
     /* try to store default number of records for this module */
-    stdio_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_stdio_file);
+    stdio_buf_rec_count = DARSHAN_DEF_MOD_REC_COUNT;
 
     /* register the stdio module with darshan core */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DARSHAN_STDIO_MOD,
         mod_funcs,
-        &stdio_buf_size,
+        sizeof(struct darshan_stdio_file),
+        &stdio_buf_rec_count,
         &my_rank,
         &darshan_mem_alignment);
+    if(ret < 0)
+        return;
 
     stdio_runtime = malloc(sizeof(*stdio_runtime));
     if(!stdio_runtime)
