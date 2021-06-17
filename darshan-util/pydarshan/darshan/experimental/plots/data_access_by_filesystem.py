@@ -111,21 +111,25 @@ def empty_series_handler(series, filesystem_roots: List[str]):
     Paramaters
     ----------
 
-    series: a size-0 ``pd.Series`` object
+    series: a ``pd.Series`` object
 
     filesystem_roots: a list of strings containing unique filesystem root paths
 
     Returns
     -------
-    A new ``Series`` with the filesystem_root indices
-    and count values of 0 (for plotting purposes).
+    A new ``Series`` with any missing filesystem_root indices
+    filled in along with count values of 0 (for plotting purposes).
     """
-    if series.size == 0:
-        d = {}
-        keys = filesystem_roots
-        for key in keys:
-            d[key] = 0
-        series = pd.Series(data=d, index=keys)
+    # first, guarantee that the index has all
+    # of the filesystem_roots
+    new_series = pd.Series(np.zeros(len(filesystem_roots)),
+                           index=filesystem_roots)
+    # for any filesystem roots that were already present,
+    # preserve their values by adding them back in; otherwise,
+    # counts should be set to 0 for plotting purposes
+    series = (new_series + series).fillna(0)
+    # preserve the index order to respect filesystem_roots
+    series = series[filesystem_roots]
     return series
 
 
