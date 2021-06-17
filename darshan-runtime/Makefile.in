@@ -32,7 +32,7 @@ CFLAGS = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I ../ -I $(srcdir
 
 CFLAGS_SHARED = -DDARSHAN_CONFIG_H=\"darshan-runtime-config.h\" -I . -I$(srcdir) -I$(srcdir)/../ @CFLAGS@ @CPPFLAGS@ -D_LARGEFILE64_SOURCE -shared -fpic -DPIC -DDARSHAN_PRELOAD
 
-LIBS = -lz @LIBBZ2@
+LIBS = -lpthread -lrt -lz -ldl @DARSHAN_LUSTRE_LD_FLAGS@
 
 BUILD_NULL_MODULE = @BUILD_NULL_MODULE@
 BUILD_POSIX_MODULE = @BUILD_POSIX_MODULE@
@@ -211,7 +211,7 @@ lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darsha
 	ar rcs $@ $^
 
 lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po $(DARSHAN_DYNAMIC_MOD_OBJS) lib/lookup3.po lib/lookup8.po
-	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ -lpthread -lrt -lz -ldl
+	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 
 install:: all
