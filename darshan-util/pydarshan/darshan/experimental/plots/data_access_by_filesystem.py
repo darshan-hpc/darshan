@@ -120,17 +120,7 @@ def empty_series_handler(series, filesystem_roots: List[str]):
     A new ``Series`` with any missing filesystem_root indices
     filled in along with count values of 0 (for plotting purposes).
     """
-    # first, guarantee that the index has all
-    # of the filesystem_roots
-    new_series = pd.Series(np.zeros(len(filesystem_roots)),
-                           index=filesystem_roots)
-    # for any filesystem roots that were already present,
-    # preserve their values by adding them back in; otherwise,
-    # counts should be set to 0 for plotting purposes
-    series = (new_series + series).fillna(0)
-    # preserve the index order to respect filesystem_roots
-    series = series[filesystem_roots]
-    return series
+    return series.reindex(filesystem_roots, fill_value=0).astype(np.float64)
 
 
 def rec_to_rw_counter_dfs_with_cols(report: Any,
