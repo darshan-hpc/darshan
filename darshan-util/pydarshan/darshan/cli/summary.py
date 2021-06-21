@@ -3,19 +3,49 @@ import base64
 import datetime
 import genshi.template
 import importlib.resources as pkg_resources
+import re
 import io
-import matplotlib
-import matplotlib.pyplot as pyplot
-import numpy
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import pandas
 import pytz
 import sys
 import pprint
 import pandas as pd
 import seaborn as sns
-
+import itertools, numpy
+import plotnine as p9
+from plotnine import *
 import darshan
 import darshan.templates
+from PIL import Image
+
+import matplotlib.font_manager as fm
+from mpl_toolkits.mplot3d import Axes3D
+import seaborn as sns
+from numpy import genfromtxt
+from IPython.display import set_matplotlib_formats
+set_matplotlib_formats('pdf', 'png')
+from palettable.cmocean.diverging import Delta_20
+cmap=Delta_20.hex_colors
+import matplotlib.font_manager as fm
+from matplotlib import pyplot as plt
+#font = fm.FontProperties(
+#       family = 'Gill Sans',
+#       fname = './GilliusADF-Regular.otf')
+
+#from matplotlib import rcParams
+#rcParams['font.family'] = font.get_family()
+#rcParams['font.sans-serif'] = font.
+cbbPalette = ["#D95F02","#7570B3","#66A61E","#E6AB02","#A6761D","#CC6666", "#9999CC", "#66CC99", "#56B4E9", "#0072B2", "#D55E00", "#CC79A7"]
+
+#plt.rcParams['font.style'] = 'normal'
+#plt.rcParams['font.serif'] = 'Times'
+#from sklearn.model_selection import train_test_split
+#from scipy.stats import linregress
+#from scipy.stats import skew,pearsonr, kurtosis, kurtosistest, iqr, ks_2samp, ttest_ind, gaussian_kde
+#from scipy.stats import bayes_mvs
+#from statsmodels import robust
 
 def setup_parser(parser):
     # setup arguments
@@ -24,10 +54,78 @@ def setup_parser(parser):
     parser.add_argument('--verbose', help='', action='store_true')
     parser.add_argument('--debug', help='', action='store_true')
 
+def init_plotting():
+    #plt.rcParams['figure.figsize'] = (10, 7)
+    plt.rcParams['font.size'] = 14
+    plt.rcParams['axes.labelsize'] = plt.rcParams['font.size']
+    plt.rcParams['axes.titlesize'] = plt.rcParams['font.size']
+    plt.rcParams['legend.fontsize'] = 0.9*plt.rcParams['font.size']
+    plt.rcParams['xtick.labelsize'] = plt.rcParams['font.size']
+    plt.rcParams['ytick.labelsize'] = plt.rcParams['font.size']
+    plt.rcParams['xtick.minor.visible']=False
+    plt.rcParams['ytick.minor.visible']=False
+    plt.rcParams['xtick.major.size'] = 6
+    plt.rcParams['xtick.minor.size'] = 3
+    plt.rcParams['xtick.major.width'] = 2
+    plt.rcParams['xtick.minor.width'] = 2
+    plt.rcParams['ytick.major.size'] = 6
+    plt.rcParams['ytick.minor.size'] = 3
+    plt.rcParams['ytick.major.width'] = 2
+    plt.rcParams['ytick.minor.width'] = 2
+    plt.rcParams['xtick.major.pad']='8'
+    plt.rcParams['ytick.major.pad']='8'
+    plt.rcParams['ytick.color'] = "#808080"
+    plt.rcParams['xtick.color'] = "#808080"
+    plt.rcParams['xtick.direction'] = 'in'
+    plt.rcParams['ytick.direction'] = 'in'
+    plt.rcParams['legend.frameon'] = False
+    plt.rcParams['legend.loc'] = 'best'
+    plt.rcParams['axes.linewidth'] = 3
+
+    plt.gca().spines['bottom'].set_color('#808080')
+    plt.gca().spines['left'].set_color('#808080')
+    ## to hide the spines 
+    #plt.gca().spines['top'].set_visible(False)
+    #plt.gca().spines['right'].set_visible(False)
+    plt.gca().spines['top'].set_color('#808080')
+    plt.gca().spines['right'].set_color('#808080')
+    plt.gca().spines['top'].set_linewidth(.8)
+    plt.gca().spines['right'].set_linewidth(.8)
+    plt.grid(True,linestyle='-', linewidth=0.01)
+    #plt.gca().legend(ncol=4)
+    #plt.gca().legend(prop={'family': 'monospace'})
+
+def hide_spines():
+    """Hides the top and rightmost axis spines from view for all active
+    figures and their respective axes."""
+    # Retrieve a list of all current figures.
+    figures = [x for x in mpl._pylab_helpers.Gcf.get_all_fig_managers()]
+    for figure in figures:
+        # Get all Axis instances related to the figure.
+        for ax in figure.canvas.figure.get_axes():
+            
+            ax.spines['left'].set_color("#808080")
+            ax.spines['bottom'].set_color("#808080")
+            ax.spines['top'].set_color("#808080")
+            ax.spines['right'].set_color("#808080")
+            #ax.spines['right'].set_visible('False')
+            #ax.spines['top'].set_visible('False')
+            ax.xaxis.set_ticks_position('bottom')
+            ax.yaxis.set_ticks_position('left')
+            ax.spines['top'].set_linewidth(0.8)
+            #ax.spines['top'].set_linestyle(':')
+            ax.spines['right'].set_linewidth(0.8)
+            #ax.spines['right'].set_linestyle(':')
+            #plt.gca().spines['bottom'].set_color('gray')
+            #plt.gca().spines['left'].set_color('gray')
+            #plt.grid(True,linestyle='-', linewidth=0.01)
+            #plt.gca().legend(ncol=4)
+            #plt.gca().legend(prop={'family': 'monospace'})
+
 def plot_io_cost(posix_df, mpiio_df, stdio_df, runtime, nprocs):
 
     buf = io.BytesIO()
-    fig, ax = pyplot.subplots()
+    fig, ax = plt.subplots()
 
     labels = []
     r_time = []
@@ -71,8 +169,11 @@ def plot_io_cost(posix_df, mpiio_df, stdio_df, runtime, nprocs):
 
     ax.set_ylabel("Percentage of runtime")
     ax.set_title("Average I/O cost per process")
-    ax.legend(loc="upper right")
-    pyplot.savefig(buf, format='png')
+    plt.legend(loc="upper right", ncol=3, bbox_to_anchor=(0.8,1.0))
+    #plt.legend(loc='upper center', bbox_to_anchor=(0., 1.05), ncol=3)
+    #ax.legend(loc='best', bbox_to_anchor=(0.5, 0., 0.5, 0.5), ncol=3)
+    hide_spines()
+    plt.savefig(buf, format='png')
     buf.seek(0)
     encoded = base64.b64encode(buf.read())
     return encoded
@@ -80,7 +181,7 @@ def plot_io_cost(posix_df, mpiio_df, stdio_df, runtime, nprocs):
 def plot_op_count(posix_df, mpiio_df, stdio_df):
 
     buf = io.BytesIO()
-    fig, ax = pyplot.subplots()
+    fig, ax = plt.subplots()
 
     labels = ['Read', 'Write', 'Open', 'Stat', 'Seek', 'Mmap', 'Fsync']
     x = numpy.arange(len(labels))
@@ -108,7 +209,8 @@ def plot_op_count(posix_df, mpiio_df, stdio_df):
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.legend(loc="upper right")
-    pyplot.savefig(buf, format='png')
+    hide_spines()
+    plt.savefig(buf, format='png')
     buf.seek(0)
     encoded = base64.b64encode(buf.read())
     return encoded
@@ -165,7 +267,8 @@ def apmpi_process(apmpi_dict):
     #        "APMPI Variance in total mpi sync time: ",
     #        header_rec["variance_total_mpisynctime"],
     #    )
-
+    import time
+    start = time.process_time()
     df_apmpi = pd.DataFrame()
     list_mpiop = []
     list_rank = []
@@ -200,10 +303,11 @@ def apmpi_process(apmpi_dict):
             mpiopstat["Count"] = rec["all_counters"][ncount]
             mpiopstat["Total_Bytes"] = rec["all_counters"].get(nsize, None)
             mpiopstat["[0-256B]"] = rec["all_counters"].get(h0, None)
+            mpiopstat["[256-1KB]"] = rec["all_counters"].get(h1, None)
             mpiopstat["[1K-8KB]"] = rec["all_counters"].get(h2, None)
             mpiopstat["[8K-256KB]"] = rec["all_counters"].get(h3, None)
-            mpiopstat["256K-1MB"] = rec["all_counters"].get(h4, None)
-            mpiopstat["[>1MB]"] = rec["all_counters"].get(h5, None)
+            mpiopstat["[256K-1MB]"] = rec["all_counters"].get(h4, None)
+            mpiopstat["[1MB+]"] = rec["all_counters"].get(h5, None)
             mpiopstat["Min_Time"] = rec["all_counters"][mintime]
             mpiopstat["Max_Time"] = rec["all_counters"][maxtime]
             if sync_flag and (totalsync in rec["all_counters"]):
@@ -229,43 +333,204 @@ def apmpi_process(apmpi_dict):
         (df_rank["Total_Time"] - df_rank["Total_Time"].mean()).abs().argsort()[:1][0]
     )
     pd.set_option("display.max_rows", None, "display.max_columns", None)
+    print(f'Phase1: {time.process_time() - start}')
 
+    import time
+    start = time.process_time()
     list_combined = list_mpiop + list_rank
     df_apmpi = pd.DataFrame(list_combined)
     df_apmpi = df_apmpi.sort_values(by=["Rank", "Total_Time"], ascending=[True, False])
-    df_call = df_apmpi[['Call', 'Total_Time']]
-   
+    df_call = df_apmpi[['Rank', 'Call', 'Total_Time', 'Total_Bytes', 'Count']]
+    df_call_nototal = df_call[df_call.Call != 'Total_MPI_time']
+
+    df_apmpi_nototal = df_apmpi[df_apmpi.Call != 'Total_MPI_time']
+    df_apmpi_nototal = df_apmpi_nototal[df_apmpi_nototal.Total_Bytes > 0]
+    df_call_nonzero_bytes = df_call_nototal[df_call_nototal.Total_Bytes > 0]
+    #print(df_call_nonzero_bytes)
+    df_call_nonzero_bytes['bytes_per_op']=(df_call_nonzero_bytes['Total_Bytes']/df_call_nonzero_bytes['Count'])
+    #df_call_time = df_call.pivot(index='Rank', columns='Call')['Total_Time'].reset_index()
+    #df_call_nonzero_bytes.assign(bytes_per_op = df_call_nonzero_bytes.Total_Bytes/df_call_nonzero_bytes.Count)
+    print(f'Phase2: {time.process_time() - start}')
+
+    import time
+    start = time.process_time()
     encoded = []
     buf = io.BytesIO()
-    fig, ax = pyplot.subplots()
-
-    sns_violin = sns.violinplot(x="Call", y="Total_Time", ax=ax, data=df_call)
-    sns_violin.set_xticklabels(sns_violin.get_xticklabels(), rotation=60, size=6.5)
-    sns_violin.set_yticklabels(sns_violin.get_yticks(), rotation=0, size=6.5)
-    sns_violin.set_xlabel('')
-    sns_violin.set_ylabel('Time (seconds)', size=7)
-    #sns.despine();
-    pyplot.savefig(buf, format='png', bbox_inches='tight')
+    fig, ax = plt.subplots()
+    # Using pandas methods and slicing to determine the order by decreasing median
+    my_order=df_call_nototal.groupby(by=["Call"])["Total_Time"].median().sort_values(ascending=False).index
+    apmpi_totaltime = sns.violinplot(x="Call", y="Total_Time", ax=ax, data=df_call_nototal, bw=0.2, scale = 'count', scale_hue=True, order=my_order)
+    #apmpi_totaltime = sns.boxplot(x="Call", y="Total_Time", ax=ax, data=df_call_nototal, order=my_order)
+    apmpi_totaltime.set_xlabel('MPI operation times across Ranks')
+    apmpi_totaltime.set_ylabel('Time (seconds)')
+    plt.xticks(rotation=75)
+    hide_spines()
+    plt.savefig(buf, format='png', bbox_inches='tight')
     buf.seek(0)
     encoded.append(base64.b64encode(buf.read()))
-
+    print(f'Phase3: {time.process_time() - start}')
+    
+    import time
+    start = time.process_time()
     buf = io.BytesIO()
-    fig, ax = pyplot.subplots()
-    sns_plot = sns.scatterplot(x="Rank", y="Total_Time", ax=ax, data=df_apmpi, s=3)
-    sns_plot.set_xticklabels(sns_plot.get_xticklabels(), rotation=0, size=6.5)
-    sns_plot.set_yticklabels(sns_plot.get_yticks(), rotation=0, size=6.5)
-    sns_plot.set_xlabel('Rank', size=8)
-    sns_plot.set_ylabel('Time (seconds)', size=8)
-    #sns.despine();
-    pyplot.savefig(buf, format='png', bbox_inches='tight')
+    fig, ax = plt.subplots()
+    print(f'Phase4a: {time.process_time() - start}')
+    import time
+    start = time.process_time()
+    df_times = df_apmpi[['Rank', 'Call', 'Total_Time']]
+    print(f'Phase4b: {time.process_time() - start}')
+    import time
+    start = time.process_time()
+    df_times_unmelt = df_times.pivot_table(index='Rank', columns = 'Call')['Total_Time'].reset_index()
+    print(f'Phase4c: {time.process_time() - start}')
+    import time
+    start = time.process_time()
+    df_times_unmelt.columns.name = None
+    df_times_unmelt = df_times_unmelt.sort_values(by=['Total_MPI_time'], ascending=False)
+    print(f'Phase4d: {time.process_time() - start}')
+    import time
+    start = time.process_time()
+    del df_times_unmelt['Total_MPI_time']
+    df_times_unmelt.set_index('Rank')
+    del df_times_unmelt['Rank']
+    print(f'Phase4e: {time.process_time() - start}')
+    import time
+    start = time.process_time()
+    df_times_unmelt = df_times_unmelt.sort_values(by=1, axis=1, ascending=False)
+    print(f'Phase4f: {time.process_time() - start}')
+    import time
+    start = time.process_time()
+    #df_times_unmelt.plot(kind="bar",stacked=True, align='center', ax=ax, colormap='tab10')#, width=dwidth)
+    ## to melt again if we need to use plotnine stacked bar
+    df_times_unmelt["Rank"]=df_times_unmelt.index
+    df_times_melt = df_times_unmelt.melt(id_vars="Rank", value_vars=df_times_unmelt.columns.tolist()[:-1], var_name="MPI_OP", value_name ="time")
+    df_times_melt['MPI_OP']=pd.Categorical(df_times_melt['MPI_OP'], categories=df_times_unmelt.columns.tolist()[:-1], ordered=True)
+    df_times_melt['Rank']=pd.Categorical(df_times_melt['Rank'], categories=df_times_unmelt['Rank'], ordered=True)
+    #p = (ggplot(df_times_melt, aes(x='Rank', y='time')))#, fill = 'MPI_OP', label='MPI_OP'))
+# + geom_bar(stat='identity')#, position='stack')
+#+ geom_tile()
+# + ggtitle('MPI OP time distribution')
+# + xlab("MPI op times on all the ranks (sorted by total MPI time)")
+# + ylab("Time(seconds)")
+# + scale_fill_manual(values=cbbPalette)
+# + scale_x_discrete(labels = ""))
+# + theme(axis.text.x = element_blank()))
+    print(f'Phase4g: {time.process_time() - start}')
+    import time
+    start = time.process_time()
+    #ax.set_xticks([])
+    #ax.set_xticks([], minor=True)
+    #ax.set_xticklabels([])
+    #ax.set_ylabel("Time(seconds)")
+    #ax.set_xlabel("MPI op times on all the ranks (sorted by total MPI time)", labelpad=20)
+    #plt.legend(loc="lower left",bbox_to_anchor=(0.8,1.0))
+    #ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    #ax.legend(loc='upper left')
+    #hide_spines()
+    print(f'Phase4h: {time.process_time() - start}')
+    import time
+    start = time.process_time()
+    #plt.savefig(buf, format='png', bbox_inches='tight')
+    #cm = plt.get_cmap('viridis')
+    #plt.imsave(buf, fig, format='png')
+    #fig.canvas.print_png(buf)
+    #buf.close()
+    #p.save(buf, format='png',  verbose = False, height=5, width=6.5, dpi=50)
+    #p.save(buf, format='png',  verbose = False, height=5, width=6.5, dpi=50)
+    p.save(buf, format='png', verbose = False, dpi=80, height=5, width=6.5) 
+    print(f'Phase4i: {time.process_time() - start}')
+    import time
+    start = time.process_time()
     buf.seek(0)
     encoded.append(base64.b64encode(buf.read()))
+    print(f'Phase4j: {time.process_time() - start}')
+
+    import time
+    start = time.process_time()
+    buf = io.BytesIO()
+    fig, ax = plt.subplots()
+    my_order=df_call_nonzero_bytes.groupby(by=["Call"])["bytes_per_op"].median().sort_values(ascending=False).index
+    #apmpi_totalbytes = sns.violinplot(x="Call", y="bytes_per_op", ax=ax, data=df_call_nonzero_bytes, bw=0.2, scale = 'count', scale_hue=True, order=my_order)
+    apmpi_totalbytes = sns.barplot(x="Call", y="bytes_per_op", ax=ax, data=df_call_nonzero_bytes, estimator=numpy.median, ci='sd', capsize=.2, color='lightblue', order=my_order)
+    #apmpi_totalbytes = sns.boxplot(x="Call", y="Total_Bytes", ax=ax, data=df_call_nototal, order=my_order)
+    apmpi_totalbytes.set(yscale="log")
+    apmpi_totalbytes.set_xlabel('MPI operation total bytes across Ranks')
+    apmpi_totaltime.set_ylabel('Accumulative Bytes per MPI OP')
+    plt.xticks(rotation=75)
+    hide_spines()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    encoded.append(base64.b64encode(buf.read()))
+    print(f'Phase5: {time.process_time() - start}')
+    
+    #buf = io.BytesIO()
+    #fig, ax = plt.subplots()
+    #mpiops = list(df_call.Call.unique())
+    #sns_dist = sns.kdeplot(data=df_call, x="Total_Time", ax=ax, cut=0, hue="Call")
+    #sns_dist.set_xlabel('ECDF', size=7)
+    #sns_dist.set_xlabel('Time across the ranks')
+    #hide_spines()
+    #plt.savefig(buf, format='png', bbox_inches='tight')
+    #buf.seek(0)
+    #encoded.append(base64.b64encode(buf.read()))
+    
+    import time
+    start = time.process_time()
+    buf = io.BytesIO()
+    fig, ax = plt.subplots()
+    df_apmpi_nototal_zerorank = df_apmpi_nototal[df_apmpi_nototal.Rank == 0][['Call', '[0-256B]', '[256-1KB]', '[1K-8KB]', '[8K-256KB]', '[256K-1MB]', '[1MB+]', 'Count']]
+    #apmpi_catplot = sns.catplot(data=df_apmpi_nototal, kind="bar", x="Call", y="")
+    df_apmpi_nototal_zerorank['[0-256B]'] = (df_apmpi_nototal_zerorank['[0-256B]']/df_apmpi_nototal_zerorank['Count'])*100
+    df_apmpi_nototal_zerorank['[256-1KB]'] = (df_apmpi_nototal_zerorank['[256-1KB]']/df_apmpi_nototal_zerorank['Count'])*100
+    df_apmpi_nototal_zerorank['[1K-8KB]'] = (df_apmpi_nototal_zerorank['[1K-8KB]']/df_apmpi_nototal_zerorank['Count'])*100
+    df_apmpi_nototal_zerorank['[8K-256KB]'] = (df_apmpi_nototal_zerorank['[8K-256KB]']/df_apmpi_nototal_zerorank['Count'])*100
+    df_apmpi_nototal_zerorank['[256K-1MB]'] = (df_apmpi_nototal_zerorank['[256K-1MB]']/df_apmpi_nototal_zerorank['Count'])*100
+    df_apmpi_nototal_zerorank['[1MB+]'] = (df_apmpi_nototal_zerorank['[1MB+]']/df_apmpi_nototal_zerorank['Count'])*100
+    #print(df_apmpi_nototal_zerorank)
+    #del df_apmpi_nototal_zerorank['Count']
+    #dodge_text = position_dodge(width=0.9) 
+    df_apmpi_nototal_zerorank_melt = df_apmpi_nototal_zerorank.melt(id_vars=["Call", "Count"],value_vars=['[0-256B]', '[256-1KB]', '[1K-8KB]', '[8K-256KB]', '[256K-1MB]', '[1MB+]'], var_name="Message_Type", value_name="percentage")
+    #print(df_apmpi_nototal_zerorank_melt)
+    df_apmpi_nototal_zerorank_melt = df_apmpi_nototal_zerorank_melt.astype({"Count": int})
+    msg_order = ['[0-256B]', '[256-1KB]', '[1K-8KB]', '[8K-256KB]', '[256K-1MB]', '[1MB+]']
+    df_apmpi_nototal_zerorank_melt['Message_Type']=pd.Categorical(df_apmpi_nototal_zerorank_melt['Message_Type'], categories=msg_order, ordered=True)
+    p = (ggplot(df_apmpi_nototal_zerorank_melt, aes(x='Call', y='percentage', fill = 'Message_Type', label='Message_Type'))
+ + geom_bar(stat='identity', position="stack")
+## TODO: make sure one label per stacked bar chart is placed on the top.
+ + ggtitle('Message size histogram for Rank 0')
+ + xlab("MPI Operation")
+ + ylab("Percentage of messages of different size ranges")
+# + theme(plot.title=element_text(family="Gill Sans"), text=element_text(family="Gill Sans")
+ + geom_text(aes(x='Call', y=105, label='Count'), color='purple', size=8, angle=0, va='top') 
+ + scale_fill_manual(values=cbbPalette))
+# + scale_fill_manual(values=plotnine.scales.scale_color_cmap('tab10').palette()))
+    #sns_plot = sns.scatterplot(x="Rank", y="Total_Time", ax=ax, data=df_apmpi, s=3)
+    #sns_plot.set_xticklabels(sns_plot.get_xticks())
+    #sns_plot.set_yticklabels(sns_plot.get_yticks())
+    #sns_plot.set_xlabel('Rank')
+    #sns_plot.set_ylabel('Time (seconds)')
+    #sns.despine();
+    #hide_spines()
+    p.save(buf, verbose = False)
+    #plt.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    encoded.append(base64.b64encode(buf.read()))
+    print(f'Phase6: {time.process_time() - start}')
+
+    import time
+    start = time.process_time()
+    ## APMPI tables with stats from 3 ranks (rank with MAX mpi time, min time and average MPI time)
+    #df_apmpi = df_apmpi.astype({"Count": 'Int64', "Total_Bytes": 'Int64', '[0-256B]':'Int64', '[256-1KB]':'Int64', '[1K-8KB]':'Int64', '[8K-256KB]':'Int64', '[256K-1MB]':'Int64', '[1MB+]':'Int64'})
+ #   df_apmpi[["Count", "Total_Bytes", "[0-256B]", "[256-1KB]", "[1K-8KB]", "[8K-256KB]", "[256K-1MB]", "[1MB+]"]] = df_apmpi[["Count", "Total_Bytes", "[0-256B]", "[256-1KB]", "[1K-8KB]", "[8K-256KB]", "[256K-1MB]", "[1MB+]"]].apply(pd.to_numeric)
     df_max_rank = df_apmpi.loc[df_apmpi["Rank"] == max_rank]
     df_min_rank = df_apmpi.loc[df_apmpi["Rank"] == min_rank]
     df_mean_rank = df_apmpi.loc[df_apmpi["Rank"] == mean_rank]
-    encoded.append(df_max_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
-    encoded.append(df_min_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
-    encoded.append(df_mean_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
+    df_zero_rank = df_apmpi.loc[df_apmpi["Rank"] == 0]
+    encoded.append(df_max_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[256-1KB]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
+    encoded.append(df_min_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[256-1KB]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
+    encoded.append(df_mean_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[256-1KB]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
+    encoded.append(df_zero_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[256-1KB]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
+    print(f'Phase7: {time.process_time() - start}')
     return encoded
   
 def main(args=None):
@@ -277,10 +542,11 @@ def main(args=None):
 
     if args.debug:
         print(args)
-
+    
+    init_plotting()
     variables = {}
     report = darshan.DarshanReport(args.input, read_all=True)
-    report.info()
+    #report.info()
 
     #
     # Setup template header variabels
@@ -335,24 +601,30 @@ def main(args=None):
     variables['fs_data'] = data_transfer_filesystem(report, posix_df, stdio_df)
     apmpi_encoded = apmpi_process(apmpi_dict)
     if apmpi_encoded:
-       variables['apmpi_call_time'] = apmpi_encoded[0].decode('utf-8')
-       variables['apmpi_rank_totaltime'] = apmpi_encoded[1].decode('utf-8')
+       variables['apmpi_call_times_variance'] = apmpi_encoded[0].decode('utf-8')
+       variables['apmpi_call_time_distribution'] = apmpi_encoded[1].decode('utf-8')
+       variables['apmpi_call_bytes_per_op'] = apmpi_encoded[2].decode('utf-8')
+       variables['apmpi_call_rank0_msg_dist'] = apmpi_encoded[3].decode('utf-8')
 
        variables['apmpi_max_rank'] = []
-       for row in apmpi_encoded[2].iterrows():
+       for row in apmpi_encoded[4].iterrows():
            variables['apmpi_max_rank'].append(row[1].values)
        variables['apmpi_min_rank'] = []
-       for row in apmpi_encoded[3].iterrows():
+       for row in apmpi_encoded[5].iterrows():
            variables['apmpi_min_rank'].append(row[1].values)
        variables['apmpi_mean_rank'] = []
-       for row in apmpi_encoded[4].iterrows():
+       for row in apmpi_encoded[6].iterrows():
            variables['apmpi_mean_rank'].append(row[1].values)
+       variables['apmpi_zero_rank'] = []
+       for row in apmpi_encoded[7].iterrows():
+           variables['apmpi_zero_rank'].append(row[1].values)
     else:
        variables['apmpi_call_time'] = None
        variables['apmpi_rank_totaltime'] = None
        variables['apmpi_max_rank'] = None
        variables['apmpi_min_rank'] = None
        variables['apmpi_mean_rank'] = None
+       variables['apmpi_zero_rank'] = None
     template_path = pkg_resources.path(darshan.templates, '')
     with template_path as path:
        loader = genshi.template.TemplateLoader(str(path))
