@@ -46,6 +46,7 @@ BUILD_LUSTRE_MODULE = @BUILD_LUSTRE_MODULE@
 BUILD_MDHIM_MODULE = @BUILD_MDHIM_MODULE@
 BUILD_APMPI_MODULE = @BUILD_APMPI_MODULE@
 BUILD_APXC_MODULE = @BUILD_APXC_MODULE@
+BUILD_APNVGPU_MODULE = @BUILD_APNVGPU_MODULE@
 
 DARSHAN_STATIC_MOD_OBJS =
 DARSHAN_DYNAMIC_MOD_OBJS =
@@ -111,6 +112,9 @@ include $(srcdir)/../modules/autoperf/apxc/Makefile.darshan
 endif
 ifdef BUILD_APMPI_MODULE
 include $(srcdir)/../modules/autoperf/apmpi/Makefile.darshan
+endif
+ifdef BUILD_APNVGPU_MODULE
+include $(srcdir)/../modules/autoperf/apnvgpu/Makefile.darshan
 endif
 
 lib::

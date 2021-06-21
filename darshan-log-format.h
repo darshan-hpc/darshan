@@ -126,6 +126,9 @@ struct darshan_base_record
 #ifdef DARSHAN_USE_APMPI
 #include "darshan-apmpi-log-format.h"
 #endif
+#ifdef DARSHAN_USE_APNVGPU
+#include "darshan-apnvgpu-log-format.h"
+#endif
 
 /* X-macro for keeping module ordering consistent */
 /* NOTE: first val used to define module enum values, 
@@ -155,6 +158,13 @@ struct darshan_base_record
 #define __APMPI_VER 0
 #define __apmpi_logutils NULL
 #endif
+#ifdef DARSHAN_USE_APNVGPU
+#define __APNVGPU_VER APNVGPU_VER
+#define __apnvgpu_logutils &apnvgpu_logutils
+#else
+#define __APNVGPU_VER 0
+#define __apnvgpu_logutils NULL
+#endif
 
 #define DARSHAN_MODULE_IDS \
     X(DARSHAN_NULL_MOD,     "NULL",       DARSHAN_NULL_VER,      NULL) \
@@ -170,7 +180,8 @@ struct darshan_base_record
     X(DXT_MPIIO_MOD,        "DXT_MPIIO",  DXT_MPIIO_VER,         &dxt_mpiio_logutils) \
     X(DARSHAN_MDHIM_MOD,    "MDHIM",      DARSHAN_MDHIM_VER,     &mdhim_logutils) \
     X(DARSHAN_APXC_MOD,     "APXC", 	  __APXC_VER,            __apxc_logutils) \
-    X(DARSHAN_APMPI_MOD,    "APMPI",      __APMPI_VER,           __apmpi_logutils) 
+    X(DARSHAN_APMPI_MOD,    "APMPI",      __APMPI_VER,           __apmpi_logutils) \
+    X(DARSHAN_APNVGPU_MOD,  "APNVGPU",    __APNVGPU_VER,         __apnvgpu_logutils)
 
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]

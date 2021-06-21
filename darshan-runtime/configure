@@ -633,6 +633,7 @@ DARSHAN_HDF5_LD_OPTS
 BUILD_HDF5_MODULE
 DARSHAN_APMPI_LD_OPTS
 BUILD_APMPI_MODULE
+BUILD_APNVGPU_MODULE
 BUILD_APXC_MODULE
 DARSHAN_PNETCDF_LD_OPTS
 BUILD_PNETCDF_MODULE
@@ -733,6 +734,7 @@ enable_mpiio_mod
 enable_apmpi_mod
 enable_apmpi_coll_sync
 enable_apxc_mod
+enable_apnvgpu_mod
 enable_hdf5_mod
 enable_pnetcdf_mod
 enable_bgq_mod
@@ -1386,6 +1388,10 @@ Optional Features:
                           Enable sync time calculation for MPI collectives
   --enable-apxc-mod       Enables compilation and use of AUTOPERF APXC module
                           (requires MPI)
+
+  --enable-apnvgpu-mod    Enables compilation and use of AUTOPERF APNVGPU
+                          module (requires TAU to be configure and built with
+                          CUDA)
 
   --enable-hdf5-mod       Enables compilation and use of HDF5 module
   --disable-pnetcdf-mod   Disables compilation and use of PnetCDF module
@@ -4298,6 +4304,29 @@ fi
 
 fi
 
+#AUTOPERF APNVGPU module
+BUILD_APNVGPU_MODULE=
+# Check whether --enable-apnvgpu-mod was given.
+if test "${enable_apnvgpu_mod+set}" = set; then :
+  enableval=$enable_apnvgpu_mod;
+fi
+
+if test "x$enable_apnvgpu_mod" = "xyes"; then :
+
+    abssrcdir=$(readlink -f ${srcdir})
+    as_ac_Header=`$as_echo "ac_cv_header_${abssrcdir}/../modules/autoperf/apnvgpu/darshan-apnvgpu-log-format.h" | $as_tr_sh`
+ac_fn_c_check_header_preproc "$LINENO" "${abssrcdir}/../modules/autoperf/apnvgpu/darshan-apnvgpu-log-format.h" "$as_ac_Header"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+
+else
+  as_fn_error $? "Unable to find the log format file for the Autoperf NVGPU module" "$LINENO" 5
+fi
+
+ # this last part tells it to only check for presence
+    BUILD_APNVGPU_MODULE=1
+
+fi
+
 # HDF5 module (disabled by default)
 BUILD_HDF5_MODULE=
 DARSHAN_HDF5_LD_OPTS=
@@ -5244,6 +5273,7 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
 DARSHAN_VERSION="3.3.0"
+
 
 
 
@@ -6657,6 +6687,13 @@ $as_echo "$as_me: AUTOPERF APXC module support:   no" >&6;}
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: AUTOPERF APXC module support:   yes" >&5
 $as_echo "$as_me: AUTOPERF APXC module support:   yes" >&6;}
+fi
+if test "x$BUILD_APNVGPU_MODULE" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: AUTOPERF APNVGPU module support:   no" >&5
+$as_echo "$as_me: AUTOPERF APNVGPU module support:   no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: AUTOPERF APNVGPU module support:   yes" >&5
+$as_echo "$as_me: AUTOPERF APNVGPU module support:   yes" >&6;}
 fi
 if test "x$BUILD_APMPI_MODULE" = "x"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: AUTOPERF MPI module support:   no" >&5

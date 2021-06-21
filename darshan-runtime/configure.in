@@ -268,6 +268,20 @@ AS_IF([test "x$enable_apxc_mod" = "xyes"], [
     BUILD_APXC_MODULE=1
 ])
 
+#AUTOPERF APNVGPU module
+BUILD_APNVGPU_MODULE=
+AC_ARG_ENABLE(apnvgpu-mod,
+              AS_HELP_STRING([--enable-apnvgpu-mod], [Enables compilation and use of AUTOPERF APNVGPU module (requires TAU to be configure and built with CUDA)])
+)
+AS_IF([test "x$enable_apnvgpu_mod" = "xyes"], [
+    abssrcdir=$(readlink -f ${srcdir})
+    AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apnvgpu/darshan-apnvgpu-log-format.h],
+                    [],
+		    [AC_MSG_ERROR([Unable to find the log format file for the Autoperf NVGPU module])],
+                    [-]) # this last part tells it to only check for presence
+    BUILD_APNVGPU_MODULE=1
+])
+
 # HDF5 module (disabled by default)
 BUILD_HDF5_MODULE=
 DARSHAN_HDF5_LD_OPTS=
@@ -601,6 +615,7 @@ AC_SUBST(DARSHAN_MPIIO_LD_OPTS)
 AC_SUBST(BUILD_PNETCDF_MODULE)
 AC_SUBST(DARSHAN_PNETCDF_LD_OPTS)
 AC_SUBST(BUILD_APXC_MODULE)
+AC_SUBST(BUILD_APNVGPU_MODULE)
 AC_SUBST(BUILD_APMPI_MODULE)
 AC_SUBST(DARSHAN_APMPI_LD_OPTS)
 AC_SUBST(BUILD_HDF5_MODULE)
@@ -646,4 +661,5 @@ AS_IF([test "x$BUILD_BGQ_MODULE" = "x"],     [AC_MSG_NOTICE(BG/Q module support:
 AS_IF([test "x$BUILD_LUSTRE_MODULE" = "x"],  [AC_MSG_NOTICE(Lustre module support:  no)], [AC_MSG_NOTICE(Lustre module support:  yes)])
 AS_IF([test "x$BUILD_MDHIM_MODULE" = "x"],   [AC_MSG_NOTICE(MDHIM module support:   no)], [AC_MSG_NOTICE(MDHIM module support:   yes)])
 AS_IF([test "x$BUILD_APXC_MODULE" = "x"],   [AC_MSG_NOTICE(AUTOPERF APXC module support:   no)], [AC_MSG_NOTICE(AUTOPERF APXC module support:   yes)])
+AS_IF([test "x$BUILD_APNVGPU_MODULE" = "x"],   [AC_MSG_NOTICE(AUTOPERF APNVGPU module support:   no)], [AC_MSG_NOTICE(AUTOPERF APNVGPU module support:   yes)])
 AS_IF([test "x$BUILD_APMPI_MODULE" = "x"],   [AC_MSG_NOTICE(AUTOPERF MPI module support:   no)], [AC_MSG_NOTICE(AUTOPERF MPI module support:   yes)])
