@@ -55,16 +55,6 @@
        } \
     }
 
-#define CUSTOM_MAP_OR_FAIL(__func) \
-    if (!(__real_ ## __func)) \
-    { \
-        __real_ ## __func = dlsym(RTLD_DEFAULT, #__func); \
-        if(!(__real_ ## __func)) { \
-            darshan_core_fprintf(stderr, "Custom map: Darshan failed to map symbol: %s\n", #__func); \
-            exit(1); \
-       } \
-    }
-
 #else
 
 #define DARSHAN_FORWARD_DECL(__name,__ret,__args) \
@@ -83,8 +73,6 @@
     __ret __wrap_ ## __func __args __attribute__ ((alias ("__wrap_" #__fcall)));
 
 #define MAP_OR_FAIL(__func)
-
-#define CUSTOM_MAP_OR_FAIL(__func) 
 
 #endif
 
