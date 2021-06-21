@@ -406,14 +406,14 @@ def apmpi_process(apmpi_dict):
     df_times_melt = df_times_unmelt.melt(id_vars="Rank", value_vars=df_times_unmelt.columns.tolist()[:-1], var_name="MPI_OP", value_name ="time")
     df_times_melt['MPI_OP']=pd.Categorical(df_times_melt['MPI_OP'], categories=df_times_unmelt.columns.tolist()[:-1], ordered=True)
     df_times_melt['Rank']=pd.Categorical(df_times_melt['Rank'], categories=df_times_unmelt['Rank'], ordered=True)
-    #p = (ggplot(df_times_melt, aes(x='Rank', y='time')))#, fill = 'MPI_OP', label='MPI_OP'))
-# + geom_bar(stat='identity')#, position='stack')
+    p = (ggplot(df_times_melt, aes(x='Rank', y='time', fill = 'MPI_OP', label='MPI_OP'))
+ + geom_bar(stat='identity', position='stack')
 #+ geom_tile()
-# + ggtitle('MPI OP time distribution')
-# + xlab("MPI op times on all the ranks (sorted by total MPI time)")
-# + ylab("Time(seconds)")
-# + scale_fill_manual(values=cbbPalette)
-# + scale_x_discrete(labels = ""))
+ + ggtitle('MPI OP time distribution')
+ + xlab("MPI op times on all the ranks (sorted by total MPI time)")
+ + ylab("Time(seconds)")
+ + scale_fill_manual(values=cbbPalette)
+ + scale_x_discrete(labels = ""))
 # + theme(axis.text.x = element_blank()))
     print(f'Phase4g: {time.process_time() - start}')
     import time
@@ -437,7 +437,7 @@ def apmpi_process(apmpi_dict):
     #buf.close()
     #p.save(buf, format='png',  verbose = False, height=5, width=6.5, dpi=50)
     #p.save(buf, format='png',  verbose = False, height=5, width=6.5, dpi=50)
-    p.save(buf, format='png', verbose = False, dpi=80, height=5, width=6.5) 
+    p.save(buf, format='png', verbose = False, dpi=80) 
     print(f'Phase4i: {time.process_time() - start}')
     import time
     start = time.process_time()
@@ -522,14 +522,19 @@ def apmpi_process(apmpi_dict):
     ## APMPI tables with stats from 3 ranks (rank with MAX mpi time, min time and average MPI time)
     #df_apmpi = df_apmpi.astype({"Count": 'Int64', "Total_Bytes": 'Int64', '[0-256B]':'Int64', '[256-1KB]':'Int64', '[1K-8KB]':'Int64', '[8K-256KB]':'Int64', '[256K-1MB]':'Int64', '[1MB+]':'Int64'})
  #   df_apmpi[["Count", "Total_Bytes", "[0-256B]", "[256-1KB]", "[1K-8KB]", "[8K-256KB]", "[256K-1MB]", "[1MB+]"]] = df_apmpi[["Count", "Total_Bytes", "[0-256B]", "[256-1KB]", "[1K-8KB]", "[8K-256KB]", "[256K-1MB]", "[1MB+]"]].apply(pd.to_numeric)
+    df_apmpi = df_apmpi.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[256-1KB]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6})
     df_max_rank = df_apmpi.loc[df_apmpi["Rank"] == max_rank]
     df_min_rank = df_apmpi.loc[df_apmpi["Rank"] == min_rank]
     df_mean_rank = df_apmpi.loc[df_apmpi["Rank"] == mean_rank]
     df_zero_rank = df_apmpi.loc[df_apmpi["Rank"] == 0]
-    encoded.append(df_max_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[256-1KB]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
-    encoded.append(df_min_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[256-1KB]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
-    encoded.append(df_mean_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[256-1KB]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
-    encoded.append(df_zero_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[256-1KB]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
+    #encoded.append(df_max_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[256-1KB]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
+    #encoded.append(df_min_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[256-1KB]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
+    #encoded.append(df_mean_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[256-1KB]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
+    #encoded.append(df_zero_rank.round({'Total_Time':6, 'Count':6, 'Total_Bytes':6, '[0-256B]':6, '[256-1KB]':6, '[1K-8KB]':6, '[8K-256KB]':6, '[256K-1MB]':6, '[1MB+]':6, 'Min_Time':6, 'Max_Time':6}))
+    encoded.append(df_max_rank)
+    encoded.append(df_min_rank)
+    encoded.append(df_mean_rank)
+    encoded.append(df_zero_rank)
     print(f'Phase7: {time.process_time() - start}')
     return encoded
   
