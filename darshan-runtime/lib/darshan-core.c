@@ -126,6 +126,8 @@ static void darshan_log_record_hints_and_ver(
     struct darshan_core_runtime* core);
 static void darshan_get_exe_and_mounts(
     struct darshan_core_runtime *core, int argc, char **argv);
+static void darshan_parse_config(
+    struct darshan_core_runtime *core, int *bail_flag);
 static void darshan_fs_info_from_path(
     const char *path, struct darshan_fs_info *fs_info);
 static int darshan_add_name_record_ref(
@@ -253,6 +255,7 @@ void darshan_core_initialize(int argc, char **argv)
     int i;
     int tmpval;
     double tmpfloat;
+    int bail_flag;
 
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if (darshan_core != NULL || getenv("DARSHAN_DISABLE"))
@@ -414,102 +417,13 @@ void darshan_core_initialize(int argc, char **argv)
         DARSHAN_MOD_FLAG_SET(init_core->mod_disabled, DXT_POSIX_MOD);
         DARSHAN_MOD_FLAG_SET(init_core->mod_disabled, DXT_MPIIO_MOD);
 
-        /* XXX: get log filters file */
-        char *darshan_conf = getenv("DARSHAN_CONF_PATH");
-        FILE *fp;
-        char *line = NULL;
-        size_t len = 0;
-        char *key, *val, *mods;
-        uint64_t tmp_mod_flags;
-
-        if(darshan_conf)
+        /* parse any user-supplied runtime configuration of Darshan */
+        darshan_parse_config(init_core, &bail_flag);
+        if(bail_flag)
         {
-            fp = fopen(darshan_conf, "r");
-            if(!fp)
-            {
-                /* XXX WARNING */
-                darshan_core_fprintf(stderr, "darshan library warning: "\
-                    "unable to open Darshan config at path %s\n", darshan_conf);
-            }
-
-            while(getline(&line, &len, fp) != -1)
-            {
-                const char *c = line;
-                while(isspace((unsigned char)*c))
-                    c++;
-                if(*c == '\0')
-                    continue; // skip lines with only whitespace
-
-                /* remove newline if present */
-                if(line[strlen(line) - 1] == '\n')
-                    line[strlen(line) - 1] = '\0';
-
-                /* extract setting key and parameters */
-                key = strtok(line, " \t");
-                if(key[0] == '#')
-                    continue; // skip comments
-
-                if(strcmp(key, "MOD_ENABLE") == 0)
-                {
-                    mods = strtok(NULL, " \t");
-                    fprintf(stderr, "%s %s\n", key, mods);
-                    tmp_mod_flags = darshan_module_csv_to_flags(mods);
-                    init_core->mod_disabled &= ~tmp_mod_flags;
-                }
-                else if(strcmp(key, "MOD_DISABLE") == 0)
-                {
-                    mods = strtok(NULL, " \t");
-                    fprintf(stderr, "%s %s\n", key, mods);
-                    tmp_mod_flags = darshan_module_csv_to_flags(mods);
-                    init_core->mod_disabled |= tmp_mod_flags;
-                }
-                else if(strcmp(key, "MAX_RECORDS") == 0)
-                {
-                    size_t tmpmax;
-                    val = strtok(NULL, " \t");
-                    ret = sscanf(val, "%lu", &tmpmax);
-                    if(ret != 1 || tmpmax <= 0)
-                    {
-                        darshan_core_fprintf(stderr, "darshan library warning: "\
-                            "unable to parse Darshan config %s value for %s\n",
-                            key, val);
-                        continue;
-                    }
-                    mods = strtok(NULL, " \t");
-                    fprintf(stderr, "%s %lu %s\n", key, tmpmax, mods);
-                    tmp_mod_flags = darshan_module_csv_to_flags(mods);
-                    for(i = 0; i < DARSHAN_MAX_MODS; i++)
-                    {
-                        if(DARSHAN_MOD_FLAG_ISSET(tmp_mod_flags, i))
-                            init_core->mod_max_records_override[i] = tmpmax;
-                    }
-                }
-                else if (strcmp(key, "NAME_EXCLUDE") == 0)
-                {
-                    struct darshan_core_name_regex *tmp_regex;
-                    val = strtok(NULL, " \t");
-                    mods = strtok(NULL, " \t");
-                    fprintf(stderr, "%s %s %s\n", key, val, mods);
-                    tmp_regex = malloc(sizeof(*tmp_regex));
-                    if(!tmp_regex) break;
-                    tmp_regex->mod_flags = darshan_module_csv_to_flags(mods);
-                    ret = regcomp(&tmp_regex->regex, val, REG_EXTENDED);
-                    if(ret)
-                    {
-                        darshan_core_fprintf(stderr, "darshan library warning: "\
-                            "unable to compile Darshan config %s regex %s\n",
-                            key, val);
-                        continue;
-                    }
-                    LL_PREPEND(init_core->exclude_list, tmp_regex);
-                }
-            }
-
-            fclose(fp);
-            free(line);
+            darshan_core_cleanup(init_core);
+            return;
         }
-
-
 #if 0
         /* determine if/when DXT should be enabled by looking for triggers */
         char *trigger_conf = getenv("DXT_TRIGGER_CONF_PATH");
@@ -1320,6 +1234,160 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
      * we don't match on "/" every time.
      */
     qsort(mnt_data_array, mnt_data_count, sizeof(mnt_data_array[0]), mnt_data_cmp);
+    return;
+}
+
+static void darshan_parse_config(struct darshan_core_runtime *core, int *bail_flag)
+{
+    char *darshan_conf;
+    FILE *fp;
+    char *line = NULL;
+    size_t len = 0;
+    char *key, *val, *mods;
+    char *tmp_str;
+    char *app_name = NULL;
+    regex_t app_regex;
+    uint64_t tmp_mod_flags;
+    int i;
+    int ret;
+
+    *bail_flag = 0;
+
+    /* get log filters file */
+    darshan_conf = getenv("DARSHAN_CONF_PATH");
+    if(darshan_conf)
+    {
+        fp = fopen(darshan_conf, "r");
+        if(!fp)
+        {
+            darshan_core_fprintf(stderr, "darshan library warning: "\
+                "unable to open Darshan config at path %s\n", darshan_conf);
+            return;
+        }
+
+        /* create the app name regex so we can compare against it quickly */
+        tmp_str = strdup(core->log_exemnt_p);
+        if(tmp_str)
+        {
+            app_name = strtok(tmp_str, " \n");
+            if(app_name)
+            {
+                ret = regcomp(&app_regex, app_name, REG_EXTENDED);
+                if(ret)
+                {
+                    app_name = NULL;
+                    darshan_core_fprintf(stderr, "darshan library warning: "\
+                        "unable to compile Darshan app name regex %s\n", app_name);
+                }
+            }
+            else
+            {
+                darshan_core_fprintf(stderr, "darshan library warning: "\
+                    "unable to determine app name\n");
+            }
+        }
+
+        while(getline(&line, &len, fp) != -1)
+        {
+            const char *c = line;
+            while(isspace((unsigned char)*c))
+                c++;
+            if(*c == '\0')
+                continue; // skip lines with only whitespace
+
+            /* remove newline if present */
+            if(line[strlen(line) - 1] == '\n')
+                line[strlen(line) - 1] = '\0';
+
+            /* extract setting key and parameters */
+            key = strtok(line, " \t");
+            if(key[0] == '#')
+                continue; // skip comments
+
+            if(strcmp(key, "APP_EXCLUDE") == 0)
+            {
+                val = strtok(NULL, " \t");
+                fprintf(stderr, "%s %s\n", key, val);
+                if(!app_name)
+                {
+                    darshan_core_fprintf(stderr, "darshan library warning: "\
+                        "ignoring Darshan config value %s, can't determine app name\n",
+                        key);
+                    continue;
+                }
+                if(regexec(&app_regex, val, 0, NULL, 0) == 0)
+                {
+                    /* if this app is in the exclude list, bail out */
+                    *bail_flag = 1;
+                    return;
+                }
+            }
+            else if(strcmp(key, "MOD_ENABLE") == 0)
+            {
+                mods = strtok(NULL, " \t");
+                fprintf(stderr, "%s %s\n", key, mods);
+                tmp_mod_flags = darshan_module_csv_to_flags(mods);
+                core->mod_disabled &= ~tmp_mod_flags;
+            }
+            else if(strcmp(key, "MOD_DISABLE") == 0)
+            {
+                mods = strtok(NULL, " \t");
+                fprintf(stderr, "%s %s\n", key, mods);
+                tmp_mod_flags = darshan_module_csv_to_flags(mods);
+                core->mod_disabled |= tmp_mod_flags;
+            }
+            else if(strcmp(key, "MAX_RECORDS") == 0)
+            {
+                size_t tmpmax;
+                val = strtok(NULL, " \t");
+                ret = sscanf(val, "%lu", &tmpmax);
+                if(ret != 1 || tmpmax <= 0)
+                {
+                    darshan_core_fprintf(stderr, "darshan library warning: "\
+                        "unable to parse Darshan config %s value for %s\n",
+                        key, val);
+                    continue;
+                }
+                mods = strtok(NULL, " \t");
+                fprintf(stderr, "%s %lu %s\n", key, tmpmax, mods);
+                tmp_mod_flags = darshan_module_csv_to_flags(mods);
+                for(i = 0; i < DARSHAN_MAX_MODS; i++)
+                {
+                    if(DARSHAN_MOD_FLAG_ISSET(tmp_mod_flags, i))
+                        core->mod_max_records_override[i] = tmpmax;
+                }
+            }
+            else if (strcmp(key, "NAME_EXCLUDE") == 0)
+            {
+                struct darshan_core_name_regex *tmp_dcnr;
+                val = strtok(NULL, " \t");
+                mods = strtok(NULL, " \t");
+                fprintf(stderr, "%s %s %s\n", key, val, mods);
+                tmp_dcnr = malloc(sizeof(*tmp_dcnr));
+                if(!tmp_dcnr) break;
+                tmp_dcnr->mod_flags = darshan_module_csv_to_flags(mods);
+                ret = regcomp(&tmp_dcnr->regex, val, REG_EXTENDED);
+                if(ret)
+                {
+                    darshan_core_fprintf(stderr, "darshan library warning: "\
+                        "unable to compile Darshan config %s regex %s\n",
+                        key, val);
+                    continue;
+                }
+                LL_PREPEND(core->exclude_list, tmp_dcnr);
+            }
+            /* XXX app include */
+            /* XXX name include */
+            /* XXX rank exclude/include */
+        }
+
+        fclose(fp);
+        free(line);
+        free(tmp_str);
+        if(app_name)
+            regfree(&app_regex);
+    }
+
     return;
 }
 
