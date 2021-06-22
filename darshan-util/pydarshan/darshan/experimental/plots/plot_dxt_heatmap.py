@@ -11,16 +11,26 @@ from matplotlib.colors import LogNorm
 
 
 def retrieve_flat_data(report, mods, ops):
-    flat_data = {}
+    # retrieve the flattened module data from the darshan report
 
+    # initialize an empty dictionary for storing
+    # module and read/write data
+    flat_data = {}
+    # iterate over the modules (i.e. DXT_POSIX)
     for module_key in mods:
 
+        # read in the module data, update the name records, and
+        # collect the pandas dataframe from the report
         report.mod_read_all_dxt_records(module_key, dtype="pandas")
         report.update_name_records()
         df = report.records[module_key].to_df()
 
+        # initialize an empty dictionary for each module
         flat_data[module_key] = {}
+        # for each operation (read/write), initialize a dictionary
+        # with empty lists for storing data to be used
         for op_key in ops:
+            # use the same keys that are used in the darshan report data
             flat_data[module_key][op_key] = {
                 "rank": [],
                 "bytes": [],
@@ -28,17 +38,24 @@ def retrieve_flat_data(report, mods, ops):
                 "end_time": [],
             }
 
+        # iterate over each record in the dataframe
         for record in df:
-            # keys: 'id', 'rank', 'hostname', 'write_count',
+            # record keys: 'id', 'rank', 'hostname', 'write_count',
             #       'read_count', 'write_segments', 'read_segments'
-            rank_idx = record["rank"]
+            # get the rank used for this record
+            rank = record["rank"]
             for op_key in ops:
-                # 'write_segments' or 'read_segments'
+                # create the segment key: 'write_segments' or 'read_segments'
                 segment_key = op_key + "_segments"
 
+                # get the dataframe for the given segment
                 segment_df = record[segment_key]
                 if segment_df.size:
-                    # columns: 'offset', 'length', 'start_time', 'end_time'
+                    # segment dataframe columns: 'offset', 'length',
+                    # 'start_time', 'end_time'
+
+                    # add the length, start/end times, and rank data to
+                    # the flat data dictionary
                     flat_data[module_key][op_key]["bytes"].extend(
                         segment_df["length"].values
                     )
@@ -48,7 +65,10 @@ def retrieve_flat_data(report, mods, ops):
                     flat_data[module_key][op_key]["end_time"].extend(
                         segment_df["end_time"].values
                     )
-                    rank_arr = rank_idx * np.ones(
+                    # since the rank is only listed once per record, use the
+                    # rank and the start time array length to store a rank
+                    # value for each data point
+                    rank_arr = rank * np.ones(
                         segment_df["start_time"].values.size, dtype=int
                     )
                     flat_data[module_key][op_key]["rank"].extend(rank_arr)
@@ -57,41 +77,145 @@ def retrieve_flat_data(report, mods, ops):
 
 
 def aggregate_data(data, mods, ops):
-    # TODO: implement data from any/all modules in .darshan log
+    # aggregates the data based on which
+    # modules and operations are selected
+
     # for now just retrieve `DXT_POSIX` and read data from that
     module_key = mods[0]
 
+    # iterate over the operations (i.e. read, write)
+    # create empty arrays to store arrays in
     start_data = []
     end_data = []
     ranks_data = []
     bytes_data = []
     for op_key in ops:
+        # for each operation, extend the list with the corresponding data
         start_data.extend(data[module_key][op_key]["start_time"])
         end_data.extend(data[module_key][op_key]["end_time"])
         ranks_data.extend(data[module_key][op_key]["rank"])
         bytes_data.extend(data[module_key][op_key]["bytes"])
 
+    # convert the lists into arrays
     start_data = np.asarray(start_data, dtype=float)
     end_data = np.asarray(end_data, dtype=float)
     ranks_data = np.asarray(ranks_data, dtype=int)
     bytes_data = np.asarray(bytes_data, dtype=int)
 
-    time_data = (end_data + start_data) / 2
-
     # sort the data arrays in chronological order
-    sorted_idx = np.argsort(time_data)
-    time_data = time_data[sorted_idx]
+    sorted_idx = np.argsort(start_data)
+    start_data = start_data[sorted_idx]
+    end_data = end_data[sorted_idx]
     ranks_data = ranks_data[sorted_idx]
     bytes_data = bytes_data[sorted_idx]
 
-    return time_data, ranks_data, bytes_data
+    return start_data, end_data, ranks_data, bytes_data
+
+
+def get_heatmap_data(start_time_data, end_time_data, ranks_data, data_arr, n_xbins):
+    # builds an array similar to a 2D-histogram, where the y data is the unique
+    # ranks and the x data is time. Each bin is populated with the data sum
+    # and/or proportionate data sum for all IO events read/written during the
+    # time spanned by the bin.
+
+    # get the unique ranks
+    unique_ranks = np.unique(ranks_data)
+
+    # generate the bin edges by generating an array of length n_bins+1, then
+    # taking pairs of data points as the min/max bin value
+    min_time = 0.0
+    max_time = end_time_data.max()
+    bin_edge_data = np.linspace(min_time, max_time, n_xbins + 1)
+
+    # calculated the elapsed time for each data point
+    elapsed_time_data = end_time_data - start_time_data
+
+    # generate an array for the heatmap data
+    hmap_data = np.zeros((unique_ranks.size, n_xbins), dtype=float)
+
+    # iterate over the unique ranks
+    for i, rank in enumerate(unique_ranks):
+        # for each rank, generate a mask to select only
+        # the data points that correspond to that rank
+        rank_mask = ranks_data == rank
+        start_data = start_time_data[rank_mask]
+        end_data = end_time_data[rank_mask]
+        elapsed_data = elapsed_time_data[rank_mask]
+        bytes_data = data_arr[rank_mask]
+
+        # iterate over the bins
+        for j, (bmin, bmax) in enumerate(zip(bin_edge_data[:-1], bin_edge_data[1:])):
+            # create a mask for all data with a start time greater than the
+            # bin minimum time
+            start_mask_min = start_data >= bmin
+            # create a mask for all data with an end time less than the
+            # bin maximum time
+            end_mask_max = end_data <= bmax
+            # now use the above masks to find the indices of all data with
+            # start/end times that fall within the bin min/max times
+            start_inside_idx = np.nonzero(start_mask_min & (start_data <= bmax))[0]
+            end_inside_idx = np.nonzero((end_data > bmin) & end_mask_max)[0]
+            # using the start/end indices, find all indices that both start
+            # and end within the bin min/max limits
+            inside_idx = np.intersect1d(start_inside_idx, end_inside_idx)
+            # use the original masks to find the indices of data that start
+            # before the bin minimum time and end after the bin maximum time
+            outside_idx = np.nonzero(~start_mask_min & ~end_mask_max)[0]
+
+            if inside_idx.size:
+                # for data that start/end inside the bin limits,
+                # add the sum of the correspondign data to the hmap data
+                hmap_data[i, j] += bytes_data[inside_idx].sum()
+                # now remove any indices from the start/end index arrays
+                # to prevent double counting
+                start_inside_idx = np.setdiff1d(start_inside_idx, inside_idx)
+                end_inside_idx = np.setdiff1d(end_inside_idx, inside_idx)
+
+            if outside_idx.size:
+                # for data that start before the bin min time and end
+                # after the bin max time (run longer than 1 bin time),
+                # calculate the proportionate data used in 1 bin time
+                # and add it to the hmap data
+                bin_elapsed_time = bmax - bmin
+                proportionate_time = bin_elapsed_time / elapsed_data[outside_idx]
+                proportionate_data = proportionate_time * bytes_data[outside_idx]
+                hmap_data[i, j] += proportionate_data.sum()
+
+            if start_inside_idx.size:
+                # for data with only a start time within the bin limits,
+                # calculate the elapsed time (from start to bin max), use the
+                # elapsed time to calculate the proportionate data read/written,
+                # and add the data sum to the hmap data
+                start_elapsed = bmax - start_data[start_inside_idx]
+                start_prop_time = start_elapsed / elapsed_data[start_inside_idx]
+                start_prop_data = start_prop_time * bytes_data[start_inside_idx]
+                hmap_data[i, j] += start_prop_data.sum()
+
+            if end_inside_idx.size:
+                # for data with only an end time within the bin limits,
+                # calculate the elapsed time (from bin min to end time), use the
+                # elapsed time to calculate the proportionate data read/written,
+                # and add the data sum to the hmap data
+                end_elapsed = end_data[end_inside_idx] - bmin
+                end_prop_time = end_elapsed / elapsed_data[end_inside_idx]
+                end_prop_data = end_prop_time * bytes_data[end_inside_idx]
+                hmap_data[i, j] += end_prop_data.sum()
+
+    # check that the sum of the heatmap data is
+    # close to the sum of the input data
+    if not np.isclose(hmap_data.sum(), data_arr.sum()):
+        raise ValueError(
+            f"Heatmap data size does not match input data size. "
+            f"Calculated {hmap_data.sum()}, expected {data_arr.sum()}"
+        )
+    return hmap_data
 
 
 def plot_dxt_heatmap(
     report,
     mods=None,
     ops=None,
-    xbins=100,
+    xbins=200,
 ):
     if mods is None:
         mods = ["DXT_POSIX"]
@@ -102,10 +226,20 @@ def plot_dxt_heatmap(
     if ops is None:
         ops = ["read", "write"]
 
-    # retrieve the data
-    flat_data = retrieve_flat_data(report=report, mods=mods, ops=ops)
-    time_data, ranks_data, bytes_data = aggregate_data(
-        data=flat_data, mods=mods, ops=ops
+    # generate the flattened data dictionary from the report data
+    flat_data_dict = retrieve_flat_data(report=report, mods=mods, ops=ops)
+    # aggregate the data according to the selected modules and operations
+    start_time_data, end_time_data, ranks_data, bytes_data = aggregate_data(
+        data=flat_data_dict, mods=mods, ops=ops
+    )
+
+    # get the heatmap data array
+    Hmap_data = get_heatmap_data(
+        start_time_data=start_time_data,
+        end_time_data=end_time_data,
+        ranks_data=ranks_data,
+        data_arr=bytes_data,
+        n_xbins=xbins,
     )
 
     # get the unique ranks
@@ -115,16 +249,11 @@ def plot_dxt_heatmap(
     # create a 2D histogram from the time and rank data, with the
     # selected data as the weight
     bins = [xbins, ybins]
-    H, _xedges, _yedges = np.histogram2d(
-        x=time_data, y=ranks_data, weights=bytes_data, bins=bins
-    )
-    Hmap_data = H.T
-
     jgrid = sns.jointplot(kind="hist", bins=bins, space=0.05)
     jgrid.ax_marg_x.cla()
     jgrid.ax_marg_y.cla()
 
-    colorbar_label = f"Data (B): {' + '.join(ops)}"
+    colorbar_label = f"Data (B): {', '.join(ops)}"
     colorbar_kws = {"label": colorbar_label}
     hmap = sns.heatmap(
         Hmap_data,
@@ -132,9 +261,6 @@ def plot_dxt_heatmap(
         # choose a color map that is not white at any value
         cmap="YlOrRd",
         norm=LogNorm(),
-        # TODO: want to change the color bar label to use the key names for the
-        # specific report data we are mapping, or specialized keys for derived
-        # quantities (like bandwidth)
         cbar_kws=colorbar_kws,
     )
 
@@ -167,7 +293,7 @@ def plot_dxt_heatmap(
     jgrid.ax_joint.set_xticks(xticks)
     # for the x tick labels, start at 0 and end with the max time (converted to
     # an integer)
-    max_time = np.max(time_data)
+    max_time = np.max(end_time_data)
     if max_time < 1:
         x_ticklabels = np.around(np.linspace(0, max_time, n_xlabels), decimals=2)
     elif (max_time > 1) & (max_time < 10):
@@ -271,7 +397,7 @@ def plot_dxt_heatmap(
     jgrid.ax_joint.set_ylabel("Rank")
 
     # set the figure title
-    title_str = " ,".join(mods)
+    title_str = "Module(s): " + ", ".join(mods)
     jgrid.fig.suptitle(title_str, fontsize=11)
     return jgrid
 
@@ -301,16 +427,11 @@ if __name__ == "__main__":
         report = darshan.DarshanReport(filepath, read_all=False)
 
         if "DXT_POSIX" not in report.modules.keys():
-            print("\n" + f"Skipping -> No 'DXT_POSIX' module in {filename}")
+            print(f"Skipping -> No 'DXT_POSIX' module in {filename}")
             continue
 
         # generate the heatmap figure
-        hmap = plot_dxt_heatmap(
-            report=report,
-            mods=None,
-            ops=None,
-            xbins=200,
-        )
+        hmap = plot_dxt_heatmap(report=report)
 
         save_path = os.path.join(os.getcwd(), os.path.splitext(filename)[0] + ".png")
         # save the figure at the specified location
