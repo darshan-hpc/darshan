@@ -1,5 +1,7 @@
 include README.rst
 
+include darshan/templates/summary.html
+
 recursive-include tests *
 recursive-include darshan *.py
 
