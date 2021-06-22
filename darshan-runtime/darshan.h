@@ -278,6 +278,8 @@ static inline int darshan_core_disabled_instrumentation(void)
     return(ret);
 }
 
+extern int (*darshan_clock_gettime)(clockid_t, struct timespec*);
+
 /* retrieve absolute wtime */
 static inline double darshan_core_wtime_absolute(void)
 {
@@ -292,7 +294,13 @@ static inline double darshan_core_wtime_absolute(void)
      *     platforms
      *   - it is not well defined how much precision will be sacrificed
      */
-    clock_gettime(CLOCK_REALTIME, &tp);
+
+    /* NOTE: we call darshan_clock_gettime() instead of clock_gettime()
+     * directly so that there is an opportunity to overload this function at
+     * runtime.  Otherwise it will just be a function pointer to
+     * clock_gettime().
+     */
+    darshan_clock_gettime(CLOCK_REALTIME, &tp);
 
     return(((double)tp.tv_sec) + 1.0e-9 * ((double)tp.tv_nsec));
 }
