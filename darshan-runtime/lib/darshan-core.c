@@ -290,7 +290,7 @@ void darshan_core_initialize(int argc, char **argv)
      * for testing purposes
      */
     /* attempt to load an auxilliary dynamic library for clock_gettime() */
-    gettime_handle = dlopen("libdarshan-aux-dyn.so", RTLD_NOW|RTLD_NODELETE);
+    gettime_handle = dlopen(DARSHAN_AUX_DYN_LIB, RTLD_NOW|RTLD_NODELETE);
     if(gettime_handle)
     {
         darshan_clock_gettime = dlsym(gettime_handle, "darshan_aux_clock_gettime");
