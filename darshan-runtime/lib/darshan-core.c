@@ -1247,6 +1247,7 @@ static void darshan_parse_config(struct darshan_core_runtime *core, int *bail_fl
     char *tmp_str;
     char *app_name = NULL;
     regex_t app_regex;
+    int app_include = 0, app_exclude = 0;
     uint64_t tmp_mod_flags;
     int i;
     int ret;
@@ -1265,27 +1266,10 @@ static void darshan_parse_config(struct darshan_core_runtime *core, int *bail_fl
             return;
         }
 
-        /* create the app name regex so we can compare against it quickly */
+        /* get the app name so we can compare against it against APP_ regexes */
         tmp_str = strdup(core->log_exemnt_p);
         if(tmp_str)
-        {
             app_name = strtok(tmp_str, " \n");
-            if(app_name)
-            {
-                ret = regcomp(&app_regex, app_name, REG_EXTENDED);
-                if(ret)
-                {
-                    app_name = NULL;
-                    darshan_core_fprintf(stderr, "darshan library warning: "\
-                        "unable to compile Darshan app name regex %s\n", app_name);
-                }
-            }
-            else
-            {
-                darshan_core_fprintf(stderr, "darshan library warning: "\
-                    "unable to determine app name\n");
-            }
-        }
 
         while(getline(&line, &len, fp) != -1)
         {
@@ -1315,12 +1299,40 @@ static void darshan_parse_config(struct darshan_core_runtime *core, int *bail_fl
                         key);
                     continue;
                 }
-                if(regexec(&app_regex, val, 0, NULL, 0) == 0)
+                ret = regcomp(&app_regex, val, REG_EXTENDED);
+                if(ret)
                 {
-                    /* if this app is in the exclude list, bail out */
-                    *bail_flag = 1;
-                    return;
+                    darshan_core_fprintf(stderr, "darshan library warning: "\
+                        "unable to compile Darshan config %s regex %s\n",
+                        key, val);
+                    continue;
                 }
+                if(regexec(&app_regex, app_name, 0, NULL, 0) == 0)
+                    app_exclude = 1;
+                regfree(&app_regex);
+            }
+            else if(strcmp(key, "APP_INCLUDE") == 0)
+            {
+                val = strtok(NULL, " \t");
+                fprintf(stderr, "%s %s\n", key, val);
+                if(!app_name)
+                {
+                    darshan_core_fprintf(stderr, "darshan library warning: "\
+                        "ignoring Darshan config value %s, can't determine app name\n",
+                        key);
+                    continue;
+                }
+                ret = regcomp(&app_regex, val, REG_EXTENDED);
+                if(ret)
+                {
+                    darshan_core_fprintf(stderr, "darshan library warning: "\
+                        "unable to compile Darshan config %s regex %s\n",
+                        key, val);
+                    continue;
+                }
+                if(regexec(&app_regex, val, 0, NULL, 0) == 0)
+                    app_include = 1;
+                regfree(&app_regex);
             }
             else if(strcmp(key, "MOD_ENABLE") == 0)
             {
@@ -1376,16 +1388,19 @@ static void darshan_parse_config(struct darshan_core_runtime *core, int *bail_fl
                 }
                 LL_PREPEND(core->exclude_list, tmp_dcnr);
             }
-            /* XXX app include */
             /* XXX name include */
             /* XXX rank exclude/include */
         }
 
+        /* only bail out if the app matched at least one app exclusion rule
+         * and matched no inclusion rules
+         */
+        if(app_exclude && !app_include)
+            *bail_flag = 1;
+
         fclose(fp);
         free(line);
         free(tmp_str);
-        if(app_name)
-            regfree(&app_regex);
     }
 
     return;
