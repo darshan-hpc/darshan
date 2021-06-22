@@ -291,17 +291,20 @@ def plot_dxt_heatmap(
     # create x ticks that scale with the number of xbins in the 2D histogram
     xticks = np.linspace(0, xbins, n_xlabels)
     jgrid.ax_joint.set_xticks(xticks)
-    # for the x tick labels, start at 0 and end with the max time (converted to
-    # an integer)
+    # for the x tick labels, start at 0 and end with
+    # the max time (converted to an integer)
+    min_time = 0.0
     max_time = np.max(end_time_data)
-    if max_time < 1:
-        x_ticklabels = np.around(np.linspace(0, max_time, n_xlabels), decimals=2)
-    elif (max_time > 1) & (max_time < 10):
-        x_ticklabels = np.around(np.linspace(0, max_time, n_xlabels), decimals=1)
+    if max_time <= 1:
+        # use 2 decimal places for run times less than 1 second
+        x_ticklabels = np.around(np.linspace(min_time, max_time, n_xlabels), decimals=2)
+    elif (max_time > 1) & (max_time <= 10):
+        # use 1 decimal place for run times between 1 and 10 seconds
+        x_ticklabels = np.around(np.linspace(min_time, max_time, n_xlabels), decimals=1)
     else:
-        x_ticklabels = np.asarray(
-            np.linspace(0, np.ceil(max_time), n_xlabels), dtype=int
-        )
+        # for run times greater than 10 seconds, round the max
+        # time up and round labels to the nearest integer
+        x_ticklabels = np.linspace(min_time, np.ceil(max_time), n_xlabels, dtype=int)
 
     jgrid.ax_joint.set_xticklabels(x_ticklabels, minor=False)
 
@@ -313,8 +316,8 @@ def plot_dxt_heatmap(
         sns_yticks = jgrid.ax_joint.get_yticks()
         yticks = np.linspace(sns_yticks.min(), sns_yticks.max(), n_ylabels)
         jgrid.ax_joint.set_yticks(yticks)
-        yticklabels = np.asarray(
-            np.linspace(unique_ranks.min(), unique_ranks.max(), n_ylabels), dtype=int
+        yticklabels = np.linspace(
+            unique_ranks.min(), unique_ranks.max(), n_ylabels, dtype=int
         )
     else:
         # if there are less than 12 unique ranks, just label each
