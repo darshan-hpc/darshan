@@ -32,11 +32,6 @@ eval darshan_share_path=$datarootdir
 prefix=$savePrefix
 exec_prefix=$saveExecprefix
 
-dnl fully resolved installation path for darshan auxiliary tools dynamic
-dnl library; may be loaded at runtime with dlopen()
-AC_DEFINE_UNQUOTED([DARSHAN_AUX_DYN_LIB], ["${darshan_lib_path}/libdarshan-aux-dyn.so"], Installation path for auxiliary Darshan library)
-
-AC_DEFINE_UNQUOTED(__DARSHAN_MEM_ALIGNMENT, ${withval}, Memory alignment in bytes)
 dnl Check for MPI
 AC_ARG_WITH(mpi,
             [AS_HELP_STRING([--without-mpi], [Build without support for MPI])],

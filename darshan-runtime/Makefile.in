@@ -214,7 +214,7 @@ lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darsha
 	ar rcs $@ $^
 
 lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po $(DARSHAN_DYNAMIC_MOD_OBJS) lib/lookup3.po lib/lookup8.po
-	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ -lpthread -lrt -lz -ldl
+	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -Wl,-rpath=$(DESTDIR)$(libdir) -o $@ $^ -lpthread -lrt -lz -ldl
 
 lib/libdarshan-aux-dyn.so: lib/darshan-aux-dyn.po
 	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^

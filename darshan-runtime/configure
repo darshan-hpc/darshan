@@ -2425,17 +2425,6 @@ prefix=$savePrefix
 exec_prefix=$saveExecprefix
 
 
-cat >>confdefs.h <<_ACEOF
-#define DARSHAN_AUX_DYN_LIB "${darshan_lib_path}/libdarshan-aux-dyn.so"
-_ACEOF
-
-
-
-cat >>confdefs.h <<_ACEOF
-#define __DARSHAN_MEM_ALIGNMENT ${withval}
-_ACEOF
-
-
 # Check whether --with-mpi was given.
 if test "${with_mpi+set}" = set; then :
   withval=$with_mpi;
