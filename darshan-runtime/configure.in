@@ -441,7 +441,7 @@ AC_TRY_COMPILE(
 )
 CFLAGS="$old_cflags"
 
-AC_CHECK_HEADERS(mntent.h sys/mount.h stdatomic.h)
+AC_CHECK_HEADERS(mntent.h sys/mount.h stdatomic)
 
 #
 # Begin tests for MPI-enabled builds
