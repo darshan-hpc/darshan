@@ -27,8 +27,6 @@
 #include <sys/vfs.h>
 #include <zlib.h>
 #include <assert.h>
-#include <time.h>
-#include <dlfcn.h>
 
 #ifdef HAVE_MPI
 #include <mpi.h>
@@ -51,8 +49,6 @@ atomic_flag __darshan_core_mutex = ATOMIC_FLAG_INIT;
 #else
 pthread_mutex_t __darshan_core_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
-/* function pointer to use for clock_gettime() */
-int (*darshan_clock_gettime)(clockid_t, struct timespec*) = clock_gettime;
 
 /* internal variable delcarations */
 static int using_mpi = 0;
@@ -215,7 +211,6 @@ void darshan_core_initialize(int argc, char **argv)
     int i;
     int tmpval;
     double tmpfloat;
-    void * gettime_handle;
 
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if (__darshan_core != NULL || getenv("DARSHAN_DISABLE"))
@@ -281,20 +276,6 @@ void darshan_core_initialize(int argc, char **argv)
         {
             darshan_mod_mem_quota = tmpfloat * 1024 * 1024; /* convert from MiB */
         }
-    }
-
-    /* TODO: only do this in static library; temporarily making it universal
-     * for testing purposes
-     */
-    /* attempt to load an auxilliary dynamic library for clock_gettime() */
-    gettime_handle = dlopen("libdarshan-aux-dyn.so", RTLD_NOW|RTLD_NODELETE);
-    if(gettime_handle)
-    {
-        darshan_clock_gettime = dlsym(gettime_handle, "darshan_aux_clock_gettime");
-        if(!darshan_clock_gettime)
-            darshan_clock_gettime = clock_gettime;
-
-        dlclose(gettime_handle);
     }
 
     /* allocate structure to track darshan core runtime information */

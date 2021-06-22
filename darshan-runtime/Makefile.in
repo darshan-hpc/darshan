@@ -23,7 +23,7 @@ ifndef DISABLE_STATIC_LIB
 all: lib/libdarshan.a
 endif
 ifndef DISABLE_LDPRELOAD
-all: lib/libdarshan.so lib/libdarshan-aux-dyn.so
+all: lib/libdarshan.so
 endif
 
 VPATH = $(srcdir)
@@ -207,17 +207,12 @@ lib/lookup8.o: lib/lookup8.c
 lib/lookup8.po: lib/lookup8.c
 	$(CC) $(CFLAGS_SHARED) -c $< -o $@
 
-lib/darshan-aux-dyn.po: lib/darshan-aux-dyn.c
-	$(CC) $(CFLAGS_SHARED) -c $< -o $@
-
 lib/libdarshan.a: lib/darshan-core-init-finalize.o lib/darshan-core.o lib/darshan-common.o $(DARSHAN_STATIC_MOD_OBJS) lib/lookup3.o lib/lookup8.o
 	ar rcs $@ $^
 
 lib/libdarshan.so: lib/darshan-core-init-finalize.po lib/darshan-core.po lib/darshan-common.po $(DARSHAN_DYNAMIC_MOD_OBJS) lib/lookup3.po lib/lookup8.po
-	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -Wl,-rpath=$(DESTDIR)$(libdir) -o $@ $^ -lpthread -lrt -lz -ldl
+	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^ -lpthread -lrt -lz -ldl
 
-lib/libdarshan-aux-dyn.so: lib/darshan-aux-dyn.po
-	$(CC) $(CFLAGS_SHARED) $(LDFLAGS) -o $@ $^
 
 install:: all
 	install -d $(DESTDIR)$(libdir)
@@ -226,7 +221,6 @@ ifndef DISABLE_STATIC_LIB
 endif
 ifndef DISABLE_LDPRELOAD
 	install -m 755 lib/libdarshan.so $(DESTDIR)$(libdir)
-	install -m 755 lib/libdarshan-aux-dyn.so $(DESTDIR)$(libdir)
 endif
 	install -d $(DESTDIR)$(bindir)
 	install -m 755 darshan-mk-log-dirs.pl $(DESTDIR)$(bindir)
