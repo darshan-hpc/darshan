@@ -119,7 +119,8 @@ struct darshan_core_runtime
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
     uint64_t mod_disabled;
     size_t mod_max_records_override[DARSHAN_MAX_MODS];
-    struct darshan_core_name_regex *exclude_list;
+    struct darshan_core_name_regex *exclusion_list;
+    struct darshan_core_name_regex *inclusion_list;
     size_t mod_mem_used;
     struct darshan_core_name_record_ref *name_hash;
     size_t name_mem_used;

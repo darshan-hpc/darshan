@@ -1386,9 +1386,27 @@ static void darshan_parse_config(struct darshan_core_runtime *core, int *bail_fl
                         key, val);
                     continue;
                 }
-                LL_PREPEND(core->exclude_list, tmp_dcnr);
+                LL_PREPEND(core->exclusion_list, tmp_dcnr);
             }
-            /* XXX name include */
+            else if (strcmp(key, "NAME_INCLUDE") == 0)
+            {
+                struct darshan_core_name_regex *tmp_dcnr;
+                val = strtok(NULL, " \t");
+                mods = strtok(NULL, " \t");
+                fprintf(stderr, "%s %s %s\n", key, val, mods);
+                tmp_dcnr = malloc(sizeof(*tmp_dcnr));
+                if(!tmp_dcnr) break;
+                tmp_dcnr->mod_flags = darshan_module_csv_to_flags(mods);
+                ret = regcomp(&tmp_dcnr->regex, val, REG_EXTENDED);
+                if(ret)
+                {
+                    darshan_core_fprintf(stderr, "darshan library warning: "\
+                        "unable to compile Darshan config %s regex %s\n",
+                        key, val);
+                    continue;
+                }
+                LL_PREPEND(core->inclusion_list, tmp_dcnr);
+            }
             /* XXX rank exclude/include */
         }
 
@@ -2508,6 +2526,7 @@ void *darshan_core_register_record(
     struct darshan_core_name_record_ref *ref;
     struct darshan_core_name_regex *tmp_regex;
     void *rec_buf;
+    int excluded = 0, included = 0;
     int ret;
 
     DARSHAN_CORE_LOCK();
@@ -2529,9 +2548,25 @@ void *darshan_core_register_record(
     if(name)
     {
         /* check to see if this name is in the exclusion list for this module */
-        LL_FOREACH(darshan_core->exclude_list, tmp_regex)
+        LL_FOREACH(darshan_core->exclusion_list, tmp_regex)
         {
             if(regexec(&tmp_regex->regex, name, 0, NULL, 0) == 0)
+                excluded = 1;
+        }
+
+        /* XXX what about default path exclusions? */
+        if(excluded)
+        {
+            /* if marked as excluded, make sure there's not a superseding inclusion */
+            LL_FOREACH(darshan_core->inclusion_list, tmp_regex)
+            {
+                if(regexec(&tmp_regex->regex, name, 0, NULL, 0) == 0)
+                {
+                    included = 1;
+                    break;
+                }
+            }
+            if(!included)
             {
                 DARSHAN_CORE_UNLOCK();
                 return(NULL);
