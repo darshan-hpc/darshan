@@ -272,7 +272,6 @@ def plot_dxt_heatmap(
             y=unique_ranks,
             width=Hmap_data.sum(axis=1),
             align="edge",
-            height=-0.99,
             facecolor="black",
             lw=0.5,
         )
@@ -313,12 +312,19 @@ def plot_dxt_heatmap(
         # do some checks on how many ranks there are earlier on since any
         # file with 1000's of ranks is too messy to plot this way.
         n_ylabels = 6
+        # get the y tick marks and labels
         sns_yticks = jgrid.ax_joint.get_yticks()
+        sns_yticklabels = np.zeros_like(sns_yticks, dtype=int)
+        for i, tlabel in enumerate(jgrid.ax_joint.get_yticklabels()):
+            sns_yticklabels[i] = int(tlabel.get_text())
+
+        # use the original tick marks to make new arrays that
+        # contain a subset (6) of the original ticks/labels
         yticks = np.linspace(sns_yticks.min(), sns_yticks.max(), n_ylabels)
-        jgrid.ax_joint.set_yticks(yticks)
         yticklabels = np.linspace(
-            unique_ranks.min(), unique_ranks.max(), n_ylabels, dtype=int
+            sns_yticklabels.min(), sns_yticklabels.max(), n_ylabels, dtype=int
         )
+        jgrid.ax_joint.set_yticks(yticks)
     else:
         # if there are less than 12 unique ranks, just label each
         # row with its rank index
@@ -344,7 +350,7 @@ def plot_dxt_heatmap(
     jgrid.fig.set_size_inches(6.5, 4.5)
 
     # set the spacing between subplots
-    hspace, wspace = 0.01, 0.02
+    hspace, wspace = 0.03, 0.04
     # adjust the subplot so the x/y tick labels are legible
     jgrid.fig.subplots_adjust(
         left=0.1, bottom=0.15, top=0.9, hspace=hspace, wspace=wspace
