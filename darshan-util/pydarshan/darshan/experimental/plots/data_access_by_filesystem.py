@@ -25,7 +25,7 @@ def process_byte_counts(df_reads, df_writes):
     additional columns for ``filesystem_root`` and 
     ``filepath`` are present
 
-    df_reads: a ``pd.DataFrame`` where each row presents
+    df_writes: a ``pd.DataFrame`` where each row presents
     at least 1 byte of write-related IO activity, and where
     additional columns for ``filesystem_root`` and 
     ``filepath`` are present
