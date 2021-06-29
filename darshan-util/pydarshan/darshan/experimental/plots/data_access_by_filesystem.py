@@ -17,7 +17,7 @@ def process_byte_counts(df_reads, df_writes):
     returns separate pandas Series objects with the counts
     of bytes read or written per filesystem root.
 
-    Paramaters
+    Parameters
     ----------
 
     df_reads: a ``pd.DataFrame`` where each row presents
@@ -51,7 +51,7 @@ def process_unique_files(df_reads, df_writes):
     of unique files per filesytem root to which 1 byte has
     been read or written.
 
-    Paramaters
+    Parameters
     ----------
 
     df_reads: a ``pd.DataFrame`` where each row presents
@@ -84,7 +84,7 @@ def check_empty_series(read_groups, write_groups, filesystem_roots: List[str]):
     Add ``0`` values for inactive filesystem roots
     for plotting purposes.
 
-    Paramaters
+    Parameters
     ----------
 
     read_groups: a ``pd.Series`` object with IO read activity data
@@ -108,7 +108,7 @@ def check_empty_series(read_groups, write_groups, filesystem_roots: List[str]):
 
 def empty_series_handler(series, filesystem_roots: List[str]):
     """
-    Paramaters
+    Parameters
     ----------
 
     series: a ``pd.Series`` object
@@ -132,7 +132,7 @@ def rec_to_rw_counter_dfs_with_cols(report: Any,
     byte read or written per row) and two extra columns
     for filesystem root path and filename data.
 
-    Paramaters
+    Parameters
     ----------
 
     report: a darshan.DarshanReport()
@@ -145,8 +145,8 @@ def rec_to_rw_counter_dfs_with_cols(report: Any,
          (default: ``POSIX``)
 
 
-    Returns:
-    --------
+    Returns
+    -------
     tuple of form: (df_reads, df_writes)
     """
     # filter the DarshanReport into two "counters" dataframes
@@ -169,7 +169,7 @@ def rec_to_rw_counter_dfs(report: Any,
     each with read/write activity in each row (at least 1
     byte read or written per row).
 
-    Paramaters
+    Parameters
     ----------
 
     report: a darshan.DarshanReport()
@@ -177,8 +177,8 @@ def rec_to_rw_counter_dfs(report: Any,
     mod: a string indicating the darshan module to use for parsing
          (default: ``POSIX``)
 
-    Returns:
-    --------
+    Returns
+    -------
     tuple of form: (df_reads, df_writes)
     """
     report.mod_read_all_records(mod, dtype='pandas')
@@ -199,7 +199,7 @@ def add_filesystem_cols(df_reads, df_writes, file_id_dict: Dict[int, str]):
     the filepaths for each event, and the other with the
     filesystem root for each event.
 
-    Paramaters
+    Parameters
     ----------
 
     df_reads: ``pandas.DataFrame`` that has been filtered
@@ -232,13 +232,13 @@ def add_filesystem_cols(df_reads, df_writes, file_id_dict: Dict[int, str]):
 
 def convert_file_path_to_root_path(file_path: str) -> str:
     """
-    Paramaters
+    Parameters
     ----------
 
     file_path: a string containing the absolute file path
 
-    Returns: 
-    --------
+    Returns
+    -------
     A string containing the root path.
 
     Examples:
@@ -255,7 +255,7 @@ def convert_file_path_to_root_path(file_path: str) -> str:
 
 def convert_file_id_to_path(input_id: float, file_id_dict: Dict[int, str]) -> Optional[str]:
     """
-    Paramaters
+    Parameters
     ----------
 
     input_id: a float representing the file hash
@@ -288,7 +288,7 @@ def convert_file_id_to_path(input_id: float, file_id_dict: Dict[int, str]) -> Op
 
 def identify_filesystems(file_id_dict: Dict[int, str], verbose: bool = False) -> List[str]:
     """
-    Paramaters
+    Parameters
     ----------
     file_id_dict: a dictionary mapping integer file hash values
                   to string values corresponding to their respective
@@ -338,8 +338,8 @@ def unique_fs_rw_counter(report: Any,
     at least 1 byte has been read, or to which at least
     1 byte has been written.
 
-    Paramaters:
-    -----------
+    Parameters
+    ----------
     report: a darshan.DarshanReport()
 
     filesystem_roots: a list of strings containing unique filesystem root paths
@@ -359,8 +359,8 @@ def unique_fs_rw_counter(report: Any,
     verbose: if ``True``, print the calculated values of ``read_groups``
     and ``write_groups``
 
-    Returns:
-    --------
+    Returns
+    -------
     tuple of form: (read_groups, write_groups)
 
     Where each element of the tuple is a pandas
