@@ -167,3 +167,71 @@ def test_process_byte_counts(df_reads, df_writes, expected_read_groups, expected
                                                                                             df_writes=df_writes)
     assert_series_equal(actual_read_groups, expected_read_groups)
     assert_series_equal(actual_write_groups, expected_write_groups)
+
+@pytest.mark.parametrize("df_reads, df_writes, expected_read_groups, expected_write_groups", [
+    (pd.DataFrame({'filesystem_root': ['/yellow', '/tmp', '/yellow'],
+                   'filepath': ['/yellow/file1', '/tmp/file2', '/yellow/file3'],
+                   'POSIX_BYTES_READ': [3, 5, 90],
+                   'POSIX_BYTES_WRITTEN': [0, 9, 0],
+                   'COLUMN3': [np.nan, 5, 8],
+                   'COLUMN4': ['a', 'b', 'c']}),
+    pd.DataFrame({'filesystem_root': ['/yellow', '/tmp', '/tmp'],
+                   'filepath': ['/yellow/file4', '/tmp/file5', '/tmp/file19'],
+                   'POSIX_BYTES_READ': [1, 11, 17],
+                   'POSIX_BYTES_WRITTEN': [2098, 9, 20],
+                   'COLUMN3': [np.nan, 5, 1],
+                   'COLUMN4': ['a', 'b', 'd']}),
+    pd.Series([1, 2], index=['/tmp', '/yellow'], name='filepath'),
+    pd.Series([2, 1], index=['/tmp', '/yellow'], name='filepath'),
+            ),
+        ])
+def test_process_unique_files(df_reads, df_writes, expected_read_groups, expected_write_groups):
+    expected_read_groups.index = expected_read_groups.index.set_names('filesystem_root')
+    expected_write_groups.index = expected_write_groups.index.set_names('filesystem_root')
+    actual_read_groups, actual_write_groups = data_access_by_filesystem.process_unique_files(df_reads=df_reads,
+                                                                                             df_writes=df_writes)
+    assert_series_equal(actual_read_groups, expected_read_groups)
+    assert_series_equal(actual_write_groups, expected_write_groups)
+
+@pytest.mark.parametrize("mod", ["POSIX", "OTHER"])
+@pytest.mark.parametrize("verbose", [True, False])
+@pytest.mark.parametrize("""report,
+                            filesystem_roots,
+                            file_id_dict,
+                            processing_func,
+                            expected_read_groups,
+                            expected_write_groups""", [
+    (darshan.DarshanReport("tests/input/sample.darshan"),
+     data_access_by_filesystem.identify_filesystems(darshan.DarshanReport("tests/input/sample.darshan").data["name_records"]),
+     darshan.DarshanReport("tests/input/sample.darshan").data["name_records"],
+     data_access_by_filesystem.process_unique_files,
+     pd.Series([0.0], index=['/scratch2'], name='filepath'),
+     pd.Series([1.0], index=['/scratch2'], name='filepath')),
+    ])
+def test_unique_fs_rw_counter(report,
+                              filesystem_roots,
+                              file_id_dict,
+                              processing_func,
+                              verbose,
+                              expected_read_groups,
+                              expected_write_groups,
+                              mod):
+    if mod == "POSIX":
+        expected_read_groups.index = expected_read_groups.index.set_names('filesystem_root')
+        expected_write_groups.index = expected_write_groups.index.set_names('filesystem_root')
+        actual_read_groups, actual_write_groups = data_access_by_filesystem.unique_fs_rw_counter(report=report,
+                                                                                                 filesystem_roots=filesystem_roots,
+                                                                                                 file_id_dict=file_id_dict,
+                                                                                                 processing_func=processing_func,
+                                                                                                 mod=mod,
+                                                                                                 verbose=verbose)
+        assert_series_equal(actual_read_groups, expected_read_groups)
+        assert_series_equal(actual_write_groups, expected_write_groups)
+    else:
+        with pytest.raises(NotImplementedError):
+            data_access_by_filesystem.unique_fs_rw_counter(report=report,
+                                                           filesystem_roots=filesystem_roots,
+                                                           file_id_dict=file_id_dict,
+                                                           processing_func=processing_func,
+                                                           mod=mod,
+                                                           verbose=verbose)
