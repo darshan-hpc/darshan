@@ -2,6 +2,9 @@ import numpy as np
 import pytest
 import pandas as pd
 from pandas.testing import assert_series_equal
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 import darshan
 from darshan.experimental.plots import data_access_by_filesystem
@@ -229,3 +232,41 @@ def test_unique_fs_rw_counter(report,
                                                            processing_func=processing_func,
                                                            mod=mod,
                                                            verbose=verbose)
+
+
+@pytest.mark.parametrize("""file_rd_series,
+                            file_wr_series,
+                            bytes_rd_series,
+                            bytes_wr_series,
+                            filesystem_roots
+                         """, [
+
+     (pd.Series([3.0], index=pd.Index(['/p'], name='filesystem_root'), name='filepath'),
+      pd.Series([14.0], index=pd.Index(['/p'], name='filesystem_root'), name='filepath'),
+      pd.Series([2.145206e+09], index=pd.Index(['/p'], name='filesystem_root'), name='POSIX_BYTES_READ'),
+      pd.Series([1.010878e+12], index=pd.Index(['/p'], name='filesystem_root'), name='POSIX_BYTES_WRITTEN'),
+      ['/p'],
+         ),
+       ])
+def test_plot_data(file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_series, filesystem_roots):
+    # test a few basic properties of the main plotting function
+    fig = plt.figure()
+    data_access_by_filesystem.plot_data(fig=fig,
+                                        file_rd_series=file_rd_series,
+                                        file_wr_series=file_wr_series,
+                                        bytes_rd_series=bytes_rd_series,
+                                        bytes_wr_series=bytes_wr_series,
+                                        filesystem_roots=filesystem_roots)
+    axes = fig.gca()
+    children = axes.get_children()
+    actual_list_text_in_fig = []
+
+    # accumulate text added via ax.text()
+    # by the function
+    for child in children:
+        if isinstance(child, matplotlib.text.Text):
+            actual_list_text_in_fig.append(child.get_text())
+
+    for expected_text_entry in [matplotlib.text.Text(0, 1, '# files read'),
+                                matplotlib.text.Text(0, 0, '# files written')]:
+        assert expected_text_entry.get_text() in actual_list_text_in_fig

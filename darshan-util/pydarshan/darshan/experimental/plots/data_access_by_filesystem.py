@@ -403,3 +403,54 @@ def unique_fs_rw_counter(report: Any,
         print("write_groups:\n", write_groups)
     return (read_groups, write_groups)
 
+
+def plot_data(fig, file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_series, filesystem_roots):
+    print("filesystem_roots:", filesystem_roots)
+    for row, filesystem in enumerate(filesystem_roots):
+        ax_filesystem_bytes = fig.add_subplot(len(filesystem_roots), 
+                                              2,
+                                              row * 2 + 1)
+        ax_filesystem_counts = fig.add_subplot(len(filesystem_roots), 
+                                              2,
+                                              row * 2 + 2)
+        print("filesystem:", filesystem)
+        print("bytes_rd_series:", bytes_rd_series)
+        print("bytes_wr_series:", bytes_wr_series)
+        # convert to MiB using the factor suggested
+        # by Google (approximate result only for now)
+        bytes_read = bytes_rd_series[filesystem]/1.049e+6
+        bytes_written = bytes_wr_series[filesystem]/1.049e+6
+
+        ax_filesystem_bytes.annotate(filesystem, (-0.3, 0.5), fontsize=18, xycoords='axes fraction')
+        ax_filesystem_counts.barh(0, file_wr_series[filesystem], color='red', alpha=0.3)
+        ax_filesystem_counts.barh(1, file_rd_series[filesystem], color='blue', alpha=0.3)
+
+        ax_filesystem_bytes.text(0, 1, f' # bytes read ({bytes_read:.2E} MiB)')
+        ax_filesystem_bytes.text(0, 0, f' # bytes written ({bytes_written:.2E} MiB)')
+
+        if file_rd_series[filesystem] == 0:
+            ax_filesystem_counts.text(0, 1, ' 0 files read')
+        else:
+            ax_filesystem_counts.text(0, 1, '# files read')
+            ax_filesystem_counts.text(file_rd_series[filesystem], 1, '  ' + str(file_rd_series[filesystem]))
+
+        if file_wr_series[filesystem] == 0:
+            ax_filesystem_counts.text(0, 0, ' 0 files written')
+        else:
+            ax_filesystem_counts.text(0, 0, '# files written')
+            ax_filesystem_counts.text(file_wr_series[filesystem], 0, str(file_wr_series[filesystem]))
+
+        if bytes_written != 0:
+            ax_filesystem_bytes.barh(0, bytes_written, color='red', alpha=0.3)
+        else:
+            ax_filesystem_bytes.barh(0, bytes_written, color='red', alpha=0.0)
+
+        if bytes_read != 0:
+            ax_filesystem_bytes.barh(1, bytes_read, color='blue', alpha=0.3)
+        else:
+            ax_filesystem_bytes.barh(1, bytes_read, color='blue', alpha=0.0)
+
+        ax_filesystem_counts.set_xticks([])
+        ax_filesystem_counts.set_yticks([])
+        ax_filesystem_bytes.set_xticks([])
+        ax_filesystem_bytes.set_yticks([])
