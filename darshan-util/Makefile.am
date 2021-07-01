@@ -56,9 +56,6 @@ bin_PROGRAMS = darshan-analyzer \
 
 noinst_PROGRAMS = jenkins-hash-gen
 
-# cp_zlib_link_flags = @__DARSHAN_ZLIB_LINK_FLAGS@
-# cp_zlib_include_flags = @__DARSHAN_ZLIB_INCLUDE_FLAGS@
-
 # LIBS += @LIBBZ2@
 
 jenkins_hash_gen_SOURCES = jenkins-hash-gen.c lookup3.c

@@ -72,8 +72,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    fi
 
    dnl runtime libraries require zlib
-   AC_CHECK_HEADER([zlib.h], [],[AC_MSG_ERROR(zlib.h not found)])
-   AC_SEARCH_LIBS([inflateEnd],[z],[],[AC_MSG_ERROR(libz not found)])
+   CHECK_ZLIB
 
    AC_ARG_ENABLE([ld-preload],
       [AS_HELP_STRING([--disable-ld-preload],

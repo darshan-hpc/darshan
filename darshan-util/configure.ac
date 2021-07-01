@@ -33,23 +33,11 @@ LT_INIT
 
 if test "x$enable_darshan_util" = xyes ; then
 
-   dnl AC_PROG_INSTALL
+   # zlib is required
+   CHECK_ZLIB
 
-   # CHECK_ZLIB
-   AC_CHECK_HEADER([zlib.h],[],[AC_MSG_ERROR(zlib.h not found)])
-   AC_SEARCH_LIBS([inflateEnd],[z],[],[AC_MSG_ERROR(libz not found)])
-
-   # CHECK_BZLIB
-   AC_CHECK_HEADER([bzlib.h],
-      [AC_DEFINE([HAVE_LIBBZ2],1,[Define to 1 if have <bzlib.h>.])],
-      [AC_MSG_ERROR(bzlib.h not found)]
-   )
-   AC_SEARCH_LIBS([BZ2_bzCompressInit],
-      [bz2],
-      [LIBBZ2=-lbz2],
-      [AC_MSG_ERROR(libbz2 not found)]
-   )
-   AC_SUBST(LIBBZ2)
+   # bz2 is optional
+   CHECK_BZLIB
 
    # checks to see how we can print 64 bit values on this architecture
    gt_INTTYPES_PRI
