@@ -156,13 +156,11 @@ def test_check_empty_series(read_groups,
                    'POSIX_BYTES_WRITTEN': [2098, 9, 20],
                    'COLUMN3': [np.nan, 5, 1],
                    'COLUMN4': ['a', 'b', 'd']}),
-    pd.Series([5, 93], index=['/tmp', '/yellow'], name='POSIX_BYTES_READ'),
-    pd.Series([29, 2098], index=['/tmp', '/yellow'], name='POSIX_BYTES_WRITTEN'),
+    pd.Series([5, 93], index=pd.Index(['/tmp', '/yellow'], name="filesystem_root"), name='POSIX_BYTES_READ'),
+    pd.Series([29, 2098], index=pd.Index(['/tmp', '/yellow'], name="filesystem_root"), name='POSIX_BYTES_WRITTEN'),
             ),
         ])
 def test_process_byte_counts(df_reads, df_writes, expected_read_groups, expected_write_groups):
-    expected_read_groups.index = expected_read_groups.index.set_names('filesystem_root')
-    expected_write_groups.index = expected_write_groups.index.set_names('filesystem_root')
     actual_read_groups, actual_write_groups = data_access_by_filesystem.process_byte_counts(df_reads=df_reads,
                                                                                             df_writes=df_writes)
     assert_series_equal(actual_read_groups, expected_read_groups)
@@ -181,13 +179,11 @@ def test_process_byte_counts(df_reads, df_writes, expected_read_groups, expected
                    'POSIX_BYTES_WRITTEN': [2098, 9, 20],
                    'COLUMN3': [np.nan, 5, 1],
                    'COLUMN4': ['a', 'b', 'd']}),
-    pd.Series([1, 2], index=['/tmp', '/yellow'], name='filepath'),
-    pd.Series([2, 1], index=['/tmp', '/yellow'], name='filepath'),
+    pd.Series([1, 2], index=pd.Index(['/tmp', '/yellow'], name="filesystem_root"), name='filepath'),
+    pd.Series([2, 1], index=pd.Index(['/tmp', '/yellow'], name="filesystem_root"), name='filepath'),
             ),
         ])
 def test_process_unique_files(df_reads, df_writes, expected_read_groups, expected_write_groups):
-    expected_read_groups.index = expected_read_groups.index.set_names('filesystem_root')
-    expected_write_groups.index = expected_write_groups.index.set_names('filesystem_root')
     actual_read_groups, actual_write_groups = data_access_by_filesystem.process_unique_files(df_reads=df_reads,
                                                                                              df_writes=df_writes)
     assert_series_equal(actual_read_groups, expected_read_groups)
@@ -205,8 +201,8 @@ def test_process_unique_files(df_reads, df_writes, expected_read_groups, expecte
      data_access_by_filesystem.identify_filesystems(darshan.DarshanReport("tests/input/sample.darshan").data["name_records"]),
      darshan.DarshanReport("tests/input/sample.darshan").data["name_records"],
      data_access_by_filesystem.process_unique_files,
-     pd.Series([0.0], index=['/scratch2'], name='filepath'),
-     pd.Series([1.0], index=['/scratch2'], name='filepath')),
+     pd.Series([0.0], index=pd.Index(['/scratch2'], name='filesystem_root'), name='filepath'),
+     pd.Series([1.0], index=pd.Index(['/scratch2'], name='filesystem_root'), name='filepath')),
     ])
 def test_unique_fs_rw_counter(report,
                               filesystem_roots,
@@ -217,8 +213,6 @@ def test_unique_fs_rw_counter(report,
                               expected_write_groups,
                               mod):
     if mod == "POSIX":
-        expected_read_groups.index = expected_read_groups.index.set_names('filesystem_root')
-        expected_write_groups.index = expected_write_groups.index.set_names('filesystem_root')
         actual_read_groups, actual_write_groups = data_access_by_filesystem.unique_fs_rw_counter(report=report,
                                                                                                  filesystem_roots=filesystem_roots,
                                                                                                  file_id_dict=file_id_dict,
