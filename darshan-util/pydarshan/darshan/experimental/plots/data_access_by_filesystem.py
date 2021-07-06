@@ -417,6 +417,11 @@ def plot_data(fig, file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_ser
         ax_filesystem_counts = fig.add_subplot(len(filesystem_roots), 
                                               2,
                                               row * 2 + 2)
+        # hide the right side plot frame (spine) so that
+        # the value labels don't overlap with the plot frame
+        for axis in [ax_filesystem_bytes, ax_filesystem_counts]:
+            axis.spines['right'].set_visible(False)
+
         print("filesystem:", filesystem)
         print("bytes_rd_series:", bytes_rd_series)
         print("bytes_wr_series:", bytes_wr_series)

@@ -270,3 +270,11 @@ def test_plot_data(file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_ser
     for expected_text_entry in [matplotlib.text.Text(0, 1, '# files read'),
                                 matplotlib.text.Text(0, 0, '# files written')]:
         assert expected_text_entry.get_text() in actual_list_text_in_fig
+
+    # enforce invisibile right-side spine so that
+    # there is no overlap between value labels and
+    # the plot frame on the right side
+    for ax in fig.axes:
+        spines = ax.spines
+        right_spine_visibility = spines['right'].get_visible()
+        assert not right_spine_visibility
