@@ -3,12 +3,16 @@ Draft utility code for the `data access by category` section
 of Phil's hand drawing of future report layout.
 """
 
+import os
 import pathlib
 from typing import List, Dict, Optional, Any, Callable
 
 import numpy as np
 import pandas as pd
 import darshan
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 
 def process_byte_counts(df_reads, df_writes):
@@ -454,3 +458,51 @@ def plot_data(fig, file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_ser
         ax_filesystem_counts.set_yticks([])
         ax_filesystem_bytes.set_xticks([])
         ax_filesystem_bytes.set_yticks([])
+
+
+def plot_with_log_file(log_file_path: str, plot_filename: str):
+    """
+    Plot the data access by category given a darshan log
+    file path.
+
+    Parameters
+    ----------
+
+    log_file_path: path to the darshan log file
+
+    plot_filename: name of the plot file produced
+
+    Returns
+    -------
+
+    fig: matplotlib figure object
+    """
+    fig = plt.figure()
+    log_file = os.path.basename(log_file_path)
+    fig.suptitle(f"Data Access by Category for log file: '{log_file}'")
+    report = darshan.DarshanReport(log_file_path, read_all=True)
+    file_id_dict = report.data["name_records"]
+    filesystem_roots = identify_filesystems(file_id_dict=file_id_dict,
+                                            verbose=True)
+    file_rd_series, file_wr_series = unique_fs_rw_counter(report=report,
+                                                          filesystem_roots=filesystem_roots,
+                                                          file_id_dict=file_id_dict,
+                                                          processing_func=process_unique_files,
+                                                          mod='POSIX',
+                                                          verbose=True)
+    bytes_rd_series, bytes_wr_series = unique_fs_rw_counter(report=report,
+                                                            filesystem_roots=filesystem_roots,
+                                                            file_id_dict=file_id_dict,
+                                                            processing_func=process_byte_counts,
+                                                            mod='POSIX', verbose=True)
+    plot_data(fig,
+              file_rd_series,
+              file_wr_series,
+              bytes_rd_series,
+              bytes_wr_series,
+              filesystem_roots)
+
+    fig.set_size_inches(12, 4)
+    figname = f'{plot_filename}_data_access_by_category.png'
+    fig.savefig(figname, dpi=300)
+    return fig
