@@ -88,10 +88,10 @@ darshan-apmpi.c:
 
 libdarshan_la_SOURCES  = $(C_SRCS)
 libdarshan_la_LIBADD   = -lpthread -lrt -lz -ldl $(DARSHAN_LUSTRE_LD_FLAGS)
-libdarshan_la_CPPFLAGS = $(AM_CPPFLAGS) -DDARSHAN_PRELOAD
+libdarshan_la_CPPFLAGS = $(AM_CPPFLAGS) -D_LARGEFILE64_SOURCE -DDARSHAN_PRELOAD
 
 libdarshan_a_SOURCES   = $(C_SRCS)
-libdarshan_a_CPPFLAGS  = $(AM_CPPFLAGS) -DDARSHAN_WRAP_MMAP
+libdarshan_a_CPPFLAGS  = $(AM_CPPFLAGS) -D_LARGEFILE64_SOURCE -DDARSHAN_WRAP_MMAP
 
 H_SRCS = darshan-common.h \
          darshan.h \
