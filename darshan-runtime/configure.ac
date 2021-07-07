@@ -51,7 +51,7 @@ else
 fi
 
 # LT_INIT must be called after MPICC/CC has been set
-LT_INIT
+LT_INIT([disable-static])
 
 if test "x$enable_darshan_runtime" = xyes ; then
 
