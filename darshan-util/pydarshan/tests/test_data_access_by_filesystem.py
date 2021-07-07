@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 import pandas as pd
@@ -278,3 +280,27 @@ def test_plot_data(file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_ser
         spines = ax.spines
         right_spine_visibility = spines['right'].get_visible()
         assert not right_spine_visibility
+
+
+def test_empty_data_posix_y_axis_annot_position(tmpdir):
+    # the y-axis filesystem annotations were observed
+    # to cross the left side spine and overlap onto the plot
+    # proper in gh-397, when using a log file that lacks
+    # POSIX data
+    # verify that this is handled/resolved
+    log_file_path = os.path.abspath('./tests/input/noposixopens.darshan')
+    with tmpdir.as_cwd():
+        actual_fig = data_access_by_filesystem.plot_with_log_file(log_file_path=log_file_path,
+                                                                  plot_filename='test.png')
+        # check that the y annotation font sizes have been
+        # adjusted based on the length of the strings
+        axes = actual_fig.axes
+        for ax in axes:
+            for child in ax.get_children():
+                if isinstance(child, matplotlib.text.Annotation):
+                    actual_text = child.get_text()
+                    actual_fontsize = child.get_fontsize()
+                    if len(actual_text) <= 8:
+                        assert actual_fontsize == 18
+                    else:
+                        assert actual_fontsize == 12

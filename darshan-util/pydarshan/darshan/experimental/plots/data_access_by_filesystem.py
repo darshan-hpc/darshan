@@ -430,7 +430,16 @@ def plot_data(fig, file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_ser
         bytes_read = bytes_rd_series[filesystem]/1.049e+6
         bytes_written = bytes_wr_series[filesystem]/1.049e+6
 
-        ax_filesystem_bytes.annotate(filesystem, (-0.3, 0.5), fontsize=18, xycoords='axes fraction')
+        # scale to fit longer filesystem
+        # strings on the left side of the plots
+        # NOTE: may need more sophisticated scaling
+        # eventually
+        if len(filesystem) <= 8:
+            fontsize = 18
+        else:
+            fontsize = 12
+
+        ax_filesystem_bytes.annotate(filesystem, (-0.3, 0.5), fontsize=fontsize, xycoords='axes fraction')
         ax_filesystem_counts.barh(0, file_wr_series[filesystem], color='red', alpha=0.3)
         ax_filesystem_counts.barh(1, file_rd_series[filesystem], color='blue', alpha=0.3)
 
