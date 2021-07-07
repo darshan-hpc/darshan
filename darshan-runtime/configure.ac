@@ -53,6 +53,18 @@ fi
 # LT_INIT must be called after MPICC/CC has been set
 LT_INIT([disable-static])
 
+# Note that the "disable-static" option to LT_INIT is intentional.  The
+# darshan-runtime package generally installs both dynamic and static
+# libraries to accomodate whatever linking method is used by the application
+# to be instrumented.  The dynamic library is built using libtool, while the
+# static library is built with explicit rules that specify different
+# options. The following logic is a safety check to make sure that
+# the user did not configure with --enable-static; that option would cause
+# libtool to build a duplicate/conflicting static library.
+if test "x$enable_static" = xyes ; then
+    AC_MSG_ERROR([please do not use the --enable-static option to override darshan-runtime library settings.  The libdarshan.a static library will be built automatically without it.])
+fi
+
 if test "x$enable_darshan_runtime" = xyes ; then
 
    dnl check for GCC compiler support
