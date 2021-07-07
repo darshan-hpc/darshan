@@ -689,6 +689,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -718,6 +719,7 @@ enable_ld_preload
 enable_cuserid
 enable_group_readable_logs
 enable_mmap_logs
+enable_rdtscp
 with_mem_align
 with_log_path_by_env
 with_log_hints
@@ -786,6 +788,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1038,6 +1041,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1175,7 +1187,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1328,6 +1340,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -1362,6 +1375,7 @@ Optional Features:
   --enable-group-readable-logs
                           Set log files to be group readable
   --enable-mmap-logs      Enables ability to mmap I/O data to log file
+  --enable-rdtscp=<num>  use RDTSCP intrinsic for timing, with specified base frequency
   --disable-null-mod      Disables compilation of NULL module
   --disable-posix-mod     Disables compilation and use of POSIX module
   --disable-stdio-mod     Disables compilation and use of STDIO module
@@ -4038,6 +4052,74 @@ fi
 fi
 
 
+# check for availablity of rdtscp intrinsic on this platform
+# NOTE: we only care about finding the gnu compiler intrinsic for use in
+# limited cases; this isn't meant to be universally portable.
+for ac_header in x86intrin.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "x86intrin.h" "ac_cv_header_x86intrin_h" "$ac_includes_default"
+if test "x$ac_cv_header_x86intrin_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_X86INTRIN_H 1
+_ACEOF
+
+fi
+
+done
+
+if test "$ac_cv_header_x86intrin_h" = "yes"; then :
+
+  XXX_PROGRAM="
+#ifdef HAVE_X86INTRIN_H
+#include <x86intrin.h>
+#endif
+int main(void) {
+    unsigned int flag;
+    return __rdtscp(&flag);
+}
+"
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if __rdtscp() intrinsic is supported" >&5
+$as_echo_n "checking if __rdtscp() intrinsic is supported... " >&6; }
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$XXX_PROGRAM
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_RDTSCP_INTRINSIC 1" >>confdefs.h
+
+    HAVE_RDTSCP=1
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+fi
+
+# Check whether --enable-rdtscp was given.
+if test "${enable_rdtscp+set}" = set; then :
+  enableval=$enable_rdtscp;
+    if test x$enableval = xyes; then
+        as_fn_error $? "--enable-rdtscp must be given a number argument" "$LINENO" 5
+    else
+        USE_RDTSCP=1,
+
+cat >>confdefs.h <<_ACEOF
+#define __DARSHAN_RDTSCP_FREQUENCY ${enableval}
+_ACEOF
+
+    fi
+    if test x$HAVE_RDTSCP != x1; then
+        as_fn_error but it is not supported on this platform "attempted to enable rdtscp timer" "$LINENO" 5
+    fi
+
+fi
+
+
 
 # Check whether --with-mem-align was given.
 if test "${with_mem_align+set}" = set; then :
@@ -6637,11 +6719,11 @@ else
 $as_echo "$as_me: MDHIM module support:   yes" >&6;}
 fi
 if test "x$BUILD_APXC_MODULE" = "x"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: AUTOPERF APXC module support:   no" >&5
-$as_echo "$as_me: AUTOPERF APXC module support:   no" >&6;}
+  { $as_echo "$as_me:${as_lineno-$LINENO}: AUTOPERF APXC module support:  no" >&5
+$as_echo "$as_me: AUTOPERF APXC module support:  no" >&6;}
 else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: AUTOPERF APXC module support:   yes" >&5
-$as_echo "$as_me: AUTOPERF APXC module support:   yes" >&6;}
+  { $as_echo "$as_me:${as_lineno-$LINENO}: AUTOPERF APXC module support:  yes" >&5
+$as_echo "$as_me: AUTOPERF APXC module support:  yes" >&6;}
 fi
 if test "x$BUILD_APMPI_MODULE" = "x"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: AUTOPERF MPI module support:   no" >&5
@@ -6649,4 +6731,11 @@ $as_echo "$as_me: AUTOPERF MPI module support:   no" >&6;}
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: AUTOPERF MPI module support:   yes" >&5
 $as_echo "$as_me: AUTOPERF MPI module support:   yes" >&6;}
+fi
+if test "x$USE_RDTSCP" = "x"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: RDTSCP intrinsic for timing:   no" >&5
+$as_echo "$as_me: RDTSCP intrinsic for timing:   no" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: RDTSCP intrinsic for timing:   yes" >&5
+$as_echo "$as_me: RDTSCP intrinsic for timing:   yes" >&6;}
 fi

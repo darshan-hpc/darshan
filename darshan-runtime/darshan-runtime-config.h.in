@@ -54,6 +54,9 @@
 /* Define to 1 if you have the `pwritev2' function. */
 #undef HAVE_PWRITEV2
 
+/* Define if __rdtscp() intrinsic is available */
+#undef HAVE_RDTSCP_INTRINSIC
+
 /* Define to 1 if you have the <stdatomic> header file. */
 #undef HAVE_STDATOMIC
 
@@ -80,6 +83,9 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* Define to 1 if you have the <x86intrin.h> header file. */
+#undef HAVE_X86INTRIN_H
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
@@ -147,6 +153,9 @@
 /* Maximum runtime memory consumption per process (in MiB) across all
    instrumentation modules */
 #undef __DARSHAN_MOD_MEM_MAX
+
+/* base frequency of RDTSCP intrinsic */
+#undef __DARSHAN_RDTSCP_FREQUENCY
 
 /* Generalized request type for MPI-IO */
 #undef __D_MPI_REQUEST
