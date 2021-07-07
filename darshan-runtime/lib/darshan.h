@@ -21,6 +21,9 @@
 #ifdef HAVE_STDATOMIC_H
 #include <stdatomic.h>
 #endif
+#ifdef HAVE_X86INTRIN_H
+    #include <x86intrin.h>
+#endif
 
 #include "uthash.h"
 #include "darshan-log-format.h"
@@ -320,6 +323,15 @@ static inline int darshan_core_disabled_instrumentation(void)
 /* retrieve absolute wtime */
 static inline double darshan_core_wtime_absolute(void)
 {
+#ifdef __DARSHAN_RDTSCP_FREQUENCY
+    /* user configured darshan-runtime explicitly to use rtdscp for timing */
+    unsigned flag;
+    unsigned long long ts;
+
+    ts = __rdtscp(&flag);
+    return((double)ts/(double)__DARSHAN_RDTSCP_FREQUENCY);
+#else
+    /* normal path */
     struct timespec tp;
     /* some notes on what function to use to retrieve time as of 2021-05:
      * - clock_gettime() is faster than MPI_Wtime() across platforms
@@ -332,8 +344,8 @@ static inline double darshan_core_wtime_absolute(void)
      *   - it is not well defined how much precision will be sacrificed
      */
     clock_gettime(CLOCK_REALTIME, &tp);
-
     return(((double)tp.tv_sec) + 1.0e-9 * ((double)tp.tv_nsec));
+#endif
 }
 
 /* darshan_core_wtime()
