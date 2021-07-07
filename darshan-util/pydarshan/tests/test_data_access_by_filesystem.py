@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+from numpy.testing import assert_allclose
 import pytest
 import pandas as pd
 from pandas.testing import assert_series_equal
@@ -304,3 +305,24 @@ def test_empty_data_posix_y_axis_annot_position(tmpdir):
                         assert actual_fontsize == 18
                     else:
                         assert actual_fontsize == 12
+
+def test_empty_data_posix_text_position(tmpdir):
+    # the bytes and files read/written text labels
+    # were observed to be too far to the right in the
+    # subplots for a log file lacking POSIX activity
+    # in gh-397; regression test this issue
+    log_file_path = os.path.abspath('./tests/input/noposixopens.darshan')
+    with tmpdir.as_cwd():
+        actual_fig = data_access_by_filesystem.plot_with_log_file(log_file_path=log_file_path,
+                                                                  plot_filename='test.png')
+        axes = actual_fig.axes
+        for ax in axes:
+            for child in ax.get_children():
+                if isinstance(child, matplotlib.text.Text):
+                    actual_text = child.get_text()
+                    # check for correct axis coordinate
+                    # positions
+                    if 'read' in actual_text:
+                        assert_allclose(child.get_position(), (0, 0.75))
+                    elif 'written' in actual_text:
+                        assert_allclose(child.get_position(), (0, 0.25))

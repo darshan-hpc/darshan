@@ -443,17 +443,17 @@ def plot_data(fig, file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_ser
         ax_filesystem_counts.barh(0, file_wr_series[filesystem], color='red', alpha=0.3)
         ax_filesystem_counts.barh(1, file_rd_series[filesystem], color='blue', alpha=0.3)
 
-        ax_filesystem_bytes.text(0, 1, f' # bytes read ({bytes_read:.2E} MiB)')
-        ax_filesystem_bytes.text(0, 0, f' # bytes written ({bytes_written:.2E} MiB)')
+        ax_filesystem_bytes.text(0, 0.75, f' # bytes read ({bytes_read:.2E} MiB)', transform=ax_filesystem_bytes.transAxes)
+        ax_filesystem_bytes.text(0, 0.25, f' # bytes written ({bytes_written:.2E} MiB)', transform=ax_filesystem_bytes.transAxes)
 
         if file_rd_series[filesystem] == 0:
-            ax_filesystem_counts.text(0, 1, ' 0 files read')
+            ax_filesystem_counts.text(0, 0.75, ' 0 files read', transform=ax_filesystem_counts.transAxes)
         else:
             ax_filesystem_counts.text(0, 1, '# files read')
             ax_filesystem_counts.text(file_rd_series[filesystem], 1, '  ' + str(file_rd_series[filesystem]))
 
         if file_wr_series[filesystem] == 0:
-            ax_filesystem_counts.text(0, 0, ' 0 files written')
+            ax_filesystem_counts.text(0, 0.25, ' 0 files written', transform=ax_filesystem_counts.transAxes)
         else:
             ax_filesystem_counts.text(0, 0, '# files written')
             ax_filesystem_counts.text(file_wr_series[filesystem], 0, str(file_wr_series[filesystem]))
