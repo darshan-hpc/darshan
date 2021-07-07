@@ -92,24 +92,24 @@ if test "x$enable_darshan_util" = xyes ; then
       AC_CONFIG_FILES([pydarshan-info.py pydarshan-info.sh])
    fi
 
-   AC_ARG_ENABLE([apxc],
+   AC_ARG_ENABLE([apxc_mod],
       [AS_HELP_STRING([--enable-apxc-mod],
                       [enables compilation and use of the AutoPerf Cray XC module])],
-      [], [enable_apxc=no]
+      [], [enable_apxc_mod=no]
    )
-   if test "x$enable_apxc" = xyes; then
+   if test "x$enable_apxc_mod" = xyes; then
       abssrcdir=$(readlink -f ${srcdir})
       AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
                       DARSHAN_USE_APXC=1,
                       [AC_MSG_ERROR([The autoperf APXC module is not present])],
                       [-]) # this last part tells it to only check for presence
    fi
-   AC_ARG_ENABLE([apmpi],
+   AC_ARG_ENABLE([apmpi_mod],
       [AS_HELP_STRING([--enable-apmpi-mod],
                       [enables compilation and use of the AutoPerf MPI module])],
-      [], [enable_apmpi=no]
+      [], [enable_apmpi_mod=no]
    )
-   if test "x$enable_apmpi" = xyes; then
+   if test "x$enable_apmpi_mod" = xyes; then
       abssrcdir=$(readlink -f ${srcdir})
       AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
                       DARSHAN_USE_APMPI=1,
@@ -138,8 +138,8 @@ else
 fi
 
 AM_CONDITIONAL(DARSHAN_ENABLE_PYDARSHAN, [test "x$enable_pydarshan" = xyes])
-AM_CONDITIONAL(DARSHAN_USE_APXC, [test "x$enable_apxc" = xyes])
-AM_CONDITIONAL(DARSHAN_USE_APMPI, [test "x$enable_apmpi" = xyes])
+AM_CONDITIONAL(DARSHAN_USE_APXC, [test "x$enable_apxc_mod" = xyes])
+AM_CONDITIONAL(DARSHAN_USE_APMPI, [test "x$enable_apmpi_mod" = xyes])
 
 AC_CONFIG_FILES([Makefile \
                  darshan-job-summary/Makefile \
@@ -153,7 +153,7 @@ if test "x$enable_darshan_util" = xyes ; then
    ${PACKAGE_NAME} Version ${PACKAGE_VERSION} configured with the following features:
            C compiler                    - $SEQ_CC
            Python module and tools       - $enable_pydarshan
-           AUTOPERF MPI  module support  - $enable_apmpi
-           AUTOPERF APXC module support  - $enable_apxc"
+           AUTOPERF MPI  module support  - $enable_apmpi_mod
+           AUTOPERF APXC module support  - $enable_apxc_mod"
 fi
 
