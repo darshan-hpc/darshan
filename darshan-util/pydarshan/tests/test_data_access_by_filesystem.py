@@ -326,3 +326,12 @@ def test_empty_data_posix_text_position(tmpdir):
                         assert_allclose(child.get_position(), (0, 0.75))
                     elif 'written' in actual_text:
                         assert_allclose(child.get_position(), (0, 0.25))
+
+
+def test_posix_absent():
+    # check for an appropriate error when POSIX data
+    # is not even recorded in the darshan log
+    log_file_path = os.path.abspath('./tests/input/noposix.darshan')
+    with pytest.raises(ValueError, match="POSIX module data is required"):
+        actual_fig = data_access_by_filesystem.plot_with_log_file(log_file_path=log_file_path,
+                                                                  plot_filename='test.png')

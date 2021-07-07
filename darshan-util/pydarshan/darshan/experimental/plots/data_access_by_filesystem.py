@@ -386,6 +386,8 @@ def unique_fs_rw_counter(report: Any,
 
     if not mod == 'POSIX':
         raise NotImplementedError("Only the POSIX module is currently supported")
+    if 'POSIX' not in report.modules:
+        raise ValueError("POSIX module data is required")
 
     # filter the DarshanReport into two "counters" dataframes
     # with read/write activity in each row (at least 1
