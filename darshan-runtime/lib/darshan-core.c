@@ -52,16 +52,13 @@ extern char* __progname_full;
 /* internal variable delcarations */
 static struct darshan_core_runtime *darshan_core = NULL;
 static pthread_mutex_t darshan_core_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static int using_mpi = 0;
 static int my_rank = 0;
 static int nprocs = 1;
 static int darshan_mem_alignment = 1;
 static size_t darshan_mod_mem_quota = DARSHAN_MOD_MEM_MAX;
 static int orig_parent_pid = 0;
 static int parent_pid;
-
-#ifdef HAVE_MPI
-static int using_mpi = 0;
-#endif
 
 static struct darshan_core_mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
