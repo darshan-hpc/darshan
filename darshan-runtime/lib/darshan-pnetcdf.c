@@ -65,13 +65,15 @@ static int my_rank = -1;
 #define PNETCDF_LOCK() pthread_mutex_lock(&pnetcdf_runtime_mutex)
 #define PNETCDF_UNLOCK() pthread_mutex_unlock(&pnetcdf_runtime_mutex)
 
+#define PNETCDF_WTIME() \
+    __darshan_disabled ? 0 : darshan_core_wtime();
+
 #define PNETCDF_PRE_RECORD() do { \
-    PNETCDF_LOCK(); \
-    if(!darshan_core_disabled_instrumentation()) { \
+    if(!__darshan_disabled) { \
+        PNETCDF_LOCK(); \
         if(!pnetcdf_runtime) pnetcdf_runtime_initialize(); \
         if(pnetcdf_runtime) break; \
     } \
-    PNETCDF_UNLOCK(); \
     return(ret); \
 } while(0)
 
@@ -121,9 +123,9 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
 
     MAP_OR_FAIL(ncmpi_create);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_create(comm, path, cmode, info, ncidp);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
     if(ret == 0)
     {
         /* use ROMIO approach to strip prefix if present */
@@ -153,9 +155,9 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
 
     MAP_OR_FAIL(ncmpi_open);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_open(comm, path, omode, info, ncidp);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
     if(ret == 0)
     {
         /* use ROMIO approach to strip prefix if present */
@@ -184,9 +186,9 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
 
     MAP_OR_FAIL(ncmpi_close);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_close(ncid);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     PNETCDF_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(pnetcdf_runtime->ncid_hash,
