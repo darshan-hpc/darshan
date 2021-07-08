@@ -205,6 +205,7 @@ extern int __real_fileno(FILE *stream);
     char *__newpath; \
     int __fd; \
     MAP_OR_FAIL(fileno); \
+    (void)__darshan_disabled; \
     if(!__ret || !__path) break; \
     __newpath = darshan_clean_file_path(__path); \
     if(!__newpath) __newpath = (char*)__path; \
