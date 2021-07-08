@@ -62,7 +62,7 @@ LT_INIT([disable-static])
 # the user did not configure with --enable-static; that option would cause
 # libtool to build a duplicate/conflicting static library.
 if test "x$enable_static" = xyes ; then
-    AC_MSG_ERROR([please do not use the --enable-static option to override darshan-runtime library settings.  The libdarshan.a static library will be built automatically without it.])
+    AC_MSG_ERROR([please do not use the --enable-static or --disable-shared options to override darshan-runtime library settings. Static libraries are already built by default; see Darshan documentation for details.])
 fi
 
 if test "x$enable_darshan_runtime" = xyes ; then
