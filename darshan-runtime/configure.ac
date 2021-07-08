@@ -649,6 +649,7 @@ fi
 
 AM_CONDITIONAL(ENABLE_MMAP_LOGS,    [test "x$enable_mmap_logs"   = xyes])
 AM_CONDITIONAL(ENABLE_LDPRELOAD,    [test "x$enable_ld_preload"  = xyes])
+AM_CONDITIONAL(ENABLE_STATIC,       [test "x$use_mpi"            = xyes])
 AM_CONDITIONAL(BUILD_NULL_MODULE,   [test "x$enable_null_mod"    = xyes])
 AM_CONDITIONAL(BUILD_POSIX_MODULE,  [test "x$enable_posix_mod"   = xyes])
 AM_CONDITIONAL(BUILD_STDIO_MODULE,  [test "x$enable_stdio_mod"   = xyes])

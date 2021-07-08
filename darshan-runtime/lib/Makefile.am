@@ -6,8 +6,12 @@ CC = $(MPICC)
 
 AM_CPPFLAGS = -I${top_srcdir}/../include
 
-lib_LTLIBRARIES = libdarshan.la
-lib_LIBRARIES = libdarshan.a
+if ENABLE_LDPRELOAD
+   lib_LTLIBRARIES = libdarshan.la
+endif
+if ENABLE_STATIC
+   lib_LIBRARIES = libdarshan.a
+endif
 
 C_SRCS = darshan-core-init-finalize.c \
          darshan-core.c \
