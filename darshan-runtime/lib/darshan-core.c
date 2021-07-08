@@ -2385,6 +2385,7 @@ void darshan_core_fprintf(
     va_list ap;
 
     MAP_OR_FAIL(vfprintf);
+    (void)__darshan_disabled;
 
     va_start(ap, format);
     __real_vfprintf(stream, format, ap);
