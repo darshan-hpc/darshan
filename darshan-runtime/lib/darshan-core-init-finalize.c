@@ -28,6 +28,7 @@ int DARSHAN_DECL(MPI_Init)(int *argc, char ***argv)
     int ret;
 
     MAP_OR_FAIL(PMPI_Init);
+    (void)__darshan_disabled;
 
     ret = __real_PMPI_Init(argc, argv);
     if(ret != MPI_SUCCESS)
@@ -54,6 +55,7 @@ int DARSHAN_DECL(MPI_Init_thread)(int *argc, char ***argv, int required, int *pr
     int ret;
 
     MAP_OR_FAIL(PMPI_Init_thread);
+    (void)__darshan_disabled;
 
     ret = __real_PMPI_Init_thread(argc, argv, required, provided);
     if(ret != MPI_SUCCESS)
@@ -80,6 +82,7 @@ int DARSHAN_DECL(MPI_Finalize)(void)
     int ret;
 
     MAP_OR_FAIL(PMPI_Finalize);
+    (void)__darshan_disabled;
 
     darshan_core_shutdown();
 
