@@ -183,15 +183,15 @@ static int my_rank = -1;
 #define MPIIO_LOCK() pthread_mutex_lock(&mpiio_runtime_mutex)
 #define MPIIO_UNLOCK() pthread_mutex_unlock(&mpiio_runtime_mutex)
 
+#define MPIIO_WTIME() \
+    __darshan_disabled ? 0 : darshan_core_wtime();
+
 #define MPIIO_PRE_RECORD() do { \
-    MPIIO_LOCK(); \
-    if(!darshan_core_disabled_instrumentation()) { \
-        if(!mpiio_runtime) { \
-            mpiio_runtime_initialize(); \
-        } \
+    if(!__darshan_disabled) { \
+        MPIIO_LOCK(); \
+        if(!mpiio_runtime) mpiio_runtime_initialize(); \
         if(mpiio_runtime) break; \
     } \
-    MPIIO_UNLOCK(); \
     return(ret); \
 } while(0)
 
@@ -341,9 +341,9 @@ int DARSHAN_DECL(MPI_File_open)(MPI_Comm comm, char *filename, int amode, MPI_In
 
     MAP_OR_FAIL(PMPI_File_open);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_open(comm, filename, amode, info, fh);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     /* use ROMIO approach to strip prefix if present */
     /* strip off prefix if there is one, but only skip prefixes
@@ -378,9 +378,9 @@ int DARSHAN_DECL(MPI_File_read)(MPI_File fh, void *buf, int count,
     MAP_OR_FAIL(PMPI_File_read);
 
     MPI_File_get_position(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_read(fh, buf, count, datatype, status);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_INDEP_READS, tm1, tm2);
@@ -406,9 +406,9 @@ int DARSHAN_DECL(MPI_File_write)(MPI_File fh, void *buf, int count,
     MAP_OR_FAIL(PMPI_File_write);
 
     MPI_File_get_position(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_write(fh, buf, count, datatype, status);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_WRITE(ret, fh, count, datatype, offset, MPIIO_INDEP_WRITES, tm1, tm2);
@@ -432,10 +432,10 @@ int DARSHAN_DECL(MPI_File_read_at)(MPI_File fh, MPI_Offset offset, void *buf,
 
     MAP_OR_FAIL(PMPI_File_read_at);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_read_at(fh, offset, buf,
         count, datatype, status);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_INDEP_READS, tm1, tm2);
@@ -459,10 +459,10 @@ int DARSHAN_DECL(MPI_File_write_at)(MPI_File fh, MPI_Offset offset, void *buf,
 
     MAP_OR_FAIL(PMPI_File_write_at);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_write_at(fh, offset, buf,
         count, datatype, status);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_WRITE(ret, fh, count, datatype, offset, MPIIO_INDEP_WRITES, tm1, tm2);
@@ -487,10 +487,10 @@ int DARSHAN_DECL(MPI_File_read_all)(MPI_File fh, void * buf, int count, MPI_Data
     MAP_OR_FAIL(PMPI_File_read_all);
 
     MPI_File_get_position(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_read_all(fh, buf, count,
         datatype, status);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_COLL_READS, tm1, tm2);
@@ -514,10 +514,10 @@ int DARSHAN_DECL(MPI_File_write_all)(MPI_File fh, void * buf, int count, MPI_Dat
     MAP_OR_FAIL(PMPI_File_write_all);
 
     MPI_File_get_position(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_write_all(fh, buf, count,
         datatype, status);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_WRITE(ret, fh, count, datatype, offset, MPIIO_COLL_WRITES, tm1, tm2);
@@ -541,10 +541,10 @@ int DARSHAN_DECL(MPI_File_read_at_all)(MPI_File fh, MPI_Offset offset, void * bu
 
     MAP_OR_FAIL(PMPI_File_read_at_all);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_read_at_all(fh, offset, buf,
         count, datatype, status);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_COLL_READS, tm1, tm2);
@@ -569,10 +569,10 @@ int DARSHAN_DECL(MPI_File_write_at_all)(MPI_File fh, MPI_Offset offset, void * b
 
     MAP_OR_FAIL(PMPI_File_write_at_all);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_write_at_all(fh, offset, buf,
         count, datatype, status);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_WRITE(ret, fh, count, datatype, offset, MPIIO_COLL_WRITES, tm1, tm2);
@@ -599,10 +599,10 @@ int DARSHAN_DECL(MPI_File_read_shared)(MPI_File fh, void * buf, int count, MPI_D
     MAP_OR_FAIL(PMPI_File_read_shared);
 
     MPI_File_get_position_shared(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_read_shared(fh, buf, count,
         datatype, status);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_INDEP_READS, tm1, tm2);
@@ -626,10 +626,10 @@ int DARSHAN_DECL(MPI_File_write_shared)(MPI_File fh, void * buf, int count, MPI_
     MAP_OR_FAIL(PMPI_File_write_shared);
 
     MPI_File_get_position_shared(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_write_shared(fh, buf, count,
         datatype, status);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_WRITE(ret, fh, count, datatype, offset, MPIIO_INDEP_WRITES, tm1, tm2);
@@ -656,10 +656,10 @@ int DARSHAN_DECL(MPI_File_read_ordered)(MPI_File fh, void * buf, int count,
     MAP_OR_FAIL(PMPI_File_read_ordered);
 
     MPI_File_get_position_shared(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_read_ordered(fh, buf, count,
         datatype, status);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_COLL_READS, tm1, tm2);
@@ -686,10 +686,10 @@ int DARSHAN_DECL(MPI_File_write_ordered)(MPI_File fh, void * buf, int count,
     MAP_OR_FAIL(PMPI_File_write_ordered);
     MPI_File_get_position_shared(fh, &offset);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_write_ordered(fh, buf, count,
          datatype, status);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_WRITE(ret, fh, count, datatype, offset, MPIIO_COLL_WRITES, tm1, tm2);
@@ -716,9 +716,9 @@ int DARSHAN_DECL(MPI_File_read_all_begin)(MPI_File fh, void * buf, int count, MP
     MAP_OR_FAIL(PMPI_File_read_all_begin);
 
     MPI_File_get_position_shared(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_read_all_begin(fh, buf, count, datatype);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_SPLIT_READS, tm1, tm2);
@@ -743,9 +743,9 @@ int DARSHAN_DECL(MPI_File_write_all_begin)(MPI_File fh, void * buf, int count, M
 
     MPI_File_get_position_shared(fh, &offset);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_write_all_begin(fh, buf, count, datatype);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_WRITE(ret, fh, count, datatype, offset, MPIIO_SPLIT_WRITES, tm1, tm2);
@@ -769,10 +769,10 @@ int DARSHAN_DECL(MPI_File_read_at_all_begin)(MPI_File fh, MPI_Offset offset, voi
 
     MAP_OR_FAIL(PMPI_File_read_at_all_begin);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_read_at_all_begin(fh, offset, buf,
         count, datatype);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
     
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_SPLIT_READS, tm1, tm2);
@@ -796,10 +796,10 @@ int DARSHAN_DECL(MPI_File_write_at_all_begin)(MPI_File fh, MPI_Offset offset, vo
 
     MAP_OR_FAIL(PMPI_File_write_at_all_begin);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_write_at_all_begin(fh, offset,
         buf, count, datatype);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_WRITE(ret, fh, count, datatype, offset, MPIIO_SPLIT_WRITES, tm1, tm2);
@@ -824,10 +824,10 @@ int DARSHAN_DECL(MPI_File_read_ordered_begin)(MPI_File fh, void * buf, int count
     MAP_OR_FAIL(PMPI_File_read_ordered_begin);
 
     MPI_File_get_position_shared(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_read_ordered_begin(fh, buf, count,
         datatype);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_SPLIT_READS, tm1, tm2);
@@ -851,10 +851,10 @@ int DARSHAN_DECL(MPI_File_write_ordered_begin)(MPI_File fh, void * buf, int coun
     MAP_OR_FAIL(PMPI_File_write_ordered_begin);
 
     MPI_File_get_position_shared(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_write_ordered_begin(fh, buf, count,
         datatype);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_WRITE(ret, fh, count, datatype, offset, MPIIO_SPLIT_WRITES, tm1, tm2);
@@ -879,9 +879,9 @@ int DARSHAN_DECL(MPI_File_iread)(MPI_File fh, void * buf, int count, MPI_Datatyp
     MAP_OR_FAIL(PMPI_File_iread);
 
     MPI_File_get_position_shared(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_iread(fh, buf, count, datatype, request);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_NB_READS, tm1, tm2);
@@ -907,9 +907,9 @@ int DARSHAN_DECL(MPI_File_iwrite)(MPI_File fh, void * buf, int count,
     MAP_OR_FAIL(PMPI_File_iwrite);
 
     MPI_File_get_position(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_iwrite(fh, buf, count, datatype, request);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_WRITE(ret, fh, count, datatype, offset, MPIIO_NB_WRITES, tm1, tm2);
@@ -935,10 +935,10 @@ int DARSHAN_DECL(MPI_File_iread_at)(MPI_File fh, MPI_Offset offset, void * buf,
 
     MAP_OR_FAIL(PMPI_File_iread_at);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_iread_at(fh, offset, buf, count,
         datatype, request);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_NB_READS, tm1, tm2);
@@ -963,10 +963,10 @@ int DARSHAN_DECL(MPI_File_iwrite_at)(MPI_File fh, MPI_Offset offset, void * buf,
 
     MAP_OR_FAIL(PMPI_File_iwrite_at);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_iwrite_at(fh, offset, buf,
         count, datatype, request);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_WRITE(ret, fh, count, datatype, offset, MPIIO_NB_WRITES, tm1, tm2);
@@ -994,10 +994,10 @@ int DARSHAN_DECL(MPI_File_iread_shared)(MPI_File fh, void * buf, int count,
     MAP_OR_FAIL(PMPI_File_iread_shared);
 
     MPI_File_get_position_shared(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_iread_shared(fh, buf, count,
         datatype, request);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_NB_READS, tm1, tm2);
@@ -1024,10 +1024,10 @@ int DARSHAN_DECL(MPI_File_iwrite_shared)(MPI_File fh, void * buf, int count,
     MAP_OR_FAIL(PMPI_File_iwrite_shared);
 
     MPI_File_get_position_shared(fh, &offset);
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_iwrite_shared(fh, buf, count,
         datatype, request);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_WRITE(ret, fh, count, datatype, offset, MPIIO_NB_WRITES, tm1, tm2);
@@ -1053,9 +1053,9 @@ int DARSHAN_DECL(MPI_File_sync)(MPI_File fh)
 
     MAP_OR_FAIL(PMPI_File_sync);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_sync(fh);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     if(ret == MPI_SUCCESS)
     {
@@ -1090,10 +1090,10 @@ int DARSHAN_DECL(MPI_File_set_view)(MPI_File fh, MPI_Offset disp, MPI_Datatype e
 
     MAP_OR_FAIL(PMPI_File_set_view);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_set_view(fh, disp, etype, filetype,
         datarep, info);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     if(ret == MPI_SUCCESS)
     {
@@ -1133,9 +1133,9 @@ int DARSHAN_DECL(MPI_File_close)(MPI_File *fh)
 
     MAP_OR_FAIL(PMPI_File_close);
 
-    tm1 = darshan_core_wtime();
+    tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_close(fh);
-    tm2 = darshan_core_wtime();
+    tm2 = MPIIO_WTIME();
 
     MPIIO_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(mpiio_runtime->fh_hash,
