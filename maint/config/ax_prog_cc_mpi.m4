@@ -150,7 +150,6 @@ dnl  cmpicc
 dnl  cc
 dnl
 AC_DEFUN([_AX_PROG_CC_MPI], [
-  AC_ARG_VAR(MPICC,[MPI C compiler command])
   ifelse([$1],,[_ax_prog_cc_mpi_mpi_wanted=yes],[
     AC_MSG_CHECKING([whether to compile using MPI])
     if $1; then
@@ -161,13 +160,9 @@ AC_DEFUN([_AX_PROG_CC_MPI], [
     AC_MSG_RESULT($_ax_prog_cc_mpi_mpi_wanted)
   ])
   if test x"$_ax_prog_cc_mpi_mpi_wanted" = xyes; then
-    if test "x$CC" = x && test "x$MPICC" != x ; then
-      CC="$MPICC"
-    elif test "x$MPICC" = x ; then
-      AC_CHECK_PROGS([MPICC], [mpicc mpixlc_r mpixlc hcc mpxlc_r mpxlc sxmpicc mpifcc mpgcc mpcc cmpicc cc gcc])
+    if test "x$CC" = x ; then
+      AC_CHECK_PROGS([CC], [mpicc mpixlc_r mpixlc hcc mpxlc_r mpxlc sxmpicc mpifcc mpgcc mpcc cmpicc cc gcc])
     fi
-    dnl overwrite CC with MPICC
-    CC=$MPICC
   fi
   AC_PROG_CC
 ])dnl _AX_PROG_CC_MPI

@@ -2,8 +2,6 @@
 #
 # @configure_input@
 
-CC = $(SEQ_CC)
-
 ACLOCAL_AMFLAGS = -I ../maint/config
 
 AM_CPPFLAGS = -I${top_srcdir}/../include

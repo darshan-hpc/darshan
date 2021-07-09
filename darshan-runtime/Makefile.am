@@ -3,8 +3,6 @@
 #
 # @configure_input@
 
-CC = $(MPICC)
-
 ACLOCAL_AMFLAGS = -I ../maint/config
 
 SUBDIRS = lib pkgconfig share

@@ -73,10 +73,6 @@ if test "x$enable_darshan_util" = xyes ; then
    AC_CHECK_TYPE([off64_t])
    CFLAGS="$old_cflags"
 
-   if test "x$enable_shared" = xyes ; then
-      LT_OUTPUT
-   fi
-
    AM_PATH_PYTHON
 
    AC_ARG_ENABLE([pydarshan],
@@ -121,11 +117,6 @@ if test "x$enable_darshan_util" = xyes ; then
 
    DARSHAN_UTIL_VERSION="AC_PACKAGE_VERSION"
 
-   dnl Set sequential CC to CC and substitute CC in Makefile.am
-   dnl This is necessary, as AC_OUTPUT at upper level may replace CC with MPICC
-   SEQ_CC=$CC
-   AC_SUBST(SEQ_CC)
-
    AC_SUBST(__DARSHAN_ZLIB_LINK_FLAGS)
    AC_SUBST(__DARSHAN_ZLIB_INCLUDE_FLAGS)
    AC_SUBST(__DARSHAN_PDFLATEX_HALT_ON_ERROR)
@@ -133,7 +124,6 @@ if test "x$enable_darshan_util" = xyes ; then
    AC_SUBST(DARSHAN_PYDARSHAN_PATH)
    AC_SUBST(DARSHAN_UTIL_VERSION)
 else
-   SEQ_CC=$CC
    enable_pydarshan=no
 fi
 
@@ -151,7 +141,7 @@ AC_OUTPUT
 if test "x$enable_darshan_util" = xyes ; then
    echo "------------------------------------------------------------------------------
    ${PACKAGE_NAME} Version ${PACKAGE_VERSION} configured with the following features:
-           C compiler                    - $SEQ_CC
+           C compiler                    - $CC
            Python module and tools       - $enable_pydarshan
            AUTOPERF MPI  module support  - $enable_apmpi_mod
            AUTOPERF APXC module support  - $enable_apxc_mod"

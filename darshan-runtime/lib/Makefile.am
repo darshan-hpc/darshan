@@ -2,8 +2,6 @@
 #
 # @configure_input@
 
-CC = $(MPICC)
-
 AM_CPPFLAGS = -I${top_srcdir}/../include
 
 if ENABLE_LDPRELOAD

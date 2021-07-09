@@ -29,15 +29,14 @@ AC_ARG_ENABLE([darshan-runtime],
 )
 
 dnl Check for MPI
-AC_ARG_VAR(MPICC, [MPI C compiler, @<:@default: CC@:>@])
 AC_ARG_WITH([mpi],
    [AS_HELP_STRING([--without-mpi], [Build without support for MPI])],
    [], [with_mpi=check]
 )
 
-# AC_PROG_CC is invoked in AX_PROG_CC_MPI
-# MPICC is set in AX_PROG_CC_MPI if not set and with_mpi != no
-# CC will be overwritten by MPICC if with_mpi != no
+# if CC is set and MPI requested, ensure CC can compile MPI programs
+# if CC is not set and MPI requested, find an MPI compiler to use
+# if CC is not set and MPI is not requested, find a C compiler to use
 AX_PROG_CC_MPI([test x"$with_mpi" != xno], [use_mpi=yes], [use_mpi=no])
 
 if test "x$use_mpi" = xno ; then
@@ -50,7 +49,7 @@ else
    AC_DEFINE([HAVE_MPI], [], [Define if build is MPI-enabled])
 fi
 
-# LT_INIT must be called after MPICC/CC has been set
+# LT_INIT must be called after CC has been set
 LT_INIT([disable-static])
 
 # Note that the "disable-static" option to LT_INIT is intentional.  The
@@ -663,11 +662,6 @@ AM_CONDITIONAL(BUILD_MDHIM_MODULE,  [test "x$enable_mdhim_mod"   = xyes])
 AM_CONDITIONAL(BUILD_APMPI_MODULE,  [test "x$enable_apmpi_mod"   = xyes])
 AM_CONDITIONAL(BUILD_APXC_MODULE,   [test "x$enable_apxc_mod"    = xyes])
 
-dnl When MPI is enabled, CC has been set to the MPI C compiler.
-dnl MPICC will substitute CC in all Makefile.am files
-MPICC=$CC
-AC_SUBST(MPICC)
-
 AC_CONFIG_FILES(Makefile \
                 darshan-config \
                 darshan-mk-log-dirs.pl \
@@ -721,7 +715,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    ${PACKAGE_NAME} Version ${PACKAGE_VERSION} configured with the following features:"
    if test "x$ENABLE_MPI" = xyes ; then
       echo "\
-           MPI C compiler                - $MPICC"
+           MPI C compiler                - $CC"
    else
       echo "\
            C compiler                    - $CC"
