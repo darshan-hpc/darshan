@@ -1,0 +1,47 @@
+name: Linux Python Tests
+
+on:
+  push:
+    branches:
+      - pydarshan-devel
+  pull_request:
+    branches:
+      - pydarshan-devel
+
+jobs:
+  test_pydarshan:
+    
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8, 3.9]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+      - name: Install darshan-util
+        run: |
+          mkdir darshan_install
+          export DARSHAN_INSTALL_PATH=$PWD/darshan_install
+          cd darshan-util
+          ./configure --prefix=$DARSHAN_INSTALL_PATH --enable-shared --enable-pydarshan
+          make
+          make install
+      - name: Install pydarshan
+        run: |
+          cd darshan-util/pydarshan
+          python -m pip install .
+      - name: Test with pytest
+        run: |
+          export LD_LIBRARY_PATH=$PWD/darshan_install/lib
+          # the test suite is sensitive to
+          # relative dir for test file paths
+          cd darshan-util/pydarshan
+          pytest
