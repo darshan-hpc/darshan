@@ -4,10 +4,13 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+# include <darshan-runtime-config.h>
+#endif
+
 #define _XOPEN_SOURCE 500
 #define _GNU_SOURCE
 
-#include "darshan-runtime-config.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -619,7 +622,6 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
     int i;
     double tm1, tm2, elapsed;
     herr_t ret;
-    herr_t tmp_ret;
 
     MAP_OR_FAIL(H5Dread);
 
@@ -697,6 +699,7 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
 #ifdef DARSHAN_HDF5_PAR_BUILD
             if(xfer_plist_id != H5P_DEFAULT)
             {
+                herr_t tmp_ret;
                 H5FD_mpio_xfer_t xfer_mode;
                 tmp_ret = H5Pget_dxpl_mpio(xfer_plist_id, &xfer_mode);
                 if(tmp_ret >= 0 && xfer_mode == H5FD_MPIO_COLLECTIVE)
@@ -740,7 +743,6 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
     int i;
     double tm1, tm2, elapsed;
     herr_t ret;
-    herr_t tmp_ret;
 
     MAP_OR_FAIL(H5Dwrite);
 
@@ -818,6 +820,7 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
 #ifdef DARSHAN_HDF5_PAR_BUILD
             if(xfer_plist_id != H5P_DEFAULT)
             {
+                herr_t tmp_ret;
                 H5FD_mpio_xfer_t xfer_mode;
                 tmp_ret = H5Pget_dxpl_mpio(xfer_plist_id, &xfer_mode);
                 if(tmp_ret >= 0 && xfer_mode == H5FD_MPIO_COLLECTIVE)

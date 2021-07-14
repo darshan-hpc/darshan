@@ -41,8 +41,8 @@ make install
 
 The darshan-util package is intended to be used on a login node or
 workstation.  For most use cases this means that you should
-either leave CC to its default setting or specify a local compiler.  This is
-in contrast to the darshan-runtime documentation, which suggests setting CC
+either leave `CC` to its default setting or specify a local compiler.  This is
+in contrast to the darshan-runtime documentation, which suggests setting `CC`
 to mpicc because the runtime library will be used in the compute node
 environment.
 
@@ -56,7 +56,7 @@ method of compilation.
 The `--enable-shared` argument to configure can be used to enable
 compilation of a shared version of the darshan-util library.
 
-The `--enable-autoperf-apmpi` and `--enable-autoperf-apxc` configure 
+The `--enable-apmpi-mod` and `--enable-apxc-mod` configure
 arguments must be specified to build darshan-util with support for AutoPerf
 APMPI and APXC modules, respectively.
 

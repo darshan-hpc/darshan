@@ -1,7 +1,9 @@
 #!/bin/sh
 
-DARSHAN_LIB_PATH="@darshan_lib_path@"
-DARSHAN_SHARE_PATH="@darshan_share_path@"
+prefix="@prefix@"
+exec_prefix="@exec_prefix@"
+DARSHAN_LIB_PATH="@libdir@"
+DARSHAN_SHARE_PATH="@datarootdir@"
 DARSHAN_LD_FLAGS="@LDFLAGS@"
 DARSHAN_LOG_PATH="@__DARSHAN_LOG_PATH@"
 DARSHAN_LOG_ENV="@__DARSHAN_LOG_ENV@"
@@ -13,7 +15,7 @@ DARSHAN_LOG_ENV="@__DARSHAN_LOG_ENV@"
 #   resolve indirect dependencies on PnetCDF and HDF5 symbols (if the
 #   app used a library which in turn used one of those HLLs).
 
-PRE_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -ldarshan -lz -Wl,@$DARSHAN_SHARE_PATH/ld-opts/darshan-base-ld-opts"
+PRE_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -ldarshan -lz -Wl,@$DARSHAN_SHARE_PATH/ld-opts/darshan-ld-opts"
 POST_LD_FLAGS="-L$DARSHAN_LIB_PATH -ldarshan @DARSHAN_LUSTRE_LD_FLAGS@ -lz -lrt -lpthread"
 
 # NOTE:
