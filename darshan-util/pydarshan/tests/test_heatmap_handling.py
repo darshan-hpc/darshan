@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_array_equal, assert_allclose
 import pandas as pd
 
 import darshan
@@ -91,6 +91,8 @@ def dict_list_no_writes():
 
 
 def test_get_rd_wr_dfs(dict_list):
+    # regression test for `heatmap_handling.get_rd_wr_dfs()`
+
     read_df, write_df = heatmap_handling.get_rd_wr_dfs(dict_list=dict_list)
     # check that we get the correct data shape after
     # combining the read/write dataframes
@@ -118,7 +120,9 @@ def test_get_rd_wr_dfs(dict_list):
 
 
 def test_get_rd_wr_dfs_no_write(dict_list_no_writes):
-    # based on `test_get_rd_wr_dfs`
+    # based on `test_get_rd_wr_dfs`, regression test for
+    # `heatmap_handling.get_rd_wr_dfs()` to cover case
+    # where there are no write events found
 
     read_df, write_df = heatmap_handling.get_rd_wr_dfs(dict_list=dict_list_no_writes)
     # since there are no write dataframes we should get an empty write dataframe
@@ -281,7 +285,7 @@ def test_get_aggregate_data(expected_agg_data, mods, ops):
             report=report, mods=mods, ops=ops
         )
         # for other cases, make sure the value arrays are identically valued
-        assert_array_equal(actual_agg_data.values, expected_agg_data)
+        assert_allclose(actual_agg_data.values, expected_agg_data)
 
 
 @pytest.mark.parametrize(
@@ -530,13 +534,13 @@ def test_get_heatmap_data(
         # make sure the output array is the correct shape
         assert actual_hmap_data.shape == (1, xbins)
         # make sure the output data contains identical values
-        assert_array_equal(actual_hmap_data, expected_hmap_data)
+        assert_allclose(actual_hmap_data, expected_hmap_data)
 
     elif filepath == "examples/example-logs/dxt.darshan":
         # make sure the output array is the correct shape
         assert actual_hmap_data.shape == (1, xbins)
         # make sure the output data contains identical values
-        assert_array_equal(actual_hmap_data, expected_hmap_data)
+        assert_allclose(actual_hmap_data, expected_hmap_data)
 
         # for each combination of operations, make sure the sum is correct
         if len(ops) == 2:

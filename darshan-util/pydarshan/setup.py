@@ -10,7 +10,7 @@ with open("README.rst") as readme_file:
     readme = readme_file.read()
 
 
-requirements = ["cffi", "numpy", "pandas", "matplotlib"]
+requirements = ["cffi", "numpy", "pandas", "matplotlib", "seaborn"]
 setup_requirements = [
     "pytest-runner",
 ]
@@ -20,8 +20,8 @@ test_requirements = ["pytest"]
 # NOTE: The Python C extension is currently only used to automate
 # the build process of binary wheels for distribution via PyPi.
 #
-# If you are building darshan yourself and make libdarshan-util.so 
-# discoverable in the environment by means of LD_LIBRARY_PATH or 
+# If you are building darshan yourself and make libdarshan-util.so
+# discoverable in the environment by means of LD_LIBRARY_PATH or
 # pkg-config there is no need to build the extension.
 ext_modules = []
 if "--with-extension" in sys.argv:

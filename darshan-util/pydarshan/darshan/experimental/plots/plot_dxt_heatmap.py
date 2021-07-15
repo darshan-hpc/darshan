@@ -3,18 +3,20 @@ Module for creating the ranks vs. time IO intensity
 heatmap figure for the Darshan job summary.
 """
 
-from typing import Any, List, Sequence
+from typing import Any, List, Sequence, Union
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import seaborn as sns
+import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
 import darshan
 from darshan.experimental.plots import heatmap_handling
 
 
-def get_x_axis_ticks(ax: Any, n_xlabels: int = 4) -> np.ndarray:
+def get_x_axis_ticks(ax: Any, n_xlabels: int = 4) -> npt.NDArray[np.float64]:
     """
     Creates the x-axis tick mark locations.
 
@@ -48,7 +50,9 @@ def get_x_axis_ticks(ax: Any, n_xlabels: int = 4) -> np.ndarray:
     return xticks
 
 
-def get_x_axis_tick_labels(agg_df: pd.DataFrame, n_xlabels: int = 4) -> np.ndarray:
+def get_x_axis_tick_labels(
+    agg_df: pd.DataFrame, n_xlabels: int = 4
+) -> Union[npt.NDArray[np.float64], npt.NDArray[np.intc]]:
     """
     Creates the x-axis tick mark labels.
 
@@ -82,7 +86,7 @@ def get_x_axis_tick_labels(agg_df: pd.DataFrame, n_xlabels: int = 4) -> np.ndarr
     return x_ticklabels
 
 
-def get_y_axis_ticks(ax: Any, n_ylabels: int = 6) -> np.ndarray:
+def get_y_axis_ticks(ax: Any, n_ylabels: int = 6) -> npt.NDArray[np.float64]:
     """
     Creates the y-axis tick mark locations.
 
@@ -128,7 +132,7 @@ def get_yticklabels(ax: Any) -> List[str]:
     Returns
     -------
 
-    y_ticklabels: array of y-axis tick mark labels of length ``n_ylabels``.
+    y_ticklabels: list of y-axis tick mark labels of length ``n_ylabels``.
 
     """
     # retrieve the original y-axis tick label strings from the axis object
@@ -136,7 +140,7 @@ def get_yticklabels(ax: Any) -> List[str]:
     return y_ticklabels
 
 
-def get_y_axis_tick_labels(ax: Any, n_ylabels: int = 6) -> np.ndarray:
+def get_y_axis_tick_labels(ax: Any, n_ylabels: int = 6) -> npt.NDArray[np.intc]:
     """
     Sets the y-axis tick mark labels.
 
@@ -293,10 +297,10 @@ def plot_heatmap(
 
     log_path: path to a darshan log file.
 
-    mods: a list of keys designating which Darshan modules to use for
+    mods: a sequence of keys designating which Darshan modules to use for
     data aggregation. Default is ``["DXT_POSIX"]``.
 
-    ops: a list of keys designating which Darshan operations to use for
+    ops: a sequence of keys designating which Darshan operations to use for
     data aggregation. Default is ``["read", "write"]``.
 
     xbins: the number of x-axis bins to create.
@@ -349,6 +353,18 @@ def plot_heatmap(
         cmap="YlOrRd",
         norm=LogNorm(),
         cbar_kws=colorbar_kws,
+    )
+
+    # add text for x-axis bin count
+    xbin_label = f"Time bins: {xbins}"
+    plt.text(
+        x=1.03,
+        y=-0.04,
+        s=xbin_label,
+        fontsize=9,
+        verticalalignment="top",
+        horizontalalignment="left",
+        transform=jgrid.ax_joint.transAxes,
     )
 
     # make the heatmap border visible

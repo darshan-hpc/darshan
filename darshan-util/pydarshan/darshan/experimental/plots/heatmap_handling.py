@@ -5,6 +5,7 @@ from typing import Dict, Any, Tuple, Sequence, TypedDict
 
 import pandas as pd
 import numpy as np
+import numpy.typing as npt
 
 
 class SegDict(TypedDict):
@@ -29,7 +30,7 @@ def get_rd_wr_dfs(dict_list: Sequence[SegDict]) -> Tuple[pd.DataFrame, pd.DataFr
     Parameters
     ----------
 
-    dict_list: a list of DXT records, where each record is a
+    dict_list: a sequence of DXT records, where each record is a
     Python dictionary with the following keys: 'id', 'rank',
     'hostname', 'write_count', 'read_count', 'write_segments',
     and 'read_segments'. The read/write data is stored in
@@ -159,10 +160,10 @@ def get_single_df_dict(
 
     report: a ``darshan.DarshanReport``.
 
-    mods: a list of keys designating which Darshan modules to use for
+    mods: a sequence of keys designating which Darshan modules to use for
     data aggregation. Default is ``["DXT_POSIX"]``.
 
-    ops: a list of keys designating which Darshan operations to use for
+    ops: a sequence of keys designating which Darshan operations to use for
     data aggregation. Default is ``["read", "write"]``.
 
     Returns
@@ -228,10 +229,10 @@ def get_aggregate_data(
 
     report: a ``darshan.DarshanReport``.
 
-    mods: a list of keys designating which Darshan modules to use for
+    mods: a sequence of keys designating which Darshan modules to use for
     data aggregation. Default is ``["DXT_POSIX"]``.
 
-    ops: a list of keys designating which Darshan operations to use for
+    ops: a sequence of keys designating which Darshan operations to use for
     data aggregation. Default is ``["read", "write"]``.
 
     Returns
@@ -275,7 +276,7 @@ def get_aggregate_data(
         # if there are dataframes in the list, concatenate them into 1 dataframe
         agg_df = pd.concat(df_list, ignore_index=True)
     else:
-        raise ValueError(f"No data available for selected module(s) and operation(s).")
+        raise ValueError("No data available for selected module(s) and operation(s).")
 
     return agg_df
 
@@ -283,8 +284,8 @@ def get_aggregate_data(
 def calc_prop_data_sum(
     tmin: float,
     tmax: float,
-    total_elapsed: np.ndarray,
-    total_data: np.ndarray,
+    total_elapsed: npt.NDArray[np.float64],
+    total_data: npt.NDArray[np.float64],
 ) -> float:
     """
     Calculates the proportion of data read/written in the
@@ -323,7 +324,7 @@ def calc_prop_data_sum(
     return prop_data_sum
 
 
-def get_heatmap_data(agg_df: pd.DataFrame, xbins: int) -> np.ndarray:
+def get_heatmap_data(agg_df: pd.DataFrame, xbins: int) -> npt.NDArray[np.float64]:
     """
     Builds an array similar to a 2D-histogram, where the y data is the unique
     ranks and the x data is time. Each bin is populated with the data sum
