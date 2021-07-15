@@ -335,13 +335,15 @@ def test_remove_marginal_graph_ticks_and_labels(filepath):
     ],
 )
 def test_adjust_for_colorbar(filepath):
+    # regression test for `plot_dxt_heatmap.adjust_for_colorbar()`
+
     jgrid = plot_dxt_heatmap.plot_heatmap(log_path=filepath)
 
     # the plot positions change based on the number of unique ranks.
     # If there is only 1 rank, there is no horizontal bar graph
     # so the x-axis values are scaled accordingly.
 
-    # get heat map positions
+    # get heatmap positions
     hmap_positions = jgrid.ax_joint.get_position()
     assert hmap_positions.x0 == 0.1
     assert hmap_positions.y0 == 0.15000000000000002
@@ -407,6 +409,7 @@ def test_adjust_for_colorbar(filepath):
 @pytest.mark.parametrize("mods", [["DXT_POSIX"], ["DXT_MPIIO"]])
 @pytest.mark.parametrize("ops", [["read", "write"], ["read"], ["write"]])
 def test_plot_heatmap(filepath, mods, ops):
+    # test the primary plotting function, `plot_dxt_heatmap.plot_heatmap()`
 
     if mods == ["DXT_MPIIO"]:
         # if the input module is not "DXT_POSIX" check
@@ -435,7 +438,7 @@ def test_plot_heatmap(filepath, mods, ops):
         assert jgrid.ax_marg_x.margins() == (0.05, 0.05)
         assert jgrid.ax_marg_y.margins() == (0.05, 0.05)
 
-        # ensure the heat map spines are all visible
+        # ensure the heatmap spines are all visible
         for _, spine in jgrid.ax_joint.spines.items():
             assert spine.get_visible()
 
