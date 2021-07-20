@@ -37,6 +37,7 @@ AC_ARG_ENABLE([darshan-util],
 AM_CONDITIONAL(BUILD_DARSHAN_UTIL, [test "x$enable_darshan_util" != xno])
 
 dnl allow RUNTIME_CC to override CC for building darshan-runtime
+AC_ARG_VAR(RUNTIME_CC, [Compiler to use for darshan-runtime])
 ORIG_CC=$CC
 if test "x$RUNTIME_CC" != x ; then
    CC=$RUNTIME_CC
@@ -46,6 +47,7 @@ dnl must configure subpackages even if they are not built
 AC_CONFIG_SUBDIRS([darshan-runtime])
 
 dnl allow UTIL_CC to override CC for building darshan-util
+AC_ARG_VAR(UTIL_CC, [Compiler to use for darshan-util])
 CC=$ORIG_CC
 if test "x$UTIL_CC" != x ; then
    CC=$UTIL_CC
