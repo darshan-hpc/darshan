@@ -93,7 +93,12 @@ def dict_list_no_writes():
 def test_get_rd_wr_dfs(dict_list):
     # regression test for `heatmap_handling.get_rd_wr_dfs()`
 
-    read_df, write_df = heatmap_handling.get_rd_wr_dfs(dict_list=dict_list)
+    rd_wr_dfs = heatmap_handling.get_rd_wr_dfs(dict_list=dict_list)
+
+    # retrieve read/write dataframes from the dictionary
+    read_df = rd_wr_dfs["read"]
+    write_df = rd_wr_dfs["write"]
+
     # check that we get the correct data shape after
     # combining the read/write dataframes
     assert read_df.shape == (30, 4)
@@ -124,7 +129,12 @@ def test_get_rd_wr_dfs_no_write(dict_list_no_writes):
     # `heatmap_handling.get_rd_wr_dfs()` to cover case
     # where there are no write events found
 
-    read_df, write_df = heatmap_handling.get_rd_wr_dfs(dict_list=dict_list_no_writes)
+    rd_wr_dfs = heatmap_handling.get_rd_wr_dfs(dict_list=dict_list_no_writes)
+
+    # retrieve read/write dataframes from the dictionary
+    read_df = rd_wr_dfs["read"]
+    write_df = rd_wr_dfs["write"]
+
     # since there are no write dataframes we should get an empty write dataframe
     assert write_df.empty
     # check that we get the correct data shape after
@@ -554,7 +564,7 @@ def test_get_heatmap_data(
         # make sure the output array is the correct shape
         assert actual_hmap_data.shape == (4, xbins)
         # make sure the output data contains identical values
-        assert np.allclose(actual_hmap_data, expected_hmap_data)
+        assert_allclose(actual_hmap_data, expected_hmap_data)
 
         # for each combination of operations, make sure the sum is correct
         if len(ops) == 2:

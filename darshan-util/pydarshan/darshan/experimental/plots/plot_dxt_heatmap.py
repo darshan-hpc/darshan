@@ -2,11 +2,14 @@
 Module for creating the ranks vs. time IO intensity
 heatmap figure for the Darshan job summary.
 """
+from __future__ import annotations
 
-from typing import Any, List, Sequence, Union
+from typing import Any, List, Sequence, Union, TYPE_CHECKING
 
 import numpy as np
-import numpy.typing as npt
+
+if TYPE_CHECKING:
+    import numpy.typing as npt
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -229,22 +232,16 @@ def remove_marginal_graph_ticks_and_labels(marg_x: Any, marg_y: Any):
 
     marg_y : a y-axis marginal bar graph object.
     """
-    # turn the frame off for both bar graphs
-    marg_x.axis("off")
-    marg_y.axis("off")
-    # remove all tick mark labels for both bar graphs
-    marg_x.tick_params(
-        axis="x", bottom=False, labelbottom=False, top=False, labeltop=False
-    )
-    marg_y.tick_params(
-        axis="y", left=False, labelleft=False, right=False, labelright=False
-    )
-    marg_x.tick_params(
-        axis="y", left=False, labelleft=False, right=False, labelright=False
-    )
-    marg_y.tick_params(
-        axis="x", bottom=False, labelbottom=False, top=False, labeltop=False
-    )
+    for marg in [marg_x, marg_y]:
+        # turn the frame off for both bar graphs
+        marg.axis("off")
+        # remove all tick mark labels for both bar graphs
+        marg.tick_params(
+            axis="x", bottom=False, labelbottom=False, top=False, labeltop=False
+        )
+        marg.tick_params(
+            axis="y", left=False, labelleft=False, right=False, labelright=False
+        )
 
 
 def adjust_for_colorbar(jointgrid: Any, fig_right: float, cbar_x0: float):
