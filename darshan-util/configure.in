@@ -128,6 +128,13 @@ AC_ARG_ENABLE(
     []
 )
 
+AC_ARG_ENABLE(
+    [autoperf-apnvgpu],
+    [  --enable-autoperf-apnvgpu    Enables compilation and use of the AutoPerf APNVGPU module],
+    [enable_autoperf_apnvgpu=yes],
+    []
+)
+
 if test x$enable_autoperf_apxc = xyes; then
     abssrcdir=$(readlink -f ${srcdir})
     AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
@@ -140,6 +147,13 @@ if test x$enable_autoperf_apmpi = xyes; then
     AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
                     DARSHAN_USE_APMPI=1,
                     [AC_MSG_ERROR([The autoperf MPI module is not present])],
+                    [-]) # this last part tells it to only check for presence
+fi
+if test x$enable_autoperf_apnvgpu = xyes; then
+    abssrcdir=$(readlink -f ${srcdir})
+    AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apnvgpu/darshan-apnvgpu-log-format.h],
+                    DARSHAN_USE_APNVGPU=1,
+                    [AC_MSG_ERROR([The autoperf APNVGPU module is not present])],
                     [-]) # this last part tells it to only check for presence
 fi
 
@@ -157,6 +171,7 @@ AC_SUBST(DARSHAN_PYDARSHAN_PATH)
 AC_SUBST(DARSHAN_UTIL_VERSION)
 AC_SUBST(DARSHAN_USE_APXC)
 AC_SUBST(DARSHAN_USE_APMPI)
+AC_SUBST(DARSHAN_USE_APNVGPU)
 
 AC_OUTPUT
 
