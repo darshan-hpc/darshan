@@ -3,7 +3,13 @@ Module of data pre-processing functions for constructing the heatmap figure.
 """
 from __future__ import annotations
 
-from typing import Dict, Any, Tuple, Sequence, TypedDict, TYPE_CHECKING
+from typing import Dict, Any, Tuple, Sequence, TYPE_CHECKING
+
+import sys
+if sys.version_info >= (3, 8):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
 
 import pandas as pd
 import numpy as np
