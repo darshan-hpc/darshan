@@ -1,11 +1,15 @@
 """
 Module of data pre-processing functions for constructing the heatmap figure.
 """
-from typing import Dict, Any, Tuple, Sequence, TypedDict
+from __future__ import annotations
+
+from typing import Dict, Any, Tuple, Sequence, TypedDict, TYPE_CHECKING
 
 import pandas as pd
 import numpy as np
-import numpy.typing as npt
+
+if TYPE_CHECKING:
+    import numpy.typing as npt
 
 
 class SegDict(TypedDict):
@@ -22,7 +26,9 @@ class SegDict(TypedDict):
     read_segments: pd.DataFrame
 
 
-def get_rd_wr_dfs(dict_list: Sequence[SegDict]) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def get_rd_wr_dfs(
+    dict_list: Sequence[SegDict], ops: Sequence[str] = ["read", "write"]
+) -> Dict[str, pd.DataFrame]:
     """
     Uses the DXT records to construct individual
     dataframes for both read and write segments.
@@ -38,12 +44,15 @@ def get_rd_wr_dfs(dict_list: Sequence[SegDict]) -> Tuple[pd.DataFrame, pd.DataFr
     ```pd.DataFrame`` containing the following data (columns):
     'offset', 'length', 'start_time', 'end_time'.
 
+    ops: a sequence of keys designating which Darshan operations
+    to collect data for. Default is ``["read", "write"]``.
+
     Returns
     -------
 
-    Tuple of form ``(read_df, write_df)``,
-    where each tuple element is a ``pd.DataFrame`` object
-    containing all of the read and write events.
+    rd_wr_dfs: dictionary where each key is an operation from the input
+    ``ops`` parameter (i.e. "read", "write") and each value is a
+    ``pd.DataFrame`` object containing all of the read/write events.
 
     Notes
     -----
@@ -53,7 +62,7 @@ def get_rd_wr_dfs(dict_list: Sequence[SegDict]) -> Tuple[pd.DataFrame, pd.DataFr
     Examples
     --------
 
-    ``dict_list`` and ``(read_df, write_df)``
+    ``dict_list`` and ``rd_wr_dfs``
     generated from ``tests/input/sample-dxt-simple.darshan``:
 
         dict_list = [
@@ -87,63 +96,52 @@ def get_rd_wr_dfs(dict_list: Sequence[SegDict]) -> Tuple[pd.DataFrame, pd.DataFr
             },
         ]
 
-        (read_df, write_df) = (
-            Empty DataFrame
-            Columns: []
-            Index: [],
-            length  start_time  end_time  rank
-            0      40    0.103379  0.103388     0
-            1    4000    0.104217  0.104231     0
-        )
+        rd_wr_dfs = {
+            'read':
+                Empty DataFrame
+                Columns: []
+                Index: [],
+            'write':
+                length  start_time  end_time  rank
+                0      40    0.103379  0.103388     0
+                1    4000    0.104217  0.104231     0
+        }
 
     """
     # columns to drop when accumulating the dataframes.
     # Currently "offset" data is not utilized
     drop_columns = ["offset"]
-    # create empty arrays to store
-    # read/write segment dataframes
-    read_df_list = []
-    write_df_list = []
-    # iterate over all records/dictionaries
-    # to pull out the dataframes
-    for _dict in dict_list:
-        # collect the read and write segment dataframes
-        rd_seg_df = _dict["read_segments"]
-        wr_seg_df = _dict["write_segments"]
+    # create empty dictionary to store
+    # the concatenated read/write dataframes
+    rd_wr_dfs = {}
+    # iterate over each operation
+    for op_key in ops:
+        # mypy can't tell that these keys are in fact
+        # in the ``SegDict``, so just ignore the type
+        seg_key = op_key + "_segments"  # type: ignore
+        # create empty list to store each dataframe
+        df_list = []
+        # iterate over all records/dictionaries
+        for _dict in dict_list:
+            # ignore for the same reason as above
+            seg_df = _dict[seg_key]  # type: ignore
+            if seg_df.size:
+                # drop unused columns from the dataframe
+                seg_df = seg_df.drop(columns=drop_columns)
+                # create new column for the ranks
+                seg_df["rank"] = _dict["rank"]
+                # add the dataframe to the list
+                df_list.append(seg_df)
 
-        if rd_seg_df.size:
-            # drop unused columns from the dataframe
-            rd_seg_df = rd_seg_df.drop(columns=drop_columns)
-            # create new column for the ranks
-            rd_seg_df["rank"] = _dict["rank"]
-            # add the dataframe to the list
-            read_df_list.append(rd_seg_df)
+        if df_list:
+            # concatenate the list of pandas dataframes into
+            # a single one with new row indices
+            rd_wr_dfs[op_key] = pd.concat(df_list, ignore_index=True)
+        else:
+            # if the list is empty assign an empty dataframe
+            rd_wr_dfs[op_key] = pd.DataFrame()
 
-        if wr_seg_df.size:
-            # drop unused columns from the dataframe
-            wr_seg_df = wr_seg_df.drop(columns=drop_columns)
-            # create new column for the ranks
-            wr_seg_df["rank"] = _dict["rank"]
-            # add the dataframe to the list
-            write_df_list.append(wr_seg_df)
-
-    if read_df_list:
-        # concatenate the list of pandas dataframes into
-        # a single one with new row indices
-        read_df = pd.concat(read_df_list, ignore_index=True)
-    else:
-        # if the list is empty assign an empty dataframe
-        read_df = pd.DataFrame()
-
-    if write_df_list:
-        # concatenate the list of pandas dataframes into
-        # a single one with new row indices
-        write_df = pd.concat(write_df_list, ignore_index=True)
-    else:
-        # if the list is empty assign an empty dataframe
-        write_df = pd.DataFrame()
-
-    return read_df, write_df
+    return rd_wr_dfs
 
 
 def get_single_df_dict(
@@ -202,15 +200,12 @@ def get_single_df_dict(
         # retrieve the list of records in pd.DataFrame() form
         dict_list = report.records[module_key].to_df()
         # retrieve the list of read/write dataframes from the list of records
-        read_df, write_df = get_rd_wr_dfs(dict_list=dict_list)
+        rd_wr_dfs = get_rd_wr_dfs(dict_list=dict_list, ops=ops)
         # create empty dictionary for each module
         flat_data_dict[module_key] = {}
-        if "read" in ops:
+        for op_key in ops:
             # add the concatenated dataframe to the flat dictionary
-            flat_data_dict[module_key]["read"] = read_df
-        if "write" in ops:
-            # add the concatenated dataframe to the flat dictionary
-            flat_data_dict[module_key]["write"] = write_df
+            flat_data_dict[module_key][op_key] = rd_wr_dfs[op_key]
 
     return flat_data_dict
 

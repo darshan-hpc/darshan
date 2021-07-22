@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_array_equal, assert_allclose
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -140,8 +140,8 @@ def test_set_x_axis_ticks_and_labels(
     plt.close()
 
     # verify the actual ticks/labels match the expected
-    assert np.allclose(actual_xticks, expected_xticks, atol=1e-14, rtol=1e-17)
-    assert np.allclose(actual_xticklabels, expected_xticklabels, atol=1e-14, rtol=1e-17)
+    assert_allclose(actual_xticks, expected_xticks, atol=1e-14, rtol=1e-17)
+    assert_allclose(actual_xticklabels, expected_xticklabels, atol=1e-14, rtol=1e-17)
 
 
 @pytest.mark.parametrize(
@@ -168,7 +168,7 @@ def test_get_y_axis_ticks(n_ylabels, expected_yticks, jointgrid):
     plt.close()
 
     # make sure the actual tick mark locations match the expected
-    assert np.allclose(actual_yticks, expected_yticks, atol=1e-14, rtol=1e-17)
+    assert_allclose(actual_yticks, expected_yticks, atol=1e-14, rtol=1e-17)
 
 
 @pytest.mark.parametrize(
@@ -290,8 +290,8 @@ def test_set_y_axis_ticks_and_labels(
     plt.close()
 
     # verify the actual ticks/labels match the expected
-    assert np.allclose(actual_yticks, expected_yticks, atol=1e-14, rtol=1e-17)
-    assert np.allclose(actual_yticklabels, expected_yticklabels, atol=1e-14, rtol=1e-17)
+    assert_allclose(actual_yticks, expected_yticks, atol=1e-14, rtol=1e-17)
+    assert_allclose(actual_yticklabels, expected_yticklabels, atol=1e-14, rtol=1e-17)
 
 
 @pytest.mark.parametrize(
