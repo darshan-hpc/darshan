@@ -522,13 +522,13 @@ def test_get_aggregate_data(expected_agg_data, mods, ops):
         ),
     ],
 )
-def test_get_heatmap_data(
+def test_get_heatmap_df(
     filepath,
     expected_hmap_data,
     xbins,
     ops,
 ):
-    # regression test for `heatmap_handling.get_heatmap_data()`
+    # regression test for `heatmap_handling.get_heatmap_df()`
 
     # generate the report and use it to obtain the aggregated data
     report = darshan.DarshanReport(filepath)
@@ -536,40 +536,40 @@ def test_get_heatmap_data(
         report=report, mods=["DXT_POSIX"], ops=ops
     )
     # run the aggregated data through the heatmap data code
-    actual_hmap_data = heatmap_handling.get_heatmap_data(agg_df=agg_df, xbins=xbins)
+    actual_hmap_data = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins)
 
     if filepath == "tests/input/sample-dxt-simple.darshan":
         # check the data is conserved
-        assert actual_hmap_data.sum() == 4040
+        assert actual_hmap_data.values.sum() == 4040
         # make sure the output array is the correct shape
         assert actual_hmap_data.shape == (1, xbins)
         # make sure the output data contains identical values
-        assert_allclose(actual_hmap_data, expected_hmap_data)
+        assert_allclose(actual_hmap_data.values, expected_hmap_data)
 
     elif filepath == "examples/example-logs/dxt.darshan":
         # make sure the output array is the correct shape
         assert actual_hmap_data.shape == (1, xbins)
         # make sure the output data contains identical values
-        assert_allclose(actual_hmap_data, expected_hmap_data)
+        assert_allclose(actual_hmap_data.values, expected_hmap_data)
 
         # for each combination of operations, make sure the sum is correct
         if len(ops) == 2:
-            assert actual_hmap_data.sum() == 35539507
+            assert actual_hmap_data.values.sum() == 35539507
         elif ops[0] == "read":
-            assert actual_hmap_data.sum() == 22517726
+            assert actual_hmap_data.values.sum() == 22517726
         elif ops[0] == "write":
-            assert actual_hmap_data.sum() == 13021781
+            assert actual_hmap_data.values.sum() == 13021781
 
     elif filepath == "examples/example-logs/ior_hdf5_example.darshan":
         # make sure the output array is the correct shape
         assert actual_hmap_data.shape == (4, xbins)
         # make sure the output data contains identical values
-        assert_allclose(actual_hmap_data, expected_hmap_data)
+        assert_allclose(actual_hmap_data.values, expected_hmap_data)
 
         # for each combination of operations, make sure the sum is correct
         if len(ops) == 2:
-            assert actual_hmap_data.sum() == 8398304
+            assert actual_hmap_data.values.sum() == 8398304
         elif ops[0] == "read":
-            assert actual_hmap_data.sum() == 4202504
+            assert actual_hmap_data.values.sum() == 4202504
         elif ops[0] == "write":
-            assert actual_hmap_data.sum() == 4195800
+            assert actual_hmap_data.values.sum() == 4195800
