@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Dict, Any, Tuple, Sequence, TYPE_CHECKING
 
 import sys
+
 if sys.version_info >= (3, 8):
     from typing import TypedDict
 else:
@@ -325,7 +326,7 @@ def calc_prop_data_sum(
     return prop_data_sum
 
 
-def get_heatmap_data(agg_df: pd.DataFrame, xbins: int) -> npt.NDArray[np.float64]:
+def get_heatmap_data(agg_df: pd.DataFrame, xbins: int) -> np.ndarray:
     """
     Builds an array similar to a 2D-histogram, where the y data is the unique
     ranks and the x data is time. Each bin is populated with the data sum
@@ -349,96 +350,75 @@ def get_heatmap_data(agg_df: pd.DataFrame, xbins: int) -> npt.NDArray[np.float64
     interval.
 
     """
-    # get the unique ranks
-    unique_ranks = np.unique(agg_df["rank"].values)
-
     # generate the bin edges by generating an array of length n_bins+1, then
     # taking pairs of data points as the min/max bin value
-    min_time = 0.0
-    max_time = agg_df["end_time"].values.max()
-    bin_edge_data = np.linspace(min_time, max_time, xbins + 1)
-
-    # calculate the elapsed time for each data point
-    elapsed_time_data = agg_df["end_time"].values - agg_df["start_time"].values
-
-    # generate an array for the heatmap data
-    hmap_data = np.zeros((unique_ranks.size, xbins), dtype=float)
-
-    # iterate over the unique ranks
-    for i, rank in enumerate(unique_ranks):
-        # for each rank, generate a mask to select only
-        # the data points that correspond to that rank
-        rank_mask = agg_df["rank"].values == rank
-        bytes_data = agg_df["length"].values[rank_mask]
-        start_data = agg_df["start_time"].values[rank_mask]
-        end_data = agg_df["end_time"].values[rank_mask]
-        elapsed_data = elapsed_time_data[rank_mask]
-
-        # iterate over the bins
-        for j, (bmin, bmax) in enumerate(zip(bin_edge_data[:-1], bin_edge_data[1:])):
-            # create a mask for all data with a start time greater than the
-            # bin minimum time
-            start_mask_min = start_data >= bmin
-            # create a mask for all data with an end time less than the
-            # bin maximum time
-            end_mask_max = end_data <= bmax
-            # use the above masks to find the indices of all data with
-            # start/end times that fall within the bin min/max times
-            start_inside_idx = np.nonzero(start_mask_min & (start_data <= bmax))[0]
-            end_inside_idx = np.nonzero((end_data > bmin) & end_mask_max)[0]
-            # using the start/end indices, find all indices that both start
-            # and end within the bin min/max limits
-            inside_idx = np.intersect1d(start_inside_idx, end_inside_idx)
-            # use the original masks to find the indices of data that start
-            # before the bin minimum time and end after the bin maximum time
-            outside_idx = np.nonzero(~start_mask_min & ~end_mask_max)[0]
-
-            if inside_idx.size:
-                # for data that start/end inside the bin limits,
-                # add the sum of the correspondign data to the hmap data
-                hmap_data[i, j] += bytes_data[inside_idx].sum()
-                # now remove any indices from the start/end index arrays
-                # to prevent double counting
-                start_inside_idx = np.setdiff1d(start_inside_idx, inside_idx)
-                end_inside_idx = np.setdiff1d(end_inside_idx, inside_idx)
-
-            if outside_idx.size:
-                # for data that start before the bin min time and end
-                # after the bin max time (run longer than 1 bin time),
-                # calculate the proportionate data used in 1 bin time
-                # and add it to the hmap data
-                prop_data_sum = calc_prop_data_sum(
-                    tmin=bmin,
-                    tmax=bmax,
-                    total_elapsed=elapsed_data[outside_idx],
-                    total_data=bytes_data[outside_idx],
-                )
-                hmap_data[i, j] += prop_data_sum
-
-            if start_inside_idx.size:
-                # for data with only a start time within the bin limits,
-                # calculate the elapsed time (from start to bin max), use the
-                # elapsed time to calculate the proportionate data read/written,
-                # and add the data sum to the hmap data
-                prop_data_sum = calc_prop_data_sum(
-                    tmin=start_data[start_inside_idx],
-                    tmax=bmax,
-                    total_elapsed=elapsed_data[start_inside_idx],
-                    total_data=bytes_data[start_inside_idx],
-                )
-                hmap_data[i, j] += prop_data_sum
-
-            if end_inside_idx.size:
-                # for data with only an end time within the bin limits,
-                # calculate the elapsed time (from bin min to end time), use the
-                # elapsed time to calculate the proportionate data read/written,
-                # and add the data sum to the hmap data
-                prop_data_sum = calc_prop_data_sum(
-                    tmin=bmin,
-                    tmax=end_data[end_inside_idx],
-                    total_elapsed=elapsed_data[end_inside_idx],
-                    total_data=bytes_data[end_inside_idx],
-                )
-                hmap_data[i, j] += prop_data_sum
-
-    return hmap_data
+    max_time = agg_df["end_time"].max()
+    bin_edge_data = np.linspace(0.0, max_time, xbins + 1)
+    # create dummy variables for start/end time data, where dataframe columns
+    # are the x-axis bin ranges
+    cats_start = pd.get_dummies(
+        pd.cut(agg_df["start_time"], bin_edge_data, precision=16)
+    )
+    cats_end = pd.get_dummies(pd.cut(agg_df["end_time"], bin_edge_data, precision=16))
+    # get series for the elapsed times for each dxt segment
+    elapsed_times_dxt_segments = agg_df["end_time"] - agg_df["start_time"]
+    # calculate the time interval spanned by each bin
+    bin_size = bin_edge_data[1] - bin_edge_data[0]
+    # get the ratio of the bin time interval over the dxt segment elapsed times
+    true_fraction_of_dxt_segment_in_a_bin = bin_size / elapsed_times_dxt_segments
+    # create a version of the above series where any ratio above 1 is set to 1
+    fraction_of_dxt_segment_in_a_bin = true_fraction_of_dxt_segment_in_a_bin.copy()
+    fraction_of_dxt_segment_in_a_bin.mask(
+        fraction_of_dxt_segment_in_a_bin > 1, 1, inplace=True
+    )
+    # create a dataframe of binned dxt start events where occupied bins contain
+    # the start time and unoccupied bins are populated with NaNs
+    start_times_in_bins = cats_start.mul(agg_df["start_time"], axis=0).replace(
+        0, np.nan
+    )
+    # create a dataframe of binned dxt start events where occupied bins contain
+    # the proportional time spent in the bin
+    start_fraction_bin_occupancy = (bin_edge_data[1:] - start_times_in_bins) / bin_size
+    # create a dataframe of binned dxt end events where occupied bins contain
+    # the end time and unoccupied bins are populated with NaNs
+    end_times_in_bins = cats_end.mul(agg_df["end_time"], axis=0).replace(0, np.nan)
+    # create a dataframe of binned dxt end events where occupied bins contain
+    # the proportional time spent in the bin
+    end_fraction_bin_occupancy = (end_times_in_bins - bin_edge_data[:-1]) / bin_size
+    # combine the start/end fractional bin occupancy dataframes by multiplying
+    # them together. Fill any missing values with (1)
+    combo = start_fraction_bin_occupancy.mul(
+        end_fraction_bin_occupancy, fill_value=1, axis=0
+    )
+    combo.mask(combo > 1, 1, inplace=True)
+    # add the start/end dummy variable dataframes
+    # and replace any zeros with NaN's
+    cats = cats_start.add(cats_end, fill_value=0)
+    cats.replace(0, np.nan, inplace=True)
+    # for each row (IO event) fill in any empty (NaN) bins
+    # between filled bins because those are time spans b/w start
+    # and stop events
+    cats.interpolate(method="linear", limit_area="inside", axis=1, inplace=True)
+    # each time bin containing an event has a 1 in it, otherwise NaN
+    # store mask for restoring fully occupied bins
+    mask_occ = cats == 2
+    # set the fraction of segment per occupied bin
+    cats = cats.mul(fraction_of_dxt_segment_in_a_bin, axis=0)
+    # start/end in adjacent bins require special treatment
+    adjacent_mask = (cats.count(axis=1) == 2) & (cats.sum(axis=1) == 2)
+    # multiply them by the true fractions of DXT segments, which
+    # may actually be > 1 (i.e., the non-1-capped fractions)
+    cats[adjacent_mask] = cats[adjacent_mask].mul(
+        true_fraction_of_dxt_segment_in_a_bin[adjacent_mask], axis=0
+    )
+    # adjust the fractions of the starts/ends for partial occupancy
+    # of bins
+    cats = cats.mul(combo, fill_value=1, axis=0)
+    # start and end are in bin, so restore it
+    cats = cats.mask(mask_occ, 1)
+    # each full or fractional bin event is now multiplied by
+    # the bytes data
+    cats = cats.mul(agg_df["length"], axis=0)
+    cats["rank"] = agg_df["rank"]
+    grouped_res = cats.groupby("rank").sum()
+    return grouped_res.to_numpy()
