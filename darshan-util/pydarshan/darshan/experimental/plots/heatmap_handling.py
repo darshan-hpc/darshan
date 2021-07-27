@@ -283,50 +283,7 @@ def get_aggregate_data(
     return agg_df
 
 
-def calc_prop_data_sum(
-    tmin: float,
-    tmax: float,
-    total_elapsed: npt.NDArray[np.float64],
-    total_data: npt.NDArray[np.float64],
-) -> float:
-    """
-    Calculates the proportion of data read/written in the
-    time interval of a single bin in ``get_heatmap_data``.
-
-    Parameters
-    ----------
-
-    tmin: the lower bound of the time interval for a given bin.
-
-    tmax: the upper bound of the time interval for a given bin.
-
-    total_elapsed: an array of the elapsed times for every event
-    that occurred within the time interval of a given bin.
-
-    total_data: an array of the data totals for every event that
-    occurred within the time interval of a given bin.
-
-    Returns
-    -------
-
-    prop_data_sum: the amount of data read/written in the time
-    interval of a given bin.
-
-    """
-    # calculate the elapsed time
-    partial_elapsed = tmax - tmin
-    # calculate the ratio of the elapsed time
-    # to the total read/write event time
-    proportionate_time = partial_elapsed / total_elapsed
-    # calculate the amount of data read/written in the elapsed
-    # time (assuming a constant read/write rate)
-    proportionate_data = proportionate_time * total_data
-    # sum the data
-    prop_data_sum = proportionate_data.sum()
-    return prop_data_sum
-
-
-def get_heatmap_data(agg_df: pd.DataFrame, xbins: int) -> np.ndarray:
+def get_heatmap_df(agg_df: pd.DataFrame, xbins: int) -> pd.DataFrame:
     """
     Builds an array similar to a 2D-histogram, where the y data is the unique
     ranks and the x data is time. Each bin is populated with the data sum
@@ -344,10 +301,21 @@ def get_heatmap_data(agg_df: pd.DataFrame, xbins: int) -> np.ndarray:
     Returns
     -------
 
-    hmap_data: ``NxM`` array, where ``N`` is the number of unique ranks
-    and ``M`` is the number of x-axis bins. Each element contains the
-    data read/written by the corresponding rank in the x-axis bin time
-    interval.
+    hmap_df: dataframe with time intervals for columns and rank
+    index (0, 1, etc.) for rows, where each element contains the data
+    read/written by the corresponding rank in the given time interval.
+
+    Examples
+    --------
+    The first column/bin for the `hmap_df` generated from
+    "examples/example-logs/ior_hdf5_example.darshan":
+
+               (0.0, 0.09552296002705891]
+        rank
+        0                   8.951484e+05
+        1                   3.746313e+05
+        2                   6.350999e+05
+        3                   1.048576e+06
 
     """
     # generate the bin edges by generating an array of length n_bins+1, then
@@ -420,5 +388,5 @@ def get_heatmap_data(agg_df: pd.DataFrame, xbins: int) -> np.ndarray:
     # the bytes data
     cats = cats.mul(agg_df["length"], axis=0)
     cats["rank"] = agg_df["rank"]
-    grouped_res = cats.groupby("rank").sum()
-    return grouped_res.to_numpy()
+    hmap_df = cats.groupby("rank").sum()
+    return hmap_df

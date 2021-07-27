@@ -266,7 +266,7 @@ def test_set_y_axis_ticks_and_labels(
     xbins = 100
 
     # generate the heatmap data
-    data = heatmap_handling.get_heatmap_data(agg_df=agg_df, xbins=xbins)
+    data = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins)
 
     # use the unique ranks to get the number of y-axis bins to use
     unique_ranks = np.unique(agg_df["rank"].values)

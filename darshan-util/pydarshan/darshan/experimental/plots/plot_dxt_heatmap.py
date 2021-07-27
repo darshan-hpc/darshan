@@ -326,7 +326,7 @@ def plot_heatmap(
     agg_df = heatmap_handling.get_aggregate_data(report=report, mods=mods, ops=ops)
 
     # get the heatmap data array
-    Hmap_data = heatmap_handling.get_heatmap_data(agg_df=agg_df, xbins=xbins)
+    hmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins)
 
     # get the unique ranks
     unique_ranks = np.unique(agg_df["rank"].values)
@@ -344,7 +344,7 @@ def plot_heatmap(
     # create the heatmap object using the heatmap data,
     # and assign it to the jointplot main figure
     hmap = sns.heatmap(
-        Hmap_data,
+        hmap_df,
         ax=jgrid.ax_joint,
         # choose a color map that is not white at any value
         cmap="YlOrRd",
@@ -373,7 +373,7 @@ def plot_heatmap(
     if unique_ranks.size > 1:
         jgrid.ax_marg_y.barh(
             y=unique_ranks,
-            width=Hmap_data.sum(axis=1),
+            width=hmap_df.sum(axis=1),
             align="edge",
             facecolor="black",
             lw=0.5,
@@ -385,7 +385,7 @@ def plot_heatmap(
     # create the vertical bar graph
     jgrid.ax_marg_x.bar(
         x=np.arange(xbins),
-        height=Hmap_data.sum(axis=0),
+        height=hmap_df.sum(axis=0),
         facecolor="black",
         align="edge",
     )
