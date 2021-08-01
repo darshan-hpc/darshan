@@ -125,7 +125,7 @@ def get_rd_wr_dfs(
     for op_key in ops:
         # mypy can't tell that these keys are in fact
         # in the ``SegDict``, so just ignore the type
-        seg_key = op_key + "_segments"  # type: ignore
+        seg_key = op_key + "_segments"
         # create empty list to store each dataframe
         df_list = []
         # iterate over all records/dictionaries
