@@ -382,6 +382,8 @@ def unique_fs_rw_counter(report: Any,
     Raises:
     -------
     NotImplementedError: for unsupported modules
+
+    ValueError: when POSIX module data is absent from the report
     """
 
     if not mod == 'POSIX':
