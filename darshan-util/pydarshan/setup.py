@@ -71,11 +71,12 @@ setup(
     include_package_data=True,
     keywords="darshan",
     name="darshan",
-    packages=find_packages(include=["darshan*"]),
+    packages=find_packages(include=["darshan*", "examples*", "tests"]),
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
     url='https://www.mcs.anl.gov/research/projects/darshan/',
     version='3.3.1.0',
     zip_safe=False,
+    package_data={"": ["*.darshan"]},
 )
