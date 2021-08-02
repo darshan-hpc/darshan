@@ -63,7 +63,7 @@ def process_unique_files(df_reads, df_writes):
     additional columns for ``filesystem_root`` and 
     ``filepath`` are present
 
-    df_reads: a ``pd.DataFrame`` where each row presents
+    df_writes: a ``pd.DataFrame`` where each row presents
     at least 1 byte of write-related IO activity, and where
     additional columns for ``filesystem_root`` and 
     ``filepath`` are present
@@ -410,7 +410,38 @@ def unique_fs_rw_counter(report: Any,
     return (read_groups, write_groups)
 
 
-def plot_data(fig, file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_series, filesystem_roots):
+def plot_data(fig: Any,
+              file_rd_series,
+              file_wr_series,
+              bytes_rd_series,
+              bytes_wr_series,
+              filesystem_roots: Sequence[str]):
+    """
+    Produce the horizontal bar plots for the data
+    access by category analysis.
+
+    Parameters
+    ----------
+
+    fig: matplotlib ``figure`` object into which the
+    bar plots will be placed
+
+    file_rd_series: a ``pd.Series`` object with per-category
+    counts of unique files from which at least 1 byte has been
+    read
+
+    file_wr_series: a ``pd.Series`` object with per-category
+    counts of unique files to which at least 1 byte has been
+    written
+
+    bytes_rd_series: a ``pd.Series`` object with per-category
+    counts of bytes read
+
+    bytes_wr_series: a ``pd.Series`` object with per-category
+    counts of bytes written
+
+    filesystem_roots: a sequence of strings containing unique filesystem root paths
+    """
     for row, filesystem in enumerate(filesystem_roots):
         ax_filesystem_bytes = fig.add_subplot(len(filesystem_roots), 
                                               2,
