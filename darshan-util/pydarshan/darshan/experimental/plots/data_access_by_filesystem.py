@@ -460,15 +460,8 @@ def plot_data(fig, file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_ser
             ax_filesystem_counts.text(0, 0, '# files written')
             ax_filesystem_counts.text(file_wr_series[filesystem], 0, str(file_wr_series[filesystem]))
 
-        if bytes_written != 0:
-            ax_filesystem_bytes.barh(0, bytes_written, color='red', alpha=0.3)
-        else:
-            ax_filesystem_bytes.barh(0, bytes_written, color='red', alpha=0.0)
-
-        if bytes_read != 0:
-            ax_filesystem_bytes.barh(1, bytes_read, color='blue', alpha=0.3)
-        else:
-            ax_filesystem_bytes.barh(1, bytes_read, color='blue', alpha=0.0)
+        ax_filesystem_bytes.barh(0, bytes_written, color='red', alpha=0.3)
+        ax_filesystem_bytes.barh(1, bytes_read, color='blue', alpha=0.3)
 
         ax_filesystem_counts.set_xticks([])
         ax_filesystem_counts.set_yticks([])
