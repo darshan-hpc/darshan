@@ -5,7 +5,7 @@ of Phil's hand drawing of future report layout.
 
 import os
 import pathlib
-from typing import List, Dict, Optional, Any, Callable
+from typing import List, Dict, Optional, Any, Callable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -83,7 +83,7 @@ def process_unique_files(df_reads, df_writes):
     write_groups = df_writes.groupby('filesystem_root')['filepath'].nunique()
     return read_groups, write_groups
 
-def check_empty_series(read_groups, write_groups, filesystem_roots: List[str]):
+def check_empty_series(read_groups, write_groups, filesystem_roots: Sequence[str]):
     """
     Add ``0`` values for inactive filesystem roots
     for plotting purposes.
@@ -95,7 +95,7 @@ def check_empty_series(read_groups, write_groups, filesystem_roots: List[str]):
 
     write_groups: a ``pd.Series`` object with IO write activity data
 
-    filesystem_roots: a list of strings containing unique filesystem root paths
+    filesystem_roots: a sequence of strings containing unique filesystem root paths
 
     Returns
     -------
@@ -110,14 +110,14 @@ def check_empty_series(read_groups, write_groups, filesystem_roots: List[str]):
                                        filesystem_roots=filesystem_roots)
     return read_groups, write_groups
 
-def empty_series_handler(series, filesystem_roots: List[str]):
+def empty_series_handler(series, filesystem_roots: Sequence[str]):
     """
     Parameters
     ----------
 
     series: a ``pd.Series`` object
 
-    filesystem_roots: a list of strings containing unique filesystem root paths
+    filesystem_roots: a sequence of strings containing unique filesystem root paths
 
     Returns
     -------
@@ -328,7 +328,7 @@ def identify_filesystems(file_id_dict: Dict[int, str], verbose: bool = False) ->
     return filesystem_roots
 
 def unique_fs_rw_counter(report: Any,
-                         filesystem_roots: List[str],
+                         filesystem_roots: Sequence[str],
                          file_id_dict: Dict[int, str],
                          processing_func: Callable,
                          mod: str = 'POSIX',
@@ -346,7 +346,7 @@ def unique_fs_rw_counter(report: Any,
     ----------
     report: a darshan.DarshanReport()
 
-    filesystem_roots: a list of strings containing unique filesystem root paths
+    filesystem_roots: a sequence of strings containing unique filesystem root paths
 
     file_id_dict: a dictionary mapping integer file hash values
                   to string values corresponding to their respective
@@ -411,7 +411,6 @@ def unique_fs_rw_counter(report: Any,
 
 
 def plot_data(fig, file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_series, filesystem_roots):
-    print("filesystem_roots:", filesystem_roots)
     for row, filesystem in enumerate(filesystem_roots):
         ax_filesystem_bytes = fig.add_subplot(len(filesystem_roots), 
                                               2,
@@ -424,9 +423,6 @@ def plot_data(fig, file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_ser
         for axis in [ax_filesystem_bytes, ax_filesystem_counts]:
             axis.spines['right'].set_visible(False)
 
-        print("filesystem:", filesystem)
-        print("bytes_rd_series:", bytes_rd_series)
-        print("bytes_wr_series:", bytes_wr_series)
         # convert to MiB using the factor suggested
         # by Google (approximate result only for now)
         bytes_read = bytes_rd_series[filesystem]/1.049e+6
@@ -469,7 +465,7 @@ def plot_data(fig, file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_ser
         ax_filesystem_bytes.set_yticks([])
 
 
-def plot_with_log_file(log_file_path: str, plot_filename: str):
+def plot_with_log_file(log_file_path: str, plot_filename: str, verbose: bool = False):
     """
     Plot the data access by category given a darshan log
     file path.
@@ -480,6 +476,8 @@ def plot_with_log_file(log_file_path: str, plot_filename: str):
     log_file_path: path to the darshan log file
 
     plot_filename: name of the plot file produced
+
+    verbose: if ``True``, provide extra debug information
 
     Returns
     -------
@@ -492,18 +490,18 @@ def plot_with_log_file(log_file_path: str, plot_filename: str):
     report = darshan.DarshanReport(log_file_path, read_all=True)
     file_id_dict = report.data["name_records"]
     filesystem_roots = identify_filesystems(file_id_dict=file_id_dict,
-                                            verbose=True)
+                                            verbose=verbose)
     file_rd_series, file_wr_series = unique_fs_rw_counter(report=report,
                                                           filesystem_roots=filesystem_roots,
                                                           file_id_dict=file_id_dict,
                                                           processing_func=process_unique_files,
                                                           mod='POSIX',
-                                                          verbose=True)
+                                                          verbose=verbose)
     bytes_rd_series, bytes_wr_series = unique_fs_rw_counter(report=report,
                                                             filesystem_roots=filesystem_roots,
                                                             file_id_dict=file_id_dict,
                                                             processing_func=process_byte_counts,
-                                                            mod='POSIX', verbose=True)
+                                                            mod='POSIX', verbose=verbose)
     plot_data(fig,
               file_rd_series,
               file_wr_series,
