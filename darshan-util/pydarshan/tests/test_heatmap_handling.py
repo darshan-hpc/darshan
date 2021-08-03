@@ -231,7 +231,7 @@ def test_get_single_df_dict(expected_df_dict, ops):
         )
 
         # verify the returned values are the same
-        assert_array_equal(
+        assert_allclose(
             actual_df_dict["DXT_POSIX"]["write"].values,
             expected_df_dict["DXT_POSIX"]["write"].values,
         )
