@@ -205,7 +205,7 @@ def get_single_df_dict(
         # read in the module data, update the name records
         report.mod_read_all_dxt_records(module_key, dtype="pandas")
         # retrieve the list of records in pd.DataFrame() form
-        dict_list = report.records[module_key].to_df()
+        dict_list = report.records[module_key]
         # retrieve the list of read/write dataframes from the list of records
         rd_wr_dfs = get_rd_wr_dfs(dict_list=dict_list, ops=ops)
         # create empty dictionary for each module
