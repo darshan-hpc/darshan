@@ -6,8 +6,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 import darshan
-from darshan.experimental.plots import heatmap_handling
-from darshan.experimental.plots import plot_dxt_heatmap
+from darshan.experimental.plots import heatmap_handling, plot_dxt_heatmap
 
 
 @pytest.fixture(scope="function")

@@ -306,7 +306,7 @@ def plot_heatmap(
     -------
 
     jgrid: a ``sns.axisgrid.JointGrid`` object containing a heat
-    map of IO data, marginal bar graphs, and a colobar.
+    map of IO data, marginal bar graphs, and a colorbar.
 
     Raises
     ------
