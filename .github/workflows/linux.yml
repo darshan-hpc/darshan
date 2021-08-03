@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest
+          python -m pip install --upgrade pytest mypy
       - name: Install darshan-util
         run: |
           mkdir darshan_install
@@ -45,3 +45,9 @@ jobs:
           # relative dir for test file paths
           cd darshan-util/pydarshan
           pytest
+      - name: mypy check
+        run: |
+          export LD_LIBRARY_PATH=$PWD/darshan_install/lib
+          cd darshan-util/pydarshan
+          mypy darshan
+          mypy tests
