@@ -1,0 +1,22 @@
+# Codecov configuration to make it a bit less noisy
+codecov:
+  # don't fail the CI
+  require_ci_to_pass: yes
+
+# default coverage settings
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+
+# default parser settings
+parsers:
+  gcov:
+    branch_detection:
+      conditional: yes
+      loop: yes
+      method: no
+      macro: no
+
+# mute the bot comment
+comment: no
