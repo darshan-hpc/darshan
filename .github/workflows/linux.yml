@@ -51,3 +51,8 @@ jobs:
           cd darshan-util/pydarshan
           mypy darshan
           mypy tests
+      - name: codecov check
+        uses: codecov/codecov-action@v2
+        with:
+          files: coverage.xml
+          fail_ci_if_error: False
