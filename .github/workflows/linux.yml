@@ -56,3 +56,8 @@ jobs:
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
           cd darshan-util/pydarshan/benchmarks
           python -m asv check -E existing
+      - name: codecov check
+        uses: codecov/codecov-action@v2
+        with:
+          files: coverage.xml
+          fail_ci_if_error: False
