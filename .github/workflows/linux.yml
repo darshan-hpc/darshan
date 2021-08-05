@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --upgrade pytest mypy
+          python -m pip install --upgrade pytest mypy asv
       - name: Install darshan-util
         run: |
           mkdir darshan_install
@@ -51,3 +51,8 @@ jobs:
           cd darshan-util/pydarshan
           mypy darshan
           mypy tests
+      - name: asv check
+        run: |
+          export LD_LIBRARY_PATH=$PWD/darshan_install/lib
+          cd darshan-util/pydarshan/benchmarks
+          python -m asv check -E existing
