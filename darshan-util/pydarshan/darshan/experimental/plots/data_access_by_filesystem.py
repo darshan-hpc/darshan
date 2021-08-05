@@ -460,6 +460,8 @@ def plot_data(fig: Any,
         # by Google (approximate result only for now)
         bytes_read = bytes_rd_series[filesystem]/1.049e+6
         bytes_written = bytes_wr_series[filesystem]/1.049e+6
+        files_written = file_wr_series[filesystem]
+        files_read = file_rd_series[filesystem]
 
         # scale to fit longer filesystem
         # strings on the left side of the plots
@@ -480,14 +482,12 @@ def plot_data(fig: Any,
         if file_rd_series[filesystem] == 0:
             ax_filesystem_counts.text(0, 0.75, ' 0 files read', transform=ax_filesystem_counts.transAxes)
         else:
-            ax_filesystem_counts.text(0, 1, ' # files read')
-            ax_filesystem_counts.text(file_rd_series[filesystem], 1, ' ' + str(file_rd_series[filesystem]))
+            ax_filesystem_counts.text(0, 0.75, f' # files read ({files_read:.2E})', transform=ax_filesystem_counts.transAxes)
 
         if file_wr_series[filesystem] == 0:
             ax_filesystem_counts.text(0, 0.25, ' 0 files written', transform=ax_filesystem_counts.transAxes)
         else:
-            ax_filesystem_counts.text(0, 0, ' # files written')
-            ax_filesystem_counts.text(file_wr_series[filesystem], 0, ' ' + str(file_wr_series[filesystem]))
+            ax_filesystem_counts.text(0, 0.25, f' # files written ({files_written:.2E})', transform=ax_filesystem_counts.transAxes)
 
         ax_filesystem_bytes.barh(0, bytes_written, color='red', alpha=0.3)
         ax_filesystem_bytes.barh(1, bytes_read, color='blue', alpha=0.3)

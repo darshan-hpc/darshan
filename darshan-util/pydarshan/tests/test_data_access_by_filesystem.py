@@ -270,8 +270,8 @@ def test_plot_data(file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_ser
         if isinstance(child, matplotlib.text.Text):
             actual_list_text_in_fig.append(child.get_text())
 
-    for expected_text_entry in [matplotlib.text.Text(0, 1, ' # files read'),
-                                matplotlib.text.Text(0, 0, ' # files written')]:
+    for expected_text_entry in [matplotlib.text.Text(0, 1, ' # files read (3.00E+00)'),
+                                matplotlib.text.Text(0, 0, ' # files written (1.40E+01)')]:
         assert expected_text_entry.get_text() in actual_list_text_in_fig
 
     # enforce invisibile right-side spine so that
