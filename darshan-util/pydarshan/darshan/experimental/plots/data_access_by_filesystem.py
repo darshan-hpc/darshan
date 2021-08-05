@@ -480,14 +480,14 @@ def plot_data(fig: Any,
         if file_rd_series[filesystem] == 0:
             ax_filesystem_counts.text(0, 0.75, ' 0 files read', transform=ax_filesystem_counts.transAxes)
         else:
-            ax_filesystem_counts.text(0, 1, '# files read')
-            ax_filesystem_counts.text(file_rd_series[filesystem], 1, '  ' + str(file_rd_series[filesystem]))
+            ax_filesystem_counts.text(0, 1, ' # files read')
+            ax_filesystem_counts.text(file_rd_series[filesystem], 1, ' ' + str(file_rd_series[filesystem]))
 
         if file_wr_series[filesystem] == 0:
             ax_filesystem_counts.text(0, 0.25, ' 0 files written', transform=ax_filesystem_counts.transAxes)
         else:
-            ax_filesystem_counts.text(0, 0, '# files written')
-            ax_filesystem_counts.text(file_wr_series[filesystem], 0, str(file_wr_series[filesystem]))
+            ax_filesystem_counts.text(0, 0, ' # files written')
+            ax_filesystem_counts.text(file_wr_series[filesystem], 0, ' ' + str(file_wr_series[filesystem]))
 
         ax_filesystem_bytes.barh(0, bytes_written, color='red', alpha=0.3)
         ax_filesystem_bytes.barh(1, bytes_read, color='blue', alpha=0.3)

@@ -270,8 +270,8 @@ def test_plot_data(file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_ser
         if isinstance(child, matplotlib.text.Text):
             actual_list_text_in_fig.append(child.get_text())
 
-    for expected_text_entry in [matplotlib.text.Text(0, 1, '# files read'),
-                                matplotlib.text.Text(0, 0, '# files written')]:
+    for expected_text_entry in [matplotlib.text.Text(0, 1, ' # files read'),
+                                matplotlib.text.Text(0, 0, ' # files written')]:
         assert expected_text_entry.get_text() in actual_list_text_in_fig
 
     # enforce invisibile right-side spine so that
@@ -335,3 +335,50 @@ def test_posix_absent():
     with pytest.raises(ValueError, match="POSIX module data is required"):
         actual_fig = data_access_by_filesystem.plot_with_log_file(log_file_path=log_file_path,
                                                                   plot_filename='test.png')
+
+
+@pytest.mark.parametrize("""file_rd_series,
+                            file_wr_series,
+                            bytes_rd_series,
+                            bytes_wr_series,
+                            filesystem_roots
+                         """, [
+
+     (pd.Series([1], index=pd.Index(['/p'], name='filesystem_root'), name='filepath'),
+      pd.Series([1], index=pd.Index(['/p'], name='filesystem_root'), name='filepath'),
+      pd.Series([1.049e+6], index=pd.Index(['/p'], name='filesystem_root'), name='POSIX_BYTES_READ'),
+      pd.Series([1.049e+6], index=pd.Index(['/p'], name='filesystem_root'), name='POSIX_BYTES_WRITTEN'),
+      ['/p'],
+         ),
+     # test case where files read/written are zero
+     (pd.Series([0], index=pd.Index(['/p'], name='filesystem_root'), name='filepath'),
+      pd.Series([0], index=pd.Index(['/p'], name='filesystem_root'), name='filepath'),
+      # NOTE: very strange to be able to read/write bytes to 
+      # a filesystem and yet have no files read or written
+      # to on that filesystem (this might be an error someday?)
+      # see comment:
+      # https://github.com/darshan-hpc/darshan/pull/397#discussion_r683621305
+      pd.Series([1.049e+6], index=pd.Index(['/p'], name='filesystem_root'), name='POSIX_BYTES_READ'),
+      pd.Series([1.049e+6], index=pd.Index(['/p'], name='filesystem_root'), name='POSIX_BYTES_WRITTEN'),
+      ['/p'],
+         ),
+       ])
+def test_plot_data_labels(file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_series, filesystem_roots):
+    # regression test for label spacing in plot
+    # based on review comment in gh-397
+    fig = plt.figure()
+    data_access_by_filesystem.plot_data(fig=fig,
+                                        file_rd_series=file_rd_series,
+                                        file_wr_series=file_wr_series,
+                                        bytes_rd_series=bytes_rd_series,
+                                        bytes_wr_series=bytes_wr_series,
+                                        filesystem_roots=filesystem_roots)
+    for ax in fig.axes:
+        for child in ax.get_children():
+            if isinstance(child, matplotlib.text.Text):
+                actual_text = child.get_text()
+                if actual_text not in ['/p', '']:
+                    # count the leading spaces for each label
+                    leading_spaces = len(actual_text) - len(actual_text.lstrip(' '))
+                    # check there is always 1 leading space for each label
+                    assert leading_spaces == 1
