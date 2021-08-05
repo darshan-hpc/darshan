@@ -79,8 +79,10 @@ def test_convert_file_path_to_root_path(file_path, expected_root_path):
     ),
     ])
 def test_convert_file_id_to_path(input_id, file_id_dict, expected_file_path):
+    file_id_hash_arr, file_path_arr = data_access_by_filesystem.convert_id_dict_to_arrays(file_id_dict=file_id_dict)
     actual_file_path = data_access_by_filesystem.convert_file_id_to_path(input_id=input_id,
-                                                                         file_id_dict=file_id_dict)
+                                                                         file_hashes=file_id_hash_arr,
+                                                                         file_paths=file_path_arr)
     assert actual_file_path == expected_file_path
 
 @pytest.mark.parametrize("verbose", [True, False])

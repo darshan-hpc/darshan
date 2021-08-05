@@ -224,9 +224,10 @@ def add_filesystem_cols(df_reads, df_writes, file_id_dict: Dict[int, str]):
     the modified dataframes.
     """
 
+    file_hashes, file_paths = convert_id_dict_to_arrays(file_id_dict=file_id_dict)
     # add column with filepaths for each event
-    df_reads = df_reads.assign(filepath=df_reads['id'].map(lambda a: convert_file_id_to_path(a, file_id_dict)))
-    df_writes = df_writes.assign(filepath=df_writes['id'].map(lambda a: convert_file_id_to_path(a, file_id_dict)))
+    df_reads = df_reads.assign(filepath=df_reads['id'].map(lambda a: convert_file_id_to_path(a, file_hashes, file_paths)))
+    df_writes = df_writes.assign(filepath=df_writes['id'].map(lambda a: convert_file_id_to_path(a, file_hashes, file_paths)))
 
     # add column with filesystem root paths for each event
     df_reads = df_reads.assign(filesystem_root=df_reads['filepath'].map(lambda path: convert_file_path_to_root_path(path)))
@@ -257,7 +258,14 @@ def convert_file_path_to_root_path(file_path: str) -> str:
     filesystem_root = ''.join(path_parts[:2])
     return filesystem_root
 
-def convert_file_id_to_path(input_id: float, file_id_dict: Dict[int, str]) -> Optional[str]:
+
+def convert_id_dict_to_arrays(file_id_dict: Dict[int, str]):
+    file_id_hash_arr = np.array(list(file_id_dict.keys()))
+    file_path_arr = np.array(list(file_id_dict.values()))
+    return file_id_hash_arr, file_path_arr
+
+
+def convert_file_id_to_path(input_id: float, file_hashes, file_paths) -> Optional[str]:
     """
     Parameters
     ----------
@@ -285,10 +293,12 @@ def convert_file_id_to_path(input_id: float, file_id_dict: Dict[int, str]) -> Op
     '/yellow/usr/projects/eap/users/treddy/simple_dxt_mpi_io_darshan/test.out'
 
     """
-    for file_id_hash, file_path in file_id_dict.items():
-        if np.allclose(input_id, file_id_hash):
-            return file_path
-    return None
+    file_idx = np.nonzero((file_hashes - input_id) == 0)[0]
+    try:
+        file_path = file_paths[file_idx][0]
+    except IndexError:
+        return None
+    return file_path
 
 def identify_filesystems(file_id_dict: Dict[int, str], verbose: bool = False) -> List[str]:
     """
