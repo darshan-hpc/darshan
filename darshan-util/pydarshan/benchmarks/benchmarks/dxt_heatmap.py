@@ -1,7 +1,9 @@
 import os
 import importlib
 
-from darshan.experimental.plots import plot_dxt_heatmap
+import pandas as pd
+
+from darshan.experimental.plots import plot_dxt_heatmap, heatmap_handling
 # TODO: no good reason pydarshan should have hyphenated module
 # names... for now I hack around it...
 example_logs = importlib.import_module("examples.example-logs")
@@ -38,3 +40,22 @@ class PlotDXTHeatMapSmall:
             mods=["DXT_POSIX"],
             ops=["read", "write"],
             xbins=xbins)
+
+
+class GetHeatMapDf:
+    params = [[50, 1000, 10000], [10, 50, 250]]
+    param_names = ['unique_ranks', 'bin_count']
+
+
+    def setup(self, unique_ranks, bin_count):
+        self.agg_df = pd.DataFrame({'length': [10] * unique_ranks,
+                                    'start_time': [0.1] * unique_ranks,
+                                    'end_time': [0.9] * unique_ranks,
+                                    'rank': range(unique_ranks),
+                                   })
+
+
+    def time_get_heatmap_df(self, unique_ranks, bin_count):
+        # benchmark get_heatmap_df() handling of variable
+        # numbers of unique ranks/bins
+        heatmap_handling.get_heatmap_df(self.agg_df, xbins=bin_count)
