@@ -356,6 +356,7 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
             })
 
     if dtype == "pandas":
+        rec['id'] = np.uint64(rec['id'])
         df_c = pd.DataFrame(cdict, index=[0])
         df_fc = pd.DataFrame(fcdict, index=[0])
 
