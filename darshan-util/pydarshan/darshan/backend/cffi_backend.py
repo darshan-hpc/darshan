@@ -300,13 +300,15 @@ def log_get_record(log, mod, dtype='numpy'):
 
 
 
-def log_get_generic_record(log, mod_name, dtype='numpy'):
+def log_get_generic_record(log, mod_name, c_cols=None, fc_cols=None, dtype='numpy'):
     """
     Returns a dictionary holding a generic darshan log record.
 
     Args:
         log: Handle returned by darshan.open
         mod_name (str): Name of the Darshan module
+        c_cols: list of counter keys/column names
+        fc_cols: list of fcounter keys/column names
 
     Return:
         dict: generic log record
@@ -337,49 +339,45 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
     if mod_name == 'H5D':
         rec['file_rec_id'] = rbuf[0].file_rec_id
 
-    clst = []
-    for i in range(0, len(rbuf[0].counters)):
-        clst.append(rbuf[0].counters[i])
-    rec['counters'] = np.array(clst, dtype=np.int64)
-    cdict = dict(zip(counter_names(mod_name), rec['counters']))
+    clst = np.zeros(len(rbuf[0].counters), dtype=np.int64)
+    for i in range(clst.size):
+        clst[i] = rbuf[0].counters[i]
 
-    flst = []
-    for i in range(0, len(rbuf[0].fcounters)):
-        flst.append(rbuf[0].fcounters[i])
-    rec['fcounters'] = np.array(flst, dtype=np.float64)
-    fcdict = dict(zip(fcounter_names(mod_name), rec['fcounters']))
+    flst = np.zeros(len(rbuf[0].fcounters), dtype=np.float64)
+    for i in range(flst.size):
+        flst[i] = rbuf[0].fcounters[i]
 
-    if dtype == "dict":
-        rec.update({
-            'counters': cdict, 
-            'fcounters': fcdict
-            })
+    if c_cols is None:
+        c_cols = counter_names(mod_name)
+    if fc_cols is None:
+        fc_cols = fcounter_names(mod_name)
 
-    if dtype == "pandas":
-        rec['id'] = np.uint64(rec['id'])
-        df_c = pd.DataFrame(cdict, index=[0])
-        df_fc = pd.DataFrame(fcdict, index=[0])
+    if dtype == "numpy":
+        rec['counters'] = clst
+        rec['fcounters'] = flst
 
-        # flip column order (to prepend id and rank)
-        df_c = df_c[df_c.columns[::-1]]
-        df_fc = df_fc[df_fc.columns[::-1]]
+    elif dtype == "dict":
+        rec['counters'] = dict(zip(c_cols, clst))
+        rec['fcounters'] = dict(zip(fc_cols, flst))
 
-        # attach id and rank to counters and fcounters
-        df_c['id'] = rec['id']
-        df_c['rank'] = rec['rank']
-
-        df_fc['id'] = rec['id']
-        df_fc['rank'] = rec['rank']
-
-        # flip column order
-        df_c = df_c[df_c.columns[::-1]]
-        df_fc = df_fc[df_fc.columns[::-1]]
-
-        rec.update({
-            'counters': df_c,
-            'fcounters': df_fc
-            })
-
+    elif dtype == "pandas":
+        # prepend id/rank columns
+        new_cols = ["id", "rank"]
+        new_c_cols = new_cols + c_cols
+        new_f_cols = new_cols + fc_cols
+        # prepend the id/rank values
+        id_rank_list = [rec["id"], rec["rank"]]
+        new_clst = np.asarray([id_rank_list + clst.tolist()]).reshape(1, -1)
+        new_flst = np.asarray([id_rank_list + flst.tolist()], dtype=np.float64).reshape(1, -1)
+        # create the dataframes
+        df_c = pd.DataFrame(data=new_clst, columns=new_c_cols)
+        df_fc = pd.DataFrame(data=new_flst, columns=new_f_cols)
+        # correct the data type for the file hash/id
+        df_c['id'] = np.uint64(df_c['id'])
+        df_fc['id'] = np.uint64(df_fc['id'])
+        # assign the dataframes to the record
+        rec['counters'] = df_c
+        rec['fcounters'] = df_fc
     return rec
 
 
