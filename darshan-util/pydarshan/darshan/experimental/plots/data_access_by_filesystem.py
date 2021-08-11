@@ -454,17 +454,36 @@ def plot_data(fig: Any,
 
     filesystem_roots: a sequence of strings containing unique filesystem root paths
     """
+    list_byte_axes: list = []
+    list_count_axes: list = []
+    # use log10 scale if range exceeds
+    # two orders of magnitude in a column
+    use_log = [False, False]
+    for idx, series_pair in enumerate([[bytes_rd_series, bytes_wr_series],
+                                       [file_rd_series, file_wr_series]]):
+        maxval = max(series_pair[0].max(), series_pair[1].max())
+        minval = min(series_pair[0].min(), series_pair[1].min())
+        ratio = maxval / minval
+        if ratio > 100:
+            use_log[idx] = True
+
     for row, filesystem in enumerate(filesystem_roots):
-        ax_filesystem_bytes = fig.add_subplot(len(filesystem_roots), 
+        ax_filesystem_bytes = fig.add_subplot(len(filesystem_roots),
                                               2,
                                               row * 2 + 1)
-        ax_filesystem_counts = fig.add_subplot(len(filesystem_roots), 
+        ax_filesystem_counts = fig.add_subplot(len(filesystem_roots),
                                               2,
                                               row * 2 + 2)
-        # hide the right side plot frame (spine) so that
-        # the value labels don't overlap with the plot frame
-        for axis in [ax_filesystem_bytes, ax_filesystem_counts]:
-            axis.spines['right'].set_visible(False)
+        if row > 0:
+            ax_filesystem_bytes.get_shared_x_axes().join(ax_filesystem_bytes, list_byte_axes[row - 1])
+            if use_log[0]:
+                ax_filesystem_bytes.set_xscale('log')
+            ax_filesystem_counts.get_shared_x_axes().join(ax_filesystem_counts, list_count_axes[row - 1])
+            if use_log[1]:
+                ax_filesystem_counts.set_xscale('log')
+
+        list_byte_axes.append(ax_filesystem_bytes)
+        list_count_axes.append(ax_filesystem_counts)
 
         # convert to MiB using the factor suggested
         # by Google (approximate result only for now)
@@ -502,10 +521,15 @@ def plot_data(fig: Any,
         ax_filesystem_bytes.barh(0, bytes_written, color='red', alpha=0.3)
         ax_filesystem_bytes.barh(1, bytes_read, color='blue', alpha=0.3)
 
-        ax_filesystem_counts.set_xticks([])
-        ax_filesystem_counts.set_yticks([])
-        ax_filesystem_bytes.set_xticks([])
-        ax_filesystem_bytes.set_yticks([])
+        for axis in fig.axes:
+            # hide the right side plot frame (spine) so that
+            # the value labels don't overlap with the plot frame
+            axis.spines['right'].set_visible(False)
+            axis.set_xticklabels([])
+            axis.set_yticklabels([])
+            axis.xaxis.set_ticks_position('none')
+            axis.yaxis.set_ticks_position('none')
+            axis.minorticks_off()
 
 
 def plot_with_log_file(log_file_path: str, plot_filename: str, verbose: bool = False):

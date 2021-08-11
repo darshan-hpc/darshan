@@ -384,3 +384,53 @@ def test_plot_data_labels(file_rd_series, file_wr_series, bytes_rd_series, bytes
                     leading_spaces = len(actual_text) - len(actual_text.lstrip(' '))
                     # check there is always 1 leading space for each label
                     assert leading_spaces == 1
+
+
+
+def test_plot_data_shared_x_axis():
+    # regression test for case described here:
+    # https://github.com/darshan-hpc/darshan/pull/397#pullrequestreview-717403104
+    # https://github.com/darshan-hpc/darshan/pull/397#issuecomment-889504530
+    filesystem_roots = ['/usr', '/yellow', '/green', '/global']
+    rd_bytes = [1e7, 1e8, 1e9, 1e10]
+    wr_bytes = [1e8, 1e9, 1e10, 1e11]
+    rd_file_cts = [1e3, 1e4, 1e5, 1e6]
+    wr_file_cts = [1e2, 1e3, 1e4, 1e5]
+    # multiply by the MiB conversion factor to get round numbers in the output
+    factor = 1.049e+6
+    bytes_rd_series = pd.Series(data=rd_bytes, index=filesystem_roots) * factor
+    bytes_wr_series = pd.Series(data=wr_bytes, index=filesystem_roots) * factor
+    file_rd_series = pd.Series(data=rd_file_cts, index=filesystem_roots)
+    file_wr_series = pd.Series(data=wr_file_cts, index=filesystem_roots)
+    fig = plt.figure()
+    data_access_by_filesystem.plot_data(fig,
+                                       file_rd_series,
+                                       file_wr_series,
+                                       bytes_rd_series,
+                                       bytes_wr_series,
+                                       filesystem_roots)
+    # enforce shared log x axes in a given column
+    bytes_column_x_axis_limits = []
+    files_column_x_axis_limits = []
+    for i, ax in enumerate(fig.axes):
+        if i % 2 == 0:
+            bytes_column_x_axis_limits.append(ax.get_xlim())
+        else:
+            files_column_x_axis_limits.append(ax.get_xlim())
+
+        # also check for absence of ticklabels
+        for label in ax.get_xticklabels(which='both'):
+            assert len(label.get_text()) == 0
+
+        for label in ax.get_yticklabels(which='both'):
+            assert len(label.get_text()) == 0
+
+    for limits in [bytes_column_x_axis_limits,
+                   files_column_x_axis_limits]:
+        # matching axes:
+        diff = np.diff(limits, axis=0)
+        assert_allclose(diff, 0)
+
+    # log scale values:
+    assert_allclose(np.array(bytes_column_x_axis_limits)[..., 1], 158489319246.11108)
+    assert_allclose(np.array(files_column_x_axis_limits)[..., 1], 1584893.192461)
