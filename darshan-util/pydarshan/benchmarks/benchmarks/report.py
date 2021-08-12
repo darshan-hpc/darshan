@@ -33,3 +33,31 @@ class ModReadAllRecords:
     def time_mod_read_all_records(self, dtype, darshan_logfile, mod, read_all):
         self.report.mod_read_all_records(mod=mod,
                                          dtype=dtype)
+
+
+
+class ModReadAllDXTRecords:
+
+    params = [['numpy', 'dict', 'pandas'],
+              ["examples/example-logs/dxt.darshan",
+               "tests/input/sample-dxt-simple.darshan",
+              ],
+              ["DXT_POSIX",
+               "DXT_MPIIO",
+              ],
+              [True, False],
+              ]
+    param_names = ['dtype', 'darshan_logfile', 'mod', 'read_all']
+
+    def setup(self, dtype, darshan_logfile, mod, read_all):
+        filename = os.path.basename(darshan_logfile)
+        if "examples" in darshan_logfile:
+            self.logfile = example_logs.example_data_files_dxt[filename]
+        else:
+            self.logfile = test_data_files_dxt[filename]
+
+        self.report = darshan.DarshanReport(self.logfile, read_all=read_all)
+
+    def time_mod_read_all_dxt_records(self, dtype, darshan_logfile, mod, read_all):
+        self.report.mod_read_all_dxt_records(mod=mod,
+                                             dtype=dtype)
