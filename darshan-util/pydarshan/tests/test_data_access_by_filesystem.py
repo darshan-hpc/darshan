@@ -209,8 +209,8 @@ def test_process_unique_files(df_reads, df_writes, expected_read_groups, expecte
      data_access_by_filesystem.identify_filesystems(darshan.DarshanReport("tests/input/sample.darshan").data["name_records"]),
      darshan.DarshanReport("tests/input/sample.darshan").data["name_records"],
      data_access_by_filesystem.process_unique_files,
-     pd.Series([0.0], index=pd.Index(['/scratch2'], name='filesystem_root'), name='filepath'),
-     pd.Series([1.0], index=pd.Index(['/scratch2'], name='filesystem_root'), name='filepath')),
+     pd.Series([0.0, 0.0, 0.0, 0.0], index=pd.Index(['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2'], name='filesystem_root'), name='filepath'),
+     pd.Series([0.0, 0.0, 0.0, 1.0], index=pd.Index(['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2'], name='filesystem_root'), name='filepath')),
     ])
 def test_unique_fs_rw_counter(report,
                               filesystem_roots,
@@ -307,6 +307,32 @@ def test_empty_data_posix_y_axis_annot_position(tmpdir):
                         assert actual_fontsize == 18
                     else:
                         assert actual_fontsize == 12
+
+@pytest.mark.parametrize("log_file_path, expected_text_labels", [
+    (os.path.abspath('./tests/input/noposixopens.darshan'), ['anonymized', 'anonymized', 'anonymized', '/global']),
+    (os.path.abspath('./tests/input/sample.darshan'), ['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2']),
+    ])
+def test_cat_labels_std_streams(tmpdir, log_file_path, expected_text_labels):
+    # for an anonymized log file that operates on STDIO, STDERR
+    # and STDIN, we want appropriate labels to be used instead of confusing
+    # integers on y axis; for the same scenario without anonymization,
+    # the STD.. stream label seem appropriate
+    actual_text_labels = []
+    with tmpdir.as_cwd():
+        actual_fig = data_access_by_filesystem.plot_with_log_file(log_file_path=log_file_path,
+                                                                  plot_filename='test.png')
+        axes = actual_fig.axes
+        for ax in axes:
+            for child in ax.get_children():
+                if isinstance(child, matplotlib.text.Annotation):
+                    actual_text = child.get_text()
+                    actual_text_labels.append(actual_text)
+                    if 'STD' in actual_text:
+                        # format the STD.. streams properly
+                        actual_fontsize = child.get_fontsize()
+                        assert actual_fontsize == 12
+
+    assert actual_text_labels == expected_text_labels
 
 def test_empty_data_posix_text_position(tmpdir):
     # the bytes and files read/written text labels

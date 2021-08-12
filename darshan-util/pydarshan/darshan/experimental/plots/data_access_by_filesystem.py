@@ -256,6 +256,10 @@ def convert_file_path_to_root_path(file_path: str) -> str:
     """
     path_parts = pathlib.Path(file_path).parts
     filesystem_root = ''.join(path_parts[:2])
+    if filesystem_root.isdigit():
+        # this is probably an anonymized STD..
+        # stream, so make that clear
+        filesystem_root = f'anonymized\n({filesystem_root})'
     return filesystem_root
 
 
@@ -327,12 +331,10 @@ def identify_filesystems(file_id_dict: Dict[int, str], verbose: bool = False) ->
     filesystem_roots: ['/yellow', '/tmp']
     """
     filesystem_roots = []
-    excluded = ['<STDIN>', '<STDOUT>', '<STDERR>']
     for file_id_hash, file_path in file_id_dict.items():
         filesystem_root = convert_file_path_to_root_path(file_path=file_path)
         if filesystem_root not in filesystem_roots:
-            if filesystem_root not in excluded:
-                filesystem_roots.append(filesystem_root)
+            filesystem_roots.append(filesystem_root)
     if verbose:
         print("filesystem_roots:", filesystem_roots)
     return filesystem_roots
@@ -496,12 +498,19 @@ def plot_data(fig: Any,
         # strings on the left side of the plots
         # NOTE: may need more sophisticated scaling
         # eventually
-        if len(filesystem) <= 8:
+        if len(filesystem) <= 8 and not '<STD' in filesystem:
             fontsize = 18
         else:
             fontsize = 12
 
-        ax_filesystem_bytes.annotate(filesystem, (-0.3, 0.5), fontsize=fontsize, xycoords='axes fraction')
+        # anonymized STD.. streams have associated integers
+        # that are stored in the filesystem data field
+        # but that are confusing to display, so strip them
+        if filesystem.startswith('anonymized'):
+            ax_filesystem_bytes.annotate('anonymized', (-0.3, 0.5), fontsize=fontsize, xycoords='axes fraction')
+        else:
+            ax_filesystem_bytes.annotate(filesystem, (-0.3, 0.5), fontsize=fontsize, xycoords='axes fraction')
+
         ax_filesystem_counts.barh(0, file_wr_series[filesystem], color='red', alpha=0.3)
         ax_filesystem_counts.barh(1, file_rd_series[filesystem], color='blue', alpha=0.3)
 
