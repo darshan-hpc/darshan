@@ -604,13 +604,13 @@ class DarshanReport(object):
 
 
         # fetch records
-        rec = backend.log_get_generic_record(self.log, mod, c_cols=cn, fc_cols=fcn, dtype=dtype)
+        rec = backend.log_get_generic_record(self.log, mod, dtype=dtype)
         while rec != None:
             self.records[mod].append(rec)
             self._modules[mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_generic_record(self.log, mod, c_cols=cn, fc_cols=fcn, dtype=dtype)
+            rec = backend.log_get_generic_record(self.log, mod, dtype=dtype)
 
 
         if self.lookup_name_records:

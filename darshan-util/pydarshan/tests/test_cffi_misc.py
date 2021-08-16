@@ -65,85 +65,35 @@ def test_file_hash_type(log_path):
     assert rec_fcounters["id"].dtype == np.uint64
 
 
-@pytest.mark.parametrize("expected_counter_vals", [
-        np.asarray(
-            [
-                2049, -1, -1, 0, 16402, 16404, 0, 0, 0, 0, -1, -1, 0, 0, 0,
-                2199023259968, 0, 2199023261831, 0, 0, 0, 16384, 0, 0, 8,
-                16401, 1048576, 0, 134217728, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 4, 14, 0, 0, 0, 0, 0, 0, 16384, 0, 274743689216,
-                274743691264, 0, 0, 10240, 4096, 0, 0, 134217728, 272, 544,
-                328, 16384, 8, 2, 2, 597, 1073741824, 1312, 1073741824
-            ]
-        )
-    ]
-)
-@pytest.mark.parametrize("expected_fcounter_vals", [
-        np.asarray(
-            [
-                3.9191410541534424, 0.0, 3.940063953399658, 3.927093982696533,
-                3.936579942703247, 0.0, 115.0781660079956, 115.77035808563232,
-                0.0, 100397.60042190552, 11.300841808319092, 0.0,
-                17.940945863723755, 20.436099529266357, 85.47495031356812,
-                0.0, 0.0,
-            ]
-        )
-    ]
-)
-@pytest.mark.parametrize("expected_counter_names", [
-        [
-            'POSIX_OPENS', 'POSIX_FILENOS', 'POSIX_DUPS', 'POSIX_READS',
-            'POSIX_WRITES', 'POSIX_SEEKS', 'POSIX_STATS', 'POSIX_MMAPS',
-            'POSIX_FSYNCS', 'POSIX_FDSYNCS', 'POSIX_RENAME_SOURCES',
-            'POSIX_RENAME_TARGETS', 'POSIX_RENAMED_FROM', 'POSIX_MODE',
-            'POSIX_BYTES_READ', 'POSIX_BYTES_WRITTEN', 'POSIX_MAX_BYTE_READ',
-            'POSIX_MAX_BYTE_WRITTEN', 'POSIX_CONSEC_READS',
-            'POSIX_CONSEC_WRITES', 'POSIX_SEQ_READS', 'POSIX_SEQ_WRITES',
-            'POSIX_RW_SWITCHES', 'POSIX_MEM_NOT_ALIGNED',
-            'POSIX_MEM_ALIGNMENT', 'POSIX_FILE_NOT_ALIGNED',
-            'POSIX_FILE_ALIGNMENT', 'POSIX_MAX_READ_TIME_SIZE',
-            'POSIX_MAX_WRITE_TIME_SIZE', 'POSIX_SIZE_READ_0_100',
-            'POSIX_SIZE_READ_100_1K', 'POSIX_SIZE_READ_1K_10K',
-            'POSIX_SIZE_READ_10K_100K', 'POSIX_SIZE_READ_100K_1M',
-            'POSIX_SIZE_READ_1M_4M', 'POSIX_SIZE_READ_4M_10M',
-            'POSIX_SIZE_READ_10M_100M', 'POSIX_SIZE_READ_100M_1G',
-            'POSIX_SIZE_READ_1G_PLUS', 'POSIX_SIZE_WRITE_0_100',
-            'POSIX_SIZE_WRITE_100_1K', 'POSIX_SIZE_WRITE_1K_10K',
-            'POSIX_SIZE_WRITE_10K_100K', 'POSIX_SIZE_WRITE_100K_1M',
-            'POSIX_SIZE_WRITE_1M_4M', 'POSIX_SIZE_WRITE_4M_10M',
-            'POSIX_SIZE_WRITE_10M_100M', 'POSIX_SIZE_WRITE_100M_1G',
-            'POSIX_SIZE_WRITE_1G_PLUS', 'POSIX_STRIDE1_STRIDE',
-            'POSIX_STRIDE2_STRIDE', 'POSIX_STRIDE3_STRIDE',
-            'POSIX_STRIDE4_STRIDE', 'POSIX_STRIDE1_COUNT',
-            'POSIX_STRIDE2_COUNT', 'POSIX_STRIDE3_COUNT',
-            'POSIX_STRIDE4_COUNT', 'POSIX_ACCESS1_ACCESS',
-            'POSIX_ACCESS2_ACCESS', 'POSIX_ACCESS3_ACCESS',
-            'POSIX_ACCESS4_ACCESS', 'POSIX_ACCESS1_COUNT',
-            'POSIX_ACCESS2_COUNT', 'POSIX_ACCESS3_COUNT',
-            'POSIX_ACCESS4_COUNT', 'POSIX_FASTEST_RANK',
-            'POSIX_FASTEST_RANK_BYTES', 'POSIX_SLOWEST_RANK',
-            'POSIX_SLOWEST_RANK_BYTES',
-        ]
-    ]
-)
-@pytest.mark.parametrize("expected_fcounter_names", [
-        [
-            'POSIX_F_OPEN_START_TIMESTAMP', 'POSIX_F_READ_START_TIMESTAMP',
-            'POSIX_F_WRITE_START_TIMESTAMP', 'POSIX_F_CLOSE_START_TIMESTAMP',
-            'POSIX_F_OPEN_END_TIMESTAMP', 'POSIX_F_READ_END_TIMESTAMP',
-            'POSIX_F_WRITE_END_TIMESTAMP', 'POSIX_F_CLOSE_END_TIMESTAMP',
-            'POSIX_F_READ_TIME', 'POSIX_F_WRITE_TIME', 'POSIX_F_META_TIME',
-            'POSIX_F_MAX_READ_TIME', 'POSIX_F_MAX_WRITE_TIME',
-            'POSIX_F_FASTEST_RANK_TIME', 'POSIX_F_SLOWEST_RANK_TIME',
-            'POSIX_F_VARIANCE_RANK_TIME', 'POSIX_F_VARIANCE_RANK_BYTES',
-        ]
-
-    ]
-)
 @pytest.mark.parametrize("dtype", ["numpy", "dict", "pandas"])
-def test_log_get_generic_record(dtype, expected_counter_vals, expected_fcounter_vals, expected_counter_names, expected_fcounter_names):
+def test_log_get_generic_record(dtype):
     # regression test for issue #440
     # see: https://github.com/darshan-hpc/darshan/issues/440
+
+    # collect the expected counter/fcounter column names
+    expected_counter_names = backend.counter_names("POSIX")
+    expected_fcounter_names = backend.fcounter_names("POSIX")
+
+    # assign the expected counter/fcounter values
+    expected_counter_vals = np.asarray(
+        [
+            2049, -1, -1, 0, 16402, 16404, 0, 0, 0, 0, -1, -1, 0, 0, 0,
+            2199023259968, 0, 2199023261831, 0, 0, 0, 16384, 0, 0, 8,
+            16401, 1048576, 0, 134217728, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 4, 14, 0, 0, 0, 0, 0, 0, 16384, 0, 274743689216,
+            274743691264, 0, 0, 10240, 4096, 0, 0, 134217728, 272, 544,
+            328, 16384, 8, 2, 2, 597, 1073741824, 1312, 1073741824,
+        ]
+    )
+    expected_fcounter_vals = np.asarray(
+        [
+            3.9191410541534424, 0.0, 3.940063953399658, 3.927093982696533,
+            3.936579942703247, 0.0, 115.0781660079956, 115.77035808563232,
+            0.0, 100397.60042190552, 11.300841808319092, 0.0,
+            17.940945863723755, 20.436099529266357, 85.47495031356812,
+            0.0, 0.0,
+        ]
+    )
 
     # generate a record from sample log
     log = backend.log_open("tests/input/sample.darshan")
