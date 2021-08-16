@@ -4,6 +4,8 @@ using the functions defined in libdarshan-util.so
 and is interfaced via the python CFFI module.
 """
 
+import functools
+
 import cffi
 import ctypes
 
@@ -300,15 +302,13 @@ def log_get_record(log, mod, dtype='numpy'):
 
 
 
-def log_get_generic_record(log, mod_name, c_cols=None, fc_cols=None, dtype='numpy'):
+def log_get_generic_record(log, mod_name, dtype='numpy'):
     """
     Returns a dictionary holding a generic darshan log record.
 
     Args:
         log: Handle returned by darshan.open
         mod_name (str): Name of the Darshan module
-        c_cols: list of counter keys/column names
-        fc_cols: list of fcounter keys/column names
 
     Return:
         dict: generic log record
@@ -339,18 +339,11 @@ def log_get_generic_record(log, mod_name, c_cols=None, fc_cols=None, dtype='nump
     if mod_name == 'H5D':
         rec['file_rec_id'] = rbuf[0].file_rec_id
 
-    clst = np.zeros(len(rbuf[0].counters), dtype=np.int64)
-    for i in range(clst.size):
-        clst[i] = rbuf[0].counters[i]
+    clst = np.frombuffer(ffi.buffer(rbuf[0].counters), dtype=np.int64)
+    flst = np.frombuffer(ffi.buffer(rbuf[0].fcounters), dtype=np.float64)
 
-    flst = np.zeros(len(rbuf[0].fcounters), dtype=np.float64)
-    for i in range(flst.size):
-        flst[i] = rbuf[0].fcounters[i]
-
-    if c_cols is None:
-        c_cols = counter_names(mod_name)
-    if fc_cols is None:
-        fc_cols = fcounter_names(mod_name)
+    c_cols = counter_names(mod_name)
+    fc_cols = fcounter_names(mod_name)
 
     if dtype == "numpy":
         rec['counters'] = clst
@@ -365,6 +358,7 @@ def log_get_generic_record(log, mod_name, c_cols=None, fc_cols=None, dtype='nump
         new_cols = ["id", "rank"]
         new_c_cols = new_cols + c_cols
         new_f_cols = new_cols + fc_cols
+        rec_id = np.uint64(rec["id"])
         # prepend the id/rank values
         id_rank_list = [rec["id"], rec["rank"]]
         new_clst = np.asarray([id_rank_list + clst.tolist()]).reshape(1, -1)
@@ -373,14 +367,15 @@ def log_get_generic_record(log, mod_name, c_cols=None, fc_cols=None, dtype='nump
         df_c = pd.DataFrame(data=new_clst, columns=new_c_cols)
         df_fc = pd.DataFrame(data=new_flst, columns=new_f_cols)
         # correct the data type for the file hash/id
-        df_c['id'] = np.uint64(df_c['id'])
-        df_fc['id'] = np.uint64(df_fc['id'])
+        df_c['id'] = rec_id
+        df_fc['id'] = rec_id
         # assign the dataframes to the record
         rec['counters'] = df_c
         rec['fcounters'] = df_fc
     return rec
 
 
+@functools.lru_cache(maxsize=32)
 def counter_names(mod_name, fcnts=False, special=''):
     """
     Returns a list of available counter names for the module.
@@ -426,6 +421,7 @@ def counter_names(mod_name, fcnts=False, special=''):
     return names
 
 
+@functools.lru_cache(maxsize=32)
 def fcounter_names(mod_name):
     """
     Returns a list of available floating point counter names for the module.
