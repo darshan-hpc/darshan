@@ -4,6 +4,8 @@ using the functions defined in libdarshan-util.so
 and is interfaced via the python CFFI module.
 """
 
+import functools
+
 import cffi
 import ctypes
 
@@ -337,52 +339,43 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
     if mod_name == 'H5D':
         rec['file_rec_id'] = rbuf[0].file_rec_id
 
-    clst = []
-    for i in range(0, len(rbuf[0].counters)):
-        clst.append(rbuf[0].counters[i])
-    rec['counters'] = np.array(clst, dtype=np.int64)
-    cdict = dict(zip(counter_names(mod_name), rec['counters']))
+    clst = np.frombuffer(ffi.buffer(rbuf[0].counters), dtype=np.int64)
+    flst = np.frombuffer(ffi.buffer(rbuf[0].fcounters), dtype=np.float64)
 
-    flst = []
-    for i in range(0, len(rbuf[0].fcounters)):
-        flst.append(rbuf[0].fcounters[i])
-    rec['fcounters'] = np.array(flst, dtype=np.float64)
-    fcdict = dict(zip(fcounter_names(mod_name), rec['fcounters']))
+    c_cols = counter_names(mod_name)
+    fc_cols = fcounter_names(mod_name)
 
-    if dtype == "dict":
-        rec.update({
-            'counters': cdict, 
-            'fcounters': fcdict
-            })
+    if dtype == "numpy":
+        rec['counters'] = clst
+        rec['fcounters'] = flst
 
-    if dtype == "pandas":
-        rec['id'] = np.uint64(rec['id'])
-        df_c = pd.DataFrame(cdict, index=[0])
-        df_fc = pd.DataFrame(fcdict, index=[0])
+    elif dtype == "dict":
+        rec['counters'] = dict(zip(c_cols, clst))
+        rec['fcounters'] = dict(zip(fc_cols, flst))
 
-        # flip column order (to prepend id and rank)
-        df_c = df_c[df_c.columns[::-1]]
-        df_fc = df_fc[df_fc.columns[::-1]]
-
-        # attach id and rank to counters and fcounters
-        df_c['id'] = rec['id']
-        df_c['rank'] = rec['rank']
-
-        df_fc['id'] = rec['id']
-        df_fc['rank'] = rec['rank']
-
-        # flip column order
-        df_c = df_c[df_c.columns[::-1]]
-        df_fc = df_fc[df_fc.columns[::-1]]
-
-        rec.update({
-            'counters': df_c,
-            'fcounters': df_fc
-            })
-
+    elif dtype == "pandas":
+        # prepend id/rank columns
+        new_cols = ["id", "rank"]
+        new_c_cols = new_cols + c_cols
+        new_f_cols = new_cols + fc_cols
+        rec_id = np.uint64(rec["id"])
+        # prepend the id/rank values
+        id_rank_list = [rec["id"], rec["rank"]]
+        new_clst = np.asarray([id_rank_list + clst.tolist()]).reshape(1, -1)
+        new_flst = np.asarray([id_rank_list + flst.tolist()], dtype=np.float64).reshape(1, -1)
+        # create the dataframes
+        df_c = pd.DataFrame(data=new_clst, columns=new_c_cols)
+        df_fc = pd.DataFrame(data=new_flst, columns=new_f_cols)
+        # correct the data type for the file hash/id
+        df_c['id'] = rec_id
+        df_fc['id'] = rec_id
+        # assign the dataframes to the record
+        rec['counters'] = df_c
+        rec['fcounters'] = df_fc
     return rec
 
 
+@functools.lru_cache(maxsize=32)
 def counter_names(mod_name, fcnts=False, special=''):
     """
     Returns a list of available counter names for the module.
@@ -428,6 +421,7 @@ def counter_names(mod_name, fcnts=False, special=''):
     return names
 
 
+@functools.lru_cache(maxsize=32)
 def fcounter_names(mod_name):
     """
     Returns a list of available floating point counter names for the module.
