@@ -44,7 +44,7 @@ jobs:
           # the test suite is sensitive to
           # relative dir for test file paths
           cd darshan-util/pydarshan
-          pytest --cov-report xml --cov=darshan
+          pytest --cov-report xml --cov=darshan --cov=tests
       - name: mypy check
         run: |
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
