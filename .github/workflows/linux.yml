@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --upgrade pytest mypy asv
+          python -m pip install --upgrade pytest mypy asv pytest-cov codecov
       - name: Install darshan-util
         run: |
           mkdir darshan_install
@@ -44,7 +44,7 @@ jobs:
           # the test suite is sensitive to
           # relative dir for test file paths
           cd darshan-util/pydarshan
-          pytest
+          pytest --cov-report xml --cov=darshan
       - name: mypy check
         run: |
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
