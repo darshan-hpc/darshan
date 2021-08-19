@@ -75,7 +75,7 @@ def test_log_get_generic_record(dtype):
     expected_fcounter_names = backend.fcounter_names("POSIX")
 
     # assign the expected counter/fcounter values
-    expected_counter_vals = np.asarray(
+    expected_counter_vals = np.array(
         [
             2049, -1, -1, 0, 16402, 16404, 0, 0, 0, 0, -1, -1, 0, 0, 0,
             2199023259968, 0, 2199023261831, 0, 0, 0, 16384, 0, 0, 8,
@@ -85,7 +85,7 @@ def test_log_get_generic_record(dtype):
             328, 16384, 8, 2, 2, 597, 1073741824, 1312, 1073741824,
         ]
     )
-    expected_fcounter_vals = np.asarray(
+    expected_fcounter_vals = np.array(
         [
             3.9191410541534424, 0.0, 3.940063953399658, 3.927093982696533,
             3.936579942703247, 0.0, 115.0781660079956, 115.77035808563232,
@@ -123,8 +123,8 @@ def test_log_get_generic_record(dtype):
         actual_counter_names = list(rec["counters"].keys())
         actual_fcounter_names = list(rec["fcounters"].keys())
         # collect the actual counter/fcounter values
-        actual_counter_vals = np.asarray(list(rec["counters"].values()))
-        actual_fcounter_vals = np.asarray(list(rec["fcounters"].values()))
+        actual_counter_vals = np.array(list(rec["counters"].values()))
+        actual_fcounter_vals = np.array(list(rec["fcounters"].values()))
 
     elif dtype == "pandas":
         # make sure the added column keys are in the dataframes
@@ -150,8 +150,8 @@ def test_log_get_generic_record(dtype):
 
     # check the actual counter/fcounter values agree
     # with the expected counter/fcounter values
-    assert_array_equal(expected_counter_vals, actual_counter_vals)
-    assert_allclose(expected_fcounter_vals, actual_fcounter_vals)
+    assert_array_equal(actual_counter_vals, expected_counter_vals)
+    assert_allclose(actual_fcounter_vals, expected_fcounter_vals)
 
     if dtype != "numpy":
         # make sure the returned key/column names agree
