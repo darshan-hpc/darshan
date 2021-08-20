@@ -196,18 +196,10 @@ class PDF(FPDF):
         cell_height = 20
         # make a cell for each label with the text left-justified, and each
         # cell just to the right of the previous cell
-        self.cell(
-            w=cell_width, h=cell_height, txt=jobid_label, border=True, ln=0, align="L"
-        )
-        self.cell(
-            w=cell_width, h=cell_height, txt=uid_label, border=True, ln=0, align="L"
-        )
-        self.cell(
-            w=cell_width, h=cell_height, txt=nprocs_label, border=True, ln=0, align="L"
-        )
-        self.cell(
-            w=cell_width, h=cell_height, txt=runtime_label, border=True, ln=0, align="L"
-        )
+        for label in [jobid_label, uid_label, nprocs_label, runtime_label]:
+            self.cell(
+                w=cell_width, h=cell_height, txt=label, border=True, ln=0, align="L"
+            )
 
     def add_figure(
         self,
@@ -366,7 +358,7 @@ def main(args=None):
     )
     # save the PDF at the desired location with the filename
     fname_noext = os.path.splitext(log_filename)[0]
-    output_filename = os.getcwd() + f"/report_{fname_noext}.pdf"
+    output_filename = os.path.join(os.getcwd(), f"report_{fname_noext}.pdf")
     pdf.output(output_filename)
 
 
