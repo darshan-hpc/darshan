@@ -11,6 +11,8 @@ if ENABLE_STATIC
    lib_LIBRARIES = libdarshan.a
 endif
 
+BUILT_SOURCES =
+
 C_SRCS = darshan-core-init-finalize.c \
          darshan-core.c \
          darshan-common.c \
@@ -40,6 +42,7 @@ endif
 
 if BUILD_PNETCDF_MODULE
    C_SRCS += darshan-pnetcdf.c
+   BUILT_SOURCES += darshan-pnetcdf-api.c
 endif
 
 if BUILD_HDF5_MODULE
@@ -67,8 +70,11 @@ if BUILD_HEATMAP_MODULE
    AM_CPPFLAGS += -DDARSHAN_HEATMAP
 endif
 
-BUILT_SOURCES =
-CLEANFILES =
+.m4.c:
+	$(M4) $(AM_M4FLAGS) $(M4FLAGS) $< >$@
+
+CLEANFILES = darshan-pnetcdf-api.c
+
 include_HEADERS =
 apxc_root = $(top_srcdir)/../modules/autoperf/apxc
 if BUILD_APXC_MODULE
@@ -120,6 +126,7 @@ EXTRA_DIST = $(H_SRCS) \
              darshan-dxt.c \
              darshan-mpiio.c \
              darshan-pnetcdf.c \
+             darshan-pnetcdf-api.m4 \
              darshan-hdf5.c \
              darshan-bgq.c \
              darshan-lustre.c \
