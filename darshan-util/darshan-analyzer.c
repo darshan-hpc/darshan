@@ -94,7 +94,7 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
         *used_mpio += 1;
     if (file->mod_map[DARSHAN_H5F_MOD].len > 0 || file->mod_map[DARSHAN_H5D_MOD].len > 0)
         *used_hdf5 += 1;
-    if (file->mod_map[DARSHAN_PNETCDF_MOD].len > 0)
+    if (file->mod_map[DARSHAN_PNETCDF_FILE_MOD].len > 0 || file->mod_map[DARSHAN_PNETCDF_VAR_MOD].len > 0)
         *used_pnet += 1;
 
     total_job_time = (double)job.end_time - (double)job.start_time;
