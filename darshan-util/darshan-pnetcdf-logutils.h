@@ -7,9 +7,13 @@
 #ifndef __DARSHAN_PNETCDF_LOG_UTILS_H
 #define __DARSHAN_PNETCDF_LOG_UTILS_H
 
-extern char *pnetcdf_counter_names[];
-extern char *pnetcdf_f_counter_names[];
+extern char *pnetcdf_file_counter_names[];
+extern char *pnetcdf_file_f_counter_names[];
 
-extern struct darshan_mod_logutil_funcs pnetcdf_logutils;
+extern char *pnetcdf_var_counter_names[];
+extern char *pnetcdf_var_f_counter_names[];
+
+extern struct darshan_mod_logutil_funcs pnetcdf_file_logutils;
+extern struct darshan_mod_logutil_funcs pnetcdf_var_logutils;
 
 #endif
