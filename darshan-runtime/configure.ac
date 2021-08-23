@@ -420,16 +420,37 @@ if test "x$enable_darshan_runtime" = xyes ; then
                    use --with-hdf5 to provide the HDF5 install prefix, if needed.]))
    fi
 
-   # PNETCDF module
+   # PnetCDF module (disabled by default)
    AC_ARG_ENABLE([pnetcdf-mod],
-      [AS_HELP_STRING([--disable-pnetcdf-mod],
-                      [Disables compilation and use of PnetCDF module (requires MPI)])],
-      [], [enable_pnetcdf_mod=$ENABLE_MPI]
+      [AS_HELP_STRING([--enable-pnetcdf-mod],
+                      [Enables compilation and use of PnetCDF module (requires MPI)])],
+      [], [enable_pnetcdf_mod=no]
+   )
+
+   # inform about PnetCDF installs not found in default locations
+   AC_ARG_WITH([pnetcdf],
+      [AS_HELP_STRING([--with-pnetcdf@<:@=DIR@:>@],
+                      [Installation directory for PnetCDF.])],
+      [], [with_pnetcdf=no]
    )
    if test "x$enable_pnetcdf_mod" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
          AC_MSG_ERROR([--enable-pnetcdf-mod is used but MPI feature is disabled])
       fi
+      AC_CHECK_PROGS([M4], [$M4 m4 gm4], [])
+      if test "x$M4" = x ; then
+         AC_MSG_ERROR(--enable-pnetcdf-mod requires a valid M4 macro processor)
+      fi
+      if test -d "$with_pnetcdf" ; then
+         CFLAGS="${CFLAGS} -I${with_pnetcdf}/include"
+         DARSHAN_PNETCDF_LD_FLAGS="-L${with_pnetcdf}/lib [-Wl,-rpath=${with_pnetcdf}/lib -lpnetcdf]"
+      else
+         AC_MSG_ERROR(withval for --with-pnetcdf is required and must be a valid install prefix path for PnetCDF library)
+      fi
+      with_pnetcdf=yes
+   elif test "x$enable_pnetcdf_mod" != xno ; then
+      AC_MSG_ERROR(m4_normalize([--enable-pnetcdf-mod does not take any argument,
+                   use --with-pnetcdf to provide the PnetCDF install prefix, if needed.]))
    fi
 
    # BG/Q module
@@ -700,6 +721,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    AC_SUBST(DARSHAN_STDIO_ADD_FSCANF_LD_OPTS)
    AC_SUBST(DARSHAN_HDF5_ADD_LD_OPTS)
    AC_SUBST(DARSHAN_HDF5_LD_FLAGS)
+   AC_SUBST(DARSHAN_PNETCDF_LD_FLAGS)
    AC_SUBST(DARSHAN_LUSTRE_LD_FLAGS)
    AC_SUBST(with_papi)
 else
