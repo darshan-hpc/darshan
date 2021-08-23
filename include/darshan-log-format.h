@@ -163,7 +163,8 @@ struct darshan_base_record
     X(DARSHAN_MPIIO_MOD,    "MPI-IO",     DARSHAN_MPIIO_VER,     &mpiio_logutils) \
     X(DARSHAN_H5F_MOD,      "H5F",        DARSHAN_H5F_VER,       &hdf5_file_logutils) \
     X(DARSHAN_H5D_MOD,      "H5D",        DARSHAN_H5D_VER,       &hdf5_dataset_logutils) \
-    X(DARSHAN_PNETCDF_MOD,  "PNETCDF",    DARSHAN_PNETCDF_VER,   &pnetcdf_logutils) \
+    X(DARSHAN_PNETCDF_FILE_MOD, "PNETCDF_FILE",  DARSHAN_PNETCDF_FILE_VER, &pnetcdf_file_logutils) \
+    X(DARSHAN_PNETCDF_VAR_MOD,  "PNETCDF_VAR",   DARSHAN_PNETCDF_VAR_VER,  &pnetcdf_var_logutils) \
     X(DARSHAN_BGQ_MOD,      "BG/Q",       DARSHAN_BGQ_VER,       &bgq_logutils) \
     X(DARSHAN_LUSTRE_MOD,   "LUSTRE",     DARSHAN_LUSTRE_VER,    &lustre_logutils) \
     X(DARSHAN_STDIO_MOD,    "STDIO",      DARSHAN_STDIO_VER,     &stdio_logutils) \
