@@ -61,6 +61,7 @@ if BUILD_APMPI_MODULE
 	echo '@$(datadir)/ld-opts/autoperf-apmpi-ld-opts' >> $@
 endif
 
-EXTRA_DIST = darshan-hdf5-ld-opts.in \
+EXTRA_DIST = darshan-base-ld-opts \
+             darshan-hdf5-ld-opts.in \
              darshan-stdio-ld-opts.in
 
