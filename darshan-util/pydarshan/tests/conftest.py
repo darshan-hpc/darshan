@@ -25,10 +25,7 @@ def pytest_configure():
 def log_repo_files():
     # provide a convenient way to access the list
     # of all *.darshan log files in the logs repo,
-    # returning an empty list in the absence of the
-    # logs repo package and a list of absolute file
-    # paths to the logs otherwise
-    if not has_log_repo:
-        return []
+    # returning a list of absolute file paths to
+    # the logs
     p = importlib_resources.files('darshan_logs')
     return [str(p) for p in p.glob('**/*.darshan')]
