@@ -1,4 +1,4 @@
-name: Linux Python Tests
+name: Python Testing
 
 on:
   push:
@@ -10,12 +10,12 @@ on:
 
 jobs:
   test_pydarshan:
-    
-    runs-on: ubuntu-latest
     strategy:
       matrix:
+        platform: [ubuntu-latest,
+                   macos-latest]
         python-version: [3.7, 3.8, 3.9]
-
+    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
@@ -30,14 +30,16 @@ jobs:
         run: |
           mkdir darshan_install
           export DARSHAN_INSTALL_PATH=$PWD/darshan_install
+          git submodule update --init
           cd darshan-util
-          ./configure --prefix=$DARSHAN_INSTALL_PATH --enable-shared --enable-pydarshan
+          ./configure --prefix=$DARSHAN_INSTALL_PATH --enable-shared --enable-pydarshan --enable-autoperf-apxc --enable-autoperf-apmpi
           make
           make install
       - name: Install pydarshan
         run: |
           cd darshan-util/pydarshan
-          python -m pip install .
+          # TODO: use pip per gh-476
+          python setup.py install
       - name: Test with pytest
         run: |
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
