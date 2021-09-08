@@ -9,3 +9,7 @@ performance:
 CI:
 - any: ["**/*.yml"]
 - any: ["**/*.yaml"]
+- any: [".github/workflows/*.yml"]
+- any: [".github/workflows/*.yaml"]
+- any: [".github/*.yml"]
+- any: [".github/*.yaml"]
