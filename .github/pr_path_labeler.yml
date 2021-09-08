@@ -1,0 +1,11 @@
+# Labeler triggered by .github/workflows/labels.yml
+
+pydarshan:
+- any: ["darshan-util/pydarshan/**/*"]
+
+performance:
+- any: ["darshan-util/pydarshan/benchmarks/**/*"]
+
+CI:
+- any: ["**/*.yml"]
+- any: ["**/*.yaml"]
