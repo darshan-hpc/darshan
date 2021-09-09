@@ -29,20 +29,6 @@ def test_jobid_type_all_logs_repo_files(log_repo_files):
     # this is primarily intended as a demonstration of looping
     # through all logs repo files in a test
     for log_filepath in log_repo_files:
-        # darshan_logs/apmpi/darshan-apmpi-2nodes-64mpi.darshan
-        # causes an issue so we skip it here:
-        # 
-        # Error: incompatible darshan file.
-        # Error: expected version 3.21, but got 
-        # <!
-        # Error: darshan_log_open failed to read darshan log file header: Undefined error: 0.
-        if 'darshan-apmpi-2nodes-64mpi' in log_filepath:
-            continue
-        # we also need to skip apmpi data for now to avoid
-        # a segfault on pydarshan-devel with current standard
-        # config/setup options (see the CI for example)
-        if 'apmpi_apxc' in log_filepath:
-            continue
         report = darshan.DarshanReport(log_filepath)
         assert isinstance(report.metadata['job']['jobid'], int)
 
