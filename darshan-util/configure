@@ -4414,9 +4414,8 @@ fi
 
 
 if test x$enable_autoperf_apxc = xyes; then
-    abssrcdir=$(readlink -f ${srcdir})
-    as_ac_Header=`$as_echo "ac_cv_header_${abssrcdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h" | $as_tr_sh`
-ac_fn_c_check_header_preproc "$LINENO" "${abssrcdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h" "$as_ac_Header"
+    as_ac_Header=`$as_echo "ac_cv_header_${ac_abs_confdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h" | $as_tr_sh`
+ac_fn_c_check_header_preproc "$LINENO" "${ac_abs_confdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h" "$as_ac_Header"
 if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
   DARSHAN_USE_APXC=1
 else
@@ -4426,9 +4425,8 @@ fi
  # this last part tells it to only check for presence
 fi
 if test x$enable_autoperf_apmpi = xyes; then
-    abssrcdir=$(readlink -f ${srcdir})
-    as_ac_Header=`$as_echo "ac_cv_header_${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h" | $as_tr_sh`
-ac_fn_c_check_header_preproc "$LINENO" "${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h" "$as_ac_Header"
+    as_ac_Header=`$as_echo "ac_cv_header_${ac_abs_confdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h" | $as_tr_sh`
+ac_fn_c_check_header_preproc "$LINENO" "${ac_abs_confdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h" "$as_ac_Header"
 if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
   DARSHAN_USE_APMPI=1
 else

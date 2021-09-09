@@ -129,15 +129,13 @@ AC_ARG_ENABLE(
 )
 
 if test x$enable_autoperf_apxc = xyes; then
-    abssrcdir=$(readlink -f ${srcdir})
-    AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
+    AC_CHECK_HEADER([${ac_abs_confdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
                     DARSHAN_USE_APXC=1,
                     [AC_MSG_ERROR([The autoperf APXC module is not present])],
                     [-]) # this last part tells it to only check for presence
 fi
 if test x$enable_autoperf_apmpi = xyes; then
-    abssrcdir=$(readlink -f ${srcdir})
-    AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
+    AC_CHECK_HEADER([${ac_abs_confdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
                     DARSHAN_USE_APMPI=1,
                     [AC_MSG_ERROR([The autoperf MPI module is not present])],
                     [-]) # this last part tells it to only check for presence
