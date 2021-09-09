@@ -62,12 +62,17 @@ def test_unsupported_record_load(caplog, unsupported_record):
         assert 'Currently unsupported' in record.message
         assert unsupported_record in record.message
 
-@pytest.mark.parametrize("mod", [("BUGGER"), ("STDIO")])
-def test_dxt_mod(mod: str):
+@pytest.mark.parametrize("mod,expected", 
+    [("BUGGER", "Log does not contain data for mod"), 
+    ("POSIX", "Unsupported module:")])
+def test_dxt_mod(caplog, mod: str, expected: str):
     """Invalid/unsupported dxt module cases"""
     report = darshan.DarshanReport("tests/input/sample-dxt-simple.darshan")
 
     report.mod_read_all_dxt_records(mod, warnings=True)
+    
+    for record in caplog.records:
+        assert expected in record.message
 
 def test_internal_references():
     """
