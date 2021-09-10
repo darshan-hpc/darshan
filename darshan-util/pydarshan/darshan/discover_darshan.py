@@ -170,6 +170,12 @@ def find_utils(ffi, libdutil):
 
     if libdutil is None:
         try:
+            libdutil = ffi.dlopen("libdarshan-util.dylib")
+        except:
+            libdutil = None
+
+    if libdutil is None:
+        try:
             library_path = discover_darshan_shutil()
             logger.debug(f"Attempting library_path={library_path} via shutil discovery.")
             libdutil = ffi.dlopen(library_path + "/lib/libdarshan-util.so")
