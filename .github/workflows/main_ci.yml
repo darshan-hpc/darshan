@@ -29,6 +29,10 @@ jobs:
           # matplotlib is pinned because of
           # gh-479
           python -m pip install matplotlib==3.4.3
+      - if: ${{matrix.platform == 'macos-latest'}}
+        name: Install MacOS deps
+        run: |
+          brew install automake
       - name: Install darshan-util
         run: |
           mkdir darshan_install
