@@ -94,8 +94,7 @@ if test "x$enable_darshan_util" = xyes ; then
       [], [enable_apxc_mod=no]
    )
    if test "x$enable_apxc_mod" = xyes; then
-      abssrcdir=$(readlink -f ${srcdir})
-      AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
+      AC_CHECK_HEADER([${ac_abs_confdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
                       DARSHAN_USE_APXC=1,
                       [AC_MSG_ERROR([The autoperf APXC module is not present])],
                       [-]) # this last part tells it to only check for presence
@@ -106,8 +105,7 @@ if test "x$enable_darshan_util" = xyes ; then
       [], [enable_apmpi_mod=no]
    )
    if test "x$enable_apmpi_mod" = xyes; then
-      abssrcdir=$(readlink -f ${srcdir})
-      AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
+      AC_CHECK_HEADER([${ac_abs_confdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
                       DARSHAN_USE_APMPI=1,
                       [AC_MSG_ERROR([The autoperf MPI module is not present])],
                       [-]) # this last part tells it to only check for presence
