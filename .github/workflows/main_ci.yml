@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --upgrade pytest mypy asv pytest-cov codecov
+          python -m pip install --upgrade pytest mypy pyflakes asv pytest-cov codecov
           # matplotlib is pinned because of
           # gh-479
           python -m pip install matplotlib==3.4.3
@@ -56,6 +56,10 @@ jobs:
           cd darshan-util/pydarshan
           mypy darshan
           mypy tests
+      - name: pyflakes check
+        run: |
+          cd darshan-util/pydarshan
+          pyflakes darshan/backend | (grep -E -i 'assigned to but never used' || exit 0 && exit 123)
       - name: asv check
         run: |
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
