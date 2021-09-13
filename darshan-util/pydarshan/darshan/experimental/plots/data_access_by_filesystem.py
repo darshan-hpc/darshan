@@ -487,10 +487,9 @@ def plot_data(fig: Any,
         list_byte_axes.append(ax_filesystem_bytes)
         list_count_axes.append(ax_filesystem_counts)
 
-        # convert to MiB using the factor suggested
-        # by Google (approximate result only for now)
-        bytes_read = bytes_rd_series[filesystem]/1.049e+6
-        bytes_written = bytes_wr_series[filesystem]/1.049e+6
+        # convert to MiB using 1048576 (ie: 2**20)
+        bytes_read = bytes_rd_series[filesystem]/1048576
+        bytes_written = bytes_wr_series[filesystem]/1048576
         files_written = file_wr_series[filesystem]
         files_read = file_rd_series[filesystem]
 
