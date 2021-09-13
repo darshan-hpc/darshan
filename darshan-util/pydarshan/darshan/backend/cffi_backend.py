@@ -538,7 +538,6 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     if r < 1:
         return None
     filerec = ffi.cast(mod_type, buf)
-    clst = []
 
     rec['id'] = filerec[0].base_rec.id
     rec['rank'] = filerec[0].base_rec.rank
