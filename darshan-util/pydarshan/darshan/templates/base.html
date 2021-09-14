@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+      <title>Darshan Summary Report</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        th, td {
+          padding: 7px;
+          text-align: left;
+        }
+        body{
+            margin: 50px;
+            padding: 15px;
+        }
+        .fixed-header, .fixed-footer{
+            width: 100%;
+            display: block;
+            text-align: right;
+        }
+        .fixed-header{
+            top: 0;
+        }
+        .fixed-footer{
+            bottom: 0;
+        }
+      </style>
+    </head>
+    <body style="font-family: Gill Sans MT">
+
+      <!-- Add the header  -->
+      <div class="fixed-header">
+        <p>${template_dict["header"]}</p>
+      </div>
+
+      <!-- Add a title  -->
+      <h1><center>Darshan Summary Report</center></h1>
+
+      <!-- Add a section for the job and module summary tables  -->
+      <section>
+        <h2>Job Summary</h2>
+        ${template_dict["metadata_table"]}
+
+        <h2>Module Summary</h2>
+        ${template_dict["module_table"]}
+      </section>
+
+      <!-- Add the footer -->
+      <div class="fixed-footer">
+        <p>${template_dict["footer"]}</p>
+      </div>
+
+    </body>
+</html>
