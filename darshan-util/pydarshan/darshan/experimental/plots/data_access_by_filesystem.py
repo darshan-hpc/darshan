@@ -264,6 +264,22 @@ def convert_file_path_to_root_path(file_path: str) -> str:
 
 
 def convert_id_dict_to_arrays(file_id_dict: Dict[int, str]):
+    """
+    Splits the file hash/path dictionary into corresponding arrays, 
+    one for the file hashes and another for the file paths.
+
+    Parameters 
+    ----------
+    file_id_dict: a dictionary mapping integer file hash values
+                to string values corresponding to their respective
+                paths
+
+    Returns
+    -------
+    A tuple of form ``(file_id_hash_arr, file_path_arr)`` where the first 
+    element is an array containing the integer file hash values and the 
+    second is an array containing the corresponding file paths.
+    """
     file_id_hash_arr = np.array(list(file_id_dict.keys()))
     file_path_arr = np.array(list(file_id_dict.values()))
     return file_id_hash_arr, file_path_arr
