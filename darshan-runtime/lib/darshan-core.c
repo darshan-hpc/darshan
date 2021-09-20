@@ -4,10 +4,12 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+# include <darshan-runtime-config.h>
+#endif
+
 #define _XOPEN_SOURCE 500
 #define _GNU_SOURCE
-
-#include "darshan-runtime-config.h"
 
 #include <stdio.h>
 #ifdef HAVE_MNTENT_H
@@ -1548,8 +1550,8 @@ bcast:
 static int darshan_log_open(char *logfile_name, struct darshan_core_runtime *core,
     darshan_core_log_fh *log_fh)
 {
-    int ret;
 #ifdef HAVE_MPI
+    int ret;
     char *hints;
     char *tok_str;
     char *orig_tok_str;
@@ -1683,12 +1685,6 @@ static int darshan_log_write_job_record(darshan_core_log_fh log_fh,
 static int darshan_log_write_name_record_hash(darshan_core_log_fh log_fh,
     struct darshan_core_runtime *core, uint64_t *inout_off)
 {
-    struct darshan_core_name_record_ref *ref;
-    struct darshan_name_record *name_rec;
-    char *my_buf, *shared_buf;
-    char *tmp_p;
-    int rec_len;
-    int shared_buf_len;
     int name_rec_buf_len;
     int ret;
 
@@ -1696,6 +1692,13 @@ static int darshan_log_write_name_record_hash(darshan_core_log_fh log_fh,
 #ifdef HAVE_MPI
     if(using_mpi && (my_rank > 0))
     {
+        struct darshan_core_name_record_ref *ref;
+        struct darshan_name_record *name_rec;
+        char *my_buf, *shared_buf;
+        char *tmp_p;
+        int rec_len;
+        int shared_buf_len;
+
         /* remove globally shared name records from non-zero ranks */
 
         name_rec = core->log_name_p;

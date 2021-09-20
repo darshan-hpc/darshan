@@ -4,6 +4,10 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+# include "darshan-util-config.h"
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

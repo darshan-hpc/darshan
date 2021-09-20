@@ -2,6 +2,13 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.3.1
+=============
+* fixed github issue 399: undefined llapi_layout_get_by_xattr function in some
+  scenarios because of incomplete dependency information in Darshan shared
+  library
+* modified Darshan to properly handle for non-MPI applications that call fork()
+
 Darshan-3.3.0
 =============
 * added AutoPerf modules for tracking MPI communication usage (APMPI) and

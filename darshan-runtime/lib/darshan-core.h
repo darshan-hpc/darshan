@@ -7,8 +7,6 @@
 #ifndef __DARSHAN_CORE_H
 #define __DARSHAN_CORE_H
 
-#include "darshan-runtime-config.h"
-
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdint.h>

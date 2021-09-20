@@ -76,7 +76,7 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     url='https://www.mcs.anl.gov/research/projects/darshan/',
-    version='3.3.0.3',
+    version='3.3.1.0',
     zip_safe=False,
     package_data={"": ["*.darshan"]},
 )
