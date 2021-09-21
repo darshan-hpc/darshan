@@ -21,6 +21,18 @@ def response():
     pass
 
 
+@pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
+                    reason="missing darshan_logs")
+def test_jobid_type_all_logs_repo_files(log_repo_files):
+    # test for the expected jobid type in each of the
+    # log files in the darshan_logs package;
+    # this is primarily intended as a demonstration of looping
+    # through all logs repo files in a test
+    for log_filepath in log_repo_files:
+        report = darshan.DarshanReport(log_filepath)
+        assert isinstance(report.metadata['job']['jobid'], int)
+
+
 def test_metadata():
     """Sample for an expected property in counters."""
 
