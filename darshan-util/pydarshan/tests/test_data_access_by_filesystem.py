@@ -422,8 +422,8 @@ def test_plot_data_shared_x_axis():
     wr_bytes = [1e8, 1e9, 1e10, 1e11]
     rd_file_cts = [1e3, 1e4, 1e5, 1e6]
     wr_file_cts = [1e2, 1e3, 1e4, 1e5]
-    # multiply by the MiB conversion factor to get round numbers in the output
-    factor = 1.049e+6
+    # multiply by the MiB conversion factor
+    factor = 1048576
     bytes_rd_series = pd.Series(data=rd_bytes, index=filesystem_roots) * factor
     bytes_wr_series = pd.Series(data=wr_bytes, index=filesystem_roots) * factor
     file_rd_series = pd.Series(data=rd_file_cts, index=filesystem_roots)

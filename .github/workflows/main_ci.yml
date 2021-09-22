@@ -4,10 +4,10 @@ on:
   push:
     branches:
       - pydarshan-devel
+      - "**"
   pull_request:
     branches:
-      #- pydarshan-devel
-      - "**"
+      - pydarshan-devel
 
 jobs:
   test_pydarshan:
