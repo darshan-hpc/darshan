@@ -8,15 +8,15 @@ import pandas as pd
 from mako.template import Template
 
 import darshan
-import darshan.css
-import darshan.templates
+import darshan.cli
 
 
-class SummaryReport:
+class ReportData:
     def __init__(self, log_path: str):
         # store the log path and use it to generate the report
         self.log_path = log_path
-        self.get_report()
+        # store the report
+        self.report = darshan.DarshanReport(log_path, read_all=True, dtype="pandas")
         # create the header/footer
         self.get_header()
         self.get_footer()
@@ -68,13 +68,6 @@ class SummaryReport:
         else:
             runtime = str(runtime_val)
         return runtime
-
-    def get_report(self):
-        """
-        Retrieves the Darshan report used to generate the summary report.
-        """
-        report = darshan.DarshanReport(self.log_path, read_all=True, dtype="pandas")
-        self.report = report
 
     def get_header(self):
         """
@@ -155,9 +148,8 @@ class SummaryReport:
         """
         Retrieves the CSS from the local style sheet.
         """
-        # get the css directory path
-        stylesheet_path = importlib_resources.path(darshan.css, "style.css")
-        with stylesheet_path as path:
+        # get the path to the style sheet
+        with importlib_resources.path(darshan.cli, "style.css") as path:
             # collect the css entries
             with open(path, "r") as f:
                 stylesheet = "".join(f.readlines())
@@ -201,10 +193,9 @@ def main(args: Union[Any, None] = None):
         report_filename = args.output
 
     # collect the report data to feed into the template
-    report_data = SummaryReport(log_path=log_path)
+    report_data = ReportData(log_path=log_path)
 
-    template_path = importlib_resources.path(darshan.templates, "")
-    with template_path as path:
+    with importlib_resources.path(darshan.cli, "") as path:
         # get the path to the base template
         base_path = os.path.join(str(path), "base.html")
         # load a template object using the base template
