@@ -31,26 +31,17 @@ class ReportData:
         """
         Retrieves the full command line from the report metadata.
         """
-        if report.metadata["exe"]:
-            # some logs don't have a stored executable
-            try:
-                # to detect if the stored executable is not an
-                # integer (anonymized) try to convert it to an integer
-                test = int(report.metadata["exe"])
-            except ValueError as err:
-                if "invalid literal" in str(err):
-                    # if it cannot be converted to an integer
-                    # assign the executable
-                    command = report.metadata["exe"]
-            else:
-                # if it can be converted to an
-                # integer label it anonymized
-                command = "Anonymized"
-        else:
+        # assign the executable from the report metadata
+        cmd = report.metadata["exe"]
+        if not cmd:
             # if there is no executable
             # label as not available
-            command = "N/A"
-        return command
+            cmd = "N/A"
+        elif cmd.isdigit():
+            # if it can be converted to an
+            # integer label it anonymized
+            cmd = "Anonymized"
+        return cmd
 
     @staticmethod
     def get_runtime(report: darshan.report.DarshanReport) -> str:
@@ -83,16 +74,14 @@ class ReportData:
         # collect the date from the time stamp
         date = datetime.date.fromtimestamp(self.report.metadata["job"]["start_time"])
         # the header is the application name and the log date
-        header = f"{app_name} ({date})"
-        self.header = header
+        self.header = f"{app_name} ({date})"
 
     def get_footer(self):
         """
         Builds the footer string for the summary report.
         """
         lib_ver = darshan.__version__
-        footer = f"Summary report generated via PyDarshan v{lib_ver}"
-        self.footer = footer
+        self.footer = f"Summary report generated via PyDarshan v{lib_ver}"
 
     def get_metadata_table(self):
         """
@@ -118,8 +107,7 @@ class ReportData:
         # convert the dictionary into a dataframe
         metadata_df = pd.DataFrame.from_dict(data=metadata_dict, orient="index")
         # write out the table in html
-        metadata_table = metadata_df.to_html(header=False, border=0)
-        self.metadata_table = metadata_table
+        self.metadata_table = metadata_df.to_html(header=False, border=0)
 
     def get_module_table(self):
         """
@@ -141,8 +129,7 @@ class ReportData:
         # convert the module dictionary into a dataframe
         module_df = pd.DataFrame.from_dict(data=module_dict, orient="index")
         # write out the table in html
-        module_table = module_df.to_html(header=False, border=0)
-        self.module_table = module_table
+        self.module_table = module_df.to_html(header=False, border=0)
 
     def get_stylesheet(self):
         """
@@ -152,8 +139,7 @@ class ReportData:
         with importlib_resources.path(darshan.cli, "style.css") as path:
             # collect the css entries
             with open(path, "r") as f:
-                stylesheet = "".join(f.readlines())
-                self.stylesheet = stylesheet
+                self.stylesheet = "".join(f.readlines())
 
 
 def setup_parser(parser: Any):
