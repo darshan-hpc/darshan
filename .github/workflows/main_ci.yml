@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - pydarshan-devel
-      - "**"
   pull_request:
     branches:
       - pydarshan-devel
