@@ -12,6 +12,15 @@ import darshan.cli
 
 
 class ReportData:
+    """
+    Collects all of the metadata, tables, and figures
+    required to generate a Darshan Summary Report.
+
+    Parameters
+    ----------
+    log_path: path to a darshan log file.
+
+    """
     def __init__(self, log_path: str):
         # store the log path and use it to generate the report
         self.log_path = log_path
@@ -30,6 +39,15 @@ class ReportData:
     def get_full_command(report: darshan.report.DarshanReport) -> str:
         """
         Retrieves the full command line from the report metadata.
+
+        Parameters
+        ----------
+        report: a ``darshan.DarshanReport``.
+
+        Returns
+        -------
+        cmd : the full command line used to generate the darshan log.
+
         """
         # assign the executable from the report metadata
         cmd = report.metadata["exe"]
@@ -47,6 +65,15 @@ class ReportData:
     def get_runtime(report: darshan.report.DarshanReport) -> str:
         """
         Calculates the run time from the report metadata.
+
+        Parameters
+        ----------
+        report: a ``darshan.DarshanReport``.
+
+        Returns
+        -------
+        runtime : the calculated executable run time.
+
         """
         # calculate the run time
         runtime_val = float(
@@ -111,7 +138,7 @@ class ReportData:
 
     def get_module_table(self):
         """
-        Builds the module table (in HTML form) for the summary report.
+        Builds the module table (in html form) for the summary report.
         """
         # construct a dictionary containing the module names
         # and their respective data stored in KiB
@@ -133,7 +160,7 @@ class ReportData:
 
     def get_stylesheet(self):
         """
-        Retrieves the CSS from the local style sheet.
+        Retrieves the locally stored CSS.
         """
         # get the path to the style sheet
         with importlib_resources.path(darshan.cli, "style.css") as path:
@@ -148,8 +175,8 @@ def setup_parser(parser: Any):
 
     Parameters
     ----------
-    parser : ArgumentParser object
-        Command line argument parser.
+    parser : command line argument parser.
+
     """
     parser.add_argument(
         "log_path",
@@ -161,7 +188,12 @@ def setup_parser(parser: Any):
 
 def main(args: Union[Any, None] = None):
     """
-    Generates the summary report.
+    Generates a Darshan Summary Report.
+
+    Parameters
+    ----------
+    args: command line arguments.
+
     """
     if args is None:
         parser = argparse.ArgumentParser(description="")
