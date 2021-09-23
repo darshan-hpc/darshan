@@ -11,6 +11,7 @@ import darshan
 def setup_parser(parser=None):
     # setup nested actions/subcommands?
     #actions = parser.add_subparsers(dest='api')
+    parser.description = "Display basic information about the Darshan log"
 
     # setup arguments
     parser.add_argument('input', help='darshan log file', nargs='?', default='example.darshan')
