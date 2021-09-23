@@ -23,7 +23,7 @@ class CustomHelpFormatter(argparse.HelpFormatter):
             help_text = ""
 
             for name, choice in action.choices.items():
-                help_text += "  {:21} {}\n".format(name, choice)
+                help_text += "  {:21} {}\n".format(name, choice.description)
 
             return help_text
 
@@ -82,7 +82,11 @@ def main():
     """
 
     # early parsing for selected arguments
-    preparser = argparse.ArgumentParser(usage="darshan <command>", description='PyDarshan CLI Utilities', formatter_class=CustomHelpFormatter)
+    preparser = argparse.ArgumentParser(
+            usage="darshan <command>", 
+            description='PyDarshan CLI Utilities', 
+            add_help=False,
+            formatter_class=CustomHelpFormatter)
 
     preparser.add_argument('--debug', help='', action='store_true', default=False)
     preparser.add_argument('--version', help='', action='store_true', default=False)

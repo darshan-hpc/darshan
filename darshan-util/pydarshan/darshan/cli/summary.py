@@ -178,6 +178,8 @@ def setup_parser(parser: Any):
     parser : command line argument parser.
 
     """
+    parser.description = "Generates a Darshan Summary Report"
+    
     parser.add_argument(
         "log_path",
         type=str,

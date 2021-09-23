@@ -10,6 +10,7 @@ import darshan
 def setup_parser(parser=None):
     # setup nested actions/subcommands?
     #actions = parser.add_subparsers(dest='api')
+    parser.description = "Convert Darshan log into report in JSON format"
 
     # setup arguments
     parser.add_argument('input', help='darshan log file', nargs='?', default='example.darshan')
