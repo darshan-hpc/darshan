@@ -169,7 +169,7 @@ class ReportData:
                 self.stylesheet = "".join(f.readlines())
 
 
-def setup_parser(parser: Any):
+def setup_parser(parser: argparse.ArgumentParser):
     """
     Configures the command line arguments.
 
