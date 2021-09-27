@@ -25,7 +25,7 @@ class ReportData:
         # store the log path and use it to generate the report
         self.log_path = log_path
         # store the report
-        self.report = darshan.DarshanReport(log_path, read_all=True, dtype="pandas")
+        self.report = darshan.DarshanReport(log_path, read_all=True)
         # create the header/footer
         self.get_header()
         self.get_footer()
