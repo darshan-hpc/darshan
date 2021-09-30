@@ -40,7 +40,7 @@ jobs:
           git submodule update --init
           ./prepare.sh
           cd darshan-util
-          ./configure --prefix=$DARSHAN_INSTALL_PATH --enable-shared --enable-pydarshan --enable-apxc-mod --enable-apmpi-mod
+          ./configure --prefix=$DARSHAN_INSTALL_PATH --enable-shared --enable-apxc-mod --enable-apmpi-mod
           make
           make install
       - name: Install pydarshan
