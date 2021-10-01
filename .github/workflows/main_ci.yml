@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --upgrade pytest mypy pyflakes asv pytest-cov codecov
+          python -m pip install --upgrade pytest mypy pyflakes asv pytest-cov codecov wheel
           # matplotlib is pinned because of
           # gh-479
           python -m pip install matplotlib==3.4.3
@@ -46,8 +46,8 @@ jobs:
       - name: Install pydarshan
         run: |
           cd darshan-util/pydarshan
-          # TODO: use pip per gh-476
-          python setup.py install
+          make add-modules
+          python -m pip install .
       # shim for importlib.resources on Python < 3.9
       - if: ${{matrix.python-version < 3.9}}
         name: Install importlib_resources
