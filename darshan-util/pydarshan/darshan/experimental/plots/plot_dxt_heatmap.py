@@ -3,7 +3,6 @@ Module for creating the ranks vs. time IO intensity
 heatmap figure for the Darshan job summary.
 """
 
-import sys
 from typing import Any, List, Sequence, Union, TYPE_CHECKING
 
 import numpy as np

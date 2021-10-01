@@ -67,7 +67,10 @@ jobs:
           # relative dir for test file paths
           cd darshan-util/pydarshan
           pytest --cov-report xml --cov=darshan --cov=tests
-      - name: mypy check
+      # Python 3.6 doesn't have access to some
+      # dependencies needed for our type hints
+      - if: ${{matrix.python-version > 3.6}}
+        name: mypy check
         run: |
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
           cd darshan-util/pydarshan
