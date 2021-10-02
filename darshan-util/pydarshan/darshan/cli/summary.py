@@ -215,11 +215,9 @@ def main(args: Union[Any, None] = None):
     # collect the report data to feed into the template
     report_data = ReportData(log_path=log_path)
 
-    with importlib_resources.path(darshan.cli, "") as path:
-        # get the path to the base template
-        base_path = os.path.join(str(path), "base.html")
+    with importlib_resources.path(darshan.cli, "base.html") as base_path:
         # load a template object using the base template
-        template = Template(filename=base_path)
+        template = Template(filename=str(base_path))
         # render the base template
         stream = template.render(report_data=report_data)
         with open(report_filename, "w") as f:
