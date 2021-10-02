@@ -46,8 +46,7 @@ jobs:
       - name: Install pydarshan
         run: |
           cd darshan-util/pydarshan
-          make add-modules
-          python -m pip install .
+          python -m pip install . --use-feature=in-tree-build
       # shim for importlib.resources on Python < 3.9
       - if: ${{matrix.python-version < 3.9}}
         name: Install importlib_resources
