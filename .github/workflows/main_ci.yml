@@ -14,7 +14,7 @@ jobs:
       matrix:
         platform: [ubuntu-latest,
                    macos-latest]
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.8]
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v2
@@ -84,6 +84,13 @@ jobs:
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
           cd darshan-util/pydarshan/benchmarks
           python -m asv check -E existing
+      - name: check wheel portability
+        run: |
+          export LD_LIBRARY_PATH=$PWD/darshan_install/lib
+          mkdir ../scratch
+          cp darshan-util/pydarshan/examples/example-logs/ior_hdf5_example.darshan ../scratch
+          cd ../scratch
+          python -m darshan summary ior_hdf5_example.darshan
       - name: codecov check
         uses: codecov/codecov-action@v2
         with:
