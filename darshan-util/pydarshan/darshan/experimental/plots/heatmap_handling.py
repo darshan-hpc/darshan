@@ -1,7 +1,6 @@
 """
 Module of data pre-processing functions for constructing the heatmap figure.
 """
-from __future__ import annotations
 
 from typing import Dict, Any, Tuple, Sequence, TYPE_CHECKING
 
@@ -387,6 +386,6 @@ def get_heatmap_df(agg_df: pd.DataFrame, xbins: int) -> pd.DataFrame:
     # each full or fractional bin event is now multiplied by
     # the bytes data
     cats = cats.mul(agg_df["length"], axis=0)
-    cats["rank"] = agg_df["rank"]
+    cats.index = agg_df["rank"]
     hmap_df = cats.groupby("rank").sum()
     return hmap_df
