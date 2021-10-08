@@ -11,6 +11,10 @@ with open("README.rst") as readme_file:
 
 
 requirements = ["cffi", "numpy", "pandas", "matplotlib", "seaborn", "mako"]
+
+if sys.version_info == (3, 6):
+    requirements.append("importlib_resources")
+
 setup_requirements = [
     "pytest-runner",
 ]

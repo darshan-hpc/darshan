@@ -1,7 +1,12 @@
+import sys
 import os
 import argparse
 import datetime
-import importlib.resources as importlib_resources
+if sys.version_info >= (3, 7):
+    import importlib.resources as importlib_resources
+else:
+    import importlib_resources
+
 from typing import Any, Union
 
 import pandas as pd
