@@ -121,8 +121,6 @@ class ReportData:
         """
         # assign the metadata dictionary
         job_data = self.report.metadata["job"]
-        # TODO: once this is exposed, add the correct entry
-        log_fmt_ver = "N/A"
         # build a dictionary with the appropriate metadata
         metadata_dict = {
             "Job ID": job_data["jobid"],
@@ -134,7 +132,7 @@ class ReportData:
             "Command": self.get_full_command(report=self.report),
             "Log Filename": os.path.basename(self.log_path),
             "Runtime Library Version": job_data["metadata"]["lib_ver"],
-            "Log Format Version": log_fmt_ver,
+            "Log Format Version": job_data["log_ver"],
         }
         # convert the dictionary into a dataframe
         metadata_df = pd.DataFrame.from_dict(data=metadata_dict, orient="index")
@@ -156,6 +154,8 @@ class ReportData:
             # create the key/value pairs for the dictionary
             key = f"{mod} (ver={mod_version})"
             val = f"{mod_buf_size:.2f} KiB"
+            if self.report.modules[mod]["partial_flag"]:
+                val += " (partial data)"
             module_dict[key] = val
 
         # convert the module dictionary into a dataframe

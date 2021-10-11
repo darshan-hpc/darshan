@@ -129,6 +129,11 @@ def log_get_job(log):
     job['nprocs'] = jobrec[0].nprocs
     job['jobid'] = jobrec[0].jobid
 
+    # dirty hack to get log format version -- we know it's currently stored at the
+    # very beginning of the log handle structure, so we just cast the struct
+    # pointer as a string...
+    job['log_ver'] = ffi.string(ffi.cast("char *", log['handle'])).decode("utf-8")
+
     mstr = ffi.string(jobrec[0].metadata).decode("utf-8")
     md = {}
 
@@ -200,7 +205,8 @@ def log_get_modules(log):
     libdutil.darshan_log_get_modules(log['handle'], mods, cnt)
     for i in range(0, cnt[0]):
         modules[ffi.string(mods[0][i].name).decode("utf-8")] = \
-                {'len': mods[0][i].len, 'ver': mods[0][i].ver, 'idx': mods[0][i].idx}
+                {'len': mods[0][i].len, 'ver': mods[0][i].ver, 'idx': mods[0][i].idx,
+                 'partial_flag': bool(mods[0][i].partial_flag)}
 
     # add to cache
     log['modules'] = modules

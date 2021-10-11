@@ -20,6 +20,7 @@ struct darshan_mod_info
     int	len;
     int	ver;
     int	idx;
+    int partial_flag;
 };
 
 /* from darshan-log-format.h */

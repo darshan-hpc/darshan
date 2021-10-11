@@ -32,6 +32,11 @@ def test_jobid_type_all_logs_repo_files(log_repo_files):
         report = darshan.DarshanReport(log_filepath)
         assert isinstance(report.metadata['job']['jobid'], int)
 
+def test_job():
+    """Sample for expected job data."""
+    report = darshan.DarshanReport("tests/input/sample.darshan")
+
+    assert report.metadata["job"]["log_ver"] == "3.10"
 
 def test_metadata():
     """Sample for an expected property in counters."""
@@ -50,7 +55,7 @@ def test_modules():
     # check if number of modules matches
     assert 4 == len(report.modules)
     assert 154 == report.modules['MPI-IO']['len']
-
+    assert False == report.modules['MPI-IO']['partial_flag']
 
 def test_load_records():
     """Test if loaded records match."""
