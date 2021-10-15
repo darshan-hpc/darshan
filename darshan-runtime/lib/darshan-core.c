@@ -1471,7 +1471,7 @@ static void darshan_get_logfile_name(
         darshan_get_user_name(cuser);
 
         /* generate a random number to help differentiate the log */
-        hlevel = darshan_core_wtime() * 1000000;
+        hlevel = darshan_core_wtime_absolute() * 1000000;
         (void)gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
 
