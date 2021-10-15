@@ -2,17 +2,20 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.3.2
+=============
+* Performance optimizations to runtime wrappers to limit function call
+  overhead and locking costs
+* Replace mutex locks with atomics in core library
+* Add optional, limited support for RDTSCP-based timing, enabled via
+  --enable-rdtscp at configure time
+
 Darshan-3.3.1
 =============
 * fixed github issue 399: undefined llapi_layout_get_by_xattr function in some
   scenarios because of incomplete dependency information in Darshan shared
   library
 * modified Darshan to properly handle for non-MPI applications that call fork()
-* Performance optimizations to runtime wrappers to limit function call
-  overhead and locking costs
-* Replace mutex locks with atomics in core library
-* Add optional, limited support for RDTSCP-based timing, enabled via
-  --enable-rdtscp at configure time
 
 Darshan-3.3.0
 =============
