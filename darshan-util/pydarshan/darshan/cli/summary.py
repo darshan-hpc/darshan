@@ -1,5 +1,7 @@
 import sys
 import os
+import io
+import base64
 import argparse
 import datetime
 if sys.version_info >= (3, 7):
@@ -7,14 +9,89 @@ if sys.version_info >= (3, 7):
 else:
     import importlib_resources
 
-from typing import Any, Union
+from typing import Any, Union, Callable
 
 import pandas as pd
 from mako.template import Template
 
 import darshan
 import darshan.cli
+from darshan.experimental.plots import plot_dxt_heatmap
 
+darshan.enable_experimental()
+
+
+class ReportFigure:
+    """
+    Stores info for each figure in `ReportData.register_figures`.
+
+    Parameters
+    ----------
+    section_title : the title of the section the figure belongs to.
+
+    fig_title : the title of the figure.
+
+    fig_func : the function used to generate the figure.
+
+    fig_args : the keyword arguments used for `fig_func`
+
+    fig_description : description of the figure, typically used as the caption.
+
+    fig_width : the width of the figure in pixels.
+
+    """
+    def __init__(
+        self,
+        section_title: str,
+        fig_title: str,
+        fig_func: Callable,
+        fig_args: dict = {},
+        fig_description: str = "",
+        fig_width: int = 500,
+    ):
+        self.section_title = section_title
+        self.fig_title = fig_title
+        self.fig_func = fig_func
+        self.fig_args = fig_args
+        self.fig_description = fig_description
+        self.fig_width = fig_width
+        # temporary handling for DXT disabled cases
+        # so special error message can be passed
+        # in place of an encoded image
+        self.img_str = None
+        if self.fig_func:
+            self.generate_img()
+
+    @staticmethod
+    def get_encoded_fig(mpl_fig: Any):
+        """
+        Encode a `matplotlib` figure using base64 encoding.
+
+        Parameters
+        ----------
+        mpl_fig : ``matplotlib.figure`` object.
+
+        Returns
+        -------
+        encoded_fig : base64 encoded image.
+
+        """
+        tmpfile = io.BytesIO()
+        mpl_fig.savefig(tmpfile, format="png", dpi=300)
+        encoded_fig = base64.b64encode(tmpfile.getvalue()).decode("utf-8")
+        return encoded_fig
+
+    def generate_img(self):
+        """
+        Generate the image using the figure data.
+        """
+        # generate the matplotlib figure using the figure's
+        # function and function arguments
+        mpl_fig = self.fig_func(**self.fig_args)
+        # encode the matplotlib figure
+        encoded = self.get_encoded_fig(mpl_fig=mpl_fig)
+        # create the img string
+        self.img_str = f"<img src=data:image/png;base64,{encoded} alt={self.fig_title} width={self.fig_width}>"
 
 class ReportData:
     """
@@ -37,6 +114,10 @@ class ReportData:
         # create the metadata and module tables
         self.get_metadata_table()
         self.get_module_table()
+        # register the report figures
+        self.register_figures()
+        # use the figure data to build the report sections
+        self.build_sections()
         # collect the CSS stylesheet
         self.get_stylesheet()
 
@@ -170,6 +251,66 @@ class ReportData:
             # collect the css entries
             with open(path, "r") as f:
                 self.stylesheet = "".join(f.readlines())
+
+    def register_figures(self):
+        """
+        Generates and registers all possible figures.
+        """
+        self.figures = []
+
+        ############################
+        ## Add the DXT heat map
+        ############################
+        if "DXT_POSIX" in self.report.modules:
+            hmap_func = plot_dxt_heatmap.plot_heatmap
+            hmap_args = dict(log_path=self.log_path)
+            hmap_description = (
+                "Heat map of I/O (in bytes) over time broken down by MPI rank. "
+                "Bins are populated based on the number of bytes read/written in "
+                "the given time interval. The vertical bar graph sums each time "
+                "slice across all ranks to show the total I/O over time, while the "
+                "horizontal bar graph sums all I/O events for each rank to "
+                "illustrate how the I/O was distributed across ranks."
+            )
+        else:
+            hmap_func = None
+            hmap_args = None
+            # temporary message to direct users to DXT tracing
+            # documentation until DXT tracing is enabled by default
+            url = (
+                "https://www.mcs.anl.gov/research/projects/darshan/docs/darshan"
+                "-runtime.html#_using_the_darshan_extended_tracing_dxt_module"
+            )
+            hmap_description = (
+                f"Heat map is not available for this job as DXT was not "
+                f"enabled at run time. For details on how to enable DXT visit "
+                f"the <a href={url}>Darshan-runtime documentation</a>."
+            )
+
+        dxt_heatmap_params = {
+            "section_title": "I/O Operations",
+            "fig_title": "Heat Map",
+            "fig_func": hmap_func,
+            "fig_args": hmap_args,
+            "fig_description": hmap_description,
+        }
+        dxt_heatmap_fig = ReportFigure(**dxt_heatmap_params)
+        self.figures.append(dxt_heatmap_fig)
+
+    def build_sections(self):
+        """
+        Uses figure info to generate the unique sections
+        and places the figures in their sections.
+        """
+        self.sections = {}
+        for fig in self.figures:
+            # if a section title is not already in sections, add
+            # the section title and a corresponding empty dictionary
+            # to store its figures
+            if fig.section_title not in self.sections:
+                self.sections[fig.section_title] = {}
+            # add the image to its corresponding section
+            self.sections[fig.section_title][fig.fig_title] = fig
 
 
 def setup_parser(parser: argparse.ArgumentParser):

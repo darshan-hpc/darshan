@@ -35,3 +35,10 @@ table {
 .fixed-footer{
     bottom: 0;
 }
+figure {
+  text-align: center;
+}
+figure figcaption {
+  font-size: 12px;
+  text-align: center;
+}
