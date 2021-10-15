@@ -168,7 +168,6 @@ static int darshan_deflate_buffer(
     int *comp_buf_length);
 static void darshan_core_cleanup(
     struct darshan_core_runtime* core);
-static double darshan_core_wtime_absolute(void);
 static void darshan_core_fork_child_cb(void);
 
 #define DARSHAN_CORE_LOCK() pthread_mutex_lock(&darshan_core_mutex)
@@ -232,7 +231,7 @@ void darshan_core_initialize(int argc, char **argv)
     if(getenv("DARSHAN_INTERNAL_TIMING"))
     {
         internal_timing_flag = 1;
-        init_start = darshan_core_wtime();
+        init_start = darshan_core_wtime_absolute();
     }
 
     #if (__DARSHAN_MEM_ALIGNMENT < 1)
@@ -417,7 +416,7 @@ void darshan_core_initialize(int argc, char **argv)
 
     if(internal_timing_flag)
     {
-        init_time = darshan_core_wtime() - init_start;
+        init_time = darshan_core_wtime_absolute() - init_start;
 #ifdef HAVE_MPI
         if(using_mpi)
         {
