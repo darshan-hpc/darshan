@@ -49,6 +49,7 @@
 extern char* __progname;
 extern char* __progname_full;
 struct darshan_core_runtime *__darshan_core = NULL;
+double __darshan_core_wtime_offset = 0;
 #ifdef HAVE_STDATOMIC_H
 atomic_flag __darshan_core_mutex = ATOMIC_FLAG_INIT;
 #else
@@ -315,11 +316,6 @@ void darshan_core_initialize(int argc, char **argv)
             pthread_atfork(NULL, NULL, &darshan_core_fork_child_cb);
         }
 
-        /* record absolute start time at startup so that we can later
-         * generate relative times with this as a reference point.
-         */
-        init_core->wtime_offset = darshan_core_wtime_absolute();
-
         /* set PID that initialized Darshan runtime */
         init_core->pid = init_pid;
 
@@ -400,12 +396,15 @@ void darshan_core_initialize(int argc, char **argv)
         }
 
         /* if darshan was successfully initialized, set the global pointer
-         * and bootstrap any modules with static initialization routines
+         * and record absolute start time so that we can later generate
+         * relative times with this as a reference point.
          */
         __DARSHAN_CORE_LOCK();
         __darshan_core = init_core;
+        __darshan_core_wtime_offset = init_start;
         __DARSHAN_CORE_UNLOCK();
 
+        /* bootstrap any modules with static initialization routines */
         i = 0;
         while(mod_static_init_fns[i])
         {

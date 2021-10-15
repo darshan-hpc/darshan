@@ -119,7 +119,6 @@ struct darshan_core_runtime
     size_t mod_mem_used;
     struct darshan_core_name_record_ref *name_hash;
     size_t name_mem_used;
-    double wtime_offset;
     char *comp_buf;
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
     char mmap_log_name[PATH_MAX];
@@ -135,6 +134,7 @@ struct darshan_core_runtime
  * other Darshan library components.
  */
 extern struct darshan_core_runtime *__darshan_core;
+extern double __darshan_core_wtime_offset;
 #ifdef HAVE_STDATOMIC_H
 extern atomic_flag __darshan_core_mutex;
 #define __DARSHAN_CORE_LOCK() \
@@ -355,9 +355,7 @@ static inline double darshan_core_wtime_absolute(void)
  */
 static inline double darshan_core_wtime(void)
 {
-    double wtime_offset = __darshan_core ? __darshan_core->wtime_offset : 0;
-
-    return(darshan_core_wtime_absolute() - wtime_offset);
+    return(darshan_core_wtime_absolute() - __darshan_core_wtime_offset);
 }
 
 /* darshan_core_fprintf()
