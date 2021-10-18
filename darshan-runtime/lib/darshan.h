@@ -7,16 +7,145 @@
 #ifndef __DARSHAN_H
 #define __DARSHAN_H
 
+#include "darshan-runtime-config.h"
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdint.h>
+#include <time.h>
+#include <pthread.h>
 
 #ifdef HAVE_MPI
 #include <mpi.h>
 #endif
+#ifdef HAVE_STDATOMIC_H
+#include <stdatomic.h>
+#endif
+#ifdef HAVE_X86INTRIN_H
+    #include <x86intrin.h>
+#endif
 
+#include "uthash.h"
 #include "darshan-log-format.h"
 #include "darshan-common.h"
+
+/* Environment variable to override __DARSHAN_JOBID */
+#define DARSHAN_JOBID_OVERRIDE "DARSHAN_JOBID"
+
+/* Environment variable to override __DARSHAN_LOG_PATH */
+#define DARSHAN_LOG_PATH_OVERRIDE "DARSHAN_LOGPATH"
+
+/* Environment variable to override __DARSHAN_LOG_HINTS */
+#define DARSHAN_LOG_HINTS_OVERRIDE "DARSHAN_LOGHINTS"
+
+/* Environment variable to override __DARSHAN_MEM_ALIGNMENT */
+#define DARSHAN_MEM_ALIGNMENT_OVERRIDE "DARSHAN_MEMALIGN"
+
+/* Environment variable to override memory per module */
+#define DARSHAN_MOD_MEM_OVERRIDE "DARSHAN_MODMEM"
+
+/* Environment variable to enable profiling without MPI */
+#define DARSHAN_ENABLE_NONMPI "DARSHAN_ENABLE_NONMPI" 
+
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+/* Environment variable to override default mmap log path */
+#define DARSHAN_MMAP_LOG_PATH_OVERRIDE "DARSHAN_MMAP_LOGPATH"
+
+/* default path for storing mmap log files is '/tmp' */
+#define DARSHAN_DEF_MMAP_LOG_PATH "/tmp"
+#endif
+
+/* Maximum runtime memory consumption per process (in MiB) across
+ * all instrumentation modules
+ */
+#ifdef __DARSHAN_MOD_MEM_MAX
+#define DARSHAN_MOD_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024L * 1024L)
+#else
+#define DARSHAN_MOD_MEM_MAX (4 * 1024 * 1024) /* 4 MiB default */
+#endif
+
+/* default name record buf can store 2048 records of size 100 bytes */
+#define DARSHAN_NAME_RECORD_BUF_SIZE (2048 * 100)
+
+typedef union
+{
+    int nompi_fd;
+#ifdef HAVE_MPI
+    MPI_File mpi_fh;
+#endif
+} darshan_core_log_fh;
+
+/* stores FS info from statfs calls for a given mount point */
+struct darshan_fs_info
+{
+    int fs_type;
+    int block_size;
+    int ost_count;
+    int mdt_count;
+};
+
+/* FS mount information */
+#define DARSHAN_MAX_MNTS 64
+#define DARSHAN_MAX_MNT_PATH 256
+#define DARSHAN_MAX_MNT_TYPE 32
+struct darshan_core_mnt_data
+{
+    char path[DARSHAN_MAX_MNT_PATH];
+    char type[DARSHAN_MAX_MNT_TYPE];
+    struct darshan_fs_info fs_info;
+};
+
+/* strucutre for keeping a reference to registered name records */
+struct darshan_core_name_record_ref
+{
+    struct darshan_name_record *name_record;
+    uint64_t mod_flags;
+    uint64_t global_mod_flags;
+    UT_hash_handle hlink;
+};
+
+/* in memory structure to keep up with job level data */
+struct darshan_core_runtime
+{
+    /* pointers to each log file component */
+    struct darshan_header *log_hdr_p;
+    struct darshan_job *log_job_p;
+    char *log_exemnt_p;
+    void *log_name_p;
+    void *log_mod_p;
+
+    /* darshan-core internal data structures */
+    struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
+    size_t mod_mem_used;
+    struct darshan_core_name_record_ref *name_hash;
+    size_t name_mem_used;
+    char *comp_buf;
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    char mmap_log_name[PATH_MAX];
+#endif
+#ifdef HAVE_MPI
+    MPI_Comm mpi_comm;
+#endif
+    int pid;
+};
+
+/* core constructs for use in macros and inline functions; the __ prefix
+ * denotes that these should not be accessed directly by Darshan modules or
+ * other Darshan library components.
+ */
+extern struct darshan_core_runtime *__darshan_core;
+extern double __darshan_core_wtime_offset;
+#ifdef HAVE_STDATOMIC_H
+extern atomic_flag __darshan_core_mutex;
+#define __DARSHAN_CORE_LOCK() \
+    while (atomic_flag_test_and_set(&__darshan_core_mutex))
+#define __DARSHAN_CORE_UNLOCK() \
+    atomic_flag_clear(&__darshan_core_mutex)
+#else
+extern pthread_mutex_t __darshan_core_mutex;
+#define __DARSHAN_CORE_LOCK() pthread_mutex_lock(&__darshan_core_mutex)
+#define __DARSHAN_CORE_UNLOCK() pthread_mutex_unlock(&__darshan_core_mutex)
+#endif
 
 /* macros for declaring wrapper functions and calling MPI routines
  * consistently regardless of whether static or dynamic linking is used
@@ -53,8 +182,8 @@
             darshan_core_fprintf(stderr, "Darshan failed to map symbol: %s\n", #__func); \
             exit(1); \
        } \
-    }
-
+    } \
+    int __darshan_disabled = darshan_core_disabled_instrumentation();
 #else
 
 #define DARSHAN_FORWARD_DECL(__name,__ret,__args) \
@@ -72,7 +201,8 @@
 #define DARSHAN_WRAPPER_MAP(__func,__ret,__args,__fcall) \
     __ret __wrap_ ## __func __args __attribute__ ((alias ("__wrap_" #__fcall)));
 
-#define MAP_OR_FAIL(__func)
+#define MAP_OR_FAIL(__func) \
+    int __darshan_disabled = darshan_core_disabled_instrumentation()
 
 #endif
 
@@ -118,15 +248,6 @@ typedef struct darshan_module_funcs
     darshan_module_cleanup mod_cleanup_func;
 } darshan_module_funcs;
 
-/* stores FS info from statfs calls for a given mount point */
-struct darshan_fs_info
-{
-    int fs_type;
-    int block_size;
-    int ost_count;
-    int mdt_count;
-};
-
 /* darshan_instrument_fs_data()
  *
  * Allow file system-specific modules to instrument data for the file
@@ -140,39 +261,6 @@ void darshan_instrument_fs_data(
     int fs_type,
     const char *path,
     int fd);
-
-/*****************************************************
-* darshan-core functions exported to darshan modules *
-*****************************************************/
-
-/* darshan_core_register_module()
- *
- * Register module identifier 'mod_id' with the darshan-core runtime
- * environment, allowing the module to store I/O characterization data.
- * 'mod_funcs' is a set of function pointers that implement module-specific
- * shutdown functionality (including a possible data reduction step when
- * using MPI). 'inout_mod_buf_size' is an input/output argument, with it
- * being set to the requested amount of module memory on input, and set to
- * the amount allocated by darshan-core on output. If Darshan is built with
- * MPI support, 'rank' is a pointer to an integer which will contain the
- * calling process's MPI rank on return. If given, 'sys_mem_alignment' is a
- * pointer to an integer which will contain the memory alignment value Darshan
- * was configured with on return.
- */
-void darshan_core_register_module(
-    darshan_module_id mod_id,
-    darshan_module_funcs mod_funcs,
-    size_t *inout_mod_buf_size,
-    int *rank,
-    int *sys_mem_alignment);
-
-/* darshan_core_unregister_module()
- * 
- * Unregisters module identifier 'mod_id' with the darshan-core runtime,
- * removing the given module from the resulting I/O characterization log.
- */
-void darshan_core_unregister_module(
-    darshan_module_id mod_id);
 
 /* darshan_core_gen_record_id()
  *
@@ -211,12 +299,64 @@ void *darshan_core_register_record(
 char *darshan_core_lookup_record_name(
     darshan_record_id rec_id);
 
+/* darshan_core_disabled_instrumentation
+ *
+ * Returns true (1) if Darshan has currently disabled instrumentation,
+ * false (0) otherwise. If instrumentation is disabled, modules should
+ * no longer update any file records as part of the intercepted function
+ * wrappers.
+ */
+static inline int darshan_core_disabled_instrumentation(void)
+{
+    int ret;
+
+    __DARSHAN_CORE_LOCK();
+    if(__darshan_core)
+        ret = 0;
+    else
+        ret = 1;
+    __DARSHAN_CORE_UNLOCK();
+
+    return(ret);
+}
+
+/* retrieve absolute wtime */
+static inline double darshan_core_wtime_absolute(void)
+{
+#ifdef __DARSHAN_RDTSCP_FREQUENCY
+    /* user configured darshan-runtime explicitly to use rtdscp for timing */
+    unsigned flag;
+    unsigned long long ts;
+
+    ts = __rdtscp(&flag);
+    return((double)ts/(double)__DARSHAN_RDTSCP_FREQUENCY);
+#else
+    /* normal path */
+    struct timespec tp;
+    /* some notes on what function to use to retrieve time as of 2021-05:
+     * - clock_gettime() is faster than MPI_Wtime() across platforms
+     * - clock_gettime() is at least competitive with gettimeofday()
+     * - on some platforms, the _COARSE variants may provide sufficient
+     *   resolution with a slight performance improvement, but there are a
+     *   couple of problems:
+     *   - the _COARSE variants are not implemented with vDSO on POWER
+     *     platforms
+     *   - it is not well defined how much precision will be sacrificed
+     */
+    clock_gettime(CLOCK_REALTIME, &tp);
+    return(((double)tp.tv_sec) + 1.0e-9 * ((double)tp.tv_nsec));
+#endif
+}
+
 /* darshan_core_wtime()
  *
  * Returns the elapsed time relative to (roughly) the start of
  * the application.
  */
-double darshan_core_wtime(void);
+static inline double darshan_core_wtime(void)
+{
+    return(darshan_core_wtime_absolute() - __darshan_core_wtime_offset);
+}
 
 /* darshan_core_fprintf()
  *
@@ -235,13 +375,48 @@ void darshan_core_fprintf(
 int darshan_core_excluded_path(
     const char * path);
 
-/* darshan_core_disabled_instrumentation
+void darshan_core_initialize(int argc, char **argv);
+void darshan_core_shutdown(int write_log);
+
+uint32_t darshan_hashlittle(const void *key, size_t length, uint32_t initval);
+uint64_t darshan_hash(const register unsigned char *k, register uint64_t length, register uint64_t level);
+
+/* structure to track registered modules */
+struct darshan_core_module
+{
+    void *rec_buf_start;
+    void *rec_buf_p;
+    size_t rec_mem_avail;
+    darshan_module_funcs mod_funcs;
+};
+
+/* darshan_core_register_module()
  *
- * Returns true (1) if Darshan has currently disabled instrumentation,
- * false (0) otherwise. If instrumentation is disabled, modules should
- * no longer update any file records as part of the intercepted function
- * wrappers.
+ * Register module identifier 'mod_id' with the darshan-core runtime
+ * environment, allowing the module to store I/O characterization data.
+ * 'mod_funcs' is a set of function pointers that implement module-specific
+ * shutdown functionality (including a possible data reduction step when
+ * using MPI). 'inout_mod_buf_size' is an input/output argument, with it
+ * being set to the requested amount of module memory on input, and set to
+ * the amount allocated by darshan-core on output. If Darshan is built with
+ * MPI support, 'rank' is a pointer to an integer which will contain the
+ * calling process's MPI rank on return. If given, 'sys_mem_alignment' is a
+ * pointer to an integer which will contain the memory alignment value Darshan
+ * was configured with on return.
  */
-int darshan_core_disabled_instrumentation(void);
+void darshan_core_register_module(
+    darshan_module_id mod_id,
+    darshan_module_funcs mod_funcs,
+    size_t *inout_mod_buf_size,
+    int *rank,
+    int *sys_mem_alignment);
+
+/* darshan_core_unregister_module()
+ *
+ * Unregisters module identifier 'mod_id' with the darshan-core runtime,
+ * removing the given module from the resulting I/O characterization log.
+ */
+void darshan_core_unregister_module(
+    darshan_module_id mod_id);
 
 #endif /* __DARSHAN_H */
