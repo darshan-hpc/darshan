@@ -187,11 +187,17 @@ extern int __real_fileno(FILE *stream);
 #define STDIO_WTIME() \
     __darshan_disabled ? 0 : darshan_core_wtime();
 
+/* note that if the break condition is triggered in this macro, then it
+ * will exit the do/while loop holding a lock that will be released in
+ * POST_RECORD().  Otherwise it will release the lock here (if held) and
+ * return immediately without reaching the POST_RECORD() macro.
+ */
 #define STDIO_PRE_RECORD() do { \
     if(!__darshan_disabled) { \
         STDIO_LOCK(); \
         if(!stdio_runtime) stdio_runtime_initialize(); \
         if(stdio_runtime && !stdio_runtime->frozen) break; \
+        STDIO_UNLOCK(); \
     } \
     return(ret); \
 } while(0)

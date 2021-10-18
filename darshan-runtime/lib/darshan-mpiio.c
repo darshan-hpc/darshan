@@ -190,11 +190,17 @@ static int my_rank = -1;
 #define MPIIO_WTIME() \
     __darshan_disabled ? 0 : darshan_core_wtime();
 
+/* note that if the break condition is triggered in this macro, then it
+ * will exit the do/while loop holding a lock that will be released in
+ * POST_RECORD().  Otherwise it will release the lock here (if held) and
+ * return immediately without reaching the POST_RECORD() macro.
+ */
 #define MPIIO_PRE_RECORD() do { \
     if(!__darshan_disabled) { \
         MPIIO_LOCK(); \
         if(!mpiio_runtime) mpiio_runtime_initialize(); \
         if(mpiio_runtime && !mpiio_runtime->frozen) break; \
+        MPIIO_UNLOCK(); \
     } \
     return(ret); \
 } while(0)

@@ -128,12 +128,17 @@ static int my_rank = -1;
  * module instrumentation of a call. It obtains a lock for updating
  * module data strucutres, and ensure the MDHIM module has been properly
  * initialized before instrumenting.
+ * NOTE: if the break condition is triggered in this macro, then it
+ * will exit the do/while loop holding a lock that will be released in
+ * POST_RECORD().  Otherwise it will release the lock here (if held) and
+ * return immediately without reaching the POST_RECORD() macro.
  */
 #define MDHIM_PRE_RECORD() do { \
     if(!__darshan_disabled) { \
         MDHIM_LOCK(); \
         if(!mdhim_runtime) mdhim_runtime_initialize(); \
         if(mdhim_runtime && !mdhim_runtime->frozen) break; \
+        MDHIM_UNLOCK(); \
     } \
 } while(0)
 

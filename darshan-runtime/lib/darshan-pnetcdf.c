@@ -72,11 +72,17 @@ static int my_rank = -1;
 #define PNETCDF_WTIME() \
     __darshan_disabled ? 0 : darshan_core_wtime();
 
+/* note that if the break condition is triggered in this macro, then it
+ * will exit the do/while loop holding a lock that will be released in
+ * POST_RECORD().  Otherwise it will release the lock here (if held) and
+ * return immediately without reaching the POST_RECORD() macro.
+ */
 #define PNETCDF_PRE_RECORD() do { \
     if(!__darshan_disabled) { \
         PNETCDF_LOCK(); \
         if(!pnetcdf_runtime) pnetcdf_runtime_initialize(); \
         if(pnetcdf_runtime && !pnetcdf_runtime->frozen) break; \
+        PNETCDF_UNLOCK(); \
     } \
     return(ret); \
 } while(0)

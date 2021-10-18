@@ -206,11 +206,17 @@ static int darshan_mem_alignment = 1;
 #define POSIX_WTIME() \
     __darshan_disabled ? 0 : darshan_core_wtime();
 
+/* note that if the break condition is triggered in this macro, then it
+ * will exit the do/while loop holding a lock that will be released in
+ * POST_RECORD().  Otherwise it will release the lock here (if held) and
+ * return immediately without reaching the POST_RECORD() macro.
+ */
 #define POSIX_PRE_RECORD() do { \
     if(!__darshan_disabled) { \
         POSIX_LOCK(); \
         if(!posix_runtime) posix_runtime_initialize(); \
         if(posix_runtime && !posix_runtime->frozen) break; \
+        POSIX_UNLOCK(); \
     } \
     return(ret); \
 } while(0)

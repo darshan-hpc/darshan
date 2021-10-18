@@ -119,12 +119,17 @@ static int my_rank = -1;
  * module instrumentation of a call. It obtains a lock for updating
  * module data strucutres, and ensure the NULL module has been properly
  * initialized before instrumenting.
+ * NOTE: if the break condition is triggered in this macro, then it
+ * will exit the do/while loop holding a lock that will be released in
+ * POST_RECORD().  Otherwise it will release the lock here (if held) and
+ * return immediately without reaching the POST_RECORD() macro.
  */
 #define NULL_PRE_RECORD() do { \
     if(!__darshan_disabled) { \
         NULL_LOCK(); \
         if(!null_runtime) null_runtime_initialize(); \
         if(null_runtime) break; \
+        NULL_UNLOCK(); \
     } \
     return(ret); \
 } while(0)

@@ -124,11 +124,17 @@ static int my_rank = -1;
  *        Wrappers for H5F functions of interest         * 
  *********************************************************/
 
+/* note that if the break condition is triggered in this macro, then it
+ * will exit the do/while loop holding a lock that will be released in
+ * POST_RECORD().  Otherwise it will release the lock here (if held) and
+ * return immediately without reaching the POST_RECORD() macro.
+ */
 #define H5F_PRE_RECORD() do { \
     if(!__darshan_disabled) { \
         HDF5_LOCK(); \
         if(!hdf5_file_runtime) hdf5_file_runtime_initialize(); \
         if(hdf5_file_runtime && !hdf5_file_runtime->frozen) break; \
+        HDF5_UNLOCK(); \
     } \
     return(ret); \
 } while(0)
@@ -398,11 +404,17 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 #define DARSHAN_HDF5_MAX_NAME_LEN 256
 #define DARSHAN_HDF5_DATASET_DELIM ":"
 
+/* note that if the break condition is triggered in this macro, then it
+ * will exit the do/while loop holding a lock that will be released in
+ * POST_RECORD().  Otherwise it will release the lock here (if held) and
+ * return immediately without reaching the POST_RECORD() macro.
+ */
 #define H5D_PRE_RECORD() do { \
     if(!__darshan_disabled) { \
         HDF5_LOCK(); \
         if(!hdf5_dataset_runtime) hdf5_dataset_runtime_initialize(); \
         if(hdf5_dataset_runtime && !hdf5_dataset_runtime->frozen) break; \
+        HDF5_UNLOCK(); \
     } \
     return(ret); \
 } while(0)
