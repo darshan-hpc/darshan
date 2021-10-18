@@ -324,7 +324,7 @@ def plot_heatmap(
 
     """
     # generate the darshan report
-    report = darshan.DarshanReport(log_path, read_all=False)
+    report = darshan.DarshanReport(log_path)
 
     if "DXT_POSIX" not in mods:
         # TODO: for the moment reject any cases that don't input "DXT_POSIX"
