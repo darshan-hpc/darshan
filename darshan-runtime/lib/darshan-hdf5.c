@@ -399,12 +399,11 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 #define DARSHAN_HDF5_DATASET_DELIM ":"
 
 #define H5D_PRE_RECORD() do { \
-    HDF5_LOCK(); \
-    if(!darshan_core_disabled_instrumentation()) { \
+    if(!__darshan_disabled) { \
+        HDF5_LOCK(); \
         if(!hdf5_dataset_runtime) hdf5_dataset_runtime_initialize(); \
         if(hdf5_dataset_runtime && !hdf5_dataset_runtime->frozen) break; \
     } \
-    HDF5_UNLOCK(); \
     return(ret); \
 } while(0)
 
@@ -1668,7 +1667,7 @@ static void hdf5_dataset_output(
     rec_count = hdf5_dataset_runtime->rec_count;
     *hdf5_buf_sz = rec_count * sizeof(struct darshan_hdf5_dataset);
 
-    hdf5_file_runtime->frozen = 1;
+    hdf5_dataset_runtime->frozen = 1;
 
     HDF5_UNLOCK();
     return;
