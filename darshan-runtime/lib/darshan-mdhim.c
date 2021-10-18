@@ -81,6 +81,7 @@ struct mdhim_runtime
     /* number of records currently tracked */
     int rec_count;
     int record_size;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
 /* internal helper functions for the MDHIM module */
@@ -132,7 +133,7 @@ static int my_rank = -1;
     if(!__darshan_disabled) { \
         MDHIM_LOCK(); \
         if(!mdhim_runtime) mdhim_runtime_initialize(); \
-        if(mdhim_runtime) break; \
+        if(mdhim_runtime && !mdhim_runtime->frozen) break; \
     } \
 } while(0)
 
@@ -573,6 +574,8 @@ static void mdhim_output(
     assert(mdhim_runtime);
 
     *mdhim_buf_sz = mdhim_runtime->rec_count * mdhim_runtime->record_size;
+
+    mdhim_runtime->frozen = 1;
 
     MDHIM_UNLOCK();
     return;

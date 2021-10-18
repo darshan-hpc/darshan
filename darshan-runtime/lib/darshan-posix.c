@@ -156,6 +156,7 @@ struct posix_runtime
     void *rec_id_hash;
     void *fd_hash;
     int file_rec_count;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
 /* struct to track information about aio operations in flight */
@@ -209,7 +210,7 @@ static int darshan_mem_alignment = 1;
     if(!__darshan_disabled) { \
         POSIX_LOCK(); \
         if(!posix_runtime) posix_runtime_initialize(); \
-        if(posix_runtime) break; \
+        if(posix_runtime && !posix_runtime->frozen) break; \
     } \
     return(ret); \
 } while(0)
@@ -2588,6 +2589,8 @@ static void posix_output(
     /* just pass back our updated total buffer size -- no need to update buffer */
     posix_rec_count = posix_runtime->file_rec_count;
     *posix_buf_sz = posix_rec_count * sizeof(struct darshan_posix_file);
+
+    posix_runtime->frozen = 1;
 
     POSIX_UNLOCK();
     return;

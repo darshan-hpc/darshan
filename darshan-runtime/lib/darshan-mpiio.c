@@ -156,6 +156,7 @@ struct mpiio_runtime
     void *rec_id_hash;
     void *fh_hash;
     int file_rec_count;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
 static void mpiio_runtime_initialize(
@@ -193,7 +194,7 @@ static int my_rank = -1;
     if(!__darshan_disabled) { \
         MPIIO_LOCK(); \
         if(!mpiio_runtime) mpiio_runtime_initialize(); \
-        if(mpiio_runtime) break; \
+        if(mpiio_runtime && !mpiio_runtime->frozen) break; \
     } \
     return(ret); \
 } while(0)
@@ -1741,6 +1742,8 @@ static void mpiio_output(
     /* just pass back our updated total buffer size -- no need to update buffer */
     mpiio_rec_count = mpiio_runtime->file_rec_count;
     *mpiio_buf_sz = mpiio_rec_count * sizeof(struct darshan_mpiio_file);
+
+    mpiio_runtime->frozen = 1;
 
     MPIIO_UNLOCK();
     return;

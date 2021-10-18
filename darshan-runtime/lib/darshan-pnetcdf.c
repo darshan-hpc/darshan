@@ -43,6 +43,7 @@ struct pnetcdf_runtime
     void *rec_id_hash;
     void *ncid_hash;
     int file_rec_count;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
 static void pnetcdf_runtime_initialize(
@@ -75,7 +76,7 @@ static int my_rank = -1;
     if(!__darshan_disabled) { \
         PNETCDF_LOCK(); \
         if(!pnetcdf_runtime) pnetcdf_runtime_initialize(); \
-        if(pnetcdf_runtime) break; \
+        if(pnetcdf_runtime && !pnetcdf_runtime->frozen) break; \
     } \
     return(ret); \
 } while(0)
@@ -452,6 +453,8 @@ static void pnetcdf_output(
     /* just pass back our updated total buffer size -- no need to update buffer */
     pnetcdf_rec_count = pnetcdf_runtime->file_rec_count;
     *pnetcdf_buf_sz = pnetcdf_rec_count * sizeof(struct darshan_pnetcdf_file);
+
+    pnetcdf_runtime->frozen = 1;
 
     PNETCDF_UNLOCK();
     return;

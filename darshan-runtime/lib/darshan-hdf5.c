@@ -72,6 +72,7 @@ struct hdf5_runtime
     void *rec_id_hash;
     void *hid_hash;
     int rec_count;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
 static void hdf5_file_runtime_initialize(
@@ -127,7 +128,7 @@ static int my_rank = -1;
     if(!__darshan_disabled) { \
         HDF5_LOCK(); \
         if(!hdf5_file_runtime) hdf5_file_runtime_initialize(); \
-        if(hdf5_file_runtime) break; \
+        if(hdf5_file_runtime && !hdf5_file_runtime->frozen) break; \
     } \
     return(ret); \
 } while(0)
@@ -401,7 +402,7 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     HDF5_LOCK(); \
     if(!darshan_core_disabled_instrumentation()) { \
         if(!hdf5_dataset_runtime) hdf5_dataset_runtime_initialize(); \
-        if(hdf5_dataset_runtime) break; \
+        if(hdf5_dataset_runtime && !hdf5_dataset_runtime->frozen) break; \
     } \
     HDF5_UNLOCK(); \
     return(ret); \
@@ -1648,6 +1649,8 @@ static void hdf5_file_output(
     rec_count = hdf5_file_runtime->rec_count;
     *hdf5_buf_sz = rec_count * sizeof(struct darshan_hdf5_file);
 
+    hdf5_file_runtime->frozen = 1;
+
     HDF5_UNLOCK();
     return;
 }
@@ -1664,6 +1667,8 @@ static void hdf5_dataset_output(
     /* just pass back our updated total buffer size -- no need to update buffer */
     rec_count = hdf5_dataset_runtime->rec_count;
     *hdf5_buf_sz = rec_count * sizeof(struct darshan_hdf5_dataset);
+
+    hdf5_file_runtime->frozen = 1;
 
     HDF5_UNLOCK();
     return;

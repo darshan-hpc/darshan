@@ -144,6 +144,7 @@ struct stdio_runtime
     void *rec_id_hash;
     void *stream_hash;
     int file_rec_count;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
 static struct stdio_runtime *stdio_runtime = NULL;
@@ -190,7 +191,7 @@ extern int __real_fileno(FILE *stream);
     if(!__darshan_disabled) { \
         STDIO_LOCK(); \
         if(!stdio_runtime) stdio_runtime_initialize(); \
-        if(stdio_runtime) break; \
+        if(stdio_runtime && !stdio_runtime->frozen) break; \
     } \
     return(ret); \
 } while(0)
@@ -1467,6 +1468,8 @@ static void stdio_output(
 
     /* just pass back our updated total buffer size -- no need to update buffer */
     *stdio_buf_sz = stdio_rec_count * sizeof(struct darshan_stdio_file);
+
+    stdio_runtime->frozen = 1;
 
     STDIO_UNLOCK();
     return;
