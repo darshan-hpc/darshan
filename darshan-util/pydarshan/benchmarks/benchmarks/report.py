@@ -61,3 +61,29 @@ class ModReadAllDXTRecords:
     def time_mod_read_all_dxt_records(self, dtype, darshan_logfile, mod, read_all):
         self.report.mod_read_all_dxt_records(mod=mod,
                                              dtype=dtype)
+
+class ReportRecordsToDF:
+
+    params = [["examples/example-logs/ior_hdf5_example.darshan",
+               "examples/example-logs/dxt.darshan",
+               "tests/input/sample-dxt-simple.darshan",
+              ],
+              ["POSIX",
+               "LUSTRE",
+               "DXT_POSIX",
+              ],
+              ["default", ["id"], ["rank"], []],
+              ]
+    param_names = ['darshan_logfile', 'mod', 'attach']
+
+    def setup(self, darshan_logfile, mod, attach):
+        filename = os.path.basename(darshan_logfile)
+        if "examples" in darshan_logfile:
+            self.logfile = example_logs.example_data_files_dxt[filename]
+        else:
+            self.logfile = test_data_files_dxt[filename]
+
+        self.report = darshan.DarshanReport(self.logfile)
+
+    def time_report_records_to_df(self, darshan_logfile, mod, attach):
+        self.report.records[mod].to_df(attach=attach)
