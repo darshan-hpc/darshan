@@ -614,7 +614,7 @@ class DarshanReport(object):
 
 
         if self.lookup_name_records:
-            self.update_name_records()
+            self.update_name_records(mod=mod)
 
         # process/combine records if the format dtype allows for this
         if dtype == 'pandas':
@@ -691,7 +691,7 @@ class DarshanReport(object):
 
 
         if self.lookup_name_records:
-            self.update_name_records()
+            self.update_name_records(mod=mod)
 
 
     def mod_read_all_apxc_records(self, mod="APXC", dtype=None, warnings=True):
@@ -740,7 +740,7 @@ class DarshanReport(object):
             rec = backend.log_get_apxc_record(self.log, mod, "PERF", dtype=dtype)
 
         if self.lookup_name_records:
-            self.update_name_records()
+            self.update_name_records(mod=mod)
 
 
     def mod_read_all_dxt_records(self, mod, dtype=None, warnings=True, reads=True, writes=True):
@@ -793,7 +793,7 @@ class DarshanReport(object):
 
 
         if self.lookup_name_records:
-            self.update_name_records()
+            self.update_name_records(mod=mod)
 
 
 
@@ -850,7 +850,7 @@ class DarshanReport(object):
 
 
         if self.lookup_name_records:
-            self.update_name_records()
+            self.update_name_records(mod=mod)
 
         # process/combine records if the format dtype allows for this
         if dtype == 'pandas':
