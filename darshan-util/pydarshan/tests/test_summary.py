@@ -155,6 +155,7 @@ class TestReportData:
             ("tests/input/noposix.darshan", "Anonymized (2018-01-02)"),
             ("tests/input/sample-badost.darshan", "ior (2017-06-20)"),
             ("tests/input/sample-dxt-simple.darshan", "a.out (2021-04-22)"),
+            ("examples/example-logs/dxt.darshan", "N/A (2020-04-21)"),
         ],
     )
     def test_header_and_footer(self, log_path, expected_header):

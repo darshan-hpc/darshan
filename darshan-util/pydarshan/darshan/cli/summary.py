@@ -97,12 +97,10 @@ class ReportData:
         Builds the header string for the summary report.
         """
         command = self.get_full_command(report=self.report)
-        if command != "Anonymized":
-            # when the command line hasn't been anonymized
-            # extract the application from the command line
-            app_name = os.path.basename(command.split()[0])
-        else:
+        if command in ["Anonymized", "N/A"]:
             app_name = command
+        else:
+            app_name = os.path.basename(command.split()[0])
         # collect the date from the time stamp
         date = datetime.date.fromtimestamp(self.report.metadata["job"]["start_time"])
         # the header is the application name and the log date
