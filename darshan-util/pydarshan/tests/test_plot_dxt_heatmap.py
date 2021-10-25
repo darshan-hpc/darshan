@@ -305,8 +305,10 @@ def test_remove_marginal_graph_ticks_and_labels(filepath):
     # regression test ensuring the marginal x/y bar graphs do
     # not have any x/y tick labels or frames
 
+    report = darshan.DarshanReport(filepath)
+
     jgrid = plot_dxt_heatmap.plot_heatmap(
-        log_path=filepath, mods=["DXT_POSIX"], ops=["read", "write"], xbins=100
+        report=report, mods=["DXT_POSIX"], ops=["read", "write"], xbins=100
     )
 
     # verify the heatmap axis is on
@@ -336,7 +338,9 @@ def test_remove_marginal_graph_ticks_and_labels(filepath):
 def test_adjust_for_colorbar(filepath):
     # regression test for `plot_dxt_heatmap.adjust_for_colorbar()`
 
-    jgrid = plot_dxt_heatmap.plot_heatmap(log_path=filepath)
+    report = darshan.DarshanReport(filepath)
+
+    jgrid = plot_dxt_heatmap.plot_heatmap(report=report)
 
     # the plot positions change based on the number of unique ranks.
     # If there is only 1 rank, there is no horizontal bar graph
@@ -410,12 +414,14 @@ def test_adjust_for_colorbar(filepath):
 def test_plot_heatmap(filepath, mods, ops):
     # test the primary plotting function, `plot_dxt_heatmap.plot_heatmap()`
 
+    report = darshan.DarshanReport(filepath)
+
     if mods == ["DXT_MPIIO"]:
         # if the input module is not "DXT_POSIX" check
         # that we raise the appropriate error
         with pytest.raises(NotImplementedError, match="DXT_POSIX module is required."):
             jgrid = plot_dxt_heatmap.plot_heatmap(
-                log_path=filepath, mods=mods, ops=ops, xbins=100
+                report=report, mods=mods, ops=ops, xbins=100
             )
     elif (filepath == "tests/input/sample-dxt-simple.darshan") & (ops == ["read"]):
         # this log file is known to not have any read data, so
@@ -425,11 +431,11 @@ def test_plot_heatmap(filepath, mods, ops):
         )
         with pytest.raises(ValueError, match=expected_msg):
             jgrid = plot_dxt_heatmap.plot_heatmap(
-                log_path=filepath, mods=mods, ops=ops, xbins=100
+                report=report, mods=mods, ops=ops, xbins=100
             )
     else:
         jgrid = plot_dxt_heatmap.plot_heatmap(
-            log_path=filepath, mods=mods, ops=ops, xbins=100
+            report=report, mods=mods, ops=ops, xbins=100
         )
 
         # verify the margins for all plots

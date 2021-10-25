@@ -290,7 +290,7 @@ def adjust_for_colorbar(jointgrid: Any, fig_right: float, cbar_x0: float):
 
 
 def plot_heatmap(
-    log_path: str,
+    report: darshan.DarshanReport,
     mods: Sequence[str] = ["DXT_POSIX"],
     ops: Sequence[str] = ["read", "write"],
     xbins: int = 200,
@@ -301,7 +301,7 @@ def plot_heatmap(
     Parameters
     ----------
 
-    log_path: path to a darshan log file.
+    report: a ``darshan.DarshanReport``.
 
     mods: a sequence of keys designating which Darshan modules to use for
     data aggregation. Default is ``["DXT_POSIX"]``.
@@ -323,9 +323,6 @@ def plot_heatmap(
     NotImplementedError: raised if "DXT_POSIX" is not in the input modules.
 
     """
-    # generate the darshan report
-    report = darshan.DarshanReport(log_path)
-
     if "DXT_POSIX" not in mods:
         # TODO: for the moment reject any cases that don't input "DXT_POSIX"
         # until we can properly aggregate the data
