@@ -263,7 +263,7 @@ class ReportData:
         ############################
         if "DXT_POSIX" in self.report.modules:
             hmap_func = plot_dxt_heatmap.plot_heatmap
-            hmap_args = dict(log_path=self.log_path)
+            hmap_args = dict(report=self.report)
             hmap_description = (
                 "Heat map of I/O (in bytes) over time broken down by MPI rank. "
                 "Bins are populated based on the number of bytes read/written in "
