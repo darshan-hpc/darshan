@@ -45,7 +45,7 @@ class ReportFigure:
         section_title: str,
         fig_title: str,
         fig_func: Callable,
-        fig_args: dict = {},
+        fig_args: dict,
         fig_description: str = "",
         fig_width: int = 500,
     ):
@@ -254,7 +254,58 @@ class ReportData:
 
     def register_figures(self):
         """
-        Generates and registers all possible figures.
+        Collects and registers all figures in the report. This is the
+        method users can edit to alter the report contents.
+
+        Examples
+        --------
+        To add figures to the report, there are a few basic steps:
+
+        1. Make the function used to generate the desired figure
+           callable within the scope of this module.
+        2. Create an entry in this method that contains all of the required
+           information for the figure. This will be described in detail below.
+        3. Use the figure information to create a `ReportFigure`.
+        4. Add the `ReportFigure` to `ReportData.figures`.
+
+        Step #1 is handled by importing the function from the module it is
+        defined in. For step #2, each figure in the report must have the
+        following defined:
+
+        * Section title: the desired section for the figure to be placed.
+          If the section title is unique to the report, a new section
+          will be created for that figure.
+        * Figure title: the title of the figure
+        * Figure function: the function used to produce the figure. This
+          must be callable within the scope of this module (step #1).
+        * Figure arguments: the arguments for the figure function
+
+        Some additional details can be provided as well:
+
+        * Figure description: description of the figure used for the caption
+        * Figure width: width of the figure in pixels
+
+        To complete steps 2-4, an entry can be added to this method,
+        where a typical entry will look like the following:
+
+            # collect all of the info in a dictionary (step #2)
+            fig_params = {
+                "section_title": "Example Section Title",
+                "fig_title": f"Example Title",
+                "fig_func": example_module.example_function,
+                "fig_args": dict(report=self.report),
+                "fig_description": "Example Caption",
+                "fig_width": 500,
+            }
+            # feed the dictionary into ReportFigure (step #3)
+            example_fig = ReportFigure(**fig_params)
+            # add the ReportFigure to ReportData.figures (step #4)
+            self.figures.append(example_fig)
+
+        The order of the sections and figures is based on the order in which
+        they are placed in `self.figures`. Since the DXT figure(s) are added
+        first, they show up at the very top of the figure list.
+
         """
         self.figures = []
 
