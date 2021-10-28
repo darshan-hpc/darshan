@@ -458,5 +458,20 @@ def test_plot_data_shared_x_axis():
         assert_allclose(diff, 0)
 
     # log scale values:
-    assert_allclose(np.array(bytes_column_x_axis_limits)[..., 1], 158489319246.11108)
-    assert_allclose(np.array(files_column_x_axis_limits)[..., 1], 1584893.192461)
+    assert_allclose(np.array(bytes_column_x_axis_limits)[..., 1], 1.05e+11)
+    assert_allclose(np.array(files_column_x_axis_limits)[..., 1], 1.05e+6)
+
+
+@pytest.mark.parametrize('filename', ['imbalanced-io.darshan'])
+def test_log_scale_display(tmpdir, log_repo_files, select_log_repo_file):
+    # plot columns that are log scaled should be
+    # labelled appropriately
+    with tmpdir.as_cwd():
+        fig = data_access_by_filesystem.plot_with_log_file(log_file_path=select_log_repo_file,
+                                                           plot_filename='test')
+        # only index 30 should have the log axis label
+        for i, axis in enumerate(fig.axes):
+            if i == 30:
+                assert 'symmetric log scaled' in axis.get_xlabel()
+            else:
+                assert axis.get_xlabel() == ''

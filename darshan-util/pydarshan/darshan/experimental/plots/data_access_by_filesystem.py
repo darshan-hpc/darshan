@@ -480,8 +480,8 @@ def plot_data(fig: Any,
     for idx, series_pair in enumerate([[bytes_rd_series, bytes_wr_series],
                                        [file_rd_series, file_wr_series]]):
         maxval = max(series_pair[0].max(), series_pair[1].max())
-        minval = min(series_pair[0].min(), series_pair[1].min())
-        ratio = maxval / minval
+        minval = max(min(series_pair[0].min(), series_pair[1].min()), 1)
+        ratio = (maxval / minval) / 1048576
         if ratio > 100:
             use_log[idx] = True
 
@@ -495,10 +495,10 @@ def plot_data(fig: Any,
         if row > 0:
             ax_filesystem_bytes.get_shared_x_axes().join(ax_filesystem_bytes, list_byte_axes[row - 1])
             if use_log[0]:
-                ax_filesystem_bytes.set_xscale('log')
+                ax_filesystem_bytes.set_xscale('symlog')
             ax_filesystem_counts.get_shared_x_axes().join(ax_filesystem_counts, list_count_axes[row - 1])
             if use_log[1]:
-                ax_filesystem_counts.set_xscale('log')
+                ax_filesystem_counts.set_xscale('symlog')
 
         list_byte_axes.append(ax_filesystem_bytes)
         list_count_axes.append(ax_filesystem_counts)
@@ -554,6 +554,11 @@ def plot_data(fig: Any,
             axis.xaxis.set_ticks_position('none')
             axis.yaxis.set_ticks_position('none')
             axis.minorticks_off()
+
+    if use_log[0]:
+        ax_filesystem_bytes.set_xlabel('symmetric log scaled')
+    if use_log[1]:
+        ax_filesystem_counts.set_xlabel('symmetric log scaled')
 
 
 def plot_with_log_file(log_file_path: str, plot_filename: str, verbose: bool = False):
