@@ -462,6 +462,8 @@ def test_plot_data_shared_x_axis():
     assert_allclose(np.array(files_column_x_axis_limits)[..., 1], 1.05e+6)
 
 
+@pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
+                    reason="missing darshan_logs")
 @pytest.mark.parametrize('filename', ['imbalanced-io.darshan'])
 def test_log_scale_display(tmpdir, log_repo_files, select_log_repo_file):
     # plot columns that are log scaled should be
