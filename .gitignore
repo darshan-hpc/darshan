@@ -4,6 +4,7 @@
 *.s
 *.swp
 *.h.in
+*.h.in~
 autom4te.cache/
 config.log
 config.status
