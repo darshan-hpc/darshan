@@ -8,8 +8,12 @@ import copy
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
+import pandas as pd
+from pandas.testing import assert_frame_equal
 
 import darshan
+import darshan.backend.cffi_backend as backend
+from darshan.report import DarshanRecordCollection
 
 
 @pytest.fixture
@@ -182,3 +186,132 @@ def test_deepcopy_fidelity_darshan_report(key, subkey):
     # with the original object (or deepcopies thereof)
     assert not np.may_share_memory(report_deepcopy.data['records'][key].to_numpy()[0][subkey],
                                    report.data['records'][key].to_numpy()[0][subkey])
+
+
+class TestDarshanRecordCollection:
+
+    @pytest.mark.parametrize("mod",
+        ["POSIX", "MPI-IO", "STDIO", "H5F", "H5D", "DXT_POSIX", "DXT_MPIIO"]
+    )
+    @pytest.mark.parametrize("attach", ["default", ["id"], ["rank"], None])
+    def test_to_df_synthetic(self, mod, attach):
+        # test for `DarshanRecordCollection.to_df()`
+        # builds `DarshanRecordCollection`s from scratch, injects 
+        # random numpy data, then verifies the data is conserved
+
+        # adjust "attach" so it's easier to handle downstream
+        if attach == "default":
+            attach = ["rank", "id"]
+
+        # generate arrays for generating synthetic records
+        rank_data = np.arange(0, 20, 4, dtype=np.int64)
+        id_data = np.array(
+            [
+                14734109647742566553,
+                15920181672442173319,
+                7238257241479193519,
+                10384774853006289996,
+                9080082818774558450,
+            ],
+            dtype=np.uint64,
+        )
+
+        # use an arbitrary log to generate an empty DarshanRecordCollection
+        report = darshan.DarshanReport("examples/example-logs/ior_hdf5_example.darshan")
+        collection = DarshanRecordCollection(report=report, mod=mod)
+
+        if "DXT_" in mod:
+            # generate some random arrays to use for the synthetic DXT records
+            start_data = np.random.rand(5, 8)
+            # to keep the values realistic, just add 1 to the start times
+            end_data = start_data + 1
+
+            expected_records = []
+            for id, rank, start, end in zip(id_data, rank_data, start_data, end_data):
+                # each DXT record contains a dictionary for both read
+                # and write segments
+                rd_dict = {
+                    "offset": np.random.randint(0, 1000, size=(8,),
+                    "length": np.random.randint(0, 100000, size=(8,)),
+                    "start_time": start,
+                    "end_time": end,
+                }
+                # add an arbitrary number so the values
+                # are unique for each record
+                wr_dict = {
+                    "offset": np.random.randint(0, 1000, size=(8,),
+                    "length": np.random.randint(0, 100000, size=(8,)),
+                    "start_time": start + 10,
+                    "end_time": end + 10,
+                }
+                # use the read/write dictionaries to make a record
+                rec = {
+                    "id": id,
+                    "rank": rank,
+                    "read_segments": rd_dict,
+                    "write_segments": wr_dict,
+                }
+                # When `to_df()` is called, the only thing that changes
+                # is the dictionaries are turned into pandas dataframes
+                rec_df = {
+                    "id": id,
+                    "rank": rank,
+                    "read_segments": pd.DataFrame(rd_dict),
+                    "write_segments": pd.DataFrame(wr_dict),
+                }
+                collection.append(rec)
+                expected_records.append(rec_df)
+
+        else:
+            # retrieve the counter/fcounter column names
+            counter_cols = backend.counter_names(mod)
+            fcounter_cols = backend.fcounter_names(mod)
+            # count the number of column names
+            n_ct_cols = len(counter_cols)
+            n_fct_cols = len(fcounter_cols)
+            # use the column counts to generate random arrays
+            # and generate the counter and fcounter dataframes
+            counter_data = np.random.randint(0, 100, size=(5, n_ct_cols))
+            fcounter_data = np.random.rand(5, n_fct_cols)
+            expected_ct_df = pd.DataFrame(
+                counter_data,
+                columns=counter_cols,
+            )
+            expected_fct_df = pd.DataFrame(
+                fcounter_data,
+                columns=fcounter_cols,
+            )
+
+            # if attach is specified, the expected
+            # dataframes have to be modified
+            if attach:
+                if "id" in attach:
+                    # if the ids are attached, build a dataframe for them
+                    # then prepend it to the original expected dataframe
+                    id_df = pd.DataFrame(id_data, columns=["id"])
+                    expected_ct_df = pd.concat([id_df, expected_ct_df], axis=1)
+                    expected_fct_df = pd.concat([id_df, expected_fct_df], axis=1)
+                if "rank" in attach:
+                    # if the ranks are attached, prepend them as well
+                    rank_df = pd.DataFrame(rank_data, columns=["rank"])
+                    expected_ct_df = pd.concat([rank_df, expected_ct_df], axis=1)
+                    expected_fct_df = pd.concat([rank_df, expected_fct_df], axis=1)
+
+            # use the same data to generate the synthetic records
+            # with the default data structures
+            for rank, id, ct_row, fct_row in zip(rank_data, id_data, counter_data, fcounter_data):
+                rec = {"rank": rank, "id": id, "counters": ct_row, "fcounters": fct_row}
+                collection.append(rec)
+
+        actual_records = collection.to_df(attach=attach)
+        if "DXT_" in mod:
+            for actual, expected in zip(actual_records, expected_records):
+                assert actual["id"] == expected["id"]
+                assert actual["rank"] == expected["rank"]
+                assert_frame_equal(actual["read_segments"], expected["read_segments"])
+                assert_frame_equal(actual["write_segments"], expected["write_segments"])
+        else:
+            actual_ct_df = actual_records["counters"]
+            actual_fct_df = actual_records["fcounters"]
+            assert_frame_equal(actual_ct_df, expected_ct_df)
+            assert_frame_equal(actual_fct_df, expected_fct_df)
