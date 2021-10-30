@@ -9,7 +9,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 import pandas as pd
-from pandas.testing import assert_frame_equal
+from pandas.testing import assert_frame_equal # type: ignore
 
 import darshan
 import darshan.backend.cffi_backend as backend
@@ -231,7 +231,7 @@ class TestDarshanRecordCollection:
                 # each DXT record contains a dictionary for both read
                 # and write segments
                 rd_dict = {
-                    "offset": np.random.randint(0, 1000, size=(8,),
+                    "offset": np.random.randint(0, 1000, size=(8,)),
                     "length": np.random.randint(0, 100000, size=(8,)),
                     "start_time": start,
                     "end_time": end,
@@ -239,7 +239,7 @@ class TestDarshanRecordCollection:
                 # add an arbitrary number so the values
                 # are unique for each record
                 wr_dict = {
-                    "offset": np.random.randint(0, 1000, size=(8,),
+                    "offset": np.random.randint(0, 1000, size=(8,)),
                     "length": np.random.randint(0, 100000, size=(8,)),
                     "start_time": start + 10,
                     "end_time": end + 10,
