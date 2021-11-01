@@ -229,10 +229,10 @@ void darshan_core_initialize(int argc, char **argv)
     if (__darshan_core != NULL || getenv("DARSHAN_DISABLE"))
         return;
 
+    init_start = darshan_core_wtime_absolute();
     if(getenv("DARSHAN_INTERNAL_TIMING"))
     {
         internal_timing_flag = 1;
-        init_start = darshan_core_wtime_absolute();
     }
 
     #if (__DARSHAN_MEM_ALIGNMENT < 1)
