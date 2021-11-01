@@ -8,6 +8,9 @@ import copy
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
+
+rng = np.random.default_rng(seed=0)
+
 import pandas as pd
 from pandas.testing import assert_frame_equal # type: ignore
 
@@ -222,7 +225,7 @@ class TestDarshanRecordCollection:
 
         if "DXT_" in mod:
             # generate some random arrays to use for the synthetic DXT records
-            start_data = np.random.rand(5, 8)
+            start_data = rng.random(size=(5, 8))
             # to keep the values realistic, just add 1 to the start times
             end_data = start_data + 1
 
@@ -231,16 +234,16 @@ class TestDarshanRecordCollection:
                 # each DXT record contains a dictionary for both read
                 # and write segments
                 rd_dict = {
-                    "offset": np.random.randint(0, 1000, size=(8,)),
-                    "length": np.random.randint(0, 100000, size=(8,)),
+                    "offset": rng.integers(low=0, high=1000, size=(8,)),
+                    "length": rng.integers(low=0, high=100000, size=(8,)),
                     "start_time": start,
                     "end_time": end,
                 }
                 # add an arbitrary number so the values
                 # are unique for each record
                 wr_dict = {
-                    "offset": np.random.randint(0, 1000, size=(8,)),
-                    "length": np.random.randint(0, 100000, size=(8,)),
+                    "offset": rng.integers(low=0, high=1000, size=(8,)),
+                    "length": rng.integers(low=0, high=100000, size=(8,)),
                     "start_time": start + 10,
                     "end_time": end + 10,
                 }
@@ -271,8 +274,8 @@ class TestDarshanRecordCollection:
             n_fct_cols = len(fcounter_cols)
             # use the column counts to generate random arrays
             # and generate the counter and fcounter dataframes
-            counter_data = np.random.randint(0, 100, size=(5, n_ct_cols))
-            fcounter_data = np.random.rand(5, n_fct_cols)
+            counter_data = rng.integers(low=0, high=100, size=(5, n_ct_cols))
+            fcounter_data = rng.random(size=(5, n_fct_cols))
             expected_ct_df = pd.DataFrame(
                 counter_data,
                 columns=counter_cols,
