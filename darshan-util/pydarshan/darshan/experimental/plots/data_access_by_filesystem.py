@@ -185,8 +185,7 @@ def rec_to_rw_counter_dfs(report: Any,
     -------
     tuple of form: (df_reads, df_writes)
     """
-    report.mod_read_all_records(mod, dtype='pandas')
-    rec_counters = report.records[mod][0]['counters']
+    rec_counters = report.records[mod].to_df()['counters']
     
     # first, filter to produce a dataframe where {mod}_BYTES_READ >= 1
     # for each row (tracked event for a given rank or group of ranks)
