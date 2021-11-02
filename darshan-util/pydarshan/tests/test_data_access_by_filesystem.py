@@ -458,8 +458,15 @@ def test_plot_data_shared_x_axis():
         assert_allclose(diff, 0)
 
     # log scale values:
-    assert_allclose(np.array(bytes_column_x_axis_limits)[..., 1], 1.05e+11)
-    assert_allclose(np.array(files_column_x_axis_limits)[..., 1], 1.05e+6)
+    assert_allclose(np.array(bytes_column_x_axis_limits)[..., 1], 3.89496945e+11)
+    assert_allclose(np.array(files_column_x_axis_limits)[..., 1], 2190302.282682)
+
+    # check for log scaling in both columns
+    for i, axis in enumerate(fig.axes):
+        if i in [6, 7]:
+            assert 'symmetric log scaled' in axis.get_xlabel()
+        else:
+            assert axis.get_xlabel() == ''
 
 
 @pytest.mark.skipif(not pytest.has_log_repo, # type: ignore

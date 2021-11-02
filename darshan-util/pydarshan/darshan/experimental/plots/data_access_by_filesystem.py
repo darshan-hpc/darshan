@@ -476,11 +476,12 @@ def plot_data(fig: Any,
     # use log10 scale if range exceeds
     # two orders of magnitude in a column
     use_log = [False, False]
-    for idx, series_pair in enumerate([[bytes_rd_series, bytes_wr_series],
-                                       [file_rd_series, file_wr_series]]):
+    for idx, series_pair in enumerate([[bytes_rd_series, bytes_wr_series, 1048576],
+                                       [file_rd_series, file_wr_series, 1]]):
         maxval = max(series_pair[0].max(), series_pair[1].max())
         minval = max(min(series_pair[0].min(), series_pair[1].min()), 1)
-        ratio = (maxval / minval) / 1048576
+        # adjust ratio to MiB when needed
+        ratio = ((maxval / series_pair[2]) / (minval / series_pair[2]))
         if ratio > 100:
             use_log[idx] = True
 
