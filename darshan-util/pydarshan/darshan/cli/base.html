@@ -28,6 +28,27 @@
         ${report_data.module_table}
       </section>
 
+      <!-- Add sections and their figures  -->
+      % for sect_title in report_data.sections:
+          <section>
+          <h2>${sect_title}</h2>
+          % for fig_title, fig in report_data.sections[sect_title].items():
+            <h3>${fig_title}</h3>
+            <figure style="width: ${fig.fig_width}px;">
+            % if fig.img_str:
+              ${fig.img_str}
+              <figcaption>${fig.fig_description}</figcaption>
+            % else:
+              <!-- temporary handling for DXT-disabled cases -->
+              <figcaption style="font-weight: bold; color: red; width: 400px;">
+                ${fig.fig_description}
+              </figcaption>
+            % endif
+          </figure>
+          </section>
+          % endfor
+      % endfor
+
       <!-- Add the footer -->
       <div class="fixed-footer">
         <p>${report_data.footer}</p>
