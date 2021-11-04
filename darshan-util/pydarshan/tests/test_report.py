@@ -8,9 +8,6 @@ import copy
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
-
-rng = np.random.default_rng(seed=0)
-
 import pandas as pd
 from pandas.testing import assert_frame_equal # type: ignore
 
@@ -201,6 +198,9 @@ class TestDarshanRecordCollection:
         # test for `DarshanRecordCollection.to_df()`
         # builds `DarshanRecordCollection`s from scratch, injects 
         # random numpy data, then verifies the data is conserved
+
+        # for reproducibility, initialize a seeded random number generator
+        rng = np.random.default_rng(seed=0)
 
         # adjust "attach" so it's easier to handle downstream
         if attach == "default":
