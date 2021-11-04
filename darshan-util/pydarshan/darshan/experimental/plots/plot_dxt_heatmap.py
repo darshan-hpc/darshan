@@ -425,7 +425,4 @@ def plot_heatmap(
     jgrid.ax_joint.set_xlabel("Time (s)")
     jgrid.ax_joint.set_ylabel("Rank")
 
-    # set the figure title
-    title_str = "Module(s): " + ", ".join(mods)
-    jgrid.fig.suptitle(title_str, fontsize=11)
     return jgrid
