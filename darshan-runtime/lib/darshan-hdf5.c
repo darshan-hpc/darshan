@@ -4,10 +4,13 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+# include <darshan-runtime-config.h>
+#endif
+
 #define _XOPEN_SOURCE 500
 #define _GNU_SOURCE
 
-#include "darshan-runtime-config.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -69,6 +72,7 @@ struct hdf5_runtime
     void *rec_id_hash;
     void *hid_hash;
     int rec_count;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
 static void hdf5_file_runtime_initialize(
@@ -113,17 +117,25 @@ static int my_rank = -1;
 #define HDF5_LOCK() pthread_mutex_lock(&hdf5_runtime_mutex)
 #define HDF5_UNLOCK() pthread_mutex_unlock(&hdf5_runtime_mutex)
 
+#define HDF5_WTIME() \
+    __darshan_disabled ? 0 : darshan_core_wtime();
+
 /*********************************************************
  *        Wrappers for H5F functions of interest         * 
  *********************************************************/
 
+/* note that if the break condition is triggered in this macro, then it
+ * will exit the do/while loop holding a lock that will be released in
+ * POST_RECORD().  Otherwise it will release the lock here (if held) and
+ * return immediately without reaching the POST_RECORD() macro.
+ */
 #define H5F_PRE_RECORD() do { \
-    HDF5_LOCK(); \
-    if(!darshan_core_disabled_instrumentation()) { \
+    if(!__darshan_disabled) { \
+        HDF5_LOCK(); \
         if(!hdf5_file_runtime) hdf5_file_runtime_initialize(); \
-        if(hdf5_file_runtime) break; \
+        if(hdf5_file_runtime && !hdf5_file_runtime->frozen) break; \
+        HDF5_UNLOCK(); \
     } \
-    HDF5_UNLOCK(); \
     return(ret); \
 } while(0)
 
@@ -207,9 +219,9 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
 
     MAP_OR_FAIL(H5Fcreate);
 
-    tm1 = darshan_core_wtime();
+    tm1 = HDF5_WTIME();
     ret = __real_H5Fcreate(filename, flags, create_plist, access_plist);
-    tm2 = darshan_core_wtime();
+    tm2 = HDF5_WTIME();
 
     if(ret >= 0)
     {
@@ -283,9 +295,9 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
 
     MAP_OR_FAIL(H5Fopen);
 
-    tm1 = darshan_core_wtime();
+    tm1 = HDF5_WTIME();
     ret = __real_H5Fopen(filename, flags, access_plist);
-    tm2 = darshan_core_wtime();
+    tm2 = HDF5_WTIME();
 
     if(ret >= 0)
     {
@@ -322,9 +334,9 @@ herr_t DARSHAN_DECL(H5Fflush)(hid_t object_id, H5F_scope_t scope)
 
     MAP_OR_FAIL(H5Fflush);
 
-    tm1 = darshan_core_wtime();
+    tm1 = HDF5_WTIME();
     ret = __real_H5Fflush(object_id, scope);
-    tm2 = darshan_core_wtime();
+    tm2 = HDF5_WTIME();
 
     /* convert object_id to file_id so we can look it up */
     if(ret >= 0)
@@ -357,9 +369,9 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 
     MAP_OR_FAIL(H5Fclose);
 
-    tm1 = darshan_core_wtime();
+    tm1 = HDF5_WTIME();
     ret = __real_H5Fclose(file_id);
-    tm2 = darshan_core_wtime();
+    tm2 = HDF5_WTIME();
 
     if(ret >= 0)
     {
@@ -392,13 +404,18 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 #define DARSHAN_HDF5_MAX_NAME_LEN 256
 #define DARSHAN_HDF5_DATASET_DELIM ":"
 
+/* note that if the break condition is triggered in this macro, then it
+ * will exit the do/while loop holding a lock that will be released in
+ * POST_RECORD().  Otherwise it will release the lock here (if held) and
+ * return immediately without reaching the POST_RECORD() macro.
+ */
 #define H5D_PRE_RECORD() do { \
-    HDF5_LOCK(); \
-    if(!darshan_core_disabled_instrumentation()) { \
+    if(!__darshan_disabled) { \
+        HDF5_LOCK(); \
         if(!hdf5_dataset_runtime) hdf5_dataset_runtime_initialize(); \
-        if(hdf5_dataset_runtime) break; \
+        if(hdf5_dataset_runtime && !hdf5_dataset_runtime->frozen) break; \
+        HDF5_UNLOCK(); \
     } \
-    HDF5_UNLOCK(); \
     return(ret); \
 } while(0)
 
@@ -474,9 +491,9 @@ hid_t DARSHAN_DECL(H5Dcreate1)(hid_t loc_id, const char *name, hid_t type_id, hi
 
     MAP_OR_FAIL(H5Dcreate1);
 
-    tm1 = darshan_core_wtime();
+    tm1 = HDF5_WTIME();
     ret = __real_H5Dcreate1(loc_id, name, type_id, space_id, dcpl_id);
-    tm2 = darshan_core_wtime();
+    tm2 = HDF5_WTIME();
 
     if(ret >= 0)
     {
@@ -496,9 +513,9 @@ hid_t DARSHAN_DECL(H5Dcreate2)(hid_t loc_id, const char *name, hid_t dtype_id, h
 
     MAP_OR_FAIL(H5Dcreate2);
 
-    tm1 = darshan_core_wtime();
+    tm1 = HDF5_WTIME();
     ret = __real_H5Dcreate2(loc_id, name, dtype_id, space_id, lcpl_id, dcpl_id, dapl_id);
-    tm2 = darshan_core_wtime();
+    tm2 = HDF5_WTIME();
 
     if(ret >= 0)
     {
@@ -520,9 +537,9 @@ hid_t DARSHAN_DECL(H5Dopen1)(hid_t loc_id, const char *name)
 
     MAP_OR_FAIL(H5Dopen1);
 
-    tm1 = darshan_core_wtime();
+    tm1 = HDF5_WTIME();
     ret = __real_H5Dopen1(loc_id, name);
-    tm2 = darshan_core_wtime();
+    tm2 = HDF5_WTIME();
 
     if(ret >= 0)
     {
@@ -566,9 +583,9 @@ hid_t DARSHAN_DECL(H5Dopen2)(hid_t loc_id, const char *name, hid_t dapl_id)
 
     MAP_OR_FAIL(H5Dopen2);
 
-    tm1 = darshan_core_wtime();
+    tm1 = HDF5_WTIME();
     ret = __real_H5Dopen2(loc_id, name, dapl_id);
-    tm2 = darshan_core_wtime();
+    tm2 = HDF5_WTIME();
 
     if(ret >= 0)
     {
@@ -619,14 +636,13 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
     int i;
     double tm1, tm2, elapsed;
     herr_t ret;
-    herr_t tmp_ret;
 
     MAP_OR_FAIL(H5Dread);
 
-    tm1 = darshan_core_wtime();
+    tm1 = HDF5_WTIME();
     ret = __real_H5Dread(dataset_id, mem_type_id, mem_space_id, file_space_id,
         xfer_plist_id, buf);
-    tm2 = darshan_core_wtime();
+    tm2 = HDF5_WTIME();
 
     if(ret >= 0)
     {
@@ -697,6 +713,7 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
 #ifdef DARSHAN_HDF5_PAR_BUILD
             if(xfer_plist_id != H5P_DEFAULT)
             {
+                herr_t tmp_ret;
                 H5FD_mpio_xfer_t xfer_mode;
                 tmp_ret = H5Pget_dxpl_mpio(xfer_plist_id, &xfer_mode);
                 if(tmp_ret >= 0 && xfer_mode == H5FD_MPIO_COLLECTIVE)
@@ -740,14 +757,13 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
     int i;
     double tm1, tm2, elapsed;
     herr_t ret;
-    herr_t tmp_ret;
 
     MAP_OR_FAIL(H5Dwrite);
 
-    tm1 = darshan_core_wtime();
+    tm1 = HDF5_WTIME();
     ret = __real_H5Dwrite(dataset_id, mem_type_id, mem_space_id, file_space_id,
         xfer_plist_id, buf);
-    tm2 = darshan_core_wtime();
+    tm2 = HDF5_WTIME();
 
     if(ret >= 0)
     {
@@ -818,6 +834,7 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
 #ifdef DARSHAN_HDF5_PAR_BUILD
             if(xfer_plist_id != H5P_DEFAULT)
             {
+                herr_t tmp_ret;
                 H5FD_mpio_xfer_t xfer_mode;
                 tmp_ret = H5Pget_dxpl_mpio(xfer_plist_id, &xfer_mode);
                 if(tmp_ret >= 0 && xfer_mode == H5FD_MPIO_COLLECTIVE)
@@ -853,9 +870,9 @@ herr_t DARSHAN_DECL(H5Dflush)(hid_t dataset_id)
 
     MAP_OR_FAIL(H5Dflush);
 
-    tm1 = darshan_core_wtime();
+    tm1 = HDF5_WTIME();
     ret = __real_H5Dflush(dataset_id);
-    tm2 = darshan_core_wtime();
+    tm2 = HDF5_WTIME();
 
     if(ret >= 0)
     {
@@ -884,9 +901,9 @@ herr_t DARSHAN_DECL(H5Dclose)(hid_t dataset_id)
 
     MAP_OR_FAIL(H5Dclose);
 
-    tm1 = darshan_core_wtime();
+    tm1 = HDF5_WTIME();
     ret = __real_H5Dclose(dataset_id);
-    tm2 = darshan_core_wtime();
+    tm2 = HDF5_WTIME();
 
     if(ret >= 0)
     {
@@ -1643,6 +1660,8 @@ static void hdf5_file_output(
     rec_count = hdf5_file_runtime->rec_count;
     *hdf5_buf_sz = rec_count * sizeof(struct darshan_hdf5_file);
 
+    hdf5_file_runtime->frozen = 1;
+
     HDF5_UNLOCK();
     return;
 }
@@ -1659,6 +1678,8 @@ static void hdf5_dataset_output(
     /* just pass back our updated total buffer size -- no need to update buffer */
     rec_count = hdf5_dataset_runtime->rec_count;
     *hdf5_buf_sz = rec_count * sizeof(struct darshan_hdf5_dataset);
+
+    hdf5_dataset_runtime->frozen = 1;
 
     HDF5_UNLOCK();
     return;

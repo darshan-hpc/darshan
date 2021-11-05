@@ -1,3 +1,7 @@
+#ifdef HAVE_CONFIG_H
+# include "darshan-util-config.h"
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>

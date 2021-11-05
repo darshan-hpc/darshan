@@ -3,10 +3,12 @@
  * See COPYRIGHT notice in top-level directory.
  *
  */
+#ifdef HAVE_CONFIG_H
+# include <darshan-runtime-config.h>
+#endif
+
 #define _XOPEN_SOURCE 500
 #define _GNU_SOURCE
-
-#include "darshan-runtime-config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,27 +20,6 @@
 #include "uthash.h"
 
 #include "darshan.h"
-
-/* track opaque record referencre using a hash link */
-struct darshan_record_ref_tracker
-{
-    void *rec_ref_p;
-    UT_hash_handle hlink;
-};
-
-void *darshan_lookup_record_ref(void *hash_head, void *handle, size_t handle_sz)
-{
-    struct darshan_record_ref_tracker *ref_tracker;
-    struct darshan_record_ref_tracker *ref_tracker_head =
-        (struct darshan_record_ref_tracker *)hash_head;
-
-    /* search the hash table for the given handle */
-    HASH_FIND(hlink, ref_tracker_head, handle, handle_sz, ref_tracker);
-    if(ref_tracker)
-        return(ref_tracker->rec_ref_p);
-    else
-        return(NULL);
-}
 
 int darshan_add_record_ref(void **hash_head_p, void *handle, size_t handle_sz,
     void *rec_ref_p)

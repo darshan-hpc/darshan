@@ -432,7 +432,7 @@ open(PSX_OP_COUNTS, ">$tmp_dir/posix-op-counts.dat") || die("error opening outpu
 print PSX_OP_COUNTS "# <operation>, <POSIX count>\n";
 # filter out negative mmap values (these indicate that mmap was not
 # instrumented by Darshan; the value is not meaningful to plot)
-if($summary{POSIX_MMAPS} < 0)
+if(defined $summary{POSIX_MMAPS} && $summary{POSIX_MMAPS} < 0)
 {
     $summary{POSIX_MMAPS} = 0;
 }

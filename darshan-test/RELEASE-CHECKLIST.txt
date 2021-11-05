@@ -1,40 +1,53 @@
 Notes on how to release a new version of Darshan
-2013-05
+2021-06
 -----------------------
 
-- check Darshan GitLab to see if there are any pending tickets for this
-  release/milestone if applicable
-  (https://xgitlab.cels.anl.gov/darshan/darshan/milestones)
-- check for any problems in jenkins nightly builds
-- make sure that documentation in darshan-util/doc/ and darshan-runtime/doc/
-  are up to date
-- update the Changelog if needed (browse git log since last release)
-  - commit
-- update version number in configure.in (see AC_INIT)
-  - in both darshan-util/ and darshan-runtime/
-  - re-run ./prepare in both darshan-util and darshan-runtime
-  - commit
-- generate example output files on x86_64 and commit in
-  darshan-test/example-output/ directory
-- use "git status" to make sure that all changes have been committed and
-  pushed to origin/master
-- make a tag for the release according to instructions at
-  http://git-scm.com/book/en/Git-Basics-Tagging
-  - example (annotated tag, pushed to repo):
-    git tag -a darshan-2.3.1-pre2 -m 'Darshan 2.3.1-pre2'
-    git push origin darshan-2.3.1-pre2
-- TESTING
-  - manually trigger jenkins test
-  - run regression tests on BG platform (see
-    darshan-test/regression/README.BG.ALCF.txt)
-- export the tag and tar gzip it
-  - do a fresh checkout of the Darshan tag
-  - make sure to pull in AutoPerf submodule (git submodule update --init)
-  - remove the .git subdirectory
-  - upload .tar.gz file to /mcs/ftp/pub/darshan/releases
-- generate web documentation from asciidoc by running make in
-  darshan-util/doc/ and darshan-runtime/doc/ directories
-  - upload .html files to /mcs/web/research/projects/darshan/docs
-- update download page on darshan web site: www.mcs.anl.gov/darshan/download
-- announce on web page (new post) and mailing list
-
+ 1) check Darshan GitHub to see if there are any pending issues and/or PRs
+    for the release milestone
+    (https://github.com/darshan-hpc/darshan/milestones)
+ 2) check for any problems in Jenkins and ALCF CI regular builds
+ 3) make sure that documentation in darshan-util/doc/ and darshan-runtime/doc/
+    are up to date
+    - commit
+ 4) update the Changelog, if needed (browse git log since last release)
+    - commit
+ 5) update version number in configure.in (see AC_INIT)
+    - in both darshan-util/ and darshan-runtime/
+    - re-run ./prepare in both darshan-util and darshan-runtime
+    - commit
+ 6) follow checklist for corresponding release of PyDarshan
+    - found at darshan-util/pydarshan/RELEASE-CHECKLIST-PyDarshan.txt
+    - NOTE: new PyDarshan version must be released with every Darshan release
+ 7) use "git status" to make sure that all changes have been committed and
+    pushed to origin/main
+ 8) TESTING
+    - manually trigger Jenkins and ALCF CI tests
+ 9) generate example output files on x86_64 and commit in
+    darshan-test/example-output/ directory
+10) make a tag for the release according to instructions at
+    http://git-scm.com/book/en/Git-Basics-Tagging
+    - example (annotated tag, pushed to repo):
+      git tag -a darshan-2.3.1 -m 'Darshan 2.3.1'
+      git push origin darshan-2.3.1
+11) manually create the release tarball
+    - do a fresh checkout of the Darshan release tag
+      git clone --branch darshan-2.3.1 \
+      https://github.com/darshan-hpc/darshan.git darshan-2.3.1
+    - make sure to pull in AutoPerf submodule
+      git submodule update --init
+    - remove all .git files/directories in the top-level of the repo
+    - create release tarball
+      tar -czvf darshan-2.3.1.tar.gz /path/to/darshan-2.3.1
+    - upload tarball to MCS FTP server
+      scp -J user@homes.cels.anl.gov darshan-2.3.1.tar.gz \
+      user@login.mcs.anl.gov:/mcs/ftp/pub/darshan/releases/
+      (NOTE: must copy files through CELS servers to reach MCS)
+12) generate web documentation from asciidoc by running make in
+    darshan-util/doc/ and darshan-runtime/doc/ directories
+    - upload .html files to MCS server (/mcs/web/research/projects/darshan/docs)
+13) update download page on darshan web site: www.mcs.anl.gov/darshan/download
+14) update darshan-runtime and darshan-util Spack packages with new release
+    - consider whether new variants should be exposed based on new features
+      enabled by the release
+    - commit, submit PR to upstream Spack repository
+15) announce on web page (new post) and mailing list
