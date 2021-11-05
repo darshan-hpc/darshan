@@ -309,6 +309,20 @@ if test "x$enable_darshan_runtime" = xyes ; then
                       [-]) # this last part tells it to only check for presence
    fi
 
+   #AUTOPERF NVGPU module
+   AC_ARG_ENABLE([apnvgpu-mod],
+      [AS_HELP_STRING([--enable-apnvgpu-mod],
+                      [Enables compilation and use of AUTOPERF APNVGPU module (requires TAU to be configured and built with CUDA)])],
+      [], [enable_apnvgpu_mod=no]
+   )
+   if test "x$enable_apnvgpu_mod" = xyes ; then
+      abssrcdir=$(readlink -f ${srcdir})
+      AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apnvgpu/darshan-apnvgpu-log-format.h],
+                      [],
+                      [AC_MSG_ERROR([The Autoperf NVGPU git submodule is not present])],
+                      [-]) # this last part tells it to only check for presence
+   fi
+
    # inform about HDF5 installs not found in default locations
    AC_ARG_WITH([hdf5],
       [AS_HELP_STRING([--with-hdf5@<:@=DIR@:>@],
@@ -676,6 +690,7 @@ else
    enable_mpiio_mod=no
    enable_apmpi_mod=no
    enable_apxc_mod=no
+   enable_apnvgpu_mod=no
    enable_hdf5_mod=no
    enable_pnetcdf_mod=no
    enable_bgq_mod=no
@@ -700,6 +715,7 @@ AM_CONDITIONAL(BUILD_BGQ_MODULE,    [test "x$enable_bgq_mod"     = xyes])
 AM_CONDITIONAL(BUILD_LUSTRE_MODULE, [test "x$enable_lustre_mod"  = xyes])
 AM_CONDITIONAL(BUILD_MDHIM_MODULE,  [test "x$enable_mdhim_mod"   = xyes])
 AM_CONDITIONAL(BUILD_APMPI_MODULE,  [test "x$enable_apmpi_mod"   = xyes])
+AM_CONDITIONAL(BUILD_APNVGPU_MODULE,[test "x$enable_apnvgpu_mod" = xyes])
 AM_CONDITIONAL(BUILD_APXC_MODULE,   [test "x$enable_apxc_mod"    = xyes])
 
 AC_CONFIG_FILES(Makefile \
@@ -762,18 +778,19 @@ if test "x$enable_darshan_runtime" = xyes ; then
    fi
    echo "\
            GCC-compatible compiler       - $with_gcc
-           NULL          module support  - $enable_null_mod
-           POSIX         module support  - $enable_posix_mod
-           STDIO         module support  - $enable_stdio_mod
-           DXT           module support  - $enable_dxt_mod
-           MPI-IO        module support  - $enable_mpiio_mod
-           AUTOPERF MPI  module support  - $enable_apmpi_mod
-           AUTOPERF XC   module support  - $enable_apxc_mod
-           HDF5          module support  - $enable_hdf5_mod
-           PnetCDF       module support  - $enable_pnetcdf_mod
-           BG/Q          module support  - $enable_bgq_mod
-           Lustre        module support  - $enable_lustre_mod
-           MDHIM         module support  - $enable_mdhim_mod
+           NULL           module support  - $enable_null_mod
+           POSIX          module support  - $enable_posix_mod
+           STDIO          module support  - $enable_stdio_mod
+           DXT            module support  - $enable_dxt_mod
+           MPI-IO         module support  - $enable_mpiio_mod
+           AUTOPERF MPI   module support  - $enable_apmpi_mod
+           AUTOPERF XC    module support  - $enable_apxc_mod
+           AUTOPERF NVGPU module support  - $enable_apnvgpu_mod
+           HDF5           module support  - $enable_hdf5_mod
+           PnetCDF        module support  - $enable_pnetcdf_mod
+           BG/Q           module support  - $enable_bgq_mod
+           Lustre         module support  - $enable_lustre_mod
+           MDHIM          module support  - $enable_mdhim_mod
            Memory alignment in bytes     - $with_mem_align
            Log file env variables        - $__log_path_by_env
            Location of Darshan log files - $__log_path
