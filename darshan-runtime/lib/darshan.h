@@ -184,6 +184,8 @@ extern pthread_mutex_t __darshan_core_mutex;
        } \
     }
 
+    int __darshan_disabled = darshan_core_disabled_instrumentation()
+
 #define CUSTOM_MAP_OR_FAIL(__func) \
     if (!(__real_ ## __func)) \
     { \
@@ -216,6 +218,7 @@ extern pthread_mutex_t __darshan_core_mutex;
     int __darshan_disabled = darshan_core_disabled_instrumentation()
 
 #define CUSTOM_MAP_OR_FAIL(__func)
+    int __darshan_disabled = darshan_core_disabled_instrumentation()
 
 #endif
 
