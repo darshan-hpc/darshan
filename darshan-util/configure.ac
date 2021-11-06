@@ -155,7 +155,7 @@ if test "x$enable_darshan_util" = xyes ; then
            C compiler                        - $CC
            Python module and tools           - $enable_pydarshan
            AUTOPERF MPI  module support      - $enable_apmpi_mod
-           AUTOPERF APXC module support      - $enable_apxc_mod"
+           AUTOPERF APXC module support      - $enable_apxc_mod
            AUTOPERF APNVGPU module support   - $enable_apnvgpu_mod"
 fi
 
