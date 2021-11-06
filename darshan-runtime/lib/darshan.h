@@ -182,9 +182,8 @@ extern pthread_mutex_t __darshan_core_mutex;
             darshan_core_fprintf(stderr, "Darshan failed to map symbol: %s\n", #__func); \
             exit(1); \
        } \
-    }
-
-    int __darshan_disabled = darshan_core_disabled_instrumentation()
+    } \
+    int __darshan_disabled = darshan_core_disabled_instrumentation();
 
 #define CUSTOM_MAP_OR_FAIL(__func) \
     if (!(__real_ ## __func)) \
@@ -194,8 +193,7 @@ extern pthread_mutex_t __darshan_core_mutex;
             darshan_core_fprintf(stderr, "Darshan failed to map symbol: %s\n", #__func); \
             exit(1); \
        } \
-    }
-
+    } \
     int __darshan_disabled = darshan_core_disabled_instrumentation();
 #else
 
@@ -215,10 +213,10 @@ extern pthread_mutex_t __darshan_core_mutex;
     __ret __wrap_ ## __func __args __attribute__ ((alias ("__wrap_" #__fcall)));
 
 #define MAP_OR_FAIL(__func) \
-    int __darshan_disabled = darshan_core_disabled_instrumentation()
+    int __darshan_disabled = darshan_core_disabled_instrumentation();
 
-#define CUSTOM_MAP_OR_FAIL(__func)
-    int __darshan_disabled = darshan_core_disabled_instrumentation()
+#define CUSTOM_MAP_OR_FAIL(__func) \
+    int __darshan_disabled = darshan_core_disabled_instrumentation();
 
 #endif
 
