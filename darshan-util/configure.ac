@@ -99,6 +99,18 @@ if test "x$enable_darshan_util" = xyes ; then
                       [AC_MSG_ERROR([The autoperf APXC module is not present])],
                       [-]) # this last part tells it to only check for presence
    fi
+
+   AC_ARG_ENABLE([apnvgpu_mod],
+      [AS_HELP_STRING([--enable-apnvgpu-mod],
+                      [enables compilation and use of the AutoPerf NVGPU module])],
+      [], [enable_apnvgpu_mod=no]
+   )
+   if test "x$enable_apnvgpu_mod" = xyes; then
+      AC_CHECK_HEADER([${ac_abs_confdir}/../modules/autoperf/apnvgpu/darshan-apnvgpu-log-format.h],
+                      DARSHAN_USE_APNVGPU=1,
+                      [AC_MSG_ERROR([The autoperf APNVGPU module is not present])],
+                      [-]) # this last part tells it to only check for presence
+   fi
    AC_ARG_ENABLE([apmpi_mod],
       [AS_HELP_STRING([--enable-apmpi-mod],
                       [enables compilation and use of the AutoPerf MPI module])],
@@ -127,6 +139,7 @@ fi
 
 AM_CONDITIONAL(DARSHAN_ENABLE_PYDARSHAN, [test "x$enable_pydarshan" = xyes])
 AM_CONDITIONAL(DARSHAN_USE_APXC, [test "x$enable_apxc_mod" = xyes])
+AM_CONDITIONAL(DARSHAN_USE_APNVGPU, [test "x$enable_apnvgpu_mod" = xyes])
 AM_CONDITIONAL(DARSHAN_USE_APMPI, [test "x$enable_apmpi_mod" = xyes])
 
 AC_CONFIG_FILES([Makefile \
@@ -139,9 +152,10 @@ AC_OUTPUT
 if test "x$enable_darshan_util" = xyes ; then
    echo "------------------------------------------------------------------------------
    ${PACKAGE_NAME} Version ${PACKAGE_VERSION} configured with the following features:
-           C compiler                    - $CC
-           Python module and tools       - $enable_pydarshan
-           AUTOPERF MPI  module support  - $enable_apmpi_mod
-           AUTOPERF APXC module support  - $enable_apxc_mod"
+           C compiler                        - $CC
+           Python module and tools           - $enable_pydarshan
+           AUTOPERF MPI  module support      - $enable_apmpi_mod
+           AUTOPERF APXC module support      - $enable_apxc_mod
+           AUTOPERF APNVGPU module support   - $enable_apnvgpu_mod"
 fi
 

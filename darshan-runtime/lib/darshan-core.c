@@ -102,6 +102,10 @@ extern void bgq_runtime_initialize();
 extern void apxc_runtime_initialize();
 #endif
 
+#ifdef DARSHAN_USE_APNVGPU
+extern void apnvgpu_runtime_initialize();
+#endif
+
 /* array of init functions for modules which need to be statically
  * initialized by darshan at startup time
  */
@@ -112,6 +116,9 @@ void (*mod_static_init_fns[])(void) =
 #endif
 #ifdef DARSHAN_USE_APXC
     &apxc_runtime_initialize,
+#endif
+#ifdef DARSHAN_USE_APNVGPU
+    &apnvgpu_runtime_initialize,
 #endif
     NULL
 };
