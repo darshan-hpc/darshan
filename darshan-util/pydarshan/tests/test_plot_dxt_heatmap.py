@@ -122,7 +122,7 @@ def test_set_x_axis_ticks_and_labels(
         # for all other data sets just load the data from the log file
         report = darshan.DarshanReport(filepath)
         agg_df = heatmap_handling.get_aggregate_data(
-            report=report, mods=["DXT_POSIX"], ops=["read", "write"]
+            report=report, mod="DXT_POSIX", ops=["read", "write"]
         )
 
     # set the x-axis ticks and tick labels
@@ -258,7 +258,7 @@ def test_set_y_axis_ticks_and_labels(
     # load the report and generate the aggregate data dataframe
     report = darshan.DarshanReport(filepath)
     agg_df = heatmap_handling.get_aggregate_data(
-        report=report, mods=["DXT_POSIX"], ops=["read", "write"]
+        report=report, mod="DXT_POSIX", ops=["read", "write"]
     )
 
     # x-axis bins are arbitrary
@@ -308,7 +308,7 @@ def test_remove_marginal_graph_ticks_and_labels(filepath):
     report = darshan.DarshanReport(filepath)
 
     jgrid = plot_dxt_heatmap.plot_heatmap(
-        report=report, mods=["DXT_POSIX"], ops=["read", "write"], xbins=100
+        report=report, mod="DXT_POSIX", ops=["read", "write"], xbins=100
     )
 
     # verify the heatmap axis is on
@@ -409,19 +409,19 @@ def test_adjust_for_colorbar(filepath):
         "tests/input/sample-dxt-simple.darshan",
     ],
 )
-@pytest.mark.parametrize("mods", [["DXT_POSIX"], ["DXT_MPIIO"]])
+@pytest.mark.parametrize("mod", ["DXT_POSIX", "DXT_MPIIO"])
 @pytest.mark.parametrize("ops", [["read", "write"], ["read"], ["write"]])
-def test_plot_heatmap(filepath, mods, ops):
+def test_plot_heatmap(filepath, mod, ops):
     # test the primary plotting function, `plot_dxt_heatmap.plot_heatmap()`
 
     report = darshan.DarshanReport(filepath)
 
-    if mods == ["DXT_MPIIO"]:
+    if ("dxt.darshan" in filepath) & (mod == "DXT_MPIIO"):
         # if the input module is not "DXT_POSIX" check
         # that we raise the appropriate error
-        with pytest.raises(NotImplementedError, match="DXT_POSIX module is required."):
+        with pytest.raises(NotImplementedError, match="DXT_MPIIO not found in"):
             jgrid = plot_dxt_heatmap.plot_heatmap(
-                report=report, mods=mods, ops=ops, xbins=100
+                report=report, mod=mod, ops=ops, xbins=100
             )
     elif (filepath == "tests/input/sample-dxt-simple.darshan") & (ops == ["read"]):
         # this log file is known to not have any read data, so
@@ -431,11 +431,11 @@ def test_plot_heatmap(filepath, mods, ops):
         )
         with pytest.raises(ValueError, match=expected_msg):
             jgrid = plot_dxt_heatmap.plot_heatmap(
-                report=report, mods=mods, ops=ops, xbins=100
+                report=report, mod=mod, ops=ops, xbins=100
             )
     else:
         jgrid = plot_dxt_heatmap.plot_heatmap(
-            report=report, mods=mods, ops=ops, xbins=100
+            report=report, mod=mod, ops=ops, xbins=100
         )
 
         # verify the margins for all plots
