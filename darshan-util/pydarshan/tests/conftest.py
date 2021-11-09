@@ -29,3 +29,11 @@ def log_repo_files():
     # the logs
     p = importlib_resources.files('darshan_logs')
     return [str(p) for p in p.glob('**/*.darshan')]
+
+@pytest.fixture
+def select_log_repo_file(log_repo_files, filename):
+    # return the absolute path to a log repo
+    # file based on its filename
+    for path in log_repo_files:
+        if filename in path:
+            return path
