@@ -154,7 +154,7 @@ def get_single_df_dict(
     report: Any,
     mod: str = "DXT_POSIX",
     ops: Sequence[str] = ["read", "write"],
-) -> Dict[str, Dict[str, pd.DataFrame]]:
+) -> Dict[str, pd.DataFrame]:
     """
     Reorganizes segmented read/write data into a single ``pd.DataFrame``
     and stores them in a dictionary with an entry for each DXT module.
