@@ -409,17 +409,20 @@ def test_adjust_for_colorbar(filepath):
         "tests/input/sample-dxt-simple.darshan",
     ],
 )
-@pytest.mark.parametrize("mod", ["DXT_POSIX", "DXT_MPIIO"])
+@pytest.mark.parametrize("mod", ["DXT_POSIX", "DXT_MPIIO", "POSIX"])
 @pytest.mark.parametrize("ops", [["read", "write"], ["read"], ["write"]])
 def test_plot_heatmap(filepath, mod, ops):
     # test the primary plotting function, `plot_dxt_heatmap.plot_heatmap()`
 
     report = darshan.DarshanReport(filepath)
 
-    if ("dxt.darshan" in filepath) & (mod == "DXT_MPIIO"):
+    if mod == "POSIX":
+        with pytest.raises(NotImplementedError, match="Only DXT modules are supported."):
+            plot_dxt_heatmap.plot_heatmap(report=report, mod=mod)
+    elif ("dxt.darshan" in filepath) & (mod == "DXT_MPIIO"):
         # if the input module is not "DXT_POSIX" check
         # that we raise the appropriate error
-        with pytest.raises(NotImplementedError, match="DXT_MPIIO not found in"):
+        with pytest.raises(ValueError, match="DXT_MPIIO not found in"):
             jgrid = plot_dxt_heatmap.plot_heatmap(
                 report=report, mod=mod, ops=ops, xbins=100
             )

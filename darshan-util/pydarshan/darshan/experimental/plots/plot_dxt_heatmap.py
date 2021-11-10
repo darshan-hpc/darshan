@@ -320,15 +320,16 @@ def plot_heatmap(
     Raises
     ------
 
-    NotImplementedError: if a DXT module is not input (i.e. "DXT_POSIX") or if
-    the module is not in the input ``DarshanReport``.
+    NotImplementedError: if a DXT module is not input (i.e. "DXT_POSIX").
+
+    ValueError: if the input module is not in the ``DarshanReport``.
 
     """
     if "DXT" not in mod:
-        raise NotImplementedError(f"Only DXT modules are supported.")
+        raise NotImplementedError("Only DXT modules are supported.")
 
     if mod not in report.modules:
-        raise NotImplementedError(f"Module {mod} not found in DarshanReport.")
+        raise ValueError(f"Module {mod} not found in DarshanReport.")
 
     # aggregate the data according to the selected modules and operations
     agg_df = heatmap_handling.get_aggregate_data(report=report, mod=mod, ops=ops)
