@@ -243,33 +243,16 @@ class DarshanRecordCollection(collections.abc.MutableSequence):
         if mod in ['LUSTRE']:
             # retrieve the counter column names
             c_cols = self.report.counters[mod]['counters']
-            # preallocate arrays to fill with the various record data
-            n_records = len(records)
-            ids = np.empty(n_records, dtype=np.uint64)
-            ranks = np.empty(n_records, dtype=np.int64)
-            counters = np.empty((n_records, len(c_cols)), dtype=np.int64)
-            # the OST ID's are jagged so they cannot be preallocated
-            ost_ids = []
-            for i, rec in enumerate(records):
-                ids[i] = rec['id']
-                ranks[i] = rec['rank']
-                counters[i, :] = rec['counters']
-                ost_ids.append(rec['ost_ids'])
-
             # create the counter dataframe and add a column for the OST ID's
-            counter_df = pd.DataFrame(counters, columns=c_cols)
-            counter_df["ost_ids"] = ost_ids
+            df_recs = pd.DataFrame(records)
+            counter_df = pd.DataFrame(df_recs.counters.tolist(), columns=c_cols)
+            counter_df["ost_ids"] = df_recs.ost_ids
 
             if attach:
                 if "id" in attach:
-                    # if the ids are attached, build a dataframe for them
-                    # then prepend it to the original expected dataframe
-                    id_df = pd.DataFrame(ids, columns=["id"])
-                    counter_df = pd.concat([id_df, counter_df], axis=1)
+                    counter_df.insert(0, "id", df_recs["id"])
                 if "rank" in attach:
-                    # if the ranks are attached, prepend them as well
-                    rank_df = pd.DataFrame(ranks, columns=["rank"])
-                    counter_df = pd.concat([rank_df, counter_df], axis=1)
+                    counter_df.insert(0, "rank", df_recs["rank"])
 
             records = {"counters": counter_df}
 
