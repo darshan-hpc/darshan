@@ -191,7 +191,7 @@ def test_deepcopy_fidelity_darshan_report(key, subkey):
 class TestDarshanRecordCollection:
 
     @pytest.mark.parametrize("mod",
-        ["POSIX", "MPI-IO", "STDIO", "H5F", "H5D", "DXT_POSIX", "DXT_MPIIO"]
+        ["POSIX", "MPI-IO", "STDIO", "H5F", "H5D", "DXT_POSIX", "DXT_MPIIO", "LUSTRE"]
     )
     @pytest.mark.parametrize("attach", ["default", ["id"], ["rank"], None])
     def test_to_df_synthetic(self, mod, attach):
@@ -265,6 +265,42 @@ class TestDarshanRecordCollection:
                 collection.append(rec)
                 expected_records.append(rec_df)
 
+        elif mod == "LUSTRE":
+            # retrieve the counter column names
+            counter_cols = backend.counter_names(mod)
+            n_ct_cols = len(counter_cols)
+            # use the column counts to generate random arrays
+            # and generate the counter and fcounter dataframes
+            counter_data = rng.integers(low=0, high=100, size=(5, n_ct_cols))
+            # the ost ids are of variable length,
+            # so create a ragged list of integer arrays
+            ost_id_data = []
+            for i in range(n_ct_cols):
+                # generate a random number between 1 and 10
+                # to decide how many ost ids will be generated
+                arr_length = rng.integers(low=1, high=10, size=1)
+                # generate a set of ost ids (of length `arr_length`)
+                # between 0 and 100
+                ost_id_arr = rng.integers(low=0, high=100, size=arr_length)
+                ost_id_data.append(ost_id_arr)
+
+            expected_ct_df = pd.DataFrame(counter_data, columns=counter_cols)
+            expected_ct_df["ost_ids"] = ost_id_data
+
+            # if attach is specified, the expected
+            # dataframes have to be modified
+            if attach:
+                if "id" in attach:
+                    expected_ct_df.insert(0, "id", id_data)
+                if "rank" in attach:
+                    expected_ct_df.insert(0, "rank", rank_data)
+
+            # use the same data to generate the synthetic records
+            # with the default data structures
+            for rank, id, ct_row, ost_row in zip(rank_data, id_data, counter_data, ost_id_data):
+                rec = {"rank": rank, "id": id, "counters": ct_row, "ost_ids": ost_row}
+                collection.append(rec)
+
         else:
             # retrieve the counter/fcounter column names
             counter_cols = backend.counter_names(mod)
@@ -313,6 +349,9 @@ class TestDarshanRecordCollection:
                 assert actual["rank"] == expected["rank"]
                 assert_frame_equal(actual["read_segments"], expected["read_segments"])
                 assert_frame_equal(actual["write_segments"], expected["write_segments"])
+        elif mod == "LUSTRE":
+            actual_ct_df = actual_records["counters"]
+            assert_frame_equal(actual_ct_df, expected_ct_df)
         else:
             actual_ct_df = actual_records["counters"]
             actual_fct_df = actual_records["fcounters"]

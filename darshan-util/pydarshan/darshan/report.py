@@ -241,8 +241,21 @@ class DarshanRecordCollection(collections.abc.MutableSequence):
         records = copy.deepcopy(self._records)
 
         if mod in ['LUSTRE']:
-            for i, rec in enumerate(records):
-                rec = rec
+            # retrieve the counter column names
+            c_cols = self.report.counters[mod]['counters']
+            # create the counter dataframe and add a column for the OST ID's
+            df_recs = pd.DataFrame(records)
+            counter_df = pd.DataFrame(df_recs.counters.tolist(), columns=c_cols)
+            counter_df["ost_ids"] = df_recs.ost_ids
+
+            if attach:
+                if "id" in attach:
+                    counter_df.insert(0, "id", df_recs["id"])
+                if "rank" in attach:
+                    counter_df.insert(0, "rank", df_recs["rank"])
+
+            records = {"counters": counter_df}
+
         elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
             for i, rec in enumerate(records):
                 rec['read_segments'] = pd.DataFrame(rec['read_segments'])
