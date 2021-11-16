@@ -59,7 +59,7 @@ def test_xticks_and_labels(log_path, func, expected_xticks, expected_xticklabels
 
 
 @pytest.mark.parametrize(
-    "log_path, mod, fig_func, expected_heights",
+    "filename, mod, fig_func, expected_heights",
     [
         (
             "examples/example-logs/dxt.darshan",
@@ -102,19 +102,23 @@ def test_xticks_and_labels(log_path, func, expected_xticks, expected_xticklabels
         ),
         # more obvious case where "POSIX" and
         # "MPIIO" modules show different results
-        (
-            None,
+        pytest.param(
+            "imbalanced-io.darshan",
             "POSIX",
             plot_access_histogram,
             [18, 2492, 14679, 0, 50486, 186, 0, 0, 0,
             0, 43, 301, 2, 0, 50486, 0, 0, 0, 0, 0],
+            marks=pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
+                                    reason="missing darshan_logs"),
         ),
-        (
-            None,
+        pytest.param(
+            "imbalanced-io.darshan",
             "MPI-IO",
             plot_access_histogram,
             [11, 2492, 2, 0, 0, 0, 0, 410, 86, 0, 2526,
             303, 2, 0, 97812, 396, 0, 410, 86, 0],
+            marks=pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
+                                    reason="missing darshan_logs"),
         ),
         (
             "examples/example-logs/dxt.darshan",
@@ -146,15 +150,15 @@ def test_xticks_and_labels(log_path, func, expected_xticks, expected_xticklabels
         ),
     ],
 )
-@pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
-                    reason="missing darshan_logs")
-@pytest.mark.parametrize("filename", ["imbalanced-io.darshan"])
-def test_bar_heights(log_path, mod, fig_func, expected_heights, select_log_repo_file):
+def test_bar_heights(filename, mod, fig_func, expected_heights, select_log_repo_file):
     # check bar graph heights
 
-    if log_path is None:
+    logs_repo_path = select_log_repo_file
+    if logs_repo_path is not None:
         # for logs repo cases
         log_path = select_log_repo_file
+    else:
+        log_path = filename
 
     report = darshan.DarshanReport(log_path)
     fig, ax = plt.subplots()
