@@ -232,11 +232,12 @@ def test_get_single_df_dict(expected_df_dict, ops):
 
 
 @pytest.mark.parametrize(
-    "mod, ops, expected_agg_data",
+    "log_file, mod, ops, expected_agg_data",
     [
         # all 3 test cases are based on the outputs for
         # `tests/input/sample-dxt-simple.darshan`, which only has write data
         (
+            "tests/input/sample-dxt-simple.darshan",
             "DXT_POSIX",
             ["read", "write"],
             np.array(
@@ -247,9 +248,10 @@ def test_get_single_df_dict(expected_df_dict, ops):
             ),
         ),
         # for "read" case input None since there is no data to compare
-        ("DXT_POSIX", ["read"], None),
-        ("DXT_MPIIO", ["read"], None),
+        ("tests/input/sample-dxt-simple.darshan", "DXT_POSIX", ["read"], None),
+        ("tests/input/sample-dxt-simple.darshan", "DXT_MPIIO", ["read"], None),
         (
+            "tests/input/sample-dxt-simple.darshan",
             "DXT_POSIX",
             ["write"],
             np.array(
@@ -259,12 +261,44 @@ def test_get_single_df_dict(expected_df_dict, ops):
                 ]
             ),
         ),
+        (
+            "examples/example-logs/ior_hdf5_example.darshan",
+            "DXT_MPIIO",
+            ["write"],
+            np.array(
+                [
+                    [262144, 0.029964923858642578, 0.033110857009887695, 0],
+                    [262144, 0.03313708305358887, 0.03374886512756348, 0],
+                    [262144, 0.03376293182373047, 0.03420686721801758, 0],
+                    [262144, 0.03422093391418457, 0.1820380687713623, 0],
+                    [40, 0.22188901901245117, 0.23144793510437012, 0],
+                    [96, 0.2314610481262207, 0.23147892951965332, 0],
+                    [96, 0.23216795921325684, 0.2321760654449463, 0],
+                    [262144, 0.0299680233001709, 0.03130483627319336, 1],
+                    [262144, 0.03133583068847656, 0.18091988563537598, 1],
+                    [262144, 0.1809389591217041, 0.18172383308410645, 1],
+                    [262144, 0.18174386024475098, 0.18261194229125977, 1],
+                    [544, 0.2218928337097168, 0.23146295547485352, 1],
+                    [120, 0.23146700859069824, 0.23148202896118164, 1],
+                    [262144, 0.0299680233001709, 0.03239917755126953, 2],
+                    [262144, 0.03243207931518555, 0.03294110298156738, 2],
+                    [262144, 0.03295707702636719, 0.1809689998626709, 2],
+                    [262144, 0.18098902702331543, 0.2218320369720459, 2],
+                    [272, 0.22189807891845703, 0.23153114318847656, 2],
+                    [262144, 0.029965877532958984, 0.031455039978027344, 3],
+                    [262144, 0.03148388862609863, 0.03171586990356445, 3],
+                    [262144, 0.03172898292541504, 0.03197503089904785, 3],
+                    [262144, 0.03198695182800293, 0.032212018966674805, 3],
+                    [328, 0.2218940258026123, 0.23151302337646484, 3],
+                ]
+            )
+        )
     ],
 )
-def test_get_aggregate_data(expected_agg_data, mod, ops):
+def test_get_aggregate_data(log_file, expected_agg_data, mod, ops):
     # regression test for `heatmap_handling.get_aggregate_data()`
 
-    report = darshan.DarshanReport("tests/input/sample-dxt-simple.darshan")
+    report = darshan.DarshanReport(log_file)
 
     if ops == ["read"]:
         expected_msg = (
