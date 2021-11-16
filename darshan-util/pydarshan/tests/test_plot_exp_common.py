@@ -16,8 +16,8 @@ darshan.enable_experimental()
         ("examples/example-logs/ior_hdf5_example.darshan", "POSIX"),
         ("examples/example-logs/ior_hdf5_example.darshan", "MPI-IO"),
         ("examples/example-logs/sample-badost.darshan", "POSIX"),
-        ("examples/example-logs/sample.darshan", "POSIX"),
-        ("examples/example-logs/sample.darshan", "MPI-IO"),
+        ("examples/example-logs/shane_macsio_id29959_5-22-32552-7035573431850780836_1590156158.darshan", "POSIX"),
+        ("examples/example-logs/shane_macsio_id29959_5-22-32552-7035573431850780836_1590156158.darshan", "MPI-IO"),
     ],
 )
 @pytest.mark.parametrize(
@@ -138,11 +138,11 @@ def test_xticks_and_labels(log_path, func, expected_xticks, expected_xticklabels
             0, 0, 0, 0, 0, 0, 0, 0, 34816, 97, 6144, 0, 0, 0, 2056],
         ),
         (
-            "examples/example-logs/sample.darshan",
+            "examples/example-logs/shane_macsio_id29959_5-22-32552-7035573431850780836_1590156158.darshan",
             None,
             plot_opcounts,
-            [0, 16402, 2049, 0, 16404, 0, 0, 0, 18, 0, 0, 0, 0, 0,
-            0, 16384, 2048, 0, 0, 0, 0, 0, 74, 129, 0, 0, 0, 0],
+            [6, 7816, 51, 32, 4, 0, 0, 0, 7695, 0, 0, 0, 0,
+            0, 0, 64, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         ),
     ],
 )
