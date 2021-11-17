@@ -153,12 +153,7 @@ def test_xticks_and_labels(log_path, func, expected_xticks, expected_xticklabels
 def test_bar_heights(filename, mod, fig_func, expected_heights, select_log_repo_file):
     # check bar graph heights
 
-    logs_repo_path = select_log_repo_file
-    if logs_repo_path is not None:
-        # for logs repo cases
-        log_path = select_log_repo_file
-    else:
-        log_path = filename
+    log_path = select_log_repo_file or filename
 
     report = darshan.DarshanReport(log_path)
     fig, ax = plt.subplots()
