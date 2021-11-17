@@ -6,5 +6,6 @@ def installed_path(filename):
 
 test_data_files_dxt = {
     "sample-dxt-simple.darshan": installed_path("sample-dxt-simple.darshan"),
+    "sample-badost.darshan": installed_path("sample-badost.darshan")
 }
 

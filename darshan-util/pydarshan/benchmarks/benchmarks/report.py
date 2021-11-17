@@ -67,6 +67,7 @@ class RecordCollectionToDF:
     params = [["examples/example-logs/ior_hdf5_example.darshan",
                "examples/example-logs/dxt.darshan",
                "tests/input/sample-dxt-simple.darshan",
+               "tests/input/sample-badost.darshan",
               ],
               ["POSIX",
                "STDIO",
