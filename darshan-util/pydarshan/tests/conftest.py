@@ -27,5 +27,15 @@ def log_repo_files():
     # of all *.darshan log files in the logs repo,
     # returning a list of absolute file paths to
     # the logs
-    p = importlib_resources.files('darshan_logs')
-    return [str(p) for p in p.glob('**/*.darshan')]
+    if pytest.has_log_repo:
+        p = importlib_resources.files('darshan_logs')
+        return [str(p) for p in p.glob('**/*.darshan')]
+
+@pytest.fixture
+def select_log_repo_file(log_repo_files, filename):
+    # return the absolute path to a log repo
+    # file based on its filename
+    if pytest.has_log_repo:
+        for path in log_repo_files:
+            if filename in path:
+                return path
