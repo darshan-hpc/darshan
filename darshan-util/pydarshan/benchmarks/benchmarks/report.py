@@ -2,7 +2,7 @@ import importlib
 import os
 
 example_logs = importlib.import_module("examples.example-logs")
-from tests.input import test_data_files_dxt
+from tests.input import test_data_files_dxt, test_data_files
 import darshan
 
 
@@ -67,6 +67,7 @@ class RecordCollectionToDF:
     params = [["examples/example-logs/ior_hdf5_example.darshan",
                "examples/example-logs/dxt.darshan",
                "tests/input/sample-dxt-simple.darshan",
+               "tests/input/sample-badost.darshan",
               ],
               ["POSIX",
                "STDIO",
@@ -85,6 +86,8 @@ class RecordCollectionToDF:
         filename = os.path.basename(darshan_logfile)
         if "examples" in darshan_logfile:
             self.logfile = example_logs.example_data_files_dxt[filename]
+        elif "sample-badost" in darshan_logfile:
+            self.logfile = test_data_files[filename]
         else:
             self.logfile = test_data_files_dxt[filename]
 
