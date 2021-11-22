@@ -244,8 +244,8 @@ class DarshanRecordCollection(collections.abc.MutableSequence):
             # retrieve the counter column names
             c_cols = self.report.counters[mod]['counters']
             # create the counter dataframe and add a column for the OST ID's
-            df_recs = pd.DataFrame(records)
-            counter_df = pd.DataFrame(df_recs.counters.tolist(), columns=c_cols)
+            df_recs = pd.DataFrame.from_records(records)
+            counter_df = pd.DataFrame(np.stack(df_recs.counters.to_numpy()), columns=c_cols)
             counter_df["ost_ids"] = df_recs.ost_ids
 
             if attach:
@@ -257,37 +257,28 @@ class DarshanRecordCollection(collections.abc.MutableSequence):
             records = {"counters": counter_df}
 
         elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
-            for i, rec in enumerate(records):
+            for rec in records:
                 rec['read_segments'] = pd.DataFrame(rec['read_segments'])
                 rec['write_segments'] = pd.DataFrame(rec['write_segments'])
         else:
-            counters = []
-            fcounters = []
-            ids = []
-            ranks = []
+            df_recs = pd.DataFrame.from_records(records)
+            # generic records have counter and fcounter arrays to collect
+            counter_keys = ["counters", "fcounters"]
 
-            for i, rec in enumerate(records):
-                counters.append(rec['counters'])
-                fcounters.append(rec['fcounters'])
-                ids.append(rec['id'])
-                ranks.append(rec['rank'])
-            
-            records = {"counters": None, "fcounters": None}
-            records['counters'] = pd.DataFrame(counters, columns=self.report.counters[mod]['counters'])
-            records['fcounters'] = pd.DataFrame(fcounters, columns=self.report.counters[mod]['fcounters'])
+            df_list = []
+            for ct_key in counter_keys:
+                # build the dataframe for the given counter type
+                cols = self.report.counters[mod][ct_key]
+                df = pd.DataFrame(np.stack(df_recs[ct_key].to_numpy()), columns=cols)
+                # attach the id/rank columns
+                if attach:
+                    if "id" in attach:
+                        df.insert(0, "id", df_recs["id"])
+                    if "rank" in attach:
+                        df.insert(0, "rank", df_recs["rank"])
+                df_list.append(df)
 
-            def flip_column_order(df):
-                return df[df.columns[::-1]]
-
-            # attach ids and ranks
-            if attach is not None:
-                for counter_type in ['counters', 'fcounters']:
-                    records[counter_type] = flip_column_order(records[counter_type])
-                    if 'id' in attach:
-                        records[counter_type]['id'] = ids
-                    if 'rank' in attach:
-                        records[counter_type]['rank'] = ranks
-                    records[counter_type] = flip_column_order(records[counter_type])
+            records = {ct_key:df for ct_key, df in zip(counter_keys, df_list)}
 
         return records
 
