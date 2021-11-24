@@ -152,9 +152,9 @@ def get_rd_wr_dfs(
 
 def get_single_df_dict(
     report: Any,
-    mods: Sequence[str] = ["DXT_POSIX"],
+    mod: str = "DXT_POSIX",
     ops: Sequence[str] = ["read", "write"],
-) -> Dict[str, Dict[str, pd.DataFrame]]:
+) -> Dict[str, pd.DataFrame]:
     """
     Reorganizes segmented read/write data into a single ``pd.DataFrame``
     and stores them in a dictionary with an entry for each DXT module.
@@ -164,8 +164,8 @@ def get_single_df_dict(
 
     report: a ``darshan.DarshanReport``.
 
-    mods: a sequence of keys designating which Darshan modules to use for
-    data aggregation. Default is ``["DXT_POSIX"]``.
+    mod: the DXT module to do analysis for (i.e. "DXT_POSIX"
+    or "DXT_MPIIO"). Default is ``"DXT_POSIX"``.
 
     ops: a sequence of keys designating which Darshan operations to use for
     data aggregation. Default is ``["read", "write"]``.
@@ -182,41 +182,36 @@ def get_single_df_dict(
     --------
     `flat_data_dict` generated from `tests/input/sample-dxt-simple.darshan`:
         {
-            'DXT_POSIX':
-                {
-                    'read':
-                        Empty DataFrame
-                        Columns: []
-                        Index: [],
-                    'write':
-                        length  start_time  end_time  rank
-                        0      40    0.103379  0.103388     0
-                        1    4000    0.104217  0.104231     0
-                }
+            'read':
+                Empty DataFrame
+                Columns: []
+                Index: [],
+            'write':
+                length  start_time  end_time  rank
+                0      40    0.103379  0.103388     0
+                1    4000    0.104217  0.104231     0
         }
 
     """
     # initialize an empty dictionary for storing
     # module and read/write data
     flat_data_dict = {}  # type: Dict[str, Dict[str, pd.DataFrame]]
-    # iterate over the modules (i.e. DXT_POSIX)
-    for module_key in mods:
-        # retrieve the list of records in pd.DataFrame() form
-        dict_list = report.records[module_key].to_df()
-        # retrieve the list of read/write dataframes from the list of records
-        rd_wr_dfs = get_rd_wr_dfs(dict_list=dict_list, ops=ops)
-        # create empty dictionary for each module
-        flat_data_dict[module_key] = {}
-        for op_key in ops:
-            # add the concatenated dataframe to the flat dictionary
-            flat_data_dict[module_key][op_key] = rd_wr_dfs[op_key]
+    # retrieve the list of records in pd.DataFrame() form
+    dict_list = report.records[mod].to_df()
+    # retrieve the list of read/write dataframes from the list of records
+    rd_wr_dfs = get_rd_wr_dfs(dict_list=dict_list, ops=ops)
+    # create empty dictionary
+    flat_data_dict = {}
+    for op_key in ops:
+        # add the concatenated dataframe to the flat dictionary
+        flat_data_dict[op_key] = rd_wr_dfs[op_key]
 
     return flat_data_dict
 
 
 def get_aggregate_data(
     report: Any,
-    mods: Sequence[str] = ["DXT_POSIX"],
+    mod: str = "DXT_POSIX",
     ops: Sequence[str] = ["read", "write"],
 ) -> pd.DataFrame:
     """
@@ -228,8 +223,8 @@ def get_aggregate_data(
 
     report: a ``darshan.DarshanReport``.
 
-    mods: a sequence of keys designating which Darshan modules to use for
-    data aggregation. Default is ``["DXT_POSIX"]``.
+    mod: the DXT module to do analysis for (i.e. "DXT_POSIX"
+    or "DXT_MPIIO"). Default is ``"DXT_POSIX"``.
 
     ops: a sequence of keys designating which Darshan operations to use for
     data aggregation. Default is ``["read", "write"]``.
@@ -261,12 +256,10 @@ def get_aggregate_data(
 
     """
     # collect the concatenated dataframe data from the darshan report
-    df_dict = get_single_df_dict(report=report, mods=mods, ops=ops)
-    # TODO: generalize for all DXT modules, for now manually set `DXT_POSIX`
-    module_key = "DXT_POSIX"
+    df_dict = get_single_df_dict(report=report, mod=mod, ops=ops)
     # iterate over each dataframe based on which operations are selected
     df_list = []
-    for op_key, op_df in df_dict[module_key].items():
+    for op_key, op_df in df_dict.items():
         # if the dataframe has data, append it to the list
         if op_df.size:
             df_list.append(op_df)

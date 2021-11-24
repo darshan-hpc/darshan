@@ -164,41 +164,37 @@ def test_get_rd_wr_dfs_no_write(dict_list_no_writes):
             # check the result using both operations
             ["read", "write"],
             {
-                "DXT_POSIX": {
-                    "read": pd.DataFrame(),
-                    "write": pd.DataFrame(
-                        columns=["length", "start_time", "end_time", "rank"],
-                        data=np.array(
-                            [
-                                [40, 0.10337884305045009, 0.10338771319948137, 0],
-                                [4000, 0.10421665315516293, 0.10423145908862352, 0],
-                            ]
-                        ),
+                "read": pd.DataFrame(),
+                "write": pd.DataFrame(
+                    columns=["length", "start_time", "end_time", "rank"],
+                    data=np.array(
+                        [
+                            [40, 0.10337884305045009, 0.10338771319948137, 0],
+                            [4000, 0.10421665315516293, 0.10423145908862352, 0],
+                        ]
                     ),
-                },
+                ),
             },
         ),
         (
             # check the result for only the "read" operation, should be empty
             ["read"],
-            {"DXT_POSIX": {"read": pd.DataFrame()}},
+            {"read": pd.DataFrame()},
         ),
         (
             # the results for only checking the "write" data should be the same
             # as checking both operations
             ["write"],
             {
-                "DXT_POSIX": {
-                    "write": pd.DataFrame(
-                        columns=["length", "start_time", "end_time", "rank"],
-                        data=np.array(
-                            [
-                                [40, 0.10337884305045009, 0.10338771319948137, 0],
-                                [4000, 0.10421665315516293, 0.10423145908862352, 0],
-                            ]
-                        ),
+                "write": pd.DataFrame(
+                    columns=["length", "start_time", "end_time", "rank"],
+                    data=np.array(
+                        [
+                            [40, 0.10337884305045009, 0.10338771319948137, 0],
+                            [4000, 0.10421665315516293, 0.10423145908862352, 0],
+                        ]
                     ),
-                },
+                ),
             },
         ),
     ],
@@ -209,41 +205,40 @@ def test_get_single_df_dict(expected_df_dict, ops):
     report = darshan.DarshanReport("tests/input/sample-dxt-simple.darshan")
 
     actual_df_dict = heatmap_handling.get_single_df_dict(
-        report=report, mods=["DXT_POSIX"], ops=ops
+        report=report, mod="DXT_POSIX", ops=ops
     )
 
-    # make sure we get the same key(s) ("DXT_POSIX")
+    # make sure we get the same key(s) ("read", "write")
     assert actual_df_dict.keys() == expected_df_dict.keys()
-    # make sure we get the correct key(s)
-    assert actual_df_dict["DXT_POSIX"].keys() == expected_df_dict["DXT_POSIX"].keys()
     # also check that we only get the key(s) we requested
-    assert list(actual_df_dict["DXT_POSIX"].keys()) == ops
+    assert list(actual_df_dict.keys()) == ops
 
     if "read" in ops:
         # for the read case, check that we get an empty dataframe
-        assert actual_df_dict["DXT_POSIX"]["read"].empty
+        assert actual_df_dict["read"].empty
 
     if "write" in ops:
         # check that we get the same column names
         assert_array_equal(
-            actual_df_dict["DXT_POSIX"]["write"].columns,
-            expected_df_dict["DXT_POSIX"]["write"].columns,
+            actual_df_dict["write"].columns,
+            expected_df_dict["write"].columns,
         )
 
         # verify the returned values are the same
         assert_allclose(
-            actual_df_dict["DXT_POSIX"]["write"].values,
-            expected_df_dict["DXT_POSIX"]["write"].values,
+            actual_df_dict["write"].values,
+            expected_df_dict["write"].values,
         )
 
 
 @pytest.mark.parametrize(
-    "mods, ops, expected_agg_data",
+    "log_file, mod, ops, expected_agg_data",
     [
         # all 3 test cases are based on the outputs for
         # `tests/input/sample-dxt-simple.darshan`, which only has write data
         (
-            ["DXT_POSIX"],
+            "tests/input/sample-dxt-simple.darshan",
+            "DXT_POSIX",
             ["read", "write"],
             np.array(
                 [
@@ -253,10 +248,11 @@ def test_get_single_df_dict(expected_df_dict, ops):
             ),
         ),
         # for "read" case input None since there is no data to compare
-        (["DXT_POSIX"], ["read"], None),
-        (["DXT_MPIIO"], ["read"], None),
+        ("tests/input/sample-dxt-simple.darshan", "DXT_POSIX", ["read"], None),
+        ("tests/input/sample-dxt-simple.darshan", "DXT_MPIIO", ["read"], None),
         (
-            ["DXT_POSIX"],
+            "tests/input/sample-dxt-simple.darshan",
+            "DXT_POSIX",
             ["write"],
             np.array(
                 [
@@ -265,34 +261,58 @@ def test_get_single_df_dict(expected_df_dict, ops):
                 ]
             ),
         ),
+        (
+            "examples/example-logs/ior_hdf5_example.darshan",
+            "DXT_MPIIO",
+            ["write"],
+            np.array(
+                [
+                    [262144, 0.029964923858642578, 0.033110857009887695, 0],
+                    [262144, 0.03313708305358887, 0.03374886512756348, 0],
+                    [262144, 0.03376293182373047, 0.03420686721801758, 0],
+                    [262144, 0.03422093391418457, 0.1820380687713623, 0],
+                    [40, 0.22188901901245117, 0.23144793510437012, 0],
+                    [96, 0.2314610481262207, 0.23147892951965332, 0],
+                    [96, 0.23216795921325684, 0.2321760654449463, 0],
+                    [262144, 0.0299680233001709, 0.03130483627319336, 1],
+                    [262144, 0.03133583068847656, 0.18091988563537598, 1],
+                    [262144, 0.1809389591217041, 0.18172383308410645, 1],
+                    [262144, 0.18174386024475098, 0.18261194229125977, 1],
+                    [544, 0.2218928337097168, 0.23146295547485352, 1],
+                    [120, 0.23146700859069824, 0.23148202896118164, 1],
+                    [262144, 0.0299680233001709, 0.03239917755126953, 2],
+                    [262144, 0.03243207931518555, 0.03294110298156738, 2],
+                    [262144, 0.03295707702636719, 0.1809689998626709, 2],
+                    [262144, 0.18098902702331543, 0.2218320369720459, 2],
+                    [272, 0.22189807891845703, 0.23153114318847656, 2],
+                    [262144, 0.029965877532958984, 0.031455039978027344, 3],
+                    [262144, 0.03148388862609863, 0.03171586990356445, 3],
+                    [262144, 0.03172898292541504, 0.03197503089904785, 3],
+                    [262144, 0.03198695182800293, 0.032212018966674805, 3],
+                    [328, 0.2218940258026123, 0.23151302337646484, 3],
+                ]
+            )
+        )
     ],
 )
-def test_get_aggregate_data(expected_agg_data, mods, ops):
+def test_get_aggregate_data(log_file, expected_agg_data, mod, ops):
     # regression test for `heatmap_handling.get_aggregate_data()`
 
-    report = darshan.DarshanReport("tests/input/sample-dxt-simple.darshan")
+    report = darshan.DarshanReport(log_file)
 
     if ops == ["read"]:
-        if mods == ["DXT_POSIX"]:
-            expected_msg = (
-                "No data available for selected module\\(s\\) and operation\\(s\\)."
+        expected_msg = (
+            "No data available for selected module\\(s\\) and operation\\(s\\)."
+        )
+        with pytest.raises(ValueError, match=expected_msg):
+            # expect an error because there are no read segments
+            # in sample-dxt-simple.darshan
+            actual_agg_data = heatmap_handling.get_aggregate_data(
+                report=report, mod=mod, ops=ops
             )
-            with pytest.raises(ValueError, match=expected_msg):
-                # expect an error because there are no read segments
-                # in sample-dxt-simple.darshan
-                actual_agg_data = heatmap_handling.get_aggregate_data(
-                    report=report, mods=mods, ops=ops
-                )
-        elif mods == ["DXT_MPIIO"]:
-            with pytest.raises(KeyError, match="'DXT_POSIX'"):
-                # expect an error because there are no read segments
-                # in sample-dxt-simple.darshan
-                actual_agg_data = heatmap_handling.get_aggregate_data(
-                    report=report, mods=mods, ops=ops
-                )
     else:
         actual_agg_data = heatmap_handling.get_aggregate_data(
-            report=report, mods=mods, ops=ops
+            report=report, mod=mod, ops=ops
         )
         # for other cases, make sure the value arrays are identically valued
         assert_allclose(actual_agg_data.values, expected_agg_data)
@@ -533,7 +553,7 @@ def test_get_heatmap_df(
     # generate the report and use it to obtain the aggregated data
     report = darshan.DarshanReport(filepath)
     agg_df = heatmap_handling.get_aggregate_data(
-        report=report, mods=["DXT_POSIX"], ops=ops
+        report=report, mod="DXT_POSIX", ops=ops
     )
     # run the aggregated data through the heatmap data code
     actual_hmap_data = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins)

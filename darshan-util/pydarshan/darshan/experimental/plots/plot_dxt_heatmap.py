@@ -291,7 +291,7 @@ def adjust_for_colorbar(jointgrid: Any, fig_right: float, cbar_x0: float):
 
 def plot_heatmap(
     report: darshan.DarshanReport,
-    mods: Sequence[str] = ["DXT_POSIX"],
+    mod: str = "DXT_POSIX",
     ops: Sequence[str] = ["read", "write"],
     xbins: int = 200,
 ) -> Any:
@@ -303,8 +303,8 @@ def plot_heatmap(
 
     report: a ``darshan.DarshanReport``.
 
-    mods: a sequence of keys designating which Darshan modules to use for
-    data aggregation. Default is ``["DXT_POSIX"]``.
+    mod: the DXT module to do analysis for (i.e. "DXT_POSIX"
+    or "DXT_MPIIO"). Default is ``"DXT_POSIX"``.
 
     ops: a sequence of keys designating which Darshan operations to use for
     data aggregation. Default is ``["read", "write"]``.
@@ -320,16 +320,19 @@ def plot_heatmap(
     Raises
     ------
 
-    NotImplementedError: raised if "DXT_POSIX" is not in the input modules.
+    NotImplementedError: if a DXT module is not input (i.e. "DXT_POSIX").
+
+    ValueError: if the input module is not in the ``DarshanReport``.
 
     """
-    if "DXT_POSIX" not in mods:
-        # TODO: for the moment reject any cases that don't input "DXT_POSIX"
-        # until we can properly aggregate the data
-        raise NotImplementedError("DXT_POSIX module is required.")
+    if "DXT" not in mod:
+        raise NotImplementedError("Only DXT modules are supported.")
+
+    if mod not in report.modules:
+        raise ValueError(f"Module {mod} not found in DarshanReport.")
 
     # aggregate the data according to the selected modules and operations
-    agg_df = heatmap_handling.get_aggregate_data(report=report, mods=mods, ops=ops)
+    agg_df = heatmap_handling.get_aggregate_data(report=report, mod=mod, ops=ops)
 
     # get the heatmap data array
     hmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins)
