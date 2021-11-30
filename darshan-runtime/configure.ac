@@ -85,6 +85,9 @@ if test "x$enable_darshan_runtime" = xyes ; then
    dnl runtime libraries require zlib
    CHECK_ZLIB
 
+   dnl runtime libraries requires math library (for calculations in heatmap)
+   AC_SEARCH_LIBS([round], [m])
+
    AC_ARG_ENABLE([ld-preload],
       [AS_HELP_STRING([--disable-ld-preload],
                       [Disables support for LD_PRELOAD library])],

@@ -34,6 +34,7 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 #include "darshan-dxt.h"
+#include "darshan-heatmap.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
@@ -156,6 +157,7 @@ struct posix_runtime
     void *rec_id_hash;
     void *fd_hash;
     int file_rec_count;
+    darshan_record_id heatmap_id;
     int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
@@ -287,6 +289,8 @@ static int darshan_mem_alignment = 1;
         this_offset = rec_ref->offset; \
     /* DXT to record detailed read tracing information */ \
     dxt_posix_read(rec_ref->file_rec->base_rec.id, this_offset, __ret, __tm1, __tm2); \
+    /* heatmap to record traffic summary */ \
+    heatmap_update(posix_runtime->heatmap_id, HEATMAP_READ, __ret, __tm1, __tm2); \
     if(this_offset > rec_ref->last_byte_read) \
         rec_ref->file_rec->counters[POSIX_SEQ_READS] += 1;  \
     if(this_offset == (rec_ref->last_byte_read + 1)) \
@@ -350,6 +354,8 @@ static int darshan_mem_alignment = 1;
         this_offset = rec_ref->offset; \
     /* DXT to record detailed write tracing information */ \
     dxt_posix_write(rec_ref->file_rec->base_rec.id, this_offset, __ret, __tm1, __tm2); \
+    /* heatmap to record traffic summary */ \
+    heatmap_update(posix_runtime->heatmap_id, HEATMAP_WRITE, __ret, __tm1, __tm2); \
     if(this_offset > rec_ref->last_byte_written) \
         rec_ref->file_rec->counters[POSIX_SEQ_WRITES] += 1; \
     if(this_offset == (rec_ref->last_byte_written + 1)) \
@@ -1916,6 +1922,9 @@ static void posix_runtime_initialize()
 
     /* allow DXT module to initialize if needed */
     dxt_posix_runtime_initialize();
+
+    /* register a heatmap */
+    posix_runtime->heatmap_id = heatmap_register("heatmap:POSIX");
 
     return;
 }

@@ -28,6 +28,7 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 #include "darshan-dxt.h"
+#include "darshan-heatmap.h"
 
 DARSHAN_FORWARD_DECL(PMPI_File_close, int, (MPI_File *fh));
 DARSHAN_FORWARD_DECL(PMPI_File_iread_at, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
@@ -156,6 +157,7 @@ struct mpiio_runtime
     void *rec_id_hash;
     void *fh_hash;
     int file_rec_count;
+    darshan_record_id heatmap_id;
     int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
@@ -271,6 +273,8 @@ static int get_byte_offset = 0;
     if(get_byte_offset) MPI_File_get_byte_offset(__fh, __offset, &displacement);\
     /* DXT to record detailed read tracing information */ \
     dxt_mpiio_read(rec_ref->file_rec->base_rec.id, displacement, size, __tm1, __tm2); \
+    /* heatmap to record traffic summary */ \
+    heatmap_update(mpiio_runtime->heatmap_id, HEATMAP_READ, size, __tm1, __tm2); \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_READ_AGG_0_100]), size); \
     size_ll = size; \
     cvc = darshan_track_common_val_counters(&rec_ref->access_root, &size_ll, 1, \
@@ -310,6 +314,8 @@ static int get_byte_offset = 0;
     /* DXT to record detailed write tracing information */ \
     if(get_byte_offset) MPI_File_get_byte_offset(__fh, __offset, &displacement); \
     dxt_mpiio_write(rec_ref->file_rec->base_rec.id, displacement, size, __tm1, __tm2); \
+    /* heatmap to record traffic summary */ \
+    heatmap_update(mpiio_runtime->heatmap_id, HEATMAP_WRITE, size, __tm1, __tm2); \
     DARSHAN_BUCKET_INC(&(rec_ref->file_rec->counters[MPIIO_SIZE_WRITE_AGG_0_100]), size); \
     size_ll = size; \
     cvc = darshan_track_common_val_counters(&rec_ref->access_root, &size_ll, 1, \
@@ -1205,6 +1211,9 @@ static void mpiio_runtime_initialize()
 
     /* allow DXT module to initialize if needed */
     dxt_mpiio_runtime_initialize();
+
+    /* register a heatmap */
+    mpiio_runtime->heatmap_id = heatmap_register("heatmap:MPIIO");
 
     return;
 }

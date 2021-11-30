@@ -86,6 +86,7 @@
 
 #include "darshan.h"
 #include "darshan-dynamic.h"
+#include "darshan-heatmap.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
@@ -144,6 +145,7 @@ struct stdio_runtime
     void *rec_id_hash;
     void *stream_hash;
     int file_rec_count;
+    darshan_record_id heatmap_id;
     int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
@@ -258,6 +260,8 @@ extern int __real_fileno(FILE *stream);
     if(!rec_ref) break; \
     this_offset = rec_ref->offset; \
     rec_ref->offset = this_offset + __bytes; \
+    /* heatmap to record traffic summary */ \
+    heatmap_update(stdio_runtime->heatmap_id, HEATMAP_READ, __bytes, __tm1, __tm2); \
     if(rec_ref->file_rec->counters[STDIO_MAX_BYTE_READ] < (this_offset + __bytes - 1)) \
         rec_ref->file_rec->counters[STDIO_MAX_BYTE_READ] = (this_offset + __bytes - 1); \
     rec_ref->file_rec->counters[STDIO_BYTES_READ] += __bytes; \
@@ -276,6 +280,8 @@ extern int __real_fileno(FILE *stream);
     if(!rec_ref) break; \
     this_offset = rec_ref->offset; \
     rec_ref->offset = this_offset + __bytes; \
+    /* heatmap to record traffic summary */ \
+    heatmap_update(stdio_runtime->heatmap_id, HEATMAP_WRITE, __bytes, __tm1, __tm2); \
     if(rec_ref->file_rec->counters[STDIO_MAX_BYTE_WRITTEN] < (this_offset + __bytes - 1)) \
         rec_ref->file_rec->counters[STDIO_MAX_BYTE_WRITTEN] = (this_offset + __bytes - 1); \
     rec_ref->file_rec->counters[STDIO_BYTES_WRITTEN] += __bytes; \
@@ -1044,6 +1050,11 @@ static void stdio_runtime_initialize()
     STDIO_RECORD_OPEN(stdin, "<STDIN>", 0, 0);
     STDIO_RECORD_OPEN(stdout, "<STDOUT>", 0, 0);
     STDIO_RECORD_OPEN(stderr, "<STDERR>", 0, 0);
+
+    /* register a heatmap */
+    stdio_runtime->heatmap_id = heatmap_register("heatmap:STDIO");
+
+    return;
 }
 
 static struct stdio_file_record_ref *stdio_track_new_file_record(

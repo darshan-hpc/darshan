@@ -18,7 +18,7 @@
 #include "darshan-log-format.h"
 
 /* Maximum size of a record - Lustre OST lists can get huge, but 81920 is enough
- * for 10K OSTs 
+ * for 10K OSTs
  */
 #define DEF_MOD_BUF_SIZE 81920
 
@@ -150,6 +150,7 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[];
 #include "darshan-bgq-logutils.h"
 #include "darshan-lustre-logutils.h"
 #include "darshan-stdio-logutils.h"
+#include "darshan-heatmap-logutils.h"
 
 /* DXT */
 #include "darshan-dxt-logutils.h"
