@@ -605,7 +605,7 @@ def plot_with_log_file(log_file_path: str, plot_filename: str, verbose: bool = F
               bytes_wr_series,
               filesystem_roots)
 
-    fig.set_size_inches(12, 4)
+    fig.set_size_inches(12, len(file_rd_series))
     figname = f'{plot_filename}_data_access_by_category.png'
     fig.savefig(figname, dpi=300)
     return fig

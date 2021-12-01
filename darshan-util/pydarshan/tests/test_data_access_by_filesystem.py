@@ -484,3 +484,18 @@ def test_log_scale_display(tmpdir, log_repo_files, select_log_repo_file):
                 assert 'symmetric log scaled' in axis.get_xlabel()
             else:
                 assert axis.get_xlabel() == ''
+
+@pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
+                    reason="missing darshan_logs")
+@pytest.mark.parametrize('filename, expected_dims',
+                         [('imbalanced-io.darshan', [12, 16]),
+                          ('snyder_acme.exe_id1253318_9-27-24239-1515303144625770178_2.darshan',
+                           [12, 5])])
+def test_vertical_resize(tmpdir, log_repo_files, select_log_repo_file, expected_dims):
+    # ensure that plots are expanded vertically to
+    # match the number of filesystems plotted
+    with tmpdir.as_cwd():
+        fig = data_access_by_filesystem.plot_with_log_file(log_file_path=select_log_repo_file,
+                                                           plot_filename='dummy')
+        actual_dims = fig.get_size_inches()
+        assert_allclose(actual_dims, expected_dims)
