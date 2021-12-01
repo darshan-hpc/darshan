@@ -291,7 +291,7 @@ class ReportData:
             # collect all of the info in a dictionary (step #2)
             fig_params = {
                 "section_title": "Example Section Title",
-                "fig_title": f"Example Title",
+                "fig_title": "Example Title",
                 "fig_func": example_module.example_function,
                 "fig_args": dict(report=self.report),
                 "fig_description": "Example Caption",
@@ -374,7 +374,7 @@ def setup_parser(parser: argparse.ArgumentParser):
 
     """
     parser.description = "Generates a Darshan Summary Report"
-    
+
     parser.add_argument(
         "log_path",
         type=str,
