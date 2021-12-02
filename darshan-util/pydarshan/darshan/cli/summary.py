@@ -312,9 +312,6 @@ class ReportData:
         ############################
         ## Add the DXT heat map(s)
         ############################
-        # initialize binary to determine when to include
-        # DXT tracing disabled message/error
-        no_dxt_mods_present = True
         # if either or both modules are present, register their figures
         hmap_description = (
             "Heat map of I/O (in bytes) over time broken down by MPI rank. "
@@ -324,21 +321,18 @@ class ReportData:
             "horizontal bar graph sums all I/O events for each rank to "
             "illustrate how the I/O was distributed across ranks."
         )
-        for mod in ["DXT_POSIX", "DXT_MPIIO"]:
-            if mod in self.report.modules:
-                dxt_heatmap_fig = ReportFigure(
-                    section_title="I/O Operations",
-                    fig_title=f"Heat Map: {mod}",
-                    fig_func=plot_dxt_heatmap.plot_heatmap,
-                    fig_args=dict(report=self.report, mod=mod),
-                    fig_description=hmap_description,
-                )
-                self.figures.append(dxt_heatmap_fig)
-                no_dxt_mods_present = False
-
-        # if neither DXT module is available, add message explaining
-        # how to enable DXT tracing
-        if no_dxt_mods_present:
+        if "DXT" in "\t".join(self.report.modules):
+            for mod in ["DXT_POSIX", "DXT_MPIIO"]:
+                if mod in self.report.modules:
+                    dxt_heatmap_fig = ReportFigure(
+                        section_title="I/O Operations",
+                        fig_title=f"Heat Map: {mod}",
+                        fig_func=plot_dxt_heatmap.plot_heatmap,
+                        fig_args=dict(report=self.report, mod=mod),
+                        fig_description=hmap_description,
+                    )
+                    self.figures.append(dxt_heatmap_fig)
+        else:
             # temporary message to direct users to DXT tracing
             # documentation until DXT tracing is enabled by default
             url = (
