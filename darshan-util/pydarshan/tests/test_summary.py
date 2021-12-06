@@ -98,6 +98,18 @@ def test_main_without_args(tmpdir, argv):
                 # verify the HTML file was generated
                 assert os.path.exists(expected_save_path)
 
+                # verify DXT figures are present for each DXT module
+                report = darshan.DarshanReport(filename=argv[0], read_all=False)
+                with open(expected_save_path) as html_report:
+                    report_str = html_report.read()
+                    if "DXT" in "\t".join(report.modules):
+                        for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
+                            if dxt_mod in report.modules:
+                                assert f"Heat Map: {dxt_mod}" in report_str
+                    else:
+                        # check that help message is present
+                        assert "Heat map is not available for this job" in report_str
+
         else:
             # if no log path is given expect a runtime error
             # due to a failure to open the file
@@ -127,6 +139,17 @@ def test_main_all_logs_repo_files(tmpdir, log_repo_files):
                 # verify the HTML file was generated
                 assert os.path.exists(expected_save_path)
 
+                # verify DXT figures are present for each DXT module
+                report = darshan.DarshanReport(log_filepath, read_all=False)
+                with open(expected_save_path) as html_report:
+                    report_str = html_report.read()
+                    if "DXT" in "\t".join(report.modules):
+                        for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
+                            if dxt_mod in report.modules:
+                                assert f"Heat Map: {dxt_mod}" in report_str
+                    else:
+                        # check that help message is present
+                        assert "Heat map is not available for this job" in report_str
 
 class TestReportData:
 

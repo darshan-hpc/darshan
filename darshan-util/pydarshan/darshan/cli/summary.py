@@ -310,43 +310,48 @@ class ReportData:
         self.figures = []
 
         ############################
-        ## Add the DXT heat map
+        ## Add the DXT heat map(s)
         ############################
-        if "DXT_POSIX" in self.report.modules:
-            hmap_func = plot_dxt_heatmap.plot_heatmap
-            hmap_args = dict(report=self.report)
-            hmap_description = (
-                "Heat map of I/O (in bytes) over time broken down by MPI rank. "
-                "Bins are populated based on the number of bytes read/written in "
-                "the given time interval. The vertical bar graph sums each time "
-                "slice across all ranks to show the total I/O over time, while the "
-                "horizontal bar graph sums all I/O events for each rank to "
-                "illustrate how the I/O was distributed across ranks."
-            )
+        # if either or both modules are present, register their figures
+        hmap_description = (
+            "Heat map of I/O (in bytes) over time broken down by MPI rank. "
+            "Bins are populated based on the number of bytes read/written in "
+            "the given time interval. The vertical bar graph sums each time "
+            "slice across all ranks to show the total I/O over time, while the "
+            "horizontal bar graph sums all I/O events for each rank to "
+            "illustrate how the I/O was distributed across ranks."
+        )
+        if "DXT" in "\t".join(self.report.modules):
+            for mod in ["DXT_POSIX", "DXT_MPIIO"]:
+                if mod in self.report.modules:
+                    dxt_heatmap_fig = ReportFigure(
+                        section_title="I/O Operations",
+                        fig_title=f"Heat Map: {mod}",
+                        fig_func=plot_dxt_heatmap.plot_heatmap,
+                        fig_args=dict(report=self.report, mod=mod),
+                        fig_description=hmap_description,
+                    )
+                    self.figures.append(dxt_heatmap_fig)
         else:
-            hmap_func = None
-            hmap_args = None
             # temporary message to direct users to DXT tracing
             # documentation until DXT tracing is enabled by default
             url = (
                 "https://www.mcs.anl.gov/research/projects/darshan/docs/darshan"
                 "-runtime.html#_using_the_darshan_extended_tracing_dxt_module"
             )
-            hmap_description = (
+            temp_message = (
                 f"Heat map is not available for this job as DXT was not "
                 f"enabled at run time. For details on how to enable DXT visit "
                 f"the <a href={url}>Darshan-runtime documentation</a>."
             )
-
-        dxt_heatmap_params = {
-            "section_title": "I/O Operations",
-            "fig_title": "Heat Map",
-            "fig_func": hmap_func,
-            "fig_args": hmap_args,
-            "fig_description": hmap_description,
-        }
-        dxt_heatmap_fig = ReportFigure(**dxt_heatmap_params)
-        self.figures.append(dxt_heatmap_fig)
+            fig = ReportFigure(
+                section_title="I/O Operations",
+                fig_title="Heat Map",
+                fig_func=None,
+                fig_args=None,
+                fig_description=temp_message,
+            )
+            self.figures.append(fig)
 
     def build_sections(self):
         """
