@@ -444,7 +444,8 @@ def plot_data(fig: Any,
               file_wr_series,
               bytes_rd_series,
               bytes_wr_series,
-              filesystem_roots: Sequence[str]):
+              filesystem_roots: Sequence[str],
+              num_cats: Optional[int] = None):
     """
     Produce the horizontal bar plots for the data
     access by category analysis.
@@ -470,6 +471,9 @@ def plot_data(fig: Any,
     counts of bytes written
 
     filesystem_roots: a sequence of strings containing unique filesystem root paths
+
+    num_cats: an integer representing the number of categories
+    to plot; default ``None`` plots all categories
     """
     list_byte_axes: list = []
     list_count_axes: list = []
@@ -485,7 +489,10 @@ def plot_data(fig: Any,
         if ratio > 100:
             use_log[idx] = True
 
-    for row, filesystem in enumerate(filesystem_roots):
+    if num_cats is None:
+        num_cats = len(filesystem_roots)
+
+    for row, filesystem in enumerate(filesystem_roots[:num_cats]):
         ax_filesystem_bytes = fig.add_subplot(len(filesystem_roots),
                                               2,
                                               row * 2 + 1)
@@ -561,7 +568,7 @@ def plot_data(fig: Any,
         ax_filesystem_counts.set_xlabel('symmetric log scaled')
 
 
-def plot_with_log_file(log_file_path: str, plot_filename: str, verbose: bool = False):
+def plot_with_log_file(log_file_path: str, plot_filename: str, verbose: bool = False, num_cats: Optional[int] = None):
     """
     Plot the data access by category given a darshan log
     file path.
@@ -574,6 +581,9 @@ def plot_with_log_file(log_file_path: str, plot_filename: str, verbose: bool = F
     plot_filename: name of the plot file produced
 
     verbose: if ``True``, provide extra debug information
+
+    num_cats: an integer representing the number of categories
+    to plot; default ``None`` plots all categories
 
     Returns
     -------
@@ -598,14 +608,25 @@ def plot_with_log_file(log_file_path: str, plot_filename: str, verbose: bool = F
                                                             file_id_dict=file_id_dict,
                                                             processing_func=process_byte_counts,
                                                             mod='POSIX', verbose=verbose)
+    if num_cats is None:
+        height = len(file_rd_series)
+    else:
+        height = num_cats
+
     plot_data(fig,
               file_rd_series,
               file_wr_series,
               bytes_rd_series,
               bytes_wr_series,
-              filesystem_roots)
+              filesystem_roots,
+              num_cats=num_cats)
 
-    fig.set_size_inches(12, len(file_rd_series))
+    # at least this much height seems to
+    # produce a decent aspect ratio
+    if height < 16:
+        height = 16
+
+    fig.set_size_inches(12, height)
     figname = f'{plot_filename}_data_access_by_category.png'
-    fig.savefig(figname, dpi=300)
+    fig.savefig(figname, dpi=300, bbox_inches='tight')
     return fig
