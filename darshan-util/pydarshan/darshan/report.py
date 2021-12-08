@@ -297,7 +297,8 @@ class DarshanReport(object):
 
 
     def __init__(self, 
-            filename=None, dtype='numpy', 
+            filename=None, 
+            dtype=None, # to be deprecated
             start_time=None, end_time=None,
             automatic_summary=False,
             read_all=True, lookup_name_records=True):
@@ -317,9 +318,11 @@ class DarshanReport(object):
 
         # Behavioral Options
         if dtype is not None:
-            warn('The use of dtype in reports is deprecated in v3.3.2 and will be removed in v3.4.x', DeprecationWarning, stacklevel=2)
+            warn(f"The use of dtype in reports is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
-        self.dtype = dtype                                  # default dtype to return when viewing records
+        self.dtype = dtype              # default dtype to return when viewing records
+        if self.dtype is None:
+            self.dtype = "numpy"
 
         self.automatic_summary = automatic_summary
         self.lookup_name_records = lookup_name_records
@@ -529,7 +532,7 @@ class DarshanReport(object):
         """
 
         if dtype is not None:
-            warn('The use dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x', DeprecationWarning, stacklevel=2)
+            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
         self.read_all_generic_records(dtype=dtype)
         self.read_all_dxt_records(dtype=dtype)
@@ -555,12 +558,12 @@ class DarshanReport(object):
         """
 
         if dtype is not None:
-            warn('The use dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x', DeprecationWarning, stacklevel=2)
+            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
         dtype = dtype if dtype else self.dtype
 
         for mod in self.data['modules']:
-            self.mod_read_all_records(mod, dtype=dtype, warnings=False)
+            self.mod_read_all_records(mod, dtype=dtype, _warnings=False)
 
 
 
@@ -576,16 +579,16 @@ class DarshanReport(object):
         """
 
         if dtype is not None:
-            warn('The use dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x', DeprecationWarning, stacklevel=2)
+            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
         dtype = dtype if dtype else self.dtype
 
         for mod in self.data['modules']:
-            self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes, dtype=dtype)
+            self.mod_read_all_dxt_records(mod, _warnings=False, reads=reads, writes=writes, dtype=dtype)
 
 
 
-    def mod_read_all_records(self, mod, dtype=None, warnings=True):
+    def mod_read_all_records(self, mod, dtype=None, _warnings=True):
         """
         Reads all generic records for module
 
@@ -599,12 +602,12 @@ class DarshanReport(object):
         """
 
         if dtype is not None:
-            warn('The use dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x', DeprecationWarning, stacklevel=2)
+            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
         unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE', 'APMPI', 'APXC']
 
         if mod in unsupported:
-            if warnings:
+            if _warnings:
                 logger.warning(f" Skipping. Currently unsupported: {mod} in mod_read_all_records().")
             # skip mod
             return 
@@ -667,7 +670,7 @@ class DarshanReport(object):
                 }]
 
 
-    def mod_read_all_apmpi_records(self, mod="APMPI", dtype=None, warnings=True):
+    def mod_read_all_apmpi_records(self, mod="APMPI", dtype=None, _warnings=True):
         """ 
         Reads all APMPI records for provided module.
 
@@ -680,18 +683,18 @@ class DarshanReport(object):
 
         """
 
-        if dtype is not None:
-            warn('The use dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x', DeprecationWarning, stacklevel=2)
+        if dtype is not None and _warnings:
+            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning)
 
         if mod not in self.data['modules']:
-            if warnings:
+            if _warnings:
                 logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
             return
 
 
         supported =  ['APMPI'] 
         if mod not in supported:
-            if warnings:
+            if _warnings:
                 logger.warning(f" Skipping. Unsupported module: {mod} in in mod_read_all_apmpi_records(). Supported: {supported}")
             # skip mod
             return
@@ -721,7 +724,7 @@ class DarshanReport(object):
             self.update_name_records(mod=mod)
 
 
-    def mod_read_all_apxc_records(self, mod="APXC", dtype=None, warnings=True):
+    def mod_read_all_apxc_records(self, mod="APXC", dtype=None, _warnings=True):
         """ 
         Reads all APXC records for provided module.
 
@@ -734,18 +737,18 @@ class DarshanReport(object):
 
         """
 
-        if dtype is not None:
-            warn('The use dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x', DeprecationWarning, stacklevel=2)
+        if dtype is not None and _warnings:
+            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
 
         if mod not in self.data['modules']:
-            if warnings:
+            if _warnings:
                 logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
             return
 
         supported =  ['APXC'] 
         if mod not in supported:
-            if warnings:
+            if _warnings:
                 logger.warning(f" Skipping. Unsupported module: {mod} in in mod_read_all_apxc_records(). Supported: {supported}")
             # skip mod
             return
@@ -775,7 +778,7 @@ class DarshanReport(object):
             self.update_name_records(mod=mod)
 
 
-    def mod_read_all_dxt_records(self, mod, dtype=None, warnings=True, reads=True, writes=True):
+    def mod_read_all_dxt_records(self, mod, dtype=None, _warnings=True, reads=True, writes=True):
         """
         Reads all dxt records for provided module.
 
@@ -788,12 +791,12 @@ class DarshanReport(object):
 
         """
 
-        if dtype is not None:
-            warn('The use dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x', DeprecationWarning, stacklevel=2)
+        if dtype is not None and _warnings:
+            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
 
         if mod not in self.data['modules']:
-            if warnings:
+            if _warnings:
                 logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
             return
 
@@ -801,7 +804,7 @@ class DarshanReport(object):
         supported =  ['DXT_POSIX', 'DXT_MPIIO']
 
         if mod not in supported:
-            if warnings:
+            if _warnings:
                 logger.warning(f" Skipping. Unsupported module: {mod} in in mod_read_all_dxt_records(). Supported: {supported}")
             # skip mod
             return 
@@ -835,7 +838,7 @@ class DarshanReport(object):
 
 
 
-    def mod_read_all_lustre_records(self, mod="LUSTRE", dtype=None, warnings=True):
+    def mod_read_all_lustre_records(self, mod="LUSTRE", dtype=None, _warnings=True):
         """
         Reads all dxt records for provided module.
 
@@ -848,12 +851,12 @@ class DarshanReport(object):
 
         """
 
-        if dtype is not None:
-            warn('The use dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x', DeprecationWarning, stacklevel=2)
+        if dtype is not None and _warnings:
+            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
 
         if mod not in self.data['modules']:
-            if warnings:
+            if _warnings:
                 logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
             return
 
@@ -861,7 +864,7 @@ class DarshanReport(object):
         supported =  ['LUSTRE']
 
         if mod not in supported:
-            if warnings:
+            if _warnings:
                 logger.warning(f" Skipping. Unsupported module: {mod} in in mod_read_all_dxt_records(). Supported: {supported}")
             # skip mod
             return 
@@ -920,7 +923,7 @@ class DarshanReport(object):
 
 
     def mod_records(self, mod, 
-                    dtype='numpy', warnings=True):
+                    dtype='numpy', _warnings=True):
         """
         Return generator for lazy record loading and traversal.
 
@@ -940,8 +943,8 @@ class DarshanReport(object):
 
         """
 
-        if dtype is not None:
-            warn('The use dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x', DeprecationWarning, stacklevel=2)
+        if dtype is not None and _warnings:
+            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
 
         cn = backend.counter_names(mod)
