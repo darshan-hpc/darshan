@@ -1058,6 +1058,25 @@ class DarshanReport(object):
         return json.dumps(data, cls=DarshanReportJSONEncoder)
 
 
+    def _cleanup(self):
+        """
+        Cleanup when deleting object.
+        """
+        # CFFI/C backend needs to be notified that it can close the log file.
+        if self.log is not None:
+            rec = backend.log_close(self.log)
+            self.log = None
 
 
+    def __del__(self):
+        """ Clean up when deleted or garbage collected (e.g., del-statement) """
+        self._cleanup()
 
+
+    def __enter(self):
+        """ Satisfy API for use with context manager (e.g., with-statement) """
+        pass
+
+    def __exit__(self):
+        """ Cleanup when used by context manager (e.g., with-statement) """
+        self._cleanup()
