@@ -1075,8 +1075,8 @@ class DarshanReport(object):
 
     def __enter__(self):
         """ Satisfy API for use with context manager (e.g., with-statement) """
-        pass
+        return self
 
-    def __exit__(self):
+    def __exit__(self, type, value, traceback):
         """ Cleanup when used by context manager (e.g., with-statement) """
         self._cleanup()
