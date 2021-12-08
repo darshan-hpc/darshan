@@ -312,6 +312,7 @@ class DarshanReport(object):
 
         """
         self.filename = filename
+        self.log = None
 
         # Behavioral Options
         self.dtype = dtype                                  # default dtype to return when viewing records
@@ -1063,9 +1064,14 @@ class DarshanReport(object):
         Cleanup when deleting object.
         """
         # CFFI/C backend needs to be notified that it can close the log file.
-        if self.log is not None:
-            rec = backend.log_close(self.log)
-            self.log = None
+        try:
+            if self.log is not None:
+                rec = backend.log_close(self.log)
+                self.log = None
+        except AttributeError:
+            # we sometimes observe that i.e., pytest has problems
+            # calling _cleanup() because self.log does not exist
+            pass
 
 
     def __del__(self):
