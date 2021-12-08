@@ -4,6 +4,7 @@
 """Tests for `pydarshan` package."""
 
 import copy
+import pickle
 
 import pytest
 import numpy as np
@@ -357,3 +358,17 @@ class TestDarshanRecordCollection:
             actual_fct_df = actual_records["fcounters"]
             assert_frame_equal(actual_ct_df, expected_ct_df)
             assert_frame_equal(actual_fct_df, expected_fct_df)
+
+def test_file_closure():
+    # regression test for gh-578
+    with darshan.DarshanReport("examples/example-logs/ior_hdf5_example.darshan") as report:
+        # you cannot serialize a report object
+        # until after you close its associated
+        # file handle; check that __del__ cleans up
+        # poperly
+        report.__del__()
+        pickle.dumps(report)
+        # let's also check that we can properly exit
+        # context when report.log has been removed
+        # (happens with pytest sometimes)
+        del(report.log)

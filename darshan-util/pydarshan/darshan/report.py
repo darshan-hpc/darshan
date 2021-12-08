@@ -312,6 +312,7 @@ class DarshanReport(object):
 
         """
         self.filename = filename
+        self.log = None
 
         # Behavioral Options
         self.dtype = dtype                                  # default dtype to return when viewing records
@@ -1058,6 +1059,30 @@ class DarshanReport(object):
         return json.dumps(data, cls=DarshanReportJSONEncoder)
 
 
+    def _cleanup(self):
+        """
+        Cleanup when deleting object.
+        """
+        # CFFI/C backend needs to be notified that it can close the log file.
+        try:
+            if self.log is not None:
+                rec = backend.log_close(self.log)
+                self.log = None
+        except AttributeError:
+            # we sometimes observe that i.e., pytest has problems
+            # calling _cleanup() because self.log does not exist
+            pass
 
 
+    def __del__(self):
+        """ Clean up when deleted or garbage collected (e.g., del-statement) """
+        self._cleanup()
 
+
+    def __enter__(self):
+        """ Satisfy API for use with context manager (e.g., with-statement) """
+        return self
+
+    def __exit__(self, type, value, traceback):
+        """ Cleanup when used by context manager (e.g., with-statement) """
+        self._cleanup()
