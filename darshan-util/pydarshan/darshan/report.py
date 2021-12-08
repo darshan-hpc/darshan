@@ -1073,7 +1073,7 @@ class DarshanReport(object):
         self._cleanup()
 
 
-    def __enter(self):
+    def __enter__(self):
         """ Satisfy API for use with context manager (e.g., with-statement) """
         pass
 
