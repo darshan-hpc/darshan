@@ -320,9 +320,7 @@ class DarshanReport(object):
         if dtype is not None:
             warn(f"The use of dtype in reports is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
-        self.dtype = dtype              # default dtype to return when viewing records
-        if self.dtype is None:
-            self.dtype = "numpy"
+        self.dtype = dtype if dtype else "numpy"    # default dtype to return when viewing records
 
         self.automatic_summary = automatic_summary
         self.lookup_name_records = lookup_name_records
