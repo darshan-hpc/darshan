@@ -16,7 +16,7 @@ import os
 import glob
 import pathlib
 import pytest
-from typing import Union
+from typing import Union, Any
 
 try:
     import darshan_logs
@@ -40,7 +40,7 @@ def _locate_local_log(filename: str) -> Union[str, None]:
 
 def _locate_repo_log(filename: str) -> Union[str, None]:
     """Locates a log in the darshan_logs repo."""
-    p = importlib_resources.files('darshan_logs')
+    p = importlib_resources.files('darshan_logs') # type: Any
     darshan_logs_paths = [str(p) for p in p.glob('**/*.darshan')]
     for log_path in darshan_logs_paths:
         if filename in log_path:
