@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from darshan.report import *
-
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -26,15 +23,14 @@ def plot_access_histogram(report, mod, ax=None):
     if 'mod_agg_iohist' in dir(report):
         report.mod_agg_iohist(mod)
     else:
-        print("Can not create summary, mod_agg_iohist aggregator is not registered with the report class.")
+        print("Cannot create summary, mod_agg_iohist aggregator is not registered with the report class.")
 
     # defaults
     labels = ['0-100', '101-1K', '1K-10K', '10K-100K', '100K-1M', '1M-4M', '4M-10M', '10M-100M', '100M-1G', '1G+']
-    read_vals = [0, 0, 0, 0, 0,  0, 0, 0, 0, 0]
-    write_vals = [0, 0, 0, 0, 0,  0, 0, 0, 0, 0]
 
     agg = report.summary['agg_iohist'][mod]
-
+    # TODO: can simplify the read/write vals below after
+    # support for python 3.6 is dropped
     read_vals = [
         agg['READ_0_100'],
         agg['READ_100_1K'],
@@ -61,7 +57,6 @@ def plot_access_histogram(report, mod, ax=None):
         agg['WRITE_1G_PLUS']
     ]
 
-
     x = np.arange(len(labels))  # the label locations
     width = 0.35  # the width of the bars
 
@@ -70,7 +65,7 @@ def plot_access_histogram(report, mod, ax=None):
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_ylabel('Count')
-    ax.set_title('Historgram of Access Sizes: ' + str(mod))
+    ax.set_xlabel('Access Sizes')
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=45, ha='right')
     ax.legend()
