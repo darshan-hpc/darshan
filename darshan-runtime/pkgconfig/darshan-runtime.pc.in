@@ -17,4 +17,4 @@ darshan_linkopts="-Wl,@${darshan_share}/ld-opts/darshan-ld-opts"
 
 Cflags:
 Libs: ${darshan_libdir} -Wl,-rpath=${darshan_prefix}/lib -Wl,-no-as-needed -ldarshan @DARSHAN_LUSTRE_LD_FLAGS@ @DARSHAN_HDF5_LD_FLAGS@ @with_papi@
-Libs.private: ${darshan_linkopts} ${darshan_libdir} -lfmpich -lmpichcxx -ldarshan @DARSHAN_LUSTRE_LD_FLAGS@ -lz -lrt -lpthread @with_papi@
+Libs.private: ${darshan_linkopts} ${darshan_libdir} -ldarshan @DARSHAN_LUSTRE_LD_FLAGS@ -lz -lrt -lpthread @with_papi@

@@ -9,6 +9,7 @@ Darshan-3.3.2
 * Replace mutex locks with atomics in core library
 * Add optional, limited support for RDTSCP-based timing, enabled via
   --enable-rdtscp at configure time
+* Remove unecessary explicit mpich binding libraries from link line when static linking
 
 Darshan-3.3.1
 =============
