@@ -58,6 +58,7 @@ static int my_rank = 0;
 static int nprocs = 1;
 static int darshan_mem_alignment = 1;
 static size_t darshan_mod_mem_quota = DARSHAN_MOD_MEM_MAX;
+static size_t darshan_name_mem_quota = DARSHAN_NAME_MEM_MAX;
 
 static struct darshan_core_mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
@@ -323,6 +324,18 @@ void darshan_core_initialize(int argc, char **argv)
         }
     }
 
+    /* set the memory quota for darshan name records */
+    envstr = getenv(DARSHAN_NAME_MEM_OVERRIDE);
+    if(envstr)
+    {
+        ret = sscanf(envstr, "%lf", &tmpfloat);
+        /* silently ignore if the env variable is set poorly */
+        if(ret == 1 && tmpfloat > 0)
+        {
+            darshan_name_mem_quota = tmpfloat * 1024 * 1024; /* convert from MiB */
+        }
+    }
+
     /* allocate structure to track darshan core runtime information */
     init_core = malloc(sizeof(*init_core));
     if(init_core)
@@ -351,7 +364,7 @@ void darshan_core_initialize(int argc, char **argv)
         init_core->log_hdr_p = malloc(sizeof(struct darshan_header));
         init_core->log_job_p = malloc(sizeof(struct darshan_job));
         init_core->log_exemnt_p = malloc(DARSHAN_EXE_LEN+1);
-        init_core->log_name_p = malloc(DARSHAN_NAME_RECORD_BUF_SIZE);
+        init_core->log_name_p = malloc(darshan_name_mem_quota);
         init_core->log_mod_p = malloc(darshan_mod_mem_quota);
 
         if(!(init_core->log_hdr_p) || !(init_core->log_job_p) ||
@@ -365,7 +378,7 @@ void darshan_core_initialize(int argc, char **argv)
         memset(init_core->log_hdr_p, 0, sizeof(struct darshan_header));
         memset(init_core->log_job_p, 0, sizeof(struct darshan_job));
         memset(init_core->log_exemnt_p, 0, DARSHAN_EXE_LEN+1);
-        memset(init_core->log_name_p, 0, DARSHAN_NAME_RECORD_BUF_SIZE);
+        memset(init_core->log_name_p, 0, darshan_name_mem_quota);
         memset(init_core->log_mod_p, 0, darshan_mod_mem_quota);
 #else
         /* if mmap logs are enabled, we need to initialize the mmap region
@@ -387,7 +400,7 @@ void darshan_core_initialize(int argc, char **argv)
         init_core->log_name_p = (void *)
             ((char *)init_core->log_exemnt_p + DARSHAN_EXE_LEN + 1);
         init_core->log_mod_p = (void *)
-            ((char *)init_core->log_name_p + DARSHAN_NAME_RECORD_BUF_SIZE);
+            ((char *)init_core->log_name_p + darshan_name_mem_quota);
 
         /* set header fields needed for the mmap log mechanism */
         init_core->log_hdr_p->comp_type = DARSHAN_NO_COMP;
@@ -417,6 +430,7 @@ void darshan_core_initialize(int argc, char **argv)
         DARSHAN_MOD_FLAG_SET(init_core->mod_disabled, DXT_POSIX_MOD);
         DARSHAN_MOD_FLAG_SET(init_core->mod_disabled, DXT_MPIIO_MOD);
 
+        /* XXX gonna have to move up? */
         /* parse any user-supplied runtime configuration of Darshan */
         darshan_parse_config(init_core, &bail_flag);
         if(bail_flag)
@@ -827,7 +841,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
     assert(sys_page_size > 0);
 
     mmap_size = sizeof(struct darshan_header) + DARSHAN_JOB_RECORD_SIZE +
-        + DARSHAN_NAME_RECORD_BUF_SIZE + darshan_mod_mem_quota;
+        + darshan_name_mem_quota + darshan_mod_mem_quota;
     if(mmap_size % sys_page_size)
         mmap_size = ((mmap_size / sys_page_size) + 1) * sys_page_size;
 
@@ -1448,7 +1462,7 @@ static int darshan_add_name_record_ref(struct darshan_core_runtime *core,
     struct darshan_core_name_record_ref *ref;
     int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
 
-    if((record_size + core->name_mem_used) > DARSHAN_NAME_RECORD_BUF_SIZE)
+    if((record_size + core->name_mem_used) > darshan_name_mem_quota)
         return(0);
 
     ref = malloc(sizeof(*ref));
