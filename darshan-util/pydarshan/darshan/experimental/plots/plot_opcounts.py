@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from darshan.report import *
-
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -32,14 +29,17 @@ def plot_opcounts(report, ax=None):
     if 'agg_ioops' in dir(report):
         report.agg_ioops()
     else:
-        print("Can not create summary, agg_ioops aggregator is not registered with the report class. Be sure to call darshan.experimental() once before invoking this plot.")
+        print(
+            "Cannot create summary, agg_ioops aggregator is not "
+            "registered with the report class. Be sure to call "
+            "darshan.experimental() once before invoking this plot."
+        )
 
     mods = report.summary['agg_ioops']
 
     # Gather POSIX
     if 'POSIX' in mods:
-        #posix_record = backend.log_get_posix_record(log)
-        #posix = dict(zip(backend.counter_names("POSIX"), posix_record['counters']))
+
         posix = mods['POSIX']
 
         posix_vals = [
@@ -54,8 +54,6 @@ def plot_opcounts(report, ax=None):
 
     # Gather MPIIO
     if 'MPI-IO' in mods:
-        #mpiio_record = backend.log_get_mpiio_record(log)
-        #mpiio = dict(zip(backend.counter_names("mpiio"), mpiio_record['counters']))
 
         mpiio = mods['MPI-IO']
 
@@ -81,8 +79,6 @@ def plot_opcounts(report, ax=None):
 
     # Gather Stdio
     if 'STDIO' in mods:
-        #stdio_record = backend.log_get_stdio_record(log)
-        #stdio = dict(zip(backend.counter_names("STDIO"), stdio_record['counters']))
 
         stdio = mods['STDIO']
 
@@ -96,16 +92,6 @@ def plot_opcounts(report, ax=None):
             stdio['STDIO_FLUSHES']
         ]
 
-    def as_csv():
-        text = ""
-        text += ','.join(labels) +  ',Layer' + "\n"
-        text += ','.join(str(x) for x in posix_vals) + ',POSIX' + "\n"
-        text += ','.join(str(x) for x in mpiind_vals) + ',MPIIND' + "\n"
-        text += ','.join(str(x) for x in mpicol_vals) + ',MPICOL' + "\n"
-        text += ','.join(str(x) for x in stdio_vals) + ',STDIO' + "\n"
-
-        return text
-
     x = np.arange(len(labels))  # the label locations
     width = 0.15  # the width of the bars
 
@@ -116,7 +102,6 @@ def plot_opcounts(report, ax=None):
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_ylabel('Count')
-    ax.set_title('I/O Operation Counts')
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.legend()
@@ -144,6 +129,3 @@ def plot_opcounts(report, ax=None):
     if fig is not None:
         plt.close()
         return fig
-
-
-
