@@ -12,140 +12,102 @@ from darshan.experimental.plots.plot_io_cost import (
 )
 
 @pytest.mark.parametrize(
-    "report, mod, expected_df",
+    "report, expected_df",
     [
         (
             darshan.DarshanReport("examples/example-logs/ior_hdf5_example.darshan"),
-            "POSIX",
             pd.DataFrame(
-                np.array([[0.0196126699, 0.134203, 0.0074423551]]),
-                ["by-average"],
-                ["Read", "Write", "Meta"],
-            ),
-        ),
-        (
-            darshan.DarshanReport("examples/example-logs/ior_hdf5_example.darshan"),
-            "MPI-IO",
-            pd.DataFrame(
-                np.array([[0.0196372866, 0.134251, 0.0475]]),
-                ["by-average"],
-                ["Read", "Write", "Meta"],
-            ),
-        ),
-        (
-            darshan.DarshanReport("examples/example-logs/ior_hdf5_example.darshan"),
-            "STDIO",
-            pd.DataFrame(
-                np.array([[0.0, 0.0001022815, 0.0]]),
-                ["by-average"],
+                np.array([
+                    [0.0196126699, 0.134203, 0.0074423551],
+                    [0.0196372866, 0.134251, 0.0475],
+                    [0.0, 0.0001022815, 0.0],
+                ]),
+                ["POSIX", "MPIIO", "STDIO"],
                 ["Read", "Write", "Meta"],
             ),
         ),
         (
             darshan.DarshanReport("examples/example-logs/sample-badost.darshan"),
-            "POSIX",
             pd.DataFrame(
-                np.array([[0.0, 33.48587587394286, 0.5547398688504472]]),
-                ["by-average"],
-                ["Read", "Write", "Meta"],
-            ),
-        ),
-        (
-            darshan.DarshanReport("examples/example-logs/sample-badost.darshan"),
-            "STDIO",
-            pd.DataFrame(
-                np.array([[0.0037345244005943337, 1.544055218497912e-07, 0.045062407424362995]]),
-                ["by-average"],
+                np.array([
+                    [0.0, 33.48587587394286, 0.5547398688504472],
+                    [0.0037345244005943337, 1.544055218497912e-07, 0.045062407424362995],
+                ]),
+                ["POSIX", "STDIO"],
                 ["Read", "Write", "Meta"],
             ),
         ),
     ],
 )
-def test_get_io_cost_df(report, mod, expected_df):
+def test_get_io_cost_df(report, expected_df):
     # regression test for `plot_io_cost.get_io_cost_df()`
-    actual_df = get_io_cost_df(report=report, mod_key=mod)
+    actual_df = get_io_cost_df(report=report)
     assert_frame_equal(actual_df, expected_df)
 
 
 @pytest.mark.parametrize(
-    "report, expected_ylims, mods", [
+    "report, expected_ylims", [
         (
             darshan.DarshanReport("examples/example-logs/ior_hdf5_example.darshan"),
             [0.0, 1.0],
-            ["POSIX", "MPI-IO", "STDIO"],
         ),
         (
             darshan.DarshanReport("examples/example-logs/sample-badost.darshan"),
             [0.0, 800.0],
-            ["POSIX", "STDIO"],
         ),
     ],
 )
-def test_plot_io_cost_ylims(report, expected_ylims, mods):
+def test_plot_io_cost_ylims(report, expected_ylims):
     # test the y limits for both axes for the IO cost stacked bar graph
 
-    for mod in mods:
-        fig = plot_io_cost(report=report, mod_key=mod)
-        for i, ax in enumerate(fig.axes):
-            # there are only 2 axes, the first being the "raw" data
-            # and the second being the normalized data (percent)
-            actual_ylims = ax.get_ylim()
-            if i == 0:
-                assert_allclose(actual_ylims, expected_ylims)
-            else:
-                # normalized data is always the same
-                assert_allclose(actual_ylims, [0.0, 100.0])
+    fig = plot_io_cost(report=report)
+    for i, ax in enumerate(fig.axes):
+        # there are only 2 axes, the first being the "raw" data
+        # and the second being the normalized data (percent)
+        actual_ylims = ax.get_ylim()
+        if i == 0:
+            assert_allclose(actual_ylims, expected_ylims)
+        else:
+            # normalized data is always the same
+            assert_allclose(actual_ylims, [0.0, 100.0])
 
 @pytest.mark.parametrize(
-    "report, expected_yticks, mods", [
+    "report, expected_yticks", [
         (
             darshan.DarshanReport("examples/example-logs/ior_hdf5_example.darshan"),
             [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-            ["POSIX", "MPI-IO", "STDIO"],
         ),
         (
             darshan.DarshanReport("examples/example-logs/sample-badost.darshan"),
             [0, 160, 320, 480, 640, 800],
-            ["POSIX", "STDIO"],
         ),
     ],
 )
-def test_plot_io_cost_y_ticks_and_labels(
-        report,
-        expected_yticks,
-        mods
-    ):
+def test_plot_io_cost_y_ticks_and_labels(report, expected_yticks):
     # check the y-axis tick marks are at the appropriate
     # locations and the labels are as expected
 
     # create the expected y-axis tick labels from the y ticks
     expected_yticklabels = [str(i) for i in expected_yticks]
 
-    for mod in mods:
-        fig = plot_io_cost(report=report, mod_key=mod)
-        for i, ax in enumerate(fig.axes):
-            # there are only 2 axes, the first being the "raw" data
-            # and the second being the normalized data (percent)
-            actual_yticks = ax.get_yticks()
-            yticklabels = ax.get_yticklabels()
-            actual_yticklabels = [tl.get_text() for tl in yticklabels]
-            if i == 0:
-                assert_allclose(actual_yticks, expected_yticks)
-                assert_array_equal(actual_yticklabels, expected_yticklabels)
-            else:
-                # normalized data always has the same 5 tick labels
-                assert_array_equal(actual_yticks, [0, 20, 40, 60, 80, 100])
-                assert_array_equal(
-                    actual_yticklabels,
-                    ["0%", "20%", "40%", "60%", "80%", "100%"],
-                )
+    fig = plot_io_cost(report=report)
+    for i, ax in enumerate(fig.axes):
+        # there are only 2 axes, the first being the "raw" data
+        # and the second being the normalized data (percent)
+        actual_yticks = ax.get_yticks()
+        yticklabels = ax.get_yticklabels()
+        actual_yticklabels = [tl.get_text() for tl in yticklabels]
+        if i == 0:
+            assert_allclose(actual_yticks, expected_yticks)
+            assert_array_equal(actual_yticklabels, expected_yticklabels)
+        else:
+            # normalized data always has the same 5 tick labels
+            assert_array_equal(actual_yticks, [0, 20, 40, 60, 80, 100])
+            assert_array_equal(
+                actual_yticklabels,
+                ["0%", "20%", "40%", "60%", "80%", "100%"],
+            )
 
-def test_plot_io_cost_unsupported_modules():
-    # test that using an unsupported module raises the appropriate error
-    report = darshan.DarshanReport("examples/example-logs/ior_hdf5_example.darshan")
-    with pytest.raises(NotImplementedError) as err:
-        plot_io_cost(report=report, mod_key="LUSTRE")
-        assert "module is not supported." in str(err)
 
 @pytest.mark.parametrize("mod_key, input_df, expected_series", [
     (
