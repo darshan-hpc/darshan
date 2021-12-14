@@ -16,7 +16,7 @@ import os
 import glob
 import pathlib
 import pytest
-from typing import Union, Any
+from typing import Optional, Any
 
 try:
     import darshan_logs
@@ -25,7 +25,7 @@ except ImportError:
     has_log_repo = False
 
 
-def _locate_local_log(filename: str) -> Union[str, None]:
+def _locate_local_log(filename: str) -> Optional[str]:
     """Locates a log if available in `tests/input` or `examples/example-logs`."""
     pydarshan_path = pathlib.Path(__file__).parent.parent
     local_dirs = ["tests/input", "examples/example-logs"]
@@ -38,7 +38,7 @@ def _locate_local_log(filename: str) -> Union[str, None]:
     return None
 
 
-def _locate_repo_log(filename: str) -> Union[str, None]:
+def _locate_repo_log(filename: str) -> Optional[str]:
     """Locates a log in the darshan_logs repo."""
     p = importlib_resources.files('darshan_logs') # type: Any
     darshan_logs_paths = [str(p) for p in p.glob('**/*.darshan')]
