@@ -135,4 +135,5 @@ def plot_io_cost(report: darshan.DarshanReport) -> Any:
     # adjust the figure to reduce white space
     io_cost_fig.subplots_adjust(right=0.59)
     io_cost_fig.tight_layout()
+    plt.close()
     return io_cost_fig

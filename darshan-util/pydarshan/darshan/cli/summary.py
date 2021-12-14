@@ -16,7 +16,7 @@ from mako.template import Template
 
 import darshan
 import darshan.cli
-from darshan.experimental.plots import plot_dxt_heatmap
+from darshan.experimental.plots import plot_dxt_heatmap, plot_io_cost
 
 darshan.enable_experimental()
 
@@ -352,6 +352,31 @@ class ReportData:
                 fig_description=temp_message,
             )
             self.figures.append(fig)
+
+        ################################
+        ## Cross-Module Comparisons
+        ################################
+
+        # add the I/O cost stacked bar graph
+        url = "https://www.mcs.anl.gov/research/projects/darshan/docs/darshan-util.html"
+
+        io_cost_description = (
+            f"Average runtime (across all processes) spent in I/O operations, "
+            f"broken down by process type (i.e. read, write, meta). Meant to "
+            f"illustrate roughly what percentage of the total runtime is spent "
+            f"in I/O operations. For module-specific details visit the "
+            f"<a href={url}>Darshan-util documentation</a>."
+        )
+        io_cost_params = {
+            "section_title": "Cross-Module Comparisons",
+            "fig_title": "I/O Cost",
+            "fig_func": plot_io_cost,
+            "fig_args": dict(report=self.report),
+            "fig_description": io_cost_description,
+            "fig_width": 350,
+        }
+        io_cost_fig = ReportFigure(**io_cost_params)
+        self.figures.append(io_cost_fig)
 
     def build_sections(self):
         """

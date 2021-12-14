@@ -69,15 +69,15 @@ def test_main_with_args(tmpdir, argv):
 
 
 @pytest.mark.parametrize(
-    "argv", [
-        [os.path.abspath("./tests/input/noposix.darshan")],
-        [os.path.abspath("./tests/input/noposix.darshan"), "--output=test.html"],
-        [os.path.abspath("./tests/input/sample-dxt-simple.darshan")],
-        [os.path.abspath("./tests/input/sample-dxt-simple.darshan"), "--output=test.html"],
-        [None],
+    "argv, expected_img_count", [
+        ([os.path.abspath("./tests/input/noposix.darshan")], 1),
+        ([os.path.abspath("./tests/input/noposix.darshan"), "--output=test.html"], 1),
+        ([os.path.abspath("./tests/input/sample-dxt-simple.darshan")], 3),
+        ([os.path.abspath("./tests/input/sample-dxt-simple.darshan"), "--output=test.html"], 3),
+        ([None], 0),
     ]
 )
-def test_main_without_args(tmpdir, argv):
+def test_main_without_args(tmpdir, argv, expected_img_count):
     # test summary.main() by running it without a parser
 
     with mock.patch("sys.argv", [""] + argv):
@@ -110,6 +110,17 @@ def test_main_without_args(tmpdir, argv):
                         # check that help message is present
                         assert "Heat map is not available for this job" in report_str
 
+                    # check that expected number of figures are found
+                    actual_img_count = 0
+                    for txt in report_str.split():
+                        if "img" in txt:
+                            actual_img_count += 1
+                    assert actual_img_count == expected_img_count
+
+                    # check if I/O cost figure is present
+                    for mod in report.modules:
+                        if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                            assert "I/O Cost" in report_str
         else:
             # if no log path is given expect a runtime error
             # due to a failure to open the file
@@ -150,6 +161,11 @@ def test_main_all_logs_repo_files(tmpdir, log_repo_files):
                     else:
                         # check that help message is present
                         assert "Heat map is not available for this job" in report_str
+
+                    # check if I/O cost figure is present
+                    for mod in report.modules:
+                        if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                            assert "I/O Cost" in report_str
 
 class TestReportData:
 
