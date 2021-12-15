@@ -53,7 +53,7 @@ def test_get_io_cost_df(report, expected_df):
         ),
         (
             darshan.DarshanReport("examples/example-logs/sample-badost.darshan"),
-            [0.0, 779.0]
+            [0.0, 779.0],
         ),
         (
             darshan.DarshanReport("examples/example-logs/dxt.darshan"),
