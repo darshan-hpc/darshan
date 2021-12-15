@@ -18,9 +18,9 @@ from darshan.experimental.plots.plot_io_cost import (
             darshan.DarshanReport("examples/example-logs/ior_hdf5_example.darshan"),
             pd.DataFrame(
                 np.array([
-                    [0.0196126699, 0.134203, 0.0074423551],
-                    [0.0196372866, 0.134251, 0.0475],
-                    [0.0, 0.0001022815, 0.0],
+                    [0.0196126699, 0.1342029571533203, 0.0074423551],
+                    [0.0196372866, 0.13425052165985107, 0.0475],
+                    [0.0, 2.5570392608642578e-05, 0.0],
                 ]),
                 ["POSIX", "MPIIO", "STDIO"],
                 ["Read", "Write", "Meta"],
@@ -31,7 +31,7 @@ from darshan.experimental.plots.plot_io_cost import (
             pd.DataFrame(
                 np.array([
                     [0.0, 33.48587587394286, 0.5547398688504472],
-                    [0.0037345244005943337, 1.544055218497912e-07, 0.045062407424362995],
+                    [0.011203573201783001, 4.632166e-07, 0.135187],
                 ]),
                 ["POSIX", "STDIO"],
                 ["Read", "Write", "Meta"],
@@ -128,16 +128,16 @@ def test_plot_io_cost_y_ticks_and_labels(report, expected_yticks):
         "POSIX",
         pd.DataFrame(
             data=[
-                [0, 0, 1, 10, 3],
-                [1, 12, 5, 20, 3]
+                [0, 1, 10, 3],
+                [12, 5, 20, 3]
             ],
             columns=[
-                "rank", "POSIX_F_READ_TIME", "POSIX_F_WRITE_TIME",
+                "POSIX_F_READ_TIME", "POSIX_F_WRITE_TIME",
                 "POSIX_F_META_TIME", "TEST"
             ],
         ),
         pd.Series(
-            data=[6.0, 3.0, 15.0],
+            data=[1.2, .6, 3.0],
             index=["Read", "Write", "Meta"],
         ),
     ),
@@ -148,10 +148,10 @@ def test_plot_io_cost_y_ticks_and_labels(report, expected_yticks):
         "STDIO",
         pd.DataFrame(
             data=[
-                [-1, 30000, 3000, 300, 10],
+                [30000, 3000, 300, 10],
             ],
             columns=[
-                "rank", "STDIO_F_READ_TIME", "STDIO_F_WRITE_TIME",
+                "STDIO_F_READ_TIME", "STDIO_F_WRITE_TIME",
                 "STDIO_F_META_TIME", "TEST"
             ],
         ),
@@ -166,17 +166,17 @@ def test_plot_io_cost_y_ticks_and_labels(report, expected_yticks):
         "MPIIO",
         pd.DataFrame(
             data=[
-                [0, 0, 1, 10, 3],
-                [1, 12, 5, 20, 3],
-                [-1, 30000, 3000, 300, 10],
+                [0, 1, 10, 3],
+                [12, 5, 20, 3],
+                [30000, 3000, 300, 10],
             ],
             columns=[
-                "rank", "MPIIO_F_READ_TIME", "MPIIO_F_WRITE_TIME",
+                "MPIIO_F_READ_TIME", "MPIIO_F_WRITE_TIME",
                 "MPIIO_F_META_TIME", "TEST"
             ],
         ),
         pd.Series(
-            data=[1004.0, 102.0, 20.0],
+            data=[3001.2, 300.6, 33.0],
             index=["Read", "Write", "Meta"],
         ),
     )
