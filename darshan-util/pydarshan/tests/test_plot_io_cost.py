@@ -53,7 +53,19 @@ def test_get_io_cost_df(report, expected_df):
         ),
         (
             darshan.DarshanReport("examples/example-logs/sample-badost.darshan"),
-            [0.0, 800.0],
+            [0.0, 779.0]
+        ),
+        (
+            darshan.DarshanReport("examples/example-logs/dxt.darshan"),
+            [0.0, 1468.0],
+        ),
+        (
+            darshan.DarshanReport("examples/example-logs/noposix.darshan"),
+            [0.0, 39212.0],
+        ),
+        (
+            darshan.DarshanReport("tests/input/noposixopens.darshan"),
+            [0.0, 1110.0],
         ),
     ],
 )
@@ -79,7 +91,7 @@ def test_plot_io_cost_ylims(report, expected_ylims):
         ),
         (
             darshan.DarshanReport("examples/example-logs/sample-badost.darshan"),
-            [0, 160, 320, 480, 640, 800],
+            [0.0, 155.8, 311.6, 467.4, 623.2, 779.0],
         ),
     ],
 )

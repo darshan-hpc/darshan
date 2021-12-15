@@ -130,9 +130,8 @@ def plot_io_cost(report: darshan.DarshanReport) -> Any:
     ax_norm.yaxis.set_major_formatter(mtick.PercentFormatter())
     # align both axes tick labels so the grid matches
     # values on both sides of the bar graph
-    norm_yticks = ax_raw.get_yticks()
     n_ticks = len(ax_norm.get_yticks())
-    yticks = np.linspace(norm_yticks[0], norm_yticks[-1], n_ticks)
+    yticks = np.linspace(0, runtime, n_ticks)
     ax_raw.set_yticks(yticks)
     # add the legend and appropriate labels
     ax_raw.set_ylabel("Runtime (s)")
