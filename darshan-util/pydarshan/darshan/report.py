@@ -298,7 +298,7 @@ class DarshanReport(object):
 
     def __init__(self, 
             filename=None, 
-            dtype=None, # to be deprecated
+            dtype=None, # to be remove
             start_time=None, end_time=None,
             automatic_summary=False,
             read_all=True, lookup_name_records=True):
