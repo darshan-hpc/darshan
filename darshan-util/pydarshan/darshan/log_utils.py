@@ -15,8 +15,14 @@ else:
 import os
 import glob
 import pathlib
-import pytest
 from typing import Optional, Any
+
+if "PYTEST_CURRENT_TEST" in os.environ:
+    # only import pytest if used in a testing context
+    import pytest
+    pytest_session = True
+else:
+    pytest_session = False
 
 try:
     import darshan_logs
@@ -87,8 +93,7 @@ def get_log_path(filename: str) -> str:
             raise FileNotFoundError(err_msg)
     else:
         err_msg = f"File {filename} not found locally and darshan-logs repo unavailable."
-        if "PYTEST_CURRENT_TEST" in os.environ:
-            # running with pytest case
+        if pytest_session:
             pytest.skip(err_msg)
         else:
             raise FileNotFoundError(err_msg)
