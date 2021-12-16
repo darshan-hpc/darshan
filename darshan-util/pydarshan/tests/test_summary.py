@@ -111,11 +111,7 @@ def test_main_without_args(tmpdir, argv, expected_img_count):
                         assert "Heat map is not available for this job" in report_str
 
                     # check that expected number of figures are found
-                    actual_img_count = 0
-                    for txt in report_str.split():
-                        if "img" in txt:
-                            actual_img_count += 1
-                    assert actual_img_count == expected_img_count
+                    assert report_str.count("img") == expected_img_count
 
                     # check if I/O cost figure is present
                     for mod in report.modules:
