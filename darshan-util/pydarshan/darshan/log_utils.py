@@ -14,7 +14,6 @@ else:
 
 import os
 import glob
-import pathlib
 from typing import Optional, Any
 
 if "PYTEST_CURRENT_TEST" in os.environ:
@@ -31,22 +30,12 @@ except ImportError:
     has_log_repo = False
 
 
-def _locate_local_log(filename: str) -> Optional[str]:
-    """Locates a log if available in `tests/input` or `examples/example-logs`."""
-    pydarshan_path = pathlib.Path(__file__).parent.parent
-    local_dirs = ["tests/input", "examples/example-logs"]
-    for ldir in local_dirs:
-        ldir = os.path.join(pydarshan_path, ldir)
-        for log_path in glob.glob(os.path.join(ldir, "*.darshan")):
-            if filename in log_path:
-                return log_path
-    # if log is not found
-    return None
-
-
-def _locate_repo_log(filename: str) -> Optional[str]:
-    """Locates a log in the darshan_logs repo."""
-    p = importlib_resources.files('darshan_logs') # type: Any
+def _locate_log(filename: str, project: str) -> Optional[str]:
+    """Locates a log in a project."""
+    p = importlib_resources.files(project) # type: Any
+    if project == "darshan":
+        # move up 2 directories for now
+        p = p.parent.parent
     darshan_logs_paths = [str(p) for p in p.glob('**/*.darshan')]
     for log_path in darshan_logs_paths:
         if filename in log_path:
@@ -80,12 +69,12 @@ def get_log_path(filename: str) -> str:
 
     """
     # try local paths
-    log_path = _locate_local_log(filename=filename)
+    log_path = _locate_log(filename=filename, project='darshan')
     if log_path:
         return log_path
     # try the logs repo
     if has_log_repo:
-        log_path = _locate_repo_log(filename=filename)
+        log_path = _locate_log(filename=filename, project='darshan_logs')
         if log_path:
             return log_path
         else:
