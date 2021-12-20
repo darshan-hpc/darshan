@@ -3,6 +3,19 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+def autolabel(ax, rects):
+    """Attach a text label above each bar in *rects*, displaying its value."""
+    for rect in rects:
+        height = rect.get_height()
+        ax.annotate(
+            '{}'.format(height),
+            xy=(rect.get_x() + rect.get_width() / 2, height),
+            xytext=(0, 3),  # 3 points vertical offset
+            textcoords="offset points",
+            ha='center',
+            va='bottom',
+            rotation=0,
+        )
 
 def plot_access_histogram(report, mod, ax=None):
     """
@@ -70,18 +83,8 @@ def plot_access_histogram(report, mod, ax=None):
     ax.set_xticklabels(labels, rotation=45, ha='right')
     ax.legend()
 
-    def autolabel(rects):
-        """Attach a text label above each bar in *rects*, displaying its value."""
-        for rect in rects:
-            height = rect.get_height()
-            ax.annotate('{}'.format(height),
-                        xy=(rect.get_x() + rect.get_width() / 2, height),
-                        xytext=(0, 3),  # 3 points vertical offset
-                        textcoords="offset points",
-                        ha='center', va='bottom', rotation=0)
-
-    autolabel(rects1)
-    autolabel(rects2)
+    autolabel(ax=ax, rects=rects1)
+    autolabel(ax=ax, rects=rects2)
 
     plt.tight_layout()
 
