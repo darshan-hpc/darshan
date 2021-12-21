@@ -4,19 +4,25 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_opcounts(report, ax=None):
+def autolabel(ax, rects):
+    """Attach a text label above each bar in *rects*, displaying its height."""
+    for rect in rects:
+        height = rect.get_height()
+        ax.annotate(
+            '{}'.format(height),
+            xy=(rect.get_x() + rect.get_width() / 4 + rect.get_width(), height),
+            xytext=(0, 3),  # 3 points vertical offset
+            textcoords="offset points",
+            ha='center',
+            va='bottom',
+            rotation=45,
+        )
+
+def gather_count_data(report):
     """
-    Generates a bar chart summary for operation counts.
-
-	Args:
-    	report (DarshanReport): darshan report object to plot
+    Collect the module counts and labels
+    for the I/O Operation Count plot.
     """
-
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = None
-
     # defaults
     labels = ['Read', 'Write', 'Open', 'Stat', 'Seek', 'Mmap', 'Fsync']
     posix_vals = [0, 0, 0, 0, 0, 0, 0]
@@ -92,6 +98,25 @@ def plot_opcounts(report, ax=None):
             stdio['STDIO_FLUSHES']
         ]
 
+    counts = (posix_vals, mpiind_vals, mpicol_vals, stdio_vals)
+    return labels, counts
+
+def plot_opcounts(report, ax=None):
+    """
+    Generates a bar chart summary for operation counts.
+
+	Args:
+        report (DarshanReport): darshan report object to plot
+    """
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = None
+
+    labels, counts = gather_count_data(report=report)
+    posix_vals, mpiind_vals, mpicol_vals, stdio_vals = counts
+
     x = np.arange(len(labels))  # the label locations
     width = 0.15  # the width of the bars
 
@@ -106,23 +131,10 @@ def plot_opcounts(report, ax=None):
     ax.set_xticklabels(labels)
     ax.legend()
 
-
-    def autolabel(rects):
-        """Attach a text label above each bar in *rects*, displaying its height."""
-        for rect in rects:
-            height = rect.get_height()
-            ax.annotate(
-                '{}'.format(height),
-                xy=(rect.get_x() + rect.get_width() / 4 + rect.get_width(), height),
-                xytext=(0, 3),  # 3 points vertical offset
-                textcoords="offset points",
-                ha='center', va='bottom', rotation=45
-                )
-
-    autolabel(rects1)
-    autolabel(rects2)
-    autolabel(rects3)
-    autolabel(rects4)
+    autolabel(ax=ax, rects=rects1)
+    autolabel(ax=ax, rects=rects2)
+    autolabel(ax=ax, rects=rects3)
+    autolabel(ax=ax, rects=rects4)
 
     plt.tight_layout()
 
