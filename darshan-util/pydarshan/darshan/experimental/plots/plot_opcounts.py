@@ -10,7 +10,7 @@ def autolabel(ax, rects):
         height = rect.get_height()
         ax.annotate(
             '{}'.format(height),
-            xy=(rect.get_x() + rect.get_width() / 4 + rect.get_width(), height),
+            xy=(rect.get_x() + rect.get_width() / 2, height),
             xytext=(0, 3),  # 3 points vertical offset
             textcoords="offset points",
             ha='center',
@@ -18,19 +18,11 @@ def autolabel(ax, rects):
             rotation=45,
         )
 
-def gather_count_data(report):
+def gather_count_data(report, mod):
     """
     Collect the module counts and labels
     for the I/O Operation Count plot.
     """
-    # defaults
-    labels = ['Read', 'Write', 'Open', 'Stat', 'Seek', 'Mmap', 'Fsync']
-    posix_vals = [0, 0, 0, 0, 0, 0, 0]
-    mpiind_vals = [0, 0, 0, 0, 0, 0, 0]
-    mpicol_vals = [0, 0, 0, 0, 0, 0, 0]
-    stdio_vals = [0, 0, 0, 0, 0, 0, 0]
-
-
     # TODO: change to report.summary
     if 'agg_ioops' in dir(report):
         report.agg_ioops()
@@ -41,67 +33,50 @@ def gather_count_data(report):
             "darshan.experimental() once before invoking this plot."
         )
 
-    mods = report.summary['agg_ioops']
+    mod_data = report.summary['agg_ioops'][mod]
 
     # Gather POSIX
-    if 'POSIX' in mods:
-
-        posix = mods['POSIX']
-
-        posix_vals = [
-            posix['POSIX_READS'],
-            posix['POSIX_WRITES'],
-            posix['POSIX_OPENS'],
-            posix['POSIX_STATS'],
-            posix['POSIX_SEEKS'],
-            0, # faulty? posix['POSIX_MMAPS'],
-            posix['POSIX_FSYNCS'] + posix['POSIX_FDSYNCS']
+    if mod == 'POSIX':
+        labels = ['Read', 'Write', 'Open', 'Stat', 'Seek', 'Mmap', 'Fsync']
+        counts = [
+            mod_data['POSIX_READS'],
+            mod_data['POSIX_WRITES'],
+            mod_data['POSIX_OPENS'],
+            mod_data['POSIX_STATS'],
+            mod_data['POSIX_SEEKS'],
+            0, # faulty? mod_data['POSIX_MMAPS'],
+            mod_data['POSIX_FSYNCS'] + mod_data['POSIX_FDSYNCS']
         ]
 
     # Gather MPIIO
-    if 'MPI-IO' in mods:
-
-        mpiio = mods['MPI-IO']
-
-        mpiind_vals = [
-            mpiio['MPIIO_INDEP_READS'],
-            mpiio['MPIIO_INDEP_WRITES'],
-            mpiio['MPIIO_INDEP_OPENS'],
-            0, # stat
-            0, # seek
-            0, # mmap
-            0, # sync
-        ]
-
-        mpicol_vals = [
-            mpiio['MPIIO_COLL_READS'],
-            mpiio['MPIIO_COLL_WRITES'],
-            mpiio['MPIIO_COLL_OPENS'],
-            0, # stat
-            0, # seek
-            0, # mmap
-            mpiio['MPIIO_SYNCS']
+    elif mod == 'MPI-IO':
+        labels = [
+            'Ind. Read', 'Ind. Write', 'Ind. Open',
+            'Col. Read', 'Col. Write', 'Col. Open', 'Sync']
+        counts = [
+            mod_data['MPIIO_INDEP_READS'],
+            mod_data['MPIIO_INDEP_WRITES'],
+            mod_data['MPIIO_INDEP_OPENS'],
+            mod_data['MPIIO_COLL_READS'],
+            mod_data['MPIIO_COLL_WRITES'],
+            mod_data['MPIIO_COLL_OPENS'],
+            mod_data['MPIIO_SYNCS'],
         ]
 
     # Gather Stdio
-    if 'STDIO' in mods:
-
-        stdio = mods['STDIO']
-
-        stdio_vals = [
-            stdio['STDIO_READS'],
-            stdio['STDIO_WRITES'],
-            stdio['STDIO_OPENS'],
-            0, # stat
-            stdio['STDIO_SEEKS'],
-            0, # mmap
-            stdio['STDIO_FLUSHES']
+    elif mod == 'STDIO':
+        labels = ['Read', 'Write', 'Open', 'Seek', 'Flush']
+        counts = [
+            mod_data['STDIO_READS'],
+            mod_data['STDIO_WRITES'],
+            mod_data['STDIO_OPENS'],
+            mod_data['STDIO_SEEKS'],
+            mod_data['STDIO_FLUSHES']
         ]
 
-    counts = (posix_vals, mpiind_vals, mpicol_vals, stdio_vals)
     return labels, counts
 
-def plot_opcounts(report, ax=None):
+def plot_opcounts(report, mod, ax=None):
     """
     Generates a bar chart summary for operation counts.
 
@@ -114,27 +89,17 @@ def plot_opcounts(report, ax=None):
     else:
         fig = None
 
-    labels, counts = gather_count_data(report=report)
-    posix_vals, mpiind_vals, mpicol_vals, stdio_vals = counts
+    labels, counts = gather_count_data(report=report, mod=mod)
 
     x = np.arange(len(labels))  # the label locations
-    width = 0.15  # the width of the bars
-
-    rects1 = ax.bar(x - width/2 - width, posix_vals, width, label='POSIX')
-    rects2 = ax.bar(x - width/2, mpiind_vals, width, label='MPI-IO Indep.')
-    rects3 = ax.bar(x + width/2, mpicol_vals, width, label='MPI-IO Coll.')
-    rects4 = ax.bar(x + width/2 + width, stdio_vals, width, label='STDIO')
+    rects = ax.bar(x, counts)
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_ylabel('Count')
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
-    ax.legend()
 
-    autolabel(ax=ax, rects=rects1)
-    autolabel(ax=ax, rects=rects2)
-    autolabel(ax=ax, rects=rects3)
-    autolabel(ax=ax, rects=rects4)
+    autolabel(ax=ax, rects=rects)
 
     plt.tight_layout()
 

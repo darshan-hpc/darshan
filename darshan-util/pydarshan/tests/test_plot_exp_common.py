@@ -10,41 +10,106 @@ darshan.enable_experimental()
 
 
 @pytest.mark.parametrize(
-    "log_path, mod",
-    [
-        ("examples/example-logs/dxt.darshan", "POSIX"),
-        ("examples/example-logs/ior_hdf5_example.darshan", "POSIX"),
-        ("examples/example-logs/ior_hdf5_example.darshan", "MPI-IO"),
-        ("examples/example-logs/sample-badost.darshan", "POSIX"),
-        ("examples/example-logs/shane_macsio_id29959_5-22-32552-7035573431850780836_1590156158.darshan", "POSIX"),
-        ("examples/example-logs/shane_macsio_id29959_5-22-32552-7035573431850780836_1590156158.darshan", "MPI-IO"),
-    ],
-)
-@pytest.mark.parametrize(
-    "func, expected_xticks, expected_xticklabels",
+    "log_path, mod, func, expected_xticklabels",
     [
         (
+            "examples/example-logs/dxt.darshan",
+            "POSIX",
             plot_access_histogram,
-            range(10),
+            ["0-100", "101-1K", "1K-10K", "10K-100K", "100K-1M",
+            "1M-4M", "4M-10M", "10M-100M", "100M-1G", "1G+"]
+        ),
+        (
+            "examples/example-logs/ior_hdf5_example.darshan",
+            "POSIX",
+            plot_access_histogram,
+            ["0-100", "101-1K", "1K-10K", "10K-100K", "100K-1M",
+            "1M-4M", "4M-10M", "10M-100M", "100M-1G", "1G+"]
+        ),
+        (
+            "examples/example-logs/ior_hdf5_example.darshan",
+            "MPI-IO",
+            plot_access_histogram,
+            ["0-100", "101-1K", "1K-10K", "10K-100K", "100K-1M",
+            "1M-4M", "4M-10M", "10M-100M", "100M-1G", "1G+"]
+        ),
+        (
+            "examples/example-logs/sample-badost.darshan",
+            "POSIX",
+            plot_access_histogram,
+            ["0-100", "101-1K", "1K-10K", "10K-100K", "100K-1M",
+            "1M-4M", "4M-10M", "10M-100M", "100M-1G", "1G+"]
+        ),
+        (
+            "examples/example-logs/shane_macsio_id29959_"
+            "5-22-32552-7035573431850780836_1590156158.darshan",
+            "POSIX",
+            plot_access_histogram,
             ["0-100", "101-1K", "1K-10K", "10K-100K", "100K-1M",
             "1M-4M", "4M-10M", "10M-100M", "100M-1G", "1G+"],
         ),
         (
+            "examples/example-logs/shane_macsio_id29959_"
+            "5-22-32552-7035573431850780836_1590156158.darshan",
+            "MPI-IO",
+            plot_access_histogram,
+            ["0-100", "101-1K", "1K-10K", "10K-100K", "100K-1M",
+            "1M-4M", "4M-10M", "10M-100M", "100M-1G", "1G+"],
+        ),
+        (
+            "examples/example-logs/dxt.darshan",
+            "POSIX",
             plot_opcounts,
-            range(7),
-            ["Read", "Write", "Open", "Stat", "Seek", "Mmap", "Fsync"],
+            ['Read', 'Write', 'Open', 'Stat', 'Seek', 'Mmap', 'Fsync'],
+        ),
+        (
+            "examples/example-logs/ior_hdf5_example.darshan",
+            "POSIX",
+            plot_opcounts,
+            ['Read', 'Write', 'Open', 'Stat', 'Seek', 'Mmap', 'Fsync'],
+        ),
+        (
+            "examples/example-logs/ior_hdf5_example.darshan",
+            "MPI-IO",
+            plot_opcounts,
+            ['Ind. Read', 'Ind. Write', 'Ind. Open',
+            'Col. Read', 'Col. Write', 'Col. Open', 'Sync'],
+        ),
+        (
+            "examples/example-logs/ior_hdf5_example.darshan",
+            "STDIO",
+            plot_opcounts,
+            ['Read', 'Write', 'Open', 'Seek', 'Flush'],
+        ),
+        (
+            "examples/example-logs/sample-badost.darshan",
+            "POSIX",
+            plot_opcounts,
+            ['Read', 'Write', 'Open', 'Stat', 'Seek', 'Mmap', 'Fsync'],
+        ),
+        (
+            "examples/example-logs/shane_macsio_id29959_"
+            "5-22-32552-7035573431850780836_1590156158.darshan",
+            "POSIX",
+            plot_opcounts,
+            ['Read', 'Write', 'Open', 'Stat', 'Seek', 'Mmap', 'Fsync'],
+        ),
+        (
+            "examples/example-logs/shane_macsio_id29959_"
+            "5-22-32552-7035573431850780836_1590156158.darshan",
+            "MPI-IO",
+            plot_opcounts,
+            ['Ind. Read', 'Ind. Write', 'Ind. Open',
+            'Col. Read', 'Col. Write', 'Col. Open', 'Sync'],
         ),
     ],
 )
-def test_xticks_and_labels(log_path, func, expected_xticks, expected_xticklabels, mod):
+def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
     # check the x-axis tick mark locations and
     # labels
     report = darshan.DarshanReport(log_path)
 
-    try:
-        fig = func(report=report, mod=mod)
-    except TypeError:
-        fig = func(report=report)
+    fig = func(report=report, mod=mod)
 
     # retrieve the x-axis tick mark locations and labels
     # from the output figure object
@@ -52,8 +117,8 @@ def test_xticks_and_labels(log_path, func, expected_xticks, expected_xticklabels
     actual_xticks = ax.get_xticks()
     actual_xticklabels = [tl.get_text() for tl in ax.get_xticklabels()]
 
-    # the expected x-axis tick marks and locations
-    # should be the same for all cases
+    expected_xticks = range(len(expected_xticklabels))
+
     assert_array_equal(actual_xticks, expected_xticks)
     assert_array_equal(actual_xticklabels, expected_xticklabels)
 
@@ -122,32 +187,59 @@ def test_xticks_and_labels(log_path, func, expected_xticks, expected_xticklabels
         ),
         (
             "examples/example-logs/dxt.darshan",
-            None,
+            "POSIX",
             plot_opcounts,
-            [6126, 1497, 264, 1379, 5597, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 39, 0, 1, 0, 0, 0, 0],
+            [6126, 1497, 264, 1379, 5597, 0, 0],
+        ),
+        (
+            "examples/example-logs/dxt.darshan",
+            "STDIO",
+            plot_opcounts,
+            [39, 0, 1, 0, 0],
         ),
         (
             "examples/example-logs/ior_hdf5_example.darshan",
-            None,
+            "POSIX",
             plot_opcounts,
-            [36, 23, 22, 4, 53, 0, 0, 36, 23, 1, 0, 0, 0,
-            0, 0, 0, 16, 0, 0, 0, 0, 0, 128, 1, 0, 0, 0, 9],
+            [36, 23, 22, 4, 53, 0, 0],
+        ),
+        (
+            "examples/example-logs/ior_hdf5_example.darshan",
+            "MPI-IO",
+            plot_opcounts,
+            [36, 23, 1, 0, 0, 16, 0],
+        ),
+        (
+            "examples/example-logs/ior_hdf5_example.darshan",
+            "STDIO",
+            plot_opcounts,
+            [0, 128, 1, 0, 9],
         ),
         (
             "examples/example-logs/sample-badost.darshan",
-            None,
+            "POSIX",
             plot_opcounts,
-            [0, 131072, 2048, 2048, 131072, 0, 2048, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 34816, 97, 6144, 0, 0, 0, 2056],
+            [0, 131072, 2048, 2048, 131072, 0, 2048],
+        ),
+        (
+            "examples/example-logs/sample-badost.darshan",
+            "STDIO",
+            plot_opcounts,
+            [34816, 97, 6144, 0, 2056],
         ),
         (
             "examples/example-logs/shane_macsio_id29959_5-22-32552-7035573431850780836_1590156158.darshan",
-            None,
+            "POSIX",
             plot_opcounts,
-            [6, 7816, 51, 32, 4, 0, 0, 0, 7695, 0, 0, 0, 0,
-            0, 0, 64, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [6, 7816, 51, 32, 4, 0, 0],
         ),
+        (
+            "examples/example-logs/shane_macsio_id29959_5-22-32552-7035573431850780836_1590156158.darshan",
+            "MPI-IO",
+            plot_opcounts,
+            [0, 7695, 0, 0, 64, 16, 0],
+        ),
+
     ],
 )
 def test_bar_heights(filename, mod, fig_func, expected_heights, select_log_repo_file):
@@ -157,10 +249,8 @@ def test_bar_heights(filename, mod, fig_func, expected_heights, select_log_repo_
 
     report = darshan.DarshanReport(log_path)
     fig, ax = plt.subplots()
-    try:
-        fig_func(report=report, mod=mod, ax=ax)
-    except TypeError:
-        fig_func(report=report, ax=ax)
+
+    fig_func(report=report, mod=mod, ax=ax)
 
     # retrieve the bar graph heights
     actual_heights = []
