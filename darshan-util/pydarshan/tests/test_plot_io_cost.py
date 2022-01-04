@@ -185,3 +185,29 @@ def test_get_by_avg_series(mod_key, input_df, expected_series):
     # unit test for `plot_io_cost.get_by_avg_series`
     actual_series = get_by_avg_series(df=input_df, mod_key=mod_key, nprocs=10)
     assert_series_equal(actual_series, expected_series)
+
+
+@pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
+                    reason="missing darshan_logs")
+@pytest.mark.parametrize(
+    "filename, expected_df",
+    [
+        (
+            "nonmpi_partial_modules.darshan",
+            pd.DataFrame(
+                np.array([
+                    [0.281718, 0.504260, 0.170138],
+                    [0.232386, 0.165982, 0.072751],
+                ]),
+                ["POSIX", "STDIO"],
+                ["Read", "Write", "Meta"],
+            ),
+        ),
+    ])
+def test_issue_590(select_log_repo_file, expected_df):
+    # regression test for issue #590
+    # see: https://github.com/darshan-hpc/darshan/issues/590
+    log_path = select_log_repo_file
+    report = darshan.DarshanReport(log_path)
+    actual_df = get_io_cost_df(report=report)
+    assert_frame_equal(actual_df, expected_df)
