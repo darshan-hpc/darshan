@@ -1,3 +1,4 @@
+import os
 import pytest
 
 import pandas as pd
@@ -7,35 +8,37 @@ import darshan
 from darshan.experimental.plots import plot_common_access_table
 
 
-@pytest.mark.parametrize("report, mod, expected_df",
+@pytest.mark.parametrize("filename, mod, expected_df",
     [
         (
-            darshan.DarshanReport("./examples/example-logs/ior_hdf5_example.darshan"),
+            os.path.abspath("./examples/example-logs/ior_hdf5_example.darshan"),
             "POSIX",
-            pd.DataFrame(
-                data=[[262144, 32], [512, 9], [544, 5], [328, 3]],
-                columns=["Access Size", "Count"],
-            ),
+            # values from the old report (Perl) code
+            pd.DataFrame([[262144, 32], [512, 9], [544, 5], [328, 3]]),
         ),
         (
-            darshan.DarshanReport("./examples/example-logs/ior_hdf5_example.darshan"),
+            os.path.abspath("./examples/example-logs/ior_hdf5_example.darshan"),
             "MPI-IO",
-            pd.DataFrame(
-                data=[[262144, 32], [512, 9], [544, 5], [328, 3]],
-                columns=["Access Size", "Count"],
-            ),
+            # values from the old report (Perl) code
+            pd.DataFrame([[262144, 32], [512, 9], [544, 5], [328, 3]]),
         ),
         (
-            darshan.DarshanReport("./examples/example-logs/ior_hdf5_example.darshan"),
+            os.path.abspath("./examples/example-logs/ior_hdf5_example.darshan"),
             "H5D",
-            pd.DataFrame(
-                data=[[262144, 24]],
-                columns=["Access Size", "Count"],
-            ),
+            pd.DataFrame([[262144, 24]]),
+        ),
+        (
+            "nonmpi_partial_modules.darshan",
+            "POSIX",
+            # values from the old report (Perl) code
+            pd.DataFrame([[1024, 7692], [32, 276], [100, 269], [92, 265]]),
         ),
     ],
 )
-def test_common_access_table(report, mod, expected_df):
+def test_common_access_table(filename, mod, expected_df, select_log_repo_file):
+    log_path = select_log_repo_file or filename
+    expected_df.columns = ["Access Size", "Count"]
+    report = darshan.DarshanReport(log_path)
     actual_df = plot_common_access_table.plot_common_access_table(report=report, mod=mod)
     assert_frame_equal(actual_df, expected_df)
 
