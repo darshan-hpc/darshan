@@ -9,6 +9,7 @@ from pandas.testing import assert_frame_equal
 
 import darshan
 from darshan.cli import summary
+from darshan.log_utils import get_log_path
 
 
 @pytest.mark.parametrize(
@@ -70,15 +71,18 @@ def test_main_with_args(tmpdir, argv):
 
 @pytest.mark.parametrize(
     "argv, expected_img_count", [
-        ([os.path.abspath("./tests/input/noposix.darshan")], 1),
-        ([os.path.abspath("./tests/input/noposix.darshan"), "--output=test.html"], 1),
-        ([os.path.abspath("./tests/input/sample-dxt-simple.darshan")], 3),
-        ([os.path.abspath("./tests/input/sample-dxt-simple.darshan"), "--output=test.html"], 3),
+        (["noposix.darshan"], 1),
+        (["noposix.darshan", "--output=test.html"], 1),
+        (["sample-dxt-simple.darshan"], 3),
+        (["sample-dxt-simple.darshan", "--output=test.html"], 3),
+        (["nonmpi_partial_modules.darshan"], 2),
         ([None], 0),
     ]
 )
 def test_main_without_args(tmpdir, argv, expected_img_count):
     # test summary.main() by running it without a parser
+    if argv[0] is not None:
+        argv[0] = get_log_path(argv[0])
 
     with mock.patch("sys.argv", [""] + argv):
         if argv[0]:
