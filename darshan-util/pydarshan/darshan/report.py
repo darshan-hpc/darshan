@@ -318,7 +318,7 @@ class DarshanReport(object):
 
         # Behavioral Options
         if dtype is not None:
-            warn(f"The use of dtype in reports is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+            warn("The use of dtype in reports is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
         self.dtype = dtype if dtype else "numpy"    # default dtype to return when viewing records
 
@@ -530,7 +530,7 @@ class DarshanReport(object):
         """
 
         if dtype is not None:
-            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
         self.read_all_generic_records(dtype=dtype)
         self.read_all_dxt_records(dtype=dtype)
@@ -556,7 +556,7 @@ class DarshanReport(object):
         """
 
         if dtype is not None:
-            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
         dtype = dtype if dtype else self.dtype
 
@@ -577,7 +577,7 @@ class DarshanReport(object):
         """
 
         if dtype is not None:
-            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
         dtype = dtype if dtype else self.dtype
 
@@ -600,7 +600,7 @@ class DarshanReport(object):
         """
 
         if dtype is not None:
-            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
         unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE', 'APMPI', 'APXC']
 
@@ -682,7 +682,7 @@ class DarshanReport(object):
         """
 
         if dtype is not None and warnings:
-            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning)
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning)
 
         if mod not in self.data['modules']:
             if warnings:
@@ -736,7 +736,7 @@ class DarshanReport(object):
         """
 
         if dtype is not None and warnings:
-            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
 
         if mod not in self.data['modules']:
@@ -790,7 +790,7 @@ class DarshanReport(object):
         """
 
         if dtype is not None and warnings:
-            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
 
         if mod not in self.data['modules']:
@@ -850,7 +850,7 @@ class DarshanReport(object):
         """
 
         if dtype is not None and warnings:
-            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
 
         if mod not in self.data['modules']:
@@ -942,7 +942,7 @@ class DarshanReport(object):
         """
 
         if dtype is not None and warnings:
-            warn(f"The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
 
         cn = backend.counter_names(mod)
