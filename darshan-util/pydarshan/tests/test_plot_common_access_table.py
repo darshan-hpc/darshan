@@ -48,92 +48,52 @@ def test_common_access_table(filename, mod, expected_df, select_log_repo_file):
         # based on `ior_hdf5_example.darshan` `H5D` module data
         (
             plot_common_access_table.remove_nonzero_rows,
-            pd.DataFrame(
-                data=[[262144, 8], [262144, 8], [262144, 8], [0, 0], [0, 0]],
-                columns=["Access Size", "Count"],
-            ),
-            pd.DataFrame(
-                data=[[262144, 8], [262144, 8], [262144, 8]],
-                columns=["Access Size", "Count"],
-            ),
+            pd.DataFrame([[262144, 8], [262144, 8], [262144, 8], [0, 0], [0, 0]]),
+            pd.DataFrame([[262144, 8], [262144, 8], [262144, 8]]),
         ),
         # check that single zeros in either column remain
         (
             plot_common_access_table.remove_nonzero_rows,
-            pd.DataFrame(
-                data=[[262144, 8], [262144, 8], [262144, 8], [1, 0], [0, 1]],
-                columns=["Access Size", "Count"],
-            ),
-            pd.DataFrame(
-                data=[[262144, 8], [262144, 8], [262144, 8], [1, 0], [0, 1]],
-                columns=["Access Size", "Count"],
-            ),
+            pd.DataFrame([[262144, 8], [262144, 8], [262144, 8], [1, 0], [0, 1]]),
+            pd.DataFrame([[262144, 8], [262144, 8], [262144, 8], [1, 0], [0, 1]]),
         ),
         # based on `ior_hdf5_example.darshan` `H5D` module data
         (
             plot_common_access_table.combine_access_sizes,
-            pd.DataFrame(
-                data=[[262144, 8], [262144, 8], [262144, 8]],
-                columns=["Access Size", "Count"],
-            ),
-            pd.DataFrame(
-                data=[[262144, 24]],
-                columns=["Access Size", "Count"],
-            ),
+            pd.DataFrame([[262144, 8], [262144, 8], [262144, 8]]),
+            pd.DataFrame([[262144, 24]]),
         ),
         # synthetic case with multiple identical access sizes
         (
             plot_common_access_table.combine_access_sizes,
-            pd.DataFrame(
-                data=[[10, 1], [10, 2], [20, 1], [20, 2], [20, 3]],
-                columns=["Access Size", "Count"],
-            ),
-            pd.DataFrame(
-                data=[[10, 3], [20, 6]],
-                columns=["Access Size", "Count"],
-            ),
+            pd.DataFrame([[10, 1], [10, 2], [20, 1], [20, 2], [20, 3]]),
+            pd.DataFrame([[10, 3], [20, 6]]),
         ),
         # based on `ior_hdf5_example.darshan` `POSIX` module data
         (
             plot_common_access_table.get_most_common_access_sizes,
-            pd.DataFrame(
-                data=[[544, 5], [512, 9], [262144, 32], [328, 3]],
-                columns=["Access Size", "Count"],
-            ),
-            pd.DataFrame(
-                data=[[262144, 32], [512, 9], [544, 5], [328, 3]],
-                columns=["Access Size", "Count"],
-            ),
+            pd.DataFrame([[544, 5], [512, 9], [262144, 32], [328, 3]]),
+            pd.DataFrame([[262144, 32], [512, 9], [544, 5], [328, 3]]),
         ),
         # synthetic case with > 4 access sizes
         (
             plot_common_access_table.get_most_common_access_sizes,
-            pd.DataFrame(
-                data=[[1, 1], [2, 10], [3, 4], [4, 9], [5, 5], [6, 2], [7, 3]],
-                columns=["Access Size", "Count"],
-            ),
-            pd.DataFrame(
-                data=[[2, 10], [4, 9], [5, 5], [3, 4]],
-                columns=["Access Size", "Count"],
-            ),
+            pd.DataFrame([[1, 1], [2, 10], [3, 4], [4, 9], [5, 5], [6, 2], [7, 3]]),
+            pd.DataFrame([[2, 10], [4, 9], [5, 5], [3, 4]]),
         ),
         # case where there are < 4 access sizes, based on
         # `ior_hdf5_example.darshan` `H5D` module data
         (
             plot_common_access_table.get_most_common_access_sizes,
-            pd.DataFrame(
-                data=[[262144, 24]],
-                columns=["Access Size", "Count"],
-            ),
-            pd.DataFrame(
-                data=[[262144, 24]],
-                columns=["Access Size", "Count"],
-            ),
+            pd.DataFrame([[262144, 24]]),
+            pd.DataFrame([[262144, 24]]),
         ),
     ]
 )
-def test_general(func, input_df, expected_df):
+def test_misc_funcs(func, input_df, expected_df):
     # tests functions that make slight modifications to dataframes
+    input_df.columns = ["Access Size", "Count"]
+    expected_df.columns = ["Access Size", "Count"]
     actual_df = func(df=input_df)
     assert_frame_equal(actual_df, expected_df)
 
