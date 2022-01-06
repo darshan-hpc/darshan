@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 import pandas as pd
-from pandas.testing import assert_frame_equal, assert_series_equal # type: ignore
+from pandas.testing import assert_frame_equal, assert_series_equal
 
 import darshan
 from darshan.experimental.plots.plot_io_cost import (

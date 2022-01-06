@@ -10,7 +10,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 import pandas as pd
-from pandas.testing import assert_frame_equal # type: ignore
+from pandas.testing import assert_frame_equal
 
 import darshan
 import darshan.backend.cffi_backend as backend
