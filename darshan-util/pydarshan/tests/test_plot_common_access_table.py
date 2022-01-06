@@ -1,7 +1,7 @@
 import pytest
 
 import pandas as pd
-from pandas.testing import assert_frame_equal # type: ignore
+from pandas.testing import assert_frame_equal
 
 import darshan
 from darshan.experimental.plots import plot_common_access_table
@@ -78,7 +78,7 @@ def test_common_access_table(report, mod, expected_df):
                 columns=["Access Size", "Count"],
             ),
         ),
-        # synethetic case with multiple identical access sizes
+        # synthetic case with multiple identical access sizes
         (
             plot_common_access_table.combine_access_sizes,
             pd.DataFrame(
@@ -102,7 +102,7 @@ def test_common_access_table(report, mod, expected_df):
                 columns=["Access Size", "Count"],
             ),
         ),
-        # synethetic case with > 4 access sizes
+        # synthetic case with > 4 access sizes
         (
             plot_common_access_table.get_most_common_access_sizes,
             pd.DataFrame(
@@ -167,7 +167,7 @@ def test_general(func, input_df, expected_df):
                 columns=["Count"],
             ),
         ),
-        # synethetic case to test multiple rows and columns
+        # synthetic case to test multiple rows and columns
         (
             pd.DataFrame(
                 data=[[1, 4, 7, 10], [2, 5, 8, 11], [3, 6, 9, 12]],
