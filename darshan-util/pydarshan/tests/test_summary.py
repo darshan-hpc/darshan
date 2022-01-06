@@ -5,7 +5,7 @@ from unittest import mock
 from datetime import datetime
 
 import pandas as pd
-from pandas.testing import assert_frame_equal #type: ignore
+from pandas.testing import assert_frame_equal
 
 import darshan
 from darshan.cli import summary
