@@ -12,11 +12,12 @@ else:
     # see: https://github.com/python/mypy/issues/1153
     import importlib.resources as importlib_resources # type: ignore
 
+import sys
 import os
 import glob
 from typing import Optional, Any
 
-if "PYTEST_CURRENT_TEST" in os.environ:
+if "pytest" in sys.modules:
     # only import pytest if used in a testing context
     import pytest
     pytest_session = True
@@ -66,9 +67,9 @@ def get_log_path(filename: str) -> str:
 
     Notes
     -----
-    If used in the context of a pytest, `pytest.skip()` will
-    be used if both A.) a local log cannot be found, and
-    B.) the darshan-logs repo is unavailable.
+    If used in the context of a pytest run, `pytest.skip()` will
+    be used if both A) a local log cannot be found, and
+    B) the darshan-logs repo is unavailable.
 
     """
     # try local paths
