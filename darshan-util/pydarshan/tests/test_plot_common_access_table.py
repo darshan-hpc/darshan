@@ -6,24 +6,25 @@ from pandas.testing import assert_frame_equal
 
 import darshan
 from darshan.experimental.plots import plot_common_access_table
+from darshan.log_utils import get_log_path
 
 
 @pytest.mark.parametrize("filename, mod, expected_df",
     [
         (
-            os.path.abspath("./examples/example-logs/ior_hdf5_example.darshan"),
+            "ior_hdf5_example.darshan",
             "POSIX",
             # values from the old report (Perl) code
             pd.DataFrame([[262144, 32], [512, 9], [544, 5], [328, 3]]),
         ),
         (
-            os.path.abspath("./examples/example-logs/ior_hdf5_example.darshan"),
+            "ior_hdf5_example.darshan",
             "MPI-IO",
             # values from the old report (Perl) code
             pd.DataFrame([[262144, 32], [512, 9], [544, 5], [328, 3]]),
         ),
         (
-            os.path.abspath("./examples/example-logs/ior_hdf5_example.darshan"),
+            "ior_hdf5_example.darshan",
             "H5D",
             pd.DataFrame([[262144, 24]]),
         ),
@@ -35,8 +36,8 @@ from darshan.experimental.plots import plot_common_access_table
         ),
     ],
 )
-def test_common_access_table(filename, mod, expected_df, select_log_repo_file):
-    log_path = select_log_repo_file or filename
+def test_common_access_table(filename, mod, expected_df):
+    log_path = get_log_path(filename=filename)
     expected_df.columns = ["Access Size", "Count"]
     report = darshan.DarshanReport(log_path)
     actual_df = plot_common_access_table.plot_common_access_table(report=report, mod=mod)
