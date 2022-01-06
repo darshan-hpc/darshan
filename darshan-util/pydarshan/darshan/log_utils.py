@@ -71,6 +71,11 @@ def get_log_path(filename: str) -> str:
     be used if both A) a local log cannot be found, and
     B) the darshan-logs repo is unavailable.
 
+    This function should never be used in a pytest decorator/
+    parametrization mark. While it is possible for the function
+    to retrieve log file paths in such scenarios, the imperative
+    skip is not tolerated at collection time when the logs repo is absent.
+
     """
     # try local paths
     log_path = _locate_log(filename=filename, project='darshan')
