@@ -484,7 +484,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    AC_CHECK_TYPES([off64_t])
    CFLAGS="$old_cflags"
 
-   AC_CHECK_HEADERS(mntent.h sys/mount.h)
+   AC_CHECK_HEADERS(mntent.h sys/mount.h stdatomic.h)
 
    # check for availablity of rdtscp intrinsic on this platform
    # NOTE: we only care about finding the gnu compiler intrinsic for use in

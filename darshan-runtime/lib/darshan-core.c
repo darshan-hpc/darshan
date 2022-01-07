@@ -171,9 +171,6 @@ static void darshan_core_cleanup(
     struct darshan_core_runtime* core);
 static void darshan_core_fork_child_cb(void);
 
-#define DARSHAN_CORE_LOCK() pthread_mutex_lock(&darshan_core_mutex)
-#define DARSHAN_CORE_UNLOCK() pthread_mutex_unlock(&darshan_core_mutex)
-
 #define DARSHAN_WARN(__err_str, ...) do { \
     darshan_core_fprintf(stderr, "darshan_library_warning: " \
         __err_str ".\n", ## __VA_ARGS__); \
