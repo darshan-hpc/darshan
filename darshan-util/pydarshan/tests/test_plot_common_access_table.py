@@ -34,6 +34,18 @@ from darshan.log_utils import get_log_path
             # values from the old report (Perl) code
             pd.DataFrame([[1024, 7692], [32, 276], [100, 269], [92, 265]]),
         ),
+        (
+            "imbalanced-io.darshan",
+            "POSIX",
+            # values from the old report (Perl) code
+            pd.DataFrame([[1048576, 100968], [8162, 14664], [512, 1003], [328, 545]]),
+        ),
+        (
+            "imbalanced-io.darshan",
+            "MPI-IO",
+            # values from the old report (Perl) code
+            pd.DataFrame([[241664, 71400], [294912, 18806], [483328, 4862], [512, 1003]]),
+        ),
     ],
 )
 def test_common_access_table(filename, mod, expected_df):
