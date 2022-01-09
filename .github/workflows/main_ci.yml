@@ -78,7 +78,6 @@ jobs:
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
           cd darshan-util/pydarshan
           mypy darshan
-          mypy tests
       - name: pyflakes check
         run: |
           cd darshan-util/pydarshan
