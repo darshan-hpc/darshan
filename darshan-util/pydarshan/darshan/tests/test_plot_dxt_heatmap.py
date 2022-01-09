@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 import darshan
 from darshan.experimental.plots import heatmap_handling, plot_dxt_heatmap
+from darshan.log_utils import get_log_path
 
 
 @pytest.fixture(scope="function")
@@ -19,21 +20,21 @@ def jointgrid():
 @pytest.mark.parametrize(
     "filepath, n_xlabels, expected_xticks, expected_xticklabels",
     [
-        ("examples/example-logs/ior_hdf5_example.darshan", 2, [0.0, 1.0], [0.0, 0.29]),
+        ("ior_hdf5_example.darshan", 2, [0.0, 1.0], [0.0, 0.29]),
         (
-            "examples/example-logs/ior_hdf5_example.darshan",
+            "ior_hdf5_example.darshan",
             4,
             [0.0, 0.4, 0.6, 1.0],
             [0.0, 0.1, 0.19, 0.29],
         ),
         (
-            "examples/example-logs/ior_hdf5_example.darshan",
+            "ior_hdf5_example.darshan",
             6,
             [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
             [0.0, 0.06, 0.11, 0.17, 0.23, 0.29],
         ),
         (
-            "examples/example-logs/ior_hdf5_example.darshan",
+            "ior_hdf5_example.darshan",
             10,
             [0.0, 1 / 9, 2 / 9, 3 / 9, 4 / 9, 5 / 9, 6 / 9, 7 / 9, 8 / 9, 1.0],
             [
@@ -49,40 +50,40 @@ def jointgrid():
                 0.29,
             ],
         ),
-        ("examples/example-logs/dxt.darshan", 2, [0.0, 1.0], [0, 1468]),
+        ("dxt.darshan", 2, [0.0, 1.0], [0, 1468]),
         (
-            "examples/example-logs/dxt.darshan",
+            "dxt.darshan",
             4,
             [0.0, 0.4, 0.6, 1.0],
             [0, 489, 978, 1468],
         ),
         (
-            "examples/example-logs/dxt.darshan",
+            "dxt.darshan",
             6,
             [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
             [0, 293, 587, 880, 1174, 1468],
         ),
         (
-            "examples/example-logs/dxt.darshan",
+            "dxt.darshan",
             10,
             [0.0, 1 / 9, 2 / 9, 3 / 9, 4 / 9, 5 / 9, 6 / 9, 7 / 9, 8 / 9, 1.0],
             [0, 163, 326, 489, 652, 815, 978, 1141, 1304, 1468],
         ),
-        ("tests/input/sample-dxt-simple.darshan", 2, [0.0, 1.0], [0.0, 0.1]),
+        ("sample-dxt-simple.darshan", 2, [0.0, 1.0], [0.0, 0.1]),
         (
-            "tests/input/sample-dxt-simple.darshan",
+            "sample-dxt-simple.darshan",
             4,
             [0.0, 0.4, 0.6, 1.0],
             [0.0, 0.03, 0.07, 0.1],
         ),
         (
-            "tests/input/sample-dxt-simple.darshan",
+            "sample-dxt-simple.darshan",
             6,
             [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
             [0.0, 0.02, 0.04, 0.06, 0.08, 0.1],
         ),
         (
-            "tests/input/sample-dxt-simple.darshan",
+            "sample-dxt-simple.darshan",
             10,
             [0.0, 1 / 9, 2 / 9, 3 / 9, 4 / 9, 5 / 9, 6 / 9, 7 / 9, 8 / 9, 1.0],
             [
@@ -119,6 +120,7 @@ def test_set_x_axis_ticks_and_labels(
         agg_df = pd.DataFrame(data=data, columns=cols)
 
     else:
+        filepath = get_log_path(filepath)
         # for all other data sets just load the data from the log file
         report = darshan.DarshanReport(filepath)
         agg_df = heatmap_handling.get_aggregate_data(
@@ -221,9 +223,9 @@ def test_get_y_axis_tick_labels(
     [
         # check that if less y-axis labels are input, we get the
         # correct number of labels back
-        ("examples/example-logs/ior_hdf5_example.darshan", 2, [0.5, 3.5], [0.0, 3.0]),
+        ("ior_hdf5_example.darshan", 2, [0.5, 3.5], [0.0, 3.0]),
         (
-            "examples/example-logs/ior_hdf5_example.darshan",
+            "ior_hdf5_example.darshan",
             4,
             [0.5, 1.5, 2.5, 3.5],
             [0.0, 1.0, 2.0, 3.0],
@@ -231,19 +233,19 @@ def test_get_y_axis_tick_labels(
         # check that if we input more y-axis labels than available,
         # we just get back the maximum number available
         (
-            "examples/example-logs/ior_hdf5_example.darshan",
+            "ior_hdf5_example.darshan",
             8,
             [0.5, 1.5, 2.5, 3.5],
             [0.0, 1.0, 2.0, 3.0],
         ),
-        ("examples/example-logs/dxt.darshan", 2, [0.5], [0]),
+        ("dxt.darshan", 2, [0.5], [0]),
         # check that if we ask for more y-axis labels than
         # available, we still get the same output
-        ("examples/example-logs/dxt.darshan", 4, [0.5], [0]),
-        ("tests/input/sample-dxt-simple.darshan", 2, [0.5], [0.0]),
+        ("dxt.darshan", 4, [0.5], [0]),
+        ("sample-dxt-simple.darshan", 2, [0.5], [0.0]),
         # check that if we ask for more y-axis labels than
         # available, we still get the same output
-        ("tests/input/sample-dxt-simple.darshan", 4, [0.5], [0.0]),
+        ("sample-dxt-simple.darshan", 4, [0.5], [0.0]),
     ],
 )
 def test_set_y_axis_ticks_and_labels(
@@ -254,6 +256,7 @@ def test_set_y_axis_ticks_and_labels(
 ):
     # make sure the x-axis ticks and
     # tick labels are generated appropriately
+    filepath = get_log_path(filepath)
 
     # load the report and generate the aggregate data dataframe
     report = darshan.DarshanReport(filepath)
@@ -296,15 +299,16 @@ def test_set_y_axis_ticks_and_labels(
 @pytest.mark.parametrize(
     "filepath",
     [
-        "examples/example-logs/ior_hdf5_example.darshan",
-        "examples/example-logs/dxt.darshan",
-        "tests/input/sample-dxt-simple.darshan",
+        "ior_hdf5_example.darshan",
+        "dxt.darshan",
+        "sample-dxt-simple.darshan",
     ],
 )
 def test_remove_marginal_graph_ticks_and_labels(filepath):
     # regression test ensuring the marginal x/y bar graphs do
     # not have any x/y tick labels or frames
 
+    filepath = get_log_path(filepath)
     report = darshan.DarshanReport(filepath)
 
     jgrid = plot_dxt_heatmap.plot_heatmap(
@@ -330,14 +334,15 @@ def test_remove_marginal_graph_ticks_and_labels(filepath):
 @pytest.mark.parametrize(
     "filepath",
     [
-        "examples/example-logs/ior_hdf5_example.darshan",
-        "examples/example-logs/dxt.darshan",
-        "tests/input/sample-dxt-simple.darshan",
+        "ior_hdf5_example.darshan",
+        "dxt.darshan",
+        "sample-dxt-simple.darshan",
     ],
 )
 def test_adjust_for_colorbar(filepath):
     # regression test for `plot_dxt_heatmap.adjust_for_colorbar()`
 
+    filepath = get_log_path(filepath)
     report = darshan.DarshanReport(filepath)
 
     jgrid = plot_dxt_heatmap.plot_heatmap(report=report)
@@ -351,7 +356,7 @@ def test_adjust_for_colorbar(filepath):
     assert hmap_positions.x0 == 0.1
     assert hmap_positions.y0 == 0.15000000000000002
     assert hmap_positions.y1 == 0.774390243902439
-    if filepath == "examples/example-logs/ior_hdf5_example.darshan":
+    if "ior_hdf5_example.darshan" in filepath:
         # since `ior_hdf5_example.darshan` has 4 ranks, it has
         # different x max values because it needs room for
         # the colorbar on the outside of the horizontal bar graph
@@ -364,7 +369,7 @@ def test_adjust_for_colorbar(filepath):
     assert vert_bar_positions.x0 == 0.1
     assert vert_bar_positions.y0 == 0.7780487804878049
     assert vert_bar_positions.y1 == 0.9
-    if filepath == "examples/example-logs/ior_hdf5_example.darshan":
+    if "ior_hdf5_example.darshan" in filepath:
         # since `ior_hdf5_example.darshan` has 4 ranks, the vertical
         # bar graph has a different x max value because it needs room for
         # the colorbar on the outside of the horizontal bar graph
@@ -376,7 +381,7 @@ def test_adjust_for_colorbar(filepath):
     horiz_bar_positions = jgrid.ax_marg_y.get_position()
     assert horiz_bar_positions.y0 == 0.15000000000000002
     assert horiz_bar_positions.y1 == 0.774390243902439
-    if filepath == "examples/example-logs/ior_hdf5_example.darshan":
+    if "ior_hdf5_example.darshan" in filepath:
         # since `ior_hdf5_example.darshan` has 4 ranks, the horizontal
         # bar graph has different x min/max values because it has to
         # make room for the colorbar
@@ -390,7 +395,7 @@ def test_adjust_for_colorbar(filepath):
     cbar_positions = jgrid.fig.axes[-1].get_position()
     assert cbar_positions.y0 == 0.15000000000000002
     assert cbar_positions.y1 == 0.774390243902439
-    if filepath == "examples/example-logs/ior_hdf5_example.darshan":
+    if "ior_hdf5_example.darshan" in filepath:
         # since `ior_hdf5_example.darshan` has 4 ranks, the colorbar has
         # to go closer to the edge of the figure so the horizontal bar
         # graph can fit in the panel
@@ -404,9 +409,9 @@ def test_adjust_for_colorbar(filepath):
 @pytest.mark.parametrize(
     "filepath",
     [
-        "examples/example-logs/ior_hdf5_example.darshan",
-        "examples/example-logs/dxt.darshan",
-        "tests/input/sample-dxt-simple.darshan",
+        "ior_hdf5_example.darshan",
+        "dxt.darshan",
+        "sample-dxt-simple.darshan",
     ],
 )
 @pytest.mark.parametrize("mod", ["DXT_POSIX", "DXT_MPIIO", "POSIX"])
@@ -414,6 +419,7 @@ def test_adjust_for_colorbar(filepath):
 def test_plot_heatmap(filepath, mod, ops):
     # test the primary plotting function, `plot_dxt_heatmap.plot_heatmap()`
 
+    filepath = get_log_path(filepath)
     report = darshan.DarshanReport(filepath)
 
     if mod == "POSIX":
@@ -426,7 +432,7 @@ def test_plot_heatmap(filepath, mod, ops):
             jgrid = plot_dxt_heatmap.plot_heatmap(
                 report=report, mod=mod, ops=ops, xbins=100
             )
-    elif (filepath == "tests/input/sample-dxt-simple.darshan") & (ops == ["read"]):
+    elif ("sample-dxt-simple.darshan" in filepath) & (ops == ["read"]):
         # this log file is known to not have any read data, so
         # make sure we raise a ValueError here
         expected_msg = (
@@ -454,7 +460,7 @@ def test_plot_heatmap(filepath, mod, ops):
         # horizontal bar graph does not exist
         assert jgrid.ax_marg_x.has_data()
         assert jgrid.ax_joint.has_data()
-        if filepath == "examples/example-logs/ior_hdf5_example.darshan":
+        if "ior_hdf5_example.darshan" in filepath:
             # verify the horizontal bar graph contains data since there
             # are multiple ranks for this case
             assert jgrid.ax_marg_y.has_data()

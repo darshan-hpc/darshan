@@ -34,12 +34,6 @@ except ImportError:
 def _locate_log(filename: str, project: str) -> Optional[str]:
     """Locates a log in a project."""
     p = importlib_resources.files(project) # type: Any
-    if project == "darshan":
-        # move up 1 directory for now
-        # TODO: move the data directories within
-        # the pydarshan package and/or start shifting
-        # more files to the logs repo
-        p = p.parent
     darshan_logs_paths = [str(p) for p in p.glob('**/*.darshan')]
     for log_path in darshan_logs_paths:
         if filename in log_path:

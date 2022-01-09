@@ -64,11 +64,12 @@ jobs:
       - name: Test with pytest
         run: |
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
-          # the test suite is sensitive to
-          # relative dir for test file paths
-          cd darshan-util/pydarshan
+          # the test suite should be portable
+          # to any directory--it must be possible
+          # to check HPC spack installs for example
+          cd $RUNNER_TEMP
           site_packages=$(pip show darshan | grep Location | cut -d ' ' -f 2)
-          pytest --import-mode=importlib --cov-report xml --cov=$site_packages/darshan --cov=tests
+          pytest --pyargs darshan --cov-report xml --cov=$site_packages/darshan --cov=$site_packages/darshan/tests
       # Python 3.6 doesn't have access to some
       # dependencies needed for our type hints
       - if: ${{matrix.python-version > 3.6}}
