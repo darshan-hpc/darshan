@@ -5,6 +5,7 @@ import pandas as pd
 
 import darshan
 from darshan.experimental.plots import heatmap_handling
+from darshan.log_utils import get_log_path
 
 
 @pytest.fixture(scope="function")
@@ -202,7 +203,7 @@ def test_get_rd_wr_dfs_no_write(dict_list_no_writes):
 def test_get_single_df_dict(expected_df_dict, ops):
     # regression test for `heatmap_handling.get_single_df_dict()`
 
-    report = darshan.DarshanReport("tests/input/sample-dxt-simple.darshan")
+    report = darshan.DarshanReport(get_log_path("sample-dxt-simple.darshan"))
 
     actual_df_dict = heatmap_handling.get_single_df_dict(
         report=report, mod="DXT_POSIX", ops=ops
@@ -237,7 +238,7 @@ def test_get_single_df_dict(expected_df_dict, ops):
         # all 3 test cases are based on the outputs for
         # `tests/input/sample-dxt-simple.darshan`, which only has write data
         (
-            "tests/input/sample-dxt-simple.darshan",
+            "sample-dxt-simple.darshan",
             "DXT_POSIX",
             ["read", "write"],
             np.array(
@@ -248,10 +249,10 @@ def test_get_single_df_dict(expected_df_dict, ops):
             ),
         ),
         # for "read" case input None since there is no data to compare
-        ("tests/input/sample-dxt-simple.darshan", "DXT_POSIX", ["read"], None),
-        ("tests/input/sample-dxt-simple.darshan", "DXT_MPIIO", ["read"], None),
+        ("sample-dxt-simple.darshan", "DXT_POSIX", ["read"], None),
+        ("sample-dxt-simple.darshan", "DXT_MPIIO", ["read"], None),
         (
-            "tests/input/sample-dxt-simple.darshan",
+            "sample-dxt-simple.darshan",
             "DXT_POSIX",
             ["write"],
             np.array(
@@ -262,7 +263,7 @@ def test_get_single_df_dict(expected_df_dict, ops):
             ),
         ),
         (
-            "examples/example-logs/ior_hdf5_example.darshan",
+            "ior_hdf5_example.darshan",
             "DXT_MPIIO",
             ["write"],
             np.array(
@@ -298,6 +299,7 @@ def test_get_single_df_dict(expected_df_dict, ops):
 def test_get_aggregate_data(log_file, expected_agg_data, mod, ops):
     # regression test for `heatmap_handling.get_aggregate_data()`
 
+    log_file = get_log_path(log_file)
     report = darshan.DarshanReport(log_file)
 
     if ops == ["read"]:
@@ -327,65 +329,65 @@ def test_get_aggregate_data(log_file, expected_agg_data, mod, ops):
         # For `sample-dxt-simple.darshan` the selected
         # operations are not changed because there is no "read" data
         (
-            "tests/input/sample-dxt-simple.darshan",
+            "sample-dxt-simple.darshan",
             1,
             ["read", "write"],
             np.array([[4040]]),
         ),
         (
-            "tests/input/sample-dxt-simple.darshan",
+            "sample-dxt-simple.darshan",
             4,
             ["read", "write"],
             np.array([[0, 0, 0, 4040]]),
         ),
         (
-            "tests/input/sample-dxt-simple.darshan",
+            "sample-dxt-simple.darshan",
             10,
             ["read", "write"],
             np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 4040]]),
         ),
         # `dxt.darshan` is complex enough to warrant changing the
         # selected operations
-        ("examples/example-logs/dxt.darshan", 1, ["read"], np.array([[22517726]])),
+        ("dxt.darshan", 1, ["read"], np.array([[22517726]])),
         (
-            "examples/example-logs/dxt.darshan",
+            "dxt.darshan",
             4,
             ["read"],
             np.array([[10214363, 0, 8070137, 4233226]]),
         ),
         (
-            "examples/example-logs/dxt.darshan",
+            "dxt.darshan",
             10,
             ["read"],
             np.array([[10214363, 0, 0, 0, 0, 0, 8070137, 0, 0, 4233226]]),
         ),
-        ("examples/example-logs/dxt.darshan", 1, ["write"], np.array([[13021781]])),
+        ("dxt.darshan", 1, ["write"], np.array([[13021781]])),
         (
-            "examples/example-logs/dxt.darshan",
+            "dxt.darshan",
             4,
             ["write"],
             np.array([[4381, 0, 10915913, 2101487]]),
         ),
         (
-            "examples/example-logs/dxt.darshan",
+            "dxt.darshan",
             10,
             ["write"],
             np.array([[4381, 0, 0, 0, 0, 0, 10915913, 0, 0, 2101487]]),
         ),
         (
-            "examples/example-logs/dxt.darshan",
+            "dxt.darshan",
             1,
             ["read", "write"],
             np.array([[35539507]]),
         ),
         (
-            "examples/example-logs/dxt.darshan",
+            "dxt.darshan",
             4,
             ["read", "write"],
             np.array([[10218744, 0, 18986050, 6334713]]),
         ),
         (
-            "examples/example-logs/dxt.darshan",
+            "dxt.darshan",
             10,
             ["read", "write"],
             np.array([[10218744, 0, 0, 0, 0, 0, 18986050, 0, 0, 6334713]]),
@@ -393,13 +395,13 @@ def test_get_aggregate_data(log_file, expected_agg_data, mod, ops):
         # `ior_hdf5_example.darshan` is the only log with multiple ranks (4),
         # so it also gets different operation combinations
         (
-            "examples/example-logs/ior_hdf5_example.darshan",
+            "ior_hdf5_example.darshan",
             1,
             ["read"],
             np.array([[1051088], [1050472], [1050472], [1050472]]),
         ),
         (
-            "examples/example-logs/ior_hdf5_example.darshan",
+            "ior_hdf5_example.darshan",
             10,
             ["read"],
             np.array(
@@ -412,7 +414,7 @@ def test_get_aggregate_data(log_file, expected_agg_data, mod, ops):
             ),
         ),
         (
-            "examples/example-logs/ior_hdf5_example.darshan",
+            "ior_hdf5_example.darshan",
             1,
             ["write"],
             np.array(
@@ -425,7 +427,7 @@ def test_get_aggregate_data(log_file, expected_agg_data, mod, ops):
             ),
         ),
         (
-            "examples/example-logs/ior_hdf5_example.darshan",
+            "ior_hdf5_example.darshan",
             10,
             ["write"],
             np.array(
@@ -471,7 +473,7 @@ def test_get_aggregate_data(log_file, expected_agg_data, mod, ops):
             ),
         ),
         (
-            "examples/example-logs/ior_hdf5_example.darshan",
+            "ior_hdf5_example.darshan",
             1,
             ["read", "write"],
             np.array(
@@ -484,7 +486,7 @@ def test_get_aggregate_data(log_file, expected_agg_data, mod, ops):
             ),
         ),
         (
-            "examples/example-logs/ior_hdf5_example.darshan",
+            "ior_hdf5_example.darshan",
             10,
             ["read", "write"],
             np.array(
@@ -551,6 +553,7 @@ def test_get_heatmap_df(
     # regression test for `heatmap_handling.get_heatmap_df()`
 
     # generate the report and use it to obtain the aggregated data
+    filepath = get_log_path(filepath)
     report = darshan.DarshanReport(filepath)
     agg_df = heatmap_handling.get_aggregate_data(
         report=report, mod="DXT_POSIX", ops=ops
@@ -558,7 +561,7 @@ def test_get_heatmap_df(
     # run the aggregated data through the heatmap data code
     actual_hmap_data = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins)
 
-    if filepath == "tests/input/sample-dxt-simple.darshan":
+    if "sample-dxt-simple.darshan" in filepath:
         # check the data is conserved
         assert actual_hmap_data.values.sum() == 4040
         # make sure the output array is the correct shape
@@ -566,7 +569,7 @@ def test_get_heatmap_df(
         # make sure the output data contains identical values
         assert_allclose(actual_hmap_data.values, expected_hmap_data)
 
-    elif filepath == "examples/example-logs/dxt.darshan":
+    elif "dxt.darshan" in filepath:
         # make sure the output array is the correct shape
         assert actual_hmap_data.shape == (1, xbins)
         # make sure the output data contains identical values
@@ -580,7 +583,7 @@ def test_get_heatmap_df(
         elif ops[0] == "write":
             assert actual_hmap_data.values.sum() == 13021781
 
-    elif filepath == "examples/example-logs/ior_hdf5_example.darshan":
+    elif "ior_hdf5_example.darshan" in filepath:
         # make sure the output array is the correct shape
         assert actual_hmap_data.shape == (4, xbins)
         # make sure the output data contains identical values

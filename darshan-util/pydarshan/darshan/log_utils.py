@@ -35,12 +35,6 @@ except ImportError:
 @functools.lru_cache(maxsize=4)
 def _produce_log_dict(project):
     p = importlib_resources.files(project) # type: Any
-    if project == "darshan":
-        # move up 1 directory for now
-        # TODO: move the data directories within
-        # the pydarshan package and/or start shifting
-        # more files to the logs repo
-        p = p.parent
     darshan_log_dict = {p.name:str(p) for p in p.glob('**/*.darshan')}
     return darshan_log_dict
 
@@ -52,6 +46,7 @@ def _locate_log(filename: str, project: str) -> Optional[str]:
         return path
     except KeyError:
         return None
+
 
 def get_log_path(filename: str) -> str:
     """

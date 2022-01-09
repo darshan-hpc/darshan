@@ -40,13 +40,14 @@ def test_setup_parser(argv):
 
 @pytest.mark.parametrize(
     "argv", [
-        [os.path.abspath("./examples/example-logs/dxt.darshan")],
-        [os.path.abspath("./examples/example-logs/dxt.darshan"), "--output=test.html"],
+        ["dxt.darshan"],
+        ["dxt.darshan", "--output=test.html"],
     ]
 )
 def test_main_with_args(tmpdir, argv):
     # test summary.main() by building a parser
     # and using it as an input
+    argv[0] = get_log_path(argv[0])
 
     # initialize the parser, add the arguments, and parse them
     with mock.patch("sys.argv", argv):
@@ -172,33 +173,35 @@ class TestReportData:
     @pytest.mark.parametrize(
         "log_path",
         [
-            "tests/input/sample.darshan",
-            "tests/input/noposix.darshan",
-            "tests/input/sample-badost.darshan",
-            "tests/input/sample-dxt-simple.darshan",
+            "sample.darshan",
+            "noposix.darshan",
+            "sample-badost.darshan",
+            "sample-dxt-simple.darshan",
         ],
     )
     def test_stylesheet(self, log_path):
         # check that the report object is
         # generating the correct attributes
+        log_path = get_log_path(log_path)
         R = summary.ReportData(log_path=log_path)
         # verify the first line shows up correctly for each log
         expected_str = "p {\n  font-size: 12px;\n}"
         assert expected_str in R.stylesheet
 
     @pytest.mark.parametrize(
-        "log_path, expected_header",
+        "log_name, expected_header",
         [
-            ("tests/input/sample.darshan", "vpicio_uni (2017-03-20)"),
+            ("sample.darshan", "vpicio_uni (2017-03-20)"),
             # anonymized case
-            ("tests/input/noposix.darshan", "Anonymized (2018-01-02)"),
-            ("tests/input/sample-badost.darshan", "ior (2017-06-20)"),
-            ("tests/input/sample-dxt-simple.darshan", "a.out (2021-04-22)"),
-            ("examples/example-logs/dxt.darshan", "N/A (2020-04-21)"),
+            ("noposix.darshan", "Anonymized (2018-01-02)"),
+            ("sample-badost.darshan", "ior (2017-06-20)"),
+            ("sample-dxt-simple.darshan", "a.out (2021-04-22)"),
+            ("dxt.darshan", "N/A (2020-04-21)"),
         ],
     )
-    def test_header_and_footer(self, log_path, expected_header):
+    def test_header_and_footer(self, log_name, expected_header):
         # check the header and footer strings stored in the report data object
+        log_path = get_log_path(log_name)
         R = summary.ReportData(log_path=log_path)
         assert R.header == expected_header
         assert "Summary report generated via PyDarshan v" in R.footer
@@ -207,7 +210,7 @@ class TestReportData:
         "log_path, expected_df",
         [
             (
-                "tests/input/sample.darshan",
+                "sample.darshan",
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
@@ -234,7 +237,7 @@ class TestReportData:
             ),
             # anonymized case
             (
-                "tests/input/noposix.darshan",
+                "noposix.darshan",
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
@@ -256,7 +259,7 @@ class TestReportData:
                 )
             ),
             (
-                "tests/input/sample-dxt-simple.darshan",
+                "sample-dxt-simple.darshan",
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
@@ -285,6 +288,7 @@ class TestReportData:
     def test_metadata_table(self, log_path, expected_df):
         # regression test for `summary.ReportData.get_metadata_table()`
 
+        log_path = get_log_path(log_path)
         # generate the report data
         R = summary.ReportData(log_path=log_path)
         # convert the metadata table back to a pandas dataframe
@@ -304,7 +308,7 @@ class TestReportData:
             # each of these logs offers a unique
             # set of modules to verify
             (
-                "tests/input/sample.darshan",
+                "sample.darshan",
                 pd.DataFrame(
                     index=[
                         "POSIX (ver=3)", "MPI-IO (ver=2)",
@@ -314,28 +318,28 @@ class TestReportData:
                 ),
             ),
             (
-                "tests/input/noposix.darshan",
+                "noposix.darshan",
                 pd.DataFrame(
                     index=["LUSTRE (ver=1)", "STDIO (ver=1)"],
                     data=[["6.07 KiB"], ["0.21 KiB"]],
                 )
             ),
             (
-                "tests/input/noposixopens.darshan",
+                "noposixopens.darshan",
                 pd.DataFrame(
                     index=["POSIX (ver=3)", "STDIO (ver=1)"],
                     data=[["0.04 KiB"], ["0.27 KiB"]],
                 )
             ),
             (
-                "tests/input/sample-goodost.darshan",
+                "sample-goodost.darshan",
                 pd.DataFrame(
                     index=["POSIX (ver=3)", "LUSTRE (ver=1)", "STDIO (ver=1)"],
                     data=[["5.59 KiB"], ["1.47 KiB"], ["0.07 KiB"]],
                 )
             ),
             (
-                "tests/input/sample-dxt-simple.darshan",
+                "sample-dxt-simple.darshan",
                 pd.DataFrame(
                     index=[
                         "POSIX (ver=4)", "MPI-IO (ver=3)",
@@ -349,6 +353,7 @@ class TestReportData:
     def test_module_table(self, log_path, expected_df):
         # regression test for `summary.ReportData.get_module_table()`
 
+        log_path = get_log_path(log_path)
         # collect the report data
         R = summary.ReportData(log_path=log_path)
         # convert the module table back to a pandas dataframe
@@ -367,10 +372,10 @@ class TestReportData:
         assert_frame_equal(actual_mod_df, expected_df)
 
     @pytest.mark.parametrize(
-        "report, expected_cmd",
+        "logname, expected_cmd",
         [
             (
-                darshan.DarshanReport("tests/input/sample.darshan"),
+                "sample.darshan",
                 (
                     "/global/project/projectdirs/m888/glock/tokio-abc-results/"
                     "bin.edison/vpicio_uni /scratch2/scratchdirs/glock/tokioabc"
@@ -378,7 +383,7 @@ class TestReportData:
                 ),
             ),
             (
-                darshan.DarshanReport("tests/input/sample-badost.darshan"),
+                "sample-badost.darshan",
                 (
                     "/global/project/projectdirs/m888/glock/tokio-abc-results/"
                     "bin.edison/ior -H -k -w -o ior-posix.out -s 64 -f /global"
@@ -387,41 +392,43 @@ class TestReportData:
                 ),
             ),
             (
-                darshan.DarshanReport("tests/input/sample-goodost.darshan"),
+                "sample-goodost.darshan",
                 (
                     "/global/homes/g/glock/src/git/ior-lanl/src/ior "
                     "-t 8m -b 256m -s 4 -F -C -e -a POSIX -w -k"
                 ),
             ),
             (
-                darshan.DarshanReport("tests/input/sample-dxt-simple.darshan"),
+                "sample-dxt-simple.darshan",
                 "/yellow/usr/projects/eap/users/treddy/simple_dxt_mpi_io_darshan/a.out ",
             ),
             # anonymized cases
-            (darshan.DarshanReport("tests/input/noposix.darshan"), "Anonymized"),
-            (darshan.DarshanReport("tests/input/noposixopens.darshan"), "Anonymized"),
+            ("noposix.darshan", "Anonymized"),
+            ("noposixopens.darshan", "Anonymized"),
             # no executable case
-            (darshan.DarshanReport("examples/example-logs/dxt.darshan"), "N/A"),
+            ("dxt.darshan", "N/A"),
         ],
     )
-    def test_get_full_command(self, report, expected_cmd):
+    def test_get_full_command(self, logname, expected_cmd):
         # regression test for `summary.ReportData.get_full_command()`
+        report = darshan.DarshanReport(get_log_path(logname))
         actual_cmd = summary.ReportData.get_full_command(report=report)
         assert actual_cmd == expected_cmd
 
     @pytest.mark.parametrize(
-        "report, expected_runtime",
+        "logname, expected_runtime",
         [
-            (darshan.DarshanReport("tests/input/sample.darshan"), "116.0",),
-            (darshan.DarshanReport("tests/input/noposix.darshan"), "39212.0"),
-            (darshan.DarshanReport("tests/input/noposixopens.darshan"), "1110.0"),
-            (darshan.DarshanReport("tests/input/sample-badost.darshan"), "779.0",),
-            (darshan.DarshanReport("tests/input/sample-goodost.darshan"), "4.0",),
+            ("sample.darshan", "116.0",),
+            ("noposix.darshan", "39212.0"),
+            ("noposixopens.darshan", "1110.0"),
+            ("sample-badost.darshan", "779.0",),
+            ("sample-goodost.darshan", "4.0",),
             # special case where the calculated run time is 0
-            (darshan.DarshanReport("tests/input/sample-dxt-simple.darshan"), "< 1",),
+            ("sample-dxt-simple.darshan", "< 1",),
         ],
     )
-    def test_get_runtime(self, report, expected_runtime):
+    def test_get_runtime(self, logname, expected_runtime):
         # regression test for `summary.ReportData.get_runtime()`
+        report = darshan.DarshanReport(get_log_path(logname))
         actual_runtime = summary.ReportData.get_runtime(report=report)
         assert actual_runtime == expected_runtime

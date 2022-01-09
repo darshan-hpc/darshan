@@ -2,6 +2,7 @@ import os
 
 import pytest
 import darshan.backend.cffi_backend as backend
+from darshan.log_utils import get_log_path
 
 @pytest.mark.parametrize("logfile", [
     # an incredibly simple darshan DXT trace
@@ -32,7 +33,7 @@ import darshan.backend.cffi_backend as backend
                    'read_segments': []})])
 def test_dxt_records(logfile, mod, expected_dict):
     # regression guard for DXT records values
-    logfile = os.path.join("tests/input", logfile)
+    logfile = get_log_path(logfile)
     log = backend.log_open(logfile)
     rec = backend.log_get_record(log, mod)
     assert rec == expected_dict

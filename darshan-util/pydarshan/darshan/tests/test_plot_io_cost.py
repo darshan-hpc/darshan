@@ -5,6 +5,7 @@ import pandas as pd
 from pandas.testing import assert_frame_equal, assert_series_equal
 
 import darshan
+from darshan.log_utils import get_log_path
 from darshan.experimental.plots.plot_io_cost import (
     get_by_avg_series,
     get_io_cost_df,
@@ -12,10 +13,10 @@ from darshan.experimental.plots.plot_io_cost import (
 )
 
 @pytest.mark.parametrize(
-    "report, expected_df",
+    "logname, expected_df",
     [
         (
-            darshan.DarshanReport("examples/example-logs/ior_hdf5_example.darshan"),
+            "ior_hdf5_example.darshan",
             pd.DataFrame(
                 np.array([
                     [0.0196126699, 0.1342029571533203, 0.0074423551],
@@ -27,7 +28,7 @@ from darshan.experimental.plots.plot_io_cost import (
             ),
         ),
         (
-            darshan.DarshanReport("examples/example-logs/sample-badost.darshan"),
+            "sample-badost.darshan",
             pd.DataFrame(
                 np.array([
                     [0.0, 33.48587587394286, 0.5547398688504472],
@@ -39,39 +40,41 @@ from darshan.experimental.plots.plot_io_cost import (
         ),
     ],
 )
-def test_get_io_cost_df(report, expected_df):
+def test_get_io_cost_df(logname, expected_df):
     # regression test for `plot_io_cost.get_io_cost_df()`
+    report = darshan.DarshanReport(get_log_path(logname))
     actual_df = get_io_cost_df(report=report)
     assert_frame_equal(actual_df, expected_df)
 
 
 @pytest.mark.parametrize(
-    "report, expected_ylims", [
+    "logname, expected_ylims", [
         (
-            darshan.DarshanReport("examples/example-logs/ior_hdf5_example.darshan"),
+            "ior_hdf5_example.darshan",
             [0.0, 1.0],
         ),
         (
-            darshan.DarshanReport("examples/example-logs/sample-badost.darshan"),
+            "sample-badost.darshan",
             [0.0, 779.0],
         ),
         (
-            darshan.DarshanReport("examples/example-logs/dxt.darshan"),
+            "dxt.darshan",
             [0.0, 1468.0],
         ),
         (
-            darshan.DarshanReport("examples/example-logs/noposix.darshan"),
+            "noposix.darshan",
             [0.0, 39212.0],
         ),
         (
-            darshan.DarshanReport("tests/input/noposixopens.darshan"),
+            "noposixopens.darshan",
             [0.0, 1110.0],
         ),
     ],
 )
-def test_plot_io_cost_ylims(report, expected_ylims):
+def test_plot_io_cost_ylims(logname, expected_ylims):
     # test the y limits for both axes for the IO cost stacked bar graph
 
+    report = darshan.DarshanReport(get_log_path(logname))
     fig = plot_io_cost(report=report)
     for i, ax in enumerate(fig.axes):
         # there are only 2 axes, the first being the "raw" data
@@ -84,24 +87,26 @@ def test_plot_io_cost_ylims(report, expected_ylims):
             assert_allclose(actual_ylims, [0.0, 100.0])
 
 @pytest.mark.parametrize(
-    "report, expected_yticks", [
+    "logname, expected_yticks", [
         (
-            darshan.DarshanReport("examples/example-logs/ior_hdf5_example.darshan"),
+            "ior_hdf5_example.darshan",
             [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
         ),
         (
-            darshan.DarshanReport("examples/example-logs/sample-badost.darshan"),
+            "sample-badost.darshan",
             [0.0, 155.8, 311.6, 467.4, 623.2, 779.0],
         ),
     ],
 )
-def test_plot_io_cost_y_ticks_and_labels(report, expected_yticks):
+def test_plot_io_cost_y_ticks_and_labels(logname, expected_yticks):
     # check the y-axis tick marks are at the appropriate
     # locations and the labels are as expected
 
     # create the expected y-axis tick labels from the y ticks
     expected_yticklabels = [str(i) for i in expected_yticks]
 
+    logpath = get_log_path(logname)
+    report = darshan.DarshanReport(logpath)
     fig = plot_io_cost(report=report)
     for i, ax in enumerate(fig.axes):
         # there are only 2 axes, the first being the "raw" data
