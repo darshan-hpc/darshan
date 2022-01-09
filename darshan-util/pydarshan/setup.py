@@ -84,7 +84,7 @@ setup(
     package_data={"": ["*.darshan"],
                   "darshan": ["cli/style.css",
                               "cli/base.html",
-                              "examples/example-logs/*",
+                              "examples/example_logs/*",
                               "examples/darshan-graph/*",
                               "tests/input/*"]},
 )
