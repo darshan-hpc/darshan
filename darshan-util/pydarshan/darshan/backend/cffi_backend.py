@@ -72,8 +72,6 @@ _structdefs = {
 
 
 
-
-
 def get_lib_version():
     """
     Return the version information hardcoded into the shared library.
@@ -596,7 +594,7 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
 
 
 def _log_get_heatmap_record(log):
-   """
+    """
     Returns a dictionary holding a heatmap darshan log record.
 
     Args:
@@ -605,7 +603,9 @@ def _log_get_heatmap_record(log):
     Return:
         dict: heatmap log record
     """
-    
+   
+    mod_name = "HEATMAP"
+
     modules = log_get_modules(log)
     if mod_name not in modules:
         return None
