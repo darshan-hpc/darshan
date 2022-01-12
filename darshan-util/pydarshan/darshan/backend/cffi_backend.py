@@ -300,6 +300,8 @@ def log_get_record(log, mod, dtype='numpy'):
 
     if mod in ['LUSTRE']:
         rec = _log_get_lustre_record(log, dtype=dtype)
+    if mod in ['HEATMAP']:
+        rec = _log_get_heatmap_record(log)
     elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
         rec = log_get_dxt_record(log, mod, dtype=dtype)
     else:
@@ -623,8 +625,7 @@ def _log_get_heatmap_record(log):
 
     rec['id'] = filerec[0].base_rec.id
     rec['rank'] = filerec[0].base_rec.rank
-    #rec['hostname'] = ffi.string(filerec[0].hostname).decode("utf-8")
-    rec['heatmap'] = name_records[rec['id']]
+    #rec['heatmap_name'] = name_records[rec['id']]
 
     bin_width_seconds = filerec[0].bin_width_seconds
     nbins = filerec[0].nbins
