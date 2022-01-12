@@ -48,7 +48,7 @@ def _produce_log_dict(project):
 def _locate_log(filename: str, project: str) -> Optional[str]:
     """Locates a log in a project."""
     try:
-        path =  _produce_log_dict(project)[filename]
+        path = _produce_log_dict(project)[filename]
         return path
     except KeyError:
         return None
