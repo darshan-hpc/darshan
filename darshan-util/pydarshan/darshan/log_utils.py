@@ -12,6 +12,7 @@ else:
     # see: https://github.com/python/mypy/issues/1153
     import importlib.resources as importlib_resources # type: ignore
 
+import functools
 import sys
 import os
 import glob
@@ -31,8 +32,8 @@ except ImportError:
     has_log_repo = False
 
 
-def _locate_log(filename: str, project: str) -> Optional[str]:
-    """Locates a log in a project."""
+@functools.lru_cache(maxsize=4)
+def _produce_log_dict(project):
     p = importlib_resources.files(project) # type: Any
     if project == "darshan":
         # move up 1 directory for now
@@ -40,12 +41,17 @@ def _locate_log(filename: str, project: str) -> Optional[str]:
         # the pydarshan package and/or start shifting
         # more files to the logs repo
         p = p.parent
-    darshan_logs_paths = [str(p) for p in p.glob('**/*.darshan')]
-    for log_path in darshan_logs_paths:
-        if filename in log_path:
-            return log_path
-    # if log is not found
-    return None
+    darshan_log_dict = {p.name:str(p) for p in p.glob('**/*.darshan')}
+    return darshan_log_dict
+
+
+def _locate_log(filename: str, project: str) -> Optional[str]:
+    """Locates a log in a project."""
+    try:
+        path = _produce_log_dict(project)[filename]
+        return path
+    except KeyError:
+        return None
 
 def get_log_path(filename: str) -> str:
     """
