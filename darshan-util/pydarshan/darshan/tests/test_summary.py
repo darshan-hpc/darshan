@@ -432,3 +432,23 @@ class TestReportData:
         report = darshan.DarshanReport(get_log_path(logname))
         actual_runtime = summary.ReportData.get_runtime(report=report)
         assert actual_runtime == expected_runtime
+
+
+class TestReportFigure:
+
+    def test_generate_fig_unsupported_fig_type(self):
+        # input figure function that outputs an unsupported figure type
+        # to check an error is raised
+
+        with pytest.raises(NotImplementedError) as err:
+            # initializing a `ReportFigure` automatically calls `generate_fig()`
+            summary.ReportFigure(
+                # create a simple function
+                fig_func=lambda x:x,
+                fig_args=dict(x=1),
+                section_title="Test Section Title",
+                fig_title="Test Figure Title",
+            )
+
+        # verify correct error is being raised
+        assert "Figure of type <class 'int'> not supported." in str(err)

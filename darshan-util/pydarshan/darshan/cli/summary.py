@@ -13,6 +13,8 @@ from typing import Any, Union, Callable
 
 import pandas as pd
 from mako.template import Template
+import matplotlib
+import seaborn
 
 import darshan
 import darshan.cli
@@ -58,9 +60,9 @@ class ReportFigure:
         # temporary handling for DXT disabled cases
         # so special error message can be passed
         # in place of an encoded image
-        self.img_str = None
+        self.fig_html = None
         if self.fig_func:
-            self.generate_img()
+            self.generate_fig()
 
     @staticmethod
     def get_encoded_fig(mpl_fig: Any):
@@ -81,17 +83,28 @@ class ReportFigure:
         encoded_fig = base64.b64encode(tmpfile.getvalue()).decode("utf-8")
         return encoded_fig
 
-    def generate_img(self):
+    def generate_fig(self):
         """
-        Generate the image using the figure data.
+        Generate a figure using the figure data.
         """
-        # generate the matplotlib figure using the figure's
+        # generate the figure using the figure's
         # function and function arguments
-        mpl_fig = self.fig_func(**self.fig_args)
-        # encode the matplotlib figure
-        encoded = self.get_encoded_fig(mpl_fig=mpl_fig)
-        # create the img string
-        self.img_str = f"<img src=data:image/png;base64,{encoded} alt={self.fig_title} width={self.fig_width}>"
+        fig = self.fig_func(**self.fig_args)
+        supported_mpl_fig_types = [matplotlib.figure.Figure, seaborn.axisgrid.JointGrid]
+        if type(fig) in supported_mpl_fig_types:
+            # encode the matplotlib figure
+            encoded = self.get_encoded_fig(mpl_fig=fig)
+            # create the img string
+            self.fig_html = f"<img src=data:image/png;base64,{encoded} alt={self.fig_title} width={self.fig_width}>"
+        elif isinstance(fig, pd.DataFrame):
+            # use built-in pandas utility to convert table to html
+            self.fig_html = fig.to_html(header=False, border=0)
+        else:
+            err_msg = (
+                f"Figure of type {type(fig)} not supported. \n"
+                f"Supported figure types: {supported_mpl_fig_types}"
+            )
+            raise NotImplementedError(err_msg)
 
 class ReportData:
     """
