@@ -71,16 +71,16 @@ def test_main_with_args(tmpdir, argv):
 
 
 @pytest.mark.parametrize(
-    "argv, expected_img_count", [
-        (["noposix.darshan"], 1),
-        (["noposix.darshan", "--output=test.html"], 1),
-        (["sample-dxt-simple.darshan"], 3),
-        (["sample-dxt-simple.darshan", "--output=test.html"], 3),
-        (["nonmpi_partial_modules.darshan"], 2),
-        ([None], 0),
+    "argv, expected_img_count, expected_table_count", [
+        (["noposix.darshan"], 1, 2),
+        (["noposix.darshan", "--output=test.html"], 1, 2),
+        (["sample-dxt-simple.darshan"], 3, 4),
+        (["sample-dxt-simple.darshan", "--output=test.html"], 3, 4),
+        (["nonmpi_partial_modules.darshan"], 2, 3),
+        ([None], 0, 0),
     ]
 )
-def test_main_without_args(tmpdir, argv, expected_img_count):
+def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_count):
     # test summary.main() by running it without a parser
     if argv[0] is not None:
         argv[0] = get_log_path(argv[0])
@@ -117,6 +117,12 @@ def test_main_without_args(tmpdir, argv, expected_img_count):
 
                     # check that expected number of figures are found
                     assert report_str.count("img") == expected_img_count
+
+                    # check that the expected number of tables are found
+                    # NOTE: there are 2 "table" tags per table, and 2 other
+                    # instances of the word in each report (1 comment, 1 from CSS)
+                    expected_table_count = 2 * expected_table_count + 2
+                    assert report_str.count("table") == expected_table_count
 
                     # check if I/O cost figure is present
                     for mod in report.modules:
