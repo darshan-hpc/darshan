@@ -98,7 +98,7 @@ class ReportFigure:
             self.fig_html = f"<img src=data:image/png;base64,{encoded} alt={self.fig_title} width={self.fig_width}>"
         elif isinstance(fig, pd.DataFrame):
             # use built-in pandas utility to convert table to html
-            self.fig_html = fig.to_html(header=False, border=0)
+            self.fig_html = fig.to_html(index=False, border=0)
         else:
             err_msg = (
                 f"Figure of type {type(fig)} not supported. \n"
