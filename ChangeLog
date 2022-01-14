@@ -4,6 +4,8 @@ Darshan Release Change Log
 
 Darshan-3.3.2
 =============
+* Add a new "heatmap" module that records histograms of I/O traffic over time
+  on each process
 * Performance optimizations to runtime wrappers to limit function call
   overhead and locking costs
 * Replace mutex locks with atomics in core library

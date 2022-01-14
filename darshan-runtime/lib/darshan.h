@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <pthread.h>
+#include <stdio.h>
 
 #ifdef HAVE_MPI
 #include <mpi.h>
