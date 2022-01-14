@@ -380,3 +380,32 @@ def get_heatmap_df(agg_df: pd.DataFrame, xbins: int) -> pd.DataFrame:
     cats.index = agg_df["rank"]
     hmap_df = cats.groupby("rank").sum()
     return hmap_df
+
+
+def get_filled_hmap_df(hmap_df: Any, nprocs: int) -> Any:
+    """
+    Takes a dataframe containing a subset of ranks and injects them into
+    a new dataframe with a row for each rank.
+
+    Parameters
+    ----------
+
+    hmap_df: dataframe with time intervals for columns and rank
+    index (0, 1, etc.) for rows, where each element contains the data
+    read/written by the corresponding rank in the given time interval.
+
+    nprocs: the number of MPI ranks/processes used at runtime.
+
+    Returns
+    -------
+
+    filled_df: dataframe of shape ``nprocs x xbins`` with same intervals as
+    `hmap_df`, all data from `hmap_df`, but rows that span from 0 to `nprocs-1`.
+
+    """
+    # make an empty dataframe of size `nprocs x xbins`
+    # and fill it with the data from above dataframe
+    filled_df = pd.DataFrame(np.zeros((nprocs, hmap_df.shape[1])), columns=hmap_df.columns)
+    filled_df.index.name = "rank"
+    filled_df.update(hmap_df)
+    return filled_df

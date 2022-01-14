@@ -337,12 +337,14 @@ def plot_heatmap(
     # get the heatmap data array
     hmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins)
 
-    # get the unique ranks
-    unique_ranks = np.unique(agg_df["rank"].values)
-    ybins = unique_ranks.size
+    nprocs = report.metadata["job"]["nprocs"]
+    hmap_df = heatmap_handling.get_filled_hmap_df(hmap_df=hmap_df, nprocs=nprocs)
+
+    # reverse order of rows so the ranks are in ascending order when plotted
+    hmap_df = hmap_df.loc[::-1]
 
     # build the joint plot with marginal histograms
-    jgrid = sns.jointplot(kind="hist", bins=[xbins, ybins], space=0.05)
+    jgrid = sns.jointplot(kind="hist", bins=[xbins, nprocs], space=0.05)
     # clear the x and y axis marginal graphs
     jgrid.ax_marg_x.cla()
     jgrid.ax_marg_y.cla()
@@ -377,11 +379,11 @@ def plot_heatmap(
     for _, spine in hmap.spines.items():
         spine.set_visible(True)
 
-    # if there are more than 1 unique rank,
+    # if there is more than 1 processes,
     # create the horizontal bar graph
-    if unique_ranks.size > 1:
+    if nprocs > 1:
         jgrid.ax_marg_y.barh(
-            y=unique_ranks,
+            y=np.arange(nprocs),
             width=hmap_df.sum(axis=1),
             align="edge",
             facecolor="black",
@@ -411,7 +413,7 @@ def plot_heatmap(
     # set the dimensions of the figure to 6.5" wide x 4.5" tall
     jgrid.fig.set_size_inches(6.5, 4.5)
 
-    if unique_ranks.size > 1:
+    if nprocs > 1:
         # if there are multiple ranks we want to move the colorbar on the far
         # right side of the horizontal bar graph
         adjust_for_colorbar(jointgrid=jgrid, fig_right=0.84, cbar_x0=0.85)
@@ -420,9 +422,6 @@ def plot_heatmap(
         # if there is only 1 unique rank there is no horizontal bar graph,
         # so set the subplot dimensions to fill the space
         adjust_for_colorbar(jointgrid=jgrid, fig_right=0.92, cbar_x0=0.82)
-
-    # invert the y-axis so rank values are increasing
-    jgrid.ax_joint.invert_yaxis()
 
     # set the axis labels
     jgrid.ax_joint.set_xlabel("Time (s)")

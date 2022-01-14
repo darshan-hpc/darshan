@@ -242,10 +242,10 @@ def test_get_y_axis_tick_labels(
         # check that if we ask for more y-axis labels than
         # available, we still get the same output
         ("dxt.darshan", 4, [0.5], [0]),
-        ("sample-dxt-simple.darshan", 2, [0.5], [0.0]),
+        ("sample-dxt-simple.darshan", 2, [0.5, 15.5], [0.0, 15.0]),
         # check that if we ask for more y-axis labels than
         # available, we still get the same output
-        ("sample-dxt-simple.darshan", 4, [0.5], [0.0]),
+        ("sample-dxt-simple.darshan", 4, [0.5, 5.5, 10.5, 15.5], [0.0, 5.0, 10.0, 15.0]),
     ],
 )
 def test_set_y_axis_ticks_and_labels(
@@ -266,16 +266,14 @@ def test_set_y_axis_ticks_and_labels(
 
     # x-axis bins are arbitrary
     xbins = 100
+    nprocs = report.metadata["job"]["nprocs"]
 
     # generate the heatmap data
     data = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins)
-
-    # use the unique ranks to get the number of y-axis bins to use
-    unique_ranks = np.unique(agg_df["rank"].values)
-    ybins = unique_ranks.size
+    data = heatmap_handling.get_filled_hmap_df(hmap_df=data, nprocs=nprocs)
 
     # generate a joint plot object, then add the heatmap to it
-    jointgrid = sns.jointplot(kind="hist", bins=[xbins, ybins])
+    jointgrid = sns.jointplot(kind="hist", bins=[xbins, nprocs])
     sns.heatmap(data, ax=jointgrid.ax_joint)
 
     # set the x-axis ticks and tick labels
@@ -356,55 +354,53 @@ def test_adjust_for_colorbar(filepath):
     assert hmap_positions.x0 == 0.1
     assert hmap_positions.y0 == 0.15000000000000002
     assert hmap_positions.y1 == 0.774390243902439
-    if "ior_hdf5_example.darshan" in filepath:
-        # since `ior_hdf5_example.darshan` has 4 ranks, it has
-        # different x max values because it needs room for
+    if "dxt.darshan" in filepath:
+        # since `dxt.darshan` has 1 rank, it has
+        # different x max values because it doesn't need room for
         # the colorbar on the outside of the horizontal bar graph
-        assert hmap_positions.x1 == 0.7158709677419354
-    else:
         assert hmap_positions.x1 == 0.7824516129032258
+    else:
+        assert hmap_positions.x1 == 0.7158709677419354
 
     # get vertical bar graph positions
     vert_bar_positions = jgrid.ax_marg_x.get_position()
     assert vert_bar_positions.x0 == 0.1
     assert vert_bar_positions.y0 == 0.7780487804878049
     assert vert_bar_positions.y1 == 0.9
-    if "ior_hdf5_example.darshan" in filepath:
-        # since `ior_hdf5_example.darshan` has 4 ranks, the vertical
-        # bar graph has a different x max value because it needs room for
+    if "dxt.darshan" in filepath:
+        # since `dxt.darshan` has 1 rank, the vertical
+        # bar graph has a different x max value because it doesn't need room for
         # the colorbar on the outside of the horizontal bar graph
-        assert vert_bar_positions.x1 == 0.7158709677419354
-    else:
         assert vert_bar_positions.x1 == 0.7824516129032258
+    else:
+        assert vert_bar_positions.x1 == 0.7158709677419354
 
     # get horizontal bar graph positions
     horiz_bar_positions = jgrid.ax_marg_y.get_position()
     assert horiz_bar_positions.y0 == 0.15000000000000002
     assert horiz_bar_positions.y1 == 0.774390243902439
-    if "ior_hdf5_example.darshan" in filepath:
-        # since `ior_hdf5_example.darshan` has 4 ranks, the horizontal
-        # bar graph has different x min/max values because it has to
+    if "dxt.darshan" in filepath:
+        # since `dxt.darshan` has 1 rank, the horizontal
+        # bar graph has different x min/max values because it doesn't need to
         # make room for the colorbar
-        assert horiz_bar_positions.x0 == 0.7206451612903225
-        assert horiz_bar_positions.x1 == 0.84
-    else:
         assert horiz_bar_positions.x0 == 0.7877419354838711
         assert horiz_bar_positions.x1 == 0.92
+    else:
+        assert horiz_bar_positions.x0 == 0.7206451612903225
+        assert horiz_bar_positions.x1 == 0.84
 
     # get the colorbar positions
     cbar_positions = jgrid.fig.axes[-1].get_position()
     assert cbar_positions.y0 == 0.15000000000000002
     assert cbar_positions.y1 == 0.774390243902439
-    if "ior_hdf5_example.darshan" in filepath:
-        # since `ior_hdf5_example.darshan` has 4 ranks, the colorbar has
-        # to go closer to the edge of the figure so the horizontal bar
-        # graph can fit in the panel
-        assert cbar_positions.x0 == 0.85
-        assert cbar_positions.x1 == 0.8716135084427767
-    else:
+    if "dxt.darshan" in filepath:
+        # since `dxt.darshan` has 1 rank, the colorbar doesn't have
+        # to go closer to the edge of the figure
         assert cbar_positions.x0 == 0.82
         assert cbar_positions.x1 == 0.8416135084427767
-
+    else:
+        assert cbar_positions.x0 == 0.85
+        assert cbar_positions.x1 == 0.8716135084427767
 
 @pytest.mark.parametrize(
     "filepath",
@@ -460,13 +456,13 @@ def test_plot_heatmap(filepath, mod, ops):
         # horizontal bar graph does not exist
         assert jgrid.ax_marg_x.has_data()
         assert jgrid.ax_joint.has_data()
-        if "ior_hdf5_example.darshan" in filepath:
-            # verify the horizontal bar graph contains data since there
-            # are multiple ranks for this case
-            assert jgrid.ax_marg_y.has_data()
-        else:
-            # verify the horizontal bar graph does not contain data
+        if "dxt.darshan" in filepath:
+            # verify the horizontal bar graph does not contain data since there
+            # are is only 1 rank for this case
             assert not jgrid.ax_marg_y.has_data()
+        else:
+            # verify the horizontal bar graph contains data for multirank cases
+            assert jgrid.ax_marg_y.has_data()
 
         # check that the axis labels are as expected
         assert jgrid.ax_joint.get_xlabel() == "Time (s)"
