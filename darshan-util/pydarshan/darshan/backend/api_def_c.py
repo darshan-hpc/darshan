@@ -105,6 +105,15 @@ struct darshan_lustre_record
     int64_t *ost_ids;
 };
 
+struct darshan_heatmap_record
+{
+    struct darshan_base_record base_rec;
+    double  bin_width_seconds; /* time duration of each bin */
+    int64_t nbins;             /* number of bins */
+    int64_t *write_bins;       /* pointer to write bin array (trails struct in log */
+    int64_t *read_bins;        /* pointer to read bin array (trails write bin array in log */
+};
+
 
 struct dxt_file_record {
     struct darshan_base_record base_rec;
