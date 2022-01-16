@@ -192,8 +192,6 @@ def test_get_by_avg_series(mod_key, input_df, expected_series):
     assert_series_equal(actual_series, expected_series)
 
 
-@pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
-                    reason="missing darshan_logs")
 @pytest.mark.parametrize(
     "filename, expected_df",
     [
@@ -209,10 +207,10 @@ def test_get_by_avg_series(mod_key, input_df, expected_series):
             ),
         ),
     ])
-def test_issue_590(select_log_repo_file, expected_df):
+def test_issue_590(filename, expected_df):
     # regression test for issue #590
     # see: https://github.com/darshan-hpc/darshan/issues/590
-    log_path = select_log_repo_file
+    log_path = get_log_path(filename)
     report = darshan.DarshanReport(log_path)
     actual_df = get_io_cost_df(report=report)
     assert_frame_equal(actual_df, expected_df)
