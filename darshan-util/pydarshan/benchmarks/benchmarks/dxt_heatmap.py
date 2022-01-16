@@ -7,8 +7,8 @@ import darshan
 from darshan.experimental.plots import plot_dxt_heatmap, heatmap_handling
 # TODO: no good reason pydarshan should have hyphenated module
 # names... for now I hack around it...
-example_logs = importlib.import_module("examples.example-logs")
-from tests.input import test_data_files_dxt
+example_logs = importlib.import_module("darshan.examples.example_logs")
+from darshan.tests.input import test_data_files_dxt
 
 
 class PlotDXTHeatMapSmall:
