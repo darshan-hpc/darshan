@@ -24,6 +24,7 @@
 
 /* default input buffer size for decompression algorithm */
 #define DARSHAN_DEF_COMP_BUF_SZ (1024*1024) /* 1 MiB */
+#define __DARSHAN_PATH_MAX 4096
 
 /* special identifers for referring to header, job, and
  * record map regions of the darshan log file
@@ -59,7 +60,7 @@ struct darshan_fd_int_state
     /* flag indicating whether log file was created (and written) */
     int creat_flag;
     /* log file path name */
-    char logfile_path[PATH_MAX];
+    char logfile_path[__DARSHAN_PATH_MAX];
     /* pointer to exe & mount data in darshan job data structure */
     char *exe_mnt_data;
     /* whether previous file operations have failed */
@@ -160,7 +161,7 @@ darshan_fd darshan_log_open(const char *name)
         free(tmp_fd);
         return(NULL);
     }
-    strncpy(tmp_fd->state->logfile_path, name, PATH_MAX);
+    strncpy(tmp_fd->state->logfile_path, name, __DARSHAN_PATH_MAX);
 
     /* read the header from the log file to init fd data structures */
     ret = darshan_log_get_header(tmp_fd);
@@ -226,7 +227,7 @@ darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type
     }
     tmp_fd->state->creat_flag = 1;
     tmp_fd->partial_flag = partial_flag;
-    strncpy(tmp_fd->state->logfile_path, name, PATH_MAX);
+    strncpy(tmp_fd->state->logfile_path, name, __DARSHAN_PATH_MAX);
 
     /* position file pointer to prealloc space for the log file header
      * NOTE: the header is written at close time, after all internal data
@@ -744,10 +745,10 @@ int darshan_log_put_namehash(darshan_fd fd, struct darshan_name_record_ref *hash
     assert(state);
 
     /* allocate memory for largest possible hash record */
-    name_rec = malloc(sizeof(darshan_record_id) + PATH_MAX + 1);
+    name_rec = malloc(sizeof(darshan_record_id) + __DARSHAN_PATH_MAX + 1);
     if(!name_rec)
         return(-1);
-    memset(name_rec, 0, sizeof(darshan_record_id) + PATH_MAX + 1);
+    memset(name_rec, 0, sizeof(darshan_record_id) + __DARSHAN_PATH_MAX + 1);
 
     /* individually serialize each hash record and write to log file */
     HASH_ITER(hlink, hash, ref, tmp)
