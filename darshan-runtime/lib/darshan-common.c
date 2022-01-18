@@ -127,10 +127,10 @@ char* darshan_clean_file_path(const char* path)
     else
     {
         /* handle relative path */
-        cwd = malloc(PATH_MAX);
+        cwd = malloc(__DARSHAN_PATH_MAX);
         if(cwd)
         {
-            if(getcwd(cwd, PATH_MAX))
+            if(getcwd(cwd, __DARSHAN_PATH_MAX))
             {
                 newpath = malloc(strlen(path) + strlen(cwd) + 2);
                 if(newpath)
