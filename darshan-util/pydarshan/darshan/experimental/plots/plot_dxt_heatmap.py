@@ -334,14 +334,9 @@ def plot_heatmap(
     # aggregate the data according to the selected modules and operations
     agg_df = heatmap_handling.get_aggregate_data(report=report, mod=mod, ops=ops)
 
-    # get the heatmap data array
-    hmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins)
-
     nprocs = report.metadata["job"]["nprocs"]
-    hmap_df = heatmap_handling.get_filled_hmap_df(hmap_df=hmap_df, nprocs=nprocs)
-
-    # reverse order of rows so the ranks are in ascending order when plotted
-    hmap_df = hmap_df.loc[::-1]
+    # get the heatmap data array
+    hmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins, nprocs=nprocs)
 
     # build the joint plot with marginal histograms
     jgrid = sns.jointplot(kind="hist", bins=[xbins, nprocs], space=0.05)
@@ -422,6 +417,9 @@ def plot_heatmap(
         # if there is only 1 unique rank there is no horizontal bar graph,
         # so set the subplot dimensions to fill the space
         adjust_for_colorbar(jointgrid=jgrid, fig_right=0.92, cbar_x0=0.82)
+
+    # invert the y-axis so rank values are increasing
+    jgrid.ax_joint.invert_yaxis()
 
     # set the axis labels
     jgrid.ax_joint.set_xlabel("Time (s)")

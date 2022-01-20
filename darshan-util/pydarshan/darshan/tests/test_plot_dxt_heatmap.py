@@ -269,8 +269,7 @@ def test_set_y_axis_ticks_and_labels(
     nprocs = report.metadata["job"]["nprocs"]
 
     # generate the heatmap data
-    data = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins)
-    data = heatmap_handling.get_filled_hmap_df(hmap_df=data, nprocs=nprocs)
+    data = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins, nprocs=nprocs)
 
     # generate a joint plot object, then add the heatmap to it
     jointgrid = sns.jointplot(kind="hist", bins=[xbins, nprocs])
