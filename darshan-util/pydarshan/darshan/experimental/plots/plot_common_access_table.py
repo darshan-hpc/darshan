@@ -106,9 +106,25 @@ def get_access_count_df(mod_df: Any, mod: str) -> Any:
     return pd.concat(df_list, axis=1)
 
 
+class DarshanReportTable:
+    """
+    Stores table figures in dataframe and html formats.
+
+    Parameters
+    ----------
+    df: a ``pd.DataFrame``.
+
+    kwargs: keyword arguments passed to ``pd.DataFrame.to_html()``.
+
+    """
+    def __init__(self, df: Any, **kwargs):
+        self.df = df
+        self.html = self.df.to_html(**kwargs)
+
+
 def plot_common_access_table(report: darshan.DarshanReport, mod: str, n_rows: int = 4) -> Any:
     """
-    Creates a dataframe containing the most
+    Creates a table containing the most
     common access sizes and their counts.
 
     Parameters
@@ -122,9 +138,11 @@ def plot_common_access_table(report: darshan.DarshanReport, mod: str, n_rows: in
 
     Returns
     -------
-    common_access_df: a ``pd.DataFrame`` containing the `n_rows` most common
-    access sizes and their counts for the specified module. Table is
-    sorted in descending order based on the access size count.
+    common_access_table: a ``DarshanReportTable`` containing the `n_rows`
+    most common access sizes and their counts for the specified module.
+    The table is sorted in descending order based on the access size count
+    and can be retrieved as either a ``pd.DataFrame`` or html table via
+    the `df` or `html` attributes, respectively.
 
     """
     mod_df = report.records[mod].to_df(attach=None)["counters"]
@@ -135,5 +153,9 @@ def plot_common_access_table(report: darshan.DarshanReport, mod: str, n_rows: in
     df = get_access_count_df(mod_df=mod_df, mod=mod)
     df = remove_nonzero_rows(df=df)
     df = combine_access_sizes(df=df)
-    common_access_df = get_most_common_access_sizes(df=df, n_rows=n_rows)
-    return common_access_df
+    df = get_most_common_access_sizes(df=df, n_rows=n_rows)
+    common_access_table = DarshanReportTable(
+        # remove index labels and remove border
+        df=df, index=False, border=0,
+    )
+    return common_access_table

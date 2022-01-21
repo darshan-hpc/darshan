@@ -16,7 +16,11 @@ from mako.template import Template
 
 import darshan
 import darshan.cli
-from darshan.experimental.plots import plot_dxt_heatmap, plot_io_cost
+from darshan.experimental.plots import (
+    plot_dxt_heatmap,
+    plot_io_cost,
+    plot_common_access_table,
+)
 
 darshan.enable_experimental()
 
@@ -58,9 +62,9 @@ class ReportFigure:
         # temporary handling for DXT disabled cases
         # so special error message can be passed
         # in place of an encoded image
-        self.img_str = None
+        self.fig_html = None
         if self.fig_func:
-            self.generate_img()
+            self.generate_fig()
 
     @staticmethod
     def get_encoded_fig(mpl_fig: Any):
@@ -81,17 +85,24 @@ class ReportFigure:
         encoded_fig = base64.b64encode(tmpfile.getvalue()).decode("utf-8")
         return encoded_fig
 
-    def generate_img(self):
+    def generate_fig(self):
         """
-        Generate the image using the figure data.
+        Generate a figure using the figure data.
         """
-        # generate the matplotlib figure using the figure's
+        # generate the figure using the figure's
         # function and function arguments
-        mpl_fig = self.fig_func(**self.fig_args)
-        # encode the matplotlib figure
-        encoded = self.get_encoded_fig(mpl_fig=mpl_fig)
-        # create the img string
-        self.img_str = f"<img src=data:image/png;base64,{encoded} alt={self.fig_title} width={self.fig_width}>"
+        fig = self.fig_func(**self.fig_args)
+        if hasattr(fig, "savefig"):
+            # encode the matplotlib figure
+            encoded = self.get_encoded_fig(mpl_fig=fig)
+            # create the img string
+            self.fig_html = f"<img src=data:image/png;base64,{encoded} alt={self.fig_title} width={self.fig_width}>"
+        elif isinstance(fig, plot_common_access_table.DarshanReportTable):
+            # retrieve html table from `DarshanReportTable`
+            self.fig_html = fig.html
+        else:
+            err_msg = f"Figure of type {type(fig)} not supported."
+            raise NotImplementedError(err_msg)
 
 class ReportData:
     """
