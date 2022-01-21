@@ -13,12 +13,14 @@ from typing import Any, Union, Callable
 
 import pandas as pd
 from mako.template import Template
-import matplotlib
-import seaborn
 
 import darshan
 import darshan.cli
-from darshan.experimental.plots import plot_dxt_heatmap, plot_io_cost
+from darshan.experimental.plots import (
+    plot_dxt_heatmap,
+    plot_io_cost,
+    plot_common_access_table,
+)
 
 darshan.enable_experimental()
 
@@ -90,20 +92,16 @@ class ReportFigure:
         # generate the figure using the figure's
         # function and function arguments
         fig = self.fig_func(**self.fig_args)
-        supported_mpl_fig_types = [matplotlib.figure.Figure, seaborn.axisgrid.JointGrid]
-        if type(fig) in supported_mpl_fig_types:
+        if hasattr(fig, "savefig"):
             # encode the matplotlib figure
             encoded = self.get_encoded_fig(mpl_fig=fig)
             # create the img string
             self.fig_html = f"<img src=data:image/png;base64,{encoded} alt={self.fig_title} width={self.fig_width}>"
-        elif isinstance(fig, pd.DataFrame):
-            # use built-in pandas utility to convert table to html
-            self.fig_html = fig.to_html(index=False, border=0)
+        elif isinstance(fig, plot_common_access_table.DarshanReportTable):
+            # retrieve html table from `DarshanReportTable`
+            self.fig_html = fig.html
         else:
-            err_msg = (
-                f"Figure of type {type(fig)} not supported. \n"
-                f"Supported figure types: {supported_mpl_fig_types}"
-            )
+            err_msg = f"Figure of type {type(fig)} not supported."
             raise NotImplementedError(err_msg)
 
 class ReportData:
