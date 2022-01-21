@@ -9,9 +9,6 @@
 
 #include <limits.h>
 #include <zlib.h>
-#ifdef HAVE_LIBBZ2
-#include <bzlib.h>
-#endif
 
 #include "uthash-1.9.2/src/uthash.h"
 

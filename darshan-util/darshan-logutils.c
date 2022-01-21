@@ -19,6 +19,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#ifdef HAVE_LIBBZ2
+#include <bzlib.h>
+#endif
 
 #include "darshan-logutils.h"
 
