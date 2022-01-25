@@ -178,6 +178,10 @@ def test_main_all_logs_repo_files(tmpdir, log_repo_files):
                         if mod in ["POSIX", "MPI-IO", "STDIO"]:
                             assert "I/O Cost" in report_str
 
+                    # check the number of opening section tags
+                    # matches the number of closing section tags
+                    assert report_str.count("<section>") == report_str.count("</section>")
+
 class TestReportData:
 
     @pytest.mark.parametrize(
