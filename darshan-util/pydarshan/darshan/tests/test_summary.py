@@ -122,7 +122,11 @@ def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_coun
                     # NOTE: there are 2 "table" tags per table, and 2 other
                     # instances of the word in each report (1 comment, 1 from CSS)
                     expected_table_count = 2 * expected_table_count + 2
+
                     assert report_str.count("table") == expected_table_count
+                    # check the number of opening section tags
+                    # matches the number of closing section tags
+                    assert report_str.count("<section>") == report_str.count("</section>")
 
                     # check if I/O cost figure is present
                     for mod in report.modules:
