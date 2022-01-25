@@ -122,7 +122,7 @@ class DarshanReportTable:
         self.html = self.df.to_html(**kwargs)
 
 
-def plot_common_access_table(report: darshan.DarshanReport, mod: str, n_rows: int = 4) -> Any:
+def plot_common_access_table(report: darshan.DarshanReport, mod: str, n_rows: int = 4) -> DarshanReportTable:
     """
     Creates a table containing the most
     common access sizes and their counts.
