@@ -457,7 +457,7 @@ def test_plot_heatmap(filepath, mod, ops):
         assert jgrid.ax_joint.has_data()
         if "dxt.darshan" in filepath:
             # verify the horizontal bar graph does not contain data since there
-            # are is only 1 rank for this case
+            # is only 1 rank for this case
             assert not jgrid.ax_marg_y.has_data()
         else:
             # verify the horizontal bar graph contains data for multirank cases

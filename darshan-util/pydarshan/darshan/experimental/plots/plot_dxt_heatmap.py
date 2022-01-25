@@ -374,7 +374,7 @@ def plot_heatmap(
     for _, spine in hmap.spines.items():
         spine.set_visible(True)
 
-    # if there is more than 1 processes,
+    # if there is more than 1 process,
     # create the horizontal bar graph
     if nprocs > 1:
         jgrid.ax_marg_y.barh(
