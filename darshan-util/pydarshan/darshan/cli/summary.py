@@ -389,6 +389,28 @@ class ReportData:
         io_cost_fig = ReportFigure(**io_cost_params)
         self.figures.append(io_cost_fig)
 
+        ################################
+        ## Per-Module Statistics
+        ################################
+        for mod in self.report.modules:
+            if mod in ["POSIX", "MPI-IO", "H5D"]:
+                if mod == "MPI-IO":
+                    com_acc_tbl_description = (
+                        "NOTE: MPI-IO accesses are given in "
+                        "terms of aggregate datatype size."
+                    )
+                else:
+                    com_acc_tbl_description = ""
+                com_acc_tbl_fig = ReportFigure(
+                    section_title=f"Per-Module Stats: {mod}",
+                    fig_title="Common Access Sizes",
+                    fig_func=plot_common_access_table.plot_common_access_table,
+                    fig_args=dict(report=self.report, mod=mod),
+                    fig_description=com_acc_tbl_description,
+                    fig_width=350,
+                )
+                self.figures.append(com_acc_tbl_fig)
+
     def build_sections(self):
         """
         Uses figure info to generate the unique sections
