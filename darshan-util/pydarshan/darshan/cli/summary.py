@@ -20,6 +20,7 @@ from darshan.experimental.plots import (
     plot_dxt_heatmap,
     plot_io_cost,
     plot_common_access_table,
+    plot_flag,
 )
 
 darshan.enable_experimental()
@@ -244,14 +245,18 @@ class ReportData:
             # create the key/value pairs for the dictionary
             key = f"{mod} (ver={mod_version})"
             val = f"{mod_buf_size:.2f} KiB"
+            flag = ""
             if self.report.modules[mod]["partial_flag"]:
-                val += " (partial data)"
-            module_dict[key] = val
+                msg = "Ran out of memory or record limit reached!"
+                fig = plot_flag.plot_flag(warn_msg=msg, font_size=20)
+                encoded = ReportFigure.get_encoded_fig(mpl_fig=fig)
+                flag = f"<img src=data:image/png;base64,{encoded} alt='Warning flag' width=110>"
+            module_dict[key] = [val, flag]
 
         # convert the module dictionary into a dataframe
         module_df = pd.DataFrame.from_dict(data=module_dict, orient="index")
         # write out the table in html
-        self.module_table = module_df.to_html(header=False, border=0)
+        self.module_table = module_df.to_html(header=False, border=0, escape=False)
 
     def get_stylesheet(self):
         """
