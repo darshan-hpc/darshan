@@ -161,6 +161,13 @@ struct darshan_variance_dt
 * darshan-common functions for darshan modules *
 ***********************************************/
 
+/* track opaque record referencre using a hash link */
+struct darshan_record_ref_tracker
+{
+    void *rec_ref_p;
+    UT_hash_handle hlink;
+};
+
 /* darshan_lookup_record_ref()
  *
  * Lookup a record reference pointer using the given 'handle'.
@@ -169,10 +176,19 @@ struct darshan_variance_dt
  * If the handle is found, the corresponding record reference pointer
  * is returned, otherwise NULL is returned.
  */
-void *darshan_lookup_record_ref(
-    void *hash_head,
-    void *handle,
-    size_t handle_sz);
+static inline void *darshan_lookup_record_ref(void *hash_head, void *handle, size_t handle_sz)
+{
+    struct darshan_record_ref_tracker *ref_tracker;
+    struct darshan_record_ref_tracker *ref_tracker_head =
+        (struct darshan_record_ref_tracker *)hash_head;
+
+    /* search the hash table for the given handle */
+    HASH_FIND(hlink, ref_tracker_head, handle, handle_sz, ref_tracker);
+    if(ref_tracker)
+        return(ref_tracker->rec_ref_p);
+    else
+        return(NULL);
+}
 
 /* darshan_add_record_ref()
  *

@@ -21,6 +21,13 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 
+/* module-specific macro to retrieve current time stamp.  It first checks to
+ * see if Darshan has been disabled at run time; in that case the module can
+ * skip potentially costly timer calls.
+ */
+#define NULL_WTIME() \
+    __darshan_disabled ? 0 : darshan_core_wtime();
+
 /* The "NULL" module is an example instrumentation module implementation provided
  * with Darshan, primarily to indicate how arbitrary modules may be integrated
  * into Darshan. In particular, this module demonstrates how to develop wrapper
@@ -112,14 +119,18 @@ static int my_rank = -1;
  * module instrumentation of a call. It obtains a lock for updating
  * module data strucutres, and ensure the NULL module has been properly
  * initialized before instrumenting.
+ * NOTE: if the break condition is triggered in this macro, then it
+ * will exit the do/while loop holding a lock that will be released in
+ * POST_RECORD().  Otherwise it will release the lock here (if held) and
+ * return immediately without reaching the POST_RECORD() macro.
  */
 #define NULL_PRE_RECORD() do { \
-    NULL_LOCK(); \
-    if(!darshan_core_disabled_instrumentation()) { \
+    if(!__darshan_disabled) { \
+        NULL_LOCK(); \
         if(!null_runtime) null_runtime_initialize(); \
         if(null_runtime) break; \
+        NULL_UNLOCK(); \
     } \
-    NULL_UNLOCK(); \
     return(ret); \
 } while(0)
 
@@ -173,16 +184,16 @@ int DARSHAN_DECL(foo)(const char* name, int arg1)
     /* The MAP_OR_FAIL macro attempts to obtain the address of the actual
      * underlying foo function call (__real_foo), in the case of LD_PRELOADing
      * the Darshan library. For statically linked executables, this macro is
-     * just a NOP. 
+     * just a NOP.
      */
     MAP_OR_FAIL(foo);
 
     /* In general, Darshan wrappers begin by calling the real version of the
      * given wrapper function. Timers are used to record the duration of this
      * operation. */
-    tm1 = darshan_core_wtime();
+    tm1 = NULL_WTIME();
     ret = __real_foo(name, arg1);
-    tm2 = darshan_core_wtime();
+    tm2 = NULL_WTIME();
 
     NULL_PRE_RECORD();
     /* Call macro for instrumenting data for foo function calls. */

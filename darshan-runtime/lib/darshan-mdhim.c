@@ -81,6 +81,7 @@ struct mdhim_runtime
     /* number of records currently tracked */
     int rec_count;
     int record_size;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
 /* internal helper functions for the MDHIM module */
@@ -120,18 +121,25 @@ static int my_rank = -1;
 #define MDHIM_LOCK() pthread_mutex_lock(&mdhim_runtime_mutex)
 #define MDHIM_UNLOCK() pthread_mutex_unlock(&mdhim_runtime_mutex)
 
+#define MDHIM_WTIME() \
+    __darshan_disabled ? 0 : darshan_core_wtime();
+
 /* the MDHIM_PRE_RECORD macro is executed before performing MDHIM
  * module instrumentation of a call. It obtains a lock for updating
  * module data strucutres, and ensure the MDHIM module has been properly
  * initialized before instrumenting.
+ * NOTE: if the break condition is triggered in this macro, then it
+ * will exit the do/while loop holding a lock that will be released in
+ * POST_RECORD().  Otherwise it will release the lock here (if held) and
+ * return immediately without reaching the POST_RECORD() macro.
  */
 #define MDHIM_PRE_RECORD() do { \
-    MDHIM_LOCK(); \
-    if(!darshan_core_disabled_instrumentation()) { \
+    if(!__darshan_disabled) { \
+        MDHIM_LOCK(); \
         if(!mdhim_runtime) mdhim_runtime_initialize(); \
-        if(mdhim_runtime) break; \
+        if(mdhim_runtime && !mdhim_runtime->frozen) break; \
+        MDHIM_UNLOCK(); \
     } \
-    MDHIM_UNLOCK(); \
 } while(0)
 
 /* the MDHIM_POST_RECORD macro is executed after performing MDHIM
@@ -260,9 +268,9 @@ mdhim_rm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
     /* In general, Darshan wrappers begin by calling the real version of the
      * given wrapper function. Timers are used to record the duration of this
      * operation. */
-    tm1 = darshan_core_wtime();
+    tm1 = MDHIM_WTIME();
     ret = __real_mdhimPut(md, index, key, key_len, value, value_len);
-    tm2 = darshan_core_wtime();
+    tm2 = MDHIM_WTIME();
 
     int server_id = mdhimWhichDB(md, key, key_len);
 
@@ -289,9 +297,9 @@ mdhim_grm_t * DARSHAN_DECL(mdhimGet)(mdhim_t *md,
     /* In general, Darshan wrappers begin by calling the real version of the
      * given wrapper function. Timers are used to record the duration of this
      * operation. */
-    tm1 = darshan_core_wtime();
+    tm1 = MDHIM_WTIME();
     ret = __real_mdhimGet(md, index, key, key_len, op);
-    tm2 = darshan_core_wtime();
+    tm2 = MDHIM_WTIME();
 
     int server_id = mdhimWhichDB(md, key, key_len);
 
@@ -571,6 +579,8 @@ static void mdhim_output(
     assert(mdhim_runtime);
 
     *mdhim_buf_sz = mdhim_runtime->rec_count * mdhim_runtime->record_size;
+
+    mdhim_runtime->frozen = 1;
 
     MDHIM_UNLOCK();
     return;
