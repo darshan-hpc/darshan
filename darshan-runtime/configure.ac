@@ -85,12 +85,9 @@ if test "x$enable_darshan_runtime" = xyes ; then
    dnl runtime libraries require zlib
    CHECK_ZLIB
 
-<<<<<<< HEAD
-=======
    dnl runtime libraries requires math library (for calculations in heatmap)
    AC_SEARCH_LIBS([round], [m])
 
->>>>>>> main
    AC_ARG_ENABLE([ld-preload],
       [AS_HELP_STRING([--disable-ld-preload],
                       [Disables support for LD_PRELOAD library])],
@@ -490,9 +487,6 @@ if test "x$enable_darshan_runtime" = xyes ; then
    AC_CHECK_TYPES([off64_t])
    CFLAGS="$old_cflags"
 
-<<<<<<< HEAD
-   AC_CHECK_HEADERS(mntent.h sys/mount.h)
-=======
    AC_CHECK_HEADERS(mntent.h sys/mount.h stdatomic.h)
 
    # check for availablity of rdtscp intrinsic on this platform
@@ -534,7 +528,6 @@ if test "x$enable_darshan_runtime" = xyes ; then
        ],
        []
    )
->>>>>>> main
 
    #
    # Begin tests for MPI-enabled builds

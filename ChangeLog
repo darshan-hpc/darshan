@@ -2,8 +2,6 @@
 Darshan Release Change Log
 --------------------------
 
-<<<<<<< HEAD
-=======
 Darshan-3.3.2
 =============
 * Add a new "heatmap" module that records histograms of I/O traffic over time
@@ -14,7 +12,6 @@ Darshan-3.3.2
 * Add optional, limited support for RDTSCP-based timing, enabled via
   --enable-rdtscp at configure time
 
->>>>>>> main
 Darshan-3.3.1
 =============
 * fixed github issue 399: undefined llapi_layout_get_by_xattr function in some
