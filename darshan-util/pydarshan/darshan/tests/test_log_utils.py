@@ -21,7 +21,6 @@ import pytest
     "pq_app_write_id71303_7-31-5657-2037904274838284930_55623.darshan",
     "dxt.darshan",
     "example.darshan",
-    "example2.darshan",
     "ior_hdf5_example.darshan",
     "shane_macsio_id29959_5-22-32552-7035573431850780836_1590156158.darshan",
     "darshan-apmpi-2nodes-64mpi.darshan",
