@@ -403,7 +403,7 @@ class TestReportData:
         # collect the report data
         R = summary.ReportData(log_path=log_path)
         # check that number of img tags matches expected partial flag count
-        assert R.module_table.count("img") == expected_partial_flags
+        assert R.module_table.count("&#x26A0;") == expected_partial_flags
         # convert the module table back to a pandas dataframe
         actual_mod_df = pd.read_html(R.module_table, index_col=0)[0]
         # correct index and columns attributes after
@@ -418,6 +418,12 @@ class TestReportData:
 
         # add new column for partial flags
         expected_df[1] = np.nan
+        flag = "\u26A0 Ran out of memory or record limit reached!"
+        if "partial_data_stdio.darshan" in log_path:
+            expected_df.iloc[2, 1] = flag
+        if "partial_data_dxt.darshan" in log_path:
+            expected_df.iloc[3:, 1] = flag
+
         # check the module dataframes
         assert_frame_equal(actual_mod_df, expected_df)
 

@@ -20,7 +20,6 @@ from darshan.experimental.plots import (
     plot_dxt_heatmap,
     plot_io_cost,
     plot_common_access_table,
-    plot_flag,
 )
 
 darshan.enable_experimental()
@@ -248,9 +247,7 @@ class ReportData:
             flag = ""
             if self.report.modules[mod]["partial_flag"]:
                 msg = "Ran out of memory or record limit reached!"
-                fig = plot_flag.plot_flag(warn_msg=msg, font_size=20)
-                encoded = ReportFigure.get_encoded_fig(mpl_fig=fig)
-                flag = f"<img src=data:image/png;base64,{encoded} alt='Warning flag' width=110>"
+                flag = f"<p style='color:red'>&#x26A0; {msg}</p>"
             module_dict[key] = [val, flag]
 
         # convert the module dictionary into a dataframe
