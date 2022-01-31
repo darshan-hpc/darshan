@@ -20,6 +20,7 @@ from darshan.experimental.plots import (
     plot_dxt_heatmap,
     plot_io_cost,
     plot_common_access_table,
+    plot_access_histogram,
 )
 
 darshan.enable_experimental()
@@ -393,6 +394,20 @@ class ReportData:
         ## Per-Module Statistics
         ################################
         for mod in self.report.modules:
+            if mod in ["POSIX", "MPI-IO"]:
+                access_hist_description = (
+                    "Read/write operations grouped by access size. Most frequent "
+                    "access sizes are featured in the <i>Common Access Sizes</i> table."
+                )
+                access_hist_fig = ReportFigure(
+                    section_title=f"Per-Module Stats: {mod}",
+                    fig_title="Access Sizes",
+                    fig_func=plot_access_histogram,
+                    fig_args=dict(report=self.report, mod=mod),
+                    fig_description=access_hist_description,
+                    fig_width=350,
+                )
+                self.figures.append(access_hist_fig)
             if mod in ["POSIX", "MPI-IO", "H5D"]:
                 if mod == "MPI-IO":
                     com_acc_tbl_description = (
