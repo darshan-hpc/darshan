@@ -196,7 +196,7 @@ def test_get_by_avg_series(mod_key, input_df, expected_series):
     "filename, expected_df",
     [
         (
-            "nonmpi_partial_modules.darshan",
+            "nonmpi_dxt_anonymized.darshan",
             pd.DataFrame(
                 np.array([
                     [0.281718, 0.504260, 0.170138],

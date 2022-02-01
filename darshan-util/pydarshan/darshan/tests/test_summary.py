@@ -77,7 +77,7 @@ def test_main_with_args(tmpdir, argv):
         (["noposix.darshan", "--output=test.html"], 1, 2),
         (["sample-dxt-simple.darshan"], 5, 4),
         (["sample-dxt-simple.darshan", "--output=test.html"], 5, 4),
-        (["nonmpi_partial_modules.darshan"], 3, 3),
+        (["nonmpi_dxt_anonymized.darshan"], 3, 3),
         ([None], 0, 0),
     ]
 )

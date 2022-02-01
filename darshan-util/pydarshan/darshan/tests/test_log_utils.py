@@ -25,7 +25,7 @@ import pytest
     "shane_macsio_id29959_5-22-32552-7035573431850780836_1590156158.darshan",
     "darshan-apmpi-2nodes-64mpi.darshan",
     "imbalanced-io.darshan",
-    "nonmpi_partial_modules.darshan",
+    "nonmpi_dxt_anonymized.darshan",
     "laytonjb_test1_id28730_6-7-43012-2131301613401632697_1.darshan",
     "snyder_acme.exe_id1253318_9-27-24239-1515303144625770178_2.darshan",
     "treddy_mpi-io-test_id4373053_6-2-60198-9815401321915095332_1.darshan",
