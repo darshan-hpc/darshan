@@ -4,6 +4,7 @@ import argparse
 from unittest import mock
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
@@ -317,7 +318,7 @@ class TestReportData:
 
 
     @pytest.mark.parametrize(
-        "log_path, expected_df",
+        "log_path, expected_df, expected_partial_flags",
         [
             # each of these logs offers a unique
             # set of modules to verify
@@ -330,27 +331,31 @@ class TestReportData:
                     ],
                     data=[["0.18 KiB"], ["0.15 KiB"], ["0.08 KiB"], ["3.16 KiB"]],
                 ),
+                0,
             ),
             (
                 "noposix.darshan",
                 pd.DataFrame(
                     index=["LUSTRE (ver=1)", "STDIO (ver=1)"],
                     data=[["6.07 KiB"], ["0.21 KiB"]],
-                )
+                ),
+                0,
             ),
             (
                 "noposixopens.darshan",
                 pd.DataFrame(
                     index=["POSIX (ver=3)", "STDIO (ver=1)"],
                     data=[["0.04 KiB"], ["0.27 KiB"]],
-                )
+                ),
+                0,
             ),
             (
                 "sample-goodost.darshan",
                 pd.DataFrame(
                     index=["POSIX (ver=3)", "LUSTRE (ver=1)", "STDIO (ver=1)"],
                     data=[["5.59 KiB"], ["1.47 KiB"], ["0.07 KiB"]],
-                )
+                ),
+                0,
             ),
             (
                 "sample-dxt-simple.darshan",
@@ -360,27 +365,64 @@ class TestReportData:
                         "DXT_POSIX (ver=1)", "DXT_MPIIO (ver=2)",
                     ],
                     data=[["2.94 KiB"], ["1.02 KiB"], ["0.08 KiB"], ["0.06 KiB"]],
-                )
+                ),
+                0,
+            ),
+            (
+                "partial_data_stdio.darshan",
+                pd.DataFrame(
+                    index=[
+                        "POSIX (ver=4)", "MPI-IO (ver=3)",
+                        "STDIO (ver=2)",
+                    ],
+                    data=[["0.15 KiB"], ["0.13 KiB"], ["70.34 KiB"]],
+                ),
+                1,
+            ),
+            (
+                "partial_data_dxt.darshan",
+                pd.DataFrame(
+                    index=[
+                        "POSIX (ver=4)", "MPI-IO (ver=3)",
+                        "STDIO (ver=2)", "DXT_POSIX (ver=1)",
+                        "DXT_MPIIO (ver=2)"
+                    ],
+                    data=[
+                        ["0.14 KiB"], ["0.12 KiB"], ["0.06 KiB"],
+                        ["574.73 KiB"], ["568.14 KiB"],
+                    ],
+                ),
+                2,
             )
         ],
     )
-    def test_module_table(self, log_path, expected_df):
+    def test_module_table(self, log_path, expected_df, expected_partial_flags):
         # regression test for `summary.ReportData.get_module_table()`
 
         log_path = get_log_path(log_path)
         # collect the report data
         R = summary.ReportData(log_path=log_path)
+        # check that number of img tags matches expected partial flag count
+        assert R.module_table.count("&#x26A0;") == expected_partial_flags
         # convert the module table back to a pandas dataframe
         actual_mod_df = pd.read_html(R.module_table, index_col=0)[0]
         # correct index and columns attributes after
         # `index_col` removed the first column
         actual_mod_df.index.names = [None]
-        actual_mod_df.columns = [0]
+        actual_mod_df.columns = [0, 1]
 
         # verify the number of modules in the report is equal to
         # the number of rows in the module table
         expected_module_count = len(R.report.modules.keys())
         assert actual_mod_df.shape[0] == expected_module_count
+
+        # add new column for partial flags
+        expected_df[1] = np.nan
+        flag = "\u26A0 Ran out of memory or record limit reached!"
+        if "partial_data_stdio.darshan" in log_path:
+            expected_df.iloc[2, 1] = flag
+        if "partial_data_dxt.darshan" in log_path:
+            expected_df.iloc[3:, 1] = flag
 
         # check the module dataframes
         assert_frame_equal(actual_mod_df, expected_df)

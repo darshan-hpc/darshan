@@ -244,14 +244,16 @@ class ReportData:
             # create the key/value pairs for the dictionary
             key = f"{mod} (ver={mod_version})"
             val = f"{mod_buf_size:.2f} KiB"
+            flag = ""
             if self.report.modules[mod]["partial_flag"]:
-                val += " (partial data)"
-            module_dict[key] = val
+                msg = "Ran out of memory or record limit reached!"
+                flag = f"<p style='color:red'>&#x26A0; {msg}</p>"
+            module_dict[key] = [val, flag]
 
         # convert the module dictionary into a dataframe
         module_df = pd.DataFrame.from_dict(data=module_dict, orient="index")
         # write out the table in html
-        self.module_table = module_df.to_html(header=False, border=0)
+        self.module_table = module_df.to_html(header=False, border=0, escape=False)
 
     def get_stylesheet(self):
         """
