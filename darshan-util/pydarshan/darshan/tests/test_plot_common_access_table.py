@@ -28,7 +28,7 @@ from darshan.log_utils import get_log_path
             pd.DataFrame([[262144, 24]]),
         ),
         (
-            "nonmpi_partial_modules.darshan",
+            "nonmpi_dxt_anonymized.darshan",
             "POSIX",
             # values from the old report (Perl) code
             pd.DataFrame([[1024, 7692], [32, 276], [100, 269], [92, 265]]),
