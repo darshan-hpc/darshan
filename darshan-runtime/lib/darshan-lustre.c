@@ -78,7 +78,7 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
     if(!lustre_runtime) lustre_runtime_initialize();
 
     /* if we aren't initialized, just back out */
-    if(!lustre_runtime)
+    if(!lustre_runtime || lustre_runtime->frozen)
     {
         LUSTRE_UNLOCK();
         return;
@@ -323,6 +323,8 @@ static void lustre_output(
 
     /* modify output buffer size to account for any shared records that were removed */
     *lustre_buf_sz = lustre_runtime->record_buffer_size;
+
+    lustre_runtime->frozen = 1;
 
     LUSTRE_UNLOCK();
     return;

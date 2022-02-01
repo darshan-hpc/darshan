@@ -85,6 +85,9 @@ if test "x$enable_darshan_runtime" = xyes ; then
    dnl runtime libraries require zlib
    CHECK_ZLIB
 
+   dnl runtime libraries requires math library (for calculations in heatmap)
+   AC_SEARCH_LIBS([round], [m])
+
    AC_ARG_ENABLE([ld-preload],
       [AS_HELP_STRING([--disable-ld-preload],
                       [Disables support for LD_PRELOAD library])],
@@ -484,7 +487,47 @@ if test "x$enable_darshan_runtime" = xyes ; then
    AC_CHECK_TYPES([off64_t])
    CFLAGS="$old_cflags"
 
-   AC_CHECK_HEADERS(mntent.h sys/mount.h)
+   AC_CHECK_HEADERS(mntent.h sys/mount.h stdatomic.h)
+
+   # check for availablity of rdtscp intrinsic on this platform
+   # NOTE: we only care about finding the gnu compiler intrinsic for use in
+   # limited cases; this isn't meant to be universally portable.
+   AC_CHECK_HEADERS([x86intrin.h])
+   AS_IF([test "$ac_cv_header_x86intrin_h" = "yes"], [
+     XXX_PROGRAM="
+   #ifdef HAVE_X86INTRIN_H
+   #include <x86intrin.h>
+   #endif
+   int main(void) {
+       unsigned int flag;
+       return __rdtscp(&flag);
+   }
+   "
+     AC_MSG_CHECKING([if __rdtscp() intrinsic is supported])
+     AC_COMPILE_IFELSE(
+       [AC_LANG_SOURCE([$XXX_PROGRAM])],
+       AC_MSG_RESULT([yes])
+       AC_DEFINE(HAVE_RDTSCP_INTRINSIC, 1, Define if __rdtscp() intrinsic is available)
+       HAVE_RDTSCP=1,
+       [AC_MSG_RESULT([no])]
+     )
+   ])
+
+   AC_ARG_ENABLE(rdtscp,
+   [  --enable-rdtscp=<num>  use RDTSCP intrinsic for timing, with specified base frequency],
+       [
+       if test x$enableval = xyes; then
+           AC_MSG_ERROR(--enable-rdtscp must be given a number argument)
+       else
+           USE_RDTSCP=1,
+           AC_DEFINE_UNQUOTED(__DARSHAN_RDTSCP_FREQUENCY, ${enableval}, base frequency of RDTSCP intrinsic)
+       fi
+       if test x$HAVE_RDTSCP != x1; then
+           AC_MSG_ERROR(attempted to enable rdtscp timer, but it is not supported on this platform)
+       fi
+       ],
+       []
+   )
 
    #
    # Begin tests for MPI-enabled builds

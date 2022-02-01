@@ -552,6 +552,31 @@ users use an HDF5 version that is incompatible with Darshan, either
 link or runtime errors will occur and the user will have to  switch
 HDF5 versions or unload the Darshan module.
 
+.Optional RDTSCP timers for Theta
+[NOTE]
+====
+Darshan's default mechanism (`clock_gettime()`) for retrieving timing
+information may introduce more overhead than expected for statically linked
+executables on some platforms.  The Theta system at the ALCF (as of July
+2021) is a notable example.  It uses static linking by default (which
+prevents the use of the standard vDSO optimization for `clock_gettime()`
+calls), and it's CPU architecture exhibits relatively high system call
+overhead. For Theta and other similar platforms you can explicitly request
+that Darshan use the `RDTSCP` instruction in place of `clock_gettime()` for
+timing purposes.  `RDTSCP` is a non-portable, Intel-specific instruction.
+It must be enabled explicitly at configure time, and the base clock
+frequency of the compute node CPU must be specified.
+
+This mechanism can be activated on Theta by adding the
+`--enable-rdtscp=1300000000` to the configure command line (the KNL CPUs on
+Theta have a base frequency of 1.3 GHz).
+
+Note that timer overhead is unlikely to be a factor in overall performance
+unless the application has an edge case workload with frequent sequential
+I/O operations, such as small I/O accesses to cached data on a single
+process.
+====
+
 As in any Darshan installation, the darshan-mk-log-dirs.pl script can then be
 used to create the appropriate directory hierarchy for storing Darshan log
 files in the --with-log-path directory.

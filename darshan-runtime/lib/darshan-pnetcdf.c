@@ -43,6 +43,7 @@ struct pnetcdf_runtime
     void *rec_id_hash;
     void *ncid_hash;
     int file_rec_count;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
 static void pnetcdf_runtime_initialize(
@@ -68,13 +69,21 @@ static int my_rank = -1;
 #define PNETCDF_LOCK() pthread_mutex_lock(&pnetcdf_runtime_mutex)
 #define PNETCDF_UNLOCK() pthread_mutex_unlock(&pnetcdf_runtime_mutex)
 
+#define PNETCDF_WTIME() \
+    __darshan_disabled ? 0 : darshan_core_wtime();
+
+/* note that if the break condition is triggered in this macro, then it
+ * will exit the do/while loop holding a lock that will be released in
+ * POST_RECORD().  Otherwise it will release the lock here (if held) and
+ * return immediately without reaching the POST_RECORD() macro.
+ */
 #define PNETCDF_PRE_RECORD() do { \
-    PNETCDF_LOCK(); \
-    if(!darshan_core_disabled_instrumentation()) { \
+    if(!__darshan_disabled) { \
+        PNETCDF_LOCK(); \
         if(!pnetcdf_runtime) pnetcdf_runtime_initialize(); \
-        if(pnetcdf_runtime) break; \
+        if(pnetcdf_runtime && !pnetcdf_runtime->frozen) break; \
+        PNETCDF_UNLOCK(); \
     } \
-    PNETCDF_UNLOCK(); \
     return(ret); \
 } while(0)
 
@@ -124,9 +133,9 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
 
     MAP_OR_FAIL(ncmpi_create);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_create(comm, path, cmode, info, ncidp);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
     if(ret == 0)
     {
         /* use ROMIO approach to strip prefix if present */
@@ -156,9 +165,9 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
 
     MAP_OR_FAIL(ncmpi_open);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_open(comm, path, omode, info, ncidp);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
     if(ret == 0)
     {
         /* use ROMIO approach to strip prefix if present */
@@ -187,9 +196,9 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
 
     MAP_OR_FAIL(ncmpi_close);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_close(ncid);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     PNETCDF_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(pnetcdf_runtime->ncid_hash,
@@ -450,6 +459,8 @@ static void pnetcdf_output(
     /* just pass back our updated total buffer size -- no need to update buffer */
     pnetcdf_rec_count = pnetcdf_runtime->file_rec_count;
     *pnetcdf_buf_sz = pnetcdf_rec_count * sizeof(struct darshan_pnetcdf_file);
+
+    pnetcdf_runtime->frozen = 1;
 
     PNETCDF_UNLOCK();
     return;

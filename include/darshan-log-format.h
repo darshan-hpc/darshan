@@ -48,7 +48,7 @@ enum darshan_comp_type
 {
     DARSHAN_ZLIB_COMP,
     DARSHAN_BZIP2_COMP,
-    DARSHAN_NO_COMP, 
+    DARSHAN_NO_COMP,
 };
 
 typedef uint64_t darshan_record_id;
@@ -126,12 +126,13 @@ struct darshan_base_record
 #ifdef DARSHAN_USE_APMPI
 #include "darshan-apmpi-log-format.h"
 #endif
+#include "darshan-heatmap-log-format.h"
 
 /* X-macro for keeping module ordering consistent */
-/* NOTE: first val used to define module enum values, 
+/* NOTE: first val used to define module enum values,
  * second val used to define module name strings,
  * third val is the log format version for the module,
- * and fourth val is used to provide the name of a 
+ * and fourth val is used to provide the name of a
  * corresponding logutils structure for parsing module
  * data out of the log file (only used in darshan-util
  * component -- NULL can be passed if there are no
@@ -170,7 +171,8 @@ struct darshan_base_record
     X(DXT_MPIIO_MOD,        "DXT_MPIIO",  DXT_MPIIO_VER,         &dxt_mpiio_logutils) \
     X(DARSHAN_MDHIM_MOD,    "MDHIM",      DARSHAN_MDHIM_VER,     &mdhim_logutils) \
     X(DARSHAN_APXC_MOD,     "APXC", 	  __APXC_VER,            __apxc_logutils) \
-    X(DARSHAN_APMPI_MOD,    "APMPI",      __APMPI_VER,           __apmpi_logutils) 
+    X(DARSHAN_APMPI_MOD,    "APMPI",      __APMPI_VER,           __apmpi_logutils) \
+    X(DARSHAN_HEATMAP_MOD,  "HEATMAP",    DARSHAN_HEATMAP_VER,   &heatmap_logutils)
 
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
