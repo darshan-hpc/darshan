@@ -75,9 +75,9 @@ def test_main_with_args(tmpdir, argv):
     "argv, expected_img_count, expected_table_count", [
         (["noposix.darshan"], 1, 2),
         (["noposix.darshan", "--output=test.html"], 1, 2),
-        (["sample-dxt-simple.darshan"], 3, 4),
-        (["sample-dxt-simple.darshan", "--output=test.html"], 3, 4),
-        (["nonmpi_partial_modules.darshan"], 2, 3),
+        (["sample-dxt-simple.darshan"], 5, 4),
+        (["sample-dxt-simple.darshan", "--output=test.html"], 5, 4),
+        (["nonmpi_partial_modules.darshan"], 3, 3),
         ([None], 0, 0),
     ]
 )
@@ -120,11 +120,12 @@ def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_coun
                     assert report_str.count("img") == expected_img_count
 
                     # check that the expected number of tables are found
-                    # NOTE: there are 2 "table" tags per table, and 2 other
-                    # instances of the word in each report (1 comment, 1 from CSS)
-                    expected_table_count = 2 * expected_table_count + 2
-
-                    assert report_str.count("table") == expected_table_count
+                    # NOTE: since there are extraneous instances of "table"
+                    # in each report, the actual table count is half the
+                    # sum of the opening and closing tags
+                    actual_table_count = (report_str.count("<table")
+                                          + report_str.count("</table>")) / 2
+                    assert actual_table_count == expected_table_count
                     # check the number of opening section tags
                     # matches the number of closing section tags
                     assert report_str.count("<section>") == report_str.count("</section>")
