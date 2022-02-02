@@ -403,7 +403,7 @@ class TestReportData:
         log_path = get_log_path(log_path)
         # collect the report data
         R = summary.ReportData(log_path=log_path)
-        # check that number of img tags matches expected partial flag count
+        # check that number of unicode warning symbols matches expected partial flag count
         assert R.module_table.count("&#x26A0;") == expected_partial_flags
         # convert the module table back to a pandas dataframe
         actual_mod_df = pd.read_html(R.module_table, index_col=0)[0]
