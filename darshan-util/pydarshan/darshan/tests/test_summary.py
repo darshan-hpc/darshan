@@ -78,6 +78,7 @@ def test_main_with_args(tmpdir, argv):
         (["sample-dxt-simple.darshan"], 5, 4),
         (["sample-dxt-simple.darshan", "--output=test.html"], 5, 4),
         (["nonmpi_dxt_anonymized.darshan"], 3, 3),
+        (["ior_hdf5_example.darshan"], 6, 5),
         ([None], 0, 0),
     ]
 )
