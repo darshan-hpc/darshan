@@ -3,11 +3,12 @@ import importlib
 
 import pandas as pd
 
+import darshan
 from darshan.experimental.plots import plot_dxt_heatmap, heatmap_handling
 # TODO: no good reason pydarshan should have hyphenated module
 # names... for now I hack around it...
-example_logs = importlib.import_module("examples.example-logs")
-from tests.input import test_data_files_dxt
+example_logs = importlib.import_module("darshan.examples.example_logs")
+from darshan.tests.input import test_data_files_dxt
 
 
 class PlotDXTHeatMapSmall:
@@ -29,6 +30,7 @@ class PlotDXTHeatMapSmall:
             self.logfile = example_logs.example_data_files_dxt[filename]
         else:
             self.logfile = test_data_files_dxt[filename]
+        self.report = darshan.DarshanReport(self.logfile)
 
     def time_plot_heatmap_builtin_logs(self, darshan_logfile, xbins):
         # benchmark DXT heatmap plotting for
@@ -36,8 +38,8 @@ class PlotDXTHeatMapSmall:
         # repo proper--these are likely to be quite
         # small for the most part
         plot_dxt_heatmap.plot_heatmap(
-            log_path=self.logfile,
-            mods=["DXT_POSIX"],
+            report=self.report,
+            mod="DXT_POSIX",
             ops=["read", "write"],
             xbins=xbins)
 

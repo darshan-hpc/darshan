@@ -12,6 +12,7 @@ struct lustre_runtime
     void *record_buffer;
     int   record_ref_array_ndx; /* current index into record_ref_array */
     struct lustre_record_ref **record_ref_array;     
+    int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
 

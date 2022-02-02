@@ -16,7 +16,12 @@ from mako.template import Template
 
 import darshan
 import darshan.cli
-from darshan.experimental.plots import plot_dxt_heatmap
+from darshan.experimental.plots import (
+    plot_dxt_heatmap,
+    plot_io_cost,
+    plot_common_access_table,
+    plot_access_histogram,
+)
 
 darshan.enable_experimental()
 
@@ -58,9 +63,9 @@ class ReportFigure:
         # temporary handling for DXT disabled cases
         # so special error message can be passed
         # in place of an encoded image
-        self.img_str = None
+        self.fig_html = None
         if self.fig_func:
-            self.generate_img()
+            self.generate_fig()
 
     @staticmethod
     def get_encoded_fig(mpl_fig: Any):
@@ -81,17 +86,24 @@ class ReportFigure:
         encoded_fig = base64.b64encode(tmpfile.getvalue()).decode("utf-8")
         return encoded_fig
 
-    def generate_img(self):
+    def generate_fig(self):
         """
-        Generate the image using the figure data.
+        Generate a figure using the figure data.
         """
-        # generate the matplotlib figure using the figure's
+        # generate the figure using the figure's
         # function and function arguments
-        mpl_fig = self.fig_func(**self.fig_args)
-        # encode the matplotlib figure
-        encoded = self.get_encoded_fig(mpl_fig=mpl_fig)
-        # create the img string
-        self.img_str = f"<img src=data:image/png;base64,{encoded} alt={self.fig_title} width={self.fig_width}>"
+        fig = self.fig_func(**self.fig_args)
+        if hasattr(fig, "savefig"):
+            # encode the matplotlib figure
+            encoded = self.get_encoded_fig(mpl_fig=fig)
+            # create the img string
+            self.fig_html = f"<img src=data:image/png;base64,{encoded} alt={self.fig_title} width={self.fig_width}>"
+        elif isinstance(fig, plot_common_access_table.DarshanReportTable):
+            # retrieve html table from `DarshanReportTable`
+            self.fig_html = fig.html
+        else:
+            err_msg = f"Figure of type {type(fig)} not supported."
+            raise NotImplementedError(err_msg)
 
 class ReportData:
     """
@@ -233,14 +245,16 @@ class ReportData:
             # create the key/value pairs for the dictionary
             key = f"{mod} (ver={mod_version})"
             val = f"{mod_buf_size:.2f} KiB"
+            flag = ""
             if self.report.modules[mod]["partial_flag"]:
-                val += " (partial data)"
-            module_dict[key] = val
+                msg = "Ran out of memory or record limit reached!"
+                flag = f"<p style='color:red'>&#x26A0; {msg}</p>"
+            module_dict[key] = [val, flag]
 
         # convert the module dictionary into a dataframe
         module_df = pd.DataFrame.from_dict(data=module_dict, orient="index")
         # write out the table in html
-        self.module_table = module_df.to_html(header=False, border=0)
+        self.module_table = module_df.to_html(header=False, border=0, escape=False)
 
     def get_stylesheet(self):
         """
@@ -291,7 +305,7 @@ class ReportData:
             # collect all of the info in a dictionary (step #2)
             fig_params = {
                 "section_title": "Example Section Title",
-                "fig_title": f"Example Title",
+                "fig_title": "Example Title",
                 "fig_func": example_module.example_function,
                 "fig_args": dict(report=self.report),
                 "fig_description": "Example Caption",
@@ -310,43 +324,109 @@ class ReportData:
         self.figures = []
 
         ############################
-        ## Add the DXT heat map
+        ## Add the DXT heat map(s)
         ############################
-        if "DXT_POSIX" in self.report.modules:
-            hmap_func = plot_dxt_heatmap.plot_heatmap
-            hmap_args = dict(report=self.report)
-            hmap_description = (
-                "Heat map of I/O (in bytes) over time broken down by MPI rank. "
-                "Bins are populated based on the number of bytes read/written in "
-                "the given time interval. The vertical bar graph sums each time "
-                "slice across all ranks to show the total I/O over time, while the "
-                "horizontal bar graph sums all I/O events for each rank to "
-                "illustrate how the I/O was distributed across ranks."
-            )
+        # if either or both modules are present, register their figures
+        hmap_description = (
+            "Heat map of I/O (in bytes) over time broken down by MPI rank. "
+            "Bins are populated based on the number of bytes read/written in "
+            "the given time interval. The vertical bar graph sums each time "
+            "slice across all ranks to show the total I/O over time, while the "
+            "horizontal bar graph sums all I/O events for each rank to "
+            "illustrate how the I/O was distributed across ranks."
+        )
+        if "DXT" in "\t".join(self.report.modules):
+            for mod in ["DXT_POSIX", "DXT_MPIIO"]:
+                if mod in self.report.modules:
+                    dxt_heatmap_fig = ReportFigure(
+                        section_title="I/O Operations",
+                        fig_title=f"Heat Map: {mod}",
+                        fig_func=plot_dxt_heatmap.plot_heatmap,
+                        fig_args=dict(report=self.report, mod=mod),
+                        fig_description=hmap_description,
+                    )
+                    self.figures.append(dxt_heatmap_fig)
         else:
-            hmap_func = None
-            hmap_args = None
             # temporary message to direct users to DXT tracing
             # documentation until DXT tracing is enabled by default
             url = (
                 "https://www.mcs.anl.gov/research/projects/darshan/docs/darshan"
                 "-runtime.html#_using_the_darshan_extended_tracing_dxt_module"
             )
-            hmap_description = (
+            temp_message = (
                 f"Heat map is not available for this job as DXT was not "
                 f"enabled at run time. For details on how to enable DXT visit "
                 f"the <a href={url}>Darshan-runtime documentation</a>."
             )
+            fig = ReportFigure(
+                section_title="I/O Operations",
+                fig_title="Heat Map",
+                fig_func=None,
+                fig_args=None,
+                fig_description=temp_message,
+            )
+            self.figures.append(fig)
 
-        dxt_heatmap_params = {
-            "section_title": "I/O Operations",
-            "fig_title": "Heat Map",
-            "fig_func": hmap_func,
-            "fig_args": hmap_args,
-            "fig_description": hmap_description,
+        ################################
+        ## Cross-Module Comparisons
+        ################################
+
+        # add the I/O cost stacked bar graph
+        url = "https://www.mcs.anl.gov/research/projects/darshan/docs/darshan-util.html"
+
+        io_cost_description = (
+            f"Average runtime (across all processes) spent in I/O operations, "
+            f"broken down by process type (i.e. read, write, meta). Meant to "
+            f"illustrate roughly what percentage of the total runtime is spent "
+            f"in I/O operations. For module-specific details visit the "
+            f"<a href={url}>Darshan-util documentation</a>."
+        )
+        io_cost_params = {
+            "section_title": "Cross-Module Comparisons",
+            "fig_title": "I/O Cost",
+            "fig_func": plot_io_cost,
+            "fig_args": dict(report=self.report),
+            "fig_description": io_cost_description,
+            "fig_width": 350,
         }
-        dxt_heatmap_fig = ReportFigure(**dxt_heatmap_params)
-        self.figures.append(dxt_heatmap_fig)
+        io_cost_fig = ReportFigure(**io_cost_params)
+        self.figures.append(io_cost_fig)
+
+        ################################
+        ## Per-Module Statistics
+        ################################
+        for mod in self.report.modules:
+            if mod in ["POSIX", "MPI-IO"]:
+                access_hist_description = (
+                    "Read/write operations grouped by access size. Most frequent "
+                    "access sizes are featured in the <i>Common Access Sizes</i> table."
+                )
+                access_hist_fig = ReportFigure(
+                    section_title=f"Per-Module Stats: {mod}",
+                    fig_title="Access Sizes",
+                    fig_func=plot_access_histogram,
+                    fig_args=dict(report=self.report, mod=mod),
+                    fig_description=access_hist_description,
+                    fig_width=350,
+                )
+                self.figures.append(access_hist_fig)
+            if mod in ["POSIX", "MPI-IO", "H5D"]:
+                if mod == "MPI-IO":
+                    com_acc_tbl_description = (
+                        "NOTE: MPI-IO accesses are given in "
+                        "terms of aggregate datatype size."
+                    )
+                else:
+                    com_acc_tbl_description = ""
+                com_acc_tbl_fig = ReportFigure(
+                    section_title=f"Per-Module Stats: {mod}",
+                    fig_title="Common Access Sizes",
+                    fig_func=plot_common_access_table.plot_common_access_table,
+                    fig_args=dict(report=self.report, mod=mod),
+                    fig_description=com_acc_tbl_description,
+                    fig_width=350,
+                )
+                self.figures.append(com_acc_tbl_fig)
 
     def build_sections(self):
         """
@@ -374,7 +454,7 @@ def setup_parser(parser: argparse.ArgumentParser):
 
     """
     parser.description = "Generates a Darshan Summary Report"
-    
+
     parser.add_argument(
         "log_path",
         type=str,

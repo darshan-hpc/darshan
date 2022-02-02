@@ -14,6 +14,7 @@ endif
 C_SRCS = darshan-core-init-finalize.c \
          darshan-core.c \
          darshan-common.c \
+         darshan-heatmap.c \
          lookup3.c \
          lookup8.c
 
@@ -102,7 +103,8 @@ H_SRCS = darshan-common.h \
          darshan-dxt.h \
          uthash.h \
          darshan-dynamic.h \
-         utlist.h
+         utlist.h \
+	 darshan-heatmap.h
 
 EXTRA_DIST = $(H_SRCS) \
              darshan-null.c \
@@ -114,5 +116,6 @@ EXTRA_DIST = $(H_SRCS) \
              darshan-hdf5.c \
              darshan-bgq.c \
              darshan-lustre.c \
-             darshan-mdhim.c
+             darshan-mdhim.c \
+	     darshan-heatmap.c
 

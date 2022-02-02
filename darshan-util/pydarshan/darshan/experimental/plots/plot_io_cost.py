@@ -35,24 +35,19 @@ def get_by_avg_series(df: Any, mod_key: str, nprocs: int) -> Any:
     """
     # filter out all except the following columns
     cols = [
-        "rank",
         f"{mod_key}_F_READ_TIME",
         f"{mod_key}_F_WRITE_TIME",
         f"{mod_key}_F_META_TIME",
     ]
     df = df.filter(cols, axis=1)
-    # locate any rows where "rank" == -1 and divide them by nprocs
-    df.loc[df["rank"] == -1] /= nprocs
-    # drop the "rank" column since it's no longer needed
-    df.drop("rank", axis=1, inplace=True)
     # rename the columns so the labels are automatically generated when plotting
-    name_dict = {cols[1]: "Read", cols[2]: "Write", cols[3]: "Meta"}
+    name_dict = {cols[0]: "Read", cols[1]: "Write", cols[2]: "Meta"}
     df.rename(columns=name_dict, inplace=True)
-    by_avg_series = df.mean(axis=0)
+    by_avg_series = df.sum(axis=0) / nprocs
     return by_avg_series
 
 
-def get_io_cost_df(report: darshan.DarshanReport, mod_key: str) -> Any:
+def get_io_cost_df(report: darshan.DarshanReport) -> Any:
     """
     Generates the I/O cost dataframe which contains the
     raw data to plot the I/O cost stacked bar graph.
@@ -61,32 +56,39 @@ def get_io_cost_df(report: darshan.DarshanReport, mod_key: str) -> Any:
     ----------
     report: a ``darshan.DarshanReport``.
 
-    mod_key: module to generate the I/O cost stacked
-    bar graph for (i.e. "POSIX", "MPI-IO", "STDIO").
-
     Returns
     -------
     io_cost_df: a ``pd.DataFrame`` containing the
     average read, write, and meta times.
 
     """
-    # collect the records in dataframe form
-    recs = report.records[mod_key].to_df(attach=["rank"])
-    # correct the MPI module key
-    if mod_key == "MPI-IO":
-        mod_key = "MPIIO"
-    nprocs = report.metadata["job"]["nprocs"]
-    # collect the data needed for the I/O cost dataframe
-    by_avg_series = get_by_avg_series(df=recs["fcounters"], mod_key=mod_key, nprocs=nprocs)
+    io_cost_dict = {}
+    # TODO: expand the scope of this function
+    # to include HDF5 module
+    supported_modules = ["POSIX", "MPI-IO", "STDIO"]
+    for mod_key in report.modules:
+        if mod_key in supported_modules:
+            # collect the records in dataframe form
+            recs = report.records[mod_key].to_df(attach=None)
+            # correct the MPI module key
+            if mod_key == "MPI-IO":
+                mod_key = "MPIIO"
+            nprocs = report.metadata["job"]["nprocs"]
+            # collect the data needed for the I/O cost dataframe
+            io_cost_dict[mod_key] = get_by_avg_series(
+                df=recs["fcounters"],
+                mod_key=mod_key,
+                nprocs=nprocs,
+                )
 
     # construct the I/O cost dataframe with
     # appropriate labels for each series
     # TODO: add the "by-slowest" category
-    io_cost_df = pd.DataFrame({"by-average": by_avg_series}).T
+    io_cost_df = pd.DataFrame(io_cost_dict).T
     return io_cost_df
 
 
-def plot_io_cost(report: darshan.DarshanReport, mod_key: str) -> Any:
+def plot_io_cost(report: darshan.DarshanReport) -> Any:
     """
     Creates a stacked bar graph illustrating the percentage of
     runtime spent in read, write, and metadata operations.
@@ -95,24 +97,12 @@ def plot_io_cost(report: darshan.DarshanReport, mod_key: str) -> Any:
     ----------
     report: a ``darshan.DarshanReport``.
 
-    mod_key: module to generate the I/O cost stacked
-    bar graph for (i.e. "POSIX", "MPI-IO", "STDIO").
-
     Returns
     -------
     io_cost_fig: a ``matplotlib.pyplot.figure`` object containing a
     stacked bar graph of the average read, write, and metadata times.
 
-    Raises
-    ------
-    NotImplementedError: raised if the input module key is not "POSIX",
-    "MPI-IO", or "STDIO".
-
     """
-    if mod_key not in ["POSIX", "MPI-IO", "STDIO"]:
-        # TODO: expand the scope of this function
-        # to include HDF5 module
-        raise NotImplementedError(f"{mod_key} module is not supported.")
     # calculate the run time from the report metadata
     runtime = report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
     if runtime == 0:
@@ -120,7 +110,7 @@ def plot_io_cost(report: darshan.DarshanReport, mod_key: str) -> Any:
         # to 1 like the original perl code
         runtime = 1
     # get the I/O cost dataframe
-    io_cost_df = get_io_cost_df(report=report, mod_key=mod_key)
+    io_cost_df = get_io_cost_df(report=report)
     # generate a figure with 2 y axes
     io_cost_fig = plt.figure(figsize=(4.5, 4))
     ax_raw = io_cost_fig.add_subplot(111)
@@ -135,15 +125,15 @@ def plot_io_cost(report: darshan.DarshanReport, mod_key: str) -> Any:
     ax_norm.yaxis.set_major_formatter(mtick.PercentFormatter())
     # align both axes tick labels so the grid matches
     # values on both sides of the bar graph
-    norm_yticks = ax_raw.get_yticks()
     n_ticks = len(ax_norm.get_yticks())
-    yticks = np.linspace(norm_yticks[0], norm_yticks[-1], n_ticks)
+    yticks = np.linspace(0, runtime, n_ticks)
     ax_raw.set_yticks(yticks)
     # add the legend and appropriate labels
     ax_raw.set_ylabel("Runtime (s)")
     handles, labels = ax_raw.get_legend_handles_labels()
-    ax_norm.legend(handles[::-1], labels[::-1], loc="upper left", bbox_to_anchor=(1.3, 1.02))
+    ax_norm.legend(handles[::-1], labels[::-1], loc="upper left", bbox_to_anchor=(1.22, 1.02))
     # adjust the figure to reduce white space
     io_cost_fig.subplots_adjust(right=0.59)
     io_cost_fig.tight_layout()
+    plt.close()
     return io_cost_fig

@@ -1,8 +1,8 @@
 import importlib
 import os
 
-example_logs = importlib.import_module("examples.example-logs")
-from tests.input import test_data_files_dxt, test_data_files
+example_logs = importlib.import_module("darshan.examples.example_logs")
+from darshan.tests.input import test_data_files_dxt, test_data_files
 import darshan
 
 

@@ -98,6 +98,7 @@ struct dxt_posix_runtime
     int file_rec_count;
     char *record_buf;
     int record_buf_size;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
 struct dxt_mpiio_runtime
@@ -106,6 +107,7 @@ struct dxt_mpiio_runtime
     int file_rec_count;
     char *record_buf;
     int record_buf_size;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
 enum dxt_trigger_type
@@ -411,7 +413,7 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
 
     DXT_LOCK();
 
-    if(!dxt_posix_runtime)
+    if(!dxt_posix_runtime || dxt_posix_runtime->frozen)
     {
         DXT_UNLOCK();
         return;
@@ -468,7 +470,7 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
 
     DXT_LOCK();
 
-    if(!dxt_posix_runtime)
+    if(!dxt_posix_runtime || dxt_posix_runtime->frozen)
     {
         DXT_UNLOCK();
         return;
@@ -525,7 +527,7 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
 
     DXT_LOCK();
 
-    if(!dxt_mpiio_runtime)
+    if(!dxt_mpiio_runtime || dxt_mpiio_runtime->frozen)
     {
         DXT_UNLOCK();
         return;
@@ -582,7 +584,7 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
 
     DXT_LOCK();
 
-    if(!dxt_mpiio_runtime)
+    if(!dxt_mpiio_runtime || dxt_mpiio_runtime->frozen)
     {
         DXT_UNLOCK();
         return;
@@ -1084,6 +1086,8 @@ static void dxt_posix_output(
     *dxt_posix_buf = dxt_posix_runtime->record_buf;
     *dxt_posix_buf_sz = dxt_posix_runtime->record_buf_size;
 
+    dxt_posix_runtime->frozen = 1;
+
     return;
 }
 
@@ -1205,6 +1209,8 @@ static void dxt_mpiio_output(
     /* set output */ 
     *dxt_mpiio_buf = dxt_mpiio_runtime->record_buf;
     *dxt_mpiio_buf_sz = dxt_mpiio_runtime->record_buf_size;
+
+    dxt_mpiio_runtime->frozen = 1;
 
     return;
 }

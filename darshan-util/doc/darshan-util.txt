@@ -444,7 +444,30 @@ value of 1 MiB for optimal file alignment.
 | PNETCDF_F_*_END_TIMESTAMP | Timestamp that the last PNETCDF file open/close operation ended
 |====
 
-===== Additional modules 
+===== Heatmap fields
+
+Each heatmap module record reports a histogram of the number of bytes read
+or written, per process, over time, for a given I/O API.  It provides
+a synopsis of I/O intensity regardless of how many files are accessed.
+Heatmap records are never aggregated across ranks.
+
+The file name field is used to indicate the API that produced the
+histogram record.  For exmaple, "heatmap:POSIX" indicates that the record is
+reporting I/O traffic that passed through the POSIX module.
+
+The number of BIN fields present in each record may vary depending on the
+job's execution time and the configurable maximum number of bins chosen at
+execution time.
+
+.HEATMAP module
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| HEATMAP_F_BIN_WIDTH_SECONDS | time duration of each heatmap bin
+| HEATMAP_READ\|WRITE_BIN_* | number of bytes read or written within specified heatmap bin
+|====
+
+===== Additional modules
 
 .Lustre module (if enabled, for Lustre file systems)
 [cols="40%,60%",options="header"]

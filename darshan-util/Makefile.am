@@ -20,6 +20,7 @@ libdarshan_util_la_SOURCES = darshan-null-logutils.c \
                              darshan-lustre-logutils.c \
                              darshan-stdio-logutils.c \
                              darshan-dxt-logutils.c \
+                             darshan-heatmap-logutils.c \
                              darshan-mdhim-logutils.c
 
 include_HEADERS = darshan-null-logutils.h \
@@ -32,9 +33,11 @@ include_HEADERS = darshan-null-logutils.h \
                   darshan-lustre-logutils.h \
                   darshan-stdio-logutils.h \
                   darshan-dxt-logutils.h \
+                  darshan-heatmap-logutils.h \
                   darshan-mdhim-logutils.h \
 		  ../include/darshan-bgq-log-format.h \
                   ../include/darshan-dxt-log-format.h \
+                  ../include/darshan-heatmap-log-format.h \
                   ../include/darshan-hdf5-log-format.h \
                   ../include/darshan-log-format.h \
                   ../include/darshan-lustre-log-format.h \

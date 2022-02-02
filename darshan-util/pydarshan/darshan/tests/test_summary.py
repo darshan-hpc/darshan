@@ -4,11 +4,13 @@ import argparse
 from unittest import mock
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
-from pandas.testing import assert_frame_equal #type: ignore
+from pandas.testing import assert_frame_equal
 
 import darshan
 from darshan.cli import summary
+from darshan.log_utils import get_log_path
 
 
 @pytest.mark.parametrize(
@@ -39,13 +41,14 @@ def test_setup_parser(argv):
 
 @pytest.mark.parametrize(
     "argv", [
-        [os.path.abspath("./examples/example-logs/dxt.darshan")],
-        [os.path.abspath("./examples/example-logs/dxt.darshan"), "--output=test.html"],
+        ["dxt.darshan"],
+        ["dxt.darshan", "--output=test.html"],
     ]
 )
 def test_main_with_args(tmpdir, argv):
     # test summary.main() by building a parser
     # and using it as an input
+    argv[0] = get_log_path(argv[0])
 
     # initialize the parser, add the arguments, and parse them
     with mock.patch("sys.argv", argv):
@@ -69,16 +72,19 @@ def test_main_with_args(tmpdir, argv):
 
 
 @pytest.mark.parametrize(
-    "argv", [
-        [os.path.abspath("./tests/input/noposix.darshan")],
-        [os.path.abspath("./tests/input/noposix.darshan"), "--output=test.html"],
-        [os.path.abspath("./tests/input/sample-dxt-simple.darshan")],
-        [os.path.abspath("./tests/input/sample-dxt-simple.darshan"), "--output=test.html"],
-        [None],
+    "argv, expected_img_count, expected_table_count", [
+        (["noposix.darshan"], 1, 2),
+        (["noposix.darshan", "--output=test.html"], 1, 2),
+        (["sample-dxt-simple.darshan"], 5, 4),
+        (["sample-dxt-simple.darshan", "--output=test.html"], 5, 4),
+        (["nonmpi_dxt_anonymized.darshan"], 3, 3),
+        ([None], 0, 0),
     ]
 )
-def test_main_without_args(tmpdir, argv):
+def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_count):
     # test summary.main() by running it without a parser
+    if argv[0] is not None:
+        argv[0] = get_log_path(argv[0])
 
     with mock.patch("sys.argv", [""] + argv):
         if argv[0]:
@@ -98,6 +104,36 @@ def test_main_without_args(tmpdir, argv):
                 # verify the HTML file was generated
                 assert os.path.exists(expected_save_path)
 
+                # verify DXT figures are present for each DXT module
+                report = darshan.DarshanReport(filename=argv[0], read_all=False)
+                with open(expected_save_path) as html_report:
+                    report_str = html_report.read()
+                    if "DXT" in "\t".join(report.modules):
+                        for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
+                            if dxt_mod in report.modules:
+                                assert f"Heat Map: {dxt_mod}" in report_str
+                    else:
+                        # check that help message is present
+                        assert "Heat map is not available for this job" in report_str
+
+                    # check that expected number of figures are found
+                    assert report_str.count("img") == expected_img_count
+
+                    # check that the expected number of tables are found
+                    # NOTE: since there are extraneous instances of "table"
+                    # in each report, the actual table count is half the
+                    # sum of the opening and closing tags
+                    actual_table_count = (report_str.count("<table")
+                                          + report_str.count("</table>")) / 2
+                    assert actual_table_count == expected_table_count
+                    # check the number of opening section tags
+                    # matches the number of closing section tags
+                    assert report_str.count("<section>") == report_str.count("</section>")
+
+                    # check if I/O cost figure is present
+                    for mod in report.modules:
+                        if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                            assert "I/O Cost" in report_str
         else:
             # if no log path is given expect a runtime error
             # due to a failure to open the file
@@ -127,39 +163,61 @@ def test_main_all_logs_repo_files(tmpdir, log_repo_files):
                 # verify the HTML file was generated
                 assert os.path.exists(expected_save_path)
 
+                # verify DXT figures are present for each DXT module
+                report = darshan.DarshanReport(log_filepath, read_all=False)
+                with open(expected_save_path) as html_report:
+                    report_str = html_report.read()
+                    if "DXT" in "\t".join(report.modules):
+                        for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
+                            if dxt_mod in report.modules:
+                                assert f"Heat Map: {dxt_mod}" in report_str
+                    else:
+                        # check that help message is present
+                        assert "Heat map is not available for this job" in report_str
+
+                    # check if I/O cost figure is present
+                    for mod in report.modules:
+                        if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                            assert "I/O Cost" in report_str
+
+                    # check the number of opening section tags
+                    # matches the number of closing section tags
+                    assert report_str.count("<section>") == report_str.count("</section>")
 
 class TestReportData:
 
     @pytest.mark.parametrize(
         "log_path",
         [
-            "tests/input/sample.darshan",
-            "tests/input/noposix.darshan",
-            "tests/input/sample-badost.darshan",
-            "tests/input/sample-dxt-simple.darshan",
+            "sample.darshan",
+            "noposix.darshan",
+            "sample-badost.darshan",
+            "sample-dxt-simple.darshan",
         ],
     )
     def test_stylesheet(self, log_path):
         # check that the report object is
         # generating the correct attributes
+        log_path = get_log_path(log_path)
         R = summary.ReportData(log_path=log_path)
         # verify the first line shows up correctly for each log
         expected_str = "p {\n  font-size: 12px;\n}"
         assert expected_str in R.stylesheet
 
     @pytest.mark.parametrize(
-        "log_path, expected_header",
+        "log_name, expected_header",
         [
-            ("tests/input/sample.darshan", "vpicio_uni (2017-03-20)"),
+            ("sample.darshan", "vpicio_uni (2017-03-20)"),
             # anonymized case
-            ("tests/input/noposix.darshan", "Anonymized (2018-01-02)"),
-            ("tests/input/sample-badost.darshan", "ior (2017-06-20)"),
-            ("tests/input/sample-dxt-simple.darshan", "a.out (2021-04-22)"),
-            ("examples/example-logs/dxt.darshan", "N/A (2020-04-21)"),
+            ("noposix.darshan", "Anonymized (2018-01-02)"),
+            ("sample-badost.darshan", "ior (2017-06-20)"),
+            ("sample-dxt-simple.darshan", "a.out (2021-04-22)"),
+            ("dxt.darshan", "N/A (2020-04-21)"),
         ],
     )
-    def test_header_and_footer(self, log_path, expected_header):
+    def test_header_and_footer(self, log_name, expected_header):
         # check the header and footer strings stored in the report data object
+        log_path = get_log_path(log_name)
         R = summary.ReportData(log_path=log_path)
         assert R.header == expected_header
         assert "Summary report generated via PyDarshan v" in R.footer
@@ -168,7 +226,7 @@ class TestReportData:
         "log_path, expected_df",
         [
             (
-                "tests/input/sample.darshan",
+                "sample.darshan",
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
@@ -195,7 +253,7 @@ class TestReportData:
             ),
             # anonymized case
             (
-                "tests/input/noposix.darshan",
+                "noposix.darshan",
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
@@ -217,7 +275,7 @@ class TestReportData:
                 )
             ),
             (
-                "tests/input/sample-dxt-simple.darshan",
+                "sample-dxt-simple.darshan",
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
@@ -246,6 +304,7 @@ class TestReportData:
     def test_metadata_table(self, log_path, expected_df):
         # regression test for `summary.ReportData.get_metadata_table()`
 
+        log_path = get_log_path(log_path)
         # generate the report data
         R = summary.ReportData(log_path=log_path)
         # convert the metadata table back to a pandas dataframe
@@ -260,12 +319,12 @@ class TestReportData:
 
 
     @pytest.mark.parametrize(
-        "log_path, expected_df",
+        "log_path, expected_df, expected_partial_flags",
         [
             # each of these logs offers a unique
             # set of modules to verify
             (
-                "tests/input/sample.darshan",
+                "sample.darshan",
                 pd.DataFrame(
                     index=[
                         "POSIX (ver=3)", "MPI-IO (ver=2)",
@@ -273,65 +332,107 @@ class TestReportData:
                     ],
                     data=[["0.18 KiB"], ["0.15 KiB"], ["0.08 KiB"], ["3.16 KiB"]],
                 ),
+                0,
             ),
             (
-                "tests/input/noposix.darshan",
+                "noposix.darshan",
                 pd.DataFrame(
                     index=["LUSTRE (ver=1)", "STDIO (ver=1)"],
                     data=[["6.07 KiB"], ["0.21 KiB"]],
-                )
+                ),
+                0,
             ),
             (
-                "tests/input/noposixopens.darshan",
+                "noposixopens.darshan",
                 pd.DataFrame(
                     index=["POSIX (ver=3)", "STDIO (ver=1)"],
                     data=[["0.04 KiB"], ["0.27 KiB"]],
-                )
+                ),
+                0,
             ),
             (
-                "tests/input/sample-goodost.darshan",
+                "sample-goodost.darshan",
                 pd.DataFrame(
                     index=["POSIX (ver=3)", "LUSTRE (ver=1)", "STDIO (ver=1)"],
                     data=[["5.59 KiB"], ["1.47 KiB"], ["0.07 KiB"]],
-                )
+                ),
+                0,
             ),
             (
-                "tests/input/sample-dxt-simple.darshan",
+                "sample-dxt-simple.darshan",
                 pd.DataFrame(
                     index=[
                         "POSIX (ver=4)", "MPI-IO (ver=3)",
                         "DXT_POSIX (ver=1)", "DXT_MPIIO (ver=2)",
                     ],
                     data=[["2.94 KiB"], ["1.02 KiB"], ["0.08 KiB"], ["0.06 KiB"]],
-                )
+                ),
+                0,
+            ),
+            (
+                "partial_data_stdio.darshan",
+                pd.DataFrame(
+                    index=[
+                        "POSIX (ver=4)", "MPI-IO (ver=3)",
+                        "STDIO (ver=2)",
+                    ],
+                    data=[["0.15 KiB"], ["0.13 KiB"], ["70.34 KiB"]],
+                ),
+                1,
+            ),
+            (
+                "partial_data_dxt.darshan",
+                pd.DataFrame(
+                    index=[
+                        "POSIX (ver=4)", "MPI-IO (ver=3)",
+                        "STDIO (ver=2)", "DXT_POSIX (ver=1)",
+                        "DXT_MPIIO (ver=2)"
+                    ],
+                    data=[
+                        ["0.14 KiB"], ["0.12 KiB"], ["0.06 KiB"],
+                        ["574.73 KiB"], ["568.14 KiB"],
+                    ],
+                ),
+                2,
             )
         ],
     )
-    def test_module_table(self, log_path, expected_df):
+    def test_module_table(self, log_path, expected_df, expected_partial_flags):
         # regression test for `summary.ReportData.get_module_table()`
 
+        log_path = get_log_path(log_path)
         # collect the report data
         R = summary.ReportData(log_path=log_path)
+        # check that number of unicode warning symbols matches expected partial flag count
+        assert R.module_table.count("&#x26A0;") == expected_partial_flags
         # convert the module table back to a pandas dataframe
         actual_mod_df = pd.read_html(R.module_table, index_col=0)[0]
         # correct index and columns attributes after
         # `index_col` removed the first column
         actual_mod_df.index.names = [None]
-        actual_mod_df.columns = [0]
+        actual_mod_df.columns = [0, 1]
 
         # verify the number of modules in the report is equal to
         # the number of rows in the module table
         expected_module_count = len(R.report.modules.keys())
         assert actual_mod_df.shape[0] == expected_module_count
 
+        # add new column for partial flags
+        expected_df[1] = np.nan
+        flag = "\u26A0 Ran out of memory or record limit reached!"
+        if "partial_data_stdio.darshan" in log_path:
+            expected_df.iloc[2, 1] = flag
+        if "partial_data_dxt.darshan" in log_path:
+            expected_df.iloc[3:, 1] = flag
+
         # check the module dataframes
         assert_frame_equal(actual_mod_df, expected_df)
 
     @pytest.mark.parametrize(
-        "report, expected_cmd",
+        "logname, expected_cmd",
         [
             (
-                darshan.DarshanReport("tests/input/sample.darshan"),
+                "sample.darshan",
                 (
                     "/global/project/projectdirs/m888/glock/tokio-abc-results/"
                     "bin.edison/vpicio_uni /scratch2/scratchdirs/glock/tokioabc"
@@ -339,7 +440,7 @@ class TestReportData:
                 ),
             ),
             (
-                darshan.DarshanReport("tests/input/sample-badost.darshan"),
+                "sample-badost.darshan",
                 (
                     "/global/project/projectdirs/m888/glock/tokio-abc-results/"
                     "bin.edison/ior -H -k -w -o ior-posix.out -s 64 -f /global"
@@ -348,41 +449,63 @@ class TestReportData:
                 ),
             ),
             (
-                darshan.DarshanReport("tests/input/sample-goodost.darshan"),
+                "sample-goodost.darshan",
                 (
                     "/global/homes/g/glock/src/git/ior-lanl/src/ior "
                     "-t 8m -b 256m -s 4 -F -C -e -a POSIX -w -k"
                 ),
             ),
             (
-                darshan.DarshanReport("tests/input/sample-dxt-simple.darshan"),
+                "sample-dxt-simple.darshan",
                 "/yellow/usr/projects/eap/users/treddy/simple_dxt_mpi_io_darshan/a.out ",
             ),
             # anonymized cases
-            (darshan.DarshanReport("tests/input/noposix.darshan"), "Anonymized"),
-            (darshan.DarshanReport("tests/input/noposixopens.darshan"), "Anonymized"),
+            ("noposix.darshan", "Anonymized"),
+            ("noposixopens.darshan", "Anonymized"),
             # no executable case
-            (darshan.DarshanReport("examples/example-logs/dxt.darshan"), "N/A"),
+            ("dxt.darshan", "N/A"),
         ],
     )
-    def test_get_full_command(self, report, expected_cmd):
+    def test_get_full_command(self, logname, expected_cmd):
         # regression test for `summary.ReportData.get_full_command()`
+        report = darshan.DarshanReport(get_log_path(logname))
         actual_cmd = summary.ReportData.get_full_command(report=report)
         assert actual_cmd == expected_cmd
 
     @pytest.mark.parametrize(
-        "report, expected_runtime",
+        "logname, expected_runtime",
         [
-            (darshan.DarshanReport("tests/input/sample.darshan"), "116.0",),
-            (darshan.DarshanReport("tests/input/noposix.darshan"), "39212.0"),
-            (darshan.DarshanReport("tests/input/noposixopens.darshan"), "1110.0"),
-            (darshan.DarshanReport("tests/input/sample-badost.darshan"), "779.0",),
-            (darshan.DarshanReport("tests/input/sample-goodost.darshan"), "4.0",),
+            ("sample.darshan", "116.0",),
+            ("noposix.darshan", "39212.0"),
+            ("noposixopens.darshan", "1110.0"),
+            ("sample-badost.darshan", "779.0",),
+            ("sample-goodost.darshan", "4.0",),
             # special case where the calculated run time is 0
-            (darshan.DarshanReport("tests/input/sample-dxt-simple.darshan"), "< 1",),
+            ("sample-dxt-simple.darshan", "< 1",),
         ],
     )
-    def test_get_runtime(self, report, expected_runtime):
+    def test_get_runtime(self, logname, expected_runtime):
         # regression test for `summary.ReportData.get_runtime()`
+        report = darshan.DarshanReport(get_log_path(logname))
         actual_runtime = summary.ReportData.get_runtime(report=report)
         assert actual_runtime == expected_runtime
+
+
+class TestReportFigure:
+
+    def test_generate_fig_unsupported_fig_type(self):
+        # input figure function that outputs an unsupported figure type
+        # to check an error is raised
+
+        with pytest.raises(NotImplementedError) as err:
+            # initializing a `ReportFigure` automatically calls `generate_fig()`
+            summary.ReportFigure(
+                # create a simple function
+                fig_func=lambda x:x,
+                fig_args=dict(x=1),
+                section_title="Test Section Title",
+                fig_title="Test Figure Title",
+            )
+
+        # verify correct error is being raised
+        assert "Figure of type <class 'int'> not supported." in str(err)
