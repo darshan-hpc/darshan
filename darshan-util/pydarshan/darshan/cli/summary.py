@@ -396,7 +396,7 @@ class ReportData:
         ## Per-Module Statistics
         ################################
         for mod in self.report.modules:
-            if mod in ["POSIX", "MPI-IO"]:
+            if mod in ["POSIX", "MPI-IO", "H5D"]:
                 access_hist_description = (
                     "Read/write operations grouped by access size. Most frequent "
                     "access sizes are featured in the <i>Common Access Sizes</i> table."
@@ -410,7 +410,6 @@ class ReportData:
                     fig_width=350,
                 )
                 self.figures.append(access_hist_fig)
-            if mod in ["POSIX", "MPI-IO", "H5D"]:
                 if mod == "MPI-IO":
                     com_acc_tbl_description = (
                         "NOTE: MPI-IO accesses are given in "
