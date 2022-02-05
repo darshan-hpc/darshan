@@ -2,7 +2,12 @@
 
 PREFIX=$PWD/devenv/libdarshanutil
 
-cd ../
+# go to repository root, and generate/update configure files
+cd ../../
+./prepare.sh
+
+# build darshan-utils
+cd darshan-util
 ./configure --prefix=${PREFIX} --enable-shared
 make install
 make distclean
