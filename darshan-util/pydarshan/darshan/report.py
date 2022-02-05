@@ -874,7 +874,7 @@ class DarshanReport(object):
             None
 
         """
-        if mod not in self.data['modules']:
+        if mod not in self.modules:
             if warnings:
                 logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
             return
