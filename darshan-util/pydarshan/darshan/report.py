@@ -9,6 +9,8 @@ interaction and aggregation of Darshan logs using Python.
 
 import darshan.backend.cffi_backend as backend
 
+from darshan.datatypes.heatmap import Heatmap
+
 import json
 import re
 import copy
@@ -22,6 +24,12 @@ import collections.abc
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+class ModuleNotInDarshanLog(Exception):
+    """Raised when module is not present in Darshan log."""
+    pass
+
 
 
 
@@ -337,6 +345,7 @@ class DarshanReport(object):
         self.records = {}
         self._mounts = {}
         self.name_records = {}
+        self._heatmaps = {}
 
         # initialize report/summary namespace
         self.summary_revision = 0       # counter to check if summary needs update (see data_revision)
@@ -352,7 +361,7 @@ class DarshanReport(object):
         self.data['modules'] = self._modules
         self.data['counters'] = self.counters
         self.data['name_records'] = self.name_records
-
+        self.data['heatmaps'] = self._heatmaps
 
 
         # when using report algebra this log allows to untangle potentially
@@ -377,6 +386,10 @@ class DarshanReport(object):
     @property
     def counters(self):
         return self._counters
+
+    @property
+    def heatmaps(self):
+        return self._heatmaps
 
 #    @property
 #    def counters(self):
@@ -569,6 +582,52 @@ class DarshanReport(object):
         for mod in self.data['modules']:
             self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes, dtype=dtype)
 
+
+    def read_all_heatmap_records(self):
+        """
+        Read all dxt records from darshan log and return as dictionary.
+
+        .. note::
+            As the module is encoded in a name_record, all heatmap data is read
+            and then exposed through the report.heatmaps property.
+
+        Args:
+            None
+
+        Return:
+            None
+        """
+
+        if "HEATMAP" not in self.data['modules']:
+            raise ModuleNotInDarshanLog("HEATMAP")
+
+        _nrecs_heatmap = {  
+            16592106915301738621: "heatmap:POSIX",
+            3989511027826779520: "heatmap:STDIO"
+        }
+
+        def heatmap_rec_to_module_name(rec, nrecs=None):
+            if rec['id'] in nrecs:
+                name = nrecs[rec['id']]
+                mod = name.split(":")[1]
+            else:
+                mod = rec['id']
+            return mod
+
+        heatmaps = {}
+
+        # fetch records
+        rec = backend._log_get_heatmap_record(self.log)
+        while rec is not None:            
+            mod = heatmap_rec_to_module_name(rec, nrecs=_nrecs_heatmap)
+            if mod not in heatmaps:
+                heatmaps[mod] = Heatmap(mod)
+            heatmaps[mod].add_record(rec)
+
+            # fetch next
+            rec = backend._log_get_heatmap_record(self.log)
+
+        self._heatmaps = heatmaps
 
 
     def mod_read_all_records(self, mod, dtype=None, warnings=True):
