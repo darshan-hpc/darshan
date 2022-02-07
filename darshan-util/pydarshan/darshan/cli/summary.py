@@ -376,7 +376,7 @@ class ReportData:
 
         io_cost_description = (
             "Average (across all ranks) amount of run time that each process "
-            "spent performing I/O, broken down by process type. See the right "
+            "spent performing I/O, broken down by access type. See the right "
             "edge bar graph on heat maps in preceding section to indicate if "
             "I/O activity was balanced across processes."
         )
