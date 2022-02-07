@@ -27,7 +27,7 @@ def response():
     pass
 
 
-@pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
+@pytest.mark.skipif(not pytest.has_log_repo,
                     reason="missing darshan_logs")
 def test_jobid_type_all_logs_repo_files(log_repo_files):
     # test for the expected jobid type in each of the

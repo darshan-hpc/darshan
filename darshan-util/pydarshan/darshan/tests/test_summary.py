@@ -142,7 +142,7 @@ def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_coun
                 summary.main()
 
 
-@pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
+@pytest.mark.skipif(not pytest.has_log_repo,
                     reason="missing darshan_logs")
 def test_main_all_logs_repo_files(tmpdir, log_repo_files):
     # similar to `test_main_without_args` but focused
