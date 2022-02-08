@@ -330,10 +330,10 @@ class ReportData:
         hmap_description = (
             "Heat map of I/O (in bytes) over time broken down by MPI rank. "
             "Bins are populated based on the number of bytes read/written in "
-            "the given time interval. The vertical bar graph sums each time "
-            "slice across all ranks to show the total I/O over time, while the "
-            "horizontal bar graph sums all I/O events for each rank to "
-            "illustrate how the I/O was distributed across ranks."
+            "the given time interval. The top edge bar graph sums each time "
+            "slice across ranks to show aggregate I/O volume over time, while the "
+            "right edge bar graph sums each rank across time slices to show I/O "
+            "distribution across ranks."
         )
         if "DXT" in "\t".join(self.report.modules):
             for mod in ["DXT_POSIX", "DXT_MPIIO"]:
@@ -375,11 +375,10 @@ class ReportData:
         url = "https://www.mcs.anl.gov/research/projects/darshan/docs/darshan-util.html"
 
         io_cost_description = (
-            f"Average runtime (across all processes) spent in I/O operations, "
-            f"broken down by process type (i.e. read, write, meta). Meant to "
-            f"illustrate roughly what percentage of the total runtime is spent "
-            f"in I/O operations. For module-specific details visit the "
-            f"<a href={url}>Darshan-util documentation</a>."
+            "Average (across all ranks) amount of run time that each process "
+            "spent performing I/O, broken down by access type. See the right "
+            "edge bar graph on heat maps in preceding section to indicate if "
+            "I/O activity was balanced across processes."
         )
         io_cost_params = {
             "section_title": "Cross-Module Comparisons",
@@ -398,8 +397,9 @@ class ReportData:
         for mod in self.report.modules:
             if mod in ["POSIX", "MPI-IO", "H5D"]:
                 access_hist_description = (
-                    "Read/write operations grouped by access size. Most frequent "
-                    "access sizes are featured in the <i>Common Access Sizes</i> table."
+                    "Histogram of read and write access sizes. The specific values "
+                    "of the most frequently occurring access sizes can be found in "
+                    "the <i>Common Access Sizes</i> table."
                 )
                 access_hist_fig = ReportFigure(
                     section_title=f"Per-Module Stats: {mod}",
