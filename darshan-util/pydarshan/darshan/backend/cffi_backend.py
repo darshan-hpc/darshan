@@ -613,7 +613,7 @@ def _log_get_heatmap_record(log):
         return None
 
     mod_type = _structdefs[mod_name]
-    name_records = log_get_name_records(log)
+    #name_records = log_get_name_records(log)
 
     rec = {}
     buf = ffi.new("void **")
