@@ -75,12 +75,12 @@ class Heatmap():
         if self._nbins is  None:
             self._nbins = nbins
         if self._nbins != nbins:
-            raise("Record nbins is not consistent with current heatmap.")
+            raise ValueError("Record nbins is not consistent with current heatmap.")
            
         if self._bin_width_seconds is None:
             self._bin_width_seconds = rec['bin_width_seconds']
         if self._bin_width_seconds != rec['bin_width_seconds']:
-            raise("Record bin_width_seconds is not consistent with current heatmap.")
+            raise ValueError("Record bin_width_seconds is not consistent with current heatmap.")
 
         # actually add data
         self._ranks.add(rec['rank'])
@@ -104,7 +104,7 @@ class Heatmap():
         """
 
         if op not in self._data:
-            raise(f"{op} not in heatmap.")
+            raise RuntimeError(f"{op} not in heatmap.")
 
         data = self._data[op]
         nbins = self._nbins
