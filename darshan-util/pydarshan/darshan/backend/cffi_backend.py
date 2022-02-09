@@ -300,7 +300,7 @@ def log_get_record(log, mod, dtype='numpy'):
 
     if mod in ['LUSTRE']:
         rec = _log_get_lustre_record(log, dtype=dtype)
-    if mod in ['HEATMAP']:
+    elif mod in ['HEATMAP']:
         rec = _log_get_heatmap_record(log)
     elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
         rec = log_get_dxt_record(log, mod, dtype=dtype)
