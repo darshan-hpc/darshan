@@ -32,7 +32,16 @@
       % for sect_title in report_data.sections:
           <section>
           <h2>${sect_title}</h2>
+
+          % if len(report_data.sections[sect_title]) > 1:
+            <!-- if more than 1 figure in section, use grid wrapper class -->
+            <div class="grid-wrapper">
+          % else:
+            <div>
+          % endif
+
           % for fig_title, fig in report_data.sections[sect_title].items():
+            <div>
             <h3>${fig_title}</h3>
             <figure style="width: ${fig.fig_width}px;">
             % if fig.fig_html:
@@ -45,7 +54,9 @@
               </figcaption>
             % endif
           </figure>
+          </div>
           % endfor
+        </div>
         </section>
       % endfor
 

@@ -42,3 +42,9 @@ figure figcaption {
   font-size: 12px;
   text-align: center;
 }
+.grid-wrapper {
+  display: grid;
+  /* set 2-column-wide grid with auto width scaling*/
+  grid-template-columns: repeat(2, auto);
+  gap: 5px;
+}
