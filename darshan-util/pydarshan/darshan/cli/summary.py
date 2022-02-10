@@ -339,7 +339,7 @@ class ReportData:
             for mod in ["DXT_POSIX", "DXT_MPIIO"]:
                 if mod in self.report.modules:
                     dxt_heatmap_fig = ReportFigure(
-                        section_title="I/O Operations",
+                        section_title="I/O Summary",
                         fig_title=f"Heat Map: {mod}",
                         fig_func=plot_dxt_heatmap.plot_heatmap,
                         fig_args=dict(report=self.report, mod=mod),
@@ -359,7 +359,7 @@ class ReportData:
                 f"the <a href={url}>Darshan-runtime documentation</a>."
             )
             fig = ReportFigure(
-                section_title="I/O Operations",
+                section_title="I/O Summary",
                 fig_title="Heat Map",
                 fig_func=None,
                 fig_args=None,
@@ -402,7 +402,7 @@ class ReportData:
                     "the <i>Common Access Sizes</i> table."
                 )
                 access_hist_fig = ReportFigure(
-                    section_title=f"Per-Module Stats: {mod}",
+                    section_title=f"Per-Module Statistics: {mod}",
                     fig_title="Access Sizes",
                     fig_func=plot_access_histogram,
                     fig_args=dict(report=self.report, mod=mod),
@@ -418,7 +418,7 @@ class ReportData:
                 else:
                     com_acc_tbl_description = ""
                 com_acc_tbl_fig = ReportFigure(
-                    section_title=f"Per-Module Stats: {mod}",
+                    section_title=f"Per-Module Statistics: {mod}",
                     fig_title="Common Access Sizes",
                     fig_func=plot_common_access_table.plot_common_access_table,
                     fig_args=dict(report=self.report, mod=mod),
