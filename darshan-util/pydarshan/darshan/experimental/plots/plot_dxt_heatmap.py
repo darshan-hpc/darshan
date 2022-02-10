@@ -334,15 +334,12 @@ def plot_heatmap(
     # aggregate the data according to the selected modules and operations
     agg_df = heatmap_handling.get_aggregate_data(report=report, mod=mod, ops=ops)
 
+    nprocs = report.metadata["job"]["nprocs"]
     # get the heatmap data array
-    hmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins)
-
-    # get the unique ranks
-    unique_ranks = np.unique(agg_df["rank"].values)
-    ybins = unique_ranks.size
+    hmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins, nprocs=nprocs)
 
     # build the joint plot with marginal histograms
-    jgrid = sns.jointplot(kind="hist", bins=[xbins, ybins], space=0.05)
+    jgrid = sns.jointplot(kind="hist", bins=[xbins, nprocs], space=0.05)
     # clear the x and y axis marginal graphs
     jgrid.ax_marg_x.cla()
     jgrid.ax_marg_y.cla()
@@ -377,11 +374,11 @@ def plot_heatmap(
     for _, spine in hmap.spines.items():
         spine.set_visible(True)
 
-    # if there are more than 1 unique rank,
+    # if there is more than 1 process,
     # create the horizontal bar graph
-    if unique_ranks.size > 1:
+    if nprocs > 1:
         jgrid.ax_marg_y.barh(
-            y=unique_ranks,
+            y=np.arange(nprocs),
             width=hmap_df.sum(axis=1),
             align="edge",
             facecolor="black",
@@ -411,7 +408,7 @@ def plot_heatmap(
     # set the dimensions of the figure to 6.5" wide x 4.5" tall
     jgrid.fig.set_size_inches(6.5, 4.5)
 
-    if unique_ranks.size > 1:
+    if nprocs > 1:
         # if there are multiple ranks we want to move the colorbar on the far
         # right side of the horizontal bar graph
         adjust_for_colorbar(jointgrid=jgrid, fig_right=0.84, cbar_x0=0.85)

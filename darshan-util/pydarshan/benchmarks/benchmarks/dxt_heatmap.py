@@ -60,4 +60,4 @@ class GetHeatMapDf:
     def time_get_heatmap_df(self, unique_ranks, bin_count):
         # benchmark get_heatmap_df() handling of variable
         # numbers of unique ranks/bins
-        heatmap_handling.get_heatmap_df(self.agg_df, xbins=bin_count)
+        heatmap_handling.get_heatmap_df(self.agg_df, xbins=bin_count, nprocs=unique_ranks)
