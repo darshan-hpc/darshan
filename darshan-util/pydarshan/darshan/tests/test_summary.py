@@ -73,12 +73,12 @@ def test_main_with_args(tmpdir, argv):
 
 @pytest.mark.parametrize(
     "argv, expected_img_count, expected_table_count", [
-        (["noposix.darshan"], 1, 2),
-        (["noposix.darshan", "--output=test.html"], 1, 2),
-        (["sample-dxt-simple.darshan"], 5, 4),
-        (["sample-dxt-simple.darshan", "--output=test.html"], 5, 4),
-        (["nonmpi_dxt_anonymized.darshan"], 3, 3),
-        (["ior_hdf5_example.darshan"], 6, 5),
+        (["noposix.darshan"], 2, 2),
+        (["noposix.darshan", "--output=test.html"], 2, 2),
+        (["sample-dxt-simple.darshan"], 7, 4),
+        (["sample-dxt-simple.darshan", "--output=test.html"], 7, 4),
+        (["nonmpi_dxt_anonymized.darshan"], 5, 3),
+        (["ior_hdf5_example.darshan"], 9, 5),
         ([None], 0, 0),
     ]
 )
@@ -118,7 +118,7 @@ def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_coun
                         assert "Heat map is not available for this job" in report_str
 
                     # check that expected number of figures are found
-                    assert report_str.count("img") == expected_img_count
+                    assert report_str.count("<img") == expected_img_count
 
                     # check that the expected number of tables are found
                     # NOTE: since there are extraneous instances of "table"
