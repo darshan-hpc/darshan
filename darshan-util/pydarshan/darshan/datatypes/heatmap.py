@@ -4,7 +4,7 @@ import pandas as pd
 class Heatmap():
     """
     The Heatmap class is a convienience wrapper to Darshan Heatmap records.
-    The structure can be sparse (e.g., not 
+    The structure can be sparse (e.g., not all ranks need to be populated)
     """
 
     def __init__(self, mod=None):       
