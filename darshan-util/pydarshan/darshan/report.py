@@ -361,7 +361,6 @@ class DarshanReport(object):
         self.data['modules'] = self._modules
         self.data['counters'] = self.counters
         self.data['name_records'] = self.name_records
-        self.data['heatmaps'] = self._heatmaps
 
 
         # when using report algebra this log allows to untangle potentially
