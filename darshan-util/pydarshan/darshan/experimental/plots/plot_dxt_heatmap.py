@@ -425,6 +425,6 @@ def plot_heatmap(
     jgrid.ax_joint.set_xlabel("Time (s)")
     jgrid.ax_joint.set_ylabel("Rank")
 
-    #plt.close()
+    plt.close()
 
     return jgrid
