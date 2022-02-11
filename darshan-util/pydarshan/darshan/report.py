@@ -544,6 +544,8 @@ class DarshanReport(object):
             self.mod_read_all_apmpi_records(dtype=dtype)
         if "APXC" in self.data['modules']:
             self.mod_read_all_apxc_records(dtype=dtype)
+        if "HEATMAP" in self.data['modules']:
+            self.read_all_heatmap_records()
         
         return
 
@@ -642,7 +644,7 @@ class DarshanReport(object):
             None
 
         """
-        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE', 'APMPI', 'APXC']
+        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE', 'APMPI', 'APXC', 'HEATMAP']
 
         if mod in unsupported:
             if warnings:
