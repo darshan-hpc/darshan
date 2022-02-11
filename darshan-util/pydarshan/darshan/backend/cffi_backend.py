@@ -613,7 +613,6 @@ def _log_get_heatmap_record(log):
         return None
 
     mod_type = _structdefs[mod_name]
-    #name_records = log_get_name_records(log)
 
     rec = {}
     buf = ffi.new("void **")
@@ -625,7 +624,6 @@ def _log_get_heatmap_record(log):
 
     rec['id'] = filerec[0].base_rec.id
     rec['rank'] = filerec[0].base_rec.rank
-    #rec['heatmap_name'] = name_records[rec['id']]
 
     bin_width_seconds = filerec[0].bin_width_seconds
     nbins = filerec[0].nbins

@@ -14,5 +14,5 @@ export LD_LIBRARY_PATH=$THIS/../devenv/libdarshanutil/lib:$LD_LIBRARY_PATH
 
 
 # ensure pydarshan is found
-export PYTHONPATH=$THIS/../:$PYTHONPATH
+#export PYTHONPATH=$THIS/../:$PYTHONPATH
 
