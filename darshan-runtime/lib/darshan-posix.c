@@ -522,7 +522,7 @@ int DARSHAN_DECL(openat)(int dirfd, const char *pathname, int flags, ...)
     int ret;
     double tm1, tm2;
     struct posix_file_record_ref *rec_ref;
-    char tmp_path[PATH_MAX] = {0};
+    char tmp_path[__DARSHAN_PATH_MAX] = {0};
     char *dirpath = NULL;
 
     MAP_OR_FAIL(openat);
@@ -562,13 +562,19 @@ int DARSHAN_DECL(openat)(int dirfd, const char *pathname, int flags, ...)
         if(rec_ref)
         {
             dirpath = darshan_core_lookup_record_name(rec_ref->file_rec->base_rec.id);
-            if(dirpath)
+            /* Safety check path length against temporary buffer.  If the
+             * combined path is too long, then we set dirpath to NULL to fall
+             * through to using relative path below.
+             */
+            if(dirpath && (strlen(dirpath) + strlen(pathname) + 2) < __DARSHAN_PATH_MAX)
             {
                 strcat(tmp_path, dirpath);
                 if(dirpath[strlen(dirpath)-1] != '/')
                     strcat(tmp_path, "/");
                 strcat(tmp_path, pathname);
             }
+            else
+                dirpath = NULL;
         }
 
         if(dirpath)
@@ -593,7 +599,7 @@ int DARSHAN_DECL(openat64)(int dirfd, const char *pathname, int flags, ...)
     int ret;
     double tm1, tm2;
     struct posix_file_record_ref *rec_ref;
-    char tmp_path[PATH_MAX] = {0};
+    char tmp_path[__DARSHAN_PATH_MAX] = {0};
     char *dirpath = NULL;
 
     MAP_OR_FAIL(openat64);
@@ -633,13 +639,19 @@ int DARSHAN_DECL(openat64)(int dirfd, const char *pathname, int flags, ...)
         if(rec_ref)
         {
             dirpath = darshan_core_lookup_record_name(rec_ref->file_rec->base_rec.id);
-            if(dirpath)
+            /* Safety check path length against temporary buffer.  If the
+             * combined path is too long then, we set dirpath to NULL to fall
+             * through to using relative path below.
+             */
+            if(dirpath && (strlen(dirpath) + strlen(pathname) + 2) < __DARSHAN_PATH_MAX)
             {
                 strcat(tmp_path, dirpath);
                 if(dirpath[strlen(dirpath)-1] != '/')
                     strcat(tmp_path, "/");
                 strcat(tmp_path, pathname);
             }
+            else
+                dirpath = NULL;
         }
 
         if(dirpath)

@@ -509,7 +509,7 @@ void darshan_core_shutdown(int write_log)
 #endif
 
     final_core->comp_buf = malloc(darshan_mod_mem_quota);
-    logfile_name = malloc(PATH_MAX);
+    logfile_name = malloc(__DARSHAN_PATH_MAX);
     if(!final_core->comp_buf || !logfile_name)
         goto cleanup;
 
@@ -842,7 +842,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
     /* construct a unique temporary log file name for this process
      * to write mmap log data to
      */
-    snprintf(core->mmap_log_name, PATH_MAX,
+    snprintf(core->mmap_log_name, __DARSHAN_PATH_MAX,
         "/%s/%s_%s_id%d_mmap-log-%" PRIu64 "-%d.darshan",
         mmap_log_path, cuser, __progname, jobid, logmod, my_rank);
 
@@ -1408,6 +1408,10 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
 #endif
 
 /* construct the darshan log file name */
+/* NOTE: logfile_name argument is assumed to have already been allocated
+ * with size __DARSHAN_PATH_MAX; length will be safety checked in this
+ * function.
+ */
 static void darshan_get_logfile_name(
     char* logfile_name, struct darshan_core_runtime* core)
 {
@@ -1441,7 +1445,7 @@ static void darshan_get_logfile_name(
     user_logfile_name = getenv("DARSHAN_LOGFILE");
     if(user_logfile_name)
     {
-        if(strlen(user_logfile_name) >= (PATH_MAX-1))
+        if(strlen(user_logfile_name) >= (__DARSHAN_PATH_MAX-1))
         {
             DARSHAN_WARN("user log file name too long");
             logfile_name[0] = '\0';
@@ -1504,7 +1508,7 @@ static void darshan_get_logfile_name(
 
         if(logpath_override)
         {
-            ret = snprintf(logfile_name, PATH_MAX,
+            ret = snprintf(logfile_name, __DARSHAN_PATH_MAX,
                 "%s/%s_%s_id%d-%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
                 logpath_override,
                 cuser, __progname, jobid, pid,
@@ -1512,17 +1516,17 @@ static void darshan_get_logfile_name(
                 start_tm->tm_mday,
                 (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
                 logmod);
-            if(ret == (PATH_MAX-1))
+            if(ret == (__DARSHAN_PATH_MAX-1))
             {
                 /* file name was too big; squish it down */
-                snprintf(logfile_name, PATH_MAX,
+                snprintf(logfile_name, __DARSHAN_PATH_MAX,
                     "%s/id%d.darshan_partial",
                     logpath_override, jobid);
             }
         }
         else if(logpath)
         {
-            ret = snprintf(logfile_name, PATH_MAX,
+            ret = snprintf(logfile_name, __DARSHAN_PATH_MAX,
                 "%s/%d/%d/%d/%s_%s_id%d-%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
                 logpath, (start_tm->tm_year+1900),
                 (start_tm->tm_mon+1), start_tm->tm_mday,
@@ -1531,10 +1535,10 @@ static void darshan_get_logfile_name(
                 start_tm->tm_mday,
                 (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
                 logmod);
-            if(ret == (PATH_MAX-1))
+            if(ret == (__DARSHAN_PATH_MAX-1))
             {
                 /* file name was too big; squish it down */
-                snprintf(logfile_name, PATH_MAX,
+                snprintf(logfile_name, __DARSHAN_PATH_MAX,
                     "%s/id%d.darshan_partial",
                     logpath, jobid);
             }
@@ -1549,7 +1553,7 @@ static void darshan_get_logfile_name(
 bcast:
     if(using_mpi)
     {
-        PMPI_Bcast(logfile_name, PATH_MAX, MPI_CHAR, 0, core->mpi_comm);
+        PMPI_Bcast(logfile_name, __DARSHAN_PATH_MAX, MPI_CHAR, 0, core->mpi_comm);
         if(my_rank > 0)
             return;
     }
@@ -1982,15 +1986,26 @@ void darshan_log_finalize(char *logfile_name, double start_log_time)
         char* tmp_index;
         double end_log_time;
         char* new_logfile_name;
+        int available_bytes = 0;
 
-        new_logfile_name = malloc(PATH_MAX);
+        /* allocate string to hold final log file name */
+        new_logfile_name = malloc(__DARSHAN_PATH_MAX);
         if(new_logfile_name)
         {
-            new_logfile_name[0] = '\0';
+            /* copy partial log file name over to new string */
+            strncpy(new_logfile_name, logfile_name, __DARSHAN_PATH_MAX);
+            /* retrieve current time stamp */
             end_log_time = darshan_core_wtime_absolute();
-            strcat(new_logfile_name, logfile_name);
+            /* find location of .darshan_partial extension */
             tmp_index = strstr(new_logfile_name, ".darshan_partial");
-            sprintf(tmp_index, "_%d.darshan", (int)(end_log_time-start_log_time+1));
+            /* calculate how much room is in the string, considering the
+             * length of the temporary extension (which we will overwrite)
+             * and any other spare buffer space in the string
+             */
+            available_bytes = __DARSHAN_PATH_MAX - strlen(logfile_name) + strlen(".darshan_partial");
+            /* use snprintf with above limit to make sure we don't overflow */
+            snprintf(tmp_index, available_bytes, "_%d.darshan", (int)(end_log_time-start_log_time+1));
+            /* rename to new target name */
             rename(logfile_name, new_logfile_name);
             /* set permissions on log file */
             chmod(new_logfile_name, chmod_mode);

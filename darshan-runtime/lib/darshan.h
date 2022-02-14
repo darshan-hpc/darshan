@@ -46,7 +46,7 @@
 #define DARSHAN_MOD_MEM_OVERRIDE "DARSHAN_MODMEM"
 
 /* Environment variable to enable profiling without MPI */
-#define DARSHAN_ENABLE_NONMPI "DARSHAN_ENABLE_NONMPI" 
+#define DARSHAN_ENABLE_NONMPI "DARSHAN_ENABLE_NONMPI"
 
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
 /* Environment variable to override default mmap log path */
@@ -67,6 +67,9 @@
 
 /* default name record buf can store 2048 records of size 100 bytes */
 #define DARSHAN_NAME_RECORD_BUF_SIZE (2048 * 100)
+
+/* maximum buffer size for full paths, for internal use only */
+#define __DARSHAN_PATH_MAX 4096
 
 typedef union
 {
@@ -122,7 +125,7 @@ struct darshan_core_runtime
     size_t name_mem_used;
     char *comp_buf;
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    char mmap_log_name[PATH_MAX];
+    char mmap_log_name[__DARSHAN_PATH_MAX];
 #endif
 #ifdef HAVE_MPI
     MPI_Comm mpi_comm;
