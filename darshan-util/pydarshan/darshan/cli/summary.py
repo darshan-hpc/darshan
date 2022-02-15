@@ -435,7 +435,7 @@ class ReportData:
                     fig_title="Operation Counts",
                     fig_func=plot_opcounts,
                     fig_args=dict(report=self.report, mod=mod),
-                    fig_description="Histogram of module operations broken down by operation type.",
+                    fig_description="Histogram of I/O operation frequency.",
                     fig_width=350,
                 )
                 self.figures.append(opcount_fig)
