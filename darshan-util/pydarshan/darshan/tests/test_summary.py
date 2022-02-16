@@ -420,7 +420,7 @@ class TestReportData:
 
         # add new column for partial flags
         expected_df[1] = np.nan
-        flag = "\u26A0 Ran out of memory or record limit reached!"
+        flag = "\u26A0 Module data incomplete due to runtime memory or record count limits"
         if "partial_data_stdio.darshan" in log_path:
             expected_df.iloc[2, 1] = flag
         if "partial_data_dxt.darshan" in log_path:

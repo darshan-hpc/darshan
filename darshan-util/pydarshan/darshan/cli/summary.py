@@ -247,7 +247,7 @@ class ReportData:
             val = f"{mod_buf_size:.2f} KiB"
             flag = ""
             if self.report.modules[mod]["partial_flag"]:
-                msg = "Ran out of memory or record limit reached!"
+                msg = "Module data incomplete due to runtime memory or record count limits"
                 flag = f"<p style='color:red'>&#x26A0; {msg}</p>"
             module_dict[key] = [val, flag]
 
