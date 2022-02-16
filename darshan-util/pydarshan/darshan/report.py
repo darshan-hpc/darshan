@@ -20,6 +20,8 @@ import pandas as pd
 
 import collections.abc
 
+from warnings import warn
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -295,7 +297,8 @@ class DarshanReport(object):
 
 
     def __init__(self, 
-            filename=None, dtype='numpy', 
+            filename=None, 
+            dtype=None, # to be remove
             start_time=None, end_time=None,
             automatic_summary=False,
             read_all=True, lookup_name_records=True):
@@ -315,7 +318,11 @@ class DarshanReport(object):
         self.log = None
 
         # Behavioral Options
-        self.dtype = dtype                                  # default dtype to return when viewing records
+        if dtype is not None:
+            warn("The use of dtype in reports is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+
+        self.dtype = dtype if dtype else "numpy"    # default dtype to return when viewing records
+
         self.automatic_summary = automatic_summary
         self.lookup_name_records = lookup_name_records
 
@@ -523,6 +530,9 @@ class DarshanReport(object):
             None
         """
 
+        if dtype is not None:
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+
         self.read_all_generic_records(dtype=dtype)
         self.read_all_dxt_records(dtype=dtype)
         if "LUSTRE" in self.data['modules']:
@@ -546,6 +556,9 @@ class DarshanReport(object):
             None
         """
 
+        if dtype is not None:
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+
         dtype = dtype if dtype else self.dtype
 
         for mod in self.data['modules']:
@@ -563,6 +576,9 @@ class DarshanReport(object):
         Return:
             None
         """
+
+        if dtype is not None:
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
 
         dtype = dtype if dtype else self.dtype
 
@@ -583,6 +599,10 @@ class DarshanReport(object):
             None
 
         """
+
+        if dtype is not None:
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+
         unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE', 'APMPI', 'APXC']
 
         if mod in unsupported:
@@ -661,6 +681,10 @@ class DarshanReport(object):
             None
 
         """
+
+        if dtype is not None and warnings:
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning)
+
         if mod not in self.data['modules']:
             if warnings:
                 logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
@@ -711,6 +735,11 @@ class DarshanReport(object):
             None
 
         """
+
+        if dtype is not None and warnings:
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+
+
         if mod not in self.data['modules']:
             if warnings:
                 logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
@@ -760,6 +789,11 @@ class DarshanReport(object):
             None
 
         """
+
+        if dtype is not None and warnings:
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+
+
         if mod not in self.data['modules']:
             if warnings:
                 logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
@@ -815,6 +849,11 @@ class DarshanReport(object):
             None
 
         """
+
+        if dtype is not None and warnings:
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+
+
         if mod not in self.data['modules']:
             if warnings:
                 logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
@@ -902,6 +941,11 @@ class DarshanReport(object):
             None
 
         """
+
+        if dtype is not None and warnings:
+            warn("The use of the dtype argument is deprecated in v3.3.2 and will be removed in v3.4.x", DeprecationWarning, stacklevel=2)
+
+
         cn = backend.counter_names(mod)
         fcn = backend.fcounter_names(mod)
 
