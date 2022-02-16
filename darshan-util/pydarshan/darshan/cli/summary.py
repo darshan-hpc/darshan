@@ -220,7 +220,7 @@ class ReportData:
             "Runtime (s)": self.get_runtime(report=self.report),
             "Start Time": datetime.datetime.fromtimestamp(job_data["start_time"]),
             "End Time": datetime.datetime.fromtimestamp(job_data["end_time"]),
-            "Command": self.get_full_command(report=self.report),
+            "Command Line": self.get_full_command(report=self.report),
             "Log Filename": os.path.basename(self.log_path),
             "Runtime Library Version": job_data["metadata"]["lib_ver"],
             "Log Format Version": job_data["log_ver"],
