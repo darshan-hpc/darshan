@@ -174,11 +174,11 @@ class ReportData:
 
         """
         # calculate the run time
-        runtime_val = float(
+        runtime_val = int(
             report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
         )
-        if runtime_val < 1.0:
-            # to prevent the displayed run time from being 0.0 seconds
+        if runtime_val < 1:
+            # to prevent the displayed run time from being 0 seconds
             # label anything under 1 second as less than 1
             runtime = "< 1"
         else:
