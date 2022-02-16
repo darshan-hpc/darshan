@@ -231,7 +231,7 @@ class TestReportData:
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
-                        "Start Time", "End Time", "Command", "Log Filename",
+                        "Start Time", "End Time", "Command Line", "Log Filename",
                         "Runtime Library Version", "Log Format Version"
                     ],
                     data=[
@@ -258,7 +258,7 @@ class TestReportData:
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
-                        "Start Time", "End Time", "Command", "Log Filename",
+                        "Start Time", "End Time", "Command Line", "Log Filename",
                         "Runtime Library Version", "Log Format Version"
                     ],
                     data=[
@@ -280,7 +280,7 @@ class TestReportData:
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
-                        "Start Time", "End Time", "Command", "Log Filename",
+                        "Start Time", "End Time", "Command Line", "Log Filename",
                         "Runtime Library Version", "Log Format Version"
                     ],
                     data=[
