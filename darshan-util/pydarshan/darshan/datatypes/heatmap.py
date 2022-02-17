@@ -3,7 +3,7 @@ import pandas as pd
 
 class Heatmap():
     """
-    The Heatmap class is a convienience wrapper to Darshan Heatmap records.
+    The Heatmap class is a convenience wrapper to Darshan Heatmap records.
     The structure can be sparse (e.g., not all ranks need to be populated)
     """
 
@@ -18,8 +18,6 @@ class Heatmap():
             "read": {},
             "write": {}
         }
-        
-        pass
    
     def __repr__(self):
         type_ = type(self)
@@ -92,7 +90,7 @@ class Heatmap():
 
     def to_df(self, op: str, interval_index: bool = True):
         """
-        Return as heatmap as pandas dataframe.
+        Return heatmap as pandas dataframe.
 
         Parameters
         ----------
@@ -104,7 +102,7 @@ class Heatmap():
         """
 
         if op not in self._data:
-            raise RuntimeError(f"{op} not in heatmap.")
+            raise ValueError(f"{op} not in heatmap.")
 
         data = self._data[op]
         nbins = self._nbins

@@ -586,7 +586,7 @@ class DarshanReport(object):
 
     def read_all_heatmap_records(self):
         """
-        Read all dxt records from darshan log and return as dictionary.
+        Read all heatmap records from darshan log and return as dictionary.
 
         .. note::
             As the module is encoded in a name_record, all heatmap data is read
