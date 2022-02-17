@@ -77,7 +77,7 @@ add-modules:
 	done
 
 wheels:
-	./devel/build-all.sh
+	./devel/build-all-platforms.sh
 
 release: #dist # package and upload a release
 	#twine upload --repository testpypi dist/*

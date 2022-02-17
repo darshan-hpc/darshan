@@ -188,7 +188,7 @@ def find_utils(ffi, libdutil):
         try:
             darshan_path = discover_darshan_wheel()
             import glob
-            library_path = glob.glob(f'{darshan_path}/libdarshan-util*.so')[0]
+            library_path = glob.glob(f'{darshan_path}/libdarshan-util*.so*')[0]
             logger.debug(f"Attempting library_path={library_path} in case of binary wheel.")
             save = os.getcwd()
             os.chdir(darshan_path)
@@ -201,7 +201,7 @@ def find_utils(ffi, libdutil):
         try:
             darshan_path = discover_darshan_pyinstaller()
             import glob
-            library_path = glob.glob(f'{darshan_path}/libdarshan-util*.so')[0]
+            library_path = glob.glob(f'{darshan_path}/libdarshan-util*.so*')[0]
             logger.debug(f"Attempting library_path={library_path} for pyinstaller bundles.")
             save = os.getcwd()
             os.chdir(darshan_path)

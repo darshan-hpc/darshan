@@ -15,10 +15,12 @@ function repair_wheel {
 
 # Install a system package required by darshan-utils
 yum install -y zlib zlib-devel
+yum install -y libjpeg libjpeg-devel
 
 # Build and install darshan-util
-cd /darshan/darshan-util
-./configure --enable-shared --enable-autoperf-apxc --enable-autoperf-apmpi
+cd /darshan/
+./prepare.sh
+./configure --disable-darshan-runtime --enable-apxc-mod --enable-apmpi-mod
 make install
 make distclean
 
