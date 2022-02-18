@@ -21,6 +21,7 @@ from darshan.experimental.plots import (
     plot_io_cost,
     plot_common_access_table,
     plot_access_histogram,
+    plot_opcounts,
 )
 
 darshan.enable_experimental()
@@ -426,6 +427,19 @@ class ReportData:
                     fig_width=350,
                 )
                 self.figures.append(com_acc_tbl_fig)
+
+            # add the operation counts figure
+            if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                opcount_fig = ReportFigure(
+                    section_title=f"Per-Module Statistics: {mod}",
+                    fig_title="Operation Counts",
+                    fig_func=plot_opcounts,
+                    fig_args=dict(report=self.report, mod=mod),
+                    fig_description="Histogram of I/O operation frequency.",
+                    fig_width=350,
+                )
+                self.figures.append(opcount_fig)
+
 
     def build_sections(self):
         """
