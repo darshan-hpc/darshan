@@ -389,7 +389,7 @@ int main(int argc, char *argv[])
     /* iterate over active darshan modules and gather module data to write
      * to the merged output log
      */
-    for(i = 0; i < DARSHAN_MAX_MODS; i++)
+    for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
     {
         if(!mod_logutils[i]) continue;
 

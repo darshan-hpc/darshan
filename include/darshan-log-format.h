@@ -178,12 +178,13 @@ struct darshan_base_record
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
  *        - order of ids control module shutdown order (and consequently, order in log file)
  */
-#define X(a, b, c, d) a,
 typedef enum
 {
+#define X(a, b, c, d) a,
     DARSHAN_MODULE_IDS
-} darshan_module_id;
 #undef X
+    DARSHAN_KNOWN_MODULE_COUNT
+} darshan_module_id;
 
 /* module name strings */
 #define X(a, b, c, d) b,
