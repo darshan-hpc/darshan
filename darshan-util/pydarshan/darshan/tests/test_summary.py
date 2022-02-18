@@ -418,6 +418,8 @@ class TestReportData:
         expected_module_count = len(R.report.modules.keys())
         assert actual_mod_df.shape[0] == expected_module_count
 
+        expected_df.index += " Module Data"
+
         # add new column for partial flags
         expected_df[1] = np.nan
         flag = "\u26A0 Module data incomplete due to runtime memory or record count limits"

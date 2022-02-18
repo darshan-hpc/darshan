@@ -243,7 +243,7 @@ class ReportData:
             # retrieve the buffer size converted to KiB
             mod_buf_size = self.report.modules[mod]["len"] / 1024
             # create the key/value pairs for the dictionary
-            key = f"{mod} (ver={mod_version})"
+            key = f"{mod} (ver={mod_version}) Module Data"
             val = f"{mod_buf_size:.2f} KiB"
             flag = ""
             if self.report.modules[mod]["partial_flag"]:
