@@ -35,6 +35,8 @@ def test_jobid_type_all_logs_repo_files(log_repo_files):
     # this is primarily intended as a demonstration of looping
     # through all logs repo files in a test
     for log_filepath in log_repo_files:
+        if "heatmap" in log_filepath:
+            pytest.xfail(reason="HEATMAP module not yet supported")
         report = darshan.DarshanReport(log_filepath)
         assert isinstance(report.metadata['job']['jobid'], int)
 

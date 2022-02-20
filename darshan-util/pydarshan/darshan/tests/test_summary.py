@@ -150,6 +150,8 @@ def test_main_all_logs_repo_files(tmpdir, log_repo_files):
     # https://github.com/darshan-hpc/darshan-logs
 
     for log_filepath in log_repo_files:
+        if "heatmap" in log_filepath:
+            pytest.xfail(reason="HEATMAP module not yet supported")
         argv = [log_filepath]
         with mock.patch("sys.argv", [""] + argv):
             with tmpdir.as_cwd():
