@@ -23,6 +23,12 @@
 #include "darshan.h"
 #include "darshan-heatmap.h"
 
+/* If set, this is the globally (across all ranks) agreed-upon timestamp to
+ * use as the end time for normalizing and pruning heatmap bins consistently.
+ * If not set, use locally derived end timestamp during output fn.
+ */
+double g_end_timestamp = 0;
+
 /* maximum number of bins per record */
 /* TODO: make this tunable at runtime */
 /* TODO: safety check that total record size plus trailing bins doesn't
@@ -65,6 +71,12 @@ static int my_rank = -1;
 
 static struct heatmap_record_ref *heatmap_track_new_record(
     darshan_record_id rec_id, const char *name);
+static void collapse_heatmap(struct darshan_heatmap_record *rec);
+#ifdef HAVE_MPI
+static void heatmap_mpi_redux(
+    void *stdio_buf, MPI_Comm mod_comm,
+    darshan_record_id *shared_recs, int shared_rec_count);
+#endif
 
 #ifdef HAVE_STDATOMIC_H
 atomic_flag heatmap_runtime_mutex;
@@ -124,8 +136,14 @@ static void heatmap_output(
 
     *heatmap_buf_sz = 0;
 
+    /* freeze instrumentation if it's not already */
     heatmap_runtime->frozen = 1;
-    end_timestamp = darshan_core_wtime();
+
+    /* use coordinated end timestamp if available, otherwise local time */
+    if(g_end_timestamp)
+        end_timestamp = g_end_timestamp;
+    else
+        end_timestamp = darshan_core_wtime();
 
     contig_buf_ptr = *heatmap_buf;
 
@@ -133,6 +151,13 @@ static void heatmap_output(
     for(i=0; i<heatmap_runtime->rec_count; i++)
     {
         rec = (struct darshan_heatmap_record*)((uintptr_t)*heatmap_buf + i*(sizeof(*rec) + DARSHAN_MAX_HEATMAP_BINS*2*sizeof(int64_t)));
+
+        /* Collapse records if needed until the total histogram time range
+         * extends to end of execution time.  This will ensure that all of
+         * the heatmap records have a consistent size
+         */
+        while(end_timestamp > rec->bin_width_seconds * DARSHAN_MAX_HEATMAP_BINS)
+            collapse_heatmap(rec);
 
         tmp_nbins= ceil(end_timestamp/rec->bin_width_seconds);
 
@@ -190,7 +215,7 @@ struct heatmap_runtime* heatmap_runtime_initialize(void)
 
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
-        .mod_redux_func = NULL, /* no reduction; record each rank separately */
+        .mod_redux_func = heatmap_mpi_redux,
 #endif
         .mod_output_func = heatmap_output,
         .mod_cleanup_func = heatmap_cleanup
@@ -407,6 +432,32 @@ static struct heatmap_record_ref *heatmap_track_new_record(
     return(rec_ref);
 }
 
+#ifdef HAVE_MPI
+static void heatmap_mpi_redux(
+    void *stdio_buf, MPI_Comm mod_comm,
+    darshan_record_id *shared_recs, int shared_rec_count)
+{
+    double end_timestamp;
+
+    /* NOTE: no actual record reduction here.  We are just using this as an
+     * opportunity to agree on shutdown times.
+     */
+
+    HEATMAP_LOCK();
+    assert(heatmap_runtime);
+    heatmap_runtime->frozen = 1;
+    HEATMAP_UNLOCK();
+
+    /* check time locally */
+    end_timestamp = darshan_core_wtime();
+
+    /* reduce across all ranks, take maximum (it's Ok if this rank doesn't
+     * have data out that far; it will be zeroed anyway)
+     */
+    PMPI_Allreduce(&end_timestamp, &g_end_timestamp, 1, MPI_DOUBLE,
+        MPI_MAX, mod_comm);
+}
+#endif
 /*
  * Local variables:
  *  c-indent-level: 4
