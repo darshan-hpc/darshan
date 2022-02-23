@@ -233,8 +233,7 @@ class TestReportData:
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
-                        "Start Time", "End Time", "Command Line", "Log Filename",
-                        "Runtime Library Version", "Log Format Version"
+                        "Start Time", "End Time", "Command Line",
                     ],
                     data=[
                         "4478544",
@@ -248,9 +247,6 @@ class TestReportData:
                             "results/bin.edison/vpicio_uni /scratch2/scratchdirs"
                             "/glock/tokioabc-s.4478544/vpicio/vpicio.hdf5 32"
                         ),
-                        "sample.darshan",
-                        "3.1.3",
-                        "3.10",
                     ]
                 )
             ),
@@ -260,8 +256,7 @@ class TestReportData:
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
-                        "Start Time", "End Time", "Command Line", "Log Filename",
-                        "Runtime Library Version", "Log Format Version"
+                        "Start Time", "End Time", "Command Line",
                     ],
                     data=[
                         "83017637",
@@ -271,9 +266,6 @@ class TestReportData:
                         str(datetime.fromtimestamp(1514923055)),
                         str(datetime.fromtimestamp(1514962267)),
                         "Anonymized",
-                        "noposix.darshan",
-                        "3.1.4",
-                        "3.10",
                     ]
                 )
             ),
@@ -282,8 +274,7 @@ class TestReportData:
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
-                        "Start Time", "End Time", "Command Line", "Log Filename",
-                        "Runtime Library Version", "Log Format Version"
+                        "Start Time", "End Time", "Command Line",
                     ],
                     data=[
                     "4233209",
@@ -296,9 +287,6 @@ class TestReportData:
                         "/yellow/usr/projects/eap/users/treddy"
                         "/simple_dxt_mpi_io_darshan/a.out"
                     ),
-                    "sample-dxt-simple.darshan",
-                    "3.2.1",
-                    "3.21",
                     ]
                 )
             ),
@@ -330,34 +318,41 @@ class TestReportData:
                 "sample.darshan",
                 pd.DataFrame(
                     index=[
+                        "Log Filename", "Runtime Library Version", "Log Format Version",
                         "POSIX (ver=3)", "MPI-IO (ver=2)",
                         "LUSTRE (ver=1)", "STDIO (ver=1)",
                     ],
-                    data=[["0.18 KiB"], ["0.15 KiB"], ["0.08 KiB"], ["3.16 KiB"]],
+                    data=[["sample.darshan"], ["3.1.3"], ["3.10"], ["0.18 KiB"],
+                          ["0.15 KiB"], ["0.08 KiB"], ["3.16 KiB"]],
                 ),
                 0,
             ),
             (
                 "noposix.darshan",
                 pd.DataFrame(
-                    index=["LUSTRE (ver=1)", "STDIO (ver=1)"],
-                    data=[["6.07 KiB"], ["0.21 KiB"]],
+                    index=["Log Filename", "Runtime Library Version", "Log Format Version",
+                           "LUSTRE (ver=1)", "STDIO (ver=1)"],
+                    data=[["noposix.darshan"], ["3.1.4"], ["3.10"], ["6.07 KiB"], ["0.21 KiB"]],
                 ),
                 0,
             ),
             (
                 "noposixopens.darshan",
                 pd.DataFrame(
-                    index=["POSIX (ver=3)", "STDIO (ver=1)"],
-                    data=[["0.04 KiB"], ["0.27 KiB"]],
+                    index=["Log Filename", "Runtime Library Version", "Log Format Version",
+                           "POSIX (ver=3)", "STDIO (ver=1)"],
+                    data=[["noposixopens.darshan"], ["3.1.4"], ["3.10"],
+                          ["0.04 KiB"], ["0.27 KiB"]],
                 ),
                 0,
             ),
             (
                 "sample-goodost.darshan",
                 pd.DataFrame(
-                    index=["POSIX (ver=3)", "LUSTRE (ver=1)", "STDIO (ver=1)"],
-                    data=[["5.59 KiB"], ["1.47 KiB"], ["0.07 KiB"]],
+                    index=["Log Filename", "Runtime Library Version", "Log Format Version",
+                           "POSIX (ver=3)", "LUSTRE (ver=1)", "STDIO (ver=1)"],
+                    data=[["sample-goodost.darshan"], ["3.1.3"], ["3.10"],
+                          ["5.59 KiB"], ["1.47 KiB"], ["0.07 KiB"]],
                 ),
                 0,
             ),
@@ -365,10 +360,12 @@ class TestReportData:
                 "sample-dxt-simple.darshan",
                 pd.DataFrame(
                     index=[
+                        "Log Filename", "Runtime Library Version", "Log Format Version",
                         "POSIX (ver=4)", "MPI-IO (ver=3)",
                         "DXT_POSIX (ver=1)", "DXT_MPIIO (ver=2)",
                     ],
-                    data=[["2.94 KiB"], ["1.02 KiB"], ["0.08 KiB"], ["0.06 KiB"]],
+                    data=[["sample-dxt-simple.darshan"], ["3.2.1"], ["3.21"],
+                          ["2.94 KiB"], ["1.02 KiB"], ["0.08 KiB"], ["0.06 KiB"]],
                 ),
                 0,
             ),
@@ -376,10 +373,12 @@ class TestReportData:
                 "partial_data_stdio.darshan",
                 pd.DataFrame(
                     index=[
+                        "Log Filename", "Runtime Library Version", "Log Format Version",
                         "POSIX (ver=4)", "MPI-IO (ver=3)",
                         "STDIO (ver=2)",
                     ],
-                    data=[["0.15 KiB"], ["0.13 KiB"], ["70.34 KiB"]],
+                    data=[["partial_data_stdio.darshan"], ["3.2.1"], ["3.21"],
+                          ["0.15 KiB"], ["0.13 KiB"], ["70.34 KiB"]],
                 ),
                 1,
             ),
@@ -387,11 +386,13 @@ class TestReportData:
                 "partial_data_dxt.darshan",
                 pd.DataFrame(
                     index=[
+                        "Log Filename", "Runtime Library Version", "Log Format Version",
                         "POSIX (ver=4)", "MPI-IO (ver=3)",
                         "STDIO (ver=2)", "DXT_POSIX (ver=1)",
                         "DXT_MPIIO (ver=2)"
                     ],
                     data=[
+                        ["partial_data_dxt.darshan"], ["3.2.1"], ["3.21"],
                         ["0.14 KiB"], ["0.12 KiB"], ["0.06 KiB"],
                         ["574.73 KiB"], ["568.14 KiB"],
                     ],
@@ -416,19 +417,20 @@ class TestReportData:
         actual_mod_df.columns = [0, 1]
 
         # verify the number of modules in the report is equal to
-        # the number of rows in the module table
+        # the number of rows in the module table, including the 3 rows
+        # containing log metadata
         expected_module_count = len(R.report.modules.keys())
-        assert actual_mod_df.shape[0] == expected_module_count
+        assert actual_mod_df.shape[0] == expected_module_count + 3
 
-        expected_df.index += " Module Data"
+        expected_df.rename(index=lambda s: s + " Module Data" if "ver=" in s else s, inplace=True)
 
         # add new column for partial flags
         expected_df[1] = np.nan
         flag = "\u26A0 Module data incomplete due to runtime memory or record count limits"
         if "partial_data_stdio.darshan" in log_path:
-            expected_df.iloc[2, 1] = flag
+            expected_df.iloc[5, 1] = flag
         if "partial_data_dxt.darshan" in log_path:
-            expected_df.iloc[3:, 1] = flag
+            expected_df.iloc[6:, 1] = flag
 
         # check the module dataframes
         assert_frame_equal(actual_mod_df, expected_df)

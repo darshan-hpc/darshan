@@ -222,9 +222,6 @@ class ReportData:
             "Start Time": datetime.datetime.fromtimestamp(job_data["start_time"]),
             "End Time": datetime.datetime.fromtimestamp(job_data["end_time"]),
             "Command Line": self.get_full_command(report=self.report),
-            "Log Filename": os.path.basename(self.log_path),
-            "Runtime Library Version": job_data["metadata"]["lib_ver"],
-            "Log Format Version": job_data["log_ver"],
         }
         # convert the dictionary into a dataframe
         metadata_df = pd.DataFrame.from_dict(data=metadata_dict, orient="index")
@@ -235,9 +232,15 @@ class ReportData:
         """
         Builds the module table (in html form) for the summary report.
         """
-        # construct a dictionary containing the module names
-        # and their respective data stored in KiB
-        module_dict = {}
+        # construct a dictionary containing the module names,
+        # their respective data stored in KiB, and the log metadata
+        job_data = self.report.metadata["job"]
+        module_dict= {
+            "Log Filename": [os.path.basename(self.log_path), ""],
+            "Runtime Library Version": [job_data["metadata"]["lib_ver"], ""],
+            "Log Format Version": [job_data["log_ver"], ""],
+        }
+
         for mod in self.report.modules:
             # retrieve the module version and buffer sizes
             mod_version = self.report.modules[mod]["ver"]
