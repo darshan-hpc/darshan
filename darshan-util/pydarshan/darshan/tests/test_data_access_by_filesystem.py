@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 
 import darshan
 from darshan.experimental.plots import data_access_by_filesystem
+from darshan.log_utils import get_log_path
 
 @pytest.mark.parametrize("series, expected_series", [
     # a Series with a single filesystem root path
@@ -109,13 +110,13 @@ def test_identify_filesystems(capsys, file_id_dict, expected_root_paths, verbose
                           file_id_dict,
                           expected_df_reads_shape,
                           expected_df_writes_shape""", [
-    (darshan.DarshanReport("tests/input/sample.darshan"),
-     darshan.DarshanReport("tests/input/sample.darshan").data["name_records"],
+    (darshan.DarshanReport(get_log_path("sample.darshan")),
+     darshan.DarshanReport(get_log_path("sample.darshan")).data["name_records"],
      (0, 73),
      (1, 73),
     ),
-    (darshan.DarshanReport("tests/input/sample-dxt-simple.darshan"),
-     darshan.DarshanReport("tests/input/sample-dxt-simple.darshan").data["name_records"],
+    (darshan.DarshanReport(get_log_path("sample-dxt-simple.darshan")),
+     darshan.DarshanReport(get_log_path("sample-dxt-simple.darshan")).data["name_records"],
      (0, 73),
      (2, 73),
     ),
@@ -205,9 +206,9 @@ def test_process_unique_files(df_reads, df_writes, expected_read_groups, expecte
                             processing_func,
                             expected_read_groups,
                             expected_write_groups""", [
-    (darshan.DarshanReport("tests/input/sample.darshan"),
-     data_access_by_filesystem.identify_filesystems(darshan.DarshanReport("tests/input/sample.darshan").data["name_records"]),
-     darshan.DarshanReport("tests/input/sample.darshan").data["name_records"],
+    (darshan.DarshanReport(get_log_path("sample.darshan")),
+     data_access_by_filesystem.identify_filesystems(darshan.DarshanReport(get_log_path("sample.darshan")).data["name_records"]),
+     darshan.DarshanReport(get_log_path("sample.darshan")).data["name_records"],
      data_access_by_filesystem.process_unique_files,
      pd.Series([0.0, 0.0, 0.0, 0.0], index=pd.Index(['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2'], name='filesystem_root'), name='filepath'),
      pd.Series([0.0, 0.0, 0.0, 1.0], index=pd.Index(['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2'], name='filesystem_root'), name='filepath')),
@@ -291,7 +292,7 @@ def test_empty_data_posix_y_axis_annot_position(tmpdir):
     # proper in gh-397, when using a log file that lacks
     # POSIX data
     # verify that this is handled/resolved
-    log_file_path = os.path.abspath('./tests/input/noposixopens.darshan')
+    log_file_path = get_log_path('noposixopens.darshan')
     with tmpdir.as_cwd():
         actual_fig = data_access_by_filesystem.plot_with_log_file(log_file_path=log_file_path,
                                                                   plot_filename='test.png')
@@ -309,8 +310,8 @@ def test_empty_data_posix_y_axis_annot_position(tmpdir):
                         assert actual_fontsize == 12
 
 @pytest.mark.parametrize("log_file_path, expected_text_labels", [
-    (os.path.abspath('./tests/input/noposixopens.darshan'), ['anonymized', 'anonymized', 'anonymized', '/global']),
-    (os.path.abspath('./tests/input/sample.darshan'), ['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2']),
+    (get_log_path('noposixopens.darshan'), ['anonymized', 'anonymized', 'anonymized', '/global']),
+    (get_log_path('sample.darshan'), ['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2']),
     ])
 def test_cat_labels_std_streams(tmpdir, log_file_path, expected_text_labels):
     # for an anonymized log file that operates on STDIO, STDERR
@@ -339,7 +340,7 @@ def test_empty_data_posix_text_position(tmpdir):
     # were observed to be too far to the right in the
     # subplots for a log file lacking POSIX activity
     # in gh-397; regression test this issue
-    log_file_path = os.path.abspath('./tests/input/noposixopens.darshan')
+    log_file_path = get_log_path('noposixopens.darshan')
     with tmpdir.as_cwd():
         actual_fig = data_access_by_filesystem.plot_with_log_file(log_file_path=log_file_path,
                                                                   plot_filename='test.png')
@@ -359,7 +360,7 @@ def test_empty_data_posix_text_position(tmpdir):
 def test_posix_absent():
     # check for an appropriate error when POSIX data
     # is not even recorded in the darshan log
-    log_file_path = os.path.abspath('./tests/input/noposix.darshan')
+    log_file_path = get_log_path('noposix.darshan')
     with pytest.raises(ValueError, match="POSIX module data is required"):
         actual_fig = data_access_by_filesystem.plot_with_log_file(log_file_path=log_file_path,
                                                                   plot_filename='test.png')
