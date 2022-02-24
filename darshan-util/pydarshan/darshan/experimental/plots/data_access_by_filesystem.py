@@ -529,9 +529,17 @@ def plot_data(fig: Any,
         # that are stored in the filesystem data field
         # but that are confusing to display, so strip them
         if filesystem.startswith('anonymized'):
-            ax_filesystem_bytes.annotate('anonymized', (-0.3, 0.5), fontsize=fontsize, xycoords='axes fraction')
+            ax_filesystem_bytes.annotate('anonymized',
+                                         (-0.3, 0.5),
+                                         fontsize=fontsize,
+                                         xycoords='axes fraction',
+                                         va="center")
         else:
-            ax_filesystem_bytes.annotate(filesystem, (-0.3, 0.5), fontsize=fontsize, xycoords='axes fraction')
+            ax_filesystem_bytes.annotate(filesystem,
+                                         (-0.3, 0.5),
+                                         fontsize=fontsize,
+                                         xycoords='axes fraction',
+                                         va="center")
 
         ax_filesystem_counts.barh(0, files_written, color='red', alpha=0.3)
         ax_filesystem_counts.barh(1, files_read, color='blue', alpha=0.3)

@@ -503,3 +503,21 @@ def test_vertical_resize(tmpdir, log_repo_files, select_log_repo_file, expected_
                                                            num_cats=num_cats)
         actual_dims = fig.get_size_inches()
         assert_allclose(actual_dims, expected_dims)
+
+
+@pytest.mark.parametrize("logname", [
+    "mpi-io-test.darshan",
+    "treddy_mpi-io-test_id4373053_6-2-60198-9815401321915095332_1.darshan",
+    ])
+def test_annotate_center_align(tmpdir, logname):
+    # for review comment here:
+    # https://github.com/darshan-hpc/darshan/pull/397#discussion_r690847889
+    logpath = get_log_path(logname)
+    with tmpdir.as_cwd():
+        fig = data_access_by_filesystem.plot_with_log_file(log_file_path=logpath,
+                                                           plot_filename=f'{logname}')
+        axes = fig.axes
+        for ax in axes:
+            for child in ax.get_children():
+                if isinstance(child, matplotlib.text.Annotation):
+                    assert child.get_verticalalignment() == "center"
