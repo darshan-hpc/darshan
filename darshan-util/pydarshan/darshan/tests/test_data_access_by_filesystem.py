@@ -521,3 +521,23 @@ def test_annotate_center_align(tmpdir, logname):
             for child in ax.get_children():
                 if isinstance(child, matplotlib.text.Annotation):
                     assert child.get_verticalalignment() == "center"
+
+
+@pytest.mark.parametrize("logname", [
+    "imbalanced-io.darshan",
+    "mpi-io-test.darshan",
+    ])
+def test_text_center_align(tmpdir, logname):
+    # for review comment here:
+    # https://github.com/darshan-hpc/darshan/pull/397#discussion_r690755364
+    logpath = get_log_path(logname)
+    with tmpdir.as_cwd():
+        fig = data_access_by_filesystem.plot_with_log_file(log_file_path=logpath,
+                                                           plot_filename=f'{logname}')
+        axes = fig.axes
+        for ax in axes:
+            for child in ax.get_children():
+                if isinstance(child, matplotlib.text.Text):
+                    actual_text = child.get_text()
+                    if "read" in actual_text or "written" in actual_text:
+                        assert child.get_verticalalignment() == "center"

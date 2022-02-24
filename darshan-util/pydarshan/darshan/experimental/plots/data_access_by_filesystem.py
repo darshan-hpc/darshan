@@ -544,18 +544,30 @@ def plot_data(fig: Any,
         ax_filesystem_counts.barh(0, files_written, color='red', alpha=0.3)
         ax_filesystem_counts.barh(1, files_read, color='blue', alpha=0.3)
 
-        ax_filesystem_bytes.text(0, 0.75, f' # bytes read ({bytes_read:.2E} MiB)', transform=ax_filesystem_bytes.transAxes)
-        ax_filesystem_bytes.text(0, 0.25, f' # bytes written ({bytes_written:.2E} MiB)', transform=ax_filesystem_bytes.transAxes)
+        ax_filesystem_bytes.text(0, 0.75, f' # bytes read ({bytes_read:.2E} MiB)',
+                                 transform=ax_filesystem_bytes.transAxes,
+                                 va="center")
+        ax_filesystem_bytes.text(0, 0.25, f' # bytes written ({bytes_written:.2E} MiB)',
+                                 transform=ax_filesystem_bytes.transAxes,
+                                 va="center")
 
         if files_read == 0:
-            ax_filesystem_counts.text(0, 0.75, ' 0 files read', transform=ax_filesystem_counts.transAxes)
+            ax_filesystem_counts.text(0, 0.75, ' 0 files read',
+                                      transform=ax_filesystem_counts.transAxes,
+                                      va="center")
         else:
-            ax_filesystem_counts.text(0, 0.75, f' # files read ({files_read:.2E})', transform=ax_filesystem_counts.transAxes)
+            ax_filesystem_counts.text(0, 0.75, f' # files read ({files_read:.2E})',
+                                      transform=ax_filesystem_counts.transAxes,
+                                      va="center")
 
         if files_written == 0:
-            ax_filesystem_counts.text(0, 0.25, ' 0 files written', transform=ax_filesystem_counts.transAxes)
+            ax_filesystem_counts.text(0, 0.25, ' 0 files written',
+                                      transform=ax_filesystem_counts.transAxes,
+                                      va="center")
         else:
-            ax_filesystem_counts.text(0, 0.25, f' # files written ({files_written:.2E})', transform=ax_filesystem_counts.transAxes)
+            ax_filesystem_counts.text(0, 0.25, f' # files written ({files_written:.2E})',
+                                      transform=ax_filesystem_counts.transAxes,
+                                      va="center")
 
         ax_filesystem_bytes.barh(0, bytes_written, color='red', alpha=0.3)
         ax_filesystem_bytes.barh(1, bytes_read, color='blue', alpha=0.3)
