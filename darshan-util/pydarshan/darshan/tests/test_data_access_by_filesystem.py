@@ -470,7 +470,7 @@ def test_plot_data_shared_x_axis():
             assert axis.get_xlabel() == ''
 
 
-@pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
+@pytest.mark.skipif(not pytest.has_log_repo,
                     reason="missing darshan_logs")
 @pytest.mark.parametrize('filename', ['imbalanced-io.darshan'])
 def test_log_scale_display(tmpdir, log_repo_files, select_log_repo_file):
@@ -486,7 +486,7 @@ def test_log_scale_display(tmpdir, log_repo_files, select_log_repo_file):
             else:
                 assert axis.get_xlabel() == ''
 
-@pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
+@pytest.mark.skipif(not pytest.has_log_repo,
                     reason="missing darshan_logs")
 @pytest.mark.parametrize('filename, expected_dims, num_cats',
                          [('imbalanced-io.darshan', [12, 16], None),
