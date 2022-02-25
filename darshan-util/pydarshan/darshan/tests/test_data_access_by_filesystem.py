@@ -286,84 +286,81 @@ def test_plot_data(file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_ser
         assert not right_spine_visibility
 
 
-def test_empty_data_posix_y_axis_annot_position(tmpdir):
+def test_empty_data_posix_y_axis_annot_position():
     # the y-axis filesystem annotations were observed
     # to cross the left side spine and overlap onto the plot
     # proper in gh-397, when using a log file that lacks
     # POSIX data
     # verify that this is handled/resolved
     log_file_path = get_log_path('noposixopens.darshan')
-    with tmpdir.as_cwd():
-        actual_fig = data_access_by_filesystem.plot_with_log_file(log_file_path=log_file_path,
-                                                                  plot_filename='test.png')
-        # check that the y annotation font sizes have been
-        # adjusted based on the length of the strings
-        axes = actual_fig.axes
-        for ax in axes:
-            for child in ax.get_children():
-                if isinstance(child, matplotlib.text.Annotation):
-                    actual_text = child.get_text()
-                    actual_fontsize = child.get_fontsize()
-                    if len(actual_text) <= 8:
-                        assert actual_fontsize == 18
-                    else:
-                        assert actual_fontsize == 12
+    report = darshan.DarshanReport(log_file_path)
+    actual_fig = data_access_by_filesystem.plot_with_report(report=report)
+    # check that the y annotation font sizes have been
+    # adjusted based on the length of the strings
+    axes = actual_fig.axes
+    for ax in axes:
+        for child in ax.get_children():
+            if isinstance(child, matplotlib.text.Annotation):
+                actual_text = child.get_text()
+                actual_fontsize = child.get_fontsize()
+                if len(actual_text) <= 8:
+                    assert actual_fontsize == 18
+                else:
+                    assert actual_fontsize == 12
 
 @pytest.mark.parametrize("log_file_path, expected_text_labels", [
     (get_log_path('noposixopens.darshan'), ['anonymized', 'anonymized', 'anonymized', '/global']),
     (get_log_path('sample.darshan'), ['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2']),
     ])
-def test_cat_labels_std_streams(tmpdir, log_file_path, expected_text_labels):
+def test_cat_labels_std_streams(log_file_path, expected_text_labels):
     # for an anonymized log file that operates on STDIO, STDERR
     # and STDIN, we want appropriate labels to be used instead of confusing
     # integers on y axis; for the same scenario without anonymization,
     # the STD.. stream label seem appropriate
     actual_text_labels = []
-    with tmpdir.as_cwd():
-        actual_fig = data_access_by_filesystem.plot_with_log_file(log_file_path=log_file_path,
-                                                                  plot_filename='test.png')
-        axes = actual_fig.axes
-        for ax in axes:
-            for child in ax.get_children():
-                if isinstance(child, matplotlib.text.Annotation):
-                    actual_text = child.get_text()
-                    actual_text_labels.append(actual_text)
-                    if 'STD' in actual_text:
-                        # format the STD.. streams properly
-                        actual_fontsize = child.get_fontsize()
-                        assert actual_fontsize == 12
+    report = darshan.DarshanReport(log_file_path)
+    actual_fig = data_access_by_filesystem.plot_with_report(report=report)
+    axes = actual_fig.axes
+    for ax in axes:
+        for child in ax.get_children():
+            if isinstance(child, matplotlib.text.Annotation):
+                actual_text = child.get_text()
+                actual_text_labels.append(actual_text)
+                if 'STD' in actual_text:
+                    # format the STD.. streams properly
+                    actual_fontsize = child.get_fontsize()
+                    assert actual_fontsize == 12
 
     assert actual_text_labels == expected_text_labels
 
-def test_empty_data_posix_text_position(tmpdir):
+def test_empty_data_posix_text_position():
     # the bytes and files read/written text labels
     # were observed to be too far to the right in the
     # subplots for a log file lacking POSIX activity
     # in gh-397; regression test this issue
     log_file_path = get_log_path('noposixopens.darshan')
-    with tmpdir.as_cwd():
-        actual_fig = data_access_by_filesystem.plot_with_log_file(log_file_path=log_file_path,
-                                                                  plot_filename='test.png')
-        axes = actual_fig.axes
-        for ax in axes:
-            for child in ax.get_children():
-                if isinstance(child, matplotlib.text.Text):
-                    actual_text = child.get_text()
-                    # check for correct axis coordinate
-                    # positions
-                    if 'read' in actual_text:
-                        assert_allclose(child.get_position(), (0, 0.75))
-                    elif 'written' in actual_text:
-                        assert_allclose(child.get_position(), (0, 0.25))
+    report = darshan.DarshanReport(log_file_path)
+    actual_fig = data_access_by_filesystem.plot_with_report(report=report)
+    axes = actual_fig.axes
+    for ax in axes:
+        for child in ax.get_children():
+            if isinstance(child, matplotlib.text.Text):
+                actual_text = child.get_text()
+                # check for correct axis coordinate
+                # positions
+                if 'read' in actual_text:
+                    assert_allclose(child.get_position(), (0, 0.75))
+                elif 'written' in actual_text:
+                    assert_allclose(child.get_position(), (0, 0.25))
 
 
 def test_posix_absent():
     # check for an appropriate error when POSIX data
     # is not even recorded in the darshan log
     log_file_path = get_log_path('noposix.darshan')
+    report = darshan.DarshanReport(log_file_path)
     with pytest.raises(ValueError, match="POSIX module data is required"):
-        actual_fig = data_access_by_filesystem.plot_with_log_file(log_file_path=log_file_path,
-                                                                  plot_filename='test.png')
+        actual_fig = data_access_by_filesystem.plot_with_report(report=report)
 
 
 @pytest.mark.parametrize("""file_rd_series,
@@ -473,18 +470,17 @@ def test_plot_data_shared_x_axis():
 @pytest.mark.skipif(not pytest.has_log_repo,
                     reason="missing darshan_logs")
 @pytest.mark.parametrize('filename', ['imbalanced-io.darshan'])
-def test_log_scale_display(tmpdir, log_repo_files, select_log_repo_file):
+def test_log_scale_display(log_repo_files, select_log_repo_file):
     # plot columns that are log scaled should be
     # labelled appropriately
-    with tmpdir.as_cwd():
-        fig = data_access_by_filesystem.plot_with_log_file(log_file_path=select_log_repo_file,
-                                                           plot_filename='test')
-        # only index 30 should have the log axis label
-        for i, axis in enumerate(fig.axes):
-            if i == 30:
-                assert 'symmetric log scaled' in axis.get_xlabel()
-            else:
-                assert axis.get_xlabel() == ''
+    report = darshan.DarshanReport(select_log_repo_file)
+    fig = data_access_by_filesystem.plot_with_report(report=report)
+    # only index 30 should have the log axis label
+    for i, axis in enumerate(fig.axes):
+        if i == 30:
+            assert 'symmetric log scaled' in axis.get_xlabel()
+        else:
+            assert axis.get_xlabel() == ''
 
 @pytest.mark.skipif(not pytest.has_log_repo,
                     reason="missing darshan_logs")
@@ -494,50 +490,97 @@ def test_log_scale_display(tmpdir, log_repo_files, select_log_repo_file):
                           ('imbalanced-io.darshan', [12, 16], 1),
                           ('snyder_acme.exe_id1253318_9-27-24239-1515303144625770178_2.darshan',
                            [12, 16], None)])
-def test_vertical_resize(tmpdir, log_repo_files, select_log_repo_file, expected_dims, num_cats):
+def test_vertical_resize(log_repo_files, select_log_repo_file, expected_dims, num_cats):
     # ensure that plots are expanded vertically to
     # match the number of filesystems plotted
-    with tmpdir.as_cwd():
-        fig = data_access_by_filesystem.plot_with_log_file(log_file_path=select_log_repo_file,
-                                                           plot_filename='dummy',
-                                                           num_cats=num_cats)
-        actual_dims = fig.get_size_inches()
-        assert_allclose(actual_dims, expected_dims)
+    report = darshan.DarshanReport(select_log_repo_file)
+    fig = data_access_by_filesystem.plot_with_report(report=report,
+                                                     num_cats=num_cats)
+    actual_dims = fig.get_size_inches()
+    assert_allclose(actual_dims, expected_dims)
 
 
 @pytest.mark.parametrize("logname", [
     "mpi-io-test.darshan",
     "treddy_mpi-io-test_id4373053_6-2-60198-9815401321915095332_1.darshan",
     ])
-def test_annotate_center_align(tmpdir, logname):
+def test_annotate_center_align(logname):
     # for review comment here:
     # https://github.com/darshan-hpc/darshan/pull/397#discussion_r690847889
     logpath = get_log_path(logname)
-    with tmpdir.as_cwd():
-        fig = data_access_by_filesystem.plot_with_log_file(log_file_path=logpath,
-                                                           plot_filename=f'{logname}')
-        axes = fig.axes
-        for ax in axes:
-            for child in ax.get_children():
-                if isinstance(child, matplotlib.text.Annotation):
-                    assert child.get_verticalalignment() == "center"
+    report = darshan.DarshanReport(logpath)
+    fig = data_access_by_filesystem.plot_with_report(report=report)
+    axes = fig.axes
+    for ax in axes:
+        for child in ax.get_children():
+            if isinstance(child, matplotlib.text.Annotation):
+                assert child.get_verticalalignment() == "center"
 
 
 @pytest.mark.parametrize("logname", [
     "imbalanced-io.darshan",
     "mpi-io-test.darshan",
     ])
-def test_text_center_align(tmpdir, logname):
+def test_text_center_align(logname):
     # for review comment here:
     # https://github.com/darshan-hpc/darshan/pull/397#discussion_r690755364
     logpath = get_log_path(logname)
+    report = darshan.DarshanReport(logpath)
+    fig = data_access_by_filesystem.plot_with_report(report=report)
+    axes = fig.axes
+    for ax in axes:
+        for child in ax.get_children():
+            if isinstance(child, matplotlib.text.Text):
+                actual_text = child.get_text()
+                if "read" in actual_text or "written" in actual_text:
+                    assert child.get_verticalalignment() == "center"
+
+
+@pytest.mark.parametrize("logname", [
+    "nonmpi_dxt_anonymized.darshan",
+    "partial_data_stdio.darshan",
+    "treddy_mpi-io-test_id4373053_6-2-60198-9815401321915095332_1.darshan",
+    ])
+@pytest.mark.parametrize("num_cats", [2, 8])
+def test_subplot_restriction(logname, num_cats):
+    # for review comment here:
+    # https://github.com/darshan-hpc/darshan/pull/397#discussion_r779176814
+    # the number of subplots in a figure should
+    # be consistent (<=) with the number of category
+    # rows requested, and avoid a collapsed layout
+    expected_axes_limit = num_cats * 2
+    log_path = get_log_path(logname)
+    report = darshan.DarshanReport(log_path)
+    fig = data_access_by_filesystem.plot_with_report(report=report,
+                                                     num_cats=num_cats)
+    actual_axes = fig.get_axes()
+    assert len(actual_axes) <= expected_axes_limit
+    max_y1 = 0
+    min_y1 = np.inf
+    for ax in actual_axes:
+        y1 = ax.get_position().y1
+        if y1 > max_y1:
+            max_y1 = y1
+        if y1 < min_y1:
+            min_y1 = y1
+    # this spread helps ensure avoidance of
+    # a collapsed layout of subplots
+    assert (max_y1 - min_y1) > 0.2
+
+
+@pytest.mark.parametrize("logname", [
+    "partial_data_dxt.darshan",
+    "partial_data_stdio.darshan",
+    ])
+def test_plot_with_report_no_file(tmpdir, logname):
+    # plot_with_report should only return a figure, and
+    # not generate a `.png` file
+    # see review comment:
+    # https://github.com/darshan-hpc/darshan/pull/397#discussion_r689859765
     with tmpdir.as_cwd():
-        fig = data_access_by_filesystem.plot_with_log_file(log_file_path=logpath,
-                                                           plot_filename=f'{logname}')
-        axes = fig.axes
-        for ax in axes:
-            for child in ax.get_children():
-                if isinstance(child, matplotlib.text.Text):
-                    actual_text = child.get_text()
-                    if "read" in actual_text or "written" in actual_text:
-                        assert child.get_verticalalignment() == "center"
+        log_path = get_log_path(logname)
+        report = darshan.DarshanReport(log_path)
+        fig = data_access_by_filesystem.plot_with_report(report=report,
+                                                         num_cats=6)
+        files_in_tmp = os.listdir(".")
+        assert not files_in_tmp

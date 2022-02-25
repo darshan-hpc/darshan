@@ -493,10 +493,10 @@ def plot_data(fig: Any,
         num_cats = len(filesystem_roots)
 
     for row, filesystem in enumerate(filesystem_roots[:num_cats]):
-        ax_filesystem_bytes = fig.add_subplot(len(filesystem_roots),
+        ax_filesystem_bytes = fig.add_subplot(len(filesystem_roots[:num_cats]),
                                               2,
                                               row * 2 + 1)
-        ax_filesystem_counts = fig.add_subplot(len(filesystem_roots),
+        ax_filesystem_counts = fig.add_subplot(len(filesystem_roots[:num_cats]),
                                               2,
                                               row * 2 + 2)
         if row > 0:
@@ -588,15 +588,17 @@ def plot_data(fig: Any,
         ax_filesystem_counts.set_xlabel('symmetric log scaled')
 
 
-def plot_with_log_file(log_file_path: str, plot_filename: str, verbose: bool = False, num_cats: Optional[int] = None):
+def plot_with_report(report: darshan.DarshanReport,
+                     verbose: bool = False,
+                     num_cats: Optional[int] = None):
     """
-    Plot the data access by category given a darshan log
-    file path.
+    Plot the data access by category given a darshan ``DarshanReport``
+    object.
 
     Parameters
     ----------
 
-    log_file_path: path to the darshan log file
+    report: a ``darshan.DarshanReport`` object
 
     plot_filename: name of the plot file produced
 
@@ -611,9 +613,6 @@ def plot_with_log_file(log_file_path: str, plot_filename: str, verbose: bool = F
     fig: matplotlib figure object
     """
     fig = plt.figure()
-    log_file = os.path.basename(log_file_path)
-    fig.suptitle(f"Data Access by Category for log file: '{log_file}'")
-    report = darshan.DarshanReport(log_file_path, read_all=True)
     file_id_dict = report.data["name_records"]
     filesystem_roots = identify_filesystems(file_id_dict=file_id_dict,
                                             verbose=verbose)
@@ -647,6 +646,5 @@ def plot_with_log_file(log_file_path: str, plot_filename: str, verbose: bool = F
         height = 16
 
     fig.set_size_inches(12, height)
-    figname = f'{plot_filename}_data_access_by_category.png'
-    fig.savefig(figname, dpi=300, bbox_inches='tight')
+    plt.close(fig)
     return fig
