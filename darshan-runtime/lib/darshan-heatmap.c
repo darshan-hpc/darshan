@@ -210,7 +210,7 @@ struct heatmap_runtime* heatmap_runtime_initialize(void)
     tmp_runtime = malloc(sizeof(*tmp_runtime));
     if(!tmp_runtime)
     {
-        darshan_core_unregister_module(DARSHAN_STDIO_MOD);
+        darshan_core_unregister_module(DARSHAN_HEATMAP_MOD);
         return(NULL);
     }
     memset(tmp_runtime, 0, sizeof(*tmp_runtime));
