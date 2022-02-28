@@ -584,3 +584,31 @@ def test_plot_with_report_no_file(tmpdir, logname):
                                                          num_cats=6)
         files_in_tmp = os.listdir(".")
         assert not files_in_tmp
+
+
+@pytest.mark.parametrize("logname, top_cat_name, third_cat_name", [
+    # spot check the 1st and 3rd most active
+    # categories for each case
+    ("imbalanced-io.darshan", "/lus", "//946917208"),
+    ("nonmpi_dxt_anonymized.darshan", "//1117575673", "//499632015"),
+    ])
+def test_plot_with_report_proper_sort(logname, top_cat_name, third_cat_name):
+    # we want to sort categories in descending order of activity
+    # (bytes read + bytes written), which is especially important
+    # when using `num_cats` for `plot_with_report()`, otherwise
+    # we could end up with only i.e., inactive categories/filesystems
+    # displayed
+    # see review comment:
+    # https://github.com/darshan-hpc/darshan/pull/397#discussion_r769186581
+    log_path = get_log_path(logname)
+    report = darshan.DarshanReport(log_path)
+    fig = data_access_by_filesystem.plot_with_report(report=report,
+                                                     num_cats=6)
+    actual_axes = fig.get_axes()
+    for i, ax in enumerate(actual_axes):
+        for child in ax.get_children():
+            if isinstance(child, matplotlib.text.Annotation):
+                if i == 0:
+                    assert child.get_text() == top_cat_name
+                elif i == 3:
+                    assert child.get_text() == third_cat_name

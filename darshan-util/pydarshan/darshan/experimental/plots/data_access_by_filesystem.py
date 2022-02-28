@@ -492,7 +492,7 @@ def plot_data(fig: Any,
     if num_cats is None:
         num_cats = len(filesystem_roots)
 
-    for row, filesystem in enumerate(filesystem_roots[:num_cats]):
+    for row, filesystem in enumerate(bytes_rd_series.index[:num_cats]):
         ax_filesystem_bytes = fig.add_subplot(len(filesystem_roots[:num_cats]),
                                               2,
                                               row * 2 + 1)
@@ -627,16 +627,18 @@ def plot_with_report(report: darshan.DarshanReport,
                                                             file_id_dict=file_id_dict,
                                                             processing_func=process_byte_counts,
                                                             mod='POSIX', verbose=verbose)
+    # reverse sort by total bytes IO per category
+    sort_inds = (bytes_rd_series + bytes_wr_series).argsort()[::-1]
     if num_cats is None:
         height = len(file_rd_series)
     else:
         height = num_cats
 
     plot_data(fig,
-              file_rd_series,
-              file_wr_series,
-              bytes_rd_series,
-              bytes_wr_series,
+              file_rd_series[sort_inds],
+              file_wr_series[sort_inds],
+              bytes_rd_series[sort_inds],
+              bytes_wr_series[sort_inds],
               filesystem_roots,
               num_cats=num_cats)
 
