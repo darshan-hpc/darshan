@@ -259,6 +259,12 @@ def convert_file_path_to_root_path(file_path: str) -> str:
         # this is probably an anonymized STD..
         # stream, so make that clear
         filesystem_root = f'anonymized\n({filesystem_root})'
+    if filesystem_root.startswith("//"):
+        # Shane indicates that these are individual files
+        # mounted on root
+        # see:
+        # https://github.com/darshan-hpc/darshan/pull/397#discussion_r769186581
+        filesystem_root = "/"
     return filesystem_root
 
 
@@ -297,7 +303,7 @@ def convert_file_id_to_path(input_id: float, file_hashes, file_paths) -> Optiona
 
     Returns
     -------
-    A string containing the file path path corresponding to ``input_id``,
+    A string containing the file path corresponding to ``input_id``,
     or ``None`` if no matching file path was found for the input hash.
 
     Examples

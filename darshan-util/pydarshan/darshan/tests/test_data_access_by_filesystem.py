@@ -309,8 +309,8 @@ def test_empty_data_posix_y_axis_annot_position():
                     assert actual_fontsize == 12
 
 @pytest.mark.parametrize("log_file_path, expected_text_labels", [
-    (get_log_path('noposixopens.darshan'), ['anonymized', 'anonymized', 'anonymized', '/global']),
-    (get_log_path('sample.darshan'), ['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2']),
+    (get_log_path('noposixopens.darshan'), ['/global', 'anonymized', 'anonymized', 'anonymized']),
+    (get_log_path('sample.darshan'), ['/scratch2', '<STDERR>', '<STDOUT>', '<STDIN>']),
     ])
 def test_cat_labels_std_streams(log_file_path, expected_text_labels):
     # for an anonymized log file that operates on STDIO, STDERR
@@ -475,9 +475,9 @@ def test_log_scale_display(log_repo_files, select_log_repo_file):
     # labelled appropriately
     report = darshan.DarshanReport(select_log_repo_file)
     fig = data_access_by_filesystem.plot_with_report(report=report)
-    # only index 30 should have the log axis label
+    # only index 8 should have the log axis label
     for i, axis in enumerate(fig.axes):
-        if i == 30:
+        if i == 8:
             assert 'symmetric log scaled' in axis.get_xlabel()
         else:
             assert axis.get_xlabel() == ''
@@ -589,8 +589,8 @@ def test_plot_with_report_no_file(tmpdir, logname):
 @pytest.mark.parametrize("logname, top_cat_name, third_cat_name", [
     # spot check the 1st and 3rd most active
     # categories for each case
-    ("imbalanced-io.darshan", "/lus", "//946917208"),
-    ("nonmpi_dxt_anonymized.darshan", "//1117575673", "//499632015"),
+    ("imbalanced-io.darshan", "/lus", "anonymized"),
+    ("nonmpi_dxt_anonymized.darshan", "/", "anonymized"),
     ])
 def test_plot_with_report_proper_sort(logname, top_cat_name, third_cat_name):
     # we want to sort categories in descending order of activity
@@ -610,5 +610,23 @@ def test_plot_with_report_proper_sort(logname, top_cat_name, third_cat_name):
             if isinstance(child, matplotlib.text.Annotation):
                 if i == 0:
                     assert child.get_text() == top_cat_name
-                elif i == 3:
+                elif i == 4:
                     assert child.get_text() == third_cat_name
+
+
+@pytest.mark.parametrize("logname", [
+    "imbalanced-io.darshan",
+    "nonmpi_dxt_anonymized.darshan",
+    ])
+def test_plot_with_report_root_files(logname):
+    # regression test for a bug that resulted in several
+    # categories that started with "//" for root-mounted
+    # files
+    log_path = get_log_path(logname)
+    report = darshan.DarshanReport(log_path)
+    fig = data_access_by_filesystem.plot_with_report(report=report)
+    actual_axes = fig.get_axes()
+    for i, ax in enumerate(actual_axes):
+        for child in ax.get_children():
+            if isinstance(child, matplotlib.text.Annotation):
+                assert not child.get_text().startswith("//")
