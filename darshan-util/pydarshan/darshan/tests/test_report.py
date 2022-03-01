@@ -15,7 +15,7 @@ from pandas.testing import assert_frame_equal
 import darshan
 import darshan.backend.cffi_backend as backend
 from darshan.report import DarshanRecordCollection
-from darshan.log_utils import get_log_path
+from darshan.log_utils import get_log_path, _provide_logs_repo_filepaths
 
 
 @pytest.fixture
@@ -29,16 +29,18 @@ def response():
 
 @pytest.mark.skipif(not pytest.has_log_repo,
                     reason="missing darshan_logs")
-def test_jobid_type_all_logs_repo_files(log_repo_files):
+@pytest.mark.parametrize("log_filepath",
+        _provide_logs_repo_filepaths()
+        )
+def test_jobid_type_all_logs_repo_files(log_filepath):
     # test for the expected jobid type in each of the
     # log files in the darshan_logs package;
     # this is primarily intended as a demonstration of looping
     # through all logs repo files in a test
-    for log_filepath in log_repo_files:
-        if "heatmap" in log_filepath:
-            pytest.xfail(reason="HEATMAP module not yet supported")
-        report = darshan.DarshanReport(log_filepath)
-        assert isinstance(report.metadata['job']['jobid'], int)
+    if "heatmap" in log_filepath:
+        pytest.xfail(reason="no runtime HEATMAP support")
+    report = darshan.DarshanReport(log_filepath)
+    assert isinstance(report.metadata['job']['jobid'], int)
 
 def test_job():
     """Sample for expected job data."""
