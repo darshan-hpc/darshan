@@ -10,7 +10,7 @@ from pandas.testing import assert_frame_equal
 
 import darshan
 from darshan.cli import summary
-from darshan.log_utils import get_log_path, _produce_log_dict
+from darshan.log_utils import get_log_path, _provide_logs_repo_filepaths
 
 
 @pytest.mark.parametrize(
@@ -145,7 +145,7 @@ def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_coun
 @pytest.mark.skipif(not pytest.has_log_repo,
                     reason="missing darshan_logs")
 @pytest.mark.parametrize("log_filepath",
-        _produce_log_dict("darshan_logs").values()
+        _provide_logs_repo_filepaths()
         )
 def test_main_all_logs_repo_files(tmpdir, log_filepath):
     # similar to `test_main_without_args` but focused

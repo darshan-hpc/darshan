@@ -32,6 +32,12 @@ except ImportError:
     has_log_repo = False
 
 
+def _provide_logs_repo_filepaths():
+    if has_log_repo:
+        return _produce_log_dict("darshan_logs").values()
+    return []
+
+
 @functools.lru_cache(maxsize=4)
 def _produce_log_dict(project):
     p = importlib_resources.files(project) # type: Any

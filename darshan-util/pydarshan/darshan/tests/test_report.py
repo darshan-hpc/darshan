@@ -15,7 +15,7 @@ from pandas.testing import assert_frame_equal
 import darshan
 import darshan.backend.cffi_backend as backend
 from darshan.report import DarshanRecordCollection
-from darshan.log_utils import get_log_path, _produce_log_dict
+from darshan.log_utils import get_log_path, _provide_logs_repo_filepaths
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def response():
 @pytest.mark.skipif(not pytest.has_log_repo,
                     reason="missing darshan_logs")
 @pytest.mark.parametrize("log_filepath",
-        _produce_log_dict("darshan_logs").values()
+        _provide_logs_repo_filepaths()
         )
 def test_jobid_type_all_logs_repo_files(log_filepath):
     # test for the expected jobid type in each of the
