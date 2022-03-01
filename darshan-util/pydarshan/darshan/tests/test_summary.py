@@ -10,7 +10,7 @@ from pandas.testing import assert_frame_equal
 
 import darshan
 from darshan.cli import summary
-from darshan.log_utils import get_log_path
+from darshan.log_utils import get_log_path, _produce_log_dict
 
 
 @pytest.mark.parametrize(
@@ -144,48 +144,50 @@ def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_coun
 
 @pytest.mark.skipif(not pytest.has_log_repo,
                     reason="missing darshan_logs")
-def test_main_all_logs_repo_files(tmpdir, log_repo_files):
+@pytest.mark.parametrize("log_filepath",
+        _produce_log_dict("darshan_logs").values()
+        )
+def test_main_all_logs_repo_files(tmpdir, log_filepath):
     # similar to `test_main_without_args` but focused
     # on the Darshan logs from the logs repo:
     # https://github.com/darshan-hpc/darshan-logs
 
-    for log_filepath in log_repo_files:
-        if "heatmap" in log_filepath:
-            pytest.xfail(reason="HEATMAP module not yet supported")
-        argv = [log_filepath]
-        with mock.patch("sys.argv", [""] + argv):
-            with tmpdir.as_cwd():
-                # generate the summary report
-                summary.main()
+    if "heatmap" in log_filepath:
+        pytest.xfail(reason="no runtime HEATMAP support")
+    argv = [log_filepath]
+    with mock.patch("sys.argv", [""] + argv):
+        with tmpdir.as_cwd():
+            # generate the summary report
+            summary.main()
 
-                # get the path for the generated summary report
-                log_fname = os.path.basename(argv[0])
-                output_fname = os.path.splitext(log_fname)[0] + "_report.html"
-                expected_save_path = os.path.abspath(output_fname)
+            # get the path for the generated summary report
+            log_fname = os.path.basename(argv[0])
+            output_fname = os.path.splitext(log_fname)[0] + "_report.html"
+            expected_save_path = os.path.abspath(output_fname)
 
-                # verify the HTML file was generated
-                assert os.path.exists(expected_save_path)
+            # verify the HTML file was generated
+            assert os.path.exists(expected_save_path)
 
-                # verify DXT figures are present for each DXT module
-                report = darshan.DarshanReport(log_filepath, read_all=False)
-                with open(expected_save_path) as html_report:
-                    report_str = html_report.read()
-                    if "DXT" in "\t".join(report.modules):
-                        for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
-                            if dxt_mod in report.modules:
-                                assert f"Heat Map: {dxt_mod}" in report_str
-                    else:
-                        # check that help message is present
-                        assert "Heat map is not available for this job" in report_str
+            # verify DXT figures are present for each DXT module
+            report = darshan.DarshanReport(log_filepath, read_all=False)
+            with open(expected_save_path) as html_report:
+                report_str = html_report.read()
+                if "DXT" in "\t".join(report.modules):
+                    for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
+                        if dxt_mod in report.modules:
+                            assert f"Heat Map: {dxt_mod}" in report_str
+                else:
+                    # check that help message is present
+                    assert "Heat map is not available for this job" in report_str
 
-                    # check if I/O cost figure is present
-                    for mod in report.modules:
-                        if mod in ["POSIX", "MPI-IO", "STDIO"]:
-                            assert "I/O Cost" in report_str
+                # check if I/O cost figure is present
+                for mod in report.modules:
+                    if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                        assert "I/O Cost" in report_str
 
-                    # check the number of opening section tags
-                    # matches the number of closing section tags
-                    assert report_str.count("<section>") == report_str.count("</section>")
+                # check the number of opening section tags
+                # matches the number of closing section tags
+                assert report_str.count("<section>") == report_str.count("</section>")
 
 class TestReportData:
 
