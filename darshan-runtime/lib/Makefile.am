@@ -14,7 +14,6 @@ endif
 C_SRCS = darshan-core-init-finalize.c \
          darshan-core.c \
          darshan-common.c \
-         darshan-heatmap.c \
          lookup3.c \
          lookup8.c
 
@@ -59,6 +58,11 @@ endif
 if BUILD_MDHIM_MODULE
    C_SRCS += darshan-mdhim.c
    AM_CPPFLAGS += -DDARSHAN_MDHIM
+endif
+
+if BUILD_HEATMAP_MODULE
+   C_SRCS += darshan-heatmap.c
+   AM_CPPFLAGS += -DDARSHAN_HEATMAP
 endif
 
 BUILT_SOURCES =

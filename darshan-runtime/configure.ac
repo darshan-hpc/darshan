@@ -244,6 +244,13 @@ if test "x$enable_darshan_runtime" = xyes ; then
       [], [enable_dxt_mod=yes]
    )
 
+   # HEATMAP module
+   AC_ARG_ENABLE([heatmap-mod],
+      [AS_HELP_STRING([--disable-heatmap-mod],
+                      [Disables compilation and use of HEATMAP module])],
+      [], [enable_heatmap_mod=yes]
+   )
+
    # MPI-IO module
    AC_ARG_ENABLE([mpiio-mod],
       [AS_HELP_STRING([--disable-mpiio-mod],
@@ -676,6 +683,7 @@ else
    enable_posix_mod=no
    enable_stdio_mod=no
    enable_dxt_mod=no
+   enable_heatmap_mod=no
    enable_mpiio_mod=no
    enable_apmpi_mod=no
    enable_apxc_mod=no
@@ -704,6 +712,7 @@ AM_CONDITIONAL(BUILD_LUSTRE_MODULE, [test "x$enable_lustre_mod"  = xyes])
 AM_CONDITIONAL(BUILD_MDHIM_MODULE,  [test "x$enable_mdhim_mod"   = xyes])
 AM_CONDITIONAL(BUILD_APMPI_MODULE,  [test "x$enable_apmpi_mod"   = xyes])
 AM_CONDITIONAL(BUILD_APXC_MODULE,   [test "x$enable_apxc_mod"    = xyes])
+AM_CONDITIONAL(BUILD_HEATMAP_MODULE,[test "x$enable_heatmap_mod" = xyes])
 
 AC_CONFIG_FILES(Makefile \
                 darshan-config \
@@ -777,6 +786,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
            BG/Q          module support  - $enable_bgq_mod
            Lustre        module support  - $enable_lustre_mod
            MDHIM         module support  - $enable_mdhim_mod
+           HEATMAP       module support  - $enable_heatmap_mod
            Memory alignment in bytes     - $with_mem_align
            Log file env variables        - $__log_path_by_env
            Location of Darshan log files - $__log_path
