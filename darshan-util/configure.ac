@@ -18,7 +18,7 @@ AC_CONFIG_SRCDIR([darshan-logutils.h])
 AC_CONFIG_AUX_DIR(../maint/scripts)
 AC_CONFIG_MACRO_DIRS(../maint/config)
 
-AM_INIT_AUTOMAKE([1.13 foreign tar-pax])
+AM_INIT_AUTOMAKE([1.13 foreign tar-pax subdir-objects])
 AM_SILENT_RULES([yes])
 AM_MAINTAINER_MODE([enable])
 

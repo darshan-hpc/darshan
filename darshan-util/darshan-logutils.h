@@ -147,6 +147,11 @@ struct darshan_mod_logutil_funcs
         void *agg_rec,
         int init_flag
     );
+    /* report the true size of the record, including variable-length data if
+     * present
+     */
+    int (*log_sizeof_record)(
+        void *rec);
 };
 
 extern struct darshan_mod_logutil_funcs *mod_logutils[];
@@ -272,5 +277,61 @@ void darshan_log_get_filtered_name_records(darshan_fd fd,
     __dst_char[3] = __src_char[0]; \
     memcpy(__ptr, __dst_char, 4); \
 } while(0)
+
+/*****************************************************************
+ * The functions in this section make up the accumulator API, which is a
+ * mechanism for aggregating records to produce derived metrics and
+ * summaries.
+ */
+
+/* opaque accumulator reference */
+struct darshan_accumulator_st;
+typedef struct darshan_accumulator_st* darshan_accumulator;
+
+/* Instantiate a stateful accumulator for a particular module type.
+ */
+int darshan_accumulator_create(darshan_module_id id,
+                               darshan_accumulator*   new_accumulator);
+
+/* Add a record to the accumulator.  The record is an untyped void* (size
+ * implied by record type) following the convention of other logutils
+ * functions.  Multiple records may be injected at once by setting
+ * record_count > 1 and packing records into a contiguous memory region.
+ */
+int darshan_accumulator_inject(darshan_accumulator accumulator,
+                               void*               record_array,
+                               int                 record_count);
+
+/* aggregate metrics that can be derived from an accumulator.  If a given
+ * record time doesn't support a particular field, then it will be set to -1
+ * (for int64_t values) or NAN (for double values).
+ */
+struct darshan_derived_metrics {
+    /* TODO: add fields as they are implemented; possible examples listed
+     * below
+     */
+#if 0
+    int64_t bytes_written_total;
+    int64_t bytes_read_total;
+    double  io_time_slowest_rank;
+    double  estimated_aggregate_bw;
+    int64_t files_accessed_total;
+    int64_t files_accessed_read_only;
+#endif
+};
+
+/* Emit derived metrics _and_ a combined aggregate record from an accumulator.
+ * The aggregation_record uses the same format as the normal records for the
+ * module, but values are set to reflect summations across all accumulated
+ * records.
+ */
+int darshan_accumulator_emit(darshan_accumulator             accumulator,
+                             struct darshan_derived_metrics* metrics,
+                             void*                           aggregation_record);
+
+/* frees resources associated with an accumulator */
+int darshan_accumulator_destroy(darshan_accumulator accumulator);
+
+/*****************************************************************/
 
 #endif

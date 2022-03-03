@@ -43,6 +43,7 @@ static void darshan_log_print_mpiio_description(int ver);
 static void darshan_log_print_mpiio_file_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
 static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag);
+static int darshan_log_sizeof_mpiio_file(void* posix_buf_p);
 
 struct darshan_mod_logutil_funcs mpiio_logutils =
 {
@@ -51,8 +52,15 @@ struct darshan_mod_logutil_funcs mpiio_logutils =
     .log_print_record = &darshan_log_print_mpiio_file,
     .log_print_description = &darshan_log_print_mpiio_description,
     .log_print_diff = &darshan_log_print_mpiio_file_diff,
-    .log_agg_records = &darshan_log_agg_mpiio_files
+    .log_agg_records = &darshan_log_agg_mpiio_files,
+    .log_sizeof_record = &darshan_log_sizeof_mpiio_file
 };
+
+static int darshan_log_sizeof_mpiio_file(void* mpiio_buf_p)
+{
+    /* mpiio records have a fixed size */
+    return(sizeof(struct darshan_mpiio_file));
+}
 
 static int darshan_log_get_mpiio_file(darshan_fd fd, void** mpiio_buf_p)
 {

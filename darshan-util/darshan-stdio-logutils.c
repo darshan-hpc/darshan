@@ -45,6 +45,7 @@ static void darshan_log_print_stdio_description(int ver);
 static void darshan_log_print_stdio_record_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
 static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_flag);
+static int darshan_log_sizeof_stdio_record(void* stdio_buf_p);
 
 /* structure storing each function needed for implementing the darshan
  * logutil interface. these functions are used for reading, writing, and
@@ -57,8 +58,15 @@ struct darshan_mod_logutil_funcs stdio_logutils =
     .log_print_record = &darshan_log_print_stdio_record,
     .log_print_description = &darshan_log_print_stdio_description,
     .log_print_diff = &darshan_log_print_stdio_record_diff,
-    .log_agg_records = &darshan_log_agg_stdio_records
+    .log_agg_records = &darshan_log_agg_stdio_records,
+    .log_sizeof_record = &darshan_log_sizeof_stdio_record
 };
+
+static int darshan_log_sizeof_stdio_record(void* stdio_buf_p)
+{
+    /* stdio records have a fixed size */
+    return(sizeof(struct darshan_stdio_file));
+}
 
 /* retrieve a STDIO record from log file descriptor 'fd', storing the
  * data in the buffer address pointed to by 'stdio_buf_p'. Return 1 on

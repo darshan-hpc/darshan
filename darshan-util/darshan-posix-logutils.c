@@ -45,6 +45,7 @@ static void darshan_log_print_posix_description(int ver);
 static void darshan_log_print_posix_file_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
 static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag);
+static int darshan_log_sizeof_posix_file(void* posix_buf_p);
 
 struct darshan_mod_logutil_funcs posix_logutils =
 {
@@ -54,7 +55,14 @@ struct darshan_mod_logutil_funcs posix_logutils =
     .log_print_description = &darshan_log_print_posix_description,
     .log_print_diff = &darshan_log_print_posix_file_diff,
     .log_agg_records = &darshan_log_agg_posix_files,
+    .log_sizeof_record = &darshan_log_sizeof_posix_file
 };
+
+static int darshan_log_sizeof_posix_file(void* posix_buf_p)
+{
+    /* posix records have a fixed size */
+    return(sizeof(struct darshan_posix_file));
+}
 
 static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p)
 {
