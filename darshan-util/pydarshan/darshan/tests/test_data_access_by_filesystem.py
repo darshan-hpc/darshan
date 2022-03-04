@@ -467,13 +467,12 @@ def test_plot_data_shared_x_axis():
             assert axis.get_xlabel() == ''
 
 
-@pytest.mark.skipif(not pytest.has_log_repo,
-                    reason="missing darshan_logs")
 @pytest.mark.parametrize('filename', ['imbalanced-io.darshan'])
-def test_log_scale_display(log_repo_files, select_log_repo_file):
+def test_log_scale_display(filename):
     # plot columns that are log scaled should be
     # labelled appropriately
-    report = darshan.DarshanReport(select_log_repo_file)
+    log_path = get_log_path(filename)
+    report = darshan.DarshanReport(log_path)
     fig = data_access_by_filesystem.plot_with_report(report=report)
     # only index 8 should have the log axis label
     for i, axis in enumerate(fig.axes):
@@ -482,18 +481,18 @@ def test_log_scale_display(log_repo_files, select_log_repo_file):
         else:
             assert axis.get_xlabel() == ''
 
-@pytest.mark.skipif(not pytest.has_log_repo,
-                    reason="missing darshan_logs")
+
 @pytest.mark.parametrize('filename, expected_dims, num_cats',
                          [('imbalanced-io.darshan', [12, 16], None),
                           ('imbalanced-io.darshan', [12, 16], 3),
                           ('imbalanced-io.darshan', [12, 16], 1),
                           ('snyder_acme.exe_id1253318_9-27-24239-1515303144625770178_2.darshan',
                            [12, 16], None)])
-def test_vertical_resize(log_repo_files, select_log_repo_file, expected_dims, num_cats):
+def test_vertical_resize(filename, expected_dims, num_cats):
     # ensure that plots are expanded vertically to
     # match the number of filesystems plotted
-    report = darshan.DarshanReport(select_log_repo_file)
+    log_path = get_log_path(filename)
+    report = darshan.DarshanReport(log_path)
     fig = data_access_by_filesystem.plot_with_report(report=report,
                                                      num_cats=num_cats)
     actual_dims = fig.get_size_inches()
