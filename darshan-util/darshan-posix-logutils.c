@@ -440,16 +440,46 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
     int64_t tmp_val[4];
     int64_t tmp_cnt[4];
     int tmp_ndx;
-    double old_M;
     double psx_time = psx_rec->fcounters[POSIX_F_READ_TIME] +
         psx_rec->fcounters[POSIX_F_WRITE_TIME] +
         psx_rec->fcounters[POSIX_F_META_TIME];
     double psx_bytes = (double)psx_rec->counters[POSIX_BYTES_READ] +
         psx_rec->counters[POSIX_BYTES_WRITTEN];
+    int shared_file_flag = 0;
+
+#if 0
+    /* NOTE: the code commented out in this function is used for variance
+     * calculation.  This metric is most helpful for shared file records,
+     * but this function has now been generalized to allow for aggregation
+     * of arbitrary records in a log.
+     *
+     * This functionality could be reinstated as an optional feature.
+     * Ideally in that case the caller would also provide a buffer for
+     * stateful calculations; the current logic assumes that it is safe to
+     * use additional bytes off of the end of the rec argument buffer.
+     */
     struct var_t *var_time_p = (struct var_t *)
         ((char *)rec + sizeof(struct darshan_posix_file));
     struct var_t *var_bytes_p = (struct var_t *)
         ((char *)var_time_p + sizeof(struct var_t));
+    double old_M;
+#endif
+    /* if this is our first record, store base id and rank */
+    if(init_flag)
+    {
+        agg_psx_rec->base_rec.rank = psx_rec->base_rec.rank;
+        agg_psx_rec->base_rec.id = psx_rec->base_rec.id;
+    }
+
+    /* so far do all of the records reference the same file? */
+    if(agg_psx_rec->base_rec.id == psx_rec->base_rec.id)
+        shared_file_flag = 1;
+    else
+        agg_psx_rec->base_rec.id = 0;
+
+    /* so far do all of the records reference the same rank? */
+    if(agg_psx_rec->base_rec.rank != psx_rec->base_rec.rank)
+        agg_psx_rec->base_rec.rank = -1;
 
     for(i = 0; i < POSIX_NUM_INDICES; i++)
     {
@@ -608,9 +638,16 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
             case POSIX_ACCESS4_COUNT:
                 /* these are set all at once with common counters above */
                 break;
+                /* intentionally do not include a default block; we want to
+                 * get a compile-time warning in this function when new
+                 * counters are added to the enumeration to make sure we
+                 * handle them all correctly.
+                 */
+#if 0
             default:
                 agg_psx_rec->counters[i] = -1;
                 break;
+#endif
         }
     }
 
@@ -663,6 +700,22 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                 }
                 break;
             case POSIX_F_FASTEST_RANK_TIME:
+
+                if(!shared_file_flag || psx_rec->base_rec.rank == -1)
+                {
+                    /* The fastest counters are only valid under these
+                     * conditions:
+                     * a) we are aggregating records that all refer to the
+                     *    same file and
+                     * b) one or more of the records have not already been
+                     *    reduced into a shared file record
+                     */
+                    agg_psx_rec->counters[POSIX_FASTEST_RANK] = -1;
+                    agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES] = -1;
+                    agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME] = 0.0;
+                    break;
+                }
+
                 if(init_flag)
                 {
                     /* set fastest rank counters according to root rank. these counters
@@ -681,6 +734,23 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                 }
                 break;
             case POSIX_F_SLOWEST_RANK_TIME:
+                if(!shared_file_flag || psx_rec->base_rec.rank == -1)
+                {
+                    /* The slowest counters are only valid under these
+                     * conditions:
+                     * a) we are aggregating records that all refer to the
+                     *    same file and
+                     * b) one or more of the records have not already been
+                     *    reduced into a shared file record
+                     */
+                    agg_psx_rec->counters[POSIX_FASTEST_RANK] = -1;
+                    agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES] = -1;
+                    agg_psx_rec->counters[POSIX_SLOWEST_RANK] = -1;
+                    agg_psx_rec->counters[POSIX_SLOWEST_RANK_BYTES] = -1;
+                    agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME] = 0.0;
+                    break;
+                }
+
                 if(init_flag)
                 {
                     /* set slowest rank counters according to root rank. these counters
@@ -699,6 +769,8 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                 }
                 break;
             case POSIX_F_VARIANCE_RANK_TIME:
+#if 0
+/* NOTE: see comment at the top of this function about the var_* variables */
                 if(init_flag)
                 {
                     var_time_p->n = 1;
@@ -716,8 +788,13 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                     agg_psx_rec->fcounters[POSIX_F_VARIANCE_RANK_TIME] =
                         var_time_p->S / var_time_p->n;
                 }
+#else
+                agg_psx_rec->fcounters[i] = 0;
+#endif
                 break;
             case POSIX_F_VARIANCE_RANK_BYTES:
+#if 0
+/* NOTE: see comment at the top of this function about the var_* variables */
                 if(init_flag)
                 {
                     var_bytes_p->n = 1;
@@ -735,10 +812,20 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                     agg_psx_rec->fcounters[POSIX_F_VARIANCE_RANK_BYTES] =
                         var_bytes_p->S / var_bytes_p->n;
                 }
+#else
+                agg_psx_rec->fcounters[i] = 0;
+#endif
                 break;
+                /* intentionally do not include a default block; we want to
+                 * get a compile-time warning in this function when new
+                 * counters are added to the enumeration to make sure we
+                 * handle them all correctly.
+                 */
+#if 0
             default:
                 agg_psx_rec->fcounters[i] = -1;
                 break;
+#endif
         }
     }
 

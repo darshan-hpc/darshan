@@ -764,7 +764,6 @@ void stdio_accum_file(struct darshan_stdio_file *pfile,
                       hash_entry_t *hfile,
                       int64_t nprocs)
 {
-    int i;
     struct darshan_stdio_file* tmp;
 
     hfile->procs += 1;
@@ -803,69 +802,17 @@ void stdio_accum_file(struct darshan_stdio_file *pfile,
 
     if(hfile->rec_dat == NULL)
     {
+        /* generate empty base record to start accumulation */
         hfile->rec_dat = malloc(sizeof(struct darshan_stdio_file));
         assert(hfile->rec_dat);
         memset(hfile->rec_dat, 0, sizeof(struct darshan_stdio_file));
+        tmp = (struct darshan_stdio_file*)hfile->rec_dat;
+        mod_logutils[DARSHAN_STDIO_MOD]->log_agg_records(pfile, tmp, 1);
     }
-    tmp = (struct darshan_stdio_file*)hfile->rec_dat;
-
-    for(i = 0; i < STDIO_NUM_INDICES; i++)
+    else
     {
-        switch(i)
-        {
-        case STDIO_MAX_BYTE_READ:
-        case STDIO_MAX_BYTE_WRITTEN:
-            if (tmp->counters[i] < pfile->counters[i])
-            {
-                tmp->counters[i] = pfile->counters[i];
-            }
-            break;
-        case POSIX_FASTEST_RANK:
-        case POSIX_SLOWEST_RANK:
-        case POSIX_FASTEST_RANK_BYTES:
-        case POSIX_SLOWEST_RANK_BYTES:
-            tmp->counters[i] = 0;
-            break;
-        default:
-            tmp->counters[i] += pfile->counters[i];
-            break;
-        }
-    }
-
-    for(i = 0; i < STDIO_F_NUM_INDICES; i++)
-    {
-        switch(i)
-        {
-            case STDIO_F_OPEN_START_TIMESTAMP:
-            case STDIO_F_CLOSE_START_TIMESTAMP:
-            case STDIO_F_READ_START_TIMESTAMP:
-            case STDIO_F_WRITE_START_TIMESTAMP:
-                if(tmp->fcounters[i] == 0 || 
-                    tmp->fcounters[i] > pfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = pfile->fcounters[i];
-                }
-                break;
-            case STDIO_F_READ_END_TIMESTAMP:
-            case STDIO_F_WRITE_END_TIMESTAMP:
-            case STDIO_F_OPEN_END_TIMESTAMP:
-            case STDIO_F_CLOSE_END_TIMESTAMP:
-                if(tmp->fcounters[i] == 0 || 
-                    tmp->fcounters[i] < pfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = pfile->fcounters[i];
-                }
-                break;
-            case STDIO_F_FASTEST_RANK_TIME:
-            case STDIO_F_SLOWEST_RANK_TIME:
-            case STDIO_F_VARIANCE_RANK_TIME:
-            case STDIO_F_VARIANCE_RANK_BYTES:
-                tmp->fcounters[i] = 0;
-                break;
-            default:
-                tmp->fcounters[i] += pfile->fcounters[i];
-                break;
-        }
+        tmp = (struct darshan_stdio_file*)hfile->rec_dat;
+        mod_logutils[DARSHAN_STDIO_MOD]->log_agg_records(pfile, tmp, 0);
     }
 
     return;
@@ -875,10 +822,6 @@ void posix_accum_file(struct darshan_posix_file *pfile,
                       hash_entry_t *hfile,
                       int64_t nprocs)
 {
-    int i, j;
-    int set;
-    int min_ndx;
-    int64_t min;
     struct darshan_posix_file* tmp;
 
     hfile->procs += 1;
@@ -917,160 +860,17 @@ void posix_accum_file(struct darshan_posix_file *pfile,
 
     if(hfile->rec_dat == NULL)
     {
+        /* generate empty base record to start accumulation */
         hfile->rec_dat = malloc(sizeof(struct darshan_posix_file));
         assert(hfile->rec_dat);
         memset(hfile->rec_dat, 0, sizeof(struct darshan_posix_file));
+        tmp = (struct darshan_posix_file*)hfile->rec_dat;
+        mod_logutils[DARSHAN_POSIX_MOD]->log_agg_records(pfile, tmp, 1);
     }
-    tmp = (struct darshan_posix_file*)hfile->rec_dat;
-
-    for(i = 0; i < POSIX_NUM_INDICES; i++)
+    else
     {
-        switch(i)
-        {
-        case POSIX_MODE:
-        case POSIX_MEM_ALIGNMENT:
-        case POSIX_FILE_ALIGNMENT:
-            tmp->counters[i] = pfile->counters[i];
-            break;
-        case POSIX_MAX_BYTE_READ:
-        case POSIX_MAX_BYTE_WRITTEN:
-            if (tmp->counters[i] < pfile->counters[i])
-            {
-                tmp->counters[i] = pfile->counters[i];
-            }
-            break;
-        case POSIX_STRIDE1_STRIDE:
-        case POSIX_STRIDE2_STRIDE:
-        case POSIX_STRIDE3_STRIDE:
-        case POSIX_STRIDE4_STRIDE:
-        case POSIX_ACCESS1_ACCESS:
-        case POSIX_ACCESS2_ACCESS:
-        case POSIX_ACCESS3_ACCESS:
-        case POSIX_ACCESS4_ACCESS:
-           /*
-            * do nothing here because these will be stored
-            * when the _COUNT is accessed.
-            */
-           break;
-        case POSIX_STRIDE1_COUNT:
-        case POSIX_STRIDE2_COUNT:
-        case POSIX_STRIDE3_COUNT:
-        case POSIX_STRIDE4_COUNT:
-            set = 0;
-            min_ndx = POSIX_STRIDE1_COUNT;
-            min = tmp->counters[min_ndx];
-            for(j = POSIX_STRIDE1_COUNT; j <= POSIX_STRIDE4_COUNT; j++)
-            {
-                if(tmp->counters[j-4] == pfile->counters[i-4])
-                {
-                    tmp->counters[j] += pfile->counters[i];
-                    set = 1;
-                    break;
-                }
-                if(tmp->counters[j] < min)
-                {
-                    min_ndx = j;
-                    min = tmp->counters[j];
-                }
-            }
-            if(!set && (pfile->counters[i] > min))
-            {
-                tmp->counters[min_ndx] = pfile->counters[i];
-                tmp->counters[min_ndx-4] = pfile->counters[i-4];
-            }
-            break;
-        case POSIX_ACCESS1_COUNT:
-        case POSIX_ACCESS2_COUNT:
-        case POSIX_ACCESS3_COUNT:
-        case POSIX_ACCESS4_COUNT:
-            set = 0;
-            min_ndx = POSIX_ACCESS1_COUNT;
-            min = tmp->counters[min_ndx];
-            for(j = POSIX_ACCESS1_COUNT; j <= POSIX_ACCESS4_COUNT; j++)
-            {
-                if(tmp->counters[j-4] == pfile->counters[i-4])
-                {
-                    tmp->counters[j] += pfile->counters[i];
-                    set = 1;
-                    break;
-                }
-                if(tmp->counters[j] < min)
-                {
-                    min_ndx = j;
-                    min = tmp->counters[j];
-                }
-            }
-            if(!set && (pfile->counters[i] > min))
-            {
-                tmp->counters[i] = pfile->counters[i];
-                tmp->counters[i-4] = pfile->counters[i-4];
-            }
-            break;
-        case POSIX_FASTEST_RANK:
-        case POSIX_SLOWEST_RANK:
-        case POSIX_FASTEST_RANK_BYTES:
-        case POSIX_SLOWEST_RANK_BYTES:
-            tmp->counters[i] = 0;
-            break;
-        case POSIX_MAX_READ_TIME_SIZE:
-        case POSIX_MAX_WRITE_TIME_SIZE:
-            break;
-        default:
-            tmp->counters[i] += pfile->counters[i];
-            break;
-        }
-    }
-
-    for(i = 0; i < POSIX_F_NUM_INDICES; i++)
-    {
-        switch(i)
-        {
-            case POSIX_F_OPEN_START_TIMESTAMP:
-            case POSIX_F_READ_START_TIMESTAMP:
-            case POSIX_F_WRITE_START_TIMESTAMP:
-            case POSIX_F_CLOSE_START_TIMESTAMP:
-                if(tmp->fcounters[i] == 0 || 
-                    tmp->fcounters[i] > pfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = pfile->fcounters[i];
-                }
-                break;
-            case POSIX_F_OPEN_END_TIMESTAMP:
-            case POSIX_F_READ_END_TIMESTAMP:
-            case POSIX_F_WRITE_END_TIMESTAMP:
-            case POSIX_F_CLOSE_END_TIMESTAMP:
-                if(tmp->fcounters[i] == 0 || 
-                    tmp->fcounters[i] < pfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = pfile->fcounters[i];
-                }
-                break;
-            case POSIX_F_FASTEST_RANK_TIME:
-            case POSIX_F_SLOWEST_RANK_TIME:
-            case POSIX_F_VARIANCE_RANK_TIME:
-            case POSIX_F_VARIANCE_RANK_BYTES:
-                tmp->fcounters[i] = 0;
-                break;
-            case POSIX_F_MAX_READ_TIME:
-                if(tmp->fcounters[i] < pfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = pfile->fcounters[i];
-                    tmp->counters[POSIX_MAX_READ_TIME_SIZE] =
-                        pfile->counters[POSIX_MAX_READ_TIME_SIZE];
-                }
-                break;
-            case POSIX_F_MAX_WRITE_TIME:
-                if(tmp->fcounters[i] < pfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = pfile->fcounters[i];
-                    tmp->counters[POSIX_MAX_WRITE_TIME_SIZE] =
-                        pfile->counters[POSIX_MAX_WRITE_TIME_SIZE];
-                }
-                break;
-            default:
-                tmp->fcounters[i] += pfile->fcounters[i];
-                break;
-        }
+        tmp = (struct darshan_posix_file*)hfile->rec_dat;
+        mod_logutils[DARSHAN_POSIX_MOD]->log_agg_records(pfile, tmp, 0);
     }
 
     return;
@@ -1080,10 +880,6 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
                       hash_entry_t *hfile,
                       int64_t nprocs)
 {
-    int i, j;
-    int set;
-    int min_ndx;
-    int64_t min;
     struct darshan_mpiio_file* tmp;
 
     hfile->procs += 1;
@@ -1122,120 +918,17 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
 
     if(hfile->rec_dat == NULL)
     {
+        /* generate empty base record to start accumulation */
         hfile->rec_dat = malloc(sizeof(struct darshan_mpiio_file));
         assert(hfile->rec_dat);
         memset(hfile->rec_dat, 0, sizeof(struct darshan_mpiio_file));
+        tmp = (struct darshan_mpiio_file*)hfile->rec_dat;
+        mod_logutils[DARSHAN_MPIIO_MOD]->log_agg_records(mfile, tmp, 1);
     }
-    tmp = (struct darshan_mpiio_file*)hfile->rec_dat;
-
-    for(i = 0; i < MPIIO_NUM_INDICES; i++)
+    else
     {
-        switch(i)
-        {
-        case MPIIO_MODE:
-            tmp->counters[i] = mfile->counters[i];
-            break;
-        case MPIIO_ACCESS1_ACCESS:
-        case MPIIO_ACCESS2_ACCESS:
-        case MPIIO_ACCESS3_ACCESS:
-        case MPIIO_ACCESS4_ACCESS:
-            /*
-             * do nothing here because these will be stored
-             * when the _COUNT is accessed.
-             */
-            break;
-        case MPIIO_ACCESS1_COUNT:
-        case MPIIO_ACCESS2_COUNT:
-        case MPIIO_ACCESS3_COUNT:
-        case MPIIO_ACCESS4_COUNT:
-            set = 0;
-            min_ndx = MPIIO_ACCESS1_COUNT;
-            min = tmp->counters[min_ndx];
-            for(j = MPIIO_ACCESS1_COUNT; j <= MPIIO_ACCESS4_COUNT; j++)
-            {
-                if(tmp->counters[j-4] == mfile->counters[i-4])
-                {
-                    tmp->counters[j] += mfile->counters[i];
-                    set = 1;
-                    break;
-                }
-                if(tmp->counters[j] < min)
-                {
-                    min_ndx = j;
-                    min = tmp->counters[j];
-                }
-            }
-            if(!set && (mfile->counters[i] > min))
-            {
-                tmp->counters[i] = mfile->counters[i];
-                tmp->counters[i-4] = mfile->counters[i-4];
-            }
-            break;
-        case MPIIO_FASTEST_RANK:
-        case MPIIO_SLOWEST_RANK:
-        case MPIIO_FASTEST_RANK_BYTES:
-        case MPIIO_SLOWEST_RANK_BYTES:
-            tmp->counters[i] = 0;
-            break;
-        case MPIIO_MAX_READ_TIME_SIZE:
-        case MPIIO_MAX_WRITE_TIME_SIZE:
-            break;
-        default:
-            tmp->counters[i] += mfile->counters[i];
-            break;
-        }
-    }
-
-    for(i = 0; i < MPIIO_F_NUM_INDICES; i++)
-    {
-        switch(i)
-        {
-            case MPIIO_F_OPEN_START_TIMESTAMP:
-            case MPIIO_F_READ_START_TIMESTAMP:
-            case MPIIO_F_WRITE_START_TIMESTAMP:
-            case MPIIO_F_CLOSE_START_TIMESTAMP:
-                if(tmp->fcounters[i] == 0 || 
-                    tmp->fcounters[i] > mfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = mfile->fcounters[i];
-                }
-                break;
-            case MPIIO_F_OPEN_END_TIMESTAMP:
-            case MPIIO_F_READ_END_TIMESTAMP:
-            case MPIIO_F_WRITE_END_TIMESTAMP:
-            case MPIIO_F_CLOSE_END_TIMESTAMP:
-                if(tmp->fcounters[i] == 0 || 
-                    tmp->fcounters[i] < mfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = mfile->fcounters[i];
-                }
-                break;
-            case MPIIO_F_FASTEST_RANK_TIME:
-            case MPIIO_F_SLOWEST_RANK_TIME:
-            case MPIIO_F_VARIANCE_RANK_TIME:
-            case MPIIO_F_VARIANCE_RANK_BYTES:
-                tmp->fcounters[i] = 0;
-                break;
-            case MPIIO_F_MAX_READ_TIME:
-                if(tmp->fcounters[i] < mfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = mfile->fcounters[i];
-                    tmp->counters[MPIIO_MAX_READ_TIME_SIZE] =
-                        mfile->counters[MPIIO_MAX_READ_TIME_SIZE];
-                }
-                break;
-            case MPIIO_F_MAX_WRITE_TIME:
-                if(tmp->fcounters[i] < mfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = mfile->fcounters[i];
-                    tmp->counters[MPIIO_MAX_WRITE_TIME_SIZE] =
-                        mfile->counters[MPIIO_MAX_WRITE_TIME_SIZE];
-                }
-                break;
-            default:
-                tmp->fcounters[i] += mfile->fcounters[i];
-                break;
-        }
+        tmp = (struct darshan_mpiio_file*)hfile->rec_dat;
+        mod_logutils[DARSHAN_MPIIO_MOD]->log_agg_records(mfile, tmp, 0);
     }
 
     return;
