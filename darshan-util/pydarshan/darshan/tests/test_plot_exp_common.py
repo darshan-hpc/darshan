@@ -110,6 +110,18 @@ darshan.enable_experimental()
             ['Ind. Read', 'Ind. Write', 'Ind. Open',
             'Col. Read', 'Col. Write', 'Col. Open', 'Sync'],
         ),
+        (
+            "ior_hdf5_example.darshan",
+            "H5F",
+            plot_opcounts,
+            ['Open', 'Flush'],
+        ),
+        (
+            "ior_hdf5_example.darshan",
+            "H5D",
+            plot_opcounts,
+            ['Read', 'Write', 'Open', 'Flush'],
+        ),
     ],
 )
 def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
@@ -250,7 +262,18 @@ def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
             plot_opcounts,
             [0, 7695, 0, 0, 64, 16, 0],
         ),
-
+        (
+            "ior_hdf5_example.darshan",
+            "H5F",
+            plot_opcounts,
+            [6, 0],
+        ),
+        (
+            "ior_hdf5_example.darshan",
+            "H5D",
+            plot_opcounts,
+            [12, 12, 6, 0],
+        ),
     ],
 )
 def test_bar_heights(filename, mod, fig_func, expected_heights):

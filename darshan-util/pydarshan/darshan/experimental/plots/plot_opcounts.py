@@ -74,6 +74,22 @@ def gather_count_data(report, mod):
             mod_data['STDIO_FLUSHES']
         ]
 
+    elif mod == 'H5F':
+        labels = ['Open', 'Flush']
+        counts = [
+            mod_data['H5F_OPENS'],
+            mod_data['H5F_FLUSHES'],
+        ]
+
+    elif mod == 'H5D':
+        labels = ['Read', 'Write', 'Open', 'Flush']
+        counts = [
+            mod_data['H5D_READS'],
+            mod_data['H5D_WRITES'],
+            mod_data['H5D_OPENS'],
+            mod_data['H5D_FLUSHES'],
+        ]
+
     return labels, counts
 
 def plot_opcounts(report, mod, ax=None):
