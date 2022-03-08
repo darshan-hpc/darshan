@@ -44,20 +44,33 @@ class PlotDXTHeatMapSmall:
             xbins=xbins)
 
 
+    def peakmem_plot_heatmap_builtin_logs(self, darshan_logfile, xbins):
+        plot_dxt_heatmap.plot_heatmap(
+            report=self.report,
+            mod="DXT_POSIX",
+            ops=["read", "write"],
+            xbins=xbins)
+
+
 class GetHeatMapDf:
-    params = [[50, 1000, 10000], [10, 50, 250]]
-    param_names = ['unique_ranks', 'bin_count']
+    params = [[50, 1000, 10000], [10, 50, 250], [0.001, 0.01, 1.0]]
+    param_names = ['unique_ranks', 'bin_count', 'density']
 
 
-    def setup(self, unique_ranks, bin_count):
-        self.agg_df = pd.DataFrame({'length': [10] * unique_ranks,
-                                    'start_time': [0.1] * unique_ranks,
-                                    'end_time': [0.9] * unique_ranks,
-                                    'rank': range(unique_ranks),
+    def setup(self, unique_ranks, bin_count, density):
+        active_ranks = max(int(density * unique_ranks), 1)
+        self.agg_df = pd.DataFrame({'length': [10] * active_ranks,
+                                    'start_time': [0.1] * active_ranks,
+                                    'end_time': [0.9] * active_ranks,
+                                    'rank': range(active_ranks),
                                    })
 
 
-    def time_get_heatmap_df(self, unique_ranks, bin_count):
+    def time_get_heatmap_df(self, unique_ranks, bin_count, density):
         # benchmark get_heatmap_df() handling of variable
         # numbers of unique ranks/bins
-        heatmap_handling.get_heatmap_df(self.agg_df, xbins=bin_count)
+        heatmap_handling.get_heatmap_df(self.agg_df, xbins=bin_count, nprocs=unique_ranks)
+
+
+    def peakmem_get_heatmap_df(self, unique_ranks, bin_count, density):
+        heatmap_handling.get_heatmap_df(self.agg_df, xbins=bin_count, nprocs=unique_ranks)

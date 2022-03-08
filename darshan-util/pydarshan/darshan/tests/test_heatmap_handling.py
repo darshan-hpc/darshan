@@ -332,19 +332,24 @@ def test_get_aggregate_data(log_file, expected_agg_data, mod, ops):
             "sample-dxt-simple.darshan",
             1,
             ["read", "write"],
-            np.array([[4040]]),
+            np.array([[4040, 0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0 , 0 ,0]]).reshape(16, 1),
         ),
         (
             "sample-dxt-simple.darshan",
             4,
             ["read", "write"],
+            np.vstack((
             np.array([[0, 0, 0, 4040]]),
+            np.zeros((15, 4)))),
         ),
         (
             "sample-dxt-simple.darshan",
             10,
             ["read", "write"],
+            np.vstack((
             np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 4040]]),
+            np.zeros((15, 10)))),
         ),
         # `dxt.darshan` is complex enough to warrant changing the
         # selected operations
@@ -558,14 +563,15 @@ def test_get_heatmap_df(
     agg_df = heatmap_handling.get_aggregate_data(
         report=report, mod="DXT_POSIX", ops=ops
     )
+    nprocs = report.metadata["job"]["nprocs"]
     # run the aggregated data through the heatmap data code
-    actual_hmap_data = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins)
+    actual_hmap_data = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins, nprocs=nprocs)
 
     if "sample-dxt-simple.darshan" in filepath:
         # check the data is conserved
         assert actual_hmap_data.values.sum() == 4040
         # make sure the output array is the correct shape
-        assert actual_hmap_data.shape == (1, xbins)
+        assert actual_hmap_data.shape == (16, xbins)
         # make sure the output data contains identical values
         assert_allclose(actual_hmap_data.values, expected_hmap_data)
 

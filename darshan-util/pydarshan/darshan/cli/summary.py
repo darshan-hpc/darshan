@@ -21,6 +21,7 @@ from darshan.experimental.plots import (
     plot_io_cost,
     plot_common_access_table,
     plot_access_histogram,
+    plot_opcounts,
 )
 
 darshan.enable_experimental()
@@ -174,11 +175,11 @@ class ReportData:
 
         """
         # calculate the run time
-        runtime_val = float(
+        runtime_val = int(
             report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
         )
-        if runtime_val < 1.0:
-            # to prevent the displayed run time from being 0.0 seconds
+        if runtime_val < 1:
+            # to prevent the displayed run time from being 0 seconds
             # label anything under 1 second as less than 1
             runtime = "< 1"
         else:
@@ -220,10 +221,7 @@ class ReportData:
             "Runtime (s)": self.get_runtime(report=self.report),
             "Start Time": datetime.datetime.fromtimestamp(job_data["start_time"]),
             "End Time": datetime.datetime.fromtimestamp(job_data["end_time"]),
-            "Command": self.get_full_command(report=self.report),
-            "Log Filename": os.path.basename(self.log_path),
-            "Runtime Library Version": job_data["metadata"]["lib_ver"],
-            "Log Format Version": job_data["log_ver"],
+            "Command Line": self.get_full_command(report=self.report),
         }
         # convert the dictionary into a dataframe
         metadata_df = pd.DataFrame.from_dict(data=metadata_dict, orient="index")
@@ -234,20 +232,26 @@ class ReportData:
         """
         Builds the module table (in html form) for the summary report.
         """
-        # construct a dictionary containing the module names
-        # and their respective data stored in KiB
-        module_dict = {}
+        # construct a dictionary containing the module names,
+        # their respective data stored in KiB, and the log metadata
+        job_data = self.report.metadata["job"]
+        module_dict= {
+            "Log Filename": [os.path.basename(self.log_path), ""],
+            "Runtime Library Version": [job_data["metadata"]["lib_ver"], ""],
+            "Log Format Version": [job_data["log_ver"], ""],
+        }
+
         for mod in self.report.modules:
             # retrieve the module version and buffer sizes
             mod_version = self.report.modules[mod]["ver"]
             # retrieve the buffer size converted to KiB
             mod_buf_size = self.report.modules[mod]["len"] / 1024
             # create the key/value pairs for the dictionary
-            key = f"{mod} (ver={mod_version})"
+            key = f"{mod} (ver={mod_version}) Module Data"
             val = f"{mod_buf_size:.2f} KiB"
             flag = ""
             if self.report.modules[mod]["partial_flag"]:
-                msg = "Ran out of memory or record limit reached!"
+                msg = "Module data incomplete due to runtime memory or record count limits"
                 flag = f"<p style='color:red'>&#x26A0; {msg}</p>"
             module_dict[key] = [val, flag]
 
@@ -330,16 +334,16 @@ class ReportData:
         hmap_description = (
             "Heat map of I/O (in bytes) over time broken down by MPI rank. "
             "Bins are populated based on the number of bytes read/written in "
-            "the given time interval. The vertical bar graph sums each time "
-            "slice across all ranks to show the total I/O over time, while the "
-            "horizontal bar graph sums all I/O events for each rank to "
-            "illustrate how the I/O was distributed across ranks."
+            "the given time interval. The top edge bar graph sums each time "
+            "slice across ranks to show aggregate I/O volume over time, while the "
+            "right edge bar graph sums each rank across time slices to show I/O "
+            "distribution across ranks."
         )
         if "DXT" in "\t".join(self.report.modules):
             for mod in ["DXT_POSIX", "DXT_MPIIO"]:
                 if mod in self.report.modules:
                     dxt_heatmap_fig = ReportFigure(
-                        section_title="I/O Operations",
+                        section_title="I/O Summary",
                         fig_title=f"Heat Map: {mod}",
                         fig_func=plot_dxt_heatmap.plot_heatmap,
                         fig_args=dict(report=self.report, mod=mod),
@@ -359,7 +363,7 @@ class ReportData:
                 f"the <a href={url}>Darshan-runtime documentation</a>."
             )
             fig = ReportFigure(
-                section_title="I/O Operations",
+                section_title="I/O Summary",
                 fig_title="Heat Map",
                 fig_func=None,
                 fig_args=None,
@@ -375,11 +379,10 @@ class ReportData:
         url = "https://www.mcs.anl.gov/research/projects/darshan/docs/darshan-util.html"
 
         io_cost_description = (
-            f"Average runtime (across all processes) spent in I/O operations, "
-            f"broken down by process type (i.e. read, write, meta). Meant to "
-            f"illustrate roughly what percentage of the total runtime is spent "
-            f"in I/O operations. For module-specific details visit the "
-            f"<a href={url}>Darshan-util documentation</a>."
+            "Average (across all ranks) amount of run time that each process "
+            "spent performing I/O, broken down by access type. See the right "
+            "edge bar graph on heat maps in preceding section to indicate if "
+            "I/O activity was balanced across processes."
         )
         io_cost_params = {
             "section_title": "Cross-Module Comparisons",
@@ -396,13 +399,14 @@ class ReportData:
         ## Per-Module Statistics
         ################################
         for mod in self.report.modules:
-            if mod in ["POSIX", "MPI-IO"]:
+            if mod in ["POSIX", "MPI-IO", "H5D"]:
                 access_hist_description = (
-                    "Read/write operations grouped by access size. Most frequent "
-                    "access sizes are featured in the <i>Common Access Sizes</i> table."
+                    "Histogram of read and write access sizes. The specific values "
+                    "of the most frequently occurring access sizes can be found in "
+                    "the <i>Common Access Sizes</i> table."
                 )
                 access_hist_fig = ReportFigure(
-                    section_title=f"Per-Module Stats: {mod}",
+                    section_title=f"Per-Module Statistics: {mod}",
                     fig_title="Access Sizes",
                     fig_func=plot_access_histogram,
                     fig_args=dict(report=self.report, mod=mod),
@@ -410,7 +414,6 @@ class ReportData:
                     fig_width=350,
                 )
                 self.figures.append(access_hist_fig)
-            if mod in ["POSIX", "MPI-IO", "H5D"]:
                 if mod == "MPI-IO":
                     com_acc_tbl_description = (
                         "NOTE: MPI-IO accesses are given in "
@@ -419,7 +422,7 @@ class ReportData:
                 else:
                     com_acc_tbl_description = ""
                 com_acc_tbl_fig = ReportFigure(
-                    section_title=f"Per-Module Stats: {mod}",
+                    section_title=f"Per-Module Statistics: {mod}",
                     fig_title="Common Access Sizes",
                     fig_func=plot_common_access_table.plot_common_access_table,
                     fig_args=dict(report=self.report, mod=mod),
@@ -427,6 +430,19 @@ class ReportData:
                     fig_width=350,
                 )
                 self.figures.append(com_acc_tbl_fig)
+
+            # add the operation counts figure
+            if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                opcount_fig = ReportFigure(
+                    section_title=f"Per-Module Statistics: {mod}",
+                    fig_title="Operation Counts",
+                    fig_func=plot_opcounts,
+                    fig_args=dict(report=self.report, mod=mod),
+                    fig_description="Histogram of I/O operation frequency.",
+                    fig_width=350,
+                )
+                self.figures.append(opcount_fig)
+
 
     def build_sections(self):
         """

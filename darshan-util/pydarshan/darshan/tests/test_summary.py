@@ -10,7 +10,7 @@ from pandas.testing import assert_frame_equal
 
 import darshan
 from darshan.cli import summary
-from darshan.log_utils import get_log_path
+from darshan.log_utils import get_log_path, _provide_logs_repo_filepaths
 
 
 @pytest.mark.parametrize(
@@ -73,11 +73,12 @@ def test_main_with_args(tmpdir, argv):
 
 @pytest.mark.parametrize(
     "argv, expected_img_count, expected_table_count", [
-        (["noposix.darshan"], 1, 2),
-        (["noposix.darshan", "--output=test.html"], 1, 2),
-        (["sample-dxt-simple.darshan"], 5, 4),
-        (["sample-dxt-simple.darshan", "--output=test.html"], 5, 4),
-        (["nonmpi_dxt_anonymized.darshan"], 3, 3),
+        (["noposix.darshan"], 2, 2),
+        (["noposix.darshan", "--output=test.html"], 2, 2),
+        (["sample-dxt-simple.darshan"], 7, 4),
+        (["sample-dxt-simple.darshan", "--output=test.html"], 7, 4),
+        (["nonmpi_dxt_anonymized.darshan"], 5, 3),
+        (["ior_hdf5_example.darshan"], 9, 5),
         ([None], 0, 0),
     ]
 )
@@ -117,7 +118,7 @@ def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_coun
                         assert "Heat map is not available for this job" in report_str
 
                     # check that expected number of figures are found
-                    assert report_str.count("img") == expected_img_count
+                    assert report_str.count("<img") == expected_img_count
 
                     # check that the expected number of tables are found
                     # NOTE: since there are extraneous instances of "table"
@@ -141,48 +142,52 @@ def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_coun
                 summary.main()
 
 
-@pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
+@pytest.mark.skipif(not pytest.has_log_repo,
                     reason="missing darshan_logs")
-def test_main_all_logs_repo_files(tmpdir, log_repo_files):
+@pytest.mark.parametrize("log_filepath",
+        _provide_logs_repo_filepaths()
+        )
+def test_main_all_logs_repo_files(tmpdir, log_filepath):
     # similar to `test_main_without_args` but focused
     # on the Darshan logs from the logs repo:
     # https://github.com/darshan-hpc/darshan-logs
 
-    for log_filepath in log_repo_files:
-        argv = [log_filepath]
-        with mock.patch("sys.argv", [""] + argv):
-            with tmpdir.as_cwd():
-                # generate the summary report
-                summary.main()
+    if "heatmap" in log_filepath:
+        pytest.xfail(reason="no runtime HEATMAP support")
+    argv = [log_filepath]
+    with mock.patch("sys.argv", [""] + argv):
+        with tmpdir.as_cwd():
+            # generate the summary report
+            summary.main()
 
-                # get the path for the generated summary report
-                log_fname = os.path.basename(argv[0])
-                output_fname = os.path.splitext(log_fname)[0] + "_report.html"
-                expected_save_path = os.path.abspath(output_fname)
+            # get the path for the generated summary report
+            log_fname = os.path.basename(argv[0])
+            output_fname = os.path.splitext(log_fname)[0] + "_report.html"
+            expected_save_path = os.path.abspath(output_fname)
 
-                # verify the HTML file was generated
-                assert os.path.exists(expected_save_path)
+            # verify the HTML file was generated
+            assert os.path.exists(expected_save_path)
 
-                # verify DXT figures are present for each DXT module
-                report = darshan.DarshanReport(log_filepath, read_all=False)
-                with open(expected_save_path) as html_report:
-                    report_str = html_report.read()
-                    if "DXT" in "\t".join(report.modules):
-                        for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
-                            if dxt_mod in report.modules:
-                                assert f"Heat Map: {dxt_mod}" in report_str
-                    else:
-                        # check that help message is present
-                        assert "Heat map is not available for this job" in report_str
+            # verify DXT figures are present for each DXT module
+            report = darshan.DarshanReport(log_filepath, read_all=False)
+            with open(expected_save_path) as html_report:
+                report_str = html_report.read()
+                if "DXT" in "\t".join(report.modules):
+                    for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
+                        if dxt_mod in report.modules:
+                            assert f"Heat Map: {dxt_mod}" in report_str
+                else:
+                    # check that help message is present
+                    assert "Heat map is not available for this job" in report_str
 
-                    # check if I/O cost figure is present
-                    for mod in report.modules:
-                        if mod in ["POSIX", "MPI-IO", "STDIO"]:
-                            assert "I/O Cost" in report_str
+                # check if I/O cost figure is present
+                for mod in report.modules:
+                    if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                        assert "I/O Cost" in report_str
 
-                    # check the number of opening section tags
-                    # matches the number of closing section tags
-                    assert report_str.count("<section>") == report_str.count("</section>")
+                # check the number of opening section tags
+                # matches the number of closing section tags
+                assert report_str.count("<section>") == report_str.count("</section>")
 
 class TestReportData:
 
@@ -230,14 +235,13 @@ class TestReportData:
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
-                        "Start Time", "End Time", "Command", "Log Filename",
-                        "Runtime Library Version", "Log Format Version"
+                        "Start Time", "End Time", "Command Line",
                     ],
                     data=[
                         "4478544",
                         "69615",
                         "2048",
-                        "116.0",
+                        "116",
                         str(datetime.fromtimestamp(1490000867)),
                         str(datetime.fromtimestamp(1490000983)),
                         (
@@ -245,9 +249,6 @@ class TestReportData:
                             "results/bin.edison/vpicio_uni /scratch2/scratchdirs"
                             "/glock/tokioabc-s.4478544/vpicio/vpicio.hdf5 32"
                         ),
-                        "sample.darshan",
-                        "3.1.3",
-                        "3.10",
                     ]
                 )
             ),
@@ -257,20 +258,16 @@ class TestReportData:
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
-                        "Start Time", "End Time", "Command", "Log Filename",
-                        "Runtime Library Version", "Log Format Version"
+                        "Start Time", "End Time", "Command Line",
                     ],
                     data=[
                         "83017637",
                         "996599276",
                         "512",
-                        "39212.0",
+                        "39212",
                         str(datetime.fromtimestamp(1514923055)),
                         str(datetime.fromtimestamp(1514962267)),
                         "Anonymized",
-                        "noposix.darshan",
-                        "3.1.4",
-                        "3.10",
                     ]
                 )
             ),
@@ -279,8 +276,7 @@ class TestReportData:
                 pd.DataFrame(
                     index=[
                         "Job ID", "User ID", "# Processes", "Runtime (s)",
-                        "Start Time", "End Time", "Command", "Log Filename",
-                        "Runtime Library Version", "Log Format Version"
+                        "Start Time", "End Time", "Command Line",
                     ],
                     data=[
                     "4233209",
@@ -293,9 +289,6 @@ class TestReportData:
                         "/yellow/usr/projects/eap/users/treddy"
                         "/simple_dxt_mpi_io_darshan/a.out"
                     ),
-                    "sample-dxt-simple.darshan",
-                    "3.2.1",
-                    "3.21",
                     ]
                 )
             ),
@@ -327,34 +320,41 @@ class TestReportData:
                 "sample.darshan",
                 pd.DataFrame(
                     index=[
+                        "Log Filename", "Runtime Library Version", "Log Format Version",
                         "POSIX (ver=3)", "MPI-IO (ver=2)",
                         "LUSTRE (ver=1)", "STDIO (ver=1)",
                     ],
-                    data=[["0.18 KiB"], ["0.15 KiB"], ["0.08 KiB"], ["3.16 KiB"]],
+                    data=[["sample.darshan"], ["3.1.3"], ["3.10"], ["0.18 KiB"],
+                          ["0.15 KiB"], ["0.08 KiB"], ["3.16 KiB"]],
                 ),
                 0,
             ),
             (
                 "noposix.darshan",
                 pd.DataFrame(
-                    index=["LUSTRE (ver=1)", "STDIO (ver=1)"],
-                    data=[["6.07 KiB"], ["0.21 KiB"]],
+                    index=["Log Filename", "Runtime Library Version", "Log Format Version",
+                           "LUSTRE (ver=1)", "STDIO (ver=1)"],
+                    data=[["noposix.darshan"], ["3.1.4"], ["3.10"], ["6.07 KiB"], ["0.21 KiB"]],
                 ),
                 0,
             ),
             (
                 "noposixopens.darshan",
                 pd.DataFrame(
-                    index=["POSIX (ver=3)", "STDIO (ver=1)"],
-                    data=[["0.04 KiB"], ["0.27 KiB"]],
+                    index=["Log Filename", "Runtime Library Version", "Log Format Version",
+                           "POSIX (ver=3)", "STDIO (ver=1)"],
+                    data=[["noposixopens.darshan"], ["3.1.4"], ["3.10"],
+                          ["0.04 KiB"], ["0.27 KiB"]],
                 ),
                 0,
             ),
             (
                 "sample-goodost.darshan",
                 pd.DataFrame(
-                    index=["POSIX (ver=3)", "LUSTRE (ver=1)", "STDIO (ver=1)"],
-                    data=[["5.59 KiB"], ["1.47 KiB"], ["0.07 KiB"]],
+                    index=["Log Filename", "Runtime Library Version", "Log Format Version",
+                           "POSIX (ver=3)", "LUSTRE (ver=1)", "STDIO (ver=1)"],
+                    data=[["sample-goodost.darshan"], ["3.1.3"], ["3.10"],
+                          ["5.59 KiB"], ["1.47 KiB"], ["0.07 KiB"]],
                 ),
                 0,
             ),
@@ -362,10 +362,12 @@ class TestReportData:
                 "sample-dxt-simple.darshan",
                 pd.DataFrame(
                     index=[
+                        "Log Filename", "Runtime Library Version", "Log Format Version",
                         "POSIX (ver=4)", "MPI-IO (ver=3)",
                         "DXT_POSIX (ver=1)", "DXT_MPIIO (ver=2)",
                     ],
-                    data=[["2.94 KiB"], ["1.02 KiB"], ["0.08 KiB"], ["0.06 KiB"]],
+                    data=[["sample-dxt-simple.darshan"], ["3.2.1"], ["3.21"],
+                          ["2.94 KiB"], ["1.02 KiB"], ["0.08 KiB"], ["0.06 KiB"]],
                 ),
                 0,
             ),
@@ -373,10 +375,12 @@ class TestReportData:
                 "partial_data_stdio.darshan",
                 pd.DataFrame(
                     index=[
+                        "Log Filename", "Runtime Library Version", "Log Format Version",
                         "POSIX (ver=4)", "MPI-IO (ver=3)",
                         "STDIO (ver=2)",
                     ],
-                    data=[["0.15 KiB"], ["0.13 KiB"], ["70.34 KiB"]],
+                    data=[["partial_data_stdio.darshan"], ["3.2.1"], ["3.21"],
+                          ["0.15 KiB"], ["0.13 KiB"], ["70.34 KiB"]],
                 ),
                 1,
             ),
@@ -384,11 +388,13 @@ class TestReportData:
                 "partial_data_dxt.darshan",
                 pd.DataFrame(
                     index=[
+                        "Log Filename", "Runtime Library Version", "Log Format Version",
                         "POSIX (ver=4)", "MPI-IO (ver=3)",
                         "STDIO (ver=2)", "DXT_POSIX (ver=1)",
                         "DXT_MPIIO (ver=2)"
                     ],
                     data=[
+                        ["partial_data_dxt.darshan"], ["3.2.1"], ["3.21"],
                         ["0.14 KiB"], ["0.12 KiB"], ["0.06 KiB"],
                         ["574.73 KiB"], ["568.14 KiB"],
                     ],
@@ -413,17 +419,20 @@ class TestReportData:
         actual_mod_df.columns = [0, 1]
 
         # verify the number of modules in the report is equal to
-        # the number of rows in the module table
+        # the number of rows in the module table, including the 3 rows
+        # containing log metadata
         expected_module_count = len(R.report.modules.keys())
-        assert actual_mod_df.shape[0] == expected_module_count
+        assert actual_mod_df.shape[0] == expected_module_count + 3
+
+        expected_df.rename(index=lambda s: s + " Module Data" if "ver=" in s else s, inplace=True)
 
         # add new column for partial flags
         expected_df[1] = np.nan
-        flag = "\u26A0 Ran out of memory or record limit reached!"
+        flag = "\u26A0 Module data incomplete due to runtime memory or record count limits"
         if "partial_data_stdio.darshan" in log_path:
-            expected_df.iloc[2, 1] = flag
+            expected_df.iloc[5, 1] = flag
         if "partial_data_dxt.darshan" in log_path:
-            expected_df.iloc[3:, 1] = flag
+            expected_df.iloc[6:, 1] = flag
 
         # check the module dataframes
         assert_frame_equal(actual_mod_df, expected_df)
@@ -475,11 +484,11 @@ class TestReportData:
     @pytest.mark.parametrize(
         "logname, expected_runtime",
         [
-            ("sample.darshan", "116.0",),
-            ("noposix.darshan", "39212.0"),
-            ("noposixopens.darshan", "1110.0"),
-            ("sample-badost.darshan", "779.0",),
-            ("sample-goodost.darshan", "4.0",),
+            ("sample.darshan", "116",),
+            ("noposix.darshan", "39212"),
+            ("noposixopens.darshan", "1110"),
+            ("sample-badost.darshan", "779",),
+            ("sample-goodost.darshan", "4",),
             # special case where the calculated run time is 0
             ("sample-dxt-simple.darshan", "< 1",),
         ],

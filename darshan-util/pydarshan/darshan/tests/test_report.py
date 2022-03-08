@@ -8,14 +8,15 @@ import pickle
 
 import pytest
 import numpy as np
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_array_less
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
 import darshan
 import darshan.backend.cffi_backend as backend
 from darshan.report import DarshanRecordCollection
-from darshan.log_utils import get_log_path
+from darshan.log_utils import get_log_path, _provide_logs_repo_filepaths
+from darshan.experimental.plots import heatmap_handling
 
 
 @pytest.fixture
@@ -27,16 +28,20 @@ def response():
     pass
 
 
-@pytest.mark.skipif(not pytest.has_log_repo, # type: ignore
+@pytest.mark.skipif(not pytest.has_log_repo,
                     reason="missing darshan_logs")
-def test_jobid_type_all_logs_repo_files(log_repo_files):
+@pytest.mark.parametrize("log_filepath",
+        _provide_logs_repo_filepaths()
+        )
+def test_jobid_type_all_logs_repo_files(log_filepath):
     # test for the expected jobid type in each of the
     # log files in the darshan_logs package;
     # this is primarily intended as a demonstration of looping
     # through all logs repo files in a test
-    for log_filepath in log_repo_files:
-        report = darshan.DarshanReport(log_filepath)
-        assert isinstance(report.metadata['job']['jobid'], int)
+    if "heatmap" in log_filepath:
+        pytest.xfail(reason="no runtime HEATMAP support")
+    report = darshan.DarshanReport(log_filepath)
+    assert isinstance(report.metadata['job']['jobid'], int)
 
 def test_job():
     """Sample for expected job data."""
@@ -373,3 +378,81 @@ def test_file_closure():
         # context when report.log has been removed
         # (happens with pytest sometimes)
         del(report.log)
+
+
+@pytest.mark.parametrize("logname, hmap_types, nbins, bin_width, shape",
+        [("runtime_and_dxt_heatmaps_diagonal_write_only.darshan",
+          ["POSIX"],
+          34,
+          0.1,
+          (32, 34),
+          ),
+         ("e3sm_io_heatmap_only.darshan",
+          ["POSIX", "MPIIO", "STDIO"],
+          114,
+          6.4,
+          (512, 114),
+          ),
+        ])
+def test_runtime_heatmap_retrieval(capsys, logname, hmap_types, nbins, bin_width, shape):
+    with darshan.DarshanReport(get_log_path(logname), read_all=True) as report:
+        assert list(report.heatmaps.keys()) == hmap_types
+        for heatmap in report.heatmaps.values():
+            assert heatmap._nbins == nbins
+            assert heatmap._bin_width_seconds == bin_width
+            assert heatmap.to_df("read").shape == shape
+            assert heatmap.to_df("write").shape == shape
+            for str_element in ["Heatmap", "mod", "nbins", "bin_width"]:
+                assert str_element in repr(heatmap)
+
+            heatmap.info()
+            captured = capsys.readouterr()
+            expected_elements = ["Module:",
+                                 "Ranks",
+                                 "Num. bins",
+                                 "Bin width (s)",
+                                 "Num. recs",
+                                 ]
+            for element in expected_elements:
+                assert element in captured.out
+
+
+def test_runtime_dxt_heatmap_similarity():
+    # this log file should have a similar "diagonal"
+    # data structure in both DXT and runtime HEATMAP forms;
+    # only write activity should be present
+
+    # the expected diagonal data structures
+    #       |
+    # ranks V
+    #          bins ->
+    #    x
+    #   x
+    #  x
+    # x
+    expected_active_ranks = np.arange(32)
+    expected_active_bins = expected_active_ranks
+    log_path = get_log_path("runtime_and_dxt_heatmaps_diagonal_write_only.darshan")
+    report = darshan.DarshanReport(log_path)
+
+    # runtime HEATMAP:
+    runtime_heatmap_df = list(report.heatmaps.values())[0].to_df("write")
+    nonzero_rows_runtime, nonzero_columns_runtime = np.nonzero(runtime_heatmap_df.to_numpy())
+
+    # DXT heatmap:
+    agg_df = heatmap_handling.get_aggregate_data(report=report, ops=["write"])
+    dxt_heatmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=32, nprocs=32)
+    nonzero_rows_dxt, nonzero_columns_dxt = np.nonzero(dxt_heatmap_df.to_numpy())
+
+    # runtime HEATMAP vs. expected diagonal structure
+    assert_allclose(nonzero_rows_runtime, expected_active_ranks)
+    assert_allclose(nonzero_columns_runtime, expected_active_bins)
+
+    # runtime HEATMAP vs. DXT heatmap
+    # because of differing resolutions, there is actually
+    # a small difference in the diagonal data structure
+    # that we will allow
+    assert_allclose(nonzero_rows_runtime, nonzero_rows_dxt)
+    assert_allclose(nonzero_columns_runtime[:23], nonzero_columns_dxt[:23])
+    # if we allow a resolution gap of 1 bin, they should match on full length
+    assert_array_less(np.abs(nonzero_columns_runtime - nonzero_columns_dxt), 1.0001)

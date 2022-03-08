@@ -35,6 +35,13 @@ darshan.enable_experimental()
             "1M-4M", "4M-10M", "10M-100M", "100M-1G", "1G+"]
         ),
         (
+            "ior_hdf5_example.darshan",
+            "H5D",
+            plot_access_histogram,
+            ["0-100", "101-1K", "1K-10K", "10K-100K", "100K-1M",
+            "1M-4M", "4M-10M", "10M-100M", "100M-1G", "1G+"],
+        ),
+        (
             "sample-badost.darshan",
             "POSIX",
             plot_access_histogram,
@@ -146,6 +153,12 @@ def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
             "MPI-IO",
             plot_access_histogram,
             [3, 17, 0, 0, 16, 0, 0, 0, 0, 0, 3, 4, 0, 0, 16, 0, 0, 0, 0, 0],
+        ),
+        (
+            "ior_hdf5_example.darshan",
+            "H5D",
+            plot_access_histogram,
+            [0, 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 0, 0],
         ),
         (
             "sample-badost.darshan",

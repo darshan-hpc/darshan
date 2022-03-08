@@ -273,7 +273,7 @@ def get_aggregate_data(
     return agg_df
 
 
-def get_heatmap_df(agg_df: pd.DataFrame, xbins: int) -> pd.DataFrame:
+def get_heatmap_df(agg_df: pd.DataFrame, xbins: int, nprocs: int) -> pd.DataFrame:
     """
     Builds an array similar to a 2D-histogram, where the y data is the unique
     ranks and the x data is time. Each bin is populated with the data sum
@@ -287,6 +287,8 @@ def get_heatmap_df(agg_df: pd.DataFrame, xbins: int) -> pd.DataFrame:
     by the input modules and operations.
 
     xbins: the number of x-axis bins to create.
+
+    nprocs: the number of MPI ranks/processes used at runtime.
 
     Returns
     -------
@@ -379,4 +381,5 @@ def get_heatmap_df(agg_df: pd.DataFrame, xbins: int) -> pd.DataFrame:
     cats = cats.mul(agg_df["length"], axis=0)
     cats.index = agg_df["rank"]
     hmap_df = cats.groupby("rank").sum()
+    hmap_df = hmap_df.reindex(index=range(nprocs), fill_value=0.0)
     return hmap_df
