@@ -295,14 +295,13 @@ class DarshanReport(object):
 
 
     def __init__(self, 
-            filename=None, dtype='numpy', 
+            filename=None, 
             start_time=None, end_time=None,
             automatic_summary=False,
             read_all=True, lookup_name_records=True):
         """
         Args:
             filename (str): filename to open (optional)
-            dtype (str): default dtype for internal structures
             automatic_summary (bool): automatically generate summary after loading
             read_all (bool): whether to read all records for log
             lookup_name_records (bool): lookup and update name_records as records are loaded
@@ -315,7 +314,6 @@ class DarshanReport(object):
         self.log = None
 
         # Behavioral Options
-        self.dtype = dtype                                  # default dtype to return when viewing records
         self.automatic_summary = automatic_summary
         self.lookup_name_records = lookup_name_records
 
@@ -512,7 +510,7 @@ class DarshanReport(object):
         self.name_records.update(backend.log_lookup_name_records(self.log, ids))
         
 
-    def read_all(self, dtype=None):
+    def read_all(self):
         """
         Read all available records from darshan log and return as dictionary.
 
@@ -523,19 +521,19 @@ class DarshanReport(object):
             None
         """
 
-        self.read_all_generic_records(dtype=dtype)
-        self.read_all_dxt_records(dtype=dtype)
+        self.read_all_generic_records()
+        self.read_all_dxt_records()
         if "LUSTRE" in self.data['modules']:
-            self.mod_read_all_lustre_records(dtype=dtype)
+            self.mod_read_all_lustre_records()
         if "APMPI" in self.data['modules']:
-            self.mod_read_all_apmpi_records(dtype=dtype)
+            self.mod_read_all_apmpi_records()
         if "APXC" in self.data['modules']:
-            self.mod_read_all_apxc_records(dtype=dtype)
+            self.mod_read_all_apxc_records()
         
         return
 
 
-    def read_all_generic_records(self, counters=True, fcounters=True, dtype=None):
+    def read_all_generic_records(self, counters=True, fcounters=True):
         """
         Read all generic records from darshan log and return as dictionary.
 
@@ -546,14 +544,12 @@ class DarshanReport(object):
             None
         """
 
-        dtype = dtype if dtype else self.dtype
-
         for mod in self.data['modules']:
-            self.mod_read_all_records(mod, dtype=dtype, warnings=False)
+            self.mod_read_all_records(mod=mod, warnings=False)
 
 
 
-    def read_all_dxt_records(self, reads=True, writes=True, dtype=None):
+    def read_all_dxt_records(self, reads=True, writes=True):
         """
         Read all dxt records from darshan log and return as dictionary.
 
@@ -564,20 +560,18 @@ class DarshanReport(object):
             None
         """
 
-        dtype = dtype if dtype else self.dtype
 
         for mod in self.data['modules']:
-            self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes, dtype=dtype)
+            self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes)
 
 
 
-    def mod_read_all_records(self, mod, dtype=None, warnings=True):
+    def mod_read_all_records(self, mod, warnings=True):
         """
         Reads all generic records for module
 
         Args:
             mod (str): Identifier of module to fetch all records
-            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary, 'pandas'
 
         Return:
             None
@@ -590,10 +584,6 @@ class DarshanReport(object):
                 logger.warning(f" Skipping. Currently unsupported: {mod} in mod_read_all_records().")
             # skip mod
             return 
-
-
-        # handling options
-        dtype = dtype if dtype else self.dtype
 
 
         self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
@@ -609,53 +599,26 @@ class DarshanReport(object):
 
 
         # fetch records
-        rec = backend.log_get_generic_record(self.log, mod, dtype=dtype)
+        rec = backend.log_get_generic_record(self.log, mod, dtype="numpy")
         while rec != None:
             self.records[mod].append(rec)
             self._modules[mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_generic_record(self.log, mod, dtype=dtype)
+            rec = backend.log_get_generic_record(self.log, mod, dtype="numpy")
 
 
         if self.lookup_name_records:
             self.update_name_records(mod=mod)
 
-        # process/combine records if the format dtype allows for this
-        if dtype == 'pandas':
-            combined_c = None
-            combined_fc = None
-
-            for rec in self.records[mod]:
-                obj = rec['counters']
-                #print(type(obj))
-                #display(obj)
-                
-                if combined_c is None:
-                    combined_c = rec['counters']
-                else:
-                    combined_c = pd.concat([combined_c, rec['counters']])
-                    
-                if combined_fc is None:
-                    combined_fc = rec['fcounters']
-                else:
-                    combined_fc = pd.concat([combined_fc, rec['fcounters']])
-
-            self.records[mod] = [{
-                'rank': -1,
-                'id': -1,
-                'counters': combined_c,
-                'fcounters': combined_fc
-                }]
 
 
-    def mod_read_all_apmpi_records(self, mod="APMPI", dtype=None, warnings=True):
+    def mod_read_all_apmpi_records(self, mod="APMPI", warnings=True):
         """ 
         Reads all APMPI records for provided module.
 
         Args:
             mod (str): Identifier of module to fetch all records
-            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
 
         Return:
             None
@@ -674,9 +637,6 @@ class DarshanReport(object):
             # skip mod
             return
 
-        # handling options
-        dtype = dtype if dtype else self.dtype
-
         self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
 
         # update module metadata
@@ -686,26 +646,26 @@ class DarshanReport(object):
 
         # fetch records
         # fetch header record
-        rec = backend.log_get_apmpi_record(self.log, mod, "HEADER", dtype=dtype)
+        rec = backend.log_get_apmpi_record(self.log, mod, "HEADER", dtype="numpy")
         while rec != None:
             self.records[mod].append(rec)
             self.data['modules'][mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_apmpi_record(self.log, mod, "PERF", dtype=dtype)
+            rec = backend.log_get_apmpi_record(self.log, mod, "PERF", dtype="numpy")
 
 
         if self.lookup_name_records:
             self.update_name_records(mod=mod)
 
 
-    def mod_read_all_apxc_records(self, mod="APXC", dtype=None, warnings=True):
+
+    def mod_read_all_apxc_records(self, mod="APXC", warnings=True):
         """ 
         Reads all APXC records for provided module.
 
         Args:
             mod (str): Identifier of module to fetch all records
-            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
 
         Return:
             None
@@ -723,9 +683,6 @@ class DarshanReport(object):
             # skip mod
             return
 
-        # handling options
-        dtype = dtype if dtype else self.dtype
-
         self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
         cn = backend.counter_names(mod)
 
@@ -736,25 +693,25 @@ class DarshanReport(object):
 
         # fetch records
         # fetch header record
-        rec = backend.log_get_apxc_record(self.log, mod, "HEADER", dtype=dtype)
+        rec = backend.log_get_apxc_record(self.log, mod, "HEADER", dtype="numpy")
         while rec != None:
             self.records[mod].append(rec)
             self.data['modules'][mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_apxc_record(self.log, mod, "PERF", dtype=dtype)
+            rec = backend.log_get_apxc_record(self.log, mod, "PERF", dtype="numpy")
 
         if self.lookup_name_records:
             self.update_name_records(mod=mod)
 
 
-    def mod_read_all_dxt_records(self, mod, dtype=None, warnings=True, reads=True, writes=True):
+
+    def mod_read_all_dxt_records(self, mod, warnings=True, reads=True, writes=True):
         """
         Reads all dxt records for provided module.
 
         Args:
             mod (str): Identifier of module to fetch all records
-            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
 
         Return:
             None
@@ -775,10 +732,6 @@ class DarshanReport(object):
             return 
 
 
-        # handling options
-        dtype = dtype if dtype else self.dtype
-
-
         self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
 
         # update module metadata
@@ -788,13 +741,13 @@ class DarshanReport(object):
 
 
         # fetch records
-        rec = backend.log_get_dxt_record(self.log, mod, dtype=dtype)
+        rec = backend.log_get_dxt_record(self.log, mod, dtype="numpy")
         while rec != None:
             self.records[mod].append(rec)
             self.data['modules'][mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_dxt_record(self.log, mod, reads=reads, writes=writes, dtype=dtype)
+            rec = backend.log_get_dxt_record(self.log, mod, reads=reads, writes=writes, dtype="numpy")
 
 
         if self.lookup_name_records:
@@ -802,14 +755,12 @@ class DarshanReport(object):
 
 
 
-
-    def mod_read_all_lustre_records(self, mod="LUSTRE", dtype=None, warnings=True):
+    def mod_read_all_lustre_records(self, mod="LUSTRE", warnings=True):
         """
         Reads all dxt records for provided module.
 
         Args:
             mod (str): Identifier of module to fetch all records
-            dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
 
         Return:
             None
@@ -830,10 +781,6 @@ class DarshanReport(object):
             return 
 
 
-        # handling options
-        dtype = dtype if dtype else self.dtype
-
-
         self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
         cn = backend.counter_names(mod)
 
@@ -845,45 +792,21 @@ class DarshanReport(object):
 
 
         # fetch records
-        rec = backend.log_get_record(self.log, mod, dtype=dtype)
+        rec = backend.log_get_record(self.log, mod, dtype="numpy")
         while rec != None:
             self.records[mod].append(rec)
             self.data['modules'][mod]['num_records'] += 1
 
             # fetch next
-            rec = backend.log_get_record(self.log, mod, dtype=dtype)
+            rec = backend.log_get_record(self.log, mod, dtype="numpy")
 
 
         if self.lookup_name_records:
             self.update_name_records(mod=mod)
 
-        # process/combine records if the format dtype allows for this
-        if dtype == 'pandas':
-            combined_c = None
-
-            for rec in self.records[mod]:
-                obj = rec['counters']
-                #print(type(obj))
-                #display(obj)
-                
-                if combined_c is None:
-                    combined_c = rec['counters']
-                else:
-                    combined_c = pd.concat([combined_c, rec['counters']])
-                    
-
-            self.records[mod] = [{
-                'rank': -1,
-                'id': -1,
-                'counters': combined_c,
-                }]
 
 
-
-
-
-    def mod_records(self, mod, 
-                    dtype='numpy', warnings=True):
+    def mod_records(self, mod, dtype='numpy', warnings=True):
         """
         Return generator for lazy record loading and traversal.
 
