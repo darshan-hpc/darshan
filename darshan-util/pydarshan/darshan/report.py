@@ -26,7 +26,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class ModuleNotInDarshanLog(Exception):
+class ModuleNotInDarshanLog(ValueError):
     """Raised when module is not present in Darshan log."""
     pass
 
