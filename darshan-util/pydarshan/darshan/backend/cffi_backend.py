@@ -56,6 +56,7 @@ _structdefs = {
     "BG/Q": "struct darshan_bgq_record **",
     "DXT_MPIIO": "struct dxt_file_record **",
     "DXT_POSIX": "struct dxt_file_record **",
+    "HEATMAP": "struct darshan_heatmap_record **",
     "H5F": "struct darshan_hdf5_file **",
     "H5D": "struct darshan_hdf5_dataset **",
     "LUSTRE": "struct darshan_lustre_record **",
@@ -299,6 +300,8 @@ def log_get_record(log, mod, dtype='numpy'):
 
     if mod in ['LUSTRE']:
         rec = _log_get_lustre_record(log, dtype=dtype)
+    elif mod in ['HEATMAP']:
+        rec = _log_get_heatmap_record(log)
     elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
         rec = log_get_dxt_record(log, mod, dtype=dtype)
     else:
@@ -592,5 +595,49 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     return rec
 
 
+def _log_get_heatmap_record(log):
+    """
+    Returns a dictionary holding a heatmap darshan log record.
 
+    Args:
+        log: Handle returned by darshan.open
 
+    Return:
+        dict: heatmap log record
+    """
+   
+    mod_name = "HEATMAP"
+
+    modules = log_get_modules(log)
+    if mod_name not in modules:
+        return None
+
+    mod_type = _structdefs[mod_name]
+
+    rec = {}
+    buf = ffi.new("void **")
+    r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
+    if r < 1:
+        return None
+    
+    filerec = ffi.cast(mod_type, buf)
+
+    rec['id'] = filerec[0].base_rec.id
+    rec['rank'] = filerec[0].base_rec.rank
+
+    bin_width_seconds = filerec[0].bin_width_seconds
+    nbins = filerec[0].nbins
+    
+    rec['bin_width_seconds'] = bin_width_seconds
+    rec['nbins'] = nbins
+
+    # write/read bins
+    sizeof_64 = ffi.sizeof("int64_t")
+    
+    write_bins = np.frombuffer(ffi.buffer(filerec[0].write_bins, sizeof_64*nbins), dtype = np.int64)
+    rec['write_bins'] = write_bins
+
+    read_bins = np.frombuffer(ffi.buffer(filerec[0].read_bins, sizeof_64*nbins), dtype = np.int64)
+    rec['read_bins'] = read_bins
+    
+    return rec
