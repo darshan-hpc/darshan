@@ -131,6 +131,17 @@ struct darshan_mod_logutil_funcs
         char *name2
     );
     /* combine two records into a single aggregate record */
+    /* NOTES:
+     * - this function can be called iteratively to aggregate an arbitrary
+     *   number of records
+     * - the "init_flag" field should be set on the first call to initialize
+     *   the aggregate record to it's starting value
+     * - if records with different rank values are combined, then the
+     *   resulting aggregate record will have its rank set to -1.  Note
+     *   that natural Darshan log files only use rank == -1 to note globally
+     *   shared files, but this function will set rank == -1 for partially
+     *   shared files as well.
+     */
     void (*log_agg_records)(
         void *rec,
         void *agg_rec,
