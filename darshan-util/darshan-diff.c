@@ -27,7 +27,7 @@ struct darshan_mod_record_ref
 struct darshan_file_record_ref
 {
     darshan_record_id rec_id;
-    struct darshan_mod_record_ref *mod_recs[DARSHAN_MAX_MODS];
+    struct darshan_mod_record_ref *mod_recs[DARSHAN_KNOWN_MODULE_COUNT];
     UT_hash_handle hlink;
 };
 
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
         /* search hash2 for this record */
         HASH_FIND(hlink, rec_hash2, &(rec_ref1->rec_id), sizeof(darshan_record_id), rec_ref2);
 
-        for(i = 0; i < DARSHAN_MAX_MODS; i++)
+        for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
         {
             /* skip the DXT modules -- we won't be diff'ing traces */
             if(i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD)
@@ -311,7 +311,7 @@ int main(int argc, char *argv[])
      */
     HASH_ITER(hlink, rec_hash2, rec_ref2, rec_tmp)
     {
-        for(i = 0; i < DARSHAN_MAX_MODS; i++)
+        for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
         {
             while(rec_ref2->mod_recs[i])
             {
@@ -376,7 +376,7 @@ static int darshan_build_global_record_hash(
     /* iterate over all modules in each log file, adding records to the
      * appropriate hash table
      */
-    for(i = 0; i < DARSHAN_MAX_MODS; i++)
+    for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
     {
         if(!mod_logutils[i]) continue;
 

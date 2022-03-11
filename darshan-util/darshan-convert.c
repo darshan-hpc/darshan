@@ -386,9 +386,16 @@ int main(int argc, char **argv)
         /* check each module for any data */
         if(infile->mod_map[i].len == 0)
             continue;
+        /* skip modules that this version of Darshan can't parse */
+        else if(i >= DARSHAN_KNOWN_MODULE_COUNT)
+        {
+            fprintf(stderr, "# Warning: module id %d is unknown. You may need "
+                            "a newer version of the Darshan utilities to parse it.\n", i);
+            continue;
+        }
         else if(!mod_logutils[i])
         {
-            fprintf(stderr, "Warning: no log utility handlers defined "
+            fprintf(stderr, "# Warning: no log utility handlers defined "
                 "for module %s, SKIPPING.\n", darshan_module_names[i]);
             continue;
         }
