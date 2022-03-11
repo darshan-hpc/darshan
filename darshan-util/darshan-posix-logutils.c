@@ -440,12 +440,43 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
     int64_t tmp_val[4];
     int64_t tmp_cnt[4];
     int tmp_ndx;
-    double psx_time = psx_rec->fcounters[POSIX_F_READ_TIME] +
-        psx_rec->fcounters[POSIX_F_WRITE_TIME] +
-        psx_rec->fcounters[POSIX_F_META_TIME];
-    double psx_bytes = (double)psx_rec->counters[POSIX_BYTES_READ] +
-        psx_rec->counters[POSIX_BYTES_WRITTEN];
+    int64_t psx_fastest_rank, psx_slowest_rank,
+        psx_fastest_bytes, psx_slowest_bytes;
+    double psx_fastest_time, psx_slowest_time;
     int shared_file_flag = 0;
+
+    /* For the incoming record, we need to determine what values to use for
+     * subsequent comparision against the aggregate record's fastest and
+     * slowest fields. This is is complicated by the fact that shared file
+     * records already have derived values, while unique file records do
+     * not.  Handle both cases here so that this function can be generic.
+     */
+    if(psx_rec->base_rec.rank == -1)
+    {
+        /* shared files should have pre-calculated fastest and slowest
+         * counters */
+        psx_fastest_rank = psx_rec->counters[POSIX_FASTEST_RANK];
+        psx_slowest_rank = psx_rec->counters[POSIX_SLOWEST_RANK];
+        psx_fastest_bytes = psx_rec->counters[POSIX_FASTEST_RANK_BYTES];
+        psx_slowest_bytes = psx_rec->counters[POSIX_SLOWEST_RANK_BYTES];
+        psx_fastest_time = psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME];
+        psx_slowest_time = psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME];
+    }
+    else
+    {
+        /* for non-shared files, derive bytes and time using data from this
+         * rank
+         */
+        psx_fastest_rank = psx_rec->base_rec.rank;
+        psx_slowest_rank = psx_fastest_rank;
+        psx_fastest_bytes = psx_rec->counters[POSIX_BYTES_READ] +
+            psx_rec->counters[POSIX_BYTES_WRITTEN];
+        psx_slowest_bytes = psx_fastest_bytes;
+        psx_fastest_time = psx_rec->fcounters[POSIX_F_READ_TIME] +
+            psx_rec->fcounters[POSIX_F_WRITE_TIME] +
+            psx_rec->fcounters[POSIX_F_META_TIME];
+        psx_slowest_time = psx_fastest_time;
+    }
 
 #if 0
     /* NOTE: the code commented out in this function is used for variance
@@ -701,71 +732,55 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                 break;
             case POSIX_F_FASTEST_RANK_TIME:
 
-                if(!shared_file_flag || psx_rec->base_rec.rank == -1)
+                if(!shared_file_flag)
                 {
                     /* The fastest counters are only valid under these
-                     * conditions:
-                     * a) we are aggregating records that all refer to the
-                     *    same file and
-                     * b) one or more of the records have not already been
-                     *    reduced into a shared file record
+                     * conditions when aggregating records that all refer to
+                     * the same file.
                      */
                     agg_psx_rec->counters[POSIX_FASTEST_RANK] = -1;
                     agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES] = -1;
                     agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME] = 0.0;
                     break;
                 }
-
-                if(init_flag)
-                {
-                    /* set fastest rank counters according to root rank. these counters
-                     * will be determined as the aggregation progresses.
+                if (init_flag ||
+                    psx_fastest_time < agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME]) {
+                    /* The incoming record wins if a) this is the first
+                     * record we are aggregating or b) it is the fastest
+                     * record we have seen so far.
                      */
-                    agg_psx_rec->counters[POSIX_FASTEST_RANK] = psx_rec->base_rec.rank;
-                    agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES] = psx_bytes;
-                    agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME] = psx_time;
-                }
-
-                if(psx_time < agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME])
-                {
-                    agg_psx_rec->counters[POSIX_FASTEST_RANK] = psx_rec->base_rec.rank;
-                    agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES] = psx_bytes;
-                    agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME] = psx_time;
+                    agg_psx_rec->counters[POSIX_FASTEST_RANK]
+                        = psx_fastest_rank;
+                    agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES]
+                        = psx_fastest_bytes;
+                    agg_psx_rec->fcounters[POSIX_F_FASTEST_RANK_TIME]
+                        = psx_fastest_time;
                 }
                 break;
             case POSIX_F_SLOWEST_RANK_TIME:
-                if(!shared_file_flag || psx_rec->base_rec.rank == -1)
+                if(!shared_file_flag)
                 {
                     /* The slowest counters are only valid under these
-                     * conditions:
-                     * a) we are aggregating records that all refer to the
-                     *    same file and
-                     * b) one or more of the records have not already been
-                     *    reduced into a shared file record
+                     * conditions when aggregating records that all refer to
+                     * the same file.
                      */
-                    agg_psx_rec->counters[POSIX_FASTEST_RANK] = -1;
-                    agg_psx_rec->counters[POSIX_FASTEST_RANK_BYTES] = -1;
                     agg_psx_rec->counters[POSIX_SLOWEST_RANK] = -1;
                     agg_psx_rec->counters[POSIX_SLOWEST_RANK_BYTES] = -1;
                     agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME] = 0.0;
                     break;
                 }
-
-                if(init_flag)
-                {
-                    /* set slowest rank counters according to root rank. these counters
-                     * will be determined as the aggregation progresses.
+                if (init_flag ||
+                    psx_slowest_time < agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME]) {
+                    /* The incoming record wins if a) this is the first
+                     * record we are aggregating or b) it is the slowest
+                     * record we have seen so far.
                      */
-                    agg_psx_rec->counters[POSIX_SLOWEST_RANK] = psx_rec->base_rec.rank;
-                    agg_psx_rec->counters[POSIX_SLOWEST_RANK_BYTES] = psx_bytes;
-                    agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME] = psx_time;
-                }
-
-                if(psx_time > agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME])
-                {
-                    agg_psx_rec->counters[POSIX_SLOWEST_RANK] = psx_rec->base_rec.rank;
-                    agg_psx_rec->counters[POSIX_SLOWEST_RANK_BYTES] = psx_bytes;
-                    agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME] = psx_time;
+                    agg_psx_rec->counters[POSIX_SLOWEST_RANK]
+                        = psx_slowest_rank;
+                    agg_psx_rec->counters[POSIX_SLOWEST_RANK_BYTES]
+                        = psx_slowest_bytes;
+                    agg_psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME]
+                        = psx_slowest_time;
                 }
                 break;
             case POSIX_F_VARIANCE_RANK_TIME:

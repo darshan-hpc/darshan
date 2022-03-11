@@ -322,12 +322,43 @@ static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_fla
     struct darshan_stdio_file *stdio_rec = (struct darshan_stdio_file *)rec;
     struct darshan_stdio_file *agg_stdio_rec = (struct darshan_stdio_file *)agg_rec;
     int i;
-    double stdio_time = stdio_rec->fcounters[STDIO_F_READ_TIME] +
-        stdio_rec->fcounters[STDIO_F_WRITE_TIME] +
-        stdio_rec->fcounters[STDIO_F_META_TIME];
-    double stdio_bytes = (double)stdio_rec->counters[STDIO_BYTES_READ] +
-        stdio_rec->counters[STDIO_BYTES_WRITTEN];
+    int64_t stdio_fastest_rank, stdio_slowest_rank,
+        stdio_fastest_bytes, stdio_slowest_bytes;
+    double stdio_fastest_time, stdio_slowest_time;
     int shared_file_flag = 0;
+
+    /* For the incoming record, we need to determine what values to use for
+     * subsequent comparision against the aggregate record's fastest and
+     * slowest fields. This is is complicated by the fact that shared file
+     * records already have derived values, while unique file records do
+     * not.  Handle both cases here so that this function can be generic.
+     */
+    if(stdio_rec->base_rec.rank == -1)
+    {
+        /* shared files should have pre-calculated fastest and slowest
+         * counters */
+        stdio_fastest_rank = stdio_rec->counters[STDIO_FASTEST_RANK];
+        stdio_slowest_rank = stdio_rec->counters[STDIO_SLOWEST_RANK];
+        stdio_fastest_bytes = stdio_rec->counters[STDIO_FASTEST_RANK_BYTES];
+        stdio_slowest_bytes = stdio_rec->counters[STDIO_SLOWEST_RANK_BYTES];
+        stdio_fastest_time = stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME];
+        stdio_slowest_time = stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME];
+    }
+    else
+    {
+        /* for non-shared files, derive bytes and time using data from this
+         * rank
+         */
+        stdio_fastest_rank = stdio_rec->base_rec.rank;
+        stdio_slowest_rank = stdio_fastest_rank;
+        stdio_fastest_bytes = stdio_rec->counters[STDIO_BYTES_READ] +
+            stdio_rec->counters[STDIO_BYTES_WRITTEN];
+        stdio_slowest_bytes = stdio_fastest_bytes;
+        stdio_fastest_time = stdio_rec->fcounters[STDIO_F_READ_TIME] +
+            stdio_rec->fcounters[STDIO_F_WRITE_TIME] +
+            stdio_rec->fcounters[STDIO_F_META_TIME];
+        stdio_slowest_time = stdio_fastest_time;
+    }
 
 #if 0
     /* NOTE: the code commented out in this function is used for variance
@@ -439,73 +470,58 @@ static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_fla
                 }
                 break;
             case STDIO_F_FASTEST_RANK_TIME:
-
-                if(!shared_file_flag || stdio_rec->base_rec.rank == -1)
+                if(!shared_file_flag)
                 {
                     /* The fastest counters are only valid under these
-                     * conditions:
-                     * a) we are aggregating records that all refer to the
-                     *    same file and
-                     * b) one or more of the records have not already been
-                     *    reduced into a shared file record
+                     * conditions when aggregating records that all refer to
+                     * the same file.
                      */
                     agg_stdio_rec->counters[STDIO_FASTEST_RANK] = -1;
                     agg_stdio_rec->counters[STDIO_FASTEST_RANK_BYTES] = -1;
                     agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME] = 0.0;
                     break;
                 }
-
-                if(init_flag)
-                {
-                    /* set fastest rank counters according to root rank. these counters
-                     * will be determined as the aggregation progresses.
+                if (init_flag ||
+                    stdio_fastest_time < agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME]) {
+                    /* The incoming record wins if a) this is the first
+                     * record we are aggregating or b) it is the fastest
+                     * record we have seen so far.
                      */
-                    agg_stdio_rec->counters[STDIO_FASTEST_RANK] = stdio_rec->base_rec.rank;
-                    agg_stdio_rec->counters[STDIO_FASTEST_RANK_BYTES] = stdio_bytes;
-                    agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME] = stdio_time;
-                }
-
-                if(stdio_time < agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME])
-                {
-                    agg_stdio_rec->counters[STDIO_FASTEST_RANK] = stdio_rec->base_rec.rank;
-                    agg_stdio_rec->counters[STDIO_FASTEST_RANK_BYTES] = stdio_bytes;
-                    agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME] = stdio_time;
+                    agg_stdio_rec->counters[STDIO_FASTEST_RANK]
+                        = stdio_fastest_rank;
+                    agg_stdio_rec->counters[STDIO_FASTEST_RANK_BYTES]
+                        = stdio_fastest_bytes;
+                    agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME]
+                        = stdio_fastest_time;
                 }
                 break;
             case STDIO_F_SLOWEST_RANK_TIME:
-
-                if(!shared_file_flag || stdio_rec->base_rec.rank == -1)
+                if(!shared_file_flag)
                 {
                     /* The slowest counters are only valid under these
-                     * conditions:
-                     * a) we are aggregating records that all refer to the
-                     *    same file and
-                     * b) one or more of the records have not already been
-                     *    reduced into a shared file record
+                     * conditions when aggregating records that all refer to
+                     * the same file.
                      */
                     agg_stdio_rec->counters[STDIO_SLOWEST_RANK] = -1;
                     agg_stdio_rec->counters[STDIO_SLOWEST_RANK_BYTES] = -1;
                     agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME] = 0.0;
                     break;
                 }
-
-                if(init_flag)
-                {
-                    /* set slowest rank counters according to root rank. these counters
-                     * will be determined as the aggregation progresses.
+                if (init_flag ||
+                    stdio_slowest_time < agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME]) {
+                    /* The incoming record wins if a) this is the first
+                     * record we are aggregating or b) it is the slowest
+                     * record we have seen so far.
                      */
-                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK] = stdio_rec->base_rec.rank;
-                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK_BYTES] = stdio_bytes;
-                    agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME] = stdio_time;
-                }
-
-                if(stdio_time > agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME])
-                {
-                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK] = stdio_rec->base_rec.rank;
-                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK_BYTES] = stdio_bytes;
-                    agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME] = stdio_time;
+                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK]
+                        = stdio_slowest_rank;
+                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK_BYTES]
+                        = stdio_slowest_bytes;
+                    agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME]
+                        = stdio_slowest_time;
                 }
                 break;
+
             case STDIO_F_VARIANCE_RANK_TIME:
 #if 0
 /* NOTE: see comment at the top of this function about the var_* variables */

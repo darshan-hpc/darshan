@@ -320,12 +320,43 @@ static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag)
     int64_t tmp_val[4];
     int64_t tmp_cnt[4];
     int tmp_ndx;
-    double mpi_time = mpi_rec->fcounters[MPIIO_F_READ_TIME] +
-        mpi_rec->fcounters[MPIIO_F_WRITE_TIME] +
-        mpi_rec->fcounters[MPIIO_F_META_TIME];
-    double mpi_bytes = (double)mpi_rec->counters[MPIIO_BYTES_READ] +
-        mpi_rec->counters[MPIIO_BYTES_WRITTEN];
     int shared_file_flag = 0;
+    int64_t mpi_fastest_rank, mpi_slowest_rank,
+        mpi_fastest_bytes, mpi_slowest_bytes;
+    double mpi_fastest_time, mpi_slowest_time;
+
+    /* For the incoming record, we need to determine what values to use for
+     * subsequent comparision against the aggregate record's fastest and
+     * slowest fields. This is is complicated by the fact that shared file
+     * records already have derived values, while unique file records do
+     * not.  Handle both cases here so that this function can be generic.
+     */
+    if(mpi_rec->base_rec.rank == -1)
+    {
+        /* shared files should have pre-calculated fastest and slowest
+         * counters */
+        mpi_fastest_rank = mpi_rec->counters[MPIIO_FASTEST_RANK];
+        mpi_slowest_rank = mpi_rec->counters[MPIIO_SLOWEST_RANK];
+        mpi_fastest_bytes = mpi_rec->counters[MPIIO_FASTEST_RANK_BYTES];
+        mpi_slowest_bytes = mpi_rec->counters[MPIIO_SLOWEST_RANK_BYTES];
+        mpi_fastest_time = mpi_rec->fcounters[MPIIO_F_FASTEST_RANK_TIME];
+        mpi_slowest_time = mpi_rec->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
+    }
+    else
+    {
+        /* for non-shared files, derive bytes and time using data from this
+         * rank
+         */
+        mpi_fastest_rank = mpi_rec->base_rec.rank;
+        mpi_slowest_rank = mpi_fastest_rank;
+        mpi_fastest_bytes = mpi_rec->counters[MPIIO_BYTES_READ] +
+            mpi_rec->counters[MPIIO_BYTES_WRITTEN];
+        mpi_slowest_bytes = mpi_fastest_bytes;
+        mpi_fastest_time = mpi_rec->fcounters[MPIIO_F_READ_TIME] +
+            mpi_rec->fcounters[MPIIO_F_WRITE_TIME] +
+            mpi_rec->fcounters[MPIIO_F_META_TIME];
+        mpi_slowest_time = mpi_fastest_time;
+    }
 #if 0
     /* NOTE: the code commented out in this function is used for variance
      * calculation.  This metric is most helpful for shared file records,
@@ -555,72 +586,58 @@ static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag)
                 break;
             case MPIIO_F_FASTEST_RANK_TIME:
 
-                if(!shared_file_flag || mpi_rec->base_rec.rank == -1)
+                if(!shared_file_flag)
                 {
                     /* The fastest counters are only valid under these
-                     * conditions:
-                     * a) we are aggregating records that all refer to the
-                     *    same file and
-                     * b) one or more of the records have not already been
-                     *    reduced into a shared file record
+                     * conditions when aggregating records that all refer to
+                     * the same file.
                      */
                     agg_mpi_rec->counters[MPIIO_FASTEST_RANK] = -1;
                     agg_mpi_rec->counters[MPIIO_FASTEST_RANK_BYTES] = -1;
                     agg_mpi_rec->fcounters[MPIIO_F_FASTEST_RANK_TIME] = 0.0;
                     break;
                 }
-
-                if(init_flag)
-                {
-                    /* set fastest rank counters according to root rank. these counters
-                     * will be determined as the aggregation progresses.
+                if (init_flag ||
+                    mpi_fastest_time < agg_mpi_rec->fcounters[MPIIO_F_FASTEST_RANK_TIME]) {
+                    /* The incoming record wins if a) this is the first
+                     * record we are aggregating or b) it is the fastest
+                     * record we have seen so far.
                      */
-                    agg_mpi_rec->counters[MPIIO_FASTEST_RANK] = mpi_rec->base_rec.rank;
-                    agg_mpi_rec->counters[MPIIO_FASTEST_RANK_BYTES] = mpi_bytes;
-                    agg_mpi_rec->fcounters[MPIIO_F_FASTEST_RANK_TIME] = mpi_time;
-                }
-
-                if(mpi_time < agg_mpi_rec->fcounters[MPIIO_F_FASTEST_RANK_TIME])
-                {
-                    agg_mpi_rec->counters[MPIIO_FASTEST_RANK] = mpi_rec->base_rec.rank;
-                    agg_mpi_rec->counters[MPIIO_FASTEST_RANK_BYTES] = mpi_bytes;
-                    agg_mpi_rec->fcounters[MPIIO_F_FASTEST_RANK_TIME] = mpi_time;
+                    agg_mpi_rec->counters[MPIIO_FASTEST_RANK]
+                        = mpi_fastest_rank;
+                    agg_mpi_rec->counters[MPIIO_FASTEST_RANK_BYTES]
+                        = mpi_fastest_bytes;
+                    agg_mpi_rec->fcounters[MPIIO_F_FASTEST_RANK_TIME]
+                        = mpi_fastest_time;
                 }
                 break;
             case MPIIO_F_SLOWEST_RANK_TIME:
-
-                if(!shared_file_flag || mpi_rec->base_rec.rank == -1)
+                if(!shared_file_flag)
                 {
                     /* The slowest counters are only valid under these
-                     * conditions:
-                     * a) we are aggregating records that all refer to the
-                     *    same file and
-                     * b) one or more of the records have not already been
-                     *    reduced into a shared file record
+                     * conditions when aggregating records that all refer to
+                     * the same file.
                      */
                     agg_mpi_rec->counters[MPIIO_SLOWEST_RANK] = -1;
                     agg_mpi_rec->counters[MPIIO_SLOWEST_RANK_BYTES] = -1;
                     agg_mpi_rec->fcounters[MPIIO_F_SLOWEST_RANK_TIME] = 0.0;
                     break;
                 }
-
-                if(init_flag)
-                {
-                    /* set slowest rank counters according to root rank. these counters
-                     * will be determined as the aggregation progresses.
+                if (init_flag ||
+                    mpi_slowest_time < agg_mpi_rec->fcounters[MPIIO_F_SLOWEST_RANK_TIME]) {
+                    /* The incoming record wins if a) this is the first
+                     * record we are aggregating or b) it is the slowest
+                     * record we have seen so far.
                      */
-                    agg_mpi_rec->counters[MPIIO_SLOWEST_RANK] = mpi_rec->base_rec.rank;
-                    agg_mpi_rec->counters[MPIIO_SLOWEST_RANK_BYTES] = mpi_bytes;
-                    agg_mpi_rec->fcounters[MPIIO_F_SLOWEST_RANK_TIME] = mpi_time;
-                }
-
-                if(mpi_time > agg_mpi_rec->fcounters[MPIIO_F_SLOWEST_RANK_TIME])
-                {
-                    agg_mpi_rec->counters[MPIIO_SLOWEST_RANK] = mpi_rec->base_rec.rank;
-                    agg_mpi_rec->counters[MPIIO_SLOWEST_RANK_BYTES] = mpi_bytes;
-                    agg_mpi_rec->fcounters[MPIIO_F_SLOWEST_RANK_TIME] = mpi_time;
+                    agg_mpi_rec->counters[MPIIO_SLOWEST_RANK]
+                        = mpi_slowest_rank;
+                    agg_mpi_rec->counters[MPIIO_SLOWEST_RANK_BYTES]
+                        = mpi_slowest_bytes;
+                    agg_mpi_rec->fcounters[MPIIO_F_SLOWEST_RANK_TIME]
+                        = mpi_slowest_time;
                 }
                 break;
+
             case MPIIO_F_VARIANCE_RANK_TIME:
 #if 0
 /* NOTE: see comment at the top of this function about the var_* variables */
