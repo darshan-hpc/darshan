@@ -152,8 +152,6 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
     # on the Darshan logs from the logs repo:
     # https://github.com/darshan-hpc/darshan-logs
 
-    if "heatmap" in log_filepath:
-        pytest.xfail(reason="no runtime HEATMAP support")
     argv = [log_filepath]
     with mock.patch("sys.argv", [""] + argv):
         with tmpdir.as_cwd():
