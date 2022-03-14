@@ -322,16 +322,78 @@ static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_fla
     struct darshan_stdio_file *stdio_rec = (struct darshan_stdio_file *)rec;
     struct darshan_stdio_file *agg_stdio_rec = (struct darshan_stdio_file *)agg_rec;
     int i;
-    double old_M;
-    double stdio_time = stdio_rec->fcounters[STDIO_F_READ_TIME] +
-        stdio_rec->fcounters[STDIO_F_WRITE_TIME] +
-        stdio_rec->fcounters[STDIO_F_META_TIME];
-    double stdio_bytes = (double)stdio_rec->counters[STDIO_BYTES_READ] +
-        stdio_rec->counters[STDIO_BYTES_WRITTEN];
+    int64_t stdio_fastest_rank, stdio_slowest_rank,
+        stdio_fastest_bytes, stdio_slowest_bytes;
+    double stdio_fastest_time, stdio_slowest_time;
+    int shared_file_flag = 0;
+
+    /* For the incoming record, we need to determine what values to use for
+     * subsequent comparision against the aggregate record's fastest and
+     * slowest fields. This is is complicated by the fact that shared file
+     * records already have derived values, while unique file records do
+     * not.  Handle both cases here so that this function can be generic.
+     */
+    if(stdio_rec->base_rec.rank == -1)
+    {
+        /* shared files should have pre-calculated fastest and slowest
+         * counters */
+        stdio_fastest_rank = stdio_rec->counters[STDIO_FASTEST_RANK];
+        stdio_slowest_rank = stdio_rec->counters[STDIO_SLOWEST_RANK];
+        stdio_fastest_bytes = stdio_rec->counters[STDIO_FASTEST_RANK_BYTES];
+        stdio_slowest_bytes = stdio_rec->counters[STDIO_SLOWEST_RANK_BYTES];
+        stdio_fastest_time = stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME];
+        stdio_slowest_time = stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME];
+    }
+    else
+    {
+        /* for non-shared files, derive bytes and time using data from this
+         * rank
+         */
+        stdio_fastest_rank = stdio_rec->base_rec.rank;
+        stdio_slowest_rank = stdio_fastest_rank;
+        stdio_fastest_bytes = stdio_rec->counters[STDIO_BYTES_READ] +
+            stdio_rec->counters[STDIO_BYTES_WRITTEN];
+        stdio_slowest_bytes = stdio_fastest_bytes;
+        stdio_fastest_time = stdio_rec->fcounters[STDIO_F_READ_TIME] +
+            stdio_rec->fcounters[STDIO_F_WRITE_TIME] +
+            stdio_rec->fcounters[STDIO_F_META_TIME];
+        stdio_slowest_time = stdio_fastest_time;
+    }
+
+#if 0
+    /* NOTE: the code commented out in this function is used for variance
+     * calculation.  This metric is most helpful for shared file records,
+     * but this function has now been generalized to allow for aggregation
+     * of arbitrary records in a log.
+     *
+     * This functionality could be reinstated as an optional feature.
+     * Ideally in that case the caller would also provide a buffer for
+     * stateful calculations; the current logic assumes that it is safe to
+     * use additional bytes off of the end of the rec argument buffer.
+     */
     struct var_t *var_time_p = (struct var_t *)
         ((char *)rec + sizeof(struct darshan_stdio_file));
     struct var_t *var_bytes_p = (struct var_t *)
         ((char *)var_time_p + sizeof(struct var_t));
+    double old_M;
+#endif
+
+    /* if this is our first record, store base id and rank */
+    if(init_flag)
+    {
+        agg_stdio_rec->base_rec.rank = stdio_rec->base_rec.rank;
+        agg_stdio_rec->base_rec.id = stdio_rec->base_rec.id;
+    }
+
+    /* so far do all of the records reference the same file? */
+    if(agg_stdio_rec->base_rec.id == stdio_rec->base_rec.id)
+        shared_file_flag = 1;
+    else
+        agg_stdio_rec->base_rec.id = 0;
+
+    /* so far do all of the records reference the same rank? */
+    if(agg_stdio_rec->base_rec.rank != stdio_rec->base_rec.rank)
+        agg_stdio_rec->base_rec.rank = -1;
 
     for(i = 0; i < STDIO_NUM_INDICES; i++)
     {
@@ -362,9 +424,16 @@ static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_fla
             case STDIO_SLOWEST_RANK_BYTES:
                 /* these are set with the FP counters */
                 break;
+            /* intentionally do not include a default block; we want to
+             * get a compile-time warning in this function when new
+             * counters are added to the enumeration to make sure we
+             * handle them all correctly.
+             */
+#if 0
             default:
                 agg_stdio_rec->counters[i] = -1;
                 break;
+#endif
         }
     }
 
@@ -401,42 +470,61 @@ static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_fla
                 }
                 break;
             case STDIO_F_FASTEST_RANK_TIME:
-                if(init_flag)
+                if(!shared_file_flag)
                 {
-                    /* set fastest rank counters according to root rank. these counters
-                     * will be determined as the aggregation progresses.
+                    /* The fastest counters are only valid under these
+                     * conditions when aggregating records that all refer to
+                     * the same file.
                      */
-                    agg_stdio_rec->counters[STDIO_FASTEST_RANK] = stdio_rec->base_rec.rank;
-                    agg_stdio_rec->counters[STDIO_FASTEST_RANK_BYTES] = stdio_bytes;
-                    agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME] = stdio_time;
+                    agg_stdio_rec->counters[STDIO_FASTEST_RANK] = -1;
+                    agg_stdio_rec->counters[STDIO_FASTEST_RANK_BYTES] = -1;
+                    agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME] = 0.0;
+                    break;
                 }
-
-                if(stdio_time < agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME])
-                {
-                    agg_stdio_rec->counters[STDIO_FASTEST_RANK] = stdio_rec->base_rec.rank;
-                    agg_stdio_rec->counters[STDIO_FASTEST_RANK_BYTES] = stdio_bytes;
-                    agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME] = stdio_time;
+                if (init_flag ||
+                    stdio_fastest_time < agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME]) {
+                    /* The incoming record wins if a) this is the first
+                     * record we are aggregating or b) it is the fastest
+                     * record we have seen so far.
+                     */
+                    agg_stdio_rec->counters[STDIO_FASTEST_RANK]
+                        = stdio_fastest_rank;
+                    agg_stdio_rec->counters[STDIO_FASTEST_RANK_BYTES]
+                        = stdio_fastest_bytes;
+                    agg_stdio_rec->fcounters[STDIO_F_FASTEST_RANK_TIME]
+                        = stdio_fastest_time;
                 }
                 break;
             case STDIO_F_SLOWEST_RANK_TIME:
-                if(init_flag)
+                if(!shared_file_flag)
                 {
-                    /* set slowest rank counters according to root rank. these counters
-                     * will be determined as the aggregation progresses.
+                    /* The slowest counters are only valid under these
+                     * conditions when aggregating records that all refer to
+                     * the same file.
                      */
-                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK] = stdio_rec->base_rec.rank;
-                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK_BYTES] = stdio_bytes;
-                    agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME] = stdio_time;
+                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK] = -1;
+                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK_BYTES] = -1;
+                    agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME] = 0.0;
+                    break;
                 }
-
-                if(stdio_time > agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME])
-                {
-                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK] = stdio_rec->base_rec.rank;
-                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK_BYTES] = stdio_bytes;
-                    agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME] = stdio_time;
+                if (init_flag ||
+                    stdio_slowest_time > agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME]) {
+                    /* The incoming record wins if a) this is the first
+                     * record we are aggregating or b) it is the slowest
+                     * record we have seen so far.
+                     */
+                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK]
+                        = stdio_slowest_rank;
+                    agg_stdio_rec->counters[STDIO_SLOWEST_RANK_BYTES]
+                        = stdio_slowest_bytes;
+                    agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME]
+                        = stdio_slowest_time;
                 }
                 break;
+
             case STDIO_F_VARIANCE_RANK_TIME:
+#if 0
+/* NOTE: see comment at the top of this function about the var_* variables */
                 if(init_flag)
                 {
                     var_time_p->n = 1;
@@ -454,8 +542,13 @@ static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_fla
                     agg_stdio_rec->fcounters[STDIO_F_VARIANCE_RANK_TIME] =
                         var_time_p->S / var_time_p->n;
                 }
+#else
+                agg_stdio_rec->fcounters[i] = 0;
+#endif
                 break;
             case STDIO_F_VARIANCE_RANK_BYTES:
+#if 0
+/* NOTE: see comment at the top of this function about the var_* variables */
                 if(init_flag)
                 {
                     var_bytes_p->n = 1;
@@ -473,10 +566,20 @@ static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_fla
                     agg_stdio_rec->fcounters[STDIO_F_VARIANCE_RANK_BYTES] =
                         var_bytes_p->S / var_bytes_p->n;
                 }
+#else
+                agg_stdio_rec->fcounters[i] = 0;
+#endif
                 break;
+            /* intentionally do not include a default block; we want to
+             * get a compile-time warning in this function when new
+             * counters are added to the enumeration to make sure we
+             * handle them all correctly.
+             */
+#if 0
             default:
                 agg_stdio_rec->fcounters[i] = -1;
                 break;
+#endif
         }
     }
 
