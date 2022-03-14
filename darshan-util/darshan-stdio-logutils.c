@@ -508,7 +508,7 @@ static void darshan_log_agg_stdio_records(void *rec, void *agg_rec, int init_fla
                     break;
                 }
                 if (init_flag ||
-                    stdio_slowest_time < agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME]) {
+                    stdio_slowest_time > agg_stdio_rec->fcounters[STDIO_F_SLOWEST_RANK_TIME]) {
                     /* The incoming record wins if a) this is the first
                      * record we are aggregating or b) it is the slowest
                      * record we have seen so far.

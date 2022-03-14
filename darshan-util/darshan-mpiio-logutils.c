@@ -624,7 +624,7 @@ static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag)
                     break;
                 }
                 if (init_flag ||
-                    mpi_slowest_time < agg_mpi_rec->fcounters[MPIIO_F_SLOWEST_RANK_TIME]) {
+                    mpi_slowest_time > agg_mpi_rec->fcounters[MPIIO_F_SLOWEST_RANK_TIME]) {
                     /* The incoming record wins if a) this is the first
                      * record we are aggregating or b) it is the slowest
                      * record we have seen so far.
