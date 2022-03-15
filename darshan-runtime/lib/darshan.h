@@ -46,6 +46,9 @@
 /* Environment variable to override memory per module */
 #define DARSHAN_MOD_MEM_OVERRIDE "DARSHAN_MODMEM"
 
+/* Environment variable to override memory for name records */
+#define DARSHAN_NAME_MEM_OVERRIDE "DARSHAN_NAMEMEM"
+
 /* Environment variable to enable profiling without MPI */
 #define DARSHAN_ENABLE_NONMPI "DARSHAN_ENABLE_NONMPI"
 
@@ -63,11 +66,13 @@
 #ifdef __DARSHAN_MOD_MEM_MAX
 #define DARSHAN_MOD_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024L * 1024L)
 #else
-#define DARSHAN_MOD_MEM_MAX (4 * 1024 * 1024) /* 4 MiB default */
+/* 4 MiB default */
+#define DARSHAN_MOD_MEM_MAX (4 * 1024 * 1024)
 #endif
 
-/* default name record buf can store 2048 records of size 100 bytes */
-#define DARSHAN_NAME_RECORD_BUF_SIZE (2048 * 100)
+/* Maximum runtime memory consumption per process for name records */
+/* 200 KiB default */
+#define DARSHAN_NAME_MEM_MAX (1024 * 200)
 
 /* maximum buffer size for full paths, for internal use only */
 #define __DARSHAN_PATH_MAX 4096
