@@ -199,6 +199,7 @@ extern char *darshan_stdio_lookup_record_name(FILE *stream);
 
 static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static int posix_runtime_init_attempted = 0;
 static int my_rank = -1;
 static int darshan_mem_alignment = 1;
 
@@ -216,7 +217,8 @@ static int darshan_mem_alignment = 1;
 #define POSIX_PRE_RECORD() do { \
     if(!__darshan_disabled) { \
         POSIX_LOCK(); \
-        if(!posix_runtime) posix_runtime_initialize(); \
+        if(!posix_runtime && !posix_runtime_init_attempted) \
+            posix_runtime_initialize(); \
         if(posix_runtime && !posix_runtime->frozen) break; \
         POSIX_UNLOCK(); \
     } \
@@ -1904,7 +1906,8 @@ int DARSHAN_DECL(rename)(const char *oldpath, const char *newpath)
 /* initialize internal POSIX module data structures and register with darshan-core */
 static void posix_runtime_initialize()
 {
-    size_t psx_buf_size;
+    int ret;
+    size_t psx_rec_count;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
         .mod_redux_func = &posix_mpi_redux,
@@ -1913,16 +1916,22 @@ static void posix_runtime_initialize()
         .mod_cleanup_func = &posix_cleanup
         };
 
+    /* if this attempt at initializing fails, we won't try again */
+    posix_runtime_init_attempted = 1;
+
     /* try and store a default number of records for this module */
-    psx_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_posix_file);
+    psx_rec_count = DARSHAN_DEF_MOD_REC_COUNT;
 
     /* register the POSIX module with darshan core */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DARSHAN_POSIX_MOD,
         mod_funcs,
-        &psx_buf_size,
+        sizeof(struct darshan_posix_file),
+        &psx_rec_count,
         &my_rank,
         &darshan_mem_alignment);
+    if(ret < 0)
+        return;
 
     posix_runtime = malloc(sizeof(*posix_runtime));
     if(!posix_runtime)

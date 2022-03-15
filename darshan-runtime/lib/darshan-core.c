@@ -2249,22 +2249,23 @@ void darshan_shutdown_bench(int argc, char **argv)
 
 /* ********************************************************* */
 
-void darshan_core_register_module(
+int darshan_core_register_module(
     darshan_module_id mod_id,
     darshan_module_funcs mod_funcs,
-    size_t *inout_mod_buf_size,
+    size_t rec_size,
+    size_t *inout_rec_count,
     int *rank,
     int *sys_mem_alignment)
 {
     struct darshan_core_module* mod;
-    size_t mod_mem_req = *inout_mod_buf_size;
-    size_t mod_mem_avail;
+    size_t mod_recs_req = *inout_rec_count;
+    size_t mod_mem_avail, mod_mem_req;
 
-    *inout_mod_buf_size = 0;
+    *inout_rec_count = 0;
 
     /* do this early before acquiring lock */
     mod = malloc(sizeof(*mod));
-    if(!mod) return;
+    if(!mod) return(-1);
     memset(mod, 0, sizeof(*mod));
 
     __DARSHAN_CORE_LOCK();
@@ -2277,29 +2278,53 @@ void darshan_core_register_module(
          */
         __DARSHAN_CORE_UNLOCK();
         free(mod);
-        return;
+        return(-1);
     }
 
     /* set module's record buffer and max memory usage */
+    mod_mem_req = mod_recs_req * rec_size;
     mod_mem_avail = darshan_mod_mem_quota - __darshan_core->mod_mem_used;
-    if(mod_mem_avail >= mod_mem_req)
-        mod->rec_mem_avail = mod_mem_req;
-    else
-        mod->rec_mem_avail = mod_mem_avail;
-    mod->rec_buf_start = __darshan_core->log_mod_p + __darshan_core->mod_mem_used;
-    mod->rec_buf_p = mod->rec_buf_start;
+
+    /* set module structure to register with Darshan core */
     mod->mod_funcs = mod_funcs;
+    if((mod_id != DXT_POSIX_MOD) && (mod_id != DXT_MPIIO_MOD))
+    {
+        /* for traditional (non-DXT) modules, XXX
+         *
+         */
+        if(mod_mem_avail >= mod_mem_req)
+        {
+            mod->rec_mem_avail = mod_mem_req;
+            *inout_rec_count = mod_recs_req;
+        }
+        else
+        {
+            int tmp_rec_count = mod_mem_avail / rec_size;
+            mod->rec_mem_avail = tmp_rec_count * rec_size;
+            *inout_rec_count = tmp_rec_count;
+        }
+        mod->rec_buf_start = __darshan_core->log_mod_p + __darshan_core->mod_mem_used;
+        mod->rec_buf_p = mod->rec_buf_start;
+
+        __darshan_core->mod_mem_used += mod->rec_mem_avail;
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+        __darshan_core->log_hdr_p->mod_map[mod_id].off =
+            ((char *)mod->rec_buf_start - (char *)__darshan_core->log_hdr_p);
+#endif
+    }
+    else
+    {
+        /* DXT modules allocate their own memory and do not use the global
+         * module memory pool managed by Darshan core. XXX
+         */
+        mod->rec_mem_avail = mod_mem_req;
+        *inout_rec_count = mod_recs_req;
+    }
 
     /* register module with darshan */
     __darshan_core->mod_array[mod_id] = mod;
-    __darshan_core->mod_mem_used += mod->rec_mem_avail;
     __darshan_core->log_hdr_p->mod_ver[mod_id] = darshan_module_versions[mod_id];
-#ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    __darshan_core->log_hdr_p->mod_map[mod_id].off =
-        ((char *)mod->rec_buf_start - (char *)__darshan_core->log_hdr_p);
-#endif
 
-    *inout_mod_buf_size = mod->rec_mem_avail;
     __DARSHAN_CORE_UNLOCK();
 
     /* set the memory alignment and calling process's rank, if desired */
@@ -2308,7 +2333,7 @@ void darshan_core_register_module(
     if(rank)
         *rank = my_rank;
 
-    return;
+    return(0);
 }
 
 /* NOTE: we currently don't really have a simple way of returning the
@@ -2354,7 +2379,7 @@ void *darshan_core_register_record(
     darshan_record_id rec_id,
     const char *name,
     darshan_module_id mod_id,
-    int rec_len,
+    size_t rec_size,
     struct darshan_fs_info *fs_info)
 {
     struct darshan_core_name_record_ref *ref;
@@ -2369,7 +2394,7 @@ void *darshan_core_register_record(
     }
 
     /* check to see if this module has enough space to store a new record */
-    if(__darshan_core->mod_array[mod_id]->rec_mem_avail < rec_len)
+    if(__darshan_core->mod_array[mod_id]->rec_mem_avail < rec_size)
     {
         DARSHAN_MOD_FLAG_SET(__darshan_core->log_hdr_p->partial_flag, mod_id);
         __DARSHAN_CORE_UNLOCK();
@@ -2400,12 +2425,28 @@ void *darshan_core_register_record(
         }
     }
 
-    rec_buf = __darshan_core->mod_array[mod_id]->rec_buf_p;
-    __darshan_core->mod_array[mod_id]->rec_buf_p += rec_len;
-    __darshan_core->mod_array[mod_id]->rec_mem_avail -= rec_len;
+    __darshan_core->mod_array[mod_id]->rec_mem_avail -= rec_size;
+    if((mod_id != DXT_POSIX_MOD) && (mod_id != DXT_MPIIO_MOD))
+    {
+        /* traditional (non-DXT) modules need to provide a record
+         * pointer back to caller and update internal module structures
+         */
+        rec_buf = __darshan_core->mod_array[mod_id]->rec_buf_p;
+        __darshan_core->mod_array[mod_id]->rec_buf_p += rec_size;
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    __darshan_core->log_hdr_p->mod_map[mod_id].len += rec_len;
+        __darshan_core->log_hdr_p->mod_map[mod_id].len += rec_size;
 #endif
+    }
+    else
+    {
+        /* NOTE: Darshan does not provide record pointers back for
+         * DXT modules, but we do return a non-NULL value so DXT
+         * modules can determine whether the record was registered
+         * successfully
+         */
+        rec_buf = (void *)1;
+    }
+
     __DARSHAN_CORE_UNLOCK();
 
     if(fs_info)

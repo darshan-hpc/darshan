@@ -255,10 +255,12 @@ static void heatmap_cleanup()
 struct heatmap_runtime* heatmap_runtime_initialize(void)
 {
     struct heatmap_runtime* tmp_runtime;
+    int ret;
     /* NOTE: this module generates one record per module that uses it, so
      * the memory requirements should be modest
      */
-    size_t heatmap_buf_size = DARSHAN_MAX_HEATMAPS * (sizeof(struct darshan_heatmap_record) + 2*DARSHAN_MAX_HEATMAP_BINS*sizeof(int64_t));
+    size_t heatmap_buf_size = sizeof(struct darshan_heatmap_record) + 2*DARSHAN_MAX_HEATMAP_BINS*sizeof(int64_t);
+    size_t heatmap_rec_count = DARSHAN_MAX_HEATMAPS;
 
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
@@ -272,12 +274,15 @@ struct heatmap_runtime* heatmap_runtime_initialize(void)
     /* note that we aren't holding a lock in this module at this point, but
      * the core will serialize internally and return if this module is
      * already registered */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DARSHAN_HEATMAP_MOD,
         mod_funcs,
-        &heatmap_buf_size,
+        heatmap_buf_size,
+        &heatmap_rec_count,
         &my_rank,
         NULL);
+    if(ret < 0)
+        return(NULL);
 
     tmp_runtime = malloc(sizeof(*tmp_runtime));
     if(!tmp_runtime)

@@ -43,24 +43,20 @@ typedef int64_t off64_t;
 #ifdef __DARSHAN_MOD_MEM_MAX
 #define DXT_IO_TRACE_MEM_MAX (__DARSHAN_MOD_MEM_MAX * 1024L * 1024L)
 #else
-#define DXT_IO_TRACE_MEM_MAX (4 * 1024 * 1024) /* 4 MiB default */
+/* 2 MiB default */
+#define DXT_IO_TRACE_MEM_MAX (2 * 1024 * 1024)
 #endif
+
+/* Darshan core expects modules to express memory requirements in terms
+ * of a fixed-length record size and a total number of records. DXT records
+ * are naturally variable in-length, but for simplicity we define each record
+ * as being 1 KiB in size
+ */
+#define DXT_DEF_RECORD_SIZE 1024
 
 /* initial size of read/write trace buffer (in number of segments) */
 /* NOTE: when this size is exceeded, the buffer size is doubled */
 #define IO_TRACE_BUF_SIZE       64
-
-/* XXX: dirty hack -- If DXT runs out of memory to store trace data in,
- * we should set a flag so that log parsers know that the log has
- * incomplete data. This functionality is typically handled automatically
- * when registering records with Darshan, but DXT modules don't
- * register records and manage their own memory. Since DXT modules request
- * 0 memory when registering themselves, any attempt to register a record
- * will result in setting the partial flag for the module, which is
- * exactly what we do here.
- */
-#define SET_DXT_MOD_PARTIAL_FLAG(mod_id) \
-    darshan_core_register_record(0, NULL, mod_id, 1, NULL);
 
 /* The dxt_file_record_ref structure maintains necessary runtime metadata
  * for the DXT file record (dxt_file_record structure, defined in
@@ -84,32 +80,24 @@ struct dxt_file_record_ref
 
     segment_info *write_traces;
     segment_info *read_traces;
-
-    char trace_enabled;
 };
 
 /* The dxt_runtime structure maintains necessary state for storing
  * DXT file records and for coordinating with darshan-core at
  * shutdown time.
  */
-struct dxt_posix_runtime
+struct dxt_runtime
 {
     void *rec_id_hash;
     int file_rec_count;
+    size_t mem_allocated;
+    size_t mem_used;
     char *record_buf;
     int record_buf_size;
     int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
-struct dxt_mpiio_runtime
-{
-    void *rec_id_hash;
-    int file_rec_count;
-    char *record_buf;
-    int record_buf_size;
-    int frozen; /* flag to indicate that the counters should no longer be modified */
-};
-
+#if 0
 enum dxt_trigger_type
 {
     DXT_FILE_TRIGGER,
@@ -140,16 +128,15 @@ struct dxt_trigger_info
         } unaligned_io;
     } u;
 };
+#endif
 
 /* internal helper routines */
-static int dxt_should_trace_rank(
-    int rank);
-static int dxt_should_trace_file(
-    darshan_record_id rec_id);
 static void check_wr_trace_buf(
-    struct dxt_file_record_ref *rec_ref);
+    struct dxt_file_record_ref *rec_ref, darshan_module_id mod_id,
+    struct dxt_runtime *runtime);
 static void check_rd_trace_buf(
-    struct dxt_file_record_ref *rec_ref);
+    struct dxt_file_record_ref *rec_ref, darshan_module_id mod_id,
+    struct dxt_runtime *runtime);
 static struct dxt_file_record_ref *dxt_posix_track_new_file_record(
     darshan_record_id rec_id);
 static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
@@ -165,22 +152,18 @@ static void dxt_posix_cleanup(
 static void dxt_mpiio_cleanup(
     void);
 
-static struct dxt_posix_runtime *dxt_posix_runtime = NULL;
-static struct dxt_mpiio_runtime *dxt_mpiio_runtime = NULL;
+static struct dxt_runtime *dxt_posix_runtime = NULL;
+static struct dxt_runtime *dxt_mpiio_runtime = NULL;
 static pthread_mutex_t dxt_runtime_mutex =
             PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 static int dxt_my_rank = -1;
-static size_t dxt_total_mem = DXT_IO_TRACE_MEM_MAX;
-static size_t dxt_mem_remaining = 0;
-
+#if 0
 #define MAX_DXT_TRIGGERS 20
 static int num_dxt_triggers = 0;
 static struct dxt_trigger_info dxt_triggers[MAX_DXT_TRIGGERS];
-static int dxt_use_file_triggers = 0;
-static int dxt_use_rank_triggers = 0;
 static int dxt_use_dynamic_triggers = 0;
-static int dxt_trace_all = 0;
+#endif
 
 #define DXT_LOCK() pthread_mutex_lock(&dxt_runtime_mutex)
 #define DXT_UNLOCK() pthread_mutex_unlock(&dxt_runtime_mutex)
@@ -189,6 +172,7 @@ static int dxt_trace_all = 0;
  *  DXT routines exposed to Darshan core and other modules  *
  ************************************************************/
 
+#if 0
 void dxt_load_trigger_conf(
     char *trigger_conf_path)
 {
@@ -270,15 +254,15 @@ void dxt_load_trigger_conf(
     free(line);
     return;
 }
+#endif
 
 /* initialize internal DXT module data structures and register with darshan-core */
 void dxt_posix_runtime_initialize()
 {
-    /* DXT modules request 0 memory -- buffers will be managed internally by DXT
-     * and passed back to darshan-core at shutdown time to allow DXT more control
-     * over realloc'ing module memory as needed.
+    /* calculate how many "records" to request from Darshan core using DXT's
+     * configured max memory consumption and the default record size
      */
-    size_t dxt_psx_buf_size = 0;
+    size_t dxt_psx_rec_count = DXT_IO_TRACE_MEM_MAX / DXT_DEF_RECORD_SIZE;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = NULL,
@@ -286,42 +270,24 @@ void dxt_posix_runtime_initialize()
     .mod_output_func = &dxt_posix_output,
     .mod_cleanup_func = &dxt_posix_cleanup
     };
+    int ret;
 
+#if 0
     /* determine whether tracing should be generally disabled/enabled */
     if(getenv("DXT_ENABLE_IO_TRACE"))
-        dxt_trace_all = 1;
     else if(getenv("DXT_DISABLE_IO_TRACE"))
-        return;
+#endif
 
     /* register the DXT module with darshan core */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DXT_POSIX_MOD,
         mod_funcs,
-        &dxt_psx_buf_size,
+        DXT_DEF_RECORD_SIZE,
+        &dxt_psx_rec_count,
         &dxt_my_rank,
         NULL);
-
-    /* return if darshan-core allocates an unexpected amount of memory */
-    if(dxt_psx_buf_size != 0)
-    {
-        darshan_core_unregister_module(DXT_POSIX_MOD);
+    if(ret < 0)
         return;
-    }
-
-    /* determine whether we should avoid tracing on this rank */
-    if(!dxt_should_trace_rank(dxt_my_rank))
-    {
-        if(!dxt_trace_all && !dxt_use_file_triggers && !dxt_use_dynamic_triggers)
-        {
-            /* nothing to trace, just back out */
-            darshan_core_unregister_module(DXT_POSIX_MOD);
-            return;
-        }
-    }
-    else
-    {
-        dxt_trace_all = 1; /* trace everything */
-    }
 
     DXT_LOCK();
     dxt_posix_runtime = malloc(sizeof(*dxt_posix_runtime));
@@ -332,7 +298,8 @@ void dxt_posix_runtime_initialize()
         return;
     }
     memset(dxt_posix_runtime, 0, sizeof(*dxt_posix_runtime));
-    dxt_mem_remaining = dxt_total_mem;
+    dxt_posix_runtime->mem_used = 0;
+    dxt_posix_runtime->mem_allocated = dxt_psx_rec_count * DXT_DEF_RECORD_SIZE;
     DXT_UNLOCK();
 
     return;
@@ -340,11 +307,10 @@ void dxt_posix_runtime_initialize()
 
 void dxt_mpiio_runtime_initialize()
 {
-    /* DXT modules request 0 memory -- buffers will be managed internally by DXT
-     * and passed back to darshan-core at shutdown time to allow DXT more control
-     * over realloc'ing module memory as needed.
+    /* calculate how many "records" to request from Darshan core using DXT's
+     * configured max memory consumption and the default record size
      */
-    size_t dxt_mpiio_buf_size = 0;
+    size_t dxt_mpiio_rec_count = DXT_IO_TRACE_MEM_MAX / DXT_DEF_RECORD_SIZE;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = NULL,
@@ -352,42 +318,24 @@ void dxt_mpiio_runtime_initialize()
     .mod_output_func = &dxt_mpiio_output,
     .mod_cleanup_func = &dxt_mpiio_cleanup
     };
+    int ret;
 
+#if 0
     /* determine whether tracing should be generally disabled/enabled */
     if(getenv("DXT_ENABLE_IO_TRACE"))
-        dxt_trace_all = 1;
     else if(getenv("DXT_DISABLE_IO_TRACE"))
-        return;
+#endif
 
     /* register the DXT module with darshan core */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DXT_MPIIO_MOD,
         mod_funcs,
-        &dxt_mpiio_buf_size,
+        DXT_DEF_RECORD_SIZE,
+        &dxt_mpiio_rec_count,
         &dxt_my_rank,
         NULL);
-
-    /* return if darshan-core allocates an unexpected amount of memory */
-    if(dxt_mpiio_buf_size != 0)
-    {
-        darshan_core_unregister_module(DXT_MPIIO_MOD);
+    if(ret < 0)
         return;
-    }
-
-    /* determine whether we should avoid tracing on this rank */
-    if(!dxt_should_trace_rank(dxt_my_rank))
-    {
-        if(!dxt_trace_all && !dxt_use_file_triggers && !dxt_use_dynamic_triggers)
-        {
-            /* nothing to trace, just back out */
-            darshan_core_unregister_module(DXT_MPIIO_MOD);
-            return;
-        }
-    }
-    else
-    {
-        dxt_trace_all = 1; /* trace everything */
-    }
 
     DXT_LOCK();
     dxt_mpiio_runtime = malloc(sizeof(*dxt_mpiio_runtime));
@@ -398,7 +346,8 @@ void dxt_mpiio_runtime_initialize()
         return;
     }
     memset(dxt_mpiio_runtime, 0, sizeof(*dxt_mpiio_runtime));
-    dxt_mem_remaining = dxt_total_mem; /* XXX is this right? better with memory */
+    dxt_mpiio_runtime->mem_used = 0;
+    dxt_mpiio_runtime->mem_allocated = dxt_mpiio_rec_count * DXT_DEF_RECORD_SIZE;
     DXT_UNLOCK();
 
     return;
@@ -423,14 +372,6 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
         &rec_id, sizeof(darshan_record_id));
     if(!rec_ref)
     {
-        /* check whether we should actually trace */
-        should_trace_file = dxt_should_trace_file(rec_id);
-        if(!should_trace_file && !dxt_trace_all && !dxt_use_dynamic_triggers)
-        {
-            DXT_UNLOCK();
-            return;
-        }
-
         /* track new dxt file record */
         rec_ref = dxt_posix_track_new_file_record(rec_id);
         if(!rec_ref)
@@ -438,16 +379,13 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
-        if(should_trace_file)
-            rec_ref->trace_enabled = 1;
     }
 
     file_rec = rec_ref->file_rec;
-    check_wr_trace_buf(rec_ref);
+    check_wr_trace_buf(rec_ref, DXT_POSIX_MOD, dxt_posix_runtime);
     if(file_rec->write_count == rec_ref->write_available_buf)
     {
         /* no more memory for i/o segments ... back out */
-        SET_DXT_MOD_PARTIAL_FLAG(DXT_POSIX_MOD);
         DXT_UNLOCK();
         return;
     }
@@ -480,14 +418,6 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
                 &rec_id, sizeof(darshan_record_id));
     if (!rec_ref)
     {
-        /* check whether we should actually trace */
-        should_trace_file = dxt_should_trace_file(rec_id);
-        if(!should_trace_file && !dxt_trace_all && !dxt_use_dynamic_triggers)
-        {
-            DXT_UNLOCK();
-            return;
-        }
-
         /* track new dxt file record */
         rec_ref = dxt_posix_track_new_file_record(rec_id);
         if(!rec_ref)
@@ -495,16 +425,13 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
-        if(should_trace_file)
-            rec_ref->trace_enabled = 1;
     }
 
     file_rec = rec_ref->file_rec;
-    check_rd_trace_buf(rec_ref);
+    check_rd_trace_buf(rec_ref, DXT_POSIX_MOD, dxt_posix_runtime);
     if(file_rec->read_count == rec_ref->read_available_buf)
     {
         /* no more memory for i/o segments ... back out */
-        SET_DXT_MOD_PARTIAL_FLAG(DXT_POSIX_MOD);
         DXT_UNLOCK();
         return;
     }
@@ -537,14 +464,6 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
                 &rec_id, sizeof(darshan_record_id));
     if(!rec_ref)
     {
-        /* check whether we should actually trace */
-        should_trace_file = dxt_should_trace_file(rec_id);
-        if(!should_trace_file && !dxt_trace_all && !dxt_use_dynamic_triggers)
-        {
-            DXT_UNLOCK();
-            return;
-        }
-
         /* track new dxt file record */
         rec_ref = dxt_mpiio_track_new_file_record(rec_id);
         if(!rec_ref)
@@ -552,16 +471,13 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
-        if(should_trace_file)
-            rec_ref->trace_enabled = 1;
     }
 
     file_rec = rec_ref->file_rec;
-    check_wr_trace_buf(rec_ref);
+    check_wr_trace_buf(rec_ref, DXT_MPIIO_MOD, dxt_mpiio_runtime);
     if(file_rec->write_count == rec_ref->write_available_buf)
     {
         /* no more memory for i/o segments ... back out */
-        SET_DXT_MOD_PARTIAL_FLAG(DXT_MPIIO_MOD);
         DXT_UNLOCK();
         return;
     }
@@ -594,14 +510,6 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
                 &rec_id, sizeof(darshan_record_id));
     if(!rec_ref)
     {
-        /* check whether we should actually trace */
-        should_trace_file = dxt_should_trace_file(rec_id);
-        if(!should_trace_file && !dxt_trace_all && !dxt_use_dynamic_triggers)
-        {
-            DXT_UNLOCK();
-            return;
-        }
-
         /* track new dxt file record */
         rec_ref = dxt_mpiio_track_new_file_record(rec_id);
         if(!rec_ref)
@@ -609,16 +517,13 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
             DXT_UNLOCK();
             return;
         }
-        if(should_trace_file)
-            rec_ref->trace_enabled = 1;
     }
 
     file_rec = rec_ref->file_rec;
-    check_rd_trace_buf(rec_ref);
+    check_rd_trace_buf(rec_ref, DXT_MPIIO_MOD, dxt_mpiio_runtime);
     if(file_rec->read_count == rec_ref->read_available_buf)
     {
         /* no more memory for i/o segments ... back out */
-        SET_DXT_MOD_PARTIAL_FLAG(DXT_MPIIO_MOD);
         DXT_UNLOCK();
         return;
     }
@@ -632,6 +537,7 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
     DXT_UNLOCK();
 }
 
+#if 0
 static void dxt_posix_filter_dynamic_traces_iterator(void *rec_ref_p, void *user_ptr)
 {
     struct dxt_file_record_ref *psx_rec_ref, *mpiio_rec_ref;
@@ -737,77 +643,59 @@ void dxt_posix_filter_dynamic_traces(
 
     return;
 }
+#endif
 
 /***********************************
  *  internal DXT helper routines   *
  ***********************************/
 
-static int dxt_should_trace_rank(int my_rank)
-{
-    int i;
-    char rank_str[16] = {0};
-
-    sprintf(rank_str, "%d", my_rank);
-
-    if(!dxt_use_rank_triggers)
-        return(0);
-
-    for(i = 0; i < num_dxt_triggers; i++)
-    {
-        if((dxt_triggers[i].type == DXT_RANK_TRIGGER) &&
-           (regexec(&dxt_triggers[i].u.rank.regex, rank_str, 0, NULL, 0) == 0))
-            return(1);
-    }
-
-    return(0);
-}
-
-static int dxt_should_trace_file(darshan_record_id rec_id)
-{
-    char *rec_name;
-    int i;
-
-    if(!dxt_use_file_triggers)
-        return(0);
-
-    rec_name  = darshan_core_lookup_record_name(rec_id);
-    if(rec_name)
-    {
-        /* compare file name against cached triggers to see if we should trace */
-        for(i = 0; i < num_dxt_triggers; i++)
-        {
-            if((dxt_triggers[i].type == DXT_FILE_TRIGGER) &&
-               (regexec(&dxt_triggers[i].u.file.regex, rec_name, 0, NULL, 0) == 0))
-                return(1);
-        }
-    }
-
-    return(0);
-}
-
-static void check_wr_trace_buf(struct dxt_file_record_ref *rec_ref)
+static void check_wr_trace_buf(struct dxt_file_record_ref *rec_ref,
+    darshan_module_id mod_id, struct dxt_runtime *runtime)
 {
     struct dxt_file_record *file_rec = rec_ref->file_rec;
 
     int write_count = file_rec->write_count;
     int write_available_buf = rec_ref->write_available_buf;
 
-    if (write_count >= write_available_buf) {
+    if (write_count >= write_available_buf)
+    {
         int write_count_inc;
         if(write_available_buf == 0)
             write_count_inc = IO_TRACE_BUF_SIZE;
         else
             write_count_inc = write_available_buf;
 
-        DXT_LOCK();
-        if((write_count_inc * sizeof(segment_info)) > dxt_mem_remaining)
-            write_count_inc = dxt_mem_remaining / sizeof(segment_info);
-
-        dxt_mem_remaining -= (write_count_inc * sizeof(segment_info));
-        DXT_UNLOCK();
-
-        if(write_count_inc > 0)
+        size_t mem_left = runtime->mem_allocated - runtime->mem_used;
+        size_t mem_req = write_count_inc * sizeof(segment_info);
+        if(mem_req > mem_left)
         {
+            write_count_inc = mem_left / sizeof(segment_info);
+            if(write_count_inc == 0)
+            {
+                /* we need to request at least one record, even if we
+                 * know there is not enough memory left, so that Darshan
+                 * core can mark this module as having ran out of data
+                 */
+                write_count_inc = 1;
+            }
+            mem_req = write_count_inc * sizeof(segment_info);
+        }
+
+        /* register the increased write buffer size with Darshan core */
+        /* NOTE: register_record() does not handle DXT memory allocations,
+         * it just checks that there is enough memory for the record -- if
+         * there is not enough memory, this function will return NULL
+         */
+        if(darshan_core_register_record(
+             file_rec->base_rec.id,
+             NULL, /* no name registration needed, handled in initial record alloc */
+             mod_id,
+             mem_req,
+             NULL))
+        {
+            /* there is enough memory for these additional trace segments,
+             * but we have to (re)allocate them ourselves
+             */
             write_available_buf += write_count_inc;
             rec_ref->write_traces =
                 (segment_info *)realloc(rec_ref->write_traces,
@@ -815,39 +703,65 @@ static void check_wr_trace_buf(struct dxt_file_record_ref *rec_ref)
 
             rec_ref->write_available_buf = write_available_buf;
         }
+        runtime->mem_used += mem_req;
     }
 }
 
-static void check_rd_trace_buf(struct dxt_file_record_ref *rec_ref)
+static void check_rd_trace_buf(struct dxt_file_record_ref *rec_ref,
+    darshan_module_id mod_id, struct dxt_runtime *runtime)
 {
     struct dxt_file_record *file_rec = rec_ref->file_rec;
 
     int read_count = file_rec->read_count;
     int read_available_buf = rec_ref->read_available_buf;
 
-    if (read_count >= read_available_buf) {
+    if (read_count >= read_available_buf)
+    {
         int read_count_inc;
         if(read_available_buf == 0)
             read_count_inc = IO_TRACE_BUF_SIZE;
         else
             read_count_inc = read_available_buf;
 
-        DXT_LOCK();
-        if((read_count_inc * sizeof(segment_info)) > dxt_mem_remaining)
-            read_count_inc = dxt_mem_remaining / sizeof(segment_info);
-
-        dxt_mem_remaining -= (read_count_inc * sizeof(segment_info));
-        DXT_UNLOCK();
-
-        if(read_count_inc > 0)
+        size_t mem_left = runtime->mem_allocated - runtime->mem_used;
+        size_t mem_req = read_count_inc * sizeof(segment_info);
+        if(mem_req > mem_left)
         {
+            read_count_inc = mem_left / sizeof(segment_info);
+            if(read_count_inc == 0)
+            {
+                /* we need to request at least one record, even if we
+                 * know there is not enough memory left, so that Darshan
+                 * core can mark this module as having ran out of data
+                 */
+                read_count_inc = 1;
+            }
+            mem_req = read_count_inc * sizeof(segment_info);
+        }
+
+        /* register the increased read buffer size with Darshan core */
+        /* NOTE: register_record() does not handle DXT memory allocations,
+         * it just checks that there is enough memory for the record -- if
+         * there is not enough memory, this function will return NULL
+         */
+        if(darshan_core_register_record(
+             file_rec->base_rec.id,
+             NULL, /* no name registration needed, handled in initial record alloc */
+             mod_id,
+             mem_req,
+             NULL))
+        {
+            /* there is enough memory for these additional trace segments,
+             * but we have to (re)allocate them ourselves
+             */
             read_available_buf += read_count_inc;
             rec_ref->read_traces =
                 (segment_info *)realloc(rec_ref->read_traces,
                         read_available_buf * sizeof(segment_info));
-            
+
             rec_ref->read_available_buf = read_available_buf;
         }
+        runtime->mem_used += mem_req;
     }
 }
 
@@ -858,14 +772,7 @@ static struct dxt_file_record_ref *dxt_posix_track_new_file_record(
     struct dxt_file_record *file_rec = NULL;
     int ret;
 
-    /* check if we have enough room for a new DXT record */
     DXT_LOCK();
-    if(dxt_mem_remaining < sizeof(struct dxt_file_record))
-    {
-        SET_DXT_MOD_PARTIAL_FLAG(DXT_POSIX_MOD);
-        DXT_UNLOCK();
-        return(NULL);
-    }
 
     rec_ref = malloc(sizeof(*rec_ref));
     if(!rec_ref)
@@ -875,27 +782,49 @@ static struct dxt_file_record_ref *dxt_posix_track_new_file_record(
     }
     memset(rec_ref, 0, sizeof(*rec_ref));
 
+    /* add a reference to this file record based on record id */
+    ret = darshan_add_record_ref(&(dxt_posix_runtime->rec_id_hash), &rec_id,
+            sizeof(darshan_record_id), rec_ref);
+    if(ret == 0)
+    {
+        free(rec_ref);
+        DXT_UNLOCK();
+        return(NULL);
+    }
+
+    /* register base DXT record with with darshan core for now */
+    /* NOTE: register_record() does not handle DXT memory allocations,
+     * it just checks that there is enough memory for the record -- if
+     * there is not enough memory, this function will return NULL
+     */
+    if(darshan_core_register_record(
+         rec_id,
+         darshan_core_lookup_record_name(rec_id),
+         DXT_POSIX_MOD,
+         sizeof(*file_rec),
+         NULL) == NULL)
+    {
+        darshan_delete_record_ref(&(dxt_posix_runtime->rec_id_hash),
+            &rec_id, sizeof(darshan_record_id));
+        free(rec_ref);
+        DXT_UNLOCK();
+        return(NULL);
+    }
+
+    /* allocate DXT record ourselves if Darshan core registration succeeded */
     file_rec = malloc(sizeof(*file_rec));
     if(!file_rec)
     {
+        darshan_delete_record_ref(&(dxt_posix_runtime->rec_id_hash),
+            &rec_id, sizeof(darshan_record_id));
         free(rec_ref);
         DXT_UNLOCK();
         return(NULL);
     }
     memset(file_rec, 0, sizeof(*file_rec));
 
-    /* add a reference to this file record based on record id */
-    ret = darshan_add_record_ref(&(dxt_posix_runtime->rec_id_hash), &rec_id,
-            sizeof(darshan_record_id), rec_ref);
-    if(ret == 0)
-    {
-        free(file_rec);
-        free(rec_ref);
-        DXT_UNLOCK();
-        return(NULL);
-    }
-
-    dxt_mem_remaining -= sizeof(struct dxt_file_record);
+    dxt_posix_runtime->file_rec_count++;
+    dxt_posix_runtime->mem_used += sizeof(*file_rec);
     DXT_UNLOCK();
 
     /* initialize record and record reference fields */
@@ -904,7 +833,6 @@ static struct dxt_file_record_ref *dxt_posix_track_new_file_record(
     gethostname(file_rec->hostname, HOSTNAME_SIZE);
 
     rec_ref->file_rec = file_rec;
-    dxt_posix_runtime->file_rec_count++;
 
     return(rec_ref);
 }
@@ -916,45 +844,59 @@ static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
     struct dxt_file_record_ref *rec_ref = NULL;
     int ret;
 
-    /* check if we have enough room for a new DXT record */
     DXT_LOCK();
-    if(dxt_mem_remaining < sizeof(struct dxt_file_record))
-    {
-        SET_DXT_MOD_PARTIAL_FLAG(DXT_MPIIO_MOD);
-        DXT_UNLOCK();
-        return(NULL);
-    }
 
     rec_ref = malloc(sizeof(*rec_ref));
     if(!rec_ref)
-
     {
         DXT_UNLOCK();
         return(NULL);
     }
     memset(rec_ref, 0, sizeof(*rec_ref));
 
+    /* add a reference to this file record based on record id */
+    ret = darshan_add_record_ref(&(dxt_mpiio_runtime->rec_id_hash), &rec_id,
+            sizeof(darshan_record_id), rec_ref);
+    if(ret == 0)
+    {
+        free(rec_ref);
+        DXT_UNLOCK();
+        return(NULL);
+    }
+
+    /* register base DXT record with with darshan core for now */
+    /* NOTE: register_record() does not handle DXT memory allocations,
+     * it just checks that there is enough memory for the record -- if
+     * there is not enough memory, this function will return NULL
+     */
+    if(darshan_core_register_record(
+         rec_id,
+         darshan_core_lookup_record_name(rec_id),
+         DXT_MPIIO_MOD,
+         sizeof(*file_rec),
+         NULL) == NULL)
+    {
+        darshan_delete_record_ref(&(dxt_mpiio_runtime->rec_id_hash),
+            &rec_id, sizeof(darshan_record_id));
+        free(rec_ref);
+        DXT_UNLOCK();
+        return(NULL);
+    }
+
+    /* allocate DXT record ourselves if Darshan core registration succeeded */
     file_rec = malloc(sizeof(*file_rec));
     if(!file_rec)
     {
+        darshan_delete_record_ref(&(dxt_mpiio_runtime->rec_id_hash),
+            &rec_id, sizeof(darshan_record_id));
         free(rec_ref);
         DXT_UNLOCK();
         return(NULL);
     }
     memset(file_rec, 0, sizeof(*file_rec));
 
-    /* add a reference to this file record based on record id */
-    ret = darshan_add_record_ref(&(dxt_mpiio_runtime->rec_id_hash), &rec_id,
-            sizeof(darshan_record_id), rec_ref);
-    if(ret == 0)
-    {
-        free(file_rec);
-        free(rec_ref);
-        DXT_UNLOCK();
-        return(NULL);
-    }
-
-    dxt_mem_remaining -= sizeof(struct dxt_file_record);
+    dxt_mpiio_runtime->file_rec_count++;
+    dxt_mpiio_runtime->mem_used += sizeof(*file_rec);
     DXT_UNLOCK();
 
     /* initialize record and record reference fields */
@@ -963,7 +905,6 @@ static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
     gethostname(file_rec->hostname, HOSTNAME_SIZE);
 
     rec_ref->file_rec = file_rec;
-    dxt_mpiio_runtime->file_rec_count++;
 
     return(rec_ref);
 }
@@ -1072,10 +1013,10 @@ static void dxt_posix_output(
 
     *dxt_posix_buf_sz = 0;
 
-    dxt_posix_runtime->record_buf = malloc(dxt_total_mem);
+    dxt_posix_runtime->record_buf = malloc(dxt_posix_runtime->mem_allocated);
     if(!(dxt_posix_runtime->record_buf))
         return;
-    memset(dxt_posix_runtime->record_buf, 0, dxt_total_mem);
+    memset(dxt_posix_runtime->record_buf, 0, dxt_posix_runtime->mem_allocated);
     dxt_posix_runtime->record_buf_size = 0;
 
     /* iterate all dxt posix records and serialize them to the output buffer */
@@ -1196,10 +1137,10 @@ static void dxt_mpiio_output(
 
     *dxt_mpiio_buf_sz = 0;
 
-    dxt_mpiio_runtime->record_buf = malloc(dxt_total_mem);
+    dxt_mpiio_runtime->record_buf = malloc(dxt_mpiio_runtime->mem_allocated);
     if(!(dxt_mpiio_runtime->record_buf))
         return;
-    memset(dxt_mpiio_runtime->record_buf, 0, dxt_total_mem);
+    memset(dxt_mpiio_runtime->record_buf, 0, dxt_mpiio_runtime->mem_allocated);
     dxt_mpiio_runtime->record_buf_size = 0;
 
     /* iterate all dxt posix records and serialize them to the output buffer */

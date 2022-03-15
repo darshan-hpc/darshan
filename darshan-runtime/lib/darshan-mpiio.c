@@ -184,6 +184,7 @@ static void mpiio_cleanup(
 
 static struct mpiio_runtime *mpiio_runtime = NULL;
 static pthread_mutex_t mpiio_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static int mpiio_runtime_init_attempted = 0;
 static int my_rank = -1;
 
 #define MPIIO_LOCK() pthread_mutex_lock(&mpiio_runtime_mutex)
@@ -200,7 +201,8 @@ static int my_rank = -1;
 #define MPIIO_PRE_RECORD() do { \
     if(!__darshan_disabled) { \
         MPIIO_LOCK(); \
-        if(!mpiio_runtime) mpiio_runtime_initialize(); \
+        if(!mpiio_runtime && !mpiio_runtime_init_attempted) \
+            mpiio_runtime_initialize(); \
         if(mpiio_runtime && !mpiio_runtime->frozen) break; \
         MPIIO_UNLOCK(); \
     } \
@@ -1181,7 +1183,8 @@ DARSHAN_WRAPPER_MAP(PMPI_File_close, int, (MPI_File *fh), MPI_File_close)
 /* initialize data structures and register with darshan-core component */
 static void mpiio_runtime_initialize()
 {
-    size_t mpiio_buf_size;
+    int ret;
+    size_t mpiio_rec_count;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     .mod_redux_func = &mpiio_mpi_redux,
@@ -1190,16 +1193,22 @@ static void mpiio_runtime_initialize()
     .mod_cleanup_func = &mpiio_cleanup
     };
 
+    /* if this attempt at initializing fails, we won't try again */
+    mpiio_runtime_init_attempted = 1;
+
     /* try and store the default number of records for this module */
-    mpiio_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_mpiio_file);
+    mpiio_rec_count = DARSHAN_DEF_MOD_REC_COUNT;
 
     /* register the mpiio module with darshan core */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DARSHAN_MPIIO_MOD,
         mod_funcs,
-        &mpiio_buf_size,
+        sizeof(struct darshan_mpiio_file),
+        &mpiio_rec_count,
         &my_rank,
         NULL);
+    if(ret < 0)
+        return;
 
     mpiio_runtime = malloc(sizeof(*mpiio_runtime));
     if(!mpiio_runtime)

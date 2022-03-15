@@ -51,6 +51,7 @@ static void lustre_cleanup(
 
 struct lustre_runtime *lustre_runtime = NULL;
 static pthread_mutex_t lustre_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static int lustre_runtime_init_attempted = 0;
 static int my_rank = -1;
 
 #define LUSTRE_LOCK() pthread_mutex_lock(&lustre_runtime_mutex)
@@ -75,7 +76,8 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
     LUSTRE_LOCK();
 
     /* try to init module if not already */
-    if(!lustre_runtime) lustre_runtime_initialize();
+    if(!lustre_runtime && !lustre_runtime_init_attempted)
+        lustre_runtime_initialize();
 
     /* if we aren't initialized, just back out */
     if(!lustre_runtime || lustre_runtime->frozen)
@@ -219,7 +221,8 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
 
 static void lustre_runtime_initialize()
 {
-    size_t lustre_buf_size;
+    int ret;
+    size_t lustre_rec_count;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
         .mod_redux_func = &lustre_mpi_redux,
@@ -228,19 +231,23 @@ static void lustre_runtime_initialize()
         .mod_cleanup_func = &lustre_cleanup
         };
 
+    /* if this attempt at initializing fails, we won't try again */
+    lustre_runtime_init_attempted = 1;
 
-    /* try and store a default number of records for this module, assuming
-     * each file uses 64 OSTs
-     */
-    lustre_buf_size = DARSHAN_DEF_MOD_REC_COUNT * LUSTRE_RECORD_SIZE(64);
+    /* try and store a default number of records for this module */
+    lustre_rec_count = DARSHAN_DEF_MOD_REC_COUNT;
 
     /* register the lustre module with darshan-core */
-    darshan_core_register_module(
+    /* assume each file uses 64 OSTs */
+    ret = darshan_core_register_module(
         DARSHAN_LUSTRE_MOD,
         mod_funcs,
-        &lustre_buf_size,
+        LUSTRE_RECORD_SIZE(64),
+        &lustre_rec_count,
         &my_rank,
         NULL);
+    if(ret < 0)
+        return;
 
     lustre_runtime = malloc(sizeof(*lustre_runtime));
     if(!lustre_runtime)
