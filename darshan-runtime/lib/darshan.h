@@ -433,14 +433,6 @@ void darshan_core_fprintf(
     const char *format,
     ...);
 
-/* darshan_core_excluded_path()
- *
- * Returns true (1) if the given file path 'path' is in Darshan's
- * list of excluded file paths, false (0) otherwise.
- */
-int darshan_core_excluded_path(
-    const char * path);
-
 void darshan_core_initialize(int argc, char **argv);
 void darshan_core_shutdown(int write_log);
 

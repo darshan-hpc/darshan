@@ -152,10 +152,6 @@ static int my_rank = -1;
     char *__newpath; \
     __newpath = darshan_clean_file_path(__path); \
     if(!__newpath) __newpath = (char *)__path; \
-    if(darshan_core_excluded_path(__newpath)) { \
-        if(__newpath != __path) free(__newpath); \
-        break; \
-    } \
     __rec_id = darshan_core_gen_record_id(__newpath); \
     __rec_ref = darshan_lookup_record_ref(hdf5_file_runtime->rec_id_hash, &__rec_id, sizeof(darshan_record_id)); \
     if(!__rec_ref) __rec_ref = hdf5_track_new_file_record(__rec_id, __newpath); \
@@ -441,10 +437,6 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     else if(__ret_name_len < __req_name_len) { \
         /* fully resolve file path */\
         __file_path = darshan_clean_file_path(__rec_name); \
-        if(darshan_core_excluded_path(__file_path)) { \
-            free(__file_path); \
-            break; \
-        } \
         __file_rec_id = darshan_core_gen_record_id(__file_path); \
         strncpy(__rec_name, __file_path, __req_name_len); \
         free(__file_path); \

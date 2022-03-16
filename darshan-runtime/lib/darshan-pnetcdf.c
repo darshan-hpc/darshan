@@ -100,10 +100,6 @@ static int my_rank = -1;
     int comm_size; \
     newpath = darshan_clean_file_path(__path); \
     if(!newpath) newpath = (char *)__path; \
-    if(darshan_core_excluded_path(newpath)) { \
-        if(newpath != __path) free(newpath); \
-        break; \
-    } \
     rec_id = darshan_core_gen_record_id(newpath); \
     rec_ref = darshan_lookup_record_ref(pnetcdf_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
     if(!rec_ref) rec_ref = pnetcdf_track_new_file_record(rec_id, newpath); \

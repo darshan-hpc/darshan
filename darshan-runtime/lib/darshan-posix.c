@@ -236,10 +236,6 @@ static int darshan_mem_alignment = 1;
     if(__ret < 0) break; \
     __newpath = darshan_clean_file_path(__path); \
     if(!__newpath) __newpath = (char *)__path; \
-    if(darshan_core_excluded_path(__newpath)) { \
-        if(__newpath != __path) free(__newpath); \
-        break; \
-    } \
     __rec_id = darshan_core_gen_record_id(__newpath); \
     __rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &__rec_id, sizeof(darshan_record_id)); \
     if(!__rec_ref) __rec_ref = posix_track_new_file_record(__rec_id, __newpath); \
@@ -410,10 +406,6 @@ static int darshan_mem_alignment = 1;
     struct posix_file_record_ref* rec_ref; \
     char *newpath = darshan_clean_file_path(__path); \
     if(!newpath) newpath = (char *)__path; \
-    if(darshan_core_excluded_path(newpath)) { \
-        if(newpath != __path) free(newpath); \
-        break; \
-    } \
     rec_id = darshan_core_gen_record_id(newpath); \
     rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
     if(!rec_ref) rec_ref = posix_track_new_file_record(rec_id, newpath); \
@@ -1849,11 +1841,6 @@ int DARSHAN_DECL(rename)(const char *oldpath, const char *newpath)
     {
         oldpath_clean = darshan_clean_file_path(oldpath);
         if(!oldpath_clean) oldpath_clean = (char *)oldpath;
-        if(darshan_core_excluded_path(oldpath_clean))
-        {
-            if(oldpath_clean != oldpath) free(oldpath_clean);
-            return(ret);
-        }
         old_rec_id = darshan_core_gen_record_id(oldpath_clean);
 
         POSIX_PRE_RECORD();
@@ -1871,13 +1858,6 @@ int DARSHAN_DECL(rename)(const char *oldpath, const char *newpath)
 
         newpath_clean = darshan_clean_file_path(newpath);
         if(!newpath_clean) newpath_clean = (char *)newpath;
-        if(darshan_core_excluded_path(newpath_clean))
-        {
-            POSIX_POST_RECORD();
-            if(oldpath_clean != oldpath) free(oldpath_clean);
-            if(newpath_clean != newpath) free(newpath_clean);
-            return(ret);
-        }
         new_rec_id = darshan_core_gen_record_id(newpath_clean);
 
         new_rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash,

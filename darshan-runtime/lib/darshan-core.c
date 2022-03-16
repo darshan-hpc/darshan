@@ -2474,6 +2474,96 @@ static void darshan_core_fork_child_cb(void)
     return;
 }
 
+static int darshan_core_name_is_excluded(const char *name, darshan_module_id mod_id)
+{
+    int name_is_path;
+    int name_excluded = 0, name_included = 0;
+    char *path_exclusion, *path_inclusion;
+    int tmp_index = 0;
+    struct darshan_core_name_regex *tmp_name_regex;
+
+    /* set flag if this module's record names are based on file paths */
+    name_is_path = 1;
+    if((mod_id == DARSHAN_APMPI_MOD) || (mod_id == DARSHAN_APXC_MOD) ||
+       (mod_id == DARSHAN_HEATMAP_MOD) || (mod_id == DARSHAN_MDHIM_MOD))
+        name_is_path = 0;
+
+    if(name_is_path)
+    {
+        /* if record name is a path, check against either default or
+         * user-provided path exclusions
+         */
+
+        /* if user has set DARSHAN_EXCLUDE_DIRS, override the default ones */
+        if (user_darshan_path_exclusions != NULL) {
+            while((path_exclusion = user_darshan_path_exclusions[tmp_index++])) {
+                if(!(strncmp(path_exclusion, name, strlen(path_exclusion)))) {
+                    name_excluded = 1;
+                    break;
+                }
+            }
+        }
+        else {
+            /* scan default exclusion list for paths to exclude */
+            while((path_exclusion = darshan_path_exclusions[tmp_index++])) {
+                if(!(strncmp(path_exclusion, name, strlen(path_exclusion)))) {
+                    name_excluded = 1;
+                    break;
+                }
+            }
+        }
+    }
+
+    if(!name_excluded)
+    {
+        /* check to see if this name is in the module exclusion list provided to
+         * Darshan config
+         */
+        LL_FOREACH(__darshan_core->rec_exclusion_list, tmp_name_regex)
+        {
+            if(DARSHAN_MOD_FLAG_ISSET(tmp_name_regex->mod_flags, mod_id) &&
+                (regexec(&tmp_name_regex->regex, name, 0, NULL, 0) == 0))
+            {
+                name_excluded = 1;
+                break;
+            }
+        }
+    }
+
+    if(name_is_path && name_excluded && !user_darshan_path_exclusions)
+    {
+        /* if record name is a path, check against default path inclusions */
+        tmp_index = 0;
+        while((path_inclusion = darshan_path_inclusions[tmp_index++])) {
+            if(!(strncmp(path_inclusion, name, strlen(path_inclusion)))) {
+                name_included = 1;
+                break;
+            }
+        }
+    }
+
+    if(name_excluded && !name_included)
+    {
+        /* if marked as excluded, make sure there's not a superseding inclusion
+         * associated with this module from Darshan config
+         */
+        LL_FOREACH(__darshan_core->rec_inclusion_list, tmp_name_regex)
+        {
+            if(DARSHAN_MOD_FLAG_ISSET(tmp_name_regex->mod_flags, mod_id) &&
+                (regexec(&tmp_name_regex->regex, name, 0, NULL, 0) == 0))
+            {
+                name_included = 1;
+                break;
+            }
+        }
+
+        if(!name_included)
+            return(1);
+    }
+
+    return(0);
+}
+
 /* crude benchmarking hook into darshan-core to benchmark Darshan
  * shutdown overhead using a variety of application I/O workloads
  */
@@ -2712,9 +2802,7 @@ void *darshan_core_register_record(
     struct darshan_fs_info *fs_info)
 {
     struct darshan_core_name_record_ref *ref;
-    struct darshan_core_name_regex *tmp_name_regex;
     void *rec_buf;
-    int rec_excluded = 0, rec_included = 0;
     int ret;
 
     __DARSHAN_CORE_LOCK();
@@ -2735,35 +2823,11 @@ void *darshan_core_register_record(
     /* register a name record if a name is given for this record */
     if(name)
     {
-        /* check to see if this name is in the exclusion list for this module */
-        LL_FOREACH(__darshan_core->rec_exclusion_list, tmp_name_regex)
+        if(darshan_core_name_is_excluded(name, mod_id))
         {
-            if(DARSHAN_MOD_FLAG_ISSET(tmp_name_regex->mod_flags, mod_id) &&
-                (regexec(&tmp_name_regex->regex, name, 0, NULL, 0) == 0))
-            {
-                rec_excluded = 1;
-                break;
-            }
-        }
-
-        /* XXX what about default path exclusions? */
-        if(rec_excluded)
-        {
-            /* if marked as excluded, make sure there's not a superseding inclusion */
-            LL_FOREACH(__darshan_core->rec_inclusion_list, tmp_name_regex)
-            {
-                if(DARSHAN_MOD_FLAG_ISSET(tmp_name_regex->mod_flags, mod_id) &&
-                    (regexec(&tmp_name_regex->regex, name, 0, NULL, 0) == 0))
-                {
-                    rec_included = 1;
-                    break;
-                }
-            }
-            if(!rec_included)
-            {
-                __DARSHAN_CORE_UNLOCK();
-                return(NULL);
-            }
+            /* do not register record if name matches any exclusion rules */
+            __DARSHAN_CORE_UNLOCK();
+            return(NULL);
         }
 
         /* check to see if we've already stored the id->name mapping for
@@ -2871,39 +2935,6 @@ void darshan_core_fprintf(
     va_end(ap);
 
     return;
-}
-
-int darshan_core_excluded_path(const char *path)
-{
-    char *exclude, *include;
-    int tmp_index = 0;
-    int tmp_jndex;
-
-    /* if user has set DARSHAN_EXCLUDE_DIRS, override the default ones */
-    if (user_darshan_path_exclusions != NULL) {
-        while((exclude = user_darshan_path_exclusions[tmp_index++])) {
-            if(!(strncmp(exclude, path, strlen(exclude))))
-                return(1);
-        }
-    }
-    else
-    {
-        /* scan blacklist for paths to exclude */
-        while((exclude = darshan_path_exclusions[tmp_index++])) {
-            if(!(strncmp(exclude, path, strlen(exclude)))) {
-                /* before excluding path, ensure it's not in whitelist */
-                tmp_jndex = 0;
-                while((include = darshan_path_inclusions[tmp_jndex++])) {
-                    if(!(strncmp(include, path, strlen(include))))
-                        return(0); /* whitelist hits are always tracked */
-                }
-                return(1); /* if not in whitelist, then blacklist it */
-            }
-        }
-    }
-
-    /* if not in blacklist, no problem */
-    return(0);
 }
 
 /*

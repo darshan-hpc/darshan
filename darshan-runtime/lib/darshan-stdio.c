@@ -220,10 +220,6 @@ extern int __real_fileno(FILE *stream);
     if(!__ret || !__path) break; \
     __newpath = darshan_clean_file_path(__path); \
     if(!__newpath) __newpath = (char*)__path; \
-    if(darshan_core_excluded_path(__newpath)) { \
-        if(__newpath != (char*)__path) free(__newpath); \
-        break; \
-    } \
     __rec_id = darshan_core_gen_record_id(__newpath); \
     __rec_ref = darshan_lookup_record_ref(stdio_runtime->rec_id_hash, &__rec_id, sizeof(darshan_record_id)); \
     if(!__rec_ref) __rec_ref = stdio_track_new_file_record(__rec_id, __newpath); \
