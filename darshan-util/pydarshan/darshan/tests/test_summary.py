@@ -152,6 +152,8 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
     # on the Darshan logs from the logs repo:
     # https://github.com/darshan-hpc/darshan-logs
 
+    if "e3sm_io_heatmap_and_dxt" in log_filepath:
+        pytest.xfail(reason="large memory requirements")
     argv = [log_filepath]
     with mock.patch("sys.argv", [""] + argv):
         with tmpdir.as_cwd():
