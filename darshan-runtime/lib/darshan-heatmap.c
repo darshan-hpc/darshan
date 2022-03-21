@@ -169,10 +169,23 @@ static void heatmap_output(
             if(empty) {
                 heatmap_runtime->rec_count--;
                 /* if there are more heatmaps after this one, shift them all down */
-                if (i < heatmap_runtime->rec_count)
+                if (i < heatmap_runtime->rec_count) {
                     memmove(rec, next_rec,
                             (heatmap_runtime->rec_count - i) *
                             (sizeof(*rec) + DARSHAN_MAX_HEATMAP_BINS * 2 * sizeof(int64_t)));
+                    /* fix pointers in any heatmaps that were compacted */
+                    for (j = 0; j < heatmap_runtime->rec_count - i; j++) {
+                        rec->write_bins
+                            = (int64_t*)((uintptr_t)rec + sizeof(*rec));
+                        rec->read_bins
+                            = (int64_t*)((uintptr_t)rec + sizeof(*rec)
+                              + DARSHAN_MAX_HEATMAP_BINS * sizeof(int64_t));
+                        rec = (struct
+                              darshan_heatmap_record*)((uintptr_t)rec
+                              + (sizeof(*rec) + DARSHAN_MAX_HEATMAP_BINS
+                              * 2 * sizeof(int64_t)));
+                    }
+                }
             }
             /* repeat in this i position as long as we find empty heatmaps */
         } while(empty && i<heatmap_runtime->rec_count);
