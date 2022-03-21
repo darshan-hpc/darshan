@@ -125,11 +125,13 @@ static void heatmap_output(
     int *heatmap_buf_sz)
 {
     struct darshan_heatmap_record* rec;
+    struct darshan_heatmap_record* next_rec;
     void* contig_buf_ptr;
-    int i;
+    int i,j;
     double end_timestamp;
     unsigned long this_size;
     int tmp_nbins;
+    int empty;
 
     HEATMAP_LOCK();
     assert(heatmap_runtime);
@@ -145,9 +147,41 @@ static void heatmap_output(
     else
         end_timestamp = darshan_core_wtime();
 
-    contig_buf_ptr = *heatmap_buf;
 
-    /* iterate through records (heatmap histograms) */
+    /* iterate through records (heatmap histograms) to drop any that contain
+     * no data
+     */
+    for(i=0; i<heatmap_runtime->rec_count; i++)
+    {
+        do {
+            rec = (struct darshan_heatmap_record*)((uintptr_t)*heatmap_buf + i*(sizeof(*rec) + DARSHAN_MAX_HEATMAP_BINS*2*sizeof(int64_t)));
+            next_rec = (struct darshan_heatmap_record*)((uintptr_t)*heatmap_buf + (i+1)*(sizeof(*rec) + DARSHAN_MAX_HEATMAP_BINS*2*sizeof(int64_t)));
+
+            printf("DBG: considering heatmap %lu\n", rec->base_rec.id);
+            empty = 1;
+            for(j=0; j<DARSHAN_MAX_HEATMAP_BINS; j++)
+            {
+                if(rec->write_bins[j] > 0 || rec->read_bins[j] > 0) {
+                    empty = 0;
+                    break;
+                }
+            }
+            /* reduce record count if this heatmap is empty */
+            if(empty)
+                heatmap_runtime->rec_count--;
+            /* if there are more heatmaps after this one, shift them all down */
+            if (i < heatmap_runtime->rec_count)
+                memmove(rec, next_rec,
+                        (heatmap_runtime->rec_count - i) *
+                        (sizeof(*rec) + DARSHAN_MAX_HEATMAP_BINS * 2 * sizeof(int64_t)));
+        /* repeat in this i position as long as we find empty heatmaps */
+        } while(empty && i<heatmap_runtime->rec_count);
+    }
+
+    /* iterate through records (heatmap histograms) to normalize bin widths
+     * and compact memory
+     */
+    contig_buf_ptr = *heatmap_buf;
     for(i=0; i<heatmap_runtime->rec_count; i++)
     {
         rec = (struct darshan_heatmap_record*)((uintptr_t)*heatmap_buf + i*(sizeof(*rec) + DARSHAN_MAX_HEATMAP_BINS*2*sizeof(int64_t)));
