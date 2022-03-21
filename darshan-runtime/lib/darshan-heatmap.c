@@ -157,7 +157,6 @@ static void heatmap_output(
             rec = (struct darshan_heatmap_record*)((uintptr_t)*heatmap_buf + i*(sizeof(*rec) + DARSHAN_MAX_HEATMAP_BINS*2*sizeof(int64_t)));
             next_rec = (struct darshan_heatmap_record*)((uintptr_t)*heatmap_buf + (i+1)*(sizeof(*rec) + DARSHAN_MAX_HEATMAP_BINS*2*sizeof(int64_t)));
 
-            printf("DBG: considering heatmap %lu\n", rec->base_rec.id);
             empty = 1;
             for(j=0; j<DARSHAN_MAX_HEATMAP_BINS; j++)
             {
