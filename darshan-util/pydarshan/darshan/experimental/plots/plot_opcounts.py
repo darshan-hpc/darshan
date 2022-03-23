@@ -82,12 +82,17 @@ def gather_count_data(report, mod):
         ]
 
     elif mod == 'H5D':
-        labels = ['Read', 'Write', 'Open', 'Flush']
+        labels = [
+            'Data Read', 'Data Write', 'Data Open',
+            'Data Flush', 'File Open', 'File Flush',
+        ]
         counts = [
-            mod_data['H5D_READS'],
-            mod_data['H5D_WRITES'],
-            mod_data['H5D_OPENS'],
-            mod_data['H5D_FLUSHES'],
+            report.summary['agg_ioops']['H5D']['H5D_READS'],
+            report.summary['agg_ioops']['H5D']['H5D_WRITES'],
+            report.summary['agg_ioops']['H5D']['H5D_OPENS'],
+            report.summary['agg_ioops']['H5D']['H5D_FLUSHES'],
+            report.summary['agg_ioops']['H5F']['H5F_OPENS'],
+            report.summary['agg_ioops']['H5F']['H5F_FLUSHES'],
         ]
 
     return labels, counts
@@ -96,8 +101,15 @@ def plot_opcounts(report, mod, ax=None):
     """
     Generates a bar chart summary for operation counts.
 
-	Args:
-        report (DarshanReport): darshan report object to plot
+    Parameters
+    ----------
+
+    report (DarshanReport): darshan report object to plot
+
+    mod: the module to plot operation counts for (i.e. "POSIX",
+    "MPI-IO", "STDIO", "H5F", "H5D"). If "H5D" is input the returned
+    figure will contain both "H5F" and "H5D" module data.
+
     """
 
     if ax is None:
