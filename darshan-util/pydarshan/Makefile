@@ -77,7 +77,7 @@ add-modules:
 	done
 
 wheels:
-	./devel/build-all.sh
+	./devel/build-all-platforms.sh
 
 release: #dist # package and upload a release
 	#twine upload --repository testpypi dist/*
@@ -91,10 +91,7 @@ dist: clean  # builds source and wheel package
 	# rm -r dist/*non-any.whl
 
 	# gather binary wheels
-	# pip >= 19.0
-	find ./wheelhouse/manylinux2010* -name *manylinux*.whl -exec cp {} ./dist \;
-	# pip >= 8.1.0, may overwrite previously copied, but these have greater compatability
-	find ./wheelhouse/manylinux1* -name *manylinux*.whl -exec cp {} ./dist \;
+	find ./wheelhouse/manylinux2014* -name *manylinux*.whl -exec cp {} ./dist \;
 
 	ls -l dist
 
