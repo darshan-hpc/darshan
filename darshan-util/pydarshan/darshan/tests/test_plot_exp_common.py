@@ -120,8 +120,8 @@ darshan.enable_experimental()
             "ior_hdf5_example.darshan",
             "H5D",
             plot_opcounts,
-            ['Data Read', 'Data Write', 'Data Open',
-            'Data Flush', 'File Open', 'File Flush'],
+            ['H5D Read', 'H5D Write', 'H5D Open',
+            'H5D Flush', 'H5F Open', 'H5F Flush'],
         ),
     ],
 )

@@ -83,8 +83,8 @@ def gather_count_data(report, mod):
 
     elif mod == 'H5D':
         labels = [
-            'Data Read', 'Data Write', 'Data Open',
-            'Data Flush', 'File Open', 'File Flush',
+            'H5D Read', 'H5D Write', 'H5D Open',
+            'H5D Flush', 'H5F Open', 'H5F Flush',
         ]
         counts = [
             report.summary['agg_ioops']['H5D']['H5D_READS'],
