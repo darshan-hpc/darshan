@@ -48,6 +48,38 @@ def get_by_avg_series(df: Any, mod_key: str, nprocs: int) -> Any:
     return by_avg_series
 
 
+def combine_hdf5_modules(df: Any) -> Any:
+    """
+    Combines the "H5F" and "H5D" rows in the input dataframe into
+    a single entry under the "HDF5" title.
+
+    Parameters
+    ----------
+    df: a ``pd.DataFrame`` containing the average read, write, and meta
+    times for various pydarshan modules (i.e. "POSIX", "MPI-IO", "STDIO").
+
+    Returns
+    -------
+    Modified version of the input dataframe, where
+    if either or both "H5F" and "H5D" modules are
+    present, they have been renamed and/or summed
+    under a new index "HDF5", if available.
+
+    Notes
+    -----
+    If a single HDF5-related module is present it will
+    be renamed as "HDF5". If no HDF5-related modules
+    are present the dataframe will be unchanged.
+
+    """
+    # replace the H5D/H5F indexes with HDF5 and sum them
+    df = df.reset_index().replace(to_replace=r"H5\D", value="HDF5", regex=True)
+    df = df.groupby('index', sort=False).sum()
+    # clean up the index name
+    df.index.name = None
+    return df
+
+
 def get_io_cost_df(report: darshan.DarshanReport) -> Any:
     """
     Generates the I/O cost dataframe which contains the
@@ -64,9 +96,7 @@ def get_io_cost_df(report: darshan.DarshanReport) -> Any:
 
     """
     io_cost_dict = {}
-    # TODO: expand the scope of this function
-    # to include HDF5 module
-    supported_modules = ["POSIX", "MPI-IO", "STDIO"]
+    supported_modules = ["POSIX", "MPI-IO", "STDIO", "H5F", "H5D"]
     for mod_key in report.modules:
         if mod_key in supported_modules:
             # collect the records in dataframe form
@@ -86,6 +116,10 @@ def get_io_cost_df(report: darshan.DarshanReport) -> Any:
     # appropriate labels for each series
     # TODO: add the "by-slowest" category
     io_cost_df = pd.DataFrame(io_cost_dict).T
+
+    # combine `H5F` and `H5D` modules
+    io_cost_df = combine_hdf5_modules(df=io_cost_df)
+
     return io_cost_df
 
 

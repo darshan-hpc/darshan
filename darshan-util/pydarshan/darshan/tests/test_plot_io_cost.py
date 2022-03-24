@@ -6,11 +6,8 @@ from pandas.testing import assert_frame_equal, assert_series_equal
 
 import darshan
 from darshan.log_utils import get_log_path
-from darshan.experimental.plots.plot_io_cost import (
-    get_by_avg_series,
-    get_io_cost_df,
-    plot_io_cost,
-)
+from darshan.experimental.plots.plot_io_cost import *
+
 
 @pytest.mark.parametrize(
     "logname, expected_df",
@@ -21,9 +18,10 @@ from darshan.experimental.plots.plot_io_cost import (
                 np.array([
                     [0.0196126699, 0.1342029571533203, 0.0074423551],
                     [0.0196372866, 0.13425052165985107, 0.0475],
+                    [0.016869, 0.086689, 0.097160],
                     [0.0, 2.5570392608642578e-05, 0.0],
                 ]),
-                ["POSIX", "MPIIO", "STDIO"],
+                ["POSIX", "MPIIO", "HDF5", "STDIO"],
                 ["Read", "Write", "Meta"],
             ),
         ),
@@ -213,4 +211,46 @@ def test_issue_590(filename, expected_df):
     log_path = get_log_path(filename)
     report = darshan.DarshanReport(log_path)
     actual_df = get_io_cost_df(report=report)
+    assert_frame_equal(actual_df, expected_df)
+
+
+@pytest.mark.parametrize(
+    "input_df, expected_df",
+    [
+        # if input dict does not contain HDF5 module
+        #  data, should return the same dict
+        (
+            pd.DataFrame([[10.0, 20.0, 30.0]], index=["POSIX"]),
+            pd.DataFrame([[10.0, 20.0, 30.0]], index=["POSIX"]),
+        ),
+        # for cases where only "H5F" data is present, it should
+        # effectively get renamed to "HDF5"
+        (
+            pd.DataFrame([[10.0, 20.0, 30.0], [0.1, 0.2, 0.3]], index=["POSIX", "H5F"]),
+            pd.DataFrame([[10.0, 20.0, 30.0], [0.1, 0.2, 0.3]], index=["POSIX", "HDF5"]),
+        ),
+        # for cases with both HDF5 modules, the resultant HDF5 entry
+        # should be the sum of the `H5F` and `H5D` rows
+        (
+            pd.DataFrame(
+                [
+                    [10.0, 20.0, 30.0],
+                    [0.1, 0.2, 0.3],
+                    [0.9, 0.8, 0.7],
+                ],
+                index=["POSIX", "H5F", "H5D"],
+            ),
+            pd.DataFrame([[10.0, 20.0, 30.0], [1.0, 1.0, 1.0]], index=["POSIX", "HDF5"]),
+        ),
+    ])
+def test_combine_hdf5_modules(input_df, expected_df):
+    # `plot_io_cost.combine_hdf5_modules()` unit test
+
+    # add the proper column names to the input and expected dataframes
+    for df in (input_df, expected_df):
+        df.columns = ["Read", "Write", "Meta"]
+
+    actual_df = combine_hdf5_modules(input_df)
+
+    # check actual and expected dataframes are identical
     assert_frame_equal(actual_df, expected_df)
