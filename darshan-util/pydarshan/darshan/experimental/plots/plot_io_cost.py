@@ -39,11 +39,12 @@ def get_by_avg_series(df: Any, mod_key: str, nprocs: int) -> Any:
         f"{mod_key}_F_WRITE_TIME",
         f"{mod_key}_F_META_TIME",
     ]
-    df = df.filter(cols, axis=1)
+    by_avg_series = df.filter(cols, axis=1).sum(axis=0) / nprocs
+    # reindex to ensure 3 rows are always created
+    by_avg_series = by_avg_series.reindex(cols, fill_value=0.0)
     # rename the columns so the labels are automatically generated when plotting
     name_dict = {cols[0]: "Read", cols[1]: "Write", cols[2]: "Meta"}
-    df.rename(columns=name_dict, inplace=True)
-    by_avg_series = df.sum(axis=0) / nprocs
+    by_avg_series.rename(index=name_dict, inplace=True)
     return by_avg_series
 
 
