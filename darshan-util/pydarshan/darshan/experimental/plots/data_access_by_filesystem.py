@@ -43,8 +43,28 @@ def process_byte_counts(df_reads, df_writes):
     """
     # TODO: generalize to other instrumentation
     # modules if we keep this design
-    read_groups = df_reads.groupby('filesystem_root')['POSIX_BYTES_READ'].sum()
-    write_groups = df_writes.groupby('filesystem_root')['POSIX_BYTES_WRITTEN'].sum()
+    try:
+        read_groups_posix = df_reads.groupby('filesystem_root')['POSIX_BYTES_READ'].sum()
+    except KeyError:
+        read_groups_posix = pd.Series(dtype=np.int64)
+    try:
+        read_groups_stdio = df_reads.groupby('filesystem_root')['STDIO_BYTES_READ'].sum()
+    except KeyError:
+        read_groups_stdio = pd.Series(dtype=np.int64)
+    try:
+        write_groups_posix = df_writes.groupby('filesystem_root')['POSIX_BYTES_WRITTEN'].sum()
+    except KeyError:
+        write_groups_posix = pd.Series(dtype=np.int64)
+    try:
+        write_groups_stdio = df_writes.groupby('filesystem_root')['STDIO_BYTES_WRITTEN'].sum()
+    except KeyError:
+        write_groups_stdio = pd.Series(dtype=np.int64)
+
+
+    read_groups = read_groups_posix.add(read_groups_stdio, fill_value=0.0).astype(np.int64)
+    write_groups = write_groups_posix.add(write_groups_stdio, fill_value=0.0).astype(np.int64)
+    read_groups.name = "BYTES_READ"
+    write_groups.name = "BYTES_WRITTEN"
     return read_groups, write_groups
 
 
@@ -185,14 +205,18 @@ def rec_to_rw_counter_dfs(report: Any,
     -------
     tuple of form: (df_reads, df_writes)
     """
-    rec_counters = report.records[mod].to_df()['counters']
+    rec_counters = pd.DataFrame()
+    df_reads = pd.DataFrame()
+    df_writes = pd.DataFrame()
+    if "POSIX" in report.modules:
+        rec_counters = rec_counters.append(report.records["POSIX"].to_df()['counters'])
+        df_reads = df_reads.append(rec_counters.loc[rec_counters[f'POSIX_BYTES_READ'] >= 1])
+        df_writes = df_writes.append(rec_counters.loc[rec_counters[f'POSIX_BYTES_WRITTEN'] >= 1])
+    if "STDIO" in report.modules:
+        rec_counters = rec_counters.append(report.records["STDIO"].to_df()['counters'])
+        df_reads = df_reads.append(rec_counters.loc[rec_counters[f'STDIO_BYTES_READ'] >= 1])
+        df_writes = df_writes.append(rec_counters.loc[rec_counters[f'STDIO_BYTES_WRITTEN'] >= 1])
     
-    # first, filter to produce a dataframe where {mod}_BYTES_READ >= 1
-    # for each row (tracked event for a given rank or group of ranks)
-    df_reads = rec_counters.loc[rec_counters[f'{mod}_BYTES_READ'] >= 1]
-
-    # similar filter for writing
-    df_writes = rec_counters.loc[rec_counters[f'{mod}_BYTES_WRITTEN'] >= 1]
     return df_reads, df_writes
 
 
@@ -419,10 +443,10 @@ def unique_fs_rw_counter(report: Any,
     ValueError: when POSIX module data is absent from the report
     """
 
-    if not mod == 'POSIX':
-        raise NotImplementedError("Only the POSIX module is currently supported")
-    if 'POSIX' not in report.modules:
-        raise ValueError("POSIX module data is required")
+    if not mod in ['POSIX', 'STDIO']:
+        raise NotImplementedError("Only the POSIX and STDIO modules are currently supported")
+    if mod not in report.modules:
+        raise ValueError(f"{mod} module data is required")
 
     # filter the DarshanReport into two "counters" dataframes
     # with read/write activity in each row (at least 1

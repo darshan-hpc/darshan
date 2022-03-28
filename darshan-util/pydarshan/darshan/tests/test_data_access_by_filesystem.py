@@ -112,8 +112,8 @@ def test_identify_filesystems(capsys, file_id_dict, expected_root_paths, verbose
                           expected_df_writes_shape""", [
     (darshan.DarshanReport(get_log_path("sample.darshan")),
      darshan.DarshanReport(get_log_path("sample.darshan")).data["name_records"],
-     (0, 73),
-     (1, 73),
+     (0, 87),
+     (3, 87),
     ),
     (darshan.DarshanReport(get_log_path("sample-dxt-simple.darshan")),
      darshan.DarshanReport(get_log_path("sample-dxt-simple.darshan")).data["name_records"],
@@ -165,8 +165,8 @@ def test_check_empty_series(read_groups,
                    'POSIX_BYTES_WRITTEN': [2098, 9, 20],
                    'COLUMN3': [np.nan, 5, 1],
                    'COLUMN4': ['a', 'b', 'd']}),
-    pd.Series([5, 93], index=pd.Index(['/tmp', '/yellow'], name="filesystem_root"), name='POSIX_BYTES_READ'),
-    pd.Series([29, 2098], index=pd.Index(['/tmp', '/yellow'], name="filesystem_root"), name='POSIX_BYTES_WRITTEN'),
+    pd.Series([5, 93], index=pd.Index(['/tmp', '/yellow'], name="filesystem_root"), name='BYTES_READ'),
+    pd.Series([29, 2098], index=pd.Index(['/tmp', '/yellow'], name="filesystem_root"), name='BYTES_WRITTEN'),
             ),
         ])
 def test_process_byte_counts(df_reads, df_writes, expected_read_groups, expected_write_groups):
@@ -211,7 +211,7 @@ def test_process_unique_files(df_reads, df_writes, expected_read_groups, expecte
      darshan.DarshanReport(get_log_path("sample.darshan")).data["name_records"],
      data_access_by_filesystem.process_unique_files,
      pd.Series([0.0, 0.0, 0.0, 0.0], index=pd.Index(['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2'], name='filesystem_root'), name='filepath'),
-     pd.Series([0.0, 0.0, 0.0, 1.0], index=pd.Index(['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2'], name='filesystem_root'), name='filepath')),
+     pd.Series([0.0, 1.0, 1.0, 1.0], index=pd.Index(['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2'], name='filesystem_root'), name='filepath')),
     ])
 def test_unique_fs_rw_counter(report,
                               filesystem_roots,
@@ -629,3 +629,73 @@ def test_plot_with_report_root_files(logname):
         for child in ax.get_children():
             if isinstance(child, matplotlib.text.Annotation):
                 assert not child.get_text().startswith("//")
+
+
+@pytest.mark.parametrize("""logname,
+                          expected_file_rd_series,
+                          expected_file_wr_series,
+                          expected_bytes_rd_series,
+                          expected_bytes_wr_series""", [
+    ("ior_hdf5_example.darshan",
+      pd.Series({"<STDIN>": 0.0,
+                 "<STDOUT>": 0.0,
+                 "<STDERR>": 0.0,
+                 "/global": 1.0}),
+      pd.Series({"<STDIN>": 0.0,
+                 "<STDOUT>": 1.0,
+                 "<STDERR>": 0.0,
+                 "/global": 1.0}),
+      pd.Series({"<STDIN>": 0.0,
+                 "<STDOUT>": 0.0,
+                 "<STDERR>": 0.0,
+                 "/global": 4202504.0}),
+      pd.Series({"<STDIN>": 0.0,
+                 "<STDOUT>": 2421.0,
+                 "<STDERR>": 0.0,
+                 "/global": 4195800.0}),
+    ),
+    ])
+def test_stdio_basic_inclusion(logname,
+                               expected_file_rd_series,
+                               expected_file_wr_series,
+                               expected_bytes_rd_series,
+                               expected_bytes_wr_series):
+    for series in [expected_file_rd_series,
+                   expected_file_wr_series,
+                   expected_bytes_rd_series,
+                   expected_bytes_wr_series]:
+        series.index.name = "filesystem_root"
+        series.name = "filepath"
+    expected_bytes_rd_series.name = "BYTES_READ"
+    expected_bytes_wr_series.name = "BYTES_WRITTEN"
+
+    # test for the inclusin of STDIO module
+    # data in the accounting of files/bytes read/written
+    # (the original "data access by category" implementation
+    # was POSIX-only)
+
+
+    # follow the basic setup in plot_with_report()
+    log_path = get_log_path(logname)
+    report = darshan.DarshanReport(log_path)
+    file_id_dict = report.data["name_records"]
+    filesystem_roots = data_access_by_filesystem.identify_filesystems(file_id_dict=file_id_dict)
+
+    # now, we expect the files and bytes data structures
+    # to properly account for STDIO + POSIX data
+
+    file_rd_series, file_wr_series = data_access_by_filesystem.unique_fs_rw_counter(report=report,
+                                                          filesystem_roots=filesystem_roots,
+                                                          file_id_dict=file_id_dict,
+                                                          processing_func=data_access_by_filesystem.process_unique_files,
+                                                          mod='POSIX')
+    bytes_rd_series, bytes_wr_series = data_access_by_filesystem.unique_fs_rw_counter(report=report,
+                                                            filesystem_roots=filesystem_roots,
+                                                            file_id_dict=file_id_dict,
+                                                            processing_func=data_access_by_filesystem.process_byte_counts,
+                                                            mod='POSIX')
+
+    assert_series_equal(file_rd_series, expected_file_rd_series)
+    assert_series_equal(file_wr_series, expected_file_wr_series)
+    assert_series_equal(bytes_rd_series, expected_bytes_rd_series)
+    assert_series_equal(bytes_wr_series, expected_bytes_wr_series)
