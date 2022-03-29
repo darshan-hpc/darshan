@@ -63,7 +63,7 @@ def get_x_axis_ticks(ax: Any, n_xlabels: int = 4) -> npt.NDArray[np.float64]:
 
 
 def get_x_axis_tick_labels(
-    agg_df: pd.DataFrame, n_xlabels: int = 4
+    max_time: float, n_xlabels: int = 4
 ) -> Union[npt.NDArray[np.float64], npt.NDArray[np.intc]]:
     """
     Creates the x-axis tick mark labels.
@@ -71,8 +71,7 @@ def get_x_axis_tick_labels(
     Parameters
     ----------
 
-    agg_df: a ``pd.DataFrame`` containing the aggregated data determined
-    by the input modules and operations.
+    max_time: the maximum time to plot.
 
     n_xlabels: the number of x-axis tick marks to create. Default is 4.
 
@@ -82,7 +81,6 @@ def get_x_axis_tick_labels(
     x_ticklabels: array of x-axis tick mark labels of length ``n_xlabels``.
 
     """
-    max_time = agg_df["end_time"].values.max()
     # for the x tick labels, start at 0 and end with
     # the max time (converted to an integer)
     if max_time <= 1:
@@ -187,7 +185,7 @@ def get_y_axis_tick_labels(ax: Any, n_ylabels: int = 6) -> npt.NDArray[np.intc]:
 
 
 def set_x_axis_ticks_and_labels(
-    jointgrid: Any, agg_df: pd.DataFrame, n_xlabels: int = 4
+    jointgrid: Any, tmax: float, n_xlabels: int = 4
 ):
     """
     Sets the x-axis tick mark locations and labels.
@@ -197,15 +195,14 @@ def set_x_axis_ticks_and_labels(
 
     jointgrid: a ``sns.axisgrid.JointGrid`` object.
 
-    agg_df: a ``pd.DataFrame`` containing the aggregated data determined
-    by the input modules and operations.
+    tmax: the maximum time to plot.
 
     n_xlabels: the number of x-axis tick marks to create. Default is 4.
 
     """
     # retrieve the x-axis tick mark locations and labels
     xticks = get_x_axis_ticks(ax=jointgrid.ax_joint, n_xlabels=n_xlabels)
-    xticklabels = get_x_axis_tick_labels(agg_df=agg_df, n_xlabels=n_xlabels)
+    xticklabels = get_x_axis_tick_labels(max_time=tmax, n_xlabels=n_xlabels)
     # set the x-axis ticks and labels
     jointgrid.ax_joint.set_xticks(xticks)
     jointgrid.ax_joint.set_xticklabels(xticklabels, minor=False)
@@ -396,8 +393,24 @@ def plot_heatmap(
         align="edge",
     )
 
-    # set the x and y tick locations and labels
-    set_x_axis_ticks_and_labels(jointgrid=jgrid, agg_df=agg_df, n_xlabels=4)
+    # retrieve the final DXT segment end time
+    tmax_dxt = float(agg_df["end_time"].max())
+    # calculate the elapsed runtime
+    runtime = report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
+    # ensure a minimum runtime value of 1 second
+    runtime = max(runtime, 1)
+    # if the data max time exceeds the runtime, buffer by 1 second
+    # until our timer precision improves to prevent truncation
+    if tmax_dxt > runtime:
+        runtime += 1
+    # scale the x-axis to span the calculated run time
+    scale_factor = runtime / tmax_dxt
+    jgrid.ax_joint.set_xlim(0.0, np.ceil(xbins * scale_factor))
+    # rescale x-ticks so x-ticks are adjusted properly downstream
+    jgrid.ax_joint.set_xticks(scale_factor * np.asarray(jgrid.ax_joint.get_xticks()))
+
+    # set the x and y tick locations and labels using the runtime
+    set_x_axis_ticks_and_labels(jointgrid=jgrid, tmax=runtime, n_xlabels=4)
     set_y_axis_ticks_and_labels(jointgrid=jgrid, n_ylabels=6)
 
     # cleanup the marginal bar graph ticks and tick labels

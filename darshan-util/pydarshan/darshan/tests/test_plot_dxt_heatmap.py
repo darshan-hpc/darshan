@@ -20,35 +20,24 @@ def jointgrid():
 @pytest.mark.parametrize(
     "filepath, n_xlabels, expected_xticks, expected_xticklabels",
     [
-        ("ior_hdf5_example.darshan", 2, [0.0, 1.0], [0.0, 0.29]),
+        ("ior_hdf5_example.darshan", 2, [0.0, 1.0], [0.0, 1.0]),
         (
             "ior_hdf5_example.darshan",
             4,
             [0.0, 0.4, 0.6, 1.0],
-            [0.0, 0.1, 0.19, 0.29],
+            np.around(np.linspace(0, 1.0, 4), decimals=2),
         ),
         (
             "ior_hdf5_example.darshan",
             6,
             [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-            [0.0, 0.06, 0.11, 0.17, 0.23, 0.29],
+            np.linspace(0, 1.0, 6),
         ),
         (
             "ior_hdf5_example.darshan",
             10,
             [0.0, 1 / 9, 2 / 9, 3 / 9, 4 / 9, 5 / 9, 6 / 9, 7 / 9, 8 / 9, 1.0],
-            [
-                0.0,
-                0.03,
-                0.06,
-                0.1,
-                0.13,
-                0.16,
-                0.19,
-                0.22,
-                0.25,
-                0.29,
-            ],
+            np.around(np.linspace(0, 1.0, 10), decimals=2),
         ),
         ("dxt.darshan", 2, [0.0, 1.0], [0, 1468]),
         (
@@ -69,35 +58,24 @@ def jointgrid():
             [0.0, 1 / 9, 2 / 9, 3 / 9, 4 / 9, 5 / 9, 6 / 9, 7 / 9, 8 / 9, 1.0],
             [0, 163, 326, 489, 652, 815, 978, 1141, 1304, 1468],
         ),
-        ("sample-dxt-simple.darshan", 2, [0.0, 1.0], [0.0, 0.1]),
+        ("sample-dxt-simple.darshan", 2, [0.0, 1.0], [0.0, 1.0]),
         (
             "sample-dxt-simple.darshan",
             4,
             [0.0, 0.4, 0.6, 1.0],
-            [0.0, 0.03, 0.07, 0.1],
+            np.around(np.linspace(0, 1.0, 4), decimals=2),
         ),
         (
             "sample-dxt-simple.darshan",
             6,
             [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-            [0.0, 0.02, 0.04, 0.06, 0.08, 0.1],
+            np.linspace(0, 1.0, 6),
         ),
         (
             "sample-dxt-simple.darshan",
             10,
             [0.0, 1 / 9, 2 / 9, 3 / 9, 4 / 9, 5 / 9, 6 / 9, 7 / 9, 8 / 9, 1.0],
-            [
-                0.0,
-                0.01,
-                0.02,
-                0.03,
-                0.05,
-                0.06,
-                0.07,
-                0.08,
-                0.09,
-                0.1,
-            ],
+            np.around(np.linspace(0, 1.0, 10), decimals=2),
         ),
         (None, 2, [0.0, 1.0], [0.0, 1.0]),
     ],
@@ -115,21 +93,19 @@ def test_set_x_axis_ticks_and_labels(
     if filepath is None:
         # don't have any data sets with a max time between 1 and 10, so
         # create a synthetic one here
-        data = [[4, 1.03378843, 1.03387713, 0], [4000, 1.04216653, 1.04231459, 0]]
-        cols = ["length", "start_time", "end_time", "rank"]
-        agg_df = pd.DataFrame(data=data, columns=cols)
+        runtime = 1
 
     else:
         filepath = get_log_path(filepath)
         # for all other data sets just load the data from the log file
+        # calculate the elapsed runtime
         report = darshan.DarshanReport(filepath)
-        agg_df = heatmap_handling.get_aggregate_data(
-            report=report, mod="DXT_POSIX", ops=["read", "write"]
-        )
+        runtime = report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
+        runtime = max(runtime, 1)
 
     # set the x-axis ticks and tick labels
     plot_dxt_heatmap.set_x_axis_ticks_and_labels(
-        jointgrid=jointgrid, agg_df=agg_df, n_xlabels=n_xlabels
+        jointgrid=jointgrid, n_xlabels=n_xlabels, tmax=runtime,
     )
 
     # collect the actual x-axis tick labels

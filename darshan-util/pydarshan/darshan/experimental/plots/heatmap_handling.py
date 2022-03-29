@@ -273,7 +273,7 @@ def get_aggregate_data(
     return agg_df
 
 
-def get_heatmap_df(agg_df: pd.DataFrame, xbins: int, nprocs: int) -> pd.DataFrame:
+def get_heatmap_df(agg_df: pd.DataFrame, xbins: int, nprocs: int, tmax: float = None) -> pd.DataFrame:
     """
     Builds an array similar to a 2D-histogram, where the y data is the unique
     ranks and the x data is time. Each bin is populated with the data sum
@@ -289,6 +289,8 @@ def get_heatmap_df(agg_df: pd.DataFrame, xbins: int, nprocs: int) -> pd.DataFram
     xbins: the number of x-axis bins to create.
 
     nprocs: the number of MPI ranks/processes used at runtime.
+
+    tmax: the maximum time for the heatmap interval bins.
 
     Returns
     -------
@@ -310,10 +312,12 @@ def get_heatmap_df(agg_df: pd.DataFrame, xbins: int, nprocs: int) -> pd.DataFram
         3                   1.048576e+06
 
     """
+    if not tmax:
+        # use final DXT segment end time
+        tmax = float(agg_df["end_time"].max())
     # generate the bin edges by generating an array of length n_bins+1, then
     # taking pairs of data points as the min/max bin value
-    max_time = agg_df["end_time"].max()
-    bin_edge_data = np.linspace(0.0, max_time, xbins + 1)
+    bin_edge_data = np.linspace(0.0, tmax, xbins + 1)
     # create dummy variables for start/end time data, where dataframe columns
     # are the x-axis bin ranges
     cats_start = pd.get_dummies(
