@@ -46,6 +46,14 @@
 #include <lustre/lustre_user.h>
 #endif
 
+#include <gotcha/gotcha.h>
+#include <hdf5.h>
+static gotcha_wrappee_handle_t wrappee_H5Fcreate_handle;
+static int H5Fcreate_wrapper(const char *filename, unsigned flags, hid_t create_plist, hid_t access_plist);
+struct gotcha_binding_t wrap_actions [] = {
+{ "H5Fcreate", H5Fcreate_wrapper, &wrappee_H5Fcreate_handle },
+};
+
 extern char* __progname;
 extern char* __progname_full;
 struct darshan_core_runtime *__darshan_core = NULL;
@@ -409,6 +417,8 @@ void darshan_core_initialize(int argc, char **argv)
             i++;
         }
     }
+
+    gotcha_wrap(wrap_actions, sizeof(wrap_actions)/sizeof(struct gotcha_binding_t), "darshan");
 
     if(internal_timing_flag)
     {
@@ -2501,6 +2511,20 @@ int darshan_core_excluded_path(const char *path)
 
     /* if not in blacklist, no problem */
     return(0);
+}
+
+static int H5Fcreate_wrapper(const char* filename,
+                             unsigned    flags,
+                             hid_t       create_plist,
+                             hid_t       access_plist)
+{
+    typeof(&H5Fcreate_wrapper) wrappee_H5Fcreate = gotcha_get_wrappee(
+        wrappee_H5Fcreate_handle); // get my wrappee from Gotcha
+
+    fprintf(stderr, "Hello world from H5Fcreate() wrapper.\n");
+    return wrappee_H5Fcreate(filename, flags, create_plist,
+                             access_plist); // wrappee was directed to the
+                                            // original by gotcha_wrap
 }
 
 /*

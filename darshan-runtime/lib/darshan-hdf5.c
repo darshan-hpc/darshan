@@ -172,6 +172,7 @@ static int my_rank = -1;
     if(__newpath != __path) free(__newpath); \
 } while(0)
 
+#if 0
 hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     hid_t create_plist, hid_t access_plist)
 {
@@ -247,6 +248,7 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
 
     return(ret);
 }
+#endif
 
 hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     hid_t access_plist)
