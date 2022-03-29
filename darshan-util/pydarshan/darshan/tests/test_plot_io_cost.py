@@ -6,7 +6,12 @@ from pandas.testing import assert_frame_equal, assert_series_equal
 
 import darshan
 from darshan.log_utils import get_log_path
-from darshan.experimental.plots.plot_io_cost import *
+from darshan.experimental.plots.plot_io_cost import (
+    get_by_avg_series,
+    get_io_cost_df,
+    plot_io_cost,
+    combine_hdf5_modules,
+)
 
 
 @pytest.mark.parametrize(
@@ -217,8 +222,8 @@ def test_issue_590(filename, expected_df):
 @pytest.mark.parametrize(
     "input_df, expected_df",
     [
-        # if input dict does not contain HDF5 module
-        #  data, should return the same dict
+        # if input dataframe does not contain HDF5 module
+        # it should remain unchanged
         (
             pd.DataFrame([[10.0, 20.0, 30.0]], index=["POSIX"]),
             pd.DataFrame([[10.0, 20.0, 30.0]], index=["POSIX"]),

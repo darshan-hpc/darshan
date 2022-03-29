@@ -73,7 +73,7 @@ def combine_hdf5_modules(df: Any) -> Any:
 
     """
     # replace the H5D/H5F indexes with HDF5 and sum them
-    df = df.reset_index().replace(to_replace=r"H5\D", value="HDF5", regex=True)
+    df = df.reset_index().replace(to_replace=r"H5[FD]", value="HDF5", regex=True)
     df = df.groupby('index', sort=False).sum()
     # clean up the index name
     df.index.name = None
