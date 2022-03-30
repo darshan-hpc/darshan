@@ -77,7 +77,7 @@ def jointgrid():
             [0.0, 1 / 9, 2 / 9, 3 / 9, 4 / 9, 5 / 9, 6 / 9, 7 / 9, 8 / 9, 1.0],
             np.around(np.linspace(0, 1.0, 10), decimals=2),
         ),
-        (None, 2, [0.0, 1.0], [0.0, 1.0]),
+        (None, 2, [0.0, 1.0], [0.0, 2.0]),
     ],
 )
 def test_set_x_axis_ticks_and_labels(
@@ -93,15 +93,24 @@ def test_set_x_axis_ticks_and_labels(
     if filepath is None:
         # don't have any data sets with a max time between 1 and 10, so
         # create a synthetic one here
+        data = [[4, 1.03378843, 1.03387713, 0], [4000, 1.04216653, 1.04231459, 0]]
+        cols = ["length", "start_time", "end_time", "rank"]
+        agg_df = pd.DataFrame(data=data, columns=cols)
         runtime = 1
 
     else:
         filepath = get_log_path(filepath)
         # for all other data sets just load the data from the log file
-        # calculate the elapsed runtime
         report = darshan.DarshanReport(filepath)
+        agg_df = heatmap_handling.get_aggregate_data(
+            report=report, mod="DXT_POSIX", ops=["read", "write"]
+        )
         runtime = report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
-        runtime = max(runtime, 1)
+
+    runtime = max(runtime, 1)
+    tmax_dxt = float(agg_df["end_time"].max())
+    if tmax_dxt > runtime:
+        runtime += 1
 
     # set the x-axis ticks and tick labels
     plot_dxt_heatmap.set_x_axis_ticks_and_labels(
