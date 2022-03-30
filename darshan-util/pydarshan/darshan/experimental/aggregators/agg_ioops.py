@@ -24,7 +24,7 @@ def agg_ioops(self, mode='append'):
     ctx = {}
 
     # aggragate
-    mods = ['MPI-IO', 'POSIX', 'STDIO']
+    mods = ['MPI-IO', 'POSIX', 'STDIO', "H5F", "H5D"]
     for mod in mods:
 
         # check records for module are present
@@ -70,6 +70,24 @@ def agg_ioops(self, mode='append'):
             ctx[mod] = agg
             ctx[mod + '_indep_simple'] = agg_indep
             ctx[mod + '_coll_simple'] = agg_coll
+
+        elif mod == "H5F":
+            tmp = {
+                'Open':  agg[mod + '_OPENS'],
+                'Flush': agg[mod + '_FLUSHES'],
+            }
+            ctx[mod] = agg
+            ctx[mod + '_simple'] = tmp
+
+        elif mod == "H5D":
+            tmp = {
+                'Read':  agg[mod + '_READS'],
+                'Write': agg[mod + '_WRITES'],
+                'Open':  agg[mod + '_OPENS'],
+                'Flush': agg[mod + '_FLUSHES'],
+            }
+            ctx[mod] = agg
+            ctx[mod + '_simple'] = tmp
 
         else:
             # POSIX and STDIO share most counter names and are handled 
