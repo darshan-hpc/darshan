@@ -400,8 +400,8 @@ def test_runtime_heatmap_retrieval(capsys, logname, hmap_types, nbins, bin_width
         for heatmap in report.heatmaps.values():
             assert heatmap._nbins == nbins
             assert heatmap._bin_width_seconds == bin_width
-            assert heatmap.to_df("read").shape == shape
-            assert heatmap.to_df("write").shape == shape
+            assert heatmap.to_df(["read"]).shape == shape
+            assert heatmap.to_df(["write"]).shape == shape
             for str_element in ["Heatmap", "mod", "nbins", "bin_width"]:
                 assert str_element in repr(heatmap)
 
@@ -436,7 +436,7 @@ def test_runtime_dxt_heatmap_similarity():
     report = darshan.DarshanReport(log_path)
 
     # runtime HEATMAP:
-    runtime_heatmap_df = list(report.heatmaps.values())[0].to_df("write")
+    runtime_heatmap_df = list(report.heatmaps.values())[0].to_df(["write"])
     nonzero_rows_runtime, nonzero_columns_runtime = np.nonzero(runtime_heatmap_df.to_numpy())
 
     # DXT heatmap:
@@ -456,3 +456,35 @@ def test_runtime_dxt_heatmap_similarity():
     assert_allclose(nonzero_columns_runtime[:23], nonzero_columns_dxt[:23])
     # if we allow a resolution gap of 1 bin, they should match on full length
     assert_array_less(np.abs(nonzero_columns_runtime - nonzero_columns_dxt), 1.0001)
+
+
+@pytest.mark.parametrize(
+    "mod, expected_counts",
+        [
+            # expected counts are the number of non-zero bins for
+            # the read, write, and read+write dataframes, respectively
+            # for all 3 modules, the third count value (read + write)
+            # is the the sum of the first 2 values (read, write)
+            ('POSIX', [512, 6105, 6617]),
+            ('MPIIO', [512, 56320, 56832]),
+            ('STDIO', [0, 1, 1]),
+        ]
+    )
+def test_heatmap_operations(mod, expected_counts):
+    # test `Heatmap.to_df()` method by checking the generated
+    # read, write, and read+write dataframes against each other
+
+    log_path = get_log_path("e3sm_io_heatmap_only.darshan")
+    report = darshan.DarshanReport(log_path)
+
+    rd_df = report.heatmaps[mod].to_df(ops=["read"])
+    wr_df = report.heatmaps[mod].to_df(ops=["write"])
+    rd_wr_df = report.heatmaps[mod].to_df(ops=["read", "write"])
+
+    for df, expected_count in zip((rd_df, wr_df, rd_wr_df), expected_counts):
+        # check that the non-zero element counts are correct
+        actual_count = np.nonzero(df.to_numpy())[0].shape[0]
+        # compare the respective counts for each dataframe
+        assert actual_count == expected_count
+
+    assert_frame_equal(rd_df + wr_df, rd_wr_df)
