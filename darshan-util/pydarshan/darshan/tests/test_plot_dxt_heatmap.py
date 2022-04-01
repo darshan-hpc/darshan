@@ -20,64 +20,64 @@ def jointgrid():
 @pytest.mark.parametrize(
     "filepath, n_xlabels, expected_xticks, expected_xticklabels",
     [
-        ("ior_hdf5_example.darshan", 2, [0.0, 1.0], [0.0, 1.0]),
+        ("ior_hdf5_example.darshan", 2, np.linspace(0.0, 348.956244, 2), [0.0, 1.0]),
         (
             "ior_hdf5_example.darshan",
             4,
-            [0.0, 0.4, 0.6, 1.0],
+            np.linspace(0.0, 348.956244, 4),
             np.around(np.linspace(0, 1.0, 4), decimals=2),
         ),
         (
             "ior_hdf5_example.darshan",
             6,
-            [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+            np.linspace(0.0, 348.956244, 6),
             np.linspace(0, 1.0, 6),
         ),
         (
             "ior_hdf5_example.darshan",
             10,
-            [0.0, 1 / 9, 2 / 9, 3 / 9, 4 / 9, 5 / 9, 6 / 9, 7 / 9, 8 / 9, 1.0],
+            np.linspace(0.0, 348.956244, 10),
             np.around(np.linspace(0, 1.0, 10), decimals=2),
         ),
-        ("dxt.darshan", 2, [0.0, 1.0], [0, 1468]),
+        ("dxt.darshan", 2, np.linspace(0.0, 100.023116, 2), [0, 1468]),
         (
             "dxt.darshan",
             4,
-            [0.0, 0.4, 0.6, 1.0],
+            np.linspace(0.0, 100.023116, 4),
             [0, 489, 978, 1468],
         ),
         (
             "dxt.darshan",
             6,
-            [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+            np.linspace(0.0, 100.023116, 6),
             [0, 293, 587, 880, 1174, 1468],
         ),
         (
             "dxt.darshan",
             10,
-            [0.0, 1 / 9, 2 / 9, 3 / 9, 4 / 9, 5 / 9, 6 / 9, 7 / 9, 8 / 9, 1.0],
+            np.linspace(0.0, 100.023116, 10),
             [0, 163, 326, 489, 652, 815, 978, 1141, 1304, 1468],
         ),
-        ("sample-dxt-simple.darshan", 2, [0.0, 1.0], [0.0, 1.0]),
+        ("sample-dxt-simple.darshan", 2, np.linspace(0.0, 959.403244, 2), [0.0, 1.0]),
         (
             "sample-dxt-simple.darshan",
             4,
-            [0.0, 0.4, 0.6, 1.0],
+            np.linspace(0.0, 959.403244, 4),
             np.around(np.linspace(0, 1.0, 4), decimals=2),
         ),
         (
             "sample-dxt-simple.darshan",
             6,
-            [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+            np.linspace(0.0, 959.403244, 6),
             np.linspace(0, 1.0, 6),
         ),
         (
             "sample-dxt-simple.darshan",
             10,
-            [0.0, 1 / 9, 2 / 9, 3 / 9, 4 / 9, 5 / 9, 6 / 9, 7 / 9, 8 / 9, 1.0],
+            np.linspace(0.0, 959.403244, 10),
             np.around(np.linspace(0, 1.0, 10), decimals=2),
         ),
-        (None, 2, [0.0, 1.0], [0.0, 2.0]),
+        (None, 2, [0.0, 191.880649], [0.0, 2.0]),
     ],
 )
 def test_set_x_axis_ticks_and_labels(
@@ -112,9 +112,17 @@ def test_set_x_axis_ticks_and_labels(
     if tmax_dxt > runtime:
         runtime += 1
 
-    # set the x-axis ticks and tick labels
+    # the jointgrid fixture has 100 xbins
+    xbins = 100
+    # add a heatmap to the jointgrid to simulate a normal use case
+    sns.heatmap(pd.DataFrame(np.ones((xbins, 4))), ax=jointgrid.ax_joint)
+    # calculate the scaled number of bins
+    bin_max = xbins * (runtime / tmax_dxt)
+    # set the new x limit based on the scaled bins
+    jointgrid.ax_joint.set_xlim(0.0, bin_max)
+    # set the x-axis ticks and tick labels using the runtime
     plot_dxt_heatmap.set_x_axis_ticks_and_labels(
-        jointgrid=jointgrid, n_xlabels=n_xlabels, tmax=runtime,
+        jointgrid=jointgrid, n_xlabels=n_xlabels, tmax=runtime, bin_max=bin_max,
     )
 
     # collect the actual x-axis tick labels
@@ -126,7 +134,7 @@ def test_set_x_axis_ticks_and_labels(
     plt.close()
 
     # verify the actual ticks/labels match the expected
-    assert_allclose(actual_xticks, expected_xticks, atol=1e-14, rtol=1e-17)
+    assert_allclose(actual_xticks, expected_xticks)
     assert_allclose(actual_xticklabels, expected_xticklabels, atol=1e-14, rtol=1e-17)
 
 
