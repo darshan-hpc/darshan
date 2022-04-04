@@ -1110,8 +1110,7 @@ static void darshan_parse_config_env(struct darshan_core_runtime *core)
         core->config.mod_disabled_flags = core->config.mod_enabled_flags = 0;
     }
     /* allow disabling of specific Darshan instrumentation modules */
-    envstr = getenv("DARSHAN_MOD_DISABLE");
-    if(envstr)
+    if(mod_disable_str)
     {
         string = strdup(envstr);
         tmp_mod_flags = darshan_module_csv_to_flags(string);
@@ -1119,8 +1118,7 @@ static void darshan_parse_config_env(struct darshan_core_runtime *core)
         free(string);
     }
     /* allow enabling of specific Darshan instrumentation modules */
-    envstr = getenv("DARSHAN_MOD_ENABLE");
-    if(envstr)
+    if(mod_enable_str)
     {
         string = strdup(envstr);
         tmp_mod_flags = darshan_module_csv_to_flags(string);
@@ -1192,7 +1190,7 @@ static void darshan_parse_config_file(struct darshan_core_runtime *core)
     int success;
 
     /* get log filters file */
-    darshan_conf = getenv("DARSHAN_CONF_PATH");
+    darshan_conf = getenv("DARSHAN_CONFIG_PATH");
     if(darshan_conf)
     {
         fp = fopen(darshan_conf, "r");
