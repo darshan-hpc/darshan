@@ -13,6 +13,7 @@ Darshan-3.4
   --enable-rdtscp at configure time
 * Remove unecessary explicit mpich binding libraries from link line when static linking
 * Graceful warnings when parsing log files with unknown module types
+* Add unified Darshan configuration support via env vars and config files
 
 Darshan-3.3.1
 =============
