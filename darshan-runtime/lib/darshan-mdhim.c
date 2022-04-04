@@ -506,7 +506,7 @@ static void mdhim_mpi_redux(
      * "shared file" for now. */
     assert(mdhim_rec_count == shared_rec_count);
 
-    if (shared_rec_count && !getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
+    if (shared_rec_count)
     {
         /* can the number of mdhim servers change? I suppose if there were
          * multiple mdhim instances, each instance could have a different

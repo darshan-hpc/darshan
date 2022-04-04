@@ -43,6 +43,7 @@ endif
 
 if BUILD_HDF5_MODULE
    C_SRCS += darshan-hdf5.c
+   AM_CPPFLAGS += -DDARSHAN_HDF5
 endif
 
 if BUILD_BGQ_MODULE

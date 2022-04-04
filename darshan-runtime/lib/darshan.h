@@ -30,6 +30,7 @@
 #include "uthash.h"
 #include "darshan-log-format.h"
 #include "darshan-common.h"
+#include "darshan-dxt.h"
 
 /* Environment variable to override __DARSHAN_JOBID */
 #define DARSHAN_JOBID_OVERRIDE "DARSHAN_JOBID"
@@ -48,9 +49,6 @@
 
 /* Environment variable to override memory for name records */
 #define DARSHAN_NAME_MEM_OVERRIDE "DARSHAN_NAMEMEM"
-
-/* Environment variable to enable profiling without MPI */
-#define DARSHAN_ENABLE_NONMPI "DARSHAN_ENABLE_NONMPI"
 
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
 /* Environment variable to override default mmap log path */
@@ -94,6 +92,32 @@ struct darshan_fs_info
     int mdt_count;
 };
 
+struct darshan_core_config
+{
+    size_t mod_mem;
+    size_t name_mem;
+    int mem_alignment;
+    char *jobid_env;
+    char *log_hints;
+    char *log_path;
+    char *log_path_byenv;
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    char *mmap_log_path;
+#endif
+    uint64_t mod_disabled_flags;
+    uint64_t mod_enabled_flags;
+    uint64_t mod_disabled;
+    size_t mod_max_records_override[DARSHAN_MAX_MODS];
+    struct darshan_core_regex *rec_exclusion_list;
+    struct darshan_core_regex *rec_inclusion_list;
+    struct darshan_core_regex *app_exclusion_list;
+    struct darshan_core_regex *app_inclusion_list;
+    char *rank_exclusions;
+    char *rank_inclusions;
+    struct dxt_trigger *small_io_trigger;
+    struct dxt_trigger *unaligned_io_trigger;
+};
+
 /* FS mount information */
 #define DARSHAN_MAX_MNTS 64
 #define DARSHAN_MAX_MNT_PATH 256
@@ -114,12 +138,13 @@ struct darshan_core_name_record_ref
     UT_hash_handle hlink;
 };
 
-/* structure for keeping track of record name inclusions/exclusions */
-struct darshan_core_name_regex
+/* linked-list structure for keeping track of different types of regexes */
+struct darshan_core_regex
 {
     regex_t regex;
+    char *regex_str;
     uint64_t mod_flags;
-    struct darshan_core_name_regex *next;
+    struct darshan_core_regex *next;
 };
 
 /* in memory structure to keep up with job level data */
@@ -134,12 +159,7 @@ struct darshan_core_runtime
 
     /* darshan-core internal data structures */
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
-    uint64_t mod_disabled;
-    size_t mod_max_records_override[DARSHAN_MAX_MODS];
-    struct darshan_core_name_regex *app_exclusion_list;
-    struct darshan_core_name_regex *app_inclusion_list;
-    struct darshan_core_name_regex *rec_exclusion_list;
-    struct darshan_core_name_regex *rec_inclusion_list;
+    struct darshan_core_config config;
     size_t mod_mem_used;
     struct darshan_core_name_record_ref *name_hash;
     size_t name_mem_used;

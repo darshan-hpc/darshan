@@ -97,39 +97,6 @@ struct dxt_runtime
     int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
-#if 0
-enum dxt_trigger_type
-{
-    DXT_FILE_TRIGGER,
-    DXT_RANK_TRIGGER,
-    DXT_SMALL_IO_TRIGGER,
-    DXT_UNALIGNED_IO_TRIGGER
-};
-
-struct dxt_trigger_info
-{
-    int type;
-    union {
-        struct
-        {
-            regex_t regex;
-        } file;
-        struct
-        {
-            regex_t regex;
-        } rank;
-        struct
-        {
-            double thresh_pct;
-        } small_io;
-        struct
-        {
-            double thresh_pct;
-        } unaligned_io;
-    } u;
-};
-#endif
-
 /* internal helper routines */
 static void check_wr_trace_buf(
     struct dxt_file_record_ref *rec_ref, darshan_module_id mod_id,
@@ -152,18 +119,16 @@ static void dxt_posix_cleanup(
 static void dxt_mpiio_cleanup(
     void);
 
+/* POSIX module helper for filtering DXT trace records */
+extern struct darshan_posix_file *darshan_posix_rec_id_to_file(
+    darshan_record_id rec_id);
+
 static struct dxt_runtime *dxt_posix_runtime = NULL;
 static struct dxt_runtime *dxt_mpiio_runtime = NULL;
 static pthread_mutex_t dxt_runtime_mutex =
             PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 static int dxt_my_rank = -1;
-#if 0
-#define MAX_DXT_TRIGGERS 20
-static int num_dxt_triggers = 0;
-static struct dxt_trigger_info dxt_triggers[MAX_DXT_TRIGGERS];
-static int dxt_use_dynamic_triggers = 0;
-#endif
 
 #define DXT_LOCK() pthread_mutex_lock(&dxt_runtime_mutex)
 #define DXT_UNLOCK() pthread_mutex_unlock(&dxt_runtime_mutex)
@@ -171,90 +136,6 @@ static int dxt_use_dynamic_triggers = 0;
 /************************************************************
  *  DXT routines exposed to Darshan core and other modules  *
  ************************************************************/
-
-#if 0
-void dxt_load_trigger_conf(
-    char *trigger_conf_path)
-{
-    FILE *fp;
-    char *line = NULL;
-    size_t len = 0;
-    char *tok;
-    struct dxt_trigger_info *next_trigger;
-    int ret;
-
-    fp = fopen(trigger_conf_path, "r");
-    if(!fp)
-    {
-        darshan_core_fprintf(stderr, "darshan library warning: "\
-            "unable to open DXT trigger config at path %s\n", trigger_conf_path);
-        return;
-    }
-
-    while(getline(&line, &len, fp) != -1)
-    {
-        /* remove newline if present */
-        if(line[strlen(line) - 1] == '\n')
-            line[strlen(line) - 1] = '\0';
-
-        next_trigger = &dxt_triggers[num_dxt_triggers];
-
-        /* extract trigger type and parameters */
-        tok = strtok(line, " \t");
-        if(strcmp(tok, "FILE") == 0)
-        {
-            next_trigger->type = DXT_FILE_TRIGGER;
-            tok += strlen(tok) + 1;
-            ret = regcomp(&next_trigger->u.file.regex, tok, REG_EXTENDED);
-            if(ret)
-            {
-                darshan_core_fprintf(stderr, "darshan library warning: "\
-                    "unable to compile DXT trigger regex from %s\n", line);
-                continue;
-            }
-            dxt_use_file_triggers = 1;
-        }
-        else if(strcmp(tok, "RANK") == 0)
-        {
-            next_trigger->type = DXT_RANK_TRIGGER;
-            tok += strlen(tok) + 1;
-            ret = regcomp(&next_trigger->u.rank.regex, tok, REG_EXTENDED);
-            if(ret)
-            {
-                darshan_core_fprintf(stderr, "darshan library warning: "\
-                    "unable to compile DXT trigger regex from %s\n", line);
-                continue;
-            }
-            dxt_use_rank_triggers= 1;
-        }
-        else if(strcmp(tok, "SMALL_IO") == 0)
-        {
-            next_trigger->type = DXT_SMALL_IO_TRIGGER;
-            tok += strlen(tok) + 1;
-            next_trigger->u.small_io.thresh_pct = atof(tok);
-            dxt_use_dynamic_triggers= 1;
-        }
-        else if(strcmp(tok, "UNALIGNED_IO") == 0)
-        {
-            next_trigger->type = DXT_UNALIGNED_IO_TRIGGER;
-            tok += strlen(tok) + 1;
-            next_trigger->u.unaligned_io.thresh_pct = atof(tok);
-            dxt_use_dynamic_triggers= 1;
-        }
-        else
-        {
-            darshan_core_fprintf(stderr, "darshan library warning: "\
-                "unknown DXT trigger (%s) found in %s\n", tok, trigger_conf_path);
-            continue;
-        }
-        ++num_dxt_triggers;
-    }
-
-    fclose(fp);
-    free(line);
-    return;
-}
-#endif
 
 /* initialize internal DXT module data structures and register with darshan-core */
 void dxt_posix_runtime_initialize()
@@ -271,12 +152,6 @@ void dxt_posix_runtime_initialize()
     .mod_cleanup_func = &dxt_posix_cleanup
     };
     int ret;
-
-#if 0
-    /* determine whether tracing should be generally disabled/enabled */
-    if(getenv("DXT_ENABLE_IO_TRACE"))
-    else if(getenv("DXT_DISABLE_IO_TRACE"))
-#endif
 
     /* register the DXT module with darshan core */
     ret = darshan_core_register_module(
@@ -320,12 +195,6 @@ void dxt_mpiio_runtime_initialize()
     };
     int ret;
 
-#if 0
-    /* determine whether tracing should be generally disabled/enabled */
-    if(getenv("DXT_ENABLE_IO_TRACE"))
-    else if(getenv("DXT_DISABLE_IO_TRACE"))
-#endif
-
     /* register the DXT module with darshan core */
     ret = darshan_core_register_module(
         DXT_MPIIO_MOD,
@@ -358,7 +227,6 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
 {
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
-    int should_trace_file;
 
     DXT_LOCK();
 
@@ -404,7 +272,6 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
 {
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
-    int should_trace_file;
 
     DXT_LOCK();
 
@@ -450,7 +317,6 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
 {
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
-    int should_trace_file;
 
     DXT_LOCK();
 
@@ -496,7 +362,6 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
 {
     struct dxt_file_record_ref* rec_ref = NULL;
     struct dxt_file_record *file_rec;
-    int should_trace_file;
 
     DXT_LOCK();
 
@@ -537,57 +402,45 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
     DXT_UNLOCK();
 }
 
-#if 0
-static void dxt_posix_filter_dynamic_traces_iterator(void *rec_ref_p, void *user_ptr)
+static void dxt_posix_filter_traces_iterator(void *rec_ref_p, void *user_ptr)
 {
     struct dxt_file_record_ref *psx_rec_ref, *mpiio_rec_ref;
-    struct darshan_posix_file *(*rec_id_to_psx_file)(darshan_record_id);
     struct darshan_posix_file *psx_file;
+    struct dxt_trigger *trigger = (struct dxt_trigger *)user_ptr;
     int i;
     int should_keep = 0;
 
     psx_rec_ref = (struct dxt_file_record_ref *)rec_ref_p;
-    if(psx_rec_ref->trace_enabled)
-        return; /* we're already tracing this file */
-
-    rec_id_to_psx_file = (struct darshan_posix_file *(*)(darshan_record_id))user_ptr;
-    psx_file = rec_id_to_psx_file(psx_rec_ref->file_rec->base_rec.id);
+    psx_file = darshan_posix_rec_id_to_file(psx_rec_ref->file_rec->base_rec.id);
 
     /* analyze dynamic triggers to determine whether we should keep the record */
-    for(i = 0; i < num_dxt_triggers; i++)
+    switch(trigger->type)
     {
-        switch(dxt_triggers[i].type)
+        case DXT_SMALL_IO_TRIGGER:
         {
-            case DXT_SMALL_IO_TRIGGER:
-            {
-                int total_ops = psx_file->counters[POSIX_WRITES] +
-                    psx_file->counters[POSIX_READS];
-                int small_ops = psx_file->counters[POSIX_SIZE_WRITE_0_100] +
-                    psx_file->counters[POSIX_SIZE_WRITE_100_1K] + 
-                    psx_file->counters[POSIX_SIZE_WRITE_1K_10K] +
-                    psx_file->counters[POSIX_SIZE_READ_0_100] +
-                    psx_file->counters[POSIX_SIZE_READ_100_1K] + 
-                    psx_file->counters[POSIX_SIZE_READ_1K_10K];
-                double small_pct = (small_ops / (double)(total_ops));
-                if(small_pct > dxt_triggers[i].u.small_io.thresh_pct)
-                    should_keep = 1;
-                break;
-            }
-            case DXT_UNALIGNED_IO_TRIGGER:
-            {
-                int total_ops = psx_file->counters[POSIX_WRITES] +
-                    psx_file->counters[POSIX_READS];
-                int unaligned_ops = psx_file->counters[POSIX_FILE_NOT_ALIGNED];
-                double unaligned_pct = (unaligned_ops / (double)(total_ops));
-                if(unaligned_pct > dxt_triggers[i].u.unaligned_io.thresh_pct)
-                    should_keep = 1;
-                break;
-            }
-            default:
-                continue;
-        }
-        if(should_keep)
+            int total_ops = psx_file->counters[POSIX_WRITES] +
+                psx_file->counters[POSIX_READS];
+            int small_ops = psx_file->counters[POSIX_SIZE_WRITE_0_100] +
+                psx_file->counters[POSIX_SIZE_WRITE_100_1K] +
+                psx_file->counters[POSIX_SIZE_WRITE_1K_10K] +
+                psx_file->counters[POSIX_SIZE_READ_0_100] +
+                psx_file->counters[POSIX_SIZE_READ_100_1K] +
+                psx_file->counters[POSIX_SIZE_READ_1K_10K];
+            double small_pct = (small_ops / (double)(total_ops));
+            if(small_pct >= trigger->u.small_io.thresh_pct)
+                should_keep = 1;
             break;
+        }
+        case DXT_UNALIGNED_IO_TRIGGER:
+        {
+            int total_ops = psx_file->counters[POSIX_WRITES] +
+                psx_file->counters[POSIX_READS];
+            int unaligned_ops = psx_file->counters[POSIX_FILE_NOT_ALIGNED];
+            double unaligned_pct = (unaligned_ops / (double)(total_ops));
+            if(unaligned_pct >= trigger->u.unaligned_io.thresh_pct)
+                should_keep = 1;
+            break;
+        }
     }
 
     /* drop the record if no dynamic trace triggers occurred */
@@ -625,25 +478,24 @@ static void dxt_posix_filter_dynamic_traces_iterator(void *rec_ref_p, void *user
     return;
 }
 
-void dxt_posix_filter_dynamic_traces(
-    struct darshan_posix_file *(*rec_id_to_psx_file)(darshan_record_id))
+void dxt_posix_apply_trace_filter(
+    struct dxt_trigger *trigger)
 {
     DXT_LOCK();
 
-    if(!dxt_posix_runtime || !dxt_use_dynamic_triggers || dxt_trace_all)
+    if(!dxt_posix_runtime)
     {
         DXT_UNLOCK();
         return;
     }
 
     darshan_iter_record_refs(dxt_posix_runtime->rec_id_hash,
-        dxt_posix_filter_dynamic_traces_iterator, rec_id_to_psx_file);
+        dxt_posix_filter_traces_iterator, trigger);
 
     DXT_UNLOCK();
 
     return;
 }
-#endif
 
 /***********************************
  *  internal DXT helper routines   *
@@ -967,42 +819,6 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
                 record_read_count * sizeof(segment_info));
 
     dxt_posix_runtime->record_buf_size += record_size;
-
-#if 0
-    int i;
-    int64_t rank;
-    char *hostname;
-    int64_t offset;
-    int64_t length;
-    double start_time;
-    double end_time;
-
-    rank = file_rec->base_rec.rank;
-    hostname = file_rec->hostname;
-
-    printf("X_POSIX, record_id: %" PRIu64 "\n", rec_ref->file_rec->base_rec.id);
-    printf("X_POSIX, write_count is: %d read_count is: %d\n",
-                file_rec->write_count, file_rec->read_count);
-    printf("X_POSIX, rank: %d hostname: %s\n", rank, hostname);
-
-    for (i = 0; i < file_rec->write_count; i++) {
-        offset = rec_ref->write_traces[i].offset;
-        length = rec_ref->write_traces[i].length;
-        start_time = rec_ref->write_traces[i].start_time;
-        end_time = rec_ref->write_traces[i].end_time;
-
-        printf("X_POSIX, rank %d writes segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
-    }
-
-    for (i = 0; i < file_rec->read_count; i++) {
-        offset = rec_ref->read_traces[i].offset;
-        length = rec_ref->read_traces[i].length;
-        start_time = rec_ref->read_traces[i].start_time;
-        end_time = rec_ref->read_traces[i].end_time;
-
-        printf("X_POSIX, rank %d reads segment %lld [offset: %lld length: %lld start_time: %fs end_time: %fs]\n", rank, i, offset, length, start_time, end_time);
-    }
-#endif
 }
 
 static void dxt_posix_output(
@@ -1094,39 +910,6 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
                 record_read_count * sizeof(segment_info));
 
     dxt_mpiio_runtime->record_buf_size += record_size;
-
-#if 0
-    int i;
-    int64_t rank;
-    char *hostname;
-    int64_t length;
-    double start_time;
-    double end_time;
-
-    rank = file_rec->base_rec.rank;
-    hostname = file_rec->hostname;
-
-    printf("X_MPIIO, record_id: %" PRIu64 "\n", rec_ref->file_rec->base_rec.id);
-    printf("X_MPIIO, write_count is: %d read_count is: %d\n",
-                file_rec->write_count, file_rec->read_count);
-    printf("X_MPIIO, rank: %d hostname: %s\n", rank, hostname);
-
-    for (i = 0; i < file_rec->write_count; i++) {
-        length = rec_ref->write_traces[i].length;
-        start_time = rec_ref->write_traces[i].start_time;
-        end_time = rec_ref->write_traces[i].end_time;
-
-        printf("X_MPIIO, rank %d writes segment %lld [length: %lld start_time: %fs end_time: %fs]\n", rank, i, length, start_time, end_time);
-    }
-
-    for (i = 0; i < file_rec->read_count; i++) {
-        length = rec_ref->read_traces[i].length;
-        start_time = rec_ref->read_traces[i].start_time;
-        end_time = rec_ref->read_traces[i].end_time;
-
-        printf("X_MPIIO, rank %d reads segment %lld [length: %lld start_time: %fs end_time: %fs]\n", rank, i, length, start_time, end_time);
-    }
-#endif
 }
 
 static void dxt_mpiio_output(

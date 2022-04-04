@@ -2382,8 +2382,7 @@ char *darshan_posix_lookup_record_name(int fd)
     return(rec_name);
 }
 
-#ifdef HAVE_MPI
-static struct darshan_posix_file *darshan_posix_rec_id_to_file(darshan_record_id rec_id)
+struct darshan_posix_file *darshan_posix_rec_id_to_file(darshan_record_id rec_id)
 {
     struct posix_file_record_ref *rec_ref;
 
@@ -2394,7 +2393,6 @@ static struct darshan_posix_file *darshan_posix_rec_id_to_file(darshan_record_id
     else
         return(NULL);
 }
-#endif
 
 /* posix module shutdown benchmark routine */
 void darshan_posix_shutdown_bench_setup(int test_case)
@@ -2491,9 +2489,6 @@ static void posix_mpi_redux(
 
     POSIX_LOCK();
     assert(posix_runtime);
-
-    /* allow DXT a chance to filter traces based on dynamic triggers */
-    dxt_posix_filter_dynamic_traces(darshan_posix_rec_id_to_file);
 
     posix_rec_count = posix_runtime->file_rec_count;
 
