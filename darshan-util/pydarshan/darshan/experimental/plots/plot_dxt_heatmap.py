@@ -28,42 +28,28 @@ import darshan
 from darshan.experimental.plots import heatmap_handling
 
 
-def get_x_axis_ticks(ax: Any, n_xlabels: int = 4) -> npt.NDArray[np.float64]:
+def get_x_axis_ticks(bin_max: float, n_xlabels: int = 4) -> npt.NDArray[np.float64]:
     """
     Creates the x-axis tick mark locations.
 
     Parameters
     ----------
 
-    ax: a ``matplotlib`` axis object.
+    bin_max: the maximum number of bins.
 
     n_xlabels: the number of x-axis tick marks to create. Default is 4.
 
     Returns
     -------
 
-    xticks: array of x-axis tick mark locations of length ``n_xlabels``.
+    Array of x-axis tick mark locations of length ``n_xlabels``.
 
     """
-    # get the original x-axis tick locations
-    initial_xticks = ax.get_xticks()
-    if len(initial_xticks) < n_xlabels:
-        # if there are too few initial x-axis tick locations, generate
-        # a new array with 0 as the minimum and the same maximum as
-        # the original x-axis ticks
-        xticks = np.linspace(0, np.max(initial_xticks), n_xlabels)
-    else:
-        # use the original tick marks to make new arrays that
-        # contain a subset of the original ticks/labels
-        tick_idx = np.round(np.linspace(0, initial_xticks.size - 1, n_xlabels)).astype(
-            int
-        )
-        xticks = initial_xticks[tick_idx]
-    return xticks
+    return np.linspace(0, bin_max, n_xlabels)
 
 
 def get_x_axis_tick_labels(
-    agg_df: pd.DataFrame, n_xlabels: int = 4
+    max_time: float, n_xlabels: int = 4
 ) -> Union[npt.NDArray[np.float64], npt.NDArray[np.intc]]:
     """
     Creates the x-axis tick mark labels.
@@ -71,8 +57,7 @@ def get_x_axis_tick_labels(
     Parameters
     ----------
 
-    agg_df: a ``pd.DataFrame`` containing the aggregated data determined
-    by the input modules and operations.
+    max_time: the maximum time to plot.
 
     n_xlabels: the number of x-axis tick marks to create. Default is 4.
 
@@ -82,7 +67,6 @@ def get_x_axis_tick_labels(
     x_ticklabels: array of x-axis tick mark labels of length ``n_xlabels``.
 
     """
-    max_time = agg_df["end_time"].values.max()
     # for the x tick labels, start at 0 and end with
     # the max time (converted to an integer)
     if max_time <= 1:
@@ -187,7 +171,7 @@ def get_y_axis_tick_labels(ax: Any, n_ylabels: int = 6) -> npt.NDArray[np.intc]:
 
 
 def set_x_axis_ticks_and_labels(
-    jointgrid: Any, agg_df: pd.DataFrame, n_xlabels: int = 4
+    jointgrid: Any, tmax: float, bin_max: float, n_xlabels: int = 4
 ):
     """
     Sets the x-axis tick mark locations and labels.
@@ -197,15 +181,16 @@ def set_x_axis_ticks_and_labels(
 
     jointgrid: a ``sns.axisgrid.JointGrid`` object.
 
-    agg_df: a ``pd.DataFrame`` containing the aggregated data determined
-    by the input modules and operations.
+    tmax: the maximum time to plot.
+
+    bin_max: the maximum number of bins.
 
     n_xlabels: the number of x-axis tick marks to create. Default is 4.
 
     """
     # retrieve the x-axis tick mark locations and labels
-    xticks = get_x_axis_ticks(ax=jointgrid.ax_joint, n_xlabels=n_xlabels)
-    xticklabels = get_x_axis_tick_labels(agg_df=agg_df, n_xlabels=n_xlabels)
+    xticks = get_x_axis_ticks(bin_max=bin_max, n_xlabels=n_xlabels)
+    xticklabels = get_x_axis_tick_labels(max_time=tmax, n_xlabels=n_xlabels)
     # set the x-axis ticks and labels
     jointgrid.ax_joint.set_xticks(xticks)
     jointgrid.ax_joint.set_xticklabels(xticklabels, minor=False)
@@ -396,8 +381,21 @@ def plot_heatmap(
         align="edge",
     )
 
-    # set the x and y tick locations and labels
-    set_x_axis_ticks_and_labels(jointgrid=jgrid, agg_df=agg_df, n_xlabels=4)
+    # retrieve the final DXT segment end time
+    tmax_dxt = float(agg_df["end_time"].max())
+    # calculate the elapsed runtime
+    runtime = report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
+    # ensure a minimum runtime value of 1 second
+    runtime = max(runtime, 1)
+    # if the data max time exceeds the runtime, buffer by 1 second
+    # until our timer precision improves to prevent truncation
+    if tmax_dxt > runtime:
+        runtime += 1
+    # scale the x-axis to span the calculated run time
+    xbin_max = xbins * (runtime / tmax_dxt)
+    jgrid.ax_joint.set_xlim(0.0, xbin_max)
+    # set the x and y tick locations and labels using the runtime
+    set_x_axis_ticks_and_labels(jointgrid=jgrid, tmax=runtime, bin_max=xbin_max, n_xlabels=4)
     set_y_axis_ticks_and_labels(jointgrid=jgrid, n_ylabels=6)
 
     # cleanup the marginal bar graph ticks and tick labels

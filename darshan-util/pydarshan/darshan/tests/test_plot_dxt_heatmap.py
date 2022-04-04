@@ -20,86 +20,64 @@ def jointgrid():
 @pytest.mark.parametrize(
     "filepath, n_xlabels, expected_xticks, expected_xticklabels",
     [
-        ("ior_hdf5_example.darshan", 2, [0.0, 1.0], [0.0, 0.29]),
+        ("ior_hdf5_example.darshan", 2, np.linspace(0.0, 348.956244, 2), [0.0, 1.0]),
         (
             "ior_hdf5_example.darshan",
             4,
-            [0.0, 0.4, 0.6, 1.0],
-            [0.0, 0.1, 0.19, 0.29],
+            np.linspace(0.0, 348.956244, 4),
+            np.around(np.linspace(0, 1.0, 4), decimals=2),
         ),
         (
             "ior_hdf5_example.darshan",
             6,
-            [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-            [0.0, 0.06, 0.11, 0.17, 0.23, 0.29],
+            np.linspace(0.0, 348.956244, 6),
+            np.linspace(0, 1.0, 6),
         ),
         (
             "ior_hdf5_example.darshan",
             10,
-            [0.0, 1 / 9, 2 / 9, 3 / 9, 4 / 9, 5 / 9, 6 / 9, 7 / 9, 8 / 9, 1.0],
-            [
-                0.0,
-                0.03,
-                0.06,
-                0.1,
-                0.13,
-                0.16,
-                0.19,
-                0.22,
-                0.25,
-                0.29,
-            ],
+            np.linspace(0.0, 348.956244, 10),
+            np.around(np.linspace(0, 1.0, 10), decimals=2),
         ),
-        ("dxt.darshan", 2, [0.0, 1.0], [0, 1468]),
+        ("dxt.darshan", 2, np.linspace(0.0, 100.023116, 2), [0, 1468]),
         (
             "dxt.darshan",
             4,
-            [0.0, 0.4, 0.6, 1.0],
+            np.linspace(0.0, 100.023116, 4),
             [0, 489, 978, 1468],
         ),
         (
             "dxt.darshan",
             6,
-            [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+            np.linspace(0.0, 100.023116, 6),
             [0, 293, 587, 880, 1174, 1468],
         ),
         (
             "dxt.darshan",
             10,
-            [0.0, 1 / 9, 2 / 9, 3 / 9, 4 / 9, 5 / 9, 6 / 9, 7 / 9, 8 / 9, 1.0],
+            np.linspace(0.0, 100.023116, 10),
             [0, 163, 326, 489, 652, 815, 978, 1141, 1304, 1468],
         ),
-        ("sample-dxt-simple.darshan", 2, [0.0, 1.0], [0.0, 0.1]),
+        ("sample-dxt-simple.darshan", 2, np.linspace(0.0, 959.403244, 2), [0.0, 1.0]),
         (
             "sample-dxt-simple.darshan",
             4,
-            [0.0, 0.4, 0.6, 1.0],
-            [0.0, 0.03, 0.07, 0.1],
+            np.linspace(0.0, 959.403244, 4),
+            np.around(np.linspace(0, 1.0, 4), decimals=2),
         ),
         (
             "sample-dxt-simple.darshan",
             6,
-            [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-            [0.0, 0.02, 0.04, 0.06, 0.08, 0.1],
+            np.linspace(0.0, 959.403244, 6),
+            np.linspace(0, 1.0, 6),
         ),
         (
             "sample-dxt-simple.darshan",
             10,
-            [0.0, 1 / 9, 2 / 9, 3 / 9, 4 / 9, 5 / 9, 6 / 9, 7 / 9, 8 / 9, 1.0],
-            [
-                0.0,
-                0.01,
-                0.02,
-                0.03,
-                0.05,
-                0.06,
-                0.07,
-                0.08,
-                0.09,
-                0.1,
-            ],
+            np.linspace(0.0, 959.403244, 10),
+            np.around(np.linspace(0, 1.0, 10), decimals=2),
         ),
-        (None, 2, [0.0, 1.0], [0.0, 1.0]),
+        (None, 2, [0.0, 191.880649], [0.0, 2.0]),
     ],
 )
 def test_set_x_axis_ticks_and_labels(
@@ -118,6 +96,7 @@ def test_set_x_axis_ticks_and_labels(
         data = [[4, 1.03378843, 1.03387713, 0], [4000, 1.04216653, 1.04231459, 0]]
         cols = ["length", "start_time", "end_time", "rank"]
         agg_df = pd.DataFrame(data=data, columns=cols)
+        runtime = 1
 
     else:
         filepath = get_log_path(filepath)
@@ -126,10 +105,24 @@ def test_set_x_axis_ticks_and_labels(
         agg_df = heatmap_handling.get_aggregate_data(
             report=report, mod="DXT_POSIX", ops=["read", "write"]
         )
+        runtime = report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
 
-    # set the x-axis ticks and tick labels
+    runtime = max(runtime, 1)
+    tmax_dxt = float(agg_df["end_time"].max())
+    if tmax_dxt > runtime:
+        runtime += 1
+
+    # the jointgrid fixture has 100 xbins
+    xbins = 100
+    # add a heatmap to the jointgrid to simulate a normal use case
+    sns.heatmap(pd.DataFrame(np.ones((xbins, 4))), ax=jointgrid.ax_joint)
+    # calculate the scaled number of bins
+    bin_max = xbins * (runtime / tmax_dxt)
+    # set the new x limit based on the scaled bins
+    jointgrid.ax_joint.set_xlim(0.0, bin_max)
+    # set the x-axis ticks and tick labels using the runtime
     plot_dxt_heatmap.set_x_axis_ticks_and_labels(
-        jointgrid=jointgrid, agg_df=agg_df, n_xlabels=n_xlabels
+        jointgrid=jointgrid, n_xlabels=n_xlabels, tmax=runtime, bin_max=bin_max,
     )
 
     # collect the actual x-axis tick labels
@@ -141,7 +134,7 @@ def test_set_x_axis_ticks_and_labels(
     plt.close()
 
     # verify the actual ticks/labels match the expected
-    assert_allclose(actual_xticks, expected_xticks, atol=1e-14, rtol=1e-17)
+    assert_allclose(actual_xticks, expected_xticks)
     assert_allclose(actual_xticklabels, expected_xticklabels, atol=1e-14, rtol=1e-17)
 
 
