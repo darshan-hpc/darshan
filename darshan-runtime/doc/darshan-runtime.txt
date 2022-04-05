@@ -476,9 +476,9 @@ behavior at runtime:
 * DARSHAN_MOD_ENABLE: specifies a list of comma-separated Darshan module names to enable at runtime
 
 Darshan also provides mechanisms to selectively disable instrumentation for
-application names matching given regular expressions. This is useful when
+application names matching given regular expressions. This is especially useful when
 Darshan's library is LD_PRELOADed in non-MPI mode, in which case logs may be
-generated for a lot of unintended applications. Users may set an
+generated for many unintended applications. Users may set an
 exclusion list as well as an overriding inclusion list. Regular expressions
 are formatted according to the POSIX `regex.h` interface -- refer to the
 https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/regex.h.html[manpage]
