@@ -233,8 +233,6 @@ void darshan_core_initialize(int argc, char **argv)
     int jobid;
     int ret;
     int i;
-    int tmpval;
-    double tmpfloat;
 
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if (__darshan_core != NULL || getenv("DARSHAN_DISABLE"))
@@ -846,7 +844,6 @@ static void darshan_init_config(struct darshan_core_runtime *core)
 static void darshan_parse_config_env(struct darshan_core_runtime *core)
 {
     char *envstr;
-    char *jobid_str;
     char* string;
     char* token;
     int i;
@@ -1634,6 +1631,8 @@ static int darshan_should_instrument_rank(struct darshan_core_runtime *core)
         {
             /* individual rank */
             DARSHAN_PARSE_NUMBER_FROM_STR(tok, int, rank, success);
+            if(!success)
+                continue;
             if(rank == my_rank)
             {
                 self_excluded = 1;
@@ -1647,9 +1646,17 @@ static int darshan_should_instrument_rank(struct darshan_core_runtime *core)
             int start_rank = 0, end_rank = nprocs;
             *range_delim = '\0';
             if(*start != ':')
+            {
                 DARSHAN_PARSE_NUMBER_FROM_STR(start, int, start_rank, success);
+                if(!success)
+                    continue;
+            }
             if(*end != ':')
+            {
                 DARSHAN_PARSE_NUMBER_FROM_STR(end, int, end_rank, success);
+                if(!success)
+                    continue;
+            }
             if((my_rank >= start_rank) && (my_rank <= end_rank))
             {
                 self_excluded = 1;
@@ -1675,6 +1682,8 @@ static int darshan_should_instrument_rank(struct darshan_core_runtime *core)
             {
                 /* individual rank */
                 DARSHAN_PARSE_NUMBER_FROM_STR(tok, int, rank, success);
+                if(!success)
+                    continue;
                 if(rank == my_rank)
                     return(1);
             }
@@ -1685,9 +1694,17 @@ static int darshan_should_instrument_rank(struct darshan_core_runtime *core)
                 int start_rank = 0, end_rank = nprocs;
                 *range_delim = '\0';
                 if(*start != ':')
+                {
                     DARSHAN_PARSE_NUMBER_FROM_STR(start, int, start_rank, success);
+                    if(!success)
+                        continue;
+                }
                 if(*end != ':')
+                {
                     DARSHAN_PARSE_NUMBER_FROM_STR(end, int, end_rank, success);
+                    if(!success)
+                        continue;
+                }
                 if((my_rank >= start_rank) && (my_rank <= end_rank))
                     return(1);
             }
@@ -1846,7 +1863,6 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
     uint64_t hlevel;
     char hname[HOST_NAME_MAX];
     uint64_t logmod;
-    char *envstr;
     void *mmap_p;
 
     sys_page_size = sysconf(_SC_PAGESIZE);

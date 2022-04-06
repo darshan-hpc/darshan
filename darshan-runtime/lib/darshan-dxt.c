@@ -407,7 +407,6 @@ static void dxt_posix_filter_traces_iterator(void *rec_ref_p, void *user_ptr)
     struct dxt_file_record_ref *psx_rec_ref, *mpiio_rec_ref;
     struct darshan_posix_file *psx_file;
     struct dxt_trigger *trigger = (struct dxt_trigger *)user_ptr;
-    int i;
     int should_keep = 0;
 
     psx_rec_ref = (struct dxt_file_record_ref *)rec_ref_p;
