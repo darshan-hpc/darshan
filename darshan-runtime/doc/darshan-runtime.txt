@@ -587,6 +587,15 @@ NAME_INCLUDE    .out$         *
 MODMEM  8
 ----
 
+[NOTE]
+====
+Users of system-provided Darshan installs should be mindful that these
+installs could define their own default Darshan config file. In this case,
+users should double check that `DARSHAN_CONFIG_PATH` environment variable
+is not already set, and if it is, users should consider copying the
+default config file as a starting point before applying their own settings.
+====
+
 == Darshan installation recipes
 
 The following recipes provide examples for prominent HPC systems.
