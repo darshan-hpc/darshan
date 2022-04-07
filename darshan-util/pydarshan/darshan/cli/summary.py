@@ -398,6 +398,15 @@ class ReportData:
         ################################
         ## Per-Module Statistics
         ################################
+
+        # for the operation counts, since the `H5D` variant contains
+        # both modules' data, we either want `H5F` or `H5D`, not both
+        opcounts_mods = ["POSIX", "MPI-IO", "STDIO"]
+        if "H5D" in self.report.modules:
+            opcounts_mods.append("H5D")
+        elif "H5F" in self.report.modules:
+            opcounts_mods.append("H5F")
+
         for mod in self.report.modules:
             if mod in ["POSIX", "MPI-IO", "H5D"]:
                 access_hist_description = (
@@ -432,7 +441,7 @@ class ReportData:
                 self.figures.append(com_acc_tbl_fig)
 
             # add the operation counts figure
-            if mod in ["POSIX", "MPI-IO", "STDIO"]:
+            if mod in opcounts_mods:
                 opcount_fig = ReportFigure(
                     section_title=f"Per-Module Statistics: {mod}",
                     fig_title="Operation Counts",
