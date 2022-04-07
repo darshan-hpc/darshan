@@ -91,7 +91,7 @@ typedef struct perf_data_s
     double slowest_rank_io_total_time;
     double slowest_rank_meta_only_time;
     int slowest_rank_rank;
-    double shared_time_by_slowest;
+    double shared_io_total_time_by_slowest;
     double agg_perf_by_slowest;
     double *rank_cumul_io_total_time;
     double *rank_cumul_md_only_time;
@@ -682,7 +682,7 @@ int main(int argc, char **argv)
             printf("# I/O timing for shared files (seconds):\n");
             printf("# (multiple estimates shown; time_by_slowest is generally the most accurate)\n");
             printf("# ...........................\n");
-            printf("# shared files: time_by_slowest: %lf\n", pdata.shared_time_by_slowest);
+            printf("# shared files: time_by_slowest: %lf\n", pdata.shared_io_total_time_by_slowest);
             printf("#\n");
             printf("# Aggregate performance, including both shared and unique files (MiB/s):\n");
             printf("# (multiple estimates shown; agg_perf_by_slowest is generally the most accurate)\n");
@@ -949,7 +949,7 @@ void stdio_accum_perf(struct darshan_stdio_file *pfile,
     if(pfile->base_rec.rank == -1)
     {
         /* by_slowest */
-        pdata->shared_time_by_slowest +=
+        pdata->shared_io_total_time_by_slowest +=
             pfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
     }
 
@@ -985,7 +985,7 @@ void posix_accum_perf(struct darshan_posix_file *pfile,
     if(pfile->base_rec.rank == -1)
     {
         /* by_slowest */
-        pdata->shared_time_by_slowest +=
+        pdata->shared_io_total_time_by_slowest +=
             pfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
     }
 
@@ -1020,7 +1020,7 @@ void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
     if(mfile->base_rec.rank == -1)
     {
         /* by_slowest */
-        pdata->shared_time_by_slowest +=
+        pdata->shared_io_total_time_by_slowest +=
             mfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
     }
 
@@ -1264,10 +1264,10 @@ void calc_perf(perf_data_t *pdata,
         }
     }
 
-    if (pdata->slowest_rank_io_total_time + pdata->shared_time_by_slowest)
+    if (pdata->slowest_rank_io_total_time + pdata->shared_io_total_time_by_slowest)
     pdata->agg_perf_by_slowest = ((double)pdata->total_bytes / 1048576.0) /
                                      (pdata->slowest_rank_io_total_time +
-                                      pdata->shared_time_by_slowest);
+                                      pdata->shared_io_total_time_by_slowest);
 
     return;
 }
