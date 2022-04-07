@@ -75,8 +75,13 @@ def gather_count_data(report, mod):
         ]
 
     elif mod == 'H5F':
-        labels = ['Open', 'Flush']
+        labels = [
+            'H5D Read', 'H5D Write', 'H5D Open',
+            'H5D Flush', 'H5F Open', 'H5F Flush',
+        ]
         counts = [
+            # set H5D counters to zero
+            0, 0, 0, 0,
             mod_data['H5F_OPENS'],
             mod_data['H5F_FLUSHES'],
         ]
