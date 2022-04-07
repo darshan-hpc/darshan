@@ -91,14 +91,7 @@ typedef struct perf_data_s
     double slowest_rank_io_total_time;
     double slowest_rank_meta_only_time;
     int slowest_rank_rank;
-    double shared_time_by_cumul;
-    double shared_time_by_open;
-    double shared_time_by_open_lastio;
     double shared_time_by_slowest;
-    double shared_meta_time;
-    double agg_perf_by_cumul;
-    double agg_perf_by_open;
-    double agg_perf_by_open_lastio;
     double agg_perf_by_slowest;
     double *rank_cumul_io_total_time;
     double *rank_cumul_md_only_time;
@@ -689,18 +682,11 @@ int main(int argc, char **argv)
             printf("# I/O timing for shared files (seconds):\n");
             printf("# (multiple estimates shown; time_by_slowest is generally the most accurate)\n");
             printf("# ...........................\n");
-            printf("# shared files: time_by_cumul_io_only: %lf\n", pdata.shared_time_by_cumul);
-            printf("# shared files: time_by_cumul_meta_only: %lf\n", pdata.shared_meta_time);
-            printf("# shared files: time_by_open: %lf\n", pdata.shared_time_by_open);
-            printf("# shared files: time_by_open_lastio: %lf\n", pdata.shared_time_by_open_lastio);
             printf("# shared files: time_by_slowest: %lf\n", pdata.shared_time_by_slowest);
             printf("#\n");
             printf("# Aggregate performance, including both shared and unique files (MiB/s):\n");
             printf("# (multiple estimates shown; agg_perf_by_slowest is generally the most accurate)\n");
             printf("# ...........................\n");
-            printf("# agg_perf_by_cumul: %lf\n", pdata.agg_perf_by_cumul);
-            printf("# agg_perf_by_open: %lf\n", pdata.agg_perf_by_open);
-            printf("# agg_perf_by_open_lastio: %lf\n", pdata.agg_perf_by_open_lastio);
             printf("# agg_perf_by_slowest: %lf\n", pdata.agg_perf_by_slowest);
         }
 
@@ -957,58 +943,11 @@ void stdio_accum_perf(struct darshan_stdio_file *pfile,
 
     /*
      * Calculation of Shared File Time
-     *   Four Methods!!!!
-     *     by_cumul: sum time counters and divide by nprocs
-     *               (inaccurate if lots of variance between procs)
-     *     by_open: difference between timestamp of open and close
-     *              (inaccurate if file is left open without i/o happening)
-     *     by_open_lastio: difference between timestamp of open and the
-     *                     timestamp of last i/o
-     *                     (similar to above but fixes case where file is left
-     *                      open after io is complete)
      *     by_slowest: use slowest rank time from log data
      *                 (most accurate but requires newer log version)
      */
     if(pfile->base_rec.rank == -1)
     {
-        /* by_open */
-        if(pfile->fcounters[STDIO_F_CLOSE_END_TIMESTAMP] >
-            pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP])
-        {
-            pdata->shared_time_by_open +=
-                pfile->fcounters[STDIO_F_CLOSE_END_TIMESTAMP] -
-                pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP];
-        }
-
-        /* by_open_lastio */
-        if(pfile->fcounters[STDIO_F_READ_END_TIMESTAMP] >
-            pfile->fcounters[STDIO_F_WRITE_END_TIMESTAMP])
-        {
-            /* be careful: file may have been opened but not read or written */
-            if(pfile->fcounters[STDIO_F_READ_END_TIMESTAMP] > pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP])
-            {
-                pdata->shared_time_by_open_lastio += 
-                    pfile->fcounters[STDIO_F_READ_END_TIMESTAMP] - 
-                    pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP];
-            }
-        }
-        else
-        {
-            /* be careful: file may have been opened but not read or written */
-            if(pfile->fcounters[STDIO_F_WRITE_END_TIMESTAMP] > pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP])
-            {
-                pdata->shared_time_by_open_lastio += 
-                    pfile->fcounters[STDIO_F_WRITE_END_TIMESTAMP] - 
-                    pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP];
-            }
-        }
-
-        pdata->shared_time_by_cumul +=
-            pfile->fcounters[STDIO_F_META_TIME] +
-            pfile->fcounters[STDIO_F_READ_TIME] +
-            pfile->fcounters[STDIO_F_WRITE_TIME];
-        pdata->shared_meta_time += pfile->fcounters[STDIO_F_META_TIME];
-
         /* by_slowest */
         pdata->shared_time_by_slowest +=
             pfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
@@ -1040,58 +979,11 @@ void posix_accum_perf(struct darshan_posix_file *pfile,
 
     /*
      * Calculation of Shared File Time
-     *   Four Methods!!!!
-     *     by_cumul: sum time counters and divide by nprocs
-     *               (inaccurate if lots of variance between procs)
-     *     by_open: difference between timestamp of open and close
-     *              (inaccurate if file is left open without i/o happening)
-     *     by_open_lastio: difference between timestamp of open and the
-     *                     timestamp of last i/o
-     *                     (similar to above but fixes case where file is left
-     *                      open after io is complete)
      *     by_slowest: use slowest rank time from log data
      *                 (most accurate but requires newer log version)
      */
     if(pfile->base_rec.rank == -1)
     {
-        /* by_open */
-        if(pfile->fcounters[POSIX_F_CLOSE_END_TIMESTAMP] >
-            pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP])
-        {
-            pdata->shared_time_by_open +=
-                pfile->fcounters[POSIX_F_CLOSE_END_TIMESTAMP] -
-                pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP];
-        }
-
-        /* by_open_lastio */
-        if(pfile->fcounters[POSIX_F_READ_END_TIMESTAMP] >
-            pfile->fcounters[POSIX_F_WRITE_END_TIMESTAMP])
-        {
-            /* be careful: file may have been opened but not read or written */
-            if(pfile->fcounters[POSIX_F_READ_END_TIMESTAMP] > pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP])
-            {
-                pdata->shared_time_by_open_lastio += 
-                    pfile->fcounters[POSIX_F_READ_END_TIMESTAMP] - 
-                    pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP];
-            }
-        }
-        else
-        {
-            /* be careful: file may have been opened but not read or written */
-            if(pfile->fcounters[POSIX_F_WRITE_END_TIMESTAMP] > pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP])
-            {
-                pdata->shared_time_by_open_lastio += 
-                    pfile->fcounters[POSIX_F_WRITE_END_TIMESTAMP] - 
-                    pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP];
-            }
-        }
-
-        pdata->shared_time_by_cumul +=
-            pfile->fcounters[POSIX_F_META_TIME] +
-            pfile->fcounters[POSIX_F_READ_TIME] +
-            pfile->fcounters[POSIX_F_WRITE_TIME];
-        pdata->shared_meta_time += pfile->fcounters[POSIX_F_META_TIME];
-
         /* by_slowest */
         pdata->shared_time_by_slowest +=
             pfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
@@ -1122,58 +1014,11 @@ void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
 
     /*
      * Calculation of Shared File Time
-     *   Four Methods!!!!
-     *     by_cumul: sum time counters and divide by nprocs
-     *               (inaccurate if lots of variance between procs)
-     *     by_open: difference between timestamp of open and close
-     *              (inaccurate if file is left open without i/o happening)
-     *     by_open_lastio: difference between timestamp of open and the
-     *                     timestamp of last i/o
-     *                     (similar to above but fixes case where file is left
-     *                      open after io is complete)
      *     by_slowest: use slowest rank time from log data
      *                 (most accurate but requires newer log version)
      */
     if(mfile->base_rec.rank == -1)
     {
-        /* by_open */
-        if(mfile->fcounters[MPIIO_F_CLOSE_END_TIMESTAMP] >
-            mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP])
-        {
-            pdata->shared_time_by_open +=
-                mfile->fcounters[MPIIO_F_CLOSE_END_TIMESTAMP] -
-                mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP];
-        }
-
-        /* by_open_lastio */
-        if(mfile->fcounters[MPIIO_F_READ_END_TIMESTAMP] >
-            mfile->fcounters[MPIIO_F_WRITE_END_TIMESTAMP])
-        {
-            /* be careful: file may have been opened but not read or written */
-            if(mfile->fcounters[MPIIO_F_READ_END_TIMESTAMP] > mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP])
-            {
-                pdata->shared_time_by_open_lastio += 
-                    mfile->fcounters[MPIIO_F_READ_END_TIMESTAMP] - 
-                    mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP];
-            }
-        }
-        else
-        {
-            /* be careful: file may have been opened but not read or written */
-            if(mfile->fcounters[MPIIO_F_WRITE_END_TIMESTAMP] > mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP])
-            {
-                pdata->shared_time_by_open_lastio += 
-                    mfile->fcounters[MPIIO_F_WRITE_END_TIMESTAMP] - 
-                    mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP];
-            }
-        }
-
-        pdata->shared_time_by_cumul +=
-            mfile->fcounters[MPIIO_F_META_TIME] +
-            mfile->fcounters[MPIIO_F_READ_TIME] +
-            mfile->fcounters[MPIIO_F_WRITE_TIME];
-        pdata->shared_meta_time += mfile->fcounters[MPIIO_F_META_TIME];
-
         /* by_slowest */
         pdata->shared_time_by_slowest +=
             mfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
@@ -1409,11 +1254,6 @@ void calc_perf(perf_data_t *pdata,
 {
     int64_t i;
 
-    pdata->shared_time_by_cumul =
-        pdata->shared_time_by_cumul / (double)nprocs;
-
-    pdata->shared_meta_time = pdata->shared_meta_time / (double)nprocs;
-
     for (i=0; i<nprocs; i++)
     {
         if (pdata->rank_cumul_io_total_time[i] > pdata->slowest_rank_io_total_time)
@@ -1423,21 +1263,6 @@ void calc_perf(perf_data_t *pdata,
             pdata->slowest_rank_rank = i;
         }
     }
-
-    if (pdata->slowest_rank_io_total_time + pdata->shared_time_by_cumul)
-    pdata->agg_perf_by_cumul = ((double)pdata->total_bytes / 1048576.0) /
-                                  (pdata->slowest_rank_io_total_time +
-                                   pdata->shared_time_by_cumul);
-
-    if (pdata->slowest_rank_io_total_time + pdata->shared_time_by_open)
-    pdata->agg_perf_by_open  = ((double)pdata->total_bytes / 1048576.0) / 
-                                   (pdata->slowest_rank_io_total_time +
-                                    pdata->shared_time_by_open);
-
-    if (pdata->slowest_rank_io_total_time + pdata->shared_time_by_open_lastio)
-    pdata->agg_perf_by_open_lastio = ((double)pdata->total_bytes / 1048576.0) /
-                                     (pdata->slowest_rank_io_total_time +
-                                      pdata->shared_time_by_open_lastio);
 
     if (pdata->slowest_rank_io_total_time + pdata->shared_time_by_slowest)
     pdata->agg_perf_by_slowest = ((double)pdata->total_bytes / 1048576.0) /
