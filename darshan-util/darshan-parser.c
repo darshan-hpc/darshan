@@ -111,6 +111,7 @@ typedef struct perf_data_s
     int slowest_rank_rank;
     double shared_io_total_time_by_slowest;
     double agg_perf_by_slowest;
+    double agg_time_by_slowest;
     double *rank_cumul_io_total_time;
     double *rank_cumul_io_only_time;
     double *rank_cumul_md_only_time;
@@ -699,16 +700,16 @@ int main(int argc, char **argv)
             printf("# ...........................\n");
             printf("# unique files: slowest_rank_io_time: %lf\n", pdata.slowest_rank_io_total_time);
             printf("# unique files: slowest_rank_meta_only_time: %lf\n", pdata.slowest_rank_meta_only_time);
+            printf("# unique files: slowest_rank_io_only_time: %lf\n", pdata.slowest_rank_io_only_time);
             printf("# unique files: slowest_rank: %d\n", pdata.slowest_rank_rank);
             printf("#\n");
             printf("# I/O timing for shared files (seconds):\n");
-            printf("# (multiple estimates shown; time_by_slowest is generally the most accurate)\n");
             printf("# ...........................\n");
             printf("# shared files: time_by_slowest: %lf\n", pdata.shared_io_total_time_by_slowest);
             printf("#\n");
             printf("# Aggregate performance, including both shared and unique files (MiB/s):\n");
-            printf("# (multiple estimates shown; agg_perf_by_slowest is generally the most accurate)\n");
             printf("# ...........................\n");
+            printf("# agg_time_by_slowest: %lf\n", pdata.agg_time_by_slowest);
             printf("# agg_perf_by_slowest: %lf\n", pdata.agg_perf_by_slowest);
         }
 
@@ -1304,6 +1305,8 @@ void calc_perf(perf_data_t *pdata,
     pdata->agg_perf_by_slowest = ((double)pdata->total_bytes / 1048576.0) /
                                      (pdata->slowest_rank_io_total_time +
                                       pdata->shared_io_total_time_by_slowest);
+    pdata->agg_time_by_slowest = pdata->slowest_rank_io_total_time +
+                                 pdata->shared_io_total_time_by_slowest;
 
     return;
 }
