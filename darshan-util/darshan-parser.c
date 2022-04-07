@@ -59,8 +59,8 @@ typedef struct hash_entry_s
     int64_t type;
     int64_t procs;
     void *rec_dat;
-    double cumul_time;
-    double slowest_time;
+    double cumul_io_total_time; /* cumulative metadata and io time */
+    double slowest_io_total_time; /* slowest rank metadata and io time */
 } hash_entry_t;
 
 typedef struct file_data_s
@@ -557,8 +557,8 @@ int main(int argc, char **argv)
                 hfile->type = 0;
                 hfile->procs = 0;
                 hfile->rec_dat = NULL;
-                hfile->cumul_time = 0.0;
-                hfile->slowest_time = 0.0;
+                hfile->cumul_io_total_time = 0.0;
+                hfile->slowest_io_total_time = 0.0;
 
                 HASH_ADD(hlink, file_hash,rec_id, sizeof(darshan_record_id), hfile);
             }
@@ -771,11 +771,11 @@ void stdio_accum_file(struct darshan_stdio_file *pfile,
 
     if(pfile->base_rec.rank == -1)
     {
-        hfile->slowest_time = pfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
+        hfile->slowest_io_total_time = pfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
     }
     else
     {
-        hfile->slowest_time = max(hfile->slowest_time, 
+        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time, 
             (pfile->fcounters[STDIO_F_META_TIME] +
             pfile->fcounters[STDIO_F_READ_TIME] +
             pfile->fcounters[STDIO_F_WRITE_TIME]));
@@ -797,7 +797,7 @@ void stdio_accum_file(struct darshan_stdio_file *pfile,
         hfile->type |= FILETYPE_UNIQUE;
     }
 
-    hfile->cumul_time += pfile->fcounters[STDIO_F_META_TIME] +
+    hfile->cumul_io_total_time += pfile->fcounters[STDIO_F_META_TIME] +
                          pfile->fcounters[STDIO_F_READ_TIME] +
                          pfile->fcounters[STDIO_F_WRITE_TIME];
 
@@ -829,11 +829,11 @@ void posix_accum_file(struct darshan_posix_file *pfile,
 
     if(pfile->base_rec.rank == -1)
     {
-        hfile->slowest_time = pfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
+        hfile->slowest_io_total_time = pfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
     }
     else
     {
-        hfile->slowest_time = max(hfile->slowest_time, 
+        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time, 
             (pfile->fcounters[POSIX_F_META_TIME] +
             pfile->fcounters[POSIX_F_READ_TIME] +
             pfile->fcounters[POSIX_F_WRITE_TIME]));
@@ -855,7 +855,7 @@ void posix_accum_file(struct darshan_posix_file *pfile,
         hfile->type |= FILETYPE_UNIQUE;
     }
 
-    hfile->cumul_time += pfile->fcounters[POSIX_F_META_TIME] +
+    hfile->cumul_io_total_time += pfile->fcounters[POSIX_F_META_TIME] +
                          pfile->fcounters[POSIX_F_READ_TIME] +
                          pfile->fcounters[POSIX_F_WRITE_TIME];
 
@@ -887,11 +887,11 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
 
     if(mfile->base_rec.rank == -1)
     {
-        hfile->slowest_time = mfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
+        hfile->slowest_io_total_time = mfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
     }
     else
     {
-        hfile->slowest_time = max(hfile->slowest_time, 
+        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time, 
             (mfile->fcounters[MPIIO_F_META_TIME] +
             mfile->fcounters[MPIIO_F_READ_TIME] +
             mfile->fcounters[MPIIO_F_WRITE_TIME]));
@@ -913,7 +913,7 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
         hfile->type |= FILETYPE_UNIQUE;
     }
 
-    hfile->cumul_time += mfile->fcounters[MPIIO_F_META_TIME] +
+    hfile->cumul_io_total_time += mfile->fcounters[MPIIO_F_META_TIME] +
                          mfile->fcounters[MPIIO_F_READ_TIME] +
                          mfile->fcounters[MPIIO_F_WRITE_TIME];
 
@@ -1368,7 +1368,7 @@ void stdio_file_list(hash_entry_t *file_hash,
     printf("# <file_name>: full file name\n");
     printf("# <nprocs>: number of processes that opened the file\n");
     printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
-    printf("# <avg>: average time in seconds consumed in IO per process\n");
+    printf("# <avg>: average time in seconds consumed in IO (including metadata) per process\n");
     if(detail_flag)
     {
         printf("# <start_{open/close/write/read}>: start timestamp of first open, close, write, or read\n");
@@ -1396,8 +1396,8 @@ void stdio_file_list(hash_entry_t *file_hash,
             curr->rec_id,
             ref->name_record->name,
             curr->procs,
-            curr->slowest_time,
-            curr->cumul_time/(double)curr->procs);
+            curr->slowest_io_total_time,
+            curr->cumul_io_total_time/(double)curr->procs);
 
         if(detail_flag)
         {
@@ -1455,7 +1455,7 @@ void posix_file_list(hash_entry_t *file_hash,
     printf("# <file_name>: full file name\n");
     printf("# <nprocs>: number of processes that opened the file\n");
     printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
-    printf("# <avg>: average time in seconds consumed in IO per process\n");
+    printf("# <avg>: average time in seconds consumed in IO (including metadata) per process\n");
     if(detail_flag)
     {
         printf("# <start_{open/read/write/close}>: start timestamp of first open, read, write, or close\n");
@@ -1487,8 +1487,8 @@ void posix_file_list(hash_entry_t *file_hash,
             curr->rec_id,
             ref->name_record->name,
             curr->procs,
-            curr->slowest_time,
-            curr->cumul_time/(double)curr->procs);
+            curr->slowest_io_total_time,
+            curr->cumul_io_total_time/(double)curr->procs);
 
         if(detail_flag)
         {
@@ -1548,7 +1548,7 @@ void mpiio_file_list(hash_entry_t *file_hash,
     printf("# <file_name>: full file name\n");
     printf("# <nprocs>: number of processes that opened the file\n");
     printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
-    printf("# <avg>: average time in seconds consumed in IO per process\n");
+    printf("# <avg>: average time in seconds consumed in IO (including metadata) per process\n");
     if(detail_flag)
     {
         printf("# <start_{open/read/write}>: start timestamp of first open, read, or write\n");
@@ -1582,8 +1582,8 @@ void mpiio_file_list(hash_entry_t *file_hash,
             curr->rec_id,
             ref->name_record->name,
             curr->procs,
-            curr->slowest_time,
-            curr->cumul_time/(double)curr->procs);
+            curr->slowest_io_total_time,
+            curr->cumul_io_total_time/(double)curr->procs);
 
         if(detail_flag)
         {
