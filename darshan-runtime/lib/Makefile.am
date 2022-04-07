@@ -14,6 +14,7 @@ endif
 C_SRCS = darshan-core-init-finalize.c \
          darshan-core.c \
          darshan-common.c \
+         darshan-config.c \
          lookup3.c \
          lookup8.c
 
@@ -104,6 +105,7 @@ libdarshan_a_CPPFLAGS  = $(AM_CPPFLAGS) -D_LARGEFILE64_SOURCE -DDARSHAN_WRAP_MMA
 H_SRCS = darshan-common.h \
          darshan.h \
          darshan-core.h \
+         darshan-config.h \
          darshan-lustre.h \
          darshan-dxt.h \
          uthash.h \

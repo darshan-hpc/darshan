@@ -16,6 +16,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <regex.h>
+#include <errno.h>
 
 #ifdef HAVE_MPI
 #include <mpi.h>
@@ -29,6 +30,7 @@
 
 #include "uthash.h"
 #include "darshan-log-format.h"
+#include "darshan-config.h"
 #include "darshan-common.h"
 #include "darshan-dxt.h"
 
@@ -92,32 +94,6 @@ struct darshan_fs_info
     int mdt_count;
 };
 
-struct darshan_core_config
-{
-    size_t mod_mem;
-    size_t name_mem;
-    int mem_alignment;
-    char *jobid_env;
-    char *log_hints;
-    char *log_path;
-    char *log_path_byenv;
-#ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    char *mmap_log_path;
-#endif
-    uint64_t mod_disabled_flags;
-    uint64_t mod_enabled_flags;
-    uint64_t mod_disabled;
-    size_t mod_max_records_override[DARSHAN_MAX_MODS];
-    struct darshan_core_regex *rec_exclusion_list;
-    struct darshan_core_regex *rec_inclusion_list;
-    struct darshan_core_regex *app_exclusion_list;
-    struct darshan_core_regex *app_inclusion_list;
-    char *rank_exclusions;
-    char *rank_inclusions;
-    struct dxt_trigger *small_io_trigger;
-    struct dxt_trigger *unaligned_io_trigger;
-};
-
 /* FS mount information */
 #define DARSHAN_MAX_MNTS 64
 #define DARSHAN_MAX_MNT_PATH 256
@@ -159,7 +135,7 @@ struct darshan_core_runtime
 
     /* darshan-core internal data structures */
     struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
-    struct darshan_core_config config;
+    struct darshan_config config;
     size_t mod_mem_used;
     struct darshan_core_name_record_ref *name_hash;
     size_t name_mem_used;
@@ -458,5 +434,25 @@ void darshan_core_shutdown(int write_log);
 
 uint32_t darshan_hashlittle(const void *key, size_t length, uint32_t initval);
 uint64_t darshan_hash(const register unsigned char *k, register uint64_t length, register uint64_t level);
+
+/* convenience macro for extracting a number from a string.
+ * caller provides a string, a numeric type (e.g., int, double, etc.),
+ * an output variable of the given type, and a success flag that is
+ * set if a number was succesfully parsed and assigned to the output.
+ */
+#define DARSHAN_PARSE_NUMBER_FROM_STR(__str, __cast, __out, __success) do { \
+    double __tmpfloat; \
+    char *__endptr; \
+    __success = 0; \
+    if(!__str) break; \
+    errno = 0; \
+    __tmpfloat = strtof(__str, &__endptr); \
+    /* first check whether strtof was able to parse any number */\
+    if((__tmpfloat == 0) && ((errno != 0) || (__endptr == __str))) break ;\
+    /* next check that there aren't dangling characters after a valid number */\
+    if(*__endptr != '\0') break; \
+    __out = (__cast)(__tmpfloat); \
+    __success = 1; \
+} while(0)
 
 #endif /* __DARSHAN_H */
