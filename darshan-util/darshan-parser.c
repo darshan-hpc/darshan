@@ -88,8 +88,8 @@ typedef struct file_data_s
 typedef struct perf_data_s
 {
     int64_t total_bytes;
-    double slowest_rank_time;
-    double slowest_rank_meta_time;
+    double slowest_rank_io_total_time;
+    double slowest_rank_meta_only_time;
     int slowest_rank_rank;
     double shared_time_by_cumul;
     double shared_time_by_open;
@@ -100,8 +100,8 @@ typedef struct perf_data_s
     double agg_perf_by_open;
     double agg_perf_by_open_lastio;
     double agg_perf_by_slowest;
-    double *rank_cumul_io_time;
-    double *rank_cumul_md_time;
+    double *rank_cumul_io_total_time;
+    double *rank_cumul_md_only_time;
 } perf_data_t;
 
 /*
@@ -374,17 +374,17 @@ int main(int argc, char **argv)
         printf("#   <fs type>: type of file system that the file resides on.\n");
     }
 
-    pdata.rank_cumul_io_time = malloc(sizeof(double)*job.nprocs);
-    pdata.rank_cumul_md_time = malloc(sizeof(double)*job.nprocs);
-    if (!pdata.rank_cumul_io_time || !pdata.rank_cumul_md_time)
+    pdata.rank_cumul_io_total_time = malloc(sizeof(double)*job.nprocs);
+    pdata.rank_cumul_md_only_time = malloc(sizeof(double)*job.nprocs);
+    if (!pdata.rank_cumul_io_total_time || !pdata.rank_cumul_md_only_time)
     {
         darshan_log_close(fd);
         return(-1);
     }
     else
     {
-        memset(pdata.rank_cumul_io_time, 0, sizeof(double)*job.nprocs);
-        memset(pdata.rank_cumul_md_time, 0, sizeof(double)*job.nprocs);
+        memset(pdata.rank_cumul_io_total_time, 0, sizeof(double)*job.nprocs);
+        memset(pdata.rank_cumul_md_only_time, 0, sizeof(double)*job.nprocs);
     }
 
     mod_buf = malloc(DEF_MOD_BUF_SIZE);
@@ -682,8 +682,8 @@ int main(int argc, char **argv)
             printf("#\n");
             printf("# I/O timing for unique files (seconds):\n");
             printf("# ...........................\n");
-            printf("# unique files: slowest_rank_io_time: %lf\n", pdata.slowest_rank_time);
-            printf("# unique files: slowest_rank_meta_only_time: %lf\n", pdata.slowest_rank_meta_time);
+            printf("# unique files: slowest_rank_io_time: %lf\n", pdata.slowest_rank_io_total_time);
+            printf("# unique files: slowest_rank_meta_only_time: %lf\n", pdata.slowest_rank_meta_only_time);
             printf("# unique files: slowest_rank: %d\n", pdata.slowest_rank_rank);
             printf("#\n");
             printf("# I/O timing for shared files (seconds):\n");
@@ -733,13 +733,13 @@ int main(int argc, char **argv)
         if(total.rec_dat) free(total.rec_dat);
         memset(&total, 0, sizeof(total));
         memset(&fdata, 0, sizeof(fdata));
-        save_io = pdata.rank_cumul_io_time;
-        save_md = pdata.rank_cumul_md_time;
+        save_io = pdata.rank_cumul_io_total_time;
+        save_md = pdata.rank_cumul_md_only_time;
         memset(&pdata, 0, sizeof(pdata));
         memset(save_io, 0, sizeof(double)*job.nprocs);
         memset(save_md, 0, sizeof(double)*job.nprocs);
-        pdata.rank_cumul_io_time = save_io;
-        pdata.rank_cumul_md_time = save_md;
+        pdata.rank_cumul_io_total_time = save_io;
+        pdata.rank_cumul_md_only_time = save_md;
 
         HASH_ITER(hlink, file_hash, curr, tmp_file)
         {
@@ -754,8 +754,8 @@ int main(int argc, char **argv)
 
 cleanup:
     darshan_log_close(fd);
-    free(pdata.rank_cumul_io_time);
-    free(pdata.rank_cumul_md_time);
+    free(pdata.rank_cumul_io_total_time);
+    free(pdata.rank_cumul_md_only_time);
     free(mod_buf);
 
     /* free record hash data */
@@ -1020,11 +1020,11 @@ void stdio_accum_perf(struct darshan_stdio_file *pfile,
      */
     else
     {
-        pdata->rank_cumul_io_time[pfile->base_rec.rank] +=
+        pdata->rank_cumul_io_total_time[pfile->base_rec.rank] +=
             (pfile->fcounters[STDIO_F_META_TIME] +
             pfile->fcounters[STDIO_F_READ_TIME] +
             pfile->fcounters[STDIO_F_WRITE_TIME]);
-        pdata->rank_cumul_md_time[pfile->base_rec.rank] +=
+        pdata->rank_cumul_md_only_time[pfile->base_rec.rank] +=
             pfile->fcounters[STDIO_F_META_TIME];
     }
 
@@ -1103,11 +1103,11 @@ void posix_accum_perf(struct darshan_posix_file *pfile,
      */
     else
     {
-        pdata->rank_cumul_io_time[pfile->base_rec.rank] +=
+        pdata->rank_cumul_io_total_time[pfile->base_rec.rank] +=
             (pfile->fcounters[POSIX_F_META_TIME] +
             pfile->fcounters[POSIX_F_READ_TIME] +
             pfile->fcounters[POSIX_F_WRITE_TIME]);
-        pdata->rank_cumul_md_time[pfile->base_rec.rank] +=
+        pdata->rank_cumul_md_only_time[pfile->base_rec.rank] +=
             pfile->fcounters[POSIX_F_META_TIME];
     }
 
@@ -1185,11 +1185,11 @@ void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
      */
     else
     {
-        pdata->rank_cumul_io_time[mfile->base_rec.rank] +=
+        pdata->rank_cumul_io_total_time[mfile->base_rec.rank] +=
             (mfile->fcounters[MPIIO_F_META_TIME] +
             mfile->fcounters[MPIIO_F_READ_TIME] +
             mfile->fcounters[MPIIO_F_WRITE_TIME]);
-        pdata->rank_cumul_md_time[mfile->base_rec.rank] +=
+        pdata->rank_cumul_md_only_time[mfile->base_rec.rank] +=
             mfile->fcounters[MPIIO_F_META_TIME];
     }
 
@@ -1416,32 +1416,32 @@ void calc_perf(perf_data_t *pdata,
 
     for (i=0; i<nprocs; i++)
     {
-        if (pdata->rank_cumul_io_time[i] > pdata->slowest_rank_time)
+        if (pdata->rank_cumul_io_total_time[i] > pdata->slowest_rank_io_total_time)
         {
-            pdata->slowest_rank_time = pdata->rank_cumul_io_time[i];
-            pdata->slowest_rank_meta_time = pdata->rank_cumul_md_time[i];
+            pdata->slowest_rank_io_total_time = pdata->rank_cumul_io_total_time[i];
+            pdata->slowest_rank_meta_only_time = pdata->rank_cumul_md_only_time[i];
             pdata->slowest_rank_rank = i;
         }
     }
 
-    if (pdata->slowest_rank_time + pdata->shared_time_by_cumul)
+    if (pdata->slowest_rank_io_total_time + pdata->shared_time_by_cumul)
     pdata->agg_perf_by_cumul = ((double)pdata->total_bytes / 1048576.0) /
-                                  (pdata->slowest_rank_time +
+                                  (pdata->slowest_rank_io_total_time +
                                    pdata->shared_time_by_cumul);
 
-    if (pdata->slowest_rank_time + pdata->shared_time_by_open)
+    if (pdata->slowest_rank_io_total_time + pdata->shared_time_by_open)
     pdata->agg_perf_by_open  = ((double)pdata->total_bytes / 1048576.0) / 
-                                   (pdata->slowest_rank_time +
+                                   (pdata->slowest_rank_io_total_time +
                                     pdata->shared_time_by_open);
 
-    if (pdata->slowest_rank_time + pdata->shared_time_by_open_lastio)
+    if (pdata->slowest_rank_io_total_time + pdata->shared_time_by_open_lastio)
     pdata->agg_perf_by_open_lastio = ((double)pdata->total_bytes / 1048576.0) /
-                                     (pdata->slowest_rank_time +
+                                     (pdata->slowest_rank_io_total_time +
                                       pdata->shared_time_by_open_lastio);
 
-    if (pdata->slowest_rank_time + pdata->shared_time_by_slowest)
+    if (pdata->slowest_rank_io_total_time + pdata->shared_time_by_slowest)
     pdata->agg_perf_by_slowest = ((double)pdata->total_bytes / 1048576.0) /
-                                     (pdata->slowest_rank_time +
+                                     (pdata->slowest_rank_io_total_time +
                                       pdata->shared_time_by_slowest);
 
     return;
