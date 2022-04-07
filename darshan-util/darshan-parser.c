@@ -106,11 +106,13 @@ typedef struct perf_data_s
 {
     int64_t total_bytes;
     double slowest_rank_io_total_time;
+    double slowest_rank_io_only_time;
     double slowest_rank_meta_only_time;
     int slowest_rank_rank;
     double shared_io_total_time_by_slowest;
     double agg_perf_by_slowest;
     double *rank_cumul_io_total_time;
+    double *rank_cumul_io_only_time;
     double *rank_cumul_md_only_time;
 } perf_data_t;
 
@@ -385,8 +387,10 @@ int main(int argc, char **argv)
     }
 
     pdata.rank_cumul_io_total_time = malloc(sizeof(double)*job.nprocs);
+    pdata.rank_cumul_io_only_time = malloc(sizeof(double)*job.nprocs);
     pdata.rank_cumul_md_only_time = malloc(sizeof(double)*job.nprocs);
-    if (!pdata.rank_cumul_io_total_time || !pdata.rank_cumul_md_only_time)
+    if (!pdata.rank_cumul_io_total_time || !pdata.rank_cumul_md_only_time ||
+        !pdata.rank_cumul_io_only_time)
     {
         darshan_log_close(fd);
         return(-1);
@@ -394,6 +398,7 @@ int main(int argc, char **argv)
     else
     {
         memset(pdata.rank_cumul_io_total_time, 0, sizeof(double)*job.nprocs);
+        memset(pdata.rank_cumul_io_only_time, 0, sizeof(double)*job.nprocs);
         memset(pdata.rank_cumul_md_only_time, 0, sizeof(double)*job.nprocs);
     }
 
@@ -406,7 +411,7 @@ int main(int argc, char **argv)
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
         struct darshan_base_record *base_rec;
-        void *save_io, *save_md;
+        void *save_io_total, *save_md_only, *save_io_only;
 
         /* check each module for any data */
         if(fd->mod_map[i].len == 0)
@@ -736,13 +741,16 @@ int main(int argc, char **argv)
         if(total.rec_dat) free(total.rec_dat);
         memset(&total, 0, sizeof(total));
         memset(&fdata, 0, sizeof(fdata));
-        save_io = pdata.rank_cumul_io_total_time;
-        save_md = pdata.rank_cumul_md_only_time;
+        save_io_total = pdata.rank_cumul_io_total_time;
+        save_io_only = pdata.rank_cumul_io_only_time;
+        save_md_only = pdata.rank_cumul_md_only_time;
         memset(&pdata, 0, sizeof(pdata));
-        memset(save_io, 0, sizeof(double)*job.nprocs);
-        memset(save_md, 0, sizeof(double)*job.nprocs);
-        pdata.rank_cumul_io_total_time = save_io;
-        pdata.rank_cumul_md_only_time = save_md;
+        memset(save_io_total, 0, sizeof(double)*job.nprocs);
+        memset(save_io_only, 0, sizeof(double)*job.nprocs);
+        memset(save_md_only, 0, sizeof(double)*job.nprocs);
+        pdata.rank_cumul_io_total_time = save_io_total;
+        pdata.rank_cumul_md_only_time = save_md_only;
+        pdata.rank_cumul_io_only_time = save_io_only;
 
         HASH_ITER(hlink, file_hash_table, curr, tmp_file)
         {
@@ -759,6 +767,7 @@ cleanup:
     darshan_log_close(fd);
     free(pdata.rank_cumul_io_total_time);
     free(pdata.rank_cumul_md_only_time);
+    free(pdata.rank_cumul_io_only_time);
     free(mod_buf);
 
     /* free record hash data */
@@ -982,6 +991,9 @@ void stdio_accum_perf(struct darshan_stdio_file *pfile,
             pfile->fcounters[STDIO_F_WRITE_TIME]);
         pdata->rank_cumul_md_only_time[pfile->base_rec.rank] +=
             pfile->fcounters[STDIO_F_META_TIME];
+        pdata->rank_cumul_io_only_time[pfile->base_rec.rank] +=
+            pfile->fcounters[STDIO_F_READ_TIME] +
+            pfile->fcounters[STDIO_F_WRITE_TIME];
     }
 
     return;
@@ -1018,6 +1030,9 @@ void posix_accum_perf(struct darshan_posix_file *pfile,
             pfile->fcounters[POSIX_F_WRITE_TIME]);
         pdata->rank_cumul_md_only_time[pfile->base_rec.rank] +=
             pfile->fcounters[POSIX_F_META_TIME];
+        pdata->rank_cumul_io_only_time[pfile->base_rec.rank] +=
+            pfile->fcounters[POSIX_F_READ_TIME] +
+            pfile->fcounters[POSIX_F_WRITE_TIME];
     }
 
     return;
@@ -1053,6 +1068,9 @@ void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
             mfile->fcounters[MPIIO_F_WRITE_TIME]);
         pdata->rank_cumul_md_only_time[mfile->base_rec.rank] +=
             mfile->fcounters[MPIIO_F_META_TIME];
+        pdata->rank_cumul_io_only_time[mfile->base_rec.rank] +=
+            mfile->fcounters[MPIIO_F_READ_TIME] +
+            mfile->fcounters[MPIIO_F_WRITE_TIME];
     }
 
     return;
@@ -1277,6 +1295,7 @@ void calc_perf(perf_data_t *pdata,
         {
             pdata->slowest_rank_io_total_time = pdata->rank_cumul_io_total_time[i];
             pdata->slowest_rank_meta_only_time = pdata->rank_cumul_md_only_time[i];
+            pdata->slowest_rank_io_only_time = pdata->rank_cumul_io_only_time[i];
             pdata->slowest_rank_rank = i;
         }
     }
