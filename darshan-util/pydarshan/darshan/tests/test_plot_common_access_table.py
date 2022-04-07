@@ -45,13 +45,45 @@ from darshan.log_utils import get_log_path
             # values from the old report (Perl) code
             pd.DataFrame([[241664, 71400], [294912, 18806], [483328, 4862], [512, 1003]]),
         ),
+        (
+            # "ground truth" log where 10 ranks wrote 1 byte each
+            "hdf5_diagonal_write_1_byte_dxt.darshan",
+            "H5D",
+            pd.DataFrame([[1, 10]]),
+        ),
+        (
+            # "ground truth" log where 10 ranks wrote `10 * (1 + rank)` bytes
+            # each (e.g. 10 bytes for rank 0, 20 bytes for rank 1, etc.)
+            "hdf5_diagonal_write_bytes_range_dxt.darshan",
+            "H5D",
+            pd.DataFrame(
+                [[10, 1], [20, 1], [30, 1], [40, 1], [50, 1],
+                [60, 1], [70, 1], [80, 1], [90, 1], [100, 1]],
+            ),
+        ),
+        (
+            # "ground truth" log where 10 ranks wrote 1 byte each and
+            # 5 of the ranks called the `flush` operation. Results
+            # should be the same as `hdf5_diagonal_write_1_byte_dxt.darshan`
+            "hdf5_diagonal_write_half_flush_dxt.darshan",
+            "H5D",
+            pd.DataFrame([[1, 10]]),
+        ),
+        (
+            # "ground truth" log where 5 ranks wrote 1 byte each
+            "hdf5_diagonal_write_half_ranks_dxt.darshan",
+            "H5D",
+            pd.DataFrame([[1, 5]]),
+        ),
     ],
 )
 def test_common_access_table(filename, mod, expected_df):
     log_path = get_log_path(filename=filename)
     expected_df.columns = ["Access Size", "Count"]
     report = darshan.DarshanReport(log_path)
-    actual_df = plot_common_access_table.plot_common_access_table(report=report, mod=mod).df
+    # collect the number of rows from the expected dataframe
+    n_rows = expected_df.shape[0]
+    actual_df = plot_common_access_table.plot_common_access_table(report=report, mod=mod, n_rows=n_rows).df
     assert_frame_equal(actual_df, expected_df)
 
 
