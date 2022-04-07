@@ -238,7 +238,11 @@ static void lustre_runtime_initialize()
     lustre_rec_count = DARSHAN_DEF_MOD_REC_COUNT;
 
     /* register the lustre module with darshan-core */
-    /* assume each file uses 64 OSTs */
+    /* NOTE: We assume each file uses 64 OSTs, but we have no way of
+     *       knowing at init time how many OSTs each file will use.
+     *       This means darshan-core may instrument more or less than
+     *       the number of files we've requested here.
+     */
     ret = darshan_core_register_module(
         DARSHAN_LUSTRE_MOD,
         mod_funcs,
