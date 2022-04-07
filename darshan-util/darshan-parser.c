@@ -52,6 +52,13 @@
 /*
  * Datatypes
  */
+
+/* Structure to accumulate per-file derived metrics, regardless of how many
+ * ranks access it. The "file_hash_table" UT hash table data structure is
+ * used to keep track of all files that have been encountered in the log.
+ * The *_accum_file() functions are used to iteratively accumulate metrics,
+ * while the *_file_list() functions are used to emit them to stdout.
+ */
 typedef struct hash_entry_s
 {
     UT_hash_handle hlink;
@@ -63,6 +70,11 @@ typedef struct hash_entry_s
     double slowest_io_total_time; /* slowest rank metadata and io time */
 } hash_entry_t;
 
+/* Structure to accumulate aggregate derived metrics across all files.  This
+ * is usually caculated all at once (see *_calc_file() functions) after the
+ * file_hash_table has been fully populated with all files, and results are
+ * emitted to stdout in main().
+ */
 typedef struct file_data_s
 {
     int64_t total;
@@ -85,6 +97,11 @@ typedef struct file_data_s
     int64_t shared_max;
 } file_data_t;
 
+/* Structure to accumulate aggreate derived performance metrics across all
+ * files. Metrics are iteratively accumulated with accum_perf() and then
+ * finalized with calc_perf(). Final values are emitted to stdout in
+ * main().
+ */
 typedef struct perf_data_s
 {
     int64_t total_bytes;
@@ -102,20 +119,20 @@ typedef struct perf_data_s
  */
 void posix_accum_file(struct darshan_posix_file *pfile, hash_entry_t *hfile, int64_t nprocs);
 void posix_accum_perf(struct darshan_posix_file *pfile, perf_data_t *pdata);
-void posix_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
+void posix_calc_file(hash_entry_t *file_hash_table, file_data_t *fdata);
 void posix_print_total_file(struct darshan_posix_file *pfile, int posix_ver);
-void posix_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
+void posix_file_list(hash_entry_t *file_hash_table, struct darshan_name_record_ref *name_hash, int detail_flag);
 
 void mpiio_accum_file(struct darshan_mpiio_file *mfile, hash_entry_t *hfile, int64_t nprocs);
 void mpiio_accum_perf(struct darshan_mpiio_file *mfile, perf_data_t *pdata);
-void mpiio_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
+void mpiio_calc_file(hash_entry_t *file_hash_table, file_data_t *fdata);
 void mpiio_print_total_file(struct darshan_mpiio_file *mfile, int mpiio_ver);
-void mpiio_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
+void mpiio_file_list(hash_entry_t *file_hash_table, struct darshan_name_record_ref *name_hash, int detail_flag);
 
 void stdio_accum_perf(struct darshan_stdio_file *pfile, perf_data_t *pdata);
 void stdio_accum_file(struct darshan_stdio_file *pfile, hash_entry_t *hfile, int64_t nprocs);
-void stdio_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
-void stdio_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
+void stdio_calc_file(hash_entry_t *file_hash_table, file_data_t *fdata);
+void stdio_file_list(hash_entry_t *file_hash_table, struct darshan_name_record_ref *name_hash, int detail_flag);
 void stdio_print_total_file(struct darshan_stdio_file *pfile, int stdio_ver);
 
 void calc_perf(perf_data_t *pdata, int64_t nprocs);
@@ -221,7 +238,7 @@ int main(int argc, char **argv)
     int empty_mods = 0;
     char *mod_buf;
 
-    hash_entry_t *file_hash = NULL;
+    hash_entry_t *file_hash_table = NULL;
     hash_entry_t *curr = NULL;
     hash_entry_t *tmp_file = NULL;
     hash_entry_t total;
@@ -541,7 +558,7 @@ int main(int argc, char **argv)
             if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD && i != DARSHAN_STDIO_MOD)
                 continue;
 
-            HASH_FIND(hlink, file_hash, &(base_rec->id), sizeof(darshan_record_id), hfile);
+            HASH_FIND(hlink, file_hash_table, &(base_rec->id), sizeof(darshan_record_id), hfile);
             if(!hfile)
             {
                 hfile = malloc(sizeof(*hfile));
@@ -560,7 +577,7 @@ int main(int argc, char **argv)
                 hfile->cumul_io_total_time = 0.0;
                 hfile->slowest_io_total_time = 0.0;
 
-                HASH_ADD(hlink, file_hash,rec_id, sizeof(darshan_record_id), hfile);
+                HASH_ADD(hlink, file_hash_table,rec_id, sizeof(darshan_record_id), hfile);
             }
 
             if(i == DARSHAN_POSIX_MOD)
@@ -615,15 +632,15 @@ int main(int argc, char **argv)
         {
             if(i == DARSHAN_POSIX_MOD)
             {
-                posix_calc_file(file_hash, &fdata);
+                posix_calc_file(file_hash_table, &fdata);
             }
             else if(i == DARSHAN_MPIIO_MOD)
             {
-                mpiio_calc_file(file_hash, &fdata);
+                mpiio_calc_file(file_hash_table, &fdata);
             }
             else if(i == DARSHAN_STDIO_MOD)
             {
-                stdio_calc_file(file_hash, &fdata);
+                stdio_calc_file(file_hash_table, &fdata);
             }
 
             printf("\n# Total file counts\n");
@@ -695,23 +712,23 @@ int main(int argc, char **argv)
             if(i == DARSHAN_POSIX_MOD)
             {
                 if(mask & OPTION_FILE_LIST_DETAILED)
-                    posix_file_list(file_hash, name_hash, 1);
+                    posix_file_list(file_hash_table, name_hash, 1);
                 else
-                    posix_file_list(file_hash, name_hash, 0);
+                    posix_file_list(file_hash_table, name_hash, 0);
             }
             else if(i == DARSHAN_MPIIO_MOD)
             {
                 if(mask & OPTION_FILE_LIST_DETAILED)
-                    mpiio_file_list(file_hash, name_hash, 1);
+                    mpiio_file_list(file_hash_table, name_hash, 1);
                 else
-                    mpiio_file_list(file_hash, name_hash, 0);
+                    mpiio_file_list(file_hash_table, name_hash, 0);
             }
             else if(i == DARSHAN_STDIO_MOD)
             {
                 if(mask & OPTION_FILE_LIST_DETAILED)
-                    stdio_file_list(file_hash, name_hash, 1);
+                    stdio_file_list(file_hash_table, name_hash, 1);
                 else
-                    stdio_file_list(file_hash, name_hash, 0);
+                    stdio_file_list(file_hash_table, name_hash, 0);
             }
         }
 
@@ -727,9 +744,9 @@ int main(int argc, char **argv)
         pdata.rank_cumul_io_total_time = save_io;
         pdata.rank_cumul_md_only_time = save_md;
 
-        HASH_ITER(hlink, file_hash, curr, tmp_file)
+        HASH_ITER(hlink, file_hash_table, curr, tmp_file)
         {
-            HASH_DELETE(hlink, file_hash, curr);
+            HASH_DELETE(hlink, file_hash_table, curr);
             if(curr->rec_dat) free(curr->rec_dat);
             free(curr);
         }
@@ -1041,7 +1058,7 @@ void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
     return;
 }
 
-void stdio_calc_file(hash_entry_t *file_hash, 
+void stdio_calc_file(hash_entry_t *file_hash_table, 
                      file_data_t *fdata)
 {
     hash_entry_t *curr = NULL;
@@ -1049,7 +1066,7 @@ void stdio_calc_file(hash_entry_t *file_hash,
     struct darshan_stdio_file *file_rec;
 
     memset(fdata, 0, sizeof(*fdata));
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    HASH_ITER(hlink, file_hash_table, curr, tmp)
     {
         int64_t bytes;
         int64_t r;
@@ -1109,7 +1126,7 @@ void stdio_calc_file(hash_entry_t *file_hash,
 }
 
 
-void posix_calc_file(hash_entry_t *file_hash, 
+void posix_calc_file(hash_entry_t *file_hash_table, 
                      file_data_t *fdata)
 {
     hash_entry_t *curr = NULL;
@@ -1117,7 +1134,7 @@ void posix_calc_file(hash_entry_t *file_hash,
     struct darshan_posix_file *file_rec;
 
     memset(fdata, 0, sizeof(*fdata));
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    HASH_ITER(hlink, file_hash_table, curr, tmp)
     {
         int64_t bytes;
         int64_t r;
@@ -1176,7 +1193,7 @@ void posix_calc_file(hash_entry_t *file_hash,
     return;
 }
 
-void mpiio_calc_file(hash_entry_t *file_hash, 
+void mpiio_calc_file(hash_entry_t *file_hash_table, 
                      file_data_t *fdata)
 {
     hash_entry_t *curr = NULL;
@@ -1184,7 +1201,7 @@ void mpiio_calc_file(hash_entry_t *file_hash,
     struct darshan_mpiio_file *file_rec;
 
     memset(fdata, 0, sizeof(*fdata));
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    HASH_ITER(hlink, file_hash_table, curr, tmp)
     {
         int64_t bytes;
         int64_t r;
@@ -1329,7 +1346,7 @@ void mpiio_print_total_file(struct darshan_mpiio_file *mfile, int mpiio_ver)
     return;
 }
 
-void stdio_file_list(hash_entry_t *file_hash,
+void stdio_file_list(hash_entry_t *file_hash_table,
                      struct darshan_name_record_ref *name_hash,
                      int detail_flag)
 {
@@ -1384,7 +1401,7 @@ void stdio_file_list(hash_entry_t *file_hash,
     }
     printf("\n");
 
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    HASH_ITER(hlink, file_hash_table, curr, tmp)
     {
         file_rec = (struct darshan_stdio_file*)curr->rec_dat;
         assert(file_rec);
@@ -1414,7 +1431,7 @@ void stdio_file_list(hash_entry_t *file_hash,
 }
 
 
-void posix_file_list(hash_entry_t *file_hash,
+void posix_file_list(hash_entry_t *file_hash_table,
                      struct darshan_name_record_ref *name_hash,
                      int detail_flag)
 {
@@ -1475,7 +1492,7 @@ void posix_file_list(hash_entry_t *file_hash,
     }
     printf("\n");
 
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    HASH_ITER(hlink, file_hash_table, curr, tmp)
     {
         file_rec = (struct darshan_posix_file*)curr->rec_dat;
         assert(file_rec);
@@ -1506,7 +1523,7 @@ void posix_file_list(hash_entry_t *file_hash,
     return;
 }
 
-void mpiio_file_list(hash_entry_t *file_hash,
+void mpiio_file_list(hash_entry_t *file_hash_table,
                      struct darshan_name_record_ref *name_hash,
                      int detail_flag)
 {
@@ -1570,7 +1587,7 @@ void mpiio_file_list(hash_entry_t *file_hash,
     }
     printf("\n");
 
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    HASH_ITER(hlink, file_hash_table, curr, tmp)
     {
         file_rec = (struct darshan_mpiio_file*)curr->rec_dat;
         assert(file_rec);
