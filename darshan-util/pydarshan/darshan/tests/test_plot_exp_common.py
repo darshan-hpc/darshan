@@ -291,4 +291,6 @@ def test_bar_heights(filename, mod, fig_func, expected_heights):
         for patch in ax.patches:
             actual_heights.append(patch.get_height())
 
+    plt.close(fig)
+
     assert_array_equal(actual_heights, expected_heights)
