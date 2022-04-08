@@ -328,8 +328,8 @@ value of 1 MiB for optimal file alignment.
 | MPIIO_SIZE_WRITE_AGG_* | Histogram of total size of write accesses at MPI level, even if access is noncontiguous
 | MPIIO_ACCESS[1-4]_ACCESS | 4 most common MPI aggregate access sizes
 | MPIIO_ACCESS[1-4]_COUNT | Count of 4 most common MPI aggregate access sizes
-| MPIIO_FASTEST_RANK | The MPI rank with smallest time spent in MPI I/O
-| MPIIO_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in MPI I/O
+| MPIIO_FASTEST_RANK | The MPI rank with smallest time spent in MPI I/O (cumulative read, write, and meta times)
+| MPIIO_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in MPI I/O (cumulative read, write, and meta times)
 | MPIIO_SLOWEST_RANK | The MPI rank with largest time spent in MPI I/O (cumulative read, write, and meta times)
 | MPIIO_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in MPI I/O (cumulative read, write, and meta times)
 | MPIIO_F_*_START_TIMESTAMP | Timestamp that the first MPIIO file open/read/write/close operation began
