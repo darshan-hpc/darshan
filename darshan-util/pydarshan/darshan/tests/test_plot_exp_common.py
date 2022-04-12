@@ -114,7 +114,8 @@ darshan.enable_experimental()
             "ior_hdf5_example.darshan",
             "H5F",
             plot_opcounts,
-            ['Open', 'Flush'],
+            ['H5D Read', 'H5D Write', 'H5D Open',
+            'H5D Flush', 'H5F Open', 'H5F Flush'],
         ),
         (
             "ior_hdf5_example.darshan",
@@ -267,7 +268,7 @@ def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
             "ior_hdf5_example.darshan",
             "H5F",
             plot_opcounts,
-            [6, 0],
+            [0, 0, 0, 0, 6, 0],
         ),
         (
             "ior_hdf5_example.darshan",
