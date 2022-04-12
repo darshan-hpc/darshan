@@ -210,6 +210,29 @@ def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
             [11, 2492, 2, 0, 0, 0, 0, 410, 86, 0, 2526,
             303, 2, 0, 97812, 396, 0, 410, 86, 0],
         ),
+        # "ground truth" log where 10 ranks wrote 1 byte each
+        (
+            "hdf5_diagonal_write_1_byte_dxt.darshan",
+            "H5D",
+            plot_access_histogram,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ),
+        # "ground truth" log where 10 ranks wrote 10-100 bytes each.
+        # Should be the same as `hdf5_diagonal_write_1_byte_dxt.darshan`
+        # since the first bin includes 0-100
+        (
+            "hdf5_diagonal_write_bytes_range_dxt.darshan",
+            "H5D",
+            plot_access_histogram,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ),
+        # "ground truth" log where 5 ranks wrote 1 byte each
+        (
+            "hdf5_diagonal_write_half_ranks_dxt.darshan",
+            "H5D",
+            plot_access_histogram,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ),
         (
             "dxt.darshan",
             "POSIX",
@@ -275,6 +298,48 @@ def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
             "H5D",
             plot_opcounts,
             [12, 12, 6, 0, 6, 0],
+        ),
+        # "ground truth" log with only 3 `H5F` opens
+        (
+            "hdf5_file_opens_only.darshan",
+            "H5F",
+            plot_opcounts,
+            [0, 0, 0, 0, 3, 0],
+        ),
+        # "ground truth" log where 10 files and datasets are opened
+        # and each dataset is written to once
+        (
+            "hdf5_diagonal_write_1_byte_dxt.darshan",
+            "H5D",
+            plot_opcounts,
+            [0, 10, 10, 0, 10, 0],
+        ),
+        # "ground truth" log where 10 files and datasets are opened
+        # and each dataset is written to once. Should match
+        # `hdf5_diagonal_write_1_byte_dxt.darshan` since they only
+        # differ in the number of bytes written to each dataset
+        (
+            "hdf5_diagonal_write_bytes_range_dxt.darshan",
+            "H5D",
+            plot_opcounts,
+            [0, 10, 10, 0, 10, 0],
+        ),
+        # "ground truth" log where 10 files and datasets are opened,
+        # each dataset is written to once, and half of the files
+        # call the flush operation
+        (
+            "hdf5_diagonal_write_half_flush_dxt.darshan",
+            "H5D",
+            plot_opcounts,
+            [0, 10, 10, 0, 10, 5],
+        ),
+        # "ground truth" log where 10 files are opened and 5
+        # datasets are opened and written to
+        (
+            "hdf5_diagonal_write_half_ranks_dxt.darshan",
+            "H5D",
+            plot_opcounts,
+            [0, 5, 5, 0, 10, 0],
         ),
     ],
 )
