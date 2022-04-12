@@ -408,6 +408,12 @@ class ReportData:
             opcounts_mods.append("H5F")
 
         for mod in self.report.modules:
+
+            if "H5" in mod:
+                sect_title = "Per-Module Statistics: HDF5"
+            else:
+                sect_title = f"Per-Module Statistics: {mod}"
+
             if mod in ["POSIX", "MPI-IO", "H5D"]:
                 access_hist_description = (
                     "Histogram of read and write access sizes. The specific values "
@@ -415,7 +421,7 @@ class ReportData:
                     "the <i>Common Access Sizes</i> table."
                 )
                 access_hist_fig = ReportFigure(
-                    section_title=f"Per-Module Statistics: {mod}",
+                    section_title=sect_title,
                     fig_title="Access Sizes",
                     fig_func=plot_access_histogram,
                     fig_args=dict(report=self.report, mod=mod),
@@ -431,7 +437,7 @@ class ReportData:
                 else:
                     com_acc_tbl_description = ""
                 com_acc_tbl_fig = ReportFigure(
-                    section_title=f"Per-Module Statistics: {mod}",
+                    section_title=sect_title,
                     fig_title="Common Access Sizes",
                     fig_func=plot_common_access_table.plot_common_access_table,
                     fig_args=dict(report=self.report, mod=mod),
@@ -443,7 +449,7 @@ class ReportData:
             # add the operation counts figure
             if mod in opcounts_mods:
                 opcount_fig = ReportFigure(
-                    section_title=f"Per-Module Statistics: {mod}",
+                    section_title=sect_title,
                     fig_title="Operation Counts",
                     fig_func=plot_opcounts,
                     fig_args=dict(report=self.report, mod=mod),
