@@ -1,4 +1,3 @@
-import functools
 from typing import Sequence
 
 import numpy as np
@@ -126,6 +125,5 @@ class Heatmap():
             df_list.append(df)
 
         # sum the dataframes
-        hmap_df = functools.reduce(lambda x, y: x.add(y), df_list)
-        return hmap_df
+        return sum(df_list)
 
