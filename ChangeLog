@@ -13,6 +13,11 @@ Darshan-3.4
   --enable-rdtscp at configure time
 * Remove unecessary explicit mpich binding libraries from link line when static linking
 * Graceful warnings when parsing log files with unknown module types
+* Remove deprecated performance estimate methods from darshan-parser
+* Add two new derived metrics to darshan-parser --perf: agg_time_by_slowest
+  (total elapsed time performing I/O by the slowest rank) and
+  slowest_rank_rw_only_time (total elapsed time performing read/write
+  operations by the slowest rank)
 
 Darshan-3.3.1
 =============

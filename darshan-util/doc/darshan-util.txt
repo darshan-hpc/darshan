@@ -284,10 +284,10 @@ value of 1 MiB for optimal file alignment.
 | POSIX_STRIDE[1-4]_COUNT | Count of 4 most common stride patterns
 | POSIX_ACCESS[1-4]_ACCESS | 4 most common POSIX access sizes
 | POSIX_ACCESS[1-4]_COUNT | Count of 4 most common POSIX access sizes
-| POSIX_FASTEST_RANK | The MPI rank with smallest time spent in POSIX I/O
-| POSIX_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in POSIX I/O
-| POSIX_SLOWEST_RANK | The MPI rank with largest time spent in POSIX I/O
-| POSIX_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in POSIX I/O
+| POSIX_FASTEST_RANK | The MPI rank with smallest time spent in POSIX I/O (cumulative read, write, and meta times)
+| POSIX_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in POSIX I/O (cumulative read, write, and meta times)
+| POSIX_SLOWEST_RANK | The MPI rank with largest time spent in POSIX I/O (cumulative read, write, and meta times)
+| POSIX_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in POSIX I/O (cumulative read, write, and meta times)
 | POSIX_F_*_START_TIMESTAMP | Timestamp that the first POSIX file open/read/write/close operation began
 | POSIX_F_*_END_TIMESTAMP | Timestamp that the last POSIX file open/read/write/close operation ended
 | POSIX_F_READ_TIME | Cumulative time spent reading at the POSIX level
@@ -296,7 +296,7 @@ value of 1 MiB for optimal file alignment.
 | POSIX_F_MAX_READ_TIME | Duration of the slowest individual POSIX read operation
 | POSIX_F_MAX_WRITE_TIME | Duration of the slowest individual POSIX write operation
 | POSIX_F_FASTEST_RANK_TIME | The time of the rank which had the smallest amount of time spent in POSIX I/O (cumulative read, write, and meta times)
-| POSIX_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in POSIX I/O
+| POSIX_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in POSIX I/O (cumulative read, write, and meta times)
 | POSIX_F_VARIANCE_RANK_TIME | The population variance for POSIX I/O time of all the ranks
 | POSIX_F_VARIANCE_RANK_BYTES | The population variance for bytes transferred of all the ranks
 |====
@@ -328,10 +328,10 @@ value of 1 MiB for optimal file alignment.
 | MPIIO_SIZE_WRITE_AGG_* | Histogram of total size of write accesses at MPI level, even if access is noncontiguous
 | MPIIO_ACCESS[1-4]_ACCESS | 4 most common MPI aggregate access sizes
 | MPIIO_ACCESS[1-4]_COUNT | Count of 4 most common MPI aggregate access sizes
-| MPIIO_FASTEST_RANK | The MPI rank with smallest time spent in MPI I/O
-| MPIIO_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in MPI I/O
-| MPIIO_SLOWEST_RANK | The MPI rank with largest time spent in MPI I/O
-| MPIIO_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in MPI I/O
+| MPIIO_FASTEST_RANK | The MPI rank with smallest time spent in MPI I/O (cumulative read, write, and meta times)
+| MPIIO_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in MPI I/O (cumulative read, write, and meta times)
+| MPIIO_SLOWEST_RANK | The MPI rank with largest time spent in MPI I/O (cumulative read, write, and meta times)
+| MPIIO_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in MPI I/O (cumulative read, write, and meta times)
 | MPIIO_F_*_START_TIMESTAMP | Timestamp that the first MPIIO file open/read/write/close operation began
 | MPIIO_F_*_END_TIMESTAMP | Timestamp that the last MPIIO file open/read/write/close operation ended
 | MPIIO_F_READ_TIME | Cumulative time spent reading at MPI level
@@ -340,7 +340,7 @@ value of 1 MiB for optimal file alignment.
 | MPIIO_F_MAX_READ_TIME | Duration of the slowest individual MPI read operation
 | MPIIO_F_MAX_WRITE_TIME | Duration of the slowest individual MPI write operation
 | MPIIO_F_FASTEST_RANK_TIME | The time of the rank which had the smallest amount of time spent in MPI I/O (cumulative read, write, and meta times)
-| MPIIO_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in MPI I/O
+| MPIIO_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in MPI I/O (cumulative read, write, and meta times)
 | MPIIO_F_VARIANCE_RANK_TIME | The population variance for MPI I/O time of all the ranks
 | MPIIO_F_VARIANCE_RANK_BYTES | The population variance for bytes transferred of all the ranks at MPI level
 |====
@@ -360,17 +360,17 @@ value of 1 MiB for optimal file alignment.
 | STDIO_BYTES_READ | Total number of bytes read from the file using stdio operations
 | STDIO_MAX_BYTE_READ | Highest offset in the file that was read
 | STDIO_MAX_BYTE_WRITTEN | Highest offset in the file that was written
-| STDIO_FASTEST_RANK | The MPI rank with the smallest time spent in stdio operations
-| STDIO_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with the smallest time spent in stdio operations
-| STDIO_SLOWEST_RANK | The MPI rank with the largest time spent in stdio operations
-| STDIO_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in stdio operations
+| STDIO_FASTEST_RANK | The MPI rank with the smallest time spent in stdio operations (cumulative read, write, and meta times)
+| STDIO_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with the smallest time spent in stdio operations (cumulative read, write, and meta times)
+| STDIO_SLOWEST_RANK | The MPI rank with the largest time spent in stdio operations (cumulative read, write, and meta times)
+| STDIO_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in stdio operations (cumulative read, write, and meta times)
 | STDIO_META_TIME | Cumulative time spent in stdio open/close/seek operations
 | STDIO_WRITE_TIME | Cumulative time spent in stdio write operations
 | STDIO_READ_TIME | Cumulative time spent in stdio read operations
 | STDIO_*_START_TIMESTAMP | Timestamp that the first stdio file open/read/write/close operation began
 | STDIO_*_END_TIMESTAMP | Timestamp that the last stdio file open/read/write/close operation ended
 | STDIO_F_FASTEST_RANK_TIME | The time of the rank which had the smallest time spent in stdio I/O (cumulative read, write, and meta times)
-| STDIO_F_SLOWEST_RANK_TIME | The time of the rank which had the largest time spent in stdio I/O
+| STDIO_F_SLOWEST_RANK_TIME | The time of the rank which had the largest time spent in stdio I/O (cumulative read, write, and meta times)
 | STDIO_F_VARIANCE_RANK_TIME | The population variance for stdio I/O time of all the ranks
 | STDIO_F_VARIANCE_RANK_BYTES | The population variance for bytes transferred of all the ranks
 |====
@@ -415,10 +415,10 @@ value of 1 MiB for optimal file alignment.
 | H5D_CHUNK_SIZE_D[1-5] | Chunk sizes in the last 5 dimensions of the dataset (D5 is the fastest changing dimension)
 | H5D_USE_MPIIO_COLLECTIVE | Flag indicating use of MPI-IO collectives
 | H5D_USE_DEPRECATED | Flag indicating whether deprecated create/open calls were used
-| H5D_FASTEST_RANK | The MPI rank with smallest time spent in H5D I/O
-| H5D_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in H5D I/O
-| H5D_SLOWEST_RANK | The MPI rank with largest time spent in H5D I/O
-| H5D_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in H5D I/O
+| H5D_FASTEST_RANK | The MPI rank with smallest time spent in H5D I/O (cumulative read, write, and meta times)
+| H5D_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in H5D I/O (cumulative read, write, and meta times)
+| H5D_SLOWEST_RANK | The MPI rank with largest time spent in H5D I/O (cumulative read, write, and meta times)
+| H5D_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in H5D I/O (cumulative read, write, and meta times)
 | H5D_F_*_START_TIMESTAMP | Timestamp that the first H5D open/read/write/close operation began
 | H5D_F_*_END_TIMESTAMP | Timestamp that the last H5D open/read/write/close operation ended
 | H5D_F_READ_TIME | Cumulative time spent reading at H5D level
@@ -427,7 +427,7 @@ value of 1 MiB for optimal file alignment.
 | H5D_F_MAX_READ_TIME | Duration of the slowest individual H5D read operation
 | H5D_F_MAX_WRITE_TIME | Duration of the slowest individual H5D write operation
 | H5D_F_FASTEST_RANK_TIME | The time of the rank which had the smallest amount of time spent in H5D I/O (cumulative read, write, and meta times)
-| H5D_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in H5D I/O
+| H5D_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in H5D I/O (cumulative read, write, and meta times)
 | H5D_F_VARIANCE_RANK_TIME | The population variance for H5D I/O time of all the ranks
 | H5D_F_VARIANCE_RANK_BYTES | The population variance for bytes transferred of all the ranks at H5D level
 | H5D_FILE_REC_ID | Darshan file record ID of the file the dataset belongs to
