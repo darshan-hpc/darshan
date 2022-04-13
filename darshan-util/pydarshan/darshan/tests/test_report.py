@@ -488,3 +488,12 @@ def test_heatmap_operations(mod, expected_counts):
         assert actual_count == expected_count
 
     assert_frame_equal(rd_df + wr_df, rd_wr_df)
+
+
+def test_heatmap_df_invalid_operation():
+    # check that when invalid operations (anything other than "read"
+    # or "write") are passed to `Heatmap.to_df()` a `ValueError` is raised
+    log_path = get_log_path("e3sm_io_heatmap_only.darshan")
+    report = darshan.DarshanReport(log_path)
+    with pytest.raises(ValueError, match="invalid_op not in heatmap"):
+        report.heatmaps["POSIX"].to_df(ops=["invalid_op"])
