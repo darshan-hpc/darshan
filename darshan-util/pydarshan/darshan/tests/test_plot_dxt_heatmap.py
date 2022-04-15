@@ -411,7 +411,7 @@ def test_plot_heatmap(filepath, mod, ops):
     report = darshan.DarshanReport(filepath)
 
     if mod == "POSIX":
-        with pytest.raises(NotImplementedError, match="Only DXT modules are supported."):
+        with pytest.raises(NotImplementedError, match="Only DXT and HEATMAP modules are supported."):
             plot_dxt_heatmap.plot_heatmap(report=report, mod=mod)
     elif ("dxt.darshan" in filepath) & (mod == "DXT_MPIIO"):
         # if the input module is not "DXT_POSIX" check

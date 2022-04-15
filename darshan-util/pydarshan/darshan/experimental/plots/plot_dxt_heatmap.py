@@ -3,7 +3,8 @@ Module for creating the ranks vs. time IO intensity
 heatmap figure for the Darshan job summary.
 """
 
-from typing import Any, List, Sequence, Union, TYPE_CHECKING
+from typing import (Any, List, Sequence, Union,
+                    TYPE_CHECKING, Tuple, Optional)
 
 import numpy as np
 
@@ -26,6 +27,53 @@ from matplotlib.colors import LogNorm
 
 import darshan
 from darshan.experimental.plots import heatmap_handling
+
+
+def determine_hmap_runtime(report: darshan.DarshanReport) -> Tuple[float, float]:
+    """
+    Determine the effective heatmap runtime to be used
+    for plotting in cases where only DXT, only HEATMAP,
+    or both module types are available, to achieve a common
+    max displayed runtime.
+
+    In some cases, this may mean that the time value is
+    rounded up from the actual runtime.
+
+    Paramaters
+    ----------
+
+    report: a ``darshan.DarshanReport``
+
+    Returns
+    -------
+
+    A tuple containing `tmax`, (rounded) `runtime` floats.
+
+    """
+    # calculate the elapsed runtime
+    runtime = report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
+    # ensure a minimum runtime value of 1 second
+    runtime = max(runtime, 1)
+    # leverage higher resolution DXT timing
+    # data if available
+    if ("DXT_POSIX" in report.modules or
+        "DXT_MPIIO" in report.modules):
+        tmax = 0.0
+        for mod in report.modules:
+            if "DXT" in mod:
+                agg_df = heatmap_handling.get_aggregate_data(report=report,
+                                                             mod=mod,
+                                                             ops=["read", "write"])
+                tmax_dxt = float(agg_df["end_time"].max())
+                if tmax_dxt > tmax:
+                    tmax = tmax_dxt
+        # if the data max time exceeds the runtime, buffer by 1 second
+        # until our timer precision improves to prevent truncation
+        if tmax > runtime:
+            runtime += 1
+    else:
+        tmax = runtime
+    return tmax, runtime
 
 
 def get_x_axis_ticks(bin_max: float, n_xlabels: int = 4) -> npt.NDArray[np.float64]:
@@ -279,6 +327,7 @@ def plot_heatmap(
     mod: str = "DXT_POSIX",
     ops: Sequence[str] = ["read", "write"],
     xbins: int = 200,
+    submodule: Optional[str] = None,
 ) -> Any:
     """
     Creates a heatmap with marginal bar graphs and colorbar.
@@ -294,7 +343,12 @@ def plot_heatmap(
     ops: a sequence of keys designating which Darshan operations to use for
     data aggregation. Default is ``["read", "write"]``.
 
-    xbins: the number of x-axis bins to create.
+    xbins: the number of x-axis bins to create; it has
+           no effect when `mod` is `HEATMAP`
+
+    submodule: when `mod` is `HEATMAP` this specifies the
+               source of the runtime heatmap data, otherwise
+               it has no effect
 
     Returns
     -------
@@ -310,18 +364,22 @@ def plot_heatmap(
     ValueError: if the input module is not in the ``DarshanReport``.
 
     """
-    if "DXT" not in mod:
-        raise NotImplementedError("Only DXT modules are supported.")
+    if "DXT" not in mod and "HEATMAP" not in mod:
+        raise NotImplementedError("Only DXT and HEATMAP modules are supported.")
 
     if mod not in report.modules:
         raise ValueError(f"Module {mod} not found in DarshanReport.")
 
-    # aggregate the data according to the selected modules and operations
-    agg_df = heatmap_handling.get_aggregate_data(report=report, mod=mod, ops=ops)
-
     nprocs = report.metadata["job"]["nprocs"]
-    # get the heatmap data array
-    hmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins, nprocs=nprocs)
+
+    if "DXT" in mod:
+        # aggregate the data according to the selected modules and operations
+        agg_df = heatmap_handling.get_aggregate_data(report=report, mod=mod, ops=ops)
+        # get the heatmap data array
+        hmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins, nprocs=nprocs)
+    elif mod == "HEATMAP":
+        hmap_df = report.heatmaps[submodule].to_df(ops=ops)
+        xbins = hmap_df.shape[1]
 
     # build the joint plot with marginal histograms
     jgrid = sns.jointplot(kind="hist", bins=[xbins, nprocs], space=0.05)
@@ -381,18 +439,9 @@ def plot_heatmap(
         align="edge",
     )
 
-    # retrieve the final DXT segment end time
-    tmax_dxt = float(agg_df["end_time"].max())
-    # calculate the elapsed runtime
-    runtime = report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
-    # ensure a minimum runtime value of 1 second
-    runtime = max(runtime, 1)
-    # if the data max time exceeds the runtime, buffer by 1 second
-    # until our timer precision improves to prevent truncation
-    if tmax_dxt > runtime:
-        runtime += 1
+    tmax, runtime = determine_hmap_runtime(report=report)
     # scale the x-axis to span the calculated run time
-    xbin_max = xbins * (runtime / tmax_dxt)
+    xbin_max = xbins * (runtime / tmax)
     jgrid.ax_joint.set_xlim(0.0, xbin_max)
     # set the x and y tick locations and labels using the runtime
     set_x_axis_ticks_and_labels(jointgrid=jgrid, tmax=runtime, bin_max=xbin_max, n_xlabels=4)

@@ -327,9 +327,9 @@ class ReportData:
         """
         self.figures = []
 
-        ############################
-        ## Add the DXT heat map(s)
-        ############################
+        #########################################
+        ## Add the runtime and/or DXT heat map(s)
+        #########################################
         # if either or both modules are present, register their figures
         hmap_description = (
             "Heat map of I/O (in bytes) over time broken down by MPI rank. "
@@ -339,17 +339,32 @@ class ReportData:
             "right edge bar graph sums each rank across time slices to show I/O "
             "distribution across ranks."
         )
-        if "DXT" in "\t".join(self.report.modules):
-            for mod in ["DXT_POSIX", "DXT_MPIIO"]:
+        modules_avail = set(self.report.modules)
+        hmap_modules = ["HEATMAP", "DXT_POSIX", "DXT_MPIIO"]
+        if not set(hmap_modules).isdisjoint(modules_avail):
+            for mod in hmap_modules:
                 if mod in self.report.modules:
-                    dxt_heatmap_fig = ReportFigure(
-                        section_title="I/O Summary",
-                        fig_title=f"Heat Map: {mod}",
-                        fig_func=plot_dxt_heatmap.plot_heatmap,
-                        fig_args=dict(report=self.report, mod=mod),
-                        fig_description=hmap_description,
-                    )
-                    self.figures.append(dxt_heatmap_fig)
+                    if mod == "HEATMAP":
+                        for possible_submodule in ["POSIX", "MPI-IO", "STDIO"]:
+                            if possible_submodule in self.report.modules:
+                                possible_submodule = possible_submodule.replace("-", "")
+                                heatmap_fig = ReportFigure(
+                                    section_title="I/O Summary",
+                                    fig_title=f"Heat Map: {mod} {possible_submodule}",
+                                    fig_func=plot_dxt_heatmap.plot_heatmap,
+                                    fig_args=dict(report=self.report, mod=mod, submodule=possible_submodule),
+                                    fig_description=hmap_description,
+                                )
+                                self.figures.append(heatmap_fig)
+                    else:
+                        heatmap_fig = ReportFigure(
+                            section_title="I/O Summary",
+                            fig_title=f"Heat Map: {mod}",
+                            fig_func=plot_dxt_heatmap.plot_heatmap,
+                            fig_args=dict(report=self.report, mod=mod),
+                            fig_description=hmap_description,
+                        )
+                        self.figures.append(heatmap_fig)
         else:
             # temporary message to direct users to DXT tracing
             # documentation until DXT tracing is enabled by default

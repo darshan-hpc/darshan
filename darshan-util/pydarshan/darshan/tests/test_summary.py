@@ -176,6 +176,8 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                     for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
                         if dxt_mod in report.modules:
                             assert f"Heat Map: {dxt_mod}" in report_str
+                elif "HEATMAP" in "\t".join(report.modules):
+                    assert "Heat Map: HEATMAP" in report_str
                 else:
                     # check that help message is present
                     assert "Heat map is not available for this job" in report_str
@@ -188,6 +190,16 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                 # check the number of opening section tags
                 # matches the number of closing section tags
                 assert report_str.count("<section>") == report_str.count("</section>")
+
+                # check for presence of expected runtime HEATMAPs
+                actual_runtime_heatmap_titles = report_str.count("<h3>Heat Map: HEATMAP")
+                if "e3sm_io_heatmap_only" in log_filepath:
+                    assert actual_runtime_heatmap_titles == 3
+                elif "runtime_and_dxt_heatmaps_diagonal_write_only" in log_filepath:
+                    assert actual_runtime_heatmap_titles == 1
+                else:
+                    assert actual_runtime_heatmap_titles == 0
+
 
 class TestReportData:
 
