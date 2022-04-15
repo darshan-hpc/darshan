@@ -1,3 +1,5 @@
+from typing import Sequence
+
 import numpy as np
 import pandas as pd
 
@@ -53,7 +55,7 @@ class Heatmap():
             print()
             for op in ['read', 'write']:
                 print(op)
-                plt.pcolor(self.to_df(op=op))
+                plt.pcolor(self.to_df(ops=[op]))
                 plt.show()
 
     def add_record(self, rec: dict):  
@@ -88,23 +90,24 @@ class Heatmap():
             
         self._num_recs += 1
 
-    def to_df(self, op: str, interval_index: bool = True):
+    def to_df(self, ops: Sequence[str], interval_index: bool = True):
         """
         Return heatmap as pandas dataframe.
 
         Parameters
         ----------
 
-        op: which operation type to plot. Allowed values: ["read", "write"]
-        
+        ops: a sequence of keys designating which operations to use
+        for data aggregation. If multiple operations are given, their
+        dataframes will be summed. Allowed values: ["read", "write"].
+
         interval_index: bool to enable/disable interval indices for columns
 
         """
+        for op in ops:
+            if op not in self._data:
+                raise ValueError(f"{op} not in heatmap.")
 
-        if op not in self._data:
-            raise ValueError(f"{op} not in heatmap.")
-
-        data = self._data[op]
         nbins = self._nbins
         bin_width_seconds = self._bin_width_seconds
 
@@ -113,9 +116,14 @@ class Heatmap():
             columns = pd.IntervalIndex.from_breaks(breaks)
         else:
             columns = np.arange(nbins)
-            
-        df = pd.DataFrame.from_dict(data, orient='index', columns=columns)
-        df.index.name = "rank"
 
-        return df
+        df_list = []
+        for op in ops:
+            data = self._data[op]
+            df = pd.DataFrame.from_dict(data, orient='index', columns=columns)
+            df.index.name = "rank"
+            df_list.append(df)
+
+        # sum the dataframes
+        return sum(df_list)
 
