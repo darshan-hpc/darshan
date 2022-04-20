@@ -646,17 +646,25 @@ def plot_with_report(report: darshan.DarshanReport,
     file_id_dict = report.data["name_records"]
     filesystem_roots = identify_filesystems(file_id_dict=file_id_dict,
                                             verbose=verbose)
+    # NOTE: this is a bit ugly, STDIO and POSIX are both combined
+    # automatically later in the control flow, so an API redesign
+    # may be in order eventually
+    default_mod = "POSIX"
+    if "POSIX" not in report.modules:
+        # STDIO can also be used for this figure/analysis
+        default_mod = "STDIO"
+
     file_rd_series, file_wr_series = unique_fs_rw_counter(report=report,
                                                           filesystem_roots=filesystem_roots,
                                                           file_id_dict=file_id_dict,
                                                           processing_func=process_unique_files,
-                                                          mod='POSIX',
+                                                          mod=default_mod,
                                                           verbose=verbose)
     bytes_rd_series, bytes_wr_series = unique_fs_rw_counter(report=report,
                                                             filesystem_roots=filesystem_roots,
                                                             file_id_dict=file_id_dict,
                                                             processing_func=process_byte_counts,
-                                                            mod='POSIX', verbose=verbose)
+                                                            mod=default_mod, verbose=verbose)
     # reverse sort by total bytes IO per category
     sort_inds = (bytes_rd_series + bytes_wr_series).argsort()[::-1]
     if num_cats is None:

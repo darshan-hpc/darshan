@@ -22,6 +22,7 @@ from darshan.experimental.plots import (
     plot_common_access_table,
     plot_access_histogram,
     plot_opcounts,
+    data_access_by_filesystem,
 )
 
 darshan.enable_experimental()
@@ -459,6 +460,20 @@ class ReportData:
                     fig_width=350,
                 )
                 self.figures.append(opcount_fig)
+
+        #########################
+        # Data Access by Category
+        if not {"POSIX", "STDIO"}.isdisjoint(set(self.report.modules)):
+            data_access_by_cat_fig = ReportFigure(
+                section_title="Data Access by Category",
+                fig_title="",
+                fig_func=data_access_by_filesystem.plot_with_report,
+                fig_args=dict(report=self.report, num_cats=8),
+                fig_description="",
+                fig_width=1,
+            )
+            self.figures.append(data_access_by_cat_fig)
+
 
 
     def build_sections(self):
