@@ -56,6 +56,8 @@ class ReportFigure:
         fig_width: int = 500,
     ):
         self.section_title = section_title
+        if not fig_title:
+            fig_title = "&nbsp;"
         self.fig_title = fig_title
         self.fig_func = fig_func
         self.fig_args = fig_args
