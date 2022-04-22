@@ -129,7 +129,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    fi
 
    AC_ARG_WITH([mem-align],
-      [AS_HELP_STRING([--with-mem-aligned@<:@=NUM@:>@],
+      [AS_HELP_STRING([--with-mem-align@<:@=NUM@:>@],
                       [Memory alignment in bytes @<:@default=8@:>@])],
       [], [with_mem_align=no]
    )
