@@ -1194,17 +1194,23 @@ static int darshan_should_instrument_rank(struct darshan_core_runtime *core)
             char *end = range_delim + 1;
             int start_rank = 0, end_rank = nprocs;
             *range_delim = '\0';
-            if(*start != ':')
+            if(*start && *start != ':')
             {
                 DARSHAN_PARSE_NUMBER_FROM_STR(start, int, start_rank, success);
                 if(!success)
+                {
+                    tok = strtok(NULL, ",");
                     continue;
+                }
             }
-            if(*end != ':')
+            if(*end && *end != ':')
             {
                 DARSHAN_PARSE_NUMBER_FROM_STR(end, int, end_rank, success);
                 if(!success)
+                {
+                    tok = strtok(NULL, ",");
                     continue;
+                }
             }
             if((my_rank >= start_rank) && (my_rank <= end_rank))
             {
