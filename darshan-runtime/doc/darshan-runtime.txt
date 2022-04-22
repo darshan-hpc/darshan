@@ -433,13 +433,13 @@ AutoPerf offers two additional Darshan instrumentation modules that may be enabl
 Users can request Darshan to build the APMPI and APXC modules by passing
 `--enable-apmpi-mod` and `--enable-apxc-mod` options to configure, respectively. Note that these options can be requested independently (i.e., you can build Darshan with APMPI support but not APXC support, and vice versa).
 
-The only prerequsisite for the APMPI module is that Darsan be configured with a MPI-3 compliant compiler. For APXC, the user must obviously be using a Cray XC system and must make the PAPI interace available to Darshan (i.e., by running `module load papi`, before building Darshan).
+The only prerequsisite for the APMPI module is that Darsan be configured with a MPI-3 compliant compiler. For APXC, the user must obviously be using a Cray XC system and must make the PAPI interface available to Darshan (i.e., by running `module load papi`, before building Darshan).
 
 If using the APMPI module, users can additionally specify the `--enable-apmpi-coll-sync` configure option to force Darshan to synchronize before calling underlying MPI routines and to capture additional timing information on how synchronized processes are. Users should note this option will impose additional overheads, but can be useful to help diagnose whether applications are spending a lot of time synchronizing as part of collective communication calls. For this reason, we do not recommend users setting this particular option for production Darshan deployments.
 
 [NOTE]
 ====
-The AutoPerf instrumentation modules are provided as Git submodules to Darshan's main repository, so if building Darshan source that has been cloned from Git, it is neccessary to first retrieve the AutoPerf submodules by running the following command:
+The AutoPerf instrumentation modules are provided as Git submodules to Darshan's main repository, so if building Darshan source that has been cloned from Git, it is necessary to first retrieve the AutoPerf submodules by running the following command:
 
 ----
 git submodule update --init
@@ -616,14 +616,14 @@ An example configuration file with annotations is given below
 # enable DXT modules, which are off by default
 MOD_ENABLE      DXT_POSIX,DXT_MPIIO
 
-# alloate 4096 file records for POSIX and MPI-IO modules
+# allocate 4096 file records for POSIX and MPI-IO modules
 # (darshan only allocates 1024 per-module by default)
 MAX_RECORDS     4096      POSIX,MPI-IO
 
 # the '*' specifier can be used to apply settings for all modules
 # in this case, we want all modules to ignore record names
 # prefixed with "/home" (i.e., stored in our home directory),
-# with a superceding inclusion for files with a ".out" suffix)
+# with a superseding inclusion for files with a ".out" suffix)
 NAME_EXCLUDE    ^/home        *
 NAME_INCLUDE    .out$         *
 
