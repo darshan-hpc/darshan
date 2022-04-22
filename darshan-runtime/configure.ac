@@ -212,6 +212,19 @@ if test "x$enable_darshan_runtime" = xyes ; then
                          [Maximum runtime memory consumption per process (in MiB) across all instrumentation modules])
    fi
 
+   AC_ARG_WITH([name-mem],
+      [AS_HELP_STRING([--with-name-mem=NUM],
+                      [Maximum runtime memory consumption per process
+                       (in MiB) for storing name records])],
+      [], [with_name_mem=no]
+   )
+   if test "x$with_name_mem" = xyes; then
+      AC_MSG_ERROR(--with-name-mem must be given a number)
+   elif test "x$with_name_mem" != xno; then
+      AC_DEFINE_UNQUOTED([__DARSHAN_NAME_MEM_MAX], $with_name_mem,
+                         [Maximum runtime memory consumption per process (in MiB) for storing name records])
+   fi
+
    #
    # Check for specific module enable/disable options
    #
