@@ -11,6 +11,7 @@ from pandas.testing import assert_frame_equal
 import darshan
 from darshan.cli import summary
 from darshan.log_utils import get_log_path, _provide_logs_repo_filepaths
+from darshan.experimental.plots.data_access_by_filesystem import plot_with_report
 
 
 @pytest.mark.parametrize(
@@ -518,3 +519,17 @@ class TestReportFigure:
 
         # verify correct error is being raised
         assert "Figure of type <class 'int'> not supported." in str(err)
+
+
+def test_issue_717():
+    # regression test for issue https://github.com/darshan-hpc/darshan/issues/717
+    logname = "ior_hdf5_example.darshan"
+    report = darshan.DarshanReport(get_log_path(logname))
+    fig = summary.ReportFigure(
+        section_title="",
+        # set figure title to empty string
+        fig_title="",
+        fig_func=plot_with_report,
+        fig_args=dict(report=report),
+    )
+    assert not "alt= width" in fig.fig_html
