@@ -469,8 +469,11 @@ class ReportData:
                 fig_title="",
                 fig_func=data_access_by_filesystem.plot_with_report,
                 fig_args=dict(report=self.report, num_cats=8),
-                fig_description="",
-                fig_width=1,
+                fig_description="Summary of data access volume "
+                                "categorized by storage "
+                                "target (e.g., file system "
+                                "mount point) and sorted by volume.",
+                fig_width=500,
             )
             self.figures.append(data_access_by_cat_fig)
 
