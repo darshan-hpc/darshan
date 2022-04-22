@@ -192,7 +192,6 @@ static void darshan_core_fork_child_cb(void);
 void darshan_core_initialize(int argc, char **argv)
 {
     struct darshan_core_runtime *init_core = NULL;
-    int internal_timing_flag = 0;
     double init_start, init_time;
     char *jobid_str;
     int jobid;
@@ -204,10 +203,6 @@ void darshan_core_initialize(int argc, char **argv)
         return;
 
     init_start = darshan_core_wtime_absolute();
-    if(getenv("DARSHAN_INTERNAL_TIMING"))
-    {
-        internal_timing_flag = 1;
-    }
 
     /* allocate structure to track darshan core runtime information */
     init_core = malloc(sizeof(*init_core));
@@ -241,7 +236,7 @@ void darshan_core_initialize(int argc, char **argv)
         darshan_init_config(&init_core->config);
         darshan_parse_config_file(&init_core->config);
         darshan_parse_config_env(&init_core->config);
-        if(my_rank == 0 && getenv("DARSHAN_DUMP_CONFIG"))
+        if(my_rank == 0 && init_core->config.dump_config_flag)
             darshan_dump_config(&init_core->config);
 
         /* find the job id */
@@ -364,7 +359,7 @@ void darshan_core_initialize(int argc, char **argv)
         }
     }
 
-    if(internal_timing_flag)
+    if(__darshan_core->config.internal_timing_flag)
     {
         init_time = darshan_core_wtime_absolute() - init_start;
 #ifdef HAVE_MPI
@@ -395,7 +390,7 @@ void darshan_core_shutdown(int write_log)
 {
     struct darshan_core_runtime *final_core;
     double start_log_time;
-    int internal_timing_flag = 0;
+    int internal_timing_flag;
     double open1 = 0, open2 = 0;
     double job1 = 0, job2 = 0;
     double rec1 = 0, rec2 = 0;
@@ -449,8 +444,7 @@ void darshan_core_shutdown(int write_log)
     start_log_time = darshan_core_wtime_absolute();
     final_core->log_job_p->end_time = time(NULL);
 
-    if(getenv("DARSHAN_INTERNAL_TIMING"))
-        internal_timing_flag = 1;
+    internal_timing_flag = final_core->config.internal_timing_flag;
 
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
     /* remove the temporary mmap log files */
@@ -620,7 +614,7 @@ void darshan_core_shutdown(int write_log)
 
                 /* allow the module an opportunity to reduce shared files */
                 if(this_mod->mod_funcs.mod_redux_func && (mod_shared_rec_cnt > 0) &&
-                   (!getenv("DARSHAN_DISABLE_SHARED_REDUCTION")))
+                   !final_core->config.disable_shared_redux_flag)
                 {
                     this_mod->mod_funcs.mod_redux_func(mod_buf, final_core->mpi_comm,
                         mod_shared_recs, mod_shared_rec_cnt);

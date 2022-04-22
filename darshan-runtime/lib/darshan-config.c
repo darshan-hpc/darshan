@@ -437,6 +437,12 @@ void darshan_parse_config_env(struct darshan_config *cfg)
             }
         }
     }
+    if(getenv("DARSHAN_DUMP_CONFIG"))
+        cfg->dump_config_flag = 1;
+    if(getenv("DARSHAN_INTERNAL_TIMING"))
+        cfg->internal_timing_flag = 1;
+    if(getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
+        cfg->disable_shared_redux_flag = 1;
 
     /* apply disabled/enabled module flags */
     cfg->mod_disabled |= cfg->mod_disabled_flags;
@@ -781,6 +787,12 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                     }
                 }
             }
+            else if(strcmp(key, "DUMP_CONFIG") == 0)
+                cfg->dump_config_flag = 1;
+            else if(strcmp(key, "INTERNAL_TIMING") == 0)
+                cfg->internal_timing_flag = 1;
+            else if(strcmp(key, "DISABLE_SHARED_REDUCTION") == 0)
+                cfg->disable_shared_redux_flag = 1;
             else
             {
                 darshan_core_fprintf(stderr, "darshan library warning: "\
