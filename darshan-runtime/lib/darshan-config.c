@@ -458,6 +458,7 @@ void darshan_parse_config_file(struct darshan_config *cfg)
     char *line = NULL;
     size_t len = 0;
     char *key, *val, *mods;
+    char *token;
     uint64_t tmp_mod_flags;
     size_t tmpmax;
     struct darshan_core_regex *regex;
@@ -564,25 +565,30 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                 val = strtok(NULL, " \t");
                 if(val)
                 {
-                    regex = malloc(sizeof(*regex));
-                    if(!regex) break;
-                    regex->regex_str = strdup(val);
-                    if(!regex->regex_str)
+                    token = strtok(val, ",");
+                    while(token != NULL)
                     {
-                        free(regex);
-                        break;
+                        regex = malloc(sizeof(*regex));
+                        if(!regex) break;
+                        regex->regex_str = strdup(token);
+                        if(!regex->regex_str)
+                        {
+                            free(regex);
+                            break;
+                        }
+                        ret = regcomp(&regex->regex, token, REG_EXTENDED);
+                        if(ret)
+                        {
+                            darshan_core_fprintf(stderr, "darshan library warning: "\
+                                "unable to compile Darshan config %s regex %s\n",
+                                key, token);
+                            free(regex->regex_str);
+                            free(regex);
+                            continue;
+                        }
+                        LL_APPEND(cfg->app_exclusion_list, regex);
+                        token = strtok(NULL, ",");
                     }
-                    ret = regcomp(&regex->regex, val, REG_EXTENDED);
-                    if(ret)
-                    {
-                        darshan_core_fprintf(stderr, "darshan library warning: "\
-                            "unable to compile Darshan config %s regex %s\n",
-                            key, val);
-                        free(regex->regex_str);
-                        free(regex);
-                        continue;
-                    }
-                    LL_APPEND(cfg->app_exclusion_list, regex);
                 }
             }
             else if(strcmp(key, "APP_INCLUDE") == 0)
@@ -590,25 +596,30 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                 val = strtok(NULL, " \t");
                 if(val)
                 {
-                    regex = malloc(sizeof(*regex));
-                    if(!regex) break;
-                    regex->regex_str = strdup(val);
-                    if(!regex->regex_str)
+                    token = strtok(val, ",");
+                    while(token != NULL)
                     {
-                        free(regex);
-                        break;
+                        regex = malloc(sizeof(*regex));
+                        if(!regex) break;
+                        regex->regex_str = strdup(token);
+                        if(!regex->regex_str)
+                        {
+                            free(regex);
+                            break;
+                        }
+                        ret = regcomp(&regex->regex, token, REG_EXTENDED);
+                        if(ret)
+                        {
+                            darshan_core_fprintf(stderr, "darshan library warning: "\
+                                "unable to compile Darshan config %s regex %s\n",
+                                key, token);
+                            free(regex->regex_str);
+                            free(regex);
+                            continue;
+                        }
+                        LL_APPEND(cfg->app_inclusion_list, regex);
+                        token = strtok(NULL, ",");
                     }
-                    ret = regcomp(&regex->regex, val, REG_EXTENDED);
-                    if(ret)
-                    {
-                        darshan_core_fprintf(stderr, "darshan library warning: "\
-                            "unable to compile Darshan config %s regex %s\n",
-                            key, val);
-                        free(regex->regex_str);
-                        free(regex);
-                        continue;
-                    }
-                    LL_APPEND(cfg->app_inclusion_list, regex);
                 }
             }
             else if (strcmp(key, "RANK_EXCLUDE") == 0)
@@ -689,7 +700,7 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                     }
                 }
             }
-            else if (strcmp(key, "NAME_EXCLUDE") == 0)
+            else if(strcmp(key, "NAME_EXCLUDE") == 0)
             {
                 val = strtok(NULL, " \t");
                 if(val)
@@ -697,30 +708,36 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                     mods = strtok(NULL, " \t");
                     if(mods)
                     {
-                        regex = malloc(sizeof(*regex));
-                        if(!regex) break;
-                        regex->regex_str = strdup(val);
-                        if(!regex->regex_str)
+                        tmp_mod_flags = darshan_module_csv_to_flags(mods);
+                        token = strtok(val, ",");
+                        while(token != NULL)
                         {
-                            free(regex);
-                            break;
+                            regex = malloc(sizeof(*regex));
+                            if(!regex) break;
+                            regex->regex_str = strdup(token);
+                            if(!regex->regex_str)
+                            {
+                                free(regex);
+                                break;
+                            }
+                            regex->mod_flags = tmp_mod_flags;
+                            ret = regcomp(&regex->regex, token, REG_EXTENDED);
+                            if(ret)
+                            {
+                                darshan_core_fprintf(stderr, "darshan library warning: "\
+                                    "unable to compile Darshan config %s regex %s\n",
+                                    key, token);
+                                free(regex->regex_str);
+                                free(regex);
+                                continue;
+                            }
+                            LL_APPEND(cfg->rec_exclusion_list, regex);
+                            token = strtok(NULL, ",");
                         }
-                        regex->mod_flags = darshan_module_csv_to_flags(mods);
-                        ret = regcomp(&regex->regex, val, REG_EXTENDED);
-                        if(ret)
-                        {
-                            darshan_core_fprintf(stderr, "darshan library warning: "\
-                                "unable to compile Darshan config %s regex %s\n",
-                                key, val);
-                            free(regex->regex_str);
-                            free(regex);
-                            continue;
-                        }
-                        LL_APPEND(cfg->rec_exclusion_list, regex);
                     }
                 }
             }
-            else if (strcmp(key, "NAME_INCLUDE") == 0)
+            else if(strcmp(key, "NAME_INCLUDE") == 0)
             {
                 val = strtok(NULL, " \t");
                 if(val)
@@ -728,30 +745,36 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                     mods = strtok(NULL, " \t");
                     if(mods)
                     {
-                        regex = malloc(sizeof(*regex));
-                        if(!regex) break;
-                        regex->regex_str = strdup(val);
-                        if(!regex->regex_str)
+                        tmp_mod_flags = darshan_module_csv_to_flags(mods);
+                        token = strtok(val, ",");
+                        while(token != NULL)
                         {
-                            free(regex);
-                            break;
+                            regex = malloc(sizeof(*regex));
+                            if(!regex) break;
+                            regex->regex_str = strdup(token);
+                            if(!regex->regex_str)
+                            {
+                                free(regex);
+                                break;
+                            }
+                            regex->mod_flags = tmp_mod_flags;
+                            ret = regcomp(&regex->regex, token, REG_EXTENDED);
+                            if(ret)
+                            {
+                                darshan_core_fprintf(stderr, "darshan library warning: "\
+                                    "unable to compile Darshan config %s regex %s\n",
+                                    key, token);
+                                free(regex->regex_str);
+                                free(regex);
+                                continue;
+                            }
+                            LL_APPEND(cfg->rec_inclusion_list, regex);
+                            token = strtok(NULL, ",");
                         }
-                        regex->mod_flags = darshan_module_csv_to_flags(mods);
-                        ret = regcomp(&regex->regex, val, REG_EXTENDED);
-                        if(ret)
-                        {
-                            darshan_core_fprintf(stderr, "darshan library warning: "\
-                                "unable to compile Darshan config %s regex %s\n",
-                                key, val);
-                            free(regex->regex_str);
-                            free(regex);
-                            continue;
-                        }
-                        LL_APPEND(cfg->rec_inclusion_list, regex);
                     }
                 }
             }
-            else if (strcmp(key, "DXT_SMALL_IO_TRIGGER") == 0)
+            else if(strcmp(key, "DXT_SMALL_IO_TRIGGER") == 0)
             {
                 double thresh_pct;
                 val = strtok(NULL, " \t");
@@ -769,7 +792,7 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                     }
                 }
             }
-            else if (strcmp(key, "DXT_UNALIGNED_IO_TRIGGER") == 0)
+            else if(strcmp(key, "DXT_UNALIGNED_IO_TRIGGER") == 0)
             {
                 double thresh_pct;
                 val = strtok(NULL, " \t");
@@ -956,7 +979,7 @@ void darshan_free_config(
     free(cfg->mmap_log_path);
 #endif
     if(cfg->user_exclude_dirs)
-    {   while(path = cfg->user_exclude_dirs[tmp_index++])
+    {   while((path = cfg->user_exclude_dirs[tmp_index++]))
             free(path);
         free(cfg->user_exclude_dirs);
     }
