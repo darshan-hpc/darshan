@@ -3,6 +3,7 @@ Module for creating the ranks vs. time IO intensity
 heatmap figure for the Darshan job summary.
 """
 
+import functools
 from typing import (Any, List, Sequence, Union,
                     TYPE_CHECKING, Tuple, Optional)
 
@@ -29,6 +30,7 @@ import darshan
 from darshan.experimental.plots import heatmap_handling
 
 
+@functools.lru_cache(maxsize=10)
 def determine_hmap_runtime(report: darshan.DarshanReport) -> Tuple[float, float]:
     """
     Determine the effective heatmap runtime to be used
