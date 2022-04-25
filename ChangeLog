@@ -18,6 +18,7 @@ Darshan-3.4
   (total elapsed time performing I/O by the slowest rank) and
   slowest_rank_rw_only_time (total elapsed time performing read/write
   operations by the slowest rank)
+* Add unified Darshan configuration support via env vars and config files
 
 Darshan-3.3.1
 =============

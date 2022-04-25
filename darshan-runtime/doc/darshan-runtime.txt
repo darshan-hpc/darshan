@@ -88,7 +88,7 @@ make install
   be placed.
 ** NOTE: after installation, any user can display the configured path with the `darshan-config --log-path` command
 * `--with-log-path-by-env=NAME1,NAME2,...`: specifies a comma separated list of
-  environment variables to check at run time for log path location before the
+  environment variables to check at runtime for log path location before the
   one set by `--with-log-path=DIR` at configure time.
 * `--with-log-hints=hint1=x;hint2=y,...`: specifies hints to use when writing
   the Darshan log file.  See `./configure --help` for details.
@@ -320,12 +320,12 @@ The example profile configurations show above only support dynamic linking.
 Example profile configurations are also provided with a "-static" suffix if
 you need examples for static linking.
 
-=== Option 2: Instrumenting MPI applications at run time
+=== Option 2: Instrumenting MPI applications at runtime
 
 This method is applicable to pre-compiled dynamically linked executables
 as well as interpreted languages such as Python.  You do not need to
 change your compile options in any way.  This method works by injecting
-instrumentation at run time.  It will not work for statically linked
+instrumentation at runtime.  It will not work for statically linked
 executables.
 
 To use this mechanism, set the `LD_PRELOAD` environment variable to the full
@@ -365,7 +365,7 @@ For SGI systems running the MPT environment, it may be necessary to set the `MPI
 environment variable equal to `true` to avoid deadlock when preloading the Darshan shared
 library.
 
-=== Option 3: Instrumenting non-MPI applications at run time
+=== Option 3: Instrumenting non-MPI applications at runtime
 
 Similar to the process described in the previous section, Darshan relies on the
 `LD_PRELOAD` mechanism for instrumenting dynamically-linked non-MPI applications.
@@ -407,53 +407,21 @@ line *before* -ldarshan if possible.
 
 == Using the Darshan eXtended Tracing (DXT) module
 
-DXT support is disabled by default in Darshan, requiring the user to either explicitly
-enable tracing for all files or to provide a trace trigger configuration file describing
-which files should be traced at runtime.
-
-To enable tracing globally for all files, Darshan users simply need to set the
-DXT_ENABLE_IO_TRACE environment variable as follows:
+Darshan's DXT module provides full tracing of MPI-IO and POSIX read/write APIs.
+While the DXT module is able to capture finer-grained details compared to traditional
+Darshan instrumentation, it may exhibit higher runtime and memory overheads.
+For this reason, DXT support is disabled by default in Darshan, but users can opt-in
+to DXT instrumentation at runtime by setting their environment as follows:
 
 ----
 export DXT_ENABLE_IO_TRACE=1
 ----
 
-To enable tracing for particular files, DXT additionally offers a trace
-triggering mechanism, with users specifying triggers used to decide whether or
-not to trace a particular file at runtime. Files that do not match any trace
-trigger will not store trace data in the Darshan log. Currently, DXT supports
-the following types of trace triggers:
-
-* file triggers: trace files based on regex matching of file paths
-* rank triggers: trace files based on regex matching of ranks
-* dynamic triggers: trace files based on runtime analysis of I/O characteristics (e.g., frequent small or unaligned I/O accesses)
-
-Users simply need to specify one or more of these triggers in a text file that is passed
-to DXT at runtime -- when multiple triggers are specified, DXT will keep any file traces
-that match at least one trigger (i.e., the trace decision is a logical OR across given triggers).
-An example configuration file is given below, illustrating the syntax to use for currently
-supported triggers:
-
-----
-FILE .h5$           # trace all files with a '.h5' extension
-FILE ^/tmp          # trace all files with a path prefix of '/tmp'
-RANK [1-2]          # trace all files accessed by ranks 1-2
-SMALL_IO .5         # trace all files with greater than 50% small (less than 10 KB) accesses
-UNALIGNED_IO .5     # trace all files with greater than 50% unaligned accesses
-----
-
-FILE and RANK triggers take a single parameter representing the regex that will be compared
-to the file name and the rank accessing it, respectively. Regex support is provided by the
-POSIX `regex.h` interface -- refer to the https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/regex.h.html[manpage] for more details on regex syntax.
-SMALL_IO and UNALIGNED_IO triggers take a single parameter representing the lower
-threshold percentage of accesses of the given type.
-
-Set the DXT_TRIGGER_CONF_PATH environment variable to notify DXT of the path of the
-configuration file:
-
-----
-export DXT_TRIGGER_CONF_PATH=/path/to/dxt/config/file
-----
+DXT will trace each I/O operation to files instrumented by Darshan's MPI-IO and
+POSIX modules, using a default memory limit of 2 MiB for each module (DXT_POSIX
+and DXT_MPIIO). Memory usage and a number of other aspects of DXT tracing can
+be configured as described in section 
+link:darshan-runtime.html#_configuring_darshan_library_at_runtime[Configuring Darshan library at runtime].
 
 == Using AutoPerf instrumentation modules
 
@@ -465,18 +433,229 @@ AutoPerf offers two additional Darshan instrumentation modules that may be enabl
 Users can request Darshan to build the APMPI and APXC modules by passing
 `--enable-apmpi-mod` and `--enable-apxc-mod` options to configure, respectively. Note that these options can be requested independently (i.e., you can build Darshan with APMPI support but not APXC support, and vice versa).
 
-The only prerequsisite for the APMPI module is that Darsan be configured with a MPI-3 compliant compiler. For APXC, the user must obviously be using a Cray XC system and must make the PAPI interace available to Darshan (i.e., by running `module load papi`, before building Darshan).
+The only prerequsisite for the APMPI module is that Darsan be configured with a MPI-3 compliant compiler. For APXC, the user must obviously be using a Cray XC system and must make the PAPI interface available to Darshan (i.e., by running `module load papi`, before building Darshan).
 
 If using the APMPI module, users can additionally specify the `--enable-apmpi-coll-sync` configure option to force Darshan to synchronize before calling underlying MPI routines and to capture additional timing information on how synchronized processes are. Users should note this option will impose additional overheads, but can be useful to help diagnose whether applications are spending a lot of time synchronizing as part of collective communication calls. For this reason, we do not recommend users setting this particular option for production Darshan deployments.
 
 [NOTE]
 ====
-The AutoPerf instrumentation modules are provided as Git submodules to Darshan's main repository, so if building Darshan source that has been cloned from Git, it is neccessary to first retrieve the AutoPerf submodules by running the following command:
+The AutoPerf instrumentation modules are provided as Git submodules to Darshan's main repository, so if building Darshan source that has been cloned from Git, it is necessary to first retrieve the AutoPerf submodules by running the following command:
 
 ----
 git submodule update --init
 ----
 ====
+
+== Configuring Darshan library at runtime
+
+To fine tune Darshan library settings (e.g., internal memory usage, instrumentation
+scope, etc.), Darshan provides a couple of mechanisms:
+
+* user environment variable overrides
+* a configuration file, which users must specify the path to using the
+`DARSHAN_CONFIG_PATH` environment variable
+
+For settings that are specified via a config file and via an environment variable,
+the environment settings will take precedence.
+
+[NOTE]
+====
+Users of facility-provided Darshan installs should be mindful that these
+installs could define their own default Darshan config file. In this case,
+users should double check that `DARSHAN_CONFIG_PATH` environment variable
+is not already set, and if it is, users should consider copying the
+default config file as a starting point before applying their own settings.
+====
+
+=== Darshan library config settings
+
+The Darshan library honors the following settings to modify behavior at runtime:
+
+.Darshan library config settings
+[cols="l,l,l",options="header"]
+|====
+| environment variable setting | config file setting | description
+| DARSHAN_DISABLE=1 | N/A
+ | Disables Darshan instrumentation.
+| DARSHAN_ENABLE_NONMPI=1 | N/A
+ | Enables Darshan's non-MPI mode, required for applications that do
+ not call MPI_Init and MPI_Finalize.
+| DARSHAN_CONFIG_PATH=<path> | N/A
+ | Specifies the path to a Darshan config file to load settings from.
+| DARSHAN_DUMP_CONFIG=1 | DUMP_CONFIG
+ | Prints the Darshan configuration to stderr at runtime.
+| DARSHAN_DISABLE_SHARED_REDUCTION=1 | DISABLE_SHARED_REDUCTION
+ | Disables the step in Darshan aggregation in which files that were
+ accessed by all ranks are collapsed into a single cumulative file
+ record at rank 0. This option retains more per-process information
+ at the expense of creating larger log files.
+| DARSHAN_INTERNAL_TIMING=1 | INTERNAL_TIMING
+ | Enables internal instrumentation that will print the time required
+to startup and shutdown Darshan to stderr at runtime.
+| DARSHAN_MODMEM=<val> | MODMEM <val>
+ | Specifies the amount of memory (in MiB) Darshan instrumentation
+ modules can collectively consume (if not specified, a default 4 MiB
+ quota is used). Overrides any `--with-mod-mem` configure argument.
+| DARSHAN_NAMEMEM=<val> | NAMEMEM <val>
+ | Specifies the amount of memory (in MiB) Darshan can consume for
+ storing record names (if not specified, a default 200 KiB quota is
+ used). Overrides any `--with-name-mem` configure argument.
+| DARSHAN_MEMALIGN=<val> | MEMALIGN <val>
+ | Specifies a value for system memory alignment. Overrides any
+ `--with-mem-align` configure argument (default is 8 bytes).
+| DARSHAN_JOBID=<string> | JOBID <string>
+ | Specifies the name of the environment variable to use for the job
+ identifier, such as PBS_JOBID. Overrides `--with-jobid-env` configure
+ argument.
+| DARSHAN_LOGHINTS=<string> | LOGHINTS <string>
+ | Specifies the MPI-IO hints to use when storing the Darshan output
+ file. The format is a semicolon-delimited list of key=value pairs,
+ for example: hint1=value1;hint2=value2. Overrides any
+ `--with-log-hints` configure argument.
+| DARSHAN_LOGPATH=<path> | LOGPATH <path>
+ | Specifies the path to write Darshan log files to. Note that this
+ directory needs to be formatted using the darshan-mk-log-dirs script.
+ Overrides any `--with-log-path` configure argument.
+| DARSHAN_MMAP_LOGPATH=<path> | MMAP_LOGPATH <path>
+ | If Darshan's mmap log file mechanism is enabled, this variable
+ specifies what path the mmap log files should be stored in (if not
+ specified, log files will be stored in `/tmp`).
+| DARSHAN_LOGFILE=<path> | N/A
+ | Specifies the path (directory + Darshan log file name) to write
+ the output Darshan log to. This overrides the default Darshan
+ behavior of automatically generating a log file name and adding it
+ to a log file directory formatted using darshan-mk-log-dirs script.
+| DARSHAN_MOD_DISABLE=<mod_csv> | MOD_DISABLE <mod_csv>
+ | Specifies a list of comma-separated Darshan module names to
+ disable at runtime.
+| DARSHAN_MOD_ENABLE=<mod_csv> | MOD_ENABLE <mod_csv>
+ | Specifies a list of comma-separated Darshan module names to
+ enable at runtime.
+| DARSHAN_APP_EXCLUDE=<regex_csv> | APP_EXCLUDE <regex_csv>
+ | Specifies a list of comma-separated regexes that match
+ application names that should not be instrumented. This is useful
+ if Darshan is LD_PRELOADed, in which case logs may be generated
+ for many unintended applications.
+| DARSHAN_APP_INCLUDE=<regex_csv> | APP_INCLUDE <regex_csv>
+ | Specifies a list of comma-separated regexes that match
+ application names that should be instrumented. This setting is
+ used to override any APP_INCLUDE rules.
+| DARSHAN_RANK_EXCLUDE=<rank_csv> | RANK_EXCLUDE <rank_csv>
+ | Specifies a list of comma-separated ranks (or rank ranges) that
+ should not be instrumented. Rank ranges are formatted like
+ "start:end" (if start or end are not specified, the first or last
+ rank is assumed, respectively). Note that the Darshan library will
+ still run on all processes of an application, this setting just
+ controls whether specific ranks are capturing instrumentation data.
+| DARSHAN_RANK_INCLUDE=<rank_csv> | RANK_INCLUDE <rank_csv>
+ | Specifies a list of comma-separated ranks (or rank ranges) that
+ should be instrumented. This setting is used to override any
+ RANK_INCLUDE rules.
+| DARSHAN_DXT_SMALL_IO_TRIGGER=<val> | DXT_SMALL_IO_TRIGGER <val> |
+ Specifies a floating point percentage (i.e., ".8" would be 80%)
+ indicating a threshold of small I/O operation accesses (defined
+ as accesses smaller than 10 KiB), with DXT trace data being
+ discarded for files that exhibit  a percentage of small I/O
+ operations less than this threshold.
+| DARSHAN_DXT_UNALIGNED_IO_TRIGGER=<val> | DXT_UNALIGNED_IO_TRIGGER <val> |
+ Specifies a floating point percentage (i.e., ".8" would be 80%)
+ indicating a threshold of unaligned I/O operation accesses (defined
+ as accesses not aligned to the file alignment value determined
+ by Darshan), with DXT trace data being discarded for files that
+ exhibit a percentage of unaligned I/O operations less than this
+ threshold.
+| N/A | MAX_RECORDS <val> <mod_csv>
+ | Specifies the number of records to pre-allocate for each
+ instrumentation module given in a comma-separated list.
+ Most modules default to tracing 1024 file records per-process.
+| N/A | NAME_EXCLUDE <regex_csv> <mod_csv>
+ | Specifies a list of comma-separated regexes that match
+ record names that should not be instrumented for
+ instrumentation modules given in a comma-separated module list.
+| N/A | NAME_INCLUDE <regex_csv> <mod_csv>
+ | Specifies a list of comma-separated regexes that match
+ record names that should be instrumented for instrumentation
+ modules given in a comma-separated module list. This setting is
+ used to override any NAME_EXCLUDE rules.
+| DXT_ENABLE_IO_TRACE=1 | N/A |
+ (DEPRECATED) Setting this environment variable enables the DXT
+ (Darshan eXtended Tracing) modules at runtime for all files
+ instrumented by Darshan. Replaced by MODULE_ENABLE setting.
+| DARSHAN_EXCLUDE_DIRS=<path_csv> | N/A
+ | (DEPRECATED) Specifies a list of comma-separated paths that
+ Darshan will not instrument at runtime (in addition to Darshan's
+ default exclusion list). Replaced by NAME_EXCLUDE setting.
+|====
+
+[NOTE]
+====
+
+ - Config file settings must be specified one per-line, with settings and
+   their parameters separated by any whitespace.
+ - Settings that take a comma-separated list of modules can use "*" as a
+   wildcard to represent all modules.
+ - Some config file settings (specifically, `MOD_DISABLE`/`ENABLE`,
+   `APP_EXCLUDE`/`INCLUDE`, `RANK_EXCLUDE`/`INCLUDE`, `NAME_EXCLUDE`/`INCLUDE`,
+   and `MAX_RECORDS`) may be repeated multiple times rather than
+   providing comma-separated values, to ease readability.
+ - Improperly formatted config settings are ignored, with Darshan falling
+   back to its default configuration.
+ - All settings that take regular expressions as input expect them to be
+   formatted according to the POSIX `regex.h` interface -- refer to the
+   https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/regex.h.html[manpage]
+   for more details on regex syntax.
+
+====
+
+=== Example Darshan configuration
+
+An example configuration file with annotations is given below
+(note that comments are allowed by prefixing a line with `#`):
+
+----
+# enable DXT modules, which are off by default
+MOD_ENABLE      DXT_POSIX,DXT_MPIIO
+
+# allocate 4096 file records for POSIX and MPI-IO modules
+# (darshan only allocates 1024 per-module by default)
+MAX_RECORDS     4096      POSIX,MPI-IO
+
+# the '*' specifier can be used to apply settings for all modules
+# in this case, we want all modules to ignore record names
+# prefixed with "/home" (i.e., stored in our home directory),
+# with a superseding inclusion for files with a ".out" suffix)
+NAME_EXCLUDE    ^/home        *
+NAME_INCLUDE    .out$         *
+
+# bump up Darshan's default memory usage to 8 MiB
+MODMEM  8
+
+# avoid generating logs for git and ls binaries
+APP_EXCLUDE     git,ls
+
+# exclude instrumentation for all ranks first
+RANK_EXCLUDE    0:
+# then selectively re-include ranks 0-3 and 12:15
+RANK_INCLUDE    0:3
+RANK_INCLUDE    12:15
+
+# only retain DXT traces for files that were accessed
+# using small I/O ops 20+% of the time
+DXT_SMALL_IO_TRIGGER    .2
+----
+
+This configuration could be similarly set using environment variables,
+though note that both `MAX_RECORDS` and `NAME_EXCLUDE`/`INCLUDE`
+settings do not have environment variable counterparts:
+
+----
+export DARSHAN_MOD_ENABLE="DXT_POSIX,DXT_MPIIO"
+export DARSHAN_MODMEM=8
+export DARSHAN_APP_EXCLUDE="git,ls"
+export DARSHAN_RANK_EXCLUDE="0:"
+export DARSHAN_RANK_INCLUDE="0:3,12:15"
+export DARSHAN_DXT_SMALL_IO_TRIGGER=.2
+----
 
 == Darshan installation recipes
 
@@ -672,27 +851,6 @@ You can enable Darshan instrumentation at compile time by adding
 
 Alternatively you can use `LD_PRELOAD` runtime instrumentation method to
 instrument executables that have already been compiled.
-
-== Runtime environment variables
-
-The Darshan library honors the following environment variables to modify
-behavior at runtime:
-
-* DARSHAN_DISABLE: disables Darshan instrumentation
-* DARSHAN_INTERNAL_TIMING: enables internal instrumentation that will print the time required to startup and shutdown Darshan to stderr at run time.
-* DARSHAN_LOGHINTS: specifies the MPI-IO hints to use when storing the Darshan output file.  The format is a semicolon-delimited list of key=value pairs, for example: hint1=value1;hint2=value2
-* DARSHAN_MEMALIGN: specifies a value for system memory alignment
-* DARSHAN_JOBID: specifies the name of the environment variable to use for the job identifier, such as PBS_JOBID
-* DARSHAN_DISABLE_SHARED_REDUCTION: disables the step in Darshan aggregation in which files that were accessed by all ranks are collapsed into a single cumulative file record at rank 0.  This option retains more per-process information at the expense of creating larger log files. Note that it is up to individual instrumentation module implementations whether this environment variable is actually honored.
-* DARSHAN_LOGPATH: specifies the path to write Darshan log files to. Note that this directory needs to be formatted using the darshan-mk-log-dirs script.
-* DARSHAN_LOGFILE: specifies the path (directory + Darshan log file name) to write the output Darshan log to. This overrides the default Darshan behavior of automatically generating a log file name and adding it to a log file directory formatted using darshan-mk-log-dirs script.
-* DARSHAN_MODMEM: specifies the maximum amount of memory (in MiB) Darshan instrumentation modules can collectively consume at runtime (if not specified, Darshan uses a default quota of 2 MiB).
-* DARSHAN_MMAP_LOGPATH: if Darshan's mmap log file mechanism is enabled, this variable specifies what path the mmap log files should be stored in (if not specified, log files will be stored in `/tmp`).
-* DARSHAN_EXCLUDE_DIRS: specifies a list of comma-separated paths that Darshan will not instrument at runtime (in addition to Darshan's default blacklist)
-* DXT_ENABLE_IO_TRACE: setting this environment variable enables the DXT (Darshan eXtended Tracing) modules at runtime for all files instrumented by Darshan. Currently, DXT is hard-coded to use a maximum of 4 MiB of trace memory per process (in addition to memory used by other modules).
-* DXT_DISABLE_IO_TRACE: setting this environment variable disables the DXT module at runtime for all files instrumented by Darshan.
-* DXT_TRIGGER_CONF_PATH: File path to a DXT trace trigger configuration file, which specifies triggers used by DXT to decide which files to trace at runtime. Note that the trace triggering mechanism is overridden by the DXT_ENABLE_IO_TRACE and DXT_DISABLE_IO_TRACE environment variables.
-* DARSHAN_ENABLE_NONMPI: setting this environment variable is required to generate Darshan logs for non-MPI applications
 
 == Debugging
 
