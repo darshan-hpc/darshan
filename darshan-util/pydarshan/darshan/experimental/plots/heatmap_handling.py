@@ -360,11 +360,14 @@ def get_heatmap_df(agg_df: pd.DataFrame, xbins: int, nprocs: int) -> pd.DataFram
     # and stop events
     # interpolation is pointless when there is
     # a single non-null value in a row
-    null_mask = cats.notna().sum(axis=1) > 1
-    null_mask = null_mask.loc[null_mask == True].index
-    cats_vals_to_interp = pd.DataFrame(cats.iloc[null_mask].values)
-    cats_vals_to_interp.interpolate(method="nearest", axis=1, inplace=True)
-    cats.iloc[null_mask] = cats_vals_to_interp
+    if sys.version_info.minor < 7:
+        cats.interpolate(method="linear", limit_area="inside", axis=1, inplace=True)
+    else:
+        null_mask = cats.notna().sum(axis=1) > 1
+        null_mask = null_mask.loc[null_mask == True].index
+        cats_vals_to_interp = pd.DataFrame(cats.iloc[null_mask].values)
+        cats_vals_to_interp.interpolate(method="nearest", axis=1, inplace=True)
+        cats.iloc[null_mask] = cats_vals_to_interp
     # each time bin containing an event has a 1 in it, otherwise NaN
     # store mask for restoring fully occupied bins
     mask_occ = cats == 2
