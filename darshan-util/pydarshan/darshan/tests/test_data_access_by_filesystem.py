@@ -309,8 +309,10 @@ def test_empty_data_posix_y_axis_annot_position():
                     assert actual_fontsize == 12
 
 @pytest.mark.parametrize("log_file_path, expected_text_labels", [
-    (get_log_path('noposixopens.darshan'), ['/global', 'anonymized', 'anonymized', 'anonymized']),
-    (get_log_path('sample.darshan'), ['/scratch2', '<STDERR>', '<STDOUT>', '<STDIN>']),
+    (get_log_path('noposixopens.darshan'), ['/global', 'anonymized']),
+    (get_log_path('sample.darshan'), ['/scratch2', '<STDERR>', '<STDOUT>']),
+    # test case for gh-678
+    (get_log_path('mpi-io-test.darshan'), ['/global', '<STDOUT>']),
     ])
 def test_cat_labels_std_streams(log_file_path, expected_text_labels):
     # for an anonymized log file that operates on STDIO, STDERR

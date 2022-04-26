@@ -644,17 +644,29 @@ def plot_with_report(report: darshan.DarshanReport,
     """
     fig = plt.figure()
     file_id_dict = report.data["name_records"]
-    filesystem_roots = identify_filesystems(file_id_dict=file_id_dict,
+    allowed_file_id_dict = {}
+
+    # only POSIX/STDIO entries allowed
+    for module in ["POSIX", "STDIO"]:
+        for key in ["counters", "fcounters"]:
+            try:
+                allowed_ids = report.records[module].to_df()[key]["id"]
+            except KeyError:
+                allowed_ids = []
+            for ident in allowed_ids:
+                allowed_file_id_dict[ident] = file_id_dict[ident]
+
+    filesystem_roots = identify_filesystems(file_id_dict=allowed_file_id_dict,
                                             verbose=verbose)
     file_rd_series, file_wr_series = unique_fs_rw_counter(report=report,
                                                           filesystem_roots=filesystem_roots,
-                                                          file_id_dict=file_id_dict,
+                                                          file_id_dict=allowed_file_id_dict,
                                                           processing_func=process_unique_files,
                                                           mod='POSIX',
                                                           verbose=verbose)
     bytes_rd_series, bytes_wr_series = unique_fs_rw_counter(report=report,
                                                             filesystem_roots=filesystem_roots,
-                                                            file_id_dict=file_id_dict,
+                                                            file_id_dict=allowed_file_id_dict,
                                                             processing_func=process_byte_counts,
                                                             mod='POSIX', verbose=verbose)
     # reverse sort by total bytes IO per category
