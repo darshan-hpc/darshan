@@ -81,7 +81,11 @@ jobs:
       - name: pyflakes check
         run: |
           cd darshan-util/pydarshan
-          pyflakes darshan/backend | (grep -E -i 'assigned to but never used' || exit 0 && exit 123)
+          set +e
+          pyflakes darshan/backend 2>&1 | tee lint_pyflakes_ci.txt
+          set -e
+          function check_pyflakes() { if grep -c -E -i "assigned to but never used" lint_pyflakes_ci.txt; then return -1; fi }
+          check_pyflakes
       - name: asv check
         run: |
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
