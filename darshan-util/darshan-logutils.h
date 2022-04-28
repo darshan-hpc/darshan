@@ -30,8 +30,8 @@ struct darshan_fd_s
      * performed on log file data
      */
     int swap_flag;
-    /* flag indicating whether a log file contains partial data */
-    int partial_flag;
+    /* bit-field indicating whether modules contain incomplete data */
+    uint64_t partial_flag;
     /* compression type used on log file */
     enum darshan_comp_type comp_type;
     /* log file offset/length maps for each log file region */
