@@ -25,7 +25,7 @@ struct darshan_config
     uint64_t mod_disabled_flags;
     uint64_t mod_enabled_flags;
     uint64_t mod_disabled;
-    size_t mod_max_records_override[DARSHAN_MAX_MODS];
+    size_t mod_max_records_override[DARSHAN_KNOWN_MODULE_COUNT];
     char **exclude_dirs;
     char **user_exclude_dirs;
     char **include_dirs;

@@ -80,7 +80,7 @@ struct darshan_fd_int_state
 
 /* each module's implementation of the darshan logutil functions */
 #define X(a, b, c, d) d,
-struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
+struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_KNOWN_MODULE_COUNT] =
 {
     DARSHAN_MODULE_IDS
 };
@@ -723,7 +723,7 @@ int darshan_log_get_mod(darshan_fd fd, darshan_module_id mod_id,
     state = fd->state;
     assert(state);
 
-    if(mod_id < 0 || mod_id >= DARSHAN_MAX_MODS)
+    if(mod_id < 0 || mod_id >= DARSHAN_KNOWN_MODULE_COUNT)
     {
         fprintf(stderr, "Error: invalid Darshan module id.\n");
         return(-1);
@@ -782,7 +782,7 @@ int darshan_log_put_mod(darshan_fd fd, darshan_module_id mod_id,
     state = fd->state;
     assert(state);
 
-    if(mod_id < 0 || mod_id >= DARSHAN_MAX_MODS)
+    if(mod_id < 0 || mod_id >= DARSHAN_KNOWN_MODULE_COUNT)
     {
         state->err = -1;
         fprintf(stderr, "Error: invalid Darshan module id.\n");
@@ -2007,7 +2007,7 @@ void darshan_log_get_modules(darshan_fd fd,
     *mods = malloc(sizeof(**mods) * DARSHAN_MAX_MODS);
     assert(*mods);
 
-    for (i = 0, j = 0; i < DARSHAN_MAX_MODS; i++)
+    for (i = 0, j = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
     {
         if (fd->mod_map[i].len)
         {
@@ -2016,6 +2016,18 @@ void darshan_log_get_modules(darshan_fd fd,
             (*mods)[j].ver           = fd->mod_ver[i];
             (*mods)[j].partial_flag  = DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i);
             (*mods)[j].idx           = i;
+            j += 1;
+        }
+    }
+    for (i = DARSHAN_KNOWN_MODULE_COUNT; i < DARSHAN_MAX_MODS; i++)
+    {
+        if (fd->mod_map[i].len)
+        {
+            /* we don't know the names of any modules in this region */
+            (*mods)[j].name = NULL;
+            (*mods)[j].len  = fd->mod_map[i].len;
+            (*mods)[j].ver  = fd->mod_ver[i];
+            (*mods)[j].idx  = i;
             j += 1;
         }
     }
