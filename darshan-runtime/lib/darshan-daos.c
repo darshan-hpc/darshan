@@ -31,7 +31,6 @@
 #include <daos_pool.h>
 #include <daos_cont.h>
 #include <daos_obj.h>
-#include <daos_obj_class.h>
 #include <daos_array.h>
 #include <daos_fs.h>
 

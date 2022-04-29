@@ -489,6 +489,43 @@ if test "x$enable_darshan_runtime" = xyes ; then
                    use --with-pnetcdf to provide the PnetCDF install prefix, if needed.]))
    fi
 
+   # inform about DAOS installs not found in default locations
+   AC_ARG_WITH([daos],
+      [AS_HELP_STRING([--with-daos@<:@=DIR@:>@],
+                      [Installation directory for DAOS.])],
+      [], [with_daos=no]
+   )
+
+   # DAOS module (disabled by default)
+   AC_ARG_ENABLE([daos-mod],
+      [AS_HELP_STRING([--enable-daos-mod],
+                      [Enables compilation and use of DAOS module])],
+      [], [enable_daos_mod=no]
+   )
+   if test "x$enable_daos_mod" = xyes ; then
+      AC_CHECK_HEADERS(m4_normalize([daos_types.h daos_prop.h daos_pool.h daos_cont.h
+				     daos_obj.h daos_array.h daos_fs.h]),
+		      [],
+                      [AC_MSG_ERROR([Cannot find required DAOS headers])],
+                      [[
+		      #ifdef HAVE_DAOS_TYPES_H
+                      # include <daos_types.h>
+                      #endif
+		      #ifdef HAVE_DAOS_PROP_H
+                      # include <daos_prop.h>
+                      #endif
+		      #ifdef HAVE_DAOS_OBJ_H
+                      # include <daos_obj.h>
+                      #endif
+		      #ifdef HAVE_DAOS_ARRAY_H
+                      # include <daos_array.h>
+                      #endif
+                      ]])
+   elif test "x$enable_daos_mod" != xno ; then
+      AC_MSG_ERROR(m4_normalize([--enable-daos-mod does not take any argument,
+                   use --with-daos to provide the DAOS install prefix, if needed.]))
+   fi
+
    # BG/Q module
    AC_ARG_ENABLE([bgq-mod],
       [AS_HELP_STRING([--disable-bgq-mod],
@@ -797,6 +834,7 @@ AM_CONDITIONAL(BUILD_MDHIM_MODULE,  [test "x$enable_mdhim_mod"   = xyes])
 AM_CONDITIONAL(BUILD_APMPI_MODULE,  [test "x$enable_apmpi_mod"   = xyes])
 AM_CONDITIONAL(BUILD_APXC_MODULE,   [test "x$enable_apxc_mod"    = xyes])
 AM_CONDITIONAL(BUILD_HEATMAP_MODULE,[test "x$enable_heatmap_mod" = xyes])
+AM_CONDITIONAL(BUILD_DAOS_MODULE,   [test "x$enable_daos_mod" = xyes])
 
 AC_CONFIG_FILES(Makefile \
                 darshan-config \
@@ -871,6 +909,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
            AUTOPERF MPI  module support  - $enable_apmpi_mod
            AUTOPERF XC   module support  - $enable_apxc_mod
            HDF5          module support  - $enable_hdf5_mod
+           DAOS          module support  - $enable_daos_mod
            PnetCDF       module support  - $enable_pnetcdf_mod
            BG/Q          module support  - $enable_bgq_mod
            Lustre        module support  - $enable_lustre_mod
