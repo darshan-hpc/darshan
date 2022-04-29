@@ -104,6 +104,7 @@ struct dfs_runtime
     void *rec_id_hash;
     void *file_obj_hash;
     int file_rec_count;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
 static void dfs_runtime_initialize();
@@ -111,7 +112,6 @@ static struct dfs_file_record_ref *dfs_track_new_file_record(
     darshan_record_id rec_id, const char *path);
 static void dfs_finalize_file_records(
     void *rec_ref_p, void *user_ptr);
-static void dfs_cleanup_runtime();
 #ifdef HAVE_MPI
 static void dfs_record_reduction_op(
     void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
@@ -119,26 +119,31 @@ static void dfs_mpi_redux(
     void *dfs_buf, MPI_Comm mod_comm,
     darshan_record_id *shared_recs, int shared_rec_count);
 #endif
-static void dfs_shutdown(
+static void dfs_output(
     void **dfs_buf, int *dfs_buf_sz);
+static void dfs_cleanup(
+    void);
 
 static struct dfs_runtime *dfs_runtime = NULL;
 static pthread_mutex_t daos_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static int dfs_runtime_init_attempted = 0;
 static int my_rank = -1;
 
 #define DAOS_LOCK() pthread_mutex_lock(&daos_runtime_mutex)
 #define DAOS_UNLOCK() pthread_mutex_unlock(&daos_runtime_mutex)
 
+#define DAOS_WTIME() \
+    __darshan_disabled ? 0 : darshan_core_wtime();
+
+// XXX do other macros/wrappers check return value?
 #define DFS_PRE_RECORD() do { \
-    if(ret) return(ret); \
-    DAOS_LOCK(); \
-    if(!darshan_core_disabled_instrumentation()) { \
-        if(!dfs_runtime) { \
+    if(!__darshan_disabled) { \
+        DAOS_LOCK(); \
+        if(!dfs_runtime && !dfs_runtime_init_attempted) \
             dfs_runtime_initialize(); \
-        } \
-        if(dfs_runtime) break; \
+        if(dfs_runtime && !dfs_runtime->frozen) break; \
+        DAOS_UNLOCK(); \
     } \
-    DAOS_UNLOCK(); \
     return(ret); \
 } while(0)
 
@@ -382,9 +387,9 @@ int DARSHAN_DECL(dfs_lookup)(dfs_t *dfs, const char *path, int flags, dfs_obj_t 
 
     MAP_OR_FAIL(dfs_lookup);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_lookup(dfs, path, flags, obj, mode, stbuf);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     DFS_RECORD_FILE_OBJ_OPEN(dfs, NULL, path, DFS_LOOKUPS, obj, tm1, tm2);
@@ -401,9 +406,9 @@ int DARSHAN_DECL(dfs_lookup_rel)(dfs_t *dfs, dfs_obj_t *parent, const char *name
 
     MAP_OR_FAIL(dfs_lookup_rel);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_lookup_rel(dfs, parent, name, flags, obj, mode, stbuf);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
@@ -425,9 +430,9 @@ int DARSHAN_DECL(dfs_open)(dfs_t *dfs, dfs_obj_t *parent, const char *name, mode
 
     MAP_OR_FAIL(dfs_open);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_open(dfs, parent, name, mode, flags, cid, chunk_size, value, obj);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
@@ -449,9 +454,9 @@ int DARSHAN_DECL(dfs_dup)(dfs_t *dfs, dfs_obj_t *obj, int flags, dfs_obj_t **new
 
     MAP_OR_FAIL(dfs_dup);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_dup(dfs, obj, flags, new_obj);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
@@ -468,9 +473,9 @@ int DARSHAN_DECL(dfs_obj_global2local)(dfs_t *dfs, int flags, d_iov_t glob, dfs_
 
     MAP_OR_FAIL(dfs_obj_global2local);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_obj_global2local(dfs, flags, glob, obj);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     // XXX need help here, no way to convert args to object name
@@ -487,9 +492,9 @@ int DARSHAN_DECL(dfs_release)(dfs_obj_t *obj)
 
     MAP_OR_FAIL(dfs_release);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_release(obj);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
@@ -517,9 +522,9 @@ int DARSHAN_DECL(dfs_read)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_of
 
     MAP_OR_FAIL(dfs_read);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_read(dfs, obj, sgl, off, read_size, ev);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     /* no need to calculate read_size, it's returned to user */
@@ -538,9 +543,9 @@ int DARSHAN_DECL(dfs_readx)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_lis
 
     MAP_OR_FAIL(dfs_readx);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_readx(dfs, obj, iod, sgl, read_size, ev);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     rdsize = *read_size;
@@ -559,9 +564,9 @@ int DARSHAN_DECL(dfs_write)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_o
 
     MAP_OR_FAIL(dfs_write);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_write(dfs, obj, sgl, off, ev);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     /* calculate write size first */
@@ -582,9 +587,9 @@ int DARSHAN_DECL(dfs_writex)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_li
 
     MAP_OR_FAIL(dfs_writex);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_writex(dfs, obj, iod, sgl, ev);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     /* calculate write size first */
@@ -604,9 +609,9 @@ int DARSHAN_DECL(dfs_get_size)(dfs_t *dfs, dfs_obj_t *obj, daos_size_t *size)
 
     MAP_OR_FAIL(dfs_get_size);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_get_size(dfs, obj, size);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
@@ -630,9 +635,9 @@ int DARSHAN_DECL(dfs_punch)(dfs_t *dfs, dfs_obj_t *obj, daos_off_t offset, daos_
 
     MAP_OR_FAIL(dfs_punch);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_punch(dfs, obj, offset, len);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
@@ -659,9 +664,9 @@ int DARSHAN_DECL(dfs_move)(dfs_t *dfs, dfs_obj_t *parent, char *name, dfs_obj_t 
 
     MAP_OR_FAIL(dfs_move);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_move(dfs, parent, name, new_parent, new_name, oid);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
@@ -703,9 +708,9 @@ int DARSHAN_DECL(dfs_exchange)(dfs_t *dfs, dfs_obj_t *parent1, char *name1, dfs_
 
     MAP_OR_FAIL(dfs_exchange);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_exchange(dfs, parent1, name1, parent2, name2);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     /* increment exchange counter for both file records */
@@ -767,9 +772,9 @@ int DARSHAN_DECL(dfs_stat)(dfs_t *dfs, dfs_obj_t *parent, const char *name, stru
 
     MAP_OR_FAIL(dfs_stat);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_stat(dfs, parent, name, stbuf);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
@@ -809,9 +814,9 @@ int DARSHAN_DECL(dfs_ostat)(dfs_t *dfs, dfs_obj_t *obj, struct stat *stbuf)
 
     MAP_OR_FAIL(dfs_ostat);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_ostat(dfs, obj, stbuf);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
@@ -835,9 +840,9 @@ int DARSHAN_DECL(dfs_osetattr)(dfs_t *dfs, dfs_obj_t *obj, struct stat *stbuf, i
 
     MAP_OR_FAIL(dfs_osetattr);
 
-    tm1 = darshan_core_wtime();
+    tm1 = DAOS_WTIME();
     ret = __real_dfs_osetattr(dfs, obj, stbuf, flags);
-    tm2 = darshan_core_wtime();
+    tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
@@ -859,31 +864,32 @@ int DARSHAN_DECL(dfs_osetattr)(dfs_t *dfs, dfs_obj_t *obj, struct stat *stbuf, i
 
 static void dfs_runtime_initialize()
 {
-    int dfs_buf_size;
+    int ret;
+    size_t dfs_rec_count;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
         .mod_redux_func = &dfs_mpi_redux,
 #endif
-        .mod_shutdown_func = &dfs_shutdown
+        .mod_output_func = &dfs_output,
+        .mod_cleanup_func = &dfs_cleanup
         };
 
+    /* if this attempt at initializing fails, we won't try again */
+    dfs_runtime_init_attempted = 1;
+
     /* try to store a default number of records for this module */
-    dfs_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_dfs_file);
+    dfs_rec_count = DARSHAN_DEF_MOD_REC_COUNT;
 
     /* register the DFS module with darshan core */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DARSHAN_DFS_MOD,
         mod_funcs,
-        &dfs_buf_size,
+        sizeof(struct darshan_dfs_file),
+        &dfs_rec_count,
         &my_rank,
         NULL);
-
-    /* return if darshan-core does not provide enough module memory */
-    if(dfs_buf_size < sizeof(struct darshan_dfs_file))
-    {
-        darshan_core_unregister_module(DARSHAN_DFS_MOD);
+    if(ret < 0)
         return;
-    }
 
     dfs_runtime = malloc(sizeof(*dfs_runtime));
     if(!dfs_runtime)
@@ -951,25 +957,6 @@ static void dfs_finalize_file_records(void *rec_ref_p, void *user_ptr)
         (struct dfs_file_record_ref *)rec_ref_p;
 
     tdestroy(rec_ref->access_root, free);
-    return;
-}
-
-static void dfs_cleanup_runtime()
-{
-    struct dfs_mount_info *mnt_info, *tmp;
-
-    darshan_clear_record_refs(&(dfs_runtime->file_obj_hash), 0);
-    darshan_clear_record_refs(&(dfs_runtime->rec_id_hash), 1);
-
-    HASH_ITER(hlink, dfs_runtime->mount_hash, mnt_info, tmp)
-    {
-        HASH_DELETE(hlink, dfs_runtime->mount_hash, mnt_info);
-        free(mnt_info);
-    }
-
-    free(dfs_runtime);
-    dfs_runtime = NULL;
-
     return;
 }
 
@@ -1265,7 +1252,7 @@ static void dfs_mpi_redux(
 }
 #endif
 
-static void dfs_shutdown(
+static void dfs_output(
     void **dfs_buf, int *dfs_buf_sz)
 {
     int dfs_rec_count;
@@ -1275,19 +1262,37 @@ static void dfs_shutdown(
 
     fprintf(stderr, "****ENTERING DFS SHUTDOWN [%d]\n", my_rank);
 
+    /* just pass back our updated total buffer size -- no need to update buffer */
     dfs_rec_count = dfs_runtime->file_rec_count;
+    *dfs_buf_sz = dfs_rec_count * sizeof(struct darshan_dfs_file);
 
-    /* perform any final transformations on DFS file records before
-     * writing them out to log file
-     */
+    dfs_runtime->frozen = 1;
+
+    DAOS_UNLOCK();
+    return;
+}
+
+static void dfs_cleanup()
+{
+    struct dfs_mount_info *mnt_info, *tmp;
+
+    DAOS_LOCK();
+    assert(dfs_runtime);
+
+    /* cleanup internal structures used for instrumenting */
     darshan_iter_record_refs(dfs_runtime->rec_id_hash,
         &dfs_finalize_file_records, NULL);
+    darshan_clear_record_refs(&(dfs_runtime->file_obj_hash), 0);
+    darshan_clear_record_refs(&(dfs_runtime->rec_id_hash), 1);
 
-    /* shutdown internal structures used for instrumenting */
-    dfs_cleanup_runtime();
+    HASH_ITER(hlink, dfs_runtime->mount_hash, mnt_info, tmp)
+    {
+        HASH_DELETE(hlink, dfs_runtime->mount_hash, mnt_info);
+        free(mnt_info);
+    }
 
-    /* set output buffer size according to number of records we have */
-    *dfs_buf_sz = dfs_rec_count * sizeof(struct darshan_dfs_file);
+    free(dfs_runtime);
+    dfs_runtime = NULL;
 
     DAOS_UNLOCK();
     return;
