@@ -71,6 +71,11 @@ if BUILD_HEATMAP_MODULE
    AM_CPPFLAGS += -DDARSHAN_HEATMAP
 endif
 
+if BUILD_DAOS_MODULE
+   C_SRCS += darshan-daos.c
+   AM_CPPFLAGS += -DDARSHAN_DAOS
+endif
+
 .m4.c:
 	$(M4) $(AM_M4FLAGS) $(M4FLAGS) $< >$@
 
@@ -138,5 +143,6 @@ EXTRA_DIST = $(H_SRCS) \
              darshan-bgq.c \
              darshan-lustre.c \
              darshan-mdhim.c \
-             darshan-heatmap.c
+	     darshan-heatmap.c \
+	     darshan-daos.c
 
