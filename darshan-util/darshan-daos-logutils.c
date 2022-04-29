@@ -84,7 +84,6 @@ static int darshan_log_get_dfs_file(darshan_fd fd, void** dfs_buf_p)
         assert(0);
     }
 
-exit:
     if(*dfs_buf_p == NULL)
     {
         if(ret == rec_len)
