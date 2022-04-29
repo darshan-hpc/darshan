@@ -49,8 +49,8 @@ DARSHAN_FORWARD_DECL(dfs_write, int, (dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *s
 DARSHAN_FORWARD_DECL(dfs_writex, int, (dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_list_t *sgl, daos_event_t *ev));
 DARSHAN_FORWARD_DECL(dfs_get_size, int, (dfs_t *dfs, dfs_obj_t *obj, daos_size_t *size));
 DARSHAN_FORWARD_DECL(dfs_punch, int, (dfs_t *dfs, dfs_obj_t *obj, daos_off_t offset, daos_size_t len));
-DARSHAN_FORWARD_DECL(dfs_move, int, (dfs_t *dfs, dfs_obj_t *parent, char *name, dfs_obj_t *new_parent, char *new_name, daos_obj_id_t *oid));
-DARSHAN_FORWARD_DECL(dfs_exchange, int, (dfs_t *dfs, dfs_obj_t *parent1, char *name1, dfs_obj_t *parent2, char *name2));
+DARSHAN_FORWARD_DECL(dfs_move, int, (dfs_t *dfs, dfs_obj_t *parent, const char *name, dfs_obj_t *new_parent, const char *new_name, daos_obj_id_t *oid));
+DARSHAN_FORWARD_DECL(dfs_exchange, int, (dfs_t *dfs, dfs_obj_t *parent1, const char *name1, dfs_obj_t *parent2, const char *name2));
 DARSHAN_FORWARD_DECL(dfs_stat, int, (dfs_t *dfs, dfs_obj_t *parent, const char *name, struct stat *stbuf));
 DARSHAN_FORWARD_DECL(dfs_ostat, int, (dfs_t *dfs, dfs_obj_t *obj, struct stat *stbuf));
 DARSHAN_FORWARD_DECL(dfs_osetattr, int, (dfs_t *dfs, dfs_obj_t *obj, struct stat *stbuf, int flags));
@@ -168,13 +168,13 @@ static int my_rank = -1;
             uuid_copy(__mnt_info->cont_uuid, __cont_info.ci_uuid); \
             uuid_unparse(__mnt_info->pool_uuid, __mnt_info->pool_uuid_str); \
             uuid_unparse(__mnt_info->cont_uuid, __mnt_info->cont_uuid_str); \
-            HASH_ADD_KEYPTR(hlink, dfs_runtime->mount_hash, *__dfs_p, sizeof(*__dfs_p), __mnt_info); \
+            HASH_ADD_KEYPTR(hlink, dfs_runtime->mount_hash, *__dfs_p, sizeof(void *), __mnt_info); \
         } \
     } \
 } while(0)
 
 #define DFS_GET_MOUNT_INFO(__dfs, __mnt_info) \
-    HASH_FIND(hlink, dfs_runtime->mount_hash, __dfs, sizeof(__dfs), __mnt_info)
+    HASH_FIND(hlink, dfs_runtime->mount_hash, __dfs, sizeof(void *), __mnt_info)
 
 #define DFS_FREE_MOUNT_INFO(__mnt_info) do { \
         HASH_DELETE(hlink, dfs_runtime->mount_hash, __mnt_info); \
@@ -260,15 +260,16 @@ static int my_rank = -1;
     struct dfs_file_record_ref *__rec_ref; \
     struct darshan_common_val_counter *__cvc; \
     double __elapsed = __tm2-__tm1; \
+    int64_t __sz = (int64_t)__read_size; \
     daos_size_t __chunk_size; \
     __rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &__obj, sizeof(obj)); \
     if(!__rec_ref) break; \
     __rec_ref->file_rec->counters[__counter] += 1; \
     if(__ev) \
         __rec_ref->file_rec->counters[DFS_NB_READS] += 1; \
-    __rec_ref->file_rec->counters[DFS_BYTES_READ] += __read_size; \
-    DARSHAN_BUCKET_INC(&(__rec_ref->file_rec->counters[DFS_SIZE_READ_0_100]), __read_size); \
-    __cvc = darshan_track_common_val_counters(&__rec_ref->access_root, &__read_size, 1, \
+    __rec_ref->file_rec->counters[DFS_BYTES_READ] += __sz; \
+    DARSHAN_BUCKET_INC(&(__rec_ref->file_rec->counters[DFS_SIZE_READ_0_100]), __sz); \
+    __cvc = darshan_track_common_val_counters(&__rec_ref->access_root, &__sz, 1, \
         &__rec_ref->access_count); \
     if(__cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
         &(__rec_ref->file_rec->counters[DFS_ACCESS1_ACCESS]), \
@@ -286,7 +287,7 @@ static int my_rank = -1;
     __rec_ref->file_rec->fcounters[DFS_F_READ_END_TIMESTAMP] = __tm2; \
     if(__rec_ref->file_rec->fcounters[DFS_F_MAX_READ_TIME] < __elapsed) { \
         __rec_ref->file_rec->fcounters[DFS_F_MAX_READ_TIME] = __elapsed; \
-        __rec_ref->file_rec->counters[DFS_MAX_READ_TIME_SIZE] = __read_size; \
+        __rec_ref->file_rec->counters[DFS_MAX_READ_TIME_SIZE] = __sz; \
     } \
     DARSHAN_TIMER_INC_NO_OVERLAP(__rec_ref->file_rec->fcounters[DFS_F_READ_TIME], \
         __tm1, __tm2, __rec_ref->last_read_end); \
@@ -296,15 +297,16 @@ static int my_rank = -1;
     struct dfs_file_record_ref *__rec_ref; \
     struct darshan_common_val_counter *__cvc; \
     double __elapsed = __tm2-__tm1; \
+    int64_t __sz = (int64_t)__write_size; \
     daos_size_t __chunk_size; \
     __rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &__obj, sizeof(obj)); \
     if(!__rec_ref) break; \
     __rec_ref->file_rec->counters[__counter] += 1; \
     if(__ev) \
         __rec_ref->file_rec->counters[DFS_NB_WRITES] += 1; \
-    __rec_ref->file_rec->counters[DFS_BYTES_WRITTEN] += __write_size; \
-    DARSHAN_BUCKET_INC(&(__rec_ref->file_rec->counters[DFS_SIZE_WRITE_0_100]), __write_size); \
-    __cvc = darshan_track_common_val_counters(&__rec_ref->access_root, &__write_size, 1, \
+    __rec_ref->file_rec->counters[DFS_BYTES_WRITTEN] += __sz; \
+    DARSHAN_BUCKET_INC(&(__rec_ref->file_rec->counters[DFS_SIZE_WRITE_0_100]), __sz); \
+    __cvc = darshan_track_common_val_counters(&__rec_ref->access_root, &__sz, 1, \
         &__rec_ref->access_count); \
     if(__cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
         &(__rec_ref->file_rec->counters[DFS_ACCESS1_ACCESS]), \
@@ -322,7 +324,7 @@ static int my_rank = -1;
     __rec_ref->file_rec->fcounters[DFS_F_WRITE_END_TIMESTAMP] = __tm2; \
     if(__rec_ref->file_rec->fcounters[DFS_F_MAX_WRITE_TIME] < __elapsed) { \
         __rec_ref->file_rec->fcounters[DFS_F_MAX_WRITE_TIME] = __elapsed; \
-        __rec_ref->file_rec->counters[DFS_MAX_WRITE_TIME_SIZE] = __write_size; \
+        __rec_ref->file_rec->counters[DFS_MAX_WRITE_TIME_SIZE] = __sz; \
     } \
     DARSHAN_TIMER_INC_NO_OVERLAP(__rec_ref->file_rec->fcounters[DFS_F_WRITE_TIME], \
         __tm1, __tm2, __rec_ref->last_write_end); \
@@ -384,6 +386,7 @@ int DARSHAN_DECL(dfs_lookup)(dfs_t *dfs, const char *path, int flags, dfs_obj_t 
 {
     int ret;
     double tm1, tm2;
+    char *parent_name = NULL;
 
     MAP_OR_FAIL(dfs_lookup);
 
@@ -392,7 +395,7 @@ int DARSHAN_DECL(dfs_lookup)(dfs_t *dfs, const char *path, int flags, dfs_obj_t 
     tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
-    DFS_RECORD_FILE_OBJ_OPEN(dfs, NULL, path, DFS_LOOKUPS, obj, tm1, tm2);
+    DFS_RECORD_FILE_OBJ_OPEN(dfs, parent_name, path, DFS_LOOKUPS, obj, tm1, tm2);
     DFS_POST_RECORD();
 
     return(ret);
@@ -479,6 +482,8 @@ int DARSHAN_DECL(dfs_obj_global2local)(dfs_t *dfs, int flags, d_iov_t glob, dfs_
 
     DFS_PRE_RECORD();
     // XXX need help here, no way to convert args to object name
+    (void)tm1;
+    (void)tm2;
     DFS_POST_RECORD();
 
     return(ret);
@@ -653,7 +658,8 @@ int DARSHAN_DECL(dfs_punch)(dfs_t *dfs, dfs_obj_t *obj, daos_off_t offset, daos_
     return(ret);
 }
 
-int DARSHAN_DECL(dfs_move)(dfs_t *dfs, dfs_obj_t *parent, char *name, dfs_obj_t *new_parent, char *new_name, daos_obj_id_t *oid)
+int DARSHAN_DECL(dfs_move)(dfs_t *dfs, dfs_obj_t *parent, const char *name, dfs_obj_t *new_parent,
+    const char *new_name, daos_obj_id_t *oid)
 {
     int ret;
     double tm1, tm2;
@@ -697,7 +703,8 @@ int DARSHAN_DECL(dfs_move)(dfs_t *dfs, dfs_obj_t *parent, char *name, dfs_obj_t 
     return(ret);
 }
 
-int DARSHAN_DECL(dfs_exchange)(dfs_t *dfs, dfs_obj_t *parent1, char *name1, dfs_obj_t *parent2, char *name2)
+int DARSHAN_DECL(dfs_exchange)(dfs_t *dfs, dfs_obj_t *parent1, const char *name1,
+    dfs_obj_t *parent2, const char *name2)
 {
     int ret;
     double tm1, tm2;
