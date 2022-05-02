@@ -72,11 +72,13 @@ docs-show:
 
 # add AutoPef Python packages...
 add-modules:
+	git submodule init
+	git submodule update
 	for file in `find ../../modules/ -name "*-backend.py"` ; do \
 		cp $$file darshan/backend/`basename $$file | cut -d '-' -f 1`.py ; \
 	done
 
-wheels:
+wheels: add-modules
 	./devel/build-all-platforms.sh
 
 release: #dist # package and upload a release
