@@ -44,9 +44,6 @@ ls /opt/python
 
 # Compile wheels
 for PYBIN in /opt/python/*/bin; do
-    # JL: we do not really need any dependencies to build the wheel,
-    #     but requirements install needs to be renabled when testing automatically
-    #"${PYBIN}/pip" install -r /io/requirements_wheels.txt	                    
     "${PYBIN}/pip" wheel /io/ --build-option "--with-extension" --no-deps -w /io/wheelhouse/${PLAT}
 done
 
@@ -55,8 +52,13 @@ for whl in /io/wheelhouse/${PLAT}/*.whl; do
     repair_wheel "$whl"
 done
 
-## Install packages and test
-#for PYBIN in /opt/python/*/bin/; do
-#    "${PYBIN}/pip" install darshan --no-index -f /io/wheelhouse/${PLAT}
-#    (cd "$HOME"; "${PYBIN}/nosetests" darshan)
-#done
+# Install packages and test
+cd /io/
+for PYBIN in /opt/python/*/bin/; do
+    # JL: we do not really need any dependencies to build the wheel,
+    #     but requirements install needs to be renabled when testing automatically
+    "${PYBIN}/pip" install -r /io/requirements.txt
+    "${PYBIN}/pip" install pytest
+    "${PYBIN}/pip" install darshan --no-index -f /io/wheelhouse/${PLAT}
+    "${PYBIN}/pytest" --pyargs darshan ./
+done
