@@ -10,7 +10,7 @@ Notes on how to release a new version of PyDarshan
  - Make sure documentation in docs/ is up to date
     - commit
     - make docs
-    - upload docs/build/html contents to /mcs/web/research/projects/darshan/docs
+    - upload docs/build/html contents to /mcs/web/research/projects/darshan/docs/pydarshan
     - (might eventually connect this with readthedocs to have this automatically uploaded)
  - Update CHANGELOG.rst
     - commit
