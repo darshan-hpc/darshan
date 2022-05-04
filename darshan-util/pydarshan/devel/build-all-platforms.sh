@@ -4,13 +4,13 @@
 # https://github.com/pypa/manylinux
 # It is a direct extract of the python-manylinux-demo repository:
 # https://github.com/pypa/python-manylinux-demo
-# 
+#
 # A modernized full CI support build would update this procedure to use:
 # https://github.com/pypa/cibuildwheel
 #
 #
 # Allowable platform tags are defined in PEP 599
-# This script currently only build for the x86_64 and i686 platforms 
+# This script currently only build for the x86_64 and i686 platforms
 #
 # Each platform will build for different Python verions.
 # Refer to the build-wheels.sh script to review exactly which are build.
