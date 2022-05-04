@@ -354,15 +354,6 @@ def test_empty_data_posix_text_position():
                     assert_allclose(child.get_position(), (0, 0.25))
 
 
-def test_posix_absent():
-    # check for an appropriate error when POSIX data
-    # is not even recorded in the darshan log
-    log_file_path = get_log_path('noposix.darshan')
-    report = darshan.DarshanReport(log_file_path)
-    with pytest.raises(ValueError, match="POSIX module data is required"):
-        actual_fig = data_access_by_filesystem.plot_with_report(report=report)
-
-
 @pytest.mark.parametrize("""file_rd_series,
                             file_wr_series,
                             bytes_rd_series,
