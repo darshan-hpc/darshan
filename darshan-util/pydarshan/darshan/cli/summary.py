@@ -4,6 +4,7 @@ import io
 import base64
 import argparse
 import datetime
+from collections import OrderedDict
 if sys.version_info >= (3, 7):
     import importlib.resources as importlib_resources
 else:
@@ -330,9 +331,9 @@ class ReportData:
         """
         self.figures = []
 
-        ############################
-        ## Add the DXT heat map(s)
-        ############################
+        #########################################
+        ## Add the runtime and/or DXT heat map(s)
+        #########################################
         # if either or both modules are present, register their figures
         hmap_description = (
             "Heat map of I/O (in bytes) over time broken down by MPI rank. "
@@ -342,28 +343,54 @@ class ReportData:
             "right edge bar graph sums each rank across time slices to show I/O "
             "distribution across ranks."
         )
-        if "DXT" in "\t".join(self.report.modules):
-            for mod in ["DXT_POSIX", "DXT_MPIIO"]:
+        modules_avail = set(self.report.modules)
+        hmap_modules = ["HEATMAP", "DXT_POSIX", "DXT_MPIIO"]
+        hmap_grid = OrderedDict([["HEATMAP_MPIIO", None],
+                                 ["DXT_MPIIO", None],
+                                 ["HEATMAP_POSIX", None],
+                                 ["DXT_POSIX", None],
+                                 ["HEATMAP_STDIO", None],
+                                ])
+        if not set(hmap_modules).isdisjoint(modules_avail):
+            for mod in hmap_modules:
                 if mod in self.report.modules:
-                    dxt_heatmap_fig = ReportFigure(
-                        section_title="I/O Summary",
-                        fig_title=f"Heat Map: {mod}",
-                        fig_func=plot_dxt_heatmap.plot_heatmap,
-                        fig_args=dict(report=self.report, mod=mod),
-                        fig_description=hmap_description,
-                    )
-                    self.figures.append(dxt_heatmap_fig)
+                    if mod == "HEATMAP":
+                        for possible_submodule in self.report.heatmaps:
+                            possible_submodule = possible_submodule.replace("-", "")
+                            heatmap_fig = ReportFigure(
+                                section_title="I/O Summary",
+                                fig_title=f"Heat Map: {mod} {possible_submodule}",
+                                fig_func=plot_dxt_heatmap.plot_heatmap,
+                                fig_args=dict(report=self.report, mod=mod, submodule=possible_submodule),
+                                fig_description=hmap_description,
+                            )
+                            hmap_grid[f"HEATMAP_{possible_submodule}"] = heatmap_fig
+                    else:
+                        heatmap_fig = ReportFigure(
+                            section_title="I/O Summary",
+                            fig_title=f"Heat Map: {mod}",
+                            fig_func=plot_dxt_heatmap.plot_heatmap,
+                            fig_args=dict(report=self.report, mod=mod),
+                            fig_description=hmap_description,
+                        )
+                        hmap_grid[mod] = heatmap_fig
+            for heatmap_fig in hmap_grid.values():
+                if heatmap_fig:
+                    self.figures.append(heatmap_fig)
         else:
-            # temporary message to direct users to DXT tracing
-            # documentation until DXT tracing is enabled by default
             url = (
                 "https://www.mcs.anl.gov/research/projects/darshan/docs/darshan"
                 "-runtime.html#_using_the_darshan_extended_tracing_dxt_module"
             )
             temp_message = (
-                f"Heat map is not available for this job as DXT was not "
-                f"enabled at run time. For details on how to enable DXT visit "
-                f"the <a href={url}>Darshan-runtime documentation</a>."
+                    "Heatmap data is not available for this job. Consider "
+                    "enabling the runtime heatmap module (available and "
+                    "enabled by default in Darshan 3.4 or newer) or the "
+                    "DXT tracing module (available and optionally enabled "
+                    "in Darshan 3.1.3 or newer) if you would like to analyze "
+                    "I/O intensity using a heatmap visualization. "
+                    "For details, see "
+                    f"the <a href={url}>Darshan-runtime documentation</a>."
             )
             fig = ReportFigure(
                 section_title="I/O Summary",
