@@ -199,6 +199,7 @@ extern char *darshan_stdio_lookup_record_name(FILE *stream);
 
 static struct posix_runtime *posix_runtime = NULL;
 static pthread_mutex_t posix_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static int posix_runtime_init_attempted = 0;
 static int my_rank = -1;
 static int darshan_mem_alignment = 1;
 
@@ -216,7 +217,8 @@ static int darshan_mem_alignment = 1;
 #define POSIX_PRE_RECORD() do { \
     if(!__darshan_disabled) { \
         POSIX_LOCK(); \
-        if(!posix_runtime) posix_runtime_initialize(); \
+        if(!posix_runtime && !posix_runtime_init_attempted) \
+            posix_runtime_initialize(); \
         if(posix_runtime && !posix_runtime->frozen) break; \
         POSIX_UNLOCK(); \
     } \
@@ -234,10 +236,6 @@ static int darshan_mem_alignment = 1;
     if(__ret < 0) break; \
     __newpath = darshan_clean_file_path(__path); \
     if(!__newpath) __newpath = (char *)__path; \
-    if(darshan_core_excluded_path(__newpath)) { \
-        if(__newpath != __path) free(__newpath); \
-        break; \
-    } \
     __rec_id = darshan_core_gen_record_id(__newpath); \
     __rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &__rec_id, sizeof(darshan_record_id)); \
     if(!__rec_ref) __rec_ref = posix_track_new_file_record(__rec_id, __newpath); \
@@ -408,10 +406,6 @@ static int darshan_mem_alignment = 1;
     struct posix_file_record_ref* rec_ref; \
     char *newpath = darshan_clean_file_path(__path); \
     if(!newpath) newpath = (char *)__path; \
-    if(darshan_core_excluded_path(newpath)) { \
-        if(newpath != __path) free(newpath); \
-        break; \
-    } \
     rec_id = darshan_core_gen_record_id(newpath); \
     rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id)); \
     if(!rec_ref) rec_ref = posix_track_new_file_record(rec_id, newpath); \
@@ -522,7 +516,7 @@ int DARSHAN_DECL(openat)(int dirfd, const char *pathname, int flags, ...)
     int ret;
     double tm1, tm2;
     struct posix_file_record_ref *rec_ref;
-    char tmp_path[PATH_MAX] = {0};
+    char tmp_path[__DARSHAN_PATH_MAX] = {0};
     char *dirpath = NULL;
 
     MAP_OR_FAIL(openat);
@@ -562,13 +556,19 @@ int DARSHAN_DECL(openat)(int dirfd, const char *pathname, int flags, ...)
         if(rec_ref)
         {
             dirpath = darshan_core_lookup_record_name(rec_ref->file_rec->base_rec.id);
-            if(dirpath)
+            /* Safety check path length against temporary buffer.  If the
+             * combined path is too long, then we set dirpath to NULL to fall
+             * through to using relative path below.
+             */
+            if(dirpath && (strlen(dirpath) + strlen(pathname) + 2) < __DARSHAN_PATH_MAX)
             {
                 strcat(tmp_path, dirpath);
                 if(dirpath[strlen(dirpath)-1] != '/')
                     strcat(tmp_path, "/");
                 strcat(tmp_path, pathname);
             }
+            else
+                dirpath = NULL;
         }
 
         if(dirpath)
@@ -593,7 +593,7 @@ int DARSHAN_DECL(openat64)(int dirfd, const char *pathname, int flags, ...)
     int ret;
     double tm1, tm2;
     struct posix_file_record_ref *rec_ref;
-    char tmp_path[PATH_MAX] = {0};
+    char tmp_path[__DARSHAN_PATH_MAX] = {0};
     char *dirpath = NULL;
 
     MAP_OR_FAIL(openat64);
@@ -633,13 +633,19 @@ int DARSHAN_DECL(openat64)(int dirfd, const char *pathname, int flags, ...)
         if(rec_ref)
         {
             dirpath = darshan_core_lookup_record_name(rec_ref->file_rec->base_rec.id);
-            if(dirpath)
+            /* Safety check path length against temporary buffer.  If the
+             * combined path is too long then, we set dirpath to NULL to fall
+             * through to using relative path below.
+             */
+            if(dirpath && (strlen(dirpath) + strlen(pathname) + 2) < __DARSHAN_PATH_MAX)
             {
                 strcat(tmp_path, dirpath);
                 if(dirpath[strlen(dirpath)-1] != '/')
                     strcat(tmp_path, "/");
                 strcat(tmp_path, pathname);
             }
+            else
+                dirpath = NULL;
         }
 
         if(dirpath)
@@ -1835,11 +1841,6 @@ int DARSHAN_DECL(rename)(const char *oldpath, const char *newpath)
     {
         oldpath_clean = darshan_clean_file_path(oldpath);
         if(!oldpath_clean) oldpath_clean = (char *)oldpath;
-        if(darshan_core_excluded_path(oldpath_clean))
-        {
-            if(oldpath_clean != oldpath) free(oldpath_clean);
-            return(ret);
-        }
         old_rec_id = darshan_core_gen_record_id(oldpath_clean);
 
         POSIX_PRE_RECORD();
@@ -1857,13 +1858,6 @@ int DARSHAN_DECL(rename)(const char *oldpath, const char *newpath)
 
         newpath_clean = darshan_clean_file_path(newpath);
         if(!newpath_clean) newpath_clean = (char *)newpath;
-        if(darshan_core_excluded_path(newpath_clean))
-        {
-            POSIX_POST_RECORD();
-            if(oldpath_clean != oldpath) free(oldpath_clean);
-            if(newpath_clean != newpath) free(newpath_clean);
-            return(ret);
-        }
         new_rec_id = darshan_core_gen_record_id(newpath_clean);
 
         new_rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash,
@@ -1892,7 +1886,8 @@ int DARSHAN_DECL(rename)(const char *oldpath, const char *newpath)
 /* initialize internal POSIX module data structures and register with darshan-core */
 static void posix_runtime_initialize()
 {
-    size_t psx_buf_size;
+    int ret;
+    size_t psx_rec_count;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
         .mod_redux_func = &posix_mpi_redux,
@@ -1901,16 +1896,22 @@ static void posix_runtime_initialize()
         .mod_cleanup_func = &posix_cleanup
         };
 
+    /* if this attempt at initializing fails, we won't try again */
+    posix_runtime_init_attempted = 1;
+
     /* try and store a default number of records for this module */
-    psx_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_posix_file);
+    psx_rec_count = DARSHAN_DEF_MOD_REC_COUNT;
 
     /* register the POSIX module with darshan core */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DARSHAN_POSIX_MOD,
         mod_funcs,
-        &psx_buf_size,
+        sizeof(struct darshan_posix_file),
+        &psx_rec_count,
         &my_rank,
         &darshan_mem_alignment);
+    if(ret < 0)
+        return;
 
     posix_runtime = malloc(sizeof(*posix_runtime));
     if(!posix_runtime)
@@ -2381,8 +2382,7 @@ char *darshan_posix_lookup_record_name(int fd)
     return(rec_name);
 }
 
-#ifdef HAVE_MPI
-static struct darshan_posix_file *darshan_posix_rec_id_to_file(darshan_record_id rec_id)
+struct darshan_posix_file *darshan_posix_rec_id_to_file(darshan_record_id rec_id)
 {
     struct posix_file_record_ref *rec_ref;
 
@@ -2393,7 +2393,6 @@ static struct darshan_posix_file *darshan_posix_rec_id_to_file(darshan_record_id
     else
         return(NULL);
 }
-#endif
 
 /* posix module shutdown benchmark routine */
 void darshan_posix_shutdown_bench_setup(int test_case)
@@ -2490,9 +2489,6 @@ static void posix_mpi_redux(
 
     POSIX_LOCK();
     assert(posix_runtime);
-
-    /* allow DXT a chance to filter traces based on dynamic triggers */
-    dxt_posix_filter_dynamic_traces(darshan_posix_rec_id_to_file);
 
     posix_rec_count = posix_runtime->file_rec_count;
 

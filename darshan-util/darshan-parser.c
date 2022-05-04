@@ -52,6 +52,13 @@
 /*
  * Datatypes
  */
+
+/* Structure to accumulate per-file derived metrics, regardless of how many
+ * ranks access it. The "file_hash_table" UT hash table data structure is
+ * used to keep track of all files that have been encountered in the log.
+ * The *_accum_file() functions are used to iteratively accumulate metrics,
+ * while the *_file_list() functions are used to emit them to stdout.
+ */
 typedef struct hash_entry_s
 {
     UT_hash_handle hlink;
@@ -59,10 +66,15 @@ typedef struct hash_entry_s
     int64_t type;
     int64_t procs;
     void *rec_dat;
-    double cumul_time;
-    double slowest_time;
+    double cumul_io_total_time; /* cumulative metadata and rw time */
+    double slowest_io_total_time; /* slowest rank metadata and rw time */
 } hash_entry_t;
 
+/* Structure to accumulate aggregate derived metrics across all files.  This
+ * is usually caculated all at once (see *_calc_file() functions) after the
+ * file_hash_table has been fully populated with all files, and results are
+ * emitted to stdout in main().
+ */
 typedef struct file_data_s
 {
     int64_t total;
@@ -85,23 +97,24 @@ typedef struct file_data_s
     int64_t shared_max;
 } file_data_t;
 
+/* Structure to accumulate aggreate derived performance metrics across all
+ * files. Metrics are iteratively accumulated with accum_perf() and then
+ * finalized with calc_perf(). Final values are emitted to stdout in
+ * main().
+ */
 typedef struct perf_data_s
 {
     int64_t total_bytes;
-    double slowest_rank_time;
-    double slowest_rank_meta_time;
+    double slowest_rank_io_total_time;
+    double slowest_rank_rw_only_time;
+    double slowest_rank_meta_only_time;
     int slowest_rank_rank;
-    double shared_time_by_cumul;
-    double shared_time_by_open;
-    double shared_time_by_open_lastio;
-    double shared_time_by_slowest;
-    double shared_meta_time;
-    double agg_perf_by_cumul;
-    double agg_perf_by_open;
-    double agg_perf_by_open_lastio;
+    double shared_io_total_time_by_slowest;
     double agg_perf_by_slowest;
-    double *rank_cumul_io_time;
-    double *rank_cumul_md_time;
+    double agg_time_by_slowest;
+    double *rank_cumul_io_total_time;
+    double *rank_cumul_rw_only_time;
+    double *rank_cumul_md_only_time;
 } perf_data_t;
 
 /*
@@ -109,20 +122,20 @@ typedef struct perf_data_s
  */
 void posix_accum_file(struct darshan_posix_file *pfile, hash_entry_t *hfile, int64_t nprocs);
 void posix_accum_perf(struct darshan_posix_file *pfile, perf_data_t *pdata);
-void posix_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
+void posix_calc_file(hash_entry_t *file_hash_table, file_data_t *fdata);
 void posix_print_total_file(struct darshan_posix_file *pfile, int posix_ver);
-void posix_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
+void posix_file_list(hash_entry_t *file_hash_table, struct darshan_name_record_ref *name_hash, int detail_flag);
 
 void mpiio_accum_file(struct darshan_mpiio_file *mfile, hash_entry_t *hfile, int64_t nprocs);
 void mpiio_accum_perf(struct darshan_mpiio_file *mfile, perf_data_t *pdata);
-void mpiio_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
+void mpiio_calc_file(hash_entry_t *file_hash_table, file_data_t *fdata);
 void mpiio_print_total_file(struct darshan_mpiio_file *mfile, int mpiio_ver);
-void mpiio_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
+void mpiio_file_list(hash_entry_t *file_hash_table, struct darshan_name_record_ref *name_hash, int detail_flag);
 
 void stdio_accum_perf(struct darshan_stdio_file *pfile, perf_data_t *pdata);
 void stdio_accum_file(struct darshan_stdio_file *pfile, hash_entry_t *hfile, int64_t nprocs);
-void stdio_calc_file(hash_entry_t *file_hash, file_data_t *fdata);
-void stdio_file_list(hash_entry_t *file_hash, struct darshan_name_record_ref *name_hash, int detail_flag);
+void stdio_calc_file(hash_entry_t *file_hash_table, file_data_t *fdata);
+void stdio_file_list(hash_entry_t *file_hash_table, struct darshan_name_record_ref *name_hash, int detail_flag);
 void stdio_print_total_file(struct darshan_stdio_file *pfile, int stdio_ver);
 
 void calc_perf(perf_data_t *pdata, int64_t nprocs);
@@ -228,7 +241,7 @@ int main(int argc, char **argv)
     int empty_mods = 0;
     char *mod_buf;
 
-    hash_entry_t *file_hash = NULL;
+    hash_entry_t *file_hash_table = NULL;
     hash_entry_t *curr = NULL;
     hash_entry_t *tmp_file = NULL;
     hash_entry_t total;
@@ -333,12 +346,20 @@ int main(int argc, char **argv)
     printf("# header: %zu bytes (uncompressed)\n", sizeof(struct darshan_header));
     printf("# job data: %zu bytes (compressed)\n", fd->job_map.len);
     printf("# record table: %zu bytes (compressed)\n", fd->name_map.len);
-    for(i=0; i<DARSHAN_MAX_MODS; i++)
+    for(i=0; i<DARSHAN_KNOWN_MODULE_COUNT; i++)
     {
         if(fd->mod_map[i].len || DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i))
         {
             printf("# %s module: %zu bytes (compressed), ver=%d\n",
                 darshan_module_names[i], fd->mod_map[i].len, fd->mod_ver[i]);
+        }
+    }
+    for(i=DARSHAN_KNOWN_MODULE_COUNT; i<DARSHAN_MAX_MODS; i++)
+    {
+        if(fd->mod_map[i].len || DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i))
+        {
+            printf("# <UNKNOWN> module (id %d): %zu bytes (compressed), ver=%d\n",
+                i, fd->mod_map[i].len, fd->mod_ver[i]);
         }
     }
 
@@ -366,17 +387,20 @@ int main(int argc, char **argv)
         printf("#   <fs type>: type of file system that the file resides on.\n");
     }
 
-    pdata.rank_cumul_io_time = malloc(sizeof(double)*job.nprocs);
-    pdata.rank_cumul_md_time = malloc(sizeof(double)*job.nprocs);
-    if (!pdata.rank_cumul_io_time || !pdata.rank_cumul_md_time)
+    pdata.rank_cumul_io_total_time = malloc(sizeof(double)*job.nprocs);
+    pdata.rank_cumul_rw_only_time = malloc(sizeof(double)*job.nprocs);
+    pdata.rank_cumul_md_only_time = malloc(sizeof(double)*job.nprocs);
+    if (!pdata.rank_cumul_io_total_time || !pdata.rank_cumul_md_only_time ||
+        !pdata.rank_cumul_rw_only_time)
     {
         darshan_log_close(fd);
         return(-1);
     }
     else
     {
-        memset(pdata.rank_cumul_io_time, 0, sizeof(double)*job.nprocs);
-        memset(pdata.rank_cumul_md_time, 0, sizeof(double)*job.nprocs);
+        memset(pdata.rank_cumul_io_total_time, 0, sizeof(double)*job.nprocs);
+        memset(pdata.rank_cumul_rw_only_time, 0, sizeof(double)*job.nprocs);
+        memset(pdata.rank_cumul_md_only_time, 0, sizeof(double)*job.nprocs);
     }
 
     mod_buf = malloc(DEF_MOD_BUF_SIZE);
@@ -388,7 +412,7 @@ int main(int argc, char **argv)
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
         struct darshan_base_record *base_rec;
-        void *save_io, *save_md;
+        void *save_io_total, *save_md_only, *save_rw_only;
 
         /* check each module for any data */
         if(fd->mod_map[i].len == 0)
@@ -397,10 +421,17 @@ int main(int argc, char **argv)
             if(!DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i))
                 continue;
         }
+        /* skip modules that this version of Darshan can't parse */
+        else if(i >= DARSHAN_KNOWN_MODULE_COUNT)
+        {
+            fprintf(stderr, "# Warning: module id %d is unknown. You may need "
+                            "a newer version of the Darshan utilities to parse it.\n", i);
+            continue;
+        }
         /* skip modules with no logutil definitions */
         else if(!mod_logutils[i])
         {
-            fprintf(stderr, "Warning: no log utility handlers defined "
+            fprintf(stderr, "# Warning: no log utility handlers defined "
                 "for module %s, SKIPPING.\n", darshan_module_names[i]);
             continue;
         }
@@ -533,7 +564,7 @@ int main(int argc, char **argv)
             if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD && i != DARSHAN_STDIO_MOD)
                 continue;
 
-            HASH_FIND(hlink, file_hash, &(base_rec->id), sizeof(darshan_record_id), hfile);
+            HASH_FIND(hlink, file_hash_table, &(base_rec->id), sizeof(darshan_record_id), hfile);
             if(!hfile)
             {
                 hfile = malloc(sizeof(*hfile));
@@ -549,10 +580,10 @@ int main(int argc, char **argv)
                 hfile->type = 0;
                 hfile->procs = 0;
                 hfile->rec_dat = NULL;
-                hfile->cumul_time = 0.0;
-                hfile->slowest_time = 0.0;
+                hfile->cumul_io_total_time = 0.0;
+                hfile->slowest_io_total_time = 0.0;
 
-                HASH_ADD(hlink, file_hash,rec_id, sizeof(darshan_record_id), hfile);
+                HASH_ADD(hlink, file_hash_table,rec_id, sizeof(darshan_record_id), hfile);
             }
 
             if(i == DARSHAN_POSIX_MOD)
@@ -607,15 +638,15 @@ int main(int argc, char **argv)
         {
             if(i == DARSHAN_POSIX_MOD)
             {
-                posix_calc_file(file_hash, &fdata);
+                posix_calc_file(file_hash_table, &fdata);
             }
             else if(i == DARSHAN_MPIIO_MOD)
             {
-                mpiio_calc_file(file_hash, &fdata);
+                mpiio_calc_file(file_hash_table, &fdata);
             }
             else if(i == DARSHAN_STDIO_MOD)
             {
-                stdio_calc_file(file_hash, &fdata);
+                stdio_calc_file(file_hash_table, &fdata);
             }
 
             printf("\n# Total file counts\n");
@@ -667,26 +698,19 @@ int main(int argc, char **argv)
             printf("#\n");
             printf("# I/O timing for unique files (seconds):\n");
             printf("# ...........................\n");
-            printf("# unique files: slowest_rank_io_time: %lf\n", pdata.slowest_rank_time);
-            printf("# unique files: slowest_rank_meta_only_time: %lf\n", pdata.slowest_rank_meta_time);
+            printf("# unique files: slowest_rank_io_time: %lf\n", pdata.slowest_rank_io_total_time);
+            printf("# unique files: slowest_rank_meta_only_time: %lf\n", pdata.slowest_rank_meta_only_time);
+            printf("# unique files: slowest_rank_rw_only_time: %lf\n", pdata.slowest_rank_rw_only_time);
             printf("# unique files: slowest_rank: %d\n", pdata.slowest_rank_rank);
             printf("#\n");
             printf("# I/O timing for shared files (seconds):\n");
-            printf("# (multiple estimates shown; time_by_slowest is generally the most accurate)\n");
             printf("# ...........................\n");
-            printf("# shared files: time_by_cumul_io_only: %lf\n", pdata.shared_time_by_cumul);
-            printf("# shared files: time_by_cumul_meta_only: %lf\n", pdata.shared_meta_time);
-            printf("# shared files: time_by_open: %lf\n", pdata.shared_time_by_open);
-            printf("# shared files: time_by_open_lastio: %lf\n", pdata.shared_time_by_open_lastio);
-            printf("# shared files: time_by_slowest: %lf\n", pdata.shared_time_by_slowest);
+            printf("# shared files: time_by_slowest: %lf\n", pdata.shared_io_total_time_by_slowest);
             printf("#\n");
-            printf("# Aggregate performance, including both shared and unique files (MiB/s):\n");
-            printf("# (multiple estimates shown; agg_perf_by_slowest is generally the most accurate)\n");
+            printf("# Aggregate performance, including both shared and unique files:\n");
             printf("# ...........................\n");
-            printf("# agg_perf_by_cumul: %lf\n", pdata.agg_perf_by_cumul);
-            printf("# agg_perf_by_open: %lf\n", pdata.agg_perf_by_open);
-            printf("# agg_perf_by_open_lastio: %lf\n", pdata.agg_perf_by_open_lastio);
-            printf("# agg_perf_by_slowest: %lf\n", pdata.agg_perf_by_slowest);
+            printf("# agg_time_by_slowest: %lf # seconds\n", pdata.agg_time_by_slowest);
+            printf("# agg_perf_by_slowest: %lf # MiB/s\n", pdata.agg_perf_by_slowest);
         }
 
         if((mask & OPTION_FILE_LIST) || (mask & OPTION_FILE_LIST_DETAILED))
@@ -694,23 +718,23 @@ int main(int argc, char **argv)
             if(i == DARSHAN_POSIX_MOD)
             {
                 if(mask & OPTION_FILE_LIST_DETAILED)
-                    posix_file_list(file_hash, name_hash, 1);
+                    posix_file_list(file_hash_table, name_hash, 1);
                 else
-                    posix_file_list(file_hash, name_hash, 0);
+                    posix_file_list(file_hash_table, name_hash, 0);
             }
             else if(i == DARSHAN_MPIIO_MOD)
             {
                 if(mask & OPTION_FILE_LIST_DETAILED)
-                    mpiio_file_list(file_hash, name_hash, 1);
+                    mpiio_file_list(file_hash_table, name_hash, 1);
                 else
-                    mpiio_file_list(file_hash, name_hash, 0);
+                    mpiio_file_list(file_hash_table, name_hash, 0);
             }
             else if(i == DARSHAN_STDIO_MOD)
             {
                 if(mask & OPTION_FILE_LIST_DETAILED)
-                    stdio_file_list(file_hash, name_hash, 1);
+                    stdio_file_list(file_hash_table, name_hash, 1);
                 else
-                    stdio_file_list(file_hash, name_hash, 0);
+                    stdio_file_list(file_hash_table, name_hash, 0);
             }
         }
 
@@ -718,17 +742,20 @@ int main(int argc, char **argv)
         if(total.rec_dat) free(total.rec_dat);
         memset(&total, 0, sizeof(total));
         memset(&fdata, 0, sizeof(fdata));
-        save_io = pdata.rank_cumul_io_time;
-        save_md = pdata.rank_cumul_md_time;
+        save_io_total = pdata.rank_cumul_io_total_time;
+        save_rw_only = pdata.rank_cumul_rw_only_time;
+        save_md_only = pdata.rank_cumul_md_only_time;
         memset(&pdata, 0, sizeof(pdata));
-        memset(save_io, 0, sizeof(double)*job.nprocs);
-        memset(save_md, 0, sizeof(double)*job.nprocs);
-        pdata.rank_cumul_io_time = save_io;
-        pdata.rank_cumul_md_time = save_md;
+        memset(save_io_total, 0, sizeof(double)*job.nprocs);
+        memset(save_rw_only, 0, sizeof(double)*job.nprocs);
+        memset(save_md_only, 0, sizeof(double)*job.nprocs);
+        pdata.rank_cumul_io_total_time = save_io_total;
+        pdata.rank_cumul_md_only_time = save_md_only;
+        pdata.rank_cumul_rw_only_time = save_rw_only;
 
-        HASH_ITER(hlink, file_hash, curr, tmp_file)
+        HASH_ITER(hlink, file_hash_table, curr, tmp_file)
         {
-            HASH_DELETE(hlink, file_hash, curr);
+            HASH_DELETE(hlink, file_hash_table, curr);
             if(curr->rec_dat) free(curr->rec_dat);
             free(curr);
         }
@@ -739,8 +766,9 @@ int main(int argc, char **argv)
 
 cleanup:
     darshan_log_close(fd);
-    free(pdata.rank_cumul_io_time);
-    free(pdata.rank_cumul_md_time);
+    free(pdata.rank_cumul_io_total_time);
+    free(pdata.rank_cumul_md_only_time);
+    free(pdata.rank_cumul_rw_only_time);
     free(mod_buf);
 
     /* free record hash data */
@@ -764,18 +792,17 @@ void stdio_accum_file(struct darshan_stdio_file *pfile,
                       hash_entry_t *hfile,
                       int64_t nprocs)
 {
-    int i;
     struct darshan_stdio_file* tmp;
 
     hfile->procs += 1;
 
     if(pfile->base_rec.rank == -1)
     {
-        hfile->slowest_time = pfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
+        hfile->slowest_io_total_time = pfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
     }
     else
     {
-        hfile->slowest_time = max(hfile->slowest_time, 
+        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time, 
             (pfile->fcounters[STDIO_F_META_TIME] +
             pfile->fcounters[STDIO_F_READ_TIME] +
             pfile->fcounters[STDIO_F_WRITE_TIME]));
@@ -797,75 +824,23 @@ void stdio_accum_file(struct darshan_stdio_file *pfile,
         hfile->type |= FILETYPE_UNIQUE;
     }
 
-    hfile->cumul_time += pfile->fcounters[STDIO_F_META_TIME] +
+    hfile->cumul_io_total_time += pfile->fcounters[STDIO_F_META_TIME] +
                          pfile->fcounters[STDIO_F_READ_TIME] +
                          pfile->fcounters[STDIO_F_WRITE_TIME];
 
     if(hfile->rec_dat == NULL)
     {
+        /* generate empty base record to start accumulation */
         hfile->rec_dat = malloc(sizeof(struct darshan_stdio_file));
         assert(hfile->rec_dat);
         memset(hfile->rec_dat, 0, sizeof(struct darshan_stdio_file));
+        tmp = (struct darshan_stdio_file*)hfile->rec_dat;
+        mod_logutils[DARSHAN_STDIO_MOD]->log_agg_records(pfile, tmp, 1);
     }
-    tmp = (struct darshan_stdio_file*)hfile->rec_dat;
-
-    for(i = 0; i < STDIO_NUM_INDICES; i++)
+    else
     {
-        switch(i)
-        {
-        case STDIO_MAX_BYTE_READ:
-        case STDIO_MAX_BYTE_WRITTEN:
-            if (tmp->counters[i] < pfile->counters[i])
-            {
-                tmp->counters[i] = pfile->counters[i];
-            }
-            break;
-        case POSIX_FASTEST_RANK:
-        case POSIX_SLOWEST_RANK:
-        case POSIX_FASTEST_RANK_BYTES:
-        case POSIX_SLOWEST_RANK_BYTES:
-            tmp->counters[i] = 0;
-            break;
-        default:
-            tmp->counters[i] += pfile->counters[i];
-            break;
-        }
-    }
-
-    for(i = 0; i < STDIO_F_NUM_INDICES; i++)
-    {
-        switch(i)
-        {
-            case STDIO_F_OPEN_START_TIMESTAMP:
-            case STDIO_F_CLOSE_START_TIMESTAMP:
-            case STDIO_F_READ_START_TIMESTAMP:
-            case STDIO_F_WRITE_START_TIMESTAMP:
-                if(tmp->fcounters[i] == 0 || 
-                    tmp->fcounters[i] > pfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = pfile->fcounters[i];
-                }
-                break;
-            case STDIO_F_READ_END_TIMESTAMP:
-            case STDIO_F_WRITE_END_TIMESTAMP:
-            case STDIO_F_OPEN_END_TIMESTAMP:
-            case STDIO_F_CLOSE_END_TIMESTAMP:
-                if(tmp->fcounters[i] == 0 || 
-                    tmp->fcounters[i] < pfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = pfile->fcounters[i];
-                }
-                break;
-            case STDIO_F_FASTEST_RANK_TIME:
-            case STDIO_F_SLOWEST_RANK_TIME:
-            case STDIO_F_VARIANCE_RANK_TIME:
-            case STDIO_F_VARIANCE_RANK_BYTES:
-                tmp->fcounters[i] = 0;
-                break;
-            default:
-                tmp->fcounters[i] += pfile->fcounters[i];
-                break;
-        }
+        tmp = (struct darshan_stdio_file*)hfile->rec_dat;
+        mod_logutils[DARSHAN_STDIO_MOD]->log_agg_records(pfile, tmp, 0);
     }
 
     return;
@@ -875,21 +850,17 @@ void posix_accum_file(struct darshan_posix_file *pfile,
                       hash_entry_t *hfile,
                       int64_t nprocs)
 {
-    int i, j;
-    int set;
-    int min_ndx;
-    int64_t min;
     struct darshan_posix_file* tmp;
 
     hfile->procs += 1;
 
     if(pfile->base_rec.rank == -1)
     {
-        hfile->slowest_time = pfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
+        hfile->slowest_io_total_time = pfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
     }
     else
     {
-        hfile->slowest_time = max(hfile->slowest_time, 
+        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time, 
             (pfile->fcounters[POSIX_F_META_TIME] +
             pfile->fcounters[POSIX_F_READ_TIME] +
             pfile->fcounters[POSIX_F_WRITE_TIME]));
@@ -911,166 +882,23 @@ void posix_accum_file(struct darshan_posix_file *pfile,
         hfile->type |= FILETYPE_UNIQUE;
     }
 
-    hfile->cumul_time += pfile->fcounters[POSIX_F_META_TIME] +
+    hfile->cumul_io_total_time += pfile->fcounters[POSIX_F_META_TIME] +
                          pfile->fcounters[POSIX_F_READ_TIME] +
                          pfile->fcounters[POSIX_F_WRITE_TIME];
 
     if(hfile->rec_dat == NULL)
     {
+        /* generate empty base record to start accumulation */
         hfile->rec_dat = malloc(sizeof(struct darshan_posix_file));
         assert(hfile->rec_dat);
         memset(hfile->rec_dat, 0, sizeof(struct darshan_posix_file));
+        tmp = (struct darshan_posix_file*)hfile->rec_dat;
+        mod_logutils[DARSHAN_POSIX_MOD]->log_agg_records(pfile, tmp, 1);
     }
-    tmp = (struct darshan_posix_file*)hfile->rec_dat;
-
-    for(i = 0; i < POSIX_NUM_INDICES; i++)
+    else
     {
-        switch(i)
-        {
-        case POSIX_MODE:
-        case POSIX_MEM_ALIGNMENT:
-        case POSIX_FILE_ALIGNMENT:
-            tmp->counters[i] = pfile->counters[i];
-            break;
-        case POSIX_MAX_BYTE_READ:
-        case POSIX_MAX_BYTE_WRITTEN:
-            if (tmp->counters[i] < pfile->counters[i])
-            {
-                tmp->counters[i] = pfile->counters[i];
-            }
-            break;
-        case POSIX_STRIDE1_STRIDE:
-        case POSIX_STRIDE2_STRIDE:
-        case POSIX_STRIDE3_STRIDE:
-        case POSIX_STRIDE4_STRIDE:
-        case POSIX_ACCESS1_ACCESS:
-        case POSIX_ACCESS2_ACCESS:
-        case POSIX_ACCESS3_ACCESS:
-        case POSIX_ACCESS4_ACCESS:
-           /*
-            * do nothing here because these will be stored
-            * when the _COUNT is accessed.
-            */
-           break;
-        case POSIX_STRIDE1_COUNT:
-        case POSIX_STRIDE2_COUNT:
-        case POSIX_STRIDE3_COUNT:
-        case POSIX_STRIDE4_COUNT:
-            set = 0;
-            min_ndx = POSIX_STRIDE1_COUNT;
-            min = tmp->counters[min_ndx];
-            for(j = POSIX_STRIDE1_COUNT; j <= POSIX_STRIDE4_COUNT; j++)
-            {
-                if(tmp->counters[j-4] == pfile->counters[i-4])
-                {
-                    tmp->counters[j] += pfile->counters[i];
-                    set = 1;
-                    break;
-                }
-                if(tmp->counters[j] < min)
-                {
-                    min_ndx = j;
-                    min = tmp->counters[j];
-                }
-            }
-            if(!set && (pfile->counters[i] > min))
-            {
-                tmp->counters[min_ndx] = pfile->counters[i];
-                tmp->counters[min_ndx-4] = pfile->counters[i-4];
-            }
-            break;
-        case POSIX_ACCESS1_COUNT:
-        case POSIX_ACCESS2_COUNT:
-        case POSIX_ACCESS3_COUNT:
-        case POSIX_ACCESS4_COUNT:
-            set = 0;
-            min_ndx = POSIX_ACCESS1_COUNT;
-            min = tmp->counters[min_ndx];
-            for(j = POSIX_ACCESS1_COUNT; j <= POSIX_ACCESS4_COUNT; j++)
-            {
-                if(tmp->counters[j-4] == pfile->counters[i-4])
-                {
-                    tmp->counters[j] += pfile->counters[i];
-                    set = 1;
-                    break;
-                }
-                if(tmp->counters[j] < min)
-                {
-                    min_ndx = j;
-                    min = tmp->counters[j];
-                }
-            }
-            if(!set && (pfile->counters[i] > min))
-            {
-                tmp->counters[i] = pfile->counters[i];
-                tmp->counters[i-4] = pfile->counters[i-4];
-            }
-            break;
-        case POSIX_FASTEST_RANK:
-        case POSIX_SLOWEST_RANK:
-        case POSIX_FASTEST_RANK_BYTES:
-        case POSIX_SLOWEST_RANK_BYTES:
-            tmp->counters[i] = 0;
-            break;
-        case POSIX_MAX_READ_TIME_SIZE:
-        case POSIX_MAX_WRITE_TIME_SIZE:
-            break;
-        default:
-            tmp->counters[i] += pfile->counters[i];
-            break;
-        }
-    }
-
-    for(i = 0; i < POSIX_F_NUM_INDICES; i++)
-    {
-        switch(i)
-        {
-            case POSIX_F_OPEN_START_TIMESTAMP:
-            case POSIX_F_READ_START_TIMESTAMP:
-            case POSIX_F_WRITE_START_TIMESTAMP:
-            case POSIX_F_CLOSE_START_TIMESTAMP:
-                if(tmp->fcounters[i] == 0 || 
-                    tmp->fcounters[i] > pfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = pfile->fcounters[i];
-                }
-                break;
-            case POSIX_F_OPEN_END_TIMESTAMP:
-            case POSIX_F_READ_END_TIMESTAMP:
-            case POSIX_F_WRITE_END_TIMESTAMP:
-            case POSIX_F_CLOSE_END_TIMESTAMP:
-                if(tmp->fcounters[i] == 0 || 
-                    tmp->fcounters[i] < pfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = pfile->fcounters[i];
-                }
-                break;
-            case POSIX_F_FASTEST_RANK_TIME:
-            case POSIX_F_SLOWEST_RANK_TIME:
-            case POSIX_F_VARIANCE_RANK_TIME:
-            case POSIX_F_VARIANCE_RANK_BYTES:
-                tmp->fcounters[i] = 0;
-                break;
-            case POSIX_F_MAX_READ_TIME:
-                if(tmp->fcounters[i] < pfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = pfile->fcounters[i];
-                    tmp->counters[POSIX_MAX_READ_TIME_SIZE] =
-                        pfile->counters[POSIX_MAX_READ_TIME_SIZE];
-                }
-                break;
-            case POSIX_F_MAX_WRITE_TIME:
-                if(tmp->fcounters[i] < pfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = pfile->fcounters[i];
-                    tmp->counters[POSIX_MAX_WRITE_TIME_SIZE] =
-                        pfile->counters[POSIX_MAX_WRITE_TIME_SIZE];
-                }
-                break;
-            default:
-                tmp->fcounters[i] += pfile->fcounters[i];
-                break;
-        }
+        tmp = (struct darshan_posix_file*)hfile->rec_dat;
+        mod_logutils[DARSHAN_POSIX_MOD]->log_agg_records(pfile, tmp, 0);
     }
 
     return;
@@ -1080,21 +908,17 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
                       hash_entry_t *hfile,
                       int64_t nprocs)
 {
-    int i, j;
-    int set;
-    int min_ndx;
-    int64_t min;
     struct darshan_mpiio_file* tmp;
 
     hfile->procs += 1;
 
     if(mfile->base_rec.rank == -1)
     {
-        hfile->slowest_time = mfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
+        hfile->slowest_io_total_time = mfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
     }
     else
     {
-        hfile->slowest_time = max(hfile->slowest_time, 
+        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time, 
             (mfile->fcounters[MPIIO_F_META_TIME] +
             mfile->fcounters[MPIIO_F_READ_TIME] +
             mfile->fcounters[MPIIO_F_WRITE_TIME]));
@@ -1116,126 +940,23 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
         hfile->type |= FILETYPE_UNIQUE;
     }
 
-    hfile->cumul_time += mfile->fcounters[MPIIO_F_META_TIME] +
+    hfile->cumul_io_total_time += mfile->fcounters[MPIIO_F_META_TIME] +
                          mfile->fcounters[MPIIO_F_READ_TIME] +
                          mfile->fcounters[MPIIO_F_WRITE_TIME];
 
     if(hfile->rec_dat == NULL)
     {
+        /* generate empty base record to start accumulation */
         hfile->rec_dat = malloc(sizeof(struct darshan_mpiio_file));
         assert(hfile->rec_dat);
         memset(hfile->rec_dat, 0, sizeof(struct darshan_mpiio_file));
+        tmp = (struct darshan_mpiio_file*)hfile->rec_dat;
+        mod_logutils[DARSHAN_MPIIO_MOD]->log_agg_records(mfile, tmp, 1);
     }
-    tmp = (struct darshan_mpiio_file*)hfile->rec_dat;
-
-    for(i = 0; i < MPIIO_NUM_INDICES; i++)
+    else
     {
-        switch(i)
-        {
-        case MPIIO_MODE:
-            tmp->counters[i] = mfile->counters[i];
-            break;
-        case MPIIO_ACCESS1_ACCESS:
-        case MPIIO_ACCESS2_ACCESS:
-        case MPIIO_ACCESS3_ACCESS:
-        case MPIIO_ACCESS4_ACCESS:
-            /*
-             * do nothing here because these will be stored
-             * when the _COUNT is accessed.
-             */
-            break;
-        case MPIIO_ACCESS1_COUNT:
-        case MPIIO_ACCESS2_COUNT:
-        case MPIIO_ACCESS3_COUNT:
-        case MPIIO_ACCESS4_COUNT:
-            set = 0;
-            min_ndx = MPIIO_ACCESS1_COUNT;
-            min = tmp->counters[min_ndx];
-            for(j = MPIIO_ACCESS1_COUNT; j <= MPIIO_ACCESS4_COUNT; j++)
-            {
-                if(tmp->counters[j-4] == mfile->counters[i-4])
-                {
-                    tmp->counters[j] += mfile->counters[i];
-                    set = 1;
-                    break;
-                }
-                if(tmp->counters[j] < min)
-                {
-                    min_ndx = j;
-                    min = tmp->counters[j];
-                }
-            }
-            if(!set && (mfile->counters[i] > min))
-            {
-                tmp->counters[i] = mfile->counters[i];
-                tmp->counters[i-4] = mfile->counters[i-4];
-            }
-            break;
-        case MPIIO_FASTEST_RANK:
-        case MPIIO_SLOWEST_RANK:
-        case MPIIO_FASTEST_RANK_BYTES:
-        case MPIIO_SLOWEST_RANK_BYTES:
-            tmp->counters[i] = 0;
-            break;
-        case MPIIO_MAX_READ_TIME_SIZE:
-        case MPIIO_MAX_WRITE_TIME_SIZE:
-            break;
-        default:
-            tmp->counters[i] += mfile->counters[i];
-            break;
-        }
-    }
-
-    for(i = 0; i < MPIIO_F_NUM_INDICES; i++)
-    {
-        switch(i)
-        {
-            case MPIIO_F_OPEN_START_TIMESTAMP:
-            case MPIIO_F_READ_START_TIMESTAMP:
-            case MPIIO_F_WRITE_START_TIMESTAMP:
-            case MPIIO_F_CLOSE_START_TIMESTAMP:
-                if(tmp->fcounters[i] == 0 || 
-                    tmp->fcounters[i] > mfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = mfile->fcounters[i];
-                }
-                break;
-            case MPIIO_F_OPEN_END_TIMESTAMP:
-            case MPIIO_F_READ_END_TIMESTAMP:
-            case MPIIO_F_WRITE_END_TIMESTAMP:
-            case MPIIO_F_CLOSE_END_TIMESTAMP:
-                if(tmp->fcounters[i] == 0 || 
-                    tmp->fcounters[i] < mfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = mfile->fcounters[i];
-                }
-                break;
-            case MPIIO_F_FASTEST_RANK_TIME:
-            case MPIIO_F_SLOWEST_RANK_TIME:
-            case MPIIO_F_VARIANCE_RANK_TIME:
-            case MPIIO_F_VARIANCE_RANK_BYTES:
-                tmp->fcounters[i] = 0;
-                break;
-            case MPIIO_F_MAX_READ_TIME:
-                if(tmp->fcounters[i] < mfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = mfile->fcounters[i];
-                    tmp->counters[MPIIO_MAX_READ_TIME_SIZE] =
-                        mfile->counters[MPIIO_MAX_READ_TIME_SIZE];
-                }
-                break;
-            case MPIIO_F_MAX_WRITE_TIME:
-                if(tmp->fcounters[i] < mfile->fcounters[i])
-                {
-                    tmp->fcounters[i] = mfile->fcounters[i];
-                    tmp->counters[MPIIO_MAX_WRITE_TIME_SIZE] =
-                        mfile->counters[MPIIO_MAX_WRITE_TIME_SIZE];
-                }
-                break;
-            default:
-                tmp->fcounters[i] += mfile->fcounters[i];
-                break;
-        }
+        tmp = (struct darshan_mpiio_file*)hfile->rec_dat;
+        mod_logutils[DARSHAN_MPIIO_MOD]->log_agg_records(mfile, tmp, 0);
     }
 
     return;
@@ -1249,60 +970,13 @@ void stdio_accum_perf(struct darshan_stdio_file *pfile,
 
     /*
      * Calculation of Shared File Time
-     *   Four Methods!!!!
-     *     by_cumul: sum time counters and divide by nprocs
-     *               (inaccurate if lots of variance between procs)
-     *     by_open: difference between timestamp of open and close
-     *              (inaccurate if file is left open without i/o happening)
-     *     by_open_lastio: difference between timestamp of open and the
-     *                     timestamp of last i/o
-     *                     (similar to above but fixes case where file is left
-     *                      open after io is complete)
      *     by_slowest: use slowest rank time from log data
      *                 (most accurate but requires newer log version)
      */
     if(pfile->base_rec.rank == -1)
     {
-        /* by_open */
-        if(pfile->fcounters[STDIO_F_CLOSE_END_TIMESTAMP] >
-            pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP])
-        {
-            pdata->shared_time_by_open +=
-                pfile->fcounters[STDIO_F_CLOSE_END_TIMESTAMP] -
-                pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP];
-        }
-
-        /* by_open_lastio */
-        if(pfile->fcounters[STDIO_F_READ_END_TIMESTAMP] >
-            pfile->fcounters[STDIO_F_WRITE_END_TIMESTAMP])
-        {
-            /* be careful: file may have been opened but not read or written */
-            if(pfile->fcounters[STDIO_F_READ_END_TIMESTAMP] > pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP])
-            {
-                pdata->shared_time_by_open_lastio += 
-                    pfile->fcounters[STDIO_F_READ_END_TIMESTAMP] - 
-                    pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP];
-            }
-        }
-        else
-        {
-            /* be careful: file may have been opened but not read or written */
-            if(pfile->fcounters[STDIO_F_WRITE_END_TIMESTAMP] > pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP])
-            {
-                pdata->shared_time_by_open_lastio += 
-                    pfile->fcounters[STDIO_F_WRITE_END_TIMESTAMP] - 
-                    pfile->fcounters[STDIO_F_OPEN_START_TIMESTAMP];
-            }
-        }
-
-        pdata->shared_time_by_cumul +=
-            pfile->fcounters[STDIO_F_META_TIME] +
-            pfile->fcounters[STDIO_F_READ_TIME] +
-            pfile->fcounters[STDIO_F_WRITE_TIME];
-        pdata->shared_meta_time += pfile->fcounters[STDIO_F_META_TIME];
-
         /* by_slowest */
-        pdata->shared_time_by_slowest +=
+        pdata->shared_io_total_time_by_slowest +=
             pfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
     }
 
@@ -1312,12 +986,15 @@ void stdio_accum_perf(struct darshan_stdio_file *pfile,
      */
     else
     {
-        pdata->rank_cumul_io_time[pfile->base_rec.rank] +=
+        pdata->rank_cumul_io_total_time[pfile->base_rec.rank] +=
             (pfile->fcounters[STDIO_F_META_TIME] +
             pfile->fcounters[STDIO_F_READ_TIME] +
             pfile->fcounters[STDIO_F_WRITE_TIME]);
-        pdata->rank_cumul_md_time[pfile->base_rec.rank] +=
+        pdata->rank_cumul_md_only_time[pfile->base_rec.rank] +=
             pfile->fcounters[STDIO_F_META_TIME];
+        pdata->rank_cumul_rw_only_time[pfile->base_rec.rank] +=
+            pfile->fcounters[STDIO_F_READ_TIME] +
+            pfile->fcounters[STDIO_F_WRITE_TIME];
     }
 
     return;
@@ -1332,60 +1009,13 @@ void posix_accum_perf(struct darshan_posix_file *pfile,
 
     /*
      * Calculation of Shared File Time
-     *   Four Methods!!!!
-     *     by_cumul: sum time counters and divide by nprocs
-     *               (inaccurate if lots of variance between procs)
-     *     by_open: difference between timestamp of open and close
-     *              (inaccurate if file is left open without i/o happening)
-     *     by_open_lastio: difference between timestamp of open and the
-     *                     timestamp of last i/o
-     *                     (similar to above but fixes case where file is left
-     *                      open after io is complete)
      *     by_slowest: use slowest rank time from log data
      *                 (most accurate but requires newer log version)
      */
     if(pfile->base_rec.rank == -1)
     {
-        /* by_open */
-        if(pfile->fcounters[POSIX_F_CLOSE_END_TIMESTAMP] >
-            pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP])
-        {
-            pdata->shared_time_by_open +=
-                pfile->fcounters[POSIX_F_CLOSE_END_TIMESTAMP] -
-                pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP];
-        }
-
-        /* by_open_lastio */
-        if(pfile->fcounters[POSIX_F_READ_END_TIMESTAMP] >
-            pfile->fcounters[POSIX_F_WRITE_END_TIMESTAMP])
-        {
-            /* be careful: file may have been opened but not read or written */
-            if(pfile->fcounters[POSIX_F_READ_END_TIMESTAMP] > pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP])
-            {
-                pdata->shared_time_by_open_lastio += 
-                    pfile->fcounters[POSIX_F_READ_END_TIMESTAMP] - 
-                    pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP];
-            }
-        }
-        else
-        {
-            /* be careful: file may have been opened but not read or written */
-            if(pfile->fcounters[POSIX_F_WRITE_END_TIMESTAMP] > pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP])
-            {
-                pdata->shared_time_by_open_lastio += 
-                    pfile->fcounters[POSIX_F_WRITE_END_TIMESTAMP] - 
-                    pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP];
-            }
-        }
-
-        pdata->shared_time_by_cumul +=
-            pfile->fcounters[POSIX_F_META_TIME] +
-            pfile->fcounters[POSIX_F_READ_TIME] +
-            pfile->fcounters[POSIX_F_WRITE_TIME];
-        pdata->shared_meta_time += pfile->fcounters[POSIX_F_META_TIME];
-
         /* by_slowest */
-        pdata->shared_time_by_slowest +=
+        pdata->shared_io_total_time_by_slowest +=
             pfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
     }
 
@@ -1395,12 +1025,15 @@ void posix_accum_perf(struct darshan_posix_file *pfile,
      */
     else
     {
-        pdata->rank_cumul_io_time[pfile->base_rec.rank] +=
+        pdata->rank_cumul_io_total_time[pfile->base_rec.rank] +=
             (pfile->fcounters[POSIX_F_META_TIME] +
             pfile->fcounters[POSIX_F_READ_TIME] +
             pfile->fcounters[POSIX_F_WRITE_TIME]);
-        pdata->rank_cumul_md_time[pfile->base_rec.rank] +=
+        pdata->rank_cumul_md_only_time[pfile->base_rec.rank] +=
             pfile->fcounters[POSIX_F_META_TIME];
+        pdata->rank_cumul_rw_only_time[pfile->base_rec.rank] +=
+            pfile->fcounters[POSIX_F_READ_TIME] +
+            pfile->fcounters[POSIX_F_WRITE_TIME];
     }
 
     return;
@@ -1414,60 +1047,13 @@ void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
 
     /*
      * Calculation of Shared File Time
-     *   Four Methods!!!!
-     *     by_cumul: sum time counters and divide by nprocs
-     *               (inaccurate if lots of variance between procs)
-     *     by_open: difference between timestamp of open and close
-     *              (inaccurate if file is left open without i/o happening)
-     *     by_open_lastio: difference between timestamp of open and the
-     *                     timestamp of last i/o
-     *                     (similar to above but fixes case where file is left
-     *                      open after io is complete)
      *     by_slowest: use slowest rank time from log data
      *                 (most accurate but requires newer log version)
      */
     if(mfile->base_rec.rank == -1)
     {
-        /* by_open */
-        if(mfile->fcounters[MPIIO_F_CLOSE_END_TIMESTAMP] >
-            mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP])
-        {
-            pdata->shared_time_by_open +=
-                mfile->fcounters[MPIIO_F_CLOSE_END_TIMESTAMP] -
-                mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP];
-        }
-
-        /* by_open_lastio */
-        if(mfile->fcounters[MPIIO_F_READ_END_TIMESTAMP] >
-            mfile->fcounters[MPIIO_F_WRITE_END_TIMESTAMP])
-        {
-            /* be careful: file may have been opened but not read or written */
-            if(mfile->fcounters[MPIIO_F_READ_END_TIMESTAMP] > mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP])
-            {
-                pdata->shared_time_by_open_lastio += 
-                    mfile->fcounters[MPIIO_F_READ_END_TIMESTAMP] - 
-                    mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP];
-            }
-        }
-        else
-        {
-            /* be careful: file may have been opened but not read or written */
-            if(mfile->fcounters[MPIIO_F_WRITE_END_TIMESTAMP] > mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP])
-            {
-                pdata->shared_time_by_open_lastio += 
-                    mfile->fcounters[MPIIO_F_WRITE_END_TIMESTAMP] - 
-                    mfile->fcounters[MPIIO_F_OPEN_START_TIMESTAMP];
-            }
-        }
-
-        pdata->shared_time_by_cumul +=
-            mfile->fcounters[MPIIO_F_META_TIME] +
-            mfile->fcounters[MPIIO_F_READ_TIME] +
-            mfile->fcounters[MPIIO_F_WRITE_TIME];
-        pdata->shared_meta_time += mfile->fcounters[MPIIO_F_META_TIME];
-
         /* by_slowest */
-        pdata->shared_time_by_slowest +=
+        pdata->shared_io_total_time_by_slowest +=
             mfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
     }
 
@@ -1477,18 +1063,21 @@ void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
      */
     else
     {
-        pdata->rank_cumul_io_time[mfile->base_rec.rank] +=
+        pdata->rank_cumul_io_total_time[mfile->base_rec.rank] +=
             (mfile->fcounters[MPIIO_F_META_TIME] +
             mfile->fcounters[MPIIO_F_READ_TIME] +
             mfile->fcounters[MPIIO_F_WRITE_TIME]);
-        pdata->rank_cumul_md_time[mfile->base_rec.rank] +=
+        pdata->rank_cumul_md_only_time[mfile->base_rec.rank] +=
             mfile->fcounters[MPIIO_F_META_TIME];
+        pdata->rank_cumul_rw_only_time[mfile->base_rec.rank] +=
+            mfile->fcounters[MPIIO_F_READ_TIME] +
+            mfile->fcounters[MPIIO_F_WRITE_TIME];
     }
 
     return;
 }
 
-void stdio_calc_file(hash_entry_t *file_hash, 
+void stdio_calc_file(hash_entry_t *file_hash_table, 
                      file_data_t *fdata)
 {
     hash_entry_t *curr = NULL;
@@ -1496,7 +1085,7 @@ void stdio_calc_file(hash_entry_t *file_hash,
     struct darshan_stdio_file *file_rec;
 
     memset(fdata, 0, sizeof(*fdata));
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    HASH_ITER(hlink, file_hash_table, curr, tmp)
     {
         int64_t bytes;
         int64_t r;
@@ -1556,7 +1145,7 @@ void stdio_calc_file(hash_entry_t *file_hash,
 }
 
 
-void posix_calc_file(hash_entry_t *file_hash, 
+void posix_calc_file(hash_entry_t *file_hash_table, 
                      file_data_t *fdata)
 {
     hash_entry_t *curr = NULL;
@@ -1564,7 +1153,7 @@ void posix_calc_file(hash_entry_t *file_hash,
     struct darshan_posix_file *file_rec;
 
     memset(fdata, 0, sizeof(*fdata));
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    HASH_ITER(hlink, file_hash_table, curr, tmp)
     {
         int64_t bytes;
         int64_t r;
@@ -1623,7 +1212,7 @@ void posix_calc_file(hash_entry_t *file_hash,
     return;
 }
 
-void mpiio_calc_file(hash_entry_t *file_hash, 
+void mpiio_calc_file(hash_entry_t *file_hash_table, 
                      file_data_t *fdata)
 {
     hash_entry_t *curr = NULL;
@@ -1631,7 +1220,7 @@ void mpiio_calc_file(hash_entry_t *file_hash,
     struct darshan_mpiio_file *file_rec;
 
     memset(fdata, 0, sizeof(*fdata));
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    HASH_ITER(hlink, file_hash_table, curr, tmp)
     {
         int64_t bytes;
         int64_t r;
@@ -1701,40 +1290,23 @@ void calc_perf(perf_data_t *pdata,
 {
     int64_t i;
 
-    pdata->shared_time_by_cumul =
-        pdata->shared_time_by_cumul / (double)nprocs;
-
-    pdata->shared_meta_time = pdata->shared_meta_time / (double)nprocs;
-
     for (i=0; i<nprocs; i++)
     {
-        if (pdata->rank_cumul_io_time[i] > pdata->slowest_rank_time)
+        if (pdata->rank_cumul_io_total_time[i] > pdata->slowest_rank_io_total_time)
         {
-            pdata->slowest_rank_time = pdata->rank_cumul_io_time[i];
-            pdata->slowest_rank_meta_time = pdata->rank_cumul_md_time[i];
+            pdata->slowest_rank_io_total_time = pdata->rank_cumul_io_total_time[i];
+            pdata->slowest_rank_meta_only_time = pdata->rank_cumul_md_only_time[i];
+            pdata->slowest_rank_rw_only_time = pdata->rank_cumul_rw_only_time[i];
             pdata->slowest_rank_rank = i;
         }
     }
 
-    if (pdata->slowest_rank_time + pdata->shared_time_by_cumul)
-    pdata->agg_perf_by_cumul = ((double)pdata->total_bytes / 1048576.0) /
-                                  (pdata->slowest_rank_time +
-                                   pdata->shared_time_by_cumul);
-
-    if (pdata->slowest_rank_time + pdata->shared_time_by_open)
-    pdata->agg_perf_by_open  = ((double)pdata->total_bytes / 1048576.0) / 
-                                   (pdata->slowest_rank_time +
-                                    pdata->shared_time_by_open);
-
-    if (pdata->slowest_rank_time + pdata->shared_time_by_open_lastio)
-    pdata->agg_perf_by_open_lastio = ((double)pdata->total_bytes / 1048576.0) /
-                                     (pdata->slowest_rank_time +
-                                      pdata->shared_time_by_open_lastio);
-
-    if (pdata->slowest_rank_time + pdata->shared_time_by_slowest)
+    if (pdata->slowest_rank_io_total_time + pdata->shared_io_total_time_by_slowest)
     pdata->agg_perf_by_slowest = ((double)pdata->total_bytes / 1048576.0) /
-                                     (pdata->slowest_rank_time +
-                                      pdata->shared_time_by_slowest);
+                                     (pdata->slowest_rank_io_total_time +
+                                      pdata->shared_io_total_time_by_slowest);
+    pdata->agg_time_by_slowest = pdata->slowest_rank_io_total_time +
+                                 pdata->shared_io_total_time_by_slowest;
 
     return;
 }
@@ -1796,7 +1368,7 @@ void mpiio_print_total_file(struct darshan_mpiio_file *mfile, int mpiio_ver)
     return;
 }
 
-void stdio_file_list(hash_entry_t *file_hash,
+void stdio_file_list(hash_entry_t *file_hash_table,
                      struct darshan_name_record_ref *name_hash,
                      int detail_flag)
 {
@@ -1835,7 +1407,7 @@ void stdio_file_list(hash_entry_t *file_hash,
     printf("# <file_name>: full file name\n");
     printf("# <nprocs>: number of processes that opened the file\n");
     printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
-    printf("# <avg>: average time in seconds consumed in IO per process\n");
+    printf("# <avg>: average time in seconds consumed in IO (including metadata) per process\n");
     if(detail_flag)
     {
         printf("# <start_{open/close/write/read}>: start timestamp of first open, close, write, or read\n");
@@ -1851,7 +1423,7 @@ void stdio_file_list(hash_entry_t *file_hash,
     }
     printf("\n");
 
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    HASH_ITER(hlink, file_hash_table, curr, tmp)
     {
         file_rec = (struct darshan_stdio_file*)curr->rec_dat;
         assert(file_rec);
@@ -1863,8 +1435,8 @@ void stdio_file_list(hash_entry_t *file_hash,
             curr->rec_id,
             ref->name_record->name,
             curr->procs,
-            curr->slowest_time,
-            curr->cumul_time/(double)curr->procs);
+            curr->slowest_io_total_time,
+            curr->cumul_io_total_time/(double)curr->procs);
 
         if(detail_flag)
         {
@@ -1881,7 +1453,7 @@ void stdio_file_list(hash_entry_t *file_hash,
 }
 
 
-void posix_file_list(hash_entry_t *file_hash,
+void posix_file_list(hash_entry_t *file_hash_table,
                      struct darshan_name_record_ref *name_hash,
                      int detail_flag)
 {
@@ -1922,7 +1494,7 @@ void posix_file_list(hash_entry_t *file_hash,
     printf("# <file_name>: full file name\n");
     printf("# <nprocs>: number of processes that opened the file\n");
     printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
-    printf("# <avg>: average time in seconds consumed in IO per process\n");
+    printf("# <avg>: average time in seconds consumed in IO (including metadata) per process\n");
     if(detail_flag)
     {
         printf("# <start_{open/read/write/close}>: start timestamp of first open, read, write, or close\n");
@@ -1942,7 +1514,7 @@ void posix_file_list(hash_entry_t *file_hash,
     }
     printf("\n");
 
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    HASH_ITER(hlink, file_hash_table, curr, tmp)
     {
         file_rec = (struct darshan_posix_file*)curr->rec_dat;
         assert(file_rec);
@@ -1954,8 +1526,8 @@ void posix_file_list(hash_entry_t *file_hash,
             curr->rec_id,
             ref->name_record->name,
             curr->procs,
-            curr->slowest_time,
-            curr->cumul_time/(double)curr->procs);
+            curr->slowest_io_total_time,
+            curr->cumul_io_total_time/(double)curr->procs);
 
         if(detail_flag)
         {
@@ -1973,7 +1545,7 @@ void posix_file_list(hash_entry_t *file_hash,
     return;
 }
 
-void mpiio_file_list(hash_entry_t *file_hash,
+void mpiio_file_list(hash_entry_t *file_hash_table,
                      struct darshan_name_record_ref *name_hash,
                      int detail_flag)
 {
@@ -2015,7 +1587,7 @@ void mpiio_file_list(hash_entry_t *file_hash,
     printf("# <file_name>: full file name\n");
     printf("# <nprocs>: number of processes that opened the file\n");
     printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
-    printf("# <avg>: average time in seconds consumed in IO per process\n");
+    printf("# <avg>: average time in seconds consumed in IO (including metadata) per process\n");
     if(detail_flag)
     {
         printf("# <start_{open/read/write}>: start timestamp of first open, read, or write\n");
@@ -2037,7 +1609,7 @@ void mpiio_file_list(hash_entry_t *file_hash,
     }
     printf("\n");
 
-    HASH_ITER(hlink, file_hash, curr, tmp)
+    HASH_ITER(hlink, file_hash_table, curr, tmp)
     {
         file_rec = (struct darshan_mpiio_file*)curr->rec_dat;
         assert(file_rec);
@@ -2049,8 +1621,8 @@ void mpiio_file_list(hash_entry_t *file_hash,
             curr->rec_id,
             ref->name_record->name,
             curr->procs,
-            curr->slowest_time,
-            curr->cumul_time/(double)curr->procs);
+            curr->slowest_io_total_time,
+            curr->cumul_io_total_time/(double)curr->procs);
 
         if(detail_flag)
         {

@@ -82,8 +82,8 @@ if(!($link_cmd =~ /(\S+)(.+)(foo.o -o foo)\s+(.*)/))
 $FC_from_link=$1;
 $link_cmd_prefix=$2;
 $base_link_cmd_suffix="\"\$\{allargs\[\@\]\}\" $4";
-$link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" \$FMPICH `$PREFIX/bin/darshan-config --pre-ld-flags` $4 `$PREFIX/bin/darshan-config --post-ld-flags`";
-$dyn_link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" \$FMPICH `$PREFIX/bin/darshan-config --dyn-ld-flags` $4";
+$link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" `$PREFIX/bin/darshan-config --pre-ld-flags` $4 `$PREFIX/bin/darshan-config --post-ld-flags`";
+$dyn_link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" `$PREFIX/bin/darshan-config --dyn-ld-flags` $4";
 
 # repeat the above step for the compilation command line
 if(!($compile_cmd =~ /(\S+)(.+)(-c foo.c)\s+(.*)/))
@@ -277,27 +277,6 @@ print OUTPUT<<"EOF";
     # we look for dynamic MPI_Init symbol to confirm, but we have to be wary of mangling...
     nm --dynamic \$binfile | grep mpi_init >& /dev/null
     rc_dyn=\$?
-
-    # find appropriate fortran library name for profiling
-    grep -E libmpifort \$tmpfile >& /dev/null
-    rc_cnk_check=\$?
-    if [ \$rc_cnk_check -eq 0 ] ; then
-        FMPICH=-lmpifort
-    else
-        grep -E mpich\\.cnk \$tmpfile >& /dev/null
-        rc_cnk_check=\$?
-        if [ \$rc_cnk_check -eq 0 ] ; then
-            FMPICH=-lfmpich.cnk
-        else
-            bgqlib_out=`grep -m 1 -Po "libmpichf\\S\+\-\\S\+" \$tmpfile 2>/dev/null`
-            rc_bgqlib_check=\$?
-            if [ \$rc_bgqlib_check -eq 0 ] ; then
-                FMPICH=`echo \$bgqlib_out | sed 's/libmpich\\(.*\\)-\\(.*\\)\\.a.*/-lmpich\\1-\\2/'`
-            else
-                FMPICH=-lfmpich
-            fi
-        fi
-    fi
 
     rm \$tmpfile >& /dev/null
     rm \$binfile >& /dev/null

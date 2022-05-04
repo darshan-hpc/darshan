@@ -100,8 +100,7 @@ DARSHAN_WRAPPER_MAP(PMPI_Finalize, int, (void), MPI_Finalize)
 #ifdef __GNUC__
 __attribute__((constructor)) void serial_init(void)
 {
-    char *no_mpi;
-    no_mpi = getenv(DARSHAN_ENABLE_NONMPI);
+    char *no_mpi = getenv("DARSHAN_ENABLE_NONMPI");
     if (no_mpi)
         darshan_core_initialize(0, NULL);
     return;
@@ -109,8 +108,7 @@ __attribute__((constructor)) void serial_init(void)
 
 __attribute__((destructor)) void serial_finalize(void)
 {
-    char *no_mpi;
-    no_mpi = getenv(DARSHAN_ENABLE_NONMPI);
+    char *no_mpi = getenv("DARSHAN_ENABLE_NONMPI");
     if (no_mpi)
         darshan_core_shutdown(1);
     return;

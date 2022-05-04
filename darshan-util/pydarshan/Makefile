@@ -72,12 +72,14 @@ docs-show:
 
 # add AutoPef Python packages...
 add-modules:
+	git submodule init
+	git submodule update
 	for file in `find ../../modules/ -name "*-backend.py"` ; do \
 		cp $$file darshan/backend/`basename $$file | cut -d '-' -f 1`.py ; \
 	done
 
-wheels:
-	./devel/build-all.sh
+wheels: add-modules
+	./devel/build-all-platforms.sh
 
 release: #dist # package and upload a release
 	#twine upload --repository testpypi dist/*
@@ -91,10 +93,7 @@ dist: clean  # builds source and wheel package
 	# rm -r dist/*non-any.whl
 
 	# gather binary wheels
-	# pip >= 19.0
-	find ./wheelhouse/manylinux2010* -name *manylinux*.whl -exec cp {} ./dist \;
-	# pip >= 8.1.0, may overwrite previously copied, but these have greater compatability
-	find ./wheelhouse/manylinux1* -name *manylinux*.whl -exec cp {} ./dist \;
+	find ./wheelhouse/manylinux2014* -name *manylinux*.whl -exec cp {} ./dist \;
 
 	ls -l dist
 

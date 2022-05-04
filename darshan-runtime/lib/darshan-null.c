@@ -210,7 +210,8 @@ int DARSHAN_DECL(foo)(const char* name, int arg1)
 /* Initialize internal NULL module data structures and register with darshan-core. */
 static void null_runtime_initialize()
 {
-    size_t null_buf_size;
+    int ret;
+    size_t null_rec_count;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
     /* NOTE: the redux function can be used to run collective operations prior to
@@ -228,15 +229,18 @@ static void null_runtime_initialize()
     };
 
     /* try and store a default number of records for this module */
-    null_buf_size = DARSHAN_DEF_MOD_REC_COUNT * sizeof(struct darshan_null_record);
+    null_rec_count = DARSHAN_DEF_MOD_REC_COUNT;
 
     /* register the NULL module with the darshan-core component */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DARSHAN_NULL_MOD,   /* Darshan module identifier, defined in darshan-log-format.h */
         mod_funcs,
-        &null_buf_size,
+        sizeof(struct darshan_null_record),
+        &null_rec_count,
         &my_rank,
         NULL);
+    if(ret < 0)
+        return;
 
     /* initialize module's global state */
     null_runtime = malloc(sizeof(*null_runtime));

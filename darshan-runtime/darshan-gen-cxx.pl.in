@@ -82,8 +82,8 @@ if(!($link_cmd =~ /(\S+)(.+)(foo.o -o foo)\s+(.*)/))
 $CXX_from_link=$1;
 $link_cmd_prefix=$2;
 $base_link_cmd_suffix="\"\$\{allargs\[\@\]\}\" $4";
-$link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" \$CXXMPICH `$PREFIX/bin/darshan-config --pre-ld-flags` $4 `$PREFIX/bin/darshan-config --post-ld-flags`";
-$dyn_link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" \$CXXMPICH `$PREFIX/bin/darshan-config --dyn-ld-flags` $4";
+$link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" `$PREFIX/bin/darshan-config --pre-ld-flags` $4 `$PREFIX/bin/darshan-config --post-ld-flags`";
+$dyn_link_cmd_suffix="\"\$\{newallargs\[\@\]\}\" `$PREFIX/bin/darshan-config --dyn-ld-flags` $4";
 
 # repeat the above step for the compilation command line
 if(!($compile_cmd =~ /(\S+)(.+)(-c foo.c)\s+(.*)/))
@@ -269,26 +269,6 @@ print OUTPUT<<"EOF";
     # we look for dynamic MPI::Init symbol to confirm, but we have to be wary of mangling...
     nm --demangle --dynamic \$binfile | grep "MPI::Init" >& /dev/null
     rc_dyn=\$?
-
-    CXXMPICH=-lmpichcxx
-
-    # check for unusual cxx library name
-    grep -E cxxmpich\\.a \$tmpfile >& /dev/null
-    if [ \$? -eq 0 ] ; then
-        CXXMPICH=-lcxxmpich
-    fi
-    grep -E cxxmpich\\.cnk\\.a \$tmpfile >& /dev/null
-    if [ \$? -eq 0 ] ; then
-        CXXMPICH=-lcxxmpich.cnk
-    fi
-    grep -E mpicxx\\.a \$tmpfile >& /dev/null
-    if [ \$? -eq 0 ] ; then
-        CXXMPICH=-lmpicxx
-    fi
-    bgqlib_out=`grep -m 1 -Po "libmpichcxx-\\S+" \$tmpfile`
-    if [ \$? -eq 0 ] ; then
-        CXXMPICH=`echo \$bgqlib_out | sed 's/libmpichcxx-\\(.*\\)\\.a.*/-lmpichcxx-\\1/'`
-    fi
 
     rm \$tmpfile >& /dev/null
     rm \$binfile >& /dev/null

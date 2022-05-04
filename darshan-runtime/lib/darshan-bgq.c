@@ -112,7 +112,8 @@ static void capture(struct darshan_bgq_record *rec, darshan_record_id rec_id)
 
 void bgq_runtime_initialize()
 {
-    size_t bgq_buf_size;
+    int ret;
+    size_t bgq_rec_count;
     darshan_record_id rec_id;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI
@@ -132,15 +133,21 @@ void bgq_runtime_initialize()
     }
 
     /* we just need to store one single record */
-    bgq_buf_size = sizeof(struct darshan_bgq_record);
+    bgq_rec_count = 1;
 
     /* register the BG/Q module with the darshan-core component */
-    darshan_core_register_module(
+    ret = darshan_core_register_module(
         DARSHAN_BGQ_MOD,
         mod_funcs,
-        &bgq_buf_size,
+        sizeof(struct darshan_bgq_record),
+        &bgq_rec_count,
         &my_rank,
         NULL);
+    if(ret < 0)
+    {
+        BGQ_UNLOCK();
+        return;
+    }
 
     /* initialize module's global state */
     bgq_runtime = malloc(sizeof(*bgq_runtime));

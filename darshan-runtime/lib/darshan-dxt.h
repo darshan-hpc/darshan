@@ -7,14 +7,34 @@
 #ifndef __DARSHAN_DXT_H
 #define __DARSHAN_DXT_H
 
-/* dxt_load_trigger_conf()
- *
- * DXT function exposed to Darshan core to read in any trace triggers
- * from the file path in 'trigger_conf_path' before module
- * initialization occurs.
+/* DXT triggers are used to filter out trace records according to
+ * user-specified parameters:
+ *  - DXT_SMALL_IO_TRIGGER: only retain DXT file records that exhibit a
+ *                          higher ratio of small accesses (<10 KiB) than
+ *                          a specified user threshold
+ *  - DXT_UNALIGNED_IO_TRIGGER: only retain DXT file records that exhibit a
+ *                              higher ratio of unaligned accesses than
+ *                              a specified user threshold
  */
-void dxt_load_trigger_conf(
-    char *trigger_conf_path);
+enum dxt_trigger_type
+{
+    DXT_SMALL_IO_TRIGGER,
+    DXT_UNALIGNED_IO_TRIGGER
+};
+struct dxt_trigger
+{
+    int type;
+    union {
+        struct
+        {
+            double thresh_pct;
+        } small_io;
+        struct
+        {
+            double thresh_pct;
+        } unaligned_io;
+    } u;
+};
 
 /* dxt_posix_runtime_initialize()
  *
@@ -50,7 +70,6 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
 void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
         int64_t length, double start_time, double end_time);
 
-void dxt_posix_filter_dynamic_traces(
-    struct darshan_posix_file *(*rec_id_to_psx_file)(darshan_record_id));
+void dxt_posix_apply_trace_filter(struct dxt_trigger *trigger);
 
 #endif /* __DARSHAN_DXT_H */

@@ -141,11 +141,13 @@ void obfuscate_exe(int key, char *exe)
     return;
 }
 
+#define __TMP_OBF_SIZE 4096
+
 void obfuscate_filenames(int key, struct darshan_name_record_ref *name_hash, struct darshan_mnt_info *mnt_data_array, int mount_count )
 {
     struct darshan_name_record_ref *ref, *tmp;
     uint32_t hashed;
-    char tmp_string[PATH_MAX+128] = {0};
+    char tmp_string[__TMP_OBF_SIZE] = {0};
     darshan_record_id tmp_id;
 
     HASH_ITER(hlink, name_hash, ref, tmp)
@@ -168,13 +170,13 @@ void obfuscate_filenames(int key, struct darshan_name_record_ref *name_hash, str
         tmp_id = ref->name_record->id;
         hashed = darshan_hashlittle(ref->name_record->name,
             strlen(ref->name_record->name), key);
-        if ( mnt_pt != NULL ) 
+        if ( mnt_pt != NULL )
         {
-            sprintf(tmp_string, "%s/%u", mnt_pt, hashed);
+            snprintf(tmp_string, __TMP_OBF_SIZE, "%s/%u", mnt_pt, hashed);
         }
-        else 
+        else
         {
-            sprintf(tmp_string, "%u", hashed);
+            snprintf(tmp_string, __TMP_OBF_SIZE, "%u", hashed);
         }
         free(ref->name_record);
         ref->name_record = malloc(sizeof(struct darshan_name_record) +
@@ -384,9 +386,16 @@ int main(int argc, char **argv)
         /* check each module for any data */
         if(infile->mod_map[i].len == 0)
             continue;
+        /* skip modules that this version of Darshan can't parse */
+        else if(i >= DARSHAN_KNOWN_MODULE_COUNT)
+        {
+            fprintf(stderr, "# Warning: module id %d is unknown. You may need "
+                            "a newer version of the Darshan utilities to parse it.\n", i);
+            continue;
+        }
         else if(!mod_logutils[i])
         {
-            fprintf(stderr, "Warning: no log utility handlers defined "
+            fprintf(stderr, "# Warning: no log utility handlers defined "
                 "for module %s, SKIPPING.\n", darshan_module_names[i]);
             continue;
         }

@@ -145,12 +145,20 @@ int main(int argc, char **argv)
     printf("# header: %zu bytes (uncompressed)\n", sizeof(struct darshan_header));
     printf("# job data: %zu bytes (compressed)\n", fd->job_map.len);
     printf("# record table: %zu bytes (compressed)\n", fd->name_map.len);
-    for (i = 0; i < DARSHAN_MAX_MODS; i++)
+    for (i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
     {
         if (fd->mod_map[i].len)
         {
             printf("# %s module: %zu bytes (compressed), ver=%d\n",
                 darshan_module_names[i], fd->mod_map[i].len, fd->mod_ver[i]);
+        }
+    }
+    for(i=DARSHAN_KNOWN_MODULE_COUNT; i<DARSHAN_MAX_MODS; i++)
+    {
+        if(fd->mod_map[i].len || DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i))
+        {
+            printf("# <UNKNOWN> module (id %d): %zu bytes (compressed), ver=%d\n",
+                i, fd->mod_map[i].len, fd->mod_ver[i]);
         }
     }
 
@@ -177,6 +185,13 @@ int main(int argc, char **argv)
         /* check each module for any data */
         if (fd->mod_map[i].len == 0)
             continue;
+        /* skip modules that this version of Darshan can't parse */
+        else if(i >= DARSHAN_KNOWN_MODULE_COUNT)
+        {
+            fprintf(stderr, "# Warning: module id %d is unknown. You may need "
+                            "a newer version of the Darshan utilities to parse it.\n", i);
+            continue;
+        }
         /* skip modules with no logutil definitions */
         else if (!mod_logutils[i])
         {
