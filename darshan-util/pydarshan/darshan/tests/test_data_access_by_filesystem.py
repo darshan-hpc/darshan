@@ -308,15 +308,18 @@ def test_empty_data_posix_y_axis_annot_position():
                 else:
                     assert actual_fontsize == 12
 
-@pytest.mark.parametrize("log_file_path, expected_text_labels", [
-    (get_log_path('noposixopens.darshan'), ['/global', 'anonymized', 'anonymized', 'anonymized']),
-    (get_log_path('sample.darshan'), ['/scratch2', '<STDERR>', '<STDOUT>', '<STDIN>']),
+@pytest.mark.parametrize("log_file_name, expected_text_labels", [
+    ('noposixopens.darshan', ['/global', 'anonymized']),
+    ('sample.darshan', ['/scratch2', '<STDERR>', '<STDOUT>']),
+    # test case for gh-678
+    ('mpi-io-test.darshan', ['/global', '<STDOUT>']),
     ])
-def test_cat_labels_std_streams(log_file_path, expected_text_labels):
+def test_cat_labels_std_streams(log_file_name, expected_text_labels):
     # for an anonymized log file that operates on STDIO, STDERR
     # and STDIN, we want appropriate labels to be used instead of confusing
     # integers on y axis; for the same scenario without anonymization,
     # the STD.. stream label seem appropriate
+    log_file_path = get_log_path(log_file_name)
     actual_text_labels = []
     report = darshan.DarshanReport(log_file_path)
     actual_fig = data_access_by_filesystem.plot_with_report(report=report)
