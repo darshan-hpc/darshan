@@ -11,8 +11,8 @@ Notes on how to release a new version of Darshan
     - commit
  4) update the Changelog, if needed (browse git log since last release)
     - commit
- 5) update version number in configure.in (see AC_INIT)
-    - in both darshan-util/ and darshan-runtime/
+ 5) update version number in configure.ac (see AC_INIT)
+    - at top-level, as well as in both darshan-util/ and darshan-runtime/
     - re-run ./prepare in both darshan-util and darshan-runtime
     - commit
  6) follow checklist for corresponding release of PyDarshan
