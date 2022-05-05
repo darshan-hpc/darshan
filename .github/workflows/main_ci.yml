@@ -3,10 +3,10 @@ name: Python Testing
 on:
   push:
     branches:
-      - pydarshan-devel
+      - main
   pull_request:
     branches:
-      - pydarshan-devel
+      - main
 
 jobs:
   test_pydarshan:
