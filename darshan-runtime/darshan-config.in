@@ -16,7 +16,7 @@ DARSHAN_LOG_ENV="@__DARSHAN_LOG_ENV@"
 #   app used a library which in turn used one of those HLLs).
 
 PRE_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -ldarshan -lz -Wl,@$DARSHAN_SHARE_PATH/ld-opts/darshan-ld-opts"
-POST_LD_FLAGS="-L$DARSHAN_LIB_PATH -ldarshan @DARSHAN_LUSTRE_LD_FLAGS@ -lz -lrt -lpthread"
+POST_LD_FLAGS="-L$DARSHAN_LIB_PATH -ldarshan @DARSHAN_LUSTRE_LD_FLAGS@ -lz -lrt -lpthread -lm"
 
 # NOTE:
 # - when dynamic linking there is no need for wrapping options, we simply
