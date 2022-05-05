@@ -9,6 +9,8 @@ interaction and aggregation of Darshan logs using Python.
 
 import darshan.backend.cffi_backend as backend
 
+from darshan.datatypes.heatmap import Heatmap
+
 import json
 import re
 import copy
@@ -22,6 +24,12 @@ import collections.abc
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+class ModuleNotInDarshanLog(ValueError):
+    """Raised when module is not present in Darshan log."""
+    pass
+
 
 
 
@@ -241,40 +249,44 @@ class DarshanRecordCollection(collections.abc.MutableSequence):
         records = copy.deepcopy(self._records)
 
         if mod in ['LUSTRE']:
-            for i, rec in enumerate(records):
-                rec = rec
+            # retrieve the counter column names
+            c_cols = self.report.counters[mod]['counters']
+            # create the counter dataframe and add a column for the OST ID's
+            df_recs = pd.DataFrame.from_records(records)
+            counter_df = pd.DataFrame(np.stack(df_recs.counters.to_numpy()), columns=c_cols)
+            counter_df["ost_ids"] = df_recs.ost_ids
+
+            if attach:
+                if "id" in attach:
+                    counter_df.insert(0, "id", df_recs["id"])
+                if "rank" in attach:
+                    counter_df.insert(0, "rank", df_recs["rank"])
+
+            records = {"counters": counter_df}
+
         elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
-            for i, rec in enumerate(records):
+            for rec in records:
                 rec['read_segments'] = pd.DataFrame(rec['read_segments'])
                 rec['write_segments'] = pd.DataFrame(rec['write_segments'])
         else:
-            counters = []
-            fcounters = []
-            ids = []
-            ranks = []
+            df_recs = pd.DataFrame.from_records(records)
+            # generic records have counter and fcounter arrays to collect
+            counter_keys = ["counters", "fcounters"]
 
-            for i, rec in enumerate(records):
-                counters.append(rec['counters'])
-                fcounters.append(rec['fcounters'])
-                ids.append(rec['id'])
-                ranks.append(rec['rank'])
-            
-            records = {"counters": None, "fcounters": None}
-            records['counters'] = pd.DataFrame(counters, columns=self.report.counters[mod]['counters'])
-            records['fcounters'] = pd.DataFrame(fcounters, columns=self.report.counters[mod]['fcounters'])
+            df_list = []
+            for ct_key in counter_keys:
+                # build the dataframe for the given counter type
+                cols = self.report.counters[mod][ct_key]
+                df = pd.DataFrame(np.stack(df_recs[ct_key].to_numpy()), columns=cols)
+                # attach the id/rank columns
+                if attach:
+                    if "id" in attach:
+                        df.insert(0, "id", df_recs["id"])
+                    if "rank" in attach:
+                        df.insert(0, "rank", df_recs["rank"])
+                df_list.append(df)
 
-            def flip_column_order(df):
-                return df[df.columns[::-1]]
-
-            # attach ids and ranks
-            if attach is not None:
-                for counter_type in ['counters', 'fcounters']:
-                    records[counter_type] = flip_column_order(records[counter_type])
-                    if 'id' in attach:
-                        records[counter_type]['id'] = ids
-                    if 'rank' in attach:
-                        records[counter_type]['rank'] = ranks
-                    records[counter_type] = flip_column_order(records[counter_type])
+            records = {ct_key:df for ct_key, df in zip(counter_keys, df_list)}
 
         return records
 
@@ -308,6 +320,7 @@ class DarshanReport(object):
 
         """
         self.filename = filename
+        self.log = None
 
         # Behavioral Options
         self.dtype = dtype                                  # default dtype to return when viewing records
@@ -332,6 +345,7 @@ class DarshanReport(object):
         self.records = {}
         self._mounts = {}
         self.name_records = {}
+        self._heatmaps = {}
 
         # initialize report/summary namespace
         self.summary_revision = 0       # counter to check if summary needs update (see data_revision)
@@ -347,7 +361,6 @@ class DarshanReport(object):
         self.data['modules'] = self._modules
         self.data['counters'] = self.counters
         self.data['name_records'] = self.name_records
-
 
 
         # when using report algebra this log allows to untangle potentially
@@ -372,6 +385,10 @@ class DarshanReport(object):
     @property
     def counters(self):
         return self._counters
+
+    @property
+    def heatmaps(self):
+        return self._heatmaps
 
 #    @property
 #    def counters(self):
@@ -526,6 +543,8 @@ class DarshanReport(object):
             self.mod_read_all_apmpi_records(dtype=dtype)
         if "APXC" in self.data['modules']:
             self.mod_read_all_apxc_records(dtype=dtype)
+        if "HEATMAP" in self.data['modules']:
+            self.read_all_heatmap_records()
         
         return
 
@@ -565,6 +584,53 @@ class DarshanReport(object):
             self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes, dtype=dtype)
 
 
+    def read_all_heatmap_records(self):
+        """
+        Read all heatmap records from darshan log and return as dictionary.
+
+        .. note::
+            As the module is encoded in a name_record, all heatmap data is read
+            and then exposed through the report.heatmaps property.
+
+        Args:
+            None
+
+        Return:
+            None
+        """
+
+        if "HEATMAP" not in self.data['modules']:
+            raise ModuleNotInDarshanLog("HEATMAP")
+
+        _nrecs_heatmap = {  
+            16592106915301738621: "heatmap:POSIX",
+            3989511027826779520: "heatmap:STDIO",
+            3668870418325792824: "heatmap:MPIIO"
+        }
+
+        def heatmap_rec_to_module_name(rec, nrecs=None):
+            if rec['id'] in nrecs:
+                name = nrecs[rec['id']]
+                mod = name.split(":")[1]
+            else:
+                mod = rec['id']
+            return mod
+
+        heatmaps = {}
+
+        # fetch records
+        rec = backend._log_get_heatmap_record(self.log)
+        while rec is not None:            
+            mod = heatmap_rec_to_module_name(rec, nrecs=_nrecs_heatmap)
+            if mod not in heatmaps:
+                heatmaps[mod] = Heatmap(mod)
+            heatmaps[mod].add_record(rec)
+
+            # fetch next
+            rec = backend._log_get_heatmap_record(self.log)
+
+        self._heatmaps = heatmaps
+
 
     def mod_read_all_records(self, mod, dtype=None, warnings=True):
         """
@@ -578,7 +644,7 @@ class DarshanReport(object):
             None
 
         """
-        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE', 'APMPI', 'APXC']
+        unsupported =  ['DXT_POSIX', 'DXT_MPIIO', 'LUSTRE', 'APMPI', 'APXC', 'HEATMAP']
 
         if mod in unsupported:
             if warnings:
@@ -614,7 +680,7 @@ class DarshanReport(object):
 
 
         if self.lookup_name_records:
-            self.update_name_records()
+            self.update_name_records(mod=mod)
 
         # process/combine records if the format dtype allows for this
         if dtype == 'pandas':
@@ -691,7 +757,7 @@ class DarshanReport(object):
 
 
         if self.lookup_name_records:
-            self.update_name_records()
+            self.update_name_records(mod=mod)
 
 
     def mod_read_all_apxc_records(self, mod="APXC", dtype=None, warnings=True):
@@ -740,7 +806,7 @@ class DarshanReport(object):
             rec = backend.log_get_apxc_record(self.log, mod, "PERF", dtype=dtype)
 
         if self.lookup_name_records:
-            self.update_name_records()
+            self.update_name_records(mod=mod)
 
 
     def mod_read_all_dxt_records(self, mod, dtype=None, warnings=True, reads=True, writes=True):
@@ -793,7 +859,7 @@ class DarshanReport(object):
 
 
         if self.lookup_name_records:
-            self.update_name_records()
+            self.update_name_records(mod=mod)
 
 
 
@@ -810,7 +876,7 @@ class DarshanReport(object):
             None
 
         """
-        if mod not in self.data['modules']:
+        if mod not in self.modules:
             if warnings:
                 logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
             return
@@ -850,7 +916,7 @@ class DarshanReport(object):
 
 
         if self.lookup_name_records:
-            self.update_name_records()
+            self.update_name_records(mod=mod)
 
         # process/combine records if the format dtype allows for this
         if dtype == 'pandas':
@@ -1054,6 +1120,30 @@ class DarshanReport(object):
         return json.dumps(data, cls=DarshanReportJSONEncoder)
 
 
+    def _cleanup(self):
+        """
+        Cleanup when deleting object.
+        """
+        # CFFI/C backend needs to be notified that it can close the log file.
+        try:
+            if self.log is not None:
+                rec = backend.log_close(self.log)
+                self.log = None
+        except AttributeError:
+            # we sometimes observe that i.e., pytest has problems
+            # calling _cleanup() because self.log does not exist
+            pass
 
 
+    def __del__(self):
+        """ Clean up when deleted or garbage collected (e.g., del-statement) """
+        self._cleanup()
 
+
+    def __enter__(self):
+        """ Satisfy API for use with context manager (e.g., with-statement) """
+        return self
+
+    def __exit__(self, type, value, traceback):
+        """ Cleanup when used by context manager (e.g., with-statement) """
+        self._cleanup()

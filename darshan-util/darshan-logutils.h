@@ -71,6 +71,7 @@ struct darshan_mod_info
     int  len;
     int  ver;
     int  idx;
+    int partial_flag;
 };
 
 struct darshan_name_record_info

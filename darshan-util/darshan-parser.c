@@ -802,7 +802,7 @@ void stdio_accum_file(struct darshan_stdio_file *pfile,
     }
     else
     {
-        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time, 
+        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time,
             (pfile->fcounters[STDIO_F_META_TIME] +
             pfile->fcounters[STDIO_F_READ_TIME] +
             pfile->fcounters[STDIO_F_WRITE_TIME]));
@@ -860,7 +860,7 @@ void posix_accum_file(struct darshan_posix_file *pfile,
     }
     else
     {
-        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time, 
+        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time,
             (pfile->fcounters[POSIX_F_META_TIME] +
             pfile->fcounters[POSIX_F_READ_TIME] +
             pfile->fcounters[POSIX_F_WRITE_TIME]));
@@ -918,7 +918,7 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
     }
     else
     {
-        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time, 
+        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time,
             (mfile->fcounters[MPIIO_F_META_TIME] +
             mfile->fcounters[MPIIO_F_READ_TIME] +
             mfile->fcounters[MPIIO_F_WRITE_TIME]));
@@ -1077,7 +1077,7 @@ void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
     return;
 }
 
-void stdio_calc_file(hash_entry_t *file_hash_table, 
+void stdio_calc_file(hash_entry_t *file_hash_table,
                      file_data_t *fdata)
 {
     hash_entry_t *curr = NULL;
@@ -1145,7 +1145,7 @@ void stdio_calc_file(hash_entry_t *file_hash_table,
 }
 
 
-void posix_calc_file(hash_entry_t *file_hash_table, 
+void posix_calc_file(hash_entry_t *file_hash_table,
                      file_data_t *fdata)
 {
     hash_entry_t *curr = NULL;
@@ -1212,7 +1212,7 @@ void posix_calc_file(hash_entry_t *file_hash_table,
     return;
 }
 
-void mpiio_calc_file(hash_entry_t *file_hash_table, 
+void mpiio_calc_file(hash_entry_t *file_hash_table,
                      file_data_t *fdata)
 {
     hash_entry_t *curr = NULL;

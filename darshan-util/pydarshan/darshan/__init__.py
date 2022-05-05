@@ -10,9 +10,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-options = {
-
-}
+options = {} # type: ignore
 
 
 #from darshan.backend.cffi_backend import *

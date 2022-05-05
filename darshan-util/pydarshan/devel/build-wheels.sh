@@ -46,7 +46,7 @@ ls /opt/python
 for PYBIN in /opt/python/*/bin; do
     # JL: we do not really need any dependencies to build the wheel,
     #     but requirements install needs to be renabled when testing automatically
-    #"${PYBIN}/pip" install -r /io/requirements_wheels.txt	                    
+    #"${PYBIN}/pip" install -r /io/requirements_wheels.txt
     "${PYBIN}/pip" wheel /io/ --build-option "--with-extension" --no-deps -w /io/wheelhouse/${PLAT}
 done
 

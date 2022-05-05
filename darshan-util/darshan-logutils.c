@@ -2164,10 +2164,11 @@ void darshan_log_get_modules (darshan_fd fd,
     {
         if (fd->mod_map[i].len)
         {
-            (*mods)[j].name = darshan_module_names[i];
-            (*mods)[j].len  = fd->mod_map[i].len;
-            (*mods)[j].ver  = fd->mod_ver[i];
-            (*mods)[j].idx  = i;
+            (*mods)[j].name          = darshan_module_names[i];
+            (*mods)[j].len           = fd->mod_map[i].len;
+            (*mods)[j].ver           = fd->mod_ver[i];
+            (*mods)[j].partial_flag  = DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i);
+            (*mods)[j].idx           = i;
             j += 1;
         }
     }

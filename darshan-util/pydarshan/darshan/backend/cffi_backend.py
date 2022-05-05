@@ -4,6 +4,8 @@ using the functions defined in libdarshan-util.so
 and is interfaced via the python CFFI module.
 """
 
+import functools
+
 import cffi
 import ctypes
 
@@ -54,6 +56,7 @@ _structdefs = {
     "BG/Q": "struct darshan_bgq_record **",
     "DXT_MPIIO": "struct dxt_file_record **",
     "DXT_POSIX": "struct dxt_file_record **",
+    "HEATMAP": "struct darshan_heatmap_record **",
     "H5F": "struct darshan_hdf5_file **",
     "H5D": "struct darshan_hdf5_dataset **",
     "LUSTRE": "struct darshan_lustre_record **",
@@ -127,6 +130,11 @@ def log_get_job(log):
     job['nprocs'] = jobrec[0].nprocs
     job['jobid'] = jobrec[0].jobid
 
+    # dirty hack to get log format version -- we know it's currently stored at the
+    # very beginning of the log handle structure, so we just cast the struct
+    # pointer as a string...
+    job['log_ver'] = ffi.string(ffi.cast("char *", log['handle'])).decode("utf-8")
+
     mstr = ffi.string(jobrec[0].metadata).decode("utf-8")
     md = {}
 
@@ -198,7 +206,8 @@ def log_get_modules(log):
     libdutil.darshan_log_get_modules(log['handle'], mods, cnt)
     for i in range(0, cnt[0]):
         modules[ffi.string(mods[0][i].name).decode("utf-8")] = \
-                {'len': mods[0][i].len, 'ver': mods[0][i].ver, 'idx': mods[0][i].idx}
+                {'len': mods[0][i].len, 'ver': mods[0][i].ver, 'idx': mods[0][i].idx,
+                 'partial_flag': bool(mods[0][i].partial_flag)}
 
     # add to cache
     log['modules'] = modules
@@ -291,6 +300,8 @@ def log_get_record(log, mod, dtype='numpy'):
 
     if mod in ['LUSTRE']:
         rec = _log_get_lustre_record(log, dtype=dtype)
+    elif mod in ['HEATMAP']:
+        rec = _log_get_heatmap_record(log)
     elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
         rec = log_get_dxt_record(log, mod, dtype=dtype)
     else:
@@ -337,51 +348,43 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
     if mod_name == 'H5D':
         rec['file_rec_id'] = rbuf[0].file_rec_id
 
-    clst = []
-    for i in range(0, len(rbuf[0].counters)):
-        clst.append(rbuf[0].counters[i])
-    rec['counters'] = np.array(clst, dtype=np.int64)
-    cdict = dict(zip(counter_names(mod_name), rec['counters']))
+    clst = np.frombuffer(ffi.buffer(rbuf[0].counters), dtype=np.int64)
+    flst = np.frombuffer(ffi.buffer(rbuf[0].fcounters), dtype=np.float64)
 
-    flst = []
-    for i in range(0, len(rbuf[0].fcounters)):
-        flst.append(rbuf[0].fcounters[i])
-    rec['fcounters'] = np.array(flst, dtype=np.float64)
-    fcdict = dict(zip(fcounter_names(mod_name), rec['fcounters']))
+    c_cols = counter_names(mod_name)
+    fc_cols = fcounter_names(mod_name)
 
-    if dtype == "dict":
-        rec.update({
-            'counters': cdict, 
-            'fcounters': fcdict
-            })
+    if dtype == "numpy":
+        rec['counters'] = clst
+        rec['fcounters'] = flst
 
-    if dtype == "pandas":
-        df_c = pd.DataFrame(cdict, index=[0])
-        df_fc = pd.DataFrame(fcdict, index=[0])
+    elif dtype == "dict":
+        rec['counters'] = dict(zip(c_cols, clst))
+        rec['fcounters'] = dict(zip(fc_cols, flst))
 
-        # flip column order (to prepend id and rank)
-        df_c = df_c[df_c.columns[::-1]]
-        df_fc = df_fc[df_fc.columns[::-1]]
-
-        # attach id and rank to counters and fcounters
-        df_c['id'] = rec['id']
-        df_c['rank'] = rec['rank']
-
-        df_fc['id'] = rec['id']
-        df_fc['rank'] = rec['rank']
-
-        # flip column order
-        df_c = df_c[df_c.columns[::-1]]
-        df_fc = df_fc[df_fc.columns[::-1]]
-
-        rec.update({
-            'counters': df_c,
-            'fcounters': df_fc
-            })
-
+    elif dtype == "pandas":
+        # prepend id/rank columns
+        new_cols = ["id", "rank"]
+        new_c_cols = new_cols + c_cols
+        new_f_cols = new_cols + fc_cols
+        rec_id = np.uint64(rec["id"])
+        # prepend the id/rank values
+        id_rank_list = [rec["id"], rec["rank"]]
+        new_clst = np.asarray([id_rank_list + clst.tolist()]).reshape(1, -1)
+        new_flst = np.asarray([id_rank_list + flst.tolist()], dtype=np.float64).reshape(1, -1)
+        # create the dataframes
+        df_c = pd.DataFrame(data=new_clst, columns=new_c_cols)
+        df_fc = pd.DataFrame(data=new_flst, columns=new_f_cols)
+        # correct the data type for the file hash/id
+        df_c['id'] = rec_id
+        df_fc['id'] = rec_id
+        # assign the dataframes to the record
+        rec['counters'] = df_c
+        rec['fcounters'] = df_fc
     return rec
 
 
+@functools.lru_cache(maxsize=32)
 def counter_names(mod_name, fcnts=False, special=''):
     """
     Returns a list of available counter names for the module.
@@ -427,6 +430,7 @@ def counter_names(mod_name, fcnts=False, special=''):
     return names
 
 
+@functools.lru_cache(maxsize=32)
 def fcounter_names(mod_name):
     """
     Returns a list of available floating point counter names for the module.
@@ -543,7 +547,6 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     if r < 1:
         return None
     filerec = ffi.cast(mod_type, buf)
-    clst = []
 
     rec['id'] = filerec[0].base_rec.id
     rec['rank'] = filerec[0].base_rec.rank
@@ -592,5 +595,49 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     return rec
 
 
+def _log_get_heatmap_record(log):
+    """
+    Returns a dictionary holding a heatmap darshan log record.
 
+    Args:
+        log: Handle returned by darshan.open
 
+    Return:
+        dict: heatmap log record
+    """
+   
+    mod_name = "HEATMAP"
+
+    modules = log_get_modules(log)
+    if mod_name not in modules:
+        return None
+
+    mod_type = _structdefs[mod_name]
+
+    rec = {}
+    buf = ffi.new("void **")
+    r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
+    if r < 1:
+        return None
+    
+    filerec = ffi.cast(mod_type, buf)
+
+    rec['id'] = filerec[0].base_rec.id
+    rec['rank'] = filerec[0].base_rec.rank
+
+    bin_width_seconds = filerec[0].bin_width_seconds
+    nbins = filerec[0].nbins
+    
+    rec['bin_width_seconds'] = bin_width_seconds
+    rec['nbins'] = nbins
+
+    # write/read bins
+    sizeof_64 = ffi.sizeof("int64_t")
+    
+    write_bins = np.frombuffer(ffi.buffer(filerec[0].write_bins, sizeof_64*nbins), dtype = np.int64)
+    rec['write_bins'] = write_bins
+
+    read_bins = np.frombuffer(ffi.buffer(filerec[0].read_bins, sizeof_64*nbins), dtype = np.int64)
+    rec['read_bins'] = read_bins
+    
+    return rec

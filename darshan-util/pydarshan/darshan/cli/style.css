@@ -1,0 +1,50 @@
+p {
+  font-size: 12px;
+}
+h1 {
+  font-size: 24px;
+}
+h2 {
+  font-size: 20px;
+}
+h3 {
+  font-size: 16px;
+}
+body{
+    margin: 50px;
+    padding: 15px;
+}
+th, td {
+  font-size: 12px;
+  padding: 6px;
+  text-align: left;
+  border-top: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+}
+table {
+  border-collapse: collapse;
+}
+.fixed-header, .fixed-footer{
+    width: 100%;
+    display: block;
+    text-align: right;
+}
+.fixed-header{
+    top: 0;
+}
+.fixed-footer{
+    bottom: 0;
+}
+figure {
+  text-align: center;
+}
+figure figcaption {
+  font-size: 12px;
+  text-align: center;
+}
+.grid-wrapper {
+  display: grid;
+  /* set 2-column-wide grid with auto width scaling*/
+  grid-template-columns: repeat(2, auto);
+  gap: 5px;
+}

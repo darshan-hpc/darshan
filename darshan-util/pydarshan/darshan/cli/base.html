@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+      <title>Darshan Summary Report</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        ${report_data.stylesheet}
+      </style>
+    </head>
+    <body style="font-family: Gill Sans MT">
+
+      <!-- Add the header  -->
+      <div class="fixed-header">
+        <p>${report_data.header}</p>
+      </div>
+
+      <!-- Add a title  -->
+      <h1><center>Darshan Summary Report</center></h1>
+      <hr>
+
+      <!-- Add a section for the job and module summary tables  -->
+      <section>
+        <h3>Job Summary</h3>
+        ${report_data.metadata_table}
+
+        <h3>Darshan Log Information</h3>
+        ${report_data.module_table}
+      </section>
+
+      <!-- Add sections and their figures  -->
+      % for sect_title in report_data.sections:
+          <section>
+          <h2>${sect_title}</h2>
+
+          % if len(report_data.sections[sect_title]) > 1:
+            <!-- if more than 1 figure in section, use grid wrapper class -->
+            <div class="grid-wrapper">
+          % else:
+            <div>
+          % endif
+
+          % for fig_title, fig in report_data.sections[sect_title].items():
+            <div>
+            <h3>${fig_title}</h3>
+            <figure style="width: ${fig.fig_width}px;">
+            % if fig.fig_html:
+              ${fig.fig_html}
+              <figcaption>${fig.fig_description}</figcaption>
+            % else:
+              <!-- temporary handling for DXT-disabled cases -->
+              <figcaption style="font-weight: bold; color: red; width: 400px;">
+                ${fig.fig_description}
+              </figcaption>
+            % endif
+          </figure>
+          </div>
+          % endfor
+        </div>
+        </section>
+      % endfor
+
+      <!-- Add the footer -->
+      <div class="fixed-footer">
+        <p>
+            ${report_data.footer}<br>For more information visit the
+            <a href="https://www.mcs.anl.gov/research/projects/darshan/">
+              Darshan website
+            <a>
+        <p>
+      </div>
+
+    </body>
+</html>

@@ -420,7 +420,7 @@ export DXT_ENABLE_IO_TRACE=1
 DXT will trace each I/O operation to files instrumented by Darshan's MPI-IO and
 POSIX modules, using a default memory limit of 2 MiB for each module (DXT_POSIX
 and DXT_MPIIO). Memory usage and a number of other aspects of DXT tracing can
-be configured as described in section 
+be configured as described in section
 link:darshan-runtime.html#_configuring_darshan_library_at_runtime[Configuring Darshan library at runtime].
 
 == Using AutoPerf instrumentation modules

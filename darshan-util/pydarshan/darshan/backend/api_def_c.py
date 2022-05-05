@@ -20,6 +20,7 @@ struct darshan_mod_info
     int	len;
     int	ver;
     int	idx;
+    int partial_flag;
 };
 
 /* from darshan-log-format.h */
@@ -102,6 +103,15 @@ struct darshan_lustre_record
     struct darshan_base_record base_rec;
     int64_t counters[5];
     int64_t *ost_ids;
+};
+
+struct darshan_heatmap_record
+{
+    struct darshan_base_record base_rec;
+    double  bin_width_seconds; /* time duration of each bin */
+    int64_t nbins;             /* number of bins */
+    int64_t *write_bins;       /* pointer to write bin array (trails struct in log */
+    int64_t *read_bins;        /* pointer to read bin array (trails write bin array in log */
 };
 
 
