@@ -20,7 +20,7 @@ Darshan-3.4.0-pre1
   operations by the slowest rank)
 * Add unified Darshan configuration support via env vars and config files
 * Adopt automake and libtool for Darshan build, and allow top-level build
-  of both darshan-runtime and darshan-util
+  of both darshan-runtime and darshan-util (contributed by Wei-Keng Liao)
 * Increase default memory limit for record names (NAMEMEM config setting)
   to 1 MiB
 
