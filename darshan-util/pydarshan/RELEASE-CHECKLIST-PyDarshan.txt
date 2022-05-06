@@ -7,17 +7,17 @@ Notes on how to release a new version of PyDarshan
     (- source venv/bin/activate)
     (- pip install -r requirements_dev.txt    # deps for packaging, testing, and docs generation)
 
- - Make sure documentation in docs/ is up to date
-    - commit
-    - make docs
-    - upload docs/build/html contents to /mcs/web/research/projects/darshan/docs/pydarshan
-    - (might eventually connect this with readthedocs to have this automatically uploaded)
  - Update CHANGELOG.rst
     - commit
  - Update version numbers in:
     setup.py
     setup.cfg
     darshan/__init__.py
+ - Make sure documentation in docs/ is up to date
+    - commit
+    - make docs
+    - upload docs/build/html contents to /mcs/web/research/projects/darshan/docs/pydarshan
+    - (might eventually connect this with readthedocs to have this automatically uploaded)
 
  - Run tests with tox against different python versions
     - make test
