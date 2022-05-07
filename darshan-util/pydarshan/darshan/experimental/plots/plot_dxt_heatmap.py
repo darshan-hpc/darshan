@@ -381,6 +381,9 @@ def plot_heatmap(
         hmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins, nprocs=nprocs)
     elif mod == "HEATMAP":
         hmap_df = report.heatmaps[submodule].to_df(ops=ops)
+        # mirror the DXT approach to heatmaps by
+        # adding all-zero rows for inactive ranks
+        hmap_df = hmap_df.reindex(index=range(nprocs), fill_value=0.0)
         xbins = hmap_df.shape[1]
 
     # build the joint plot with marginal histograms
