@@ -16,7 +16,9 @@ html {
 }
 
 body {
-  margin: 0;
+  margin-top: 0px;
+  margin-left: 30px;
+  margin-right: 30px;
 }
 
 article,
@@ -270,6 +272,10 @@ th {
   padding: 0;
 }
 
+td:empty {
+  display: none;
+}
+
 table {
   border-collapse: collapse;
   border-spacing: 0;
@@ -292,10 +298,9 @@ table th {
 
 table tr {
   background-color: #fff;
-  border-top: 1px solid #ccc;
 }
 
-table tr:nth-child(2n) {
+table tr:nth-child(2n+1) {
   background-color: #f8f8f8;
 }
 
@@ -303,10 +308,10 @@ hr {
   box-sizing: content-box;
   overflow: visible;
   background: transparent;
-  height: 4px;
+  height: 1px;
   padding: 0;
   margin: 1em 0;
-  background-color: #e7e7e7;
+  background-color: #777;
   border: 0 none;
 }
 
@@ -337,7 +342,6 @@ figure {
 
 figure img {
   background: white;
-  border: 1px solid #c7c7c7;
   padding: 0.25em;
 }
 
@@ -507,4 +511,26 @@ template {
 
 [hidden] {
   display: none;
+}
+.section_header {
+  display: block;
+  background-color: #ddd;
+  padding: 5px;
+}
+.fixed-header, .fixed-footer{
+    width: 100%;
+    display: block;
+    text-align: right;
+}
+.fixed-header{
+    top: 0;
+}
+.fixed-footer{
+    bottom: 0;
+}
+.grid-wrapper {
+  display: grid;
+  /* set 2-column-wide grid with auto width scaling*/
+  grid-template-columns: repeat(2, auto);
+  gap: 5px;
 }
