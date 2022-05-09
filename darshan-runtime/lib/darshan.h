@@ -74,8 +74,8 @@
 #ifdef __DARSHAN_NAME_MEM_MAX
 #define DARSHAN_NAME_MEM_MAX (__DARSHAN_NAME_MEM_MAX * 1024L * 1024L)
 #else
-/* 200 KiB default */
-#define DARSHAN_NAME_MEM_MAX (1024 * 200)
+/* 1 MiB default */
+#define DARSHAN_NAME_MEM_MAX (1 * 1024 * 1024)
 #endif
 
 /* maximum buffer size for full paths, for internal use only */

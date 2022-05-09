@@ -6,7 +6,14 @@ cffi
 numpy
 pandas
 matplotlib
+seaborn
+mako
 jupyterlab
 
 pytest
 pytest-runner
+# lxml needed implicitly for pandas read_html calls in some tests
+lxml
+
+sphinx
+sphinx_rtd_theme

@@ -498,7 +498,7 @@ to startup and shutdown Darshan to stderr at runtime.
  quota is used). Overrides any `--with-mod-mem` configure argument.
 | DARSHAN_NAMEMEM=<val> | NAMEMEM <val>
  | Specifies the amount of memory (in MiB) Darshan can consume for
- storing record names (if not specified, a default 200 KiB quota is
+ storing record names (if not specified, a default 1 MiB quota is
  used). Overrides any `--with-name-mem` configure argument.
 | DARSHAN_MEMALIGN=<val> | MEMALIGN <val>
  | Specifies a value for system memory alignment. Overrides any
