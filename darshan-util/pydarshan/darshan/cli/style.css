@@ -24,6 +24,11 @@ th, td {
 table {
   border-collapse: collapse;
 }
+.section_header {
+  display: block;
+  background-color: #ddd;
+  padding: 5px;
+}
 .fixed-header, .fixed-footer{
     width: 100%;
     display: block;

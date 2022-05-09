@@ -8,7 +8,7 @@
         ${report_data.stylesheet}
       </style>
     </head>
-    <body style="font-family: Gill Sans MT">
+    <body>
 
       <!-- Add the header  -->
       <div class="fixed-header">
@@ -31,7 +31,7 @@
       <!-- Add sections and their figures  -->
       % for sect_title in report_data.sections:
           <section>
-          <h2>${sect_title}</h2>
+          <h2 class="section_header">${sect_title}</h2>
 
           % if len(report_data.sections[sect_title]) > 1:
             <!-- if more than 1 figure in section, use grid wrapper class -->
