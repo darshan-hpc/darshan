@@ -90,7 +90,9 @@ struct dfs_file_record_ref
 
 struct dfs_mount_info
 {
-    /* XXX needed uuids? or just strs? */
+    /* XXX uuids not currently used, just strings. we could consider storing uuids
+     *     in counter data, too, which would remove need for strings
+     */
     uuid_t pool_uuid;
     uuid_t cont_uuid;
     char pool_uuid_str[64];
@@ -135,9 +137,8 @@ static int my_rank = -1;
 #define DAOS_WTIME() \
     __darshan_disabled ? 0 : darshan_core_wtime();
 
-// XXX do other macros/wrappers check return value?
 #define DFS_PRE_RECORD() do { \
-    if(!__darshan_disabled) { \
+    if(!ret && !__darshan_disabled) { \
         DAOS_LOCK(); \
         if(!dfs_runtime && !dfs_runtime_init_attempted) \
             dfs_runtime_initialize(); \
@@ -349,6 +350,7 @@ int DARSHAN_DECL(dfs_mount)(daos_handle_t poh, daos_handle_t coh, int flags, dfs
     return(ret);
 }
 
+// XXX dfs_global2local_all support, will have similar issues to dfs_obj_global2local
 int DARSHAN_DECL(dfs_global2local)(daos_handle_t poh, daos_handle_t coh, int flags, d_iov_t glob, dfs_t **dfs)
 {
     int ret;
@@ -519,6 +521,7 @@ int DARSHAN_DECL(dfs_release)(dfs_obj_t *obj)
     return(ret);
 }
 
+/* XXX handle non-blocking case */
 int DARSHAN_DECL(dfs_read)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_off_t off, daos_size_t *read_size, daos_event_t *ev)
 {
     int ret;
@@ -540,6 +543,7 @@ int DARSHAN_DECL(dfs_read)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_of
     return(ret);
 }
 
+/* XXX handle non-blocking case */
 int DARSHAN_DECL(dfs_readx)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_list_t *sgl, daos_size_t *read_size, daos_event_t *ev)
 {
     int ret;
@@ -560,6 +564,7 @@ int DARSHAN_DECL(dfs_readx)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_lis
     return(ret);
 }
 
+/* XXX handle non-blocking case */
 int DARSHAN_DECL(dfs_write)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_off_t off, daos_event_t *ev)
 {
     int ret;
@@ -583,6 +588,7 @@ int DARSHAN_DECL(dfs_write)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_o
     return(ret);
 }
 
+/* XXX handle non-blocking case */
 int DARSHAN_DECL(dfs_writex)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_list_t *sgl, daos_event_t *ev)
 {
     int ret;
@@ -951,7 +957,6 @@ static struct dfs_file_record_ref *dfs_track_new_file_record(
     /* registering this file record was successful, so initialize some fields */
     file_rec->base_rec.id = rec_id;
     file_rec->base_rec.rank = my_rank;
-    /* XXX set initial data */
     rec_ref->file_rec = file_rec;
     dfs_runtime->file_rec_count++;
 
@@ -1165,8 +1170,6 @@ static void dfs_mpi_redux(
     DAOS_LOCK();
     assert(dfs_runtime);
 
-    fprintf(stderr, "****ENTERING DFS REDUX [%d]\n", my_rank);
-
     dfs_rec_count = dfs_runtime->file_rec_count;
 
     /* necessary initialization of shared records */
@@ -1266,8 +1269,6 @@ static void dfs_output(
 
     DAOS_LOCK();
     assert(dfs_runtime);
-
-    fprintf(stderr, "****ENTERING DFS SHUTDOWN [%d]\n", my_rank);
 
     /* just pass back our updated total buffer size -- no need to update buffer */
     dfs_rec_count = dfs_runtime->file_rec_count;
