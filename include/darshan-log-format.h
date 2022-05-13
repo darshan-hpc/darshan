@@ -6,7 +6,7 @@
 
 #ifndef __DARSHAN_LOG_FORMAT_H
 #define __DARSHAN_LOG_FORMAT_H
-//XXX
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdint.h>
