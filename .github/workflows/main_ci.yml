@@ -4,9 +4,15 @@ on:
   push:
     branches:
       - main
+    paths:
+      - darshan-util/**
+      - include/**
   pull_request:
     branches:
       - main
+    paths:
+      - darshan-util/**
+      - include/**
 
 jobs:
   test_pydarshan:
