@@ -22,6 +22,7 @@ skip = [
 test-requires = [
     "pytest",
     "lxml",
+    "matplotlib<3.5",
     "importlib_resources;python_version<'3.9'"
 ]
 test-command = "pytest {package}"
