@@ -9,6 +9,7 @@ before-all = [
     "yum install -y blas-devel lapack-devel",
     "yum install -y libxslt-devel libxml2-devel",
     "yum install -y libjpeg libjpeg-devel",
+    "git submodule update --init",
     "./prepare.sh",
     "./configure --disable-darshan-runtime --enable-apxc-mod --enable-apmpi-mod",
     "make install"
