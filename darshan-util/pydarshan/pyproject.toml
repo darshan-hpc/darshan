@@ -31,3 +31,8 @@ before-all = [
     "yum install -y libxslt-devel libxml2-devel",
     "yum install -y libjpeg libjpeg-devel"
 ]
+
+[tool.cibuildwheel.macos]
+before-all = [
+    "brew install automake"
+]
