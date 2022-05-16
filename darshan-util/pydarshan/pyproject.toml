@@ -6,7 +6,7 @@ requires = [
 
 [tool.cibuildwheel]
 environment = "PYDARSHAN_BUILD_EXT=1"
-build = "cp3*"
+build = "pp39*"
 skip = [
     "*musllinux*",
     "*i686*"
