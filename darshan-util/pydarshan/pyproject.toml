@@ -12,6 +12,7 @@ before-all = [
     "make install"
 ]
 environment = "PYDARSHAN_BUILD_EXT=1"
+build = "cp3*"
 skip = [
     "*musllinux*",
     "*i686*"
