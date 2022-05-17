@@ -15,6 +15,26 @@ on:
       - include/*
 
 jobs:
+  get_commit_message:
+    name: Get commit message
+    runs-on: ubuntu-latest
+    if: github.repository == 'darshan-hpc/darshan'
+    outputs:
+      message: ${{ steps.commit_message.outputs.message }}
+    steps:
+      - name: Checkout darshan
+        uses: actions/checkout@v3
+        # Gets the correct commit message for pull request
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Get commit message
+        id: commit_message
+        run: |
+          set -xe
+          COMMIT_MSG=$(git log --no-merges -1 --oneline)
+          echo "::set-output name=message::$COMMIT_MSG"
+          echo github.ref ${{ github.ref }}
+
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
     needs: get_commit_message
