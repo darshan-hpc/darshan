@@ -17,6 +17,9 @@ on:
 jobs:
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
+    if: >-
+      contains(needs.get_commit_message.outputs.message, '[wheel build]') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
