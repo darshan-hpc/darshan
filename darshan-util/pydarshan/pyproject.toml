@@ -31,6 +31,7 @@ before-all = [
     "./configure --disable-darshan-runtime --enable-apxc-mod --enable-apmpi-mod",
     "make install"
 ]
+repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.macos]
 before-all = [
@@ -41,4 +42,8 @@ before-all = [
     "./prepare.sh",
     "./configure --disable-darshan-runtime --enable-apxc-mod --enable-apmpi-mod",
     "make install"
+]
+repair-wheel-command = [
+  "delocate-listdeps {wheel}",
+  "delocate-wheel --require-archs {delocate_archs} -w {dest_dir} {wheel}",
 ]
