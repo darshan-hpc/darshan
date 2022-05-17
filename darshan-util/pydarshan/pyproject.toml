@@ -33,6 +33,8 @@ before-all = [
 [tool.cibuildwheel.macos]
 before-all = [
     "brew install automake",
+    "brew install openblas",
+    "brew install lapack",
     "git submodule update --init",
     "./prepare.sh",
     "./configure --disable-darshan-runtime --enable-apxc-mod --enable-apmpi-mod",
