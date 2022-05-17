@@ -6,10 +6,12 @@ requires = [
 
 [tool.cibuildwheel]
 environment = "PYDARSHAN_BUILD_EXT=1"
-build = "pp39*"
 skip = [
+    "pp*",
     "*musllinux*",
-    "*i686*"
+    "*i686*",
+    "*_ppc64le",
+    "*_s390x"
 ]
 test-requires = [
     "pytest",
