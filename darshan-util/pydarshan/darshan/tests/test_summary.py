@@ -231,7 +231,7 @@ class TestReportData:
         log_path = get_log_path(log_path)
         R = summary.ReportData(log_path=log_path)
         # verify the first line shows up correctly for each log
-        expected_str = "p {\n  font-size: 12px;\n}"
+        expected_str = "small {\n  font-size: 80%;\n}"
         assert expected_str in R.stylesheet
 
     @pytest.mark.parametrize(
