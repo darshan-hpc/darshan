@@ -208,7 +208,8 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                 actual_runtime_heatmap_titles = report_str.count("<h3>Heat Map: HEATMAP")
                 if "e3sm_io_heatmap_only" in log_filepath:
                     assert actual_runtime_heatmap_titles == 3
-                elif "runtime_and_dxt_heatmaps_diagonal_write_only" in log_filepath:
+                elif ("runtime_and_dxt_heatmaps_diagonal_write_only" in log_filepath
+                      or "h5d_no_h5f" in log_filepath):
                     assert actual_runtime_heatmap_titles == 1
                 else:
                     assert actual_runtime_heatmap_titles == 0
