@@ -209,13 +209,13 @@ def rec_to_rw_counter_dfs(report: Any,
     df_reads = pd.DataFrame()
     df_writes = pd.DataFrame()
     if "POSIX" in report.modules:
-        rec_counters = rec_counters.append(report.records["POSIX"].to_df()['counters'])
-        df_reads = df_reads.append(rec_counters.loc[rec_counters[f'POSIX_BYTES_READ'] >= 1])
-        df_writes = df_writes.append(rec_counters.loc[rec_counters[f'POSIX_BYTES_WRITTEN'] >= 1])
+        rec_counters = pd.concat(objs=(rec_counters, report.records["POSIX"].to_df()['counters']))
+        df_reads = pd.concat(objs=(df_reads, rec_counters.loc[rec_counters[f'POSIX_BYTES_READ'] >= 1]))
+        df_writes = pd.concat(objs=(df_writes, rec_counters.loc[rec_counters[f'POSIX_BYTES_WRITTEN'] >= 1]))
     if "STDIO" in report.modules:
-        rec_counters = rec_counters.append(report.records["STDIO"].to_df()['counters'])
-        df_reads = df_reads.append(rec_counters.loc[rec_counters[f'STDIO_BYTES_READ'] >= 1])
-        df_writes = df_writes.append(rec_counters.loc[rec_counters[f'STDIO_BYTES_WRITTEN'] >= 1])
+        rec_counters = pd.concat(objs=(rec_counters, report.records["STDIO"].to_df()['counters']))
+        df_reads = pd.concat(objs=(df_reads, rec_counters.loc[rec_counters[f'STDIO_BYTES_READ'] >= 1]))
+        df_writes = pd.concat(objs=(df_writes, rec_counters.loc[rec_counters[f'STDIO_BYTES_WRITTEN'] >= 1]))
     
     return df_reads, df_writes
 
