@@ -25,11 +25,15 @@ Notes on how to release a new version of PyDarshan
         (flake8 syntax warnings can be ignored)
     - TODO: CI?
 
- - Submit to PyPi using twine:
-    - make wheels       # requires docker, creates ./wheelhouse and builds architecture-specific *.whl that include libdarshan-util
-    - make dist         # gathers relevant wheels build earlier, adds non-binary wheel and a source distribution (zip/tgz)
-    - make release      # pushes contents of ./dist/* to PyPi
-        (be prompted for username/password)
+ - Submit to PyPI using cibuildwheel/twine:
+    - pipx run build --sdist
+        (in the pydarshan directory, creates a source distribution)
+    - download wheel artifacts from GitHub, copy to 'dist/' directory created above
+        (click on Actions in GitHub, find most recent "Build Wheels" workflow run with artifacts)
+        (download artifact zip, extract wheels to 'dist/' directory)
+    - pipx run twine upload dist/*
+        (requires PyPI credentials for darshan project)
+        (use '--repository testpypi' to test wheels using https://test.pypi.org/project/darshan/ before uploading to PyPI)
 
  - Add/update spack package: py-darshan
     - add version entry

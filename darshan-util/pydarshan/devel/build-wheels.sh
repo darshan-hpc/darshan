@@ -41,13 +41,15 @@ cd /
 
 ls /opt/python
 
+# Force setup.py to build the C extension
+export PYDARSHAN_BUILD_EXT=1
 
 # Compile wheels
 for PYBIN in /opt/python/*/bin; do
     # JL: we do not really need any dependencies to build the wheel,
     #     but requirements install needs to be renabled when testing automatically
     #"${PYBIN}/pip" install -r /io/requirements_wheels.txt
-    "${PYBIN}/pip" wheel /io/ --build-option "--with-extension" --no-deps -w /io/wheelhouse/${PLAT}
+    "${PYBIN}/pip" wheel /io/ --no-deps -w /io/wheelhouse/${PLAT}
 done
 
 # Bundle external shared libraries into the wheels

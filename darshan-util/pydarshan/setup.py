@@ -28,7 +28,7 @@ test_requirements = ["pytest"]
 # discoverable in the environment by means of LD_LIBRARY_PATH or
 # pkg-config there is no need to build the extension.
 ext_modules = []
-if "--with-extension" in sys.argv:
+if "PYDARSHAN_BUILD_EXT" in os.environ:
     ext_modules.append(
         Extension(
             "darshan.extension",
@@ -38,7 +38,6 @@ if "--with-extension" in sys.argv:
             libraries=["darshan-util"],
         )
     )
-    sys.argv.remove("--with-extension")
 
 #
 # Find backend python files in modules and copy them into lib

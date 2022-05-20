@@ -1,0 +1,60 @@
+name: Build Wheels
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - darshan-util/**
+      - include/**
+  pull_request:
+    branches:
+      - main
+    paths:
+      - darshan-util/**
+      - include/*
+  workflow_dispatch:
+
+jobs:
+  get_commit_message:
+    name: Get commit message
+    runs-on: ubuntu-latest
+    if: github.repository == 'darshan-hpc/darshan'
+    outputs:
+      message: ${{ steps.commit_message.outputs.message }}
+    steps:
+      - name: Checkout darshan
+        uses: actions/checkout@v3
+        # Gets the correct commit message for pull request
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Get commit message
+        id: commit_message
+        run: |
+          set -xe
+          COMMIT_MSG=$(git log --no-merges -1 --oneline)
+          echo "::set-output name=message::$COMMIT_MSG"
+          echo github.ref ${{ github.ref }}
+
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    needs: get_commit_message
+    if: >-
+      contains(needs.get_commit_message.outputs.message, '[wheel build]') ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.5.0
+        with:
+          package-dir: ./darshan-util/pydarshan
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
