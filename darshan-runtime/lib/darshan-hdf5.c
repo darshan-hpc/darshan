@@ -730,6 +730,44 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
                 rec_ref->dataset_rec->fcounters[H5D_F_READ_TIME],
                 tm1, tm2, rec_ref->last_read_end);
         }
+        else {
+            /* 
+             * Any programming language with its own bindings to HDF5
+             * is, in theory, capable of tracking the HDF5 dataset information
+             * internally and calling i.e., H5Dread() without a prior call to
+             * H5Dopen*(), H5Dcreate*(), etc. when working with an already-created
+             * HDF5 file.
+             *
+             * Therefore, if darshan intercepts H5Dread() without a prior HDF5 dataset
+             * "registration," we record the event and decrement H5D_OPENS because
+             * of the unusual route to dataset access--there is no API "open" event
+             * and we artificially use an open start/stop time of 0.0.
+             * 
+             */
+            darshan_core_fprintf(stderr, "start special branch for h5py H5Dread!\n");
+            hid_t dtype_id = H5Dget_type(dataset_id);
+            hid_t space_id = H5Dget_space(dataset_id);
+            hid_t dcpl_id = H5Dget_create_plist(dataset_id);
+            darshan_core_fprintf(stderr, "special branch for h5py H5Dread checkpoint A!\n");
+            const char *name = "";
+            darshan_core_fprintf(stderr, "special branch for h5py H5Dread checkpoint A2!\n");
+            H5D_RECORD_OPEN(dataset_id, dataset_id, name, dtype_id, space_id, dcpl_id, 0, 0, 0);
+            darshan_core_fprintf(stderr, "special branch for h5py H5Dread checkpoint B!\n");
+            rec_ref = darshan_lookup_record_ref(hdf5_dataset_runtime->hid_hash,
+                &dataset_id, sizeof(hid_t));
+            darshan_core_fprintf(stderr, "special branch for h5py H5Dread checkpoint C!\n");
+            rec_ref->dataset_rec->counters[H5D_OPENS] -= 1;
+            rec_ref->dataset_rec->counters[H5D_READS] += 1;
+            darshan_core_fprintf(stderr, "special branch for h5py H5Dread checkpoint D!\n");
+            /*
+             * TODO: probably need to purge out fcounters entries set by
+             * H5D_RECORD_OPEN because the macro assumes that the only way
+             * to get to H5Dread() is through the conventional HDF5 API instead
+             * of a proxy route, so that __tm1 and __tm2 are not valid, etc.
+             *
+             */
+            darshan_core_fprintf(stderr, "end special branch for h5py H5Dread!\n");
+        }
         H5D_POST_RECORD();
     }
 
