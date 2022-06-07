@@ -189,7 +189,12 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                     mpiio_position = report_str.find("Heat Map: HEATMAP MPIIO")
                     posix_position = report_str.find("Heat Map: HEATMAP POSIX")
                     stdio_position = report_str.find("Heat Map: HEATMAP STDIO")
-                    assert mpiio_position < posix_position < stdio_position
+                    # the 3-way check is only valid if all heatmap modules
+                    # are present:
+                    if (mpiio_position > -1 and
+                        posix_position > -1 and
+                        stdio_position > -1):
+                        assert mpiio_position < posix_position < stdio_position
                 else:
                     # check that help message is present
                     assert "Heatmap data is not available for this job" in report_str
@@ -208,7 +213,8 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                 actual_runtime_heatmap_titles = report_str.count("<h3>Heat Map: HEATMAP")
                 if "e3sm_io_heatmap_only" in log_filepath:
                     assert actual_runtime_heatmap_titles == 3
-                elif "runtime_and_dxt_heatmaps_diagonal_write_only" in log_filepath:
+                elif ("runtime_and_dxt_heatmaps_diagonal_write_only" in log_filepath or
+                      "treddy_runtime_heatmap_inactive_ranks" in log_filepath):
                     assert actual_runtime_heatmap_titles == 1
                 else:
                     assert actual_runtime_heatmap_titles == 0
