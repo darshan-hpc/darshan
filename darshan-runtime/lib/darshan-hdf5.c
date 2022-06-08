@@ -916,7 +916,7 @@ herr_t DARSHAN_DECL(H5Dclose)(hid_t dataset_id)
     return(ret);
 }
 
-/* NOTE: we have to intercept this generice H5Oopen call, since it allows
+/* NOTE: we have to intercept this generic H5Oopen call, since it allows
  *       for the opening of HDF5 datasets we would typically track in H5D
  */
 hid_t DARSHAN_DECL(H5Oopen)(hid_t loc_id, const char *name, hid_t lapl_id)
