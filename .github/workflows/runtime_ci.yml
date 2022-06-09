@@ -23,8 +23,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          apt-get update -y
-          apt-get install -y hdf5-tools libhdf5-openmpi-dev openmpi-bin
+          sudo apt-get update -y
+          sudo apt-get install -y hdf5-tools libhdf5-openmpi-dev openmpi-bin
           python -m pip install --upgrade pip
           python -m pip install --upgrade pytest mpi4py
           # the organization of HDF5 files from apt isn't
