@@ -30,7 +30,7 @@ jobs:
           # the organization of HDF5 files from apt isn't
           # ideal for usage with darshan, but we can cheat
           # a little
-          cp /usr/include/hdf5/openmpi/*.h /usr/include
+          sudo cp /usr/include/hdf5/openmpi/*.h /usr/include
           # we need to build h5py with the system HDF5 lib backend
           export HDF5_MPI="ON"
           CC=mpicc python -m pip install --no-binary=h5py h5py
