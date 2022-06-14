@@ -48,7 +48,7 @@ DARSHAN_FORWARD_DECL(H5Dflush, herr_t, (hid_t dataset_id));
 DARSHAN_FORWARD_DECL(H5Dclose, herr_t, (hid_t dataset_id));
 
 /* H5Oopen prototype -- can be used as an indirect way of opening a dataset */
-DARSHAN_FORWARD_DECL(H5Oopen, herr_t, (hid_t loc_id, const char *name, hid_t lapl_id));
+DARSHAN_FORWARD_DECL(H5Oopen, hid_t, (hid_t loc_id, const char *name, hid_t lapl_id));
 DARSHAN_FORWARD_DECL(H5Oclose, herr_t, (hid_t object_id));
 
 /* structure that can track i/o stats for a given HDF5 file record at runtime */
