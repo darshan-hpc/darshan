@@ -926,7 +926,6 @@ hid_t DARSHAN_DECL(H5Oopen)(hid_t loc_id, const char *name, hid_t lapl_id)
     hid_t dcpl_id;
     double tm1, tm2;
     hid_t ret;
-    herr_t herr;
 
     MAP_OR_FAIL(H5Oopen);
 
@@ -937,14 +936,7 @@ hid_t DARSHAN_DECL(H5Oopen)(hid_t loc_id, const char *name, hid_t lapl_id)
     if(ret >= 0)
     {
         /* bail out if the object is not a dataset */
-#if H5_VERSION_GE(1,12,0)
-        H5O_info2_t o_info;
-        herr = H5Oget_info3(ret, &o_info, H5O_INFO_BASIC);
-#else
-        H5O_info_t o_info;
-        herr = H5Oget_info(ret, &o_info);
-#endif
-        if(herr < 0 || o_info.type != H5O_TYPE_DATASET)
+        if(H5Iget_type(ret) != H5I_DATASET)
             return(ret);
 
         /* query dataset datatype, dataspace, and creation property list */
