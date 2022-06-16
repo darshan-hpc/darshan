@@ -382,7 +382,7 @@ void darshan_parse_config_env(struct darshan_config *cfg)
     /* allow disabling of specific Darshan instrumentation modules */
     if(mod_disable_str)
     {
-        string = strdup(envstr);
+        string = strdup(mod_disable_str);
         tmp_mod_flags = darshan_module_csv_to_flags(string);
         cfg->mod_disabled_flags |= tmp_mod_flags;
         free(string);
@@ -390,7 +390,7 @@ void darshan_parse_config_env(struct darshan_config *cfg)
     /* allow enabling of specific Darshan instrumentation modules */
     if(mod_enable_str)
     {
-        string = strdup(envstr);
+        string = strdup(mod_enable_str);
         tmp_mod_flags = darshan_module_csv_to_flags(string);
         cfg->mod_enabled_flags |= tmp_mod_flags;
         free(string);
