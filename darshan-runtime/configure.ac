@@ -98,13 +98,13 @@ if test "x$enable_darshan_runtime" = xyes ; then
    fi
 
    AC_ARG_ENABLE([cuserid],
-      [AS_HELP_STRING([--disable-cuserid],
-                      [Disables attempted use of cuserid() at run time])],
-      [], [enable_cuserid=yes]
+      [AS_HELP_STRING([--enable-cuserid],
+                      [Enables attempted use of cuserid() at run time])],
+      [], [enable_cuserid=no]
    )
-   if test "x$enable_cuserid" = "xno" ; then
-      AC_DEFINE([__DARSHAN_DISABLE_CUSERID], 1,
-                [Define if cuserid() should be disabled])
+   if test "x$enable_cuserid" = "xyes" ; then
+      AC_DEFINE([__DARSHAN_ENABLE_CUSERID], 1,
+                [Define if cuserid() should be enabled])
    fi
 
    AC_ARG_ENABLE([group-readable-logs],

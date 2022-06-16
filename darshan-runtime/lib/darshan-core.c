@@ -1347,7 +1347,7 @@ static void darshan_get_user_name(char *cuser)
     /* get the username for this job.  In order we will try each of the
      * following until one of them succeeds:
      *
-     * - cuserid()
+     * - cuserid() -- if enabled at configure time (disabled by default)
      * - getenv("LOGNAME")
      * - snprintf(..., geteuid());
      *
@@ -1355,7 +1355,7 @@ static void darshan_get_user_name(char *cuser)
      * work in statically compiled binaries.
      */
 
-#ifndef __DARSHAN_DISABLE_CUSERID
+#ifdef __DARSHAN_ENABLE_CUSERID
     cuserid(cuser);
 #endif
 
