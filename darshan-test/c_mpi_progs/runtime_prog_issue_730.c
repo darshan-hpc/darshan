@@ -3,21 +3,49 @@
 #include <stdio.h>
 #include <mpi.h>
 #include <stdlib.h>
+#include <errno.h>
 
-
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
-   int rank;
-   int fd;
-   char c;
-   
-   MPI_Init(&argc, &argv);
-   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int  rank;
+    int  fd;
+    char c = 'a';
+    int  ret;
+    char template[] = "testfileXXXXXX";
 
-   fd = open("test.txt", O_RDONLY);
-   read(fd, &c, 1);
-   for(int i = 0; i < 5000; i++) {
-       read(fd, &c, 0);
-   }
-   MPI_Finalize();
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    /* create temporary file in current directory */
+    fd = mkstemp(template);
+    if (fd < 0) {
+        perror("mkstemp");
+        return (-1);
+    }
+    /* write one byte, to help ensure heatmap is instantiated */
+    ret = write(fd, &c, 1);
+    if (ret < 0) {
+        perror("write");
+        return (-1);
+    }
+    /* issue a bunch of zero byte reads */
+    for (int i = 0; i < 5000; i++) {
+        ret = read(fd, &c, 1);
+        if (ret < 0) {
+            perror("read");
+            return (-1);
+        }
+    }
+    /* write another byte, to help ensure heatmap is instantiated */
+    ret = write(fd, &c, 1);
+    if (ret < 0) {
+        perror("write");
+        return (-1);
+    }
+
+    /* close and unlink test file */
+    close(fd);
+    unlink(template);
+
+    MPI_Finalize();
 }

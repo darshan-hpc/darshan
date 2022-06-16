@@ -70,16 +70,11 @@ def test_runtime_heatmap_div_by_zero(tmpdir):
 
     with tmpdir.as_cwd():
         cwd = os.getcwd()
-        # create a nearly-empty file for testing
-        with open("test.txt", "w") as outfile:
-            outfile.write("hello, world!")
         # compile test C program
         subprocess.check_output(["mpicc",
                                  f"{test_source_path}",
                                  "-o",
                                  "runtime_prog_issue_730"])
-        all_file_list = glob.glob("*")
-        print("** all files in dir after compilation:", all_file_list)
         test_prog_path = os.path.join(cwd,
                                       "runtime_prog_issue_730")
         subprocess.check_output(["mpirun",
