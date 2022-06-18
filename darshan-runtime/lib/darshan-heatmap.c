@@ -375,6 +375,9 @@ void heatmap_update(darshan_record_id heatmap_id, int rw_flag,
     double top_boundary, bottom_boundary, seconds_in_bin;
     int64_t intermediate_bytes;
 
+    /* if size is zero, we have no work to do here */
+    if(size == 0) return;
+
     HEATMAP_PRE_RECORD_VOID();
 
     rec_ref = darshan_lookup_record_ref(heatmap_runtime->rec_id_hash, &heatmap_id, sizeof(darshan_record_id));
@@ -420,17 +423,10 @@ void heatmap_update(darshan_record_id heatmap_id, int rw_flag,
             return;
         }
 
-        intermediate_bytes = round(size * (seconds_in_bin/(end_time-start_time)));
-
-        /* NOTE: intermediate_bytes consistently produced the int64_t value
-         * -9223372036854775808 in the early stages of monitoring
-         *  for the case of round(0 * (0 / 0)), so just set to 0 when negative;
-         *  this appears to happen primarily in the very early stages
-         *  of monitoring when seconds_in_bin is 0.0; see gh-730
-         *  and https://github.com/darshan-hpc/darshan-logs/pull/35
-         */
-        if(intermediate_bytes < 0)
-            intermediate_bytes = 0;
+        if(end_time > start_time)
+            intermediate_bytes = round(size * (seconds_in_bin/(end_time-start_time)));
+        else
+            intermediate_bytes = size;
 
         /* proportionally assign bytes to this bin */
         if(rw_flag == HEATMAP_WRITE)
