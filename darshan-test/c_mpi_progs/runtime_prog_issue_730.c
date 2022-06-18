@@ -9,7 +9,7 @@ int main(int argc, char** argv)
 {
     int  rank;
     int  fd;
-    char c = 'a';
+    char c[5000000];
     int  ret;
     char template[] = "testfileXXXXXX";
 
@@ -22,8 +22,8 @@ int main(int argc, char** argv)
         perror("mkstemp");
         return (-1);
     }
-    /* write one byte, to help ensure heatmap is instantiated */
-    ret = write(fd, &c, 1);
+    /* write bytes, to help ensure heatmap is instantiated */
+    ret = write(fd, &c, 5000000);
     if (ret < 0) {
         perror("write");
         return (-1);
@@ -36,8 +36,8 @@ int main(int argc, char** argv)
             return (-1);
         }
     }
-    /* write another byte, to help ensure heatmap is instantiated */
-    ret = write(fd, &c, 1);
+    /* write bytes, to help ensure heatmap is instantiated */
+    ret = write(fd, &c, 5000000);
     if (ret < 0) {
         perror("write");
         return (-1);
