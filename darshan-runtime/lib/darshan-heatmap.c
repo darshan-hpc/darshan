@@ -373,6 +373,10 @@ void heatmap_update(darshan_record_id heatmap_id, int rw_flag,
     struct heatmap_record_ref *rec_ref;
     int bin_index = 0;
     double top_boundary, bottom_boundary, seconds_in_bin;
+    int64_t intermediate_bytes;
+
+    /* if size is zero, we have no work to do here */
+    if(size == 0) return;
 
     HEATMAP_PRE_RECORD_VOID();
 
@@ -419,13 +423,18 @@ void heatmap_update(darshan_record_id heatmap_id, int rw_flag,
             return;
         }
 
+        if(end_time > start_time)
+            intermediate_bytes = round(size * (seconds_in_bin/(end_time-start_time)));
+        else
+            intermediate_bytes = size;
+
         /* proportionally assign bytes to this bin */
         if(rw_flag == HEATMAP_WRITE)
             rec_ref->heatmap_rec->write_bins[bin_index] +=
-                round(size * (seconds_in_bin/(end_time-start_time)));
+                intermediate_bytes;
         else
             rec_ref->heatmap_rec->read_bins[bin_index] +=
-                round(size * (seconds_in_bin/(end_time-start_time)));
+                intermediate_bytes;
     }
 
     HEATMAP_POST_RECORD();
