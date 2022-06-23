@@ -1906,7 +1906,7 @@ static int darshan_log_dzunload(darshan_fd fd, struct darshan_log_map *map_p)
  *          backwards compatibility functions           *
  ********************************************************/
 
-int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
+static int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
     int swap_flag, struct darshan_name_record_ref **hash,
     darshan_record_id *whitelist, int whitelist_count)
 {
