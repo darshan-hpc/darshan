@@ -637,9 +637,6 @@ int darshan_log_get_namehash(darshan_fd fd, struct darshan_name_record_ref **has
     return(0);
 }
 
-
-
-
 /* darshan_log_get_filtered_namehash()
  *
  * read the set of name records from the darshan log file and add to the
@@ -649,8 +646,7 @@ int darshan_log_get_namehash(darshan_fd fd, struct darshan_name_record_ref **has
  */
 int darshan_log_get_filtered_namehash(darshan_fd fd, 
         struct darshan_name_record_ref **hash,
-        darshan_record_id *whitelist, int whitelist_count
-        )
+        darshan_record_id *whitelist, int whitelist_count)
 {
     struct darshan_fd_int_state *state;
     char *name_rec_buf;
@@ -716,11 +712,6 @@ int darshan_log_get_filtered_namehash(darshan_fd fd,
     free(name_rec_buf);
     return(0);
 }
-
-
-
-
-
 
 /* darshan_log_put_namehash()
  *
@@ -1044,12 +1035,6 @@ static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
     return(buf_processed);
 }
 
-
-
-
-
-
-
 /* whitelist_filter
  *
  * A simple filter function, that tests if a provided value is in 
@@ -1128,8 +1113,7 @@ static int darshan_log_get_filtered_namerecs(void *name_rec_buf, int buf_len,
                 memcpy(ref->name_record, name_rec, rec_len);
 
                 /* add this record to the hash */
-
-                    HASH_ADD(hlink, *hash, name_record->id, sizeof(darshan_record_id), ref);
+                HASH_ADD(hlink, *hash, name_record->id, sizeof(darshan_record_id), ref);
             }
         }
 
@@ -1141,10 +1125,6 @@ static int darshan_log_get_filtered_namerecs(void *name_rec_buf, int buf_len,
 
     return(buf_processed);
 }
-
-
-
-
 
 /* read the header of the darshan log and set internal fd data structures
  * NOTE: this is the only portion of the darshan log that is uncompressed
@@ -2143,9 +2123,9 @@ int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
  *
  * Gets list of modules present in logs and returns the info
  */
-void darshan_log_get_modules (darshan_fd fd,
-                              struct darshan_mod_info **mods,
-                              int* count)
+void darshan_log_get_modules(darshan_fd fd,
+                             struct darshan_mod_info **mods,
+                             int* count)
 {
     int i;
     int j;
@@ -2175,7 +2155,6 @@ void darshan_log_get_modules (darshan_fd fd,
 
     *count = j;
 }
-
 
 /*
  * darshan_log_get_name_records
@@ -2215,7 +2194,6 @@ void darshan_log_get_name_records(darshan_fd fd,
 
 }
 
-
 /*
  * darshan_log_lookup_name_records
  *
@@ -2224,8 +2202,7 @@ void darshan_log_get_name_records(darshan_fd fd,
 void darshan_log_get_filtered_name_records(darshan_fd fd,
                               struct darshan_name_record_info **name_records,
                               int* count,
-                              darshan_record_id *whitelist, int whitelist_count
-        )
+                              darshan_record_id *whitelist, int whitelist_count)
 {
 
     int ret;
@@ -2257,19 +2234,14 @@ void darshan_log_get_filtered_name_records(darshan_fd fd,
 
 }
 
-
-
-
-
-
 /*
  * darshan_log_get_record 
  *
- *   Wrapper to hide the mod_logutils callback functions.
+ * Wrapper to hide the mod_logutils callback functions.
  */
-int  darshan_log_get_record (darshan_fd fd,
-                             int mod_idx,
-                             void **buf)
+int darshan_log_get_record(darshan_fd fd,
+                           int mod_idx,
+                           void **buf)
 {
     int r;
 
