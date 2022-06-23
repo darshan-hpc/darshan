@@ -743,8 +743,8 @@ foreach $key (keys %hash_files) {
 }
 if($counter > 0) { $avg = $sum / $counter; }
 else { $avg = 0; }
-$avg = format_bytes($avg);
-$max = format_bytes($max);
+$avg = format_bytes($avg, si => 1);
+$max = format_bytes($max, si => 1);
 print FILE_CNT_TABLE "total opened \& $counter \& $avg \& $max \\\\\n";
 
 $counter = 0;
@@ -775,8 +775,8 @@ foreach $key (keys %hash_files) {
 }
 if($counter > 0) { $avg = $sum / $counter; }
 else { $avg = 0; }
-$avg = format_bytes($avg);
-$max = format_bytes($max);
+$avg = format_bytes($avg, si => 1);
+$max = format_bytes($max, si => 1);
 print FILE_CNT_TABLE "read-only files \& $counter \& $avg \& $max \\\\\n";
 
 $counter = 0;
@@ -807,8 +807,8 @@ foreach $key (keys %hash_files) {
 }
 if($counter > 0) { $avg = $sum / $counter; }
 else { $avg = 0; }
-$avg = format_bytes($avg);
-$max = format_bytes($max);
+$avg = format_bytes($avg, si => 1);
+$max = format_bytes($max, si => 1);
 print FILE_CNT_TABLE "write-only files \& $counter \& $avg \& $max \\\\\n";
 
 $counter = 0;
@@ -839,8 +839,8 @@ foreach $key (keys %hash_files) {
 }
 if($counter > 0) { $avg = $sum / $counter; }
 else { $avg = 0; }
-$avg = format_bytes($avg);
-$max = format_bytes($max);
+$avg = format_bytes($avg, si => 1);
+$max = format_bytes($max, si => 1);
 print FILE_CNT_TABLE "read/write files \& $counter \& $avg \& $max \\\\\n";
 
 $counter = 0;
@@ -873,8 +873,8 @@ foreach $key (keys %hash_files) {
 }
 if($counter > 0) { $avg = $sum / $counter; }
 else { $avg = 0; }
-$avg = format_bytes($avg);
-$max = format_bytes($max);
+$avg = format_bytes($avg, si => 1);
+$max = format_bytes($max, si => 1);
 print FILE_CNT_TABLE "created files \& $counter \& $avg \& $max \\\\\n";
 
 print FILE_CNT_TABLE "
@@ -956,8 +956,8 @@ foreach $key (sort { $hash_files{$b}{'slowest_time'} <=> $hash_files{$a}{'slowes
     {
         my $vt = sprintf("%.3g", sqrt($hash_files{$key}{'variance_time'}));
         my $vb = sprintf("%.3g", sqrt($hash_files{$key}{'variance_bytes'}));
-        my $fast_bytes = format_bytes($hash_files{$key}{'fastest_bytes'});
-        my $slow_bytes = format_bytes($hash_files{$key}{'slowest_bytes'});
+        my $fast_bytes = format_bytes($hash_files{$key}{'fastest_bytes'}, si => 1);
+        my $slow_bytes = format_bytes($hash_files{$key}{'slowest_bytes'}, si => 1);
         my $name = encode('latex', "..." . substr($hash_files{$key}{'name'}, -12));
 
         print VAR_TABLE "
