@@ -149,17 +149,20 @@ while($line = <PARSE_OUT>)
             if($current_module eq "STDIO")
             {
                 ($junk, $stdio_perf_est) = split(':', $line, 2);
+                ($stdio_perf_est, $junk) = split(' ', $stdio_perf_est, 2);
                 $stdio_perf_est = sprintf("%.2f", $stdio_perf_est);
             }
             elsif($current_module eq "POSIX")
             {
                 ($junk, $perf_est) = split(':', $line, 2);
+                ($perf_est, $junk) = split(' ', $perf_est, 2);
                 $perf_est = sprintf("%.2f", $perf_est);
                 $perf_layer = "POSIX";
             }
             elsif($current_module eq "MPI-IO")
             {
                 ($junk, $perf_est) = split(':', $line, 2);
+                ($perf_est, $junk) = split(' ', $perf_est, 2);
                 $perf_est = sprintf("%.2f", $perf_est);
                 $perf_layer = "MPI-IO";
             }
@@ -192,6 +195,12 @@ while($line = <PARSE_OUT>)
     {
         # parse line
         @fields = split(/[\t ]+/, $line);
+
+        # following logic only relevant for POSIX, MPI-IO, and STDIO modules
+        if ($fields[0] ne "POSIX" && $fields[0] ne "MPI-IO" && $fields[0] ne "STDIO")
+        {
+            next;
+        }
 
         # encode the file system name to protect against special characters
         $fields[6] = encode('latex', $fields[6]);
