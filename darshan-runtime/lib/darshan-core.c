@@ -1321,7 +1321,13 @@ static int darshan_add_name_record_ref(struct darshan_core_runtime *core,
 {
     struct darshan_core_name_record_ref *ref;
     struct darshan_core_name_record_ref *check_ref;
-    int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
+    int record_size;
+
+    /* if no name given, just write the NULL character */
+    if(!name)
+        name = "";
+
+    record_size = sizeof(darshan_record_id) + strlen(name) + 1;
 
     if((record_size + core->name_mem_used) > core->config.name_mem)
         return(0);
@@ -2218,6 +2224,9 @@ static int darshan_core_name_is_excluded(const char *name, darshan_module_id mod
     int tmp_index = 0;
     struct darshan_core_regex *regex;
 
+    if(!name)
+        return(0);
+
     /* set flag if this module's record names are based on file paths */
     name_is_path = 1;
     if((mod_id == DARSHAN_APMPI_MOD) || (mod_id == DARSHAN_APXC_MOD) ||
@@ -2636,35 +2645,31 @@ void *darshan_core_register_record(
         return(NULL);
     }
 
-    /* register a name record if a name is given for this record */
-    if(name)
+    if(darshan_core_name_is_excluded(name, mod_id))
     {
-        if(darshan_core_name_is_excluded(name, mod_id))
+        /* do not register record if name matches any exclusion rules */
+        __DARSHAN_CORE_UNLOCK();
+        return(NULL);
+    }
+
+    /* check to see if we've already stored the id->name mapping for
+     * this record, and add a new name record if not
+     */
+    HASH_FIND(hlink, __darshan_core->name_hash, &rec_id,
+        sizeof(darshan_record_id), ref);
+    if(!ref)
+    {
+        ret = darshan_add_name_record_ref(__darshan_core, rec_id, name, mod_id);
+        if(ret == 0)
         {
-            /* do not register record if name matches any exclusion rules */
+            DARSHAN_MOD_FLAG_SET(__darshan_core->log_hdr_p->partial_flag, mod_id);
             __DARSHAN_CORE_UNLOCK();
             return(NULL);
         }
-
-        /* check to see if we've already stored the id->name mapping for
-         * this record, and add a new name record if not
-         */
-        HASH_FIND(hlink, __darshan_core->name_hash, &rec_id,
-            sizeof(darshan_record_id), ref);
-        if(!ref)
-        {
-            ret = darshan_add_name_record_ref(__darshan_core, rec_id, name, mod_id);
-            if(ret == 0)
-            {
-                DARSHAN_MOD_FLAG_SET(__darshan_core->log_hdr_p->partial_flag, mod_id);
-                __DARSHAN_CORE_UNLOCK();
-                return(NULL);
-            }
-        }
-        else
-        {
-            DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
-        }
+    }
+    else
+    {
+        DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
     }
 
     __darshan_core->mod_array[mod_id]->rec_mem_avail -= rec_size;
