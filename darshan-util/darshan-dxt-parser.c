@@ -147,7 +147,7 @@ int main(int argc, char **argv)
     printf("# record table: %zu bytes (compressed)\n", fd->name_map.len);
     for (i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
     {
-        if (fd->mod_map[i].len)
+        if(fd->mod_map[i].len || DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i))
         {
             printf("# %s module: %zu bytes (compressed), ver=%d\n",
                 darshan_module_names[i], fd->mod_map[i].len, fd->mod_ver[i]);

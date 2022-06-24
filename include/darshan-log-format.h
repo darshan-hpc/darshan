@@ -24,7 +24,7 @@
  * log format version, NOT when a new version of a module record is
  * introduced -- we have module-specific versions to handle that
  */
-#define DARSHAN_LOG_VERSION "3.21"
+#define DARSHAN_LOG_VERSION "3.40"
 
 /* magic number for validating output files and checking byte order */
 #define DARSHAN_MAGIC_NR 6567223
@@ -36,7 +36,7 @@
 #define DARSHAN_EXE_LEN (DARSHAN_JOB_RECORD_SIZE - sizeof(struct darshan_job) - 1)
 
 /* max number of modules that can be used in a darshan log */
-#define DARSHAN_MAX_MODS 16
+#define DARSHAN_MAX_MODS 64
 
 /* simple macros for accessing module flag bitfields */
 #define DARSHAN_MOD_FLAG_SET(flags, id) flags = (flags | (1 << id))
@@ -72,7 +72,7 @@ struct darshan_header
     char version_string[8];
     int64_t magic_nr;
     unsigned char comp_type;
-    uint32_t partial_flag;
+    uint64_t partial_flag;
     struct darshan_log_map name_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
     uint32_t mod_ver[DARSHAN_MAX_MODS];
@@ -127,6 +127,7 @@ struct darshan_base_record
 #include "darshan-apmpi-log-format.h"
 #endif
 #include "darshan-heatmap-log-format.h"
+#include "darshan-daos-log-format.h"
 
 /* X-macro for keeping module ordering consistent */
 /* NOTE: first val used to define module enum values,
@@ -172,7 +173,8 @@ struct darshan_base_record
     X(DARSHAN_MDHIM_MOD,    "MDHIM",      DARSHAN_MDHIM_VER,     &mdhim_logutils) \
     X(DARSHAN_APXC_MOD,     "APXC", 	  __APXC_VER,            __apxc_logutils) \
     X(DARSHAN_APMPI_MOD,    "APMPI",      __APMPI_VER,           __apmpi_logutils) \
-    X(DARSHAN_HEATMAP_MOD,  "HEATMAP",    DARSHAN_HEATMAP_VER,   &heatmap_logutils)
+    X(DARSHAN_HEATMAP_MOD,  "HEATMAP",    DARSHAN_HEATMAP_VER,   &heatmap_logutils) \
+    X(DARSHAN_DFS_MOD,     "DFS",        DARSHAN_DFS_VER,       &dfs_logutils)
 
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]

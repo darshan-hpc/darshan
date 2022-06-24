@@ -30,8 +30,8 @@ struct darshan_fd_s
      * performed on log file data
      */
     int swap_flag;
-    /* flag indicating whether a log file contains partial data */
-    int partial_flag;
+    /* bit-field indicating whether modules contain incomplete data */
+    uint64_t partial_flag;
     /* compression type used on log file */
     enum darshan_comp_type comp_type;
     /* log file offset/length maps for each log file region */
@@ -160,10 +160,11 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[];
 #include "darshan-lustre-logutils.h"
 #include "darshan-stdio-logutils.h"
 #include "darshan-heatmap-logutils.h"
+#include "darshan-mdhim-logutils.h"
+#include "darshan-daos-logutils.h"
 
 /* DXT */
 #include "darshan-dxt-logutils.h"
-#include "darshan-mdhim-logutils.h"
 
 #ifdef DARSHAN_USE_APXC
 #include "darshan-apxc-logutils.h"

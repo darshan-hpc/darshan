@@ -394,11 +394,11 @@ void darshan_core_shutdown(int write_log)
     double open1 = 0, open2 = 0;
     double job1 = 0, job2 = 0;
     double rec1 = 0, rec2 = 0;
-    double mod1[DARSHAN_MAX_MODS] = {0};
-    double mod2[DARSHAN_MAX_MODS] = {0};
+    double mod1[DARSHAN_KNOWN_MODULE_COUNT] = {0};
+    double mod2[DARSHAN_KNOWN_MODULE_COUNT] = {0};
     double header1 = 0, header2 = 0;
     double tm_end;
-    int active_mods[DARSHAN_MAX_MODS] = {0};
+    int active_mods[DARSHAN_KNOWN_MODULE_COUNT] = {0};
     uint64_t gz_fp = 0;
     char *logfile_name = NULL;
     darshan_core_log_fh log_fh;
@@ -462,7 +462,7 @@ void darshan_core_shutdown(int write_log)
         goto cleanup;
 
     /* set which modules were used locally */
-    for(i = 0; i < DARSHAN_MAX_MODS; i++)
+    for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
     {
         if(final_core->mod_array[i])
             active_mods[i] = 1;
@@ -472,8 +472,8 @@ void darshan_core_shutdown(int write_log)
     if(using_mpi)
     {
         /* allreduce locally active mods to determine globally active mods */
-        PMPI_Allreduce(MPI_IN_PLACE, active_mods, DARSHAN_MAX_MODS, MPI_INT,
-            MPI_SUM, final_core->mpi_comm);
+        PMPI_Allreduce(MPI_IN_PLACE, active_mods, DARSHAN_KNOWN_MODULE_COUNT,
+            MPI_INT, MPI_SUM, final_core->mpi_comm);
 
         /* reduce to report first start and last end time across all ranks at rank 0 */
         if(my_rank == 0)
@@ -570,7 +570,7 @@ void darshan_core_shutdown(int write_log)
      *      - add module map info (file offset/length) to log header
      *      - shutdown the module
      */
-    for(i = 0; i < DARSHAN_MAX_MODS; i++)
+    for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
     {
         struct darshan_core_module* this_mod = final_core->mod_array[i];
         void* mod_buf = NULL;
@@ -659,7 +659,7 @@ void darshan_core_shutdown(int write_log)
         double header_tm;
         double job_tm;
         double rec_tm;
-        double mod_tm[DARSHAN_MAX_MODS];
+        double mod_tm[DARSHAN_KNOWN_MODULE_COUNT];
         double all_tm;
 
         tm_end = darshan_core_wtime_absolute();
@@ -669,7 +669,7 @@ void darshan_core_shutdown(int write_log)
         job_tm = job2 - job1;
         rec_tm = rec2 - rec1;
         all_tm = tm_end - start_log_time;
-        for(i = 0; i < DARSHAN_MAX_MODS; i++)
+        for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
         {
             mod_tm[i] = mod2[i] - mod1[i];
         }
@@ -689,7 +689,7 @@ void darshan_core_shutdown(int write_log)
                     MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
                 PMPI_Reduce(MPI_IN_PLACE, &all_tm, 1,
                     MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
-                PMPI_Reduce(MPI_IN_PLACE, mod_tm, DARSHAN_MAX_MODS,
+                PMPI_Reduce(MPI_IN_PLACE, mod_tm, DARSHAN_KNOWN_MODULE_COUNT,
                     MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
             }
             else
@@ -704,7 +704,7 @@ void darshan_core_shutdown(int write_log)
                     MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
                 PMPI_Reduce(&all_tm, &all_tm, 1,
                     MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
-                PMPI_Reduce(mod_tm, mod_tm, DARSHAN_MAX_MODS,
+                PMPI_Reduce(mod_tm, mod_tm, DARSHAN_KNOWN_MODULE_COUNT,
                     MPI_DOUBLE, MPI_MAX, 0, final_core->mpi_comm);
 
                 /* let rank 0 report the timing info */
@@ -718,7 +718,7 @@ void darshan_core_shutdown(int write_log)
         darshan_core_fprintf(stderr, "darshan:job_write\t%d\t%f\n", nprocs, job_tm);
         darshan_core_fprintf(stderr, "darshan:hash_write\t%d\t%f\n", nprocs, rec_tm);
         darshan_core_fprintf(stderr, "darshan:header_write\t%d\t%f\n", nprocs, header_tm);
-        for(i = 0; i < DARSHAN_MAX_MODS; i++)
+        for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
         {
             if(active_mods[i])
                 darshan_core_fprintf(stderr, "darshan:%s_shutdown\t%d\t%f\n",
@@ -728,7 +728,7 @@ void darshan_core_shutdown(int write_log)
     }
 
 cleanup:
-    for(i = 0; i < DARSHAN_MAX_MODS; i++)
+    for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
         if(final_core->mod_array[i])
             final_core->mod_array[i]->mod_funcs.mod_cleanup_func();
     darshan_core_cleanup(final_core);
@@ -1297,7 +1297,13 @@ static int darshan_add_name_record_ref(struct darshan_core_runtime *core,
 {
     struct darshan_core_name_record_ref *ref;
     struct darshan_core_name_record_ref *check_ref;
-    int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
+    int record_size;
+
+    /* if no name given, just write the NULL character */
+    if(!name)
+        name = "";
+
+    record_size = sizeof(darshan_record_id) + strlen(name) + 1;
 
     if((record_size + core->name_mem_used) > core->config.name_mem)
         return(0);
@@ -1833,7 +1839,7 @@ static int darshan_log_write_header(darshan_core_log_fh log_fh,
                 1, MPI_UINT32_T, MPI_BOR, 0, core->mpi_comm);
             PMPI_Reduce(
                 MPI_IN_PLACE, &(core->log_hdr_p->mod_ver),
-                DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX, 0, core->mpi_comm);
+                DARSHAN_KNOWN_MODULE_COUNT, MPI_UINT32_T, MPI_MAX, 0, core->mpi_comm);
         }
         else
         {
@@ -1842,7 +1848,7 @@ static int darshan_log_write_header(darshan_core_log_fh log_fh,
                 1, MPI_UINT32_T, MPI_BOR, 0, core->mpi_comm);
             PMPI_Reduce(
                 &(core->log_hdr_p->mod_ver), &(core->log_hdr_p->mod_ver),
-                DARSHAN_MAX_MODS, MPI_UINT32_T, MPI_MAX, 0, core->mpi_comm);
+                DARSHAN_KNOWN_MODULE_COUNT, MPI_UINT32_T, MPI_MAX, 0, core->mpi_comm);
             return(0); /* only rank 0 writes the header */
         }
 
@@ -2125,7 +2131,7 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
         free(ref);
     }
 
-    for(i = 0; i < DARSHAN_MAX_MODS; i++)
+    for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
     {
         if(core->mod_array[i])
         {
@@ -2179,6 +2185,9 @@ static int darshan_core_name_is_excluded(const char *name, darshan_module_id mod
     char *path_exclusion, *path_inclusion;
     int tmp_index = 0;
     struct darshan_core_regex *regex;
+
+    if(!name)
+        return(0);
 
     /* set flag if this module's record names are based on file paths */
     name_is_path = 1;
@@ -2373,7 +2382,7 @@ int darshan_core_register_module(
 
     __DARSHAN_CORE_LOCK();
     if((__darshan_core == NULL) ||
-       (mod_id >= DARSHAN_MAX_MODS) ||
+       (mod_id >= DARSHAN_KNOWN_MODULE_COUNT) ||
        (__darshan_core->mod_array[mod_id] != NULL) ||
        (DARSHAN_MOD_FLAG_ISSET(__darshan_core->config.mod_disabled, mod_id)))
     {
@@ -2520,35 +2529,31 @@ void *darshan_core_register_record(
         return(NULL);
     }
 
-    /* register a name record if a name is given for this record */
-    if(name)
+    if(darshan_core_name_is_excluded(name, mod_id))
     {
-        if(darshan_core_name_is_excluded(name, mod_id))
+        /* do not register record if name matches any exclusion rules */
+        __DARSHAN_CORE_UNLOCK();
+        return(NULL);
+    }
+
+    /* check to see if we've already stored the id->name mapping for
+     * this record, and add a new name record if not
+     */
+    HASH_FIND(hlink, __darshan_core->name_hash, &rec_id,
+        sizeof(darshan_record_id), ref);
+    if(!ref)
+    {
+        ret = darshan_add_name_record_ref(__darshan_core, rec_id, name, mod_id);
+        if(ret == 0)
         {
-            /* do not register record if name matches any exclusion rules */
+            DARSHAN_MOD_FLAG_SET(__darshan_core->log_hdr_p->partial_flag, mod_id);
             __DARSHAN_CORE_UNLOCK();
             return(NULL);
         }
-
-        /* check to see if we've already stored the id->name mapping for
-         * this record, and add a new name record if not
-         */
-        HASH_FIND(hlink, __darshan_core->name_hash, &rec_id,
-            sizeof(darshan_record_id), ref);
-        if(!ref)
-        {
-            ret = darshan_add_name_record_ref(__darshan_core, rec_id, name, mod_id);
-            if(ret == 0)
-            {
-                DARSHAN_MOD_FLAG_SET(__darshan_core->log_hdr_p->partial_flag, mod_id);
-                __DARSHAN_CORE_UNLOCK();
-                return(NULL);
-            }
-        }
-        else
-        {
-            DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
-        }
+    }
+    else
+    {
+        DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
     }
 
     __darshan_core->mod_array[mod_id]->rec_mem_avail -= rec_size;

@@ -692,7 +692,7 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                     if(mods)
                     {
                         tmp_mod_flags = darshan_module_csv_to_flags(mods);
-                        for(i = 0; i < DARSHAN_MAX_MODS; i++)
+                        for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
                         {
                             if(DARSHAN_MOD_FLAG_ISSET(tmp_mod_flags, i))
                                 cfg->mod_max_records_override[i] = tmpmax;
