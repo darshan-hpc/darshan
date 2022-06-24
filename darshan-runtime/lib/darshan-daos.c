@@ -664,15 +664,18 @@ int DARSHAN_DECL(dfs_punch)(dfs_t *dfs, dfs_obj_t *obj, daos_off_t offset, daos_
     return(ret);
 }
 
+/* XXX properly handle this */
 int DARSHAN_DECL(dfs_move)(dfs_t *dfs, dfs_obj_t *parent, const char *name, dfs_obj_t *new_parent,
     const char *new_name, daos_obj_id_t *oid)
 {
     int ret;
     double tm1, tm2;
+#if 0
     struct dfs_file_record_ref *rec_ref = NULL;
     char *parent_rec_name, *rec_name;
     int rec_len;
     darshan_record_id rec_id;
+#endif
 
     MAP_OR_FAIL(dfs_move);
 
@@ -680,6 +683,7 @@ int DARSHAN_DECL(dfs_move)(dfs_t *dfs, dfs_obj_t *parent, const char *name, dfs_
     ret = __real_dfs_move(dfs, parent, name, new_parent, new_name, oid);
     tm2 = DAOS_WTIME();
 
+#if 0
     DFS_PRE_RECORD();
     DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
     if(parent_rec_name)
@@ -705,19 +709,23 @@ int DARSHAN_DECL(dfs_move)(dfs_t *dfs, dfs_obj_t *parent, const char *name, dfs_
         if(!parent) free(parent_rec_name);
     }
     DFS_POST_RECORD();
+#endif
 
     return(ret);
 }
 
+/* XXX properly handle this */
 int DARSHAN_DECL(dfs_exchange)(dfs_t *dfs, dfs_obj_t *parent1, const char *name1,
     dfs_obj_t *parent2, const char *name2)
 {
     int ret;
     double tm1, tm2;
+#if 0
     struct dfs_file_record_ref *rec_ref = NULL;
     char *parent_rec_name, *rec_name;
     int rec_len;
     darshan_record_id rec_id;
+#endif
 
     MAP_OR_FAIL(dfs_exchange);
 
@@ -725,6 +733,7 @@ int DARSHAN_DECL(dfs_exchange)(dfs_t *dfs, dfs_obj_t *parent1, const char *name1
     ret = __real_dfs_exchange(dfs, parent1, name1, parent2, name2);
     tm2 = DAOS_WTIME();
 
+#if 0
     DFS_PRE_RECORD();
     /* increment exchange counter for both file records */
     /* NOTE: only increment metadata time on first record, to avoid double counting */
@@ -770,6 +779,7 @@ int DARSHAN_DECL(dfs_exchange)(dfs_t *dfs, dfs_obj_t *parent1, const char *name1
         if(!parent2) free(parent_rec_name);
     }
     DFS_POST_RECORD();
+#endif
 
     return(ret);
 }
