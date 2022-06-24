@@ -208,36 +208,37 @@ static int my_rank = -1;
     } \
 } while(0)
 
-/* XXX is it right to attribute lookup timing to open? */
+/* NOTE: the following macro captures details about open(), lookup(),
+ *       and obj_global2local() calls. separate operation counters
+ *       are maintained for each, but all calls share the same floating
+ *       point counters (i.e., OPEN_START_TIMESTAMP, OPEN_END_TIMESTAMP).
+ */
+#define ID_GLOB_SIZE ((2*sizeof(uuid_t)) + sizeof(daos_obj_id_t))
 #define DFS_RECORD_FILE_OBJ_OPEN(__dfs, __parent_name, __obj_name, __counter, __obj_p, __tm1, __tm2) do { \
     struct dfs_mount_info *__mnt_info; \
-    char *__rec_name; \
+    daos_obj_id_t __oid; \
+    unsigned char __id_glob[ID_GLOB_SIZE]; \
+    char *__rec_name = NULL; \
     int __rec_name_len; \
     darshan_record_id __rec_id; \
     struct dfs_file_record_ref *__rec_ref; \
-    __rec_name_len = strlen(__obj_name) + 1; \
-    if(__parent_name) { \
-        __rec_name_len += strlen(__parent_name); \
+    DFS_GET_MOUNT_INFO(__dfs, __mnt_info); \
+    if(!__mnt_info) break; \
+    if(dfs_obj2id(*__obj_p, &__oid)) break; \
+    memcpy(__id_glob, __mnt_info->pool_uuid, sizeof(__mnt_info->pool_uuid)); \
+    memcpy(__id_glob+sizeof(__mnt_info->pool_uuid), __mnt_info->cont_uuid, \
+        sizeof(__mnt_info->cont_uuid)); \
+    memcpy(__id_glob+sizeof(__mnt_info->pool_uuid)+sizeof(__mnt_info->cont_uuid), \
+        &__oid, sizeof(__oid)); \
+    __rec_id = darshan_hash(__id_glob, ID_GLOB_SIZE, 0); \
+    if(__parent_name && __obj_name) { \
+        __rec_name_len = strlen(__obj_name) + strlen(__parent_name) + 1; \
         __rec_name = malloc(__rec_name_len); \
         if(!__rec_name) break; \
         memset(__rec_name, 0, __rec_name_len); \
         strcat(__rec_name, __parent_name); \
         strcat(__rec_name, __obj_name); \
     } \
-    else { \
-        DFS_GET_MOUNT_INFO(__dfs, __mnt_info); \
-        if(!__mnt_info) break; \
-        __rec_name_len += (strlen(__mnt_info->pool_uuid_str) + strlen(__mnt_info->pool_uuid_str) + 2); \
-        __rec_name = malloc(__rec_name_len); \
-        if(!__rec_name) break; \
-        memset(__rec_name, 0, __rec_name_len); \
-        strcat(__rec_name, __mnt_info->pool_uuid_str); \
-        strcat(__rec_name, ":"); \
-        strcat(__rec_name, __mnt_info->cont_uuid_str); \
-        strcat(__rec_name, ":"); \
-        strcat(__rec_name, __obj_name); \
-    } \
-    __rec_id = darshan_core_gen_record_id(__rec_name); \
     __rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash, &__rec_id, sizeof(__rec_id)); \
     if(!__rec_ref) __rec_ref = dfs_track_new_file_record(__rec_id, __rec_name); \
     free(__rec_name); \
@@ -249,11 +250,11 @@ static int my_rank = -1;
     __rec_ref->file_rec->counters[__counter] += 1; \
     if(getenv("DFS_USE_DTX")) __rec_ref->file_rec->counters[DFS_USE_DTX] = 1; \
     if(__rec_ref->file_rec->fcounters[DFS_F_OPEN_START_TIMESTAMP] == 0 || \
-         __rec_ref->file_rec->fcounters[DFS_F_OPEN_START_TIMESTAMP] > __tm1) \
-            __rec_ref->file_rec->fcounters[DFS_F_OPEN_START_TIMESTAMP] = __tm1; \
-        __rec_ref->file_rec->fcounters[DFS_F_OPEN_END_TIMESTAMP] = __tm2; \
-        DARSHAN_TIMER_INC_NO_OVERLAP(__rec_ref->file_rec->fcounters[DFS_F_META_TIME], \
-            __tm1, __tm2, __rec_ref->last_meta_end); \
+        __rec_ref->file_rec->fcounters[DFS_F_OPEN_START_TIMESTAMP] > __tm1) \
+        __rec_ref->file_rec->fcounters[DFS_F_OPEN_START_TIMESTAMP] = __tm1; \
+    __rec_ref->file_rec->fcounters[DFS_F_OPEN_END_TIMESTAMP] = __tm2; \
+    DARSHAN_TIMER_INC_NO_OVERLAP(__rec_ref->file_rec->fcounters[DFS_F_META_TIME], \
+        __tm1, __tm2, __rec_ref->last_meta_end); \
     darshan_add_record_ref(&(dfs_runtime->file_obj_hash), __obj_p, sizeof(*__obj_p), __rec_ref); \
 } while(0)
 
@@ -388,7 +389,8 @@ int DARSHAN_DECL(dfs_lookup)(dfs_t *dfs, const char *path, int flags, dfs_obj_t 
 {
     int ret;
     double tm1, tm2;
-    char *parent_name = NULL;
+    dfs_obj_t *parent = NULL;
+    char *parent_rec_name;
 
     MAP_OR_FAIL(dfs_lookup);
 
@@ -397,7 +399,17 @@ int DARSHAN_DECL(dfs_lookup)(dfs_t *dfs, const char *path, int flags, dfs_obj_t 
     tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
-    DFS_RECORD_FILE_OBJ_OPEN(dfs, parent_name, path, DFS_LOOKUPS, obj, tm1, tm2);
+    /* get root (/) record name */
+    DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
+    if(parent_rec_name)
+    {
+        /* use path+1 to avoid re-using /, which is already accounted for at
+         * the end of parent_rec_name
+         */
+        DFS_RECORD_FILE_OBJ_OPEN(dfs, parent_rec_name, (path+1), DFS_LOOKUPS,
+            obj, tm1, tm2);
+	free(parent_rec_name);
+    }
     DFS_POST_RECORD();
 
     return(ret);
@@ -475,6 +487,7 @@ int DARSHAN_DECL(dfs_obj_global2local)(dfs_t *dfs, int flags, d_iov_t glob, dfs_
 {
     int ret;
     double tm1, tm2;
+    char *parent_rec_name = NULL, *obj_name = NULL;
 
     MAP_OR_FAIL(dfs_obj_global2local);
 
@@ -483,9 +496,7 @@ int DARSHAN_DECL(dfs_obj_global2local)(dfs_t *dfs, int flags, d_iov_t glob, dfs_
     tm2 = DAOS_WTIME();
 
     DFS_PRE_RECORD();
-    // XXX need help here, no way to convert args to object name
-    (void)tm1;
-    (void)tm2;
+    DFS_RECORD_FILE_OBJ_OPEN(dfs, parent_rec_name, obj_name, DFS_GLOBAL_OPENS, obj, tm1, tm2);
     DFS_POST_RECORD();
 
     return(ret);
