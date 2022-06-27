@@ -59,6 +59,7 @@ http://www.mcs.anl.gov/darshan[Darshan web site].
 ----
 tar -xvzf darshan-<version-number>.tar.gz
 cd darshan-<version-number>/darshan-runtime
+./prepare
 ./configure --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID CC=mpicc
 make
 make install
@@ -68,6 +69,7 @@ make install
 ----
 tar -xvzf darshan-<version-number>.tar.gz
 cd darshan-<version-number>/darshan-runtime
+./prepare
 ./configure --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID --without-mpi CC=gcc
 make
 make install
