@@ -266,8 +266,10 @@ static int get_byte_offset = 0;
     if(__ret != MPI_SUCCESS) break; \
     rec_ref = darshan_lookup_record_ref(mpiio_runtime->fh_hash, &(__fh), sizeof(MPI_File)); \
     if(!rec_ref) break; \
-    PMPI_Type_size(__datatype, &size);  \
-    size = size * __count; \
+    if((__count > 0) && (__datatype != MPI_DATATYPE_NULL)) { \
+        PMPI_Type_size(__datatype, &size);  \
+        size = size * __count; \
+    } \
     if(get_byte_offset) MPI_File_get_byte_offset(__fh, __offset, &displacement);\
     /* DXT to record detailed read tracing information */ \
     dxt_mpiio_read(rec_ref->file_rec->base_rec.id, displacement, size, __tm1, __tm2); \
@@ -307,10 +309,12 @@ static int get_byte_offset = 0;
     if(__ret != MPI_SUCCESS) break; \
     rec_ref = darshan_lookup_record_ref(mpiio_runtime->fh_hash, &(__fh), sizeof(MPI_File)); \
     if(!rec_ref) break; \
-    PMPI_Type_size(__datatype, &size);  \
-    size = size * __count; \
-    /* DXT to record detailed write tracing information */ \
+    if((__count > 0) && (__datatype != MPI_DATATYPE_NULL)) { \
+        PMPI_Type_size(__datatype, &size);  \
+        size = size * __count; \
+    } \
     if(get_byte_offset) MPI_File_get_byte_offset(__fh, __offset, &displacement); \
+    /* DXT to record detailed write tracing information */ \
     dxt_mpiio_write(rec_ref->file_rec->base_rec.id, displacement, size, __tm1, __tm2); \
     /* heatmap to record traffic summary */ \
     heatmap_update(mpiio_runtime->heatmap_id, HEATMAP_WRITE, size, __tm1, __tm2); \
