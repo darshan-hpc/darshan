@@ -184,6 +184,8 @@ int darshan_log_get_mounts(darshan_fd fd, struct darshan_mnt_info **mnt_data_arr
 int darshan_log_put_mounts(darshan_fd fd, struct darshan_mnt_info *mnt_data_array,
     int count);
 int darshan_log_get_namehash(darshan_fd fd, struct darshan_name_record_ref **hash);
+int darshan_log_get_filtered_namehash(darshan_fd fd, struct darshan_name_record_ref **hash,
+    darshan_record_id *whitelist, int whitelist_count);
 int darshan_log_put_namehash(darshan_fd fd, struct darshan_name_record_ref *hash);
 int darshan_log_get_mod(darshan_fd fd, darshan_module_id mod_id,
     void *mod_buf, int mod_buf_sz);
@@ -192,17 +194,14 @@ int darshan_log_put_mod(darshan_fd fd, darshan_module_id mod_id,
 void darshan_log_close(darshan_fd file);
 void darshan_log_print_version_warnings(const char *version_string);
 char *darshan_log_get_lib_version(void);
-void darshan_log_get_modules (darshan_fd fd, struct darshan_mod_info **mods, int* count);
+void darshan_log_get_modules(darshan_fd fd, struct darshan_mod_info **mods,
+    int* count);
 void darshan_log_get_name_records(darshan_fd fd,
-                              struct darshan_name_record_info **mods,
-                              int* count);
-int darshan_log_get_record (darshan_fd fd, int mod_idx, void **buf);
-
+    struct darshan_name_record_info **mods, int* count);
 void darshan_log_get_filtered_name_records(darshan_fd fd,
-                              struct darshan_name_record_info **mods,
-                              int* count,
-                              darshan_record_id *whitelist, int whitelist_count
-                              );
+    struct darshan_name_record_info **mods, int* count,
+    darshan_record_id *whitelist, int whitelist_count);
+int darshan_log_get_record(darshan_fd fd, int mod_idx, void **buf);
 
 
 /* convenience macros for printing Darshan counters */
