@@ -1,3 +1,4 @@
+import re
 import os
 import pytest
 import argparse
@@ -154,6 +155,8 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
     # on the Darshan logs from the logs repo:
     # https://github.com/darshan-hpc/darshan-logs
 
+    prog = re.compile(r"mpi-io-test-.*-(\d\.\d\.\d).*\.darshan")
+
     if "e3sm_io_heatmap_and_dxt" in log_filepath:
         pytest.xfail(reason="large memory requirements")
     argv = [log_filepath]
@@ -164,6 +167,10 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
 
             # get the path for the generated summary report
             log_fname = os.path.basename(argv[0])
+            match = prog.search(log_fname)
+            if match:
+                darshan_log_version = match.group(1)
+
             output_fname = os.path.splitext(log_fname)[0] + "_report.html"
             expected_save_path = os.path.abspath(output_fname)
 
@@ -211,7 +218,8 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
 
                 # check for presence of expected runtime HEATMAPs
                 actual_runtime_heatmap_titles = report_str.count("<h3>Heat Map: HEATMAP")
-                if "e3sm_io_heatmap_only" in log_filepath:
+                if ("e3sm_io_heatmap_only" in log_filepath or
+                    (match and int(darshan_log_version[2]) >= 4)):
                     assert actual_runtime_heatmap_titles == 3
                 elif ("runtime_and_dxt_heatmaps_diagonal_write_only" in log_filepath or
                       "treddy_runtime_heatmap_inactive_ranks" in log_filepath):
