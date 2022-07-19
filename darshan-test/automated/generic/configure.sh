@@ -10,7 +10,7 @@ util_result=""
 thedate=$(date)
 
 cd build/darshan-runtime
-../../darshan-runtime/configure --prefix=$basedir/install --with-mem-align=16 --with-jobid-env=DARSHAN_JOBID --with-log-path=$basedir/logs CC=mpicc
+../../darshan-runtime/configure --prefix=$basedir/install --with-jobid-env=DARSHAN_JOBID --with-log-path=$basedir/logs CC=mpicc
 runtime_status=$?
 if [ $runtime_status -ne 0 ]; then
   fcount=$((fcount+1));
