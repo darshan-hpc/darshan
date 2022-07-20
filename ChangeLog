@@ -2,6 +2,20 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.4.0
+=============
+* Fix segfault affecting new DARSHAN_MOD_DISABLE/ENABLE environment variables
+* Fix divide-by-zero condition that can potentially be triggered by new
+  heatmap module
+* Fix potential MPI errors related to calling MPI_Type_size() on a
+  user-supplied MPI_DATATYPE_NULL type (reported by Jim Edwards)
+* cuserid() is no longer the default method for determining username, and must
+  be manually enabled at configure time
+* Fix backwards compatibility bug affecting darshan-3.0.0 logs in darshan-util
+  C library functions used by PyDarshan
+* Suppress noisy output warnings when using darshan-job-summary.pl
+* Clarify units displayed by darshan-job-summary.pl (reported by Jeff Layton)
+
 Darshan-3.4.0-pre1
 ==================
 * Add a new "heatmap" module that records histograms of I/O traffic over time

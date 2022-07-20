@@ -6,6 +6,9 @@
 status=0
 thedate=$(date)
 
+./prepare.sh
+status=$((status + $?))
+
 mkdir -p install
 status=$((status + $?))
 
