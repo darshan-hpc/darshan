@@ -306,7 +306,8 @@ class DarshanReport(object):
             filename=None, dtype='numpy', 
             start_time=None, end_time=None,
             automatic_summary=False,
-            read_all=True, lookup_name_records=True):
+            read_all=True, lookup_name_records=True,
+            strict=False):
         """
         Args:
             filename (str): filename to open (optional)
@@ -314,12 +315,15 @@ class DarshanReport(object):
             automatic_summary (bool): automatically generate summary after loading
             read_all (bool): whether to read all records for log
             lookup_name_records (bool): lookup and update name_records as records are loaded
+            strict (bool): error out if invalid log file content is detected (i.e., a
+                           counter that should be >= 0 but is not)
 
         Return:
             None
 
         """
         self.filename = filename
+        self.strict = strict
         self.log = None
 
         # Behavioral Options
@@ -372,6 +376,26 @@ class DarshanReport(object):
 
         if filename:
             self.open(filename, read_all=read_all)    
+
+        if self.strict:
+            # TODO: a more thorough checking for bad log data
+            for mod_name, mod in self.records.items():
+                mod_df_dict = mod.to_df()
+                mod_counters_df = mod_df_dict.get("counters")
+                mod_fcounters_df = mod_df_dict.get("fcounters")
+                for df in [mod_counters_df, mod_fcounters_df]:
+                    # all "TIMER" columns should have values >= -1
+                    # NOTE: darshan sometimes uses -1 for missing values
+                    # which we may want to eventually avoid, but for now
+                    # we will not raise an error unless below -1 for a time
+                    # value that should be positive
+                    for column_name in df.columns:
+                        if "time" in column_name.lower():
+                            if df[column_name].min() < -1:
+                                # note: we may want to use a custom error type
+                                # here for "invalid logs"
+                                raise ValueError(f"Invalid log file; negative value in {column_name}")
+
 
 
     @property

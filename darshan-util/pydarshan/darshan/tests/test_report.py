@@ -497,3 +497,13 @@ def test_heatmap_df_invalid_operation():
     report = darshan.DarshanReport(log_path)
     with pytest.raises(ValueError, match="invalid_op not in heatmap"):
         report.heatmaps["POSIX"].to_df(ops=["invalid_op"])
+
+
+@pytest.mark.parametrize("log_name, error_match", [
+    # see: gh-562
+    ("sample.darshan", "STDIO_F_WRITE_TIME")
+])
+def test_detect_known_invalid_logs(log_name, error_match):
+    log_path = get_log_path(log_name)
+    with pytest.raises(ValueError, match=f"Invalid log file.*{error_match}"):
+        report = darshan.DarshanReport(log_path, strict=True)
