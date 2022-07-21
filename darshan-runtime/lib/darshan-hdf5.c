@@ -47,6 +47,10 @@ DARSHAN_FORWARD_DECL(H5Dflush, herr_t, (hid_t dataset_id));
 #endif
 DARSHAN_FORWARD_DECL(H5Dclose, herr_t, (hid_t dataset_id));
 
+/* H5Oopen prototype -- can be used as an indirect way of opening a dataset */
+DARSHAN_FORWARD_DECL(H5Oopen, hid_t, (hid_t loc_id, const char *name, hid_t lapl_id));
+DARSHAN_FORWARD_DECL(H5Oclose, herr_t, (hid_t object_id));
+
 /* structure that can track i/o stats for a given HDF5 file record at runtime */
 struct hdf5_file_record_ref
 {
@@ -597,7 +601,7 @@ hid_t DARSHAN_DECL(H5Dopen2)(hid_t loc_id, const char *name, hid_t dapl_id)
         }
         dcpl_id = H5Dget_create_plist(ret);
         if(dcpl_id < 0)
-        {   
+        {
             H5Tclose(dtype_id);
             H5Sclose(space_id);
             return(ret);
@@ -915,6 +919,95 @@ herr_t DARSHAN_DECL(H5Dclose)(hid_t dataset_id)
             DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->dataset_rec->fcounters[H5D_F_META_TIME],
                 tm1, tm2, rec_ref->last_meta_end);
             darshan_delete_record_ref(&(hdf5_dataset_runtime->hid_hash), &dataset_id, sizeof(hid_t));
+        }
+        H5D_POST_RECORD();
+    }
+
+    return(ret);
+}
+
+/* NOTE: we have to intercept this generic H5Oopen call, since it allows
+ *       for the opening of HDF5 datasets we would typically track in H5D
+ */
+hid_t DARSHAN_DECL(H5Oopen)(hid_t loc_id, const char *name, hid_t lapl_id)
+{
+    hid_t dtype_id;
+    hid_t space_id;
+    hid_t dcpl_id;
+    double tm1, tm2;
+    hid_t ret;
+
+    MAP_OR_FAIL(H5Oopen);
+
+    tm1 = HDF5_WTIME();
+    ret = __real_H5Oopen(loc_id, name, lapl_id);
+    tm2 = HDF5_WTIME();
+
+    if(ret >= 0)
+    {
+        /* bail out if the object is not a dataset */
+        if(H5Iget_type(ret) != H5I_DATASET)
+            return(ret);
+
+        /* query dataset datatype, dataspace, and creation property list */
+        dtype_id = H5Dget_type(ret);
+        if(dtype_id < 0)
+            return(ret);
+        space_id = H5Dget_space(ret);
+        if(space_id < 0)
+        {
+            H5Tclose(dtype_id);
+            return(ret);
+        }
+        dcpl_id = H5Dget_create_plist(ret);
+        if(dcpl_id < 0)
+        {
+            H5Tclose(dtype_id);
+            H5Sclose(space_id);
+            return(ret);
+        }
+
+        H5D_PRE_RECORD();
+        H5D_RECORD_OPEN(ret, loc_id, name, dtype_id, space_id, dcpl_id, 0, tm1, tm2);
+        H5D_POST_RECORD();
+
+        H5Tclose(dtype_id);
+        H5Sclose(space_id);
+        H5Pclose(dcpl_id);
+    }
+
+    return(ret);
+}
+
+herr_t DARSHAN_DECL(H5Oclose)(hid_t object_id)
+{
+    struct hdf5_dataset_record_ref *rec_ref;
+    double tm1, tm2;
+    herr_t ret;
+
+    MAP_OR_FAIL(H5Oclose);
+
+    tm1 = HDF5_WTIME();
+    ret = __real_H5Oclose(object_id);
+    tm2 = HDF5_WTIME();
+
+    if(ret >= 0)
+    {
+        H5D_PRE_RECORD();
+        /* no need to check if object is a dataset, we just look for it
+         * in our hash of open dataset IDs
+         */
+        rec_ref = darshan_lookup_record_ref(hdf5_dataset_runtime->hid_hash,
+            &object_id, sizeof(hid_t));
+        if(rec_ref)
+        {
+            if(rec_ref->dataset_rec->fcounters[H5D_F_CLOSE_START_TIMESTAMP] == 0 ||
+             rec_ref->dataset_rec->fcounters[H5D_F_CLOSE_START_TIMESTAMP] > tm1)
+               rec_ref->dataset_rec->fcounters[H5D_F_CLOSE_START_TIMESTAMP] = tm1;
+            rec_ref->dataset_rec->fcounters[H5D_F_CLOSE_END_TIMESTAMP] = tm2;
+            DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->dataset_rec->fcounters[H5D_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            darshan_delete_record_ref(&(hdf5_dataset_runtime->hid_hash), &object_id, sizeof(hid_t));
         }
         H5D_POST_RECORD();
     }

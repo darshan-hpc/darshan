@@ -10,4 +10,6 @@
 --wrap=H5Dread
 --wrap=H5Dwrite
 --wrap=H5Dclose
+--wrap=H5Oopen
+--wrap=H5Oclose
 @DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS@
