@@ -19,6 +19,7 @@ test-requires = [
     "matplotlib<3.5",
     "importlib_resources;python_version<'3.9'"
 ]
+before-test = "pip install -U git+https://github.com/darshan-hpc/darshan-logs.git@main"
 test-command = "pytest {package}"
 
 [tool.cibuildwheel.linux]
