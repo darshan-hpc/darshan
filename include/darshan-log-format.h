@@ -24,7 +24,7 @@
  * log format version, NOT when a new version of a module record is
  * introduced -- we have module-specific versions to handle that
  */
-#define DARSHAN_LOG_VERSION "3.21"
+#define DARSHAN_LOG_VERSION "3.41"
 
 /* magic number for validating output files and checking byte order */
 #define DARSHAN_MAGIC_NR 6567223
@@ -36,12 +36,12 @@
 #define DARSHAN_EXE_LEN (DARSHAN_JOB_RECORD_SIZE - sizeof(struct darshan_job) - 1)
 
 /* max number of modules that can be used in a darshan log */
-#define DARSHAN_MAX_MODS 16
+#define DARSHAN_MAX_MODS 64
 
 /* simple macros for accessing module flag bitfields */
-#define DARSHAN_MOD_FLAG_SET(flags, id) flags = (flags | (1 << id))
-#define DARSHAN_MOD_FLAG_UNSET(flags, id) flags = (flags & ~(1 << id))
-#define DARSHAN_MOD_FLAG_ISSET(flags, id) (flags & (1 << id))
+#define DARSHAN_MOD_FLAG_SET(flags, id) flags = (flags | (1ULL << id))
+#define DARSHAN_MOD_FLAG_UNSET(flags, id) flags = (flags & ~(1ULL << id))
+#define DARSHAN_MOD_FLAG_ISSET(flags, id) (flags & (1ULL << id))
 
 /* compression method used on darshan log file */
 enum darshan_comp_type
@@ -72,7 +72,7 @@ struct darshan_header
     char version_string[8];
     int64_t magic_nr;
     unsigned char comp_type;
-    uint32_t partial_flag;
+    uint64_t partial_flag;
     struct darshan_log_map name_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
     uint32_t mod_ver[DARSHAN_MAX_MODS];
