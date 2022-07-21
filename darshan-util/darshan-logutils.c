@@ -1145,7 +1145,7 @@ static int darshan_log_get_header(darshan_fd fd)
         header.partial_flag = (uint64_t)header_3_00.partial_flag;
         memcpy(&header.name_map, &header_3_00.name_map,
             (1 + DARSHAN_MAX_MODS_3_00) * sizeof(header_3_00.name_map));
-        mempcpy(&header.mod_ver, &header_3_00.mod_ver,
+        memcpy(&header.mod_ver, &header_3_00.mod_ver,
             (DARSHAN_MAX_MODS_3_00) * sizeof(header_3_00.mod_ver[0]));
 
         fd->job_map.off = sizeof(header_3_00);
