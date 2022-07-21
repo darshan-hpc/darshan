@@ -24,7 +24,7 @@
  * log format version, NOT when a new version of a module record is
  * introduced -- we have module-specific versions to handle that
  */
-#define DARSHAN_LOG_VERSION "3.40"
+#define DARSHAN_LOG_VERSION "3.41"
 
 /* magic number for validating output files and checking byte order */
 #define DARSHAN_MAGIC_NR 6567223
@@ -39,9 +39,9 @@
 #define DARSHAN_MAX_MODS 64
 
 /* simple macros for accessing module flag bitfields */
-#define DARSHAN_MOD_FLAG_SET(flags, id) flags = (flags | (1 << id))
-#define DARSHAN_MOD_FLAG_UNSET(flags, id) flags = (flags & ~(1 << id))
-#define DARSHAN_MOD_FLAG_ISSET(flags, id) (flags & (1 << id))
+#define DARSHAN_MOD_FLAG_SET(flags, id) flags = (flags | (1ULL << id))
+#define DARSHAN_MOD_FLAG_UNSET(flags, id) flags = (flags & ~(1ULL << id))
+#define DARSHAN_MOD_FLAG_ISSET(flags, id) (flags & (1ULL << id))
 
 /* compression method used on darshan log file */
 enum darshan_comp_type
