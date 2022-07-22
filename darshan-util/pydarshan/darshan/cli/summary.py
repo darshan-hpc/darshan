@@ -244,21 +244,39 @@ class ReportData:
             "Runtime Library Version": [job_data["metadata"]["lib_ver"], ""],
             "Log Format Version": [job_data["log_ver"], ""],
         }
-
         for mod in self.report.modules:
             # retrieve the module version and buffer sizes
             mod_version = self.report.modules[mod]["ver"]
-            # retrieve the buffer size converted to KiB
-            mod_buf_size = self.report.modules[mod]["len"] / 1024
+            # retrieve all the record and convert to pandas df
+            self.report.mod_read_all_records(mod)
+            df = self.report.records[mod].to_df()["counters"]
             # create the key/value pairs for the dictionary
             key = f"{mod} (ver={mod_version}) Module Data"
-            val = f"{mod_buf_size:.2f} KiB"
-            flag = ""
+            #specifying behaviors for each module
+            if mod in {"POSIX", "MPI-IO", "STDIO"}:
+                if mod == "MPI-IO":
+                    read = df["MPIIO_BYTES_READ"].sum()
+                    write = df["MPIIO_BYTES_WRITTEN"].sum()
+                else:
+                    read = df[f"{mod}_BYTES_READ"].sum()
+                    write = df[f"{mod}_BYTES_WRITTEN"].sum()
+                
+                if mod == "H5D":
+                    val = f"{df['id'].nunique()} unique datasets ({read} total bytes read, {write} total bytes written)"
+                    flag = ""
+                else:
+                    val = f"{df['id'].nunique()} unique file ({read} total bytes read, {write} total bytes written)"
+                    flag = ""
+            elif mod in {"H5F", "PNETCDF", "LUSTRE"}:
+                val = f"{df['id'].nunique()} unique file"
+                flag = ""
+            else:
+                val = "-"
+                flag = ""
             if self.report.modules[mod]["partial_flag"]:
                 msg = "Module data incomplete due to runtime memory or record count limits"
                 flag = f"<p style='color:red'>&#x26A0; {msg}</p>"
             module_dict[key] = [val, flag]
-
         # convert the module dictionary into a dataframe
         module_df = pd.DataFrame.from_dict(data=module_dict, orient="index")
         # write out the table in html
