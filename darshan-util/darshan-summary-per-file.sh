@@ -14,7 +14,7 @@ if [ $# -ne 2 ]; then
 fi
 
 # count number of files present in log
-filecount=`darshan-parser --file-list $1| egrep -v '^(#|$)' | cut -f 1-2 | sort -n | uniq | wc -l`
+filecount=`darshan-parser $1| egrep -v '^(#|$)' | grep OPENS | cut -f 3,6 | sort| uniq | wc -l`
 rc=$?
 if [ $rc -ne 0 ]; then
    exit $rc
@@ -29,7 +29,7 @@ fi
 
 # loop through all files in log
 counter=0
-darshan-parser --file-list $1| egrep -v '^(#|$)' | cut -f 1-2 | sort -n | uniq |
+darshan-parser $1| egrep -v '^(#|$)' | grep OPENS | cut -f 3,6 | sort | uniq |
 while read -r hash filepath stuff ; do
     counter=$((counter+1))
     file=$(basename $filepath)
