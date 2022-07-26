@@ -565,29 +565,31 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
 
     size_of = ffi.sizeof("struct dxt_file_record")
     segments = ffi.cast("struct segment_info *", buf[0] + size_of  )
-
+    arr_write = np.recarray(wcnt, dtype=[("offset", int),
+                                         ("length", int),
+                                         ("start_time", float),
+                                         ("end_time", float)])
+    arr_read = np.recarray(rcnt, dtype=[("offset", int),
+                                        ("length", int),
+                                        ("start_time", float),
+                                        ("end_time", float)])
 
     for i in range(wcnt):
-        seg = {
-            "offset": segments[i].offset,
-            "length": segments[i].length,
-            "start_time": segments[i].start_time,
-            "end_time": segments[i].end_time
-        }
-        rec['write_segments'].append(seg)
+        arr_write[i, ...] = (segments[i].offset,
+                             segments[i].length,
+                             segments[i].start_time,
+                             segments[i].end_time)
+
+    for k in range(rcnt):
+        i = k + wcnt
+        arr_read[k, ...] = (segments[i].offset,
+                            segments[i].length,
+                            segments[i].start_time,
+                            segments[i].end_time)
 
 
-    for i in range(rcnt):
-        i = i + wcnt
-        seg = {
-            "offset": segments[i].offset,
-            "length": segments[i].length,
-            "start_time": segments[i].start_time,
-            "end_time": segments[i].end_time
-        }
-        rec['read_segments'].append(seg)
-
-
+    rec['write_segments'] = arr_write
+    rec['read_segments'] = arr_read
     if dtype == "pandas":
         rec['read_segments'] = pd.DataFrame(rec['read_segments'])
         rec['write_segments'] = pd.DataFrame(rec['write_segments'])

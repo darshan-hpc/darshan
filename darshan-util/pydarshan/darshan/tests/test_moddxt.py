@@ -1,6 +1,8 @@
 import os
 
 import pytest
+import numpy as np
+from numpy.testing import assert_allclose
 import darshan.backend.cffi_backend as backend
 from darshan.log_utils import get_log_path
 
@@ -33,7 +35,53 @@ from darshan.log_utils import get_log_path
                    'read_segments': []})])
 def test_dxt_records(logfile, mod, expected_dict):
     # regression guard for DXT records values
+    # write_segments and read_segments are now NumPy
+    # recarrays, to save considerable memory
+    # per gh-779
+    # TODO: refactor for simplicity--we can probably
+    # just initialize the expected values via
+    # np.array() with the appropriate structured dtypes
+    expected_write_segs = np.recarray(1, dtype=[("offset", int),
+                                                ("length", int),
+                                                ("start_time", float),
+                                                ("end_time", float)])
+    expected_read_segs = np.recarray(1, dtype=[("offset", int),
+                                               ("length", int),
+                                               ("start_time", float),
+                                               ("end_time", float)])
+    if expected_dict["write_segments"]:
+        expected_write_segs.offset = expected_dict["write_segments"][0]["offset"]
+        expected_write_segs.length = expected_dict["write_segments"][0]["length"]
+        expected_write_segs.start_time = expected_dict["write_segments"][0]["start_time"]
+        expected_write_segs.end_time = expected_dict["write_segments"][0]["end_time"]
+    else:
+        expected_write_segs = np.recarray(0, dtype=[("offset", int),
+                                                    ("length", int),
+                                                    ("start_time", float),
+                                                    ("end_time", float)])
+    if expected_dict["read_segments"]:
+        expected_read_segs.offset = expected_dict["read_segments"][0]["offset"]
+        expected_read_segs.length = expected_dict["read_segments"][0]["length"]
+        expected_read_segs.start_time = expected_dict["read_segments"][0]["start_time"]
+        expected_read_segs.end_time = expected_dict["read_segments"][0]["end_time"]
+    else:
+        expected_read_segs = np.recarray(0, dtype=[("offset", int),
+                                                    ("length", int),
+                                                    ("start_time", float),
+                                                    ("end_time", float)])
+    expected_dict["write_segments"] = expected_write_segs
+    expected_dict["read_segments"] = expected_read_segs
+
     logfile = get_log_path(logfile)
     log = backend.log_open(logfile)
     rec = backend.log_get_record(log, mod)
-    assert rec == expected_dict
+    for key in expected_dict.keys():
+        if "segments" in key:
+            # careful, can't use assert_allclose directly
+            # on recarrays
+            assert_allclose(rec[key].offset, expected_dict[key].offset)
+            assert_allclose(rec[key].length, expected_dict[key].length)
+            assert_allclose(rec[key].start_time, expected_dict[key].start_time)
+            assert_allclose(rec[key].end_time, expected_dict[key].end_time)
+        else:
+            assert rec[key] == expected_dict[key]
