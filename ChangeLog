@@ -2,6 +2,10 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.4.1-pre1
+=============
+* Deprecated --file-list and --file-list-detailed options in darshan-parser
+
 Darshan-3.4.0
 =============
 * Fix segfault affecting new DARSHAN_MOD_DISABLE/ENABLE environment variables

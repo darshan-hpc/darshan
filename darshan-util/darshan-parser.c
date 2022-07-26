@@ -31,16 +31,12 @@
 #define OPTION_TOTAL (1 << 1)  /* aggregated fields */
 #define OPTION_PERF  (1 << 2)  /* derived performance */
 #define OPTION_FILE  (1 << 3)  /* file count totals */
-#define OPTION_FILE_LIST  (1 << 4)  /* per-file summaries */
-#define OPTION_FILE_LIST_DETAILED  (1 << 6)  /* per-file summaries with extra detail */
 #define OPTION_SHOW_INCOMPLETE  (1 << 7)  /* show what we have, even if log is incomplete */
 #define OPTION_ALL (\
   OPTION_BASE|\
   OPTION_TOTAL|\
   OPTION_PERF|\
   OPTION_FILE|\
-  OPTION_FILE_LIST|\
-  OPTION_FILE_LIST_DETAILED|\
   OPTION_SHOW_INCOMPLETE)
 
 #define FILETYPE_SHARED (1 << 0)
@@ -124,18 +120,15 @@ void posix_accum_file(struct darshan_posix_file *pfile, hash_entry_t *hfile, int
 void posix_accum_perf(struct darshan_posix_file *pfile, perf_data_t *pdata);
 void posix_calc_file(hash_entry_t *file_hash_table, file_data_t *fdata);
 void posix_print_total_file(struct darshan_posix_file *pfile, int posix_ver);
-void posix_file_list(hash_entry_t *file_hash_table, struct darshan_name_record_ref *name_hash, int detail_flag);
 
 void mpiio_accum_file(struct darshan_mpiio_file *mfile, hash_entry_t *hfile, int64_t nprocs);
 void mpiio_accum_perf(struct darshan_mpiio_file *mfile, perf_data_t *pdata);
 void mpiio_calc_file(hash_entry_t *file_hash_table, file_data_t *fdata);
 void mpiio_print_total_file(struct darshan_mpiio_file *mfile, int mpiio_ver);
-void mpiio_file_list(hash_entry_t *file_hash_table, struct darshan_name_record_ref *name_hash, int detail_flag);
 
 void stdio_accum_perf(struct darshan_stdio_file *pfile, perf_data_t *pdata);
 void stdio_accum_file(struct darshan_stdio_file *pfile, hash_entry_t *hfile, int64_t nprocs);
 void stdio_calc_file(hash_entry_t *file_hash_table, file_data_t *fdata);
-void stdio_file_list(hash_entry_t *file_hash_table, struct darshan_name_record_ref *name_hash, int detail_flag);
 void stdio_print_total_file(struct darshan_stdio_file *pfile, int stdio_ver);
 
 void calc_perf(perf_data_t *pdata, int64_t nprocs);
@@ -146,8 +139,6 @@ int usage (char *exename)
     fprintf(stderr, "    --all   : all sub-options are enabled\n");
     fprintf(stderr, "    --base  : darshan log field data [default]\n");
     fprintf(stderr, "    --file  : total file counts\n");
-    fprintf(stderr, "    --file-list  : per-file summaries\n");
-    fprintf(stderr, "    --file-list-detailed  : per-file summaries with additional detail\n");
     fprintf(stderr, "    --perf  : derived perf data\n");
     fprintf(stderr, "    --total : aggregated darshan field data\n");
     fprintf(stderr, "    --show-incomplete : display results even if log is incomplete\n");
@@ -164,8 +155,6 @@ int parse_args (int argc, char **argv, char **filename)
         {"all",   0, NULL, OPTION_ALL},
         {"base",  0, NULL, OPTION_BASE},
         {"file",  0, NULL, OPTION_FILE},
-        {"file-list",  0, NULL, OPTION_FILE_LIST},
-        {"file-list-detailed",  0, NULL, OPTION_FILE_LIST_DETAILED},
         {"perf",  0, NULL, OPTION_PERF},
         {"total", 0, NULL, OPTION_TOTAL},
         {"show-incomplete", 0, NULL, OPTION_SHOW_INCOMPLETE},
@@ -186,8 +175,6 @@ int parse_args (int argc, char **argv, char **filename)
             case OPTION_ALL:
             case OPTION_BASE:
             case OPTION_FILE:
-            case OPTION_FILE_LIST:
-            case OPTION_FILE_LIST_DETAILED:
             case OPTION_PERF:
             case OPTION_TOTAL:
             case OPTION_SHOW_INCOMPLETE:
@@ -711,31 +698,6 @@ int main(int argc, char **argv)
             printf("# ...........................\n");
             printf("# agg_time_by_slowest: %lf # seconds\n", pdata.agg_time_by_slowest);
             printf("# agg_perf_by_slowest: %lf # MiB/s\n", pdata.agg_perf_by_slowest);
-        }
-
-        if((mask & OPTION_FILE_LIST) || (mask & OPTION_FILE_LIST_DETAILED))
-        {
-            if(i == DARSHAN_POSIX_MOD)
-            {
-                if(mask & OPTION_FILE_LIST_DETAILED)
-                    posix_file_list(file_hash_table, name_hash, 1);
-                else
-                    posix_file_list(file_hash_table, name_hash, 0);
-            }
-            else if(i == DARSHAN_MPIIO_MOD)
-            {
-                if(mask & OPTION_FILE_LIST_DETAILED)
-                    mpiio_file_list(file_hash_table, name_hash, 1);
-                else
-                    mpiio_file_list(file_hash_table, name_hash, 0);
-            }
-            else if(i == DARSHAN_STDIO_MOD)
-            {
-                if(mask & OPTION_FILE_LIST_DETAILED)
-                    stdio_file_list(file_hash_table, name_hash, 1);
-                else
-                    stdio_file_list(file_hash_table, name_hash, 0);
-            }
         }
 
         /* reset data structures for next module */
@@ -1365,279 +1327,6 @@ void mpiio_print_total_file(struct darshan_mpiio_file *mfile, int mpiio_ver)
         printf("total_%s: %lf\n",
             mpiio_f_counter_names[i], mfile->fcounters[i]);
     }
-    return;
-}
-
-void stdio_file_list(hash_entry_t *file_hash_table,
-                     struct darshan_name_record_ref *name_hash,
-                     int detail_flag)
-{
-    hash_entry_t *curr = NULL;
-    hash_entry_t *tmp = NULL;
-    struct darshan_stdio_file *file_rec = NULL;
-    struct darshan_name_record_ref *ref = NULL;
-    int i;
-
-    /* list of columns:
-     *
-     * normal mode
-     * - file id
-     * - file name
-     * - nprocs
-     * - slowest I/O time
-     * - average cumulative I/O time
-     *
-     * detailed mode
-     * - first open
-     * - first read
-     * - first write
-     * - last read
-     * - last write
-     * - last close
-     * - STDIO opens
-     */
-
-    if(detail_flag)
-        printf("\n# Per-file summary of I/O activity (detailed).\n");
-    else
-        printf("\n# Per-file summary of I/O activity.\n");
-    printf("# -----\n");
-
-    printf("# <record_id>: darshan record id for this file\n");
-    printf("# <file_name>: full file name\n");
-    printf("# <nprocs>: number of processes that opened the file\n");
-    printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
-    printf("# <avg>: average time in seconds consumed in IO (including metadata) per process\n");
-    if(detail_flag)
-    {
-        printf("# <start_{open/close/write/read}>: start timestamp of first open, close, write, or read\n");
-        printf("# <end_{open/close/write/read}>: end timestamp of last open, close, write, or read\n");
-        printf("# <stdio_opens>: STDIO open calls\n");
-    }
-    
-    printf("\n# <record_id>\t<file_name>\t<nprocs>\t<slowest>\t<avg>");
-    if(detail_flag)
-    {
-        printf("\t<start_open>\t<start_close>\t<start_write>\t<start_read>");
-        printf("\t<end_open>\t<end_close>\t<end_write>\t<end_read>\t<stdio_opens>");
-    }
-    printf("\n");
-
-    HASH_ITER(hlink, file_hash_table, curr, tmp)
-    {
-        file_rec = (struct darshan_stdio_file*)curr->rec_dat;
-        assert(file_rec);
-
-        HASH_FIND(hlink, name_hash, &(curr->rec_id), sizeof(darshan_record_id), ref);
-        assert(ref);
-
-        printf("%" PRIu64 "\t%s\t%" PRId64 "\t%f\t%f",
-            curr->rec_id,
-            ref->name_record->name,
-            curr->procs,
-            curr->slowest_io_total_time,
-            curr->cumul_io_total_time/(double)curr->procs);
-
-        if(detail_flag)
-        {
-            for(i=STDIO_F_OPEN_START_TIMESTAMP; i<=STDIO_F_READ_END_TIMESTAMP; i++)
-            {
-                printf("\t%f", file_rec->fcounters[i]);
-            }
-            printf("\t%" PRId64, file_rec->counters[STDIO_OPENS]);
-        }
-        printf("\n");
-    }
-
-    return;
-}
-
-
-void posix_file_list(hash_entry_t *file_hash_table,
-                     struct darshan_name_record_ref *name_hash,
-                     int detail_flag)
-{
-    hash_entry_t *curr = NULL;
-    hash_entry_t *tmp = NULL;
-    struct darshan_posix_file *file_rec = NULL;
-    struct darshan_name_record_ref *ref = NULL;
-    int i;
-
-    /* list of columns:
-     *
-     * normal mode
-     * - file id
-     * - file name
-     * - nprocs
-     * - slowest I/O time
-     * - average cumulative I/O time
-     *
-     * detailed mode
-     * - first open
-     * - first read
-     * - first write
-     * - last read
-     * - last write
-     * - last close
-     * - POSIX opens
-     * - r histogram
-     * - w histogram
-     */
-
-    if(detail_flag)
-        printf("\n# Per-file summary of I/O activity (detailed).\n");
-    else
-        printf("\n# Per-file summary of I/O activity.\n");
-    printf("# -----\n");
-
-    printf("# <record_id>: darshan record id for this file\n");
-    printf("# <file_name>: full file name\n");
-    printf("# <nprocs>: number of processes that opened the file\n");
-    printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
-    printf("# <avg>: average time in seconds consumed in IO (including metadata) per process\n");
-    if(detail_flag)
-    {
-        printf("# <start_{open/read/write/close}>: start timestamp of first open, read, write, or close\n");
-        printf("# <end_{open/read/write/close}>: end timestamp of last open, read, write, or close\n");
-        printf("# <posix_opens>: POSIX open calls\n");
-        printf("# <POSIX_SIZE_READ_*>: POSIX read size histogram\n");
-        printf("# <POSIX_SIZE_WRITE_*>: POSIX write size histogram\n");
-    }
-    
-    printf("\n# <record_id>\t<file_name>\t<nprocs>\t<slowest>\t<avg>");
-    if(detail_flag)
-    {
-        printf("\t<start_open>\t<start_read>\t<start_write>\t<start_close>");
-        printf("\t<end_open>\t<end_read>\t<end_write>\t<end_close>\t<posix_opens>");
-        for(i=POSIX_SIZE_READ_0_100; i<= POSIX_SIZE_WRITE_1G_PLUS; i++)
-            printf("\t<%s>", posix_counter_names[i]);
-    }
-    printf("\n");
-
-    HASH_ITER(hlink, file_hash_table, curr, tmp)
-    {
-        file_rec = (struct darshan_posix_file*)curr->rec_dat;
-        assert(file_rec);
-
-        HASH_FIND(hlink, name_hash, &(curr->rec_id), sizeof(darshan_record_id), ref);
-        assert(ref);
-
-        printf("%" PRIu64 "\t%s\t%" PRId64 "\t%f\t%f",
-            curr->rec_id,
-            ref->name_record->name,
-            curr->procs,
-            curr->slowest_io_total_time,
-            curr->cumul_io_total_time/(double)curr->procs);
-
-        if(detail_flag)
-        {
-            for(i=POSIX_F_OPEN_START_TIMESTAMP; i<=POSIX_F_CLOSE_END_TIMESTAMP; i++)
-            {
-                printf("\t%f", file_rec->fcounters[i]);
-            }
-            printf("\t%" PRId64, file_rec->counters[POSIX_OPENS]);
-            for(i=POSIX_SIZE_READ_0_100; i<= POSIX_SIZE_WRITE_1G_PLUS; i++)
-                printf("\t%" PRId64, file_rec->counters[i]);
-        }
-        printf("\n");
-    }
-
-    return;
-}
-
-void mpiio_file_list(hash_entry_t *file_hash_table,
-                     struct darshan_name_record_ref *name_hash,
-                     int detail_flag)
-{
-    hash_entry_t *curr = NULL;
-    hash_entry_t *tmp = NULL;
-    struct darshan_mpiio_file *file_rec = NULL;
-    struct darshan_name_record_ref *ref = NULL;
-    int i;
-
-    /* list of columns:
-     *
-     * normal mode
-     * - file id
-     * - file name
-     * - nprocs
-     * - slowest I/O time
-     * - average cumulative I/O time
-     *
-     * detailed mode
-     * - first open
-     * - first read
-     * - first write
-     * - last read
-     * - last write
-     * - last close
-     * - MPI indep opens
-     * - MPI coll opens
-     * - r histogram
-     * - w histogram
-     */
-
-    if(detail_flag)
-        printf("\n# Per-file summary of I/O activity (detailed).\n");
-    else
-        printf("\n# Per-file summary of I/O activity.\n");
-    printf("# -----\n");
-
-    printf("# <record_id>: darshan record id for this file\n");
-    printf("# <file_name>: full file name\n");
-    printf("# <nprocs>: number of processes that opened the file\n");
-    printf("# <slowest>: (estimated) time in seconds consumed in IO by slowest process\n");
-    printf("# <avg>: average time in seconds consumed in IO (including metadata) per process\n");
-    if(detail_flag)
-    {
-        printf("# <start_{open/read/write}>: start timestamp of first open, read, or write\n");
-        printf("# <end_{read/write/close}>: end timestamp of last read, write, or close\n");
-        printf("# <mpi_indep_opens>: independent MPI_File_open calls\n");
-        printf("# <mpi_coll_opens>: collective MPI_File_open calls\n");
-        printf("# <MPIIO_SIZE_READ_AGG_*>: MPI-IO aggregate read size histogram\n");
-        printf("# <MPIIO_SIZE_WRITE_AGG_*>: MPI-IO aggregate write size histogram\n");
-    }
-    
-    printf("\n# <record_id>\t<file_name>\t<nprocs>\t<slowest>\t<avg>");
-    if(detail_flag)
-    {
-        printf("\t<start_open>\t<start_read>\t<start_write>");
-        printf("\t<end_read>\t<end_write>\t<end_close>");
-        printf("\t<mpi_indep_opens>\t<mpi_coll_opens>");
-        for(i=MPIIO_SIZE_READ_AGG_0_100; i<= MPIIO_SIZE_WRITE_AGG_1G_PLUS; i++)
-            printf("\t<%s>", mpiio_counter_names[i]);
-    }
-    printf("\n");
-
-    HASH_ITER(hlink, file_hash_table, curr, tmp)
-    {
-        file_rec = (struct darshan_mpiio_file*)curr->rec_dat;
-        assert(file_rec);
-
-        HASH_FIND(hlink, name_hash, &(curr->rec_id), sizeof(darshan_record_id), ref);
-        assert(ref);
-
-        printf("%" PRIu64 "\t%s\t%" PRId64 "\t%f\t%f",
-            curr->rec_id,
-            ref->name_record->name,
-            curr->procs,
-            curr->slowest_io_total_time,
-            curr->cumul_io_total_time/(double)curr->procs);
-
-        if(detail_flag)
-        {
-            for(i=MPIIO_F_OPEN_START_TIMESTAMP; i<=MPIIO_F_CLOSE_END_TIMESTAMP; i++)
-            {
-                printf("\t%f", file_rec->fcounters[i]);
-            }
-            printf("\t%" PRId64 "\t%" PRId64, file_rec->counters[MPIIO_INDEP_OPENS],
-                file_rec->counters[MPIIO_COLL_OPENS]);
-            for(i=MPIIO_SIZE_READ_AGG_0_100; i<= MPIIO_SIZE_WRITE_AGG_1G_PLUS; i++)
-                printf("\t%" PRId64, file_rec->counters[i]);
-        }
-        printf("\n");
-    }
-
     return;
 }
 
