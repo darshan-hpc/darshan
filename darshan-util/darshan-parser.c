@@ -62,8 +62,6 @@ typedef struct hash_entry_s
     int64_t type;
     int64_t procs;
     void *rec_dat;
-    double cumul_io_total_time; /* cumulative metadata and rw time */
-    double slowest_io_total_time; /* slowest rank metadata and rw time */
 } hash_entry_t;
 
 /* Structure to accumulate aggregate derived metrics across all files.  This
@@ -567,8 +565,6 @@ int main(int argc, char **argv)
                 hfile->type = 0;
                 hfile->procs = 0;
                 hfile->rec_dat = NULL;
-                hfile->cumul_io_total_time = 0.0;
-                hfile->slowest_io_total_time = 0.0;
 
                 HASH_ADD(hlink, file_hash_table,rec_id, sizeof(darshan_record_id), hfile);
             }
@@ -760,18 +756,6 @@ void stdio_accum_file(struct darshan_stdio_file *pfile,
 
     if(pfile->base_rec.rank == -1)
     {
-        hfile->slowest_io_total_time = pfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
-    }
-    else
-    {
-        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time,
-            (pfile->fcounters[STDIO_F_META_TIME] +
-            pfile->fcounters[STDIO_F_READ_TIME] +
-            pfile->fcounters[STDIO_F_WRITE_TIME]));
-    }
-
-    if(pfile->base_rec.rank == -1)
-    {
         hfile->procs = nprocs;
         hfile->type |= FILETYPE_SHARED;
 
@@ -785,10 +769,6 @@ void stdio_accum_file(struct darshan_stdio_file *pfile,
     {
         hfile->type |= FILETYPE_UNIQUE;
     }
-
-    hfile->cumul_io_total_time += pfile->fcounters[STDIO_F_META_TIME] +
-                         pfile->fcounters[STDIO_F_READ_TIME] +
-                         pfile->fcounters[STDIO_F_WRITE_TIME];
 
     if(hfile->rec_dat == NULL)
     {
@@ -818,18 +798,6 @@ void posix_accum_file(struct darshan_posix_file *pfile,
 
     if(pfile->base_rec.rank == -1)
     {
-        hfile->slowest_io_total_time = pfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
-    }
-    else
-    {
-        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time,
-            (pfile->fcounters[POSIX_F_META_TIME] +
-            pfile->fcounters[POSIX_F_READ_TIME] +
-            pfile->fcounters[POSIX_F_WRITE_TIME]));
-    }
-
-    if(pfile->base_rec.rank == -1)
-    {
         hfile->procs = nprocs;
         hfile->type |= FILETYPE_SHARED;
 
@@ -843,10 +811,6 @@ void posix_accum_file(struct darshan_posix_file *pfile,
     {
         hfile->type |= FILETYPE_UNIQUE;
     }
-
-    hfile->cumul_io_total_time += pfile->fcounters[POSIX_F_META_TIME] +
-                         pfile->fcounters[POSIX_F_READ_TIME] +
-                         pfile->fcounters[POSIX_F_WRITE_TIME];
 
     if(hfile->rec_dat == NULL)
     {
@@ -876,18 +840,6 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
 
     if(mfile->base_rec.rank == -1)
     {
-        hfile->slowest_io_total_time = mfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
-    }
-    else
-    {
-        hfile->slowest_io_total_time = max(hfile->slowest_io_total_time,
-            (mfile->fcounters[MPIIO_F_META_TIME] +
-            mfile->fcounters[MPIIO_F_READ_TIME] +
-            mfile->fcounters[MPIIO_F_WRITE_TIME]));
-    }
-
-    if(mfile->base_rec.rank == -1)
-    {
         hfile->procs = nprocs;
         hfile->type |= FILETYPE_SHARED;
 
@@ -901,10 +853,6 @@ void mpiio_accum_file(struct darshan_mpiio_file *mfile,
     {
         hfile->type |= FILETYPE_UNIQUE;
     }
-
-    hfile->cumul_io_total_time += mfile->fcounters[MPIIO_F_META_TIME] +
-                         mfile->fcounters[MPIIO_F_READ_TIME] +
-                         mfile->fcounters[MPIIO_F_WRITE_TIME];
 
     if(hfile->rec_dat == NULL)
     {
