@@ -15,6 +15,7 @@ from typing import Any, Union, Callable
 import pandas as pd
 from mako.template import Template
 
+import humanize
 import darshan
 import darshan.cli
 from darshan.experimental.plots import (
@@ -232,7 +233,7 @@ class ReportData:
         # write out the table in html
         self.metadata_table = metadata_df.to_html(header=False, border=0)
     
-    def get_module_table(self):
+        def get_module_table(self):
         """
         Builds the module table (in html form) for the summary report.
         """
@@ -253,9 +254,9 @@ class ReportData:
 
             # create the key/value pairs for the dictionary
             key = f"{mod} (ver={mod_version})"
-            
-            if mod == "POSIX" or "MPI-IO" or "STDIO" or "H5D" or "H5F" or "PNETCDF" or "LUSTRE":
-                
+
+            if mod == "POSIX" or mod == "MPI-IO" or mod == "STDIO" or mod == "H5D" or mod == "H5F" or mod == "PNETCDF" or mod == "LUSTRE":
+
                 # retrieve all the record and convert to pandas df
                 self.report.mod_read_all_records(mod)
                 df = self.report.records[mod].to_df()["counters"]
@@ -281,11 +282,7 @@ class ReportData:
                 elif mod in {"H5F", "PNETCDF", "LUSTRE"}:
                     val = f"{df['id'].nunique()} unique file"
                     flag = ""
-                
-                else:
-                    val = "-"
-                    flag = ""
-
+            
             else:
                 val = "-"
                 flag = ""
