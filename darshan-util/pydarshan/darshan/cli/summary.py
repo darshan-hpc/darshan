@@ -233,7 +233,7 @@ class ReportData:
         # write out the table in html
         self.metadata_table = metadata_df.to_html(header=False, border=0)
     
-        def get_module_table(self):
+    def get_module_table(self):
         """
         Builds the module table (in html form) for the summary report.
         """
