@@ -26,3 +26,5 @@ maint/config/ltoptions.m4
 maint/config/ltsugar.m4
 maint/config/ltversion.m4
 maint/config/lt~obsolete.m4
+
+__pycache__/

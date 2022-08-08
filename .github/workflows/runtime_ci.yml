@@ -1,0 +1,65 @@
+name: Runtime Testing
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test_runtime:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest]
+        python-version: ["3.10"]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y hdf5-tools libhdf5-openmpi-dev openmpi-bin
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade pytest mpi4py
+          # we need to build h5py with the system HDF5 lib backend
+          export HDF5_MPI="ON"
+          CC=mpicc python -m pip install --no-binary=h5py h5py
+      - name: Install darshan-runtime
+        run: |
+          export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/include/hdf5/openmpi/
+          mkdir darshan_install
+          export DARSHAN_INSTALL_PATH=$PWD/darshan_install
+          git submodule update --init
+          ./prepare.sh
+          cd darshan-runtime
+          mkdir build
+          cd build
+          CC=mpicc ../configure --prefix=$DARSHAN_INSTALL_PATH --with-log-path-by-env=DARSHAN_LOGPATH --with-jobid-env=NONE --enable-hdf5-mod
+          make
+          make install
+      - name: Install darshan-util
+        run: |
+          export DARSHAN_INSTALL_PATH=$PWD/darshan_install
+          cd darshan-util
+          mkdir build
+          cd build
+          ../configure --prefix=$DARSHAN_INSTALL_PATH --enable-shared --enable-apxc-mod --enable-apmpi-mod
+          make
+          make install
+      - name: Install pydarshan
+        run: |
+          cd darshan-util/pydarshan
+          python -m pip install .
+      - name: Test with pytest
+        run: |
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/darshan_install/lib
+          export DARSHAN_INSTALL_PATH=$PWD/darshan_install
+          export DARSHAN_ROOT_PATH=$PWD
+          export HDF5_LIB=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5.so
+          python -m pytest darshan-test/python_runtime_tests.py
