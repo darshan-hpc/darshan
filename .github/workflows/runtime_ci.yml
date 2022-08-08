@@ -27,15 +27,12 @@ jobs:
           sudo apt-get install -y hdf5-tools libhdf5-openmpi-dev openmpi-bin
           python -m pip install --upgrade pip
           python -m pip install --upgrade pytest mpi4py
-          # the organization of HDF5 files from apt isn't
-          # ideal for usage with darshan, but we can cheat
-          # a little
-          sudo cp /usr/include/hdf5/openmpi/*.h /usr/include
           # we need to build h5py with the system HDF5 lib backend
           export HDF5_MPI="ON"
           CC=mpicc python -m pip install --no-binary=h5py h5py
       - name: Install darshan-runtime
         run: |
+          export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/include/hdf5/openmpi/
           mkdir darshan_install
           export DARSHAN_INSTALL_PATH=$PWD/darshan_install
           git submodule update --init
@@ -43,7 +40,7 @@ jobs:
           cd darshan-runtime
           mkdir build
           cd build
-          CC=mpicc ../configure --prefix=$DARSHAN_INSTALL_PATH --with-log-path-by-env=DARSHAN_LOGPATH --with-jobid-env=SLURM_JOBID --enable-hdf5-mod
+          CC=mpicc ../configure --prefix=$DARSHAN_INSTALL_PATH --with-log-path-by-env=DARSHAN_LOGPATH --with-jobid-env=NONE --enable-hdf5-mod
           make
           make install
       - name: Install darshan-util
