@@ -1,6 +1,7 @@
 import glob
 import subprocess
 import os
+import shutil
 
 import darshan
 import numpy as np
