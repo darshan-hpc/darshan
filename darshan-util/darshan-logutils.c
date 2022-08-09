@@ -71,7 +71,8 @@ struct darshan_fd_int_state
     /* log format version-specific function calls for getting
      * data from the log file
      */
-    int (*get_namerecs)(void *, int, int, struct darshan_name_record_ref **);
+    int (*get_namerecs)(void *, int, int, struct darshan_name_record_ref **,
+                        darshan_record_id *, int);
 
     /* compression/decompression stream read/write state */
     struct darshan_dz_state dz;
@@ -88,7 +89,8 @@ struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
 /* internal helper functions */
 static int darshan_mnt_info_cmp(const void *a, const void *b);
 static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
-    int swap_flag, struct darshan_name_record_ref **hash);
+    int swap_flag, struct darshan_name_record_ref **hash,
+    darshan_record_id *whitelist, int whitelist_count);
 static int darshan_log_get_header(darshan_fd fd);
 static int darshan_log_put_header(darshan_fd fd);
 static int darshan_log_seek(darshan_fd fd, off_t offset);
@@ -115,14 +117,10 @@ static int darshan_log_dzunload(darshan_fd fd, struct darshan_log_map *map_p);
 static int darshan_log_noz_read(darshan_fd fd, struct darshan_log_map map,
     void *buf, int len, int reset_strm_flag);
 
-
-/* filtered namerecs test */
-static int darshan_log_get_filtered_namerecs(void *name_rec_buf, int buf_len, int swap_flag, struct darshan_name_record_ref **hash, darshan_record_id *whitelist, int whitelist_count);
-
-
 /* backwards compatibility functions */
-int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
-    int swap_flag, struct darshan_name_record_ref **hash);
+static int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
+    int swap_flag, struct darshan_name_record_ref **hash,
+    darshan_record_id *whitelist, int whitelist_count);
 
 static char *darshan_util_lib_ver = PACKAGE_VERSION;
 
@@ -574,83 +572,19 @@ int darshan_log_put_mounts(darshan_fd fd, struct darshan_mnt_info *mnt_data_arra
  */
 int darshan_log_get_namehash(darshan_fd fd, struct darshan_name_record_ref **hash)
 {
-    struct darshan_fd_int_state *state;
-    char *name_rec_buf;
-    int name_rec_buf_sz;
-    int read;
-    int read_req_sz;
-    int buf_len = 0;
-    int buf_processed;
-
-    if(!fd)
-    {
-        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
-        return(-1);
-    }
-    state = fd->state;
-    assert(state);
-
-    /* just return if there is no name record mapping data */
-    if(fd->name_map.len == 0)
-    {
-        *hash = NULL;
-        return(0);
-    }
-
-    /* default to buffer twice as big as default compression buf */
-    name_rec_buf_sz = DARSHAN_DEF_COMP_BUF_SZ * 2;
-    name_rec_buf = malloc(name_rec_buf_sz);
-    if(!name_rec_buf)
-        return(-1);
-    memset(name_rec_buf, 0, name_rec_buf_sz);
-
-    do
-    {
-        /* read chunks of the darshan record id -> name mapping from log file,
-         * constructing a hash table in the process
-         */
-        read_req_sz = name_rec_buf_sz - buf_len;
-        read = darshan_log_dzread(fd, DARSHAN_NAME_MAP_REGION_ID,
-            name_rec_buf + buf_len, read_req_sz);
-        if(read < 0)
-        {
-            fprintf(stderr, "Error: failed to read name hash from darshan log file.\n");
-            free(name_rec_buf);
-            return(-1);
-        }
-        buf_len += read;
-
-        /* extract any name records in the buffer */
-        buf_processed = state->get_namerecs(name_rec_buf, buf_len, fd->swap_flag, hash);
-
-        /* copy any leftover data to beginning of buffer to parse next */
-        memcpy(name_rec_buf, name_rec_buf + buf_processed, buf_len - buf_processed);
-        buf_len -= buf_processed;
-
-        /* we keep reading until we get a short read informing us we have
-         * read all of the record hash
-         */
-    } while(read == read_req_sz);
-    assert(buf_len == 0);
-
-    free(name_rec_buf);
-    return(0);
+    return(darshan_log_get_filtered_namehash(fd, hash, NULL, 0));
 }
-
-
-
 
 /* darshan_log_get_filtered_namehash()
  *
  * read the set of name records from the darshan log file and add to the
- * given hash table
+ * given hash table, optionally applying a whitelist
  *
  * returns 0 on success, -1 on failure
  */
 int darshan_log_get_filtered_namehash(darshan_fd fd, 
         struct darshan_name_record_ref **hash,
-        darshan_record_id *whitelist, int whitelist_count
-        )
+        darshan_record_id *whitelist, int whitelist_count)
 {
     struct darshan_fd_int_state *state;
     char *name_rec_buf;
@@ -699,9 +633,8 @@ int darshan_log_get_filtered_namehash(darshan_fd fd,
         buf_len += read;
 
         /* extract any name records in the buffer */
-        //buf_processed = state->get_namerecs(name_rec_buf, buf_len, fd->swap_flag, hash);
-        //buf_processed = state->get_filtered_namerecs(name_rec_buf, buf_len, fd->swap_flag, hash);
-        buf_processed = darshan_log_get_filtered_namerecs(name_rec_buf, buf_len, fd->swap_flag, hash, whitelist, whitelist_count);
+        buf_processed = state->get_namerecs(name_rec_buf, buf_len, fd->swap_flag, hash,
+            whitelist, whitelist_count);
 
         /* copy any leftover data to beginning of buffer to parse next */
         memcpy(name_rec_buf, name_rec_buf + buf_processed, buf_len - buf_processed);
@@ -716,11 +649,6 @@ int darshan_log_get_filtered_namehash(darshan_fd fd,
     free(name_rec_buf);
     return(0);
 }
-
-
-
-
-
 
 /* darshan_log_put_namehash()
  *
@@ -981,8 +909,26 @@ static int darshan_mnt_info_cmp(const void *a, const void *b)
         return(0);
 }
 
+/* whitelist_filter
+ *
+ * A simple filter function, that tests if a provided value is in 
+ *
+ */
+int whitelist_filter(darshan_record_id val, darshan_record_id *whitelist, int whitelist_count){
+    int i;
+    for(i = 0; i < whitelist_count; i++)
+    {
+        if (whitelist[i] == val)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
-    int swap_flag, struct darshan_name_record_ref **hash)
+    int swap_flag, struct darshan_name_record_ref **hash,
+    darshan_record_id *whitelist, int whitelist_count)
 {
     struct darshan_name_record_ref *ref;
     struct darshan_name_record *name_rec;
@@ -1015,7 +961,8 @@ static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
         }
 
         HASH_FIND(hlink, *hash, &(name_rec->id), sizeof(darshan_record_id), ref);
-        if(!ref)
+        if(!ref && (!whitelist ||
+            whitelist_filter(name_rec->id, whitelist, whitelist_count)))
         {
             ref = malloc(sizeof(*ref));
             if(!ref)
@@ -1043,108 +990,6 @@ static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
 
     return(buf_processed);
 }
-
-
-
-
-
-
-
-/* whitelist_filter
- *
- * A simple filter function, that tests if a provided value is in 
- *
- */
-int whitelist_filter(darshan_record_id val, darshan_record_id *whitelist, int whitelist_count){
-    int i;
-    for(i = 0; i < whitelist_count; i++)
-    {
-        if (whitelist[i] == val)
-        {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-/* darshan_log_get_filtered_namerecs
- *
- * Buffered reader to to reconstruct name records from logfile
- *
- */
-static int darshan_log_get_filtered_namerecs(void *name_rec_buf, int buf_len,
-    int swap_flag, struct darshan_name_record_ref **hash,
-    darshan_record_id *whitelist, int whitelist_count
-    )
-// JL: would change interface to allow filter callback function instead of whitelist for more flexibility
-{
-    struct darshan_name_record_ref *ref;
-    struct darshan_name_record *name_rec;
-    char *tmp_p;
-    int buf_processed = 0;
-    int rec_len;
-
-    /* work through the name record buffer -- deserialize the record data
-     * and add to the output hash table
-     * NOTE: these mapping pairs are variable in length, so we have to be able
-     * to handle incomplete mappings temporarily here
-     */
-    name_rec = (struct darshan_name_record *)name_rec_buf;
-    while(buf_len > sizeof(darshan_record_id) + 1)
-    {
-        if(strnlen(name_rec->name, buf_len - sizeof(darshan_record_id)) ==
-            (buf_len - sizeof(darshan_record_id)))
-        {
-            /* if this record name's terminating null character is not
-             * present, we need to read more of the buffer before continuing
-             */
-            break;
-        }
-        rec_len = sizeof(darshan_record_id) + strlen(name_rec->name) + 1;
-
-        if(swap_flag)
-        {
-            /* we need to sort out endianness issues before deserializing */
-            DARSHAN_BSWAP64(&(name_rec->id));
-        }
-
-        HASH_FIND(hlink, *hash, &(name_rec->id), sizeof(darshan_record_id), ref);
-
-        if ( whitelist_filter(name_rec->id, whitelist, whitelist_count) ) {  
-            if(!ref)
-            {
-                ref = malloc(sizeof(*ref));
-                if(!ref)
-                    return(-1);
-
-                ref->name_record = malloc(rec_len);
-                if(!ref->name_record)
-                {
-                    free(ref);
-                    return(-1);
-                }
-
-                /* copy the name record over from the hash buffer */
-                memcpy(ref->name_record, name_rec, rec_len);
-
-                /* add this record to the hash */
-
-                    HASH_ADD(hlink, *hash, name_record->id, sizeof(darshan_record_id), ref);
-            }
-        }
-
-        tmp_p = (char *)name_rec + rec_len;
-        name_rec = (struct darshan_name_record *)tmp_p;
-        buf_len -= rec_len;
-        buf_processed += rec_len;
-    }
-
-    return(buf_processed);
-}
-
-
-
-
 
 /* read the header of the darshan log and set internal fd data structures
  * NOTE: this is the only portion of the darshan log that is uncompressed
@@ -2061,8 +1906,9 @@ static int darshan_log_dzunload(darshan_fd fd, struct darshan_log_map *map_p)
  *          backwards compatibility functions           *
  ********************************************************/
 
-int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
-    int swap_flag, struct darshan_name_record_ref **hash)
+static int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
+    int swap_flag, struct darshan_name_record_ref **hash,
+    darshan_record_id *whitelist, int whitelist_count)
 {
     struct darshan_name_record_ref *ref;
     char *buf_ptr;
@@ -2102,7 +1948,8 @@ int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
             DARSHAN_BSWAP64(rec_id_ptr);
 
         HASH_FIND(hlink, *hash, rec_id_ptr, sizeof(darshan_record_id), ref);
-        if(!ref)
+        if(!ref && (!whitelist ||
+            whitelist_filter(*rec_id_ptr, whitelist, whitelist_count)))
         {
             ref = malloc(sizeof(*ref));
             if(!ref)
@@ -2143,9 +1990,9 @@ int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
  *
  * Gets list of modules present in logs and returns the info
  */
-void darshan_log_get_modules (darshan_fd fd,
-                              struct darshan_mod_info **mods,
-                              int* count)
+void darshan_log_get_modules(darshan_fd fd,
+                             struct darshan_mod_info **mods,
+                             int* count)
 {
     int i;
     int j;
@@ -2175,7 +2022,6 @@ void darshan_log_get_modules (darshan_fd fd,
 
     *count = j;
 }
-
 
 /*
  * darshan_log_get_name_records
@@ -2215,7 +2061,6 @@ void darshan_log_get_name_records(darshan_fd fd,
 
 }
 
-
 /*
  * darshan_log_lookup_name_records
  *
@@ -2224,8 +2069,7 @@ void darshan_log_get_name_records(darshan_fd fd,
 void darshan_log_get_filtered_name_records(darshan_fd fd,
                               struct darshan_name_record_info **name_records,
                               int* count,
-                              darshan_record_id *whitelist, int whitelist_count
-        )
+                              darshan_record_id *whitelist, int whitelist_count)
 {
 
     int ret;
@@ -2257,19 +2101,14 @@ void darshan_log_get_filtered_name_records(darshan_fd fd,
 
 }
 
-
-
-
-
-
 /*
  * darshan_log_get_record 
  *
- *   Wrapper to hide the mod_logutils callback functions.
+ * Wrapper to hide the mod_logutils callback functions.
  */
-int  darshan_log_get_record (darshan_fd fd,
-                             int mod_idx,
-                             void **buf)
+int darshan_log_get_record(darshan_fd fd,
+                           int mod_idx,
+                           void **buf)
 {
     int r;
 

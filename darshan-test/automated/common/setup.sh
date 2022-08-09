@@ -6,6 +6,12 @@
 status=0
 thedate=$(date)
 
+git submodule update --init
+status=$((status + $?))
+
+./prepare.sh
+status=$((status + $?))
+
 mkdir -p install
 status=$((status + $?))
 

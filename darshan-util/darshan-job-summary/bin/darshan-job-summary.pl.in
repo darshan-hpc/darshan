@@ -149,17 +149,20 @@ while($line = <PARSE_OUT>)
             if($current_module eq "STDIO")
             {
                 ($junk, $stdio_perf_est) = split(':', $line, 2);
+                ($stdio_perf_est, $junk) = split(' ', $stdio_perf_est, 2);
                 $stdio_perf_est = sprintf("%.2f", $stdio_perf_est);
             }
             elsif($current_module eq "POSIX")
             {
                 ($junk, $perf_est) = split(':', $line, 2);
+                ($perf_est, $junk) = split(' ', $perf_est, 2);
                 $perf_est = sprintf("%.2f", $perf_est);
                 $perf_layer = "POSIX";
             }
             elsif($current_module eq "MPI-IO")
             {
                 ($junk, $perf_est) = split(':', $line, 2);
+                ($perf_est, $junk) = split(' ', $perf_est, 2);
                 $perf_est = sprintf("%.2f", $perf_est);
                 $perf_layer = "MPI-IO";
             }
@@ -192,6 +195,12 @@ while($line = <PARSE_OUT>)
     {
         # parse line
         @fields = split(/[\t ]+/, $line);
+
+        # following logic only relevant for POSIX, MPI-IO, and STDIO modules
+        if ($fields[0] ne "POSIX" && $fields[0] ne "MPI-IO" && $fields[0] ne "STDIO")
+        {
+            next;
+        }
 
         # encode the file system name to protect against special characters
         $fields[6] = encode('latex', $fields[6]);
@@ -743,8 +752,8 @@ foreach $key (keys %hash_files) {
 }
 if($counter > 0) { $avg = $sum / $counter; }
 else { $avg = 0; }
-$avg = format_bytes($avg);
-$max = format_bytes($max);
+$avg = format_bytes($avg, si => 1);
+$max = format_bytes($max, si => 1);
 print FILE_CNT_TABLE "total opened \& $counter \& $avg \& $max \\\\\n";
 
 $counter = 0;
@@ -775,8 +784,8 @@ foreach $key (keys %hash_files) {
 }
 if($counter > 0) { $avg = $sum / $counter; }
 else { $avg = 0; }
-$avg = format_bytes($avg);
-$max = format_bytes($max);
+$avg = format_bytes($avg, si => 1);
+$max = format_bytes($max, si => 1);
 print FILE_CNT_TABLE "read-only files \& $counter \& $avg \& $max \\\\\n";
 
 $counter = 0;
@@ -807,8 +816,8 @@ foreach $key (keys %hash_files) {
 }
 if($counter > 0) { $avg = $sum / $counter; }
 else { $avg = 0; }
-$avg = format_bytes($avg);
-$max = format_bytes($max);
+$avg = format_bytes($avg, si => 1);
+$max = format_bytes($max, si => 1);
 print FILE_CNT_TABLE "write-only files \& $counter \& $avg \& $max \\\\\n";
 
 $counter = 0;
@@ -839,8 +848,8 @@ foreach $key (keys %hash_files) {
 }
 if($counter > 0) { $avg = $sum / $counter; }
 else { $avg = 0; }
-$avg = format_bytes($avg);
-$max = format_bytes($max);
+$avg = format_bytes($avg, si => 1);
+$max = format_bytes($max, si => 1);
 print FILE_CNT_TABLE "read/write files \& $counter \& $avg \& $max \\\\\n";
 
 $counter = 0;
@@ -873,8 +882,8 @@ foreach $key (keys %hash_files) {
 }
 if($counter > 0) { $avg = $sum / $counter; }
 else { $avg = 0; }
-$avg = format_bytes($avg);
-$max = format_bytes($max);
+$avg = format_bytes($avg, si => 1);
+$max = format_bytes($max, si => 1);
 print FILE_CNT_TABLE "created files \& $counter \& $avg \& $max \\\\\n";
 
 print FILE_CNT_TABLE "
@@ -956,8 +965,8 @@ foreach $key (sort { $hash_files{$b}{'slowest_time'} <=> $hash_files{$a}{'slowes
     {
         my $vt = sprintf("%.3g", sqrt($hash_files{$key}{'variance_time'}));
         my $vb = sprintf("%.3g", sqrt($hash_files{$key}{'variance_bytes'}));
-        my $fast_bytes = format_bytes($hash_files{$key}{'fastest_bytes'});
-        my $slow_bytes = format_bytes($hash_files{$key}{'slowest_bytes'});
+        my $fast_bytes = format_bytes($hash_files{$key}{'fastest_bytes'}, si => 1);
+        my $slow_bytes = format_bytes($hash_files{$key}{'slowest_bytes'}, si => 1);
         my $name = encode('latex', "..." . substr($hash_files{$key}{'name'}, -12));
 
         print VAR_TABLE "

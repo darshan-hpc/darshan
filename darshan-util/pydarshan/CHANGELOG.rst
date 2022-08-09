@@ -1,3 +1,11 @@
+PyDarshan-3.4.0.1
+=================
+* New Darshan job summary report styling
+* Bug fix to heatmap module plotting code caused by logs
+  with inactive ranks
+* Fix warnings related to Pandas deprecation of df.append
+* Add cibuildwheel support
+
 PyDarshan-3.4.0.0
 =================
 * First stable public release, including first version of

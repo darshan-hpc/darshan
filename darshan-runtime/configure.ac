@@ -5,7 +5,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl You may need to use autoheader as well if changing any DEFINEs
 
 AC_PREREQ([2.69])
-AC_INIT([Darshan Runtime],[3.4.0-pre1],[darshan-users@lists.mcs.anl.gov],
+AC_INIT([Darshan Runtime],[3.4.0],[darshan-users@lists.mcs.anl.gov],
         [darshan-runtime],[https://www.mcs.anl.gov/research/projects/darshan])
 AC_CONFIG_HEADERS(darshan-runtime-config.h)
 AH_TOP([/*
@@ -98,13 +98,13 @@ if test "x$enable_darshan_runtime" = xyes ; then
    fi
 
    AC_ARG_ENABLE([cuserid],
-      [AS_HELP_STRING([--disable-cuserid],
-                      [Disables attempted use of cuserid() at run time])],
-      [], [enable_cuserid=yes]
+      [AS_HELP_STRING([--enable-cuserid],
+                      [Enables attempted use of cuserid() at run time])],
+      [], [enable_cuserid=no]
    )
-   if test "x$enable_cuserid" = "xno" ; then
-      AC_DEFINE([__DARSHAN_DISABLE_CUSERID], 1,
-                [Define if cuserid() should be disabled])
+   if test "x$enable_cuserid" = "xyes" ; then
+      AC_DEFINE([__DARSHAN_ENABLE_CUSERID], 1,
+                [Define if cuserid() should be enabled])
    fi
 
    AC_ARG_ENABLE([group-readable-logs],

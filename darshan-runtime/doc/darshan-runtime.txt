@@ -59,6 +59,7 @@ http://www.mcs.anl.gov/darshan[Darshan web site].
 ----
 tar -xvzf darshan-<version-number>.tar.gz
 cd darshan-<version-number>/darshan-runtime
+./prepare
 ./configure --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID CC=mpicc
 make
 make install
@@ -68,6 +69,7 @@ make install
 ----
 tar -xvzf darshan-<version-number>.tar.gz
 cd darshan-<version-number>/darshan-runtime
+./prepare
 ./configure --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID --without-mpi CC=gcc
 make
 make install
@@ -99,7 +101,7 @@ make install
 * `--without-mpi`: disables MPI support when building Darshan - MPI support is
   assumed if not specified.
 * `--enable-mmap-logs`: enables the use of Darshan's mmap log file mechanism.
-* `--disable-cuserid`: disables use of cuserid() at runtime.
+* `--enable-cuserid`: enables use of cuserid() at runtime.
 * `--disable-ld-preload`: disables building of the Darshan LD_PRELOAD library
 * `--enable-group-readable-logs`: sets Darshan log file permissions to allow
   group read access.
@@ -690,7 +692,7 @@ module swap PrgEnv-pgi PrgEnv-gnu
 ./configure \
  --with-log-path=/shared-file-system/darshan-logs \
  --prefix=/soft/darshan-2.2.3 \
- --with-jobid-env=PBS_JOBID --disable-cuserid CC=cc
+ --with-jobid-env=PBS_JOBID CC=cc
 make install
 module swap PrgEnv-gnu PrgEnv-pgi
 ----
@@ -700,14 +702,6 @@ module swap PrgEnv-gnu PrgEnv-pgi
 ====
 The job ID is set to `PBS_JOBID` for use with a Torque or PBS based scheduler.
 The `CC` variable is configured to point the standard MPI compiler.
-
-The --disable-cuserid argument is used to prevent Darshan from attempting to
-use the cuserid() function to retrieve the user name associated with a job.
-Darshan automatically falls back to other methods if this function fails,
-but on some Cray environments (notably the Beagle XE6 system as of March 2012)
-the cuserid() call triggers a segmentation fault.  With this option set,
-Darshan will typically use the LOGNAME environment variable to determine a
-userid.
 ====
 
 If instrumentation of the HDF5 library is desired, additionally load an
