@@ -17,7 +17,8 @@ test-requires = [
     "pytest",
     "lxml",
     "matplotlib<3.5",
-    "importlib_resources;python_version<'3.9'"
+    "importlib_resources;python_version<'3.9'",
+    "humanize"
 ]
 test-command = "pytest {package}"
 
