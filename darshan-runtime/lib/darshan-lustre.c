@@ -350,6 +350,7 @@ static void lustre_cleanup()
     darshan_clear_record_refs(&(lustre_runtime->record_id_hash), 1);
     free(lustre_runtime);
     lustre_runtime = NULL;
+    lustre_runtime_init_attempted = 0;
 
     LUSTRE_UNLOCK();
     return;

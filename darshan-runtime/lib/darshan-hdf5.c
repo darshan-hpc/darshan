@@ -1987,6 +1987,7 @@ static void hdf5_file_cleanup()
 
     free(hdf5_file_runtime);
     hdf5_file_runtime = NULL;
+    h5f_runtime_init_attempted = 0;
 
     HDF5_UNLOCK();
     return;
@@ -2005,6 +2006,7 @@ static void hdf5_dataset_cleanup()
 
     free(hdf5_dataset_runtime);
     hdf5_dataset_runtime = NULL;
+    h5d_runtime_init_attempted = 0;
 
     HDF5_UNLOCK();
     return;

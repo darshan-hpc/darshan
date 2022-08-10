@@ -2620,6 +2620,7 @@ static void posix_cleanup()
 
     free(posix_runtime);
     posix_runtime = NULL;
+    posix_runtime_init_attempted = 0;
 
     POSIX_UNLOCK();
     return;
