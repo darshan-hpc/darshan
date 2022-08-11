@@ -42,7 +42,7 @@ DARSHAN_FORWARD_DECL(H5Dopen1, hid_t, (hid_t loc_id, const char *name));
 DARSHAN_FORWARD_DECL(H5Dopen2, hid_t, (hid_t loc_id, const char *name, hid_t dapl_id));
 DARSHAN_FORWARD_DECL(H5Dread, herr_t, (hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id, void * buf));
 DARSHAN_FORWARD_DECL(H5Dwrite, herr_t, (hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id, const void * buf));
-#ifdef DARSHAN_HDF5_VERS_1_10_PLUS
+#ifdef HAVE_H5DFLUSH
 DARSHAN_FORWARD_DECL(H5Dflush, herr_t, (hid_t dataset_id));
 #endif
 DARSHAN_FORWARD_DECL(H5Dclose, herr_t, (hid_t dataset_id));
@@ -857,7 +857,7 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
     return(ret);
 }
 
-#ifdef DARSHAN_HDF5_VERS_1_10_PLUS
+#ifdef HAVE_H5DFLUSH
 herr_t DARSHAN_DECL(H5Dflush)(hid_t dataset_id)
 {
     struct hdf5_dataset_record_ref *rec_ref;
@@ -1100,8 +1100,7 @@ static struct hdf5_dataset_record_ref *hdf5_track_new_dataset_record(
     rec_ref->dataset_rec = dataset_rec;
     hdf5_dataset_runtime->rec_count++;
 
-#ifndef DARSHAN_HDF5_VERS_1_10_PLUS
-    /* flushes weren't introduced until H5 version 1.10+ */
+#ifndef HAVE_H5DFLUSH
     rec_ref->dataset_rec->counters[H5D_FLUSHES] = -1;
 #endif
 
