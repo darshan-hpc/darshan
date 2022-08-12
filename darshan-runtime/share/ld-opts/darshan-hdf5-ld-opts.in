@@ -13,6 +13,5 @@
 --wrap=H5Oopen
 --wrap=H5Oopen_by_addr
 --wrap=H5Oopen_by_idx
---wrap=H5Oopen_by_token
 --wrap=H5Oclose
 @DARSHAN_HDF5_ADD_LD_OPTS@

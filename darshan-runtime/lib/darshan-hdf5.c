@@ -52,7 +52,9 @@ DARSHAN_FORWARD_DECL(H5Oopen, hid_t, (hid_t loc_id, const char *name, hid_t lapl
 DARSHAN_FORWARD_DECL(H5Oopen_by_addr, hid_t, (hid_t loc_id, haddr_t addr));
 DARSHAN_FORWARD_DECL(H5Oopen_by_idx, hid_t, (hid_t loc_id, const char * group_name,
     H5_index_t idx_type, H5_iter_order_t order, hsize_t n, hid_t lapl_id));
+#ifdef HAVE_H5OOPEN_BY_TOKEN
 DARSHAN_FORWARD_DECL(H5Oopen_by_token, hid_t, (hid_t loc_id, H5O_token_t token));
+#endif
 DARSHAN_FORWARD_DECL(H5Oclose, herr_t, (hid_t object_id));
 
 /* structure that can track i/o stats for a given HDF5 file record at runtime */
@@ -1098,6 +1100,7 @@ hid_t DARSHAN_DECL(H5Oopen_by_idx)(hid_t loc_id, const char * group_name,
     return(ret);
 }
 
+#ifdef HAVE_H5OOPEN_BY_TOKEN
 hid_t DARSHAN_DECL(H5Oopen_by_token)(hid_t loc_id, H5O_token_t token)
 {
     hid_t dtype_id;
@@ -1159,6 +1162,7 @@ hid_t DARSHAN_DECL(H5Oopen_by_token)(hid_t loc_id, H5O_token_t token)
 
     return(ret);
 }
+#endif
 
 herr_t DARSHAN_DECL(H5Oclose)(hid_t object_id)
 {
