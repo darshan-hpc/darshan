@@ -23,7 +23,7 @@ Notes on how to release a new version of Darshan
  8) TESTING
     - manually trigger Jenkins and ALCF CI tests
  9) generate example output files on x86_64 and commit in
-    darshan-test/example-output/ directory
+    the darshan-logs repo in the darshan_logs/release_logs/ directory
 10) make a tag for the release according to instructions at
     http://git-scm.com/book/en/Git-Basics-Tagging
     - example (annotated tag, pushed to repo):
