@@ -992,47 +992,20 @@ static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
     return(buf_processed);
 }
 
-
 /* extracts a major and minor format version from a log format version
  *
  * returns 0 on success, -1 on failure
  */
 static int darshan_log_get_format_version(char *ver_str, int *maj_num, int *min_num)
 {
-    char *delim;
-    char *maj, *min;
-    float tmp_float_maj, tmp_float_min;
-    char *end_ptr;
+    int ret;
 
     if(!ver_str)
         return(-1);
 
-    delim = strchr(ver_str, '.');
-    if(!delim)
+    ret = sscanf(ver_str, "%d.%d", maj_num, min_num);
+    if(ret < 2)
         return(-1);
-    *delim = '\0'; // temporarily create 2 strings
-    maj = ver_str;
-    min = delim + 1;
-
-    if((strlen(maj) < 1) || (strlen(min) < 1))
-        return(-1);
-
-    errno = 0;
-    tmp_float_maj = strtof(maj, &end_ptr);
-    if((tmp_float_maj == 0) && ((errno != 0) || (end_ptr == maj)))
-        return(-1);
-    if(*end_ptr != '\0')
-        return(-1);
-    errno = 0;
-    tmp_float_min = strtof(min, &end_ptr);
-    if((tmp_float_min == 0) && ((errno != 0) || (end_ptr == min)))
-        return(-1);
-    if(*end_ptr != '\0')
-        return(-1);
-
-    *delim = '.'; // fix version string
-    *maj_num = (int)tmp_float_maj;
-    *min_num = (int)tmp_float_min;
 
     return(0);
 }
