@@ -222,7 +222,8 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                     (match and int(darshan_log_version[2]) >= 4)):
                     assert actual_runtime_heatmap_titles == 3
                 elif ("runtime_and_dxt_heatmaps_diagonal_write_only" in log_filepath or
-                      "treddy_runtime_heatmap_inactive_ranks" in log_filepath):
+                      "treddy_runtime_heatmap_inactive_ranks" in log_filepath or
+                      "h5d_no_h5f" in log_filepath):
                     assert actual_runtime_heatmap_titles == 1
                 else:
                     assert actual_runtime_heatmap_titles == 0

@@ -341,6 +341,14 @@ def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
             plot_opcounts,
             [0, 5, 5, 0, 10, 0],
         ),
+        # "ground truth" log where H5F is disabled and 3
+        # datasets are opened and written to
+        (
+            "treddy_h5d_no_h5f.darshan",
+            "H5D",
+            plot_opcounts,
+            [0, 3, 3, 0, 0, 0],
+        ),
     ],
 )
 def test_bar_heights(filename, mod, fig_func, expected_heights):

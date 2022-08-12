@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -91,6 +92,11 @@ def gather_count_data(report, mod):
             'H5D Read', 'H5D Write', 'H5D Open',
             'H5D Flush', 'H5F Open', 'H5F Flush',
         ]
+        # H5F is not necessarily available following
+        # gh-703
+        if not "H5F" in report.summary["agg_ioops"]:
+            report.summary['agg_ioops']['H5F'] = defaultdict(lambda: 0)
+
         counts = [
             report.summary['agg_ioops']['H5D']['H5D_READS'],
             report.summary['agg_ioops']['H5D']['H5D_WRITES'],
