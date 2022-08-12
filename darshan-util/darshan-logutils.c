@@ -80,7 +80,7 @@ struct darshan_fd_int_state
 
 /* each module's implementation of the darshan logutil functions */
 #define X(a, b, c, d) d,
-struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_MAX_MODS] =
+struct darshan_mod_logutil_funcs *mod_logutils[DARSHAN_KNOWN_MODULE_COUNT] =
 {
     DARSHAN_MODULE_IDS
 };
@@ -91,6 +91,7 @@ static int darshan_mnt_info_cmp(const void *a, const void *b);
 static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
     int swap_flag, struct darshan_name_record_ref **hash,
     darshan_record_id *whitelist, int whitelist_count);
+static int darshan_log_get_format_version(char *ver_str, int *maj_num, int *min_num);
 static int darshan_log_get_header(darshan_fd fd);
 static int darshan_log_put_header(darshan_fd fd);
 static int darshan_log_seek(darshan_fd fd, off_t offset);
@@ -723,7 +724,7 @@ int darshan_log_get_mod(darshan_fd fd, darshan_module_id mod_id,
     state = fd->state;
     assert(state);
 
-    if(mod_id < 0 || mod_id >= DARSHAN_MAX_MODS)
+    if(mod_id < 0 || mod_id >= DARSHAN_KNOWN_MODULE_COUNT)
     {
         fprintf(stderr, "Error: invalid Darshan module id.\n");
         return(-1);
@@ -782,7 +783,7 @@ int darshan_log_put_mod(darshan_fd fd, darshan_module_id mod_id,
     state = fd->state;
     assert(state);
 
-    if(mod_id < 0 || mod_id >= DARSHAN_MAX_MODS)
+    if(mod_id < 0 || mod_id >= DARSHAN_KNOWN_MODULE_COUNT)
     {
         state->err = -1;
         fprintf(stderr, "Error: invalid Darshan module id.\n");
@@ -991,6 +992,24 @@ static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
     return(buf_processed);
 }
 
+/* extracts a major and minor format version from a log format version
+ *
+ * returns 0 on success, -1 on failure
+ */
+static int darshan_log_get_format_version(char *ver_str, int *maj_num, int *min_num)
+{
+    int ret;
+
+    if(!ver_str)
+        return(-1);
+
+    ret = sscanf(ver_str, "%d.%d", maj_num, min_num);
+    if(ret < 2)
+        return(-1);
+
+    return(0);
+}
+
 /* read the header of the darshan log and set internal fd data structures
  * NOTE: this is the only portion of the darshan log that is uncompressed
  *
@@ -999,7 +1018,7 @@ static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
 static int darshan_log_get_header(darshan_fd fd)
 {
     struct darshan_header header;
-    double log_ver_val;
+    int log_ver_maj, log_ver_min;
     int i;
     int ret;
 
@@ -1018,14 +1037,24 @@ static int darshan_log_get_header(darshan_fd fd)
         return(-1);
     }
 
+    /* get major/minor version numbers */
+    ret = darshan_log_get_format_version(fd->version, &log_ver_maj, &log_ver_min);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to parse log file format version.\n");
+        return(-1);
+    }
+
     /* other log file versions can be detected and handled here */
-    if(strcmp(fd->version, "3.00") == 0)
+    if((log_ver_maj == 3) && (log_ver_min == 0))
     {
         fd->state->get_namerecs = darshan_log_get_namerecs_3_00;
     }
-    else if((strcmp(fd->version, "3.10") == 0) ||
-            (strcmp(fd->version, "3.20") == 0) ||
-            (strcmp(fd->version, "3.21") == 0))
+    else if((log_ver_maj == 3) &&
+                ((log_ver_min == 10) ||
+                 (log_ver_min == 20) ||
+                 (log_ver_min == 21) ||
+                 (log_ver_min == 41)))
     {
         fd->state->get_namerecs = darshan_log_get_namerecs;
     }
@@ -1046,11 +1075,53 @@ static int darshan_log_get_header(darshan_fd fd)
     }
 
     /* read uncompressed header from log file */
-    ret = darshan_log_read(fd, &header, sizeof(header));
-    if(ret != (int)sizeof(header))
+    /* NOTE: header bumped from 16 to 64 modules at log ver 3.41 */
+    if(((log_ver_maj == 3) && (log_ver_min >= 41)) || (log_ver_maj > 3))
     {
-        fprintf(stderr, "Error: failed to read darshan log file header.\n");
-        return(-1);
+        ret = darshan_log_read(fd, &header, sizeof(header));
+        if(ret != (int)sizeof(header))
+        {
+            fprintf(stderr, "Error: failed to read darshan log file header.\n");
+            return(-1);
+        }
+
+        fd->job_map.off = sizeof(struct darshan_header);
+    }
+    else
+    {
+        /* backwards compatibility with 3.00 version of Darshan header */
+        #define DARSHAN_MAX_MODS_3_00 16
+        struct
+        {
+            char version_string[8];
+            int64_t magic_nr;
+            unsigned char comp_type;
+            uint32_t partial_flag;
+            struct darshan_log_map name_map;
+            struct darshan_log_map mod_map[DARSHAN_MAX_MODS_3_00];
+            uint32_t mod_ver[DARSHAN_MAX_MODS_3_00];
+        } header_3_00;
+
+        /* read old header structure */
+        ret = darshan_log_read(fd, &header_3_00, sizeof(header_3_00));
+        if(ret != sizeof(header_3_00))
+        {
+            fprintf(stderr, "Error: failed to read darshan log file header.\n");
+            return(-1);
+        }
+
+        /* set new header structure */
+        memset(&header, 0, sizeof(header));
+        strncpy(header.version_string, header_3_00.version_string, 8);
+        header.magic_nr = header_3_00.magic_nr;
+        header.comp_type = header_3_00.comp_type;
+        header.partial_flag = (uint64_t)header_3_00.partial_flag;
+        memcpy(&header.name_map, &header_3_00.name_map,
+            (1 + DARSHAN_MAX_MODS_3_00) * sizeof(header_3_00.name_map));
+        memcpy(&header.mod_ver, &header_3_00.mod_ver,
+            (DARSHAN_MAX_MODS_3_00) * sizeof(header_3_00.mod_ver[0]));
+
+        fd->job_map.off = sizeof(header_3_00);
     }
 
     if(header.magic_nr == DARSHAN_MAGIC_NR)
@@ -1093,8 +1164,7 @@ static int darshan_log_get_header(darshan_fd fd)
     memcpy(&fd->name_map, &(header.name_map), sizeof(struct darshan_log_map));
     memcpy(&fd->mod_map, &(header.mod_map), DARSHAN_MAX_MODS * sizeof(struct darshan_log_map));
 
-    log_ver_val = atof(fd->version);
-    if(log_ver_val < 3.2)
+    if((log_ver_maj == 3) && (log_ver_min < 20))
     {
         /* perform module index shift to account for H5D module from 3.2.0 */
         memmove(&fd->mod_map[DARSHAN_H5D_MOD+1], &fd->mod_map[DARSHAN_H5D_MOD],
@@ -1106,7 +1176,6 @@ static int darshan_log_get_header(darshan_fd fd)
     }
 
     /* there may be nothing following the job data, so safety check map */
-    fd->job_map.off = sizeof(struct darshan_header);
     if(fd->name_map.off == 0)
     {
         for(i = 0; i < DARSHAN_MAX_MODS; i++)
@@ -2007,7 +2076,7 @@ void darshan_log_get_modules(darshan_fd fd,
     *mods = malloc(sizeof(**mods) * DARSHAN_MAX_MODS);
     assert(*mods);
 
-    for (i = 0, j = 0; i < DARSHAN_MAX_MODS; i++)
+    for (i = 0, j = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
     {
         if (fd->mod_map[i].len)
         {
@@ -2016,6 +2085,18 @@ void darshan_log_get_modules(darshan_fd fd,
             (*mods)[j].ver           = fd->mod_ver[i];
             (*mods)[j].partial_flag  = DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i);
             (*mods)[j].idx           = i;
+            j += 1;
+        }
+    }
+    for (i = DARSHAN_KNOWN_MODULE_COUNT; i < DARSHAN_MAX_MODS; i++)
+    {
+        if (fd->mod_map[i].len)
+        {
+            /* we don't know the names of any modules in this region */
+            (*mods)[j].name = NULL;
+            (*mods)[j].len  = fd->mod_map[i].len;
+            (*mods)[j].ver  = fd->mod_ver[i];
+            (*mods)[j].idx  = i;
             j += 1;
         }
     }

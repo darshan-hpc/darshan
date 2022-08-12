@@ -138,7 +138,7 @@ struct darshan_core_runtime
     void *log_mod_p;
 
     /* darshan-core internal data structures */
-    struct darshan_core_module* mod_array[DARSHAN_MAX_MODS];
+    struct darshan_core_module* mod_array[DARSHAN_KNOWN_MODULE_COUNT];
     struct darshan_config config;
     size_t mod_mem_used;
     struct darshan_core_name_record_ref *name_hash;
