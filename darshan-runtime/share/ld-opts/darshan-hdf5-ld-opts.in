@@ -10,4 +10,8 @@
 --wrap=H5Dread
 --wrap=H5Dwrite
 --wrap=H5Dclose
+--wrap=H5Oopen
+--wrap=H5Oopen_by_addr
+--wrap=H5Oopen_by_idx
+--wrap=H5Oclose
 @DARSHAN_HDF5_ADD_LD_OPTS@

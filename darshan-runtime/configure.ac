@@ -384,6 +384,8 @@ if test "x$enable_darshan_runtime" = xyes ; then
       LIBS="$LIBS -L ${with_hdf5}/lib -lhdf5 -lm -ldl -lz"
       AC_CHECK_FUNCS([H5Dflush],
                      [DARSHAN_HDF5_ADD_LD_OPTS+="--undefined=H5Dflush${NL}--wrap=H5Dflush${NL}"])
+      AC_CHECK_FUNCS([H5Oopen_by_token],
+                     [DARSHAN_HDF5_ADD_LD_OPTS+="--wrap=H5Oopen_by_token${NL}"])
       AC_CHECK_FUNCS([H5Sget_regular_hyperslab])
       CFLAGS="$old_cflags"
       LIBS="$old_libs"
