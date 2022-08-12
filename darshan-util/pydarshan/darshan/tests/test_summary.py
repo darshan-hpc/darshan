@@ -416,6 +416,80 @@ class TestReportData:
         # check the dataframes
         assert_frame_equal(actual_log_df, expected_df)
     
+    @pytest.mark.parametrize(
+        "log_path, expected_df, expected_partial_flags",
+        [
+            # each of these logs offers a unique
+            # set of modules to verify
+            (
+                "sample.darshan",
+                pd.DataFrame(
+                    index=["POSIX (ver=3)", "MPI-IO (ver=2)", "LUSTRE (ver=1)", "STDIO (ver=1)"],
+                    data=[["1 unique file (0 Bytes read, 2.2 TB written)"],["1 unique file (0 Bytes read, 2.2 TB written)"],["1 unique file"],["2 unique file (0 Bytes read, 3.3 kB written"]],
+                ),
+                0,
+            ),
+            (
+                "noposix.darshan",
+                pd.DataFrame(
+                    index=["LUSTRE (ver=1)", "STDIO (ver=1)"],
+                    data=[["519 unique file"], ["2 unique file (1.8 GB read, 29.6 MB written"]],
+                ),
+                0,
+            ),
+            (
+                "noposixopens.darshan",
+                pd.DataFrame(
+                    index=["POSIX (ver=3)", "STDIO (ver=1)"],
+                    data=[["1 unique file (0 Bytes read, 0 Bytes written)"],["3 unique file (604.0 MB read, 4.1 MB written"]],
+                ),
+                0,
+            ),
+            (
+                "sample-goodost.darshan",
+                pd.DataFrame(
+                    index= ["POSIX (ver=3)", "LUSTRE (ver=1)", "STDIO (ver=1)"],
+                    data=[["48 unique file (0 Bytes read, 51.5 GB written)"],["48 unique file"],["2 unique file (0 Bytes read, 1.6 kB written)"]],
+                ),
+                0,
+            ),
+            (
+                "sample-dxt-simple.darshan",
+                pd.DataFrame(
+                    index= ["POSIX (ver=4)", "MPI-IO (ver=3)", "DXT_POSIX (ver=1)", "DXT_MPIIO (ver=2)"],
+                    data=[["18 unique file (0 Bytes read, 4.0 kB written)"],["1 unique file (0 Bytes read, 4.0 kB written)"],["-"],["-"]],
+                ),
+                0,
+            ),
+            (
+                "partial_data_stdio.darshan",
+                pd.DataFrame(
+                    index= ["POSIX (ver=4","MPI-IO (ver=3)","STDIO (ver=2)"],
+                    data=  [["1 unique file (16.8 MB read, 16.8 MB written)"], ["1 unique file (16.8 MB read, 16.8 MB written)"], ["1022 unique file (0 Bytes read, 17.1 GB written)"]],
+                ),
+                1,
+            ),
+            (
+                "partial_data_dxt.darshan",
+                pd.DataFrame(
+                    index=["POSIX (ver=4)", "MPI-IO (ver=3)", "STDIO (ver=2)", "DXT_POSIX (ver=1)", "DXT_MPIIO (ver=2)"],
+                    data=[["1 unique file (1.0 MB read, 0 Bytes written)"], ["1 unique file (1.0 MB read, 0 Bytes written)"], ["1 unique file (0 Bytes read, 309 Bytes written)"],["-"],["-"]],
+                ),
+                2,
+            )
+
+        ]
+    )
+    def test_module_info_table(self, log_path, expected_df, expected_partial_flags):
+        log_path = get_log_path(log_path)
+        # collect the report data
+        R = summary.ReportData(log_path=log_path)
+        # check that number of unicode warning symbols matches expected partial flag count
+
+        # convert the module table back to a pandas dataframe
+        actual_mod_df = pd.read_html(R.module_table, index_col=0)[0]
+        # check the module dataframes
+    
 
     @pytest.mark.parametrize(
         "logname, expected_cmd",
