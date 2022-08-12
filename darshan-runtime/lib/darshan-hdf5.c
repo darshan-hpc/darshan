@@ -42,7 +42,7 @@ DARSHAN_FORWARD_DECL(H5Dopen1, hid_t, (hid_t loc_id, const char *name));
 DARSHAN_FORWARD_DECL(H5Dopen2, hid_t, (hid_t loc_id, const char *name, hid_t dapl_id));
 DARSHAN_FORWARD_DECL(H5Dread, herr_t, (hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id, void * buf));
 DARSHAN_FORWARD_DECL(H5Dwrite, herr_t, (hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id, const void * buf));
-#ifdef DARSHAN_HDF5_VERS_1_10_PLUS
+#ifdef HAVE_H5DFLUSH
 DARSHAN_FORWARD_DECL(H5Dflush, herr_t, (hid_t dataset_id));
 #endif
 DARSHAN_FORWARD_DECL(H5Dclose, herr_t, (hid_t dataset_id));
@@ -623,10 +623,6 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
     size_t type_size;
     ssize_t file_sel_npoints;
     H5S_sel_type file_sel_type;
-    hsize_t start_dims[H5D_MAX_NDIMS] = {0};
-    hsize_t stride_dims[H5D_MAX_NDIMS] = {0};
-    hsize_t count_dims[H5D_MAX_NDIMS] = {0};
-    hsize_t block_dims[H5D_MAX_NDIMS] = {0};
     int64_t common_access_vals[H5D_MAX_NDIMS+H5D_MAX_NDIMS+1] = {0};
     struct darshan_common_val_counter *cvc;
     int i;
@@ -661,15 +657,17 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
                 file_sel_npoints = H5Sget_select_npoints(file_space_id);
                 file_sel_type = H5Sget_select_type(file_space_id);
             }
-#ifdef DARSHAN_HDF5_VERS_1_10_PLUS
-            if(file_sel_type == H5S_SEL_ALL)
-                rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] += 1;
-            else if(file_sel_type == H5S_SEL_POINTS)
+            if(file_sel_type == H5S_SEL_POINTS)
                 rec_ref->dataset_rec->counters[H5D_POINT_SELECTS] += 1;
             else if (file_sel_type == H5S_SEL_HYPERSLABS)
             {
+#ifdef HAVE_H5SGET_REGULAR_HYPERSLAB
                 if(H5Sis_regular_hyperslab(file_space_id))
                 {
+                    hsize_t start_dims[H5D_MAX_NDIMS] = {0};
+                    hsize_t stride_dims[H5D_MAX_NDIMS] = {0};
+                    hsize_t count_dims[H5D_MAX_NDIMS] = {0};
+                    hsize_t block_dims[H5D_MAX_NDIMS] = {0};
                     rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] += 1;
                     H5Sget_regular_hyperslab(file_space_id,
                         start_dims, stride_dims, count_dims, block_dims);
@@ -683,17 +681,14 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
                 }
                 else
                     rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS] += 1;
-            }
 #else
-            rec_ref->dataset_rec->counters[H5D_POINT_SELECTS] = -1;
-            rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] = -1;
-            rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS] = -1;
-            for(i = 0; i < H5D_MAX_NDIMS; i++)
-            {
-                common_access_vals[1+i] = -1;
-                common_access_vals[1+i+H5D_MAX_NDIMS] = -1;
-            }
+                for(i = 0; i < H5D_MAX_NDIMS; i++)
+                {
+                    common_access_vals[1+i] = -1;
+                    common_access_vals[1+i+H5D_MAX_NDIMS] = -1;
+                }
 #endif
+            }
             type_size = rec_ref->dataset_rec->counters[H5D_DATATYPE_SIZE];
             access_size = file_sel_npoints * type_size;
             rec_ref->dataset_rec->counters[H5D_BYTES_READ] += access_size;
@@ -744,10 +739,6 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
     size_t type_size;
     ssize_t file_sel_npoints;
     H5S_sel_type file_sel_type;
-    hsize_t start_dims[H5D_MAX_NDIMS] = {0};
-    hsize_t stride_dims[H5D_MAX_NDIMS] = {0};
-    hsize_t count_dims[H5D_MAX_NDIMS] = {0};
-    hsize_t block_dims[H5D_MAX_NDIMS] = {0};
     int64_t common_access_vals[H5D_MAX_NDIMS+H5D_MAX_NDIMS+1] = {0};
     struct darshan_common_val_counter *cvc;
     int i;
@@ -782,15 +773,17 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
                 file_sel_npoints = H5Sget_select_npoints(file_space_id);
                 file_sel_type = H5Sget_select_type(file_space_id);
             }
-#ifdef DARSHAN_HDF5_VERS_1_10_PLUS
-            if(file_sel_type == H5S_SEL_ALL)
-                rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] += 1;
-            else if(file_sel_type == H5S_SEL_POINTS)
+            if(file_sel_type == H5S_SEL_POINTS)
                 rec_ref->dataset_rec->counters[H5D_POINT_SELECTS] += 1;
             else if (file_sel_type == H5S_SEL_HYPERSLABS)
             {
+#ifdef HAVE_H5SGET_REGULAR_HYPERSLAB
                 if(H5Sis_regular_hyperslab(file_space_id))
                 {
+                    hsize_t start_dims[H5D_MAX_NDIMS] = {0};
+                    hsize_t stride_dims[H5D_MAX_NDIMS] = {0};
+                    hsize_t count_dims[H5D_MAX_NDIMS] = {0};
+                    hsize_t block_dims[H5D_MAX_NDIMS] = {0};
                     rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] += 1;
                     H5Sget_regular_hyperslab(file_space_id,
                         start_dims, stride_dims, count_dims, block_dims);
@@ -804,17 +797,14 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
                 }
                 else
                     rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS] += 1;
-            }
 #else
-            rec_ref->dataset_rec->counters[H5D_POINT_SELECTS] = -1;
-            rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] = -1;
-            rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS] = -1;
-            for(i = 0; i < H5D_MAX_NDIMS; i++)
-            {
-                common_access_vals[1+i] = -1;
-                common_access_vals[1+i+H5D_MAX_NDIMS] = -1;
-            }
+                for(i = 0; i < H5D_MAX_NDIMS; i++)
+                {
+                    common_access_vals[1+i] = -1;
+                    common_access_vals[1+i+H5D_MAX_NDIMS] = -1;
+                }
 #endif
+            }
             type_size = rec_ref->dataset_rec->counters[H5D_DATATYPE_SIZE];
             access_size = file_sel_npoints * type_size;
             rec_ref->dataset_rec->counters[H5D_BYTES_WRITTEN] += access_size;
@@ -857,7 +847,7 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
     return(ret);
 }
 
-#ifdef DARSHAN_HDF5_VERS_1_10_PLUS
+#ifdef HAVE_H5DFLUSH
 herr_t DARSHAN_DECL(H5Dflush)(hid_t dataset_id)
 {
     struct hdf5_dataset_record_ref *rec_ref;
@@ -1100,9 +1090,12 @@ static struct hdf5_dataset_record_ref *hdf5_track_new_dataset_record(
     rec_ref->dataset_rec = dataset_rec;
     hdf5_dataset_runtime->rec_count++;
 
-#ifndef DARSHAN_HDF5_VERS_1_10_PLUS
-    /* flushes weren't introduced until H5 version 1.10+ */
+#ifndef HAVE_H5DFLUSH
     rec_ref->dataset_rec->counters[H5D_FLUSHES] = -1;
+#endif
+#ifndef HAVE_H5SGET_REGULAR_HYPERSLAB
+    rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS] = -1;
+    rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS] = -1;
 #endif
 
     return(rec_ref);

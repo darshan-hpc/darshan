@@ -370,12 +370,23 @@ if test "x$enable_darshan_runtime" = xyes ; then
       if test $hdf5_version_major -gt 1 || (test $hdf5_version_major -eq 1 && test $hdf5_version_minor -ge 10) ; then
          AC_DEFINE([DARSHAN_HDF5_VERS_1_10_PLUS], 1,
                    [Define if HDF5 module built with version 1.10+])
-         DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS="--undefined=H5Dflush --wrap=H5Dflush"
          AC_MSG_RESULT(yes)
       else
-         DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS=""
          AC_MSG_RESULT(no)
       fi
+
+      # check for specific HDF5 functions wrapped or used by Darshan
+      DARSHAN_HDF5_ADD_LD_OPTS=""
+      NL=$'\n'
+      old_cflags="$CFLAGS"
+      old_libs="$LIBS"
+      CFLAGS="$CFLAGS -I ${with_hdf5}/include"
+      LIBS="$LIBS -L ${with_hdf5}/lib -lhdf5 -lm -ldl -lz"
+      AC_CHECK_FUNCS([H5Dflush],
+                     [DARSHAN_HDF5_ADD_LD_OPTS+="--undefined=H5Dflush${NL}--wrap=H5Dflush${NL}"])
+      AC_CHECK_FUNCS([H5Sget_regular_hyperslab])
+      CFLAGS="$old_cflags"
+      LIBS="$old_libs"
 
       AC_MSG_CHECKING([whether HDF5 is built with parallel support])
       AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
@@ -685,7 +696,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    AC_SUBST(DARSHAN_VERSION)
    AC_SUBST(MPICH_LIB_OLD)
    AC_SUBST(DARSHAN_STDIO_ADD_FSCANF_LD_OPTS)
-   AC_SUBST(DARSHAN_HDF5_ADD_DFLUSH_LD_OPTS)
+   AC_SUBST(DARSHAN_HDF5_ADD_LD_OPTS)
    AC_SUBST(DARSHAN_HDF5_LD_FLAGS)
    AC_SUBST(DARSHAN_LUSTRE_LD_FLAGS)
    AC_SUBST(with_papi)
