@@ -130,27 +130,18 @@ The second argument is the name of a directory (to be created) that will
 contain the collection of pdf files.  Note that this utility probably
 is not appropriate if your application opens a large number of files.
 
-If you would like to produce a summary for a single
-specific file, then you can run the following command to produce a quick
-list of the files opened by an application and the amount of time spent
-performing I/O to each of them:
-
-----
-darshan-parser --file-list carns_my-app_id114525_7-27-58921_19.darshan.gz
-----
-
-Once you have identified a specific file of interest, then you can produce a
-summary for that specific file with the following commands:
+You can produce a summary for a specific file of interest with the following
+commands:
 
 ----
 darshan-convert --file HASH carns_my-app_id114525_7-27-58921_19.darshan.gz interesting_file.darshan.gz
 darshan-job-summary.pl interesting_file.darshan.gz
 ----
 
-The "HASH" argument is the hash of a file name as listed in the
-+darshan-parser --file-list+ output.  The +interesting_file.darshan.gz+ file
-produced by darshan-convert is like a normal Darshan log file, but it will only contain instrumentation for the
-specified file.
+The "HASH" argument is the hash of a file name as reported by
+darshan-parser.  The +interesting_file.darshan.gz+ file produced by
+darshan-convert is like a normal Darshan log file, but it will only contain
+instrumentation for the specified file.
 
 === darshan-parser
 
@@ -169,10 +160,9 @@ The format of this output is described in the following section.
 
 The beginning of the output from darshan-parser displays a summary of
 overall information about the job. Additional job-level summary information
-can also be produced using the `--perf`, `--file`, `--file-list`,
-`--file-list-detailed`, or `--total` command line options.  See the
-<<addsummary,Additional summary output>> section for more information about
-those options.
+can also be produced using the `--perf`, `--file`, or `--total` command line
+options.  See the <<addsummary,Additional summary output>> section for more
+information about those options.
 
 The following table defines the meaning
 of each line in the default header section of the output:
@@ -694,39 +684,6 @@ total_POSIX_MAX_BYTE_WRITTEN: 67108863
 ...
 ----
 
-===== File list
-
-Use the `--file-list` option to produce a list of files opened by the
-application along with estimates of the amount of time spent accessing each
-file.
-
-.Example output
-----
-# Per-file summary of I/O activity.
-# -----
-# <record_id>: darshan record id for this file
-# <file_name>: full file name
-# <nprocs>: number of processes that opened the file
-# <slowest>: (estimated) time in seconds consumed in IO by slowest process
-# <avg>: average time in seconds consumed in IO per process
-
-# <record_id>   <file_name> <nprocs>    <slowest>   <avg>
-5041708885572677970 /projects/SSSPPg/snyder/ior/ior.dat 1024    16.342061   1.705930
-----
-
-This data could be post-processed to compute more in-depth statistics, such as
-the total number of MPI files and total number of POSIX files used in a
-job, categorizing files into independent/unique/local files (opened by
-1 process), subset/partially shared files (opened by a proper subset of
-processes) or globally shared files (opened by all processes), and ranking
-files according to how much time was spent performing I/O in each file.
-
-===== Detailed file list
-
-The `--file-list-detailed` is the same as --file-list except that it
-produces many columns of output containing statistics broken down by file.
-This option is mainly useful for more detailed automated analysis.
-
 === darshan-dxt-parser
 
 The `darshan-dxt-parser` utility can be used to parse DXT traces out of Darshan
@@ -786,7 +743,7 @@ POSIX and MPI-IO interfaces. Example output is given below:
  X_MPIIO       0   read        3       262144      0.0050      0.0051
 ----
 
-===== DXT POSIX module
+==== DXT POSIX module
 
 This module provides details on each read or write access at the POSIX layer.
 The trace output is organized first by file then by process rank. So, for each
@@ -817,7 +774,7 @@ The output format for each indvidual I/O operation segment is:
 * Start: timestamp of the start of the operation (w.r.t. application start time)
 * End: timestamp of the end of the operation (w.r.t. application start time)
 
-===== DXT MPI-IO module
+==== DXT MPI-IO module
 
 If the MPI-IO interface is used by an application, this module provides details on
 each read or write access at the MPI-IO layer. This data is often useful in
