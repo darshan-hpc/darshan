@@ -388,10 +388,6 @@ define(`PNETCDF_FILE_RECORD',`
         int comm_size;
         newpath = darshan_clean_file_path($3);
         if (!newpath) newpath = (char *)$3;
-        if (darshan_core_excluded_path(newpath)) {
-            if (newpath != $3) free(newpath);
-            break;
-        }
         rec_id = darshan_core_gen_record_id(newpath);
         rec_ref = darshan_lookup_record_ref(pnetcdf_file_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id));
         if (!rec_ref) rec_ref = pnetcdf_file_track_new_record(rec_id, newpath);
@@ -698,11 +694,6 @@ define(`PNETCDF_VAR_RECORD_OPEN',`
         if (err != NC_NOERR) { free(rec_name); break; }
         /* fully resolve file path */
         file_path = darshan_clean_file_path(rec_name);
-        if (darshan_core_excluded_path(file_path)) {
-            free(file_path);
-            free(rec_name);
-            break;
-        }
         free(rec_name);
         rec_name = (char*) malloc(strlen(file_path)+strlen($2)+2);
         strcpy(rec_name, file_path);
