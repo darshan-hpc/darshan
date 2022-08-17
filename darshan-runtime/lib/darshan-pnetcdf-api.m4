@@ -145,9 +145,9 @@ int DARSHAN_DECL(APINAME($1,$2,$3,$4))(int ncid, int varid, ArgKind($2)BufArgs($
     err = ncmpi_inq_$1_size(ncid, &$1_before);
     if (err != NC_NOERR) return err;
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = `__real_'APINAME($1,$2,$3,$4)(ncid, varid, ArgKindName($2) buf ifelse($3,`',`, bufcount, buftype'));
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     err = ncmpi_inq_$1_size(ncid, &$1_after);
     if (err != NC_NOERR) return err;
@@ -195,9 +195,9 @@ int DARSHAN_DECL(APINAME($1,n,$2,$3))(int ncid, int varid, int num, MPI_Offset* 
     err = ncmpi_inq_$1_size(ncid, &$1_before);
     if (err != NC_NOERR) return err;
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = `__real_'APINAME($1,n,$2,$3)(ncid, varid, num, starts, counts, buf ifelse($2,`',`, bufcount, buftype'));
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     err = ncmpi_inq_$1_size(ncid, &$1_after);
     if (err != NC_NOERR) return err;
@@ -244,9 +244,9 @@ int DARSHAN_DECL(ncmpi_$1_vard$2)(int ncid, int varid, MPI_Datatype filetype, if
     err = ncmpi_inq_$1_size(ncid, &$1_before);
     if (err != NC_NOERR) return err;
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_$1_vard$2(ncid, varid, filetype, buf, bufcount, buftype);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     err = ncmpi_inq_$1_size(ncid, &$1_after);
     if (err != NC_NOERR) return err;
@@ -288,9 +288,9 @@ int DARSHAN_DECL(APINAME($1,$2,$3))(int ncid, int varid, ArgKind($2)BufArgs($1,$
 
     MAP_OR_FAIL(APINAME($1,$2,$3));
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = `__real_'APINAME($1,$2,$3)(ncid, varid, ArgKindName($2) buf ifelse($3,`',`, bufcount, buftype'), reqid);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     if (ret == NC_NOERR) {
         PNETCDF_VAR_PRE_RECORD();
@@ -340,9 +340,9 @@ int DARSHAN_DECL(APINAME($1,n,$2))(int ncid, int varid, int num, MPI_Offset* con
 
     MAP_OR_FAIL(APINAME($1,n,$2));
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = `__real_'APINAME($1,n,$2)(ncid, varid, num, starts, counts, buf, ifelse($2,`',`bufcount, buftype,') reqid);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     if (ret == NC_NOERR) {
         PNETCDF_VAR_PRE_RECORD();
@@ -417,9 +417,9 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
 
     MAP_OR_FAIL(ncmpi_create);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_create(comm, path, cmode, info, ncidp);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
     if (ret == NC_NOERR)
     { /* use ROMIO approach to strip prefix if present */
         /* strip off prefix if there is one, but only skip prefixes
@@ -448,9 +448,9 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
 
     MAP_OR_FAIL(ncmpi_open);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_open(comm, path, omode, info, ncidp);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
     if (ret == NC_NOERR) {
         /* use ROMIO approach to strip prefix if present */
         /* strip off prefix if there is one, but only skip prefixes
@@ -485,9 +485,9 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
     ret = ncmpi_inq_get_size(ncid, &get_size);
     if (ret != NC_NOERR) return ret;
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_close(ncid);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     if (ret == NC_NOERR) {
         PNETCDF_FILE_PRE_RECORD();
@@ -521,9 +521,9 @@ int DARSHAN_DECL(ncmpi_enddef)(int ncid)
 
     MAP_OR_FAIL(ncmpi_enddef);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_enddef(ncid);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     if (ret == NC_NOERR) {
         PNETCDF_FILE_PRE_RECORD();
@@ -553,9 +553,9 @@ int DARSHAN_DECL(ncmpi_redef)(int ncid)
 
     MAP_OR_FAIL(ncmpi_redef);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_redef(ncid);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     if (ret == NC_NOERR) {
         PNETCDF_FILE_PRE_RECORD();
@@ -586,9 +586,9 @@ int DARSHAN_DECL(ncmpi_wait)(int ncid, int num, int array_of_requests[],
 
     MAP_OR_FAIL(ncmpi_wait);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_wait(ncid, num, array_of_requests, array_of_statuses);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     if (ret == NC_NOERR) {
         PNETCDF_FILE_PRE_RECORD();
@@ -619,9 +619,9 @@ int DARSHAN_DECL(ncmpi_wait_all)(int ncid, int num, int array_of_requests[],
 
     MAP_OR_FAIL(ncmpi_wait_all);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_wait_all(ncid, num, array_of_requests, array_of_statuses);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     if (ret == NC_NOERR) {
         PNETCDF_FILE_PRE_RECORD();
@@ -651,9 +651,9 @@ int DARSHAN_DECL(ncmpi_sync)(int ncid)
 
     MAP_OR_FAIL(ncmpi_sync);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_sync(ncid);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     if (ret == NC_NOERR) {
         PNETCDF_FILE_PRE_RECORD();
@@ -740,9 +740,9 @@ int DARSHAN_DECL(ncmpi_def_var)(int ncid, const char *name, nc_type xtype, int n
 
     MAP_OR_FAIL(ncmpi_def_var);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_def_var(ncid, name, xtype, ndims, dimids, varidp);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     if (ret == NC_NOERR) {
         PNETCDF_VAR_PRE_RECORD();
@@ -761,9 +761,9 @@ int DARSHAN_DECL(ncmpi_inq_varid)(int ncid, const char *name, int *varidp)
 
     MAP_OR_FAIL(ncmpi_inq_varid);
 
-    tm1 = darshan_core_wtime();
+    tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_inq_varid(ncid, name, varidp);
-    tm2 = darshan_core_wtime();
+    tm2 = PNETCDF_WTIME();
 
     if (ret == NC_NOERR) {
         nc_type xtype;
