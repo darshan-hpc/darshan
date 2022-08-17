@@ -527,7 +527,7 @@ execution time.
 | HEATMAP_READ\|WRITE_BIN_* | number of bytes read or written within specified heatmap bin
 |====
 
-===== Additional modules 
+===== Additional modules
 
 .Lustre module (if enabled, for Lustre file systems)
 [cols="40%,60%",options="header"]

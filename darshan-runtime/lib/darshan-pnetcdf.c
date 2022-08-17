@@ -723,9 +723,10 @@ static void pnetcdf_file_mpi_redux(
     PMPI_Reduce(red_send_buf, red_recv_buf,
         shared_rec_count, red_type, red_op, 0, mod_comm);
 
-    /* clean up reduction state */
+    /* update module state to account for shared file reduction */
     if(my_rank == 0)
     {
+        /* overwrite local shared records with globally reduced records */
         int tmp_ndx = rec_count - shared_rec_count;
         memcpy(&(pnetcdf_rec_buf[tmp_ndx]), red_recv_buf,
             shared_rec_count * sizeof(struct darshan_pnetcdf_file));
@@ -733,6 +734,7 @@ static void pnetcdf_file_mpi_redux(
     }
     else
     {
+        /* drop shared records on non-zero ranks */
         pnetcdf_file_runtime->rec_count -= shared_rec_count;
     }
 
@@ -837,9 +839,10 @@ static void pnetcdf_var_mpi_redux(
     pnetcdf_var_shared_record_variance(mod_comm, red_send_buf, red_recv_buf,
         shared_rec_count);
 
-    /* clean up reduction state */
+    /* update module state to account for shared file reduction */
     if(my_rank == 0)
     {
+        /* overwrite local shared records with globally reduced records */
         int tmp_ndx = rec_count - shared_rec_count;
         memcpy(&(pnetcdf_rec_buf[tmp_ndx]), red_recv_buf,
             shared_rec_count * sizeof(struct darshan_pnetcdf_var));
@@ -847,6 +850,7 @@ static void pnetcdf_var_mpi_redux(
     }
     else
     {
+        /* drop shared records on non-zero ranks */
         pnetcdf_var_runtime->rec_count -= shared_rec_count;
     }
 
