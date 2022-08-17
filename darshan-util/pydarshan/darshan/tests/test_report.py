@@ -74,6 +74,26 @@ def test_load_records():
         assert 1 == len(report.data['records']['POSIX'])
 
 
+@pytest.mark.xfail(reason="the two ior files don't match so well??")
+def test_dfs_daos_posix_match():
+    # the ior runs by Shane with POSIX vs. DAOS DFS
+    # backend should produce matching counters where
+    # comparable data fields exist
+    posix_ior_report = darshan.DarshanReport(get_log_path("ior_hdf5_example.darshan"))
+    dfs_ior_report = darshan.DarshanReport(get_log_path("snyders_ior-dfs_id529735-33575_8-15-79703-17102016752823788802_1.darshan"))
+    posix_ior_report.mod_read_all_records("POSIX")
+    dfs_ior_report.mod_read_all_records("DFS")
+    posix_data_dict = posix_ior_report.data['records']["POSIX"].to_df()
+    dfs_data_dict = dfs_ior_report.data['records']["DFS"].to_df()
+    for counter_type in ["counters", "fcounters"]:
+        for column_name in dfs_data_dict[counter_type].columns:
+            # TODO: filter some columns where a match is not expected?
+            dfs_data = dfs_data_dict[counter_type][column_name]
+            posix_column_name = column_name.replace("DFS", "POSIX")
+            posix_data = posix_data_dict[counter_type][posix_column_name]
+            assert_allclose(dfs_data.values, posix_data.values)
+
+
 @pytest.mark.parametrize("unsupported_record",
         ["DXT_POSIX", "DXT_MPIIO", "LUSTRE", "APMPI", "APXC"]
         )

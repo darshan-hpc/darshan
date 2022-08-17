@@ -86,6 +86,7 @@ _structdefs = {
     "PNETCDF_FILE": "struct darshan_pnetcdf_file **",
     "PNETCDF_VAR": "struct darshan_pnetcdf_var **",
     "POSIX": "struct darshan_posix_file **",
+    "DFS": "struct darshan_dfs_file **",
     "STDIO": "struct darshan_stdio_file **",
     "APXC-HEADER": "struct darshan_apxc_header_record **",
     "APXC-PERF": "struct darshan_apxc_perf_record **",
@@ -358,7 +359,7 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
 
     Example:
 
-    The typical darshan log record provides two arrays, on for integer counters
+    The typical darshan log record provides two arrays, one for integer counters
     and one for floating point counters:
 
     >>> darshan.log_get_generic_record(log, "POSIX", "struct darshan_posix_file **")
