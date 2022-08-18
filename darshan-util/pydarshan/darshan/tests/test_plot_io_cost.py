@@ -56,6 +56,18 @@ from darshan.experimental.plots.plot_io_cost import (
                 ["Read", "Write", "Meta", "Wait"],
             ),
         ),
+        (
+            "snyders_ior-DFS_id531897-30546_8-18-57619-12789084789544057019_1.darshan",
+            pd.DataFrame(
+                np.array([
+                    [0.0, 0, 6.973743438720703e-06],
+                    [0, 3.337860107421875e-05, 0.0],
+                    [0.001381218433380127, 0.009676456451416016, 0.028002262115478516],
+                ]),
+                ["POSIX", "STDIO", "DFS"],
+                ["Read", "Write", "Meta"],
+            ),
+        ),
     ],
 )
 def test_get_io_cost_df(logname, expected_df):
@@ -87,6 +99,10 @@ def test_get_io_cost_df(logname, expected_df):
             "noposixopens.darshan",
             [0.0, 1111.0],
         ),
+        (
+            "snyders_ior-DFS_id531897-30546_8-18-57619-12789084789544057019_1.darshan",
+            [0.0, 1],
+        ),
     ],
 )
 def test_plot_io_cost_ylims(logname, expected_ylims):
@@ -113,6 +129,10 @@ def test_plot_io_cost_ylims(logname, expected_ylims):
         (
             "sample-badost.darshan",
             [0, 156, 312, 468, 624, 780],
+        ),
+        (
+            "snyders_ior-DFS_id531897-30546_8-18-57619-12789084789544057019_1.darshan",
+            [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
         ),
     ],
 )
