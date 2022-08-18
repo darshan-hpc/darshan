@@ -15,7 +15,8 @@ def agg_ioops(self, mode='append'):
         {'name': 'POSIX', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] }, 
         {'name': 'MPI-IO Indep.', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] }, 
         {'name': 'MPI-IO Coll.', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] },
-        {'name': 'STDIO', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] }
+        {'name': 'STDIO', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] },
+        {'name': 'DFS', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] },
     ]
 
 
@@ -23,8 +24,8 @@ def agg_ioops(self, mode='append'):
     recs = self.records
     ctx = {}
 
-    # aggragate
-    mods = ['MPI-IO', 'POSIX', 'STDIO', "H5F", "H5D", "PNETCDF_VAR", "PNETCDF_FILE"]
+    # aggregate
+    mods = ['MPI-IO', 'POSIX', 'STDIO', "H5F", "H5D", "PNETCDF_VAR", "PNETCDF_FILE", "DFS"]
     for mod in mods:
 
         # check records for module are present
@@ -108,6 +109,18 @@ def agg_ioops(self, mode='append'):
                 'Sync':  agg[mod + '_SYNCS'],
                 'Ind Wait':  agg[mod + '_INDEP_WAITS'],
                 'Coll Wait':  agg[mod + '_COLL_WAITS'],
+            }
+            ctx[mod] = agg
+            ctx[mod + '_simple'] = tmp
+
+        elif mod == "DFS":
+            tmp = {
+                'Read':  agg[mod + '_READS'],
+                'Readx':  agg[mod + '_READXS'],
+                'Write': agg[mod + '_WRITES'],
+                'Writex': agg[mod + '_WRITEXS'],
+                'Open':  agg[mod + '_OPENS'],
+                'GlobalOpen':  agg[mod + '_GLOBAL_OPENS'],
             }
             ctx[mod] = agg
             ctx[mod + '_simple'] = tmp

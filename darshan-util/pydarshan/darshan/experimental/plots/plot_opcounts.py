@@ -49,6 +49,16 @@ def gather_count_data(report, mod):
             0, # faulty? mod_data['POSIX_MMAPS'],
             mod_data['POSIX_FSYNCS'] + mod_data['POSIX_FDSYNCS']
         ]
+    elif mod == 'DFS':
+        labels = ['Read', 'Readx', 'Write', 'Writex', 'Open', 'GlobalOpen']
+        counts = [
+            mod_data['DFS_READS'],
+            mod_data['DFS_READXS'],
+            mod_data['DFS_WRITES'],
+            mod_data['DFS_WRITEXS'],
+            mod_data['DFS_OPENS'],
+            mod_data['DFS_GLOBAL_OPENS'],
+        ]
 
     # Gather MPIIO
     elif mod == 'MPI-IO':
