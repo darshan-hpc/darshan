@@ -74,24 +74,82 @@ def test_load_records():
         assert 1 == len(report.data['records']['POSIX'])
 
 
-@pytest.mark.xfail(reason="the two ior files don't match so well??")
 def test_dfs_daos_posix_match():
     # the ior runs by Shane with POSIX vs. DAOS DFS
     # backend should produce matching counters where
     # comparable data fields exist
-    posix_ior_report = darshan.DarshanReport(get_log_path("ior_hdf5_example.darshan"))
-    dfs_ior_report = darshan.DarshanReport(get_log_path("snyders_ior-dfs_id529735-33575_8-15-79703-17102016752823788802_1.darshan"))
+    posix_ior_report = darshan.DarshanReport(get_log_path("snyders_ior-POSIX_id531897-30559_8-18-57636-5730483702862695835_1.darshan"))
+    dfs_ior_report = darshan.DarshanReport(get_log_path("snyders_ior-DFS_id531897-30546_8-18-57619-12789084789544057019_1.darshan"))
     posix_ior_report.mod_read_all_records("POSIX")
     dfs_ior_report.mod_read_all_records("DFS")
     posix_data_dict = posix_ior_report.data['records']["POSIX"].to_df()
     dfs_data_dict = dfs_ior_report.data['records']["DFS"].to_df()
+    dfs_ior_name_recs = dfs_ior_report.data["name_records"]
+
+    # TODO: currently we filter out the extra `/` activity
+    # for DFS here, but we may want to filter this out "upstream"
+    # in the control flow somewhere? Shane indicates that
+    # POSIX does something similar under the hood, but it is
+    # not intercepted by darshan, and we should likely just make
+    # the two modules look the same in this regard
+
+    for hashval, val in dfs_ior_name_recs.items():
+        if val.endswith(":/"):
+            bad_hash = hashval
+
+    for counter_type in ["counters", "fcounters"]:
+        dfs_data_dict[counter_type] = dfs_data_dict[counter_type][dfs_data_dict[counter_type]["id"] != bad_hash]
+
     for counter_type in ["counters", "fcounters"]:
         for column_name in dfs_data_dict[counter_type].columns:
-            # TODO: filter some columns where a match is not expected?
-            dfs_data = dfs_data_dict[counter_type][column_name]
+            # for some columns we can't reasonably expect a match
+            # or we need to handle the data differently between POSIX
+            # and DAOS DFS
+            if column_name in ["id", "DFS_LOOKUPS", "DFS_NB_READS", "DFS_NB_WRITES",
+                               "DFS_GET_SIZES", "DFS_PUNCHES", "DFS_MOVES",
+                               "DFS_EXCHANGES",
+                               # NOTE: POSIX_STATS exists and is different
+                               # from DFS_STATS--is this unusual??
+                               "DFS_STATS",
+                               "DFS_CHUNK_SIZE", "DFS_USE_DTX", "DFS_FASTEST_RANK",
+                               # performance-related metrics probably can't be
+                               # expected to match exactly, even if the technologies
+                               # are similar in perf
+                               "DFS_F_READ_TIME", "DFS_F_WRITE_TIME",
+                               "DFS_F_META_TIME", "DFS_F_MAX_READ_TIME",
+                               "DFS_F_MAX_READ_TIME", "DFS_F_MAX_WRITE_TIME",
+                               "DFS_F_FASTEST_RANK_TIME", "DFS_F_SLOWEST_RANK_TIME"]:
+                continue
+            elif "timestamp" in column_name.lower():
+                # you can't reasonably expect the timestamps to be the
+                # same for two different runs of any kind really
+                continue
+            elif column_name in ["DFS_GLOBAL_OPENS", "DFS_OPENS"]:
+                # sum these together to match the POSIX version
+                column_name = "DFS_OPENS"
+                dfs_data = (dfs_data_dict[counter_type]["DFS_GLOBAL_OPENS"] +
+                            dfs_data_dict[counter_type]["DFS_OPENS"])
+            elif column_name in ["DFS_READS", "DFS_READXS"]:
+                column_name = "DFS_READS"
+                dfs_data = (dfs_data_dict[counter_type]["DFS_READS"] +
+                            dfs_data_dict[counter_type]["DFS_READXS"])
+                # we know the hardcoded value for certain
+                assert dfs_data.values == 16
+            elif column_name in ["DFS_WRITES", "DFS_WRITEXS"]:
+                column_name = "DFS_WRITES"
+                dfs_data = (dfs_data_dict[counter_type]["DFS_WRITES"] +
+                            dfs_data_dict[counter_type]["DFS_WRITEXS"])
+                # we know the hardcoded value for certain
+                assert dfs_data.values == 16
+            else:
+                dfs_data = dfs_data_dict[counter_type][column_name]
             posix_column_name = column_name.replace("DFS", "POSIX")
             posix_data = posix_data_dict[counter_type][posix_column_name]
             assert_allclose(dfs_data.values, posix_data.values)
+            if column_name.endswith("BYTES_WRITTEN"):
+                # we know the hardcoded value for certain
+                # 256 KiB * 16
+                assert dfs_data.values == 4194304
 
 
 @pytest.mark.parametrize("unsupported_record",
