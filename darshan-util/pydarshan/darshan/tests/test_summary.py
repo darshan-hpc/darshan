@@ -270,6 +270,8 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                           "h5d_no_h5f" in log_filepath or
                           "snyders_ior-dfs" in log_filepath):
                         assert actual_runtime_heatmap_titles == 1
+                    elif "snyders_ior-POSIX" in log_filepath:
+                        assert actual_runtime_heatmap_titles == 2
                     else:
                         assert actual_runtime_heatmap_titles == 0
 
@@ -497,7 +499,7 @@ class TestReportData:
                 2,
             ),
             (
-                "snyders_ior-dfs_id529735-33575_8-15-79703-17102016752823788802_1.darshan",
+                "snyders_ior-DFS_id531897-30546_8-18-57619-12789084789544057019_1.darshan",
                 pd.DataFrame(
                     index=[
                         "Log Filename", "Runtime Library Version", "Log Format Version",
@@ -506,7 +508,7 @@ class TestReportData:
                         "DFS (ver=1)"
                     ],
                     data=[
-                        ["snyders_ior-dfs_id529735-33575_8-15-79703-17102016752823788802_1.darshan"], ["3.4.0"], ["3.41"],
+                        ["snyders_ior-DFS_id531897-30546_8-18-57619-12789084789544057019_1.darshan"], ["3.4.0"], ["3.41"],
                         ["0.14 KiB"], ["0.07 KiB"], ["0.05 KiB"],
                         ["0.17 KiB"],
                     ],
