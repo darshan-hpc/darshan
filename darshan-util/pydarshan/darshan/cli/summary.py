@@ -484,7 +484,7 @@ class ReportData:
 
         # for the operation counts, since the `H5D` variant contains
         # both modules' data, we either want `H5F` or `H5D`, not both
-        opcounts_mods = ["POSIX", "MPI-IO", "STDIO"]
+        opcounts_mods = ["POSIX", "MPI-IO", "STDIO", "DFS"]
         if "H5D" in self.report.modules:
             opcounts_mods.append("H5D")
         elif "H5F" in self.report.modules:
@@ -560,7 +560,7 @@ class ReportData:
                 # repo
                 pass
 
-            if mod in ["POSIX", "MPI-IO", "H5D", "PNETCDF_VAR"]:
+            if mod in ["POSIX", "MPI-IO", "H5D", "PNETCDF_VAR", "DFS"]:
                 access_hist_description = (
                     "Histogram of read and write access sizes. The specific values "
                     "of the most frequently occurring access sizes can be found in "
