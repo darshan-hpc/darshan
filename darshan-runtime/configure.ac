@@ -420,18 +420,18 @@ if test "x$enable_darshan_runtime" = xyes ; then
                    use --with-hdf5 to provide the HDF5 install prefix, if needed.]))
    fi
 
-   # PnetCDF module (disabled by default)
-   AC_ARG_ENABLE([pnetcdf-mod],
-      [AS_HELP_STRING([--enable-pnetcdf-mod],
-                      [Enables compilation and use of PnetCDF module (requires MPI)])],
-      [], [enable_pnetcdf_mod=no]
-   )
-
    # inform about PnetCDF installs not found in default locations
    AC_ARG_WITH([pnetcdf],
       [AS_HELP_STRING([--with-pnetcdf@<:@=DIR@:>@],
                       [Installation directory for PnetCDF.])],
       [], [with_pnetcdf=no]
+   )
+
+   # PnetCDF module (disabled by default)
+   AC_ARG_ENABLE([pnetcdf-mod],
+      [AS_HELP_STRING([--enable-pnetcdf-mod],
+                      [Enables compilation and use of PnetCDF module (requires MPI)])],
+      [], [enable_pnetcdf_mod=no]
    )
    if test "x$enable_pnetcdf_mod" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
@@ -442,12 +442,20 @@ if test "x$enable_darshan_runtime" = xyes ; then
          AC_MSG_ERROR(--enable-pnetcdf-mod requires a valid M4 macro processor)
       fi
       if test -d "$with_pnetcdf" ; then
-         CFLAGS="${CFLAGS} -I${with_pnetcdf}/include"
-         DARSHAN_PNETCDF_LD_FLAGS="-L${with_pnetcdf}/lib [-Wl,-rpath=${with_pnetcdf}/lib -lpnetcdf]"
+         AC_PATH_PROG(PNC_VER_CHECK, pnetcdf_version, "no", "${with_pnetcdf}/bin")
       else
-         AC_MSG_ERROR(withval for --with-pnetcdf is required and must be a valid install prefix path for PnetCDF library)
+         AC_PATH_PROG(PNC_VER_CHECK, pnetcdf_version, "no")
+         # autodetect PNetCDF install prefix and set with_pnetcdf
+         with_pnetcdf=$(dirname $(dirname $PNC_VER_CHECK))
       fi
-      with_pnetcdf=yes
+      if ! test -d "${with_pnetcdf}/lib" ; then
+         AC_MSG_ERROR(m4_normalize([Darshan PnetCDF module enabled but no valid PnetCDF install found,
+                       use --with-pnetcdf to provide the PnetCDF install prefix, if needed.]))
+      fi
+      CFLAGS="${CFLAGS} -I${with_pnetcdf}/include"
+      DARSHAN_PNETCDF_LD_FLAGS="-L${with_pnetcdf}/lib [-Wl,-rpath=${with_pnetcdf}/lib -lpnetcdf]"
+
+      fi
    elif test "x$enable_pnetcdf_mod" != xno ; then
       AC_MSG_ERROR(m4_normalize([--enable-pnetcdf-mod does not take any argument,
                    use --with-pnetcdf to provide the PnetCDF install prefix, if needed.]))
