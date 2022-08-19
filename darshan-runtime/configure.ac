@@ -353,7 +353,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
          # autodetect HDF5 install prefix and set with_hdf5
          with_hdf5=$(dirname $(dirname $H5DUMP_CHECK))
       fi
-      if test "x$H5DUMP_CHECK" = xno ; then
+      if test "x$H5DUMP_CHECK" = xno || ! test -d "${with_hdf5}/lib" ; then
          AC_MSG_ERROR(m4_normalize([Darshan HDF5 module enabled but no valid HDF5 install found,
                        use --with-hdf5 to provide the HDF5 install prefix, if needed.]))
       fi
