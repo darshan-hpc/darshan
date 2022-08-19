@@ -126,8 +126,9 @@ make install
 ** NOTE: This option does not work with the profile configuration instrumentation method described in the "Instrumenting applications" section (link:darshan-runtime.html#_using_a_profile_configuration[Using a profile configuration])
 * `--enable-pnetcdf-mod`: enables compilation and use of Darshan's PnetCDF
   module (default=disabled)
-** NOTE: This option requires the PnetCDF install prefix as an argument (e.g., `--with-pnetcdf=/path/to/pnetcdf/`)
 * `--with-pnetcdf=DIR`: installation directory for PnetCDF
+** NOTE: Users must call `--enable-pnetcdf-mod` to enable PnetCDF modules, `--with-pnetcdf` is only used to additionally provide a PnetCDF install prefix.
+** NOTE: PnetCDF instrumentation only works on PnetCDF library versions >=1.6
 * `--disable-lustre-mod`: disables compilation and use of Darshan's Lustre
   module (default=enabled)
 * `--enable-mdhim-mod`: enables compilation and use of Darshan's MDHIM module
