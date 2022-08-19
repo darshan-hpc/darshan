@@ -354,13 +354,13 @@ static void pnetcdf_file_record_reduction_op(void* infile_v, void* inoutfile_v,
         tmp_file.base_rec.rank = -1;
 
         /* sum */
-        for(j=PNETCDF_CREATES; j<PNETCDF_NUM_INDICES; j++)
+        for(j=PNETCDF_FILE_CREATES; j<PNETCDF_FILE_NUM_INDICES; j++)
         {
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
 
         /* min non-zero (if available) value */
-        for(j=PNETCDF_F_CREATE_START_TIMESTAMP; j<=PNETCDF_F_COLL_WAIT_START_TIMESTAMP; j++)
+        for(j=PNETCDF_FILE_F_CREATE_START_TIMESTAMP; j<=PNETCDF_FILE_F_COLL_WAIT_START_TIMESTAMP; j++)
         {
             if((infile->fcounters[j] < inoutfile->fcounters[j] &&
                infile->fcounters[j] > 0) || inoutfile->fcounters[j] == 0)
@@ -370,7 +370,7 @@ static void pnetcdf_file_record_reduction_op(void* infile_v, void* inoutfile_v,
         }
 
         /* max */
-        for(j=PNETCDF_F_CREATE_END_TIMESTAMP; j<=PNETCDF_F_COLL_WAIT_END_TIMESTAMP; j++)
+        for(j=PNETCDF_FILE_F_CREATE_END_TIMESTAMP; j<=PNETCDF_FILE_F_COLL_WAIT_END_TIMESTAMP; j++)
         {
             if(infile->fcounters[j] > inoutfile->fcounters[j])
                 tmp_file.fcounters[j] = infile->fcounters[j];
@@ -379,7 +379,7 @@ static void pnetcdf_file_record_reduction_op(void* infile_v, void* inoutfile_v,
         }
 
         /* sum */
-        for(j=PNETCDF_F_CREATE_TIME; j<=PNETCDF_F_REDEF_TIME; j++)
+        for(j=PNETCDF_FILE_F_CREATE_TIME; j<=PNETCDF_FILE_F_REDEF_TIME; j++)
         {
             tmp_file.fcounters[j] = infile->fcounters[j] + inoutfile->fcounters[j];
         }

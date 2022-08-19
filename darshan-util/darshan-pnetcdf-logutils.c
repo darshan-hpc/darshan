@@ -158,16 +158,16 @@ exit:
         {
             DARSHAN_BSWAP64(&(file->base_rec.id));
             DARSHAN_BSWAP64(&(file->base_rec.rank));
-            for(i=0; i<PNETCDF_NUM_INDICES; i++)
+            for(i=0; i<PNETCDF_FILE_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&file->counters[i]);
-            for(i=0; i<PNETCDF_F_NUM_INDICES; i++)
+            for(i=0; i<PNETCDF_FILE_F_NUM_INDICES; i++)
             {
                 /* skip counters we explicitly set to -1 since they don't
                  * need to be byte swapped
                  */
                 if((fd->mod_ver[DARSHAN_PNETCDF_FILE_MOD] == 1) &&
-                    ((i == PNETCDF_F_CLOSE_START_TIMESTAMP) ||
-                     (i == PNETCDF_F_OPEN_END_TIMESTAMP)))
+                    ((i == PNETCDF_FILE_F_CLOSE_START_TIMESTAMP) ||
+                     (i == PNETCDF_FILE_F_OPEN_END_TIMESTAMP)))
                     continue;
                 DARSHAN_BSWAP64(&file->fcounters[i]);
             }
@@ -274,7 +274,7 @@ static void darshan_log_print_pnetcdf_file(void *file_rec, char *file_name,
     struct darshan_pnetcdf_file *pnetcdf_file_rec =
         (struct darshan_pnetcdf_file *)file_rec;
 
-    for(i=0; i<PNETCDF_NUM_INDICES; i++)
+    for(i=0; i<PNETCDF_FILE_NUM_INDICES; i++)
     {
         DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_PNETCDF_FILE_MOD],
             pnetcdf_file_rec->base_rec.rank, pnetcdf_file_rec->base_rec.id,
@@ -282,7 +282,7 @@ static void darshan_log_print_pnetcdf_file(void *file_rec, char *file_name,
             file_name, mnt_pt, fs_type);
     }
 
-    for(i=0; i<PNETCDF_F_NUM_INDICES; i++)
+    for(i=0; i<PNETCDF_FILE_F_NUM_INDICES; i++)
     {
         DARSHAN_F_COUNTER_PRINT(darshan_module_names[DARSHAN_PNETCDF_FILE_MOD],
             pnetcdf_file_rec->base_rec.rank, pnetcdf_file_rec->base_rec.id,
@@ -322,23 +322,23 @@ static void darshan_log_print_pnetcdf_var(void *var_rec, char *var_name,
 static void darshan_log_print_pnetcdf_file_description(int ver)
 {
     printf("\n# description of PnetCDF counters:\n");
-    printf("#   PNETCDF_CREATES: PnetCDF file create operation counts.\n");
-    printf("#   PNETCDF_OPENS: PnetCDF file open operation counts.\n");
-    printf("#   PNETCDF_ENDDEFS: PnetCDF file end-define operation counts.\n");
-    printf("#   PNETCDF_REDEFS: PnetCDF file re-define operation counts.\n");
-    printf("#   PNETCDF_INDEP_WAITS: PnetCDF indepedent flush nonblocking I/O counts.\n");
-    printf("#   PNETCDF_COLL_WAITS: PnetCDF collective flush nonblocking I/O counts.\n");
-    printf("#   PNETCDF_SYNCS: PnetCDF file sync operation counts.\n");
-    printf("#   PNETCDF_BYTES_READ: PnetCDF total bytes read counts.\n");
-    printf("#   PNETCDF_BYTES_WRITTEN: PnetCDF total bytes written counts.\n");
-    printf("#   PNETCDF_F_*_START_TIMESTAMP: timestamp of first PnetCDF file operation.\n");
-    printf("#   PNETCDF_F_*_END_TIMESTAMP: timestamp of last PnetCDF file operation.\n");
+    printf("#   PNETCDF_FILE_CREATES: PnetCDF file create operation counts.\n");
+    printf("#   PNETCDF_FILE_OPENS: PnetCDF file open operation counts.\n");
+    printf("#   PNETCDF_FILE_ENDDEFS: PnetCDF file end-define operation counts.\n");
+    printf("#   PNETCDF_FILE_REDEFS: PnetCDF file re-define operation counts.\n");
+    printf("#   PNETCDF_FILE_INDEP_WAITS: PnetCDF indepedent flush nonblocking I/O counts.\n");
+    printf("#   PNETCDF_FILE_COLL_WAITS: PnetCDF collective flush nonblocking I/O counts.\n");
+    printf("#   PNETCDF_FILE_SYNCS: PnetCDF file sync operation counts.\n");
+    printf("#   PNETCDF_FILE_BYTES_READ: PnetCDF total bytes read counts.\n");
+    printf("#   PNETCDF_FILE_BYTES_WRITTEN: PnetCDF total bytes written counts.\n");
+    printf("#   PNETCDF_FILE_F_*_START_TIMESTAMP: timestamp of first PnetCDF file operation.\n");
+    printf("#   PNETCDF_FILE_F_*_END_TIMESTAMP: timestamp of last PnetCDF file operation.\n");
 
     if(ver == 1)
     {
         printf("\n# WARNING: PnetCDF module log format version 1 does not support the following counters:\n");
-        printf("# - PNETCDF_F_CLOSE_START_TIMESTAMP\n");
-        printf("# - PNETCDF_F_OPEN_END_TIMESTAMP\n");
+        printf("# - PNETCDF_FILE_F_CLOSE_START_TIMESTAMP\n");
+        printf("# - PNETCDF_FILE_F_OPEN_END_TIMESTAMP\n");
     }
 
     return;
@@ -416,7 +416,7 @@ static void darshan_log_print_pnetcdf_file_diff(void *file_rec1, char *file_name
 
     /* NOTE: we assume that both input records are the same module format version */
 
-    for(i=0; i<PNETCDF_NUM_INDICES; i++)
+    for(i=0; i<PNETCDF_FILE_NUM_INDICES; i++)
     {
         if(!file2)
         {
@@ -446,7 +446,7 @@ static void darshan_log_print_pnetcdf_file_diff(void *file_rec1, char *file_name
         }
     }
 
-    for(i=0; i<PNETCDF_F_NUM_INDICES; i++)
+    for(i=0; i<PNETCDF_FILE_F_NUM_INDICES; i++)
     {
         if(!file2)
         {
@@ -557,19 +557,19 @@ static void darshan_log_agg_pnetcdf_files(void *rec, void *agg_rec, int init_fla
     struct darshan_pnetcdf_file *agg_pnetcdf_rec = (struct darshan_pnetcdf_file *)agg_rec;
     int i;
 
-    for(i = 0; i < PNETCDF_NUM_INDICES; i++)
+    for(i = 0; i < PNETCDF_FILE_NUM_INDICES; i++)
     {
         switch(i)
         {
-            case PNETCDF_CREATES:
-            case PNETCDF_OPENS:
-            case PNETCDF_ENDDEFS:
-            case PNETCDF_REDEFS:
-            case PNETCDF_INDEP_WAITS:
-            case PNETCDF_COLL_WAITS:
-            case PNETCDF_SYNCS:
-            case PNETCDF_BYTES_READ:
-            case PNETCDF_BYTES_WRITTEN:
+            case PNETCDF_FILE_CREATES:
+            case PNETCDF_FILE_OPENS:
+            case PNETCDF_FILE_ENDDEFS:
+            case PNETCDF_FILE_REDEFS:
+            case PNETCDF_FILE_INDEP_WAITS:
+            case PNETCDF_FILE_COLL_WAITS:
+            case PNETCDF_FILE_SYNCS:
+            case PNETCDF_FILE_BYTES_READ:
+            case PNETCDF_FILE_BYTES_WRITTEN:
                 /* sum */
                 agg_pnetcdf_rec->counters[i] += pnetcdf_rec->counters[i];
                 break;
@@ -579,16 +579,16 @@ static void darshan_log_agg_pnetcdf_files(void *rec, void *agg_rec, int init_fla
         }
     }
 
-    for(i = 0; i < PNETCDF_F_NUM_INDICES; i++)
+    for(i = 0; i < PNETCDF_FILE_F_NUM_INDICES; i++)
     {
         switch(i)
         {
-            case PNETCDF_F_CREATE_START_TIMESTAMP:
-            case PNETCDF_F_OPEN_START_TIMESTAMP:
-            case PNETCDF_F_ENDDEF_START_TIMESTAMP:
-            case PNETCDF_F_CLOSE_START_TIMESTAMP:
-            case PNETCDF_F_INDEP_WAIT_START_TIMESTAMP:
-            case PNETCDF_F_COLL_WAIT_START_TIMESTAMP:
+            case PNETCDF_FILE_F_CREATE_START_TIMESTAMP:
+            case PNETCDF_FILE_F_OPEN_START_TIMESTAMP:
+            case PNETCDF_FILE_F_ENDDEF_START_TIMESTAMP:
+            case PNETCDF_FILE_F_CLOSE_START_TIMESTAMP:
+            case PNETCDF_FILE_F_INDEP_WAIT_START_TIMESTAMP:
+            case PNETCDF_FILE_F_COLL_WAIT_START_TIMESTAMP:
                 /* minimum non-zero */
                 if((pnetcdf_rec->fcounters[i] > 0)  &&
                     ((agg_pnetcdf_rec->fcounters[i] == 0) ||
@@ -597,12 +597,12 @@ static void darshan_log_agg_pnetcdf_files(void *rec, void *agg_rec, int init_fla
                     agg_pnetcdf_rec->fcounters[i] = pnetcdf_rec->fcounters[i];
                 }
                 break;
-            case PNETCDF_F_CREATE_END_TIMESTAMP:
-            case PNETCDF_F_OPEN_END_TIMESTAMP:
-            case PNETCDF_F_ENDDEF_END_TIMESTAMP:
-            case PNETCDF_F_CLOSE_END_TIMESTAMP:
-            case PNETCDF_F_INDEP_WAIT_END_TIMESTAMP:
-            case PNETCDF_F_COLL_WAIT_END_TIMESTAMP:
+            case PNETCDF_FILE_F_CREATE_END_TIMESTAMP:
+            case PNETCDF_FILE_F_OPEN_END_TIMESTAMP:
+            case PNETCDF_FILE_F_ENDDEF_END_TIMESTAMP:
+            case PNETCDF_FILE_F_CLOSE_END_TIMESTAMP:
+            case PNETCDF_FILE_F_INDEP_WAIT_END_TIMESTAMP:
+            case PNETCDF_FILE_F_COLL_WAIT_END_TIMESTAMP:
                 /* maximum */
                 if(pnetcdf_rec->fcounters[i] > agg_pnetcdf_rec->fcounters[i])
                 {

@@ -16,78 +16,78 @@
 /* counters for file level activities */
 #define PNETCDF_FILE_COUNTERS \
     /* count of file creates */\
-    X(PNETCDF_CREATES) \
+    X(PNETCDF_FILE_CREATES) \
     /* count of file opens */\
-    X(PNETCDF_OPENS) \
+    X(PNETCDF_FILE_OPENS) \
     /* count of enddef calls */\
-    X(PNETCDF_ENDDEFS) \
+    X(PNETCDF_FILE_ENDDEFS) \
     /* count of redef calls */\
-    X(PNETCDF_REDEFS) \
+    X(PNETCDF_FILE_REDEFS) \
     /* count of independent waits */\
-    X(PNETCDF_INDEP_WAITS) \
+    X(PNETCDF_FILE_INDEP_WAITS) \
     /* count of collective waits */\
-    X(PNETCDF_COLL_WAITS) \
+    X(PNETCDF_FILE_COLL_WAITS) \
     /* count of file syncs */\
-    X(PNETCDF_SYNCS) \
+    X(PNETCDF_FILE_SYNCS) \
     /* total bytes read */\
-    X(PNETCDF_BYTES_READ) \
+    X(PNETCDF_FILE_BYTES_READ) \
     /* total bytes written */\
-    X(PNETCDF_BYTES_WRITTEN) \
+    X(PNETCDF_FILE_BYTES_WRITTEN) \
     /* end of counters */\
-    X(PNETCDF_NUM_INDICES)
+    X(PNETCDF_FILE_NUM_INDICES)
 
 /* timestamps for file level activities */
 #define PNETCDF_FILE_F_COUNTERS \
     /* timestamp of first create */\
-    X(PNETCDF_F_CREATE_START_TIMESTAMP) \
+    X(PNETCDF_FILE_F_CREATE_START_TIMESTAMP) \
     /* timestamp of first open */\
-    X(PNETCDF_F_OPEN_START_TIMESTAMP) \
+    X(PNETCDF_FILE_F_OPEN_START_TIMESTAMP) \
     /* timestamp of first close */\
-    X(PNETCDF_F_CLOSE_START_TIMESTAMP) \
+    X(PNETCDF_FILE_F_CLOSE_START_TIMESTAMP) \
     /* timestamp of first redef */\
-    X(PNETCDF_F_REDEF_START_TIMESTAMP) \
+    X(PNETCDF_FILE_F_REDEF_START_TIMESTAMP) \
     /* timestamp of first enddef */\
-    X(PNETCDF_F_ENDDEF_START_TIMESTAMP) \
+    X(PNETCDF_FILE_F_ENDDEF_START_TIMESTAMP) \
     /* timestamp of first sync */\
-    X(PNETCDF_F_SYNC_START_TIMESTAMP) \
+    X(PNETCDF_FILE_F_SYNC_START_TIMESTAMP) \
     /* timestamp of first independent wait */\
-    X(PNETCDF_F_INDEP_WAIT_START_TIMESTAMP) \
+    X(PNETCDF_FILE_F_INDEP_WAIT_START_TIMESTAMP) \
     /* timestamp of first collective wait */\
-    X(PNETCDF_F_COLL_WAIT_START_TIMESTAMP) \
+    X(PNETCDF_FILE_F_COLL_WAIT_START_TIMESTAMP) \
     /* timestamp of last create */\
-    X(PNETCDF_F_CREATE_END_TIMESTAMP) \
+    X(PNETCDF_FILE_F_CREATE_END_TIMESTAMP) \
     /* timestamp of last open */\
-    X(PNETCDF_F_OPEN_END_TIMESTAMP) \
+    X(PNETCDF_FILE_F_OPEN_END_TIMESTAMP) \
     /* timestamp of last close */\
-    X(PNETCDF_F_CLOSE_END_TIMESTAMP) \
+    X(PNETCDF_FILE_F_CLOSE_END_TIMESTAMP) \
     /* timestamp of last redef */\
-    X(PNETCDF_F_REDEF_END_TIMESTAMP) \
+    X(PNETCDF_FILE_F_REDEF_END_TIMESTAMP) \
     /* timestamp of last enddef */\
-    X(PNETCDF_F_ENDDEF_END_TIMESTAMP) \
+    X(PNETCDF_FILE_F_ENDDEF_END_TIMESTAMP) \
     /* timestamp of last sync */\
-    X(PNETCDF_F_SYNC_END_TIMESTAMP) \
+    X(PNETCDF_FILE_F_SYNC_END_TIMESTAMP) \
     /* timestamp of last independent wait */\
-    X(PNETCDF_F_INDEP_WAIT_END_TIMESTAMP) \
+    X(PNETCDF_FILE_F_INDEP_WAIT_END_TIMESTAMP) \
     /* timestamp of last collective wait */\
-    X(PNETCDF_F_COLL_WAIT_END_TIMESTAMP) \
+    X(PNETCDF_FILE_F_COLL_WAIT_END_TIMESTAMP) \
     /* cumulative create time */\
-    X(PNETCDF_F_CREATE_TIME) \
+    X(PNETCDF_FILE_F_CREATE_TIME) \
     /* cumulative open time */\
-    X(PNETCDF_F_OPEN_TIME) \
+    X(PNETCDF_FILE_F_OPEN_TIME) \
     /* cumulative sync time */\
-    X(PNETCDF_F_SYNC_TIME) \
+    X(PNETCDF_FILE_F_SYNC_TIME) \
     /* cumulative close time */\
-    X(PNETCDF_F_CLOSE_TIME) \
+    X(PNETCDF_FILE_F_CLOSE_TIME) \
     /* cumulative independent wait time */\
-    X(PNETCDF_F_INDEP_WAIT_TIME) \
+    X(PNETCDF_FILE_F_INDEP_WAIT_TIME) \
     /* cumulative collective wait time */\
-    X(PNETCDF_F_COLL_WAIT_TIME) \
+    X(PNETCDF_FILE_F_COLL_WAIT_TIME) \
     /* cumulative enddef time */\
-    X(PNETCDF_F_ENDDEF_TIME) \
+    X(PNETCDF_FILE_F_ENDDEF_TIME) \
     /* cumulative redef time */\
-    X(PNETCDF_F_REDEF_TIME) \
+    X(PNETCDF_FILE_F_REDEF_TIME) \
     /* end of counters*/\
-    X(PNETCDF_F_NUM_INDICES)
+    X(PNETCDF_FILE_F_NUM_INDICES)
 
 /* counters for variable level activities */
 #define PNETCDF_VAR_COUNTERS \
@@ -340,8 +340,8 @@ enum darshan_pnetcdf_var_f_indices
 struct darshan_pnetcdf_file
 {
     struct darshan_base_record base_rec;
-    int64_t counters[PNETCDF_NUM_INDICES];
-    double fcounters[PNETCDF_F_NUM_INDICES];
+    int64_t counters[PNETCDF_FILE_NUM_INDICES];
+    double fcounters[PNETCDF_FILE_F_NUM_INDICES];
 };
 
 /* record structure for PnetCDF variables. a record is created and stored for
