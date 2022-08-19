@@ -119,7 +119,7 @@ make install
 * `--enable-hdf5-mod`: enables compilation and use of Darshan's HDF5 module
   (default=disabled)
 * `--with-hdf5=DIR`: installation directory for HDF5
-** NOTE: Users must call `--enable-hdf5-mod` to enable HDF5 modules, `--with-hdf5` is only used to additionally provide an HDF5 install prefix.
+** NOTE: Users must call `--enable-hdf5-mod` to enable HDF5 modules and must use `--with-hdf5` to provide the HDF5 library install prefix.
 ** NOTE: HDF5 instrumentation only works on HDF5 library versions >=1.8, and further requires that the HDF5 library used to build Darshan and the HDF5 library being linked in either both be version >=1.10 or both be version <1.10
 ** NOTE: This option does not work with the profile configuration instrumentation method described in the "Instrumenting applications" section (link:darshan-runtime.html#_using_a_profile_configuration[Using a profile configuration])
 * `--disable-pnetcdf-mod`: disables compilation and use of Darshan's PNetCDF

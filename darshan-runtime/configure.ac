@@ -348,14 +348,11 @@ if test "x$enable_darshan_runtime" = xyes ; then
    if test "x$enable_hdf5_mod" = xyes ; then
       if test -d "$with_hdf5" ; then
          AC_PATH_PROG(H5DUMP_CHECK, h5dump, "no", "${with_hdf5}/bin")
+         if test "x$H5DUMP_CHECK" = xno ; then
+            AC_MSG_ERROR(no valid HDF5 install found at path $with_hdf5.)
+         fi
       else
-         AC_PATH_PROG(H5DUMP_CHECK, h5dump, "no")
-         # autodetect HDF5 install prefix and set with_hdf5
-         with_hdf5=$(dirname $(dirname $H5DUMP_CHECK))
-      fi
-      if test "x$H5DUMP_CHECK" = xno ; then
-         AC_MSG_ERROR(m4_normalize([Darshan HDF5 module enabled but no valid HDF5 install found,
-                       use --with-hdf5 to provide the HDF5 install prefix, if needed.]))
+         AC_MSG_ERROR(withval for --with-hdf5 is required and must be a valid install prefix path for HDF5 library)
       fi
 
       CFLAGS="${CFLAGS} -I${with_hdf5}/include"
