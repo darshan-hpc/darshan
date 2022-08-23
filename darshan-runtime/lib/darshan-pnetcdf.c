@@ -33,14 +33,7 @@
 struct pnetcdf_file_record_ref
 {
     struct darshan_pnetcdf_file* file_rec;
-    double last_create_end;
-    double last_open_end;
-    double last_enddef_end;
-    double last_redef_end;
-    double last_sync_end;
-    double last_wait_indep_end;
-    double last_wait_coll_end;
-    double last_close_end;
+    double last_meta_end;
 };
 
 /* structure that can track i/o stats for a given PnetCDF variable record at runtime */
@@ -360,7 +353,7 @@ static void pnetcdf_file_record_reduction_op(void* infile_v, void* inoutfile_v,
         }
 
         /* min non-zero (if available) value */
-        for(j=PNETCDF_FILE_F_CREATE_START_TIMESTAMP; j<=PNETCDF_FILE_F_COLL_WAIT_START_TIMESTAMP; j++)
+        for(j=PNETCDF_FILE_F_OPEN_START_TIMESTAMP; j<=PNETCDF_FILE_F_CLOSE_START_TIMESTAMP; j++)
         {
             if((infile->fcounters[j] < inoutfile->fcounters[j] &&
                infile->fcounters[j] > 0) || inoutfile->fcounters[j] == 0)
@@ -370,7 +363,7 @@ static void pnetcdf_file_record_reduction_op(void* infile_v, void* inoutfile_v,
         }
 
         /* max */
-        for(j=PNETCDF_FILE_F_CREATE_END_TIMESTAMP; j<=PNETCDF_FILE_F_COLL_WAIT_END_TIMESTAMP; j++)
+        for(j=PNETCDF_FILE_F_OPEN_END_TIMESTAMP; j<=PNETCDF_FILE_F_CLOSE_END_TIMESTAMP; j++)
         {
             if(infile->fcounters[j] > inoutfile->fcounters[j])
                 tmp_file.fcounters[j] = infile->fcounters[j];
@@ -379,7 +372,7 @@ static void pnetcdf_file_record_reduction_op(void* infile_v, void* inoutfile_v,
         }
 
         /* sum */
-        for(j=PNETCDF_FILE_F_CREATE_TIME; j<=PNETCDF_FILE_F_REDEF_TIME; j++)
+        for(j=PNETCDF_FILE_F_META_TIME; j<PNETCDF_FILE_F_NUM_INDICES; j++)
         {
             tmp_file.fcounters[j] = infile->fcounters[j] + inoutfile->fcounters[j];
         }

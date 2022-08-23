@@ -394,13 +394,13 @@ define(`PNETCDF_FILE_RECORD',`
             if (newpath != $3) free(newpath);
             break;
         }
-        if (rec_ref->file_rec->fcounters[`PNETCDF_FILE_F_'Upcase($1)`_START_TIMESTAMP'] == 0 ||
-            rec_ref->file_rec->fcounters[`PNETCDF_FILE_F_'Upcase($1)`_START_TIMESTAMP'] > $4)
-            rec_ref->file_rec->fcounters[`PNETCDF_FILE_F_'Upcase($1)`_START_TIMESTAMP'] = $4;
-        rec_ref->file_rec->fcounters[`PNETCDF_FILE_F_'Upcase($1)`_END_TIMESTAMP'] = $5;
+        if (rec_ref->file_rec->fcounters[PNETCDF_FILE_F_OPEN_START_TIMESTAMP] == 0 ||
+            rec_ref->file_rec->fcounters[PNETCDF_FILE_F_OPEN_START_TIMESTAMP] > $4)
+            rec_ref->file_rec->fcounters[PNETCDF_FILE_F_OPEN_START_TIMESTAMP] = $4;
+        rec_ref->file_rec->fcounters[PNETCDF_FILE_F_OPEN_END_TIMESTAMP] = $5;
         rec_ref->file_rec->counters[`PNETCDF_FILE_'Upcase($1)`S'] += 1;
-        DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[`PNETCDF_FILE_F_'Upcase($1)`_TIME'],
-            $4, $5, rec_ref->last_$1_end);
+        DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[PNETCDF_FILE_F_META_TIME],
+            $4, $5, rec_ref->last_meta_end);
         darshan_add_record_ref(&(pnetcdf_file_runtime->ncid_hash), $2, sizeof(int), rec_ref);
         if (newpath != $3) free(newpath);
     } while (0);
@@ -500,8 +500,8 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_CLOSE_START_TIMESTAMP] = tm1;
             rec_ref->file_rec->fcounters[PNETCDF_FILE_F_CLOSE_END_TIMESTAMP] = tm2;
             DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_CLOSE_TIME],
-                tm1, tm2, rec_ref->last_close_end);
+                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
             darshan_delete_record_ref(&(pnetcdf_file_runtime->ncid_hash),
                 &ncid, sizeof(int));
         }
@@ -529,13 +529,9 @@ int DARSHAN_DECL(ncmpi_enddef)(int ncid)
         rec_ref = darshan_lookup_record_ref(pnetcdf_file_runtime->ncid_hash, &ncid, sizeof(int));
         if (rec_ref) {
             rec_ref->file_rec->counters[PNETCDF_FILE_ENDDEFS] += 1;
-            if (rec_ref->file_rec->fcounters[PNETCDF_FILE_F_ENDDEF_START_TIMESTAMP] == 0 ||
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_ENDDEF_START_TIMESTAMP] > tm1)
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_ENDDEF_START_TIMESTAMP] = tm1;
-            rec_ref->file_rec->fcounters[PNETCDF_FILE_F_ENDDEF_END_TIMESTAMP] = tm2;
             DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_ENDDEF_TIME],
-                tm1, tm2, rec_ref->last_enddef_end);
+                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
         }
         PNETCDF_FILE_POST_RECORD();
     }
@@ -561,13 +557,9 @@ int DARSHAN_DECL(ncmpi_redef)(int ncid)
         rec_ref = darshan_lookup_record_ref(pnetcdf_file_runtime->ncid_hash, &ncid, sizeof(int));
         if (rec_ref) {
             rec_ref->file_rec->counters[PNETCDF_FILE_REDEFS] += 1;
-            if (rec_ref->file_rec->fcounters[PNETCDF_FILE_F_REDEF_START_TIMESTAMP] == 0 ||
-             rec_ref->file_rec->fcounters[PNETCDF_FILE_F_REDEF_START_TIMESTAMP] > tm1)
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_REDEF_START_TIMESTAMP] = tm1;
-            rec_ref->file_rec->fcounters[PNETCDF_FILE_F_REDEF_END_TIMESTAMP] = tm2;
             DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_REDEF_TIME],
-                tm1, tm2, rec_ref->last_redef_end);
+                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
         }
         PNETCDF_FILE_POST_RECORD();
     }
@@ -594,13 +586,9 @@ int DARSHAN_DECL(ncmpi_wait)(int ncid, int num, int array_of_requests[],
         rec_ref = darshan_lookup_record_ref(pnetcdf_file_runtime->ncid_hash, &ncid, sizeof(int));
         if (rec_ref) {
             rec_ref->file_rec->counters[PNETCDF_FILE_INDEP_WAITS] += 1;
-            if (rec_ref->file_rec->fcounters[PNETCDF_FILE_F_INDEP_WAIT_START_TIMESTAMP] == 0 ||
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_INDEP_WAIT_START_TIMESTAMP] > tm1)
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_INDEP_WAIT_START_TIMESTAMP] = tm1;
-            rec_ref->file_rec->fcounters[PNETCDF_FILE_F_INDEP_WAIT_END_TIMESTAMP] = tm2;
             DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_INDEP_WAIT_TIME],
-                tm1, tm2, rec_ref->last_wait_indep_end);
+                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
         }
         PNETCDF_FILE_POST_RECORD();
     }
@@ -627,13 +615,9 @@ int DARSHAN_DECL(ncmpi_wait_all)(int ncid, int num, int array_of_requests[],
         rec_ref = darshan_lookup_record_ref(pnetcdf_file_runtime->ncid_hash, &ncid, sizeof(int));
         if (rec_ref) {
             rec_ref->file_rec->counters[PNETCDF_FILE_COLL_WAITS] += 1;
-            if (rec_ref->file_rec->fcounters[PNETCDF_FILE_F_COLL_WAIT_START_TIMESTAMP] == 0 ||
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_COLL_WAIT_START_TIMESTAMP] > tm1)
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_COLL_WAIT_START_TIMESTAMP] = tm1;
-            rec_ref->file_rec->fcounters[PNETCDF_FILE_F_COLL_WAIT_END_TIMESTAMP] = tm2;
             DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_COLL_WAIT_TIME],
-                tm1, tm2, rec_ref->last_wait_coll_end);
+                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
         }
         PNETCDF_FILE_POST_RECORD();
     }
@@ -660,13 +644,9 @@ int DARSHAN_DECL(ncmpi_sync)(int ncid)
         if (rec_ref)
         {
             rec_ref->file_rec->counters[PNETCDF_FILE_SYNCS] += 1;
-            if (rec_ref->file_rec->fcounters[PNETCDF_FILE_F_SYNC_START_TIMESTAMP] == 0 ||
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_SYNC_START_TIMESTAMP] > tm1)
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_SYNC_START_TIMESTAMP] = tm1;
-            rec_ref->file_rec->fcounters[PNETCDF_FILE_F_SYNC_END_TIMESTAMP] = tm2;
             DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_SYNC_TIME],
-                tm1, tm2, rec_ref->last_sync_end);
+                rec_ref->file_rec->fcounters[PNETCDF_FILE_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
         }
         PNETCDF_FILE_POST_RECORD();
     }

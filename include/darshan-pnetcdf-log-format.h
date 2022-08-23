@@ -15,6 +15,7 @@
 
 /* counters for file level activities */
 #define PNETCDF_FILE_COUNTERS \
+    /* XXX should we combine creates/opens */\
     /* count of file creates */\
     X(PNETCDF_FILE_CREATES) \
     /* count of file opens */\
@@ -38,54 +39,16 @@
 
 /* timestamps for file level activities */
 #define PNETCDF_FILE_F_COUNTERS \
-    /* timestamp of first create */\
-    X(PNETCDF_FILE_F_CREATE_START_TIMESTAMP) \
-    /* timestamp of first open */\
+    /* timestamp of first open/create */\
     X(PNETCDF_FILE_F_OPEN_START_TIMESTAMP) \
     /* timestamp of first close */\
     X(PNETCDF_FILE_F_CLOSE_START_TIMESTAMP) \
-    /* timestamp of first redef */\
-    X(PNETCDF_FILE_F_REDEF_START_TIMESTAMP) \
-    /* timestamp of first enddef */\
-    X(PNETCDF_FILE_F_ENDDEF_START_TIMESTAMP) \
-    /* timestamp of first sync */\
-    X(PNETCDF_FILE_F_SYNC_START_TIMESTAMP) \
-    /* timestamp of first independent wait */\
-    X(PNETCDF_FILE_F_INDEP_WAIT_START_TIMESTAMP) \
-    /* timestamp of first collective wait */\
-    X(PNETCDF_FILE_F_COLL_WAIT_START_TIMESTAMP) \
-    /* timestamp of last create */\
-    X(PNETCDF_FILE_F_CREATE_END_TIMESTAMP) \
-    /* timestamp of last open */\
+    /* timestamp of last open/create */\
     X(PNETCDF_FILE_F_OPEN_END_TIMESTAMP) \
     /* timestamp of last close */\
     X(PNETCDF_FILE_F_CLOSE_END_TIMESTAMP) \
-    /* timestamp of last redef */\
-    X(PNETCDF_FILE_F_REDEF_END_TIMESTAMP) \
-    /* timestamp of last enddef */\
-    X(PNETCDF_FILE_F_ENDDEF_END_TIMESTAMP) \
-    /* timestamp of last sync */\
-    X(PNETCDF_FILE_F_SYNC_END_TIMESTAMP) \
-    /* timestamp of last independent wait */\
-    X(PNETCDF_FILE_F_INDEP_WAIT_END_TIMESTAMP) \
-    /* timestamp of last collective wait */\
-    X(PNETCDF_FILE_F_COLL_WAIT_END_TIMESTAMP) \
-    /* cumulative create time */\
-    X(PNETCDF_FILE_F_CREATE_TIME) \
-    /* cumulative open time */\
-    X(PNETCDF_FILE_F_OPEN_TIME) \
-    /* cumulative sync time */\
-    X(PNETCDF_FILE_F_SYNC_TIME) \
-    /* cumulative close time */\
-    X(PNETCDF_FILE_F_CLOSE_TIME) \
-    /* cumulative independent wait time */\
-    X(PNETCDF_FILE_F_INDEP_WAIT_TIME) \
-    /* cumulative collective wait time */\
-    X(PNETCDF_FILE_F_COLL_WAIT_TIME) \
-    /* cumulative enddef time */\
-    X(PNETCDF_FILE_F_ENDDEF_TIME) \
-    /* cumulative redef time */\
-    X(PNETCDF_FILE_F_REDEF_TIME) \
+    /* cumulative meta time */\
+    X(PNETCDF_FILE_F_META_TIME) \
     /* end of counters*/\
     X(PNETCDF_FILE_F_NUM_INDICES)
 

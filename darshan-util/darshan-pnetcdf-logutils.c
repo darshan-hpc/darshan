@@ -583,12 +583,8 @@ static void darshan_log_agg_pnetcdf_files(void *rec, void *agg_rec, int init_fla
     {
         switch(i)
         {
-            case PNETCDF_FILE_F_CREATE_START_TIMESTAMP:
             case PNETCDF_FILE_F_OPEN_START_TIMESTAMP:
-            case PNETCDF_FILE_F_ENDDEF_START_TIMESTAMP:
             case PNETCDF_FILE_F_CLOSE_START_TIMESTAMP:
-            case PNETCDF_FILE_F_INDEP_WAIT_START_TIMESTAMP:
-            case PNETCDF_FILE_F_COLL_WAIT_START_TIMESTAMP:
                 /* minimum non-zero */
                 if((pnetcdf_rec->fcounters[i] > 0)  &&
                     ((agg_pnetcdf_rec->fcounters[i] == 0) ||
@@ -597,17 +593,17 @@ static void darshan_log_agg_pnetcdf_files(void *rec, void *agg_rec, int init_fla
                     agg_pnetcdf_rec->fcounters[i] = pnetcdf_rec->fcounters[i];
                 }
                 break;
-            case PNETCDF_FILE_F_CREATE_END_TIMESTAMP:
             case PNETCDF_FILE_F_OPEN_END_TIMESTAMP:
-            case PNETCDF_FILE_F_ENDDEF_END_TIMESTAMP:
             case PNETCDF_FILE_F_CLOSE_END_TIMESTAMP:
-            case PNETCDF_FILE_F_INDEP_WAIT_END_TIMESTAMP:
-            case PNETCDF_FILE_F_COLL_WAIT_END_TIMESTAMP:
                 /* maximum */
                 if(pnetcdf_rec->fcounters[i] > agg_pnetcdf_rec->fcounters[i])
                 {
                     agg_pnetcdf_rec->fcounters[i] = pnetcdf_rec->fcounters[i];
                 }
+                break;
+            case PNETCDF_FILE_F_META_TIME:
+                /* sum */
+                agg_pnetcdf_rec->fcounters[i] += pnetcdf_rec->fcounters[i];
                 break;
             default:
                 agg_pnetcdf_rec->fcounters[i] = -1;
