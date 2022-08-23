@@ -109,7 +109,7 @@ define(`UPDATE_GETPUT_COUNTERS',`ifelse(
             rec_ref->var_rec->fcounters[PNETCDF_VAR_F_WRITE_END_TIMESTAMP] = tm2;
             if (rec_ref->var_rec->fcounters[PNETCDF_VAR_F_MAX_WRITE_TIME] < tm2 - tm1) {
                 rec_ref->var_rec->fcounters[PNETCDF_VAR_F_MAX_WRITE_TIME] = tm2 - tm1;
-                rec_ref->var_rec->counters[PNETCDF_VAR_MAX_WRITE_TIME_SIZE] = access_size;
+                rec_ref->var_rec->counters[PNETCDF_VAR_MAX_WRITE_TIME_SIZE] = $3;
             }
             DARSHAN_TIMER_INC_NO_OVERLAP(
                 rec_ref->var_rec->fcounters[PNETCDF_VAR_F_WRITE_TIME],
@@ -212,7 +212,7 @@ int DARSHAN_DECL(APINAME($1,n,$2,$3))(int ncid, int varid, int num, MPI_Offset* 
         if (rec_ref) {
             size_t access_size = $1_after - $1_before;
             UPDATE_GETPUT_COUNTERS($1,N,access_size)
-            UPDATE_INDEPCOLL_RW_COUNTER($1,$4);
+            UPDATE_INDEPCOLL_RW_COUNTER($1,$3);
         }
         PNETCDF_VAR_POST_RECORD();
     }
@@ -261,7 +261,7 @@ int DARSHAN_DECL(ncmpi_$1_vard$2)(int ncid, int varid, MPI_Datatype filetype, if
         if (rec_ref) {
             size_t access_size = $1_after - $1_before;
             UPDATE_GETPUT_COUNTERS($1,D,access_size)
-            UPDATE_INDEPCOLL_RW_COUNTER($1,$4);
+            UPDATE_INDEPCOLL_RW_COUNTER($1,$2);
         }
         PNETCDF_VAR_POST_RECORD();
     }
@@ -378,14 +378,13 @@ foreach(`putget', (iput, iget, bput),
 )')dnl
 
 dnl
-dnl PNETCDF_FILE_RECORD(create/open, ncidp, path, comm, tm1, tm2)
+dnl PNETCDF_FILE_RECORD(create/open, ncidp, path, tm1, tm2)
 dnl
 define(`PNETCDF_FILE_RECORD',`
     do {
         darshan_record_id rec_id;
         struct pnetcdf_file_record_ref *rec_ref;
         char *newpath;
-        int comm_size;
         newpath = darshan_clean_file_path($3);
         if (!newpath) newpath = (char *)$3;
         rec_id = darshan_core_gen_record_id(newpath);
@@ -395,14 +394,13 @@ define(`PNETCDF_FILE_RECORD',`
             if (newpath != $3) free(newpath);
             break;
         }
-        PMPI_Comm_size($4, &comm_size);
         if (rec_ref->file_rec->fcounters[`PNETCDF_FILE_F_'Upcase($1)`_START_TIMESTAMP'] == 0 ||
-            rec_ref->file_rec->fcounters[`PNETCDF_FILE_F_'Upcase($1)`_START_TIMESTAMP'] > $5)
-            rec_ref->file_rec->fcounters[`PNETCDF_FILE_F_'Upcase($1)`_START_TIMESTAMP'] = $5;
-        rec_ref->file_rec->fcounters[`PNETCDF_FILE_F_'Upcase($1)`_END_TIMESTAMP'] = $6;
+            rec_ref->file_rec->fcounters[`PNETCDF_FILE_F_'Upcase($1)`_START_TIMESTAMP'] > $4)
+            rec_ref->file_rec->fcounters[`PNETCDF_FILE_F_'Upcase($1)`_START_TIMESTAMP'] = $4;
+        rec_ref->file_rec->fcounters[`PNETCDF_FILE_F_'Upcase($1)`_END_TIMESTAMP'] = $5;
         rec_ref->file_rec->counters[`PNETCDF_FILE_'Upcase($1)`S'] += 1;
         DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[`PNETCDF_FILE_F_'Upcase($1)`_TIME'],
-            tm1, tm2, rec_ref->last_$1_end);
+            $4, $5, rec_ref->last_$1_end);
         darshan_add_record_ref(&(pnetcdf_file_runtime->ncid_hash), $2, sizeof(int), rec_ref);
         if (newpath != $3) free(newpath);
     } while (0);
@@ -432,7 +430,7 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
         }
 
         PNETCDF_FILE_PRE_RECORD();
-        PNETCDF_FILE_RECORD(create, ncidp, path, comm, tm1, tm2)
+        PNETCDF_FILE_RECORD(create, ncidp, path, tm1, tm2)
         PNETCDF_FILE_POST_RECORD();
     }
     return(ret);
@@ -463,7 +461,7 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
         }
 
         PNETCDF_FILE_PRE_RECORD();
-        PNETCDF_FILE_RECORD(open, ncidp, path, comm, tm1, tm2)
+        PNETCDF_FILE_RECORD(open, ncidp, path, tm1, tm2)
         PNETCDF_FILE_POST_RECORD();
     }
     return(ret);
