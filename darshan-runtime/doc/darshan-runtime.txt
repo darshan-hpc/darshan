@@ -128,7 +128,7 @@ make install
   module (default=disabled)
 * `--with-pnetcdf=DIR`: installation directory for PnetCDF
 ** NOTE: Users must call `--enable-pnetcdf-mod` to enable PnetCDF modules, `--with-pnetcdf` is only used to additionally provide a PnetCDF install prefix.
-** NOTE: PnetCDF instrumentation only works on PnetCDF library versions >=1.6
+** NOTE: PnetCDF instrumentation only works on PnetCDF library versions >=1.8
 * `--disable-lustre-mod`: disables compilation and use of Darshan's Lustre
   module (default=enabled)
 * `--enable-mdhim-mod`: enables compilation and use of Darshan's MDHIM module

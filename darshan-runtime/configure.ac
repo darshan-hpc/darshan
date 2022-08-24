@@ -458,18 +458,18 @@ if test "x$enable_darshan_runtime" = xyes ; then
       CFLAGS="${CFLAGS} -I${with_pnetcdf}/include"
       DARSHAN_PNETCDF_LD_FLAGS="-L${with_pnetcdf}/lib [-Wl,-rpath=${with_pnetcdf}/lib -lpnetcdf]"
 
-      # PnetCDF only supported in library versions greater than 1.6.0
-      AC_MSG_CHECKING([whether PnetCDF version is at least 1.6.0])
+      # PnetCDF only supported in library versions greater than 1.8.0
+      AC_MSG_CHECKING([whether PnetCDF version is at least 1.8.0])
       AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
          #include <pnetcdf.h>
-         #if (PNETCDF_VERSION_MAJOR == 1) && (PNETCDF_VERSION_MINOR < 6)
-         #error PnetCDF version is older than 1.6.0
+         #if (PNETCDF_VERSION_MAJOR == 1) && (PNETCDF_VERSION_MINOR < 8)
+         #error PnetCDF version is older than 1.8.0
          #endif
-         ]])], [pnc_ge_1_6_0=yes], [pnc_ge_1_6_0=no]
+         ]])], [pnc_ge_1_8_0=yes], [pnc_ge_1_8_0=no]
       )
-      AC_MSG_RESULT([$pnc_ge_1_6_0])
-      if test x$pnc_ge_1_6_0 = xno; then
-         AC_MSG_ERROR([PnetCDF version 1.6.0 and later is required.])
+      AC_MSG_RESULT([$pnc_ge_1_8_0])
+      if test x$pnc_ge_1_8_0 = xno; then
+         AC_MSG_ERROR([PnetCDF version 1.8.0 and later is required.])
       fi
    elif test "x$enable_pnetcdf_mod" != xno ; then
       AC_MSG_ERROR(m4_normalize([--enable-pnetcdf-mod does not take any argument,
