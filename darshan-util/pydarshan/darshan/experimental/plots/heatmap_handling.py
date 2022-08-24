@@ -360,14 +360,26 @@ def get_heatmap_df(agg_df: pd.DataFrame, xbins: int, nprocs: int) -> pd.DataFram
     # and stop events
     # interpolation is pointless when there is
     # a single non-null value in a row
-    if sys.version_info.minor < 7:
-        cats.interpolate(method="linear", limit_area="inside", axis=1, inplace=True)
-    else:
-        null_mask = cats.notna().sum(axis=1) > 1
-        null_mask = null_mask.loc[null_mask == True].index
-        cats_vals_to_interp = pd.DataFrame(cats.iloc[null_mask].values)
-        cats_vals_to_interp.interpolate(method="nearest", axis=1, inplace=True)
-        cats.iloc[null_mask] = cats_vals_to_interp
+    null_mask = cats.notna().sum(axis=1) > 1
+    null_mask = null_mask.loc[null_mask == True].index
+    cats_vals = cats.iloc[null_mask].values
+    nan_mask = ~np.isnan(cats_vals)
+    fill_locs = np.where(nan_mask)
+    num_rows = cats_vals.shape[0]
+    start_index = 0
+    row = 0
+
+    # TODO: this is already much faster than
+    # pandas per gh-798, but consider moving
+    # to i.e., Cython or numba?
+    while start_index < (2 * num_rows):
+        start_bound = fill_locs[1][start_index]
+        end_bound = fill_locs[1][start_index + 1]
+        cats_vals[row, start_bound:end_bound] = 1
+        start_index += 2
+        row += 1
+
+    cats.iloc[null_mask] = cats_vals
     # each time bin containing an event has a 1 in it, otherwise NaN
     # store mask for restoring fully occupied bins
     mask_occ = cats == 2
