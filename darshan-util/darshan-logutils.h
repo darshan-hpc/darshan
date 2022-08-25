@@ -162,7 +162,7 @@ struct darshan_mod_logutil_funcs
         int64_t* max_offset,  /* maximum offset accessed */
         double* io_total_time, /* total time spent in all io fns */
         double* md_only_time,  /* time spent in metadata fns, if known */
-        double* rw_only_time,  /* time speint in read/write fns, if known */
+        double* rw_only_time,  /* time spent in read/write fns, if known */
         int64_t* rank,        /* rank associated with record (-1 for shared) */
         int64_t* nprocs);     /* nprocs that accessed it */
 };
@@ -350,7 +350,7 @@ struct darshan_derived_metrics {
     double slowest_rank_md_only_time;   /* meta time spent in unique files on
                                            the slowest rank */
     int    slowest_rank_rank; /* which rank was the slowest for unique files */
-    double shared_io_total_time_by_slowest; /* combined meta and rw time speint
+    double shared_io_total_time_by_slowest; /* combined meta and rw time spent
                                                by slowest rank on shared file */
     double agg_perf_by_slowest;             /* overall throughput */
     double agg_time_by_slowest;             /* overall elapsed io time */
