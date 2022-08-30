@@ -661,6 +661,11 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                 break;
             case POSIX_STRIDE1_STRIDE:
             case POSIX_ACCESS1_ACCESS:
+                /* NOTE: this same code block is used to collapse both the
+                 * ACCESS and STRIDE counter sets (see the drop through in
+                 * the case above). We therefore have to take care to zero
+                 * any stateful variables that might get reused.
+                 */
                 memset(duplicate_mask, 0, 4*sizeof(duplicate_mask[0]));
                 /* increment common value counters */
 
