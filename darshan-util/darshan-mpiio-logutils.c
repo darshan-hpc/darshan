@@ -522,7 +522,6 @@ static void darshan_log_agg_mpiio_files(void *rec, void *agg_rec, int init_flag)
                 /* these are set with the FP counters */
                 break;
             case MPIIO_ACCESS1_ACCESS:
-                memset(duplicate_mask, 0, 4*sizeof(duplicate_mask[0]));
                 /* increment common value counters */
                 if(mpi_rec->counters[i] == 0) break;
 
