@@ -22,6 +22,8 @@
 
 #include "darshan-logutils.h"
 
+#define max(a,b) (((a) > (b)) ? (a) : (b))
+
 /* counter name strings for the POSIX module */
 #define X(a) #a,
 char *posix_counter_names[] = {
@@ -45,6 +47,17 @@ static void darshan_log_print_posix_description(int ver);
 static void darshan_log_print_posix_file_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
 static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag);
+static int darshan_log_sizeof_posix_file(void* posix_buf_p);
+static int darshan_log_record_metrics_posix_file(void*    posix_buf_p,
+                                                 uint64_t* rec_id,
+                                                 int64_t* r_bytes,
+                                                 int64_t* w_bytes,
+                                                 int64_t* max_offset,
+                                                 double* io_total_time,
+                                                 double* md_only_time,
+                                                 double* rw_only_time,
+                                                 int64_t* rank,
+                                                 int64_t* nprocs);
 
 struct darshan_mod_logutil_funcs posix_logutils =
 {
@@ -54,7 +67,67 @@ struct darshan_mod_logutil_funcs posix_logutils =
     .log_print_description = &darshan_log_print_posix_description,
     .log_print_diff = &darshan_log_print_posix_file_diff,
     .log_agg_records = &darshan_log_agg_posix_files,
+    .log_sizeof_record = &darshan_log_sizeof_posix_file,
+    .log_record_metrics = &darshan_log_record_metrics_posix_file
 };
+
+static int darshan_log_sizeof_posix_file(void* posix_buf_p)
+{
+    /* posix records have a fixed size */
+    return(sizeof(struct darshan_posix_file));
+}
+
+static int darshan_log_record_metrics_posix_file(void*    posix_buf_p,
+                                         uint64_t* rec_id,
+                                         int64_t* r_bytes,
+                                         int64_t* w_bytes,
+                                         int64_t* max_offset,
+                                         double* io_total_time,
+                                         double* md_only_time,
+                                         double* rw_only_time,
+                                         int64_t* rank,
+                                         int64_t* nprocs)
+{
+    struct darshan_posix_file *psx_rec = (struct darshan_posix_file *)posix_buf_p;
+
+    *rec_id = psx_rec->base_rec.id;
+    *r_bytes = psx_rec->counters[POSIX_BYTES_READ];
+    *w_bytes = psx_rec->counters[POSIX_BYTES_WRITTEN];
+
+    *max_offset = max(psx_rec->counters[POSIX_MAX_BYTE_READ], psx_rec->counters[POSIX_MAX_BYTE_WRITTEN]);
+
+    *rank = psx_rec->base_rec.rank;
+    /* nprocs is 1 per record, unless rank is negative, in which case we
+     * report -1 as the rank value to represent "all"
+     */
+    if(psx_rec->base_rec.rank < 0)
+        *nprocs = -1;
+    else
+        *nprocs = 1;
+
+    if(psx_rec->base_rec.rank < 0) {
+        /* shared file records populate a counter with the slowest rank time
+         * (derived during reduction).  They do not have a breakdown of meta
+         * and rw time, though.
+         */
+        *io_total_time = psx_rec->fcounters[POSIX_F_SLOWEST_RANK_TIME];
+        *md_only_time = 0;
+        *rw_only_time = 0;
+    }
+    else {
+        /* non-shared records have separate meta, read, and write values
+         * that we can combine as needed
+         */
+        *io_total_time = psx_rec->fcounters[POSIX_F_META_TIME] +
+                         psx_rec->fcounters[POSIX_F_READ_TIME] +
+                         psx_rec->fcounters[POSIX_F_WRITE_TIME];
+        *md_only_time = psx_rec->fcounters[POSIX_F_META_TIME];
+        *rw_only_time = psx_rec->fcounters[POSIX_F_READ_TIME] +
+                        psx_rec->fcounters[POSIX_F_WRITE_TIME];
+    }
+
+    return(0);
+}
 
 static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p)
 {
@@ -439,6 +512,7 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
     int total_count;
     int64_t tmp_val[4];
     int64_t tmp_cnt[4];
+    int duplicate_mask[4] = {0};
     int tmp_ndx;
     int64_t psx_fastest_rank, psx_slowest_rank,
         psx_fastest_bytes, psx_slowest_bytes;
@@ -587,6 +661,12 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                 break;
             case POSIX_STRIDE1_STRIDE:
             case POSIX_ACCESS1_ACCESS:
+                /* NOTE: this same code block is used to collapse both the
+                 * ACCESS and STRIDE counter sets (see the drop through in
+                 * the case above). We therefore have to take care to zero
+                 * any stateful variables that might get reused.
+                 */
+                memset(duplicate_mask, 0, 4*sizeof(duplicate_mask[0]));
                 /* increment common value counters */
 
                 /* first, collapse duplicates */
@@ -597,7 +677,8 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                         if(agg_psx_rec->counters[i + k] == psx_rec->counters[j])
                         {
                             agg_psx_rec->counters[i + k + 4] += psx_rec->counters[j + 4];
-                            psx_rec->counters[j] = psx_rec->counters[j + 4] = 0;
+                            /* flag that we should ignore this one now */
+                            duplicate_mask[j-i] = 1;
                         }
                     }
                 }
@@ -605,6 +686,9 @@ static void darshan_log_agg_posix_files(void *rec, void *agg_rec, int init_flag)
                 /* second, add new counters */
                 for(j = i; j < i + 4; j++)
                 {
+                    /* skip any that were handled above already */
+                    if(duplicate_mask[j-i])
+                        continue;
                     tmp_ndx = 0;
                     memset(tmp_val, 0, 4 * sizeof(int64_t));
                     memset(tmp_cnt, 0, 4 * sizeof(int64_t));

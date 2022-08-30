@@ -148,6 +148,23 @@ struct darshan_mod_logutil_funcs
         void *agg_rec,
         int init_flag
     );
+    /* report the true size of the record, including variable-length data if
+     * present
+     */
+    int (*log_sizeof_record)(
+        void *rec);
+    /* extract some generic metrics from module record type */
+    int (*log_record_metrics)(
+        void* rec,            /* input record */
+        uint64_t* rec_id,     /* record id */
+        int64_t* r_bytes,     /* bytes read */
+        int64_t* w_bytes,     /* bytes written */
+        int64_t* max_offset,  /* maximum offset accessed */
+        double* io_total_time, /* total time spent in all io fns */
+        double* md_only_time,  /* time spent in metadata fns, if known */
+        double* rw_only_time,  /* time spent in read/write fns, if known */
+        int64_t* rank,        /* rank associated with record (-1 for shared) */
+        int64_t* nprocs);     /* nprocs that accessed it */
 };
 
 extern struct darshan_mod_logutil_funcs *mod_logutils[];
@@ -272,5 +289,103 @@ int darshan_log_get_record(darshan_fd fd, int mod_idx, void **buf);
     __dst_char[3] = __src_char[0]; \
     memcpy(__ptr, __dst_char, 4); \
 } while(0)
+
+/*****************************************************************
+ * The functions in this section make up the accumulator API, which is a
+ * mechanism for aggregating records to produce derived metrics and
+ * summaries.
+ */
+
+/* opaque accumulator reference */
+struct darshan_accumulator_st;
+typedef struct darshan_accumulator_st* darshan_accumulator;
+
+/* Instantiate a stateful accumulator for a particular module type.
+ */
+int darshan_accumulator_create(darshan_module_id id,
+                               int64_t job_nprocs,
+                               darshan_accumulator*   new_accumulator);
+
+/* Add a record to the accumulator.  The record is an untyped void* (size
+ * implied by record type) following the convention of other logutils
+ * functions.  Multiple records may be injected at once by setting
+ * record_count > 1 and packing records into a contiguous memory region.
+ */
+int darshan_accumulator_inject(darshan_accumulator accumulator,
+                               void*               record_array,
+                               int                 record_count);
+
+struct darshan_file_category_counters {
+    int64_t count;                   /* number of files in this category */
+    int64_t total_read_volume_bytes; /* total read traffic volume */
+    int64_t total_write_volume_bytes;/* total write traffic volume */
+    int64_t max_read_volume_bytes;   /* maximum read traffic volume to 1 file */
+    int64_t max_write_volume_bytes;  /* maximum write traffic volume to 1 file */
+    int64_t total_max_offset_bytes;  /* summation of max_offsets */
+    int64_t max_offset_bytes;        /* largest max_offset */
+    int64_t nprocs;                  /* how many procs accessed (-1 for "all") */
+};
+
+enum darshan_file_category {
+    DARSHAN_ALL_FILES = 0,
+    DARSHAN_RO_FILES,
+    DARSHAN_WO_FILES,
+    DARSHAN_RW_FILES,
+    DARSHAN_UNIQ_FILES,
+    DARSHAN_SHARED_FILES,
+    DARSHAN_PART_SHARED_FILES,
+    DARSHAN_FILE_CATEGORY_MAX
+};
+
+/* aggregate metrics that can be derived from an accumulator.  If a given
+ * record time doesn't support a particular field, then it will be set to -1
+ * (for int64_t values) or NAN (for double values).
+ */
+struct darshan_derived_metrics {
+    /* total bytes moved (read and write) */
+    int64_t total_bytes;
+
+    /* combined meta and rw time spent in unique files by slowest rank */
+    double unique_io_total_time_by_slowest;
+    /* rw time spent in unique files by slowest rank */
+    double unique_rw_only_time_by_slowest;
+    /* meta time spent in unique files by slowest rank */
+    double unique_md_only_time_by_slowest;
+    /* which rank was the slowest for unique files */
+    int unique_io_slowest_rank;
+
+    /* combined meta and rw time speint by slowest rank on shared file */
+    /* Note that (unlike the unique file counters above) we cannot
+     * discriminate md and rw time separately within shared files.
+     */
+    double shared_io_total_time_by_slowest;
+
+    /* overall throughput, accounting for the slowest path through both
+     * shared files and unique files
+     */
+    double agg_perf_by_slowest;
+    /* overall elapsed io time, accounting for the slowest path through both
+     * shared files and unique files
+     */
+    double agg_time_by_slowest;
+
+    /* array of derived metrics broken down by different categories */
+    struct darshan_file_category_counters
+        category_counters[DARSHAN_FILE_CATEGORY_MAX];
+};
+
+/* Emit derived metrics _and_ a combined aggregate record from an accumulator.
+ * The aggregation_record uses the same format as the normal records for the
+ * module, but values are set to reflect summations across all accumulated
+ * records.
+ */
+int darshan_accumulator_emit(darshan_accumulator             accumulator,
+                             struct darshan_derived_metrics* metrics,
+                             void*                           aggregation_record);
+
+/* frees resources associated with an accumulator */
+int darshan_accumulator_destroy(darshan_accumulator accumulator);
+
+/*****************************************************************/
 
 #endif

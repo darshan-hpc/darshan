@@ -5,6 +5,14 @@ Darshan Release Change Log
 Darshan-3.4.1-pre1
 =============
 * Deprecated --file-list and --file-list-detailed options in darshan-parser
+* Added "darshan_accumulator" API to the logutils library
+  - _create(), _inject(), _emit(), and _destroy()
+  - generalizes the mechanism for producing summation records and derived
+    metrics for sets of records from a given module
+  - refactored darshan-parser to use new API
+  - implemented support for accumulators in POSIX, STDIO, and MPIIO modules
+* Integrated the µnit Testing Framework in darshan-util
+  - implemented unit tests for darshan_accumlator API
 
 Darshan-3.4.0
 =============

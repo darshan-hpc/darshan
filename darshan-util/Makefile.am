@@ -21,7 +21,8 @@ libdarshan_util_la_SOURCES = darshan-null-logutils.c \
                              darshan-stdio-logutils.c \
                              darshan-dxt-logutils.c \
                              darshan-heatmap-logutils.c \
-                             darshan-mdhim-logutils.c
+                             darshan-mdhim-logutils.c \
+			     darshan-logutils-accumulator.c
 
 include_HEADERS = darshan-null-logutils.h \
                   darshan-logutils.h \
@@ -139,3 +140,14 @@ install-exec-hook:
 endif
 
 .PHONY: clean-local-check
+
+TESTS =
+XFAIL_TESTS =
+check_PROGRAMS =
+noinst_HEADERS =
+
+include $(top_srcdir)/tests/unit-tests/Makefile.subdir
+
+# convenience rule for building test programs
+.phony: tests
+tests: $(check_PROGRAMS)

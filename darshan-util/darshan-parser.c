@@ -46,90 +46,11 @@
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 
 /*
- * Datatypes
- */
-
-/* Structure to accumulate per-file derived metrics, regardless of how many
- * ranks access it. The "file_hash_table" UT hash table data structure is
- * used to keep track of all files that have been encountered in the log.
- * The *_accum_file() functions are used to iteratively accumulate metrics,
- * while the *_file_list() functions are used to emit them to stdout.
- */
-typedef struct hash_entry_s
-{
-    UT_hash_handle hlink;
-    darshan_record_id rec_id;
-    int64_t type;
-    int64_t procs;
-    void *rec_dat;
-} hash_entry_t;
-
-/* Structure to accumulate aggregate derived metrics across all files.  This
- * is usually caculated all at once (see *_calc_file() functions) after the
- * file_hash_table has been fully populated with all files, and results are
- * emitted to stdout in main().
- */
-typedef struct file_data_s
-{
-    int64_t total;
-    int64_t total_size;
-    int64_t total_max;
-    int64_t read_only;
-    int64_t read_only_size;
-    int64_t read_only_max;
-    int64_t write_only;
-    int64_t write_only_size;
-    int64_t write_only_max;
-    int64_t read_write;
-    int64_t read_write_size;
-    int64_t read_write_max;
-    int64_t unique;
-    int64_t unique_size;
-    int64_t unique_max;
-    int64_t shared;
-    int64_t shared_size;
-    int64_t shared_max;
-} file_data_t;
-
-/* Structure to accumulate aggreate derived performance metrics across all
- * files. Metrics are iteratively accumulated with accum_perf() and then
- * finalized with calc_perf(). Final values are emitted to stdout in
- * main().
- */
-typedef struct perf_data_s
-{
-    int64_t total_bytes;
-    double slowest_rank_io_total_time;
-    double slowest_rank_rw_only_time;
-    double slowest_rank_meta_only_time;
-    int slowest_rank_rank;
-    double shared_io_total_time_by_slowest;
-    double agg_perf_by_slowest;
-    double agg_time_by_slowest;
-    double *rank_cumul_io_total_time;
-    double *rank_cumul_rw_only_time;
-    double *rank_cumul_md_only_time;
-} perf_data_t;
-
-/*
  * Prototypes
  */
-void posix_accum_file(struct darshan_posix_file *pfile, hash_entry_t *hfile, int64_t nprocs);
-void posix_accum_perf(struct darshan_posix_file *pfile, perf_data_t *pdata);
-void posix_calc_file(hash_entry_t *file_hash_table, file_data_t *fdata);
 void posix_print_total_file(struct darshan_posix_file *pfile, int posix_ver);
-
-void mpiio_accum_file(struct darshan_mpiio_file *mfile, hash_entry_t *hfile, int64_t nprocs);
-void mpiio_accum_perf(struct darshan_mpiio_file *mfile, perf_data_t *pdata);
-void mpiio_calc_file(hash_entry_t *file_hash_table, file_data_t *fdata);
 void mpiio_print_total_file(struct darshan_mpiio_file *mfile, int mpiio_ver);
-
-void stdio_accum_perf(struct darshan_stdio_file *pfile, perf_data_t *pdata);
-void stdio_accum_file(struct darshan_stdio_file *pfile, hash_entry_t *hfile, int64_t nprocs);
-void stdio_calc_file(hash_entry_t *file_hash_table, file_data_t *fdata);
 void stdio_print_total_file(struct darshan_stdio_file *pfile, int stdio_ver);
-
-void calc_perf(perf_data_t *pdata, int64_t nprocs);
 
 int usage (char *exename)
 {
@@ -226,16 +147,8 @@ int main(int argc, char **argv)
     int empty_mods = 0;
     char *mod_buf;
 
-    hash_entry_t *file_hash_table = NULL;
-    hash_entry_t *curr = NULL;
-    hash_entry_t *tmp_file = NULL;
-    hash_entry_t total;
-    file_data_t fdata;
-    perf_data_t pdata;
-
-    memset(&total, 0, sizeof(total));
-    memset(&fdata, 0, sizeof(fdata));
-    memset(&pdata, 0, sizeof(pdata));
+    darshan_accumulator acc = NULL;
+    struct darshan_derived_metrics metrics;
 
     mask = parse_args(argc, argv, &filename);
 
@@ -372,22 +285,6 @@ int main(int argc, char **argv)
         printf("#   <fs type>: type of file system that the file resides on.\n");
     }
 
-    pdata.rank_cumul_io_total_time = malloc(sizeof(double)*job.nprocs);
-    pdata.rank_cumul_rw_only_time = malloc(sizeof(double)*job.nprocs);
-    pdata.rank_cumul_md_only_time = malloc(sizeof(double)*job.nprocs);
-    if (!pdata.rank_cumul_io_total_time || !pdata.rank_cumul_md_only_time ||
-        !pdata.rank_cumul_rw_only_time)
-    {
-        darshan_log_close(fd);
-        return(-1);
-    }
-    else
-    {
-        memset(pdata.rank_cumul_io_total_time, 0, sizeof(double)*job.nprocs);
-        memset(pdata.rank_cumul_rw_only_time, 0, sizeof(double)*job.nprocs);
-        memset(pdata.rank_cumul_md_only_time, 0, sizeof(double)*job.nprocs);
-    }
-
     mod_buf = malloc(DEF_MOD_BUF_SIZE);
     if (!mod_buf) {
         darshan_log_close(fd);
@@ -397,7 +294,6 @@ int main(int argc, char **argv)
     for(i=0; i<DARSHAN_MAX_MODS; i++)
     {
         struct darshan_base_record *base_rec;
-        void *save_io_total, *save_md_only, *save_rw_only;
 
         /* check each module for any data */
         if(fd->mod_map[i].len == 0)
@@ -486,13 +382,16 @@ int main(int argc, char **argv)
             }
         }
 
+        /* create an accumulator, if supported */
+        /* no explicit error checking; we will just skip injecting if null */
+        darshan_accumulator_create(i, job.nprocs, &acc);
+
         /* loop over each of this module's records and print them */
         while(1)
         {
             char *mnt_pt = NULL;
             char *fs_type = NULL;
             char *rec_name = NULL;
-            hash_entry_t *hfile = NULL;
 
             ret = mod_logutils[i]->log_get_record(fd, (void **)&mod_buf);
             if(ret < 1)
@@ -543,55 +442,16 @@ int main(int argc, char **argv)
                     mnt_pt, fs_type);
             }
 
-            /* we calculate more detailed stats for POSIX, MPI-IO, and STDIO modules, 
-             * if the parser is executed with more than the base option
-             */
-            if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD && i != DARSHAN_STDIO_MOD)
-                continue;
-
-            HASH_FIND(hlink, file_hash_table, &(base_rec->id), sizeof(darshan_record_id), hfile);
-            if(!hfile)
-            {
-                hfile = malloc(sizeof(*hfile));
-                if(!hfile)
-                {
-                    ret = -1;
-                    goto cleanup;
-                }
-
-                /* init */
-                memset(hfile, 0, sizeof(*hfile));
-                hfile->rec_id = base_rec->id;
-                hfile->type = 0;
-                hfile->procs = 0;
-                hfile->rec_dat = NULL;
-
-                HASH_ADD(hlink, file_hash_table,rec_id, sizeof(darshan_record_id), hfile);
-            }
-
-            if(i == DARSHAN_POSIX_MOD)
-            {
-                posix_accum_file((struct darshan_posix_file*)mod_buf, &total, job.nprocs);
-                posix_accum_file((struct darshan_posix_file*)mod_buf, hfile, job.nprocs);
-                posix_accum_perf((struct darshan_posix_file*)mod_buf, &pdata);
-            }
-            else if(i == DARSHAN_MPIIO_MOD)
-            {
-                mpiio_accum_file((struct darshan_mpiio_file*)mod_buf, &total, job.nprocs);
-                mpiio_accum_file((struct darshan_mpiio_file*)mod_buf, hfile, job.nprocs);
-                mpiio_accum_perf((struct darshan_mpiio_file*)mod_buf, &pdata);
-            }
-            else if(i == DARSHAN_STDIO_MOD)
-            {
-                stdio_accum_file((struct darshan_stdio_file*)mod_buf, &total, job.nprocs);
-                stdio_accum_file((struct darshan_stdio_file*)mod_buf, hfile, job.nprocs);
-                stdio_accum_perf((struct darshan_stdio_file*)mod_buf, &pdata);
-            }
-
-            memset(mod_buf, 0, DEF_MOD_BUF_SIZE);
+            /* accumulated and derived metrics, if supported */
+            if(acc)
+                darshan_accumulator_inject(acc, mod_buf, 1);
         }
         if(ret == -1)
             continue; /* move on to the next module if there was an error with this one */
+
+        /* calculate derived metrics from accumulator */
+        if(acc)
+            darshan_accumulator_emit(acc, &metrics, mod_buf);
 
         /* we calculate more detailed stats for POSIX and MPI-IO modules, 
          * if the parser is executed with more than the base option
@@ -604,34 +464,21 @@ int main(int argc, char **argv)
         {
             if(i == DARSHAN_POSIX_MOD)
             {
-                posix_print_total_file((struct darshan_posix_file*)total.rec_dat, fd->mod_ver[i]);
+                posix_print_total_file((struct darshan_posix_file*)mod_buf, fd->mod_ver[i]);
             }
             else if(i == DARSHAN_MPIIO_MOD)
             {
-                mpiio_print_total_file((struct darshan_mpiio_file*)total.rec_dat, fd->mod_ver[i]);
+                mpiio_print_total_file((struct darshan_mpiio_file*)mod_buf, fd->mod_ver[i]);
             }
             else if(i == DARSHAN_STDIO_MOD)
             {
-                stdio_print_total_file((struct darshan_stdio_file*)total.rec_dat, fd->mod_ver[i]);
+                stdio_print_total_file((struct darshan_stdio_file*)mod_buf, fd->mod_ver[i]);
             }
         }
 
         /* File Calc */
         if(mask & OPTION_FILE)
         {
-            if(i == DARSHAN_POSIX_MOD)
-            {
-                posix_calc_file(file_hash_table, &fdata);
-            }
-            else if(i == DARSHAN_MPIIO_MOD)
-            {
-                mpiio_calc_file(file_hash_table, &fdata);
-            }
-            else if(i == DARSHAN_STDIO_MOD)
-            {
-                stdio_calc_file(file_hash_table, &fdata);
-            }
-
             printf("\n# Total file counts\n");
             printf("# -----\n");
             printf("# <file_type>: type of file access:\n");
@@ -645,88 +492,76 @@ int main(int argc, char **argv)
             printf("# <max_byte_offset> maximum byte offset accessed for a file of this type\n");
             printf("\n# <file_type> <file_count> <total_bytes> <max_byte_offset>\n");
             printf("# total: %" PRId64 " %" PRId64 " %" PRId64 "\n",
-                   fdata.total,
-                   fdata.total_size,
-                   fdata.total_max);
+                   metrics.category_counters[DARSHAN_ALL_FILES].count,
+                   metrics.category_counters[DARSHAN_ALL_FILES].total_read_volume_bytes +
+                    metrics.category_counters[DARSHAN_ALL_FILES].total_write_volume_bytes,
+                   metrics.category_counters[DARSHAN_ALL_FILES].max_offset_bytes);
             printf("# read_only: %" PRId64 " %" PRId64 " %" PRId64 "\n",
-                   fdata.read_only,
-                   fdata.read_only_size,
-                   fdata.read_only_max);
+                   metrics.category_counters[DARSHAN_RO_FILES].count,
+                   metrics.category_counters[DARSHAN_RO_FILES].total_read_volume_bytes +
+                    metrics.category_counters[DARSHAN_RO_FILES].total_write_volume_bytes,
+                   metrics.category_counters[DARSHAN_RO_FILES].max_offset_bytes);
             printf("# write_only: %" PRId64 " %" PRId64 " %" PRId64 "\n",
-                   fdata.write_only,
-                   fdata.write_only_size,
-                   fdata.write_only_max);
+                   metrics.category_counters[DARSHAN_WO_FILES].count,
+                   metrics.category_counters[DARSHAN_WO_FILES].total_read_volume_bytes +
+                    metrics.category_counters[DARSHAN_WO_FILES].total_write_volume_bytes,
+                   metrics.category_counters[DARSHAN_WO_FILES].max_offset_bytes);
             printf("# read_write: %" PRId64 " %" PRId64 " %" PRId64 "\n",
-                   fdata.read_write,
-                   fdata.read_write_size,
-                   fdata.read_write_max);
+                   metrics.category_counters[DARSHAN_RW_FILES].count,
+                   metrics.category_counters[DARSHAN_RW_FILES].total_read_volume_bytes +
+                    metrics.category_counters[DARSHAN_RW_FILES].total_write_volume_bytes,
+                   metrics.category_counters[DARSHAN_RW_FILES].max_offset_bytes);
             printf("# unique: %" PRId64 " %" PRId64 " %" PRId64 "\n",
-                   fdata.unique,
-                   fdata.unique_size,
-                   fdata.unique_max);
+                   metrics.category_counters[DARSHAN_UNIQ_FILES].count,
+                   metrics.category_counters[DARSHAN_UNIQ_FILES].total_read_volume_bytes +
+                    metrics.category_counters[DARSHAN_UNIQ_FILES].total_write_volume_bytes,
+                   metrics.category_counters[DARSHAN_UNIQ_FILES].max_offset_bytes);
             printf("# shared: %" PRId64 " %" PRId64 " %" PRId64 "\n",
-                   fdata.shared,
-                   fdata.shared_size,
-                   fdata.shared_max);
+                   metrics.category_counters[DARSHAN_SHARED_FILES].count +
+                    metrics.category_counters[DARSHAN_PART_SHARED_FILES].count,
+                   metrics.category_counters[DARSHAN_SHARED_FILES].total_read_volume_bytes +
+                    metrics.category_counters[DARSHAN_SHARED_FILES].total_write_volume_bytes +
+                    metrics.category_counters[DARSHAN_PART_SHARED_FILES].total_read_volume_bytes +
+                    metrics.category_counters[DARSHAN_PART_SHARED_FILES].total_write_volume_bytes,
+                   metrics.category_counters[DARSHAN_SHARED_FILES].max_offset_bytes +
+                    metrics.category_counters[DARSHAN_PART_SHARED_FILES].max_offset_bytes);
         }
 
         /* Perf Calc */
         if(mask & OPTION_PERF)
         {
-            calc_perf(&pdata, job.nprocs);
-
             printf("\n# performance\n");
             printf("# -----------\n");
-            printf("# total_bytes: %" PRId64 "\n", pdata.total_bytes);
+            printf("# total_bytes: %" PRId64 "\n", metrics.total_bytes);
             printf("#\n");
             printf("# I/O timing for unique files (seconds):\n");
             printf("# ...........................\n");
-            printf("# unique files: slowest_rank_io_time: %lf\n", pdata.slowest_rank_io_total_time);
-            printf("# unique files: slowest_rank_meta_only_time: %lf\n", pdata.slowest_rank_meta_only_time);
-            printf("# unique files: slowest_rank_rw_only_time: %lf\n", pdata.slowest_rank_rw_only_time);
-            printf("# unique files: slowest_rank: %d\n", pdata.slowest_rank_rank);
+            printf("# unique files: slowest_rank_io_time: %lf\n", metrics.unique_io_total_time_by_slowest);
+            printf("# unique files: slowest_rank_meta_only_time: %lf\n", metrics.unique_md_only_time_by_slowest);
+            printf("# unique files: slowest_rank_rw_only_time: %lf\n", metrics.unique_rw_only_time_by_slowest);
+            printf("# unique files: slowest_rank: %d\n", metrics.unique_io_slowest_rank);
             printf("#\n");
             printf("# I/O timing for shared files (seconds):\n");
             printf("# ...........................\n");
-            printf("# shared files: time_by_slowest: %lf\n", pdata.shared_io_total_time_by_slowest);
+            printf("# shared files: time_by_slowest: %lf\n", metrics.shared_io_total_time_by_slowest);
             printf("#\n");
             printf("# Aggregate performance, including both shared and unique files:\n");
             printf("# ...........................\n");
-            printf("# agg_time_by_slowest: %lf # seconds\n", pdata.agg_time_by_slowest);
-            printf("# agg_perf_by_slowest: %lf # MiB/s\n", pdata.agg_perf_by_slowest);
+            printf("# agg_time_by_slowest: %lf # seconds\n", metrics.agg_time_by_slowest);
+            printf("# agg_perf_by_slowest: %lf # MiB/s\n", metrics.agg_perf_by_slowest);
         }
 
-        /* reset data structures for next module */
-        if(total.rec_dat) free(total.rec_dat);
-        memset(&total, 0, sizeof(total));
-        memset(&fdata, 0, sizeof(fdata));
-        save_io_total = pdata.rank_cumul_io_total_time;
-        save_rw_only = pdata.rank_cumul_rw_only_time;
-        save_md_only = pdata.rank_cumul_md_only_time;
-        memset(&pdata, 0, sizeof(pdata));
-        memset(save_io_total, 0, sizeof(double)*job.nprocs);
-        memset(save_rw_only, 0, sizeof(double)*job.nprocs);
-        memset(save_md_only, 0, sizeof(double)*job.nprocs);
-        pdata.rank_cumul_io_total_time = save_io_total;
-        pdata.rank_cumul_md_only_time = save_md_only;
-        pdata.rank_cumul_rw_only_time = save_rw_only;
-
-        HASH_ITER(hlink, file_hash_table, curr, tmp_file)
-        {
-            HASH_DELETE(hlink, file_hash_table, curr);
-            if(curr->rec_dat) free(curr->rec_dat);
-            free(curr);
+        if(acc) {
+            darshan_accumulator_destroy(acc);
+            acc = NULL;
         }
     }
+
     if(empty_mods == DARSHAN_MAX_MODS)
         printf("\n# no module data available.\n");
     ret = 0;
 
-cleanup:
     darshan_log_close(fd);
-    free(pdata.rank_cumul_io_total_time);
-    free(pdata.rank_cumul_md_only_time);
-    free(pdata.rank_cumul_rw_only_time);
     free(mod_buf);
 
     /* free record hash data */
@@ -744,481 +579,6 @@ cleanup:
     }
 
     return(ret);
-}
-
-void stdio_accum_file(struct darshan_stdio_file *pfile,
-                      hash_entry_t *hfile,
-                      int64_t nprocs)
-{
-    struct darshan_stdio_file* tmp;
-
-    hfile->procs += 1;
-
-    if(pfile->base_rec.rank == -1)
-    {
-        hfile->procs = nprocs;
-        hfile->type |= FILETYPE_SHARED;
-
-    }
-    else if(hfile->procs > 1)
-    {
-        hfile->type &= (~FILETYPE_UNIQUE);
-        hfile->type |= FILETYPE_PARTSHARED;
-    }
-    else
-    {
-        hfile->type |= FILETYPE_UNIQUE;
-    }
-
-    if(hfile->rec_dat == NULL)
-    {
-        /* generate empty base record to start accumulation */
-        hfile->rec_dat = malloc(sizeof(struct darshan_stdio_file));
-        assert(hfile->rec_dat);
-        memset(hfile->rec_dat, 0, sizeof(struct darshan_stdio_file));
-        tmp = (struct darshan_stdio_file*)hfile->rec_dat;
-        mod_logutils[DARSHAN_STDIO_MOD]->log_agg_records(pfile, tmp, 1);
-    }
-    else
-    {
-        tmp = (struct darshan_stdio_file*)hfile->rec_dat;
-        mod_logutils[DARSHAN_STDIO_MOD]->log_agg_records(pfile, tmp, 0);
-    }
-
-    return;
-}
-
-void posix_accum_file(struct darshan_posix_file *pfile,
-                      hash_entry_t *hfile,
-                      int64_t nprocs)
-{
-    struct darshan_posix_file* tmp;
-
-    hfile->procs += 1;
-
-    if(pfile->base_rec.rank == -1)
-    {
-        hfile->procs = nprocs;
-        hfile->type |= FILETYPE_SHARED;
-
-    }
-    else if(hfile->procs > 1)
-    {
-        hfile->type &= (~FILETYPE_UNIQUE);
-        hfile->type |= FILETYPE_PARTSHARED;
-    }
-    else
-    {
-        hfile->type |= FILETYPE_UNIQUE;
-    }
-
-    if(hfile->rec_dat == NULL)
-    {
-        /* generate empty base record to start accumulation */
-        hfile->rec_dat = malloc(sizeof(struct darshan_posix_file));
-        assert(hfile->rec_dat);
-        memset(hfile->rec_dat, 0, sizeof(struct darshan_posix_file));
-        tmp = (struct darshan_posix_file*)hfile->rec_dat;
-        mod_logutils[DARSHAN_POSIX_MOD]->log_agg_records(pfile, tmp, 1);
-    }
-    else
-    {
-        tmp = (struct darshan_posix_file*)hfile->rec_dat;
-        mod_logutils[DARSHAN_POSIX_MOD]->log_agg_records(pfile, tmp, 0);
-    }
-
-    return;
-}
-
-void mpiio_accum_file(struct darshan_mpiio_file *mfile,
-                      hash_entry_t *hfile,
-                      int64_t nprocs)
-{
-    struct darshan_mpiio_file* tmp;
-
-    hfile->procs += 1;
-
-    if(mfile->base_rec.rank == -1)
-    {
-        hfile->procs = nprocs;
-        hfile->type |= FILETYPE_SHARED;
-
-    }
-    else if(hfile->procs > 1)
-    {
-        hfile->type &= (~FILETYPE_UNIQUE);
-        hfile->type |= FILETYPE_PARTSHARED;
-    }
-    else
-    {
-        hfile->type |= FILETYPE_UNIQUE;
-    }
-
-    if(hfile->rec_dat == NULL)
-    {
-        /* generate empty base record to start accumulation */
-        hfile->rec_dat = malloc(sizeof(struct darshan_mpiio_file));
-        assert(hfile->rec_dat);
-        memset(hfile->rec_dat, 0, sizeof(struct darshan_mpiio_file));
-        tmp = (struct darshan_mpiio_file*)hfile->rec_dat;
-        mod_logutils[DARSHAN_MPIIO_MOD]->log_agg_records(mfile, tmp, 1);
-    }
-    else
-    {
-        tmp = (struct darshan_mpiio_file*)hfile->rec_dat;
-        mod_logutils[DARSHAN_MPIIO_MOD]->log_agg_records(mfile, tmp, 0);
-    }
-
-    return;
-}
-
-void stdio_accum_perf(struct darshan_stdio_file *pfile,
-                      perf_data_t *pdata)
-{
-    pdata->total_bytes += pfile->counters[STDIO_BYTES_READ] +
-                          pfile->counters[STDIO_BYTES_WRITTEN];
-
-    /*
-     * Calculation of Shared File Time
-     *     by_slowest: use slowest rank time from log data
-     *                 (most accurate but requires newer log version)
-     */
-    if(pfile->base_rec.rank == -1)
-    {
-        /* by_slowest */
-        pdata->shared_io_total_time_by_slowest +=
-            pfile->fcounters[STDIO_F_SLOWEST_RANK_TIME];
-    }
-
-    /*
-     * Calculation of Unique File Time
-     *   record the data for each file and sum it 
-     */
-    else
-    {
-        pdata->rank_cumul_io_total_time[pfile->base_rec.rank] +=
-            (pfile->fcounters[STDIO_F_META_TIME] +
-            pfile->fcounters[STDIO_F_READ_TIME] +
-            pfile->fcounters[STDIO_F_WRITE_TIME]);
-        pdata->rank_cumul_md_only_time[pfile->base_rec.rank] +=
-            pfile->fcounters[STDIO_F_META_TIME];
-        pdata->rank_cumul_rw_only_time[pfile->base_rec.rank] +=
-            pfile->fcounters[STDIO_F_READ_TIME] +
-            pfile->fcounters[STDIO_F_WRITE_TIME];
-    }
-
-    return;
-}
-
-
-void posix_accum_perf(struct darshan_posix_file *pfile,
-                      perf_data_t *pdata)
-{
-    pdata->total_bytes += pfile->counters[POSIX_BYTES_READ] +
-                          pfile->counters[POSIX_BYTES_WRITTEN];
-
-    /*
-     * Calculation of Shared File Time
-     *     by_slowest: use slowest rank time from log data
-     *                 (most accurate but requires newer log version)
-     */
-    if(pfile->base_rec.rank == -1)
-    {
-        /* by_slowest */
-        pdata->shared_io_total_time_by_slowest +=
-            pfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
-    }
-
-    /*
-     * Calculation of Unique File Time
-     *   record the data for each file and sum it 
-     */
-    else
-    {
-        pdata->rank_cumul_io_total_time[pfile->base_rec.rank] +=
-            (pfile->fcounters[POSIX_F_META_TIME] +
-            pfile->fcounters[POSIX_F_READ_TIME] +
-            pfile->fcounters[POSIX_F_WRITE_TIME]);
-        pdata->rank_cumul_md_only_time[pfile->base_rec.rank] +=
-            pfile->fcounters[POSIX_F_META_TIME];
-        pdata->rank_cumul_rw_only_time[pfile->base_rec.rank] +=
-            pfile->fcounters[POSIX_F_READ_TIME] +
-            pfile->fcounters[POSIX_F_WRITE_TIME];
-    }
-
-    return;
-}
-
-void mpiio_accum_perf(struct darshan_mpiio_file *mfile,
-                      perf_data_t *pdata)
-{
-    pdata->total_bytes += mfile->counters[MPIIO_BYTES_READ] +
-                          mfile->counters[MPIIO_BYTES_WRITTEN];
-
-    /*
-     * Calculation of Shared File Time
-     *     by_slowest: use slowest rank time from log data
-     *                 (most accurate but requires newer log version)
-     */
-    if(mfile->base_rec.rank == -1)
-    {
-        /* by_slowest */
-        pdata->shared_io_total_time_by_slowest +=
-            mfile->fcounters[MPIIO_F_SLOWEST_RANK_TIME];
-    }
-
-    /*
-     * Calculation of Unique File Time
-     *   record the data for each file and sum it 
-     */
-    else
-    {
-        pdata->rank_cumul_io_total_time[mfile->base_rec.rank] +=
-            (mfile->fcounters[MPIIO_F_META_TIME] +
-            mfile->fcounters[MPIIO_F_READ_TIME] +
-            mfile->fcounters[MPIIO_F_WRITE_TIME]);
-        pdata->rank_cumul_md_only_time[mfile->base_rec.rank] +=
-            mfile->fcounters[MPIIO_F_META_TIME];
-        pdata->rank_cumul_rw_only_time[mfile->base_rec.rank] +=
-            mfile->fcounters[MPIIO_F_READ_TIME] +
-            mfile->fcounters[MPIIO_F_WRITE_TIME];
-    }
-
-    return;
-}
-
-void stdio_calc_file(hash_entry_t *file_hash_table,
-                     file_data_t *fdata)
-{
-    hash_entry_t *curr = NULL;
-    hash_entry_t *tmp = NULL;
-    struct darshan_stdio_file *file_rec;
-
-    memset(fdata, 0, sizeof(*fdata));
-    HASH_ITER(hlink, file_hash_table, curr, tmp)
-    {
-        int64_t bytes;
-        int64_t r;
-        int64_t w;
-
-        file_rec = (struct darshan_stdio_file*)curr->rec_dat;
-        assert(file_rec);
-
-        bytes = file_rec->counters[STDIO_BYTES_READ] +
-                file_rec->counters[STDIO_BYTES_WRITTEN];
-
-        r = file_rec->counters[STDIO_READS];
-
-        w = file_rec->counters[STDIO_WRITES];
-
-        fdata->total += 1;
-        fdata->total_size += bytes;
-        fdata->total_max = max(fdata->total_max, bytes);
-
-        if (r && !w)
-        {
-            fdata->read_only += 1;
-            fdata->read_only_size += bytes;
-            fdata->read_only_max = max(fdata->read_only_max, bytes);
-        }
-
-        if (!r && w)
-        {
-            fdata->write_only += 1;
-            fdata->write_only_size += bytes;
-            fdata->write_only_max = max(fdata->write_only_max, bytes);
-        }
-
-        if (r && w)
-        {
-            fdata->read_write += 1;
-            fdata->read_write_size += bytes;
-            fdata->read_write_max = max(fdata->read_write_max, bytes);
-        }
-
-        if ((curr->type & (FILETYPE_SHARED|FILETYPE_PARTSHARED)))
-        {
-            fdata->shared += 1;
-            fdata->shared_size += bytes;
-            fdata->shared_max = max(fdata->shared_max, bytes);
-        }
-
-        if ((curr->type & (FILETYPE_UNIQUE)))
-        {
-            fdata->unique += 1;
-            fdata->unique_size += bytes;
-            fdata->unique_max = max(fdata->unique_max, bytes);
-        }
-    }
-
-    return;
-}
-
-
-void posix_calc_file(hash_entry_t *file_hash_table,
-                     file_data_t *fdata)
-{
-    hash_entry_t *curr = NULL;
-    hash_entry_t *tmp = NULL;
-    struct darshan_posix_file *file_rec;
-
-    memset(fdata, 0, sizeof(*fdata));
-    HASH_ITER(hlink, file_hash_table, curr, tmp)
-    {
-        int64_t bytes;
-        int64_t r;
-        int64_t w;
-
-        file_rec = (struct darshan_posix_file*)curr->rec_dat;
-        assert(file_rec);
-
-        bytes = file_rec->counters[POSIX_BYTES_READ] +
-                file_rec->counters[POSIX_BYTES_WRITTEN];
-
-        r = file_rec->counters[POSIX_READS];
-
-        w = file_rec->counters[POSIX_WRITES];
-
-        fdata->total += 1;
-        fdata->total_size += bytes;
-        fdata->total_max = max(fdata->total_max, bytes);
-
-        if (r && !w)
-        {
-            fdata->read_only += 1;
-            fdata->read_only_size += bytes;
-            fdata->read_only_max = max(fdata->read_only_max, bytes);
-        }
-
-        if (!r && w)
-        {
-            fdata->write_only += 1;
-            fdata->write_only_size += bytes;
-            fdata->write_only_max = max(fdata->write_only_max, bytes);
-        }
-
-        if (r && w)
-        {
-            fdata->read_write += 1;
-            fdata->read_write_size += bytes;
-            fdata->read_write_max = max(fdata->read_write_max, bytes);
-        }
-
-        if ((curr->type & (FILETYPE_SHARED|FILETYPE_PARTSHARED)))
-        {
-            fdata->shared += 1;
-            fdata->shared_size += bytes;
-            fdata->shared_max = max(fdata->shared_max, bytes);
-        }
-
-        if ((curr->type & (FILETYPE_UNIQUE)))
-        {
-            fdata->unique += 1;
-            fdata->unique_size += bytes;
-            fdata->unique_max = max(fdata->unique_max, bytes);
-        }
-    }
-
-    return;
-}
-
-void mpiio_calc_file(hash_entry_t *file_hash_table,
-                     file_data_t *fdata)
-{
-    hash_entry_t *curr = NULL;
-    hash_entry_t *tmp = NULL;
-    struct darshan_mpiio_file *file_rec;
-
-    memset(fdata, 0, sizeof(*fdata));
-    HASH_ITER(hlink, file_hash_table, curr, tmp)
-    {
-        int64_t bytes;
-        int64_t r;
-        int64_t w;
-
-        file_rec = (struct darshan_mpiio_file*)curr->rec_dat;
-        assert(file_rec);
-
-        bytes = file_rec->counters[MPIIO_BYTES_READ] +
-                file_rec->counters[MPIIO_BYTES_WRITTEN];
-
-        r = (file_rec->counters[MPIIO_INDEP_READS]+
-             file_rec->counters[MPIIO_COLL_READS] +
-             file_rec->counters[MPIIO_SPLIT_READS] +
-             file_rec->counters[MPIIO_NB_READS]);
-
-        w = (file_rec->counters[MPIIO_INDEP_WRITES]+
-             file_rec->counters[MPIIO_COLL_WRITES] +
-             file_rec->counters[MPIIO_SPLIT_WRITES] +
-             file_rec->counters[MPIIO_NB_WRITES]);
-
-        fdata->total += 1;
-        fdata->total_size += bytes;
-        fdata->total_max = max(fdata->total_max, bytes);
-
-        if (r && !w)
-        {
-            fdata->read_only += 1;
-            fdata->read_only_size += bytes;
-            fdata->read_only_max = max(fdata->read_only_max, bytes);
-        }
-
-        if (!r && w)
-        {
-            fdata->write_only += 1;
-            fdata->write_only_size += bytes;
-            fdata->write_only_max = max(fdata->write_only_max, bytes);
-        }
-
-        if (r && w)
-        {
-            fdata->read_write += 1;
-            fdata->read_write_size += bytes;
-            fdata->read_write_max = max(fdata->read_write_max, bytes);
-        }
-
-        if ((curr->type & (FILETYPE_SHARED|FILETYPE_PARTSHARED)))
-        {
-            fdata->shared += 1;
-            fdata->shared_size += bytes;
-            fdata->shared_max = max(fdata->shared_max, bytes);
-        }
-
-        if ((curr->type & (FILETYPE_UNIQUE)))
-        {
-            fdata->unique += 1;
-            fdata->unique_size += bytes;
-            fdata->unique_max = max(fdata->unique_max, bytes);
-        }
-    }
-
-    return;
-}
-
-void calc_perf(perf_data_t *pdata,
-               int64_t nprocs)
-{
-    int64_t i;
-
-    for (i=0; i<nprocs; i++)
-    {
-        if (pdata->rank_cumul_io_total_time[i] > pdata->slowest_rank_io_total_time)
-        {
-            pdata->slowest_rank_io_total_time = pdata->rank_cumul_io_total_time[i];
-            pdata->slowest_rank_meta_only_time = pdata->rank_cumul_md_only_time[i];
-            pdata->slowest_rank_rw_only_time = pdata->rank_cumul_rw_only_time[i];
-            pdata->slowest_rank_rank = i;
-        }
-    }
-
-    if (pdata->slowest_rank_io_total_time + pdata->shared_io_total_time_by_slowest)
-    pdata->agg_perf_by_slowest = ((double)pdata->total_bytes / 1048576.0) /
-                                     (pdata->slowest_rank_io_total_time +
-                                      pdata->shared_io_total_time_by_slowest);
-    pdata->agg_time_by_slowest = pdata->slowest_rank_io_total_time +
-                                 pdata->shared_io_total_time_by_slowest;
-
-    return;
 }
 
 void stdio_print_total_file(struct darshan_stdio_file *pfile, int stdio_ver)
