@@ -265,14 +265,14 @@ int darshan_accumulator_emit(darshan_accumulator             acc,
     /* determine which rank had the slowest path through unique files */
     for (i = 0; i < acc->job_nprocs; i++) {
         if (acc->rank_cumul_io_total_time[i]
-            > metrics->slowest_rank_io_total_time) {
-            metrics->slowest_rank_io_total_time
+            > metrics->unique_io_total_time_by_slowest) {
+            metrics->unique_io_total_time_by_slowest
                 = acc->rank_cumul_io_total_time[i];
-            metrics->slowest_rank_rw_only_time
+            metrics->unique_rw_only_time_by_slowest
                 = acc->rank_cumul_rw_only_time[i];
-            metrics->slowest_rank_md_only_time
+            metrics->unique_md_only_time_by_slowest
                 = acc->rank_cumul_md_only_time[i];
-            metrics->slowest_rank_rank = i;
+            metrics->unique_io_slowest_rank = i;
         }
     }
 
@@ -280,7 +280,7 @@ int darshan_accumulator_emit(darshan_accumulator             acc,
      * rank in unique files plus the time consumed by the slowest rank in in
      * each shared file
      */
-    metrics->agg_time_by_slowest = metrics->slowest_rank_io_total_time +
+    metrics->agg_time_by_slowest = metrics->unique_io_total_time_by_slowest +
         metrics->shared_io_total_time_by_slowest;
     /* aggregate rate is total bytes deviced by above; guard against divide
      * by zero calculation, though

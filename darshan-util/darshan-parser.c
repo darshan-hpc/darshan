@@ -536,10 +536,10 @@ int main(int argc, char **argv)
             printf("#\n");
             printf("# I/O timing for unique files (seconds):\n");
             printf("# ...........................\n");
-            printf("# unique files: slowest_rank_io_time: %lf\n", metrics.slowest_rank_io_total_time);
-            printf("# unique files: slowest_rank_meta_only_time: %lf\n", metrics.slowest_rank_md_only_time);
-            printf("# unique files: slowest_rank_rw_only_time: %lf\n", metrics.slowest_rank_rw_only_time);
-            printf("# unique files: slowest_rank: %d\n", metrics.slowest_rank_rank);
+            printf("# unique files: slowest_rank_io_time: %lf\n", metrics.unique_io_total_time_by_slowest);
+            printf("# unique files: slowest_rank_meta_only_time: %lf\n", metrics.unique_md_only_time_by_slowest);
+            printf("# unique files: slowest_rank_rw_only_time: %lf\n", metrics.unique_rw_only_time_by_slowest);
+            printf("# unique files: slowest_rank: %d\n", metrics.unique_io_slowest_rank);
             printf("#\n");
             printf("# I/O timing for shared files (seconds):\n");
             printf("# ...........................\n");

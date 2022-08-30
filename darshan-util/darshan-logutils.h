@@ -342,19 +342,34 @@ enum darshan_file_category {
  * (for int64_t values) or NAN (for double values).
  */
 struct darshan_derived_metrics {
-    int64_t total_bytes;                /* total bytes moved (read and write) */
-    double  slowest_rank_io_total_time; /* combined meta and rw time spent in
-                                           unique files on the slowest rank */
-    double slowest_rank_rw_only_time;   /* rw time spent in unique files on the
-                                           slowest rank */
-    double slowest_rank_md_only_time;   /* meta time spent in unique files on
-                                           the slowest rank */
-    int    slowest_rank_rank; /* which rank was the slowest for unique files */
-    double shared_io_total_time_by_slowest; /* combined meta and rw time spent
-                                               by slowest rank on shared file */
-    double agg_perf_by_slowest;             /* overall throughput */
-    double agg_time_by_slowest;             /* overall elapsed io time */
+    /* total bytes moved (read and write) */
+    int64_t total_bytes;
 
+    /* combined meta and rw time spent in unique files by slowest rank */
+    double unique_io_total_time_by_slowest;
+    /* rw time spent in unique files by slowest rank */
+    double unique_rw_only_time_by_slowest;
+    /* meta time spent in unique files by slowest rank */
+    double unique_md_only_time_by_slowest;
+    /* which rank was the slowest for unique files */
+    int unique_io_slowest_rank;
+
+    /* combined meta and rw time speint by slowest rank on shared file */
+    /* Note that (unlike the unique file counters above) we cannot
+     * discriminate md and rw time separately within shared files.
+     */
+    double shared_io_total_time_by_slowest;
+
+    /* overall throughput, accounting for the slowest path through both
+     * shared files and unique files
+     */
+    double agg_perf_by_slowest;
+    /* overall elapsed io time, accounting for the slowest path through both
+     * shared files and unique files
+     */
+    double agg_time_by_slowest;
+
+    /* array of derived metrics broken down by different categories */
     struct darshan_file_category_counters
         category_counters[DARSHAN_FILE_CATEGORY_MAX];
 };
