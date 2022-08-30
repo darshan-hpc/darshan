@@ -1,0 +1,28 @@
+macos_instance:
+  image: ghcr.io/cirruslabs/macos-monterey-base:latest
+
+task:
+  script: |
+    brew install python@3.10
+    brew install python-tk@3.10
+    /opt/homebrew/opt/python@3.10/bin/python3 -m venv ~/py_310
+    source ~/py_310/bin/activate
+    python -m pip install --upgrade pip
+    python -m pip install --upgrade pytest lxml
+    python -m pip install 'matplotlib<3.5'
+    brew install automake libtool binutils
+    mkdir -p /tmp/darshan_install
+    export DARSHAN_INSTALL_PATH=/tmp/darshan_install
+    export DYLD_FALLBACK_LIBRARY_PATH=/tmp/darshan_install/lib
+    git submodule update --init
+    ./prepare.sh
+    cd darshan-util
+    mkdir build && cd build
+    ../configure --prefix=$DARSHAN_INSTALL_PATH --enable-shared --enable-apxc-mod --enable-apmpi-mod
+    make
+    make install
+    cd ../pydarshan
+    python -m pip install .
+    python -m pip install git+https://github.com/darshan-hpc/darshan-logs.git@main
+    cd /tmp
+    python -m pytest -W error::FutureWarning --pyargs darshan
