@@ -200,7 +200,7 @@ do{\
     __cat_counters_p->max_read_volume_bytes = \
         max(__cat_counters_p->max_read_volume_bytes, __fhe_p->r_bytes); \
     __cat_counters_p->max_write_volume_bytes = \
-        max(__cat_counters_p->max_write_volume_bytes, __fhe_p->r_bytes); \
+        max(__cat_counters_p->max_write_volume_bytes, __fhe_p->w_bytes); \
     if(__fhe_p->max_offset == -1) {\
         __cat_counters_p->total_max_offset_bytes = -1; \
         __cat_counters_p->max_offset_bytes = -1; \
