@@ -266,11 +266,13 @@ def test_set_y_axis_ticks_and_labels(
 
     # generate a joint plot object, then add the heatmap to it
     jointgrid = sns.jointplot(kind="hist", bins=[xbins, nprocs])
-    sns.heatmap(data, ax=jointgrid.ax_joint)
+    x, y = np.meshgrid(np.arange(xbins),
+                       np.asarray(data.index))
+    jointgrid.ax_joint.scatter(x, y, c=data)
 
-    # set the x-axis ticks and tick labels
+    # set the y-axis ticks and tick labels
     plot_dxt_heatmap.set_y_axis_ticks_and_labels(
-        jointgrid=jointgrid, n_ylabels=n_ylabels
+        jointgrid=jointgrid, n_ylabels=n_ylabels, n_procs=nprocs,
     )
 
     # collect the actual x-axis tick labels
