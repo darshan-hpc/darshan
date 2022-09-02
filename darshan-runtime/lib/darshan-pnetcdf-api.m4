@@ -746,10 +746,15 @@ int DARSHAN_DECL(ncmpi_inq_varid)(int ncid, const char *name, int *varidp)
     if (ret == NC_NOERR) {
         nc_type xtype;
         int ndims, *dimids;
-        ret = ncmpi_inq_vartype(ncid, *varidp, &xtype);
-        ret = ncmpi_inq_varndims(ncid, *varidp, &ndims);
+        if (ncmpi_inq_vartype(ncid, *varidp, &xtype) != NC_NOERR)
+            return(ret);
+        if (ncmpi_inq_varndims(ncid, *varidp, &ndims) != NC_NOERR)
+            return(ret);
         dimids = (int*) malloc(ndims * sizeof(int));
-        ret = ncmpi_inq_vardimid(ncid, *varidp, dimids);
+        if (!dimids || ncmpi_inq_vardimid(ncid, *varidp, dimids) != NC_NOERR) {
+            free(dimids);
+            return(ret);
+        }
 
         PNETCDF_VAR_PRE_RECORD();
         PNETCDF_VAR_RECORD_OPEN(ncid, name, xtype, ndims, dimids, varidp, tm1, tm2);
