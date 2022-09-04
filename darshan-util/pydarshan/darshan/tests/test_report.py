@@ -108,19 +108,11 @@ def test_dfs_daos_posix_match():
             if column_name in ["id", "DFS_LOOKUPS", "DFS_NB_READS", "DFS_NB_WRITES",
                                "DFS_GET_SIZES", "DFS_PUNCHES", "DFS_MOVES",
                                "DFS_EXCHANGES",
-                               # NOTE: POSIX_STATS exists and is different
-                               # from DFS_STATS--is this unusual??
                                "DFS_STATS",
                                "DFS_CHUNK_SIZE", "DFS_USE_DTX", "DFS_FASTEST_RANK",
-                               # performance-related metrics probably can't be
-                               # expected to match exactly, even if the technologies
-                               # are similar in perf
-                               "DFS_F_READ_TIME", "DFS_F_WRITE_TIME",
-                               "DFS_F_META_TIME", "DFS_F_MAX_READ_TIME",
-                               "DFS_F_MAX_READ_TIME", "DFS_F_MAX_WRITE_TIME",
-                               "DFS_F_FASTEST_RANK_TIME", "DFS_F_SLOWEST_RANK_TIME"]:
+                               "DFS_SLOWEST_RANK"]:
                 continue
-            elif "timestamp" in column_name.lower():
+            elif "time" in column_name.lower():
                 # you can't reasonably expect the timestamps to be the
                 # same for two different runs of any kind really
                 continue
