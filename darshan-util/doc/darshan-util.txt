@@ -33,8 +33,9 @@ work in other Unix-like environments as well.
 .Configure and build example
 ----
 tar -xvzf darshan-<version-number>.tar.gz
-cd darshan-<version-number>/darshan-util
+cd darshan-<version-number>/
 ./prepare
+cd darshan-util/
 ./configure
 make
 make install
