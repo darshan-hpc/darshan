@@ -1196,6 +1196,15 @@ static int darshan_log_get_header(darshan_fd fd)
         fd->mod_map[DARSHAN_PNETCDF_VAR_MOD].len =
             fd->mod_map[DARSHAN_PNETCDF_VAR_MOD].off = 0;
         fd->mod_ver[DARSHAN_PNETCDF_VAR_MOD] = 0;
+
+        uint64_t partial_flag_shift = fd->partial_flag << 1;
+        // zero out bits up to (and including) PNETCDF_VAR in shifted flags
+        partial_flag_shift = (partial_flag_shift >> (DARSHAN_PNETCDF_VAR_MOD+1)) <<
+            (DARSHAN_PNETCDF_VAR_MOD+1);
+        // zero out PNETCDF_VAR and all bits higher than it in original flags
+        fd->partial_flag = fd->partial_flag & ((1 << DARSHAN_PNETCDF_VAR_MOD) - 1);
+        // combine original flags and shifted flags
+        fd->partial_flag = fd->partial_flag | partial_flag_shift;
     }
 
     /* there may be nothing following the job data, so safety check map */
