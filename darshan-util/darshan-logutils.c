@@ -1173,6 +1173,15 @@ static int darshan_log_get_header(darshan_fd fd)
             (DARSHAN_MAX_MODS-DARSHAN_H5D_MOD-1) * sizeof(uint32_t));
         fd->mod_map[DARSHAN_H5D_MOD].len = fd->mod_map[DARSHAN_H5D_MOD].off = 0;
         fd->mod_ver[DARSHAN_H5D_MOD] = 0;
+
+        uint64_t partial_flag_shift = fd->partial_flag << 1;
+        // zero out bits up to (and including) H5D in shifted flags
+        partial_flag_shift = (partial_flag_shift >> (DARSHAN_H5D_MOD+1)) <<
+            (DARSHAN_H5D_MOD+1);
+        // zero out H5D and all bits higher than it in original flags
+        fd->partial_flag = fd->partial_flag & ((1 << DARSHAN_H5D_MOD) - 1);
+        // combine original flags and shifted flags
+        fd->partial_flag = fd->partial_flag | partial_flag_shift;
     }
 
     /* there may be nothing following the job data, so safety check map */
