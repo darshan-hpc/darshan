@@ -80,6 +80,14 @@ def combine_hdf5_modules(df: Any) -> Any:
     return df
 
 
+def combine_pnetcdf_modules(df: Any) -> Any:
+    df = df.reset_index().replace(to_replace=r"(PNETCDF_FILE|PNETCDF_VAR)", value="PNETCDF", regex=True)
+    df = df.groupby('index', sort=False).sum()
+    # clean up the index name
+    df.index.name = None
+    return df
+
+
 def get_io_cost_df(report: darshan.DarshanReport) -> Any:
     """
     Generates the I/O cost dataframe which contains the
@@ -96,7 +104,7 @@ def get_io_cost_df(report: darshan.DarshanReport) -> Any:
 
     """
     io_cost_dict = {}
-    supported_modules = ["POSIX", "MPI-IO", "STDIO", "H5F", "H5D"]
+    supported_modules = ["POSIX", "MPI-IO", "STDIO", "H5F", "H5D", "PNETCDF_FILE", "PNETCDF_VAR"]
     for mod_key in report.modules:
         if mod_key in supported_modules:
             # collect the records in dataframe form
@@ -119,6 +127,8 @@ def get_io_cost_df(report: darshan.DarshanReport) -> Any:
 
     # combine `H5F` and `H5D` modules
     io_cost_df = combine_hdf5_modules(df=io_cost_df)
+    # likewise for `PNETCDF_FILE` and `PNETCDF_VAR`
+    io_cost_df = combine_pnetcdf_modules(df=io_cost_df)
 
     return io_cost_df
 

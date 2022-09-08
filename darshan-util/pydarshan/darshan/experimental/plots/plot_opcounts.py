@@ -106,6 +106,37 @@ def gather_count_data(report, mod):
             report.summary['agg_ioops']['H5F']['H5F_FLUSHES'],
         ]
 
+    elif mod == 'PNETCDF_FILE':
+        labels = [
+            'Var Ind Read', 'Var Ind Write', 'Var Open',
+            'Var Coll Read', 'Var Coll Write', 'File Open',
+        ]
+        counts = [
+                # most of the counters will all get set in PNETCDF_VAR
+                0, 0, 0, 0, 0,
+                mod_data["PNETCDF_FILE_OPENS"] + mod_data["PNETCDF_FILE_CREATES"],
+        ]
+
+    elif mod == 'PNETCDF_VAR':
+        labels = [
+            'Var Ind Read', 'Var Ind Write', 'Var Open',
+            'Var Coll Read', 'Var Coll Write', 'File Open',
+        ]
+        counts = [
+            report.summary['agg_ioops']['PNETCDF_VAR']['PNETCDF_VAR_INDEP_READS'],
+            report.summary['agg_ioops']['PNETCDF_VAR']['PNETCDF_VAR_INDEP_WRITES'],
+            report.summary['agg_ioops']['PNETCDF_VAR']['PNETCDF_VAR_OPENS'],
+            report.summary['agg_ioops']['PNETCDF_VAR']['PNETCDF_VAR_COLL_READS'],
+            report.summary['agg_ioops']['PNETCDF_VAR']['PNETCDF_VAR_COLL_WRITES'],
+            # NOTE: should handle cases where only 1/2 PNETCDF mods
+            # are present?
+            # fusing OPENS and CREATES seems to match H5F_OPENS; there is no
+            # FLUSHES string in PNETCDF columns, though there is PUT?
+            (report.summary['agg_ioops']['PNETCDF_FILE']['PNETCDF_FILE_OPENS'] +
+             report.summary['agg_ioops']['PNETCDF_FILE']['PNETCDF_FILE_CREATES']
+            ),
+        ]
+
     return labels, counts
 
 def plot_opcounts(report, mod, ax=None):
