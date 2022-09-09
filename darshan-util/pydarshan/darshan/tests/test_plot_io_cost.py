@@ -41,6 +41,19 @@ from darshan.experimental.plots.plot_io_cost import (
                 ["Read", "Write", "Meta"],
             ),
         ),
+        (
+            "shane_ior-PNETCDF_id402580-402580_9-2-36069-16753435528444694496_1.darshan",
+            pd.DataFrame(
+                np.array([
+                [0.000203669071, 0.001920938492, 0.000053346157],
+                [0.000214159489, 0.001940429211, 0.001111626625],
+                [0.000202834606, 0.001968801022, 0.001691460609],
+                [0.000000000000, 0.000066161156, 0.000000000000],
+                ]),
+                ["POSIX", "MPIIO", "PNETCDF", "STDIO"],
+                ["Read", "Write", "Meta"],
+            ),
+        ),
     ],
 )
 def test_get_io_cost_df(logname, expected_df):

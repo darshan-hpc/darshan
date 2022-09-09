@@ -96,6 +96,8 @@ def agg_ioops(self, mode='append'):
                 'Open':  agg[mod + '_OPENS'],
                 'Coll Read': agg[mod + '_COLL_READS'],
                 'Coll Write': agg[mod + '_COLL_WRITES'],
+                'NB Read': agg[mod + '_NB_READS'],
+                'NB Write': agg[mod + '_NB_WRITES'],
             }
             ctx[mod] = agg
             ctx[mod + '_simple'] = tmp
@@ -103,6 +105,9 @@ def agg_ioops(self, mode='append'):
         elif mod == "PNETCDF_FILE":
             tmp = {
                 'Open':  agg[mod + '_OPENS'],
+                'Sync':  agg[mod + '_SYNCS'],
+                'Ind Wait':  agg[mod + '_INDEP_WAITS'],
+                'Coll Wait':  agg[mod + '_COLL_WAITS'],
             }
             ctx[mod] = agg
             ctx[mod + '_simple'] = tmp
