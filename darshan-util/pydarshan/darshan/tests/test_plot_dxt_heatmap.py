@@ -3,7 +3,9 @@ import numpy as np
 from numpy.testing import assert_array_equal, assert_allclose
 import pandas as pd
 import seaborn as sns
+import matplotlib
 import matplotlib.pyplot as plt
+from packaging import version
 
 import darshan
 from darshan.experimental.plots import heatmap_handling, plot_dxt_heatmap
@@ -389,10 +391,16 @@ def test_adjust_for_colorbar(filepath):
         # since `dxt.darshan` has 1 rank, the colorbar doesn't have
         # to go closer to the edge of the figure
         assert cbar_positions.x0 == 0.82
-        assert cbar_positions.x1 == 0.8416135084427767
+        if version.parse(matplotlib.__version__) < version.parse("3.5.0"):
+            assert cbar_positions.x1 == 0.8416135084427767
+        else:
+            assert cbar_positions.x1 == 1.72
     else:
         assert cbar_positions.x0 == 0.85
-        assert cbar_positions.x1 == 0.8716135084427767
+        if version.parse(matplotlib.__version__) < version.parse("3.5.0"):
+            assert cbar_positions.x1 == 0.8716135084427767
+        else:
+            assert cbar_positions.x1 == 1.75
 
 @pytest.mark.parametrize(
     "filepath",
