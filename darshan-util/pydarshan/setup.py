@@ -86,4 +86,8 @@ setup(
                               "examples/example_logs/*",
                               "examples/darshan-graph/*",
                               "tests/input/*"]},
+                  entry_points={"console_scripts": [
+                      "darshan_summary = darshan.cli.darshan_summary:summary_report",
+                      ],
+                  },
 )
