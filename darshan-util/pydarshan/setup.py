@@ -10,7 +10,7 @@ with open("README.rst") as readme_file:
     readme = readme_file.read()
 
 
-requirements = ["cffi", "numpy", "pandas", "matplotlib", "seaborn", "mako"]
+requirements = ["cffi", "numpy", "pandas", "matplotlib", "seaborn", "mako", "humanize"]
 
 if sys.version_info == (3, 6):
     requirements.append("importlib_resources")

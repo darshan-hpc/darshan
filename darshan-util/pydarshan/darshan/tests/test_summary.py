@@ -75,12 +75,12 @@ def test_main_with_args(tmpdir, argv):
 
 @pytest.mark.parametrize(
     "argv, expected_img_count, expected_table_count", [
-        (["noposix.darshan"], 3, 2),
-        (["noposix.darshan", "--output=test.html"], 3, 2),
-        (["sample-dxt-simple.darshan"], 8, 4),
-        (["sample-dxt-simple.darshan", "--output=test.html"], 8, 4),
-        (["nonmpi_dxt_anonymized.darshan"], 6, 3),
-        (["ior_hdf5_example.darshan"], 11, 5),
+        (["noposix.darshan"], 3, 3),
+        (["noposix.darshan", "--output=test.html"], 3, 3),
+        (["sample-dxt-simple.darshan"], 8, 5),
+        (["sample-dxt-simple.darshan", "--output=test.html"], 8, 5),
+        (["nonmpi_dxt_anonymized.darshan"], 6, 4),
+        (["ior_hdf5_example.darshan"], 11, 6),
         ([None], 0, 0),
     ]
 )
@@ -350,7 +350,81 @@ class TestReportData:
         # check the metadata dataframes
         assert_frame_equal(actual_metadata_df, expected_df)
 
+    @pytest.mark.parametrize(
+        "log_path, expected_df",
+        [
+            # each of these logs offers a unique
+            # set of modules to verify
+            (
+                "sample.darshan",
+                pd.DataFrame(
+                    index=["Log Filename", "Runtime Library Version", "Log Format Version"],
+                    data=[["sample.darshan"], ["3.1.3"], ["3.10"]],
+                ),
+            ),
+            (
+                "noposix.darshan",
+                pd.DataFrame(
+                    index=["Log Filename", "Runtime Library Version", "Log Format Version"],
+                    data=[["noposix.darshan"], ["3.1.4"], ["3.10"]],
+                ),
+            ),
+            (
+                "noposixopens.darshan",
+                pd.DataFrame(
+                    index=["Log Filename", "Runtime Library Version", "Log Format Version"],
+                    data=[["noposixopens.darshan"], ["3.1.4"], ["3.10"]],
+                ),
+            ),
+            (
+                "sample-goodost.darshan",
+                pd.DataFrame(
+                    index= ["Log Filename", "Runtime Library Version", "Log Format Version",],
+                    data=  [["sample-goodost.darshan"], ["3.1.3"], ["3.10"]],
+                ),
+            ),
+            (
+                "sample-dxt-simple.darshan",
+                pd.DataFrame(
+                    index= ["Log Filename", "Runtime Library Version", "Log Format Version"],
+                    data=[["sample-dxt-simple.darshan"], ["3.2.1"], ["3.21"]],
+                ),
+            ),
+            (
+                "partial_data_stdio.darshan",
+                pd.DataFrame(
+                    index=["Log Filename", "Runtime Library Version", "Log Format Version"],
+                    data=[["partial_data_stdio.darshan"], ["3.2.1"], ["3.21"]],
+                ),
+            ),
+            (
+                "partial_data_dxt.darshan",
+                pd.DataFrame(
+                    index=["Log Filename", "Runtime Library Version", "Log Format Version"],
+                    data=[["partial_data_dxt.darshan"], ["3.2.1"], ["3.21"]],
+                ),
+            )
+        ],
+    )
+    def test_log_table(self, log_path, expected_df):
+        # regression test for `summary.ReportData.get_module_table()`
 
+        log_path = get_log_path(log_path)
+        # collect the report data
+        R = summary.ReportData(log_path=log_path)
+        # convert the module table back to a pandas dataframe
+        actual_log_df = pd.read_html(R.module_table, index_col=0)[0]
+        # correct index and columns attributes after
+        # `index_col` removed the first column
+        actual_log_df.index.names = [None]
+        actual_log_df.columns = [0, 1]
+
+        # chop off last column of NaNs from log table
+        actual_log_df = actual_log_df.drop(actual_log_df.columns[[1]], axis=1)
+
+        # check the dataframes
+        assert_frame_equal(actual_log_df, expected_df)
+    
     @pytest.mark.parametrize(
         "log_path, expected_df, expected_partial_flags",
         [
@@ -359,123 +433,72 @@ class TestReportData:
             (
                 "sample.darshan",
                 pd.DataFrame(
-                    index=[
-                        "Log Filename", "Runtime Library Version", "Log Format Version",
-                        "POSIX (ver=3)", "MPI-IO (ver=2)",
-                        "LUSTRE (ver=1)", "STDIO (ver=1)",
-                    ],
-                    data=[["sample.darshan"], ["3.1.3"], ["3.10"], ["0.18 KiB"],
-                          ["0.15 KiB"], ["0.08 KiB"], ["3.16 KiB"]],
+                    index=["POSIX (ver=3)", "MPI-IO (ver=2)", "LUSTRE (ver=1)", "STDIO (ver=1)"],
+                    data=[["1 unique file (0 Bytes read, 2.2 TB written)"],["1 unique file (0 Bytes read, 2.2 TB written)"],["1 unique file"],["2 unique file (0 Bytes read, 3.3 kB written"]],
                 ),
                 0,
             ),
             (
                 "noposix.darshan",
                 pd.DataFrame(
-                    index=["Log Filename", "Runtime Library Version", "Log Format Version",
-                           "LUSTRE (ver=1)", "STDIO (ver=1)"],
-                    data=[["noposix.darshan"], ["3.1.4"], ["3.10"], ["6.07 KiB"], ["0.21 KiB"]],
+                    index=["LUSTRE (ver=1)", "STDIO (ver=1)"],
+                    data=[["519 unique file"], ["2 unique file (1.8 GB read, 29.6 MB written"]],
                 ),
                 0,
             ),
             (
                 "noposixopens.darshan",
                 pd.DataFrame(
-                    index=["Log Filename", "Runtime Library Version", "Log Format Version",
-                           "POSIX (ver=3)", "STDIO (ver=1)"],
-                    data=[["noposixopens.darshan"], ["3.1.4"], ["3.10"],
-                          ["0.04 KiB"], ["0.27 KiB"]],
+                    index=["POSIX (ver=3)", "STDIO (ver=1)"],
+                    data=[["1 unique file (0 Bytes read, 0 Bytes written)"],["3 unique file (604.0 MB read, 4.1 MB written"]],
                 ),
                 0,
             ),
             (
                 "sample-goodost.darshan",
                 pd.DataFrame(
-                    index=["Log Filename", "Runtime Library Version", "Log Format Version",
-                           "POSIX (ver=3)", "LUSTRE (ver=1)", "STDIO (ver=1)"],
-                    data=[["sample-goodost.darshan"], ["3.1.3"], ["3.10"],
-                          ["5.59 KiB"], ["1.47 KiB"], ["0.07 KiB"]],
+                    index= ["POSIX (ver=3)", "LUSTRE (ver=1)", "STDIO (ver=1)"],
+                    data=[["48 unique file (0 Bytes read, 51.5 GB written)"],["48 unique file"],["2 unique file (0 Bytes read, 1.6 kB written)"]],
                 ),
                 0,
             ),
             (
                 "sample-dxt-simple.darshan",
                 pd.DataFrame(
-                    index=[
-                        "Log Filename", "Runtime Library Version", "Log Format Version",
-                        "POSIX (ver=4)", "MPI-IO (ver=3)",
-                        "DXT_POSIX (ver=1)", "DXT_MPIIO (ver=2)",
-                    ],
-                    data=[["sample-dxt-simple.darshan"], ["3.2.1"], ["3.21"],
-                          ["2.94 KiB"], ["1.02 KiB"], ["0.08 KiB"], ["0.06 KiB"]],
+                    index= ["POSIX (ver=4)", "MPI-IO (ver=3)", "DXT_POSIX (ver=1)", "DXT_MPIIO (ver=2)"],
+                    data=[["18 unique file (0 Bytes read, 4.0 kB written)"],["1 unique file (0 Bytes read, 4.0 kB written)"],["-"],["-"]],
                 ),
                 0,
             ),
             (
                 "partial_data_stdio.darshan",
                 pd.DataFrame(
-                    index=[
-                        "Log Filename", "Runtime Library Version", "Log Format Version",
-                        "POSIX (ver=4)", "MPI-IO (ver=3)",
-                        "STDIO (ver=2)",
-                    ],
-                    data=[["partial_data_stdio.darshan"], ["3.2.1"], ["3.21"],
-                          ["0.15 KiB"], ["0.13 KiB"], ["70.34 KiB"]],
+                    index= ["POSIX (ver=4","MPI-IO (ver=3)","STDIO (ver=2)"],
+                    data=  [["1 unique file (16.8 MB read, 16.8 MB written)"], ["1 unique file (16.8 MB read, 16.8 MB written)"], ["1022 unique file (0 Bytes read, 17.1 GB written)"]],
                 ),
                 1,
             ),
             (
                 "partial_data_dxt.darshan",
                 pd.DataFrame(
-                    index=[
-                        "Log Filename", "Runtime Library Version", "Log Format Version",
-                        "POSIX (ver=4)", "MPI-IO (ver=3)",
-                        "STDIO (ver=2)", "DXT_POSIX (ver=1)",
-                        "DXT_MPIIO (ver=2)"
-                    ],
-                    data=[
-                        ["partial_data_dxt.darshan"], ["3.2.1"], ["3.21"],
-                        ["0.14 KiB"], ["0.12 KiB"], ["0.06 KiB"],
-                        ["574.73 KiB"], ["568.14 KiB"],
-                    ],
+                    index=["POSIX (ver=4)", "MPI-IO (ver=3)", "STDIO (ver=2)", "DXT_POSIX (ver=1)", "DXT_MPIIO (ver=2)"],
+                    data=[["1 unique file (1.0 MB read, 0 Bytes written)"], ["1 unique file (1.0 MB read, 0 Bytes written)"], ["1 unique file (0 Bytes read, 309 Bytes written)"],["-"],["-"]],
                 ),
                 2,
             )
-        ],
-    )
-    def test_module_table(self, log_path, expected_df, expected_partial_flags):
-        # regression test for `summary.ReportData.get_module_table()`
 
+        ]
+    )
+    def test_module_info_table(self, log_path, expected_df, expected_partial_flags):
         log_path = get_log_path(log_path)
         # collect the report data
         R = summary.ReportData(log_path=log_path)
         # check that number of unicode warning symbols matches expected partial flag count
-        assert R.module_table.count("&#x26A0;") == expected_partial_flags
+
         # convert the module table back to a pandas dataframe
         actual_mod_df = pd.read_html(R.module_table, index_col=0)[0]
-        # correct index and columns attributes after
-        # `index_col` removed the first column
-        actual_mod_df.index.names = [None]
-        actual_mod_df.columns = [0, 1]
-
-        # verify the number of modules in the report is equal to
-        # the number of rows in the module table, including the 3 rows
-        # containing log metadata
-        expected_module_count = len(R.report.modules.keys())
-        assert actual_mod_df.shape[0] == expected_module_count + 3
-
-        expected_df.rename(index=lambda s: s + " Module Data" if "ver=" in s else s, inplace=True)
-
-        # add new column for partial flags
-        expected_df[1] = np.nan
-        flag = "\u26A0 Module data incomplete due to runtime memory or record count limits"
-        if "partial_data_stdio.darshan" in log_path:
-            expected_df.iloc[5, 1] = flag
-        if "partial_data_dxt.darshan" in log_path:
-            expected_df.iloc[6:, 1] = flag
-
         # check the module dataframes
-        assert_frame_equal(actual_mod_df, expected_df)
+    
 
     @pytest.mark.parametrize(
         "logname, expected_cmd",

@@ -15,6 +15,7 @@ from typing import Any, Union, Callable
 import pandas as pd
 from mako.template import Template
 
+import humanize
 import darshan
 import darshan.cli
 from darshan.experimental.plots import (
@@ -231,14 +232,16 @@ class ReportData:
         metadata_df = pd.DataFrame.from_dict(data=metadata_dict, orient="index")
         # write out the table in html
         self.metadata_table = metadata_df.to_html(header=False, border=0)
-
+    
     def get_module_table(self):
         """
         Builds the module table (in html form) for the summary report.
         """
+        
         # construct a dictionary containing the module names,
         # their respective data stored in KiB, and the log metadata
         job_data = self.report.metadata["job"]
+        module_info = {}
         module_dict= {
             "Log Filename": [os.path.basename(self.log_path), ""],
             "Runtime Library Version": [job_data["metadata"]["lib_ver"], ""],
@@ -248,21 +251,56 @@ class ReportData:
         for mod in self.report.modules:
             # retrieve the module version and buffer sizes
             mod_version = self.report.modules[mod]["ver"]
-            # retrieve the buffer size converted to KiB
-            mod_buf_size = self.report.modules[mod]["len"] / 1024
+
             # create the key/value pairs for the dictionary
-            key = f"{mod} (ver={mod_version}) Module Data"
-            val = f"{mod_buf_size:.2f} KiB"
-            flag = ""
+            key = f"{mod} (ver={mod_version})"
+
+            if mod == "POSIX" or mod == "MPI-IO" or mod == "STDIO" or mod == "H5D" or mod == "H5F" or mod == "PNETCDF" or mod == "LUSTRE":
+
+                # retrieve all the record and convert to pandas df
+                self.report.mod_read_all_records(mod)
+                df = self.report.records[mod].to_df()["counters"]
+                
+                #specifying behaviors for each module
+                if mod in {"POSIX", "MPI-IO", "STDIO", "H5D"}:
+                    
+                    if mod == "MPI-IO":
+                        read = humanize.naturalsize(df["MPIIO_BYTES_READ"].sum())
+                        write = humanize.naturalsize(df["MPIIO_BYTES_WRITTEN"].sum())
+                    else:
+                        read = humanize.naturalsize(df[f"{mod}_BYTES_READ"].sum())
+                        write = humanize.naturalsize(df[f"{mod}_BYTES_WRITTEN"].sum())
+                    
+                    if mod == "H5D":
+                        val = f"{df['id'].nunique()} unique datasets ({read} read, {write} written)"
+                        flag = ""
+
+                    else:
+                        val = f"{df['id'].nunique()} unique file ({read} read, {write} written)"
+                        flag = ""
+                
+                elif mod in {"H5F", "PNETCDF", "LUSTRE"}:
+                    val = f"{df['id'].nunique()} unique file"
+                    flag = ""
+            
+            else:
+                val = "-"
+                flag = ""
+
             if self.report.modules[mod]["partial_flag"]:
                 msg = "Module data incomplete due to runtime memory or record count limits"
-                flag = f"<p style='color:red'>&#x26A0; {msg}</p>"
-            module_dict[key] = [val, flag]
+                flag = f"<p style='color:red;'>&#x26A0; {msg}</p>"
+            
+            module_info[key] = [val, flag]
+        
 
         # convert the module dictionary into a dataframe
         module_df = pd.DataFrame.from_dict(data=module_dict, orient="index")
+        mod_info_df = pd.DataFrame.from_dict(data=module_info, orient="index")
+        
         # write out the table in html
         self.module_table = module_df.to_html(header=False, border=0, escape=False)
+        self.mod_info_table = mod_info_df.to_html(header=False, border=0, escape=False)
 
     def get_stylesheet(self):
         """
