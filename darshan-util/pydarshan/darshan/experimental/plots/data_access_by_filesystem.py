@@ -543,8 +543,8 @@ def plot_data(fig: Any,
         # convert to MiB using 1048576 (ie: 2**20)
         bytes_read = bytes_rd_series[filesystem]/1048576
         bytes_written = bytes_wr_series[filesystem]/1048576
-        files_written = file_wr_series[filesystem]
-        files_read = file_rd_series[filesystem]
+        files_written = int(file_wr_series[filesystem])
+        files_read = int(file_rd_series[filesystem])
 
         # scale to fit longer filesystem
         # strings on the left side of the plots
@@ -586,7 +586,7 @@ def plot_data(fig: Any,
                                       transform=ax_filesystem_counts.transAxes,
                                       va="center")
         else:
-            ax_filesystem_counts.text(0, 0.75, f' # files read ({files_read:.2E})',
+            ax_filesystem_counts.text(0, 0.75, f' # files read ({files_read})',
                                       transform=ax_filesystem_counts.transAxes,
                                       va="center")
 
@@ -595,7 +595,7 @@ def plot_data(fig: Any,
                                       transform=ax_filesystem_counts.transAxes,
                                       va="center")
         else:
-            ax_filesystem_counts.text(0, 0.25, f' # files written ({files_written:.2E})',
+            ax_filesystem_counts.text(0, 0.25, f' # files written ({files_written})',
                                       transform=ax_filesystem_counts.transAxes,
                                       va="center")
 
