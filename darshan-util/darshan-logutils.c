@@ -2207,6 +2207,104 @@ int darshan_log_get_record(darshan_fd fd,
     return r;
 }
 
+/* count the mount points for i.e., usage with
+ * darshan_log_get_mounts_cffi
+ */
+
+int darshan_log_get_mount_count(darshan_fd fd, int* count)
+{
+    struct darshan_fd_int_state *state;
+    char *pos;
+    int ret;
+
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return(-1);
+    }
+    state = fd->state;
+    assert(state);
+
+    /* if the exe/mount data has not been saved yet, read in the job info */
+    if(!(state->exe_mnt_data))
+    {
+        struct darshan_job job;
+        ret = darshan_log_get_job(fd, &job);
+
+        if(ret < 0 || !(state->exe_mnt_data))
+            return(-1);
+    }
+
+    /* count entries */
+    *count = 0;
+    pos = state->exe_mnt_data;
+    while((pos = strchr(pos, '\n')) != NULL)
+    {
+        pos++;
+        (*count)++;
+    }
+
+    if(*count == 0)
+    {
+        /* no mount entries present */
+        return(0);
+    }
+    return(0);
+}
+
+/* CFFI-safe version of darshan_log_get_mounts without
+ * internal malloc() -- if we can avoid placing a manual free()
+ * burden on consumers we should do it, expecially when crossing
+ * language barriers/interfaces
+ */
+
+int darshan_log_get_mounts_cffi(darshan_fd fd, struct darshan_mnt_info *mnt_data_array,
+    int *count)
+{
+    struct darshan_fd_int_state *state;
+    char *pos;
+    int array_index = 0;
+    int ret;
+
+    if(!fd)
+    {
+        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        return(-1);
+    }
+    state = fd->state;
+    assert(state);
+
+    /* if the exe/mount data has not been saved yet, read in the job info */
+    if(!(state->exe_mnt_data))
+    {
+        struct darshan_job job;
+        ret = darshan_log_get_job(fd, &job);
+
+        if(ret < 0 || !(state->exe_mnt_data))
+            return(-1);
+    }
+
+    /* work through the table and parse each line (except for
+     * first, which holds command line information)
+     */
+    pos = state->exe_mnt_data;
+    while((pos = strchr(pos, '\n')) != NULL)
+    {
+        ret = sscanf(++pos, "%s\t%s", (mnt_data_array)[array_index].mnt_type,
+            (mnt_data_array)[array_index].mnt_path);
+        if(ret != 2)
+        {
+            fprintf(stderr, "Error: poorly formatted mount table in darshan log file.\n");
+            return(-1);
+        }
+        array_index++;
+    }
+
+    qsort(mnt_data_array, *count, sizeof(*mnt_data_array), darshan_mnt_info_cmp);
+
+    return(0);
+}
+
 /*
  * Local variables:
  *  c-indent-level: 4

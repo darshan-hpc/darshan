@@ -171,13 +171,15 @@ def log_get_mounts(log):
     """
 
     mntlst = []
-    mnts = ffi.new("struct darshan_mnt_info **")
     cnt = ffi.new("int *")
-    libdutil.darshan_log_get_mounts(log['handle'], mnts, cnt)
+    libdutil.darshan_log_get_mount_count(log['handle'], cnt)
+    count = cnt[0]
+    mnts = ffi.new(f"struct darshan_mnt_info[{count}]")
+    libdutil.darshan_log_get_mounts_cffi(log['handle'], mnts, cnt)
 
     for i in range(0, cnt[0]):
-        mntlst.append((ffi.string(mnts[0][i].mnt_path).decode("utf-8"),
-            ffi.string(mnts[0][i].mnt_type).decode("utf-8")))
+        mntlst.append((ffi.string(mnts[i].mnt_path).decode("utf-8"),
+            ffi.string(mnts[i].mnt_type).decode("utf-8")))
 
     return mntlst
 

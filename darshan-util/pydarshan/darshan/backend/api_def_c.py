@@ -153,8 +153,9 @@ void* darshan_log_open(char *);
 int darshan_log_get_job(void *, struct darshan_job *);
 void darshan_log_close(void*);
 int darshan_log_get_exe(void*, char *);
-int darshan_log_get_mounts(void*, struct darshan_mnt_info **, int*);
 void darshan_log_get_modules(void*, struct darshan_mod_info **, int*);
+int darshan_log_get_mounts_cffi(void*, struct darshan_mnt_info *, int*);
+int darshan_log_get_mount_count(void*, int*);
 int darshan_log_get_record(void*, int, void **);
 char* darshan_log_get_lib_version(void);
 
