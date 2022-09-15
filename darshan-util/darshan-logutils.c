@@ -2069,7 +2069,7 @@ static int darshan_log_get_namerecs_3_00(void *name_rec_buf, int buf_len,
  * Gets list of modules present in logs and returns the info
  */
 void darshan_log_get_modules(darshan_fd fd,
-                             struct darshan_mod_info **mods,
+                             struct darshan_mod_info mods[DARSHAN_MAX_MODS],
                              int* count)
 {
     int i;
@@ -2082,18 +2082,15 @@ void darshan_log_get_modules(darshan_fd fd,
         return;
     }
 
-    *mods = malloc(sizeof(**mods) * DARSHAN_MAX_MODS);
-    assert(*mods);
-
     for (i = 0, j = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
     {
         if (fd->mod_map[i].len)
         {
-            (*mods)[j].name          = darshan_module_names[i];
-            (*mods)[j].len           = fd->mod_map[i].len;
-            (*mods)[j].ver           = fd->mod_ver[i];
-            (*mods)[j].partial_flag  = DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i);
-            (*mods)[j].idx           = i;
+            (mods)[j].name          = darshan_module_names[i];
+            (mods)[j].len           = fd->mod_map[i].len;
+            (mods)[j].ver           = fd->mod_ver[i];
+            (mods)[j].partial_flag  = DARSHAN_MOD_FLAG_ISSET(fd->partial_flag, i);
+            (mods)[j].idx           = i;
             j += 1;
         }
     }
@@ -2102,10 +2099,10 @@ void darshan_log_get_modules(darshan_fd fd,
         if (fd->mod_map[i].len)
         {
             /* we don't know the names of any modules in this region */
-            (*mods)[j].name = NULL;
-            (*mods)[j].len  = fd->mod_map[i].len;
-            (*mods)[j].ver  = fd->mod_ver[i];
-            (*mods)[j].idx  = i;
+            (mods)[j].name = NULL;
+            (mods)[j].len  = fd->mod_map[i].len;
+            (mods)[j].ver  = fd->mod_ver[i];
+            (mods)[j].idx  = i;
             j += 1;
         }
     }

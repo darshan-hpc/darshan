@@ -201,13 +201,16 @@ def log_get_modules(log):
 
     modules = {}
 
-    mods = ffi.new("struct darshan_mod_info **")
+    # TODO: we should eventually pull DARSHAN_MAX_MODS
+    # from the C layer instead of using a magic number (64)
+    # here
+    mods = ffi.new("struct darshan_mod_info[64]")
     cnt    = ffi.new("int *")
     libdutil.darshan_log_get_modules(log['handle'], mods, cnt)
     for i in range(0, cnt[0]):
-        modules[ffi.string(mods[0][i].name).decode("utf-8")] = \
-                {'len': mods[0][i].len, 'ver': mods[0][i].ver, 'idx': mods[0][i].idx,
-                 'partial_flag': bool(mods[0][i].partial_flag)}
+        modules[ffi.string(mods[i].name).decode("utf-8")] = \
+                {'len': mods[i].len, 'ver': mods[i].ver, 'idx': mods[i].idx,
+                 'partial_flag': bool(mods[i].partial_flag)}
 
     # add to cache
     log['modules'] = modules
