@@ -350,7 +350,6 @@ def get_heatmap_df(agg_df: pd.DataFrame, xbins: int, nprocs: int) -> pd.DataFram
     combo = start_fraction_bin_occupancy.mul(
         end_fraction_bin_occupancy, fill_value=1, axis=0
     )
-    combo.mask(combo > 1, 1, inplace=True)
     # add the start/end dummy variable dataframes
     # and replace any zeros with NaN's
     cats = cats_start.add(cats_end, fill_value=0)
