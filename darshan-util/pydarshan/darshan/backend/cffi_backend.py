@@ -341,6 +341,7 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
     if r < 1:
+        libdutil.darshan_free(buf[0])
         return None
     rbuf = ffi.cast(mod_type, buf)
 
@@ -349,8 +350,9 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
     if mod_name == 'H5D':
         rec['file_rec_id'] = rbuf[0].file_rec_id
 
-    clst = np.frombuffer(ffi.buffer(rbuf[0].counters), dtype=np.int64)
-    flst = np.frombuffer(ffi.buffer(rbuf[0].fcounters), dtype=np.float64)
+    clst = np.copy(np.frombuffer(ffi.buffer(rbuf[0].counters), dtype=np.int64))
+    flst = np.copy(np.frombuffer(ffi.buffer(rbuf[0].fcounters), dtype=np.float64))
+    libdutil.darshan_free(buf[0])
 
     c_cols = counter_names(mod_name)
     fc_cols = fcounter_names(mod_name)
@@ -461,6 +463,7 @@ def _log_get_lustre_record(log, dtype='numpy'):
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules['LUSTRE']['idx'], buf)
     if r < 1:
+        libdutil.darshan_free(buf[0])
         return None
     rbuf = ffi.cast("struct darshan_lustre_record **", buf)
 
@@ -470,7 +473,8 @@ def _log_get_lustre_record(log, dtype='numpy'):
     clst = []
     for i in range(0, len(rbuf[0].counters)):
         clst.append(rbuf[0].counters[i])
-    rec['counters'] = np.array(clst, dtype=np.int64)
+    rec['counters'] = np.array(clst, dtype=np.int64, copy=True)
+    libdutil.darshan_free(buf[0])
    
     # counters
     cdict = dict(zip(counter_names('LUSTRE'), rec['counters']))
@@ -546,6 +550,7 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
     if r < 1:
+        libdutil.darshan_free(buf[0])
         return None
     filerec = ffi.cast(mod_type, buf)
 
@@ -593,6 +598,7 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
         rec['read_segments'] = pd.DataFrame(rec['read_segments'])
         rec['write_segments'] = pd.DataFrame(rec['write_segments'])
 
+    libdutil.darshan_free(buf[0])
     return rec
 
 
