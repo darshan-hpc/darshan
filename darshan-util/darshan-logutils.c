@@ -2207,6 +2207,11 @@ int darshan_log_get_record(darshan_fd fd,
     return r;
 }
 
+void darshan_free(void *ptr)
+{
+    free(ptr);
+}
+
 /*
  * Local variables:
  *  c-indent-level: 4

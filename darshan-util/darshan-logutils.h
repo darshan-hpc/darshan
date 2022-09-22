@@ -219,6 +219,7 @@ void darshan_log_get_filtered_name_records(darshan_fd fd,
     struct darshan_name_record_info **mods, int* count,
     darshan_record_id *whitelist, int whitelist_count);
 int darshan_log_get_record(darshan_fd fd, int mod_idx, void **buf);
+void darshan_free(void *ptr);
 
 
 /* convenience macros for printing Darshan counters */

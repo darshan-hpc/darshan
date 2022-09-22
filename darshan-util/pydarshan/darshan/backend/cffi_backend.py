@@ -211,6 +211,7 @@ def log_get_modules(log):
 
     # add to cache
     log['modules'] = modules
+    libdutil.darshan_free(mods[0])
 
     return modules
 
