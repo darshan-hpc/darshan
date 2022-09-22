@@ -178,6 +178,7 @@ def log_get_mounts(log):
     for i in range(0, cnt[0]):
         mntlst.append((ffi.string(mnts[0][i].mnt_path).decode("utf-8"),
             ffi.string(mnts[0][i].mnt_type).decode("utf-8")))
+    libdutil.darshan_free(mnts[0])
 
     return mntlst
 
