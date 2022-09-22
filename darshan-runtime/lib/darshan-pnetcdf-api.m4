@@ -71,7 +71,6 @@ define(`UPDATE_GETPUT_COUNTERS',`ifelse(
             rec_ref->last_io_type = DARSHAN_IO_READ;
             DARSHAN_BUCKET_INC(
                 &(rec_ref->var_rec->counters[PNETCDF_VAR_SIZE_READ_AGG_0_100]), $3);
-            common_access_vals[0] = $3;
             cvc = darshan_track_common_val_counters(&rec_ref->access_root,
                 common_access_vals, PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1, &rec_ref->access_count);
             if (cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS(
@@ -96,7 +95,6 @@ define(`UPDATE_GETPUT_COUNTERS',`ifelse(
             rec_ref->last_io_type = DARSHAN_IO_WRITE;
             DARSHAN_BUCKET_INC(
                 &(rec_ref->var_rec->counters[PNETCDF_VAR_SIZE_WRITE_AGG_0_100]), $3);
-            common_access_vals[0] = $3;
             cvc = darshan_track_common_val_counters(&rec_ref->access_root,
                 common_access_vals, PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1, &rec_ref->access_count);
             if (cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS(
@@ -122,6 +120,47 @@ define(`UPDATE_INDEPCOLL_RW_COUNTER',`ifelse(
        `$1$2',`put',`rec_ref->var_rec->counters[PNETCDF_VAR_INDEP_WRITES] += 1',
        `$1$2',`put_all',`rec_ref->var_rec->counters[PNETCDF_VAR_COLL_WRITES] += 1')')dnl
 dnl
+dnl
+define(`CALC_ACCESS_INFO',
+    `ifelse(
+        `$1',  `',  `$3 = rec_ref->var_rec->counters[PNETCDF_VAR_NPOINTS];
+            if (rec_ref->unlimdimid >= 0) {
+                MPI_Offset dim_len;
+                ncmpi_inq_dimlen($2, rec_ref->unlimdimid, &dim_len);
+                $3 *= dim_len;
+            }
+            $3 *= rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE];',
+        `$1', `1', `$3 = rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE];',
+        eval(regexp($1, a\|s\|m) != -1), 1, `if (rec_ref->var_rec->counters[PNETCDF_VAR_NDIMS] > 0) {
+                int i;
+                $3 = count[0];
+                for (i = 1; i < rec_ref->var_rec->counters[PNETCDF_VAR_NDIMS]; i++)
+                    $3 *= count[i];
+            }
+            else {
+                $3 = 1;
+            }
+            $3 *= rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE];',
+        `$1', `n', `if (counts) {
+                int i, j;
+                size_t tmp_size;
+                $3 = 0;
+                for (i = 0; i < num; i++) {
+                    tmp_size = 1;
+                    for(j = 0; j < rec_ref->var_rec->counters[PNETCDF_VAR_NDIMS]; j++)
+                        tmp_size *= counts[i][j];
+                    $3 += tmp_size;
+                }
+            }
+            else {
+                $3 = num;
+            }
+            $3 *= rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE];',
+        `$1', `d', `int mpi_size;
+            PMPI_Type_size(filetype, &mpi_size);
+            $3 = mpi_size;')
+            common_access_vals[0] = $3;')dnl
+dnl
 
 dnl
 define(`APINAME',`ifelse(`$3',`',`ncmpi_$1_var$2$4',`ncmpi_$1_var$2$3$4')')dnl
@@ -137,30 +176,23 @@ DARSHAN_FORWARD_DECL(APINAME($1,$2,$3,$4), int, (int ncid, int varid, ArgKind($2
 int DARSHAN_DECL(APINAME($1,$2,$3,$4))(int ncid, int varid, ArgKind($2)BufArgs($1,$3))
 {
     int err, ret;
-    MPI_Offset $1_before, $1_after;
     double tm1, tm2;
 
     MAP_OR_FAIL(APINAME($1,$2,$3,$4));
-
-    err = ncmpi_inq_$1_size(ncid, &$1_before);
-    if (err != NC_NOERR) return err;
 
     tm1 = PNETCDF_WTIME();
     ret = `__real_'APINAME($1,$2,$3,$4)(ncid, varid, ArgKindName($2) buf ifelse($3,`',`, bufcount, buftype'));
     tm2 = PNETCDF_WTIME();
 
-    err = ncmpi_inq_$1_size(ncid, &$1_after);
-    if (err != NC_NOERR) return err;
-
     if (ret == NC_NOERR) {
-        struct darshan_common_val_counter *cvc;
-        int64_t common_access_vals[PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1] = {0};
-
         PNETCDF_VAR_PRE_RECORD();
         struct pnetcdf_var_record_ref *rec_ref;
         rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->ncid_hash, &ncid, sizeof(int));
         if (rec_ref) {
-            size_t access_size = $1_after - $1_before;
+            struct darshan_common_val_counter *cvc;
+            int64_t common_access_vals[PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1] = {0};
+            size_t access_size;
+            CALC_ACCESS_INFO($2,ncid,access_size)
             UPDATE_GETPUT_COUNTERS($1,$2,access_size)
             UPDATE_INDEPCOLL_RW_COUNTER($1,$4);
         }
@@ -187,31 +219,24 @@ DARSHAN_FORWARD_DECL(APINAME($1,n,$2,$3), int, (int ncid, int varid, int num, MP
 int DARSHAN_DECL(APINAME($1,n,$2,$3))(int ncid, int varid, int num, MPI_Offset* const *starts, MPI_Offset* const *counts, BufArgs($1,$2))
 {
     int err, ret;
-    MPI_Offset $1_before, $1_after;
     double tm1, tm2;
 
     MAP_OR_FAIL(APINAME($1,n,$2,$3));
-
-    err = ncmpi_inq_$1_size(ncid, &$1_before);
-    if (err != NC_NOERR) return err;
 
     tm1 = PNETCDF_WTIME();
     ret = `__real_'APINAME($1,n,$2,$3)(ncid, varid, num, starts, counts, buf ifelse($2,`',`, bufcount, buftype'));
     tm2 = PNETCDF_WTIME();
 
-    err = ncmpi_inq_$1_size(ncid, &$1_after);
-    if (err != NC_NOERR) return err;
-
     if (ret == NC_NOERR) {
-        struct darshan_common_val_counter *cvc;
-        int64_t common_access_vals[PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1] = {0};
-
         PNETCDF_VAR_PRE_RECORD();
         struct pnetcdf_var_record_ref *rec_ref;
         rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->ncid_hash, &ncid, sizeof(int));
         if (rec_ref) {
-            size_t access_size = $1_after - $1_before;
-            UPDATE_GETPUT_COUNTERS($1,N,access_size)
+            struct darshan_common_val_counter *cvc;
+            int64_t common_access_vals[PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1] = {0};
+            size_t access_size;
+            CALC_ACCESS_INFO(n,ncid,access_size)
+            UPDATE_GETPUT_COUNTERS($1,n,access_size)
             UPDATE_INDEPCOLL_RW_COUNTER($1,$3);
         }
         PNETCDF_VAR_POST_RECORD();
@@ -236,31 +261,24 @@ DARSHAN_FORWARD_DECL(ncmpi_$1_vard$2, int, (int ncid, int varid, MPI_Datatype fi
 int DARSHAN_DECL(ncmpi_$1_vard$2)(int ncid, int varid, MPI_Datatype filetype, ifelse($1,`put',`const ')void *buf, MPI_Offset bufcount, MPI_Datatype buftype)
 {
     int err, ret;
-    MPI_Offset $1_before, $1_after;
     double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_$1_vard$2);
-
-    err = ncmpi_inq_$1_size(ncid, &$1_before);
-    if (err != NC_NOERR) return err;
 
     tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_$1_vard$2(ncid, varid, filetype, buf, bufcount, buftype);
     tm2 = PNETCDF_WTIME();
 
-    err = ncmpi_inq_$1_size(ncid, &$1_after);
-    if (err != NC_NOERR) return err;
-
     if (ret == NC_NOERR) {
-        struct darshan_common_val_counter *cvc;
-        int64_t common_access_vals[PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1] = {0};
-
         PNETCDF_VAR_PRE_RECORD();
         struct pnetcdf_var_record_ref *rec_ref;
         rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->ncid_hash, &ncid, sizeof(int));
         if (rec_ref) {
-            size_t access_size = $1_after - $1_before;
-            UPDATE_GETPUT_COUNTERS($1,D,access_size)
+            struct darshan_common_val_counter *cvc;
+            int64_t common_access_vals[PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1] = {0};
+            size_t access_size;
+            CALC_ACCESS_INFO(d,ncid,access_size)
+            UPDATE_GETPUT_COUNTERS($1,d,access_size)
             UPDATE_INDEPCOLL_RW_COUNTER($1,$2);
         }
         PNETCDF_VAR_POST_RECORD();
@@ -659,7 +677,7 @@ dnl
 define(`PNETCDF_VAR_RECORD_OPEN',`
     do {
         char *file_path, *rec_name;
-        int err, i, ret_name_len, unlimdimid, type_size;
+        int err, i, ret_name_len, type_size;
         darshan_record_id rec_id;
         struct pnetcdf_var_record_ref *rec_ref;
         MPI_Offset npoints;
@@ -691,8 +709,8 @@ define(`PNETCDF_VAR_RECORD_OPEN',`
         rec_ref->var_rec->fcounters[PNETCDF_VAR_F_OPEN_END_TIMESTAMP] = $8;
         DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->var_rec->fcounters[PNETCDF_VAR_F_META_TIME],
             $7, $8, rec_ref->last_meta_end);
-        err = ncmpi_inq_unlimdim($1, &unlimdimid);
-        i = ($5[0] == unlimdimid) ? 1 : 0; /* record variable or not */
+        err = ncmpi_inq_unlimdim($1, &rec_ref->unlimdimid);
+        i = ($5[0] == rec_ref->unlimdimid) ? 1 : 0; /* record variable or not */
         for (npoints = 1; i < $4; i++) {
             MPI_Offset dim_len;
             err = ncmpi_inq_dimlen($1, $5[i], &dim_len);

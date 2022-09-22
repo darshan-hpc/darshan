@@ -46,6 +46,7 @@ struct pnetcdf_var_record_ref
     double last_meta_end;
     void *access_root;
     int access_count;
+    int unlimdimid;
 };
 
 /* struct to encapsulate runtime state for the PnetCDF module */
