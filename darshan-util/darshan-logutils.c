@@ -2208,6 +2208,18 @@ int darshan_log_get_record(darshan_fd fd,
 }
 
 /*
+ * darshan_free
+ *
+ * We expose free() in this manner so that i.e.,
+ * CFFI can free memory that has been malloc'd
+ * inside the scope of C functions.
+ */
+void darshan_free(void *ptr)
+{
+    free(ptr);
+}
+
+/*
  * Local variables:
  *  c-indent-level: 4
  *  c-basic-offset: 4
