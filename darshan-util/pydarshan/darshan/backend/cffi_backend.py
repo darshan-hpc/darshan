@@ -341,7 +341,6 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
     if r < 1:
-        libdutil.darshan_free(buf[0])
         return None
     rbuf = ffi.cast(mod_type, buf)
 
@@ -463,7 +462,6 @@ def _log_get_lustre_record(log, dtype='numpy'):
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules['LUSTRE']['idx'], buf)
     if r < 1:
-        libdutil.darshan_free(buf[0])
         return None
     rbuf = ffi.cast("struct darshan_lustre_record **", buf)
 
@@ -550,7 +548,6 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
     if r < 1:
-        libdutil.darshan_free(buf[0])
         return None
     filerec = ffi.cast(mod_type, buf)
 
