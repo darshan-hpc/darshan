@@ -63,9 +63,9 @@ define(`ArgKindName', `ifelse(
        `$1', `m', `start, count, stride, imap,')')dnl
 
 dnl
-define(`UPDATE_GETPUT_COUNTERS',`ifelse(
-`$1',`get',`rec_ref->var_rec->counters[PNETCDF_VAR_BYTES_READ] += $3;
-            rec_ref->var_rec->counters[`PNETCDF_VAR_GET_VAR'Upcase($2)] += 1;
+define(`UPDATE_GETPUT_COUNTERS',`rec_ref->var_rec->counters[`PNETCDF_VAR_'Upcase($1)`_VAR'Upcase($2)] += 1;
+            ifelse(eval(regexp($1, get) != -1), 1,
+            `rec_ref->var_rec->counters[PNETCDF_VAR_BYTES_READ] += $3;
             if (rec_ref->last_io_type == DARSHAN_IO_WRITE)
                 rec_ref->var_rec->counters[PNETCDF_VAR_RW_SWITCHES] += 1;
             rec_ref->last_io_type = DARSHAN_IO_READ;
@@ -88,8 +88,8 @@ define(`UPDATE_GETPUT_COUNTERS',`ifelse(
             DARSHAN_TIMER_INC_NO_OVERLAP(
                 rec_ref->var_rec->fcounters[PNETCDF_VAR_F_READ_TIME],
                 tm1, tm2, rec_ref->last_read_end);',
-`$1',`put',`rec_ref->var_rec->counters[PNETCDF_VAR_BYTES_WRITTEN] += $3;
-            rec_ref->var_rec->counters[`PNETCDF_VAR_PUT_VAR'Upcase($2)] += 1;
+            eval(regexp($1, put) != -1), 1,
+            `rec_ref->var_rec->counters[PNETCDF_VAR_BYTES_WRITTEN] += $3;
             if (rec_ref->last_io_type == DARSHAN_IO_READ)
                 rec_ref->var_rec->counters[PNETCDF_VAR_RW_SWITCHES] += 1;
             rec_ref->last_io_type = DARSHAN_IO_WRITE;
@@ -315,22 +315,14 @@ int DARSHAN_DECL(APINAME($1,$2,$3))(int ncid, int varid, ArgKind($2)BufArgs($1,$
         struct pnetcdf_var_record_ref *rec_ref;
         rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->ncid_hash, &ncid, sizeof(int));
         if (rec_ref) {
-            rec_ref->var_rec->counters[`PNETCDF_VAR_'Upcase($1)`_VAR'Upcase($2)] += 1;
+            struct darshan_common_val_counter *cvc;
+            int64_t common_access_vals[PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1] = {0};
+            size_t access_size;
+            CALC_ACCESS_INFO($2,ncid,access_size)
+            UPDATE_GETPUT_COUNTERS($1,$2,access_size)
             ifelse($1,`iget',
-           `rec_ref->var_rec->counters[PNETCDF_VAR_NB_READS] += 1;
-            if (rec_ref->last_io_type == DARSHAN_IO_WRITE)
-                rec_ref->var_rec->counters[PNETCDF_VAR_RW_SWITCHES] += 1;
-            rec_ref->last_io_type = DARSHAN_IO_READ;
-            DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->var_rec->fcounters[PNETCDF_VAR_F_READ_TIME],
-                tm1, tm2, rec_ref->last_read_end);',
-            `rec_ref->var_rec->counters[PNETCDF_VAR_NB_WRITES] += 1;
-            if (rec_ref->last_io_type == DARSHAN_IO_READ)
-                rec_ref->var_rec->counters[PNETCDF_VAR_RW_SWITCHES] += 1;
-            rec_ref->last_io_type = DARSHAN_IO_WRITE;
-            DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->var_rec->fcounters[PNETCDF_VAR_F_WRITE_TIME],
-                tm1, tm2, rec_ref->last_write_end);')
+            `rec_ref->var_rec->counters[PNETCDF_VAR_NB_READS] += 1;',
+            `rec_ref->var_rec->counters[PNETCDF_VAR_NB_WRITES] += 1;')
         }
         PNETCDF_VAR_POST_RECORD();
     }
@@ -367,22 +359,14 @@ int DARSHAN_DECL(APINAME($1,n,$2))(int ncid, int varid, int num, MPI_Offset* con
         struct pnetcdf_var_record_ref *rec_ref;
         rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->ncid_hash, &ncid, sizeof(int));
         if (rec_ref) {
-            rec_ref->var_rec->counters[`PNETCDF_VAR_'Upcase($1)`_VARN'] += 1;
+            struct darshan_common_val_counter *cvc;
+            int64_t common_access_vals[PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1] = {0};
+            size_t access_size;
+            CALC_ACCESS_INFO(n,ncid,access_size)
+            UPDATE_GETPUT_COUNTERS($1,n,access_size)
             ifelse($1,`iget',
-           `rec_ref->var_rec->counters[PNETCDF_VAR_NB_READS] += 1;
-            if (rec_ref->last_io_type == DARSHAN_IO_WRITE)
-                rec_ref->var_rec->counters[PNETCDF_VAR_RW_SWITCHES] += 1;
-            rec_ref->last_io_type = DARSHAN_IO_READ;
-            DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->var_rec->fcounters[PNETCDF_VAR_F_READ_TIME],
-                tm1, tm2, rec_ref->last_read_end);',
-            `rec_ref->var_rec->counters[PNETCDF_VAR_NB_WRITES] += 1;
-            if (rec_ref->last_io_type == DARSHAN_IO_READ)
-                rec_ref->var_rec->counters[PNETCDF_VAR_RW_SWITCHES] += 1;
-            rec_ref->last_io_type = DARSHAN_IO_WRITE;
-            DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->var_rec->fcounters[PNETCDF_VAR_F_WRITE_TIME],
-                tm1, tm2, rec_ref->last_write_end);')
+            `rec_ref->var_rec->counters[PNETCDF_VAR_NB_READS] += 1;',
+            `rec_ref->var_rec->counters[PNETCDF_VAR_NB_WRITES] += 1;')
         }
         PNETCDF_VAR_POST_RECORD();
     }
