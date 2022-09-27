@@ -638,10 +638,11 @@ def _log_get_heatmap_record(log):
     # write/read bins
     sizeof_64 = ffi.sizeof("int64_t")
     
-    write_bins = np.frombuffer(ffi.buffer(filerec[0].write_bins, sizeof_64*nbins), dtype = np.int64)
+    write_bins = np.copy(np.frombuffer(ffi.buffer(filerec[0].write_bins, sizeof_64*nbins), dtype = np.int64))
     rec['write_bins'] = write_bins
 
-    read_bins = np.frombuffer(ffi.buffer(filerec[0].read_bins, sizeof_64*nbins), dtype = np.int64)
+    read_bins = np.copy(np.frombuffer(ffi.buffer(filerec[0].read_bins, sizeof_64*nbins), dtype = np.int64))
     rec['read_bins'] = read_bins
+    libdutil.darshan_free(buf[0])
     
     return rec
