@@ -481,9 +481,9 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
     MAP_OR_FAIL(ncmpi_close);
 
     ret = ncmpi_inq_put_size(ncid, &put_size);
-    if (ret != NC_NOERR) return ret;
+    if (ret != NC_NOERR) put_size = -1;
     ret = ncmpi_inq_get_size(ncid, &get_size);
-    if (ret != NC_NOERR) return ret;
+    if (ret != NC_NOERR) get_size = -1;
 
     tm1 = PNETCDF_WTIME();
     ret = __real_ncmpi_close(ncid);
@@ -494,8 +494,14 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
         rec_ref = darshan_lookup_record_ref(pnetcdf_file_runtime->ncid_hash,
             &ncid, sizeof(int));
         if (rec_ref) {
-            rec_ref->file_rec->counters[PNETCDF_FILE_BYTES_WRITTEN] += put_size;
-            rec_ref->file_rec->counters[PNETCDF_FILE_BYTES_READ] += get_size;
+            if (put_size >= 0 && rec_ref->file_rec->counters[PNETCDF_FILE_BYTES_WRITTEN] >= 0)
+                rec_ref->file_rec->counters[PNETCDF_FILE_BYTES_WRITTEN] += put_size;
+            else
+                rec_ref->file_rec->counters[PNETCDF_FILE_BYTES_WRITTEN] = -1;
+            if (get_size >= 0 && rec_ref->file_rec->counters[PNETCDF_FILE_BYTES_READ] >= 0)
+                rec_ref->file_rec->counters[PNETCDF_FILE_BYTES_READ] += get_size;
+            else
+                rec_ref->file_rec->counters[PNETCDF_FILE_BYTES_READ] = -1;
 
             if (rec_ref->file_rec->fcounters[PNETCDF_FILE_F_CLOSE_START_TIMESTAMP] == 0 ||
              rec_ref->file_rec->fcounters[PNETCDF_FILE_F_CLOSE_START_TIMESTAMP] > tm1)
