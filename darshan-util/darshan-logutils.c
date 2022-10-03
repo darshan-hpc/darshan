@@ -2143,7 +2143,10 @@ void darshan_log_get_name_records(darshan_fd fd,
     HASH_ITER(hlink, name_hash, curr, tmp)
     {
         (*name_records)[i].id = curr->name_record->id;
-        (*name_records)[i].name = curr->name_record->name;
+        (*name_records)[i].name = strdup(curr->name_record->name);
+        HASH_DELETE(hlink, name_hash, curr);
+        free(curr->name_record);
+        free(curr);
         i++;
     }
  
@@ -2183,7 +2186,10 @@ void darshan_log_get_filtered_name_records(darshan_fd fd,
     HASH_ITER(hlink, name_hash, curr, tmp)
     {
         (*name_records)[i].id = curr->name_record->id;
-        (*name_records)[i].name = curr->name_record->name;
+        (*name_records)[i].name = strdup(curr->name_record->name);
+        HASH_DELETE(hlink, name_hash, curr);
+        free(curr->name_record);
+        free(curr);
         i++;
     }
  

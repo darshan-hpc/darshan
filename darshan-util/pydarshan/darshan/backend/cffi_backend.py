@@ -242,7 +242,8 @@ def log_get_name_records(log):
 
     for i in range(0, cnt[0]):
         name_records[nrecs[0][i].id] = ffi.string(nrecs[0][i].name).decode("utf-8")
-
+        libdutil.darshan_free(nrecs[0][i].name)
+    libdutil.darshan_free(nrecs[0])
 
     # add to cache
     log['name_records'] = name_records
@@ -277,6 +278,8 @@ def log_lookup_name_records(log, ids=[]):
 
     for i in range(0, cnt[0]):
         name_records[nrecs[0][i].id] = ffi.string(nrecs[0][i].name).decode("utf-8")
+        libdutil.darshan_free(nrecs[0][i].name)
+    libdutil.darshan_free(nrecs[0])
 
     # add to cache
     log['name_records'] = name_records
