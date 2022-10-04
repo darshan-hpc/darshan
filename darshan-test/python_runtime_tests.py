@@ -197,6 +197,8 @@ def test_forked_process(tmpdir):
                      "-x",
                      f"LD_PRELOAD={darshan_lib_path}",
                      "-x",
+                     "DARSHAN_ENABLE_NONMPI=1",
+                     "-x",
                      f"DARSHAN_LOGPATH={cwd}",
                      "python",
                      f"{test_script_path}"])
