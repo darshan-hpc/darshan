@@ -177,7 +177,6 @@ def test_env_vars_config(tmpdir):
 
 def test_forked_process(tmpdir):
     # regression test for gh-786
-    n_ranks = 1
     root_path = os.environ.get("DARSHAN_ROOT_PATH")
     darshan_install_path = os.environ.get("DARSHAN_INSTALL_PATH")
     test_script_path = os.path.join(root_path,
@@ -190,20 +189,35 @@ def test_forked_process(tmpdir):
 
     with tmpdir.as_cwd():
         cwd = os.getcwd()
-        subprocess.check_output(["mpirun",
-                     "--allow-run-as-root",
-                     "-n",
-                     f"{n_ranks}",
-                     "-x",
-                     f"LD_PRELOAD={darshan_lib_path}",
-                     "-x",
-                     "DARSHAN_ENABLE_NONMPI=1",
-                     "-x",
-                     f"DARSHAN_LOGPATH={cwd}",
+        subprocess.check_output([
                      "python",
-                     f"{test_script_path}"])
+                     f"{test_script_path}"],
+                     env={'LD_PRELOAD': darshan_lib_path,
+                          'DARSHAN_ENABLE_NONMPI': "1",
+                          'DARSHAN_LOGPATH': cwd})
 
         log_file_list = glob.glob("*.darshan")
-        # only a single log file should be generated
-        # by darshan
-        assert len(log_file_list) == 1
+        # logs should be generated for parent and child
+        assert len(log_file_list) == 2
+        # ensure parent log is first in the list
+        log_file_list.sort()
+        # search parent log for known records created before
+        # and after the fork call
+        path_to_parent_log = os.path.join(cwd, log_file_list[0])
+        parent_report = darshan.DarshanReport(path_to_parent_log)
+        pre_fork_parent_found=False
+        post_fork_parent_found=False
+        for k, v in parent_report.name_records.items():
+            if "pre-fork-parent" in v:
+                pre_fork_parent_found=True
+            if "post-fork-parent" in v:
+                post_fork_parent_found=True
+        assert pre_fork_parent_found and post_fork_parent_found
+        # search child log for record created after the fork call
+        path_to_child_log = os.path.join(cwd, log_file_list[1])
+        child_report = darshan.DarshanReport(path_to_child_log)
+        post_fork_child_found=False
+        for k, v in child_report.name_records.items():
+            if "post-fork-child" in v:
+                post_fork_child_found=True
+        assert post_fork_child_found
