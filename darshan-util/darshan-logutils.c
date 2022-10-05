@@ -2143,7 +2143,20 @@ void darshan_log_get_name_records(darshan_fd fd,
     HASH_ITER(hlink, name_hash, curr, tmp)
     {
         (*name_records)[i].id = curr->name_record->id;
-        (*name_records)[i].name = curr->name_record->name;
+        /* NOTE: darshan_log_get_namehash() call above returns a
+         * hash table that has allocated name record memory for records
+         * in the log file. This hash table is not exposed to callers,
+         * though, so it's this function's responsibility to destroy the
+         * table and free corresponding memory before returning, as is
+         * done below. This also requires that we strdup() record names
+         * that are returned to callers, who are then responsible for
+         * freeing this memory, just as they are responsible for freeing
+         * the name_records array allocated above.
+         */
+        (*name_records)[i].name = strdup(curr->name_record->name);
+        HASH_DELETE(hlink, name_hash, curr);
+        free(curr->name_record);
+        free(curr);
         i++;
     }
  
@@ -2183,7 +2196,20 @@ void darshan_log_get_filtered_name_records(darshan_fd fd,
     HASH_ITER(hlink, name_hash, curr, tmp)
     {
         (*name_records)[i].id = curr->name_record->id;
-        (*name_records)[i].name = curr->name_record->name;
+        /* NOTE: darshan_log_get_filtered_namehash() call above returns a
+         * hash table that has allocated name record memory for records
+         * in the log file. This hash table is not exposed to callers,
+         * though, so it's this function's responsibility to destroy the
+         * table and free corresponding memory before returning, as is
+         * done below. This also requires that we strdup() record names
+         * that are returned to callers, who are then responsible for
+         * freeing this memory, just as they are responsible for freeing
+         * the name_records array allocated above.
+         */
+        (*name_records)[i].name = strdup(curr->name_record->name);
+        HASH_DELETE(hlink, name_hash, curr);
+        free(curr->name_record);
+        free(curr);
         i++;
     }
  
