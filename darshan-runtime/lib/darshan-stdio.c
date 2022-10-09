@@ -1508,6 +1508,7 @@ static void stdio_cleanup()
 
     free(stdio_runtime);
     stdio_runtime = NULL;
+    stdio_runtime_init_attempted = 0;
 
     STDIO_UNLOCK();
     return;

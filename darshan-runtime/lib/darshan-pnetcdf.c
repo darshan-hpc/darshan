@@ -482,6 +482,7 @@ static void pnetcdf_cleanup()
 
     free(pnetcdf_runtime);
     pnetcdf_runtime = NULL;
+    pnetcdf_runtime_init_attempted = 0;
 
     PNETCDF_UNLOCK();
     return;

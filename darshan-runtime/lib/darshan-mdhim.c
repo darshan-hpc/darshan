@@ -604,6 +604,7 @@ static void mdhim_cleanup()
 
     free(mdhim_runtime);
     mdhim_runtime = NULL;
+    mdhim_runtime_init_attempted = 0;
 
     MDHIM_UNLOCK();
     return;

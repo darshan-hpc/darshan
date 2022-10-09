@@ -1786,6 +1786,7 @@ static void mpiio_cleanup()
 
     free(mpiio_runtime);
     mpiio_runtime = NULL;
+    mpiio_runtime_init_attempted = 0;
 
     MPIIO_UNLOCK();
     return;
