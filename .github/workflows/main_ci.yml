@@ -73,7 +73,7 @@ jobs:
           # to check HPC spack installs for example
           cd $RUNNER_TEMP
           site_packages=$(pip show darshan | grep Location | cut -d ' ' -f 2)
-          pytest -W error::FutureWarning --pyargs darshan --cov-report xml --cov=$site_packages/darshan
+          pytest -W error::FutureWarning -W error:"The join function was deprecated in Matplotlib" --pyargs darshan --cov-report xml --cov=$site_packages/darshan
       # Python 3.6 doesn't have access to some
       # dependencies needed for our type hints
       - if: ${{matrix.python-version > 3.6}}

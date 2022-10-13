@@ -530,10 +530,10 @@ def plot_data(fig: Any,
                                               2,
                                               row * 2 + 2)
         if row > 0:
-            ax_filesystem_bytes.get_shared_x_axes().join(ax_filesystem_bytes, list_byte_axes[row - 1])
+            ax_filesystem_bytes.sharex(list_byte_axes[row - 1])
             if use_log[0]:
                 ax_filesystem_bytes.set_xscale('symlog')
-            ax_filesystem_counts.get_shared_x_axes().join(ax_filesystem_counts, list_count_axes[row - 1])
+            ax_filesystem_counts.sharex(list_count_axes[row - 1])
             if use_log[1]:
                 ax_filesystem_counts.set_xscale('symlog')
 
