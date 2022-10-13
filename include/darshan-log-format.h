@@ -85,6 +85,8 @@ struct darshan_job
     int64_t uid;
     int64_t start_time;
     int64_t end_time;
+    struct timespec start_ts;
+    struct timespec end_ts;
     int64_t nprocs;
     int64_t jobid;
     char metadata[DARSHAN_JOB_METADATA_LEN];

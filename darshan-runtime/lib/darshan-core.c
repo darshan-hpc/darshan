@@ -151,6 +151,12 @@ static int darshan_deflate_buffer(
 static void darshan_core_cleanup(
     struct darshan_core_runtime* core);
 static void darshan_core_fork_child_cb(void);
+static void darshan_core_reduce_min_timespec(
+    void* in_ts_v, void* inout_ts_v,
+    int *len, MPI_Datatype *datatype);
+static void darshan_core_reduce_max_timespec(
+    void* in_ts_v, void* inout_ts_v,
+    int *len, MPI_Datatype *datatype);
 
 #define DARSHAN_WARN(__err_str, ...) do { \
     darshan_core_fprintf(stderr, "darshan_library_warning: " \
@@ -310,6 +316,7 @@ void darshan_core_initialize(int argc, char **argv)
         /* set known job-level metadata fields for the log file */
         init_core->log_job_p->uid = getuid();
         init_core->log_job_p->start_time = time(NULL);
+        clock_gettime(CLOCK_REALTIME, &init_core->log_job_p->start_ts);
         init_core->log_job_p->nprocs = nprocs;
         init_core->log_job_p->jobid = (int64_t)jobid;
 
@@ -408,6 +415,8 @@ void darshan_core_shutdown(int write_log)
     int i;
     int ret;
 #ifdef HAVE_MPI
+    MPI_Datatype ts_type;
+    MPI_Op ts_max_op, ts_min_op;
     darshan_record_id *shared_recs = NULL;
     darshan_record_id *mod_shared_recs = NULL;
     int shared_rec_cnt = 0;
@@ -443,6 +452,7 @@ void darshan_core_shutdown(int write_log)
 #endif
     start_log_time = darshan_core_wtime_absolute();
     final_core->log_job_p->end_time = time(NULL);
+    clock_gettime(CLOCK_REALTIME, &final_core->log_job_p->end_ts);
 
     internal_timing_flag = final_core->config.internal_timing_flag;
 
@@ -476,12 +486,21 @@ void darshan_core_shutdown(int write_log)
             MPI_INT, MPI_SUM, final_core->mpi_comm);
 
         /* reduce to report first start and last end time across all ranks at rank 0 */
+        /* NOTE: custom MPI max/min reduction operators required for timespec structs */
+        PMPI_Type_contiguous(sizeof(struct timespec), MPI_BYTE, &ts_type);
+        PMPI_Type_commit(&ts_type);
+        PMPI_Op_create(darshan_core_reduce_min_timespec, 1, &ts_min_op);
+        PMPI_Op_create(darshan_core_reduce_max_timespec, 1, &ts_max_op);
         if(my_rank == 0)
         {
             PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->start_time,
                 1, MPI_INT64_T, MPI_MIN, 0, final_core->mpi_comm);
             PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->end_time,
                 1, MPI_INT64_T, MPI_MAX, 0, final_core->mpi_comm);
+            PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->start_ts,
+                1, ts_type, ts_min_op, 0, final_core->mpi_comm);
+            PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->end_ts,
+                1, ts_type, ts_max_op, 0, final_core->mpi_comm);
         }
         else
         {
@@ -491,7 +510,16 @@ void darshan_core_shutdown(int write_log)
             PMPI_Reduce(&final_core->log_job_p->end_time,
                 &final_core->log_job_p->end_time,
                 1, MPI_INT64_T, MPI_MAX, 0, final_core->mpi_comm);
+            PMPI_Reduce(&final_core->log_job_p->start_ts,
+                &final_core->log_job_p->start_ts,
+                1, ts_type, ts_min_op, 0, final_core->mpi_comm);
+            PMPI_Reduce(&final_core->log_job_p->end_ts,
+                &final_core->log_job_p->end_ts,
+                1, ts_type, ts_max_op, 0, final_core->mpi_comm);
         }
+        PMPI_Type_free(&ts_type);
+        PMPI_Op_free(&ts_min_op);
+        PMPI_Op_free(&ts_max_op);
 
         /* get a list of records which are shared across all processes */
         darshan_get_shared_records(final_core, &shared_recs, &shared_rec_cnt);
@@ -1473,7 +1501,7 @@ static void darshan_get_logfile_name(
     char hname[HOST_NAME_MAX];
     uint64_t logmod;
     char cuser[L_cuserid] = {0};
-    struct tm *start_tm;
+    struct tm *start_tm, *start_tm2;
     int jobid;
     int pid;
     time_t start_time;
@@ -1515,6 +1543,13 @@ static void darshan_get_logfile_name(
 
         /* use human readable start time format in log filename */
         start_tm = localtime(&start_time);
+        start_tm2 = localtime(&core->log_job_p->start_ts.tv_sec);
+        assert(start_tm->tm_sec == start_tm2->tm_sec);
+        assert(start_tm->tm_min == start_tm2->tm_min);
+        assert(start_tm->tm_hour == start_tm2->tm_hour);
+        assert(start_tm->tm_mday == start_tm2->tm_mday);
+        assert(start_tm->tm_mon == start_tm2->tm_mon);
+        assert(start_tm->tm_year == start_tm2->tm_year);
 
         if(core->config.log_path_byenv)
         {
@@ -2261,6 +2296,74 @@ static int darshan_core_name_is_excluded(const char *name, darshan_module_id mod
 
     return(0);
 }
+
+#ifdef HAVE_MPI
+static void darshan_core_reduce_min_timespec(void* in_ts_v, void* inout_ts_v,
+    int *len, MPI_Datatype *datatype)
+{
+    struct timespec tmp_ts;
+    struct timespec *in_ts = in_ts_v;
+    struct timespec *inout_ts = inout_ts_v;
+    int i;
+
+    for(i=0; i<*len; i++)
+    {
+        /* min */
+        if((in_ts->tv_sec < inout_ts->tv_sec) ||
+            ((in_ts->tv_sec == inout_ts->tv_sec) &&
+             (in_ts->tv_nsec < inout_ts->tv_nsec)))
+        {
+            tmp_ts.tv_sec = in_ts->tv_sec;
+            tmp_ts.tv_nsec = in_ts->tv_nsec;
+        }
+        else
+        {
+            tmp_ts.tv_sec = inout_ts->tv_sec;
+            tmp_ts.tv_nsec = inout_ts->tv_nsec;
+        }
+
+        /* update pointers */
+        *inout_ts = tmp_ts;
+        inout_ts++;
+        in_ts++;
+    }
+
+    return;
+}
+
+static void darshan_core_reduce_max_timespec(void* in_ts_v, void* inout_ts_v,
+    int *len, MPI_Datatype *datatype)
+{
+    struct timespec tmp_ts;
+    struct timespec *in_ts = in_ts_v;
+    struct timespec *inout_ts = inout_ts_v;
+    int i;
+
+    for(i=0; i<*len; i++)
+    {
+        /* max */
+        if((in_ts->tv_sec > inout_ts->tv_sec) ||
+            ((in_ts->tv_sec == inout_ts->tv_sec) &&
+             (in_ts->tv_nsec > inout_ts->tv_nsec)))
+        {
+            tmp_ts.tv_sec = in_ts->tv_sec;
+            tmp_ts.tv_nsec = in_ts->tv_nsec;
+        }
+        else
+        {
+            tmp_ts.tv_sec = inout_ts->tv_sec;
+            tmp_ts.tv_nsec = inout_ts->tv_nsec;
+        }
+
+        /* update pointers */
+        *inout_ts = tmp_ts;
+        inout_ts++;
+        in_ts++;
+    }
+
+    return;
+}
+#endif
 
 /* crude benchmarking hook into darshan-core to benchmark Darshan
  * shutdown overhead using a variety of application I/O workloads
