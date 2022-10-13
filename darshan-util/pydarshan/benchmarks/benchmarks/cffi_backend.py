@@ -1,3 +1,4 @@
+import darshan
 from darshan.backend import cffi_backend
 from darshan.log_utils import get_log_path
 
@@ -27,7 +28,15 @@ class RetrieveLogData:
 
 
     def peakmem_log_get_mounts(self, module):
-        for i in range(100000):
+        for i in range(10000):
             log = cffi_backend.log_open(self.ior_log_path)
             rec = cffi_backend.log_get_mounts(log)
             cffi_backend.log_close(log)
+
+
+    def peakmem_log_get_name_recs(self, module):
+        for i in range(10000):
+            with darshan.DarshanReport(self.ior_log_path,
+                                       read_all=True,
+                                       lookup_name_records=True) as report:
+                pass
