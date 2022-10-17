@@ -354,7 +354,8 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
         rec['file_rec_id'] = rbuf[0].file_rec_id
 
     clst = np.copy(np.frombuffer(ffi.buffer(rbuf[0].counters), dtype=np.int64))
-    flst = np.copy(np.frombuffer(ffi.buffer(rbuf[0].fcounters), dtype=np.float64))
+    if mod_name != "LUSTRE":
+        flst = np.copy(np.frombuffer(ffi.buffer(rbuf[0].fcounters), dtype=np.float64))
     libdutil.darshan_free(buf[0])
 
     c_cols = counter_names(mod_name)
@@ -362,7 +363,8 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
 
     if dtype == "numpy":
         rec['counters'] = clst
-        rec['fcounters'] = flst
+        if mod_name != "LUSTRE":
+            rec['fcounters'] = flst
 
     elif dtype == "dict":
         rec['counters'] = dict(zip(c_cols, clst))
