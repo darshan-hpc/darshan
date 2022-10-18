@@ -15,13 +15,10 @@
 
 /* counters for file level activities */
 #define PNETCDF_FILE_COUNTERS \
-    /* XXX should we combine creates/opens */\
     /* count of file creates */\
     X(PNETCDF_FILE_CREATES) \
     /* count of file opens */\
     X(PNETCDF_FILE_OPENS) \
-    /* count of enddef calls */\
-    X(PNETCDF_FILE_ENDDEFS) \
     /* count of redef calls */\
     X(PNETCDF_FILE_REDEFS) \
     /* count of independent waits */\

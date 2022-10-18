@@ -324,7 +324,6 @@ static void darshan_log_print_pnetcdf_file_description(int ver)
     printf("\n# description of PnetCDF counters:\n");
     printf("#   PNETCDF_FILE_CREATES: PnetCDF file create operation counts.\n");
     printf("#   PNETCDF_FILE_OPENS: PnetCDF file open operation counts.\n");
-    printf("#   PNETCDF_FILE_ENDDEFS: PnetCDF file end-define operation counts.\n");
     printf("#   PNETCDF_FILE_REDEFS: PnetCDF file re-define operation counts.\n");
     printf("#   PNETCDF_FILE_INDEP_WAITS: PnetCDF indepedent flush nonblocking I/O counts.\n");
     printf("#   PNETCDF_FILE_COLL_WAITS: PnetCDF collective flush nonblocking I/O counts.\n");
@@ -563,7 +562,6 @@ static void darshan_log_agg_pnetcdf_files(void *rec, void *agg_rec, int init_fla
         {
             case PNETCDF_FILE_CREATES:
             case PNETCDF_FILE_OPENS:
-            case PNETCDF_FILE_ENDDEFS:
             case PNETCDF_FILE_REDEFS:
             case PNETCDF_FILE_INDEP_WAITS:
             case PNETCDF_FILE_COLL_WAITS:

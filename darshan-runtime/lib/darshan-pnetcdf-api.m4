@@ -536,7 +536,6 @@ int DARSHAN_DECL(ncmpi_enddef)(int ncid)
         struct pnetcdf_file_record_ref *rec_ref;
         rec_ref = darshan_lookup_record_ref(pnetcdf_file_runtime->ncid_hash, &ncid, sizeof(int));
         if (rec_ref) {
-            rec_ref->file_rec->counters[PNETCDF_FILE_ENDDEFS] += 1;
             DARSHAN_TIMER_INC_NO_OVERLAP(
                 rec_ref->file_rec->fcounters[PNETCDF_FILE_F_META_TIME],
                 tm1, tm2, rec_ref->last_meta_end);
