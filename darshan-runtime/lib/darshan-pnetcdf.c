@@ -354,7 +354,7 @@ static void pnetcdf_file_record_reduction_op(void* infile_v, void* inoutfile_v,
         }
 
         /* min non-zero (if available) value */
-        for(j=PNETCDF_FILE_F_OPEN_START_TIMESTAMP; j<=PNETCDF_FILE_F_CLOSE_START_TIMESTAMP; j++)
+        for(j=PNETCDF_FILE_F_OPEN_START_TIMESTAMP; j<=PNETCDF_FILE_F_WAIT_START_TIMESTAMP; j++)
         {
             if((infile->fcounters[j] < inoutfile->fcounters[j] &&
                infile->fcounters[j] > 0) || inoutfile->fcounters[j] == 0)
@@ -364,7 +364,7 @@ static void pnetcdf_file_record_reduction_op(void* infile_v, void* inoutfile_v,
         }
 
         /* max */
-        for(j=PNETCDF_FILE_F_OPEN_END_TIMESTAMP; j<=PNETCDF_FILE_F_CLOSE_END_TIMESTAMP; j++)
+        for(j=PNETCDF_FILE_F_OPEN_END_TIMESTAMP; j<=PNETCDF_FILE_F_WAIT_END_TIMESTAMP; j++)
         {
             if(infile->fcounters[j] > inoutfile->fcounters[j])
                 tmp_file.fcounters[j] = infile->fcounters[j];

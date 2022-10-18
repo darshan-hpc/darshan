@@ -40,12 +40,18 @@
     X(PNETCDF_FILE_F_OPEN_START_TIMESTAMP) \
     /* timestamp of first close */\
     X(PNETCDF_FILE_F_CLOSE_START_TIMESTAMP) \
+    /* timestamp of first wait */\
+    X(PNETCDF_FILE_F_WAIT_START_TIMESTAMP) \
     /* timestamp of last open/create */\
     X(PNETCDF_FILE_F_OPEN_END_TIMESTAMP) \
     /* timestamp of last close */\
     X(PNETCDF_FILE_F_CLOSE_END_TIMESTAMP) \
+    /* timestamp of last wait */\
+    X(PNETCDF_FILE_F_WAIT_END_TIMESTAMP) \
     /* cumulative meta time */\
     X(PNETCDF_FILE_F_META_TIME) \
+    /* cumulative wait time */\
+    X(PNETCDF_FILE_F_WAIT_TIME) \
     /* end of counters*/\
     X(PNETCDF_FILE_F_NUM_INDICES)
 
