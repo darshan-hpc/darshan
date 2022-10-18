@@ -675,7 +675,7 @@ define(`PNETCDF_VAR_RECORD_OPEN',`
     do {
         char *file_path, *rec_name;
         int err, i, ret_name_len, type_size;
-        darshan_record_id rec_id;
+        darshan_record_id rec_id, file_rec_id = 0;
         struct pnetcdf_var_record_ref *rec_ref;
         MPI_Offset npoints;
 
@@ -687,6 +687,7 @@ define(`PNETCDF_VAR_RECORD_OPEN',`
         if (err != NC_NOERR) { free(rec_name); break; }
         /* fully resolve file path */
         file_path = darshan_clean_file_path(rec_name);
+        file_rec_id = darshan_core_gen_record_id(file_path);
         free(rec_name);
         rec_name = (char*) malloc(strlen(file_path)+strlen($2)+2);
         strcpy(rec_name, file_path);
@@ -720,6 +721,7 @@ define(`PNETCDF_VAR_RECORD_OPEN',`
         else if ($3 == NC_INT || $3 == NC_UINT || $3 == NC_FLOAT) type_size = 4;
         else type_size = 8;
         rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE] = type_size;
+        rec_ref->var_rec->file_rec_id = file_rec_id;
         darshan_add_record_ref(&(pnetcdf_var_runtime->ncid_hash), $6, sizeof(int), rec_ref);
     } while (0);
 ')dnl

@@ -231,6 +231,7 @@ exit:
         {
             DARSHAN_BSWAP64(&(var->base_rec.id));
             DARSHAN_BSWAP64(&(var->base_rec.rank));
+            DARSHAN_BSWAP64(&(var->file_rec_id));
             for(i=0; i<PNETCDF_VAR_NUM_INDICES; i++)
                 DARSHAN_BSWAP64(&var->counters[i]);
             for(i=0; i<PNETCDF_VAR_F_NUM_INDICES; i++)
@@ -315,6 +316,11 @@ static void darshan_log_print_pnetcdf_var(void *var_rec, char *var_name,
             pnetcdf_var_f_counter_names[i], pnetcdf_var_rec->fcounters[i],
             var_name, mnt_pt, fs_type);
     }
+
+    DARSHAN_U_COUNTER_PRINT(darshan_module_names[DARSHAN_PNETCDF_VAR_MOD],
+        pnetcdf_var_rec->base_rec.rank, pnetcdf_var_rec->base_rec.id,
+        "PNETCDF_VAR_FILE_REC_ID", pnetcdf_var_rec->file_rec_id,
+        var_name, mnt_pt, fs_type);
 
     return;
 }
@@ -643,6 +649,7 @@ static void darshan_log_agg_pnetcdf_vars(void *rec, void *agg_rec, int init_flag
     struct var_t *var_bytes_p = (struct var_t *)
         ((char *)var_time_p + sizeof(struct var_t));
 
+    agg_pnetcdf_rec->file_rec_id = pnetcdf_rec->file_rec_id;
     for(i = 0; i < PNETCDF_VAR_NUM_INDICES; i++)
     {
         switch(i)

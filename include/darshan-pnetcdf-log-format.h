@@ -314,12 +314,14 @@ struct darshan_pnetcdf_file
  * every PnetCDF variable opened by the original application. For the PnetCDF module,
  * the record includes:
  *      - a darshan_base_record structure, which contains the record id & rank
+ *      - the Darshan record ID of the file the variable belongs to
  *      - integer variable I/O statistics (open, read/write counts, etc)
  *      - floating point variable I/O statistics (timestamps, cumulative timers, etc.)
  */
 struct darshan_pnetcdf_var
 {
     struct darshan_base_record base_rec;
+    uint64_t file_rec_id;
     int64_t counters[PNETCDF_VAR_NUM_INDICES];
     double fcounters[PNETCDF_VAR_F_NUM_INDICES];
 };

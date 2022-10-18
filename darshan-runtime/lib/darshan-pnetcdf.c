@@ -400,6 +400,7 @@ static void pnetcdf_var_record_reduction_op(void* inrec_v, void* inoutrec_v,
         memset(&tmp_var, 0, sizeof(struct darshan_pnetcdf_var));
         tmp_var.base_rec.id = inrec->base_rec.id;
         tmp_var.base_rec.rank = -1;
+        tmp_var.file_rec_id = inrec->file_rec_id;
 
         /* sum */
         for(j=PNETCDF_VAR_OPENS; j<=PNETCDF_VAR_BPUT_VARN; j++)
