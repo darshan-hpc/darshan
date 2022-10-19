@@ -31,6 +31,8 @@
     X(PNETCDF_FILE_BYTES_READ) \
     /* total bytes written */\
     X(PNETCDF_FILE_BYTES_WRITTEN) \
+    /* count of file wait failures */\
+    X(PNETCDF_FILE_WAIT_FAILURES) \
     /* end of counters */\
     X(PNETCDF_FILE_NUM_INDICES)
 

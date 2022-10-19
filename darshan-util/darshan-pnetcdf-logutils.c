@@ -574,6 +574,7 @@ static void darshan_log_agg_pnetcdf_files(void *rec, void *agg_rec, int init_fla
             case PNETCDF_FILE_SYNCS:
             case PNETCDF_FILE_BYTES_READ:
             case PNETCDF_FILE_BYTES_WRITTEN:
+            case PNETCDF_FILE_WAIT_FAILURES:
                 /* sum */
                 agg_pnetcdf_rec->counters[i] += pnetcdf_rec->counters[i];
                 break;
