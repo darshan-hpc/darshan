@@ -70,8 +70,8 @@ static int my_rank = -1;
 #define PNETCDF_LOCK() pthread_mutex_lock(&pnetcdf_runtime_mutex)
 #define PNETCDF_UNLOCK() pthread_mutex_unlock(&pnetcdf_runtime_mutex)
 
-#define PNETCDF_WTIME() \
-    __darshan_disabled ? 0 : darshan_core_wtime();
+#define PNETCDF_WTIME(tspec) \
+    __darshan_disabled ? 0 : darshan_core_wtime(tspec);
 
 /* note that if the break condition is triggered in this macro, then it
  * will exit the do/while loop holding a lock that will be released in
@@ -93,7 +93,7 @@ static int my_rank = -1;
     PNETCDF_UNLOCK(); \
 } while(0)
 
-#define PNETCDF_RECORD_OPEN(__ncidp, __path, __comm, __tm1, __tm2) do { \
+#define PNETCDF_RECORD_OPEN(__ncidp, __path, __comm, __tm1, __tm2, __ts1, __ts2) do { \
     darshan_record_id rec_id; \
     struct pnetcdf_file_record_ref *rec_ref; \
     char *newpath; \
@@ -128,12 +128,13 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
     int ret;
     char* tmp;
     double tm1, tm2;
+    struct timespec ts1, ts2;
 
     MAP_OR_FAIL(ncmpi_create);
 
-    tm1 = PNETCDF_WTIME();
+    tm1 = PNETCDF_WTIME(&ts1);
     ret = __real_ncmpi_create(comm, path, cmode, info, ncidp);
-    tm2 = PNETCDF_WTIME();
+    tm2 = PNETCDF_WTIME(&ts2);
     if(ret == 0)
     {
         /* use ROMIO approach to strip prefix if present */
@@ -147,7 +148,7 @@ int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
         }
 
         PNETCDF_PRE_RECORD();
-        PNETCDF_RECORD_OPEN(ncidp, path, comm, tm1, tm2);
+        PNETCDF_RECORD_OPEN(ncidp, path, comm, tm1, tm2, ts1, ts2);
         PNETCDF_POST_RECORD();
     }
 
@@ -160,12 +161,13 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
     int ret;
     char* tmp;
     double tm1, tm2;
+    struct timespec ts1, ts2;
 
     MAP_OR_FAIL(ncmpi_open);
 
-    tm1 = PNETCDF_WTIME();
+    tm1 = PNETCDF_WTIME(&ts1);
     ret = __real_ncmpi_open(comm, path, omode, info, ncidp);
-    tm2 = PNETCDF_WTIME();
+    tm2 = PNETCDF_WTIME(&ts2);
     if(ret == 0)
     {
         /* use ROMIO approach to strip prefix if present */
@@ -179,7 +181,7 @@ int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
         }
 
         PNETCDF_PRE_RECORD();
-        PNETCDF_RECORD_OPEN(ncidp, path, comm, tm1, tm2);
+        PNETCDF_RECORD_OPEN(ncidp, path, comm, tm1, tm2, ts1, ts2);
         PNETCDF_POST_RECORD();
     }
 
@@ -191,12 +193,13 @@ int DARSHAN_DECL(ncmpi_close)(int ncid)
     struct pnetcdf_file_record_ref *rec_ref;
     int ret;
     double tm1, tm2;
+    struct timespec ts1, ts2;
 
     MAP_OR_FAIL(ncmpi_close);
 
-    tm1 = PNETCDF_WTIME();
+    tm1 = PNETCDF_WTIME(&ts1);
     ret = __real_ncmpi_close(ncid);
-    tm2 = PNETCDF_WTIME();
+    tm2 = PNETCDF_WTIME(&ts2);
 
     PNETCDF_PRE_RECORD();
     rec_ref = darshan_lookup_record_ref(pnetcdf_runtime->ncid_hash,

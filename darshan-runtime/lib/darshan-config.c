@@ -10,6 +10,7 @@
 
 #include <ctype.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #include "utlist.h"
 #include "darshan.h"

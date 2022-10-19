@@ -122,8 +122,8 @@ static int my_rank = -1;
 #define MDHIM_LOCK() pthread_mutex_lock(&mdhim_runtime_mutex)
 #define MDHIM_UNLOCK() pthread_mutex_unlock(&mdhim_runtime_mutex)
 
-#define MDHIM_WTIME() \
-    __darshan_disabled ? 0 : darshan_core_wtime();
+#define MDHIM_WTIME(tspec) \
+    __darshan_disabled ? 0 : darshan_core_wtime(tspec);
 
 /* the MDHIM_PRE_RECORD macro is executed before performing MDHIM
  * module instrumentation of a call. It obtains a lock for updating
@@ -152,9 +152,10 @@ static int my_rank = -1;
 } while(0)
 
 /* macro for instrumenting the "MDHIM" module's put function */
-#define MDHIM_RECORD_PUT(__ret, __md, __id, __vallen, __tm1, __tm2) do{ \
+#define MDHIM_RECORD_PUT(__ret, __md, __id, __vallen, __tm1, __tm2, __ts1, __ts2) do{ \
     darshan_record_id rec_id; \
     struct mdhim_record_ref *rec_ref; \
+    struct darshanConnector dC; \
     double __elapsed = __tm2 - __tm1; \
     /* if put returns error (return code < 0), don't instrument anything */ \
     if(__ret < 0) break; \
@@ -178,12 +179,17 @@ static int my_rank = -1;
         rec_ref->record_p->fcounters[MDHIM_F_PUT_TIMESTAMP] = __tm1; \
     /* record which server gets this request */ \
     rec_ref->record_p->server_histogram[(__id)]++; \
+    /* LDMS to publish realtime read tracing information to daemon*/ \
+    if(!dC.ldms_lib)\
+        if(!dC.mdhim_enable_ldms)\
+            darshan_ldms_connector_send(rec_ref->record_p->fcounters[MDHIM_PUTS], "puts", -1, __vallen, -1, -1, -1, __tm1, __tm2, __ts1, __ts2, rec_ref->record_p->fcounters[MDHIM_F_PUT_MAX_DURATION], "MDHIM", "MET");\
 } while(0)
 
 /* macro for instrumenting the "MDHIM" module's get function */
-#define MDHIM_RECORD_GET(__ret, __md, __id, __keylen, __tm1, __tm2) do{ \
+#define MDHIM_RECORD_GET(__ret, __md, __id, __keylen, __tm1, __tm2, __ts1, __ts2) do{ \
     darshan_record_id rec_id; \
     struct mdhim_record_ref *rec_ref; \
+    struct darshanConnector dC; \
     double __elapsed = __tm2 - __tm1; \
     /* if get returns error (return code < 0), don't instrument anything */ \
     if(__ret == NULL) break; \
@@ -207,6 +213,10 @@ static int my_rank = -1;
         rec_ref->record_p->fcounters[MDHIM_F_GET_TIMESTAMP] = __tm1; \
     /* server distribution */ \
     rec_ref->record_p->server_histogram[(__id)]++; \
+    /* LDMS to publish realtime read tracing information to daemon*/ \
+    if(!dC.ldms_lib)\
+        if(!dC.mdhim_enable_ldms)\
+            darshan_ldms_connector_send(rec_ref->record_p->fcounters[MDHIM_GETS], "gets", -1, __keylen, -1, -1, -1, __tm1, __tm2, __ts1, __ts2, rec_ref->record_p->fcounters[MDHIM_F_GET_MAX_DURATION], "MDHIM", "MET");\
 } while(0)
 
 /**********************************************************
@@ -259,6 +269,7 @@ mdhim_rm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
 {
     mdhim_rm_t *ret;
     double tm1, tm2;
+    struct timespec ts1, ts2;
 
     /* The MAP_OR_FAIL macro attempts to obtain the address of the actual
      * underlying put function call (__real_put), in the case of LD_PRELOADing
@@ -270,9 +281,9 @@ mdhim_rm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
     /* In general, Darshan wrappers begin by calling the real version of the
      * given wrapper function. Timers are used to record the duration of this
      * operation. */
-    tm1 = MDHIM_WTIME();
+    tm1 = MDHIM_WTIME(&ts1);
     ret = __real_mdhimPut(md, index, key, key_len, value, value_len);
-    tm2 = MDHIM_WTIME();
+    tm2 = MDHIM_WTIME(&ts2);
 
     int server_id = mdhimWhichDB(md, key, key_len);
 
@@ -280,7 +291,7 @@ mdhim_rm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
     /* Call macro for instrumenting data for mdhimPut function calls. */
     /* TODO: call the mdhim hash routines and instrument which servers
      * get this request */
-    MDHIM_RECORD_PUT(ret, md, server_id, value_len, tm1, tm2);
+    MDHIM_RECORD_PUT(ret, md, server_id, value_len, tm1, tm2, ts1, ts2);
 
     MDHIM_POST_RECORD();
 
@@ -293,21 +304,22 @@ mdhim_grm_t * DARSHAN_DECL(mdhimGet)(mdhim_t *md,
 {
     mdhim_grm_t *ret;
     double tm1, tm2;
+    struct timespec ts1, ts2;
 
     MAP_OR_FAIL(mdhimGet);
 
     /* In general, Darshan wrappers begin by calling the real version of the
      * given wrapper function. Timers are used to record the duration of this
      * operation. */
-    tm1 = MDHIM_WTIME();
+    tm1 = MDHIM_WTIME(&ts1);
     ret = __real_mdhimGet(md, index, key, key_len, op);
-    tm2 = MDHIM_WTIME();
+    tm2 = MDHIM_WTIME(&ts2);
 
     int server_id = mdhimWhichDB(md, key, key_len);
 
     MDHIM_PRE_RECORD();
     /* Call macro for instrumenting data for get function calls. */
-    MDHIM_RECORD_GET(ret, md, server_id, key_len, tm1, tm2);
+    MDHIM_RECORD_GET(ret, md, server_id, key_len, tm1, tm2, ts1, ts2);
     MDHIM_POST_RECORD();
     return ret;
 }

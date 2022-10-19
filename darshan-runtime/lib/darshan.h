@@ -387,7 +387,7 @@ static inline int darshan_core_disabled_instrumentation(void)
 }
 
 /* retrieve absolute wtime */
-static inline double darshan_core_wtime_absolute(void)
+static inline double darshan_core_wtime_absolute(struct timespec *tspec)
 {
 #ifdef __DARSHAN_RDTSCP_FREQUENCY
     /* user configured darshan-runtime explicitly to use rtdscp for timing */
@@ -398,7 +398,7 @@ static inline double darshan_core_wtime_absolute(void)
     return((double)ts/(double)__DARSHAN_RDTSCP_FREQUENCY);
 #else
     /* normal path */
-    struct timespec tp;
+    //struct timespec tp;
     /* some notes on what function to use to retrieve time as of 2021-05:
      * - clock_gettime() is faster than MPI_Wtime() across platforms
      * - clock_gettime() is at least competitive with gettimeofday()
@@ -409,8 +409,9 @@ static inline double darshan_core_wtime_absolute(void)
      *     platforms
      *   - it is not well defined how much precision will be sacrificed
      */
-    clock_gettime(CLOCK_REALTIME, &tp);
-    return(((double)tp.tv_sec) + 1.0e-9 * ((double)tp.tv_nsec));
+    clock_gettime(CLOCK_REALTIME, tspec);
+
+    return(((double)tspec->tv_sec) + 1.0e-9 * ((double)tspec->tv_nsec));
 #endif
 }
 
@@ -419,9 +420,9 @@ static inline double darshan_core_wtime_absolute(void)
  * Returns the elapsed time relative to (roughly) the start of
  * the application.
  */
-static inline double darshan_core_wtime(void)
+static inline double darshan_core_wtime(struct timespec *tspec)
 {
-    return(darshan_core_wtime_absolute() - __darshan_core_wtime_offset);
+    return(darshan_core_wtime_absolute(tspec) - __darshan_core_wtime_offset);
 }
 
 /* darshan_core_fprintf()

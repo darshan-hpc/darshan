@@ -75,6 +75,11 @@ static int mnt_data_count = 0;
 extern void bgq_runtime_initialize();
 #endif
 
+#ifdef HAVE_LDMS
+extern struct darshanConnector dC;
+extern void darshan_ldms_connector_initialize();
+#endif
+
 #ifdef DARSHAN_USE_APXC
 extern void apxc_runtime_initialize();
 #endif
@@ -105,6 +110,7 @@ extern void darshan_instrument_lustre_file(const char *filepath, int fd);
 static void *darshan_init_mmap_log(
     struct darshan_core_runtime* core, int jobid);
 #endif
+
 static void darshan_log_record_hints_and_ver(
     struct darshan_core_runtime* core);
 static void darshan_get_exe_and_mounts(
@@ -192,6 +198,7 @@ static void darshan_core_fork_child_cb(void);
 void darshan_core_initialize(int argc, char **argv)
 {
     struct darshan_core_runtime *init_core = NULL;
+    struct timespec tspec;
     double init_start, init_time;
     char *jobid_str;
     int jobid;
@@ -201,8 +208,7 @@ void darshan_core_initialize(int argc, char **argv)
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if (__darshan_core != NULL || getenv("DARSHAN_DISABLE"))
         return;
-
-    init_start = darshan_core_wtime_absolute();
+    init_start = darshan_core_wtime_absolute(&tspec);
 
     /* allocate structure to track darshan core runtime information */
     init_core = malloc(sizeof(*init_core));
@@ -341,6 +347,11 @@ void darshan_core_initialize(int argc, char **argv)
             init_core->config.mod_disabled = ~(init_core->config.mod_disabled & 0);
         }
 
+
+#ifdef HAVE_LDMS
+        darshan_ldms_connector_initialize();
+#endif
+
         /* if darshan was successfully initialized, set the global pointer
          * and record absolute start time so that we can later generate
          * relative times with this as a reference point.
@@ -349,6 +360,7 @@ void darshan_core_initialize(int argc, char **argv)
         __darshan_core = init_core;
         __darshan_core_wtime_offset = init_start;
         __DARSHAN_CORE_UNLOCK();
+
 
         /* bootstrap any modules with static initialization routines */
         i = 0;
@@ -361,7 +373,7 @@ void darshan_core_initialize(int argc, char **argv)
 
     if(__darshan_core->config.internal_timing_flag)
     {
-        init_time = darshan_core_wtime_absolute() - init_start;
+        init_time = darshan_core_wtime_absolute(&tspec) - init_start;
 #ifdef HAVE_MPI
         if(using_mpi)
         {
@@ -383,12 +395,37 @@ void darshan_core_initialize(int argc, char **argv)
         darshan_core_fprintf(stderr, "darshan:init\t%d\t%f\n", nprocs, init_time);
     }
 
+
+#ifdef HAVE_LDMS
+        /*TODO: Create environment variable to re-connect to ldms every x seconds
+        if(getenv("DARSHAN_LDMS_REINIT"))
+            dC.env_ldms_reinit = getenv("DARSHAN_LDMS_REINIT");
+        else
+            dC.env_ldms_reinit = "1";
+        */
+        /* Set meta data for LDMS message sending */
+        (void)gethostname(dC.hname, sizeof(dC.hname));
+        dC.jobid = (int64_t)jobid;
+        dC.uid = getuid();
+        dC.exename = argv[0];
+
+        /* Pull executable name from darshans variable if no arguemments are given. */
+        if (argc==0)
+        {
+            char buff[DARSHAN_EXE_LEN];
+            int len = readlink("/proc/self/exe", buff, sizeof(buff)-1);
+            buff[len] = '\0';
+            dC.exename = buff;
+        }
+#endif
+
     return;
 }
 
 void darshan_core_shutdown(int write_log)
 {
     struct darshan_core_runtime *final_core;
+    struct timespec tspec;
     double start_log_time;
     int internal_timing_flag;
     double open1 = 0, open2 = 0;
@@ -441,7 +478,7 @@ void darshan_core_shutdown(int write_log)
     if(using_mpi)
         PMPI_Barrier(final_core->mpi_comm);
 #endif
-    start_log_time = darshan_core_wtime_absolute();
+    start_log_time = darshan_core_wtime_absolute(&tspec);
     final_core->log_job_p->end_time = time(NULL);
 
     internal_timing_flag = final_core->config.internal_timing_flag;
@@ -528,31 +565,31 @@ void darshan_core_shutdown(int write_log)
     }
 
     if(internal_timing_flag)
-        open1 = darshan_core_wtime_absolute();
+        open1 = darshan_core_wtime_absolute(&tspec);
     /* open the darshan log file */
     ret = darshan_log_open(logfile_name, final_core, &log_fh);
     if(internal_timing_flag)
-        open2 = darshan_core_wtime_absolute();
+        open2 = darshan_core_wtime_absolute(&tspec);
     /* error out if unable to open log file */
     DARSHAN_CHECK_ERR(ret, "unable to create log file %s", logfile_name);
     log_created = 1;
 
     if(internal_timing_flag)
-        job1 = darshan_core_wtime_absolute();
+        job1 = darshan_core_wtime_absolute(&tspec);
     /* write the the compressed darshan job information */
     ret = darshan_log_write_job_record(log_fh, final_core, &gz_fp);
     if(internal_timing_flag)
-        job2 = darshan_core_wtime_absolute();
+        job2 = darshan_core_wtime_absolute(&tspec);
     /* error out if unable to write job information */
     DARSHAN_CHECK_ERR(ret, "unable to write job record to file %s", logfile_name);
 
     if(internal_timing_flag)
-        rec1 = darshan_core_wtime_absolute();
+        rec1 = darshan_core_wtime_absolute(&tspec);
     /* write the record name->id hash to the log file */
     final_core->log_hdr_p->name_map.off = gz_fp;
     ret = darshan_log_write_name_record_hash(log_fh, final_core, &gz_fp);
     if(internal_timing_flag)
-        rec2 = darshan_core_wtime_absolute();
+        rec2 = darshan_core_wtime_absolute(&tspec);
     final_core->log_hdr_p->name_map.len = gz_fp - final_core->log_hdr_p->name_map.off;
     /* error out if unable to write name records */
     DARSHAN_CHECK_ERR(ret, "unable to write name records to log file %s", logfile_name);
@@ -584,7 +621,7 @@ void darshan_core_shutdown(int write_log)
         }
 
         if(internal_timing_flag)
-            mod1[i] = darshan_core_wtime_absolute();
+            mod1[i] = darshan_core_wtime_absolute(&tspec);
 
         /* if module is registered locally, perform module shutdown operations */
         if(this_mod)
@@ -633,7 +670,7 @@ void darshan_core_shutdown(int write_log)
             gz_fp - final_core->log_hdr_p->mod_map[i].off;
 
         if(internal_timing_flag)
-            mod2[i] = darshan_core_wtime_absolute();
+            mod2[i] = darshan_core_wtime_absolute(&tspec);
 
         /* error out if unable to write module data */
         DARSHAN_CHECK_ERR(ret, "unable to write %s module data to log file %s",
@@ -641,10 +678,10 @@ void darshan_core_shutdown(int write_log)
     }
 
     if(internal_timing_flag)
-        header1 = darshan_core_wtime_absolute();
+        header1 = darshan_core_wtime_absolute(&tspec);
     ret = darshan_log_write_header(log_fh, final_core);
     if(internal_timing_flag)
-        header2 = darshan_core_wtime_absolute();
+        header2 = darshan_core_wtime_absolute(&tspec);
     DARSHAN_CHECK_ERR(ret, "unable to write header to file %s", logfile_name);
 
     /* done writing data, close the log file */
@@ -662,7 +699,7 @@ void darshan_core_shutdown(int write_log)
         double mod_tm[DARSHAN_KNOWN_MODULE_COUNT];
         double all_tm;
 
-        tm_end = darshan_core_wtime_absolute();
+        tm_end = darshan_core_wtime_absolute(&tspec);
 
         open_tm = open2 - open1;
         header_tm = header2 - header1;
@@ -776,7 +813,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
      */
     if(my_rank == 0)
     {
-        hlevel = darshan_core_wtime_absolute() * 1000000;
+        hlevel = darshan_core_wtime_absolute(&tspec) * 1000000;
         (void)gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
     }
@@ -1468,6 +1505,7 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
 static void darshan_get_logfile_name(
     char* logfile_name, struct darshan_core_runtime* core)
 {
+    struct timespec tspec;
     char* user_logfile_name;
     uint64_t hlevel;
     char hname[HOST_NAME_MAX];
@@ -1509,7 +1547,7 @@ static void darshan_get_logfile_name(
         darshan_get_user_name(cuser);
 
         /* generate a random number to help differentiate the log */
-        hlevel = darshan_core_wtime_absolute() * 1000000;
+        hlevel = darshan_core_wtime_absolute(&tspec) * 1000000;
         (void)gethostname(hname, sizeof(hname));
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
 
@@ -1974,6 +2012,7 @@ void darshan_log_close(darshan_core_log_fh log_fh)
 
 void darshan_log_finalize(char *logfile_name, double start_log_time)
 {
+    struct timespec tspec;
 #ifdef HAVE_MPI
     if(using_mpi && (my_rank > 0))
         return;
@@ -2006,7 +2045,7 @@ void darshan_log_finalize(char *logfile_name, double start_log_time)
             /* copy partial log file name over to new string */
             strncpy(new_logfile_name, logfile_name, __DARSHAN_PATH_MAX);
             /* retrieve current time stamp */
-            end_log_time = darshan_core_wtime_absolute();
+            end_log_time = darshan_core_wtime_absolute(&tspec);
             /* find location of .darshan_partial extension */
             tmp_index = strstr(new_logfile_name, ".darshan_partial");
             /* calculate how much room is in the string, considering the
@@ -2083,7 +2122,7 @@ static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
             {
                 /* We ran out of buffer space for compression.  In theory,
                  * we could start using some of the file_array buffer space
-                 * without having to malloc again.  In practice, this case 
+                 * without having to malloc again.  In practice, this case
                  * is going to be practically impossible to hit.
                  */
                 deflateEnd(&tmp_stream);
