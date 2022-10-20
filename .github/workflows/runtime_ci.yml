@@ -49,7 +49,7 @@ jobs:
           cd darshan-util
           mkdir build
           cd build
-          ../configure --prefix=$DARSHAN_INSTALL_PATH --enable-shared --enable-apxc-mod --enable-apmpi-mod
+          ../configure --prefix=$DARSHAN_INSTALL_PATH --enable-apxc-mod --enable-apmpi-mod
           make
           make install
       - name: Install pydarshan
