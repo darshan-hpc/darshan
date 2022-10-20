@@ -65,6 +65,12 @@ jobs:
         name: Install darshan_logs package
         run: |
           python -m pip install git+https://github.com/darshan-hpc/darshan-logs.git@main
+      - if: ${{matrix.python-version == 3.8}}
+        name: Use minimal deps
+        run: |
+          # uninstall deps that are not absolute requirements
+          # to make sure that i.e., tests skip appropriately
+          python -m pip uninstall -y lxml
       - name: Test with pytest
         run: |
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
