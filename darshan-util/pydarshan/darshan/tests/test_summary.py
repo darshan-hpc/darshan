@@ -14,6 +14,12 @@ from darshan.cli import summary
 from darshan.log_utils import get_log_path, _provide_logs_repo_filepaths
 from darshan.experimental.plots.data_access_by_filesystem import plot_with_report
 
+try:
+    import lxml
+    has_lxml = True
+except ImportError:
+    has_lxml = False
+
 
 @pytest.mark.parametrize(
     "argv", [
@@ -337,6 +343,9 @@ class TestReportData:
     def test_metadata_table(self, log_path, expected_df):
         # regression test for `summary.ReportData.get_metadata_table()`
 
+        if not has_lxml:
+            pytest.skip("Test requires lxml")
+
         log_path = get_log_path(log_path)
         # generate the report data
         R = summary.ReportData(log_path=log_path)
@@ -445,6 +454,9 @@ class TestReportData:
     )
     def test_module_table(self, log_path, expected_df, expected_partial_flags):
         # regression test for `summary.ReportData.get_module_table()`
+
+        if not has_lxml:
+            pytest.skip("Test requires lxml")
 
         log_path = get_log_path(log_path)
         # collect the report data
