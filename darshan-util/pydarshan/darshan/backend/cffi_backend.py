@@ -351,7 +351,7 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
 
     rec['id'] = rbuf[0].base_rec.id
     rec['rank'] = rbuf[0].base_rec.rank
-    if mod_name == 'H5D':
+    if mod_name == 'H5D' or mod_name == 'PNETCDF_VAR':
         rec['file_rec_id'] = rbuf[0].file_rec_id
 
     clst = np.copy(np.frombuffer(ffi.buffer(rbuf[0].counters), dtype=np.int64))

@@ -88,13 +88,14 @@ struct darshan_pnetcdf_file
 {
     struct darshan_base_record base_rec;
     int64_t counters[9];
-    double fcounters[5];
+    double fcounters[8];
 };
 
 struct darshan_pnetcdf_var
 {
     struct darshan_base_record base_rec;
-    int64_t counters[119];
+    uint64_t file_rec_id;
+    int64_t counters[120];
     double fcounters[17];
 };
 
