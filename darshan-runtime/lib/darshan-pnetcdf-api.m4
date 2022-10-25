@@ -63,6 +63,96 @@ define(`ArgKindName', `ifelse(
        `$1', `m', `start, count, stride, imap,')')dnl
 
 dnl
+dnl calculate access size info for different kinds of APIs
+dnl
+define(`CALC_VAR_ACCESS_INFO',
+    `int i, j;
+            $3 = rec_ref->var_rec->counters[PNETCDF_VAR_NPOINTS];
+            if (rec_ref->unlimdimid >= 0) {
+                MPI_Offset dim_len;
+                ncmpi_inq_dimlen($2, rec_ref->unlimdimid, &dim_len);
+                $3 *= dim_len;
+            }
+            $3 *= rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE];')dnl
+dnl
+define(`CALC_VAR1_ACCESS_INFO',
+    `$3 = rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE];')dnl
+dnl
+define(`CALC_VARA_ACCESS_INFO',
+    `int ndims = rec_ref->var_rec->counters[PNETCDF_VAR_NDIMS];
+            if (ndims > 0) {
+                int i, start_ndx = 0;
+                $3 = count[0];
+                for (i = 1; i < ndims; i++)
+                    $3 *= count[i];
+                if (ndims > PNETCDF_VAR_MAX_NDIMS)
+                    start_ndx = ndims - PNETCDF_VAR_MAX_NDIMS;
+                for (i = start_ndx; i < ndims; i++) {
+                    common_access_vals[1+i] = count[i];
+                }
+            }
+            else {
+                $3 = 1;
+            }
+            $3 *= rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE];')dnl
+dnl
+define(`CALC_VARS_ACCESS_INFO',
+    `int ndims = rec_ref->var_rec->counters[PNETCDF_VAR_NDIMS];
+            if (ndims > 0) {
+                int i, start_ndx = 0;
+                $3 = count[0];
+                for (i = 1; i < ndims; i++)
+                    $3 *= count[i];
+                if (ndims > PNETCDF_VAR_MAX_NDIMS)
+                    start_ndx = ndims - PNETCDF_VAR_MAX_NDIMS;
+                for (i = start_ndx; i < ndims; i++) {
+                    common_access_vals[1+i] = count[i];
+                    if (stride)
+                        common_access_vals[1+i+PNETCDF_VAR_MAX_NDIMS] = stride[i];
+                    else
+                        common_access_vals[1+i+PNETCDF_VAR_MAX_NDIMS] = 1;
+                }
+            }
+            else {
+                $3 = 1;
+            }
+            $3 *= rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE];')dnl
+dnl
+define(`CALC_VARN_ACCESS_INFO',
+    `if (counts) {
+                int i, j;
+                size_t tmp_size;
+                $3 = 0;
+                for (i = 0; i < num; i++) {
+                    tmp_size = 1;
+                    for(j = 0; j < rec_ref->var_rec->counters[PNETCDF_VAR_NDIMS]; j++)
+                        tmp_size *= counts[i][j];
+                    $3 += tmp_size;
+                }
+            }
+            else {
+                $3 = num;
+            }
+            $3 *= rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE];')dnl
+dnl
+define(`CALC_VARD_ACCESS_INFO',
+    `int mpi_size;
+            PMPI_Type_size(filetype, &mpi_size);
+            $3 = mpi_size;')dnl
+dnl
+define(`CALC_ACCESS_INFO',
+    `ifelse(
+        `$1',  `', `CALC_VAR_ACCESS_INFO($1,$2,$3)',
+        `$1', `1', `CALC_VAR1_ACCESS_INFO($1,$2,$3)',
+        `$1', `a', `CALC_VARA_ACCESS_INFO($1,$2,$3)',
+        `$1', `s', `CALC_VARS_ACCESS_INFO($1,$2,$3)',
+        `$1', `m', `CALC_VARS_ACCESS_INFO($1,$2,$3)',
+        `$1', `n', `CALC_VARN_ACCESS_INFO($1,$2,$3)',
+        `$1', `d', `CALC_VARD_ACCESS_INFO($1,$2,$3)')
+            common_access_vals[0] = $3;')dnl
+dnl
+
+dnl
 define(`UPDATE_GETPUT_COUNTERS',`rec_ref->var_rec->counters[`PNETCDF_VAR_'Upcase($1)`_VAR'Upcase($2)] += 1;
             ifelse(eval(regexp($1, get) != -1), 1,
             `rec_ref->var_rec->counters[PNETCDF_VAR_BYTES_READ] += $3;
@@ -119,48 +209,6 @@ define(`UPDATE_INDEPCOLL_RW_COUNTER',`ifelse(
        `$1$2',`get_all',`rec_ref->var_rec->counters[PNETCDF_VAR_COLL_READS] += 1',
        `$1$2',`put',`rec_ref->var_rec->counters[PNETCDF_VAR_INDEP_WRITES] += 1',
        `$1$2',`put_all',`rec_ref->var_rec->counters[PNETCDF_VAR_COLL_WRITES] += 1')')dnl
-dnl
-dnl
-define(`CALC_ACCESS_INFO',
-    `ifelse(
-        `$1',  `',  `$3 = rec_ref->var_rec->counters[PNETCDF_VAR_NPOINTS];
-            if (rec_ref->unlimdimid >= 0) {
-                MPI_Offset dim_len;
-                ncmpi_inq_dimlen($2, rec_ref->unlimdimid, &dim_len);
-                $3 *= dim_len;
-            }
-            $3 *= rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE];',
-        `$1', `1', `$3 = rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE];',
-        eval(regexp($1, a\|s\|m) != -1), 1, `if (rec_ref->var_rec->counters[PNETCDF_VAR_NDIMS] > 0) {
-                int i;
-                $3 = count[0];
-                for (i = 1; i < rec_ref->var_rec->counters[PNETCDF_VAR_NDIMS]; i++)
-                    $3 *= count[i];
-            }
-            else {
-                $3 = 1;
-            }
-            $3 *= rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE];',
-        `$1', `n', `if (counts) {
-                int i, j;
-                size_t tmp_size;
-                $3 = 0;
-                for (i = 0; i < num; i++) {
-                    tmp_size = 1;
-                    for(j = 0; j < rec_ref->var_rec->counters[PNETCDF_VAR_NDIMS]; j++)
-                        tmp_size *= counts[i][j];
-                    $3 += tmp_size;
-                }
-            }
-            else {
-                $3 = num;
-            }
-            $3 *= rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE];',
-        `$1', `d', `int mpi_size;
-            PMPI_Type_size(filetype, &mpi_size);
-            $3 = mpi_size;')
-            common_access_vals[0] = $3;')dnl
-dnl
 
 dnl
 define(`APINAME',`ifelse(`$3',`',`ncmpi_$1_var$2$4',`ncmpi_$1_var$2$3$4')')dnl
