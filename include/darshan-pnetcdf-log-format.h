@@ -226,7 +226,9 @@
     X(PNETCDF_VAR_NPOINTS) \
     /* size of variable elements in bytes */\
     X(PNETCDF_VAR_DATATYPE_SIZE) \
-   /* rank and number of bytes moved for fastest/slowest ranks */\
+    /* flag indicating whether variable is a record variable */\
+    X(PNETCDF_VAR_IS_RECORD_VAR) \
+    /* rank and number of bytes moved for fastest/slowest ranks */\
     X(PNETCDF_VAR_FASTEST_RANK) \
     X(PNETCDF_VAR_FASTEST_RANK_BYTES) \
     X(PNETCDF_VAR_SLOWEST_RANK) \

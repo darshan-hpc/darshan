@@ -459,6 +459,10 @@ static void pnetcdf_var_record_reduction_op(void* inrec_v, void* inoutrec_v,
         tmp_var.counters[PNETCDF_VAR_NPOINTS] = inrec->counters[PNETCDF_VAR_NPOINTS];
         tmp_var.counters[PNETCDF_VAR_DATATYPE_SIZE] = inrec->counters[PNETCDF_VAR_DATATYPE_SIZE];
 
+        if(inoutrec->counters[PNETCDF_VAR_IS_RECORD_VAR] == 1 ||
+                inrec->counters[PNETCDF_VAR_IS_RECORD_VAR] == 1)
+            tmp_var.counters[PNETCDF_VAR_IS_RECORD_VAR] = 1;
+
         /* min non-zero (if available) value */
         for(j=PNETCDF_VAR_F_OPEN_START_TIMESTAMP; j<=PNETCDF_VAR_F_CLOSE_START_TIMESTAMP; j++)
         {

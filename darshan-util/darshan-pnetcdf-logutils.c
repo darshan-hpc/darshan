@@ -868,6 +868,10 @@ static void darshan_log_agg_pnetcdf_vars(void *rec, void *agg_rec, int init_flag
                 /* just set to the input value */
                 agg_pnetcdf_rec->counters[i] = pnetcdf_rec->counters[i];
                 break;
+            case PNETCDF_VAR_IS_RECORD_VAR:
+                if(pnetcdf_rec->counters[i] > 0)
+                    agg_pnetcdf_rec->counters[i] = 1;
+                break;
             default:
                 agg_pnetcdf_rec->counters[i] = -1;
                 break;
