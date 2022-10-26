@@ -42,6 +42,7 @@ char *pnetcdf_var_f_counter_names[] = {
 #undef X
 
 #define DARSHAN_PNETCDF_FILE_SIZE_1 48
+#define DARSHAN_PNETCDF_FILE_SIZE_2 64
 
 static int darshan_log_get_pnetcdf_file(darshan_fd fd, void** pnetcdf_buf_p);
 static int darshan_log_put_pnetcdf_file(darshan_fd fd, void* pnetcdf_buf);
@@ -120,20 +121,74 @@ static int darshan_log_get_pnetcdf_file(darshan_fd fd, void** pnetcdf_buf_p)
         char *src_p, *dest_p;
         int len;
 
-        rec_len = DARSHAN_PNETCDF_FILE_SIZE_1;
-        ret = darshan_log_get_mod(fd, DARSHAN_PNETCDF_FILE_MOD, scratch, rec_len);
-        if(ret != rec_len)
-            goto exit;
+        if(fd->mod_ver[DARSHAN_PNETCDF_FILE_MOD] == 1)
+        {
+            rec_len = DARSHAN_PNETCDF_FILE_SIZE_1;
+            ret = darshan_log_get_mod(fd, DARSHAN_PNETCDF_FILE_MOD, scratch, rec_len);
+            if(ret != rec_len)
+                goto exit;
 
-        /* upconvert version 1 to version 2 in-place */
-        dest_p = scratch + (sizeof(struct darshan_base_record) +
-            (2 * sizeof(int64_t)) + (3 * sizeof(double)));
-        src_p = dest_p - (2 * sizeof(double));
-        len = sizeof(double);
-        memmove(dest_p, src_p, len);
-        /* set F_CLOSE_START and F_OPEN_END to -1 */
-        *((double *)src_p) = -1;
-        *((double *)(src_p + sizeof(double))) = -1;
+            /* upconvert version 1 to version 2 in-place */
+            dest_p = scratch + (sizeof(struct darshan_base_record) +
+                (2 * sizeof(int64_t)) + (3 * sizeof(double)));
+            src_p = dest_p - (2 * sizeof(double));
+            len = sizeof(double);
+            memmove(dest_p, src_p, len);
+            /* set F_CLOSE_START and F_OPEN_END to -1 */
+            *((double *)src_p) = -1;
+            *((double *)(src_p + sizeof(double))) = -1;
+        }
+        if(fd->mod_ver[DARSHAN_PNETCDF_FILE_MOD] <= 2)
+        {
+            if(fd->mod_ver[DARSHAN_PNETCDF_FILE_MOD] == 2)
+            {
+                rec_len = DARSHAN_PNETCDF_FILE_SIZE_2;
+                ret = darshan_log_get_mod(fd, DARSHAN_PNETCDF_FILE_MOD, scratch, rec_len);
+                if(ret != rec_len)
+                    goto exit;
+            }
+
+            /* upconvert version 2 to version 3 in-place */
+            src_p = scratch + sizeof(struct darshan_base_record);
+            dest_p = src_p + sizeof(int64_t);
+            /* combine old INDEP_OPENS and COLL_OPENS counters,
+             * and assign to index of new FILE_OPENS counter
+             */
+            *((int64_t *)dest_p) += *((int64_t *)src_p);
+            /* move START_TIMESTAMPS up to proper location in new format */
+            src_p = scratch + sizeof(struct darshan_base_record) +
+                (2 * sizeof(int64_t));
+            dest_p = scratch + sizeof(struct darshan_base_record) +
+                (9 * sizeof(int64_t));
+            len = 2 * sizeof(double);
+            memmove(dest_p, src_p, len);
+            /* move END_TIMESTAMPS up to proper location in new format */
+            src_p = scratch + sizeof(struct darshan_base_record) +
+                (2 * sizeof(int64_t)) + (2 * sizeof(double));
+            dest_p = scratch + sizeof(struct darshan_base_record) +
+                (9 * sizeof(int64_t)) + (3 * sizeof(double));
+            len = 2 * sizeof(double);
+            memmove(dest_p, src_p, len);
+            /* set new FILE_CREATES counter to -1 */
+            dest_p = scratch + sizeof(struct darshan_base_record);
+            *(int64_t *)dest_p = -1;
+            /* set new FILE_REDEFS .. FILE_WAIT_FAILURES all to -1 */
+            dest_p += (2 * sizeof(int64_t));
+            for(i = 0; i < 7; i++)
+            {
+                *((int64_t *)dest_p) = -1;
+                dest_p += sizeof(int64_t);
+            }
+            /* set WAIT/META timers/timestamps to -1 */
+            dest_p += (2 * sizeof(double));
+            *(double *)dest_p = -1;
+            dest_p += (3 * sizeof(double));
+            *(double *)dest_p = -1;
+            dest_p += sizeof(double);
+            *(double *)dest_p = -1;
+            dest_p += sizeof(double);
+            *(double *)dest_p = -1;
+        }
 
         memcpy(file, scratch, sizeof(struct darshan_pnetcdf_file));
     }

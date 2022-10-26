@@ -8,7 +8,7 @@
 #define __DARSHAN_PNETCDF_LOG_FORMAT_H
 
 /* current PnetCDF log format version */
-#define DARSHAN_PNETCDF_FILE_VER 2
+#define DARSHAN_PNETCDF_FILE_VER 3
 #define DARSHAN_PNETCDF_VAR_VER 1
 
 #define PNETCDF_VAR_MAX_NDIMS 5
