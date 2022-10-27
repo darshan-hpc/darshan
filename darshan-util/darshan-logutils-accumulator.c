@@ -10,6 +10,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "darshan-logutils.h"
 #include "uthash-1.9.2/src/uthash.h"
@@ -107,10 +108,16 @@ int darshan_accumulator_inject(darshan_accumulator acc,
     int ret;
     file_hash_entry_t *hfile = NULL;
 
+    if(acc->module_id >= DARSHAN_KNOWN_MODULE_COUNT || acc->module_id < 0) {
+        fprintf(stderr, "darshan_accumulator_inject received an accumulator struct with an id that is likely corrupted\n");
+        return(-1);
+    }
+
     if(!mod_logutils[acc->module_id]->log_agg_records ||
        !mod_logutils[acc->module_id]->log_sizeof_record ||
        !mod_logutils[acc->module_id]->log_record_metrics) {
         /* this module doesn't support this operation */
+        fprintf(stderr, "darshan_accumulator_inject is operating on a module that doesn't support this operation");
         return(-1);
     }
 
@@ -126,8 +133,10 @@ int darshan_accumulator_inject(darshan_accumulator acc,
         ret = mod_logutils[acc->module_id]->log_record_metrics( new_record,
             &rec_id, &r_bytes, &w_bytes, &max_offset, &io_total_time,
             &md_only_time, &rw_only_time, &rank, &nprocs);
-        if(ret < 0)
+        if(ret < 0) {
+            fprintf(stderr, "darshan_accumulator_inject was unable to retrieve generic metrics from record");
             return(-1);
+        }
 
         /* accumulate performance metrics */
 

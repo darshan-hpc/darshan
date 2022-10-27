@@ -159,3 +159,38 @@ def test_log_get_generic_record(dtype):
         # make sure the returned key/column names agree
         assert actual_counter_names == expected_counter_names
         assert actual_fcounter_names == expected_fcounter_names
+
+
+@pytest.mark.parametrize("log_path", [
+    "imbalanced-io.darshan",
+])
+def test_accumulator_invalid_id(capfdbinary, log_path):
+    # check for proper error handling of invalid
+    # id in darshan_accumulator_inject() C function
+    log_path = get_log_path(log_path)
+    log = backend.log_open(log_path)
+    jobrec = backend.ffi.new("struct darshan_job *")
+    backend.libdutil.darshan_log_get_job(log['handle'], jobrec)
+    modules = backend.log_get_modules(log)
+    for mod_name in modules:
+        mod_type = backend._structdefs[mod_name]
+        darshan_accumulator = backend.ffi.new("struct darshan_accumulator *")
+        buf = backend.ffi.new("void **")
+        r = backend.libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
+        if r < 1:
+            continue
+        rbuf = backend.ffi.cast(mod_type, buf)
+        ret_create = backend.libdutil.darshan_accumulator_create(modules[mod_name]['idx'],
+                                            jobrec[0].nprocs,
+                                            darshan_accumulator)
+        # creation should work just fine
+        assert ret_create == 0
+        # the memory handling around the CFFI interface/struct opacity
+        # is such that we expect an error here:
+        r = backend.libdutil.darshan_accumulator_inject(darshan_accumulator[0], rbuf[0], 1)
+        if r == -1:
+            # stderr should provide something useful
+            captured = capfdbinary.readouterr()
+            assert b"id that is likely corrupted" in captured.err
+        else:
+            pytest.skip("darshan_accumulator_inject() is working in this scenario")
