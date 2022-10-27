@@ -657,3 +657,28 @@ def _log_get_heatmap_record(log):
     libdutil.darshan_free(buf[0])
     
     return rec
+
+
+def log_get_accumulator(log, mod_name: str):
+    log = log_open(log)
+    jobrec = ffi.new("struct darshan_job *")
+    libdutil.darshan_log_get_job(log['handle'], jobrec)
+    modules = log_get_modules(log)
+
+    if mod_name not in modules:
+        return None
+    mod_type = _structdefs[mod_name]
+
+    darshan_accumulator = ffi.new("struct darshan_accumulator *")
+    buf = ffi.new("void **")
+    r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
+    rbuf = ffi.cast(mod_type, buf)
+
+    libdutil.darshan_accumulator_create(modules[mod_name]['idx'],
+                                        jobrec[0].nprocs,
+                                        darshan_accumulator)
+
+    # TODO: fix the segfault on the inject call below
+    r = libdutil.darshan_accumulator_inject(darshan_accumulator[0], rbuf[0], 1)
+    # TODO: darshan_accumulator_emit and darshan_accumulator_destroy
+    return darshan_accumulator
