@@ -34,6 +34,7 @@ struct pnetcdf_file_record_ref
 {
     struct darshan_pnetcdf_file* file_rec;
     double last_meta_end;
+    double last_wait_end;
 };
 
 /* structure that can track i/o stats for a given PnetCDF variable record at runtime */
