@@ -562,7 +562,6 @@ def test_pnetcdf_hdf5_match():
                         continue
 
                 assert_allclose(pnetcdf_data.values, hdf5_data.values)
-                print(pnetcdf_column_name)
                 equiv_val_counts += 1
     # we also require a certain number of equivalent counters
     # to help avoid regressions:
