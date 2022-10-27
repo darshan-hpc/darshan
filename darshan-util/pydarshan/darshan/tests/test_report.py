@@ -503,7 +503,7 @@ def test_heatmap_df_invalid_operation():
 def test_pnetcdf_hdf5_match():
     # test for some equivalent (f)counters between similar
     # HDF5 and PNETCDF-enabled runs of ior
-    pnetcdf_ior_report = darshan.DarshanReport(get_log_path("shane_ior-PNETCDF_id402580-402580_9-2-36069-16753435528444694496_1.darshan"))
+    pnetcdf_ior_report = darshan.DarshanReport(get_log_path("shane_ior-PNETCDF_id864223-864223_10-27-46849-11258636277699483231_1.darshan"))
     hdf5_ior_report = darshan.DarshanReport(get_log_path("shane_ior-HDF5_id545128-545128_9-7-60657-7307669767025130365_1.darshan"))
     pnetcdf_ior_report.mod_read_all_records("PNETCDF_FILE")
     pnetcdf_ior_report.mod_read_all_records("PNETCDF_VAR")
@@ -519,14 +519,14 @@ def test_pnetcdf_hdf5_match():
     # PNETCDF_VAR vs. H5D modules
     equiv_val_counts = 0
     # some fields don't match
-    exception_strings = ["DEFS",
+    exception_strings = ["rank",
+                         "DEFS",
                          "WAIT",
                          "SYNC",
                          "TIME",
                          "id",
-                         # NOTE: values before D5 do match!
-                         "PNETCDF_VAR_ACCESS1_LENGTH_D5",
-                         "PNETCDF_VAR_ACCESS1_STRIDE_D5",
+                         "PNETCDF_VAR_ACCESS1_LENGTH",
+                         "PNETCDF_VAR_ACCESS1_STRIDE",
                          "PNETCDF_VAR_DATATYPE_SIZE",
                          "FASTEST",
                          "SLOWEST"]
@@ -562,10 +562,11 @@ def test_pnetcdf_hdf5_match():
                         continue
 
                 assert_allclose(pnetcdf_data.values, hdf5_data.values)
+                print(pnetcdf_column_name)
                 equiv_val_counts += 1
     # we also require a certain number of equivalent counters
     # to help avoid regressions:
-    assert equiv_val_counts == 77
+    assert equiv_val_counts == 65
     # PNETCDF_FILE captures some extra file-format related IO
     # activity vs. the user-level "dataset" IO proper:
     assert pnetcdf_file_data_dict["counters"]["PNETCDF_FILE_BYTES_READ"].values > pnetcdf_var_data_dict["counters"]["PNETCDF_VAR_BYTES_READ"].values
