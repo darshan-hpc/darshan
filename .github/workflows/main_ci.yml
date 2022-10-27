@@ -49,6 +49,7 @@ jobs:
           ../configure --prefix=$DARSHAN_INSTALL_PATH --enable-apxc-mod --enable-apmpi-mod
           make
           make install
+          make check
       - name: Install pydarshan
         run: |
           cd darshan-util/pydarshan
