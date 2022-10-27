@@ -159,3 +159,15 @@ def test_log_get_generic_record(dtype):
         # make sure the returned key/column names agree
         assert actual_counter_names == expected_counter_names
         assert actual_fcounter_names == expected_fcounter_names
+
+
+@pytest.mark.parametrize("log_path", [
+    "imbalanced-io.darshan",
+])
+def test_accumulator_emit(log_path):
+    log_path = get_log_path(log_path)
+    report = darshan.DarshanReport(log_path, read_all=True)
+    for mod_name in report.modules:
+        acc = backend.log_get_accumulator(log=log_path,
+                                          mod_name=mod_name)
+        # TODO: assert against values from i.e., perl reports
