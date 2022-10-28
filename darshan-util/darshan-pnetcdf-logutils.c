@@ -214,7 +214,18 @@ exit:
             DARSHAN_BSWAP64(&(file->base_rec.id));
             DARSHAN_BSWAP64(&(file->base_rec.rank));
             for(i=0; i<PNETCDF_FILE_NUM_INDICES; i++)
+            {
+                /* skip counters we explicitly set to -1 since they don't
+                 * need to be byte swapped
+                 */
+                if((fd->mod_ver[DARSHAN_PNETCDF_FILE_MOD] < 3) &&
+                    ((i == PNETCDF_FILE_CREATES) || (i == PNETCDF_FILE_REDEFS) ||
+                     (i == PNETCDF_FILE_INDEP_WAITS) || (i == PNETCDF_FILE_COLL_WAITS) ||
+                     (i == PNETCDF_FILE_SYNCS) || (i == PNETCDF_FILE_BYTES_READ) ||
+                     (i == PNETCDF_FILE_BYTES_WRITTEN) || (i == PNETCDF_FILE_WAIT_FAILURES)))
+                    continue;
                 DARSHAN_BSWAP64(&file->counters[i]);
+            }
             for(i=0; i<PNETCDF_FILE_F_NUM_INDICES; i++)
             {
                 /* skip counters we explicitly set to -1 since they don't
@@ -223,6 +234,11 @@ exit:
                 if((fd->mod_ver[DARSHAN_PNETCDF_FILE_MOD] == 1) &&
                     ((i == PNETCDF_FILE_F_CLOSE_START_TIMESTAMP) ||
                      (i == PNETCDF_FILE_F_OPEN_END_TIMESTAMP)))
+                    continue;
+                if((fd->mod_ver[DARSHAN_PNETCDF_FILE_MOD] < 3) &&
+                    ((i == PNETCDF_FILE_F_WAIT_START_TIMESTAMP) ||
+                     (i == PNETCDF_FILE_F_WAIT_END_TIMESTAMP) ||
+                     (i == PNETCDF_FILE_F_META_TIME) || (i == PNETCDF_FILE_F_WAIT_TIME)))
                     continue;
                 DARSHAN_BSWAP64(&file->fcounters[i]);
             }
