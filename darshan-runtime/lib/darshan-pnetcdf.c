@@ -121,8 +121,7 @@ static int my_rank = -1;
     PNETCDF_UNLOCK(); \
 } while(0)
 
-#define DARSHAN_PNETCDF_MAX_NAME_LEN 256
-#define DARSHAN_PNETCDF_DATASET_DELIM ":"
+#define DARSHAN_PNETCDF_VAR_DELIM ":"
 
 /* note that if the break condition is triggered in this macro, then it
  * will exit the do/while loop holding a lock that will be released in
@@ -921,7 +920,7 @@ static void pnetcdf_var_cleanup(void)
     PNETCDF_LOCK();
     assert(pnetcdf_var_runtime);
 
-    /* perform any final transformations on MPIIO file records before
+    /* perform any final transformations on PnetCDF file records before
      * writing them out to log file
      */
     darshan_iter_record_refs(pnetcdf_var_runtime->rec_id_hash,

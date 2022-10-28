@@ -747,7 +747,7 @@ define(`PNETCDF_VAR_RECORD_OPEN',`
         strcpy(rec_name, file_path);
         free(file_path);
         /* append variable name if we have space */
-        strcat(rec_name, DARSHAN_PNETCDF_DATASET_DELIM);
+        strcat(rec_name, DARSHAN_PNETCDF_VAR_DELIM);
         strcat(rec_name, $2);
         rec_id = darshan_core_gen_record_id(rec_name);
         rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->rec_id_hash, &rec_id, sizeof(darshan_record_id));
