@@ -436,7 +436,9 @@ class ReportData:
             opcounts_mods.append("H5D")
         elif "H5F" in self.report.modules:
             opcounts_mods.append("H5F")
-        elif "PNETCDF_VAR" in self.report.modules:
+        # for the operation counts, since the `PNETCDF_VAR` variant contains
+        # both modules' data, we either want `PNETCDF_FILE` or `PNETCDF_VAR`, not both
+        if "PNETCDF_VAR" in self.report.modules:
             opcounts_mods.append("PNETCDF_VAR")
         elif "PNETCDF_FILE" in self.report.modules:
             opcounts_mods.append("PNETCDF_FILE")
