@@ -402,19 +402,38 @@ static void darshan_log_print_pnetcdf_file_description(int ver)
     printf("#   PNETCDF_FILE_CREATES: PnetCDF file create operation counts.\n");
     printf("#   PNETCDF_FILE_OPENS: PnetCDF file open operation counts.\n");
     printf("#   PNETCDF_FILE_REDEFS: PnetCDF file re-define operation counts.\n");
-    printf("#   PNETCDF_FILE_INDEP_WAITS: PnetCDF indepedent flush nonblocking I/O counts.\n");
-    printf("#   PNETCDF_FILE_COLL_WAITS: PnetCDF collective flush nonblocking I/O counts.\n");
+    printf("#   PNETCDF_FILE_INDEP_WAITS: PnetCDF independent file wait operation counts.\n");
+    printf("#   PNETCDF_FILE_COLL_WAITS: PnetCDF collective file wait operation counts.\n");
     printf("#   PNETCDF_FILE_SYNCS: PnetCDF file sync operation counts.\n");
-    printf("#   PNETCDF_FILE_BYTES_READ: PnetCDF total bytes read counts.\n");
-    printf("#   PNETCDF_FILE_BYTES_WRITTEN: PnetCDF total bytes written counts.\n");
-    printf("#   PNETCDF_FILE_F_*_START_TIMESTAMP: timestamp of first PnetCDF file operation.\n");
-    printf("#   PNETCDF_FILE_F_*_END_TIMESTAMP: timestamp of last PnetCDF file operation.\n");
+    printf("#   PNETCDF_FILE_BYTES_READ: PnetCDF total bytes read for all file variables.\n");
+    printf("#   PNETCDF_FILE_BYTES_WRITTEN: PnetCDF total bytes written for all file variables.\n");
+    printf("#   PNETCDF_FILE_WAIT_FAILURES: PnetCDF file wait operation failure counts.\n");
+    printf("#   PNETCDF_FILE_F_*_START_TIMESTAMP: timestamp of first PnetCDF file open/close/wait operation.\n");
+    printf("#   PNETCDF_FILE_F_*_END_TIMESTAMP: timestamp of last PnetCDF file open/close/wait operation.\n");
+    printf("#   PNETCDF_FILE_F_META_TIME: Cumulative time spent in file metadata operations.\n");
+    printf("#   PNETCDF_FILE_F_WAIT_TIME: Cumulative time spent in file wait operations.\n");
 
     if(ver == 1)
     {
-        printf("\n# WARNING: PnetCDF module log format version 1 does not support the following counters:\n");
+        printf("\n# WARNING: PnetCDF file module log format version 1 does not support the following counters:\n");
         printf("# - PNETCDF_FILE_F_CLOSE_START_TIMESTAMP\n");
         printf("# - PNETCDF_FILE_F_OPEN_END_TIMESTAMP\n");
+    }
+    if(ver <= 2)
+    {
+        printf("\n# WARNING: PnetCDF file module log format version <=2 does not support the following counters:\n");
+        printf("# - PNETCDF_FILE_CREATES\n");
+        printf("# - PNETCDF_FILE_REDEFS\n");
+        printf("# - PNETCDF_FILE_INDEP_WAITS\n");
+        printf("# - PNETCDF_FILE_COLL_WAITS\n");
+        printf("# - PNETCDF_FILE_SYNCS\n");
+        printf("# - PNETCDF_FILE_BYTES_READ\n");
+        printf("# - PNETCDF_FILE_BYTES_WRITTEN\n");
+        printf("# - PNETCDF_FILE_WAIT_FAILURES\n");
+        printf("# - PNETCDF_FILE_F_WAIT_START_TIMESTAMP\n");
+        printf("# - PNETCDF_FILE_F_WAIT_END_TIMESTAMP\n");
+        printf("# - PNETCDF_FILE_F_META_TIME\n");
+        printf("# - PNETCDF_FILE_F_WAIT_TIME\n");
     }
 
     return;
@@ -423,54 +442,27 @@ static void darshan_log_print_pnetcdf_file_description(int ver)
 static void darshan_log_print_pnetcdf_var_description(int ver)
 {
     printf("\n# description of PnetCDF counters:\n");
-    printf("#   PNETCDF_VAR_OPENS: PnetCDF variable defined/inquired operation counts.\n");
-    printf("#   PNETCDF_VAR_INDEP_READS: PnetCDF variable independent-read operation counts.\n");
-    printf("#   PNETCDF_VAR_INDEP_WRITES: PnetCDF variable independent-write operation counts.\n");
-    printf("#   PNETCDF_VAR_COLL_READS: PnetCDF variable collective-read operation counts.\n");
-    printf("#   PNETCDF_VAR_COLL_WRITES: PnetCDF variable collective-write operation counts.\n");
-    printf("#   PNETCDF_VAR_NB_READS: PnetCDF variable nonblocking-read operation counts.\n");
-    printf("#   PNETCDF_VAR_NB_WRITES: PnetCDF variable nonblocking-write operation counts.\n");
+    printf("#   PNETCDF_VAR_OPENS: PnetCDF variable define/inquire operation counts.\n");
+    printf("#   PNETCDF_VAR_INDEP_READS: PnetCDF variable independent read operation counts.\n");
+    printf("#   PNETCDF_VAR_INDEP_WRITES: PnetCDF variable independent write operation counts.\n");
+    printf("#   PNETCDF_VAR_COLL_READS: PnetCDF variable collective read operation counts.\n");
+    printf("#   PNETCDF_VAR_COLL_WRITES: PnetCDF variable collective write operation counts.\n");
+    printf("#   PNETCDF_VAR_NB_READS: PnetCDF variable nonblocking read operation counts.\n");
+    printf("#   PNETCDF_VAR_NB_WRITES: PnetCDF variable nonblocking write operation counts.\n");
     printf("#   PNETCDF_VAR_BYTES_*: total bytes read and written at PnetCDF variable layer.\n");
     printf("#   PNETCDF_VAR_RW_SWITCHES: number of times access alternated between read and write.\n");
-    printf("#   PNETCDF_VAR_PUT_VAR: number of calls to ncmpi_put_var_* APIs.\n");
-    printf("#   PNETCDF_VAR_PUT_VAR1: number of calls to ncmpi_put_var1_* APIs.\n");
-    printf("#   PNETCDF_VAR_PUT_VARA: number of calls to ncmpi_put_vara_* APIs.\n");
-    printf("#   PNETCDF_VAR_PUT_VARS: number of calls to ncmpi_put_vars_* APIs.\n");
-    printf("#   PNETCDF_VAR_PUT_VARM: number of calls to ncmpi_put_varm_* APIs.\n");
-    printf("#   PNETCDF_VAR_PUT_VARN: number of calls to ncmpi_put_varn_* APIs.\n");
-    printf("#   PNETCDF_VAR_PUT_VARD: number of calls to ncmpi_put_vard_* APIs.\n");
-    printf("#   PNETCDF_VAR_GET_VAR: number of calls to ncmpi_get_var_* APIs.\n");
-    printf("#   PNETCDF_VAR_GET_VAR1: number of calls to ncmpi_get_var1_* APIs.\n");
-    printf("#   PNETCDF_VAR_GET_VARA: number of calls to ncmpi_get_vara_* APIs.\n");
-    printf("#   PNETCDF_VAR_GET_VARS: number of calls to ncmpi_get_vars_* APIs.\n");
-    printf("#   PNETCDF_VAR_GET_VARM: number of calls to ncmpi_get_varm_* APIs.\n");
-    printf("#   PNETCDF_VAR_GET_VARN: number of calls to ncmpi_get_varn_* APIs.\n");
-    printf("#   PNETCDF_VAR_GET_VARD: number of calls to ncmpi_get_vard_* APIs.\n");
-    printf("#   PNETCDF_VAR_IPUT_VAR: number of calls to ncmpi_iput_var_* APIs.\n");
-    printf("#   PNETCDF_VAR_IPUT_VAR1: number of calls to ncmpi_iput_var1_* APIs.\n");
-    printf("#   PNETCDF_VAR_IPUT_VARA: number of calls to ncmpi_iput_vara_* APIs.\n");
-    printf("#   PNETCDF_VAR_IPUT_VARS: number of calls to ncmpi_iput_vars_* APIs.\n");
-    printf("#   PNETCDF_VAR_IPUT_VARM: number of calls to ncmpi_iput_varm_* APIs.\n");
-    printf("#   PNETCDF_VAR_IPUT_VARN: number of calls to ncmpi_iput_varn_* APIs.\n");
-    printf("#   PNETCDF_VAR_IGET_VAR: number of calls to ncmpi_iget_var_* APIs.\n");
-    printf("#   PNETCDF_VAR_IGET_VAR1: number of calls to ncmpi_iget_var1_* APIs.\n");
-    printf("#   PNETCDF_VAR_IGET_VARA: number of calls to ncmpi_iget_vara_* APIs.\n");
-    printf("#   PNETCDF_VAR_IGET_VARS: number of calls to ncmpi_iget_vars_* APIs.\n");
-    printf("#   PNETCDF_VAR_IGET_VARM: number of calls to ncmpi_iget_varm_* APIs.\n");
-    printf("#   PNETCDF_VAR_IGET_VARN: number of calls to ncmpi_iget_varn_* APIs.\n");
-    printf("#   PNETCDF_VAR_BPUT_VAR: number of calls to ncmpi_bput_var_* APIs.\n");
-    printf("#   PNETCDF_VAR_BPUT_VAR1: number of calls to ncmpi_bput_var1_* APIs.\n");
-    printf("#   PNETCDF_VAR_BPUT_VARA: number of calls to ncmpi_bput_vara_* APIs.\n");
-    printf("#   PNETCDF_VAR_BPUT_VARS: number of calls to ncmpi_bput_vars_* APIs.\n");
-    printf("#   PNETCDF_VAR_BPUT_VARM: number of calls to ncmpi_bput_varm_* APIs.\n");
-    printf("#   PNETCDF_VAR_BPUT_VARN: number of calls to ncmpi_bput_varn_* APIs.\n");
+    printf("#   PNETCDF_VAR_PUT_VAR*: number of calls to ncmpi_put_var* APIs (var, var1, vara, vars, varm, varn, vard).\n");
+    printf("#   PNETCDF_VAR_GET_VAR*: number of calls to ncmpi_get_var* APIs (var, var1, vara, vars, varm, varn, vard).\n");
+    printf("#   PNETCDF_VAR_IPUT_VAR*: number of calls to ncmpi_iput_var* APIs (var, var1, vara, vars, varm, varn).\n");
+    printf("#   PNETCDF_VAR_IGET_VAR*: number of calls to ncmpi_iget_var* APIs (var, var1, vara, vars, varm, varn).\n");
+    printf("#   PNETCDF_VAR_BPUT_VAR*: number of calls to ncmpi_bput_var* APIs (var, var1, vara, vars, varm, varn).\n");
     printf("#   PNETCDF_VAR_MAX_*_TIME_SIZE: size of the slowest read and write operations.\n");
     printf("#   PNETCDF_VAR_SIZE_*_AGG_*: histogram of PnetCDf total access sizes for read and write operations.\n");
     printf("#   PNETCDF_VAR_ACCESS*_*: the four most common total accesses, in terms of size and length/stride (in last 5 dimensions).\n");
     printf("#   PNETCDF_VAR_ACCESS*_COUNT: count of the four most common total access sizes.\n");
     printf("#   PNETCDF_VAR_NDIMS: number of dimensions in the variable.\n");
     printf("#   PNETCDF_VAR_NPOINTS: number of points in the variable.\n");
-    printf("#   PNETCDF_VAR_DATATYPE_SIZE: size of each dataset element.\n");
+    printf("#   PNETCDF_VAR_DATATYPE_SIZE: size of each variable element.\n");
     printf("#   PNETCDF_VAR_*_RANK: rank of the processes that were the fastest and slowest at I/O (for shared datasets).\n");
     printf("#   PNETCDF_VAR_*_RANK_BYTES: total bytes transferred at PnetCDF layer by the fastest and slowest ranks (for shared datasets).\n");
     printf("#   PNETCDF_VAR_F_*_START_TIMESTAMP: timestamp of first PnetCDF variable open/read/write/close.\n");
@@ -479,6 +471,7 @@ static void darshan_log_print_pnetcdf_var_description(int ver)
     printf("#   PNETCDF_VAR_F_MAX_*_TIME: duration of the slowest PnetCDF read and write operations.\n");
     printf("#   PNETCDF_VAR_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared datasets).\n");
     printf("#   PNETCDF_VAR_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared datasets).\n");
+    printf("#   PNETCDF_VAR_FILE_REC_ID: Darshan file record ID of the file the variable belongs to.\n");
 
     return;
 }

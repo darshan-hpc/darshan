@@ -429,71 +429,46 @@ value of 1 MiB for optimal file alignment.
 [cols="40%,60%",options="header"]
 |====
 | counter name | description
-| PNETCDF_CREATES | PnetCDF file create operation counts
-| PNETCDF_OPENS | PnetCDF file open operation counts
-| PNETCDF_ENDDEFS | PnetCDF file end-define operation counts
-| PNETCDF_REDEFS | PnetCDF file re-define operation counts
-| PNETCDF_INDEP_WAITS | PnetCDF indepedent flush nonblocking I/O counts
-| PNETCDF_COLL_WAITS | PnetCDF collective flush nonblocking I/O counts
-| PNETCDF_SYNCS | PnetCDF file sync operation counts
-| PNETCDF_BYTES_READ | PnetCDF total bytes read counts
-| PNETCDF_BYTES_WRITTEN | PnetCDF total bytes written counts
-| PNETCDF_F_*_START_TIMESTAMP | Timestamp that the first PNETCDF file open/close operation began
-| PNETCDF_F_*_END_TIMESTAMP | Timestamp that the last PNETCDF file open/close operation ended
+| PNETCDF_FILE_CREATES | PnetCDF file create operation counts
+| PNETCDF_FILE_OPENS | PnetCDF file open operation counts
+| PNETCDF_FILE_REDEFS | PnetCDF file re-define operation counts
+| PNETCDF_FILE_INDEP_WAITS | PnetCDF independent file wait operation counts (for flushing non-blocking I/O)
+| PNETCDF_FILE_COLL_WAITS | PnetCDF collective file wait operation counts (for flushing non-blocking I/O)
+| PNETCDF_FILE_SYNCS | PnetCDF file sync operation counts
+| PNETCDF_FILE_BYTES_READ | PnetCDF total bytes read for all file variables (includes internal library metadata I/O)
+| PNETCDF_FILE_BYTES_WRITTEN | PnetCDF total bytes written for all file variables (includes internal library metadata I/O)
+| PNETCDF_FILE_WAIT_FAILURES | PnetCDF file wait operation failure counts (failures indicate that variable-level counters are unreliable)
+| PNETCDF_FILE_F_*_START_TIMESTAMP | Timestamp that the first PNETCDF file open/close/wait operation began
+| PNETCDF_FILE_F_*_END_TIMESTAMP | Timestamp that the last PNETCDF file open/close/wait operation ended
+| PNETCDF_FILE_F_META_TIME | Cumulative time spent in file open/close/sync/redef/enddef metadata operations
+| PNETCDF_FILE_F_WAIT_TIME | Cumulative time spent in file wait operations (for flushing non-blocking I/O)
 |====
 
 .PNETCDF_VAR module
 [cols="40%,60%",options="header"]
 |====
 | counter name | description
-| PNETCDF_VAR_OPENS | PnetCDF variable defined/inquired operation counts
-| PNETCDF_VAR_INDEP_READS | PnetCDF variable independent-read operation counts
-| PNETCDF_VAR_INDEP_WRITES | PnetCDF variable independent-write operation counts
-| PNETCDF_VAR_COLL_READS | PnetCDF variable collective-read operation counts
-| PNETCDF_VAR_COLL_WRITES | PnetCDF variable collective-write operation counts
-| PNETCDF_VAR_NB_READS | PnetCDF variable nonblocking-read operation counts
-| PNETCDF_VAR_NB_WRITES | PnetCDF variable nonblocking-write operation counts
-| PNETCDF_VAR_BYTES_* | total bytes read and written at PnetCDF variable layer
+| PNETCDF_VAR_OPENS | PnetCDF variable define/inquire operation counts
+| PNETCDF_VAR_INDEP_READS | PnetCDF variable independent read operation counts
+| PNETCDF_VAR_INDEP_WRITES | PnetCDF variable independent write operation counts
+| PNETCDF_VAR_COLL_READS | PnetCDF variable collective read operation counts
+| PNETCDF_VAR_COLL_WRITES | PnetCDF variable collective write operation counts
+| PNETCDF_VAR_NB_READS | PnetCDF variable nonblocking read operation counts
+| PNETCDF_VAR_NB_WRITES | PnetCDF variable nonblocking write operation counts
+| PNETCDF_VAR_BYTES_* | total bytes read and written at PnetCDF variable layer (not including internal library metadata I/O)
 | PNETCDF_VAR_RW_SWITCHES | number of times access alternated between read and write
-| PNETCDF_VAR_PUT_VAR | number of calls to ncmpi_put_var_* APIs
-| PNETCDF_VAR_PUT_VAR1 | number of calls to ncmpi_put_var1_* APIs
-| PNETCDF_VAR_PUT_VARA | number of calls to ncmpi_put_vara_* APIs
-| PNETCDF_VAR_PUT_VARS | number of calls to ncmpi_put_vars_* APIs
-| PNETCDF_VAR_PUT_VARM | number of calls to ncmpi_put_varm_* APIs
-| PNETCDF_VAR_PUT_VARN | number of calls to ncmpi_put_varn_* APIs
-| PNETCDF_VAR_PUT_VARD | number of calls to ncmpi_put_vard_* APIs
-| PNETCDF_VAR_GET_VAR | number of calls to ncmpi_get_var_* APIs
-| PNETCDF_VAR_GET_VAR1 | number of calls to ncmpi_get_var1_* APIs
-| PNETCDF_VAR_GET_VARA | number of calls to ncmpi_get_vara_* APIs
-| PNETCDF_VAR_GET_VARS | number of calls to ncmpi_get_vars_* APIs
-| PNETCDF_VAR_GET_VARM | number of calls to ncmpi_get_varm_* APIs
-| PNETCDF_VAR_GET_VARN | number of calls to ncmpi_get_varn_* APIs
-| PNETCDF_VAR_GET_VARD | number of calls to ncmpi_get_vard_* APIs
-| PNETCDF_VAR_IPUT_VAR | number of calls to ncmpi_iput_var_* APIs
-| PNETCDF_VAR_IPUT_VAR1 | number of calls to ncmpi_iput_var1_* APIs
-| PNETCDF_VAR_IPUT_VARA | number of calls to ncmpi_iput_vara_* APIs
-| PNETCDF_VAR_IPUT_VARS | number of calls to ncmpi_iput_vars_* APIs
-| PNETCDF_VAR_IPUT_VARM | number of calls to ncmpi_iput_varm_* APIs
-| PNETCDF_VAR_IPUT_VARN | number of calls to ncmpi_iput_varn_* APIs
-| PNETCDF_VAR_IGET_VAR | number of calls to ncmpi_iget_var_* APIs
-| PNETCDF_VAR_IGET_VAR1 | number of calls to ncmpi_iget_var1_* APIs
-| PNETCDF_VAR_IGET_VARA | number of calls to ncmpi_iget_vara_* APIs
-| PNETCDF_VAR_IGET_VARS | number of calls to ncmpi_iget_vars_* APIs
-| PNETCDF_VAR_IGET_VARM | number of calls to ncmpi_iget_varm_* APIs
-| PNETCDF_VAR_IGET_VARN | number of calls to ncmpi_iget_varn_* APIs
-| PNETCDF_VAR_BPUT_VAR | number of calls to ncmpi_bput_var_* APIs
-| PNETCDF_VAR_BPUT_VAR1 | number of calls to ncmpi_bput_var1_* APIs
-| PNETCDF_VAR_BPUT_VARA | number of calls to ncmpi_bput_vara_* APIs
-| PNETCDF_VAR_BPUT_VARS | number of calls to ncmpi_bput_vars_* APIs
-| PNETCDF_VAR_BPUT_VARM | number of calls to ncmpi_bput_varm_* APIs
-| PNETCDF_VAR_BPUT_VARN | number of calls to ncmpi_bput_varn_* APIs
+| PNETCDF_VAR_PUT_VAR* | number of calls to different ncmpi_put_var* APIs (var, var1, vara, vars, varm, varn, vard)
+| PNETCDF_VAR_GET_VAR* | number of calls to different ncmpi_get_var* APIs (var, var1, vara, vars, varm, varn, vard)
+| PNETCDF_VAR_IPUT_VAR* | number of calls to different ncmpi_iput_var* APIs (var, var1, vara, vars, varm, varn)
+| PNETCDF_VAR_IGET_VAR* | number of calls to different ncmpi_iget_var* APIs (var, var1, vara, vars, varm, varn)
+| PNETCDF_VAR_BPUT_VAR* | number of calls to different ncmpi_bput_var* APIs (var, var1, vara, vars, varm, varn)
 | PNETCDF_VAR_MAX_*_TIME_SIZE | size of the slowest read and write operations
 | PNETCDF_VAR_SIZE_*_AGG_* | histogram of PnetCDf total access sizes for read and write operations
 | PNETCDF_VAR_ACCESS*_* | the four most common total accesses, in terms of size and length/stride (in last 5 dimensions)
 | PNETCDF_VAR_ACCESS*_COUNT | count of the four most common total access sizes
 | PNETCDF_VAR_NDIMS | number of dimensions in the variable
 | PNETCDF_VAR_NPOINTS | number of points in the variable
-| PNETCDF_VAR_DATATYPE_SIZE | size of each dataset element
+| PNETCDF_VAR_DATATYPE_SIZE | size of each variable element
 | PNETCDF_VAR_*_RANK | rank of the processes that were the fastest and slowest at I/O (for shared datasets)
 | PNETCDF_VAR_*_RANK_BYTES | total bytes transferred at PnetCDF layer by the fastest and slowest ranks (for shared datasets)
 | PNETCDF_VAR_F_*_START_TIMESTAMP | timestamp of first PnetCDF variable open/read/write/close
@@ -502,6 +477,7 @@ value of 1 MiB for optimal file alignment.
 | PNETCDF_VAR_F_MAX_*_TIME | duration of the slowest PnetCDF read and write operations
 | PNETCDF_VAR_F_*_RANK_TIME | fastest and slowest I/O time for a single rank (for shared datasets)
 | PNETCDF_VAR_F_VARIANCE_RANK_* | variance of total I/O time and bytes moved for all ranks (for shared datasets)
+| PNETCDF_VAR_FILE_REC_ID | Darshan file record ID of the file the variable belongs to
 |====
 
 ===== Heatmap fields

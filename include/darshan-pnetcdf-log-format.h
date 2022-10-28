@@ -27,9 +27,9 @@
     X(PNETCDF_FILE_COLL_WAITS) \
     /* count of file syncs */\
     X(PNETCDF_FILE_SYNCS) \
-    /* total bytes read */\
+    /* total bytes read (includes internal library metadata I/O) */\
     X(PNETCDF_FILE_BYTES_READ) \
-    /* total bytes written */\
+    /* total bytes written (includes internal library metadata I/O) */\
     X(PNETCDF_FILE_BYTES_WRITTEN) \
     /* count of file wait failures */\
     X(PNETCDF_FILE_WAIT_FAILURES) \
@@ -59,7 +59,7 @@
 
 /* counters for variable level activities */
 #define PNETCDF_VAR_COUNTERS \
-    /* count of variable defined/inquired */\
+    /* count of variable define/inquire operations */\
     X(PNETCDF_VAR_OPENS) \
     /* count of independent reads */\
     X(PNETCDF_VAR_INDEP_READS) \
@@ -73,9 +73,9 @@
     X(PNETCDF_VAR_NB_READS) \
     /* count of non-blocking writes */\
     X(PNETCDF_VAR_NB_WRITES) \
-    /* total bytes read */\
+    /* total bytes read (not including internal library metadata I/O) */\
     X(PNETCDF_VAR_BYTES_READ) \
-    /* total bytes written */\
+    /* total bytes written (not including internal library metadata I/O) */\
     X(PNETCDF_VAR_BYTES_WRITTEN) \
     /* number of times switching between read and write */\
     X(PNETCDF_VAR_RW_SWITCHES) \
@@ -87,7 +87,7 @@
     X(PNETCDF_VAR_PUT_VARA) \
     /* number of calls to put vars APIs */\
     X(PNETCDF_VAR_PUT_VARS) \
-    /* number of calls to put varM APIs */\
+    /* number of calls to put varm APIs */\
     X(PNETCDF_VAR_PUT_VARM) \
     /* number of calls to put varn APIs */\
     X(PNETCDF_VAR_PUT_VARN) \
@@ -101,7 +101,7 @@
     X(PNETCDF_VAR_GET_VARA) \
     /* number of calls to get vars APIs */\
     X(PNETCDF_VAR_GET_VARS) \
-    /* number of calls to get varM APIs */\
+    /* number of calls to get varm APIs */\
     X(PNETCDF_VAR_GET_VARM) \
     /* number of calls to get varn APIs */\
     X(PNETCDF_VAR_GET_VARN) \
@@ -115,7 +115,7 @@
     X(PNETCDF_VAR_IPUT_VARA) \
     /* number of calls to iput vars APIs */\
     X(PNETCDF_VAR_IPUT_VARS) \
-    /* number of calls to iput varM APIs */\
+    /* number of calls to iput varm APIs */\
     X(PNETCDF_VAR_IPUT_VARM) \
     /* number of calls to iput varn APIs */\
     X(PNETCDF_VAR_IPUT_VARN) \
@@ -127,7 +127,7 @@
     X(PNETCDF_VAR_IGET_VARA) \
     /* number of calls to iget vars APIs */\
     X(PNETCDF_VAR_IGET_VARS) \
-    /* number of calls to iget varM APIs */\
+    /* number of calls to iget varm APIs */\
     X(PNETCDF_VAR_IGET_VARM) \
     /* number of calls to iget varn APIs */\
     X(PNETCDF_VAR_IGET_VARN) \
@@ -139,11 +139,11 @@
     X(PNETCDF_VAR_BPUT_VARA) \
     /* number of calls to bput vars APIs */\
     X(PNETCDF_VAR_BPUT_VARS) \
-    /* number of calls to bput varM APIs */\
+    /* number of calls to bput varm APIs */\
     X(PNETCDF_VAR_BPUT_VARM) \
     /* number of calls to bput varn APIs */\
     X(PNETCDF_VAR_BPUT_VARN) \
-    /* sizes of the maximum read/write operations */\
+    /* sizes of the slowest read/write operations */\
     X(PNETCDF_VAR_MAX_READ_TIME_SIZE) \
     X(PNETCDF_VAR_MAX_WRITE_TIME_SIZE) \
     /* buckets for read size ranges */\
