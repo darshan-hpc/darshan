@@ -497,3 +497,16 @@ def test_heatmap_df_invalid_operation():
     report = darshan.DarshanReport(log_path)
     with pytest.raises(ValueError, match="invalid_op not in heatmap"):
         report.heatmaps["POSIX"].to_df(ops=["invalid_op"])
+
+
+@pytest.mark.parametrize("mod_name", [
+        "LUSTRE",
+        "POSIX",
+        "STDIO",
+        ])
+def test_mod_records(mod_name):
+    # regression test for gh-831
+    log_path = get_log_path("imbalanced-io.darshan")
+    report = darshan.DarshanReport(log_path)
+    gen = report.mod_records(mod_name)
+    next(gen)
