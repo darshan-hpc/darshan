@@ -66,8 +66,7 @@ dnl
 dnl calculate access size info for different kinds of APIs
 dnl
 define(`CALC_VAR_ACCESS_INFO',
-    `int i, j;
-            $3 = rec_ref->var_rec->counters[PNETCDF_VAR_NPOINTS];
+           `$3 = rec_ref->var_rec->counters[PNETCDF_VAR_NPOINTS];
             if (rec_ref->unlimdimid >= 0) {
                 MPI_Offset dim_len;
                 ncmpi_inq_dimlen($2, rec_ref->unlimdimid, &dim_len);
@@ -223,7 +222,7 @@ DARSHAN_FORWARD_DECL(APINAME($1,$2,$3,$4), int, (int ncid, int varid, ArgKind($2
 
 int DARSHAN_DECL(APINAME($1,$2,$3,$4))(int ncid, int varid, ArgKind($2)BufArgs($1,$3))
 {
-    int err, ret;
+    int ret;
     double tm1, tm2;
 
     MAP_OR_FAIL(APINAME($1,$2,$3,$4));
@@ -266,7 +265,7 @@ DARSHAN_FORWARD_DECL(APINAME($1,n,$2,$3), int, (int ncid, int varid, int num, MP
 
 int DARSHAN_DECL(APINAME($1,n,$2,$3))(int ncid, int varid, int num, MPI_Offset* const *starts, MPI_Offset* const *counts, BufArgs($1,$2))
 {
-    int err, ret;
+    int ret;
     double tm1, tm2;
 
     MAP_OR_FAIL(APINAME($1,n,$2,$3));
@@ -308,7 +307,7 @@ DARSHAN_FORWARD_DECL(ncmpi_$1_vard$2, int, (int ncid, int varid, MPI_Datatype fi
 
 int DARSHAN_DECL(ncmpi_$1_vard$2)(int ncid, int varid, MPI_Datatype filetype, ifelse($1,`put',`const ')void *buf, MPI_Offset bufcount, MPI_Datatype buftype)
 {
-    int err, ret;
+    int ret;
     double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_$1_vard$2);
