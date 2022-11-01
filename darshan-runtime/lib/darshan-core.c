@@ -497,8 +497,6 @@ void darshan_core_shutdown(int write_log)
         PMPI_Type_commit(&ts_type);
         PMPI_Op_create(darshan_core_reduce_min_time, 1, &ts_min_op);
         PMPI_Op_create(darshan_core_reduce_max_time, 1, &ts_max_op);
-        fprintf(stderr, "***RANK %d: start_tm: %ld:%ld\n", my_rank, final_core->log_job_p->start_time_sec, final_core->log_job_p->start_time_nsec);
-        fprintf(stderr, "***RANK %d: end_tm: %ld:%ld\n", my_rank, final_core->log_job_p->end_time_sec, final_core->log_job_p->end_time_nsec);
         if(my_rank == 0)
         {
             PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->start_time,
@@ -509,8 +507,6 @@ void darshan_core_shutdown(int write_log)
                 1, ts_type, ts_min_op, 0, final_core->mpi_comm);
             PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->end_time_sec,
                 1, ts_type, ts_max_op, 0, final_core->mpi_comm);
-            fprintf(stderr, "***FINAL: start_tm: %ld:%ld\n", final_core->log_job_p->start_time_sec, final_core->log_job_p->start_time_nsec);
-            fprintf(stderr, "***FINAL: end_tm: %ld:%ld\n", final_core->log_job_p->end_time_sec, final_core->log_job_p->end_time_nsec);
         }
         else
         {
