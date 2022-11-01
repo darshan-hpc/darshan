@@ -316,7 +316,6 @@ void darshan_core_initialize(int argc, char **argv)
 
         /* set known job-level metadata fields for the log file */
         init_core->log_job_p->uid = getuid();
-        init_core->log_job_p->start_time = time(NULL);
         clock_gettime(CLOCK_REALTIME, &start_ts);
         init_core->log_job_p->start_time_sec = (int64_t)start_ts.tv_sec;
         init_core->log_job_p->start_time_nsec = (int64_t)start_ts.tv_nsec;
@@ -455,7 +454,6 @@ void darshan_core_shutdown(int write_log)
         PMPI_Barrier(final_core->mpi_comm);
 #endif
     start_log_time = darshan_core_wtime_absolute();
-    final_core->log_job_p->end_time = time(NULL);
     clock_gettime(CLOCK_REALTIME, &end_ts);
     final_core->log_job_p->end_time_sec = (int64_t)end_ts.tv_sec;
     final_core->log_job_p->end_time_nsec = (int64_t)end_ts.tv_nsec;
@@ -499,10 +497,6 @@ void darshan_core_shutdown(int write_log)
         PMPI_Op_create(darshan_core_reduce_max_time, 1, &ts_max_op);
         if(my_rank == 0)
         {
-            PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->start_time,
-                1, MPI_INT64_T, MPI_MIN, 0, final_core->mpi_comm);
-            PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->end_time,
-                1, MPI_INT64_T, MPI_MAX, 0, final_core->mpi_comm);
             PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->start_time_sec,
                 1, ts_type, ts_min_op, 0, final_core->mpi_comm);
             PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->end_time_sec,
@@ -510,12 +504,6 @@ void darshan_core_shutdown(int write_log)
         }
         else
         {
-            PMPI_Reduce(&final_core->log_job_p->start_time,
-                &final_core->log_job_p->start_time,
-                1, MPI_INT64_T, MPI_MIN, 0, final_core->mpi_comm);
-            PMPI_Reduce(&final_core->log_job_p->end_time,
-                &final_core->log_job_p->end_time,
-                1, MPI_INT64_T, MPI_MAX, 0, final_core->mpi_comm);
             PMPI_Reduce(&final_core->log_job_p->start_time_sec,
                 &final_core->log_job_p->start_time_sec,
                 1, ts_type, ts_min_op, 0, final_core->mpi_comm);
@@ -1507,7 +1495,7 @@ static void darshan_get_logfile_name(
     char hname[HOST_NAME_MAX];
     uint64_t logmod;
     char cuser[L_cuserid] = {0};
-    struct tm *start_tm, *start_tm2;
+    struct tm *start_tm;
     int jobid;
     int pid;
     time_t start_time;
@@ -1520,7 +1508,6 @@ static void darshan_get_logfile_name(
 
     jobid = core->log_job_p->jobid;
     pid = core->pid;
-    start_time = core->log_job_p->start_time;
 
     /* first, check if user specifies a complete logpath to use */
     user_logfile_name = getenv("DARSHAN_LOGFILE");
@@ -1548,14 +1535,8 @@ static void darshan_get_logfile_name(
         logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
 
         /* use human readable start time format in log filename */
+        start_time = (time_t)core->log_job_p->start_time_sec;
         start_tm = localtime(&start_time);
-        start_tm2 = localtime(&core->log_job_p->start_time_sec);
-        assert(start_tm->tm_sec == start_tm2->tm_sec);
-        assert(start_tm->tm_min == start_tm2->tm_min);
-        assert(start_tm->tm_hour == start_tm2->tm_hour);
-        assert(start_tm->tm_mday == start_tm2->tm_mday);
-        assert(start_tm->tm_mon == start_tm2->tm_mon);
-        assert(start_tm->tm_year == start_tm2->tm_year);
 
         if(core->config.log_path_byenv)
         {

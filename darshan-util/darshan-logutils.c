@@ -297,10 +297,8 @@ int darshan_log_get_job(darshan_fd fd, struct darshan_job *job)
     {
         /* swap bytes if necessary */
         DARSHAN_BSWAP64(&job->uid);
-        DARSHAN_BSWAP64(&job->start_time);
         DARSHAN_BSWAP64(&job->start_time_sec);
         DARSHAN_BSWAP64(&job->start_time_nsec);
-        DARSHAN_BSWAP64(&job->end_time);
         DARSHAN_BSWAP64(&job->end_time_sec);
         DARSHAN_BSWAP64(&job->end_time_nsec);
         DARSHAN_BSWAP64(&job->nprocs);
