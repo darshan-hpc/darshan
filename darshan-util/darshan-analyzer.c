@@ -97,8 +97,8 @@ int process_log(const char *fname, double *io_ratio, int *used_mpio, int *used_p
     if (file->mod_map[DARSHAN_PNETCDF_FILE_MOD].len > 0 || file->mod_map[DARSHAN_PNETCDF_VAR_MOD].len > 0)
         *used_pnet += 1;
 
-    total_job_time = job.end_ts.tv_sec + (job.end_ts.tv_nsec / 1e9);
-    total_job_time -= job.start_ts.tv_sec + (job.start_ts.tv_nsec / 1e9);
+    total_job_time = job.end_time_sec + (job.end_time_nsec / 1e9);
+    total_job_time -= job.start_time_sec + (job.start_time_nsec / 1e9);
 
     if (f_count > 0)
     {

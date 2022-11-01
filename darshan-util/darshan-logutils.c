@@ -298,11 +298,11 @@ int darshan_log_get_job(darshan_fd fd, struct darshan_job *job)
         /* swap bytes if necessary */
         DARSHAN_BSWAP64(&job->uid);
         DARSHAN_BSWAP64(&job->start_time);
-        DARSHAN_BSWAP64(&job->start_ts.tv_sec);
-        DARSHAN_BSWAP32(&job->start_ts.tv_nsec);
+        DARSHAN_BSWAP64(&job->start_time_sec);
+        DARSHAN_BSWAP64(&job->start_time_nsec);
         DARSHAN_BSWAP64(&job->end_time);
-        DARSHAN_BSWAP64(&job->end_ts.tv_sec);
-        DARSHAN_BSWAP32(&job->end_ts.tv_nsec);
+        DARSHAN_BSWAP64(&job->end_time_sec);
+        DARSHAN_BSWAP64(&job->end_time_nsec);
         DARSHAN_BSWAP64(&job->nprocs);
         DARSHAN_BSWAP64(&job->jobid);
     }

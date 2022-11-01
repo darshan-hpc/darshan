@@ -151,11 +151,11 @@ static int darshan_deflate_buffer(
 static void darshan_core_cleanup(
     struct darshan_core_runtime* core);
 static void darshan_core_fork_child_cb(void);
-static void darshan_core_reduce_min_timespec(
-    void* in_ts_v, void* inout_ts_v,
+static void darshan_core_reduce_min_time(
+    void* in_time_v, void* inout_time_v,
     int *len, MPI_Datatype *datatype);
-static void darshan_core_reduce_max_timespec(
-    void* in_ts_v, void* inout_ts_v,
+static void darshan_core_reduce_max_time(
+    void* in_time_v, void* inout_time_v,
     int *len, MPI_Datatype *datatype);
 
 #define DARSHAN_WARN(__err_str, ...) do { \
@@ -203,6 +203,7 @@ void darshan_core_initialize(int argc, char **argv)
     int jobid;
     int ret;
     int i;
+    struct timespec start_ts;
 
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if (__darshan_core != NULL || getenv("DARSHAN_DISABLE"))
@@ -316,7 +317,9 @@ void darshan_core_initialize(int argc, char **argv)
         /* set known job-level metadata fields for the log file */
         init_core->log_job_p->uid = getuid();
         init_core->log_job_p->start_time = time(NULL);
-        clock_gettime(CLOCK_REALTIME, &init_core->log_job_p->start_ts);
+        clock_gettime(CLOCK_REALTIME, &start_ts);
+        init_core->log_job_p->start_time_sec = (int64_t)start_ts.tv_sec;
+        init_core->log_job_p->start_time_nsec = (int64_t)start_ts.tv_nsec;
         init_core->log_job_p->nprocs = nprocs;
         init_core->log_job_p->jobid = (int64_t)jobid;
 
@@ -397,6 +400,7 @@ void darshan_core_shutdown(int write_log)
 {
     struct darshan_core_runtime *final_core;
     double start_log_time;
+    struct timespec end_ts;
     int internal_timing_flag;
     double open1 = 0, open2 = 0;
     double job1 = 0, job2 = 0;
@@ -452,7 +456,9 @@ void darshan_core_shutdown(int write_log)
 #endif
     start_log_time = darshan_core_wtime_absolute();
     final_core->log_job_p->end_time = time(NULL);
-    clock_gettime(CLOCK_REALTIME, &final_core->log_job_p->end_ts);
+    clock_gettime(CLOCK_REALTIME, &end_ts);
+    final_core->log_job_p->end_time_sec = (int64_t)end_ts.tv_sec;
+    final_core->log_job_p->end_time_nsec = (int64_t)end_ts.tv_nsec;
 
     internal_timing_flag = final_core->config.internal_timing_flag;
 
@@ -486,21 +492,25 @@ void darshan_core_shutdown(int write_log)
             MPI_INT, MPI_SUM, final_core->mpi_comm);
 
         /* reduce to report first start and last end time across all ranks at rank 0 */
-        /* NOTE: custom MPI max/min reduction operators required for timespec structs */
-        PMPI_Type_contiguous(sizeof(struct timespec), MPI_BYTE, &ts_type);
+        /* NOTE: custom MPI max/min reduction operators required for sec/nsec time tuples */
+        PMPI_Type_contiguous(2, MPI_INT64_T, &ts_type);
         PMPI_Type_commit(&ts_type);
-        PMPI_Op_create(darshan_core_reduce_min_timespec, 1, &ts_min_op);
-        PMPI_Op_create(darshan_core_reduce_max_timespec, 1, &ts_max_op);
+        PMPI_Op_create(darshan_core_reduce_min_time, 1, &ts_min_op);
+        PMPI_Op_create(darshan_core_reduce_max_time, 1, &ts_max_op);
+        fprintf(stderr, "***RANK %d: start_tm: %ld:%ld\n", my_rank, final_core->log_job_p->start_time_sec, final_core->log_job_p->start_time_nsec);
+        fprintf(stderr, "***RANK %d: end_tm: %ld:%ld\n", my_rank, final_core->log_job_p->end_time_sec, final_core->log_job_p->end_time_nsec);
         if(my_rank == 0)
         {
             PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->start_time,
                 1, MPI_INT64_T, MPI_MIN, 0, final_core->mpi_comm);
             PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->end_time,
                 1, MPI_INT64_T, MPI_MAX, 0, final_core->mpi_comm);
-            PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->start_ts,
+            PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->start_time_sec,
                 1, ts_type, ts_min_op, 0, final_core->mpi_comm);
-            PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->end_ts,
+            PMPI_Reduce(MPI_IN_PLACE, &final_core->log_job_p->end_time_sec,
                 1, ts_type, ts_max_op, 0, final_core->mpi_comm);
+            fprintf(stderr, "***FINAL: start_tm: %ld:%ld\n", final_core->log_job_p->start_time_sec, final_core->log_job_p->start_time_nsec);
+            fprintf(stderr, "***FINAL: end_tm: %ld:%ld\n", final_core->log_job_p->end_time_sec, final_core->log_job_p->end_time_nsec);
         }
         else
         {
@@ -510,11 +520,11 @@ void darshan_core_shutdown(int write_log)
             PMPI_Reduce(&final_core->log_job_p->end_time,
                 &final_core->log_job_p->end_time,
                 1, MPI_INT64_T, MPI_MAX, 0, final_core->mpi_comm);
-            PMPI_Reduce(&final_core->log_job_p->start_ts,
-                &final_core->log_job_p->start_ts,
+            PMPI_Reduce(&final_core->log_job_p->start_time_sec,
+                &final_core->log_job_p->start_time_sec,
                 1, ts_type, ts_min_op, 0, final_core->mpi_comm);
-            PMPI_Reduce(&final_core->log_job_p->end_ts,
-                &final_core->log_job_p->end_ts,
+            PMPI_Reduce(&final_core->log_job_p->end_time_sec,
+                &final_core->log_job_p->end_time_sec,
                 1, ts_type, ts_max_op, 0, final_core->mpi_comm);
         }
         PMPI_Type_free(&ts_type);
@@ -1543,7 +1553,7 @@ static void darshan_get_logfile_name(
 
         /* use human readable start time format in log filename */
         start_tm = localtime(&start_time);
-        start_tm2 = localtime(&core->log_job_p->start_ts.tv_sec);
+        start_tm2 = localtime(&core->log_job_p->start_time_sec);
         assert(start_tm->tm_sec == start_tm2->tm_sec);
         assert(start_tm->tm_min == start_tm2->tm_min);
         assert(start_tm->tm_hour == start_tm2->tm_hour);
@@ -2298,67 +2308,77 @@ static int darshan_core_name_is_excluded(const char *name, darshan_module_id mod
 }
 
 #ifdef HAVE_MPI
-static void darshan_core_reduce_min_timespec(void* in_ts_v, void* inout_ts_v,
+static void darshan_core_reduce_min_time(void* in_time_v, void* inout_time_v,
     int *len, MPI_Datatype *datatype)
 {
-    struct timespec tmp_ts;
-    struct timespec *in_ts = in_ts_v;
-    struct timespec *inout_ts = inout_ts_v;
+    int64_t tmp_sec, tmp_nsec;
+    int64_t *in_sec = in_time_v;
+    int64_t *in_nsec = in_sec+1;
+    int64_t *inout_sec = inout_time_v;
+    int64_t *inout_nsec = inout_sec+1;
     int i;
 
     for(i=0; i<*len; i++)
     {
         /* min */
-        if((in_ts->tv_sec < inout_ts->tv_sec) ||
-            ((in_ts->tv_sec == inout_ts->tv_sec) &&
-             (in_ts->tv_nsec < inout_ts->tv_nsec)))
+        if((*in_sec < *inout_sec) ||
+            ((*in_sec == *inout_sec) &&
+             (*in_nsec < *inout_nsec)))
         {
-            tmp_ts.tv_sec = in_ts->tv_sec;
-            tmp_ts.tv_nsec = in_ts->tv_nsec;
+            tmp_sec = *in_sec;
+            tmp_nsec = *in_nsec;
         }
         else
         {
-            tmp_ts.tv_sec = inout_ts->tv_sec;
-            tmp_ts.tv_nsec = inout_ts->tv_nsec;
+            tmp_sec = *inout_sec;
+            tmp_nsec = *inout_nsec;
         }
 
         /* update pointers */
-        *inout_ts = tmp_ts;
-        inout_ts++;
-        in_ts++;
+        *inout_sec = tmp_sec;
+        *inout_nsec = tmp_nsec;
+        inout_sec+=2;
+        inout_nsec+=2;
+        in_sec+=2;
+        in_nsec+=2;
     }
 
     return;
 }
 
-static void darshan_core_reduce_max_timespec(void* in_ts_v, void* inout_ts_v,
+static void darshan_core_reduce_max_time(void* in_time_v, void* inout_time_v,
     int *len, MPI_Datatype *datatype)
 {
-    struct timespec tmp_ts;
-    struct timespec *in_ts = in_ts_v;
-    struct timespec *inout_ts = inout_ts_v;
+    int64_t tmp_sec, tmp_nsec;
+    int64_t *in_sec = in_time_v;
+    int64_t *in_nsec = in_sec+1;
+    int64_t *inout_sec = inout_time_v;
+    int64_t *inout_nsec = inout_sec+1;
     int i;
 
     for(i=0; i<*len; i++)
     {
         /* max */
-        if((in_ts->tv_sec > inout_ts->tv_sec) ||
-            ((in_ts->tv_sec == inout_ts->tv_sec) &&
-             (in_ts->tv_nsec > inout_ts->tv_nsec)))
+        if((*in_sec > *inout_sec) ||
+            ((*in_sec == *inout_sec) &&
+             (*in_nsec > *inout_nsec)))
         {
-            tmp_ts.tv_sec = in_ts->tv_sec;
-            tmp_ts.tv_nsec = in_ts->tv_nsec;
+            tmp_sec = *in_sec;
+            tmp_nsec = *in_nsec;
         }
         else
         {
-            tmp_ts.tv_sec = inout_ts->tv_sec;
-            tmp_ts.tv_nsec = inout_ts->tv_nsec;
+            tmp_sec = *inout_sec;
+            tmp_nsec = *inout_nsec;
         }
 
         /* update pointers */
-        *inout_ts = tmp_ts;
-        inout_ts++;
-        in_ts++;
+        *inout_sec = tmp_sec;
+        *inout_nsec = tmp_nsec;
+        inout_sec+=2;
+        inout_nsec+=2;
+        in_sec+=2;
+        in_nsec+=2;
     }
 
     return;
