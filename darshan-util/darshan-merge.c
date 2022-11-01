@@ -286,10 +286,20 @@ int main(int argc, char *argv[])
         else
         {
             /* potentially update job timestamps using remaining logs */
-            if(in_job.start_time < merge_job.start_time)
-                merge_job.start_time = in_job.start_time;
-            if(in_job.end_time > merge_job.end_time)
-                merge_job.end_time = in_job.end_time;
+            if((in_job.start_time_sec < merge_job.start_time_sec) ||
+               ((in_job.start_time_sec == merge_job.start_time_sec) &&
+                (in_job.start_time_nsec < merge_job.start_time_nsec)))
+            {
+                merge_job.start_time_sec = in_job.start_time_sec;
+                merge_job.start_time_nsec = in_job.start_time_nsec;
+            }
+            if((in_job.end_time_sec > merge_job.end_time_sec) ||
+               ((in_job.end_time_sec == merge_job.end_time_sec) &&
+                (in_job.end_time_nsec > merge_job.end_time_nsec)))
+            {
+                merge_job.end_time_sec = in_job.end_time_sec;
+                merge_job.end_time_nsec = in_job.end_time_nsec;
+            }
         }
 
         /* read the hash of ids->names for the input log */
@@ -329,7 +339,10 @@ int main(int argc, char *argv[])
 
     /* if a job end time was passed in, apply it to the output job */
     if(job_end_time > 0)
-        merge_job.end_time = job_end_time;
+    {
+        merge_job.end_time_sec = job_end_time;
+        merge_job.end_time_nsec = 0; /* no nsec precision for manually specified end */
+    }
 
     /* create the output "merged" log */
     merge_fd = darshan_log_create(outlog_path, DARSHAN_ZLIB_COMP, 1);

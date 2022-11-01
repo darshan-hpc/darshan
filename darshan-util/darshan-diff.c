@@ -133,16 +133,16 @@ int main(int argc, char *argv[])
 
     if (job1.uid != job2.uid)
         print_int64_diff("# uid:", job1.uid, job2.uid);
-    if (job1.start_time != job2.start_time)
-        print_int64_diff("# start_time:", job1.start_time, job2.start_time);
-    if (job1.end_time != job2.end_time)
-        print_int64_diff("# end_time:", job1.end_time, job2.end_time);
+    if (job1.start_time_sec != job2.start_time_sec)
+        print_int64_diff("# start_time:", job1.start_time_sec, job2.start_time_sec);
+    if (job1.end_time_sec != job2.end_time_sec)
+        print_int64_diff("# end_time:", job1.end_time_sec, job2.end_time_sec);
     if (job1.nprocs != job2.nprocs)
         print_int64_diff("# nprocs:", job1.nprocs, job2.nprocs);
-    if ((job1.end_time-job1.start_time) != (job2.end_time - job2.start_time))
+    if ((job1.end_time_sec-job1.start_time_sec) != (job2.end_time_sec-job2.start_time_sec))
         print_int64_diff("# run time:",
-                (int64_t)(job1.end_time - job1.start_time + 1),
-                (int64_t)(job2.end_time - job2.start_time + 1));
+                (int64_t)(job1.end_time_sec - job1.start_time_sec + 1),
+                (int64_t)(job2.end_time_sec - job2.start_time_sec + 1));
 
     /* get hash of record ids to file names for each log */
     ret = darshan_log_get_namehash(file1, &name_hash1);
