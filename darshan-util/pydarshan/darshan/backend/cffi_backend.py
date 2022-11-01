@@ -669,14 +669,14 @@ def log_get_accumulator(log, mod_name: str):
         return None
     mod_type = _structdefs[mod_name]
 
-    darshan_accumulator = ffi.new("struct darshan_accumulator *")
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
     rbuf = ffi.cast(mod_type, buf)
 
-    libdutil.darshan_accumulator_create(modules[mod_name]['idx'],
-                                        jobrec[0].nprocs,
-                                        darshan_accumulator)
+    darshan_accumulator = ffi.new("darshan_accumulator *")
+    r = libdutil.darshan_accumulator_create(modules[mod_name]['idx'],
+                                            jobrec[0].nprocs,
+                                            darshan_accumulator)
 
     # TODO: fix the segfault on the inject call below
     r = libdutil.darshan_accumulator_inject(darshan_accumulator[0], rbuf[0], 1)
