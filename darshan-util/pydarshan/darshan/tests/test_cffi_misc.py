@@ -164,10 +164,26 @@ def test_log_get_generic_record(dtype):
 @pytest.mark.parametrize("log_path", [
     "imbalanced-io.darshan",
 ])
-def test_accumulator_emit(log_path):
+def test_derived_metrics_basic(log_path):
+    # test the basic scenario of retrieving
+    # the derived metrics from all records for a given
+    # module; the situation where you'd like to
+    # retrieve derived metrics for a subset of records (i.e.,
+    # a particular filename) is not tested here
     log_path = get_log_path(log_path)
     report = darshan.DarshanReport(log_path, read_all=True)
     for mod_name in report.modules:
-        acc = backend.log_get_accumulator(log=log_path,
-                                          mod_name=mod_name)
+        # if support is added for accumulator work on these
+        # modules later on, the test will fail to raise an error,
+        # causing the test to ultimately fail; that is good, it will
+        # force us to acknowledge that the support was added intentionally
+        # under the hood
+        print("testing mod_name:", mod_name)
+        if mod_name in {"LUSTRE"}:
+            with pytest.raises(RuntimeError):
+                derived_metrics = backend.log_get_derived_metrics(log_path=log_path,
+                                                  mod_name=mod_name)
+        else:
+            derived_metrics = backend.log_get_derived_metrics(log_path=log_path,
+                                              mod_name=mod_name)
         # TODO: assert against values from i.e., perl reports

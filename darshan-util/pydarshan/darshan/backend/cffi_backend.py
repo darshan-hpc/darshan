@@ -659,26 +659,68 @@ def _log_get_heatmap_record(log):
     return rec
 
 
-def log_get_accumulator(log, mod_name: str):
-    log = log_open(log)
+def log_get_derived_metrics(log_path: str, mod_name: str):
+    """
+    Returns the darshan_derived_metrics struct from CFFI/C accumulator code.
+
+    Parameters:
+        log_path: Path to the darshan log file
+        mod_name: The name of the module to retrieve derived metrics for
+
+    Returns:
+        darshan_derived_metrics struct (cdata object)
+    """
+    # TODO: eventually add support for i.e., a regex filter on the records
+    # the user wants to get derived metrics for--like filtering to records
+    # with a single filename involved before accumulating the data?
+    log_handle = log_open(log_path)
     jobrec = ffi.new("struct darshan_job *")
-    libdutil.darshan_log_get_job(log['handle'], jobrec)
-    modules = log_get_modules(log)
+    libdutil.darshan_log_get_job(log_handle['handle'], jobrec)
+    modules = log_get_modules(log_handle)
 
     if mod_name not in modules:
         return None
     mod_type = _structdefs[mod_name]
 
     buf = ffi.new("void **")
-    r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
+    r = libdutil.darshan_log_get_record(log_handle['handle'], modules[mod_name]['idx'], buf)
     rbuf = ffi.cast(mod_type, buf)
 
     darshan_accumulator = ffi.new("darshan_accumulator *")
+    print("before create")
     r = libdutil.darshan_accumulator_create(modules[mod_name]['idx'],
                                             jobrec[0].nprocs,
                                             darshan_accumulator)
+    if r != 0:
+        raise RuntimeError("A nonzero exit code was received from "
+                           "darshan_accumulator_create() at the C level. "
+                           f"This could mean that the {mod_name} module does not "
+                           "support derived metric calculation, or that "
+                           "another kind of error occurred. It may be possible "
+                           "to retrieve additional information from the stderr "
+                           "stream.")
+    print("after create")
 
-    # TODO: fix the segfault on the inject call below
+    print("before inject")
     r = libdutil.darshan_accumulator_inject(darshan_accumulator[0], rbuf[0], 1)
-    # TODO: darshan_accumulator_emit and darshan_accumulator_destroy
-    return darshan_accumulator
+    if r != 0:
+        raise RuntimeError("A nonzero exit code was received from "
+                           "darshan_accumulator_inject() at the C level. "
+                           "It may be possible "
+                           "to retrieve additional information from the stderr "
+                           "stream.")
+    print("after inject")
+    darshan_derived_metrics = ffi.new("struct darshan_derived_metrics *")
+    print("before emit")
+    r = libdutil.darshan_accumulator_emit(darshan_accumulator[0],
+                                          darshan_derived_metrics,
+                                          rbuf[0])
+    if r != 0:
+        raise RuntimeError("A nonzero exit code was received from "
+                           "darshan_accumulator_emit() at the C level. "
+                           "It may be possible "
+                           "to retrieve additional information from the stderr "
+                           "stream.")
+    print("after emit")
+    #libdutil.darshan_accumulator_destroy(darshan_accumulator)
+    return darshan_derived_metrics

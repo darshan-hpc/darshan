@@ -9,6 +9,17 @@ darshan release.
 
 header = """/* from darshan-logutils.h */
 
+struct darshan_file_category_counters {
+    int64_t count;                   /* number of files in this category */
+    int64_t total_read_volume_bytes; /* total read traffic volume */
+    int64_t total_write_volume_bytes;/* total write traffic volume */
+    int64_t max_read_volume_bytes;   /* maximum read traffic volume to 1 file */
+    int64_t max_write_volume_bytes;  /* maximum write traffic volume to 1 file */
+    int64_t total_max_offset_bytes;  /* summation of max_offsets */
+    int64_t max_offset_bytes;        /* largest max_offset */
+    int64_t nprocs;                  /* how many procs accessed (-1 for "all") */
+};
+
 struct darshan_derived_metrics {
     int64_t total_bytes;
     double unique_io_total_time_by_slowest;
