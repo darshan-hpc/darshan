@@ -934,6 +934,29 @@ char *darshan_log_get_lib_version(void)
     return darshan_util_lib_ver;
 }
 
+int darshan_log_get_job_runtime(darshan_fd fd, struct darshan_job job, double *runtime)
+{
+    int log_ver_maj, log_ver_min;
+    int ret;
+    *runtime = 0;
+
+    /* get major/minor version numbers */
+    ret = darshan_log_get_format_version(fd->version, &log_ver_maj, &log_ver_min);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to parse log file format version.\n");
+        return(-1);
+    }
+
+    if(((log_ver_maj == 3) && (log_ver_min >= 41)) || (log_ver_maj > 3))
+        *runtime = (double)((job.end_time_sec + (job.end_time_nsec / 1e9)) -
+                    (job.start_time_sec + (job.start_time_nsec / 1e9)));
+    else
+        *runtime = (double)(job.end_time_sec - job.start_time_sec + 1);
+
+    return(0);
+}
+
 /********************************************************
  *             internal helper functions                *
  ********************************************************/

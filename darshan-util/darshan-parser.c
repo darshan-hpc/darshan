@@ -214,8 +214,7 @@ int main(int argc, char **argv)
     tmp_time += job.end_time_sec;
     printf("# end_time_asci: %s", ctime(&tmp_time));
     printf("# nprocs: %" PRId64 "\n", job.nprocs);
-    run_time = job.end_time_sec + (job.end_time_nsec / 1e9);
-    run_time -= job.start_time_sec + (job.start_time_nsec / 1e9);
+    darshan_log_get_job_runtime(fd, job, &run_time);
     printf("# run time: %.4lf\n", run_time);
     for(token=strtok_r(job.metadata, "\n", &save);
         token != NULL;
