@@ -106,6 +106,53 @@ def gather_count_data(report, mod):
             report.summary['agg_ioops']['H5F']['H5F_FLUSHES'],
         ]
 
+    elif mod == 'PNETCDF_FILE':
+        labels = [
+            'Var Ind Read', 'Var Ind Write', 'Var Open',
+            'Var Coll Read', 'Var Coll Write',
+            'Var NB Read', 'Var NB Write',
+            'File Open',
+            'File Sync',
+            'File Ind Waits',
+            'File Coll Waits',
+        ]
+        counts = [
+                # most of the counters will all get set in PNETCDF_VAR
+                0, 0, 0, 0, 0, 0, 0,
+                mod_data["PNETCDF_FILE_OPENS"] + mod_data["PNETCDF_FILE_CREATES"],
+                mod_data["PNETCDF_FILE_SYNCS"],
+                mod_data['PNETCDF_FILE_INDEP_WAITS'],
+                mod_data['PNETCDF_FILE_COLL_WAITS'],
+        ]
+
+    elif mod == 'PNETCDF_VAR':
+        labels = [
+            'Var Ind Read', 'Var Ind Write', 'Var Open',
+            'Var Coll Read', 'Var Coll Write',
+            'Var NB Read', 'Var NB Write',
+            'File Open',
+            'File Sync',
+            'File Ind Waits',
+            'File Coll Waits',
+        ]
+        counts = [
+            report.summary['agg_ioops']['PNETCDF_VAR']['PNETCDF_VAR_INDEP_READS'],
+            report.summary['agg_ioops']['PNETCDF_VAR']['PNETCDF_VAR_INDEP_WRITES'],
+            report.summary['agg_ioops']['PNETCDF_VAR']['PNETCDF_VAR_OPENS'],
+            report.summary['agg_ioops']['PNETCDF_VAR']['PNETCDF_VAR_COLL_READS'],
+            report.summary['agg_ioops']['PNETCDF_VAR']['PNETCDF_VAR_COLL_WRITES'],
+            report.summary['agg_ioops']['PNETCDF_VAR']['PNETCDF_VAR_NB_READS'],
+            report.summary['agg_ioops']['PNETCDF_VAR']['PNETCDF_VAR_NB_WRITES'],
+            # NOTE: should handle cases where only 1/2 PNETCDF mods
+            # are present?
+            (report.summary['agg_ioops']['PNETCDF_FILE']['PNETCDF_FILE_OPENS'] +
+             report.summary['agg_ioops']['PNETCDF_FILE']['PNETCDF_FILE_CREATES']
+            ),
+            report.summary['agg_ioops']['PNETCDF_FILE']['PNETCDF_FILE_SYNCS'],
+            report.summary['agg_ioops']['PNETCDF_FILE']['PNETCDF_FILE_INDEP_WAITS'],
+            report.summary['agg_ioops']['PNETCDF_FILE']['PNETCDF_FILE_COLL_WAITS'],
+        ]
+
     return labels, counts
 
 def plot_opcounts(report, mod, ax=None):
@@ -136,7 +183,7 @@ def plot_opcounts(report, mod, ax=None):
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_ylabel('Count')
     ax.set_xticks(x)
-    ax.set_xticklabels(labels)
+    ax.set_xticklabels(labels, rotation=90)
 
     autolabel(ax=ax, rects=rects)
 

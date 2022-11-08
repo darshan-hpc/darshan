@@ -12,7 +12,7 @@ def mod_agg_iohist(self, mod, mode='append'):
     """
 
     # sanitation and guards
-    supported = ["POSIX", "MPI-IO", "H5D"]
+    supported = ["POSIX", "MPI-IO", "H5D", "PNETCDF_VAR"]
     if mod not in supported:
         raise Exception("Unsupported mod_name for aggregated iohist.")
 

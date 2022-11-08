@@ -1184,6 +1184,29 @@ static int darshan_log_get_header(darshan_fd fd)
         fd->partial_flag = fd->partial_flag | partial_flag_shift;
     }
 
+    if((log_ver_maj == 3) && (log_ver_min < 41))
+    {
+        /* perform module index shift to account for PNETCDF_VAR module from 3.4.1 */
+        memmove(&fd->mod_map[DARSHAN_PNETCDF_VAR_MOD+1],
+            &fd->mod_map[DARSHAN_PNETCDF_VAR_MOD],
+            (DARSHAN_MAX_MODS-DARSHAN_PNETCDF_VAR_MOD-1) * sizeof(struct darshan_log_map));
+        memmove(&fd->mod_ver[DARSHAN_PNETCDF_VAR_MOD+1],
+            &fd->mod_ver[DARSHAN_PNETCDF_VAR_MOD],
+            (DARSHAN_MAX_MODS-DARSHAN_PNETCDF_VAR_MOD-1) * sizeof(uint32_t));
+        fd->mod_map[DARSHAN_PNETCDF_VAR_MOD].len =
+            fd->mod_map[DARSHAN_PNETCDF_VAR_MOD].off = 0;
+        fd->mod_ver[DARSHAN_PNETCDF_VAR_MOD] = 0;
+
+        uint64_t partial_flag_shift = fd->partial_flag << 1;
+        // zero out bits up to (and including) PNETCDF_VAR in shifted flags
+        partial_flag_shift = (partial_flag_shift >> (DARSHAN_PNETCDF_VAR_MOD+1)) <<
+            (DARSHAN_PNETCDF_VAR_MOD+1);
+        // zero out PNETCDF_VAR and all bits higher than it in original flags
+        fd->partial_flag = fd->partial_flag & ((1 << DARSHAN_PNETCDF_VAR_MOD) - 1);
+        // combine original flags and shifted flags
+        fd->partial_flag = fd->partial_flag | partial_flag_shift;
+    }
+
     /* there may be nothing following the job data, so safety check map */
     if(fd->name_map.off == 0)
     {

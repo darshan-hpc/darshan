@@ -425,15 +425,59 @@ value of 1 MiB for optimal file alignment.
 | H5D_FILE_REC_ID | Darshan file record ID of the file the dataset belongs to
 |====
 
-.PnetCDF module
-.PnetCDF module
+.PNETCDF_FILE module
 [cols="40%,60%",options="header"]
 |====
 | counter name | description
-| PNETCDF_INDEP_OPENS | Count of PnetCDF independent opens
-| PNETCDF_COLL_OPENS | Count of PnetCDF collective opens
-| PNETCDF_F_*_START_TIMESTAMP | Timestamp that the first PNETCDF file open/close operation began
-| PNETCDF_F_*_END_TIMESTAMP | Timestamp that the last PNETCDF file open/close operation ended
+| PNETCDF_FILE_CREATES | PnetCDF file create operation counts
+| PNETCDF_FILE_OPENS | PnetCDF file open operation counts
+| PNETCDF_FILE_REDEFS | PnetCDF file re-define operation counts
+| PNETCDF_FILE_INDEP_WAITS | PnetCDF independent file wait operation counts (for flushing non-blocking I/O)
+| PNETCDF_FILE_COLL_WAITS | PnetCDF collective file wait operation counts (for flushing non-blocking I/O)
+| PNETCDF_FILE_SYNCS | PnetCDF file sync operation counts
+| PNETCDF_FILE_BYTES_READ | PnetCDF total bytes read for all file variables (includes internal library metadata I/O)
+| PNETCDF_FILE_BYTES_WRITTEN | PnetCDF total bytes written for all file variables (includes internal library metadata I/O)
+| PNETCDF_FILE_WAIT_FAILURES | PnetCDF file wait operation failure counts (failures indicate that variable-level counters are unreliable)
+| PNETCDF_FILE_F_*_START_TIMESTAMP | Timestamp that the first PNETCDF file open/close/wait operation began
+| PNETCDF_FILE_F_*_END_TIMESTAMP | Timestamp that the last PNETCDF file open/close/wait operation ended
+| PNETCDF_FILE_F_META_TIME | Cumulative time spent in file open/close/sync/redef/enddef metadata operations
+| PNETCDF_FILE_F_WAIT_TIME | Cumulative time spent in file wait operations (for flushing non-blocking I/O)
+|====
+
+.PNETCDF_VAR module
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| PNETCDF_VAR_OPENS | PnetCDF variable define/inquire operation counts
+| PNETCDF_VAR_INDEP_READS | PnetCDF variable independent read operation counts
+| PNETCDF_VAR_INDEP_WRITES | PnetCDF variable independent write operation counts
+| PNETCDF_VAR_COLL_READS | PnetCDF variable collective read operation counts
+| PNETCDF_VAR_COLL_WRITES | PnetCDF variable collective write operation counts
+| PNETCDF_VAR_NB_READS | PnetCDF variable nonblocking read operation counts
+| PNETCDF_VAR_NB_WRITES | PnetCDF variable nonblocking write operation counts
+| PNETCDF_VAR_BYTES_* | total bytes read and written at PnetCDF variable layer (not including internal library metadata I/O)
+| PNETCDF_VAR_RW_SWITCHES | number of times access alternated between read and write
+| PNETCDF_VAR_PUT_VAR* | number of calls to different ncmpi_put_var* APIs (var, var1, vara, vars, varm, varn, vard)
+| PNETCDF_VAR_GET_VAR* | number of calls to different ncmpi_get_var* APIs (var, var1, vara, vars, varm, varn, vard)
+| PNETCDF_VAR_IPUT_VAR* | number of calls to different ncmpi_iput_var* APIs (var, var1, vara, vars, varm, varn)
+| PNETCDF_VAR_IGET_VAR* | number of calls to different ncmpi_iget_var* APIs (var, var1, vara, vars, varm, varn)
+| PNETCDF_VAR_BPUT_VAR* | number of calls to different ncmpi_bput_var* APIs (var, var1, vara, vars, varm, varn)
+| PNETCDF_VAR_MAX_*_TIME_SIZE | size of the slowest read and write operations
+| PNETCDF_VAR_SIZE_*_AGG_* | histogram of PnetCDf total access sizes for read and write operations
+| PNETCDF_VAR_ACCESS*_* | the four most common total accesses, in terms of size and length/stride (in last 5 dimensions)
+| PNETCDF_VAR_ACCESS*_COUNT | count of the four most common total access sizes
+| PNETCDF_VAR_NDIMS | number of dimensions in the variable
+| PNETCDF_VAR_NPOINTS | number of points in the variable
+| PNETCDF_VAR_DATATYPE_SIZE | size of each variable element
+| PNETCDF_VAR_*_RANK | rank of the processes that were the fastest and slowest at I/O (for shared datasets)
+| PNETCDF_VAR_*_RANK_BYTES | total bytes transferred at PnetCDF layer by the fastest and slowest ranks (for shared datasets)
+| PNETCDF_VAR_F_*_START_TIMESTAMP | timestamp of first PnetCDF variable open/read/write/close
+| PNETCDF_VAR_F_*_END_TIMESTAMP | timestamp of last PnetCDF variable open/read/write/close
+| PNETCDF_VAR_F_READ/WRITE/META_TIME | cumulative time spent in PnetCDF read, write, or metadata operations
+| PNETCDF_VAR_F_MAX_*_TIME | duration of the slowest PnetCDF read and write operations
+| PNETCDF_VAR_F_*_RANK_TIME | fastest and slowest I/O time for a single rank (for shared datasets)
+| PNETCDF_VAR_F_VARIANCE_RANK_* | variance of total I/O time and bytes moved for all ranks (for shared datasets)
+| PNETCDF_VAR_FILE_REC_ID | Darshan file record ID of the file the variable belongs to
 |====
 
 ===== Heatmap fields

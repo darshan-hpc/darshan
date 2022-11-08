@@ -420,16 +420,60 @@ if test "x$enable_darshan_runtime" = xyes ; then
                    use --with-hdf5 to provide the HDF5 install prefix, if needed.]))
    fi
 
-   # PNETCDF module
+   # inform about PnetCDF installs not found in default locations
+   AC_ARG_WITH([pnetcdf],
+      [AS_HELP_STRING([--with-pnetcdf@<:@=DIR@:>@],
+                      [Installation directory for PnetCDF.])],
+      [], [with_pnetcdf=no]
+   )
+
+   # PnetCDF module (disabled by default)
    AC_ARG_ENABLE([pnetcdf-mod],
-      [AS_HELP_STRING([--disable-pnetcdf-mod],
-                      [Disables compilation and use of PnetCDF module (requires MPI)])],
-      [], [enable_pnetcdf_mod=$ENABLE_MPI]
+      [AS_HELP_STRING([--enable-pnetcdf-mod],
+                      [Enables compilation and use of PnetCDF module (requires MPI)])],
+      [], [enable_pnetcdf_mod=no]
    )
    if test "x$enable_pnetcdf_mod" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
          AC_MSG_ERROR([--enable-pnetcdf-mod is used but MPI feature is disabled])
       fi
+      AC_CHECK_PROGS([M4], [$M4 m4 gm4], [])
+      if test "x$M4" = x ; then
+         AC_MSG_ERROR(--enable-pnetcdf-mod requires a valid M4 macro processor)
+      fi
+      if test -d "$with_pnetcdf" ; then
+         AC_PATH_PROG(PNC_VER_CHECK, pnetcdf_version, "no", "${with_pnetcdf}/bin")
+      else
+         AC_PATH_PROG(PNC_VER_CHECK, pnetcdf_version, "no")
+         # autodetect PNetCDF install prefix and set with_pnetcdf
+         with_pnetcdf=$(dirname $(dirname $PNC_VER_CHECK))
+      fi
+      if ! test -d "${with_pnetcdf}/lib" ; then
+         AC_MSG_ERROR(m4_normalize([Darshan PnetCDF module enabled but no valid PnetCDF install found,
+                       use --with-pnetcdf to provide the PnetCDF install prefix, if needed.]))
+      fi
+      if test "x$PNC_VER_CHECK" != xno ; then
+         pnc_version=`${with_pnetcdf}/bin/pnetcdf_version | grep Version | cut -d':' -f 2 | xargs`
+      fi
+      CFLAGS="${CFLAGS} -I${with_pnetcdf}/include"
+      DARSHAN_PNETCDF_LD_FLAGS="-L${with_pnetcdf}/lib [-Wl,-rpath=${with_pnetcdf}/lib -lpnetcdf]"
+
+      # PnetCDF only supported in library versions greater than 1.8.0
+      AC_MSG_CHECKING([whether PnetCDF version is at least 1.8.0])
+      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+         #include <pnetcdf.h>
+         #if (PNETCDF_VERSION_MAJOR == 1) && (PNETCDF_VERSION_MINOR < 8)
+         #error PnetCDF version is older than 1.8.0
+         #endif
+         ]])], [pnc_ge_1_8_0=yes], [pnc_ge_1_8_0=no]
+      )
+      AC_MSG_RESULT([$pnc_ge_1_8_0])
+      if test x$pnc_ge_1_8_0 = xno; then
+         AC_MSG_ERROR([PnetCDF version 1.8.0 and later is required.])
+      fi
+   elif test "x$enable_pnetcdf_mod" != xno ; then
+      AC_MSG_ERROR(m4_normalize([--enable-pnetcdf-mod does not take any argument,
+                   use --with-pnetcdf to provide the PnetCDF install prefix, if needed.]))
    fi
 
    # BG/Q module
@@ -700,6 +744,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    AC_SUBST(DARSHAN_STDIO_ADD_FSCANF_LD_OPTS)
    AC_SUBST(DARSHAN_HDF5_ADD_LD_OPTS)
    AC_SUBST(DARSHAN_HDF5_LD_FLAGS)
+   AC_SUBST(DARSHAN_PNETCDF_LD_FLAGS)
    AC_SUBST(DARSHAN_LUSTRE_LD_FLAGS)
    AC_SUBST(with_papi)
 else
@@ -780,9 +825,14 @@ if test "x$enable_darshan_runtime" = xyes ; then
    else
       __log_path="N/A"
    fi
-   # add extra details for HDF5 and APMPI if enabled
+   # add extra details for HDF5, PnetCDF, and APMPI if enabled
    if test "x$enable_hdf5_mod" = xyes ; then
       enable_hdf5_mod="yes (using HDF5 $hdf5_version)"
+   fi
+   if test "x$enable_pnetcdf_mod" = xyes ; then
+      if test -n "$pnc_version" ; then
+         enable_pnetcdf_mod="yes (using PnetCDF $pnc_version)"
+      fi
    fi
    if test "x$enable_apmpi_mod" = xyes ; then
       if test "x$enable_apmpi_coll_sync" = xyes ; then

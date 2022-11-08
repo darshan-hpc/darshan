@@ -225,6 +225,8 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                 # check for presence of expected runtime HEATMAPs
                 actual_runtime_heatmap_titles = report_str.count("<h3>Heat Map: HEATMAP")
                 if ("e3sm_io_heatmap_only" in log_filepath or
+                    "shane_ior-HDF5" in log_filepath or
+                    "shane_ior-PNETCDF" in log_filepath or
                     (match and int(darshan_log_version[2]) >= 4)):
                     assert actual_runtime_heatmap_titles == 3
                 elif ("runtime_and_dxt_heatmaps_diagonal_write_only" in log_filepath or

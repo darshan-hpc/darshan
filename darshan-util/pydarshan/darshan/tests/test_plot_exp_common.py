@@ -124,6 +124,22 @@ darshan.enable_experimental()
             ['H5D Read', 'H5D Write', 'H5D Open',
             'H5D Flush', 'H5F Open', 'H5F Flush'],
         ),
+        (
+            "shane_ior-PNETCDF_id864223-864223_10-27-46849-11258636277699483231_1.darshan",
+            "PNETCDF_FILE",
+            plot_opcounts,
+            ['Var Ind Read', 'Var Ind Write', 'Var Open', 'Var Coll Read',
+             'Var Coll Write', 'Var NB Read', 'Var NB Write', 'File Open', 'File Sync',
+             'File Ind Waits', 'File Coll Waits'],
+        ),
+        (
+            "shane_ior-PNETCDF_id864223-864223_10-27-46849-11258636277699483231_1.darshan",
+            "PNETCDF_VAR",
+            plot_opcounts,
+            ['Var Ind Read', 'Var Ind Write', 'Var Open', 'Var Coll Read',
+             'Var Coll Write', 'Var NB Read', 'Var NB Write', 'File Open', 'File Sync',
+             'File Ind Waits', 'File Coll Waits'],
+        ),
     ],
 )
 def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
@@ -348,6 +364,18 @@ def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
             "H5D",
             plot_opcounts,
             [0, 3, 3, 0, 0, 0],
+        ),
+        (
+            "shane_ior-PNETCDF_id864223-864223_10-27-46849-11258636277699483231_1.darshan",
+            "PNETCDF_FILE",
+            plot_opcounts,
+            [0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0],
+        ),
+        (
+            "shane_ior-PNETCDF_id864223-864223_10-27-46849-11258636277699483231_1.darshan",
+            "PNETCDF_VAR",
+            plot_opcounts,
+            [16, 16, 8, 0, 0, 0, 0, 8, 0, 0, 0],
         ),
     ],
 )

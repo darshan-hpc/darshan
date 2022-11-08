@@ -24,7 +24,7 @@ def agg_ioops(self, mode='append'):
     ctx = {}
 
     # aggragate
-    mods = ['MPI-IO', 'POSIX', 'STDIO', "H5F", "H5D"]
+    mods = ['MPI-IO', 'POSIX', 'STDIO', "H5F", "H5D", "PNETCDF_VAR", "PNETCDF_FILE"]
     for mod in mods:
 
         # check records for module are present
@@ -85,6 +85,29 @@ def agg_ioops(self, mode='append'):
                 'Write': agg[mod + '_WRITES'],
                 'Open':  agg[mod + '_OPENS'],
                 'Flush': agg[mod + '_FLUSHES'],
+            }
+            ctx[mod] = agg
+            ctx[mod + '_simple'] = tmp
+
+        elif mod == "PNETCDF_VAR":
+            tmp = {
+                'Read':  agg[mod + '_INDEP_READS'],
+                'Write': agg[mod + '_INDEP_WRITES'],
+                'Open':  agg[mod + '_OPENS'],
+                'Coll Read': agg[mod + '_COLL_READS'],
+                'Coll Write': agg[mod + '_COLL_WRITES'],
+                'NB Read': agg[mod + '_NB_READS'],
+                'NB Write': agg[mod + '_NB_WRITES'],
+            }
+            ctx[mod] = agg
+            ctx[mod + '_simple'] = tmp
+
+        elif mod == "PNETCDF_FILE":
+            tmp = {
+                'Open':  agg[mod + '_OPENS'],
+                'Sync':  agg[mod + '_SYNCS'],
+                'Ind Wait':  agg[mod + '_INDEP_WAITS'],
+                'Coll Wait':  agg[mod + '_COLL_WAITS'],
             }
             ctx[mod] = agg
             ctx[mod + '_simple'] = tmp

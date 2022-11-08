@@ -61,7 +61,8 @@ _structdefs = {
     "H5D": "struct darshan_hdf5_dataset **",
     "LUSTRE": "struct darshan_lustre_record **",
     "MPI-IO": "struct darshan_mpiio_file **",
-    "PNETCDF": "struct darshan_pnetcdf_file **",
+    "PNETCDF_FILE": "struct darshan_pnetcdf_file **",
+    "PNETCDF_VAR": "struct darshan_pnetcdf_var **",
     "POSIX": "struct darshan_posix_file **",
     "STDIO": "struct darshan_stdio_file **",
     "APXC-HEADER": "struct darshan_apxc_header_record **",
@@ -350,7 +351,7 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
 
     rec['id'] = rbuf[0].base_rec.id
     rec['rank'] = rbuf[0].base_rec.rank
-    if mod_name == 'H5D':
+    if mod_name == 'H5D' or mod_name == 'PNETCDF_VAR':
         rec['file_rec_id'] = rbuf[0].file_rec_id
 
     clst = np.copy(np.frombuffer(ffi.buffer(rbuf[0].counters), dtype=np.int64))

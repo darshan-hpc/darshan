@@ -3,6 +3,7 @@
 
 """Tests for `pydarshan` package."""
 
+import re
 import copy
 import pickle
 
@@ -497,3 +498,74 @@ def test_heatmap_df_invalid_operation():
     report = darshan.DarshanReport(log_path)
     with pytest.raises(ValueError, match="invalid_op not in heatmap"):
         report.heatmaps["POSIX"].to_df(ops=["invalid_op"])
+
+
+def test_pnetcdf_hdf5_match():
+    # test for some equivalent (f)counters between similar
+    # HDF5 and PNETCDF-enabled runs of ior
+    pnetcdf_ior_report = darshan.DarshanReport(get_log_path("shane_ior-PNETCDF_id864223-864223_10-27-46849-11258636277699483231_1.darshan"))
+    hdf5_ior_report = darshan.DarshanReport(get_log_path("shane_ior-HDF5_id545128-545128_9-7-60657-7307669767025130365_1.darshan"))
+    pnetcdf_ior_report.mod_read_all_records("PNETCDF_FILE")
+    pnetcdf_ior_report.mod_read_all_records("PNETCDF_VAR")
+    hdf5_ior_report.mod_read_all_records("H5F")
+    hdf5_ior_report.mod_read_all_records("H5D")
+    pnetcdf_file_data_dict = pnetcdf_ior_report.data['records']["PNETCDF_FILE"].to_df()
+    pnetcdf_var_data_dict = pnetcdf_ior_report.data['records']["PNETCDF_VAR"].to_df()
+    h5f_data_dict = hdf5_ior_report.data['records']["H5F"].to_df()
+    h5d_data_dict = hdf5_ior_report.data['records']["H5D"].to_df()
+    prog = re.compile(r"(PNETCDF_FILE|PNETCDF_VAR)")
+    # we compare:
+    # PNETCDF_FILE vs. H5F modules
+    # PNETCDF_VAR vs. H5D modules
+    equiv_val_counts = 0
+    # some fields don't match
+    exception_strings = ["rank",
+                         "DEFS",
+                         "WAIT",
+                         "SYNC",
+                         "TIME",
+                         "id",
+                         "PNETCDF_VAR_ACCESS1_LENGTH",
+                         "PNETCDF_VAR_ACCESS1_STRIDE",
+                         "PNETCDF_VAR_DATATYPE_SIZE",
+                         "FASTEST",
+                         "SLOWEST"]
+    for pnetcdf_dict, hdf5_dict in ([pnetcdf_file_data_dict, h5f_data_dict],
+                                    [pnetcdf_var_data_dict, h5d_data_dict]):
+        for counter_type in ["counters", "fcounters"]:
+            for pnetcdf_column_name in pnetcdf_dict[counter_type].columns:
+                if pnetcdf_column_name == "PNETCDF_FILE_CREATES" or pnetcdf_column_name == "PNETCDF_FILE_OPENS":
+                    # different counter granularity here it seems
+                    pnetcdf_data = (pnetcdf_dict[counter_type]["PNETCDF_FILE_OPENS"] +
+                                    pnetcdf_dict[counter_type]["PNETCDF_FILE_CREATES"])
+                    hdf5_column_name =  "H5F_OPENS"
+                    hdf5_data = hdf5_dict[counter_type][hdf5_column_name]
+                elif any(x in pnetcdf_column_name for x in exception_strings):
+                    continue
+                else:
+                    pnetcdf_data = pnetcdf_dict[counter_type][pnetcdf_column_name]
+                    match = prog.search(pnetcdf_column_name)
+                    if match is not None:
+                        mod_str = match.group(1)
+                        if "FILE" in mod_str:
+                            hdf5_column_name = pnetcdf_column_name.replace(mod_str, "H5F")
+                        else:
+                            hdf5_column_name = pnetcdf_column_name.replace(mod_str, "H5D")
+                    else:
+                        hdf5_column_name = pnetcdf_column_name
+
+                    try:
+                        hdf5_data = hdf5_dict[counter_type][hdf5_column_name]
+                    except KeyError:
+                        # PNETCDF_FILE will have many keys that don't exist
+                        # in H5F
+                        continue
+
+                assert_allclose(pnetcdf_data.values, hdf5_data.values)
+                equiv_val_counts += 1
+    # we also require a certain number of equivalent counters
+    # to help avoid regressions:
+    assert equiv_val_counts == 65
+    # PNETCDF_FILE captures some extra file-format related IO
+    # activity vs. the user-level "dataset" IO proper:
+    assert pnetcdf_file_data_dict["counters"]["PNETCDF_FILE_BYTES_READ"].values > pnetcdf_var_data_dict["counters"]["PNETCDF_VAR_BYTES_READ"].values
