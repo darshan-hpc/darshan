@@ -503,8 +503,8 @@ def test_heatmap_df_invalid_operation():
 def test_pnetcdf_hdf5_match():
     # test for some equivalent (f)counters between similar
     # HDF5 and PNETCDF-enabled runs of ior
-    pnetcdf_ior_report = darshan.DarshanReport(get_log_path("shane_ior-PNETCDF_id864223-864223_10-27-46849-11258636277699483231_1.darshan"))
-    hdf5_ior_report = darshan.DarshanReport(get_log_path("shane_ior-HDF5_id545128-545128_9-7-60657-7307669767025130365_1.darshan"))
+    pnetcdf_ior_report = darshan.DarshanReport(get_log_path("shane_ior-PNETCDF_id438100-438100_11-9-41525-10280033558448664385_1.darshan"))
+    hdf5_ior_report = darshan.DarshanReport(get_log_path("shane_ior-HDF5_id438090-438090_11-9-41522-17417065676046418211_1.darshan"))
     pnetcdf_ior_report.mod_read_all_records("PNETCDF_FILE")
     pnetcdf_ior_report.mod_read_all_records("PNETCDF_VAR")
     hdf5_ior_report.mod_read_all_records("H5F")

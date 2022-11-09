@@ -126,10 +126,16 @@ def log_get_job(log):
     libdutil.darshan_log_get_job(log['handle'], jobrec)
 
     job['uid'] = jobrec[0].uid
-    job['start_time'] = jobrec[0].start_time
-    job['end_time'] = jobrec[0].end_time
+    job['start_time_sec'] = jobrec[0].start_time_sec
+    job['start_time_nsec'] = jobrec[0].start_time_nsec
+    job['end_time_sec'] = jobrec[0].end_time_sec
+    job['end_time_nsec'] = jobrec[0].end_time_nsec
     job['nprocs'] = jobrec[0].nprocs
     job['jobid'] = jobrec[0].jobid
+
+    runtime = ffi.new("double *")
+    libdutil.darshan_log_get_job_runtime(log['handle'], jobrec[0], runtime)
+    job['run_time'] = runtime[0]
 
     # dirty hack to get log format version -- we know it's currently stored at the
     # very beginning of the log handle structure, so we just cast the struct

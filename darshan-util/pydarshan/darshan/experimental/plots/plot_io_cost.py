@@ -148,12 +148,8 @@ def plot_io_cost(report: darshan.DarshanReport) -> Any:
     stacked bar graph of the average read, write, and metadata times.
 
     """
-    # calculate the run time from the report metadata
-    runtime = report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
-    if runtime == 0:
-        # for cases where runtime is < 1, just set it
-        # to 1 like the original perl code
-        runtime = 1
+    # get the run time from the report metadata
+    runtime = report.metadata["job"]["run_time"]
     # get the I/O cost dataframe
     io_cost_df = get_io_cost_df(report=report)
     # generate a figure with 2 y axes
