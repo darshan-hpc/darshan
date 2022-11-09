@@ -75,6 +75,7 @@ jobs:
       - name: Test with pytest
         run: |
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
+          export DYLD_FALLBACK_LIBRARY_PATH=$PWD/darshan_install/lib
           # the test suite should be portable
           # to any directory--it must be possible
           # to check HPC spack installs for example
@@ -87,6 +88,7 @@ jobs:
         name: mypy check
         run: |
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
+          export DYLD_FALLBACK_LIBRARY_PATH=$PWD/darshan_install/lib
           cd darshan-util/pydarshan
           mypy darshan
       - name: pyflakes check
@@ -96,6 +98,7 @@ jobs:
       - name: asv check
         run: |
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
+          export DYLD_FALLBACK_LIBRARY_PATH=$PWD/darshan_install/lib
           cd darshan-util/pydarshan/benchmarks
           python -m asv check -E existing
       - name: codecov check
