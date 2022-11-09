@@ -52,7 +52,7 @@ class ReportFigure:
         self,
         section_title: str,
         fig_title: str,
-        fig_func: Callable,
+        fig_func: Union[Callable, None],
         fig_args: dict,
         fig_description: str = "",
         fig_width: int = 500,
