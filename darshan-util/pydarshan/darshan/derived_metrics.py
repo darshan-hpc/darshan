@@ -7,11 +7,11 @@ def perf_estimate(report, mod_name: str):
     # that it might be more natural to use a library
     # like humanize to automatically select i.e., GiB
     # depending on magnitude
-    mod_name_adjusted = mod_name.replace("-", "")
-    total_mebibytes = (counters_df[f"{mod_name_adjusted}_BYTES_WRITTEN"].sum()
-                       + counters_df[f"{mod_name_adjusted}_BYTES_READ"].sum()) / (2 ** 20)
-    total_rw_time = (fcounters_df[f"{mod_name_adjusted}_F_READ_TIME"].sum() +
-                     fcounters_df[f"{mod_name_adjusted}_F_WRITE_TIME"].sum())
+    total_mebibytes = (counters_df[f"{mod_name}_BYTES_WRITTEN"].sum()
+                       + counters_df[f"{mod_name}_BYTES_READ"].sum()) / (2 ** 20)
+    total_rw_time = (fcounters_df[f"{mod_name}_F_READ_TIME"].sum() +
+                     fcounters_df[f"{mod_name}_F_WRITE_TIME"].sum() +
+                     fcounters_df[f"{mod_name}_F_META_TIME"].sum())
     mebibytes_per_sec = total_mebibytes / total_rw_time
     # construct a string similar to the one used in perl reports,
     # matching in precision of reported values
