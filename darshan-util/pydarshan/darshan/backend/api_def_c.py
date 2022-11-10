@@ -51,7 +51,12 @@ struct darshan_mod_info
 struct darshan_accumulator_st;
 typedef struct darshan_accumulator_st* darshan_accumulator;
 
-int darshan_accumulator_create(enum darshan_module_id, int64_t, darshan_accumulator*);
+/* NOTE: darshan_module_id is technically an enum in the C API, but we'll
+ * just use an int for now (equivalent type) to avoid warnings from cffi
+ * that we have not defined explicit enum values.  We don't need that
+ * functionality.
+ */
+int darshan_accumulator_create(int darshan_module_id, int64_t, darshan_accumulator*);
 int darshan_accumulator_inject(darshan_accumulator, void*, int);
 int darshan_accumulator_emit(darshan_accumulator, struct darshan_derived_metrics*, void* aggregation_record);
 int darshan_accumulator_destroy(darshan_accumulator);
