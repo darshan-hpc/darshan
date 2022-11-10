@@ -29,7 +29,7 @@ struct darshan_derived_metrics {
     double shared_io_total_time_by_slowest;
     double agg_perf_by_slowest;
     double agg_time_by_slowest;
-    struct darshan_file_category_counters;
+    struct darshan_file_category_counters category_counters[7];
 };
 
 struct darshan_mnt_info
