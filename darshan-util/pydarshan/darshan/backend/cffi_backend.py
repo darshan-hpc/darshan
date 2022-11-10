@@ -633,6 +633,7 @@ def _log_get_heatmap_record(log):
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
     if r < 1:
+        libdutil.darshan_free(buf[0])
         return None
     
     filerec = ffi.cast(mod_type, buf)
@@ -692,6 +693,7 @@ def log_get_derived_metrics(log_path: str, mod_name: str):
                                             jobrec[0].nprocs,
                                             darshan_accumulator)
     if r != 0:
+        libdutil.darshan_free(buf[0])
         raise RuntimeError("A nonzero exit code was received from "
                            "darshan_accumulator_create() at the C level. "
                            f"This could mean that the {mod_name} module does not "
@@ -704,6 +706,7 @@ def log_get_derived_metrics(log_path: str, mod_name: str):
     print("before inject")
     r = libdutil.darshan_accumulator_inject(darshan_accumulator[0], rbuf[0], 1)
     if r != 0:
+        libdutil.darshan_free(buf[0])
         raise RuntimeError("A nonzero exit code was received from "
                            "darshan_accumulator_inject() at the C level. "
                            "It may be possible "
@@ -716,6 +719,7 @@ def log_get_derived_metrics(log_path: str, mod_name: str):
                                           darshan_derived_metrics,
                                           rbuf[0])
     if r != 0:
+        libdutil.darshan_free(buf[0])
         raise RuntimeError("A nonzero exit code was received from "
                            "darshan_accumulator_emit() at the C level. "
                            "It may be possible "
@@ -723,4 +727,5 @@ def log_get_derived_metrics(log_path: str, mod_name: str):
                            "stream.")
     print("after emit")
     #libdutil.darshan_accumulator_destroy(darshan_accumulator)
+    libdutil.darshan_free(buf[0])
     return darshan_derived_metrics
