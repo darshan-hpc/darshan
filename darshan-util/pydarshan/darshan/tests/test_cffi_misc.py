@@ -161,29 +161,32 @@ def test_log_get_generic_record(dtype):
         assert actual_fcounter_names == expected_fcounter_names
 
 
-@pytest.mark.parametrize("log_path", [
-    "imbalanced-io.darshan",
+@pytest.mark.parametrize("log_path, mod_name, expected_str", [
+    # the expected bytes/bandwidth strings are pasted
+    # directly from the old perl summary reports
+    ("imbalanced-io.darshan",
+     "STDIO",
+     "I/O performance estimate (at the STDIO layer): transferred 1.1 MiB at 0.01 MiB/s"),
+    ("laytonjb_test1_id28730_6-7-43012-2131301613401632697_1.darshan",
+     "STDIO",
+     "I/O performance estimate (at the STDIO layer): transferred 0.0 MiB at 4.22 MiB/s"),
+    pytest.param("runtime_and_dxt_heatmaps_diagonal_write_only.darshan",
+     "POSIX",
+     "I/O performance estimate (at the POSIX layer): transferred 0.0 MiB at 0.02 MiB/s",
+     marks=pytest.mark.xfail(reason="Not sure why modules other than STDIO fail yet...")),
+    pytest.param("treddy_mpi-io-test_id4373053_6-2-60198-9815401321915095332_1.darshan",
+     "STDIO",
+     "I/O performance estimate (at the STDIO layer): transferred 0.0 MiB at 16.47 MiB/s",
+     marks=pytest.mark.xfail(reason="Something extra needed to account for MPI-IO?")),
 ])
-def test_derived_metrics_basic(log_path):
+def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
     # test the basic scenario of retrieving
-    # the derived metrics from all records for a given
-    # module; the situation where you'd like to
-    # retrieve derived metrics for a subset of records (i.e.,
-    # a particular filename) is not tested here
+    # the total data transferred and bandwidth
+    # for all records in a given module; the situation
+    # of accumulating drived metrics with filtering
+    # (i.e., for a single filename) is not tested here
+
     log_path = get_log_path(log_path)
-    report = darshan.DarshanReport(log_path, read_all=True)
-    for mod_name in report.modules:
-        # if support is added for accumulator work on these
-        # modules later on, the test will fail to raise an error,
-        # causing the test to ultimately fail; that is good, it will
-        # force us to acknowledge that the support was added intentionally
-        # under the hood
-        print("testing mod_name:", mod_name)
-        if mod_name in {"LUSTRE"}:
-            with pytest.raises(RuntimeError):
-                derived_metrics = backend.log_get_derived_metrics(log_path=log_path,
-                                                  mod_name=mod_name)
-        else:
-            derived_metrics = backend.log_get_derived_metrics(log_path=log_path,
-                                              mod_name=mod_name)
-        # TODO: assert against values from i.e., perl reports
+    actual_str = backend.log_get_bytes_bandwidth(log_path=log_path,
+                                                 mod_name=mod_name)
+    assert actual_str == expected_str

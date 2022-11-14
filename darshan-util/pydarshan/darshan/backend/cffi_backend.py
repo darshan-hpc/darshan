@@ -683,9 +683,6 @@ def log_get_derived_metrics(log_path: str, mod_name: str):
         return None
     mod_type = _structdefs[mod_name]
 
-    buf = ffi.new("void **")
-    r = libdutil.darshan_log_get_record(log_handle['handle'], modules[mod_name]['idx'], buf)
-    rbuf = ffi.cast(mod_type, buf)
 
     darshan_accumulator = ffi.new("darshan_accumulator *")
     print("before create")
@@ -704,14 +701,21 @@ def log_get_derived_metrics(log_path: str, mod_name: str):
     print("after create")
 
     print("before inject")
-    r = libdutil.darshan_accumulator_inject(darshan_accumulator[0], rbuf[0], 1)
-    if r != 0:
-        libdutil.darshan_free(buf[0])
-        raise RuntimeError("A nonzero exit code was received from "
-                           "darshan_accumulator_inject() at the C level. "
-                           "It may be possible "
-                           "to retrieve additional information from the stderr "
-                           "stream.")
+    buf = ffi.new("void **")
+    r = 1
+    while r >= 1:
+        r = libdutil.darshan_log_get_record(log_handle['handle'], modules[mod_name]['idx'], buf)
+        if r < 1:
+            break
+        rbuf = ffi.cast(mod_type, buf)
+        r_i = libdutil.darshan_accumulator_inject(darshan_accumulator[0], rbuf[0], 1)
+        if r_i != 0:
+            libdutil.darshan_free(buf[0])
+            raise RuntimeError("A nonzero exit code was received from "
+                               "darshan_accumulator_inject() at the C level. "
+                               "It may be possible "
+                               "to retrieve additional information from the stderr "
+                               "stream.")
     print("after inject")
     darshan_derived_metrics = ffi.new("struct darshan_derived_metrics *")
     print("before emit")
@@ -729,3 +733,20 @@ def log_get_derived_metrics(log_path: str, mod_name: str):
     #libdutil.darshan_accumulator_destroy(darshan_accumulator)
     libdutil.darshan_free(buf[0])
     return darshan_derived_metrics
+
+
+def log_get_bytes_bandwidth(log_path: str, mod_name: str) -> str:
+    # get total bytes (in MiB) and bandwidth (in MiB/s) for
+    # a given module -- this information was commonly reported
+    # in the old perl-based summary reports
+    darshan_derived_metrics = log_get_derived_metrics(log_path=log_path,
+                                                      mod_name=mod_name)
+    total_mib = darshan_derived_metrics.total_bytes / 2 ** 20
+    report = darshan.DarshanReport(log_path, read_all=True)
+    fcounters_df = report.records[f"{mod_name}"].to_df()['fcounters']
+    total_rw_time = (fcounters_df[f"{mod_name}_F_READ_TIME"].sum() +
+                     fcounters_df[f"{mod_name}_F_WRITE_TIME"].sum() +
+                     fcounters_df[f"{mod_name}_F_META_TIME"].sum())
+    total_bw = total_mib / total_rw_time
+    ret_str = f"I/O performance estimate (at the {mod_name} layer): transferred {total_mib:.1f} MiB at {total_bw:.2f} MiB/s"
+    return ret_str
