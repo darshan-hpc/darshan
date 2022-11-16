@@ -419,7 +419,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
       AC_MSG_ERROR(m4_normalize([--enable-hdf5-mod does not take any argument,
                    use --with-hdf5 to provide the HDF5 install prefix, if needed.]))
    fi
-
+   
    # LDMS support (disabled by default)
    AC_ARG_WITH([ldms],
       [AS_HELP_STRING([--with-ldms],
