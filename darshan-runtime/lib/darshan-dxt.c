@@ -115,9 +115,8 @@ struct dxt_runtime
 #ifdef HAVE_LDMS
 /* Initialize darshanConnector struct metrics to add to json message if LDMS is enabled. */
 struct darshanConnector dC = {
-    //.conn_status = ENOTCONN,
     .ldms_darsh = NULL,
-    .ldms_lib = 0
+    .ldms_lib = 0,
 };
 #else
 struct darshanConnector dC = {
@@ -376,12 +375,12 @@ void darshan_ldms_connector_initialize()
     pthread_mutex_lock(&dC.ln_lock);
     dC.ldms_darsh = setup_connection(env_ldms_xprt, env_ldms_host, env_ldms_port, env_ldms_auth);
         if (dC.conn_status != 0) {
-            printf("Error setting up connection: %i -- exiting\n", dC.conn_status);
+            printf("Error setting up connection to LDMS streams daemon: %i -- exiting\n", dC.conn_status);
             pthread_mutex_unlock(&dC.ln_lock);
             return;
         }
         else if (dC.ldms_darsh->disconnected){
-            printf("Error setting up connection -- exiting\n");
+            printf("Disconnected from LDMS streams daemon -- exiting\n");
             pthread_mutex_unlock(&dC.ln_lock);
             return;
         }
@@ -405,7 +404,6 @@ void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset
     int rc, ret, i, size, exists;
     uint64_t micro_s = tspec_end.tv_nsec/1.0e3;
     dC.env_ldms_stream  = getenv("DARSHAN_LDMS_STREAM");
-
 
     pthread_mutex_lock(&dC.ln_lock);
     if (dC.ldms_darsh != NULL)
@@ -439,7 +437,7 @@ void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset
         dC.exename = "N/A";
     }
 
-    sprintf(jb11,"{ \"uid\":%d, \"exe\":\"%s\",\"job_id\":%d,\"rank\":%d,\"ProducerName\":\"%s\",\"file\":\"%s\",\"record_id\":%"PRIu64",\"module\":\"%s\",\"type\":\"%s\",\"max_byte\":%lld,\"switches\":%d,\"flushes\":%d,\"cnt\":%d,\"op\":\"%s\",\"seg\":[{\"data_set\":\"%s\",\"pt_sel\":%lld,\"irreg_hslab\":%lld,\"reg_hslab\":%lld,\"ndims\":%lld,\"npoints\":%lld,\"off\":%lld,\"len\":%lld,\"start\":%0.6f,\"dur\":%0.6f,\"total\":%0.6f,\"timestamp\":%lu.%0.6lu}]}", dC.uid, dC.exename, dC.jobid, dC.rank, dC.hname, dC.filename, dC.record_id, mod_name, data_type, max_byte, rw_switch, flushes, record_count, rwo, dC.data_set, dC.hdf5_data[0], dC.hdf5_data[1], dC.hdf5_data[2], dC.hdf5_data[3], dC.hdf5_data[4], offset, length, start_time, end_time-start_time, total_time, tspec_end.tv_sec, micro_s);
+    sprintf(jb11,"{ \"uid\":%ld, \"exe\":\"%s\",\"job_id\":%ld,\"rank\":%ld,\"ProducerName\":\"%s\",\"file\":\"%s\",\"record_id\":%"PRIu64",\"module\":\"%s\",\"type\":\"%s\",\"max_byte\":%ld,\"switches\":%ld,\"flushes\":%ld,\"cnt\":%ld,\"op\":\"%s\",\"seg\":[{\"data_set\":\"%s\",\"pt_sel\":%ld,\"irreg_hslab\":%ld,\"reg_hslab\":%ld,\"ndims\":%ld,\"npoints\":%ld,\"off\":%ld,\"len\":%ld,\"start\":%0.6f,\"dur\":%0.6f,\"total\":%.6f,\"timestamp\":%lu.%.6lu}]}", dC.uid, dC.exename, dC.jobid, dC.rank, dC.hname, dC.filename, dC.record_id, mod_name, data_type, max_byte, rw_switch, flushes, record_count, rwo, dC.data_set, dC.hdf5_data[0], dC.hdf5_data[1], dC.hdf5_data[2], dC.hdf5_data[3], dC.hdf5_data[4], offset, length, start_time, end_time-start_time, total_time, tspec_end.tv_sec, micro_s);
     //printf("this is in jb11 %s \n", jb11);
 
     rc = ldmsd_stream_publish(dC.ldms_darsh, dC.env_ldms_stream, LDMSD_STREAM_JSON, jb11, strlen(jb11) + 1);

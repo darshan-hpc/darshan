@@ -87,8 +87,16 @@ struct darshan_hdf5_dataset
 struct darshan_pnetcdf_file
 {
     struct darshan_base_record base_rec;
-    int64_t counters[2];
-    double fcounters[4];
+    int64_t counters[9];
+    double fcounters[8];
+};
+
+struct darshan_pnetcdf_var
+{
+    struct darshan_base_record base_rec;
+    uint64_t file_rec_id;
+    int64_t counters[120];
+    double fcounters[17];
 };
 
 struct darshan_bgq_record
@@ -141,8 +149,10 @@ extern char *h5f_f_counter_names[];
 extern char *lustre_counter_names[];
 extern char *mpiio_counter_names[];
 extern char *mpiio_f_counter_names[];
-extern char *pnetcdf_counter_names[];
-extern char *pnetcdf_f_counter_names[];
+extern char *pnetcdf_file_counter_names[];
+extern char *pnetcdf_file_f_counter_names[];
+extern char *pnetcdf_var_counter_names[];
+extern char *pnetcdf_var_f_counter_names[];
 extern char *posix_counter_names[];
 extern char *posix_f_counter_names[];
 extern char *stdio_counter_names[];

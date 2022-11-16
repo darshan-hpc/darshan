@@ -233,7 +233,7 @@ static int darshan_mem_alignment = 1;
     darshan_record_id __rec_id; \
     struct posix_file_record_ref *__rec_ref; \
     char *__newpath; \
-    struct darshanConnector dC;\
+    extern struct darshanConnector dC;\
     if(__ret < 0) break; \
     __newpath = darshan_clean_file_path(__path); \
     if(!__newpath) __newpath = (char *)__path; \
@@ -285,7 +285,7 @@ static int darshan_mem_alignment = 1;
     int64_t file_alignment; \
     struct darshan_common_val_counter *cvc; \
     double __elapsed = __tm2-__tm1; \
-    struct darshanConnector dC; \
+    extern struct darshanConnector dC; \
     if(__ret < 0) break; \
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &(__fd), sizeof(int)); \
     if(!rec_ref) break; \
@@ -355,7 +355,7 @@ static int darshan_mem_alignment = 1;
     int64_t file_alignment; \
     struct darshan_common_val_counter *cvc; \
     double __elapsed = __tm2-__tm1; \
-    struct darshanConnector dC; \
+    extern struct darshanConnector dC; \
     if(__ret < 0) break; \
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &__fd, sizeof(int)); \
     if(!rec_ref) break; \
@@ -1682,7 +1682,7 @@ int DARSHAN_DECL(close)(int fd)
 
 #ifdef HAVE_LDMS
     /* publish close information for posix */
-    struct darshanConnector dC;
+    extern struct darshanConnector dC;
     if(!dC.dxt_enable_ldms || !dC.posix_enable_ldms)
         darshan_ldms_connector_send(-1, "close", -1, -1, -1, -1, -1, tm1, tm2, ts1, ts2, rec_ref->file_rec->fcounters[POSIX_F_META_TIME], "POSIX", "MOD");
 #endif

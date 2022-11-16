@@ -215,7 +215,7 @@ extern int __real_fileno(FILE *stream);
 #define STDIO_RECORD_OPEN(__ret, __path, __tm1, __tm2, __ts1, __ts2) do { \
     darshan_record_id __rec_id; \
     struct stdio_file_record_ref *__rec_ref; \
-    struct darshanConnector dC; \
+    extern struct darshanConnector dC; \
     char *__newpath; \
     int __fd; \
     MAP_OR_FAIL(fileno); \
@@ -263,7 +263,7 @@ extern int __real_fileno(FILE *stream);
 #define STDIO_RECORD_READ(__fp, __bytes,  __tm1, __tm2, __ts1, __ts2) do{ \
     struct stdio_file_record_ref* rec_ref; \
     int64_t this_offset; \
-    struct darshanConnector dC; \
+    extern struct darshanConnector dC; \
     rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &(__fp), sizeof(__fp)); \
     if(!rec_ref) break; \
     this_offset = rec_ref->offset; \
@@ -288,7 +288,7 @@ extern int __real_fileno(FILE *stream);
 #define STDIO_RECORD_WRITE(__fp, __bytes,  __tm1, __tm2, __ts1, __ts2, __fflush_flag) do{ \
     struct stdio_file_record_ref* rec_ref; \
     int64_t this_offset; \
-    struct darshanConnector dC; \
+    extern struct darshanConnector dC; \
     rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &(__fp), sizeof(__fp)); \
     if(!rec_ref) break; \
     this_offset = rec_ref->offset; \
@@ -472,7 +472,7 @@ int DARSHAN_DECL(fclose)(FILE *fp)
 
 #ifdef HAVE_LDMS
         /* LDMS to publish runtime tracing information to daemon*/
-    struct darshanConnector dC;
+    extern struct darshanConnector dC;
     if(!dC.stdio_enable_ldms)
         darshan_ldms_connector_send(-1, "close", -1, -1, -1, -1, rec_ref->file_rec->counters[STDIO_FLUSHES], tm1, tm2, ts1, ts2, rec_ref->file_rec->fcounters[STDIO_F_META_TIME], "STDIO", "MOD");
 #endif

@@ -14,6 +14,12 @@ from darshan.cli import summary
 from darshan.log_utils import get_log_path, _provide_logs_repo_filepaths
 from darshan.experimental.plots.data_access_by_filesystem import plot_with_report
 
+try:
+    import lxml
+    has_lxml = True
+except ImportError:
+    has_lxml = False
+
 
 @pytest.mark.parametrize(
     "argv", [
@@ -219,6 +225,8 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                 # check for presence of expected runtime HEATMAPs
                 actual_runtime_heatmap_titles = report_str.count("<h3>Heat Map: HEATMAP")
                 if ("e3sm_io_heatmap_only" in log_filepath or
+                    "shane_ior-HDF5" in log_filepath or
+                    "shane_ior-PNETCDF" in log_filepath or
                     (match and int(darshan_log_version[2]) >= 4)):
                     assert actual_runtime_heatmap_titles == 3
                 elif ("runtime_and_dxt_heatmaps_diagonal_write_only" in log_filepath or
@@ -337,6 +345,9 @@ class TestReportData:
     def test_metadata_table(self, log_path, expected_df):
         # regression test for `summary.ReportData.get_metadata_table()`
 
+        if not has_lxml:
+            pytest.skip("Test requires lxml")
+
         log_path = get_log_path(log_path)
         # generate the report data
         R = summary.ReportData(log_path=log_path)
@@ -445,6 +456,9 @@ class TestReportData:
     )
     def test_module_table(self, log_path, expected_df, expected_partial_flags):
         # regression test for `summary.ReportData.get_module_table()`
+
+        if not has_lxml:
+            pytest.skip("Test requires lxml")
 
         log_path = get_log_path(log_path)
         # collect the report data

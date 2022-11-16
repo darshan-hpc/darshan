@@ -160,7 +160,7 @@ static int my_rank = -1;
     darshan_record_id __rec_id; \
     struct hdf5_file_record_ref *__rec_ref; \
     char *__newpath; \
-    struct darshanConnector dC; \
+    extern struct darshanConnector dC; \
     __newpath = darshan_clean_file_path(__path); \
     if(!__newpath) __newpath = (char *)__path; \
     __rec_id = darshan_core_gen_record_id(__newpath); \
@@ -412,7 +412,7 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
 
 #ifdef HAVE_LDMS
     /* LDMS to publish runtime h5d tracing information to daemon*/
-    struct darshanConnector dC;
+    extern struct darshanConnector dC;
     if(!dC.hdf5_enable_ldms)
         darshan_ldms_connector_send(-1, "close", -1, -1, -1, -1, rec_ref->file_rec->counters[H5F_FLUSHES],rec_ref->file_rec->fcounters[H5F_F_CLOSE_START_TIMESTAMP], rec_ref->file_rec->fcounters[H5F_F_CLOSE_END_TIMESTAMP],ts1, ts2, rec_ref->file_rec->fcounters[H5F_F_META_TIME], "H5F", "MOD");
 #endif
@@ -459,7 +459,7 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     ssize_t __req_name_len = DARSHAN_HDF5_MAX_NAME_LEN-1, __ret_name_len; \
     darshan_record_id __rec_id, __file_rec_id = 0; \
     struct hdf5_dataset_record_ref *__rec_ref; \
-    struct darshanConnector dC;\
+    extern struct darshanConnector dC;\
     hsize_t __chunk_dims[H5D_MAX_NDIMS] = {0}; \
     int __i, __n_chunk_dims = 0; \
     /* get corresponding file name */\
@@ -768,7 +768,7 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
                 rec_ref->dataset_rec->fcounters[H5D_F_READ_TIME],
                 tm1, tm2, rec_ref->last_read_end);
 #ifdef HAVE_LDMS
-     struct darshanConnector dC;
+    extern struct darshanConnector dC;
     /* LDMS to publish runtime h5d tracing information to daemon*/
     if(!dC.hdf5_enable_ldms){
         dC.hdf5_data[0] = rec_ref->dataset_rec->counters[H5D_POINT_SELECTS];
@@ -900,7 +900,7 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
 
 #ifdef HAVE_LDMS
     /* LDMS to publish runtime h5d tracing information to daemon*/
-    struct darshanConnector dC;
+    extern struct darshanConnector dC;
     if(!dC.hdf5_enable_ldms){
         dC.hdf5_data[0] = rec_ref->dataset_rec->counters[H5D_POINT_SELECTS];
         dC.hdf5_data[1] = rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS];
@@ -983,7 +983,7 @@ herr_t DARSHAN_DECL(H5Dclose)(hid_t dataset_id)
             darshan_delete_record_ref(&(hdf5_dataset_runtime->hid_hash), &dataset_id, sizeof(hid_t));
 #ifdef HAVE_LDMS
         /* LDMS to publish runtime h5d tracing information to daemon*/
-    struct darshanConnector dC;
+    extern struct darshanConnector dC;
     if(!dC.hdf5_enable_ldms)
         darshan_ldms_connector_send(-1, "close", -1, -1, -1, -1, rec_ref->dataset_rec->counters[H5D_FLUSHES], rec_ref->dataset_rec->fcounters[H5D_F_CLOSE_START_TIMESTAMP], rec_ref->dataset_rec->fcounters[H5D_F_CLOSE_END_TIMESTAMP], ts1, ts2, rec_ref->dataset_rec->fcounters[H5D_F_META_TIME], "H5D", "MOD");
 #endif

@@ -155,7 +155,7 @@ static int my_rank = -1;
 #define MDHIM_RECORD_PUT(__ret, __md, __id, __vallen, __tm1, __tm2, __ts1, __ts2) do{ \
     darshan_record_id rec_id; \
     struct mdhim_record_ref *rec_ref; \
-    struct darshanConnector dC; \
+    extern struct darshanConnector dC; \
     double __elapsed = __tm2 - __tm1; \
     /* if put returns error (return code < 0), don't instrument anything */ \
     if(__ret < 0) break; \
@@ -189,7 +189,7 @@ static int my_rank = -1;
 #define MDHIM_RECORD_GET(__ret, __md, __id, __keylen, __tm1, __tm2, __ts1, __ts2) do{ \
     darshan_record_id rec_id; \
     struct mdhim_record_ref *rec_ref; \
-    struct darshanConnector dC; \
+    extern struct darshanConnector dC; \
     double __elapsed = __tm2 - __tm1; \
     /* if get returns error (return code < 0), don't instrument anything */ \
     if(__ret == NULL) break; \

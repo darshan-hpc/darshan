@@ -52,7 +52,7 @@ class ReportFigure:
         self,
         section_title: str,
         fig_title: str,
-        fig_func: Callable,
+        fig_func: Union[Callable, None],
         fig_args: dict,
         fig_description: str = "",
         fig_width: int = 500,
@@ -436,15 +436,23 @@ class ReportData:
             opcounts_mods.append("H5D")
         elif "H5F" in self.report.modules:
             opcounts_mods.append("H5F")
+        # for the operation counts, since the `PNETCDF_VAR` variant contains
+        # both modules' data, we either want `PNETCDF_FILE` or `PNETCDF_VAR`, not both
+        if "PNETCDF_VAR" in self.report.modules:
+            opcounts_mods.append("PNETCDF_VAR")
+        elif "PNETCDF_FILE" in self.report.modules:
+            opcounts_mods.append("PNETCDF_FILE")
 
         for mod in self.report.modules:
 
             if "H5" in mod:
                 sect_title = "Per-Module Statistics: HDF5"
+            elif "PNETCDF" in mod:
+                sect_title = "Per-Module Statistics: PNETCDF"
             else:
                 sect_title = f"Per-Module Statistics: {mod}"
 
-            if mod in ["POSIX", "MPI-IO", "H5D"]:
+            if mod in ["POSIX", "MPI-IO", "H5D", "PNETCDF_VAR"]:
                 access_hist_description = (
                     "Histogram of read and write access sizes. The specific values "
                     "of the most frequently occurring access sizes can be found in "

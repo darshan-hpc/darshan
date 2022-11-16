@@ -49,7 +49,8 @@ void (*set_dummy_fn[DARSHAN_KNOWN_MODULE_COUNT])(void*) = {
     mpiio_set_dummy_record, /* DARSHAN_MPIIO_MOD */
     NULL, /* DARSHAN_H5F_MOD */
     NULL, /* DARSHAN_H5D_MOD */
-    NULL, /* DARSHAN_PNETCDF_MOD */
+    NULL, /* DARSHAN_PNETCDF_FILE_MOD */
+    NULL, /* DARSHAN_PNETCDF_VAR_MOD */
     NULL, /* DARSHAN_BGQ_MOD */
     NULL, /* DARSHAN_LUSTRE_MOD */
     stdio_set_dummy_record, /* DARSHAN_STDIO_MOD */
@@ -67,7 +68,8 @@ void (*validate_double_dummy_fn[DARSHAN_KNOWN_MODULE_COUNT])(void*, struct darsh
     mpiio_validate_double_dummy_record, /* DARSHAN_MPIIO_MOD */
     NULL, /* DARSHAN_H5F_MOD */
     NULL, /* DARSHAN_H5D_MOD */
-    NULL, /* DARSHAN_PNETCDF_MOD */
+    NULL, /* DARSHAN_PNETCDF_FILE_MOD */
+    NULL, /* DARSHAN_PNETCDF_VAR_MOD */
     NULL, /* DARSHAN_BGQ_MOD */
     NULL, /* DARSHAN_LUSTRE_MOD */
     stdio_validate_double_dummy_record, /* DARSHAN_STDIO_MOD */

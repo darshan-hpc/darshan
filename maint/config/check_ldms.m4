@@ -6,9 +6,9 @@ AC_ARG_WITH(ldms,
   --with-ldms to disable ldms usage completely],
 [if test -d "$withval"; then
     LDMS_HOME="$withval"
-    LDFLAGS="$LDFLAGS -L${LDMS_HOME}/lib64 -Wl,-rpath=${LDMS_HOME}/lib64"
+    LDFLAGS="$LDFLAGS -L${LDMS_HOME}/lib -Wl,-rpath=${LDMS_HOME}/lib"
     CPPFLAGS="$CPPFLAGS -I${LDMS_HOME}/include"
-    __DARSHAN_LDMS_LINK_FLAGS="-L${LDMS_HOME}/lib64"
+    __DARSHAN_LDMS_LINK_FLAGS="-L${LDMS_HOME}/lib"
     __DARSHAN_LDMS_INCLUDE_FLAGS="-I${LDMS_HOME}/include"
   else
    AC_MSG_ERROR(ldms installation path is required)
