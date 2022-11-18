@@ -22,7 +22,7 @@ def create_dxttimeline(self, group_by='rank', mode="append"):
     items = ctx['items']
     
 
-    start_time = datetime.datetime.fromtimestamp( self.data['metadata']['job']['start_time'] )
+    start_time = datetime.datetime.fromtimestamp( self.data['metadata']['job']['start_time_sec'] )
 
 
 

@@ -178,16 +178,9 @@ class ReportData:
         runtime : the calculated executable run time.
 
         """
-        # calculate the run time
-        runtime_val = int(
-            report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
-        )
-        if runtime_val < 1:
-            # to prevent the displayed run time from being 0 seconds
-            # label anything under 1 second as less than 1
-            runtime = "< 1"
-        else:
-            runtime = str(runtime_val)
+        # get the run time string
+        runtime_val = report.metadata["job"]["run_time"]
+        runtime = f'{runtime_val:.4f}'
         return runtime
 
     def get_header(self):
@@ -200,7 +193,7 @@ class ReportData:
         else:
             app_name = os.path.basename(command.split()[0])
         # collect the date from the time stamp
-        date = datetime.date.fromtimestamp(self.report.metadata["job"]["start_time"])
+        date = datetime.date.fromtimestamp(self.report.metadata["job"]["start_time_sec"])
         # the header is the application name and the log date
         self.header = f"{app_name} ({date})"
 
@@ -222,9 +215,9 @@ class ReportData:
             "Job ID": job_data["jobid"],
             "User ID": job_data["uid"],
             "# Processes": job_data["nprocs"],
-            "Runtime (s)": self.get_runtime(report=self.report),
-            "Start Time": datetime.datetime.fromtimestamp(job_data["start_time"]),
-            "End Time": datetime.datetime.fromtimestamp(job_data["end_time"]),
+            "Run time (s)": self.get_runtime(report=self.report),
+            "Start Time": datetime.datetime.fromtimestamp(job_data["start_time_sec"]),
+            "End Time": datetime.datetime.fromtimestamp(job_data["end_time_sec"]),
             "Command Line": self.get_full_command(report=self.report),
         }
         # convert the dictionary into a dataframe

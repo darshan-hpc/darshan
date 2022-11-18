@@ -41,24 +41,24 @@ def jointgrid():
             np.linspace(0.0, 348.956244, 10),
             np.around(np.linspace(0, 1.0, 10), decimals=2),
         ),
-        ("dxt.darshan", 2, np.linspace(0.0, 100.023116, 2), [0, 1468]),
+        ("dxt.darshan", 2, np.linspace(0.0, 100.091252, 2), [0, 1469]),
         (
             "dxt.darshan",
             4,
-            np.linspace(0.0, 100.023116, 4),
-            [0, 489, 978, 1468],
+            np.linspace(0.0, 100.091252, 4),
+            [0, 489, 979, 1469],
         ),
         (
             "dxt.darshan",
             6,
-            np.linspace(0.0, 100.023116, 6),
-            [0, 293, 587, 880, 1174, 1468],
+            np.linspace(0.0, 100.091252, 6),
+            [0, 293, 587, 881, 1175, 1469],
         ),
         (
             "dxt.darshan",
             10,
-            np.linspace(0.0, 100.023116, 10),
-            [0, 163, 326, 489, 652, 815, 978, 1141, 1304, 1468],
+            np.linspace(0.0, 100.091252, 10),
+            [0, 163, 326, 489, 652, 816, 979, 1142, 1305, 1469],
         ),
         ("sample-dxt-simple.darshan", 2, np.linspace(0.0, 959.403244, 2), [0.0, 1.0]),
         (
@@ -98,7 +98,7 @@ def test_set_x_axis_ticks_and_labels(
         data = [[4, 1.03378843, 1.03387713, 0], [4000, 1.04216653, 1.04231459, 0]]
         cols = ["length", "start_time", "end_time", "rank"]
         agg_df = pd.DataFrame(data=data, columns=cols)
-        runtime = 1
+        runtime = 2
 
     else:
         filepath = get_log_path(filepath)
@@ -107,12 +107,9 @@ def test_set_x_axis_ticks_and_labels(
         agg_df = heatmap_handling.get_aggregate_data(
             report=report, mod="DXT_POSIX", ops=["read", "write"]
         )
-        runtime = report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
+        runtime = report.metadata["job"]["run_time"]
 
-    runtime = max(runtime, 1)
     tmax_dxt = float(agg_df["end_time"].max())
-    if tmax_dxt > runtime:
-        runtime += 1
 
     # the jointgrid fixture has 100 xbins
     xbins = 100

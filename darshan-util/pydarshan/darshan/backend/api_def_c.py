@@ -10,8 +10,8 @@ darshan release.
 header = """/* from darshan-logutils.h */
 struct darshan_mnt_info
 {
-    char mnt_type[3031];
-    char mnt_path[3031];
+    char mnt_type[3015];
+    char mnt_path[3015];
 };
 
 struct darshan_mod_info
@@ -29,8 +29,10 @@ typedef uint64_t darshan_record_id;
 struct darshan_job
 {
     int64_t uid;
-    int64_t start_time;
-    int64_t end_time;
+    int64_t start_time_sec;
+    int64_t start_time_nsec;
+    int64_t end_time_sec;
+    int64_t end_time_nsec;
     int64_t nprocs;
     int64_t jobid;
     char metadata[1024];
@@ -167,6 +169,7 @@ int darshan_log_get_mounts(void*, struct darshan_mnt_info **, int*);
 void darshan_log_get_modules(void*, struct darshan_mod_info **, int*);
 int darshan_log_get_record(void*, int, void **);
 char* darshan_log_get_lib_version(void);
+int darshan_log_get_job_runtime(void *, struct darshan_job job, double *runtime);
 void darshan_free(void *);
 
 int darshan_log_get_namehash(void*, struct darshan_name_record_ref **hash);

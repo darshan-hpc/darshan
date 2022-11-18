@@ -476,8 +476,8 @@ class DarshanReport(object):
         self.metadata['job'] = backend.log_get_job(self.log)
         self.metadata['exe'] = backend.log_get_exe(self.log)
 
-        self.start_time = datetime.datetime.fromtimestamp(self.metadata['job']['start_time'])
-        self.end_time = datetime.datetime.fromtimestamp(self.metadata['job']['end_time'])
+        self.start_time = datetime.datetime.fromtimestamp(self.metadata['job']['start_time_sec'])
+        self.end_time = datetime.datetime.fromtimestamp(self.metadata['job']['end_time_sec'])
 
         self.data['mounts'] = backend.log_get_mounts(self.log)
         self.mounts = self.data['mounts']
@@ -991,13 +991,13 @@ class DarshanReport(object):
         """
         print("Filename:       ", self.filename, sep="")
 
-        tdelta = self.end_time - self.start_time
-        print("Times:          ", self.start_time, " to ", self.end_time, " (Duration ", tdelta, ")", sep="")
-
         if 'exe' in self.metadata:
-            print("Executable:    ", self.metadata['exe'], sep="")
+            print("Executable:     ", self.metadata['exe'], sep="")
+
+        print("Times:          ", self.start_time, " to ", self.end_time, sep="")
 
         if 'job' in self.metadata:
+            print("Run time:       %.4f (s)" % self.metadata['job']['run_time'], sep="")
             print("Processes:      ", self.metadata['job']['nprocs'], sep="")
             print("JobID:          ", self.metadata['job']['jobid'], sep="")
             print("UID:            ", self.metadata['job']['uid'], sep="")

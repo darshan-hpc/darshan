@@ -83,8 +83,10 @@ struct darshan_header
 struct darshan_job
 {
     int64_t uid;
-    int64_t start_time;
-    int64_t end_time;
+    int64_t start_time_sec;
+    int64_t start_time_nsec;
+    int64_t end_time_sec;
+    int64_t end_time_nsec;
     int64_t nprocs;
     int64_t jobid;
     char metadata[DARSHAN_JOB_METADATA_LEN];

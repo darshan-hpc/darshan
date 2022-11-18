@@ -270,8 +270,11 @@ darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type
 int darshan_log_get_job(darshan_fd fd, struct darshan_job *job)
 {
     struct darshan_fd_int_state *state;
+    int log_ver_maj, log_ver_min;
     char job_buf[DARSHAN_JOB_RECORD_SIZE] = {0};
     int job_buf_sz = DARSHAN_JOB_RECORD_SIZE;
+    char *trailing_data;
+    int trailing_data_size;
     int ret;
 
     if(!fd)
@@ -283,6 +286,14 @@ int darshan_log_get_job(darshan_fd fd, struct darshan_job *job)
     assert(state);
     assert(fd->job_map.len > 0 && fd->job_map.off > 0);
 
+    /* get major/minor version numbers */
+    ret = darshan_log_get_format_version(fd->version, &log_ver_maj, &log_ver_min);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to parse log file format version.\n");
+        return(-1);
+    }
+
     /* read the compressed job data from the log file */
     ret = darshan_log_dzread(fd, DARSHAN_JOB_REGION_ID, job_buf, job_buf_sz);
     if(ret <= (int)sizeof(*job))
@@ -291,24 +302,54 @@ int darshan_log_get_job(darshan_fd fd, struct darshan_job *job)
         return(-1);
     }
 
-    memcpy(job, job_buf, sizeof(*job));
+    /* NOTE: job definition changed to include start/end time nsecs in ver 3.41 */
+    if(((log_ver_maj == 3) && (log_ver_min >= 41)) || (log_ver_maj > 3))
+    {
+        memcpy(job, job_buf, sizeof(*job));
+        trailing_data = &job_buf[sizeof(*job)];
+        trailing_data_size = DARSHAN_EXE_LEN+1;
+    }
+    else
+    {
+        /* backwards compatibility with prior of Darshan job struct,
+         * which does not have fields for start_time_nsec or
+         * end_time_nsec
+         */
+        int64_t *tmp_ptr = (int64_t *)job_buf;
+        job->uid = *(tmp_ptr++);
+        job->start_time_sec = *(tmp_ptr++);
+        job->start_time_nsec = 0;
+        job->end_time_sec = *(tmp_ptr++);
+        job->end_time_nsec = 0;
+        job->nprocs = *(tmp_ptr++);
+        job->jobid = *(tmp_ptr++);
+        memcpy(job->metadata, tmp_ptr, DARSHAN_JOB_METADATA_LEN);
+        trailing_data = (char *)tmp_ptr + DARSHAN_JOB_METADATA_LEN;
+        trailing_data_size = DARSHAN_EXE_LEN+1+(2*sizeof(int64_t));
+    }
 
     if(fd->swap_flag)
     {
         /* swap bytes if necessary */
         DARSHAN_BSWAP64(&job->uid);
-        DARSHAN_BSWAP64(&job->start_time);
-        DARSHAN_BSWAP64(&job->end_time);
+        DARSHAN_BSWAP64(&job->start_time_sec);
+        DARSHAN_BSWAP64(&job->end_time_sec);
+        /* don't byte swap fields explicitly set during up-conversion */
+        if(((log_ver_maj == 3) && (log_ver_min >= 41)) || (log_ver_maj > 3))
+        {
+            DARSHAN_BSWAP64(&job->start_time_nsec);
+            DARSHAN_BSWAP64(&job->end_time_nsec);
+        }
         DARSHAN_BSWAP64(&job->nprocs);
         DARSHAN_BSWAP64(&job->jobid);
     }
 
     /* save trailing exe & mount information, so it can be retrieved later */
     if(!(state->exe_mnt_data))
-        state->exe_mnt_data = malloc(DARSHAN_EXE_LEN+1);
+        state->exe_mnt_data = malloc(trailing_data_size);
     if(!(state->exe_mnt_data))
         return(-1);
-    memcpy(state->exe_mnt_data, &job_buf[sizeof(*job)], DARSHAN_EXE_LEN+1);
+    memcpy(state->exe_mnt_data, trailing_data, trailing_data_size);
 
     return(0);
 }
@@ -891,6 +932,29 @@ void darshan_log_print_version_warnings(const char *version_string)
 char *darshan_log_get_lib_version(void)
 {
     return darshan_util_lib_ver;
+}
+
+int darshan_log_get_job_runtime(darshan_fd fd, struct darshan_job job, double *runtime)
+{
+    int log_ver_maj, log_ver_min;
+    int ret;
+    *runtime = 0;
+
+    /* get major/minor version numbers */
+    ret = darshan_log_get_format_version(fd->version, &log_ver_maj, &log_ver_min);
+    if(ret < 0)
+    {
+        fprintf(stderr, "Error: unable to parse log file format version.\n");
+        return(-1);
+    }
+
+    if(((log_ver_maj == 3) && (log_ver_min >= 41)) || (log_ver_maj > 3))
+        *runtime = (double)((job.end_time_sec + (job.end_time_nsec / 1e9)) -
+                    (job.start_time_sec + (job.start_time_nsec / 1e9)));
+    else
+        *runtime = (double)(job.end_time_sec - job.start_time_sec + 1);
+
+    return(0);
 }
 
 /********************************************************
