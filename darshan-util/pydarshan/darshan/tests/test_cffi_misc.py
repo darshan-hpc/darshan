@@ -170,14 +170,12 @@ def test_log_get_generic_record(dtype):
     ("laytonjb_test1_id28730_6-7-43012-2131301613401632697_1.darshan",
      "STDIO",
      "I/O performance estimate (at the STDIO layer): transferred 0.0 MiB at 4.22 MiB/s"),
-    pytest.param("runtime_and_dxt_heatmaps_diagonal_write_only.darshan",
+    ("runtime_and_dxt_heatmaps_diagonal_write_only.darshan",
      "POSIX",
-     "I/O performance estimate (at the POSIX layer): transferred 0.0 MiB at 0.02 MiB/s",
-     marks=pytest.mark.xfail(reason="Not sure why modules other than STDIO fail yet...")),
-    pytest.param("treddy_mpi-io-test_id4373053_6-2-60198-9815401321915095332_1.darshan",
+     "I/O performance estimate (at the POSIX layer): transferred 0.0 MiB at 0.02 MiB/s"),
+    ("treddy_mpi-io-test_id4373053_6-2-60198-9815401321915095332_1.darshan",
      "STDIO",
-     "I/O performance estimate (at the STDIO layer): transferred 0.0 MiB at 16.47 MiB/s",
-     marks=pytest.mark.xfail(reason="Something extra needed to account for MPI-IO?")),
+     "I/O performance estimate (at the STDIO layer): transferred 0.0 MiB at 16.47 MiB/s"),
 ])
 def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
     # test the basic scenario of retrieving
