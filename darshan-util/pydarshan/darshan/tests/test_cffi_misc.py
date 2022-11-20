@@ -216,6 +216,13 @@ def test_log_get_generic_record(dtype):
     ("partial_data_stdio.darshan",
      "GARBAGE",
      "ValueError"),
+    # TODO: determine if the lack of APMPI and
+    # any other "add-ons" in _structdefs is a bug
+    # in the control flow for `log_get_derived_metrics()`?
+    pytest.param("e3sm_io_heatmap_only.darshan",
+     "APMPI",
+     "",
+     marks=pytest.mark.xfail(reason="APMPI and derived metrics control flow?")),
 ])
 def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
     # test the basic scenario of retrieving
