@@ -163,13 +163,32 @@ def test_log_get_generic_record(dtype):
 
 @pytest.mark.parametrize("log_path, mod_name, expected_str", [
     # the expected bytes/bandwidth strings are pasted
-    # directly from the old perl summary reports
+    # directly from the old perl summary reports;
+    # exceptions noted below
     ("imbalanced-io.darshan",
      "STDIO",
      "I/O performance estimate (at the STDIO layer): transferred 1.1 MiB at 0.01 MiB/s"),
     ("imbalanced-io.darshan",
      "MPI-IO",
      "I/O performance estimate (at the MPI-IO layer): transferred 101785.8 MiB at 101.58 MiB/s"),
+    # imbalanced-io.darshan does have LUSTRE data,
+    # but it doesn't support derived metrics at time
+    # of writing
+    ("imbalanced-io.darshan",
+     "LUSTRE",
+     "RuntimeError"),
+    # imbalanced-io.darshan has POSIX data, but it is
+    # incomplete, and the Perl summary report opts to
+    # include the summary string only for STDIO and
+    # MPI-IO
+    # TODO: confirm with darshan team that we DO want
+    # to include POSIX reporting as below rather than
+    # raising an error (note that the Perl report DOES
+    # include reports for partial data modules as can
+    # be seen with partial_data_stdio.darshan below)
+    ("imbalanced-io.darshan",
+     "POSIX",
+     "I/O performance estimate (at the POSIX layer): transferred 101785.8 MiB at 164.99 MiB/s"),
     ("laytonjb_test1_id28730_6-7-43012-2131301613401632697_1.darshan",
      "STDIO",
      "I/O performance estimate (at the STDIO layer): transferred 0.0 MiB at 4.22 MiB/s"),
@@ -200,6 +219,11 @@ def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
     # (i.e., for a single filename) is not tested here
 
     log_path = get_log_path(log_path)
-    actual_str = backend.log_get_bytes_bandwidth(log_path=log_path,
-                                                 mod_name=mod_name)
-    assert actual_str == expected_str
+    if expected_str == "RuntimeError":
+        with pytest.raises(RuntimeError):
+            backend.log_get_bytes_bandwidth(log_path=log_path,
+                                            mod_name=mod_name)
+    else:
+        actual_str = backend.log_get_bytes_bandwidth(log_path=log_path,
+                                                     mod_name=mod_name)
+        assert actual_str == expected_str
