@@ -167,6 +167,9 @@ def test_log_get_generic_record(dtype):
     ("imbalanced-io.darshan",
      "STDIO",
      "I/O performance estimate (at the STDIO layer): transferred 1.1 MiB at 0.01 MiB/s"),
+    ("imbalanced-io.darshan",
+     "MPI-IO",
+     "I/O performance estimate (at the MPI-IO layer): transferred 101785.8 MiB at 101.58 MiB/s"),
     ("laytonjb_test1_id28730_6-7-43012-2131301613401632697_1.darshan",
      "STDIO",
      "I/O performance estimate (at the STDIO layer): transferred 0.0 MiB at 4.22 MiB/s"),
@@ -176,6 +179,18 @@ def test_log_get_generic_record(dtype):
     ("treddy_mpi-io-test_id4373053_6-2-60198-9815401321915095332_1.darshan",
      "STDIO",
      "I/O performance estimate (at the STDIO layer): transferred 0.0 MiB at 16.47 MiB/s"),
+    ("e3sm_io_heatmap_only.darshan",
+     "STDIO",
+     "I/O performance estimate (at the STDIO layer): transferred 0.0 MiB at 3.26 MiB/s"),
+    ("e3sm_io_heatmap_only.darshan",
+     "MPI-IO",
+     "I/O performance estimate (at the MPI-IO layer): transferred 290574.1 MiB at 105.69 MiB/s"),
+    ("partial_data_stdio.darshan",
+     "MPI-IO",
+     "I/O performance estimate (at the MPI-IO layer): transferred 32.0 MiB at 2317.98 MiB/s"),
+    ("partial_data_stdio.darshan",
+     "STDIO",
+     "I/O performance estimate (at the STDIO layer): transferred 16336.0 MiB at 2999.14 MiB/s"),
 ])
 def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
     # test the basic scenario of retrieving
