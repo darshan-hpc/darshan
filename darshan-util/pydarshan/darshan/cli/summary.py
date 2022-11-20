@@ -17,6 +17,7 @@ from mako.template import Template
 
 import darshan
 import darshan.cli
+from darshan.backend.cffi_backend import log_get_bytes_bandwidth
 from darshan.experimental.plots import (
     plot_dxt_heatmap,
     plot_io_cost,
@@ -488,6 +489,29 @@ class ReportData:
                     fig_width=350,
                 )
                 self.figures.append(opcount_fig)
+
+            try:
+                # this is really just some text
+                # so using ReportFigure feels awkward...
+                bandwidth_fig = ReportFigure(
+                        section_title=sect_title,
+                        fig_title="",
+                        fig_func=None,
+                        fig_args=None,
+                        fig_description=log_get_bytes_bandwidth(log_path=self.log_path,
+                                                                mod_name=mod))
+                self.figures.append(bandwidth_fig)
+            except (RuntimeError, KeyError):
+                # the module probably doesn't support derived metrics
+                # calculations, but the C code doesn't distinguish other
+                # types of errors
+
+                # the KeyError appears to be needed for a subset of logs
+                # for which _structdefs lacks APMPI or APXC entries;
+                # for example `e3sm_io_heatmap_only.darshan` in logs
+                # repo
+                pass
+
 
         #########################
         # Data Access by Category
