@@ -687,7 +687,6 @@ def log_get_derived_metrics(log_path: str, mod_name: str):
                                             jobrec[0].nprocs,
                                             darshan_accumulator)
     if r != 0:
-        libdutil.darshan_free(buf[0])
         raise RuntimeError("A nonzero exit code was received from "
                            "darshan_accumulator_create() at the C level. "
                            f"This could mean that the {mod_name} module does not "
