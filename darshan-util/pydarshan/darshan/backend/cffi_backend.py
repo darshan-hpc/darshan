@@ -680,7 +680,9 @@ def log_get_derived_metrics(log_path: str, mod_name: str):
     modules = log_get_modules(log_handle)
 
     if mod_name not in modules:
-        return None
+        raise ValueError(f"{mod_name} is not in the available log file "
+                         f"modules: {modules.keys()}")
+
     mod_type = _structdefs[mod_name]
     darshan_accumulator = ffi.new("darshan_accumulator *")
     r = libdutil.darshan_accumulator_create(modules[mod_name]['idx'],

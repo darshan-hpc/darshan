@@ -210,6 +210,12 @@ def test_log_get_generic_record(dtype):
     ("partial_data_stdio.darshan",
      "STDIO",
      "I/O performance estimate (at the STDIO layer): transferred 16336.0 MiB at 2999.14 MiB/s"),
+    # the C derived metrics code can't distinguish
+    # between different kinds of errors at this time,
+    # but we can still intercept in some cases...
+    ("partial_data_stdio.darshan",
+     "GARBAGE",
+     "ValueError"),
 ])
 def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
     # test the basic scenario of retrieving
@@ -220,7 +226,13 @@ def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
 
     log_path = get_log_path(log_path)
     if expected_str == "RuntimeError":
-        with pytest.raises(RuntimeError):
+        with pytest.raises(RuntimeError,
+                           match=f"{mod_name} module does not support derived"):
+            backend.log_get_bytes_bandwidth(log_path=log_path,
+                                            mod_name=mod_name)
+    elif expected_str == "ValueError":
+        with pytest.raises(ValueError,
+                           match=f"{mod_name} is not in the available log"):
             backend.log_get_bytes_bandwidth(log_path=log_path,
                                             mod_name=mod_name)
     else:
