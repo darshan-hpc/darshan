@@ -92,7 +92,7 @@ def test_runtime_heatmap_div_by_zero(tmpdir):
                                           "CLOCK_REALTIME_COARSE"))
 
         new_install_path = os.path.join(cwd, "darshan", "darshan_install")
-        os.chdir(os.path.join("darshan", "darshan-runtime", "build"))
+        os.chdir(os.path.join("darshan", "build-runtime"))
         myenv = os.environ.copy()
         myenv["CC"] = "mpicc"
         subprocess.check_output(["../configure",
