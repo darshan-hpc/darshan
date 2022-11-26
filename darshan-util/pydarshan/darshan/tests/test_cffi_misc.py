@@ -165,27 +165,20 @@ def test_log_get_generic_record(dtype):
     # the expected bytes/bandwidth strings are pasted
     # directly from the old perl summary reports;
     # exceptions noted below
+    # in some cases we defer to darshan-parser for the expected
+    # values; see discussion in gh-839
     ("imbalanced-io.darshan",
      "STDIO",
      "I/O performance estimate (at the STDIO layer): transferred 1.1 MiB at 0.01 MiB/s"),
     ("imbalanced-io.darshan",
      "MPI-IO",
-     "I/O performance estimate (at the MPI-IO layer): transferred 101785.8 MiB at 101.58 MiB/s"),
+     "I/O performance estimate (at the MPI-IO layer): transferred 126326.8 MiB at 101.58 MiB/s"),
     # imbalanced-io.darshan does have LUSTRE data,
     # but it doesn't support derived metrics at time
     # of writing
     ("imbalanced-io.darshan",
      "LUSTRE",
      "RuntimeError"),
-    # imbalanced-io.darshan has POSIX data, but it is
-    # incomplete, and the Perl summary report opts to
-    # include the summary string only for STDIO and
-    # MPI-IO
-    # TODO: confirm with darshan team that we DO want
-    # to include POSIX reporting as below rather than
-    # raising an error (note that the Perl report DOES
-    # include reports for partial data modules as can
-    # be seen with partial_data_stdio.darshan below)
     ("imbalanced-io.darshan",
      "POSIX",
      "I/O performance estimate (at the POSIX layer): transferred 101785.8 MiB at 164.99 MiB/s"),
@@ -203,7 +196,7 @@ def test_log_get_generic_record(dtype):
      "I/O performance estimate (at the STDIO layer): transferred 0.0 MiB at 3.26 MiB/s"),
     ("e3sm_io_heatmap_only.darshan",
      "MPI-IO",
-     "I/O performance estimate (at the MPI-IO layer): transferred 290574.1 MiB at 105.69 MiB/s"),
+     "I/O performance estimate (at the MPI-IO layer): transferred 73880.2 MiB at 105.69 MiB/s"),
     ("partial_data_stdio.darshan",
      "MPI-IO",
      "I/O performance estimate (at the MPI-IO layer): transferred 32.0 MiB at 2317.98 MiB/s"),
