@@ -733,16 +733,7 @@ def log_get_bytes_bandwidth(log_path: str, mod_name: str) -> str:
     # in the old perl-based summary reports
     darshan_derived_metrics = log_get_derived_metrics(log_path=log_path,
                                                       mod_name=mod_name)
-    if mod_name == "MPI-IO":
-        # for whatever reason, this seems to require
-        # total_bytes reported from POSIX to match the
-        # old perl summary reports
-        darshan_derived_metrics_posix = log_get_derived_metrics(log_path=log_path,
-                                                                mod_name="POSIX")
-        total_mib = darshan_derived_metrics_posix.total_bytes / 2 ** 20
-    else:
-        total_mib = darshan_derived_metrics.total_bytes / 2 ** 20
-
+    total_mib = darshan_derived_metrics.total_bytes / 2 ** 20
     total_bw = darshan_derived_metrics.agg_perf_by_slowest
     ret_str = f"I/O performance estimate (at the {mod_name} layer): transferred {total_mib:.1f} MiB at {total_bw:.2f} MiB/s"
     return ret_str
