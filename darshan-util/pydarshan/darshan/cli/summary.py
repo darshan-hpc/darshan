@@ -57,6 +57,11 @@ class ReportFigure:
         fig_args: dict,
         fig_description: str = "",
         fig_width: int = 500,
+        # when there is no HTML data generated
+        # for the figure (i.e., no image/plot),
+        # we have the option of changing the caption
+        # text color for a warning/important standalone text
+        text_only_color: str = "red",
     ):
         self.section_title = section_title
         if not fig_title:
@@ -69,7 +74,11 @@ class ReportFigure:
         # temporary handling for DXT disabled cases
         # so special error message can be passed
         # in place of an encoded image
+        # NOTE: this code path is now also
+        # being used for adding the bandwidth
+        # text, which doesn't really have an image...
         self.fig_html = None
+        self.text_only_color = text_only_color
         if self.fig_func:
             self.generate_fig()
 
@@ -499,7 +508,8 @@ class ReportData:
                         fig_func=None,
                         fig_args=None,
                         fig_description=log_get_bytes_bandwidth(log_path=self.log_path,
-                                                                mod_name=mod))
+                                                                mod_name=mod),
+                        text_only_color="blue")
                 self.figures.append(bandwidth_fig)
             except (RuntimeError, KeyError):
                 # the module probably doesn't support derived metrics
