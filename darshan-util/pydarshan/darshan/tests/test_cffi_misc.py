@@ -212,10 +212,15 @@ def test_log_get_generic_record(dtype):
     # TODO: determine if the lack of APMPI and
     # any other "add-ons" in _structdefs is a bug
     # in the control flow for `log_get_derived_metrics()`?
-    pytest.param("e3sm_io_heatmap_only.darshan",
+    ("e3sm_io_heatmap_only.darshan",
      "APMPI",
-     "",
-     marks=pytest.mark.xfail(reason="APMPI and derived metrics control flow?")),
+     "KeyError"),
+    ("skew-app.darshan",
+     "POSIX",
+     "I/O performance estimate (at the POSIX layer): transferred 41615.8 MiB at 157.49 MiB/s"),
+    ("skew-app.darshan",
+     "MPI-IO",
+     "I/O performance estimate (at the MPI-IO layer): transferred 41615.8 MiB at 55.22 MiB/s"),
 ])
 def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
     # test the basic scenario of retrieving
@@ -233,6 +238,10 @@ def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
     elif expected_str == "ValueError":
         with pytest.raises(ValueError,
                            match=f"{mod_name} is not in the available log"):
+            backend.log_get_bytes_bandwidth(log_path=log_path,
+                                            mod_name=mod_name)
+    elif expected_str == "KeyError":
+        with pytest.raises(KeyError, match=f"{mod_name}"):
             backend.log_get_bytes_bandwidth(log_path=log_path,
                                             mod_name=mod_name)
     else:

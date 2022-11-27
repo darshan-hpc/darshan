@@ -49,7 +49,8 @@
               <figcaption>${fig.fig_description}</figcaption>
             % else:
               <!-- temporary handling for DXT-disabled cases -->
-              <figcaption style="font-weight: bold; color: red; width: 400px;">
+              <!-- now also handles the bandwidth text... -->
+              <figcaption style="font-weight: bold; color: ${fig.text_only_color}; width: 400px;">
                 ${fig.fig_description}
               </figcaption>
             % endif
