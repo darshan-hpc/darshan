@@ -282,14 +282,14 @@ class TestReportData:
                 "sample.darshan",
                 pd.DataFrame(
                     index=[
-                        "Job ID", "User ID", "# Processes", "Runtime (s)",
+                        "Job ID", "User ID", "# Processes", "Run time (s)",
                         "Start Time", "End Time", "Command Line",
                     ],
                     data=[
                         "4478544",
                         "69615",
                         "2048",
-                        "116",
+                        "117.0000",
                         str(datetime.fromtimestamp(1490000867)),
                         str(datetime.fromtimestamp(1490000983)),
                         (
@@ -305,14 +305,14 @@ class TestReportData:
                 "noposix.darshan",
                 pd.DataFrame(
                     index=[
-                        "Job ID", "User ID", "# Processes", "Runtime (s)",
+                        "Job ID", "User ID", "# Processes", "Run time (s)",
                         "Start Time", "End Time", "Command Line",
                     ],
                     data=[
                         "83017637",
                         "996599276",
                         "512",
-                        "39212",
+                        "39213.0000",
                         str(datetime.fromtimestamp(1514923055)),
                         str(datetime.fromtimestamp(1514962267)),
                         "Anonymized",
@@ -323,14 +323,14 @@ class TestReportData:
                 "sample-dxt-simple.darshan",
                 pd.DataFrame(
                     index=[
-                        "Job ID", "User ID", "# Processes", "Runtime (s)",
+                        "Job ID", "User ID", "# Processes", "Run time (s)",
                         "Start Time", "End Time", "Command Line",
                     ],
                     data=[
                     "4233209",
                     "28751",
                     "16",
-                    "< 1",
+                    "1.0000",
                     str(datetime.fromtimestamp(1619109091)),
                     str(datetime.fromtimestamp(1619109091)),
                     (
@@ -538,13 +538,12 @@ class TestReportData:
     @pytest.mark.parametrize(
         "logname, expected_runtime",
         [
-            ("sample.darshan", "116",),
-            ("noposix.darshan", "39212"),
-            ("noposixopens.darshan", "1110"),
-            ("sample-badost.darshan", "779",),
-            ("sample-goodost.darshan", "4",),
-            # special case where the calculated run time is 0
-            ("sample-dxt-simple.darshan", "< 1",),
+            ("sample.darshan", "117.0000",),
+            ("noposix.darshan", "39213.0000"),
+            ("noposixopens.darshan", "1111.0000"),
+            ("sample-badost.darshan", "780.0000",),
+            ("sample-goodost.darshan", "5.0000",),
+            ("sample-dxt-simple.darshan", "1.0000",),
         ],
     )
     def test_get_runtime(self, logname, expected_runtime):

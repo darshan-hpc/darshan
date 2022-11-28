@@ -38,10 +38,7 @@ def determine_hmap_runtime(report: darshan.DarshanReport) -> Tuple[float, float]
     or both module types are available, to achieve a common
     max displayed runtime.
 
-    In some cases, this may mean that the time value is
-    rounded up from the actual runtime.
-
-    Paramaters
+    Parameters
     ----------
 
     report: a ``darshan.DarshanReport``
@@ -49,13 +46,11 @@ def determine_hmap_runtime(report: darshan.DarshanReport) -> Tuple[float, float]
     Returns
     -------
 
-    A tuple containing `tmax`, (rounded) `runtime` floats.
+    A tuple containing `tmax`, `runtime` floats.
 
     """
-    # calculate the elapsed runtime
-    runtime = report.metadata["job"]["end_time"] - report.metadata["job"]["start_time"]
-    # ensure a minimum runtime value of 1 second
-    runtime = max(runtime, 1)
+    # get the elapsed runtime
+    runtime = report.metadata["job"]["run_time"]
     # leverage higher resolution DXT timing
     # data if available
     if ("DXT_POSIX" in report.modules or
@@ -69,10 +64,6 @@ def determine_hmap_runtime(report: darshan.DarshanReport) -> Tuple[float, float]
                 tmax_dxt = float(agg_df["end_time"].max())
                 if tmax_dxt > tmax:
                     tmax = tmax_dxt
-        # if the data max time exceeds the runtime, buffer by 1 second
-        # until our timer precision improves to prevent truncation
-        if tmax > runtime:
-            runtime += 1
     else:
         tmax = runtime
     return tmax, runtime

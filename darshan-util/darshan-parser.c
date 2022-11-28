@@ -140,7 +140,7 @@ int main(int argc, char **argv)
     int mount_count;
     struct darshan_mnt_info *mnt_data_array;
     time_t tmp_time = 0;
-    int64_t run_time = 0;
+    double run_time;
     char *token;
     char *save;
     char buffer[DARSHAN_JOB_METADATA_LEN];
@@ -206,17 +206,16 @@ int main(int argc, char **argv)
     printf("# exe: %s\n", tmp_string);
     printf("# uid: %" PRId64 "\n", job.uid);
     printf("# jobid: %" PRId64 "\n", job.jobid);
-    printf("# start_time: %" PRId64 "\n", job.start_time);
-    tmp_time += job.start_time;
+    printf("# start_time: %" PRId64 "\n", job.start_time_sec);
+    tmp_time += job.start_time_sec;
     printf("# start_time_asci: %s", ctime(&tmp_time));
-    printf("# end_time: %" PRId64 "\n", job.end_time);
+    printf("# end_time: %" PRId64 "\n", job.end_time_sec);
     tmp_time = 0;
-    tmp_time += job.end_time;
+    tmp_time += job.end_time_sec;
     printf("# end_time_asci: %s", ctime(&tmp_time));
     printf("# nprocs: %" PRId64 "\n", job.nprocs);
-    if(job.end_time >= job.start_time)
-        run_time = job.end_time - job.start_time + 1;
-    printf("# run time: %" PRId64 "\n", run_time);
+    darshan_log_get_job_runtime(fd, job, &run_time);
+    printf("# run time: %.4lf\n", run_time);
     for(token=strtok_r(job.metadata, "\n", &save);
         token != NULL;
         token=strtok_r(NULL, "\n", &save))

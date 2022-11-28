@@ -211,6 +211,7 @@ int darshan_log_put_mod(darshan_fd fd, darshan_module_id mod_id,
 void darshan_log_close(darshan_fd file);
 void darshan_log_print_version_warnings(const char *version_string);
 char *darshan_log_get_lib_version(void);
+int darshan_log_get_job_runtime(darshan_fd fd, struct darshan_job job, double *runtime);
 void darshan_log_get_modules(darshan_fd fd, struct darshan_mod_info **mods,
     int* count);
 void darshan_log_get_name_records(darshan_fd fd,
