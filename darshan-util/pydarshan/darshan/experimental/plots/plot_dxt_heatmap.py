@@ -123,7 +123,7 @@ def get_x_axis_tick_labels(
     return x_ticklabels
 
 
-def get_y_axis_ticks(ax: Any, n_ylabels: int = 6) -> npt.NDArray[np.float64]:
+def get_y_axis_ticks(ax: Any, n_procs: Optional[int] = None, n_ylabels: int = 6) -> npt.NDArray[np.float64]:
     """
     Creates the y-axis tick mark locations.
 
@@ -141,7 +141,10 @@ def get_y_axis_ticks(ax: Any, n_ylabels: int = 6) -> npt.NDArray[np.float64]:
 
     """
     # get the original y-axis tick locations
-    initial_yticks = ax.get_yticks()
+    if n_procs is None:
+        initial_yticks = ax.get_yticks()
+    else:
+        initial_yticks = np.arange(0, n_procs) + 0.5
     if len(initial_yticks) < n_ylabels:
         # if there are less tick marks available than requested,
         # use the original tick mark locations
@@ -237,7 +240,7 @@ def set_x_axis_ticks_and_labels(
     jointgrid.ax_joint.set_xticklabels(xticklabels, minor=False)
 
 
-def set_y_axis_ticks_and_labels(jointgrid: Any, n_ylabels: int = 6):
+def set_y_axis_ticks_and_labels(jointgrid: Any, n_procs: int, n_ylabels: int = 6):
     """
     Sets the y-axis tick mark locations and labels.
 
@@ -248,9 +251,8 @@ def set_y_axis_ticks_and_labels(jointgrid: Any, n_ylabels: int = 6):
     n_ylabels: The number of y-axis tick mark labels to create. Default is 6.
 
     """
-    # retrieve the y-axis tick mark locations and labels
-    yticks = get_y_axis_ticks(ax=jointgrid.ax_joint, n_ylabels=n_ylabels)
-    yticklabels = get_y_axis_tick_labels(ax=jointgrid.ax_joint, n_ylabels=n_ylabels)
+    yticks = get_y_axis_ticks(ax=jointgrid.ax_joint, n_procs=n_procs, n_ylabels=n_ylabels)
+    yticklabels = yticks - 0.5
     # set the new y-axis tick locations and labels
     jointgrid.ax_joint.set_yticks(yticks)
     jointgrid.ax_joint.set_yticklabels(yticklabels, minor=False)
@@ -374,7 +376,6 @@ def plot_heatmap(
         hmap_df = report.heatmaps[submodule].to_df(ops=ops)
         # mirror the DXT approach to heatmaps by
         # adding all-zero rows for inactive ranks
-        hmap_df = hmap_df.reindex(index=range(nprocs), fill_value=0.0)
         xbins = hmap_df.shape[1]
 
     # build the joint plot with marginal histograms
@@ -388,14 +389,14 @@ def plot_heatmap(
     colorbar_kws = {"label": colorbar_label}
     # create the heatmap object using the heatmap data,
     # and assign it to the jointplot main figure
-    hmap = sns.heatmap(
-        hmap_df,
-        ax=jgrid.ax_joint,
-        # choose a color map that is not white at any value
-        cmap="YlOrRd",
-        norm=LogNorm(),
-        cbar_kws=colorbar_kws,
-    )
+
+    x, y = np.meshgrid(np.arange(xbins),
+                       np.asarray(hmap_df.index))
+    # x and y both have shape (active_ranks, xbins)
+    # rather than (nprocs, xbins)
+    hmap = jgrid.ax_joint.scatter(x, y, c=hmap_df, cmap="YlOrRd", norm=LogNorm(), marker="s")
+    jgrid.ax_joint.set_ylim(0, nprocs)
+    jgrid.fig.colorbar(hmap, ax=jgrid.ax_joint, orientation='vertical')
 
     # add text for x-axis bin count
     xbin_label = f"Time bins: {xbins}"
@@ -410,14 +411,14 @@ def plot_heatmap(
     )
 
     # make the heatmap border visible
-    for _, spine in hmap.spines.items():
+    for _, spine in jgrid.ax_joint.spines.items():
         spine.set_visible(True)
 
     # if there is more than 1 process,
     # create the horizontal bar graph
     if nprocs > 1:
         jgrid.ax_marg_y.barh(
-            y=np.arange(nprocs),
+            y=hmap_df.index,
             width=hmap_df.sum(axis=1),
             align="edge",
             facecolor="black",
@@ -441,7 +442,7 @@ def plot_heatmap(
     jgrid.ax_joint.set_xlim(0.0, xbin_max)
     # set the x and y tick locations and labels using the runtime
     set_x_axis_ticks_and_labels(jointgrid=jgrid, tmax=runtime, bin_max=xbin_max, n_xlabels=4)
-    set_y_axis_ticks_and_labels(jointgrid=jgrid, n_ylabels=6)
+    set_y_axis_ticks_and_labels(jointgrid=jgrid, n_procs=nprocs, n_ylabels=6)
 
     # cleanup the marginal bar graph ticks and tick labels
     remove_marginal_graph_ticks_and_labels(
@@ -460,9 +461,6 @@ def plot_heatmap(
         # if there is only 1 unique rank there is no horizontal bar graph,
         # so set the subplot dimensions to fill the space
         adjust_for_colorbar(jointgrid=jgrid, fig_right=0.92, cbar_x0=0.82)
-
-    # invert the y-axis so rank values are increasing
-    jgrid.ax_joint.invert_yaxis()
 
     # set the axis labels
     jgrid.ax_joint.set_xlabel("Time (s)")

@@ -401,5 +401,4 @@ def get_heatmap_df(agg_df: pd.DataFrame, xbins: int, nprocs: int) -> pd.DataFram
     cats = cats.mul(agg_df["length"], axis=0)
     cats.index = agg_df["rank"]
     hmap_df = cats.groupby("rank").sum()
-    hmap_df = hmap_df.reindex(index=range(nprocs), fill_value=0.0)
     return hmap_df
