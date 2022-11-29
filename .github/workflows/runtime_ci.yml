@@ -50,7 +50,8 @@ jobs:
           cd darshan-runtime
           mkdir build_nonmpi
           cd build_nonmpi
-          CC=gcc ../configure --without-mpi --prefix=$DARSHAN_INSTALL_PATH --with-log-path-by-env=DARSHAN_LOGPATH --with-jobid-env=NONE
+          # Note that darshan-util is not needed here, we can use the one built below
+          CC=gcc ../configure --disable-darshan-util --without-mpi --prefix=$DARSHAN_INSTALL_PATH --with-log-path-by-env=DARSHAN_LOGPATH --with-jobid-env=NONE
           make
           make install
       - name: Install darshan-util
