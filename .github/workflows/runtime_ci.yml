@@ -71,6 +71,7 @@ jobs:
         run: |
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/darshan_install/lib
           export DARSHAN_INSTALL_PATH=$PWD/darshan_install
+          export DARSHAN_NONMPI_INSTALL_PATH=$PWD/darshan_nonmpi_install
           export DARSHAN_ROOT_PATH=$PWD
           export HDF5_LIB=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5.so
           python -m pytest darshan-test/python_runtime_tests.py

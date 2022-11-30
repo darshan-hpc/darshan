@@ -175,10 +175,8 @@ def test_env_vars_config(tmpdir):
         # NOTE: could eventually do some more sanity
         # checks on the report data here
 
-def test_forked_process(tmpdir):
-    # regression test for gh-786
+def do_forked_process_test(tmpdir, darshan_install_path):
     root_path = os.environ.get("DARSHAN_ROOT_PATH")
-    darshan_install_path = os.environ.get("DARSHAN_INSTALL_PATH")
     test_script_path = os.path.join(root_path,
                                     "darshan-test",
                                     "python_mpi_scripts",
@@ -221,3 +219,13 @@ def test_forked_process(tmpdir):
             if "post-fork-child" in v:
                 post_fork_child_found=True
         assert post_fork_child_found
+
+def test_forked_process_nonmpi(tmpdir):
+    # regression test for gh-786, non-mpi version
+    darshan_install_path = os.environ.get("DARSHAN_NONMPI_INSTALL_PATH")
+    do_forked_process_test(tmpdir, darshan_install_path)
+
+def test_forked_process_mpi(tmpdir):
+    # regression test for gh-786, mpi version
+    darshan_install_path = os.environ.get("DARSHAN_INSTALL_PATH")
+    do_forked_process_test(tmpdir, darshan_install_path)
