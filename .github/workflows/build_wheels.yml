@@ -13,7 +13,7 @@ on:
       - main
     paths:
       - darshan-util/**
-      - include/*
+      - include/**
       - .github/workflows/build_wheels.yml
   workflow_dispatch:
 
