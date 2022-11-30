@@ -43,6 +43,17 @@ jobs:
           CC=mpicc ../configure --prefix=$DARSHAN_INSTALL_PATH --with-log-path-by-env=DARSHAN_LOGPATH --with-jobid-env=NONE --enable-hdf5-mod
           make
           make install
+      - name: Install darshan-runtime (non-MPI)
+        run: |
+          mkdir darshan_nonmpi_install
+          export DARSHAN_INSTALL_PATH=$PWD/darshan_nonmpi_install
+          cd darshan-runtime
+          mkdir build_nonmpi
+          cd build_nonmpi
+          # Note that darshan-util is not needed here, we can use the one built below
+          CC=gcc ../configure --disable-darshan-util --without-mpi --prefix=$DARSHAN_INSTALL_PATH --with-log-path-by-env=DARSHAN_LOGPATH --with-jobid-env=NONE
+          make
+          make install
       - name: Install darshan-util
         run: |
           export DARSHAN_INSTALL_PATH=$PWD/darshan_install
@@ -60,6 +71,7 @@ jobs:
         run: |
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/darshan_install/lib
           export DARSHAN_INSTALL_PATH=$PWD/darshan_install
+          export DARSHAN_NONMPI_INSTALL_PATH=$PWD/darshan_nonmpi_install
           export DARSHAN_ROOT_PATH=$PWD
           export HDF5_LIB=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5.so
           python -m pytest darshan-test/python_runtime_tests.py
