@@ -7,12 +7,14 @@ on:
     paths:
       - darshan-util/**
       - include/**
+      - .github/workflows/build_wheels.yml
   pull_request:
     branches:
       - main
     paths:
       - darshan-util/**
       - include/*
+      - .github/workflows/build_wheels.yml
   workflow_dispatch:
 
 jobs:
