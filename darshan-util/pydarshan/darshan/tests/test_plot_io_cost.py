@@ -58,8 +58,8 @@ from darshan.experimental.plots.plot_io_cost import (
 )
 def test_get_io_cost_df(logname, expected_df):
     # regression test for `plot_io_cost.get_io_cost_df()`
-    report = darshan.DarshanReport(get_log_path(logname))
-    actual_df = get_io_cost_df(report=report)
+    with darshan.DarshanReport(get_log_path(logname)) as report:
+        actual_df = get_io_cost_df(report=report)
     assert_frame_equal(actual_df, expected_df)
 
 
@@ -90,8 +90,8 @@ def test_get_io_cost_df(logname, expected_df):
 def test_plot_io_cost_ylims(logname, expected_ylims):
     # test the y limits for both axes for the IO cost stacked bar graph
 
-    report = darshan.DarshanReport(get_log_path(logname))
-    fig = plot_io_cost(report=report)
+    with darshan.DarshanReport(get_log_path(logname)) as report:
+        fig = plot_io_cost(report=report)
     for i, ax in enumerate(fig.axes):
         # there are only 2 axes, the first being the "raw" data
         # and the second being the normalized data (percent)
@@ -122,8 +122,8 @@ def test_plot_io_cost_y_ticks_and_labels(logname, expected_yticks):
     expected_yticklabels = [str(i) for i in expected_yticks]
 
     logpath = get_log_path(logname)
-    report = darshan.DarshanReport(logpath)
-    fig = plot_io_cost(report=report)
+    with darshan.DarshanReport(logpath) as report:
+        fig = plot_io_cost(report=report)
     for i, ax in enumerate(fig.axes):
         # there are only 2 axes, the first being the "raw" data
         # and the second being the normalized data (percent)
@@ -227,8 +227,8 @@ def test_issue_590(filename, expected_df):
     # regression test for issue #590
     # see: https://github.com/darshan-hpc/darshan/issues/590
     log_path = get_log_path(filename)
-    report = darshan.DarshanReport(log_path)
-    actual_df = get_io_cost_df(report=report)
+    with darshan.DarshanReport(log_path) as report:
+        actual_df = get_io_cost_df(report=report)
     assert_frame_equal(actual_df, expected_df)
 
 

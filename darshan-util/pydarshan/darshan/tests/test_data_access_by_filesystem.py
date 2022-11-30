@@ -106,30 +106,28 @@ def test_identify_filesystems(capsys, file_id_dict, expected_root_paths, verbose
         # nothing should be printed
         assert len(captured.out) == 0
 
-@pytest.mark.parametrize("""report,
-                          file_id_dict,
+@pytest.mark.parametrize("""log_path,
                           expected_df_reads_shape,
                           expected_df_writes_shape""", [
-    (darshan.DarshanReport(get_log_path("sample.darshan")),
-     darshan.DarshanReport(get_log_path("sample.darshan")).data["name_records"],
+    (get_log_path("sample.darshan"),
      (0, 87),
      (3, 87),
     ),
-    (darshan.DarshanReport(get_log_path("sample-dxt-simple.darshan")),
-     darshan.DarshanReport(get_log_path("sample-dxt-simple.darshan")).data["name_records"],
+    (get_log_path("sample-dxt-simple.darshan"),
      (0, 73),
      (2, 73),
     ),
     ])
-def test_rec_to_rw_counter_dfs_with_cols(report,
-                                         file_id_dict,
+def test_rec_to_rw_counter_dfs_with_cols(log_path,
                                          expected_df_reads_shape,
                                          expected_df_writes_shape):
     # check basic shape expectations on the dataframes
     # produced by rec_to_rw_counter_dfs_with_cols()
-    actual_df_reads, actual_df_writes = data_access_by_filesystem.rec_to_rw_counter_dfs_with_cols(report=report,
-                                                                                                  file_id_dict=file_id_dict,
-                                                                                                  mod='POSIX')
+    with darshan.DarshanReport(log_path) as report:
+        file_id_dict = report.data["name_records"]
+        actual_df_reads, actual_df_writes = data_access_by_filesystem.rec_to_rw_counter_dfs_with_cols(report=report,
+                                                                                                      file_id_dict=file_id_dict,
+                                                                                                      mod='POSIX')
     assert actual_df_reads.shape == expected_df_reads_shape
     assert actual_df_writes.shape == expected_df_writes_shape
 
@@ -200,44 +198,41 @@ def test_process_unique_files(df_reads, df_writes, expected_read_groups, expecte
 
 @pytest.mark.parametrize("mod", ["POSIX", "OTHER"])
 @pytest.mark.parametrize("verbose", [True, False])
-@pytest.mark.parametrize("""report,
-                            filesystem_roots,
-                            file_id_dict,
+@pytest.mark.parametrize("""log_path,
                             processing_func,
                             expected_read_groups,
                             expected_write_groups""", [
-    (darshan.DarshanReport(get_log_path("sample.darshan")),
-     data_access_by_filesystem.identify_filesystems(darshan.DarshanReport(get_log_path("sample.darshan")).data["name_records"]),
-     darshan.DarshanReport(get_log_path("sample.darshan")).data["name_records"],
+    (get_log_path("sample.darshan"),
      data_access_by_filesystem.process_unique_files,
      pd.Series([0.0, 0.0, 0.0, 0.0], index=pd.Index(['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2'], name='filesystem_root'), name='filepath'),
      pd.Series([0.0, 1.0, 1.0, 1.0], index=pd.Index(['<STDIN>', '<STDOUT>', '<STDERR>', '/scratch2'], name='filesystem_root'), name='filepath')),
     ])
-def test_unique_fs_rw_counter(report,
-                              filesystem_roots,
-                              file_id_dict,
+def test_unique_fs_rw_counter(log_path,
                               processing_func,
                               verbose,
                               expected_read_groups,
                               expected_write_groups,
                               mod):
-    if mod == "POSIX":
-        actual_read_groups, actual_write_groups = data_access_by_filesystem.unique_fs_rw_counter(report=report,
-                                                                                                 filesystem_roots=filesystem_roots,
-                                                                                                 file_id_dict=file_id_dict,
-                                                                                                 processing_func=processing_func,
-                                                                                                 mod=mod,
-                                                                                                 verbose=verbose)
-        assert_series_equal(actual_read_groups, expected_read_groups)
-        assert_series_equal(actual_write_groups, expected_write_groups)
-    else:
-        with pytest.raises(NotImplementedError):
-            data_access_by_filesystem.unique_fs_rw_counter(report=report,
-                                                           filesystem_roots=filesystem_roots,
-                                                           file_id_dict=file_id_dict,
-                                                           processing_func=processing_func,
-                                                           mod=mod,
-                                                           verbose=verbose)
+    with darshan.DarshanReport(log_path) as report:
+        file_id_dict = report.data["name_records"]
+        filesystem_roots = data_access_by_filesystem.identify_filesystems(report.data["name_records"])
+        if mod == "POSIX":
+                actual_read_groups, actual_write_groups = data_access_by_filesystem.unique_fs_rw_counter(report=report,
+                                                                                                         filesystem_roots=filesystem_roots,
+                                                                                                         file_id_dict=file_id_dict,
+                                                                                                         processing_func=processing_func,
+                                                                                                         mod=mod,
+                                                                                                         verbose=verbose)
+                assert_series_equal(actual_read_groups, expected_read_groups)
+                assert_series_equal(actual_write_groups, expected_write_groups)
+        else:
+            with pytest.raises(NotImplementedError):
+                data_access_by_filesystem.unique_fs_rw_counter(report=report,
+                                                               filesystem_roots=filesystem_roots,
+                                                               file_id_dict=file_id_dict,
+                                                               processing_func=processing_func,
+                                                               mod=mod,
+                                                               verbose=verbose)
 
 
 @pytest.mark.parametrize("""file_rd_series,
@@ -293,8 +288,8 @@ def test_empty_data_posix_y_axis_annot_position():
     # POSIX data
     # verify that this is handled/resolved
     log_file_path = get_log_path('noposixopens.darshan')
-    report = darshan.DarshanReport(log_file_path)
-    actual_fig = data_access_by_filesystem.plot_with_report(report=report)
+    with darshan.DarshanReport(log_file_path) as report:
+        actual_fig = data_access_by_filesystem.plot_with_report(report=report)
     # check that the y annotation font sizes have been
     # adjusted based on the length of the strings
     axes = actual_fig.axes
@@ -321,8 +316,8 @@ def test_cat_labels_std_streams(log_file_name, expected_text_labels):
     # the STD.. stream label seem appropriate
     log_file_path = get_log_path(log_file_name)
     actual_text_labels = []
-    report = darshan.DarshanReport(log_file_path)
-    actual_fig = data_access_by_filesystem.plot_with_report(report=report)
+    with darshan.DarshanReport(log_file_path) as report:
+        actual_fig = data_access_by_filesystem.plot_with_report(report=report)
     axes = actual_fig.axes
     for ax in axes:
         for child in ax.get_children():
@@ -342,8 +337,8 @@ def test_empty_data_posix_text_position():
     # subplots for a log file lacking POSIX activity
     # in gh-397; regression test this issue
     log_file_path = get_log_path('noposixopens.darshan')
-    report = darshan.DarshanReport(log_file_path)
-    actual_fig = data_access_by_filesystem.plot_with_report(report=report)
+    with darshan.DarshanReport(log_file_path) as report:
+        actual_fig = data_access_by_filesystem.plot_with_report(report=report)
     axes = actual_fig.axes
     for ax in axes:
         for child in ax.get_children():
@@ -466,8 +461,8 @@ def test_log_scale_display(filename):
     # plot columns that are log scaled should be
     # labelled appropriately
     log_path = get_log_path(filename)
-    report = darshan.DarshanReport(log_path)
-    fig = data_access_by_filesystem.plot_with_report(report=report)
+    with darshan.DarshanReport(log_path) as report:
+        fig = data_access_by_filesystem.plot_with_report(report=report)
     # only index 8 should have the log axis label
     for i, axis in enumerate(fig.axes):
         if i == 8:
@@ -486,9 +481,9 @@ def test_vertical_resize(filename, expected_dims, num_cats):
     # ensure that plots are expanded vertically to
     # match the number of filesystems plotted
     log_path = get_log_path(filename)
-    report = darshan.DarshanReport(log_path)
-    fig = data_access_by_filesystem.plot_with_report(report=report,
-                                                     num_cats=num_cats)
+    with darshan.DarshanReport(log_path) as report:
+        fig = data_access_by_filesystem.plot_with_report(report=report,
+                                                         num_cats=num_cats)
     actual_dims = fig.get_size_inches()
     assert_allclose(actual_dims, expected_dims)
 
@@ -501,8 +496,8 @@ def test_annotate_center_align(logname):
     # for review comment here:
     # https://github.com/darshan-hpc/darshan/pull/397#discussion_r690847889
     logpath = get_log_path(logname)
-    report = darshan.DarshanReport(logpath)
-    fig = data_access_by_filesystem.plot_with_report(report=report)
+    with darshan.DarshanReport(logpath) as report:
+        fig = data_access_by_filesystem.plot_with_report(report=report)
     axes = fig.axes
     for ax in axes:
         for child in ax.get_children():
@@ -518,8 +513,8 @@ def test_text_center_align(logname):
     # for review comment here:
     # https://github.com/darshan-hpc/darshan/pull/397#discussion_r690755364
     logpath = get_log_path(logname)
-    report = darshan.DarshanReport(logpath)
-    fig = data_access_by_filesystem.plot_with_report(report=report)
+    with darshan.DarshanReport(logpath) as report:
+        fig = data_access_by_filesystem.plot_with_report(report=report)
     axes = fig.axes
     for ax in axes:
         for child in ax.get_children():
@@ -543,9 +538,9 @@ def test_subplot_restriction(logname, num_cats):
     # rows requested, and avoid a collapsed layout
     expected_axes_limit = num_cats * 2
     log_path = get_log_path(logname)
-    report = darshan.DarshanReport(log_path)
-    fig = data_access_by_filesystem.plot_with_report(report=report,
-                                                     num_cats=num_cats)
+    with darshan.DarshanReport(log_path) as report:
+        fig = data_access_by_filesystem.plot_with_report(report=report,
+                                                         num_cats=num_cats)
     actual_axes = fig.get_axes()
     assert len(actual_axes) <= expected_axes_limit
     max_y1 = 0
@@ -572,9 +567,9 @@ def test_plot_with_report_no_file(tmpdir, logname):
     # https://github.com/darshan-hpc/darshan/pull/397#discussion_r689859765
     with tmpdir.as_cwd():
         log_path = get_log_path(logname)
-        report = darshan.DarshanReport(log_path)
-        fig = data_access_by_filesystem.plot_with_report(report=report,
-                                                         num_cats=6)
+        with darshan.DarshanReport(log_path) as report:
+            fig = data_access_by_filesystem.plot_with_report(report=report,
+                                                             num_cats=6)
         files_in_tmp = os.listdir(".")
         assert not files_in_tmp
 
@@ -594,9 +589,9 @@ def test_plot_with_report_proper_sort(logname, top_cat_name, third_cat_name):
     # see review comment:
     # https://github.com/darshan-hpc/darshan/pull/397#discussion_r769186581
     log_path = get_log_path(logname)
-    report = darshan.DarshanReport(log_path)
-    fig = data_access_by_filesystem.plot_with_report(report=report,
-                                                     num_cats=6)
+    with darshan.DarshanReport(log_path) as report:
+        fig = data_access_by_filesystem.plot_with_report(report=report,
+                                                         num_cats=6)
     actual_axes = fig.get_axes()
     for i, ax in enumerate(actual_axes):
         for child in ax.get_children():
@@ -616,8 +611,8 @@ def test_plot_with_report_root_files(logname):
     # categories that started with "//" for root-mounted
     # files
     log_path = get_log_path(logname)
-    report = darshan.DarshanReport(log_path)
-    fig = data_access_by_filesystem.plot_with_report(report=report)
+    with darshan.DarshanReport(log_path) as report:
+        fig = data_access_by_filesystem.plot_with_report(report=report)
     actual_axes = fig.get_axes()
     for i, ax in enumerate(actual_axes):
         for child in ax.get_children():
@@ -671,23 +666,23 @@ def test_stdio_basic_inclusion(logname,
 
     # follow the basic setup in plot_with_report()
     log_path = get_log_path(logname)
-    report = darshan.DarshanReport(log_path)
-    file_id_dict = report.data["name_records"]
-    filesystem_roots = data_access_by_filesystem.identify_filesystems(file_id_dict=file_id_dict)
+    with darshan.DarshanReport(log_path) as report:
+        file_id_dict = report.data["name_records"]
+        filesystem_roots = data_access_by_filesystem.identify_filesystems(file_id_dict=file_id_dict)
 
-    # now, we expect the files and bytes data structures
-    # to properly account for STDIO + POSIX data
+        # now, we expect the files and bytes data structures
+        # to properly account for STDIO + POSIX data
 
-    file_rd_series, file_wr_series = data_access_by_filesystem.unique_fs_rw_counter(report=report,
-                                                          filesystem_roots=filesystem_roots,
-                                                          file_id_dict=file_id_dict,
-                                                          processing_func=data_access_by_filesystem.process_unique_files,
-                                                          mod='POSIX')
-    bytes_rd_series, bytes_wr_series = data_access_by_filesystem.unique_fs_rw_counter(report=report,
-                                                            filesystem_roots=filesystem_roots,
-                                                            file_id_dict=file_id_dict,
-                                                            processing_func=data_access_by_filesystem.process_byte_counts,
-                                                            mod='POSIX')
+        file_rd_series, file_wr_series = data_access_by_filesystem.unique_fs_rw_counter(report=report,
+                                                              filesystem_roots=filesystem_roots,
+                                                              file_id_dict=file_id_dict,
+                                                              processing_func=data_access_by_filesystem.process_unique_files,
+                                                              mod='POSIX')
+        bytes_rd_series, bytes_wr_series = data_access_by_filesystem.unique_fs_rw_counter(report=report,
+                                                                filesystem_roots=filesystem_roots,
+                                                                file_id_dict=file_id_dict,
+                                                                processing_func=data_access_by_filesystem.process_byte_counts,
+                                                                mod='POSIX')
 
     assert_series_equal(file_rd_series, expected_file_rd_series)
     assert_series_equal(file_wr_series, expected_file_wr_series)

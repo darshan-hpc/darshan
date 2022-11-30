@@ -146,9 +146,9 @@ def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
     # check the x-axis tick mark locations and
     # labels
     log_path = get_log_path(log_path)
-    report = darshan.DarshanReport(log_path)
+    with darshan.DarshanReport(log_path) as report:
 
-    fig = func(report=report, mod=mod)
+        fig = func(report=report, mod=mod)
 
     # retrieve the x-axis tick mark locations and labels
     # from the output figure object
@@ -382,10 +382,10 @@ def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
 def test_bar_heights(filename, mod, fig_func, expected_heights):
     # check bar graph heights
     log_path = get_log_path(filename)
-    report = darshan.DarshanReport(log_path)
-    fig, ax = plt.subplots()
+    with darshan.DarshanReport(log_path) as report:
+        fig, ax = plt.subplots()
 
-    fig_func(report=report, mod=mod, ax=ax)
+        fig_func(report=report, mod=mod, ax=ax)
 
     # retrieve the bar graph heights
     actual_heights = []
