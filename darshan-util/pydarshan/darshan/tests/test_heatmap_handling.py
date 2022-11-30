@@ -203,11 +203,11 @@ def test_get_rd_wr_dfs_no_write(dict_list_no_writes):
 def test_get_single_df_dict(expected_df_dict, ops):
     # regression test for `heatmap_handling.get_single_df_dict()`
 
-    report = darshan.DarshanReport(get_log_path("sample-dxt-simple.darshan"))
+    with darshan.DarshanReport(get_log_path("sample-dxt-simple.darshan")) as report:
 
-    actual_df_dict = heatmap_handling.get_single_df_dict(
-        report=report, mod="DXT_POSIX", ops=ops
-    )
+        actual_df_dict = heatmap_handling.get_single_df_dict(
+            report=report, mod="DXT_POSIX", ops=ops
+        )
 
     # make sure we get the same key(s) ("read", "write")
     assert actual_df_dict.keys() == expected_df_dict.keys()
@@ -300,24 +300,24 @@ def test_get_aggregate_data(log_file, expected_agg_data, mod, ops):
     # regression test for `heatmap_handling.get_aggregate_data()`
 
     log_file = get_log_path(log_file)
-    report = darshan.DarshanReport(log_file)
+    with darshan.DarshanReport(log_file) as report:
 
-    if ops == ["read"]:
-        expected_msg = (
-            "No data available for selected module\\(s\\) and operation\\(s\\)."
-        )
-        with pytest.raises(ValueError, match=expected_msg):
-            # expect an error because there are no read segments
-            # in sample-dxt-simple.darshan
+        if ops == ["read"]:
+            expected_msg = (
+                "No data available for selected module\\(s\\) and operation\\(s\\)."
+            )
+            with pytest.raises(ValueError, match=expected_msg):
+                # expect an error because there are no read segments
+                # in sample-dxt-simple.darshan
+                actual_agg_data = heatmap_handling.get_aggregate_data(
+                    report=report, mod=mod, ops=ops
+                )
+        else:
             actual_agg_data = heatmap_handling.get_aggregate_data(
                 report=report, mod=mod, ops=ops
             )
-    else:
-        actual_agg_data = heatmap_handling.get_aggregate_data(
-            report=report, mod=mod, ops=ops
-        )
-        # for other cases, make sure the value arrays are identically valued
-        assert_allclose(actual_agg_data.values, expected_agg_data)
+            # for other cases, make sure the value arrays are identically valued
+            assert_allclose(actual_agg_data.values, expected_agg_data)
 
 
 @pytest.mark.parametrize(
@@ -559,13 +559,13 @@ def test_get_heatmap_df(
 
     # generate the report and use it to obtain the aggregated data
     filepath = get_log_path(filepath)
-    report = darshan.DarshanReport(filepath)
-    agg_df = heatmap_handling.get_aggregate_data(
-        report=report, mod="DXT_POSIX", ops=ops
-    )
-    nprocs = report.metadata["job"]["nprocs"]
-    # run the aggregated data through the heatmap data code
-    actual_hmap_data = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins, nprocs=nprocs)
+    with darshan.DarshanReport(filepath) as report:
+        agg_df = heatmap_handling.get_aggregate_data(
+            report=report, mod="DXT_POSIX", ops=ops
+        )
+        nprocs = report.metadata["job"]["nprocs"]
+        # run the aggregated data through the heatmap data code
+        actual_hmap_data = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins, nprocs=nprocs)
 
     if "sample-dxt-simple.darshan" in filepath:
         # check the data is conserved

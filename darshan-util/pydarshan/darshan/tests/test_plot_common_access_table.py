@@ -80,10 +80,10 @@ from darshan.log_utils import get_log_path
 def test_common_access_table(filename, mod, expected_df):
     log_path = get_log_path(filename=filename)
     expected_df.columns = ["Access Size", "Count"]
-    report = darshan.DarshanReport(log_path)
-    # collect the number of rows from the expected dataframe
-    n_rows = expected_df.shape[0]
-    actual_df = plot_common_access_table.plot_common_access_table(report=report, mod=mod, n_rows=n_rows).df
+    with darshan.DarshanReport(log_path) as report:
+        # collect the number of rows from the expected dataframe
+        n_rows = expected_df.shape[0]
+        actual_df = plot_common_access_table.plot_common_access_table(report=report, mod=mod, n_rows=n_rows).df
     assert_frame_equal(actual_df, expected_df)
 
 
