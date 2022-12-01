@@ -17,7 +17,7 @@ Features
 Usage
 -----
 
-For examples and Jupyter notebooks to get started with pydarshan make sure
+For examples and Jupyter notebooks to get started with PyDarshan make sure
 to check out the `examples` subdirectory.
 
 A brief examples showing some of the basic functionality is the following::
@@ -25,19 +25,19 @@ A brief examples showing some of the basic functionality is the following::
     import darshan
 
     # Open darshan log
-    report = darshan.DarshanReport('example.darshan', read_all=False)
+    with darshan.DarshanReport('example.darshan', read_all=False) as report:
 
-    # Load some report data
-    report.mod_read_all_records('POSIX')
-    report.mod_read_all_records('MPI-IO')
-    # or fetch all
-    report.read_all_generic_records()
+        # Load some report data
+        report.mod_read_all_records('POSIX')
+        report.mod_read_all_records('MPI-IO')
+        # or fetch all
+        report.read_all_generic_records()
 
-    # ...    
-    # Generate summaries for currently loaded data
-    # Note: aggregations are still experimental and have to be activated:
-    darshan.enable_experimental()
-    report.summarize()
+        # ...
+        # Generate summaries for currently loaded data
+        # Note: aggregations are still experimental and have to be activated:
+        darshan.enable_experimental()
+        report.summarize()
 
 
 
@@ -93,15 +93,15 @@ File List
 * docs::
     markdown documentation used by sphinx to auto-generate HTML RTD style doc
 * examples::
-    Jupyter notebooks showing pydarshan usage with log files
+    Jupyter notebooks showing PyDarshan usage with log files
 * tests::
-    pydarshan specific test cases
+    PyDarshan specific test cases
 * requirements.txt::
     pip requirement file for minimum set of depednencies
 * requirements_dev.txt::
     pip requirement file for depednencies needed to run development tools
 * setup.py::
-    python file for building/generating pydarshan package
+    python file for building/generating PyDarshan package
 * setup.cfg::
     input for setup.py
 * MANIFEST.in::
