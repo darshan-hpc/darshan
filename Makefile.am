@@ -15,7 +15,8 @@ if BUILD_DARSHAN_UTIL
    SUBDIRS += darshan-util
 endif
 
-EXTRA_DIST = doc \
+EXTRA_DIST = modules \
+             doc \
              darshan-test \
              COPYRIGHT \
              ChangeLog \
