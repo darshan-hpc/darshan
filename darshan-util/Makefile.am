@@ -89,10 +89,8 @@ uthash-1.9.2:
 nobase_include_HEADERS = uthash-1.9.2/src/uthash.h
 
 CLEANFILES =
-apxc_root = $(top_srcdir)/../modules/autoperf/apxc
+apxc_root = @apxc_root@
 if DARSHAN_USE_APXC
-   include_HEADERS += $(apxc_root)/darshan-apxc-log-format.h \
-                      $(apxc_root)/util/darshan-apxc-logutils.h
    BUILT_SOURCES += darshan-apxc-logutils.c
    CLEANFILES += darshan-apxc-logutils.c
    libdarshan_util_la_SOURCES += darshan-apxc-logutils.c
@@ -102,10 +100,8 @@ endif
 darshan-apxc-logutils.c:
 	$(LN_S) $(apxc_root)/util/darshan-apxc-logutils.c .
 
-apmpi_root = $(top_srcdir)/../modules/autoperf/apmpi
+apmpi_root = @apmpi_root@
 if DARSHAN_USE_APMPI
-   include_HEADERS += $(apmpi_root)/darshan-apmpi-log-format.h \
-                      $(apmpi_root)/util/darshan-apmpi-logutils.h
    BUILT_SOURCES += darshan-apmpi-logutils.c
    CLEANFILES += darshan-apmpi-logutils.c
    libdarshan_util_la_SOURCES += darshan-apmpi-logutils.c
