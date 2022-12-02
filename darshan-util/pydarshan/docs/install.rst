@@ -8,13 +8,13 @@ Installation
 Stable release
 --------------
 
-To install pydarshan, run this command in your terminal:
+To install PyDarshan, run this command in your terminal:
 
 .. code-block:: console
 
-    $ pip install pydarshan
+    $ pip install darshan
 
-This is the preferred method to install pydarshan, as it will always install the most recent stable release.
+This is the preferred method to install PyDarshan, as it will always install the most recent stable release.
 If you don't have `pip`_ installed, this `Python installation guide`_ can guide
 you through the process.
 
@@ -22,7 +22,7 @@ you through the process.
 .. _Python installation guide: https://www.mcs.anl.gov/research/projects/darshan/
 
 
-Pydarshan assumes that a recent 'darshan-utils' is installed as a shared 
+PyDarshan assumes that a recent 'darshan-utils' is installed as a shared
 library. If darshan-util is not installed consult with the darshan
 documentation or consider using `Spack`_ to install::
 
@@ -35,7 +35,7 @@ documentation or consider using `Spack`_ to install::
 From sources
 ------------
 
-The sources for pydarshan can be downloaded from the `Github repo`_.
+The sources for PyDarshan can be downloaded from the `Github repo`_.
 
 You can either clone the public repository:
 
