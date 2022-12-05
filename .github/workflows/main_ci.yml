@@ -39,7 +39,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --upgrade pytest mypy pyflakes asv pytest-cov codecov lxml matplotlib packaging
+          python -m pip install --upgrade pytest mypy pyflakes asv pytest-cov codecov lxml matplotlib packaging humanize
       - if: ${{matrix.platform == 'macos-latest'}}
         name: Install MacOS deps
         run: |

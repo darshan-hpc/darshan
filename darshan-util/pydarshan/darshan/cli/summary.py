@@ -28,6 +28,7 @@ from darshan.experimental.plots import (
 )
 
 darshan.enable_experimental()
+from darshan.lib.accum import log_file_count_summary_table
 
 
 class ReportFigure:
@@ -511,6 +512,16 @@ class ReportData:
                                                                 mod_name=mod),
                         text_only_color="blue")
                 self.figures.append(bandwidth_fig)
+
+                file_count_summary_fig = ReportFigure(
+                        section_title=sect_title,
+                        fig_title=f"File Count Summary <br> (estimated by {mod} I/O access offsets)",
+                        fig_func=log_file_count_summary_table,
+                        fig_args=dict(log_path=self.log_path,
+                                      module=mod),
+                        fig_width=805,
+                        fig_description="")
+                self.figures.append(file_count_summary_fig)
             except (RuntimeError, KeyError):
                 # the module probably doesn't support derived metrics
                 # calculations, but the C code doesn't distinguish other
