@@ -21,14 +21,7 @@ jobs:
       matrix:
         platform: [ubuntu-latest,
                    macos-latest]
-        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
-        # see gh-851
-        exclude:
-          - platform: ubuntu-latest
-            python-version: "3.10"
-        include:
-          - platform: ubuntu-22.04
-            python-version: "3.10"
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v3
@@ -89,10 +82,7 @@ jobs:
           cd $RUNNER_TEMP
           site_packages=$(pip show darshan | grep Location | cut -d ' ' -f 2)
           pytest -W error::FutureWarning -W error:"The join function was deprecated in Matplotlib" --pyargs darshan --cov-report xml --cov=$site_packages/darshan
-      # Python 3.6 doesn't have access to some
-      # dependencies needed for our type hints
-      - if: ${{matrix.python-version > 3.6}}
-        name: mypy check
+      - name: mypy check
         run: |
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
           export DYLD_FALLBACK_LIBRARY_PATH=$PWD/darshan_install/lib
