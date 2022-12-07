@@ -762,7 +762,9 @@ define(`PNETCDF_VAR_RECORD_OPEN',`
             $7, $8, rec_ref->last_meta_end);
         err = ncmpi_inq_unlimdim($1, &rec_ref->unlimdimid);
         i = 0;
-        if ($5[0] == rec_ref->unlimdimid) { /* record variable or not */
+        if ($4 > 0 &&                       /* scalar is not record variable */
+            rec_ref->unlimdimid >= 0 &&     /* record dimension has been defined */
+            $5[0] == rec_ref->unlimdimid) { /* this is a record variable */
             rec_ref->var_rec->counters[PNETCDF_VAR_IS_RECORD_VAR] = 1;
             i = 1;
         }
