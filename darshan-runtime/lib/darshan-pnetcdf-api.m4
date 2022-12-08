@@ -136,8 +136,12 @@ define(`CALC_VARN_ACCESS_INFO',
 dnl
 define(`CALC_VARD_ACCESS_INFO',
     `int mpi_size;
-            PMPI_Type_size(filetype, &mpi_size);
-            $3 = mpi_size;')dnl
+            if (filetype == MPI_DATATYPE_NULL)
+                $3 = 0;
+            else {
+                MPI_Type_size(filetype, &mpi_size);
+                $3 = mpi_size;
+            }')dnl
 dnl
 define(`CALC_ACCESS_INFO',
     `ifelse(
