@@ -781,7 +781,6 @@ define(`PNETCDF_VAR_RECORD_OPEN',`
         else type_size = 8;
         rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE] = type_size;
         rec_ref->var_rec->file_rec_id = file_rec_id;
-        fprintf(stderr, "adding %d to var ncid hash\n", *($6));
         darshan_add_record_ref(&(pnetcdf_var_runtime->ncid_hash), $6, sizeof(int), rec_ref);
     } while (0);
 ')dnl
