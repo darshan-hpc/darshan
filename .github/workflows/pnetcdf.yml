@@ -46,7 +46,11 @@ jobs:
           run: |
             cd ${GITHUB_WORKSPACE}
             mkdir -p darshan_install
+            # Darshan installation path
             export DARSHAN_INSTALL_PATH=${GITHUB_WORKSPACE}/darshan_install
+            # Darshan log file path
+            export DARSHAN_LOGPATH=${GITHUB_WORKSPACE}/logs
+            mkdir -p $DARSHAN_LOGPATH
             # clone autoperf module
             git submodule update --init
             ./prepare.sh
@@ -58,7 +62,7 @@ jobs:
                          --enable-pnetcdf-mod \
                          --with-pnetcdf=${GITHUB_WORKSPACE}/PnetCDF \
                          RUNTIME_CC=mpicc
-        - name: Dump log files if configure failed
+        - name: Dump configure log files if configure failed
           if: ${{ failure() }}
           run: |
             cd ${GITHUB_WORKSPACE}/build
@@ -73,6 +77,8 @@ jobs:
           run: |
             echo "make darshan-runtime and darshan-util"
             cd ${GITHUB_WORKSPACE}/build
+            # Darshan log file path
+            export DARSHAN_LOGPATH=${GITHUB_WORKSPACE}/logs
             make -j 8
             echo "-------- make check --------"
             make check
@@ -82,6 +88,8 @@ jobs:
           run: |
             cd ${GITHUB_WORKSPACE}/PnetCDF/pnetcdf-${PNETCDF_VERSION}
             make -s LIBTOOLFLAGS=--silent V=1 -j 8 tests > qout 2>&1
+            # Darshan log file path
+            export DARSHAN_LOGPATH=${GITHUB_WORKSPACE}/logs
             export LD_PRELOAD=${GITHUB_WORKSPACE}/darshan_install/lib/libdarshan.so
             make check
             unset LD_PRELOAD
@@ -94,6 +102,8 @@ jobs:
         - name: Run PnetCDF make ptest
           run: |
             cd ${GITHUB_WORKSPACE}/PnetCDF/pnetcdf-${PNETCDF_VERSION}
+            # Darshan log file path
+            export DARSHAN_LOGPATH=${GITHUB_WORKSPACE}/logs
             export LD_PRELOAD=${GITHUB_WORKSPACE}/darshan_install/lib/libdarshan.so
             make ptest
             unset LD_PRELOAD
@@ -104,7 +114,7 @@ jobs:
           run: |
             echo "make distcheck"
             cd ${GITHUB_WORKSPACE}/build
-            make distcheck DISTCHECK_CONFIGURE_FLAGS="--with-log-path-by-env=DARSHAN_LOGPATH --with-jobid-env=NONE --enable-hdf5-mod --with-hdf5=${GITHUB_WORKSPACE}/HDF5 --enable-pnetcdf-mod --with-pnetcdf=${GITHUB_WORKSPACE}/PnetCDF RUNTIME_CC=mpicc"
+            make distcheck DISTCHECK_CONFIGURE_FLAGS="--with-log-path-by-env=DARSHAN_LOGPATH --with-jobid-env=NONE --enable-pnetcdf-mod --with-pnetcdf=${GITHUB_WORKSPACE}/PnetCDF RUNTIME_CC=mpicc"
         - name: make distclean
           run: |
             echo "make distclean"
