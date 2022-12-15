@@ -2,6 +2,17 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.4.2
+=============
+* Fixed segfault when defining scalar variables in PnetCDF module
+* Fixed memory corruption (and potential segfault) when
+  reading/writing high-dimensional PnetCDF variables using
+  vara/vars/varm interfaces
+* Fixed crashes related to using PnetCDF vard interfaces with input
+  MPI_DATATYPE_NULL datatypes
+* Fixed bug attributing all PnetCDF variable instrumentation to the
+  first variable instrumented
+
 Darshan-3.4.1
 =============
 * Added comprehensive instrumentation of PnetCDF APIs via PNETCDF_FILE and
