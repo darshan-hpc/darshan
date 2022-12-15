@@ -87,7 +87,7 @@ define(`CALC_VARA_ACCESS_INFO',
                 if (ndims > PNETCDF_VAR_MAX_NDIMS)
                     start_ndx = ndims - PNETCDF_VAR_MAX_NDIMS;
                 for (i = start_ndx; i < ndims; i++) {
-                    common_access_vals[1+i] = count[i];
+                    common_access_vals[1+i-start_ndx] = count[i];
                 }
             }
             else {
@@ -98,18 +98,19 @@ dnl
 define(`CALC_VARS_ACCESS_INFO',
     `int ndims = rec_ref->var_rec->counters[PNETCDF_VAR_NDIMS];
             if (ndims > 0) {
-                int i, start_ndx = 0;
+                int i, j, start_ndx = 0;
                 $3 = count[0];
                 for (i = 1; i < ndims; i++)
                     $3 *= count[i];
                 if (ndims > PNETCDF_VAR_MAX_NDIMS)
                     start_ndx = ndims - PNETCDF_VAR_MAX_NDIMS;
                 for (i = start_ndx; i < ndims; i++) {
-                    common_access_vals[1+i] = count[i];
+                    j = i - start_ndx;
+                    common_access_vals[1+j] = count[i];
                     if (stride)
-                        common_access_vals[1+i+PNETCDF_VAR_MAX_NDIMS] = stride[i];
+                        common_access_vals[1+j+PNETCDF_VAR_MAX_NDIMS] = stride[i];
                     else
-                        common_access_vals[1+i+PNETCDF_VAR_MAX_NDIMS] = 1;
+                        common_access_vals[1+j+PNETCDF_VAR_MAX_NDIMS] = 1;
                 }
             }
             else {
