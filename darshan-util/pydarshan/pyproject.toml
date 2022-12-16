@@ -4,9 +4,13 @@ requires = [
     "setuptools",
 ]
 
+[project]
+requires-python = ">=3.7"
+
 [tool.cibuildwheel]
 environment = "PYDARSHAN_BUILD_EXT=1"
 skip = [
+    "cp36-*",
     "pp*",
     "*musllinux*",
     "*i686*",
