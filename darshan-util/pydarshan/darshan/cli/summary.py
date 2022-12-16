@@ -17,7 +17,7 @@ from mako.template import Template
 
 import darshan
 import darshan.cli
-from darshan.backend.cffi_backend import log_get_bytes_bandwidth
+from darshan.lib.accum import log_get_bytes_bandwidth
 from darshan.experimental.plots import (
     plot_dxt_heatmap,
     plot_io_cost,
