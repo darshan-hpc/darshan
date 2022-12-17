@@ -272,3 +272,40 @@ def test_combine_hdf5_modules(input_df, expected_df):
 
     # check actual and expected dataframes are identical
     assert_frame_equal(actual_df, expected_df)
+
+
+@pytest.mark.parametrize(
+    "logname, expected_xticks, expected_xlabels", [
+        (
+            "shane_ior-PNETCDF_id438100-438100_11-9-41525-10280033558448664385_1.darshan",
+            range(4),
+            ["POSIX", "MPIIO", "PNETCDF", "STDIO"]
+        ),
+        (
+            "imbalanced-io.darshan",
+            range(3),
+            ["POSIX", "MPIIO", "STDIO"]
+        ),
+    ],
+)
+def test_plot_io_cost_x_ticks_and_labels(logname,
+                                         expected_xticks,
+                                         expected_xlabels):
+    # check the x-axis tick marks are at the appropriate
+    # locations and the labels are as expected
+
+    logpath = get_log_path(logname)
+    with darshan.DarshanReport(logpath) as report:
+        fig = plot_io_cost(report=report)
+    for i, ax in enumerate(fig.axes):
+        # there are only 2 axes, the first being the "raw" data
+        # and the second being the normalized data (percent)
+        actual_xticks = ax.get_xticks()
+        xticklabels = ax.get_xticklabels()
+        actual_xticklabels = [tl.get_text() for tl in xticklabels]
+        assert_allclose(actual_xticks, expected_xticks)
+        assert_array_equal(actual_xticklabels, expected_xlabels)
+        # regression test for gh-881
+        expected_rotations = 90
+        x_rotations = [tl.get_rotation() for tl in xticklabels]
+        assert_allclose(x_rotations, expected_rotations)
