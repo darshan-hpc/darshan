@@ -1,8 +1,10 @@
+from packaging import version
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 import pandas as pd
 from pandas.testing import assert_frame_equal, assert_series_equal
+import matplotlib
 
 import darshan
 from darshan.log_utils import get_log_path
@@ -298,6 +300,10 @@ def test_plot_io_cost_x_ticks_and_labels(logname,
     with darshan.DarshanReport(logpath) as report:
         fig = plot_io_cost(report=report)
     for i, ax in enumerate(fig.axes):
+        if i > 0 and version.parse(matplotlib.__version__) < version.parse("3.6.0"):
+            # the second (invisible/twinned) axis is effectively
+            # empty in older matplotlib versions
+            continue
         # there are only 2 axes, the first being the "raw" data
         # and the second being the normalized data (percent)
         actual_xticks = ax.get_xticks()
