@@ -405,7 +405,8 @@ class ReportData:
             "Average (across all ranks) amount of run time that each process "
             "spent performing I/O, broken down by access type. See the right "
             "edge bar graph on heat maps in preceding section to indicate if "
-            "I/O activity was balanced across processes."
+            "I/O activity was balanced across processes. The 'Wait' category "
+            "is only meaningful for PNETCDF asynchronous I/O operations."
         )
         io_cost_params = {
             "section_title": "Cross-Module Comparisons",
