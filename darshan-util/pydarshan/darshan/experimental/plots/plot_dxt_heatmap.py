@@ -3,6 +3,7 @@ Module for creating the ranks vs. time IO intensity
 heatmap figure for the Darshan job summary.
 """
 
+from __future__ import annotations
 import functools
 from typing import (Any, List, Sequence, Union,
                     TYPE_CHECKING, Tuple, Optional)
@@ -11,15 +12,6 @@ import numpy as np
 
 if TYPE_CHECKING:
     import numpy.typing as npt
-
-# we can't use PEP563 delayed type
-# evaluations while we have to support
-# Python 3.6 because the __future__ import is not
-# available yet;
-# TODO: delete the mocking and restore the
-# from __future__ import annotations
-from unittest.mock import MagicMock
-npt = MagicMock()
 
 import pandas as pd
 import seaborn as sns

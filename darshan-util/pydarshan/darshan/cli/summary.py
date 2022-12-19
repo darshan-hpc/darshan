@@ -5,10 +5,7 @@ import base64
 import argparse
 import datetime
 from collections import OrderedDict
-if sys.version_info >= (3, 7):
-    import importlib.resources as importlib_resources
-else:
-    import importlib_resources
+import importlib.resources as importlib_resources
 
 from typing import Any, Union, Callable
 
