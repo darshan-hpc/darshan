@@ -19,4 +19,5 @@ EXTRA_DIST = doc \
              darshan-test \
              COPYRIGHT \
              ChangeLog \
-             README.md
+             README.md \
+             darshan.version
