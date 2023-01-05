@@ -8,6 +8,30 @@ darshan release.
 
 
 header = """/* from darshan-logutils.h */
+
+struct darshan_file_category_counters {
+    int64_t count;                   /* number of files in this category */
+    int64_t total_read_volume_bytes; /* total read traffic volume */
+    int64_t total_write_volume_bytes;/* total write traffic volume */
+    int64_t max_read_volume_bytes;   /* maximum read traffic volume to 1 file */
+    int64_t max_write_volume_bytes;  /* maximum write traffic volume to 1 file */
+    int64_t total_max_offset_bytes;  /* summation of max_offsets */
+    int64_t max_offset_bytes;        /* largest max_offset */
+    int64_t nprocs;                  /* how many procs accessed (-1 for "all") */
+};
+
+struct darshan_derived_metrics {
+    int64_t total_bytes;
+    double unique_io_total_time_by_slowest;
+    double unique_rw_only_time_by_slowest;
+    double unique_md_only_time_by_slowest;
+    int unique_io_slowest_rank;
+    double shared_io_total_time_by_slowest;
+    double agg_perf_by_slowest;
+    double agg_time_by_slowest;
+    struct darshan_file_category_counters category_counters[7];
+};
+
 struct darshan_mnt_info
 {
     char mnt_type[3015];
@@ -22,6 +46,20 @@ struct darshan_mod_info
     int	idx;
     int partial_flag;
 };
+
+/* opaque accumulator reference */
+struct darshan_accumulator_st;
+typedef struct darshan_accumulator_st* darshan_accumulator;
+
+/* NOTE: darshan_module_id is technically an enum in the C API, but we'll
+ * just use an int for now (equivalent type) to avoid warnings from cffi
+ * that we have not defined explicit enum values.  We don't need that
+ * functionality.
+ */
+int darshan_accumulator_create(int darshan_module_id, int64_t, darshan_accumulator*);
+int darshan_accumulator_inject(darshan_accumulator, void*, int);
+int darshan_accumulator_emit(darshan_accumulator, struct darshan_derived_metrics*, void* aggregation_record);
+int darshan_accumulator_destroy(darshan_accumulator);
 
 /* from darshan-log-format.h */
 typedef uint64_t darshan_record_id;

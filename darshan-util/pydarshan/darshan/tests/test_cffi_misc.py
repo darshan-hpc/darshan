@@ -9,6 +9,7 @@ import numpy as np
 from numpy.testing import assert_array_equal, assert_allclose
 import darshan
 import darshan.backend.cffi_backend as backend
+from darshan.backend.cffi_backend import ffi, libdutil
 from darshan.log_utils import get_log_path
 
 def test_get_lib_version():
@@ -159,3 +160,61 @@ def test_log_get_generic_record(dtype):
         # make sure the returned key/column names agree
         assert actual_counter_names == expected_counter_names
         assert actual_fcounter_names == expected_fcounter_names
+
+
+@pytest.mark.parametrize("log_name", [
+    "imbalanced-io.darshan",
+    "e3sm_io_heatmap_only.darshan",
+    ])
+@pytest.mark.parametrize("module, index", [
+    ("POSIX", 0),
+    ("POSIX", 3),
+    ("POSIX", 5),
+    # less records available for STDIO testing
+    # with these logs
+    ("STDIO", 0),
+    ])
+def test_df_to_rec(log_name, index, module):
+    # test for packing a dataframe into a C-style record
+    # this is perhaps nothing more than a "round-trip" test
+    log_path = get_log_path(log_name)
+    with darshan.DarshanReport(log_path, read_all=True) as report:
+        report.mod_read_all_records(module, dtype="pandas")
+        rec_dict = report.records[module][0]
+    # id and rank are not formally included in the reconsituted
+    # (f)counters "buffer" so truncate a bit on comparison
+    expected_fcounters = rec_dict["fcounters"].iloc[index, :-2]
+    expected_counters = rec_dict["counters"].iloc[index, :-2].astype(np.int64)
+    rbuf = backend._df_to_rec(rec_dict, module, index)
+    actual_fcounters = np.frombuffer(ffi.buffer(rbuf[0].fcounters))
+    actual_counters = np.frombuffer(ffi.buffer(rbuf[0].counters), dtype=np.int64)
+    assert_allclose(actual_fcounters, expected_fcounters)
+    assert_allclose(actual_counters, expected_counters)
+
+
+@pytest.mark.xfail(run=False,
+                   reason="Segfault: darshan-logutils-accumulator.c:145: darshan_accumulator_inject: Assertion `rank < acc->job_nprocs' failed")
+def test_reverse_record_array():
+    # pack pandas DataFrame objects back into
+    # a contiguous buffer of several records
+    # and then use the darshan-util C lib accumulator
+    # on that record array, and compare the results
+    # with those discussed in gh-867 from Perl report
+    log_path = get_log_path("imbalanced-io.darshan")
+    with darshan.DarshanReport(log_path, read_all=True) as report:
+        report.mod_read_all_records("POSIX", dtype="pandas")
+        rec_dict = report.records["POSIX"][0]
+    record_array = backend._df_to_rec_array(rec_dict, "POSIX")
+    num_recs = rec_dict["fcounters"].shape[0]
+
+	# need to deal with the low-level C stuff...
+    log_handle = backend.log_open(log_path)
+    jobrec = ffi.new("struct darshan_job *")
+    libdutil.darshan_log_get_job(log_handle['handle'], jobrec)
+    modules = backend.log_get_modules(log_handle)
+    darshan_accumulator = ffi.new("darshan_accumulator *")
+    r = libdutil.darshan_accumulator_create(modules["POSIX"]['idx'],
+                                            jobrec[0].nprocs,
+                                            darshan_accumulator)
+    record_array = ffi.from_buffer(record_array)
+    r_i = libdutil.darshan_accumulator_inject(darshan_accumulator[0], record_array[0], num_recs)
