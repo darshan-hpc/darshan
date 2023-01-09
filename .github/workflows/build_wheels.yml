@@ -7,12 +7,14 @@ on:
     paths:
       - darshan-util/**
       - include/**
+      - .github/workflows/build_wheels.yml
   pull_request:
     branches:
       - main
     paths:
       - darshan-util/**
-      - include/*
+      - include/**
+      - .github/workflows/build_wheels.yml
   workflow_dispatch:
 
 jobs:
@@ -51,7 +53,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.5.0
+        uses: pypa/cibuildwheel@v2.11.2
         with:
           package-dir: ./darshan-util/pydarshan
 

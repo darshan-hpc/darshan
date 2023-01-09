@@ -114,36 +114,36 @@ def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_coun
                 assert os.path.exists(expected_save_path)
 
                 # verify DXT figures are present for each DXT module
-                report = darshan.DarshanReport(filename=argv[0], read_all=False)
-                with open(expected_save_path) as html_report:
-                    report_str = html_report.read()
-                    if "DXT" in "\t".join(report.modules):
-                        for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
-                            if dxt_mod in report.modules:
-                                assert f"Heat Map: {dxt_mod}" in report_str
-                    else:
-                        # check that help message is present
-                        assert "Heatmap data is not available for this job" in report_str
-                        assert "Consider enabling the runtime heatmap module" in report_str
+                with darshan.DarshanReport(filename=argv[0], read_all=False) as report:
+                    with open(expected_save_path) as html_report:
+                        report_str = html_report.read()
+                        if "DXT" in "\t".join(report.modules):
+                            for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
+                                if dxt_mod in report.modules:
+                                    assert f"Heat Map: {dxt_mod}" in report_str
+                        else:
+                            # check that help message is present
+                            assert "Heatmap data is not available for this job" in report_str
+                            assert "Consider enabling the runtime heatmap module" in report_str
 
-                    # check that expected number of figures are found
-                    assert report_str.count("<img") == expected_img_count
+                        # check that expected number of figures are found
+                        assert report_str.count("<img") == expected_img_count
 
-                    # check that the expected number of tables are found
-                    # NOTE: since there are extraneous instances of "table"
-                    # in each report, the actual table count is half the
-                    # sum of the opening and closing tags
-                    actual_table_count = (report_str.count("<table")
-                                          + report_str.count("</table>")) / 2
-                    assert actual_table_count == expected_table_count
-                    # check the number of opening section tags
-                    # matches the number of closing section tags
-                    assert report_str.count("<section>") == report_str.count("</section>")
+                        # check that the expected number of tables are found
+                        # NOTE: since there are extraneous instances of "table"
+                        # in each report, the actual table count is half the
+                        # sum of the opening and closing tags
+                        actual_table_count = (report_str.count("<table")
+                                              + report_str.count("</table>")) / 2
+                        assert actual_table_count == expected_table_count
+                        # check the number of opening section tags
+                        # matches the number of closing section tags
+                        assert report_str.count("<section>") == report_str.count("</section>")
 
-                    # check if I/O cost figure is present
-                    for mod in report.modules:
-                        if mod in ["POSIX", "MPI-IO", "STDIO"]:
-                            assert "I/O Cost" in report_str
+                        # check if I/O cost figure is present
+                        for mod in report.modules:
+                            if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                                assert "I/O Cost" in report_str
         else:
             # if no log path is given expect a runtime error
             # due to a failure to open the file
@@ -184,57 +184,57 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
             assert os.path.exists(expected_save_path)
 
             # verify DXT figures are present for each DXT module
-            report = darshan.DarshanReport(log_filepath, read_all=False)
-            with open(expected_save_path) as html_report:
-                report_str = html_report.read()
-                if "DXT" in "\t".join(report.modules):
-                    for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
-                        if dxt_mod in report.modules:
-                            assert f"Heat Map: {dxt_mod}" in report_str
-                        # MPIIO should come first
-                        mpiio_position = report_str.find("Heat Map: DXT_MPIIO")
-                        posix_position = report_str.find("Heat Map: DXT_POSIX")
-                        if mpiio_position != -1 and posix_position != -1:
-                            assert mpiio_position < posix_position
-                elif "HEATMAP" in "\t".join(report.modules):
-                    assert "Heat Map: HEATMAP" in report_str
-                    # enforce the desired order
-                    mpiio_position = report_str.find("Heat Map: HEATMAP MPIIO")
-                    posix_position = report_str.find("Heat Map: HEATMAP POSIX")
-                    stdio_position = report_str.find("Heat Map: HEATMAP STDIO")
-                    # the 3-way check is only valid if all heatmap modules
-                    # are present:
-                    if (mpiio_position > -1 and
-                        posix_position > -1 and
-                        stdio_position > -1):
-                        assert mpiio_position < posix_position < stdio_position
-                else:
-                    # check that help message is present
-                    assert "Heatmap data is not available for this job" in report_str
-                    assert "Consider enabling the runtime heatmap module" in report_str
+            with darshan.DarshanReport(log_filepath, read_all=False) as report:
+                with open(expected_save_path) as html_report:
+                    report_str = html_report.read()
+                    if "DXT" in "\t".join(report.modules):
+                        for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
+                            if dxt_mod in report.modules:
+                                assert f"Heat Map: {dxt_mod}" in report_str
+                            # MPIIO should come first
+                            mpiio_position = report_str.find("Heat Map: DXT_MPIIO")
+                            posix_position = report_str.find("Heat Map: DXT_POSIX")
+                            if mpiio_position != -1 and posix_position != -1:
+                                assert mpiio_position < posix_position
+                    elif "HEATMAP" in "\t".join(report.modules):
+                        assert "Heat Map: HEATMAP" in report_str
+                        # enforce the desired order
+                        mpiio_position = report_str.find("Heat Map: HEATMAP MPIIO")
+                        posix_position = report_str.find("Heat Map: HEATMAP POSIX")
+                        stdio_position = report_str.find("Heat Map: HEATMAP STDIO")
+                        # the 3-way check is only valid if all heatmap modules
+                        # are present:
+                        if (mpiio_position > -1 and
+                            posix_position > -1 and
+                            stdio_position > -1):
+                            assert mpiio_position < posix_position < stdio_position
+                    else:
+                        # check that help message is present
+                        assert "Heatmap data is not available for this job" in report_str
+                        assert "Consider enabling the runtime heatmap module" in report_str
 
-                # check if I/O cost figure is present
-                for mod in report.modules:
-                    if mod in ["POSIX", "MPI-IO", "STDIO"]:
-                        assert "I/O Cost" in report_str
+                    # check if I/O cost figure is present
+                    for mod in report.modules:
+                        if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                            assert "I/O Cost" in report_str
 
-                # check the number of opening section tags
-                # matches the number of closing section tags
-                assert report_str.count("<section>") == report_str.count("</section>")
+                    # check the number of opening section tags
+                    # matches the number of closing section tags
+                    assert report_str.count("<section>") == report_str.count("</section>")
 
-                # check for presence of expected runtime HEATMAPs
-                actual_runtime_heatmap_titles = report_str.count("<h3>Heat Map: HEATMAP")
-                if ("e3sm_io_heatmap_only" in log_filepath or
-                    "shane_ior-HDF5" in log_filepath or
-                    "shane_ior-PNETCDF" in log_filepath or
-                    (match and int(darshan_log_version[2]) >= 4)):
-                    assert actual_runtime_heatmap_titles == 3
-                elif ("runtime_and_dxt_heatmaps_diagonal_write_only" in log_filepath or
-                      "treddy_runtime_heatmap_inactive_ranks" in log_filepath or
-                      "h5d_no_h5f" in log_filepath):
-                    assert actual_runtime_heatmap_titles == 1
-                else:
-                    assert actual_runtime_heatmap_titles == 0
+                    # check for presence of expected runtime HEATMAPs
+                    actual_runtime_heatmap_titles = report_str.count("<h3>Heat Map: HEATMAP")
+                    if ("e3sm_io_heatmap_only" in log_filepath or
+                        "shane_ior-HDF5" in log_filepath or
+                        "shane_ior-PNETCDF" in log_filepath or
+                        (match and int(darshan_log_version[2]) >= 4)):
+                        assert actual_runtime_heatmap_titles == 3
+                    elif ("runtime_and_dxt_heatmaps_diagonal_write_only" in log_filepath or
+                          "treddy_runtime_heatmap_inactive_ranks" in log_filepath or
+                          "h5d_no_h5f" in log_filepath):
+                        assert actual_runtime_heatmap_titles == 1
+                    else:
+                        assert actual_runtime_heatmap_titles == 0
 
 
 class TestReportData:
@@ -531,8 +531,8 @@ class TestReportData:
     )
     def test_get_full_command(self, logname, expected_cmd):
         # regression test for `summary.ReportData.get_full_command()`
-        report = darshan.DarshanReport(get_log_path(logname))
-        actual_cmd = summary.ReportData.get_full_command(report=report)
+        with darshan.DarshanReport(get_log_path(logname)) as report:
+            actual_cmd = summary.ReportData.get_full_command(report=report)
         assert actual_cmd == expected_cmd
 
     @pytest.mark.parametrize(
@@ -548,8 +548,8 @@ class TestReportData:
     )
     def test_get_runtime(self, logname, expected_runtime):
         # regression test for `summary.ReportData.get_runtime()`
-        report = darshan.DarshanReport(get_log_path(logname))
-        actual_runtime = summary.ReportData.get_runtime(report=report)
+        with darshan.DarshanReport(get_log_path(logname)) as report:
+            actual_runtime = summary.ReportData.get_runtime(report=report)
         assert actual_runtime == expected_runtime
 
 
@@ -576,12 +576,12 @@ class TestReportFigure:
 def test_issue_717():
     # regression test for issue https://github.com/darshan-hpc/darshan/issues/717
     logname = "ior_hdf5_example.darshan"
-    report = darshan.DarshanReport(get_log_path(logname))
-    fig = summary.ReportFigure(
-        section_title="",
-        # set figure title to empty string
-        fig_title="",
-        fig_func=plot_with_report,
-        fig_args=dict(report=report),
-    )
+    with darshan.DarshanReport(get_log_path(logname)) as report:
+        fig = summary.ReportFigure(
+            section_title="",
+            # set figure title to empty string
+            fig_title="",
+            fig_func=plot_with_report,
+            fig_args=dict(report=report),
+        )
     assert not "alt= width" in fig.fig_html

@@ -5,7 +5,8 @@ dnl Process this file with autoconf to produce a configure script.
 dnl You may need to use autoheader as well if changing any DEFINEs
 
 AC_PREREQ([2.69])
-AC_INIT([Darshan Runtime],[3.4.0],[darshan-users@lists.mcs.anl.gov],
+AC_INIT([Darshan Runtime], m4_normalize(m4_include([../darshan.version])),
+        [darshan-users@lists.mcs.anl.gov],
         [darshan-runtime],[https://www.mcs.anl.gov/research/projects/darshan])
 AC_CONFIG_HEADERS(darshan-runtime-config.h)
 AH_TOP([/*

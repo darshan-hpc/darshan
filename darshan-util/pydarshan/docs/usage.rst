@@ -10,19 +10,19 @@ To get started with PyDarshan you can simply use::
 
     import darshan
 
-    report = darshan.DarshanReport(filename)
+    with darshan.DarshanReport(filename) as report:
 
-    # read metadata, log records and name records
-    report.read_all_generic_records()
-
-
-    # Python aggregations are still experimental and have to be activated:
-    # calculate or update aggregate statistics for currently loaded records
-    darshan.enable_experimental()
-    report.summarize()
+        # read metadata, log records and name records
+        report.read_all_generic_records()
 
 
-    print(report.report)
+        # Python aggregations are still experimental and have to be activated:
+        # calculate or update aggregate statistics for currently loaded records
+        darshan.enable_experimental()
+        report.summarize()
+
+
+        print(report.report)
 
 
 

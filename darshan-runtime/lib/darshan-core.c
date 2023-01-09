@@ -157,12 +157,14 @@ static int darshan_deflate_buffer(
 static void darshan_core_cleanup(
     struct darshan_core_runtime* core);
 static void darshan_core_fork_child_cb(void);
+#ifdef HAVE_MPI
 static void darshan_core_reduce_min_time(
     void* in_time_v, void* inout_time_v,
     int *len, MPI_Datatype *datatype);
 static void darshan_core_reduce_max_time(
     void* in_time_v, void* inout_time_v,
     int *len, MPI_Datatype *datatype);
+#endif
 
 #define DARSHAN_WARN(__err_str, ...) do { \
     darshan_core_fprintf(stderr, "darshan_library_warning: " \

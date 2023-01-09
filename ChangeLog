@@ -2,8 +2,33 @@
 Darshan Release Change Log
 --------------------------
 
-Darshan-3.4.1-pre1
+Darshan-3.4.2
 =============
+* Fixed segfault when defining scalar variables in PnetCDF module
+* Fixed memory corruption (and potential segfault) when
+  reading/writing high-dimensional PnetCDF variables using
+  vara/vars/varm interfaces
+* Fixed crashes related to using PnetCDF vard interfaces with input
+  MPI_DATATYPE_NULL datatypes
+* Fixed bug attributing all PnetCDF variable instrumentation to the
+  first variable instrumented
+
+Darshan-3.4.1
+=============
+* Added comprehensive instrumentation of PnetCDF APIs via PNETCDF_FILE and
+  PNETCDF_VAR modules (contributed by Wei-Keng Liao)
+  - disabled by default, enabled by passing `--enable-pnetcdf-mod` to
+    configure
+* Modified Darshan log format to support a max of 64 instrumentation
+  modules, since the current version of Darshan reached the old max (16)
+* Modified Darshan to report job start/end times at nanosecond
+  granularity (previously only second granularity was possible)
+* Added support for instrumenting H5Oopen family of calls
+* Modified HDF5 module extraction of dataspase selection details
+  - Extraction of point selections now possible regardless of HDF5 version
+  - H5S_ALL selections are no longer counted as regular hyperslab accesses
+* Fixed bug causing no instrumentation of child processes of fork() calls
+  (reported by Rui Wang)
 * Deprecated --file-list and --file-list-detailed options in darshan-parser
 * Added "darshan_accumulator" API to the logutils library
   - _create(), _inject(), _emit(), and _destroy()
@@ -11,6 +36,9 @@ Darshan-3.4.1-pre1
     metrics for sets of records from a given module
   - refactored darshan-parser to use new API
   - implemented support for accumulators in POSIX, STDIO, and MPIIO modules
+* Fixed memory leak in darshan-util helper functions used by PyDarshan
+  - darshan_log_get_name_records
+  - darshan_log_get_filtered_name_records
 * Integrated the µnit Testing Framework in darshan-util
   - implemented unit tests for darshan_accumlator API
 

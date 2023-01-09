@@ -5,10 +5,7 @@ import base64
 import argparse
 import datetime
 from collections import OrderedDict
-if sys.version_info >= (3, 7):
-    import importlib.resources as importlib_resources
-else:
-    import importlib_resources
+import importlib.resources as importlib_resources
 
 from typing import Any, Union, Callable
 
@@ -405,7 +402,8 @@ class ReportData:
             "Average (across all ranks) amount of run time that each process "
             "spent performing I/O, broken down by access type. See the right "
             "edge bar graph on heat maps in preceding section to indicate if "
-            "I/O activity was balanced across processes."
+            "I/O activity was balanced across processes. The 'Wait' category "
+            "is only meaningful for PNETCDF asynchronous I/O operations."
         )
         io_cost_params = {
             "section_title": "Cross-Module Comparisons",

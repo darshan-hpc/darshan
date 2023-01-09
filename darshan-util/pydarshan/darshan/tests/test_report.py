@@ -41,42 +41,37 @@ def test_jobid_type_all_logs_repo_files(log_filepath):
     # through all logs repo files in a test
     if "e3sm_io_heatmap_and_dxt" in log_filepath:
         pytest.xfail(reason="large memory requirements")
-    report = darshan.DarshanReport(log_filepath)
-    assert isinstance(report.metadata['job']['jobid'], int)
+    with darshan.DarshanReport(log_filepath) as report:
+        assert isinstance(report.metadata['job']['jobid'], int)
 
 def test_job():
     """Sample for expected job data."""
-    report = darshan.DarshanReport(get_log_path("sample.darshan"))
-
-    assert report.metadata["job"]["log_ver"] == "3.10"
+    with darshan.DarshanReport(get_log_path("sample.darshan")) as report:
+        assert report.metadata["job"]["log_ver"] == "3.10"
 
 def test_metadata():
     """Sample for an expected property in counters."""
 
-    report = darshan.DarshanReport(get_log_path("sample.darshan"))
-
-    # check a metadata field
-    assert 4478544 == report.metadata['job']['jobid']
+    with darshan.DarshanReport(get_log_path("sample.darshan")) as report:
+        # check a metadata field
+        assert 4478544 == report.metadata['job']['jobid']
 
 
 def test_modules():
     """Sample for an expected number of modules."""
 
-    report = darshan.DarshanReport(get_log_path("sample.darshan"))
-
-    # check if number of modules matches
-    assert 4 == len(report.modules)
-    assert 154 == report.modules['MPI-IO']['len']
-    assert False == report.modules['MPI-IO']['partial_flag']
+    with darshan.DarshanReport(get_log_path("sample.darshan")) as report:
+        # check if number of modules matches
+        assert 4 == len(report.modules)
+        assert 154 == report.modules['MPI-IO']['len']
+        assert False == report.modules['MPI-IO']['partial_flag']
 
 def test_load_records():
     """Test if loaded records match."""
 
-    report = darshan.DarshanReport(get_log_path("sample.darshan"))
-
-    report.mod_read_all_records("POSIX")
-
-    assert 1 == len(report.data['records']['POSIX'])
+    with darshan.DarshanReport(get_log_path("sample.darshan")) as report:
+        report.mod_read_all_records("POSIX")
+        assert 1 == len(report.data['records']['POSIX'])
 
 
 @pytest.mark.parametrize("unsupported_record",
@@ -85,8 +80,9 @@ def test_load_records():
 def test_unsupported_record_load(caplog, unsupported_record):
     # check for appropriate logger warning when attempting to
     # load unsupported record
-    report = darshan.DarshanReport(get_log_path("sample.darshan"))
-    report.mod_read_all_records(mod=unsupported_record)
+    with darshan.DarshanReport(get_log_path("sample.darshan")) as report:
+        report.mod_read_all_records(mod=unsupported_record)
+
     for record in caplog.records:
         assert 'Currently unsupported' in record.message
         assert unsupported_record in record.message
@@ -96,9 +92,8 @@ def test_unsupported_record_load(caplog, unsupported_record):
     ("POSIX", "Unsupported module:")])
 def test_dxt_mod(caplog, mod: str, expected: str):
     """Invalid/unsupported dxt module cases"""
-    report = darshan.DarshanReport(get_log_path("sample-dxt-simple.darshan"))
-
-    report.mod_read_all_dxt_records(mod, warnings=True)
+    with darshan.DarshanReport(get_log_path("sample-dxt-simple.darshan")) as report:
+        report.mod_read_all_dxt_records(mod, warnings=True)
     
     for record in caplog.records:
         assert expected in record.message
@@ -109,17 +104,16 @@ def test_internal_references():
     regressions verbose when the behavior is changed.
     """
 
-    report = darshan.DarshanReport()
-
-    # check the convienience refs are working fine
-    check = id(report.records) == id(report.data['records'])
-    assert check is True
+    with darshan.DarshanReport() as report:
+        # check the convienience refs are working fine
+        check = id(report.records) == id(report.data['records'])
+        assert check is True
 
 def test_info_contents(capsys):
     # regression guard for the output from the info()
     # method of DarshanReport
-    report = darshan.DarshanReport(get_log_path("sample.darshan"))
-    report.info()
+    with darshan.DarshanReport(get_log_path("sample.darshan")) as report:
+        report.info()
     captured = capsys.readouterr()
     expected_keys = ['Times',
                      'Executable',
@@ -152,13 +146,14 @@ def test_report_invalid_file(invalid_filepath):
     # DarshanReport
 
     with pytest.raises(RuntimeError, match='Failed to open file'):
-        darshan.DarshanReport(invalid_filepath)
+        with darshan.DarshanReport(invalid_filepath) as report:
+            pass
 
 def test_json_fidelity():
     # regression test for provision of appropriate
     # data by to_json() method of DarshanReport class
-    report = darshan.DarshanReport(get_log_path("sample.darshan"))
-    actual_json = report.to_json()
+    with darshan.DarshanReport(get_log_path("sample.darshan")) as report:
+        actual_json = report.to_json()
 
     for expected_key in ["version",
                          "metadata",
@@ -184,16 +179,16 @@ def test_deepcopy_fidelity_darshan_report(key, subkey):
     # regression guard for the __deepcopy__() method
     # of DarshanReport class
     # note that to_numpy() also performs a deepcopy
-    report = darshan.DarshanReport(get_log_path("sample.darshan"))
-    report_deepcopy = copy.deepcopy(report)
-    # the deepcopied records should be identical
-    # within floating point tolerance
-    assert_allclose(report_deepcopy.data['records'][key].to_numpy()[0][subkey],
-                    report.data['records'][key].to_numpy()[0][subkey])
-    # a deepcopy should not share memory bounds
-    # with the original object (or deepcopies thereof)
-    assert not np.may_share_memory(report_deepcopy.data['records'][key].to_numpy()[0][subkey],
-                                   report.data['records'][key].to_numpy()[0][subkey])
+    with darshan.DarshanReport(get_log_path("sample.darshan")) as report:
+        report_deepcopy = copy.deepcopy(report)
+        # the deepcopied records should be identical
+        # within floating point tolerance
+        assert_allclose(report_deepcopy.data['records'][key].to_numpy()[0][subkey],
+                        report.data['records'][key].to_numpy()[0][subkey])
+        # a deepcopy should not share memory bounds
+        # with the original object (or deepcopies thereof)
+        assert not np.may_share_memory(report_deepcopy.data['records'][key].to_numpy()[0][subkey],
+                                       report.data['records'][key].to_numpy()[0][subkey])
 
 
 class TestDarshanRecordCollection:
@@ -228,8 +223,8 @@ class TestDarshanRecordCollection:
         )
 
         # use an arbitrary log to generate an empty DarshanRecordCollection
-        report = darshan.DarshanReport(get_log_path("ior_hdf5_example.darshan"))
-        collection = DarshanRecordCollection(report=report, mod=mod)
+        with darshan.DarshanReport(get_log_path("ior_hdf5_example.darshan")) as report:
+            collection = DarshanRecordCollection(report=report, mod=mod)
 
         if "DXT_" in mod:
             # generate some random arrays to use for the synthetic DXT records
@@ -434,29 +429,29 @@ def test_runtime_dxt_heatmap_similarity():
     expected_active_ranks = np.arange(32)
     expected_active_bins = expected_active_ranks
     log_path = get_log_path("runtime_and_dxt_heatmaps_diagonal_write_only.darshan")
-    report = darshan.DarshanReport(log_path)
+    with darshan.DarshanReport(log_path) as report:
 
-    # runtime HEATMAP:
-    runtime_heatmap_df = list(report.heatmaps.values())[0].to_df(["write"])
-    nonzero_rows_runtime, nonzero_columns_runtime = np.nonzero(runtime_heatmap_df.to_numpy())
+        # runtime HEATMAP:
+        runtime_heatmap_df = list(report.heatmaps.values())[0].to_df(["write"])
+        nonzero_rows_runtime, nonzero_columns_runtime = np.nonzero(runtime_heatmap_df.to_numpy())
 
-    # DXT heatmap:
-    agg_df = heatmap_handling.get_aggregate_data(report=report, ops=["write"])
-    dxt_heatmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=32, nprocs=32)
-    nonzero_rows_dxt, nonzero_columns_dxt = np.nonzero(dxt_heatmap_df.to_numpy())
+        # DXT heatmap:
+        agg_df = heatmap_handling.get_aggregate_data(report=report, ops=["write"])
+        dxt_heatmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=32, nprocs=32)
+        nonzero_rows_dxt, nonzero_columns_dxt = np.nonzero(dxt_heatmap_df.to_numpy())
 
-    # runtime HEATMAP vs. expected diagonal structure
-    assert_allclose(nonzero_rows_runtime, expected_active_ranks)
-    assert_allclose(nonzero_columns_runtime, expected_active_bins)
+        # runtime HEATMAP vs. expected diagonal structure
+        assert_allclose(nonzero_rows_runtime, expected_active_ranks)
+        assert_allclose(nonzero_columns_runtime, expected_active_bins)
 
-    # runtime HEATMAP vs. DXT heatmap
-    # because of differing resolutions, there is actually
-    # a small difference in the diagonal data structure
-    # that we will allow
-    assert_allclose(nonzero_rows_runtime, nonzero_rows_dxt)
-    assert_allclose(nonzero_columns_runtime[:23], nonzero_columns_dxt[:23])
-    # if we allow a resolution gap of 1 bin, they should match on full length
-    assert_array_less(np.abs(nonzero_columns_runtime - nonzero_columns_dxt), 1.0001)
+        # runtime HEATMAP vs. DXT heatmap
+        # because of differing resolutions, there is actually
+        # a small difference in the diagonal data structure
+        # that we will allow
+        assert_allclose(nonzero_rows_runtime, nonzero_rows_dxt)
+        assert_allclose(nonzero_columns_runtime[:23], nonzero_columns_dxt[:23])
+        # if we allow a resolution gap of 1 bin, they should match on full length
+        assert_array_less(np.abs(nonzero_columns_runtime - nonzero_columns_dxt), 1.0001)
 
 
 @pytest.mark.parametrize(
@@ -476,11 +471,11 @@ def test_heatmap_operations(mod, expected_counts):
     # read, write, and read+write dataframes against each other
 
     log_path = get_log_path("e3sm_io_heatmap_only.darshan")
-    report = darshan.DarshanReport(log_path)
+    with darshan.DarshanReport(log_path) as report:
 
-    rd_df = report.heatmaps[mod].to_df(ops=["read"])
-    wr_df = report.heatmaps[mod].to_df(ops=["write"])
-    rd_wr_df = report.heatmaps[mod].to_df(ops=["read", "write"])
+        rd_df = report.heatmaps[mod].to_df(ops=["read"])
+        wr_df = report.heatmaps[mod].to_df(ops=["write"])
+        rd_wr_df = report.heatmaps[mod].to_df(ops=["read", "write"])
 
     for df, expected_count in zip((rd_df, wr_df, rd_wr_df), expected_counts):
         # check that the non-zero element counts are correct
@@ -495,24 +490,24 @@ def test_heatmap_df_invalid_operation():
     # check that when invalid operations (anything other than "read"
     # or "write") are passed to `Heatmap.to_df()` a `ValueError` is raised
     log_path = get_log_path("e3sm_io_heatmap_only.darshan")
-    report = darshan.DarshanReport(log_path)
-    with pytest.raises(ValueError, match="invalid_op not in heatmap"):
-        report.heatmaps["POSIX"].to_df(ops=["invalid_op"])
+    with darshan.DarshanReport(log_path) as report:
+        with pytest.raises(ValueError, match="invalid_op not in heatmap"):
+            report.heatmaps["POSIX"].to_df(ops=["invalid_op"])
 
 
 def test_pnetcdf_hdf5_match():
     # test for some equivalent (f)counters between similar
     # HDF5 and PNETCDF-enabled runs of ior
-    pnetcdf_ior_report = darshan.DarshanReport(get_log_path("shane_ior-PNETCDF_id438100-438100_11-9-41525-10280033558448664385_1.darshan"))
-    hdf5_ior_report = darshan.DarshanReport(get_log_path("shane_ior-HDF5_id438090-438090_11-9-41522-17417065676046418211_1.darshan"))
-    pnetcdf_ior_report.mod_read_all_records("PNETCDF_FILE")
-    pnetcdf_ior_report.mod_read_all_records("PNETCDF_VAR")
-    hdf5_ior_report.mod_read_all_records("H5F")
-    hdf5_ior_report.mod_read_all_records("H5D")
-    pnetcdf_file_data_dict = pnetcdf_ior_report.data['records']["PNETCDF_FILE"].to_df()
-    pnetcdf_var_data_dict = pnetcdf_ior_report.data['records']["PNETCDF_VAR"].to_df()
-    h5f_data_dict = hdf5_ior_report.data['records']["H5F"].to_df()
-    h5d_data_dict = hdf5_ior_report.data['records']["H5D"].to_df()
+    with darshan.DarshanReport(get_log_path("shane_ior-PNETCDF_id438100-438100_11-9-41525-10280033558448664385_1.darshan")) as pnetcdf_ior_report:
+        with darshan.DarshanReport(get_log_path("shane_ior-HDF5_id438090-438090_11-9-41522-17417065676046418211_1.darshan")) as hdf5_ior_report:
+            pnetcdf_ior_report.mod_read_all_records("PNETCDF_FILE")
+            pnetcdf_ior_report.mod_read_all_records("PNETCDF_VAR")
+            hdf5_ior_report.mod_read_all_records("H5F")
+            hdf5_ior_report.mod_read_all_records("H5D")
+            pnetcdf_file_data_dict = pnetcdf_ior_report.data['records']["PNETCDF_FILE"].to_df()
+            pnetcdf_var_data_dict = pnetcdf_ior_report.data['records']["PNETCDF_VAR"].to_df()
+            h5f_data_dict = hdf5_ior_report.data['records']["H5F"].to_df()
+            h5d_data_dict = hdf5_ior_report.data['records']["H5D"].to_df()
     prog = re.compile(r"(PNETCDF_FILE|PNETCDF_VAR)")
     # we compare:
     # PNETCDF_FILE vs. H5F modules

@@ -57,10 +57,10 @@ def test_file_hash_type(log_path):
 
     # additionally check that the dataframes
     # generated are of the correct types
-    report = darshan.DarshanReport(log_path, read_all=True)
-    report.mod_read_all_records("POSIX", dtype="pandas")
-    rec_counters = report.records["POSIX"][0]["counters"]
-    rec_fcounters = report.records["POSIX"][0]["fcounters"]
+    with darshan.DarshanReport(log_path, read_all=True) as report:
+        report.mod_read_all_records("POSIX", dtype="pandas")
+        rec_counters = report.records["POSIX"][0]["counters"]
+        rec_fcounters = report.records["POSIX"][0]["fcounters"]
     # verify the records returned have the correct
     # data type for the ids/hashes
     assert rec_counters["id"].dtype == np.uint64

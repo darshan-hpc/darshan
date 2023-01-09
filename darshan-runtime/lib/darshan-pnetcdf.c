@@ -50,11 +50,20 @@ struct pnetcdf_var_record_ref
     int unlimdimid;
 };
 
-/* struct to encapsulate runtime state for the PnetCDF module */
-struct pnetcdf_runtime
+/* struct to encapsulate runtime state for the PnetCDF file module */
+struct pnetcdf_file_runtime
 {
     void *rec_id_hash;
     void *ncid_hash;
+    int rec_count;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
+};
+
+/* struct to encapsulate runtime state for the PnetCDF var module */
+struct pnetcdf_var_runtime
+{
+    void *rec_id_hash;
+    void *varid_hash;
     int rec_count;
     int frozen; /* flag to indicate that the counters should no longer be modified */
 };
@@ -87,9 +96,9 @@ static void pnetcdf_var_output(
 static void pnetcdf_file_cleanup(void);
 static void pnetcdf_var_cleanup(void);
 
-static struct pnetcdf_runtime *pnetcdf_file_runtime = NULL;
+static struct pnetcdf_file_runtime *pnetcdf_file_runtime = NULL;
 static int pnetcdf_file_runtime_init_attempted = 0;
-static struct pnetcdf_runtime *pnetcdf_var_runtime = NULL;
+static struct pnetcdf_var_runtime *pnetcdf_var_runtime = NULL;
 static int pnetcdf_var_runtime_init_attempted = 0;
 
 static pthread_mutex_t pnetcdf_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -180,7 +189,7 @@ static void pnetcdf_file_runtime_initialize()
     if(ret < 0)
         return;
 
-    pnetcdf_file_runtime = (struct pnetcdf_runtime*) calloc(1, sizeof(struct pnetcdf_runtime));
+    pnetcdf_file_runtime = (struct pnetcdf_file_runtime*) calloc(1, sizeof(struct pnetcdf_file_runtime));
     if(!pnetcdf_file_runtime)
     {
         darshan_core_unregister_module(DARSHAN_PNETCDF_FILE_MOD);
@@ -218,7 +227,7 @@ static void pnetcdf_var_runtime_initialize()
     if(ret < 0)
         return;
 
-    pnetcdf_var_runtime = (struct pnetcdf_runtime*) calloc(1, sizeof(struct pnetcdf_runtime));
+    pnetcdf_var_runtime = (struct pnetcdf_var_runtime*) calloc(1, sizeof(struct pnetcdf_var_runtime));
     if(!pnetcdf_var_runtime)
     {
         darshan_core_unregister_module(DARSHAN_PNETCDF_VAR_MOD);
@@ -927,7 +936,7 @@ static void pnetcdf_var_cleanup(void)
         &pnetcdf_var_finalize_records, NULL);
 
     /* cleanup internal structures used for instrumenting */
-    darshan_clear_record_refs(&(pnetcdf_var_runtime->ncid_hash), 0);
+    darshan_clear_record_refs(&(pnetcdf_var_runtime->varid_hash), 0);
     darshan_clear_record_refs(&(pnetcdf_var_runtime->rec_id_hash), 1);
 
     free(pnetcdf_var_runtime);
