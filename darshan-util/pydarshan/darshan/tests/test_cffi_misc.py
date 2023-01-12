@@ -181,19 +181,28 @@ def test_df_to_rec(log_name, index, module):
     with darshan.DarshanReport(log_path, read_all=True) as report:
         report.mod_read_all_records(module, dtype="pandas")
         rec_dict = report.records[module][0]
+
     # id and rank are not formally included in the reconsituted
     # (f)counters "buffer" so truncate a bit on comparison
-    expected_fcounters = rec_dict["fcounters"].iloc[index, :-2]
-    expected_counters = rec_dict["counters"].iloc[index, :-2].astype(np.int64)
+    expected_fcounters = rec_dict["fcounters"].iloc[index, 2:]
+    expected_counters = rec_dict["counters"].iloc[index, 2:].astype(np.int64)
+    expected_id = rec_dict["counters"].iloc[index, 0].astype(np.uint64)
+    expected_rank = rec_dict["counters"].iloc[index, 1]
+
+    # retrive the "re-packed"/actual record data:
     rbuf = backend._df_to_rec(rec_dict, module, index)
     actual_fcounters = np.frombuffer(ffi.buffer(rbuf[0].fcounters))
     actual_counters = np.frombuffer(ffi.buffer(rbuf[0].counters), dtype=np.int64)
+    actual_id = rbuf[0].base_rec.id
+    actual_rank = rbuf[0].base_rec.rank
+
+
     assert_allclose(actual_fcounters, expected_fcounters)
     assert_allclose(actual_counters, expected_counters)
+    assert actual_id == expected_id
+    assert actual_rank == expected_rank
 
 
-@pytest.mark.xfail(run=False,
-                   reason="Segfault: darshan-logutils-accumulator.c:145: darshan_accumulator_inject: Assertion `rank < acc->job_nprocs' failed")
 def test_reverse_record_array():
     # pack pandas DataFrame objects back into
     # a contiguous buffer of several records
@@ -204,10 +213,24 @@ def test_reverse_record_array():
     with darshan.DarshanReport(log_path, read_all=True) as report:
         report.mod_read_all_records("POSIX", dtype="pandas")
         rec_dict = report.records["POSIX"][0]
-    record_array = backend._df_to_rec_array(rec_dict, "POSIX")
+    counters_df = rec_dict["counters"]
+    fcounters_df = rec_dict["fcounters"]
+    # gh-867 and the perl report filtered files that were
+    # only stat'd rather than opened, so demo the same filtering
+    # here at Python layer, then feed back to C accum stuff
+    fcounters_df = fcounters_df[counters_df["POSIX_OPENS"] > 0]
+    counters_df = counters_df[counters_df["POSIX_OPENS"] > 0]
+    rec_dict["counters"] = counters_df
+    rec_dict["fcounters"] = fcounters_df
+    record_array = backend._df_to_rec(rec_dict, "POSIX")
     num_recs = rec_dict["fcounters"].shape[0]
+    mod_type = backend._structdefs["POSIX"]
+    buf = ffi.new("void **")
+    rbuf = ffi.cast(mod_type, buf)
 
-	# need to deal with the low-level C stuff...
+	# need to deal with the low-level C stuff to set up
+    # accumulator infrastructure to receive the repacked
+    # records
     log_handle = backend.log_open(log_path)
     jobrec = ffi.new("struct darshan_job *")
     libdutil.darshan_log_get_job(log_handle['handle'], jobrec)
@@ -216,5 +239,28 @@ def test_reverse_record_array():
     r = libdutil.darshan_accumulator_create(modules["POSIX"]['idx'],
                                             jobrec[0].nprocs,
                                             darshan_accumulator)
-    record_array = ffi.from_buffer(record_array)
-    r_i = libdutil.darshan_accumulator_inject(darshan_accumulator[0], record_array[0], num_recs)
+    assert r == 0
+    r_i = libdutil.darshan_accumulator_inject(darshan_accumulator[0], record_array, num_recs)
+    assert r_i == 0
+    darshan_derived_metrics = ffi.new("struct darshan_derived_metrics *")
+    r = libdutil.darshan_accumulator_emit(darshan_accumulator[0],
+                                          darshan_derived_metrics,
+                                          rbuf)
+    assert r == 0
+    # the indices into category_counters are pretty opaque.. we should just
+    # move everything to Python eventually... (also to avoid all the junk above when filtering..)
+    # 0 = total
+    # 1 = RO
+    # 2 = WO
+    # 3 = R/W
+    expected_total_files = 28 # see gh-867
+    expected_ro_files = 13 # see gh-867
+    expected_wo_files = 12 # see gh-867
+    actual_total_files = darshan_derived_metrics.category_counters[0].count
+    actual_ro_files = darshan_derived_metrics.category_counters[1].count
+    actual_wo_files = darshan_derived_metrics.category_counters[2].count
+    libdutil.darshan_free(buf[0])
+    backend.log_close(log_handle)
+    assert actual_total_files == expected_total_files
+    assert actual_ro_files == expected_ro_files
+    assert actual_wo_files == expected_wo_files

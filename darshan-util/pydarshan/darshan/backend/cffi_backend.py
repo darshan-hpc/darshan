@@ -660,61 +660,56 @@ def _log_get_heatmap_record(log):
 
 
 def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
+    """
+    Pack the DataFrames-format PyDarshan data back into
+    a C buffer of records that can be consumed by darshan-util
+    C code.
+
+    Parameters
+    ----------
+    rec_dict: dict
+        Dictionary containing the counter and fcounter dataframes.
+
+    mod_name: str
+        Name of the darshan module.
+
+    rec_index_of_interest: int or None
+        If ``None``, use all records in the dataframe. Otherwise,
+        repack only the the record at the provided integer index.
+
+    Returns
+    -------
+    buf: CFFI data object containing a buffer of record(s) or a single
+          record; when multiple records are present this will effectively
+          be a raw char array; with a single record, it should be cast
+          to a struct of the appropriate type
+    """
     mod_type = _structdefs[mod_name]
-    counters_n_cols = rec_dict["counters"].shape[1]
-    fcounters_n_cols = rec_dict["fcounters"].shape[1]
-    size = (counters_n_cols +
-            fcounters_n_cols -
-            # id and rank columns are duplicated
-            # in counters and fcounters
-            2)
-    rbuf_orig = np.empty(shape=(size,), dtype=np.float64)
-    rbuf = ffi.cast(mod_type, ffi.from_buffer(rbuf_orig))
-    rbuf[0] = ffi.from_buffer(rbuf_orig)
-    for counter_name, dtype, cols in zip(["counters", "fcounters"],
-                                         [np.int64, np.float64],
-                                         [counters_n_cols, fcounters_n_cols]):
-        df = rec_dict[counter_name]
-        record = df.iloc[rec_index_of_interest, ...]
-        data = np.ascontiguousarray(record[:cols - 2].to_numpy(), dtype=dtype)
-        if counter_name == "fcounters":
-            rbuf[0].fcounters = data.tolist()
-        else:
-            rbuf[0].counters = data.tolist()
-    #rbuf[0].base_rec.rank = np.int64(record.loc["rank"])
-    #rbuf[0].base_rec.id = np.uint64(record.id)
-    return rbuf
-
-
-def _df_to_rec_array(rec_dict, mod_name):
-    # same _df_to_rec, but first allocate a contiguous
-    # buffer into which we can add ALL the records
-    # in the pandas data structures
-    # TODO: looping like this in Python/pandas is
-    # inefficient for many reasons--we really should
-    # be doing the data analysis on the DataFrame
-    # long term rather than moving data backwards
-    # like this to the C layer
     counters_df = rec_dict["counters"]
     fcounters_df = rec_dict["fcounters"]
-    num_recs_counters = counters_df.shape[0]
-    num_recs_fcounters = fcounters_df.shape[0]
-    size = (counters_df.shape[1] +
-            fcounters_df.shape[1] -
-            # id and rank columns are duplicated
-            # in counters and fcounters
-            2)
-    if num_recs_counters != num_recs_fcounters:
-        raise ValueError(f"{num_recs_counters} counter records "
-                         f"but {num_recs_fcounters} fcounter records")
-    record_array = np.empty(shape=size * num_recs_counters, dtype=np.float64)
-    # NOTE: we may be able to slurp the data in as a single
-    # buffer rather than iterating, but moving data from Python back to C
-    # layer shouldn't be relied upon long-term anyway
-    pos = 0
-    for i, rec_num in enumerate(range(num_recs_counters)):
-        record_array[pos:pos + size] = np.frombuffer(ffi.buffer(_df_to_rec(rec_dict=rec_dict,
-                                                                           mod_name=mod_name,
-                                                                           rec_index_of_interest=i)))
-        pos += size
-    return record_array
+    counters_n_cols = counters_df.shape[1]
+    fcounters_n_cols = fcounters_df.shape[1]
+    if rec_index_of_interest is None:
+        num_recs = counters_df.shape[0]
+        rec_index_of_interest = ...
+    else:
+        num_recs = 1
+    # id and rank columns are duplicated
+    # in counters and fcounters
+    rec_arr = np.recarray(shape=(num_recs), dtype=[("id", "<u8", (1,)),
+                                                   ("rank", "<i8", (1,)),
+                                                   ("counters", "<i8", (counters_n_cols - 2,)),
+                                                   ("fcounters", "<f8", (fcounters_n_cols - 2,))])
+    rec_arr.fcounters = fcounters_df.iloc[rec_index_of_interest, 2:].to_numpy()
+    rec_arr.counters = counters_df.iloc[rec_index_of_interest, 2:].to_numpy()
+    if num_recs > 1:
+        rec_arr.id = counters_df.iloc[rec_index_of_interest, 0].to_numpy().reshape((num_recs, 1))
+        rec_arr.rank = counters_df.iloc[rec_index_of_interest, 1].to_numpy().reshape((num_recs, 1))
+        buf = ffi.new("char[]", (counters_n_cols + fcounters_n_cols - 2) * num_recs * 8)
+        buf = rec_arr.tobytes()
+    else:
+        rec_arr.id = counters_df.iloc[rec_index_of_interest, 0]
+        rec_arr.rank = counters_df.iloc[rec_index_of_interest, 1]
+        buf = ffi.new(mod_type)
+        buf[0] = ffi.from_buffer(rec_arr)
+    return buf
