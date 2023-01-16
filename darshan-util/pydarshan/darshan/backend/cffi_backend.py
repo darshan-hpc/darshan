@@ -691,7 +691,9 @@ def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
     fcounters_n_cols = fcounters_df.shape[1]
     if rec_index_of_interest is None:
         num_recs = counters_df.shape[0]
-        rec_index_of_interest = ...
+        # newer pandas versions can support ...
+        # but we use a slice for now
+        rec_index_of_interest = slice(0, counters_df.shape[0])
     else:
         num_recs = 1
     # id and rank columns are duplicated
