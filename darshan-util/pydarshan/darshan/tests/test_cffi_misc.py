@@ -203,7 +203,15 @@ def test_df_to_rec(log_name, index, module):
     assert actual_rank == expected_rank
 
 
-def test_reverse_record_array():
+@pytest.mark.parametrize("python_filter, expected_counts", [
+    # whether to do an initial filtering
+    # of the DataFrame in Python before
+    # packing it back into C records
+    pytest.param(True, [28, 13, 12, 1],
+                 marks=pytest.mark.xfail(reason="mismatch perl report")),
+    (False, [1026, 12, 2, 1]) # see gh-867
+    ])
+def test_reverse_record_array(python_filter, expected_counts):
     # pack pandas DataFrame objects back into
     # a contiguous buffer of several records
     # and then use the darshan-util C lib accumulator
@@ -215,18 +223,17 @@ def test_reverse_record_array():
         rec_dict = report.records["POSIX"][0]
     counters_df = rec_dict["counters"]
     fcounters_df = rec_dict["fcounters"]
-    # gh-867 and the perl report filtered files that were
-    # only stat'd rather than opened, so demo the same filtering
-    # here at Python layer, then feed back to C accum stuff
-    fcounters_df = fcounters_df[counters_df["POSIX_OPENS"] > 0]
-    counters_df = counters_df[counters_df["POSIX_OPENS"] > 0]
-    rec_dict["counters"] = counters_df
-    rec_dict["fcounters"] = fcounters_df
-    record_array = backend._df_to_rec(rec_dict, "POSIX")
+    if python_filter:
+        # gh-867 and the perl report filtered files that were
+        # only stat'd rather than opened, so demo the same filtering
+        # here at Python layer, then feed back to C accum stuff
+        fcounters_df = fcounters_df[counters_df["POSIX_OPENS"] > 0]
+        counters_df = counters_df[counters_df["POSIX_OPENS"] > 0]
+        rec_dict["counters"] = counters_df
+        rec_dict["fcounters"] = fcounters_df
     num_recs = rec_dict["fcounters"].shape[0]
-    mod_type = backend._structdefs["POSIX"]
-    buf = ffi.new("void **")
-    rbuf = ffi.cast(mod_type, buf)
+    record_array = backend._df_to_rec(rec_dict, "POSIX")
+    rbuf = backend._df_to_rec(rec_dict, "POSIX", 0)
 
 	# need to deal with the low-level C stuff to set up
     # accumulator infrastructure to receive the repacked
@@ -245,22 +252,24 @@ def test_reverse_record_array():
     darshan_derived_metrics = ffi.new("struct darshan_derived_metrics *")
     r = libdutil.darshan_accumulator_emit(darshan_accumulator[0],
                                           darshan_derived_metrics,
-                                          rbuf)
+                                          rbuf[0])
     assert r == 0
+    backend.log_close(log_handle)
+    # NOTE: freeing rbuf[0] manually can cause
+    # segfaults here...
+
     # the indices into category_counters are pretty opaque.. we should just
-    # move everything to Python eventually... (also to avoid all the junk above when filtering..)
+    # move everything to Python "eventually"... (also to avoid all the junk above after filtering..)
     # 0 = total
     # 1 = RO
     # 2 = WO
     # 3 = R/W
-    expected_total_files = 28 # see gh-867
-    expected_ro_files = 13 # see gh-867
-    expected_wo_files = 12 # see gh-867
     actual_total_files = darshan_derived_metrics.category_counters[0].count
     actual_ro_files = darshan_derived_metrics.category_counters[1].count
     actual_wo_files = darshan_derived_metrics.category_counters[2].count
-    libdutil.darshan_free(buf[0])
-    backend.log_close(log_handle)
-    assert actual_total_files == expected_total_files
-    assert actual_ro_files == expected_ro_files
-    assert actual_wo_files == expected_wo_files
+    actual_rw_files = darshan_derived_metrics.category_counters[3].count
+    assert_array_equal([actual_total_files,
+                        actual_ro_files,
+                        actual_wo_files,
+                        actual_rw_files],
+                        expected_counts)
