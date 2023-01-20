@@ -89,6 +89,7 @@
 #include "darshan-heatmap.h"
 //me
 #include "darshan-dxt.h"
+#include "darshan-ldms.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;

@@ -36,6 +36,10 @@ if BUILD_DXT_MODULE
    C_SRCS += darshan-dxt.c
 endif
 
+if BUILD_LDMS_MODULE
+   C_SRCS += darshan-ldms.c
+endif
+
 if BUILD_MPIIO_MODULE
    C_SRCS += darshan-mpiio.c
 endif
@@ -119,16 +123,18 @@ H_SRCS = darshan-common.h \
          darshan-config.h \
          darshan-lustre.h \
          darshan-dxt.h \
+	 darshan-ldms.h \
          uthash.h \
          darshan-dynamic.h \
          utlist.h \
-	 darshan-heatmap.h
+	 darshan-heatmap.h 
 
 EXTRA_DIST = $(H_SRCS) \
              darshan-null.c \
              darshan-posix.c \
              darshan-stdio.c \
              darshan-dxt.c \
+	     darshan-ldms.c \
              darshan-mpiio.c \
              darshan-pnetcdf.c \
              darshan-pnetcdf-api.m4 \

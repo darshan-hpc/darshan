@@ -46,6 +46,7 @@
 #include "darshan-config.h"
 #include "darshan-dynamic.h"
 #include "darshan-dxt.h"
+#include "darshan-ldms.h"
 
 #ifdef DARSHAN_LUSTRE
 #include <lustre/lustre_user.h>
