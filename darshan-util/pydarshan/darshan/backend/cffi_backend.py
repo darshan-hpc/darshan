@@ -633,7 +633,6 @@ def _log_get_heatmap_record(log):
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
     if r < 1:
-        libdutil.darshan_free(buf[0])
         return None
     
     filerec = ffi.cast(mod_type, buf)
@@ -660,6 +659,7 @@ def _log_get_heatmap_record(log):
     return rec
 
 
+@functools.lru_cache()
 def log_get_derived_metrics(log_path: str, mod_name: str):
     """
     Returns the darshan_derived_metrics struct from CFFI/C accumulator code.
@@ -716,24 +716,13 @@ def log_get_derived_metrics(log_path: str, mod_name: str):
     r = libdutil.darshan_accumulator_emit(darshan_accumulator[0],
                                           darshan_derived_metrics,
                                           rbuf[0])
+    libdutil.darshan_free(buf[0])
+    libdutil.darshan_accumulator_destroy(darshan_accumulator[0])
+    log_close(log_handle)
     if r != 0:
-        libdutil.darshan_free(buf[0])
         raise RuntimeError("A nonzero exit code was received from "
                            "darshan_accumulator_emit() at the C level. "
                            "It may be possible "
                            "to retrieve additional information from the stderr "
                            "stream.")
-    libdutil.darshan_free(buf[0])
     return darshan_derived_metrics
-
-
-def log_get_bytes_bandwidth(log_path: str, mod_name: str) -> str:
-    # get total bytes (in MiB) and bandwidth (in MiB/s) for
-    # a given module -- this information was commonly reported
-    # in the old perl-based summary reports
-    darshan_derived_metrics = log_get_derived_metrics(log_path=log_path,
-                                                      mod_name=mod_name)
-    total_mib = darshan_derived_metrics.total_bytes / 2 ** 20
-    total_bw = darshan_derived_metrics.agg_perf_by_slowest
-    ret_str = f"I/O performance estimate (at the {mod_name} layer): transferred {total_mib:.1f} MiB at {total_bw:.2f} MiB/s"
-    return ret_str
