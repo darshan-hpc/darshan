@@ -717,11 +717,12 @@ def log_get_derived_metrics(log_path: str, mod_name: str):
                                           darshan_derived_metrics,
                                           rbuf[0])
     libdutil.darshan_free(buf[0])
+    libdutil.darshan_accumulator_destroy(darshan_accumulator[0])
+    log_close(log_handle)
     if r != 0:
         raise RuntimeError("A nonzero exit code was received from "
                            "darshan_accumulator_emit() at the C level. "
                            "It may be possible "
                            "to retrieve additional information from the stderr "
                            "stream.")
-    log_close(log_handle)
     return darshan_derived_metrics
