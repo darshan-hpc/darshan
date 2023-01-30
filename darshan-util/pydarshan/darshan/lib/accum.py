@@ -69,7 +69,7 @@ def log_file_count_summary_table(log_path: str,
     # exposed in CFFI/Python layer, so we effectively
     # re-export the content indices we need here
     # so that we can properly index the C-level data
-    darshan_file_category = {"total opened":0,
+    darshan_file_category = {"total files":0,
                              "read-only files":1,
                              "write-only files":2,
                              "read/write files":3}
