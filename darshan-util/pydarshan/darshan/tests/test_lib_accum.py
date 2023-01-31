@@ -198,7 +198,7 @@ def test_file_count_summary_table(log_name,
     # the team decided that we should exclude
     # "created" files row from the old report because
     # we can't really determine it reliably
-    expected_df.index = ["total opened",
+    expected_df.index = ["total files",
                          "read-only files",
                          "write-only files",
                          "read/write files"]
