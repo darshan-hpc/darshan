@@ -34,8 +34,10 @@ jobs:
       run: |
         sudo apt-get update -y
         sudo apt-get install hdf5-tools libhdf5-openmpi-dev openmpi-bin 
+        python -m pip install --upgrade pip
+        python -m pip install --upgrade pytest mpi4py
         export HDF5_MPI="ON"
-        CC=mpicc python -m pip install --no-binary=h5py h5py
+        CC=mpicc python -m pip install --no-cache-dir h5py
     - name: Clone LDMS
       uses: actions/checkout@v3
       with:
@@ -51,8 +53,6 @@ jobs:
     - name: Install LDMS
       run: |
         cd ovis
-        git fetch --all
-        git checkout 084f77d
         sh autogen.sh
         set -e
         mkdir -p build
