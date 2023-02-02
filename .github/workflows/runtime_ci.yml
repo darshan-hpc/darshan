@@ -25,12 +25,12 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y hdf5-tools libhdf5-openmpi-dev openmpi-bin
-          python -m pip install --upgrade pip
+          # pip is pinned to avoid gh-895 for now
+          python -m pip install "pip<23.0"
           python -m pip install --upgrade pytest mpi4py
           # we need to build h5py with the system HDF5 lib backend
           export HDF5_MPI="ON"
-          # h5py is pinned to avoid gh-895
-          CC=mpicc python -m pip install --no-binary=h5py "h5py==3.7.0"
+          CC=mpicc python -m pip install --no-binary=h5py h5py
       - name: Install darshan-runtime
         run: |
           export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/include/hdf5/openmpi/
