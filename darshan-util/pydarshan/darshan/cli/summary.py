@@ -26,6 +26,22 @@ from darshan.experimental.plots import (
 darshan.enable_experimental()
 
 
+class DarshanReportTable:
+    """
+    Stores table figures in dataframe and html formats.
+
+    Parameters
+    ----------
+    df: a ``pd.DataFrame``.
+
+    kwargs: keyword arguments passed to ``pd.DataFrame.to_html()``.
+
+    """
+    def __init__(self, df: Any, **kwargs):
+        self.df = df
+        self.html = self.df.to_html(**kwargs)
+
+
 class ReportFigure:
     """
     Stores info for each figure in `ReportData.register_figures`.
@@ -100,7 +116,7 @@ class ReportFigure:
             encoded = self.get_encoded_fig(mpl_fig=fig)
             # create the img string
             self.fig_html = f"<img src=data:image/png;base64,{encoded} alt={self.fig_title} width={self.fig_width}>"
-        elif isinstance(fig, plot_common_access_table.DarshanReportTable):
+        elif isinstance(fig, DarshanReportTable):
             # retrieve html table from `DarshanReportTable`
             self.fig_html = fig.html
         else:
