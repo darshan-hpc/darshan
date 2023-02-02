@@ -29,7 +29,8 @@ jobs:
           python -m pip install --upgrade pytest mpi4py
           # we need to build h5py with the system HDF5 lib backend
           export HDF5_MPI="ON"
-          CC=mpicc python -m pip install --no-binary=h5py h5py
+          # h5py is pinned to avoid gh-895
+          CC=mpicc python -m pip install --no-binary=h5py "h5py==3.7.0"
       - name: Install darshan-runtime
         run: |
           export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/include/hdf5/openmpi/
