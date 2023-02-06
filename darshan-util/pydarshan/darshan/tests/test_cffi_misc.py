@@ -170,6 +170,8 @@ def test_log_get_generic_record(dtype):
     ("POSIX", 0),
     ("POSIX", 3),
     ("POSIX", 5),
+    ("MPI-IO", 0),
+    ("MPI-IO", 2),
     # less records available for STDIO testing
     # with these logs
     ("STDIO", 0),
