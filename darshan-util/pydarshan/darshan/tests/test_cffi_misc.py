@@ -209,8 +209,7 @@ def test_df_to_rec(log_name, index, module):
     # whether to do an initial filtering
     # of the DataFrame in Python before
     # packing it back into C records
-    pytest.param(True, [28, 13, 12, 1],
-                 marks=pytest.mark.xfail(reason="mismatch perl report")),
+    (True, [18, 12, 2, 1]),
     (False, [1026, 12, 2, 1]) # see gh-867
     ])
 def test_reverse_record_array(python_filter, expected_counts):
@@ -221,6 +220,8 @@ def test_reverse_record_array(python_filter, expected_counts):
     # with those discussed in gh-867 from Perl report
     log_path = get_log_path("imbalanced-io.darshan")
     with darshan.DarshanReport(log_path, read_all=True) as report:
+        nprocs = report.metadata['job']['nprocs']
+        modules = report.modules
         report.mod_read_all_records("POSIX", dtype="pandas")
         rec_dict = report.records["POSIX"][0]
     counters_df = rec_dict["counters"]
@@ -240,13 +241,9 @@ def test_reverse_record_array(python_filter, expected_counts):
 	# need to deal with the low-level C stuff to set up
     # accumulator infrastructure to receive the repacked
     # records
-    log_handle = backend.log_open(log_path)
-    jobrec = ffi.new("struct darshan_job *")
-    libdutil.darshan_log_get_job(log_handle['handle'], jobrec)
-    modules = backend.log_get_modules(log_handle)
     darshan_accumulator = ffi.new("darshan_accumulator *")
     r = libdutil.darshan_accumulator_create(modules["POSIX"]['idx'],
-                                            jobrec[0].nprocs,
+                                            nprocs,
                                             darshan_accumulator)
     assert r == 0
     r_i = libdutil.darshan_accumulator_inject(darshan_accumulator[0], record_array, num_recs)
@@ -256,7 +253,8 @@ def test_reverse_record_array(python_filter, expected_counts):
                                           darshan_derived_metrics,
                                           rbuf[0])
     assert r == 0
-    backend.log_close(log_handle)
+    r = libdutil.darshan_accumulator_destroy(darshan_accumulator[0])
+    assert r == 0
     # NOTE: freeing rbuf[0] manually can cause
     # segfaults here...
 
