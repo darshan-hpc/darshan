@@ -9,7 +9,7 @@ import numpy as np
 from numpy.testing import assert_array_equal, assert_allclose
 import darshan
 import darshan.backend.cffi_backend as backend
-from darshan.backend.cffi_backend import ffi, libdutil
+from darshan.backend.cffi_backend import ffi, libdutil, _structdefs
 from darshan.log_utils import get_log_path
 
 def test_get_lib_version():
@@ -193,10 +193,11 @@ def test_df_to_rec(log_name, index, module):
 
     # retrive the "re-packed"/actual record data:
     rbuf = backend._df_to_rec(rec_dict, module, index)
-    actual_fcounters = np.frombuffer(ffi.buffer(rbuf[0].fcounters))
-    actual_counters = np.frombuffer(ffi.buffer(rbuf[0].counters), dtype=np.int64)
-    actual_id = rbuf[0].base_rec.id
-    actual_rank = rbuf[0].base_rec.rank
+    rec_buf = ffi.from_buffer(_structdefs[module].replace("**", "*"), rbuf)
+    actual_fcounters = np.frombuffer(ffi.buffer(rec_buf[0].fcounters))
+    actual_counters = np.frombuffer(ffi.buffer(rec_buf[0].counters), dtype=np.int64)
+    actual_id = rec_buf[0].base_rec.id
+    actual_rank = rec_buf[0].base_rec.rank
 
 
     assert_allclose(actual_fcounters, expected_fcounters)
@@ -236,7 +237,6 @@ def test_reverse_record_array(python_filter, expected_counts):
         rec_dict["fcounters"] = fcounters_df
     num_recs = rec_dict["fcounters"].shape[0]
     record_array = backend._df_to_rec(rec_dict, "POSIX")
-    rbuf = backend._df_to_rec(rec_dict, "POSIX", 0)
 
 	# need to deal with the low-level C stuff to set up
     # accumulator infrastructure to receive the repacked
@@ -248,15 +248,14 @@ def test_reverse_record_array(python_filter, expected_counts):
     assert r == 0
     r_i = libdutil.darshan_accumulator_inject(darshan_accumulator[0], record_array, num_recs)
     assert r_i == 0
-    darshan_derived_metrics = ffi.new("struct darshan_derived_metrics *")
+    derived_metrics = ffi.new("struct darshan_derived_metrics *")
+    summation_record = ffi.new(_structdefs["POSIX"].replace("**", "*"))
     r = libdutil.darshan_accumulator_emit(darshan_accumulator[0],
-                                          darshan_derived_metrics,
-                                          rbuf[0])
+                                          derived_metrics,
+                                          summation_record)
     assert r == 0
     r = libdutil.darshan_accumulator_destroy(darshan_accumulator[0])
     assert r == 0
-    # NOTE: freeing rbuf[0] manually can cause
-    # segfaults here...
 
     # the indices into category_counters are pretty opaque.. we should just
     # move everything to Python "eventually"... (also to avoid all the junk above after filtering..)
@@ -264,10 +263,10 @@ def test_reverse_record_array(python_filter, expected_counts):
     # 1 = RO
     # 2 = WO
     # 3 = R/W
-    actual_total_files = darshan_derived_metrics.category_counters[0].count
-    actual_ro_files = darshan_derived_metrics.category_counters[1].count
-    actual_wo_files = darshan_derived_metrics.category_counters[2].count
-    actual_rw_files = darshan_derived_metrics.category_counters[3].count
+    actual_total_files = derived_metrics.category_counters[0].count
+    actual_ro_files = derived_metrics.category_counters[1].count
+    actual_wo_files = derived_metrics.category_counters[2].count
+    actual_rw_files = derived_metrics.category_counters[3].count
     assert_array_equal([actual_total_files,
                         actual_ro_files,
                         actual_wo_files,

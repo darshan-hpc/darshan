@@ -707,11 +707,8 @@ def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
     if num_recs > 1:
         rec_arr.id = counters_df.iloc[rec_index_of_interest, 0].to_numpy().reshape((num_recs, 1))
         rec_arr.rank = counters_df.iloc[rec_index_of_interest, 1].to_numpy().reshape((num_recs, 1))
-        buf = ffi.new("char[]", (counters_n_cols + fcounters_n_cols - 2) * num_recs * 8)
-        buf = rec_arr.tobytes()
     else:
         rec_arr.id = counters_df.iloc[rec_index_of_interest, 0]
         rec_arr.rank = counters_df.iloc[rec_index_of_interest, 1]
-        buf = ffi.new(mod_type)
-        buf[0] = ffi.from_buffer(rec_arr)
+    buf = rec_arr.tobytes()
     return buf
