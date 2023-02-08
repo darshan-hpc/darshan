@@ -684,7 +684,6 @@ def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
           be a raw char array; with a single record, it should be cast
           to a struct of the appropriate type
     """
-    mod_type = _structdefs[mod_name]
     counters_df = rec_dict["counters"]
     fcounters_df = rec_dict["fcounters"]
     counters_n_cols = counters_df.shape[1]
