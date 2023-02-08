@@ -679,10 +679,7 @@ def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
 
     Returns
     -------
-    buf: CFFI data object containing a buffer of record(s) or a single
-          record; when multiple records are present this will effectively
-          be a raw char array; with a single record, it should be cast
-          to a struct of the appropriate type
+    buf: Raw char array containing a buffer of record(s) or a single record.
     """
     counters_df = rec_dict["counters"]
     fcounters_df = rec_dict["fcounters"]
