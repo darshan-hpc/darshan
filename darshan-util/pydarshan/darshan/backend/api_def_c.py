@@ -8,6 +8,34 @@ darshan release.
 
 
 header = """/* from darshan-logutils.h */
+
+struct darshan_derived_metrics {
+    int64_t total_bytes;
+    double unique_io_total_time_by_slowest;
+    double unique_rw_only_time_by_slowest;
+    double unique_md_only_time_by_slowest;
+    int unique_io_slowest_rank;
+    double shared_io_total_time_by_slowest;
+    double agg_perf_by_slowest;
+    double agg_time_by_slowest;
+    struct darshan_file_category_counters;
+};
+
+
+
+struct darshan_accumulator {
+    int64_t module_id;
+    int64_t job_nprocs;
+    void* agg_record;
+    int num_records;
+    void *file_hash_table;
+    double shared_io_total_time_by_slowest;
+    int64_t total_bytes;
+    double *rank_cumul_io_total_time;
+    double *rank_cumul_rw_only_time;
+    double *rank_cumul_md_only_time;
+};
+
 struct darshan_mnt_info
 {
     char mnt_type[3015];
@@ -22,6 +50,11 @@ struct darshan_mod_info
     int	idx;
     int partial_flag;
 };
+
+int darshan_accumulator_emit(struct darshan_accumulator, struct darshan_derived_metrics*, void* aggregation_record);
+int darshan_accumulator_destroy(struct darshan_accumulator);
+int darshan_accumulator_create(enum darshan_module_id, int64_t, struct darshan_accumulator*);
+int darshan_accumulator_inject(struct darshan_accumulator, void*, int);
 
 /* from darshan-log-format.h */
 typedef uint64_t darshan_record_id;
