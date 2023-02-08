@@ -30,7 +30,7 @@ def get_by_avg_series(df: Any, mod_key: str, nprocs: int) -> Any:
     Returns
     -------
     by_avg_series: a ``pd.Series`` containing the
-    average read, write, and meta times.
+    average read, write, meta, and wait times.
 
     """
     # filter out all except the following columns
@@ -39,11 +39,16 @@ def get_by_avg_series(df: Any, mod_key: str, nprocs: int) -> Any:
         f"{mod_key}_F_WRITE_TIME",
         f"{mod_key}_F_META_TIME",
     ]
+    if "PNETCDF_FILE" in mod_key:
+        cols.append("PNETCDF_FILE_F_WAIT_TIME")
+    else:
+        cols.append("Wait")
     by_avg_series = df.filter(cols, axis=1).sum(axis=0) / nprocs
     # reindex to ensure 3 rows are always created
     by_avg_series = by_avg_series.reindex(cols, fill_value=0.0)
     # rename the columns so the labels are automatically generated when plotting
     name_dict = {cols[0]: "Read", cols[1]: "Write", cols[2]: "Meta"}
+    name_dict[cols[3]] = "Wait"
     by_avg_series.rename(index=name_dict, inplace=True)
     return by_avg_series
 
@@ -173,6 +178,10 @@ def plot_io_cost(report: darshan.DarshanReport) -> Any:
     ax_raw.set_ylabel("Runtime (s)")
     handles, labels = ax_raw.get_legend_handles_labels()
     ax_norm.legend(handles[::-1], labels[::-1], loc="upper left", bbox_to_anchor=(1.22, 1.02))
+    # rotate the xticklabels so they don't overlap
+    for ax in [ax_raw, ax_norm]:
+        for label in ax.get_xticklabels():
+            label.set_rotation(90)
     # adjust the figure to reduce white space
     io_cost_fig.subplots_adjust(right=0.59)
     io_cost_fig.tight_layout()

@@ -659,6 +659,57 @@ def _log_get_heatmap_record(log):
     return rec
 
 
+def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
+    """
+    Pack the DataFrames-format PyDarshan data back into
+    a C buffer of records that can be consumed by darshan-util
+    C code.
+
+    Parameters
+    ----------
+    rec_dict: dict
+        Dictionary containing the counter and fcounter dataframes.
+
+    mod_name: str
+        Name of the darshan module.
+
+    rec_index_of_interest: int or None
+        If ``None``, use all records in the dataframe. Otherwise,
+        repack only the the record at the provided integer index.
+
+    Returns
+    -------
+    buf: Raw char array containing a buffer of record(s) or a single record.
+    """
+    counters_df = rec_dict["counters"]
+    fcounters_df = rec_dict["fcounters"]
+    counters_n_cols = counters_df.shape[1]
+    fcounters_n_cols = fcounters_df.shape[1]
+    if rec_index_of_interest is None:
+        num_recs = counters_df.shape[0]
+        # newer pandas versions can support ...
+        # but we use a slice for now
+        rec_index_of_interest = slice(0, counters_df.shape[0])
+    else:
+        num_recs = 1
+    # id and rank columns are duplicated
+    # in counters and fcounters
+    rec_arr = np.recarray(shape=(num_recs), dtype=[("id", "<u8", (1,)),
+                                                   ("rank", "<i8", (1,)),
+                                                   ("counters", "<i8", (counters_n_cols - 2,)),
+                                                   ("fcounters", "<f8", (fcounters_n_cols - 2,))])
+    rec_arr.fcounters = fcounters_df.iloc[rec_index_of_interest, 2:].to_numpy()
+    rec_arr.counters = counters_df.iloc[rec_index_of_interest, 2:].to_numpy()
+    if num_recs > 1:
+        rec_arr.id = counters_df.iloc[rec_index_of_interest, 0].to_numpy().reshape((num_recs, 1))
+        rec_arr.rank = counters_df.iloc[rec_index_of_interest, 1].to_numpy().reshape((num_recs, 1))
+    else:
+        rec_arr.id = counters_df.iloc[rec_index_of_interest, 0]
+        rec_arr.rank = counters_df.iloc[rec_index_of_interest, 1]
+    buf = rec_arr.tobytes()
+    return buf
+
+
 @functools.lru_cache()
 def log_get_derived_metrics(log_path: str, mod_name: str):
     """

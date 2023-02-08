@@ -1,3 +1,7 @@
+PyDarshan-3.4.2.0
+=================
+* Track Darshan 3.4.2 release, no PyDarshan changes
+
 PyDarshan-3.4.1.0
 =================
  * Fixed memory leaks in the following backend CFFI bindings
