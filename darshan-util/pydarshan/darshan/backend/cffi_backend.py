@@ -685,6 +685,8 @@ def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
     fcounters_df = rec_dict["fcounters"]
     counters_n_cols = counters_df.shape[1]
     fcounters_n_cols = fcounters_df.shape[1]
+    id_col = counters_df.columns.get_loc("id")
+    rank_col = counters_df.columns.get_loc("rank")
     if rec_index_of_interest is None:
         num_recs = counters_df.shape[0]
         # newer pandas versions can support ...
@@ -701,11 +703,11 @@ def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
     rec_arr.fcounters = fcounters_df.iloc[rec_index_of_interest, 2:].to_numpy()
     rec_arr.counters = counters_df.iloc[rec_index_of_interest, 2:].to_numpy()
     if num_recs > 1:
-        rec_arr.id = counters_df.iloc[rec_index_of_interest, 0].to_numpy().reshape((num_recs, 1))
-        rec_arr.rank = counters_df.iloc[rec_index_of_interest, 1].to_numpy().reshape((num_recs, 1))
+        rec_arr.id = counters_df.iloc[rec_index_of_interest, id_col].to_numpy().reshape((num_recs, 1))
+        rec_arr.rank = counters_df.iloc[rec_index_of_interest, rank_col].to_numpy().reshape((num_recs, 1))
     else:
-        rec_arr.id = counters_df.iloc[rec_index_of_interest, 0]
-        rec_arr.rank = counters_df.iloc[rec_index_of_interest, 1]
+        rec_arr.id = counters_df.iloc[rec_index_of_interest, id_col]
+        rec_arr.rank = counters_df.iloc[rec_index_of_interest, rank_col]
     buf = rec_arr.tobytes()
     return buf
 
