@@ -712,35 +712,22 @@ def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
     return buf
 
 
-@functools.lru_cache()
-def log_get_derived_metrics(log_path: str, mod_name: str):
+def log_get_derived_metrics(rec_dict, mod_name, mod_idx, nprocs):
     """
-    Returns the darshan_derived_metrics struct from CFFI/C accumulator code.
+    Passes a set of records (in pandas format) to the Darshan accumulator
+    interface, and returns the corresponding derived metrics struct.
 
     Parameters:
-        log_path: Path to the darshan log file
-        mod_name: The name of the module to retrieve derived metrics for
+        rec_dict: Dictionary containing the counter and fcounter dataframes.
+        mod_name: Name of the Darshan module.
+        mod_idx: Identifier of the Darshan module.
+        nprocs: Number of processes participating in accumulation.
 
     Returns:
         darshan_derived_metrics struct (cdata object)
     """
-    # TODO: eventually add support for i.e., a regex filter on the records
-    # the user wants to get derived metrics for--like filtering to records
-    # with a single filename involved before accumulating the data?
-    log_handle = log_open(log_path)
-    jobrec = ffi.new("struct darshan_job *")
-    libdutil.darshan_log_get_job(log_handle['handle'], jobrec)
-    modules = log_get_modules(log_handle)
-
-    if mod_name not in modules:
-        raise ValueError(f"{mod_name} is not in the available log file "
-                         f"modules: {modules.keys()}")
-
-    mod_type = _structdefs[mod_name]
     darshan_accumulator = ffi.new("darshan_accumulator *")
-    r = libdutil.darshan_accumulator_create(modules[mod_name]['idx'],
-                                            jobrec[0].nprocs,
-                                            darshan_accumulator)
+    r = libdutil.darshan_accumulator_create(mod_idx, nprocs, darshan_accumulator)
     if r != 0:
         raise RuntimeError("A nonzero exit code was received from "
                            "darshan_accumulator_create() at the C level. "
@@ -750,32 +737,26 @@ def log_get_derived_metrics(log_path: str, mod_name: str):
                            "to retrieve additional information from the stderr "
                            "stream.")
 
-    buf = ffi.new("void **")
-    r = 1
-    while r >= 1:
-        r = libdutil.darshan_log_get_record(log_handle['handle'], modules[mod_name]['idx'], buf)
-        if r < 1:
-            break
-        rbuf = ffi.cast(mod_type, buf)
-        r_i = libdutil.darshan_accumulator_inject(darshan_accumulator[0], rbuf[0], 1)
-        if r_i != 0:
-            libdutil.darshan_free(buf[0])
-            raise RuntimeError("A nonzero exit code was received from "
-                               "darshan_accumulator_inject() at the C level. "
-                               "It may be possible "
-                               "to retrieve additional information from the stderr "
-                               "stream.")
-    darshan_derived_metrics = ffi.new("struct darshan_derived_metrics *")
+    num_recs = rec_dict["fcounters"].shape[0]
+    record_array = _df_to_rec(rec_dict, mod_name)
+
+    r_i = libdutil.darshan_accumulator_inject(darshan_accumulator[0], record_array, num_recs)
+    if r_i != 0:
+        raise RuntimeError("A nonzero exit code was received from "
+                           "darshan_accumulator_inject() at the C level. "
+                           "It may be possible "
+                           "to retrieve additional information from the stderr "
+                           "stream.")
+    derived_metrics = ffi.new("struct darshan_derived_metrics *")
+    total_record = ffi.new(_structdefs[mod_name].replace("**", "*"))
     r = libdutil.darshan_accumulator_emit(darshan_accumulator[0],
-                                          darshan_derived_metrics,
-                                          rbuf[0])
-    libdutil.darshan_free(buf[0])
+                                          derived_metrics,
+                                          total_record)
     libdutil.darshan_accumulator_destroy(darshan_accumulator[0])
-    log_close(log_handle)
     if r != 0:
         raise RuntimeError("A nonzero exit code was received from "
                            "darshan_accumulator_emit() at the C level. "
                            "It may be possible "
                            "to retrieve additional information from the stderr "
                            "stream.")
-    return darshan_derived_metrics
+    return derived_metrics

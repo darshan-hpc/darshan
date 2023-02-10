@@ -14,6 +14,7 @@ from mako.template import Template
 
 import darshan
 import darshan.cli
+from darshan.backend.cffi_backend import log_get_derived_metrics
 from darshan.lib.accum import log_get_bytes_bandwidth
 from darshan.experimental.plots import (
     plot_dxt_heatmap,
@@ -498,17 +499,27 @@ class ReportData:
                 self.figures.append(opcount_fig)
 
             try:
-                # this is really just some text
-                # so using ReportFigure feels awkward...
-                bandwidth_fig = ReportFigure(
-                        section_title=sect_title,
-                        fig_title="",
-                        fig_func=None,
-                        fig_args=None,
-                        fig_description=log_get_bytes_bandwidth(log_path=self.log_path,
-                                                                mod_name=mod),
-                        text_only_color="blue")
-                self.figures.append(bandwidth_fig)
+                if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                    # get the module's record dataframe and then pass to
+                    # Darshan accumulator interface to generate a cumulative
+                    # record and derived metrics
+                    rec_dict = self.report.records[mod].to_df()
+                    mod_name = mod
+                    mod_idx = self.report.modules[mod]['idx']
+                    nprocs = self.report.metadata['job']['nprocs']
+                    derived_metrics = log_get_derived_metrics(rec_dict, mod_name, mod_idx, nprocs)
+
+                    # this is really just some text
+                    # so using ReportFigure feels awkward...
+                    bandwidth_fig = ReportFigure(
+                            section_title=sect_title,
+                            fig_title="",
+                            fig_func=None,
+                            fig_args=None,
+                            fig_description=log_get_bytes_bandwidth(derived_metrics=derived_metrics,
+                                                                    mod_name=mod),
+                            text_only_color="blue")
+                    self.figures.append(bandwidth_fig)
             except (RuntimeError, KeyError):
                 # the module probably doesn't support derived metrics
                 # calculations, but the C code doesn't distinguish other

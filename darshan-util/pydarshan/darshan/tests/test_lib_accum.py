@@ -1,3 +1,5 @@
+import darshan
+from darshan.backend.cffi_backend import log_get_derived_metrics
 from darshan.lib.accum import log_get_bytes_bandwidth
 from darshan.log_utils import get_log_path
 
@@ -21,6 +23,10 @@ import pytest
     # of writing
     ("imbalanced-io.darshan",
      "LUSTRE",
+     "RuntimeError"),
+    # APMPI doesn't support derived metrics either
+    ("e3sm_io_heatmap_only.darshan",
+     "APMPI",
      "RuntimeError"),
     ("imbalanced-io.darshan",
      "POSIX",
@@ -52,12 +58,6 @@ import pytest
     ("partial_data_stdio.darshan",
      "GARBAGE",
      "ValueError"),
-    # TODO: determine if the lack of APMPI and
-    # any other "add-ons" in _structdefs is a bug
-    # in the control flow for `log_get_derived_metrics()`?
-    ("e3sm_io_heatmap_only.darshan",
-     "APMPI",
-     "KeyError"),
     ("skew-app.darshan",
      "POSIX",
      "I/O performance estimate (at the POSIX layer): transferred 41615.8 MiB at 157.49 MiB/s"),
@@ -73,21 +73,24 @@ def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
     # (i.e., for a single filename) is not tested here
 
     log_path = get_log_path(log_path)
+    with darshan.DarshanReport(log_path, read_all=True) as report:
+        report.mod_read_all_records(mod_name, dtype="pandas")
+        rec_dict = report.records[mod_name][0]
+        mod_idx = report.modules[mod_name]['idx']
+        nprocs = report.metadata['job']['nprocs']
+
     if expected_str == "RuntimeError":
         with pytest.raises(RuntimeError,
                            match=f"{mod_name} module does not support derived"):
-            log_get_bytes_bandwidth(log_path=log_path,
-                                    mod_name=mod_name)
-    elif expected_str == "ValueError":
-        with pytest.raises(ValueError,
-                           match=f"{mod_name} is not in the available log"):
-            log_get_bytes_bandwidth(log_path=log_path,
-                                    mod_name=mod_name)
-    elif expected_str == "KeyError":
-        with pytest.raises(KeyError, match=f"{mod_name}"):
-            log_get_bytes_bandwidth(log_path=log_path,
-                                    mod_name=mod_name)
+            log_get_derived_metrics(rec_dict, mod_name, mod_idx, nprocs)
     else:
-        actual_str = log_get_bytes_bandwidth(log_path=log_path,
+        derived_metrics = log_get_derived_metrics(rec_dict, mod_name, mod_idx, nprocs)
+        actual_str = log_get_bytes_bandwidth(derived_metrics=derived_metrics,
                                              mod_name=mod_name)
         assert actual_str == expected_str
+
+#    elif expected_str == "ValueError":
+#        with pytest.raises(ValueError,
+#                           match=f"{mod_name} is not in the available log"):
+#            log_get_bytes_bandwidth(derived_metrics=derived_metrics,
+#                                    mod_name=mod_name)
