@@ -41,7 +41,7 @@ You can either clone the public repository:
 
 .. code-block:: console
 
-    $ git clone https://xgitlab.cels.anl.gov/darshan/darshan.git
+    $ git clone https://github.com/darshan-hpc/darshan.git
     $ cd darshan/darshan-util/pydarshan
 
 
@@ -50,4 +50,4 @@ You can either clone the public repository:
     $ python setup.py install
 
 
-.. _Github repo: https://xgitlab.cels.anl.gov/darshan/darshan
+.. _Github repo: https://github.com/darshan-hpc/darshan.git
