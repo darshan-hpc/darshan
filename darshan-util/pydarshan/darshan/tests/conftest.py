@@ -6,8 +6,7 @@ python_version = platform.python_version_tuple()
 if int(python_version[1]) < 9 and int(python_version[0]) == 3:
     import importlib_resources
 else:
-    # see: https://github.com/python/mypy/issues/1153
-    import importlib.resources as importlib_resources # type: ignore
+    import importlib.resources as importlib_resources
 
 
 import pytest
