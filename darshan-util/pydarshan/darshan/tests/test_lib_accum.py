@@ -81,15 +81,14 @@ def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
         else:
             report.mod_read_all_records(mod_name, dtype="pandas")
             rec_dict = report.records[mod_name][0]
-            mod_idx = report.modules[mod_name]['idx']
             nprocs = report.metadata['job']['nprocs']
 
             if expected_str == "RuntimeError":
                 with pytest.raises(RuntimeError,
                                    match=f"{mod_name} module does not support derived"):
-                    log_get_derived_metrics(rec_dict, mod_name, mod_idx, nprocs)
+                    log_get_derived_metrics(rec_dict, mod_name, nprocs)
             else:
-                derived_metrics = log_get_derived_metrics(rec_dict, mod_name, mod_idx, nprocs)
+                derived_metrics = log_get_derived_metrics(rec_dict, mod_name, nprocs)
                 actual_str = log_get_bytes_bandwidth(derived_metrics=derived_metrics,
                                                      mod_name=mod_name)
                 assert actual_str == expected_str

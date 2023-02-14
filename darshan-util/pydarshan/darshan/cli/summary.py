@@ -505,9 +505,8 @@ class ReportData:
                     # record and derived metrics
                     rec_dict = self.report.records[mod].to_df()
                     mod_name = mod
-                    mod_idx = self.report.modules[mod]['idx']
                     nprocs = self.report.metadata['job']['nprocs']
-                    derived_metrics = log_get_derived_metrics(rec_dict, mod_name, mod_idx, nprocs)
+                    derived_metrics = log_get_derived_metrics(rec_dict, mod_name, nprocs)
 
                     # this is really just some text
                     # so using ReportFigure feels awkward...

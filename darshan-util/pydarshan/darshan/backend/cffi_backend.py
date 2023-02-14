@@ -51,6 +51,26 @@ libdutil = find_utils(ffi, libdutil)
 check_version(ffi, libdutil)
 
 
+_mod_names = [
+    "NULL",
+    "POSIX",
+    "MPI-IO",
+    "H5F",
+    "H5D",
+    "PNETCDF_FILE",
+    "PNETCDF_VAR",
+    "BG/Q",
+    "LUSTRE",
+    "STDIO",
+    "DXT_POSIX",
+    "DXT_MPIIO",
+    "MDHIM",
+    "APXC",
+    "APMPI",
+    "HEATMAP",
+]
+def mod_name_to_idx(mod_name):
+    return _mod_names.index(mod_name)
 
 _structdefs = {
     "BG/Q": "struct darshan_bgq_record **",
@@ -712,7 +732,7 @@ def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
     return buf
 
 
-def log_get_derived_metrics(rec_dict, mod_name, mod_idx, nprocs):
+def log_get_derived_metrics(rec_dict, mod_name, nprocs):
     """
     Passes a set of records (in pandas format) to the Darshan accumulator
     interface, and returns the corresponding derived metrics struct.
@@ -720,12 +740,12 @@ def log_get_derived_metrics(rec_dict, mod_name, mod_idx, nprocs):
     Parameters:
         rec_dict: Dictionary containing the counter and fcounter dataframes.
         mod_name: Name of the Darshan module.
-        mod_idx: Identifier of the Darshan module.
         nprocs: Number of processes participating in accumulation.
 
     Returns:
         darshan_derived_metrics struct (cdata object)
     """
+    mod_idx = mod_name_to_idx(mod_name)
     darshan_accumulator = ffi.new("darshan_accumulator *")
     r = libdutil.darshan_accumulator_create(mod_idx, nprocs, darshan_accumulator)
     if r != 0:
