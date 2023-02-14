@@ -236,6 +236,12 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                     else:
                         assert actual_runtime_heatmap_titles == 0
 
+                    # check for presence of bandwidth summary strings
+                    # (more detailed per-module probes are present
+                    # in test_derived_metrics_bytes_and_bandwidth())
+                    assert "I/O performance estimate" in report_str
+                    assert "color: blue" in report_str
+
 
 class TestReportData:
 
