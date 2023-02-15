@@ -1,7 +1,6 @@
 import math
 
 import darshan
-from darshan.backend.cffi_backend import log_get_derived_metrics
 from darshan.experimental.plots import plot_common_access_table
 
 darshan.enable_experimental()
