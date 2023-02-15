@@ -11,17 +11,18 @@ import pandas as pd
 import humanize
 
 
-def log_get_bytes_bandwidth(log_path: str, mod_name: str) -> str:
+def log_get_bytes_bandwidth(derived_metrics, mod_name: str) -> str:
     """
     Summarize I/O performance for a given darshan module.
 
     Parameters
     ----------
-    log_path : str
-            Path to the darshan binary log file.
-    mod_name : str
-            Name of the darshan module to summarize the I/O
-            performance for.
+    derived_metrics:
+        structure (cdata object) describing metrics derived from a
+        set of records passed to the Darshan accumulator interface
+    mod_name: str
+        Name of the darshan module to summarize the I/O
+        performance for.
 
     Returns
     -------
@@ -55,16 +56,14 @@ def log_get_bytes_bandwidth(log_path: str, mod_name: str) -> str:
     # get total bytes (in MiB) and bandwidth (in MiB/s) for
     # a given module -- this information was commonly reported
     # in the old perl-based summary reports
-    darshan_derived_metrics = log_get_derived_metrics(log_path=log_path,
-                                                      mod_name=mod_name)
-    total_mib = darshan_derived_metrics.total_bytes / 2 ** 20
-    total_bw = darshan_derived_metrics.agg_perf_by_slowest
+    total_mib = derived_metrics.total_bytes / 2 ** 20
+    total_bw = derived_metrics.agg_perf_by_slowest
     ret_str = f"I/O performance estimate (at the {mod_name} layer): transferred {total_mib:.1f} MiB at {total_bw:.2f} MiB/s"
     return ret_str
 
 
-def log_file_count_summary_table(log_path: str,
-                                 module: str):
+def log_file_count_summary_table(derived_metrics,
+                                 mod_name: str):
     # the darshan_file_category enum is not really
     # exposed in CFFI/Python layer, so we effectively
     # re-export the content indices we need here
@@ -80,10 +79,8 @@ def log_file_count_summary_table(log_path: str,
     df["avg. size"] = np.zeros(4, dtype=str)
     df["max size"] = np.zeros(4, dtype=str)
 
-    darshan_derived_metrics = log_get_derived_metrics(log_path=log_path,
-                                                      mod_name=module)
     for cat_name, index in darshan_file_category.items():
-        cat_counters = darshan_derived_metrics.category_counters[index]
+        cat_counters = derived_metrics.category_counters[index]
         num_files = int(cat_counters.count)
         if num_files == 0:
             max_size = "0"

@@ -87,7 +87,7 @@ define(`CALC_VARA_ACCESS_INFO',
                 if (ndims > PNETCDF_VAR_MAX_NDIMS)
                     start_ndx = ndims - PNETCDF_VAR_MAX_NDIMS;
                 for (i = start_ndx; i < ndims; i++) {
-                    common_access_vals[1+i] = count[i];
+                    common_access_vals[1+i-start_ndx] = count[i];
                 }
             }
             else {
@@ -98,18 +98,19 @@ dnl
 define(`CALC_VARS_ACCESS_INFO',
     `int ndims = rec_ref->var_rec->counters[PNETCDF_VAR_NDIMS];
             if (ndims > 0) {
-                int i, start_ndx = 0;
+                int i, j, start_ndx = 0;
                 $3 = count[0];
                 for (i = 1; i < ndims; i++)
                     $3 *= count[i];
                 if (ndims > PNETCDF_VAR_MAX_NDIMS)
                     start_ndx = ndims - PNETCDF_VAR_MAX_NDIMS;
                 for (i = start_ndx; i < ndims; i++) {
-                    common_access_vals[1+i] = count[i];
+                    j = i - start_ndx;
+                    common_access_vals[1+j] = count[i];
                     if (stride)
-                        common_access_vals[1+i+PNETCDF_VAR_MAX_NDIMS] = stride[i];
+                        common_access_vals[1+j+PNETCDF_VAR_MAX_NDIMS] = stride[i];
                     else
-                        common_access_vals[1+i+PNETCDF_VAR_MAX_NDIMS] = 1;
+                        common_access_vals[1+j+PNETCDF_VAR_MAX_NDIMS] = 1;
                 }
             }
             else {
@@ -136,8 +137,12 @@ define(`CALC_VARN_ACCESS_INFO',
 dnl
 define(`CALC_VARD_ACCESS_INFO',
     `int mpi_size;
-            PMPI_Type_size(filetype, &mpi_size);
-            $3 = mpi_size;')dnl
+            if (filetype == MPI_DATATYPE_NULL)
+                $3 = 0;
+            else {
+                MPI_Type_size(filetype, &mpi_size);
+                $3 = mpi_size;
+            }')dnl
 dnl
 define(`CALC_ACCESS_INFO',
     `ifelse(
@@ -234,7 +239,7 @@ int DARSHAN_DECL(APINAME($1,$2,$3,$4))(int ncid, int varid, ArgKind($2)BufArgs($
     if (ret == NC_NOERR) {
         PNETCDF_VAR_PRE_RECORD();
         struct pnetcdf_var_record_ref *rec_ref;
-        rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->ncid_hash, &ncid, sizeof(int));
+        rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->varid_hash, &varid, sizeof(int));
         if (rec_ref) {
             struct darshan_common_val_counter *cvc;
             int64_t common_access_vals[PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1] = {0};
@@ -277,7 +282,7 @@ int DARSHAN_DECL(APINAME($1,n,$2,$3))(int ncid, int varid, int num, MPI_Offset* 
     if (ret == NC_NOERR) {
         PNETCDF_VAR_PRE_RECORD();
         struct pnetcdf_var_record_ref *rec_ref;
-        rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->ncid_hash, &ncid, sizeof(int));
+        rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->varid_hash, &varid, sizeof(int));
         if (rec_ref) {
             struct darshan_common_val_counter *cvc;
             int64_t common_access_vals[PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1] = {0};
@@ -319,7 +324,7 @@ int DARSHAN_DECL(ncmpi_$1_vard$2)(int ncid, int varid, MPI_Datatype filetype, if
     if (ret == NC_NOERR) {
         PNETCDF_VAR_PRE_RECORD();
         struct pnetcdf_var_record_ref *rec_ref;
-        rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->ncid_hash, &ncid, sizeof(int));
+        rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->varid_hash, &varid, sizeof(int));
         if (rec_ref) {
             struct darshan_common_val_counter *cvc;
             int64_t common_access_vals[PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1] = {0};
@@ -360,7 +365,7 @@ int DARSHAN_DECL(APINAME($1,$2,$3))(int ncid, int varid, ArgKind($2)BufArgs($1,$
     if (ret == NC_NOERR) {
         PNETCDF_VAR_PRE_RECORD();
         struct pnetcdf_var_record_ref *rec_ref;
-        rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->ncid_hash, &ncid, sizeof(int));
+        rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->varid_hash, &varid, sizeof(int));
         if (rec_ref) {
             struct darshan_common_val_counter *cvc;
             int64_t common_access_vals[PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1] = {0};
@@ -404,7 +409,7 @@ int DARSHAN_DECL(APINAME($1,n,$2))(int ncid, int varid, int num, MPI_Offset* con
     if (ret == NC_NOERR) {
         PNETCDF_VAR_PRE_RECORD();
         struct pnetcdf_var_record_ref *rec_ref;
-        rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->ncid_hash, &ncid, sizeof(int));
+        rec_ref = darshan_lookup_record_ref(pnetcdf_var_runtime->varid_hash, &varid, sizeof(int));
         if (rec_ref) {
             struct darshan_common_val_counter *cvc;
             int64_t common_access_vals[PNETCDF_VAR_MAX_NDIMS+PNETCDF_VAR_MAX_NDIMS+1] = {0};
@@ -762,7 +767,9 @@ define(`PNETCDF_VAR_RECORD_OPEN',`
             $7, $8, rec_ref->last_meta_end);
         err = ncmpi_inq_unlimdim($1, &rec_ref->unlimdimid);
         i = 0;
-        if ($5[0] == rec_ref->unlimdimid) { /* record variable or not */
+        if ($4 > 0 &&                       /* scalar is not record variable */
+            rec_ref->unlimdimid >= 0 &&     /* record dimension has been defined */
+            $5[0] == rec_ref->unlimdimid) { /* this is a record variable */
             rec_ref->var_rec->counters[PNETCDF_VAR_IS_RECORD_VAR] = 1;
             i = 1;
         }
@@ -779,7 +786,7 @@ define(`PNETCDF_VAR_RECORD_OPEN',`
         else type_size = 8;
         rec_ref->var_rec->counters[PNETCDF_VAR_DATATYPE_SIZE] = type_size;
         rec_ref->var_rec->file_rec_id = file_rec_id;
-        darshan_add_record_ref(&(pnetcdf_var_runtime->ncid_hash), $6, sizeof(int), rec_ref);
+        darshan_add_record_ref(&(pnetcdf_var_runtime->varid_hash), $6, sizeof(int), rec_ref);
     } while (0);
 ')dnl
 

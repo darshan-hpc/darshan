@@ -1,3 +1,4 @@
+import sys
 import glob
 import subprocess
 import os
@@ -187,8 +188,9 @@ def do_forked_process_test(tmpdir, darshan_install_path):
 
     with tmpdir.as_cwd():
         cwd = os.getcwd()
+        python_exe = sys.executable
         subprocess.check_output([
-                     "python",
+                     python_exe,
                      f"{test_script_path}"],
                      env={'LD_PRELOAD': darshan_lib_path,
                           'DARSHAN_ENABLE_NONMPI': "1",

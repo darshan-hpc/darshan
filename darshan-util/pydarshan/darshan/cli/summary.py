@@ -5,10 +5,7 @@ import base64
 import argparse
 import datetime
 from collections import OrderedDict
-if sys.version_info >= (3, 7):
-    import importlib.resources as importlib_resources
-else:
-    import importlib_resources
+import importlib.resources as importlib_resources
 
 from typing import Any, Union, Callable
 
@@ -17,6 +14,8 @@ from mako.template import Template
 
 import darshan
 import darshan.cli
+from darshan.backend.cffi_backend import log_get_derived_metrics
+from darshan.lib.accum import log_get_bytes_bandwidth, log_file_count_summary_table
 from darshan.experimental.plots import (
     plot_dxt_heatmap,
     plot_io_cost,
@@ -27,7 +26,6 @@ from darshan.experimental.plots import (
 )
 
 darshan.enable_experimental()
-from darshan.lib.accum import log_get_bytes_bandwidth, log_file_count_summary_table
 
 
 class ReportFigure:
@@ -415,7 +413,8 @@ class ReportData:
             "Average (across all ranks) amount of run time that each process "
             "spent performing I/O, broken down by access type. See the right "
             "edge bar graph on heat maps in preceding section to indicate if "
-            "I/O activity was balanced across processes."
+            "I/O activity was balanced across processes. The 'Wait' category "
+            "is only meaningful for PNETCDF asynchronous I/O operations."
         )
         io_cost_params = {
             "section_title": "Cross-Module Comparisons",
@@ -500,27 +499,35 @@ class ReportData:
                 self.figures.append(opcount_fig)
 
             try:
-                # this is really just some text
-                # so using ReportFigure feels awkward...
-                bandwidth_fig = ReportFigure(
-                        section_title=sect_title,
-                        fig_title="",
-                        fig_func=None,
-                        fig_args=None,
-                        fig_description=log_get_bytes_bandwidth(log_path=self.log_path,
-                                                                mod_name=mod),
-                        text_only_color="blue")
-                self.figures.append(bandwidth_fig)
+                if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                    # get the module's record dataframe and then pass to
+                    # Darshan accumulator interface to generate a cumulative
+                    # record and derived metrics
+                    rec_dict = self.report.records[mod].to_df()
+                    nprocs = self.report.metadata['job']['nprocs']
+                    derived_metrics = log_get_derived_metrics(rec_dict, mod, nprocs)
 
-                file_count_summary_fig = ReportFigure(
-                        section_title=sect_title,
-                        fig_title=f"File Count Summary <br> (estimated by {mod} I/O access offsets)",
-                        fig_func=log_file_count_summary_table,
-                        fig_args=dict(log_path=self.log_path,
-                                      module=mod),
-                        fig_width=805,
-                        fig_description="")
-                self.figures.append(file_count_summary_fig)
+                    # this is really just some text
+                    # so using ReportFigure feels awkward...
+                    bandwidth_fig = ReportFigure(
+                            section_title=sect_title,
+                            fig_title="",
+                            fig_func=None,
+                            fig_args=None,
+                            fig_description=log_get_bytes_bandwidth(derived_metrics=derived_metrics,
+                                                                    mod_name=mod),
+                            text_only_color="blue")
+                    self.figures.append(bandwidth_fig)
+
+                    file_count_summary_fig = ReportFigure(
+                            section_title=sect_title,
+                            fig_title=f"File Count Summary <br> (estimated by {mod} I/O access offsets)",
+                            fig_func=log_file_count_summary_table,
+                            fig_args=dict(derived_metrics=derived_metrics,
+                                          mod_name=mod),
+                            fig_width=805,
+                            fig_description="")
+                    self.figures.append(file_count_summary_fig)
             except (RuntimeError, KeyError):
                 # the module probably doesn't support derived metrics
                 # calculations, but the C code doesn't distinguish other

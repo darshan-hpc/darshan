@@ -1,3 +1,22 @@
+PyDarshan-3.4.2.0
+=================
+* Track Darshan 3.4.2 release, no PyDarshan changes
+
+PyDarshan-3.4.1.0
+=================
+ * Fixed memory leaks in the following backend CFFI bindings
+   (reported by Jesse Hines):
+  - log_get_modules
+  - log_get_mounts
+  - log_get_record
+  - log_get_name_records
+  - log_lookup_name_records
+ * Added PnetCDF module information to job summary tool
+ * Testing modifications:
+  - Switched to use of context managers for log Report objects to
+    avoid test hangs in certain environments
+  - Marked tests requiring lxml package as xfail when not installed
+
 PyDarshan-3.4.0.1
 =================
 * New Darshan job summary report styling

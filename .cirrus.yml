@@ -1,7 +1,7 @@
 macos_instance:
-  image: ghcr.io/cirruslabs/macos-monterey-base:latest
+  image: ghcr.io/cirruslabs/macos-ventura-base:latest
 
-task:
+macos_M1_native_apple_silicon_py310_task:
   script: |
     brew install python@3.10
     brew install python-tk@3.10

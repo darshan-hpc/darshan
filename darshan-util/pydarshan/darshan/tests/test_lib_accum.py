@@ -1,5 +1,7 @@
-from darshan.log_utils import get_log_path
+import darshan
+from darshan.backend.cffi_backend import log_get_derived_metrics
 from darshan.lib.accum import log_get_bytes_bandwidth, log_file_count_summary_table
+from darshan.log_utils import get_log_path
 
 import pytest
 import pandas as pd
@@ -22,6 +24,10 @@ from pandas.testing import assert_frame_equal
     # of writing
     ("imbalanced-io.darshan",
      "LUSTRE",
+     "RuntimeError"),
+    # APMPI doesn't support derived metrics either
+    ("e3sm_io_heatmap_only.darshan",
+     "APMPI",
      "RuntimeError"),
     ("imbalanced-io.darshan",
      "POSIX",
@@ -53,12 +59,6 @@ from pandas.testing import assert_frame_equal
     ("partial_data_stdio.darshan",
      "GARBAGE",
      "ValueError"),
-    # TODO: determine if the lack of APMPI and
-    # any other "add-ons" in _structdefs is a bug
-    # in the control flow for `log_get_derived_metrics()`?
-    ("e3sm_io_heatmap_only.darshan",
-     "APMPI",
-     "KeyError"),
     ("skew-app.darshan",
      "POSIX",
      "I/O performance estimate (at the POSIX layer): transferred 41615.8 MiB at 157.49 MiB/s"),
@@ -70,31 +70,32 @@ def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
     # test the basic scenario of retrieving
     # the total data transferred and bandwidth
     # for all records in a given module; the situation
-    # of accumulating drived metrics with filtering
+    # of accumulating derived metrics with filtering
     # (i.e., for a single filename) is not tested here
 
     log_path = get_log_path(log_path)
-    if expected_str == "RuntimeError":
-        with pytest.raises(RuntimeError,
-                           match=f"{mod_name} module does not support derived"):
-            log_get_bytes_bandwidth(log_path=log_path,
-                                    mod_name=mod_name)
-    elif expected_str == "ValueError":
-        with pytest.raises(ValueError,
-                           match=f"{mod_name} is not in the available log"):
-            log_get_bytes_bandwidth(log_path=log_path,
-                                    mod_name=mod_name)
-    elif expected_str == "KeyError":
-        with pytest.raises(KeyError, match=f"{mod_name}"):
-            log_get_bytes_bandwidth(log_path=log_path,
-                                    mod_name=mod_name)
-    else:
-        actual_str = log_get_bytes_bandwidth(log_path=log_path,
-                                             mod_name=mod_name)
-        assert actual_str == expected_str
+    with darshan.DarshanReport(log_path, read_all=True) as report:
+        if expected_str == "ValueError":
+            with pytest.raises(ValueError,
+                               match=f"mod {mod_name} is not available"):
+                report.mod_read_all_records(mod_name, dtype="pandas")
+        else:
+            report.mod_read_all_records(mod_name, dtype="pandas")
+            rec_dict = report.records[mod_name][0]
+            nprocs = report.metadata['job']['nprocs']
+
+            if expected_str == "RuntimeError":
+                with pytest.raises(RuntimeError,
+                                   match=f"{mod_name} module does not support derived"):
+                    log_get_derived_metrics(rec_dict, mod_name, nprocs)
+            else:
+                derived_metrics = log_get_derived_metrics(rec_dict, mod_name, nprocs)
+                actual_str = log_get_bytes_bandwidth(derived_metrics=derived_metrics,
+                                                     mod_name=mod_name)
+                assert actual_str == expected_str
 
 
-@pytest.mark.parametrize("log_name, module, expected", [
+@pytest.mark.parametrize("log_name, mod_name, expected", [
     # we try to match the "File Count Summary"
     # tables from the old Perl reports, but
     # expected values for file counts
@@ -189,7 +190,7 @@ def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
     ),
 ])
 def test_file_count_summary_table(log_name,
-                                  module,
+                                  mod_name,
                                   expected):
     expected_df = pd.DataFrame(expected)
     expected_df.columns = ["number of files",
@@ -205,7 +206,12 @@ def test_file_count_summary_table(log_name,
     expected_df.index.rename('type', inplace=True)
 
     log_path = get_log_path(log_name)
-    actual_df = log_file_count_summary_table(log_path=log_path,
-                                             module=module).df
-    assert_frame_equal(actual_df, expected_df)
+    with darshan.DarshanReport(log_path, read_all=True) as report:
+        rec_dict = report.records[mod_name].to_df()
+        nprocs = report.metadata['job']['nprocs']
 
+    derived_metrics = log_get_derived_metrics(rec_dict, mod_name, nprocs)
+
+    actual_df = log_file_count_summary_table(derived_metrics=derived_metrics,
+                                             mod_name=mod_name).df
+    assert_frame_equal(actual_df, expected_df)

@@ -51,6 +51,26 @@ libdutil = find_utils(ffi, libdutil)
 check_version(ffi, libdutil)
 
 
+_mod_names = [
+    "NULL",
+    "POSIX",
+    "MPI-IO",
+    "H5F",
+    "H5D",
+    "PNETCDF_FILE",
+    "PNETCDF_VAR",
+    "BG/Q",
+    "LUSTRE",
+    "STDIO",
+    "DXT_POSIX",
+    "DXT_MPIIO",
+    "MDHIM",
+    "APXC",
+    "APMPI",
+    "HEATMAP",
+]
+def mod_name_to_idx(mod_name):
+    return _mod_names.index(mod_name)
 
 _structdefs = {
     "BG/Q": "struct darshan_bgq_record **",
@@ -659,35 +679,75 @@ def _log_get_heatmap_record(log):
     return rec
 
 
-@functools.lru_cache()
-def log_get_derived_metrics(log_path: str, mod_name: str):
+def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
     """
-    Returns the darshan_derived_metrics struct from CFFI/C accumulator code.
+    Pack the DataFrames-format PyDarshan data back into
+    a C buffer of records that can be consumed by darshan-util
+    C code.
+
+    Parameters
+    ----------
+    rec_dict: dict
+        Dictionary containing the counter and fcounter dataframes.
+
+    mod_name: str
+        Name of the darshan module.
+
+    rec_index_of_interest: int or None
+        If ``None``, use all records in the dataframe. Otherwise,
+        repack only the the record at the provided integer index.
+
+    Returns
+    -------
+    buf: Raw char array containing a buffer of record(s) or a single record.
+    """
+    counters_df = rec_dict["counters"]
+    fcounters_df = rec_dict["fcounters"]
+    counters_n_cols = counters_df.shape[1]
+    fcounters_n_cols = fcounters_df.shape[1]
+    id_col = counters_df.columns.get_loc("id")
+    rank_col = counters_df.columns.get_loc("rank")
+    if rec_index_of_interest is None:
+        num_recs = counters_df.shape[0]
+        # newer pandas versions can support ...
+        # but we use a slice for now
+        rec_index_of_interest = slice(0, counters_df.shape[0])
+    else:
+        num_recs = 1
+    # id and rank columns are duplicated
+    # in counters and fcounters
+    rec_arr = np.recarray(shape=(num_recs), dtype=[("id", "<u8", (1,)),
+                                                   ("rank", "<i8", (1,)),
+                                                   ("counters", "<i8", (counters_n_cols - 2,)),
+                                                   ("fcounters", "<f8", (fcounters_n_cols - 2,))])
+    rec_arr.fcounters = fcounters_df.iloc[rec_index_of_interest, 2:].to_numpy()
+    rec_arr.counters = counters_df.iloc[rec_index_of_interest, 2:].to_numpy()
+    if num_recs > 1:
+        rec_arr.id = counters_df.iloc[rec_index_of_interest, id_col].to_numpy().reshape((num_recs, 1))
+        rec_arr.rank = counters_df.iloc[rec_index_of_interest, rank_col].to_numpy().reshape((num_recs, 1))
+    else:
+        rec_arr.id = counters_df.iloc[rec_index_of_interest, id_col]
+        rec_arr.rank = counters_df.iloc[rec_index_of_interest, rank_col]
+    buf = rec_arr.tobytes()
+    return buf
+
+
+def log_get_derived_metrics(rec_dict, mod_name, nprocs):
+    """
+    Passes a set of records (in pandas format) to the Darshan accumulator
+    interface, and returns the corresponding derived metrics struct.
 
     Parameters:
-        log_path: Path to the darshan log file
-        mod_name: The name of the module to retrieve derived metrics for
+        rec_dict: Dictionary containing the counter and fcounter dataframes.
+        mod_name: Name of the Darshan module.
+        nprocs: Number of processes participating in accumulation.
 
     Returns:
         darshan_derived_metrics struct (cdata object)
     """
-    # TODO: eventually add support for i.e., a regex filter on the records
-    # the user wants to get derived metrics for--like filtering to records
-    # with a single filename involved before accumulating the data?
-    log_handle = log_open(log_path)
-    jobrec = ffi.new("struct darshan_job *")
-    libdutil.darshan_log_get_job(log_handle['handle'], jobrec)
-    modules = log_get_modules(log_handle)
-
-    if mod_name not in modules:
-        raise ValueError(f"{mod_name} is not in the available log file "
-                         f"modules: {modules.keys()}")
-
-    mod_type = _structdefs[mod_name]
+    mod_idx = mod_name_to_idx(mod_name)
     darshan_accumulator = ffi.new("darshan_accumulator *")
-    r = libdutil.darshan_accumulator_create(modules[mod_name]['idx'],
-                                            jobrec[0].nprocs,
-                                            darshan_accumulator)
+    r = libdutil.darshan_accumulator_create(mod_idx, nprocs, darshan_accumulator)
     if r != 0:
         raise RuntimeError("A nonzero exit code was received from "
                            "darshan_accumulator_create() at the C level. "
@@ -697,32 +757,26 @@ def log_get_derived_metrics(log_path: str, mod_name: str):
                            "to retrieve additional information from the stderr "
                            "stream.")
 
-    buf = ffi.new("void **")
-    r = 1
-    while r >= 1:
-        r = libdutil.darshan_log_get_record(log_handle['handle'], modules[mod_name]['idx'], buf)
-        if r < 1:
-            break
-        rbuf = ffi.cast(mod_type, buf)
-        r_i = libdutil.darshan_accumulator_inject(darshan_accumulator[0], rbuf[0], 1)
-        if r_i != 0:
-            libdutil.darshan_free(buf[0])
-            raise RuntimeError("A nonzero exit code was received from "
-                               "darshan_accumulator_inject() at the C level. "
-                               "It may be possible "
-                               "to retrieve additional information from the stderr "
-                               "stream.")
-    darshan_derived_metrics = ffi.new("struct darshan_derived_metrics *")
+    num_recs = rec_dict["fcounters"].shape[0]
+    record_array = _df_to_rec(rec_dict, mod_name)
+
+    r_i = libdutil.darshan_accumulator_inject(darshan_accumulator[0], record_array, num_recs)
+    if r_i != 0:
+        raise RuntimeError("A nonzero exit code was received from "
+                           "darshan_accumulator_inject() at the C level. "
+                           "It may be possible "
+                           "to retrieve additional information from the stderr "
+                           "stream.")
+    derived_metrics = ffi.new("struct darshan_derived_metrics *")
+    total_record = ffi.new(_structdefs[mod_name].replace("**", "*"))
     r = libdutil.darshan_accumulator_emit(darshan_accumulator[0],
-                                          darshan_derived_metrics,
-                                          rbuf[0])
-    libdutil.darshan_free(buf[0])
+                                          derived_metrics,
+                                          total_record)
     libdutil.darshan_accumulator_destroy(darshan_accumulator[0])
-    log_close(log_handle)
     if r != 0:
         raise RuntimeError("A nonzero exit code was received from "
                            "darshan_accumulator_emit() at the C level. "
                            "It may be possible "
                            "to retrieve additional information from the stderr "
                            "stream.")
-    return darshan_derived_metrics
+    return derived_metrics
