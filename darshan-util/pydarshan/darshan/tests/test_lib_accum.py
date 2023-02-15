@@ -4,6 +4,7 @@ from darshan.lib.accum import log_get_bytes_bandwidth
 from darshan.log_utils import get_log_path
 
 import pytest
+from numpy.testing import assert_allclose
 
 
 @pytest.mark.parametrize("log_path, mod_name, expected_str", [
@@ -92,3 +93,72 @@ def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
                 actual_str = log_get_bytes_bandwidth(derived_metrics=derived_metrics,
                                                      mod_name=mod_name)
                 assert actual_str == expected_str
+
+
+
+@pytest.mark.parametrize("log_name, mod_name, file_hash_or_name, expected_slowest_rank, expected_slowest_rank_io_time, expected_total_bytes", [
+    # follow Phil C. instructions to manually achieve
+    # expected values from the old/Perl approach to selecting
+    # a single file
+
+    # darshan-parser e3sm_io_heatmap_only.darshan | grep -E POSIX_OPENS
+
+    # select just one of the file hashes to filter out:
+    # ...
+    # POSIX   454 6966057185861764086     POSIX_OPENS 1   /projects/radix-io/snyder/e3sm/can_I_out_h0.nc  /   overlay
+    # POSIX   454 12386309978061520508    POSIX_OPENS 1   /projects/radix-io/snyder/e3sm/can_I_out_h1.nc  /   overlay
+
+    # darshan-convert --file 6966057185861764086 e3sm_io_heatmap_only.darshan e3sm_single_file.darshan
+
+    # get expected values
+    # darshan-parser --total e3sm_single_file.darshan
+    # darshan-parser --perf e3sm_single_file.darshan
+    # darshan-parser --file e3sm_single_file.darshan
+    ("e3sm_io_heatmap_only.darshan",
+     "POSIX",
+     6966057185861764086,
+     4,
+     264.642345,
+     303145177708),
+    # similarly for MPI-IO
+    ("e3sm_io_heatmap_only.darshan",
+     "MPI-IO",
+     6966057185861764086,
+     0,
+     0.0,
+     77056742332),
+    ])
+def test_pre_filtering_by_file_hash(log_name,
+                                    mod_name,
+                                    file_hash_or_name,
+                                    expected_slowest_rank,
+                                    expected_slowest_rank_io_time,
+                                    expected_total_bytes):
+    # ensure that we match the old Perl tools for aggregating
+    # on a specific file hash
+
+    # TODO: perhaps expand to include filename regex filtering; however,
+    # at the time of writing, rec_dict only contains the *hashes* of the filepaths
+    # so we'd need to do a bunch more work to first expand our DataFrames to perform
+    # this type of filtering
+    log_path = get_log_path(log_name)
+    with darshan.DarshanReport(log_path, read_all=True) as report:
+        report.mod_read_all_records(mod_name, dtype="pandas")
+        rec_dict = report.records[mod_name][0]
+        # manual filtering of df before using C accumulator API
+        counters = rec_dict["counters"]
+        fcounters = rec_dict["fcounters"]
+        counters = counters[counters.id == file_hash_or_name]
+        fcounters = fcounters[fcounters.id == file_hash_or_name]
+        rec_dict["counters"] = counters
+        rec_dict["fcounters"] = fcounters
+        nprocs = report.metadata['job']['nprocs']
+        # now use the C accumulator API
+        derived_metrics = log_get_derived_metrics(rec_dict, mod_name, nprocs)
+        actual_slowest_rank = derived_metrics.unique_io_slowest_rank
+        actual_slowest_rank_io_time = derived_metrics.unique_io_total_time_by_slowest
+        actual_total_bytes = derived_metrics.total_bytes
+
+        assert actual_slowest_rank == expected_slowest_rank
+        assert_allclose(actual_slowest_rank_io_time, expected_slowest_rank_io_time)
+        assert actual_total_bytes == expected_total_bytes
