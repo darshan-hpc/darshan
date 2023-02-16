@@ -13,7 +13,7 @@ with open("README.rst") as readme_file:
     readme = readme_file.read()
 
 
-requirements = ["cffi", "numpy", "pandas", "matplotlib", "seaborn", "mako"]
+requirements = ["cffi", "numpy", "pandas", "matplotlib", "seaborn", "mako", "humanize"]
 
 setup_requirements = [
     "pytest-runner",

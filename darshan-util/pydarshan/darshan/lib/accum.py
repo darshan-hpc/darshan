@@ -1,3 +1,12 @@
+import darshan
+from darshan.experimental.plots import plot_common_access_table
+
+darshan.enable_experimental()
+
+import numpy as np
+import pandas as pd
+import humanize
+
 
 def log_get_bytes_bandwidth(derived_metrics, mod_name: str) -> str:
     """
@@ -48,3 +57,48 @@ def log_get_bytes_bandwidth(derived_metrics, mod_name: str) -> str:
     total_bw = derived_metrics.agg_perf_by_slowest
     ret_str = f"I/O performance estimate (at the {mod_name} layer): transferred {total_mib:.1f} MiB at {total_bw:.2f} MiB/s"
     return ret_str
+
+
+def log_file_count_summary_table(derived_metrics,
+                                 mod_name: str):
+    # the darshan_file_category enum is not really
+    # exposed in CFFI/Python layer, so we effectively
+    # re-export the content indices we need here
+    # so that we can properly index the C-level data
+    darshan_file_category = {"total files":0,
+                             "read-only files":1,
+                             "write-only files":2,
+                             "read/write files":3}
+    df = pd.DataFrame.from_dict(darshan_file_category, orient="index")
+    df.rename(columns={0:"index"}, inplace=True)
+    df.index.rename('type', inplace=True)
+    df["number of files"] = np.zeros(4, dtype=int)
+    df["avg. size"] = np.zeros(4, dtype=str)
+    df["max size"] = np.zeros(4, dtype=str)
+
+    for cat_name, index in darshan_file_category.items():
+        cat_counters = derived_metrics.category_counters[index]
+        num_files = int(cat_counters.count)
+        if num_files == 0:
+            max_size = "0"
+            avg_size = "0"
+        else:
+            max_size, binary_units = humanize.naturalsize(cat_counters.max_offset_bytes + 1,
+                                                          binary=True,
+                                                          format="%.2f").split()
+            if max_size != "0":
+                max_size = f"{max_size} {binary_units}"
+            # NOTE: internal formula based on discussion with Phil Carns
+            avg_size, binary_units = humanize.naturalsize((cat_counters.total_max_offset_bytes + num_files) / num_files,
+                                                           binary=True,
+                                                           format="%.2f").split()
+            if avg_size != "0":
+                avg_size = f"{avg_size} {binary_units}"
+        df.iloc[index] = [index, num_files, avg_size, max_size]
+    # we don't need the index column once we're done with
+    # the CFFI/C interaction
+    df.drop(columns="index", inplace=True)
+    ret = plot_common_access_table.DarshanReportTable(df,
+                                                      col_space=200,
+                                                      justify="center")
+    return ret

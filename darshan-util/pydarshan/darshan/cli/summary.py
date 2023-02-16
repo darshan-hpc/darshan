@@ -15,7 +15,7 @@ from mako.template import Template
 import darshan
 import darshan.cli
 from darshan.backend.cffi_backend import log_get_derived_metrics
-from darshan.lib.accum import log_get_bytes_bandwidth
+from darshan.lib.accum import log_get_bytes_bandwidth, log_file_count_summary_table
 from darshan.experimental.plots import (
     plot_dxt_heatmap,
     plot_io_cost,
@@ -504,9 +504,8 @@ class ReportData:
                     # Darshan accumulator interface to generate a cumulative
                     # record and derived metrics
                     rec_dict = self.report.records[mod].to_df()
-                    mod_name = mod
                     nprocs = self.report.metadata['job']['nprocs']
-                    derived_metrics = log_get_derived_metrics(rec_dict, mod_name, nprocs)
+                    derived_metrics = log_get_derived_metrics(rec_dict, mod, nprocs)
 
                     # this is really just some text
                     # so using ReportFigure feels awkward...
@@ -519,6 +518,16 @@ class ReportData:
                                                                     mod_name=mod),
                             text_only_color="blue")
                     self.figures.append(bandwidth_fig)
+
+                    file_count_summary_fig = ReportFigure(
+                            section_title=sect_title,
+                            fig_title=f"File Count Summary <br> (estimated by {mod} I/O access offsets)",
+                            fig_func=log_file_count_summary_table,
+                            fig_args=dict(derived_metrics=derived_metrics,
+                                          mod_name=mod),
+                            fig_width=805,
+                            fig_description="")
+                    self.figures.append(file_count_summary_fig)
             except (RuntimeError, KeyError):
                 # the module probably doesn't support derived metrics
                 # calculations, but the C code doesn't distinguish other
