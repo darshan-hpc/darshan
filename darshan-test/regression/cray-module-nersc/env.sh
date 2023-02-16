@@ -32,4 +32,4 @@ export DARSHAN_F90=ftn
 export DARSHAN_RUNJOB=$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/runjob.sh
 
 module unload darshan >& /dev/null
-module load $DARSHAN_PATH/share/craype-2.x/modulefiles/
+module load $DARSHAN_RUNTIME_PATH/share/craype-2.x/modulefiles/

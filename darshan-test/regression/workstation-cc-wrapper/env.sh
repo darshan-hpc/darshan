@@ -24,28 +24,28 @@
 
 # The runjob command is just mpiexec, no scheduler
 
-$DARSHAN_PATH/bin/darshan-gen-cc.pl `which mpicc` --output $DARSHAN_TMP/mpicc
+$DARSHAN_RUNTIME_PATH/bin/darshan-gen-cc.pl `which mpicc` --output $DARSHAN_TMP/mpicc
 if [ $? -ne 0 ]; then
     echo "Error: failed to generate c compiler." 1>&2
     exit 1
 fi
 export DARSHAN_CC=$DARSHAN_TMP/mpicc
 
-$DARSHAN_PATH/bin/darshan-gen-cxx.pl `which mpicxx` --output $DARSHAN_TMP/mpicxx
+$DARSHAN_RUNTIME_PATH/bin/darshan-gen-cxx.pl `which mpicxx` --output $DARSHAN_TMP/mpicxx
 if [ $? -ne 0 ]; then
     echo "Error: failed to generate c compiler." 1>&2
     exit 1
 fi
 export DARSHAN_CXX=$DARSHAN_TMP/mpicxx
 
-$DARSHAN_PATH/bin/darshan-gen-fortran.pl `which mpif77` --output $DARSHAN_TMP/mpif77
+$DARSHAN_RUNTIME_PATH/bin/darshan-gen-fortran.pl `which mpif77` --output $DARSHAN_TMP/mpif77
 if [ $? -ne 0 ]; then
     echo "Error: failed to generate f77 compiler." 1>&2
     exit 1
 fi
 export DARSHAN_F77=$DARSHAN_TMP/mpif77
 
-$DARSHAN_PATH/bin/darshan-gen-fortran.pl `which mpif90` --output $DARSHAN_TMP/mpif90
+$DARSHAN_RUNTIME_PATH/bin/darshan-gen-fortran.pl `which mpif90` --output $DARSHAN_TMP/mpif90
 if [ $? -ne 0 ]; then
     echo "Error: failed to generate f90 compiler." 1>&2
     exit 1
