@@ -1,5 +1,3 @@
-import math
-
 import darshan
 from darshan.experimental.plots import plot_common_access_table
 
@@ -88,8 +86,6 @@ def log_file_count_summary_table(derived_metrics,
             max_size, binary_units = humanize.naturalsize(cat_counters.max_offset_bytes + 1,
                                                           binary=True,
                                                           format="%.2f").split()
-            # some rounding work to match the old Perl
-            # report table style...
             if max_size != "0":
                 max_size = f"{max_size} {binary_units}"
             # NOTE: internal formula based on discussion with Phil Carns
