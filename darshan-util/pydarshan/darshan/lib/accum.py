@@ -86,21 +86,17 @@ def log_file_count_summary_table(derived_metrics,
             avg_size = "0"
         else:
             max_size, binary_units = humanize.naturalsize(cat_counters.max_offset_bytes + 1,
-                                                          binary=True).split()
+                                                          binary=True,
+                                                          format="%.2f").split()
             # some rounding work to match the old Perl
             # report table style...
-            max_size = math.ceil(float(max_size)) # type: ignore
-            if max_size == 0:
-                max_size = "0"
-            else:
+            if max_size != "0":
                 max_size = f"{max_size} {binary_units}"
             # NOTE: internal formula based on discussion with Phil Carns
             avg_size, binary_units = humanize.naturalsize((cat_counters.total_max_offset_bytes + num_files) / num_files,
-                                                           binary=True).split()
-            avg_size = math.ceil(float(avg_size)) # type: ignore
-            if avg_size == 0:
-                avg_size = "0"
-            else:
+                                                           binary=True,
+                                                           format="%.2f").split()
+            if avg_size != "0":
                 avg_size = f"{avg_size} {binary_units}"
         df.iloc[index] = [index, num_files, avg_size, max_size]
     # we don't need the index column once we're done with
