@@ -4,6 +4,12 @@
  *      See COPYRIGHT in top-level directory.
  */
 
+/* NOTE: This example originated from the MPICH repo:
+ * (https://github.com/pmodels/mpich/blob/main/examples/cxx/cxxpi.cxx).
+ * We have since modified the code to stop using MPI C++ bindings as
+ * they have been deprecated and can cause compile failures.
+ */
+
 #include "mpi.h"
 #include <iostream>
 using namespace std;
