@@ -35,7 +35,7 @@ FULL_MPICC_PATH=`which mpicc`
 # we must prepend libfmpich.so to the LD_PRELOAD variable, but with a fully
 # resolve path.  To find a path we locate mpicc and speculate that
 # libfmich.so can be found in ../lib.
-export LD_PRELOAD=`dirname $FULL_MPICC_PATH`/../lib/libfmpich.so:$DARSHAN_PATH/lib/libdarshan.so:$LD_PRELOAD
+export LD_PRELOAD=`dirname $FULL_MPICC_PATH`/../lib/libfmpich.so:$DARSHAN_RUNTIME_PATH/lib/libdarshan.so:$LD_PRELOAD
 
 export DARSHAN_RUNJOB="mpiexec -n $DARSHAN_DEFAULT_NPROCS"
 

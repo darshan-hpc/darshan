@@ -24,7 +24,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # parse log
-$DARSHAN_PATH/bin/darshan-dxt-parser $DARSHAN_LOGFILE > $DARSHAN_TMP/${PROG}-dxt.darshan.txt
+$DARSHAN_UTIL_PATH/bin/darshan-dxt-parser $DARSHAN_LOGFILE > $DARSHAN_TMP/${PROG}-dxt.darshan.txt
 if [ $? -ne 0 ]; then
     echo "Error: failed to parse ${DARSHAN_LOGFILE}" 1>&2
     exit 1
@@ -34,7 +34,7 @@ fi
 
 # also, ensure that darshan-parser doesn't complain if given a log file that
 # has DXT data present
-$DARSHAN_PATH/bin/darshan-parser $DARSHAN_LOGFILE > /dev/null
+$DARSHAN_UTIL_PATH/bin/darshan-parser $DARSHAN_LOGFILE > /dev/null
 if [ $? -ne 0 ]; then
     echo "Error: darshan-parser failed to handle ${DARSHAN_LOGFILE}" 1>&2
     exit 1
