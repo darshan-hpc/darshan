@@ -739,10 +739,11 @@ def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
     return buf
 
 
-def log_get_derived_metrics(rec_dict, mod_name, nprocs):
+def accumulate_records(rec_dict, mod_name, nprocs, dtype='numpy'):
     """
     Passes a set of records (in pandas format) to the Darshan accumulator
-    interface, and returns the corresponding derived metrics struct.
+    interface, and returns the corresponding derived metrics struct and
+    summary record.
 
     Parameters:
         rec_dict: Dictionary containing the counter and fcounter dataframes.
@@ -750,7 +751,8 @@ def log_get_derived_metrics(rec_dict, mod_name, nprocs):
         nprocs: Number of processes participating in accumulation.
 
     Returns:
-        darshan_derived_metrics struct (cdata object)
+        Tuple containing darshan_derived_metrics struct (cdata object) and
+        the summary record (dict).
     """
     mod_idx = mod_name_to_idx(mod_name)
     darshan_accumulator = ffi.new("darshan_accumulator *")
@@ -775,10 +777,10 @@ def log_get_derived_metrics(rec_dict, mod_name, nprocs):
                            "to retrieve additional information from the stderr "
                            "stream.")
     derived_metrics = ffi.new("struct darshan_derived_metrics *")
-    total_record = ffi.new(_structdefs[mod_name].replace("**", "*"))
+    summary_rbuf = ffi.new(_structdefs[mod_name].replace("**", "*"))
     r = libdutil.darshan_accumulator_emit(darshan_accumulator[0],
                                           derived_metrics,
-                                          total_record)
+                                          summary_rbuf)
     libdutil.darshan_accumulator_destroy(darshan_accumulator[0])
     if r != 0:
         raise RuntimeError("A nonzero exit code was received from "
@@ -786,4 +788,6 @@ def log_get_derived_metrics(rec_dict, mod_name, nprocs):
                            "It may be possible "
                            "to retrieve additional information from the stderr "
                            "stream.")
-    return derived_metrics
+
+    summary_rec = _make_generic_record(summary_rbuf, mod_name, dtype)
+    return derived_metrics, summary_rec

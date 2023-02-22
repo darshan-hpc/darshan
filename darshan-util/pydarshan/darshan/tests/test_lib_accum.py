@@ -1,5 +1,5 @@
 import darshan
-from darshan.backend.cffi_backend import log_get_derived_metrics
+from darshan.backend.cffi_backend import accumulate_records
 from darshan.lib.accum import log_get_bytes_bandwidth, log_file_count_summary_table
 from darshan.log_utils import get_log_path
 
@@ -87,9 +87,9 @@ def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
             if expected_str == "RuntimeError":
                 with pytest.raises(RuntimeError,
                                    match=f"{mod_name} module does not support derived"):
-                    log_get_derived_metrics(rec_dict, mod_name, nprocs)
+                    accumulate_records(rec_dict, mod_name, nprocs)
             else:
-                derived_metrics = log_get_derived_metrics(rec_dict, mod_name, nprocs)
+                derived_metrics = accumulate_records(rec_dict, mod_name, nprocs)[0]
                 actual_str = log_get_bytes_bandwidth(derived_metrics=derived_metrics,
                                                      mod_name=mod_name)
                 assert actual_str == expected_str
@@ -210,7 +210,7 @@ def test_file_count_summary_table(log_name,
         rec_dict = report.records[mod_name].to_df()
         nprocs = report.metadata['job']['nprocs']
 
-    derived_metrics = log_get_derived_metrics(rec_dict, mod_name, nprocs)
+    derived_metrics = accumulate_records(rec_dict, mod_name, nprocs)[0]
 
     actual_df = log_file_count_summary_table(derived_metrics=derived_metrics,
                                              mod_name=mod_name).df

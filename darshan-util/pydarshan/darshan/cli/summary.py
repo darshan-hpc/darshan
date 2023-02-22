@@ -14,7 +14,7 @@ from mako.template import Template
 
 import darshan
 import darshan.cli
-from darshan.backend.cffi_backend import log_get_derived_metrics
+from darshan.backend.cffi_backend import accumulate_records
 from darshan.lib.accum import log_get_bytes_bandwidth, log_file_count_summary_table
 from darshan.experimental.plots import (
     plot_dxt_heatmap,
@@ -521,7 +521,7 @@ class ReportData:
                     # record and derived metrics
                     rec_dict = self.report.records[mod].to_df()
                     nprocs = self.report.metadata['job']['nprocs']
-                    derived_metrics = log_get_derived_metrics(rec_dict, mod, nprocs)
+                    derived_metrics, summary_record = accumulate_records(rec_dict, mod, nprocs, dtype='pandas')
 
                     # this is really just some text
                     # so using ReportFigure feels awkward...
