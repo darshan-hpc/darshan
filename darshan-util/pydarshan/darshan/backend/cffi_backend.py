@@ -368,13 +368,22 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
         return None
     mod_type = _structdefs[mod_name]
 
-    rec = {}
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
     if r < 1:
         return None
     rbuf = ffi.cast(mod_type, buf)
 
+    rec = _make_generic_record(rbuf, mod_name, dtype)
+    libdutil.darshan_free(buf[0])
+
+    return rec
+
+def _make_generic_record(rbuf, mod_name, dtype='numpy'):
+    """
+    Returns a record dictionary for an input record buffer for a given module.
+    """
+    rec = {}
     rec['id'] = rbuf[0].base_rec.id
     rec['rank'] = rbuf[0].base_rec.rank
     if mod_name == 'H5D' or mod_name == 'PNETCDF_VAR':
@@ -382,7 +391,6 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
 
     clst = np.copy(np.frombuffer(ffi.buffer(rbuf[0].counters), dtype=np.int64))
     flst = np.copy(np.frombuffer(ffi.buffer(rbuf[0].fcounters), dtype=np.float64))
-    libdutil.darshan_free(buf[0])
 
     c_cols = counter_names(mod_name)
     fc_cols = fcounter_names(mod_name)
@@ -415,7 +423,6 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
         rec['counters'] = df_c
         rec['fcounters'] = df_fc
     return rec
-
 
 @functools.lru_cache(maxsize=32)
 def counter_names(mod_name, fcnts=False, special=''):
