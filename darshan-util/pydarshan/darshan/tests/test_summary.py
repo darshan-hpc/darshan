@@ -99,10 +99,10 @@ def test_main_with_args(tmpdir, argv):
     "argv, expected_img_count, expected_table_count", [
         (["noposix.darshan"], 3, 3),
         (["noposix.darshan", "--output=test.html"], 3, 3),
-        (["sample-dxt-simple.darshan"], 8, 6),
-        (["sample-dxt-simple.darshan", "--output=test.html"], 8, 6),
-        (["nonmpi_dxt_anonymized.darshan"], 6, 5),
-        (["ior_hdf5_example.darshan"], 11, 8),
+        (["sample-dxt-simple.darshan"], 9, 6),
+        (["sample-dxt-simple.darshan", "--output=test.html"], 9, 6),
+        (["nonmpi_dxt_anonymized.darshan"], 7, 5),
+        (["ior_hdf5_example.darshan"], 12, 8),
         ([None], 0, 0),
     ]
 )

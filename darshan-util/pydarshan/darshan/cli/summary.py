@@ -22,6 +22,7 @@ from darshan.experimental.plots import (
     plot_common_access_table,
     plot_access_histogram,
     plot_opcounts,
+    plot_posix_access_pattern,
     data_access_by_filesystem,
 )
 
@@ -534,6 +535,19 @@ class ReportData:
                                                                     mod_name=mod),
                             text_only_color="blue")
                     self.figures.append(bandwidth_fig)
+
+                    if mod == "POSIX":
+                        access_pattern_fig = ReportFigure(
+                            section_title=sect_title,
+                            fig_title="Access Pattern",
+                            fig_func=plot_posix_access_pattern,
+                            fig_args=dict(record=summary_record),
+                            fig_description="Sequential (offset greater than previous offset) vs. "
+                                            "consecutive (offset immediately following previous offset) "
+                                            "file operations.",
+                            fig_width=350,
+                        )
+                        self.figures.append(access_pattern_fig)
 
                     file_count_summary_fig = ReportFigure(
                             section_title=sect_title,
