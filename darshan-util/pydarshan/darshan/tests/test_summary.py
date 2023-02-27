@@ -209,9 +209,14 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                             stdio_position > -1):
                             assert mpiio_position < posix_position < stdio_position
                     else:
-                        # check that help message is present
-                        assert "Heatmap data is not available for this job" in report_str
-                        assert "Consider enabling the runtime heatmap module" in report_str
+                        if not "empty_log" in log_filepath:
+                            # check that help message is present
+                            assert "Heatmap data is not available for this job" in report_str
+                            assert "Consider enabling the runtime heatmap module" in report_str
+                        else:
+                            # check empty log warning and return
+                            assert "This Darshan log file has no instrumentation records" in report_str
+                            return
 
                     # check if I/O cost figure is present
                     for mod in report.modules:
