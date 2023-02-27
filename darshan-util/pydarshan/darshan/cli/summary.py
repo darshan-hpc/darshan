@@ -332,6 +332,22 @@ class ReportData:
         """
         self.figures = []
 
+        if not self.report.modules:
+            # no data in report to summarize, print warning and that's it
+            no_data_message = (
+                "This Darshan log file has no instrumentation records,"
+                "there is no data to plot. Did this app do any I/O?"
+            )
+            fig = ReportFigure(
+                section_title="",
+                fig_title="",
+                fig_func=None,
+                fig_args=None,
+                fig_description=no_data_message,
+            )
+            self.figures.append(fig)
+            return
+
         #########################################
         ## Add the runtime and/or DXT heat map(s)
         #########################################
