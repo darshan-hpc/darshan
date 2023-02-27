@@ -364,6 +364,9 @@ herr_t DARSHAN_DECL(H5Fflush)(hid_t object_id, H5F_scope_t scope)
                     tm1, tm2, rec_ref->last_meta_end);
             }
             H5F_POST_RECORD();
+
+            MAP_OR_FAIL(H5Fclose);
+            __real_H5Fclose(file_id);
         }
     }
 
