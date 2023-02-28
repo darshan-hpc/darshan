@@ -316,8 +316,12 @@ def get_heatmap_df(agg_df: pd.DataFrame, xbins: int, nprocs: int) -> pd.DataFram
     bin_edge_data = np.linspace(0.0, max_time, xbins + 1)
     # create dummy variables for start/end time data, where dataframe columns
     # are the x-axis bin ranges
+    # pin dtype here because of pandas 2.0+ change--see:
+    # gh-909 and
+    # https://github.com/pandas-dev/pandas/pull/48022#issuecomment-1448755561
     cats_start = pd.get_dummies(
-        pd.cut(agg_df["start_time"], bin_edge_data, precision=16)
+        pd.cut(agg_df["start_time"], bin_edge_data, precision=16),
+        dtype=np.uint8,
     )
     cats_end = pd.get_dummies(pd.cut(agg_df["end_time"], bin_edge_data, precision=16))
     # get series for the elapsed times for each dxt segment
