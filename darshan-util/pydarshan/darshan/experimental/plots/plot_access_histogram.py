@@ -7,15 +7,16 @@ def autolabel(ax, rects):
     """Attach a text label above each bar in *rects*, displaying its value."""
     for rect in rects:
         height = rect.get_height()
-        ax.annotate(
-            '{}'.format(height),
-            xy=(rect.get_x() + rect.get_width() / 2, height),
-            xytext=(0, 3),  # 3 points vertical offset
-            textcoords="offset points",
-            ha='center',
-            va='bottom',
-            rotation=0,
-        )
+        if height > 0:
+            ax.annotate(
+                '{}'.format(height),
+                xy=(rect.get_x() + rect.get_width() / 2, height),
+                xytext=(0, 3),  # 3 points vertical offset
+                textcoords="offset points",
+                ha='center',
+                va='bottom',
+                rotation=0,
+            )
 
 def plot_access_histogram(report, mod, ax=None):
     """
