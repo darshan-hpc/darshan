@@ -15,7 +15,7 @@ def autolabel(ax, rects):
                 textcoords="offset points",
                 ha='center',
                 va='bottom',
-                rotation=0,
+                rotation=45,
             )
 
 def plot_access_histogram(report, mod, ax=None):
