@@ -82,6 +82,7 @@ def plot_access_histogram(report, mod, ax=None):
     ax.set_xlabel('Access Sizes')
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=45, ha='right')
+    ax.set_ylim(ymin = 0)
     ax.legend()
 
     ax.spines[['right', 'top']].set_visible(False)

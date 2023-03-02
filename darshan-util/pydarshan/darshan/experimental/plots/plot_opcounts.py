@@ -185,6 +185,7 @@ def plot_opcounts(report, mod, ax=None):
     ax.set_ylabel('Count')
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=90)
+    ax.set_ylim(ymin = 0)
 
     ax.spines[['right', 'top']].set_visible(False)
 
