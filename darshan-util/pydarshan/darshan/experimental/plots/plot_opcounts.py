@@ -186,6 +186,8 @@ def plot_opcounts(report, mod, ax=None):
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=90)
 
+    ax.spines[['right', 'top']].set_visible(False)
+
     autolabel(ax=ax, rects=rects)
 
     plt.tight_layout()

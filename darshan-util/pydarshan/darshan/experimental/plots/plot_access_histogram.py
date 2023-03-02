@@ -84,6 +84,8 @@ def plot_access_histogram(report, mod, ax=None):
     ax.set_xticklabels(labels, rotation=45, ha='right')
     ax.legend()
 
+    ax.spines[['right', 'top']].set_visible(False)
+
     autolabel(ax=ax, rects=rects1)
     autolabel(ax=ax, rects=rects2)
 
