@@ -356,12 +356,20 @@ def plot_heatmap(
         raise ValueError(f"Module {mod} not found in DarshanReport.")
 
     nprocs = report.metadata["job"]["nprocs"]
+    tmax, runtime = determine_hmap_runtime(report=report)
 
     if "DXT" in mod:
         # aggregate the data according to the selected modules and operations
         agg_df = heatmap_handling.get_aggregate_data(report=report, mod=mod, ops=ops)
         # get the heatmap data array
-        hmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df, xbins=xbins, nprocs=nprocs)
+        # NOTE: the darshan runtime does not collect empty DXT records,
+        # so we are not guaranteed to have data for all time spans
+        # as a result, we force the upper time bound for the heatmap data
+        # to be the wallclock time
+        hmap_df = heatmap_handling.get_heatmap_df(agg_df=agg_df,
+                                                  xbins=xbins,
+                                                  nprocs=nprocs,
+                                                  max_time=runtime)
     elif mod == "HEATMAP":
         hmap_df = report.heatmaps[submodule].to_df(ops=ops)
         # mirror the DXT approach to heatmaps by
@@ -427,7 +435,6 @@ def plot_heatmap(
         align="edge",
     )
 
-    tmax, runtime = determine_hmap_runtime(report=report)
     # scale the x-axis to span the calculated run time
     xbin_max = xbins * (runtime / tmax)
     jgrid.ax_joint.set_xlim(0.0, xbin_max)
