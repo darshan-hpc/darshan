@@ -30,12 +30,12 @@ export DARSHAN_CXX=mpicxx
 export DARSHAN_F77=mpif77
 export DARSHAN_F90=mpif90
 
-export MPICC_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-cc
-export MPICXX_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-cxx
-export MPIF90_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f
-export MPIF77_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f
+export MPICC_PROFILE=$DARSHAN_RUNTIME_PATH/share/mpi-profile/darshan-cc
+export MPICXX_PROFILE=$DARSHAN_RUNTIME_PATH/share/mpi-profile/darshan-cxx
+export MPIF90_PROFILE=$DARSHAN_RUNTIME_PATH/share/mpi-profile/darshan-f
+export MPIF77_PROFILE=$DARSHAN_RUNTIME_PATH/share/mpi-profile/darshan-f
 # MPICH 3.1.1 and newer use MPIFORT rather than MPIF90 and MPIF77 in env var
 # name
-export MPIFORT_PROFILE=$DARSHAN_PATH/share/mpi-profile/darshan-f
+export MPIFORT_PROFILE=$DARSHAN_RUNTIME_PATH/share/mpi-profile/darshan-f
 
 export DARSHAN_RUNJOB="mpiexec -n $DARSHAN_DEFAULT_NPROCS"

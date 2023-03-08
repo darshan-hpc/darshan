@@ -8,7 +8,7 @@ macos_M1_native_apple_silicon_py310_task:
     /opt/homebrew/opt/python@3.10/bin/python3 -m venv ~/py_310
     source ~/py_310/bin/activate
     python -m pip install --upgrade pip
-    python -m pip install --upgrade pytest lxml matplotlib packaging
+    python -m pip install --upgrade pytest lxml matplotlib packaging humanize
     brew install automake libtool binutils
     mkdir -p /tmp/darshan_install
     export DARSHAN_INSTALL_PATH=/tmp/darshan_install

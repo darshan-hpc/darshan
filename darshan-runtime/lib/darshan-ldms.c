@@ -14,6 +14,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "darshan-ldms.h"
+#include "darshan.h"
 
 /* Check for LDMS libraries if Darshan is built --with-ldms */
 #ifdef HAVE_LDMS
@@ -21,10 +23,10 @@
 #include <ldms/ldmsd_stream.h>
 #include <ovis_util/util.h>
 #include "ovis_json/ovis_json.h"
-#include "darshan-ldms.h"
 
 struct darshanConnector dC = {
      .ldms_darsh = NULL,
+     .exename = NULL,
      .ldms_lib = 0,
      };
 
@@ -57,7 +59,6 @@ static void event_cb(ldms_t x, ldms_xprt_event_t e, void *cb_arg)
         }
 }
 
-#define SLURM_NOTIFY_TIMEOUT 5
 ldms_t setup_connection(const char *xprt, const char *host,
                         const char *port, const char *auth)
 {
@@ -66,10 +67,6 @@ ldms_t setup_connection(const char *xprt, const char *host,
         int rc;
         struct timespec ts;
 
-        if (!host) {
-                if (0 == gethostname(hostname, sizeof(hostname)))
-                        host = hostname;
-        }
         if (!timeout) {
                 ts.tv_sec = time(NULL) + 5;
                 ts.tv_nsec = 0;
@@ -103,17 +100,36 @@ ldms_t setup_connection(const char *xprt, const char *host,
         return ldms_g;
 }
 
-void darshan_ldms_connector_initialize()
+void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
 {
+     /*TODO: Create environment variable to re-connect to ldms every x seconds
+        if(getenv("DARSHAN_LDMS_REINIT"))
+            dC.env_ldms_reinit = getenv("DARSHAN_LDMS_REINIT");
+        else
+            dC.env_ldms_reinit = "1";*/
+     
+    /* Set meta data for LDMS message sending */
+    (void)gethostname(dC.hname, sizeof(dC.hname));
+    dC.jobid = init_core->log_job_p->jobid;
+    dC.uid = init_core->log_job_p->uid;
+    
+    /* grab exe path from darshan_core_runtime */
+    dC.exename = strtok(init_core->log_exemnt_p, " ");
+     
+    /* Pull executable name from proc if no arguemments are given. */
+        if (dC.exename == NULL)
+        {
+         char buff[DARSHAN_EXE_LEN];
+         int len = readlink("/proc/self/exe", buff, sizeof(buff)-1);
+         buff[len] = '\0';
+         dC.exename = buff;
+        }
+
     if (!getenv("DARSHAN_LDMS_STREAM"))
-        dC.env_ldms_stream = "darshanConnector";
+    dC.env_ldms_stream = "darshanConnector";
+
 
     /* Set flags for various LDMS environment variables */
-    if (getenv("DXT_ENABLE_LDMS"))
-        dC.dxt_enable_ldms = 0;
-    else
-        dC.dxt_enable_ldms =1;
-
     if (getenv("POSIX_ENABLE_LDMS"))
         dC.posix_enable_ldms = 0;
     else
@@ -124,20 +140,20 @@ void darshan_ldms_connector_initialize()
     else
         dC.mpiio_enable_ldms = 1;
 
+    /* Disable STDIO if verbose is enabled to avoid a recursive
+    function for darshan_ldms_connector_send() */
     if (getenv("STDIO_ENABLE_LDMS"))
-        dC.stdio_enable_ldms = 0;
+    	if (!getenv("DARSHAN_LDMS_VERBOSE"))
+        	dC.stdio_enable_ldms = 0;
+    	else
+        	dC.stdio_enable_ldms = 1;
     else
         dC.stdio_enable_ldms = 1;
-
+    
     if (getenv("HDF5_ENABLE_LDMS"))
         dC.hdf5_enable_ldms = 0;
     else
         dC.hdf5_enable_ldms = 1;
-
-    if (getenv("MDHIM_ENABLE_LDMS"))
-        dC.mdhim_enable_ldms = 0;
-    else
-        dC.mdhim_enable_ldms = 1;
 
     const char* env_ldms_xprt    = getenv("DARSHAN_LDMS_XPRT");
     const char* env_ldms_host    = getenv("DARSHAN_LDMS_HOST");
@@ -216,22 +232,24 @@ void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset
     }
 
     sprintf(jb11,"{ \"uid\":%ld, \"exe\":\"%s\",\"job_id\":%ld,\"rank\":%ld,\"ProducerName\":\"%s\",\"file\":\"%s\",\"record_id\":%"PRIu64",\"module\":\"%s\",\"type\":\"%s\",\"max_byte\":%ld,\"switches\":%ld,\"flushes\":%ld,\"cnt\":%ld,\"op\":\"%s\",\"seg\":[{\"data_set\":\"%s\",\"pt_sel\":%ld,\"irreg_hslab\":%ld,\"reg_hslab\":%ld,\"ndims\":%ld,\"npoints\":%ld,\"off\":%ld,\"len\":%ld,\"start\":%0.6f,\"dur\":%0.6f,\"total\":%.6f,\"timestamp\":%lu.%.6lu}]}", dC.uid, dC.exename, dC.jobid, dC.rank, dC.hname, dC.filename, dC.record_id, mod_name, data_type, max_byte, rw_switch, flushes, record_count, rwo, dC.data_set, dC.hdf5_data[0], dC.hdf5_data[1], dC.hdf5_data[2], dC.hdf5_data[3], dC.hdf5_data[4], offset, length, start_time, end_time-start_time, total_time, tspec_end.tv_sec, micro_s);
-    //printf("this is in jb11 %s \n", jb11);
+    
+    if (getenv("DARSHAN_LDMS_VERBOSE"))
+            printf("JSON Message: %s\n", jb11);
     
     rc = ldmsd_stream_publish(dC.ldms_darsh, dC.env_ldms_stream, LDMSD_STREAM_JSON, jb11, strlen(jb11) + 1);
-	if (rc)
-		printf("Error %d publishing data.\n", rc);
+    if (rc)
+        printf("Error %d publishing data.\n", rc);
     
-	out_1:
+    out_1:
          return;
 }
 #else
 
 struct darshanConnector dC = {
-     .ldms_lib = 1
-     };
+ .ldms_lib = 1
+ };
 
-void darshan_ldms_connector_initialize()
+void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
 {
     return;
 }

@@ -81,12 +81,12 @@ def test_main_with_args(tmpdir, argv):
 
 @pytest.mark.parametrize(
     "argv, expected_img_count, expected_table_count", [
-        (["noposix.darshan"], 3, 2),
-        (["noposix.darshan", "--output=test.html"], 3, 2),
-        (["sample-dxt-simple.darshan"], 8, 4),
-        (["sample-dxt-simple.darshan", "--output=test.html"], 8, 4),
-        (["nonmpi_dxt_anonymized.darshan"], 6, 3),
-        (["ior_hdf5_example.darshan"], 11, 5),
+        (["noposix.darshan"], 3, 3),
+        (["noposix.darshan", "--output=test.html"], 3, 3),
+        (["sample-dxt-simple.darshan"], 8, 6),
+        (["sample-dxt-simple.darshan", "--output=test.html"], 8, 6),
+        (["nonmpi_dxt_anonymized.darshan"], 6, 5),
+        (["ior_hdf5_example.darshan"], 11, 8),
         ([None], 0, 0),
     ]
 )
@@ -209,9 +209,14 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                             stdio_position > -1):
                             assert mpiio_position < posix_position < stdio_position
                     else:
-                        # check that help message is present
-                        assert "Heatmap data is not available for this job" in report_str
-                        assert "Consider enabling the runtime heatmap module" in report_str
+                        if not "empty_log" in log_filepath:
+                            # check that help message is present
+                            assert "Heatmap data is not available for this job" in report_str
+                            assert "Consider enabling the runtime heatmap module" in report_str
+                        else:
+                            # check empty log warning and return
+                            assert "This Darshan log file has no instrumentation records" in report_str
+                            return
 
                     # check if I/O cost figure is present
                     for mod in report.modules:
@@ -235,6 +240,13 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                         assert actual_runtime_heatmap_titles == 1
                     else:
                         assert actual_runtime_heatmap_titles == 0
+
+                    # check for presence of bandwidth summary strings
+                    # (more detailed per-module probes are present
+                    # in test_derived_metrics_bytes_and_bandwidth())
+                    assert "I/O performance estimate" in report_str
+                    assert "color: blue" in report_str
+                    assert "File Count Summary" in report_str
 
 
 class TestReportData:

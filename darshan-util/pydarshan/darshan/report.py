@@ -661,6 +661,9 @@ class DarshanReport(object):
         cn = backend.counter_names(mod)
         fcn = backend.fcounter_names(mod)
 
+        if mod not in self._modules:
+            raise ValueError(f"mod {mod} is not available in this DarshanReport object.")
+
         # update module metadata
         self._modules[mod]['num_records'] = 0
         if mod not in self.counters:

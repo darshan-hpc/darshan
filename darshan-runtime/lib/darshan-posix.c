@@ -250,7 +250,7 @@ static int darshan_mem_alignment = 1;
     if(__newpath != __path) free(__newpath); \
     /* LDMS to publish realtime read tracing information to daemon*/ \
     if(!dC.ldms_lib)\
-        if(!dC.dxt_enable_ldms || !dC.posix_enable_ldms){\
+        if(!dC.posix_enable_ldms){\
          darshan_ldms_set_meta((char *)__path, "N/A", __rec_ref->file_rec->base_rec.id, __rec_ref->file_rec->base_rec.rank);\
          darshan_ldms_connector_send(__rec_ref->file_rec->counters[POSIX_OPENS], "open", -1, -1, -1, -1, -1, __tm1, __tm2, __ts1, __ts2, __rec_ref->file_rec->fcounters[POSIX_F_META_TIME], "POSIX", "MET");\
      }\
@@ -345,7 +345,7 @@ static int darshan_mem_alignment = 1;
         __tm1, __tm2, rec_ref->last_read_end);\
     /* LDMS to publish realtime read tracing information to daemon*/ \
     if(!dC.ldms_lib)\
-        if(!dC.dxt_enable_ldms || !dC.posix_enable_ldms)\
+        if(!dC.posix_enable_ldms)\
         darshan_ldms_connector_send(rec_ref->file_rec->counters[POSIX_READS], "read", this_offset, __ret, rec_ref->file_rec->counters[POSIX_MAX_BYTE_READ],rec_ref->file_rec->counters[POSIX_RW_SWITCHES], -1,  __tm1, __tm2, __ts1, __ts2, rec_ref->file_rec->fcounters[POSIX_F_READ_TIME], "POSIX", "MOD");\
 } while(0)
 
@@ -415,7 +415,7 @@ static int darshan_mem_alignment = 1;
         __tm1, __tm2, rec_ref->last_write_end);\
     /* LDMS to publish realtime write tracing information to daemon*/ \
     if(!dC.ldms_lib)\
-        if(!dC.dxt_enable_ldms || !dC.posix_enable_ldms)\
+        if(!dC.posix_enable_ldms)\
             darshan_ldms_connector_send(rec_ref->file_rec->counters[POSIX_WRITES], "write", this_offset, __ret, rec_ref->file_rec->counters[POSIX_MAX_BYTE_WRITTEN], rec_ref->file_rec->counters[POSIX_RW_SWITCHES], -1, __tm1, __tm2, __ts1, __ts2, rec_ref->file_rec->fcounters[POSIX_F_WRITE_TIME], "POSIX", "MOD");\
 } while(0)
 
@@ -1684,7 +1684,7 @@ int DARSHAN_DECL(close)(int fd)
 #ifdef HAVE_LDMS
     /* publish close information for posix */
     extern struct darshanConnector dC;
-    if(!dC.dxt_enable_ldms || !dC.posix_enable_ldms)
+    if(!dC.posix_enable_ldms)
         darshan_ldms_connector_send(-1, "close", -1, -1, -1, -1, -1, tm1, tm2, ts1, ts2, rec_ref->file_rec->fcounters[POSIX_F_META_TIME], "POSIX", "MOD");
 #endif
 

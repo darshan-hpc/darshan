@@ -6,6 +6,7 @@
 
 #ifndef __DARSHAN_LDMS_H
 #define __DARSHAN_LDMS_H
+#include "darshan.h"
 
 #ifdef HAVE_LDMS
 #include <ldms/ldms.h>
@@ -16,12 +17,10 @@
 typedef struct darshanConnector {
         int to;
         int ldms_lib;
-        int dxt_enable_ldms;
         int posix_enable_ldms;
         int mpiio_enable_ldms;
         int stdio_enable_ldms;
         int hdf5_enable_ldms;
-        int mdhim_enable_ldms;
         int64_t rank;
         uint64_t record_id;
         char *exename;
@@ -43,18 +42,18 @@ typedef struct darshanConnector {
         sem_t conn_sem;
         sem_t recv_sem;
 } darshanConnector;
+
 #else
 
 typedef struct darshanConnector {
         int to;
         int ldms_lib;
-        int dxt_enable_ldms;
         int posix_enable_ldms;
         int mpiio_enable_ldms;
         int stdio_enable_ldms;
         int hdf5_enable_ldms;
-        int mdhim_enable_ldms;
 } darshanConnector;
+
 #endif
 
 /* darshan_ldms_connector_initialize(), darshan_ldms_connector_send()
@@ -71,7 +70,7 @@ typedef struct darshanConnector {
  * is detected or a new run is executed.
  *
  */
-void darshan_ldms_connector_initialize();
+void darshan_ldms_connector_initialize(struct darshan_core_runtime *);
 
 void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset, int64_t length, int64_t max_byte, int64_t rw_switch, int64_t flushes, double start_time, double end_time, struct timespec tspec_start, struct timespec tspec_end, double total_time, char *mod_name, char *data_type);
 

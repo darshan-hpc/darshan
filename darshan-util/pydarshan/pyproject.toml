@@ -22,7 +22,8 @@ test-requires = [
     "pytest",
     "lxml",
     "matplotlib",
-    "importlib_resources;python_version<'3.9'"
+    "importlib_resources;python_version<'3.9'",
+    "humanize"
 ]
 before-test = "pip install -U git+https://github.com/darshan-hpc/darshan-logs.git@main"
 test-command = "pytest {package}"

@@ -33,7 +33,6 @@
 #include "darshan-config.h"
 #include "darshan-common.h"
 #include "darshan-dxt.h"
-#include "darshan-ldms.h"
 
 /* Environment variable to override __DARSHAN_JOBID */
 #define DARSHAN_JOBID_OVERRIDE "DARSHAN_JOBID"

@@ -16,12 +16,11 @@
 # variables (as in a dynamically linked environment), or generate mpicc
 # wrappers (as in a statically linked environment).
 
-# Notes specific to this platform (cray-module-alcf)
+# Notes specific to this platform (cray-module-nersc-perlmutter)
 ########################
-# Use Cray's default compiler wrappers and load the module associated with
-# this darshan install
+# Use Cray's default compiler wrappers and load the system default darshan module
 #
-# RUNJOB is responsible for submitting a cobalt job, waiting for its
+# RUNJOB is responsible for submitting a slurm job, waiting for its
 # completion, and checking its return status
 
 export DARSHAN_CC=cc
@@ -31,5 +30,4 @@ export DARSHAN_F90=ftn
 
 export DARSHAN_RUNJOB=$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/runjob.sh
 
-module unload darshan >& /dev/null
-module load $DARSHAN_RUNTIME_PATH/share/craype-2.x/modulefiles/
+module load darshan

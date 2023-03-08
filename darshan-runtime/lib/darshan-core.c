@@ -76,11 +76,6 @@ static int mnt_data_count = 0;
 extern void bgq_runtime_initialize();
 #endif
 
-#ifdef HAVE_LDMS
-extern struct darshanConnector dC;
-extern void darshan_ldms_connector_initialize();
-#endif
-
 #ifdef DARSHAN_USE_APXC
 extern void apxc_runtime_initialize();
 #endif
@@ -361,7 +356,8 @@ void darshan_core_initialize(int argc, char **argv)
 
 
 #ifdef HAVE_LDMS
-        darshan_ldms_connector_initialize();
+        /* pass init_core to darshan-ldms connector initialization*/
+        darshan_ldms_connector_initialize(init_core);
 #endif
 
         /* if darshan was successfully initialized, set the global pointer
@@ -406,30 +402,6 @@ void darshan_core_initialize(int argc, char **argv)
         darshan_core_fprintf(stderr, "#darshan:<op>\t<nprocs>\t<time>\n");
         darshan_core_fprintf(stderr, "darshan:init\t%d\t%f\n", nprocs, init_time);
     }
-
-
-#ifdef HAVE_LDMS
-        /*TODO: Create environment variable to re-connect to ldms every x seconds
-        if(getenv("DARSHAN_LDMS_REINIT"))
-            dC.env_ldms_reinit = getenv("DARSHAN_LDMS_REINIT");
-        else
-            dC.env_ldms_reinit = "1";
-        */
-        /* Set meta data for LDMS message sending */
-        (void)gethostname(dC.hname, sizeof(dC.hname));
-        dC.jobid = (int64_t)jobid;
-        dC.uid = getuid();
-        dC.exename = argv[0];
-
-        /* Pull executable name from darshans variable if no arguemments are given. */
-        if (argc==0)
-        {
-            char buff[DARSHAN_EXE_LEN];
-            int len = readlink("/proc/self/exe", buff, sizeof(buff)-1);
-            buff[len] = '\0';
-            dC.exename = buff;
-        }
-#endif
 
     return;
 }

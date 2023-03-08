@@ -14,6 +14,8 @@ from mako.template import Template
 
 import darshan
 import darshan.cli
+from darshan.backend.cffi_backend import log_get_derived_metrics
+from darshan.lib.accum import log_get_bytes_bandwidth, log_file_count_summary_table
 from darshan.experimental.plots import (
     plot_dxt_heatmap,
     plot_io_cost,
@@ -53,6 +55,11 @@ class ReportFigure:
         fig_args: dict,
         fig_description: str = "",
         fig_width: int = 500,
+        # when there is no HTML data generated
+        # for the figure (i.e., no image/plot),
+        # we have the option of changing the caption
+        # text color for a warning/important standalone text
+        text_only_color: str = "red",
     ):
         self.section_title = section_title
         if not fig_title:
@@ -65,7 +72,11 @@ class ReportFigure:
         # temporary handling for DXT disabled cases
         # so special error message can be passed
         # in place of an encoded image
+        # NOTE: this code path is now also
+        # being used for adding the bandwidth
+        # text, which doesn't really have an image...
         self.fig_html = None
+        self.text_only_color = text_only_color
         if self.fig_func:
             self.generate_fig()
 
@@ -321,6 +332,22 @@ class ReportData:
         """
         self.figures = []
 
+        if not self.report.modules:
+            # no data in report to summarize, print warning and that's it
+            no_data_message = (
+                "This Darshan log file has no instrumentation records,"
+                "there is no data to plot. Did this app do any I/O?"
+            )
+            fig = ReportFigure(
+                section_title="",
+                fig_title="",
+                fig_func=None,
+                fig_args=None,
+                fig_description=no_data_message,
+            )
+            self.figures.append(fig)
+            return
+
         #########################################
         ## Add the runtime and/or DXT heat map(s)
         #########################################
@@ -486,6 +513,48 @@ class ReportData:
                     fig_width=350,
                 )
                 self.figures.append(opcount_fig)
+
+            try:
+                if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                    # get the module's record dataframe and then pass to
+                    # Darshan accumulator interface to generate a cumulative
+                    # record and derived metrics
+                    rec_dict = self.report.records[mod].to_df()
+                    nprocs = self.report.metadata['job']['nprocs']
+                    derived_metrics = log_get_derived_metrics(rec_dict, mod, nprocs)
+
+                    # this is really just some text
+                    # so using ReportFigure feels awkward...
+                    bandwidth_fig = ReportFigure(
+                            section_title=sect_title,
+                            fig_title="",
+                            fig_func=None,
+                            fig_args=None,
+                            fig_description=log_get_bytes_bandwidth(derived_metrics=derived_metrics,
+                                                                    mod_name=mod),
+                            text_only_color="blue")
+                    self.figures.append(bandwidth_fig)
+
+                    file_count_summary_fig = ReportFigure(
+                            section_title=sect_title,
+                            fig_title=f"File Count Summary <br> (estimated by {mod} I/O access offsets)",
+                            fig_func=log_file_count_summary_table,
+                            fig_args=dict(derived_metrics=derived_metrics,
+                                          mod_name=mod),
+                            fig_width=805,
+                            fig_description="")
+                    self.figures.append(file_count_summary_fig)
+            except (RuntimeError, KeyError):
+                # the module probably doesn't support derived metrics
+                # calculations, but the C code doesn't distinguish other
+                # types of errors
+
+                # the KeyError appears to be needed for a subset of logs
+                # for which _structdefs lacks APMPI or APXC entries;
+                # for example `e3sm_io_heatmap_only.darshan` in logs
+                # repo
+                pass
+
 
         #########################
         # Data Access by Category

@@ -4,6 +4,12 @@
  *      See COPYRIGHT in top-level directory.
  */
 
+/* NOTE: This example originated from the MPICH repo:
+ * (https://github.com/pmodels/mpich/blob/main/examples/cxx/cxxpi.cxx).
+ * We have since modified the code to stop using MPI C++ bindings as
+ * they have been deprecated and can cause compile failures.
+ */
+
 #include "mpi.h"
 #include <iostream>
 using namespace std;
@@ -25,19 +31,19 @@ int main(int argc,char **argv)
     int  namelen;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
 
-    MPI::Init(argc,argv);
-    numprocs = MPI::COMM_WORLD.Get_size();
-    myid     = MPI::COMM_WORLD.Get_rank();
-    MPI::Get_processor_name(processor_name,namelen);
+    MPI_Init(&argc,&argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    MPI_Get_processor_name(processor_name,&namelen);
 
     cout << "Process " << myid << " of " << numprocs << " is on " <<
 	processor_name << endl;
 
     n = 10000;			/* default # of rectangles */
     if (myid == 0)
-	startwtime = MPI::Wtime();
+	startwtime = MPI_Wtime();
 
-    MPI::COMM_WORLD.Bcast(&n, 1, MPI_INT, 0);
+    MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     h   = 1.0 / (double) n;
     sum = 0.0;
@@ -49,15 +55,15 @@ int main(int argc,char **argv)
     }
     mypi = h * sum;
 
-    MPI::COMM_WORLD.Reduce(&mypi, &pi, 1, MPI_DOUBLE, MPI_SUM, 0);
+    MPI_Reduce(&mypi, &pi, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (myid == 0) {
-	endwtime = MPI::Wtime();
+	endwtime = MPI_Wtime();
 	cout << "pi is approximately " << pi << " Error is " <<
 	    fabs(pi - PI25DT) << endl;
 	cout << "wall clock time = " << endwtime-startwtime << endl;
     }
 
-    MPI::Finalize();
+    MPI_Finalize();
     return 0;
 }

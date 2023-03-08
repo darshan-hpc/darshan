@@ -87,7 +87,6 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 #include "darshan-heatmap.h"
-//me
 #include "darshan-dxt.h"
 #include "darshan-ldms.h"
 
