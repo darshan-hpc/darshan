@@ -163,6 +163,20 @@ def find_utils(ffi, libdutil):
 
     """
     if libdutil is None:
+        # prefer wheel library discovery method
+        try:
+            darshan_path = discover_darshan_wheel()
+            import glob
+            library_path = glob.glob(f'{darshan_path}/libdarshan-util*.so*')[0]
+            logger.debug(f"Attempting library_path={library_path} in case of binary wheel.")
+            save = os.getcwd()
+            os.chdir(darshan_path)
+            libdutil = ffi.dlopen(library_path)
+            os.chdir(save)
+        except:
+            libdutil = None
+
+    if libdutil is None:
         try:
             libdutil = ffi.dlopen("libdarshan-util.so")
         except:
@@ -190,19 +204,6 @@ def find_utils(ffi, libdutil):
         except:
             libdutil = None
 
-    if libdutil is None:
-        try:
-            darshan_path = discover_darshan_wheel()
-            import glob
-            library_path = glob.glob(f'{darshan_path}/libdarshan-util*.so*')[0]
-            logger.debug(f"Attempting library_path={library_path} in case of binary wheel.")
-            save = os.getcwd()
-            os.chdir(darshan_path)
-            libdutil = ffi.dlopen(library_path)
-            os.chdir(save)
-        except:
-            libdutil = None
-    
     if libdutil is None:
         try:
             darshan_path = discover_darshan_pyinstaller()
