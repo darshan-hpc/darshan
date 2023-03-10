@@ -86,15 +86,15 @@ def discover_darshan_pkgconfig():
 
     import subprocess
 
-    args = ['pkg-config', '--path', 'darshan-util']
+    args = ['pkg-config', '--variable=prefix', 'darshan-util']
     p = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd='.')
     out,err = p.communicate()
     retval = p.wait()
 
-    path = os.path.dirname(out.decode('ascii').strip())
+    path = out.decode('ascii').strip()
 
     if path:
-        return os.path.realpath(path + '/../../')
+        return os.path.realpath(path)
     else:
         raise RuntimeError('Could not discover darshan! Is darshan-util installed?')
 
