@@ -155,7 +155,6 @@ static int my_rank = -1;
 #define MDHIM_RECORD_PUT(__ret, __md, __id, __vallen, __tm1, __tm2, __ts1, __ts2) do{ \
     darshan_record_id rec_id; \
     struct mdhim_record_ref *rec_ref; \
-    extern struct darshanConnector dC; \
     double __elapsed = __tm2 - __tm1; \
     /* if put returns error (return code < 0), don't instrument anything */ \
     if(__ret < 0) break; \
@@ -179,17 +178,12 @@ static int my_rank = -1;
         rec_ref->record_p->fcounters[MDHIM_F_PUT_TIMESTAMP] = __tm1; \
     /* record which server gets this request */ \
     rec_ref->record_p->server_histogram[(__id)]++; \
-    /* LDMS to publish realtime read tracing information to daemon*/ \
-    if(!dC.ldms_lib)\
-        if(!dC.mdhim_enable_ldms)\
-            darshan_ldms_connector_send(rec_ref->record_p->fcounters[MDHIM_PUTS], "puts", -1, __vallen, -1, -1, -1, __tm1, __tm2, __ts1, __ts2, rec_ref->record_p->fcounters[MDHIM_F_PUT_MAX_DURATION], "MDHIM", "MET");\
 } while(0)
 
 /* macro for instrumenting the "MDHIM" module's get function */
 #define MDHIM_RECORD_GET(__ret, __md, __id, __keylen, __tm1, __tm2, __ts1, __ts2) do{ \
     darshan_record_id rec_id; \
     struct mdhim_record_ref *rec_ref; \
-    extern struct darshanConnector dC; \
     double __elapsed = __tm2 - __tm1; \
     /* if get returns error (return code < 0), don't instrument anything */ \
     if(__ret == NULL) break; \
@@ -213,10 +207,6 @@ static int my_rank = -1;
         rec_ref->record_p->fcounters[MDHIM_F_GET_TIMESTAMP] = __tm1; \
     /* server distribution */ \
     rec_ref->record_p->server_histogram[(__id)]++; \
-    /* LDMS to publish realtime read tracing information to daemon*/ \
-    if(!dC.ldms_lib)\
-        if(!dC.mdhim_enable_ldms)\
-            darshan_ldms_connector_send(rec_ref->record_p->fcounters[MDHIM_GETS], "gets", -1, __keylen, -1, -1, -1, __tm1, __tm2, __ts1, __ts2, rec_ref->record_p->fcounters[MDHIM_F_GET_MAX_DURATION], "MDHIM", "MET");\
 } while(0)
 
 /**********************************************************

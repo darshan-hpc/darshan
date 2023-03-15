@@ -28,6 +28,7 @@ struct darshanConnector dC = {
      .ldms_darsh = NULL,
      .exename = NULL,
      .ldms_lib = 0,
+     .jobid = 0,
      };
 
 ldms_t ldms_g;
@@ -110,8 +111,12 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
      
     /* Set meta data for LDMS message sending */
     (void)gethostname(dC.hname, sizeof(dC.hname));
-    dC.jobid = init_core->log_job_p->jobid;
     dC.uid = init_core->log_job_p->uid;
+    if (getenv("SLURM_JOB_ID"))
+    dC.jobid = atoi(getenv("SLURM_JOB_ID"));
+    else
+    /* grab jobid from darshan_core_runtime if slurm does not exist*/
+        dC.jobid = init_core->log_job_p->jobid;
     
     /* grab exe path from darshan_core_runtime */
     dC.exename = strtok(init_core->log_exemnt_p, " ");
@@ -124,10 +129,6 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
          buff[len] = '\0';
          dC.exename = buff;
         }
-
-    if (!getenv("DARSHAN_LDMS_STREAM"))
-    dC.env_ldms_stream = "darshanConnector";
-
 
     /* Set flags for various LDMS environment variables */
     if (getenv("POSIX_ENABLE_LDMS"))
@@ -143,10 +144,10 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
     /* Disable STDIO if verbose is enabled to avoid a recursive
     function for darshan_ldms_connector_send() */
     if (getenv("STDIO_ENABLE_LDMS"))
-    	if (!getenv("DARSHAN_LDMS_VERBOSE"))
-        	dC.stdio_enable_ldms = 0;
-    	else
-        	dC.stdio_enable_ldms = 1;
+        if (!getenv("DARSHAN_LDMS_VERBOSE"))
+            dC.stdio_enable_ldms = 0;
+        else
+            dC.stdio_enable_ldms = 1;
     else
         dC.stdio_enable_ldms = 1;
     
@@ -155,6 +156,9 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
     else
         dC.hdf5_enable_ldms = 1;
 
+    if (!getenv("DARSHAN_LDMS_STREAM"))
+    dC.env_ldms_stream = "darshanConnector";
+    
     const char* env_ldms_xprt    = getenv("DARSHAN_LDMS_XPRT");
     const char* env_ldms_host    = getenv("DARSHAN_LDMS_HOST");
     const char* env_ldms_port    = getenv("DARSHAN_LDMS_PORT");
@@ -222,7 +226,7 @@ void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset
         size = sizeof(dC.hdf5_data)/sizeof(dC.hdf5_data[0]);
         dC.data_set = "N/A";
         for (i=0; i < size; i++)
-            dC.hdf5_data[i] = -1;
+            dC.hdf5_data[i] = 0;
     }
 
     if (strcmp(data_type, "MOD") == 0)
