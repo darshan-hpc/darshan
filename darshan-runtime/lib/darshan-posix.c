@@ -245,14 +245,14 @@ static int darshan_mem_alignment = 1;
         if(__newpath != __path) free(__newpath); \
         break; \
     } \
-    _POSIX_RECORD_OPEN(__ret, __rec_ref, __mode, __tm1, __tm2, __ts1, __ts2, 1, 0); \
+    _POSIX_RECORD_OPEN(__ret, __rec_ref, __mode, __tm1, __tm2, __ts1, __ts2, 1, -1); \
     darshan_instrument_fs_data(__rec_ref->fs_type, __newpath, __ret); \
     if(__newpath != __path) free(__newpath); \
     /* LDMS to publish realtime read tracing information to daemon*/ \
     if(!dC.ldms_lib)\
         if(!dC.posix_enable_ldms){\
          darshan_ldms_set_meta((char *)__path, "N/A", __rec_ref->file_rec->base_rec.id, __rec_ref->file_rec->base_rec.rank);\
-         darshan_ldms_connector_send(__rec_ref->file_rec->counters[POSIX_OPENS], "open", 0, 0, 0, 0, 0, __tm1, __tm2, __ts1, __ts2, __rec_ref->file_rec->fcounters[POSIX_F_META_TIME], "POSIX", "MET");\
+         darshan_ldms_connector_send(__rec_ref->file_rec->counters[POSIX_OPENS], "open", -1, -1, -1, -1, -1, __tm1, __tm2, __ts1, __ts2, __rec_ref->file_rec->fcounters[POSIX_F_META_TIME], "POSIX", "MET");\
      }\
 } while(0)
 
@@ -346,7 +346,7 @@ static int darshan_mem_alignment = 1;
     /* LDMS to publish realtime read tracing information to daemon*/ \
     if(!dC.ldms_lib)\
         if(!dC.posix_enable_ldms)\
-        darshan_ldms_connector_send(rec_ref->file_rec->counters[POSIX_READS], "read", this_offset, __ret, rec_ref->file_rec->counters[POSIX_MAX_BYTE_READ],rec_ref->file_rec->counters[POSIX_RW_SWITCHES], 0,  __tm1, __tm2, __ts1, __ts2, rec_ref->file_rec->fcounters[POSIX_F_READ_TIME], "POSIX", "MOD");\
+        darshan_ldms_connector_send(rec_ref->file_rec->counters[POSIX_READS], "read", this_offset, __ret, rec_ref->file_rec->counters[POSIX_MAX_BYTE_READ],rec_ref->file_rec->counters[POSIX_RW_SWITCHES], -1,  __tm1, __tm2, __ts1, __ts2, rec_ref->file_rec->fcounters[POSIX_F_READ_TIME], "POSIX", "MOD");\
 } while(0)
 
 #define POSIX_RECORD_WRITE(__ret, __fd, __pwrite_flag, __pwrite_offset, __aligned, __tm1, __tm2, __ts1, __ts2) do { \
@@ -416,7 +416,7 @@ static int darshan_mem_alignment = 1;
     /* LDMS to publish realtime write tracing information to daemon*/ \
     if(!dC.ldms_lib)\
         if(!dC.posix_enable_ldms)\
-            darshan_ldms_connector_send(rec_ref->file_rec->counters[POSIX_WRITES], "write", this_offset, __ret, rec_ref->file_rec->counters[POSIX_MAX_BYTE_WRITTEN], rec_ref->file_rec->counters[POSIX_RW_SWITCHES], 0, __tm1, __tm2, __ts1, __ts2, rec_ref->file_rec->fcounters[POSIX_F_WRITE_TIME], "POSIX", "MOD");\
+            darshan_ldms_connector_send(rec_ref->file_rec->counters[POSIX_WRITES], "write", this_offset, __ret, rec_ref->file_rec->counters[POSIX_MAX_BYTE_WRITTEN], rec_ref->file_rec->counters[POSIX_RW_SWITCHES], -1, __tm1, __tm2, __ts1, __ts2, rec_ref->file_rec->fcounters[POSIX_F_WRITE_TIME], "POSIX", "MOD");\
 } while(0)
 
 #define POSIX_LOOKUP_RECORD_STAT(__path, __statbuf, __tm1, __tm2, __ts1, __ts2) do { \
@@ -1685,7 +1685,7 @@ int DARSHAN_DECL(close)(int fd)
     /* publish close information for posix */
     extern struct darshanConnector dC;
     if(!dC.posix_enable_ldms)
-        darshan_ldms_connector_send(-1, "close", 0, 0, 0, 0, 0, tm1, tm2, ts1, ts2, rec_ref->file_rec->fcounters[POSIX_F_META_TIME], "POSIX", "MOD");
+        darshan_ldms_connector_send(-1, "close", -1, -1, -1, -1, -1, tm1, tm2, ts1, ts2, rec_ref->file_rec->fcounters[POSIX_F_META_TIME], "POSIX", "MOD");
 #endif
 
     }

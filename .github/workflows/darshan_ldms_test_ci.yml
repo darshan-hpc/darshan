@@ -1,10 +1,12 @@
-# Test overview:
+#
+#Test overview:
 # Test the Darshan LDMS Integrated code (e.g. darshanConnector). 
 # Build and Compile lastest LDMS release
 # Build and Compile Darshan against the latest LDMS library
 # Run an MPI-IO Test from Darshan's test suites
 # Check that the test completes normally and LDMS is collecting runtime timeseries data
 # Check that the test completes with Darshan when LDMS variables are not set
+#
 #
 name: Darshan-LDMS Integration Test - Latest
 
@@ -23,8 +25,6 @@ jobs:
         platform: [ubuntu-latest]
         python-version: ["3.10"]
     runs-on: ${{ matrix.platform }}
-    #container:
-    #    image: ovishpc/ovis-compat-centos7
     steps:
     - name: Set Up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3

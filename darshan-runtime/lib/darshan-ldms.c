@@ -109,13 +109,20 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
         else
             dC.env_ldms_reinit = "1";*/
      
-    /* Set meta data for LDMS message sending */
     (void)gethostname(dC.hname, sizeof(dC.hname));
+    
     dC.uid = init_core->log_job_p->uid;
+    
     if (getenv("SLURM_JOB_ID"))
-    dC.jobid = atoi(getenv("SLURM_JOB_ID"));
+        dC.jobid = atoi(getenv("SLURM_JOB_ID"));
+    else if (getenv("LSB_JOBID"))
+    dC.jobid = atoi(getenv("LSB_JOBID"));
+    else if (getenv("JOB_ID"))
+        dC.jobid = atoi(getenv("JOB_ID"));
+    else if (getenv("LOAD_STEP_ID"))
+        dC.jobid = atoi(getenv("LOAD_STEP_ID"));
     else
-    /* grab jobid from darshan_core_runtime if slurm does not exist*/
+    /* grab jobid from darshan_core_runtime if slurm, lsf, sge or loadleveler do not exist*/
         dC.jobid = init_core->log_job_p->jobid;
     
     /* grab exe path from darshan_core_runtime */
@@ -226,7 +233,7 @@ void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset
         size = sizeof(dC.hdf5_data)/sizeof(dC.hdf5_data[0]);
         dC.data_set = "N/A";
         for (i=0; i < size; i++)
-            dC.hdf5_data[i] = 0;
+            dC.hdf5_data[i] = -1;
     }
 
     if (strcmp(data_type, "MOD") == 0)
