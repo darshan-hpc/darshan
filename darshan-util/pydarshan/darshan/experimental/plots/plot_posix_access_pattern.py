@@ -51,7 +51,7 @@ def plot_posix_access_pattern(record, ax=None):
     ax.set_ylabel('Count')
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
-    ax.legend()
+    ax.legend(loc='center left', bbox_to_anchor=(1.05,.5))
 
     ax.spines[['right', 'top']].set_visible(False)
 
