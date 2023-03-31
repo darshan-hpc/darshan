@@ -14,7 +14,7 @@ def autolabel(ax, rects):
             textcoords="offset points",
             ha='center',
             va='bottom',
-            rotation=0,
+            rotation=45,
         )
 
 def plot_posix_access_pattern(record, ax=None):
@@ -52,6 +52,8 @@ def plot_posix_access_pattern(record, ax=None):
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.legend()
+
+    ax.spines[['right', 'top']].set_visible(False)
 
     autolabel(ax=ax, rects=rects_total)
     autolabel(ax=ax, rects=rects_seq)
