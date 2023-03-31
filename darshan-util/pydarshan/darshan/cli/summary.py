@@ -522,7 +522,7 @@ class ReportData:
                     # record and derived metrics
                     rec_dict = self.report.records[mod].to_df()
                     nprocs = self.report.metadata['job']['nprocs']
-                    derived_metrics, summary_record = accumulate_records(rec_dict, mod, nprocs, dtype='pandas')
+                    derived_metrics, summary_record = accumulate_records(rec_dict, mod, nprocs)
 
                     # this is really just some text
                     # so using ReportFigure feels awkward...

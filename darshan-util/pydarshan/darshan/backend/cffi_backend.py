@@ -739,7 +739,7 @@ def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
     return buf
 
 
-def accumulate_records(rec_dict, mod_name, nprocs, dtype='numpy'):
+def accumulate_records(rec_dict, mod_name, nprocs):
     """
     Passes a set of records (in pandas format) to the Darshan accumulator
     interface, and returns the corresponding derived metrics struct and
@@ -789,5 +789,5 @@ def accumulate_records(rec_dict, mod_name, nprocs, dtype='numpy'):
                            "to retrieve additional information from the stderr "
                            "stream.")
 
-    summary_rec = _make_generic_record(summary_rbuf, mod_name, dtype)
+    summary_rec = _make_generic_record(summary_rbuf, mod_name, dtype='pandas')
     return derived_metrics, summary_rec
