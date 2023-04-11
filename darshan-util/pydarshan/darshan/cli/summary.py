@@ -522,7 +522,7 @@ class ReportData:
                     # record and derived metrics
                     rec_dict = self.report.records[mod].to_df()
                     nprocs = self.report.metadata['job']['nprocs']
-                    derived_metrics, summary_record = accumulate_records(rec_dict, mod, nprocs)
+                    acc = accumulate_records(rec_dict, mod, nprocs)
 
                     # this is really just some text
                     # so using ReportFigure feels awkward...
@@ -531,7 +531,7 @@ class ReportData:
                             fig_title="",
                             fig_func=None,
                             fig_args=None,
-                            fig_description=log_get_bytes_bandwidth(derived_metrics=derived_metrics,
+                            fig_description=log_get_bytes_bandwidth(derived_metrics=acc.derived_metrics,
                                                                     mod_name=mod),
                             text_only_color="blue")
                     self.figures.append(bandwidth_fig)
@@ -541,7 +541,7 @@ class ReportData:
                             section_title=sect_title,
                             fig_title="Access Pattern",
                             fig_func=plot_posix_access_pattern,
-                            fig_args=dict(record=summary_record),
+                            fig_args=dict(record=acc.summary_record),
                             fig_description="Sequential (offset greater than previous offset) vs. "
                                             "consecutive (offset immediately following previous offset) "
                                             "file operations.",
@@ -553,7 +553,7 @@ class ReportData:
                             section_title=sect_title,
                             fig_title=f"File Count Summary <br> (estimated by {mod} I/O access offsets)",
                             fig_func=log_file_count_summary_table,
-                            fig_args=dict(derived_metrics=derived_metrics,
+                            fig_args=dict(derived_metrics=acc.derived_metrics,
                                           mod_name=mod),
                             fig_width=805,
                             fig_description="")

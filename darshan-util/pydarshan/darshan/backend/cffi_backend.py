@@ -12,6 +12,8 @@ import ctypes
 import numpy as np
 import pandas as pd
 
+from collections import namedtuple
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -751,8 +753,8 @@ def accumulate_records(rec_dict, mod_name, nprocs):
         nprocs: Number of processes participating in accumulation.
 
     Returns:
-        Tuple containing darshan_derived_metrics struct (cdata object) and
-        the summary record (dict).
+        namedtuple containing derived_metrics (cdata object) and
+        summary_record (dict).
     """
     mod_idx = mod_name_to_idx(mod_name)
     darshan_accumulator = ffi.new("darshan_accumulator *")
@@ -790,4 +792,7 @@ def accumulate_records(rec_dict, mod_name, nprocs):
                            "stream.")
 
     summary_rec = _make_generic_record(summary_rbuf, mod_name, dtype='pandas')
-    return derived_metrics, summary_rec
+
+    # create namedtuple type to hold return values
+    AccumulatedRecords = namedtuple("AccumulatedRecords", ['derived_metrics', 'summary_record'])
+    return AccumulatedRecords(derived_metrics, summary_rec)
