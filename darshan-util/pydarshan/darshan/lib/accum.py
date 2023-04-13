@@ -100,5 +100,6 @@ def log_file_count_summary_table(derived_metrics,
     df.drop(columns="index", inplace=True)
     ret = plot_common_access_table.DarshanReportTable(df,
                                                       col_space=200,
-                                                      justify="center")
+                                                      justify="center",
+                                                      index_names=False)
     return ret

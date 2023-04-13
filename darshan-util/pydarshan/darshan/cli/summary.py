@@ -335,7 +335,7 @@ class ReportData:
         if not self.report.modules:
             # no data in report to summarize, print warning and that's it
             no_data_message = (
-                "This Darshan log file has no instrumentation records,"
+                "This Darshan log file has no instrumentation records, "
                 "there is no data to plot. Did this app do any I/O?"
             )
             fig = ReportFigure(
