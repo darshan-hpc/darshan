@@ -232,12 +232,6 @@ void darshan_core_initialize(int argc, char **argv)
         /* set PID that initialized Darshan runtime */
         init_core->pid = getpid();
 
-        /* setup fork handlers if not using MPI */
-        if(!using_mpi && !orig_parent_pid)
-        {
-            pthread_atfork(NULL, NULL, &darshan_core_fork_child_cb);
-        }
-
         /* parse any user-supplied runtime configuration of Darshan */
         /* NOTE: as the ordering implies, environment variables override any
          *       config file parameters
@@ -350,6 +344,12 @@ void darshan_core_initialize(int argc, char **argv)
              * other ranks
              */
             init_core->config.mod_disabled = ~(init_core->config.mod_disabled & 0);
+        }
+
+        /* setup fork handlers if not using MPI */
+        if(!using_mpi && !orig_parent_pid)
+        {
+            pthread_atfork(NULL, NULL, &darshan_core_fork_child_cb);
         }
 
         /* if darshan was successfully initialized, set the global pointer
