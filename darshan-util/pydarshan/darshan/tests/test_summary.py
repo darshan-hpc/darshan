@@ -21,6 +21,22 @@ except ImportError:
     has_lxml = False
 
 
+def _enforce_html_report_aesthetics(report_str):
+    # formatting requirements, partly from Argonne
+    # feedback in gh-910
+    prog = re.compile(r"figcaption {\n.*\n.*\n.*\n}")
+    m = prog.search(report_str)
+    if m:
+        result = m.group(0)
+    assert "font-weight: 300" in result
+    assert "font-size: 0.75em" in result
+    assert not "italic" in result
+
+    # Argonne team doesn't like index label
+    # for File Count Summary table
+    assert not "<th>type</th>" in report_str
+
+
 @pytest.mark.parametrize(
     "argv", [
         ["./tests/input/sample.darshan"],
@@ -117,6 +133,7 @@ def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_coun
                 with darshan.DarshanReport(filename=argv[0], read_all=False) as report:
                     with open(expected_save_path) as html_report:
                         report_str = html_report.read()
+                        _enforce_html_report_aesthetics(report_str=report_str)
                         if "DXT" in "\t".join(report.modules):
                             for dxt_mod in ["DXT_POSIX", "DXT_MPIIO"]:
                                 if dxt_mod in report.modules:
@@ -215,7 +232,7 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                             assert "Consider enabling the runtime heatmap module" in report_str
                         else:
                             # check empty log warning and return
-                            assert "This Darshan log file has no instrumentation records" in report_str
+                            assert "This Darshan log file has no instrumentation records, " in report_str
                             return
 
                     # check if I/O cost figure is present

@@ -160,6 +160,12 @@ def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
 
     assert_array_equal(actual_xticks, expected_xticks)
     assert_array_equal(actual_xticklabels, expected_xticklabels)
+    # see Argonne formatting reqs in gh-910
+    spines = ax.spines
+    assert not spines["top"].get_visible()
+    assert not spines["right"].get_visible()
+    assert spines["bottom"].get_visible()
+    assert spines["left"].get_visible()
 
 
 @pytest.mark.parametrize(
