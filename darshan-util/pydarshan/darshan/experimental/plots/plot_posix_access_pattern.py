@@ -33,7 +33,6 @@ def plot_posix_access_pattern(record, ax=None):
         fig = None
 
     labels = ['read', 'write']
-    # TODO ensure input df one row for now?
     total_data = [record['counters']['POSIX_READS'][0],
                   record['counters']['POSIX_WRITES'][0]]
     seq_data = [record['counters']['POSIX_SEQ_READS'][0],
