@@ -544,7 +544,8 @@ class ReportData:
                             fig_args=dict(record=acc.summary_record),
                             fig_description="Sequential (offset greater than previous offset) vs. "
                                             "consecutive (offset immediately following previous offset) "
-                                            "file operations.",
+                                            "file operations. Note that, by definition, the sequential "
+                                            "operations are inclusive of consecutive operations.",
                             fig_width=350,
                         )
                         self.figures.append(access_pattern_fig)
