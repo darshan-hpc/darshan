@@ -200,6 +200,18 @@ if test "x$enable_darshan_runtime" = xyes ; then
       GOT_JOBID=yes
    fi
 
+   AC_ARG_WITH([username-env],
+      [AS_HELP_STRING([--with-username-env=NAME],
+                      [Name of environment variable that stores the username])],
+      [], [with_username_env=no]
+   )
+   if test "x$with_username_env" = xyes; then
+      AC_MSG_ERROR(--with-username-env must be given a name)
+   elif test "x$with_username_env" != xno; then
+      AC_DEFINE_UNQUOTED([__DARSHAN_USERNAME_ENV], "$with_username_env",
+                         [Name of the environment variable that stores the username])
+   fi
+
    AC_ARG_WITH([mod-mem],
       [AS_HELP_STRING([--with-mod-mem=NUM],
                       [Maximum runtime memory consumption per process

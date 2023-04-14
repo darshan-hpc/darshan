@@ -1379,8 +1379,19 @@ static void darshan_get_user_name(char *cuser)
      * work in statically compiled binaries.
      */
 
+#ifdef __DARSHAN_USERNAME_ENV
+    logname_string = getenv(__DARSHAN_USERNAME_ENV);
+    if(logname_string)
+    {
+        strncpy(cuser, logname_string, (L_cuserid-1));
+    }
+#endif
+
 #ifdef __DARSHAN_ENABLE_CUSERID
-    cuserid(cuser);
+    if(strcmp(cuser, "") == 0)
+    {
+        cuserid(cuser);
+    }
 #endif
 
     /* if cuserid() didn't work, then check the environment */
