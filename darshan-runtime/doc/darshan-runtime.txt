@@ -87,6 +87,9 @@ make install
   scheduler does not advertise the job ID) then you can specify `NONE` here.
   Darshan will fall back to using the pid of the rank 0 process if the
   specified environment variable is not set.
+* `--with-username-env=NAME`: this specifies the environment variable that Darshan
+  should check to determine the username for a job. If not specified, Darshan
+  will use internal mechanisms to try to determine the username.
 * `--with-log-path=DIR` (this, or `--with-log-path-by-env`, is mandatory): This
   specifies the parent directory for the directory tree where Darshan logs will
   be placed.
