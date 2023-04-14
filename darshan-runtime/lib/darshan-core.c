@@ -232,12 +232,6 @@ void darshan_core_initialize(int argc, char **argv)
         /* set PID that initialized Darshan runtime */
         init_core->pid = getpid();
 
-        /* setup fork handlers if not using MPI */
-        if(!using_mpi && !orig_parent_pid)
-        {
-            pthread_atfork(NULL, NULL, &darshan_core_fork_child_cb);
-        }
-
         /* parse any user-supplied runtime configuration of Darshan */
         /* NOTE: as the ordering implies, environment variables override any
          *       config file parameters
@@ -350,6 +344,12 @@ void darshan_core_initialize(int argc, char **argv)
              * other ranks
              */
             init_core->config.mod_disabled = ~(init_core->config.mod_disabled & 0);
+        }
+
+        /* setup fork handlers if not using MPI */
+        if(!using_mpi && !orig_parent_pid)
+        {
+            pthread_atfork(NULL, NULL, &darshan_core_fork_child_cb);
         }
 
         /* if darshan was successfully initialized, set the global pointer
@@ -2182,16 +2182,19 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
 
 static void darshan_core_fork_child_cb(void)
 {
-    /* hold onto the original parent PID, which we will use as jobid if the user didn't
-     * provide a jobid env variable
-     */
-    parent_pid = __darshan_core->pid;
-    if(!orig_parent_pid)
-        orig_parent_pid = parent_pid;
+    if(__darshan_core)
+    {
+        /* hold onto the original parent PID, which we will use as jobid if the user didn't
+         * provide a jobid env variable
+         */
+        parent_pid = __darshan_core->pid;
+        if(!orig_parent_pid)
+            orig_parent_pid = parent_pid;
 
-    /* shutdown and re-init darshan, making sure to not write out a log file */
-    darshan_core_shutdown(0);
-    darshan_core_initialize(0, NULL);
+        /* shutdown and re-init darshan, making sure to not write out a log file */
+        darshan_core_shutdown(0);
+        darshan_core_initialize(0, NULL);
+    }
 
     return;
 }
