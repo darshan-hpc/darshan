@@ -14,7 +14,7 @@ from mako.template import Template
 
 import darshan
 import darshan.cli
-from darshan.backend.cffi_backend import log_get_derived_metrics
+from darshan.backend.cffi_backend import accumulate_records
 from darshan.lib.accum import log_get_bytes_bandwidth, log_file_count_summary_table
 from darshan.experimental.plots import (
     plot_dxt_heatmap,
@@ -22,6 +22,7 @@ from darshan.experimental.plots import (
     plot_common_access_table,
     plot_access_histogram,
     plot_opcounts,
+    plot_posix_access_pattern,
     data_access_by_filesystem,
 )
 
@@ -521,7 +522,7 @@ class ReportData:
                     # record and derived metrics
                     rec_dict = self.report.records[mod].to_df()
                     nprocs = self.report.metadata['job']['nprocs']
-                    derived_metrics = log_get_derived_metrics(rec_dict, mod, nprocs)
+                    acc = accumulate_records(rec_dict, mod, nprocs)
 
                     # this is really just some text
                     # so using ReportFigure feels awkward...
@@ -530,16 +531,30 @@ class ReportData:
                             fig_title="",
                             fig_func=None,
                             fig_args=None,
-                            fig_description=log_get_bytes_bandwidth(derived_metrics=derived_metrics,
+                            fig_description=log_get_bytes_bandwidth(derived_metrics=acc.derived_metrics,
                                                                     mod_name=mod),
                             text_only_color="blue")
                     self.figures.append(bandwidth_fig)
+
+                    if mod == "POSIX":
+                        access_pattern_fig = ReportFigure(
+                            section_title=sect_title,
+                            fig_title="Access Pattern",
+                            fig_func=plot_posix_access_pattern,
+                            fig_args=dict(record=acc.summary_record),
+                            fig_description="Sequential (offset greater than previous offset) vs. "
+                                            "consecutive (offset immediately following previous offset) "
+                                            "file operations. Note that, by definition, the sequential "
+                                            "operations are inclusive of consecutive operations.",
+                            fig_width=350,
+                        )
+                        self.figures.append(access_pattern_fig)
 
                     file_count_summary_fig = ReportFigure(
                             section_title=sect_title,
                             fig_title=f"File Count Summary <br> (estimated by {mod} I/O access offsets)",
                             fig_func=log_file_count_summary_table,
-                            fig_args=dict(derived_metrics=derived_metrics,
+                            fig_args=dict(derived_metrics=acc.derived_metrics,
                                           mod_name=mod),
                             fig_width=805,
                             fig_description="")
