@@ -527,9 +527,21 @@ template {
 .fixed-footer{
     bottom: 0;
 }
+
+.perf_est { grid-area: perf_est; }
+.file_tbl { grid-area: file_tbl; }
+.op_counts { grid-area: op_counts; }
+.op_pattern { grid-area: op_pattern; }
+.acc_hist { grid-area: acc_hist; }
+.common_acc_tbl { grid-area: common_acc_tbl; }
 .grid-wrapper {
   display: grid;
   /* set 2-column-wide grid with auto width scaling*/
   grid-template-columns: repeat(2, auto);
+  grid-template-areas:
+    'perf_est   perf_est'
+    'file_tbl   file_tbl'
+    'op_counts  op_pattern'
+    'acc_hist   common_acc_tbl';
   gap: 5px;
 }
