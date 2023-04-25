@@ -632,12 +632,12 @@ class ReportData:
         self.sections = {}
         for fig in self.figures:
             # if a section title is not already in sections, add
-            # the section title and a corresponding empty dictionary
+            # the section title and a corresponding empty list
             # to store its figures
             if fig.section_title not in self.sections:
-                self.sections[fig.section_title] = {}
+                self.sections[fig.section_title] = []
             # add the image to its corresponding section
-            self.sections[fig.section_title][fig.fig_title] = fig
+            self.sections[fig.section_title].append(fig)
 
 
 def setup_parser(parser: argparse.ArgumentParser):
