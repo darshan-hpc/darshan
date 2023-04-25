@@ -15,7 +15,7 @@ from mako.template import Template
 import darshan
 import darshan.cli
 from darshan.backend.cffi_backend import accumulate_records
-from darshan.lib.accum import log_get_bytes_bandwidth, log_file_count_summary_table
+from darshan.lib.accum import log_file_count_summary_table, module_overview_table
 from darshan.experimental.plots import (
     plot_dxt_heatmap,
     plot_io_cost,
@@ -506,18 +506,16 @@ class ReportData:
                     rec_dict = self.report.records[mod].to_df()
                     acc = accumulate_records(rec_dict, mod, self.report.metadata['job']['nprocs'])
 
-                    # this is really just some text
-                    # so using ReportFigure feels awkward...
-                    bandwidth_fig = ReportFigure(
+                    mod_overview_fig = ReportFigure(
                             section_title=sect_title,
-                            fig_title="",
-                            fig_func=None,
-                            fig_args=None,
-                            fig_description=log_get_bytes_bandwidth(derived_metrics=acc.derived_metrics,
-                                                                    mod_name=mod),
-                            text_only_color="blue",
-                            fig_class="perf_est")
-                    self.figures.append(bandwidth_fig)
+                            fig_title=f"Overview",
+                            fig_func=module_overview_table,
+                            fig_args=dict(derived_metrics=acc.derived_metrics,
+                                          mod_name=mod),
+                            fig_width=805,
+                            fig_description="",
+                            fig_class="overview")
+                    self.figures.append(mod_overview_fig)
 
                     file_count_summary_fig = ReportFigure(
                             section_title=sect_title,

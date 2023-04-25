@@ -100,6 +100,31 @@ def log_file_count_summary_table(derived_metrics,
     df.drop(columns="index", inplace=True)
     ret = plot_common_access_table.DarshanReportTable(df,
                                                       col_space=200,
+                                                      border=0,
                                                       justify="center",
                                                       index_names=False)
+    return ret
+
+def module_overview_table(derived_metrics,
+                          mod_name: str):
+    mod_overview = []
+    total_cat = derived_metrics.category_counters[0]
+
+    total_files = total_cat.count
+    indices = ["files accessed", "bytes read", "bytes written", "performance estimate"]
+    mod_overview.append(f"{total_files}")
+    total_bytes_read = total_cat.total_read_volume_bytes
+    total_bytes_read_str = humanize.naturalsize(total_bytes_read, binary=True, format="%.2f")
+    total_bytes_written = total_cat.total_write_volume_bytes
+    total_bytes_written_str = humanize.naturalsize(total_bytes_written, binary=True, format="%.2f")
+    mod_overview.append(f"{total_bytes_read_str}")
+    mod_overview.append(f"{total_bytes_written_str}")
+    total_bw = derived_metrics.agg_perf_by_slowest
+    mod_overview.append(f"{total_bw:.2f} MiB/s (average)")
+    df = pd.DataFrame(mod_overview, index=indices)
+
+    ret = plot_common_access_table.DarshanReportTable(df,
+                                                      col_space=500,
+                                                      border=0,
+                                                      header=False)
     return ret
