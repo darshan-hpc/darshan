@@ -17,6 +17,8 @@ import sys
 import os
 import glob
 from typing import Optional, Any
+import darshan
+import pandas as pd
 
 if "pytest" in sys.modules:
     # only import pytest if used in a testing context
@@ -102,3 +104,20 @@ def get_log_path(filename: str) -> str:
             pytest.skip(err_msg)
         else:
             raise FileNotFoundError(err_msg)
+
+
+def convert_to_parquet(darshan_log_filename: str,
+                       out_filepath: str):
+    # NOTE: only supports POSIX, and only tested on
+    # 1 log file so far...
+    with darshan.DarshanReport(darshan_log_filename) as report:
+        recs = report.data["records"]
+        df_posix_counters = recs["POSIX"].to_df()["counters"]
+        df_posix_fcounters = recs["POSIX"].to_df()["fcounters"]
+        # NOTE: is it always true that counters and counters will
+        # have the same number of records for a given darshan log?
+        assert df_posix_counters.shape[0] == df_posix_fcounters.shape[0]
+        df_fused = pd.concat([df_posix_counters, df_posix_fcounters.iloc[..., 2:]],
+                             axis=1)
+        df_fused.to_parquet(out_filepath,
+                            compression="gzip")

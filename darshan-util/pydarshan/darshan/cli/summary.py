@@ -133,7 +133,15 @@ class ReportData:
         # store the log path and use it to generate the report
         self.log_path = log_path
         # store the report
-        self.report = darshan.DarshanReport(log_path, read_all=True)
+        try:
+            self.report = darshan.DarshanReport(log_path, read_all=True)
+        except RuntimeError:
+            # assume parquet format input if not None
+            if not os.path.exists(log_path):
+                raise RuntimeError
+            else:
+                self.report = pd.read_parquet(log_path)
+
         # create the header/footer
         self.get_header()
         self.get_footer()
@@ -162,7 +170,11 @@ class ReportData:
 
         """
         # assign the executable from the report metadata
-        cmd = report.metadata["exe"]
+        try:
+            cmd = report.metadata["exe"]
+        except AttributeError:
+            # TODO: fix for parquet format
+            return "N/A"
         if not cmd:
             # if there is no executable
             # label as not available
@@ -202,9 +214,14 @@ class ReportData:
         else:
             app_name = os.path.basename(command.split()[0])
         # collect the date from the time stamp
-        date = datetime.date.fromtimestamp(self.report.metadata["job"]["start_time_sec"])
-        # the header is the application name and the log date
-        self.header = f"{app_name} ({date})"
+        try:
+            date = datetime.date.fromtimestamp(self.report.metadata["job"]["start_time_sec"])
+        except AttributeError:
+            # TODO: fix for parquet input
+            self.header = f"N/A N/A"
+        else:
+            # the header is the application name and the log date
+            self.header = f"{app_name} ({date})"
 
     def get_footer(self):
         """
@@ -218,21 +235,25 @@ class ReportData:
         Builds the metadata table (in html form) for the summary report.
         """
         # assign the metadata dictionary
-        job_data = self.report.metadata["job"]
-        # build a dictionary with the appropriate metadata
-        metadata_dict = {
-            "Job ID": job_data["jobid"],
-            "User ID": job_data["uid"],
-            "# Processes": job_data["nprocs"],
-            "Run time (s)": self.get_runtime(report=self.report),
-            "Start Time": datetime.datetime.fromtimestamp(job_data["start_time_sec"]),
-            "End Time": datetime.datetime.fromtimestamp(job_data["end_time_sec"]),
-            "Command Line": self.get_full_command(report=self.report),
-        }
-        # convert the dictionary into a dataframe
-        metadata_df = pd.DataFrame.from_dict(data=metadata_dict, orient="index")
-        # write out the table in html
-        self.metadata_table = metadata_df.to_html(header=False, border=0)
+        try:
+            job_data = self.report.metadata["job"]
+            # build a dictionary with the appropriate metadata
+            metadata_dict = {
+                "Job ID": job_data["jobid"],
+                "User ID": job_data["uid"],
+                "# Processes": job_data["nprocs"],
+                "Run time (s)": self.get_runtime(report=self.report),
+                "Start Time": datetime.datetime.fromtimestamp(job_data["start_time_sec"]),
+                "End Time": datetime.datetime.fromtimestamp(job_data["end_time_sec"]),
+                "Command Line": self.get_full_command(report=self.report),
+            }
+            # convert the dictionary into a dataframe
+            metadata_df = pd.DataFrame.from_dict(data=metadata_dict, orient="index")
+            # write out the table in html
+            self.metadata_table = metadata_df.to_html(header=False, border=0)
+        except AttributeError:
+            # TODO: fix for parquet format
+            self.metadata_table = ""
 
     def get_module_table(self):
         """
@@ -240,31 +261,35 @@ class ReportData:
         """
         # construct a dictionary containing the module names,
         # their respective data stored in KiB, and the log metadata
-        job_data = self.report.metadata["job"]
-        module_dict= {
-            "Log Filename": [os.path.basename(self.log_path), ""],
-            "Runtime Library Version": [job_data["metadata"]["lib_ver"], ""],
-            "Log Format Version": [job_data["log_ver"], ""],
-        }
+        try:
+            job_data = self.report.metadata["job"]
+            module_dict= {
+                "Log Filename": [os.path.basename(self.log_path), ""],
+                "Runtime Library Version": [job_data["metadata"]["lib_ver"], ""],
+                "Log Format Version": [job_data["log_ver"], ""],
+            }
 
-        for mod in self.report.modules:
-            # retrieve the module version and buffer sizes
-            mod_version = self.report.modules[mod]["ver"]
-            # retrieve the buffer size converted to KiB
-            mod_buf_size = self.report.modules[mod]["len"] / 1024
-            # create the key/value pairs for the dictionary
-            key = f"{mod} (ver={mod_version}) Module Data"
-            val = f"{mod_buf_size:.2f} KiB"
-            flag = ""
-            if self.report.modules[mod]["partial_flag"]:
-                msg = "Module data incomplete due to runtime memory or record count limits"
-                flag = f"<p style='color:red'>&#x26A0; {msg}</p>"
-            module_dict[key] = [val, flag]
+            for mod in self.report.modules:
+                # retrieve the module version and buffer sizes
+                mod_version = self.report.modules[mod]["ver"]
+                # retrieve the buffer size converted to KiB
+                mod_buf_size = self.report.modules[mod]["len"] / 1024
+                # create the key/value pairs for the dictionary
+                key = f"{mod} (ver={mod_version}) Module Data"
+                val = f"{mod_buf_size:.2f} KiB"
+                flag = ""
+                if self.report.modules[mod]["partial_flag"]:
+                    msg = "Module data incomplete due to runtime memory or record count limits"
+                    flag = f"<p style='color:red'>&#x26A0; {msg}</p>"
+                module_dict[key] = [val, flag]
 
-        # convert the module dictionary into a dataframe
-        module_df = pd.DataFrame.from_dict(data=module_dict, orient="index")
-        # write out the table in html
-        self.module_table = module_df.to_html(header=False, border=0, escape=False)
+            # convert the module dictionary into a dataframe
+            module_df = pd.DataFrame.from_dict(data=module_dict, orient="index")
+            # write out the table in html
+            self.module_table = module_df.to_html(header=False, border=0, escape=False)
+        except AttributeError:
+            # TODO: fix for parquet format
+            self.module_table = ""
 
     def get_stylesheet(self):
         """
@@ -332,6 +357,11 @@ class ReportData:
 
         """
         self.figures = []
+
+        if not hasattr(self.report, "modules"):
+            # TODO: fix for parquet format;
+            # only supports POSIX for now
+            self.report.modules = ["POSIX"]
 
         if not self.report.modules:
             # no data in report to summarize, print warning and that's it
@@ -441,8 +471,12 @@ class ReportData:
             "fig_description": io_cost_description,
             "fig_width": 350,
         }
-        io_cost_fig = ReportFigure(**io_cost_params)
-        self.figures.append(io_cost_fig)
+        try:
+            io_cost_fig = ReportFigure(**io_cost_params)
+            self.figures.append(io_cost_fig)
+        except AttributeError:
+            # TODO: fix for parquet format
+            pass
 
         ################################
         ## Per-Module Statistics
@@ -477,15 +511,19 @@ class ReportData:
                     "of the most frequently occurring access sizes can be found in "
                     "the <i>Common Access Sizes</i> table."
                 )
-                access_hist_fig = ReportFigure(
-                    section_title=sect_title,
-                    fig_title="Access Sizes",
-                    fig_func=plot_access_histogram,
-                    fig_args=dict(report=self.report, mod=mod),
-                    fig_description=access_hist_description,
-                    fig_width=350,
-                )
-                self.figures.append(access_hist_fig)
+                try:
+                    access_hist_fig = ReportFigure(
+                        section_title=sect_title,
+                        fig_title="Access Sizes",
+                        fig_func=plot_access_histogram,
+                        fig_args=dict(report=self.report, mod=mod),
+                        fig_description=access_hist_description,
+                        fig_width=350,
+                    )
+                    self.figures.append(access_hist_fig)
+                except AttributeError:
+                    # TODO: fix for parquet format
+                    pass
                 if mod == "MPI-IO":
                     com_acc_tbl_description = (
                         "NOTE: MPI-IO accesses are given in "
@@ -505,22 +543,30 @@ class ReportData:
 
             # add the operation counts figure
             if mod in opcounts_mods:
-                opcount_fig = ReportFigure(
-                    section_title=sect_title,
-                    fig_title="Operation Counts",
-                    fig_func=plot_opcounts,
-                    fig_args=dict(report=self.report, mod=mod),
-                    fig_description="Histogram of I/O operation frequency.",
-                    fig_width=350,
-                )
-                self.figures.append(opcount_fig)
+                try:
+                    opcount_fig = ReportFigure(
+                        section_title=sect_title,
+                        fig_title="Operation Counts",
+                        fig_func=plot_opcounts,
+                        fig_args=dict(report=self.report, mod=mod),
+                        fig_description="Histogram of I/O operation frequency.",
+                        fig_width=350,
+                    )
+                    self.figures.append(opcount_fig)
+                except AttributeError:
+                    # TODO: fix for parquet
+                    pass
 
             try:
                 if mod in ["POSIX", "MPI-IO", "STDIO"]:
                     # get the module's record dataframe and then pass to
                     # Darshan accumulator interface to generate a cumulative
                     # record and derived metrics
-                    rec_dict = self.report.records[mod].to_df()
+                    try:
+                        rec_dict = self.report.records[mod].to_df()
+                    except AttributeError:
+                        # TODO: fix for parquet format
+                        break
                     nprocs = self.report.metadata['job']['nprocs']
                     acc = accumulate_records(rec_dict, mod, nprocs)
 
@@ -574,18 +620,22 @@ class ReportData:
         #########################
         # Data Access by Category
         if not {"POSIX", "STDIO"}.isdisjoint(set(self.report.modules)):
-            data_access_by_cat_fig = ReportFigure(
-                section_title="Data Access by Category",
-                fig_title="",
-                fig_func=data_access_by_filesystem.plot_with_report,
-                fig_args=dict(report=self.report, num_cats=8),
-                fig_description="Summary of data access volume "
-                                "categorized by storage "
-                                "target (e.g., file system "
-                                "mount point) and sorted by volume.",
-                fig_width=500,
-            )
-            self.figures.append(data_access_by_cat_fig)
+            try:
+                data_access_by_cat_fig = ReportFigure(
+                    section_title="Data Access by Category",
+                    fig_title="",
+                    fig_func=data_access_by_filesystem.plot_with_report,
+                    fig_args=dict(report=self.report, num_cats=8),
+                    fig_description="Summary of data access volume "
+                                    "categorized by storage "
+                                    "target (e.g., file system "
+                                    "mount point) and sorted by volume.",
+                    fig_width=500,
+                )
+                self.figures.append(data_access_by_cat_fig)
+            except AttributeError:
+                # TODO: fix for parquet format
+                pass
 
 
 
