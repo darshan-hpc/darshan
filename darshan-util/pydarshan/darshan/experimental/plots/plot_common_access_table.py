@@ -149,7 +149,7 @@ def plot_common_access_table(report: darshan.DarshanReport, mod: str, n_rows: in
         mod_df = report.records[mod].to_df(attach=None)["counters"]
     except AttributeError:
         # TODO: fix for parquet format
-        mod_df = report.iloc[..., :71]
+        mod_df = report.iloc[..., :71] # type: ignore
 
     if mod == "MPI-IO":
         mod = "MPIIO"
