@@ -127,11 +127,13 @@ class ReportData:
     Parameters
     ----------
     log_path: path to a darshan log file.
+    enable_dxt_heatmap: flag indicating whether DXT heatmaps should be enabled
 
     """
-    def __init__(self, log_path: str):
+    def __init__(self, log_path: str, enable_dxt_heatmap: bool = False):
         # store the log path and use it to generate the report
         self.log_path = log_path
+        self.enable_dxt_heatmap = enable_dxt_heatmap
         # store the report
         self.report = darshan.DarshanReport(log_path, read_all=True)
         # create the header/footer
@@ -383,7 +385,7 @@ class ReportData:
                                 fig_description=hmap_description,
                             )
                             hmap_grid[f"HEATMAP_{possible_submodule}"] = heatmap_fig
-                    else:
+                    elif self.enable_dxt_heatmap:
                         heatmap_fig = ReportFigure(
                             section_title="I/O Summary",
                             fig_title=f"Heat Map: {mod}",
@@ -621,7 +623,17 @@ def setup_parser(parser: argparse.ArgumentParser):
         type=str,
         help="Specify path to darshan log.",
     )
-    parser.add_argument("--output", type=str, help="Specify output filename.")
+    parser.add_argument(
+        "--output",
+        type=str,
+        help="Specify output filename."
+    )
+    # DXT-based heatmap generation can be expensive, so it is opt-in for now
+    parser.add_argument(
+        "--enable_dxt_heatmap",
+        action="store_true",
+        help="Enable DXT-based versions of I/O activity heatmaps."
+    )
 
 
 def main(args: Union[Any, None] = None):
@@ -639,6 +651,7 @@ def main(args: Union[Any, None] = None):
         args = parser.parse_args()
 
     log_path = args.log_path
+    enable_dxt_heatmap = args.enable_dxt_heatmap
 
     if args.output is None:
         # if no output is provided, use the log file
@@ -649,7 +662,10 @@ def main(args: Union[Any, None] = None):
         report_filename = args.output
 
     # collect the report data to feed into the template
-    report_data = ReportData(log_path=log_path)
+    report_data = ReportData(
+        log_path=log_path,
+        enable_dxt_heatmap=enable_dxt_heatmap
+    )
 
     with importlib_resources.path(darshan.cli, "base.html") as base_path:
         # load a template object using the base template
