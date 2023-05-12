@@ -135,7 +135,14 @@ class ReportData:
         self.log_path = log_path
         self.enable_dxt_heatmap = enable_dxt_heatmap
         # store the report
-        self.report = darshan.DarshanReport(log_path, read_all=True)
+        self.report = darshan.DarshanReport(log_path, read_all=False)
+        # read only generic module data and heatmap data by default
+        self.report.read_all_generic_records()
+        if "HEATMAP" in self.report.data['modules']:
+            self.report.read_all_heatmap_records()
+        # if DXT heatmaps requested, additionally read-in DXT data
+        if self.enable_dxt_heatmap:
+            self.report.read_all_dxt_records()
         # create the header/footer
         self.get_header()
         self.get_footer()
