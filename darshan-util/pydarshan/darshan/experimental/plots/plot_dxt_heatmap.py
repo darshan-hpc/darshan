@@ -45,8 +45,8 @@ def determine_hmap_runtime(report: darshan.DarshanReport) -> Tuple[float, float]
     runtime = report.metadata["job"]["run_time"]
     # leverage higher resolution DXT timing
     # data if available
-    if ("DXT_POSIX" in report.modules or
-        "DXT_MPIIO" in report.modules):
+    if ("DXT_POSIX" in report.records or
+        "DXT_MPIIO" in report.records):
         tmax = 0.0
         for mod in report.modules:
             if "DXT" in mod:
