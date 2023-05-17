@@ -2,16 +2,16 @@
 PyDarshan Documentation
 =======================
 
-Python utilities to interact with Darshan log records of HPC applications.
-PyDarshan requires darshan-utils version 3.3 or higher to be installed.
+Python utilities to interact with `Darshan <https://www.mcs.anl.gov/research/projects/darshan/>`__
+log records of HPC applications.
 
 Features
 --------
 
-* Darshan Report Object for common interactive analysis tasks
-* Low-level CFFI bindings for efficient access to darshan log files
-* Plots typically found in the darshan reports (matplotlib)
-* Bundled with darshan-utils while allowing site's darshan-utils to take precedence
+* Job summary tool for generating HTML reports of I/O activity in a Darshan log
+* Darshan Report interface for common interactive analysis tasks
+* Low-level CFFI bindings for efficient access to Darshan log files
+* Generic plotting capabilities (matplotlib) for Darshan log data
 
 
 Usage
@@ -19,26 +19,7 @@ Usage
 
 For examples and Jupyter notebooks to get started with PyDarshan make sure
 to check out the `examples` subdirectory.
-
-A brief examples showing some of the basic functionality is the following::
-
-    import darshan
-
-    # Open darshan log
-    with darshan.DarshanReport('example.darshan', read_all=False) as report:
-
-        # Load some report data
-        report.mod_read_all_records('POSIX')
-        report.mod_read_all_records('MPI-IO')
-        # or fetch all
-        report.read_all_generic_records()
-
-        # ...
-        # Generate summaries for currently loaded data
-        # Note: aggregations are still experimental and have to be activated:
-        darshan.enable_experimental()
-        report.summarize()
-
+Brief usage examples are also provided in :ref:`usage`.
 
 
 Installation
@@ -46,9 +27,9 @@ Installation
 
 To install in most cases the following will work::
 
-    pip install --user darshan
+    pip install darshan
 
-For alternative installation instructions and installation from source refer to <docs/install.rst>
+For more detailed installation instructions, refer to :ref:`installation`.
 
 
 Testing
@@ -75,10 +56,9 @@ Conformance to PEPs can be tested using flake8 via::
 Documentation
 -------------
 
-Documentation for the python bindings is generated seperatedly from the 
-darshan-utils C library in the interest of using Sphinx. After installing the
-developement requirements using `pip install -r requirements_dev.txt` the
-documentation can be build using make as follows::
+Documentation for the Python bindings is generated seperately from the
+darshan-util C library in the interest of using Sphinx. After installing the
+developement requirements the documentation can be built using make as follows::
 
     pip install -r requirements_dev.txt
     make docs
