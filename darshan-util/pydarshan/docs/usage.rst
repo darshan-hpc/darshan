@@ -11,7 +11,7 @@ As a starting point, users can use PyDarshan to generate detailed
 summary HTML reports of I/O activity for a given Darshan log.
 Usage of this job summary tool is described below. ::
 
-    usage: darshan <command> summary [-h] [--output OUTPUT] [--enable_dxt_heatmap] log_path
+    usage: darshan summary [-h] [--output OUTPUT] [--enable_dxt_heatmap] log_path
 
     Generates a Darshan Summary Report
 

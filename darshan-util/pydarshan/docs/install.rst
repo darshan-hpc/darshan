@@ -17,8 +17,9 @@ releases directly from PyPI:
 
     $ pip install darshan
 
-PyDarshan releases on PyPI include manylinux and macOS wheels that simplify
+PyDarshan releases on PyPI include manylinux and macOS binary wheels that simplify
 distribution of PyDarshan and its dependencies for most users.
+Note that these binary wheels are currently only available for x86 architectures.
 
 .. _pip: https://pip.pypa.io
 
@@ -52,14 +53,22 @@ Users can then use ``pip`` to install the PyDarshan package from source.
     $ pip install .
 
 When building PyDarshan from sources, users need to make a copy of the darshan-util shared
-library available, typically using `LD_LIBRARY_PATH`.
+library available.
+On Linux systems, this is typically accomplished using `LD_LIBRARY_PATH`.
 
 .. code-block:: console
 
     $ export LD_LIBRARY_PATH=/path/to/darshan/install/lib:$LD_LIBRARY_PATH
 
+On macOS systems, `DYLD_FALLBACK_LIBRARY_PATH` should be used instead.
+
+.. code-block:: console
+
+    $ export DYLD_FALLBACK_LIBRARY_PATH=/path/to/darshan/install/lib:$DYLD_FALLBACK_LIBRARY_PATH
+
 Refer to the `darshan-util docs`_ for details on how to install the shared library.
-PyPI- and Spack-based installs typically do not have to worry about this step.
+PyPI- and Spack-based installs typically do not have to worry about this step on platforms
+for which we provide binary wheels.
 Note that PyDarshan requires a compatible darshan-util version (e.g., 3.4.2.x versions of
 PyDarshan require a darshan-util version of 3.4.2).
 
