@@ -15,7 +15,7 @@ from mako.template import Template
 import darshan
 import darshan.cli
 from darshan.backend.cffi_backend import accumulate_records
-from darshan.lib.accum import log_file_count_summary_table, module_overview_table
+from darshan.lib.accum import log_file_count_summary_table, log_module_overview_table
 from darshan.experimental.plots import (
     plot_dxt_heatmap,
     plot_io_cost,
@@ -511,7 +511,7 @@ class ReportData:
                     mod_overview_fig = ReportFigure(
                             section_title=sect_title,
                             fig_title=f"Overview",
-                            fig_func=module_overview_table,
+                            fig_func=log_module_overview_table,
                             fig_args=dict(derived_metrics=acc.derived_metrics,
                                           mod_name=mod),
                             fig_width=805,
