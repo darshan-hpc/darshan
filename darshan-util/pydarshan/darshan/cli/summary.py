@@ -540,8 +540,7 @@ class ReportData:
                                             "consecutive (offset immediately following previous offset) "
                                             "file operations. Note that, by definition, the sequential "
                                             "operations are inclusive of consecutive operations.",
-                            fig_width=350,
-                            fig_class="op_pattern"
+                            fig_width=350
                         )
                         self.figures.append(access_pattern_fig)
 
