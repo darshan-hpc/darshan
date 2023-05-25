@@ -111,7 +111,7 @@ def module_overview_table(derived_metrics,
     total_cat = derived_metrics.category_counters[0]
 
     total_files = total_cat.count
-    indices = ["files accessed", "bytes read", "bytes written", "performance estimate"]
+    indices = ["files accessed", "bytes read", "bytes written", "I/O performance estimate"]
     mod_overview.append(f"{total_files}")
     total_bytes_read = total_cat.total_read_volume_bytes
     total_bytes_read_str = humanize.naturalsize(total_bytes_read, binary=True, format="%.2f")
