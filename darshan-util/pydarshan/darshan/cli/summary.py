@@ -47,7 +47,7 @@ class ReportFigure:
 
     fig_width : the width of the figure in pixels.
 
-    fig_class : figure class name for use in style sheet templates.
+    fig_grid_area : figure name corresponding to grid-area definitions specified in the CSS.
 
     """
     def __init__(
@@ -58,7 +58,7 @@ class ReportFigure:
         fig_args: dict,
         fig_description: str = "",
         fig_width: int = 500,
-        fig_class: str = "",
+        fig_grid_area: str = "",
         # when there is no HTML data generated
         # for the figure (i.e., no image/plot),
         # we have the option of changing the caption
@@ -73,7 +73,12 @@ class ReportFigure:
         self.fig_args = fig_args
         self.fig_description = fig_description
         self.fig_width = fig_width
-        self.fig_class = fig_class
+        # grid areas should correspond to defintions of a grid-area
+        # in the CSS code (style.css)
+        # use of grid areas is optional -- if not specified,
+        # figures are placed in insertion order into first available
+        # open grid spaces in the default grid
+        self.fig_grid_area = fig_grid_area
         # temporary handling for DXT disabled cases
         # so special error message can be passed
         # in place of an encoded image
@@ -516,7 +521,7 @@ class ReportData:
                                           mod_name=mod),
                             fig_width=805,
                             fig_description="",
-                            fig_class="overview")
+                            fig_grid_area="overview")
                     self.figures.append(mod_overview_fig)
 
                     file_count_summary_fig = ReportFigure(
@@ -527,7 +532,7 @@ class ReportData:
                                           mod_name=mod),
                             fig_width=805,
                             fig_description="",
-                            fig_class="file_tbl")
+                            fig_grid_area="file_tbl")
                     self.figures.append(file_count_summary_fig)
 
                     if mod == "POSIX":
@@ -568,7 +573,7 @@ class ReportData:
                     fig_args=dict(report=self.report, mod=mod),
                     fig_description=access_hist_description,
                     fig_width=350,
-                    fig_class="acc_hist"
+                    fig_grid_area="acc_hist"
                 )
                 self.figures.append(access_hist_fig)
                 if mod == "MPI-IO":
@@ -585,7 +590,7 @@ class ReportData:
                     fig_args=dict(report=self.report, mod=mod),
                     fig_description=com_acc_tbl_description,
                     fig_width=350,
-                    fig_class="common_acc_tbl"
+                    fig_grid_area="common_acc_tbl"
                 )
                 self.figures.append(com_acc_tbl_fig)
 
@@ -598,7 +603,7 @@ class ReportData:
                     fig_args=dict(report=self.report, mod=mod),
                     fig_description="Histogram of I/O operation frequency.",
                     fig_width=350,
-                    fig_class="op_counts"
+                    fig_grid_area="op_counts"
                 )
                 self.figures.append(opcount_fig)
 

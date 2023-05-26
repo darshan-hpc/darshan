@@ -41,10 +41,10 @@
           % endif
 
           % for fig in report_data.sections[sect_title]:
-            % if not fig.fig_class:
+            % if not fig.fig_grid_area:
                 <div>
             % else:
-                <div class="${fig.fig_class}">
+                <div class="${fig.fig_grid_area}">
             % endif
             <h3>${fig.fig_title}</h3>
             <figure style="width: ${fig.fig_width}px;">
