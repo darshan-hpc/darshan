@@ -70,7 +70,7 @@ Refer to the `darshan-util docs`_ for details on how to install the shared libra
 PyPI- and Spack-based installs typically do not have to worry about this step on platforms
 for which we provide binary wheels.
 Note that PyDarshan requires a compatible darshan-util version (e.g., 3.4.2.x versions of
-PyDarshan require a darshan-util version of 3.4.2).
+PyDarshan requires a darshan-util version of 3.4.2).
 
 .. _Darshan Github repo: https://github.com/darshan-hpc/darshan.git
 .. _darshan-util docs: https://www.mcs.anl.gov/research/projects/darshan/docs/darshan-util.html
