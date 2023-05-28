@@ -64,7 +64,7 @@ DataFrame. ::
 Darshan CFFI backend interface
 ------------------------------
 
-Generally, it is more convienient to access a Darshan log from Python using the `Report`
+Generally, it is more convenient to access a Darshan log from Python using the `Report`
 interface, which also caches already fetched information such as log records on a
 per-module basis.
 If this seems like an unwanted overhead, the CFFI interface can be used directly to gain
