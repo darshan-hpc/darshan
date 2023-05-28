@@ -40,7 +40,7 @@ test suite use::
 
     make test
 
-Or to test against different version of Python using Tox::
+Or to test against a different version of Python using Tox::
 
     make test-all
 
@@ -56,9 +56,9 @@ Conformance to PEPs can be tested using flake8 via::
 Documentation
 -------------
 
-Documentation for the Python bindings is generated seperately from the
+Documentation for the Python bindings is generated separately from the
 darshan-util C library in the interest of using Sphinx. After installing the
-developement requirements the documentation can be built using make as follows::
+development requirements the documentation can be built using make as follows::
 
     pip install -r requirements_dev.txt
     make docs
@@ -69,17 +69,17 @@ File List
 * darshan::
     core darshan python module code
 * devel::
-    scripts for building python wheel
+    scripts for building Python wheel
 * docs::
     markdown documentation used by sphinx to auto-generate HTML RTD style doc
 * examples::
     Jupyter notebooks showing PyDarshan usage with log files
 * tests::
-    PyDarshan specific test cases
+    PyDarshan-specific test cases
 * requirements.txt::
-    pip requirement file for minimum set of depednencies
+    pip requirement file for minimum set of dependencies
 * requirements_dev.txt::
-    pip requirement file for depednencies needed to run development tools
+    pip requirement file for dependencies needed to run development tools
 * setup.py::
     python file for building/generating PyDarshan package
 * setup.cfg::
