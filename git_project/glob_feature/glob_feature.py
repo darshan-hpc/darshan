@@ -30,16 +30,12 @@ def make_path_grouper():
 
 def regex_df_condenser(df, paths):
     path_grouper_func = make_path_grouper()
+
     df["filename_glob"] = df["filename_glob"].apply(path_grouper_func)
-    print("Paths after grouping:")
-    print(df["filename_glob"])
 
     df = df.groupby("filename_glob").size().reset_index(name="glob_count")
 
     df = df.sort_values(by="glob_count", ascending=False)
-
-    print("Paths after grouping and counting:")
-    print(df)
 
 
     def find_common_prefix(paths):
@@ -61,12 +57,8 @@ def regex_df_condenser(df, paths):
         common_path = find_common_prefix(group_df["filename_glob"])
         df.loc[df["filename_glob"] == group, "filename_glob"] = common_path
 
-    print("Paths after modifying filename_glob:")
-    print(df)
 
-    df["regex"] = df.apply(lambda row: re.escape(row["filename_glob"]) + r".*", axis=1)
-    print("Paths after applying regex:")
-    print(df)
+    df["filename_glob"] = df.apply(lambda row: (row["filename_glob"]) + r".*", axis=1)
 
     return df
 
@@ -92,10 +84,10 @@ def main(log_path, output_path):
     html = style.to_html()
 
     # can change name of the output html report here
-    with open("name_record_glob.html", "w") as html_file:
+    with open("name_record_glob_hd5f.html", "w") as html_file:
         html_file.write(html)
 
-# go back to hdf5_diagonal dxt
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--log-path', type=str, help="Path to the log file")
