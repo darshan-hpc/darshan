@@ -18,8 +18,8 @@ The master script must be executed with three arguments:
      standard workstation)
    - cray-module-alcf (for static/dynamic instrumentation using a Darshan
      Cray module on Cray systems @ the ALCF only)
-   - cray-module-nersc (for static/dynamic instrumentation using a Darshan
-     Cray module on Cray systems @ NERSC only)
+   - cray-module-nersc-perlmutter (for instrumentation using a Darshan
+     Cray module on the Perlmutter system @ NERSC only)
 
 The platform type should map to a subdirectory containing scripts
 that describe how to perform platform-specific tasks (like loading or
