@@ -16,10 +16,10 @@
 # variables (as in a dynamically linked environment), or generate mpicc
 # wrappers (as in a statically linked environment).
 
-# Notes specific to this platform (cray-module-olcf-crusher)
+# Notes specific to this platform (cray-module-olcf-fontier)
 ########################
-# Use Cray's default compiler wrappers and LD_PRELOAD the darshan library
-# associated with this install
+# Use Cray's default compiler wrappers and load the module associated with
+# this darshan install
 #
 # RUNJOB is responsible for submitting a Slurm job, waiting for its
 # completion, and checking its return status
