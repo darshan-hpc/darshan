@@ -16,7 +16,7 @@
 # variables (as in a dynamically linked environment), or generate mpicc
 # wrappers (as in a statically linked environment).
 
-# Notes specific to this platform (cray-module-alcf)
+# Notes specific to this platform (cray-module-alcf-theta)
 ########################
 # Use Cray's default compiler wrappers and load the module associated with
 # this darshan install
