@@ -15,7 +15,7 @@ from mako.template import Template
 import darshan
 import darshan.cli
 from darshan.backend.cffi_backend import accumulate_records
-from darshan.lib.accum import log_get_bytes_bandwidth, log_file_count_summary_table
+from darshan.lib.accum import log_file_count_summary_table, log_module_overview_table
 from darshan.experimental.plots import (
     plot_dxt_heatmap,
     plot_io_cost,
@@ -47,6 +47,8 @@ class ReportFigure:
 
     fig_width : the width of the figure in pixels.
 
+    fig_grid_area : figure name corresponding to grid-area definitions specified in the CSS.
+
     """
     def __init__(
         self,
@@ -56,6 +58,7 @@ class ReportFigure:
         fig_args: dict,
         fig_description: str = "",
         fig_width: int = 500,
+        fig_grid_area: str = "",
         # when there is no HTML data generated
         # for the figure (i.e., no image/plot),
         # we have the option of changing the caption
@@ -70,6 +73,12 @@ class ReportFigure:
         self.fig_args = fig_args
         self.fig_description = fig_description
         self.fig_width = fig_width
+        # grid areas should correspond to defintions of a grid-area
+        # in the CSS code (style.css)
+        # use of grid areas is optional -- if not specified,
+        # figures are placed in insertion order into first available
+        # open grid spaces in the default grid
+        self.fig_grid_area = fig_grid_area
         # temporary handling for DXT disabled cases
         # so special error message can be passed
         # in place of an encoded image
@@ -496,6 +505,61 @@ class ReportData:
             else:
                 sect_title = f"Per-Module Statistics: {mod}"
 
+            try:
+                if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                    # get the module's record dataframe and then pass to
+                    # Darshan accumulator interface to generate a cumulative
+                    # record and derived metrics
+                    rec_dict = self.report.records[mod].to_df()
+                    acc = accumulate_records(rec_dict, mod, self.report.metadata['job']['nprocs'])
+
+                    mod_overview_fig = ReportFigure(
+                            section_title=sect_title,
+                            fig_title=f"Overview",
+                            fig_func=log_module_overview_table,
+                            fig_args=dict(derived_metrics=acc.derived_metrics,
+                                          mod_name=mod),
+                            fig_width=805,
+                            fig_description="",
+                            fig_grid_area="overview")
+                    self.figures.append(mod_overview_fig)
+
+                    file_count_summary_fig = ReportFigure(
+                            section_title=sect_title,
+                            fig_title=f"File Count Summary <br> (estimated by {mod} I/O access offsets)",
+                            fig_func=log_file_count_summary_table,
+                            fig_args=dict(derived_metrics=acc.derived_metrics,
+                                          mod_name=mod),
+                            fig_width=805,
+                            fig_description="",
+                            fig_grid_area="file_tbl")
+                    self.figures.append(file_count_summary_fig)
+
+                    if mod == "POSIX":
+                        access_pattern_fig = ReportFigure(
+                            section_title=sect_title,
+                            fig_title="Access Pattern",
+                            fig_func=plot_posix_access_pattern,
+                            fig_args=dict(record=acc.summary_record),
+                            fig_description="Sequential (offset greater than previous offset) vs. "
+                                            "consecutive (offset immediately following previous offset) "
+                                            "file operations. Note that, by definition, the sequential "
+                                            "operations are inclusive of consecutive operations.",
+                            fig_width=350
+                        )
+                        self.figures.append(access_pattern_fig)
+
+            except (RuntimeError, KeyError):
+                # the module probably doesn't support derived metrics
+                # calculations, but the C code doesn't distinguish other
+                # types of errors
+
+                # the KeyError appears to be needed for a subset of logs
+                # for which _structdefs lacks APMPI or APXC entries;
+                # for example `e3sm_io_heatmap_only.darshan` in logs
+                # repo
+                pass
+
             if mod in ["POSIX", "MPI-IO", "H5D", "PNETCDF_VAR"]:
                 access_hist_description = (
                     "Histogram of read and write access sizes. The specific values "
@@ -509,6 +573,7 @@ class ReportData:
                     fig_args=dict(report=self.report, mod=mod),
                     fig_description=access_hist_description,
                     fig_width=350,
+                    fig_grid_area="acc_hist"
                 )
                 self.figures.append(access_hist_fig)
                 if mod == "MPI-IO":
@@ -525,6 +590,7 @@ class ReportData:
                     fig_args=dict(report=self.report, mod=mod),
                     fig_description=com_acc_tbl_description,
                     fig_width=350,
+                    fig_grid_area="common_acc_tbl"
                 )
                 self.figures.append(com_acc_tbl_fig)
 
@@ -537,63 +603,9 @@ class ReportData:
                     fig_args=dict(report=self.report, mod=mod),
                     fig_description="Histogram of I/O operation frequency.",
                     fig_width=350,
+                    fig_grid_area="op_counts"
                 )
                 self.figures.append(opcount_fig)
-
-            try:
-                if mod in ["POSIX", "MPI-IO", "STDIO"]:
-                    # get the module's record dataframe and then pass to
-                    # Darshan accumulator interface to generate a cumulative
-                    # record and derived metrics
-                    rec_dict = self.report.records[mod].to_df()
-                    nprocs = self.report.metadata['job']['nprocs']
-                    acc = accumulate_records(rec_dict, mod, nprocs)
-
-                    # this is really just some text
-                    # so using ReportFigure feels awkward...
-                    bandwidth_fig = ReportFigure(
-                            section_title=sect_title,
-                            fig_title="",
-                            fig_func=None,
-                            fig_args=None,
-                            fig_description=log_get_bytes_bandwidth(derived_metrics=acc.derived_metrics,
-                                                                    mod_name=mod),
-                            text_only_color="blue")
-                    self.figures.append(bandwidth_fig)
-
-                    if mod == "POSIX":
-                        access_pattern_fig = ReportFigure(
-                            section_title=sect_title,
-                            fig_title="Access Pattern",
-                            fig_func=plot_posix_access_pattern,
-                            fig_args=dict(record=acc.summary_record),
-                            fig_description="Sequential (offset greater than previous offset) vs. "
-                                            "consecutive (offset immediately following previous offset) "
-                                            "file operations. Note that, by definition, the sequential "
-                                            "operations are inclusive of consecutive operations.",
-                            fig_width=350,
-                        )
-                        self.figures.append(access_pattern_fig)
-
-                    file_count_summary_fig = ReportFigure(
-                            section_title=sect_title,
-                            fig_title=f"File Count Summary <br> (estimated by {mod} I/O access offsets)",
-                            fig_func=log_file_count_summary_table,
-                            fig_args=dict(derived_metrics=acc.derived_metrics,
-                                          mod_name=mod),
-                            fig_width=805,
-                            fig_description="")
-                    self.figures.append(file_count_summary_fig)
-            except (RuntimeError, KeyError):
-                # the module probably doesn't support derived metrics
-                # calculations, but the C code doesn't distinguish other
-                # types of errors
-
-                # the KeyError appears to be needed for a subset of logs
-                # for which _structdefs lacks APMPI or APXC entries;
-                # for example `e3sm_io_heatmap_only.darshan` in logs
-                # repo
-                pass
 
 
         #########################
@@ -622,12 +634,12 @@ class ReportData:
         self.sections = {}
         for fig in self.figures:
             # if a section title is not already in sections, add
-            # the section title and a corresponding empty dictionary
+            # the section title and a corresponding empty list
             # to store its figures
             if fig.section_title not in self.sections:
-                self.sections[fig.section_title] = {}
+                self.sections[fig.section_title] = []
             # add the image to its corresponding section
-            self.sections[fig.section_title][fig.fig_title] = fig
+            self.sections[fig.section_title].append(fig)
 
 
 def setup_parser(parser: argparse.ArgumentParser):

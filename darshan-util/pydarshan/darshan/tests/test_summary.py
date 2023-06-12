@@ -97,13 +97,13 @@ def test_main_with_args(tmpdir, argv):
 
 @pytest.mark.parametrize(
     "argv, expected_img_count, expected_table_count", [
-        (["noposix.darshan"], 3, 3),
-        (["noposix.darshan", "--output=test.html"], 3, 3),
-        (["sample-dxt-simple.darshan"], 7, 6),
-        (["sample-dxt-simple.darshan", "--output=test.html"], 7, 6),
-        (["sample-dxt-simple.darshan", "--enable_dxt_heatmap"], 9, 6),
-        (["nonmpi_dxt_anonymized.darshan"], 6, 5),
-        (["ior_hdf5_example.darshan"], 10, 8),
+        (["noposix.darshan"], 3, 4),
+        (["noposix.darshan", "--output=test.html"], 3, 4),
+        (["sample-dxt-simple.darshan"], 7, 8),
+        (["sample-dxt-simple.darshan", "--output=test.html"], 7, 8),
+        (["sample-dxt-simple.darshan", "--enable_dxt_heatmap"], 9, 8),
+        (["nonmpi_dxt_anonymized.darshan"], 6, 7),
+        (["ior_hdf5_example.darshan"], 10, 11),
         ([None], 0, 0),
     ]
 )
