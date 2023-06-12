@@ -19,7 +19,6 @@ Usage
 
 For examples and Jupyter notebooks to get started with PyDarshan make sure
 to check out the `examples` subdirectory.
-Brief usage examples are also provided in :ref:`usage`.
 
 
 Installation
@@ -28,8 +27,6 @@ Installation
 To install in most cases the following will work::
 
     pip install darshan
-
-For more detailed installation instructions, refer to :ref:`installation`.
 
 
 Testing
