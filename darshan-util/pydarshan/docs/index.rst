@@ -1,5 +1,8 @@
 .. note::
-    This documenation is only for the Darshan Python bindings, for information on the runtime and utility components refer to `Darshan Runtime and Utilities Documentation <https://www.mcs.anl.gov/research/projects/darshan/>`__.
+    This documentation is only for the PyDarshan log analysis framework.
+    Refer to the `darshan-runtime <http://www.mcs.anl.gov/research/projects/darshan/docs/darshan-runtime.html>`__
+    and `darshan-util <http://www.mcs.anl.gov/research/projects/darshan/docs/darshan-util.html>`__
+    documentation for more information on how to install and use these components.
 
 
 

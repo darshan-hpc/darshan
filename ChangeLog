@@ -2,6 +2,17 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.4.3
+=============
+* Added new configure option '--with-username-env' to allow
+  specification of an env variable to use to find the username
+  associated with a job (e.g., SLURM_JOB_USER)
+* Fixed bug causing crashes for applications that call fork()
+  and use Darshan app exclusions settings
+* Fixed bug related to not closing open HDF5 file ID when
+  instrumenting H5Fflush() calls (reported/fixed by Zanhua
+  Huang)
+
 Darshan-3.4.2
 =============
 * Fixed segfault when defining scalar variables in PnetCDF module
