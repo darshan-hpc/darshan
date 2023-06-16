@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import darshan
 from darshan.experimental.plots import plot_opcounts, plot_access_histogram
 from darshan.log_utils import get_log_path
+from darshan.backend.cffi_backend import accumulate_records
 
 darshan.enable_experimental()
 
@@ -147,8 +148,9 @@ def test_xticks_and_labels(log_path, func, expected_xticklabels, mod):
     # labels
     log_path = get_log_path(log_path)
     with darshan.DarshanReport(log_path) as report:
-
-        fig = func(report=report, mod=mod)
+        recs = report.records[mod].to_df()
+        acc = accumulate_records(recs, mod, report.metadata['job']['nprocs'])
+        fig = func(record=acc.summary_record, mod=mod)
 
     # retrieve the x-axis tick mark locations and labels
     # from the output figure object
