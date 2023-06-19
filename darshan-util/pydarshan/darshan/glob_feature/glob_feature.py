@@ -32,13 +32,19 @@ def generalize_filename_glob(df):
 
     print("grouped paths list is", grouped_paths)
 
+
     new_paths = []
     for group in grouped_paths:
         if len(group) > 1:
-            common_prefix = os.path.commonprefix(group)
-            pattern = r"({}.*)\d(.*)".format(common_prefix)
-            modified_path = re.sub(pattern, r"\1\\d\2", group[0])
-            new_paths.append((modified_path, len(group)))
+            merged_path = ""
+            max_length = max(len(path) for path in group)
+            for i in range(max_length):
+                chars = set(path[i] if len(path) > i else "" for path in group)
+                if len(chars) == 1:
+                    merged_path += chars.pop()
+                else:
+                    merged_path += "[.*]"
+            new_paths.append((merged_path, len(group)))
         else:
             new_paths.append((group[0], 1))
 
@@ -59,23 +65,23 @@ def main(log_path, output_path):
 
     df = df[df["filename_glob"].str.contains(r"/.*")]
 
-    df.reset_index(drop=True, inplace=True)  # Reset the index
-
-
     new_paths = generalize_filename_glob(df)
+
     df = pd.DataFrame(new_paths, columns=["filename_glob", "glob_count"])
-    df = df.reset_index(drop=True) 
+    df = df.reset_index(drop=True)
     df = df.sort_values(by="glob_count", ascending=False)
 
-    style = df.style.background_gradient(axis=0, cmap="viridis")
+    style = df.style.background_gradient(axis=0, cmap="viridis", gmap=df["glob_count"])
+    style = style.set_properties(subset=["glob_count"], **{"text-align": "right"})
+    style.hide(axis="index")
     style.set_table_styles([
         {"selector": "", "props": [("border", "1px solid grey")]},
         {"selector": "tbody td", "props": [("border", "1px solid grey")]},
-        {"selector": "th", "props": [("border", "1px solid grey")]}
-    ])
+        {"selector": "th", "props": [("border", "1px solid grey")]},
 
-    style = style.hide_index()
-    html = style.render()
+     ])
+
+    html = style.to_html()
 
     with open(output_path, "w") as html_file:
         html_file.write(html)
