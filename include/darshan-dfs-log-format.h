@@ -3,8 +3,8 @@
  *      See COPYRIGHT in top-level directory.
  */
 
-#ifndef __DARSHAN_DAOS_LOG_FORMAT_H
-#define __DARSHAN_DAOS_LOG_FORMAT_H
+#ifndef __DARSHAN_DFS_LOG_FORMAT_H
+#define __DARSHAN_DFS_LOG_FORMAT_H
 
 /* current DFS log format version */
 #define DARSHAN_DFS_VER 1
