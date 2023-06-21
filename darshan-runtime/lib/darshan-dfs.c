@@ -57,7 +57,7 @@ DARSHAN_FORWARD_DECL(dfs_osetattr, int, (dfs_t *dfs, dfs_obj_t *obj, struct stat
 
 /* The dfs_file_record_ref structure maintains necessary runtime metadata
  * for the DFS file record (darshan_dfs_file structure, defined in
- * darshan-daos-log-format.h) pointed to by 'file_rec'. This metadata
+ * darshan-dfs-log-format.h) pointed to by 'file_rec'. This metadata
  * assists with the instrumenting of specific statistics in the file record.
  *
  * RATIONALE: the DFS module needs to track some stateful, volatile
@@ -127,29 +127,29 @@ static void dfs_cleanup(
     void);
 
 static struct dfs_runtime *dfs_runtime = NULL;
-static pthread_mutex_t daos_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static pthread_mutex_t dfs_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int dfs_runtime_init_attempted = 0;
 static int my_rank = -1;
 
-#define DAOS_LOCK() pthread_mutex_lock(&daos_runtime_mutex)
-#define DAOS_UNLOCK() pthread_mutex_unlock(&daos_runtime_mutex)
+#define DFS_LOCK() pthread_mutex_lock(&dfs_runtime_mutex)
+#define DFS_UNLOCK() pthread_mutex_unlock(&dfs_runtime_mutex)
 
 #define DAOS_WTIME() \
     __darshan_disabled ? 0 : darshan_core_wtime();
 
 #define DFS_PRE_RECORD() do { \
     if(!ret && !__darshan_disabled) { \
-        DAOS_LOCK(); \
+        DFS_LOCK(); \
         if(!dfs_runtime && !dfs_runtime_init_attempted) \
             dfs_runtime_initialize(); \
         if(dfs_runtime && !dfs_runtime->frozen) break; \
-        DAOS_UNLOCK(); \
+        DFS_UNLOCK(); \
     } \
     return(ret); \
 } while(0)
 
 #define DFS_POST_RECORD() do { \
-    DAOS_UNLOCK(); \
+    DFS_UNLOCK(); \
 } while(0)
 
 #define DFS_STORE_MOUNT_INFO(__poh, __coh, __dfs_p) do { \
@@ -1188,7 +1188,7 @@ static void dfs_mpi_redux(
     MPI_Op red_op;
     int i;
 
-    DAOS_LOCK();
+    DFS_LOCK();
     assert(dfs_runtime);
 
     dfs_rec_count = dfs_runtime->file_rec_count;
@@ -1243,7 +1243,7 @@ static void dfs_mpi_redux(
         red_recv_buf = malloc(shared_rec_count * sizeof(struct darshan_dfs_file));
         if(!red_recv_buf)
         {
-            DAOS_UNLOCK();
+            DFS_UNLOCK();
             return;
         }
     }
@@ -1278,7 +1278,7 @@ static void dfs_mpi_redux(
     PMPI_Type_free(&red_type);
     PMPI_Op_free(&red_op);
 
-    DAOS_UNLOCK();
+    DFS_UNLOCK();
     return;
 }
 #endif
@@ -1288,7 +1288,7 @@ static void dfs_output(
 {
     int dfs_rec_count;
 
-    DAOS_LOCK();
+    DFS_LOCK();
     assert(dfs_runtime);
 
     /* just pass back our updated total buffer size -- no need to update buffer */
@@ -1297,7 +1297,7 @@ static void dfs_output(
 
     dfs_runtime->frozen = 1;
 
-    DAOS_UNLOCK();
+    DFS_UNLOCK();
     return;
 }
 
@@ -1305,7 +1305,7 @@ static void dfs_cleanup()
 {
     struct dfs_mount_info *mnt_info, *tmp;
 
-    DAOS_LOCK();
+    DFS_LOCK();
     assert(dfs_runtime);
 
     /* cleanup internal structures used for instrumenting */
@@ -1323,7 +1323,7 @@ static void dfs_cleanup()
     free(dfs_runtime);
     dfs_runtime = NULL;
 
-    DAOS_UNLOCK();
+    DFS_UNLOCK();
     return;
 }
 
