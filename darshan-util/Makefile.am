@@ -22,7 +22,7 @@ libdarshan_util_la_SOURCES = darshan-null-logutils.c \
                              darshan-dxt-logutils.c \
                              darshan-heatmap-logutils.c \
                              darshan-mdhim-logutils.c \
-			     darshan-daos-logutils.c \
+			     darshan-dfs-logutils.c \
 			     darshan-logutils-accumulator.c
 
 include_HEADERS = darshan-null-logutils.h \
@@ -37,7 +37,7 @@ include_HEADERS = darshan-null-logutils.h \
                   darshan-dxt-logutils.h \
                   darshan-heatmap-logutils.h \
                   darshan-mdhim-logutils.h \
-                  darshan-daos-logutils.h \
+                  darshan-dfs-logutils.h \
 		  ../include/darshan-bgq-log-format.h \
                   ../include/darshan-dxt-log-format.h \
                   ../include/darshan-heatmap-log-format.h \
@@ -50,7 +50,7 @@ include_HEADERS = darshan-null-logutils.h \
                   ../include/darshan-pnetcdf-log-format.h \
                   ../include/darshan-posix-log-format.h \
                   ../include/darshan-stdio-log-format.h \
-                  ../include/darshan-daos-log-format.h
+                  ../include/darshan-dfs-log-format.h
 
 bin_PROGRAMS = darshan-analyzer \
                darshan-convert \
