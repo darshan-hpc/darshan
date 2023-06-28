@@ -234,12 +234,6 @@ void darshan_core_initialize(int argc, char **argv)
         /* set PID that initialized Darshan runtime */
         init_core->pid = getpid();
 
-        /* setup fork handlers if not using MPI */
-        if(!using_mpi && !orig_parent_pid)
-        {
-            pthread_atfork(NULL, NULL, &darshan_core_fork_child_cb);
-        }
-
         /* parse any user-supplied runtime configuration of Darshan */
         /* NOTE: as the ordering implies, environment variables override any
          *       config file parameters
@@ -354,6 +348,11 @@ void darshan_core_initialize(int argc, char **argv)
             init_core->config.mod_disabled = ~(init_core->config.mod_disabled & 0);
         }
 
+        /* setup fork handlers if not using MPI */
+        if(!using_mpi && !orig_parent_pid)
+        {
+            pthread_atfork(NULL, NULL, &darshan_core_fork_child_cb);
+        }
 
 #ifdef HAVE_LDMS
         /* pass init_core to darshan-ldms connector initialization*/
@@ -1389,8 +1388,19 @@ static void darshan_get_user_name(char *cuser)
      * work in statically compiled binaries.
      */
 
+#ifdef __DARSHAN_USERNAME_ENV
+    logname_string = getenv(__DARSHAN_USERNAME_ENV);
+    if(logname_string)
+    {
+        strncpy(cuser, logname_string, (L_cuserid-1));
+    }
+#endif
+
 #ifdef __DARSHAN_ENABLE_CUSERID
-    cuserid(cuser);
+    if(strcmp(cuser, "") == 0)
+    {
+        cuserid(cuser);
+    }
 #endif
 
     /* if cuserid() didn't work, then check the environment */
@@ -2194,16 +2204,19 @@ static void darshan_core_cleanup(struct darshan_core_runtime* core)
 
 static void darshan_core_fork_child_cb(void)
 {
-    /* hold onto the original parent PID, which we will use as jobid if the user didn't
-     * provide a jobid env variable
-     */
-    parent_pid = __darshan_core->pid;
-    if(!orig_parent_pid)
-        orig_parent_pid = parent_pid;
+    if(__darshan_core)
+    {
+        /* hold onto the original parent PID, which we will use as jobid if the user didn't
+         * provide a jobid env variable
+         */
+        parent_pid = __darshan_core->pid;
+        if(!orig_parent_pid)
+            orig_parent_pid = parent_pid;
 
-    /* shutdown and re-init darshan, making sure to not write out a log file */
-    darshan_core_shutdown(0);
-    darshan_core_initialize(0, NULL);
+        /* shutdown and re-init darshan, making sure to not write out a log file */
+        darshan_core_shutdown(0);
+        darshan_core_initialize(0, NULL);
+    }
 
     return;
 }

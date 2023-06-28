@@ -79,7 +79,7 @@ setup(
     setup_requires=setup_requirements,
     tests_require=test_requirements,
     url='https://www.mcs.anl.gov/research/projects/darshan/',
-    version='3.4.2.0',
+    version='3.4.3.0',
     zip_safe=False,
     package_data={"": ["*.darshan"],
                   "darshan": ["cli/style.css",

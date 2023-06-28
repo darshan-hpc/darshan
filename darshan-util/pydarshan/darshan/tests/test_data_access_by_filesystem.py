@@ -268,8 +268,8 @@ def test_plot_data(file_rd_series, file_wr_series, bytes_rd_series, bytes_wr_ser
         if isinstance(child, matplotlib.text.Text):
             actual_list_text_in_fig.append(child.get_text())
 
-    for expected_text_entry in [matplotlib.text.Text(0, 1, ' # files read (3.00E+00)'),
-                                matplotlib.text.Text(0, 0, ' # files written (1.40E+01)')]:
+    for expected_text_entry in [matplotlib.text.Text(0, 1, ' files read: 3'),
+                                matplotlib.text.Text(0, 0, ' files written: 14')]:
         assert expected_text_entry.get_text() in actual_list_text_in_fig
 
     # enforce invisibile right-side spine so that
@@ -298,10 +298,7 @@ def test_empty_data_posix_y_axis_annot_position():
             if isinstance(child, matplotlib.text.Annotation):
                 actual_text = child.get_text()
                 actual_fontsize = child.get_fontsize()
-                if len(actual_text) <= 8:
-                    assert actual_fontsize == 18
-                else:
-                    assert actual_fontsize == 12
+                assert actual_fontsize == 18
 
 @pytest.mark.parametrize("log_file_name, expected_text_labels", [
     ('noposixopens.darshan', ['/global', 'anonymized']),
@@ -324,10 +321,6 @@ def test_cat_labels_std_streams(log_file_name, expected_text_labels):
             if isinstance(child, matplotlib.text.Annotation):
                 actual_text = child.get_text()
                 actual_text_labels.append(actual_text)
-                if 'STD' in actual_text:
-                    # format the STD.. streams properly
-                    actual_fontsize = child.get_fontsize()
-                    assert actual_fontsize == 12
 
     assert actual_text_labels == expected_text_labels
 
@@ -409,10 +402,8 @@ def test_plot_data_shared_x_axis():
     wr_bytes = [1e8, 1e9, 1e10, 1e11]
     rd_file_cts = [1e3, 1e4, 1e5, 1e6]
     wr_file_cts = [1e2, 1e3, 1e4, 1e5]
-    # multiply by the MiB conversion factor
-    factor = 1048576
-    bytes_rd_series = pd.Series(data=rd_bytes, index=filesystem_roots) * factor
-    bytes_wr_series = pd.Series(data=wr_bytes, index=filesystem_roots) * factor
+    bytes_rd_series = pd.Series(data=rd_bytes, index=filesystem_roots)
+    bytes_wr_series = pd.Series(data=wr_bytes, index=filesystem_roots)
     file_rd_series = pd.Series(data=rd_file_cts, index=filesystem_roots)
     file_wr_series = pd.Series(data=wr_file_cts, index=filesystem_roots)
     fig = plt.figure()

@@ -87,6 +87,10 @@ make install
   scheduler does not advertise the job ID) then you can specify `NONE` here.
   Darshan will fall back to using the pid of the rank 0 process if the
   specified environment variable is not set.
+* `--with-username-env=NAME`: this specifies the environment variable that Darshan
+  should check to determine the username for a job. If not specified, Darshan
+  will use internal mechanisms to try to determine the username.
+** NOTE: Darshan relies on the `LOGNAME` environment variable to determine a username, but this method isn't always reliable (e.g., on Slurm systems, `LOGNAME` can be wiped when specifying additional environment variables using the `--export` option to `srun`). This configure option allows specification of an additional environment variable to extract a username from (e.g., `SLURM_JOB_USER`).
 * `--with-log-path=DIR` (this, or `--with-log-path-by-env`, is mandatory): This
   specifies the parent directory for the directory tree where Darshan logs will
   be placed.
@@ -696,8 +700,10 @@ and installation path, respectively.
 module swap PrgEnv-pgi PrgEnv-gnu
 ./configure \
  --with-log-path=/shared-file-system/darshan-logs \
- --prefix=/soft/darshan-2.2.3 \
- --with-jobid-env=PBS_JOBID CC=cc
+ --prefix=/soft/darshan-3.3.0 \
+ --with-jobid-env=SLURM_JOBID \
+ --with-username-env=SLURM_JOB_USER \
+ CC=cc
 make install
 module swap PrgEnv-gnu PrgEnv-pgi
 ----
@@ -705,7 +711,10 @@ module swap PrgEnv-gnu PrgEnv-pgi
 .Rationale
 [NOTE]
 ====
-The job ID is set to `PBS_JOBID` for use with a Torque or PBS based scheduler.
+The job ID is set to `SLURM_JOBID` for use with a Slurm based scheduler.
+An additional environment variable for querying a job's username (`SLURM_JOB_USER`)
+is provided as a fallback in case the default environment variable `LOGNAME`
+is not properly set (e.g., as is the case when using Slurm's `--export` option to `srun`).
 The `CC` variable is configured to point the standard MPI compiler.
 ====
 
@@ -771,8 +780,8 @@ following locations (depending on how you specified the --prefix option in
 the previous section):
 
 ----
-/soft/darshan-2.2.3/share/craype-1.x/modulefiles/darshan
-/soft/darshan-2.2.3/share/craype-2.x/modulefiles/darshan
+/soft/darshan-3.3.0/share/craype-1.x/modulefiles/darshan
+/soft/darshan-3.3.0/share/craype-2.x/modulefiles/darshan
 ----
 
 Select the one that is appropriate for your Cray programming environment
@@ -795,7 +804,7 @@ install location can be added to your local module path with the following
 command:
 
 ----
-module use /soft/darshan-2.2.3/share/craype-<VERSION>/modulefiles
+module use /soft/darshan-3.3.0/share/craype-<VERSION>/modulefiles
 ----
 
 From this point, Darshan instrumentation can be enabled for all future
