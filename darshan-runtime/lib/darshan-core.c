@@ -357,7 +357,7 @@ void darshan_core_initialize(int argc, char **argv)
         /* pass init_core to darshan-ldms connector initialization*/
         darshan_ldms_connector_initialize(init_core);
 #endif
-
+      
         /* if darshan was successfully initialized, set the global pointer
          * and record absolute start time so that we can later generate
          * relative times with this as a reference point.
