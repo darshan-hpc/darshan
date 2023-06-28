@@ -13,7 +13,7 @@ import darshan
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
+import humanize
 
 def process_byte_counts(df_reads, df_writes):
     """
@@ -505,17 +505,18 @@ def plot_data(fig: Any,
     num_cats: an integer representing the number of categories
     to plot; default ``None`` plots all categories
     """
+    fontsize = 18
     list_byte_axes: list = []
     list_count_axes: list = []
     # use log10 scale if range exceeds
     # two orders of magnitude in a column
     use_log = [False, False]
-    for idx, series_pair in enumerate([[bytes_rd_series, bytes_wr_series, 1048576],
-                                       [file_rd_series, file_wr_series, 1]]):
+    for idx, series_pair in enumerate([[bytes_rd_series, bytes_wr_series],
+                                       [file_rd_series, file_wr_series]]):
         maxval = max(series_pair[0].max(), series_pair[1].max())
         minval = max(min(series_pair[0].min(), series_pair[1].min()), 1)
         # adjust ratio to MiB when needed
-        ratio = ((maxval / series_pair[2]) / (minval / series_pair[2]))
+        ratio = (maxval / minval)
         if ratio > 100:
             use_log[idx] = True
 
@@ -540,64 +541,55 @@ def plot_data(fig: Any,
         list_byte_axes.append(ax_filesystem_bytes)
         list_count_axes.append(ax_filesystem_counts)
 
-        # convert to MiB using 1048576 (ie: 2**20)
-        bytes_read = bytes_rd_series[filesystem]/1048576
-        bytes_written = bytes_wr_series[filesystem]/1048576
-        files_written = file_wr_series[filesystem]
-        files_read = file_rd_series[filesystem]
-
-        # scale to fit longer filesystem
-        # strings on the left side of the plots
-        # NOTE: may need more sophisticated scaling
-        # eventually
-        if len(filesystem) <= 8 and not '<STD' in filesystem:
-            fontsize = 18
-        else:
-            fontsize = 12
+        bytes_read = bytes_rd_series[filesystem]
+        bytes_written = bytes_wr_series[filesystem]
+        files_written = int(file_wr_series[filesystem])
+        files_read = int(file_rd_series[filesystem])
 
         # anonymized STD.. streams have associated integers
         # that are stored in the filesystem data field
         # but that are confusing to display, so strip them
         if filesystem.startswith('anonymized'):
             ax_filesystem_bytes.annotate('anonymized',
-                                         (-0.3, 0.5),
+                                         (-0.1, 0.5),
                                          fontsize=fontsize,
                                          xycoords='axes fraction',
+                                         ha="right",
                                          va="center")
         else:
             ax_filesystem_bytes.annotate(filesystem,
-                                         (-0.3, 0.5),
+                                         (-0.1, 0.5),
                                          fontsize=fontsize,
                                          xycoords='axes fraction',
+                                         ha="right",
                                          va="center")
 
         ax_filesystem_counts.barh(0, files_written, color='red', alpha=0.3)
         ax_filesystem_counts.barh(1, files_read, color='blue', alpha=0.3)
 
-        ax_filesystem_bytes.text(0, 0.75, f' # bytes read ({bytes_read:.2E} MiB)',
+        bytes_read_str = humanize.naturalsize(bytes_read,
+                                              binary=True,
+                                              format="%.2f")
+        ax_filesystem_bytes.text(0, 0.75, f' bytes read: {bytes_read_str}',
                                  transform=ax_filesystem_bytes.transAxes,
+                                 fontsize=fontsize,
                                  va="center")
-        ax_filesystem_bytes.text(0, 0.25, f' # bytes written ({bytes_written:.2E} MiB)',
+        bytes_written_str = humanize.naturalsize(bytes_written,
+                                                 binary=True,
+                                                 format="%.2f")
+        ax_filesystem_bytes.text(0, 0.25, f' bytes written: {bytes_written_str}',
                                  transform=ax_filesystem_bytes.transAxes,
+                                 fontsize=fontsize,
                                  va="center")
 
-        if files_read == 0:
-            ax_filesystem_counts.text(0, 0.75, ' 0 files read',
-                                      transform=ax_filesystem_counts.transAxes,
-                                      va="center")
-        else:
-            ax_filesystem_counts.text(0, 0.75, f' # files read ({files_read:.2E})',
-                                      transform=ax_filesystem_counts.transAxes,
-                                      va="center")
-
-        if files_written == 0:
-            ax_filesystem_counts.text(0, 0.25, ' 0 files written',
-                                      transform=ax_filesystem_counts.transAxes,
-                                      va="center")
-        else:
-            ax_filesystem_counts.text(0, 0.25, f' # files written ({files_written:.2E})',
-                                      transform=ax_filesystem_counts.transAxes,
-                                      va="center")
+        ax_filesystem_counts.text(0, 0.75, f' files read: {files_read}',
+                                  transform=ax_filesystem_counts.transAxes,
+                                  fontsize=fontsize,
+                                  va="center")
+        ax_filesystem_counts.text(0, 0.25, f' files written: {files_written}',
+                                  transform=ax_filesystem_counts.transAxes,
+                                  fontsize=fontsize,
+                                  va="center")
 
         ax_filesystem_bytes.barh(0, bytes_written, color='red', alpha=0.3)
         ax_filesystem_bytes.barh(1, bytes_read, color='blue', alpha=0.3)
@@ -696,7 +688,8 @@ def plot_with_report(report: darshan.DarshanReport,
     # produce a decent aspect ratio
     if height < 16:
         height = 16
-
+    # add additional padding to left margin for annotations
+    fig.subplots_adjust(left=0.2)
     fig.set_size_inches(12, height)
     plt.close(fig)
     return fig

@@ -79,7 +79,7 @@ ldms_t setup_connection(const char *xprt, const char *host,
                 ts.tv_nsec = 0;
         }
 
-        ldms_g = ldms_xprt_new_with_auth(xprt, NULL, auth, NULL);
+        ldms_g = ldms_xprt_new_with_auth(xprt, auth, NULL);
         if (!ldms_g) {
                 printf("Error %d creating the '%s' transport\n",
                        errno, xprt);
@@ -116,7 +116,7 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
     if (getenv("SLURM_JOB_ID"))
         dC.jobid = atoi(getenv("SLURM_JOB_ID"));
     else if (getenv("LSB_JOBID"))
-    dC.jobid = atoi(getenv("LSB_JOBID"));
+    	dC.jobid = atoi(getenv("LSB_JOBID"));
     else if (getenv("JOB_ID"))
         dC.jobid = atoi(getenv("JOB_ID"));
     else if (getenv("LOAD_STEP_ID"))
@@ -203,11 +203,12 @@ void darshan_ldms_set_meta(const char *filename, const char *data_set, uint64_t 
 
 }
 
-void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset, int64_t length, int64_t max_byte, int64_t rw_switch, int64_t flushes,  double start_time, double end_time, struct timespec tspec_start, struct timespec tspec_end, double total_time, char *mod_name, char *data_type)
+void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset, int64_t length, int64_t max_byte, int64_t rw_switch, int64_t flushes,  double start_time, double end_time, double total_time, char *mod_name, char *data_type)
 {
     char jb11[1024];
     int rc, ret, i, size, exists;
-    uint64_t micro_s = tspec_end.tv_nsec/1.0e3;
+    uint64_t micro_s;
+    struct timespec tspec_start, tspec_end;
     dC.env_ldms_stream  = getenv("DARSHAN_LDMS_STREAM");
 
     pthread_mutex_lock(&dC.ln_lock);
@@ -242,6 +243,12 @@ void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset
         dC.exename = "N/A";
     }
 
+    /* convert the start and end times to timespecs and report absolute timestamps */
+    tspec_start = darshan_core_abs_timespec_from_wtime(start_time);
+    tspec_end = darshan_core_abs_timespec_from_wtime(end_time);
+
+    micro_s = tspec_end.tv_nsec/1.0e3;
+
     sprintf(jb11,"{ \"uid\":%ld, \"exe\":\"%s\",\"job_id\":%ld,\"rank\":%ld,\"ProducerName\":\"%s\",\"file\":\"%s\",\"record_id\":%"PRIu64",\"module\":\"%s\",\"type\":\"%s\",\"max_byte\":%ld,\"switches\":%ld,\"flushes\":%ld,\"cnt\":%ld,\"op\":\"%s\",\"seg\":[{\"data_set\":\"%s\",\"pt_sel\":%ld,\"irreg_hslab\":%ld,\"reg_hslab\":%ld,\"ndims\":%ld,\"npoints\":%ld,\"off\":%ld,\"len\":%ld,\"start\":%0.6f,\"dur\":%0.6f,\"total\":%.6f,\"timestamp\":%lu.%.6lu}]}", dC.uid, dC.exename, dC.jobid, dC.rank, dC.hname, dC.filename, dC.record_id, mod_name, data_type, max_byte, rw_switch, flushes, record_count, rwo, dC.data_set, dC.hdf5_data[0], dC.hdf5_data[1], dC.hdf5_data[2], dC.hdf5_data[3], dC.hdf5_data[4], offset, length, start_time, end_time-start_time, total_time, tspec_end.tv_sec, micro_s);
     
     if (getenv("DARSHAN_LDMS_VERBOSE"))
@@ -270,7 +277,7 @@ void darshan_ldms_set_meta(const char *filename, const char *data_set, uint64_t 
     return;
 }
 
-void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset, int64_t length, int64_t max_byte, int64_t rw_switch, int64_t flushes,  double start_time, double end_time, struct timespec tspec_start, struct timespec tspec_end, double total_time, char *mod_name, char *data_type)
+void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset, int64_t length, int64_t max_byte, int64_t rw_switch, int64_t flushes,  double start_time, double end_time, double total_time, char *mod_name, char *data_type)
 {
     return;
 }

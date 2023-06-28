@@ -8,57 +8,6 @@ import pandas as pd
 import humanize
 
 
-def log_get_bytes_bandwidth(derived_metrics, mod_name: str) -> str:
-    """
-    Summarize I/O performance for a given darshan module.
-
-    Parameters
-    ----------
-    derived_metrics:
-        structure (cdata object) describing metrics derived from a
-        set of records passed to the Darshan accumulator interface
-    mod_name: str
-        Name of the darshan module to summarize the I/O
-        performance for.
-
-    Returns
-    -------
-    out: str
-        A short string summarizing the performance of the given module
-        in the provided log file, including bandwidth and total data
-        transferred.
-
-    Raises
-    ------
-    RuntimeError
-        When a provided module name is not supported for the accumulator
-        interface for provision of the summary data, or for any other
-        error that occurs in the C/CFFI interface.
-    ValueError
-        When a provided module name does not exist in the log file.
-
-    Examples
-    --------
-
-    >>> from darshan.log_utils import get_log_path
-    >>> from darshan.lib.accum import log_get_bytes_bandwidth
-
-    >>> log_path = get_log_path("imbalanced-io.darshan")
-    >>> log_get_bytes_bandwidth(log_path, "POSIX")
-    I/O performance estimate (at the POSIX layer): transferred 101785.8 MiB at 164.99 MiB/s
-
-    >>> log_get_bytes_bandwidth(log_path, "MPI-IO")
-    I/O performance estimate (at the MPI-IO layer): transferred 126326.8 MiB at 101.58 MiB/s
-    """
-    # get total bytes (in MiB) and bandwidth (in MiB/s) for
-    # a given module -- this information was commonly reported
-    # in the old perl-based summary reports
-    total_mib = derived_metrics.total_bytes / 2 ** 20
-    total_bw = derived_metrics.agg_perf_by_slowest
-    ret_str = f"I/O performance estimate (at the {mod_name} layer): transferred {total_mib:.1f} MiB at {total_bw:.2f} MiB/s"
-    return ret_str
-
-
 def log_file_count_summary_table(derived_metrics,
                                  mod_name: str):
     # the darshan_file_category enum is not really
@@ -100,5 +49,31 @@ def log_file_count_summary_table(derived_metrics,
     df.drop(columns="index", inplace=True)
     ret = plot_common_access_table.DarshanReportTable(df,
                                                       col_space=200,
-                                                      justify="center")
+                                                      border=0,
+                                                      justify="center",
+                                                      index_names=False)
+    return ret
+
+def log_module_overview_table(derived_metrics,
+                              mod_name: str):
+    mod_overview = []
+    total_cat = derived_metrics.category_counters[0]
+
+    total_files = total_cat.count
+    indices = ["files accessed", "bytes read", "bytes written", "I/O performance estimate"]
+    mod_overview.append(f"{total_files}")
+    total_bytes_read = total_cat.total_read_volume_bytes
+    total_bytes_read_str = humanize.naturalsize(total_bytes_read, binary=True, format="%.2f")
+    total_bytes_written = total_cat.total_write_volume_bytes
+    total_bytes_written_str = humanize.naturalsize(total_bytes_written, binary=True, format="%.2f")
+    mod_overview.append(f"{total_bytes_read_str}")
+    mod_overview.append(f"{total_bytes_written_str}")
+    total_bw = derived_metrics.agg_perf_by_slowest
+    mod_overview.append(f"{total_bw:.2f} MiB/s (average)")
+    df = pd.DataFrame(mod_overview, index=indices)
+
+    ret = plot_common_access_table.DarshanReportTable(df,
+                                                      col_space=500,
+                                                      border=0,
+                                                      header=False)
     return ret

@@ -107,8 +107,8 @@ static int my_rank = -1;
 #define PNETCDF_LOCK() pthread_mutex_lock(&pnetcdf_runtime_mutex)
 #define PNETCDF_UNLOCK() pthread_mutex_unlock(&pnetcdf_runtime_mutex)
 
-#define PNETCDF_WTIME(tspec) \
-    __darshan_disabled ? 0 : darshan_core_wtime(tspec);
+#define PNETCDF_WTIME() \
+    __darshan_disabled ? 0 : darshan_core_wtime();
 
 /* note that if the break condition is triggered in this macro, then it
  * will exit the do/while loop holding a lock that will be released in

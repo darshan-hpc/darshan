@@ -1,99 +1,11 @@
 import darshan
-from darshan.backend.cffi_backend import log_get_derived_metrics
-from darshan.lib.accum import log_get_bytes_bandwidth, log_file_count_summary_table
+from darshan.backend.cffi_backend import accumulate_records
+from darshan.lib.accum import log_file_count_summary_table, log_module_overview_table
 from darshan.log_utils import get_log_path
 
 import pytest
 import pandas as pd
 from pandas.testing import assert_frame_equal
-
-@pytest.mark.parametrize("log_path, mod_name, expected_str", [
-    # the expected bytes/bandwidth strings are pasted
-    # directly from the old perl summary reports;
-    # exceptions noted below
-    # in some cases we defer to darshan-parser for the expected
-    # values; see discussion in gh-839
-    ("imbalanced-io.darshan",
-     "STDIO",
-     "I/O performance estimate (at the STDIO layer): transferred 1.1 MiB at 0.01 MiB/s"),
-    ("imbalanced-io.darshan",
-     "MPI-IO",
-     "I/O performance estimate (at the MPI-IO layer): transferred 126326.8 MiB at 101.58 MiB/s"),
-    # imbalanced-io.darshan does have LUSTRE data,
-    # but it doesn't support derived metrics at time
-    # of writing
-    ("imbalanced-io.darshan",
-     "LUSTRE",
-     "RuntimeError"),
-    # APMPI doesn't support derived metrics either
-    ("e3sm_io_heatmap_only.darshan",
-     "APMPI",
-     "RuntimeError"),
-    ("imbalanced-io.darshan",
-     "POSIX",
-     "I/O performance estimate (at the POSIX layer): transferred 101785.8 MiB at 164.99 MiB/s"),
-    ("laytonjb_test1_id28730_6-7-43012-2131301613401632697_1.darshan",
-     "STDIO",
-     "I/O performance estimate (at the STDIO layer): transferred 0.0 MiB at 4.22 MiB/s"),
-    ("runtime_and_dxt_heatmaps_diagonal_write_only.darshan",
-     "POSIX",
-     "I/O performance estimate (at the POSIX layer): transferred 0.0 MiB at 0.02 MiB/s"),
-    ("treddy_mpi-io-test_id4373053_6-2-60198-9815401321915095332_1.darshan",
-     "STDIO",
-     "I/O performance estimate (at the STDIO layer): transferred 0.0 MiB at 16.47 MiB/s"),
-    ("e3sm_io_heatmap_only.darshan",
-     "STDIO",
-     "I/O performance estimate (at the STDIO layer): transferred 0.0 MiB at 3.26 MiB/s"),
-    ("e3sm_io_heatmap_only.darshan",
-     "MPI-IO",
-     "I/O performance estimate (at the MPI-IO layer): transferred 73880.2 MiB at 105.69 MiB/s"),
-    ("partial_data_stdio.darshan",
-     "MPI-IO",
-     "I/O performance estimate (at the MPI-IO layer): transferred 32.0 MiB at 2317.98 MiB/s"),
-    ("partial_data_stdio.darshan",
-     "STDIO",
-     "I/O performance estimate (at the STDIO layer): transferred 16336.0 MiB at 2999.14 MiB/s"),
-    # the C derived metrics code can't distinguish
-    # between different kinds of errors at this time,
-    # but we can still intercept in some cases...
-    ("partial_data_stdio.darshan",
-     "GARBAGE",
-     "ValueError"),
-    ("skew-app.darshan",
-     "POSIX",
-     "I/O performance estimate (at the POSIX layer): transferred 41615.8 MiB at 157.49 MiB/s"),
-    ("skew-app.darshan",
-     "MPI-IO",
-     "I/O performance estimate (at the MPI-IO layer): transferred 41615.8 MiB at 55.22 MiB/s"),
-])
-def test_derived_metrics_bytes_and_bandwidth(log_path, mod_name, expected_str):
-    # test the basic scenario of retrieving
-    # the total data transferred and bandwidth
-    # for all records in a given module; the situation
-    # of accumulating derived metrics with filtering
-    # (i.e., for a single filename) is not tested here
-
-    log_path = get_log_path(log_path)
-    with darshan.DarshanReport(log_path, read_all=True) as report:
-        if expected_str == "ValueError":
-            with pytest.raises(ValueError,
-                               match=f"mod {mod_name} is not available"):
-                report.mod_read_all_records(mod_name, dtype="pandas")
-        else:
-            report.mod_read_all_records(mod_name, dtype="pandas")
-            rec_dict = report.records[mod_name][0]
-            nprocs = report.metadata['job']['nprocs']
-
-            if expected_str == "RuntimeError":
-                with pytest.raises(RuntimeError,
-                                   match=f"{mod_name} module does not support derived"):
-                    log_get_derived_metrics(rec_dict, mod_name, nprocs)
-            else:
-                derived_metrics = log_get_derived_metrics(rec_dict, mod_name, nprocs)
-                actual_str = log_get_bytes_bandwidth(derived_metrics=derived_metrics,
-                                                     mod_name=mod_name)
-                assert actual_str == expected_str
-
 
 @pytest.mark.parametrize("log_name, mod_name, expected", [
     # we try to match the "File Count Summary"
@@ -210,8 +122,103 @@ def test_file_count_summary_table(log_name,
         rec_dict = report.records[mod_name].to_df()
         nprocs = report.metadata['job']['nprocs']
 
-    derived_metrics = log_get_derived_metrics(rec_dict, mod_name, nprocs)
+    derived_metrics = accumulate_records(rec_dict, mod_name, nprocs).derived_metrics
 
     actual_df = log_file_count_summary_table(derived_metrics=derived_metrics,
                                              mod_name=mod_name).df
     assert_frame_equal(actual_df, expected_df)
+
+
+@pytest.mark.parametrize("log_path, mod_name, expected", [
+    ("imbalanced-io.darshan",
+     "STDIO",
+     # <files accessed> <bytes read> <bytes written> <I/O performance estimate>
+     [["12", "1.81 KiB", "1.09 MiB", "0.01 MiB/s (average)"]]),
+    ("imbalanced-io.darshan",
+     "MPI-IO",
+     [["3", "49.30 GiB", "74.06 GiB", "101.58 MiB/s (average)"]]),
+    # imbalanced-io.darshan does have LUSTRE data,
+    # but it doesn't support derived metrics at time
+    # of writing
+    ("imbalanced-io.darshan",
+     "LUSTRE",
+     "RuntimeError"),
+    # APMPI doesn't support derived metrics either
+    ("e3sm_io_heatmap_only.darshan",
+     "APMPI",
+     "RuntimeError"),
+    ("imbalanced-io.darshan",
+     "POSIX",
+     [["1026", "50.10 GiB", "49.30 GiB", "164.99 MiB/s (average)"]]),
+    ("laytonjb_test1_id28730_6-7-43012-2131301613401632697_1.darshan",
+     "STDIO",
+     [["1", "0 Bytes", "151 Bytes", "4.22 MiB/s (average)"]]),
+    ("runtime_and_dxt_heatmaps_diagonal_write_only.darshan",
+     "POSIX",
+     [["32", "0 Bytes", "32 Bytes", "0.02 MiB/s (average)"]]),
+    ("treddy_mpi-io-test_id4373053_6-2-60198-9815401321915095332_1.darshan",
+     "STDIO",
+     [["1", "0 Bytes", "1.59 KiB", "16.47 MiB/s (average)"]]),
+    ("e3sm_io_heatmap_only.darshan",
+     "STDIO",
+     [["1", "0 Bytes", "5.80 KiB", "3.26 MiB/s (average)"]]),
+    ("e3sm_io_heatmap_only.darshan",
+     "MPI-IO",
+     [["3", "24.53 MiB", "72.12 GiB", "105.69 MiB/s (average)"]]),
+    ("partial_data_stdio.darshan",
+     "MPI-IO",
+     [["1", "16.00 MiB", "16.00 MiB", "2317.98 MiB/s (average)"]]),
+    ("partial_data_stdio.darshan",
+     "STDIO",
+     [["1022", "0 Bytes", "15.95 GiB", "2999.14 MiB/s (average)"]]),
+    # the C derived metrics code can't distinguish
+    # between different kinds of errors at this time,
+    # but we can still intercept in some cases...
+    ("partial_data_stdio.darshan",
+     "GARBAGE",
+     "ValueError"),
+    ("skew-app.darshan",
+     "POSIX",
+     [["1", "0 Bytes", "40.64 GiB", "157.49 MiB/s (average)"]]),
+    ("skew-app.darshan",
+     "MPI-IO",
+     [["1", "0 Bytes", "40.64 GiB", "55.22 MiB/s (average)"]]),
+])
+def test_module_overview_table(log_path, mod_name, expected):
+    # test the basic scenario of retrieving
+    # an overview table for a given module
+    log_path = get_log_path(log_path)
+    with darshan.DarshanReport(log_path, read_all=False) as report:
+        if expected == "ValueError":
+            with pytest.raises(ValueError,
+                               match=f"mod {mod_name} is not available"):
+                report.mod_read_all_records(mod_name)
+        else:
+            nprocs = report.metadata['job']['nprocs']
+            if expected == "RuntimeError":
+                # rec_dict not needed to raise this error
+                rec_dict = {}
+                with pytest.raises(RuntimeError,
+                                   match=f"{mod_name} module does not support derived"):
+                    accumulate_records(rec_dict, mod_name, nprocs)
+            else:
+                report.mod_read_all_records(mod_name)
+                rec_dict = report.records[mod_name].to_df()
+
+                derived_metrics = accumulate_records(
+                    rec_dict,
+                    mod_name,
+                    nprocs).derived_metrics
+
+                actual_df = log_module_overview_table(
+                    derived_metrics=derived_metrics,
+                    mod_name=mod_name).df
+
+                # transpose expected series to get a column of expected data
+                expected_df = pd.DataFrame(expected).T
+                expected_df.index = ["files accessed",
+                                     "bytes read",
+                                     "bytes written",
+                                     "I/O performance estimate"]
+
+                assert_frame_equal(actual_df, expected_df)

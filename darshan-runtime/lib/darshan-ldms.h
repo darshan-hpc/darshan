@@ -72,7 +72,7 @@ typedef struct darshanConnector {
  */
 void darshan_ldms_connector_initialize(struct darshan_core_runtime *);
 
-void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset, int64_t length, int64_t max_byte, int64_t rw_switch, int64_t flushes, double start_time, double end_time, struct timespec tspec_start, struct timespec tspec_end, double total_time, char *mod_name, char *data_type);
+void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset, int64_t length, int64_t max_byte, int64_t rw_switch, int64_t flushes, double start_time, double end_time, double total_time, char *mod_name, char *data_type);
 
 void darshan_ldms_set_meta(const char *filename, const char *data_set,  uint64_t record_id, int64_t rank);
 

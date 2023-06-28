@@ -106,7 +106,8 @@ jobs:
         export DARSHAN_LDMS_HOST=localhost
         export DARSHAN_LDMS_XPRT=sock
         export DARSHAN_LDMS_AUTH=none
-        export DXT_ENABLE_LDMS=
+        export POSIX_ENABLE_LDMS=
+        export MPIIO_ENABLE_LDMS=
         export STDIO_ENABLE_LDMS=
         export HDF5_ENABLE_LDMS=
         echo "---setting Test Case Variables---"

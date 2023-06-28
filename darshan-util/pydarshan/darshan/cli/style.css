@@ -346,9 +346,8 @@ figure img {
 }
 
 figcaption {
-  font-style: italic;
   font-size: 0.75em;
-  font-weight: 200;
+  font-weight: 300;
   margin: 0;
 }
 
@@ -528,9 +527,26 @@ template {
 .fixed-footer{
     bottom: 0;
 }
+
+.overview { grid-area: overview; font-weight: bold; }
+.file_tbl { grid-area: file_tbl; }
+.op_counts { grid-area: op_counts; }
+.acc_hist { grid-area: acc_hist; }
+.common_acc_tbl { grid-area: common_acc_tbl; }
+
+.overview tr:last-child td {
+   color: blue;
+}
+
 .grid-wrapper {
   display: grid;
-  /* set 2-column-wide grid with auto width scaling*/
+  /* set 2-column-wide grid with auto width scaling */
   grid-template-columns: repeat(2, auto);
+  /* explicit grid areas to control placement of module figures */
+  grid-template-areas:
+    'overview   overview'
+    'file_tbl   file_tbl'
+    'op_counts  .'
+    'acc_hist   common_acc_tbl';
   gap: 5px;
 }

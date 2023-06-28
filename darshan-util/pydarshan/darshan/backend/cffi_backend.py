@@ -12,6 +12,8 @@ import ctypes
 import numpy as np
 import pandas as pd
 
+from collections import namedtuple
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -368,13 +370,22 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
         return None
     mod_type = _structdefs[mod_name]
 
-    rec = {}
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
     if r < 1:
         return None
     rbuf = ffi.cast(mod_type, buf)
 
+    rec = _make_generic_record(rbuf, mod_name, dtype)
+    libdutil.darshan_free(buf[0])
+
+    return rec
+
+def _make_generic_record(rbuf, mod_name, dtype='numpy'):
+    """
+    Returns a record dictionary for an input record buffer for a given module.
+    """
+    rec = {}
     rec['id'] = rbuf[0].base_rec.id
     rec['rank'] = rbuf[0].base_rec.rank
     if mod_name == 'H5D' or mod_name == 'PNETCDF_VAR':
@@ -382,7 +393,6 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
 
     clst = np.copy(np.frombuffer(ffi.buffer(rbuf[0].counters), dtype=np.int64))
     flst = np.copy(np.frombuffer(ffi.buffer(rbuf[0].fcounters), dtype=np.float64))
-    libdutil.darshan_free(buf[0])
 
     c_cols = counter_names(mod_name)
     fc_cols = fcounter_names(mod_name)
@@ -415,7 +425,6 @@ def log_get_generic_record(log, mod_name, dtype='numpy'):
         rec['counters'] = df_c
         rec['fcounters'] = df_fc
     return rec
-
 
 @functools.lru_cache(maxsize=32)
 def counter_names(mod_name, fcnts=False, special=''):
@@ -732,10 +741,11 @@ def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
     return buf
 
 
-def log_get_derived_metrics(rec_dict, mod_name, nprocs):
+def accumulate_records(rec_dict, mod_name, nprocs):
     """
     Passes a set of records (in pandas format) to the Darshan accumulator
-    interface, and returns the corresponding derived metrics struct.
+    interface, and returns the corresponding derived metrics struct and
+    summary record.
 
     Parameters:
         rec_dict: Dictionary containing the counter and fcounter dataframes.
@@ -743,7 +753,8 @@ def log_get_derived_metrics(rec_dict, mod_name, nprocs):
         nprocs: Number of processes participating in accumulation.
 
     Returns:
-        darshan_derived_metrics struct (cdata object)
+        namedtuple containing derived_metrics (cdata object) and
+        summary_record (dict).
     """
     mod_idx = mod_name_to_idx(mod_name)
     darshan_accumulator = ffi.new("darshan_accumulator *")
@@ -768,10 +779,10 @@ def log_get_derived_metrics(rec_dict, mod_name, nprocs):
                            "to retrieve additional information from the stderr "
                            "stream.")
     derived_metrics = ffi.new("struct darshan_derived_metrics *")
-    total_record = ffi.new(_structdefs[mod_name].replace("**", "*"))
+    summary_rbuf = ffi.new(_structdefs[mod_name].replace("**", "*"))
     r = libdutil.darshan_accumulator_emit(darshan_accumulator[0],
                                           derived_metrics,
-                                          total_record)
+                                          summary_rbuf)
     libdutil.darshan_accumulator_destroy(darshan_accumulator[0])
     if r != 0:
         raise RuntimeError("A nonzero exit code was received from "
@@ -779,4 +790,9 @@ def log_get_derived_metrics(rec_dict, mod_name, nprocs):
                            "It may be possible "
                            "to retrieve additional information from the stderr "
                            "stream.")
-    return derived_metrics
+
+    summary_rec = _make_generic_record(summary_rbuf, mod_name, dtype='pandas')
+
+    # create namedtuple type to hold return values
+    AccumulatedRecords = namedtuple("AccumulatedRecords", ['derived_metrics', 'summary_record'])
+    return AccumulatedRecords(derived_metrics, summary_rec)

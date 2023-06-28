@@ -132,7 +132,6 @@ static void heatmap_output(
     unsigned long this_size;
     int tmp_nbins;
     int empty;
-    struct timespec ts1, ts2;
 
     HEATMAP_LOCK();
     assert(heatmap_runtime);
@@ -146,7 +145,7 @@ static void heatmap_output(
     if(g_end_timestamp)
         end_timestamp = g_end_timestamp;
     else
-        end_timestamp = darshan_core_wtime(&ts2);
+        end_timestamp = darshan_core_wtime();
 
 
     /* iterate through records (heatmap histograms) to drop any that contain
@@ -500,7 +499,6 @@ static void heatmap_mpi_redux(
     darshan_record_id *shared_recs, int shared_rec_count)
 {
     double end_timestamp;
-    struct timespec ts1, ts2;
 
     /* NOTE: no actual record reduction here.  We are just using this as an
      * opportunity to agree on shutdown times.
@@ -512,7 +510,7 @@ static void heatmap_mpi_redux(
     HEATMAP_UNLOCK();
 
     /* check time locally */
-    end_timestamp = darshan_core_wtime(&ts2);
+    end_timestamp = darshan_core_wtime();
 
     /* reduce across all ranks, take maximum (it's Ok if this rank doesn't
      * have data out that far; it will be zeroed anyway)
