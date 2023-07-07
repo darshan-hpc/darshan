@@ -83,7 +83,7 @@ def get_access_count_df(mod_df: Any, mod: str) -> Any:
     Parameters
     ----------
     mod_df: "counters" dataframe for the input
-    module `mod` from a record.
+    module `mod` from a dictionary with 2 separate DataFrames: 'counters' and 'fcounters'.
 
     mod: the module to obtain the common accesses
     table for (i.e "POSIX", "MPI-IO", "H5D").
@@ -128,7 +128,7 @@ def plot_common_access_table(record: dict, mod: str, n_rows: int = 4) -> Darshan
 
     Parameters
     ----------
-    record: a dict.
+    record: a dictionary with 2 separate DataFrames: 'counters' and 'fcounters'
 
     mod: the module to obtain the common access size
     table for (i.e "POSIX", "MPI-IO", "H5D").
