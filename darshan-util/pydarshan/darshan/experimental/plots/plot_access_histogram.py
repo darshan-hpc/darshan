@@ -23,7 +23,7 @@ def plot_access_histogram(record, mod, ax=None):
     Plots a histogram of access sizes for specified module.
 
 	Args:
-		record: record to generate plot from
+		record: a dictionary with 2 separate DataFrames: 'counters' and 'fcounters'
 		mod (str): mod-string for which to generate access_histogram
 
     """
@@ -37,59 +37,37 @@ def plot_access_histogram(record, mod, ax=None):
     # defaults
     labels = ['0-100', '101-1K', '1K-10K', '10K-100K', '100K-1M', '1M-4M', '4M-10M', '10M-100M', '100M-1G', '1G+']
 
-    agg=record['counters']
-    if mod == 'POSIX':
-        read_vals = [
-            agg['POSIX_SIZE_READ_0_100'][0],
-            agg['POSIX_SIZE_READ_100_1K'][0],
-            agg['POSIX_SIZE_READ_1K_10K'][0],
-            agg['POSIX_SIZE_READ_10K_100K'][0],
-            agg['POSIX_SIZE_READ_100K_1M'][0],
-            agg['POSIX_SIZE_READ_1M_4M'][0],
-            agg['POSIX_SIZE_READ_4M_10M'][0],
-            agg['POSIX_SIZE_READ_10M_100M'][0],
-            agg['POSIX_SIZE_READ_100M_1G'][0],
-            agg['POSIX_SIZE_READ_1G_PLUS'][0]
-        ]
-
-        write_vals = [
-            agg['POSIX_SIZE_WRITE_0_100'][0],
-            agg['POSIX_SIZE_WRITE_100_1K'][0],
-            agg['POSIX_SIZE_WRITE_1K_10K'][0],
-            agg['POSIX_SIZE_WRITE_10K_100K'][0],
-            agg['POSIX_SIZE_WRITE_100K_1M'][0],
-            agg['POSIX_SIZE_WRITE_1M_4M'][0],
-            agg['POSIX_SIZE_WRITE_4M_10M'][0],
-            agg['POSIX_SIZE_WRITE_10M_100M'][0],
-            agg['POSIX_SIZE_WRITE_100M_1G'][0],
-            agg['POSIX_SIZE_WRITE_1G_PLUS'][0]
-        ]
-    elif mod == 'MPI-IO':
-        read_vals = [
-            agg['MPIIO_SIZE_READ_AGG_0_100'][0],
-            agg['MPIIO_SIZE_READ_AGG_100_1K'][0],
-            agg['MPIIO_SIZE_READ_AGG_1K_10K'][0],
-            agg['MPIIO_SIZE_READ_AGG_10K_100K'][0],
-            agg['MPIIO_SIZE_READ_AGG_100K_1M'][0],
-            agg['MPIIO_SIZE_READ_AGG_1M_4M'][0],
-            agg['MPIIO_SIZE_READ_AGG_4M_10M'][0],
-            agg['MPIIO_SIZE_READ_AGG_10M_100M'][0],
-            agg['MPIIO_SIZE_READ_AGG_100M_1G'][0],
-            agg['MPIIO_SIZE_READ_AGG_1G_PLUS'][0]
-        ]
-
-        write_vals = [
-            agg['MPIIO_SIZE_WRITE_AGG_0_100'][0],
-            agg['MPIIO_SIZE_WRITE_AGG_100_1K'][0],
-            agg['MPIIO_SIZE_WRITE_AGG_1K_10K'][0],
-            agg['MPIIO_SIZE_WRITE_AGG_10K_100K'][0],
-            agg['MPIIO_SIZE_WRITE_AGG_100K_1M'][0],
-            agg['MPIIO_SIZE_WRITE_AGG_1M_4M'][0],
-            agg['MPIIO_SIZE_WRITE_AGG_4M_10M'][0],
-            agg['MPIIO_SIZE_WRITE_AGG_10M_100M'][0],
-            agg['MPIIO_SIZE_WRITE_AGG_100M_1G'][0],
-            agg['MPIIO_SIZE_WRITE_AGG_1G_PLUS'][0]
-        ]
+    counters=record['counters']
+    if mod == 'MPI-IO':
+        rd_counter_prefix = f'MPIIO_SIZE_READ_AGG_'
+        wr_counter_prefix = f'MPIIO_SIZE_WRITE_AGG_'
+    else:
+        rd_counter_prefix = f'{mod}_SIZE_READ_'
+        wr_counter_prefix = f'{mod}_SIZE_WRITE_'
+    read_vals = [
+            counters[f'{rd_counter_prefix}0_100'][0],
+            counters[f'{rd_counter_prefix}100_1K'][0],
+            counters[f'{rd_counter_prefix}1K_10K'][0],
+            counters[f'{rd_counter_prefix}10K_100K'][0],
+            counters[f'{rd_counter_prefix}100K_1M'][0],
+            counters[f'{rd_counter_prefix}1M_4M'][0],
+            counters[f'{rd_counter_prefix}4M_10M'][0],
+            counters[f'{rd_counter_prefix}10M_100M'][0],
+            counters[f'{rd_counter_prefix}100M_1G'][0],
+            counters[f'{rd_counter_prefix}1G_PLUS'][0]
+    ]
+    write_vals = [
+            counters[f'{wr_counter_prefix}0_100'][0],
+            counters[f'{wr_counter_prefix}100_1K'][0],
+            counters[f'{wr_counter_prefix}1K_10K'][0],
+            counters[f'{wr_counter_prefix}10K_100K'][0],
+            counters[f'{wr_counter_prefix}100K_1M'][0],
+            counters[f'{wr_counter_prefix}1M_4M'][0],
+            counters[f'{wr_counter_prefix}4M_10M'][0],
+            counters[f'{wr_counter_prefix}10M_100M'][0],
+            counters[f'{wr_counter_prefix}100M_1G'][0],
+            counters[f'{wr_counter_prefix}1G_PLUS'][0]
+    ]
     #TODO: add support for HDF5/PnetCDF modules
     x = np.arange(len(labels))  # the label locations
     width = 0.35  # the width of the bars
