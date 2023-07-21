@@ -119,20 +119,20 @@ def setup_parser(parser: argparse.ArgumentParser):
         help="The first n rows of the DataFrame"
     )
 
-def discover_logpaths(user_path):
+def discover_logpaths(user_path_glob):
     """
-    Generate a list with all of the log file paths.
+    Generate a list with log file paths.
 
     Parameters
     ----------
-    user_path :  a string, user input for the file path
+    user_path_glob :  a string, a path glob pattern from the user input
 
     Returns
     -------
     a list with paths of log files.
 
     """
-    paths = glob.glob(user_path + "worker*.darshan")
+    paths = glob.glob(user_path_glob)
     return paths
 
 def main(args: Union[Any, None] = None):
