@@ -437,6 +437,18 @@ void darshan_parse_config_env(struct darshan_config *cfg)
             }
         }
     }
+    envstr = getenv("DXT_ENABLE_STACK_TRACE");
+    if(envstr)
+    {
+        struct dxt_trigger *trigger = malloc(sizeof(*trigger));
+        if(trigger)
+        {   
+            trigger->type = DXT_COLLECT_STACK_TRACE;
+            trigger->u.unaligned_io.thresh_pct = 0;
+            cfg->stack_trace_trigger = trigger;
+        }    
+    }
+
     if(getenv("DARSHAN_DUMP_CONFIG"))
         cfg->dump_config_flag = 1;
     if(getenv("DARSHAN_INTERNAL_TIMING"))

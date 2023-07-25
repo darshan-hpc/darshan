@@ -11,7 +11,7 @@
 #define DXT_MPIIO_VER 2
 
 #define HOSTNAME_SIZE 64
-
+#include <stdbool.h>
 /*
  * DXT, the segment_info structure maintains detailed Segment IO tracing
  * information
@@ -21,6 +21,10 @@ typedef struct segment_info {
     int64_t length;
     double start_time;
     double end_time;
+    union {
+        void *address_array[10];
+        int noStackTrace;
+    } stack_trace;
 } segment_info;
 
 #define X(a) a,

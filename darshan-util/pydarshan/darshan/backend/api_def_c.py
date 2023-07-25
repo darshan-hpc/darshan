@@ -177,6 +177,10 @@ typedef struct segment_info {
     int64_t length;
     double start_time;
     double end_time;
+    union {
+        void *address_array[10];
+        int noStackTrace;
+    } stack_trace;
 } segment_info;
 
 /* counter names */

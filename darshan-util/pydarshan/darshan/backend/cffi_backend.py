@@ -52,7 +52,6 @@ libdutil = find_utils(ffi, libdutil)
 
 check_version(ffi, libdutil)
 
-
 _mod_names = [
     "NULL",
     "POSIX",
@@ -121,6 +120,7 @@ def log_open(filename):
     Return:
         log handle
     """
+
     b_fname = filename.encode()
     handle = libdutil.darshan_log_open(b_fname)
     log = {"handle": handle, 'modules': None, 'name_records': None}
@@ -609,7 +609,6 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     size_of = ffi.sizeof("struct dxt_file_record")
     segments = ffi.cast("struct segment_info *", buf[0] + size_of  )
 
-
     for i in range(wcnt):
         seg = {
             "offset": segments[i].offset,
@@ -617,6 +616,15 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
             "start_time": segments[i].start_time,
             "end_time": segments[i].end_time
         }
+        seg_array = []
+        if not segments[i].stack_trace.noStackTrace == 0:
+            for j in range(10):
+                addr = str(segments[i].stack_trace.address_array[j])
+                addr = addr.split("'void *' ")
+                addr = addr[1].split(">")
+                seg_array.append(addr[0])
+            seg["stack_memory_addresses"] = seg_array
+     
         rec['write_segments'].append(seg)
 
 
@@ -628,6 +636,15 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
             "start_time": segments[i].start_time,
             "end_time": segments[i].end_time
         }
+        seg_array = []
+        if not segments[i].stack_trace.noStackTrace == 0:
+            for j in range(10):
+                addr = str(segments[i].stack_trace.address_array[j])
+                addr = addr.split("'void *' ")
+                addr = addr[1].split(">")
+                seg_array.append(addr[0])
+            seg["stack_memory_addresses"] = seg_array
+
         rec['read_segments'].append(seg)
 
 

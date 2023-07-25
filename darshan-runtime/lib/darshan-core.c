@@ -394,6 +394,10 @@ void darshan_core_initialize(int argc, char **argv)
         darshan_core_fprintf(stderr, "darshan:init\t%d\t%f\n", nprocs, init_time);
     }
 
+    if(init_core->config.stack_trace_trigger){
+        dxt_enable_stack_trace();
+    }
+
     return;
 }
 
@@ -586,6 +590,7 @@ void darshan_core_shutdown(int write_log)
         dxt_posix_apply_trace_filter(final_core->config.small_io_trigger);
     if(final_core->config.unaligned_io_trigger)
         dxt_posix_apply_trace_filter(final_core->config.unaligned_io_trigger);
+
 
     /* loop over globally used darshan modules and:
      *      - get final output buffer

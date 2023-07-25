@@ -28,6 +28,7 @@
 #include <libgen.h>
 #include <pthread.h>
 #include <regex.h>
+#include <stdbool.h>
 
 #include "utlist.h"
 #include "uthash.h"
@@ -57,6 +58,8 @@ typedef int64_t off64_t;
 /* initial size of read/write trace buffer (in number of segments) */
 /* NOTE: when this size is exceeded, the buffer size is doubled */
 #define IO_TRACE_BUF_SIZE       64
+
+bool isStackTrace = false;
 
 /* The dxt_file_record_ref structure maintains necessary runtime metadata
  * for the DXT file record (dxt_file_record structure, defined in
@@ -262,6 +265,10 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
     rec_ref->write_traces[file_rec->write_count].length = length;
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
+    if (isStackTrace)
+        backtrace (rec_ref->write_traces[file_rec->write_count].stack_trace.address_array, 10);
+    else
+        rec_ref->write_traces[file_rec->write_count].stack_trace.noStackTrace = 0;
     file_rec->write_count += 1;
 
     DXT_UNLOCK();
@@ -307,6 +314,10 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].length = length;
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
+    if (isStackTrace)
+        backtrace (rec_ref->read_traces[file_rec->read_count].stack_trace.address_array , 10);
+    else
+        rec_ref->read_traces[file_rec->read_count].stack_trace.noStackTrace = 0;
     file_rec->read_count += 1;
 
     DXT_UNLOCK();
@@ -352,6 +363,10 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
     rec_ref->write_traces[file_rec->write_count].offset = offset;
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
+    if (isStackTrace)
+        backtrace (rec_ref->write_traces[file_rec->write_count].stack_trace.address_array, 10);
+    else
+        rec_ref->write_traces[file_rec->write_count].stack_trace.noStackTrace = 0;
     file_rec->write_count += 1;
 
     DXT_UNLOCK();
@@ -397,9 +412,18 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].offset = offset;
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
+    if (isStackTrace)
+        backtrace (rec_ref->read_traces[file_rec->read_count].stack_trace.address_array , 10);
+    else
+        rec_ref->read_traces[file_rec->read_count].stack_trace.noStackTrace = 0;
     file_rec->read_count += 1;
 
     DXT_UNLOCK();
+}
+
+void dxt_enable_stack_trace ()
+{
+    isStackTrace = true;
 }
 
 static void dxt_posix_filter_traces_iterator(void *rec_ref_p, void *user_ptr)

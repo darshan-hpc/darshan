@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #include "darshan-logutils.h"
 
@@ -300,11 +301,12 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     int64_t rank = file_rec->base_rec.rank;
     char *hostname = file_rec->hostname;
 
+
     int64_t write_count = file_rec->write_count;
     int64_t read_count = file_rec->read_count;
     segment_info *io_trace = (segment_info *)
         ((void *)file_rec + sizeof(struct dxt_file_record));
-
+    
     /* Lustre File System */
     struct darshan_lustre_record *rec;
     int lustreFS = !strcmp(fs_type, "lustre");
@@ -313,10 +315,14 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     int64_t cur_offset;
     int print_count;
     int ost_idx;
+    bool isStackTrace = true;
     
     if (!lustre_rec_ref) {
         lustreFS = 0;
     }
+
+    if (io_trace->stack_trace.noStackTrace==0)
+        isStackTrace = false;
 
     printf("\n# DXT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
     printf("# DXT, rank: %" PRId64 ", hostname: %s\n", rank, hostname);
@@ -339,11 +345,14 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     }
 
     /* Print header */
-    printf("# Module    Rank  Wt/Rd  Segment          Offset       Length    Start(s)      End(s)");
+    printf("# Module    Rank  Wt/Rd  Segment          Offset         Length       Start(s)    End(s)");
 
     if (lustreFS) {
-        printf("  [OST]");
+        printf("    [OST]");
     }
+
+    if (isStackTrace)
+        printf("    Memory Offsets");
     printf("\n");
 
     /* Print IO Traces information */
@@ -361,7 +370,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
 
             print_count = 0;
             while (cur_offset < offset + length) {
-                printf("  [%3" PRId64 "]", (rec->ost_ids)[ost_idx]);
+                printf("    [%3" PRId64 "]", (rec->ost_ids)[ost_idx]);
 
                 cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
                 ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
@@ -372,6 +381,15 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
             }
         }
 
+        if (isStackTrace){
+            printf("    [");
+            for (int j = 0; j < 10; j++) {
+                printf("%p",  io_trace[i].stack_trace.address_array[j]);
+                if (j != 9)
+                    printf(", ");
+            }
+            printf("]");
+        }
         printf("\n");
     }
 
@@ -389,7 +407,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
 
             print_count = 0;
             while (cur_offset < offset + length) {
-                printf("  [%3" PRId64 "]", (rec->ost_ids)[ost_idx]);
+                printf("    [%3" PRId64 "]", (rec->ost_ids)[ost_idx]);
 
                 cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
                 ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
@@ -398,6 +416,16 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
                 if (print_count >= stripe_count)
                     break;
             }
+        }
+
+        if (isStackTrace){
+            printf("    [");
+            for (int j = 0; j < 10; j++) {
+                printf("%p",  io_trace[i].stack_trace.address_array[j]);
+                if (j != 9)
+                    printf(", ");
+            }
+            printf("]");
         }
 
         printf("\n");
@@ -426,6 +454,10 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
 
     segment_info *io_trace = (segment_info *)
         ((void *)file_rec + sizeof(struct dxt_file_record));
+    
+    bool isStackTrace = true;
+    if (io_trace[0].stack_trace.noStackTrace == 0)
+        isStackTrace = false;
 
     printf("\n# DXT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
     printf("# DXT, rank: %" PRId64 ", hostname: %s\n", rank, hostname);
@@ -435,7 +467,10 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
     printf("# DXT, mnt_pt: %s, fs_type: %s\n", mnt_pt, fs_type);
 
     /* Print header */
-    printf("# Module    Rank  Wt/Rd  Segment          Offset       Length    Start(s)      End(s)\n");
+    if (isStackTrace)
+        printf("# Module    Rank  Wt/Rd  Segment          Offset        Length         Start(s)    End(s)     Memory Offsets\n");
+    else
+        printf("# Module    Rank  Wt/Rd  Segment          Offset        Length         Start(s)    End(s)\n");
 
     /* Print IO Traces information */
     for (i = 0; i < write_count; i++) {
@@ -444,7 +479,18 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f\n", "X_MPIIO", rank, "write", i, offset, length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f", "X_MPIIO", rank, "write", i, offset, length, start_time, end_time);
+
+        if (isStackTrace){
+            printf("     [");
+            for (int j = 0; j < 10; j++) {
+                printf("%p",  io_trace[i].stack_trace.address_array[j]);
+                if (j != 9)
+                    printf(", ");
+            }
+            printf("]");
+        }
+        printf("\n");
     }
 
     for (i = write_count; i < write_count + read_count; i++) {
@@ -453,7 +499,18 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f\n", "X_MPIIO", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f", "X_MPIIO", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
+        
+        if (isStackTrace){
+            printf("     [");
+            for (int j = 0; j < 10; j++) {
+                printf("%p",  io_trace[i].stack_trace.address_array[j]);
+                if (j != 9)
+                    printf(", ");
+            }
+            printf("]");
+        }
+        printf("\n");
     }
 
     return;
