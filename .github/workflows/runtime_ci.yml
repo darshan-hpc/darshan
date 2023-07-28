@@ -26,7 +26,7 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y hdf5-tools libhdf5-openmpi-dev openmpi-bin
           python -m pip install --upgrade pip
-          python -m pip install --upgrade pytest mpi4py cython numpy wheel pkgconfig "setuptools<62.0.0"
+          python -m pip install --upgrade pytest mpi4py "cython<3.0.0" numpy wheel pkgconfig "setuptools<62.0.0"
           # we need to build h5py with the system HDF5 lib backend
           export HDF5_MPI="ON"
           # Install h5py https://github.com/h5py/h5py/issues/2222
