@@ -76,6 +76,8 @@ struct darshan_header
     struct darshan_log_map name_map;
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
     uint32_t mod_ver[DARSHAN_MAX_MODS];
+    char posix_line_mapping[1024];
+    char mpiio_line_mapping[1024];
 };
 
 /* job-level metadata stored for this application */

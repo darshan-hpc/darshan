@@ -1085,7 +1085,7 @@ static int darshan_log_get_header(darshan_fd fd)
     int log_ver_maj, log_ver_min;
     int i;
     int ret;
-
+    
     ret = darshan_log_seek(fd, 0);
     if(ret < 0)
     {
@@ -1141,7 +1141,7 @@ static int darshan_log_get_header(darshan_fd fd)
     /* read uncompressed header from log file */
     /* NOTE: header bumped from 16 to 64 modules at log ver 3.41 */
     if(((log_ver_maj == 3) && (log_ver_min >= 41)) || (log_ver_maj > 3))
-    {
+    {   
         ret = darshan_log_read(fd, &header, sizeof(header));
         if(ret != (int)sizeof(header))
         {
@@ -1164,6 +1164,8 @@ static int darshan_log_get_header(darshan_fd fd)
             struct darshan_log_map name_map;
             struct darshan_log_map mod_map[DARSHAN_MAX_MODS_3_00];
             uint32_t mod_ver[DARSHAN_MAX_MODS_3_00];
+            char posix_line_mapping[1024];
+            char mpiio_line_mapping[1024];
         } header_3_00;
 
         /* read old header structure */
@@ -1173,7 +1175,6 @@ static int darshan_log_get_header(darshan_fd fd)
             fprintf(stderr, "Error: failed to read darshan log file header.\n");
             return(-1);
         }
-
         /* set new header structure */
         memset(&header, 0, sizeof(header));
         strncpy(header.version_string, header_3_00.version_string, 8);
@@ -1184,7 +1185,10 @@ static int darshan_log_get_header(darshan_fd fd)
             (1 + DARSHAN_MAX_MODS_3_00) * sizeof(header_3_00.name_map));
         memcpy(&header.mod_ver, &header_3_00.mod_ver,
             (DARSHAN_MAX_MODS_3_00) * sizeof(header_3_00.mod_ver[0]));
-
+        memcpy(&header.posix_line_mapping, &header_3_00.posix_line_mapping,
+        strlen(header.posix_line_mapping));
+         memcpy(&header.mpiio_line_mapping, &header_3_00.mpiio_line_mapping,
+        strlen(header.mpiio_line_mapping));
         fd->job_map.off = sizeof(header_3_00);
     }
 
@@ -1265,6 +1269,7 @@ static int darshan_log_get_header(darshan_fd fd)
         // zero out bits up to (and including) PNETCDF_VAR in shifted flags
         partial_flag_shift = (partial_flag_shift >> (DARSHAN_PNETCDF_VAR_MOD+1)) <<
             (DARSHAN_PNETCDF_VAR_MOD+1);
+
         // zero out PNETCDF_VAR and all bits higher than it in original flags
         fd->partial_flag = fd->partial_flag & ((1 << DARSHAN_PNETCDF_VAR_MOD) - 1);
         // combine original flags and shifted flags
@@ -1299,6 +1304,10 @@ static int darshan_log_get_header(darshan_fd fd)
         fd->job_map.len = fd->name_map.off - fd->job_map.off;
     }
 
+    if (strlen(header.posix_line_mapping) != 0)
+        memcpy(&fd->posix_line_mapping, &header.posix_line_mapping, strlen(header.posix_line_mapping));
+    if (strlen(header.mpiio_line_mapping) != 0)
+        memcpy(&fd->mpiio_line_mapping, &header.mpiio_line_mapping, strlen(header.mpiio_line_mapping));
     return(0);
 }
 

@@ -314,6 +314,15 @@ int darshan_core_register_module(
 void darshan_core_unregister_module(
     darshan_module_id mod_id);
 
+
+char *darshan_exe();
+
+void set_posix_line_mapping(
+    char *mapping_array, bool isStackTrace);
+
+void set_mpiio_line_mapping(
+    char *mapping_array, bool isStackTrace);
+
 /* darshan_instrument_fs_data()
  *
  * Allow file system-specific modules to instrument data for the file

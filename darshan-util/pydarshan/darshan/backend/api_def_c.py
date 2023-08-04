@@ -63,6 +63,7 @@ int darshan_accumulator_destroy(darshan_accumulator);
 
 /* from darshan-log-format.h */
 typedef uint64_t darshan_record_id;
+#define STACK_TRACE_BUF_SIZE       26
 
 struct darshan_job
 {
@@ -177,10 +178,8 @@ typedef struct segment_info {
     int64_t length;
     double start_time;
     double end_time;
-    union {
-        void *address_array[10];
-        int noStackTrace;
-    } stack_trace;
+    void *address_array[STACK_TRACE_BUF_SIZE];
+    int noStackTrace;
 } segment_info;
 
 /* counter names */

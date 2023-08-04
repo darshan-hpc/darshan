@@ -23,6 +23,8 @@
 
 #include "darshan-logutils.h"
 
+#define STACK_TRACE_BUF_SIZE       26
+
 static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf_p);
 static int dxt_log_put_posix_file(darshan_fd fd, void* dxt_posix_buf);
 
@@ -321,7 +323,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         lustreFS = 0;
     }
 
-    if (io_trace->stack_trace.noStackTrace==0)
+    if (io_trace->noStackTrace==0)
         isStackTrace = false;
 
     printf("\n# DXT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
@@ -383,9 +385,9 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
 
         if (isStackTrace){
             printf("    [");
-            for (int j = 0; j < 10; j++) {
-                printf("%p",  io_trace[i].stack_trace.address_array[j]);
-                if (j != 9)
+            for (int j = 0; j < STACK_TRACE_BUF_SIZE; j++) {
+                printf("%p",  io_trace[i].address_array[j]);
+                if (j != STACK_TRACE_BUF_SIZE - 1)
                     printf(", ");
             }
             printf("]");
@@ -420,9 +422,9 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
 
         if (isStackTrace){
             printf("    [");
-            for (int j = 0; j < 10; j++) {
-                printf("%p",  io_trace[i].stack_trace.address_array[j]);
-                if (j != 9)
+            for (int j = 0; j < STACK_TRACE_BUF_SIZE; j++) {
+                printf("%p",  io_trace[i].address_array[j]);
+                if (j != STACK_TRACE_BUF_SIZE - 1)
                     printf(", ");
             }
             printf("]");
@@ -456,7 +458,7 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
         ((void *)file_rec + sizeof(struct dxt_file_record));
     
     bool isStackTrace = true;
-    if (io_trace[0].stack_trace.noStackTrace == 0)
+    if (io_trace[0].noStackTrace == 0)
         isStackTrace = false;
 
     printf("\n# DXT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
@@ -483,9 +485,9 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
 
         if (isStackTrace){
             printf("     [");
-            for (int j = 0; j < 10; j++) {
-                printf("%p",  io_trace[i].stack_trace.address_array[j]);
-                if (j != 9)
+            for (int j = 0; j < STACK_TRACE_BUF_SIZE; j++) {
+                printf("%p",  io_trace[i].address_array[j]);
+                if (j != STACK_TRACE_BUF_SIZE - 1)
                     printf(", ");
             }
             printf("]");
@@ -503,9 +505,9 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
         
         if (isStackTrace){
             printf("     [");
-            for (int j = 0; j < 10; j++) {
-                printf("%p",  io_trace[i].stack_trace.address_array[j]);
-                if (j != 9)
+            for (int j = 0; j < STACK_TRACE_BUF_SIZE; j++) {
+                printf("%p",  io_trace[i].address_array[j]);
+                if (j != STACK_TRACE_BUF_SIZE - 1)
                     printf(", ");
             }
             printf("]");

@@ -92,7 +92,7 @@ _structdefs = {
     "APMPI-PERF": "struct darshan_apmpi_perf_record **",
 }
 
-
+STACK_TRACE_BUF_SIZE = 26
 
 def get_lib_version():
     """
@@ -617,9 +617,9 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
             "end_time": segments[i].end_time
         }
         seg_array = []
-        if not segments[i].stack_trace.noStackTrace == 0:
-            for j in range(10):
-                addr = str(segments[i].stack_trace.address_array[j])
+        if not segments[i].noStackTrace == 0:
+            for j in range(STACK_TRACE_BUF_SIZE):
+                addr = str(segments[i].address_array[j])
                 addr = addr.split("'void *' ")
                 addr = addr[1].split(">")
                 seg_array.append(addr[0])
@@ -637,9 +637,9 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
             "end_time": segments[i].end_time
         }
         seg_array = []
-        if not segments[i].stack_trace.noStackTrace == 0:
-            for j in range(10):
-                addr = str(segments[i].stack_trace.address_array[j])
+        if not segments[i].noStackTrace == 0:
+            for j in range(STACK_TRACE_BUF_SIZE):
+                addr = str(segments[i].address_array[j])
                 addr = addr.split("'void *' ")
                 addr = addr[1].split(">")
                 seg_array.append(addr[0])

@@ -40,7 +40,8 @@ struct darshan_fd_s
     struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
     /* module-specific log-format versions contained in log */
     uint32_t mod_ver[DARSHAN_MAX_MODS];
-
+    char posix_line_mapping[1024];
+    char mpiio_line_mapping[1024];
     /* KEEP OUT -- remaining state hidden in logutils source */
     struct darshan_fd_int_state *state;
 
