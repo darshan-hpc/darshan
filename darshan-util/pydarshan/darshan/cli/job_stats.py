@@ -1,5 +1,6 @@
 import pandas as pd
 import argparse
+import sys
 import darshan
 import darshan.cli
 from darshan.backend.cffi_backend import accumulate_records
@@ -26,13 +27,7 @@ def df_IO_data(file_path, mod):
     dict_recs = {}
     dict_recs['agg_perf_by_slowest'] = acc_recs.derived_metrics.agg_perf_by_slowest
     dict_recs['agg_time_by_slowest'] = acc_recs.derived_metrics.agg_time_by_slowest
-    dict_recs['category_counters'] = acc_recs.derived_metrics.category_counters
-    dict_recs['shared_io_total_time_by_slowest'] = acc_recs.derived_metrics.shared_io_total_time_by_slowest
     dict_recs['total_bytes'] = acc_recs.derived_metrics.total_bytes
-    dict_recs['unique_io_slowest_rank'] = acc_recs.derived_metrics.unique_io_slowest_rank
-    dict_recs['unique_io_total_time_by_slowest'] = acc_recs.derived_metrics.unique_io_total_time_by_slowest
-    dict_recs['unique_md_only_time_by_slowest'] = acc_recs.derived_metrics.unique_md_only_time_by_slowest
-    dict_recs['unique_rw_only_time_by_slowest'] = acc_recs.derived_metrics.unique_rw_only_time_by_slowest
     df = pd.DataFrame.from_dict([dict_recs])
     return df
 
@@ -101,39 +96,28 @@ def setup_parser(parser: argparse.ArgumentParser):
     parser.add_argument(
         "log_path",
         type=str,
+        nargs='+',
         help="Specify the path to darshan log files."
     )
     parser.add_argument(
-        "module",
+        "-module", "-m",
         type=str,
+        nargs='?', default='POSIX',
         help="Specify the module name."
     )
     parser.add_argument(
-        "order_by_colname",
+        "-order_by_colname", "-o",
         type=str,
+        nargs='?', default='total_bytes',
+        choices=['agg_perf_by_slowest', 'agg_time_by_slowest', 'total_bytes'],
         help="Specify the column name."
     )
     parser.add_argument(
-        "number_of_rows",
+        "-number_of_rows", "-n",
         type=int,
+        nargs='?', default='10',
         help="The first n rows of the DataFrame"
     )
-
-def discover_logpaths(user_path_glob):
-    """
-    Generate a list with log file paths.
-
-    Parameters
-    ----------
-    user_path_glob :  a string, a path glob pattern from the user input
-
-    Returns
-    -------
-    a list with paths of log files.
-
-    """
-    paths = glob.glob(user_path_glob)
-    return paths
 
 def main(args: Union[Any, None] = None):
     """
@@ -149,22 +133,22 @@ def main(args: Union[Any, None] = None):
         setup_parser(parser)
         args = parser.parse_args()
     mod = args.module
+    list_modules = ["POSIX", "MPI-IO", "LUSTRE", "STDIO"]
+    if mod not in list_modules:
+        print(f'{mod} is not in list')
+        sys.exit()
     order_by_colname = args.order_by_colname
     n = args.number_of_rows
-    colname_list = ['agg_perf_by_slowest', 'agg_time_by_slowest', 'total_bytes']
-    if order_by_colname in colname_list:
-        log_paths = discover_logpaths(args.log_path)
-        item_number = len(log_paths)
-        list_dfs = []
-        for i in range(item_number):
-            df_i = df_IO_data(log_paths[i], mod)
-            list_dfs.append(df_i)
-        com_dfs = combined_dfs(list_dfs)
-        combined_dfs_sort = sort_data_desc(com_dfs, order_by_colname)
-        combined_dfs_selected = first_n_recs(combined_dfs_sort, n)
-        print("Statistical data of jobs:", combined_dfs_selected)
-    else:
-        print("Column name should be 'agg_perf_by_slowest', 'agg_time_by_slowest', or 'total_bytes'")
+    log_paths = args.log_path
+    item_number = len(log_paths)
+    list_dfs = []
+    for i in range(item_number):
+        df_i = df_IO_data(log_paths[i], mod)
+        list_dfs.append(df_i)
+    com_dfs = combined_dfs(list_dfs)
+    combined_dfs_sort = sort_data_desc(com_dfs, order_by_colname)
+    combined_dfs_selected = first_n_recs(combined_dfs_sort, n)
+    print("Statistical data of jobs:\n", combined_dfs_selected)
 
 if __name__ == "__main__":
     main()
