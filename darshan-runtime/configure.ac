@@ -360,7 +360,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    )
    if test "x$enable_hdf5_mod" = xyes ; then
       if test -d "$with_hdf5" ; then
-          AC_PATH_PROG(H5DUMP_CHECK, h5dump, "no", "${with_hdf5}/bin")
+         AC_PATH_PROG(H5DUMP_CHECK, h5dump, "no", "${with_hdf5}/bin")
       else
          AC_PATH_PROG(H5DUMP_CHECK, h5dump, "no")
          # autodetect HDF5 install prefix and set with_hdf5
