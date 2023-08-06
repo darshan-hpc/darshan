@@ -17,7 +17,7 @@ C_SRCS = darshan-core-init-finalize.c \
          darshan-core.c \
          darshan-common.c \
          darshan-config.c \
-	 darshan-ldms.c \
+         darshan-ldms.c \
          lookup3.c \
          lookup8.c
 
@@ -120,18 +120,18 @@ H_SRCS = darshan-common.h \
          darshan-config.h \
          darshan-lustre.h \
          darshan-dxt.h \
-	 darshan-ldms.h \
+         darshan-ldms.h \
          uthash.h \
          darshan-dynamic.h \
          utlist.h \
-	 darshan-heatmap.h 
+         darshan-heatmap.h
 
 EXTRA_DIST = $(H_SRCS) \
              darshan-null.c \
              darshan-posix.c \
              darshan-stdio.c \
              darshan-dxt.c \
-	     darshan-ldms.c \
+             darshan-ldms.c \
              darshan-mpiio.c \
              darshan-pnetcdf.c \
              darshan-pnetcdf-api.m4 \
@@ -139,5 +139,5 @@ EXTRA_DIST = $(H_SRCS) \
              darshan-bgq.c \
              darshan-lustre.c \
              darshan-mdhim.c \
-	     darshan-heatmap.c
+             darshan-heatmap.c
 

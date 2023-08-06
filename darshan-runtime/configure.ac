@@ -360,7 +360,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    )
    if test "x$enable_hdf5_mod" = xyes ; then
       if test -d "$with_hdf5" ; then
-	      AC_PATH_PROG(H5DUMP_CHECK, h5dump, "no", "${with_hdf5}/bin")
+          AC_PATH_PROG(H5DUMP_CHECK, h5dump, "no", "${with_hdf5}/bin")
       else
          AC_PATH_PROG(H5DUMP_CHECK, h5dump, "no")
          # autodetect HDF5 install prefix and set with_hdf5
@@ -866,7 +866,6 @@ if test "x$enable_darshan_runtime" = xyes ; then
          enable_apmpi_mod="yes (collective sync mode)"
       fi
    fi
-   
    echo "------------------------------------------------------------------------------
    ${PACKAGE_NAME} Version ${PACKAGE_VERSION} configured with the following features:"
    if test "x$ENABLE_MPI" = xyes ; then
@@ -891,8 +890,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
            Lustre        module support  - $enable_lustre_mod
            MDHIM         module support  - $enable_mdhim_mod
            HEATMAP       module support  - $enable_heatmap_mod
-	   LDMS 	 runtime module  - $enable_ldms_mod
-			 collection
+           LDMS          runtime module  - $enable_ldms_mod
            Memory alignment in bytes     - $with_mem_align
            Log file env variables        - $__log_path_by_env
            Location of Darshan log files - $__log_path

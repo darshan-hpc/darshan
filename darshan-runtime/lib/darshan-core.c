@@ -106,7 +106,6 @@ extern void darshan_instrument_lustre_file(const char *filepath, int fd);
 static void *darshan_init_mmap_log(
     struct darshan_core_runtime* core, int jobid);
 #endif
-
 static void darshan_log_record_hints_and_ver(
     struct darshan_core_runtime* core);
 static void darshan_get_exe_and_mounts(
@@ -212,6 +211,7 @@ void darshan_core_initialize(int argc, char **argv)
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if (__darshan_core != NULL || getenv("DARSHAN_DISABLE"))
         return;
+
     init_start = darshan_core_wtime_absolute();
 
     /* allocate structure to track darshan core runtime information */
@@ -366,7 +366,6 @@ void darshan_core_initialize(int argc, char **argv)
         __darshan_core = init_core;
         __darshan_core_wtime_offset = init_start;
         __DARSHAN_CORE_UNLOCK();
-
 
         /* bootstrap any modules with static initialization routines */
         i = 0;

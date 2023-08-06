@@ -6,6 +6,7 @@
 
 #ifndef __DARSHAN_DXT_H
 #define __DARSHAN_DXT_H
+
 /* DXT triggers are used to filter out trace records according to
  * user-specified parameters:
  *  - DXT_SMALL_IO_TRIGGER: only retain DXT file records that exhibit a

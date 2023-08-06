@@ -193,7 +193,7 @@ int DARSHAN_DECL(foo)(const char* name, int arg1)
      * operation. */
     tm1 = NULL_WTIME();
     ret = __real_foo(name, arg1);
-    tm1 = NULL_WTIME();
+    tm2 = NULL_WTIME();
 
     NULL_PRE_RECORD();
     /* Call macro for instrumenting data for foo function calls. */
