@@ -106,39 +106,27 @@ def setup_parser(parser: argparse.ArgumentParser):
     parser.add_argument(
         "log_path",
         type=str,
+        nargs='+',
         help="Specify the path to darshan log files."
     )
     parser.add_argument(
-        "module",
+        "-module", "-m",
         type=str,
+        nargs='?', default='POSIX',
         help="Specify the module name."
     )
     parser.add_argument(
-        "order_by_colname",
+        "-order_by_colname", "-o",
         type=str,
+        nargs='?', default='POSIX_BYTES_READ',
         help="Specify the column name."
     )
     parser.add_argument(
-        "number_of_rows",
+        "-number_of_rows", "-n",
         type=int,
+        nargs='?', default='10',
         help="The first n rows of the DataFrame"
     )
-
-def discover_logpaths(user_path_glob):
-    """
-    Generate a list with log file paths.
-
-    Parameters
-    ----------
-    user_path :  a string, a path glob pattern from the user input
-
-    Returns
-    -------
-    a list with paths of log files.
-
-    """
-    paths = glob.glob(user_path_glob)
-    return paths
 
 def main(args: Union[Any, None] = None):
     """
@@ -154,11 +142,18 @@ def main(args: Union[Any, None] = None):
         setup_parser(parser)
         args = parser.parse_args()
     mod = args.module
+    list_modules = ["POSIX", "MPI-IO", "LUSTRE", "STDIO"]
+    if mod not in list_modules:
+        print(f'{mod} is not in list')
+        sys.exit()
     order_by_colname = args.order_by_colname
+    if order_by_colname == " ":
+        order_by_colname = f'{mod}_BYTES_READ'
+        print("order_by_colname: ", order_by_colname)
     n = args.number_of_rows
     colname_list = [f'{mod}_BYTES_READ', f'{mod}_BYTES_WRITTEN']
     if order_by_colname in colname_list:
-        log_paths = discover_logpaths(args.log_path)
+        log_paths = args.log_path
         item_number = len(log_paths)
         list_dfs = []
         for i in range(item_number):
@@ -168,7 +163,7 @@ def main(args: Union[Any, None] = None):
         combined_dfs_groupby = group_by_id(com_dfs)
         combined_dfs_sort = sort_data_desc(combined_dfs_groupby, order_by_colname)
         combined_dfs_selected = first_n_recs(combined_dfs_sort, n)
-        print("Statistical data of files:", combined_dfs_selected)
+        print("Statistical data of files:\n", combined_dfs_selected)
     else:
         print("Column name should be '{mod}_BYTES_READ' or '{mod}_BYTES_WRITTEN'")
 
