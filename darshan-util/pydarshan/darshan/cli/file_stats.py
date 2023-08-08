@@ -149,7 +149,6 @@ def main(args: Union[Any, None] = None):
     order_by_colname = args.order_by_colname
     if order_by_colname == " ":
         order_by_colname = f'{mod}_BYTES_READ'
-        print("order_by_colname: ", order_by_colname)
     n = args.number_of_rows
     colname_list = [f'{mod}_BYTES_READ', f'{mod}_BYTES_WRITTEN']
     if order_by_colname in colname_list:
