@@ -21,9 +21,8 @@ typedef struct darshanConnector {
         int mpiio_enable_ldms;
         int stdio_enable_ldms;
         int hdf5_enable_ldms;
-        int64_t rank;
-        uint64_t record_id;
         char *exename;
+	const char *schema;
         const char* env_ldms_stream;
         const char* env_ldms_reinit;
         int server_rc;
@@ -33,8 +32,6 @@ typedef struct darshanConnector {
         int64_t hdf5_data[5];
         int64_t open_count;
         int64_t write_count;
-        const char *filename;
-        const char *data_set;
         int conn_status;
         struct timespec ts;
         pthread_mutex_t ln_lock;
@@ -72,8 +69,6 @@ typedef struct darshanConnector {
  */
 void darshan_ldms_connector_initialize(struct darshan_core_runtime *);
 
-void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset, int64_t length, int64_t max_byte, int64_t rw_switch, int64_t flushes, double start_time, double end_time, double total_time, char *mod_name, char *data_type);
-
-void darshan_ldms_set_meta(const char *filename, const char *data_set,  uint64_t record_id, int64_t rank);
+void darshan_ldms_connector_send(uint64_t record_id, int64_t rank, int64_t record_count, char *rwo, int64_t offset, int64_t length, int64_t max_byte, int64_t rw_switch, int64_t flushes, double start_time, double end_time, double total_time, char *mod_name, char *data_type);
 
 #endif /* __DARSHAN_LDMS_H */

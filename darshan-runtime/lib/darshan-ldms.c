@@ -25,6 +25,7 @@
 #include "ovis_json/ovis_json.h"
 
 struct darshanConnector dC = {
+     .schema = "darshanConnector",
      .ldms_darsh = NULL,
      .exename = NULL,
      .ldms_lib = 0,
@@ -193,22 +194,14 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
     return;
 }
 
-void darshan_ldms_set_meta(const char *filename, const char *data_set, uint64_t record_id, int64_t rank)
-{
-    dC.rank = rank;
-    dC.filename = filename;
-    dC.data_set = data_set;
-    dC.record_id = record_id;
-    return;
-
-}
-
-void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset, int64_t length, int64_t max_byte, int64_t rw_switch, int64_t flushes,  double start_time, double end_time, double total_time, char *mod_name, char *data_type)
+void darshan_ldms_connector_send(uint64_t record_id, int64_t rank, int64_t record_count, char *rwo, int64_t offset, int64_t length, int64_t max_byte, int64_t rw_switch, int64_t flushes,  double start_time, double end_time, double total_time, char *mod_name, char *data_type)
 {
     char jb11[1024];
     int rc, ret, i, size, exists;
-    uint64_t micro_s;
+    const char *filepath;
     struct timespec tspec_start, tspec_end;
+    uint64_t micro_s;
+    
     dC.env_ldms_stream  = getenv("DARSHAN_LDMS_STREAM");
 
     pthread_mutex_lock(&dC.ln_lock);
@@ -222,34 +215,36 @@ void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset
         return;
     }
 
+    /* get the full file path from record ID */
+    filepath = darshan_core_lookup_record_name(record_id);
 
     if (strcmp(rwo, "open") == 0)
         dC.open_count = record_count;
 
-    /* set record count to number of opens since we are closing the same file we opened.*/
+    /* set record count of closes to number of opens since we are closing the same file we opened.*/
     if (strcmp(rwo, "close") == 0)
         record_count = dC.open_count;
 
     if (strcmp(mod_name, "H5D") != 0){
         size = sizeof(dC.hdf5_data)/sizeof(dC.hdf5_data[0]);
-        dC.data_set = "N/A";
         for (i=0; i < size; i++)
             dC.hdf5_data[i] = -1;
     }
 
+    /* set following fields for module data to N/A to reduce message size */
     if (strcmp(data_type, "MOD") == 0)
     {
-        dC.filename = "N/A";
+        filepath = "N/A";
         dC.exename = "N/A";
+	dC.schema = "N/A";
     }
 
     /* convert the start and end times to timespecs and report absolute timestamps */
     tspec_start = darshan_core_abs_timespec_from_wtime(start_time);
     tspec_end = darshan_core_abs_timespec_from_wtime(end_time);
-
     micro_s = tspec_end.tv_nsec/1.0e3;
 
-    sprintf(jb11,"{ \"uid\":%ld, \"exe\":\"%s\",\"job_id\":%ld,\"rank\":%ld,\"ProducerName\":\"%s\",\"file\":\"%s\",\"record_id\":%"PRIu64",\"module\":\"%s\",\"type\":\"%s\",\"max_byte\":%ld,\"switches\":%ld,\"flushes\":%ld,\"cnt\":%ld,\"op\":\"%s\",\"seg\":[{\"data_set\":\"%s\",\"pt_sel\":%ld,\"irreg_hslab\":%ld,\"reg_hslab\":%ld,\"ndims\":%ld,\"npoints\":%ld,\"off\":%ld,\"len\":%ld,\"start\":%0.6f,\"dur\":%0.6f,\"total\":%0.6f,\"timestamp\":%lu.%.6lu}]}", dC.uid, dC.exename, dC.jobid, dC.rank, dC.hname, dC.filename, dC.record_id, mod_name, data_type, max_byte, rw_switch, flushes, record_count, rwo, dC.data_set, dC.hdf5_data[0], dC.hdf5_data[1], dC.hdf5_data[2], dC.hdf5_data[3], dC.hdf5_data[4], offset, length, start_time, end_time-start_time, total_time, tspec_end.tv_sec, micro_s);
+    sprintf(jb11,"{\"schema\":%s, \"uid\":%ld, \"exe\":\"%s\",\"job_id\":%ld,\"rank\":%ld,\"ProducerName\":\"%s\",\"file\":\"%s\",\"record_id\":%"PRIu64",\"module\":\"%s\",\"type\":\"%s\",\"max_byte\":%ld,\"switches\":%ld,\"flushes\":%ld,\"cnt\":%ld,\"op\":\"%s\",\"seg\":[{\"pt_sel\":%ld,\"irreg_hslab\":%ld,\"reg_hslab\":%ld,\"ndims\":%ld,\"npoints\":%ld,\"off\":%ld,\"len\":%ld,\"start\":%0.6f,\"dur\":%0.6f,\"total\":%0.6f,\"timestamp\":%lu.%.6lu}]}", dC.schema, dC.uid, dC.exename, dC.jobid, rank, dC.hname, filepath, record_id, mod_name, data_type, max_byte, rw_switch, flushes, record_count, rwo, dC.hdf5_data[0], dC.hdf5_data[1], dC.hdf5_data[2], dC.hdf5_data[3], dC.hdf5_data[4], offset, length, start_time, end_time-start_time, total_time, tspec_end.tv_sec, micro_s);
     
     if (getenv("DARSHAN_LDMS_VERBOSE"))
             printf("JSON Message: %s\n", jb11);
@@ -272,12 +267,7 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
     return;
 }
 
-void darshan_ldms_set_meta(const char *filename, const char *data_set, uint64_t record_id, int64_t rank)
-{
-    return;
-}
-
-void darshan_ldms_connector_send(int64_t record_count, char *rwo, int64_t offset, int64_t length, int64_t max_byte, int64_t rw_switch, int64_t flushes,  double start_time, double end_time, double total_time, char *mod_name, char *data_type)
+void darshan_ldms_connector_send(uint64_t record_id, int64_t rank, int64_t record_count, char *rwo, int64_t offset, int64_t length, int64_t max_byte, int64_t rw_switch, int64_t flushes,  double start_time, double end_time, double total_time, char *mod_name, char *data_type)
 {
     return;
 }

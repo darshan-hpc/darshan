@@ -211,7 +211,6 @@ void darshan_core_initialize(int argc, char **argv)
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if (__darshan_core != NULL || getenv("DARSHAN_DISABLE"))
         return;
-
     init_start = darshan_core_wtime_absolute();
 
     /* allocate structure to track darshan core runtime information */
