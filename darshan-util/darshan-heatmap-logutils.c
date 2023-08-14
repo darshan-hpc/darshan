@@ -92,6 +92,14 @@ static int darshan_log_get_heatmap_record(darshan_fd fd, void** heatmap_buf_p)
         DARSHAN_BSWAP64(&rec->bin_width_seconds);
         DARSHAN_BSWAP64(&rec->nbins);
     }
+    /* If this is the first heatmap record that we have seen for this log,
+     * then record the initial bin count and width.  We may need to correct
+     * subsequent records that are off by one.
+     */
+    if(fd->first_heatmap_record_nbins == 0)
+        fd->first_heatmap_record_nbins = rec->nbins;
+    if(fd->first_heatmap_record_bin_width_seconds == 0)
+        fd->first_heatmap_record_bin_width_seconds = rec->bin_width_seconds;
 
     /* if buffer was provided by caller, then it is implied that it is
      * DEF_MOD_BUF_SIZE bytes in size.  Make sure it is big enough, or if we
@@ -131,6 +139,40 @@ static int darshan_log_get_heatmap_record(darshan_fd fd, void** heatmap_buf_p)
             DARSHAN_BSWAP64(&rec->write_bins[i]);
             DARSHAN_BSWAP64(&rec->read_bins[i]);
         }
+    }
+    /* On the fly correction if we find a record that is off by one in the
+     * number of bins.
+     *
+     * NOTE: only do this if a) the bin width is correct and b) the size is
+     * only off by one.  We don't want to make dramatic changes here, just
+     * fix minor clock skew problems as described below, caused by a runtime bug
+     * when shared reductions were disabled in Darshan 3.4.0 to 3.4.3.
+     * https://github.com/darshan-hpc/darshan/issues/941
+     */
+    if(rec->bin_width_seconds == fd->first_heatmap_record_bin_width_seconds &&
+        rec->nbins == (fd->first_heatmap_record_nbins + 1))
+    {
+        /* One too many bins in this record.  Just drop one. */
+        /* note that this will leave a hole between the write bins array and
+         * read bins array; that's fine because we have already set pointers
+         * to the correct start of each one.
+         */
+        rec->nbins--;
+    }
+    else if(rec->bin_width_seconds == fd->first_heatmap_record_bin_width_seconds &&
+        rec->nbins == (fd->first_heatmap_record_nbins - 1))
+    {
+        /* One too few bins; need to add one */
+
+        /* we have to shift the read bins down because the data is
+         * contiguous in memory
+         */
+        memmove(&rec->read_bins[1], &rec->read_bins[0],
+                rec->nbins*sizeof(uint64_t));
+        /* zero out values in new bins */
+        rec->write_bins[rec->nbins] = 0;
+        rec->read_bins[rec->nbins] = 0;
+        rec->nbins++;
     }
 
     return(1);

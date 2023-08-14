@@ -643,11 +643,19 @@ void darshan_core_shutdown(int write_log)
                 }
 
                 /* allow the module an opportunity to reduce shared files */
-                if(this_mod->mod_funcs.mod_redux_func && (mod_shared_rec_cnt > 0) &&
-                   !final_core->config.disable_shared_redux_flag)
+                if(this_mod->mod_funcs.mod_redux_func && (mod_shared_rec_cnt > 0))
                 {
-                    this_mod->mod_funcs.mod_redux_func(mod_buf, final_core->mpi_comm,
-                        mod_shared_recs, mod_shared_rec_cnt);
+                    /* run reductions as long as they aren't disabled */
+                    /* NOTE: shared reductions should never be disabled for the
+                     *       HEATMAP module, as the shared reduction step is used
+                     *       to produce a consistent heatmap format across ranks
+                     */
+                    if(!final_core->config.disable_shared_redux_flag ||
+                       (i == DARSHAN_HEATMAP_MOD))
+                    {
+                        this_mod->mod_funcs.mod_redux_func(mod_buf, final_core->mpi_comm,
+                            mod_shared_recs, mod_shared_rec_cnt);
+                    }
                 }
             }
 #endif

@@ -1,3 +1,7 @@
+PyDarshan-3.4.4.0
+=================
+* Track Darshan 3.4.4 release, no PyDarshan changes
+
 PyDarshan-3.4.3.0
 =================
 * Various job summary tool improvements

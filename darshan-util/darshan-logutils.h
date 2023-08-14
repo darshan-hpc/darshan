@@ -43,6 +43,12 @@ struct darshan_fd_s
 
     /* KEEP OUT -- remaining state hidden in logutils source */
     struct darshan_fd_int_state *state;
+
+    /* workaround to parse logs with slightly inconsistent heatmap bin
+     * counts as described in https://github.com/darshan-hpc/darshan/issues/941
+     */
+    int64_t first_heatmap_record_nbins;
+    double first_heatmap_record_bin_width_seconds;
 };
 typedef struct darshan_fd_s* darshan_fd;
 

@@ -16,12 +16,12 @@
 # variables (as in a dynamically linked environment), or generate mpicc
 # wrappers (as in a statically linked environment).
 
-# Notes specific to this platform (cray-module-nersc)
+# Notes specific to this platform (cray-module-olcf-fontier)
 ########################
 # Use Cray's default compiler wrappers and load the module associated with
 # this darshan install
 #
-# RUNJOB is responsible for submitting a slurm job, waiting for its
+# RUNJOB is responsible for submitting a Slurm job, waiting for its
 # completion, and checking its return status
 
 export DARSHAN_CC=cc
@@ -31,5 +31,10 @@ export DARSHAN_F90=ftn
 
 export DARSHAN_RUNJOB=$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/runjob.sh
 
-module unload darshan >& /dev/null
-module load $DARSHAN_RUNTIME_PATH/share/craype-2.x/modulefiles/
+# OLCF has separate modules for darshan-runtime/darshan-util,
+# but we just unload both and load the traditional module that
+# ships with Darshan
+module unload darshan-runtime >& /dev/null
+module unload darshan-util >& /dev/null
+export MODULEPATH=$DARSHAN_RUNTIME_PATH/share/craype-2.x/modulefiles:$MODULEPATH
+module load darshan

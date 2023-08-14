@@ -16,10 +16,16 @@ The master script must be executed with three arguments:
      profiling configuration hooks on a standard workstation)
    - workstation-ld-preload (for dynamic instrumentation via LD_PRELOAD on a
      standard workstation)
-   - cray-module-alcf (for static/dynamic instrumentation using a Darshan
-     Cray module on Cray systems @ the ALCF only)
-   - cray-module-nersc (for static/dynamic instrumentation using a Darshan
-     Cray module on Cray systems @ NERSC only)
+   - cray-module-alcf-theta (for instrumentation using a Darshan
+     Cray module on the Theta system @ ALCF only)
+   - cray-module-alcf-polaris (for instrumentation using a Darshan
+     Cray module on the Polaris system @ ALCF only)
+   - cray-module-nersc-perlmutter (for instrumentation using a Darshan
+     Cray module on the Perlmutter system @ NERSC only)
+   - cray-module-olcf-frontier (for instrumentation using a Darshan
+     Cray module on the Frontier system @ OLCF only)
+   - cray-module-olcf-crusher (for instrumentation using a Darshan
+     Cray module on the Crusher system @ OLCF only)
 
 The platform type should map to a subdirectory containing scripts
 that describe how to perform platform-specific tasks (like loading or

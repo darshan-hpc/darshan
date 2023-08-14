@@ -2,6 +2,16 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.4.4
+=============
+* Fixed bug leading to inconsistent heatmap record shapes when Darshan
+  shared file reductions are disabled
+  - also added a darshan-util fix to resolve this inconsisency on already
+    impacted logs (any generated with 3.4.0+ versions of Darshan)
+* Added workaround for potential undefined symbol errors for 'H5FD_mpio_init'
+  when LD_PRELOADing an HDF5-enabled runtime library
+  - bug triggered by 1.13+ versions of HDF5
+
 Darshan-3.4.3
 =============
 * Added new configure option '--with-username-env' to allow

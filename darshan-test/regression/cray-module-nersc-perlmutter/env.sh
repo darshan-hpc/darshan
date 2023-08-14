@@ -18,7 +18,8 @@
 
 # Notes specific to this platform (cray-module-nersc-perlmutter)
 ########################
-# Use Cray's default compiler wrappers and load the system default darshan module
+# Use Cray's default compiler wrappers and load the module associated with
+# this darshan install
 #
 # RUNJOB is responsible for submitting a slurm job, waiting for its
 # completion, and checking its return status
@@ -30,4 +31,6 @@ export DARSHAN_F90=ftn
 
 export DARSHAN_RUNJOB=$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/runjob.sh
 
+module unload darshan >& /dev/null
+export MODULEPATH=$DARSHAN_RUNTIME_PATH/share/craype-2.x/modulefiles:$MODULEPATH
 module load darshan
