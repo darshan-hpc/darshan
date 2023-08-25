@@ -12,7 +12,7 @@
 
 #define HOSTNAME_SIZE 64
 
-#define STACK_TRACE_BUF_SIZE       26
+#define STACK_TRACE_BUF_SIZE       60
 
 #include <stdbool.h>
 /*

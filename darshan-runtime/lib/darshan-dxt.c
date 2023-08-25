@@ -59,7 +59,7 @@ typedef int64_t off64_t;
 /* NOTE: when this size is exceeded, the buffer size is doubled */
 #define IO_TRACE_BUF_SIZE       64
 
-#define STACK_TRACE_BUF_SIZE       26
+#define STACK_TRACE_BUF_SIZE       60
 
 bool isStackTrace = false;
 
@@ -324,7 +324,7 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
     if (isStackTrace){
         backtrace (rec_ref->read_traces[file_rec->read_count].address_array , STACK_TRACE_BUF_SIZE);
-        rec_ref->write_traces[file_rec->write_count].noStackTrace = 1;
+        rec_ref->read_traces[file_rec->read_count].noStackTrace = 1;
     }
     else
         rec_ref->read_traces[file_rec->read_count].noStackTrace = 0;
@@ -427,7 +427,7 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
     if (isStackTrace){
         backtrace (rec_ref->read_traces[file_rec->read_count].address_array , STACK_TRACE_BUF_SIZE);
-        rec_ref->write_traces[file_rec->write_count].noStackTrace = 1;
+        rec_ref->read_traces[file_rec->read_count].noStackTrace = 1;
     }
     else
         rec_ref->read_traces[file_rec->read_count].noStackTrace = 0;
@@ -859,7 +859,6 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
                 record_read_count * sizeof(segment_info));
 
     if (isStackTrace){
-
         int * unique_memory_addresses;
         int size = STACK_TRACE_BUF_SIZE;
         unique_memory_addresses = (int*)calloc(size, sizeof(int));
@@ -893,7 +892,7 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
         }
 
         j = 0;
-        for(int i = 0; i < record_read_count * STACK_TRACE_BUF_SIZE; i++){
+        for(int i = 0; i < record_read_count * STACK_TRACE_BUF_SIZE; i++){           
             int flag = 0;
             if (j != STACK_TRACE_BUF_SIZE){
                 for(int k = 0; k < curr_size; k++){
@@ -1042,7 +1041,6 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
                 record_read_count * sizeof(segment_info));
 
     if (isStackTrace){
-
         int * unique_memory_addresses;
         int size = STACK_TRACE_BUF_SIZE;
         unique_memory_addresses = (int*)calloc(size, sizeof(int));

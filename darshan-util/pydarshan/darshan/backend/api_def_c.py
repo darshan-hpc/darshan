@@ -32,6 +32,47 @@ struct darshan_derived_metrics {
     struct darshan_file_category_counters category_counters[7];
 };
 
+#define DARSHAN_MAX_MODS 64
+
+struct darshan_log_map
+{
+    uint64_t off;
+    uint64_t len;
+};
+
+struct darshan_fd_int_state;
+
+/* darshan file descriptor definition */
+struct darshan_fd_s
+{
+    /* log file version */
+    char version[8];
+    /* flag indicating whether byte swapping needs to be
+     * performed on log file data
+     */
+    int swap_flag;
+    /* bit-field indicating whether modules contain incomplete data */
+    uint64_t partial_flag;
+    /* compression type used on log file */
+    enum darshan_comp_type comp_type;
+    /* log file offset/length maps for each log file region */
+    struct darshan_log_map job_map;
+    struct darshan_log_map name_map;
+    struct darshan_log_map mod_map[DARSHAN_MAX_MODS];
+    /* module-specific log-format versions contained in log */
+    uint32_t mod_ver[DARSHAN_MAX_MODS];
+    char posix_line_mapping[1024];
+    char mpiio_line_mapping[1024];
+    /* KEEP OUT -- remaining state hidden in logutils source */
+    struct darshan_fd_int_state *state;
+
+    /* workaround to parse logs with slightly inconsistent heatmap bin
+     * counts as described in https://github.com/darshan-hpc/darshan/issues/941
+     */
+    int64_t first_heatmap_record_nbins;
+    double first_heatmap_record_bin_width_seconds;
+};
+
 struct darshan_mnt_info
 {
     char mnt_type[3015];
@@ -63,7 +104,7 @@ int darshan_accumulator_destroy(darshan_accumulator);
 
 /* from darshan-log-format.h */
 typedef uint64_t darshan_record_id;
-#define STACK_TRACE_BUF_SIZE       26
+#define STACK_TRACE_BUF_SIZE       60
 
 struct darshan_job
 {

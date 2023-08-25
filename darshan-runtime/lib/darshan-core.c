@@ -71,6 +71,10 @@ static int parent_pid;
 static struct darshan_core_mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
 
+static char *exe_name = "";
+static char *posix_line_mapping = "";
+static char *mpiio_line_mapping = "";
+
 #ifdef DARSHAN_BGQ
 extern void bgq_runtime_initialize();
 #endif
@@ -325,7 +329,6 @@ void darshan_core_initialize(int argc, char **argv)
 
         /* collect information about command line and mounted file systems */
         darshan_get_exe_and_mounts(init_core, argc, argv);
-
         if(!darshan_should_instrument_app(init_core))
         {
             /* do not instrument excluded applications */
@@ -397,6 +400,14 @@ void darshan_core_initialize(int argc, char **argv)
     if(init_core->config.stack_trace_trigger){
         dxt_enable_stack_trace();
     }
+
+    char *p;
+    p = strtok(init_core->log_exemnt_p, "\n");
+    char *exe;
+    exe = strtok(p, " ");
+
+    if(exe)
+        exe_name = exe;
 
     return;
 }
@@ -640,7 +651,7 @@ void darshan_core_shutdown(int write_log)
                         mod_shared_recs[mod_shared_rec_cnt++] = shared_recs[j];
                     }
                 }
-
+                
                 /* allow the module an opportunity to reduce shared files */
                 if(this_mod->mod_funcs.mod_redux_func && (mod_shared_rec_cnt > 0))
                 {
@@ -663,6 +674,15 @@ void darshan_core_shutdown(int write_log)
             this_mod->mod_funcs.mod_output_func(&mod_buf, &mod_buf_sz);
         }
 
+
+        for (int i=0; i < strlen(posix_line_mapping); i++){
+            final_core->log_hdr_p->posix_line_mapping[i] = posix_line_mapping[i];
+        }
+
+        for (int i=0; i < strlen(mpiio_line_mapping); i++){
+            final_core->log_hdr_p->mpiio_line_mapping[i] = mpiio_line_mapping[i];
+        }
+
         /* append this module's data to the darshan log */
         final_core->log_hdr_p->mod_map[i].off = gz_fp;
         ret = darshan_log_append(log_fh, final_core, mod_buf, mod_buf_sz, &gz_fp);
@@ -676,7 +696,7 @@ void darshan_core_shutdown(int write_log)
         DARSHAN_CHECK_ERR(ret, "unable to write %s module data to log file %s",
             darshan_module_names[i], logfile_name);
     }
-
+    
     if(internal_timing_flag)
         header1 = darshan_core_wtime_absolute();
     ret = darshan_log_write_header(log_fh, final_core);
@@ -1004,6 +1024,8 @@ static void add_entry(char* buf, int* space_left, struct mntent* entry)
  * collects command line and list of mounted file systems into a string that
  * will be stored with the job-level metadata
  */
+
+
 static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
     int argc, char **argv)
 {
@@ -2640,7 +2662,6 @@ void *darshan_core_register_record(
         __DARSHAN_CORE_UNLOCK();
         return(NULL);
     }
-
     /* check to see if this module has enough space to store a new record */
     if(__darshan_core->mod_array[mod_id]->rec_mem_avail < rec_size)
     {
@@ -2710,6 +2731,36 @@ void *darshan_core_register_record(
     return(rec_buf);;
 }
 
+void set_posix_line_mapping(char *mapping_array, bool isStackTrace){
+    
+    if (isStackTrace){
+        posix_line_mapping = (char *)calloc(strlen(mapping_array), sizeof(char));
+
+        for (int i=0; i < strlen(mapping_array); i++){
+            posix_line_mapping[i] = mapping_array[i];
+        }
+    }
+    else{
+        posix_line_mapping = "";
+    }
+    return;
+}
+
+void set_mpiio_line_mapping(char *mapping_array, bool isStackTrace){
+    
+    if (isStackTrace){
+        mpiio_line_mapping = (char *)calloc(strlen(mapping_array), sizeof(char));
+
+        for (int i=0; i < strlen(mapping_array); i++){
+            mpiio_line_mapping[i] = mapping_array[i];
+        }
+    }
+    else{
+        mpiio_line_mapping = "";
+    }
+    return;
+}
+
 char *darshan_core_lookup_record_name(darshan_record_id rec_id)
 {
     struct darshan_core_name_record_ref *ref;
@@ -2764,6 +2815,11 @@ void darshan_core_fprintf(
     va_end(ap);
 
     return;
+}
+
+char *darshan_exe()
+{   
+    return exe_name;
 }
 
 /*

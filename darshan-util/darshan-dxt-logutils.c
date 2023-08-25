@@ -23,7 +23,7 @@
 
 #include "darshan-logutils.h"
 
-#define STACK_TRACE_BUF_SIZE       26
+#define STACK_TRACE_BUF_SIZE       60
 
 static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf_p);
 static int dxt_log_put_posix_file(darshan_fd fd, void* dxt_posix_buf);
@@ -354,7 +354,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     }
 
     if (isStackTrace)
-        printf("    Memory Offsets");
+        printf("    Stack Memory Addresses");
     printf("\n");
 
     /* Print IO Traces information */
@@ -384,11 +384,15 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         }
 
         if (isStackTrace){
+            bool first = true;
             printf("    [");
             for (int j = 0; j < STACK_TRACE_BUF_SIZE; j++) {
-                printf("%p",  io_trace[i].address_array[j]);
-                if (j != STACK_TRACE_BUF_SIZE - 1)
-                    printf(", ");
+                if (io_trace[i].address_array[j]){
+                    if (j != STACK_TRACE_BUF_SIZE - 1 && first == false)
+                        printf(", ");
+                    printf("%p",  io_trace[i].address_array[j]);
+                    first = false;
+                }
             }
             printf("]");
         }
@@ -421,11 +425,15 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         }
 
         if (isStackTrace){
+            bool first = true;
             printf("    [");
             for (int j = 0; j < STACK_TRACE_BUF_SIZE; j++) {
-                printf("%p",  io_trace[i].address_array[j]);
-                if (j != STACK_TRACE_BUF_SIZE - 1)
-                    printf(", ");
+                if (io_trace[i].address_array[j]){
+                    if (j != STACK_TRACE_BUF_SIZE - 1 && first == false)
+                        printf(", ");
+                    printf("%p",  io_trace[i].address_array[j]);
+                    first = false;
+                }
             }
             printf("]");
         }
@@ -470,7 +478,7 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
 
     /* Print header */
     if (isStackTrace)
-        printf("# Module    Rank  Wt/Rd  Segment          Offset        Length         Start(s)    End(s)     Memory Offsets\n");
+        printf("# Module    Rank  Wt/Rd  Segment          Offset        Length        Start(s)    End(s)     Stack Memory Addresses\n");
     else
         printf("# Module    Rank  Wt/Rd  Segment          Offset        Length         Start(s)    End(s)\n");
 
@@ -484,11 +492,15 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
         printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f", "X_MPIIO", rank, "write", i, offset, length, start_time, end_time);
 
         if (isStackTrace){
+            bool first = true;
             printf("     [");
             for (int j = 0; j < STACK_TRACE_BUF_SIZE; j++) {
-                printf("%p",  io_trace[i].address_array[j]);
-                if (j != STACK_TRACE_BUF_SIZE - 1)
-                    printf(", ");
+                if (io_trace[i].address_array[j]){
+                    if (j != STACK_TRACE_BUF_SIZE - 1 && first == false)
+                        printf(", ");
+                    printf("%p",  io_trace[i].address_array[j]);    
+                    first = false;
+                }
             }
             printf("]");
         }
@@ -504,11 +516,15 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
         printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f", "X_MPIIO", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
         
         if (isStackTrace){
+            bool first = true;
             printf("     [");
             for (int j = 0; j < STACK_TRACE_BUF_SIZE; j++) {
-                printf("%p",  io_trace[i].address_array[j]);
-                if (j != STACK_TRACE_BUF_SIZE - 1)
-                    printf(", ");
+                if (io_trace[i].address_array[j]){
+                    if (j != STACK_TRACE_BUF_SIZE - 1 && first == false)
+                        printf(", ");
+                    printf("%p",  io_trace[i].address_array[j]);
+                    first = false;
+                }
             }
             printf("]");
         }
