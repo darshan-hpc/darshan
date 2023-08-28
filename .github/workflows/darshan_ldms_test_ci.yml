@@ -47,9 +47,9 @@ jobs:
     - name: Clone Darshan Repo
       uses: actions/checkout@v3
       with:
-        repository: Snell1224/darshan
+        repository: darshan-hpc/darshan
         path: darshan
-        ref: darshanConnector
+        ref: main
     - name: Install LDMS
       run: |
         cd ovis

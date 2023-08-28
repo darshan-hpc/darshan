@@ -12,7 +12,8 @@
 #include <ldms/ldms.h>
 #include <ldms/ldmsd_stream.h>
 #include <ovis_util/util.h>
-#include "ovis_json/ovis_json.h"
+#include <ldms/ldms_xprt.h>
+#include <semaphore.h>
 
 typedef struct darshanConnector {
         int to;
