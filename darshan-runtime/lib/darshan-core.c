@@ -687,42 +687,107 @@ void darshan_core_shutdown(int write_log)
 #ifdef HAVE_MPI
         if(using_mpi)
         {
-            if(my_rank == 0 && processed == false && final_core->config.stack_trace_trigger)
-            {
-                processed = true;
-                // char posixMappingsPath[1024];
-                // getcwd(posixMappingsPath, sizeof(posixMappingsPath));
-                // char source[] = "/posix_mappings.txt";
-                // strcat(posixMappingsPath, source);
+            //if(i == DXT_POSIX_MOD && my_rank == 0 && final_core->config.stack_trace_trigger)
+            if (i == DXT_POSIX_MOD) {
+                PMPI_Barrier(MPI_COMM_WORLD);
+                if (my_rank == 0 && final_core->config.stack_trace_trigger) {
+                //printf("entrou aqui <-----------------\n");
 
-                // char mpiioMappingsPath[1024];
-                // getcwd(mpiioMappingsPath, sizeof(mpiioMappingsPath));
-                // char source1[] = "/mpiio_mappings.txt";
-                // strcat(mpiioMappingsPath, source1);
+                FILE *fptr;
 
-                // FILE *FileOpen;
-                // char syscom[256]; 
-                // char line[100]; 
+                typedef struct {
+                    char address[32];          /* key */
+                    UT_hash_handle hh;         /* makes this structure hashable */
+                } unique_stack_struct;
 
-                // char sPath[1024] = "";
-                // char *pTmp;
+                unique_stack_struct *unique_mem_addr = NULL;
 
-                // if (( pTmp =getenv( "LD_PRELOAD" )) != NULL )
-                //     strncpy( sPath, pTmp, 1024 - 1 );           // Save a copy for our use.
+                for (int rank = 0; rank < nprocs; rank++) {
+                    char stack_file_name[50];
+                    sprintf(stack_file_name, ".%d.darshan-posix", rank);
+                    //printf("opening: %s\n", stack_file_name);
+                    fptr = fopen(stack_file_name, "r");
+                    if (fptr) {
+                        char line[32];
 
-                // char * token = strtok(sPath, "-");
-                // char source2[] = "-runtime/lib/script.py";
-                // strcat(sPath,source2);
+                        while (fgets(line, sizeof(line), fptr)) {
+                            line[strcspn(line, "\n")] = 0;
+                            //printf("line: %s\n", line);
+                            unique_stack_struct *d = NULL;
 
-                // sprintf(syscom, "python3 %s %s %s %s", sPath, posixMappingsPath, mpiioMappingsPath, exe_name);                
-                // FileOpen = popen(syscom, "r");  
-                // while (fgets(line, sizeof line, FileOpen))
-                // {
-                //     printf("%s", line);
-                // }   
+                            HASH_FIND_STR(unique_mem_addr, line, d);
 
+                            if (!d) {
+                                //printf("not found\n");
+                                unique_stack_struct *e = (unique_stack_struct *) malloc(sizeof *e);
+                                strcpy(e->address, line);
 
+                                HASH_ADD_STR(unique_mem_addr, address, e);
+                            }
+                        }
 
+                        //printf("complete\n");
+
+                        fclose(fptr);
+
+                        remove(stack_file_name);
+                    } else {
+                        printf("unable to open the file\n");
+                    }
+                }
+
+                unique_stack_struct *d = NULL;
+
+                char * exe_name = darshan_exe();
+
+                int line_mappings_index = 0;
+                
+                //char * address_line_mapping = NULL;
+                char address_line_mapping[4096] = {};
+                //char * address_line_mapping_cur = "";
+
+                for (d = unique_mem_addr; d != NULL; d = (unique_stack_struct *)(d->hh.next)) {
+                    //printf("global_unique -> %s\n", d->address);
+
+                    FILE *fp;
+                    char cmd[256];
+                    char *line = NULL;     
+                    size_t len = 0;
+
+                    sprintf(cmd, "addr2line -a %s -e %s", d->address, exe_name);     
+                    //printf("CMD: %s", cmd);           
+                    fp = popen(cmd, "r");                                                                            
+
+                    while (getline(&line, &len, fp) != -1)
+                    //while (fgets(line, sizeof line, fp))
+                    {
+                        //printf("--> [%s]\n", line);
+                        if (strstr(line, "0x") == NULL && strstr(line, "(nil)") == NULL && strstr(line, "(null)") == NULL) {
+                            if (strstr(line, "??") == NULL) {
+                                sprintf(cmd, "%p, %s", d->address, line);
+                                
+                                //address_line_mapping = (char *)calloc(strlen(address_line_mapping) + strlen(cmd) + 1, sizeof(char));
+                                //strcat(address_line_mapping, address_line_mapping_cur);
+                                strcat(address_line_mapping, cmd);
+                                //address_line_mapping_cur = address_line_mapping;
+
+                                //funcionou
+                                //printf("~~~~ <%s>\n", line);
+                                //sprintf(&final_core->log_hdr_p->posix_line_mapping[line_mappings_index++], "%s, %s", d->address, line);
+
+                                //final_core->log_hdr_p->posix_line_mapping[line_mappings_index++] = *address_line_mapping;
+                            }
+                        }
+                    }
+
+                    HASH_DEL(unique_mem_addr, d);
+                }
+
+                strcpy(final_core->log_hdr_p->posix_line_mapping, address_line_mapping);
+
+                //free(address_line_mapping);
+
+                //free(exe_name);
 
                 // FILE * fp;
                 // char * line1 = NULL;
@@ -753,7 +818,7 @@ void darshan_core_shutdown(int write_log)
                 //     }
                 // }
 
-                char * unique_memory_addresses;
+                /*char * unique_memory_addresses;
                 int size = STACK_TRACE_BUF_SIZE;
                 unique_memory_addresses = (int*)calloc(size, sizeof(char));
                 int curr_size = 0;
@@ -765,7 +830,7 @@ void darshan_core_shutdown(int write_log)
 
                 fp = fopen("/tmp/posix_mappings.txt", "r");
                 if (fp == NULL)
-                    exit(EXIT_FAILURE);
+                    exit(EXIT_FAILURE);*/
 
                 // while ((read = getline(&line1, &len, fp)) != -1) {
                 //     int flag = 0;
@@ -801,6 +866,7 @@ void darshan_core_shutdown(int write_log)
 
                 // remove(mpiioMappingsPath);
                 // remove(posixMappingsPath);
+            }
             }
         }
 #endif
@@ -2961,3 +3027,4 @@ void get_log_file_path(char *path)
  *
  * vim: ts=8 sts=4 sw=4 expandtab
  */
+
