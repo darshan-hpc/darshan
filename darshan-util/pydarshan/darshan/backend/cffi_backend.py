@@ -42,6 +42,8 @@ try:
 except:
   pass
 
+flagPOSIX = False
+flagMPIIO = False
 API_def_c = load_darshan_header(addins)
 
 ffi = cffi.FFI()
@@ -53,6 +55,7 @@ libdutil = find_utils(ffi, libdutil)
 check_version(ffi, libdutil)
 
 logfilename = None
+
 
 _mod_names = [
     "NULL",
@@ -658,51 +661,50 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     size_of = ffi.sizeof("struct darshan_fd_s")
     address_line_mapping = ffi.cast("struct darshan_fd_s *", log['handle'])
 
+    global flagPOSIX
+    global flagMPIIO
     if mod_name == 'DXT_POSIX':
-        rec['posix_address_line_mapping'] = []
-        data = ffi.string(address_line_mapping.posix_line_mapping)
-        data = data.decode('utf-8')
-        data = data.split('\n')
-        index = 0
-        address = ""
-        function_name = ""
-        for item in data:
-            if item:
-                if index == 0:
-                    address = item
-                    index = 1
-                elif index == 1: 
-                    func_line = item
+        if flagPOSIX == False:
+            flagPOSIX = True
+            rec['address_line_mapping'] = []
+            data = ffi.string(address_line_mapping.posix_line_mapping)
+            data = data.decode('utf-8')
+            data = data.split('\n')
+            for item in data:
+                if item:
+                    item = item.split(",")
+                    address = item[0]
+
+                    func_line = item[1]
                     func_line = func_line.split(":")
                     function_name = func_line[0]
                     line_number = func_line[1]
-                    index = 0
 
                     mapping = {
                         "address": address,
                         "function_name": function_name,
                         "line_number": line_number
                     }
-                    rec['posix_address_line_mapping'].append(mapping)
+
+                    rec['address_line_mapping'].append(mapping)
+        else:
+            rec['address_line_mapping'] = {}
     elif mod_name == 'DXT_MPIIO':
-        rec['mpiio_address_line_mapping'] = []
-        data = ffi.string(address_line_mapping.mpiio_line_mapping)
-        data = data.decode('utf-8')
-        data = data.split('\n')
-        index = 0
-        address = ""
-        function_name = ""
-        for item in data:
-            if item:
-                if index == 0:
-                    address = item
-                    index = 1
-                elif index == 1: 
-                    func_line = item
+        if flagMPIIO == False:
+            flagMPIIO = True
+            rec['address_line_mapping'] = []
+            data = ffi.string(address_line_mapping.mpiio_line_mapping)
+            data = data.decode('utf-8')
+            data = data.split('\n')
+            for item in data:
+                if item:
+                    item = item.split(",")
+                    address = item[0]
+
+                    func_line = item[1]
                     func_line = func_line.split(":")
                     function_name = func_line[0]
                     line_number = func_line[1]
-                    index = 0
 
                     mapping = {
                         "address": address,
@@ -710,7 +712,9 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
                         "line_number": line_number
                     }
 
-                    rec['mpiio_address_line_mapping'].append(mapping)
+                    rec['address_line_mapping'].append(mapping)
+        else:
+            rec['address_line_mapping'] = {}
 
     libdutil.darshan_free(buf[0])
     return rec

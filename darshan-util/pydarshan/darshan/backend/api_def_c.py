@@ -221,6 +221,7 @@ typedef struct segment_info {
     double end_time;
     void *address_array[STACK_TRACE_BUF_SIZE];
     int noStackTrace;
+    int size;
 } segment_info;
 
 /* counter names */

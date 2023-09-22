@@ -31,13 +31,15 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/vfs.h>
+#include <sys/wait.h>
 #include <ctype.h>
 #include <regex.h>
 #include <zlib.h>
 #include <errno.h>
 #include <assert.h>
+#include <spawn.h>
 
-#ifdef HAVE_MPI
+#ifdef HAVE_/global/homes/h/hather/darshan/darshan-runtime/install/libMPI
 #include <mpi.h>
 #endif
 
@@ -75,10 +77,6 @@ static struct darshan_core_mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
 
 static char *exe_name = "";
-static char *log_path_mappings = NULL;
-static char *posix_line_mapping = "";
-static char *mpiio_line_mapping = "";
-bool processed = false;
 
 #ifdef DARSHAN_BGQ
 extern void bgq_runtime_initialize();
@@ -564,11 +562,6 @@ void darshan_core_shutdown(int write_log)
 
     /* get the log file name */
     darshan_get_logfile_name(logfile_name, final_core);
-    log_path_mappings = malloc(__DARSHAN_PATH_MAX);
-
-    for (int i = 0; i < strlen(logfile_name); i++){
-        log_path_mappings[i] = logfile_name[i];
-    }
 
     if(strlen(logfile_name) == 0)
     {
@@ -691,182 +684,197 @@ void darshan_core_shutdown(int write_log)
             if (i == DXT_POSIX_MOD) {
                 PMPI_Barrier(MPI_COMM_WORLD);
                 if (my_rank == 0 && final_core->config.stack_trace_trigger) {
-                //printf("entrou aqui <-----------------\n");
+                    FILE *fptr;
 
-                FILE *fptr;
+                    typedef struct {
+                        char address[32];          /* key */
+                        UT_hash_handle hh;         /* makes this structure hashable */
+                    } unique_stack_struct;
 
-                typedef struct {
-                    char address[32];          /* key */
-                    UT_hash_handle hh;         /* makes this structure hashable */
-                } unique_stack_struct;
+                    unique_stack_struct *unique_mem_addr = NULL;
 
-                unique_stack_struct *unique_mem_addr = NULL;
+                    for (int rank = 0; rank < nprocs; rank++) {
+                        char stack_file_name_posix[50];
+                        sprintf(stack_file_name_posix, ".%d.darshan-posix", rank);
+                        fptr = fopen(stack_file_name_posix, "r");
+                        if (fptr) {
+                            char line[32];
 
-                for (int rank = 0; rank < nprocs; rank++) {
-                    char stack_file_name[50];
-                    sprintf(stack_file_name, ".%d.darshan-posix", rank);
-                    //printf("opening: %s\n", stack_file_name);
-                    fptr = fopen(stack_file_name, "r");
-                    if (fptr) {
-                        char line[32];
+                            while (fgets(line, sizeof(line), fptr)) {
+                                line[strcspn(line, "\n")] = 0;
+                                unique_stack_struct *d = NULL;
 
-                        while (fgets(line, sizeof(line), fptr)) {
-                            line[strcspn(line, "\n")] = 0;
-                            //printf("line: %s\n", line);
-                            unique_stack_struct *d = NULL;
+                                HASH_FIND_STR(unique_mem_addr, line, d);
 
-                            HASH_FIND_STR(unique_mem_addr, line, d);
+                                if (!d) {
+                                    unique_stack_struct *e = (unique_stack_struct *) malloc(sizeof *e);
+                                    strcpy(e->address, line);
 
-                            if (!d) {
-                                //printf("not found\n");
-                                unique_stack_struct *e = (unique_stack_struct *) malloc(sizeof *e);
-                                strcpy(e->address, line);
-
-                                HASH_ADD_STR(unique_mem_addr, address, e);
+                                    HASH_ADD_STR(unique_mem_addr, address, e);
+                                }
                             }
-                        }
 
-                        //printf("complete\n");
-
-                        fclose(fptr);
-
-                        remove(stack_file_name);
-                    } else {
-                        printf("unable to open the file\n");
-                    }
-                }
-
-                unique_stack_struct *d = NULL;
-
-                char * exe_name = darshan_exe();
-
-                int line_mappings_index = 0;
-                
-                //char * address_line_mapping = NULL;
-                char address_line_mapping[4096] = {};
-                //char * address_line_mapping_cur = "";
-
-                for (d = unique_mem_addr; d != NULL; d = (unique_stack_struct *)(d->hh.next)) {
-                    //printf("global_unique -> %s\n", d->address);
-
-                    FILE *fp;
-                    char cmd[256];
-                    char *line = NULL;     
-                    size_t len = 0;
-
-                    sprintf(cmd, "addr2line -a %s -e %s", d->address, exe_name);     
-                    //printf("CMD: %s", cmd);           
-                    fp = popen(cmd, "r");                                                                            
-
-                    while (getline(&line, &len, fp) != -1)
-                    //while (fgets(line, sizeof line, fp))
-                    {
-                        //printf("--> [%s]\n", line);
-                        if (strstr(line, "0x") == NULL && strstr(line, "(nil)") == NULL && strstr(line, "(null)") == NULL) {
-                            if (strstr(line, "??") == NULL) {
-                                sprintf(cmd, "%p, %s", d->address, line);
-                                
-                                //address_line_mapping = (char *)calloc(strlen(address_line_mapping) + strlen(cmd) + 1, sizeof(char));
-                                //strcat(address_line_mapping, address_line_mapping_cur);
-                                strcat(address_line_mapping, cmd);
-                                //address_line_mapping_cur = address_line_mapping;
-
-                                //funcionou
-                                //printf("~~~~ <%s>\n", line);
-                                //sprintf(&final_core->log_hdr_p->posix_line_mapping[line_mappings_index++], "%s, %s", d->address, line);
-
-                                //final_core->log_hdr_p->posix_line_mapping[line_mappings_index++] = *address_line_mapping;
-                            }
+                            fclose(fptr);
+                            remove(stack_file_name_posix);
+                        } else {
+                            printf("unable to open POSIX file\n");
                         }
                     }
 
-                    HASH_DEL(unique_mem_addr, d);
+                    unique_stack_struct *d = NULL;
+                    char * exe_name = darshan_exe();
+                    int line_mappings_index = 0;
+                    char address_line_mapping[4096] = {};
+
+                    for (d = unique_mem_addr; d != NULL; d = (unique_stack_struct *)(d->hh.next)) {
+                        FILE *fp;
+                        char cmd[256];
+                        char *line = NULL;     
+                        size_t len = 0;
+
+                        // sprintf(cmd, "addr2line -a %s -e %s", d->address, exe_name);  
+                        char addr[32];
+                        sprintf(addr, "%s", d->address);    
+
+                        char *const args[] = { "/usr/bin/addr2line", "-a", addr, "-e", exe_name, NULL };
+
+                        int pipe_fd[2];
+                        pid_t child_pid;
+                        int status;
+
+                        // Create a pipe to capture the command's output
+                        if (pipe(pipe_fd) == -1) {
+                            perror("pipe");
+                            // return 1;
+                        }
+                        int ret;
+                        // Use posix_spawn to execute the command
+                        posix_spawn_file_actions_t action;
+                        posix_spawn_file_actions_init(&action);
+                        posix_spawn_file_actions_addclose(&action, pipe_fd[0]); // Close the read end of the pipe
+                        posix_spawn_file_actions_adddup2(&action, pipe_fd[1], STDOUT_FILENO); // Redirect stdout to the write end of the pipe
+                        if (posix_spawn(&child_pid, "/usr/bin/addr2line", &action, NULL, args, NULL) == 0) {
+                            
+                            // Close the write end of the pipe in the parent process
+                            close(pipe_fd[1]);
+
+                            // Read the output from the pipe
+                            char buffer[4096];
+                            ssize_t bytes_read;
+                            while ((bytes_read = read(pipe_fd[0], buffer, sizeof(buffer))) > 0) {
+                                fwrite(buffer, 1, bytes_read, stdout);
+                            }
+
+                            char * token = strtok(buffer, "\n");
+                            token = strtok(NULL, "\n");
+                            sprintf(cmd, "%s, %s\n", buffer, token);
+                            strcat(address_line_mapping, cmd);
+                        }
+                        HASH_DEL(unique_mem_addr, d);
+                    }
+
+                    strcpy(final_core->log_hdr_p->posix_line_mapping, address_line_mapping);
                 }
-
-                strcpy(final_core->log_hdr_p->posix_line_mapping, address_line_mapping);
-
-                //free(address_line_mapping);
-
-                //free(exe_name);
-
-                // FILE * fp;
-                // char * line1 = NULL;
-                // size_t len = 0;
-                // ssize_t read;
-
-                // fp = fopen(posixMappingsPath, "r");
-                // if (fp == NULL)
-                //     exit(EXIT_FAILURE);
-
-                // int ind = 0;
-                // while ((read = getline(&line1, &len, fp)) != -1) {
-                //     for (int i=0; i < strlen(line1); i++){
-                //         final_core->log_hdr_p->posix_line_mapping[ind] = line1[i];
-                //         ind = ind + 1;
-                //     }
-                // }
-
-                // fp = fopen(mpiioMappingsPath, "r");
-                // if (fp == NULL)
-                //     exit(EXIT_FAILURE);
-
-                // ind = 0;
-                // while ((read = getline(&line1, &len, fp)) != -1) {
-                //     for (int i=0; i < strlen(line1); i++){
-                //         final_core->log_hdr_p->mpiio_line_mapping[ind] = line1[i];
-                //         ind = ind + 1;
-                //     }
-                // }
-
-                /*char * unique_memory_addresses;
-                int size = STACK_TRACE_BUF_SIZE;
-                unique_memory_addresses = (int*)calloc(size, sizeof(char));
-                int curr_size = 0;
-                
-                FILE *fp;
-                char * line1 = NULL;
-                size_t len = 0;
-                ssize_t read;
-
-                fp = fopen("/tmp/posix_mappings.txt", "r");
-                if (fp == NULL)
-                    exit(EXIT_FAILURE);*/
-
-                // while ((read = getline(&line1, &len, fp)) != -1) {
-                //     int flag = 0;
-                //     if (strstr(line1, exe_name) != NULL) {
-                //         char * token = strtok(line1, "[");
-                //         token = strtok(NULL, "[");
-                //         token = strtok(token, "]");
-                //         // if (strlen(token) < 16){
-                //         //     // int number = (int)strtol(token, NULL, 16);
-
-                //         //     // printf("%i\n", number);
-                //         //     // for(int k = 0; k < curr_size; k++){
-                //         //     //     if (unique_memory_addresses[k] == atoi(token)){
-                //         //     //         flag = 1;
-                //         //     //         break;
-                //         //     //     }
-                //         //     // }
-                //         //     // if (flag == 0){
-                //         //     //     if (curr_size == size){
-                //         //     //         size = size * 2;
-                //         //     //         unique_memory_addresses = realloc(unique_memory_addresses, size * sizeof(int));
-                //         //     //     }
-                //         //     //     unique_memory_addresses[curr_size] = atoi(token);
-                //         //     //     curr_size = curr_size + 1;
-                //         //     // }
-                //         // }
-                //     }
-                // }
-
-                // for (int i = 0; i < curr_size; i++){
-                //     printf("%i\n", unique_memory_addresses[i]);
-                // }
-
-                // remove(mpiioMappingsPath);
-                // remove(posixMappingsPath);
             }
+            else if (i == DXT_MPIIO_MOD) {
+                PMPI_Barrier(MPI_COMM_WORLD);
+                if (my_rank == 0 && final_core->config.stack_trace_trigger) {
+                    FILE *fptr;
+
+                    typedef struct {
+                        char address[32];          /* key */
+                        UT_hash_handle hh;         /* makes this structure hashable */
+                    } unique_stack_struct;
+
+                    unique_stack_struct *unique_mem_addr = NULL;
+
+                    for (int rank = 0; rank < nprocs; rank++) {
+                        char stack_file_name_mpiio[50];
+                        sprintf(stack_file_name_mpiio, ".%d.darshan-mpiio", rank);
+                        fptr = fopen(stack_file_name_mpiio, "r");
+                        if (fptr) {
+                            char line[32];
+
+                            while (fgets(line, sizeof(line), fptr)) {
+                                line[strcspn(line, "\n")] = 0;
+                                unique_stack_struct *d = NULL;
+
+                                HASH_FIND_STR(unique_mem_addr, line, d);
+
+                                if (!d) {
+                                    unique_stack_struct *e = (unique_stack_struct *) malloc(sizeof *e);
+                                    strcpy(e->address, line);
+
+                                    HASH_ADD_STR(unique_mem_addr, address, e);
+                                }
+                            }
+
+                            fclose(fptr);
+                            remove(stack_file_name_mpiio);
+                        } else {
+                            printf("unable to open MPIIO file\n");
+                        }
+                    }
+
+                    unique_stack_struct *d = NULL;
+
+                    char * exe_name = darshan_exe();
+
+                    int line_mappings_index = 0;
+                    
+                    char address_line_mapping[4096] = {};
+
+                    for (d = unique_mem_addr; d != NULL; d = (unique_stack_struct *)(d->hh.next)) {
+
+                        FILE *fp;
+                        char cmd[256];
+                        char *line = NULL;     
+                        size_t len = 0;
+
+                        char addr[32];
+                        sprintf(addr, "%s", d->address);    
+
+                        char *const args[] = { "/usr/bin/addr2line", "-a", addr, "-e", exe_name, NULL };
+
+                        int pipe_fd[2];
+                        pid_t child_pid;
+                        int status;
+
+                        if (pipe(pipe_fd) == -1) {
+                            perror("pipe");
+                            // return 1;
+                        }
+                        int ret;
+                        // Use posix_spawn to execute the command
+                        posix_spawn_file_actions_t action;
+                        posix_spawn_file_actions_init(&action);
+                        posix_spawn_file_actions_addclose(&action, pipe_fd[0]); // Close the read end of the pipe
+                        posix_spawn_file_actions_adddup2(&action, pipe_fd[1], STDOUT_FILENO); // Redirect stdout to the write end of the pipe
+                        if (posix_spawn(&child_pid, "/usr/bin/addr2line", &action, NULL, args, NULL) == 0) {
+                            // Close the write end of the pipe in the parent process
+                            close(pipe_fd[1]);
+
+                            // Read the output from the pipe
+                            char buffer[4096];
+                            ssize_t bytes_read;
+                            while ((bytes_read = read(pipe_fd[0], buffer, sizeof(buffer))) > 0) {
+                                fwrite(buffer, 1, bytes_read, stdout);
+                            }
+
+                            // Wait for the child process to complete
+                            waitpid(child_pid, &status, 0);
+
+                            char * token = strtok(buffer, "\n");
+                            token = strtok(NULL, "\n");
+                            sprintf(cmd, "%s, %s\n", buffer, token);
+                            strcat(address_line_mapping, cmd);
+                        }
+
+                        HASH_DEL(unique_mem_addr, d);
+                    }
+
+                    strcpy(final_core->log_hdr_p->mpiio_line_mapping, address_line_mapping);
+                }
             }
         }
 #endif
@@ -2919,36 +2927,6 @@ void *darshan_core_register_record(
     return(rec_buf);;
 }
 
-void set_posix_line_mapping(char *mapping_array, bool isStackTrace){
-    
-    if (isStackTrace){
-        posix_line_mapping = (char *)calloc(strlen(mapping_array), sizeof(char));
-
-        for (int i=0; i < strlen(mapping_array); i++){
-            posix_line_mapping[i] = mapping_array[i];
-        }
-    }
-    else{
-        posix_line_mapping = "";
-    }
-    return;
-}
-
-void set_mpiio_line_mapping(char *mapping_array, bool isStackTrace){
-    
-    if (isStackTrace){
-        mpiio_line_mapping = (char *)calloc(strlen(mapping_array), sizeof(char));
-
-        for (int i=0; i < strlen(mapping_array); i++){
-            mpiio_line_mapping[i] = mapping_array[i];
-        }
-    }
-    else{
-        mpiio_line_mapping = "";
-    }
-    return;
-}
-
 char *darshan_core_lookup_record_name(darshan_record_id rec_id)
 {
     struct darshan_core_name_record_ref *ref;
@@ -3008,15 +2986,6 @@ void darshan_core_fprintf(
 char *darshan_exe()
 {   
     return exe_name;
-}
-
-void get_log_file_path(char *path)
-{     
-
-    for (int i = 0; i < strlen(log_path_mappings); i++){
-        path[i] = log_path_mappings[i];
-    }
-    return;
 }
 
 /*

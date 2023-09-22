@@ -62,8 +62,7 @@ typedef int64_t off64_t;
 #define STACK_TRACE_BUF_SIZE       60
 
 bool isStackTrace = false;
-char posixMappingsPath[1024];
-char mpiioMappingsPath[1024];
+
 /* The dxt_file_record_ref structure maintains necessary runtime metadata
  * for the DXT file record (dxt_file_record structure, defined in
  * darshan-dxt-log-format.h) pointed to by 'file_rec'. This metadata
@@ -159,10 +158,6 @@ void dxt_posix_runtime_initialize()
     };
     int ret;
 
-    // getcwd(posixMappingsPath, sizeof(posixMappingsPath));
-    // char source[] = "/posix_mappings.txt";
-    // strcat(posixMappingsPath, source);
-
     /* register the DXT module with darshan core */
     ret = darshan_core_register_module(
         DXT_POSIX_MOD,
@@ -205,9 +200,6 @@ void dxt_mpiio_runtime_initialize()
     };
     int ret;
 
-    // getcwd(mpiioMappingsPath, sizeof(mpiioMappingsPath));
-    // char source[] = "/mpiio_mappings.txt";
-    // strcat(mpiioMappingsPath, source);
     /* register the DXT module with darshan core */
     ret = darshan_core_register_module(
         DXT_MPIIO_MOD,
@@ -276,37 +268,6 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
     if (isStackTrace){
         int size = backtrace (rec_ref->write_traces[file_rec->write_count].address_array, STACK_TRACE_BUF_SIZE);
-        // JL I believe we can remove this since the symbols will help remove whatever is not from the application
-        //for (int i = size; i < STACK_TRACE_BUF_SIZE; i++){
-        //    rec_ref->write_traces[file_rec->write_count].address_array[i] = NULL;
-        //}
-
-        /*char **strings;
-        strings = backtrace_symbols(rec_ref->write_traces[file_rec->write_count].address_array, size);
-
-        if (strings != NULL)
-            for(int i = 0; i < size; i++) {
-                printf("%d: %p %s\n",
-                    i,
-                    (int)rec_ref->write_traces[file_rec->write_count].address_array[i],
-                    strings[i]
-                );
-            }
-        */
-        // FILE *fptr;
-        // fptr = fopen(posixMappingsPath, "a+");
-
-        // char **strings;;
-        // strings = backtrace_symbols (rec_ref->write_traces[file_rec->write_count].address_array, size);
-        // if (strings != NULL)
-        // {
-        //     for (int j = 0; j < size; j++){
-        //         if (strings[j] != NULL)
-        //             fprintf(fptr, "%s\n", strings[j]);
-        //     }
-        // }
-        
-        // fclose(fptr);
         rec_ref->write_traces[file_rec->write_count].noStackTrace = 1;
         rec_ref->write_traces[file_rec->write_count].size = size;
     }
@@ -359,25 +320,6 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
     if (isStackTrace){
         int size = backtrace (rec_ref->read_traces[file_rec->read_count].address_array , STACK_TRACE_BUF_SIZE);
-        // JL removed as we can have the symbols do this for us
-        //for (int i = size; i < STACK_TRACE_BUF_SIZE; i++){
-        //    rec_ref->read_traces[file_rec->read_count].address_array[i] = NULL;
-        //}
-
-        // FILE *fptr;
-        // fptr = fopen(posixMappingsPath, "a+");
-
-        // char **strings;;
-        // strings = backtrace_symbols (rec_ref->read_traces[file_rec->read_count].address_array, size);
-        // if (strings != NULL)
-        // {
-        //     for (int j = 0; j < size; j++){
-        //         if (strings[j] != NULL)
-        //             fprintf(fptr, "%s\n", strings[j]);
-        //     }
-        // }
-        
-        // fclose(fptr);
         rec_ref->read_traces[file_rec->read_count].noStackTrace = 1;
         rec_ref->read_traces[file_rec->read_count].size = size;
     }
@@ -429,23 +371,6 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
     if (isStackTrace){
         int size = backtrace (rec_ref->write_traces[file_rec->write_count].address_array, STACK_TRACE_BUF_SIZE);
-        //for (int i = size; i < STACK_TRACE_BUF_SIZE; i++){
-        //    rec_ref->write_traces[file_rec->write_count].address_array[i] = NULL;
-        //}
-        // FILE *fptr;
-        // fptr = fopen(mpiioMappingsPath, "a+");
-
-        // char **strings;;
-        // strings = backtrace_symbols (rec_ref->write_traces[file_rec->write_count].address_array, size);
-        // if (strings != NULL)
-        // {
-        //     for (int j = 0; j < size; j++){
-        //         if (strings[j] != NULL)
-        //             fprintf(fptr, "%s\n", strings[j]);
-        //     }
-        // }
-        
-        // fclose(fptr);
         rec_ref->write_traces[file_rec->write_count].noStackTrace = 1;
         rec_ref->write_traces[file_rec->write_count].size = size;
     }
@@ -498,23 +423,6 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
     if (isStackTrace){
         int size = backtrace (rec_ref->read_traces[file_rec->read_count].address_array , STACK_TRACE_BUF_SIZE);
-        //for (int i = size; i < STACK_TRACE_BUF_SIZE; i++){
-        //  rec_ref->read_traces[file_rec->read_count].address_array[i] = NULL;
-        //}
-        // FILE *fptr;
-        // fptr = fopen(mpiioMappingsPath, "a+");
-        
-        // char **strings;;
-        // strings = backtrace_symbols (rec_ref->read_traces[file_rec->read_count].address_array, size);
-        // if (strings != NULL)
-        // {
-        //     for (int j = 0; j < size; j++){
-        //         if (strings[j] != NULL)
-        //             fprintf(fptr, "%s\n", strings[j]);
-        //     }
-        // }
-        
-        // fclose(fptr);
         rec_ref->read_traces[file_rec->read_count].noStackTrace = 1;
         rec_ref->read_traces[file_rec->read_count].size = size;
     }
@@ -919,41 +827,46 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
     if (record_write_count == 0 && record_read_count == 0)
         return;
     
-    if (isStackTrace){
-        // clock_t start, end;
-        // double cpu_time_used;
-        // start = clock();
-
-        // char *path = malloc(4096);
-        // get_log_file_path(path);
-        // char substr[256] = "posix_mappings.txt";
-        // char * pch;
-        // pch=strchr(path,'.');
-     
-        // int ind = strlen(path) - strlen(pch) + 1;
-        // for (int i = 0; i < strlen(substr); i++){
-        //     path[ind] = substr[i];
-        //     ind = ind + 1;
-        // }
-        // path[ind] ='\0';
-        
+    if (isStackTrace){        
         char stack_file_name[50];
         sprintf(stack_file_name, ".%d.darshan-posix", dxt_my_rank);
 
         FILE *fptr;
         fptr = fopen(stack_file_name, "w");
 
-        /*for(int i = 0; i < record_write_count; i++){
+        typedef struct {
+            void *address;             /* key */
+            UT_hash_handle hh;         /* makes this structure hashable */
+        } stack_struct;
+
+        stack_struct *unique_mem_addr = NULL;
+
+        char * exe_name = darshan_exe();
+        for(int i = 0; i < record_write_count; i++){
             char **strings;
             int size = rec_ref->write_traces[i].size;
             strings = backtrace_symbols (rec_ref->write_traces[i].address_array, size);
             if (strings != NULL)
             {
                 for (int j = 0; j < size; j++){
-                    fwrite(fptr, "%s\n", strings[j]);
+                    if (strstr(strings[j], exe_name) != NULL) {
+                        stack_struct *d = NULL;
+                        char * token = strtok(strings[j], "[");
+                        token = strtok(NULL, "[");
+                        token = strtok(token, "]");
+                        int number = (int)strtol(token, NULL, 16);
+                        void *addr = number;
+                        HASH_FIND_PTR(unique_mem_addr, &addr, d);
+
+                        if (!d) {
+                            stack_struct *e = (stack_struct *) malloc(sizeof *e);
+                            e->address = addr;
+                            HASH_ADD_PTR(unique_mem_addr, address, e);
+                        }
+                    }
                 }
+                free(strings);
             }
-	        free(strings);
         }
 
         for(int i = 0; i < record_read_count; i++){           
@@ -963,53 +876,37 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
             if (strings != NULL)
             {
                 for (int j = 0; j < size; j++){
-                    // printf("%s\n", strings[i]);
-                    fprintf(fptr, "%s\n", strings[j]);
+                    if (strstr(strings[j], exe_name) != NULL) {
+                        stack_struct *d = NULL;
+                        char * token = strtok(strings[j], "[");
+                        token = strtok(NULL, "[");
+                        token = strtok(token, "]");
+                        int number = (int)strtol(token, NULL, 16);
+                        void *addr = number;
+                        HASH_FIND_PTR(unique_mem_addr, &addr, d);
+
+                        if (!d) {
+                            stack_struct *e = (stack_struct *) malloc(sizeof *e);
+                            e->address = addr;
+                            HASH_ADD_PTR(unique_mem_addr, address, e);
+                        }
+                    }
                 }
-            }
-            free(strings);
-        }*/
-
-        typedef struct {
-            void *address;             /* key */
-            UT_hash_handle hh;         /* makes this structure hashable */
-        } stack_struct;
-
-        stack_struct *unique_mem_addr = NULL;
-
-        for(int i = 0; i < record_write_count; i++){
-            int size = rec_ref->write_traces[i].size;
-            
-            for (int j = 0; j < size; j++) {
-                stack_struct *d = NULL;
-
-                void *addr = rec_ref->write_traces[i].address_array[j];
-                // printf("looking for %p\n", addr);
-                HASH_FIND_PTR(unique_mem_addr, &addr, d);
-
-                if (!d) {
-                    //printf("not found\n");
-                    stack_struct *e = (stack_struct *) malloc(sizeof *e);
-
-                    e->address = addr;
-
-                    HASH_ADD_PTR(unique_mem_addr, address, e);
-                }
+                free(strings);
             }
         }
 
         stack_struct *d = NULL;
 
         for (d = unique_mem_addr; d != NULL; d = (stack_struct *)(d->hh.next)) {
-            //printf("unique-> %p\n", d->address);
             fprintf(fptr, "%p\n", d->address);
-
             HASH_DEL(unique_mem_addr, d);
         }
 
         //fflush(fptr);
         fclose(fptr);
     }
+    
     /*
      * Buffer format:
      * dxt_file_record + write_traces + read_traces
@@ -1103,26 +1000,21 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
     if (record_write_count == 0 && record_read_count == 0)
         return;
     
-    if (isStackTrace){
-        // clock_t start, end;
-        // double cpu_time_used;
-        // start = clock();
+    if (isStackTrace){ 
+        char stack_file_name[50];
+        sprintf(stack_file_name, ".%d.darshan-mpiio", dxt_my_rank);
 
-        // char *path = malloc(4096);
-        // get_log_file_path(path);
-        // char substr[256] = "/tmp/mpiio_mappings.txt";
-        // char * pch;
-        // pch=strchr(path,'.');
-     
-        // int ind = strlen(path) - strlen(pch) + 1;
-        // for (int i = 0; i < strlen(substr); i++){
-        //     path[ind] = substr[i];
-        //     ind = ind + 1;
-        // }
-        // path[ind] ='\0';
+        FILE *fptr;
+        fptr = fopen(stack_file_name, "w");
 
-        /*FILE *fptr;
-        fptr = fopen("/tmp/mpiio_mappings.txt", "a");
+        typedef struct {
+            void *address;             /* key */
+            UT_hash_handle hh;         /* makes this structure hashable */
+        } stack_struct;
+
+        stack_struct *unique_mem_addr = NULL;
+
+        char * exe_name = darshan_exe();
 
         for(int i = 0; i < record_write_count; i++){
             char **strings;
@@ -1131,23 +1023,62 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
             if (strings != NULL)
             {
                 for (int j = 0; j < size; j++){
-                    fprintf(fptr, "%s\n", strings[j]);
+                    if (strstr(strings[j], exe_name) != NULL) {
+                        stack_struct *d = NULL;
+                        char * token = strtok(strings[j], "[");
+                        token = strtok(NULL, "[");
+                        token = strtok(token, "]");
+                        int number = (int)strtol(token, NULL, 16);
+                        void *addr = number;
+                        HASH_FIND_PTR(unique_mem_addr, &addr, d);
+
+                        if (!d) {
+                            stack_struct *e = (stack_struct *) malloc(sizeof *e);
+                            e->address = addr;
+                            HASH_ADD_PTR(unique_mem_addr, address, e);
+                        }
+                    }
                 }
+                free(strings);
             }
         }
 
-        for(int i = 0; i < record_read_count; i++){
+        for(int i = 0; i < record_read_count; i++){           
             char **strings;
             int size = rec_ref->read_traces[i].size;
             strings = backtrace_symbols (rec_ref->read_traces[i].address_array, size);
             if (strings != NULL)
             {
                 for (int j = 0; j < size; j++){
-                    fprintf(fptr, "%s\n", strings[j]);
+                    if (strstr(strings[j], exe_name) != NULL) {
+                        stack_struct *d = NULL;
+                        char * token = strtok(strings[j], "[");
+                        token = strtok(NULL, "[");
+                        token = strtok(token, "]");
+                        int number = (int)strtol(token, NULL, 16);
+                        void *addr = number;
+                        HASH_FIND_PTR(unique_mem_addr, &addr, d);
+
+                        if (!d) {
+                            stack_struct *e = (stack_struct *) malloc(sizeof *e);
+                            e->address = addr;
+                            HASH_ADD_PTR(unique_mem_addr, address, e);
+                        }
+                    }
                 }
+                free(strings);
             }
-        }*/
-        //fclose(fptr);
+        }
+
+        stack_struct *d = NULL;
+
+        for (d = unique_mem_addr; d != NULL; d = (stack_struct *)(d->hh.next)) {
+            fprintf(fptr, "%p\n", d->address);
+            HASH_DEL(unique_mem_addr, d);
+        }
+
+        //fflush(fptr);
+        fclose(fptr);
     }
     /*
      * Buffer format:
