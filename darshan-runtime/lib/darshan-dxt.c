@@ -62,9 +62,6 @@ typedef int64_t off64_t;
 #define STACK_TRACE_BUF_SIZE       60
 
 bool isStackTrace = false;
-bool processedBeforePOSIX = false;
-bool processedBeforeMPIIO = false;
-
 /* The dxt_file_record_ref structure maintains necessary runtime metadata
  * for the DXT file record (dxt_file_record structure, defined in
  * darshan-dxt-log-format.h) pointed to by 'file_rec'. This metadata
@@ -829,8 +826,7 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
     if (record_write_count == 0 && record_read_count == 0)
         return;
     
-    if (isStackTrace && processedBeforePOSIX == false){    
-        processedBeforePOSIX = true;    
+    if (isStackTrace){    
         char stack_file_name[50];
         sprintf(stack_file_name, ".%d.darshan-posix", dxt_my_rank);
 
@@ -1004,8 +1000,7 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
     if (record_write_count == 0 && record_read_count == 0)
         return;
     
-    if (isStackTrace && processedBeforeMPIIO == false){ 
-        processedBeforeMPIIO = true;
+    if (isStackTrace){ 
         char stack_file_name[50];
         sprintf(stack_file_name, ".%d.darshan-mpiio", dxt_my_rank);
 
