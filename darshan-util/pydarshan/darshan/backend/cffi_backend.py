@@ -97,7 +97,7 @@ _structdefs = {
     "APMPI-PERF": "struct darshan_apmpi_perf_record **",
 }
 
-STACK_TRACE_BUF_SIZE = 30
+STACK_TRACE_BUF_SIZE = 60
 
 def get_lib_version():
     """
@@ -626,7 +626,7 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
                     addr = str(segments[i].address_array[j])
                     addr = addr.split("'void *' ")
                     addr = addr[1].split(">")
-                    seg_array.append(addr[0])
+                    seg_array.append(str(addr[0]))
             seg["stack_memory_addresses"] = seg_array
 
         rec['write_segments'].append(seg)
@@ -647,7 +647,7 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
                     addr = str(segments[i].address_array[j])
                     addr = addr.split("'void *' ")
                     addr = addr[1].split(">")
-                    seg_array.append(addr[0])
+                    seg_array.append(str(addr[0]))
             seg["stack_memory_addresses"] = seg_array
 
         rec['read_segments'].append(seg)

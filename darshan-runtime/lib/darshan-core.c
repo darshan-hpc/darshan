@@ -77,7 +77,8 @@ static struct darshan_core_mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
 
 static char *exe_name = "";
-
+bool processedPOSIX = false;
+bool processedMPIIO = false;
 #ifdef DARSHAN_BGQ
 extern void bgq_runtime_initialize();
 #endif
@@ -683,7 +684,8 @@ void darshan_core_shutdown(int write_log)
             //if(i == DXT_POSIX_MOD && my_rank == 0 && final_core->config.stack_trace_trigger)
             if (i == DXT_POSIX_MOD) {
                 PMPI_Barrier(MPI_COMM_WORLD);
-                if (my_rank == 0 && final_core->config.stack_trace_trigger) {
+                if (my_rank == 0 && final_core->config.stack_trace_trigger && processedPOSIX == false) {
+                    processedPOSIX = true;
                     FILE *fptr;
 
                     typedef struct {
@@ -734,8 +736,8 @@ void darshan_core_shutdown(int write_log)
 
                         // sprintf(cmd, "addr2line -a %s -e %s", d->address, exe_name);  
                         char addr[32];
-                        sprintf(addr, "%s", d->address);    
-
+                        sprintf(addr, "%s", d->address);  
+                    
                         char *const args[] = { "/usr/bin/addr2line", "-a", addr, "-e", exe_name, NULL };
 
                         int pipe_fd[2];
@@ -767,7 +769,8 @@ void darshan_core_shutdown(int write_log)
 
                             char * token = strtok(buffer, "\n");
                             token = strtok(NULL, "\n");
-                            sprintf(cmd, "%s, %s\n", buffer, token);
+                            int number = (int)strtol(buffer, NULL, 16);
+                            sprintf(cmd, "%p, %s\n", number, token);
                             strcat(address_line_mapping, cmd);
                         }
                         HASH_DEL(unique_mem_addr, d);
@@ -778,7 +781,8 @@ void darshan_core_shutdown(int write_log)
             }
             else if (i == DXT_MPIIO_MOD) {
                 PMPI_Barrier(MPI_COMM_WORLD);
-                if (my_rank == 0 && final_core->config.stack_trace_trigger) {
+                if (my_rank == 0 && final_core->config.stack_trace_trigger && processedMPIIO == false) {
+                    processedMPIIO = true;
                     FILE *fptr;
 
                     typedef struct {
@@ -866,7 +870,8 @@ void darshan_core_shutdown(int write_log)
 
                             char * token = strtok(buffer, "\n");
                             token = strtok(NULL, "\n");
-                            sprintf(cmd, "%s, %s\n", buffer, token);
+                            int number = (int)strtol(buffer, NULL, 16);
+                            sprintf(cmd, "%p, %s\n", number, token);
                             strcat(address_line_mapping, cmd);
                         }
 
