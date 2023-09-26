@@ -677,10 +677,10 @@ def plot_with_report(report: darshan.DarshanReport,
         height = num_cats
 
     plot_data(fig,
-              file_rd_series[sort_inds],
-              file_wr_series[sort_inds],
-              bytes_rd_series[sort_inds],
-              bytes_wr_series[sort_inds],
+              file_rd_series.iloc[sort_inds],
+              file_wr_series.iloc[sort_inds],
+              bytes_rd_series.iloc[sort_inds],
+              bytes_wr_series.iloc[sort_inds],
               filesystem_roots,
               num_cats=num_cats)
 
