@@ -1,3 +1,4 @@
+import io
 import re
 import os
 import pytest
@@ -389,7 +390,7 @@ class TestReportData:
         # generate the report data
         R = summary.ReportData(log_path=log_path)
         # convert the metadata table back to a pandas dataframe
-        actual_metadata_df = pd.read_html(R.metadata_table, index_col=0)[0]
+        actual_metadata_df = pd.read_html(io.StringIO(R.metadata_table), index_col=0)[0]
         # correct index and columns attributes after
         # `index_col` removed the first column
         actual_metadata_df.index.names = [None]
@@ -503,7 +504,7 @@ class TestReportData:
         # check that number of unicode warning symbols matches expected partial flag count
         assert R.module_table.count("&#x26A0;") == expected_partial_flags
         # convert the module table back to a pandas dataframe
-        actual_mod_df = pd.read_html(R.module_table, index_col=0)[0]
+        actual_mod_df = pd.read_html(io.StringIO(R.module_table), index_col=0)[0]
         # correct index and columns attributes after
         # `index_col` removed the first column
         actual_mod_df.index.names = [None]
@@ -521,8 +522,10 @@ class TestReportData:
         expected_df[1] = np.nan
         flag = "\u26A0 Module data incomplete due to runtime memory or record count limits"
         if "partial_data_stdio.darshan" in log_path:
+            expected_df[[1]] = expected_df[[1]].astype(object)
             expected_df.iloc[5, 1] = flag
         if "partial_data_dxt.darshan" in log_path:
+            expected_df[[1]] = expected_df[[1]].astype(object)
             expected_df.iloc[6:, 1] = flag
 
         # check the module dataframes
