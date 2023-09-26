@@ -1,11 +1,13 @@
 [build-system]
 requires = [
     "wheel",
-    "setuptools<64.0.0",
+    "setuptools>=65.0.0",
 ]
 
 [project]
+name = "darshan"
 requires-python = ">=3.7"
+version = "3.4.4.0"
 
 [tool.cibuildwheel]
 environment = "PYDARSHAN_BUILD_EXT=1"
