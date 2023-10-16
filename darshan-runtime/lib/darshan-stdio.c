@@ -87,7 +87,6 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 #include "darshan-heatmap.h"
-#include "darshan-dxt.h"
 #include "darshan-ldms.h"
 
 #ifndef HAVE_OFF64_T
