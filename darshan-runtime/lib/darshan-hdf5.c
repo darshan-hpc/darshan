@@ -516,7 +516,7 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     extern struct darshanConnector dC;\
     if(!dC.ldms_lib)\
         if(!dC.hdf5_enable_ldms)\
-        darshan_ldms_connector_send(__rec_ref->dataset_rec->base_rec.id, __rec_ref->dataset_rec->base_rec.rank,__rec_ref->dataset_rec->counters[H5D_OPENS], "open", -1, -1, -1, -1, __rec_ref->dataset_rec->counters[H5D_FLUSHES], __tm1, __tm2, __rec_ref->dataset_rec->fcounters[H5D_F_META_TIME], "H5D", "MET");\
+            darshan_ldms_connector_send(__rec_ref->dataset_rec->base_rec.id, __rec_ref->dataset_rec->base_rec.rank,__rec_ref->dataset_rec->counters[H5D_OPENS], "open", -1, -1, -1, -1, __rec_ref->dataset_rec->counters[H5D_FLUSHES], __tm1, __tm2, __rec_ref->dataset_rec->fcounters[H5D_F_META_TIME], "H5D", "MET");\
 } while(0)
 
 hid_t DARSHAN_DECL(H5Dcreate1)(hid_t loc_id, const char *name, hid_t type_id, hid_t space_id, hid_t dcpl_id)
@@ -981,7 +981,6 @@ herr_t DARSHAN_DECL(H5Dclose)(hid_t dataset_id)
 #endif
 
         }
-
         H5D_POST_RECORD();
     }
 
