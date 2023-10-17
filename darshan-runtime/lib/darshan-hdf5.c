@@ -169,7 +169,6 @@ static int my_rank = -1;
     darshan_record_id __rec_id; \
     struct hdf5_file_record_ref *__rec_ref; \
     char *__newpath; \
-    extern struct darshanConnector dC; \
     __newpath = darshan_clean_file_path(__path); \
     if(!__newpath) __newpath = (char *)__path; \
     __rec_id = darshan_core_gen_record_id(__newpath); \
@@ -190,6 +189,7 @@ static int my_rank = -1;
     darshan_add_record_ref(&(hdf5_file_runtime->hid_hash), &__ret, sizeof(hid_t), __rec_ref); \
     if(__newpath != __path) free(__newpath); \
     /* LDMS to publish realtime read tracing information to daemon*/ \
+    extern struct darshanConnector dC; \
     if(!dC.ldms_lib)\
         if(!dC.hdf5_enable_ldms)\
         darshan_ldms_connector_send(__rec_ref->file_rec->base_rec.id, __rec_ref->file_rec->base_rec.rank,__rec_ref->file_rec->counters[H5F_OPENS], "open", -1, -1, -1, -1, __rec_ref->file_rec->counters[H5F_FLUSHES], __tm1, __tm2, __rec_ref->file_rec->fcounters[H5F_F_META_TIME], "H5F", "MET");\
@@ -417,14 +417,12 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
                 &file_id, sizeof(hid_t));
 
 #ifdef HAVE_LDMS
-    /* LDMS to publish runtime h5d tracing information to daemon*/
-    extern struct darshanConnector dC;
-    if(!dC.hdf5_enable_ldms)
-        darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, -1, "close", -1, -1, -1, -1, rec_ref->file_rec->counters[H5F_FLUSHES],rec_ref->file_rec->fcounters[H5F_F_CLOSE_START_TIMESTAMP], rec_ref->file_rec->fcounters[H5F_F_CLOSE_END_TIMESTAMP], rec_ref->file_rec->fcounters[H5F_F_META_TIME], "H5F", "MOD");
+            /* LDMS to publish runtime h5d tracing information to daemon*/
+            extern struct darshanConnector dC;
+            if(!dC.hdf5_enable_ldms)
+                darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, -1, "close", -1, -1, -1, -1, rec_ref->file_rec->counters[H5F_FLUSHES],rec_ref->file_rec->fcounters[H5F_F_CLOSE_START_TIMESTAMP], rec_ref->file_rec->fcounters[H5F_F_CLOSE_END_TIMESTAMP], rec_ref->file_rec->fcounters[H5F_F_META_TIME], "H5F", "MOD");
 #endif
-
         }
-
         H5F_POST_RECORD();
     }
 
@@ -465,7 +463,6 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     ssize_t __req_name_len = DARSHAN_HDF5_MAX_NAME_LEN-1, __ret_name_len; \
     darshan_record_id __rec_id, __file_rec_id = 0; \
     struct hdf5_dataset_record_ref *__rec_ref; \
-    extern struct darshanConnector dC;\
     hsize_t __chunk_dims[H5D_MAX_NDIMS] = {0}; \
     int __i, __n_chunk_dims = 0; \
     /* get corresponding file name */\
@@ -516,6 +513,7 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     __rec_ref->dataset_rec->file_rec_id = __file_rec_id; \
     darshan_add_record_ref(&(hdf5_dataset_runtime->hid_hash), &__ret, sizeof(hid_t), __rec_ref); \
     /* LDMS to publish runtime h5d tracing information to daemon*/ \
+    extern struct darshanConnector dC;\
     if(!dC.ldms_lib)\
         if(!dC.hdf5_enable_ldms)\
         darshan_ldms_connector_send(__rec_ref->dataset_rec->base_rec.id, __rec_ref->dataset_rec->base_rec.rank,__rec_ref->dataset_rec->counters[H5D_OPENS], "open", -1, -1, -1, -1, __rec_ref->dataset_rec->counters[H5D_FLUSHES], __tm1, __tm2, __rec_ref->dataset_rec->fcounters[H5D_F_META_TIME], "H5D", "MET");\
@@ -765,17 +763,18 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
             DARSHAN_TIMER_INC_NO_OVERLAP(
                 rec_ref->dataset_rec->fcounters[H5D_F_READ_TIME],
                 tm1, tm2, rec_ref->last_read_end);
-#ifdef HAVE_LDMS
-    extern struct darshanConnector dC;
-    /* LDMS to publish runtime h5d tracing information to daemon*/
-    if(!dC.hdf5_enable_ldms){
-        dC.hdf5_data[0] = rec_ref->dataset_rec->counters[H5D_POINT_SELECTS];
-        dC.hdf5_data[1] = rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS];
-        dC.hdf5_data[2] = rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS];
-        dC.hdf5_data[3] = rec_ref->dataset_rec->counters[H5D_DATASPACE_NDIMS];
-        dC.hdf5_data[4] = rec_ref->dataset_rec->counters[H5D_DATASPACE_NPOINTS];
 
-        darshan_ldms_connector_send(rec_ref->dataset_rec->base_rec.id, rec_ref->dataset_rec->base_rec.rank, rec_ref->dataset_rec->counters[H5D_READS], "read", -1, rec_ref->dataset_rec->counters[H5D_MAX_READ_TIME_SIZE], -1, rec_ref->dataset_rec->counters[H5D_RW_SWITCHES], rec_ref->dataset_rec->counters[H5D_FLUSHES], rec_ref->dataset_rec->fcounters[H5D_F_READ_START_TIMESTAMP], rec_ref->dataset_rec->fcounters[H5D_F_READ_END_TIMESTAMP], rec_ref->dataset_rec->fcounters[H5D_F_READ_TIME], "H5D", "MOD");
+#ifdef HAVE_LDMS
+            extern struct darshanConnector dC;
+            /* LDMS to publish runtime h5d tracing information to daemon*/
+            if(!dC.hdf5_enable_ldms){
+                dC.hdf5_data[0] = rec_ref->dataset_rec->counters[H5D_POINT_SELECTS];
+                dC.hdf5_data[1] = rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS];
+                dC.hdf5_data[2] = rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS];
+                dC.hdf5_data[3] = rec_ref->dataset_rec->counters[H5D_DATASPACE_NDIMS];
+                dC.hdf5_data[4] = rec_ref->dataset_rec->counters[H5D_DATASPACE_NPOINTS];
+
+                darshan_ldms_connector_send(rec_ref->dataset_rec->base_rec.id, rec_ref->dataset_rec->base_rec.rank, rec_ref->dataset_rec->counters[H5D_READS], "read", -1, rec_ref->dataset_rec->counters[H5D_MAX_READ_TIME_SIZE], -1, rec_ref->dataset_rec->counters[H5D_RW_SWITCHES], rec_ref->dataset_rec->counters[H5D_FLUSHES], rec_ref->dataset_rec->fcounters[H5D_F_READ_START_TIMESTAMP], rec_ref->dataset_rec->fcounters[H5D_F_READ_END_TIMESTAMP], rec_ref->dataset_rec->fcounters[H5D_F_READ_TIME], "H5D", "MOD");
             }
 #endif
         }
@@ -896,22 +895,19 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
                 tm1, tm2, rec_ref->last_write_end);
 
 #ifdef HAVE_LDMS
-    /* LDMS to publish runtime h5d tracing information to daemon*/
-    extern struct darshanConnector dC;
-    if(!dC.hdf5_enable_ldms){
-        dC.hdf5_data[0] = rec_ref->dataset_rec->counters[H5D_POINT_SELECTS];
-        dC.hdf5_data[1] = rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS];
-        dC.hdf5_data[2] = rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS];
-        dC.hdf5_data[3] = rec_ref->dataset_rec->counters[H5D_DATASPACE_NDIMS];
-        dC.hdf5_data[4] = rec_ref->dataset_rec->counters[H5D_DATASPACE_NPOINTS];
+            /* LDMS to publish runtime h5d tracing information to daemon*/
+            extern struct darshanConnector dC;
+            if(!dC.hdf5_enable_ldms){
+                dC.hdf5_data[0] = rec_ref->dataset_rec->counters[H5D_POINT_SELECTS];
+                dC.hdf5_data[1] = rec_ref->dataset_rec->counters[H5D_IRREGULAR_HYPERSLAB_SELECTS];
+                dC.hdf5_data[2] = rec_ref->dataset_rec->counters[H5D_REGULAR_HYPERSLAB_SELECTS];
+                dC.hdf5_data[3] = rec_ref->dataset_rec->counters[H5D_DATASPACE_NDIMS];
+                dC.hdf5_data[4] = rec_ref->dataset_rec->counters[H5D_DATASPACE_NPOINTS];
 
-        darshan_ldms_connector_send(rec_ref->dataset_rec->base_rec.id, rec_ref->dataset_rec->base_rec.rank, rec_ref->dataset_rec->counters[H5D_WRITES], "write", -1, rec_ref->dataset_rec->counters[H5D_MAX_WRITE_TIME_SIZE], -1, rec_ref->dataset_rec->counters[H5D_RW_SWITCHES], rec_ref->dataset_rec->counters[H5D_FLUSHES], rec_ref->dataset_rec->fcounters[H5D_F_WRITE_START_TIMESTAMP], rec_ref->dataset_rec->fcounters[H5D_F_WRITE_END_TIMESTAMP], rec_ref->dataset_rec->fcounters[H5D_F_WRITE_TIME], "H5D", "MOD");
-
+                darshan_ldms_connector_send(rec_ref->dataset_rec->base_rec.id, rec_ref->dataset_rec->base_rec.rank, rec_ref->dataset_rec->counters[H5D_WRITES], "write", -1, rec_ref->dataset_rec->counters[H5D_MAX_WRITE_TIME_SIZE], -1, rec_ref->dataset_rec->counters[H5D_RW_SWITCHES], rec_ref->dataset_rec->counters[H5D_FLUSHES], rec_ref->dataset_rec->fcounters[H5D_F_WRITE_START_TIMESTAMP], rec_ref->dataset_rec->fcounters[H5D_F_WRITE_END_TIMESTAMP], rec_ref->dataset_rec->fcounters[H5D_F_WRITE_TIME], "H5D", "MOD");
             }
 #endif
-
         }
-
         H5D_POST_RECORD();
     }
 
@@ -976,11 +972,12 @@ herr_t DARSHAN_DECL(H5Dclose)(hid_t dataset_id)
             DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->dataset_rec->fcounters[H5D_F_META_TIME],
                 tm1, tm2, rec_ref->last_meta_end);
             darshan_delete_record_ref(&(hdf5_dataset_runtime->hid_hash), &dataset_id, sizeof(hid_t));
+
 #ifdef HAVE_LDMS
-        /* LDMS to publish runtime h5d tracing information to daemon*/
-    extern struct darshanConnector dC;
-    if(!dC.hdf5_enable_ldms)
-        darshan_ldms_connector_send(rec_ref->dataset_rec->base_rec.id, rec_ref->dataset_rec->base_rec.rank, -1, "close", -1, -1, -1, -1, rec_ref->dataset_rec->counters[H5D_FLUSHES], rec_ref->dataset_rec->fcounters[H5D_F_CLOSE_START_TIMESTAMP], rec_ref->dataset_rec->fcounters[H5D_F_CLOSE_END_TIMESTAMP], rec_ref->dataset_rec->fcounters[H5D_F_META_TIME], "H5D", "MOD");
+            /* LDMS to publish runtime h5d tracing information to daemon*/
+            extern struct darshanConnector dC;
+            if(!dC.hdf5_enable_ldms)
+                darshan_ldms_connector_send(rec_ref->dataset_rec->base_rec.id, rec_ref->dataset_rec->base_rec.rank, -1, "close", -1, -1, -1, -1, rec_ref->dataset_rec->counters[H5D_FLUSHES], rec_ref->dataset_rec->fcounters[H5D_F_CLOSE_START_TIMESTAMP], rec_ref->dataset_rec->fcounters[H5D_F_CLOSE_END_TIMESTAMP], rec_ref->dataset_rec->fcounters[H5D_F_META_TIME], "H5D", "MOD");
 #endif
 
         }
@@ -1595,9 +1592,8 @@ static void hdf5_dataset_record_reduction_op(void* inrec_v, void* inoutrec_v,
         tmp_dataset.counters[H5D_DATASPACE_NPOINTS] = inrec->counters[H5D_DATASPACE_NPOINTS];
         tmp_dataset.counters[H5D_DATATYPE_SIZE] = inrec->counters[H5D_DATATYPE_SIZE];
 
-        for(j=H5D_CHUNK_SIZE_D1; j<=H5D_CHUNK_SIZE_D5; j++){
+        for(j=H5D_CHUNK_SIZE_D1; j<=H5D_CHUNK_SIZE_D5; j++)
             tmp_dataset.counters[j] = inrec->counters[j];
-        }
 
         if(inoutrec->counters[H5D_USE_MPIIO_COLLECTIVE] == 1 ||
                 inrec->counters[H5D_USE_MPIIO_COLLECTIVE] == 1)
@@ -1707,7 +1703,6 @@ static void hdf5_dataset_record_reduction_op(void* inrec_v, void* inoutrec_v,
             tmp_dataset.fcounters[H5D_F_SLOWEST_RANK_TIME] =
                 inoutrec->fcounters[H5D_F_SLOWEST_RANK_TIME];
         }
-
 
         /* update pointers */
         *inoutrec = tmp_dataset;
@@ -1947,7 +1942,6 @@ static void hdf5_dataset_mpi_redux(
 
         rec_ref->dataset_rec->base_rec.rank = -1;
     }
-
 
     /* sort the array of records so we get all of the shared records
      * (marked by rank -1) in a contiguous portion at end of the array

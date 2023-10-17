@@ -214,7 +214,6 @@ extern int __real_fileno(FILE *stream);
 #define STDIO_RECORD_OPEN(__ret, __path, __tm1, __tm2) do { \
     darshan_record_id __rec_id; \
     struct stdio_file_record_ref *__rec_ref; \
-    extern struct darshanConnector dC; \
     char *__newpath; \
     int __fd; \
     MAP_OR_FAIL(fileno); \
@@ -232,8 +231,9 @@ extern int __real_fileno(FILE *stream);
     _STDIO_RECORD_OPEN(__ret, __rec_ref, __tm1, __tm2, 1, -1); \
     __fd = __real_fileno(__ret); \
     darshan_instrument_fs_data(__rec_ref->fs_type, __newpath, __fd); \
-    if(__newpath != (char*)__path) free(__newpath);\
+    if(__newpath != (char*)__path) free(__newpath); \
     /* LDMS to publish realtime read tracing information to daemon*/ \
+    extern struct darshanConnector dC; \
     if(!dC.ldms_lib)\
         if(!dC.stdio_enable_ldms)\
             darshan_ldms_connector_send(__rec_ref->file_rec->base_rec.id, __rec_ref->file_rec->base_rec.rank,__rec_ref->file_rec->counters[STDIO_OPENS], "open", -1, -1, -1, -1, -1, __tm1, __tm2, __rec_ref->file_rec->fcounters[STDIO_F_META_TIME], "STDIO", "MET");\
@@ -241,7 +241,7 @@ extern int __real_fileno(FILE *stream);
 
 #define STDIO_RECORD_REFOPEN(__ret, __rec_ref, __tm1, __tm2, __ref_counter) do { \
     if(!ret || !rec_ref) break; \
-    _STDIO_RECORD_OPEN(__ret, __rec_ref, __tm1, __tm2,  0, __ref_counter); \
+    _STDIO_RECORD_OPEN(__ret, __rec_ref, __tm1, __tm2, 0, __ref_counter); \
 } while(0)
 
 #define _STDIO_RECORD_OPEN(__ret, __rec_ref, __tm1, __tm2, __reset_flag, __ref_counter) do { \
@@ -260,7 +260,6 @@ extern int __real_fileno(FILE *stream);
 #define STDIO_RECORD_READ(__fp, __bytes,  __tm1, __tm2) do{ \
     struct stdio_file_record_ref* rec_ref; \
     int64_t this_offset; \
-    extern struct darshanConnector dC; \
     rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &(__fp), sizeof(__fp)); \
     if(!rec_ref) break; \
     this_offset = rec_ref->offset; \
@@ -275,8 +274,9 @@ extern int __real_fileno(FILE *stream);
      rec_ref->file_rec->fcounters[STDIO_F_READ_START_TIMESTAMP] > __tm1) \
         rec_ref->file_rec->fcounters[STDIO_F_READ_START_TIMESTAMP] = __tm1; \
     rec_ref->file_rec->fcounters[STDIO_F_READ_END_TIMESTAMP] = __tm2; \
-    DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[STDIO_F_READ_TIME], __tm1, __tm2, rec_ref->last_read_end);\
+    DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[STDIO_F_READ_TIME], __tm1, __tm2, rec_ref->last_read_end); \
     /* LDMS to publish realtime read tracing information to daemon*/ \
+    extern struct darshanConnector dC; \
     if(!dC.ldms_lib)\
         if(!dC.stdio_enable_ldms) \
             darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[STDIO_READS], "read", this_offset, __bytes, rec_ref->file_rec->counters[STDIO_MAX_BYTE_READ], -1, -1, __tm1, __tm2, rec_ref->file_rec->fcounters[STDIO_F_READ_TIME],"STDIO", "MOD"); \
@@ -285,7 +285,6 @@ extern int __real_fileno(FILE *stream);
 #define STDIO_RECORD_WRITE(__fp, __bytes,  __tm1, __tm2, __fflush_flag) do{ \
     struct stdio_file_record_ref* rec_ref; \
     int64_t this_offset; \
-    extern struct darshanConnector dC; \
     rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash, &(__fp), sizeof(__fp)); \
     if(!rec_ref) break; \
     this_offset = rec_ref->offset; \
@@ -304,6 +303,8 @@ extern int __real_fileno(FILE *stream);
         rec_ref->file_rec->fcounters[STDIO_F_WRITE_START_TIMESTAMP] = __tm1; \
     rec_ref->file_rec->fcounters[STDIO_F_WRITE_END_TIMESTAMP] = __tm2; \
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[STDIO_F_WRITE_TIME], __tm1, __tm2, rec_ref->last_write_end); \
+    /* LDMS to publish realtime write tracing information to daemon*/ \
+    extern struct darshanConnector dC; \
     if(!dC.ldms_lib)\
         if(!dC.stdio_enable_ldms)\
             darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[STDIO_WRITES], "write", this_offset, __bytes, rec_ref->file_rec->counters[STDIO_MAX_BYTE_WRITTEN], -1, rec_ref->file_rec->counters[STDIO_FLUSHES], __tm1, __tm2,  rec_ref->file_rec->fcounters[STDIO_F_WRITE_TIME], "STDIO", "MOD"); \
@@ -462,13 +463,12 @@ int DARSHAN_DECL(fclose)(FILE *fp)
 
 #ifdef HAVE_LDMS
         /* LDMS to publish runtime tracing information to daemon*/
-    extern struct darshanConnector dC;
-    if(!dC.stdio_enable_ldms)
-        darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, -1, "close", -1, -1, -1, -1, rec_ref->file_rec->counters[STDIO_FLUSHES], tm1, tm2, rec_ref->file_rec->fcounters[STDIO_F_META_TIME], "STDIO", "MOD");
+        extern struct darshanConnector dC;
+        if(!dC.stdio_enable_ldms)
+            darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, -1, "close", -1, -1, -1, -1, rec_ref->file_rec->counters[STDIO_FLUSHES], tm1, tm2, rec_ref->file_rec->fcounters[STDIO_F_META_TIME], "STDIO", "MOD");
 #endif
 
     }
-
     STDIO_POST_RECORD();
 
     return(ret);
