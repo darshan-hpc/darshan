@@ -192,7 +192,7 @@ static int my_rank = -1;
     extern struct darshanConnector dC; \
     if(!dC.ldms_lib)\
         if(!dC.hdf5_enable_ldms)\
-        darshan_ldms_connector_send(__rec_ref->file_rec->base_rec.id, __rec_ref->file_rec->base_rec.rank,__rec_ref->file_rec->counters[H5F_OPENS], "open", -1, -1, -1, -1, __rec_ref->file_rec->counters[H5F_FLUSHES], __tm1, __tm2, __rec_ref->file_rec->fcounters[H5F_F_META_TIME], "H5F", "MET");\
+            darshan_ldms_connector_send(__rec_ref->file_rec->base_rec.id, __rec_ref->file_rec->base_rec.rank,__rec_ref->file_rec->counters[H5F_OPENS], "open", -1, -1, -1, -1, __rec_ref->file_rec->counters[H5F_FLUSHES], __tm1, __tm2, __rec_ref->file_rec->fcounters[H5F_F_META_TIME], "H5F", "MET");\
 } while(0)
 
 hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
@@ -506,9 +506,9 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     if(__dcpl_id != H5P_DEFAULT && H5Pget_layout(__dcpl_id) == H5D_CHUNKED) { \
         __n_chunk_dims = H5Pget_chunk(__dcpl_id, H5D_MAX_NDIMS, __chunk_dims); \
         __n_chunk_dims = (__n_chunk_dims < H5D_MAX_NDIMS) ? __n_chunk_dims : H5D_MAX_NDIMS; \
-        for(__i = 0; __i < __n_chunk_dims; __i++){ \
-            __rec_ref->dataset_rec->counters[H5D_CHUNK_SIZE_D1 + __i] = __chunk_dims[__n_chunk_dims - __i - 1];} \
-            }\
+        for(__i = 0; __i < __n_chunk_dims; __i++) \
+            __rec_ref->dataset_rec->counters[H5D_CHUNK_SIZE_D1 + __i] = __chunk_dims[__n_chunk_dims - __i - 1]; \
+    } \
     __rec_ref->dataset_rec->counters[H5D_DATATYPE_SIZE] = H5Tget_size(__type_id); \
     __rec_ref->dataset_rec->file_rec_id = __file_rec_id; \
     darshan_add_record_ref(&(hdf5_dataset_runtime->hid_hash), &__ret, sizeof(hid_t), __rec_ref); \
