@@ -28,7 +28,6 @@ struct darshanConnector dC = {
      .jobid = 0,
      };
 
-ldms_t ldms_g;
 static void event_cb(ldms_t x, ldms_xprt_event_t e, void *cb_arg)
 {
         switch (e->type) {
@@ -75,8 +74,9 @@ ldms_t setup_connection(const char *xprt, const char *host,
                 ts.tv_nsec = 0;
         }
 
-        ldms_g = ldms_xprt_new_with_auth(xprt, auth, NULL);
-        if (!ldms_g) {
+        dC.ldms_g = ldms_xprt_new_with_auth(xprt, auth, NULL);
+        
+	if (!dC.ldms_g) {
                 printf("Error %d creating the '%s' transport\n",
                        errno, xprt);
                 return NULL;
@@ -85,8 +85,9 @@ ldms_t setup_connection(const char *xprt, const char *host,
         sem_init(&dC.recv_sem, 1, 0);
         sem_init(&dC.conn_sem, 1, 0);
 
-        rc = ldms_xprt_connect_by_name(ldms_g, host, port, event_cb, NULL);
-        if (rc) {
+        rc = ldms_xprt_connect_by_name(dC.ldms_g, host, port, event_cb, NULL);
+        
+	if (rc) {
                 printf("Error %d connecting to %s:%s\n",
                        rc, host, port);
                 return NULL;
@@ -94,7 +95,8 @@ ldms_t setup_connection(const char *xprt, const char *host,
         sem_timedwait(&dC.conn_sem, &ts);
         if (dC.conn_status)
                 return NULL;
-        return ldms_g;
+        
+	return dC.ldms_g;
 }
 
 void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
@@ -128,7 +130,8 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
     if (dC.exename == NULL)
     {
          char buff[DARSHAN_EXE_LEN];
-         int len = readlink("/proc/self/exe", buff, sizeof(buff)-1);
+         int sz = sizeof(buff)/sizeof(buff[0]);
+	 int len = readlink("/proc/self/exe", buff, sz-1);
          buff[len] = '\0';
          dC.exename = buff;
     }
@@ -239,7 +242,7 @@ void darshan_ldms_connector_send(uint64_t record_id, int64_t rank, int64_t recor
     tspec_end = darshan_core_abs_timespec_from_wtime(end_time);
     micro_s = tspec_end.tv_nsec/1.0e3;
 
-    sprintf(jb11,"{\"schema\":%s, \"uid\":%ld, \"exe\":\"%s\",\"job_id\":%ld,\"rank\":%ld,\"ProducerName\":\"%s\",\"file\":\"%s\",\"record_id\":%"PRIu64",\"module\":\"%s\",\"type\":\"%s\",\"max_byte\":%ld,\"switches\":%ld,\"flushes\":%ld,\"cnt\":%ld,\"op\":\"%s\",\"seg\":[{\"pt_sel\":%ld,\"irreg_hslab\":%ld,\"reg_hslab\":%ld,\"ndims\":%ld,\"npoints\":%ld,\"off\":%ld,\"len\":%ld,\"start\":%0.6f,\"dur\":%0.6f,\"total\":%0.6f,\"timestamp\":%lu.%.6lu}]}", dC.schema, dC.uid, dC.exename, dC.jobid, rank, dC.hname, filepath, record_id, mod_name, data_type, max_byte, rw_switch, flushes, record_count, rwo, dC.hdf5_data[0], dC.hdf5_data[1], dC.hdf5_data[2], dC.hdf5_data[3], dC.hdf5_data[4], offset, length, start_time, end_time-start_time, total_time, tspec_end.tv_sec, micro_s);
+    sprintf(jb11,"{\"schema\":\"%s\", \"uid\":%ld, \"exe\":\"%s\",\"job_id\":%ld,\"rank\":%ld,\"ProducerName\":\"%s\",\"file\":\"%s\",\"record_id\":%"PRIu64",\"module\":\"%s\",\"type\":\"%s\",\"max_byte\":%ld,\"switches\":%ld,\"flushes\":%ld,\"cnt\":%ld,\"op\":\"%s\",\"seg\":[{\"pt_sel\":%ld,\"irreg_hslab\":%ld,\"reg_hslab\":%ld,\"ndims\":%ld,\"npoints\":%ld,\"off\":%ld,\"len\":%ld,\"start\":%0.6f,\"dur\":%0.6f,\"total\":%0.6f,\"timestamp\":%lu.%.6lu}]}", dC.schema, dC.uid, dC.exename, dC.jobid, rank, dC.hname, filepath, record_id, mod_name, data_type, max_byte, rw_switch, flushes, record_count, rwo, dC.hdf5_data[0], dC.hdf5_data[1], dC.hdf5_data[2], dC.hdf5_data[3], dC.hdf5_data[4], offset, length, start_time, end_time-start_time, total_time, tspec_end.tv_sec, micro_s);
     
     if (getenv("DARSHAN_LDMS_VERBOSE"))
             printf("JSON Message: %s\n", jb11);
