@@ -63,10 +63,6 @@ typedef struct darshanConnector {
  * specified module from the set environment variables (i.e. *MODULENAME*_ENABLE_LDMS)
  * to LDMSD streams plugin.
  *
- * LDMS related function to retrieve and set the meta data of each Darshan
- * run (i.e. record id, rank, etc.). These values will not be updated unless a different module
- * is detected or a new run is executed.
- *
  */
 void darshan_ldms_connector_initialize(struct darshan_core_runtime *);
 

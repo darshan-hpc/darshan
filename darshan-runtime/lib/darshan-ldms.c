@@ -1,7 +1,7 @@
 /*
- *   Copyright (C) 2016 Intel Corporation.
- *   See COPYRIGHT notice in top-level directory.
- *    
+ * Copyright (C) 2019 University of Chicago.
+ * See COPYRIGHT notice in top-level directory.
+ *
  */
 
 #ifdef HAVE_CONFIG_H
@@ -60,7 +60,6 @@ static void event_cb(ldms_t x, ldms_xprt_event_t e, void *cb_arg)
 ldms_t setup_connection(const char *xprt, const char *host,
                         const char *port, const char *auth)
 {
-        char hostname[PATH_MAX];
         const char *timeout = "5";
         int rc;
         struct timespec ts;
@@ -126,13 +125,13 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
     dC.exename = strtok(init_core->log_exemnt_p, " ");
      
     /* Pull executable name from proc if no arguemments are given. */
-        if (dC.exename == NULL)
-        {
+    if (dC.exename == NULL)
+    {
          char buff[DARSHAN_EXE_LEN];
          int len = readlink("/proc/self/exe", buff, sizeof(buff)-1);
          buff[len] = '\0';
          dC.exename = buff;
-        }
+    }
 
     /* Set flags for various LDMS environment variables */
     if (getenv("POSIX_ENABLE_LDMS"))
@@ -161,7 +160,7 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
         dC.hdf5_enable_ldms = 1;
 
     if (!getenv("DARSHAN_LDMS_STREAM"))
-    dC.env_ldms_stream = "darshanConnector";
+        dC.env_ldms_stream = "darshanConnector";
     
     const char* env_ldms_xprt    = getenv("DARSHAN_LDMS_XPRT");
     const char* env_ldms_host    = getenv("DARSHAN_LDMS_HOST");
@@ -176,16 +175,16 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
 
     pthread_mutex_lock(&dC.ln_lock);
     dC.ldms_darsh = setup_connection(env_ldms_xprt, env_ldms_host, env_ldms_port, env_ldms_auth);
-        if (dC.conn_status != 0) {
-            printf("Error setting up connection to LDMS streams daemon: %i -- exiting\n", dC.conn_status);
-            pthread_mutex_unlock(&dC.ln_lock);
-            return;
-        }
-        else if (dC.ldms_darsh->disconnected){
-            printf("Disconnected from LDMS streams daemon -- exiting\n");
-            pthread_mutex_unlock(&dC.ln_lock);
-            return;
-        }
+    if (dC.conn_status != 0) {
+        printf("Error setting up connection to LDMS streams daemon: %i -- exiting\n", dC.conn_status);
+        pthread_mutex_unlock(&dC.ln_lock);
+        return;
+    }
+    else if (dC.ldms_darsh->disconnected){
+        printf("Disconnected from LDMS streams daemon -- exiting\n");
+        pthread_mutex_unlock(&dC.ln_lock);
+        return;
+    }
     pthread_mutex_unlock(&dC.ln_lock);
     return;
 }
@@ -232,7 +231,7 @@ void darshan_ldms_connector_send(uint64_t record_id, int64_t rank, int64_t recor
     {
         filepath = "N/A";
         dC.exename = "N/A";
-	dC.schema = "N/A";
+        dC.schema = "N/A";
     }
 
     /* convert the start and end times to timespecs and report absolute timestamps */
