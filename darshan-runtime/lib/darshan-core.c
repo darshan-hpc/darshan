@@ -211,7 +211,6 @@ void darshan_core_initialize(int argc, char **argv)
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if (__darshan_core != NULL || getenv("DARSHAN_DISABLE"))
         return;
-
     init_start = darshan_core_wtime_absolute();
 
     /* allocate structure to track darshan core runtime information */
@@ -776,6 +775,13 @@ cleanup:
         free(shared_recs);
         free(mod_shared_recs);
     }
+#endif
+#ifdef HAVE_LDMS
+        /* free any allocated array memory*/
+        extern struct darshanConnector dC;
+        if(dC.ldms_lib){
+            free(dC.record_id);
+            free(dC.record_count);}
 #endif
     free(logfile_name);
 

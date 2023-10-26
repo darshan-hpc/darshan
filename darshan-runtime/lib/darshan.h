@@ -410,6 +410,7 @@ static inline double darshan_core_wtime_absolute(void)
      *   - it is not well defined how much precision will be sacrificed
      */
     clock_gettime(CLOCK_REALTIME, &tp);
+
     return(((double)tp.tv_sec) + 1.0e-9 * ((double)tp.tv_nsec));
 #endif
 }

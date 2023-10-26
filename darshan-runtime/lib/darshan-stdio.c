@@ -87,6 +87,7 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 #include "darshan-heatmap.h"
+#include "darshan-dxt.h"
 #include "darshan-ldms.h"
 
 #ifndef HAVE_OFF64_T
@@ -233,15 +234,14 @@ extern int __real_fileno(FILE *stream);
     darshan_instrument_fs_data(__rec_ref->fs_type, __newpath, __fd); \
     if(__newpath != (char*)__path) free(__newpath); \
     /* LDMS to publish realtime read tracing information to daemon*/ \
-    extern struct darshanConnector dC; \
-    if(!dC.ldms_lib)\
-        if(!dC.stdio_enable_ldms)\
+    if(dC.ldms_lib)\
+        if(dC.stdio_enable_ldms)\
             darshan_ldms_connector_send(__rec_ref->file_rec->base_rec.id, __rec_ref->file_rec->base_rec.rank,__rec_ref->file_rec->counters[STDIO_OPENS], "open", -1, -1, -1, -1, -1, __tm1, __tm2, __rec_ref->file_rec->fcounters[STDIO_F_META_TIME], "STDIO", "MET");\
 } while(0)
 
 #define STDIO_RECORD_REFOPEN(__ret, __rec_ref, __tm1, __tm2, __ref_counter) do { \
     if(!ret || !rec_ref) break; \
-    _STDIO_RECORD_OPEN(__ret, __rec_ref, __tm1, __tm2, 0, __ref_counter); \
+    _STDIO_RECORD_OPEN(__ret, __rec_ref, __tm1, __tm2,  0, __ref_counter); \
 } while(0)
 
 #define _STDIO_RECORD_OPEN(__ret, __rec_ref, __tm1, __tm2, __reset_flag, __ref_counter) do { \
@@ -276,9 +276,8 @@ extern int __real_fileno(FILE *stream);
     rec_ref->file_rec->fcounters[STDIO_F_READ_END_TIMESTAMP] = __tm2; \
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[STDIO_F_READ_TIME], __tm1, __tm2, rec_ref->last_read_end); \
     /* LDMS to publish realtime read tracing information to daemon*/ \
-    extern struct darshanConnector dC; \
-    if(!dC.ldms_lib)\
-        if(!dC.stdio_enable_ldms) \
+    if(dC.ldms_lib)\
+        if(dC.stdio_enable_ldms) \
             darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[STDIO_READS], "read", this_offset, __bytes, rec_ref->file_rec->counters[STDIO_MAX_BYTE_READ], -1, -1, __tm1, __tm2, rec_ref->file_rec->fcounters[STDIO_F_READ_TIME],"STDIO", "MOD"); \
 } while(0)
 
@@ -303,10 +302,8 @@ extern int __real_fileno(FILE *stream);
         rec_ref->file_rec->fcounters[STDIO_F_WRITE_START_TIMESTAMP] = __tm1; \
     rec_ref->file_rec->fcounters[STDIO_F_WRITE_END_TIMESTAMP] = __tm2; \
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[STDIO_F_WRITE_TIME], __tm1, __tm2, rec_ref->last_write_end); \
-    /* LDMS to publish realtime write tracing information to daemon*/ \
-    extern struct darshanConnector dC; \
-    if(!dC.ldms_lib)\
-        if(!dC.stdio_enable_ldms)\
+    if(dC.ldms_lib)\
+        if(dC.stdio_enable_ldms)\
             darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[STDIO_WRITES], "write", this_offset, __bytes, rec_ref->file_rec->counters[STDIO_MAX_BYTE_WRITTEN], -1, rec_ref->file_rec->counters[STDIO_FLUSHES], __tm1, __tm2,  rec_ref->file_rec->fcounters[STDIO_F_WRITE_TIME], "STDIO", "MOD"); \
 } while(0)
 
@@ -463,8 +460,9 @@ int DARSHAN_DECL(fclose)(FILE *fp)
 
 #ifdef HAVE_LDMS
         /* LDMS to publish runtime tracing information to daemon*/
-        extern struct darshanConnector dC;
-        if(!dC.stdio_enable_ldms)
+    extern struct darshanConnector dC;
+    if(dC.ldms_lib)
+        if(dC.stdio_enable_ldms)
             darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, -1, "close", -1, -1, -1, -1, rec_ref->file_rec->counters[STDIO_FLUSHES], tm1, tm2, rec_ref->file_rec->fcounters[STDIO_F_META_TIME], "STDIO", "MOD");
 #endif
 
