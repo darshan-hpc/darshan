@@ -67,6 +67,7 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
     ],
     description="Python tools to interact with darshan log records of HPC applications.",
     long_description=readme,
