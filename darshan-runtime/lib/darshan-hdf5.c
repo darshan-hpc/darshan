@@ -169,6 +169,7 @@ static int my_rank = -1;
     darshan_record_id __rec_id; \
     struct hdf5_file_record_ref *__rec_ref; \
     char *__newpath; \
+    extern struct darshanConnector dC; \
     __newpath = darshan_clean_file_path(__path); \
     if(!__newpath) __newpath = (char *)__path; \
     __rec_id = darshan_core_gen_record_id(__newpath); \
@@ -463,6 +464,7 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     ssize_t __req_name_len = DARSHAN_HDF5_MAX_NAME_LEN-1, __ret_name_len; \
     darshan_record_id __rec_id, __file_rec_id = 0; \
     struct hdf5_dataset_record_ref *__rec_ref; \
+    extern struct darshanConnector dC; \
     hsize_t __chunk_dims[H5D_MAX_NDIMS] = {0}; \
     int __i, __n_chunk_dims = 0; \
     /* get corresponding file name */\

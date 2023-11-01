@@ -219,6 +219,7 @@ static int my_rank = -1;
     struct mpiio_file_record_ref *rec_ref; \
     char *newpath; \
     int comm_size; \
+    extern struct darshanConnector dC; \
     if(__ret != MPI_SUCCESS) break; \
     newpath = darshan_clean_file_path(__path); \
     if(!newpath) newpath = (char *)__path; \
@@ -268,6 +269,7 @@ static int get_byte_offset = 0;
     int64_t size_ll; \
     struct darshan_common_val_counter *cvc; \
     double __elapsed = __tm2-__tm1; \
+    extern struct darshanConnector dC; \
     if(__ret != MPI_SUCCESS) break; \
     rec_ref = darshan_lookup_record_ref(mpiio_runtime->fh_hash, &(__fh), sizeof(MPI_File)); \
     if(!rec_ref) break; \
@@ -315,6 +317,7 @@ static int get_byte_offset = 0;
     int64_t size_ll; \
     struct darshan_common_val_counter *cvc; \
     double __elapsed = __tm2-__tm1; \
+    extern struct darshanConnector dC; \
     if(__ret != MPI_SUCCESS) break; \
     rec_ref = darshan_lookup_record_ref(mpiio_runtime->fh_hash, &(__fh), sizeof(MPI_File)); \
     if(!rec_ref) break; \

@@ -284,6 +284,7 @@ static int darshan_mem_alignment = 1;
     int64_t file_alignment; \
     struct darshan_common_val_counter *cvc; \
     double __elapsed = __tm2-__tm1; \
+    extern struct darshanConnector dC; \
     if(__ret < 0) break; \
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &(__fd), sizeof(int)); \
     if(!rec_ref) break; \
@@ -353,6 +354,7 @@ static int darshan_mem_alignment = 1;
     int64_t file_alignment; \
     struct darshan_common_val_counter *cvc; \
     double __elapsed = __tm2-__tm1; \
+    extern struct darshanConnector dC; \
     if(__ret < 0) break; \
     rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &__fd, sizeof(int)); \
     if(!rec_ref) break; \
