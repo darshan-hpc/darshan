@@ -289,31 +289,38 @@ if test "x$enable_darshan_runtime" = xyes ; then
       fi
    fi
 
-   # AUTOPERF MPI module
-   AC_ARG_ENABLE([apmpi-mod],
-      [AS_HELP_STRING([--enable-apmpi-mod],
-                      [Enables compilation and use of AUTOPERF MPI module (requires MPI)])],
-      [], [enable_apmpi_mod=no]
-   )
-   if test "x$enable_apmpi_mod" = xyes ; then
-      if test "x$ENABLE_MPI" = xno ; then
-         AC_MSG_ERROR([--enable-apmpi-mod Autoperf MPI module requires MPI support])
-      fi
-      abssrcdir=$(readlink -f ${srcdir})
-      AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
-                      [],
-                      [AC_MSG_ERROR([The Autoperf MPI module is not present])],
-                      [-]) # this last part tells it to only check for presence
-
-      # APMPI only support MPI v3 or higher
-      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-         #include <mpi.h>
-         #if MPI_VERSION < 3
-         #error MPI_VERSION < 3 detected
-         #endif]])], [],
-         [AC_MSG_ERROR([APMPI module requires MPI version 3+.])]
-      )
+   if test "x$ENABLE_MPI" = xyes ; then
+      AC_MSG_CHECKING([MPI Standard version implemented])
+      AC_COMPUTE_INT([mpi_version], [MPI_VERSION], [[#include <mpi.h>]])
+      AC_MSG_RESULT([${mpi_version}])
    fi
+
+   CFLAGS+=" -I${ac_abs_confdir}/../include"
+   # check AUTOPERF MPI module
+   if test "x$ENABLE_MPI" = xno ; then
+      # AUTOPERF MPI module requires MPI
+      enable_apmpi_mod=no
+   else
+      # AUTOPERF MPI module requires darshan-apmpi-log-format.h
+      AC_CHECK_FILE([${ac_abs_confdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
+                    [enable_apmpi_mod=yes], [enable_apmpi_mod=no])
+      saved_CFLAGS=$CFLAGS
+      if test "x$enable_apmpi_mod" = xyes ; then
+         CFLAGS+=" -I${ac_abs_confdir}/../modules/autoperf/apmpi"
+         AC_CHECK_HEADER([darshan-apmpi-log-format.h], [], [enable_apmpi_mod=no], [[#include <darshan-log-format.h>]])
+      fi
+      if test "x$enable_apmpi_mod" = xyes ; then
+         if test "x$mpi_version" = x ; then
+            AC_MSG_ERROR([MPI version information unavailable])
+         elif test $mpi_version -lt 3 ; then
+            AC_MSG_ERROR([APMPI module requires MPI version 3+])
+         fi
+      else
+         CFLAGS=$saved_CFLAGS
+      fi
+   fi
+   apmpi_root=$(readlink -f ${ac_abs_confdir}/../modules/autoperf/apmpi)
+   AC_SUBST(apmpi_root, [$apmpi_root])
 
    AC_ARG_ENABLE([apmpi-coll-sync],
       [AS_HELP_STRING([--enable-apmpi-coll-sync],
@@ -324,26 +331,32 @@ if test "x$enable_darshan_runtime" = xyes ; then
       AC_DEFINE(__APMPI_COLL_SYNC, 1, Define if APMPI should enable sync time calculation for MPI collectives)
    fi
 
-   #AUTOPERF XC module
-   AC_ARG_ENABLE([apxc-mod],
-      [AS_HELP_STRING([--enable-apxc-mod],
-                      [Enables compilation and use of AUTOPERF XC module (requires MPI)])],
-      [], [enable_apxc_mod=no]
-   )
-   if test "x$enable_apxc_mod" = xyes ; then
-      if test "x$ENABLE_MPI" = xno ; then
-         AC_MSG_ERROR([--enable-apxc-mod Autoperf XC module requires MPI support])
-      fi
-      abssrcdir=$(readlink -f ${srcdir})
+   # check AUTOPERF XC module
+   if test "x$ENABLE_MPI" = xno ; then
+      # AUTOPERF XC module requires MPI
+      enable_apxc_mod=no
+   else
+      # AUTOPERF XC module requires papi.h
       AC_CHECK_HEADER([papi.h],
-                      [with_papi=-lpapi],
-                      [AC_MSG_ERROR([Cannot find papi header required for Autoperf XC module])],
-                      [])
-      AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
-                      [],
-                      [AC_MSG_ERROR([The Autoperf XC git submodule is not present])],
-                      [-]) # this last part tells it to only check for presence
+                      [enable_apxc_mod=yes ; with_papi=-lpapi],
+                      [enable_apxc_mod=no], [])
+
+      if test "x$enable_apxc_mod" = xyes ; then
+         # AUTOPERF XC module requires darshan-apxc-log-format.h
+         AC_CHECK_FILE([${ac_abs_confdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
+                       [enable_apxc_mod=yes], [enable_apxc_mod=no])
+         saved_CFLAGS=$CFLAGS
+         if test "x$enable_apxc_mod" = xyes ; then
+            CFLAGS+=" -I${ac_abs_confdir}/../modules/autoperf/apxc"
+            AC_CHECK_HEADER([darshan-apxc-log-format.h], [], [enable_apxc_mod=no], [[#include <darshan-log-format.h>]])
+         fi
+         if test "x$enable_apxc_mod" = xno ; then
+            CFLAGS=$saved_CFLAGS
+         fi
+      fi
    fi
+   apxc_root=$(readlink -f ${ac_abs_confdir}/../modules/autoperf/apxc)
+   AC_SUBST(apxc_root, [$apxc_root])
 
    # inform about HDF5 installs not found in default locations
    AC_ARG_WITH([hdf5],

@@ -89,28 +89,35 @@ if test "x$enable_darshan_util" = xyes ; then
       AC_CONFIG_FILES([pydarshan-info.py pydarshan-info.sh])
    fi
 
-   AC_ARG_ENABLE([apxc_mod],
-      [AS_HELP_STRING([--enable-apxc-mod],
-                      [enables compilation and use of the AutoPerf Cray XC module])],
-      [], [enable_apxc_mod=no]
-   )
-   if test "x$enable_apxc_mod" = xyes; then
-      AC_CHECK_HEADER([${ac_abs_confdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
-                      DARSHAN_USE_APXC=1,
-                      [AC_MSG_ERROR([The autoperf APXC module is not present])],
-                      [-]) # this last part tells it to only check for presence
+   CFLAGS+=" -I${ac_abs_confdir}/../include"
+
+   # AUTOPERF XC module requires darshan-apxc-log-format.h
+   AC_CHECK_FILE([${ac_abs_confdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
+                 [enable_apxc_mod=yes], [enable_apxc_mod=no])
+   saved_CFLAGS=$CFLAGS
+   if test "x$enable_apxc_mod" = xyes ; then
+      CFLAGS+=" -I${ac_abs_confdir}/../modules/autoperf/apxc"
+      AC_CHECK_HEADER([darshan-apxc-log-format.h], [], [enable_apxc_mod=no], [[#include <darshan-log-format.h>]])
    fi
-   AC_ARG_ENABLE([apmpi_mod],
-      [AS_HELP_STRING([--enable-apmpi-mod],
-                      [enables compilation and use of the AutoPerf MPI module])],
-      [], [enable_apmpi_mod=no]
-   )
-   if test "x$enable_apmpi_mod" = xyes; then
-      AC_CHECK_HEADER([${ac_abs_confdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
-                      DARSHAN_USE_APMPI=1,
-                      [AC_MSG_ERROR([The autoperf MPI module is not present])],
-                      [-]) # this last part tells it to only check for presence
+   if test "x$enable_apxc_mod" = xno ; then
+      CFLAGS=$saved_CFLAGS
    fi
+   apxc_root=$(readlink -f ${ac_abs_confdir}/../modules/autoperf/apxc)
+   AC_SUBST(apxc_root, [$apxc_root])
+
+   # AUTOPERF MPI module requires darshan-apmpi-log-format.h
+   AC_CHECK_FILE([${ac_abs_confdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
+                 [enable_apmpi_mod=yes], [enable_apmpi_mod=no])
+   saved_CFLAGS=$CFLAGS
+   if test "x$enable_apmpi_mod" = xyes ; then
+      CFLAGS+=" -I${ac_abs_confdir}/../modules/autoperf/apmpi"
+      AC_CHECK_HEADER([darshan-apmpi-log-format.h], [], [enable_apmpi_mod=no], [[#include <darshan-log-format.h>]])
+   fi
+   if test "x$enable_apmpi_mod" = xno ; then
+      CFLAGS=$saved_CFLAGS
+   fi
+   apmpi_root=$(readlink -f ${ac_abs_confdir}/../modules/autoperf/apmpi)
+   AC_SUBST(apmpi_root, [$apmpi_root])
 
    AC_CHECK_FUNCS([strndup])
 
