@@ -102,8 +102,6 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
             dC.env_ldms_reinit = getenv("DARSHAN_LDMS_REINIT");
         else
             dC.env_ldms_reinit = "1";*/
-    dC.record_id = (uint64_t *)malloc(sizeof(int) * dC.array_size);
-    dC.record_count = (int64_t *)malloc(sizeof(int) * dC.array_size);
 
     (void)gethostname(dC.hname, sizeof(dC.hname));
 
@@ -219,40 +217,6 @@ void darshan_ldms_connector_send(uint64_t record_id, int64_t rank, int64_t recor
     }
     else
         dC.exepath = dC.exe_tmp;
-
-    /* Utilize 2 arrays to store open counts to corresponding record_id */
-    pthread_mutex_lock(&dC.ln_lock);
-    if (strcmp(rwo, "open") == 0){
-        for (i = 0; i < dC.array_size; i++) {
-            if (dC.record_id[i] == record_id){
-                dC.record_count[i] = record_count;
-                    found = 1;
-                    break;
-                }
-            else
-                found = 0;
-            }
-    /* Add record id and count if not already in the array*/
-    if (!found) {
-        /* Double array size if initial allocated size is reached*/
-        if (dC.pos >= dC.array_size){
-            dC.array_size *= 2;
-            dC.record_id = (uint64_t *)realloc(dC.record_id, sizeof(int) * dC.array_size);
-            dC.record_count = (int64_t *)realloc(dC.record_count, sizeof(int) * dC.array_size);
-            }
-        dC.record_id[dC.pos] = record_id;
-        dC.record_count[dC.pos] = record_count;
-        dC.pos++;
-        }
-    }
-    pthread_mutex_unlock(&dC.ln_lock);
-
-    /* Set the number of close counts to open count of corresponding record_id*/
-    if (strcmp(rwo, "close") == 0){
-    for (i = 0; i < dC.array_size; i++)
-    if (dC.record_id[i] == record_id)
-        record_count = dC.record_count[i];
-    }
 
     /* convert the start and end times to timespecs and report absolute timestamps */
     tspec_start = darshan_core_abs_timespec_from_wtime(start_time);

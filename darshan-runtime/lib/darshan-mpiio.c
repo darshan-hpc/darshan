@@ -147,6 +147,9 @@ struct mpiio_file_record_ref
     double last_write_end;
     void *access_root;
     int access_count;
+#ifdef HAVE_LDMS
+    int64_t close_counts;
+#endif
 };
 
 /* The mpiio_runtime structure maintains necessary state for storing
@@ -1202,11 +1205,12 @@ int DARSHAN_DECL(MPI_File_close)(MPI_File *fh)
             &tmp_fh, sizeof(MPI_File));
 
 #ifdef HAVE_LDMS
+    rec_ref->close_counts++;
     /* publish close information for mpiio */
     extern struct darshanConnector dC;
     if(dC.ldms_lib)
         if(dC.mpiio_enable_ldms)
-            darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, -1, "close", -1, -1, -1, -1, -1, tm1, tm2, rec_ref->file_rec->fcounters[MPIIO_F_META_TIME], "MPIIO", "MOD");
+            darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->close_counts, "close", -1, -1, -1, -1, -1, tm1, tm2, rec_ref->file_rec->fcounters[MPIIO_F_META_TIME], "MPIIO", "MOD");
 #endif
 
     }

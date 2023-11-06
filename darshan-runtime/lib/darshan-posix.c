@@ -147,6 +147,9 @@ struct posix_file_record_ref
     int stride_count;
     struct posix_aio_tracker* aio_list;
     int fs_type; /* same as darshan_fs_info->fs_type */
+#ifdef HAVE_LDMS
+    int64_t close_counts;
+#endif
 };
 
 /* The posix_runtime structure maintains necessary state for storing
@@ -1638,11 +1641,12 @@ int DARSHAN_DECL(close)(int fd)
         darshan_delete_record_ref(&(posix_runtime->fd_hash), &fd, sizeof(int));
 
 #ifdef HAVE_LDMS
+        rec_ref->close_counts++;
         /* publish close information for posix */
         extern struct darshanConnector dC;
         if(dC.ldms_lib)
             if(dC.posix_enable_ldms)
-                darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank,-1, "close", -1, -1, -1, -1, -1, tm1, tm2, rec_ref->file_rec->fcounters[POSIX_F_META_TIME], "POSIX", "MOD");
+                darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->close_counts, "close", -1, -1, -1, -1, -1, tm1, tm2, rec_ref->file_rec->fcounters[POSIX_F_META_TIME], "POSIX", "MOD");
 #endif
     }
     POSIX_POST_RECORD();

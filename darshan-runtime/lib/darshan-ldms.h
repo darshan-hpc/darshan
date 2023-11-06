@@ -39,9 +39,6 @@ typedef struct darshanConnector {
         struct timespec ts;
         uint64_t *record_id;
         int64_t *record_count;
-        int array_size;
-        int found;
-        int pos;
         pthread_mutex_t ln_lock;
         ldms_t ldms_darsh;
         ldms_t ldms_g;

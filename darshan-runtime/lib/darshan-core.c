@@ -776,13 +776,7 @@ cleanup:
         free(mod_shared_recs);
     }
 #endif
-#ifdef HAVE_LDMS
-        /* free any allocated array memory*/
-        extern struct darshanConnector dC;
-        if(dC.ldms_lib){
-            free(dC.record_id);
-            free(dC.record_count);}
-#endif
+    
     free(logfile_name);
 
     return;

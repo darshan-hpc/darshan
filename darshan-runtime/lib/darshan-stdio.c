@@ -136,6 +136,9 @@ struct stdio_file_record_ref
     double last_read_end;
     double last_write_end;
     int fs_type;
+#ifdef HAVE_LDMS
+    int64_t close_counts;
+#endif
 };
 
 /* The stdio_runtime structure maintains necessary state for storing
@@ -462,11 +465,12 @@ int DARSHAN_DECL(fclose)(FILE *fp)
         darshan_delete_record_ref(&(stdio_runtime->stream_hash), &fp, sizeof(fp));
 
 #ifdef HAVE_LDMS
-        /* LDMS to publish runtime tracing information to daemon*/
+    rec_ref->close_counts++;
+    /* publish close information for stdio */
     extern struct darshanConnector dC;
     if(dC.ldms_lib)
         if(dC.stdio_enable_ldms)
-            darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, -1, "close", -1, -1, -1, -1, rec_ref->file_rec->counters[STDIO_FLUSHES], tm1, tm2, rec_ref->file_rec->fcounters[STDIO_F_META_TIME], "STDIO", "MOD");
+            darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->close_counts, "close", -1, -1, -1, -1, rec_ref->file_rec->counters[STDIO_FLUSHES], tm1, tm2, rec_ref->file_rec->fcounters[STDIO_F_META_TIME], "STDIO", "MOD");
 #endif
 
     }
