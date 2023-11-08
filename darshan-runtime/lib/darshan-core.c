@@ -599,6 +599,7 @@ void darshan_core_shutdown(int write_log)
         struct darshan_core_module* this_mod = final_core->mod_array[i];
         void* mod_buf = NULL;
         int mod_buf_sz = 0;
+        size_t mod_bytes_registered = 0, mod_bytes_allocated = 0;
 
         if(!active_mods[i])
         {
@@ -615,6 +616,8 @@ void darshan_core_shutdown(int write_log)
         {
             mod_buf = final_core->mod_array[i]->rec_buf_start;
             mod_buf_sz = final_core->mod_array[i]->rec_buf_p - mod_buf;
+            mod_bytes_registered = final_core->mod_array[i]->bytes_registered;
+            mod_bytes_allocated = final_core->mod_array[i]->bytes_allocated;
 
 #ifdef HAVE_MPI
             if(using_mpi)
@@ -670,6 +673,33 @@ void darshan_core_shutdown(int write_log)
         /* error out if unable to write module data */
         DARSHAN_CHECK_ERR(ret, "unable to write %s module data to log file %s",
             darshan_module_names[i], logfile_name);
+
+#ifdef HAVE_MPI
+        if(using_mpi)
+        {
+            /* reduce to get max per-rank */
+            if(my_rank == 0)
+            {
+                PMPI_Reduce(MPI_IN_PLACE, &mod_bytes_registered, 1, MPI_UNSIGNED,
+                    MPI_MAX, 0, final_core->mpi_comm);
+                PMPI_Reduce(MPI_IN_PLACE, &mod_bytes_allocated, 1, MPI_UNSIGNED,
+                    MPI_MAX, 0, final_core->mpi_comm);
+            }
+            else
+            {
+                PMPI_Reduce(&mod_bytes_registered, &mod_bytes_registered, 1, MPI_UNSIGNED,
+                    MPI_MAX, 0, final_core->mpi_comm);
+                PMPI_Reduce(&mod_bytes_allocated, &mod_bytes_allocated, 1, MPI_UNSIGNED,
+                    MPI_MAX, 0, final_core->mpi_comm);
+            }
+        }
+#endif
+
+        /* print details on module memory usage if requested */
+        if(my_rank == 0 && final_core->config.mod_mem_usage_flag)
+            darshan_core_fprintf(stderr,
+                    "# Darshan %s module: bytes_registered=%lu bytes_allocated=%lu\n",
+                    darshan_module_names[i], mod_bytes_registered, mod_bytes_allocated);
     }
 
     if(internal_timing_flag)
@@ -2226,6 +2256,9 @@ static int darshan_core_name_is_excluded(const char *name, darshan_module_id mod
     int tmp_index = 0;
     struct darshan_core_regex *regex;
 
+    if(!name)
+        return(0);
+
     /* set flag if this module's record names are based on file paths */
     name_is_path = 1;
     if((mod_id == DARSHAN_APMPI_MOD) || (mod_id == DARSHAN_APXC_MOD) ||
@@ -2563,6 +2596,7 @@ int darshan_core_register_module(
         mod->rec_mem_avail = mod_mem_req;
         *inout_rec_count = mod_recs_req;
     }
+    mod->bytes_allocated = mod->rec_mem_avail;
 
     /* register module with darshan */
     __darshan_core->mod_array[mod_id] = mod;
@@ -2636,6 +2670,16 @@ void *darshan_core_register_record(
         return(NULL);
     }
 
+    if(darshan_core_name_is_excluded(name, mod_id))
+    {
+        /* do not register record if name matches any exclusion rules */
+        __DARSHAN_CORE_UNLOCK();
+        return(NULL);
+    }
+
+    /* hold on to total number of bytes registered for each module(for DXT we track bytes instead) */
+    __darshan_core->mod_array[mod_id]->bytes_registered += rec_size;
+
     /* check to see if this module has enough space to store a new record */
     if(__darshan_core->mod_array[mod_id]->rec_mem_avail < rec_size)
     {
@@ -2647,13 +2691,6 @@ void *darshan_core_register_record(
     /* register a name record if a name is given for this record */
     if(name)
     {
-        if(darshan_core_name_is_excluded(name, mod_id))
-        {
-            /* do not register record if name matches any exclusion rules */
-            __DARSHAN_CORE_UNLOCK();
-            return(NULL);
-        }
-
         /* check to see if we've already stored the id->name mapping for
          * this record, and add a new name record if not
          */

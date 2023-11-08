@@ -277,6 +277,8 @@ struct darshan_core_module
 {
     void *rec_buf_start;
     void *rec_buf_p;
+    size_t bytes_allocated;
+    size_t bytes_registered;
     size_t rec_mem_avail;
     darshan_module_funcs mod_funcs;
 };

@@ -503,6 +503,8 @@ The Darshan library honors the following settings to modify behavior at runtime:
 | DARSHAN_INTERNAL_TIMING=1 | INTERNAL_TIMING
  | Enables internal instrumentation that will print the time required
 to startup and shutdown Darshan to stderr at runtime.
+| DARSHAN_MODMEM_USAGE=1 | MODMEM_USAGE
+ | Prints details on memory usage of Darshan's instrumentation modules.
 | DARSHAN_MODMEM=<val> | MODMEM <val>
  | Specifies the amount of memory (in MiB) Darshan instrumentation
  modules can collectively consume (if not specified, a default 4 MiB
