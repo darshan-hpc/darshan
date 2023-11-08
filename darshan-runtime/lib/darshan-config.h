@@ -38,6 +38,7 @@ struct darshan_config
     struct dxt_trigger *small_io_trigger;
     struct dxt_trigger *unaligned_io_trigger;
     int internal_timing_flag;
+    int mod_mem_usage_flag;
     int disable_shared_redux_flag;
     int dump_config_flag;
 };
