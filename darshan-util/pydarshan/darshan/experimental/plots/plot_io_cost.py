@@ -177,7 +177,7 @@ def plot_io_cost(report: darshan.DarshanReport) -> Any:
     # add the legend and appropriate labels
     ax_raw.set_ylabel("Runtime (s)")
     handles, labels = ax_raw.get_legend_handles_labels()
-    ax_norm.legend(handles[::-1], labels[::-1], loc="upper left", bbox_to_anchor=(1.22, 1.02))
+    ax_raw.legend(handles[::-1], labels[::-1], loc="upper left", bbox_to_anchor=(1.22, 1.02))
     ax_norm.set_ylabel("Runtime (%)")
     # rotate the xticklabels so they don't overlap
     for ax in [ax_raw, ax_norm]:

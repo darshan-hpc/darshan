@@ -30,14 +30,6 @@
 #include <hdf5.h>
 #include "darshan-ldms.h"
 
-/* NOTE: this is a dummy definition of H5FD_mpio_init() with a weak alias.
- * It prevents "libdarshan.so: undefined symbol: H5FD_mpio_init" errors if
- * Darshan is enabled via LD_PRELOAD for non-HDF executables.  This problem
- * may occur if Darshan itself was compiled against HDF5 1.13.2.
- */
-hid_t dummy_H5FD_mpio_init(void) { return(0); }
-hid_t H5FD_mpio_init (void) __attribute__ ((weak, alias("dummy_H5FD_mpio_init")));
-
 /* H5F prototypes */
 DARSHAN_FORWARD_DECL(H5Fcreate, hid_t, (const char *filename, unsigned flags, hid_t create_plist, hid_t access_plist));
 DARSHAN_FORWARD_DECL(H5Fopen, hid_t, (const char *filename, unsigned flags, hid_t access_plist));
@@ -265,8 +257,24 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
         }
 
 #ifdef DARSHAN_HDF5_PAR_BUILD
-        if(access_plist != H5P_DEFAULT && H5Pget_driver(access_plist) == H5FD_MPIO)
-            use_mpio = 1;
+        if(access_plist != H5P_DEFAULT)
+        {
+            H5E_auto_t old_func;
+            void *old_client_data;
+
+            H5Eget_auto(H5E_DEFAULT, &old_func, &old_client_data);
+
+            /* temporarily disable error handling to avoid errors if this isn't
+             * the MPIO VFD
+             */
+            H5Eset_auto(H5E_DEFAULT, NULL, NULL);
+
+            if(H5Pget_fapl_mpio(access_plist, NULL, NULL) >= 0)
+                use_mpio = 1;
+
+            /* restore the default error handler */
+            H5Eset_auto(H5E_DEFAULT, old_func, old_client_data);
+        }
 #endif
 
         H5F_PRE_RECORD();
@@ -341,8 +349,24 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
         }
 
 #ifdef DARSHAN_HDF5_PAR_BUILD
-        if(access_plist != H5P_DEFAULT && H5Pget_driver(access_plist) == H5FD_MPIO)
-            use_mpio = 1;
+        if(access_plist != H5P_DEFAULT)
+        {
+            H5E_auto_t old_func;
+            void *old_client_data;
+
+            H5Eget_auto(H5E_DEFAULT, &old_func, &old_client_data);
+
+            /* temporarily disable error handling to avoid errors if this isn't
+             * the MPIO VFD
+             */
+            H5Eset_auto(H5E_DEFAULT, NULL, NULL);
+
+            if(H5Pget_fapl_mpio(access_plist, NULL, NULL) >= 0)
+                use_mpio = 1;
+
+            /* restore the default error handler */
+            H5Eset_auto(H5E_DEFAULT, old_func, old_client_data);
+        }
 #endif
 
         H5F_PRE_RECORD();
