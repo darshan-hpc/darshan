@@ -20,6 +20,7 @@
 #endif
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <limits.h>
 #include <pthread.h>
 #include <fcntl.h>
@@ -51,6 +52,8 @@
 #include <lustre/lustre_user.h>
 #endif
 
+#define STACK_TRACE_BUF_SIZE       60
+
 extern char* __progname;
 extern char* __progname_full;
 struct darshan_core_runtime *__darshan_core = NULL;
@@ -72,8 +75,10 @@ static struct darshan_core_mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
 
 static char *exe_name = "";
+static char *log_path_mappings = NULL;
 static char *posix_line_mapping = "";
 static char *mpiio_line_mapping = "";
+bool processed = false;
 
 #ifdef DARSHAN_BGQ
 extern void bgq_runtime_initialize();
@@ -210,7 +215,6 @@ void darshan_core_initialize(int argc, char **argv)
     int ret;
     int i;
     struct timespec start_ts;
-
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if (__darshan_core != NULL || getenv("DARSHAN_DISABLE"))
         return;
@@ -560,6 +564,12 @@ void darshan_core_shutdown(int write_log)
 
     /* get the log file name */
     darshan_get_logfile_name(logfile_name, final_core);
+    log_path_mappings = malloc(__DARSHAN_PATH_MAX);
+
+    for (int i = 0; i < strlen(logfile_name); i++){
+        log_path_mappings[i] = logfile_name[i];
+    }
+
     if(strlen(logfile_name) == 0)
     {
         /* failed to generate log file name */
@@ -674,14 +684,126 @@ void darshan_core_shutdown(int write_log)
             this_mod->mod_funcs.mod_output_func(&mod_buf, &mod_buf_sz);
         }
 
+#ifdef HAVE_MPI
+        if(using_mpi)
+        {
+            if(my_rank == 0 && processed == false && final_core->config.stack_trace_trigger)
+            {
+                processed = true;
+                // char posixMappingsPath[1024];
+                // getcwd(posixMappingsPath, sizeof(posixMappingsPath));
+                // char source[] = "/posix_mappings.txt";
+                // strcat(posixMappingsPath, source);
 
-        for (int i=0; i < strlen(posix_line_mapping); i++){
-            final_core->log_hdr_p->posix_line_mapping[i] = posix_line_mapping[i];
-        }
+                // char mpiioMappingsPath[1024];
+                // getcwd(mpiioMappingsPath, sizeof(mpiioMappingsPath));
+                // char source1[] = "/mpiio_mappings.txt";
+                // strcat(mpiioMappingsPath, source1);
 
-        for (int i=0; i < strlen(mpiio_line_mapping); i++){
-            final_core->log_hdr_p->mpiio_line_mapping[i] = mpiio_line_mapping[i];
+                // FILE *FileOpen;
+                // char syscom[256]; 
+                // char line[100]; 
+
+                // char sPath[1024] = "";
+                // char *pTmp;
+
+                // if (( pTmp =getenv( "LD_PRELOAD" )) != NULL )
+                //     strncpy( sPath, pTmp, 1024 - 1 );           // Save a copy for our use.
+
+                // char * token = strtok(sPath, "-");
+                // char source2[] = "-runtime/lib/script.py";
+                // strcat(sPath,source2);
+
+                // sprintf(syscom, "python3 %s %s %s %s", sPath, posixMappingsPath, mpiioMappingsPath, exe_name);                
+                // FileOpen = popen(syscom, "r");  
+                // while (fgets(line, sizeof line, FileOpen))
+                // {
+                //     printf("%s", line);
+                // }   
+
+
+
+
+                // FILE * fp;
+                // char * line1 = NULL;
+                // size_t len = 0;
+                // ssize_t read;
+
+                // fp = fopen(posixMappingsPath, "r");
+                // if (fp == NULL)
+                //     exit(EXIT_FAILURE);
+
+                // int ind = 0;
+                // while ((read = getline(&line1, &len, fp)) != -1) {
+                //     for (int i=0; i < strlen(line1); i++){
+                //         final_core->log_hdr_p->posix_line_mapping[ind] = line1[i];
+                //         ind = ind + 1;
+                //     }
+                // }
+
+                // fp = fopen(mpiioMappingsPath, "r");
+                // if (fp == NULL)
+                //     exit(EXIT_FAILURE);
+
+                // ind = 0;
+                // while ((read = getline(&line1, &len, fp)) != -1) {
+                //     for (int i=0; i < strlen(line1); i++){
+                //         final_core->log_hdr_p->mpiio_line_mapping[ind] = line1[i];
+                //         ind = ind + 1;
+                //     }
+                // }
+
+                char * unique_memory_addresses;
+                int size = STACK_TRACE_BUF_SIZE;
+                unique_memory_addresses = (int*)calloc(size, sizeof(char));
+                int curr_size = 0;
+                
+                FILE *fp;
+                char * line1 = NULL;
+                size_t len = 0;
+                ssize_t read;
+
+                fp = fopen("/tmp/posix_mappings.txt", "r");
+                if (fp == NULL)
+                    exit(EXIT_FAILURE);
+
+                // while ((read = getline(&line1, &len, fp)) != -1) {
+                //     int flag = 0;
+                //     if (strstr(line1, exe_name) != NULL) {
+                //         char * token = strtok(line1, "[");
+                //         token = strtok(NULL, "[");
+                //         token = strtok(token, "]");
+                //         // if (strlen(token) < 16){
+                //         //     // int number = (int)strtol(token, NULL, 16);
+
+                //         //     // printf("%i\n", number);
+                //         //     // for(int k = 0; k < curr_size; k++){
+                //         //     //     if (unique_memory_addresses[k] == atoi(token)){
+                //         //     //         flag = 1;
+                //         //     //         break;
+                //         //     //     }
+                //         //     // }
+                //         //     // if (flag == 0){
+                //         //     //     if (curr_size == size){
+                //         //     //         size = size * 2;
+                //         //     //         unique_memory_addresses = realloc(unique_memory_addresses, size * sizeof(int));
+                //         //     //     }
+                //         //     //     unique_memory_addresses[curr_size] = atoi(token);
+                //         //     //     curr_size = curr_size + 1;
+                //         //     // }
+                //         // }
+                //     }
+                // }
+
+                // for (int i = 0; i < curr_size; i++){
+                //     printf("%i\n", unique_memory_addresses[i]);
+                // }
+
+                // remove(mpiioMappingsPath);
+                // remove(posixMappingsPath);
+            }
         }
+#endif
 
         /* append this module's data to the darshan log */
         final_core->log_hdr_p->mod_map[i].off = gz_fp;
@@ -2091,7 +2213,7 @@ void darshan_log_finalize(char *logfile_name, double start_log_time)
             /* set permissions on log file */
             chmod(new_logfile_name, chmod_mode);
             free(new_logfile_name);
-        }
+        }   
     }
 
     return;
@@ -2820,6 +2942,15 @@ void darshan_core_fprintf(
 char *darshan_exe()
 {   
     return exe_name;
+}
+
+void get_log_file_path(char *path)
+{     
+
+    for (int i = 0; i < strlen(log_path_mappings); i++){
+        path[i] = log_path_mappings[i];
+    }
+    return;
 }
 
 /*

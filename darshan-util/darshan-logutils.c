@@ -432,12 +432,14 @@ int darshan_log_get_exe(darshan_fd fd, char *buf)
     }
 
     /* exe string is located before the first line break */
+    // printf("%s", state->exe_mnt_data);
     newline = strchr(state->exe_mnt_data, '\n');
 
     /* copy over the exe string */
     if(newline)
         memcpy(buf, state->exe_mnt_data, (newline - state->exe_mnt_data));
-
+    else
+        memcpy(buf, state->exe_mnt_data, strlen(state->exe_mnt_data));
     return (0);
 }
 

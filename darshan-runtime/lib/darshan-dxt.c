@@ -62,7 +62,8 @@ typedef int64_t off64_t;
 #define STACK_TRACE_BUF_SIZE       60
 
 bool isStackTrace = false;
-
+char posixMappingsPath[1024];
+char mpiioMappingsPath[1024];
 /* The dxt_file_record_ref structure maintains necessary runtime metadata
  * for the DXT file record (dxt_file_record structure, defined in
  * darshan-dxt-log-format.h) pointed to by 'file_rec'. This metadata
@@ -158,8 +159,9 @@ void dxt_posix_runtime_initialize()
     };
     int ret;
 
-
-    // set_posix_line_mapping(posix_line_mapping, isStackTrace);
+    // getcwd(posixMappingsPath, sizeof(posixMappingsPath));
+    // char source[] = "/posix_mappings.txt";
+    // strcat(posixMappingsPath, source);
 
     /* register the DXT module with darshan core */
     ret = darshan_core_register_module(
@@ -203,6 +205,9 @@ void dxt_mpiio_runtime_initialize()
     };
     int ret;
 
+    // getcwd(mpiioMappingsPath, sizeof(mpiioMappingsPath));
+    // char source[] = "/mpiio_mappings.txt";
+    // strcat(mpiioMappingsPath, source);
     /* register the DXT module with darshan core */
     ret = darshan_core_register_module(
         DXT_MPIIO_MOD,
@@ -265,20 +270,37 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
         DXT_UNLOCK();
         return;
     }
-    
     rec_ref->write_traces[file_rec->write_count].offset = offset;
     rec_ref->write_traces[file_rec->write_count].length = length;
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
     if (isStackTrace){
-        backtrace (rec_ref->write_traces[file_rec->write_count].address_array, STACK_TRACE_BUF_SIZE);
+        int size = backtrace (rec_ref->write_traces[file_rec->write_count].address_array, STACK_TRACE_BUF_SIZE);
+        for (int i = size; i < STACK_TRACE_BUF_SIZE; i++){
+            rec_ref->write_traces[file_rec->write_count].address_array[i] = NULL;
+        }
+
+        // FILE *fptr;
+        // fptr = fopen(posixMappingsPath, "a+");
+
+        // char **strings;;
+        // strings = backtrace_symbols (rec_ref->write_traces[file_rec->write_count].address_array, size);
+        // if (strings != NULL)
+        // {
+        //     for (int j = 0; j < size; j++){
+        //         if (strings[j] != NULL)
+        //             fprintf(fptr, "%s\n", strings[j]);
+        //     }
+        // }
+        
+        // fclose(fptr);
         rec_ref->write_traces[file_rec->write_count].noStackTrace = 1;
+        rec_ref->write_traces[file_rec->write_count].size = size;
     }
     else
         rec_ref->write_traces[file_rec->write_count].noStackTrace = 0;
     
     file_rec->write_count += 1;
-
     DXT_UNLOCK();
 }
 
@@ -323,13 +345,31 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
     if (isStackTrace){
-        backtrace (rec_ref->read_traces[file_rec->read_count].address_array , STACK_TRACE_BUF_SIZE);
+        int size = backtrace (rec_ref->read_traces[file_rec->read_count].address_array , STACK_TRACE_BUF_SIZE);
+        for (int i = size; i < STACK_TRACE_BUF_SIZE; i++){
+            rec_ref->read_traces[file_rec->read_count].address_array[i] = NULL;
+        }
+
+        // FILE *fptr;
+        // fptr = fopen(posixMappingsPath, "a+");
+
+        // char **strings;;
+        // strings = backtrace_symbols (rec_ref->read_traces[file_rec->read_count].address_array, size);
+        // if (strings != NULL)
+        // {
+        //     for (int j = 0; j < size; j++){
+        //         if (strings[j] != NULL)
+        //             fprintf(fptr, "%s\n", strings[j]);
+        //     }
+        // }
+        
+        // fclose(fptr);
         rec_ref->read_traces[file_rec->read_count].noStackTrace = 1;
+        rec_ref->read_traces[file_rec->read_count].size = size;
     }
     else
         rec_ref->read_traces[file_rec->read_count].noStackTrace = 0;
     file_rec->read_count += 1;
-
     DXT_UNLOCK();
 }
 
@@ -374,14 +414,31 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
     if (isStackTrace){
-        backtrace (rec_ref->write_traces[file_rec->write_count].address_array, STACK_TRACE_BUF_SIZE);
+        int size = backtrace (rec_ref->write_traces[file_rec->write_count].address_array, STACK_TRACE_BUF_SIZE);
+        for (int i = size; i < STACK_TRACE_BUF_SIZE; i++){
+            rec_ref->write_traces[file_rec->write_count].address_array[i] = NULL;
+        }
+        // FILE *fptr;
+        // fptr = fopen(mpiioMappingsPath, "a+");
+
+        // char **strings;;
+        // strings = backtrace_symbols (rec_ref->write_traces[file_rec->write_count].address_array, size);
+        // if (strings != NULL)
+        // {
+        //     for (int j = 0; j < size; j++){
+        //         if (strings[j] != NULL)
+        //             fprintf(fptr, "%s\n", strings[j]);
+        //     }
+        // }
+        
+        // fclose(fptr);
         rec_ref->write_traces[file_rec->write_count].noStackTrace = 1;
+        rec_ref->write_traces[file_rec->write_count].size = size;
     }
     else
         rec_ref->write_traces[file_rec->write_count].noStackTrace = 0;
 
     file_rec->write_count += 1;
-
     DXT_UNLOCK();
 }
 
@@ -426,13 +483,30 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
     if (isStackTrace){
-        backtrace (rec_ref->read_traces[file_rec->read_count].address_array , STACK_TRACE_BUF_SIZE);
+        int size = backtrace (rec_ref->read_traces[file_rec->read_count].address_array , STACK_TRACE_BUF_SIZE);
+        for (int i = size; i < STACK_TRACE_BUF_SIZE; i++){
+            rec_ref->read_traces[file_rec->read_count].address_array[i] = NULL;
+        }
+        // FILE *fptr;
+        // fptr = fopen(mpiioMappingsPath, "a+");
+        
+        // char **strings;;
+        // strings = backtrace_symbols (rec_ref->read_traces[file_rec->read_count].address_array, size);
+        // if (strings != NULL)
+        // {
+        //     for (int j = 0; j < size; j++){
+        //         if (strings[j] != NULL)
+        //             fprintf(fptr, "%s\n", strings[j]);
+        //     }
+        // }
+        
+        // fclose(fptr);
         rec_ref->read_traces[file_rec->read_count].noStackTrace = 1;
+        rec_ref->read_traces[file_rec->read_count].size = size;
     }
     else
         rec_ref->read_traces[file_rec->read_count].noStackTrace = 0;
     file_rec->read_count += 1;
-
     DXT_UNLOCK();
 }
 
@@ -830,7 +904,56 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
 
     if (record_write_count == 0 && record_read_count == 0)
         return;
+    
+    if (isStackTrace){
+        // clock_t start, end;
+        // double cpu_time_used;
+        // start = clock();
 
+        // char *path = malloc(4096);
+        // get_log_file_path(path);
+        // char substr[256] = "posix_mappings.txt";
+        // char * pch;
+        // pch=strchr(path,'.');
+     
+        // int ind = strlen(path) - strlen(pch) + 1;
+        // for (int i = 0; i < strlen(substr); i++){
+        //     path[ind] = substr[i];
+        //     ind = ind + 1;
+        // }
+        // path[ind] ='\0';
+        
+    
+        FILE *fptr;
+        fptr = fopen("/tmp/posix_mappings.txt", "a");
+       
+        for(int i = 0; i < record_write_count; i++){
+            char **strings;
+            int size = rec_ref->write_traces[i].size;
+            strings = backtrace_symbols (rec_ref->write_traces[i].address_array, size);
+            if (strings != NULL)
+            {
+                for (int j = 0; j < size; j++){
+                    // printf("%s\n", strings[i]);
+                     fprintf(fptr, "%s\n", strings[j]);
+                }
+            }
+        }
+
+        for(int i = 0; i < record_read_count; i++){           
+            char **strings;
+            int size = rec_ref->read_traces[i].size;
+            strings = backtrace_symbols (rec_ref->read_traces[i].address_array, size);
+            if (strings != NULL)
+            {
+                for (int j = 0; j < size; j++){
+                    // printf("%s\n", strings[i]);
+                    fprintf(fptr, "%s\n", strings[j]);
+                }
+            }
+        }
+        fclose(fptr);
+    }
     /*
      * Buffer format:
      * dxt_file_record + write_traces + read_traces
@@ -858,97 +981,7 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
     tmp_buf_ptr = (void *)(tmp_buf_ptr +
                 record_read_count * sizeof(segment_info));
 
-    if (isStackTrace){
-        int * unique_memory_addresses;
-        int size = STACK_TRACE_BUF_SIZE;
-        unique_memory_addresses = (int*)calloc(size, sizeof(int));
-
-        int j = 0;
-        int curr_size = 0;
-
-        for(int i = 0; i < record_write_count * STACK_TRACE_BUF_SIZE; i++){
-            int flag = 0;
-            if (j != STACK_TRACE_BUF_SIZE){
-                for(int k = 0; k < curr_size; k++){
-                    if (unique_memory_addresses[k] == (int )(rec_ref->write_traces->address_array[i])){
-                        flag = 1;
-                        break;
-                    }
-                }
-                if (flag == 0){
-                    if (curr_size == size){
-                        size = size * 2;
-                        unique_memory_addresses = realloc(unique_memory_addresses, size * sizeof(int));
-                    }
-                    unique_memory_addresses[curr_size] = (int )(rec_ref->write_traces->address_array[i]);
-                    curr_size = curr_size + 1;
-                }
-                j = j + 1;
-            }
-            else{
-                j = 0;
-                i = i + 4;
-            }
-        }
-
-        j = 0;
-        for(int i = 0; i < record_read_count * STACK_TRACE_BUF_SIZE; i++){           
-            int flag = 0;
-            if (j != STACK_TRACE_BUF_SIZE){
-                for(int k = 0; k < curr_size; k++){
-                    if (unique_memory_addresses[k] == (int )(rec_ref->read_traces->address_array[i])){
-                        flag = 1;
-                        break;
-                    }
-                }
-                if (flag == 0){
-                    if (curr_size == size){
-                        size = size * 2;
-                        unique_memory_addresses = realloc(unique_memory_addresses, size * sizeof(int));
-                    }
-                    unique_memory_addresses[curr_size] = (int )(rec_ref->read_traces->address_array[i]);
-                    curr_size = curr_size + 1;
-                }
-                j = j + 1;
-            }
-            else{
-                j = 0;
-                i = i + 4;
-            }
-        }
-        
-        char * address_line_mapping;
-        char * address_line_mapping_cur = "";
-
-        char * exe_name = darshan_exe();
-
-        for(int i = 0; i < curr_size; i++){
-            FILE *FileOpen;
-            char syscom[256]; 
-            char line[100];      
-
-            if (unique_memory_addresses[i]){
-                sprintf(syscom, "addr2line -a %p -e %s", unique_memory_addresses[i], exe_name);                
-                FileOpen = popen(syscom, "r");                                                                            
-
-                while (fgets(line, sizeof line, FileOpen))
-                {
-                    if (strstr(line, "0x") == NULL && strstr(line, "(nil)") == NULL){
-                        if (strstr(line, "??") == NULL){
-                            sprintf(syscom,"%p, %s", unique_memory_addresses[i], line);   
-                            address_line_mapping = (char *)calloc(strlen(address_line_mapping_cur) + strlen(syscom) + 1, sizeof(char));
-                            strcat(address_line_mapping, address_line_mapping_cur);
-                            strcat(address_line_mapping, syscom);
-                            address_line_mapping_cur = address_line_mapping;
-                        }
-                    }
-                }
-            }
-        }
-        
-        set_posix_line_mapping(address_line_mapping, isStackTrace);
-        free(address_line_mapping);
-    }
+    printf("%i\n", file_rec->base_rec.rank);
     dxt_posix_runtime->record_buf_size += record_size;
 }
 
@@ -1013,7 +1046,53 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
     record_read_count = file_rec->read_count;
     if (record_write_count == 0 && record_read_count == 0)
         return;
+    
+    if (isStackTrace){
+        // clock_t start, end;
+        // double cpu_time_used;
+        // start = clock();
 
+        // char *path = malloc(4096);
+        // get_log_file_path(path);
+        // char substr[256] = "/tmp/mpiio_mappings.txt";
+        // char * pch;
+        // pch=strchr(path,'.');
+     
+        // int ind = strlen(path) - strlen(pch) + 1;
+        // for (int i = 0; i < strlen(substr); i++){
+        //     path[ind] = substr[i];
+        //     ind = ind + 1;
+        // }
+        // path[ind] ='\0';
+
+        FILE *fptr;
+        fptr = fopen("/tmp/mpiio_mappings.txt", "a");
+
+        for(int i = 0; i < record_write_count; i++){
+            char **strings;
+            int size = rec_ref->write_traces[i].size;
+            strings = backtrace_symbols (rec_ref->write_traces[i].address_array, size);
+            if (strings != NULL)
+            {
+                for (int j = 0; j < size; j++){
+                    fprintf(fptr, "%s\n", strings[j]);
+                }
+            }
+        }
+
+        for(int i = 0; i < record_read_count; i++){
+            char **strings;
+            int size = rec_ref->read_traces[i].size;
+            strings = backtrace_symbols (rec_ref->read_traces[i].address_array, size);
+            if (strings != NULL)
+            {
+                for (int j = 0; j < size; j++){
+                    fprintf(fptr, "%s\n", strings[j]);
+                }
+            }
+        }
+        fclose(fptr);
+    }
     /*
      * Buffer format:
      * dxt_file_record + write_traces + read_traces
@@ -1039,99 +1118,6 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
             record_read_count * sizeof(segment_info));
     tmp_buf_ptr = (void *)(tmp_buf_ptr +
                 record_read_count * sizeof(segment_info));
-
-    if (isStackTrace){
-        int * unique_memory_addresses;
-        int size = STACK_TRACE_BUF_SIZE;
-        unique_memory_addresses = (int*)calloc(size, sizeof(int));
-
-        int j = 0;
-        int curr_size = 0;
-
-        for(int i = 0; i < record_write_count * STACK_TRACE_BUF_SIZE; i++){
-            int flag = 0;
-            if (j != STACK_TRACE_BUF_SIZE){
-                for(int k = 0; k < curr_size; k++){
-                    if (unique_memory_addresses[k] == (int )(rec_ref->write_traces->address_array[i])){
-                        flag = 1;
-                        break;
-                    }
-                }
-                if (flag == 0){
-                    if (curr_size == size){
-                        size = size * 2;
-                        unique_memory_addresses = realloc(unique_memory_addresses, size * sizeof(int));
-                    }
-                    unique_memory_addresses[curr_size] = (int )(rec_ref->write_traces->address_array[i]);
-                    curr_size = curr_size + 1;
-                }
-                j = j + 1;
-            }
-            else{
-                j = 0;
-                i = i + 4;
-            }
-        }
-
-        j = 0;
-        for(int i = 0; i < record_read_count * STACK_TRACE_BUF_SIZE; i++){
-            int flag = 0;
-            if (j != STACK_TRACE_BUF_SIZE){
-                for(int k = 0; k < curr_size; k++){
-                    if (unique_memory_addresses[k] == (int )(rec_ref->read_traces->address_array[i])){
-                        flag = 1;
-                        break;
-                    }
-                }
-                if (flag == 0){
-                    if (curr_size == size){
-                        size = size * 2;
-                        unique_memory_addresses = realloc(unique_memory_addresses, size * sizeof(int));
-                    }
-                    unique_memory_addresses[curr_size] = (int )(rec_ref->read_traces->address_array[i]);
-                    curr_size = curr_size + 1;
-                }
-                j = j + 1;
-            }
-            else{
-                j = 0;
-                i = i + 4;
-            }
-        }
-        
-        char * mpiio_address_line_mapping;
-        char * mpiio_address_line_mapping_cur = "";
-
-        char * exe_name = darshan_exe();
-
-        for(int i = 0; i < curr_size; i++){
-            FILE *FileOpen;
-            char syscom[256]; 
-            char line[100];      
-            
-            if (unique_memory_addresses[i]){
-                sprintf(syscom, "addr2line -a %p -e %s", unique_memory_addresses[i], exe_name);                
-                FileOpen = popen(syscom, "r");                                                                            
-
-                while (fgets(line, sizeof line, FileOpen))
-                {   
-
-                    if (strstr(line, "0x") == NULL && strstr(line, "(nil)") == NULL) {
-                        if (strstr(line, "??") == NULL){
-                            sprintf(syscom,"%p, %s", unique_memory_addresses[i], line);   
-                            mpiio_address_line_mapping = (char *)calloc(strlen(mpiio_address_line_mapping_cur) + strlen(syscom) + 1, sizeof(char));
-                            strcat(mpiio_address_line_mapping, mpiio_address_line_mapping_cur);
-                            strcat(mpiio_address_line_mapping, syscom);
-                            mpiio_address_line_mapping_cur = mpiio_address_line_mapping;
-                        }
-                    }
-                }
-            }
-        }
-
-        set_mpiio_line_mapping(mpiio_address_line_mapping, isStackTrace);
-        free(mpiio_address_line_mapping);
-    }
     dxt_mpiio_runtime->record_buf_size += record_size;
 }
 

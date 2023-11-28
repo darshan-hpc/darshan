@@ -57,6 +57,7 @@ DARSHAN_FORWARD_DECL(H5Oopen_by_token, hid_t, (hid_t loc_id, H5O_token_t token))
 #endif
 DARSHAN_FORWARD_DECL(H5Oclose, herr_t, (hid_t object_id));
 
+
 /* structure that can track i/o stats for a given HDF5 file record at runtime */
 struct hdf5_file_record_ref
 {
