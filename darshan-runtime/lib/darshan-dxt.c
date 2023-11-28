@@ -265,6 +265,8 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
     rec_ref->write_traces[file_rec->write_count].length = length;
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
+
+    /* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
     if (isStackTrace){
         int size = backtrace (rec_ref->write_traces[file_rec->write_count].address_array, STACK_TRACE_BUF_SIZE);
         rec_ref->write_traces[file_rec->write_count].noStackTrace = 1;
@@ -317,6 +319,7 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].length = length;
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
+    /* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
     if (isStackTrace){
         int size = backtrace (rec_ref->read_traces[file_rec->read_count].address_array , STACK_TRACE_BUF_SIZE);
         rec_ref->read_traces[file_rec->read_count].noStackTrace = 1;
@@ -368,6 +371,7 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
     rec_ref->write_traces[file_rec->write_count].offset = offset;
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
+    /* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
     if (isStackTrace){
         int size = backtrace (rec_ref->write_traces[file_rec->write_count].address_array, STACK_TRACE_BUF_SIZE);
         rec_ref->write_traces[file_rec->write_count].noStackTrace = 1;
@@ -420,6 +424,7 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].offset = offset;
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
+    /* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
     if (isStackTrace){
         int size = backtrace (rec_ref->read_traces[file_rec->read_count].address_array , STACK_TRACE_BUF_SIZE);
         rec_ref->read_traces[file_rec->read_count].noStackTrace = 1;
@@ -826,6 +831,7 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
     if (record_write_count == 0 && record_read_count == 0)
         return;
     
+    /* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
     if (isStackTrace){    
         char stack_file_name[50];
         sprintf(stack_file_name, ".%d.darshan-posix", dxt_my_rank);
@@ -974,6 +980,7 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
     if (record_write_count == 0 && record_read_count == 0)
         return;
     
+    /* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
     if (isStackTrace){ 
         char stack_file_name[50];
         sprintf(stack_file_name, ".%d.darshan-mpiio", dxt_my_rank);

@@ -39,7 +39,7 @@
 #include <assert.h>
 #include <spawn.h>
 
-#ifdef HAVE_/global/homes/h/hather/darshan/darshan-runtime/install/libMPI
+#ifdef HAVE_MPI
 #include <mpi.h>
 #endif
 
