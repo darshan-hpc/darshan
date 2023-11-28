@@ -838,7 +838,6 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
             UT_hash_handle hh;         /* makes this structure hashable */
         } stack_struct;
 
-        stack_struct *unique_mem_addr = NULL;
 
         char * exe_name = darshan_exe();
         for(int i = 0; i < record_write_count; i++){
@@ -849,19 +848,11 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
             {
                 for (int j = 0; j < size; j++){
                     if (strstr(strings[j], exe_name) != NULL) {
-                        stack_struct *d = NULL;
                         char * token = strtok(strings[j], "[");
                         token = strtok(NULL, "[");
                         token = strtok(token, "]");
                         int number = (int)strtol(token, NULL, 16);
-                        void *addr = number;
-                        HASH_FIND_PTR(unique_mem_addr, &addr, d);
-
-                        if (!d) {
-                            stack_struct *e = (stack_struct *) malloc(sizeof *e);
-                            e->address = addr;
-                            HASH_ADD_PTR(unique_mem_addr, address, e);
-                        }
+                        fprintf(fptr, "%p\n", number);
                     }
                 }
                 free(strings);
@@ -876,34 +867,17 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
             {
                 for (int j = 0; j < size; j++){
                     if (strstr(strings[j], exe_name) != NULL) {
-                        stack_struct *d = NULL;
                         char * token = strtok(strings[j], "[");
                         token = strtok(NULL, "[");
                         token = strtok(token, "]");
                         int number = (int)strtol(token, NULL, 16);
-                        void *addr = number;
-                        HASH_FIND_PTR(unique_mem_addr, &addr, d);
-
-                        if (!d) {
-                            stack_struct *e = (stack_struct *) malloc(sizeof *e);
-                            e->address = addr;
-                            HASH_ADD_PTR(unique_mem_addr, address, e);
-                        }
+                        fprintf(fptr, "%p\n", number);
                     }
                 }
                 free(strings);
             }
         }
 
-        stack_struct *d = NULL;
-
-
-        for (d = unique_mem_addr; d != NULL; d = (stack_struct *)(d->hh.next)) {
-            fprintf(fptr, "%p\n", d->address);
-            HASH_DEL(unique_mem_addr, d);
-        }
-
-        //fflush(fptr);
         fclose(fptr);
     }
     
@@ -1012,7 +986,6 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
             UT_hash_handle hh;         /* makes this structure hashable */
         } stack_struct;
 
-        stack_struct *unique_mem_addr = NULL;
 
         char * exe_name = darshan_exe();
 
@@ -1024,19 +997,11 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
             {
                 for (int j = 0; j < size; j++){
                     if (strstr(strings[j], exe_name) != NULL) {
-                        stack_struct *d = NULL;
                         char * token = strtok(strings[j], "[");
                         token = strtok(NULL, "[");
                         token = strtok(token, "]");
                         int number = (int)strtol(token, NULL, 16);
-                        void *addr = number;
-                        HASH_FIND_PTR(unique_mem_addr, &addr, d);
-
-                        if (!d) {
-                            stack_struct *e = (stack_struct *) malloc(sizeof *e);
-                            e->address = addr;
-                            HASH_ADD_PTR(unique_mem_addr, address, e);
-                        }
+                        fprintf(fptr, "%p\n", number);
                     }
                 }
                 free(strings);
@@ -1051,33 +1016,17 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
             {
                 for (int j = 0; j < size; j++){
                     if (strstr(strings[j], exe_name) != NULL) {
-                        stack_struct *d = NULL;
                         char * token = strtok(strings[j], "[");
                         token = strtok(NULL, "[");
                         token = strtok(token, "]");
                         int number = (int)strtol(token, NULL, 16);
-                        void *addr = number;
-                        HASH_FIND_PTR(unique_mem_addr, &addr, d);
-
-                        if (!d) {
-                            stack_struct *e = (stack_struct *) malloc(sizeof *e);
-                            e->address = addr;
-                            HASH_ADD_PTR(unique_mem_addr, address, e);
-                        }
+                        fprintf(fptr, "%p\n", number);
                     }
                 }
                 free(strings);
             }
         }
 
-        stack_struct *d = NULL;
-
-        for (d = unique_mem_addr; d != NULL; d = (stack_struct *)(d->hh.next)) {
-            fprintf(fptr, "%p\n", d->address);
-            HASH_DEL(unique_mem_addr, d);
-        }
-
-        //fflush(fptr);
         fclose(fptr);
     }
     /*

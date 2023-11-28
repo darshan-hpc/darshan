@@ -54,8 +54,6 @@
 #include <lustre/lustre_user.h>
 #endif
 
-#define STACK_TRACE_BUF_SIZE       60
-
 extern char* __progname;
 extern char* __progname_full;
 struct darshan_core_runtime *__darshan_core = NULL;
@@ -675,11 +673,11 @@ void darshan_core_shutdown(int write_log)
             /* get the final output buffer */
             this_mod->mod_funcs.mod_output_func(&mod_buf, &mod_buf_sz);
         }
-
+        
+/* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
 #ifdef HAVE_MPI
         if(using_mpi)
         {
-            //if(i == DXT_POSIX_MOD && my_rank == 0 && final_core->config.stack_trace_trigger)
             if (i == DXT_POSIX_MOD) {
                 PMPI_Barrier(MPI_COMM_WORLD);
                 if (my_rank == 0 && final_core->config.stack_trace_trigger) {
@@ -715,8 +713,6 @@ void darshan_core_shutdown(int write_log)
 
                             fclose(fptr);
                             remove(stack_file_name_posix);
-                        } else {
-                            printf("unable to open POSIX file\n");
                         }
                     }
 
@@ -731,7 +727,6 @@ void darshan_core_shutdown(int write_log)
                         char *line = NULL;     
                         size_t len = 0;
 
-                        // sprintf(cmd, "addr2line -a %s -e %s", d->address, exe_name);  
                         char addr[32];
                         sprintf(addr, "%s", d->address);  
                     
@@ -760,8 +755,10 @@ void darshan_core_shutdown(int write_log)
                             // Read the output from the pipe
                             char buffer[4096];
                             ssize_t bytes_read;
+                            FILE* debug;
+                            debug = fopen("/dev/null", "w");
                             while ((bytes_read = read(pipe_fd[0], buffer, sizeof(buffer))) > 0) {
-                                fwrite(buffer, 1, bytes_read, stdout);
+                                fwrite(buffer, 1, bytes_read, debug);
                             }
 
                             char * token = strtok(buffer, "\n");
@@ -811,8 +808,6 @@ void darshan_core_shutdown(int write_log)
 
                             fclose(fptr);
                             remove(stack_file_name_mpiio);
-                        } else {
-                            printf("unable to open MPIIO file\n");
                         }
                     }
 
@@ -857,8 +852,10 @@ void darshan_core_shutdown(int write_log)
                             // Read the output from the pipe
                             char buffer[4096];
                             ssize_t bytes_read;
+                            FILE* debug;
+                            debug = fopen("/dev/null", "w");
                             while ((bytes_read = read(pipe_fd[0], buffer, sizeof(buffer))) > 0) {
-                                fwrite(buffer, 1, bytes_read, stdout);
+                                fwrite(buffer, 1, bytes_read, debug);
                             }
 
                             // Wait for the child process to complete
