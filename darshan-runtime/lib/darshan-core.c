@@ -211,6 +211,7 @@ void darshan_core_initialize(int argc, char **argv)
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if (__darshan_core != NULL || getenv("DARSHAN_DISABLE"))
         return;
+
     init_start = darshan_core_wtime_absolute();
 
     /* allocate structure to track darshan core runtime information */
@@ -356,7 +357,7 @@ void darshan_core_initialize(int argc, char **argv)
         /* pass init_core to darshan-ldms connector initialization*/
         darshan_ldms_connector_initialize(init_core);
 #endif
-      
+
         /* if darshan was successfully initialized, set the global pointer
          * and record absolute start time so that we can later generate
          * relative times with this as a reference point.
@@ -776,7 +777,6 @@ cleanup:
         free(mod_shared_recs);
     }
 #endif
-    
     free(logfile_name);
 
     return;

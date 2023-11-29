@@ -1,6 +1,6 @@
 /*
- *   Copyright (C) 2016 Intel Corporation.
- *   See COPYRIGHT notice in top-level directory.
+ * Copyright (C) 2019 University of Chicago.
+ * See COPYRIGHT notice in top-level directory.
  *
  */
 
@@ -57,7 +57,6 @@ static void event_cb(ldms_t x, ldms_xprt_event_t e, void *cb_arg)
 ldms_t setup_connection(const char *xprt, const char *host,
 			const char *port, const char *auth)
 {
-	char hostname[PATH_MAX];
 	const char *timeout = "5";
 	int rc;
 	struct timespec ts;
@@ -114,8 +113,8 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
     else if (getenv("LOAD_STEP_ID"))
 	dC.jobid = atoi(getenv("LOAD_STEP_ID"));
     else
-    /* grab jobid from darshan_core_runtime if slurm, lsf, sge or loadleveler do not exist*/
-    dC.jobid = init_core->log_job_p->jobid;
+        /* grab jobid from darshan_core_runtime if slurm, lsf, sge or loadleveler do not exist*/
+        dC.jobid = init_core->log_job_p->jobid;
 
     /* grab exe path from darshan_core_runtime. Save with a tmp that will be used later*/
     dC.exepath = strtok(init_core->log_exemnt_p, " ");
@@ -169,16 +168,16 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
 
     pthread_mutex_lock(&dC.ln_lock);
     dC.ldms_darsh = setup_connection(env_ldms_xprt, env_ldms_host, env_ldms_port, env_ldms_auth);
-	if (dC.conn_status != 0) {
-	    darshan_core_fprintf(stderr, "LDMS library: darshanConnector error %i setting up connection to LDMS streams daemon -- exiting.\n", dC.conn_status);
-	    pthread_mutex_unlock(&dC.ln_lock);
-	    return;
-	}
-	else if (dC.ldms_darsh->disconnected){
-	    darshan_core_fprintf(stderr, "LDMS library: darshanConnector disconnected from LDMS streams daemon -- exiting.\n");
-	    pthread_mutex_unlock(&dC.ln_lock);
-	    return;
-	}
+    if (dC.conn_status != 0) {
+        darshan_core_fprintf(stderr, "LDMS library: darshanConnector error %i setting up connection to LDMS streams daemon -- exiting.\n", dC.conn_status);
+        pthread_mutex_unlock(&dC.ln_lock);
+        return;
+    }
+    else if (dC.ldms_darsh->disconnected){
+        darshan_core_fprintf(stderr, "LDMS library: darshanConnector disconnected from LDMS streams daemon -- exiting.\n");
+        pthread_mutex_unlock(&dC.ln_lock);
+        return;
+    }
     pthread_mutex_unlock(&dC.ln_lock);
     return;
 }
