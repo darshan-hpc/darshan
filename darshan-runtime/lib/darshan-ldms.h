@@ -57,6 +57,8 @@ typedef struct darshanConnector {
 
 #endif
 
+extern struct darshanConnector dC;
+
 /* darshan_ldms_connector_initialize(), darshan_ldms_connector_send()
  *
  * LDMS related function to intialize LDMSD streams plugin for realtime data

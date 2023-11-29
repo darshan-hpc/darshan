@@ -249,7 +249,6 @@ static int my_rank = -1;
     darshan_add_record_ref(&(mpiio_runtime->fh_hash), &__fh, sizeof(MPI_File), rec_ref); \
     if(newpath != __path) free(newpath); \
     /* LDMS to publish realtime open tracing information to daemon*/ \
-    extern struct darshanConnector dC; \
     if(dC.ldms_lib)\
         if(dC.mpiio_enable_ldms)\
             darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[MPIIO_COLL_OPENS] + rec_ref->file_rec->counters[MPIIO_INDEP_OPENS], "open", -1, -1, -1, -1, -1, __tm1, __tm2, rec_ref->file_rec->fcounters[MPIIO_F_META_TIME], "MPIIO", "MET");\
@@ -307,7 +306,6 @@ static int get_byte_offset = 0;
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[MPIIO_F_READ_TIME], \
         __tm1, __tm2, rec_ref->last_read_end); \
     /* LDMS to publish realtime read tracing information to daemon*/ \
-    extern struct darshanConnector dC; \
     if(dC.ldms_lib)\
         if(dC.mpiio_enable_ldms)\
             darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[__counter], "read", displacement, size, -1, rec_ref->file_rec->counters[MPIIO_RW_SWITCHES], -1, __tm1, __tm2, rec_ref->file_rec->fcounters[MPIIO_F_READ_TIME], "MPIIO", "MOD");\
@@ -355,7 +353,6 @@ static int get_byte_offset = 0;
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[MPIIO_F_WRITE_TIME], \
         __tm1, __tm2, rec_ref->last_write_end); \
     /* LDMS to publish realtime write tracing information to daemon*/ \
-    extern struct darshanConnector dC; \
     if(dC.ldms_lib)\
         if(dC.mpiio_enable_ldms)\
             darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[__counter], "write", displacement, size, -1, rec_ref->file_rec->counters[MPIIO_RW_SWITCHES], -1,  __tm1, __tm2, rec_ref->file_rec->fcounters[MPIIO_F_WRITE_TIME], "MPIIO", "MOD");\
@@ -1192,7 +1189,6 @@ int DARSHAN_DECL(MPI_File_close)(MPI_File *fh)
 #ifdef HAVE_LDMS
         rec_ref->close_counts++;
         /* publish close information for mpiio */
-        extern struct darshanConnector dC;
         if(dC.ldms_lib)
             if(dC.mpiio_enable_ldms)
                 darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->close_counts, "close", -1, -1, -1, -1, -1, tm1, tm2, rec_ref->file_rec->fcounters[MPIIO_F_META_TIME], "MPIIO", "MOD");
