@@ -1,9 +1,9 @@
 AC_DEFUN([CHECK_LDMS],
 [
 AC_ARG_WITH(ldms,
-[  --with-ldms=DIR root directory path of ldms installation [defaults to
-                    /usr/local or /usr if not found in /usr/local]
-  --disable-ldms-mod to disable ldms usage completely],
+[  --with-ldms=DIR         Root directory path of LDMS installation (defaults to
+                          to /usr/local or /usr if not found in /usr/local)
+],
 [if test -d "$withval"; then
     	LDMS_HOME="$withval"
     	LDFLAGS="$LDFLAGS -L${LDMS_HOME}/lib -Wl,-rpath=${LDMS_HOME}/lib"
@@ -19,6 +19,6 @@ AC_CHECK_HEADERS([ldms/ldms.h ldms/ldmsd_stream.h ovis_json/ovis_json.h ovis_uti
 	[AC_MSG_ERROR(One or more LDMS headers not found. Please check installation path or LDMS version is > [4.3.4])])
 
 AS_IF([test "x$ldms_found_stream_headers" = "xyes"],
-	[AC_DEFINE([HAVE_LDMS],[1], [Define if standard LDMS library headers exist]) AM_CONDITIONAL([HAVE_LDMS],[test "x$ldms_found_stream_headers" = "xyes"])],
+	[AC_DEFINE([HAVE_LDMS],[1], [Define if standard LDMS library headers exist])],
         [AC_MSG_ERROR([Unable to find the standard LDMS headers for Darshan.])])
 ])

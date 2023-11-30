@@ -347,7 +347,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
 
    # inform about HDF5 installs not found in default locations
    AC_ARG_WITH([hdf5],
-      [AS_HELP_STRING([--with-hdf5@<:@=DIR@:>@],
+      [AS_HELP_STRING([--with-hdf5=DIR],
                       [Installation directory for HDF5.])],
       [], [with_hdf5=no]
    )
@@ -433,21 +433,9 @@ if test "x$enable_darshan_runtime" = xyes ; then
                    use --with-hdf5 to provide the HDF5 install prefix, if needed.]))
    fi
    
-   # LDMS support (disabled by default)
-   AC_ARG_ENABLE([ldms-mod],
-      [AS_HELP_STRING([--enable-ldms-mod],
-                      [Include LDMS for runtme I/O monitoring])],
-      [AC_ARG_WITH(ldms, 
-	[AS_HELP_STRING([--with-ldms],
-                      [Installation directory for LDMS.])],[CHECK_LDMS], 
-	[AC_MSG_ERROR(m4_normalize([--enable-ldms-mod does not take any argument, use --with-ldms to
-                        provide the LDMS install prefix.]))])], [enable_ldms_mod=no])
-
-   AM_CONDITIONAL([HAVE_LDMS],[test "x$enable_ldms_mod" = xyes])
-
    # inform about PnetCDF installs not found in default locations
    AC_ARG_WITH([pnetcdf],
-      [AS_HELP_STRING([--with-pnetcdf@<:@=DIR@:>@],
+      [AS_HELP_STRING([--with-pnetcdf=DIR],
                       [Installation directory for PnetCDF.])],
       [], [with_pnetcdf=no]
    )
@@ -553,6 +541,16 @@ if test "x$enable_darshan_runtime" = xyes ; then
          [], [AC_MSG_ERROR([mdhim requested but headers cannot be found])])
    fi
 
+   # LDMS support (disabled by default)
+   AC_ARG_ENABLE([ldms-mod],
+      [AS_HELP_STRING([--enable-ldms-mod],
+                      [Include LDMS for runtime I/O monitoring])],
+      [], [enable_ldms_mod=no]
+   )
+   if test "x$enable_ldms_mod" = xyes ; then
+      CHECK_LDMS
+   fi
+
    dnl sanity check some config parameters
    if test "x$GOT_LOG_PATH" != xyes ; then
       AC_MSG_ERROR(must provide --with-log-path=<path> _or_ --with-log-path-by-env=<variable list> argument to configure.)
@@ -616,7 +614,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    ])
 
    AC_ARG_ENABLE(rdtscp,
-   [  --enable-rdtscp=<num>  use RDTSCP intrinsic for timing, with specified base frequency],
+   [  --enable-rdtscp=<num>   Use RDTSCP intrinsic for timing, with specified base frequency],
        [
        if test x$enableval = xyes; then
            AC_MSG_ERROR(--enable-rdtscp must be given a number argument)
@@ -779,7 +777,6 @@ else
    enable_posix_mod=no
    enable_stdio_mod=no
    enable_dxt_mod=no
-   enable_ldms_mod=no
    enable_heatmap_mod=no
    enable_mpiio_mod=no
    enable_apmpi_mod=no
@@ -789,6 +786,7 @@ else
    enable_bgq_mod=no
    enable_lustre_mod=no
    enable_mdhim_mod=no
+   enable_ldms_mod=no
    with_log_path=
    with_jobid_env=
 fi
@@ -801,7 +799,6 @@ AM_CONDITIONAL(BUILD_NULL_MODULE,   [test "x$enable_null_mod"    = xyes])
 AM_CONDITIONAL(BUILD_POSIX_MODULE,  [test "x$enable_posix_mod"   = xyes])
 AM_CONDITIONAL(BUILD_STDIO_MODULE,  [test "x$enable_stdio_mod"   = xyes])
 AM_CONDITIONAL(BUILD_DXT_MODULE,    [test "x$enable_dxt_mod"     = xyes])
-AM_CONDITIONAL(BUILD_LDMS_MODULE,   [test "x$enable_ldms_mod"    = xyes])
 AM_CONDITIONAL(BUILD_MPIIO_MODULE,  [test "x$enable_mpiio_mod"   = xyes])
 AM_CONDITIONAL(BUILD_HDF5_MODULE,   [test "x$enable_hdf5_mod"    = xyes])
 AM_CONDITIONAL(BUILD_PNETCDF_MODULE,[test "x$enable_pnetcdf_mod" = xyes])
@@ -811,6 +808,7 @@ AM_CONDITIONAL(BUILD_MDHIM_MODULE,  [test "x$enable_mdhim_mod"   = xyes])
 AM_CONDITIONAL(BUILD_APMPI_MODULE,  [test "x$enable_apmpi_mod"   = xyes])
 AM_CONDITIONAL(BUILD_APXC_MODULE,   [test "x$enable_apxc_mod"    = xyes])
 AM_CONDITIONAL(BUILD_HEATMAP_MODULE,[test "x$enable_heatmap_mod" = xyes])
+AM_CONDITIONAL(HAVE_LDMS,           [test "x$enable_ldms_mod"    = xyes])
 
 AC_CONFIG_FILES(Makefile \
                 darshan-config \

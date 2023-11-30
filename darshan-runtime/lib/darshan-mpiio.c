@@ -1193,7 +1193,6 @@ int DARSHAN_DECL(MPI_File_close)(MPI_File *fh)
             if(dC.mpiio_enable_ldms)
                 darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->close_counts, "close", -1, -1, -1, -1, -1, tm1, tm2, rec_ref->file_rec->fcounters[MPIIO_F_META_TIME], "MPIIO", "MOD");
 #endif
-
     }
     MPIIO_POST_RECORD();
 
