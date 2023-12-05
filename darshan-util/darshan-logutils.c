@@ -1007,7 +1007,7 @@ static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
      * to handle incomplete mappings temporarily here
      */
     name_rec = (struct darshan_name_record *)name_rec_buf;
-    while(buf_len > sizeof(darshan_record_id) + 1)
+    while(buf_len >= sizeof(darshan_record_id) + 1)
     {
         if(strnlen(name_rec->name, buf_len - sizeof(darshan_record_id)) ==
             (buf_len - sizeof(darshan_record_id)))

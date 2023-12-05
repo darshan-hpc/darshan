@@ -185,6 +185,7 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[];
 #include "darshan-heatmap-logutils.h"
 #include "darshan-mdhim-logutils.h"
 #include "darshan-dfs-logutils.h"
+#include "darshan-daos-logutils.h"
 
 /* DXT */
 #include "darshan-dxt-logutils.h"
