@@ -1,0 +1,10 @@
+--wrap=daos_obj_open
+--wrap=daos_obj_fetch
+--wrap=daos_obj_update
+--wrap=daos_obj_close
+--wrap=daos_array_create
+--wrap=daos_array_open
+--wrap=daos_array_open_with_attr
+--wrap=daos_array_read
+--wrap=daos_array_write
+--wrap=daos_array_close
