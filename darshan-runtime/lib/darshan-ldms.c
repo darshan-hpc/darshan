@@ -162,19 +162,19 @@ void darshan_ldms_connector_initialize(struct darshan_core_runtime *init_core)
 
     /* Check/set LDMS transport type */
     if (!env_ldms_xprt || !env_ldms_host || !env_ldms_port || !env_ldms_auth){
-	darshan_core_fprintf(stderr, "LDMS library: The darshanConnector transport, host, port or authentication to LDMS streams daemon is not given -- exiting.\n");
+	darshan_core_fprintf(stderr, "LDMS library: darshanConnector - transport, host, port or authentication for LDMS streams daemon connection is not set -- exiting.\n");
 	return;
     }
 
     pthread_mutex_lock(&dC.ln_lock);
     dC.ldms_darsh = setup_connection(env_ldms_xprt, env_ldms_host, env_ldms_port, env_ldms_auth);
     if (dC.conn_status != 0) {
-        darshan_core_fprintf(stderr, "LDMS library: darshanConnector error %i setting up connection to LDMS streams daemon -- exiting.\n", dC.conn_status);
+        darshan_core_fprintf(stderr, "LDMS library: darshanConnector - error %i setting up connection to LDMS streams daemon -- exiting.\n", dC.conn_status);
         pthread_mutex_unlock(&dC.ln_lock);
         return;
     }
     else if (dC.ldms_darsh->disconnected){
-        darshan_core_fprintf(stderr, "LDMS library: darshanConnector disconnected from LDMS streams daemon -- exiting.\n");
+        darshan_core_fprintf(stderr, "LDMS library: darshanConnector - disconnected from LDMS streams daemon -- exiting.\n");
         pthread_mutex_unlock(&dC.ln_lock);
         return;
     }
@@ -202,7 +202,7 @@ void darshan_ldms_connector_send(uint64_t record_id, int64_t rank, int64_t recor
 
     /* Current schema name used to query darshan data stored in DSOS.
     * If not storing to DSOS, then this can be ignored.*/
-    dC.schema = "darshan_data3";
+    dC.schema = "darshan_data";
 
     /* get the full file path from record ID */
     dC.filepath = darshan_core_lookup_record_name(record_id);
@@ -236,7 +236,7 @@ void darshan_ldms_connector_send(uint64_t record_id, int64_t rank, int64_t recor
 
     rc = ldmsd_stream_publish(dC.ldms_darsh, dC.env_ldms_stream, LDMSD_STREAM_JSON, jb11, strlen(jb11) + 1);
     if (rc)
-       darshan_core_fprintf(stderr, "LDMS library: Error %d publishing darshanConnector data.\n", rc);
+       darshan_core_fprintf(stderr, "LDMS library: darshanConnector - error %d publishing stream data.\n", rc);
 
     out_1:
 	 return;

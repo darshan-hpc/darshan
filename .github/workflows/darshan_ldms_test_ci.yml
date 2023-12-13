@@ -1,4 +1,3 @@
-#
 #Test overview:
 # Test the Darshan LDMS Integrated code (e.g. darshanConnector). 
 # Build and Compile lastest LDMS release
@@ -6,18 +5,16 @@
 # Run an MPI-IO Test from Darshan's test suites
 # Check that the test completes normally and LDMS is collecting runtime timeseries data
 # Check that the test completes with Darshan when LDMS variables are not set
-#
-#
+
 name: Darshan-LDMS Integration Test - Latest
 
 on:
   push:
     branches: 
-      - main
+      - darshanConnector
   pull_request:
     branches:
-      - main
-
+      - darshanConnector
 jobs:
   test:
     strategy:
@@ -26,6 +23,7 @@ jobs:
         python-version: ["3.10"]
     runs-on: ${{ matrix.platform }}
     steps:
+    - uses: actions/checkout@v3
     - name: Set Up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3
       with:
@@ -33,88 +31,67 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update -y
-        sudo apt-get install hdf5-tools libhdf5-openmpi-dev openmpi-bin 
+        sudo apt-get install hdf5-tools libhdf5-openmpi-dev openmpi-bin
         python -m pip install --upgrade pip
         python -m pip install --upgrade pytest mpi4py
         export HDF5_MPI="ON"
         CC=mpicc python -m pip install --no-cache-dir h5py
+        # Make LDMS use IPv4 address by disabling IPv6 - temporary workaround
+        sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
     - name: Clone LDMS
       uses: actions/checkout@v3
       with:
         repository: ovis-hpc/ovis
         path: ovis
         ref: OVIS-4
-    - name: Clone Darshan Repo
-      uses: actions/checkout@v3
-      with:
-        repository: darshan-hpc/darshan
-        path: darshan
-        ref: main
     - name: Install LDMS
       run: |
         cd ovis
         sh autogen.sh
-        set -e
-        mkdir -p build
+        set -e && mkdir -p build
         pushd build
-        export CFLAGS="-O1 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -m64 -march=native"
-        ../configure --prefix=/opt/ovis-latest  
-        make 
-        make install
+        ../configure --prefix=/opt/ovis-latest --enable-etc
+        make && make install
     - name: Install darshan-runtime
       run: |
-        cd darshan
         export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/include/hdf5/openmpi/
-        export DARSHAN_INSTALL_PATH=/opt/darshan-latest
+        export DARSHAN_INSTALL_PATH=/opt/darshan_install
         git submodule update --init
         ./prepare.sh
         cd darshan-runtime
-        mkdir build
-        cd build
+        mkdir build && cd build
         # build darshan against LDMS library
         CC=mpicc ../configure --prefix=$DARSHAN_INSTALL_PATH --with-log-path-by-env=DARSHAN_LOGPATH --enable-ldms-mod --with-ldms=/opt/ovis-latest --with-jobid-env=NONE --enable-hdf5-mod
-        make
-        make install
+        make && make install
     - name: Install darshan-util
       run: |
-        export DARSHAN_INSTALL_PATH=/opt/darshan-latest
-        cd darshan/darshan-util
-        mkdir build
-        cd build
+        export DARSHAN_INSTALL_PATH=/opt/darshan_install
+        cd darshan-util
+        mkdir build && cd build
         ../configure --prefix=$DARSHAN_INSTALL_PATH --enable-apxc-mod --enable-apmpi-mod
-        make
-        make install
+        make && make install
     - name: Test Preparation and Run
       run : |
         echo "---setting Darshan environment---"
-        export DARSHAN_INSTALL_PATH=/opt/darshan-latest
+        export DARSHAN_INSTALL_PATH=/opt/darshan_install
         export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/include/hdf5/openmpi
         export LD_PRELOAD=$DARSHAN_INSTALL_PATH/lib/libdarshan.so
         export HDF5_LIB=/usr/lib/x86_64-linux-gnu/hdf5/openmpi
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DARSHAN_INSTALL_PATH/lib
-        export DXT_ENABLE_IO_TRACE=1
-        echo "---setting LDMS environment---"
-        export LDMS_INSTALL_PATH=/opt/ovis-latest
-        export LD_LIBRARY_PATH=$LDMS_INSTALL_PATH/lib/:$LD_LIBRARY_PATH
-        export LDMSD_PLUGIN_LIBPATH=$LDMS_INSTALL_PATH/lib/ovis-ldms
-        export ZAP_LIBPATH=$LDMS_INSTALL_PATH/lib/ovis-ldms
-        export PATH=$LDMS_INSTALL_PATH/sbin:$LDMS_INSTALL_PATH/bin:$PATH
-        export PYTHONPATH=$LDMS_INSTALL_PATH/lib/python3.6/site-packages
         echo "---setting Darshan-LDMS environment---"
         export DARSHAN_LDMS_STREAM=darshanConnector
         export DARSHAN_LDMS_PORT=10444
         export DARSHAN_LDMS_HOST=localhost
         export DARSHAN_LDMS_XPRT=sock
         export DARSHAN_LDMS_AUTH=none
-        export POSIX_ENABLE_LDMS=
-        export MPIIO_ENABLE_LDMS=
-        export STDIO_ENABLE_LDMS=
-        export HDF5_ENABLE_LDMS=
+        export DARSHAN_LDMS_ENABLE_MPIIO=
+        export DARSHAN_LDMS_ENABLE_POSIX=
+        export DARSHAN_LDMS_ENABLE_STDIO=
+        export DARSHAN_LDMS_ENABLE_HDF5=
         echo "---setting Test Case Variables---"
         export PROG=mpi-io-test
         export DARSHAN_TMP=/tmp/darshan-ldms-test
-        export DARSHAN_PLATFORM=cray-module-stria
-        export DARSHAN_TESTDIR=$PWD/darshan/darshan-test/regression
+        export DARSHAN_TESTDIR=$PWD/darshan-test/regression
         export DARSHAN_LOGFILE=$DARSHAN_TMP/${PROG}.darshan
         echo "---checking TMP Path---"
         if [ ! -d $DARSHAN_TMP ]; then
@@ -129,7 +106,7 @@ jobs:
                 exit 1
         fi
         echo "---generating ldmsd configuration file---"
-        cat > stream-samp-4.3.3.conf << EOF
+        cat > stream-samp-latest.conf << EOF
         load name=hello_sampler
         config name=hello_sampler producer=host1 instance=host1/hello_sampler stream=darshanConnector component_id=1
         start name=hello_sampler interval=1000000 offset=0
@@ -137,42 +114,52 @@ jobs:
         config name=stream_csv_store path=./streams/store container=csv stream=darshanConnector rolltype=3 rollover=500000
         EOF
         echo "---starting ldmsd---"
-        ldmsd -x sock:10444 -c stream-samp-4.3.3.conf -l /tmp/stream-samp-4.3.3.log -v DEBUG
-        # check it is running
-        STREAM_SAMP_433_PID=$(pgrep -f stream-samp-4.3.3.conf)
+        cat > ldmsd-latest.sh << EOF
+        . /opt/ovis-latest/etc/profile.d/set-ovis-variables.sh
+        ldmsd \$@
+        EOF
+        chmod 755 ldmsd-latest.sh
+        ./ldmsd-latest.sh -x sock:10444 -c stream-samp-latest.conf -l /tmp/stream-samp-latest.log -v DEBUG
+        echo "---check daemon is running---"
+        STREAM_SAMP_LATEST_PID=$(pgrep -f stream-samp-latest.conf)
         pgrep -a ldmsd
-        [[ -n "${STREAM_SAMP_433_PID}" ]] || error "stream-samp-4.3.3.log is not running"
-        echo "---Running Test Case---"
+        [[ -n "${STREAM_SAMP_LATEST_PID}" ]] || error "stream-samp-latest.log is not running"
+        cat > ldms_ls-latest.sh << EOF
+        . /opt/ovis-latest/etc/profile.d/set-ovis-variables.sh
+        ldms_ls \$@
+        EOF
+        chmod 755 ldms_ls-latest.sh
+        ./ldms_ls-latest.sh -p 10444 -x sock -v -v
+        echo "---Test Case #1: Darshan-LDMS Env Set and Connected to LDMS Streams Deamon---"
         mpicc $DARSHAN_TESTDIR/test-cases/src/${PROG}.c -o $DARSHAN_TMP/${PROG}
         cd $DARSHAN_TMP
-        ./${PROG} -f $DARSHAN_TMP/${PROG}.tmp.dat
-        echo "---Running Test Case Wihout Darshan-LDMS Env Set---"
+        ./${PROG} -f $DARSHAN_TMP/${PROG}.tmp.dat 2>> $DARSHAN_TMP/${PROG}.err
+        echo "---Test Case #2: Darshan-LDMS Environment NOT Set---"
         unset DARSHAN_LDMS_STREAM
         unset DARSHAN_LDMS_PORT
         unset DARSHAN_LDMS_HOST
         unset DARSHAN_LDMS_XPRT
         unset DARSHAN_LDMS_AUTH
-        # Collect both MPIIO and POSIX
-        unset DXT_ENABLE_LDMS
-        unset STDIO_ENABLE_LDMS
-        unset HDF5_ENABLE_LDMS
+        unset DARSHAN_LDMS_ENABLE_MPIIO
+        unset DARSHAN_LDMS_ENABLE_POSIX
+        unset DARSHAN_LDMS_ENABLE_STDIO
+        unset DARSHAN_LDMS_ENABLE_HDF5
         export DARSHAN_LOGFILE=$DARSHAN_TMP/${PROG}-no-ldms-env.darshan
-        mpicc $DARSHAN_TESTDIR/test-cases/src/${PROG}.c -o $DARSHAN_TMP/${PROG}
-        ./${PROG} -f $DARSHAN_TMP/${PROG}.tmp.dat
-        echo "---Running Test Case Without LDMS Streams daemon---"
+        ./${PROG} -f $DARSHAN_TMP/${PROG}.tmp.dat 2>> $DARSHAN_TMP/${PROG}.err
+        echo "---Test Case #3: LDMS Streams Daemon NOT Connected---"
         export DARSHAN_LDMS_STREAM=darshanConnector
         export DARSHAN_LDMS_PORT=10444
         export DARSHAN_LDMS_HOST=localhost
         export DARSHAN_LDMS_XPRT=sock
         export DARSHAN_LDMS_AUTH=none
-        export DXT_ENABLE_LDMS=
-        export STDIO_ENABLE_LDMS=
-        export HDF5_ENABLE_LDMS=
+        export DARSHAN_LDMS_ENABLE_MPIIO=
+        export DARSHAN_LDMS_ENABLE_POSIX=
+        export DARSHAN_LDMS_ENABLE_STDIO=
+        export DARSHAN_LDMS_ENABLE_HDF5=
         export DARSHAN_LOGFILE=$DARSHAN_TMP/${PROG}-no-ldms-daemon.darshan
-        echo "killing the daemon"
-        kill ${STREAM_SAMP_433_PID}
-        mpicc $DARSHAN_TESTDIR/test-cases/src/${PROG}.c -o $DARSHAN_TMP/${PROG}
-        ./${PROG} -f $DARSHAN_TMP/${PROG}.tmp.dat
+        echo "---killing the daemon---"
+        kill ${STREAM_SAMP_LATEST_PID}
+        ./${PROG} -f $DARSHAN_TMP/${PROG}.tmp.dat 2>> $DARSHAN_TMP/${PROG}.err
         echo "---Parse Darshan log file from darshanConnector Run---"
         export DARSHAN_LOGFILE=$DARSHAN_TMP/${PROG}.darshan
         if [ ! -x $DARSHAN_INSTALL_PATH/bin/darshan-dxt-parser ]; then
@@ -193,17 +180,23 @@ jobs:
       run: |
         export DARSHAN_TMP=/tmp/darshan-ldms-test
         export PROG=mpi-io-test
-        ls -ltr $DARSHAN_TMP
+        echo "---View LDMS Output and Darshan Log Directory---"
+        ls -ltrch $DARSHAN_TMP
+        ls -ltrch streams/store/csv
+        cat $DARSHAN_TMP/${PROG}.err
+        echo "---Check Darshan Log Files Exist---"
         if [[ ! -f "$DARSHAN_TMP/${PROG}.darshan" || ! -f "$DARSHAN_TMP/${PROG}-no-ldms-env.darshan" || ! -f "$DARSHAN_TMP/${PROG}-no-ldms-daemon.darshan" ]]; then
                 echo "One of the darshan log files do not exist."
                 exit 1
         fi
+        echo "---Check LDMS Data Collection---"
         if ! compgen -G "streams/store/csv/darshanConnector.*" > /dev/null; then
                 echo "CSV file does not exist."
-                cat /tmp/stream-samp-4.3.3.log
+                cat /tmp/stream-samp-latest.log
+                exit 1        
+        elif [[ -z "$(cat streams/store/csv/darshanConnector.*)" ]]; then
+                echo "No data was stored to CSV file."
+                cat /tmp/stream-samp-latest.log
                 exit 1
-        else
-                ls -ltr streams/store/csv/
-                cat streams/store/csv/darshanConnector.*
-        fi        
+        fi
         echo "DONE!"
