@@ -23,6 +23,10 @@ skip = [
 test-requires = [
     "packaging",
     "pytest",
+    "cffi",
+    "pandas",
+    "seaborn",
+    "mako",
     "lxml",
     "matplotlib",
     "importlib_resources;python_version<'3.9'",
