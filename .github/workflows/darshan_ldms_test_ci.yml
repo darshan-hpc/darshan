@@ -12,32 +12,21 @@ on:
   push:
     branches: 
       - main
-      - darshanConnector
   pull_request:
     branches:
       - main
-      - darshanConnector
 jobs:
   test:
     strategy:
       matrix:
         platform: [ubuntu-latest]
-        python-version: ["3.10"]
     runs-on: ${{ matrix.platform }}
     steps:
     - uses: actions/checkout@v3
-    - name: Set Up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
-      with:
-         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
         sudo apt-get update -y
-        sudo apt-get install hdf5-tools libhdf5-openmpi-dev openmpi-bin
-        python -m pip install --upgrade pip
-        python -m pip install --upgrade pytest mpi4py
-        export HDF5_MPI="ON"
-        CC=mpicc python -m pip install --no-cache-dir h5py
+        sudo apt-get install openmpi-bin
         # Make LDMS use IPv4 address by disabling IPv6 - temporary workaround
         sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
     - name: Clone LDMS
@@ -56,14 +45,13 @@ jobs:
         make && make install
     - name: Install darshan-runtime
       run: |
-        export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/include/hdf5/openmpi/
         export DARSHAN_INSTALL_PATH=/opt/darshan_install
         git submodule update --init
         ./prepare.sh
         cd darshan-runtime
         mkdir build && cd build
         # build darshan against LDMS library
-        CC=mpicc ../configure --prefix=$DARSHAN_INSTALL_PATH --with-log-path-by-env=DARSHAN_LOGPATH --enable-ldms-mod --with-ldms=/opt/ovis-latest --with-jobid-env=NONE --enable-hdf5-mod
+        CC=mpicc ../configure --prefix=$DARSHAN_INSTALL_PATH --with-log-path-by-env=DARSHAN_LOGPATH --enable-ldms-mod --with-ldms=/opt/ovis-latest --with-jobid-env=NONE
         make && make install
     - name: Install darshan-util
       run: |
@@ -76,9 +64,7 @@ jobs:
       run : |
         echo "---setting Darshan environment---"
         export DARSHAN_INSTALL_PATH=/opt/darshan_install
-        export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/include/hdf5/openmpi
         export LD_PRELOAD=$DARSHAN_INSTALL_PATH/lib/libdarshan.so
-        export HDF5_LIB=/usr/lib/x86_64-linux-gnu/hdf5/openmpi
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DARSHAN_INSTALL_PATH/lib
         echo "---setting Darshan-LDMS environment---"
         export DARSHAN_LDMS_STREAM=darshanConnector
