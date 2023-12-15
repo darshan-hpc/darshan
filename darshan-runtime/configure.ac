@@ -432,7 +432,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
       AC_MSG_ERROR(m4_normalize([--enable-hdf5-mod does not take any argument,
                    use --with-hdf5 to provide the HDF5 install prefix, if needed.]))
    fi
-   
+
    # inform about PnetCDF installs not found in default locations
    AC_ARG_WITH([pnetcdf],
       [AS_HELP_STRING([--with-pnetcdf=DIR],
