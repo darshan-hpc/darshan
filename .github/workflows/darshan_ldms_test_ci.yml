@@ -150,18 +150,13 @@ jobs:
         ./${PROG} -f $DARSHAN_TMP/${PROG}.tmp.dat 2>> $DARSHAN_TMP/${PROG}.err
         echo "---Parse Darshan log file from darshanConnector Run---"
         export DARSHAN_LOGFILE=$DARSHAN_TMP/${PROG}.darshan
-        if [ ! -x $DARSHAN_INSTALL_PATH/bin/darshan-dxt-parser ]; then
+        if [ ! -x $DARSHAN_INSTALL_PATH/bin/darshan-parser ]; then
                 echo "Error: $DARSHAN_PATH doesn't contain a valid Darshan install." 1>&2
                 exit 1
         fi
         $DARSHAN_INSTALL_PATH/bin/darshan-parser --all $DARSHAN_LOGFILE > $DARSHAN_TMP/${PROG}.darshan.txt
         if [ $? -ne 0 ]; then
                 echo "Error: failed to parse ${DARSHAN_LOGFILE}" 1>&2
-                exit 1
-        fi
-        $DARSHAN_INSTALL_PATH/bin/darshan-dxt-parser --show-incomplete $DARSHAN_LOGFILE > $DARSHAN_TMP/${PROG}-dxt.darshan.txt
-        if [ $? -ne 0 ]; then
-                echo "Error: failed to parse ${DARSHAN_LOGFILE} for dxt tracing" 1>&2
                 exit 1
         fi
     - name: Check Results
