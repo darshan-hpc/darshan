@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from setuptools import setup, find_packages, Extension
+from setuptools import setup, Extension
 import sys
 import os
 
@@ -44,13 +44,4 @@ for root, dirs, files in os.walk("../../modules"):
 
 setup(
     ext_modules=ext_modules,
-    include_package_data=True,
-    packages=find_packages(include=["darshan"]),
-    zip_safe=False,
-    package_data={"": ["*.darshan"],
-                  "darshan": ["cli/style.css",
-                              "cli/base.html",
-                              "examples/example_logs/*",
-                              "examples/darshan-graph/*",
-                              "tests/input/*"]},
 )

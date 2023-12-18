@@ -47,6 +47,17 @@ test = [
     "humanize"
 ]
 
+[tool.setuptools.packages.find]
+include = ["darshan"]
+
+[tool.setuptools.package-data]
+"*" = ["*.darshan"]
+"darshan" = ["cli/style.css",
+             "cli/base.html",
+             "examples/example_logs/*",
+             "examples/darshan-graph/*",
+             "tests/input/*"]
+
 [tool.cibuildwheel]
 environment = "PYDARSHAN_BUILD_EXT=1"
 skip = [
