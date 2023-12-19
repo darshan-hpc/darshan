@@ -3,6 +3,7 @@ requires = [
     "wheel",
     "setuptools>=65.0.0",
 ]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "darshan"
