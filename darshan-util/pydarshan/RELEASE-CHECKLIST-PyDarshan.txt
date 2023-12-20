@@ -10,7 +10,6 @@ Notes on how to release a new version of PyDarshan
  - Update CHANGELOG.rst
     - commit
  - Update version numbers in:
-    pyproject.toml
     darshan/__init__.py
  - Make sure documentation in docs/ is up to date
     - commit

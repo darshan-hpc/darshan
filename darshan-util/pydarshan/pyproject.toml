@@ -7,8 +7,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "darshan"
+dynamic = ["version"]
 requires-python = ">=3.7"
-version = "3.4.4.0"
 description = "Python tools to interact with Darshan log records of HPC applications."
 readme = 'README.rst'
 dependencies = [
@@ -58,6 +58,9 @@ include = ["darshan"]
              "examples/example_logs/*",
              "examples/darshan-graph/*",
              "tests/input/*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "darshan.__version__"}
 
 [tool.cibuildwheel]
 environment = "PYDARSHAN_BUILD_EXT=1"
