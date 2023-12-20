@@ -141,6 +141,7 @@ jobs:
         export DARSHAN_LDMS_HOST=localhost
         export DARSHAN_LDMS_XPRT=sock
         export DARSHAN_LDMS_AUTH=none
+        export DARSHAN_LDMS_ENABLE=
         export DARSHAN_LDMS_ENABLE_MPIIO=
         export DARSHAN_LDMS_ENABLE_POSIX=
         export DARSHAN_LDMS_ENABLE_STDIO=
