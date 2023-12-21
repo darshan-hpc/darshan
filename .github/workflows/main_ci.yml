@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --upgrade pytest pyflakes asv pytest-cov lxml matplotlib packaging humanize "mypy<1.0.0"
+          python -m pip install --upgrade pyflakes asv pytest-cov "mypy<1.0.0"
       - if: ${{matrix.platform == 'macos-latest'}}
         name: Install MacOS deps
         run: |
@@ -53,12 +53,7 @@ jobs:
       - name: Install pydarshan
         run: |
           cd darshan-util/pydarshan
-          python -m pip install .
-      # shim for importlib.resources on Python < 3.9
-      - if: ${{matrix.python-version < 3.9}}
-        name: Install importlib_resources
-        run: |
-          python -m pip install -U importlib_resources
+          python -m pip install .[test]
       # only install the darshan_logs project in some CI
       # entries so we test proper handling of skips
       # in test suite

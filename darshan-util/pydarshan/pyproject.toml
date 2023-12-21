@@ -3,11 +3,64 @@ requires = [
     "wheel",
     "setuptools>=65.0.0",
 ]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "darshan"
+dynamic = ["version"]
 requires-python = ">=3.7"
-version = "3.4.4.0"
+description = "Python tools to interact with Darshan log records of HPC applications."
+readme = 'README.rst'
+dependencies = [
+    "cffi",
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "mako",
+    "humanize"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12"
+]
+
+[project.urls]
+homepage = 'https://www.mcs.anl.gov/research/projects/darshan/'
+repository = 'https://github.com/darshan-hpc/darshan'
+
+[project.optional-dependencies]
+test = [
+    "packaging",
+    "pytest",
+    "lxml",
+    "matplotlib",
+    "importlib_resources;python_version<'3.9'",
+    "humanize"
+]
+
+[tool.setuptools.packages.find]
+include = ["darshan"]
+
+[tool.setuptools.package-data]
+"*" = ["*.darshan"]
+"darshan" = ["cli/style.css",
+             "cli/base.html",
+             "examples/example_logs/*",
+             "examples/darshan-graph/*",
+             "tests/input/*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "darshan.__version__"}
 
 [tool.cibuildwheel]
 environment = "PYDARSHAN_BUILD_EXT=1"
