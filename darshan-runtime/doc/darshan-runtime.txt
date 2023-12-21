@@ -40,6 +40,15 @@ and MPI-IO layers. Initial link:DXT-overhead.pdf[performance results] demonstrat
 low overhead of DxT tracing, offering comparable performance to Darshan's traditional
 coarse-grained instrumentation methods.
 
+Starting in version 3.4.5, Darshan facilitates real-time collection of comprehensive
+application I/O workload traces through the newly integrated Darshan LDMS data module,
+known as the darshanConnector. Leveraging the Lightweight Distributed Metric Service
+(LDMS) streams API, the darshanConnector collects, transports and/or stores traces
+of application I/O operations instrumented by Darshan at runtime. This module can only
+be enabled if the LDMS library is included in the Darshan build process. For more
+information about LDMS or LDMS streams please refer to the official
+link:https://ovis-hpc.readthedocs.io/en/latest/ldms/index.html[LDMS documentation].
+
 This document provides generic installation instructions, but "recipes" for
 several common HPC systems are provided at the end of the document as well.
 
@@ -137,6 +146,11 @@ make install
   module (default=enabled)
 * `--enable-mdhim-mod`: enables compilation and use of Darshan's MDHIM module
   (default=disabled)
+* `--enable-ldms-mod`:  enables compilation and use of Darshan’s LDMS runtime module (default=disabled)
+* `--with-ldms=DIR`: installation directory for LDMS
+** NOTE: Users must use the configuration flags `--enable-ldms-mod` and `--with-ldms=DIR` to enable runtime data collection via LDMS.
+** NOTE: To collect runtime I/O information from Darshan, you will need to configure, initialize, and connect to an LDMS streams daemon. For detailed instructions please visit link:https://ovis-hpc.readthedocs.io/en/latest/ldms/ldms-streams.html#run-an-ldms-streams-daemon[Running An LDMS Streams Daemon for Darshan].
+** NOTE: If LDMS is not installed on the system, please visit “Getting the Source” and “Building the Source” in the link:https://ovis-hpc.readthedocs.io/en/latest/ldms/ldms-quickstart.html[LDMS Quick Start Guide].
 
 === Environment preparation
 
@@ -592,10 +606,18 @@ to startup and shutdown Darshan to stderr at runtime.
  (DEPRECATED) Setting this environment variable enables the DXT
  (Darshan eXtended Tracing) modules at runtime for all files
  instrumented by Darshan. Replaced by MODULE_ENABLE setting.
-| DARSHAN_EXCLUDE_DIRS=<path_csv> | N/A
- | (DEPRECATED) Specifies a list of comma-separated paths that
+| DARSHAN_EXCLUDE_DIRS=<path_csv> | N/A |
+ (DEPRECATED) Specifies a list of comma-separated paths that
  Darshan will not instrument at runtime (in addition to Darshan's
  default exclusion list). Replaced by NAME_EXCLUDE setting.
+| DARSHAN_LDMS_ENABLE= | N/A |
+ Switch to initialize LDMS. If not set, no runtime I/O data will
+ be collected. This only needs to be exported (i.e. setting to a
+ value/string is optional).
+| DARSHAN_LDMS_ENABLE_<mod_name>= | N/A |
+ Specifies the module data that will be collected during runtime
+ using LDMS streams API. These only need to be exported (i.e.
+ setting to a value/string is optional).
 |====
 
 [NOTE]
