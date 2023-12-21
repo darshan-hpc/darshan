@@ -35,6 +35,7 @@
 #include "darshan-dynamic.h"
 #include "darshan-dxt.h"
 #include "darshan-heatmap.h"
+#include "darshan-ldms.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
@@ -113,8 +114,8 @@ DARSHAN_FORWARD_DECL(rename, int, (const char *oldpath, const char *newpath));
  * darshan-posix-log-format.h) pointed to by 'file_rec'. This metadata
  * assists with the instrumenting of specific statistics in the file record.
  *
- * RATIONALE: the POSIX module needs to track some stateful, volatile 
- * information about each open file (like the current file offset, most recent 
+ * RATIONALE: the POSIX module needs to track some stateful, volatile
+ * information about each open file (like the current file offset, most recent
  * access time, etc.) to aid in instrumentation, but this information can't be
  * stored in the darshan_posix_file struct because we don't want it to appear in
  * the final darshan log file.  We therefore associate a posix_file_record_ref
@@ -146,10 +147,13 @@ struct posix_file_record_ref
     int stride_count;
     struct posix_aio_tracker* aio_list;
     int fs_type; /* same as darshan_fs_info->fs_type */
+#ifdef HAVE_LDMS
+    int64_t close_counts;
+#endif
 };
 
 /* The posix_runtime structure maintains necessary state for storing
- * POSIX file records and for coordinating with darshan-core at 
+ * POSIX file records and for coordinating with darshan-core at
  * shutdown time.
  */
 struct posix_runtime
@@ -246,6 +250,10 @@ static int darshan_mem_alignment = 1;
     _POSIX_RECORD_OPEN(__ret, __rec_ref, __mode, __tm1, __tm2, 1, -1); \
     darshan_instrument_fs_data(__rec_ref->fs_type, __newpath, __ret); \
     if(__newpath != __path) free(__newpath); \
+    /* LDMS to publish realtime open tracing information to daemon*/ \
+    if(dC.ldms_lib)\
+        if(dC.posix_enable_ldms)\
+            darshan_ldms_connector_send(__rec_ref->file_rec->base_rec.id, __rec_ref->file_rec->base_rec.rank, __rec_ref->file_rec->counters[POSIX_OPENS], "open", -1, -1, -1, -1, -1, __tm1, __tm2, __rec_ref->file_rec->fcounters[POSIX_F_META_TIME], "POSIX", "MET");\
 } while(0)
 
 #define POSIX_RECORD_REFOPEN(__ret, __rec_ref, __tm1, __tm2, __ref_counter) do { \
@@ -334,6 +342,10 @@ static int darshan_mem_alignment = 1;
         rec_ref->file_rec->counters[POSIX_MAX_READ_TIME_SIZE] = __ret; } \
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[POSIX_F_READ_TIME], \
         __tm1, __tm2, rec_ref->last_read_end); \
+    /* LDMS to publish realtime read tracing information to daemon*/ \
+    if(dC.ldms_lib)\
+        if(dC.posix_enable_ldms)\
+            darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[POSIX_READS], "read", this_offset, __ret, rec_ref->file_rec->counters[POSIX_MAX_BYTE_READ],rec_ref->file_rec->counters[POSIX_RW_SWITCHES], -1,  __tm1, __tm2, rec_ref->file_rec->fcounters[POSIX_F_READ_TIME], "POSIX", "MOD");\
 } while(0)
 
 #define POSIX_RECORD_WRITE(__ret, __fd, __pwrite_flag, __pwrite_offset, __aligned, __tm1, __tm2) do { \
@@ -399,6 +411,10 @@ static int darshan_mem_alignment = 1;
         rec_ref->file_rec->counters[POSIX_MAX_WRITE_TIME_SIZE] = __ret; } \
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[POSIX_F_WRITE_TIME], \
         __tm1, __tm2, rec_ref->last_write_end); \
+    /* LDMS to publish realtime write tracing information to daemon*/ \
+    if(dC.ldms_lib)\
+        if(dC.posix_enable_ldms)\
+            darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[POSIX_WRITES], "write", this_offset, __ret, rec_ref->file_rec->counters[POSIX_MAX_BYTE_WRITTEN], rec_ref->file_rec->counters[POSIX_RW_SWITCHES], -1, __tm1, __tm2, rec_ref->file_rec->fcounters[POSIX_F_WRITE_TIME], "POSIX", "MOD");\
 } while(0)
 
 #define POSIX_LOOKUP_RECORD_STAT(__path, __statbuf, __tm1, __tm2) do { \
@@ -423,7 +439,7 @@ static int darshan_mem_alignment = 1;
 
 
 /**********************************************************
- *      Wrappers for POSIX I/O functions of interest      * 
+ *      Wrappers for POSIX I/O functions of interest      *
  **********************************************************/
 
 int DARSHAN_DECL(open)(const char *path, int flags, ...)
@@ -434,7 +450,7 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
 
     MAP_OR_FAIL(open);
 
-    if(flags & O_CREAT) 
+    if(flags & O_CREAT)
     {
         va_list arg;
         va_start(arg, flags);
@@ -1620,6 +1636,14 @@ int DARSHAN_DECL(close)(int fd)
             rec_ref->file_rec->fcounters[POSIX_F_META_TIME],
             tm1, tm2, rec_ref->last_meta_end);
         darshan_delete_record_ref(&(posix_runtime->fd_hash), &fd, sizeof(int));
+
+#ifdef HAVE_LDMS
+        rec_ref->close_counts++;
+        /* publish close information for posix */
+        if(dC.ldms_lib)
+            if(dC.posix_enable_ldms)
+                darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->close_counts, "close", -1, -1, -1, -1, -1, tm1, tm2, rec_ref->file_rec->fcounters[POSIX_F_META_TIME], "POSIX", "MOD");
+#endif
     }
     POSIX_POST_RECORD();
 
@@ -1987,7 +2011,7 @@ static struct posix_file_record_ref *posix_track_new_file_record(
 }
 
 /* finds the tracker structure for a given aio operation, removes it from
- * the associated linked list for this file record, and returns a pointer.  
+ * the associated linked list for this file record, and returns a pointer.
  *
  * returns NULL if aio operation not found
  */
@@ -2421,7 +2445,7 @@ void darshan_posix_shutdown_bench_setup(int test_case)
     {
         case 1: /* single file-per-process */
             snprintf(filepath, 256, "fpp-0_rank-%d", my_rank);
-            
+
             POSIX_RECORD_OPEN(fd_array[0], filepath, 777, 0, 1);
             POSIX_RECORD_WRITE(size_array[0], fd_array[0], 0, 0, 1, 1, 2);
 

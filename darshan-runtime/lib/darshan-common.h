@@ -224,13 +224,13 @@ void *darshan_delete_record_ref(
  * record_reference_pointer is also freed.
  */
 void darshan_clear_record_refs(
-    void **hash_head_p,    
+    void **hash_head_p,
     int free_flag);
 
 /* darshan_iter_record_ref()
  *
  * Iterate each record reference stored in the hash table pointed
- * to by 'hash_head' and perform the given action 'iter_action'. 
+ * to by 'hash_head' and perform the given action 'iter_action'.
  * The action function takes two pointers as input: the first
  * points to the corresponding record reference pointer and the
  * second is a user-supplied pointer provided for the action.
@@ -272,8 +272,8 @@ void darshan_record_sort(
  * a new one to keep track of commonly occuring values. Example use
  * cases would be to track the most frequent access sizes or strides
  * used by a specific module, for instance. 'common_val_root' is the
- * root pointer for the tree which stores common value info, 
- * 'common_val_count' is a pointer to the number of nodes in the 
+ * root pointer for the tree which stores common value info,
+ * 'common_val_count' is a pointer to the number of nodes in the
  * tree (i.e., the number of allocated common value counters), 'vals'
  * is the set of new values to attempt to add, and 'nvals' is the
  * total number of values in the 'vals' pointer.

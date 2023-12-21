@@ -424,6 +424,25 @@ static inline double darshan_core_wtime(void)
     return(darshan_core_wtime_absolute() - __darshan_core_wtime_offset);
 }
 
+/* darshan_core_abs_timespec_from_wtime
+ * 
+ * converts the darshan_core_wtime() floating point values to absolute times in timespec (i.e. epoch time).
+ *
+ */
+static inline struct timespec darshan_core_abs_timespec_from_wtime(double t)
+{
+    struct timespec tp;
+
+    /* add time offset back to get to absolute time */
+    t += __darshan_core_wtime_offset;
+
+    /* cast to integer type, deliberately truncating after decimal point to get whole number seconds */
+    tp.tv_sec = (time_t)t;
+    /* subtract seconds out, then multiply remainder to nsecs and cast */
+    tp.tv_nsec = (time_t)((t - (double)tp.tv_sec) / 1.0e-9);
+    return(tp);
+} 
+
 /* darshan_core_fprintf()
  *
  * Prints internal Darshan output on a given stream.

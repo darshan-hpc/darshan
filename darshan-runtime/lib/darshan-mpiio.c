@@ -29,6 +29,7 @@
 #include "darshan-dynamic.h"
 #include "darshan-dxt.h"
 #include "darshan-heatmap.h"
+#include "darshan-ldms.h"
 
 DARSHAN_FORWARD_DECL(PMPI_File_close, int, (MPI_File *fh));
 DARSHAN_FORWARD_DECL(PMPI_File_iread_at, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
@@ -120,8 +121,8 @@ DARSHAN_FORWARD_DECL(PMPI_File_write_shared, int, (MPI_File fh, void *buf, int c
  * darshan-mpiio-log-format.h) pointed to by 'file_rec'. This metadata
  * assists with the instrumenting of specific statistics in the file record.
  *
- * RATIONALE: the MPIIO module needs to track some stateful, volatile 
- * information about each open file (like the current file offset, most recent 
+ * RATIONALE: the MPIIO module needs to track some stateful, volatile
+ * information about each open file (like the current file offset, most recent
  * access time, etc.) to aid in instrumentation, but this information can't be
  * stored in the darshan_mpiio_file struct because we don't want it to appear in
  * the final darshan log file.  We therefore associate a mpiio_file_record_ref
@@ -146,10 +147,13 @@ struct mpiio_file_record_ref
     double last_write_end;
     void *access_root;
     int access_count;
+#ifdef HAVE_LDMS
+    int64_t close_counts;
+#endif
 };
 
 /* The mpiio_runtime structure maintains necessary state for storing
- * MPI-IO file records and for coordinating with darshan-core at 
+ * MPI-IO file records and for coordinating with darshan-core at
  * shutdown time.
  */
 struct mpiio_runtime
@@ -244,6 +248,10 @@ static int my_rank = -1;
         __tm1, __tm2, rec_ref->last_meta_end); \
     darshan_add_record_ref(&(mpiio_runtime->fh_hash), &__fh, sizeof(MPI_File), rec_ref); \
     if(newpath != __path) free(newpath); \
+    /* LDMS to publish realtime open tracing information to daemon*/ \
+    if(dC.ldms_lib)\
+        if(dC.mpiio_enable_ldms)\
+            darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[MPIIO_COLL_OPENS] + rec_ref->file_rec->counters[MPIIO_INDEP_OPENS], "open", -1, -1, -1, -1, -1, __tm1, __tm2, rec_ref->file_rec->fcounters[MPIIO_F_META_TIME], "MPIIO", "MET");\
 } while(0)
 
 /* XXX: this check is needed to work around an OpenMPI bug that is triggered by
@@ -297,6 +305,10 @@ static int get_byte_offset = 0;
         rec_ref->file_rec->counters[MPIIO_MAX_READ_TIME_SIZE] = size; } \
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[MPIIO_F_READ_TIME], \
         __tm1, __tm2, rec_ref->last_read_end); \
+    /* LDMS to publish realtime read tracing information to daemon*/ \
+    if(dC.ldms_lib)\
+        if(dC.mpiio_enable_ldms)\
+            darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[__counter], "read", displacement, size, -1, rec_ref->file_rec->counters[MPIIO_RW_SWITCHES], -1, __tm1, __tm2, rec_ref->file_rec->fcounters[MPIIO_F_READ_TIME], "MPIIO", "MOD");\
 } while(0)
 
 #define MPIIO_RECORD_WRITE(__ret, __fh, __count, __datatype, __offset, __counter, __tm1, __tm2) do { \
@@ -340,16 +352,20 @@ static int get_byte_offset = 0;
         rec_ref->file_rec->counters[MPIIO_MAX_WRITE_TIME_SIZE] = size; } \
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[MPIIO_F_WRITE_TIME], \
         __tm1, __tm2, rec_ref->last_write_end); \
+    /* LDMS to publish realtime write tracing information to daemon*/ \
+    if(dC.ldms_lib)\
+        if(dC.mpiio_enable_ldms)\
+            darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[__counter], "write", displacement, size, -1, rec_ref->file_rec->counters[MPIIO_RW_SWITCHES], -1,  __tm1, __tm2, rec_ref->file_rec->fcounters[MPIIO_F_WRITE_TIME], "MPIIO", "MOD");\
 } while(0)
 
 /**********************************************************
- *        Wrappers for MPI-IO functions of interest       * 
+ *        Wrappers for MPI-IO functions of interest       *
  **********************************************************/
 
 #ifdef HAVE_MPI_CONST
-int DARSHAN_DECL(MPI_File_open)(MPI_Comm comm, const char *filename, int amode, MPI_Info info, MPI_File *fh) 
+int DARSHAN_DECL(MPI_File_open)(MPI_Comm comm, const char *filename, int amode, MPI_Info info, MPI_File *fh)
 #else
-int DARSHAN_DECL(MPI_File_open)(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_File *fh) 
+int DARSHAN_DECL(MPI_File_open)(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_File *fh)
 #endif
 {
     int ret;
@@ -366,7 +382,7 @@ int DARSHAN_DECL(MPI_File_open)(MPI_Comm comm, char *filename, int amode, MPI_In
     /* use ROMIO approach to strip prefix if present */
     /* strip off prefix if there is one, but only skip prefixes
      * if they are greater than length one to allow for windows
-     * drive specifications (e.g. c:\...) 
+     * drive specifications (e.g. c:\...)
      */
     tmp = strchr(filename, ':');
     if (tmp > filename + 1) {
@@ -791,7 +807,7 @@ int DARSHAN_DECL(MPI_File_read_at_all_begin)(MPI_File fh, MPI_Offset offset, voi
     ret = __real_PMPI_File_read_at_all_begin(fh, offset, buf,
         count, datatype);
     tm2 = MPIIO_WTIME();
-    
+
     MPIIO_PRE_RECORD();
     MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_SPLIT_READS, tm1, tm2);
     MPIIO_POST_RECORD();
@@ -1169,6 +1185,14 @@ int DARSHAN_DECL(MPI_File_close)(MPI_File *fh)
             tm1, tm2, rec_ref->last_meta_end);
         darshan_delete_record_ref(&(mpiio_runtime->fh_hash),
             &tmp_fh, sizeof(MPI_File));
+
+#ifdef HAVE_LDMS
+        rec_ref->close_counts++;
+        /* publish close information for mpiio */
+        if(dC.ldms_lib)
+            if(dC.mpiio_enable_ldms)
+                darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->close_counts, "close", -1, -1, -1, -1, -1, tm1, tm2, rec_ref->file_rec->fcounters[MPIIO_F_META_TIME], "MPIIO", "MOD");
+#endif
     }
     MPIIO_POST_RECORD();
 

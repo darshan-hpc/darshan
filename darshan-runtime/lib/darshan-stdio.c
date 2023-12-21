@@ -51,7 +51,7 @@
  * int      fsetpos64(FILE *, const fpos_t *);              DONE
  * void     rewind(FILE *);                                 DONE
  *
- * Omissions: 
+ * Omissions:
  *   - _unlocked() variants of the various flush, read, and write
  *     functions.  There are many of these, but they are not available on all
  *     systems and the man page advises not to use them.
@@ -87,6 +87,7 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 #include "darshan-heatmap.h"
+#include "darshan-ldms.h"
 
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
@@ -134,10 +135,13 @@ struct stdio_file_record_ref
     double last_read_end;
     double last_write_end;
     int fs_type;
+#ifdef HAVE_LDMS
+    int64_t close_counts;
+#endif
 };
 
 /* The stdio_runtime structure maintains necessary state for storing
- * STDIO file records and for coordinating with darshan-core at 
+ * STDIO file records and for coordinating with darshan-core at
  * shutdown time.
  */
 struct stdio_runtime
@@ -231,6 +235,10 @@ extern int __real_fileno(FILE *stream);
     __fd = __real_fileno(__ret); \
     darshan_instrument_fs_data(__rec_ref->fs_type, __newpath, __fd); \
     if(__newpath != (char*)__path) free(__newpath); \
+    /* LDMS to publish realtime open tracing information to daemon*/ \
+    if(dC.ldms_lib)\
+        if(dC.stdio_enable_ldms)\
+            darshan_ldms_connector_send(__rec_ref->file_rec->base_rec.id, __rec_ref->file_rec->base_rec.rank,__rec_ref->file_rec->counters[STDIO_OPENS], "open", -1, -1, -1, -1, -1, __tm1, __tm2, __rec_ref->file_rec->fcounters[STDIO_F_META_TIME], "STDIO", "MET");\
 } while(0)
 
 #define STDIO_RECORD_REFOPEN(__ret, __rec_ref, __tm1, __tm2, __ref_counter) do { \
@@ -269,6 +277,10 @@ extern int __real_fileno(FILE *stream);
         rec_ref->file_rec->fcounters[STDIO_F_READ_START_TIMESTAMP] = __tm1; \
     rec_ref->file_rec->fcounters[STDIO_F_READ_END_TIMESTAMP] = __tm2; \
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[STDIO_F_READ_TIME], __tm1, __tm2, rec_ref->last_read_end); \
+    /* LDMS to publish realtime read tracing information to daemon*/ \
+    if(dC.ldms_lib)\
+        if(dC.stdio_enable_ldms) \
+            darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[STDIO_READS], "read", this_offset, __bytes, rec_ref->file_rec->counters[STDIO_MAX_BYTE_READ], -1, -1, __tm1, __tm2, rec_ref->file_rec->fcounters[STDIO_F_READ_TIME],"STDIO", "MOD"); \
 } while(0)
 
 #define STDIO_RECORD_WRITE(__fp, __bytes,  __tm1, __tm2, __fflush_flag) do{ \
@@ -292,6 +304,10 @@ extern int __real_fileno(FILE *stream);
         rec_ref->file_rec->fcounters[STDIO_F_WRITE_START_TIMESTAMP] = __tm1; \
     rec_ref->file_rec->fcounters[STDIO_F_WRITE_END_TIMESTAMP] = __tm2; \
     DARSHAN_TIMER_INC_NO_OVERLAP(rec_ref->file_rec->fcounters[STDIO_F_WRITE_TIME], __tm1, __tm2, rec_ref->last_write_end); \
+    /* LDMS to publish realtime write tracing information to daemon*/ \
+    if(dC.ldms_lib)\
+        if(dC.stdio_enable_ldms)\
+            darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->file_rec->counters[STDIO_WRITES], "write", this_offset, __bytes, rec_ref->file_rec->counters[STDIO_MAX_BYTE_WRITTEN], -1, rec_ref->file_rec->counters[STDIO_FLUSHES], __tm1, __tm2,  rec_ref->file_rec->fcounters[STDIO_F_WRITE_TIME], "STDIO", "MOD"); \
 } while(0)
 
 FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
@@ -444,6 +460,14 @@ int DARSHAN_DECL(fclose)(FILE *fp)
             rec_ref->file_rec->fcounters[STDIO_F_META_TIME],
             tm1, tm2, rec_ref->last_meta_end);
         darshan_delete_record_ref(&(stdio_runtime->stream_hash), &fp, sizeof(fp));
+
+#ifdef HAVE_LDMS
+        rec_ref->close_counts++;
+        /* publish close information for stdio */
+        if(dC.ldms_lib)
+            if(dC.stdio_enable_ldms)
+                darshan_ldms_connector_send(rec_ref->file_rec->base_rec.id, rec_ref->file_rec->base_rec.rank, rec_ref->close_counts, "close", -1, -1, -1, -1, rec_ref->file_rec->counters[STDIO_FLUSHES], tm1, tm2, rec_ref->file_rec->fcounters[STDIO_F_META_TIME], "STDIO", "MOD");
+#endif
     }
     STDIO_POST_RECORD();
 
@@ -1134,7 +1158,7 @@ static void stdio_record_reduction_op(void* infile_v, void* inoutfile_v,
         {
             tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
         }
-        
+
         /* max */
         for(j=STDIO_MAX_BYTE_READ; j<=STDIO_MAX_BYTE_WRITTEN; j++)
         {
@@ -1154,7 +1178,7 @@ static void stdio_record_reduction_op(void* infile_v, void* inoutfile_v,
         for(j=STDIO_F_OPEN_START_TIMESTAMP; j<=STDIO_F_READ_START_TIMESTAMP; j++)
         {
             if((infile->fcounters[j] < inoutfile->fcounters[j] &&
-               infile->fcounters[j] > 0) || inoutfile->fcounters[j] == 0) 
+               infile->fcounters[j] > 0) || inoutfile->fcounters[j] == 0)
                 tmp_file.fcounters[j] = infile->fcounters[j];
             else
                 tmp_file.fcounters[j] = inoutfile->fcounters[j];
@@ -1382,8 +1406,8 @@ static void stdio_mpi_redux(
         rec_ref->file_rec->base_rec.rank = -1;
     }
 
-    /* sort the array of files descending by rank so that we get all of the 
-     * shared files (marked by rank -1) in a contiguous portion at end 
+    /* sort the array of files descending by rank so that we get all of the
+     * shared files (marked by rank -1) in a contiguous portion at end
      * of the array
      */
     darshan_record_sort(stdio_rec_buf, stdio_rec_count, sizeof(struct darshan_stdio_file));

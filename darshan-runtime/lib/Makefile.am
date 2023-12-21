@@ -17,6 +17,7 @@ C_SRCS = darshan-core-init-finalize.c \
          darshan-core.c \
          darshan-common.c \
          darshan-config.c \
+         darshan-ldms.c \
          lookup3.c \
          lookup8.c
 
@@ -108,21 +109,29 @@ libdarshan_la_CPPFLAGS = $(AM_CPPFLAGS) -D_LARGEFILE64_SOURCE -DDARSHAN_PRELOAD
 libdarshan_a_SOURCES   = $(C_SRCS)
 libdarshan_a_CPPFLAGS  = $(AM_CPPFLAGS) -D_LARGEFILE64_SOURCE -DDARSHAN_WRAP_MMAP
 
+if HAVE_LDMS
+libdarshan_la_LIBADD += -lldmsd_stream -lldms -lovis_json -lcoll
+libdarshan_la_CPPFLAGS += -I$(LDMS_HOME)/include
+libdarshan_la_LDFLAGS = -L$(LDMS_HOME)/lib -Wl,-rpath=$(LDMS_HOME)/lib
+endif
+
 H_SRCS = darshan-common.h \
          darshan.h \
          darshan-config.h \
          darshan-lustre.h \
          darshan-dxt.h \
+         darshan-ldms.h \
          uthash.h \
          darshan-dynamic.h \
          utlist.h \
-	 darshan-heatmap.h
+         darshan-heatmap.h
 
 EXTRA_DIST = $(H_SRCS) \
              darshan-null.c \
              darshan-posix.c \
              darshan-stdio.c \
              darshan-dxt.c \
+             darshan-ldms.c \
              darshan-mpiio.c \
              darshan-pnetcdf.c \
              darshan-pnetcdf-api.m4 \
@@ -130,5 +139,5 @@ EXTRA_DIST = $(H_SRCS) \
              darshan-bgq.c \
              darshan-lustre.c \
              darshan-mdhim.c \
-	     darshan-heatmap.c
+             darshan-heatmap.c
 

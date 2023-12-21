@@ -46,6 +46,7 @@
 #include "darshan-config.h"
 #include "darshan-dynamic.h"
 #include "darshan-dxt.h"
+#include "darshan-ldms.h"
 
 #ifdef DARSHAN_LUSTRE
 #include <lustre/lustre_user.h>
@@ -351,6 +352,12 @@ void darshan_core_initialize(int argc, char **argv)
         {
             pthread_atfork(NULL, NULL, &darshan_core_fork_child_cb);
         }
+
+#ifdef HAVE_LDMS
+        /* check if user turns on LDMS -- pass init_core to darshan-ldms connector initialization*/
+        if (getenv("DARSHAN_LDMS_ENABLE"))
+            darshan_ldms_connector_initialize(init_core);
+#endif
 
         /* if darshan was successfully initialized, set the global pointer
          * and record absolute start time so that we can later generate
@@ -2126,7 +2133,7 @@ static int darshan_deflate_buffer(void **pointers, int *lengths, int count,
             {
                 /* We ran out of buffer space for compression.  In theory,
                  * we could start using some of the file_array buffer space
-                 * without having to malloc again.  In practice, this case 
+                 * without having to malloc again.  In practice, this case
                  * is going to be practically impossible to hit.
                  */
                 deflateEnd(&tmp_stream);

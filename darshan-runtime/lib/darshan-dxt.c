@@ -929,7 +929,7 @@ static void dxt_mpiio_output(
     darshan_iter_record_refs(dxt_mpiio_runtime->rec_id_hash,
         dxt_serialize_mpiio_records, NULL);
 
-    /* set output */ 
+    /* set output */
     *dxt_mpiio_buf = dxt_mpiio_runtime->record_buf;
     *dxt_mpiio_buf_sz = dxt_mpiio_runtime->record_buf_size;
 

@@ -347,7 +347,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
 
    # inform about HDF5 installs not found in default locations
    AC_ARG_WITH([hdf5],
-      [AS_HELP_STRING([--with-hdf5@<:@=DIR@:>@],
+      [AS_HELP_STRING([--with-hdf5=DIR],
                       [Installation directory for HDF5.])],
       [], [with_hdf5=no]
    )
@@ -435,7 +435,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
 
    # inform about PnetCDF installs not found in default locations
    AC_ARG_WITH([pnetcdf],
-      [AS_HELP_STRING([--with-pnetcdf@<:@=DIR@:>@],
+      [AS_HELP_STRING([--with-pnetcdf=DIR],
                       [Installation directory for PnetCDF.])],
       [], [with_pnetcdf=no]
    )
@@ -541,6 +541,16 @@ if test "x$enable_darshan_runtime" = xyes ; then
          [], [AC_MSG_ERROR([mdhim requested but headers cannot be found])])
    fi
 
+   # LDMS support (disabled by default)
+   AC_ARG_ENABLE([ldms-mod],
+      [AS_HELP_STRING([--enable-ldms-mod],
+                      [Include LDMS for runtime I/O monitoring])],
+      [], [enable_ldms_mod=no]
+   )
+   if test "x$enable_ldms_mod" = xyes ; then
+      CHECK_LDMS
+   fi
+
    dnl sanity check some config parameters
    if test "x$GOT_LOG_PATH" != xyes ; then
       AC_MSG_ERROR(must provide --with-log-path=<path> _or_ --with-log-path-by-env=<variable list> argument to configure.)
@@ -604,7 +614,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
    ])
 
    AC_ARG_ENABLE(rdtscp,
-   [  --enable-rdtscp=<num>  use RDTSCP intrinsic for timing, with specified base frequency],
+   [  --enable-rdtscp=<num>   Use RDTSCP intrinsic for timing, with specified base frequency],
        [
        if test x$enableval = xyes; then
            AC_MSG_ERROR(--enable-rdtscp must be given a number argument)
@@ -776,6 +786,7 @@ else
    enable_bgq_mod=no
    enable_lustre_mod=no
    enable_mdhim_mod=no
+   enable_ldms_mod=no
    with_log_path=
    with_jobid_env=
 fi
@@ -797,6 +808,7 @@ AM_CONDITIONAL(BUILD_MDHIM_MODULE,  [test "x$enable_mdhim_mod"   = xyes])
 AM_CONDITIONAL(BUILD_APMPI_MODULE,  [test "x$enable_apmpi_mod"   = xyes])
 AM_CONDITIONAL(BUILD_APXC_MODULE,   [test "x$enable_apxc_mod"    = xyes])
 AM_CONDITIONAL(BUILD_HEATMAP_MODULE,[test "x$enable_heatmap_mod" = xyes])
+AM_CONDITIONAL(HAVE_LDMS,           [test "x$enable_ldms_mod"    = xyes])
 
 AC_CONFIG_FILES(Makefile \
                 darshan-config \
@@ -876,6 +888,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
            Lustre        module support  - $enable_lustre_mod
            MDHIM         module support  - $enable_mdhim_mod
            HEATMAP       module support  - $enable_heatmap_mod
+           LDMS          runtime module  - $enable_ldms_mod
            Memory alignment in bytes     - $with_mem_align
            Log file env variables        - $__log_path_by_env
            Location of Darshan log files - $__log_path
