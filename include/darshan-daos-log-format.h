@@ -22,10 +22,38 @@
     X(DAOS_ARRAY_READS) \
     /* count of daos array writes */\
     X(DAOS_ARRAY_WRITES) \
+    /* count of daos obj punches */\
+    X(DAOS_OBJ_PUNCHES) \
+    /* count of daos obj dkey punches */\
+    X(DAOS_OBJ_DKEY_PUNCHES) \
+    /* count of daos obj akey punches */\
+    X(DAOS_OBJ_AKEY_PUNCHES) \
+    /* count of daos obj dkey lists */\
+    X(DAOS_OBJ_DKEY_LISTS) \
+    /* count of daos obj akey lists */\
+    X(DAOS_OBJ_AKEY_LISTS) \
+    /* count of daos obj recx lists */\
+    X(DAOS_OBJ_RECX_LISTS) \
+    /* count of daos array get sizes */\
+    X(DAOS_ARRAY_GET_SIZES) \
+    /* count of daos array set sizes */\
+    X(DAOS_ARRAY_SET_SIZES) \
+    /* count of daos array stats */\
+    X(DAOS_ARRAY_STATS) \
+    /* count of daos array destroys */\
+    X(DAOS_ARRAY_DESTROYS) \
+    /* count of daos array punches */\
+    X(DAOS_ARRAY_PUNCHES) \
     /* total bytes read */\
     X(DAOS_BYTES_READ) \
     /* total bytes written */\
     X(DAOS_BYTES_WRITTEN) \
+    /* daos obj otype id */\
+    X(DAOS_OBJ_OTYPE) \
+    /* cell size of the daos array */\
+    X(DAOS_ARRAY_CELL_SIZE) \
+    /* chunk size of the daos array */\
+    X(DAOS_ARRAY_CHUNK_SIZE) \
     /* end of counters */\
     X(DAOS_NUM_INDICES)
 
