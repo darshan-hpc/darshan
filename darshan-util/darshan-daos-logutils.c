@@ -132,6 +132,10 @@ static void darshan_log_print_daos_object(void *object_rec, char *object_name,
     int i;
     struct darshan_daos_object *daos_object_rec =
         (struct darshan_daos_object *)object_rec;
+    char oid[64];
+
+    sprintf(oid, "%lu.%lu", daos_object_rec->oid_hi, daos_object_rec->oid_lo);
+    object_name = oid;
 
     // XXX what bout mnt_pt/fs_type?
     for(i=0; i<DAOS_NUM_INDICES; i++)
