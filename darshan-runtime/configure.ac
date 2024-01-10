@@ -512,6 +512,9 @@ if test "x$enable_darshan_runtime" = xyes ; then
 		      #ifdef HAVE_DAOS_PROP_H
                       # include <daos_prop.h>
                       #endif
+		      #ifdef HAVE_DAOS_CONT_H
+		      # include <daos_cont.h>
+		      #endif
 		      #ifdef HAVE_DAOS_OBJ_H
                       # include <daos_obj.h>
                       #endif
