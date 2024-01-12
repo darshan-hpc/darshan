@@ -25,7 +25,7 @@ jobs:
         run: |
           sudo apt-get update -y
           # sudo apt-get install -y hdf5-tools libhdf5-openmpi-dev openmpi-bin
-          sudo apt-get install -y libmpich-dev libhdf5-mpi-dev hdf5-tools
+          sudo apt-get install -y libmpich-dev libhdf5-mpich-dev
           python -m pip install --upgrade pip
           python -m pip install --upgrade pytest mpi4py "cython<3.0.0" numpy wheel pkgconfig "setuptools<62.0.0"
           # we need to build h5py with the system HDF5 lib backend
@@ -34,7 +34,6 @@ jobs:
           CC=mpicc python -m pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
       - name: Install darshan-runtime
         run: |
-          export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/include/hdf5/openmpi/
           mkdir darshan_install
           export DARSHAN_INSTALL_PATH=$PWD/darshan_install
           git submodule update --init
