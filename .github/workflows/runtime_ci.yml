@@ -71,7 +71,8 @@ jobs:
       - name: Run end-to-end regression tests
         run : |
           cd darshan-test/regression
-          ./run-all
+          mkdir test-out
+          ./run-all.sh $DARSHAN_INSTALL_PATH ./test-out workstation-ld-preload
       - name: Test with pytest
         run: |
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/darshan_install/lib
