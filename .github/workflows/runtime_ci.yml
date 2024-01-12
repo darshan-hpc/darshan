@@ -70,6 +70,7 @@ jobs:
           python -m pip install .
       - name: Run end-to-end regression tests
         run : |
+          export DARSHAN_INSTALL_PATH=$PWD/darshan_install
           cd darshan-test/regression
           mkdir test-out
           ./run-all.sh $DARSHAN_INSTALL_PATH ./test-out workstation-ld-preload
