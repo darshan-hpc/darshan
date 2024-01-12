@@ -68,6 +68,10 @@ jobs:
         run: |
           cd darshan-util/pydarshan
           python -m pip install .
+      - name: Run end-to-end regression tests
+        run : |
+          cd darshan-test/regression
+          ./run-all
       - name: Test with pytest
         run: |
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/darshan_install/lib

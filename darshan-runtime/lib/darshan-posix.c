@@ -337,6 +337,7 @@ static int darshan_mem_alignment = 1;
 } while(0)
 
 #define POSIX_RECORD_WRITE(__ret, __fd, __pwrite_flag, __pwrite_offset, __aligned, __tm1, __tm2) do { \
+    darshan_core_fprintf(stderr, "*****SDS: %s\n", __func__); \
     struct posix_file_record_ref* rec_ref; \
     int64_t stride; \
     int64_t this_offset; \
