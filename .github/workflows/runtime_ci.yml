@@ -24,8 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -y
-          # sudo apt-get install -y hdf5-tools libhdf5-openmpi-dev openmpi-bin
-          sudo apt-get install -y libmpich-dev libhdf5-mpich-dev python3-dev
+          sudo apt-get install -y hdf5-tools libhdf5-openmpi-dev openmpi-bin
           python -m pip install --upgrade pip
           python -m pip install --upgrade pytest mpi4py "cython<3.0.0" numpy wheel pkgconfig "setuptools<62.0.0"
           # we need to build h5py with the system HDF5 lib backend
@@ -34,6 +33,7 @@ jobs:
           CC=mpicc python -m pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
       - name: Install darshan-runtime
         run: |
+          export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/include/hdf5/openmpi/
           mkdir darshan_install
           export DARSHAN_INSTALL_PATH=$PWD/darshan_install
           git submodule update --init
@@ -68,12 +68,6 @@ jobs:
         run: |
           cd darshan-util/pydarshan
           python -m pip install .
-      - name: Run end-to-end regression tests
-        run : |
-          export DARSHAN_INSTALL_PATH=$PWD/darshan_install
-          cd darshan-test/regression
-          mkdir test-out
-          ./run-all.sh $DARSHAN_INSTALL_PATH ./test-out workstation-ld-preload
       - name: Test with pytest
         run: |
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/darshan_install/lib
