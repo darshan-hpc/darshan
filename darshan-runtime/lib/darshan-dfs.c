@@ -208,40 +208,31 @@ static int my_rank = -1;
     } \
 } while(0)
 
-/* NOTE: the following macro captures details about open(), lookup(),
- *       and obj_global2local() calls. separate operation counters
+/* NOTE: the DFS_RECORD_FILE_OBJ_OPEN macro captures details about open(),
+ *       lookup(), and obj_global2local() calls. separate operation counters
  *       are maintained for each, but all calls share the same floating
  *       point counters (i.e., OPEN_START_TIMESTAMP, OPEN_END_TIMESTAMP).
  */
-#define ID_GLOB_SIZE ((2*sizeof(uuid_t)) + sizeof(daos_obj_id_t))
+#define DARSHAN_DFS_MAX_NAME_LEN 128
+#define DARSHAN_DFS_ID_GLOB_SIZE ((2*sizeof(uuid_t)) + DARSHAN_DFS_MAX_NAME_LEN)
 #define DFS_RECORD_FILE_OBJ_OPEN(__dfs, __parent_name, __obj_name, __counter, __obj_p, __tm1, __tm2) do { \
     struct dfs_mount_info *__mnt_info; \
-    daos_obj_id_t __oid; \
-    unsigned char __id_glob[ID_GLOB_SIZE]; \
-    char *__rec_name = NULL; \
-    int __rec_name_len; \
+    unsigned char __id_glob[DARSHAN_DFS_ID_GLOB_SIZE] = {0}; \
+    char *__rec_name = __id_glob + (2*sizeof(uuid_t)); \
     darshan_record_id __rec_id; \
     struct dfs_file_record_ref *__rec_ref; \
     DFS_GET_MOUNT_INFO(__dfs, __mnt_info); \
     if(!__mnt_info) break; \
-    if(dfs_obj2id(*__obj_p, &__oid)) break; \
     memcpy(__id_glob, __mnt_info->pool_uuid, sizeof(__mnt_info->pool_uuid)); \
     memcpy(__id_glob+sizeof(__mnt_info->pool_uuid), __mnt_info->cont_uuid, \
         sizeof(__mnt_info->cont_uuid)); \
-    memcpy(__id_glob+sizeof(__mnt_info->pool_uuid)+sizeof(__mnt_info->cont_uuid), \
-        &__oid, sizeof(__oid)); \
-    __rec_id = darshan_hash(__id_glob, ID_GLOB_SIZE, 0); \
     if(__parent_name && __obj_name) { \
-        __rec_name_len = strlen(__obj_name) + strlen(__parent_name) + 1; \
-        __rec_name = malloc(__rec_name_len); \
-        if(!__rec_name) break; \
-        memset(__rec_name, 0, __rec_name_len); \
-        strcat(__rec_name, __parent_name); \
-        strcat(__rec_name, __obj_name); \
+        strncat(__rec_name, __parent_name, DARSHAN_DFS_MAX_NAME_LEN); \
+        strncat(__rec_name, __obj_name, DARSHAN_DFS_MAX_NAME_LEN - strlen(__rec_name)); \
     } \
+    __rec_id = darshan_hash(__id_glob, DARSHAN_DFS_ID_GLOB_SIZE, 0); \
     __rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash, &__rec_id, sizeof(__rec_id)); \
     if(!__rec_ref) __rec_ref = dfs_track_new_file_record(__rec_id, __rec_name); \
-    free(__rec_name); \
     DFS_RECORD_FILE_OBJREF_OPEN(__rec_ref, __counter, __obj_p, __tm1, __tm2); \
 } while(0)
 
