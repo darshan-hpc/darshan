@@ -40,6 +40,7 @@
         "numpy": [],
         "cffi": [],
         "pytest": [],
+        "seaborn": ["0.12"],
     },
 
     // The directory (relative to the current directory) that benchmarks are
