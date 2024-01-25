@@ -92,6 +92,7 @@ jobs:
           export LD_LIBRARY_PATH=$PWD/darshan_install/lib
           export DYLD_FALLBACK_LIBRARY_PATH=$PWD/darshan_install/lib
           cd darshan-util/pydarshan/benchmarks
+          python -m pip install "seaborn==0.13.0"
           python -m asv check -E existing
       - name: codecov check
         uses: codecov/codecov-action@v3
