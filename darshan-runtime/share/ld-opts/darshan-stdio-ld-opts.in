@@ -9,7 +9,6 @@
 --wrap=fwrite
 --wrap=fread
 --wrap=fgetc
---wrap=fscanf
 --wrap=vfscanf
 --wrap=_IO_getc
 --wrap=_IO_putc

@@ -740,19 +740,15 @@ if test "x$enable_darshan_runtime" = xyes ; then
    # End of MPI-only checks
    #
 
-   AC_MSG_CHECKING(for fscanf redirect)
-   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-      #define _GNU_SOURCE
-      #include <stdio.h>
-      int fscanf(FILE *stream, const char *format, ...) {return(0);}
-      int __isoc99_fscanf(FILE *stream, const char *format, ...) {return(0);}
-      ]])],
-      [AC_MSG_RESULT(no)
-       DARSHAN_STDIO_ADD_FSCANF_LD_OPTS="--wrap=__isoc99_fscanf"],
-      [AC_MSG_RESULT(yes)
-       AC_DEFINE([HAVE_FSCANF_REDIRECT], 1,
-                 [Define if fscanf is redirected to another function])
-       DARSHAN_STDIO_ADD_FSCANF_LD_OPTS=""]
+   # Newer glibc implementations will redirect fscanf calls to
+   # __isoc99_fscanf calls. To properly handle this, we detect the
+   # presence of the __isoc99_fscanf symbol and compile it's wrapper
+   # if found. Otherwise, we will use the traditional fscanf wrapper.
+   # We must only wrap one of these calls to avoid multiple definition
+   # errors when building Darshan.
+   AC_CHECK_FUNCS([__isoc99_fscanf],
+      [DARSHAN_STDIO_ADD_FSCANF_LD_OPTS="--wrap=__isoc99_fscanf"],
+      [DARSHAN_STDIO_ADD_FSCANF_LD_OPTS="--wrap=fscanf"]
    )
 
    # look for glibc-specific functions

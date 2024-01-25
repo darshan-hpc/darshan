@@ -113,9 +113,10 @@ DARSHAN_FORWARD_DECL(fgetc, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(getw, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(_IO_getc, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(_IO_putc, int, (int, FILE *stream));
-DARSHAN_FORWARD_DECL(fscanf, int, (FILE *stream, const char *format, ...));
-#ifndef HAVE_FSCANF_REDIRECT
+#ifdef HAVE___ISOC99_FSCANF
 DARSHAN_FORWARD_DECL(__isoc99_fscanf, int, (FILE *stream, const char *format, ...));
+#else
+DARSHAN_FORWARD_DECL(fscanf, int, (FILE *stream, const char *format, ...));
 #endif
 DARSHAN_FORWARD_DECL(vfscanf, int, (FILE *stream, const char *format, va_list ap));
 DARSHAN_FORWARD_DECL(fgets, char*, (char *s, int size, FILE *stream));
@@ -739,7 +740,7 @@ int DARSHAN_DECL(getw)(FILE *stream)
     return(ret);
 }
 
-#ifndef HAVE_FSCANF_REDIRECT
+#ifdef HAVE___ISOC99_FSCANF
 /* NOTE: some glibc versions use __isoc99_fscanf as the underlying symbol
  * rather than fscanf
  */
@@ -770,8 +771,7 @@ int DARSHAN_DECL(__isoc99_fscanf)(FILE *stream, const char *format, ...)
 
     return(ret);
 }
-#endif
-
+#else
 int DARSHAN_DECL(fscanf)(FILE *stream, const char *format, ...)
 {
     int ret;
@@ -799,6 +799,7 @@ int DARSHAN_DECL(fscanf)(FILE *stream, const char *format, ...)
 
     return(ret);
 }
+#endif
 
 int DARSHAN_DECL(vfscanf)(FILE *stream, const char *format, va_list ap)
 {
