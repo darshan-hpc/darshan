@@ -1,4 +1,4 @@
-name: Runtime Testing
+name: End-to-end Testing (pytest)
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  test_runtime:
+  end_to_end_pytest:
     strategy:
       matrix:
         platform: [ubuntu-latest]

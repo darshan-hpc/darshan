@@ -25,10 +25,10 @@
 
 # The runjob command is just mpiexec, no scheduler
 
-export DARSHAN_CC=mpicc
-export DARSHAN_CXX=mpicxx
-export DARSHAN_F77=mpif77
-export DARSHAN_F90=mpif90
+export DARSHAN_CC="mpicc -static"
+export DARSHAN_CXX="mpicxx -static"
+export DARSHAN_F77="mpif77 -static"
+export DARSHAN_F90="mpif90 -static"
 
 export MPICC_PROFILE=$DARSHAN_RUNTIME_PATH/share/mpi-profile/darshan-cc-static
 export MPICXX_PROFILE=$DARSHAN_RUNTIME_PATH/share/mpi-profile/darshan-cxx-static
