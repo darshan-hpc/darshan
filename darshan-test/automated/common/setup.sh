@@ -1,36 +1,20 @@
 #!/bin/bash
 #
-# Create  build, install and log directories.
+# Create build, install and log directories.
 #
 
-status=0
-thedate=$(date)
+basedir=$PWD
+
+if [ -z "${DARSHAN_LOG_PATH}"]; then
+    DARSHAN_LOG_PATH=$basedir/logs
+fi
 
 git submodule update --init
-status=$((status + $?))
 
 ./prepare.sh
-status=$((status + $?))
 
-mkdir -p install
-status=$((status + $?))
-
-mkdir -p logs
-status=$((status + $?))
+mkdir $DARSHAN_LOG_PATH
 
 mkdir -p build/darshan-runtime
-status=$((status + $?))
 
 mkdir -p build/darshan-util
-status=$((status + $?))
-
-echo "
-<testsuites>
-  <testsuite name='setup' tests='1' errors='$status' time='$thedate'>
-    <testcase name='setup' time='$thedate'>
-    </testcase>
-  </testsuite>
-</testsuites>
-" > setup-result.xml
-
-return $status

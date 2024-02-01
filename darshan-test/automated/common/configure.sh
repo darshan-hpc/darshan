@@ -3,19 +3,10 @@
 # Base configure script which calls the system specific version.
 #
 
-status=0
-
-if [[ $NODE_LABELS =~ "CINOW" || $NODE_LABELS =~ "mcs" ]];
-then
-  source darshan-test/automated/generic/configure.sh
-  status=$?
-elif [[ $NODE_LABELS =~ "Theta" ]];
+if [[ `hostname` =~ "theta" ]];
 then
   source darshan-test/automated/theta/configure.sh
-  status=$?
 else
-  # unknown machine
-  status=100
+  # try to use generic workstation config if nothing else matches
+  source darshan-test/automated/generic/configure.sh
 fi
-
-return $status

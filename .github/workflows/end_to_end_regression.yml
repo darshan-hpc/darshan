@@ -34,26 +34,14 @@ jobs:
           make install
       - name: Install darshan-runtime
         run: |
-          mkdir darshan_install
-          export DARSHAN_INSTALL_PATH=$PWD/darshan_install
           export PATH=$PWD/mpich_install/bin:$PATH
-          git submodule update --init
-          ./prepare.sh
-          cd darshan-runtime
-          mkdir build
-          cd build
-          CC=mpicc ../configure --prefix=$DARSHAN_INSTALL_PATH --with-log-path-by-env=DARSHAN_LOGPATH --with-jobid-env=NONE
-          make
-          make install
-      - name: Install darshan-util
-        run: |
-          export DARSHAN_INSTALL_PATH=$PWD/darshan_install
-          cd darshan-util
-          mkdir build
-          cd build
-          ../configure --prefix=$DARSHAN_INSTALL_PATH --enable-apxc-mod --enable-apmpi-mod
-          make
-          make install
+          export DARSHAN_INSTALL_PREFIX=`pwd`/darshan_install
+          export DARSHAN_LOG_PATH=`pwd`/darshan_logs
+          source darshan-test/automated/common/setup.sh
+          source darshan-test/automated/common/configure.sh
+          source darshan-test/automated/common/build.sh
+          # try to format log directory to ensure this works
+          ./darshan_install/bin/darshan-mk-log-dirs.pl
       - name: Run end-to-end regression tests (ld_preload)
         run: |
           export DARSHAN_INSTALL_PATH=$PWD/darshan_install

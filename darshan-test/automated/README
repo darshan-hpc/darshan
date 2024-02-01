@@ -1,2 +1,3 @@
-These test scripts are used by Jenkins to automate testing of the
-darshan runtime library and associated tools.
+These test scripts can be used by automated systems (e.g., Github workflows,
+Jenkins, other CI systems) to build/test the Darshan runtime library and
+associated tools.

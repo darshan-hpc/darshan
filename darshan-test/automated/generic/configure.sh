@@ -3,41 +3,18 @@
 # Run configure for runtime and utils
 
 basedir=$PWD
-status=0
-fcount=0
-runtime_result=""
-util_result=""
-thedate=$(date)
+
+if [ -z "${DARSHAN_INSTALL_PREFIX}"]; then
+    DARSHAN_INSTALL_PREFIX=$basedir/install
+fi
+if [ -z "${DARSHAN_LOG_PATH}"]; then
+    DARSHAN_LOG_PATH=$basedir/logs
+fi
 
 cd build/darshan-runtime
-../../darshan-runtime/configure --enable-apmpi-mod --prefix=$basedir/install --with-jobid-env=DARSHAN_JOBID --with-log-path=$basedir/logs CC=mpicc
-runtime_status=$?
-if [ $runtime_status -ne 0 ]; then
-  fcount=$((fcount+1));
-  runtime_result="<error type='$runtime_status' message='configure failed' />"
-fi
+../../darshan-runtime/configure --enable-apmpi-mod --prefix=$DARSHAN_INSTALL_PREFIX --with-jobid-env=DARSHAN_JOBID --with-log-path=$DARSHAN_LOG_PATH CC=mpicc
 
 cd ../darshan-util
-../../darshan-util/configure --enable-apmpi-mod --enable-apxc-mod --prefix=$basedir/install
-util_status=$?
-if [ $util_status -ne 0 ]; then
-  fcount=$((fcount+1));
-  util_result="<error type='$util_status' message='configure failed' />"
-fi
+../../darshan-util/configure --enable-apmpi-mod --enable-apxc-mod --prefix=$DARSHAN_INSTALL_PREFIX
 
-cd ../../;
-
-echo "
-<testsuites>
-  <testsuite name='configure' tests='2' failures='$fcount' time='$thedate'>
-    <testcase name='darshan-runtime' time='$thedate'>
-    $runtime_result
-    </testcase>
-    <testcase name='darshan-util' time='$thedate'>
-    $util_result
-    </testcase>
-  </testsuite>
-</testsuites>
-" > configure-result.xml
-
-return $fcount
+cd ../../
