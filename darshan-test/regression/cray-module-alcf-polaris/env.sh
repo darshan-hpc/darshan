@@ -34,3 +34,5 @@ export DARSHAN_RUNJOB=$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/runjob.sh
 module unload darshan >& /dev/null
 export MODULEPATH=$DARSHAN_RUNTIME_PATH/share/craype-2.x/modulefiles:$MODULEPATH
 module load darshan
+# use GCC compiler for these tests as Nvidia compilers only with dynamic linking
+module swap PrgEnv-nvhpc PrgEnv-gnu
