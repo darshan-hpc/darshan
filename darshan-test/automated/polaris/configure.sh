@@ -13,6 +13,9 @@ fi
 
 # unload any darshan module and use GNU compilers
 module unload darshan
+module swap PrgEnv-nvhpc PrgEnv-gnu
+# configure failures unless this is also loaded
+module load cudatoolkit-standalone
 
 cd build/darshan-runtime
 ../../darshan-runtime/configure --enable-apmpi-mod --prefix=$DARSHAN_INSTALL_PREFIX --with-jobid-env=PBS_JOBID --with-log-path=$DARSHAN_LOG_PATH --disable-cuserid CC=cc
