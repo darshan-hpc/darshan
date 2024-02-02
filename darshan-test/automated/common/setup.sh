@@ -5,7 +5,7 @@
 
 basedir=$PWD
 
-if [ -z "${DARSHAN_LOG_PATH}"]; then
+if [ -z "${DARSHAN_LOG_PATH}" ]; then
     DARSHAN_LOG_PATH=$basedir/logs
 fi
 
