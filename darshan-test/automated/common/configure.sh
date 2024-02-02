@@ -3,9 +3,9 @@
 # Base configure script which calls the system specific version.
 #
 
-if [[ `hostname` =~ "theta" ]];
+if [[ `hostname` =~ "polaris" ]];
 then
-  source darshan-test/automated/theta/configure.sh
+  source darshan-test/automated/polaris/configure.sh
 else
   # try to use generic workstation config if nothing else matches
   source darshan-test/automated/generic/configure.sh
