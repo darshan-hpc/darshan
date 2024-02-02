@@ -4,10 +4,10 @@
 
 basedir=$PWD
 
-if [ -z "${DARSHAN_INSTALL_PREFIX}"]; then
+if [ -z "${DARSHAN_INSTALL_PREFIX}" ]; then
     DARSHAN_INSTALL_PREFIX=$basedir/install
 fi
-if [ -z "${DARSHAN_LOG_PATH}"]; then
+if [ -z "${DARSHAN_LOG_PATH}" ]; then
     DARSHAN_LOG_PATH=$basedir/logs
 fi
 
