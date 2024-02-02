@@ -13,7 +13,6 @@ fi
 
 # unload any darshan module and use GNU compilers
 module unload darshan
-module swap PrgEnv-nvhpc PrgEnv-gnu
 
 cd build/darshan-runtime
 ../../darshan-runtime/configure --enable-apmpi-mod --prefix=$DARSHAN_INSTALL_PREFIX --with-jobid-env=PBS_JOBID --with-log-path=$DARSHAN_LOG_PATH --disable-cuserid CC=cc
