@@ -4,9 +4,15 @@ on:
   push:
     branches:
       - main
+    paths:
+      - darshan-runtime/**
+      - .github/workflows/end_to_end_regression_polaris.yml
   pull_request:
     branches:
       - main
+    paths:
+      - darshan-runtime/**
+      - .github/workflows/end_to_end_regression_polaris.yml
 
 jobs:
   trigger_alcf_polaris_regression_ci:
