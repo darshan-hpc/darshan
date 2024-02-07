@@ -1,0 +1,19 @@
+name: End-to-end Testing (regression) Polaris
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  trigger_alcf_polaris_regression_ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: eic/trigger-gitlab-ci@v1
+        with:
+          url: https://gitlab-ci.alcf.anl.gov
+          project_id: 121
+          token: ${{ secrets.ALCF_GITLAB_CI_TOKEN }}
