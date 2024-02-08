@@ -177,8 +177,6 @@ def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_coun
                 summary.main()
 
 
-@pytest.mark.skipif(not pytest.has_log_repo,
-                    reason="missing darshan_logs")
 @pytest.mark.parametrize("log_filepath",
         _provide_logs_repo_filepaths()
         )
