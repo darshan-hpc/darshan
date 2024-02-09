@@ -29,6 +29,8 @@ def response():
     pass
 
 
+@pytest.mark.skipif(not pytest.has_log_repo,
+                    reason="missing darshan_logs")
 @pytest.mark.parametrize("log_filepath",
         _provide_logs_repo_filepaths()
         )
