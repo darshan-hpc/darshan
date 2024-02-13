@@ -925,6 +925,8 @@ static void daos_record_reduction_op(
         memset(&tmp_obj, 0, sizeof(struct darshan_daos_object));
         tmp_obj.base_rec.id = inobj->base_rec.id;
         tmp_obj.base_rec.rank = -1;
+        tmp_obj.oid_hi = inobj->oid_hi;
+        tmp_obj.oid_lo = inobj->oid_lo;
 
         /* sum */
         for(j=DAOS_OBJ_OPENS; j<=DAOS_BYTES_WRITTEN; j++)
