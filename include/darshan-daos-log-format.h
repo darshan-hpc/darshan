@@ -48,6 +48,28 @@
     X(DAOS_BYTES_READ) \
     /* total bytes written */\
     X(DAOS_BYTES_WRITTEN) \
+    /* buckets for daos read size ranges */\
+    X(DAOS_SIZE_READ_0_100) \
+    X(DAOS_SIZE_READ_100_1K) \
+    X(DAOS_SIZE_READ_1K_10K) \
+    X(DAOS_SIZE_READ_10K_100K) \
+    X(DAOS_SIZE_READ_100K_1M) \
+    X(DAOS_SIZE_READ_1M_4M) \
+    X(DAOS_SIZE_READ_4M_10M) \
+    X(DAOS_SIZE_READ_10M_100M) \
+    X(DAOS_SIZE_READ_100M_1G) \
+    X(DAOS_SIZE_READ_1G_PLUS) \
+    /* buckets for daos write size ranges */\
+    X(DAOS_SIZE_WRITE_0_100) \
+    X(DAOS_SIZE_WRITE_100_1K) \
+    X(DAOS_SIZE_WRITE_1K_10K) \
+    X(DAOS_SIZE_WRITE_10K_100K) \
+    X(DAOS_SIZE_WRITE_100K_1M) \
+    X(DAOS_SIZE_WRITE_1M_4M) \
+    X(DAOS_SIZE_WRITE_4M_10M) \
+    X(DAOS_SIZE_WRITE_10M_100M) \
+    X(DAOS_SIZE_WRITE_100M_1G) \
+    X(DAOS_SIZE_WRITE_1G_PLUS) \
     /* daos obj otype id */\
     X(DAOS_OBJ_OTYPE) \
     /* cell size of the daos array */\

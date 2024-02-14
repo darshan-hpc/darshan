@@ -179,6 +179,7 @@ static int my_rank = -1;
     if(__counter == DAOS_ARRAY_READS) \
         __sz *= __rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE]; \
     __rec_ref->object_rec->counters[DAOS_BYTES_READ] += __sz; \
+    DARSHAN_BUCKET_INC(&(__rec_ref->object_rec->counters[DAOS_SIZE_READ_0_100]), __sz); \
     if(__rec_ref->object_rec->fcounters[DAOS_F_READ_START_TIMESTAMP] == 0 || \
      __rec_ref->object_rec->fcounters[DAOS_F_READ_START_TIMESTAMP] > __tm1) \
         __rec_ref->object_rec->fcounters[DAOS_F_READ_START_TIMESTAMP] = __tm1; \
@@ -196,6 +197,7 @@ static int my_rank = -1;
     if(__counter == DAOS_ARRAY_WRITES) \
         __sz *= __rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE]; \
     __rec_ref->object_rec->counters[DAOS_BYTES_WRITTEN] += __sz; \
+    DARSHAN_BUCKET_INC(&(__rec_ref->object_rec->counters[DAOS_SIZE_WRITE_0_100]), __sz); \
     if(__rec_ref->object_rec->fcounters[DAOS_F_WRITE_START_TIMESTAMP] == 0 || \
      __rec_ref->object_rec->fcounters[DAOS_F_WRITE_START_TIMESTAMP] > __tm1) \
         __rec_ref->object_rec->fcounters[DAOS_F_WRITE_START_TIMESTAMP] = __tm1; \
@@ -936,10 +938,14 @@ static void daos_record_reduction_op(
                 tmp_obj.counters[j] = -1;
         }
 
-        for(j=DAOS_OBJ_OTYPE; j<=DAOS_ARRAY_CHUNK_SIZE; j++)
+        for(j=DAOS_SIZE_READ_0_100; j<=DAOS_SIZE_WRITE_1G_PLUS; j++)
         {
-            tmp_obj.counters[j] = inobj->counters[j];
+            tmp_obj.counters[j] = inobj->counters[j] + inoutobj->counters[j];
         }
+
+	tmp_obj.counters[DAOS_OBJ_OTYPE] = inobj->counters[DAOS_OBJ_OTYPE];
+	tmp_obj.counters[DAOS_ARRAY_CELL_SIZE] = inobj->counters[DAOS_ARRAY_CELL_SIZE];
+	tmp_obj.counters[DAOS_ARRAY_CHUNK_SIZE] = inobj->counters[DAOS_ARRAY_CHUNK_SIZE];
 
         /* min non-zero (if available) value */
         for(j=DAOS_F_OPEN_START_TIMESTAMP; j<=DAOS_F_CLOSE_START_TIMESTAMP; j++)
