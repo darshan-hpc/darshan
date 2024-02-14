@@ -147,12 +147,14 @@ static int my_rank = -1;
     unsigned char __id_glob[ID_GLOB_SIZE]; \
     darshan_record_id __rec_id; \
     struct daos_object_record_ref *__rec_ref; \
+    darshan_core_fprintf(stderr, "***SDS %s: oid %lu.%lu\n", __func__, __oid.hi, __oid.lo); \
     memcpy(__id_glob, &__oid, sizeof(daos_obj_id_t)); \
     __rec_id = darshan_hash(__id_glob, ID_GLOB_SIZE, 0); \
     __rec_ref = darshan_lookup_record_ref(daos_runtime->rec_id_hash, &__rec_id, \
         sizeof(darshan_record_id)); \
     if(!__rec_ref) __rec_ref = daos_track_new_object_record(__rec_id, __oid); \
     if(!__rec_ref) break; \
+    darshan_core_fprintf(stderr, "***SDS %s: oid recref %lu.%lu\n", __func__, __rec_ref->object_rec->oid_hi, __rec_ref->object_rec->oid_lo); \
     __rec_ref->object_rec->counters[__counter] += 1; \
     if(__cell_sz) __rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE] = __cell_sz; \
     if(__chunk_sz)  __rec_ref->object_rec->counters[DAOS_ARRAY_CHUNK_SIZE] = __chunk_sz; \
