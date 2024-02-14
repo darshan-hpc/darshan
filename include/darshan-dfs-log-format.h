@@ -34,6 +34,8 @@
     X(DFS_GET_SIZES) \
     /* count of dfs punches */\
     X(DFS_PUNCHES) \
+    /* count of dfs removes */\
+    X(DFS_REMOVES) \
     /* count of dfs moves */\
     X(DFS_MOVES) \
     /* count of dfs exchanges */\

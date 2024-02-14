@@ -13,6 +13,7 @@
 --wrap=dfs_writex
 --wrap=dfs_get_size
 --wrap=dfs_punch
+--wrap=dfs_remove
 --wrap=dfs_move
 --wrap=dfs_exchange
 --wrap=dfs_stat
