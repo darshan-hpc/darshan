@@ -1016,9 +1016,6 @@ static void dfs_record_reduction_op(
                 tmp_file.counters[j] = -1;
         }
 
-        tmp_file.counters[DFS_CHUNK_SIZE] = infile->counters[DFS_CHUNK_SIZE];
-        tmp_file.counters[DFS_USE_DTX] = infile->counters[DFS_USE_DTX];
-
         /* skip DFS_MAX_*_TIME_SIZE; handled in floating point section */
 
         for(j=DFS_SIZE_READ_0_100; j<=DFS_SIZE_WRITE_1G_PLUS; j++)
@@ -1058,6 +1055,9 @@ static void dfs_record_reduction_op(
                 &(tmp_file.counters[DFS_ACCESS1_COUNT]),
                 &inoutfile->counters[j], 1, inoutfile->counters[j+4], 1);
         }
+
+        tmp_file.counters[DFS_CHUNK_SIZE] = infile->counters[DFS_CHUNK_SIZE];
+        tmp_file.counters[DFS_USE_DTX] = infile->counters[DFS_USE_DTX];
 
         /* min non-zero (if available) value */
         for(j=DFS_F_OPEN_START_TIMESTAMP; j<=DFS_F_CLOSE_START_TIMESTAMP; j++)
