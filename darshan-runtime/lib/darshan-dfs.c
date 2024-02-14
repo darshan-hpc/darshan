@@ -49,6 +49,7 @@ DARSHAN_FORWARD_DECL(dfs_write, int, (dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *s
 DARSHAN_FORWARD_DECL(dfs_writex, int, (dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_list_t *sgl, daos_event_t *ev));
 DARSHAN_FORWARD_DECL(dfs_get_size, int, (dfs_t *dfs, dfs_obj_t *obj, daos_size_t *size));
 DARSHAN_FORWARD_DECL(dfs_punch, int, (dfs_t *dfs, dfs_obj_t *obj, daos_off_t offset, daos_size_t len));
+DARSHAN_FORWARD_DECL(dfs_remove, int, (dfs_t *dfs, dfs_obj_t *parent, const char *name, bool force, daos_obj_id_t *oid));
 DARSHAN_FORWARD_DECL(dfs_move, int, (dfs_t *dfs, dfs_obj_t *parent, const char *name, dfs_obj_t *new_parent, const char *new_name, daos_obj_id_t *oid));
 DARSHAN_FORWARD_DECL(dfs_exchange, int, (dfs_t *dfs, dfs_obj_t *parent1, const char *name1, dfs_obj_t *parent2, const char *name2));
 DARSHAN_FORWARD_DECL(dfs_stat, int, (dfs_t *dfs, dfs_obj_t *parent, const char *name, struct stat *stbuf));
@@ -669,6 +670,52 @@ int DARSHAN_DECL(dfs_punch)(dfs_t *dfs, dfs_obj_t *obj, daos_off_t offset, daos_
         DARSHAN_TIMER_INC_NO_OVERLAP(
             rec_ref->file_rec->fcounters[DFS_F_META_TIME],
             tm1, tm2, rec_ref->last_meta_end);
+    }
+    DFS_POST_RECORD();
+
+    return(ret);
+}
+
+int DARSHAN_DECL(dfs_remove)(dfs_t *dfs, dfs_obj_t *parent, const char *name, bool force,
+       daos_obj_id_t *oid)
+{
+    int ret;
+    double tm1, tm2;
+    struct dfs_file_record_ref *rec_ref = NULL;
+    char *parent_rec_name, *rec_name;
+    int rec_len;
+    darshan_record_id rec_id;
+
+    MAP_OR_FAIL(dfs_remove);
+
+    tm1 = DAOS_WTIME();
+    ret = __real_dfs_remove(dfs, parent, name, force, oid);
+    tm2 = DAOS_WTIME();
+
+    DFS_PRE_RECORD();
+    DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
+    if(parent_rec_name)
+    {
+        rec_len = strlen(parent_rec_name) + strlen(name) + 1;
+        rec_name = malloc(rec_len);
+        if(rec_name)
+	{
+            memset(rec_name, 0, rec_len);
+            strcat(rec_name, parent_rec_name);
+            strcat(rec_name, name);
+            rec_id = darshan_core_gen_record_id(rec_name);
+            rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash, &rec_id, sizeof(rec_id));
+            if(!rec_ref) rec_ref = dfs_track_new_file_record(rec_id, rec_name);
+            if(rec_ref)
+            {
+                rec_ref->file_rec->counters[DFS_REMOVES] += 1;
+                DARSHAN_TIMER_INC_NO_OVERLAP(
+                    rec_ref->file_rec->fcounters[DFS_F_META_TIME],
+                    tm1, tm2, rec_ref->last_meta_end);
+            }
+            free(rec_name);
+        }
+        if(!parent) free(parent_rec_name);
     }
     DFS_POST_RECORD();
 
