@@ -239,10 +239,12 @@ int DARSHAN_DECL(daos_obj_open)(daos_handle_t coh, daos_obj_id_t oid, unsigned i
     ret = __real_daos_obj_open(coh, oid, mode, oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
+    {
+        DAOS_PRE_RECORD();
         DAOS_RECORD_OBJ_OPEN(oh, oid, DAOS_OBJ_OPENS, 0, 0, tm1, tm2);
-    DAOS_POST_RECORD();
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
@@ -277,13 +279,13 @@ int DARSHAN_DECL(daos_obj_fetch)(daos_handle_t oh, daos_handle_t th, uint64_t fl
     ret = __real_daos_obj_fetch(oh, th, flags, dkey, nr, iods, sgls, ioms, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         DAOS_OBJ_IOD_SZ(iods, nr, fetch_sz);
         DAOS_RECORD_OBJ_READ(oh, DAOS_OBJ_FETCHES, fetch_sz, tm1, tm2);
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -302,13 +304,13 @@ int DARSHAN_DECL(daos_obj_update)(daos_handle_t oh, daos_handle_t th, uint64_t f
     ret = __real_daos_obj_update(oh, th, flags, dkey, nr, iods, sgls, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         DAOS_OBJ_IOD_SZ(iods, nr, update_sz);
         DAOS_RECORD_OBJ_WRITE(oh, DAOS_OBJ_UPDATES, update_sz, tm1, tm2);
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -326,9 +328,9 @@ int DARSHAN_DECL(daos_obj_punch)(daos_handle_t oh, daos_handle_t th, uint64_t fl
     ret = __real_daos_obj_punch(oh, th, flags, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
             &oh, sizeof(daos_handle_t));
         if(rec_ref)
@@ -338,8 +340,8 @@ int DARSHAN_DECL(daos_obj_punch)(daos_handle_t oh, daos_handle_t th, uint64_t fl
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->object_rec->counters[DAOS_OBJ_PUNCHES] += 1;
         }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -357,9 +359,9 @@ int DARSHAN_DECL(daos_obj_punch_dkeys)(daos_handle_t oh, daos_handle_t th, uint6
     ret = __real_daos_obj_punch_dkeys(oh, th, flags, nr, dkeys, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
             &oh, sizeof(daos_handle_t));
         if(rec_ref)
@@ -369,8 +371,8 @@ int DARSHAN_DECL(daos_obj_punch_dkeys)(daos_handle_t oh, daos_handle_t th, uint6
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->object_rec->counters[DAOS_OBJ_DKEY_PUNCHES] += 1;
         }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -388,9 +390,9 @@ int DARSHAN_DECL(daos_obj_punch_akeys)(daos_handle_t oh, daos_handle_t th, uint6
     ret = __real_daos_obj_punch_akeys(oh, th, flags, dkey, nr, akeys, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
             &oh, sizeof(daos_handle_t));
         if(rec_ref)
@@ -400,8 +402,8 @@ int DARSHAN_DECL(daos_obj_punch_akeys)(daos_handle_t oh, daos_handle_t th, uint6
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->object_rec->counters[DAOS_OBJ_AKEY_PUNCHES] += 1;
         }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -419,9 +421,9 @@ int DARSHAN_DECL(daos_obj_list_dkey)(daos_handle_t oh, daos_handle_t th, uint32_
     ret = __real_daos_obj_list_dkey(oh, th, nr, kds, sgl, anchor, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
             &oh, sizeof(daos_handle_t));
         if(rec_ref)
@@ -431,8 +433,8 @@ int DARSHAN_DECL(daos_obj_list_dkey)(daos_handle_t oh, daos_handle_t th, uint32_
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->object_rec->counters[DAOS_OBJ_DKEY_LISTS] += 1;
         }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -451,9 +453,9 @@ int DARSHAN_DECL(daos_obj_list_akey)(daos_handle_t oh, daos_handle_t th,
     ret = __real_daos_obj_list_akey(oh, th, dkey, nr, kds, sgl, anchor, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
             &oh, sizeof(daos_handle_t));
         if(rec_ref)
@@ -463,8 +465,8 @@ int DARSHAN_DECL(daos_obj_list_akey)(daos_handle_t oh, daos_handle_t th,
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->object_rec->counters[DAOS_OBJ_AKEY_LISTS] += 1;
         }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -485,9 +487,9 @@ int DARSHAN_DECL(daos_obj_list_recx)(daos_handle_t oh, daos_handle_t th,
         eprs, anchor, incr_order, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
             &oh, sizeof(daos_handle_t));
         if(rec_ref)
@@ -497,8 +499,8 @@ int DARSHAN_DECL(daos_obj_list_recx)(daos_handle_t oh, daos_handle_t th,
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->object_rec->counters[DAOS_OBJ_RECX_LISTS] += 1;
         }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -514,10 +516,12 @@ int DARSHAN_DECL(daos_obj_close)(daos_handle_t oh, daos_event_t *ev)
     ret = __real_daos_obj_close(oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
+    {
+        DAOS_PRE_RECORD();
         DAOS_RECORD_OBJ_CLOSE(oh, tm1, tm2);
-    DAOS_POST_RECORD();
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
@@ -537,10 +541,12 @@ int DARSHAN_DECL(daos_array_create)(daos_handle_t coh, daos_obj_id_t oid,
     ret = __real_daos_array_create(coh, oid, th, cell_size, chunk_size, oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
+    {
+        DAOS_PRE_RECORD();
         DAOS_RECORD_OBJ_OPEN(oh, oid, DAOS_ARRAY_OPENS, cell_size, chunk_size, tm1, tm2);
-    DAOS_POST_RECORD();
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
@@ -558,10 +564,12 @@ int DARSHAN_DECL(daos_array_open)(daos_handle_t coh, daos_obj_id_t oid,
     ret = __real_daos_array_open(coh, oid, th, mode, cell_size, chunk_size, oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
+    {
+        DAOS_PRE_RECORD();
         DAOS_RECORD_OBJ_OPEN(oh, oid, DAOS_ARRAY_OPENS, *cell_size, *chunk_size, tm1, tm2);
-    DAOS_POST_RECORD();
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
@@ -577,10 +585,12 @@ int DARSHAN_DECL(daos_array_open_with_attr)(daos_handle_t coh, daos_obj_id_t oid
     ret = __real_daos_array_open_with_attr(coh, oid, th, mode, cell_size, chunk_size, oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
+    {
+        DAOS_PRE_RECORD();
         DAOS_RECORD_OBJ_OPEN(oh, oid, DAOS_ARRAY_OPENS, cell_size, chunk_size, tm1, tm2);
-    DAOS_POST_RECORD();
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
@@ -597,12 +607,12 @@ int DARSHAN_DECL(daos_array_read)(daos_handle_t oh, daos_handle_t th,
     ret = __real_daos_array_read(oh, th, iod, sgl, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         DAOS_RECORD_OBJ_READ(oh, DAOS_ARRAY_READS, iod->arr_nr_read, tm1, tm2);
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -621,16 +631,16 @@ int DARSHAN_DECL(daos_array_write)(daos_handle_t oh, daos_handle_t th,
     ret = __real_daos_array_write(oh, th, iod, sgl, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         for(i = 0; i < iod->arr_nr; i++)
         {
             arr_nr_written += iod->arr_rgs[i].rg_len;
         }
         DAOS_RECORD_OBJ_WRITE(oh, DAOS_ARRAY_WRITES, arr_nr_written, tm1, tm2);
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -648,9 +658,9 @@ int DARSHAN_DECL(daos_array_get_size)(daos_handle_t oh, daos_handle_t th,
     ret = __real_daos_array_get_size(oh, th, size, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
             &oh, sizeof(daos_handle_t));
         if(rec_ref)
@@ -660,8 +670,8 @@ int DARSHAN_DECL(daos_array_get_size)(daos_handle_t oh, daos_handle_t th,
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->object_rec->counters[DAOS_ARRAY_GET_SIZES] += 1;
         }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -679,9 +689,9 @@ int DARSHAN_DECL(daos_array_set_size)(daos_handle_t oh, daos_handle_t th,
     ret = __real_daos_array_set_size(oh, th, size, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
             &oh, sizeof(daos_handle_t));
         if(rec_ref)
@@ -691,8 +701,8 @@ int DARSHAN_DECL(daos_array_set_size)(daos_handle_t oh, daos_handle_t th,
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->object_rec->counters[DAOS_ARRAY_SET_SIZES] += 1;
         }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -709,9 +719,9 @@ int DARSHAN_DECL(daos_array_stat)(daos_handle_t oh, daos_handle_t th, daos_array
     ret = __real_daos_array_stat(oh, th, stbuf, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
             &oh, sizeof(daos_handle_t));
         if(rec_ref)
@@ -721,8 +731,8 @@ int DARSHAN_DECL(daos_array_stat)(daos_handle_t oh, daos_handle_t th, daos_array
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->object_rec->counters[DAOS_ARRAY_STATS] += 1;
         }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -740,9 +750,9 @@ int DARSHAN_DECL(daos_array_destroy)(daos_handle_t oh, daos_handle_t th,
     ret = __real_daos_array_destroy(oh, th, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
             &oh, sizeof(daos_handle_t));
         if(rec_ref)
@@ -752,8 +762,8 @@ int DARSHAN_DECL(daos_array_destroy)(daos_handle_t oh, daos_handle_t th,
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->object_rec->counters[DAOS_ARRAY_DESTROYS] += 1;
         }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -771,9 +781,9 @@ int DARSHAN_DECL(daos_array_punch)(daos_handle_t oh, daos_handle_t th,
     ret = __real_daos_array_punch(oh, th, iod, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
     {
+        DAOS_PRE_RECORD();
         rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
             &oh, sizeof(daos_handle_t));
         if(rec_ref)
@@ -783,8 +793,8 @@ int DARSHAN_DECL(daos_array_punch)(daos_handle_t oh, daos_handle_t th,
                 tm1, tm2, rec_ref->last_meta_end);
             rec_ref->object_rec->counters[DAOS_ARRAY_PUNCHES] += 1;
         }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -800,10 +810,12 @@ int DARSHAN_DECL(daos_array_close)(daos_handle_t oh, daos_event_t *ev)
     ret = __real_daos_array_close(oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
     if(!ret)
+    {
+        DAOS_PRE_RECORD();
         DAOS_RECORD_OBJ_CLOSE(oh, tm1, tm2);
-    DAOS_POST_RECORD();
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
