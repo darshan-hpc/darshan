@@ -16,6 +16,13 @@
 --wrap=daos_array_get_size
 --wrap=daos_array_set_size
 --wrap=daos_array_stat
---wrap=daos_array_destroy
 --wrap=daos_array_punch
+--wrap=daos_array_destroy
 --wrap=daos_array_close
+--wrap=daos_kv_open
+--wrap=daos_kv_get
+--wrap=daos_kv_put
+--wrap=daos_kv_remove
+--wrap=daos_kv_list
+--wrap=daos_kv_destroy
+--wrap=daos_kv_close
