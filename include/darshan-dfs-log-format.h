@@ -36,10 +36,6 @@
     X(DFS_PUNCHES) \
     /* count of dfs removes */\
     X(DFS_REMOVES) \
-    /* count of dfs moves */\
-    X(DFS_MOVES) \
-    /* count of dfs exchanges */\
-    X(DFS_EXCHANGES) \
     /* count of dfs stats */\
     X(DFS_STATS) \
     /* total bytes read */\
