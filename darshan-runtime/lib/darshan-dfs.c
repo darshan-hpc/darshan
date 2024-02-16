@@ -50,9 +50,9 @@ DARSHAN_FORWARD_DECL(dfs_writex, int, (dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *io
 DARSHAN_FORWARD_DECL(dfs_get_size, int, (dfs_t *dfs, dfs_obj_t *obj, daos_size_t *size));
 DARSHAN_FORWARD_DECL(dfs_punch, int, (dfs_t *dfs, dfs_obj_t *obj, daos_off_t offset, daos_size_t len));
 DARSHAN_FORWARD_DECL(dfs_remove, int, (dfs_t *dfs, dfs_obj_t *parent, const char *name, bool force, daos_obj_id_t *oid));
-DARSHAN_FORWARD_DECL(dfs_move, int, (dfs_t *dfs, dfs_obj_t *parent, const char *name, dfs_obj_t *new_parent, const char *new_name, daos_obj_id_t *oid));
-DARSHAN_FORWARD_DECL(dfs_exchange, int, (dfs_t *dfs, dfs_obj_t *parent1, const char *name1, dfs_obj_t *parent2, const char *name2));
+#if 0
 DARSHAN_FORWARD_DECL(dfs_stat, int, (dfs_t *dfs, dfs_obj_t *parent, const char *name, struct stat *stbuf));
+#endif
 DARSHAN_FORWARD_DECL(dfs_ostat, int, (dfs_t *dfs, dfs_obj_t *obj, struct stat *stbuf));
 DARSHAN_FORWARD_DECL(dfs_osetattr, int, (dfs_t *dfs, dfs_obj_t *obj, struct stat *stbuf, int flags));
 
@@ -768,128 +768,8 @@ int DARSHAN_DECL(dfs_remove)(dfs_t *dfs, dfs_obj_t *parent, const char *name, bo
     return(ret);
 }
 
-/* XXX properly handle this */
-int DARSHAN_DECL(dfs_move)(dfs_t *dfs, dfs_obj_t *parent, const char *name, dfs_obj_t *new_parent,
-    const char *new_name, daos_obj_id_t *oid)
-{
-    int ret;
-    double tm1, tm2;
 #if 0
-    struct dfs_file_record_ref *rec_ref = NULL;
-    char *parent_rec_name, *rec_name;
-    int rec_len;
-    darshan_record_id rec_id;
-#endif
-
-    MAP_OR_FAIL(dfs_move);
-
-    tm1 = DAOS_WTIME();
-    ret = __real_dfs_move(dfs, parent, name, new_parent, new_name, oid);
-    tm2 = DAOS_WTIME();
-
-#if 0
-    // XXX don't do this on error
-    DFS_PRE_RECORD();
-    DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
-    if(parent_rec_name)
-    {
-        rec_len = strlen(parent_rec_name) + strlen(name) + 1;
-        rec_name = malloc(rec_len);
-        if(rec_name)
-        {
-            memset(rec_name, 0, rec_len);
-            strcat(rec_name, parent_rec_name);
-            strcat(rec_name, name);
-            rec_id = darshan_core_gen_record_id(rec_name);
-            rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash, &rec_id, sizeof(rec_id));
-            if(rec_ref)
-            {
-                rec_ref->file_rec->counters[DFS_MOVES] += 1;
-                DARSHAN_TIMER_INC_NO_OVERLAP(
-                    rec_ref->file_rec->fcounters[DFS_F_META_TIME],
-                    tm1, tm2, rec_ref->last_meta_end);
-            }
-            free(rec_name);
-        }
-        if(!parent) free(parent_rec_name);
-    }
-    DFS_POST_RECORD();
-#endif
-
-    return(ret);
-}
-
-/* XXX properly handle this */
-int DARSHAN_DECL(dfs_exchange)(dfs_t *dfs, dfs_obj_t *parent1, const char *name1,
-    dfs_obj_t *parent2, const char *name2)
-{
-    int ret;
-    double tm1, tm2;
-#if 0
-    struct dfs_file_record_ref *rec_ref = NULL;
-    char *parent_rec_name, *rec_name;
-    int rec_len;
-    darshan_record_id rec_id;
-#endif
-
-    MAP_OR_FAIL(dfs_exchange);
-
-    tm1 = DAOS_WTIME();
-    ret = __real_dfs_exchange(dfs, parent1, name1, parent2, name2);
-    tm2 = DAOS_WTIME();
-
-#if 0
-    // XXX don't do this on error
-    DFS_PRE_RECORD();
-    /* increment exchange counter for both file records */
-    /* NOTE: only increment metadata time on first record, to avoid double counting */
-    DFS_RESOLVE_PARENT_REC_NAME(dfs, parent1, parent_rec_name);
-    if(parent_rec_name)
-    {
-        rec_len = strlen(parent_rec_name) + strlen(name1) + 1;
-        rec_name = malloc(rec_len);
-        if(rec_name)
-        {
-            memset(rec_name, 0, rec_len);
-            strcat(rec_name, parent_rec_name);
-            strcat(rec_name, name1);
-            rec_id = darshan_core_gen_record_id(rec_name);
-            rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash, &rec_id, sizeof(rec_id));
-            if(rec_ref)
-            {
-                rec_ref->file_rec->counters[DFS_EXCHANGES] += 1;
-                DARSHAN_TIMER_INC_NO_OVERLAP(
-                    rec_ref->file_rec->fcounters[DFS_F_META_TIME],
-                    tm1, tm2, rec_ref->last_meta_end);
-            }
-            free(rec_name);
-        }
-        if(!parent1) free(parent_rec_name);
-    }
-    DFS_RESOLVE_PARENT_REC_NAME(dfs, parent2, parent_rec_name);
-    if(parent_rec_name)
-    {
-        rec_len = strlen(parent_rec_name) + strlen(name2) + 1;
-        rec_name = malloc(rec_len);
-        if(rec_name)
-        {
-            memset(rec_name, 0, rec_len);
-            strcat(rec_name, parent_rec_name);
-            strcat(rec_name, name1);
-            rec_id = darshan_core_gen_record_id(rec_name);
-            rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash, &rec_id, sizeof(rec_id));
-            if(rec_ref)
-                rec_ref->file_rec->counters[DFS_EXCHANGES] += 1;
-            free(rec_name);
-        }
-        if(!parent2) free(parent_rec_name);
-    }
-    DFS_POST_RECORD();
-#endif
-
-    return(ret);
-}
-
+// XXX add dfs_stat back to the daos-ld-opts if we re-enable this
 int DARSHAN_DECL(dfs_stat)(dfs_t *dfs, dfs_obj_t *parent, const char *name, struct stat *stbuf)
 {
     int ret;
@@ -937,6 +817,7 @@ int DARSHAN_DECL(dfs_stat)(dfs_t *dfs, dfs_obj_t *parent, const char *name, stru
 
     return(ret);
 }
+#endif
 
 int DARSHAN_DECL(dfs_ostat)(dfs_t *dfs, dfs_obj_t *obj, struct stat *stbuf)
 {
