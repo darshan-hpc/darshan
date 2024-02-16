@@ -14,8 +14,5 @@
 --wrap=dfs_get_size
 --wrap=dfs_punch
 --wrap=dfs_remove
---wrap=dfs_move
---wrap=dfs_exchange
---wrap=dfs_stat
 --wrap=dfs_ostat
 --wrap=dfs_osetattr
