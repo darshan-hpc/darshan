@@ -291,10 +291,6 @@ int DARSHAN_DECL(daos_obj_open)(daos_handle_t coh, daos_obj_id_t oid, unsigned i
     int __i, __j; \
     __sz = 0; \
     for(__i = 0; __i < __nr; __i++) { \
-        if(__iods[__i].iod_size == DAOS_REC_ANY) { \
-            __sz = -1; \
-            break; \
-        } \
         if(__iods[__i].iod_type == DAOS_IOD_SINGLE) \
             __sz += __iods[__i].iod_size; \
         else if(__iods[__i].iod_recxs) \
