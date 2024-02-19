@@ -92,9 +92,12 @@ DARSHAN_FORWARD_DECL(daos_kv_close, int, (daos_handle_t oh, daos_event_t *ev));
 struct daos_object_record_ref
 {
     struct darshan_daos_object *object_rec;
+    enum darshan_io_type last_io_type;
     double last_meta_end;
     double last_read_end;
     double last_write_end;
+    void *access_root;
+    int access_count;
 };
 
 struct daos_runtime
@@ -179,6 +182,8 @@ static int my_rank = -1;
 
 #define DAOS_RECORD_OBJ_READ(__oh, __counter, __sz, __tm1, __tm2) do { \
     struct daos_object_record_ref *__rec_ref; \
+    struct darshan_common_val_counter *__cvc; \
+    double __elapsed = __tm2-__tm1; \
     __rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &__oh, \
         sizeof(daos_handle_t)); \
     if(!__rec_ref) break; \
@@ -187,16 +192,31 @@ static int my_rank = -1;
         __sz *= __rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE]; \
     __rec_ref->object_rec->counters[DAOS_BYTES_READ] += __sz; \
     DARSHAN_BUCKET_INC(&(__rec_ref->object_rec->counters[DAOS_SIZE_READ_0_100]), __sz); \
+    __cvc = darshan_track_common_val_counters(&__rec_ref->access_root, &__sz, 1, \
+        &__rec_ref->access_count); \
+    if(__cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
+        &(__rec_ref->object_rec->counters[DAOS_ACCESS1_ACCESS]), \
+        &(__rec_ref->object_rec->counters[DAOS_ACCESS1_COUNT]), \
+        __cvc->vals, 1, __cvc->freq, 0); \
+    if(__rec_ref->last_io_type == DARSHAN_IO_WRITE) \
+        __rec_ref->object_rec->counters[DAOS_RW_SWITCHES] += 1; \
+    __rec_ref->last_io_type = DARSHAN_IO_READ; \
     if(__rec_ref->object_rec->fcounters[DAOS_F_READ_START_TIMESTAMP] == 0 || \
      __rec_ref->object_rec->fcounters[DAOS_F_READ_START_TIMESTAMP] > __tm1) \
         __rec_ref->object_rec->fcounters[DAOS_F_READ_START_TIMESTAMP] = __tm1; \
     __rec_ref->object_rec->fcounters[DAOS_F_READ_END_TIMESTAMP] = __tm2; \
+    if(__rec_ref->object_rec->fcounters[DAOS_F_MAX_READ_TIME] < __elapsed) { \
+        __rec_ref->object_rec->fcounters[DAOS_F_MAX_READ_TIME] = __elapsed; \
+        __rec_ref->object_rec->counters[DAOS_MAX_READ_TIME_SIZE] = __sz; \
+    } \
     DARSHAN_TIMER_INC_NO_OVERLAP(__rec_ref->object_rec->fcounters[DAOS_F_READ_TIME], \
         __tm1, __tm2, __rec_ref->last_read_end); \
 } while(0)
 
 #define DAOS_RECORD_OBJ_WRITE(__oh, __counter, __sz, __tm1, __tm2) do { \
     struct daos_object_record_ref *__rec_ref; \
+    struct darshan_common_val_counter *__cvc; \
+    double __elapsed = __tm2-__tm1; \
     __rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &__oh, \
         sizeof(daos_handle_t)); \
     if(!__rec_ref) break; \
@@ -205,10 +225,23 @@ static int my_rank = -1;
         __sz *= __rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE]; \
     __rec_ref->object_rec->counters[DAOS_BYTES_WRITTEN] += __sz; \
     DARSHAN_BUCKET_INC(&(__rec_ref->object_rec->counters[DAOS_SIZE_WRITE_0_100]), __sz); \
+    __cvc = darshan_track_common_val_counters(&__rec_ref->access_root, &__sz, 1, \
+        &__rec_ref->access_count); \
+    if(__cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
+        &(__rec_ref->object_rec->counters[DAOS_ACCESS1_ACCESS]), \
+        &(__rec_ref->object_rec->counters[DAOS_ACCESS1_COUNT]), \
+        __cvc->vals, 1, __cvc->freq, 0); \
+    if(__rec_ref->last_io_type == DARSHAN_IO_READ) \
+        __rec_ref->object_rec->counters[DAOS_RW_SWITCHES] += 1; \
+    __rec_ref->last_io_type = DARSHAN_IO_WRITE; \
     if(__rec_ref->object_rec->fcounters[DAOS_F_WRITE_START_TIMESTAMP] == 0 || \
      __rec_ref->object_rec->fcounters[DAOS_F_WRITE_START_TIMESTAMP] > __tm1) \
         __rec_ref->object_rec->fcounters[DAOS_F_WRITE_START_TIMESTAMP] = __tm1; \
     __rec_ref->object_rec->fcounters[DAOS_F_WRITE_END_TIMESTAMP] = __tm2; \
+    if(__rec_ref->object_rec->fcounters[DAOS_F_MAX_WRITE_TIME] < __elapsed) { \
+        __rec_ref->object_rec->fcounters[DAOS_F_MAX_WRITE_TIME] = __elapsed; \
+        __rec_ref->object_rec->counters[DAOS_MAX_WRITE_TIME_SIZE] = __sz; \
+    } \
     DARSHAN_TIMER_INC_NO_OVERLAP(__rec_ref->object_rec->fcounters[DAOS_F_WRITE_TIME], \
         __tm1, __tm2, __rec_ref->last_write_end); \
 } while(0)
@@ -1102,12 +1135,10 @@ static struct daos_object_record_ref *daos_track_new_object_record(
 
 static void daos_finalize_object_records(void *rec_ref_p, void *user_ptr)
 {
-#if 0
-    struct dfs_file_record_ref *rec_ref =
-        (struct dfs_file_record_ref *)rec_ref_p;
+    struct daos_object_record_ref *rec_ref =
+        (struct daos_object_record_ref *)rec_ref_p;
 
     tdestroy(rec_ref->access_root, free);
-#endif
     return;
 }
 
@@ -1129,21 +1160,56 @@ static void daos_record_reduction_op(
         tmp_obj.oid_lo = inobj->oid_lo;
 
         /* sum */
-        for(j=DAOS_OBJ_OPENS; j<=DAOS_BYTES_WRITTEN; j++)
+        for(j=DAOS_OBJ_OPENS; j<=DAOS_RW_SWITCHES; j++)
         {
             tmp_obj.counters[j] = inobj->counters[j] + inoutobj->counters[j];
             if(tmp_obj.counters[j] < 0) /* make sure invalid counters are -1 exactly */
                 tmp_obj.counters[j] = -1;
         }
 
+        /* skip DAOS_MAX_*_TIME_SIZE; handled in floating point section */
+
         for(j=DAOS_SIZE_READ_0_100; j<=DAOS_SIZE_WRITE_1G_PLUS; j++)
         {
             tmp_obj.counters[j] = inobj->counters[j] + inoutobj->counters[j];
         }
 
-	tmp_obj.counters[DAOS_OBJ_OTYPE] = inobj->counters[DAOS_OBJ_OTYPE];
-	tmp_obj.counters[DAOS_ARRAY_CELL_SIZE] = inobj->counters[DAOS_ARRAY_CELL_SIZE];
-	tmp_obj.counters[DAOS_ARRAY_CHUNK_SIZE] = inobj->counters[DAOS_ARRAY_CHUNK_SIZE];
+        /* common access counters */
+
+        /* first collapse any duplicates */
+        for(j=DAOS_ACCESS1_ACCESS; j<=DAOS_ACCESS4_ACCESS; j++)
+        {
+            for(k=DAOS_ACCESS1_ACCESS; k<=DAOS_ACCESS4_ACCESS; k++)
+            {
+                if(inobj->counters[j] == inoutobj->counters[k])
+                {
+                    inobj->counters[j+4] += inoutobj->counters[k+4];
+                    inoutobj->counters[k] = 0;
+                    inoutobj->counters[k+4] = 0;
+                }
+            }
+        }
+
+        /* first set */
+        for(j=DAOS_ACCESS1_ACCESS; j<=DAOS_ACCESS4_ACCESS; j++)
+        {
+            DARSHAN_UPDATE_COMMON_VAL_COUNTERS(
+                &(tmp_obj.counters[DAOS_ACCESS1_ACCESS]),
+                &(tmp_obj.counters[DAOS_ACCESS1_COUNT]),
+                &inobj->counters[j], 1, inobj->counters[j+4], 1);
+        }
+        /* second set */
+        for(j=DAOS_ACCESS1_ACCESS; j<=DAOS_ACCESS4_ACCESS; j++)
+        {
+            DARSHAN_UPDATE_COMMON_VAL_COUNTERS(
+                &(tmp_obj.counters[DAOS_ACCESS1_ACCESS]),
+                &(tmp_obj.counters[DAOS_ACCESS1_COUNT]),
+                &inoutobj->counters[j], 1, inoutobj->counters[j+4], 1);
+        }
+
+        tmp_obj.counters[DAOS_OBJ_OTYPE] = inobj->counters[DAOS_OBJ_OTYPE];
+        tmp_obj.counters[DAOS_ARRAY_CELL_SIZE] = inobj->counters[DAOS_ARRAY_CELL_SIZE];
+        tmp_obj.counters[DAOS_ARRAY_CHUNK_SIZE] = inobj->counters[DAOS_ARRAY_CHUNK_SIZE];
 
         /* min non-zero (if available) value */
         for(j=DAOS_F_OPEN_START_TIMESTAMP; j<=DAOS_F_CLOSE_START_TIMESTAMP; j++)
@@ -1168,6 +1234,81 @@ static void daos_record_reduction_op(
         for(j=DAOS_F_READ_TIME; j<=DAOS_F_META_TIME; j++)
         {
             tmp_obj.fcounters[j] = inobj->fcounters[j] + inoutobj->fcounters[j];
+        }
+
+        /* max (special case) */
+        if(inobj->fcounters[DAOS_F_MAX_READ_TIME] >
+            inoutobj->fcounters[DAOS_F_MAX_READ_TIME])
+        {
+            tmp_obj.fcounters[DAOS_F_MAX_READ_TIME] =
+                inobj->fcounters[DAOS_F_MAX_READ_TIME];
+            tmp_obj.counters[DAOS_MAX_READ_TIME_SIZE] =
+                inobj->counters[DAOS_MAX_READ_TIME_SIZE];
+        }
+        else
+        {
+            tmp_obj.fcounters[DAOS_F_MAX_READ_TIME] =
+                inoutobj->fcounters[DAOS_F_MAX_READ_TIME];
+            tmp_obj.counters[DAOS_MAX_READ_TIME_SIZE] =
+                inoutobj->counters[DAOS_MAX_READ_TIME_SIZE];
+        }
+
+        if(inobj->fcounters[DAOS_F_MAX_WRITE_TIME] >
+            inoutobj->fcounters[DAOS_F_MAX_WRITE_TIME])
+        {
+            tmp_obj.fcounters[DAOS_F_MAX_WRITE_TIME] =
+                inobj->fcounters[DAOS_F_MAX_WRITE_TIME];
+            tmp_obj.counters[DAOS_MAX_WRITE_TIME_SIZE] =
+                inobj->counters[DAOS_MAX_WRITE_TIME_SIZE];
+        }
+        else
+        {
+            tmp_obj.fcounters[DAOS_F_MAX_WRITE_TIME] =
+                inoutobj->fcounters[DAOS_F_MAX_WRITE_TIME];
+            tmp_obj.counters[DAOS_MAX_WRITE_TIME_SIZE] =
+                inoutobj->counters[DAOS_MAX_WRITE_TIME_SIZE];
+        }
+
+        /* min (zeroes are ok here; some procs don't do I/O) */
+        if(inobj->fcounters[DAOS_F_FASTEST_RANK_TIME] <
+           inoutobj->fcounters[DAOS_F_FASTEST_RANK_TIME])
+        {
+            tmp_obj.counters[DAOS_FASTEST_RANK] =
+                inobj->counters[DAOS_FASTEST_RANK];
+            tmp_obj.counters[DAOS_FASTEST_RANK_BYTES] =
+                inobj->counters[DAOS_FASTEST_RANK_BYTES];
+            tmp_obj.fcounters[DAOS_F_FASTEST_RANK_TIME] =
+                inobj->fcounters[DAOS_F_FASTEST_RANK_TIME];
+        }
+        else
+        {
+            tmp_obj.counters[DAOS_FASTEST_RANK] =
+                inoutobj->counters[DAOS_FASTEST_RANK];
+            tmp_obj.counters[DAOS_FASTEST_RANK_BYTES] =
+                inoutobj->counters[DAOS_FASTEST_RANK_BYTES];
+            tmp_obj.fcounters[DAOS_F_FASTEST_RANK_TIME] =
+                inoutobj->fcounters[DAOS_F_FASTEST_RANK_TIME];
+        }
+
+        /* max */
+        if(inobj->fcounters[DAOS_F_SLOWEST_RANK_TIME] >
+           inoutobj->fcounters[DAOS_F_SLOWEST_RANK_TIME])
+        {
+            tmp_obj.counters[DAOS_SLOWEST_RANK] =
+                inobj->counters[DAOS_SLOWEST_RANK];
+            tmp_obj.counters[DAOS_SLOWEST_RANK_BYTES] =
+                inobj->counters[DAOS_SLOWEST_RANK_BYTES];
+            tmp_obj.fcounters[DAOS_F_SLOWEST_RANK_TIME] =
+                inobj->fcounters[DAOS_F_SLOWEST_RANK_TIME];
+        }
+        else
+        {
+            tmp_obj.counters[DAOS_SLOWEST_RANK] =
+                inoutobj->counters[DAOS_SLOWEST_RANK];
+            tmp_obj.counters[DAOS_SLOWEST_RANK_BYTES] =
+                inoutobj->counters[DAOS_SLOWEST_RANK_BYTES];
+            tmp_obj.fcounters[DAOS_F_SLOWEST_RANK_TIME] =
+                inoutobj->fcounters[DAOS_F_SLOWEST_RANK_TIME];
         }
 
         /* update pointers */
@@ -1211,32 +1352,30 @@ static void daos_mpi_redux(
             &shared_recs[i], sizeof(darshan_record_id));
         assert(rec_ref);
 
-#if 0
         daos_time =
-            rec_ref->file_rec->fcounters[DFS_F_READ_TIME] +
-            rec_ref->file_rec->fcounters[DFS_F_WRITE_TIME] +
-            rec_ref->file_rec->fcounters[DFS_F_META_TIME];
+            rec_ref->object_rec->fcounters[DAOS_F_READ_TIME] +
+            rec_ref->object_rec->fcounters[DAOS_F_WRITE_TIME] +
+            rec_ref->object_rec->fcounters[DAOS_F_META_TIME];
 
         /* initialize fastest/slowest info prior to the reduction */
-        rec_ref->file_rec->counters[DFS_FASTEST_RANK] =
-            rec_ref->file_rec->base_rec.rank;
-        rec_ref->file_rec->counters[DFS_FASTEST_RANK_BYTES] =
-            rec_ref->file_rec->counters[DFS_BYTES_READ] +
-            rec_ref->file_rec->counters[DFS_BYTES_WRITTEN];
-        rec_ref->file_rec->fcounters[DFS_F_FASTEST_RANK_TIME] =
-            dfs_time;
+        rec_ref->object_rec->counters[DAOS_FASTEST_RANK] =
+            rec_ref->object_rec->base_rec.rank;
+        rec_ref->object_rec->counters[DAOS_FASTEST_RANK_BYTES] =
+            rec_ref->object_rec->counters[DAOS_BYTES_READ] +
+            rec_ref->object_rec->counters[DAOS_BYTES_WRITTEN];
+        rec_ref->object_rec->fcounters[DAOS_F_FASTEST_RANK_TIME] =
+            daos_time;
 
         /* until reduction occurs, we assume that this rank is both
          * the fastest and slowest. It is up to the reduction operator
          * to find the true min and max.
          */
-        rec_ref->file_rec->counters[DFS_SLOWEST_RANK] =
-            rec_ref->file_rec->counters[DFS_FASTEST_RANK];
-        rec_ref->file_rec->counters[DFS_SLOWEST_RANK_BYTES] =
-            rec_ref->file_rec->counters[DFS_FASTEST_RANK_BYTES];
-        rec_ref->file_rec->fcounters[DFS_F_SLOWEST_RANK_TIME] =
-            rec_ref->file_rec->fcounters[DFS_F_FASTEST_RANK_TIME];
-#endif
+        rec_ref->object_rec->counters[DAOS_SLOWEST_RANK] =
+            rec_ref->object_rec->counters[DAOS_FASTEST_RANK];
+        rec_ref->object_rec->counters[DAOS_SLOWEST_RANK_BYTES] =
+            rec_ref->object_rec->counters[DAOS_FASTEST_RANK_BYTES];
+        rec_ref->object_rec->fcounters[DAOS_F_SLOWEST_RANK_TIME] =
+            rec_ref->object_rec->fcounters[DAOS_F_FASTEST_RANK_TIME];
 
         rec_ref->object_rec->base_rec.rank = -1;
     }
