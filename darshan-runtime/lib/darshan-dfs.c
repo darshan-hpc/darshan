@@ -209,16 +209,24 @@ static int my_rank = -1;
     } \
 } while(0)
 
+/* Generate a DFS record ID based on the OID (and pool/container IDS) */
+#define ID_GLOB_SIZE (sizeof(daos_obj_id_t) + (2*sizeof(uuid_t)))
+#define DFS_GEN_DARSHAN_REC_ID(__oid_p, __pool_uuid, __cont_uuid, __rec_id) do { \
+    unsigned char __id_glob[ID_GLOB_SIZE]; \
+    memcpy(__id_glob, __pool_uuid, sizeof(__pool_uuid)); \
+    memcpy(__id_glob+sizeof(__pool_uuid), __cont_uuid, sizeof(__cont_uuid)); \
+    memcpy(__id_glob+sizeof(__pool_uuid)+sizeof(__cont_uuid), __oid_p, sizeof(*__oid_p)); \
+    __rec_id = darshan_hash(__id_glob, ID_GLOB_SIZE, 0); \
+} while(0)
+
 /* NOTE: the following macro captures details about open(), lookup(),
  *       and obj_global2local() calls. separate operation counters
  *       are maintained for each, but all calls share the same floating
  *       point counters (i.e., OPEN_START_TIMESTAMP, OPEN_END_TIMESTAMP).
  */
-#define ID_GLOB_SIZE ((2*sizeof(uuid_t)) + sizeof(daos_obj_id_t))
 #define DFS_RECORD_FILE_OBJ_OPEN(__dfs, __parent_name, __obj_name, __counter, __obj_p, __tm1, __tm2) do { \
     struct dfs_mount_info *__mnt_info; \
     daos_obj_id_t __oid; \
-    unsigned char __id_glob[ID_GLOB_SIZE]; \
     char *__rec_name = NULL; \
     int __rec_name_len; \
     darshan_record_id __rec_id; \
@@ -226,12 +234,7 @@ static int my_rank = -1;
     DFS_GET_MOUNT_INFO(__dfs, __mnt_info); \
     if(!__mnt_info) break; \
     if(dfs_obj2id(*__obj_p, &__oid)) break; \
-    memcpy(__id_glob, __mnt_info->pool_uuid, sizeof(__mnt_info->pool_uuid)); \
-    memcpy(__id_glob+sizeof(__mnt_info->pool_uuid), __mnt_info->cont_uuid, \
-        sizeof(__mnt_info->cont_uuid)); \
-    memcpy(__id_glob+sizeof(__mnt_info->pool_uuid)+sizeof(__mnt_info->cont_uuid), \
-        &__oid, sizeof(__oid)); \
-    __rec_id = darshan_hash(__id_glob, ID_GLOB_SIZE, 0); \
+    DFS_GEN_DARSHAN_REC_ID(&__oid, __mnt_info->pool_uuid, __mnt_info->cont_uuid, __rec_id); \
     if(__parent_name && __obj_name) { \
         __rec_name_len = strlen(__obj_name) + strlen(__parent_name) + 1; \
         __rec_name = malloc(__rec_name_len); \
@@ -722,12 +725,18 @@ int DARSHAN_DECL(dfs_punch)(dfs_t *dfs, dfs_obj_t *obj, daos_off_t offset, daos_
 int DARSHAN_DECL(dfs_remove)(dfs_t *dfs, dfs_obj_t *parent, const char *name, bool force,
        daos_obj_id_t *oid)
 {
+    daos_obj_id_t the_oid;
     int ret;
     double tm1, tm2;
+    struct dfs_mount_info *mnt_info;
+    darshan_record_id rec_id;
     struct dfs_file_record_ref *rec_ref = NULL;
     char *parent_rec_name, *rec_name;
     int rec_len;
-    darshan_record_id rec_id;
+
+    /* ask for the OID if user doesn't -- used to compute record ID */
+    if(!oid)
+        oid = &the_oid;
 
     MAP_OR_FAIL(dfs_remove);
 
@@ -738,29 +747,37 @@ int DARSHAN_DECL(dfs_remove)(dfs_t *dfs, dfs_obj_t *parent, const char *name, bo
     if(!ret)
     {
         DFS_PRE_RECORD();
-        DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
-        if(parent_rec_name)
+        DFS_GET_MOUNT_INFO(dfs, mnt_info);
+        if(mnt_info)
         {
-            rec_len = strlen(parent_rec_name) + strlen(name) + 1;
-            rec_name = malloc(rec_len);
-            if(rec_name)
+            DFS_GEN_DARSHAN_REC_ID(oid, mnt_info->pool_uuid, mnt_info->cont_uuid, rec_id);
+            rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash,
+                &rec_id, sizeof(rec_id));
+            if(!rec_ref)
             {
-                memset(rec_name, 0, rec_len);
-                strcat(rec_name, parent_rec_name);
-                strcat(rec_name, name);
-                rec_id = darshan_core_gen_record_id(rec_name);
-                rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash, &rec_id, sizeof(rec_id));
-                if(!rec_ref) rec_ref = dfs_track_new_file_record(rec_id, rec_name);
-                if(rec_ref)
+                DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
+                if(parent_rec_name)
                 {
-                    rec_ref->file_rec->counters[DFS_REMOVES] += 1;
-                    DARSHAN_TIMER_INC_NO_OVERLAP(
-                        rec_ref->file_rec->fcounters[DFS_F_META_TIME],
-                        tm1, tm2, rec_ref->last_meta_end);
+                    rec_len = strlen(parent_rec_name) + strlen(name) + 1;
+                    rec_name = malloc(rec_len);
+                    if(rec_name)
+                    {
+                        memset(rec_name, 0, rec_len);
+                        strcat(rec_name, parent_rec_name);
+                        strcat(rec_name, name);
+                        rec_ref = dfs_track_new_file_record(rec_id, rec_name);
+                        free(rec_name);
+                    }
+                    if(!parent) free(parent_rec_name);
                 }
-                free(rec_name);
             }
-            if(!parent) free(parent_rec_name);
+            if(rec_ref)
+            {
+                rec_ref->file_rec->counters[DFS_REMOVES] += 1;
+                DARSHAN_TIMER_INC_NO_OVERLAP(
+                    rec_ref->file_rec->fcounters[DFS_F_META_TIME],
+                    tm1, tm2, rec_ref->last_meta_end);
+            }
         }
         DFS_POST_RECORD();
     }
