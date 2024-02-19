@@ -60,6 +60,10 @@
     X(DAOS_BYTES_READ) \
     /* total bytes written */\
     X(DAOS_BYTES_WRITTEN) \
+    /* number of times switched between read and write */\
+    X(DAOS_RW_SWITCHES) \
+    X(DAOS_MAX_READ_TIME_SIZE) \
+    X(DAOS_MAX_WRITE_TIME_SIZE) \
     /* buckets for daos read size ranges */\
     X(DAOS_SIZE_READ_0_100) \
     X(DAOS_SIZE_READ_100_1K) \
@@ -82,12 +86,27 @@
     X(DAOS_SIZE_WRITE_10M_100M) \
     X(DAOS_SIZE_WRITE_100M_1G) \
     X(DAOS_SIZE_WRITE_1G_PLUS) \
+    /* the four most frequently appearing access sizes */\
+    X(DAOS_ACCESS1_ACCESS) \
+    X(DAOS_ACCESS2_ACCESS) \
+    X(DAOS_ACCESS3_ACCESS) \
+    X(DAOS_ACCESS4_ACCESS) \
+    /* count of each of the most frequent access sizes */\
+    X(DAOS_ACCESS1_COUNT) \
+    X(DAOS_ACCESS2_COUNT) \
+    X(DAOS_ACCESS3_COUNT) \
+    X(DAOS_ACCESS4_COUNT) \
     /* daos obj otype id */\
     X(DAOS_OBJ_OTYPE) \
     /* cell size of the daos array */\
     X(DAOS_ARRAY_CELL_SIZE) \
     /* chunk size of the daos array */\
     X(DAOS_ARRAY_CHUNK_SIZE) \
+    /* rank and number of bytes moved for fastest/slowest ranks */\
+    X(DAOS_FASTEST_RANK) \
+    X(DAOS_FASTEST_RANK_BYTES) \
+    X(DAOS_SLOWEST_RANK) \
+    X(DAOS_SLOWEST_RANK_BYTES) \
     /* end of counters */\
     X(DAOS_NUM_INDICES)
 
@@ -114,6 +133,13 @@
     X(DAOS_F_WRITE_TIME) \
     /* cumulative daos meta time */\
     X(DAOS_F_META_TIME) \
+    /* maximum daos read duration */\
+    X(DAOS_F_MAX_READ_TIME) \
+    /* maximum daos write duration */\
+    X(DAOS_F_MAX_WRITE_TIME) \
+    /* total i/o and meta time consumed for fastest/slowest ranks */\
+    X(DAOS_F_FASTEST_RANK_TIME) \
+    X(DAOS_F_SLOWEST_RANK_TIME) \
     /* end of counters */\
     X(DAOS_F_NUM_INDICES)
 
