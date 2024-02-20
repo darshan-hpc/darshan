@@ -167,9 +167,6 @@ static int my_rank = -1;
     if(__cell_sz) __rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE] = __cell_sz; \
     if(__chunk_sz)  __rec_ref->object_rec->counters[DAOS_ARRAY_CHUNK_SIZE] = __chunk_sz; \
     __rec_ref->object_rec->counters[DAOS_OBJ_OTYPE] = daos_obj_id2type(__oid); \
-    daos_oclass_id_t __oclass = daos_obj_id2class(__oid); \
-    char __oclass_name[128] = {0}; \
-    daos_oclass_id2name(__oclass, __oclass_name); \
     if(__rec_ref->object_rec->fcounters[DAOS_F_OPEN_START_TIMESTAMP] == 0 || \
      __rec_ref->object_rec->fcounters[DAOS_F_OPEN_START_TIMESTAMP] > __tm1) \
         __rec_ref->object_rec->fcounters[DAOS_F_OPEN_START_TIMESTAMP] = __tm1; \
