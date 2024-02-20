@@ -883,6 +883,7 @@ int DARSHAN_DECL(daos_kv_get)(daos_handle_t oh, daos_handle_t th, uint64_t flags
 {
     int ret;
     double tm1, tm2;
+    daos_size_t read_size = 0;
 
     MAP_OR_FAIL(daos_kv_get);
 
@@ -893,7 +894,9 @@ int DARSHAN_DECL(daos_kv_get)(daos_handle_t oh, daos_handle_t th, uint64_t flags
     if(!ret)
     {
         DAOS_PRE_RECORD();
-        DAOS_RECORD_OBJ_READ(oh, DAOS_KV_GETS, *size, tm1, tm2);
+        if(buf)
+            read_size = *size;
+        DAOS_RECORD_OBJ_READ(oh, DAOS_KV_GETS, read_size, tm1, tm2);
         DAOS_POST_RECORD();
     }
 
