@@ -91,13 +91,8 @@ struct dfs_file_record_ref
 
 struct dfs_mount_info
 {
-    /* XXX uuids not currently used, just strings. we could consider storing uuids
-     *     in counter data, too, which would remove need for strings
-     */
     uuid_t pool_uuid;
     uuid_t cont_uuid;
-    char pool_uuid_str[64];
-    char cont_uuid_str[64];
     UT_hash_handle hlink;
 };
 
@@ -112,7 +107,7 @@ struct dfs_runtime
 
 static void dfs_runtime_initialize();
 static struct dfs_file_record_ref *dfs_track_new_file_record(
-    darshan_record_id rec_id, const char *path);
+    darshan_record_id rec_id, const char *path, struct dfs_mount_info *mnt_info);
 static void dfs_finalize_file_records(
     void *rec_ref_p, void *user_ptr);
 #ifdef HAVE_MPI
@@ -168,8 +163,6 @@ static int my_rank = -1;
         if(__mnt_info) { \
             uuid_copy(__mnt_info->pool_uuid, __pool_info.pi_uuid); \
             uuid_copy(__mnt_info->cont_uuid, __cont_info.ci_uuid); \
-            uuid_unparse(__mnt_info->pool_uuid, __mnt_info->pool_uuid_str); \
-            uuid_unparse(__mnt_info->cont_uuid, __mnt_info->cont_uuid_str); \
             HASH_ADD_KEYPTR(hlink, dfs_runtime->mount_hash, *__dfs_p, sizeof(void *), __mnt_info); \
         } \
     } \
@@ -179,43 +172,38 @@ static int my_rank = -1;
     HASH_FIND(hlink, dfs_runtime->mount_hash, __dfs, sizeof(void *), __mnt_info)
 
 #define DFS_FREE_MOUNT_INFO(__mnt_info) do { \
-        HASH_DELETE(hlink, dfs_runtime->mount_hash, __mnt_info); \
-        free(__mnt_info); \
+    HASH_DELETE(hlink, dfs_runtime->mount_hash, __mnt_info); \
+    free(__mnt_info); \
 } while(0)
 
-#define DFS_RESOLVE_PARENT_REC_NAME(__dfs, __parent_obj, __parent_rec_name) do { \
-    struct dfs_mount_info *__mnt_info; \
+#define DFS_RESOLVE_OBJ_REC_NAME(__parent_obj, __name, __obj_rec_name) do { \
     struct dfs_file_record_ref *__parent_rec_ref; \
-    int __parent_rec_name_len; \
-    __parent_rec_name = NULL; \
+    char *__parent_rec_name = NULL; \
     if (__parent_obj) { \
         __parent_rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, \
             &__parent_obj, sizeof(__parent_obj)); \
-        if(!__parent_rec_ref) break; \
-        __parent_rec_name = darshan_core_lookup_record_name(__parent_rec_ref->file_rec->base_rec.id); \
+        if(__parent_rec_ref) \
+            __parent_rec_name = darshan_core_lookup_record_name(__parent_rec_ref->file_rec->base_rec.id); \
     } \
     else { \
-        DFS_GET_MOUNT_INFO(__dfs, __mnt_info); \
-        if(!__mnt_info) break; \
-        __parent_rec_name_len = strlen(__mnt_info->pool_uuid_str) + strlen(__mnt_info->pool_uuid_str) + 4; \
-        __parent_rec_name = malloc(__parent_rec_name_len); \
-        if(!__parent_rec_name) break; \
-        memset(__parent_rec_name, 0, __parent_rec_name_len); \
-        strcat(__parent_rec_name, __mnt_info->pool_uuid_str); \
-        strcat(__parent_rec_name, ":"); \
-        strcat(__parent_rec_name, __mnt_info->cont_uuid_str); \
-        strcat(__parent_rec_name, ":"); \
-        strcat(__parent_rec_name, "/"); \
+        __parent_rec_name = "/"; \
     } \
+    int __obj_rec_name_len = (__parent_rec_name ? strlen(__parent_rec_name) : 0) + strlen(__name) + 1; \
+    __obj_rec_name = malloc(__obj_rec_name_len); \
+    if(!__obj_rec_name) break; \
+    memset(__obj_rec_name, 0, __obj_rec_name_len); \
+    if(__parent_rec_name) \
+        strcat(__obj_rec_name, __parent_rec_name); \
+    strcat(obj_rec_name, __name); \
 } while(0)
 
 /* Generate a DFS record ID based on the OID (and pool/container IDS) */
 #define ID_GLOB_SIZE (sizeof(daos_obj_id_t) + (2*sizeof(uuid_t)))
-#define DFS_GEN_DARSHAN_REC_ID(__oid_p, __pool_uuid, __cont_uuid, __rec_id) do { \
+#define DFS_GEN_DARSHAN_REC_ID(__oid_p, __mnt_info, __rec_id) do { \
     unsigned char __id_glob[ID_GLOB_SIZE]; \
-    memcpy(__id_glob, __pool_uuid, sizeof(__pool_uuid)); \
-    memcpy(__id_glob+sizeof(__pool_uuid), __cont_uuid, sizeof(__cont_uuid)); \
-    memcpy(__id_glob+sizeof(__pool_uuid)+sizeof(__cont_uuid), __oid_p, sizeof(*__oid_p)); \
+    memcpy(__id_glob, __mnt_info->pool_uuid, sizeof(__mnt_info->pool_uuid)); \
+    memcpy(__id_glob+sizeof(__mnt_info->pool_uuid), __mnt_info->cont_uuid, sizeof(__mnt_info->cont_uuid)); \
+    memcpy(__id_glob+sizeof(__mnt_info->pool_uuid)+sizeof(__mnt_info->cont_uuid), __oid_p, sizeof(*__oid_p)); \
     __rec_id = darshan_hash(__id_glob, ID_GLOB_SIZE, 0); \
 } while(0)
 
@@ -224,28 +212,17 @@ static int my_rank = -1;
  *       are maintained for each, but all calls share the same floating
  *       point counters (i.e., OPEN_START_TIMESTAMP, OPEN_END_TIMESTAMP).
  */
-#define DFS_RECORD_FILE_OBJ_OPEN(__dfs, __parent_name, __obj_name, __counter, __obj_p, __tm1, __tm2) do { \
+#define DFS_RECORD_FILE_OBJ_OPEN(__dfs, __obj_name, __counter, __obj_p, __tm1, __tm2) do { \
     struct dfs_mount_info *__mnt_info; \
     daos_obj_id_t __oid; \
-    char *__rec_name = NULL; \
-    int __rec_name_len; \
     darshan_record_id __rec_id; \
     struct dfs_file_record_ref *__rec_ref; \
     DFS_GET_MOUNT_INFO(__dfs, __mnt_info); \
     if(!__mnt_info) break; \
     if(dfs_obj2id(*__obj_p, &__oid)) break; \
-    DFS_GEN_DARSHAN_REC_ID(&__oid, __mnt_info->pool_uuid, __mnt_info->cont_uuid, __rec_id); \
-    if(__parent_name && __obj_name) { \
-        __rec_name_len = strlen(__obj_name) + strlen(__parent_name) + 1; \
-        __rec_name = malloc(__rec_name_len); \
-        if(!__rec_name) break; \
-        memset(__rec_name, 0, __rec_name_len); \
-        strcat(__rec_name, __parent_name); \
-        strcat(__rec_name, __obj_name); \
-    } \
+    DFS_GEN_DARSHAN_REC_ID(&__oid, __mnt_info, __rec_id); \
     __rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash, &__rec_id, sizeof(__rec_id)); \
-    if(!__rec_ref) __rec_ref = dfs_track_new_file_record(__rec_id, __rec_name); \
-    free(__rec_name); \
+    if(!__rec_ref) __rec_ref = dfs_track_new_file_record(__rec_id, __obj_name, __mnt_info); \
     DFS_RECORD_FILE_OBJREF_OPEN(__rec_ref, __counter, __obj_p, __tm1, __tm2); \
 } while(0)
 
@@ -399,8 +376,6 @@ int DARSHAN_DECL(dfs_lookup)(dfs_t *dfs, const char *path, int flags, dfs_obj_t 
 {
     int ret;
     double tm1, tm2;
-    dfs_obj_t *parent = NULL;
-    char *parent_rec_name;
 
     MAP_OR_FAIL(dfs_lookup);
 
@@ -411,17 +386,7 @@ int DARSHAN_DECL(dfs_lookup)(dfs_t *dfs, const char *path, int flags, dfs_obj_t 
     if(!ret)
     {
         DFS_PRE_RECORD();
-        /* get root (/) record name */
-        DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
-        if(parent_rec_name)
-        {
-            /* use path+1 to avoid re-using /, which is already accounted for at
-             * the end of parent_rec_name
-             */
-            DFS_RECORD_FILE_OBJ_OPEN(dfs, parent_rec_name, (path+1), DFS_LOOKUPS,
-                obj, tm1, tm2);
-        free(parent_rec_name);
-        }
+        DFS_RECORD_FILE_OBJ_OPEN(dfs, path, DFS_LOOKUPS, obj, tm1, tm2);
         DFS_POST_RECORD();
     }
 
@@ -432,7 +397,7 @@ int DARSHAN_DECL(dfs_lookup_rel)(dfs_t *dfs, dfs_obj_t *parent, const char *name
 {
     int ret;
     double tm1, tm2;
-    char *parent_rec_name;
+    char *obj_rec_name = NULL;
 
     MAP_OR_FAIL(dfs_lookup_rel);
 
@@ -443,11 +408,11 @@ int DARSHAN_DECL(dfs_lookup_rel)(dfs_t *dfs, dfs_obj_t *parent, const char *name
     if(!ret)
     {
         DFS_PRE_RECORD();
-        DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
-        if(parent_rec_name)
+        DFS_RESOLVE_OBJ_REC_NAME(parent, name, obj_rec_name);
+        if(obj_rec_name)
         {
-            DFS_RECORD_FILE_OBJ_OPEN(dfs, parent_rec_name, name, DFS_LOOKUPS, obj, tm1, tm2);
-            if(!parent) free(parent_rec_name);
+            DFS_RECORD_FILE_OBJ_OPEN(dfs, obj_rec_name, DFS_LOOKUPS, obj, tm1, tm2);
+            free(obj_rec_name);
         }
         DFS_POST_RECORD();
     }
@@ -459,7 +424,7 @@ int DARSHAN_DECL(dfs_open)(dfs_t *dfs, dfs_obj_t *parent, const char *name, mode
 {
     int ret;
     double tm1, tm2;
-    char *parent_rec_name;
+    char *obj_rec_name = NULL;
 
     MAP_OR_FAIL(dfs_open);
 
@@ -470,11 +435,11 @@ int DARSHAN_DECL(dfs_open)(dfs_t *dfs, dfs_obj_t *parent, const char *name, mode
     if(!ret)
     {
         DFS_PRE_RECORD();
-        DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
-        if(parent_rec_name)
+        DFS_RESOLVE_OBJ_REC_NAME(parent, name, obj_rec_name);
+        if(obj_rec_name)
         {
-            DFS_RECORD_FILE_OBJ_OPEN(dfs, parent_rec_name, name, DFS_OPENS, obj, tm1, tm2);
-            if(!parent) free(parent_rec_name);
+            DFS_RECORD_FILE_OBJ_OPEN(dfs, obj_rec_name, DFS_OPENS, obj, tm1, tm2);
+            free(obj_rec_name);
         }
         DFS_POST_RECORD();
     }
@@ -509,7 +474,7 @@ int DARSHAN_DECL(dfs_obj_global2local)(dfs_t *dfs, int flags, d_iov_t glob, dfs_
 {
     int ret;
     double tm1, tm2;
-    char *parent_rec_name = NULL, *obj_name = NULL;
+    char *obj_rec_name = NULL;
 
     MAP_OR_FAIL(dfs_obj_global2local);
 
@@ -520,7 +485,7 @@ int DARSHAN_DECL(dfs_obj_global2local)(dfs_t *dfs, int flags, d_iov_t glob, dfs_
     if(!ret)
     {
         DFS_PRE_RECORD();
-        DFS_RECORD_FILE_OBJ_OPEN(dfs, parent_rec_name, obj_name, DFS_GLOBAL_OPENS, obj, tm1, tm2);
+        DFS_RECORD_FILE_OBJ_OPEN(dfs, obj_rec_name, DFS_GLOBAL_OPENS, obj, tm1, tm2);
         DFS_POST_RECORD();
     }
 
@@ -725,14 +690,13 @@ int DARSHAN_DECL(dfs_punch)(dfs_t *dfs, dfs_obj_t *obj, daos_off_t offset, daos_
 int DARSHAN_DECL(dfs_remove)(dfs_t *dfs, dfs_obj_t *parent, const char *name, bool force,
        daos_obj_id_t *oid)
 {
-    daos_obj_id_t the_oid;
     int ret;
     double tm1, tm2;
+    daos_obj_id_t the_oid;
     struct dfs_mount_info *mnt_info;
     darshan_record_id rec_id;
     struct dfs_file_record_ref *rec_ref = NULL;
-    char *parent_rec_name, *rec_name;
-    int rec_len;
+    char *obj_rec_name = NULL;
 
     /* ask for the OID if user doesn't -- used to compute record ID */
     if(!oid)
@@ -750,25 +714,16 @@ int DARSHAN_DECL(dfs_remove)(dfs_t *dfs, dfs_obj_t *parent, const char *name, bo
         DFS_GET_MOUNT_INFO(dfs, mnt_info);
         if(mnt_info)
         {
-            DFS_GEN_DARSHAN_REC_ID(oid, mnt_info->pool_uuid, mnt_info->cont_uuid, rec_id);
+            DFS_GEN_DARSHAN_REC_ID(oid, mnt_info, rec_id);
             rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash,
                 &rec_id, sizeof(rec_id));
             if(!rec_ref)
             {
-                DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
-                if(parent_rec_name)
+                DFS_RESOLVE_OBJ_REC_NAME(parent, name, obj_rec_name);
+                if(obj_rec_name)
                 {
-                    rec_len = strlen(parent_rec_name) + strlen(name) + 1;
-                    rec_name = malloc(rec_len);
-                    if(rec_name)
-                    {
-                        memset(rec_name, 0, rec_len);
-                        strcat(rec_name, parent_rec_name);
-                        strcat(rec_name, name);
-                        rec_ref = dfs_track_new_file_record(rec_id, rec_name);
-                        free(rec_name);
-                    }
-                    if(!parent) free(parent_rec_name);
+                    rec_ref = dfs_track_new_file_record(rec_id, obj_rec_name, mnt_info);
+                    free(obj_rec_name);
                 }
             }
             if(rec_ref)
@@ -939,7 +894,7 @@ static void dfs_runtime_initialize()
 }
 
 static struct dfs_file_record_ref *dfs_track_new_file_record(
-    darshan_record_id rec_id, const char *path)
+    darshan_record_id rec_id, const char *path, struct dfs_mount_info *mnt_info)
 {
     struct darshan_dfs_file *file_rec = NULL;
     struct dfs_file_record_ref *rec_ref = NULL;
@@ -980,6 +935,8 @@ static struct dfs_file_record_ref *dfs_track_new_file_record(
     /* registering this file record was successful, so initialize some fields */
     file_rec->base_rec.id = rec_id;
     file_rec->base_rec.rank = my_rank;
+    uuid_copy(file_rec->pool_uuid, mnt_info->pool_uuid);
+    uuid_copy(file_rec->cont_uuid, mnt_info->cont_uuid);
     rec_ref->file_rec = file_rec;
     dfs_runtime->file_rec_count++;
 
@@ -1009,6 +966,8 @@ static void dfs_record_reduction_op(
         memset(&tmp_file, 0, sizeof(struct darshan_dfs_file));
         tmp_file.base_rec.id = infile->base_rec.id;
         tmp_file.base_rec.rank = -1;
+        uuid_copy(tmp_file.pool_uuid, infile->pool_uuid);
+        uuid_copy(tmp_file.cont_uuid, infile->cont_uuid);
 
         /* sum */
         for(j=DFS_OPENS; j<=DFS_RW_SWITCHES; j++)
