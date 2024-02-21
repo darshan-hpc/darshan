@@ -132,6 +132,14 @@ static void darshan_log_print_dfs_file(void *file_rec, char *file_name,
     int i;
     struct darshan_dfs_file *dfs_file_rec =
         (struct darshan_dfs_file *)file_rec;
+    char pool_cont_uuid_str[128];
+
+    uuid_unparse(dfs_file_rec->pool_uuid, pool_cont_uuid_str);
+    strcat(pool_cont_uuid_str, ":");
+    uuid_unparse(dfs_file_rec->cont_uuid, pool_cont_uuid_str+strlen(pool_cont_uuid_str));
+
+    mnt_pt = pool_cont_uuid_str;
+    fs_type = "N/A";
 
     for(i=0; i<DFS_NUM_INDICES; i++)
     {
