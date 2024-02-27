@@ -1,3 +1,6 @@
+--wrap=daos_cont_open
+--wrap=daos_cont_global2local
+--wrap=daos_cont_close
 --wrap=daos_obj_open
 --wrap=daos_obj_fetch
 --wrap=daos_obj_update
