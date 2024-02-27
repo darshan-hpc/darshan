@@ -116,7 +116,7 @@ static int darshan_should_instrument_rank(
     struct darshan_core_runtime *core);
 static void darshan_fs_info_from_path(
     const char *path, struct darshan_fs_info *fs_info);
-static int darshan_add_name_record_ref(
+static int darshan_update_name_record_ref(
     struct darshan_core_runtime *core, darshan_record_id rec_id,
     const char *name, darshan_module_id mod_id);
 static void darshan_get_user_name(
@@ -1301,57 +1301,87 @@ static void darshan_fs_info_from_path(const char *path, struct darshan_fs_info *
     return;
 }
 
-static int darshan_add_name_record_ref(struct darshan_core_runtime *core,
+static int darshan_update_name_record_ref(struct darshan_core_runtime *core,
     darshan_record_id rec_id, const char *name, darshan_module_id mod_id)
 {
-    struct darshan_core_name_record_ref *ref;
-    struct darshan_core_name_record_ref *check_ref;
-    int record_size;
+    int is_new_rec = 0;
+    struct darshan_core_name_record_ref *ref, *check_ref;
 
-    /* if no name given, just write the NULL character */
-    if(!name)
-        name = "";
+    /* if no name given, use the empty string */
+    if(!name) name = "";
 
-    record_size = sizeof(darshan_record_id) + strlen(name) + 1;
-
-    if((record_size + core->name_mem_used) > core->config.name_mem)
-        return(0);
-
-    /* drop core lock while we allocate reference.  Note that
-     * this means we must check for existence again in hash table once we
-     * re-acquire the lock, but this code path will only happen once per
-     * file.
-     */
-    __DARSHAN_CORE_UNLOCK();
-    ref = malloc(sizeof(*ref));
-    __DARSHAN_CORE_LOCK();
+    /* check to see if we've already stored the id->name mapping for this record */
+    HASH_FIND(hlink, core->name_hash, &rec_id, sizeof(rec_id), ref);
     if(!ref)
     {
-        return(0);
+        /* drop core lock while we allocate reference.  Note that
+         * this means we must check for existence again in hash table once we
+         * re-acquire the lock, but this code path will only happen once per
+         * file.
+         */
+        __DARSHAN_CORE_UNLOCK();
+        ref = malloc(sizeof(*ref));
+        __DARSHAN_CORE_LOCK();
+        if(!ref)
+        {
+            return(0);
+        }
+        memset(ref, 0, sizeof(*ref));
+
+        HASH_FIND(hlink, core->name_hash, &rec_id, sizeof(rec_id), check_ref);
+        if(check_ref)
+        {
+            /* someone else added the ref while we dropped the lock */
+            free(ref);
+            ref = check_ref;
+        }
+        else
+        {
+            /* we need to allocate and add a new record ref */
+            is_new_rec = 1;
+        }
     }
-    memset(ref, 0, sizeof(*ref));
 
-    /* make sure no one else added it while we dropped the lock */
-    HASH_FIND(hlink, core->name_hash, &rec_id,
-        sizeof(darshan_record_id), check_ref);
-    if(check_ref)
-        return(1);
+    /* set a new name record reference in 2 scenarios:
+     *   1.) creation of a new record ref
+     *   2.) detecting zero-length name on an existing record ref
+     *       (i.e., initial creator of the ref didn't specify a name)
+     */
+    if(is_new_rec || ((strlen(ref->name_record->name) == 0) && strlen(name) > 0))
+    {
+        int record_size = sizeof(darshan_record_id) + strlen(name) + 1;
+        if((record_size + core->name_mem_used) > core->config.name_mem)
+        {
+            /* no more room for this name record */
+            if(is_new_rec) free(ref);
+            return(0);
+        }
+        else
+        {
+            /* initialize new name record structure */
+            ref->name_record = (struct darshan_name_record *)
+                ((char *)core->log_name_p + core->name_mem_used);
+            memset(ref->name_record, 0, record_size);
+            ref->name_record->id = rec_id;
+            strcpy(ref->name_record->name, name);
 
-    /* initialize the name record */
-    ref->name_record = (struct darshan_name_record *)
-        ((char *)core->log_name_p + core->name_mem_used);
-    memset(ref->name_record, 0, record_size);
-    ref->name_record->id = rec_id;
-    strcpy(ref->name_record->name, name);
+            core->name_mem_used += record_size;
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+            core->log_hdr_p->name_map.len += record_size;
+#endif
+        }
+    }
+
     DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
 
-    HASH_ADD(hlink, core->name_hash, name_record->id,
-        sizeof(darshan_record_id), ref);
-    core->name_mem_used += record_size;
-#ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    core->log_hdr_p->name_map.len += record_size;
-#endif
+    if(is_new_rec)
+    {
+        /* add new record reference */
+        HASH_ADD(hlink, core->name_hash, name_record->id,
+            sizeof(darshan_record_id), ref);
+    }
 
+    /* successfully updated core record ref */
     return(1);
 }
 
@@ -2641,24 +2671,12 @@ void *darshan_core_register_record(
         return(NULL);
     }
 
-    /* check to see if we've already stored the id->name mapping for
-     * this record, and add a new name record if not
-     */
-    HASH_FIND(hlink, __darshan_core->name_hash, &rec_id,
-        sizeof(darshan_record_id), ref);
-    if(!ref)
+    if(!darshan_update_name_record_ref(__darshan_core, rec_id, name, mod_id))
     {
-        ret = darshan_add_name_record_ref(__darshan_core, rec_id, name, mod_id);
-        if(ret == 0)
-        {
-            DARSHAN_MOD_FLAG_SET(__darshan_core->log_hdr_p->partial_flag, mod_id);
-            __DARSHAN_CORE_UNLOCK();
-            return(NULL);
-        }
-    }
-    else
-    {
-        DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
+        /* unable to update record ref, fail and set this module's partial flag */
+        DARSHAN_MOD_FLAG_SET(__darshan_core->log_hdr_p->partial_flag, mod_id);
+        __DARSHAN_CORE_UNLOCK();
+        return(NULL);
     }
 
     __darshan_core->mod_array[mod_id]->rec_mem_avail -= rec_size;
