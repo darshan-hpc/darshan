@@ -33,6 +33,11 @@
 #include <daos_obj.h>
 #include <daos_array.h>
 
+/* container access routines intercepted for maintaining pool/container UUIDs */
+DARSHAN_FORWARD_DECL(daos_cont_open, int, (daos_handle_t poh, const char *cont, unsigned int flags, daos_handle_t *coh, daos_cont_info_t *info, daos_event_t *ev));
+DARSHAN_FORWARD_DECL(daos_cont_global2local, int, (daos_handle_t poh, d_iov_t glob, daos_handle_t *coh));
+DARSHAN_FORWARD_DECL(daos_cont_close, int, (daos_handle_t coh, daos_event_t *ev));
+
 /* multi-level key array API */
 DARSHAN_FORWARD_DECL(daos_obj_open, int, (daos_handle_t coh, daos_obj_id_t oid, unsigned int mode, daos_handle_t *oh, daos_event_t *ev));
 DARSHAN_FORWARD_DECL(daos_obj_fetch, int, (daos_handle_t oh, daos_handle_t th, uint64_t flags, daos_key_t *dkey, unsigned int nr, daos_iod_t *iods, d_sg_list_t *sgls, daos_iom_t *ioms, daos_event_t *ev));
@@ -100,8 +105,17 @@ struct daos_object_record_ref
     int access_count;
 };
 
+struct daos_poolcont_info
+{
+    daos_handle_t coh;
+    uuid_t pool_uuid;
+    uuid_t cont_uuid;
+    UT_hash_handle hlink;
+};
+
 struct daos_runtime
 {
+    struct daos_poolcont_info *poolcont_hash;
     void *rec_id_hash;
     void *oh_hash;
     int obj_rec_count;
@@ -110,7 +124,7 @@ struct daos_runtime
 
 static void daos_runtime_initialize();
 static struct daos_object_record_ref *daos_track_new_object_record(
-    darshan_record_id rec_id, daos_obj_id_t oid);
+    darshan_record_id rec_id, daos_obj_id_t oid, struct daos_poolcont_info *poolcont_info);
 static void daos_finalize_object_records(
     void *rec_ref_p, void *user_ptr);
 #ifdef HAVE_MPI
@@ -151,17 +165,49 @@ static int my_rank = -1;
     DAOS_UNLOCK(); \
 } while(0)
 
-// XXX update 0 to include container/pool
-#define ID_GLOB_SIZE ((0*sizeof(uuid_t)) + sizeof(daos_obj_id_t))
-#define DAOS_RECORD_OBJ_OPEN(__oh_p, __oid, __counter, __cell_sz, __chunk_sz, __tm1, __tm2) do { \
+#define DAOS_STORE_POOLCONT_INFO(__poh, __coh_p) do { \
+    int __query_ret; \
+    daos_pool_info_t __pool_info; \
+    daos_cont_info_t __cont_info; \
+    struct daos_poolcont_info *__poolcont_info; \
+    __query_ret = daos_pool_query(__poh, NULL, &__pool_info, NULL, NULL); \
+    if(__query_ret == 0) { \
+        __query_ret = daos_cont_query(*__coh_p, &__cont_info, NULL, NULL); \
+        if(__query_ret == 0) { \
+            __poolcont_info = malloc(sizeof(*__poolcont_info)); \
+            if(__poolcont_info) { \
+                uuid_copy(__poolcont_info->pool_uuid, __pool_info.pi_uuid); \
+                uuid_copy(__poolcont_info->cont_uuid, __cont_info.ci_uuid); \
+                __poolcont_info->coh = *__coh_p; \
+                HASH_ADD(hlink, daos_runtime->poolcont_hash, coh, sizeof(*__coh_p), __poolcont_info); \
+            } \
+        } \
+    } \
+} while(0)
+
+#define DAOS_GET_POOLCONT_INFO(__coh, __poolcont_info) \
+    HASH_FIND(hlink, daos_runtime->poolcont_hash, &__coh, sizeof(__coh), __poolcont_info)
+
+#define DFS_FREE_POOLCONT_INFO(__poolcont_info) do { \
+    HASH_DELETE(hlink, daos_runtime->poolcont_hash, __poolcont_info); \
+    free(__poolcont_info); \
+} while(0)
+
+#define ID_GLOB_SIZE (sizeof(daos_obj_id_t) + (2*sizeof(uuid_t)))
+#define DAOS_RECORD_OBJ_OPEN(__coh, __oh_p, __oid, __counter, __cell_sz, __chunk_sz, __tm1, __tm2) do { \
+    struct daos_poolcont_info *__poolcont_info; \
     unsigned char __id_glob[ID_GLOB_SIZE]; \
     darshan_record_id __rec_id; \
     struct daos_object_record_ref *__rec_ref; \
-    memcpy(__id_glob, &__oid, sizeof(daos_obj_id_t)); \
+    DAOS_GET_POOLCONT_INFO(__coh, __poolcont_info); \
+    if(!__poolcont_info) break; \
+    memcpy(__id_glob, __poolcont_info->pool_uuid, sizeof(__poolcont_info->pool_uuid)); \
+    memcpy(__id_glob+sizeof(__poolcont_info->pool_uuid), __poolcont_info->cont_uuid, sizeof(__poolcont_info->cont_uuid)); \
+    memcpy(__id_glob+sizeof(__poolcont_info->pool_uuid)+sizeof(__poolcont_info->cont_uuid), &__oid, sizeof(__oid)); \
     __rec_id = darshan_hash(__id_glob, ID_GLOB_SIZE, 0); \
     __rec_ref = darshan_lookup_record_ref(daos_runtime->rec_id_hash, &__rec_id, \
         sizeof(darshan_record_id)); \
-    if(!__rec_ref) __rec_ref = daos_track_new_object_record(__rec_id, __oid); \
+    if(!__rec_ref) __rec_ref = daos_track_new_object_record(__rec_id, __oid, __poolcont_info); \
     if(!__rec_ref) break; \
     __rec_ref->object_rec->counters[__counter] += 1; \
     if(__cell_sz) __rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE] = __cell_sz; \
@@ -261,6 +307,69 @@ static int my_rank = -1;
  *      Wrappers for DAOS functions of interest      * 
  *****************************************************/
 
+/* container access routines intercepted for maintaining pool/container UUIDs */
+
+int DARSHAN_DECL(daos_cont_open)(daos_handle_t poh, const char *cont, unsigned int flags,
+    daos_handle_t *coh, daos_cont_info_t *info, daos_event_t *ev)
+{
+    int ret;
+
+    MAP_OR_FAIL(daos_cont_open);
+
+    ret = __real_daos_cont_open(poh, cont, flags, coh, info, ev);
+
+    if(!ret)
+    {
+        DAOS_PRE_RECORD();
+        DAOS_STORE_POOLCONT_INFO(poh, coh);
+        DAOS_POST_RECORD();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(daos_cont_global2local)(daos_handle_t poh, d_iov_t glob, daos_handle_t *coh)
+{
+    int ret;
+
+    MAP_OR_FAIL(daos_cont_global2local);
+
+    ret = __real_daos_cont_global2local(poh, glob, coh);
+
+    if(!ret)
+    {
+        DAOS_PRE_RECORD();
+        DAOS_STORE_POOLCONT_INFO(poh, coh);
+        DAOS_POST_RECORD();
+    }
+
+    return(ret);
+}
+
+int DARSHAN_DECL(daos_cont_close)(daos_handle_t coh, daos_event_t *ev)
+{
+    int ret;
+    struct daos_poolcont_info *poolcont_info;
+
+    MAP_OR_FAIL(daos_cont_close);
+
+    if(!__darshan_disabled)
+    {
+        DAOS_LOCK();
+        if(daos_runtime && !daos_runtime->frozen)
+        {
+            DAOS_GET_POOLCONT_INFO(coh, poolcont_info);
+            if(poolcont_info)
+                DFS_FREE_POOLCONT_INFO(poolcont_info);
+        }
+        DAOS_UNLOCK();
+    }
+
+    ret = __real_daos_cont_close(coh, ev);
+
+    return(ret);
+}
+
 /* multi-level key array API */
 
 int DARSHAN_DECL(daos_obj_open)(daos_handle_t coh, daos_obj_id_t oid, unsigned int mode, daos_handle_t *oh, daos_event_t *ev)
@@ -277,7 +386,7 @@ int DARSHAN_DECL(daos_obj_open)(daos_handle_t coh, daos_obj_id_t oid, unsigned i
     if(!ret)
     {
         DAOS_PRE_RECORD();
-        DAOS_RECORD_OBJ_OPEN(oh, oid, DAOS_OBJ_OPENS, 0, 0, tm1, tm2);
+        DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_OBJ_OPENS, 0, 0, tm1, tm2);
         DAOS_POST_RECORD();
     }
 
@@ -575,7 +684,7 @@ int DARSHAN_DECL(daos_array_create)(daos_handle_t coh, daos_obj_id_t oid,
     if(!ret)
     {
         DAOS_PRE_RECORD();
-        DAOS_RECORD_OBJ_OPEN(oh, oid, DAOS_ARRAY_OPENS, cell_size, chunk_size, tm1, tm2);
+        DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_ARRAY_OPENS, cell_size, chunk_size, tm1, tm2);
         DAOS_POST_RECORD();
     }
 
@@ -598,7 +707,7 @@ int DARSHAN_DECL(daos_array_open)(daos_handle_t coh, daos_obj_id_t oid,
     if(!ret)
     {
         DAOS_PRE_RECORD();
-        DAOS_RECORD_OBJ_OPEN(oh, oid, DAOS_ARRAY_OPENS, *cell_size, *chunk_size, tm1, tm2);
+        DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_ARRAY_OPENS, *cell_size, *chunk_size, tm1, tm2);
         DAOS_POST_RECORD();
     }
 
@@ -619,7 +728,7 @@ int DARSHAN_DECL(daos_array_open_with_attr)(daos_handle_t coh, daos_obj_id_t oid
     if(!ret)
     {
         DAOS_PRE_RECORD();
-        DAOS_RECORD_OBJ_OPEN(oh, oid, DAOS_ARRAY_OPENS, cell_size, chunk_size, tm1, tm2);
+        DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_ARRAY_OPENS, cell_size, chunk_size, tm1, tm2);
         DAOS_POST_RECORD();
     }
 
@@ -868,7 +977,7 @@ int DARSHAN_DECL(daos_kv_open)(daos_handle_t coh, daos_obj_id_t oid, unsigned in
     if(!ret)
     {
         DAOS_PRE_RECORD();
-        DAOS_RECORD_OBJ_OPEN(oh, oid, DAOS_KV_OPENS, 0, 0, tm1, tm2);
+        DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_KV_OPENS, 0, 0, tm1, tm2);
         DAOS_POST_RECORD();
     }
 
@@ -1080,7 +1189,7 @@ static void daos_runtime_initialize()
 }
 
 static struct daos_object_record_ref *daos_track_new_object_record(
-    darshan_record_id rec_id, daos_obj_id_t oid)
+    darshan_record_id rec_id, daos_obj_id_t oid, struct daos_poolcont_info *poolcont_info)
 {
     struct darshan_daos_object *object_rec = NULL;
     struct daos_object_record_ref *rec_ref = NULL;
@@ -1121,6 +1230,8 @@ static struct daos_object_record_ref *daos_track_new_object_record(
     /* registering this object record was successful, so initialize some fields */
     object_rec->base_rec.id = rec_id;
     object_rec->base_rec.rank = my_rank;
+    uuid_copy(object_rec->pool_uuid, poolcont_info->pool_uuid);
+    uuid_copy(object_rec->cont_uuid, poolcont_info->cont_uuid);
     object_rec->oid_hi = oid.hi;
     object_rec->oid_lo = oid.lo;
     rec_ref->object_rec = object_rec;
@@ -1152,6 +1263,8 @@ static void daos_record_reduction_op(
         memset(&tmp_obj, 0, sizeof(struct darshan_daos_object));
         tmp_obj.base_rec.id = inobj->base_rec.id;
         tmp_obj.base_rec.rank = -1;
+        uuid_copy(tmp_obj.pool_uuid, inobj->pool_uuid);
+        uuid_copy(tmp_obj.cont_uuid, inobj->cont_uuid);
         tmp_obj.oid_hi = inobj->oid_hi;
         tmp_obj.oid_lo = inobj->oid_lo;
 
@@ -1451,6 +1564,8 @@ static void daos_output(
 
 static void daos_cleanup()
 {
+    struct daos_poolcont_info *poolcont_info, *tmp;
+
     DAOS_LOCK();
     assert(daos_runtime);
 
@@ -1459,6 +1574,12 @@ static void daos_cleanup()
         &daos_finalize_object_records, NULL);
     darshan_clear_record_refs(&(daos_runtime->oh_hash), 0);
     darshan_clear_record_refs(&(daos_runtime->rec_id_hash), 1);
+
+    HASH_ITER(hlink, daos_runtime->poolcont_hash, poolcont_info, tmp)
+    {
+        HASH_DELETE(hlink, daos_runtime->poolcont_hash, poolcont_info);
+        free(poolcont_info);
+    }
 
     free(daos_runtime);
     daos_runtime = NULL;

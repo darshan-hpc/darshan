@@ -133,11 +133,18 @@ static void darshan_log_print_daos_object(void *object_rec, char *object_name,
     struct darshan_daos_object *daos_object_rec =
         (struct darshan_daos_object *)object_rec;
     char oid[64];
+    char pool_cont_uuid_str[128];
 
     sprintf(oid, "%lu.%lu", daos_object_rec->oid_hi, daos_object_rec->oid_lo);
     object_name = oid;
 
-    // XXX what bout mnt_pt/fs_type?
+    uuid_unparse(daos_object_rec->pool_uuid, pool_cont_uuid_str);
+    strcat(pool_cont_uuid_str, ":");
+    uuid_unparse(daos_object_rec->cont_uuid, pool_cont_uuid_str+strlen(pool_cont_uuid_str));
+
+    mnt_pt = pool_cont_uuid_str;
+    fs_type = "N/A";
+
     for(i=0; i<DAOS_NUM_INDICES; i++)
     {
         DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_DAOS_MOD],
