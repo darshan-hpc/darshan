@@ -1046,6 +1046,19 @@ static int darshan_log_get_namerecs(void *name_rec_buf, int buf_len,
             /* add this record to the hash */
             HASH_ADD(hlink, *hash, name_record->id, sizeof(darshan_record_id), ref);
         }
+        else if(ref && !strlen(ref->name_record->name) && strlen(name_rec->name) > 0)
+        {
+            free(ref->name_record);
+            ref->name_record = malloc(rec_len);
+            if(!ref->name_record)
+            {
+                free(ref);
+                return(-1);
+            }
+
+            /* copy the name record over from the hash buffer */
+            memcpy(ref->name_record, name_rec, rec_len);
+        }
 
         tmp_p = (char *)name_rec + rec_len;
         name_rec = (struct darshan_name_record *)tmp_p;
