@@ -145,6 +145,7 @@ enum darshan_dfs_f_indices
  *      - a darshan_base_record structure, which contains the record id & rank
  *      - integer file I/O statistics (open, read/write counts, etc)
  *      - floating point I/O statistics (timestamps, cumulative timers, etc.)
+ *      - pool and container UUIDs
  */
 struct darshan_dfs_file
 {

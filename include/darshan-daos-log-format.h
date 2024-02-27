@@ -6,6 +6,8 @@
 #ifndef __DARSHAN_DAOS_LOG_FORMAT_H
 #define __DARSHAN_DAOS_LOG_FORMAT_H
 
+#include <uuid/uuid.h>
+
 /* current DAOS log format version */
 #define DARSHAN_DAOS_VER 1
 
@@ -163,12 +165,16 @@ enum darshan_daos_f_indices
  *      - a darshan_base_record structure, which contains the record id & rank
  *      - integer I/O statistics (open, read/write counts, etc)
  *      - floating point I/O statistics (timestamps, cumulative timers, etc.)
+ *      - 128-bit OID (upper 64-bits in oid_hi and lower 64-bits in oid_lo)
+ *      - pool and container UUIDs
  */
 struct darshan_daos_object
 {
     struct darshan_base_record base_rec;
     int64_t counters[DAOS_NUM_INDICES];
     double fcounters[DAOS_F_NUM_INDICES];
+    uuid_t pool_uuid;
+    uuid_t cont_uuid;
     uint64_t oid_hi;
     uint64_t oid_lo;
 };
