@@ -149,21 +149,20 @@ static int my_rank = -1;
 } while(0)
 
 #define DFS_STORE_MOUNT_INFO(__poh, __coh, __dfs_p) do { \
-    int __query_ret, __success=0; \
+    int __query_ret; \
     daos_pool_info_t __pool_info; \
     daos_cont_info_t __cont_info; \
     struct dfs_mount_info *__mnt_info; \
     __query_ret = daos_pool_query(__poh, NULL, &__pool_info, NULL, NULL); \
     if(__query_ret == 0) { \
         __query_ret = daos_cont_query(__coh, &__cont_info, NULL, NULL); \
-        if(__query_ret == 0) __success = 1; \
-    } \
-    if(__success) { \
-        __mnt_info = malloc(sizeof(*__mnt_info)); \
-        if(__mnt_info) { \
-            uuid_copy(__mnt_info->pool_uuid, __pool_info.pi_uuid); \
-            uuid_copy(__mnt_info->cont_uuid, __cont_info.ci_uuid); \
-            HASH_ADD_KEYPTR(hlink, dfs_runtime->mount_hash, *__dfs_p, sizeof(void *), __mnt_info); \
+        if(__query_ret == 0) { \
+            __mnt_info = malloc(sizeof(*__mnt_info)); \
+            if(__mnt_info) { \
+                uuid_copy(__mnt_info->pool_uuid, __pool_info.pi_uuid); \
+                uuid_copy(__mnt_info->cont_uuid, __cont_info.ci_uuid); \
+                HASH_ADD_KEYPTR(hlink, dfs_runtime->mount_hash, *__dfs_p, sizeof(void *), __mnt_info); \
+            } \
         } \
     } \
 } while(0)
@@ -356,16 +355,22 @@ int DARSHAN_DECL(dfs_global2local)(daos_handle_t poh, daos_handle_t coh, int fla
 
 int DARSHAN_DECL(dfs_umount)(dfs_t *dfs)
 {
-    int ret = 0;
+    int ret;
     struct dfs_mount_info *mnt_info;
 
     MAP_OR_FAIL(dfs_umount);
 
-    DFS_PRE_RECORD();
-    DFS_GET_MOUNT_INFO(dfs, mnt_info);
-    if(mnt_info)
-        DFS_FREE_MOUNT_INFO(mnt_info);
-    DFS_POST_RECORD();
+    if(!__darshan_disabled)
+    {
+        DFS_LOCK();
+        if(dfs_runtime && !dfs_runtime->frozen)
+        {
+            DFS_GET_MOUNT_INFO(dfs, mnt_info);
+            if(mnt_info)
+                DFS_FREE_MOUNT_INFO(mnt_info);
+        }
+        DFS_UNLOCK();
+    }
 
     ret = __real_dfs_umount(dfs);
 
