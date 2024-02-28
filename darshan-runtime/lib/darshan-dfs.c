@@ -73,8 +73,8 @@ DARSHAN_FORWARD_DECL(dfs_osetattr, int, (dfs_t *dfs, dfs_obj_t *obj, struct stat
  * NOTE: we use the 'darshan_record_ref' interface (in darshan-common) to
  * associate different types of handles with this dfs_file_record_ref struct.
  * This allows us to index this struct (and the underlying file record) by using
- * either the corresponding Darshan record identifier (derived from the filename)
- * or by a DFS file object, for instance. Note that, while there should
+ * either the corresponding Darshan record identifier (derived from the underlying
+   object OID) or by a DFS file object, for instance. Note that, while there should
  * only be a single Darshan record identifier that indexes a dfs_file_record_ref,
  * there could be multiple open file objects that index it.
  */

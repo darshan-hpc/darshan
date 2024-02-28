@@ -165,8 +165,8 @@ enum darshan_daos_f_indices
  *      - a darshan_base_record structure, which contains the record id & rank
  *      - integer I/O statistics (open, read/write counts, etc)
  *      - floating point I/O statistics (timestamps, cumulative timers, etc.)
- *      - 128-bit OID (upper 64-bits in oid_hi and lower 64-bits in oid_lo)
  *      - pool and container UUIDs
+ *      - 128-bit OID (upper 64-bits in oid_hi and lower 64-bits in oid_lo)
  */
 struct darshan_daos_object
 {

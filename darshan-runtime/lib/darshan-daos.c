@@ -89,10 +89,10 @@ DARSHAN_FORWARD_DECL(daos_kv_close, int, (daos_handle_t oh, daos_event_t *ev));
  * NOTE: we use the 'darshan_record_ref' interface (in darshan-common) to
  * associate different types of handles with this daos_object_record_ref struct.
  * This allows us to index this struct (and the underlying object record) by using
- * either the corresponding Darshan record identifier (derived from the XXX ???)
- * or by a XXX DAOS object handle, for instance. Note that, while there should
+ * either the corresponding Darshan record identifier (derived from the object OID)
+ * or by a DAOS object handle, for instance. Note that, while there should
  * only be a single Darshan record identifier that indexes a daos_object_record_ref,
- * there could be multiple XXX open file objects that index it.
+ * there could be multiple open object handles that index it.
  */
 struct daos_object_record_ref
 {
@@ -306,6 +306,8 @@ static int my_rank = -1;
 /*****************************************************
  *      Wrappers for DAOS functions of interest      * 
  *****************************************************/
+
+/* XXX generally handle usage of DAOS events (ev) in these instrumented calls */
 
 /* container access routines intercepted for maintaining pool/container UUIDs */
 
