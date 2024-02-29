@@ -51,6 +51,8 @@
 void posix_print_total_file(struct darshan_posix_file *pfile, int posix_ver);
 void mpiio_print_total_file(struct darshan_mpiio_file *mfile, int mpiio_ver);
 void stdio_print_total_file(struct darshan_stdio_file *pfile, int stdio_ver);
+void dfs_print_total_file(struct darshan_dfs_file *pfile, int dfs_ver);
+void daos_print_total_file(struct darshan_daos_object *pfile, int daos_ver);
 
 int usage (char *exename)
 {
@@ -322,7 +324,8 @@ int main(int argc, char **argv)
          * parsing
          */
         else if((i != DARSHAN_POSIX_MOD) && (i != DARSHAN_MPIIO_MOD) &&
-                (i != DARSHAN_STDIO_MOD) && !(mask & OPTION_BASE))
+                (i != DARSHAN_STDIO_MOD) && (i != DARSHAN_DFS_MOD) &&
+                (i != DARSHAN_DAOS_MOD) && !(mask & OPTION_BASE))
             continue;
 
         /* this module has data to be parsed and printed */
@@ -452,10 +455,11 @@ int main(int argc, char **argv)
         if(acc)
             darshan_accumulator_emit(acc, &metrics, mod_buf);
 
-        /* we calculate more detailed stats for POSIX and MPI-IO modules, 
+        /* we calculate more detailed stats for POSIX, STDIO, MPI-IO, DFS, and DAOS modules,
          * if the parser is executed with more than the base option
          */
-        if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD && i != DARSHAN_STDIO_MOD)
+        if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD && i != DARSHAN_STDIO_MOD &&
+           i != DARSHAN_DFS_MOD && i != DARSHAN_DAOS_MOD)
             continue;
 
         /* Total Calc */
@@ -472,6 +476,14 @@ int main(int argc, char **argv)
             else if(i == DARSHAN_STDIO_MOD)
             {
                 stdio_print_total_file((struct darshan_stdio_file*)mod_buf, fd->mod_ver[i]);
+            }
+            else if(i == DARSHAN_DFS_MOD)
+            {
+                dfs_print_total_file((struct darshan_dfs_file*)mod_buf, fd->mod_ver[i]);
+            }
+            else if(i == DARSHAN_DAOS_MOD)
+            {
+                daos_print_total_file((struct darshan_daos_object*)mod_buf, fd->mod_ver[i]);
             }
         }
 
@@ -633,6 +645,44 @@ void mpiio_print_total_file(struct darshan_mpiio_file *mfile, int mpiio_ver)
     {
         printf("total_%s: %lf\n",
             mpiio_f_counter_names[i], mfile->fcounters[i]);
+    }
+    return;
+}
+
+void dfs_print_total_file(struct darshan_dfs_file *pfile, int dfs_ver)
+{
+    int i;
+
+    mod_logutils[DARSHAN_DFS_MOD]->log_print_description(dfs_ver);
+    printf("\n");
+    for(i = 0; i < DFS_NUM_INDICES; i++)
+    {
+        printf("total_%s: %"PRId64"\n",
+            dfs_counter_names[i], pfile->counters[i]);
+    }
+    for(i = 0; i < DFS_F_NUM_INDICES; i++)
+    {
+        printf("total_%s: %lf\n",
+            dfs_f_counter_names[i], pfile->fcounters[i]);
+    }
+    return;
+}
+
+void daos_print_total_file(struct darshan_daos_object *pfile, int daos_ver)
+{
+    int i;
+
+    mod_logutils[DARSHAN_DAOS_MOD]->log_print_description(daos_ver);
+    printf("\n");
+    for(i = 0; i < DAOS_NUM_INDICES; i++)
+    {
+        printf("total_%s: %"PRId64"\n",
+            daos_counter_names[i], pfile->counters[i]);
+    }
+    for(i = 0; i < DAOS_F_NUM_INDICES; i++)
+    {
+        printf("total_%s: %lf\n",
+            daos_f_counter_names[i], pfile->fcounters[i]);
     }
     return;
 }
