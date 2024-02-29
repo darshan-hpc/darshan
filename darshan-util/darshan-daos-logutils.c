@@ -35,6 +35,17 @@ static void darshan_log_print_daos_description(int ver);
 static void darshan_log_print_daos_object_diff(void *obj_rec1, char *obj_name1,
     void *obj_rec2, char *obj_name2);
 static void darshan_log_agg_daos_objects(void *rec, void *agg_rec, int init_flag);
+static int darshan_log_sizeof_daos_object(void* daos_buf_p);
+static int darshan_log_record_metrics_daos_object(void* daos_buf_p,
+                                                 uint64_t* rec_id,
+                                                 int64_t* r_bytes,
+                                                 int64_t* w_bytes,
+                                                 int64_t* max_offset,
+                                                 double* io_total_time,
+                                                 double* md_only_time,
+                                                 double* rw_only_time,
+                                                 int64_t* rank,
+                                                 int64_t* nprocs);
 
 struct darshan_mod_logutil_funcs daos_logutils =
 {
@@ -44,7 +55,68 @@ struct darshan_mod_logutil_funcs daos_logutils =
     .log_print_description = &darshan_log_print_daos_description,
     .log_print_diff = &darshan_log_print_daos_object_diff,
     .log_agg_records = &darshan_log_agg_daos_objects,
+    .log_sizeof_record = &darshan_log_sizeof_daos_object,
+    .log_record_metrics = &darshan_log_record_metrics_daos_object
 };
+
+static int darshan_log_sizeof_daos_object(void* daos_buf_p)
+{
+    /* daos records have a fixed size */
+    return(sizeof(struct darshan_daos_object));
+}
+
+static int darshan_log_record_metrics_daos_object(void* daos_buf_p,
+                                         uint64_t* rec_id,
+                                         int64_t* r_bytes,
+                                         int64_t* w_bytes,
+                                         int64_t* max_offset,
+                                         double* io_total_time,
+                                         double* md_only_time,
+                                         double* rw_only_time,
+                                         int64_t* rank,
+                                         int64_t* nprocs)
+{
+    struct darshan_daos_object *daos_rec = (struct darshan_daos_object *)daos_buf_p;
+
+    *rec_id = daos_rec->base_rec.id;
+    *r_bytes = daos_rec->counters[DAOS_BYTES_READ];
+    *w_bytes = daos_rec->counters[DAOS_BYTES_WRITTEN];
+
+    /* the daos module doesn't report this */
+    *max_offset = -1;
+
+    *rank = daos_rec->base_rec.rank;
+    /* nprocs is 1 per record, unless rank is negative, in which case we
+     * report -1 as the rank value to represent "all"
+     */
+    if(daos_rec->base_rec.rank < 0)
+        *nprocs = -1;
+    else
+        *nprocs = 1;
+
+    if(daos_rec->base_rec.rank < 0) {
+        /* shared object records populate a counter with the slowest rank time
+         * (derived during reduction).  They do not have a breakdown of meta
+         * and rw time, though.
+         */
+        *io_total_time = daos_rec->fcounters[DAOS_F_SLOWEST_RANK_TIME];
+        *md_only_time = 0;
+        *rw_only_time = 0;
+    }
+    else {
+        /* non-shared records have separate meta, read, and write values
+         * that we can combine as needed
+         */
+        *io_total_time = daos_rec->fcounters[DAOS_F_META_TIME] +
+                         daos_rec->fcounters[DAOS_F_READ_TIME] +
+                         daos_rec->fcounters[DAOS_F_WRITE_TIME];
+        *md_only_time = daos_rec->fcounters[DAOS_F_META_TIME];
+        *rw_only_time = daos_rec->fcounters[DAOS_F_READ_TIME] +
+                        daos_rec->fcounters[DAOS_F_WRITE_TIME];
+    }
+
+    return(0);
+}
 
 static int darshan_log_get_daos_object(darshan_fd fd, void** daos_buf_p)
 {
