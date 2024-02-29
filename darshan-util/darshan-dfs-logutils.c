@@ -35,6 +35,17 @@ static void darshan_log_print_dfs_description(int ver);
 static void darshan_log_print_dfs_file_diff(void *file_rec1, char *file_name1,
     void *file_rec2, char *file_name2);
 static void darshan_log_agg_dfs_files(void *rec, void *agg_rec, int init_flag);
+static int darshan_log_sizeof_dfs_file(void* dfs_buf_p);
+static int darshan_log_record_metrics_dfs_file(void* dfs_buf_p,
+                                                 uint64_t* rec_id,
+                                                 int64_t* r_bytes,
+                                                 int64_t* w_bytes,
+                                                 int64_t* max_offset,
+                                                 double* io_total_time,
+                                                 double* md_only_time,
+                                                 double* rw_only_time,
+                                                 int64_t* rank,
+                                                 int64_t* nprocs);
 
 struct darshan_mod_logutil_funcs dfs_logutils =
 {
@@ -44,7 +55,68 @@ struct darshan_mod_logutil_funcs dfs_logutils =
     .log_print_description = &darshan_log_print_dfs_description,
     .log_print_diff = &darshan_log_print_dfs_file_diff,
     .log_agg_records = &darshan_log_agg_dfs_files,
+    .log_sizeof_record = &darshan_log_sizeof_dfs_file,
+    .log_record_metrics = &darshan_log_record_metrics_dfs_file
 };
+
+static int darshan_log_sizeof_dfs_file(void* dfs_buf_p)
+{
+    /* dfs records have a fixed size */
+    return(sizeof(struct darshan_dfs_file));
+}
+
+static int darshan_log_record_metrics_dfs_file(void* dfs_buf_p,
+                                         uint64_t* rec_id,
+                                         int64_t* r_bytes,
+                                         int64_t* w_bytes,
+                                         int64_t* max_offset,
+                                         double* io_total_time,
+                                         double* md_only_time,
+                                         double* rw_only_time,
+                                         int64_t* rank,
+                                         int64_t* nprocs)
+{
+    struct darshan_dfs_file *dfs_rec = (struct darshan_dfs_file *)dfs_buf_p;
+
+    *rec_id = dfs_rec->base_rec.id;
+    *r_bytes = dfs_rec->counters[DFS_BYTES_READ];
+    *w_bytes = dfs_rec->counters[DFS_BYTES_WRITTEN];
+
+    /* the dfs module doesn't report this */
+    *max_offset = -1;
+
+    *rank = dfs_rec->base_rec.rank;
+    /* nprocs is 1 per record, unless rank is negative, in which case we
+     * report -1 as the rank value to represent "all"
+     */
+    if(dfs_rec->base_rec.rank < 0)
+        *nprocs = -1;
+    else
+        *nprocs = 1;
+
+    if(dfs_rec->base_rec.rank < 0) {
+        /* shared file records populate a counter with the slowest rank time
+         * (derived during reduction).  They do not have a breakdown of meta
+         * and rw time, though.
+         */
+        *io_total_time = dfs_rec->fcounters[DFS_F_SLOWEST_RANK_TIME];
+        *md_only_time = 0;
+        *rw_only_time = 0;
+    }
+    else {
+        /* non-shared records have separate meta, read, and write values
+         * that we can combine as needed
+         */
+        *io_total_time = dfs_rec->fcounters[DFS_F_META_TIME] +
+                         dfs_rec->fcounters[DFS_F_READ_TIME] +
+                         dfs_rec->fcounters[DFS_F_WRITE_TIME];
+        *md_only_time = dfs_rec->fcounters[DFS_F_META_TIME];
+        *rw_only_time = dfs_rec->fcounters[DFS_F_READ_TIME] +
+                        dfs_rec->fcounters[DFS_F_WRITE_TIME];
+    }
+
+    return(0);
+}
 
 static int darshan_log_get_dfs_file(darshan_fd fd, void** dfs_buf_p)
 {
