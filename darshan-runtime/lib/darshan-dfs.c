@@ -334,7 +334,6 @@ int DARSHAN_DECL(dfs_mount)(daos_handle_t poh, daos_handle_t coh, int flags, dfs
     return(ret);
 }
 
-// XXX dfs_global2local_all support, will have similar issues to dfs_obj_global2local
 int DARSHAN_DECL(dfs_global2local)(daos_handle_t poh, daos_handle_t coh, int flags, d_iov_t glob, dfs_t **dfs)
 {
     int ret;
