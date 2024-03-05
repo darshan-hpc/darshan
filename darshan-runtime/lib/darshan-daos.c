@@ -737,6 +737,9 @@ int DARSHAN_DECL(daos_array_open_with_attr)(daos_handle_t coh, daos_obj_id_t oid
     return(ret);
 }
 
+/* XXX daos_array_global2local not supported, as there is no way to map from a
+ *     global representation to underlying object ID used to reference record
+ */
 int DARSHAN_DECL(daos_array_read)(daos_handle_t oh, daos_handle_t th,
     daos_array_iod_t *iod, d_sg_list_t *sgl, daos_event_t *ev)
 {
