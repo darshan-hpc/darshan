@@ -82,8 +82,6 @@
     X(DFS_ACCESS4_COUNT) \
     /* dfs file chunk size */\
     X(DFS_CHUNK_SIZE) \
-    /* whether dfs distributed transactions are used */\
-    X(DFS_USE_DTX) \
     /* rank and number of bytes moved for fastest/slowest ranks */\
     X(DFS_FASTEST_RANK) \
     X(DFS_FASTEST_RANK_BYTES) \

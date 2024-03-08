@@ -117,11 +117,9 @@ def test_dfs_daos_posix_match():
             # or we need to handle the data differently between POSIX
             # and DAOS DFS
             if column_name in ["id", "DFS_LOOKUPS", "DFS_NB_READS", "DFS_NB_WRITES",
-                               "DFS_GET_SIZES", "DFS_PUNCHES", "DFS_MOVES",
-                               "DFS_EXCHANGES",
-                               "DFS_STATS",
-                               "DFS_CHUNK_SIZE", "DFS_USE_DTX", "DFS_FASTEST_RANK",
-                               "DFS_SLOWEST_RANK"]:
+                               "DFS_GET_SIZES", "DFS_PUNCHES", "DFS_STATS",
+                               "DFS_CHUNK_SIZE",
+                               "DFS_FASTEST_RANK", "DFS_SLOWEST_RANK"]:
                 continue
             elif "time" in column_name.lower():
                 # you can't reasonably expect the timestamps to be the

@@ -246,7 +246,6 @@ static void darshan_log_print_dfs_description(int ver)
     printf("#   DFS_ACCESS*_ACCESS: the four most common access sizes.\n");
     printf("#   DFS_ACCESS*_COUNT: count of the four most common access sizes.\n");
     printf("#   DFS_CHUNK_SIZE: DFS file chunk size.\n");
-    printf("#   DFS_USE_DTX: whether DFS distributed transactions are used.\n");
     printf("#   DFS_*_RANK: rank of the processes that were the fastest and slowest at I/O (for shared files).\n");
     printf("#   DFS_*_RANK_BYTES: bytes transferred by the fastest and slowest ranks (for shared files).\n");
     printf("#   DFS_F_*_START_TIMESTAMP: timestamp of first open/read/write/close.\n");
@@ -445,7 +444,6 @@ static void darshan_log_agg_dfs_files(void *rec, void *agg_rec, int init_flag)
                     agg_dfs_rec->counters[i] = -1;
                 break;
             case DFS_CHUNK_SIZE:
-            case DFS_USE_DTX:
                 /* just set to the input value */
                 agg_dfs_rec->counters[i] = dfs_rec->counters[i];
                 break;
