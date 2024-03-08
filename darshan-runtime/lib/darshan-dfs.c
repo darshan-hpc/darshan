@@ -1250,12 +1250,39 @@ static void dfs_output(
     void **dfs_buf, int *dfs_buf_sz)
 {
     int dfs_rec_count;
+    struct darshan_dfs_file *dfs_rec_buf = *(struct darshan_dfs_file **)dfs_buf;
+    int i, j;
+    int ops;
 
     DFS_LOCK();
     assert(dfs_runtime);
 
-    /* just pass back our updated total buffer size -- no need to update buffer */
     dfs_rec_count = dfs_runtime->file_rec_count;
+
+    /* filter out records that have been opened, but don't have any
+     * I/O operations (e.g, open directories, etc.)
+     */
+    for(i=0; i<dfs_rec_count; i++)
+    {
+        ops = 0;
+        for(j=DFS_READS; j<=DFS_STATS; j++)
+        {
+            ops = dfs_rec_buf[i].counters[j];
+            if(ops) break;
+        }
+        if(!ops)
+        {
+            if(i != (dfs_rec_count-1))
+            {
+                memmove(&dfs_rec_buf[i], &dfs_rec_buf[i+1],
+                    (dfs_rec_count-i-1)*sizeof(dfs_rec_buf[i]));
+                i--;
+            }
+            dfs_rec_count--;
+        }
+    }
+
+    /* just pass back our updated total buffer size -- no need to update buffer */
     *dfs_buf_sz = dfs_rec_count * sizeof(struct darshan_dfs_file);
 
     dfs_runtime->frozen = 1;
