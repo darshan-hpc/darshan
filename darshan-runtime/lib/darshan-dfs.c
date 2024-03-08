@@ -228,7 +228,6 @@ static int my_rank = -1;
 #define DFS_RECORD_FILE_OBJREF_OPEN(__rec_ref, __counter, __obj_p, __tm1, __tm2) do { \
     if(!__rec_ref) break; \
     __rec_ref->file_rec->counters[__counter] += 1; \
-    if(getenv("DFS_USE_DTX")) __rec_ref->file_rec->counters[DFS_USE_DTX] = 1; \
     if(__rec_ref->file_rec->fcounters[DFS_F_OPEN_START_TIMESTAMP] == 0 || \
         __rec_ref->file_rec->fcounters[DFS_F_OPEN_START_TIMESTAMP] > __tm1) \
         __rec_ref->file_rec->fcounters[DFS_F_OPEN_START_TIMESTAMP] = __tm1; \
@@ -1022,7 +1021,6 @@ static void dfs_record_reduction_op(
         }
 
         tmp_file.counters[DFS_CHUNK_SIZE] = infile->counters[DFS_CHUNK_SIZE];
-        tmp_file.counters[DFS_USE_DTX] = infile->counters[DFS_USE_DTX];
 
         /* min non-zero (if available) value */
         for(j=DFS_F_OPEN_START_TIMESTAMP; j<=DFS_F_CLOSE_START_TIMESTAMP; j++)
