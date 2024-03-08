@@ -223,19 +223,13 @@ static int my_rank = -1;
         sizeof(daos_handle_t), __rec_ref); \
 } while(0)
 
-#define DAOS_RECORD_OBJ_READ(__oh, __counter, __sz, __tm1, __tm2) do { \
-    struct daos_object_record_ref *__rec_ref; \
+#define DAOS_RECORD_OBJ_READ(__rec_ref, __oh, __sz, __tm1, __tm2) do { \
+    int64_t __tmp_sz = (int64_t)__sz; \
     struct darshan_common_val_counter *__cvc; \
     double __elapsed = __tm2-__tm1; \
-    __rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &__oh, \
-        sizeof(daos_handle_t)); \
-    if(!__rec_ref) break; \
-    __rec_ref->object_rec->counters[__counter] += 1; \
-    if(__counter == DAOS_ARRAY_READS) \
-        __sz *= __rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE]; \
     __rec_ref->object_rec->counters[DAOS_BYTES_READ] += __sz; \
     DARSHAN_BUCKET_INC(&(__rec_ref->object_rec->counters[DAOS_SIZE_READ_0_100]), __sz); \
-    __cvc = darshan_track_common_val_counters(&__rec_ref->access_root, &__sz, 1, \
+    __cvc = darshan_track_common_val_counters(&__rec_ref->access_root, &__tmp_sz, 1, \
         &__rec_ref->access_count); \
     if(__cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
         &(__rec_ref->object_rec->counters[DAOS_ACCESS1_ACCESS]), \
@@ -256,19 +250,13 @@ static int my_rank = -1;
         __tm1, __tm2, __rec_ref->last_read_end); \
 } while(0)
 
-#define DAOS_RECORD_OBJ_WRITE(__oh, __counter, __sz, __tm1, __tm2) do { \
-    struct daos_object_record_ref *__rec_ref; \
+#define DAOS_RECORD_OBJ_WRITE(__rec_ref, __oh, __sz, __tm1, __tm2) do { \
+    int64_t __tmp_sz = (int64_t)__sz; \
     struct darshan_common_val_counter *__cvc; \
     double __elapsed = __tm2-__tm1; \
-    __rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &__oh, \
-        sizeof(daos_handle_t)); \
-    if(!__rec_ref) break; \
-    __rec_ref->object_rec->counters[__counter] += 1; \
-    if(__counter == DAOS_ARRAY_WRITES) \
-        __sz *= __rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE]; \
     __rec_ref->object_rec->counters[DAOS_BYTES_WRITTEN] += __sz; \
     DARSHAN_BUCKET_INC(&(__rec_ref->object_rec->counters[DAOS_SIZE_WRITE_0_100]), __sz); \
-    __cvc = darshan_track_common_val_counters(&__rec_ref->access_root, &__sz, 1, \
+    __cvc = darshan_track_common_val_counters(&__rec_ref->access_root, &__tmp_sz, 1, \
         &__rec_ref->access_count); \
     if(__cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
         &(__rec_ref->object_rec->counters[DAOS_ACCESS1_ACCESS]), \
@@ -413,6 +401,7 @@ int DARSHAN_DECL(daos_obj_fetch)(daos_handle_t oh, daos_handle_t th, uint64_t fl
 {
 	int ret;
     double tm1, tm2;
+    struct daos_object_record_ref *rec_ref;
     daos_size_t fetch_sz;
 
     MAP_OR_FAIL(daos_obj_fetch);
@@ -424,8 +413,14 @@ int DARSHAN_DECL(daos_obj_fetch)(daos_handle_t oh, daos_handle_t th, uint64_t fl
     if(!ret)
     {
         DAOS_PRE_RECORD();
-        DAOS_OBJ_IOD_SZ(iods, nr, fetch_sz);
-        DAOS_RECORD_OBJ_READ(oh, DAOS_OBJ_FETCHES, fetch_sz, tm1, tm2);
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &oh,
+            sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            rec_ref->object_rec->counters[DAOS_OBJ_FETCHES] += 1;
+            DAOS_OBJ_IOD_SZ(iods, nr, fetch_sz);
+            DAOS_RECORD_OBJ_READ(rec_ref, oh, fetch_sz, tm1, tm2);
+        }
         DAOS_POST_RECORD();
     }
 
@@ -438,6 +433,7 @@ int DARSHAN_DECL(daos_obj_update)(daos_handle_t oh, daos_handle_t th, uint64_t f
 {
     int ret;
     double tm1, tm2;
+    struct daos_object_record_ref *rec_ref;
     daos_size_t update_sz;
 
     MAP_OR_FAIL(daos_obj_update);
@@ -449,8 +445,14 @@ int DARSHAN_DECL(daos_obj_update)(daos_handle_t oh, daos_handle_t th, uint64_t f
     if(!ret)
     {
         DAOS_PRE_RECORD();
-        DAOS_OBJ_IOD_SZ(iods, nr, update_sz);
-        DAOS_RECORD_OBJ_WRITE(oh, DAOS_OBJ_UPDATES, update_sz, tm1, tm2);
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &oh,
+            sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            rec_ref->object_rec->counters[DAOS_OBJ_UPDATES] += 1;
+            DAOS_OBJ_IOD_SZ(iods, nr, update_sz);
+            DAOS_RECORD_OBJ_WRITE(rec_ref, oh, update_sz, tm1, tm2);
+        }
         DAOS_POST_RECORD();
     }
 
@@ -740,11 +742,23 @@ int DARSHAN_DECL(daos_array_open_with_attr)(daos_handle_t coh, daos_obj_id_t oid
 /* XXX daos_array_global2local not supported, as there is no way to map from a
  *     global representation to underlying object ID used to reference record
  */
+
+#define DAOS_ARRAY_IOD_SZ(__iod, __sz) do { \
+    int __i; \
+    __sz = 0; \
+    for(__i = 0; __i < __iod->arr_nr; __i++) \
+        __sz += __iod->arr_rgs[__i].rg_len; \
+} while(0)
+
 int DARSHAN_DECL(daos_array_read)(daos_handle_t oh, daos_handle_t th,
     daos_array_iod_t *iod, d_sg_list_t *sgl, daos_event_t *ev)
 {
     int ret;
     double tm1, tm2;
+    struct daos_object_record_ref *rec_ref;
+    daos_obj_id_t tmp_oid;
+    enum daos_otype_t otype;
+    daos_size_t read_sz;
 
     MAP_OR_FAIL(daos_array_read);
 
@@ -755,7 +769,24 @@ int DARSHAN_DECL(daos_array_read)(daos_handle_t oh, daos_handle_t th,
     if(!ret)
     {
         DAOS_PRE_RECORD();
-        DAOS_RECORD_OBJ_READ(oh, DAOS_ARRAY_READS, iod->arr_nr_read, tm1, tm2);
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &oh,
+            sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            rec_ref->object_rec->counters[DAOS_ARRAY_READS] += 1;
+            tmp_oid.hi = rec_ref->object_rec->oid_hi;
+            tmp_oid.lo = rec_ref->object_rec->oid_lo;
+            otype = daos_obj_id2type(tmp_oid);
+            /* NOTE: for byte arrays, we can get the bytes read directly from the
+             *       iod, otherwise we calculate based on requested read size
+             */
+            if (otype == DAOS_OT_ARRAY_BYTE)
+                read_sz = iod->arr_nr_read;
+            else
+                DAOS_ARRAY_IOD_SZ(iod, read_sz);
+            read_sz *= rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE];
+            DAOS_RECORD_OBJ_READ(rec_ref, oh, read_sz, tm1, tm2);
+        }
         DAOS_POST_RECORD();
     }
 
@@ -767,8 +798,8 @@ int DARSHAN_DECL(daos_array_write)(daos_handle_t oh, daos_handle_t th,
 {
     int ret;
     double tm1, tm2;
-    int i;
-    daos_size_t arr_nr_written = 0;
+    struct daos_object_record_ref *rec_ref;
+    daos_size_t write_sz;
 
     MAP_OR_FAIL(daos_array_write);
 
@@ -779,11 +810,15 @@ int DARSHAN_DECL(daos_array_write)(daos_handle_t oh, daos_handle_t th,
     if(!ret)
     {
         DAOS_PRE_RECORD();
-        for(i = 0; i < iod->arr_nr; i++)
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &oh,
+            sizeof(daos_handle_t));
+        if(rec_ref)
         {
-            arr_nr_written += iod->arr_rgs[i].rg_len;
+            rec_ref->object_rec->counters[DAOS_ARRAY_WRITES] += 1;
+            DAOS_ARRAY_IOD_SZ(iod, write_sz);
+            write_sz *= rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE];
+            DAOS_RECORD_OBJ_WRITE(rec_ref, oh, write_sz, tm1, tm2);
         }
-        DAOS_RECORD_OBJ_WRITE(oh, DAOS_ARRAY_WRITES, arr_nr_written, tm1, tm2);
         DAOS_POST_RECORD();
     }
 
@@ -994,7 +1029,8 @@ int DARSHAN_DECL(daos_kv_get)(daos_handle_t oh, daos_handle_t th, uint64_t flags
 {
     int ret;
     double tm1, tm2;
-    daos_size_t read_size = 0;
+    struct daos_object_record_ref *rec_ref;
+    daos_size_t get_size = 0;
 
     MAP_OR_FAIL(daos_kv_get);
 
@@ -1005,9 +1041,15 @@ int DARSHAN_DECL(daos_kv_get)(daos_handle_t oh, daos_handle_t th, uint64_t flags
     if(!ret)
     {
         DAOS_PRE_RECORD();
-        if(buf)
-            read_size = *size;
-        DAOS_RECORD_OBJ_READ(oh, DAOS_KV_GETS, read_size, tm1, tm2);
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &oh,
+            sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            rec_ref->object_rec->counters[DAOS_KV_GETS] += 1;
+            if(buf)
+                get_size = *size;
+            DAOS_RECORD_OBJ_READ(rec_ref, oh, get_size, tm1, tm2);
+        }
         DAOS_POST_RECORD();
     }
 
@@ -1019,6 +1061,7 @@ int DARSHAN_DECL(daos_kv_put)(daos_handle_t oh, daos_handle_t th, uint64_t flags
 {
     int ret;
     double tm1, tm2;
+    struct daos_object_record_ref *rec_ref;
 
     MAP_OR_FAIL(daos_kv_put);
 
@@ -1029,7 +1072,13 @@ int DARSHAN_DECL(daos_kv_put)(daos_handle_t oh, daos_handle_t th, uint64_t flags
     if(!ret)
     {
         DAOS_PRE_RECORD();
-        DAOS_RECORD_OBJ_WRITE(oh, DAOS_KV_PUTS, size, tm1, tm2);
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &oh,
+            sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            rec_ref->object_rec->counters[DAOS_KV_PUTS] += 1;
+            DAOS_RECORD_OBJ_WRITE(rec_ref, oh, size, tm1, tm2);
+        }
         DAOS_POST_RECORD();
     }
 
