@@ -754,6 +754,18 @@ if test "x$enable_darshan_runtime" = xyes ; then
    # look for glibc-specific functions
    AC_CHECK_FUNCS([pwritev preadv pwritev2 preadv2])
 
+   # allow users to opt out of wrapping of _exit as a shutdown hook in
+   # Darshan's non-MPI mode, in case this functionality is problematic
+   AC_ARG_ENABLE([exit-wrapper],
+      [AS_HELP_STRING([--disable-exit-wrapper],
+                      [Disables wrapping of _exit() calls as last ditch shutdown
+                       hook for the Darshan library when used in non-MPI mode.])],
+      [], [enable_exit_wrapper=yes])
+   if test "x$enable_exit_wrapper" = "xyes" ; then
+      AC_DEFINE([__DARSHAN_ENABLE_EXIT_WRAPPER], 1,
+                [Define if the Darshan runtime library should wrap _exit() calls])
+   fi
+
    DARSHAN_VERSION="AC_PACKAGE_VERSION"
    AC_SUBST(LDFLAGS)
    AC_SUBST(__DARSHAN_LOG_PATH)

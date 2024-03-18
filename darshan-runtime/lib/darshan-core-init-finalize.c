@@ -115,7 +115,7 @@ __attribute__((destructor)) void serial_finalize(void)
 }
 #endif
 
-#ifdef DARSHAN_PRELOAD
+#if defined(DARSHAN_PRELOAD) && defined(__DARSHAN_ENABLE_EXIT_WRAPPER)
 void (*__real__exit)(int status) __attribute__ ((noreturn)) = NULL;
 void _exit(int status)
 {
