@@ -42,6 +42,8 @@ try:
 except:
   pass
 
+flagPOSIX = False
+flagMPIIO = False
 API_def_c = load_darshan_header(addins)
 
 ffi = cffi.FFI()
@@ -51,6 +53,8 @@ libdutil = None
 libdutil = find_utils(ffi, libdutil)
 
 check_version(ffi, libdutil)
+
+logfilename = None
 
 
 _mod_names = [
@@ -93,7 +97,7 @@ _structdefs = {
     "APMPI-PERF": "struct darshan_apmpi_perf_record **",
 }
 
-
+STACK_TRACE_BUF_SIZE = 60
 
 def get_lib_version():
     """
@@ -121,7 +125,9 @@ def log_open(filename):
     Return:
         log handle
     """
+
     b_fname = filename.encode()
+    logfilename = filename
     handle = libdutil.darshan_log_open(b_fname)
     log = {"handle": handle, 'modules': None, 'name_records': None}
 
@@ -577,13 +583,11 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
 
 
     """
-
     modules = log_get_modules(log)
     if mod_name not in modules:
         return None
     mod_type = _structdefs[mod_name]
     #name_records = log_get_name_records(log)
-
     rec = {}
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
@@ -605,10 +609,8 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     rec['write_segments'] = []
     rec['read_segments'] = []
 
-
     size_of = ffi.sizeof("struct dxt_file_record")
     segments = ffi.cast("struct segment_info *", buf[0] + size_of  )
-
 
     for i in range(wcnt):
         seg = {
@@ -617,6 +619,16 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
             "start_time": segments[i].start_time,
             "end_time": segments[i].end_time
         }
+        seg_array = []
+        if not segments[i].noStackTrace == 0:
+            for j in range(STACK_TRACE_BUF_SIZE):
+                if (segments[i].address_array[j]):
+                    addr = str(segments[i].address_array[j])
+                    addr = addr.split("'void *' ")
+                    addr = addr[1].split(">")
+                    seg_array.append(str(addr[0]))
+            seg["stack_memory_addresses"] = seg_array
+
         rec['write_segments'].append(seg)
 
 
@@ -628,12 +640,81 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
             "start_time": segments[i].start_time,
             "end_time": segments[i].end_time
         }
+        seg_array = []
+        if not segments[i].noStackTrace == 0:
+            for j in range(STACK_TRACE_BUF_SIZE):
+                if (segments[i].address_array[j]):
+                    addr = str(segments[i].address_array[j])
+                    addr = addr.split("'void *' ")
+                    addr = addr[1].split(">")
+                    seg_array.append(str(addr[0]))
+            seg["stack_memory_addresses"] = seg_array
+
         rec['read_segments'].append(seg)
 
 
     if dtype == "pandas":
         rec['read_segments'] = pd.DataFrame(rec['read_segments'])
         rec['write_segments'] = pd.DataFrame(rec['write_segments'])
+
+
+    size_of = ffi.sizeof("struct darshan_fd_s")
+    address_line_mapping = ffi.cast("struct darshan_fd_s *", log['handle'])
+
+    global flagPOSIX
+    global flagMPIIO
+    if mod_name == 'DXT_POSIX':
+        if flagPOSIX == False:
+            flagPOSIX = True
+            rec['address_line_mapping'] = []
+            data = ffi.string(address_line_mapping.posix_line_mapping)
+            data = data.decode('utf-8')
+            data = data.split('\n')
+            for item in data:
+                if item:
+                    item = item.split(",")
+                    address = item[0]
+
+                    func_line = item[1]
+                    func_line = func_line.split(":")
+                    function_name = func_line[0]
+                    line_number = func_line[1]
+
+                    mapping = {
+                        "address": address,
+                        "function_name": function_name,
+                        "line_number": line_number
+                    }
+
+                    rec['address_line_mapping'].append(mapping)
+        else:
+            rec['address_line_mapping'] = {}
+    elif mod_name == 'DXT_MPIIO':
+        if flagMPIIO == False:
+            flagMPIIO = True
+            rec['address_line_mapping'] = []
+            data = ffi.string(address_line_mapping.mpiio_line_mapping)
+            data = data.decode('utf-8')
+            data = data.split('\n')
+            for item in data:
+                if item:
+                    item = item.split(",")
+                    address = item[0]
+
+                    func_line = item[1]
+                    func_line = func_line.split(":")
+                    function_name = func_line[0]
+                    line_number = func_line[1]
+
+                    mapping = {
+                        "address": address,
+                        "function_name": function_name,
+                        "line_number": line_number
+                    }
+
+                    rec['address_line_mapping'].append(mapping)
+        else:
+            rec['address_line_mapping'] = {}
 
     libdutil.darshan_free(buf[0])
     return rec
