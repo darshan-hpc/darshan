@@ -120,6 +120,8 @@ make install
 * `--disable-ld-preload`: disables building of the Darshan LD_PRELOAD library
 * `--enable-group-readable-logs`: sets Darshan log file permissions to allow
   group read access.
+* `--disable-exit-wrapper`: disables wrapping of `_exit()` calls as last ditch
+  shutdown hook for the Darshan library when used in non-MPI mode.
 * `CC=`: specifies the C compiler to use for compilation.
 
 .Configure arguments for controlling which Darshan modules to use:

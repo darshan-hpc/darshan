@@ -115,6 +115,21 @@ __attribute__((destructor)) void serial_finalize(void)
 }
 #endif
 
+#if defined(DARSHAN_PRELOAD) && defined(__DARSHAN_ENABLE_EXIT_WRAPPER)
+void (*__real__exit)(int status) __attribute__ ((noreturn)) = NULL;
+void _exit(int status)
+{
+    MAP_OR_FAIL(_exit);
+    (void)__darshan_disabled;
+
+    char *no_mpi = getenv("DARSHAN_ENABLE_NONMPI");
+    if (no_mpi)
+        darshan_core_shutdown(1);
+
+    __real__exit(status);
+}
+#endif
+
 /*
  * Local variables:
  *  c-indent-level: 4
