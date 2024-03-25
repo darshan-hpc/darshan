@@ -27,8 +27,6 @@ jobs:
       run: |
         sudo apt-get update -y
         sudo apt-get install openmpi-bin libopenmpi-dev
-        # Make LDMS use IPv4 address by disabling IPv6 - temporary workaround
-        sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
     - name: Clone LDMS
       uses: actions/checkout@v3
       with:
@@ -105,7 +103,7 @@ jobs:
         echo "---starting ldmsd---"
         cat > ldmsd-latest.sh << EOF
         . /opt/ovis-latest/etc/profile.d/set-ovis-variables.sh
-        ldmsd \$@
+        ldmsd \$@ &
         EOF
         chmod 755 ldmsd-latest.sh
         ./ldmsd-latest.sh -x sock:10444 -c stream-samp-latest.conf -l /tmp/stream-samp-latest.log -v DEBUG
@@ -115,7 +113,7 @@ jobs:
         [[ -n "${STREAM_SAMP_LATEST_PID}" ]] || error "stream-samp-latest.log is not running"
         cat > ldms_ls-latest.sh << EOF
         . /opt/ovis-latest/etc/profile.d/set-ovis-variables.sh
-        ldms_ls \$@
+        ldms_ls \$@ &
         EOF
         chmod 755 ldms_ls-latest.sh
         ./ldms_ls-latest.sh -p 10444 -x sock -v -v
