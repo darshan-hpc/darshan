@@ -321,7 +321,7 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
         strncpy(rec_ref->read_traces[file_rec->read_count].extra_info, s,
                 EXTRA_INFO_LEN-1);
     } else {
-        rec_ref->write_traces[file_rec->write_count].extra_info[0] = '\0';
+        rec_ref->read_traces[file_rec->read_count].extra_info[0] = '\0';
     }
 
     file_rec->read_count += 1;
@@ -428,7 +428,7 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
         strncpy(rec_ref->read_traces[file_rec->read_count].extra_info, s,
                 EXTRA_INFO_LEN-1);
     } else {
-        rec_ref->write_traces[file_rec->write_count].extra_info[0] = '\0';
+        rec_ref->read_traces[file_rec->read_count].extra_info[0] = '\0';
     }
     file_rec->read_count += 1;
 
