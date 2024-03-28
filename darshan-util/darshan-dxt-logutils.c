@@ -364,7 +364,6 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
         extra_info = io_trace[i].extra_info;
-        if (*extra_info == '\0') *extra_info = "";
 
         printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f %s", "X_POSIX", rank, "write", i, offset, length, start_time, end_time, extra_info);
 
@@ -412,7 +411,6 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
         extra_info = io_trace[i].extra_info;
-        if (extra_info == NULL) extra_info = "";
 
         printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f %s", "X_POSIX", rank, "read", (int)(i - write_count), offset, length, start_time, end_time, extra_info);
 
