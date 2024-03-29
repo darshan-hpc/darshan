@@ -12,22 +12,19 @@
  */
 typedef int64_t OST_ID;
 
+// XXX backwards compatability
 /* current Lustre log format version */
-#define DARSHAN_LUSTRE_VER 1
+#define DARSHAN_LUSTRE_VER 2
 
+// XXX can we still support: LUSTRE_OSTS, LUSTRE_MDTS
+// XXX stop supporting STRIPE_OFFSET
 #define LUSTRE_COUNTERS \
-    /* number of OSTs for file system */\
-    X(LUSTRE_OSTS) \
-    /* number of MDTs for file system */\
-    X(LUSTRE_MDTS) \
-    /* index of first OST for file */\
-    X(LUSTRE_STRIPE_OFFSET) \
     /* bytes per stripe for file */\
-    X(LUSTRE_STRIPE_SIZE) \
+    X(LUSTRE_COMP_STRIPE_SIZE) \
     /* number of stripes (OSTs) for file */\
-    X(LUSTRE_STRIPE_WIDTH) \
+    X(LUSTRE_COMP_STRIPE_WIDTH) \
     /* end of counters */\
-    X(LUSTRE_NUM_INDICES)
+    X(LUSTRE_COMP_NUM_INDICES)
 
 #define X(a) a,
 /* integer statistics for Lustre file records */
@@ -37,6 +34,14 @@ enum darshan_lustre_indices
 };
 #undef X
 
+/* XXX */
+struct darshan_lustre_component_record
+{
+    int64_t counters[LUSTRE_COMP_NUM_INDICES];
+    //OST_ID ost_ids[1]; // XXX this won't work
+};
+
+// XXX update
 /* record structure for the Lustre module. a record is created and stored for
  * every file opened that belongs to a Lustre file system. This record includes:
  *      - a corresponding record identifier (created by hashing the file path)
@@ -46,13 +51,14 @@ enum darshan_lustre_indices
 struct darshan_lustre_record
 {
     struct darshan_base_record base_rec;
-    int64_t counters[LUSTRE_NUM_INDICES];
-    OST_ID ost_ids[1];
+    int64_t num_comps;
+    struct darshan_lustre_component_record comps[1];
 };
 
 /*
  *  helper function to calculate the size of a record
  */
-#define LUSTRE_RECORD_SIZE( osts ) ( sizeof(struct darshan_lustre_record) + sizeof(OST_ID) * (osts - 1) )
+#define LUSTRE_RECORD_SIZE(comps) (sizeof(struct darshan_lustre_record) + \
+    sizeof(struct darshan_lustre_component_record) * (comps - 1))
 
 #endif /* __DARSHAN_LUSTRE_LOG_FORMAT_H */

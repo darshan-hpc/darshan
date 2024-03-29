@@ -69,6 +69,8 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
     struct llapi_layout *lustre_layout;
     uint64_t stripe_size;
     uint64_t stripe_count;
+    uint64_t ext_start, ext_end;
+    uint32_t flags;
     uint64_t tmp_ost;
     size_t rec_size;
     int ret;
@@ -115,27 +117,58 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
             LUSTRE_UNLOCK();
             return;
         }
-        if (llapi_layout_stripe_size_get(lustre_layout, &stripe_size) == -1)
+        free(lustre_xattr_val);
+
+        /* iterate starting with the first stripe component */
+        ret = llapi_layout_comp_use(lustre_layout, LLAPI_LAYOUT_COMP_USE_FIRST);
+        if (ret != 0)
         {
             llapi_layout_free(lustre_layout);
-            free(lustre_xattr_val);
             LUSTRE_UNLOCK();
             return;
         }
-        if (llapi_layout_stripe_count_get(lustre_layout, &stripe_count) == -1)
+        else while (ret == 0)
         {
-            llapi_layout_free(lustre_layout);
-            free(lustre_xattr_val);
-            LUSTRE_UNLOCK();
-            return;
+            /* get striping details for this component */
+            if (llapi_layout_stripe_size_get(lustre_layout, &stripe_size) ||
+                llapi_layout_stripe_count_get(lustre_layout, &stripe_count) ||
+                llapi_layout_comp_extent_get(lustre_layout, &ext_start, &ext_end) ||
+                llapi_layout_comp_flags_get(lustre_layout, &flags))
+            {
+                llapi_layout_free(lustre_layout);
+                LUSTRE_UNLOCK();
+                return;
+            }
+            darshan_core_fprintf(stderr, "***Lustre component: size=%lu, count=%lu, start=%lu, end=%lu flags=%u\n",
+                stripe_size, stripe_count, ext_start, ext_end, flags);
+
+            darshan_core_fprintf(stderr, "                     osts=");
+            for(i = 0; i < stripe_count; i++)
+            {
+                if (llapi_layout_ost_index_get(lustre_layout, i, &tmp_ost) == -1)
+                    break;
+                darshan_core_fprintf(stderr, "%lu,", tmp_ost);
+            }
+            darshan_core_fprintf(stderr, "\n");
+#if 0
+            if(i != stripe_count) // XXX this isn't right
+            {
+                /* couldn't get the OST list */
+                llapi_layout_free(lustre_layout);
+                LUSTRE_UNLOCK();
+                return;
+            }
+#endif
+
+            ret = llapi_layout_comp_use(lustre_layout, LLAPI_LAYOUT_COMP_USE_NEXT);
         }
 
+#if 0
         /* allocate and add a new record reference */
         rec_ref = malloc(sizeof(*rec_ref));
         if(!rec_ref)
         {
             llapi_layout_free(lustre_layout);
-            free(lustre_xattr_val);
             LUSTRE_UNLOCK();
             return;
         }
@@ -146,7 +179,6 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
         {
             free(rec_ref);
             llapi_layout_free(lustre_layout);
-            free(lustre_xattr_val);
             LUSTRE_UNLOCK();
             return;
         }
@@ -169,7 +201,6 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
                 &rec_id, sizeof(darshan_record_id));
             free(rec_ref);
             llapi_layout_free(lustre_layout);
-            free(lustre_xattr_val);
             LUSTRE_UNLOCK();
             return;
         }
@@ -199,13 +230,11 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
                     &rec_id, sizeof(darshan_record_id));
                 free(rec_ref);
                 llapi_layout_free(lustre_layout);
-                free(lustre_xattr_val);
                 LUSTRE_UNLOCK();
                 return;
             }
             rec->ost_ids[i] = (int64_t)tmp_ost;
         }
-        free(lustre_xattr_val);
         llapi_layout_free(lustre_layout);
 
         rec->base_rec.id = rec_id;
@@ -213,6 +242,7 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
         rec_ref->record = rec;
         rec_ref->record_size = rec_size;
         lustre_runtime->record_count++;
+#endif
     }
 
     LUSTRE_UNLOCK();
@@ -362,7 +392,7 @@ static void lustre_subtract_shared_rec_size(void *rec_ref_p, void *user_ptr)
 
     if(l_rec_ref->record->base_rec.rank == -1)
         lustre_runtime->record_buffer_size -=
-            LUSTRE_RECORD_SIZE( l_rec_ref->record->counters[LUSTRE_STRIPE_WIDTH] );
+            LUSTRE_RECORD_SIZE( 0 /* XXX */ );
 }
 
 static void lustre_set_rec_ref_pointers(void *rec_ref_p, void *user_ptr)
