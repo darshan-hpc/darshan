@@ -2,6 +2,22 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.4.5
+=============
+* Added the ability for the Darshan runtime library to properly shutdown for
+  non-MPI applications that call `_exit()` directly
+  - This behavior has been commonly observed in the Python `multiprocessing`
+    package, which has traditionally prevented Darshan from properly
+    instrumenting applications that use it (e.g., the PyTorch DataLoader)
+* Added optional integration with the LDMS data/metrics collection system,
+  allowing realtime analysis of Darshan instrumented I/O operations.
+  - For more details, see https://ovis-hpc.readthedocs.io/en/latest/ldms/ldms-streams.html#darshan
+  - Contributed by Sara Walton and the LDMS team
+* Fixed bug to ensure Darshan includes the appropriate instrumentation wrapper
+  for `fscanf`/`__isoc99_fscanf`
+* Fixed bug in HDF5 module causing any call to HDF5's `H5Pset_fapl_mpio()`
+  routine to fail
+
 Darshan-3.4.4
 =============
 * Fixed bug leading to inconsistent heatmap record shapes when Darshan
