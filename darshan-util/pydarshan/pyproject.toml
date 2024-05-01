@@ -63,9 +63,8 @@ include = ["darshan"]
 version = {attr = "darshan.__version__"}
 
 [tool.cibuildwheel]
-environment = "PYDARSHAN_BUILD_EXT=1"
 skip = [
-    "cp36-*",
+    "cp37-*",
     "pp*",
     "*musllinux*",
     "*i686*",
@@ -90,22 +89,37 @@ before-all = [
     "yum install -y libjpeg libjpeg-devel",
     "git submodule update --init",
     "./prepare.sh",
-    "./configure --disable-darshan-runtime --enable-apxc-mod --enable-apmpi-mod",
+    "./configure --prefix=$PWD/darshan_install --disable-darshan-runtime --enable-apxc-mod --enable-apmpi-mod",
     "make install"
 ]
-repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
+repair-wheel-command = [
+    "auditwheel repair -w {dest_dir} {wheel}"
+]
+
+[tool.cibuildwheel.linux.environment]
+DARSHAN_LIBRARY_PATH="$PWD/darshan_install/lib"
+LIBRARY_PATH="$LIBRARY_PATH:$DARSHAN_LIBRARY_PATH"
+LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$DARSHAN_LIBRARY_PATH"
+PYDARSHAN_BUILD_EXT=1
 
 [tool.cibuildwheel.macos]
 before-all = [
     "brew install automake",
+    "brew install libtool",
     "brew install openblas",
     "brew install lapack",
     "git submodule update --init",
     "./prepare.sh",
-    "./configure --disable-darshan-runtime --enable-apxc-mod --enable-apmpi-mod",
+    "./configure --prefix=$PWD/darshan_install --disable-darshan-runtime --enable-apxc-mod --enable-apmpi-mod",
     "make install"
 ]
 repair-wheel-command = [
-  "delocate-listdeps {wheel}",
-  "delocate-wheel --require-archs {delocate_archs} -w {dest_dir} {wheel}",
+    "delocate-listdeps {wheel}",
+    "delocate-wheel --require-archs {delocate_archs} -w {dest_dir} {wheel}"
 ]
+
+[tool.cibuildwheel.macos.environment]
+DARSHAN_LIBRARY_PATH="$PWD/darshan_install/lib"
+LIBRARY_PATH="$LIBRARY_PATH:$DARSHAN_LIBRARY_PATH"
+DYLD_FALLBACK_LIBRARY_PATH="$DYLD_FALLBACK_LIBRARY_PATH:$DARSHAN_LIBRARY_PATH"
+PYDARSHAN_BUILD_EXT=1
