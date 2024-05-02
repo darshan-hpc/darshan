@@ -36,12 +36,12 @@ jobs:
           git submodule update --init
           export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/include/hdf5/openmpi/
           export DARSHAN_INSTALL_PREFIX=$PWD/darshan_install
-          export DARSHAN_RUNTIME_CONFIG_ARGS="--with-jobid-env=NONE --enable-hdf5-mod"
+          export DARSHAN_RUNTIME_CONFIG_ARGS="--with-jobid-env=NONE --enable-hdf5-mod --with-log-path-by-env=DARSHAN_LOGPATH"
           darshan-test/automated/build-darshan.sh
       - name: Install Darshan (non-MPI)
         run: |
           export DARSHAN_INSTALL_PREFIX=$PWD/darshan_nonmpi_install
-          export DARSHAN_RUNTIME_CONFIG_ARGS="--without-mpi --with-jobid-env=NONE"
+          export DARSHAN_RUNTIME_CONFIG_ARGS="--without-mpi --with-jobid-env=NONE --with-log-path-by-env=DARSHAN_LOGPATH"
           darshan-test/automated/build-darshan.sh
       - name: Install pydarshan
         run: |
