@@ -88,9 +88,7 @@ before-all = [
     "yum install -y libxslt-devel libxml2-devel",
     "yum install -y libjpeg libjpeg-devel",
     "git submodule update --init",
-    "./prepare.sh",
-    "./configure --prefix=$PWD/darshan_install --disable-darshan-runtime --enable-apxc-mod --enable-apmpi-mod",
-    "make install"
+    "DARSHAN_INSTALL_PREFIX=$PWD/darshan_install DARSHAN_RUNTIME_SKIP=1 darshan-test/automated/build-darshan.sh"
 ]
 repair-wheel-command = [
     "auditwheel repair -w {dest_dir} {wheel}"
@@ -109,9 +107,7 @@ before-all = [
     "brew install openblas",
     "brew install lapack",
     "git submodule update --init",
-    "./prepare.sh",
-    "./configure --prefix=$PWD/darshan_install --disable-darshan-runtime --enable-apxc-mod --enable-apmpi-mod",
-    "make install"
+    "DARSHAN_INSTALL_PREFIX=$PWD/darshan_install DARSHAN_RUNTIME_SKIP=1 darshan-test/automated/build-darshan.sh"
 ]
 repair-wheel-command = [
     "delocate-listdeps {wheel}",
