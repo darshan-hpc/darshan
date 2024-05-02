@@ -40,17 +40,11 @@ jobs:
           brew install libtool
       - name: Install darshan-util
         run: |
-          mkdir darshan_install
-          export DARSHAN_INSTALL_PATH=$PWD/darshan_install
           git submodule update --init
-          ./prepare.sh
-          cd darshan-util
-          mkdir build
-          cd build
-          ../configure --prefix=$DARSHAN_INSTALL_PATH --enable-apxc-mod --enable-apmpi-mod
-          make
-          make install
-          make check
+          export DARSHAN_INSTALL_PREFIX=$PWD/darshan_install
+          DARSHAN_RUNTIME_SKIP=1 darshan-test/automated/build-darshan.sh
+          # run darshan-util make check target
+          make -C darshan_build/darshan-util check
       - name: Install pydarshan
         run: |
           cd darshan-util/pydarshan

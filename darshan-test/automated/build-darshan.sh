@@ -5,7 +5,7 @@
 
 basedir=$PWD
 build_dir=$PWD/darshan_build
-script_dir=$(dirname $(realpath -s $0))
+script_dir=$(dirname $(realpath $0))
 darshan_root_dir=$(dirname $(dirname $script_dir))
 
 if [ -z "${DARSHAN_INSTALL_PREFIX}" ]; then
