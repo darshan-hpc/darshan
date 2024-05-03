@@ -17,12 +17,6 @@ Notes on how to release a new version of PyDarshan
     - upload docs/build/html contents to CELS server @ /nfs/pub_html/gce/projects/darshan/docs/pydarshan
     - (might eventually connect this with readthedocs to have this automatically uploaded)
 
- - Run tests with tox against different python versions
-    - make test
-        (may extent to test-all which would run against different python verions
-        (flake8 syntax warnings can be ignored)
-    - TODO: CI?
-
  - Submit to PyPI using cibuildwheel/twine:
     - pipx run build --sdist
         (in the pydarshan directory, creates a source distribution)

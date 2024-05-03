@@ -12,7 +12,7 @@ Darshan-3.4.5
 * Added optional integration with the LDMS data/metrics collection system,
   allowing realtime analysis of Darshan instrumented I/O operations.
   - For more details, see https://ovis-hpc.readthedocs.io/en/latest/ldms/ldms-streams.html#darshan
-  - Contributed by Sara Walton and the LDMS team
+  - Contributed by Sara Walton (SNL), Ana Luisa Solorzano (Northeastern), and the LDMS team
 * Fixed bug to ensure Darshan includes the appropriate instrumentation wrapper
   for `fscanf`/`__isoc99_fscanf`
 * Fixed bug in HDF5 module causing any call to HDF5's `H5Pset_fapl_mpio()`
