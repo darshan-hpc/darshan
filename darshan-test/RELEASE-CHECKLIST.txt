@@ -1,11 +1,13 @@
 Notes on how to release a new version of Darshan
-2021-06
+2024-05
 -----------------------
 
  1) check Darshan GitHub to see if there are any pending issues and/or PRs
     for the release milestone
     (https://github.com/darshan-hpc/darshan/milestones)
- 2) check for any problems in Jenkins and ALCF CI regular builds
+    - close the milestone, move unfinished issues to appropriate milestone
+ 2) check for any problems in recent CI workflows on the main GitHub and
+    on the ALCF GitLab CI instance
  3) make sure that documentation in darshan-util/doc/ and darshan-runtime/doc/
     are up to date
     - commit
@@ -18,9 +20,11 @@ Notes on how to release a new version of Darshan
     - NOTE: new PyDarshan version must be released with every Darshan release
  7) use "git status" to make sure that all changes have been committed and
     pushed to origin/main
- 8) TESTING
-    - manually trigger Jenkins and ALCF CI tests
- 9) generate example output files on x86_64 and commit in
+ 8) manually install Darshan and run regression tests on a workstation and/or
+    an HPC system (e.g., ALCF Polaris)
+    - after installing, run the following in darshan-test/regression:
+      ./run-all.sh <darshan_install_prefix> <scratch_dir> <system_env_profile>
+ 9) copy example output file (from the above testing) and commit in
     the darshan-logs repo in the darshan_logs/release_logs/ directory
 10) make a tag for the release according to instructions at
     http://git-scm.com/book/en/Git-Basics-Tagging
@@ -36,10 +40,8 @@ Notes on how to release a new version of Darshan
     - remove all .git files/directories in the top-level of the repo
     - create release tarball
       tar -czvf darshan-2.3.1.tar.gz /path/to/darshan-2.3.1
-    - upload tarball to MCS FTP server
-      scp -J user@homes.cels.anl.gov darshan-2.3.1.tar.gz \
-      user@login.mcs.anl.gov:/mcs/ftp/pub/darshan/releases/
-      (NOTE: must copy files through CELS servers to reach MCS)
+    - upload tarball to CELS server
+      scp darshan-2.3.1.tar.gz user@homes.cels.anl.gov:/nfs/pub_html/gce/projects/darshan/releases/
 12) generate web documentation from asciidoc by running make in
     darshan-util/doc/ and darshan-runtime/doc/ directories
     - upload .html files to CELS server (/nfs/pub_html/gce/projects/darshan/docs)
