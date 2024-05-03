@@ -93,13 +93,13 @@ def test_runtime_heatmap_div_by_zero(tmpdir):
                                           "CLOCK_REALTIME_COARSE"))
 
         new_install_path = os.path.join(cwd, "darshan", "darshan_install")
-        os.chdir(os.path.join("darshan", "darshan-runtime", "build"))
+        os.chdir(os.path.join("darshan", "darshan_build", "darshan-runtime"))
         myenv = os.environ.copy()
         myenv["CC"] = "mpicc"
-        subprocess.check_output(["../configure",
+        subprocess.check_output(["../../darshan-runtime/configure",
                                  f"--prefix={new_install_path}",
                                  "--with-log-path-by-env=DARSHAN_LOGPATH",
-                                 "--with-jobid-env=SLURM_JOBID"],
+                                 "--with-jobid-env=NONE"],
                                  env=myenv)
         subprocess.check_output(["make"], env=myenv)
         subprocess.check_output(["make",
