@@ -299,16 +299,18 @@ void darshan_parse_config_env(struct darshan_config *cfg)
                     continue;
                 }
                 ret = regcomp(&regex->regex, token, REG_EXTENDED);
-                if(ret)
+                if(!ret)
+                {
+                    LL_APPEND(cfg->app_exclusion_list, regex);
+                }
+                else
                 {
                     darshan_core_fprintf(stderr, "darshan library warning: "\
                         "unable to compile Darshan config DARSHAN_APP_EXCLUDE "\
                         "regex %s\n", token);
                     free(regex->regex_str);
                     free(regex);
-                    continue;
                 }
-                LL_APPEND(cfg->app_exclusion_list, regex);
             }
             token = strtok(NULL, ",");
         }
@@ -332,16 +334,18 @@ void darshan_parse_config_env(struct darshan_config *cfg)
                     continue;
                 }
                 ret = regcomp(&regex->regex, token, REG_EXTENDED);
-                if(ret)
+                if(!ret)
+                {
+                    LL_APPEND(cfg->app_inclusion_list, regex);
+                }
+                else
                 {
                     darshan_core_fprintf(stderr, "darshan library warning: "\
                         "unable to compile Darshan config DARSHAN_APP_INCLUDE "\
                         "regex %s\n", token);
                     free(regex->regex_str);
                     free(regex);
-                    continue;
                 }
-                LL_APPEND(cfg->app_inclusion_list, regex);
             }
             token = strtok(NULL, ",");
         }
@@ -578,16 +582,18 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                             break;
                         }
                         ret = regcomp(&regex->regex, token, REG_EXTENDED);
-                        if(ret)
+                        if(!ret)
+                        {
+                            LL_APPEND(cfg->app_exclusion_list, regex);
+                        }
+                        else
                         {
                             darshan_core_fprintf(stderr, "darshan library warning: "\
                                 "unable to compile Darshan config %s regex %s\n",
                                 key, token);
                             free(regex->regex_str);
                             free(regex);
-                            continue;
                         }
-                        LL_APPEND(cfg->app_exclusion_list, regex);
                         token = strtok(NULL, ",");
                     }
                 }
@@ -609,16 +615,18 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                             break;
                         }
                         ret = regcomp(&regex->regex, token, REG_EXTENDED);
-                        if(ret)
+                        if(!ret)
+                        {
+                            LL_APPEND(cfg->app_inclusion_list, regex);
+                        }
+                        else
                         {
                             darshan_core_fprintf(stderr, "darshan library warning: "\
                                 "unable to compile Darshan config %s regex %s\n",
                                 key, token);
                             free(regex->regex_str);
                             free(regex);
-                            continue;
                         }
-                        LL_APPEND(cfg->app_inclusion_list, regex);
                         token = strtok(NULL, ",");
                     }
                 }
@@ -723,16 +731,18 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                             }
                             regex->mod_flags = tmp_mod_flags;
                             ret = regcomp(&regex->regex, token, REG_EXTENDED);
-                            if(ret)
+                            if(!ret)
+                            {
+                                LL_APPEND(cfg->rec_exclusion_list, regex);
+                            }
+                            else
                             {
                                 darshan_core_fprintf(stderr, "darshan library warning: "\
                                     "unable to compile Darshan config %s regex %s\n",
                                     key, token);
                                 free(regex->regex_str);
                                 free(regex);
-                                continue;
                             }
-                            LL_APPEND(cfg->rec_exclusion_list, regex);
                             token = strtok(NULL, ",");
                         }
                     }
@@ -760,16 +770,18 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                             }
                             regex->mod_flags = tmp_mod_flags;
                             ret = regcomp(&regex->regex, token, REG_EXTENDED);
-                            if(ret)
+                            if(!ret)
+                            {
+                                LL_APPEND(cfg->rec_inclusion_list, regex);
+                            }
+                            else
                             {
                                 darshan_core_fprintf(stderr, "darshan library warning: "\
                                     "unable to compile Darshan config %s regex %s\n",
                                     key, token);
                                 free(regex->regex_str);
                                 free(regex);
-                                continue;
                             }
-                            LL_APPEND(cfg->rec_inclusion_list, regex);
                             token = strtok(NULL, ",");
                         }
                     }
