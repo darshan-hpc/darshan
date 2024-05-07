@@ -28,6 +28,7 @@
 #include <libgen.h>
 #include <pthread.h>
 #include <regex.h>
+#include <stdbool.h>
 
 #include "utlist.h"
 #include "uthash.h"
@@ -58,6 +59,9 @@ typedef int64_t off64_t;
 /* NOTE: when this size is exceeded, the buffer size is doubled */
 #define IO_TRACE_BUF_SIZE       64
 
+#define STACK_TRACE_BUF_SIZE       60
+
+bool isStackTrace = false;
 /* The dxt_file_record_ref structure maintains necessary runtime metadata
  * for the DXT file record (dxt_file_record structure, defined in
  * darshan-dxt-log-format.h) pointed to by 'file_rec'. This metadata
@@ -257,13 +261,21 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
         DXT_UNLOCK();
         return;
     }
-
     rec_ref->write_traces[file_rec->write_count].offset = offset;
     rec_ref->write_traces[file_rec->write_count].length = length;
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
-    file_rec->write_count += 1;
 
+    /* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
+    if (isStackTrace){
+        int size = backtrace (rec_ref->write_traces[file_rec->write_count].address_array, STACK_TRACE_BUF_SIZE);
+        rec_ref->write_traces[file_rec->write_count].noStackTrace = 1;
+        rec_ref->write_traces[file_rec->write_count].size = size;
+    }
+    else
+        rec_ref->write_traces[file_rec->write_count].noStackTrace = 0;
+    
+    file_rec->write_count += 1;
     DXT_UNLOCK();
 }
 
@@ -307,8 +319,15 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].length = length;
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
+    /* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
+    if (isStackTrace){
+        int size = backtrace (rec_ref->read_traces[file_rec->read_count].address_array , STACK_TRACE_BUF_SIZE);
+        rec_ref->read_traces[file_rec->read_count].noStackTrace = 1;
+        rec_ref->read_traces[file_rec->read_count].size = size;
+    }
+    else
+        rec_ref->read_traces[file_rec->read_count].noStackTrace = 0;
     file_rec->read_count += 1;
-
     DXT_UNLOCK();
 }
 
@@ -338,7 +357,7 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
             return;
         }
     }
-
+   
     file_rec = rec_ref->file_rec;
     check_wr_trace_buf(rec_ref, DXT_MPIIO_MOD, dxt_mpiio_runtime);
     if(file_rec->write_count == rec_ref->write_available_buf)
@@ -347,13 +366,21 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
         DXT_UNLOCK();
         return;
     }
-
+    
     rec_ref->write_traces[file_rec->write_count].length = length;
     rec_ref->write_traces[file_rec->write_count].offset = offset;
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
-    file_rec->write_count += 1;
+    /* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
+    if (isStackTrace){
+        int size = backtrace (rec_ref->write_traces[file_rec->write_count].address_array, STACK_TRACE_BUF_SIZE);
+        rec_ref->write_traces[file_rec->write_count].noStackTrace = 1;
+        rec_ref->write_traces[file_rec->write_count].size = size;
+    }
+    else
+        rec_ref->write_traces[file_rec->write_count].noStackTrace = 0;
 
+    file_rec->write_count += 1;
     DXT_UNLOCK();
 }
 
@@ -392,14 +419,26 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
         DXT_UNLOCK();
         return;
     }
-
+    
     rec_ref->read_traces[file_rec->read_count].length = length;
     rec_ref->read_traces[file_rec->read_count].offset = offset;
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
+    /* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
+    if (isStackTrace){
+        int size = backtrace (rec_ref->read_traces[file_rec->read_count].address_array , STACK_TRACE_BUF_SIZE);
+        rec_ref->read_traces[file_rec->read_count].noStackTrace = 1;
+        rec_ref->read_traces[file_rec->read_count].size = size;
+    }
+    else
+        rec_ref->read_traces[file_rec->read_count].noStackTrace = 0;
     file_rec->read_count += 1;
-
     DXT_UNLOCK();
+}
+
+void dxt_enable_stack_trace ()
+{
+    isStackTrace = true;
 }
 
 static void dxt_posix_filter_traces_iterator(void *rec_ref_p, void *user_ptr)
@@ -788,9 +827,66 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
 
     record_write_count = file_rec->write_count;
     record_read_count = file_rec->read_count;
+
     if (record_write_count == 0 && record_read_count == 0)
         return;
+    
+    /* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
+    if (isStackTrace){    
+        char stack_file_name[50];
+        sprintf(stack_file_name, ".%d.darshan-posix", dxt_my_rank);
 
+        FILE *fptr;
+        fptr = fopen(stack_file_name, "a+");
+
+        typedef struct {
+            void *address;             /* key */
+            UT_hash_handle hh;         /* makes this structure hashable */
+        } stack_struct;
+
+
+        char * exe_name = darshan_exe();
+        for(int i = 0; i < record_write_count; i++){
+            char **strings;
+            int size = rec_ref->write_traces[i].size;
+            strings = backtrace_symbols (rec_ref->write_traces[i].address_array, size);
+            if (strings != NULL)
+            {
+                for (int j = 0; j < size; j++){
+                    if (strstr(strings[j], exe_name) != NULL) {
+                        char * token = strtok(strings[j], "[");
+                        token = strtok(NULL, "[");
+                        token = strtok(token, "]");
+                        int number = (int)strtol(token, NULL, 16);
+                        fprintf(fptr, "%p\n", number);
+                    }
+                }
+                free(strings);
+            }
+        }
+
+        for(int i = 0; i < record_read_count; i++){           
+            char **strings;
+            int size = rec_ref->read_traces[i].size;
+            strings = backtrace_symbols (rec_ref->read_traces[i].address_array, size);
+            if (strings != NULL)
+            {
+                for (int j = 0; j < size; j++){
+                    if (strstr(strings[j], exe_name) != NULL) {
+                        char * token = strtok(strings[j], "[");
+                        token = strtok(NULL, "[");
+                        token = strtok(token, "]");
+                        int number = (int)strtol(token, NULL, 16);
+                        fprintf(fptr, "%p\n", number);
+                    }
+                }
+                free(strings);
+            }
+        }
+
+        fclose(fptr);
+    }
+    
     /*
      * Buffer format:
      * dxt_file_record + write_traces + read_traces
@@ -805,9 +901,10 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
     memcpy(tmp_buf_ptr, (void *)file_rec, sizeof(struct dxt_file_record));
     tmp_buf_ptr = (void *)(tmp_buf_ptr + sizeof(struct dxt_file_record));
 
-    /*Copy write record */
+    /*Copy write record */  
     memcpy(tmp_buf_ptr, (void *)(rec_ref->write_traces),
             record_write_count * sizeof(segment_info));
+
     tmp_buf_ptr = (void *)(tmp_buf_ptr +
                 record_write_count * sizeof(segment_info));
 
@@ -817,6 +914,7 @@ static void dxt_serialize_posix_records(void *rec_ref_p, void *user_ptr)
     tmp_buf_ptr = (void *)(tmp_buf_ptr +
                 record_read_count * sizeof(segment_info));
 
+    //printf("%i\n", file_rec->base_rec.rank);
     dxt_posix_runtime->record_buf_size += record_size;
 }
 
@@ -881,7 +979,63 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
     record_read_count = file_rec->read_count;
     if (record_write_count == 0 && record_read_count == 0)
         return;
+    
+    /* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
+    if (isStackTrace){ 
+        char stack_file_name[50];
+        sprintf(stack_file_name, ".%d.darshan-mpiio", dxt_my_rank);
 
+        FILE *fptr;
+        fptr = fopen(stack_file_name, "a+");
+
+        typedef struct {
+            void *address;             /* key */
+            UT_hash_handle hh;         /* makes this structure hashable */
+        } stack_struct;
+
+
+        char * exe_name = darshan_exe();
+
+        for(int i = 0; i < record_write_count; i++){
+            char **strings;
+            int size = rec_ref->write_traces[i].size;
+            strings = backtrace_symbols (rec_ref->write_traces[i].address_array, size);
+            if (strings != NULL)
+            {
+                for (int j = 0; j < size; j++){
+                    if (strstr(strings[j], exe_name) != NULL) {
+                        char * token = strtok(strings[j], "[");
+                        token = strtok(NULL, "[");
+                        token = strtok(token, "]");
+                        int number = (int)strtol(token, NULL, 16);
+                        fprintf(fptr, "%p\n", number);
+                    }
+                }
+                free(strings);
+            }
+        }
+
+        for(int i = 0; i < record_read_count; i++){           
+            char **strings;
+            int size = rec_ref->read_traces[i].size;
+            strings = backtrace_symbols (rec_ref->read_traces[i].address_array, size);
+            if (strings != NULL)
+            {
+                for (int j = 0; j < size; j++){
+                    if (strstr(strings[j], exe_name) != NULL) {
+                        char * token = strtok(strings[j], "[");
+                        token = strtok(NULL, "[");
+                        token = strtok(token, "]");
+                        int number = (int)strtol(token, NULL, 16);
+                        fprintf(fptr, "%p\n", number);
+                    }
+                }
+                free(strings);
+            }
+        }
+
+        fclose(fptr);
+    }
     /*
      * Buffer format:
      * dxt_file_record + write_traces + read_traces
@@ -907,7 +1061,6 @@ static void dxt_serialize_mpiio_records(void *rec_ref_p, void *user_ptr)
             record_read_count * sizeof(segment_info));
     tmp_buf_ptr = (void *)(tmp_buf_ptr +
                 record_read_count * sizeof(segment_info));
-
     dxt_mpiio_runtime->record_buf_size += record_size;
 }
 
@@ -963,3 +1116,4 @@ static void dxt_mpiio_cleanup()
  *
  * vim: ts=8 sts=4 sw=4 expandtab
  */
+

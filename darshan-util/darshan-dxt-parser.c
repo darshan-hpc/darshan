@@ -138,6 +138,18 @@ int main(int argc, char **argv)
         printf("# metadata: %s = %s\n", key, value);
     }
 
+    if (strlen(fd->posix_line_mapping) != 0){
+        printf("\n# DXT-POSIX address to line mapping\n");
+        printf("# -------------------------------------------------------\n");
+        printf("%s", fd->posix_line_mapping);
+    }
+
+    if (strlen(fd->mpiio_line_mapping) != 0){
+        printf("\n# DXT-MPIIO address to line mapping\n");
+        printf("# -------------------------------------------------------\n");
+        printf("%s", fd->mpiio_line_mapping);
+    }
+
     /* print breakdown of each log file region's contribution to file size */
     printf("\n# log file regions\n");
     printf("# -------------------------------------------------------\n");

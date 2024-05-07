@@ -268,6 +268,10 @@ class DarshanRecordCollection(collections.abc.MutableSequence):
             for rec in records:
                 rec['read_segments'] = pd.DataFrame(rec['read_segments'])
                 rec['write_segments'] = pd.DataFrame(rec['write_segments'])
+                if mod == 'DXT_POSIX':
+                    rec['address_line_mapping'] = pd.DataFrame(rec['address_line_mapping'])
+                elif mod == 'DXT_MPIIO':
+                    rec['address_line_mapping'] = pd.DataFrame(rec['address_line_mapping'])
         else:
             df_recs = pd.DataFrame.from_records(records)
             # generic records have counter and fcounter arrays to collect

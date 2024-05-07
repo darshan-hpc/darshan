@@ -19,7 +19,8 @@
 enum dxt_trigger_type
 {
     DXT_SMALL_IO_TRIGGER,
-    DXT_UNALIGNED_IO_TRIGGER
+    DXT_UNALIGNED_IO_TRIGGER,
+    DXT_COLLECT_STACK_TRACE
 };
 struct dxt_trigger
 {
@@ -35,6 +36,7 @@ struct dxt_trigger
         } unaligned_io;
     } u;
 };
+
 
 /* dxt_posix_runtime_initialize()
  *
@@ -71,5 +73,7 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
         int64_t length, double start_time, double end_time);
 
 void dxt_posix_apply_trace_filter(struct dxt_trigger *trigger);
+
+void dxt_enable_stack_trace();
 
 #endif /* __DARSHAN_DXT_H */
