@@ -324,6 +324,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
                 write_count, read_count);
 
     printf("# DXT, mnt_pt: %s, fs_type: %s\n", mnt_pt, fs_type);
+#if 0
     if (lustreFS) {
         rec = lustre_rec_ref->rec;
         stripe_size = rec->counters[LUSTRE_STRIPE_SIZE];
@@ -337,13 +338,16 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         }
         printf("\n");
     }
+#endif
 
     /* Print header */
     printf("# Module    Rank  Wt/Rd  Segment          Offset       Length    Start(s)      End(s)");
 
+#if 0
     if (lustreFS) {
         printf("  [OST]");
     }
+#endif
     printf("\n");
 
     /* Print IO Traces information */
@@ -355,6 +359,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
 
         printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f", "X_POSIX", rank, "write", i, offset, length, start_time, end_time);
 
+#if 0
         if (lustreFS) {
             cur_offset = offset;
             ost_idx = (offset / stripe_size) % stripe_count;
@@ -371,6 +376,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
                     break;
             }
         }
+#endif
 
         printf("\n");
     }
@@ -383,6 +389,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
 
         printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f", "X_POSIX", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
 
+#if 0
         if (lustreFS) {
             cur_offset = offset;
             ost_idx = (offset / stripe_size) % stripe_count;
@@ -399,6 +406,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
                     break;
             }
         }
+#endif
 
         printf("\n");
     }

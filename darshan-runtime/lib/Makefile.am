@@ -118,7 +118,6 @@ endif
 H_SRCS = darshan-common.h \
          darshan.h \
          darshan-config.h \
-         darshan-lustre.h \
          darshan-dxt.h \
          darshan-ldms.h \
          uthash.h \
