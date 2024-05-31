@@ -18,11 +18,21 @@ typedef int64_t OST_ID;
 
 // XXX can we still support: LUSTRE_OSTS, LUSTRE_MDTS
 // XXX stop supporting STRIPE_OFFSET
-#define LUSTRE_COUNTERS \
-    /* bytes per stripe for file */\
+#define LUSTRE_COMP_COUNTERS \
+    /* component stripe size */\
     X(LUSTRE_COMP_STRIPE_SIZE) \
-    /* number of stripes (OSTs) for file */\
+    /* component stripe width */\
     X(LUSTRE_COMP_STRIPE_WIDTH) \
+    /* component stripe pattern */\
+    X(LUSTRE_COMP_STRIPE_PATTERN) \
+    /* component flags */\
+    X(LUSTRE_COMP_FLAGS) \
+    /* component starting extent */\
+    X(LUSTRE_COMP_EXT_START) \
+    /* component ending extent */\
+    X(LUSTRE_COMP_EXT_END) \
+    /* component mirror ID */\
+    X(LUSTRE_COMP_MIRROR_ID) \
     /* end of counters */\
     X(LUSTRE_COMP_NUM_INDICES)
 
@@ -30,15 +40,15 @@ typedef int64_t OST_ID;
 /* integer statistics for Lustre file records */
 enum darshan_lustre_indices
 {
-    LUSTRE_COUNTERS
+    LUSTRE_COMP_COUNTERS
 };
 #undef X
 
 /* XXX */
-struct darshan_lustre_component_record
+struct darshan_lustre_component
 {
     int64_t counters[LUSTRE_COMP_NUM_INDICES];
-    //OST_ID ost_ids[1]; // XXX this won't work
+    char pool_name[16];
 };
 
 // XXX update
@@ -52,13 +62,17 @@ struct darshan_lustre_record
 {
     struct darshan_base_record base_rec;
     int64_t num_comps;
-    struct darshan_lustre_component_record comps[1];
+    struct darshan_lustre_component *comps;
+    OST_ID *ost_ids;
 };
 
 /*
- *  helper function to calculate the size of a record
+ *  helper macro to calculate the serialized size of a Lustre record
+ *  NOTE: this must be kept in sync with the definitions above
  */
-#define LUSTRE_RECORD_SIZE(comps) (sizeof(struct darshan_lustre_record) + \
-    sizeof(struct darshan_lustre_component_record) * (comps - 1))
+#define LUSTRE_RECORD_SIZE(comps, osts) \
+    (sizeof(struct darshan_base_record) + sizeof(int64_t) + \
+     (sizeof(struct darshan_lustre_component) * (comps)) + \
+     (sizeof(OST_ID) * (osts)))
 
 #endif /* __DARSHAN_LUSTRE_LOG_FORMAT_H */
