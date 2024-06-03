@@ -83,8 +83,6 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
         DARSHAN_BSWAP64(&tmp_rec.base_rec.rank);
         DARSHAN_BSWAP64(&tmp_rec.num_comps);
     }
-    if(tmp_rec.num_comps < 1)
-        return(0);
 
     comps_size = tmp_rec.num_comps * sizeof(*tmp_rec.comps);
     if(*lustre_buf_p == NULL)
@@ -94,55 +92,63 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
             return(-1);
     }
     memcpy(rec, &tmp_rec, fixed_size);
-    rec->comps = rec + sizeof(struct darshan_lustre_record);
-
-    /* now read all record components */
-    ret = darshan_log_get_mod(
-        fd,
-        DARSHAN_LUSTRE_MOD,
-        (void*)(rec->comps),
-        comps_size
-    );
-    if(ret < comps_size)
-        ret = -1;
+    if(tmp_rec.num_comps < 1)
+    {
+        rec->comps = NULL;
+        rec->ost_ids = NULL;
+    }
     else
     {
-        ret = 1;
-        /* swap bytes if necessary */
-        if (fd->swap_flag)
-            for (i = 0; i < rec->num_comps; i++)
-                for(j=0; j<LUSTRE_COMP_NUM_INDICES; j++)
-                    DARSHAN_BSWAP64(&rec->comps[i].counters[j]);
-    }
+        rec->comps = rec + sizeof(struct darshan_lustre_record);
 
-    for (i = 0; i < rec->num_comps; i++)
-        num_osts += rec->comps[i].counters[LUSTRE_COMP_STRIPE_WIDTH];
-    osts_size = num_osts * sizeof(*tmp_rec.ost_ids);
-    if(*lustre_buf_p == NULL)
-    {
-        rec = realloc(rec, sizeof(struct darshan_lustre_record) + comps_size + osts_size);
-        if(!rec)
-            return(-1);
-    }
-    rec->comps = rec + sizeof(struct darshan_lustre_record);
-    rec->ost_ids = rec->comps + comps_size;
+        /* now read all record components */
+        ret = darshan_log_get_mod(
+            fd,
+            DARSHAN_LUSTRE_MOD,
+            (void*)(rec->comps),
+            comps_size
+        );
+        if(ret < comps_size)
+            ret = -1;
+        else
+        {
+            ret = 1;
+            /* swap bytes if necessary */
+            if (fd->swap_flag)
+                for (i = 0; i < rec->num_comps; i++)
+                    for(j=0; j<LUSTRE_COMP_NUM_INDICES; j++)
+                        DARSHAN_BSWAP64(&rec->comps[i].counters[j]);
+        }
 
-    /* now read the OST list */
-    ret = darshan_log_get_mod(
-        fd,
-        DARSHAN_LUSTRE_MOD,
-        (void*)(rec->ost_ids),
-        osts_size
-    );
-    if(ret < osts_size)
-        ret = -1;
-    else
-    {
-        ret = 1;
-        /* swap bytes if necessary */
-        if (fd->swap_flag)
-            for (i = 0; i < num_osts; i++)
-                DARSHAN_BSWAP64(&rec->ost_ids[i]);
+        for (i = 0; i < rec->num_comps; i++)
+            num_osts += rec->comps[i].counters[LUSTRE_COMP_STRIPE_WIDTH];
+        osts_size = num_osts * sizeof(*tmp_rec.ost_ids);
+        if(*lustre_buf_p == NULL)
+        {
+            rec = realloc(rec, sizeof(struct darshan_lustre_record) + comps_size + osts_size);
+            if(!rec)
+                return(-1);
+        }
+        rec->comps = rec + sizeof(struct darshan_lustre_record);
+        rec->ost_ids = rec->comps + comps_size;
+
+        /* now read the OST list */
+        ret = darshan_log_get_mod(
+            fd,
+            DARSHAN_LUSTRE_MOD,
+            (void*)(rec->ost_ids),
+            osts_size
+        );
+        if(ret < osts_size)
+            ret = -1;
+        else
+        {
+            ret = 1;
+            /* swap bytes if necessary */
+            if (fd->swap_flag)
+                for (i = 0; i < num_osts; i++)
+                    DARSHAN_BSWAP64(&rec->ost_ids[i]);
+        }
     }
 
     if(*lustre_buf_p == NULL)
