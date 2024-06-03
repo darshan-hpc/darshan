@@ -29,15 +29,6 @@
 
 static void lustre_runtime_initialize(
     void);
-static void lustre_subtract_shared_rec_size(
-    void *rec_ref_p, void *user_ptr);
-static void lustre_set_rec_ref_pointers(
-    void *rec_ref_p, void *user_ptr);
-static int lustre_record_compare(
-    const void* a_p, const void* b_p);
-int sort_lustre_records(
-    void);
-
 #ifdef HAVE_MPI
 static void lustre_mpi_redux(
     void *lustre_buf, MPI_Comm mod_comm,
@@ -56,7 +47,6 @@ struct lustre_record_ref
 
 struct lustre_runtime
 {
-    int   record_count;         /* number of records stored in record_id_hash */
     void *record_id_hash;
     int frozen; /* flag to indicate that the counters should no longer be modified */
 };
@@ -130,7 +120,8 @@ static void darshan_get_lustre_layout_components(struct llapi_layout *lustre_lay
     uint32_t mirror_id;
     uint64_t i, tmp_ost;
     int comps_idx = 0, osts_idx = 0;
-    struct darshan_lustre_component *comps = &(rec_ref->record->comps);
+    struct darshan_lustre_component *comps =
+        (struct darshan_lustre_component *)&(rec_ref->record->comps);
     OST_ID *osts = (OST_ID *)(comps + num_comps);
 
     rec_ref->record_size = 0;
@@ -156,11 +147,14 @@ static void darshan_get_lustre_layout_components(struct llapi_layout *lustre_lay
         ret += llapi_layout_comp_extent_get(lustre_layout, &ext_start, &ext_end);
         ret += llapi_layout_mirror_id_get(lustre_layout, &mirror_id);
         /* record info on this component iff:
-         *  - the component is initialized (actively used for this file)
+         *  - the layout isn't composite _OR_ the composite layout component is
+	 *    initialized (actively used for this file)
          *  - the above functions querying stripe params returned no error
          *  - there is enough room in the record buf to store the OST list
          */
-        if ((flags & LCME_FL_INIT) && (ret == 0) && (osts_idx + stripe_count <= num_osts))
+        if ((!is_composite || (flags & LCME_FL_INIT)) &&
+	    (ret == 0) &&
+	    (osts_idx + stripe_count <= num_osts))
         {
             comps[comps_idx].counters[LUSTRE_COMP_STRIPE_SIZE] = (int64_t)stripe_size;
             comps[comps_idx].counters[LUSTRE_COMP_STRIPE_WIDTH] = (int64_t)stripe_count;
@@ -310,8 +304,6 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
         /* fill in record buffer with component info and OST list */
         darshan_get_lustre_layout_components(lustre_layout, rec_ref, num_comps, num_osts);
         llapi_layout_free(lustre_layout);
-
-        lustre_runtime->record_count++;
     }
 
     LUSTRE_UNLOCK();
@@ -394,12 +386,10 @@ static void lustre_mpi_redux(
          * error msg and continue rather than asserting in this case,
          * though, see #243.
          */
-#if 0
         if(rec_ref)
             rec_ref->record->base_rec.rank = -1;
         else
             darshan_core_fprintf(stderr, "WARNING: unexpected condition in Darshan, possibly triggered by memory corruption.  Darshan log may be incorrect.\n");
-#endif
     }
 
     LUSTRE_UNLOCK();
@@ -418,6 +408,10 @@ static void lustre_fn(void *rec_ref_p, void *user_ptr)
     struct lustre_buf_state *buf_state = (struct lustre_buf_state *)user_ptr;
     void *output_buf = buf_state->buf + buf_state->buf_size;
 
+    /* skip shared records on non-zero ranks */
+    if (my_rank > 0 && rec_ref->record->base_rec.rank == -1)
+        return;
+#if 0
     int64_t num_comps = *((int64_t *)((void *)rec_ref->record + sizeof(struct darshan_base_record)));
     printf("record with %ld comps ", num_comps);
     int i;
@@ -434,6 +428,7 @@ static void lustre_fn(void *rec_ref_p, void *user_ptr)
         printf("%ld ", osts[i]);
     }
     printf("\n");
+#endif
 
     /* determine whether this record needs to be shifted back in the final record buffer */
     if (rec_ref->record != output_buf)
