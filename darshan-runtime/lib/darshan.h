@@ -94,8 +94,6 @@ struct darshan_fs_info
 {
     int fs_type;
     int block_size;
-    int ost_count;
-    int mdt_count;
 };
 
 /* FS mount information */
@@ -316,8 +314,8 @@ void darshan_core_unregister_module(
 
 /* darshan_instrument_fs_data()
  *
- * Allow file system-specific modules to instrument data for the file
- * stored at 'path'. 'fs_type' is checked to determine the underlying
+ * Allow file system-specific modules to instrument data for the file record
+ * corresponding to 'rec_id'. 'fs_type' is checked to determine the underlying
  * filesystem and calls into the corresponding file system instrumentation
  * module, if defined -- currently we only have a Lustre module. 'fd' is
  * the file descriptor corresponding to the file, which may be needed by
@@ -325,7 +323,7 @@ void darshan_core_unregister_module(
  */
 void darshan_instrument_fs_data(
     int fs_type,
-    const char *path,
+    darshan_record_id rec_id,
     int fd);
 
 /* darshan_core_gen_record_id()

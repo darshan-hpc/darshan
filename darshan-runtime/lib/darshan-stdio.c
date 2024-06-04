@@ -219,7 +219,6 @@ extern int __real_fileno(FILE *stream);
     darshan_record_id __rec_id; \
     struct stdio_file_record_ref *__rec_ref; \
     char *__newpath; \
-    int __fd; \
     MAP_OR_FAIL(fileno); \
     (void)__darshan_disabled; \
     if(!__ret || !__path) break; \
@@ -233,8 +232,6 @@ extern int __real_fileno(FILE *stream);
         break; \
     } \
     _STDIO_RECORD_OPEN(__ret, __rec_ref, __tm1, __tm2, 1, -1); \
-    __fd = __real_fileno(__ret); \
-    darshan_instrument_fs_data(__rec_ref->fs_type, __newpath, __fd); \
     if(__newpath != (char*)__path) free(__newpath); \
     /* LDMS to publish realtime open tracing information to daemon*/ \
     if(dC.ldms_lib)\
@@ -444,6 +441,23 @@ int DARSHAN_DECL(fclose)(FILE *fp)
     struct stdio_file_record_ref *rec_ref;
 
     MAP_OR_FAIL(fclose);
+
+    if(!__darshan_disabled)
+    {
+        STDIO_LOCK();
+        if(stdio_runtime && !stdio_runtime->frozen)
+        {
+            rec_ref = darshan_lookup_record_ref(stdio_runtime->stream_hash,
+                &fp, sizeof(fp));
+            if(rec_ref)
+            {
+		int fd = __real_fileno(fp);
+                darshan_instrument_fs_data(rec_ref->fs_type,
+                    rec_ref->file_rec->base_rec.id, fd);
+            }
+        }
+        STDIO_UNLOCK();
+    }
 
     tm1 = STDIO_WTIME();
     ret = __real_fclose(fp);
