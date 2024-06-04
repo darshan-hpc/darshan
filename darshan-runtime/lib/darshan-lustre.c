@@ -42,6 +42,8 @@ static void lustre_cleanup(
 struct lustre_record_ref
 {
     struct darshan_lustre_record *record;
+    int max_comps;
+    int max_osts;
     size_t record_size;
 };
 
@@ -108,7 +110,7 @@ static void darshan_get_lustre_layout_size(struct llapi_layout *lustre_layout,
 }
 
 static void darshan_get_lustre_layout_components(struct llapi_layout *lustre_layout,
-    struct lustre_record_ref *rec_ref, int num_comps, int num_osts)
+    struct lustre_record_ref *rec_ref)
 {
     bool is_composite;
     int ret;
@@ -122,7 +124,7 @@ static void darshan_get_lustre_layout_components(struct llapi_layout *lustre_lay
     int comps_idx = 0, osts_idx = 0;
     struct darshan_lustre_component *comps =
         (struct darshan_lustre_component *)&(rec_ref->record->comps);
-    OST_ID *osts = (OST_ID *)(comps + num_comps);
+    OST_ID *osts = (OST_ID *)(comps + rec_ref->max_comps);
 
     rec_ref->record_size = 0;
     rec_ref->record->num_comps = 0;
@@ -148,13 +150,13 @@ static void darshan_get_lustre_layout_components(struct llapi_layout *lustre_lay
         ret += llapi_layout_mirror_id_get(lustre_layout, &mirror_id);
         /* record info on this component iff:
          *  - the layout isn't composite _OR_ the composite layout component is
-	 *    initialized (actively used for this file)
+         *    initialized (actively used for this file)
          *  - the above functions querying stripe params returned no error
          *  - there is enough room in the record buf to store the OST list
          */
         if ((!is_composite || (flags & LCME_FL_INIT)) &&
-	    (ret == 0) &&
-	    (osts_idx + stripe_count <= num_osts))
+            (ret == 0) &&
+            (osts_idx + stripe_count <= rec_ref->max_osts))
         {
             comps[comps_idx].counters[LUSTRE_COMP_STRIPE_SIZE] = (int64_t)stripe_size;
             comps[comps_idx].counters[LUSTRE_COMP_STRIPE_WIDTH] = (int64_t)stripe_count;
@@ -185,9 +187,9 @@ static void darshan_get_lustre_layout_components(struct llapi_layout *lustre_lay
             ret = llapi_layout_comp_use(lustre_layout, LLAPI_LAYOUT_COMP_USE_NEXT);
         }
         else break;
-    } while(ret == 0 && rec_ref->record->num_comps < num_comps);
+    } while(ret == 0 && rec_ref->record->num_comps < rec_ref->max_comps);
 
-    if (rec_ref->record->num_comps < num_comps)
+    if (rec_ref->record->num_comps < rec_ref->max_comps)
         memmove(comps + rec_ref->record->num_comps, osts, osts_idx * sizeof(*osts));
 
     /* update record size to reflect final number of components/osts */
@@ -196,9 +198,8 @@ static void darshan_get_lustre_layout_components(struct llapi_layout *lustre_lay
     return;
 }
 
-void darshan_instrument_lustre_file(const char* filepath, int fd)
+void darshan_instrument_lustre_file(darshan_record_id rec_id, int fd)
 {
-    darshan_record_id rec_id;
     void *lustre_xattr_val;
     size_t lustre_xattr_size = XATTR_SIZE_MAX;
     struct llapi_layout *lustre_layout;
@@ -206,7 +207,6 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
     size_t rec_size;
     struct darshan_lustre_record *rec;
     struct lustre_record_ref *rec_ref;
-    struct darshan_fs_info fs_info;
     int ret;
 
     LUSTRE_LOCK();
@@ -222,41 +222,42 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
         return;
     }
 
+    if ((lustre_xattr_val = calloc(1, lustre_xattr_size)) == NULL)
+    {
+        LUSTRE_UNLOCK();
+        return;
+    }
+
+    /* -1 means fgetxattr failed, likely because file isn't on Lustre, but maybe because
+     * the Lustre version doesn't support this method of obtaining striping info
+     */
+    if ((lustre_xattr_size = fgetxattr(fd, "lustre.lov", lustre_xattr_val, lustre_xattr_size)) == -1)
+    {
+        free(lustre_xattr_val);
+        LUSTRE_UNLOCK();
+        return;
+    }
+
+    /* get corresponding Lustre file layout, then extract stripe params */
+    if ((lustre_layout = llapi_layout_get_by_xattr(lustre_xattr_val, lustre_xattr_size, 0)) == NULL)
+    {
+        free(lustre_xattr_val);
+        LUSTRE_UNLOCK();
+        return;
+    }
+    free(lustre_xattr_val);
+
     /* search the hash table for this file record, and initialize if not found */
-    rec_id = darshan_core_gen_record_id(filepath);
     rec_ref = darshan_lookup_record_ref(lustre_runtime->record_id_hash,
         &rec_id, sizeof(darshan_record_id));
     if(!rec_ref)
     {
-        if ((lustre_xattr_val = calloc(1, lustre_xattr_size)) == NULL)
-        {
-            LUSTRE_UNLOCK();
-            return;
-        }
-
-        /* -1 means fgetxattr failed, likely because file isn't on Lustre, but maybe because
-         * the Lustre version doesn't support this method of obtaining striping info
-         */
-        if ((lustre_xattr_size = fgetxattr(fd, "lustre.lov", lustre_xattr_val, lustre_xattr_size)) == -1)
-        {
-            free(lustre_xattr_val);
-            LUSTRE_UNLOCK();
-            return;
-        }
-
-        /* get corresponding Lustre file layout, then extract stripe params */
-        if ((lustre_layout = llapi_layout_get_by_xattr(lustre_xattr_val, lustre_xattr_size, 0)) == NULL)
-        {
-            free(lustre_xattr_val);
-            LUSTRE_UNLOCK();
-            return;
-        }
-        free(lustre_xattr_val);
 
         /* iterate file layout components to determine total record size */
         darshan_get_lustre_layout_size(lustre_layout, &num_comps, &num_osts);
-        if(num_comps == 0 || num_osts == 0)
+        if(num_comps == 0)
         {
+            llapi_layout_free(lustre_layout);
             LUSTRE_UNLOCK();
             return;
         }
@@ -280,13 +281,12 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
         }
 
         /* register a Lustre file record with Darshan */
-        fs_info.fs_type = -1;
         rec = darshan_core_register_record(
                 rec_id,
-                filepath,
+                NULL, /* either POSIX or STDIO already registered the name */
                 DARSHAN_LUSTRE_MOD,
                 rec_size,
-                &fs_info);
+                NULL);
         if(rec == NULL)
         {
             /* if NULL, darshan has no more memory for instrumenting */
@@ -301,10 +301,13 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
         rec->base_rec.id = rec_id;
         rec->base_rec.rank = my_rank;
         rec_ref->record = rec;
-        /* fill in record buffer with component info and OST list */
-        darshan_get_lustre_layout_components(lustre_layout, rec_ref, num_comps, num_osts);
-        llapi_layout_free(lustre_layout);
+        rec_ref->max_comps = num_comps;
+        rec_ref->max_osts = num_osts;
     }
+
+    /* fill in record buffer with component info and OST list */
+    darshan_get_lustre_layout_components(lustre_layout, rec_ref);
+    llapi_layout_free(lustre_layout);
 
     LUSTRE_UNLOCK();
     return;

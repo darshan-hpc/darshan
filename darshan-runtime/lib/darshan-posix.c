@@ -248,7 +248,6 @@ static int darshan_mem_alignment = 1;
         break; \
     } \
     _POSIX_RECORD_OPEN(__ret, __rec_ref, __mode, __tm1, __tm2, 1, -1); \
-    darshan_instrument_fs_data(__rec_ref->fs_type, __newpath, __ret); \
     if(__newpath != __path) free(__newpath); \
     /* LDMS to publish realtime open tracing information to daemon*/ \
     if(dC.ldms_lib)\
@@ -1617,6 +1616,22 @@ int DARSHAN_DECL(close)(int fd)
     double tm1, tm2;
 
     MAP_OR_FAIL(close);
+
+    if(!__darshan_disabled)
+    {
+        POSIX_LOCK();
+        if(posix_runtime && !posix_runtime->frozen)
+        {
+            rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash,
+                &fd, sizeof(int));
+            if(rec_ref)
+            {
+                darshan_instrument_fs_data(rec_ref->fs_type,
+                    rec_ref->file_rec->base_rec.id, fd);
+            }
+        }
+        POSIX_UNLOCK();
+    }
 
     tm1 = POSIX_WTIME();
     ret = __real_close(fd);
