@@ -267,6 +267,7 @@ void darshan_instrument_lustre_file(darshan_record_id rec_id, int fd)
         rec_ref = malloc(sizeof(*rec_ref));
         if(!rec_ref)
         {
+            llapi_layout_free(lustre_layout);
             LUSTRE_UNLOCK();
             return;
         }
@@ -276,6 +277,7 @@ void darshan_instrument_lustre_file(darshan_record_id rec_id, int fd)
         if(ret == 0)
         {
             free(rec_ref);
+            llapi_layout_free(lustre_layout);
             LUSTRE_UNLOCK();
             return;
         }
@@ -293,6 +295,7 @@ void darshan_instrument_lustre_file(darshan_record_id rec_id, int fd)
             darshan_delete_record_ref(&(lustre_runtime->record_id_hash),
                 &rec_id, sizeof(darshan_record_id));
             free(rec_ref);
+            llapi_layout_free(lustre_layout);
             LUSTRE_UNLOCK();
             return;
         }
@@ -405,7 +408,7 @@ struct lustre_buf_state
     void *buf;
     size_t buf_size;
 };
-static void lustre_fn(void *rec_ref_p, void *user_ptr)
+static void lustre_serialize_records(void *rec_ref_p, void *user_ptr)
 {
     struct lustre_record_ref *rec_ref = (struct lustre_record_ref *)rec_ref_p;
     struct lustre_buf_state *buf_state = (struct lustre_buf_state *)user_ptr;
@@ -414,24 +417,6 @@ static void lustre_fn(void *rec_ref_p, void *user_ptr)
     /* skip shared records on non-zero ranks */
     if (my_rank > 0 && rec_ref->record->base_rec.rank == -1)
         return;
-#if 0
-    int64_t num_comps = *((int64_t *)((void *)rec_ref->record + sizeof(struct darshan_base_record)));
-    printf("record with %ld comps ", num_comps);
-    int i;
-    int num_osts = 0;
-    struct darshan_lustre_component *comps = (struct darshan_lustre_component *)((void *)rec_ref->record + sizeof(struct darshan_base_record) + sizeof(int64_t));
-    for(i = 0; i < num_comps; i++)
-    {
-        num_osts += comps[i].counters[LUSTRE_COMP_STRIPE_WIDTH];
-    }
-    printf(" and %d osts: ", num_osts);
-    OST_ID *osts = (OST_ID *)((void *)comps + (num_comps * sizeof(struct darshan_lustre_component)));
-    for(i = 0; i < num_osts; i++)
-    {
-        printf("%ld ", osts[i]);
-    }
-    printf("\n");
-#endif
 
     /* determine whether this record needs to be shifted back in the final record buffer */
     if (rec_ref->record != output_buf)
@@ -453,9 +438,9 @@ static void lustre_output(
 
     buf_state.buf = *lustre_buf;
     buf_state.buf_size = 0;
-    // XXX
+    /* serialize records into final output buffer */
     darshan_iter_record_refs(lustre_runtime->record_id_hash,
-        &lustre_fn, &buf_state);
+        &lustre_serialize_records, &buf_state);
 
     /* update output buffer size, which may have shrank */
     *lustre_buf_sz = buf_state.buf_size;
