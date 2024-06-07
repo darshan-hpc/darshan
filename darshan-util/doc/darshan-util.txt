@@ -513,7 +513,7 @@ execution time.
 | LUSTRE_MDTS | number of MDTs (metadata targets) for the file system
 | LUSTRE_STRIPE_OFFSET | OST id offset specified at file creation time
 | LUSTRE_STRIPE_SIZE | stripe size for the file in bytes
-| LUSTRE_STRIPE_WIDTH | number of OSTs over which the file is striped
+| LUSTRE_STRIPE_COUNT | number of OSTs over which the file is striped
 | LUSTRE_OST_ID_* | indices of OSTs over which the file is striped
 |====
 

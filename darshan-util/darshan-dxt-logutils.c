@@ -328,7 +328,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     if (lustreFS) {
         rec = lustre_rec_ref->rec;
         stripe_size = rec->counters[LUSTRE_STRIPE_SIZE];
-        stripe_count = rec->counters[LUSTRE_STRIPE_WIDTH];
+        stripe_count = rec->counters[LUSTRE_STRIPE_COUNT];
 
         printf("# DXT, Lustre stripe_size: %d, Lustre stripe_count: %d\n", stripe_size, stripe_count);
 

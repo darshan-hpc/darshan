@@ -159,7 +159,7 @@ static void darshan_get_lustre_layout_components(struct llapi_layout *lustre_lay
             (osts_idx + stripe_count <= rec_ref->max_osts))
         {
             comps[comps_idx].counters[LUSTRE_COMP_STRIPE_SIZE] = (int64_t)stripe_size;
-            comps[comps_idx].counters[LUSTRE_COMP_STRIPE_WIDTH] = (int64_t)stripe_count;
+            comps[comps_idx].counters[LUSTRE_COMP_STRIPE_COUNT] = (int64_t)stripe_count;
             comps[comps_idx].counters[LUSTRE_COMP_STRIPE_PATTERN] = (int64_t)stripe_pattern;
             comps[comps_idx].counters[LUSTRE_COMP_FLAGS] = (int64_t)flags;
             comps[comps_idx].counters[LUSTRE_COMP_EXT_START] = (int64_t)ext_start;

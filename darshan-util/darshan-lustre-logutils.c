@@ -121,7 +121,7 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
         }
 
         for (i = 0; i < rec->num_comps; i++)
-            num_osts += rec->comps[i].counters[LUSTRE_COMP_STRIPE_WIDTH];
+            num_osts += rec->comps[i].counters[LUSTRE_COMP_STRIPE_COUNT];
         osts_size = num_osts * sizeof(*tmp_rec.ost_ids);
         if(*lustre_buf_p == NULL)
         {
@@ -171,7 +171,7 @@ static int darshan_log_put_lustre_record(darshan_fd fd, void* lustre_buf)
 
     for(i = 0; i < rec->num_comps; i++)
     {
-        num_osts += rec->comps[i].counters[LUSTRE_COMP_STRIPE_WIDTH];
+        num_osts += rec->comps[i].counters[LUSTRE_COMP_STRIPE_COUNT];
     }
 
     ret = darshan_log_put_mod(fd, DARSHAN_LUSTRE_MOD, rec,
@@ -265,7 +265,7 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
                 lustre_rec->base_rec.rank, lustre_rec->base_rec.id,
                 tmp_counter_str, lustre_rec->comps[i].pool_name,
                 file_name, mnt_pt, fs_type);
-        for(j = 0; j < lustre_rec->comps[i].counters[LUSTRE_COMP_STRIPE_WIDTH]; j++)
+        for(j = 0; j < lustre_rec->comps[i].counters[LUSTRE_COMP_STRIPE_COUNT]; j++)
         {
             snprintf(ptr, 64-idx, "%d_OST_ID_%d", i+1, j);
             DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
@@ -285,7 +285,7 @@ static void darshan_log_print_lustre_description(int ver)
     printf("#   LUSTRE_MDTS: number of MDTs across the entire file system.\n");
     printf("#   LUSTRE_STRIPE_OFFSET: OST ID offset specified when the file was created.\n");
     printf("#   LUSTRE_STRIPE_SIZE: stripe size for file in bytes.\n");
-    printf("#   LUSTRE_STRIPE_WIDTH: number of OSTs over which the file is striped.\n");
+    printf("#   LUSTRE_STRIPE_COUNT: number of OSTs over which the file is striped.\n");
     printf("#   LUSTRE_OST_ID_*: indices of OSTs over which the file is striped.\n");
 
     return;
@@ -337,7 +337,7 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
     {
         char strbuf[25];
         snprintf( strbuf, 25, "LUSTRE_OST_ID_%d", i );
-        if (!lustre_rec2 || (i >= lustre_rec2->counters[LUSTRE_STRIPE_WIDTH]))
+        if (!lustre_rec2 || (i >= lustre_rec2->counters[LUSTRE_STRIPE_COUNT]))
         {
             printf("- ");
             DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
@@ -349,7 +349,7 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
                 "",
                 "");
         }
-        else if (!lustre_rec1 || (i >= lustre_rec1->counters[LUSTRE_STRIPE_WIDTH]))
+        else if (!lustre_rec1 || (i >= lustre_rec1->counters[LUSTRE_STRIPE_COUNT]))
         {
             printf("+ ");
             DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
@@ -384,8 +384,8 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
         }
 
         i++;
-        if ((!lustre_rec1 || (i >= lustre_rec1->counters[LUSTRE_STRIPE_WIDTH])) &&
-            (!lustre_rec2 || (i >= lustre_rec2->counters[LUSTRE_STRIPE_WIDTH])))
+        if ((!lustre_rec1 || (i >= lustre_rec1->counters[LUSTRE_STRIPE_COUNT])) &&
+            (!lustre_rec2 || (i >= lustre_rec2->counters[LUSTRE_STRIPE_COUNT])))
             break;
     }
 #endif
@@ -404,7 +404,7 @@ static void darshan_log_agg_lustre_records(void *rec, void *agg_rec, int init_fl
     {
         /* when initializing, just copy over the first record */
         memcpy(agg_lustre_rec, lustre_rec, LUSTRE_RECORD_SIZE(
-            lustre_rec->counters[LUSTRE_STRIPE_WIDTH]));
+            lustre_rec->counters[LUSTRE_STRIPE_COUNT]));
     }
     else
     {
@@ -413,7 +413,7 @@ static void darshan_log_agg_lustre_records(void *rec, void *agg_rec, int init_fl
         {
             assert(lustre_rec->counters[i] == agg_lustre_rec->counters[i]);
         }
-        for(i = 0; i < agg_lustre_rec->counters[LUSTRE_STRIPE_WIDTH]; i++)
+        for(i = 0; i < agg_lustre_rec->counters[LUSTRE_STRIPE_COUNT]; i++)
         {
             assert(lustre_rec->ost_ids[i] == agg_lustre_rec->ost_ids[i]);
         }
