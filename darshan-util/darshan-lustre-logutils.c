@@ -182,11 +182,6 @@ static int darshan_log_put_lustre_record(darshan_fd fd, void* lustre_buf)
     return(0);
 }
 
-#define LUSTRE_LAYOUT_RAID0      0ULL
-#define LUSTRE_LAYOUT_MDT        2ULL
-#define LUSTRE_LAYOUT_OVERSTRIPING   4ULL
-#define LUSTRE_LAYOUT_FOREIGN        8ULL
-
 static void darshan_log_print_lustre_record(void *rec, char *file_name,
     char *mnt_pt, char *fs_type)
 {
@@ -212,10 +207,16 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
             snprintf(ptr, 64-idx, "%d%s", i+1, &lustre_comp_counter_names[j][idx]);
             if(j == LUSTRE_COMP_STRIPE_PATTERN)
             {
+                #define LUSTRE_LAYOUT_RAID0      0ULL
+                #define LUSTRE_LAYOUT_MDT        2ULL
+                #define LUSTRE_LAYOUT_OVERSTRIPING   4ULL
+                #define LUSTRE_LAYOUT_FOREIGN        8ULL
                 uint64_t pattern = (uint64_t)lustre_rec->comps[i].counters[j];
                 char *pattern_str = "";
                 if(pattern == LUSTRE_LAYOUT_RAID0) pattern_str = "raid0";
-                // XXX OVERSTRIPING,RAID0
+		else if(pattern == LUSTRE_LAYOUT_MDT) pattern_str = "mdt";
+		else if(pattern == LUSTRE_LAYOUT_OVERSTRIPING) pattern_str = "raid0,overstriped";
+		else if(pattern == LUSTRE_LAYOUT_FOREIGN) pattern_str = "foreign";
                 DARSHAN_S_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
                     lustre_rec->base_rec.rank, lustre_rec->base_rec.id,
                     tmp_counter_str, pattern_str, file_name, mnt_pt, fs_type);
