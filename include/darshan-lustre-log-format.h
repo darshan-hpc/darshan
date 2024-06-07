@@ -19,8 +19,8 @@ typedef int64_t OST_ID;
 #define LUSTRE_COMP_COUNTERS \
     /* component stripe size */\
     X(LUSTRE_COMP_STRIPE_SIZE) \
-    /* component stripe width */\
-    X(LUSTRE_COMP_STRIPE_WIDTH) \
+    /* component stripe count */\
+    X(LUSTRE_COMP_STRIPE_COUNT) \
     /* component stripe pattern */\
     X(LUSTRE_COMP_STRIPE_PATTERN) \
     /* component flags */\
