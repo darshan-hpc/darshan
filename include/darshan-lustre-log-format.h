@@ -16,8 +16,6 @@ typedef int64_t OST_ID;
 /* current Lustre log format version */
 #define DARSHAN_LUSTRE_VER 2
 
-// XXX can we still support: LUSTRE_OSTS, LUSTRE_MDTS
-// XXX stop supporting STRIPE_OFFSET
 #define LUSTRE_COMP_COUNTERS \
     /* component stripe size */\
     X(LUSTRE_COMP_STRIPE_SIZE) \
