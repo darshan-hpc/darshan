@@ -12,7 +12,6 @@
  */
 typedef int64_t OST_ID;
 
-// XXX backwards compatability
 /* current Lustre log format version */
 #define DARSHAN_LUSTRE_VER 2
 
@@ -64,6 +63,7 @@ struct darshan_lustre_record
     OST_ID *ost_ids;
 };
 
+// XXX move to runtime?
 /*
  *  helper macro to calculate the serialized size of a Lustre record
  *  NOTE: this must be kept in sync with the definitions above

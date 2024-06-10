@@ -36,6 +36,8 @@ static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
     void *rec2, char *file_name2);
 static void darshan_log_agg_lustre_records(void *rec, void *agg_rec, int init_flag);
 
+static int darshan_log_get_lustre_record_v1(darshan_fd fd, void** lustre_buf_p);
+
 struct darshan_mod_logutil_funcs lustre_logutils =
 {
     .log_get_record = &darshan_log_get_lustre_record,
@@ -58,8 +60,6 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
     if(fd->mod_map[DARSHAN_LUSTRE_MOD].len == 0)
         return(0);
 
-    // XXX backwards compatibility logic
-
     if(fd->mod_ver[DARSHAN_LUSTRE_MOD] == 0 ||
         fd->mod_ver[DARSHAN_LUSTRE_MOD] > DARSHAN_LUSTRE_VER)
     {
@@ -67,6 +67,10 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
             fd->mod_ver[DARSHAN_LUSTRE_MOD]);
         return(-1);
     }
+
+    /* backwards compatibility support for version 1 records */
+    if(fd->mod_ver[DARSHAN_LUSTRE_MOD] == 1)
+        return darshan_log_get_lustre_record_v1(fd, lustre_buf_p);
 
     /* retrieve the fixed-size portion of the record */
     fixed_size = sizeof(struct darshan_base_record) + sizeof(int64_t);
@@ -99,7 +103,8 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
     }
     else
     {
-        rec->comps = rec + sizeof(struct darshan_lustre_record);
+        rec->comps = (struct darshan_lustre_component *)
+            ((void *)rec + sizeof(struct darshan_lustre_record));
 
         /* now read all record components */
         ret = darshan_log_get_mod(
@@ -129,8 +134,9 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
             if(!rec)
                 return(-1);
         }
-        rec->comps = rec + sizeof(struct darshan_lustre_record);
-        rec->ost_ids = rec->comps + comps_size;
+        rec->comps = (struct darshan_lustre_component *)
+            ((void *)rec + sizeof(struct darshan_lustre_record));
+        rec->ost_ids = (OST_ID *)((void *)rec->comps + comps_size);
 
         /* now read the OST list */
         ret = darshan_log_get_mod(
@@ -149,6 +155,81 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
                 for (i = 0; i < num_osts; i++)
                     DARSHAN_BSWAP64(&rec->ost_ids[i]);
         }
+    }
+
+    if(*lustre_buf_p == NULL)
+    {
+        if(ret == 1)
+            *lustre_buf_p = rec;
+        else
+            free(rec);
+    }
+
+    return(ret);
+}
+
+static int darshan_log_get_lustre_record_v1(darshan_fd fd, void** lustre_buf_p)
+{
+    struct darshan_lustre_record *rec = *((struct darshan_lustre_record **)lustre_buf_p);
+    int64_t fixed_record[7];
+    int64_t stripe_size, stripe_count;
+    int i;
+    int ret;
+
+    /* retrieve the fixed-size portion of the record */
+    ret = darshan_log_get_mod(fd, DARSHAN_LUSTRE_MOD, &fixed_record, sizeof(fixed_record));
+    if(ret < 0)
+        return(-1);
+    else if(ret < sizeof(fixed_record))
+        return(0);
+
+    /* swap bytes if necessary */
+    if(fd->swap_flag)
+        for (i = 0; i < 7; i++)
+            DARSHAN_BSWAP64(&fixed_record[i]);
+
+    stripe_size = fixed_record[5];
+    stripe_count = fixed_record[6];
+
+    if(*lustre_buf_p == NULL)
+    {
+        rec = malloc(sizeof(struct darshan_lustre_record) +
+            sizeof(struct darshan_lustre_component) + (stripe_count * sizeof(OST_ID)));
+        if(!rec)
+            return(-1);
+    }
+
+    /* copy over base record first */
+    memcpy(rec, &fixed_record, sizeof(struct darshan_base_record));
+    rec->num_comps = 1; // only 1 component for old Lustre records
+    rec->comps = (struct darshan_lustre_component *)
+        ((void *)rec + sizeof(struct darshan_lustre_record));
+    rec->ost_ids = (OST_ID *)
+        ((void *)rec->comps + sizeof(struct darshan_lustre_component));
+    /* fill in known parts of the component structure */
+    rec->comps[0].counters[LUSTRE_COMP_STRIPE_SIZE] = stripe_size;
+    rec->comps[0].counters[LUSTRE_COMP_STRIPE_COUNT] = stripe_count;
+    rec->comps[0].counters[LUSTRE_COMP_STRIPE_PATTERN] = -1;
+    rec->comps[0].counters[LUSTRE_COMP_FLAGS] = -1;
+    rec->comps[0].counters[LUSTRE_COMP_EXT_START] = 0;
+    rec->comps[0].counters[LUSTRE_COMP_EXT_END] = -1;
+    rec->comps[0].counters[LUSTRE_COMP_MIRROR_ID] = -1;
+    rec->comps[0].pool_name[0] = '\0';
+
+    /* read the OST list */
+    ret = darshan_log_get_mod(fd,
+                              DARSHAN_LUSTRE_MOD,
+                              (void*)(rec->ost_ids),
+                              stripe_count * sizeof(OST_ID));
+    if(ret < (stripe_count * sizeof(OST_ID)))
+        ret = -1;
+    else
+    {
+        ret = 1;
+        /* swap bytes if necessary */
+        if (fd->swap_flag)
+            for (i = 0; i < stripe_count; i++)
+                DARSHAN_BSWAP64(&rec->ost_ids[i]);
     }
 
     if(*lustre_buf_p == NULL)
@@ -212,7 +293,7 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
                 #define LUSTRE_LAYOUT_OVERSTRIPING   4ULL
                 #define LUSTRE_LAYOUT_FOREIGN        8ULL
                 uint64_t pattern = (uint64_t)lustre_rec->comps[i].counters[j];
-                char *pattern_str = "";
+                char *pattern_str = "N/A";
                 if(pattern == LUSTRE_LAYOUT_RAID0) pattern_str = "raid0";
 		else if(pattern == LUSTRE_LAYOUT_MDT) pattern_str = "mdt";
 		else if(pattern == LUSTRE_LAYOUT_OVERSTRIPING) pattern_str = "raid0,overstriped";
@@ -249,6 +330,7 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
                 /* drop last ',' separator */
                 if(flag_str[0] != '\0') flag_str[strlen(flag_str)-1] = '\0';
                 else strcpy(flag_str, "0");
+                if (flags == -1) strcpy(flag_str, "N/A");
                 DARSHAN_S_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
                     lustre_rec->base_rec.rank, lustre_rec->base_rec.id,
                     tmp_counter_str, flag_str, file_name, mnt_pt, fs_type);
@@ -261,10 +343,12 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
             }
         }
         snprintf(ptr, 64-idx, "%d_POOL_NAME", i+1);
+        char *pool_name = "N/A";
+        if(lustre_rec->comps[i].pool_name[0] != '\0')
+            pool_name = lustre_rec->comps[i].pool_name;
         DARSHAN_S_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
                 lustre_rec->base_rec.rank, lustre_rec->base_rec.id,
-                tmp_counter_str, lustre_rec->comps[i].pool_name,
-                file_name, mnt_pt, fs_type);
+                tmp_counter_str, pool_name, file_name, mnt_pt, fs_type);
         for(j = 0; j < lustre_rec->comps[i].counters[LUSTRE_COMP_STRIPE_COUNT]; j++)
         {
             snprintf(ptr, 64-idx, "%d_OST_ID_%d", i+1, j);
