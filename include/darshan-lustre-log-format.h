@@ -69,7 +69,7 @@ struct darshan_lustre_record
  *  NOTE: this must be kept in sync with the definitions above
  */
 #define LUSTRE_RECORD_SIZE(comps, osts) \
-    (sizeof(struct darshan_base_record) + sizeof(int64_t) + \
+     (sizeof(struct darshan_base_record) + sizeof(int64_t) + \
      (sizeof(struct darshan_lustre_component) * (comps)) + \
      (sizeof(OST_ID) * (osts)))
 
