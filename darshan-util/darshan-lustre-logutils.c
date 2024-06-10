@@ -248,6 +248,7 @@ static int darshan_log_put_lustre_record(darshan_fd fd, void* lustre_buf)
     struct darshan_lustre_record *rec = (struct darshan_lustre_record *)lustre_buf;
     int num_osts = 0;
     int i;
+    int fixed_size, comps_size, osts_size;
     int ret;
 
     for(i = 0; i < rec->num_comps; i++)
@@ -255,8 +256,25 @@ static int darshan_log_put_lustre_record(darshan_fd fd, void* lustre_buf)
         num_osts += rec->comps[i].counters[LUSTRE_COMP_STRIPE_COUNT];
     }
 
+    /* each part of the lustre record is written separately since the data
+     * is not contiguous in the record memory
+     */
+
+    fixed_size = sizeof(struct darshan_base_record) + sizeof(int64_t);
     ret = darshan_log_put_mod(fd, DARSHAN_LUSTRE_MOD, rec,
-        LUSTRE_RECORD_SIZE(rec->num_comps, num_osts), DARSHAN_LUSTRE_VER);
+        fixed_size, DARSHAN_LUSTRE_VER);
+    if(ret < 0)
+        return(-1);
+
+    comps_size = rec->num_comps * sizeof(*rec->comps);
+    ret = darshan_log_put_mod(fd, DARSHAN_LUSTRE_MOD, rec->comps,
+        comps_size, DARSHAN_LUSTRE_VER);
+    if(ret < 0)
+        return(-1);
+
+    osts_size = num_osts * sizeof(*rec->ost_ids);
+    ret = darshan_log_put_mod(fd, DARSHAN_LUSTRE_MOD, rec->ost_ids,
+        osts_size, DARSHAN_LUSTRE_VER);
     if(ret < 0)
         return(-1);
 
@@ -288,6 +306,7 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
             snprintf(ptr, 64-idx, "%d%s", i+1, &lustre_comp_counter_names[j][idx]);
             if(j == LUSTRE_COMP_STRIPE_PATTERN)
             {
+                /* XXX copied from Lustre header (lustreapi.h) to avoid dependencies ... */
                 #define LUSTRE_LAYOUT_RAID0      0ULL
                 #define LUSTRE_LAYOUT_MDT        2ULL
                 #define LUSTRE_LAYOUT_OVERSTRIPING   4ULL
@@ -295,9 +314,9 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
                 uint64_t pattern = (uint64_t)lustre_rec->comps[i].counters[j];
                 char *pattern_str = "N/A";
                 if(pattern == LUSTRE_LAYOUT_RAID0) pattern_str = "raid0";
-		else if(pattern == LUSTRE_LAYOUT_MDT) pattern_str = "mdt";
-		else if(pattern == LUSTRE_LAYOUT_OVERSTRIPING) pattern_str = "raid0,overstriped";
-		else if(pattern == LUSTRE_LAYOUT_FOREIGN) pattern_str = "foreign";
+                else if(pattern == LUSTRE_LAYOUT_MDT) pattern_str = "mdt";
+                else if(pattern == LUSTRE_LAYOUT_OVERSTRIPING) pattern_str = "raid0,overstriped";
+                else if(pattern == LUSTRE_LAYOUT_FOREIGN) pattern_str = "foreign";
                 DARSHAN_S_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
                     lustre_rec->base_rec.rank, lustre_rec->base_rec.id,
                     tmp_counter_str, pattern_str, file_name, mnt_pt, fs_type);
@@ -305,6 +324,7 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
             else if(j == LUSTRE_COMP_FLAGS)
             {
                 int k;
+                /* XXX copied from Lustre header (lustreapi.h) to avoid dependencies ... */
                 char flag_str_table[12][32] = {
                     "stale,",
                     "prefrd,",
@@ -365,12 +385,16 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
 static void darshan_log_print_lustre_description(int ver)
 {
     printf("\n# description of LUSTRE counters:\n");
-    printf("#   LUSTRE_OSTS: number of OSTs across the entire file system.\n");
-    printf("#   LUSTRE_MDTS: number of MDTs across the entire file system.\n");
-    printf("#   LUSTRE_STRIPE_OFFSET: OST ID offset specified when the file was created.\n");
-    printf("#   LUSTRE_STRIPE_SIZE: stripe size for file in bytes.\n");
-    printf("#   LUSTRE_STRIPE_COUNT: number of OSTs over which the file is striped.\n");
-    printf("#   LUSTRE_OST_ID_*: indices of OSTs over which the file is striped.\n");
+    printf("#   LUSTRE_NUM_COMPONENTS: number of instrumented components in the Lustre layout.\n");
+    printf("#   LUSTRE_COMP*_STRIPE_SIZE: stripe size for this file layout component in bytes.\n");
+    printf("#   LUSTRE_COMP*_STRIPE_COUNT: number of OSTs over which the file layout component is striped.\n");
+    printf("#   LUSTRE_COMP*_STRIPE_PATTERN: pattern (e.g., raid0, mdt, overstriped) for this file layout component.\n");
+    printf("#   LUSTRE_COMP*_FLAGS: captured flags (e.g. init, prefwr, stale) for this file layout component.\n");
+    printf("#   LUSTRE_COMP*_EXT_START: starting file extent for this file layout component.\n");
+    printf("#   LUSTRE_COMP*_EXT_END: ending file extent for this file layout component (-1 means EOF).\n");
+    printf("#   LUSTRE_COMP*_MIRROR_ID: mirror ID for this file layout component, if mirrors are enabled.\n");
+    printf("#   LUSTRE_COMP*_POOL_NAME: Lustre OST pool used for this file layout component.\n");
+    printf("#   LUSTRE_COMP*_OST_ID_*: indices of OSTs over which this file layout component is striped.\n");
 
     return;
 }
@@ -378,102 +402,7 @@ static void darshan_log_print_lustre_description(int ver)
 static void darshan_log_print_lustre_record_diff(void *rec1, char *file_name1,
     void *rec2, char *file_name2)
 {
-    struct darshan_lustre_record *lustre_rec1 = (struct darshan_lustre_record *)rec1;
-    struct darshan_lustre_record *lustre_rec2 = (struct darshan_lustre_record *)rec2;
-    int i;
-
-    /* NOTE: we assume that both input records are the same module format version */
-
-#if 0
-    for(i=0; i<LUSTRE_NUM_INDICES; i++)
-    {
-        if(!lustre_rec2)
-        {
-            printf("- ");
-            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                lustre_rec1->base_rec.rank, lustre_rec1->base_rec.id,
-                lustre_counter_names[i], lustre_rec1->counters[i], file_name1, "", "");
-
-        }
-        else if(!lustre_rec1)
-        {
-            printf("+ ");
-            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                lustre_rec2->base_rec.rank, lustre_rec2->base_rec.id,
-                lustre_counter_names[i], lustre_rec2->counters[i], file_name2, "", "");
-        }
-        else if(lustre_rec1->counters[i] != lustre_rec2->counters[i])
-        {
-            printf("- ");
-            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                lustre_rec1->base_rec.rank, lustre_rec1->base_rec.id,
-                lustre_counter_names[i], lustre_rec1->counters[i], file_name1, "", "");
-            printf("+ ");
-            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                lustre_rec2->base_rec.rank, lustre_rec2->base_rec.id,
-                lustre_counter_names[i], lustre_rec2->counters[i], file_name2, "", "");
-        }
-    }
-
-    /* TODO: would it be more or less useful to sort the OST IDs before comparing? */
-    i = 0;
-    while (1)
-    {
-        char strbuf[25];
-        snprintf( strbuf, 25, "LUSTRE_OST_ID_%d", i );
-        if (!lustre_rec2 || (i >= lustre_rec2->counters[LUSTRE_STRIPE_COUNT]))
-        {
-            printf("- ");
-            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                lustre_rec1->base_rec.rank,
-                lustre_rec1->base_rec.id,
-                strbuf,
-                lustre_rec1->ost_ids[i],
-                file_name1,
-                "",
-                "");
-        }
-        else if (!lustre_rec1 || (i >= lustre_rec1->counters[LUSTRE_STRIPE_COUNT]))
-        {
-            printf("+ ");
-            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                lustre_rec2->base_rec.rank,
-                lustre_rec2->base_rec.id,
-                strbuf,
-                lustre_rec2->ost_ids[i],
-                file_name2,
-                "",
-                "");
-        }
-        else if (lustre_rec1->ost_ids[i] != lustre_rec2->ost_ids[i])
-        {
-            printf("- ");
-            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                lustre_rec1->base_rec.rank,
-                lustre_rec1->base_rec.id,
-                strbuf,
-                lustre_rec1->ost_ids[i],
-                file_name1,
-                "",
-                "");
-            printf("+ ");
-            DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
-                lustre_rec2->base_rec.rank,
-                lustre_rec2->base_rec.id,
-                strbuf,
-                lustre_rec2->ost_ids[i],
-                file_name2,
-                "",
-                "");
-        }
-
-        i++;
-        if ((!lustre_rec1 || (i >= lustre_rec1->counters[LUSTRE_STRIPE_COUNT])) &&
-            (!lustre_rec2 || (i >= lustre_rec2->counters[LUSTRE_STRIPE_COUNT])))
-            break;
-    }
-#endif
-
+    fprintf(stderr, "Warning: Darshan Lustre module does not support printing record diffs.\n");
     return;
 }
 
@@ -481,28 +410,29 @@ static void darshan_log_agg_lustre_records(void *rec, void *agg_rec, int init_fl
 {
     struct darshan_lustre_record *lustre_rec = (struct darshan_lustre_record *)rec;
     struct darshan_lustre_record *agg_lustre_rec = (struct darshan_lustre_record *)agg_rec;
+    int comps_size = 0, osts_size = 0;
     int i;
 
-#if 0
     if(init_flag)
     {
-        /* when initializing, just copy over the first record */
-        memcpy(agg_lustre_rec, lustre_rec, LUSTRE_RECORD_SIZE(
-            lustre_rec->counters[LUSTRE_STRIPE_COUNT]));
-    }
-    else
-    {
-        /* for remaining records, just sanity check the records are identical */
-        for(i = 0; i < LUSTRE_NUM_INDICES; i++)
+        /* just initialize to the first record we see and never change -- it's
+         * possible different processes could see different Lustre parameters/flags,
+         * so let's not even bother with trying to reconcile which to choose for the
+         * final output record
+         */
+        memcpy(agg_lustre_rec, lustre_rec, sizeof(struct darshan_lustre_record));
+        agg_lustre_rec->comps = (struct darshan_lustre_component *)
+            ((void *)agg_lustre_rec + sizeof(struct darshan_lustre_record));
+        comps_size = lustre_rec->num_comps * sizeof(*lustre_rec->comps);
+        memcpy(agg_lustre_rec->comps, lustre_rec->comps, comps_size);
+        agg_lustre_rec->ost_ids = (OST_ID *)((void *)agg_lustre_rec->comps + comps_size);
+        for(i = 0; i < lustre_rec->num_comps; i++)
         {
-            assert(lustre_rec->counters[i] == agg_lustre_rec->counters[i]);
+            osts_size += lustre_rec->comps[i].counters[LUSTRE_COMP_STRIPE_COUNT];
         }
-        for(i = 0; i < agg_lustre_rec->counters[LUSTRE_STRIPE_COUNT]; i++)
-        {
-            assert(lustre_rec->ost_ids[i] == agg_lustre_rec->ost_ids[i]);
-        }
+        osts_size *= sizeof(*lustre_rec->ost_ids);
+        memcpy(agg_lustre_rec->ost_ids, lustre_rec->ost_ids, osts_size);
     }
-#endif
 
     return;
 }
