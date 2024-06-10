@@ -41,19 +41,20 @@ enum darshan_lustre_indices
 };
 #undef X
 
-/* XXX */
+/* detailed counters describing parameters of a Lustre file layout component */
 struct darshan_lustre_component
 {
     int64_t counters[LUSTRE_COMP_NUM_INDICES];
     char pool_name[16];
 };
 
-// XXX update
-/* record structure for the Lustre module. a record is created and stored for
+/* file record structure for the Lustre module. a record is created and stored for
  * every file opened that belongs to a Lustre file system. This record includes:
  *      - a corresponding record identifier (created by hashing the file path)
  *      - the rank of the process which opened the file (-1 for shared files)
- *      - integer file I/O statistics (stripe size, width, # of OSTs, etc.)
+ *      - total number of file layout components instrumented
+ *      - detailed counters describing each file layout component (e.g., stripe width, count, etc.)
+ *      - list of OST IDs corresponding to instrumented file layout components
  */
 struct darshan_lustre_record
 {
@@ -63,7 +64,6 @@ struct darshan_lustre_record
     OST_ID *ost_ids;
 };
 
-// XXX move to runtime?
 /*
  *  helper macro to calculate the serialized size of a Lustre record
  *  NOTE: this must be kept in sync with the definitions above
