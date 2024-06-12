@@ -442,6 +442,8 @@ void darshan_parse_config_env(struct darshan_config *cfg)
         cfg->dump_config_flag = 1;
     if(getenv("DARSHAN_INTERNAL_TIMING"))
         cfg->internal_timing_flag = 1;
+    if(getenv("DARSHAN_MODMEM_USAGE"))
+        cfg->mod_mem_usage_flag = 1;
     if(getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
         cfg->disable_shared_redux_flag = 1;
 
@@ -815,6 +817,8 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                 cfg->dump_config_flag = 1;
             else if(strcmp(key, "INTERNAL_TIMING") == 0)
                 cfg->internal_timing_flag = 1;
+            else if(strcmp(key, "MODMEM_USAGE") == 0)
+                cfg->mod_mem_usage_flag = 1;
             else if(strcmp(key, "DISABLE_SHARED_REDUCTION") == 0)
                 cfg->disable_shared_redux_flag = 1;
             else
