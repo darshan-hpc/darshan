@@ -76,11 +76,8 @@ endif
 
 CLEANFILES = darshan-pnetcdf-api.c
 
-include_HEADERS =
-apxc_root = $(top_srcdir)/../modules/autoperf/apxc
+apxc_root = @apxc_root@
 if BUILD_APXC_MODULE
-   include_HEADERS += $(apxc_root)/darshan-apxc-log-format.h \
-                      $(apxc_root)/lib/darshan-apxc-utils.h
    BUILT_SOURCES += darshan-apxc.c
    CLEANFILES += darshan-apxc.c
    C_SRCS += darshan-apxc.c
@@ -90,9 +87,8 @@ endif
 darshan-apxc.c:
 	$(LN_S) $(apxc_root)/lib/darshan-apxc.c .
 
-apmpi_root = $(top_srcdir)/../modules/autoperf/apmpi
+apmpi_root = @apmpi_root@
 if BUILD_APMPI_MODULE
-   include_HEADERS += $(apmpi_root)/darshan-apmpi-log-format.h
    BUILT_SOURCES += darshan-apmpi.c
    CLEANFILES += darshan-apmpi.c
    C_SRCS += darshan-apmpi.c

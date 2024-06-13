@@ -1,0 +1,116 @@
+name: Ubuntu MPICH
+
+on:
+  push:
+    branches: main
+  pull_request:
+    branches: main
+
+jobs:
+    build:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v3
+        - name: Set up dependencies
+          run: |
+            sudo apt-get update
+            sudo apt-get install automake autoconf libtool libtool-bin m4
+            # mpi
+            sudo apt-get install mpich
+            # zlib
+            sudo apt-get install zlib1g-dev
+        - name: Install PnetCDF
+          run: |
+            echo "Install PnetCDF library into ${GITHUB_WORKSPACE}/PnetCDF"
+            cd ${GITHUB_WORKSPACE}
+            rm -rf PnetCDF
+            mkdir PnetCDF
+            cd PnetCDF
+            VERSION=1.12.3
+            wget -cq https://parallel-netcdf.github.io/Release/pnetcdf-${VERSION}.tar.gz
+            tar -zxf pnetcdf-${VERSION}.tar.gz
+            cd pnetcdf-${VERSION}
+            ./configure --prefix=${GITHUB_WORKSPACE}/PnetCDF \
+                        --silent \
+                        --disable-fortran \
+                        --disable-cxx \
+                        --disable-shared \
+                        MPICC=mpicc
+            make -s LIBTOOLFLAGS=--silent V=1 -j 8 install > qout 2>&1
+            make -s distclean >> qout 2>&1
+        - name: Install HDF5
+          if: ${{ success() }}
+          run: |
+            echo "Install HDF5 library into ${GITHUB_WORKSPACE}/HDF5"
+            cd ${GITHUB_WORKSPACE}
+            rm -rf HDF5
+            mkdir HDF5
+            cd HDF5
+            VERSION=1.13.2
+            wget -cq https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.13/hdf5-${VERSION}/src/hdf5-${VERSION}.tar.gz
+            tar -zxf hdf5-${VERSION}.tar.gz
+            cd hdf5-${VERSION}
+            ./configure --prefix=${GITHUB_WORKSPACE}/HDF5 \
+                        --silent \
+                        --enable-hl \
+                        --enable-parallel \
+                        --enable-build-mode=production \
+                        --disable-doxygen-doc \
+                        --disable-doxygen-man \
+                        --disable-doxygen-html \
+                        --disable-tests \
+                        CC=mpicc
+            make -s LIBTOOLFLAGS=--silent V=1 -j 8 install > qout 2>&1
+            make -s distclean >> qout 2>&1
+        - name: configure darshan-runtime and darshan-util
+          if: ${{ success() }}
+          run: |
+            echo "configure darshan-runtime and darshan-util"
+            cd ${GITHUB_WORKSPACE}
+            mkdir -p darshan_install
+            export DARSHAN_INSTALL_PATH=${GITHUB_WORKSPACE}/darshan_install
+            # clone autoperf module
+            git submodule update --init
+            ./prepare.sh
+            mkdir -p build
+            cd build
+            ../configure --prefix=$DARSHAN_INSTALL_PATH \
+                         --with-log-path-by-env=DARSHAN_LOGPATH \
+                         --with-jobid-env=NONE \
+                         --enable-hdf5-mod \
+                         --with-hdf5=${GITHUB_WORKSPACE}/HDF5 \
+                         --enable-pnetcdf-mod \
+                         --with-pnetcdf=${GITHUB_WORKSPACE}/PnetCDF \
+                         RUNTIME_CC=mpicc
+        - name: Dump log files if configure failed
+          if: ${{ failure() }}
+          run: |
+            cd ${GITHUB_WORKSPACE}/build
+            echo "-------- config.log --------"
+            cat config.log
+            echo "-------- darshan-runtime/config.log --------"
+            cat darshan-runtime/config.log
+            echo "-------- darshan-util/config.log --------"
+            cat darshan-util/config.log
+        - name: make darshan-runtime and darshan-util
+          if: ${{ success() }}
+          run: |
+            echo "make darshan-runtime and darshan-util"
+            cd ${GITHUB_WORKSPACE}/build
+            make -j 8
+            echo "-------- make check --------"
+            make check
+            echo "-------- make install --------"
+            make install
+        - name: make distcheck
+          if: ${{ success() }}
+          run: |
+            echo "make distcheck"
+            cd ${GITHUB_WORKSPACE}/build
+            make distcheck DISTCHECK_CONFIGURE_FLAGS="--with-log-path-by-env=DARSHAN_LOGPATH --with-jobid-env=NONE --enable-hdf5-mod --with-hdf5=${GITHUB_WORKSPACE}/HDF5 --enable-pnetcdf-mod --with-pnetcdf=${GITHUB_WORKSPACE}/PnetCDF RUNTIME_CC=mpicc"
+        - name: make distclean
+          run: |
+            echo "make distclean"
+            cd ${GITHUB_WORKSPACE}/build
+            make distclean
+
