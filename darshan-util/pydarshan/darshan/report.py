@@ -252,17 +252,20 @@ class DarshanRecordCollection(collections.abc.MutableSequence):
             # retrieve the counter column names
             c_cols = self.report.counters[mod]['counters']
             # create the counter dataframe and add a column for the OST ID's
-            df_recs = pd.DataFrame.from_records(records)
-            counter_df = pd.DataFrame(np.stack(df_recs.counters.to_numpy()), columns=c_cols)
-            counter_df["ost_ids"] = df_recs.ost_ids
+            df_comps = pd.DataFrame.from_records([comp for rec in records for comp in rec['components']])
+            counter_df = pd.DataFrame(np.stack(df_comps.counters.to_numpy()), columns=c_cols)
+            counter_df["LUSTRE_POOL_NAME"] = df_comps.pool_name
+            counter_df["LUSTRE_OST_IDS"] = df_comps.ost_ids
 
             if attach:
                 if "id" in attach:
-                    counter_df.insert(0, "id", df_recs["id"])
+                    counter_df.insert(0, "id",
+                        [rec['id'] for rec in records for y in range(len(rec['components']))])
                 if "rank" in attach:
-                    counter_df.insert(0, "rank", df_recs["rank"])
+                    counter_df.insert(0, "rank",
+                        [rec['rank'] for rec in records for y in range(len(rec['components']))])
 
-            records = {"counters": counter_df}
+            records = {"components": counter_df}
 
         elif mod in ['DXT_POSIX', 'DXT_MPIIO']:
             for rec in records:
@@ -899,7 +902,7 @@ class DarshanReport(object):
 
 
         self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
-        cn = backend.counter_names(mod)
+        cn = backend.counter_names("LUSTRE_COMP")
 
         # update module metadata
         self._modules[mod]['num_records'] = 0
@@ -926,20 +929,16 @@ class DarshanReport(object):
             combined_c = None
 
             for rec in self.records[mod]:
-                obj = rec['counters']
-                #print(type(obj))
-                #display(obj)
-                
                 if combined_c is None:
-                    combined_c = rec['counters']
+                    combined_c = rec['components']
                 else:
-                    combined_c = pd.concat([combined_c, rec['counters']])
-                    
+                    combined_c = pd.concat([combined_c, rec['components']])
+
 
             self.records[mod] = [{
                 'rank': -1,
                 'id': -1,
-                'counters': combined_c,
+                'components': combined_c,
                 }]
 
 
