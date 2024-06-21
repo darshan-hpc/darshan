@@ -6,6 +6,8 @@
 import re
 import copy
 import pickle
+import string
+import random
 
 import pytest
 import numpy as np
@@ -270,15 +272,24 @@ class TestDarshanRecordCollection:
 
         elif mod == "LUSTRE":
             # retrieve the counter column names
-            counter_cols = backend.counter_names(mod)
+            counter_cols = backend.counter_names("LUSTRE_COMP")
             n_ct_cols = len(counter_cols)
-            # use the column counts to generate random arrays
-            # and generate the counter and fcounter dataframes
-            counter_data = rng.integers(low=0, high=100, size=(5, n_ct_cols))
+            # determine total number of records and components per record
+            n_recs = len(id_data)
+            n_comps_per_rec = rng.integers(low=1, high=5, size=(n_recs))
+            n_comps_total = sum(n_comps_per_rec)
+            # use the total number of components and total counter count
+            # to generate the component dataframe
+            component_data = rng.integers(low=0, high=100, size=(n_comps_total, n_ct_cols))
+            # modify id/rank data to match component data size, since each Lustre
+            # record can contain multiple components (each with their own counters)
+            id_data = [id_data[i] for i in range(n_recs) for j in range(n_comps_per_rec[i])]
+            rank_data = [rank_data[i] for i in range(n_recs) for j in range(n_comps_per_rec[i])]
             # the ost ids are of variable length,
             # so create a ragged list of integer arrays
             ost_id_data = []
-            for i in range(n_ct_cols):
+            pool_name_data = []
+            for i in range(n_comps_total):
                 # generate a random number between 1 and 10
                 # to decide how many ost ids will be generated
                 arr_length = rng.integers(low=1, high=10, size=1)
@@ -286,9 +297,13 @@ class TestDarshanRecordCollection:
                 # between 0 and 100
                 ost_id_arr = rng.integers(low=0, high=100, size=arr_length)
                 ost_id_data.append(ost_id_arr)
+                # generate a random pool name
+                pool_name = ''.join(random.choice(string.ascii_lowercase) for i in range(12))
+                pool_name_data.append(pool_name)
 
-            expected_ct_df = pd.DataFrame(counter_data, columns=counter_cols)
-            expected_ct_df["ost_ids"] = ost_id_data
+            expected_ct_df = pd.DataFrame(component_data, columns=counter_cols)
+            expected_ct_df["LUSTRE_POOL_NAME"] = pool_name_data
+            expected_ct_df["LUSTRE_OST_IDS"] = ost_id_data
 
             # if attach is specified, the expected
             # dataframes have to be modified
@@ -300,8 +315,14 @@ class TestDarshanRecordCollection:
 
             # use the same data to generate the synthetic records
             # with the default data structures
-            for rank, id, ct_row, ost_row in zip(rank_data, id_data, counter_data, ost_id_data):
-                rec = {"rank": rank, "id": id, "counters": ct_row, "ost_ids": ost_row}
+            ndx = 0
+            for i in range(n_recs):
+                rec_components = [{"counters": component_data[j],
+                                   "pool_name": pool_name_data[j],
+                                   "ost_ids": ost_id_data[j]}
+                                        for j in range(ndx, ndx+n_comps_per_rec[i])]
+                rec = {"rank": rank_data[ndx], "id": id_data[ndx], "components":  rec_components}
+                ndx += n_comps_per_rec[i]
                 collection.append(rec)
 
         else:
@@ -353,7 +374,7 @@ class TestDarshanRecordCollection:
                 assert_frame_equal(actual["read_segments"], expected["read_segments"])
                 assert_frame_equal(actual["write_segments"], expected["write_segments"])
         elif mod == "LUSTRE":
-            actual_ct_df = actual_records["counters"]
+            actual_ct_df = actual_records["components"]
             assert_frame_equal(actual_ct_df, expected_ct_df)
         else:
             actual_ct_df = actual_records["counters"]
