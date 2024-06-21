@@ -7,7 +7,7 @@
 #ifndef __DARSHAN_LUSTRE_LOG_UTILS_H
 #define __DARSHAN_LUSTRE_LOG_UTILS_H
 
-extern char *lustre_counter_names[];
+extern char *lustre_comp_counter_names[];
 
 extern struct darshan_mod_logutil_funcs lustre_logutils;
 
