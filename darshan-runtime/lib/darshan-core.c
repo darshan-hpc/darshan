@@ -106,7 +106,7 @@ extern void darshan_instrument_lustre_file(const char *filepath, int fd);
 static void *darshan_init_mmap_log(
     struct darshan_core_runtime* core, int jobid);
 #endif
-static void darshan_log_record_hints_and_ver(
+static void darshan_log_record_metadata(
     struct darshan_core_runtime* core);
 static void darshan_get_exe_and_mounts(
     struct darshan_core_runtime *core, int argc, char **argv);
@@ -233,6 +233,9 @@ void darshan_core_initialize(int argc, char **argv)
         /* set PID that initialized Darshan runtime */
         init_core->pid = getpid();
 
+        /* get hostname for this process */
+        (void)gethostname(init_core->hname, sizeof(init_core->hname));
+
         /* parse any user-supplied runtime configuration of Darshan */
         /* NOTE: as the ordering implies, environment variables override any
          *       config file parameters
@@ -311,7 +314,7 @@ void darshan_core_initialize(int argc, char **argv)
         strcpy(init_core->log_hdr_p->version_string, DARSHAN_LOG_VERSION);
         init_core->log_hdr_p->magic_nr = DARSHAN_MAGIC_NR;
 
-        /* set known job-level metadata fields for the log file */
+        /* set known job-level fields for the log file */
         init_core->log_job_p->uid = getuid();
         clock_gettime(CLOCK_REALTIME, &start_ts);
         init_core->log_job_p->start_time_sec = (int64_t)start_ts.tv_sec;
@@ -319,10 +322,8 @@ void darshan_core_initialize(int argc, char **argv)
         init_core->log_job_p->nprocs = nprocs;
         init_core->log_job_p->jobid = (int64_t)jobid;
 
-        /* if we are using any hints to write the log file, then record those
-         * hints with the darshan job information
-         */
-        darshan_log_record_hints_and_ver(init_core);
+        /* record metadata key-val pairs associated with this job */
+        darshan_log_record_metadata(init_core);
 
         /* collect information about command line and mounted file systems */
         darshan_get_exe_and_mounts(init_core, argc, argv);
@@ -794,7 +795,6 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
     int sys_page_size;
     char cuser[L_cuserid] = {0};
     uint64_t hlevel;
-    char hname[HOST_NAME_MAX];
     uint64_t logmod;
     void *mmap_p;
 
@@ -816,8 +816,7 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
     if(my_rank == 0)
     {
         hlevel = darshan_core_wtime_absolute() * 1000000;
-        (void)gethostname(hname, sizeof(hname));
-        logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
+        logmod = darshan_hash((void*)core->hname,strlen(core->hname),hlevel);
     }
 #ifdef HAVE_MPI
     if(using_mpi)
@@ -872,37 +871,49 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
 }
 #endif
 
-/* record any hints used to write the darshan log in the job data */
-static void darshan_log_record_hints_and_ver(struct darshan_core_runtime* core)
+static void add_metadata_kv_pair(struct darshan_core_runtime* core,
+    char *key, char *val)
 {
-    int meta_remain = 0;
-    char* m;
-    char* hints;
+    int cur_meta_len = strlen(core->log_job_p->metadata);
+    int meta_remain = DARSHAN_JOB_METADATA_LEN - cur_meta_len -1;
+    char *m = core->log_job_p->metadata + cur_meta_len;
 
-    /* store library version in job metadata */
-    meta_remain = DARSHAN_JOB_METADATA_LEN -
-        strlen(core->log_job_p->metadata) - 1;
-    if(meta_remain >= (strlen(PACKAGE_VERSION) + 9))
-    {
-        sprintf(core->log_job_p->metadata, "lib_ver=%s\n", PACKAGE_VERSION);
-        meta_remain -= (strlen(PACKAGE_VERSION) + 9);
-    }
-
-    /* sanity check hints captured previously and stored in darshan config */
-    hints = core->config.log_hints;
-    if(!hints || strlen(hints) < 1)
+    if(!key || !val || strlen(key) < 1 || strlen(val) < 1)
         return;
 
-    if(meta_remain >= (3 + strlen(hints)))
+    if(meta_remain >= (strlen(key) + strlen(val) + 2))
     {
-        m = core->log_job_p->metadata + strlen(core->log_job_p->metadata);
-        /* We have room to store the hints in the metadata portion of
-         * the job structure.  We just prepend an h= to the hints list.  The
-         * metadata parser will ignore = characters that appear in the value
-         * portion of the metadata key/value pair.
-         */
-        sprintf(m, "h=%s\n", hints);
+        sprintf(m, "%s=%s\n", key, val);
     }
+
+    return;
+}
+
+/* record job-level metadata associated with the job (i.e., lib version,
+ * MPI hints, hostname, pid, XXX) as key-val pairs
+ */
+static void darshan_log_record_metadata(struct darshan_core_runtime* core)
+{
+    /* store library version */
+    add_metadata_kv_pair(core, "lib_ver", PACKAGE_VERSION);
+
+    /* store any MPI-IO hints for writing the Darshan log */
+    add_metadata_kv_pair(core, "hints", core->config.log_hints);
+
+    /* store hostname of this process */
+    /* NOTE: for MPI apps only rank 0's metadata is written, so the log
+     *       will just contain the hostname corresponding to rank 0
+     */
+    add_metadata_kv_pair(core, "host", core->hname);
+
+    /* store pid of this process */
+    char pid[16];
+    sprintf(pid, "%d\n", core->pid);
+    add_metadata_kv_pair(core, "pid", pid);
+
+    /* store pid of this process's parent */
+    sprintf(pid, "%d\n", getppid());
+    add_metadata_kv_pair(core, "parent_pid", pid);
 
     return;
 }
@@ -988,7 +999,7 @@ static void add_entry(char* buf, int* space_left, struct mntent* entry)
     }
 #endif
 
-    /* store mount information with the job-level metadata in darshan log */
+    /* store mount information with the job-level data in darshan log */
     ret = snprintf(tmp_mnt, 256, "\n%s\t%s",
         entry->mnt_type, entry->mnt_dir);
     if(ret < 256 && strlen(tmp_mnt) <= (*space_left))
@@ -1004,7 +1015,7 @@ static void add_entry(char* buf, int* space_left, struct mntent* entry)
 /* darshan_get_exe_and_mounts()
  *
  * collects command line and list of mounted file systems into a string that
- * will be stored with the job-level metadata
+ * will be stored with the job-level data
  */
 static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
     int argc, char **argv)
@@ -1520,7 +1531,6 @@ static void darshan_get_logfile_name(
 {
     char* user_logfile_name;
     uint64_t hlevel;
-    char hname[HOST_NAME_MAX];
     uint64_t logmod;
     char cuser[L_cuserid] = {0};
     struct tm *start_tm;
@@ -1559,8 +1569,7 @@ static void darshan_get_logfile_name(
 
         /* generate a random number to help differentiate the log */
         hlevel = darshan_core_wtime_absolute() * 1000000;
-        (void)gethostname(hname, sizeof(hname));
-        logmod = darshan_hash((void*)hname,strlen(hname),hlevel);
+        logmod = darshan_hash((void*)core->hname,strlen(core->hname),hlevel);
 
         /* use human readable start time format in log filename */
         start_time = (time_t)core->log_job_p->start_time_sec;

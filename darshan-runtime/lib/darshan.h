@@ -16,6 +16,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <regex.h>
+#include <limits.h>
 #include <errno.h>
 
 #ifdef HAVE_MPI
@@ -151,6 +152,7 @@ struct darshan_core_runtime
     MPI_Comm mpi_comm;
 #endif
     int pid;
+    char hname[HOST_NAME_MAX];
 };
 
 /* core constructs for use in macros and inline functions; the __ prefix
