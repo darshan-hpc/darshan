@@ -16,6 +16,8 @@ Notes on how to release a new version of PyDarshan
     - make docs
     - upload docs/build/html contents to CELS server @ /nfs/pub_html/gce/projects/darshan/docs/pydarshan
     - (might eventually connect this with readthedocs to have this automatically uploaded)
+    - determine whether new job summary tool features warrant generating a new summary report to include in docs
+        (stored @ /nfs/pub_html/gce/projects/darshan/docs/example_report.html)
 
  - Submit to PyPI using cibuildwheel/twine:
     - pipx run build --sdist
