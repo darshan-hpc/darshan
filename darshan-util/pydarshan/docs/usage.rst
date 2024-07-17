@@ -8,7 +8,9 @@ Darshan job summary tool
 ------------------------
 
 As a starting point, users can use PyDarshan to generate detailed
-summary HTML reports of I/O activity for a given Darshan log.
+summary HTML reports of I/O activity for a given Darshan log. An
+example job summary report can be viewed `HERE <https://www.mcs.anl.gov/research/projects/darshan/docs/example_report.html>`_.
+
 Usage of this job summary tool is described below. ::
 
     usage: darshan summary [-h] [--output OUTPUT] [--enable_dxt_heatmap] log_path
