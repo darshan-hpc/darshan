@@ -20,6 +20,7 @@
 #endif
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <limits.h>
 #include <pthread.h>
 #include <fcntl.h>
@@ -30,11 +31,13 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/vfs.h>
+#include <sys/wait.h>
 #include <ctype.h>
 #include <regex.h>
 #include <zlib.h>
 #include <errno.h>
 #include <assert.h>
+#include <spawn.h>
 
 #ifdef HAVE_MPI
 #include <mpi.h>
@@ -72,6 +75,7 @@ static int parent_pid;
 static struct darshan_core_mnt_data mnt_data_array[DARSHAN_MAX_MNTS];
 static int mnt_data_count = 0;
 
+static char *exe_name = "";
 #ifdef DARSHAN_BGQ
 extern void bgq_runtime_initialize();
 #endif
@@ -207,7 +211,6 @@ void darshan_core_initialize(int argc, char **argv)
     int ret;
     int i;
     struct timespec start_ts;
-
     /* setup darshan runtime if darshan is enabled and hasn't been initialized already */
     if (__darshan_core != NULL || getenv("DARSHAN_DISABLE"))
         return;
@@ -326,7 +329,6 @@ void darshan_core_initialize(int argc, char **argv)
 
         /* collect information about command line and mounted file systems */
         darshan_get_exe_and_mounts(init_core, argc, argv);
-
         if(!darshan_should_instrument_app(init_core))
         {
             /* do not instrument excluded applications */
@@ -400,6 +402,18 @@ void darshan_core_initialize(int argc, char **argv)
         darshan_core_fprintf(stderr, "#darshan:<op>\t<nprocs>\t<time>\n");
         darshan_core_fprintf(stderr, "darshan:init\t%d\t%f\n", nprocs, init_time);
     }
+
+    if(init_core->config.stack_trace_trigger){
+        dxt_enable_stack_trace();
+    }
+
+    char *p;
+    p = strtok(init_core->log_exemnt_p, "\n");
+    char *exe;
+    exe = strtok(p, " ");
+
+    if(exe)
+        exe_name = exe;
 
     return;
 }
@@ -552,6 +566,7 @@ void darshan_core_shutdown(int write_log)
 
     /* get the log file name */
     darshan_get_logfile_name(logfile_name, final_core);
+
     if(strlen(logfile_name) == 0)
     {
         /* failed to generate log file name */
@@ -593,6 +608,7 @@ void darshan_core_shutdown(int write_log)
         dxt_posix_apply_trace_filter(final_core->config.small_io_trigger);
     if(final_core->config.unaligned_io_trigger)
         dxt_posix_apply_trace_filter(final_core->config.unaligned_io_trigger);
+
 
     /* loop over globally used darshan modules and:
      *      - get final output buffer
@@ -642,7 +658,7 @@ void darshan_core_shutdown(int write_log)
                         mod_shared_recs[mod_shared_rec_cnt++] = shared_recs[j];
                     }
                 }
-
+                
                 /* allow the module an opportunity to reduce shared files */
                 if(this_mod->mod_funcs.mod_redux_func && (mod_shared_rec_cnt > 0))
                 {
@@ -664,6 +680,209 @@ void darshan_core_shutdown(int write_log)
             /* get the final output buffer */
             this_mod->mod_funcs.mod_output_func(&mod_buf, &mod_buf_sz);
         }
+        
+/* Code added by Hammad Ather (hather@lbl.gov) and Jean Luca Bez (jlbez@lbl.gov) */
+#ifdef HAVE_MPI
+        if(using_mpi)
+        {
+            if (i == DXT_POSIX_MOD) {
+                PMPI_Barrier(MPI_COMM_WORLD);
+                if (my_rank == 0 && final_core->config.stack_trace_trigger) {
+                    FILE *fptr;
+
+                    typedef struct {
+                        char address[32];          /* key */
+                        UT_hash_handle hh;         /* makes this structure hashable */
+                    } unique_stack_struct;
+
+                    unique_stack_struct *unique_mem_addr = NULL;
+
+                    for (int rank = 0; rank < nprocs; rank++) {
+                        char stack_file_name_posix[50];
+                        sprintf(stack_file_name_posix, ".%d.darshan-posix", rank);
+                        fptr = fopen(stack_file_name_posix, "r");
+                        if (fptr) {
+                            char line[32];
+
+                            while (fgets(line, sizeof(line), fptr)) {
+                                line[strcspn(line, "\n")] = 0;
+                                unique_stack_struct *d = NULL;
+
+                                HASH_FIND_STR(unique_mem_addr, line, d);
+
+                                if (!d) {
+                                    unique_stack_struct *e = (unique_stack_struct *) malloc(sizeof *e);
+                                    strcpy(e->address, line);
+
+                                    HASH_ADD_STR(unique_mem_addr, address, e);
+                                }
+                            }
+
+                            fclose(fptr);
+                            remove(stack_file_name_posix);
+                        }
+                    }
+
+                    unique_stack_struct *d = NULL;
+                    char * exe_name = darshan_exe();
+                    int line_mappings_index = 0;
+                    char address_line_mapping[4096] = {};
+
+                    for (d = unique_mem_addr; d != NULL; d = (unique_stack_struct *)(d->hh.next)) {
+                        FILE *fp;
+                        char cmd[256];
+                        char *line = NULL;     
+                        size_t len = 0;
+
+                        char addr[32];
+                        sprintf(addr, "%s", d->address);  
+                    
+                        char *const args[] = { "/usr/bin/addr2line", "-a", addr, "-e", exe_name, NULL };
+
+                        int pipe_fd[2];
+                        pid_t child_pid;
+                        int status;
+
+                        // Create a pipe to capture the command's output
+                        if (pipe(pipe_fd) == -1) {
+                            perror("pipe");
+                            // return 1;
+                        }
+                        int ret;
+                        // Use posix_spawn to execute the command
+                        posix_spawn_file_actions_t action;
+                        posix_spawn_file_actions_init(&action);
+                        posix_spawn_file_actions_addclose(&action, pipe_fd[0]); // Close the read end of the pipe
+                        posix_spawn_file_actions_adddup2(&action, pipe_fd[1], STDOUT_FILENO); // Redirect stdout to the write end of the pipe
+                        if (posix_spawn(&child_pid, "/usr/bin/addr2line", &action, NULL, args, NULL) == 0) {
+                            
+                            // Close the write end of the pipe in the parent process
+                            close(pipe_fd[1]);
+
+                            // Read the output from the pipe
+                            char buffer[4096];
+                            ssize_t bytes_read;
+                            FILE* debug;
+                            debug = fopen("/dev/null", "w");
+                            while ((bytes_read = read(pipe_fd[0], buffer, sizeof(buffer))) > 0) {
+                                fwrite(buffer, 1, bytes_read, debug);
+                            }
+
+                            char * token = strtok(buffer, "\n");
+                            token = strtok(NULL, "\n");
+                            int number = (int)strtol(buffer, NULL, 16);
+                            sprintf(cmd, "%p, %s\n", number, token);
+                            strcat(address_line_mapping, cmd);
+                        }
+                        HASH_DEL(unique_mem_addr, d);
+                    }
+
+                    strcpy(final_core->log_hdr_p->posix_line_mapping, address_line_mapping);
+                }
+            }
+            else if (i == DXT_MPIIO_MOD) {
+                PMPI_Barrier(MPI_COMM_WORLD);
+                if (my_rank == 0 && final_core->config.stack_trace_trigger) {
+                    FILE *fptr;
+
+                    typedef struct {
+                        char address[32];          /* key */
+                        UT_hash_handle hh;         /* makes this structure hashable */
+                    } unique_stack_struct;
+
+                    unique_stack_struct *unique_mem_addr = NULL;
+
+                    for (int rank = 0; rank < nprocs; rank++) {
+                        char stack_file_name_mpiio[50];
+                        sprintf(stack_file_name_mpiio, ".%d.darshan-mpiio", rank);
+                        fptr = fopen(stack_file_name_mpiio, "r");
+                        if (fptr) {
+                            char line[32];
+
+                            while (fgets(line, sizeof(line), fptr)) {
+                                line[strcspn(line, "\n")] = 0;
+                                unique_stack_struct *d = NULL;
+
+                                HASH_FIND_STR(unique_mem_addr, line, d);
+
+                                if (!d) {
+                                    unique_stack_struct *e = (unique_stack_struct *) malloc(sizeof *e);
+                                    strcpy(e->address, line);
+
+                                    HASH_ADD_STR(unique_mem_addr, address, e);
+                                }
+                            }
+
+                            fclose(fptr);
+                            remove(stack_file_name_mpiio);
+                        }
+                    }
+
+                    unique_stack_struct *d = NULL;
+
+                    char * exe_name = darshan_exe();
+
+                    int line_mappings_index = 0;
+                    
+                    char address_line_mapping[4096] = {};
+
+                    for (d = unique_mem_addr; d != NULL; d = (unique_stack_struct *)(d->hh.next)) {
+
+                        FILE *fp;
+                        char cmd[256];
+                        char *line = NULL;     
+                        size_t len = 0;
+
+                        char addr[32];
+                        sprintf(addr, "%s", d->address);    
+
+                        char *const args[] = { "/usr/bin/addr2line", "-a", addr, "-e", exe_name, NULL };
+
+                        int pipe_fd[2];
+                        pid_t child_pid;
+                        int status;
+
+                        if (pipe(pipe_fd) == -1) {
+                            perror("pipe");
+                            // return 1;
+                        }
+                        int ret;
+                        // Use posix_spawn to execute the command
+                        posix_spawn_file_actions_t action;
+                        posix_spawn_file_actions_init(&action);
+                        posix_spawn_file_actions_addclose(&action, pipe_fd[0]); // Close the read end of the pipe
+                        posix_spawn_file_actions_adddup2(&action, pipe_fd[1], STDOUT_FILENO); // Redirect stdout to the write end of the pipe
+                        if (posix_spawn(&child_pid, "/usr/bin/addr2line", &action, NULL, args, NULL) == 0) {
+                            // Close the write end of the pipe in the parent process
+                            close(pipe_fd[1]);
+
+                            // Read the output from the pipe
+                            char buffer[4096];
+                            ssize_t bytes_read;
+                            FILE* debug;
+                            debug = fopen("/dev/null", "w");
+                            while ((bytes_read = read(pipe_fd[0], buffer, sizeof(buffer))) > 0) {
+                                fwrite(buffer, 1, bytes_read, debug);
+                            }
+
+                            // Wait for the child process to complete
+                            waitpid(child_pid, &status, 0);
+
+                            char * token = strtok(buffer, "\n");
+                            token = strtok(NULL, "\n");
+                            int number = (int)strtol(buffer, NULL, 16);
+                            sprintf(cmd, "%p, %s\n", number, token);
+                            strcat(address_line_mapping, cmd);
+                        }
+
+                        HASH_DEL(unique_mem_addr, d);
+                    }
+
+                    strcpy(final_core->log_hdr_p->mpiio_line_mapping, address_line_mapping);
+                }
+            }
+        }
+#endif
 
         /* append this module's data to the darshan log */
         final_core->log_hdr_p->mod_map[i].off = gz_fp;
@@ -678,7 +897,7 @@ void darshan_core_shutdown(int write_log)
         DARSHAN_CHECK_ERR(ret, "unable to write %s module data to log file %s",
             darshan_module_names[i], logfile_name);
     }
-
+    
     if(internal_timing_flag)
         header1 = darshan_core_wtime_absolute();
     ret = darshan_log_write_header(log_fh, final_core);
@@ -1006,6 +1225,8 @@ static void add_entry(char* buf, int* space_left, struct mntent* entry)
  * collects command line and list of mounted file systems into a string that
  * will be stored with the job-level metadata
  */
+
+
 static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
     int argc, char **argv)
 {
@@ -2071,7 +2292,7 @@ void darshan_log_finalize(char *logfile_name, double start_log_time)
             /* set permissions on log file */
             chmod(new_logfile_name, chmod_mode);
             free(new_logfile_name);
-        }
+        }   
     }
 
     return;
@@ -2642,7 +2863,6 @@ void *darshan_core_register_record(
         __DARSHAN_CORE_UNLOCK();
         return(NULL);
     }
-
     /* check to see if this module has enough space to store a new record */
     if(__darshan_core->mod_array[mod_id]->rec_mem_avail < rec_size)
     {
@@ -2768,6 +2988,11 @@ void darshan_core_fprintf(
     return;
 }
 
+char *darshan_exe()
+{   
+    return exe_name;
+}
+
 /*
  * Local variables:
  *  c-indent-level: 4
@@ -2776,3 +3001,4 @@ void darshan_core_fprintf(
  *
  * vim: ts=8 sts=4 sw=4 expandtab
  */
+

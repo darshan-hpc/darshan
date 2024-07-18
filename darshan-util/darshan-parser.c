@@ -236,7 +236,6 @@ int main(int argc, char **argv)
         value++;
         printf("# metadata: %s = %s\n", key, value);
     }
-
     /* print breakdown of each log file region's contribution to file size */
     printf("\n# log file regions\n");
     printf("# -------------------------------------------------------\n");
