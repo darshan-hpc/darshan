@@ -1579,6 +1579,21 @@ static int darshan_log_dzread(darshan_fd fd, int region_id, void *buf, int len)
             return(-1);
     }
 
+    /* The following is a workaround for a zlib-ng bug observed in
+     * https://github.com/darshan-hpc/darshan/issues/995.  When zlib-ng
+     * 2.2.1 is used in place of the conventional zlib library, it will
+     * sometimes modify bytes in the buffer beyond the number of bytes
+     * indicated in the return code of the inflate() call.  In some cases
+     * this results in a corrupted mount table in the Darshan parser, but
+     * there may be other effects as well.
+     *
+     * This workaround avoids the problem by zeroing out all trailing bytes
+     * in the buffer that were not supposed to have been modified by the
+     * decompressor.
+     */
+    if(ret > 0 && ret < len)
+        memset(&((char*)(buf))[ret], 0, (len-ret));
+
     state->dz.prev_reg_id = region_id;
     return(ret);
 }
