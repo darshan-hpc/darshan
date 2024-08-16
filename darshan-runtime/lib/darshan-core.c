@@ -1701,8 +1701,12 @@ static int darshan_log_open(char *logfile_name, struct darshan_core_runtime *cor
 static int darshan_log_write_job_record(darshan_core_log_fh log_fh,
     struct darshan_core_runtime *core, uint64_t *inout_off)
 {
+    /* prepare to write two contiguous elements in file: the job structure
+     * and a trailing string that contains the command line and mount table
+     * information. Include a trailing null byte in the latter.
+     */
     void *pointers[2] = {core->log_job_p, core->log_exemnt_p};
-    int lengths[2] = {sizeof(struct darshan_job), strlen(core->log_exemnt_p)};
+    int lengths[2] = {sizeof(struct darshan_job), strlen(core->log_exemnt_p)+1};
     int comp_buf_sz = core->config.mod_mem;
     int ret;
 
