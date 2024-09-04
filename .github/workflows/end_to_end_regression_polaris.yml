@@ -13,7 +13,7 @@ jobs:
   trigger_alcf_polaris_regression_ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: eic/trigger-gitlab-ci@v1
+      - uses: eic/trigger-gitlab-ci@v3
         with:
           url: https://gitlab-ci.alcf.anl.gov
           project_id: 121
