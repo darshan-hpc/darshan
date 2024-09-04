@@ -13,10 +13,12 @@ jobs:
   trigger_alcf_polaris_regression_ci:
     runs-on: ubuntu-latest
     steps:
+      - name: Get branch/tag name
+        run: echo "GITHUB_REF_NAME=$(echo ${GITHUB_REF} | cut -d/ -f3)" >> $GITHUB_ENV
       - uses: eic/trigger-gitlab-ci@v3
         with:
           url: https://gitlab-ci.alcf.anl.gov
           project_id: 121
           token: ${{ secrets.ALCF_GITLAB_CI_TOKEN }}
           variables: |
-            GITHUB_REF_NAME="${{ env.GITHUB_REF }}"
+            GITHUB_REF_NAME="${{ env.GITHUB_REF_NAME }}"
