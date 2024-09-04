@@ -18,3 +18,5 @@ jobs:
           url: https://gitlab-ci.alcf.anl.gov
           project_id: 121
           token: ${{ secrets.ALCF_GITLAB_CI_TOKEN }}
+          variables: |
+            GITHUB_REF_NAME: ${{ github.ref_name }}
