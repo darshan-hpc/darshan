@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get branch/tag name
-        run: echo "GITHUB_REF_NAME=$(echo ${GITHUB_REF} | cut -d/ -f3)" >> $GITHUB_ENV
+        run: echo "GITHUB_REF_NAME=$(echo ${GITHUB_REF} | cut --complement -d/ -f1,2)" >> $GITHUB_ENV
       - uses: eic/trigger-gitlab-ci@v3
         with:
           url: https://gitlab-ci.alcf.anl.gov
