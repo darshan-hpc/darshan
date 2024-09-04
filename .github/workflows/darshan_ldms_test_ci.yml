@@ -29,6 +29,7 @@ jobs:
       run: |
         sudo apt-get update -y
         sudo apt-get install openmpi-bin libopenmpi-dev
+        sudo apt-get install libjansson-dev
     - name: Clone LDMS
       uses: actions/checkout@v3
       with:
