@@ -42,9 +42,6 @@ static void lustre_cleanup(
 struct lustre_record_ref
 {
     struct darshan_lustre_record *record;
-    int max_comps;
-    int max_osts;
-    size_t record_size;
 };
 
 struct lustre_runtime
@@ -62,16 +59,16 @@ static int my_rank = -1;
 #define LUSTRE_UNLOCK() pthread_mutex_unlock(&lustre_runtime_mutex)
 
 static void darshan_get_lustre_layout_size(struct llapi_layout *lustre_layout,
-    int *num_comps, int *num_osts)
+    int *num_comps, int *num_stripes)
 {
     bool is_composite;
     int ret;
     uint64_t stripe_pattern, stripe_count;
     int tmp_comps = 0;
-    int tmp_osts = 0;
+    int tmp_stripes = 0;
 
     *num_comps = 0;
-    *num_osts = 0;
+    *num_stripes = 0;
 
     is_composite = llapi_layout_is_composite(lustre_layout);
     if (is_composite)
@@ -92,7 +89,7 @@ static void darshan_get_lustre_layout_size(struct llapi_layout *lustre_layout,
             ret = llapi_layout_stripe_count_get(lustre_layout, &stripe_count);
             if (ret != 0)
                 return;
-            tmp_osts += stripe_count;
+            tmp_stripes += stripe_count;
         }
         tmp_comps++;
 
@@ -105,7 +102,7 @@ static void darshan_get_lustre_layout_size(struct llapi_layout *lustre_layout,
     } while(ret == 0);
 
     *num_comps = tmp_comps;
-    *num_osts = tmp_osts;
+    *num_stripes = tmp_stripes;
     return;
 }
 
@@ -124,10 +121,7 @@ static void darshan_get_lustre_layout_components(struct llapi_layout *lustre_lay
     int comps_idx = 0, osts_idx = 0;
     struct darshan_lustre_component *comps =
         (struct darshan_lustre_component *)&(rec_ref->record->comps);
-    OST_ID *osts = (OST_ID *)(comps + rec_ref->max_comps);
-
-    rec_ref->record_size = 0;
-    rec_ref->record->num_comps = 0;
+    OST_ID *osts = (OST_ID *)(comps + rec_ref->record->num_comps);
 
     is_composite = llapi_layout_is_composite(lustre_layout);
     if (is_composite)
@@ -156,7 +150,7 @@ static void darshan_get_lustre_layout_components(struct llapi_layout *lustre_lay
          */
         if ((!is_composite || (flags & LCME_FL_INIT)) &&
             (ret == 0) &&
-            (osts_idx + stripe_count <= rec_ref->max_osts))
+            (osts_idx + stripe_count <= rec_ref->record->num_stripes))
         {
             comps[comps_idx].counters[LUSTRE_COMP_STRIPE_SIZE] = (int64_t)stripe_size;
             comps[comps_idx].counters[LUSTRE_COMP_STRIPE_COUNT] = (int64_t)stripe_count;
@@ -177,7 +171,6 @@ static void darshan_get_lustre_layout_components(struct llapi_layout *lustre_lay
                 else
                     osts[osts_idx] = (OST_ID)tmp_ost;
             }
-            rec_ref->record->num_comps++;
             comps_idx++;
         }
 
@@ -187,13 +180,14 @@ static void darshan_get_lustre_layout_components(struct llapi_layout *lustre_lay
             ret = llapi_layout_comp_use(lustre_layout, LLAPI_LAYOUT_COMP_USE_NEXT);
         }
         else break;
-    } while(ret == 0 && rec_ref->record->num_comps < rec_ref->max_comps);
+    } while(ret == 0 && comps_idx < rec_ref->record->num_comps);
 
-    if (rec_ref->record->num_comps < rec_ref->max_comps)
-        memmove(comps + rec_ref->record->num_comps, osts, osts_idx * sizeof(*osts));
-
-    /* update record size to reflect final number of components/osts */
-    rec_ref->record_size = LUSTRE_RECORD_SIZE(rec_ref->record->num_comps, osts_idx);
+    /* no more components to gather info on, set the rest as invalid */
+    /* NOTE: we will attempt to truncate unused components at shutdown time */
+    for (; comps_idx < rec_ref->record->num_comps; comps_idx++)
+    {
+        comps[comps_idx].counters[LUSTRE_COMP_STRIPE_SIZE] = -1;
+    }
 
     return;
 }
@@ -203,7 +197,7 @@ void darshan_instrument_lustre_file(darshan_record_id rec_id, int fd)
     void *lustre_xattr_val;
     size_t lustre_xattr_size = XATTR_SIZE_MAX;
     struct llapi_layout *lustre_layout;
-    int num_comps, num_osts;
+    int num_comps, num_stripes;
     size_t rec_size;
     struct darshan_lustre_record *rec;
     struct lustre_record_ref *rec_ref;
@@ -254,14 +248,14 @@ void darshan_instrument_lustre_file(darshan_record_id rec_id, int fd)
     {
 
         /* iterate file layout components to determine total record size */
-        darshan_get_lustre_layout_size(lustre_layout, &num_comps, &num_osts);
+        darshan_get_lustre_layout_size(lustre_layout, &num_comps, &num_stripes);
         if(num_comps == 0)
         {
             llapi_layout_free(lustre_layout);
             LUSTRE_UNLOCK();
             return;
         }
-        rec_size = LUSTRE_RECORD_SIZE(num_comps, num_osts);
+        rec_size = LUSTRE_RECORD_SIZE(num_comps, num_stripes);
 
         /* allocate and add a new record reference */
         rec_ref = malloc(sizeof(*rec_ref));
@@ -304,8 +298,8 @@ void darshan_instrument_lustre_file(darshan_record_id rec_id, int fd)
         rec->base_rec.id = rec_id;
         rec->base_rec.rank = my_rank;
         rec_ref->record = rec;
-        rec_ref->max_comps = num_comps;
-        rec_ref->max_osts = num_osts;
+        rec_ref->record->num_comps = num_comps;
+        rec_ref->record->num_stripes = num_stripes;
     }
 
     /* fill in record buffer with component info and OST list */
@@ -413,18 +407,45 @@ static void lustre_serialize_records(void *rec_ref_p, void *user_ptr)
     struct lustre_record_ref *rec_ref = (struct lustre_record_ref *)rec_ref_p;
     struct lustre_buf_state *buf_state = (struct lustre_buf_state *)user_ptr;
     void *output_buf = buf_state->buf + buf_state->buf_size;
+    int i;
+    int num_stripes = 0;
+    size_t record_size;
+    struct darshan_lustre_component *comps =
+        (struct darshan_lustre_component *)&(rec_ref->record->comps);
+    OST_ID *osts = (OST_ID *)(comps + rec_ref->record->num_comps);
 
     /* skip shared records on non-zero ranks */
     if (my_rank > 0 && rec_ref->record->base_rec.rank == -1)
         return;
 
+    /* update record size to reflect final number of components/stripes */
+    for (i = 0; i < rec_ref->record->num_comps; i++)
+    {
+        /* inactive components have strip size set to -1 when instrumenting */
+        if (comps[i].counters[LUSTRE_COMP_STRIPE_SIZE] == -1)
+        {
+            /* truncate components and set final component and stripe count */
+            rec_ref->record->num_comps = i;
+            /* move OST list up in record buffer to overwrite unused components */
+            memmove(comps + i, osts, num_stripes * sizeof(*osts));
+            break;
+        }
+        num_stripes += comps[i].counters[LUSTRE_COMP_STRIPE_COUNT];
+    }
+    rec_ref->record->num_stripes = num_stripes;
+
+    record_size = LUSTRE_RECORD_SIZE(rec_ref->record->num_comps, rec_ref->record->num_stripes);
+
     /* determine whether this record needs to be shifted back in the final record buffer */
+    /* NOTE: this happens when preceding records in the output buffer have been shifted
+     * down in size
+     */
     if (rec_ref->record != output_buf)
     {
-        memmove(output_buf, rec_ref->record, rec_ref->record_size);
+        memmove(output_buf, rec_ref->record, record_size);
         rec_ref->record = output_buf;
     }
-    buf_state->buf_size += rec_ref->record_size;
+    buf_state->buf_size += record_size;
 }
 
 static void lustre_output(

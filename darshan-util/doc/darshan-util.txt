@@ -510,6 +510,7 @@ execution time.
 |====
 | counter name | description
 | LUSTRE_NUM_COMPONENTS | number of instrumented components in the Lustre layout
+| LUSTRE_NUM_STRIPES | number of active stripes in the Lustre layout components
 | LUSTRE_COMP*_STRIPE_SIZE | stripe size for this file layout component in bytes
 | LUSTRE_COMP*_STRIPE_COUNT | number of OSTs over which the file layout component is striped
 | LUSTRE_COMP*_STRIPE_PATTERN | pattern (e.g., raid0, mdt, overstriped) for this file layout component

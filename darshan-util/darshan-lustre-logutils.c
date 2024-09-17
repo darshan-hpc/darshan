@@ -52,8 +52,8 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
 {
     struct darshan_lustre_record *rec = *((struct darshan_lustre_record **)lustre_buf_p);
     struct darshan_lustre_record tmp_rec;
-    int num_osts = 0;
     int fixed_size, comps_size, osts_size;
+    int new_comps_size, new_osts_size;
     int i, j;
     int ret;
 
@@ -73,7 +73,7 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
         return darshan_log_get_lustre_record_v1(fd, lustre_buf_p);
 
     /* retrieve the fixed-size portion of the record */
-    fixed_size = sizeof(struct darshan_base_record) + sizeof(int64_t);
+    fixed_size = sizeof(struct darshan_base_record) + (2*sizeof(int64_t));
     ret = darshan_log_get_mod(fd, DARSHAN_LUSTRE_MOD, &tmp_rec, fixed_size);
     if(ret < 0)
         return(-1);
@@ -86,12 +86,14 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
         DARSHAN_BSWAP64(&tmp_rec.base_rec.id);
         DARSHAN_BSWAP64(&tmp_rec.base_rec.rank);
         DARSHAN_BSWAP64(&tmp_rec.num_comps);
+        DARSHAN_BSWAP64(&tmp_rec.num_stripes);
     }
 
     comps_size = tmp_rec.num_comps * sizeof(*tmp_rec.comps);
+    osts_size = tmp_rec.num_stripes * sizeof(*tmp_rec.ost_ids);
     if(*lustre_buf_p == NULL)
     {
-        rec = malloc(sizeof(struct darshan_lustre_record) + comps_size);
+        rec = malloc(sizeof(struct darshan_lustre_record) + comps_size + osts_size);
         if(!rec)
             return(-1);
     }
@@ -105,55 +107,61 @@ static int darshan_log_get_lustre_record(darshan_fd fd, void** lustre_buf_p)
     {
         rec->comps = (struct darshan_lustre_component *)
             ((void *)rec + sizeof(struct darshan_lustre_record));
+        rec->ost_ids = (OST_ID *)((void *)rec->comps + comps_size);
 
-        /* now read all record components */
+        /* now read all record components and OST IDs */
         ret = darshan_log_get_mod(
             fd,
             DARSHAN_LUSTRE_MOD,
             (void*)(rec->comps),
-            comps_size
+            comps_size + osts_size
         );
-        if(ret < comps_size)
+        if(ret < comps_size + osts_size)
             ret = -1;
         else
         {
             ret = 1;
+
             /* swap bytes if necessary */
             if (fd->swap_flag)
+            {
                 for (i = 0; i < rec->num_comps; i++)
                     for(j=0; j<LUSTRE_COMP_NUM_INDICES; j++)
                         DARSHAN_BSWAP64(&rec->comps[i].counters[j]);
-        }
-
-        for (i = 0; i < rec->num_comps; i++)
-            num_osts += rec->comps[i].counters[LUSTRE_COMP_STRIPE_COUNT];
-        osts_size = num_osts * sizeof(*tmp_rec.ost_ids);
-        if(*lustre_buf_p == NULL)
-        {
-            rec = realloc(rec, sizeof(struct darshan_lustre_record) + comps_size + osts_size);
-            if(!rec)
-                return(-1);
-        }
-        rec->comps = (struct darshan_lustre_component *)
-            ((void *)rec + sizeof(struct darshan_lustre_record));
-        rec->ost_ids = (OST_ID *)((void *)rec->comps + comps_size);
-
-        /* now read the OST list */
-        ret = darshan_log_get_mod(
-            fd,
-            DARSHAN_LUSTRE_MOD,
-            (void*)(rec->ost_ids),
-            osts_size
-        );
-        if(ret < osts_size)
-            ret = -1;
-        else
-        {
-            ret = 1;
-            /* swap bytes if necessary */
-            if (fd->swap_flag)
-                for (i = 0; i < num_osts; i++)
+                for (i = 0; i < rec->num_stripes; i++)
                     DARSHAN_BSWAP64(&rec->ost_ids[i]);
+            }
+
+            /* truncate any unused components/stripes leftover from runtime */
+            rec->num_stripes = 0;
+            for (i = 0; i < rec->num_comps; i++)
+            {
+                /* NOTE: at runtime, unused stripe components are marked with size of -1 */
+                if (rec->comps[i].counters[LUSTRE_COMP_STRIPE_SIZE] == -1)
+                {
+                    rec->num_comps = i;
+                    break;
+                }
+                rec->num_stripes += rec->comps[i].counters[LUSTRE_COMP_STRIPE_COUNT];
+            }
+            new_comps_size = rec->num_comps * sizeof(*rec->comps);
+            new_osts_size = rec->num_stripes * sizeof(*rec->ost_ids);
+            if (new_comps_size != comps_size)
+            {
+                memmove(((void*)rec->comps + new_comps_size),
+                        ((void*)rec->comps + comps_size),
+                        new_osts_size);
+            }
+            if ((new_comps_size != comps_size) || (new_osts_size != osts_size))
+            {
+                if(*lustre_buf_p == NULL)
+                {
+                    /* record buffer size changes, so we should realloc to match it */
+                    rec = realloc(rec, sizeof(struct darshan_lustre_record) + new_comps_size + new_osts_size);
+                    if(!rec)
+                        return(-1);
+                }
+            }
         }
     }
 
@@ -295,6 +303,9 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
     DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
         lustre_rec->base_rec.rank, lustre_rec->base_rec.id, "LUSTRE_NUM_COMPONENTS",
         lustre_rec->num_comps, file_name, mnt_pt, fs_type);
+    DARSHAN_D_COUNTER_PRINT(darshan_module_names[DARSHAN_LUSTRE_MOD],
+        lustre_rec->base_rec.rank, lustre_rec->base_rec.id, "LUSTRE_NUM_STRIPES",
+        lustre_rec->num_stripes, file_name, mnt_pt, fs_type);
     for(i=0; i<lustre_rec->num_comps; i++)
     {
         for(j=0; j < LUSTRE_COMP_NUM_INDICES; j++)
@@ -386,6 +397,7 @@ static void darshan_log_print_lustre_description(int ver)
 {
     printf("\n# description of LUSTRE counters:\n");
     printf("#   LUSTRE_NUM_COMPONENTS: number of instrumented components in the Lustre layout.\n");
+    printf("#   LUSTRE_NUM_STRIPES: number of active stripes in the Lustre layout components.\n");
     printf("#   LUSTRE_COMP*_STRIPE_SIZE: stripe size for this file layout component in bytes.\n");
     printf("#   LUSTRE_COMP*_STRIPE_COUNT: number of OSTs over which the file layout component is striped.\n");
     printf("#   LUSTRE_COMP*_STRIPE_PATTERN: pattern (e.g., raid0, mdt, overstriped) for this file layout component.\n");

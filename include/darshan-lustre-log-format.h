@@ -53,6 +53,7 @@ struct darshan_lustre_component
  *      - a corresponding record identifier (created by hashing the file path)
  *      - the rank of the process which opened the file (-1 for shared files)
  *      - total number of file layout components instrumented
+ *      - total number of file stripes instrumented
  *      - detailed counters describing each file layout component (e.g., stripe width, count, etc.)
  *      - list of OST IDs corresponding to instrumented file layout components
  */
@@ -60,6 +61,7 @@ struct darshan_lustre_record
 {
     struct darshan_base_record base_rec;
     int64_t num_comps;
+    int64_t num_stripes;
     struct darshan_lustre_component *comps;
     OST_ID *ost_ids;
 };
@@ -68,9 +70,9 @@ struct darshan_lustre_record
  *  helper macro to calculate the serialized size of a Lustre record
  *  NOTE: this must be kept in sync with the definitions above
  */
-#define LUSTRE_RECORD_SIZE(comps, osts) \
-     (sizeof(struct darshan_base_record) + sizeof(int64_t) + \
+#define LUSTRE_RECORD_SIZE(comps, stripes) \
+     (sizeof(struct darshan_base_record) + (2*sizeof(int64_t)) + \
      (sizeof(struct darshan_lustre_component) * (comps)) + \
-     (sizeof(OST_ID) * (osts)))
+     (sizeof(OST_ID) * (stripes)))
 
 #endif /* __DARSHAN_LUSTRE_LOG_FORMAT_H */
