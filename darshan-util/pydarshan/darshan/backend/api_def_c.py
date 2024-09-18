@@ -156,6 +156,7 @@ struct darshan_lustre_record
 {
     struct darshan_base_record base_rec;
     int64_t num_comps;
+    int64_t num_stripes;
     struct darshan_lustre_component *comps;
     int64_t *ost_ids;
 };
