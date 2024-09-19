@@ -254,35 +254,23 @@ static int darshan_log_get_lustre_record_v1(darshan_fd fd, void** lustre_buf_p)
 static int darshan_log_put_lustre_record(darshan_fd fd, void* lustre_buf)
 {
     struct darshan_lustre_record *rec = (struct darshan_lustre_record *)lustre_buf;
-    int num_osts = 0;
-    int i;
     int fixed_size, comps_size, osts_size;
     int ret;
 
-    for(i = 0; i < rec->num_comps; i++)
-    {
-        num_osts += rec->comps[i].counters[LUSTRE_COMP_STRIPE_COUNT];
-    }
-
-    /* each part of the lustre record is written separately since the data
-     * is not contiguous in the record memory
+    /* write fixed length and variable length portion of the record
+     * seperately since they aren't contiguous in memory
      */
 
-    fixed_size = sizeof(struct darshan_base_record) + sizeof(int64_t);
+    fixed_size = sizeof(struct darshan_base_record) + (2*sizeof(int64_t));
     ret = darshan_log_put_mod(fd, DARSHAN_LUSTRE_MOD, rec,
         fixed_size, DARSHAN_LUSTRE_VER);
     if(ret < 0)
         return(-1);
 
     comps_size = rec->num_comps * sizeof(*rec->comps);
+    osts_size = rec->num_stripes * sizeof(*rec->ost_ids);
     ret = darshan_log_put_mod(fd, DARSHAN_LUSTRE_MOD, rec->comps,
-        comps_size, DARSHAN_LUSTRE_VER);
-    if(ret < 0)
-        return(-1);
-
-    osts_size = num_osts * sizeof(*rec->ost_ids);
-    ret = darshan_log_put_mod(fd, DARSHAN_LUSTRE_MOD, rec->ost_ids,
-        osts_size, DARSHAN_LUSTRE_VER);
+        comps_size+osts_size, DARSHAN_LUSTRE_VER);
     if(ret < 0)
         return(-1);
 
@@ -423,7 +411,6 @@ static void darshan_log_agg_lustre_records(void *rec, void *agg_rec, int init_fl
     struct darshan_lustre_record *lustre_rec = (struct darshan_lustre_record *)rec;
     struct darshan_lustre_record *agg_lustre_rec = (struct darshan_lustre_record *)agg_rec;
     int comps_size = 0, osts_size = 0;
-    int i;
 
     if(init_flag)
     {
@@ -438,11 +425,7 @@ static void darshan_log_agg_lustre_records(void *rec, void *agg_rec, int init_fl
         comps_size = lustre_rec->num_comps * sizeof(*lustre_rec->comps);
         memcpy(agg_lustre_rec->comps, lustre_rec->comps, comps_size);
         agg_lustre_rec->ost_ids = (OST_ID *)((void *)agg_lustre_rec->comps + comps_size);
-        for(i = 0; i < lustre_rec->num_comps; i++)
-        {
-            osts_size += lustre_rec->comps[i].counters[LUSTRE_COMP_STRIPE_COUNT];
-        }
-        osts_size *= sizeof(*lustre_rec->ost_ids);
+        osts_size = lustre_rec->num_stripes * sizeof(*lustre_rec->ost_ids);
         memcpy(agg_lustre_rec->ost_ids, lustre_rec->ost_ids, osts_size);
     }
 
