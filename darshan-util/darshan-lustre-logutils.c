@@ -210,6 +210,7 @@ static int darshan_log_get_lustre_record_v1(darshan_fd fd, void** lustre_buf_p)
     /* copy over base record first */
     memcpy(rec, &fixed_record, sizeof(struct darshan_base_record));
     rec->num_comps = 1; // only 1 component for old Lustre records
+    rec->num_stripes = stripe_count; // newer records have separate field for total stripes
     rec->comps = (struct darshan_lustre_component *)
         ((void *)rec + sizeof(struct darshan_lustre_record));
     rec->ost_ids = (OST_ID *)
