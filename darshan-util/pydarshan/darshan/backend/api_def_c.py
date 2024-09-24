@@ -146,10 +146,18 @@ struct darshan_bgq_record
     double fcounters[1];
 };
 
+struct darshan_lustre_component
+{
+    int64_t counters[7];
+    char pool_name[16];
+};
+
 struct darshan_lustre_record
 {
     struct darshan_base_record base_rec;
-    int64_t counters[5];
+    int64_t num_comps;
+    int64_t num_stripes;
+    struct darshan_lustre_component *comps;
     int64_t *ost_ids;
 };
 
@@ -186,7 +194,7 @@ extern char *h5d_counter_names[];
 extern char *h5d_f_counter_names[];
 extern char *h5f_counter_names[];
 extern char *h5f_f_counter_names[];
-extern char *lustre_counter_names[];
+extern char *lustre_comp_counter_names[];
 extern char *mpiio_counter_names[];
 extern char *mpiio_f_counter_names[];
 extern char *pnetcdf_file_counter_names[];

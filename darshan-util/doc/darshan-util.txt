@@ -509,12 +509,17 @@ execution time.
 [cols="40%,60%",options="header"]
 |====
 | counter name | description
-| LUSTRE_OSTS | number of OSTs (object storage targets) for the file system
-| LUSTRE_MDTS | number of MDTs (metadata targets) for the file system
-| LUSTRE_STRIPE_OFFSET | OST id offset specified at file creation time
-| LUSTRE_STRIPE_SIZE | stripe size for the file in bytes
-| LUSTRE_STRIPE_WIDTH | number of OSTs over which the file is striped
-| LUSTRE_OST_ID_* | indices of OSTs over which the file is striped
+| LUSTRE_NUM_COMPONENTS | number of instrumented components in the Lustre layout
+| LUSTRE_NUM_STRIPES | number of active stripes in the Lustre layout components
+| LUSTRE_COMP*_STRIPE_SIZE | stripe size for this file layout component in bytes
+| LUSTRE_COMP*_STRIPE_COUNT | number of OSTs over which the file layout component is striped
+| LUSTRE_COMP*_STRIPE_PATTERN | pattern (e.g., raid0, mdt, overstriped) for this file layout component
+| LUSTRE_COMP*_FLAGS | captured flags (e.g. init, prefwr, stale) for this file layout component
+| LUSTRE_COMP*_EXT_START | starting file extent for this file layout component
+| LUSTRE_COMP*_EXT_END | ending file extent for this file layout component (-1 means EOF)
+| LUSTRE_COMP*_MIRROR_ID | mirror ID for this file layout component, if mirrors are enabled
+| LUSTRE_COMP*_POOL_NAME | Lustre OST pool used for this file layout component
+| LUSTRE_COMP*_OST_ID_* | indices of OSTs over which this file layout component is striped
 |====
 
 .APXC module header record (if enabled, for Cray XC systems)

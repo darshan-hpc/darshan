@@ -522,14 +522,14 @@ if test "x$enable_darshan_runtime" = xyes ; then
       AC_CHECK_HEADER([lustre/lustreapi.h],
          [AC_CHECK_LIB(lustreapi, llapi_layout_get_by_xattr,
              [BUILD_LUSTRE_MODULE=1
-	      DARSHAN_LUSTRE_LD_FLAGS="-llustreapi"],
-	     [AS_IF([test "x$enable_lustre_mod" = xyes],
+              DARSHAN_LUSTRE_LD_FLAGS="-llustreapi"
+              enable_lustre_mod=yes],
+             [AS_IF([test "x$enable_lustre_mod" = xyes],
                  [AC_MSG_ERROR(Cannot find required llapi_layout_get_by_xattr function for the Lustre module)])
-             ])
-          AS_IF([test "x$enable_lustre_mod" = xyes],
+              enable_lustre_mod=no])],
+         [AS_IF([test "x$enable_lustre_mod" = xyes],
                 [AC_MSG_ERROR(Cannot find required headers for the Lustre module)])
-          enable_lustre_mod=yes],
-         [enable_lustre_mod=no])
+          enable_lustre_mod=no])
    fi
 
    AC_ARG_ENABLE([mdhim-mod],

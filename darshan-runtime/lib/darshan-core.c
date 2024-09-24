@@ -98,7 +98,7 @@ void (*mod_static_init_fns[])(void) =
 /* XXX need to use extern to get Lustre module's instrumentation function
  * since modules have no way of providing this to darshan-core
  */
-extern void darshan_instrument_lustre_file(const char *filepath, int fd);
+extern void darshan_instrument_lustre_file(darshan_record_id rec_id, int fd);
 #endif
 
 /* prototypes for internal helper functions */
@@ -957,36 +957,6 @@ static void add_entry(char* buf, int* space_left, struct mntent* entry)
         mnt_data_array[mnt_data_count].fs_info.block_size = 1024*1024;
     else
         mnt_data_array[mnt_data_count].fs_info.block_size = 4096;
-
-#ifdef DARSHAN_LUSTRE
-    /* attempt to retrieve OST and MDS counts from Lustre */
-    mnt_data_array[mnt_data_count].fs_info.ost_count = -1;
-    mnt_data_array[mnt_data_count].fs_info.mdt_count = -1;
-    if ( statfsbuf.f_type == LL_SUPER_MAGIC )
-    {
-        int n_ost, n_mdt;
-        int ret_ost, ret_mdt;
-        DIR *mount_dir;
-
-        mount_dir = opendir( entry->mnt_dir );
-        if ( mount_dir  )
-        {
-            /* n_ost and n_mdt are used for both input and output to ioctl */
-            n_ost = 0;
-            n_mdt = 1;
-
-            ret_ost = ioctl( dirfd(mount_dir), LL_IOC_GETOBDCOUNT, &n_ost );
-            ret_mdt = ioctl( dirfd(mount_dir), LL_IOC_GETOBDCOUNT, &n_mdt );
-
-            if ( !(ret_ost < 0 || ret_mdt < 0) )
-            {
-                mnt_data_array[mnt_data_count].fs_info.ost_count = n_ost;
-                mnt_data_array[mnt_data_count].fs_info.mdt_count = n_mdt;
-            }
-            closedir( mount_dir );
-        }
-    }
-#endif
 
     /* store mount information with the job-level metadata in darshan log */
     ret = snprintf(tmp_mnt, 256, "\n%s\t%s",
@@ -2664,26 +2634,26 @@ void *darshan_core_register_record(
             __DARSHAN_CORE_UNLOCK();
             return(NULL);
         }
+    }
 
-        /* check to see if we've already stored the id->name mapping for
-         * this record, and add a new name record if not
-         */
-        HASH_FIND(hlink, __darshan_core->name_hash, &rec_id,
-            sizeof(darshan_record_id), ref);
-        if(!ref)
+    /* check to see if we've already stored the id->name mapping for
+     * this record, and add a new name record if not
+     */
+    HASH_FIND(hlink, __darshan_core->name_hash, &rec_id,
+        sizeof(darshan_record_id), ref);
+    if(!ref)
+    {
+        ret = darshan_add_name_record_ref(__darshan_core, rec_id, name, mod_id);
+        if(ret == 0)
         {
-            ret = darshan_add_name_record_ref(__darshan_core, rec_id, name, mod_id);
-            if(ret == 0)
-            {
-                DARSHAN_MOD_FLAG_SET(__darshan_core->log_hdr_p->partial_flag, mod_id);
-                __DARSHAN_CORE_UNLOCK();
-                return(NULL);
-            }
+            DARSHAN_MOD_FLAG_SET(__darshan_core->log_hdr_p->partial_flag, mod_id);
+            __DARSHAN_CORE_UNLOCK();
+            return(NULL);
         }
-        else
-        {
-            DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
-        }
+    }
+    else
+    {
+        DARSHAN_MOD_FLAG_SET(ref->mod_flags, mod_id);
     }
 
     __darshan_core->mod_array[mod_id]->rec_mem_avail -= rec_size;
@@ -2731,7 +2701,7 @@ char *darshan_core_lookup_record_name(darshan_record_id rec_id)
     return(name);
 }
 
-void darshan_instrument_fs_data(int fs_type, const char *path, int fd)
+void darshan_instrument_fs_data(int fs_type, darshan_record_id rec_id, int fd)
 {
 #ifdef DARSHAN_LUSTRE
     /* allow Lustre to generate a record if we configured with Lustre support */
@@ -2745,7 +2715,7 @@ void darshan_instrument_fs_data(int fs_type, const char *path, int fd)
      */
     if(1 || fs_type == LL_SUPER_MAGIC)
     {
-        darshan_instrument_lustre_file(path, fd);
+        darshan_instrument_lustre_file(rec_id, fd);
         return;
     }
 #endif

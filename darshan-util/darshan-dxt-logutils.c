@@ -294,7 +294,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     int64_t length;
     double start_time;
     double end_time;
-    int i;
+    int i, j;
 
     darshan_record_id f_id = file_rec->base_rec.id;
     int64_t rank = file_rec->base_rec.rank;
@@ -307,15 +307,16 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
 
     /* Lustre File System */
     struct darshan_lustre_record *rec;
-    int lustreFS = !strcmp(fs_type, "lustre");
-    int32_t stripe_size;
-    int32_t stripe_count;
-    int64_t cur_offset;
+    int lustreFS = 0;
+    int64_t stripe_size;
+    int64_t stripe_count;
+    int64_t cur_file_offset, comp_file_offset;
     int print_count;
     int ost_idx;
+    int cur_ost_offset;
     
-    if (!lustre_rec_ref) {
-        lustreFS = 0;
+    if (lustre_rec_ref) {
+        lustreFS = 1;
     }
 
     printf("\n# DXT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
@@ -326,23 +327,32 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     printf("# DXT, mnt_pt: %s, fs_type: %s\n", mnt_pt, fs_type);
     if (lustreFS) {
         rec = lustre_rec_ref->rec;
-        stripe_size = rec->counters[LUSTRE_STRIPE_SIZE];
-        stripe_count = rec->counters[LUSTRE_STRIPE_WIDTH];
 
-        printf("# DXT, Lustre stripe_size: %d, Lustre stripe_count: %d\n", stripe_size, stripe_count);
-
-        printf("# DXT, Lustre OST obdidx:");
-        for (i = 0; i < stripe_count; i++) {
-            printf(" %" PRId64, (rec->ost_ids)[i]);
+        struct darshan_lustre_component *comp;
+        printf("# DXT, Lustre stripe components:\n");
+        ost_idx = 0;
+        for (i = 0; i < rec->num_comps; i++) {
+            comp = &rec->comps[i];
+            printf("#\t[Component %d] stripe_ext: %" PRId64 " - ", i+1, comp->counters[LUSTRE_COMP_EXT_START]);
+            if (comp->counters[LUSTRE_COMP_EXT_END] == -1)
+                printf("EOF, ");
+            else
+                printf("%" PRId64 ", ", comp->counters[LUSTRE_COMP_EXT_END]);
+            printf("stripe_size: %" PRId64 ", ", comp->counters[LUSTRE_COMP_STRIPE_SIZE]);
+            printf("stripe_count: %" PRId64 ", ", comp->counters[LUSTRE_COMP_STRIPE_COUNT]);
+            printf("OSTs:");
+            for (j = 0; j < comp->counters[LUSTRE_COMP_STRIPE_COUNT]; j++, ost_idx++) {
+                printf(" %" PRId64, (rec->ost_ids)[ost_idx]);
+            }
+            printf("\n");
         }
-        printf("\n");
     }
 
     /* Print header */
     printf("# Module    Rank  Wt/Rd  Segment          Offset       Length    Start(s)      End(s)");
 
     if (lustreFS) {
-        printf("  [OST]");
+        printf("   [OST]");
     }
     printf("\n");
 
@@ -353,22 +363,40 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f", "X_POSIX", rank, "write", i, offset, length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f   ", "X_POSIX", rank, "write", i, offset, length, start_time, end_time);
 
         if (lustreFS) {
-            cur_offset = offset;
-            ost_idx = (offset / stripe_size) % stripe_count;
-
+            cur_file_offset = offset;
+            cur_ost_offset = 0;
             print_count = 0;
-            while (cur_offset < offset + length) {
-                printf("  [%3" PRId64 "]", (rec->ost_ids)[ost_idx]);
+            for (j = 0; j < rec->num_comps; j++) {
+                stripe_size = rec->comps[j].counters[LUSTRE_COMP_STRIPE_SIZE];
+                stripe_count = rec->comps[j].counters[LUSTRE_COMP_STRIPE_COUNT];
+                if (stripe_count == 0)
+                    continue; // i.e., data-on-metatdata layout
+                if ((cur_file_offset >= rec->comps[j].counters[LUSTRE_COMP_EXT_START]) &&
+                    ((cur_file_offset < rec->comps[j].counters[LUSTRE_COMP_EXT_END]) ||
+                     (rec->comps[j].counters[LUSTRE_COMP_EXT_END] == -1))) {
+                    comp_file_offset = cur_file_offset - rec->comps[j].counters[LUSTRE_COMP_EXT_START];
+                    ost_idx = (comp_file_offset / stripe_size) % stripe_count;
+                    while ((cur_file_offset < offset + length) &&
+                            ((cur_file_offset < rec->comps[j].counters[LUSTRE_COMP_EXT_END]) ||
+                             (rec->comps[j].counters[LUSTRE_COMP_EXT_END] == -1))) {
+                        printf(" [%" PRId64 "]", (rec->ost_ids)[cur_ost_offset+ost_idx]);
+                        ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
+                        comp_file_offset = (comp_file_offset / stripe_size + 1) * stripe_size;
+                        cur_file_offset = rec->comps[j].counters[LUSTRE_COMP_EXT_START] + comp_file_offset;
 
-                cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
-                ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
-
-                print_count++;
-                if (print_count >= stripe_count)
-                    break;
+                        print_count++;
+                        if (print_count >= stripe_count) {
+                            cur_file_offset = rec->comps[j].counters[LUSTRE_COMP_EXT_END];
+                            if (cur_file_offset == -1)
+                                cur_file_offset = offset + length;
+                            break;
+                        }
+                    }
+                }
+                cur_ost_offset += stripe_count;
             }
         }
 
@@ -381,22 +409,40 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f", "X_POSIX", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f   ", "X_POSIX", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
 
         if (lustreFS) {
-            cur_offset = offset;
-            ost_idx = (offset / stripe_size) % stripe_count;
-
+            cur_file_offset = offset;
+            cur_ost_offset = 0;
             print_count = 0;
-            while (cur_offset < offset + length) {
-                printf("  [%3" PRId64 "]", (rec->ost_ids)[ost_idx]);
+            for (j = 0; j < rec->num_comps; j++) {
+                stripe_size = rec->comps[j].counters[LUSTRE_COMP_STRIPE_SIZE];
+                stripe_count = rec->comps[j].counters[LUSTRE_COMP_STRIPE_COUNT];
+                if (stripe_count == 0)
+                    continue; // i.e., data-on-metatdata layout
+                if ((cur_file_offset >= rec->comps[j].counters[LUSTRE_COMP_EXT_START]) &&
+                    ((cur_file_offset < rec->comps[j].counters[LUSTRE_COMP_EXT_END]) ||
+                     (rec->comps[j].counters[LUSTRE_COMP_EXT_END] == -1))) {
+                    comp_file_offset = cur_file_offset - rec->comps[j].counters[LUSTRE_COMP_EXT_START];
+                    ost_idx = (comp_file_offset / stripe_size) % stripe_count;
+                    while ((cur_file_offset < offset + length) &&
+                            ((cur_file_offset < rec->comps[j].counters[LUSTRE_COMP_EXT_END]) ||
+                             (rec->comps[j].counters[LUSTRE_COMP_EXT_END] == -1))) {
+                        printf(" [%" PRId64 "]", (rec->ost_ids)[cur_ost_offset+ost_idx]);
+                        ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
+                        comp_file_offset = (comp_file_offset / stripe_size + 1) * stripe_size;
+                        cur_file_offset = rec->comps[j].counters[LUSTRE_COMP_EXT_START] + comp_file_offset;
 
-                cur_offset = (cur_offset / stripe_size + 1) * stripe_size;
-                ost_idx = (ost_idx == stripe_count - 1) ? 0 : ost_idx + 1;
-
-                print_count++;
-                if (print_count >= stripe_count)
-                    break;
+                        print_count++;
+                        if (print_count >= stripe_count) {
+                            cur_file_offset = rec->comps[j].counters[LUSTRE_COMP_EXT_END];
+                            if (cur_file_offset == -1)
+                                cur_file_offset = offset + length;
+                            break;
+                        }
+                    }
+                }
+                cur_ost_offset += stripe_count;
             }
         }
 

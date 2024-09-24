@@ -508,49 +508,56 @@ def _log_get_lustre_record(log, dtype='numpy'):
     rec['id'] = rbuf[0].base_rec.id
     rec['rank'] = rbuf[0].base_rec.rank
 
-    clst = []
-    for i in range(0, len(rbuf[0].counters)):
-        clst.append(rbuf[0].counters[i])
-    rec['counters'] = np.array(clst, dtype=np.int64, copy=True)
-    libdutil.darshan_free(buf[0])
-   
-    # counters
-    cdict = dict(zip(counter_names('LUSTRE'), rec['counters']))
+    # components
+    rec['components'] = []
+    ost_ids = ffi.cast("int64_t *", rbuf[0].ost_ids)
+    ost_idx = 0
+    for i in range(0, rbuf[0].num_comps):
+        component = {}
+        component['counters'] = np.copy(np.frombuffer(ffi.buffer(rbuf[0].comps[i].counters), dtype=np.int64))
+        component['pool_name'] = ffi.string(rbuf[0].comps[i].pool_name).decode("utf-8")
+        cdict = dict(zip(counter_names('LUSTRE_COMP'), component['counters']))
+        # ost info
+        stripe_count = cdict['LUSTRE_COMP_STRIPE_COUNT']
+        ostlst = ffi.unpack(ost_ids + ost_idx, int(stripe_count))
+        ost_idx += int(stripe_count)
+        component['ost_ids'] = np.array(ostlst, dtype=np.int64)
 
-    # ost_ids 
-    sizeof_64 = ffi.sizeof("int64_t")
-    sizeof_base = ffi.sizeof("struct darshan_base_record")
-    offset = sizeof_base + sizeof_64 * len(rbuf[0].counters)
-    offset = int(offset/sizeof_64)
+        # dtype conversion
+        if dtype == "dict":
+            component.update({
+                'counters': cdict,
+                'ost_ids': ostlst
+                })
+        elif dtype == "pandas":
+            df_c = pd.DataFrame(cdict, index=[0])
 
-    ost_ids = ffi.cast("int64_t *", rbuf[0])
-    ostlst = []
-    for i in range(offset, cdict['LUSTRE_STRIPE_WIDTH']+offset):
-        ostlst.append(ost_ids[i])
-    rec['ost_ids'] = np.array(ostlst, dtype=np.int64)
+            # prepend id and rank
+            df_c = df_c[df_c.columns[::-1]] # flip colum order
+            df_c['id'] = rec['id']
+            df_c['rank'] = rec['rank']
+            df_c = df_c[df_c.columns[::-1]] # flip back
 
+            # add pool_name string to df
+            df_c['LUSTRE_POOL_NAME'] = component['pool_name']
+            # add ost list to df
+            df_c['LUSTRE_OST_IDS'] = [component['ost_ids']]
+            # overwrite component with comprehensive dataframe
+            component = df_c
 
-    # dtype conversion
-    if dtype == "dict":
-        rec.update({
-            'counters': cdict, 
-            'ost_ids': ostlst
-            })
+        rec['components'].append(component)
 
     if dtype == "pandas":
-        df_c = pd.DataFrame(cdict, index=[0])
+        combined_c = None
+        for component in rec['components']:
+            if combined_c is None:
+                combined_c = component
+            else:
+                combined_c = pd.concat([combined_c, component])
 
-        # prepend id and rank
-        df_c = df_c[df_c.columns[::-1]] # flip colum order
-        df_c['id'] = rec['id']
-        df_c['rank'] = rec['rank']
-        df_c = df_c[df_c.columns[::-1]] # flip back
+        rec['components'] = combined_c
 
-        rec.update({
-            'counters': df_c,
-            'ost_ids': pd.DataFrame(rec['ost_ids'], columns=['ost_ids']),
-            })
-
+    libdutil.darshan_free(buf[0])
     return rec
 
 

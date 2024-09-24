@@ -26,19 +26,9 @@
 
 #include "darshan.h"
 #include "darshan-dynamic.h"
-#include "darshan-lustre.h"
 
 static void lustre_runtime_initialize(
     void);
-static void lustre_subtract_shared_rec_size(
-    void *rec_ref_p, void *user_ptr);
-static void lustre_set_rec_ref_pointers(
-    void *rec_ref_p, void *user_ptr);
-static int lustre_record_compare(
-    const void* a_p, const void* b_p);
-int sort_lustre_records(
-    void);
-
 #ifdef HAVE_MPI
 static void lustre_mpi_redux(
     void *lustre_buf, MPI_Comm mod_comm,
@@ -49,6 +39,17 @@ static void lustre_output(
 static void lustre_cleanup(
     void);
 
+struct lustre_record_ref
+{
+    struct darshan_lustre_record *record;
+};
+
+struct lustre_runtime
+{
+    void *record_id_hash;
+    int frozen; /* flag to indicate that the counters should no longer be modified */
+};
+
 struct lustre_runtime *lustre_runtime = NULL;
 static pthread_mutex_t lustre_runtime_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static int lustre_runtime_init_attempted = 0;
@@ -57,20 +58,149 @@ static int my_rank = -1;
 #define LUSTRE_LOCK() pthread_mutex_lock(&lustre_runtime_mutex)
 #define LUSTRE_UNLOCK() pthread_mutex_unlock(&lustre_runtime_mutex)
 
-void darshan_instrument_lustre_file(const char* filepath, int fd)
+static void darshan_get_lustre_layout_size(struct llapi_layout *lustre_layout,
+    int *num_comps, int *num_stripes)
 {
-    struct lustre_record_ref *rec_ref;
-    struct darshan_lustre_record *rec;
-    struct darshan_fs_info fs_info;
-    darshan_record_id rec_id;
-    int i;
+    bool is_composite;
+    int ret;
+    uint64_t stripe_pattern, stripe_count;
+    int tmp_comps = 0;
+    int tmp_stripes = 0;
+
+    *num_comps = 0;
+    *num_stripes = 0;
+
+    is_composite = llapi_layout_is_composite(lustre_layout);
+    if (is_composite)
+    {
+        /* iterate starting with the first omponent */
+        ret = llapi_layout_comp_use(lustre_layout, LLAPI_LAYOUT_COMP_USE_FIRST);
+        if (ret != 0)
+            return;
+    }
+
+    do {
+        /* grab important parameters regarding this stripe component */
+        ret = llapi_layout_pattern_get(lustre_layout, &stripe_pattern);
+        if (ret != 0)
+            return;
+        if (!(stripe_pattern & LLAPI_LAYOUT_MDT))
+        {
+            ret = llapi_layout_stripe_count_get(lustre_layout, &stripe_count);
+            if (ret != 0)
+                return;
+            tmp_stripes += stripe_count;
+        }
+        tmp_comps++;
+
+        if (is_composite)
+        {
+            /* move on to the next component in the composite layout */
+            ret = llapi_layout_comp_use(lustre_layout, LLAPI_LAYOUT_COMP_USE_NEXT);
+        }
+        else break;
+    } while(ret == 0);
+
+    *num_comps = tmp_comps;
+    *num_stripes = tmp_stripes;
+    return;
+}
+
+static void darshan_get_lustre_layout_components(struct llapi_layout *lustre_layout,
+    struct lustre_record_ref *rec_ref)
+{
+    bool is_composite;
+    int ret;
+    uint64_t stripe_size;
+    uint64_t stripe_count;
+    uint64_t stripe_pattern;
+    uint32_t flags;
+    uint64_t ext_start, ext_end;
+    uint32_t mirror_id;
+    uint64_t i, tmp_ost;
+    int comps_idx = 0, osts_idx = 0;
+    struct darshan_lustre_component *comps =
+        (struct darshan_lustre_component *)&(rec_ref->record->comps);
+    OST_ID *osts = (OST_ID *)(comps + rec_ref->record->num_comps);
+
+    is_composite = llapi_layout_is_composite(lustre_layout);
+    if (is_composite)
+    {
+        /* iterate starting with the first omponent */
+        ret = llapi_layout_comp_use(lustre_layout, LLAPI_LAYOUT_COMP_USE_FIRST);
+        if (ret != 0)
+            return;
+    }
+
+    do {
+        /* grab important parameters regarding this stripe component */
+        ret = llapi_layout_stripe_size_get(lustre_layout, &stripe_size);
+        ret += llapi_layout_stripe_count_get(lustre_layout, &stripe_count);
+        ret += llapi_layout_pattern_get(lustre_layout, &stripe_pattern);
+        if (stripe_pattern & LLAPI_LAYOUT_MDT)
+            stripe_count = 0;
+        ret += llapi_layout_comp_flags_get(lustre_layout, &flags);
+        ret += llapi_layout_comp_extent_get(lustre_layout, &ext_start, &ext_end);
+        ret += llapi_layout_mirror_id_get(lustre_layout, &mirror_id);
+        /* record info on this component iff:
+         *  - the layout isn't composite _OR_ the composite layout component is
+         *    initialized (actively used for this file)
+         *  - the above functions querying stripe params returned no error
+         *  - there is enough room in the record buf to store the OST list
+         */
+        if ((!is_composite || (flags & LCME_FL_INIT)) &&
+            (ret == 0) &&
+            (osts_idx + stripe_count <= rec_ref->record->num_stripes))
+        {
+            comps[comps_idx].counters[LUSTRE_COMP_STRIPE_SIZE] = (int64_t)stripe_size;
+            comps[comps_idx].counters[LUSTRE_COMP_STRIPE_COUNT] = (int64_t)stripe_count;
+            comps[comps_idx].counters[LUSTRE_COMP_STRIPE_PATTERN] = (int64_t)stripe_pattern;
+            comps[comps_idx].counters[LUSTRE_COMP_FLAGS] = (int64_t)flags;
+            comps[comps_idx].counters[LUSTRE_COMP_EXT_START] = (int64_t)ext_start;
+            comps[comps_idx].counters[LUSTRE_COMP_EXT_END] = (int64_t)ext_end;
+            comps[comps_idx].counters[LUSTRE_COMP_MIRROR_ID] = (int64_t)mirror_id;
+            /* also get the pool name associated with the component */
+            llapi_layout_pool_name_get(lustre_layout, comps[comps_idx].pool_name,
+                sizeof(comps[comps_idx].pool_name)-1);
+
+            /* get the list of OSTs allocated for this component */
+            for(i = 0; i < stripe_count; i++, osts_idx++)
+            {
+                if (llapi_layout_ost_index_get(lustre_layout, i, &tmp_ost) == -1)
+                    osts[osts_idx] = -1;
+                else
+                    osts[osts_idx] = (OST_ID)tmp_ost;
+            }
+            comps_idx++;
+        }
+
+        if (is_composite)
+        {
+            /* move on to the next component in the composite layout */
+            ret = llapi_layout_comp_use(lustre_layout, LLAPI_LAYOUT_COMP_USE_NEXT);
+        }
+        else break;
+    } while(ret == 0 && comps_idx < rec_ref->record->num_comps);
+
+    /* no more components to gather info on, set the rest as invalid */
+    /* NOTE: we will attempt to truncate unused components at shutdown time */
+    for (; comps_idx < rec_ref->record->num_comps; comps_idx++)
+    {
+        comps[comps_idx].counters[LUSTRE_COMP_STRIPE_SIZE] = -1;
+    }
+
+    return;
+}
+
+void darshan_instrument_lustre_file(darshan_record_id rec_id, int fd)
+{
     void *lustre_xattr_val;
     size_t lustre_xattr_size = XATTR_SIZE_MAX;
     struct llapi_layout *lustre_layout;
-    uint64_t stripe_size;
-    uint64_t stripe_count;
-    uint64_t tmp_ost;
+    int num_comps, num_stripes;
     size_t rec_size;
+    struct darshan_lustre_record *rec;
+    struct lustre_record_ref *rec_ref;
     int ret;
 
     LUSTRE_LOCK();
@@ -86,56 +216,52 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
         return;
     }
 
+    if ((lustre_xattr_val = calloc(1, lustre_xattr_size)) == NULL)
+    {
+        LUSTRE_UNLOCK();
+        return;
+    }
+
+    /* -1 means fgetxattr failed, likely because file isn't on Lustre, but maybe because
+     * the Lustre version doesn't support this method of obtaining striping info
+     */
+    if ((lustre_xattr_size = fgetxattr(fd, "lustre.lov", lustre_xattr_val, lustre_xattr_size)) == -1)
+    {
+        free(lustre_xattr_val);
+        LUSTRE_UNLOCK();
+        return;
+    }
+
+    /* get corresponding Lustre file layout, then extract stripe params */
+    if ((lustre_layout = llapi_layout_get_by_xattr(lustre_xattr_val, lustre_xattr_size, 0)) == NULL)
+    {
+        free(lustre_xattr_val);
+        LUSTRE_UNLOCK();
+        return;
+    }
+    free(lustre_xattr_val);
+
     /* search the hash table for this file record, and initialize if not found */
-    rec_id = darshan_core_gen_record_id(filepath);
     rec_ref = darshan_lookup_record_ref(lustre_runtime->record_id_hash,
         &rec_id, sizeof(darshan_record_id));
     if(!rec_ref)
     {
-        if ( (lustre_xattr_val = calloc(1, lustre_xattr_size)) == NULL )
-        {
-            LUSTRE_UNLOCK();
-            return;
-        }
 
-        /* -1 means fgetxattr failed, likely because file isn't on Lustre, but maybe because
-         * the Lustre version doesn't support this method of obtaining striping info
-         */
-        if ( (lustre_xattr_size = fgetxattr( fd, "lustre.lov", lustre_xattr_val, lustre_xattr_size)) == -1 )
-        {
-            free(lustre_xattr_val);
-            LUSTRE_UNLOCK();
-            return;
-        }
-
-        /* get corresponding Lustre file layout, then extract stripe params */
-        if ( (lustre_layout = llapi_layout_get_by_xattr(lustre_xattr_val, lustre_xattr_size, 0)) == NULL)
-        {
-            free(lustre_xattr_val);
-            LUSTRE_UNLOCK();
-            return;
-        }
-        if (llapi_layout_stripe_size_get(lustre_layout, &stripe_size) == -1)
+        /* iterate file layout components to determine total record size */
+        darshan_get_lustre_layout_size(lustre_layout, &num_comps, &num_stripes);
+        if(num_comps == 0)
         {
             llapi_layout_free(lustre_layout);
-            free(lustre_xattr_val);
             LUSTRE_UNLOCK();
             return;
         }
-        if (llapi_layout_stripe_count_get(lustre_layout, &stripe_count) == -1)
-        {
-            llapi_layout_free(lustre_layout);
-            free(lustre_xattr_val);
-            LUSTRE_UNLOCK();
-            return;
-        }
+        rec_size = LUSTRE_RECORD_SIZE(num_comps, num_stripes);
 
         /* allocate and add a new record reference */
         rec_ref = malloc(sizeof(*rec_ref));
         if(!rec_ref)
         {
             llapi_layout_free(lustre_layout);
-            free(lustre_xattr_val);
             LUSTRE_UNLOCK();
             return;
         }
@@ -146,74 +272,39 @@ void darshan_instrument_lustre_file(const char* filepath, int fd)
         {
             free(rec_ref);
             llapi_layout_free(lustre_layout);
-            free(lustre_xattr_val);
             LUSTRE_UNLOCK();
             return;
         }
 
-        rec_size = LUSTRE_RECORD_SIZE( stripe_count );
-
         /* register a Lustre file record with Darshan */
-        fs_info.fs_type = -1;
         rec = darshan_core_register_record(
                 rec_id,
-                filepath,
+                NULL, /* either POSIX or STDIO already registered the name */
                 DARSHAN_LUSTRE_MOD,
                 rec_size,
-                &fs_info);
-
-        /* if NULL, darshan has no more memory for instrumenting */
+                NULL);
         if(rec == NULL)
         {
+            /* if NULL, darshan has no more memory for instrumenting */
             darshan_delete_record_ref(&(lustre_runtime->record_id_hash),
                 &rec_id, sizeof(darshan_record_id));
             free(rec_ref);
             llapi_layout_free(lustre_layout);
-            free(lustre_xattr_val);
             LUSTRE_UNLOCK();
             return;
         }
 
-        /* implicit assumption here that none of these counters will change
-         * after the first time a file is opened.  This may not always be
-         * true in the future */
-        if ( fs_info.fs_type != -1 ) 
-        {
-            rec->counters[LUSTRE_OSTS] = fs_info.ost_count;
-            rec->counters[LUSTRE_MDTS] = fs_info.mdt_count;
-        }
-        else
-        {
-            rec->counters[LUSTRE_OSTS] = -1;
-            rec->counters[LUSTRE_MDTS] = -1;
-        }
-
-        rec->counters[LUSTRE_STRIPE_SIZE] = stripe_size;
-        rec->counters[LUSTRE_STRIPE_WIDTH] = stripe_count;
-        rec->counters[LUSTRE_STRIPE_OFFSET] = -1; // no longer captured
-        for ( i = 0; i < stripe_count; i++ )
-        {
-            if (llapi_layout_ost_index_get(lustre_layout, i, &tmp_ost) == -1)
-            {
-                darshan_delete_record_ref(&(lustre_runtime->record_id_hash),
-                    &rec_id, sizeof(darshan_record_id));
-                free(rec_ref);
-                llapi_layout_free(lustre_layout);
-                free(lustre_xattr_val);
-                LUSTRE_UNLOCK();
-                return;
-            }
-            rec->ost_ids[i] = (int64_t)tmp_ost;
-        }
-        free(lustre_xattr_val);
-        llapi_layout_free(lustre_layout);
-
+        /* set base record */
         rec->base_rec.id = rec_id;
         rec->base_rec.rank = my_rank;
         rec_ref->record = rec;
-        rec_ref->record_size = rec_size;
-        lustre_runtime->record_count++;
+        rec_ref->record->num_comps = num_comps;
+        rec_ref->record->num_stripes = num_stripes;
     }
+
+    /* fill in record buffer with component info and OST list */
+    darshan_get_lustre_layout_components(lustre_layout, rec_ref);
+    llapi_layout_free(lustre_layout);
 
     LUSTRE_UNLOCK();
     return;
@@ -238,15 +329,18 @@ static void lustre_runtime_initialize()
     lustre_rec_count = DARSHAN_DEF_MOD_REC_COUNT;
 
     /* register the lustre module with darshan-core */
-    /* NOTE: We assume each file uses 64 OSTs, but we have no way of
-     *       knowing at init time how many OSTs each file will use.
-     *       This means darshan-core may instrument more or less than
-     *       the number of files we've requested here.
+    /* NOTE: For simplicity, we assume each Lustre file record is just 1KiB
+     *       when requesting memory here. These record sizes are variable
+     *       length (depending on the number of file layout components and
+     *       the number of OSTs used by each component), so we can't really
+     *       preallocate memory for a fixed number of records at init time
+     *       like we traditionally do in other modules.
      */
+    #define DEF_LUSTRE_RECORD_SIZE 1024
     ret = darshan_core_register_module(
         DARSHAN_LUSTRE_MOD,
         mod_funcs,
-        LUSTRE_RECORD_SIZE(64),
+        DEF_LUSTRE_RECORD_SIZE,
         &lustre_rec_count,
         &my_rank,
         NULL);
@@ -281,25 +375,21 @@ static void lustre_mpi_redux(
     LUSTRE_LOCK();
     assert(lustre_runtime);
 
-    /* if there are globally shared files, do a shared file reduction */
-    if (shared_rec_count)
+    /* necessary initialization of shared records */
+    for(i = 0; i < shared_rec_count; i++)
     {
-        /* necessary initialization of shared records */
-        for(i = 0; i < shared_rec_count; i++)
-        {
-            rec_ref = darshan_lookup_record_ref(lustre_runtime->record_id_hash,
-                &shared_recs[i], sizeof(darshan_record_id));
-            /* As in other modules, it should not be possible to lose a
-             * record after we have already performed a collective to
-             * identify that it is shared with other ranks.  We print an
-             * error msg and continue rather than asserting in this case,
-             * though, see #243.
-             */
-            if(rec_ref)
-                rec_ref->record->base_rec.rank = -1;
-            else
-                darshan_core_fprintf(stderr, "WARNING: unexpected condition in Darshan, possibly triggered by memory corruption.  Darshan log may be incorrect.\n");
-        }
+        rec_ref = darshan_lookup_record_ref(lustre_runtime->record_id_hash,
+            &shared_recs[i], sizeof(darshan_record_id));
+        /* As in other modules, it should not be possible to lose a
+         * record after we have already performed a collective to
+         * identify that it is shared with other ranks.  We print an
+         * error msg and continue rather than asserting in this case,
+         * though, see #243.
+         */
+        if(rec_ref)
+            rec_ref->record->base_rec.rank = -1;
+        else
+            darshan_core_fprintf(stderr, "WARNING: unexpected condition in Darshan, possibly triggered by memory corruption.  Darshan log may be incorrect.\n");
     }
 
     LUSTRE_UNLOCK();
@@ -307,33 +397,74 @@ static void lustre_mpi_redux(
 }
 #endif
 
+struct lustre_buf_state
+{
+    void *buf;
+    size_t buf_size;
+};
+static void lustre_serialize_records(void *rec_ref_p, void *user_ptr)
+{
+    struct lustre_record_ref *rec_ref = (struct lustre_record_ref *)rec_ref_p;
+    struct lustre_buf_state *buf_state = (struct lustre_buf_state *)user_ptr;
+    void *output_buf = buf_state->buf + buf_state->buf_size;
+    int i;
+    int num_stripes = 0;
+    size_t record_size;
+    struct darshan_lustre_component *comps =
+        (struct darshan_lustre_component *)&(rec_ref->record->comps);
+    OST_ID *osts = (OST_ID *)(comps + rec_ref->record->num_comps);
+
+    /* skip shared records on non-zero ranks */
+    if (my_rank > 0 && rec_ref->record->base_rec.rank == -1)
+        return;
+
+    /* update record size to reflect final number of components/stripes */
+    for (i = 0; i < rec_ref->record->num_comps; i++)
+    {
+        /* inactive components have strip size set to -1 when instrumenting */
+        if (comps[i].counters[LUSTRE_COMP_STRIPE_SIZE] == -1)
+        {
+            /* truncate components and set final component and stripe count */
+            rec_ref->record->num_comps = i;
+            /* move OST list up in record buffer to overwrite unused components */
+            memmove(comps + i, osts, num_stripes * sizeof(*osts));
+            break;
+        }
+        num_stripes += comps[i].counters[LUSTRE_COMP_STRIPE_COUNT];
+    }
+    rec_ref->record->num_stripes = num_stripes;
+
+    record_size = LUSTRE_RECORD_SIZE(rec_ref->record->num_comps, rec_ref->record->num_stripes);
+
+    /* determine whether this record needs to be shifted back in the final record buffer */
+    /* NOTE: this happens when preceding records in the output buffer have been shifted
+     * down in size
+     */
+    if (rec_ref->record != output_buf)
+    {
+        memmove(output_buf, rec_ref->record, record_size);
+        rec_ref->record = output_buf;
+    }
+    buf_state->buf_size += record_size;
+}
+
 static void lustre_output(
     void **lustre_buf,
     int *lustre_buf_sz)
 {
+    struct lustre_buf_state buf_state;
+
     LUSTRE_LOCK();
     assert(lustre_runtime);
 
-    lustre_runtime->record_buffer = *lustre_buf;
-    lustre_runtime->record_buffer_size = *lustre_buf_sz;
+    buf_state.buf = *lustre_buf;
+    buf_state.buf_size = 0;
+    /* serialize records into final output buffer */
+    darshan_iter_record_refs(lustre_runtime->record_id_hash,
+        &lustre_serialize_records, &buf_state);
 
-    /* sort the array of files descending by rank so that we get all of the 
-     * shared files (marked by rank -1) in a contiguous portion at end 
-     * of the array
-     */
-    sort_lustre_records();
-
-    /* simply drop all shared records from the end of the record array on
-     * non-root ranks simply by recalculating the size of the buffer
-     */
-    if (my_rank != 0)
-    {
-        darshan_iter_record_refs(lustre_runtime->record_id_hash, 
-            &lustre_subtract_shared_rec_size, NULL);
-    }
-
-    /* modify output buffer size to account for any shared records that were removed */
-    *lustre_buf_sz = lustre_runtime->record_buffer_size;
+    /* update output buffer size, which may have shrank */
+    *lustre_buf_sz = buf_state.buf_size;
 
     lustre_runtime->frozen = 1;
 
@@ -355,235 +486,6 @@ static void lustre_cleanup()
     LUSTRE_UNLOCK();
     return;
 }
-
-static void lustre_subtract_shared_rec_size(void *rec_ref_p, void *user_ptr)
-{
-    struct lustre_record_ref *l_rec_ref = (struct lustre_record_ref *)rec_ref_p;
-
-    if(l_rec_ref->record->base_rec.rank == -1)
-        lustre_runtime->record_buffer_size -=
-            LUSTRE_RECORD_SIZE( l_rec_ref->record->counters[LUSTRE_STRIPE_WIDTH] );
-}
-
-static void lustre_set_rec_ref_pointers(void *rec_ref_p, void *user_ptr)
-{
-    lustre_runtime->record_ref_array[lustre_runtime->record_ref_array_ndx] = rec_ref_p;
-    lustre_runtime->record_ref_array_ndx++;
-    return;
-}
-
-/* compare function for sorting file records by descending rank */
-static int lustre_record_compare(const void* a_p, const void* b_p)
-{
-    const struct lustre_record_ref* a = *((struct lustre_record_ref **)a_p);
-    const struct lustre_record_ref* b = *((struct lustre_record_ref **)b_p);
-
-    if (a->record->base_rec.rank < b->record->base_rec.rank)
-        return 1;
-    if (a->record->base_rec.rank > b->record->base_rec.rank)
-        return -1;
-
-    /* if ( a->record->rank == b->record->rank ) we MUST do a secondary
-     * sort so that the order of qsort is fully deterministic and consistent
-     * across all MPI ranks.  Without a secondary sort, the sort order can
-     * be affected by rank-specific variations (e.g., the order in which
-     * files are first opened).
-     */
-    /* sort by ascending darshan record ids */
-    if (a->record->base_rec.id > b->record->base_rec.id)
-        return 1;
-    if (a->record->base_rec.id < b->record->base_rec.id)
-        return -1;
-    
-    return 0;
-}
-
-/*
- * Sort the record_references and records by MPI rank to facilitate shared redux.
- * This requires craftiness and additional heap utilization because the records
- * (but not record_runtimes) have variable size.  Currently has to temporarily
- * duplicate the entire record_buffer; there is room for more memory-efficient
- * optimization if this becomes a scalability issue.
- */
-int sort_lustre_records()
-{
-    int i;
-    struct lustre_record_ref *rec_ref;
-    char  *new_buf, *p;
-
-    /* Create a new buffer to store an entire replica of record_buffer.  Since
-     * we know the exact size of record_buffer's useful data at this point, we
-     * can allocate the exact amount we need */
-    new_buf = malloc(lustre_runtime->record_buffer_size);
-    p = new_buf;
-    if ( !new_buf )
-        return 1;
-
-    /* allocate array of record reference pointers that we want to sort */
-    lustre_runtime->record_ref_array = malloc(lustre_runtime->record_count *
-        sizeof(*(lustre_runtime->record_ref_array)));
-    if( !lustre_runtime->record_ref_array )
-    {
-        free(new_buf);
-        return 1;
-    }
-
-    /* build the array of record reference pointers we want to sort */
-    darshan_iter_record_refs(lustre_runtime->record_id_hash,
-        &lustre_set_rec_ref_pointers, NULL);
-
-    /* qsort breaks the hash table, so delete it now to free its memory buffers
-     * and prevent later confusion */
-    darshan_clear_record_refs(&(lustre_runtime->record_id_hash), 0);
-
-    /* sort the runtime records, which is has fixed-length elements */
-    qsort(
-        lustre_runtime->record_ref_array,
-        lustre_runtime->record_count,
-        sizeof(struct lustre_record_ref *),
-        lustre_record_compare
-    );
-
-    /* rebuild the hash with the qsorted runtime records, and
-     * create reordered record buffer
-     */
-    for ( i = 0; i < lustre_runtime->record_count; i++ )
-    {
-        rec_ref = lustre_runtime->record_ref_array[i];
-
-        /* add this record reference back to the hash table */
-        darshan_add_record_ref(&(lustre_runtime->record_id_hash),
-            &(rec_ref->record->base_rec.id), sizeof(darshan_record_id), rec_ref);
-
-        memcpy( p, rec_ref->record, rec_ref->record_size );
-        /* fix record pointers within each record reference too - pre-emptively
-         * point them at where they will live in record_buffer after we memcpy
-         * below */
-        rec_ref->record = (struct darshan_lustre_record *)
-            ((char*)(lustre_runtime->record_buffer) + (p - new_buf));
-        p += rec_ref->record_size;
-    }
-
-    /* copy sorted records back over to Lustre's record buffer */
-    memcpy( 
-        lustre_runtime->record_buffer, 
-        new_buf, 
-        lustre_runtime->record_buffer_size );
-
-    free(new_buf);
-    free(lustre_runtime->record_ref_array);
-    return 0;
-}
-
-#if 0
-static void lustre_record_reduction_op(
-    void* infile_v, void* inoutfile_v, int *len, MPI_Datatype *datatype);
-
-/* this is just boilerplate reduction code that isn't currently used */
-static void lustre_record_reduction_op(void* infile_v, void* inoutfile_v,
-    int *len, MPI_Datatype *datatype)
-{
-    struct darshan_lustre_record tmp_record;
-    struct darshan_lustre_record *infile = infile_v;
-    struct darshan_lustre_record *inoutfile = inoutfile_v;
-    int i, j;
-
-    assert(lustre_runtime);
-
-    for( i=0; i<*len; i++ )
-    {
-        memset(&tmp_record, 0, sizeof(struct darshan_lustre_record));
-        tmp_record.base_rec.id = infile->base_rec.id;
-        tmp_record.base_rec.rank = -1;
-
-        /* preserve only rank 0's value */
-        for( j = LUSTRE_OSTS; j < LUSTRE_NUM_INDICES; j++)
-        {
-            if ( my_rank == 0 ) 
-            {
-                tmp_record.counters[j] = infile->counters[j];
-            }
-            else
-            {
-                tmp_record.counters[j] = inoutfile->counters[j];
-            }
-        }
-
-        /* update pointers */
-        *inoutfile = tmp_record;
-        inoutfile++;
-        infile++;
-    }
-
-    return;
-}
-
-/*
- *  Dump the memory structure of our records and runtime records
- */
-void print_lustre_runtime( void )
-{
-    int i, j;
-    struct darshan_lustre_record *rec;
-
-    /* print what we just loaded */
-    for ( i = 0; i < lustre_runtime->record_count; i++ )
-    {
-        rec = (lustre_runtime->record_runtime_array[i]).record;
-        printf( "File %2d\n", i );
-        for ( j = 0; j < LUSTRE_NUM_INDICES; j++ )
-        {
-            printf( "  Counter %-2d: %10ld, addr %ld\n", 
-                j, 
-                rec->counters[j],
-                (char*)(&(rec->counters[j])) - (char*)(lustre_runtime->record_buffer) );
-        }
-        for ( j = 0; j < rec->counters[LUSTRE_STRIPE_WIDTH]; j++ )
-        {
-            if ( j > 0 && j % 2 == 0 ) printf("\n");
-            printf( "  Stripe  %-2d: %10ld, addr %-9d", 
-                j, 
-                rec->ost_ids[j],
-                (char*)(&(rec->ost_ids[j])) - (char*)(lustre_runtime->record_buffer) );
-        }
-        printf( "\n" );
-    }
-    return;
-}
-
-/*
- *  Dump the order in which records appear in memory
- */
-void print_array( void )
-{
-    int i;
-    struct lustre_record_runtime *rec_rt;
-    printf("*** DUMPING RECORD LIST BY ARRAY SEQUENCE\n");
-    for ( i = 0; i < lustre_runtime->record_count; i++ )
-    {
-        rec_rt = &(lustre_runtime->record_runtime_array[i]);
-        printf( "*** record %d rank %d osts %d\n", 
-            rec_rt->record->rec_id, 
-            rec_rt->record->rank,
-            rec_rt->record->counters[LUSTRE_STRIPE_WIDTH]);
-    }
-}
-void print_hash( void )
-{
-    struct lustre_record_runtime *rec_rt, *tmp_rec_rt;
-    printf("*** DUMPING RECORD LIST BY HASH SEQUENCE\n");
-    HASH_ITER( hlink, lustre_runtime->record_runtim_hash, rec_rt, tmp_rec_rt )
-    {
-        printf( "*** record %d rank %d osts %d\n", 
-            rec_rt->record->rec_id, 
-            rec_rt->record->rank,
-            rec_rt->record->counters[LUSTRE_STRIPE_WIDTH]);
-    }
-    return;
-}
-#endif
-
-
 
 /*
  * Local variables:
