@@ -72,7 +72,11 @@ ldms_t setup_connection(const char *xprt, const char *host,
 		ts.tv_nsec = 0;
 	}
 
+#ifdef LDMS_XPRT_NEW_WITH_AUTH_3
 	dC.ldms_g = ldms_xprt_new_with_auth(xprt, auth, NULL);
+#elif defined(LDMS_XPRT_NEW_WITH_AUTH_4)
+	dC.ldms_g = ldms_xprt_new_with_auth(xprt, NULL, auth, NULL);
+#endif
 	if (!dC.ldms_g) {
 		darshan_core_fprintf(stderr, "LDMS library: Error %d creating the '%s' transport.\n", errno, xprt);
 		return NULL;
