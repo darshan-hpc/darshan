@@ -300,10 +300,9 @@ if test "x$enable_darshan_runtime" = xyes ; then
          AC_MSG_ERROR([--enable-apmpi-mod Autoperf MPI module requires MPI support])
       fi
       abssrcdir=$(readlink -f ${srcdir})
-      AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
-                      [],
-                      [AC_MSG_ERROR([The Autoperf MPI module is not present])],
-                      [-]) # this last part tells it to only check for presence
+      AC_CHECK_FILE([${abssrcdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
+                    [],
+                    [AC_MSG_ERROR([The Autoperf MPI module is not present])])
 
       # APMPI only support MPI v3 or higher
       AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
@@ -339,10 +338,9 @@ if test "x$enable_darshan_runtime" = xyes ; then
                       [with_papi=-lpapi],
                       [AC_MSG_ERROR([Cannot find papi header required for Autoperf XC module])],
                       [])
-      AC_CHECK_HEADER([${abssrcdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
-                      [],
-                      [AC_MSG_ERROR([The Autoperf XC git submodule is not present])],
-                      [-]) # this last part tells it to only check for presence
+      AC_CHECK_FILE([${abssrcdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
+                    [],
+                    [AC_MSG_ERROR([The Autoperf XC git submodule is not present])])
    fi
 
    # inform about HDF5 installs not found in default locations
@@ -665,34 +663,29 @@ if test "x$enable_darshan_runtime" = xyes ; then
       old_cflags="$CFLAGS"
       CFLAGS="$CFLAGS -Werror"
       AC_MSG_CHECKING(for MPI prototypes without const qualifier)
-      AC_TRY_COMPILE(
-          [
-          #include <mpi.h>
-          int MPI_File_open(MPI_Comm comm, char *filename, int amode,
-              MPI_Info info, MPI_File *fh)
-              {return 0;}
-          ],
-          [],
-          [AC_MSG_RESULT(yes)
-           AS_IF([test "x$BUILD_APMPI_MODULE" = "x1"],
-                 AC_MSG_ERROR(APMPI module requires MPI version 3+))],
-          [AC_MSG_RESULT(no)
+      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
+         #include <mpi.h>
+         int MPI_File_open(MPI_Comm comm, char *filename, int amode,
+             MPI_Info info, MPI_File *fh)
+             {return 0;}
+         ],[])],
+         [AC_MSG_RESULT(yes)
+          AS_IF([test "x$BUILD_APMPI_MODULE" = "x1"],
+                AC_MSG_ERROR(APMPI module requires MPI version 3+))],
+         [AC_MSG_RESULT(no)
 
           # unable to compile without const qualifiers.  Let's try again with
           # const qualifiers.
           AC_MSG_CHECKING(for MPI prototypes with const qualifier)
-          AC_TRY_COMPILE(
-              [
-              #include <mpi.h>
-              int MPI_File_open(MPI_Comm comm, const char *filename, int amode,
-                  MPI_Info info, MPI_File *fh)
-                  {return 0;}
-              ],
-              [],
-              AC_MSG_RESULT(yes)
-              AC_DEFINE(HAVE_MPI_CONST, 1, Define if MPI prototypes use const qualifier),
-              ,
-              AC_MSG_ERROR(Darshan is unable to find a compatible MPI_File_open prototype)
+          AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
+             #include <mpi.h>
+             int MPI_File_open(MPI_Comm comm, const char *filename, int amode,
+                 MPI_Info info, MPI_File *fh)
+                 {return 0;}
+             ],[])],
+             [AC_MSG_RESULT(yes)
+              AC_DEFINE(HAVE_MPI_CONST, 1, Define if MPI prototypes use const qualifier)],
+             [AC_MSG_ERROR(Darshan is unable to find a compatible MPI_File_open prototype)]
           )]
       )
       CFLAGS="$old_cflags"

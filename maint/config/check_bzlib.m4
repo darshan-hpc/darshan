@@ -61,7 +61,7 @@ then
         LDFLAGS="$LDFLAGS -L${BZLIB_HOME}/lib"
         CPPFLAGS="$CPPFLAGS -I${BZLIB_HOME}/include"
         AC_LANG_SAVE
-        AC_LANG_C
+        AC_LANG([C])
         AC_CHECK_LIB(bz2, BZ2_bzCompressInit, [bzlib_cv_libbz2=yes], [bzlib_cv_libbz2=no])
         AC_CHECK_HEADER(bzlib.h, [bzlib_cv_bzlib_h=yes], [bzlib_cv_bzlib_h=no])
         AC_LANG_RESTORE
