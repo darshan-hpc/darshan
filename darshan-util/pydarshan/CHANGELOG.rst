@@ -1,3 +1,7 @@
+PyDarshan-3.4.6.0
+=================
+* Track Darshan 3.4.6 release, no PyDarshan changes
+
 PyDarshan-3.4.5.0
 =================
 * Track Darshan 3.4.5 release, no PyDarshan changes

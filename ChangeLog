@@ -2,6 +2,22 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.4.6
+=============
+* Added enhancements to Darshan's Lustre instrumentation module to capture
+  extensive details on the Lustre stripe components constituting a file (e.g.,
+  in a progressive file layout)
+  - File records now composed of potentially multiple Lustre component counter
+    sets (e.g., LUSTRE_COMP1_*, LUSTRE_COMP2_*, etc.)
+  - STRIPE_OFFSET, OSTS, and MDTS counters are no longer provided
+  - STRIPE_WIDTH is now referred to as STRIPE_COUNT to match Lustre terminology
+* Fixed bugs in Darshan's log compression/decompression routines that are
+  triggered when using the new zlib-ng software package
+  - darshan-runtime bug fix to correct problematic log compression strategy
+  - darshan-util bug fix to correct logs already generated with this issue
+* Fixed bug leading to hangs when passing in unproperly formatted Darshan
+  runtime configuration settings
+
 Darshan-3.4.5
 =============
 * Added the ability for the Darshan runtime library to properly shutdown for

@@ -519,7 +519,7 @@ execution time.
 | LUSTRE_COMP*_EXT_END | ending file extent for this file layout component (-1 means EOF)
 | LUSTRE_COMP*_MIRROR_ID | mirror ID for this file layout component, if mirrors are enabled
 | LUSTRE_COMP*_POOL_NAME | Lustre OST pool used for this file layout component
-| LUSTRE_COMP*_OST_ID_* | indices of OSTs over which this file layout component is striped
+| LUSTRE_COMP*\_OST_ID_* | indices of OSTs over which this file layout component is striped
 |====
 
 .APXC module header record (if enabled, for Cray XC systems)
