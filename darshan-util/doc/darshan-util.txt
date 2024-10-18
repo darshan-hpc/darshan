@@ -34,7 +34,7 @@ work in other Unix-like environments as well.
 ----
 tar -xvzf darshan-<version-number>.tar.gz
 cd darshan-<version-number>/
-./prepare
+./prepare.sh
 cd darshan-util/
 ./configure
 make
