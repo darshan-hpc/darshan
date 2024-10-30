@@ -34,7 +34,7 @@ ldms_t ldms_xprt_new_with_auth(const char *xprt_name, const char *auth_name, str
   [
     AC_COMPILE_IFELSE(
       [AC_LANG_SOURCE([[
-#include <ldms/ldmsd_stream.h>
+#include <ldms/ldms.h>
 ldms_t ldms_xprt_new_with_auth(const char *xprt_name, ldms_log_fn_t log_fn, const char *auth_name, struct attr_value_list *auth_av_list);
 ]])],
       [AC_DEFINE([LDMS_XPRT_NEW_WITH_AUTH_4], [1], [Define if ldms_xprt_new_with_auth has 4 arguments])],
