@@ -323,12 +323,9 @@ int DARSHAN_DECL(dfs_mount)(daos_handle_t poh, daos_handle_t coh, int flags, dfs
 
     ret = __real_dfs_mount(poh, coh, flags, dfs);
 
-    if(!ret)
-    {
-        DFS_PRE_RECORD();
-        DFS_STORE_MOUNT_INFO(poh, coh, dfs);
-        DFS_POST_RECORD();
-    }
+    DFS_PRE_RECORD();
+    DFS_STORE_MOUNT_INFO(poh, coh, dfs);
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -341,12 +338,9 @@ int DARSHAN_DECL(dfs_global2local)(daos_handle_t poh, daos_handle_t coh, int fla
 
     ret = __real_dfs_global2local(poh, coh, flags, glob, dfs);
 
-    if(!ret)
-    {
-        DFS_PRE_RECORD();
-        DFS_STORE_MOUNT_INFO(poh, coh, dfs);
-        DFS_POST_RECORD();
-    }
+    DFS_PRE_RECORD();
+    DFS_STORE_MOUNT_INFO(poh, coh, dfs);
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -386,12 +380,9 @@ int DARSHAN_DECL(dfs_lookup)(dfs_t *dfs, const char *path, int flags, dfs_obj_t 
     ret = __real_dfs_lookup(dfs, path, flags, obj, mode, stbuf);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
-    {
-        DFS_PRE_RECORD();
-        DFS_RECORD_FILE_OBJ_OPEN(dfs, path, DFS_LOOKUPS, obj, tm1, tm2);
-        DFS_POST_RECORD();
-    }
+    DFS_PRE_RECORD();
+    DFS_RECORD_FILE_OBJ_OPEN(dfs, path, DFS_LOOKUPS, obj, tm1, tm2);
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -408,17 +399,14 @@ int DARSHAN_DECL(dfs_lookup_rel)(dfs_t *dfs, dfs_obj_t *parent, const char *name
     ret = __real_dfs_lookup_rel(dfs, parent, name, flags, obj, mode, stbuf);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
+    DFS_PRE_RECORD();
+    DFS_RESOLVE_OBJ_REC_NAME(parent, name, obj_rec_name);
+    if(obj_rec_name)
     {
-        DFS_PRE_RECORD();
-        DFS_RESOLVE_OBJ_REC_NAME(parent, name, obj_rec_name);
-        if(obj_rec_name)
-        {
-            DFS_RECORD_FILE_OBJ_OPEN(dfs, obj_rec_name, DFS_LOOKUPS, obj, tm1, tm2);
-            free(obj_rec_name);
-        }
-        DFS_POST_RECORD();
+        DFS_RECORD_FILE_OBJ_OPEN(dfs, obj_rec_name, DFS_LOOKUPS, obj, tm1, tm2);
+        free(obj_rec_name);
     }
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -435,17 +423,14 @@ int DARSHAN_DECL(dfs_open)(dfs_t *dfs, dfs_obj_t *parent, const char *name, mode
     ret = __real_dfs_open(dfs, parent, name, mode, flags, cid, chunk_size, value, obj);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
+    DFS_PRE_RECORD();
+    DFS_RESOLVE_OBJ_REC_NAME(parent, name, obj_rec_name);
+    if(obj_rec_name)
     {
-        DFS_PRE_RECORD();
-        DFS_RESOLVE_OBJ_REC_NAME(parent, name, obj_rec_name);
-        if(obj_rec_name)
-        {
-            DFS_RECORD_FILE_OBJ_OPEN(dfs, obj_rec_name, DFS_OPENS, obj, tm1, tm2);
-            free(obj_rec_name);
-        }
-        DFS_POST_RECORD();
+        DFS_RECORD_FILE_OBJ_OPEN(dfs, obj_rec_name, DFS_OPENS, obj, tm1, tm2);
+        free(obj_rec_name);
     }
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -462,13 +447,10 @@ int DARSHAN_DECL(dfs_dup)(dfs_t *dfs, dfs_obj_t *obj, int flags, dfs_obj_t **new
     ret = __real_dfs_dup(dfs, obj, flags, new_obj);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
-    {
-        DFS_PRE_RECORD();
-        rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
-        DFS_RECORD_FILE_OBJREF_OPEN(rec_ref, DFS_DUPS, new_obj, tm1, tm2);
-        DFS_POST_RECORD();
-    }
+    DFS_PRE_RECORD();
+    rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
+    DFS_RECORD_FILE_OBJREF_OPEN(rec_ref, DFS_DUPS, new_obj, tm1, tm2);
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -485,12 +467,9 @@ int DARSHAN_DECL(dfs_obj_global2local)(dfs_t *dfs, int flags, d_iov_t glob, dfs_
     ret = __real_dfs_obj_global2local(dfs, flags, glob, obj);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
-    {
-        DFS_PRE_RECORD();
-        DFS_RECORD_FILE_OBJ_OPEN(dfs, obj_rec_name, DFS_GLOBAL_OPENS, obj, tm1, tm2);
-        DFS_POST_RECORD();
-    }
+    DFS_PRE_RECORD();
+    DFS_RECORD_FILE_OBJ_OPEN(dfs, obj_rec_name, DFS_GLOBAL_OPENS, obj, tm1, tm2);
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -507,23 +486,20 @@ int DARSHAN_DECL(dfs_release)(dfs_obj_t *obj)
     ret = __real_dfs_release(obj);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
+    DFS_PRE_RECORD();
+    rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
+    if(rec_ref)
     {
-        DFS_PRE_RECORD();
-        rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
-        if(rec_ref)
-        {
-            if(rec_ref->file_rec->fcounters[DFS_F_CLOSE_START_TIMESTAMP] == 0 ||
-             rec_ref->file_rec->fcounters[DFS_F_CLOSE_START_TIMESTAMP] > tm1)
-               rec_ref->file_rec->fcounters[DFS_F_CLOSE_START_TIMESTAMP] = tm1;
-            rec_ref->file_rec->fcounters[DFS_F_CLOSE_END_TIMESTAMP] = tm2;
-            DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->file_rec->fcounters[DFS_F_META_TIME],
-                tm1, tm2, rec_ref->last_meta_end);
-            darshan_delete_record_ref(&(dfs_runtime->file_obj_hash), &obj, sizeof(obj));
-        }
-        DFS_POST_RECORD();
+        if(rec_ref->file_rec->fcounters[DFS_F_CLOSE_START_TIMESTAMP] == 0 ||
+         rec_ref->file_rec->fcounters[DFS_F_CLOSE_START_TIMESTAMP] > tm1)
+           rec_ref->file_rec->fcounters[DFS_F_CLOSE_START_TIMESTAMP] = tm1;
+        rec_ref->file_rec->fcounters[DFS_F_CLOSE_END_TIMESTAMP] = tm2;
+        DARSHAN_TIMER_INC_NO_OVERLAP(
+            rec_ref->file_rec->fcounters[DFS_F_META_TIME],
+            tm1, tm2, rec_ref->last_meta_end);
+        darshan_delete_record_ref(&(dfs_runtime->file_obj_hash), &obj, sizeof(obj));
     }
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -541,14 +517,11 @@ int DARSHAN_DECL(dfs_read)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_of
     ret = __real_dfs_read(dfs, obj, sgl, off, read_size, ev);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
-    {
-        DFS_PRE_RECORD();
-        /* no need to calculate read_size, it's returned to user */
-        rdsize = *read_size;
-        DFS_RECORD_READ(obj, rdsize, DFS_READS, ev, tm1, tm2);
-        DFS_POST_RECORD();
-    }
+    DFS_PRE_RECORD();
+    /* no need to calculate read_size, it's returned to user */
+    rdsize = *read_size;
+    DFS_RECORD_READ(obj, rdsize, DFS_READS, ev, tm1, tm2);
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -566,14 +539,11 @@ int DARSHAN_DECL(dfs_readx)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_lis
     ret = __real_dfs_readx(dfs, obj, iod, sgl, read_size, ev);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
-    {
-        DFS_PRE_RECORD();
-        /* no need to calculate read_size, it's returned to user */
-        rdsize = *read_size;
-        DFS_RECORD_READ(obj, rdsize, DFS_READXS, ev, tm1, tm2);
-        DFS_POST_RECORD();
-    }
+    DFS_PRE_RECORD();
+    /* no need to calculate read_size, it's returned to user */
+    rdsize = *read_size;
+    DFS_RECORD_READ(obj, rdsize, DFS_READXS, ev, tm1, tm2);
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -592,15 +562,12 @@ int DARSHAN_DECL(dfs_write)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_o
     ret = __real_dfs_write(dfs, obj, sgl, off, ev);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
-    {
-        DFS_PRE_RECORD();
-        /* calculate write size first */
-        for (i = 0, wrsize = 0; i < sgl->sg_nr; i++)
-            wrsize += sgl->sg_iovs[i].iov_len;
-        DFS_RECORD_WRITE(obj, wrsize, DFS_WRITES, ev, tm1, tm2);
-        DFS_POST_RECORD();
-    }
+    DFS_PRE_RECORD();
+    /* calculate write size first */
+    for (i = 0, wrsize = 0; i < sgl->sg_nr; i++)
+        wrsize += sgl->sg_iovs[i].iov_len;
+    DFS_RECORD_WRITE(obj, wrsize, DFS_WRITES, ev, tm1, tm2);
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -619,15 +586,12 @@ int DARSHAN_DECL(dfs_writex)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_li
     ret = __real_dfs_writex(dfs, obj, iod, sgl, ev);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
-    {
-        DFS_PRE_RECORD();
-        /* calculate write size first */
-        for (i = 0, wrsize = 0; i < sgl->sg_nr; i++)
-            wrsize += sgl->sg_iovs[i].iov_len;
-        DFS_RECORD_WRITE(obj, wrsize, DFS_WRITEXS, ev, tm1, tm2);
-        DFS_POST_RECORD();
-    }
+    DFS_PRE_RECORD();
+    /* calculate write size first */
+    for (i = 0, wrsize = 0; i < sgl->sg_nr; i++)
+        wrsize += sgl->sg_iovs[i].iov_len;
+    DFS_RECORD_WRITE(obj, wrsize, DFS_WRITEXS, ev, tm1, tm2);
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -644,19 +608,16 @@ int DARSHAN_DECL(dfs_get_size)(dfs_t *dfs, dfs_obj_t *obj, daos_size_t *size)
     ret = __real_dfs_get_size(dfs, obj, size);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
+    DFS_PRE_RECORD();
+    rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
+    if(rec_ref)
     {
-        DFS_PRE_RECORD();
-        rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
-        if(rec_ref)
-        {
-            rec_ref->file_rec->counters[DFS_GET_SIZES] += 1;
-            DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->file_rec->fcounters[DFS_F_META_TIME],
-                tm1, tm2, rec_ref->last_meta_end);
-        }
-        DFS_POST_RECORD();
+        rec_ref->file_rec->counters[DFS_GET_SIZES] += 1;
+        DARSHAN_TIMER_INC_NO_OVERLAP(
+            rec_ref->file_rec->fcounters[DFS_F_META_TIME],
+            tm1, tm2, rec_ref->last_meta_end);
     }
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -673,19 +634,16 @@ int DARSHAN_DECL(dfs_punch)(dfs_t *dfs, dfs_obj_t *obj, daos_off_t offset, daos_
     ret = __real_dfs_punch(dfs, obj, offset, len);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
+    DFS_PRE_RECORD();
+    rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
+    if(rec_ref)
     {
-        DFS_PRE_RECORD();
-        rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
-        if(rec_ref)
-        {
-            rec_ref->file_rec->counters[DFS_PUNCHES] += 1;
-            DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->file_rec->fcounters[DFS_F_META_TIME],
-                tm1, tm2, rec_ref->last_meta_end);
-        }
-        DFS_POST_RECORD();
+        rec_ref->file_rec->counters[DFS_PUNCHES] += 1;
+        DARSHAN_TIMER_INC_NO_OVERLAP(
+            rec_ref->file_rec->fcounters[DFS_F_META_TIME],
+            tm1, tm2, rec_ref->last_meta_end);
     }
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -711,40 +669,39 @@ int DARSHAN_DECL(dfs_remove)(dfs_t *dfs, dfs_obj_t *parent, const char *name, bo
     ret = __real_dfs_remove(dfs, parent, name, force, oid);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
+    DFS_PRE_RECORD();
+    DFS_GET_MOUNT_INFO(dfs, mnt_info);
+    if(mnt_info)
     {
-        DFS_PRE_RECORD();
-        DFS_GET_MOUNT_INFO(dfs, mnt_info);
-        if(mnt_info)
+        DFS_GEN_DARSHAN_REC_ID(oid, mnt_info, rec_id);
+        rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash,
+            &rec_id, sizeof(rec_id));
+        if(!rec_ref)
         {
-            DFS_GEN_DARSHAN_REC_ID(oid, mnt_info, rec_id);
-            rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash,
-                &rec_id, sizeof(rec_id));
-            if(!rec_ref)
+            DFS_RESOLVE_OBJ_REC_NAME(parent, name, obj_rec_name);
+            if(obj_rec_name)
             {
-                DFS_RESOLVE_OBJ_REC_NAME(parent, name, obj_rec_name);
-                if(obj_rec_name)
-                {
-                    rec_ref = dfs_track_new_file_record(rec_id, obj_rec_name, mnt_info);
-                    free(obj_rec_name);
-                }
-            }
-            if(rec_ref)
-            {
-                rec_ref->file_rec->counters[DFS_REMOVES] += 1;
-                DARSHAN_TIMER_INC_NO_OVERLAP(
-                    rec_ref->file_rec->fcounters[DFS_F_META_TIME],
-                    tm1, tm2, rec_ref->last_meta_end);
+                rec_ref = dfs_track_new_file_record(rec_id, obj_rec_name, mnt_info);
+                free(obj_rec_name);
             }
         }
-        DFS_POST_RECORD();
+        if(rec_ref)
+        {
+            rec_ref->file_rec->counters[DFS_REMOVES] += 1;
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->file_rec->fcounters[DFS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+        }
     }
+    DFS_POST_RECORD();
 
     return(ret);
 }
 
 #if 0
-// XXX add dfs_stat back to the daos-ld-opts if we re-enable this
+/* XXX: we can't instrument this call because we have no way to obtain
+ *      the associated OID, which is used to lookup the Darshan record
+ */
 int DARSHAN_DECL(dfs_stat)(dfs_t *dfs, dfs_obj_t *parent, const char *name, struct stat *stbuf)
 {
     int ret;
@@ -760,35 +717,32 @@ int DARSHAN_DECL(dfs_stat)(dfs_t *dfs, dfs_obj_t *parent, const char *name, stru
     ret = __real_dfs_stat(dfs, parent, name, stbuf);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
+    DFS_PRE_RECORD();
+    DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
+    if(parent_rec_name)
     {
-        DFS_PRE_RECORD();
-        DFS_RESOLVE_PARENT_REC_NAME(dfs, parent, parent_rec_name);
-        if(parent_rec_name)
+        rec_len = strlen(parent_rec_name) + strlen(name) + 1;
+        rec_name = malloc(rec_len);
+        if(rec_name)
         {
-            rec_len = strlen(parent_rec_name) + strlen(name) + 1;
-            rec_name = malloc(rec_len);
-            if(rec_name)
+            memset(rec_name, 0, rec_len);
+            strcat(rec_name, parent_rec_name);
+            strcat(rec_name, name);
+            rec_id = darshan_core_gen_record_id(rec_name);
+            rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash, &rec_id, sizeof(rec_id));
+            if(!rec_ref) rec_ref = dfs_track_new_file_record(rec_id, rec_name);
+            if(rec_ref)
             {
-                memset(rec_name, 0, rec_len);
-                strcat(rec_name, parent_rec_name);
-                strcat(rec_name, name);
-                rec_id = darshan_core_gen_record_id(rec_name);
-                rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash, &rec_id, sizeof(rec_id));
-                if(!rec_ref) rec_ref = dfs_track_new_file_record(rec_id, rec_name);
-                if(rec_ref)
-                {
-                    rec_ref->file_rec->counters[DFS_STATS] += 1;
-                    DARSHAN_TIMER_INC_NO_OVERLAP(
-                        rec_ref->file_rec->fcounters[DFS_F_META_TIME],
-                        tm1, tm2, rec_ref->last_meta_end);
-                }
-                free(rec_name);
+                rec_ref->file_rec->counters[DFS_STATS] += 1;
+                DARSHAN_TIMER_INC_NO_OVERLAP(
+                    rec_ref->file_rec->fcounters[DFS_F_META_TIME],
+                    tm1, tm2, rec_ref->last_meta_end);
             }
-            if(!parent) free(parent_rec_name);
+            free(rec_name);
         }
-        DFS_POST_RECORD();
+        if(!parent) free(parent_rec_name);
     }
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -806,19 +760,16 @@ int DARSHAN_DECL(dfs_ostat)(dfs_t *dfs, dfs_obj_t *obj, struct stat *stbuf)
     ret = __real_dfs_ostat(dfs, obj, stbuf);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
+    DFS_PRE_RECORD();
+    rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
+    if(rec_ref)
     {
-        DFS_PRE_RECORD();
-        rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
-        if(rec_ref)
-        {
-            rec_ref->file_rec->counters[DFS_STATS] += 1;
-            DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->file_rec->fcounters[DFS_F_META_TIME],
-                tm1, tm2, rec_ref->last_meta_end);
-        }
-        DFS_POST_RECORD();
+        rec_ref->file_rec->counters[DFS_STATS] += 1;
+        DARSHAN_TIMER_INC_NO_OVERLAP(
+            rec_ref->file_rec->fcounters[DFS_F_META_TIME],
+            tm1, tm2, rec_ref->last_meta_end);
     }
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -835,19 +786,16 @@ int DARSHAN_DECL(dfs_osetattr)(dfs_t *dfs, dfs_obj_t *obj, struct stat *stbuf, i
     ret = __real_dfs_osetattr(dfs, obj, stbuf, flags);
     tm2 = DAOS_WTIME();
 
-    if(!ret)
+    DFS_PRE_RECORD();
+    rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
+    if(rec_ref)
     {
-        DFS_PRE_RECORD();
-        rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &obj, sizeof(obj));
-        if(rec_ref)
-        {
-            rec_ref->file_rec->counters[DFS_STATS] += 1;
-            DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->file_rec->fcounters[DFS_F_META_TIME],
-                tm1, tm2, rec_ref->last_meta_end);
-        }
-        DFS_POST_RECORD();
+        rec_ref->file_rec->counters[DFS_STATS] += 1;
+        DARSHAN_TIMER_INC_NO_OVERLAP(
+            rec_ref->file_rec->fcounters[DFS_F_META_TIME],
+            tm1, tm2, rec_ref->last_meta_end);
     }
+    DFS_POST_RECORD();
 
     return(ret);
 }
@@ -1225,9 +1173,10 @@ static void dfs_mpi_redux(
     PMPI_Reduce(red_send_buf, red_recv_buf,
         shared_rec_count, red_type, red_op, 0, mod_comm);
 
-    /* clean up reduction state */
+    /* update module state to account for shared file reduction */
     if(my_rank == 0)
     {
+        /* overwrite local shared records with globally reduced records */
         int tmp_ndx = dfs_rec_count - shared_rec_count;
         memcpy(&(dfs_rec_buf[tmp_ndx]), red_recv_buf,
             shared_rec_count * sizeof(struct darshan_dfs_file));
@@ -1235,6 +1184,7 @@ static void dfs_mpi_redux(
     }
     else
     {
+        /* drop shared records on non-zero ranks */
         dfs_runtime->file_rec_count -= shared_rec_count;
     }
 
@@ -1312,6 +1262,7 @@ static void dfs_cleanup()
 
     free(dfs_runtime);
     dfs_runtime = NULL;
+    dfs_runtime_init_attempted = 0;
 
     DFS_UNLOCK();
     return;
