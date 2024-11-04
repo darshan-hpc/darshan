@@ -146,6 +146,10 @@ make install
 ** NOTE: PnetCDF instrumentation only works on PnetCDF library versions >=1.8
 * `--disable-lustre-mod`: disables compilation and use of Darshan's Lustre
   module (default=enabled)
+* `--enable-daos-mod`: enables compilation and use of Darshan's DAOS module
+  (default=enabled)
+* `--with-daos=DIR`: installation directory for DAOS
+** NOTE: Users must call `--enable-daos-mod` to enable DAOS modules, `--with-daos` is only used to additionally provide a DAOS install prefix.
 * `--enable-mdhim-mod`: enables compilation and use of Darshan's MDHIM module
   (default=disabled)
 * `--enable-ldms-mod`:  enables compilation and use of Darshan’s LDMS runtime module (default=disabled)
