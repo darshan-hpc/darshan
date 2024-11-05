@@ -251,9 +251,6 @@ static void darshan_log_print_dfs_description(int ver)
     printf("#   DFS_F_*_START_TIMESTAMP: timestamp of first open/read/write/close.\n");
     printf("#   DFS_F_*_END_TIMESTAMP: timestamp of last open/read/write/close.\n");
     printf("#   DFS_F_READ/WRITE/META_TIME: cumulative time spent in read, write, or metadata operations.\n");
-    printf("#   DFS_F_*_START_TIMESTAMP: timestamp of first open/read/write/close.\n");
-    printf("#   DFS_F_*_END_TIMESTAMP: timestamp of last open/read/write/close.\n");
-    printf("#   DFS_F_READ/WRITE/META_TIME: cumulative time spent in read, write, or metadata operations.\n");
     printf("#   DFS_F_MAX_*_TIME: duration of the slowest read and write operations.\n");
     printf("#   DFS_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).\n");
 
