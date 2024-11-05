@@ -320,7 +320,7 @@ int main(int argc, char **argv)
         /* always ignore DXT modules -- those have a standalone parsing utility */
         else if (i == DXT_POSIX_MOD || i == DXT_MPIIO_MOD)
             continue;
-        /* currently only POSIX, MPIIO, and STDIO modules support non-base
+        /* currently only POSIX, MPIIO, STDIO, and DAOS modules support non-base
          * parsing
          */
         else if((i != DARSHAN_POSIX_MOD) && (i != DARSHAN_MPIIO_MOD) &&
@@ -455,7 +455,7 @@ int main(int argc, char **argv)
         if(acc)
             darshan_accumulator_emit(acc, &metrics, mod_buf);
 
-        /* we calculate more detailed stats for POSIX, STDIO, MPI-IO, DFS, and DAOS modules,
+        /* we calculate more detailed stats for POSIX, MPI-IO, STDIO, and DAOS modules,
          * if the parser is executed with more than the base option
          */
         if(i != DARSHAN_POSIX_MOD && i != DARSHAN_MPIIO_MOD && i != DARSHAN_STDIO_MOD &&
