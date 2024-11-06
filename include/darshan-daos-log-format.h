@@ -6,8 +6,6 @@
 #ifndef __DARSHAN_DAOS_LOG_FORMAT_H
 #define __DARSHAN_DAOS_LOG_FORMAT_H
 
-#include <uuid/uuid.h>
-
 /* current DAOS log format version */
 #define DARSHAN_DAOS_VER 1
 
@@ -173,8 +171,8 @@ struct darshan_daos_object
     struct darshan_base_record base_rec;
     int64_t counters[DAOS_NUM_INDICES];
     double fcounters[DAOS_F_NUM_INDICES];
-    uuid_t pool_uuid;
-    uuid_t cont_uuid;
+    unsigned char pool_uuid[16];
+    unsigned char cont_uuid[16];
     uint64_t oid_hi;
     uint64_t oid_lo;
 };

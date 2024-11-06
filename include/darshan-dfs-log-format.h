@@ -6,8 +6,6 @@
 #ifndef __DARSHAN_DFS_LOG_FORMAT_H
 #define __DARSHAN_DFS_LOG_FORMAT_H
 
-#include <uuid/uuid.h>
-
 /* current DFS log format version */
 #define DARSHAN_DFS_VER 1
 
@@ -150,8 +148,8 @@ struct darshan_dfs_file
     struct darshan_base_record base_rec;
     int64_t counters[DFS_NUM_INDICES];
     double fcounters[DFS_F_NUM_INDICES];
-    uuid_t pool_uuid;
-    uuid_t cont_uuid;
+    unsigned char pool_uuid[16];
+    unsigned char cont_uuid[16];
 };
 
 #endif /* __DARSHAN_DFS_LOG_FORMAT_H */

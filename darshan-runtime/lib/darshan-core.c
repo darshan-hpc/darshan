@@ -2645,9 +2645,7 @@ void *darshan_core_register_record(
     size_t rec_size,
     struct darshan_fs_info *fs_info)
 {
-    struct darshan_core_name_record_ref *ref;
     void *rec_buf;
-    int ret;
 
     __DARSHAN_CORE_LOCK();
     if(!__darshan_core)
