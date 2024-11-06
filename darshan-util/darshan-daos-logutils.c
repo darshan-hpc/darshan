@@ -16,6 +16,10 @@
 
 #include "darshan-logutils.h"
 
+#ifdef HAVE_LIBUUID
+#include <uuid/uuid.h>
+#endif
+
 /* counter name strings for the DAOS module */
 #define X(a) #a,
 char *daos_counter_names[] = {
@@ -209,14 +213,22 @@ static void darshan_log_print_daos_object(void *object_rec, char *object_name,
     struct darshan_daos_object *daos_object_rec =
         (struct darshan_daos_object *)object_rec;
     char oid[64];
-    char pool_cont_uuid_str[128];
+    char pool_cont_uuid_str[128] = {0};
 
     sprintf(oid, "%lu.%lu", daos_object_rec->oid_hi, daos_object_rec->oid_lo);
     object_name = oid;
 
+#ifdef HAVE_LIBUUID
     uuid_unparse(daos_object_rec->pool_uuid, pool_cont_uuid_str);
+#else
+    strcat(pool_cont_uuid_str, "N/A");
+#endif
     strcat(pool_cont_uuid_str, ":");
+#ifdef HAVE_LIBUUID
     uuid_unparse(daos_object_rec->cont_uuid, pool_cont_uuid_str+strlen(pool_cont_uuid_str));
+#else
+    strcat(pool_cont_uuid_str, "N/A");
+#endif
 
     mnt_pt = pool_cont_uuid_str;
     fs_type = "N/A";

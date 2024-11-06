@@ -40,6 +40,10 @@ if test "x$enable_darshan_util" = xyes ; then
    # bz2 is optional
    CHECK_BZLIB
 
+   # uuid headers/library are optional dependencies for DAOS modules
+   AC_CHECK_HEADER([uuid/uuid.h],
+        [AC_CHECK_LIB([uuid], [uuid_unparse])])
+
    # checks to see how we can print 64 bit values on this architecture
    gt_INTTYPES_PRI
    if test "x$PRI_MACROS_BROKEN" = x1 ; then

@@ -64,8 +64,6 @@ bin_PROGRAMS = darshan-analyzer \
 
 noinst_PROGRAMS = jenkins-hash-gen
 
-# LIBS += @LIBBZ2@
-
 jenkins_hash_gen_SOURCES = jenkins-hash-gen.c lookup3.c
 jenkins_hash_gen_LDADD = libdarshan-util.la
 
