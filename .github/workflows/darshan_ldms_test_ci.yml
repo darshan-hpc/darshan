@@ -33,23 +33,23 @@ jobs:
     - name: Clone LDMS
       uses: actions/checkout@v3
       with:
-        repository: ovis-hpc/ovis
-        path: ovis
-        ref: OVIS-4
+        repository: ovis-hpc/ldms
+        path: ldms
+        ref: main
     - name: Install LDMS
       run: |
-        cd ovis
+        cd ldms
         sh autogen.sh
         set -e && mkdir -p build
         pushd build
-        ../configure --prefix=/opt/ovis-latest --enable-etc
+        ../configure --prefix=/opt/ldms-latest --enable-etc
         make && make install
     - name: Install Darshan
       run: |
         git submodule update --init
         # build darshan against LDMS library
         export DARSHAN_INSTALL_PREFIX=/opt/darshan_install
-        export DARSHAN_RUNTIME_CONFIG_ARGS="--enable-ldms-mod --with-ldms=/opt/ovis-latest --with-jobid-env=NONE"
+        export DARSHAN_RUNTIME_CONFIG_ARGS="--enable-ldms-mod --with-ldms=/opt/ldms-latest --with-jobid-env=NONE"
         darshan-test/automated/build-darshan.sh
     - name: Test Preparation and Run
       run : |
@@ -95,7 +95,7 @@ jobs:
         EOF
         echo "---starting ldmsd---"
         cat > ldmsd-latest.sh << EOF
-        . /opt/ovis-latest/etc/profile.d/set-ovis-variables.sh
+        . /opt/ldms-latest/etc/profile.d/set-ovis-variables.sh
         ldmsd \$@ &
         EOF
         chmod 755 ldmsd-latest.sh
@@ -105,7 +105,7 @@ jobs:
         pgrep -a ldmsd
         [[ -n "${STREAM_SAMP_LATEST_PID}" ]] || error "stream-samp-latest.log is not running"
         cat > ldms_ls-latest.sh << EOF
-        . /opt/ovis-latest/etc/profile.d/set-ovis-variables.sh
+        . /opt/ldms-latest/etc/profile.d/set-ovis-variables.sh
         ldms_ls \$@ &
         EOF
         chmod 755 ldms_ls-latest.sh
