@@ -11,15 +11,6 @@ def agg_ioops(self, mode='append'):
         None or dict: Depending on mode
     """
 
-    series = [
-        {'name': 'POSIX', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] }, 
-        {'name': 'MPI-IO Indep.', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] }, 
-        {'name': 'MPI-IO Coll.', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] },
-        {'name': 'STDIO', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] },
-        {'name': 'DFS', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] },
-    ]
-
-
     # convienience
     recs = self.records
     ctx = {}
@@ -121,6 +112,11 @@ def agg_ioops(self, mode='append'):
                 'Writex': agg[mod + '_WRITEXS'],
                 'Open':  agg[mod + '_OPENS'],
                 'GlobalOpen':  agg[mod + '_GLOBAL_OPENS'],
+                'Lookup':  agg[mod + '_LOOKUPS'],
+                'Get Size':  agg[mod + '_GET_SIZES'],
+                'Punch':  agg[mod + '_PUNCHES'],
+                'Remove':  agg[mod + '_REMOVES'],
+                'Stat':  agg[mod + '_STATS'],
             }
             ctx[mod] = agg
             ctx[mod + '_simple'] = tmp

@@ -14,7 +14,7 @@ darshan.enable_experimental()
     "log_path, mod, func, expected_xticklabels",
     [
         (
-            "snyders_ior-DFS_id531897-30546_8-18-57619-12789084789544057019_1.darshan",
+            "snyder_ior-DFS_id1057716-201712_11-8-64400-1922568413188514066_1.darshan",
             "DFS",
             plot_access_histogram,
             ["0-100", "101-1K", "1K-10K", "10K-100K", "100K-1M",
@@ -72,10 +72,10 @@ darshan.enable_experimental()
             "1M-4M", "4M-10M", "10M-100M", "100M-1G", "1G+"],
         ),
         (
-            "snyders_ior-DFS_id531897-30546_8-18-57619-12789084789544057019_1.darshan",
+            "snyder_ior-DFS_id1057716-201712_11-8-64400-1922568413188514066_1.darshan",
             "DFS",
             plot_opcounts,
-            ['Read', 'Readx', 'Write', 'Writex', 'Open', 'GlobalOpen'],
+            ['Read', 'Readx', 'Write', 'Writex', 'Open', 'GlobalOpen', 'Lookup', 'Get Size', 'Punch', 'Remove', 'Stat'],
         ),
         (
             "dxt.darshan",
