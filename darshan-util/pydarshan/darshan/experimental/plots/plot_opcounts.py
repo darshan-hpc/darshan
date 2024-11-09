@@ -49,16 +49,6 @@ def gather_count_data(report, mod):
             0, # faulty? mod_data['POSIX_MMAPS'],
             mod_data['POSIX_FSYNCS'] + mod_data['POSIX_FDSYNCS']
         ]
-    elif mod == 'DFS':
-        labels = ['Read', 'Readx', 'Write', 'Writex', 'Open', 'GlobalOpen']
-        counts = [
-            mod_data['DFS_READS'],
-            mod_data['DFS_READXS'],
-            mod_data['DFS_WRITES'],
-            mod_data['DFS_WRITEXS'],
-            mod_data['DFS_OPENS'],
-            mod_data['DFS_GLOBAL_OPENS'],
-        ]
 
     # Gather MPIIO
     elif mod == 'MPI-IO':
@@ -162,6 +152,22 @@ def gather_count_data(report, mod):
             report.summary['agg_ioops']['PNETCDF_FILE']['PNETCDF_FILE_SYNCS'],
             report.summary['agg_ioops']['PNETCDF_FILE']['PNETCDF_FILE_INDEP_WAITS'],
             report.summary['agg_ioops']['PNETCDF_FILE']['PNETCDF_FILE_COLL_WAITS'],
+        ]
+
+    elif mod == 'DFS':
+        labels = ['Read', 'Readx', 'Write', 'Writex', 'Open', 'GlobalOpen', 'Lookup', 'Get Size', 'Punch', 'Remove', 'Stat']
+        counts = [
+            mod_data['DFS_READS'],
+            mod_data['DFS_READXS'],
+            mod_data['DFS_WRITES'],
+            mod_data['DFS_WRITEXS'],
+            mod_data['DFS_OPENS'],
+            mod_data['DFS_GLOBAL_OPENS'],
+            mod_data['DFS_LOOKUPS'],
+            mod_data['DFS_GET_SIZES'],
+            mod_data['DFS_PUNCHES'],
+            mod_data['DFS_REMOVES'],
+            mod_data['DFS_STATS'],
         ]
 
     return labels, counts

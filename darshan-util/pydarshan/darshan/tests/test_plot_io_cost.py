@@ -57,15 +57,15 @@ from darshan.experimental.plots.plot_io_cost import (
             ),
         ),
         (
-            "snyders_ior-DFS_id531897-30546_8-18-57619-12789084789544057019_1.darshan",
+            "snyder_ior-DFS_id1057716-201712_11-8-64400-1922568413188514066_1.darshan",
             pd.DataFrame(
                 np.array([
-                    [0.0, 0, 6.973743438720703e-06],
-                    [0, 3.337860107421875e-05, 0.0],
-                    [0.001381218433380127, 0.009676456451416016, 0.028002262115478516],
+                    [0.0, 0.0, 0.0, 0.0],
+                    [0.0, 4.515051841e-06, 0.0, 0.0],
+                    [0.001456562, 0.002266062, 0.007923812, 0.0],
                 ]),
                 ["POSIX", "STDIO", "DFS"],
-                ["Read", "Write", "Meta"],
+                ["Read", "Write", "Meta", "Wait"],
             ),
         ),
     ],
@@ -100,8 +100,8 @@ def test_get_io_cost_df(logname, expected_df):
             [0.0, 1111.0],
         ),
         (
-            "snyders_ior-DFS_id531897-30546_8-18-57619-12789084789544057019_1.darshan",
-            [0.0, 1],
+            "snyder_ior-DFS_id1057716-201712_11-8-64400-1922568413188514066_1.darshan",
+            [0.0, 0.80276728],
         ),
     ],
 )
@@ -121,27 +121,27 @@ def test_plot_io_cost_ylims(logname, expected_ylims):
             assert_allclose(actual_ylims, [0.0, 100.0])
 
 @pytest.mark.parametrize(
-    "logname, expected_yticks", [
+    "logname, expected_yticks, expected_yticklabels", [
         (
             "ior_hdf5_example.darshan",
             [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+            ['0.0', '0.2', '0.4', '0.6', '0.8', '1.0'],
         ),
         (
             "sample-badost.darshan",
             [0, 156, 312, 468, 624, 780],
+            ['0', '156', '312', '468', '624', '780'],
         ),
         (
-            "snyders_ior-DFS_id531897-30546_8-18-57619-12789084789544057019_1.darshan",
-            [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+            "snyder_ior-DFS_id1057716-201712_11-8-64400-1922568413188514066_1.darshan",
+            [0.0 , 0.16055346, 0.32110691, 0.48166037, 0.64221382, 0.80276728],
+            ['0.0000' , '0.1606', '0.3211', '0.4817', '0.6422', '0.8028'],
         ),
     ],
 )
-def test_plot_io_cost_y_ticks_and_labels(logname, expected_yticks):
+def test_plot_io_cost_y_ticks_and_labels(logname, expected_yticks, expected_yticklabels):
     # check the y-axis tick marks are at the appropriate
     # locations and the labels are as expected
-
-    # create the expected y-axis tick labels from the y ticks
-    expected_yticklabels = [str(i) for i in expected_yticks]
 
     logpath = get_log_path(logname)
     with darshan.DarshanReport(logpath) as report:

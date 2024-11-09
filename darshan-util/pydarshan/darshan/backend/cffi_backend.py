@@ -87,6 +87,7 @@ _structdefs = {
     "PNETCDF_VAR": "struct darshan_pnetcdf_var **",
     "POSIX": "struct darshan_posix_file **",
     "DFS": "struct darshan_dfs_file **",
+    "DAOS": "struct darshan_daos_object **",
     "STDIO": "struct darshan_stdio_file **",
     "APXC-HEADER": "struct darshan_apxc_header_record **",
     "APXC-PERF": "struct darshan_apxc_perf_record **",
