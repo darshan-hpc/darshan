@@ -25,6 +25,7 @@
 #include "uthash.h"
 #include "darshan.h"
 #include "darshan-dynamic.h"
+#include "darshan-heatmap.h"
 
 #include <daos_types.h>
 #include <daos_prop.h>
@@ -119,6 +120,7 @@ struct daos_runtime
     void *rec_id_hash;
     void *oh_hash;
     int obj_rec_count;
+    darshan_record_id heatmap_id;
     int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
@@ -227,6 +229,8 @@ static int my_rank = -1;
     int64_t __tmp_sz = (int64_t)__sz; \
     struct darshan_common_val_counter *__cvc; \
     double __elapsed = __tm2-__tm1; \
+    /* heatmap to record traffic summary */ \
+    heatmap_update(daos_runtime->heatmap_id, HEATMAP_READ, __tmp_sz, __tm1, __tm2); \
     __rec_ref->object_rec->counters[__counter] += 1; \
     __rec_ref->object_rec->counters[DAOS_BYTES_READ] += __sz; \
     DARSHAN_BUCKET_INC(&(__rec_ref->object_rec->counters[DAOS_SIZE_READ_0_100]), __sz); \
@@ -255,6 +259,8 @@ static int my_rank = -1;
     int64_t __tmp_sz = (int64_t)__sz; \
     struct darshan_common_val_counter *__cvc; \
     double __elapsed = __tm2-__tm1; \
+    /* heatmap to record traffic summary */ \
+    heatmap_update(daos_runtime->heatmap_id, HEATMAP_WRITE, __tmp_sz, __tm1, __tm2); \
     __rec_ref->object_rec->counters[__counter] += 1; \
     __rec_ref->object_rec->counters[DAOS_BYTES_WRITTEN] += __sz; \
     DARSHAN_BUCKET_INC(&(__rec_ref->object_rec->counters[DAOS_SIZE_WRITE_0_100]), __sz); \
@@ -1144,6 +1150,9 @@ static void daos_runtime_initialize()
         return;
     }
     memset(daos_runtime, 0, sizeof(*daos_runtime));
+
+    /* register a heatmap */
+    daos_runtime->heatmap_id = heatmap_register("heatmap:DAOS");
 
     return;
 }

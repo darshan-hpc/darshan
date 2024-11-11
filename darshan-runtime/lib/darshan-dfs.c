@@ -25,6 +25,7 @@
 #include "uthash.h"
 #include "darshan.h"
 #include "darshan-dynamic.h"
+#include "darshan-heatmap.h"
 
 #include <daos_types.h>
 #include <daos_prop.h>
@@ -102,6 +103,7 @@ struct dfs_runtime
     void *rec_id_hash;
     void *file_obj_hash;
     int file_rec_count;
+    darshan_record_id heatmap_id;
     int frozen; /* flag to indicate that the counters should no longer be modified */
 };
 
@@ -245,6 +247,8 @@ static int my_rank = -1;
     daos_size_t __chunk_size; \
     __rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &__obj, sizeof(obj)); \
     if(!__rec_ref) break; \
+    /* heatmap to record traffic summary */ \
+    heatmap_update(dfs_runtime->heatmap_id, HEATMAP_READ, __sz, __tm1, __tm2); \
     __rec_ref->file_rec->counters[__counter] += 1; \
     if(__ev) \
         __rec_ref->file_rec->counters[DFS_NB_READS] += 1; \
@@ -282,6 +286,8 @@ static int my_rank = -1;
     daos_size_t __chunk_size; \
     __rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &__obj, sizeof(obj)); \
     if(!__rec_ref) break; \
+    /* heatmap to record traffic summary */ \
+    heatmap_update(dfs_runtime->heatmap_id, HEATMAP_WRITE, __sz, __tm1, __tm2); \
     __rec_ref->file_rec->counters[__counter] += 1; \
     if(__ev) \
         __rec_ref->file_rec->counters[DFS_NB_WRITES] += 1; \
@@ -840,6 +846,9 @@ static void dfs_runtime_initialize()
         return;
     }
     memset(dfs_runtime, 0, sizeof(*dfs_runtime));
+
+    /* register a heatmap */
+    dfs_runtime->heatmap_id = heatmap_register("heatmap:DFS");
 
     return;
 }
