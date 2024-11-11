@@ -143,6 +143,7 @@ def test_dfs_daos_posix_match():
         elif daos_column_name in ["DAOS_READS", "DAOS_WRITES"]:
             daos_column_name = daos_column_name.replace("DAOS", "DAOS_ARRAY")
         daos_data = daos_data_dict[daos_column_name]
+        assert_allclose(dfs_data.values, daos_data.values)
         if column_name.endswith("BYTES_WRITTEN"):
             # we know the hardcoded value for certain
             # 256 KiB * 16
