@@ -16,7 +16,7 @@ def agg_ioops(self, mode='append'):
     ctx = {}
 
     # aggregate
-    mods = ['MPI-IO', 'POSIX', 'STDIO', "H5F", "H5D", "PNETCDF_VAR", "PNETCDF_FILE", "DFS"]
+    mods = ['MPI-IO', 'POSIX', 'STDIO', "H5F", "H5D", "PNETCDF_VAR", "PNETCDF_FILE", "DFS", "DAOS"]
     for mod in mods:
 
         # check records for module are present
@@ -117,6 +117,21 @@ def agg_ioops(self, mode='append'):
                 'Punch':  agg[mod + '_PUNCHES'],
                 'Remove':  agg[mod + '_REMOVES'],
                 'Stat':  agg[mod + '_STATS'],
+            }
+            ctx[mod] = agg
+            ctx[mod + '_simple'] = tmp
+
+        elif mod == "DAOS":
+            tmp = {
+                'Obj Fetches':  agg[mod + '_OBJ_FETCHES'],
+                'Obj Updates':  agg[mod + '_OBJ_UPDATES'],
+                'Obj Opens':  agg[mod + '_OBJ_OPENS'],
+                'Array Reads':  agg[mod + '_ARRAY_READS'],
+                'Array Writes':  agg[mod + '_ARRAY_WRITES'],
+                'Array Opens':  agg[mod + '_ARRAY_OPENS'],
+                'KV Gets':  agg[mod + '_KV_PUTS'],
+                'KV Puts':  agg[mod + '_KV_GETS'],
+                'KV Opens':  agg[mod + '_KV_OPENS'],
             }
             ctx[mod] = agg
             ctx[mod + '_simple'] = tmp

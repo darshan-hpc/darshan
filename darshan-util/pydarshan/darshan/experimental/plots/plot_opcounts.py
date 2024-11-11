@@ -170,6 +170,20 @@ def gather_count_data(report, mod):
             mod_data['DFS_STATS'],
         ]
 
+    elif mod == 'DAOS':
+        labels = ['ObjFetch', 'ObjUpdate', 'ObjOpen', 'ArrRead', 'ArrWrite', 'ArrOpen', 'KVGet', 'KVPut', 'KVOpen']
+        counts = [
+            mod_data['DAOS_OBJ_FETCHES'],
+            mod_data['DAOS_OBJ_UPDATES'],
+            mod_data['DAOS_OBJ_OPENS'],
+            mod_data['DAOS_ARRAY_READS'],
+            mod_data['DAOS_ARRAY_WRITES'],
+            mod_data['DAOS_ARRAY_OPENS'],
+            mod_data['DAOS_KV_GETS'],
+            mod_data['DAOS_KV_PUTS'],
+            mod_data['DAOS_KV_OPENS'],
+        ]
+
     return labels, counts
 
 def plot_opcounts(report, mod, ax=None):
