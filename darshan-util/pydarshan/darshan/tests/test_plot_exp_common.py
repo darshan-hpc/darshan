@@ -14,14 +14,14 @@ darshan.enable_experimental()
     "log_path, mod, func, expected_xticklabels",
     [
         (
-            "snyder_ior-DFS_id1057716-201712_11-8-64400-1922568413188514066_1.darshan",
+            "snyder_ior-DFS_id1069383-23981_11-11-71996-14940917661149127511_1.darshan",
             "DFS",
             plot_access_histogram,
             ["0-100", "101-1K", "1K-10K", "10K-100K", "100K-1M",
             "1M-4M", "4M-10M", "10M-100M", "100M-1G", "1G+"]
         ),
         (
-            "snyder_ior-DFS_id1057716-201712_11-8-64400-1922568413188514066_1.darshan",
+            "snyder_ior-DFS_id1069383-23981_11-11-71996-14940917661149127511_1.darshan",
             "DAOS",
             plot_access_histogram,
             ["0-100", "101-1K", "1K-10K", "10K-100K", "100K-1M",
@@ -79,13 +79,13 @@ darshan.enable_experimental()
             "1M-4M", "4M-10M", "10M-100M", "100M-1G", "1G+"],
         ),
         (
-            "snyder_ior-DFS_id1057716-201712_11-8-64400-1922568413188514066_1.darshan",
+            "snyder_ior-DFS_id1069383-23981_11-11-71996-14940917661149127511_1.darshan",
             "DFS",
             plot_opcounts,
             ['Read', 'Readx', 'Write', 'Writex', 'Open', 'GlobalOpen', 'Lookup', 'Get Size', 'Punch', 'Remove', 'Stat'],
         ),
         (
-            "snyder_ior-DFS_id1057716-201712_11-8-64400-1922568413188514066_1.darshan",
+            "snyder_ior-DFS_id1069383-23981_11-11-71996-14940917661149127511_1.darshan",
             "DAOS",
             plot_opcounts,
             ['ObjFetch', 'ObjUpdate', 'ObjOpen', 'ArrRead', 'ArrWrite', 'ArrOpen', 'KVGet', 'KVPut', 'KVOpen'],

@@ -499,7 +499,7 @@ class TestReportData:
                 2,
             ),
             (
-                "snyder_ior-DFS_id1057716-201712_11-8-64400-1922568413188514066_1.darshan",
+                "snyder_ior-DFS_id1069383-23981_11-11-71996-14940917661149127511_1.darshan",
                 pd.DataFrame(
                     index=[
                         "Log Filename", "Runtime Library Version", "Log Format Version",
@@ -508,9 +508,9 @@ class TestReportData:
                         "DFS (ver=1)", "DAOS (ver=1)"
                     ],
                     data=[
-                        ["snyder_ior-DFS_id1057716-201712_11-8-64400-1922568413188514066_1.darshan"], ["3.4.7"], ["3.41"],
-                        ["0.07 KiB"], ["0.07 KiB"], ["0.05 KiB"],
-                        ["0.17 KiB"], ["0.39 KiB"],
+                        ["snyder_ior-DFS_id1069383-23981_11-11-71996-14940917661149127511_1.darshan"], ["3.4.7"], ["3.41"],
+                        ["0.08 KiB"], ["0.07 KiB"], ["1.09 KiB"],
+                        ["0.17 KiB"], ["0.40 KiB"],
                     ],
                 ),
                 0,
