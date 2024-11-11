@@ -188,7 +188,7 @@ static int my_rank = -1;
 #define DAOS_GET_POOLCONT_INFO(__coh, __poolcont_info) \
     HASH_FIND(hlink, daos_runtime->poolcont_hash, &__coh, sizeof(__coh), __poolcont_info)
 
-#define DFS_FREE_POOLCONT_INFO(__poolcont_info) do { \
+#define DAOS_FREE_POOLCONT_INFO(__poolcont_info) do { \
     HASH_DELETE(hlink, daos_runtime->poolcont_hash, __poolcont_info); \
     free(__poolcont_info); \
 } while(0)
@@ -346,7 +346,7 @@ int DARSHAN_DECL(daos_cont_close)(daos_handle_t coh, daos_event_t *ev)
         {
             DAOS_GET_POOLCONT_INFO(coh, poolcont_info);
             if(poolcont_info)
-                DFS_FREE_POOLCONT_INFO(poolcont_info);
+                DAOS_FREE_POOLCONT_INFO(poolcont_info);
         }
         DAOS_UNLOCK();
     }
@@ -1510,12 +1510,54 @@ static void daos_output(
     void **daos_buf, int *daos_buf_sz)
 {
     int daos_rec_count;
+    struct darshan_daos_object *daos_rec_buf = *(struct darshan_daos_object **)daos_buf;
+    int i, j;
+    int ops;
 
     DAOS_LOCK();
     assert(daos_runtime);
 
-    /* just pass back our updated total buffer size -- no need to update buffer */
     daos_rec_count = daos_runtime->obj_rec_count;
+
+    /* filter out records that have been opened, but don't have any
+     * I/O operations
+     */
+    for(i=0; i<daos_rec_count; i++)
+    {
+        for(j=DAOS_OBJ_FETCHES; j<=DAOS_OBJ_RECX_LISTS; j++)
+        {
+            ops = daos_rec_buf[i].counters[j];
+            if(ops) break;
+        }
+        if(!ops)
+        {
+            for(j=DAOS_ARRAY_READS; j<=DAOS_ARRAY_DESTROYS; j++)
+            {
+                ops = daos_rec_buf[i].counters[j];
+                if(ops) break;
+            }
+        }
+        if(!ops)
+        {
+            for(j=DAOS_KV_GETS; j<=DAOS_KV_DESTROYS; j++)
+            {
+                ops = daos_rec_buf[i].counters[j];
+                if(ops) break;
+            }
+        }
+        if(!ops)
+        {
+            if(i != (daos_rec_count-1))
+            {
+                memmove(&daos_rec_buf[i], &daos_rec_buf[i+1],
+                    (daos_rec_count-i-1)*sizeof(daos_rec_buf[i]));
+                i--;
+            }
+            daos_rec_count--;
+        }
+    }
+
+    /* just pass back our updated total buffer size -- no need to update buffer */
     *daos_buf_sz = daos_rec_count * sizeof(struct darshan_daos_object);
 
     daos_runtime->frozen = 1;
