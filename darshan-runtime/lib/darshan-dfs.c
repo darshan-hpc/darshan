@@ -1214,7 +1214,6 @@ static void dfs_output(
      */
     for(i=0; i<dfs_rec_count; i++)
     {
-        ops = 0;
         for(j=DFS_READS; j<=DFS_STATS; j++)
         {
             ops = dfs_rec_buf[i].counters[j];
