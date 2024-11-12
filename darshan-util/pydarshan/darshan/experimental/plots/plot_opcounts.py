@@ -171,17 +171,37 @@ def gather_count_data(report, mod):
         ]
 
     elif mod == 'DAOS':
-        labels = ['ObjFetch', 'ObjUpdate', 'ObjOpen', 'ArrRead', 'ArrWrite', 'ArrOpen', 'KVGet', 'KVPut', 'KVOpen']
+        labels = ['ObjFetch', 'ObjUpdate', 'ObjOpen',
+                  'ObjPunch', 'ObjDkeyPunch', 'ObjAkeyPunch', 'ObjDkeyList', 'ObjAkeyList', 'ObjRecxList',
+                  'ArrRead', 'ArrWrite', 'ArrOpen',
+                  'ArrGetSize', 'ArrSetSize', 'ArrStat', 'ArrPunch', 'ArrDestroy',
+                  'KVGet', 'KVPut', 'KVOpen',
+                  'KVRemove', 'KVList', 'KVDestroy',
+                 ]
         counts = [
             mod_data['DAOS_OBJ_FETCHES'],
             mod_data['DAOS_OBJ_UPDATES'],
             mod_data['DAOS_OBJ_OPENS'],
+            mod_data['DAOS_OBJ_PUNCHES'],
+            mod_data['DAOS_OBJ_DKEY_PUNCHES'],
+            mod_data['DAOS_OBJ_AKEY_PUNCHES'],
+            mod_data['DAOS_OBJ_DKEY_LISTS'],
+            mod_data['DAOS_OBJ_AKEY_LISTS'],
+            mod_data['DAOS_OBJ_RECX_LISTS'],
             mod_data['DAOS_ARRAY_READS'],
             mod_data['DAOS_ARRAY_WRITES'],
             mod_data['DAOS_ARRAY_OPENS'],
+            mod_data['DAOS_ARRAY_GET_SIZES'],
+            mod_data['DAOS_ARRAY_SET_SIZES'],
+            mod_data['DAOS_ARRAY_STATS'],
+            mod_data['DAOS_ARRAY_PUNCHES'],
+            mod_data['DAOS_ARRAY_DESTROYS'],
             mod_data['DAOS_KV_GETS'],
             mod_data['DAOS_KV_PUTS'],
             mod_data['DAOS_KV_OPENS'],
+            mod_data['DAOS_KV_REMOVES'],
+            mod_data['DAOS_KV_LISTS'],
+            mod_data['DAOS_KV_DESTROYS'],
         ]
 
     return labels, counts
