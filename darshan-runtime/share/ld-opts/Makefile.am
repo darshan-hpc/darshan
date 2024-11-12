@@ -28,6 +28,9 @@ endif
 if BUILD_MDHIM_MODULE
    dist_ld_opts_DATA += darshan-mdhim-ld-opts
 endif
+if BUILD_DAOS_MODULE
+   dist_ld_opts_DATA += darshan-dfs-ld-opts darshan-daos-ld-opts
+endif
 if BUILD_APMPI_MODULE
    nodist_ld_opts_DATA += autoperf-apmpi-ld-opts
    BUILT_SOURCES += autoperf-apmpi-ld-opts
@@ -56,6 +59,10 @@ if BUILD_HDF5_MODULE
 endif
 if BUILD_MDHIM_MODULE
 	echo '@$(datadir)/ld-opts/darshan-mdhim-ld-opts' >> $@
+endif
+if BUILD_DAOS_MODULE
+	echo '@$(datadir)/ld-opts/darshan-dfs-ld-opts' >> $@
+	echo '@$(datadir)/ld-opts/darshan-daos-ld-opts' >> $@
 endif
 if BUILD_APMPI_MODULE
 	echo '@$(datadir)/ld-opts/autoperf-apmpi-ld-opts' >> $@

@@ -11,20 +11,12 @@ def agg_ioops(self, mode='append'):
         None or dict: Depending on mode
     """
 
-    series = [
-        {'name': 'POSIX', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] }, 
-        {'name': 'MPI-IO Indep.', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] }, 
-        {'name': 'MPI-IO Coll.', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] },
-        {'name': 'STDIO', 'type': 'bar', 'data': [0, 0, 0, 0, 0, 0, 0] }
-    ]
-
-
     # convienience
     recs = self.records
     ctx = {}
 
-    # aggragate
-    mods = ['MPI-IO', 'POSIX', 'STDIO', "H5F", "H5D", "PNETCDF_VAR", "PNETCDF_FILE"]
+    # aggregate
+    mods = ['MPI-IO', 'POSIX', 'STDIO', "H5F", "H5D", "PNETCDF_VAR", "PNETCDF_FILE", "DFS", "DAOS"]
     for mod in mods:
 
         # check records for module are present
@@ -108,6 +100,52 @@ def agg_ioops(self, mode='append'):
                 'Sync':  agg[mod + '_SYNCS'],
                 'Ind Wait':  agg[mod + '_INDEP_WAITS'],
                 'Coll Wait':  agg[mod + '_COLL_WAITS'],
+            }
+            ctx[mod] = agg
+            ctx[mod + '_simple'] = tmp
+
+        elif mod == "DFS":
+            tmp = {
+                'Read':  agg[mod + '_READS'],
+                'Readx':  agg[mod + '_READXS'],
+                'Write': agg[mod + '_WRITES'],
+                'Writex': agg[mod + '_WRITEXS'],
+                'Open':  agg[mod + '_OPENS'],
+                'GlobalOpen':  agg[mod + '_GLOBAL_OPENS'],
+                'Lookup':  agg[mod + '_LOOKUPS'],
+                'Get Size':  agg[mod + '_GET_SIZES'],
+                'Punch':  agg[mod + '_PUNCHES'],
+                'Remove':  agg[mod + '_REMOVES'],
+                'Stat':  agg[mod + '_STATS'],
+            }
+            ctx[mod] = agg
+            ctx[mod + '_simple'] = tmp
+
+        elif mod == "DAOS":
+            tmp = {
+                'Obj Fetches':  agg[mod + '_OBJ_FETCHES'],
+                'Obj Updates':  agg[mod + '_OBJ_UPDATES'],
+                'Obj Opens':  agg[mod + '_OBJ_OPENS'],
+                'Obj Punches':  agg[mod + '_OBJ_PUNCHES'],
+                'Obj Dkey Punches':  agg[mod + '_OBJ_DKEY_PUNCHES'],
+                'Obj Akey Punches':  agg[mod + '_OBJ_AKEY_PUNCHES'],
+                'Obj Dkey Lists':  agg[mod + '_OBJ_DKEY_LISTS'],
+                'Obj Akey Lists':  agg[mod + '_OBJ_AKEY_LISTS'],
+                'Obj Recx Lists':  agg[mod + '_OBJ_RECX_LISTS'],
+                'Array Reads':  agg[mod + '_ARRAY_READS'],
+                'Array Writes':  agg[mod + '_ARRAY_WRITES'],
+                'Array Opens':  agg[mod + '_ARRAY_OPENS'],
+                'Array Get Sizes':  agg[mod + '_ARRAY_GET_SIZES'],
+                'Array Set Sizes':  agg[mod + '_ARRAY_SET_SIZES'],
+                'Array Stats':  agg[mod + '_ARRAY_STATS'],
+                'Array Punches':  agg[mod + '_ARRAY_PUNCHES'],
+                'Array Destroys':  agg[mod + '_ARRAY_DESTROYS'],
+                'KV Gets':  agg[mod + '_KV_PUTS'],
+                'KV Puts':  agg[mod + '_KV_GETS'],
+                'KV Opens':  agg[mod + '_KV_OPENS'],
+                'KV Removes':  agg[mod + '_KV_REMOVES'],
+                'KV Lists':  agg[mod + '_KV_LISTS'],
+                'KV Destroys':  agg[mod + '_KV_DESTROYS'],
             }
             ctx[mod] = agg
             ctx[mod + '_simple'] = tmp

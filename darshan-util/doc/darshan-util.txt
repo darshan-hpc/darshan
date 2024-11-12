@@ -480,6 +480,121 @@ value of 1 MiB for optimal file alignment.
 | PNETCDF_VAR_FILE_REC_ID | Darshan file record ID of the file the variable belongs to
 |====
 
+.Lustre module (if enabled, for Lustre file systems)
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| LUSTRE_NUM_COMPONENTS | number of instrumented components in the Lustre layout
+| LUSTRE_NUM_STRIPES | number of active stripes in the Lustre layout components
+| LUSTRE_COMP*_STRIPE_SIZE | stripe size for this file layout component in bytes
+| LUSTRE_COMP*_STRIPE_COUNT | number of OSTs over which the file layout component is striped
+| LUSTRE_COMP*_STRIPE_PATTERN | pattern (e.g., raid0, mdt, overstriped) for this file layout component
+| LUSTRE_COMP*_FLAGS | captured flags (e.g. init, prefwr, stale) for this file layout component
+| LUSTRE_COMP*_EXT_START | starting file extent for this file layout component
+| LUSTRE_COMP*_EXT_END | ending file extent for this file layout component (-1 means EOF)
+| LUSTRE_COMP*_MIRROR_ID | mirror ID for this file layout component, if mirrors are enabled
+| LUSTRE_COMP*_POOL_NAME | Lustre OST pool used for this file layout component
+| LUSTRE_COMP*\_OST_ID_* | indices of OSTs over which this file layout component is striped
+|====
+
+.DFS (DAOS File System) module (if enabled)
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| DFS_OPENS | DFS file open operation counts
+| DFS_GLOBAL_OPENS | DFS file global open operation (i.e., `dfs_obj_global2local()`) counts
+| DFS_LOOKUPS | DFS file lookup operation counts
+| DFS_DUPS | DFS file dup operation counts
+| DFS_READS | DFS file read operation counts
+| DFS_READXS | DFS non-contiguous file read operation counts
+| DFS_WRITES | DFS file write operation counts
+| DFS_WRITEXS | DFS non-contiguous file write operation counts
+| DFS_NB_READS | DFS non-blocking file read operation counts (included in read/readx counts)
+| DFS_NB_WRITES | DFS non-blocking file write operation counts (included in write/writex counts)
+| DFS_GET_SIZES | DFS file get size operation counts
+| DFS_PUNCHES | DFS file punch operation counts
+| DFS_REMOVES | DFS file remove operation counts
+| DFS_STATS | DFS file stat operation counts
+| DFS_BYTES_READ | Total number of bytes that were read from the DFS file
+| DFS_BYTES_WRITTEN | Total number of bytes that were written to the DFS file
+| DFS_RW_SWITCHES | Number of times that access toggled between read and write in consecutive operations
+| DFS_MAX_READ_TIME_SIZE | Size of the slowest DFS read operation
+| DFS_MAX_WRITE_TIME_SIZE | Size of the slowest DFS write operation
+| DFS_SIZE_READ_* | Histogram of read access sizes at DFS level
+| DFS_SIZE_WRITE_* | Histogram of write access sizes at DFS level
+| DFS_ACCESS[1-4]_ACCESS | 4 most common DFS access sizes
+| DFS_ACCESS[1-4]_COUNT | Count of 4 most common DFS access sizes
+| DFS_CHUNK_SIZE | DFS file chunk size
+| DFS_FASTEST_RANK | The MPI rank with smallest time spent in DFS I/O (cumulative read, write, and meta times)
+| DFS_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in DFS I/O (cumulative read, write, and meta times)
+| DFS_SLOWEST_RANK | The MPI rank with largest time spent in DFS I/O (cumulative read, write, and meta times)
+| DFS_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in DFS I/O (cumulative read, write, and meta times)
+| DFS_F_*_START_TIMESTAMP | Timestamp that the first DFS file open/read/write/close operation began
+| DFS_F_*_END_TIMESTAMP | Timestamp that the last DFS file open/read/write/close operation ended
+| DFS_F_READ_TIME | Cumulative time spent reading at the DFS level
+| DFS_F_WRITE_TIME | Cumulative time spent writing at the DFS level
+| DFS_F_META_TIME | Cumulative time spent in open, dup, lookup, get size, punch, release, remove, and stat at the DFS level
+| DFS_F_MAX_READ_TIME | Duration of the slowest individual DFS read operation
+| DFS_F_MAX_WRITE_TIME | Duration of the slowest individual DFS write operation
+| DFS_F_FASTEST_RANK_TIME | The time of the rank which had the smallest amount of time spent in DFS I/O (cumulative read, write, and meta times)
+| DFS_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in DFS I/O (cumulative read, write, and meta times)
+|====
+
+.DAOS module (if enabled)
+[cols="40%,60%",options="header"]
+|====
+| counter name | description
+| DAOS_OBJ_OPENS | DAOS object open operation counts
+| DAOS_OBJ_FETCHES | DAOS object fetch operation counts
+| DAOS_OBJ_UPDATES | DAOS object update operation counts
+| DAOS_OBJ_UPDATES | DAOS object update operation counts
+| DAOS_OBJ_PUNCHES | DAOS object punch operation counts
+| DAOS_OBJ_DKEY_PUNCHES | DAOS object dkey punch operation counts
+| DAOS_OBJ_AKEY_PUNCHES | DAOS object akey punch operation counts
+| DAOS_OBJ_DKEY_LISTS | DAOS object dkey list operation counts
+| DAOS_OBJ_AKEY_LISTS | DAOS object akey list operation counts
+| DAOS_OBJ_RECX_LISTS | DAOS object recx list operation counts
+| DAOS_ARRAY_OPENS | DAOS array object open operation counts
+| DAOS_ARRAY_READS | DAOS array object read operation counts
+| DAOS_ARRAY_WRITES | DAOS array object write operation counts
+| DAOS_ARRAY_GET_SIZES | DAOS array object get size operation counts
+| DAOS_ARRAY_SET_SIZES | DAOS array object set size operation counts
+| DAOS_ARRAY_STATS | DAOS array object stat operation counts
+| DAOS_ARRAY_PUNCHES | DAOS array object punch operation counts
+| DAOS_ARRAY_DESTROYS | DAOS array object destroy operation counts
+| DAOS_KV_OPENS | DAOS kv object open operation counts
+| DAOS_KV_GETS | DAOS kv object get operation counts
+| DAOS_KV_PUTS | DAOS kv object put operation counts
+| DAOS_KV_REMOVES | DAOS kv object remove operation counts
+| DAOS_KV_LISTS | DAOS kv object list operation counts
+| DAOS_KV_DESTROYS | DAOS kv object destroy operation counts
+| DAOS_BYTES_READ | Total number of bytes that were read from the DAOS object
+| DAOS_BYTES_WRITTEN | Total number of bytes that were written to the DAOS object
+| DAOS_RW_SWITCHES | Number of times that access toggled between read and write in consecutive operations
+| DAOS_MAX_READ_TIME_SIZE | Size of the slowest DAOS read operation
+| DAOS_MAX_WRITE_TIME_SIZE | Size of the slowest DAOS write operation
+| DAOS_SIZE_READ_* | Histogram of read access sizes at DAOS level
+| DAOS_SIZE_WRITE_* | Histogram of write access sizes at DAOS level
+| DAOS_ACCESS[1-4]_ACCESS | 4 most common DAOS access sizes
+| DAOS_ACCESS[1-4]_COUNT | Count of 4 most common DAOS access sizes
+| DAOS_OBJ_OTYPE | DAOS object otype ID
+| DAOS_ARRAY_CELL_SIZE | For DAOS array objects, the array cell size
+| DAOS_ARRAY_CHUNK_SIZE | For DAOS array objects, the array chunk size
+| DAOS_FASTEST_RANK | The MPI rank with smallest time spent in DAOS I/O (cumulative read, write, and meta times)
+| DAOS_FASTEST_RANK_BYTES | The number of bytes transferred by the rank with smallest time spent in DAOS I/O (cumulative read, write, and meta times)
+| DAOS_SLOWEST_RANK | The MPI rank with largest time spent in DAOS I/O (cumulative read, write, and meta times)
+| DAOS_SLOWEST_RANK_BYTES | The number of bytes transferred by the rank with the largest time spent in DAOS I/O (cumulative read, write, and meta times)
+| DAOS_F_*_START_TIMESTAMP | Timestamp that the first DAOS object open/read/write/close operation began
+| DAOS_F_*_END_TIMESTAMP | Timestamp that the last DAOS object open/read/write/close operation ended
+| DAOS_F_READ_TIME | Cumulative time spent reading at the DAOS level
+| DAOS_F_WRITE_TIME | Cumulative time spent writing at the DAOS level
+| DAOS_F_META_TIME | Cumulative time spent in open, punch, list, get size, set size, stat, destroy, and remove at the DAOS level
+| DAOS_F_MAX_READ_TIME | Duration of the slowest individual DAOS read operation
+| DAOS_F_MAX_WRITE_TIME | Duration of the slowest individual DAOS write operation
+| DAOS_F_FASTEST_RANK_TIME | The time of the rank which had the smallest amount of time spent in DAOS I/O (cumulative read, write, and meta times)
+| DAOS_F_SLOWEST_RANK_TIME | The time of the rank which had the largest amount of time spent in DAOS I/O (cumulative read, write, and meta times)
+|====
+
 ===== Heatmap fields
 
 Each heatmap module record reports a histogram of the number of bytes read
@@ -504,23 +619,6 @@ execution time.
 |====
 
 ===== Additional modules
-
-.Lustre module (if enabled, for Lustre file systems)
-[cols="40%,60%",options="header"]
-|====
-| counter name | description
-| LUSTRE_NUM_COMPONENTS | number of instrumented components in the Lustre layout
-| LUSTRE_NUM_STRIPES | number of active stripes in the Lustre layout components
-| LUSTRE_COMP*_STRIPE_SIZE | stripe size for this file layout component in bytes
-| LUSTRE_COMP*_STRIPE_COUNT | number of OSTs over which the file layout component is striped
-| LUSTRE_COMP*_STRIPE_PATTERN | pattern (e.g., raid0, mdt, overstriped) for this file layout component
-| LUSTRE_COMP*_FLAGS | captured flags (e.g. init, prefwr, stale) for this file layout component
-| LUSTRE_COMP*_EXT_START | starting file extent for this file layout component
-| LUSTRE_COMP*_EXT_END | ending file extent for this file layout component (-1 means EOF)
-| LUSTRE_COMP*_MIRROR_ID | mirror ID for this file layout component, if mirrors are enabled
-| LUSTRE_COMP*_POOL_NAME | Lustre OST pool used for this file layout component
-| LUSTRE_COMP*\_OST_ID_* | indices of OSTs over which this file layout component is striped
-|====
 
 .APXC module header record (if enabled, for Cray XC systems)
 [cols="40%,60%",options="header"]

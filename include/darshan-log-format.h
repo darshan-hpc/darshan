@@ -129,6 +129,8 @@ struct darshan_base_record
 #include "darshan-apmpi-log-format.h"
 #endif
 #include "darshan-heatmap-log-format.h"
+#include "darshan-dfs-log-format.h"
+#include "darshan-daos-log-format.h"
 
 /* X-macro for keeping module ordering consistent */
 /* NOTE: first val used to define module enum values,
@@ -175,7 +177,9 @@ struct darshan_base_record
     X(DARSHAN_MDHIM_MOD,    "MDHIM",      DARSHAN_MDHIM_VER,     &mdhim_logutils) \
     X(DARSHAN_APXC_MOD,     "APXC", 	  __APXC_VER,            __apxc_logutils) \
     X(DARSHAN_APMPI_MOD,    "APMPI",      __APMPI_VER,           __apmpi_logutils) \
-    X(DARSHAN_HEATMAP_MOD,  "HEATMAP",    DARSHAN_HEATMAP_VER,   &heatmap_logutils)
+    X(DARSHAN_HEATMAP_MOD,  "HEATMAP",    DARSHAN_HEATMAP_VER,   &heatmap_logutils) \
+    X(DARSHAN_DFS_MOD,      "DFS",        DARSHAN_DFS_VER,       &dfs_logutils) \
+    X(DARSHAN_DAOS_MOD,     "DAOS",       DARSHAN_DAOS_VER,      &daos_logutils)
 
 /* unique identifiers to distinguish between available darshan modules */
 /* NOTES: - valid ids range from [0...DARSHAN_MAX_MODS-1]
