@@ -388,6 +388,8 @@ class ReportData:
                                  ["DXT_MPIIO", None],
                                  ["HEATMAP_POSIX", None],
                                  ["DXT_POSIX", None],
+                                 ["HEATMAP_DFS", None],
+                                 ["HEATMAP_DAOS", None],
                                  ["HEATMAP_STDIO", None],
                                 ])
         if not set(hmap_modules).isdisjoint(modules_avail):
