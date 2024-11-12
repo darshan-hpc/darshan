@@ -515,7 +515,7 @@ class ReportData:
                 sect_title = f"Per-Module Statistics: {mod}"
 
             try:
-                if mod in ["POSIX", "MPI-IO", "STDIO"]:
+                if mod in ["POSIX", "MPI-IO", "STDIO", "DFS", "DAOS"]:
                     # get the module's record dataframe and then pass to
                     # Darshan accumulator interface to generate a cumulative
                     # record and derived metrics
@@ -533,9 +533,10 @@ class ReportData:
                             fig_grid_area="overview")
                     self.figures.append(mod_overview_fig)
 
+                    data_type = "File" if mod != "DAOS" else "Object"
                     file_count_summary_fig = ReportFigure(
                             section_title=sect_title,
-                            fig_title=f"File Count Summary <br> (estimated by {mod} I/O access offsets)",
+                            fig_title=f"{data_type} Count Summary <br> (estimated by {mod} I/O access offsets)",
                             fig_func=log_file_count_summary_table,
                             fig_args=dict(derived_metrics=acc.derived_metrics,
                                           mod_name=mod),

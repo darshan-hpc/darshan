@@ -70,6 +70,8 @@ _mod_names = [
     "APXC",
     "APMPI",
     "HEATMAP",
+    "DFS",
+    "DAOS",
 ]
 def mod_name_to_idx(mod_name):
     return _mod_names.index(mod_name)
