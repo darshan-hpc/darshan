@@ -88,7 +88,9 @@ darshan.enable_experimental()
             "snyder_ior-DFS_id1069383-23981_11-11-71996-14940917661149127511_1.darshan",
             "DAOS",
             plot_opcounts,
-            ['ObjFetch', 'ObjUpdate', 'ObjOpen', 'ArrRead', 'ArrWrite', 'ArrOpen', 'KVGet', 'KVPut', 'KVOpen'],
+            ['ObjFetch', 'ObjUpdate', 'ObjOpen', 'ObjPunch', 'ObjDkeyPunch', 'ObjAkeyPunch', 'ObjDkeyList', 'ObjAkeyList', 'ObjRecxList',
+             'ArrRead', 'ArrWrite', 'ArrOpen', 'ArrGetSize', 'ArrSetSize', 'ArrStat', 'ArrPunch', 'ArrDestroy',
+             'KVGet', 'KVPut', 'KVOpen', 'KVRemove', 'KVList', 'KVDestroy',],
         ),
         (
             "dxt.darshan",
