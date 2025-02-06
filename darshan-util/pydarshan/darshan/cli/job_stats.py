@@ -118,6 +118,11 @@ def setup_parser(parser: argparse.ArgumentParser):
         nargs='?', default='-1',
         help="limit output to the top LIMIT number of jobs according to selected metric"
     )
+    parser.add_argument(
+        "--csv", "-c",
+        action='store_true',
+        help="output job stats in CSV format"
+    )
 
 def main(args: Union[Any, None] = None):
     """
@@ -143,7 +148,10 @@ def main(args: Union[Any, None] = None):
     combined_dfs = combine_dfs(list_dfs)
     combined_dfs_sorted = sort_dfs_desc(combined_dfs, order_by)
     combined_dfs_selected = first_n_recs(combined_dfs_sorted, limit)
-    print("Statistical data of jobs:\n", combined_dfs_selected)
+    if args.csv:
+        print(combined_dfs_selected.to_csv(index=False))
+    else:
+        print(combined_dfs_selected.to_string(index=False))
 
 if __name__ == "__main__":
     main()
