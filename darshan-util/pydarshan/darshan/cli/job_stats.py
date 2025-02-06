@@ -19,14 +19,16 @@ def df_IO_data(file_path, mod):
     a single DataFrame of job statistics.
 
     """
-    report = darshan.DarshanReport(file_path, read_all=True)
-    posix_recs = report.records[mod].to_df()
-    acc_recs = accumulate_records(posix_recs, mod, report.metadata['job']['nprocs'])
-    dict_recs = {}
-    dict_recs['agg_perf_by_slowest'] = acc_recs.derived_metrics.agg_perf_by_slowest
-    dict_recs['agg_time_by_slowest'] = acc_recs.derived_metrics.agg_time_by_slowest
-    dict_recs['total_bytes'] = acc_recs.derived_metrics.total_bytes
-    df = pd.DataFrame.from_dict([dict_recs])
+    report = darshan.DarshanReport(file_path, read_all=False)
+    report.mod_read_all_records(mod)
+    recs = report.records[mod].to_df()
+    acc_rec = accumulate_records(recs, mod, report.metadata['job']['nprocs'])
+    dict_acc_rec = {}
+    dict_acc_rec['log_file'] = file_path.split('/')[-1]
+    dict_acc_rec['agg_perf_by_slowest'] = acc_rec.derived_metrics.agg_perf_by_slowest
+    dict_acc_rec['agg_time_by_slowest'] = acc_rec.derived_metrics.agg_time_by_slowest
+    dict_acc_rec['total_bytes'] = acc_rec.derived_metrics.total_bytes
+    df = pd.DataFrame.from_dict([dict_acc_rec])
     return df
 
 def combine_dfs(list_dfs):
