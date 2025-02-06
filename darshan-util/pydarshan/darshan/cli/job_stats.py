@@ -25,6 +25,11 @@ def df_IO_data(file_path, mod):
     acc_rec = accumulate_records(recs, mod, report.metadata['job']['nprocs'])
     dict_acc_rec = {}
     dict_acc_rec['log_file'] = file_path.split('/')[-1]
+    dict_acc_rec['job_id'] = report.metadata['job']['jobid']
+    dict_acc_rec['nprocs'] = report.metadata['job']['nprocs']
+    dict_acc_rec['start_time'] = report.metadata['job']['start_time_sec']
+    dict_acc_rec['end_time'] = report.metadata['job']['end_time_sec']
+    dict_acc_rec['run_time'] = report.metadata['job']['run_time']
     dict_acc_rec['agg_perf_by_slowest'] = acc_rec.derived_metrics.agg_perf_by_slowest
     dict_acc_rec['agg_time_by_slowest'] = acc_rec.derived_metrics.agg_time_by_slowest
     dict_acc_rec['total_bytes'] = acc_rec.derived_metrics.total_bytes
