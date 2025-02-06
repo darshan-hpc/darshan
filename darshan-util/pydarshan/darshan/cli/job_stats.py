@@ -1,11 +1,9 @@
 import pandas as pd
 import argparse
-import sys
 import darshan
 import darshan.cli
 from darshan.backend.cffi_backend import accumulate_records
 from typing import Any, Union, Callable
-import glob
 
 def df_IO_data(file_path, mod):
     """
@@ -78,9 +76,10 @@ def first_n_recs(df, n):
     a DataFrame with n rows.
 
     """
-
-    combined_dfs_first_n = df.head(n)
-    return combined_dfs_first_n
+    if n >= 0:
+        return df.head(n)
+    else:
+        return df
 
 def setup_parser(parser: argparse.ArgumentParser):
     """
@@ -91,32 +90,33 @@ def setup_parser(parser: argparse.ArgumentParser):
     parser : command line argument parser.
 
     """
-    parser.description = "Generates a DataFrame with statistical data of n jobs for a certain module"
+    parser.description = "Print statistics describing key metadata and I/O performance metrics for a given list of jobs."
 
     parser.add_argument(
-        "log_path",
+        "log_paths",
         type=str,
         nargs='+',
-        help="Specify the path to darshan log files."
+        help="specify the paths to Darshan log files"
     )
     parser.add_argument(
-        "-module", "-m",
+        "--module", "-m",
         type=str,
         nargs='?', default='POSIX',
-        help="Specify the module name."
+        choices=['POSIX', 'MPI-IO', 'STDIO'],
+        help="specify the Darshan module to generate job stats for (default: %(default)s)"
     )
     parser.add_argument(
-        "-order_by_colname", "-o",
+        "--order_by", "-o",
         type=str,
         nargs='?', default='total_bytes',
         choices=['agg_perf_by_slowest', 'agg_time_by_slowest', 'total_bytes'],
-        help="Specify the column name."
+        help="specify the I/O metric to order jobs by (default: %(default)s)"
     )
     parser.add_argument(
-        "-number_of_rows", "-n",
+        "--limit", "-l",
         type=int,
-        nargs='?', default='10',
-        help="The first n rows of the DataFrame"
+        nargs='?', default='-1',
+        help="limit output to the top LIMIT number of jobs according to selected metric"
     )
 
 def main(args: Union[Any, None] = None):
@@ -133,17 +133,12 @@ def main(args: Union[Any, None] = None):
         setup_parser(parser)
         args = parser.parse_args()
     mod = args.module
-    list_modules = ["POSIX", "MPI-IO", "LUSTRE", "STDIO"]
-    if mod not in list_modules:
-        print(f'{mod} is not in list')
-        sys.exit()
-    order_by_colname = args.order_by_colname
-    n = args.number_of_rows
-    log_paths = args.log_path
-    item_number = len(log_paths)
+    order_by = args.order_by
+    limit = args.limit
+    log_paths = args.log_paths
     list_dfs = []
-    for i in range(item_number):
-        df_i = df_IO_data(log_paths[i], mod)
+    for log_path in log_paths:
+        df_i = df_IO_data(log_path, mod)
         list_dfs.append(df_i)
     com_dfs = combined_dfs(list_dfs)
     combined_dfs_sort = sort_data_desc(com_dfs, order_by_colname)
