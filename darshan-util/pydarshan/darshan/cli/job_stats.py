@@ -7,16 +7,16 @@ from typing import Any, Union, Callable
 
 def df_IO_data(file_path, mod):
     """
-    Save the data from a single log file to a DataFrame.
+    Save the statistical data from a single Darshan log file to a DataFrame.
 
     Parameters
     ----------
-    file_path : a string, the path to a darshan log file.
-    mod : a string, the module name
+    file_path : a string, the path to a Darshan log file.
+    mod : a string, the Darshan module name
 
     Returns
     -------
-    a single DataFrame.
+    a single DataFrame of job statistics.
 
     """
     report = darshan.DarshanReport(file_path, read_all=True)
@@ -29,9 +29,9 @@ def df_IO_data(file_path, mod):
     df = pd.DataFrame.from_dict([dict_recs])
     return df
 
-def combined_dfs(list_dfs):
+def combine_dfs(list_dfs):
     """
-    Combine DataFrames of each log files to one DataFrame.
+    Combine per-job DataFrames of each Darshan log into one DataFrame.
 
     Parameters
     ----------
@@ -39,32 +39,32 @@ def combined_dfs(list_dfs):
 
     Returns
     -------
-    a single DataFrame with data from multiple DataFrames.
+    a single DataFrame with data from multiple Darshan logs.
 
     """
-    combined_dfs = pd.concat(list_dfs, ignore_index = True)
+    combined_dfs = pd.concat(list_dfs, ignore_index=True)
     return combined_dfs
 
-def sort_data_desc(combined_dfs, order_by_colname):
+def sort_dfs_desc(combined_dfs, order_by):
     """
     Sort data by the column name the user inputs in a descending order.
 
     Parameters
     ----------
-    combined_dfs : a DataFrame with data from multiple DataFrames.
-    order_by_colname : a string, the column name
+    combined_dfs : a DataFrame with data from multiple Darshan logs.
+    order_by : a string, the column name of the statistical metric to sort by
 
     Returns
     -------
-    a DataFrame with a descending order of one column.
+    a DataFrame sorted in descending order by a given column.
 
     """
-    combined_dfs_sort = combined_dfs.sort_values(by=[order_by_colname], ascending=False)
-    return combined_dfs_sort
+    combined_dfs_sorted = combined_dfs.sort_values(by=[order_by], ascending=False)
+    return combined_dfs_sorted
 
 def first_n_recs(df, n):
     """
-    Filtering the data with the first n records.
+    Filter the data to return only the first n records.
 
     Parameters
     ----------
@@ -83,7 +83,7 @@ def first_n_recs(df, n):
 
 def setup_parser(parser: argparse.ArgumentParser):
     """
-    Configures the command line arguments.
+    Parses the command line arguments.
 
     Parameters
     ----------
@@ -121,7 +121,7 @@ def setup_parser(parser: argparse.ArgumentParser):
 
 def main(args: Union[Any, None] = None):
     """
-    Generates a DataFrame based on user's input.
+    Prints statistics on a set of input Darshan job logs.
 
     Parameters
     ----------
@@ -140,9 +140,9 @@ def main(args: Union[Any, None] = None):
     for log_path in log_paths:
         df_i = df_IO_data(log_path, mod)
         list_dfs.append(df_i)
-    com_dfs = combined_dfs(list_dfs)
-    combined_dfs_sort = sort_data_desc(com_dfs, order_by_colname)
-    combined_dfs_selected = first_n_recs(combined_dfs_sort, n)
+    combined_dfs = combine_dfs(list_dfs)
+    combined_dfs_sorted = sort_dfs_desc(combined_dfs, order_by)
+    combined_dfs_selected = first_n_recs(combined_dfs_sorted, limit)
     print("Statistical data of jobs:\n", combined_dfs_selected)
 
 if __name__ == "__main__":
