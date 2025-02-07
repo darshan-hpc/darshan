@@ -4,6 +4,8 @@ import darshan
 import darshan.cli
 from darshan.backend.cffi_backend import accumulate_records
 from typing import Any, Union, Callable
+import datetime
+import humanize
 
 def df_IO_data(file_path, mod):
     """
@@ -30,7 +32,7 @@ def df_IO_data(file_path, mod):
     dict_acc_rec['start_time'] = report.metadata['job']['start_time_sec']
     dict_acc_rec['end_time'] = report.metadata['job']['end_time_sec']
     dict_acc_rec['run_time'] = report.metadata['job']['run_time']
-    dict_acc_rec['agg_perf_by_slowest'] = acc_rec.derived_metrics.agg_perf_by_slowest
+    dict_acc_rec['agg_perf_by_slowest'] = acc_rec.derived_metrics.agg_perf_by_slowest * 1024**2
     dict_acc_rec['agg_time_by_slowest'] = acc_rec.derived_metrics.agg_time_by_slowest
     dict_acc_rec['total_bytes'] = acc_rec.derived_metrics.total_bytes
     df = pd.DataFrame.from_dict([dict_acc_rec])
@@ -154,11 +156,17 @@ def main(args: Union[Any, None] = None):
         list_dfs.append(df_i)
     combined_dfs = combine_dfs(list_dfs)
     combined_dfs_sorted = sort_dfs_desc(combined_dfs, order_by)
-    combined_dfs_selected = first_n_recs(combined_dfs_sorted, limit)
+    df = first_n_recs(combined_dfs_sorted, limit)
     if args.csv:
-        print(combined_dfs_selected.to_csv(index=False))
+        print(df.to_csv(index=False))
     else:
-        print(combined_dfs_selected.to_string(index=False))
+        df.loc[:, 'start_time'] = df['start_time'].apply(lambda x: datetime.datetime.fromtimestamp(x).strftime("%m/%d/%Y %H:%M:%S"))
+        df.loc[:, 'end_time'] = df['end_time'].apply(lambda x: datetime.datetime.fromtimestamp(x).strftime("%m/%d/%Y %H:%M:%S"))
+        df.loc[:, 'agg_perf_by_slowest'] = df['agg_perf_by_slowest'].apply(lambda x: f"{humanize.naturalsize(x, binary=True, format='%.2f')}/s")
+        df.loc[:, 'total_bytes'] = df['total_bytes'].apply(lambda x: f"{humanize.naturalsize(x, binary=True, format='%.2f')}")
+        df.loc[:, 'run_time'] = df['run_time'].apply(lambda x: f"{x:.2f} s")
+        df.loc[:, 'agg_time_by_slowest'] = df['agg_time_by_slowest'].apply(lambda x: f"{x:.2f} s")
+        print(df.to_string(index=False))
 
 if __name__ == "__main__":
     main()
