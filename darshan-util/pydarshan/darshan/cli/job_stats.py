@@ -1,3 +1,4 @@
+import sys
 import pandas as pd
 import argparse
 import darshan
@@ -22,6 +23,8 @@ def df_IO_data(file_path, mod):
 
     """
     report = darshan.DarshanReport(file_path, read_all=False)
+    if mod not in report.modules:
+        return pd.DataFrame()
     report.mod_read_all_records(mod)
     recs = report.records[mod].to_df()
     acc_rec = accumulate_records(recs, mod, report.metadata['job']['nprocs'])
@@ -153,7 +156,10 @@ def main(args: Union[Any, None] = None):
     list_dfs = []
     for log_path in log_paths:
         df_i = df_IO_data(log_path, mod)
-        list_dfs.append(df_i)
+        if not df_i.empty:
+            list_dfs.append(df_i)
+    if len(list_dfs) == 0:
+        sys.exit()
     combined_dfs = combine_dfs(list_dfs)
     combined_dfs_sorted = sort_dfs_desc(combined_dfs, order_by)
     df = first_n_recs(combined_dfs_sorted, limit)
