@@ -626,7 +626,8 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
             "offset": segments[i].offset,
             "length": segments[i].length,
             "start_time": segments[i].start_time,
-            "end_time": segments[i].end_time
+            "end_time": segments[i].end_time,
+            "extra_info": ffi.string(segments[i].extra_info).decode("utf-8")
         }
         rec['write_segments'].append(seg)
 
@@ -637,7 +638,8 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
             "offset": segments[i].offset,
             "length": segments[i].length,
             "start_time": segments[i].start_time,
-            "end_time": segments[i].end_time
+            "end_time": segments[i].end_time,
+            "extra_info": ffi.string(segments[i].extra_info).decode("utf-8")
         }
         rec['read_segments'].append(seg)
 
