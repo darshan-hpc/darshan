@@ -30,6 +30,7 @@ def df_IO_data(file_path, mod):
     acc_rec = accumulate_records(recs, mod, report.metadata['job']['nprocs'])
     dict_acc_rec = {}
     dict_acc_rec['log_file'] = file_path.split('/')[-1]
+    dict_acc_rec['exe'] = report.metadata['exe']
     dict_acc_rec['job_id'] = report.metadata['job']['jobid']
     dict_acc_rec['nprocs'] = report.metadata['job']['nprocs']
     dict_acc_rec['start_time'] = report.metadata['job']['start_time_sec']
@@ -38,6 +39,7 @@ def df_IO_data(file_path, mod):
     dict_acc_rec['agg_perf_by_slowest'] = acc_rec.derived_metrics.agg_perf_by_slowest * 1024**2
     dict_acc_rec['agg_time_by_slowest'] = acc_rec.derived_metrics.agg_time_by_slowest
     dict_acc_rec['total_bytes'] = acc_rec.derived_metrics.total_bytes
+    dict_acc_rec['total_files'] = acc_rec.derived_metrics.category_counters[0].count
     df = pd.DataFrame.from_dict([dict_acc_rec])
     return df
 
@@ -164,7 +166,8 @@ def main(args: Union[Any, None] = None):
     combined_dfs_sorted = sort_dfs_desc(combined_dfs, order_by)
     df = first_n_recs(combined_dfs_sorted, limit)
     if args.csv:
-        print(df.to_csv(index=False))
+        df = df.drop("exe", axis=1)
+        print(df.to_csv(index=False), end="")
     else:
         df.loc[:, 'start_time'] = df['start_time'].apply(lambda x: datetime.datetime.fromtimestamp(x).strftime("%m/%d/%Y %H:%M:%S"))
         df.loc[:, 'end_time'] = df['end_time'].apply(lambda x: datetime.datetime.fromtimestamp(x).strftime("%m/%d/%Y %H:%M:%S"))
