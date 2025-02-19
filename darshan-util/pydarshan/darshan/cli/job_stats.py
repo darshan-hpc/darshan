@@ -5,8 +5,11 @@ import darshan
 import darshan.cli
 from darshan.backend.cffi_backend import accumulate_records
 from typing import Any, Union, Callable
-import datetime
-import humanize
+from datetime import datetime
+from humanize import naturalsize
+
+from rich.console import Console
+from rich.table import Table
 
 def df_IO_data(file_path, mod):
     """
@@ -95,6 +98,50 @@ def first_n_recs(df, n):
     else:
         return df
 
+def rich_print(df, mod, order_by):
+    """
+    Pretty print the DataFrame using rich tables.
+
+    Parameters
+    ----------
+    df : a dataframe
+    mod : a string, the Darshan module name
+    order_by : a string, the column name of the statistical metric to sort by
+
+    """
+    # calculate totals to plug in to table footer
+    all_time_by_slowest = df['time_by_slowest'].sum()
+    all_total_bytes = df['total_bytes'].sum()
+    all_total_files = df['total_files'].sum()
+    all_perf_by_slowest = all_total_bytes / all_time_by_slowest
+
+    # instantiate a rich table and pretty print the dataframe
+    console = Console()
+    table = Table(title=f"Darshan {mod} Job Stats", show_lines=True, show_footer=True)
+    table.add_column("job", "[u i]TOTAL", justify="center", ratio=4)
+    default_kwargs = {"justify": "center", "no_wrap": True, "ratio": 1}
+    table.add_column("perf_by_slowest", f"[u i]{naturalsize(all_perf_by_slowest, binary=True, format='%.2f')}/s", **default_kwargs)
+    table.add_column("time_by_slowest", f"[u i]{all_time_by_slowest:.2f} s", **default_kwargs)
+    table.add_column("total_bytes", f"[u i]{naturalsize(all_total_bytes, binary=True, format='%.2f')}", **default_kwargs)
+    table.add_column("total_files", f"[u i]{all_total_files}", **default_kwargs)
+    for column in table.columns:
+        if column.header == order_by:
+            column.style = column.header_style = column.footer_style = "bold cyan"
+    for _, row in df.iterrows():
+        job_str  = f"[bold]job id[/bold]: {row['job_id']}\n"
+        job_str += f"[bold]nprocs[/bold]: {row['nprocs']}\n"
+        job_str += f"[bold]start time[/bold]: {datetime.fromtimestamp(row['start_time']).strftime('%m/%d/%Y %H:%M:%S')}\n"
+        job_str += f"[bold]end time[/bold]: {datetime.fromtimestamp(row['end_time']).strftime('%m/%d/%Y %H:%M:%S')}\n"
+        job_str += f"[bold]runtime[/bold]: {row['run_time']:.2f} s\n"
+        job_str += f"[bold]exe[/bold]: {row['exe']}\n"
+        job_str += f"[bold]log file[/bold]: {row['log_file']}"
+        table.add_row(job_str,
+                      f"{naturalsize(row['perf_by_slowest'], binary=True, format='%.2f')}/s",
+                      f"{row['time_by_slowest']:.2f} s",
+                      f"{naturalsize(row['total_bytes'], binary=True, format='%.2f')}",
+                      f"{row['total_files']}")
+    console.print(table)
+
 def setup_parser(parser: argparse.ArgumentParser):
     """
     Parses the command line arguments.
@@ -169,13 +216,7 @@ def main(args: Union[Any, None] = None):
         df = df.drop("exe", axis=1)
         print(df.to_csv(index=False), end="")
     else:
-        df.loc[:, 'start_time'] = df['start_time'].apply(lambda x: datetime.datetime.fromtimestamp(x).strftime("%m/%d/%Y %H:%M:%S"))
-        df.loc[:, 'end_time'] = df['end_time'].apply(lambda x: datetime.datetime.fromtimestamp(x).strftime("%m/%d/%Y %H:%M:%S"))
-        df.loc[:, 'agg_perf_by_slowest'] = df['agg_perf_by_slowest'].apply(lambda x: f"{humanize.naturalsize(x, binary=True, format='%.2f')}/s")
-        df.loc[:, 'total_bytes'] = df['total_bytes'].apply(lambda x: f"{humanize.naturalsize(x, binary=True, format='%.2f')}")
-        df.loc[:, 'run_time'] = df['run_time'].apply(lambda x: f"{x:.2f} s")
-        df.loc[:, 'agg_time_by_slowest'] = df['agg_time_by_slowest'].apply(lambda x: f"{x:.2f} s")
-        print(df.to_string(index=False))
+        rich_print(df, mod, order_by)
 
 if __name__ == "__main__":
     main()
