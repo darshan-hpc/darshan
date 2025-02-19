@@ -36,8 +36,8 @@ def df_IO_data(file_path, mod):
     dict_acc_rec['start_time'] = report.metadata['job']['start_time_sec']
     dict_acc_rec['end_time'] = report.metadata['job']['end_time_sec']
     dict_acc_rec['run_time'] = report.metadata['job']['run_time']
-    dict_acc_rec['agg_perf_by_slowest'] = acc_rec.derived_metrics.agg_perf_by_slowest * 1024**2
-    dict_acc_rec['agg_time_by_slowest'] = acc_rec.derived_metrics.agg_time_by_slowest
+    dict_acc_rec['perf_by_slowest'] = acc_rec.derived_metrics.agg_perf_by_slowest * 1024**2
+    dict_acc_rec['time_by_slowest'] = acc_rec.derived_metrics.agg_time_by_slowest
     dict_acc_rec['total_bytes'] = acc_rec.derived_metrics.total_bytes
     dict_acc_rec['total_files'] = acc_rec.derived_metrics.category_counters[0].count
     df = pd.DataFrame.from_dict([dict_acc_rec])
@@ -123,7 +123,7 @@ def setup_parser(parser: argparse.ArgumentParser):
         "--order_by", "-o",
         type=str,
         nargs='?', default='total_bytes',
-        choices=['agg_perf_by_slowest', 'agg_time_by_slowest', 'total_bytes'],
+        choices=['perf_by_slowest', 'time_by_slowest', 'total_bytes', 'total_files'],
         help="specify the I/O metric to order jobs by (default: %(default)s)"
     )
     parser.add_argument(
