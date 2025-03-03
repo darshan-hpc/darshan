@@ -69,7 +69,7 @@ def sort_dfs_desc(combined_dfs, order_by):
     Parameters
     ----------
     combined_dfs : a DataFrame with data from multiple Darshan logs.
-    order_by : a string, the column name of the statistical metric to sort by
+    order_by : a string, the column name of the statistical metric to sort by.
 
     Returns
     -------
@@ -118,7 +118,7 @@ def rich_print(df, mod, order_by):
     # instantiate a rich table and pretty print the dataframe
     console = Console()
     table = Table(title=f"Darshan {mod} Job Stats", show_lines=True, show_footer=True)
-    table.add_column("job", "[u i]TOTAL", justify="center", ratio=4)
+    table.add_column("job", f"[u i]TOTAL ({len(df)} jobs)", justify="center", ratio=4)
     default_kwargs = {"justify": "center", "no_wrap": True, "ratio": 1}
     table.add_column("perf_by_slowest", f"[u i]{naturalsize(all_perf_by_slowest, binary=True, format='%.2f')}/s", **default_kwargs)
     table.add_column("time_by_slowest", f"[u i]{all_time_by_slowest:.2f} s", **default_kwargs)
@@ -187,7 +187,7 @@ def setup_parser(parser: argparse.ArgumentParser):
 
 def main(args: Union[Any, None] = None):
     """
-    Prints statistics on a set of input Darshan job logs.
+    Prints job statistics on a set of input Darshan logs.
 
     Parameters
     ----------
