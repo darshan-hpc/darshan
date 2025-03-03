@@ -18,7 +18,8 @@ dependencies = [
     "matplotlib",
     "seaborn",
     "mako",
-    "humanize"
+    "humanize",
+    "rich"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -43,9 +44,7 @@ test = [
     "packaging",
     "pytest",
     "lxml",
-    "matplotlib",
     "importlib_resources;python_version<'3.9'",
-    "humanize"
 ]
 
 [tool.setuptools.packages.find]
