@@ -11,7 +11,7 @@ from humanize import naturalsize
 from rich.console import Console
 from rich.table import Table
 
-def df_IO_data(file_path, mod):
+def df_IO_data(file_path, mod, filter_patterns, filter_mode):
     """
     Save the statistical data from a single Darshan log file to a DataFrame.
 
@@ -25,10 +25,14 @@ def df_IO_data(file_path, mod):
     a single DataFrame of job statistics.
 
     """
+    extra_options = {}
+    if filter_patterns:
+        extra_options["filter_patterns"] = filter_patterns
+        extra_options["filter_mode"] = filter_mode
     report = darshan.DarshanReport(file_path, read_all=False)
     if mod not in report.modules:
         return pd.DataFrame()
-    report.mod_read_all_records(mod)
+    report.mod_read_all_records(mod, **extra_options)
     recs = report.records[mod].to_df()
     acc_rec = accumulate_records(recs, mod, report.metadata['job']['nprocs'])
     dict_acc_rec = {}
@@ -155,20 +159,17 @@ def setup_parser(parser: argparse.ArgumentParser):
 
     parser.add_argument(
         "log_paths",
-        type=str,
         nargs='+',
         help="specify the paths to Darshan log files"
     )
     parser.add_argument(
         "--module", "-m",
-        type=str,
         nargs='?', default='POSIX',
         choices=['POSIX', 'MPI-IO', 'STDIO'],
         help="specify the Darshan module to generate job stats for (default: %(default)s)"
     )
     parser.add_argument(
         "--order_by", "-o",
-        type=str,
         nargs='?', default='total_bytes',
         choices=['perf_by_slowest', 'time_by_slowest', 'total_bytes', 'total_files'],
         help="specify the I/O metric to order jobs by (default: %(default)s)"
@@ -184,6 +185,17 @@ def setup_parser(parser: argparse.ArgumentParser):
         action='store_true',
         help="output job stats in CSV format"
     )
+    parser.add_argument(
+        "--exclude_names", "-e",
+        action='append',
+        help="regex patterns for file record names to exclude in stats"
+    )
+    parser.add_argument(
+        "--include_names", "-i",
+        action='append',
+        help="regex patterns for file record names to include in stats"
+     )
+
 
 def main(args: Union[Any, None] = None):
     """
@@ -202,9 +214,20 @@ def main(args: Union[Any, None] = None):
     order_by = args.order_by
     limit = args.limit
     log_paths = args.log_paths
+    filter_patterns=None
+    filter_mode=None
+    if args.exclude_names and args.include_names:
+        print('job_stats error: only one of --exclude-names and --include-names may be used.')
+        sys.exit(1)
+    elif args.exclude_names:
+        filter_patterns = args.exclude_names
+        filter_mode = "exclude"
+    elif args.include_names:
+        filter_patterns = args.include_names
+        filter_mode = "include"
     list_dfs = []
     for log_path in log_paths:
-        df_i = df_IO_data(log_path, mod)
+        df_i = df_IO_data(log_path, mod, filter_patterns, filter_mode)
         if not df_i.empty:
             list_dfs.append(df_i)
     if len(list_dfs) == 0:
