@@ -30,7 +30,11 @@ int usage (char *exename)
     fprintf(stderr, "       Converts darshan log from infile to outfile.\n");
     fprintf(stderr, "       rewrites the log file into the newest format.\n");
     fprintf(stderr, "       --bzip2 Use bzip2 compression instead of zlib.\n");
-    fprintf(stderr, "       --obfuscate Obfuscate items in the log.\n");
+    fprintf(stderr, "       --obfuscate Obfuscate all items in the log.\n");
+    fprintf(stderr, "       --obfuscate_jobid Obfuscate job ID in the log.\n");
+    fprintf(stderr, "       --obfuscate_uid Obfuscate uid in the log.\n");
+    fprintf(stderr, "       --obfuscate_exe Obfuscate executable in the log.\n");
+    fprintf(stderr, "       --obfuscate_names Obfuscate name records in the log.\n");
     fprintf(stderr, "       --key <key> Key to use when obfuscating.\n");
     fprintf(stderr, "       --annotate <string> Additional metadata to add.\n");
     fprintf(stderr, "       --file <hash> Limit output to specified (hashed) file only.\n");
@@ -39,9 +43,9 @@ int usage (char *exename)
     exit(1);
 }
 
-void parse_args (int argc, char **argv, char **infile, char **outfile,
-                 int *bzip2, int *obfuscate, int *reset_md, int *key,
-                 char **annotate, uint64_t* hash)
+void parse_args (int argc, char **argv, char **infile, char **outfile, int *bzip2,
+		 int *obfuscate_jobid, int *obfuscate_uid, int *obfuscate_exe, int *obfuscate_names,
+		 int *reset_md, int *key, char **annotate, uint64_t* hash)
 {
     int index;
     int ret;
@@ -51,6 +55,10 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
         {"bzip2", 0, NULL, 'b'},
         {"annotate", 1, NULL, 'a'},
         {"obfuscate", 0, NULL, 'o'},
+        {"obfuscate_jobid", 0, NULL, 'j'},
+        {"obfuscate_uid", 0, NULL, 'u'},
+        {"obfuscate_exe", 0, NULL, 'e'},
+        {"obfuscate_names", 0, NULL, 'n'},
         {"reset-md", 0, NULL, 'r'},
         {"key", 1, NULL, 'k'},
         {"file", 1, NULL, 'f'},
@@ -59,7 +67,10 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
     };
 
     *bzip2 = 0;
-    *obfuscate = 0;
+    *obfuscate_jobid = 0;
+    *obfuscate_uid = 0;
+    *obfuscate_exe = 0;
+    *obfuscate_names = 0;
     *reset_md = 0;
     *key = 0;
     *hash = 0;
@@ -79,7 +90,22 @@ void parse_args (int argc, char **argv, char **infile, char **outfile,
                 *annotate = optarg;
                 break;
             case 'o':
-                *obfuscate = 1;
+                *obfuscate_jobid = 1;
+                *obfuscate_uid = 1;
+                *obfuscate_exe = 1;
+                *obfuscate_names = 1;
+                break;
+            case 'j':
+                *obfuscate_jobid = 1;
+                break;
+            case 'u':
+                *obfuscate_uid = 1;
+                break;
+            case 'e':
+                *obfuscate_exe = 1;
+                break;
+            case 'n':
+                *obfuscate_names = 1;
                 break;
             case 'r':
                 *reset_md = 1;
@@ -119,9 +145,8 @@ static void reset_md_job(struct darshan_job *job)
     return;
 }
 
-void obfuscate_job(int key, struct darshan_job *job)
+void obfuscate_job_jobid(int key, struct darshan_job *job)
 {
-    job->uid   = (int64_t) darshan_hashlittle(&job->uid, sizeof(job->uid), key);
     if (job->jobid != 0)
     {
         job->jobid = (int64_t) darshan_hashlittle(&job->jobid, sizeof(job->jobid), key);
@@ -130,7 +155,14 @@ void obfuscate_job(int key, struct darshan_job *job)
     return;
 }
 
-void obfuscate_exe(int key, char *exe)
+void obfuscate_job_uid(int key, struct darshan_job *job)
+{
+    job->uid   = (int64_t) darshan_hashlittle(&job->uid, sizeof(job->uid), key);
+
+    return;
+}
+
+void obfuscate_executable(int key, char *exe)
 {
     uint32_t hashed;
 
@@ -149,11 +181,25 @@ void obfuscate_filenames(int key, struct darshan_name_record_ref *name_hash, str
     uint32_t hashed;
     char tmp_string[__TMP_OBF_SIZE] = {0};
     darshan_record_id tmp_id;
+    const char *keep_list[] = {"<STDIN>", "<STDOUT>", "<STDERR>", "heatmap:"};
+    int keep_list_len = sizeof(keep_list) / sizeof(keep_list[0]);
 
     HASH_ITER(hlink, name_hash, ref, tmp)
     {
-        /* find file system */
         int j;
+        /* skip names in keep list -- they don't require anonymization */
+        for(j = 0; j < keep_list_len; j++)
+        {
+            if(strncmp(keep_list[j], ref->name_record->name,
+	        strlen(keep_list[j])) == 0)
+            {
+                break;
+            }
+        }
+        if(j != keep_list_len)
+           continue;
+
+        /* find file system */
         char *mnt_pt = NULL;
 
         /* get mount point and fs type associated with this record */
@@ -266,13 +312,14 @@ int main(int argc, char **argv)
     char *mod_buf, *tmp_mod_buf;
     enum darshan_comp_type comp_type;
     int bzip2;
-    int obfuscate;
+    int obfuscate_jobid, obfuscate_uid, obfuscate_exe, obfuscate_names;
     int key;
     char *annotation = NULL;
     darshan_record_id hash;
     int reset_md;
 
-    parse_args(argc, argv, &infile_name, &outfile_name, &bzip2, &obfuscate,
+    parse_args(argc, argv, &infile_name, &outfile_name, &bzip2,
+               &obfuscate_jobid, &obfuscate_uid, &obfuscate_exe, &obfuscate_names,
                &reset_md, &key, &annotation, &hash);
 
     infile = darshan_log_open(infile_name);
@@ -298,7 +345,8 @@ int main(int argc, char **argv)
     }
 
     if (reset_md) reset_md_job(&job);
-    if (obfuscate) obfuscate_job(key, &job);
+    if (obfuscate_jobid) obfuscate_job_jobid(key, &job);
+    if (obfuscate_uid) obfuscate_job_uid(key, &job);
     if (annotation) add_annotation(annotation, &job);
 
     ret = darshan_log_put_job(outfile, &job);
@@ -318,7 +366,7 @@ int main(int argc, char **argv)
         return(-1);
     }
 
-    if (obfuscate) obfuscate_exe(key, tmp_string);
+    if (obfuscate_exe) obfuscate_executable(key, tmp_string);
 
     ret = darshan_log_put_exe(outfile, tmp_string);
     if(ret < 0)
@@ -357,7 +405,7 @@ int main(int argc, char **argv)
     /* NOTE: obfuscating filepaths breaks the ability to map files
      * to the corresponding FS & mount info maintained by darshan
      */
-    if(obfuscate) obfuscate_filenames(key, name_hash, mnt_data_array, mount_count );
+    if(obfuscate_names) obfuscate_filenames(key, name_hash, mnt_data_array, mount_count );
     if(hash) remove_hash_recs(&name_hash, hash);
 
     ret = darshan_log_put_namehash(outfile, name_hash);
