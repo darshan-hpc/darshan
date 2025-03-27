@@ -30,6 +30,7 @@ int usage (char *exename)
     fprintf(stderr, "       Converts darshan log from infile to outfile.\n");
     fprintf(stderr, "       rewrites the log file into the newest format.\n");
     fprintf(stderr, "       --bzip2 Use bzip2 compression instead of zlib.\n");
+    fprintf(stderr, "       --obfuscate Obfuscate all items in the log.\n");
     fprintf(stderr, "       --obfuscate_jobid Obfuscate job ID in the log.\n");
     fprintf(stderr, "       --obfuscate_uid Obfuscate uid in the log.\n");
     fprintf(stderr, "       --obfuscate_exe Obfuscate executable in the log.\n");
@@ -53,6 +54,7 @@ void parse_args (int argc, char **argv, char **infile, char **outfile, int *bzip
     {
         {"bzip2", 0, NULL, 'b'},
         {"annotate", 1, NULL, 'a'},
+        {"obfuscate", 0, NULL, 'o'},
         {"obfuscate_jobid", 0, NULL, 'j'},
         {"obfuscate_uid", 0, NULL, 'u'},
         {"obfuscate_exe", 0, NULL, 'e'},
@@ -86,6 +88,12 @@ void parse_args (int argc, char **argv, char **infile, char **outfile, int *bzip
                 break;
             case 'a':
                 *annotate = optarg;
+                break;
+            case 'o':
+                *obfuscate_jobid = 1;
+                *obfuscate_uid = 1;
+                *obfuscate_exe = 1;
+                *obfuscate_names = 1;
                 break;
             case 'j':
                 *obfuscate_jobid = 1;
