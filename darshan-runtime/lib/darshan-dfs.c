@@ -202,9 +202,12 @@ static int my_rank = -1;
 #define ID_GLOB_SIZE (sizeof(daos_obj_id_t) + (2*sizeof(uuid_t)))
 #define DFS_GEN_DARSHAN_REC_ID(__oid_p, __mnt_info, __rec_id) do { \
     unsigned char __id_glob[ID_GLOB_SIZE]; \
-    memcpy(__id_glob, __mnt_info->pool_uuid, sizeof(__mnt_info->pool_uuid)); \
-    memcpy(__id_glob+sizeof(__mnt_info->pool_uuid), __mnt_info->cont_uuid, sizeof(__mnt_info->cont_uuid)); \
-    memcpy(__id_glob+sizeof(__mnt_info->pool_uuid)+sizeof(__mnt_info->cont_uuid), __oid_p, sizeof(*__oid_p)); \
+    memset(__id_glob, 0, ID_GLOB_SIZE); \
+    if(__mnt_info) { \
+        memcpy(__id_glob, __mnt_info->pool_uuid, sizeof(uuid_t)); \
+        memcpy(__id_glob+sizeof(uuid_t), __mnt_info->cont_uuid, sizeof(uuid_t)); \
+    } \
+    memcpy(__id_glob+(2*sizeof(uuid_t)), __oid_p, sizeof(*__oid_p)); \
     __rec_id = darshan_hash(__id_glob, ID_GLOB_SIZE, 0); \
 } while(0)
 
@@ -219,7 +222,6 @@ static int my_rank = -1;
     darshan_record_id __rec_id; \
     struct dfs_file_record_ref *__rec_ref; \
     DFS_GET_MOUNT_INFO(__dfs, __mnt_info); \
-    if(!__mnt_info) break; \
     if(dfs_obj2id(*__obj_p, &__oid)) break; \
     DFS_GEN_DARSHAN_REC_ID(&__oid, __mnt_info, __rec_id); \
     __rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash, &__rec_id, sizeof(__rec_id)); \
@@ -677,27 +679,24 @@ int DARSHAN_DECL(dfs_remove)(dfs_t *dfs, dfs_obj_t *parent, const char *name, bo
 
     DFS_PRE_RECORD();
     DFS_GET_MOUNT_INFO(dfs, mnt_info);
-    if(mnt_info)
+    DFS_GEN_DARSHAN_REC_ID(oid, mnt_info, rec_id);
+    rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash,
+        &rec_id, sizeof(rec_id));
+    if(!rec_ref)
     {
-        DFS_GEN_DARSHAN_REC_ID(oid, mnt_info, rec_id);
-        rec_ref = darshan_lookup_record_ref(dfs_runtime->rec_id_hash,
-            &rec_id, sizeof(rec_id));
-        if(!rec_ref)
+        DFS_RESOLVE_OBJ_REC_NAME(parent, name, obj_rec_name);
+        if(obj_rec_name)
         {
-            DFS_RESOLVE_OBJ_REC_NAME(parent, name, obj_rec_name);
-            if(obj_rec_name)
-            {
-                rec_ref = dfs_track_new_file_record(rec_id, obj_rec_name, mnt_info);
-                free(obj_rec_name);
-            }
+            rec_ref = dfs_track_new_file_record(rec_id, obj_rec_name, mnt_info);
+            free(obj_rec_name);
         }
-        if(rec_ref)
-        {
-            rec_ref->file_rec->counters[DFS_REMOVES] += 1;
-            DARSHAN_TIMER_INC_NO_OVERLAP(
-                rec_ref->file_rec->fcounters[DFS_F_META_TIME],
-                tm1, tm2, rec_ref->last_meta_end);
-        }
+    }
+    if(rec_ref)
+    {
+        rec_ref->file_rec->counters[DFS_REMOVES] += 1;
+        DARSHAN_TIMER_INC_NO_OVERLAP(
+            rec_ref->file_rec->fcounters[DFS_F_META_TIME],
+            tm1, tm2, rec_ref->last_meta_end);
     }
     DFS_POST_RECORD();
 
@@ -895,8 +894,11 @@ static struct dfs_file_record_ref *dfs_track_new_file_record(
     /* registering this file record was successful, so initialize some fields */
     file_rec->base_rec.id = rec_id;
     file_rec->base_rec.rank = my_rank;
-    uuid_copy(file_rec->pool_uuid, mnt_info->pool_uuid);
-    uuid_copy(file_rec->cont_uuid, mnt_info->cont_uuid);
+    if(mnt_info)
+    {
+        uuid_copy(file_rec->pool_uuid, mnt_info->pool_uuid);
+        uuid_copy(file_rec->cont_uuid, mnt_info->cont_uuid);
+    }
     rec_ref->file_rec = file_rec;
     dfs_runtime->file_rec_count++;
 
