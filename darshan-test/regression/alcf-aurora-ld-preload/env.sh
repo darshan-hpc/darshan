@@ -16,21 +16,17 @@
 # variables (as in a dynamically linked environment), or generate mpicc
 # wrappers (as in a statically linked environment).
 
-# Notes specific to this platform (cray-module-nersc-perlmutter)
+# Notes specific to this platform (alcf-aurora-ld-preload)
 ########################
-# Use Cray's default compiler wrappers and load the module associated with
-# this darshan install
+# Use default compilers on Aurora and ultimately use LD_PRELOAD
+# (in the pbs-submit script) to instrument binaries.
 #
-# RUNJOB is responsible for submitting a slurm job, waiting for its
+# RUNJOB is responsible for submitting a PBS job, waiting for its
 # completion, and checking its return status
 
-export DARSHAN_CC=cc
-export DARSHAN_CXX=CC
-export DARSHAN_F77=ftn
-export DARSHAN_F90=ftn
+export DARSHAN_CC=mpicc
+export DARSHAN_CXX=mpicxx
+export DARSHAN_F77=mpifort
+export DARSHAN_F90=mpifort
 
 export DARSHAN_RUNJOB=$DARSHAN_TESTDIR/$DARSHAN_PLATFORM/runjob.sh
-
-module unload darshan >& /dev/null
-export MODULEPATH=$DARSHAN_RUNTIME_PATH/share/craype-2.x/modulefiles:$MODULEPATH
-module load darshan

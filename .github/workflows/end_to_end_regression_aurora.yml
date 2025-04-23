@@ -1,0 +1,24 @@
+name: End-to-end Testing (regression) Aurora
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - darshan-runtime/**
+      - .github/workflows/end_to_end_regression_aurora.yml
+  workflow_dispatch:
+
+jobs:
+  trigger_alcf_aurora_regression_ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get branch/tag name
+        run: echo "GITHUB_REF_NAME=$(echo ${GITHUB_REF} | cut --complement -d/ -f1,2)" >> $GITHUB_ENV
+      - uses: eic/trigger-gitlab-ci@v3
+        with:
+          url: https://gitlab-ci.alcf.anl.gov
+          project_id: 174
+          token: ${{ secrets.ALCF_GITLAB_CI_TOKEN }}
+          variables: |
+            GITHUB_REF_NAME="${{ env.GITHUB_REF_NAME }}"

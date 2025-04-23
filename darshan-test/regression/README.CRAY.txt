@@ -11,17 +11,17 @@ To run regression tests:
   examples:
 
   # darshan runtime
-  ../configure --with-mem-align=64 --with-log-path=/projects/radix-io/snyder/darshan-logs --prefix=/home/snyder/working/darshan/install-theta --with-jobid-env=COBALT_JOBID --disable-cuserid --host=x86_64 CC=cc
+  ../configure --with-mem-align=64 --with-log-path=/projects/radix-io/snyder/darshan-logs --prefix=/home/snyder/working/darshan/install-polaris --with-jobid-env=COBALT_JOBID --disable-cuserid --host=x86_64 CC=cc
   make install
 
   # darshan util
-  ../configure --prefix=/home/snyder/working/darshan/install-theta
+  ../configure --prefix=/home/snyder/working/darshan/install-polaris
   make install
 
 - start a screen session by running "screen"
   note: this is suggested because the tests may take a while to complete depending on scheduler 
   availability
 
-- run regression tests using the corresponding system configuration (e.g., cray-module-alcf-theta for ALCF Theta)
-  ./run-all.sh /home/snyder/working/darshan/install-theta /projects/radix-io/snyder/darshan-test cray-module-alcf-theta
+- run regression tests using the corresponding system configuration (e.g., alcf-polaris-cray-module for ALCF Polaris)
+  ./run-all.sh /home/snyder/working/darshan/install-polaris /projects/radix-io/snyder/darshan-test alcf-polaris-cray-module
 
