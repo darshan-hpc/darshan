@@ -7,7 +7,7 @@ import datetime
 from collections import OrderedDict
 import importlib.resources as importlib_resources
 
-from typing import Any, Union, Callable, List
+from typing import Any, Union, Callable, List, Optional
 
 import pandas as pd
 from mako.template import Template
@@ -142,7 +142,7 @@ class ReportData:
 
     """
     def __init__(self, log_path: str, enable_dxt_heatmap: bool = False,
-                 filter_patterns: List[str] = None, filter_mode: str = "exclude"):
+                 filter_patterns: Optional[List[str]] = None, filter_mode: str = "exclude"):
         # store the log path and use it to generate the report
         self.log_path = log_path
         self.enable_dxt_heatmap = enable_dxt_heatmap
@@ -711,7 +711,7 @@ def main(args: Union[Any, None] = None):
     log_path = args.log_path
     enable_dxt_heatmap = args.enable_dxt_heatmap
     filter_patterns=None
-    filter_mode=None
+    filter_mode="exclude"
     if args.exclude_names and args.include_names:
         print('Error: only one of --exclude-names and --include-names may be used.')
         sys.exit(1)
