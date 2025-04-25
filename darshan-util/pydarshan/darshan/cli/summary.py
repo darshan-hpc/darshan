@@ -641,7 +641,10 @@ class ReportData:
         self.sections = {}
         for fig in self.figures:
             # skip empty figures
-            if fig.fig_html == None:
+            if fig.fig_html == None and fig.section_title != "I/O Summary":
+                # skip empty report sections, except for heatmap data in the
+                # "I/O Summary" section, as these plots contain an important
+                # warning message on how to generate heatmap plots
                 continue
             # if a section title is not already in sections, add
             # the section title and a corresponding empty list
