@@ -498,7 +498,7 @@ class DarshanReport(object):
             None
 
         """
-        if filter_mode not in {"exclude", "include"}:
+        if filter_patterns and filter_mode not in {"exclude", "include"}:
             raise RuntimeError("Invalid filter mode used for read_name_records().")
         tmp_name_records = backend.log_get_name_records(self.log)
         # filter name records according to user-supplied patterns
