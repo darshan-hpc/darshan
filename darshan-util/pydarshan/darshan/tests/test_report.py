@@ -75,6 +75,15 @@ def test_load_records():
         report.mod_read_all_records("POSIX")
         assert 1 == len(report.data['records']['POSIX'])
 
+def test_load_records_filtered():
+    """Sample for an expected number of records after filtering."""
+    logfile = get_log_path("shane_macsio_id29959_5-22-32552-7035573431850780836_1590156158.darshan")
+    with darshan.DarshanReport(logfile, filter_patterns=["\.h5$"], filter_mode="exclude") as report:
+        assert 2 == len(report.data['records']['POSIX'])
+        assert 0 == len(report.data['records']['MPI-IO'])
+    with darshan.DarshanReport(logfile, filter_patterns=["\.h5$"], filter_mode="include") as report:
+        assert 1 == len(report.data['records']['POSIX'])
+        assert 1 == len(report.data['records']['MPI-IO'])
 
 @pytest.mark.parametrize("unsupported_record",
         ["DXT_POSIX", "DXT_MPIIO", "LUSTRE", "APMPI", "APXC"]

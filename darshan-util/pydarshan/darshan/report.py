@@ -317,6 +317,8 @@ class DarshanReport(object):
             dtype (str): default dtype for internal structures
             automatic_summary (bool): automatically generate summary after loading
             read_all (bool): whether to read all records for log
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
@@ -411,6 +413,8 @@ class DarshanReport(object):
         Args:
             filename (str): filename to open (optional)
             read_all (bool): whether to read all records for log
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
@@ -521,7 +525,8 @@ class DarshanReport(object):
         Read all available records from darshan log and return as dictionary.
 
         Args:
-            None
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
@@ -547,7 +552,8 @@ class DarshanReport(object):
         Read all generic records from darshan log and return as dictionary.
 
         Args:
-            None
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
@@ -566,7 +572,8 @@ class DarshanReport(object):
         Read all dxt records from darshan log and return as dictionary.
 
         Args:
-            None
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
@@ -636,6 +643,8 @@ class DarshanReport(object):
         Args:
             mod (str): Identifier of module to fetch all records
             dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary, 'pandas'
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
@@ -819,6 +828,8 @@ class DarshanReport(object):
         Args:
             mod (str): Identifier of module to fetch all records
             dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
@@ -872,6 +883,8 @@ class DarshanReport(object):
 
         Args:
             dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None

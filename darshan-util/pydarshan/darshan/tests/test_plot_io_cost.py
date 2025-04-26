@@ -315,3 +315,22 @@ def test_plot_io_cost_x_ticks_and_labels(logname,
         expected_rotations = 90
         x_rotations = [tl.get_rotation() for tl in xticklabels]
         assert_allclose(x_rotations, expected_rotations)
+
+def test_plot_io_cost_empty_data():
+    # generate a report object that filters out all contained records
+    # to ensure plot_io_cost properly returns None instead of failing
+    logpath = get_log_path("ior_hdf5_example.darshan")
+    # use a bogus regex with the "include" filter mode to ensure no records are included
+    with darshan.DarshanReport(logpath, filter_patterns=["bogus-regex"], filter_mode="include") as report:
+        fig = plot_io_cost(report=report)
+        assert fig == None
+
+def test_plot_io_cost_filtered_data():
+    # ensure get_io_cost_df doesn't include data for modules with no records
+    logpath = get_log_path("sample-badost.darshan")
+    # generate a report object with all POSIX module records filtered out
+    # STDIO records should still remain
+    with darshan.DarshanReport(logpath, filter_patterns=["ior-posix"], filter_mode="exclude") as report:
+        io_cost_df = get_io_cost_df(report=report)
+        assert "POSIX" not in io_cost_df.index
+        assert "STDIO" in io_cost_df.index

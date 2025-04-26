@@ -713,7 +713,7 @@ def main(args: Union[Any, None] = None):
     filter_patterns=None
     filter_mode="exclude"
     if args.exclude_names and args.include_names:
-        print('Error: only one of --exclude-names and --include-names may be used.')
+        print('Error: only one of --exclude_names and --include_names may be used.')
         sys.exit(1)
     elif args.exclude_names:
         filter_patterns = args.exclude_names
