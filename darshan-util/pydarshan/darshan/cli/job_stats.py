@@ -8,47 +8,58 @@ from typing import Any, Union, Callable
 from datetime import datetime
 from humanize import naturalsize
 
+import concurrent.futures
+from functools import partial
+
 from rich.console import Console
 from rich.table import Table
 
-def df_IO_data(file_path, mod, filter_patterns, filter_mode):
+def process_logfile(log_path, mod, filter_patterns, filter_mode):
     """
     Save the statistical data from a single Darshan log file to a DataFrame.
 
     Parameters
     ----------
-    file_path : a string, the path to a Darshan log file.
+    log_path : a string, the path to a Darshan log file.
     mod : a string, the Darshan module name
+    filter_patterns: regex patterns for names to exclude/include
+    filter_mode: whether to "exclude" or "include" the filter patterns
 
     Returns
     -------
     a single DataFrame of job statistics.
 
     """
-    extra_options = {}
-    if filter_patterns:
-        extra_options["filter_patterns"] = filter_patterns
-        extra_options["filter_mode"] = filter_mode
-    report = darshan.DarshanReport(file_path, read_all=False)
-    if mod not in report.modules:
+    try:
+        extra_options = {}
+        if filter_patterns:
+            extra_options["filter_patterns"] = filter_patterns
+            extra_options["filter_mode"] = filter_mode
+        report = darshan.DarshanReport(log_path, read_all=False)
+        if mod not in report.modules:
+            return pd.DataFrame()
+        report.mod_read_all_records(mod, **extra_options)
+        if len(report.records[mod]) == 0:
+            return pd.DataFrame()
+        recs = report.records[mod].to_df()
+        acc_rec = accumulate_records(recs, mod, report.metadata['job']['nprocs'])
+        dict_acc_rec = {}
+        dict_acc_rec['log_file'] = log_path.split('/')[-1]
+        dict_acc_rec['exe'] = report.metadata['exe']
+        dict_acc_rec['job_id'] = report.metadata['job']['jobid']
+        dict_acc_rec['nprocs'] = report.metadata['job']['nprocs']
+        dict_acc_rec['start_time'] = report.metadata['job']['start_time_sec']
+        dict_acc_rec['end_time'] = report.metadata['job']['end_time_sec']
+        dict_acc_rec['run_time'] = report.metadata['job']['run_time']
+        dict_acc_rec['perf_by_slowest'] = acc_rec.derived_metrics.agg_perf_by_slowest * 1024**2
+        dict_acc_rec['time_by_slowest'] = acc_rec.derived_metrics.agg_time_by_slowest
+        dict_acc_rec['total_bytes'] = acc_rec.derived_metrics.total_bytes
+        dict_acc_rec['total_files'] = acc_rec.derived_metrics.category_counters[0].count
+        df = pd.DataFrame.from_dict([dict_acc_rec])
+        return df
+    except Exception as e:
+        print(f"Error processing {log_path}: {e}", file=sys.stderr)
         return pd.DataFrame()
-    report.mod_read_all_records(mod, **extra_options)
-    recs = report.records[mod].to_df()
-    acc_rec = accumulate_records(recs, mod, report.metadata['job']['nprocs'])
-    dict_acc_rec = {}
-    dict_acc_rec['log_file'] = file_path.split('/')[-1]
-    dict_acc_rec['exe'] = report.metadata['exe']
-    dict_acc_rec['job_id'] = report.metadata['job']['jobid']
-    dict_acc_rec['nprocs'] = report.metadata['job']['nprocs']
-    dict_acc_rec['start_time'] = report.metadata['job']['start_time_sec']
-    dict_acc_rec['end_time'] = report.metadata['job']['end_time_sec']
-    dict_acc_rec['run_time'] = report.metadata['job']['run_time']
-    dict_acc_rec['perf_by_slowest'] = acc_rec.derived_metrics.agg_perf_by_slowest * 1024**2
-    dict_acc_rec['time_by_slowest'] = acc_rec.derived_metrics.agg_time_by_slowest
-    dict_acc_rec['total_bytes'] = acc_rec.derived_metrics.total_bytes
-    dict_acc_rec['total_files'] = acc_rec.derived_metrics.category_counters[0].count
-    df = pd.DataFrame.from_dict([dict_acc_rec])
-    return df
 
 def combine_dfs(list_dfs):
     """
@@ -225,11 +236,10 @@ def main(args: Union[Any, None] = None):
     elif args.include_names:
         filter_patterns = args.include_names
         filter_mode = "include"
-    list_dfs = []
-    for log_path in log_paths:
-        df_i = df_IO_data(log_path, mod, filter_patterns, filter_mode)
-        if not df_i.empty:
-            list_dfs.append(df_i)
+    process_logfile_with_args = partial(process_logfile, mod=mod, filter_patterns=filter_patterns, filter_mode=filter_mode)
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        results = list(executor.map(process_logfile_with_args, log_paths, chunksize=32))
+    list_dfs = [df for df in results if not df.empty]
     if len(list_dfs) == 0:
         sys.exit()
     combined_dfs = combine_dfs(list_dfs)
