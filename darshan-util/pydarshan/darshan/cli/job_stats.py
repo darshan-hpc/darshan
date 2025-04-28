@@ -47,6 +47,7 @@ def process_logfile(log_path, mod, filter_patterns, filter_mode):
         dict_acc_rec['log_file'] = log_path.split('/')[-1]
         dict_acc_rec['exe'] = report.metadata['exe']
         dict_acc_rec['job_id'] = report.metadata['job']['jobid']
+        dict_acc_rec['uid'] = report.metadata['job']['uid']
         dict_acc_rec['nprocs'] = report.metadata['job']['nprocs']
         dict_acc_rec['start_time'] = report.metadata['job']['start_time_sec']
         dict_acc_rec['end_time'] = report.metadata['job']['end_time_sec']
@@ -55,6 +56,7 @@ def process_logfile(log_path, mod, filter_patterns, filter_mode):
         dict_acc_rec['time_by_slowest'] = acc_rec.derived_metrics.agg_time_by_slowest
         dict_acc_rec['total_bytes'] = acc_rec.derived_metrics.total_bytes
         dict_acc_rec['total_files'] = acc_rec.derived_metrics.category_counters[0].count
+        dict_acc_rec['partial_flag'] = report.modules[mod]['partial_flag']
         df = pd.DataFrame.from_dict([dict_acc_rec])
         return df
     except Exception as e:
@@ -144,6 +146,7 @@ def rich_print(df, mod, order_by):
             column.style = column.header_style = column.footer_style = "bold cyan"
     for _, row in df.iterrows():
         job_str  = f"[bold]job id[/bold]: {row['job_id']}\n"
+        job_str  = f"[bold]uid[/bold]: {row['uid']}\n"
         job_str += f"[bold]nprocs[/bold]: {row['nprocs']}\n"
         job_str += f"[bold]start time[/bold]: {datetime.fromtimestamp(row['start_time']).strftime('%m/%d/%Y %H:%M:%S')}\n"
         job_str += f"[bold]end time[/bold]: {datetime.fromtimestamp(row['end_time']).strftime('%m/%d/%Y %H:%M:%S')}\n"
