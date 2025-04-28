@@ -1,13 +1,13 @@
 import sys
 import pandas as pd
 import argparse
+from pathlib import Path
 import darshan
 import darshan.cli
 from darshan.backend.cffi_backend import accumulate_records
 from typing import Any, Union, Callable
 from datetime import datetime
 from humanize import naturalsize
-
 import concurrent.futures
 from functools import partial
 
@@ -173,8 +173,13 @@ def setup_parser(parser: argparse.ArgumentParser):
 
     parser.add_argument(
         "log_paths",
-        nargs='+',
+        nargs='*',
         help="specify the paths to Darshan log files"
+    )
+    parser.add_argument(
+        "--log_paths_file",
+        type=str,
+        help="specify the path to a manifest file listing Darshan log files"
     )
     parser.add_argument(
         "--module", "-m",
@@ -210,6 +215,17 @@ def setup_parser(parser: argparse.ArgumentParser):
         help="regex patterns for file record names to include in stats"
      )
 
+def get_input_logs(args):
+    if args.log_paths_file:
+        manifest_path = Path(args.log_paths_file)
+        if not manifest_path.is_file():
+            raise ValueError(f"Input manifest file {manifest_path} not found.")
+        with open(manifest_path) as f:
+            return [line.strip() for line in f if line.strip()]
+    elif args.log_paths:
+        return args.log_paths
+    else:
+        raise ValueError("No input Darshan logs provided.")
 
 def main(args: Union[Any, None] = None):
     """
@@ -227,12 +243,11 @@ def main(args: Union[Any, None] = None):
     mod = args.module
     order_by = args.order_by
     limit = args.limit
-    log_paths = args.log_paths
+    log_paths = get_input_logs(args)
     filter_patterns=None
     filter_mode=None
     if args.exclude_names and args.include_names:
-        print('job_stats error: only one of --exclude-names and --include-names may be used.')
-        sys.exit(1)
+        raise ValueError('Only one of --exclude_names and --include_names may be used.')
     elif args.exclude_names:
         filter_patterns = args.exclude_names
         filter_mode = "exclude"
