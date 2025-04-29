@@ -13,7 +13,9 @@ example job summary report can be viewed `HERE <https://www.mcs.anl.gov/research
 
 Usage of this job summary tool is described below. ::
 
-    usage: darshan summary [-h] [--output OUTPUT] [--enable_dxt_heatmap] log_path
+    usage: darshan summary [-h] [--output OUTPUT] [--enable_dxt_heatmap]
+                           [--exclude_names EXCLUDE_NAMES] [--include_names INCLUDE_NAMES]
+                           log_path
 
     Generates a Darshan Summary Report
 
@@ -24,6 +26,10 @@ Usage of this job summary tool is described below. ::
       -h, --help            show this help message and exit
       --output OUTPUT       Specify output filename.
       --enable_dxt_heatmap  Enable DXT-based versions of I/O activity heatmaps.
+      --exclude_names EXCLUDE_NAMES
+                            regex patterns for file record names to exclude in summary report
+      --include_names INCLUDE_NAMES
+                            regex patterns for file record names to include in summary report
 
 For example, the following command would generate an HTML job summary report
 for a Darshan log file named `example.darshan`.
@@ -35,6 +41,82 @@ for a Darshan log file named `example.darshan`.
 If ``--output`` option is not specified, the output HTML report will be based
 on the input log file name (i.e., the above command would generate an HTML
 report named `example_report.html`).
+
+Other Darshan CLI tools
+-----------------------
+
+There are also command line tools available for quickly printing terminal output
+describing general I/O statistics of one or more input Darhan logs.
+The ``job_stats`` tool is used to summarize key job-level I/O parameters for each
+of a given set of Darshan logs, ordering the jobs according to some I/O metric.
+Alternatively, the ``file_stats`` is used to summarize key file-level I/O
+parameters for each file accessed across a set of Darshan logs, with the files
+ordered according to some I/O metric.
+
+Usage of the ``job_stats`` tool is described below. ::
+
+    usage: darshan job_stats [-h] [--log_paths_file LOG_PATHS_FILE] [--module [{POSIX,MPI-IO,STDIO}]]
+                             [--order_by [{perf_by_slowest,time_by_slowest,total_bytes,total_files}]] [--limit [LIMIT]]
+                             [--csv] [--exclude_names EXCLUDE_NAMES] [--include_names INCLUDE_NAMES]
+                             [log_paths [log_paths ...]]
+
+    Print statistics describing key metadata and I/O performance metrics for a given list of jobs.
+
+    positional arguments:
+      log_paths             specify the paths to Darshan log files
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      --log_paths_file LOG_PATHS_FILE
+                            specify the path to a manifest file listing Darshan log files
+      --module [{POSIX,MPI-IO,STDIO}], -m [{POSIX,MPI-IO,STDIO}]
+                            specify the Darshan module to generate job stats for (default: POSIX)
+      --order_by [{perf_by_slowest,time_by_slowest,total_bytes,total_files}], -o [{perf_by_slowest,time_by_slowest,total_bytes,total_files}]
+                            specify the I/O metric to order jobs by (default: total_bytes)
+      --limit [LIMIT], -l [LIMIT]
+                            limit output to the top LIMIT number of jobs according to selected metric
+      --csv, -c             output job stats in CSV format
+      --exclude_names EXCLUDE_NAMES, -e EXCLUDE_NAMES
+                        regex patterns for file record names to exclude in stats
+      --include_names INCLUDE_NAMES, -i INCLUDE_NAMES
+                        regex patterns for file record names to include in stats
+
+Options allow for users to calculate stats for specific modules, to use a number of different
+I/O statistics to order jobs, to limit output to the top N jobs, to print in CSV format
+(rather than default Rich printing), and to filter file names within jobs.
+Note that users can either provide the list of Darshan logs directly on the command line
+or use a manifest file in cases where many logs are to be analyzed at once.
+
+Usage of the ``file_stats`` tool is described below. ::
+
+    usage: darshan file_stats [-h] [--log_paths_file LOG_PATHS_FILE] [--module [{POSIX,MPI-IO,STDIO}]]
+                              [--order_by [{bytes_read,bytes_written,reads,writes,total_jobs}]] [--limit [LIMIT]] [--csv]
+                              [--exclude_names EXCLUDE_NAMES] [--include_names INCLUDE_NAMES]
+                              [log_paths [log_paths ...]]
+
+    Print statistics describing key metadata and I/O performance metrics for files accessed by a given list of jobs.
+
+    positional arguments:
+      log_paths             specify the paths to Darshan log files
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      --log_paths_file LOG_PATHS_FILE
+                            specify the path to a manifest file listing Darshan log files
+      --module [{POSIX,MPI-IO,STDIO}], -m [{POSIX,MPI-IO,STDIO}]
+                            specify the Darshan module to generate file stats for (default: POSIX)
+      --order_by [{bytes_read,bytes_written,reads,writes,total_jobs}], -o [{bytes_read,bytes_written,reads,writes,total_jobs}]
+                            specify the I/O metric to order files by (default: bytes_read)
+      --limit [LIMIT], -l [LIMIT]
+                            limit output to the top LIMIT number of jobs according to selected metric
+      --csv, -c             output file stats in CSV format
+      --exclude_names EXCLUDE_NAMES, -e EXCLUDE_NAMES
+                        regex patterns for file record names to exclude in stats
+      --include_names INCLUDE_NAMES, -i INCLUDE_NAMES
+                            regex patterns for file record names to include in stats
+
+The options for the ``file_stats`` are largely identical to that of ``file_stats`` other
+than slightly different I/O metrics that can be used to sort output.
 
 Darshan Report interface
 ------------------------
