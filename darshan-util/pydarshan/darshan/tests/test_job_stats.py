@@ -58,6 +58,8 @@ def _provide_logs_repo_filepaths_filtered():
         path for path in _provide_logs_repo_filepaths()
         if 'dlio_logs' in path
     ]
+@pytest.mark.skipif(not pytest.has_log_repo,
+                    reason="missing darshan_logs")
 @pytest.mark.parametrize(
     ("argv", "expected"),
     [
