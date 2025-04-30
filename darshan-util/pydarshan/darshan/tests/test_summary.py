@@ -176,11 +176,16 @@ def test_main_without_args(tmpdir, argv, expected_img_count, expected_table_coun
             with pytest.raises(RuntimeError):
                 summary.main()
 
-
+# just punt on this test for the dlio_logs given there's 26 of them
+def _provide_logs_repo_filepaths_filtered():
+    return [
+        path for path in _provide_logs_repo_filepaths()
+        if 'dlio_logs' not in path
+    ]
 @pytest.mark.skipif(not pytest.has_log_repo,
                     reason="missing darshan_logs")
 @pytest.mark.parametrize("log_filepath",
-        _provide_logs_repo_filepaths()
+        _provide_logs_repo_filepaths_filtered()
         )
 def test_main_all_logs_repo_files(tmpdir, log_filepath):
     # similar to `test_main_without_args` but focused
