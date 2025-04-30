@@ -111,7 +111,7 @@ def get_io_cost_df(report: darshan.DarshanReport) -> Any:
     io_cost_dict = {}
     supported_modules = ["POSIX", "MPI-IO", "STDIO", "H5F", "H5D", "PNETCDF_FILE", "PNETCDF_VAR"]
     for mod_key in report.modules:
-        if mod_key in supported_modules:
+        if mod_key in supported_modules and len(report.records[mod_key]) > 0:
             # collect the records in dataframe form
             recs = report.records[mod_key].to_df(attach=None)
             # correct the MPI module key
@@ -150,13 +150,18 @@ def plot_io_cost(report: darshan.DarshanReport) -> Any:
     Returns
     -------
     io_cost_fig: a ``matplotlib.pyplot.figure`` object containing a
-    stacked bar graph of the average read, write, and metadata times.
+    stacked bar graph of the average read, write, and metadata times --
+    or None when there is no data to plot
 
     """
     # get the run time from the report metadata
     runtime = report.metadata["job"]["run_time"]
     # get the I/O cost dataframe
     io_cost_df = get_io_cost_df(report=report)
+    if io_cost_df.empty:
+        # return an empty figure if there's no data
+        # this typically occurs when all module records have been filtered out
+        return None
     # generate a figure with 2 y axes
     io_cost_fig = plt.figure(figsize=(4.5, 4))
     ax_raw = io_cost_fig.add_subplot(111)

@@ -208,11 +208,11 @@ def rec_to_rw_counter_dfs(report: Any,
     rec_counters = pd.DataFrame()
     df_reads = pd.DataFrame()
     df_writes = pd.DataFrame()
-    if "POSIX" in report.modules:
+    if "POSIX" in report.modules and len(report.records["POSIX"]) > 0:
         rec_counters = pd.concat(objs=(rec_counters, report.records["POSIX"].to_df()['counters']))
         df_reads = pd.concat(objs=(df_reads, rec_counters.loc[rec_counters[f'POSIX_BYTES_READ'] >= 1]))
         df_writes = pd.concat(objs=(df_writes, rec_counters.loc[rec_counters[f'POSIX_BYTES_WRITTEN'] >= 1]))
-    if "STDIO" in report.modules:
+    if "STDIO" in report.modules and len(report.records["STDIO"]) > 0:
         rec_counters = pd.concat(objs=(rec_counters, report.records["STDIO"].to_df()['counters']))
         df_reads = pd.concat(objs=(df_reads, rec_counters.loc[rec_counters[f'STDIO_BYTES_READ'] >= 1]))
         df_writes = pd.concat(objs=(df_writes, rec_counters.loc[rec_counters[f'STDIO_BYTES_WRITTEN'] >= 1]))
@@ -632,7 +632,7 @@ def plot_with_report(report: darshan.DarshanReport,
     Returns
     -------
 
-    fig: matplotlib figure object
+    fig: matplotlib figure object or None if no data to plot
     """
     fig = plt.figure()
     file_id_dict = report.data["name_records"]
@@ -647,6 +647,10 @@ def plot_with_report(report: darshan.DarshanReport,
                 allowed_ids = []
             for ident in allowed_ids:
                 allowed_file_id_dict[ident] = file_id_dict[ident]
+
+    if len(allowed_file_id_dict) == 0:
+        # no data, likely because all records have been filtered out
+        return None
 
     filesystem_roots = identify_filesystems(file_id_dict=allowed_file_id_dict,
                                             verbose=verbose)

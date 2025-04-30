@@ -679,3 +679,32 @@ def test_stdio_basic_inclusion(logname,
     assert_series_equal(file_wr_series, expected_file_wr_series)
     assert_series_equal(bytes_rd_series, expected_bytes_rd_series)
     assert_series_equal(bytes_wr_series, expected_bytes_wr_series)
+
+def test_plot_with_empty_data():
+    # generate a report object that filters out all contained records
+    # to ensure data access by category plot properly returns None instead of failing
+    logpath = get_log_path("ior_hdf5_example.darshan")
+    # use a bogus regex with the "include" filter mode to ensure no records are included
+    with darshan.DarshanReport(logpath, filter_patterns=["bogus-regex"], filter_mode="include") as report:
+        fig = data_access_by_filesystem.plot_with_report(report=report)
+        assert fig == None
+
+def test_with_filtered_data():
+    # ensure get_io_cost_df doesn't include data for modules with no records
+    logpath = get_log_path("sample-badost.darshan")
+    # generate a report object with all STDIO module records filtered out
+    # POSIX records should still remain
+    with darshan.DarshanReport(logpath, filter_patterns=["ior-posix"], filter_mode="include") as report:
+        file_id_dict = report.data["name_records"]
+        actual_df_reads, actual_df_writes = data_access_by_filesystem.rec_to_rw_counter_dfs_with_cols(report=report,
+                                                                                                      file_id_dict=file_id_dict)
+        assert len(actual_df_reads) == 0
+        assert len(actual_df_writes) == 2048
+    # generate a report object with all POSIX module records filtered out
+    # STDIO records should still remain
+    with darshan.DarshanReport(logpath, filter_patterns=["ior-posix"], filter_mode="exclude") as report:
+        file_id_dict = report.data["name_records"]
+        actual_df_reads, actual_df_writes = data_access_by_filesystem.rec_to_rw_counter_dfs_with_cols(report=report,
+                                                                                                      file_id_dict=file_id_dict)
+        assert len(actual_df_reads) == 1
+        assert len(actual_df_writes) == 2

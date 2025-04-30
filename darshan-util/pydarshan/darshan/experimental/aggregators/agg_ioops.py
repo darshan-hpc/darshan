@@ -28,7 +28,7 @@ def agg_ioops(self, mode='append'):
     for mod in mods:
 
         # check records for module are present
-        if mod not in recs:
+        if mod not in recs or len(recs[mod]) == 0:
             continue
 
         agg = None

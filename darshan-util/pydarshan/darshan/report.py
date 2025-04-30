@@ -309,14 +309,16 @@ class DarshanReport(object):
             filename=None, dtype='numpy', 
             start_time=None, end_time=None,
             automatic_summary=False,
-            read_all=True, lookup_name_records=True):
+            read_all=True,
+            filter_patterns=None, filter_mode="exclude"):
         """
         Args:
             filename (str): filename to open (optional)
             dtype (str): default dtype for internal structures
             automatic_summary (bool): automatically generate summary after loading
             read_all (bool): whether to read all records for log
-            lookup_name_records (bool): lookup and update name_records as records are loaded
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
@@ -326,13 +328,12 @@ class DarshanReport(object):
         self.log = None
 
         # Behavioral Options
-        self.dtype = dtype                                  # default dtype to return when viewing records
+        self.dtype = dtype                          # default dtype to return when viewing records
+        self.name_records_read = False              # True if name records have been read from the log
         self.automatic_summary = automatic_summary
-        self.lookup_name_records = lookup_name_records
 
         # State dependent book-keeping
         self.converted_records = False  # true if convert_records() was called (unnumpyfy)
-
 
         # Report Metadata
         #
@@ -354,7 +355,6 @@ class DarshanReport(object):
         self.summary_revision = 0       # counter to check if summary needs update (see data_revision)
         self.summary = {}
 
-
         # legacy references (deprecate before 1.0?)
         self.data_revision = 0          # counter for consistency checks
         self.data = {'version': 1}
@@ -365,16 +365,14 @@ class DarshanReport(object):
         self.data['counters'] = self.counters
         self.data['name_records'] = self.name_records
 
-
         # when using report algebra this log allows to untangle potentially
         # unfair aggregations (e.g., double accounting)
         self.provenance_enabled = True
         self.provenance_graph = []
         self.provenance_reports = {}
 
-
         if filename:
-            self.open(filename, read_all=read_all)    
+            self.open(filename, read_all=read_all, filter_patterns=filter_patterns, filter_mode=filter_mode)
 
 
     @property
@@ -408,13 +406,15 @@ class DarshanReport(object):
 #   
       
 
-    def open(self, filename, read_all=False):
+    def open(self, filename, read_all=False, filter_patterns=None, filter_mode="exclude"):
         """
         Open log file via CFFI backend.
 
         Args:
             filename (str): filename to open (optional)
             read_all (bool): whether to read all records for log
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
@@ -428,10 +428,10 @@ class DarshanReport(object):
             if not bool(self.log['handle']):
                 raise RuntimeError("Failed to open file.")
 
-            self.read_metadata(read_all=read_all)
+            self.read_metadata()
 
             if read_all:
-                self.read_all()
+                self.read_all(filter_patterns=filter_patterns, filter_mode=filter_mode)
 
 
     def __add__(self, other):
@@ -464,8 +464,7 @@ class DarshanReport(object):
         # TODO: might consider treating self.log as list of open logs to not deactivate load functions?
 
 
-
-    def read_metadata(self, read_all=False):
+    def read_metadata(self):
         """
         Read metadata such as the job, the executables and available modules.
 
@@ -488,60 +487,55 @@ class DarshanReport(object):
         self.data['modules'] = backend.log_get_modules(self.log)
         self._modules = self.data['modules']
 
-        if read_all == True:
-            self.data["name_records"] = backend.log_get_name_records(self.log)
-            self.name_records = self.data['name_records']
 
-
-    def update_name_records(self, mod=None):
+    def read_name_records(self, filter_patterns=None, filter_mode="exclude"):
         """
-        Update (and prune unused) name records from resolve table.
-
-        First reindexes all used name record identifiers and then queries 
-        darshan-utils library to compile filtered list of name records.
+        Read all name records (record ID -> record name map) from the
+        Darshan log file using darshan-utils library. If filter patterns
+        are provided, either filter those records out (exclude) or in (include).
 
         Args:
-            None
+            filter_patterns (list of strs): regex patterns for names to exclude/include
+            filter_mode (str): whether to "exclude" or "include" the filter patterns
 
         Return:
             None
 
         """
-        # sanitize inputs
-        mods = mod
-        if mods is None:
-            mods = self.records
-        else:
-            mods = [mod]
+        if filter_patterns and filter_mode not in {"exclude", "include"}:
+            raise RuntimeError("Invalid filter mode used for read_name_records().")
+        tmp_name_records = backend.log_get_name_records(self.log)
+        # filter name records according to user-supplied patterns
+        if filter_patterns:
+            compiled_patterns = [re.compile(p) for p in filter_patterns]
+            tmp_name_records = {
+                rec_id : rec_name
+                for (rec_id, rec_name) in tmp_name_records.items()
+                if ((filter_mode == "exclude" and not any(p.search(rec_name) for p in compiled_patterns))
+                    or
+                    (filter_mode == "include" and any(p.search(rec_name) for p in compiled_patterns)))
+            }
+        self.data["name_records"] = tmp_name_records
+        self.name_records = self.data['name_records']
+        self.name_records_read = True
 
-        
-        # state
-        ids = set()
 
-        for mod in mods:
-            logger.debug(f" Refreshing name_records for mod={mod}")
-            for rec in self.records[mod]:
-                ids.add(rec['id'])
-
-
-        self.name_records.update(backend.log_lookup_name_records(self.log, ids))
-        
-
-    def read_all(self, dtype=None):
+    def read_all(self, dtype=None, filter_patterns=None, filter_mode="exclude"):
         """
         Read all available records from darshan log and return as dictionary.
 
         Args:
-            None
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
         """
 
-        self.read_all_generic_records(dtype=dtype)
-        self.read_all_dxt_records(dtype=dtype)
+        self.read_all_generic_records(dtype=dtype, filter_patterns=filter_patterns, filter_mode=filter_mode)
+        self.read_all_dxt_records(dtype=dtype, filter_patterns=filter_patterns, filter_mode=filter_mode)
         if "LUSTRE" in self.data['modules']:
-            self.mod_read_all_lustre_records(dtype=dtype)
+            self.mod_read_all_lustre_records(dtype=dtype, filter_patterns=filter_patterns, filter_mode=filter_mode)
         if "APMPI" in self.data['modules']:
             self.mod_read_all_apmpi_records(dtype=dtype)
         if "APXC" in self.data['modules']:
@@ -552,12 +546,14 @@ class DarshanReport(object):
         return
 
 
-    def read_all_generic_records(self, counters=True, fcounters=True, dtype=None):
+    def read_all_generic_records(self, counters=True, fcounters=True, dtype=None,
+                                 filter_patterns=None, filter_mode="exclude"):
         """
         Read all generic records from darshan log and return as dictionary.
 
         Args:
-            None
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
@@ -566,16 +562,18 @@ class DarshanReport(object):
         dtype = dtype if dtype else self.dtype
 
         for mod in self.data['modules']:
-            self.mod_read_all_records(mod, dtype=dtype, warnings=False)
+            self.mod_read_all_records(mod, dtype=dtype, warnings=False,
+                                      filter_patterns=filter_patterns, filter_mode=filter_mode)
 
 
-
-    def read_all_dxt_records(self, reads=True, writes=True, dtype=None):
+    def read_all_dxt_records(self, reads=True, writes=True, dtype=None,
+                             filter_patterns=None, filter_mode="exclude"):
         """
         Read all dxt records from darshan log and return as dictionary.
 
         Args:
-            None
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
@@ -584,7 +582,8 @@ class DarshanReport(object):
         dtype = dtype if dtype else self.dtype
 
         for mod in self.data['modules']:
-            self.mod_read_all_dxt_records(mod, warnings=False, reads=reads, writes=writes, dtype=dtype)
+            self.mod_read_all_dxt_records(mod, dtype=dtype, warnings=False, reads=reads, writes=writes,
+                                          filter_patterns=filter_patterns, filter_mode=filter_mode)
 
 
     def read_all_heatmap_records(self):
@@ -635,13 +634,17 @@ class DarshanReport(object):
         self._heatmaps = heatmaps
 
 
-    def mod_read_all_records(self, mod, dtype=None, warnings=True):
+    def mod_read_all_records(self, mod, dtype=None, warnings=True,
+                             filter_patterns=None, filter_mode="exclude",
+                             refresh_names=False):
         """
         Reads all generic records for module
 
         Args:
             mod (str): Identifier of module to fetch all records
             dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary, 'pandas'
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
@@ -655,10 +658,8 @@ class DarshanReport(object):
             # skip mod
             return 
 
-
         # handling options
         dtype = dtype if dtype else self.dtype
-
 
         self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
         cn = backend.counter_names(mod)
@@ -674,19 +675,21 @@ class DarshanReport(object):
             self.counters[mod]['counters'] = cn 
             self.counters[mod]['fcounters'] = fcn
 
+        # get name records if they have not been read yet
+        if not self.name_records_read or refresh_names:
+            self.read_name_records(filter_patterns=filter_patterns, filter_mode=filter_mode)
 
         # fetch records
         rec = backend.log_get_generic_record(self.log, mod, dtype=dtype)
         while rec != None:
-            self.records[mod].append(rec)
-            self._modules[mod]['num_records'] += 1
+            if rec['id'] in self.name_records:
+                # only keep records we have names for, otherwise the record
+                # likely has a name that was excluded
+                self.records[mod].append(rec)
+                self._modules[mod]['num_records'] += 1
 
             # fetch next
             rec = backend.log_get_generic_record(self.log, mod, dtype=dtype)
-
-
-        if self.lookup_name_records:
-            self.update_name_records(mod=mod)
 
         # process/combine records if the format dtype allows for this
         if dtype == 'pandas':
@@ -716,7 +719,8 @@ class DarshanReport(object):
                 }]
 
 
-    def mod_read_all_apmpi_records(self, mod="APMPI", dtype=None, warnings=True):
+    def mod_read_all_apmpi_records(self, mod="APMPI", dtype=None, warnings=True,
+                                   refresh_names=False):
         """ 
         Reads all APMPI records for provided module.
 
@@ -751,7 +755,10 @@ class DarshanReport(object):
         if mod not in self.counters:
             self.counters[mod] = {}
 
-        # fetch records
+        # get name records if they have not been read yet
+        if not self.name_records_read or refresh_names:
+            self.read_name_records()
+
         # fetch header record
         rec = backend.log_get_apmpi_record(self.log, mod, "HEADER", dtype=dtype)
         while rec != None:
@@ -762,11 +769,8 @@ class DarshanReport(object):
             rec = backend.log_get_apmpi_record(self.log, mod, "PERF", dtype=dtype)
 
 
-        if self.lookup_name_records:
-            self.update_name_records(mod=mod)
-
-
-    def mod_read_all_apxc_records(self, mod="APXC", dtype=None, warnings=True):
+    def mod_read_all_apxc_records(self, mod="APXC", dtype=None, warnings=True,
+                                  refresh_names=False):
         """ 
         Reads all APXC records for provided module.
 
@@ -801,7 +805,10 @@ class DarshanReport(object):
         if mod not in self.counters:
             self.counters[mod] = {}
 
-        # fetch records
+        # get name records if they have not been read yet
+        if not self.name_records_read or refresh_names:
+            self.read_name_records()
+
         # fetch header record
         rec = backend.log_get_apxc_record(self.log, mod, "HEADER", dtype=dtype)
         while rec != None:
@@ -811,17 +818,18 @@ class DarshanReport(object):
             # fetch next
             rec = backend.log_get_apxc_record(self.log, mod, "PERF", dtype=dtype)
 
-        if self.lookup_name_records:
-            self.update_name_records(mod=mod)
 
-
-    def mod_read_all_dxt_records(self, mod, dtype=None, warnings=True, reads=True, writes=True):
+    def mod_read_all_dxt_records(self, mod, dtype=None, warnings=True, reads=True, writes=True,
+                                 filter_patterns=None, filter_mode="exclude",
+                                 refresh_names=False):
         """
         Reads all dxt records for provided module.
 
         Args:
             mod (str): Identifier of module to fetch all records
             dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
@@ -832,7 +840,6 @@ class DarshanReport(object):
                 logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
             return
 
-
         supported =  ['DXT_POSIX', 'DXT_MPIIO']
 
         if mod not in supported:
@@ -841,10 +848,8 @@ class DarshanReport(object):
             # skip mod
             return 
 
-
         # handling options
         dtype = dtype if dtype else self.dtype
-
 
         self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
 
@@ -853,53 +858,46 @@ class DarshanReport(object):
         if mod not in self.counters:
             self.counters[mod] = {}
 
+        # get name records if they have not been read yet
+        if not self.name_records_read or refresh_names:
+            self.read_name_records(filter_patterns=filter_patterns, filter_mode=filter_mode)
 
         # fetch records
-        rec = backend.log_get_dxt_record(self.log, mod, dtype=dtype)
+        rec = backend.log_get_dxt_record(self.log, mod, reads=reads, writes=writes, dtype=dtype)
         while rec != None:
-            self.records[mod].append(rec)
-            self.data['modules'][mod]['num_records'] += 1
+            if rec['id'] in self.name_records:
+                # only keep records we have names for, otherwise the record
+                # likely has a name that was excluded
+                self.records[mod].append(rec)
+                self._modules[mod]['num_records'] += 1
 
             # fetch next
             rec = backend.log_get_dxt_record(self.log, mod, reads=reads, writes=writes, dtype=dtype)
 
 
-        if self.lookup_name_records:
-            self.update_name_records(mod=mod)
-
-
-
-
-    def mod_read_all_lustre_records(self, mod="LUSTRE", dtype=None, warnings=True):
+    def mod_read_all_lustre_records(self, dtype=None, warnings=True,
+                                    filter_patterns=None, filter_mode="exclude",
+                                    refresh_names=False):
         """
-        Reads all dxt records for provided module.
+        Reads all lustre records.
 
         Args:
-            mod (str): Identifier of module to fetch all records
             dtype (str): 'numpy' for ndarray (default), 'dict' for python dictionary
+            filter_patterns (list of strings): list of Python regex strings to match against
+            filter_mode (str): filter mode to use (either "exclude" or "include")
 
         Return:
             None
 
         """
+        mod = "LUSTRE"
         if mod not in self.modules:
             if warnings:
                 logger.warning(f" Skipping. Log does not contain data for mod: {mod}")
             return
 
-
-        supported =  ['LUSTRE']
-
-        if mod not in supported:
-            if warnings:
-                logger.warning(f" Skipping. Unsupported module: {mod} in in mod_read_all_dxt_records(). Supported: {supported}")
-            # skip mod
-            return 
-
-
         # handling options
         dtype = dtype if dtype else self.dtype
-
 
         self.records[mod] = DarshanRecordCollection(mod=mod, report=self)
         cn = backend.counter_names("LUSTRE_COMP")
@@ -910,19 +908,21 @@ class DarshanReport(object):
             self.counters[mod] = {}
             self.counters[mod]['counters'] = cn 
 
+        # get name records if they have not been read yet
+        if not self.name_records_read or refresh_names:
+            self.read_name_records(filter_patterns=filter_patterns, filter_mode=filter_mode)
 
         # fetch records
         rec = backend.log_get_record(self.log, mod, dtype=dtype)
         while rec != None:
-            self.records[mod].append(rec)
-            self.data['modules'][mod]['num_records'] += 1
+            if rec['id'] in self.name_records:
+                # only keep records we have names for, otherwise the record
+                # likely has a name that was excluded
+                self.records[mod].append(rec)
+                self._modules[mod]['num_records'] += 1
 
             # fetch next
             rec = backend.log_get_record(self.log, mod, dtype=dtype)
-
-
-        if self.lookup_name_records:
-            self.update_name_records(mod=mod)
 
         # process/combine records if the format dtype allows for this
         if dtype == 'pandas':
@@ -934,15 +934,11 @@ class DarshanReport(object):
                 else:
                     combined_c = pd.concat([combined_c, rec['components']])
 
-
             self.records[mod] = [{
                 'rank': -1,
                 'id': -1,
                 'components': combined_c,
                 }]
-
-
-
 
 
     def mod_records(self, mod, 
