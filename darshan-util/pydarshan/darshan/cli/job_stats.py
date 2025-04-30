@@ -146,7 +146,7 @@ def rich_print(df, mod, order_by):
             column.style = column.header_style = column.footer_style = "bold cyan"
     for _, row in df.iterrows():
         job_str  = f"[bold]job id[/bold]: {row['job_id']}\n"
-        job_str  = f"[bold]uid[/bold]: {row['uid']}\n"
+        job_str += f"[bold]uid[/bold]: {row['uid']}\n"
         job_str += f"[bold]nprocs[/bold]: {row['nprocs']}\n"
         job_str += f"[bold]start time[/bold]: {datetime.fromtimestamp(row['start_time']).strftime('%m/%d/%Y %H:%M:%S')}\n"
         job_str += f"[bold]end time[/bold]: {datetime.fromtimestamp(row['end_time']).strftime('%m/%d/%Y %H:%M:%S')}\n"
