@@ -384,6 +384,18 @@ class ReportData:
         )
         modules_avail = set(self.report.modules)
         hmap_modules = ["HEATMAP", "DXT_POSIX", "DXT_MPIIO"]
+        # see gh-729 and gh-692
+        # don't ingest DXT data if it appears to be
+        # too large as a compressed entity
+        if "HEATMAP" in self.report.modules:
+            max_allowed_dxt_mib = 2
+            dxt_mod_size_mib = 0
+            for mod in self.report.modules:
+                if "DXT" in mod:
+                    dxt_mod_size_mib += (self.report.modules[mod]["len"] / (2 ** 20))
+            if dxt_mod_size_mib > max_allowed_dxt_mib:
+                hmap_modules = ["HEATMAP"]
+
         hmap_grid = OrderedDict([["HEATMAP_MPIIO", None],
                                  ["DXT_MPIIO", None],
                                  ["HEATMAP_POSIX", None],
