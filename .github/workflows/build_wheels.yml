@@ -57,6 +57,6 @@ jobs:
         with:
           package-dir: ./darshan-util/pydarshan
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
