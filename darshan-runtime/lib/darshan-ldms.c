@@ -34,11 +34,11 @@ static void event_cb(ldms_t x, ldms_xprt_event_t e, void *cb_arg)
 		dC.conn_status = 0;
 		break;
 	case LDMS_XPRT_EVENT_REJECTED:
-		ldms_xprt_put(x);
+		ldms_xprt_put(x, "rail_ref");
 		dC.conn_status = ECONNREFUSED;
 		break;
 	case LDMS_XPRT_EVENT_DISCONNECTED:
-		ldms_xprt_put(x);
+		ldms_xprt_put(x, "rail_ref");
 		dC.conn_status = ENOTCONN;
 		break;
 	case LDMS_XPRT_EVENT_ERROR:
@@ -50,6 +50,8 @@ static void event_cb(ldms_t x, ldms_xprt_event_t e, void *cb_arg)
 	case LDMS_XPRT_EVENT_SEND_COMPLETE:
 		break;
 	default:
+		ldms_xprt_put(x, "rail_ref");
+                dC.conn_status = ECONNABORTED;
 		darshan_core_fprintf(stderr, "LDMS library: Received invalid event type %d.\n", e->type);
 	}
 }
