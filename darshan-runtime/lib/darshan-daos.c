@@ -196,7 +196,7 @@ static int my_rank = -1;
 } while(0)
 
 #define ID_GLOB_SIZE (sizeof(daos_obj_id_t) + (2*sizeof(uuid_t)))
-#define DAOS_RECORD_OBJ_OPEN(__coh, __oh_p, __oid, __counter, __cell_sz, __chunk_sz, __tm1, __tm2) do { \
+#define DAOS_RECORD_OBJ_OPEN(__coh, __oh_p, __oid, __counter, __cell_sz, __chunk_sz, __is_async, __tm1, __tm2) do { \
     struct daos_poolcont_info *__poolcont_info; \
     unsigned char __id_glob[ID_GLOB_SIZE]; \
     darshan_record_id __rec_id; \
@@ -212,6 +212,7 @@ static int my_rank = -1;
     if(!__rec_ref) __rec_ref = daos_track_new_object_record(__rec_id, __oid, __poolcont_info); \
     if(!__rec_ref) break; \
     __rec_ref->object_rec->counters[__counter] += 1; \
+    if(__is_async) __rec_ref->object_rec->counters[DAOS_NB_OPS] += 1; \
     if(__cell_sz) __rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE] = __cell_sz; \
     if(__chunk_sz)  __rec_ref->object_rec->counters[DAOS_ARRAY_CHUNK_SIZE] = __chunk_sz; \
     __rec_ref->object_rec->counters[DAOS_OBJ_OTYPE] = daos_obj_id2type(__oid); \
@@ -225,15 +226,22 @@ static int my_rank = -1;
         sizeof(daos_handle_t), __rec_ref); \
 } while(0)
 
-#define DAOS_RECORD_OBJ_READ(__rec_ref, __oh, __counter, __sz, __tm1, __tm2) do { \
+#define DAOS_RECORD_OBJ_READ(__oh, __counter, __sz, __is_async, __tm1, __tm2) do { \
     int64_t __tmp_sz = (int64_t)__sz; \
     struct darshan_common_val_counter *__cvc; \
     double __elapsed = __tm2-__tm1; \
+    struct daos_object_record_ref *__rec_ref; \
+    __rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &__oh, \
+        sizeof(daos_handle_t)); \
+    if(!__rec_ref) break; \
+    if(__counter == DAOS_ARRAY_READS) \
+        __tmp_sz *= __rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE];\
     /* heatmap to record traffic summary */ \
     heatmap_update(daos_runtime->heatmap_id, HEATMAP_READ, __tmp_sz, __tm1, __tm2); \
     __rec_ref->object_rec->counters[__counter] += 1; \
-    __rec_ref->object_rec->counters[DAOS_BYTES_READ] += __sz; \
-    DARSHAN_BUCKET_INC(&(__rec_ref->object_rec->counters[DAOS_SIZE_READ_0_100]), __sz); \
+    if(__is_async) __rec_ref->object_rec->counters[DAOS_NB_OPS] += 1; \
+    __rec_ref->object_rec->counters[DAOS_BYTES_READ] += __tmp_sz; \
+    DARSHAN_BUCKET_INC(&(__rec_ref->object_rec->counters[DAOS_SIZE_READ_0_100]), __tmp_sz); \
     __cvc = darshan_track_common_val_counters(&__rec_ref->access_root, &__tmp_sz, 1, \
         &__rec_ref->access_count); \
     if(__cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
@@ -249,21 +257,28 @@ static int my_rank = -1;
     __rec_ref->object_rec->fcounters[DAOS_F_READ_END_TIMESTAMP] = __tm2; \
     if(__rec_ref->object_rec->fcounters[DAOS_F_MAX_READ_TIME] < __elapsed) { \
         __rec_ref->object_rec->fcounters[DAOS_F_MAX_READ_TIME] = __elapsed; \
-        __rec_ref->object_rec->counters[DAOS_MAX_READ_TIME_SIZE] = __sz; \
+        __rec_ref->object_rec->counters[DAOS_MAX_READ_TIME_SIZE] = __tmp_sz; \
     } \
     DARSHAN_TIMER_INC_NO_OVERLAP(__rec_ref->object_rec->fcounters[DAOS_F_READ_TIME], \
         __tm1, __tm2, __rec_ref->last_read_end); \
 } while(0)
 
-#define DAOS_RECORD_OBJ_WRITE(__rec_ref, __oh, __counter, __sz, __tm1, __tm2) do { \
+#define DAOS_RECORD_OBJ_WRITE(__oh, __counter, __sz, __is_async, __tm1, __tm2) do { \
     int64_t __tmp_sz = (int64_t)__sz; \
     struct darshan_common_val_counter *__cvc; \
     double __elapsed = __tm2-__tm1; \
+    struct daos_object_record_ref *__rec_ref; \
+    __rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &__oh, \
+        sizeof(daos_handle_t)); \
+    if(!__rec_ref) break; \
+    if(__counter == DAOS_ARRAY_WRITES) \
+        __tmp_sz *= __rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE];\
     /* heatmap to record traffic summary */ \
     heatmap_update(daos_runtime->heatmap_id, HEATMAP_WRITE, __tmp_sz, __tm1, __tm2); \
     __rec_ref->object_rec->counters[__counter] += 1; \
-    __rec_ref->object_rec->counters[DAOS_BYTES_WRITTEN] += __sz; \
-    DARSHAN_BUCKET_INC(&(__rec_ref->object_rec->counters[DAOS_SIZE_WRITE_0_100]), __sz); \
+    if(__is_async) __rec_ref->object_rec->counters[DAOS_NB_OPS] += 1; \
+    __rec_ref->object_rec->counters[DAOS_BYTES_WRITTEN] += __tmp_sz; \
+    DARSHAN_BUCKET_INC(&(__rec_ref->object_rec->counters[DAOS_SIZE_WRITE_0_100]), __tmp_sz); \
     __cvc = darshan_track_common_val_counters(&__rec_ref->access_root, &__tmp_sz, 1, \
         &__rec_ref->access_count); \
     if(__cvc) DARSHAN_UPDATE_COMMON_VAL_COUNTERS( \
@@ -279,7 +294,7 @@ static int my_rank = -1;
     __rec_ref->object_rec->fcounters[DAOS_F_WRITE_END_TIMESTAMP] = __tm2; \
     if(__rec_ref->object_rec->fcounters[DAOS_F_MAX_WRITE_TIME] < __elapsed) { \
         __rec_ref->object_rec->fcounters[DAOS_F_MAX_WRITE_TIME] = __elapsed; \
-        __rec_ref->object_rec->counters[DAOS_MAX_WRITE_TIME_SIZE] = __sz; \
+        __rec_ref->object_rec->counters[DAOS_MAX_WRITE_TIME_SIZE] = __tmp_sz; \
     } \
     DARSHAN_TIMER_INC_NO_OVERLAP(__rec_ref->object_rec->fcounters[DAOS_F_WRITE_TIME], \
         __tm1, __tm2, __rec_ref->last_write_end); \
@@ -299,11 +314,179 @@ static int my_rank = -1;
     darshan_delete_record_ref(&(daos_runtime->oh_hash), &__oh, sizeof(daos_handle_t)); \
 } while(0)
 
+/* DAOS callback routine to measure end of async open calls */
+struct daos_open_event_tracker
+{
+    double tm1;
+    daos_handle_t coh;
+    daos_obj_id_t oid;
+    int op;
+    int resolve_sizes;
+    union
+    {
+        daos_size_t cell_size;
+        daos_size_t *cell_size_p;
+    };
+    union
+    {
+        daos_size_t chunk_size;
+        daos_size_t *chunk_size_p;
+    };
+    daos_handle_t *oh_p;
+};
+int darshan_daos_open_comp_cb(void *arg, daos_event_t *ev, int ret)
+{
+    struct daos_open_event_tracker *tracker = (struct daos_open_event_tracker *)arg;
+
+    if (ret == 0)
+    {
+        /* async operation completed successfully, capture Darshan statistics */
+        double tm2 = darshan_core_wtime();
+        if (!tracker->resolve_sizes)
+            DAOS_RECORD_OBJ_OPEN(tracker->coh, tracker->oh_p, tracker->oid, tracker->op,
+                tracker->cell_size, tracker->chunk_size, 1, tracker->tm1, tm2);
+        else
+            DAOS_RECORD_OBJ_OPEN(tracker->coh, tracker->oh_p, tracker->oid, tracker->op,
+                *(tracker->cell_size_p), *(tracker->chunk_size_p), 1, tracker->tm1, tm2);
+    }
+    free(tracker);
+
+    return 0;
+}
+
+/* DAOS callback routine to measure end of async read calls */
+struct daos_read_event_tracker
+{
+    double tm1;
+    daos_handle_t oh;
+    int op;
+    union
+    {
+        daos_size_t read_size;
+        daos_size_t *read_size_p;
+    };
+};
+int darshan_daos_read_comp_cb(void *arg, daos_event_t *ev, int ret)
+{
+    struct daos_read_event_tracker *tracker = (struct daos_read_event_tracker *)arg;
+
+    if (ret == 0)
+    {
+        /* async operation completed successfully, capture Darshan statistics */
+        double tm2 = darshan_core_wtime();
+        if (tracker->op != DAOS_KV_GETS)
+            DAOS_RECORD_OBJ_READ(tracker->oh, tracker->op, tracker->read_size, 1,
+                tracker->tm1, tm2);
+        else
+            DAOS_RECORD_OBJ_READ(tracker->oh, tracker->op, *(tracker->read_size_p), 1,
+                tracker->tm1, tm2);
+    }
+    free(tracker);
+
+    return 0;
+}
+
+/* DAOS callback routine to measure end of async write calls */
+struct daos_write_event_tracker
+{
+    double tm1;
+    daos_handle_t oh;
+    int op;
+    daos_size_t write_size;
+};
+int darshan_daos_write_comp_cb(void *arg, daos_event_t *ev, int ret)
+{
+    struct daos_write_event_tracker *tracker = (struct daos_write_event_tracker *)arg;
+
+    if (ret == 0)
+    {
+        /* async operation completed successfully, capture Darshan statistics */
+        double tm2 = darshan_core_wtime();
+        DAOS_RECORD_OBJ_WRITE(tracker->oh, tracker->op, tracker->write_size, 1,
+            tracker->tm1, tm2);
+    }
+    free(tracker);
+
+    return 0;
+}
+
+/* DAOS callback routine to measure end of async "metadata" calls */
+struct daos_meta_event_tracker
+{
+    double tm1;
+    daos_handle_t oh;
+    int op;
+};
+int darshan_daos_meta_comp_cb(void *arg, daos_event_t *ev, int ret)
+{
+    struct daos_meta_event_tracker *tracker = (struct daos_meta_event_tracker *)arg;
+
+    if (ret == 0)
+    {
+        /* async operation completed successfully, capture Darshan statistics */
+        double tm2 = darshan_core_wtime();
+        struct daos_object_record_ref *rec_ref;
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &tracker->oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tracker->tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[tracker->op] += 1;
+            rec_ref->object_rec->counters[DAOS_NB_OPS] += 1;
+        }
+
+    }
+    free(tracker);
+
+    return 0;
+}
+
+/* DAOS callback routine to measure end of async close calls */
+struct daos_close_event_tracker
+{
+    double tm1;
+    daos_handle_t oh;
+};
+int darshan_daos_close_comp_cb(void *arg, daos_event_t *ev, int ret)
+{
+    struct daos_close_event_tracker *tracker = (struct daos_close_event_tracker *)arg;
+
+    if (ret == 0)
+    {
+        /* async operation completed successfully, capture Darshan statistics */
+        double tm2 = darshan_core_wtime();
+        DAOS_RECORD_OBJ_CLOSE(tracker->oh, tracker->tm1, tm2);
+    }
+    free(tracker);
+
+    return 0;
+}
+
+/* DAOS callback routine to capture key details from container open calls */
+struct daos_contopen_event_tracker
+{
+    daos_handle_t poh;
+    daos_handle_t *coh_p;
+};
+int darshan_daos_contopen_comp_cb(void *arg, daos_event_t *ev, int ret)
+{
+    struct daos_contopen_event_tracker *tracker = (struct daos_contopen_event_tracker *)arg;
+
+    if (ret == 0)
+    {
+        /* async operation completed successfully, capture container info */
+        DAOS_STORE_POOLCONT_INFO(tracker->poh, tracker->coh_p);
+    }
+    free(tracker);
+
+    return 0;
+}
+
 /*****************************************************
  *      Wrappers for DAOS functions of interest      * 
  *****************************************************/
-
-/* XXX generally handle usage of DAOS events (ev) in these instrumented calls */
 
 /* container access routines intercepted for maintaining pool/container UUIDs */
 
@@ -314,11 +497,26 @@ int DARSHAN_DECL(daos_cont_open)(daos_handle_t poh, const char *cont, unsigned i
 
     MAP_OR_FAIL(daos_cont_open);
 
+    if(ev)
+    {
+        /* setup callback to capture the container open operation upon completion */
+        struct daos_contopen_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->poh = poh;
+            tracker->coh_p = coh;
+            daos_event_register_comp_cb(ev, darshan_daos_contopen_comp_cb, tracker);
+        }
+    }
+
     ret = __real_daos_cont_open(poh, cont, flags, coh, info, ev);
 
-    DAOS_PRE_RECORD();
-    DAOS_STORE_POOLCONT_INFO(poh, coh);
-    DAOS_POST_RECORD();
+    if(!ev)
+    {
+        DAOS_PRE_RECORD();
+        DAOS_STORE_POOLCONT_INFO(poh, coh);
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
@@ -371,13 +569,35 @@ int DARSHAN_DECL(daos_obj_open)(daos_handle_t coh, daos_obj_id_t oid, unsigned i
 
     MAP_OR_FAIL(daos_obj_open);
 
+    if(ev)
+    {
+        /* setup callback to record the open operation upon completion */
+        struct daos_open_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->coh = coh;
+            tracker->oid = oid;
+            tracker->op = DAOS_OBJ_OPENS;
+            tracker->resolve_sizes = 0;
+            tracker->cell_size = 0;
+            tracker->chunk_size = 0;
+            tracker->oh_p = oh;
+            daos_event_register_comp_cb(ev, darshan_daos_open_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_obj_open(coh, oid, mode, oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_OBJ_OPENS, 0, 0, tm1, tm2);
-    DAOS_POST_RECORD();
+    if(!ev)
+    {
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_OBJ_OPENS, 0, 0, 0, tm1, tm2);
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
@@ -400,24 +620,37 @@ int DARSHAN_DECL(daos_obj_fetch)(daos_handle_t oh, daos_handle_t th, uint64_t fl
 {
 	int ret;
     double tm1, tm2;
-    struct daos_object_record_ref *rec_ref;
     daos_size_t fetch_sz;
 
     MAP_OR_FAIL(daos_obj_fetch);
+
+    DAOS_OBJ_IOD_SZ(iods, nr, fetch_sz);
+
+    if(ev)
+    {
+        /* setup callback to record the read operation upon completion */
+        struct daos_read_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_OBJ_FETCHES;
+            tracker->read_size = fetch_sz;
+            daos_event_register_comp_cb(ev, darshan_daos_read_comp_cb, tracker);
+        }
+    }
 
     tm1 = DAOS_WTIME();
     ret = __real_daos_obj_fetch(oh, th, flags, dkey, nr, iods, sgls, ioms, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &oh,
-        sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DAOS_OBJ_IOD_SZ(iods, nr, fetch_sz);
-        DAOS_RECORD_OBJ_READ(rec_ref, oh, DAOS_OBJ_FETCHES, fetch_sz, tm1, tm2);
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_READ(oh, DAOS_OBJ_FETCHES, fetch_sz, 0, tm1, tm2);
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -428,24 +661,37 @@ int DARSHAN_DECL(daos_obj_update)(daos_handle_t oh, daos_handle_t th, uint64_t f
 {
     int ret;
     double tm1, tm2;
-    struct daos_object_record_ref *rec_ref;
     daos_size_t update_sz;
 
     MAP_OR_FAIL(daos_obj_update);
+
+    DAOS_OBJ_IOD_SZ(iods, nr, update_sz);
+
+    if(ev)
+    {
+        /* setup callback to record the write operation upon completion */
+        struct daos_write_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_OBJ_UPDATES;
+            tracker->write_size = update_sz;
+            daos_event_register_comp_cb(ev, darshan_daos_write_comp_cb, tracker);
+        }
+    }
 
     tm1 = DAOS_WTIME();
     ret = __real_daos_obj_update(oh, th, flags, dkey, nr, iods, sgls, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &oh,
-        sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DAOS_OBJ_IOD_SZ(iods, nr, update_sz);
-        DAOS_RECORD_OBJ_WRITE(rec_ref, oh, DAOS_OBJ_UPDATES, update_sz, tm1, tm2);
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_WRITE(oh, DAOS_OBJ_UPDATES, update_sz, 0, tm1, tm2);
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -459,21 +705,38 @@ int DARSHAN_DECL(daos_obj_punch)(daos_handle_t oh, daos_handle_t th, uint64_t fl
 
     MAP_OR_FAIL(daos_obj_punch);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_OBJ_PUNCHES;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_obj_punch(oh, th, flags, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_OBJ_PUNCHES] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_OBJ_PUNCHES] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -487,21 +750,38 @@ int DARSHAN_DECL(daos_obj_punch_dkeys)(daos_handle_t oh, daos_handle_t th, uint6
 
     MAP_OR_FAIL(daos_obj_punch_dkeys);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_OBJ_DKEY_PUNCHES;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_obj_punch_dkeys(oh, th, flags, nr, dkeys, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_OBJ_DKEY_PUNCHES] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_OBJ_DKEY_PUNCHES] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -515,24 +795,42 @@ int DARSHAN_DECL(daos_obj_punch_akeys)(daos_handle_t oh, daos_handle_t th, uint6
 
     MAP_OR_FAIL(daos_obj_punch_akeys);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_OBJ_AKEY_PUNCHES;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_obj_punch_akeys(oh, th, flags, dkey, nr, akeys, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_OBJ_AKEY_PUNCHES] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_OBJ_AKEY_PUNCHES] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
+
 
 int DARSHAN_DECL(daos_obj_list_dkey)(daos_handle_t oh, daos_handle_t th, uint32_t *nr,
     daos_key_desc_t *kds, d_sg_list_t *sgl, daos_anchor_t *anchor, daos_event_t *ev)
@@ -543,21 +841,38 @@ int DARSHAN_DECL(daos_obj_list_dkey)(daos_handle_t oh, daos_handle_t th, uint32_
 
     MAP_OR_FAIL(daos_obj_list_dkey);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_OBJ_DKEY_LISTS;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_obj_list_dkey(oh, th, nr, kds, sgl, anchor, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_OBJ_DKEY_LISTS] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_OBJ_DKEY_LISTS] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -572,21 +887,38 @@ int DARSHAN_DECL(daos_obj_list_akey)(daos_handle_t oh, daos_handle_t th,
 
     MAP_OR_FAIL(daos_obj_list_akey);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_OBJ_AKEY_LISTS;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_obj_list_akey(oh, th, dkey, nr, kds, sgl, anchor, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_OBJ_AKEY_LISTS] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_OBJ_AKEY_LISTS] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -602,22 +934,39 @@ int DARSHAN_DECL(daos_obj_list_recx)(daos_handle_t oh, daos_handle_t th,
 
     MAP_OR_FAIL(daos_obj_list_recx);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_OBJ_RECX_LISTS;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_obj_list_recx(oh, th, dkey, akey, size, nr, recxs,
         eprs, anchor, incr_order, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_OBJ_RECX_LISTS] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_OBJ_RECX_LISTS] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -629,13 +978,29 @@ int DARSHAN_DECL(daos_obj_close)(daos_handle_t oh, daos_event_t *ev)
 
     MAP_OR_FAIL(daos_obj_close);
 
+    if(ev)
+    {
+        /* setup callback to record the close operation upon completion */
+        struct daos_close_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            daos_event_register_comp_cb(ev, darshan_daos_close_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_obj_close(oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    DAOS_RECORD_OBJ_CLOSE(oh, tm1, tm2);
-    DAOS_POST_RECORD();
+    if(!ev)
+    {
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_CLOSE(oh, tm1, tm2);
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
@@ -651,13 +1016,35 @@ int DARSHAN_DECL(daos_array_create)(daos_handle_t coh, daos_obj_id_t oid,
 
     MAP_OR_FAIL(daos_array_create);
 
+    if(ev)
+    {
+        /* setup callback to record the open operation upon completion */
+        struct daos_open_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->coh = coh;
+            tracker->oid = oid;
+            tracker->op = DAOS_ARRAY_OPENS;
+            tracker->resolve_sizes = 0;
+            tracker->cell_size = cell_size;
+            tracker->chunk_size = chunk_size;
+            tracker->oh_p = oh;
+            daos_event_register_comp_cb(ev, darshan_daos_open_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_array_create(coh, oid, th, cell_size, chunk_size, oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_ARRAY_OPENS, cell_size, chunk_size, tm1, tm2);
-    DAOS_POST_RECORD();
+    if(!ev)
+    {
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_ARRAY_OPENS, cell_size, chunk_size, 0, tm1, tm2);
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
@@ -671,13 +1058,35 @@ int DARSHAN_DECL(daos_array_open)(daos_handle_t coh, daos_obj_id_t oid,
 
     MAP_OR_FAIL(daos_array_open);
 
+    if(ev)
+    {
+        /* setup callback to record the open operation upon completion */
+        struct daos_open_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->coh = coh;
+            tracker->oid = oid;
+            tracker->op = DAOS_ARRAY_OPENS;
+            tracker->resolve_sizes = 1;
+            tracker->cell_size_p = cell_size;
+            tracker->chunk_size_p = chunk_size;
+            tracker->oh_p = oh;
+            daos_event_register_comp_cb(ev, darshan_daos_open_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_array_open(coh, oid, th, mode, cell_size, chunk_size, oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_ARRAY_OPENS, *cell_size, *chunk_size, tm1, tm2);
-    DAOS_POST_RECORD();
+    if(!ev)
+    {
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_ARRAY_OPENS, *cell_size, *chunk_size, 0, tm1, tm2);
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
@@ -689,13 +1098,35 @@ int DARSHAN_DECL(daos_array_open_with_attr)(daos_handle_t coh, daos_obj_id_t oid
 
     MAP_OR_FAIL(daos_array_open_with_attr);
 
+    if(ev)
+    {
+        /* setup callback to record the open operation upon completion */
+        struct daos_open_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->coh = coh;
+            tracker->oid = oid;
+            tracker->op = DAOS_ARRAY_OPENS;
+            tracker->resolve_sizes = 0;
+            tracker->cell_size = cell_size;
+            tracker->chunk_size = chunk_size;
+            tracker->oh_p = oh;
+            daos_event_register_comp_cb(ev, darshan_daos_open_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_array_open_with_attr(coh, oid, th, mode, cell_size, chunk_size, oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_ARRAY_OPENS, cell_size, chunk_size, tm1, tm2);
-    DAOS_POST_RECORD();
+    if(!ev)
+    {
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_ARRAY_OPENS, cell_size, chunk_size, 0, tm1, tm2);
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
@@ -716,36 +1147,37 @@ int DARSHAN_DECL(daos_array_read)(daos_handle_t oh, daos_handle_t th,
 {
     int ret;
     double tm1, tm2;
-    struct daos_object_record_ref *rec_ref;
-    daos_obj_id_t tmp_oid;
-    enum daos_otype_t otype;
     daos_size_t read_sz;
 
     MAP_OR_FAIL(daos_array_read);
+
+    DAOS_ARRAY_IOD_SZ(iod, read_sz);
+
+    if(ev)
+    {
+        /* setup callback to record the read operation upon completion */
+        struct daos_read_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_ARRAY_READS;
+            tracker->read_size = read_sz;
+            daos_event_register_comp_cb(ev, darshan_daos_read_comp_cb, tracker);
+        }
+    }
 
     tm1 = DAOS_WTIME();
     ret = __real_daos_array_read(oh, th, iod, sgl, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &oh,
-        sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        tmp_oid.hi = rec_ref->object_rec->oid_hi;
-        tmp_oid.lo = rec_ref->object_rec->oid_lo;
-        otype = daos_obj_id2type(tmp_oid);
-        /* NOTE: for byte arrays, we can get the bytes read directly from the
-         *       iod, otherwise we calculate based on requested read size
-         */
-        if (otype == DAOS_OT_ARRAY_BYTE)
-            read_sz = iod->arr_nr_read;
-        else
-            DAOS_ARRAY_IOD_SZ(iod, read_sz);
-        read_sz *= rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE];
-        DAOS_RECORD_OBJ_READ(rec_ref, oh, DAOS_ARRAY_READS, read_sz, tm1, tm2);
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_READ(oh, DAOS_ARRAY_READS, read_sz, 0, tm1, tm2);
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -755,25 +1187,37 @@ int DARSHAN_DECL(daos_array_write)(daos_handle_t oh, daos_handle_t th,
 {
     int ret;
     double tm1, tm2;
-    struct daos_object_record_ref *rec_ref;
     daos_size_t write_sz;
 
     MAP_OR_FAIL(daos_array_write);
+
+    DAOS_ARRAY_IOD_SZ(iod, write_sz);
+
+    if(ev)
+    {
+        /* setup callback to record the write operation upon completion */
+        struct daos_write_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_ARRAY_WRITES;
+            tracker->write_size = write_sz;
+            daos_event_register_comp_cb(ev, darshan_daos_write_comp_cb, tracker);
+        }
+    }
 
     tm1 = DAOS_WTIME();
     ret = __real_daos_array_write(oh, th, iod, sgl, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &oh,
-        sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DAOS_ARRAY_IOD_SZ(iod, write_sz);
-        write_sz *= rec_ref->object_rec->counters[DAOS_ARRAY_CELL_SIZE];
-        DAOS_RECORD_OBJ_WRITE(rec_ref, oh, DAOS_ARRAY_WRITES, write_sz, tm1, tm2);
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_WRITE(oh, DAOS_ARRAY_WRITES, write_sz, 0, tm1, tm2);
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -787,21 +1231,38 @@ int DARSHAN_DECL(daos_array_get_size)(daos_handle_t oh, daos_handle_t th,
 
     MAP_OR_FAIL(daos_array_get_size);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_ARRAY_GET_SIZES;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_array_get_size(oh, th, size, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_ARRAY_GET_SIZES] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_ARRAY_GET_SIZES] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -815,21 +1276,38 @@ int DARSHAN_DECL(daos_array_set_size)(daos_handle_t oh, daos_handle_t th,
 
     MAP_OR_FAIL(daos_array_set_size);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_ARRAY_SET_SIZES;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_array_set_size(oh, th, size, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_ARRAY_SET_SIZES] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_ARRAY_SET_SIZES] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -842,21 +1320,38 @@ int DARSHAN_DECL(daos_array_stat)(daos_handle_t oh, daos_handle_t th, daos_array
 
     MAP_OR_FAIL(daos_array_stat);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_ARRAY_STATS;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_array_stat(oh, th, stbuf, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_ARRAY_STATS] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_ARRAY_STATS] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -870,21 +1365,38 @@ int DARSHAN_DECL(daos_array_punch)(daos_handle_t oh, daos_handle_t th,
 
     MAP_OR_FAIL(daos_array_punch);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_ARRAY_PUNCHES;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_array_punch(oh, th, iod, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_ARRAY_PUNCHES] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_ARRAY_PUNCHES] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -898,21 +1410,38 @@ int DARSHAN_DECL(daos_array_destroy)(daos_handle_t oh, daos_handle_t th,
 
     MAP_OR_FAIL(daos_array_destroy);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_ARRAY_DESTROYS;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_array_destroy(oh, th, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_ARRAY_DESTROYS] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_ARRAY_DESTROYS] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -924,13 +1453,29 @@ int DARSHAN_DECL(daos_array_close)(daos_handle_t oh, daos_event_t *ev)
 
     MAP_OR_FAIL(daos_array_close);
 
+    if(ev)
+    {
+        /* setup callback to record the close operation upon completion */
+        struct daos_close_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            daos_event_register_comp_cb(ev, darshan_daos_close_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_array_close(oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    DAOS_RECORD_OBJ_CLOSE(oh, tm1, tm2);
-    DAOS_POST_RECORD();
+    if(!ev)
+    {
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_CLOSE(oh, tm1, tm2);
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
@@ -945,13 +1490,35 @@ int DARSHAN_DECL(daos_kv_open)(daos_handle_t coh, daos_obj_id_t oid, unsigned in
 
     MAP_OR_FAIL(daos_kv_open);
 
+    if(ev)
+    {
+        /* setup callback to record the open operation upon completion */
+        struct daos_open_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->coh = coh;
+            tracker->oid = oid;
+            tracker->op = DAOS_KV_OPENS;
+            tracker->resolve_sizes = 0;
+            tracker->cell_size = 0;
+            tracker->chunk_size = 0;
+            tracker->oh_p = oh;
+            daos_event_register_comp_cb(ev, darshan_daos_open_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_kv_open(coh, oid, mode, oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_KV_OPENS, 0, 0, tm1, tm2);
-    DAOS_POST_RECORD();
+    if(!ev)
+    {
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_OPEN(coh, oh, oid, DAOS_KV_OPENS, 0, 0, 0, tm1, tm2);
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }
@@ -961,25 +1528,34 @@ int DARSHAN_DECL(daos_kv_get)(daos_handle_t oh, daos_handle_t th, uint64_t flags
 {
     int ret;
     double tm1, tm2;
-    struct daos_object_record_ref *rec_ref;
-    daos_size_t get_size = 0;
 
     MAP_OR_FAIL(daos_kv_get);
+
+    if(ev)
+    {
+        /* setup callback to record the read operation upon completion */
+        struct daos_read_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_KV_GETS;
+            tracker->read_size_p = size;
+            daos_event_register_comp_cb(ev, darshan_daos_read_comp_cb, tracker);
+        }
+    }
 
     tm1 = DAOS_WTIME();
     ret = __real_daos_kv_get(oh, th, flags, key, size, buf, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &oh,
-        sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        if(buf)
-            get_size = *size;
-        DAOS_RECORD_OBJ_READ(rec_ref, oh, DAOS_KV_GETS, get_size, tm1, tm2);
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_READ(oh, DAOS_KV_GETS, *(size), 0, tm1, tm2);
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -989,22 +1565,34 @@ int DARSHAN_DECL(daos_kv_put)(daos_handle_t oh, daos_handle_t th, uint64_t flags
 {
     int ret;
     double tm1, tm2;
-    struct daos_object_record_ref *rec_ref;
 
     MAP_OR_FAIL(daos_kv_put);
+
+    if(ev)
+    {
+        /* setup callback to record the write operation upon completion */
+        struct daos_write_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_KV_PUTS;
+            tracker->write_size = size;
+            daos_event_register_comp_cb(ev, darshan_daos_write_comp_cb, tracker);
+        }
+    }
 
     tm1 = DAOS_WTIME();
     ret = __real_daos_kv_put(oh, th, flags, key, size, buf, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash, &oh,
-        sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DAOS_RECORD_OBJ_WRITE(rec_ref, oh, DAOS_KV_PUTS, size, tm1, tm2);
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_WRITE(oh, DAOS_KV_PUTS, size, 0, tm1, tm2);
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -1018,21 +1606,38 @@ int DARSHAN_DECL(daos_kv_remove)(daos_handle_t oh, daos_handle_t th, uint64_t fl
 
     MAP_OR_FAIL(daos_kv_remove);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_KV_REMOVES;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_kv_remove(oh, th, flags, key, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_KV_REMOVES] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_KV_REMOVES] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -1046,21 +1651,38 @@ int DARSHAN_DECL(daos_kv_list)(daos_handle_t oh, daos_handle_t th, uint32_t *nr,
 
     MAP_OR_FAIL(daos_kv_list);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_KV_LISTS;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_kv_list(oh, th, nr, kds, sgl, anchor, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_KV_LISTS] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_KV_LISTS] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -1073,21 +1695,38 @@ int DARSHAN_DECL(daos_kv_destroy)(daos_handle_t oh, daos_handle_t th, daos_event
 
     MAP_OR_FAIL(daos_kv_destroy);
 
+    if(ev)
+    {
+        /* setup callback to record the metadata operation upon completion */
+        struct daos_meta_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            tracker->op = DAOS_KV_DESTROYS;
+            daos_event_register_comp_cb(ev, darshan_daos_meta_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_kv_destroy(oh, th, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
-        &oh, sizeof(daos_handle_t));
-    if(rec_ref)
+    if(!ev)
     {
-        DARSHAN_TIMER_INC_NO_OVERLAP(
-            rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
-            tm1, tm2, rec_ref->last_meta_end);
-        rec_ref->object_rec->counters[DAOS_KV_DESTROYS] += 1;
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(daos_runtime->oh_hash,
+            &oh, sizeof(daos_handle_t));
+        if(rec_ref)
+        {
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                rec_ref->object_rec->fcounters[DAOS_F_META_TIME],
+                tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->object_rec->counters[DAOS_KV_DESTROYS] += 1;
+        }
+        DAOS_POST_RECORD();
     }
-    DAOS_POST_RECORD();
 
     return(ret);
 }
@@ -1099,13 +1738,29 @@ int DARSHAN_DECL(daos_kv_close)(daos_handle_t oh, daos_event_t *ev)
 
     MAP_OR_FAIL(daos_kv_close);
 
+    if(ev)
+    {
+        /* setup callback to record the close operation upon completion */
+        struct daos_close_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->oh = oh;
+            daos_event_register_comp_cb(ev, darshan_daos_close_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_daos_kv_close(oh, ev);
     tm2 = DAOS_WTIME();
 
-    DAOS_PRE_RECORD();
-    DAOS_RECORD_OBJ_CLOSE(oh, tm1, tm2);
-    DAOS_POST_RECORD();
+    if(!ev)
+    {
+        /* only record here for synchronous I/O operations */
+        DAOS_PRE_RECORD();
+        DAOS_RECORD_OBJ_CLOSE(oh, tm1, tm2);
+        DAOS_POST_RECORD();
+    }
 
     return(ret);
 }

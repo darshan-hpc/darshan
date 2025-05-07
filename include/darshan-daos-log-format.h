@@ -56,6 +56,8 @@
     X(DAOS_KV_LISTS) \
     /* count of daos kv destroys */\
     X(DAOS_KV_DESTROYS) \
+    /* count of daos non-blocking operations */\
+    X(DAOS_NB_OPS) \
     /* total bytes read */\
     X(DAOS_BYTES_READ) \
     /* total bytes written */\

@@ -241,18 +241,18 @@ static int my_rank = -1;
     darshan_add_record_ref(&(dfs_runtime->file_obj_hash), __obj_p, sizeof(*__obj_p), __rec_ref); \
 } while(0)
 
-#define DFS_RECORD_READ(__obj, __read_size, __counter, __ev, __tm1, __tm2) do { \
+#define DFS_RECORD_READ(__obj, __read_size, __counter, __is_async, __tm1, __tm2) do { \
     struct dfs_file_record_ref *__rec_ref; \
     struct darshan_common_val_counter *__cvc; \
     double __elapsed = __tm2-__tm1; \
     int64_t __sz = (int64_t)__read_size; \
     daos_size_t __chunk_size; \
-    __rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &__obj, sizeof(obj)); \
+    __rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &__obj, sizeof(__obj)); \
     if(!__rec_ref) break; \
     /* heatmap to record traffic summary */ \
     heatmap_update(dfs_runtime->heatmap_id, HEATMAP_READ, __sz, __tm1, __tm2); \
     __rec_ref->file_rec->counters[__counter] += 1; \
-    if(__ev) \
+    if(__is_async) \
         __rec_ref->file_rec->counters[DFS_NB_READS] += 1; \
     __rec_ref->file_rec->counters[DFS_BYTES_READ] += __sz; \
     DARSHAN_BUCKET_INC(&(__rec_ref->file_rec->counters[DFS_SIZE_READ_0_100]), __sz); \
@@ -280,18 +280,18 @@ static int my_rank = -1;
         __tm1, __tm2, __rec_ref->last_read_end); \
 } while(0)
 
-#define DFS_RECORD_WRITE(__obj, __write_size, __counter, __ev, __tm1, __tm2) do { \
+#define DFS_RECORD_WRITE(__obj, __write_size, __counter, __is_async, __tm1, __tm2) do { \
     struct dfs_file_record_ref *__rec_ref; \
     struct darshan_common_val_counter *__cvc; \
     double __elapsed = __tm2-__tm1; \
     int64_t __sz = (int64_t)__write_size; \
     daos_size_t __chunk_size; \
-    __rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &__obj, sizeof(obj)); \
+    __rec_ref = darshan_lookup_record_ref(dfs_runtime->file_obj_hash, &__obj, sizeof(__obj)); \
     if(!__rec_ref) break; \
     /* heatmap to record traffic summary */ \
     heatmap_update(dfs_runtime->heatmap_id, HEATMAP_WRITE, __sz, __tm1, __tm2); \
     __rec_ref->file_rec->counters[__counter] += 1; \
-    if(__ev) \
+    if(__is_async) \
         __rec_ref->file_rec->counters[DFS_NB_WRITES] += 1; \
     __rec_ref->file_rec->counters[DFS_BYTES_WRITTEN] += __sz; \
     DARSHAN_BUCKET_INC(&(__rec_ref->file_rec->counters[DFS_SIZE_WRITE_0_100]), __sz); \
@@ -512,7 +512,29 @@ int DARSHAN_DECL(dfs_release)(dfs_obj_t *obj)
     return(ret);
 }
 
-/* XXX handle non-blocking case */
+/* DAOS callback routine to measure end of async read calls */
+struct dfs_read_event_tracker
+{
+    double tm1;
+    dfs_obj_t *obj;
+    int op;
+    daos_size_t *read_size;
+};
+int darshan_dfs_read_comp_cb(void *arg, daos_event_t *ev, int ret)
+{
+    struct dfs_read_event_tracker *tracker = (struct dfs_read_event_tracker *)arg;
+
+    if (ret == 0)
+    {
+        /* async operation completed successfully, capture Darshan statistics */
+        double tm2 = darshan_core_wtime();
+        DFS_RECORD_READ(tracker->obj, *(tracker->read_size), tracker->op, 1, tracker->tm1, tm2);
+    }
+    free(tracker);
+
+    return 0;
+}
+
 int DARSHAN_DECL(dfs_read)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_off_t off, daos_size_t *read_size, daos_event_t *ev)
 {
     int ret;
@@ -521,20 +543,37 @@ int DARSHAN_DECL(dfs_read)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_of
 
     MAP_OR_FAIL(dfs_read);
 
+    if (ev)
+    {
+        /* setup callback to record the read operation upon completion */
+        struct dfs_read_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->obj = obj;
+            tracker->op = DFS_READS;
+            tracker->read_size = read_size;
+            daos_event_register_comp_cb(ev, darshan_dfs_read_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_dfs_read(dfs, obj, sgl, off, read_size, ev);
     tm2 = DAOS_WTIME();
 
-    DFS_PRE_RECORD();
-    /* no need to calculate read_size, it's returned to user */
-    rdsize = *read_size;
-    DFS_RECORD_READ(obj, rdsize, DFS_READS, ev, tm1, tm2);
-    DFS_POST_RECORD();
+    if (!ev)
+    {
+        /* only record here for synchronous I/O operations */
+        DFS_PRE_RECORD();
+        /* no need to calculate read_size, it's returned to user */
+        rdsize = *read_size;
+        DFS_RECORD_READ(obj, rdsize, DFS_READS, 0, tm1, tm2);
+        DFS_POST_RECORD();
+    }
 
     return(ret);
 }
 
-/* XXX handle non-blocking case */
 int DARSHAN_DECL(dfs_readx)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_list_t *sgl, daos_size_t *read_size, daos_event_t *ev)
 {
     int ret;
@@ -543,20 +582,60 @@ int DARSHAN_DECL(dfs_readx)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_lis
 
     MAP_OR_FAIL(dfs_readx);
 
+    if (ev)
+    {
+        /* setup callback to record the read operation upon completion */
+        struct dfs_read_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->obj = obj;
+            tracker->op = DFS_READXS;
+            tracker->read_size = read_size;
+            daos_event_register_comp_cb(ev, darshan_dfs_read_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_dfs_readx(dfs, obj, iod, sgl, read_size, ev);
     tm2 = DAOS_WTIME();
 
-    DFS_PRE_RECORD();
-    /* no need to calculate read_size, it's returned to user */
-    rdsize = *read_size;
-    DFS_RECORD_READ(obj, rdsize, DFS_READXS, ev, tm1, tm2);
-    DFS_POST_RECORD();
+    if (!ev)
+    {
+        /* only record here for synchronous I/O operations */
+        DFS_PRE_RECORD();
+        /* no need to calculate read_size, it's returned to user */
+        rdsize = *read_size;
+        DFS_RECORD_READ(obj, rdsize, DFS_READXS, 0, tm1, tm2);
+        DFS_POST_RECORD();
+    }
 
     return(ret);
 }
 
-/* XXX handle non-blocking case */
+/* DAOS callback routine to measure end of async write calls */
+struct dfs_write_event_tracker
+{
+    double tm1;
+    dfs_obj_t *obj;
+    int op;
+    daos_size_t write_size;
+};
+int darshan_dfs_write_comp_cb(void *arg, daos_event_t *ev, int ret)
+{
+    struct dfs_write_event_tracker *tracker = (struct dfs_write_event_tracker *)arg;
+
+    if (ret == 0)
+    {
+        /* async operation completed successfully, capture Darshan statistics */
+        double tm2 = darshan_core_wtime();
+        DFS_RECORD_WRITE(tracker->obj, tracker->write_size, tracker->op, 1, tracker->tm1, tm2);
+    }
+    free(tracker);
+
+    return 0;
+}
+
 int DARSHAN_DECL(dfs_write)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_off_t off, daos_event_t *ev)
 {
     int ret;
@@ -566,21 +645,39 @@ int DARSHAN_DECL(dfs_write)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_o
 
     MAP_OR_FAIL(dfs_write);
 
+    /* calculate write size first */
+    for (i = 0, wrsize = 0; i < sgl->sg_nr; i++)
+        wrsize += sgl->sg_iovs[i].iov_len;
+
+    if (ev)
+    {
+        /* setup callback to record the write operation upon completion */
+        struct dfs_write_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->obj = obj;
+            tracker->op = DFS_WRITES;
+            tracker->write_size = wrsize;
+            daos_event_register_comp_cb(ev, darshan_dfs_write_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_dfs_write(dfs, obj, sgl, off, ev);
     tm2 = DAOS_WTIME();
 
-    DFS_PRE_RECORD();
-    /* calculate write size first */
-    for (i = 0, wrsize = 0; i < sgl->sg_nr; i++)
-        wrsize += sgl->sg_iovs[i].iov_len;
-    DFS_RECORD_WRITE(obj, wrsize, DFS_WRITES, ev, tm1, tm2);
-    DFS_POST_RECORD();
+    if (!ev)
+    {
+        /* only record here for synchronous I/O operations */
+        DFS_PRE_RECORD();
+        DFS_RECORD_WRITE(obj, wrsize, DFS_WRITES, 0, tm1, tm2);
+        DFS_POST_RECORD();
+    }
 
     return(ret);
 }
 
-/* XXX handle non-blocking case */
 int DARSHAN_DECL(dfs_writex)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_list_t *sgl, daos_event_t *ev)
 {
     int ret;
@@ -590,16 +687,35 @@ int DARSHAN_DECL(dfs_writex)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_li
 
     MAP_OR_FAIL(dfs_writex);
 
+    /* calculate write size first */
+    for (i = 0, wrsize = 0; i < sgl->sg_nr; i++)
+        wrsize += sgl->sg_iovs[i].iov_len;
+
+    if (ev)
+    {
+        /* setup callback to record the write operation upon completion */
+        struct dfs_write_event_tracker *tracker = malloc(sizeof(*tracker));
+        if (tracker)
+        {
+            tracker->tm1 = DAOS_WTIME();
+            tracker->obj = obj;
+            tracker->op = DFS_WRITEXS;
+            tracker->write_size = wrsize;
+            daos_event_register_comp_cb(ev, darshan_dfs_write_comp_cb, tracker);
+        }
+    }
+
     tm1 = DAOS_WTIME();
     ret = __real_dfs_writex(dfs, obj, iod, sgl, ev);
     tm2 = DAOS_WTIME();
 
-    DFS_PRE_RECORD();
-    /* calculate write size first */
-    for (i = 0, wrsize = 0; i < sgl->sg_nr; i++)
-        wrsize += sgl->sg_iovs[i].iov_len;
-    DFS_RECORD_WRITE(obj, wrsize, DFS_WRITEXS, ev, tm1, tm2);
-    DFS_POST_RECORD();
+    if (!ev)
+    {
+        /* only record here for synchronous I/O operations */
+        DFS_PRE_RECORD();
+        DFS_RECORD_WRITE(obj, wrsize, DFS_WRITEXS, 0, tm1, tm2);
+        DFS_POST_RECORD();
+    }
 
     return(ret);
 }
