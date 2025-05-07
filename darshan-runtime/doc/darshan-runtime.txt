@@ -147,7 +147,7 @@ make install
 * `--disable-lustre-mod`: disables compilation and use of Darshan's Lustre
   module (default=enabled)
 * `--enable-daos-mod`: enables compilation and use of Darshan's DAOS module
-  (default=enabled)
+  (default=disabled)
 * `--with-daos=DIR`: installation directory for DAOS
 ** NOTE: Users must call `--enable-daos-mod` to enable DAOS modules, `--with-daos` is only used to additionally provide a DAOS install prefix.
 * `--enable-mdhim-mod`: enables compilation and use of Darshan's MDHIM module
