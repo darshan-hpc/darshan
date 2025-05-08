@@ -251,7 +251,7 @@ static void darshan_log_print_dfs_description(int ver)
 {
     printf("\n# description of DFS counters:\n");
     printf("#   DFS_*: DFS operation counts.\n");
-    printf("#   OPENS,GLOBAL_OPENS,LOOKUPS,DUPS,READS,READXS,NB_READS,WRITES,WRITEXS,NB_WRITES,GET_SIZES,PUNCHES,REMOVES,STATS are types of operations.\n");
+    printf("#   OPENS,GLOBAL_OPENS,LOOKUPS,DUPS,READS,READXS,WRITES,WRITEXS,GET_SIZES,PUNCHES,REMOVES,STATS are types of operations.\n");
     printf("#   DFS_BYTES_*: total bytes read and written.\n");
     printf("#   DFS_RW_SWITCHES: number of times access alternated between read and write.\n");
     printf("#   DFS_MAX_*_TIME_SIZE: size of the slowest read and write operations.\n");
