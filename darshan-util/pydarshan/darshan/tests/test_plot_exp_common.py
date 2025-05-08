@@ -82,7 +82,7 @@ darshan.enable_experimental()
             "snyder_ior-DFS_id4681120-53379_5-8-15060-3270540599978592154_1.darshan",
             "DFS",
             plot_opcounts,
-            ['Read', 'Readx', 'Write', 'Writex', 'Open', 'GlobalOpen', 'Lookup', 'Get Size', 'Punch', 'Remove', 'Stat'],
+            ['Read', 'Readx', 'Write', 'Writex', 'Open', 'GlobalOpen', 'Lookup', 'GetSize', 'Punch', 'Remove', 'Stat'],
         ),
         (
             "snyder_ior-DFS_id4681120-53379_5-8-15060-3270540599978592154_1.darshan",
