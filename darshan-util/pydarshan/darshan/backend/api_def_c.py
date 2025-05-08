@@ -107,7 +107,7 @@ struct darshan_dfs_file
 struct darshan_daos_object
 {
     struct darshan_base_record base_rec;
-    int64_t counters[63];
+    int64_t counters[64];
     double fcounters[15];
     unsigned char pool_uuid[16];
     unsigned char cont_uuid[16];
