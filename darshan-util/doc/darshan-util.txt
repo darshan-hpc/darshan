@@ -547,7 +547,6 @@ value of 1 MiB for optimal file alignment.
 | DAOS_OBJ_OPENS | DAOS object open operation counts
 | DAOS_OBJ_FETCHES | DAOS object fetch operation counts
 | DAOS_OBJ_UPDATES | DAOS object update operation counts
-| DAOS_OBJ_UPDATES | DAOS object update operation counts
 | DAOS_OBJ_PUNCHES | DAOS object punch operation counts
 | DAOS_OBJ_DKEY_PUNCHES | DAOS object dkey punch operation counts
 | DAOS_OBJ_AKEY_PUNCHES | DAOS object akey punch operation counts
@@ -568,6 +567,7 @@ value of 1 MiB for optimal file alignment.
 | DAOS_KV_REMOVES | DAOS kv object remove operation counts
 | DAOS_KV_LISTS | DAOS kv object list operation counts
 | DAOS_KV_DESTROYS | DAOS kv object destroy operation counts
+| DAOS_NB_OPS | DAOS non-blocking I/O operations (includes reads, writes, and metadata operations)
 | DAOS_BYTES_READ | Total number of bytes that were read from the DAOS object
 | DAOS_BYTES_WRITTEN | Total number of bytes that were written to the DAOS object
 | DAOS_RW_SWITCHES | Number of times that access toggled between read and write in consecutive operations
