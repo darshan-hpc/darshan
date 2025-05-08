@@ -109,7 +109,7 @@ def get_io_cost_df(report: darshan.DarshanReport) -> Any:
 
     """
     io_cost_dict = {}
-    supported_modules = ["POSIX", "MPI-IO", "STDIO", "H5F", "H5D", "PNETCDF_FILE", "PNETCDF_VAR"]
+    supported_modules = ["POSIX", "MPI-IO", "STDIO", "H5F", "H5D", "PNETCDF_FILE", "PNETCDF_VAR", "DFS", "DAOS"]
     for mod_key in report.modules:
         if mod_key in supported_modules and len(report.records[mod_key]) > 0:
             # collect the records in dataframe form

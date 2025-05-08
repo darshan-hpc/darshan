@@ -263,12 +263,15 @@ def test_main_all_logs_repo_files(tmpdir, log_filepath):
                     if ("e3sm_io_heatmap_only" in log_filepath or
                         "shane_ior-HDF5" in log_filepath or
                         "shane_ior-PNETCDF" in log_filepath or
+                        "snyder_ior-DFS" in log_filepath or
                         (match and int(darshan_log_version[2]) >= 4)):
                         assert actual_runtime_heatmap_titles == 3
                     elif ("runtime_and_dxt_heatmaps_diagonal_write_only" in log_filepath or
                           "treddy_runtime_heatmap_inactive_ranks" in log_filepath or
                           "h5d_no_h5f" in log_filepath):
                         assert actual_runtime_heatmap_titles == 1
+                    elif "snyder_ior-POSIX" in log_filepath:
+                        assert actual_runtime_heatmap_titles == 2
                     else:
                         assert actual_runtime_heatmap_titles == 0
 
@@ -494,6 +497,23 @@ class TestReportData:
                     ],
                 ),
                 2,
+            ),
+            (
+                "snyder_ior-DFS_id4681120-53379_5-8-15060-3270540599978592154_1.darshan",
+                pd.DataFrame(
+                    index=[
+                        "Log Filename", "Runtime Library Version", "Log Format Version",
+                        "POSIX (ver=4)",
+                        "STDIO (ver=2)", "HEATMAP (ver=1)",
+                        "DFS (ver=1)", "DAOS (ver=1)"
+                    ],
+                    data=[
+                        ["snyder_ior-DFS_id4681120-53379_5-8-15060-3270540599978592154_1.darshan"], ["3.4.7"], ["3.41"],
+                        ["0.07 KiB"], ["0.07 KiB"], ["1.09 KiB"],
+                        ["0.17 KiB"], ["0.40 KiB"],
+                    ],
+                ),
+                0,
             )
         ],
     )

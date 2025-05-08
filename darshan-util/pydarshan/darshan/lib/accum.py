@@ -10,18 +10,19 @@ import humanize
 
 def log_file_count_summary_table(derived_metrics,
                                  mod_name: str):
+    data_type = "files" if mod_name != "DAOS" else "objects"
     # the darshan_file_category enum is not really
     # exposed in CFFI/Python layer, so we effectively
     # re-export the content indices we need here
     # so that we can properly index the C-level data
-    darshan_file_category = {"total files":0,
-                             "read-only files":1,
-                             "write-only files":2,
-                             "read/write files":3}
+    darshan_file_category = {f"total {data_type}":0,
+                             f"read-only {data_type}":1,
+                             f"write-only {data_type}":2,
+                             f"read/write {data_type}":3}
     df = pd.DataFrame.from_dict(darshan_file_category, orient="index")
     df.rename(columns={0:"index"}, inplace=True)
     df.index.rename('type', inplace=True)
-    df["number of files"] = np.zeros(4, dtype=int)
+    df[f"number of {data_type}"] = np.zeros(4, dtype=int)
     df["avg. size"] = np.zeros(4, dtype=str)
     df["max size"] = np.zeros(4, dtype=str)
 
@@ -59,9 +60,10 @@ def log_module_overview_table(derived_metrics,
     mod_overview = []
     total_cat = derived_metrics.category_counters[0]
 
-    total_files = total_cat.count
-    indices = ["files accessed", "bytes read", "bytes written", "I/O performance estimate"]
-    mod_overview.append(f"{total_files}")
+    total_count = total_cat.count
+    data_type = "files" if mod_name != "DAOS" else "objects"
+    indices = [f"{data_type} accessed", "bytes read", "bytes written", "I/O performance estimate"]
+    mod_overview.append(f"{total_count}")
     total_bytes_read = total_cat.total_read_volume_bytes
     total_bytes_read_str = humanize.naturalsize(total_bytes_read, binary=True, format="%.2f")
     total_bytes_written = total_cat.total_write_volume_bytes

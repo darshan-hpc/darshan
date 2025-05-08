@@ -95,6 +95,26 @@ struct darshan_posix_file
     double fcounters[17];
 };
 
+struct darshan_dfs_file
+{
+    struct darshan_base_record base_rec;
+    int64_t counters[52];
+    double fcounters[15];
+    unsigned char pool_uuid[16];
+    unsigned char cont_uuid[16];
+};
+
+struct darshan_daos_object
+{
+    struct darshan_base_record base_rec;
+    int64_t counters[64];
+    double fcounters[15];
+    unsigned char pool_uuid[16];
+    unsigned char cont_uuid[16];
+    uint64_t oid_hi;
+    uint64_t oid_lo;
+};
+
 struct darshan_stdio_file
 {
     struct darshan_base_record base_rec;
@@ -203,6 +223,10 @@ extern char *pnetcdf_var_counter_names[];
 extern char *pnetcdf_var_f_counter_names[];
 extern char *posix_counter_names[];
 extern char *posix_f_counter_names[];
+extern char *dfs_counter_names[];
+extern char *dfs_f_counter_names[];
+extern char *daos_counter_names[];
+extern char *daos_f_counter_names[];
 extern char *stdio_counter_names[];
 extern char *stdio_f_counter_names[];
 

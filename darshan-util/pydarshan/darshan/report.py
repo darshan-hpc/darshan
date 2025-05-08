@@ -607,7 +607,9 @@ class DarshanReport(object):
         _nrecs_heatmap = {  
             16592106915301738621: "heatmap:POSIX",
             3989511027826779520: "heatmap:STDIO",
-            3668870418325792824: "heatmap:MPIIO"
+            3668870418325792824: "heatmap:MPIIO",
+            1597927878319380788: "heatmap:DFS",
+            4131494093108637317: "heatmap:DAOS"
         }
 
         def heatmap_rec_to_module_name(rec, nrecs=None):

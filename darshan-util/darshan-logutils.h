@@ -183,10 +183,12 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[];
 #include "darshan-lustre-logutils.h"
 #include "darshan-stdio-logutils.h"
 #include "darshan-heatmap-logutils.h"
+#include "darshan-mdhim-logutils.h"
+#include "darshan-dfs-logutils.h"
+#include "darshan-daos-logutils.h"
 
 /* DXT */
 #include "darshan-dxt-logutils.h"
-#include "darshan-mdhim-logutils.h"
 
 #ifdef DARSHAN_USE_APXC
 #include "darshan-apxc-logutils.h"
@@ -275,6 +277,27 @@ void darshan_free(void *ptr);
 } while(0)
 
 /* naive byte swap implementation */
+#define DARSHAN_BSWAP128(__ptr) do {\
+    char __dst_char[16]; \
+    char* __src_char = (char*)__ptr; \
+    __dst_char[0]  = __src_char[15]; \
+    __dst_char[1]  = __src_char[14]; \
+    __dst_char[2]  = __src_char[13]; \
+    __dst_char[3]  = __src_char[12]; \
+    __dst_char[4]  = __src_char[11]; \
+    __dst_char[5]  = __src_char[10]; \
+    __dst_char[6]  = __src_char[9]; \
+    __dst_char[7]  = __src_char[8]; \
+    __dst_char[8]  = __src_char[7]; \
+    __dst_char[9]  = __src_char[6]; \
+    __dst_char[10] = __src_char[5]; \
+    __dst_char[11] = __src_char[4]; \
+    __dst_char[12] = __src_char[3]; \
+    __dst_char[13] = __src_char[2]; \
+    __dst_char[14] = __src_char[1]; \
+    __dst_char[15] = __src_char[0]; \
+    memcpy(__ptr, __dst_char, 16); \
+} while(0)
 #define DARSHAN_BSWAP64(__ptr) do {\
     char __dst_char[8]; \
     char* __src_char = (char*)__ptr; \

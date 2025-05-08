@@ -56,6 +56,19 @@ from darshan.experimental.plots.plot_io_cost import (
                 ["Read", "Write", "Meta", "Wait"],
             ),
         ),
+        (
+            "snyder_ior-DFS_id4681120-53379_5-8-15060-3270540599978592154_1.darshan",
+            pd.DataFrame(
+                np.array([
+                    [0.0, 0.0, 0.0, 0.0],
+                    [0.0, 5.93066216e-06, 0.0, 0.0],
+                    [0.002395875, 0.011805813, 0.008395875, 0.0],
+                    [0.002437813, 0.012004437, 0.00816075, 0.0],
+                ]),
+                ["POSIX", "STDIO", "DFS", "DAOS"],
+                ["Read", "Write", "Meta", "Wait"],
+            ),
+        ),
     ],
 )
 def test_get_io_cost_df(logname, expected_df):
@@ -87,6 +100,10 @@ def test_get_io_cost_df(logname, expected_df):
             "noposixopens.darshan",
             [0.0, 1111.0],
         ),
+        (
+            "snyder_ior-DFS_id4681120-53379_5-8-15060-3270540599978592154_1.darshan",
+            [0.0, 0.61345315],
+        ),
     ],
 )
 def test_plot_io_cost_ylims(logname, expected_ylims):
@@ -105,23 +122,27 @@ def test_plot_io_cost_ylims(logname, expected_ylims):
             assert_allclose(actual_ylims, [0.0, 100.0])
 
 @pytest.mark.parametrize(
-    "logname, expected_yticks", [
+    "logname, expected_yticks, expected_yticklabels", [
         (
             "ior_hdf5_example.darshan",
             [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+            ['0.0', '0.2', '0.4', '0.6', '0.8', '1.0'],
         ),
         (
             "sample-badost.darshan",
             [0, 156, 312, 468, 624, 780],
+            ['0', '156', '312', '468', '624', '780'],
+        ),
+        (
+            "snyder_ior-DFS_id4681120-53379_5-8-15060-3270540599978592154_1.darshan",
+            [0.0 , 0.12269063, 0.24538126, 0.36807189, 0.49076252, 0.61345315],
+            ['0.0000', '0.1227', '0.2454', '0.3681', '0.4908', '0.6135'],
         ),
     ],
 )
-def test_plot_io_cost_y_ticks_and_labels(logname, expected_yticks):
+def test_plot_io_cost_y_ticks_and_labels(logname, expected_yticks, expected_yticklabels):
     # check the y-axis tick marks are at the appropriate
     # locations and the labels are as expected
-
-    # create the expected y-axis tick labels from the y ticks
-    expected_yticklabels = [str(i) for i in expected_yticks]
 
     logpath = get_log_path(logname)
     with darshan.DarshanReport(logpath) as report:

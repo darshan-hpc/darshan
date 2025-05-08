@@ -85,6 +85,72 @@ def test_load_records_filtered():
         assert 1 == len(report.data['records']['POSIX'])
         assert 1 == len(report.data['records']['MPI-IO'])
 
+def test_dfs_daos_posix_match():
+    # the ior runs by Shane with POSIX vs. DAOS DFS
+    # backend should produce matching counters where
+    # comparable data fields exist
+    posix_ior_report = darshan.DarshanReport(get_log_path("snyder_ior-POSIX_id1057716-202103_11-8-64415-6936117869459351096_1.darshan"))
+    dfs_ior_report = darshan.DarshanReport(get_log_path("snyder_ior-DFS_id4681120-53379_5-8-15060-3270540599978592154_1.darshan"))
+    posix_ior_report.mod_read_all_records("POSIX")
+    dfs_ior_report.mod_read_all_records("DFS")
+    dfs_ior_report.mod_read_all_records("DAOS")
+    posix_data_dict = posix_ior_report.data['records']["POSIX"].to_df()["counters"]
+    dfs_data_dict = dfs_ior_report.data['records']["DFS"].to_df()["counters"]
+    daos_data_dict = dfs_ior_report.data['records']["DAOS"].to_df()["counters"]
+    dfs_ior_name_recs = dfs_ior_report.data["name_records"]
+
+    # also gather counters for the underlying DAOS record for the DFS record
+    # (they have the same record ID, simplifying this a bit)
+    dfs_hash = dfs_data_dict["id"][0]
+    daos_data_dict = daos_data_dict[daos_data_dict["id"] == dfs_hash]
+    for column_name in dfs_data_dict.columns:
+        # for some columns we can't reasonably expect a match
+        # or we need to handle the data differently between POSIX
+        # and DAOS DFS
+        if column_name in ["id", "DFS_LOOKUPS", "DFS_DUPS", "DFS_NB_READS", "DFS_NB_WRITES",
+                           "DFS_GET_SIZES", "DFS_PUNCHES", "DFS_REMOVES", "DFS_STATS",
+                           "DFS_CHUNK_SIZE", "DFS_FASTEST_RANK", "DFS_SLOWEST_RANK",
+                           "DFS_FASTEST_RANK_BYTES", "DFS_SLOWEST_RANK_BYTES",
+                           "DFS_MAX_READ_TIME_SIZE", "DFS_MAX_WRITE_TIME_SIZE",
+                           "DFS_GLOBAL_OPENS", "DFS_READXS", "DFS_WRITEXS"]:
+            continue
+        elif column_name == "DFS_OPENS":
+            # sum these together to match the POSIX version
+            dfs_data = (dfs_data_dict["DFS_GLOBAL_OPENS"] +
+                        dfs_data_dict["DFS_OPENS"])
+        elif column_name == "DFS_READS":
+            # sum these together to match the POSIX version
+            dfs_data = (dfs_data_dict["DFS_READS"] +
+                        dfs_data_dict["DFS_READXS"])
+            # we know the hardcoded value for certain
+            assert dfs_data.values == 64
+        elif column_name == "DFS_WRITES":
+            # sum these together to match the POSIX version
+            dfs_data = (dfs_data_dict["DFS_WRITES"] +
+                        dfs_data_dict["DFS_WRITEXS"])
+            # we know the hardcoded value for certain
+            assert dfs_data.values == 64
+        else:
+            dfs_data = dfs_data_dict[column_name]
+        posix_column_name = column_name.replace("DFS", "POSIX")
+        posix_data = posix_data_dict[posix_column_name]
+        assert_allclose(dfs_data.values, posix_data.values)
+        # also check the DAOS-level data
+        daos_column_name = column_name.replace("DFS", "DAOS")
+        if daos_column_name == "DAOS_OPENS":
+            # this won't match exactly
+            continue
+        elif daos_column_name in ["DAOS_READS", "DAOS_WRITES"]:
+            daos_column_name = daos_column_name.replace("DAOS", "DAOS_ARRAY")
+        daos_data = daos_data_dict[daos_column_name]
+        assert_allclose(dfs_data.values, daos_data.values)
+        if column_name.endswith("BYTES_WRITTEN"):
+            # we know the hardcoded value for certain
+            # 256 KiB * 16
+            assert dfs_data.values == 16777216
+            assert daos_data.values == 16777216
+
+
 @pytest.mark.parametrize("unsupported_record",
         ["DXT_POSIX", "DXT_MPIIO", "LUSTRE", "APMPI", "APXC"]
         )
