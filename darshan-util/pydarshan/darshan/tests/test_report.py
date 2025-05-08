@@ -90,7 +90,7 @@ def test_dfs_daos_posix_match():
     # backend should produce matching counters where
     # comparable data fields exist
     posix_ior_report = darshan.DarshanReport(get_log_path("snyder_ior-POSIX_id1057716-202103_11-8-64415-6936117869459351096_1.darshan"))
-    dfs_ior_report = darshan.DarshanReport(get_log_path("snyder_ior-DFS_id1069383-23981_11-11-71996-14940917661149127511_1.darshan"))
+    dfs_ior_report = darshan.DarshanReport(get_log_path("snyder_ior-DFS_id4681120-53379_5-8-15060-3270540599978592154_1.darshan"))
     posix_ior_report.mod_read_all_records("POSIX")
     dfs_ior_report.mod_read_all_records("DFS")
     dfs_ior_report.mod_read_all_records("DAOS")
