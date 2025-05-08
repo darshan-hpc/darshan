@@ -68,7 +68,7 @@ http://www.mcs.anl.gov/darshan[Darshan web site].
 ----
 tar -xvzf darshan-<version-number>.tar.gz
 cd darshan-<version-number>/
-./prepare
+./prepare.sh
 cd darshan-runtime/
 ./configure --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID CC=mpicc
 make
@@ -79,7 +79,7 @@ make install
 ----
 tar -xvzf darshan-<version-number>.tar.gz
 cd darshan-<version-number>/
-./prepare
+./prepare.sh
 cd darshan-runtime/
 ./configure --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID --without-mpi CC=gcc
 make
@@ -464,7 +464,7 @@ AutoPerf offers two additional Darshan instrumentation modules that may be enabl
 Users can request Darshan to build the APMPI and APXC modules by passing
 `--enable-apmpi-mod` and `--enable-apxc-mod` options to configure, respectively. Note that these options can be requested independently (i.e., you can build Darshan with APMPI support but not APXC support, and vice versa).
 
-The only prerequsisite for the APMPI module is that Darsan be configured with a MPI-3 compliant compiler. For APXC, the user must obviously be using a Cray XC system and must make the PAPI interface available to Darshan (i.e., by running `module load papi`, before building Darshan).
+The only prerequsisite for the APMPI module is that Darshan be configured with a MPI-3 compliant compiler. For APXC, the user must obviously be using a Cray XC system and must make the PAPI interface available to Darshan (i.e., by running `module load papi`, before building Darshan).
 
 If using the APMPI module, users can additionally specify the `--enable-apmpi-coll-sync` configure option to force Darshan to synchronize before calling underlying MPI routines and to capture additional timing information on how synchronized processes are. Users should note this option will impose additional overheads, but can be useful to help diagnose whether applications are spending a lot of time synchronizing as part of collective communication calls. For this reason, we do not recommend users setting this particular option for production Darshan deployments.
 
