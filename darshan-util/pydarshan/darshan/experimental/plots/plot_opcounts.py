@@ -155,7 +155,7 @@ def gather_count_data(report, mod):
         ]
 
     elif mod == 'DFS':
-        labels = ['Read', 'Readx', 'Write', 'Writex', 'Open', 'GlobalOpen', 'Lookup', 'Get Size', 'Punch', 'Remove', 'Stat']
+        labels = ['Read', 'Readx', 'Write', 'Writex', 'Open', 'GlobalOpen', 'Lookup', 'GetSize', 'Punch', 'Remove', 'Stat']
         counts = [
             mod_data['DFS_READS'],
             mod_data['DFS_READXS'],
