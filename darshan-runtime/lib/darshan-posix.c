@@ -802,19 +802,19 @@ int DARSHAN_DECL(fileno)(FILE *stream)
 
     if(ret >= 0)
     {
+        POSIX_PRE_RECORD();
         char *rec_name = darshan_stdio_lookup_record_name(stream);
         if(rec_name)
         {
             rec_id = darshan_core_gen_record_id(rec_name);
 
-            POSIX_PRE_RECORD();
             rec_ref = darshan_lookup_record_ref(posix_runtime->rec_id_hash,
                 &rec_id, sizeof(darshan_record_id));
             if(!rec_ref)
                 rec_ref = posix_track_new_file_record(rec_id, rec_name);
             POSIX_RECORD_REFOPEN(ret, rec_ref, tm1, tm2, POSIX_FILENOS);
-            POSIX_POST_RECORD();
         }
+        POSIX_POST_RECORD();
     }
 
     return(ret);
