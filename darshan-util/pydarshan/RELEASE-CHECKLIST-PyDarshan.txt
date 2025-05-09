@@ -5,7 +5,7 @@ Notes on how to release a new version of PyDarshan
  - Ensure python dev environment with dev dependencies, if not already present
     (- python3 -m venv venv)
     (- source venv/bin/activate)
-    (- pip install -r requirements_dev.txt    # deps for packaging, testing, and docs generation)
+    (- pip install .[dev,test]    # deps for packaging, testing, and docs generation)
 
  - Update CHANGELOG.rst
     - commit

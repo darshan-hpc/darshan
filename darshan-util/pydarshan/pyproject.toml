@@ -46,6 +46,11 @@ test = [
     "lxml",
     "importlib_resources;python_version<'3.9'",
 ]
+dev = [
+    "sphinx",
+    "sphinx_rtd_theme",
+    "pipx"
+]
 
 [tool.setuptools.packages.find]
 include = ["darshan"]
