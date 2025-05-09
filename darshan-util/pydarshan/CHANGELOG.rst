@@ -1,3 +1,23 @@
+PyDarshan-3.4.7.0
+=================
+* Support for extracting and analyzing new DAOS instrumentation
+  module data
+  - summary CLI tool now integrates DAOS data into reports
+* New CLI tools for extracting and printing summary data for
+  one or more Darshan logs
+  - `job_stats` prints high-level statistics on a per-job level
+  - `file_stats` prints high-level statistics on a per-file level
+  - output in either CSV format or using the Rich package (which
+    is now a proper dependency of PyDarshan)
+* Add DarshanReport object capability to filter module records
+  according to given regular expressions
+  - users can now pass the following parameters to DarshanReport
+    objects to use this functionality: `filter_patterns` (a list
+    of regex strings to match against) and `filter_mode` (either
+    "exclude" or "include")
+  - integrated this capability into summary CLI tool to allow
+    filtering of data before generating reports
+
 PyDarshan-3.4.6.0
 =================
 * Track Darshan 3.4.6 release, no PyDarshan changes

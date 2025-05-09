@@ -2,6 +2,15 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.4.7
+=============
+* added extensive instrumentation of DAOS's file system (DFS) and native object
+  (DAOS) interfaces
+  - presented as 2 separate modules (DFS and DAOS)
+  - added as data source for Darshan's heatmap module
+* updated the darshan-convert utility to provide cmdline options allowing more
+  control over which portions of the Darshan log to anonymize
+
 Darshan-3.4.6
 =============
 * Added enhancements to Darshan's Lustre instrumentation module to capture
