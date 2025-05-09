@@ -24,7 +24,7 @@ Notes on how to release a new version of PyDarshan
         (in the pydarshan directory, creates a source distribution)
     - download wheel artifacts from GitHub, copy to 'dist/' directory created above
         (click on Actions in GitHub, find most recent "Build Wheels" workflow run with artifacts)
-        (download artifact zip, extract wheels to 'dist/' directory)
+        (download artifact zip (called 'pydarshan-wheels-all'), extract wheels to 'dist/' directory)
     - pipx run twine upload dist/*
         (requires PyPI credentials for darshan project)
         (use '--repository testpypi' to test wheels using https://test.pypi.org/project/darshan/ before uploading to PyPI)
