@@ -63,7 +63,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'PyDarshan'
+project = u'PyDarshan API Reference'
 copyright = u"2021, Argonne National Laboratory"
 author = u""
 
@@ -172,8 +172,7 @@ texinfo_documents = [
 
 
 intersphinx_mapping = {
-    'https://docs.python.org/': None,
-    'http://matplotlib.org': None,
+  "python": ('https://docs.python.org/', None),
+  "matplotlib": ("https://matplotlib.org", None),
 }
-
 
