@@ -2,13 +2,30 @@ version: "2"
 
 build:
   os: "ubuntu-22.04"
+  apt_packages:
+    - autoconf
+    - automake
+    - libtool
+    - libtool-bin
+    - m4
 
   tools:
     python: "3.10"
+  jobs:
+    pre_install:
+      # configure and install of darshan-util is required
+      # Note DARSHAN_INSTALL_PREFIX is a readthedocs environment variable which
+      # must be defined in the readthedocs dashboard
+      - cd darshan-util && autoreconf -i
+      - mkdir -p build && cd build && ../darshan-util/configure --prefix=$DARSHAN_INSTALL_PREFIX && make -j4 install
+      # create pydarshan doc files
+      - cd darshan-util/pydarshan && pip install -r requirements_dev.txt && make docs
 
 python:
   install:
     - requirements: readthedocs/requirements.txt
+    - method: pip
+      path: darshan-util/pydarshan
 
 sphinx:
   configuration: conf.py
