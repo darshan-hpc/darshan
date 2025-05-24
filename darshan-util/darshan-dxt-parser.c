@@ -26,14 +26,14 @@
 #define OPTION_SHOW_INCOMPLETE  (1 << 7)  /* show what we have, even if log is incomplete */
 
 static int usage (char *exename);
-static int parse_args (int argc, char **argv, char **filename);
+static int parse_args (int argc, char **argv, char **filename, char **only_file);
 
 int main(int argc, char **argv)
 {
     int mask;
     int ret;
     int i, j;
-    char *filename;
+    char *filename, *only_file = NULL;
     char *comp_str;
     char tmp_string[4096] = {0};
     darshan_fd fd;
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
     struct lustre_record_ref *lustre_rec_hash = NULL;
     char *mod_buf = NULL;
 
-    mask = parse_args(argc, argv, &filename);
+    mask = parse_args(argc, argv, &filename, &only_file);
 
     fd = darshan_log_open(filename);
     if (!fd)
@@ -303,6 +303,8 @@ int main(int argc, char **argv)
                         break;
                     }
                 }
+                if (only_file != NULL && strcmp(only_file, rec_name) != 0)
+                    continue; /* while (1) */
             }
 
             if (!mnt_pt)
@@ -354,10 +356,13 @@ cleanup:
         free(mnt_data_array);
     }
 
+    if (only_file != NULL)
+        free(only_file);
+
     return(ret);
 }
 
-static int parse_args (int argc, char **argv, char **filename)
+static int parse_args (int argc, char **argv, char **filename, char **only_file)
 {
     int index;
     int mask;
@@ -372,7 +377,7 @@ static int parse_args (int argc, char **argv, char **filename)
 
     while(1)
     {
-        int c = getopt_long(argc, argv, "", long_opts, &index);
+        int c = getopt_long(argc, argv, "f:", long_opts, &index);
 
         if (c == -1) break;
 
@@ -380,6 +385,9 @@ static int parse_args (int argc, char **argv, char **filename)
         {
             case OPTION_SHOW_INCOMPLETE:
                 mask |= c;
+                break;
+            case 'f':
+                *only_file = strdup(optarg);
                 break;
             case 0:
             case '?':
@@ -405,6 +413,7 @@ static int usage (char *exename)
 {
     fprintf(stderr, "Usage: %s [options] <filename>\n", exename);
     fprintf(stderr, "    --show-incomplete : display results even if log is incomplete\n");
+    fprintf(stderr, "    -f path: display results for the given file only\n");
 
     exit(1);
 }
