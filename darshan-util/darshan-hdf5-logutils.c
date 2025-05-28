@@ -219,7 +219,7 @@ static int darshan_log_get_hdf5_dataset(darshan_fd fd, void** hdf5_buf_p)
     struct darshan_hdf5_dataset *ds = *((struct darshan_hdf5_dataset **)hdf5_buf_p);
     int rec_len;
     int i;
-    int ret;
+    int ret=0;
 
     if(fd->mod_map[DARSHAN_H5D_MOD].len == 0)
         return(0);

@@ -142,7 +142,7 @@ static int darshan_log_get_stdio_record(darshan_fd fd, void** stdio_buf_p)
     struct darshan_stdio_file *file = *((struct darshan_stdio_file **)stdio_buf_p);
     int rec_len;
     int i;
-    int ret;
+    int ret=0;
 
     if(fd->mod_map[DARSHAN_STDIO_MOD].len == 0)
         return(0);
