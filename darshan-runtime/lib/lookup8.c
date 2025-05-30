@@ -80,11 +80,12 @@ Use for hash table lookup, or anything where one collision in 2^^64
 is acceptable.  Do NOT use for cryptographic purposes.
 --------------------------------------------------------------------
 */
-
-ub8 darshan_hash( k, length, level)
+#if 0
 const register ub1 *k;        /* the key */
 register ub8  length;   /* the length of the key */
 register ub8  level;    /* the previous hash, or an arbitrary value */
+#endif
+ub8 darshan_hash( const register ub1 *k, register ub8 length, register ub8 level)
 {
   register ub8 a,b,c,len;
 
@@ -150,10 +151,12 @@ register ub8  level;    /* the previous hash, or an arbitrary value */
  -- that the length be the number of ub8's in the key
 --------------------------------------------------------------------
 */
-ub8 hash2( k, length, level)
+#if 0
 register ub8 *k;        /* the key */
 register ub8  length;   /* the length of the key */
 register ub8  level;    /* the previous hash, or an arbitrary value */
+#endif
+ub8 hash2( register ub8 *k, register ub8 length, register ub8 level)
 {
   register ub8 a,b,c,len;
 
@@ -195,10 +198,12 @@ register ub8  level;    /* the previous hash, or an arbitrary value */
 --------------------------------------------------------------------
 */
 
-ub8 hash3( k, length, level)
+#if 0
 register ub1 *k;        /* the key */
 register ub8  length;   /* the length of the key */
 register ub8  level;    /* the previous hash, or an arbitrary value */
+#endif
+ub8 hash3( register ub1 *k, register ub8 length, register ub8 level)
 {
   register ub8 a,b,c,len;
 

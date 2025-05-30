@@ -253,7 +253,7 @@ static int darshan_log_get_pnetcdf_var(darshan_fd fd, void** pnetcdf_buf_p)
     struct darshan_pnetcdf_var *var = *((struct darshan_pnetcdf_var **)pnetcdf_buf_p);
     int rec_len;
     int i;
-    int ret;
+    int ret=0;
 
     if(fd->mod_map[DARSHAN_PNETCDF_VAR_MOD].len == 0)
         return(0);
