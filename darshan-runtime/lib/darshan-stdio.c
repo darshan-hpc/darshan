@@ -215,6 +215,15 @@ extern int __real_fileno(FILE *stream);
     STDIO_UNLOCK(); \
 } while(0)
 
+/* When we do '__newpath != __path' in this macro we really do mean to do a
+ * bare pointer comparison (not contents).  Some compilers will complain about
+ * comparing 'char *' with a string literal, suggesting a string comparison
+ * function.  Normally that's good advice but not here: we are looking at
+ * actual pointer addresses to know if we should free the memory returned by
+ * darshan_clean_file_path
+ *
+ * since it's so hard to deal with string literals in a standard-defined way,
+ * just do us a favor and don't pass string literals to this function */
 #define STDIO_RECORD_OPEN(__ret, __path, __tm1, __tm2) do { \
     darshan_record_id __rec_id; \
     struct stdio_file_record_ref *__rec_ref; \
@@ -1065,6 +1074,11 @@ static void stdio_runtime_initialize()
     .mod_cleanup_func = &stdio_cleanup
     };
 
+    /* some compilers will complain about comparing string literals */
+    const char * stdin_str = "<STDIN>";
+    const char * stdout_str = "<STDOUT>";
+    const char * stderr_str = "<STDERR>";
+
     /* if this attempt at initializing fails, we won't try again */
     stdio_runtime_init_attempted = 1;
 
@@ -1091,9 +1105,9 @@ static void stdio_runtime_initialize()
     memset(stdio_runtime, 0, sizeof(*stdio_runtime));
 
     /* instantiate records for stdin, stdout, and stderr */
-    STDIO_RECORD_OPEN(stdin, "<STDIN>", 0, 0);
-    STDIO_RECORD_OPEN(stdout, "<STDOUT>", 0, 0);
-    STDIO_RECORD_OPEN(stderr, "<STDERR>", 0, 0);
+    STDIO_RECORD_OPEN(stdin, stdin_str, 0, 0);
+    STDIO_RECORD_OPEN(stdout, stdout_str, 0, 0);
+    STDIO_RECORD_OPEN(stderr, stderr_str, 0, 0);
 
     /* register a heatmap */
     stdio_runtime->heatmap_id = heatmap_register("heatmap:STDIO");
