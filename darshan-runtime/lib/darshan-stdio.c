@@ -215,6 +215,12 @@ extern int __real_fileno(FILE *stream);
     STDIO_UNLOCK(); \
 } while(0)
 
+/* When we do '__newpath != __path' in this macro we really do mean to do a
+ * bare pointer comparison (not contents).  Some compilers will complain about
+ * comparing 'char *' with a string literal, suggesting a string comparison
+ * function.  Normally that's good advice but not here: we are looking at
+ * actual pointer addresses to know if we should free the memory returned by
+ * darshan_clean_file_path */
 #define STDIO_RECORD_OPEN(__ret, __path, __tm1, __tm2) do { \
     darshan_record_id __rec_id; \
     struct stdio_file_record_ref *__rec_ref; \
