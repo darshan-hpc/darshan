@@ -215,6 +215,10 @@ extern int __real_fileno(FILE *stream);
     STDIO_UNLOCK(); \
 } while(0)
 
+/* 'darshan_clean_file_path' normally returns a newly allocated string, but it
+ * might return NULL if __path is a special case (e.g. '<STDIN>').  If we see
+ * that case, we'll make a copy of __path.  Now we don't need any special
+ * checks and _newpath can always bedeallocated in cleanup  */
 #define STDIO_RECORD_OPEN(__ret, __path, __tm1, __tm2) do { \
     darshan_record_id __rec_id; \
     struct stdio_file_record_ref *__rec_ref; \
@@ -223,16 +227,16 @@ extern int __real_fileno(FILE *stream);
     (void)__darshan_disabled; \
     if(!__ret || !__path) break; \
     __newpath = darshan_clean_file_path(__path); \
-    if(!__newpath) __newpath = (char*)__path; \
+    if(!__newpath) __newpath = strdup((__path)); \
     __rec_id = darshan_core_gen_record_id(__newpath); \
     __rec_ref = darshan_lookup_record_ref(stdio_runtime->rec_id_hash, &__rec_id, sizeof(darshan_record_id)); \
     if(!__rec_ref) __rec_ref = stdio_track_new_file_record(__rec_id, __newpath); \
     if(!__rec_ref) { \
-        if(__newpath != (char*)__path) free(__newpath); \
+        free(__newpath); \
         break; \
     } \
     _STDIO_RECORD_OPEN(__ret, __rec_ref, __tm1, __tm2, 1, -1); \
-    if(__newpath != (char*)__path) free(__newpath); \
+    free(__newpath); \
     /* LDMS to publish realtime open tracing information to daemon*/ \
     if(dC.ldms_lib)\
         if(dC.stdio_enable_ldms)\
