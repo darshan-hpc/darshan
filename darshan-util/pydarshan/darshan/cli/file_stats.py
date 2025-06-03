@@ -233,6 +233,11 @@ def rich_print(df, mod, order_by):
         "time_by_slowest", f"[u i]{all_time_by_slowest:.2f} s", **default_kwargs
     )
     table.add_column(
+        "total_bytes",
+        f"[u i]{naturalsize(all_total_bytes, binary=True, format='%.2f')}",
+        **default_kwargs,
+    )
+    table.add_column(
         "bytes_read",
         f"[u i]{naturalsize(all_bytes_read, binary=True, format='%.2f')}",
         **default_kwargs,
@@ -244,11 +249,6 @@ def rich_print(df, mod, order_by):
     )
     table.add_column("reads", f"[u i]{all_reads}", **default_kwargs)
     table.add_column("writes", f"[u i]{all_writes}", **default_kwargs)
-    table.add_column(
-        "total_bytes",
-        f"[u i]{naturalsize(all_total_bytes, binary=True, format='%.2f')}",
-        **default_kwargs,
-    )
     table.add_column("total_jobs", f"[u i]{all_total_jobs}", **default_kwargs)
     for column in table.columns:
         if column.header == order_by:
@@ -258,11 +258,11 @@ def rich_print(df, mod, order_by):
             row["file"],
             f"{naturalsize(row['perf_by_slowest'], binary=True, format='%.2f')}/s",
             f"{row['time_by_slowest']:.2f} s",
+            f"{naturalsize(row['total_bytes'], binary=True, format='%.2f')}",
             f"{naturalsize(row['bytes_read'], binary=True, format='%.2f')}",
             f"{naturalsize(row['bytes_written'], binary=True, format='%.2f')}",
             f"{row['reads']}",
             f"{row['writes']}",
-            f"{naturalsize(row['total_bytes'], binary=True, format='%.2f')}",
             f"{row['total_jobs']}",
         )
     console.print(table)
@@ -303,11 +303,11 @@ def setup_parser(parser: argparse.ArgumentParser):
         choices=[
             "perf_by_slowest",
             "time_by_slowest",
+            "total_bytes",
             "bytes_read",
             "bytes_written",
             "reads",
             "writes",
-            "total_bytes",
             "total_jobs",
         ],
         help="specify the I/O metric to order files by (default: %(default)s)",
