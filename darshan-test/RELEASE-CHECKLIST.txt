@@ -45,6 +45,9 @@ Notes on how to release a new version of Darshan
 12) generate web documentation from asciidoc by running make in
     darshan-util/doc/ and darshan-runtime/doc/ directories
     - upload .html files to CELS server (/nfs/pub_html/gce/projects/darshan/docs)
+    - This step is only applicable to release of 3.4.7 and prior. Documents of
+      later releases have been migrated to readthedocs.io, which are
+      automatically generated every time a new commit is pushed.
 13) update download page on darshan web site: www.mcs.anl.gov/darshan/download
 14) update darshan-runtime and darshan-util Spack packages with new release
     - consider whether new variants should be exposed based on new features

@@ -2,15 +2,18 @@ PyDarshan-3.4.7.0
 =================
 * Support for extracting and analyzing new DAOS instrumentation
   module data
+
   - summary CLI tool now integrates DAOS data into reports
 * New CLI tools for extracting and printing summary data for
   one or more Darshan logs
+
   - `job_stats` prints high-level statistics on a per-job level
   - `file_stats` prints high-level statistics on a per-file level
   - output in either CSV format or using the Rich package (which
     is now a proper dependency of PyDarshan)
 * Add DarshanReport object capability to filter module records
   according to given regular expressions
+
   - users can now pass the following parameters to DarshanReport
     objects to use this functionality: `filter_patterns` (a list
     of regex strings to match against) and `filter_mode` (either
@@ -33,6 +36,7 @@ PyDarshan-3.4.4.0
 PyDarshan-3.4.3.0
 =================
 * Various job summary tool improvements
+
   - add new module overview table
   - add new file count summary table
   - add new plot of POSIX module sequential/consecutive accesses
@@ -45,6 +49,7 @@ PyDarshan-3.4.3.0
     easier to read
 * Integrated Python support for darshan-util accumulator API for
   aggregating file records and calculating derived metrics
+
   - Added backend routine `accumulate_records`, which returns
     a derived metric structure and a summary record for an
     input set of records
@@ -66,13 +71,16 @@ PyDarshan-3.4.1.0
 =================
  * Fixed memory leaks in the following backend CFFI bindings
    (reported by Jesse Hines):
+
   - log_get_modules
   - log_get_mounts
   - log_get_record
   - log_get_name_records
   - log_lookup_name_records
+
  * Added PnetCDF module information to job summary tool
  * Testing modifications:
+
   - Switched to use of context managers for log Report objects to
     avoid test hangs in certain environments
   - Marked tests requiring lxml package as xfail when not installed
