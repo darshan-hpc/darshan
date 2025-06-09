@@ -835,10 +835,8 @@ recommend using mpicc with GNU compilers to compile Darshan.
 ./configure --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID CC=mpicc
 ----
 
-The darshan-gen-* scripts described earlier in this document can be used
-to create variants of the standard mpicc/mpicxx/mpif77/mpif90 scripts
-that are Darshan enabled.  These scripts will work correctly for both
-dynamic and statically linked executables.
+The MPICH profile configuration method described earlier in this document
+can be used to add Darshan instrumentation to executables at compile time.
 
 === Linux clusters using Intel MPI
 
