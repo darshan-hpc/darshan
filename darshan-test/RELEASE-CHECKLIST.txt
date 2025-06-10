@@ -8,9 +8,8 @@ Notes on how to release a new version of Darshan
     - close the milestone, move unfinished issues to appropriate milestone
  2) check for any problems in recent CI workflows on the main GitHub and
     on the ALCF GitLab CI instance
- 3) make sure that documentation in darshan-util/doc/ and darshan-runtime/doc/
-    are up to date
-    - commit
+ 3) make sure that documentation on Read the Docs is up to date.  See
+    instructions in readthedocs/DEVELOPER_NOTES.md
  4) update the Changelog, if needed (browse git log since last release)
     - commit
  5) update version number in top-level darshan.version file
@@ -31,6 +30,8 @@ Notes on how to release a new version of Darshan
     - example (annotated tag, pushed to repo):
       git tag -a darshan-2.3.1 -m 'Darshan 2.3.1'
       git push origin darshan-2.3.1
+    - NOTE: update the above to reflect the tag format needed by Read the
+      Docs
 11) manually create the release tarball
     - do a fresh checkout of the Darshan release tag
       git clone --branch darshan-2.3.1 \
@@ -42,15 +43,9 @@ Notes on how to release a new version of Darshan
       tar -czvf darshan-2.3.1.tar.gz /path/to/darshan-2.3.1
     - upload tarball to CELS server
       scp darshan-2.3.1.tar.gz user@homes.cels.anl.gov:/nfs/pub_html/gce/projects/darshan/releases/
-12) generate web documentation from asciidoc by running make in
-    darshan-util/doc/ and darshan-runtime/doc/ directories
-    - upload .html files to CELS server (/nfs/pub_html/gce/projects/darshan/docs)
-    - This step is only applicable to release of 3.4.7 and prior. Documents of
-      later releases have been migrated to readthedocs.io, which are
-      automatically generated every time a new commit is pushed.
-13) update download page on darshan web site: www.mcs.anl.gov/darshan/download
-14) update darshan-runtime and darshan-util Spack packages with new release
+12) update download page on darshan web site: www.mcs.anl.gov/darshan/download
+13) update darshan-runtime and darshan-util Spack packages with new release
     - consider whether new variants should be exposed based on new features
       enabled by the release
     - commit, submit PR to upstream Spack repository
-15) announce on web page (new post) and mailing list
+14) announce on web page (new post) and mailing list
