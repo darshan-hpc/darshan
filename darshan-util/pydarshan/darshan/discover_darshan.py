@@ -216,9 +216,15 @@ def find_utils(ffi, libdutil):
             os.chdir(save)
         except:
             libdutil = None
-  
-    
-    
+
+    if libdutil is None:
+        try:
+            library_path = os.environ.get('DARSHAN_INSTALL_PREFIX')
+            logger.debug(f"Attempting library_path={library_path} via env variable DARSHAN_INSTALL_PREFIX.")
+            libdutil = ffi.dlopen(library_path + "/lib/libdarshan-util.so")
+        except:
+            libdutil = None
+
     if libdutil is None:
         raise RuntimeError('Could not find libdarshan-util.so! Is darshan-util installed? Please ensure one of the the following: 1) export LD_LIBRARY_PATH=<path-to-libdarshan-util.so>, or 2) darshan-parser can found using the PATH variable, or 3) pkg-config can resolve pkg-config --path darshan-util, or 4) install a wheel that includes darshan-utils via pip.')
 

@@ -63,7 +63,7 @@ coverage:  # check code coverage quickly with the default Python
 
 
 docs: clean-docs # generate Sphinx HTML documentation, including API docs
-	sphinx-apidoc -M -H PyDarshan -o docs/api/pydarshan darshan
+	sphinx-apidoc -M -H "PyDarshan API Reference" -o docs/api/pydarshan darshan
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
 
