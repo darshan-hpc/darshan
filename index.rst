@@ -1,40 +1,24 @@
 Welcome to Darshan's Documentation
 ===================================
 
-The Darshan source tree is divided into two parts:
+**NOTE: please check with your facility for site-specific documentation first if you are using a version of Darshan provided by your organization.**
 
-* ``darshan-runtime``: to be installed on systems where you intend to
-  instrument MPI applications.
-* ``darshan-util``: to be installed on systems where you intend to analyze log
-  files produced by darshan-runtime.
+The primary Darshan documentation is divided into three parts:
 
-  + ``darshan-util/pydarshan``: a Python package providing interfaces to
-    Darshan log file.
+* :ref:`darshan-runtime <TOC Darshan Runtime>`: The portion of Darshan that
+  is used to instrument applications.
+* :ref:`PyDarshan <pydarshantoc>`: A Python package that provides APIs and
+  command-line tools for analyzing Darshan logs.
+* :ref:`darshan-util <TOC Darshan Utilities>`: The underlying C
+  library and command-line tools for managing Darshan logs.
 
-:ref:`Modularized I/O characterization using Darshan 3.x <TOC Modularization>`
-gives details on the design of the new modularized version of Darshan (3.x)
-and how new instrumentation modules may be developed within Darshan.
+While both PyDarshan and darshan-util provide analysis capabilities, we
+strongly recommend that you use PyDarshan for the most up to date features
+and functionality.
 
-Site-specific documentation for facilities that deploy Darshan in production:
-
-* Argonne Leadership Computing Facility (ALCF):
-  `Theta <https://www.alcf.anl.gov/support-center/theta/darshan-theta>`_,
-  `Cooley <https://www.alcf.anl.gov/support-center/cooley/darshan-cooley>`_.
-* National Energy Research Scientific Computing Center
-  (`NERSC <https://docs.nersc.gov/environment/#darshan-and-altd>`_)
-* National Center for Supercomputing Applications
-  (`NCSA <https://bluewaters.ncsa.illinois.edu/darshan>`_)
-* Oak Ridge Leadership Computing Facility (OLCF):
-  `darshan-runtime <https://www.olcf.ornl.gov/software_package/darshan-runtime/>`_,
-  `darshan-util <https://www.olcf.ornl.gov/software_package/darshan-util/>`_.
-* King Abdullah University of Science and Technology
-  (`KAUST <https://www.hpc.kaust.edu.sa/sites/default/files/files/public/Parallel_IO_bh.pdf>`_)
-* European Centre for Medium-Range Weather Forecasts
-  (`ECMWF <https://software.ecmwf.int/wiki/display/UDOC/How+to+use+Darshan+to+profile+IO>`_)
-* Ohio Supercomputer Center
-  (`OSC <https://www.osc.edu/resources/available_software/software_list/darshan>`_)
-* Julich Supercomputing Centre
-  (`JSC <https://apps.fz-juelich.de/unite/files/DebugAndPerformanceTools-latest.pdf>`_)
+In addition, :ref:`Modularized I/O characterization using Darshan 3.x <TOC
+Modularization>` is a reference for developers who wish to better understand
+the Darshan architecture or develop new instrumentation modules.
 
 .. toctree::
    :maxdepth: 2
@@ -42,6 +26,16 @@ Site-specific documentation for facilities that deploy Darshan in production:
    :name: TOC Darshan Runtime
 
    darshan-runtime/doc/darshan-runtime
+
+.. toctree::
+   :maxdepth: 2
+   :caption: PyDarshan
+   :name: pydarshantoc
+
+   darshan-util/pydarshan/docs/readme
+   darshan-util/pydarshan/docs/install
+   darshan-util/pydarshan/docs/usage
+   darshan-util/pydarshan/docs/api/pydarshan/modules
 
 .. toctree::
    :maxdepth: 2
@@ -56,16 +50,6 @@ Site-specific documentation for facilities that deploy Darshan in production:
    :name: TOC Modularization
 
    doc/darshan-modularization.rst
-
-.. toctree::
-   :maxdepth: 2
-   :caption: PyDarshan
-   :name: pydarshantoc
-
-   darshan-util/pydarshan/docs/readme
-   darshan-util/pydarshan/docs/install
-   darshan-util/pydarshan/docs/usage
-   darshan-util/pydarshan/docs/api/pydarshan/modules
 
 Indices and tables
 ==================
