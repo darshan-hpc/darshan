@@ -63,6 +63,19 @@
   + darshan-util/pydarshan/docs/usage
   + darshan-util/pydarshan/docs/api/pydarshan/modules
 
+### Previewing updates
 
-
+Use the following steps to review documentation changes before they are
+merged to the main branch:
+* Modify the appropriate files (see `index.rst` and the list of included
+  documents described in the preceding subsection)
+* Open a pull request on GitHub with your changes
+* Wait a few minutes for automated actions to occurr on ReadTheDocs
+* Log into https://app.readthedocs.org
+* Navigate to the Darshan dashboard and click the `Builds` tab
+* Select the corresponding pull request and click the `View Docs` button
+* Validate the changes, push additional commits if needed, and merge the PR
+  when ready
+* Wait a few minutes for ReadTheDocs automation
+* Confirm that the updates are visible at https://darshan.readthedocs.io/en/latest/
 
