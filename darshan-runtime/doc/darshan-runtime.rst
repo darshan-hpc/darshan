@@ -600,8 +600,8 @@ runtime:
 
 .. list-table::
    :header-rows: 1
-   :widths: 20, 10, 70
-   :class: longtable
+   :widths: 30 20 50
+   :class: tight-table
    :align: left
 
    * - environment variable setting
@@ -613,7 +613,6 @@ runtime:
    * - DARSHAN_ENABLE_NONMPI=1
      - N/A
      - Enables Darshan's non-MPI mode, required for applications that do not
-
        call MPI_Init and MPI_Finalize.
    * - DARSHAN_CONFIG_PATH=<path>
      - N/A
@@ -624,193 +623,135 @@ runtime:
    * - DARSHAN_DISABLE_SHARED_REDUCTION=1
      - DISABLE_SHARED_REDUCTION
      - Disables the step in Darshan aggregation in which files that were
-
        accessed by all ranks are collapsed into a single cumulative file record
-
        at rank 0. This option retains more per-process information at the
-
        expense of creating larger log files.
    * - DARSHAN_INTERNAL_TIMING=1
      - INTERNAL_TIMING
      - Enables internal instrumentation that will print the time required to
-
        startup and shutdown Darshan to stderr at runtime.
    * - DARSHAN_MODMEM=<val>
      - MODMEM <val>
      - Specifies the amount of memory (in MiB) Darshan instrumentation modules
-
        can collectively consume (if not specified, a default 4 MiB quota is
-
        used). Overrides any ``--with-mod-mem`` configure argument.
    * - DARSHAN_NAMEMEM=<val>
      - NAMEMEM <val>
      - Specifies the amount of memory (in MiB) Darshan can consume for storing
-
        record names (if not specified, a default 1 MiB quota is used).
-
        Overrides any ``--with-name-mem`` configure argument.
    * - DARSHAN_MEMALIGN=<val>
      - MEMALIGN <val>
      - Specifies a value for system memory alignment. Overrides any
-
        ``--with-mem-align`` configure argument (default is 8 bytes).
    * - DARSHAN_JOBID=<string>
      - JOBID <string>
      - Specifies the name of the environment variable to use for the job
-
        identifier, such as PBS_JOBID. Overrides ``--with-jobid-env`` configure
-
        argument.
    * - DARSHAN_LOGHINTS=<string>
      - LOGHINTS <string>
      - Specifies the MPI-IO hints to use when storing the Darshan output file.
-
        The format is a semicolon-delimited list of key=value pairs, for
-
        example: hint1=value1;hint2=value2. Overrides any ``--with-log-hints``
-
        configure argument.
    * - DARSHAN_LOGPATH=<path>
      - LOGPATH <path>
      - Specifies the path to write Darshan log files to. Note that this
-
        directory needs to be formatted using the darshan-mk-log-dirs script.
-
        Overrides any ``--with-log-path`` configure argument.
    * - DARSHAN_MMAP_LOGPATH=<path>
      - MMAP_LOGPATH <path>
      - If Darshan's mmap log file mechanism is enabled, this variable specifies
-
        what path the mmap log files should be stored in (if not specified, log
-
        files will be stored in ``/tmp``).
    * - DARSHAN_LOGFILE=<path>
      - N/A
      - Specifies the path (directory + Darshan log file name) to write the
-
        output Darshan log to. This overrides the default Darshan behavior of
-
        automatically generating a log file name and adding it to a log file
-
        directory formatted using darshan-mk-log-dirs script.
    * - DARSHAN_MOD_DISABLE=<mod_csv>
      - MOD_DISABLE <mod_csv>
      - Specifies a list of comma-separated Darshan module names to disable at
-
        runtime.
    * - DARSHAN_MOD_ENABLE=<mod_csv>
      - MOD_ENABLE <mod_csv>
      - Specifies a list of comma-separated Darshan module names to enable at
-
        runtime.
    * - DARSHAN_APP_EXCLUDE=<regex_csv>
      - APP_EXCLUDE <regex_csv>
      - Specifies a list of comma-separated regexes that match application names
-
        that should not be instrumented. This is useful if Darshan is
-
        ``LD_PRELOAD``, in which case logs may be generated for many unintended
-
        applications.
    * - DARSHAN_APP_INCLUDE=<regex_csv>
      - APP_INCLUDE <regex_csv>
      - Specifies a list of comma-separated regexes that match application names
-
        that should be instrumented. This setting is used to override any
-
        APP_INCLUDE rules.
    * - DARSHAN_RANK_EXCLUDE=<rank_csv>
      - RANK_EXCLUDE <rank_csv>
      - Specifies a list of comma-separated ranks (or rank ranges) that should
-
        not be instrumented. Rank ranges are formatted like "start:end" (if
-
        start or end are not specified, the first or last rank is assumed,
-
        respectively). Note that the Darshan library will still run on all
-
        processes of an application, this setting just controls whether specific
-
        ranks are capturing instrumentation data.
    * - DARSHAN_RANK_INCLUDE=<rank_csv>
      - RANK_INCLUDE <rank_csv>
      - Specifies a list of comma-separated ranks (or rank ranges) that should
-
        be instrumented. This setting is used to override any RANK_INCLUDE
-
        rules.
    * - DARSHAN_DXT_SMALL_IO_TRIGGER=<val>
      - DXT_SMALL_IO_TRIGGER <val>
      - Specifies a floating point percentage (i.e., ".8" would be 80%)
-
        indicating a threshold of small I/O operation accesses (defined as
-
        accesses smaller than 10 KiB), with DXT trace data being discarded for
-
        files that exhibit  a percentage of small I/O operations less than this
-
        threshold.
    * - DARSHAN_DXT_UNALIGNED_IO_TRIGGER=<val>
      - DXT_UNALIGNED_IO_TRIGGER <val>
      - Specifies a floating point percentage (i.e., ".8" would be 80%)
-
        indicating a threshold of unaligned I/O operation accesses (defined as
-
        accesses not aligned to the file alignment value determined by Darshan),
-
        with DXT trace data being discarded for files that exhibit a percentage
-
        of unaligned I/O operations less than this threshold.
    * - N/A
      - MAX_RECORDS <val> <mod_csv>
      - Specifies the number of records to pre-allocate for each instrumentation
-
        module given in a comma-separated list.  Most modules default to tracing
-
        1024 file records per-process.
    * - N/A
      - NAME_EXCLUDE <regex_csv> <mod_csv>
      - Specifies a list of comma-separated regexes that match record names that
-
        should not be instrumented for instrumentation modules given in a
-
        comma-separated module list.
    * - N/A
      - NAME_INCLUDE <regex_csv> <mod_csv>
      - Specifies a list of comma-separated regexes that match record names that
-
        should be instrumented for instrumentation modules given in a
-
        comma-separated module list. This setting is used to override any
-
        NAME_EXCLUDE rules.
    * - DXT_ENABLE_IO_TRACE=1
      - N/A
      - (DEPRECATED) Setting this environment variable enables the DXT (Darshan
-
        eXtended Tracing) modules at runtime for all files instrumented by
-
        Darshan. Replaced by MODULE_ENABLE setting.
    * - DARSHAN_EXCLUDE_DIRS=<path_csv>
      - N/A
      - (DEPRECATED) Specifies a list of comma-separated paths that Darshan will
-
        not instrument at runtime (in addition to Darshan's default exclusion
-
        list). Replaced by NAME_EXCLUDE setting.
    * - DARSHAN_LDMS_ENABLE=
      - N/A
      - Switch to initialize LDMS. If not set, no runtime I/O data will be
-
        collected. This only needs to be exported (i.e. setting to a
-
        value/string is optional).
    * - DARSHAN_LDMS_ENABLE_<mod_name>=
      - N/A
      - Specifies the module data that will be collected during runtime using
-
        LDMS streams API. These only need to be exported (i.e.  setting to a
-
        value/string is optional).
 
 .. note::

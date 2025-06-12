@@ -129,3 +129,8 @@ intersphinx_mapping = {
   "matplotlib": ("https://matplotlib.org", None),
 }
 
+html_static_path = ['readthedocs/_static']
+html_css_files = [
+    'css/custom.css',
+]
+
