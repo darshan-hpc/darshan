@@ -70,7 +70,7 @@ merged to the main branch:
 * Modify the appropriate files (see `index.rst` and the list of included
   documents described in the preceding subsection)
 * Open a pull request on GitHub with your changes
-* Wait a few minutes for automated actions to occurr on ReadTheDocs
+* Wait a few minutes for automated actions to occur on ReadTheDocs
 * Log into https://app.readthedocs.org
 * Navigate to the Darshan dashboard and click the `Builds` tab
 * Select the corresponding pull request and click the `View Docs` button
@@ -78,4 +78,19 @@ merged to the main branch:
   when ready
 * Wait a few minutes for ReadTheDocs automation
 * Confirm that the updates are visible at https://darshan.readthedocs.io/en/latest/
+
+### Differences between the "latest" and "stable" versions
+
+On the readthedocs dashboard, there are two items shown under tab "Versions",
+`latest` and `stable`.
+* **latest** - When using the default configuration, the latest version is a
+  built whenever a new commit is pushed to the Github main branch. Therefore,
+  the document pointed by **latest** is updated more frequently. Click it will
+  reveal all the build history.
+* **stable** - This points to the document that was built using the latest git
+  tag, which is usually considered as a stable release of a software.
+  + Note that readthedocs requires tag names to follow the semantic versioning,
+    so it can be recognized by readthedocs.
+    See [Section Versions](https://docs.readthedocs.com/platform/latest/versions.html)
+    of ReadtheDocs document.
 
