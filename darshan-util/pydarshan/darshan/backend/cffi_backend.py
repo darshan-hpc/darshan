@@ -736,10 +736,30 @@ def _df_to_rec(rec_dict, mod_name, rec_index_of_interest=None):
         num_recs = 1
     # id and rank columns are duplicated
     # in counters and fcounters
-    rec_arr = np.recarray(shape=(num_recs), dtype=[("id", "<u8", (1,)),
-                                                   ("rank", "<i8", (1,)),
-                                                   ("counters", "<i8", (counters_n_cols - 2,)),
-                                                   ("fcounters", "<f8", (fcounters_n_cols - 2,))])
+
+    if mod_name not in ('DFS', 'DAOS'):
+        rec_arr = np.recarray(shape=(num_recs), dtype=[("id", "<u8", (1,)),
+                                                       ("rank", "<i8", (1,)),
+                                                       ("counters", "<i8", (counters_n_cols - 2,)),
+                                                       ("fcounters", "<f8", (fcounters_n_cols - 2,))])
+    elif mod_name == 'DFS':
+        rec_arr = np.recarray(shape=(num_recs), dtype=[("id", "<u8", (1,)),
+                                                     ("rank", "<i8", (1,)),
+                                                     ("counters", "<i8", (counters_n_cols - 2,)),
+                                                     ("fcounters", "<f8", (fcounters_n_cols - 2,)),
+                                                     ("pool_uuid", "V16"),
+                                                     ("cont_uuid", "V16")])
+    elif mod_name == 'DAOS':
+        rec_arr = np.recarray(shape=(num_recs), dtype=[("id", "<u8", (1,)),
+                                                     ("rank", "<i8", (1,)),
+                                                     ("counters", "<i8", (counters_n_cols - 2,)),
+                                                     ("fcounters", "<f8", (fcounters_n_cols - 2,)),
+                                                     ("pool_uuid", "V16"),
+                                                     ("cont_uuid", "V16"),
+                                                     ("oid_hi", "<u8"),
+                                                     ("oid_lo", "<u8")])
+
+
     rec_arr.fcounters = fcounters_df.iloc[rec_index_of_interest, 2:].to_numpy()
     rec_arr.counters = counters_df.iloc[rec_index_of_interest, 2:].to_numpy()
     if num_recs > 1:
