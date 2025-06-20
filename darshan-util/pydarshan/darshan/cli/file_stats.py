@@ -299,7 +299,7 @@ def setup_parser(parser: argparse.ArgumentParser):
         "--order_by",
         "-o",
         nargs="?",
-        default="bytes_read",
+        default="total_bytes",
         choices=[
             "perf_by_slowest",
             "time_by_slowest",
