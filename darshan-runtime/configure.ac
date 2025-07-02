@@ -855,9 +855,6 @@ AM_CONDITIONAL(HAVE_LDMS,           [test "x$enable_ldms_mod"    = xyes])
 AC_CONFIG_FILES(Makefile \
                 darshan-config \
                 darshan-mk-log-dirs.pl \
-                darshan-gen-cc.pl \
-                darshan-gen-cxx.pl \
-                darshan-gen-fortran.pl \
                 lib/Makefile \
                 pkgconfig/Makefile \
                 pkgconfig/darshan-runtime.pc \
