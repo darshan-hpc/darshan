@@ -282,7 +282,7 @@ install either or both as follows:
 
 You can use the ``spack info darshan-runtime`` query to view the full list of
 variants available for the darshan-runtime Spack package.  For example, adding
-a ``+slurm`` to the command line (``spack install darshan-runtime+slurm``) will
+a ``scheduler=slurm`` to the command line (``spack install "darshan-runtime scheduler=slurm"``) will
 cause Darshan to be compiled with support for gathering job ID information from
 the Slurm scheduler.
 
