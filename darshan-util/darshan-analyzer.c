@@ -155,11 +155,16 @@ int main(int argc, char **argv)
 
     if(argc != 2)
     {
-        fprintf(stderr, "Error: directory of Darshan logs required as argument.\n");
+        fprintf(stderr, "Usage: darshan-analyzer --version | <directory>\n");
+        fprintf(stderr, "       '--version' or directory of Darshan logs required as argument.\n");
         return(-1);
     }
 
     base = argv[1];
+    if (!strcmp(base, "--version")) {
+        printf("%s\n",PACKAGE_VERSION);
+        exit(0);
+    }
 
     ret = ftw(base, tree_walk, 512);
     if(ret != 0)
