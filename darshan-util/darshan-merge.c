@@ -27,6 +27,8 @@ void usage(char *exename)
     fprintf(stderr, "This utility merges multiple Darshan log files into a single output log file.\n");
     fprintf(stderr, "<input_log_glob> is a pattern that matches all input log files (e.g., /log-path/*.darshan).\n");
     fprintf(stderr, "Options:\n");
+    fprintf(stderr, "\t--help \t\tprints this help message and exits\n");
+    fprintf(stderr, "\t--version \tprints Darshan version number and exits\n");
     fprintf(stderr, "\t--output\t(REQUIRED) Full path of the output darshan log file.\n");
     fprintf(stderr, "\t--shared-redux\tReduce globally shared records into a single record.\n");
     fprintf(stderr, "\t--job-end-time\tSet the output log's job end time (requires argument of seconds since Epoch).\n");
@@ -44,6 +46,8 @@ void parse_args(int argc, char **argv, char ***infile_list, int *n_files,
         {"output", required_argument, NULL, 'o'},
         {"shared-redux", no_argument, NULL, 's'},
         {"job-end-time", required_argument, NULL, 'e'},
+        {"version",  0, NULL, 'v'},
+        {"help",  0, NULL, 0},
         {0, 0, 0, 0}
     };
 
@@ -73,6 +77,9 @@ void parse_args(int argc, char **argv, char ***infile_list, int *n_files,
                     exit(1);
                 }
                 break;
+            case 'v':
+                printf("%s\n", PACKAGE_VERSION);
+                exit(0);
             case '?':
             default:
                 usage(argv[0]);
