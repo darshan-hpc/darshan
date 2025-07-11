@@ -106,7 +106,7 @@ int parse_args (int argc, char **argv, char **filename)
                 mask |= c;
                 break;
             case OPTION_VERSION:
-                printf("%s\n",VERSION);
+                printf("%s\n", PACKAGE_VERSION);
                 exit(0);
             case 0:
             case '?':
