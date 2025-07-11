@@ -27,10 +27,11 @@
 /*
  * Options
  */
-#define OPTION_BASE  (1 << 0)  /* darshan log fields */
-#define OPTION_TOTAL (1 << 1)  /* aggregated fields */
-#define OPTION_PERF  (1 << 2)  /* derived performance */
-#define OPTION_FILE  (1 << 3)  /* file count totals */
+#define OPTION_BASE    (1 << 0)  /* Darshan log fields */
+#define OPTION_TOTAL   (1 << 1)  /* aggregated fields */
+#define OPTION_PERF    (1 << 2)  /* derived performance */
+#define OPTION_FILE    (1 << 3)  /* file count totals */
+#define OPTION_VERSION (1 << 4)  /* print Darshan version number */
 #define OPTION_SHOW_INCOMPLETE  (1 << 7)  /* show what we have, even if log is incomplete */
 #define OPTION_ALL (\
   OPTION_BASE|\
@@ -57,11 +58,13 @@ void daos_print_total_file(struct darshan_daos_object *pfile, int daos_ver);
 int usage (char *exename)
 {
     fprintf(stderr, "Usage: %s [options] <filename>\n", exename);
-    fprintf(stderr, "    --all   : all sub-options are enabled\n");
-    fprintf(stderr, "    --base  : darshan log field data [default]\n");
-    fprintf(stderr, "    --file  : total file counts\n");
-    fprintf(stderr, "    --perf  : derived perf data\n");
-    fprintf(stderr, "    --total : aggregated darshan field data\n");
+    fprintf(stderr, "    --help    : prints this help message and exits\n");
+    fprintf(stderr, "    --version : prints Darshan version number and exits\n");
+    fprintf(stderr, "    --all     : all sub-options are enabled\n");
+    fprintf(stderr, "    --base    : Darshan log field data [default]\n");
+    fprintf(stderr, "    --file    : total file counts\n");
+    fprintf(stderr, "    --perf    : derived perf data\n");
+    fprintf(stderr, "    --total   : aggregated Darshan field data\n");
     fprintf(stderr, "    --show-incomplete : display results even if log is incomplete\n");
 
     exit(1);
@@ -80,6 +83,7 @@ int parse_args (int argc, char **argv, char **filename)
         {"total", 0, NULL, OPTION_TOTAL},
         {"show-incomplete", 0, NULL, OPTION_SHOW_INCOMPLETE},
         {"help",  0, NULL, 0},
+        {"version",  0, NULL, OPTION_VERSION},
         {0, 0, 0, 0}
     };
 
@@ -101,6 +105,9 @@ int parse_args (int argc, char **argv, char **filename)
             case OPTION_SHOW_INCOMPLETE:
                 mask |= c;
                 break;
+            case OPTION_VERSION:
+                printf("%s\n",VERSION);
+                exit(0);
             case 0:
             case '?':
             default:
@@ -349,7 +356,7 @@ int main(int argc, char **argv)
                        "\n# To avoid this error, consult the darshan-runtime\n"
                        "# documentation and consider setting the\n"
                        "# DARSHAN_EXCLUDE_DIRS environment variable to prevent\n"
-                       "# Darshan from instrumenting unecessary files.\n");
+                       "# Darshan from instrumenting unnecessary files.\n");
                 if(fd->mod_map[i].len == 0)
                     continue; // no data to parse
             }
@@ -365,7 +372,7 @@ int main(int argc, char **argv)
                        "\n# To avoid this error, consult the darshan-runtime\n"
                        "# documentation and consider setting the\n"
                        "# DARSHAN_EXCLUDE_DIRS environment variable to prevent\n"
-                       "# Darshan from instrumenting unecessary files.\n");
+                       "# Darshan from instrumenting unnecessary files.\n");
                 fprintf(stderr,
                         "\n# You can display the (incomplete) data that is\n"
                         "# present in this log using the --show-incomplete\n"
