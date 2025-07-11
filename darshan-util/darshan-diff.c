@@ -65,9 +65,14 @@ int main(int argc, char *argv[])
     int i;
     int ret;
 
+    if (argc == 2 && !strcmp(argv[1], "--version")) {
+        printf("%s\n", PACKAGE_VERSION);
+        return(0);
+    }
+
     if(argc != 3)
     {
-        fprintf(stderr, "Usage: darshan-diff <logfile1> <logfile2>\n");
+        fprintf(stderr, "Usage: darshan-diff [--version | <logfile1> <logfile2>]\n");
         return(-1);
     }
 
