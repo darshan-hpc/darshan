@@ -29,6 +29,8 @@ int usage (char *exename)
     fprintf(stderr, "Usage: %s [options] <infile> <outfile>\n", exename);
     fprintf(stderr, "       Converts darshan log from infile to outfile.\n");
     fprintf(stderr, "       rewrites the log file into the newest format.\n");
+    fprintf(stderr, "       --help prints this help message and exits\n");
+    fprintf(stderr, "       --version prints Darshan version number and exits\n");
     fprintf(stderr, "       --bzip2 Use bzip2 compression instead of zlib.\n");
     fprintf(stderr, "       --obfuscate Obfuscate all items in the log.\n");
     fprintf(stderr, "       --obfuscate_jobid Obfuscate job ID in the log.\n");
@@ -62,6 +64,7 @@ void parse_args (int argc, char **argv, char **infile, char **outfile, int *bzip
         {"reset-md", 0, NULL, 'r'},
         {"key", 1, NULL, 'k'},
         {"file", 1, NULL, 'f'},
+        {"version",  0, NULL, 'v'},
         {"help",  0, NULL, 0},
         { 0, 0, 0, 0 }
     };
@@ -118,11 +121,14 @@ void parse_args (int argc, char **argv, char **infile, char **outfile, int *bzip
                 if(ret != 1)
                     usage(argv[0]);
                 break;
+            case 'v':
+                printf("%s\n", PACKAGE_VERSION);
+                exit(0);
             case 0:
             case '?':
             default:
                 usage(argv[0]);
-                break;
+                exit(0);
         }
     }
 
