@@ -24,6 +24,7 @@
 #include "darshan-logutils.h"
 
 #define OPTION_SHOW_INCOMPLETE  (1 << 7)  /* show what we have, even if log is incomplete */
+#define OPTION_VERSION          (1 << 4)  /* print Darshan version number */
 
 static int usage (char *exename);
 static int parse_args (int argc, char **argv, char **filename);
@@ -364,6 +365,7 @@ static int parse_args (int argc, char **argv, char **filename)
     static struct option long_opts[] =
     {
         {"show-incomplete", 0, NULL, OPTION_SHOW_INCOMPLETE},
+        {"version",  0, NULL, OPTION_VERSION},
         {"help",  0, NULL, 0},
         {0, 0, 0, 0}
     };
@@ -381,6 +383,9 @@ static int parse_args (int argc, char **argv, char **filename)
             case OPTION_SHOW_INCOMPLETE:
                 mask |= c;
                 break;
+            case OPTION_VERSION:
+                printf("%s\n",PACKAGE_VERSION);
+                exit(0);
             case 0:
             case '?':
             default:
@@ -404,6 +409,8 @@ static int parse_args (int argc, char **argv, char **filename)
 static int usage (char *exename)
 {
     fprintf(stderr, "Usage: %s [options] <filename>\n", exename);
+    fprintf(stderr, "    --help prints this help message and exits\n");
+    fprintf(stderr, "    --version prints Darshan version number and exits\n");
     fprintf(stderr, "    --show-incomplete : display results even if log is incomplete\n");
 
     exit(1);
