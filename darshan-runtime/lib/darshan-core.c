@@ -433,6 +433,10 @@ void darshan_core_shutdown(int write_log)
     darshan_record_id *mod_shared_recs = NULL;
     int shared_rec_cnt = 0;
 #endif
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    char dup_log_fame[__DARSHAN_PATH_MAX + 5];
+    dup_log_fame[0] = '\0';
+#endif
 
     /* disable darhan-core while we shutdown */
     __DARSHAN_CORE_LOCK();
@@ -470,13 +474,41 @@ void darshan_core_shutdown(int write_log)
     internal_timing_flag = final_core->config.internal_timing_flag;
 
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    /* remove the temporary mmap log files */
-    /* NOTE: this unlink is not immediate as it must wait for the mapping
-     * to no longer be referenced, which in our case happens when the
-     * executable exits. If the application terminates mid-shutdown, then
-     * there will be no mmap files and no final log file.
+    /* Flush memory-mapped data to the underlying file and then duplicate the
+     * mmap log file, in case an interrupt happens before the completion of
+     * this subroutine, leaving the log file corrupted. See github issue #1052.
      */
-    unlink(final_core->mmap_log_name);
+    int sys_page_size = sysconf(_SC_PAGESIZE);
+    size_t mmap_size = sizeof(struct darshan_header) + DARSHAN_JOB_RECORD_SIZE +
+        + core->config.name_mem + core->config.mod_mem;
+    if (mmap_size % sys_page_size)
+        mmap_size = ((mmap_size / sys_page_size) + 1) * sys_page_size;
+
+    msync(final_core->log_hdr_p, mmap_size, MS_SYNC);
+
+    /* duplicate the log file */
+    int mmap_fd;
+    mmap_fd = open(final_core->mmap_log_name, O_RDONLY, 0644);
+    if (mmap_fd != -1) {
+        void *buf;
+        off_t fileSize = lseek(fd, 0, SEEK_END);
+        if (fileSize >= 0) {
+            buf = (void*) malloc(fileSize);
+            lseek(fd, 0, SEEK_SET);
+            read(mmap_fd, fileSize, buf);
+            close(mmap_fd);
+            snprintf(dup_log_fame, "%s.dup", strlen(final_core->mmap_log_name),
+                     final_core->mmap_log_name);
+            mmap_fd = open(dup_log_fame, O_CREAT | O_WRONLY, 0644);
+            if (mmap_fd != -1) {
+                write(mmap_fd, fileSize, buf);
+                close(mmap_fd);
+            }
+            free(buf);
+        }
+        else
+            close(mmap_fd);
+    }
 #endif
 
     final_core->comp_buf = malloc(final_core->config.mod_mem);
@@ -770,7 +802,15 @@ cleanup:
     for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
         if(final_core->mod_array[i])
             final_core->mod_array[i]->mod_funcs.mod_cleanup_func();
+
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    /* remove the temporary mmap log files */
+    unlink(final_core->mmap_log_name);
+    if (dup_log_fame[0] != '\0') unlink(dup_log_fame);
+#endif
+
     darshan_core_cleanup(final_core);
+
 #ifdef HAVE_MPI
     if(using_mpi)
     {
@@ -778,6 +818,7 @@ cleanup:
         free(mod_shared_recs);
     }
 #endif
+
     free(logfile_name);
 
     return;
