@@ -480,34 +480,38 @@ void darshan_core_shutdown(int write_log)
      */
     int sys_page_size = sysconf(_SC_PAGESIZE);
     size_t mmap_size = sizeof(struct darshan_header) + DARSHAN_JOB_RECORD_SIZE +
-        + core->config.name_mem + core->config.mod_mem;
+        + final_core->config.name_mem + final_core->config.mod_mem;
     if (mmap_size % sys_page_size)
         mmap_size = ((mmap_size / sys_page_size) + 1) * sys_page_size;
 
     msync(final_core->log_hdr_p, mmap_size, MS_SYNC);
 
-    /* duplicate the log file */
-    int mmap_fd;
-    mmap_fd = open(final_core->mmap_log_name, O_RDONLY, 0644);
-    if (mmap_fd != -1) {
-        void *buf;
-        off_t fileSize = lseek(fd, 0, SEEK_END);
+    /* Duplicate the log file, Below we on purpose ignore errors from open(),
+     * lseek(), read(), write(), and close(), as they are not fatal and should
+     * not affect the remaining tasks of this subroutine, i.e. log data file
+     * processing. Note if any of these system calls failed, then the contents
+     * of duplicated file will become useless, but such problem will be even
+     * more serious than being unable to duplicate the file.
+     */
+    int dup_mmap_fd = open(final_core->mmap_log_name, O_RDONLY, 0644);
+    if (dup_mmap_fd != -1) {
+        off_t fileSize = lseek(dup_mmap_fd, 0, SEEK_END);
         if (fileSize >= 0) {
-            buf = (void*) malloc(fileSize);
-            lseek(fd, 0, SEEK_SET);
-            read(mmap_fd, fileSize, buf);
-            close(mmap_fd);
-            snprintf(dup_log_fame, "%s.dup", strlen(final_core->mmap_log_name),
+            void *buf = (void*) malloc(fileSize);
+            lseek(dup_mmap_fd, 0, SEEK_SET);
+            read(dup_mmap_fd, buf, fileSize);
+            close(dup_mmap_fd);
+            snprintf(dup_log_fame, strlen(final_core->mmap_log_name), "%s.dup",
                      final_core->mmap_log_name);
-            mmap_fd = open(dup_log_fame, O_CREAT | O_WRONLY, 0644);
-            if (mmap_fd != -1) {
-                write(mmap_fd, fileSize, buf);
-                close(mmap_fd);
+            dup_mmap_fd = open(dup_log_fame, O_CREAT | O_WRONLY, 0644);
+            if (dup_mmap_fd != -1) {
+                write(dup_mmap_fd, buf, fileSize);
+                close(dup_mmap_fd);
             }
             free(buf);
         }
         else
-            close(mmap_fd);
+            close(dup_mmap_fd);
     }
 #endif
 
@@ -724,6 +728,15 @@ void darshan_core_shutdown(int write_log)
     /* finalize log file name and permissions */
     darshan_log_finalize(logfile_name, start_log_time);
 
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    /* Now, we are done with accessing the temporary log files and thus can
+     * safely remove them. We ignore the error code returned from unlink(), as
+     * there is no harm to unlink a non-existing file.
+     */
+    unlink(final_core->mmap_log_name);
+    if (dup_log_fame[0] != '\0') unlink(dup_log_fame);
+#endif
+
     if(internal_timing_flag)
     {
         double open_tm;
@@ -802,12 +815,6 @@ cleanup:
     for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
         if(final_core->mod_array[i])
             final_core->mod_array[i]->mod_funcs.mod_cleanup_func();
-
-#ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    /* remove the temporary mmap log files */
-    unlink(final_core->mmap_log_name);
-    if (dup_log_fame[0] != '\0') unlink(dup_log_fame);
-#endif
 
     darshan_core_cleanup(final_core);
 
