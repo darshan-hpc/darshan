@@ -142,7 +142,7 @@ Compilation
   header and library.
 * ``--without-mpi``: disables MPI support when building Darshan - MPI support is
   assumed if not specified.
-* ``--enable-mmap-logs``: enables the use of Darshan's mmap log file mechanism.
+* ``--disable-mmap-logs``: disables the use of Darshan's mmap log file mechanism.
 * ``--enable-cuserid``: enables use of cuserid() at runtime.
 * ``--disable-ld-preload``: disables building of the Darshan ``LD_PRELOAD`` library
 * ``--enable-group-readable-logs``: sets Darshan log file permissions to allow
