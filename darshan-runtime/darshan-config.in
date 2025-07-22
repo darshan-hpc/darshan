@@ -1,4 +1,10 @@
 #!/bin/sh
+#
+# See COPYRIGHT notice in top-level directory.
+#
+# @configure_input@
+
+version="@PACKAGE_NAME@ @PACKAGE_VERSION@"
 
 prefix="@prefix@"
 exec_prefix="@exec_prefix@"
@@ -7,6 +13,117 @@ DARSHAN_SHARE_PATH="@datarootdir@"
 DARSHAN_LD_FLAGS="@LDFLAGS@"
 DARSHAN_LOG_PATH="@__DARSHAN_LOG_PATH@"
 DARSHAN_LOG_ENV="@__DARSHAN_LOG_ENV@"
+
+C_COMPILER="@CC@"
+C_COMPILER=`echo "$C_COMPILER" | sed -e 's/^[ \t]*//'`
+CPPFLAGS="@CPPFLAGS@"
+CPPFLAGS=`echo "$CPPFLAGS" | sed -e 's/^[ \t]*//'`
+CFLAGS="@CFLAGS@"
+CFLAGS=`echo "$CFLAGS" | sed -e 's/^[ \t]*//'`
+LIBS="@LIBS@"
+LIBS=`echo "$LIBS" | sed -e 's/^[ \t]*//'`
+
+enable_ld_preload="@ENABLE_LD_PRELOAD@"
+enable_cuserid="@ENABLE_CUSERID@"
+enable_group_readable_logs="@ENABLE_GROUP_READABLE_LOGS@"
+enable_mmap_logs="@ENABLE_MMAP_LOGS@"
+enable_null_mod="@ENABLE_NULL_MOD@"
+enable_posix_mod="@ENABLE_POSIX_MOD@"
+enable_stdio_mod="@ENABLE_STDIO_MOD@"
+enable_dxt_mod="@ENABLE_DXT_MOD@"
+enable_heatmap_mod="@ENABLE_HEATMAP_MOD@"
+enable_mpiio_mod="@ENABLE_MPIIO_MOD@"
+enable_apmpi_mod="@ENABLE_APMPI_MOD@"
+enable_apmpi_coll_sync="@ENABLE_APMPI_COLL_SYNC@"
+enable_apxc_mod="@ENABLE_APXC_MOD@"
+enable_hdf5_mod="@ENABLE_HDF5_MOD@"
+enable_pnetcdf_mod="@ENABLE_PNETCDF_MOD@"
+enable_daos_mod="@ENABLE_DAOS_MOD@"
+enable_bgq_mod="@ENABLE_BGQ_MOD@"
+enable_lustre_mod="@ENABLE_LUSTRE_MOD@"
+enable_mdhim_mod="@ENABLE_MDHIM_MOD@"
+enable_ldms_mod="@ENABLE_LDMS_MOD@"
+enable_rdtscp_num="@ENABLE_RDTSCP_NUM@"
+enable_exit_wrapper="@ENABLE_EXIT_WRAPPER@"
+
+zlib_home="@ZLIB_HOME@"
+mem_align="@MEM_ALIGN@"
+log_hints="@DARSHAN_LOG_HINTS@"
+jobid_env="@JOBID_ENV@"
+if test "x$jobid_env" = xNONE ; then username_env= ; fi
+username_env="@USERNAME_ENV@"
+if test "x$username_env" = xno ; then username_env= ; fi
+mod_mem="@MOD_MEM@"
+if test "x$mod_mem" = xno ; then mod_mem= ; fi
+name_mem="@NAME_MEM@"
+if test "x$name_mem" = xno ; then name_mem= ; fi
+hdf5_path="@HDF5_PATH@"
+if test "x$hdf5_path" = xno ; then hdf5_path= ; fi
+pnetcdf_path="@PNETCDF_PATH@"
+if test "x$pnetcdf_path" = xno ; then pnetcdf_path= ; fi
+daos_path="@DAOS_PATH@"
+if test "x$daos_path" = xno ; then daos_path= ; fi
+ldms_path="@LDMS_PATH@"
+if test "x$ldms_path" = xno ; then ldms_path= ; fi
+
+all()
+{
+        echo
+        echo "This $version was built with the following features:"
+        echo
+        echo "  --ld-preload            -> $enable_ld_preload"
+        echo "  --cuserid               -> $enable_cuserid"
+        echo "  --group-readable-logs   -> $enable_group_readable_logs"
+        echo "  --mmap-logs             -> $enable_mmap_logs"
+        echo "  --null-mod              -> $enable_null_mod"
+        echo "  --posix-mod             -> $enable_posix_mod"
+        echo "  --stdio-mod             -> $enable_stdio_mod"
+        echo "  --dxt-mod               -> $enable_dxt_mod"
+        echo "  --heatmap-mod           -> $enable_heatmap_mod"
+        echo "  --mpiio-mod             -> $enable_mpiio_mod"
+        echo "  --apmpi-mod             -> $enable_apmpi_mod"
+        echo "  --apmpi-coll-sync       -> $enable_apmpi_coll_sync"
+        echo "  --apxc-mod              -> $enable_apxc_mod"
+        echo "  --hdf5-mod              -> $enable_hdf5_mod"
+        echo "  --pnetcdf-mod           -> $enable_pnetcdf_mod"
+        echo "  --daos-mod              -> $enable_daos_mod"
+        echo "  --bgq-mod               -> $enable_bgq_mod"
+        echo "  --lustre-mod            -> $enable_lustre_mod"
+        echo "  --mdhim-mod             -> $enable_mdhim_mod"
+        echo "  --ldms-mod              -> $enable_ldms_mod"
+    if test "x$enable_rdtscp_num" = x ; then
+        echo "  --rdtscp                -> no"
+    else
+        echo "  --rdtscp                -> $enable_rdtscp_num"
+    fi
+        echo "  --exit-wrapper          -> $enable_exit_wrapper"
+
+        echo
+        echo "This $version was built using the following compilers and flags:"
+        echo
+        echo "  --cc            -> $C_COMPILER"
+        echo "  --cppflags      -> $CPPFLAGS"
+        echo "  --cflags        -> $CFLAGS"
+        echo "  --ldflags       -> $LDFLAGS"
+        echo "  --libs          -> $LIBS"
+        echo ""
+        echo "  --pre-ld-flags  -> $PRE_LD_FLAGS"
+        echo "  --post-ld-flags -> $POST_LD_FLAGS"
+        echo "  --dyn-ld-flags  -> $DYN_LD_FLAGS"
+        echo "  --log-path      -> $DARSHAN_LOG_ALL"
+        echo ""
+        echo "  --with-zlib-path     -> $zlib_home"
+        echo "  --with-mem-align     -> $mem_align"
+        echo "  --with-log-hints     -> $log_hints"
+        echo "  --with-jobid-env     -> $jobid_env"
+        echo "  --with-username-env  -> $username_env"
+        echo "  --with-mod-mem       -> $mod_mem"
+        echo "  --with-name-mem      -> $name_mem"
+        echo "  --with-hdf5          -> $hdf5_path"
+        echo "  --with-pnetcdf       -> $pnetcdf_path"
+        echo "  --with-daos          -> $daos_path"
+        echo "  --with-ldms          -> $ldms_path"
+}
 
 # NOTE:
 # - we deliberately list libdarshan twice in the link command when
@@ -43,8 +160,71 @@ else
     DARSHAN_LOG_ALL=$DARSHAN_LOG_PATH
 fi
 
-usage="\
-Usage: darshan-config [--pre-ld-flags] [--post-ld-flags] [--dyn-ld-flags] [--log-path]"
+usage()
+{
+    cat <<EOF
+darshan-config is a utility program to display the build and installation
+information of the Darshan runtime library.
+
+Usage: darshan-config [OPTION]
+
+Available values for OPTION include:
+
+  --help                 display this help message and exit
+  --all                  display all options
+  --cc                   C compiler used to build Darshan
+  --cflags               C compiler flags used to build Darshan
+  --cppflags             C pre-processor flags used to build Darshan
+  --ldflags              Linker flags used to build Darshan
+  --libs                 Extra libraries used to build Darshan
+  --pre-ld-flags         Linker flags for setting env variable LD_PRELOAD
+  --post-ld-flags        Linker flags for statically linking
+  --dyn-ld-flags         Linker flags for dynamically linking
+  --log-path             Storage locations of Darshan log files
+
+  --ld-preload           Whether LD_PRELOAD library is enabled
+  --cuserid              Whether cuserid() is used at run time
+  --group-readable-logs  Whether log files are group readable
+  --mmap-logs            Whether to use mmap I/O data to log file
+  --null-mod             Whether NULL module is enabled
+  --posix-mod            Whether POSIX module is enabled
+  --stdio-mod            Whether STDIO module is enabled
+  --dxt-mod              Whether DXT module is enabled
+  --heatmap-mod          Whether HEATMAP module is enabled
+  --mpiio-mod            Whether MPI-IO module is enabled
+  --apmpi-mod            Whether AUTOPERF MPI module is enabled
+  --apmpi-coll-sync      Whether sync for MPI collectives is enabled
+  --apxc-mod             Whether AUTOPERF XC module is enabled
+  --hdf5-mod             Whether HDF5 module is enabled
+  --pnetcdf-mod          Whether PnetCDF module is enabled
+  --daos-mod             Whether DAOS module is enabled
+  --bgq-mod              Whether BG/Q module is enabled
+  --lustre-mod           Whether Lustre module is enabled
+  --mdhim-mod            Whether mdhim module is enabled
+  --ldms-mod             Whether to include LDMS for runtime I/O monitoring
+  --rdtscp               Frequency of using RDTSCP intrinsic for timing
+  --exit-wrapper         Whether to wrap _exit() calls as last ditch shutdown
+                         hook for the Darshan library when used in non-MPI mode
+
+  --with-zlib            Root directory path of zlib installation
+  --with-mem-align       Memory alignment in bytes
+  --with-log-hints       List of MPI-IO hints for log file write
+  --with-log-path        Location to store log files at run time
+  --with-jobid-env       Name of environment variable that stores the jobid
+  --with-username-env    Name of environment variable that stores the username
+  --with-mod-mem         Maximum runtime memory consumption per process (in
+                         MiB) across all instrumentation modules
+  --with-name-mem        Maximum runtime memory consumption per process (in
+                         MiB) for storing name records
+  --with-hdf5            Installation directory for HDF5.
+  --with-pnetcdf         Installation directory for PnetCDF.
+  --with-daos            Installation directory for DAOS.
+  --with-ldms            Root directory path of LDMS installation
+
+EOF
+    exit $1
+}
+
 
 if test $# -eq 0; then
       echo "${usage}" 1>&2
@@ -58,22 +238,62 @@ while test $# -gt 0; do
   esac
 
   case $1 in
-    --pre-ld-flags)
-      echo $PRE_LD_FLAGS
-      ;;
-    --post-ld-flags)
-      echo $POST_LD_FLAGS
-      ;;
-    --dyn-ld-flags)
-      echo $DYN_LD_FLAGS
-      ;;
-    --log-path)
-      echo $DARSHAN_LOG_ALL
-      ;;
+    --help) usage 0 ;;
+    --all) all ;;
+
+    --version)  echo "$version" ;;
+    --cc)       echo "$C_COMPILER" ;;
+    --cflags)   echo "$CFLAGS" ;;
+    --cppflags) echo "$CPPFLAGS" ;;
+    --libdir)   echo "$DARSHAN_LIB_PATH" ;;
+    --ldflags)  echo "$LDFLAGS" ;;
+    --libs)     echo "$LIBS" ;;
+
+    --ld-preload)          echo "$enable_ld_preload" ;;
+    --cuserid)             echo "$enable_cuserid" ;;
+    --group-readable-logs) echo "$enable_group_readable_logs" ;;
+    --mmap-logs)           echo "$enable_mmap_logs" ;;
+    --null-mod)            echo "$enable_null_mod" ;;
+    --posix-mod)           echo "$enable_posix_mod" ;;
+    --stdio-mod)           echo "$enable_stdio_mod" ;;
+    --dxt-mod)             echo "$enable_dxt_mod" ;;
+    --heatmap-mod)         echo "$enable_heatmap_mod" ;;
+    --mpiio-mod)           echo "$enable_mpiio_mod" ;;
+    --apmpi-mod)           echo "$enable_apmpi_mod" ;;
+    --apmpi-coll-sync)     echo "$enable_apmpi_coll_sync" ;;
+    --apxc-mod)            echo "$enable_apxc_mod" ;;
+    --hdf5-mod)            echo "$enable_hdf5_mod" ;;
+    --pnetcdf-mod)         echo "$enable_pnetcdf_mod" ;;
+    --daos-mod)            echo "$enable_daos_mod" ;;
+    --bgq-mod)             echo "$enable_bgq_mod" ;;
+    --lustre-mod)          echo "$enable_lustre_mod" ;;
+    --mdhim-mod)           echo "$enable_mdhim_mod" ;;
+    --ldms-mod)            echo "$enable_ldms_mod" ;;
+    --rdtscp)              echo "$enable_rdtscp_num" ;;
+    --exit-wrapper)        echo "$enable_exit_wrapper" ;;
+
+    --pre-ld-flags)      echo "$PRE_LD_FLAGS" ;;
+    --post-ld-flags)     echo "$POST_LD_FLAGS" ;;
+    --dyn-ld-flags)      echo "$DYN_LD_FLAGS" ;;
+    --log-path)          echo "$DARSHAN_LOG_ALL" ;;
+    --with-zlib-path)    echo "$zlib_home" ;;
+    --with-mem-align)    echo "$mem_align" ;;
+    --with-log-hints)    echo "$log_hints" ;;
+    --with-jobid-env)    echo "$jobid_env" ;;
+    --with-username-env) echo "$username_env" ;;
+    --with-mod-mem)      echo "$mod_mem" ;;
+    --with-name-mem)     echo "$name_mem" ;;
+    --with-hdf5)         echo "$hdf5_path" ;;
+    --with-pnetcdf)      echo "$pnetcdf_path" ;;
+    --with-daos)         echo "$daos_path" ;;
+    --with-ldms)         echo "$ldms_path" ;;
     *)
-      echo "${usage}" 1>&2
-      exit 1
+      echo "unknown option: $1"
+      echo ""
+      usage 1
       ;;
   esac
   shift
 done
+
+exit 0
