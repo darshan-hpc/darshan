@@ -478,13 +478,7 @@ void darshan_core_shutdown(int write_log)
      * mmap log file, in case an interrupt happens before the completion of
      * this subroutine, leaving the log file corrupted. See github issue #1052.
      */
-    int sys_page_size = sysconf(_SC_PAGESIZE);
-    size_t mmap_size = sizeof(struct darshan_header) + DARSHAN_JOB_RECORD_SIZE +
-        + final_core->config.name_mem + final_core->config.mod_mem;
-    if (mmap_size % sys_page_size)
-        mmap_size = ((mmap_size / sys_page_size) + 1) * sys_page_size;
-
-    msync(final_core->log_hdr_p, mmap_size, MS_SYNC);
+    msync(final_core->log_hdr_p, final_core->mmap_size, MS_SYNC);
 
     /* Duplicate the log file, Below we on purpose ignore errors from open(),
      * lseek(), read(), write(), and close(), as they are not fatal and should
@@ -493,25 +487,20 @@ void darshan_core_shutdown(int write_log)
      * of duplicated file will become useless, but such problem will be even
      * more serious than being unable to duplicate the file.
      */
-    int dup_mmap_fd = open(final_core->mmap_log_name, O_RDONLY, 0644);
-    if (dup_mmap_fd != -1) {
-        off_t fileSize = lseek(dup_mmap_fd, 0, SEEK_END);
-        if (fileSize >= 0) {
-            void *buf = (void*) malloc(fileSize);
-            lseek(dup_mmap_fd, 0, SEEK_SET);
-            read(dup_mmap_fd, buf, fileSize);
+    int mmap_fd = open(final_core->mmap_log_name, O_RDONLY, 0644);
+    if (mmap_fd != -1) {
+        int dup_mmap_fd;
+        void *buf = (void*) malloc(final_core->mmap_size);
+        read(mmap_fd, buf, final_core->mmap_size);
+        close(mmap_fd);
+        snprintf(dup_log_fame, strlen(final_core->mmap_log_name), "%s.dup",
+                 final_core->mmap_log_name);
+        dup_mmap_fd = open(dup_log_fame, O_CREAT | O_WRONLY, 0644);
+        if (dup_mmap_fd != -1) {
+            write(dup_mmap_fd, buf, final_core->mmap_size);
             close(dup_mmap_fd);
-            snprintf(dup_log_fame, strlen(final_core->mmap_log_name), "%s.dup",
-                     final_core->mmap_log_name);
-            dup_mmap_fd = open(dup_log_fame, O_CREAT | O_WRONLY, 0644);
-            if (dup_mmap_fd != -1) {
-                write(dup_mmap_fd, buf, fileSize);
-                close(dup_mmap_fd);
-            }
-            free(buf);
         }
-        else
-            close(dup_mmap_fd);
+        free(buf);
     }
 #endif
 
@@ -853,6 +842,8 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
         + core->config.name_mem + core->config.mod_mem;
     if(mmap_size % sys_page_size)
         mmap_size = ((mmap_size / sys_page_size) + 1) * sys_page_size;
+
+    core->mmap_size = mmap_size;
 
     darshan_get_user_name(cuser);
 

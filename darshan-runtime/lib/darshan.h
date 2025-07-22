@@ -144,6 +144,7 @@ struct darshan_core_runtime
     char *comp_buf;
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
     char mmap_log_name[__DARSHAN_PATH_MAX];
+    size_t mmap_size;
 #endif
 #ifdef HAVE_MPI
     MPI_Comm mpi_comm;
