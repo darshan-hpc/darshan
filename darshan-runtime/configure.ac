@@ -119,9 +119,9 @@ if test "x$enable_darshan_runtime" = xyes ; then
    fi
 
    AC_ARG_ENABLE([mmap-logs],
-      [AS_HELP_STRING([--enable-mmap-logs],
-                      [Enables ability to mmap I/O data to log file])],
-      [], [enable_mmap_logs=no]
+      [AS_HELP_STRING([--disable-mmap-logs],
+                      [Disables ability to mmap I/O data to log file])],
+      [], [enable_mmap_logs=yes]
    )
    if test "x$enable_mmap_logs" = "xyes" ; then
       AC_DEFINE([__DARSHAN_ENABLE_MMAP_LOGS], 1,
