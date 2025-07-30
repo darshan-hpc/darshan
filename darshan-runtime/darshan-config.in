@@ -101,28 +101,29 @@ all()
         echo
         echo "This $version was built using the following compilers and flags:"
         echo
-        echo "  --cc            -> $C_COMPILER"
-        echo "  --cppflags      -> $CPPFLAGS"
-        echo "  --cflags        -> $CFLAGS"
-        echo "  --ldflags       -> $LDFLAGS"
-        echo "  --libs          -> $LIBS"
+        echo "  --cc              -> $C_COMPILER"
+        echo "  --cppflags        -> $CPPFLAGS"
+        echo "  --cflags          -> $CFLAGS"
+        echo "  --ldflags         -> $LDFLAGS"
+        echo "  --libs            -> $LIBS"
         echo ""
-        echo "  --pre-ld-flags  -> $PRE_LD_FLAGS"
-        echo "  --post-ld-flags -> $POST_LD_FLAGS"
-        echo "  --dyn-ld-flags  -> $DYN_LD_FLAGS"
-        echo "  --log-path      -> $DARSHAN_LOG_ALL"
+        echo "  --pre-ld-flags    -> $PRE_LD_FLAGS"
+        echo "  --post-ld-flags   -> $POST_LD_FLAGS"
+        echo "  --dyn-ld-flags    -> $DYN_LD_FLAGS"
+        echo "  --log-path        -> $DARSHAN_LOG_ALL"
+        echo "  --log-path-by-env -> $DARSHAN_LOG_ENV"
         echo ""
-        echo "  --with-zlib-path     -> $zlib_home"
-        echo "  --with-mem-align     -> $mem_align"
-        echo "  --with-log-hints     -> $log_hints"
-        echo "  --with-jobid-env     -> $jobid_env"
-        echo "  --with-username-env  -> $username_env"
-        echo "  --with-mod-mem       -> $mod_mem"
-        echo "  --with-name-mem      -> $name_mem"
-        echo "  --with-hdf5          -> $hdf5_path"
-        echo "  --with-pnetcdf       -> $pnetcdf_path"
-        echo "  --with-daos          -> $daos_path"
-        echo "  --with-ldms          -> $ldms_path"
+        echo "  --zlib-path       -> $zlib_home"
+        echo "  --mem-align       -> $mem_align"
+        echo "  --log-hints       -> $log_hints"
+        echo "  --jobid-env       -> $jobid_env"
+        echo "  --username-env    -> $username_env"
+        echo "  --mod-mem         -> $mod_mem"
+        echo "  --name-mem        -> $name_mem"
+        echo "  --hdf5-path       -> $hdf5_path"
+        echo "  --pnetcdf-path    -> $pnetcdf_path"
+        echo "  --daos-path       -> $daos_path"
+        echo "  --ldms-path       -> $ldms_path"
 }
 
 # NOTE:
@@ -181,6 +182,8 @@ Available values for OPTION include:
   --post-ld-flags        Linker flags for statically linking
   --dyn-ld-flags         Linker flags for dynamically linking
   --log-path             Storage locations of Darshan log files
+  --log-path-by-env      Comma separated list of environment variables to
+                         check for log path location
 
   --ld-preload           Whether LD_PRELOAD library is enabled
   --cuserid              Whether cuserid() is used at run time
@@ -206,20 +209,19 @@ Available values for OPTION include:
   --exit-wrapper         Whether to wrap _exit() calls as last ditch shutdown
                          hook for the Darshan library when used in non-MPI mode
 
-  --with-zlib            Root directory path of zlib installation
-  --with-mem-align       Memory alignment in bytes
-  --with-log-hints       List of MPI-IO hints for log file write
-  --with-log-path        Location to store log files at run time
-  --with-jobid-env       Name of environment variable that stores the jobid
-  --with-username-env    Name of environment variable that stores the username
-  --with-mod-mem         Maximum runtime memory consumption per process (in
+  --zlib-path            Root directory path of zlib installation
+  --mem-align            Memory alignment in bytes
+  --log-hints            List of MPI-IO hints for log file write
+  --jobid-env            Name of environment variable that stores the jobid
+  --username-env         Name of environment variable that stores the username
+  --mod-mem              Maximum runtime memory consumption per process (in
                          MiB) across all instrumentation modules
-  --with-name-mem        Maximum runtime memory consumption per process (in
+  --name-mem             Maximum runtime memory consumption per process (in
                          MiB) for storing name records
-  --with-hdf5            Installation directory for HDF5.
-  --with-pnetcdf         Installation directory for PnetCDF.
-  --with-daos            Installation directory for DAOS.
-  --with-ldms            Root directory path of LDMS installation
+  --hdf5-path            Installation directory for HDF5.
+  --pnetcdf-path         Installation directory for PnetCDF.
+  --daos-path            Installation directory for DAOS.
+  --ldms-path            Root directory path of LDMS installation
 
 EOF
     exit $1
@@ -272,21 +274,22 @@ while test $# -gt 0; do
     --rdtscp)              echo "$enable_rdtscp_num" ;;
     --exit-wrapper)        echo "$enable_exit_wrapper" ;;
 
-    --pre-ld-flags)      echo "$PRE_LD_FLAGS" ;;
-    --post-ld-flags)     echo "$POST_LD_FLAGS" ;;
-    --dyn-ld-flags)      echo "$DYN_LD_FLAGS" ;;
-    --log-path)          echo "$DARSHAN_LOG_ALL" ;;
-    --with-zlib-path)    echo "$zlib_home" ;;
-    --with-mem-align)    echo "$mem_align" ;;
-    --with-log-hints)    echo "$log_hints" ;;
-    --with-jobid-env)    echo "$jobid_env" ;;
-    --with-username-env) echo "$username_env" ;;
-    --with-mod-mem)      echo "$mod_mem" ;;
-    --with-name-mem)     echo "$name_mem" ;;
-    --with-hdf5)         echo "$hdf5_path" ;;
-    --with-pnetcdf)      echo "$pnetcdf_path" ;;
-    --with-daos)         echo "$daos_path" ;;
-    --with-ldms)         echo "$ldms_path" ;;
+    --pre-ld-flags)        echo "$PRE_LD_FLAGS" ;;
+    --post-ld-flags)       echo "$POST_LD_FLAGS" ;;
+    --dyn-ld-flags)        echo "$DYN_LD_FLAGS" ;;
+    --log-path)            echo "$DARSHAN_LOG_ALL" ;;
+    --log-path-by-env)     echo "$DARSHAN_LOG_ENV" ;;
+    --zlib-path)           echo "$zlib_home" ;;
+    --mem-align)           echo "$mem_align" ;;
+    --log-hints)           echo "$log_hints" ;;
+    --jobid-env)           echo "$jobid_env" ;;
+    --username-env)        echo "$username_env" ;;
+    --mod-mem)             echo "$mod_mem" ;;
+    --with-name-mem)       echo "$name_mem" ;;
+    --hdf5-path)           echo "$hdf5_path" ;;
+    --pnetcdf-path)        echo "$pnetcdf_path" ;;
+    --daos-path)           echo "$daos_path" ;;
+    --ldms-path)           echo "$ldms_path" ;;
     *)
       echo "unknown option: $1"
       echo ""
