@@ -110,7 +110,7 @@ all()
         echo "  --pre-ld-flags    -> $PRE_LD_FLAGS"
         echo "  --post-ld-flags   -> $POST_LD_FLAGS"
         echo "  --dyn-ld-flags    -> $DYN_LD_FLAGS"
-        echo "  --log-path        -> $DARSHAN_LOG_ALL"
+        echo "  --log-path        -> $DARSHAN_LOG_PATH"
         echo "  --log-path-by-env -> $DARSHAN_LOG_ENV"
         echo ""
         echo "  --zlib-path       -> $zlib_home"
@@ -147,19 +147,19 @@ DYN_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -Wl,-rpath=$DARSHAN_LIB_PATH
 #   LOG_ENV takes precedent over LOG_PATH, but both could be specified.  The
 #   LOG_ENV may already be a comma saparated list, but we insert '$'
 #   characters to denote that these are environment variables.
-if [ "$DARSHAN_LOG_ENV" ]; then
-    DARSHAN_LOG_ENV=`echo $DARSHAN_LOG_ENV | sed -e 's/^/\$/g'`
-    DARSHAN_LOG_ENV=`echo $DARSHAN_LOG_ENV | sed -e 's/,/,\$/g'`
-fi
+# if [ "$DARSHAN_LOG_ENV" ]; then
+#     DARSHAN_LOG_ENV=`echo $DARSHAN_LOG_ENV | sed -e 's/^/\$/g'`
+#     DARSHAN_LOG_ENV=`echo $DARSHAN_LOG_ENV | sed -e 's/,/,\$/g'`
+# fi
 
 # figure out if we need a comma separator to construct env and path list
-if [ "$DARSHAN_LOG_ENV" -a "$DARSHAN_LOG_PATH" ]; then
-    DARSHAN_LOG_ALL="$DARSHAN_LOG_ENV,$DARSHAN_LOG_PATH"
-elif [ "$DARSHAN_LOG_ENV" ]; then
-    DARSHAN_LOG_ALL=$DARSHAN_LOG_ENV
-else
-    DARSHAN_LOG_ALL=$DARSHAN_LOG_PATH
-fi
+# if [ "$DARSHAN_LOG_ENV" -a "$DARSHAN_LOG_PATH" ]; then
+#     DARSHAN_LOG_ALL="$DARSHAN_LOG_ENV,$DARSHAN_LOG_PATH"
+# elif [ "$DARSHAN_LOG_ENV" ]; then
+#     DARSHAN_LOG_ALL=$DARSHAN_LOG_ENV
+# else
+#     DARSHAN_LOG_ALL=$DARSHAN_LOG_PATH
+# fi
 
 usage()
 {
@@ -277,7 +277,7 @@ while test $# -gt 0; do
     --pre-ld-flags)        echo "$PRE_LD_FLAGS" ;;
     --post-ld-flags)       echo "$POST_LD_FLAGS" ;;
     --dyn-ld-flags)        echo "$DYN_LD_FLAGS" ;;
-    --log-path)            echo "$DARSHAN_LOG_ALL" ;;
+    --log-path)            echo "$DARSHAN_LOG_PATH" ;;
     --log-path-by-env)     echo "$DARSHAN_LOG_ENV" ;;
     --zlib-path)           echo "$zlib_home" ;;
     --mem-align)           echo "$mem_align" ;;
