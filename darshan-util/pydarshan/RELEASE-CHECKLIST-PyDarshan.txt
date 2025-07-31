@@ -11,13 +11,8 @@ Notes on how to release a new version of PyDarshan
     - commit
  - Update version numbers in:
     darshan/__init__.py
- - Make sure documentation in docs/ is up to date
-    - commit
-    - make docs
-    - upload docs/build/html contents to CELS server @ /nfs/pub_html/gce/projects/darshan/docs/pydarshan
-    - (might eventually connect this with readthedocs to have this automatically uploaded)
-    - determine whether new job summary tool features warrant generating a new summary report to include in docs
-        (stored @ /nfs/pub_html/gce/projects/darshan/docs/example_report.html)
+ - determine whether new job summary tool features warrant generating a new summary report to include in docs
+     (stored @ /nfs/pub_html/gce/projects/darshan/docs/example_report.html)
 
  - Submit to PyPI using cibuildwheel/twine:
     - pipx run build --sdist
@@ -38,9 +33,7 @@ Notes on how to release a new version of PyDarshan
  - Announce:
     - Regular Darshan Release: Copy release notes for PyDarshan and attach as seperate section (mailinglist, website/blog)
     - PyDarshan only: Post release note section of PyDarshan (mailinglist, website/blog)
-    
-    
-    
+
 Note on Versionsformat:
     Whenever libdarshan-utils has a version change, PyDarshan is bumped accordingly.
     4th position version numbers allows for PyDarshan to be on a faster release cycle
