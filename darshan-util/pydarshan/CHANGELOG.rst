@@ -1,3 +1,8 @@
+PyDarshan-3.4.7.1
+=================
+* Bug fix in job summary tool for DAOS and DFS modules
+* Added performance metrics to file_stats tool including I/O Bandwidth by slowest, I/O time by slowest, and total bytes
+
 PyDarshan-3.4.7.0
 =================
 * Support for extracting and analyzing new DAOS instrumentation
