@@ -3,7 +3,9 @@
 --wrap=MPI_File_set_view
 --wrap=MPI_File_sync
 --wrap=MPI_File_iread
+--wrap=MPI_File_iread_all
 --wrap=MPI_File_iread_at
+--wrap=MPI_File_iread_at_all
 --wrap=MPI_File_iread_shared
 --wrap=MPI_File_read
 --wrap=MPI_File_read_all
@@ -15,7 +17,9 @@
 --wrap=MPI_File_read_ordered_begin
 --wrap=MPI_File_read_shared
 --wrap=MPI_File_iwrite
+--wrap=MPI_File_iwrite_all
 --wrap=MPI_File_iwrite_at
+--wrap=MPI_File_iwrite_at_all
 --wrap=MPI_File_iwrite_shared
 --wrap=MPI_File_write
 --wrap=MPI_File_write_all
@@ -31,7 +35,9 @@
 --wrap=PMPI_File_set_view
 --wrap=PMPI_File_sync
 --wrap=PMPI_File_iread
+--wrap=PMPI_File_iread_all
 --wrap=PMPI_File_iread_at
+--wrap=PMPI_File_iread_at_all
 --wrap=PMPI_File_iread_shared
 --wrap=PMPI_File_read
 --wrap=PMPI_File_read_all
@@ -43,7 +49,9 @@
 --wrap=PMPI_File_read_ordered_begin
 --wrap=PMPI_File_read_shared
 --wrap=PMPI_File_iwrite
+--wrap=PMPI_File_iwrite_all
 --wrap=PMPI_File_iwrite_at
+--wrap=PMPI_File_iwrite_at_all
 --wrap=PMPI_File_iwrite_shared
 --wrap=PMPI_File_write
 --wrap=PMPI_File_write_all

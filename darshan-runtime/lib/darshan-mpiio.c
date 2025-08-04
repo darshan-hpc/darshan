@@ -32,13 +32,17 @@
 #include "darshan-ldms.h"
 
 DARSHAN_FORWARD_DECL(PMPI_File_close, int, (MPI_File *fh));
-DARSHAN_FORWARD_DECL(PMPI_File_iread_at, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
 DARSHAN_FORWARD_DECL(PMPI_File_iread, int, (MPI_File fh, void  *buf, int  count, MPI_Datatype  datatype, __D_MPI_REQUEST  *request));
+DARSHAN_FORWARD_DECL(PMPI_File_iread_all, int, (MPI_File fh, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_FORWARD_DECL(PMPI_File_iread_at, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_FORWARD_DECL(PMPI_File_iread_at_all, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
 DARSHAN_FORWARD_DECL(PMPI_File_iread_shared, int, (MPI_File fh, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
 #ifdef HAVE_MPI_CONST
 DARSHAN_FORWARD_DECL(PMPI_File_iwrite_at, int, (MPI_File fh, MPI_Offset offset, const void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_FORWARD_DECL(PMPI_File_iwrite_at_all, int, (MPI_File fh, MPI_Offset offset, const void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
 #else
 DARSHAN_FORWARD_DECL(PMPI_File_iwrite_at, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_FORWARD_DECL(PMPI_File_iwrite_at_all, int, (MPI_File fh, MPI_Offset offset, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
 #endif
 #ifdef HAVE_MPI_CONST
 DARSHAN_FORWARD_DECL(PMPI_File_iwrite, int, (MPI_File fh, const void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
@@ -926,6 +930,28 @@ int DARSHAN_DECL(MPI_File_iread)(MPI_File fh, void * buf, int count, MPI_Datatyp
 DARSHAN_WRAPPER_MAP(PMPI_File_iread, int, (MPI_File fh, void * buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST * request),
         MPI_File_iread)
 
+int DARSHAN_DECL(MPI_File_iread_all)(MPI_File fh, void * buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST * request)
+{
+    int ret;
+    double tm1, tm2;
+    MPI_Offset offset;
+
+    MAP_OR_FAIL(PMPI_File_iread_all);
+
+    MPI_File_get_position_shared(fh, &offset);
+    tm1 = MPIIO_WTIME();
+    ret = __real_PMPI_File_iread_all(fh, buf, count, datatype, request);
+    tm2 = MPIIO_WTIME();
+
+    MPIIO_PRE_RECORD();
+    MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_NB_READS, tm1, tm2);
+    MPIIO_POST_RECORD();
+
+    return(ret);
+}
+DARSHAN_WRAPPER_MAP(PMPI_File_iread_all, int, (MPI_File fh, void * buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST * request),
+        MPI_File_iread_all)
+
 #ifdef HAVE_MPI_CONST
 int DARSHAN_DECL(MPI_File_iwrite)(MPI_File fh, const void * buf, int count,
     MPI_Datatype datatype, __D_MPI_REQUEST * request)
@@ -984,6 +1010,29 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iread_at, int, (MPI_File fh, MPI_Offset offset, vo
     int count, MPI_Datatype datatype, __D_MPI_REQUEST *request),
         MPI_File_iread_at)
 
+int DARSHAN_DECL(MPI_File_iread_at_all)(MPI_File fh, MPI_Offset offset, void * buf,
+    int count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(PMPI_File_iread_at_all);
+
+    tm1 = MPIIO_WTIME();
+    ret = __real_PMPI_File_iread_at_all(fh, offset, buf, count,
+        datatype, request);
+    tm2 = MPIIO_WTIME();
+
+    MPIIO_PRE_RECORD();
+    MPIIO_RECORD_READ(ret, fh, count, datatype, offset, MPIIO_NB_READS, tm1, tm2);
+    MPIIO_POST_RECORD();
+
+    return(ret);
+}
+DARSHAN_WRAPPER_MAP(PMPI_File_iread_at_all, int, (MPI_File fh, MPI_Offset offset, void * buf,
+    int count, MPI_Datatype datatype, __D_MPI_REQUEST *request),
+        MPI_File_iread_at_all)
+
 #ifdef HAVE_MPI_CONST
 int DARSHAN_DECL(MPI_File_iwrite_at)(MPI_File fh, MPI_Offset offset, const void * buf,
     int count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
@@ -1016,6 +1065,40 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iwrite_at, int, (MPI_File fh, MPI_Offset offset, c
 DARSHAN_WRAPPER_MAP(PMPI_File_iwrite_at, int, (MPI_File fh, MPI_Offset offset, void * buf,
     int count, MPI_Datatype datatype, __D_MPI_REQUEST *request),
         MPI_File_iwrite_at)
+#endif
+
+#ifdef HAVE_MPI_CONST
+int DARSHAN_DECL(MPI_File_iwrite_at_all)(MPI_File fh, MPI_Offset offset, const void * buf,
+    int count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
+#else
+int DARSHAN_DECL(MPI_File_iwrite_at_all)(MPI_File fh, MPI_Offset offset, void * buf,
+    int count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
+#endif
+{
+    int ret;
+    double tm1, tm2;
+
+    MAP_OR_FAIL(PMPI_File_iwrite_at_all);
+
+    tm1 = MPIIO_WTIME();
+    ret = __real_PMPI_File_iwrite_at_all(fh, offset, buf,
+        count, datatype, request);
+    tm2 = MPIIO_WTIME();
+
+    MPIIO_PRE_RECORD();
+    MPIIO_RECORD_WRITE(ret, fh, count, datatype, offset, MPIIO_NB_WRITES, tm1, tm2);
+    MPIIO_POST_RECORD();
+
+    return(ret);
+}
+#ifdef HAVE_MPI_CONST
+DARSHAN_WRAPPER_MAP(PMPI_File_iwrite_at_all, int, (MPI_File fh, MPI_Offset offset, const void * buf,
+    int count, MPI_Datatype datatype, __D_MPI_REQUEST *request),
+        MPI_File_iwrite_at_all)
+#else
+DARSHAN_WRAPPER_MAP(PMPI_File_iwrite_at_all, int, (MPI_File fh, MPI_Offset offset, void * buf,
+    int count, MPI_Datatype datatype, __D_MPI_REQUEST *request),
+        MPI_File_iwrite_at_all)
 #endif
 
 int DARSHAN_DECL(MPI_File_iread_shared)(MPI_File fh, void * buf, int count,
