@@ -753,7 +753,7 @@ int DARSHAN_DECL(MPI_File_read_all_begin)(MPI_File fh, void * buf, int count, MP
 
     MAP_OR_FAIL(PMPI_File_read_all_begin);
 
-    MPI_File_get_position_shared(fh, &offset);
+    MPI_File_get_position(fh, &offset);
     tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_read_all_begin(fh, buf, count, datatype);
     tm2 = MPIIO_WTIME();
@@ -779,7 +779,7 @@ int DARSHAN_DECL(MPI_File_write_all_begin)(MPI_File fh, void * buf, int count, M
 
     MAP_OR_FAIL(PMPI_File_write_all_begin);
 
-    MPI_File_get_position_shared(fh, &offset);
+    MPI_File_get_position(fh, &offset);
 
     tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_write_all_begin(fh, buf, count, datatype);
@@ -916,7 +916,7 @@ int DARSHAN_DECL(MPI_File_iread)(MPI_File fh, void * buf, int count, MPI_Datatyp
 
     MAP_OR_FAIL(PMPI_File_iread);
 
-    MPI_File_get_position_shared(fh, &offset);
+    MPI_File_get_position(fh, &offset);
     tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_iread(fh, buf, count, datatype, request);
     tm2 = MPIIO_WTIME();
@@ -938,7 +938,7 @@ int DARSHAN_DECL(MPI_File_iread_all)(MPI_File fh, void * buf, int count, MPI_Dat
 
     MAP_OR_FAIL(PMPI_File_iread_all);
 
-    MPI_File_get_position_shared(fh, &offset);
+    MPI_File_get_position(fh, &offset);
     tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_iread_all(fh, buf, count, datatype, request);
     tm2 = MPIIO_WTIME();
