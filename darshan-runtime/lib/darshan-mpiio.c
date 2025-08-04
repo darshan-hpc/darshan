@@ -2068,7 +2068,7 @@ int DARSHAN_DECL(MPI_File_iread_shared_c)(MPI_File fh, void * buf, MPI_Count cou
 
     MAP_OR_FAIL(PMPI_File_iread_shared_c);
 
-    MPI_File_get_position(fh, &offset);
+    MPI_File_get_position_shared(fh, &offset);
     tm1 = MPIIO_WTIME();
     ret = __real_PMPI_File_iread_shared_c(fh, buf, count,
         datatype, request);
