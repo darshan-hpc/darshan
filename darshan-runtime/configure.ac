@@ -807,7 +807,16 @@ if test "x$enable_darshan_runtime" = xyes ; then
       if test "x$have_mpi_io_large_count_apis" = "xyes" ; then
          AC_DEFINE(HAVE_MPI_LARGE_COUNT, 1,
                    [Define if MPI-IO support large count feature])
+         AC_SUBST(HAVE_MPI_LARGE_COUNT, [1])
       fi
+
+      ac_mpi_path=`AS_DIRNAME(["$CC"])`
+      if test "x$ac_mpi_path" = "x." ; then
+         AC_PATH_PROGS(mpicc_path, ${CC})
+         ac_mpi_path=`AS_DIRNAME(["$mpicc_path"])`
+      fi
+      AC_PATH_PROGS(TESTMPIRUN, mpiexec mpirun, [], [$ac_mpi_path])
+      AC_SUBST(TESTMPIRUN)
    else
       have_mpi_io_large_count_apis=no
    fi
@@ -936,6 +945,7 @@ AC_CONFIG_FILES(Makefile \
                 darshan-gen-cxx.pl \
                 darshan-gen-fortran.pl \
                 lib/Makefile \
+                test/Makefile \
                 pkgconfig/Makefile \
                 pkgconfig/darshan-runtime.pc \
                 share/Makefile \
