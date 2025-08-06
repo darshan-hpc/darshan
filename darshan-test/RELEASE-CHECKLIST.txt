@@ -13,6 +13,7 @@ Notes on how to release a new version of Darshan
  4) update the Changelog, if needed (browse git log since last release)
     - commit
  5) update version number in top-level darshan.version file
+    - See below for the guideline of setting the version number.
     - commit
  6) follow checklist for corresponding release of PyDarshan
     - found at darshan-util/pydarshan/RELEASE-CHECKLIST-PyDarshan.txt
@@ -49,3 +50,18 @@ Notes on how to release a new version of Darshan
       enabled by the release
     - commit, submit PR to upstream Spack repository
 14) announce on web page (new post) and mailing list
+
+----
+## Setting the release version number
+
+Follow the guideline provided by [Semantic Versioning](https://semver.org)
+when setting the version number for new releases.
+
+* Software Semantic Versioning
+  + A version number is in a form of MAJOR.MINOR.PATCH
+    1. MAJOR version when you make incompatible API changes
+    2. MINOR version when you add functionality in a backward compatible manner
+    3. PATCH version when you make backward compatible bug fixes
+  + A pre-release version MAY be denoted by appending a hyphen, for example,
+    1.0.0-alpha.
+
