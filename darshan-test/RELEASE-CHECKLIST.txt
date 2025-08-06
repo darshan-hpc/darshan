@@ -13,7 +13,7 @@ Notes on how to release a new version of Darshan
  4) update the Changelog, if needed (browse git log since last release)
     - commit
  5) update version number in top-level darshan.version file
-    - See below for the guide line of setting the version number.
+    - See below for the guideline of setting the version number.
     - commit
  6) follow checklist for corresponding release of PyDarshan
     - found at darshan-util/pydarshan/RELEASE-CHECKLIST-PyDarshan.txt
@@ -54,39 +54,14 @@ Notes on how to release a new version of Darshan
 ----
 ## Setting the release version number
 
-There are two versions that must be set when making a new release:
-software semantic version and libtool ABI version.
+Follow the guideline provided by [Semantic Versioning](https://semver.org)
+when setting the version number for new releases.
 
 * Software Semantic Versioning
-  + https://semver.org
   + A version number is in a form of MAJOR.MINOR.PATCH
     1. MAJOR version when you make incompatible API changes
     2. MINOR version when you add functionality in a backward compatible manner
     3. PATCH version when you make backward compatible bug fixes
   + A pre-release version MAY be denoted by appending a hyphen, for example,
     1.0.0-alpha.
-
-* GNU Libtool's ABI versioning
-  + http://www.gnu.org/software/libtool/manual/libtool.html#Updating-version-info
-  + A version number is in a form of current.revision.age
-    1. "current (c)" is the most recent interface number that this library
-       implements. A change in this number typically indicates a
-       backward-incompatible ABI change.
-    2. "revision (r)" is the implementation number of the current interface.
-       Tracks changes in the library's source code without affecting the ABI.
-    3. "age (a)" is the difference between the newest and oldest interfaces that
-       this library implements. It indicates the number of interfaces added
-       since the last current increment.
-  + Rules for Updating Version Information:
-   * Initial State: Begin with 0:0:0 for new libraries.
-   * Release-based Updates: Update versions only before a public release.
-   * Source Code Changes: Increment "revision" if the source code has changed
-     since the last update, even without interface changes.
-     (c:r:a becomes c:r+1:a)
-   * Interface Changes (Addition/Removal/Modification): Increment "current" and
-     reset "revision" to 0 if any interfaces have been added, removed, or changed.
-   * Interface Additions: Increment "age" if new interfaces have been added since
-     the last public release.
-   * Interface Removals: Reset "age" to 0 if any interfaces have been removed
-     since the last public release.
 
