@@ -8,6 +8,9 @@ on:
     branches:
       - main
 
+env:
+   MPICH_VERSION: 4.3.1
+
 jobs:
   end_to_end_regression:
     strategy:
@@ -22,16 +25,16 @@ jobs:
           sudo apt-get install -y gfortran bc
       - name: Install MPICH
         run: |
+          echo "Install MPICH ${MPICH_VERSION} in ${PWD}/mpich_install"
           mkdir mpich_install
           export MPICH_INSTALL_PATH=$PWD/mpich_install
-          wget https://www.mpich.org/static/downloads/3.2.1/mpich-3.2.1.tar.gz
-          tar -xzvf mpich-3.2.1.tar.gz
-          cd mpich-3.2.1
+          wget -q https://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz
+          tar -xzvf mpich-${MPICH_VERSION}.tar.gz
+          cd mpich-${MPICH_VERSION}
           mkdir build
           cd build
           FFLAGS="-w -fallow-argument-mismatch" ../configure --disable-dependency-tracking --prefix=$MPICH_INSTALL_PATH
-          make
-          make install
+          make -j8 install
       - name: Install Darshan
         run: |
           git submodule update --init

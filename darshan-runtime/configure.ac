@@ -770,6 +770,63 @@ if test "x$enable_darshan_runtime" = xyes ; then
                    [AC_MSG_RESULT(yes)], [AC_MSG_RESULT(no)])],
             [AC_MSG_RESULT(no)]
       )
+
+      dnl MPI_Count was first introduced in MPI 3.0. Check MPI-IOfunctions that make
+      dnl use of MPI_Count.
+      AC_CHECK_FUNCS([MPI_File_read_c \
+                      MPI_File_read_all_c \
+                      MPI_File_read_all_begin_c \
+                      MPI_File_read_at_c \
+                      MPI_File_read_at_all_c \
+                      MPI_File_read_at_all_begin_c \
+                      MPI_File_read_ordered_c \
+                      MPI_File_read_ordered_begin_c \
+                      MPI_File_read_shared_c \
+                      MPI_File_write_c \
+                      MPI_File_write_all_c \
+                      MPI_File_write_all_begin_c \
+                      MPI_File_write_at_c \
+                      MPI_File_write_at_all_c \
+                      MPI_File_write_at_all_begin_c \
+                      MPI_File_write_ordered_c \
+                      MPI_File_write_ordered_begin_c \
+                      MPI_File_write_shared_c \
+                      MPI_File_iread_c \
+                      MPI_File_iread_all_c \
+                      MPI_File_iread_at_c \
+                      MPI_File_iread_at_all_c \
+                      MPI_File_iread_shared_c \
+                      MPI_File_iwrite_c \
+                      MPI_File_iwrite_all_c \
+                      MPI_File_iwrite_at_c \
+                      MPI_File_iwrite_at_all_c \
+                      MPI_File_iwrite_shared_c],
+                     [have_mpi_io_large_count_apis=yes],
+                     [have_mpi_io_large_count_apis=no])
+
+      if test "x$have_mpi_io_large_count_apis" = "xyes" ; then
+         AC_DEFINE(HAVE_MPI_LARGE_COUNT, 1,
+                   [Define if MPI-IO support large count feature])
+         AC_SUBST(HAVE_MPI_LARGE_COUNT, [1])
+      fi
+
+      ac_mpi_path=`AS_DIRNAME(["$CC"])`
+      if test "x$ac_mpi_path" = "x." ; then
+         AC_PATH_PROGS(mpicc_path, ${CC})
+         ac_mpi_path=`AS_DIRNAME(["$mpicc_path"])`
+      fi
+
+      AC_PATH_PROGS(TESTMPIRUN, mpiexec mpirun, [], [$ac_mpi_path])
+
+      # check if CC is OpenMPI
+      AC_CHECK_DECL([OMPI_MAJOR_VERSION], [], [], [#include <mpi.h>])
+      if test "x$ac_cv_have_decl_OMPI_MAJOR_VERSION" = xyes ; then
+         TESTMPIRUN="$TESTMPIRUN --oversubscribe"
+      fi
+
+      AC_SUBST(TESTMPIRUN)
+   else
+      have_mpi_io_large_count_apis=no
    fi
 
    #
@@ -833,6 +890,7 @@ else
    enable_ldms_mod=no
    with_log_path=
    with_jobid_env=
+   have_mpi_io_large_count_apis=no
 fi
 
 AC_SUBST(ENABLE_LD_PRELOAD, ["$enable_ld_preload"])
@@ -895,6 +953,7 @@ AC_CONFIG_FILES(Makefile \
                 darshan-gen-cxx.pl \
                 darshan-gen-fortran.pl \
                 lib/Makefile \
+                test/Makefile \
                 pkgconfig/Makefile \
                 pkgconfig/darshan-runtime.pc \
                 share/Makefile \
@@ -972,5 +1031,6 @@ if test "x$enable_darshan_runtime" = xyes ; then
            Log file env variables        - $__log_path_by_env
            Location of Darshan log files - $__log_path
            Job ID env variable           - $with_jobid_env
-           MPI-IO hints                  - $__DARSHAN_LOG_HINTS"
+           MPI-IO hints                  - $__DARSHAN_LOG_HINTS
+           MPI-IO large-count support    - $have_mpi_io_large_count_apis"
 fi
