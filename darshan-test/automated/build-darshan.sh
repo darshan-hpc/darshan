@@ -4,7 +4,7 @@
 #
 
 # Exit immediately if a command exits with a non-zero status.
-set -x
+# set -e
 
 basedir=$PWD
 build_dir=$PWD/darshan_build
@@ -49,9 +49,20 @@ make check
 # built, as it used darshan-parser.
 if [ ! -v DARSHAN_RUNTIME_SKIP ]; then
     cd $build_dir/darshan-runtime
+
+    # disable errexit, so we can dump make check log file
+    # unset +e
+
     # run check
     make check
 
-    #dump log files
+    check_status=$?
+
+    # dump make check log file
     cat test/tst_runs.log
+
+    if test "x$check_status" != x0 ; then
+       exit $check_status
+    fi
 fi
+
