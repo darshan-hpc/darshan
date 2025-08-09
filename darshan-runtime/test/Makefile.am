@@ -7,10 +7,10 @@ AM_CPPFLAGS  = -I$(top_builddir)
 
 check_PROGRAMS =
 
-#if BUILD_MPIIO_MODULE
-check_PROGRAMS += tst_mpi_io
-tst_mpi_io_SOURCES = tst_mpi_io.c
-#endif
+if BUILD_MPIIO_MODULE
+   check_PROGRAMS += tst_mpi_io
+   tst_mpi_io_SOURCES = tst_mpi_io.c
+endif
 
 AM_TESTS_ENVIRONMENT  = export TESTMPIRUN="$(TESTMPIRUN)";
 AM_TESTS_ENVIRONMENT += export TST_DARSHAN_LOG_PATH="$(__DARSHAN_LOG_PATH)";
