@@ -7,21 +7,45 @@ TODAY_DATE_PATH=`date "+%Y/%-m/%-d"`
 TST_DARSHAN_LOG_PATH="${TST_DARSHAN_LOG_PATH}/${TODAY_DATE_PATH}"
 mkdir -p ${TST_DARSHAN_LOG_PATH}
 
+# check what file system is used
+echo "df -T ${TST_DARSHAN_LOG_PATH}"
+df -T ${TST_DARSHAN_LOG_PATH}
+
+echo "findmnt -n -o FSTYPE --target ${TST_DARSHAN_LOG_PATH}"
+findmnt -n -o FSTYPE --target ${TST_DARSHAN_LOG_PATH}
+
 if test "x$USERNAME_ENV" = xno ; then
    USERNAME_ENV=$USER
 fi
 
-DARSGAN_PARSER=../../darshan-util/darshan-parser
+if test -f $DARSHAN_INSTALL_DIR/bin/darshan-parser ; then
+   DARSHAN_PARSER=$DARSHAN_INSTALL_DIR/bin/darshan-parser
+else
+   DARSHAN_PARSER=../../darshan-util/darshan-parser
+fi
+echo "DARSHAN_PARSER=$DARSHAN_PARSER"
+
+if test -f $DARSHAN_INSTALL_DIR/bin/darshan-config ; then
+   DARSHAN_CONFIG=$DARSHAN_INSTALL_DIR/bin/darshan-config
+else
+   DARSHAN_CONFIG=../../darshan-util/darshan-config
+fi
+echo "DARSHAN_CONFIG=$DARSHAN_CONFIG"
+
+$DARSHAN_CONFIG --all
 
 # run NP number of MPI processes
-NP=4
+# Note when using OpenMPI, setting NP > 2 will fail.
+if test "x$NP" = x ; then
+   NP=2
+fi
 
 TEST_FILE=./testfile.dat
 
 # tst_mpi_io.c takes the following command-line options.
 #        [-i] test read API
 #        [-c] test collective API
-#        [-a] test asynchonous API
+#        [-a] test asynchronous API
 #        [-s] test shared API
 #        [-p] test split API
 #        [-o] test ordered API
@@ -226,7 +250,12 @@ done
 
 echo "OPTS=$OPTS"
 
-export LD_PRELOAD=../lib/.libs/libdarshan.so
+if test -f $DARSHAN_INSTALL_DIR/lib/libdarshan.so ; then
+   export LD_PRELOAD=$DARSHAN_INSTALL_DIR/lib/libdarshan.so
+else
+   export LD_PRELOAD=../lib/.libs/libdarshan.so
+fi
+echo "LD_PRELOAD=$LD_PRELOAD"
 
 for exe in ${check_PROGRAMS} ; do
 
@@ -242,11 +271,16 @@ for exe in ${check_PROGRAMS} ; do
           else
              CMD="${TESTMPIRUN} -n ${NP} ./$exe -$opt $TEST_FILE"
           fi
-          # echo "CMD=$CMD"
+          echo "CMD=$CMD"
           rm -f $TEST_FILE $DARSHAN_LOG_FILE
           $CMD
+
+          echo "ls -l ${DARSHAN_LOG_FILE}"
+          ls -l ${DARSHAN_LOG_FILE}
+
+          echo "parsing ${DARSHAN_LOG_FILE}"
           EXPECT_NBYTE=`stat -c %s $TEST_FILE`
-          nbytes=`$DARSGAN_PARSER ${DARSHAN_LOG_FILE} | grep $DARSGAN_FIELD | cut -f5`
+          nbytes=`$DARSHAN_PARSER ${DARSHAN_LOG_FILE} | grep $DARSGAN_FIELD | cut -f5`
           # echo "EXPECT_NBYTE=$EXPECT_NBYTE nbytes=$nbytes"
           if test "x$nbytes" != "x$EXPECT_NBYTE" ; then
              echo "Error: CMD=$CMD nbytes=$nbytes"
@@ -262,10 +296,12 @@ for exe in ${check_PROGRAMS} ; do
           else
              CMD="${TESTMPIRUN} -n ${NP} ./$exe -$opt -i $TEST_FILE"
           fi
-          # echo "CMD=$CMD"
+          echo "CMD=$CMD"
           rm -f $DARSHAN_LOG_FILE
           $CMD
-          nbytes=`$DARSGAN_PARSER ${DARSHAN_LOG_FILE} | grep $DARSGAN_FIELD | cut -f5`
+
+          echo "parsing ${DARSHAN_LOG_FILE}"
+          nbytes=`$DARSHAN_PARSER ${DARSHAN_LOG_FILE} | grep $DARSGAN_FIELD | cut -f5`
           # echo "EXPECT_NBYTE=$EXPECT_NBYTE nbytes=$nbytes"
           if test "x$nbytes" != "x$EXPECT_NBYTE" ; then
              echo "Error: CMD=$CMD nbytes=$nbytes"
