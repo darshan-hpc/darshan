@@ -148,6 +148,39 @@ DARSHAN_EXTERN_DECL(PMPI_Gather, int, (const void *sendbuf, int sendcount, MPI_D
 DARSHAN_EXTERN_DECL(PMPI_Gather, int, (void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm));
 #endif
 DARSHAN_EXTERN_DECL(PMPI_Barrier, int, (MPI_Comm comm));
+
+/* If MPI-IO supports large-count feature */
+#ifdef HAVE_MPI_LARGE_COUNT
+DARSHAN_EXTERN_DECL(PMPI_File_iread_all_c, int, (MPI_File fh, void *buf, MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_EXTERN_DECL(PMPI_File_iread_at_all_c, int, (MPI_File fh, MPI_Offset offset, void *buf, MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_EXTERN_DECL(PMPI_File_iread_at_c, int, (MPI_File fh, MPI_Offset offset, void *buf, MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_EXTERN_DECL(PMPI_File_iread_c, int, (MPI_File fh, void *buf, MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_EXTERN_DECL(PMPI_File_iread_shared_c, int, (MPI_File fh, void *buf, MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_EXTERN_DECL(PMPI_File_iwrite_all_c, int, (MPI_File fh, const void *buf, MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_EXTERN_DECL(PMPI_File_iwrite_at_all_c, int, (MPI_File fh, MPI_Offset offset, const void *buf, MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_EXTERN_DECL(PMPI_File_iwrite_at_c, int, (MPI_File fh, MPI_Offset offset, const void *buf, MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_EXTERN_DECL(PMPI_File_iwrite_c, int, (MPI_File fh, const void *buf, MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_EXTERN_DECL(PMPI_File_iwrite_shared_c, int, (MPI_File fh, const void *buf, MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
+DARSHAN_EXTERN_DECL(PMPI_File_read_all_begin_c, int, (MPI_File fh, void *buf, MPI_Count count, MPI_Datatype datatype));
+DARSHAN_EXTERN_DECL(PMPI_File_read_all_c, int, (MPI_File fh, void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status));
+DARSHAN_EXTERN_DECL(PMPI_File_read_at_all_begin_c, int, (MPI_File fh, MPI_Offset offset, void *buf, MPI_Count count, MPI_Datatype datatype));
+DARSHAN_EXTERN_DECL(PMPI_File_read_at_all_c, int, (MPI_File fh, MPI_Offset offset, void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status));
+DARSHAN_EXTERN_DECL(PMPI_File_read_at_c, int, (MPI_File fh, MPI_Offset offset, void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status));
+DARSHAN_EXTERN_DECL(PMPI_File_read_c, int, (MPI_File fh, void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status));
+DARSHAN_EXTERN_DECL(PMPI_File_read_ordered_begin_c, int, (MPI_File fh, void *buf, MPI_Count count, MPI_Datatype datatype));
+DARSHAN_EXTERN_DECL(PMPI_File_read_ordered_c, int, (MPI_File fh, void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status));
+DARSHAN_EXTERN_DECL(PMPI_File_read_shared_c, int, (MPI_File fh, void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status));
+DARSHAN_EXTERN_DECL(PMPI_File_write_all_begin_c, int, (MPI_File fh, const void *buf, MPI_Count count, MPI_Datatype datatype));
+DARSHAN_EXTERN_DECL(PMPI_File_write_all_c, int, (MPI_File fh, const void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status));
+DARSHAN_EXTERN_DECL(PMPI_File_write_at_all_begin_c, int, (MPI_File fh, MPI_Offset offset, const void *buf, MPI_Count count, MPI_Datatype datatype));
+DARSHAN_EXTERN_DECL(PMPI_File_write_at_all_c, int, (MPI_File fh, MPI_Offset offset, const void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status));
+DARSHAN_EXTERN_DECL(PMPI_File_write_at_c, int, (MPI_File fh, MPI_Offset offset, const void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status));
+DARSHAN_EXTERN_DECL(PMPI_File_write_c, int, (MPI_File fh, const void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status));
+DARSHAN_EXTERN_DECL(PMPI_File_write_ordered_begin_c, int, (MPI_File fh, const void *buf, MPI_Count count, MPI_Datatype datatype));
+DARSHAN_EXTERN_DECL(PMPI_File_write_ordered_c, int, (MPI_File fh, const void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status));
+DARSHAN_EXTERN_DECL(PMPI_File_write_shared_c, int, (MPI_File fh, const void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status));
+#endif
+
 #endif /* HAVE_MPI */
 
 #endif
