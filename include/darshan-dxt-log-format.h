@@ -10,7 +10,6 @@
 #define DXT_POSIX_VER 1
 #define DXT_MPIIO_VER 2
 
-#define EXTRA_INFO_LEN 64
 #define HOSTNAME_SIZE 64
 
 /*
@@ -22,7 +21,6 @@ typedef struct segment_info {
     int64_t length;
     double start_time;
     double end_time;
-    char extra_info[EXTRA_INFO_LEN];
 } segment_info;
 
 #define X(a) a,
