@@ -69,7 +69,7 @@ Usage of the ``job_stats`` tool is described below. ::
       -h, --help            show this help message and exit
       --log_paths_file LOG_PATHS_FILE
                             specify the path to a manifest file listing Darshan log files
-      --module [{POSIX,MPI-IO,STDIO}], -m [{POSIX,MPI-IO,STDIO,DFS,DAOS}]
+      --module [{POSIX,MPI-IO,STDIO,DFS,DAOS}], -m [{POSIX,MPI-IO,STDIO,DFS,DAOS}]
                             specify the Darshan module to generate job stats for (default: POSIX)
       --order_by [{perf_by_slowest,time_by_slowest,total_bytes,total_files}], -o [{perf_by_slowest,time_by_slowest,total_bytes,total_files}]
                             specify the I/O metric to order jobs by (default: total_bytes)
@@ -103,7 +103,7 @@ Usage of the ``file_stats`` tool is described below. ::
       -h, --help            show this help message and exit
       --log_paths_file LOG_PATHS_FILE
                             specify the path to a manifest file listing Darshan log files
-      --module [{POSIX,MPI-IO,STDIO}], -m [{POSIX,MPI-IO,STDIO,DFS}]
+      --module [{POSIX,MPI-IO,STDIO,DFS}], -m [{POSIX,MPI-IO,STDIO,DFS}]
                             specify the Darshan module to generate file stats for (default: POSIX)
       --order_by [{bytes_read,bytes_written,reads,writes,total_jobs}], -o [{bytes_read,bytes_written,reads,writes,total_jobs}]
                             specify the I/O metric to order files by (default: bytes_read)
