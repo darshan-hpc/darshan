@@ -130,7 +130,10 @@ def rich_print(df, mod, order_by):
     all_time_by_slowest = df['time_by_slowest'].sum()
     all_total_bytes = df['total_bytes'].sum()
     all_total_files = df['total_files'].sum()
-    all_perf_by_slowest = all_total_bytes / all_time_by_slowest
+    if all_total_bytes == 0:
+        all_perf_by_slowest = 0
+    else:
+        all_perf_by_slowest = all_total_bytes / all_time_by_slowest
 
     # instantiate a rich table and pretty print the dataframe
     console = Console()
