@@ -212,7 +212,10 @@ def rich_print(df, mod, order_by):
     # calculate totals to plug in to table footer
     all_time_by_slowest = df["time_by_slowest"].sum()
     all_total_bytes = df["total_bytes"].sum()
-    all_perf_by_slowest = all_total_bytes / all_time_by_slowest
+    if all_total_bytes == 0:
+        all_perf_by_slowest = 0
+    else:
+        all_perf_by_slowest = all_total_bytes / all_time_by_slowest
     all_bytes_read = df["bytes_read"].sum()
     all_bytes_written = df["bytes_written"].sum()
     all_reads = df["reads"].sum()
