@@ -1,0 +1,148 @@
+name: OpenMPI 5.0.5 and 5.0.6
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y
+      - name: Initialize Darshan
+        run: |
+          git submodule update --init
+          autoreconf -i
+      - name: Build OPENMPI 5.0.6
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          rm -rf OPENMPI ; mkdir OPENMPI ; cd OPENMPI
+          wget -q https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.6.tar.gz
+          gzip -dc openmpi-5.0.6.tar.gz | tar -xf -
+          cd openmpi-5.0.6
+          ./configure --prefix=${GITHUB_WORKSPACE}/OPENMPI \
+                      CC=gcc \
+                      --disable-mpi-cxx --disable-mpi-fortran
+          make -s LIBTOOLFLAGS=--silent V=1 -j 8 install
+      - name: Install Darshan using OPENMPI 5.0.6
+        if: ${{ always() }}
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:$PATH"
+          DARSHAN_ROOT=${GITHUB_WORKSPACE}
+          DARSHAN_INSTALL=${GITHUB_WORKSPACE}/darshan_install
+          DARSHAN_BUILD=${GITHUB_WORKSPACE}/darshan_build
+          DARSHAN_LOG_PATH=${GITHUB_WORKSPACE}/darshan_logs
+          rm -rf ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD} ${DARSHAN_INSTALL}
+          mkdir -p $DARSHAN_LOG_PATH $DARSHAN_BUILD
+          cd $DARSHAN_BUILD
+          $DARSHAN_ROOT/configure --prefix=${DARSHAN_INSTALL} \
+                                  --with-log-path=${DARSHAN_LOG_PATH} \
+                                  --with-jobid-env=NONE \
+                                  CC=mpicc RUNTIME_CC=mpicc UTIL_CC=gcc
+          make -s LIBTOOLFLAGS=--silent V=1 -j8
+          make -s install
+      - name: test a small MPI-IO program using OPENMPI 5.0.6
+        if: ${{ always() }}
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:$PATH"
+          DARSHAN_INSTALL=${GITHUB_WORKSPACE}/darshan_install
+          TODAY_DATE_PATH=`date "+%Y/%-m/%-d"`
+          DARSHAN_LOG_PATH=${GITHUB_WORKSPACE}/darshan_logs/${TODAY_DATE_PATH}
+          DARSHAN_LOG_FILE="${DARSHAN_LOG_PATH}/${USER}_mpi_file_write*"
+          DARSHAN_PARSER=${DARSHAN_INSTALL}/bin/darshan-parser
+
+          mkdir -p $DARSHAN_LOG_PATH
+          mpicc mpi_file_write.c -o mpi_file_write
+
+          export LD_PRELOAD=${DARSHAN_INSTALL}/lib/libdarshan.so
+
+          # test Darshan log parser
+          for iter in 1 2 3 4 5
+          do
+             rm -f testfie ${DARSHAN_LOG_FILE}
+             mpiexec --oversubscribe -n 4 ./mpi_file_write
+             EXPECT_NBYTE=`stat -c %s ./testfile`
+
+             nbytes=`$DARSHAN_PARSER ${DARSHAN_LOG_FILE} | grep MPIIO_BYTES_WRITTEN | cut -f5`
+             echo "iter=$iter nbytes=$nbytes"
+             if test "x$nbytes" != "x$EXPECT_NBYTE" ; then
+                echo "Error: Darshan log parser EXPECT_NBYTE=$EXPECT_NBYTE but nbytes=$nbytes"
+                exit 1
+             else
+                echo "Success: Darshan log parser EXPECT_NBYTE=$EXPECT_NBYTE and nbytes=$nbytes"
+             fi
+          done
+
+      - name: Build OPENMPI 5.0.5
+        if: ${{ always() }}
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          rm -rf OPENMPI ; mkdir OPENMPI ; cd OPENMPI
+          wget -q https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.5.tar.gz
+          gzip -dc openmpi-5.0.5.tar.gz | tar -xf -
+          cd openmpi-5.0.5
+          ./configure --prefix=${GITHUB_WORKSPACE}/OPENMPI \
+                      CC=gcc \
+                      --disable-mpi-cxx --disable-mpi-fortran
+          make -s LIBTOOLFLAGS=--silent V=1 -j 8 install
+      - name: Install Darshan using OPENMPI 5.0.5
+        if: ${{ always() }}
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:$PATH"
+          DARSHAN_ROOT=${GITHUB_WORKSPACE}
+          DARSHAN_INSTALL=${GITHUB_WORKSPACE}/darshan_install
+          DARSHAN_BUILD=${GITHUB_WORKSPACE}/darshan_build
+          DARSHAN_LOG_PATH=${GITHUB_WORKSPACE}/darshan_logs
+          rm -rf ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD} ${DARSHAN_INSTALL}
+          mkdir -p $DARSHAN_LOG_PATH $DARSHAN_BUILD
+          cd $DARSHAN_BUILD
+          $DARSHAN_ROOT/configure --prefix=${DARSHAN_INSTALL} \
+                                  --with-log-path=${DARSHAN_LOG_PATH} \
+                                  --with-jobid-env=NONE \
+                                  CC=mpicc RUNTIME_CC=mpicc UTIL_CC=gcc
+          make -s LIBTOOLFLAGS=--silent V=1 -j8
+          make -s install
+      - name: test a small MPI-IO program using OPENMPI 5.0.5
+        if: ${{ always() }}
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:$PATH"
+          DARSHAN_INSTALL=${GITHUB_WORKSPACE}/darshan_install
+          TODAY_DATE_PATH=`date "+%Y/%-m/%-d"`
+          DARSHAN_LOG_PATH=${GITHUB_WORKSPACE}/darshan_logs/${TODAY_DATE_PATH}
+          DARSHAN_LOG_FILE="${DARSHAN_LOG_PATH}/${USER}_mpi_file_write*"
+          DARSHAN_PARSER=${DARSHAN_INSTALL}/bin/darshan-parser
+
+          mkdir -p $DARSHAN_LOG_PATH
+          mpicc mpi_file_write.c -o mpi_file_write
+
+          export LD_PRELOAD=${DARSHAN_INSTALL}/lib/libdarshan.so
+
+          # test Darshan log parser
+          for iter in 1 2 3 4 5
+          do
+             rm -f testfie ${DARSHAN_LOG_FILE}
+             mpiexec --oversubscribe -n 4 ./mpi_file_write
+             EXPECT_NBYTE=`stat -c %s ./testfile`
+
+             nbytes=`$DARSHAN_PARSER ${DARSHAN_LOG_FILE} | grep MPIIO_BYTES_WRITTEN | cut -f5`
+             echo "iter=$iter nbytes=$nbytes"
+             if test "x$nbytes" != "x$EXPECT_NBYTE" ; then
+                echo "Error: Darshan log parser EXPECT_NBYTE=$EXPECT_NBYTE but nbytes=$nbytes"
+                exit 1
+             else
+                echo "Success: Darshan log parser EXPECT_NBYTE=$EXPECT_NBYTE and nbytes=$nbytes"
+             fi
+          done
+
