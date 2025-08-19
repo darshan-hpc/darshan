@@ -143,7 +143,10 @@ def rich_print(df, mod, order_by):
     table.add_column("perf_by_slowest", f"[u i]{naturalsize(all_perf_by_slowest, binary=True, format='%.2f')}/s", **default_kwargs)
     table.add_column("time_by_slowest", f"[u i]{all_time_by_slowest:.2f} s", **default_kwargs)
     table.add_column("total_bytes", f"[u i]{naturalsize(all_total_bytes, binary=True, format='%.2f')}", **default_kwargs)
-    table.add_column("total_files", f"[u i]{all_total_files}", **default_kwargs)
+    if mod != "DAOS":
+        table.add_column("total_files", f"[u i]{all_total_files}", **default_kwargs)
+    else:
+        table.add_column("total_objects", f"[u i]{all_total_files}", **default_kwargs)
     for column in table.columns:
         if column.header == order_by:
             column.style = column.header_style = column.footer_style = "bold cyan"
@@ -187,7 +190,7 @@ def setup_parser(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--module", "-m",
         nargs='?', default='POSIX',
-        choices=['POSIX', 'MPI-IO', 'STDIO'],
+        choices=['POSIX', 'MPI-IO', 'STDIO', 'DFS', 'DAOS'],
         help="specify the Darshan module to generate job stats for (default: %(default)s)"
     )
     parser.add_argument(

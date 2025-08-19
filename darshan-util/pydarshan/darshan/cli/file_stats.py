@@ -295,7 +295,7 @@ def setup_parser(parser: argparse.ArgumentParser):
         "-m",
         nargs="?",
         default="POSIX",
-        choices=["POSIX", "MPI-IO", "STDIO"],
+        choices=["POSIX", "MPI-IO", "STDIO", "DFS"],
         help="specify the Darshan module to generate file stats for (default: %(default)s)",
     )
     parser.add_argument(
