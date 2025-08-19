@@ -205,6 +205,7 @@ typedef struct segment_info {
     int64_t length;
     double start_time;
     double end_time;
+    char extra_info[64];
 } segment_info;
 
 /* counter names */
