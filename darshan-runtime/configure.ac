@@ -690,8 +690,11 @@ if test "x$enable_darshan_runtime" = xyes ; then
          #error OPENMPI FOUND
          #endif
          ])],
-         [],
-      [AC_DEFINE(HAVE_OPEN_MPI, 1, Define if OpenMPI is being used)])
+         [is_ompi=0], [is_ompi=1])
+
+      if test "x$is_ompi" = x1 ; then
+         AC_DEFINE(HAVE_OPEN_MPI, 1, [Define if OpenMPI is being used])
+      fi
 
       # determine if the MPI library includes MPI-IO functions or not
       AC_MSG_CHECKING(for MPI-IO support in MPI)
@@ -883,6 +886,7 @@ else
    with_log_path=
    with_jobid_env=
    have_mpi_io_large_count_apis=no
+   is_ompi=0
 fi
 
 AC_SUBST(ENABLE_LD_PRELOAD, ["$enable_ld_preload"])
@@ -918,6 +922,7 @@ AC_SUBST(HDF5_PATH, ["$with_hdf5"])
 AC_SUBST(PNETCDF_PATH, ["$with_pnetcdf"])
 AC_SUBST(DAOS_PATH, ["$with_daos"])
 AC_SUBST(LDMS_PATH, ["$LDMS_HOME"])
+AC_SUBST(HAVE_OPEN_MPI, ["$is_ompi"])
 
 AM_CONDITIONAL(ENABLE_MMAP_LOGS,    [test "x$enable_mmap_logs"   = xyes])
 AM_CONDITIONAL(ENABLE_LDPRELOAD,    [test "x$enable_ld_preload"  = xyes])

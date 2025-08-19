@@ -34,10 +34,13 @@ echo "DARSHAN_CONFIG=$DARSHAN_CONFIG"
 
 $DARSHAN_CONFIG --all
 
-# run NP number of MPI processes
-# Note when using OpenMPI, setting NP > 2 will fail.
+# run NP number of MPI processes, default 2
 if test "x$NP" = x ; then
    NP=2
+fi
+
+if test "x$HAVE_OPEN_MPI" = x1 ; then
+   TESTMPIRUN="$TESTMPIRUN --oversubscribe"
 fi
 
 TEST_FILE=./testfile.dat
