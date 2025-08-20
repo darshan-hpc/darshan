@@ -72,6 +72,7 @@ jobs:
           do
              rm -f testfie ${DARSHAN_LOG_FILE}
              mpiexec --oversubscribe -n 4 ./mpi_file_write
+             echo "mpiexec --oversubscribe -n 4 ./mpi_file_write"
              EXPECT_NBYTE=`stat -c %s ./testfile`
 
              nbytes=`$DARSHAN_PARSER ${DARSHAN_LOG_FILE} | grep MPIIO_BYTES_WRITTEN | cut -f5`
@@ -134,6 +135,41 @@ jobs:
           do
              rm -f testfie ${DARSHAN_LOG_FILE}
              mpiexec --oversubscribe -n 4 ./mpi_file_write
+             echo "mpiexec --oversubscribe -n 4 ./mpi_file_write"
+             EXPECT_NBYTE=`stat -c %s ./testfile`
+
+             nbytes=`$DARSHAN_PARSER ${DARSHAN_LOG_FILE} | grep MPIIO_BYTES_WRITTEN | cut -f5`
+             echo "iter=$iter nbytes=$nbytes"
+             if test "x$nbytes" != "x$EXPECT_NBYTE" ; then
+                echo "Error: Darshan log parser EXPECT_NBYTE=$EXPECT_NBYTE but nbytes=$nbytes"
+                exit 1
+             else
+                echo "Success: Darshan log parser EXPECT_NBYTE=$EXPECT_NBYTE and nbytes=$nbytes"
+             fi
+          done
+
+      - name: test OPENMPI 5.0.5 with fbtl_posix_read_datasieving set to 0
+        if: ${{ always() }}
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:$PATH"
+          DARSHAN_INSTALL=${GITHUB_WORKSPACE}/darshan_install
+          TODAY_DATE_PATH=`date "+%Y/%-m/%-d"`
+          DARSHAN_LOG_PATH=${GITHUB_WORKSPACE}/darshan_logs/${TODAY_DATE_PATH}
+          DARSHAN_LOG_FILE="${DARSHAN_LOG_PATH}/${USER}_mpi_file_write*"
+          DARSHAN_PARSER=${DARSHAN_INSTALL}/bin/darshan-parser
+
+          mkdir -p $DARSHAN_LOG_PATH
+          mpicc mpi_file_write.c -o mpi_file_write
+
+          export LD_PRELOAD=${DARSHAN_INSTALL}/lib/libdarshan.so
+
+          # test Darshan log parser
+          for iter in 1 2 3 4 5
+          do
+             rm -f testfie ${DARSHAN_LOG_FILE}
+             mpiexec --mca fbtl_posix_write_datasieving 0 --oversubscribe -n 4 ./mpi_file_write
+             echo "mpiexec --mca fbtl_posix_write_datasieving 0 --oversubscribe -n 4 ./mpi_file_write"
              EXPECT_NBYTE=`stat -c %s ./testfile`
 
              nbytes=`$DARSHAN_PARSER ${DARSHAN_LOG_FILE} | grep MPIIO_BYTES_WRITTEN | cut -f5`
