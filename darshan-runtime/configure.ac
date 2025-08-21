@@ -170,6 +170,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
       __DARSHAN_LOG_HINTS="$with_log_hints"
       GOT_LOG_HINTS=yes
    fi
+   __DARSHAN_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=4"
 
    AC_ARG_WITH([log-path],
       [AS_HELP_STRING([--with-log-path=DIR],
@@ -598,14 +599,6 @@ if test "x$enable_darshan_runtime" = xyes ; then
       AC_MSG_ERROR(must provide --with-jobid-env=<name> argument to configure.)
    fi
 
-   __DARSHAN_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=4"
-   if test "x$GOT_LOG_HINTS" != xyes ; then
-      dnl use default hints
-      AC_DEFINE_UNQUOTED([__DARSHAN_LOG_HINTS], "$__DARSHAN_LOG_HINTS_DEFAULT",
-                         [Comma-separated list of MPI-IO hints for log file write])
-      __DARSHAN_LOG_HINTS=$__DARSHAN_LOG_HINTS_DEFAULT
-   fi
-
    # checks to see how we can print 64 bit values on this architecture
    gt_INTTYPES_PRI
    if test "x$PRI_MACROS_BROKEN" = x1; then
@@ -690,8 +683,31 @@ if test "x$enable_darshan_runtime" = xyes ; then
          #error OPENMPI FOUND
          #endif
          ])],
-         [],
-      [AC_DEFINE(HAVE_OPEN_MPI, 1, Define if OpenMPI is being used)])
+         [is_ompi=0], [is_ompi=1])
+
+      if test "x$is_ompi" = x1 ; then
+         AC_DEFINE(HAVE_OPEN_MPI, 1, [Define if OpenMPI is being used])
+
+         dnl Check if version is 5.0.6 or later
+         AC_MSG_CHECKING([Check if OpenMPI version is 5.0.6 or later])
+         AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <mpi.h>
+#if (OMPI_MAJOR_VERSION*1000000 + OMPI_MINOR_VERSION*1000 + OMPI_RELEASE_VERSION < 5000006)
+      choke me
+#endif
+         ]])], [ompi_ge_5_0_6=1], [ompi_ge_5_0_6=0])
+         AC_MSG_RESULT([$ompi_ge_5_0_6])
+         AC_DEFINE_UNQUOTED(OMPI_GE_5_0_6, [$ompi_ge_5_0_6],
+                   [Define if OpenMPI version is 5.0.6 or later])
+      fi
+
+      if test "x$is_ompi" = x1 && test "x$ompi_ge_5_0_6" = x0 ; then
+         # OpenMPI 5.0.5 and priors contain a bug that can corrupt the Darshan
+         # log files. The bug is related to file locking protocols implemented
+         # when data sieving is enabled. Setting hint cb_nodes to 1 can avoid
+         # the bug, but may make writing log files slow.  For more information,
+         # see PR 1070, https://github.com/darshan-hpc/darshan/pull/1070
+         __DARSHAN_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=1"
+      fi
 
       # determine if the MPI library includes MPI-IO functions or not
       AC_MSG_CHECKING(for MPI-IO support in MPI)
@@ -775,6 +791,13 @@ if test "x$enable_darshan_runtime" = xyes ; then
    #
    # End of MPI-only checks
    #
+
+   if test "x$GOT_LOG_HINTS" != xyes ; then
+      dnl use default hints
+      AC_DEFINE_UNQUOTED([__DARSHAN_LOG_HINTS], "$__DARSHAN_LOG_HINTS_DEFAULT",
+                         [Comma-separated list of MPI-IO hints for log file write])
+      __DARSHAN_LOG_HINTS=$__DARSHAN_LOG_HINTS_DEFAULT
+   fi
 
    # Newer glibc implementations will redirect fscanf calls to
    # __isoc99_fscanf calls. To properly handle this, we detect the
@@ -868,6 +891,8 @@ AC_SUBST(HDF5_PATH, ["$with_hdf5"])
 AC_SUBST(PNETCDF_PATH, ["$with_pnetcdf"])
 AC_SUBST(DAOS_PATH, ["$with_daos"])
 AC_SUBST(LDMS_PATH, ["$LDMS_HOME"])
+AC_SUBST(HAVE_OPEN_MPI, ["$is_ompi"])
+AC_SUBST(OMPI_GE_5_0_6, ["$ompi_ge_5_0_6"])
 
 AM_CONDITIONAL(ENABLE_MMAP_LOGS,    [test "x$enable_mmap_logs"   = xyes])
 AM_CONDITIONAL(ENABLE_LDPRELOAD,    [test "x$enable_ld_preload"  = xyes])
