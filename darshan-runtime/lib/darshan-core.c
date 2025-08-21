@@ -489,19 +489,31 @@ void darshan_core_shutdown(int write_log)
      */
     int mmap_fd = open(final_core->mmap_log_name, O_RDONLY, 0644);
     if (mmap_fd != -1) {
-        int dup_mmap_fd;
+        int err, dup_mmap_fd;
         void *buf = (void*) malloc(final_core->mmap_size);
-        read(mmap_fd, buf, final_core->mmap_size);
-        close(mmap_fd);
+        ssize_t rlen = read(mmap_fd, buf, final_core->mmap_size);
+        if (rlen < 0)
+            darshan_core_fprintf(stderr, "darshan:log duplication read (%s)\n", strerror(errno));
+        err = close(mmap_fd);
+        if (err < 0)
+            darshan_core_fprintf(stderr, "darshan:log duplication close (%s)\n", strerror(errno));
         snprintf(dup_log_fame, strlen(final_core->mmap_log_name), "%s.dup",
                  final_core->mmap_log_name);
         dup_mmap_fd = open(dup_log_fame, O_CREAT | O_WRONLY, 0644);
         if (dup_mmap_fd != -1) {
-            write(dup_mmap_fd, buf, final_core->mmap_size);
-            close(dup_mmap_fd);
+            ssize_t wlen = write(dup_mmap_fd, buf, final_core->mmap_size);
+            if (wlen < 0)
+                darshan_core_fprintf(stderr, "darshan:log duplication write (%s)\n", strerror(errno));
+            err = close(dup_mmap_fd);
+            if (err < 0)
+                darshan_core_fprintf(stderr, "darshan:log duplication close (%s)\n", strerror(errno));
         }
+        else
+            darshan_core_fprintf(stderr, "darshan:log duplication open (%s)\n", strerror(errno));
         free(buf);
     }
+    else
+        darshan_core_fprintf(stderr, "darshan:log duplication open (%s)\n", strerror(errno));
 #endif
 
     final_core->comp_buf = malloc(final_core->config.mod_mem);
