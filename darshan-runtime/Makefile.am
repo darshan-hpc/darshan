@@ -5,7 +5,7 @@
 
 ACLOCAL_AMFLAGS = -I ../maint/config
 
-SUBDIRS = lib pkgconfig share
+SUBDIRS = lib pkgconfig share test
 
 bin_SCRIPTS = darshan-config \
               darshan-gen-cc.pl \

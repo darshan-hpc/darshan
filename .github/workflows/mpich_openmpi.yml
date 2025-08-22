@@ -1,0 +1,132 @@
+name: Test MPICH and OpenMPI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  MPICH_VERSION: 4.3.1
+  OPENMPI_VERSION: 5.0.8
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y
+      - name: Build MPICH
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          echo "Install MPICH ${MPICH_VERSION} in ${GITHUB_WORKSPACE}/MPICH"
+          rm -rf MPICH ; mkdir MPICH ; cd MPICH
+          wget -q https://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz
+          gzip -dc mpich-${MPICH_VERSION}.tar.gz | tar -xf -
+          cd mpich-${MPICH_VERSION}
+          ./configure --prefix=${GITHUB_WORKSPACE}/MPICH \
+                      --silent \
+                      --enable-romio \
+                      --with-file-system=ufs \
+                      --with-device=ch3:sock \
+                      --disable-fortran \
+                      CC=gcc
+          make -s LIBTOOLFLAGS=--silent V=1 -j 8 install > qout 2>&1
+          make -s -j 8 distclean >> qout 2>&1
+      - name: Build OPENMPI
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          echo "Install OPENMPI ${OPENMPI_VERSION} in ${GITHUB_WORKSPACE}/OPENMPI"
+          rm -rf OPENMPI ; mkdir OPENMPI ; cd OPENMPI
+          VER_MAJOR=${OPENMPI_VERSION%.*}
+          wget -q https://download.open-mpi.org/release/open-mpi/v${VER_MAJOR}/openmpi-${OPENMPI_VERSION}.tar.gz
+          gzip -dc openmpi-${OPENMPI_VERSION}.tar.gz | tar -xf -
+          cd openmpi-${OPENMPI_VERSION}
+          ./configure --prefix=${GITHUB_WORKSPACE}/OPENMPI \
+                      --silent \
+                      --with-io-romio-flags="--with-file-system=ufs" \
+                      --disable-mpi-cxx --disable-mpi-fortran \
+                      CC=gcc
+          make -s LIBTOOLFLAGS=--silent V=1 -j 8 install > qout 2>&1
+          make -s -j 8 distclean >> qout 2>&1
+      - name: Initialize Darshan
+        run: |
+          git submodule update --init
+          autoreconf -i
+      - name: Build Darshan using MPICH
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/MPICH/bin:${PATH}"
+          export DARSHAN_ROOT="${GITHUB_WORKSPACE}"
+          export DARSHAN_LOG_PATH="${GITHUB_WORKSPACE}/LOGS"
+          export DARSHAN_INSTALL="${GITHUB_WORKSPACE}/INSTALL"
+          export DARSHAN_BUILD="${GITHUB_WORKSPACE}/BUILD"
+          rm -rf ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD} ${DARSHAN_INSTALL}
+          mkdir -p ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD}
+          cd ${DARSHAN_BUILD}
+          $DARSHAN_ROOT/configure --prefix=${DARSHAN_INSTALL} \
+                                  --with-log-path=${DARSHAN_LOG_PATH} \
+                                  --with-jobid-env=NONE \
+                                  CC=mpicc RUNTIME_CC=mpicc UTIL_CC=gcc
+          make -s LIBTOOLFLAGS=--silent V=1 -j8
+          make -s install
+      - name: make check (MPICH)
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/MPICH/bin:${PATH}"
+          cd ${GITHUB_WORKSPACE}/BUILD
+          make check
+      - name: Print test log files (MPICH)
+        if: ${{ always() }}
+        run: |
+          cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log
+      - name: make check (MPICH) running 4 processes
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/MPICH/bin:${PATH}"
+          cd ${GITHUB_WORKSPACE}/BUILD
+          make check NP=4
+      - name: Print test log files (MPICH) running 4 processes
+        if: ${{ always() }}
+        run: |
+          cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log
+
+      - name: Build Darshan using OpenMPI
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:${PATH}"
+          export DARSHAN_ROOT="${GITHUB_WORKSPACE}"
+          export DARSHAN_LOG_PATH="${GITHUB_WORKSPACE}/LOGS"
+          export DARSHAN_INSTALL="${GITHUB_WORKSPACE}/INSTALL"
+          export DARSHAN_BUILD="${GITHUB_WORKSPACE}/BUILD"
+          rm -rf ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD} ${DARSHAN_INSTALL}
+          mkdir -p ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD}
+          cd ${DARSHAN_BUILD}
+          $DARSHAN_ROOT/configure --prefix=${DARSHAN_INSTALL} \
+                                  --with-log-path=${DARSHAN_LOG_PATH} \
+                                  --with-jobid-env=NONE \
+                                  CC=mpicc RUNTIME_CC=mpicc UTIL_CC=gcc
+          make -s LIBTOOLFLAGS=--silent V=1 -j8
+          make -s install
+      - name: make check (OpenMPI)
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:${PATH}"
+          cd ${GITHUB_WORKSPACE}/BUILD
+          make check
+      - name: Print test log files (OpenMPI)
+        if: ${{ always() }}
+        run: |
+          cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log
+      - name: make check (OpenMPI) running 4 processes
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:${PATH}"
+          cd ${GITHUB_WORKSPACE}/BUILD
+          make check NP=4
+      - name: Print test log files (OpenMPI) running 4 processes
+        if: ${{ always() }}
+        run: |
+          cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log
+
