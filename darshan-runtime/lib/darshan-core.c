@@ -489,6 +489,7 @@ void darshan_core_shutdown(int write_log)
      */
     int mmap_fd = open(final_core->mmap_log_name, O_RDONLY, 0644);
     if (mmap_fd != -1) {
+        char *dup_suffix = ".dup.darshan";
         int err, dup_mmap_fd;
         void *buf = (void*) malloc(final_core->mmap_size);
         ssize_t rlen = read(mmap_fd, buf, final_core->mmap_size);
@@ -497,8 +498,8 @@ void darshan_core_shutdown(int write_log)
         err = close(mmap_fd);
         if (err < 0)
             darshan_core_fprintf(stderr, "darshan:log duplication close (%s)\n", strerror(errno));
-        snprintf(dup_log_fame, strlen(final_core->mmap_log_name)+5, "%s.dup",
-                 final_core->mmap_log_name);
+        strncpy(dup_log_fame, final_core->mmap_log_name, __DARSHAN_PATH_MAX);
+        snprintf(strstr(dup_log_fame, ".darshan"), strlen(dup_suffix), "%s", dup_suffix);
         dup_mmap_fd = open(dup_log_fame, O_CREAT | O_WRONLY, 0644);
         if (dup_mmap_fd != -1) {
             ssize_t wlen = write(dup_mmap_fd, buf, final_core->mmap_size);
