@@ -682,7 +682,6 @@ if test "x$enable_darshan_runtime" = xyes ; then
          #error OPENMPI FOUND
          #endif
          ])],
-         [],
          [is_ompi=0], [is_ompi=1])
 
       if test "x$is_ompi" = x1 ; then
@@ -701,6 +700,9 @@ if test "x$enable_darshan_runtime" = xyes ; then
       fi
 
       if test "x$GOT_LOG_HINTS" != xyes ; then
+         # set default hints
+         __DARSHAN_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=4"
+
          if test "x$is_ompi" = x1 ; then
             # OpenMPI 5.0.5 and priors contain a bug that can corrupt the
             # Darshan log files. The bug is related to file locking protocols
@@ -724,12 +726,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
             # else
             #    __DARSHAN_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=4"
             # fi
-         else
-            __DARSHAN_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=4"
          fi
-         dnl use default hints
-         AC_DEFINE_UNQUOTED([__DARSHAN_LOG_HINTS], "$__DARSHAN_LOG_HINTS_DEFAULT",
-                            [Comma-separated list of MPI-IO hints for log file write])
          __DARSHAN_LOG_HINTS=$__DARSHAN_LOG_HINTS_DEFAULT
       fi
 
@@ -925,6 +922,10 @@ else
    have_mpi_io_large_count_apis=no
    is_ompi=0
 fi
+
+# __DARSHAN_LOG_HINTS is used by both MPI and non-MPI configurations
+AC_DEFINE_UNQUOTED([__DARSHAN_LOG_HINTS], "$__DARSHAN_LOG_HINTS",
+                   [Comma-separated list of MPI-IO hints for log file write])
 
 AC_SUBST(ENABLE_LD_PRELOAD, ["$enable_ld_preload"])
 AC_SUBST(ENABLE_CUSERID, ["$enable_cuserid"])
