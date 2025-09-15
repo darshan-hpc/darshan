@@ -330,6 +330,9 @@ straightforward method to apply transparently system-wide.  It works by
 injecting additional libraries and options into the linker command line to
 intercept relevant I/O calls.
 
+Using the Cray programming environment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 On Cray platforms you can enable the compile time instrumentation by simply
 loading the Darshan module.  It can then be enabled for all users by placing
 that module in the default environment. As of Darshan 3.2.0 this will
@@ -337,47 +340,9 @@ instrument both static and dynamic executables, while in previous versions of
 Darshan this was only sufficient for static executables.  See the Cray
 installation recipe for more details.
 
-For other general MPICH-based MPI implementations, you can generate
-Darshan-enabled variants of the standard mpicc/mpicxx/mpif90/mpif77 wrappers
-using the following commands:
-
- .. code-block:: bash
-
-    darshan-gen-cc.pl `which mpicc` --output mpicc.darshan
-    darshan-gen-cxx.pl `which mpicxx` --output mpicxx.darshan
-    darshan-gen-fortran.pl `which mpif77` --output mpif77.darshan
-    darshan-gen-fortran.pl `which mpif90` --output mpif90.darshan
-
-
-The resulting ``*.darshan`` wrappers will transparently inject Darshan
-instrumentation into the link step without any explicit user intervention.
-They can be renamed and placed in an appropriate PATH to enable automatic
-instrumentation.  This method also works correctly for both static and dynamic
-executables as of Darshan 3.2.0.
-
-For other systems you can enable compile-time instrumentation by either
-manually adding the appropriate link options to your command line or modifying
-your default MPI compiler script.  The ``darshan-config`` command line tool can
-be used to display the options that you should use:
-
- .. code-block:: bash
-
-    # Linker options to use for dynamic linking (default on most platforms)
-    #   These arguments should go *before* the MPI libraries in the underlying
-    #   linker command line to ensure that Darshan can be activated.  It should
-    #   also ideally go before other libraries that may issue I/O function calls.
-    darshan-config --dyn-ld-flags
-
-    # linker options to use for static linking
-    #   The first set of arguments should go early in the link command line
-    #   (before MPI, while the second set should go at the end of the link command
-    #   line
-    darshan-config --pre-ld-flags
-    darshan-config --post-ld-flags
-
 .. _Sec Use Profile:
 
-Using a profile configuration
+Using an MPICH profile configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The MPICH MPI implementation supports the specification of a profiling library
@@ -405,12 +370,36 @@ Examples for command line use:
     mpif90 -profile=$DARSHAN_PREFIX/share/mpi-profile/darshan-f <args>
 
 
-Note that unlike the previously described methods in this section, this method
-*will not* automatically adapt to static and dynamic linking options.  The
-example profile configurations show above only support dynamic linking.
+Note that this method *will not* automatically adapt to static and dynamic
+linking options.  The example profile configurations show above only support
+dynamic linking.
 
 Example profile configurations are also provided with a "-static" suffix if you
 need examples for static linking.
+
+Other systems
+^^^^^^^^^^^^^
+
+For other systems you can enable compile-time instrumentation by either
+manually adding the appropriate link options to your command line or
+modifying your default MPI compiler script.  The `darshan-config` command
+line tool can be used to display the options that you should use:
+
+ .. code-block:: bash
+
+    # Linker options to use for dynamic linking (default on most platforms)
+    #   These arguments should go *before* the MPI libraries in the underlying
+    #   linker command line to ensure that Darshan can be activated.  It should
+    #   also ideally go before other libraries that may issue I/O function calls.
+    darshan-config --dyn-ld-flags
+
+    # linker options to use for static linking
+    #   The first set of arguments should go early in the link command line
+    #   (before MPI, while the second set should go at the end of the link command
+    #   line
+    darshan-config --pre-ld-flags
+    darshan-config --post-ld-flags
+
 
 Option 2: Instrumenting MPI applications at runtime
 --------------------------------------------------------
@@ -982,11 +971,8 @@ using mpicc with GNU compilers to compile Darshan.
 
     ./configure --with-log-path=/darshan-logs --with-jobid-env=PBS_JOBID CC=mpicc
 
-
-The ``darshan-gen-*`` scripts described earlier in this document can be used to
-create variants of the standard mpicc/mpicxx/mpif77/mpif90 scripts that are
-Darshan enabled.  These scripts will work correctly for both dynamic and
-statically linked executables.
+The MPICH profile configuration method described earlier in this document
+can be used to add Darshan instrumentation to executables at compile time.
 
 Linux clusters using Intel MPI
 ----------------------------------------
