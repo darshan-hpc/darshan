@@ -701,14 +701,29 @@ if test "x$enable_darshan_runtime" = xyes ; then
       fi
 
       if test "x$GOT_LOG_HINTS" != xyes ; then
-         if test "x$is_ompi" = x1 && test "x$ompi_ge_5_0_6" = x0 ; then
+         if test "x$is_ompi" = x1 ; then
             # OpenMPI 5.0.5 and priors contain a bug that can corrupt the
             # Darshan log files. The bug is related to file locking protocols
             # implemented when data sieving is enabled. Setting hint cb_nodes
             # to 1 can avoid the bug, but may make writing log files slow.
             # For more information, see PR 1070,
             # https://github.com/darshan-hpc/darshan/pull/1070
-            __DARSHAN_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=1"
+            #
+            # However, 5.0.6 and later can cause serialization of file writes
+            # See https://github.com/open-mpi/ompi/issues/13376
+            # To mimize the performance impact of writing the log file, we set
+            # hint cb_nodes to 1.
+            #
+            # Note hint romio_no_indep_rw is an MPI thing, not implemented in
+            # OpenMPI.
+            #
+            __DARSHAN_LOG_HINTS_DEFAULT="cb_nodes=1"
+
+            # if test "x$ompi_ge_5_0_6" = x0 ; then
+            #    __DARSHAN_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=1"
+            # else
+            #    __DARSHAN_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=4"
+            # fi
          else
             __DARSHAN_LOG_HINTS_DEFAULT="romio_no_indep_rw=true;cb_nodes=4"
          fi
