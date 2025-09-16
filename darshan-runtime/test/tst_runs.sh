@@ -1,18 +1,10 @@
 #!/bin/bash
 
+# Note this script is run during "make check" and "make install" must
+# run before "make check".
+
 # Exit immediately if a command exits with a non-zero status.
 set -e
-
-TODAY_DATE_PATH=`date "+%Y/%-m/%-d"`
-TST_DARSHAN_LOG_PATH="${TST_DARSHAN_LOG_PATH}/${TODAY_DATE_PATH}"
-mkdir -p ${TST_DARSHAN_LOG_PATH}
-
-# check what file system is used
-echo "df -T ${TST_DARSHAN_LOG_PATH}"
-df -T ${TST_DARSHAN_LOG_PATH}
-
-echo "findmnt -n -o FSTYPE --target ${TST_DARSHAN_LOG_PATH}"
-findmnt -n -o FSTYPE --target ${TST_DARSHAN_LOG_PATH}
 
 if test "x$USERNAME_ENV" = xno ; then
    USERNAME_ENV=$USER
@@ -31,6 +23,36 @@ else
    DARSHAN_CONFIG=../../darshan-util/darshan-config
 fi
 echo "DARSHAN_CONFIG=$DARSHAN_CONFIG"
+echo ""
+
+TODAY_DATE_PATH=`date "+%Y/%-m/%-d"`
+LOG_PATH_ENV=`$DARSHAN_CONFIG --log-path-by-env`
+if test "x${LOG_PATH_ENV}" != x ; then
+   if test "x${!LOG_PATH_ENV}" = x ; then
+      echo ""
+      echo "Warning: ---------------------------------------------------------"
+      echo "    Darshan was configure with --log-path-by-env set to $LOG_PATH_ENV"
+      echo "    but this run-time environment variable is currently not set !"
+      echo "    Darshan now uses the path set in configure option of --log-path :"
+      echo "        $TST_DARSHAN_LOG_PATH"
+      echo "------------------------------------------------------------------"
+      echo ""
+      TST_DARSHAN_LOG_PATH="${TST_DARSHAN_LOG_PATH}/${TODAY_DATE_PATH}"
+   else
+      TST_DARSHAN_LOG_PATH="${!LOG_PATH_ENV}"
+   fi
+else
+   TST_DARSHAN_LOG_PATH="${TST_DARSHAN_LOG_PATH}/${TODAY_DATE_PATH}"
+fi
+echo "TST_DARSHAN_LOG_PATH=$TST_DARSHAN_LOG_PATH"
+mkdir -p ${TST_DARSHAN_LOG_PATH}
+
+# check what file system is used
+echo "df -T ${TST_DARSHAN_LOG_PATH}"
+df -T ${TST_DARSHAN_LOG_PATH}
+
+echo "findmnt -n -o FSTYPE --target ${TST_DARSHAN_LOG_PATH}"
+findmnt -n -o FSTYPE --target ${TST_DARSHAN_LOG_PATH}
 
 $DARSHAN_CONFIG --all
 
