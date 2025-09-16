@@ -108,6 +108,7 @@ static struct dxt_file_record_ref *dxt_posix_track_new_file_record(
     darshan_record_id rec_id);
 static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
     darshan_record_id rec_id);
+void annotate_trace_segment(char *extra_info_str);
 
 /* DXT output/cleanup routines for darshan-core */
 static void dxt_posix_output(
@@ -262,6 +263,7 @@ void dxt_posix_write(darshan_record_id rec_id, int64_t offset,
     rec_ref->write_traces[file_rec->write_count].length = length;
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
+    annotate_trace_segment(rec_ref->write_traces[file_rec->write_count].extra_info);
     file_rec->write_count += 1;
 
     DXT_UNLOCK();
@@ -307,6 +309,7 @@ void dxt_posix_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].length = length;
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
+    annotate_trace_segment(rec_ref->read_traces[file_rec->read_count].extra_info);
     file_rec->read_count += 1;
 
     DXT_UNLOCK();
@@ -352,6 +355,7 @@ void dxt_mpiio_write(darshan_record_id rec_id, int64_t offset,
     rec_ref->write_traces[file_rec->write_count].offset = offset;
     rec_ref->write_traces[file_rec->write_count].start_time = start_time;
     rec_ref->write_traces[file_rec->write_count].end_time = end_time;
+    annotate_trace_segment(rec_ref->write_traces[file_rec->write_count].extra_info);
     file_rec->write_count += 1;
 
     DXT_UNLOCK();
@@ -397,6 +401,7 @@ void dxt_mpiio_read(darshan_record_id rec_id, int64_t offset,
     rec_ref->read_traces[file_rec->read_count].offset = offset;
     rec_ref->read_traces[file_rec->read_count].start_time = start_time;
     rec_ref->read_traces[file_rec->read_count].end_time = end_time;
+    annotate_trace_segment(rec_ref->read_traces[file_rec->read_count].extra_info);
     file_rec->read_count += 1;
 
     DXT_UNLOCK();
@@ -758,6 +763,23 @@ static struct dxt_file_record_ref *dxt_mpiio_track_new_file_record(
     rec_ref->file_rec = file_rec;
 
     return(rec_ref);
+}
+
+void annotate_trace_segment(char *extra_info_str)
+{
+    char *extra_info_env = getenv("DARSHAN_DXT_EXTRA_INFO");
+    if (extra_info_env != NULL) {
+        strncpy(extra_info_str, extra_info_env, EXTRA_INFO_LEN-1);
+    } else {
+        extra_info_str[0] = '\0';
+    }
+    unsigned long pthread_id = (unsigned long)pthread_self();
+    if(strlen(extra_info_str))
+        strcat(extra_info_str, " ");
+    snprintf(extra_info_str + strlen(extra_info_str), EXTRA_INFO_LEN-1-strlen(extra_info_str),
+        "pthread_id=%lu", pthread_id);
+
+    return;
 }
 
 static void dxt_free_record_data(void *rec_ref_p, void *user_ptr)
