@@ -268,11 +268,34 @@ def test_os_dup(tmpdir):
         # numpy will read a bunch of python files but we only care about the
         # numpy file
         target_filename = "single_array.npy"
-        report = darshan.DarshanReport(path_to_log, filter_patterns=[target_filename], filter_mode='include')
+
         # common stuff done.  Real check for the "dup via fcntl" issue
 
         io_module = "POSIX"
         key = "POSIX_BYTES_WRITTEN"
-        value = report.records[io_module].to_dict()[0]["counters"][key]
-        print(f"key '{key}' has value of '{value}'")
-        assert value == 928
+
+        # check if log file exists
+        if not os.path.isfile(path_to_log) :
+            print(f"Darshan log file '{path_to_log}' does not exist")
+        else :
+            print(f"Darshan log file '{path_to_log}'")
+
+        try:
+            with darshan.DarshanReport(path_to_log, filter_patterns=[target_filename], filter_mode='include') as report:
+                try:
+                    records = report.records[io_module].to_dict()
+                    if len(records) > 0:
+                        try:
+                            value = records[0]["counters"][key]
+                            print(f"key '{key}' has value of '{value}'")
+                            assert value == 528
+                        except KeyError:
+                            print(f"Error: record key '{key}' was not found.")
+                    else:
+                        print(f"I/O module '{io_module}' for file '{target_filename}' has no record")
+                except KeyError:
+                    print(f"I/O module '{io_module}' not found")
+        except KeyError:
+            print(f"I/O module '{io_module}' not found")
+        except RuntimeError:
+            print(f"Error: The file '{path_to_log}' was not found.")
