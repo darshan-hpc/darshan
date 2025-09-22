@@ -8,6 +8,8 @@
 --wrap=dup
 --wrap=dup2
 --wrap=dup3
+--wrap=fcntl
+--wrap=fcntl64
 --wrap=mkstemp
 --wrap=mkostemp
 --wrap=mkstemps
