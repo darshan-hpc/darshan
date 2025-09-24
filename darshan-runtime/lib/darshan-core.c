@@ -2409,8 +2409,8 @@ static void darshan_core_reduce_max_time(void* in_time_v, void* inout_time_v,
 /* crude benchmarking hook into darshan-core to benchmark Darshan
  * shutdown overhead using a variety of application I/O workloads
  */
-extern void darshan_posix_shutdown_bench_setup();
-extern void darshan_mpiio_shutdown_bench_setup();
+extern void darshan_posix_shutdown_bench_setup(int);
+extern void darshan_mpiio_shutdown_bench_setup(int);
 #ifdef HAVE_MPI
 void darshan_shutdown_bench(int argc, char **argv)
 {
