@@ -231,3 +231,63 @@ def test_forked_process_mpi(tmpdir):
     # regression test for gh-786, mpi version
     darshan_install_path = os.environ.get("DARSHAN_INSTALL_PATH")
     do_forked_process_test(tmpdir, darshan_install_path)
+
+def test_os_dup(tmpdir):
+    # numpy calls Python's os.dup() which in turn was duplicating a file
+    # descriptor via fcntl
+    n_ranks = 1
+    root_path = os.environ.get("DARSHAN_ROOT_PATH")
+    darshan_install_path = os.environ.get("DARSHAN_INSTALL_PATH")
+    test_script_path = os.path.join(root_path,
+                                    "darshan-test",
+                                    "python_mpi_scripts",
+                                    "runtime_prog_issue_1072.py")
+    darshan_lib_path = os.path.join(darshan_install_path,
+                                    "lib",
+                                    "libdarshan.so")
+    hdf5_lib_path = os.environ.get("HDF5_LIB")
+
+    with tmpdir.as_cwd():
+        cwd = os.getcwd()
+        subprocess.check_output(["mpirun",
+                     "--allow-run-as-root",
+                     "-n",
+                     f"{n_ranks}",
+                     "-x",
+                     f"LD_PRELOAD={darshan_lib_path}:{hdf5_lib_path}",
+                     "-x",
+                     f"DARSHAN_LOGPATH={cwd}",
+                     "python",
+                     f"{test_script_path}"])
+
+        log_file_list = glob.glob("*.darshan")
+        # only a single log file should be generated
+        # by darshan
+        assert len(log_file_list) == 1
+        path_to_log = os.path.join(cwd, log_file_list[0])
+        # numpy will read a bunch of python files but we only care about the
+        # numpy file
+        target_filename = "single_array.npy"
+
+        # common stuff done.  Real check for the "dup via fcntl" issue
+
+        io_module = "POSIX"
+        key = "POSIX_BYTES_WRITTEN"
+
+        # check if log file exists
+        if not os.path.isfile(path_to_log) :
+            print(f"Darshan log file '{path_to_log}' does not exist")
+        else :
+            print(f"Darshan log file '{path_to_log}'")
+
+        try:
+            with darshan.DarshanReport(path_to_log, filter_patterns=[target_filename], filter_mode='include') as report:
+                # numpy will write the header (128 bytes) out via posix...
+                posix_records = report.records["POSIX"].to_dict()
+                # but flush its payload (50 8 byte ints: 400 bytes) with stdio (flush at fclose)
+                stdio_records = report.records["STDIO"].to_dict()
+                posix_bytes = posix_records[0]["counters"]["POSIX_BYTES_WRITTEN"]
+                stdio_bytes = stdio_records[0]["counters"]["STDIO_BYTES_WRITTEN"]
+                assert posix_bytes + stdio_bytes == 528
+        except RuntimeError:
+            print(f"Error: The file '{path_to_log}' was not found.")

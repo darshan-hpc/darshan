@@ -55,6 +55,8 @@ DARSHAN_FORWARD_DECL(creat64, int, (const char* path, mode_t mode));
 DARSHAN_FORWARD_DECL(dup, int, (int oldfd));
 DARSHAN_FORWARD_DECL(dup2, int, (int oldfd, int newfd));
 DARSHAN_FORWARD_DECL(dup3, int, (int oldfd, int newfd, int flags));
+DARSHAN_FORWARD_DECL(fcntl, int, (int, int, ...));
+DARSHAN_FORWARD_DECL(fcntl64, int, (int, int, ...));
 DARSHAN_FORWARD_DECL(fileno, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(mkstemp, int, (char *template));
 DARSHAN_FORWARD_DECL(mkostemp, int, (char *template, int flags));
@@ -787,6 +789,85 @@ int DARSHAN_DECL(dup3)(int oldfd, int newfd, int flags)
     return(ret);
 }
 
+/* wrapping fcntl is a little strange for two related reasons:
+ * - the code can do a lot of different things based on 'cmd'
+ * - some of those 'cmd' (not all) take a third argument
+ *
+ * There are some worrying notes in the documentation about calling va_args
+ * when there's no third (variable) argument, but we observed glibc doing that
+ * and our testing seems to indicate it's ok to do so.
+ *
+ * So we'll always grab the variable argument, even if it's not there, and
+ * always pass whatever we get to the real fcntl.  Then we'll figure out if the
+ * command was something we should log or not, and update our stats accordingly
+ */
+
+int DARSHAN_DECL(fcntl)(int fd, int cmd, ...)
+{
+    int ret;
+    double tm1, tm2;
+    va_list arg;
+    void *next;
+
+    MAP_OR_FAIL(fcntl);
+
+    va_start(arg, cmd);
+    next = va_arg(arg, void*);
+    va_end(arg);
+
+    tm1 = POSIX_WTIME();
+    ret  = __real_fcntl(fd, cmd, next);
+    tm2 = POSIX_WTIME();
+
+    struct posix_file_record_ref *rec_ref;
+
+    /* some code (e.g. python) prefers (portabilty? functionality?) to
+     * duplicate the file descriptor via fcntl instead of dup/dup2/dup3 */
+    if (ret >= 0 && (cmd == F_DUPFD || cmd == F_DUPFD_CLOEXEC)) {
+        POSIX_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash,
+                &fd, sizeof(fd));
+
+        POSIX_RECORD_REFOPEN(ret, rec_ref, tm1, tm2, POSIX_DUPS);
+        POSIX_POST_RECORD();
+    }
+
+    return ret;
+}
+
+int DARSHAN_DECL(fcntl64)(int fd, int cmd, ...)
+{
+    int ret;
+    double tm1, tm2;
+    va_list arg;
+    void *next;
+
+    MAP_OR_FAIL(fcntl64);
+
+    va_start(arg, cmd);
+    next = va_arg(arg, void*);
+    va_end(arg);
+
+    tm1 = POSIX_WTIME();
+    ret  = __real_fcntl64(fd, cmd, next);
+    tm2 = POSIX_WTIME();
+
+    struct posix_file_record_ref *rec_ref;
+
+    /* this is a duplicate of code in fcntl, but when I try to break this out
+     * into a separate 'fcntl_common' routine, POSIX_PRE_RECORD() macro cannot
+     * find the __darshan_disabled variable, and furthermore I get weird
+     * "failed to seek" errors. Am I going to have to make this a macro? */
+    if (ret >= 0 && (cmd == F_DUPFD || cmd == F_DUPFD_CLOEXEC)) {
+        POSIX_PRE_RECORD();
+        rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash,
+                &fd, sizeof(fd));
+        POSIX_RECORD_REFOPEN(ret, rec_ref, tm1, tm2, POSIX_DUPS);
+        POSIX_POST_RECORD();
+    }
+
+    return ret;
+}
 int DARSHAN_DECL(fileno)(FILE *stream)
 {
     int ret;
