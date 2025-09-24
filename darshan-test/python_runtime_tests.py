@@ -282,20 +282,12 @@ def test_os_dup(tmpdir):
 
         try:
             with darshan.DarshanReport(path_to_log, filter_patterns=[target_filename], filter_mode='include') as report:
-                try:
-                    records = report.records[io_module].to_dict()
-                    if len(records) > 0:
-                        try:
-                            value = records[0]["counters"][key]
-                            print(f"key '{key}' has value of '{value}'")
-                            assert value == 528
-                        except KeyError:
-                            print(f"Error: record key '{key}' was not found.")
-                    else:
-                        print(f"I/O module '{io_module}' for file '{target_filename}' has no record")
-                except KeyError:
-                    print(f"I/O module '{io_module}' not found")
-        except KeyError:
-            print(f"I/O module '{io_module}' not found")
+                # numpy will write the header (128 bytes) out via posix...
+                posix_records = report.records["POSIX"].to_dict()
+                # but flush its payload (50 8 byte ints: 400 bytes) with stdio (flush at fclose)
+                stdio_records = report.records["STDIO"].to_dict()
+                posix_bytes = posix_records[0]["counters"]["POSIX_BYTES_WRITTEN"]
+                stdio_bytes = stdio_records[0]["counters"]["STDIO_BYTES_WRITTEN"]
+                assert posix_bytes + stdio_bytes == 528
         except RuntimeError:
             print(f"Error: The file '{path_to_log}' was not found.")
