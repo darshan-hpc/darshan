@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
     struct darshan_mod_record_ref *mod_rec1, *mod_rec2;
     void *mod_buf1, *mod_buf2;
     struct darshan_base_record *base_rec1, *base_rec2;
-    char *file_name1, *file_name2;
+    char *file_name1=NULL, *file_name2=NULL;
     int i;
     int ret;
 
