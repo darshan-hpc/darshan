@@ -1120,7 +1120,7 @@ static void darshan_get_exe_and_mounts(struct darshan_core_runtime *core,
 static int darshan_should_instrument_app(struct darshan_core_runtime *core)
 {
     char *tmp_str;
-    char *app_name;
+    char *app_name=NULL;
     struct darshan_core_regex *app_regex;
     int app_excluded = 0, app_included = 0;
 
@@ -2064,7 +2064,8 @@ void darshan_log_finalize(char *logfile_name, double start_log_time)
         if(new_logfile_name)
         {
             /* copy partial log file name over to new string */
-            strncpy(new_logfile_name, logfile_name, __DARSHAN_PATH_MAX);
+            strncpy(new_logfile_name, logfile_name, __DARSHAN_PATH_MAX-1);
+            new_logfile_name[__DARSHAN_PATH_MAX-1] = '\0';
             /* retrieve current time stamp */
             end_log_time = darshan_core_wtime_absolute();
             /* find location of .darshan_partial extension */

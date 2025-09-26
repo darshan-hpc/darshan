@@ -653,7 +653,7 @@ static void darshan_log_agg_hdf5_files(void *rec, void *agg_rec, int init_flag)
                 break;
             case H5F_F_META_TIME:
                 /* sum */
-                agg_hdf5_rec->counters[i] += hdf5_rec->counters[i];
+                agg_hdf5_rec->fcounters[i] += hdf5_rec->fcounters[i];
                 break;
             default:
                 agg_hdf5_rec->fcounters[i] = -1;
