@@ -163,7 +163,8 @@ darshan_fd darshan_log_open(const char *name)
         free(tmp_fd);
         return(NULL);
     }
-    strncpy(tmp_fd->state->logfile_path, name, __DARSHAN_PATH_MAX);
+    strncpy(tmp_fd->state->logfile_path, name, __DARSHAN_PATH_MAX-1);
+    tmp_fd->state->logfile_path[__DARSHAN_PATH_MAX-1] = '\0';
 
     /* read the header from the log file to init fd data structures */
     ret = darshan_log_get_header(tmp_fd);
@@ -229,7 +230,8 @@ darshan_fd darshan_log_create(const char *name, enum darshan_comp_type comp_type
     }
     tmp_fd->state->creat_flag = 1;
     tmp_fd->partial_flag = partial_flag;
-    strncpy(tmp_fd->state->logfile_path, name, __DARSHAN_PATH_MAX);
+    strncpy(tmp_fd->state->logfile_path, name, __DARSHAN_PATH_MAX-1);
+    tmp_fd->state->logfile_path[__DARSHAN_PATH_MAX-1] = '\0';
 
     /* position file pointer to prealloc space for the log file header
      * NOTE: the header is written at close time, after all internal data
