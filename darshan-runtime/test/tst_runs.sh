@@ -29,8 +29,11 @@ echo ""
 
 TODAY_DATE_PATH=`date "+%Y/%-m/%-d"`
 LOG_PATH_ENV=`sh $DARSHAN_CONFIG --log-path-by-env`
+echo "LOG_PATH_ENV=$LOG_PATH_ENV"
+
 if test "x${LOG_PATH_ENV}" != x ; then
-   if test "x${!LOG_PATH_ENV}" = x ; then
+   TOKEN1=`echo ${LOG_PATH_ENV} | cut -d, -f1`
+   if test "x${!TOKEN1}" = x ; then
       echo ""
       echo "Warning: ---------------------------------------------------------"
       echo "    Darshan was configure with --log-path-by-env set to $LOG_PATH_ENV"
