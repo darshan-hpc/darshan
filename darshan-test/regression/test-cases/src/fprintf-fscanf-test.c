@@ -31,15 +31,14 @@ int main(int argc, char **argv)
    int namelen;
    char processor_name[MPI_MAX_PROCESSOR_NAME];
    FILE *file;
-   char buffer[128] = {0};
    int number = 0;
 
    /* startup MPI and determine the rank of this process */
    MPI_Init(&argc,&argv);
    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
    MPI_Comm_rank(MPI_COMM_WORLD, &mynod);
-   MPI_Get_processor_name(processor_name, &namelen); 
-   
+   MPI_Get_processor_name(processor_name, &namelen);
+
    /* parse the command line arguments */
    parse_args(argc, argv);
 
@@ -68,7 +67,7 @@ int main(int argc, char **argv)
 static int parse_args(int argc, char **argv)
 {
    int c;
-   
+
    while ((c = getopt(argc, argv, "f:")) != EOF) {
       switch (c) {
          case 'f': /* filename */
@@ -101,6 +100,6 @@ static void usage(void)
  *
  * vim: ts=3
  * End:
- */ 
+ */
 
 
