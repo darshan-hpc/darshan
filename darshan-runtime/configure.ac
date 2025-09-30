@@ -434,16 +434,24 @@ if test "x$enable_darshan_runtime" = xyes ; then
    # inform about PnetCDF installs not found in default locations
    AC_ARG_WITH([pnetcdf],
       [AS_HELP_STRING([--with-pnetcdf=DIR],
-                      [Installation directory for PnetCDF.])],
-      [], [with_pnetcdf=no]
+                      [Installation directory for PnetCDF.])]
    )
 
    # PnetCDF module (disabled by default)
    AC_ARG_ENABLE([pnetcdf-mod],
       [AS_HELP_STRING([--enable-pnetcdf-mod],
-                      [Enables compilation and use of PnetCDF module (requires MPI)])],
-      [], [enable_pnetcdf_mod=no]
+                      [Enables compilation and use of PnetCDF module (requires MPI)])]
    )
+
+   # When --with-pnetcdf is set, we automatically enable enable_pnetcdf_mod
+   if test "x$enable_pnetcdf_mod" = x ; then
+      if test "x$with_pnetcdf" != x ; then
+         enable_pnetcdf_mod=yes
+      else
+         enable_pnetcdf_mod=no
+      fi
+   fi
+
    if test "x$enable_pnetcdf_mod" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
          AC_MSG_ERROR([--enable-pnetcdf-mod is used but MPI feature is disabled])
