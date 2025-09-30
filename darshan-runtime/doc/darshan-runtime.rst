@@ -183,9 +183,10 @@ Compilation
   installation directory for PnetCDF
 
   .. note::
-     * Users must call ``--enable-pnetcdf-mod`` to enable PnetCDF modules,
-       ``--with-pnetcdf`` is only used to additionally provide a PnetCDF
-       install prefix.
+     * When ``--with-pnetcdf=DIR`` is set, building PnetCDF module is automatically
+       enabled.
+     * When ``--enable-pnetcdf-mod`` is set but not ``--with-pnetcdf=DIR``, Darshan
+       will search for the PnetCDF installation location available on the system.
      * PnetCDF instrumentation only works on PnetCDF library versions >= 1.8.
 * ``--disable-lustre-mod``: disables compilation and use of Darshan's Lustre
   module (default=enabled)
