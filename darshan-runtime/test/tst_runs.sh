@@ -20,13 +20,13 @@ echo "DARSHAN_PARSER=$DARSHAN_PARSER"
 if test -f $DARSHAN_INSTALL_DIR/bin/darshan-config ; then
    DARSHAN_CONFIG=$DARSHAN_INSTALL_DIR/bin/darshan-config
 else
-   DARSHAN_CONFIG=../../darshan-util/darshan-config
+   DARSHAN_CONFIG=../../darshan-runtime/darshan-config
 fi
 echo "DARSHAN_CONFIG=$DARSHAN_CONFIG"
 echo ""
 
 TODAY_DATE_PATH=`date "+%Y/%-m/%-d"`
-LOG_PATH_ENV=`$DARSHAN_CONFIG --log-path-by-env`
+LOG_PATH_ENV=`sh $DARSHAN_CONFIG --log-path-by-env`
 if test "x${LOG_PATH_ENV}" != x ; then
    if test "x${!LOG_PATH_ENV}" = x ; then
       echo ""
@@ -54,7 +54,7 @@ df -T ${TST_DARSHAN_LOG_PATH}
 echo "findmnt -n -o FSTYPE --target ${TST_DARSHAN_LOG_PATH}"
 findmnt -n -o FSTYPE --target ${TST_DARSHAN_LOG_PATH}
 
-$DARSHAN_CONFIG --all
+sh $DARSHAN_CONFIG --all
 
 # run NP number of MPI processes, default 2
 if test "x$NP" = x ; then
