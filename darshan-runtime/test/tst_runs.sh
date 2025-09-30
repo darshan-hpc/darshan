@@ -12,8 +12,10 @@ fi
 
 if test -f $DARSHAN_INSTALL_DIR/bin/darshan-parser ; then
    DARSHAN_PARSER=$DARSHAN_INSTALL_DIR/bin/darshan-parser
-else
+elif test -f ../../darshan-util/darshan-parser ; then
    DARSHAN_PARSER=../../darshan-util/darshan-parser
+else
+   DARSHAN_PARSER=
 fi
 echo "DARSHAN_PARSER=$DARSHAN_PARSER"
 
@@ -303,13 +305,17 @@ for exe in ${check_PROGRAMS} ; do
           echo "ls -l ${DARSHAN_LOG_FILE}"
           ls -l ${DARSHAN_LOG_FILE}
 
-          echo "parsing ${DARSHAN_LOG_FILE}"
-          EXPECT_NBYTE=`stat -c %s $TEST_FILE`
-          nbytes=`$DARSHAN_PARSER ${DARSHAN_LOG_FILE} | grep $DARSGAN_FIELD | cut -f5`
-          # echo "EXPECT_NBYTE=$EXPECT_NBYTE nbytes=$nbytes"
-          if test "x$nbytes" != "x$EXPECT_NBYTE" ; then
-             echo "Error: CMD=$CMD nbytes=$nbytes"
-             exit 1
+          if test "x$DARSHAN_PARSER" = x ; then
+             echo "Warning: darshan-parser is not available, skip test"
+          else
+             echo "parsing ${DARSHAN_LOG_FILE}"
+             EXPECT_NBYTE=`stat -c %s $TEST_FILE`
+             nbytes=`$DARSHAN_PARSER ${DARSHAN_LOG_FILE} | grep $DARSGAN_FIELD | cut -f5`
+             # echo "EXPECT_NBYTE=$EXPECT_NBYTE nbytes=$nbytes"
+             if test "x$nbytes" != "x$EXPECT_NBYTE" ; then
+                echo "Error: CMD=$CMD nbytes=$nbytes"
+                exit 1
+             fi
           fi
       done
 
@@ -325,12 +331,16 @@ for exe in ${check_PROGRAMS} ; do
           rm -f $DARSHAN_LOG_FILE
           $CMD
 
-          echo "parsing ${DARSHAN_LOG_FILE}"
-          nbytes=`$DARSHAN_PARSER ${DARSHAN_LOG_FILE} | grep $DARSGAN_FIELD | cut -f5`
-          # echo "EXPECT_NBYTE=$EXPECT_NBYTE nbytes=$nbytes"
-          if test "x$nbytes" != "x$EXPECT_NBYTE" ; then
-             echo "Error: CMD=$CMD nbytes=$nbytes"
-             exit 1
+          if test "x$DARSHAN_PARSER" = x ; then
+             echo "Warning: darshan-parser is not available, skip test"
+          else
+             echo "parsing ${DARSHAN_LOG_FILE}"
+             nbytes=`$DARSHAN_PARSER ${DARSHAN_LOG_FILE} | grep $DARSGAN_FIELD | cut -f5`
+             # echo "EXPECT_NBYTE=$EXPECT_NBYTE nbytes=$nbytes"
+             if test "x$nbytes" != "x$EXPECT_NBYTE" ; then
+                echo "Error: CMD=$CMD nbytes=$nbytes"
+                exit 1
+             fi
           fi
       done
    fi
