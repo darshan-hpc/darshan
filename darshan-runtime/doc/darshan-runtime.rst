@@ -209,8 +209,10 @@ Compilation
   installation directory for LDMS
 
   .. note::
-     * Users must use the configuration flags ``--enable-ldms-mod`` and
-       ``--with-ldms=DIR`` to enable runtime data collection via LDMS.
+     * When ``--with-ldms=DIR`` is set, building LDMS module is automatically
+       enabled.
+     * When ``--enable-ldms-mod`` is set but not ``--with-ldms=DIR``, Darshan
+       will search for the LDMS installation location available on the system.
      * To collect runtime I/O information from Darshan, you will need to
        configure, initialize, and connect to an LDMS streams daemon. For
        detailed instructions please visit
