@@ -167,9 +167,10 @@ Compilation
   installation directory for HDF5
 
   .. note::
-     * Users must call ``--enable-hdf5-mod`` to enable HDF5 modules,
-       ``--with-hdf5`` is only used to additionally provide an HDF5 install
-       prefix.
+     * When ``--with-hdf5=DIR`` is set, building HDF5 module is automatically
+       enabled.
+     * When ``--enable-hdf5-mod`` is set but not ``--with-hdf5=DIR``, Darshan
+       will search for the HDF5 installation location available on the system.
      * HDF5 instrumentation only works on HDF5 library versions >= 1.8, and
        further requires that the HDF5 library used to build Darshan and the
        HDF5 library being linked in either both be version >=1.10 or both be

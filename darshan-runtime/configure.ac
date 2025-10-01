@@ -346,16 +346,24 @@ if test "x$enable_darshan_runtime" = xyes ; then
    # inform about HDF5 installs not found in default locations
    AC_ARG_WITH([hdf5],
       [AS_HELP_STRING([--with-hdf5=DIR],
-                      [Installation directory for HDF5.])],
-      [], [with_hdf5=no]
+                      [Installation directory for HDF5.])]
    )
 
    # HDF5 module (disabled by default)
    AC_ARG_ENABLE([hdf5-mod],
       [AS_HELP_STRING([--enable-hdf5-mod],
-                      [Enables compilation and use of HDF5 module])],
-      [], [enable_hdf5_mod=no]
+                      [Enables compilation and use of HDF5 module])]
    )
+
+   # When --with-hdf5 is set, we automatically enable enable_hdf5_mod
+   if test "x$enable_hdf5_mod" = x ; then
+      if test "x$with_hdf5" != x ; then
+         enable_hdf5_mod=yes
+      else
+         enable_hdf5_mod=no
+      fi
+   fi
+
    if test "x$enable_hdf5_mod" = xyes ; then
       if test -d "$with_hdf5" ; then
          AC_PATH_PROG(H5DUMP_CHECK, h5dump, "no", "${with_hdf5}/bin")
