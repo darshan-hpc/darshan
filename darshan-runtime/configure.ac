@@ -603,13 +603,38 @@ if test "x$enable_darshan_runtime" = xyes ; then
          [], [AC_MSG_ERROR([mdhim requested but headers cannot be found])])
    fi
 
+   # inform about LDMS installs not found in default locations
+   AC_ARG_WITH([ldms],
+      [AS_HELP_STRING([--with-ldms@<:@=DIR@:>@],
+                      [Installation directory for LDMS.])]
+   )
+
    # LDMS support (disabled by default)
    AC_ARG_ENABLE([ldms-mod],
       [AS_HELP_STRING([--enable-ldms-mod],
-                      [Include LDMS for runtime I/O monitoring])],
-      [], [enable_ldms_mod=no]
+                      [Include LDMS for runtime I/O monitoring])]
    )
+
+   # When --with-ldms is set, we automatically enable enable_ldms_mod
+   if test "x$enable_ldms_mod" = x ; then
+      if test "x$with_ldms" != x ; then
+         enable_ldms_mod=yes
+      else
+         enable_ldms_mod=no
+      fi
+   fi
+
    if test "x$enable_ldms_mod" = xyes ; then
+      if test -d "$with_ldms"; then
+         LDMS_HOME="$with_ldms"
+         LDFLAGS="$LDFLAGS -L${LDMS_HOME}/lib -Wl,-rpath=${LDMS_HOME}/lib"
+         CPPFLAGS="$CPPFLAGS -I${LDMS_HOME}/include"
+         __DARSHAN_LDMS_LINK_FLAGS="-L${LDMS_HOME}/lib"
+         __DARSHAN_LDMS_INCLUDE_FLAGS="-I${LDMS_HOME}/include"
+      else
+         AC_MSG_ERROR([LDMS installation path, $with_ldms, is not found])
+      fi
+
       CHECK_LDMS
    fi
 
