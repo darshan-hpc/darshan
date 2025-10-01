@@ -197,9 +197,10 @@ Compilation
   installation directory for DAOS
 
   .. note::
-     Users must call ``--enable-daos-mod`` to enable DAOS modules,
-     ``--with-daos`` is only used to additionally provide a DAOS install
-     prefix.
+     * When ``--with-daos=DIR`` is set, building DAOS module is automatically
+       enabled.
+     * When ``--enable-daos-mod`` is set but not ``--with-daos=DIR``, Darshan
+       will search for the DAOS installation location available on the system.
 * ``--enable-mdhim-mod``: enables compilation and use of Darshan's MDHIM module
   (default=disabled)
 * ``--enable-ldms-mod``:  enables compilation and use of Darshan’s LDMS runtime

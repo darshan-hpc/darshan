@@ -506,16 +506,24 @@ if test "x$enable_darshan_runtime" = xyes ; then
    # inform about DAOS installs not found in default locations
    AC_ARG_WITH([daos],
       [AS_HELP_STRING([--with-daos@<:@=DIR@:>@],
-                      [Installation directory for DAOS.])],
-      [], [with_daos=no]
+                      [Installation directory for DAOS.])]
    )
 
    # DAOS module (disabled by default)
    AC_ARG_ENABLE([daos-mod],
       [AS_HELP_STRING([--enable-daos-mod],
-                      [Enables compilation and use of DAOS module])],
-      [], [enable_daos_mod=no]
+                      [Enables compilation and use of DAOS module])]
    )
+
+   # When --with-daos is set, we automatically enable enable_daos_mod
+   if test "x$enable_daos_mod" = x ; then
+      if test "x$with_daos" != x ; then
+         enable_daos_mod=yes
+      else
+         enable_daos_mod=no
+      fi
+   fi
+
    if test "x$enable_daos_mod" = xyes ; then
       AC_CHECK_HEADERS(m4_normalize([daos_types.h daos_prop.h daos_pool.h daos_cont.h
 				     daos_obj.h daos_array.h daos_fs.h]),
