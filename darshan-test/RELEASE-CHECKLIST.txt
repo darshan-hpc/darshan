@@ -10,7 +10,10 @@ Notes on how to release a new version of Darshan
     on the ALCF GitLab CI instance
  3) make sure that documentation on Read the Docs is up to date.  See
     instructions in readthedocs/DEVELOPER_NOTES.md
- 4) update the Changelog, if needed (browse git log since last release)
+ 4) update file "ChangeLog", if needed (browse git log since last release)
+    - When using Github release mechanism, it has a nice feature to generated a
+      list of merged PRs, which can be copied to file ChangeLog. See 12) below.
+      You may want to first create a dummy release to see this note first.
     - commit
  5) update version number in top-level darshan.version file
     - See below for the guideline of setting the version number.
@@ -38,27 +41,38 @@ Notes on how to release a new version of Darshan
 10) make a tag for the release according to instructions at
     http://git-scm.com/book/en/Git-Basics-Tagging
     - example (annotated tag, pushed to repo):
-      git tag -a darshan-2.3.1 -m 'Darshan 2.3.1'
-      git push origin darshan-2.3.1
+      git tag -a 3.5.0 -m 'Darshan 3.5.0'
+      git push origin 3.5.0
     - NOTE: update the above to reflect the tag format needed by Read the
       Docs
 11) manually create the release tarball
-    - do a fresh checkout of the Darshan release tag
-      git clone --branch darshan-2.3.1 \
-      https://github.com/darshan-hpc/darshan.git darshan-2.3.1
-    - make sure to pull in AutoPerf submodule
+    - Make sure to update the AutoPerf submodule
       git submodule update --init
-    - remove all .git files/directories in the top-level of the repo
-    - create release tarball
-      tar -czvf darshan-2.3.1.tar.gz /path/to/darshan-2.3.1
-    - upload tarball to CELS server
-      scp darshan-2.3.1.tar.gz user@homes.cels.anl.gov:/nfs/pub_html/gce/projects/darshan/releases/
-12) update download page on darshan web site: www.mcs.anl.gov/darshan/download
-13) update darshan-runtime and darshan-util Spack packages with new release
+    - Run "configure" to generate necessary autotools files
+    - Run "make dist", which generates a tar ball, named darshan-3.5.0.tar.gz
+12) create a new release on github.com
+    - On Darshan repo home, click "Create a new release" on the right.
+    - Select Tag to be "3.5.0"
+    - Add release title to be "3.5.0". This must be in the form of
+      MAJOR.MINOR.PATCH
+    - Under Release notes, select Previous tag, say "3.4.7.1"
+    - Click "Generate release notes", which will populate a list of PRs merged
+      since previous tag.
+    - Edit the populated release note to remove or add contents if necessary.
+    - Click "Attach binaries" and add the release tar ball created in Step 11
+      above.
+    - Click "Save draft" to edit later. (Drafts will not be seen by the public.)
+      In case a draft needs updates, use git commands below.
+      + `git tag -f 3.5.0 HEAD` to force an update to an existing tag.
+      + `git push -f origin 3.5.0` to force pushed to remote repo at github.com
+      + Then visit Darshan repo at github.com and edit the draft.
+    - When ready for the release, click "Publish release" to make a release.
+13) update download page on darshan web site: www.mcs.anl.gov/darshan/download
+14) update darshan-runtime and darshan-util Spack packages with new release
     - consider whether new variants should be exposed based on new features
       enabled by the release
     - commit, submit PR to upstream Spack repository
-14) announce on web page (new post) and mailing list
+15) announce on web page (new post) and mailing list
 
 ----
 ## Setting the release version number
