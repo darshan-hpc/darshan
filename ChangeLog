@@ -2,6 +2,101 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.5.0
+=============
+
+## Highlights of some significant changes from the previous release.
++ Darshan's documentation has moved to [readthedocs.io](https://darshan.readthedocs.io/en/stable/)
++ Support large-count MPI-IO APIs introduced in MPI 4.0.
++ Change the default mode of mmap I/O data to log file to enable.
++ Fixed an issue of capturing I/O activities of NumPy programs.
++ Adds a command-line option `--version` to print Darshan version for all utility tools.
++ Bug fixes to handling of DAOS metrics in PyDarshan and the job summary command line tool.
++ Enhancements to the job_stats and file_stats command line tools:
+  * Adds new performance metrics of I/O bandwidth by slowest, I/O time by slowest, and total bytes.
+  * Adds job and file levels of statistics for DAOS and DFS modules.
+
+## What's Changed
+* Github action: remove setuptools version constrain by @wkliao in
+  https://github.com/darshan-hpc/darshan/pull/1041
+* TYP: Disable NumPy's deprecated mypy plugin by @tylerjereddy in
+  https://github.com/darshan-hpc/darshan/pull/1038
+* note how to preview documentation updates by @carns in
+  https://github.com/darshan-hpc/darshan/pull/1042
+* clang20 cleanups by @roblatham00 in
+  https://github.com/darshan-hpc/darshan/pull/1035
+* revise landing page by @carns in
+  https://github.com/darshan-hpc/darshan/pull/1043
+* Readthedocs: note on difference between latest and stable versions by
+  @wkliao in https://github.com/darshan-hpc/darshan/pull/1045
+* experimenting with modifying css for table by @carns in
+  https://github.com/darshan-hpc/darshan/pull/1046
+* BUG: correct DAOS and DFS layout in dataframe repacking that is consumed by
+  the logutils accumulator API by @orcunyildiz in
+  https://github.com/darshan-hpc/darshan/pull/1048
+* Added I/O performance metrics to file_stats by @safaad in
+  https://github.com/darshan-hpc/darshan/pull/1036
+* Fix doc for Spack installation by @blastmaster in
+  https://github.com/darshan-hpc/darshan/pull/1050
+* add command-line option --version to print Darshan version by @wkliao in
+  https://github.com/darshan-hpc/darshan/pull/1051
+* Change mmap I/O default mode to enable by @wkliao in
+  https://github.com/darshan-hpc/darshan/pull/1055
+* remove duplicated entries appeared in darshan-mpiio-ld-opts by @wkliao in
+  https://github.com/darshan-hpc/darshan/pull/1058
+* darshan-config: add a complete list of options configured by @wkliao in
+  https://github.com/darshan-hpc/darshan/pull/1054
+* Add 4 missing MPI-IO APIs by @wkliao in
+  https://github.com/darshan-hpc/darshan/pull/1059
+* release checklist: add versioning guide line by @wkliao in
+  https://github.com/darshan-hpc/darshan/pull/1061
+* avoid div by zero in cli tools when there is no I/O by @carns in
+  https://github.com/darshan-hpc/darshan/pull/1069
+* ENH: add DAOS and DFS modules to job_stats and file_stats cli tools by
+  @orcunyildiz in https://github.com/darshan-hpc/darshan/pull/1065
+* support MPI-IO large count APIs by @wkliao in
+  https://github.com/darshan-hpc/darshan/pull/1060
+* remove deprecated asciidoc documentation by @carns in
+  https://github.com/darshan-hpc/darshan/pull/1073
+* Set default MPI-IO hint cb_nodes to 1 when using OpenMPI 5.0.5 and priors by
+  @wkliao in https://github.com/darshan-hpc/darshan/pull/1071
+* deprecate wrapper generators by @carns in
+  https://github.com/darshan-hpc/darshan/pull/1039
+* Wrap fcntl() calls by @roblatham00 in
+  https://github.com/darshan-hpc/darshan/pull/1075
+* Strictness fix for new compilers by @bnicolae in
+  https://github.com/darshan-hpc/darshan/pull/1076
+* Clean up some compiler warnings by @roblatham00 in
+  https://github.com/darshan-hpc/darshan/pull/1078
+* Minor fixes by @wkliao in https://github.com/darshan-hpc/darshan/pull/1080
+* Setting --with-pnetcdf automatically enables enable_pnetcdf_mod by @wkliao
+  in https://github.com/darshan-hpc/darshan/pull/1079
+* DOC: add missing configure options to user guides by @wkliao in
+  https://github.com/darshan-hpc/darshan/pull/1084
+* Add pnetcdf lib to --dyn-ld-flags by @wkliao in
+  https://github.com/darshan-hpc/darshan/pull/1085
+* Patch darshan-apmpi.c and add Github CI to test autoperf by @wkliao in
+  https://github.com/darshan-hpc/darshan/pull/1082
+* fix compile warning of shadowing a previous local [-Wshadow] by @wkliao in
+  https://github.com/darshan-hpc/darshan/pull/1083
+* fix papi library path lookup by @wkliao in
+  https://github.com/darshan-hpc/darshan/pull/1086
+
+## New Contributors
+* @roblatham00 made their first contribution in
+https://github.com/darshan-hpc/darshan/pull/1035
+* @orcunyildiz made their first contribution in
+https://github.com/darshan-hpc/darshan/pull/1048
+* @safaad made their first contribution in
+https://github.com/darshan-hpc/darshan/pull/1036
+* @blastmaster made their first contribution in
+https://github.com/darshan-hpc/darshan/pull/1050
+* @bnicolae made their first contribution in
+https://github.com/darshan-hpc/darshan/pull/1076
+
+**Full Changelog**:
+https://github.com/darshan-hpc/darshan/compare/3.4.7.1...3.5.0
+
 Darshan-3.4.7
 =============
 * added extensive instrumentation of DAOS's file system (DFS) and native object
