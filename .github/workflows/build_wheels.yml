@@ -35,7 +35,7 @@ jobs:
         run: |
           set -xe
           COMMIT_MSG=$(git log --no-merges -1 --oneline)
-          echo "::set-output name=message::$COMMIT_MSG"
+          echo "message=$COMMIT_MSG" >> $GITHUB_OUTPUT
           echo github.ref ${{ github.ref }}
 
   build_wheels:

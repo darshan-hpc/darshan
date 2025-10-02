@@ -7,19 +7,28 @@ Notes on how to release a new version of PyDarshan
     (- source venv/bin/activate)
     (- pip install .[dev,test]    # deps for packaging, testing, and docs generation)
 
- - Update CHANGELOG.rst
-    - commit
+ - About updating CHANGELOG.rst
+    - Since version 3.5.0, pydarshan released as a part of Darshan package, the
+      change history should go to `ChangeLog` at root folder.
  - Update version numbers in:
     darshan/__init__.py
- - determine whether new job summary tool features warrant generating a new summary report to include in docs
-     (stored @ /nfs/pub_html/gce/projects/darshan/docs/example_report.html)
+ - About the pydarshan documents
+    - Since version 3.5.0, all Darshan documents have been moved to
+      readthedocs.io and are updated every time a new commit is pushed to the
+      main branch.
 
  - Submit to PyPI using cibuildwheel/twine:
     - pipx run build --sdist
         (in the pydarshan directory, creates a source distribution)
     - download wheel artifacts from GitHub, copy to 'dist/' directory created above
-        (click on Actions in GitHub, find most recent "Build Wheels" workflow run with artifacts)
-        (download artifact zip (called 'pydarshan-wheels-all'), extract wheels to 'dist/' directory)
+        + Click on Actions in GitHub. On the left panel, click "Build Wheels".
+        + Click on "Run workflow" to generate the artifacts. This will take about an hour.
+        + Click on the latest workflow run named "Build Wheels"
+        + At the bottom section, click the download icon to the right of
+          'pydarshan-wheels-all' to download the artifact zip file, named
+          'pydarshan-wheels-all.zip'.
+        + Copy the zip file to to 'dist/' directory and run command 'unzip' to
+          extract the wheel files.
     - pipx run twine upload dist/*
         (requires PyPI credentials for darshan project)
         (use '--repository testpypi' to test wheels using https://test.pypi.org/project/darshan/ before uploading to PyPI)
