@@ -8,8 +8,12 @@ AM_CPPFLAGS  = -I$(top_builddir)
 check_PROGRAMS =
 
 if BUILD_MPIIO_MODULE
-   check_PROGRAMS += tst_mpi_io
+   check_PROGRAMS += tst_mpi_init \
+                     tst_mpi_io
+
+   tst_mpi_init_SOURCES = tst_mpi_init.c
    tst_mpi_io_SOURCES = tst_mpi_io.c
+
    TESTS = tst_runs.sh
 else
    TESTS =
