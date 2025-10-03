@@ -95,6 +95,79 @@ jobs:
         run: |
           cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log
 
+      - name: Build Darshan using MPICH --enable-apmpi-mod
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/MPICH/bin:${PATH}"
+          export DARSHAN_ROOT="${GITHUB_WORKSPACE}"
+          export DARSHAN_LOG_PATH="${GITHUB_WORKSPACE}/LOGS"
+          export DARSHAN_INSTALL="${GITHUB_WORKSPACE}/INSTALL"
+          export DARSHAN_BUILD="${GITHUB_WORKSPACE}/BUILD"
+          rm -rf ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD} ${DARSHAN_INSTALL}
+          mkdir -p ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD}
+          cd ${DARSHAN_BUILD}
+          $DARSHAN_ROOT/configure --prefix=${DARSHAN_INSTALL} \
+                                  --with-log-path=${DARSHAN_LOG_PATH} \
+                                  --with-jobid-env=NONE \
+                                  --enable-apmpi-mod \
+                                  CC=mpicc RUNTIME_CC=mpicc UTIL_CC=gcc
+          make -s LIBTOOLFLAGS=--silent V=1 -j8
+          make -s install
+      - name: make check (MPICH) --enable-apmpi-mod
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/MPICH/bin:${PATH}"
+          cd ${GITHUB_WORKSPACE}/BUILD
+          make check
+      - name: Print test log files (MPICH) --enable-apmpi-mod
+        if: ${{ always() }}
+        run: |
+          cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log
+      - name: make check (MPICH) running 4 processes --enable-apmpi-mod
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/MPICH/bin:${PATH}"
+          cd ${GITHUB_WORKSPACE}/BUILD
+          make check NP=4
+      - name: Print test log files (MPICH) running 4 processes --enable-apmpi-mod
+        if: ${{ always() }}
+        run: |
+          cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log
+
+      - name: Build Darshan using MPICH --enable-apmpi-mod --enable-apmpi-coll-sync
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/MPICH/bin:${PATH}"
+          export DARSHAN_ROOT="${GITHUB_WORKSPACE}"
+          export DARSHAN_LOG_PATH="${GITHUB_WORKSPACE}/LOGS"
+          export DARSHAN_INSTALL="${GITHUB_WORKSPACE}/INSTALL"
+          export DARSHAN_BUILD="${GITHUB_WORKSPACE}/BUILD"
+          rm -rf ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD} ${DARSHAN_INSTALL}
+          mkdir -p ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD}
+          cd ${DARSHAN_BUILD}
+          $DARSHAN_ROOT/configure --prefix=${DARSHAN_INSTALL} \
+                                  --with-log-path=${DARSHAN_LOG_PATH} \
+                                  --with-jobid-env=NONE \
+                                  --enable-apmpi-mod \
+                                  --enable-apmpi-coll-sync \
+                                  CC=mpicc RUNTIME_CC=mpicc UTIL_CC=gcc
+          make -s LIBTOOLFLAGS=--silent V=1 -j8
+          make -s install
+      - name: make check (MPICH) --enable-apmpi-mod --enable-apmpi-coll-sync
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/MPICH/bin:${PATH}"
+          cd ${GITHUB_WORKSPACE}/BUILD
+          make check
+      - name: Print test log files (MPICH) --enable-apmpi-mod --enable-apmpi-coll-sync
+        if: ${{ always() }}
+        run: |
+          cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log
+      - name: make check (MPICH) running 4 processes --enable-apmpi-mod --enable-apmpi-coll-sync
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/MPICH/bin:${PATH}"
+          cd ${GITHUB_WORKSPACE}/BUILD
+          make check NP=4
+      - name: Print test log files (MPICH) running 4 processes --enable-apmpi-mod --enable-apmpi-coll-sync
+        if: ${{ always() }}
+        run: |
+          cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log
+
       - name: Build Darshan using OpenMPI
         run: |
           export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:${PATH}"
@@ -126,6 +199,79 @@ jobs:
           cd ${GITHUB_WORKSPACE}/BUILD
           make check NP=4
       - name: Print test log files (OpenMPI) running 4 processes
+        if: ${{ always() }}
+        run: |
+          cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log
+
+      - name: Build Darshan using OpenMPI --enable-apmpi-mod
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:${PATH}"
+          export DARSHAN_ROOT="${GITHUB_WORKSPACE}"
+          export DARSHAN_LOG_PATH="${GITHUB_WORKSPACE}/LOGS"
+          export DARSHAN_INSTALL="${GITHUB_WORKSPACE}/INSTALL"
+          export DARSHAN_BUILD="${GITHUB_WORKSPACE}/BUILD"
+          rm -rf ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD} ${DARSHAN_INSTALL}
+          mkdir -p ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD}
+          cd ${DARSHAN_BUILD}
+          $DARSHAN_ROOT/configure --prefix=${DARSHAN_INSTALL} \
+                                  --with-log-path=${DARSHAN_LOG_PATH} \
+                                  --with-jobid-env=NONE \
+                                  --enable-apmpi-mod \
+                                  CC=mpicc RUNTIME_CC=mpicc UTIL_CC=gcc
+          make -s LIBTOOLFLAGS=--silent V=1 -j8
+          make -s install
+      - name: make check (OpenMPI) --enable-apmpi-mod
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:${PATH}"
+          cd ${GITHUB_WORKSPACE}/BUILD
+          make check
+      - name: Print test log files (OpenMPI) --enable-apmpi-mod
+        if: ${{ always() }}
+        run: |
+          cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log
+      - name: make check (OpenMPI) running 4 processes --enable-apmpi-mod
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:${PATH}"
+          cd ${GITHUB_WORKSPACE}/BUILD
+          make check NP=4
+      - name: Print test log files (OpenMPI) running 4 processes --enable-apmpi-mod
+        if: ${{ always() }}
+        run: |
+          cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log
+
+      - name: Build Darshan using OpenMPI --enable-apmpi-mod --enable-apmpi-coll-sync
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:${PATH}"
+          export DARSHAN_ROOT="${GITHUB_WORKSPACE}"
+          export DARSHAN_LOG_PATH="${GITHUB_WORKSPACE}/LOGS"
+          export DARSHAN_INSTALL="${GITHUB_WORKSPACE}/INSTALL"
+          export DARSHAN_BUILD="${GITHUB_WORKSPACE}/BUILD"
+          rm -rf ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD} ${DARSHAN_INSTALL}
+          mkdir -p ${DARSHAN_LOG_PATH} ${DARSHAN_BUILD}
+          cd ${DARSHAN_BUILD}
+          $DARSHAN_ROOT/configure --prefix=${DARSHAN_INSTALL} \
+                                  --with-log-path=${DARSHAN_LOG_PATH} \
+                                  --with-jobid-env=NONE \
+                                  --enable-apmpi-mod \
+                                  --enable-apmpi-coll-sync \
+                                  CC=mpicc RUNTIME_CC=mpicc UTIL_CC=gcc
+          make -s LIBTOOLFLAGS=--silent V=1 -j8
+          make -s install
+      - name: make check (OpenMPI) --enable-apmpi-mod --enable-apmpi-coll-sync
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:${PATH}"
+          cd ${GITHUB_WORKSPACE}/BUILD
+          make check
+      - name: Print test log files (OpenMPI) --enable-apmpi-mod --enable-apmpi-coll-sync
+        if: ${{ always() }}
+        run: |
+          cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log
+      - name: make check (OpenMPI) running 4 processes --enable-apmpi-mod --enable-apmpi-coll-sync
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/OPENMPI/bin:${PATH}"
+          cd ${GITHUB_WORKSPACE}/BUILD
+          make check NP=4
+      - name: Print test log files (OpenMPI) running 4 processes --enable-apmpi-mod --enable-apmpi-coll-sync
         if: ${{ always() }}
         run: |
           cat ${GITHUB_WORKSPACE}/BUILD/darshan-runtime/test/tst_runs.log

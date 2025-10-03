@@ -57,7 +57,7 @@ fi
 dnl must configure subpackages even if they are not built
 AC_CONFIG_SUBDIRS([darshan-util])
 
-AC_CONFIG_FILES(Makefile)
+AC_CONFIG_FILES(Makefile modules/Makefile)
 
 AC_OUTPUT
 
