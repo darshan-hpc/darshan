@@ -1,0 +1,27 @@
+--- darshan-apmpi.c.orig	2025-10-03 14:11:57.395296967 -0500
++++ darshan-apmpi.c	2025-10-03 14:22:12.684565527 -0500
+@@ -29,14 +29,16 @@
+ #define TIME_SYNC(FUNC) \
+           double tm1, tm2, tm3, tdiff, tsync;\
+           int ret; \
+-          MAP_OR_FAIL(PMPI_Barrier);\
+-          tm1 = APMPI_WTIME(); \
+-          ret = __real_PMPI_Barrier(comm); \
+-          tm2 = APMPI_WTIME(); \
+-          ret = FUNC; \
+-          tm3 = APMPI_WTIME(); \
+-          tdiff = tm3-tm2; \
+-          tsync = tm2-tm1
++          { \
++              MAP_OR_FAIL(PMPI_Barrier);\
++              tm1 = APMPI_WTIME(); \
++              ret = __real_PMPI_Barrier(comm); \
++              tm2 = APMPI_WTIME(); \
++              ret = FUNC; \
++              tm3 = APMPI_WTIME(); \
++              tdiff = tm3-tm2; \
++              tsync = tm2-tm1; \
++          }
+ #else
+ 
+ #define TIME_SYNC(FUNC) \
