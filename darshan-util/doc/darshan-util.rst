@@ -40,15 +40,23 @@ Compilation and installation
 
 **Configure and build example**
 
-.. code-block:: bash
+* When using the release tar ball:
 
-   tar -xvzf darshan-<version-number>.tar.gz
-   cd darshan-<version-number>/
-   ./prepare.sh
-   cd darshan-util/
-   ./configure
-   make
-   make install
+  .. code-block:: bash
+
+     tar -xvzf darshan-<version-number>.tar.gz
+     ./configure
+     make -j 8 install
+
+* When cloning from Darshan's reposatory from Github.com:
+
+  .. code-block:: bash
+
+     git clone https://github.com/darshan-hpc/darshan.git
+     cd darshan
+     autoreconf -i
+     ./configure
+     make -j 8 install
 
 The darshan-util package is intended to be used on a login node or workstation.
 For most use cases this means that you should either leave ``CC`` to its
@@ -63,23 +71,37 @@ alternative paths for zlib and libbz2 development libraries.  darshan-util also
 supports VPATH or "out-of-tree" builds if you prefer that method of
 compilation.
 
-The ``--enable-shared`` argument to configure can be used to enable compilation
-of a shared version of the darshan-util library.
+**Explanation of configure arguments:**
 
-The ``--enable-apmpi-mod`` and ``--enable-apxc-mod`` configure arguments must
-be specified to build darshan-util with support for AutoPerf APMPI and APXC
-modules, respectively.
+* ``--disable-darshan-runtime``: Build without Darshan runtime libraries
+  (default: enable).
+* ``--disable-shared``: Build without a shared version of the darshan-util
+  library (default: enable).
+* ``--enable-apmpi-mod``: Build darshan-util with support for AutoPerf APMPI
+  modules (default: disable).
+* ``--enable-apxc-mod``: Build darshan-util with support for AutoPerf APXC
+  modules (default: disable).
 
-.. note::
-   AutoPerf log analysis code is provided as Git submodules to Darshan's main
-   repository, so if building Darshan source that has been cloned from Git, it
-   is necessary to first retrieve the AutoPerf submodules by running the
-   following command:
+  .. note::
+     AutoPerf log analysis code is provided as Git submodules to Darshan's main
+     repository, so if building Darshan source that has been cloned from Git,
+     it is necessary to first retrieve the AutoPerf submodules by running the
+     following command:
 
-   .. code-block:: bash
+     .. code-block:: bash
 
-      git submodule update --init
-
+        git submodule update --init
+* ``--enable-pydarshan``: Build pydarshan module and tools (default: disable).
+* ``--with-zlib=DIR``: root directory path of zlib installation (default:
+  /usr/local or /usr if not found in /usr/local).
+* ``--without-zlib``: Disable zlib usage completely.
+* ``--with-bzlib=DIR``: root directory path of bzlib installation (default:
+  /usr/local or /usr if not found in /usr/local).
+* ``--without-bzlib``: Disable bzlib usage completely
+* ``--with-python-sys-prefix``: Use Python's ``sys.prefix`` and
+  ``sys.exec_prefix`` values.
+* ``--with-python_prefix``: override the default ``PYTHON_PREFIX``.
+* ``--with-python_exec_prefix``: override the default ``PYTHON_EXEC_PREFIX``.
 
 **********************************
 Analyzing log files
