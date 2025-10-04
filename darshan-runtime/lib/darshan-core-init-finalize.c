@@ -20,6 +20,8 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 
+static int __darshan_disabled;
+
 #ifdef HAVE_MPI
 DARSHAN_FORWARD_DECL(PMPI_Finalize, int, ());
 DARSHAN_FORWARD_DECL(PMPI_Init, int, (int *argc, char ***argv));

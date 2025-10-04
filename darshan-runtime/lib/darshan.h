@@ -205,7 +205,7 @@ extern pthread_mutex_t __darshan_core_mutex;
             exit(1); \
        } \
     } \
-    int __darshan_disabled = darshan_core_disabled_instrumentation();
+    __darshan_disabled = darshan_core_disabled_instrumentation();
 #else
 
 #define DARSHAN_FORWARD_DECL(__name,__ret,__args) \
@@ -224,7 +224,7 @@ extern pthread_mutex_t __darshan_core_mutex;
     __ret __wrap_ ## __func __args __attribute__ ((alias ("__wrap_" #__fcall)));
 
 #define MAP_OR_FAIL(__func) \
-    int __darshan_disabled = darshan_core_disabled_instrumentation()
+    __darshan_disabled = darshan_core_disabled_instrumentation()
 
 #endif
 

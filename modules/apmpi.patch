@@ -1,6 +1,15 @@
 --- darshan-apmpi.c.orig	2025-10-03 14:11:57.395296967 -0500
-+++ darshan-apmpi.c	2025-10-03 14:22:12.684565527 -0500
-@@ -29,14 +29,16 @@
++++ darshan-apmpi.c	2025-10-04 12:03:16.352785800 -0500
+@@ -19,6 +19,8 @@
+ #include "darshan-dynamic.h"
+ #include "darshan-apmpi-log-format.h"
+
++static int __darshan_disabled;
++
+ typedef long long ap_bytes_t;
+ #define MAX(x,y) ((x>y)?x:y)
+ #define MIN(x,y) ((x==0.0)?y:((x<y)?x:y))
+@@ -29,14 +31,16 @@
  #define TIME_SYNC(FUNC) \
            double tm1, tm2, tm3, tdiff, tsync;\
            int ret; \

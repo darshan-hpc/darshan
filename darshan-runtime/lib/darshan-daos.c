@@ -34,6 +34,8 @@
 #include <daos_obj.h>
 #include <daos_array.h>
 
+static int __darshan_disabled;
+
 /* container access routines intercepted for maintaining pool/container UUIDs */
 DARSHAN_FORWARD_DECL(daos_cont_open, int, (daos_handle_t poh, const char *cont, unsigned int flags, daos_handle_t *coh, daos_cont_info_t *info, daos_event_t *ev));
 DARSHAN_FORWARD_DECL(daos_cont_global2local, int, (daos_handle_t poh, d_iov_t glob, daos_handle_t *coh));

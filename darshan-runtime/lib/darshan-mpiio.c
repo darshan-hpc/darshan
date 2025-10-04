@@ -31,6 +31,8 @@
 #include "darshan-heatmap.h"
 #include "darshan-ldms.h"
 
+static int __darshan_disabled;
+
 DARSHAN_FORWARD_DECL(PMPI_File_close, int, (MPI_File *fh));
 DARSHAN_FORWARD_DECL(PMPI_File_iread, int, (MPI_File fh, void  *buf, int  count, MPI_Datatype  datatype, __D_MPI_REQUEST  *request));
 DARSHAN_FORWARD_DECL(PMPI_File_iread_all, int, (MPI_File fh, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
