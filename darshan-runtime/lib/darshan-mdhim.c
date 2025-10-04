@@ -26,6 +26,8 @@
 
 #define RECORD_STRING "total-mdhim-obj-stats"
 
+static int __darshan_disabled;
+
 /* The DARSHAN_FORWARD_DECL macro (defined in darshan.h) is used to provide forward
  * declarations for wrapped funcions, regardless of whether Darshan is used with
  * statically or dynamically linked executables.

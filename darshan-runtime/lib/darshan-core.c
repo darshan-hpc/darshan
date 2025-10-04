@@ -52,6 +52,8 @@
 #include <lustre/lustre_user.h>
 #endif
 
+static int __darshan_disabled;
+
 extern char* __progname;
 extern char* __progname_full;
 struct darshan_core_runtime *__darshan_core = NULL;

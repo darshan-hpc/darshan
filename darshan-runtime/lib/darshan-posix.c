@@ -37,6 +37,8 @@
 #include "darshan-heatmap.h"
 #include "darshan-ldms.h"
 
+static int __darshan_disabled;
+
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
 #endif

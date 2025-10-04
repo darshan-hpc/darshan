@@ -289,7 +289,17 @@ echo "LD_PRELOAD=$LD_PRELOAD"
 
 for exe in ${check_PROGRAMS} ; do
 
-   if test "x$exe" = xtst_mpi_io ; then
+   echo ""
+   echo "==== Testing program: $exe"
+   echo ""
+
+   if test "x$exe" = xtst_mpi_init ; then
+
+      CMD="${TESTMPIRUN} -n ${NP} ./$exe"
+      echo "CMD=$CMD"
+      $CMD
+
+   elif test "x$exe" = xtst_mpi_io ; then
 
       DARSHAN_LOG_FILE="${TST_DARSHAN_LOG_PATH}/${USERNAME_ENV}_${exe}*"
       echo "DARSHAN_LOG_FILE=$DARSHAN_LOG_FILE"

@@ -35,6 +35,8 @@
 #include <daos_array.h>
 #include <daos_fs.h>
 
+static int __darshan_disabled;
+
 DARSHAN_FORWARD_DECL(dfs_mount, int, (daos_handle_t poh, daos_handle_t coh, int flags, dfs_t **dfs));
 DARSHAN_FORWARD_DECL(dfs_global2local, int, (daos_handle_t poh, daos_handle_t coh, int flags, d_iov_t glob, dfs_t **dfs));
 DARSHAN_FORWARD_DECL(dfs_umount, int, (dfs_t *dfs));

@@ -29,6 +29,8 @@
 
 #include <pnetcdf.h>
 
+static int __darshan_disabled;
+
 /* structure that can track i/o stats for a given PnetCDF file record at runtime */
 struct pnetcdf_file_record_ref
 {
