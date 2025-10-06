@@ -140,7 +140,7 @@ POST_LD_FLAGS="-L$DARSHAN_LIB_PATH -ldarshan @DARSHAN_LUSTRE_LD_FLAGS@ -lz -lrt 
 # - when dynamic linking there is no need for wrapping options, we simply
 #   need to get the darshan symbol definitions early enough in the link
 #   order.  We also set no-as-needed for linkers that may not identify
-DYN_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -Wl,-rpath=$DARSHAN_LIB_PATH -Wl,-no-as-needed -ldarshan @DARSHAN_LUSTRE_LD_FLAGS@ @DARSHAN_HDF5_LD_FLAGS@"
+DYN_LD_FLAGS="-L$DARSHAN_LIB_PATH $DARSHAN_LD_FLAGS -Wl,-rpath=$DARSHAN_LIB_PATH -Wl,-no-as-needed -ldarshan @DARSHAN_LUSTRE_LD_FLAGS@ @DARSHAN_HDF5_LD_FLAGS@ @DARSHAN_PNETCDF_LD_FLAGS@"
 
 # NOTE:
 # - construct complete list of log path options, separated by commas.
