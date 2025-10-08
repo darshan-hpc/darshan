@@ -172,8 +172,6 @@ extern pthread_mutex_t __darshan_core_mutex;
 /* macros for declaring wrapper functions and calling MPI routines
  * consistently regardless of whether static or dynamic linking is used
  */
-static int __darshan_disabled;
-
 #ifdef DARSHAN_PRELOAD
 
 #include <dlfcn.h>

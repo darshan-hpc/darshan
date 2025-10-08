@@ -21,6 +21,8 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 
+static int __darshan_disabled;
+
 /* module-specific macro to retrieve current time stamp.  It first checks to
  * see if Darshan has been disabled at run time; in that case the module can
  * skip potentially costly timer calls.
