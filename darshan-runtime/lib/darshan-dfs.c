@@ -35,8 +35,6 @@
 #include <daos_array.h>
 #include <daos_fs.h>
 
-static int __darshan_disabled;
-
 DARSHAN_FORWARD_DECL(dfs_mount, int, (daos_handle_t poh, daos_handle_t coh, int flags, dfs_t **dfs));
 DARSHAN_FORWARD_DECL(dfs_global2local, int, (daos_handle_t poh, daos_handle_t coh, int flags, d_iov_t glob, dfs_t **dfs));
 DARSHAN_FORWARD_DECL(dfs_umount, int, (dfs_t *dfs));
@@ -327,7 +325,7 @@ static int my_rank = -1;
 
 int DARSHAN_DECL(dfs_mount)(daos_handle_t poh, daos_handle_t coh, int flags, dfs_t **dfs)
 {
-    int ret;
+    int ret, __darshan_disabled;
 
     MAP_OR_FAIL(dfs_mount);
 
@@ -342,7 +340,7 @@ int DARSHAN_DECL(dfs_mount)(daos_handle_t poh, daos_handle_t coh, int flags, dfs
 
 int DARSHAN_DECL(dfs_global2local)(daos_handle_t poh, daos_handle_t coh, int flags, d_iov_t glob, dfs_t **dfs)
 {
-    int ret;
+    int ret, __darshan_disabled;
 
     MAP_OR_FAIL(dfs_global2local);
 
@@ -357,7 +355,7 @@ int DARSHAN_DECL(dfs_global2local)(daos_handle_t poh, daos_handle_t coh, int fla
 
 int DARSHAN_DECL(dfs_umount)(dfs_t *dfs)
 {
-    int ret;
+    int ret, __darshan_disabled;
     struct dfs_mount_info *mnt_info;
 
     MAP_OR_FAIL(dfs_umount);
@@ -381,7 +379,7 @@ int DARSHAN_DECL(dfs_umount)(dfs_t *dfs)
 
 int DARSHAN_DECL(dfs_lookup)(dfs_t *dfs, const char *path, int flags, dfs_obj_t **obj, mode_t *mode, struct stat *stbuf)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(dfs_lookup);
@@ -399,7 +397,7 @@ int DARSHAN_DECL(dfs_lookup)(dfs_t *dfs, const char *path, int flags, dfs_obj_t 
 
 int DARSHAN_DECL(dfs_lookup_rel)(dfs_t *dfs, dfs_obj_t *parent, const char *name, int flags, dfs_obj_t **obj, mode_t *mode, struct stat *stbuf)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     char *obj_rec_name = NULL;
 
@@ -423,7 +421,7 @@ int DARSHAN_DECL(dfs_lookup_rel)(dfs_t *dfs, dfs_obj_t *parent, const char *name
 
 int DARSHAN_DECL(dfs_open)(dfs_t *dfs, dfs_obj_t *parent, const char *name, mode_t mode, int flags, daos_oclass_id_t cid, daos_size_t chunk_size, const char *value, dfs_obj_t **obj)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     char *obj_rec_name = NULL;
 
@@ -447,7 +445,7 @@ int DARSHAN_DECL(dfs_open)(dfs_t *dfs, dfs_obj_t *parent, const char *name, mode
 
 int DARSHAN_DECL(dfs_dup)(dfs_t *dfs, dfs_obj_t *obj, int flags, dfs_obj_t **new_obj)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct dfs_file_record_ref *rec_ref = NULL;
 
@@ -467,7 +465,7 @@ int DARSHAN_DECL(dfs_dup)(dfs_t *dfs, dfs_obj_t *obj, int flags, dfs_obj_t **new
 
 int DARSHAN_DECL(dfs_obj_global2local)(dfs_t *dfs, int flags, d_iov_t glob, dfs_obj_t **obj)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     char *obj_rec_name = NULL;
 
@@ -486,7 +484,7 @@ int DARSHAN_DECL(dfs_obj_global2local)(dfs_t *dfs, int flags, d_iov_t glob, dfs_
 
 int DARSHAN_DECL(dfs_release)(dfs_obj_t *obj)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct dfs_file_record_ref *rec_ref = NULL;
 
@@ -539,7 +537,7 @@ int darshan_dfs_read_comp_cb(void *arg, daos_event_t *ev, int ret)
 
 int DARSHAN_DECL(dfs_read)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_off_t off, daos_size_t *read_size, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     daos_size_t rdsize;
 
@@ -578,7 +576,7 @@ int DARSHAN_DECL(dfs_read)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_of
 
 int DARSHAN_DECL(dfs_readx)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_list_t *sgl, daos_size_t *read_size, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     daos_size_t rdsize;
 
@@ -640,7 +638,7 @@ int darshan_dfs_write_comp_cb(void *arg, daos_event_t *ev, int ret)
 
 int DARSHAN_DECL(dfs_write)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_off_t off, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     daos_size_t wrsize;
     int i;
@@ -682,7 +680,7 @@ int DARSHAN_DECL(dfs_write)(dfs_t *dfs, dfs_obj_t *obj, d_sg_list_t *sgl, daos_o
 
 int DARSHAN_DECL(dfs_writex)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_list_t *sgl, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     daos_size_t wrsize;
     int i;
@@ -724,7 +722,7 @@ int DARSHAN_DECL(dfs_writex)(dfs_t *dfs, dfs_obj_t *obj, dfs_iod_t *iod, d_sg_li
 
 int DARSHAN_DECL(dfs_get_size)(dfs_t *dfs, dfs_obj_t *obj, daos_size_t *size)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct dfs_file_record_ref *rec_ref = NULL;
 
@@ -750,7 +748,7 @@ int DARSHAN_DECL(dfs_get_size)(dfs_t *dfs, dfs_obj_t *obj, daos_size_t *size)
 
 int DARSHAN_DECL(dfs_punch)(dfs_t *dfs, dfs_obj_t *obj, daos_off_t offset, daos_size_t len)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct dfs_file_record_ref *rec_ref = NULL;
 
@@ -777,7 +775,7 @@ int DARSHAN_DECL(dfs_punch)(dfs_t *dfs, dfs_obj_t *obj, daos_off_t offset, daos_
 int DARSHAN_DECL(dfs_remove)(dfs_t *dfs, dfs_obj_t *parent, const char *name, bool force,
        daos_obj_id_t *oid)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     daos_obj_id_t the_oid;
     struct dfs_mount_info *mnt_info;
@@ -827,7 +825,7 @@ int DARSHAN_DECL(dfs_remove)(dfs_t *dfs, dfs_obj_t *parent, const char *name, bo
  */
 int DARSHAN_DECL(dfs_stat)(dfs_t *dfs, dfs_obj_t *parent, const char *name, struct stat *stbuf)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct dfs_file_record_ref *rec_ref = NULL;
     char *parent_rec_name, *rec_name;
@@ -873,7 +871,7 @@ int DARSHAN_DECL(dfs_stat)(dfs_t *dfs, dfs_obj_t *parent, const char *name, stru
 
 int DARSHAN_DECL(dfs_ostat)(dfs_t *dfs, dfs_obj_t *obj, struct stat *stbuf)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct dfs_file_record_ref *rec_ref = NULL;
 
@@ -899,7 +897,7 @@ int DARSHAN_DECL(dfs_ostat)(dfs_t *dfs, dfs_obj_t *obj, struct stat *stbuf)
 
 int DARSHAN_DECL(dfs_osetattr)(dfs_t *dfs, dfs_obj_t *obj, struct stat *stbuf, int flags)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct dfs_file_record_ref *rec_ref = NULL;
 

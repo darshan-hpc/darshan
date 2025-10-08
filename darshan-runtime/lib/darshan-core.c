@@ -52,8 +52,6 @@
 #include <lustre/lustre_user.h>
 #endif
 
-static int __darshan_disabled;
-
 extern char* __progname;
 extern char* __progname_full;
 struct darshan_core_runtime *__darshan_core = NULL;
@@ -2754,6 +2752,7 @@ extern int __real_vfprintf(FILE *stream, const char *format, va_list);
 void darshan_core_fprintf(
     FILE *stream, const char *format, ...)
 {
+    int __darshan_disabled;
     va_list ap;
 
     MAP_OR_FAIL(vfprintf);

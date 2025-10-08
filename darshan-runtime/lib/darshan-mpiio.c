@@ -31,8 +31,6 @@
 #include "darshan-heatmap.h"
 #include "darshan-ldms.h"
 
-static int __darshan_disabled;
-
 DARSHAN_FORWARD_DECL(PMPI_File_close, int, (MPI_File *fh));
 DARSHAN_FORWARD_DECL(PMPI_File_iread, int, (MPI_File fh, void  *buf, int  count, MPI_Datatype  datatype, __D_MPI_REQUEST  *request));
 DARSHAN_FORWARD_DECL(PMPI_File_iread_all, int, (MPI_File fh, void *buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST *request));
@@ -376,7 +374,7 @@ int DARSHAN_DECL(MPI_File_open)(MPI_Comm comm, const char *filename, int amode, 
 int DARSHAN_DECL(MPI_File_open)(MPI_Comm comm, char *filename, int amode, MPI_Info info, MPI_File *fh)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     MPI_File tmp_fh;
     char* tmp;
     double tm1, tm2;
@@ -413,7 +411,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_open, int,  (MPI_Comm comm, char *filename, int am
 int DARSHAN_DECL(MPI_File_read)(MPI_File fh, void *buf, int count,
     MPI_Datatype datatype, MPI_Status *status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -441,7 +439,7 @@ int DARSHAN_DECL(MPI_File_write)(MPI_File fh, void *buf, int count,
     MPI_Datatype datatype, MPI_Status *status)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -469,7 +467,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write, int, (MPI_File fh, void *buf, int count,
 int DARSHAN_DECL(MPI_File_read_at)(MPI_File fh, MPI_Offset offset, void *buf,
     int count, MPI_Datatype datatype, MPI_Status *status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_read_at);
@@ -496,7 +494,7 @@ int DARSHAN_DECL(MPI_File_write_at)(MPI_File fh, MPI_Offset offset, void *buf,
     int count, MPI_Datatype datatype, MPI_Status *status)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_write_at);
@@ -522,7 +520,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_at, int, (MPI_File fh, MPI_Offset offset, vo
 
 int DARSHAN_DECL(MPI_File_read_all)(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MPI_Status *status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -549,7 +547,7 @@ int DARSHAN_DECL(MPI_File_write_all)(MPI_File fh, const void * buf, int count, M
 int DARSHAN_DECL(MPI_File_write_all)(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MPI_Status *status)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -578,7 +576,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_all, int, (MPI_File fh, void * buf, int coun
 int DARSHAN_DECL(MPI_File_read_at_all)(MPI_File fh, MPI_Offset offset, void * buf,
     int count, MPI_Datatype datatype, MPI_Status * status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_read_at_all);
@@ -606,7 +604,7 @@ int DARSHAN_DECL(MPI_File_write_at_all)(MPI_File fh, MPI_Offset offset, void * b
     int count, MPI_Datatype datatype, MPI_Status * status)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_write_at_all);
@@ -634,7 +632,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_at_all, int, (MPI_File fh, MPI_Offset offset
 
 int DARSHAN_DECL(MPI_File_read_shared)(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MPI_Status *status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -661,7 +659,7 @@ int DARSHAN_DECL(MPI_File_write_shared)(MPI_File fh, const void * buf, int count
 int DARSHAN_DECL(MPI_File_write_shared)(MPI_File fh, void * buf, int count, MPI_Datatype datatype, MPI_Status *status)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -691,7 +689,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_shared, int, (MPI_File fh, void * buf, int c
 int DARSHAN_DECL(MPI_File_read_ordered)(MPI_File fh, void * buf, int count,
     MPI_Datatype datatype, MPI_Status * status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -721,7 +719,7 @@ int DARSHAN_DECL(MPI_File_write_ordered)(MPI_File fh, void * buf, int count,
     MPI_Datatype datatype, MPI_Status * status)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -751,7 +749,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_ordered, int, (MPI_File fh, void * buf, int 
 
 int DARSHAN_DECL(MPI_File_read_all_begin)(MPI_File fh, void * buf, int count, MPI_Datatype datatype)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -777,7 +775,7 @@ int DARSHAN_DECL(MPI_File_write_all_begin)(MPI_File fh, const void * buf, int co
 int DARSHAN_DECL(MPI_File_write_all_begin)(MPI_File fh, void * buf, int count, MPI_Datatype datatype)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -806,7 +804,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_all_begin, int, (MPI_File fh, void * buf, in
 int DARSHAN_DECL(MPI_File_read_at_all_begin)(MPI_File fh, MPI_Offset offset, void * buf,
     int count, MPI_Datatype datatype)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_read_at_all_begin);
@@ -833,7 +831,7 @@ int DARSHAN_DECL(MPI_File_write_at_all_begin)(MPI_File fh, MPI_Offset offset, vo
     int count, MPI_Datatype datatype)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_write_at_all_begin);
@@ -859,7 +857,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_at_all_begin, int, (MPI_File fh, MPI_Offset 
 
 int DARSHAN_DECL(MPI_File_read_ordered_begin)(MPI_File fh, void * buf, int count, MPI_Datatype datatype)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -886,7 +884,7 @@ int DARSHAN_DECL(MPI_File_write_ordered_begin)(MPI_File fh, const void * buf, in
 int DARSHAN_DECL(MPI_File_write_ordered_begin)(MPI_File fh, void * buf, int count, MPI_Datatype datatype)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -914,7 +912,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_ordered_begin, int, (MPI_File fh, void * buf
 
 int DARSHAN_DECL(MPI_File_iread)(MPI_File fh, void * buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST * request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -936,7 +934,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iread, int, (MPI_File fh, void * buf, int count, M
 
 int DARSHAN_DECL(MPI_File_iread_all)(MPI_File fh, void * buf, int count, MPI_Datatype datatype, __D_MPI_REQUEST * request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -964,7 +962,7 @@ int DARSHAN_DECL(MPI_File_iwrite)(MPI_File fh, void * buf, int count,
     MPI_Datatype datatype, __D_MPI_REQUEST * request)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -999,7 +997,7 @@ int DARSHAN_DECL(MPI_File_iwrite_all)(MPI_File fh, void * buf, int count,
     MPI_Datatype datatype, __D_MPI_REQUEST * request)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -1029,7 +1027,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iwrite_all, int, (MPI_File fh, void * buf, int cou
 int DARSHAN_DECL(MPI_File_iread_at)(MPI_File fh, MPI_Offset offset, void * buf,
     int count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_iread_at);
@@ -1052,7 +1050,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iread_at, int, (MPI_File fh, MPI_Offset offset, vo
 int DARSHAN_DECL(MPI_File_iread_at_all)(MPI_File fh, MPI_Offset offset, void * buf,
     int count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_iread_at_all);
@@ -1080,7 +1078,7 @@ int DARSHAN_DECL(MPI_File_iwrite_at)(MPI_File fh, MPI_Offset offset, void * buf,
     int count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_iwrite_at);
@@ -1114,7 +1112,7 @@ int DARSHAN_DECL(MPI_File_iwrite_at_all)(MPI_File fh, MPI_Offset offset, void * 
     int count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_iwrite_at_all);
@@ -1143,7 +1141,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iwrite_at_all, int, (MPI_File fh, MPI_Offset offse
 int DARSHAN_DECL(MPI_File_iread_shared)(MPI_File fh, void * buf, int count,
     MPI_Datatype datatype, __D_MPI_REQUEST * request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -1173,7 +1171,7 @@ int DARSHAN_DECL(MPI_File_iwrite_shared)(MPI_File fh, void * buf, int count,
     MPI_Datatype datatype, __D_MPI_REQUEST * request)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -1203,7 +1201,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iwrite_shared, int, (MPI_File fh, void * buf, int 
 
 int DARSHAN_DECL(MPI_File_sync)(MPI_File fh)
 {
-    int ret;
+    int ret, __darshan_disabled;
     struct mpiio_file_record_ref *rec_ref;
     double tm1, tm2;
 
@@ -1240,7 +1238,7 @@ int DARSHAN_DECL(MPI_File_set_view)(MPI_File fh, MPI_Offset disp, MPI_Datatype e
     MPI_Datatype filetype, char *datarep, MPI_Info info)
 #endif
 {
-    int ret;
+    int ret, __darshan_disabled;
     struct mpiio_file_record_ref *rec_ref;
     double tm1, tm2;
 
@@ -1282,7 +1280,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_set_view, int, (MPI_File fh, MPI_Offset disp, MPI_
 
 int DARSHAN_DECL(MPI_File_close)(MPI_File *fh)
 {
-    int ret;
+    int ret, __darshan_disabled;
     struct mpiio_file_record_ref *rec_ref;
     MPI_File tmp_fh = *fh;
     double tm1, tm2;
@@ -1973,7 +1971,7 @@ DARSHAN_FORWARD_DECL(PMPI_File_write_shared_c, int, (MPI_File fh, const void *bu
 
 int DARSHAN_DECL(MPI_File_iread_all_c)(MPI_File fh, void * buf, MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST * request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -1996,7 +1994,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iread_all_c, int, (MPI_File fh, void * buf, MPI_Co
 int DARSHAN_DECL(MPI_File_iread_at_all_c)(MPI_File fh, MPI_Offset offset, void * buf,
     MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_iread_at_all_c);
@@ -2019,7 +2017,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iread_at_all_c, int, (MPI_File fh, MPI_Offset offs
 int DARSHAN_DECL(MPI_File_iread_at_c)(MPI_File fh, MPI_Offset offset, void * buf,
     MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_iread_at_c);
@@ -2041,7 +2039,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iread_at_c, int, (MPI_File fh, MPI_Offset offset, 
 
 int DARSHAN_DECL(MPI_File_iread_c)(MPI_File fh, void * buf, MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST * request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2064,7 +2062,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iread_c, int, (MPI_File fh, void * buf, MPI_Count 
 int DARSHAN_DECL(MPI_File_iread_shared_c)(MPI_File fh, void * buf, MPI_Count count,
     MPI_Datatype datatype, __D_MPI_REQUEST * request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2089,7 +2087,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iread_shared_c, int, (MPI_File fh, void * buf, MPI
 int DARSHAN_DECL(MPI_File_iwrite_all_c)(MPI_File fh, const void * buf, MPI_Count count,
     MPI_Datatype datatype, __D_MPI_REQUEST * request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2113,7 +2111,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iwrite_all_c, int, (MPI_File fh, const void * buf,
 int DARSHAN_DECL(MPI_File_iwrite_at_all_c)(MPI_File fh, MPI_Offset offset, const void * buf,
     MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_iwrite_at_all_c);
@@ -2136,7 +2134,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iwrite_at_all_c, int, (MPI_File fh, MPI_Offset off
 int DARSHAN_DECL(MPI_File_iwrite_at_c)(MPI_File fh, MPI_Offset offset, const void * buf,
     MPI_Count count, MPI_Datatype datatype, __D_MPI_REQUEST *request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_iwrite_at_c);
@@ -2159,7 +2157,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iwrite_at_c, int, (MPI_File fh, MPI_Offset offset,
 int DARSHAN_DECL(MPI_File_iwrite_c)(MPI_File fh, const void * buf, MPI_Count count,
     MPI_Datatype datatype, __D_MPI_REQUEST * request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2183,7 +2181,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iwrite_c, int, (MPI_File fh, const void * buf, MPI
 int DARSHAN_DECL(MPI_File_iwrite_shared_c)(MPI_File fh, const void * buf, MPI_Count count,
     MPI_Datatype datatype, __D_MPI_REQUEST * request)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2207,7 +2205,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_iwrite_shared_c, int, (MPI_File fh, const void * b
 
 int DARSHAN_DECL(MPI_File_read_all_begin_c)(MPI_File fh, void * buf, MPI_Count count, MPI_Datatype datatype)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2229,7 +2227,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_read_all_begin_c, int, (MPI_File fh, void * buf, M
 
 int DARSHAN_DECL(MPI_File_read_all_c)(MPI_File fh, void * buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2253,7 +2251,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_read_all_c, int, (MPI_File fh, void * buf, MPI_Cou
 int DARSHAN_DECL(MPI_File_read_at_all_begin_c)(MPI_File fh, MPI_Offset offset, void * buf,
     MPI_Count count, MPI_Datatype datatype)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_read_at_all_begin_c);
@@ -2275,7 +2273,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_read_at_all_begin_c, int, (MPI_File fh, MPI_Offset
 int DARSHAN_DECL(MPI_File_read_at_all_c)(MPI_File fh, MPI_Offset offset, void * buf,
     MPI_Count count, MPI_Datatype datatype, MPI_Status * status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_read_at_all_c);
@@ -2298,7 +2296,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_read_at_all_c, int, (MPI_File fh, MPI_Offset offse
 int DARSHAN_DECL(MPI_File_read_at_c)(MPI_File fh, MPI_Offset offset, void *buf,
     MPI_Count count, MPI_Datatype datatype, MPI_Status *status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_read_at_c);
@@ -2320,7 +2318,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_read_at_c, int, (MPI_File fh, MPI_Offset offset, v
 int DARSHAN_DECL(MPI_File_read_c)(MPI_File fh, void *buf, MPI_Count count,
     MPI_Datatype datatype, MPI_Status *status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2342,7 +2340,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_read_c, int, (MPI_File fh, void *buf, MPI_Count co
 
 int DARSHAN_DECL(MPI_File_read_ordered_begin_c)(MPI_File fh, void * buf, MPI_Count count, MPI_Datatype datatype)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2366,7 +2364,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_read_ordered_begin_c, int, (MPI_File fh, void * bu
 int DARSHAN_DECL(MPI_File_read_ordered_c)(MPI_File fh, void * buf, MPI_Count count,
     MPI_Datatype datatype, MPI_Status * status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2390,7 +2388,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_read_ordered_c, int, (MPI_File fh, void * buf, MPI
 
 int DARSHAN_DECL(MPI_File_read_shared_c)(MPI_File fh, void * buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2413,7 +2411,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_read_shared_c, int, (MPI_File fh, void * buf, MPI_
 
 int DARSHAN_DECL(MPI_File_write_all_begin_c)(MPI_File fh, const void * buf, MPI_Count count, MPI_Datatype datatype)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2436,7 +2434,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_all_begin_c, int, (MPI_File fh, const void *
 
 int DARSHAN_DECL(MPI_File_write_all_c)(MPI_File fh, const void * buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2460,7 +2458,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_all_c, int, (MPI_File fh, const void * buf, 
 int DARSHAN_DECL(MPI_File_write_at_all_begin_c)(MPI_File fh, MPI_Offset offset, const void * buf,
     MPI_Count count, MPI_Datatype datatype)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_write_at_all_begin_c);
@@ -2482,7 +2480,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_at_all_begin_c, int, (MPI_File fh, MPI_Offse
 int DARSHAN_DECL(MPI_File_write_at_all_c)(MPI_File fh, MPI_Offset offset, const void * buf,
     MPI_Count count, MPI_Datatype datatype, MPI_Status * status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_write_at_all_c);
@@ -2505,7 +2503,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_at_all_c, int, (MPI_File fh, MPI_Offset offs
 int DARSHAN_DECL(MPI_File_write_at_c)(MPI_File fh, MPI_Offset offset, const void *buf,
     MPI_Count count, MPI_Datatype datatype, MPI_Status *status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(PMPI_File_write_at_c);
@@ -2527,7 +2525,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_at_c, int, (MPI_File fh, MPI_Offset offset, 
 int DARSHAN_DECL(MPI_File_write_c)(MPI_File fh, const void *buf, MPI_Count count,
     MPI_Datatype datatype, MPI_Status *status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2549,7 +2547,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_c, int, (MPI_File fh, const void *buf, MPI_C
 
 int DARSHAN_DECL(MPI_File_write_ordered_begin_c)(MPI_File fh, const void * buf, MPI_Count count, MPI_Datatype datatype)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2573,7 +2571,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_ordered_begin_c, int, (MPI_File fh, const vo
 int DARSHAN_DECL(MPI_File_write_ordered_c)(MPI_File fh, const void * buf, MPI_Count count,
     MPI_Datatype datatype, MPI_Status * status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 
@@ -2597,7 +2595,7 @@ DARSHAN_WRAPPER_MAP(PMPI_File_write_ordered_c, int, (MPI_File fh, const void * b
 
 int DARSHAN_DECL(MPI_File_write_shared_c)(MPI_File fh, const void * buf, MPI_Count count, MPI_Datatype datatype, MPI_Status *status)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset offset;
 

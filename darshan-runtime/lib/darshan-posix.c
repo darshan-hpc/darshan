@@ -37,8 +37,6 @@
 #include "darshan-heatmap.h"
 #include "darshan-ldms.h"
 
-static int __darshan_disabled;
-
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
 #endif
@@ -448,7 +446,7 @@ static int darshan_mem_alignment = 1;
 int DARSHAN_DECL(open)(const char *path, int flags, ...)
 {
     int mode = 0;
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(open);
@@ -480,7 +478,7 @@ int DARSHAN_DECL(open)(const char *path, int flags, ...)
 
 int DARSHAN_DECL(__open_2)(const char *path, int oflag)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(__open_2);
@@ -499,7 +497,7 @@ int DARSHAN_DECL(__open_2)(const char *path, int oflag)
 int DARSHAN_DECL(open64)(const char *path, int flags, ...)
 {
     int mode = 0;
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(open64);
@@ -532,7 +530,7 @@ int DARSHAN_DECL(open64)(const char *path, int flags, ...)
 int DARSHAN_DECL(openat)(int dirfd, const char *pathname, int flags, ...)
 {
     int mode = 0;
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct posix_file_record_ref *rec_ref;
     char tmp_path[__DARSHAN_PATH_MAX] = {0};
@@ -609,7 +607,7 @@ int DARSHAN_DECL(openat)(int dirfd, const char *pathname, int flags, ...)
 int DARSHAN_DECL(openat64)(int dirfd, const char *pathname, int flags, ...)
 {
     int mode = 0;
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct posix_file_record_ref *rec_ref;
     char tmp_path[__DARSHAN_PATH_MAX] = {0};
@@ -685,7 +683,7 @@ int DARSHAN_DECL(openat64)(int dirfd, const char *pathname, int flags, ...)
 
 int DARSHAN_DECL(creat)(const char* path, mode_t mode)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(creat);
@@ -703,7 +701,7 @@ int DARSHAN_DECL(creat)(const char* path, mode_t mode)
 
 int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(creat64);
@@ -721,7 +719,7 @@ int DARSHAN_DECL(creat64)(const char* path, mode_t mode)
 
 int DARSHAN_DECL(dup)(int oldfd)
 {
-    int ret;
+    int ret, __darshan_disabled;
     struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
@@ -745,7 +743,7 @@ int DARSHAN_DECL(dup)(int oldfd)
 
 int DARSHAN_DECL(dup2)(int oldfd, int newfd)
 {
-    int ret;
+    int ret, __darshan_disabled;
     struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
@@ -769,7 +767,7 @@ int DARSHAN_DECL(dup2)(int oldfd, int newfd)
 
 int DARSHAN_DECL(dup3)(int oldfd, int newfd, int flags)
 {
-    int ret;
+    int ret, __darshan_disabled;
     struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
@@ -806,7 +804,7 @@ int DARSHAN_DECL(dup3)(int oldfd, int newfd, int flags)
 
 int DARSHAN_DECL(fcntl)(int fd, int cmd, ...)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     va_list arg;
     void *next;
@@ -839,7 +837,7 @@ int DARSHAN_DECL(fcntl)(int fd, int cmd, ...)
 
 int DARSHAN_DECL(fcntl64)(int fd, int cmd, ...)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     va_list arg;
     void *next;
@@ -872,7 +870,7 @@ int DARSHAN_DECL(fcntl64)(int fd, int cmd, ...)
 }
 int DARSHAN_DECL(fileno)(FILE *stream)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     darshan_record_id rec_id;
     struct posix_file_record_ref *rec_ref;
@@ -905,7 +903,7 @@ int DARSHAN_DECL(fileno)(FILE *stream)
 
 int DARSHAN_DECL(mkstemp)(char* template)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(mkstemp);
@@ -923,7 +921,7 @@ int DARSHAN_DECL(mkstemp)(char* template)
 
 int DARSHAN_DECL(mkostemp)(char* template, int flags)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(mkostemp);
@@ -941,7 +939,7 @@ int DARSHAN_DECL(mkostemp)(char* template, int flags)
 
 int DARSHAN_DECL(mkstemps)(char* template, int suffixlen)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(mkstemps);
@@ -959,7 +957,7 @@ int DARSHAN_DECL(mkstemps)(char* template, int suffixlen)
 
 int DARSHAN_DECL(mkostemps)(char* template, int suffixlen, int flags)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(mkostemps);
@@ -979,6 +977,7 @@ ssize_t DARSHAN_DECL(read)(int fd, void *buf, size_t count)
 {
     ssize_t ret;
     int aligned_flag = 0;
+    int __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(read);
@@ -1000,6 +999,7 @@ ssize_t DARSHAN_DECL(write)(int fd, const void *buf, size_t count)
 {
     ssize_t ret;
     int aligned_flag = 0;
+    int __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(write);
@@ -1021,6 +1021,7 @@ ssize_t DARSHAN_DECL(pread)(int fd, void *buf, size_t count, off_t offset)
 {
     ssize_t ret;
     int aligned_flag = 0;
+    int __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(pread);
@@ -1042,6 +1043,7 @@ ssize_t DARSHAN_DECL(pwrite)(int fd, const void *buf, size_t count, off_t offset
 {
     ssize_t ret;
     int aligned_flag = 0;
+    int __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(pwrite);
@@ -1063,6 +1065,7 @@ ssize_t DARSHAN_DECL(pread64)(int fd, void *buf, size_t count, off64_t offset)
 {
     ssize_t ret;
     int aligned_flag = 0;
+    int __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(pread64);
@@ -1084,6 +1087,7 @@ ssize_t DARSHAN_DECL(pwrite64)(int fd, const void *buf, size_t count, off64_t of
 {
     ssize_t ret;
     int aligned_flag = 0;
+    int __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(pwrite64);
@@ -1105,6 +1109,7 @@ ssize_t DARSHAN_DECL(readv)(int fd, const struct iovec *iov, int iovcnt)
 {
     ssize_t ret;
     int aligned_flag = 1;
+    int __darshan_disabled;
     int i;
     double tm1, tm2;
 
@@ -1132,6 +1137,7 @@ ssize_t DARSHAN_DECL(preadv)(int fd, const struct iovec *iov, int iovcnt, off_t 
 {
     ssize_t ret;
     int aligned_flag = 1;
+    int __darshan_disabled;
     int i;
     double tm1, tm2;
 
@@ -1158,6 +1164,7 @@ ssize_t DARSHAN_DECL(preadv64)(int fd, const struct iovec *iov, int iovcnt, off6
 {
     ssize_t ret;
     int aligned_flag = 1;
+    int __darshan_disabled;
     int i;
     double tm1, tm2;
 
@@ -1187,6 +1194,7 @@ ssize_t DARSHAN_DECL(preadv2)(int fd, const struct iovec *iov, int iovcnt, off_t
 {
     ssize_t ret;
     int aligned_flag = 1;
+    int __darshan_disabled;
     int i;
     double tm1, tm2;
 
@@ -1213,6 +1221,7 @@ ssize_t DARSHAN_DECL(preadv64v2)(int fd, const struct iovec *iov, int iovcnt, of
 {
     ssize_t ret;
     int aligned_flag = 1;
+    int __darshan_disabled;
     int i;
     double tm1, tm2;
 
@@ -1240,6 +1249,7 @@ ssize_t DARSHAN_DECL(writev)(int fd, const struct iovec *iov, int iovcnt)
 {
     ssize_t ret;
     int aligned_flag = 1;
+    int __darshan_disabled;
     int i;
     double tm1, tm2;
 
@@ -1267,6 +1277,7 @@ ssize_t DARSHAN_DECL(pwritev)(int fd, const struct iovec *iov, int iovcnt, off_t
 {
     ssize_t ret;
     int aligned_flag = 1;
+    int __darshan_disabled;
     int i;
     double tm1, tm2;
 
@@ -1293,6 +1304,7 @@ ssize_t DARSHAN_DECL(pwritev64)(int fd, const struct iovec *iov, int iovcnt, off
 {
     ssize_t ret;
     int aligned_flag = 1;
+    int __darshan_disabled;
     int i;
     double tm1, tm2;
 
@@ -1321,6 +1333,7 @@ ssize_t DARSHAN_DECL(pwritev2)(int fd, const struct iovec *iov, int iovcnt, off_
 {
     ssize_t ret;
     int aligned_flag = 1;
+    int __darshan_disabled;
     int i;
     double tm1, tm2;
 
@@ -1347,6 +1360,7 @@ ssize_t DARSHAN_DECL(pwritev64v2)(int fd, const struct iovec *iov, int iovcnt, o
 {
     ssize_t ret;
     int aligned_flag = 1;
+    int __darshan_disabled;
     int i;
     double tm1, tm2;
 
@@ -1376,6 +1390,7 @@ off_t DARSHAN_DECL(lseek)(int fd, off_t offset, int whence)
     off_t ret;
     struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(lseek);
 
@@ -1406,6 +1421,7 @@ off64_t DARSHAN_DECL(lseek64)(int fd, off64_t offset, int whence)
     off_t ret;
     struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(lseek64);
 
@@ -1433,7 +1449,7 @@ off64_t DARSHAN_DECL(lseek64)(int fd, off64_t offset, int whence)
 
 int DARSHAN_DECL(__xstat)(int vers, const char *path, struct stat *buf)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(__xstat);
@@ -1454,7 +1470,7 @@ int DARSHAN_DECL(__xstat)(int vers, const char *path, struct stat *buf)
 
 int DARSHAN_DECL(__xstat64)(int vers, const char *path, struct stat64 *buf)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(__xstat64);
@@ -1475,7 +1491,7 @@ int DARSHAN_DECL(__xstat64)(int vers, const char *path, struct stat64 *buf)
 
 int DARSHAN_DECL(__lxstat)(int vers, const char *path, struct stat *buf)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(__lxstat);
@@ -1496,7 +1512,7 @@ int DARSHAN_DECL(__lxstat)(int vers, const char *path, struct stat *buf)
 
 int DARSHAN_DECL(__lxstat64)(int vers, const char *path, struct stat64 *buf)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(__lxstat64);
@@ -1517,7 +1533,7 @@ int DARSHAN_DECL(__lxstat64)(int vers, const char *path, struct stat64 *buf)
 
 int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
 {
-    int ret;
+    int ret, __darshan_disabled;
     struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
@@ -1543,7 +1559,7 @@ int DARSHAN_DECL(__fxstat)(int vers, int fd, struct stat *buf)
 
 int DARSHAN_DECL(__fxstat64)(int vers, int fd, struct stat64 *buf)
 {
-    int ret;
+    int ret, __darshan_disabled;
     struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
@@ -1573,6 +1589,7 @@ void* DARSHAN_DECL(mmap)(void *addr, size_t length, int prot, int flags,
 {
     void* ret;
     struct posix_file_record_ref *rec_ref;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(mmap);
     (void)__darshan_disabled;
@@ -1607,6 +1624,7 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
 {
     void* ret;
     struct posix_file_record_ref *rec_ref;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(mmap64);
 
@@ -1636,7 +1654,7 @@ void* DARSHAN_DECL(mmap64)(void *addr, size_t length, int prot, int flags,
 
 int DARSHAN_DECL(fsync)(int fd)
 {
-    int ret;
+    int ret, __darshan_disabled;
     struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
@@ -1665,7 +1683,7 @@ int DARSHAN_DECL(fsync)(int fd)
 
 int DARSHAN_DECL(fdatasync)(int fd)
 {
-    int ret;
+    int ret, __darshan_disabled;
     struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
@@ -1694,7 +1712,7 @@ int DARSHAN_DECL(fdatasync)(int fd)
 
 int DARSHAN_DECL(close)(int fd)
 {
-    int ret;
+    int ret, __darshan_disabled;
     struct posix_file_record_ref *rec_ref;
     double tm1, tm2;
 
@@ -1750,7 +1768,7 @@ int DARSHAN_DECL(close)(int fd)
 
 int DARSHAN_DECL(aio_read)(struct aiocb *aiocbp)
 {
-    int ret;
+    int ret, __darshan_disabled;
 
     MAP_OR_FAIL(aio_read);
 
@@ -1767,7 +1785,7 @@ int DARSHAN_DECL(aio_read)(struct aiocb *aiocbp)
 
 int DARSHAN_DECL(aio_write)(struct aiocb *aiocbp)
 {
-    int ret;
+    int ret, __darshan_disabled;
 
     MAP_OR_FAIL(aio_write);
 
@@ -1784,7 +1802,7 @@ int DARSHAN_DECL(aio_write)(struct aiocb *aiocbp)
 
 int DARSHAN_DECL(aio_read64)(struct aiocb64 *aiocbp)
 {
-    int ret;
+    int ret, __darshan_disabled;
 
     MAP_OR_FAIL(aio_read64);
 
@@ -1801,7 +1819,7 @@ int DARSHAN_DECL(aio_read64)(struct aiocb64 *aiocbp)
 
 int DARSHAN_DECL(aio_write64)(struct aiocb64 *aiocbp)
 {
-    int ret;
+    int ret, __darshan_disabled;
 
     MAP_OR_FAIL(aio_write64);
 
@@ -1822,6 +1840,7 @@ ssize_t DARSHAN_DECL(aio_return)(struct aiocb *aiocbp)
     double tm2;
     struct posix_aio_tracker *tmp;
     int aligned_flag = 0;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(aio_return);
 
@@ -1859,6 +1878,7 @@ ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
     double tm2;
     struct posix_aio_tracker *tmp;
     int aligned_flag = 0;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(aio_return64);
 
@@ -1893,7 +1913,7 @@ ssize_t DARSHAN_DECL(aio_return64)(struct aiocb64 *aiocbp)
 int DARSHAN_DECL(lio_listio)(int mode, struct aiocb *const aiocb_list[],
     int nitems, struct sigevent *sevp)
 {
-    int ret;
+    int ret, __darshan_disabled;
     int i;
 
     MAP_OR_FAIL(lio_listio);
@@ -1915,7 +1935,7 @@ int DARSHAN_DECL(lio_listio)(int mode, struct aiocb *const aiocb_list[],
 int DARSHAN_DECL(lio_listio64)(int mode, struct aiocb64 *const aiocb_list[],
     int nitems, struct sigevent *sevp)
 {
-    int ret;
+    int ret, __darshan_disabled;
     int i;
 
     MAP_OR_FAIL(lio_listio64);
@@ -1942,6 +1962,7 @@ int DARSHAN_DECL(rename)(const char *oldpath, const char *newpath)
     darshan_record_id old_rec_id, new_rec_id;
     struct posix_file_record_ref *old_rec_ref, *new_rec_ref;
     int disabled = 0;
+    int __darshan_disabled;
 
     /* This is a special case to avoid attempting to instrument final rename
      * performed by darshan itself when finalizing

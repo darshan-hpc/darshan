@@ -20,8 +20,6 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 
-static int __darshan_disabled;
-
 #ifdef HAVE_MPI
 DARSHAN_FORWARD_DECL(PMPI_Finalize, int, ());
 DARSHAN_FORWARD_DECL(PMPI_Init, int, (int *argc, char ***argv));
@@ -29,7 +27,7 @@ DARSHAN_FORWARD_DECL(PMPI_Init_thread, int, (int *argc, char ***argv, int requir
 
 int DARSHAN_DECL(MPI_Init)(int *argc, char ***argv)
 {
-    int ret;
+    int ret, __darshan_disabled;
 
     MAP_OR_FAIL(PMPI_Init);
     (void)__darshan_disabled;
@@ -56,7 +54,7 @@ DARSHAN_WRAPPER_MAP(PMPI_Init, int, (int *argc, char ***argv), MPI_Init)
 
 int DARSHAN_DECL(MPI_Init_thread)(int *argc, char ***argv, int required, int *provided)
 {
-    int ret;
+    int ret, __darshan_disabled;
 
     MAP_OR_FAIL(PMPI_Init_thread);
     (void)__darshan_disabled;
@@ -83,7 +81,7 @@ DARSHAN_WRAPPER_MAP(PMPI_Init_thread, int, (int *argc, char ***argv, int require
 
 int DARSHAN_DECL(MPI_Finalize)(void)
 {
-    int ret;
+    int ret, __darshan_disabled;
 
     MAP_OR_FAIL(PMPI_Finalize);
     (void)__darshan_disabled;
@@ -121,6 +119,8 @@ __attribute__((destructor)) void serial_finalize(void)
 void (*__real__exit)(int status) __attribute__ ((noreturn)) = NULL;
 void _exit(int status)
 {
+    int __darshan_disabled;
+
     MAP_OR_FAIL(_exit);
     (void)__darshan_disabled;
 
