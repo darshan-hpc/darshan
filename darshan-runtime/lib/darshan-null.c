@@ -21,8 +21,6 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 
-static int __darshan_disabled;
-
 /* module-specific macro to retrieve current time stamp.  It first checks to
  * see if Darshan has been disabled at run time; in that case the module can
  * skip potentially costly timer calls.
@@ -182,6 +180,7 @@ int DARSHAN_DECL(foo)(const char* name, int arg1)
 {
     ssize_t ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     /* The MAP_OR_FAIL macro attempts to obtain the address of the actual
      * underlying foo function call (__real_foo), in the case of LD_PRELOADing

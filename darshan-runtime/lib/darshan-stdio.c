@@ -89,8 +89,6 @@
 #include "darshan-heatmap.h"
 #include "darshan-ldms.h"
 
-static int __darshan_disabled;
-
 #ifndef HAVE_OFF64_T
 typedef int64_t off64_t;
 #endif
@@ -318,6 +316,7 @@ FILE* DARSHAN_DECL(fopen)(const char *path, const char *mode)
 {
     FILE* ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fopen);
 
@@ -336,6 +335,7 @@ FILE* DARSHAN_DECL(fopen64)(const char *path, const char *mode)
 {
     FILE* ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fopen64);
 
@@ -356,6 +356,7 @@ FILE* DARSHAN_DECL(fdopen)(int fd, const char *mode)
     double tm1, tm2;
     darshan_record_id rec_id;
     struct stdio_file_record_ref *rec_ref;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fdopen);
 
@@ -388,6 +389,7 @@ FILE* DARSHAN_DECL(freopen)(const char *path, const char *mode, FILE *stream)
 {
     FILE* ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(freopen);
 
@@ -406,6 +408,7 @@ FILE* DARSHAN_DECL(freopen64)(const char *path, const char *mode, FILE *stream)
 {
     FILE* ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(freopen64);
 
@@ -425,6 +428,7 @@ int DARSHAN_DECL(fflush)(FILE *fp)
 {
     double tm1, tm2;
     int ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fflush);
 
@@ -445,6 +449,7 @@ int DARSHAN_DECL(fclose)(FILE *fp)
     double tm1, tm2;
     int ret;
     struct stdio_file_record_ref *rec_ref;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fclose);
 
@@ -499,6 +504,7 @@ size_t DARSHAN_DECL(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *st
 {
     size_t ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fwrite);
 
@@ -519,6 +525,7 @@ int DARSHAN_DECL(fputc)(int c, FILE *stream)
 {
     int ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fputc);
 
@@ -538,6 +545,7 @@ int DARSHAN_DECL(putw)(int w, FILE *stream)
 {
     int ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(putw);
 
@@ -559,6 +567,7 @@ int DARSHAN_DECL(fputs)(const char *s, FILE *stream)
 {
     int ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fputs);
 
@@ -578,6 +587,7 @@ int DARSHAN_DECL(vprintf)(const char *format, va_list ap)
 {
     int ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(vprintf);
 
@@ -597,6 +607,7 @@ int DARSHAN_DECL(vfprintf)(FILE *stream, const char *format, va_list ap)
 {
     int ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(vfprintf);
 
@@ -618,6 +629,7 @@ int DARSHAN_DECL(printf)(const char *format, ...)
     int ret;
     double tm1, tm2;
     va_list ap;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(vprintf);
 
@@ -643,6 +655,7 @@ int DARSHAN_DECL(fprintf)(FILE *stream, const char *format, ...)
     int ret;
     double tm1, tm2;
     va_list ap;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(vfprintf);
 
@@ -667,6 +680,7 @@ size_t DARSHAN_DECL(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
     size_t ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fread);
 
@@ -686,6 +700,7 @@ int DARSHAN_DECL(fgetc)(FILE *stream)
 {
     int ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fgetc);
 
@@ -706,6 +721,7 @@ int DARSHAN_DECL(_IO_getc)(FILE *stream)
 {
     int ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(_IO_getc);
 
@@ -726,6 +742,7 @@ int DARSHAN_DECL(_IO_putc)(int c, FILE *stream)
 {
     int ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(_IO_putc);
 
@@ -745,6 +762,7 @@ int DARSHAN_DECL(getw)(FILE *stream)
 {
     int ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(getw);
 
@@ -770,6 +788,7 @@ int DARSHAN_DECL(__isoc99_fscanf)(FILE *stream, const char *format, ...)
     double tm1, tm2;
     va_list ap;
     long start_off, end_off;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(vfscanf);
 
@@ -798,6 +817,7 @@ int DARSHAN_DECL(fscanf)(FILE *stream, const char *format, ...)
     double tm1, tm2;
     va_list ap;
     long start_off, end_off;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(vfscanf);
 
@@ -826,6 +846,7 @@ int DARSHAN_DECL(vfscanf)(FILE *stream, const char *format, va_list ap)
     int ret;
     double tm1, tm2;
     long start_off, end_off;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(vfscanf);
 
@@ -848,6 +869,7 @@ char* DARSHAN_DECL(fgets)(char *s, int size, FILE *stream)
 {
     char *ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fgets);
 
@@ -868,6 +890,7 @@ void DARSHAN_DECL(rewind)(FILE *stream)
 {
     double tm1, tm2;
     struct stdio_file_record_ref *rec_ref;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(rewind);
 
@@ -909,6 +932,7 @@ int DARSHAN_DECL(fseek)(FILE *stream, long offset, int whence)
     int ret;
     struct stdio_file_record_ref *rec_ref;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fseek);
 
@@ -939,6 +963,7 @@ int DARSHAN_DECL(fseeko)(FILE *stream, off_t offset, int whence)
     int ret;
     struct stdio_file_record_ref *rec_ref;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fseeko);
 
@@ -969,6 +994,7 @@ int DARSHAN_DECL(fseeko64)(FILE *stream, off64_t offset, int whence)
     int ret;
     struct stdio_file_record_ref *rec_ref;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fseeko64);
 
@@ -999,6 +1025,7 @@ int DARSHAN_DECL(fsetpos)(FILE *stream, const fpos_t *pos)
     int ret;
     struct stdio_file_record_ref *rec_ref;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fsetpos);
 
@@ -1029,6 +1056,7 @@ int DARSHAN_DECL(fsetpos64)(FILE *stream, const fpos64_t *pos)
     int ret;
     struct stdio_file_record_ref *rec_ref;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(fsetpos64);
 
@@ -1061,7 +1089,7 @@ int DARSHAN_DECL(fsetpos64)(FILE *stream, const fpos64_t *pos)
 /* initialize internal STDIO module data structures and register with darshan-core */
 static void stdio_runtime_initialize()
 {
-    int ret;
+    int ret, __darshan_disabled;
     size_t stdio_rec_count;
     darshan_module_funcs mod_funcs = {
 #ifdef HAVE_MPI

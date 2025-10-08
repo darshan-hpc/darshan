@@ -24,8 +24,6 @@
 #include "darshan.h"
 #include "darshan-dynamic.h"
 
-static int __darshan_disabled;
-
 #define RECORD_STRING "total-mdhim-obj-stats"
 
 /* The DARSHAN_FORWARD_DECL macro (defined in darshan.h) is used to provide forward
@@ -225,7 +223,7 @@ int DARSHAN_DECL(mdhimInit)(mdhim_t *md, mdhim_options_t *opts)
     /* not counting or tracking anything in this routine, but grabbing a
      * bit of information about the mdhim instance */
 
-    int ret;
+    int ret, __darshan_disabled;
     darshan_record_id rec_id;
     struct mdhim_record_ref *rec_ref;
     int nr_servers;
@@ -261,6 +259,7 @@ mdhim_rm_t *DARSHAN_DECL(mdhimPut)(mdhim_t *md,
 {
     mdhim_rm_t *ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     /* The MAP_OR_FAIL macro attempts to obtain the address of the actual
      * underlying put function call (__real_put), in the case of LD_PRELOADing
@@ -295,6 +294,7 @@ mdhim_grm_t * DARSHAN_DECL(mdhimGet)(mdhim_t *md,
 {
     mdhim_grm_t *ret;
     double tm1, tm2;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(mdhimGet);
 

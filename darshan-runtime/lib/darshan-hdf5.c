@@ -30,8 +30,6 @@
 
 #include <hdf5.h>
 
-static int __darshan_disabled;
-
 /* H5F prototypes */
 DARSHAN_FORWARD_DECL(H5Fcreate, hid_t, (const char *filename, unsigned flags, hid_t create_plist, hid_t access_plist));
 DARSHAN_FORWARD_DECL(H5Fopen, hid_t, (const char *filename, unsigned flags, hid_t access_plist));
@@ -202,7 +200,7 @@ hid_t DARSHAN_DECL(H5Fcreate)(const char *filename, unsigned flags,
     double tm1, tm2;
     unsigned majnum, minnum, relnum;
     int tmp_rank = my_rank;
-    int use_mpio = 0;
+    int use_mpio = 0, __darshan_disabled;
 
     H5get_libversion(&majnum, &minnum, &relnum);
 #ifdef DARSHAN_HDF5_VERS_1_10_PLUS
@@ -294,7 +292,7 @@ hid_t DARSHAN_DECL(H5Fopen)(const char *filename, unsigned flags,
     double tm1, tm2;
     unsigned majnum, minnum, relnum;
     int tmp_rank = my_rank;
-    int use_mpio = 0;
+    int use_mpio = 0, __darshan_disabled;
 
     H5get_libversion(&majnum, &minnum, &relnum);
 #ifdef DARSHAN_HDF5_VERS_1_10_PLUS
@@ -385,6 +383,7 @@ herr_t DARSHAN_DECL(H5Fflush)(hid_t object_id, H5F_scope_t scope)
     hid_t file_id;
     double tm1, tm2;
     herr_t ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(H5Fflush);
 
@@ -423,6 +422,7 @@ herr_t DARSHAN_DECL(H5Fclose)(hid_t file_id)
     struct hdf5_file_record_ref *rec_ref;
     double tm1, tm2;
     herr_t ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(H5Fclose);
 
@@ -554,6 +554,7 @@ hid_t DARSHAN_DECL(H5Dcreate1)(hid_t loc_id, const char *name, hid_t type_id, hi
 {
     double tm1, tm2;
     hid_t ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(H5Dcreate1);
 
@@ -576,6 +577,7 @@ hid_t DARSHAN_DECL(H5Dcreate2)(hid_t loc_id, const char *name, hid_t dtype_id, h
 {
     double tm1, tm2;
     hid_t ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(H5Dcreate2);
 
@@ -600,6 +602,7 @@ hid_t DARSHAN_DECL(H5Dopen1)(hid_t loc_id, const char *name)
     hid_t dcpl_id;
     double tm1, tm2;
     hid_t ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(H5Dopen1);
 
@@ -646,6 +649,7 @@ hid_t DARSHAN_DECL(H5Dopen2)(hid_t loc_id, const char *name, hid_t dapl_id)
     hid_t dcpl_id;
     double tm1, tm2;
     hid_t ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(H5Dopen2);
 
@@ -695,7 +699,7 @@ herr_t DARSHAN_DECL(H5Dread)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spac
     H5S_sel_type file_sel_type;
     int64_t common_access_vals[H5D_MAX_NDIMS+H5D_MAX_NDIMS+1] = {0};
     struct darshan_common_val_counter *cvc;
-    int i;
+    int i, __darshan_disabled;
     double tm1, tm2, elapsed;
     herr_t ret;
 
@@ -826,7 +830,7 @@ herr_t DARSHAN_DECL(H5Dwrite)(hid_t dataset_id, hid_t mem_type_id, hid_t mem_spa
     H5S_sel_type file_sel_type;
     int64_t common_access_vals[H5D_MAX_NDIMS+H5D_MAX_NDIMS+1] = {0};
     struct darshan_common_val_counter *cvc;
-    int i;
+    int i, __darshan_disabled;
     double tm1, tm2, elapsed;
     herr_t ret;
 
@@ -953,6 +957,7 @@ herr_t DARSHAN_DECL(H5Dflush)(hid_t dataset_id)
     struct hdf5_dataset_record_ref *rec_ref;
     double tm1, tm2;
     herr_t ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(H5Dflush);
 
@@ -984,6 +989,7 @@ herr_t DARSHAN_DECL(H5Dclose)(hid_t dataset_id)
     struct hdf5_dataset_record_ref *rec_ref;
     double tm1, tm2;
     herr_t ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(H5Dclose);
 
@@ -1030,6 +1036,7 @@ hid_t DARSHAN_DECL(H5Oopen)(hid_t loc_id, const char *name, hid_t lapl_id)
     hid_t dcpl_id;
     double tm1, tm2;
     hid_t ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(H5Oopen);
 
@@ -1082,6 +1089,7 @@ hid_t DARSHAN_DECL(H5Oopen_by_addr)(hid_t loc_id, haddr_t addr)
     double tm1, tm2;
     size_t sz;
     hid_t ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(H5Oopen_by_addr);
 
@@ -1145,6 +1153,7 @@ hid_t DARSHAN_DECL(H5Oopen_by_idx)(hid_t loc_id, const char * group_name,
     double tm1, tm2;
     size_t sz;
     hid_t ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(H5Oopen_by_idx);
 
@@ -1208,6 +1217,7 @@ hid_t DARSHAN_DECL(H5Oopen_by_token)(hid_t loc_id, H5O_token_t token)
     double tm1, tm2;
     size_t sz;
     hid_t ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(H5Oopen_by_token);
 
@@ -1267,6 +1277,7 @@ herr_t DARSHAN_DECL(H5Oclose)(hid_t object_id)
     struct hdf5_dataset_record_ref *rec_ref;
     double tm1, tm2;
     herr_t ret;
+    int __darshan_disabled;
 
     MAP_OR_FAIL(H5Oclose);
 

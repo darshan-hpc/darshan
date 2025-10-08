@@ -34,8 +34,6 @@
 #include <daos_obj.h>
 #include <daos_array.h>
 
-static int __darshan_disabled;
-
 /* container access routines intercepted for maintaining pool/container UUIDs */
 DARSHAN_FORWARD_DECL(daos_cont_open, int, (daos_handle_t poh, const char *cont, unsigned int flags, daos_handle_t *coh, daos_cont_info_t *info, daos_event_t *ev));
 DARSHAN_FORWARD_DECL(daos_cont_global2local, int, (daos_handle_t poh, d_iov_t glob, daos_handle_t *coh));
@@ -495,7 +493,7 @@ int darshan_daos_contopen_comp_cb(void *arg, daos_event_t *ev, int ret)
 int DARSHAN_DECL(daos_cont_open)(daos_handle_t poh, const char *cont, unsigned int flags,
     daos_handle_t *coh, daos_cont_info_t *info, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
 
     MAP_OR_FAIL(daos_cont_open);
 
@@ -525,7 +523,7 @@ int DARSHAN_DECL(daos_cont_open)(daos_handle_t poh, const char *cont, unsigned i
 
 int DARSHAN_DECL(daos_cont_global2local)(daos_handle_t poh, d_iov_t glob, daos_handle_t *coh)
 {
-    int ret;
+    int ret, __darshan_disabled;
 
     MAP_OR_FAIL(daos_cont_global2local);
 
@@ -540,7 +538,7 @@ int DARSHAN_DECL(daos_cont_global2local)(daos_handle_t poh, d_iov_t glob, daos_h
 
 int DARSHAN_DECL(daos_cont_close)(daos_handle_t coh, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     struct daos_poolcont_info *poolcont_info;
 
     MAP_OR_FAIL(daos_cont_close);
@@ -566,7 +564,7 @@ int DARSHAN_DECL(daos_cont_close)(daos_handle_t coh, daos_event_t *ev)
 
 int DARSHAN_DECL(daos_obj_open)(daos_handle_t coh, daos_obj_id_t oid, unsigned int mode, daos_handle_t *oh, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(daos_obj_open);
@@ -620,7 +618,7 @@ int DARSHAN_DECL(daos_obj_fetch)(daos_handle_t oh, daos_handle_t th, uint64_t fl
     daos_key_t *dkey, unsigned int nr, daos_iod_t *iods, d_sg_list_t *sgls,
     daos_iom_t *ioms, daos_event_t *ev)
 {
-	int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     daos_size_t fetch_sz;
 
@@ -661,7 +659,7 @@ int DARSHAN_DECL(daos_obj_update)(daos_handle_t oh, daos_handle_t th, uint64_t f
     daos_key_t *dkey, unsigned int nr, daos_iod_t *iods, d_sg_list_t *sgls,
     daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     daos_size_t update_sz;
 
@@ -701,7 +699,7 @@ int DARSHAN_DECL(daos_obj_update)(daos_handle_t oh, daos_handle_t th, uint64_t f
 int DARSHAN_DECL(daos_obj_punch)(daos_handle_t oh, daos_handle_t th, uint64_t flags,
     daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -746,7 +744,7 @@ int DARSHAN_DECL(daos_obj_punch)(daos_handle_t oh, daos_handle_t th, uint64_t fl
 int DARSHAN_DECL(daos_obj_punch_dkeys)(daos_handle_t oh, daos_handle_t th, uint64_t flags,
     unsigned int nr, daos_key_t *dkeys, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -791,7 +789,7 @@ int DARSHAN_DECL(daos_obj_punch_dkeys)(daos_handle_t oh, daos_handle_t th, uint6
 int DARSHAN_DECL(daos_obj_punch_akeys)(daos_handle_t oh, daos_handle_t th, uint64_t flags,
     daos_key_t *dkey, unsigned int nr, daos_key_t *akeys, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -837,7 +835,7 @@ int DARSHAN_DECL(daos_obj_punch_akeys)(daos_handle_t oh, daos_handle_t th, uint6
 int DARSHAN_DECL(daos_obj_list_dkey)(daos_handle_t oh, daos_handle_t th, uint32_t *nr,
     daos_key_desc_t *kds, d_sg_list_t *sgl, daos_anchor_t *anchor, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -883,7 +881,7 @@ int DARSHAN_DECL(daos_obj_list_akey)(daos_handle_t oh, daos_handle_t th,
     daos_key_t *dkey, uint32_t *nr, daos_key_desc_t *kds, d_sg_list_t *sgl,
     daos_anchor_t *anchor, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -930,7 +928,7 @@ int DARSHAN_DECL(daos_obj_list_recx)(daos_handle_t oh, daos_handle_t th,
     daos_recx_t *recxs, daos_epoch_range_t *eprs, daos_anchor_t *anchor,
     bool incr_order, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -975,7 +973,7 @@ int DARSHAN_DECL(daos_obj_list_recx)(daos_handle_t oh, daos_handle_t th,
 
 int DARSHAN_DECL(daos_obj_close)(daos_handle_t oh, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(daos_obj_close);
@@ -1013,7 +1011,7 @@ int DARSHAN_DECL(daos_array_create)(daos_handle_t coh, daos_obj_id_t oid,
     daos_handle_t th, daos_size_t cell_size, daos_size_t chunk_size,
     daos_handle_t *oh, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(daos_array_create);
@@ -1055,7 +1053,7 @@ int DARSHAN_DECL(daos_array_open)(daos_handle_t coh, daos_obj_id_t oid,
     daos_handle_t th, unsigned int mode, daos_size_t *cell_size, daos_size_t *chunk_size,
     daos_handle_t *oh, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(daos_array_open);
@@ -1095,7 +1093,7 @@ int DARSHAN_DECL(daos_array_open)(daos_handle_t coh, daos_obj_id_t oid,
 
 int DARSHAN_DECL(daos_array_open_with_attr)(daos_handle_t coh, daos_obj_id_t oid, daos_handle_t th, unsigned int mode, daos_size_t cell_size, daos_size_t chunk_size, daos_handle_t *oh, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(daos_array_open_with_attr);
@@ -1147,7 +1145,7 @@ int DARSHAN_DECL(daos_array_open_with_attr)(daos_handle_t coh, daos_obj_id_t oid
 int DARSHAN_DECL(daos_array_read)(daos_handle_t oh, daos_handle_t th,
     daos_array_iod_t *iod, d_sg_list_t *sgl, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     daos_size_t read_sz;
 
@@ -1187,7 +1185,7 @@ int DARSHAN_DECL(daos_array_read)(daos_handle_t oh, daos_handle_t th,
 int DARSHAN_DECL(daos_array_write)(daos_handle_t oh, daos_handle_t th,
     daos_array_iod_t *iod, d_sg_list_t *sgl, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     daos_size_t write_sz;
 
@@ -1227,7 +1225,7 @@ int DARSHAN_DECL(daos_array_write)(daos_handle_t oh, daos_handle_t th,
 int DARSHAN_DECL(daos_array_get_size)(daos_handle_t oh, daos_handle_t th,
     daos_size_t *size, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -1272,7 +1270,7 @@ int DARSHAN_DECL(daos_array_get_size)(daos_handle_t oh, daos_handle_t th,
 int DARSHAN_DECL(daos_array_set_size)(daos_handle_t oh, daos_handle_t th,
     daos_size_t size, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -1316,7 +1314,7 @@ int DARSHAN_DECL(daos_array_set_size)(daos_handle_t oh, daos_handle_t th,
 
 int DARSHAN_DECL(daos_array_stat)(daos_handle_t oh, daos_handle_t th, daos_array_stbuf_t *stbuf, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -1361,7 +1359,7 @@ int DARSHAN_DECL(daos_array_stat)(daos_handle_t oh, daos_handle_t th, daos_array
 int DARSHAN_DECL(daos_array_punch)(daos_handle_t oh, daos_handle_t th,
     daos_array_iod_t *iod, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -1406,7 +1404,7 @@ int DARSHAN_DECL(daos_array_punch)(daos_handle_t oh, daos_handle_t th,
 int DARSHAN_DECL(daos_array_destroy)(daos_handle_t oh, daos_handle_t th,
     daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -1450,7 +1448,7 @@ int DARSHAN_DECL(daos_array_destroy)(daos_handle_t oh, daos_handle_t th,
 
 int DARSHAN_DECL(daos_array_close)(daos_handle_t oh, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(daos_array_close);
@@ -1487,7 +1485,7 @@ int DARSHAN_DECL(daos_array_close)(daos_handle_t oh, daos_event_t *ev)
 int DARSHAN_DECL(daos_kv_open)(daos_handle_t coh, daos_obj_id_t oid, unsigned int mode,
     daos_handle_t *oh, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(daos_kv_open);
@@ -1528,7 +1526,7 @@ int DARSHAN_DECL(daos_kv_open)(daos_handle_t coh, daos_obj_id_t oid, unsigned in
 int DARSHAN_DECL(daos_kv_get)(daos_handle_t oh, daos_handle_t th, uint64_t flags,
     const char *key, daos_size_t *size, void *buf, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(daos_kv_get);
@@ -1565,7 +1563,7 @@ int DARSHAN_DECL(daos_kv_get)(daos_handle_t oh, daos_handle_t th, uint64_t flags
 int DARSHAN_DECL(daos_kv_put)(daos_handle_t oh, daos_handle_t th, uint64_t flags,
     const char *key, daos_size_t size, const void *buf, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(daos_kv_put);
@@ -1602,7 +1600,7 @@ int DARSHAN_DECL(daos_kv_put)(daos_handle_t oh, daos_handle_t th, uint64_t flags
 int DARSHAN_DECL(daos_kv_remove)(daos_handle_t oh, daos_handle_t th, uint64_t flags,
     const char *key, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -1647,7 +1645,7 @@ int DARSHAN_DECL(daos_kv_remove)(daos_handle_t oh, daos_handle_t th, uint64_t fl
 int DARSHAN_DECL(daos_kv_list)(daos_handle_t oh, daos_handle_t th, uint32_t *nr,
     daos_key_desc_t *kds, d_sg_list_t *sgl, daos_anchor_t *anchor, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -1691,7 +1689,7 @@ int DARSHAN_DECL(daos_kv_list)(daos_handle_t oh, daos_handle_t th, uint32_t *nr,
 
 int DARSHAN_DECL(daos_kv_destroy)(daos_handle_t oh, daos_handle_t th, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     struct daos_object_record_ref *rec_ref;
 
@@ -1735,7 +1733,7 @@ int DARSHAN_DECL(daos_kv_destroy)(daos_handle_t oh, daos_handle_t th, daos_event
 
 int DARSHAN_DECL(daos_kv_close)(daos_handle_t oh, daos_event_t *ev)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(daos_kv_close);

@@ -227,7 +227,7 @@ DARSHAN_FORWARD_DECL(APINAME($1,$2,$3,$4), int, (int ncid, int varid, ArgKind($2
 
 int DARSHAN_DECL(APINAME($1,$2,$3,$4))(int ncid, int varid, ArgKind($2)BufArgs($1,$3))
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(APINAME($1,$2,$3,$4));
@@ -270,7 +270,7 @@ DARSHAN_FORWARD_DECL(APINAME($1,n,$2,$3), int, (int ncid, int varid, int num, MP
 
 int DARSHAN_DECL(APINAME($1,n,$2,$3))(int ncid, int varid, int num, MPI_Offset* const *starts, MPI_Offset* const *counts, BufArgs($1,$2))
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(APINAME($1,n,$2,$3));
@@ -312,7 +312,7 @@ DARSHAN_FORWARD_DECL(ncmpi_$1_vard$2, int, (int ncid, int varid, MPI_Datatype fi
 
 int DARSHAN_DECL(ncmpi_$1_vard$2)(int ncid, int varid, MPI_Datatype filetype, ifelse($1,`put',`const ')void *buf, MPI_Offset bufcount, MPI_Datatype buftype)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_$1_vard$2);
@@ -353,7 +353,7 @@ DARSHAN_FORWARD_DECL(APINAME($1,$2,$3), int, (int ncid, int varid, ArgKind($2)Bu
 
 int DARSHAN_DECL(APINAME($1,$2,$3))(int ncid, int varid, ArgKind($2)BufArgs($1,$3), int *reqid)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(APINAME($1,$2,$3));
@@ -397,7 +397,7 @@ DARSHAN_FORWARD_DECL(APINAME($1,n,$2), int, (int ncid, int varid, int num, MPI_O
 
 int DARSHAN_DECL(APINAME($1,n,$2))(int ncid, int varid, int num, MPI_Offset* const *starts, MPI_Offset* const *counts, BufArgs($1,$2), int *reqid)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(APINAME($1,n,$2));
@@ -464,7 +464,7 @@ DARSHAN_FORWARD_DECL(ncmpi_create, int, (MPI_Comm comm, const char *path, int cm
 int DARSHAN_DECL(ncmpi_create)(MPI_Comm comm, const char *path,
     int cmode, MPI_Info info, int *ncidp)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_create);
@@ -495,7 +495,7 @@ DARSHAN_FORWARD_DECL(ncmpi_open, int, (MPI_Comm comm, const char *path, int omod
 int DARSHAN_DECL(ncmpi_open)(MPI_Comm comm, const char *path,
     int omode, MPI_Info info, int *ncidp)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_open);
@@ -525,7 +525,7 @@ DARSHAN_FORWARD_DECL(ncmpi_close, int, (int ncid));
 
 int DARSHAN_DECL(ncmpi_close)(int ncid)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
     MPI_Offset put_size, get_size;
     struct pnetcdf_file_record_ref *rec_ref;
@@ -574,7 +574,7 @@ DARSHAN_FORWARD_DECL(ncmpi_enddef, int, (int ncid));
 
 int DARSHAN_DECL(ncmpi_enddef)(int ncid)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_enddef);
@@ -601,7 +601,7 @@ DARSHAN_FORWARD_DECL(ncmpi_redef, int, (int ncid));
 
 int DARSHAN_DECL(ncmpi_redef)(int ncid)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_redef);
@@ -630,7 +630,7 @@ DARSHAN_FORWARD_DECL(ncmpi_wait, int, (int ncid, int num, int array_of_requests[
 int DARSHAN_DECL(ncmpi_wait)(int ncid, int num, int array_of_requests[],
     int array_of_statuses[])
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_wait);
@@ -666,7 +666,7 @@ DARSHAN_FORWARD_DECL(ncmpi_wait_all, int, (int ncid, int num, int array_of_reque
 int DARSHAN_DECL(ncmpi_wait_all)(int ncid, int num, int array_of_requests[],
     int array_of_statuses[])
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_wait_all);
@@ -701,7 +701,7 @@ DARSHAN_FORWARD_DECL(ncmpi_sync, int, (int ncid));
 
 int DARSHAN_DECL(ncmpi_sync)(int ncid)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_sync);
@@ -794,7 +794,7 @@ DARSHAN_FORWARD_DECL(ncmpi_def_var, int, (int ncid, const char *name, nc_type xt
 
 int DARSHAN_DECL(ncmpi_def_var)(int ncid, const char *name, nc_type xtype, int ndims, const int dimids[], int *varidp)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_def_var);
@@ -815,7 +815,7 @@ DARSHAN_FORWARD_DECL(ncmpi_inq_varid, int, (int ncid, const char *name, int *var
 
 int DARSHAN_DECL(ncmpi_inq_varid)(int ncid, const char *name, int *varidp)
 {
-    int ret;
+    int ret, __darshan_disabled;
     double tm1, tm2;
 
     MAP_OR_FAIL(ncmpi_inq_varid);
