@@ -66,6 +66,12 @@ if test "x$NP" = x ; then
    NP=2
 fi
 
+# When TESTMPIRUN is not set, it is most likely built in the cross-compile
+# environment. In this case, skip the test.
+if test "x$TESTMPIRUN" = x ; then
+   exit 0
+fi
+
 if test "x$HAVE_OPEN_MPI" = x1 ; then
    TESTMPIRUN="$TESTMPIRUN --oversubscribe"
 fi
