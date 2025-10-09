@@ -333,11 +333,16 @@ if test "x$enable_darshan_runtime" = xyes ; then
       if test "x$ENABLE_MPI" = xno ; then
          AC_MSG_ERROR([--enable-apxc-mod Autoperf XC module requires MPI support])
       fi
+      with_papi=`pkg-config --libs papi`
+      if test "x$?" = x0 ; then
+         CPPFLAGS+=`pkg-config --cflags papi`
+      else
+         AC_CHECK_HEADER([papi.h],
+                         [with_papi=-lpapi],
+                         [AC_MSG_ERROR([Cannot find papi header required for Autoperf XC module])],
+                         [])
+      fi
       abssrcdir=$(readlink -f ${srcdir})
-      AC_CHECK_HEADER([papi.h],
-                      [with_papi=-lpapi],
-                      [AC_MSG_ERROR([Cannot find papi header required for Autoperf XC module])],
-                      [])
       AC_CHECK_FILE([${abssrcdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
                     [],
                     [AC_MSG_ERROR([The Autoperf XC git submodule is not present])])
