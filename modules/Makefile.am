@@ -18,7 +18,8 @@ BUILT_SOURCES = $(apmpi_c_saved)
 
 EXTRA_DIST = patched_darshan-apmpi.c orig_darshan-apmpi.c
 
-clean:
-	rm -f $(apmpi_c_saved)
-	cp -f $(apmpi_c_orig) $(apmpi_c_src)
+CLEANFILES = $(apmpi_c_saved)
+
+clean-local:
+	cp -f -p $(apmpi_c_orig) $(apmpi_c_src)
 
