@@ -336,6 +336,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
       with_papi=`pkg-config --libs papi`
       if test "x$?" = x0 ; then
          CPPFLAGS+=`pkg-config --cflags papi`
+         papi_version=`pkg-config --modversion papi`
       else
          AC_CHECK_HEADER([papi.h],
                          [with_papi=-lpapi],
@@ -1088,6 +1089,11 @@ if test "x$enable_darshan_runtime" = xyes ; then
          enable_apmpi_mod="yes (collective sync mode)"
       fi
    fi
+   if test "x$enable_apxc_mod" = xyes ; then
+      if test -n "$papi_version" ; then
+         enable_apxc_mod="yes (using papi $papi_version)"
+      fi
+   fi
    echo "------------------------------------------------------------------------------
    ${PACKAGE_NAME} Version ${PACKAGE_VERSION} configured with the following features:"
    if test "x$ENABLE_MPI" = xyes ; then
@@ -1106,11 +1112,11 @@ if test "x$enable_darshan_runtime" = xyes ; then
            MPI-IO        module support  - $enable_mpiio_mod
            AUTOPERF MPI  module support  - $enable_apmpi_mod
            AUTOPERF XC   module support  - $enable_apxc_mod
-           HDF5          module support  - $enable_hdf5_mod
-           DAOS          module support  - $enable_daos_mod
            PnetCDF       module support  - $enable_pnetcdf_mod
-           BG/Q          module support  - $enable_bgq_mod
+           HDF5          module support  - $enable_hdf5_mod
            Lustre        module support  - $enable_lustre_mod
+           DAOS          module support  - $enable_daos_mod
+           BG/Q          module support  - $enable_bgq_mod
            MDHIM         module support  - $enable_mdhim_mod
            HEATMAP       module support  - $enable_heatmap_mod
            LDMS          runtime module  - $enable_ldms_mod
