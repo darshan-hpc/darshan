@@ -433,6 +433,10 @@ void darshan_core_shutdown(int write_log)
     darshan_record_id *mod_shared_recs = NULL;
     int shared_rec_cnt = 0;
 #endif
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    char dup_log_fame[__DARSHAN_PATH_MAX + 5];
+    dup_log_fame[0] = '\0';
+#endif
 
     /* disable darhan-core while we shutdown */
     __DARSHAN_CORE_LOCK();
@@ -470,13 +474,47 @@ void darshan_core_shutdown(int write_log)
     internal_timing_flag = final_core->config.internal_timing_flag;
 
 #ifdef __DARSHAN_ENABLE_MMAP_LOGS
-    /* remove the temporary mmap log files */
-    /* NOTE: this unlink is not immediate as it must wait for the mapping
-     * to no longer be referenced, which in our case happens when the
-     * executable exits. If the application terminates mid-shutdown, then
-     * there will be no mmap files and no final log file.
+    /* Flush memory-mapped data to the underlying file and then duplicate the
+     * mmap log file, in case an interrupt happens before the completion of
+     * this subroutine, leaving the log file corrupted. See github issue #1052.
      */
-    unlink(final_core->mmap_log_name);
+    msync(final_core->log_hdr_p, final_core->mmap_size, MS_SYNC);
+
+    /* Duplicate the log file, Below we on purpose ignore errors from open(),
+     * lseek(), read(), write(), and close(), as they are not fatal and should
+     * not affect the remaining tasks of this subroutine, i.e. log data file
+     * processing. Note if any of these system calls failed, then the contents
+     * of duplicated file will become useless, but such problem will be even
+     * more serious than being unable to duplicate the file.
+     */
+    int mmap_fd = open(final_core->mmap_log_name, O_RDONLY, 0644);
+    if (mmap_fd != -1) {
+        char *dup_suffix = ".dup.darshan";
+        int err, dup_mmap_fd;
+        void *buf = (void*) malloc(final_core->mmap_size);
+        ssize_t rlen = read(mmap_fd, buf, final_core->mmap_size);
+        if (rlen < 0)
+            darshan_core_fprintf(stderr, "darshan:log duplication read (%s)\n", strerror(errno));
+        err = close(mmap_fd);
+        if (err < 0)
+            darshan_core_fprintf(stderr, "darshan:log duplication close (%s)\n", strerror(errno));
+        strncpy(dup_log_fame, final_core->mmap_log_name, __DARSHAN_PATH_MAX);
+        snprintf(strstr(dup_log_fame, ".darshan"), strlen(dup_suffix), "%s", dup_suffix);
+        dup_mmap_fd = open(dup_log_fame, O_CREAT | O_WRONLY, 0644);
+        if (dup_mmap_fd != -1) {
+            ssize_t wlen = write(dup_mmap_fd, buf, final_core->mmap_size);
+            if (wlen < 0)
+                darshan_core_fprintf(stderr, "darshan:log duplication write (%s)\n", strerror(errno));
+            err = close(dup_mmap_fd);
+            if (err < 0)
+                darshan_core_fprintf(stderr, "darshan:log duplication close (%s)\n", strerror(errno));
+        }
+        else
+            darshan_core_fprintf(stderr, "darshan:log duplication open (%s)\n", strerror(errno));
+        free(buf);
+    }
+    else
+        darshan_core_fprintf(stderr, "darshan:log duplication open (%s)\n", strerror(errno));
 #endif
 
     final_core->comp_buf = malloc(final_core->config.mod_mem);
@@ -692,6 +730,15 @@ void darshan_core_shutdown(int write_log)
     /* finalize log file name and permissions */
     darshan_log_finalize(logfile_name, start_log_time);
 
+#ifdef __DARSHAN_ENABLE_MMAP_LOGS
+    /* Now, we are done with accessing the temporary log files and thus can
+     * safely remove them. We ignore the error code returned from unlink(), as
+     * there is no harm to unlink a non-existing file.
+     */
+    unlink(final_core->mmap_log_name);
+    if (dup_log_fame[0] != '\0') unlink(dup_log_fame);
+#endif
+
     if(internal_timing_flag)
     {
         double open_tm;
@@ -770,7 +817,9 @@ cleanup:
     for(i = 0; i < DARSHAN_KNOWN_MODULE_COUNT; i++)
         if(final_core->mod_array[i])
             final_core->mod_array[i]->mod_funcs.mod_cleanup_func();
+
     darshan_core_cleanup(final_core);
+
 #ifdef HAVE_MPI
     if(using_mpi)
     {
@@ -778,6 +827,7 @@ cleanup:
         free(mod_shared_recs);
     }
 #endif
+
     free(logfile_name);
 
     return;
@@ -805,6 +855,8 @@ static void *darshan_init_mmap_log(struct darshan_core_runtime* core, int jobid)
         + core->config.name_mem + core->config.mod_mem;
     if(mmap_size % sys_page_size)
         mmap_size = ((mmap_size / sys_page_size) + 1) * sys_page_size;
+
+    core->mmap_size = mmap_size;
 
     darshan_get_user_name(cuser);
 
