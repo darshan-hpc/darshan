@@ -12,9 +12,19 @@ DARSHAN_PATH=$1
 if [[ "$DARSHAN_PATH" == *":"* ]]; then
     export DARSHAN_RUNTIME_PATH=`echo $DARSHAN_PATH | cut -f1 -d:`
     export DARSHAN_UTIL_PATH=`echo $DARSHAN_PATH | cut -f2 -d:`
+    if test "x$LD_LIBRARY_PATH" = x ; then
+       export LD_LIBRARY_PATH="$DARSHAN_RUNTIME_PATH/lib:$DARSHAN_UTIL_PATH/lib"
+    else
+       export LD_LIBRARY_PATH="$DARSHAN_RUNTIME_PATH/lib:$DARSHAN_UTIL_PATH/lib:$LD_LIBRARY_PATH"
+    fi
 else
     export DARSHAN_RUNTIME_PATH=$DARSHAN_PATH
     export DARSHAN_UTIL_PATH=$DARSHAN_PATH
+    if test "x$LD_LIBRARY_PATH" = x ; then
+       export LD_LIBRARY_PATH="$DARSHAN_PATH/lib"
+    else
+       export LD_LIBRARY_PATH="$DARSHAN_PATH/lib:$LD_LIBRARY_PATH"
+    fi
 fi
 export DARSHAN_TMP=$2
 export DARSHAN_PLATFORM=$3
