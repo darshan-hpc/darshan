@@ -5,11 +5,7 @@
 
 ACLOCAL_AMFLAGS = -I maint/config
 
-if BUILD_APMPI_MODULE
-   SUBDIRS = modules .
-else
-   SUBDIRS = .
-endif
+SUBDIRS = modules
 
 if BUILD_DARSHAN_RUNTIME
    SUBDIRS += darshan-runtime

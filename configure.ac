@@ -30,14 +30,6 @@ AC_ARG_ENABLE([darshan-runtime],
 )
 AM_CONDITIONAL(BUILD_DARSHAN_RUNTIME, [test "x$enable_darshan_runtime" != xno])
 
-# AUTOPERF MPI module
-AC_ARG_ENABLE([apmpi-mod],
-   [AS_HELP_STRING([--enable-apmpi-mod],
-                   [Enables compilation and use of AUTOPERF MPI module (requ  ires MPI)])],
-   [], [enable_apmpi_mod=no]
-)
-AM_CONDITIONAL(BUILD_APMPI_MODULE, [test "x$enable_apmpi_mod" = xyes])
-
 AC_ARG_ENABLE([darshan-util],
    [AS_HELP_STRING([--disable-darshan-util],
                    [Build without Darshan utility tools])],

@@ -104,8 +104,15 @@ if BUILD_APMPI_MODULE
    AM_CPPFLAGS += -DDARSHAN_USE_APMPI \
                   -I$(apmpi_root) -I$(apmpi_root)/lib
 endif
+
+if PATCH_APMPI_MODULE
+   darshan_apmpi_c=$(top_srcdir)/../modules/patched_darshan-apmpi.c
+else
+   darshan_apmpi_c=$(apmpi_root)/lib/darshan-apmpi.c
+endif
+
 darshan-apmpi.c:
-	$(LN_S) $(top_srcdir)/../modules/patched_darshan-apmpi.c $@
+	$(LN_S) $(darshan_apmpi_c) $@
 
 libdarshan_la_SOURCES  = $(C_SRCS)
 libdarshan_la_LIBADD   = -lpthread -lrt -lz -ldl $(DARSHAN_LUSTRE_LD_FLAGS)
