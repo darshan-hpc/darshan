@@ -81,6 +81,8 @@ Darshan-3.5.0
   https://github.com/darshan-hpc/darshan/pull/1083
 * fix papi library path lookup by @wkliao in
   https://github.com/darshan-hpc/darshan/pull/1086
+* Check autoperf submodule git SHA to determine whether to use patched darshan-apmpi.c
+  https://github.com/darshan-hpc/darshan/pull/1087
 
 ## New Contributors
 * @roblatham00 made their first contribution in
