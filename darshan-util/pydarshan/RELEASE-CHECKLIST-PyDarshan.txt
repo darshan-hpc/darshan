@@ -43,6 +43,6 @@ Notes on how to release a new version of PyDarshan
     - Regular Darshan Release: Copy release notes for PyDarshan and attach as seperate section (mailinglist, website/blog)
     - PyDarshan only: Post release note section of PyDarshan (mailinglist, website/blog)
 
-Note on Versionsformat:
-    Whenever libdarshan-utils has a version change, PyDarshan is bumped accordingly.
-    4th position version numbers allows for PyDarshan to be on a faster release cycle
+Note on Versions format:
+    Our convention (as of October 2025) moving forward is to keep Darshan and PyDarshan releases in sync (even if one or the other doesn’t have a meaningful update).
+    (Whenever libdarshan-utils has a version change, PyDarshan is bumped accordingly, and vice versa.)
