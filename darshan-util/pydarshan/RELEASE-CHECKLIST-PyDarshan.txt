@@ -17,21 +17,53 @@ Notes on how to release a new version of PyDarshan
       readthedocs.io and are updated every time a new commit is pushed to the
       main branch.
 
- - Submit to PyPI using cibuildwheel/twine:
+ - Upload darshan package to test.pypi / pypi.org using cibuildwheel/twine:
     - pipx run build --sdist
         (in the pydarshan directory, creates a source distribution)
-    - download wheel artifacts from GitHub, copy to 'dist/' directory created above
+    - Download wheel artifacts from GitHub, copy them to 'dist/' directory
+      created above.
         + Click on Actions in GitHub. On the left panel, click "Build Wheels".
-        + Click on "Run workflow" to generate the artifacts. This will take about an hour.
+        + Click on "Run workflow" to generate the artifacts. This will take
+          about an hour.
         + Click on the latest workflow run named "Build Wheels"
         + At the bottom section, click the download icon to the right of
           'pydarshan-wheels-all' to download the artifact zip file, named
           'pydarshan-wheels-all.zip'.
         + Copy the zip file to to 'dist/' directory and run command 'unzip' to
           extract the wheel files.
-    - pipx run twine upload dist/*
-        (requires PyPI credentials for darshan project)
-        (use '--repository testpypi' to test wheels using https://test.pypi.org/project/darshan/ before uploading to PyPI)
+        + Delete the zip file.
+    - Test package on test.pypi.org first
+        0. This requires test.pypi.org credentials for darshan project.
+        1. Upload pydarshan package to testpypi by running command:
+           "pipx run twine upload --repository testpypi dist/*"
+        2. Go to https://test.pypi.org on a browser and search for package name
+           of "darshan" to verify if the right version appears there.
+        3. Test the package on your local machine.
+           a. Uninstall exiting darshan from your environment by running
+              command "pip uninstall darshan"
+           b. Install darshan by running command
+              "pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple darshan==3.5.0"
+           c. Verify by running command "pip show darshan"
+           d. Download the official darshan source code tar ball, e.g.
+              darshan-3.5.0.tar.gz, and untar it.
+           e. cd darshan-3.5.0/darshan-util/pydarshan
+           f. Make sure necessary python packages are installed by running
+              command "pip install tox coverage flake8"
+           g. Test by running commands:
+              + make test
+              + make test-all
+              + make coverage
+              + make lint
+           h. Uninstall the test package by running command
+              "pip uninstall darshan"
+        4. When all the above tests passed, the package is ready for the
+           official release.
+    - Upload the package to PYPI
+        + This requires PyPI credentials for darshan project
+        + Official python packages are stored at pypi.org.
+        + Run command "pipx run twine upload dist/*"
+        + Go to https://pypi.org on a browser and search for package name
+          of "darshan" to verify if the right version appears there.
 
  - Add/update spack package: py-darshan
     - add version entry
