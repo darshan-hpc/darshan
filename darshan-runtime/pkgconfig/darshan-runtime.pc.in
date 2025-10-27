@@ -5,7 +5,7 @@ Name: darshan
 Description: Darshan runtime library
 Version: @DARSHAN_VERSION@
 
-Requires: zlib mpich
+Requires:
 Requires.private:
 
 prefix=@prefix@
