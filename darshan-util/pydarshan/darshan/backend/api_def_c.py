@@ -200,12 +200,14 @@ struct dxt_file_record {
     int64_t read_count;
 };
 
+#define EXTRA_INFO_LEN 64
+
 typedef struct segment_info {
     int64_t offset;
     int64_t length;
     double start_time;
     double end_time;
-    char extra_info[64];
+    char extra_info[EXTRA_INFO_LEN];
 } segment_info;
 
 /* counter names */
