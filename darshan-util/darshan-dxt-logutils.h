@@ -12,8 +12,8 @@ extern struct darshan_mod_logutil_funcs dxt_posix_logutils;
 extern struct darshan_mod_logutil_funcs dxt_mpiio_logutils;
 
 void dxt_log_print_posix_file(void *file_rec, char *file_name,
-        char *mnt_pt, char *fs_type, struct lustre_record_ref *rec_ref);
+        char *mnt_pt, char *fs_type, struct lustre_record_ref *rec_ref, uint32_t *mod_ver);
 void dxt_log_print_mpiio_file(void *file_rec,
-        char *file_name, char *mnt_pt, char *fs_type);
+        char *file_name, char *mnt_pt, char *fs_type, uint32_t *mod_ver);
 
 #endif

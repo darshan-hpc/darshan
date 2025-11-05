@@ -48,7 +48,7 @@ int main(int argc, char **argv)
     char *token;
     char *save;
     char buffer[DARSHAN_JOB_METADATA_LEN];
-    struct lustre_record_ref *lustre_rec_ref, *tmp_lustre_rec_ref;
+    struct lustre_record_ref *lustre_rec_ref=NULL, *tmp_lustre_rec_ref;
     struct lustre_record_ref *lustre_rec_hash = NULL;
     char *mod_buf = NULL;
 
@@ -316,11 +316,11 @@ int main(int argc, char **argv)
                 HASH_FIND(hlink, lustre_rec_hash, &(base_rec->id),
                         sizeof(darshan_record_id), lustre_rec_ref);
 
-                dxt_log_print_posix_file(mod_buf, rec_name,
-                        mnt_pt, fs_type, lustre_rec_ref);
+                dxt_log_print_posix_file(mod_buf, rec_name, mnt_pt, fs_type,
+                                         lustre_rec_ref, fd->mod_ver);
             } else if (i == DXT_MPIIO_MOD){
-                dxt_log_print_mpiio_file(mod_buf, rec_name,
-                        mnt_pt, fs_type);
+                dxt_log_print_mpiio_file(mod_buf, rec_name, mnt_pt, fs_type,
+                                         fd->mod_ver);
             }
 
             free(mod_buf);
