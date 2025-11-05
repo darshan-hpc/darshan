@@ -7,8 +7,8 @@
 #define __DARSHAN_DXT_LOG_FORMAT_H
 
 /* current DXT log format version */
-#define DXT_POSIX_VER 1
-#define DXT_MPIIO_VER 2
+#define DXT_POSIX_VER 2
+#define DXT_MPIIO_VER 3
 
 #define EXTRA_INFO_LEN 64
 #define HOSTNAME_SIZE 64
