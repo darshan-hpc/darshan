@@ -603,12 +603,15 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
         # retrieve file's DXT_MPIIO version number
         dxt_mpiio_ver = log['modules']['DXT_MPIIO']['ver']
 
+    append_pthread_id = True
     append_extra_info = True
     if mod_name == 'DXT_POSIX' and dxt_posix_ver < 2:
-        # DXT_POSIX_VER 2 and later has extra_info field added
+        # DXT_POSIX_VER 2 and later has pthread_id and extra_info field added
+        append_pthread_id = False
         append_extra_info = False
     elif mod_name == 'DXT_MPIIO' and dxt_mpiio_ver < 3:
-        # DXT_MPIIO_VER 3 and later has extra_info field added
+        # DXT_MPIIO_VER 3 and later has pthread_id and extra_info field added
+        append_pthread_id = False
         append_extra_info = False
 
     rec = {}
@@ -644,6 +647,10 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
             "end_time": segments[i].end_time
         }
 
+        if append_pthread_id:
+            # append field of pthread_id
+            seg["pthread_id"] = segments[i].pthread_id
+
         if append_extra_info:
             # append field of extra_info
             info_str = ffi.string(segments[i].extra_info)
@@ -665,6 +672,10 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
             "start_time": segments[i].start_time,
             "end_time": segments[i].end_time
         }
+
+        if append_pthread_id:
+            # append field of pthread_id
+            seg["pthread_id"] = segments[i].pthread_id
 
         if append_extra_info:
             # append field of extra_info

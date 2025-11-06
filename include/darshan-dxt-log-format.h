@@ -22,6 +22,7 @@ typedef struct segment_info {
     int64_t length;
     double start_time;
     double end_time;
+    unsigned long pthread_id;
     char extra_info[EXTRA_INFO_LEN];
 } segment_info;
 
