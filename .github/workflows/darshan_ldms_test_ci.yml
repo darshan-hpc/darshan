@@ -1,6 +1,6 @@
 #Test overview:
-# Test the Darshan LDMS Integrated code (e.g. darshanConnector). 
-# Build and Compile lastest LDMS release
+# Test the Darshan LDMS Integrated code (e.g. darshanConnector).
+# Build and Compile lastest LDMS official release
 # Build and Compile Darshan against the latest LDMS library
 # Run an MPI-IO Test from Darshan's test suites
 # Check that the test completes normally and LDMS is collecting runtime timeseries data
@@ -10,12 +10,15 @@ name: Darshan-LDMS Integration Test - Latest
 
 on:
   push:
-    branches: 
+    branches:
       - main
   pull_request:
     branches:
       - main
   workflow_dispatch:
+
+env:
+  LDMS_VERSION: 4.5.1
 
 jobs:
   test:
@@ -31,27 +34,31 @@ jobs:
         sudo apt-get install openmpi-bin libopenmpi-dev
         sudo apt-get install libjansson-dev
         sudo apt-get install python3-docutils
-    - name: Clone LDMS
-      uses: actions/checkout@v3
-      with:
-        repository: ovis-hpc/ldms
-        path: ldms
-        ref: main
     - name: Install LDMS
       run: |
-        cd ldms
+        echo "Install LDMS ${LDMS_VERSION} in /opt/ldms-${LDMS_VERSION}"
+        wget https://github.com/ovis-hpc/ldms/archive/refs/tags/v${LDMS_VERSION}.tar.gz
+        tar -xzf v${LDMS_VERSION}.tar.gz
+        cd ldms-${LDMS_VERSION}
         sh autogen.sh
         set -e && mkdir -p build
         pushd build
-        ../configure --prefix=/opt/ldms-latest --enable-etc
-        make && make install
+        ../configure --prefix=/opt/ldms-${LDMS_VERSION} --enable-etc
+        make -j 8 install
     - name: Install Darshan
       run: |
         git submodule update --init
         # build darshan against LDMS library
         export DARSHAN_INSTALL_PREFIX=/opt/darshan_install
-        export DARSHAN_RUNTIME_CONFIG_ARGS="--enable-ldms-mod --with-ldms=/opt/ldms-latest --with-jobid-env=NONE"
-        darshan-test/automated/build-darshan.sh
+        export DARSHAN_LOG_PATH="${GITHUB_WORKSPACE}/darshan_logs"
+        mkdir -p ${DARSHAN_LOG_PATH}
+        autoreconf -i
+        ./configure --prefix=${DARSHAN_INSTALL_PREFIX} \
+                    --with-log-path=${DARSHAN_LOG_PATH} \
+                    --enable-ldms-mod \
+                    --with-ldms=/opt/ldms-${LDMS_VERSION} \
+                    --with-jobid-env=NONE
+        make -s LIBTOOLFLAGS=--silent V=1 -j8 install
     - name: Test Preparation and Run
       run : |
         echo "---setting Darshan environment---"
@@ -87,7 +94,7 @@ jobs:
                 exit 1
         fi
         echo "---generating ldmsd configuration file---"
-        cat > stream-samp-latest.conf << EOF
+        cat > stream-samp-${LDMS_VERSION}.conf << EOF
         stream_enable
         load name=hello_sampler
         config name=hello_sampler producer=host1 instance=host1/hello_sampler stream=darshanConnector component_id=1
@@ -96,22 +103,22 @@ jobs:
         config name=stream_csv_store path=./streams/store container=csv stream=darshanConnector rolltype=3 rollover=500000
         EOF
         echo "---starting ldmsd---"
-        cat > ldmsd-latest.sh << EOF
-        . /opt/ldms-latest/etc/profile.d/set-ovis-variables.sh
+        cat > ldmsd-${LDMS_VERSION}.sh << EOF
+        . /opt/ldms-${LDMS_VERSION}/etc/profile.d/set-ovis-variables.sh
         ldmsd \$@ &
         EOF
-        chmod 755 ldmsd-latest.sh
-        ./ldmsd-latest.sh -x sock:10444 -c stream-samp-latest.conf -l /tmp/stream-samp-latest.log -v DEBUG
+        chmod 755 ldmsd-${LDMS_VERSION}.sh
+        ./ldmsd-${LDMS_VERSION}.sh -x sock:10444 -c stream-samp-${LDMS_VERSION}.conf -l /tmp/stream-samp-${LDMS_VERSION}.log -v DEBUG
         echo "---check daemon is running---"
-        STREAM_SAMP_LATEST_PID=$(pgrep -f stream-samp-latest.conf)
+        STREAM_SAMP_LATEST_PID=$(pgrep -f stream-samp-${LDMS_VERSION}.conf)
         pgrep -a ldmsd
-        [[ -n "${STREAM_SAMP_LATEST_PID}" ]] || error "stream-samp-latest.log is not running"
-        cat > ldms_ls-latest.sh << EOF
-        . /opt/ldms-latest/etc/profile.d/set-ovis-variables.sh
+        [[ -n "${STREAM_SAMP_LATEST_PID}" ]] || error "stream-samp-${LDMS_VERSION}.log is not running"
+        cat > ldms_ls-${LDMS_VERSION}.sh << EOF
+        . /opt/ldms-${LDMS_VERSION}/etc/profile.d/set-ovis-variables.sh
         ldms_ls \$@ &
         EOF
-        chmod 755 ldms_ls-latest.sh
-        ./ldms_ls-latest.sh -p 10444 -x sock -v -v
+        chmod 755 ldms_ls-${LDMS_VERSION}.sh
+        ./ldms_ls-${LDMS_VERSION}.sh -p 10444 -x sock -v -v
         echo "---Test Case #1: Darshan-LDMS Env Set and Connected to LDMS Streams Deamon---"
         mpicc $DARSHAN_TESTDIR/test-cases/src/${PROG}.c -o $DARSHAN_TMP/${PROG}
         cd $DARSHAN_TMP
@@ -170,11 +177,11 @@ jobs:
         echo "---Check LDMS Data Collection---"
         if ! compgen -G "streams/store/csv/darshanConnector.*" > /dev/null; then
                 echo "CSV file does not exist."
-                cat /tmp/stream-samp-latest.log
-                exit 1        
+                cat /tmp/stream-samp-${LDMS_VERSION}.log
+                exit 1
         elif [[ -z "$(cat streams/store/csv/darshanConnector.*)" ]]; then
                 echo "No data was stored to CSV file."
-                cat /tmp/stream-samp-latest.log
+                cat /tmp/stream-samp-${LDMS_VERSION}.log
                 exit 1
         fi
         echo "DONE!"
