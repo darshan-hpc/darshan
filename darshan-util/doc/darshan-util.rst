@@ -1352,37 +1352,75 @@ captured from both POSIX and MPI-IO interfaces. Example output is given below:
    # DXT_POSIX module data
    # ***************************************************
 
-   # DXT, file_id: 16457598720760448348, file_name: /tmp/test/testFile
-   # DXT, rank: 0, hostname: shane-thinkpad
-   # DXT, write_count: 4, read_count: 4
-   # DXT, mnt_pt: /, fs_type: ext4
-   # Module    Rank  Wt/Rd  Segment          Offset       Length    Start(s)      End(s)
-    X_POSIX       0  write        0               0       262144      0.0029      0.0032
-    X_POSIX       0  write        1          262144       262144      0.0032      0.0035
-    X_POSIX       0  write        2          524288       262144      0.0035      0.0038
-    X_POSIX       0  write        3          786432       262144      0.0038      0.0040
-    X_POSIX       0   read        0               0       262144      0.0048      0.0048
-    X_POSIX       0   read        1          262144       262144      0.0049      0.0049
-    X_POSIX       0   read        2          524288       262144      0.0049      0.0050
-    X_POSIX       0   read        3          786432       262144      0.0050      0.0051
+   # DXT, file_id: 12998263815182938503, file_name: /tmp/test/testFile
+   # DXT, rank: 0, hostname: acfs.ece.northwestern.edu
+   # DXT, write_count: 4, read_count: 3
+   # DXT, mnt_pt: /homes, fs_type: autofs
+   # Module    Rank  Wt/Rd  Segment          Offset          Length    Start(s)      End(s)     Pthread-ID
+    X_POSIX       0  write        0               0              30      0.0018      0.0018     139823019705024
+    X_POSIX       0  write        1             120              10      0.0019      0.0020     139822945752832
+    X_POSIX       0  write        2             130              10      0.0021      0.0021     139822937360128
+    X_POSIX       0  write        3             140              10      0.0022      0.0022     139822861645568
+    X_POSIX       0   read        0               0              10      0.0019      0.0019     139822945752832
+    X_POSIX       0   read        1              10              10      0.0020      0.0020     139822937360128
+    X_POSIX       0   read        2              20              10      0.0022      0.0022     139822861645568
+
+   # DXT, file_id: 12998263815182938503, file_name: /tmp/test/testFile
+   # DXT, rank: 1, hostname: acfs.ece.northwestern.edu
+   # DXT, write_count: 4, read_count: 3
+   # DXT, mnt_pt: /homes, fs_type: autofs
+   # Module    Rank  Wt/Rd  Segment          Offset          Length    Start(s)      End(s)     Pthread-ID
+    X_POSIX       1  write        0              30              30      0.0018      0.0018     140244736549568
+    X_POSIX       1  write        1             180              10      0.0019      0.0019     140244662597376
+    X_POSIX       1  write        2             190              10      0.0022      0.0022     140244654204672
+    X_POSIX       1  write        3             200              10      0.0022      0.0022     140244573746944
+    X_POSIX       1   read        0              60              10      0.0019      0.0019     140244662597376
+    X_POSIX       1   read        1              70              10      0.0022      0.0022     140244654204672
+    X_POSIX       1   read        2              80              10      0.0022      0.0022     140244573746944
 
    # ***************************************************
    # DXT_MPIIO module data
    # ***************************************************
 
-   # DXT, file_id: 16457598720760448348, file_name: /tmp/test/testFile
-   # DXT, rank: 0, hostname: shane-thinkpad
-   # DXT, write_count: 4, read_count: 4
-   # DXT, mnt_pt: /, fs_type: ext4
-   # Module    Rank  Wt/Rd  Segment       Length    Start(s)      End(s)
-    X_MPIIO       0  write        0       262144      0.0029      0.0032
-    X_MPIIO       0  write        1       262144      0.0032      0.0035
-    X_MPIIO       0  write        2       262144      0.0035      0.0038
-    X_MPIIO       0  write        3       262144      0.0038      0.0040
-    X_MPIIO       0   read        0       262144      0.0048      0.0049
-    X_MPIIO       0   read        1       262144      0.0049      0.0049
-    X_MPIIO       0   read        2       262144      0.0049      0.0050
-    X_MPIIO       0   read        3       262144      0.0050      0.0051
+   # DXT, file_id: 12998263815182938503, file_name: /tmp/test/testFile
+   # DXT, rank: 0, hostname: acfs.ece.northwestern.edu
+   # DXT, write_count: 4, read_count: 3
+   # DXT, mnt_pt: /homes, fs_type: autofs
+   # Module    Rank  Wt/Rd  Segment          Offset          Length    Start(s)      End(s)     Pthread-ID
+    X_MPIIO       0  write        0               0              30      0.0018      0.0018     139823019705024
+    X_MPIIO       0  write        1             120              10      0.0019      0.0020     139822945752832
+    X_MPIIO       0  write        2             130              10      0.0020      0.0021     139822937360128
+    X_MPIIO       0  write        3             140              10      0.0022      0.0022     139822861645568
+    X_MPIIO       0   read        0               0              10      0.0019      0.0019     139822945752832
+    X_MPIIO       0   read        1              10              10      0.0020      0.0020     139822937360128
+    X_MPIIO       0   read        2              20              10      0.0022      0.0022     139822861645568
+
+   # DXT, file_id: 12998263815182938503, file_name: /tmp/test/testFile
+   # DXT, rank: 1, hostname: acfs.ece.northwestern.edu
+   # DXT, write_count: 4, read_count: 3
+   # DXT, mnt_pt: /homes, fs_type: autofs
+   # Module    Rank  Wt/Rd  Segment          Offset          Length    Start(s)      End(s)     Pthread-ID
+    X_MPIIO       1  write        0              30              30      0.0018      0.0018     140244736549568
+    X_MPIIO       1  write        1             180              10      0.0019      0.0019     140244662597376
+    X_MPIIO       1  write        2             190              10      0.0022      0.0022     140244654204672
+    X_MPIIO       1  write        3             200              10      0.0022      0.0022     140244573746944
+    X_MPIIO       1   read        0              60              10      0.0019      0.0019     140244662597376
+    X_MPIIO       1   read        1              70              10      0.0019      0.0022     140244654204672
+    X_MPIIO       1   read        2              80              10      0.0022      0.0022     140244573746944
+
+.. note::
+   Starting from Darshan version 3.6.0, there is an additional column at the
+   end showing the pthread ID. For Darshan log files generated from the earlier
+   versions will show -1 as Pthread-ID. An example is given below.
+
+   .. code-block::
+
+      # Module    Rank  Wt/Rd  Segment          Offset          Length    Start(s)      End(s)     Pthread-ID
+       X_POSIX       2  write        0              16               8      0.0022      0.0022     -1
+
+      # Module    Rank  Wt/Rd  Segment          Offset          Length    Start(s)      End(s)     Pthread-ID
+       X_MPIIO       3  write        0              24               8      0.0022      0.0022     -1
+
 
 DXT POSIX module
 -------------------------------------
@@ -1406,7 +1444,17 @@ The output format for each individual I/O operation segment is:
 
 .. code-block::
 
-   # Module    Rank  Wt/Rd  Segment          Offset       Length    Start(s)      End(s)
+   # Module    Rank  Wt/Rd  Segment          Offset          Length    Start(s)      End(s)     Pthread-ID
+
+.. note::
+   Starting from Darshan version 3.6.0, there is an additional column at the
+   end showing the pthread ID. When using the DXT parser of an earlier version
+   to parse a Darshan log file generated from earlier version, the columns will
+   not include "Pthread-ID", for example:
+
+   .. code-block::
+
+      # Module    Rank  Wt/Rd  Segment          Offset       Length    Start(s)      End(s)
 
 * Module: corresponding DXT module (DXT_POSIX or DXT_MPIIO)
 * Rank: process rank responsible for I/O operation
@@ -1416,6 +1464,9 @@ The output format for each individual I/O operation segment is:
 * Length: length of the I/O operation in bytes
 * Start: timestamp of the start of the operation (w.r.t. application start time)
 * End: timestamp of the end of the operation (w.r.t. application start time)
+* Pthread-ID: pthread ID of the calling thread. When using DXT parser from
+  version 3.6.0 and later to parse log files generated from earlier versions of
+  Darshan, the values of Pthread-ID will be -1.
 
 DXT MPI-IO module
 -------------------------------------
