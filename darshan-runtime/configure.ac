@@ -1138,6 +1138,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
            MDHIM         module support  - $enable_mdhim_mod
            HEATMAP       module support  - $enable_heatmap_mod
            LDMS          runtime module  - $enable_ldms_mod
+           Use mmap to log file          - $enable_mmap_logs
            Memory alignment in bytes     - $with_mem_align
            Log file env variables        - $__log_path_by_env
            Location of Darshan log files - $__log_path
