@@ -1426,7 +1426,13 @@ understanding how MPI-IO read or write operations map to underlying POSIX read
 or write operations issued to the traced file.
 
 The output format for the DXT MPI-IO module is essentially identical to the DXT
-POSIX module, except that the offset of file operations is not tracked.
+POSIX module, except that the offsets of file operations may not reflect the
+true file offsets used in individual I/O operations, due to the possibility of
+a very complicate MPI fileview passed to the MPI-IO library from the
+application or high-level I/O libraries. Decoding a complicate MPI derived
+datatype can be expensive. In addition, for MPI-IO functions that make use of
+shared file pointers, e.g. ``MPI_File_write_shared()``, it is difficult to
+trace the offsets without inter-process communication.
 
 Other darshan-util utilities
 =======================================
