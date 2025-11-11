@@ -3,6 +3,7 @@ from typing import Any, List
 import pandas as pd
 
 import darshan
+from darshan.cli.summary import DarshanReportTable
 
 
 def remove_nonzero_rows(df: Any) -> Any:
@@ -104,22 +105,6 @@ def get_access_count_df(mod_df: Any, mod: str) -> Any:
         df_list.append(df)
 
     return pd.concat(df_list, axis=1)
-
-
-class DarshanReportTable:
-    """
-    Stores table figures in dataframe and html formats.
-
-    Parameters
-    ----------
-    df: a ``pd.DataFrame``.
-
-    kwargs: keyword arguments passed to ``pd.DataFrame.to_html()``.
-
-    """
-    def __init__(self, df: Any, **kwargs):
-        self.df = df
-        self.html = self.df.to_html(**kwargs)
 
 
 def plot_common_access_table(report: darshan.DarshanReport, mod: str, n_rows: int = 4) -> DarshanReportTable:
