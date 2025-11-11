@@ -18,12 +18,12 @@ def autolabel(ax, rects):
                 rotation=45,
             )
 
-def plot_access_histogram(report, mod, ax=None):
+def plot_access_histogram(record, mod, ax=None):
     """
     Plots a histogram of access sizes for specified module.
 
 	Args:
-		report (darshan.DarshanReport): report to generate plot from
+		record: a dictionary with 2 separate DataFrames: 'counters' and 'fcounters'
 		mod (str): mod-string for which to generate access_histogram
 
     """
@@ -33,44 +33,42 @@ def plot_access_histogram(report, mod, ax=None):
     else:
         fig = None
 
-    # TODO: change to report.summary
-    if 'mod_agg_iohist' in dir(report):
-        report.mod_agg_iohist(mod)
-    else:
-        print("Cannot create summary, mod_agg_iohist aggregator is not registered with the report class.")
 
     # defaults
     labels = ['0-100', '101-1K', '1K-10K', '10K-100K', '100K-1M', '1M-4M', '4M-10M', '10M-100M', '100M-1G', '1G+']
 
-    agg = report.summary['agg_iohist'][mod]
-    # TODO: can simplify the read/write vals below after
-    # support for python 3.6 is dropped
+    counters=record['counters']
+    if mod == 'MPI-IO':
+        rd_counter_prefix = f'MPIIO_SIZE_READ_AGG_'
+        wr_counter_prefix = f'MPIIO_SIZE_WRITE_AGG_'
+    else:
+        rd_counter_prefix = f'{mod}_SIZE_READ_'
+        wr_counter_prefix = f'{mod}_SIZE_WRITE_'
     read_vals = [
-        agg['READ_0_100'],
-        agg['READ_100_1K'],
-        agg['READ_1K_10K'],
-        agg['READ_10K_100K'],
-        agg['READ_100K_1M'],
-        agg['READ_1M_4M'],
-        agg['READ_4M_10M'],
-        agg['READ_10M_100M'],
-        agg['READ_100M_1G'],
-        agg['READ_1G_PLUS']
+            counters[f'{rd_counter_prefix}0_100'][0],
+            counters[f'{rd_counter_prefix}100_1K'][0],
+            counters[f'{rd_counter_prefix}1K_10K'][0],
+            counters[f'{rd_counter_prefix}10K_100K'][0],
+            counters[f'{rd_counter_prefix}100K_1M'][0],
+            counters[f'{rd_counter_prefix}1M_4M'][0],
+            counters[f'{rd_counter_prefix}4M_10M'][0],
+            counters[f'{rd_counter_prefix}10M_100M'][0],
+            counters[f'{rd_counter_prefix}100M_1G'][0],
+            counters[f'{rd_counter_prefix}1G_PLUS'][0]
     ]
-
     write_vals = [
-        agg['WRITE_0_100'],
-        agg['WRITE_100_1K'],
-        agg['WRITE_1K_10K'],
-        agg['WRITE_10K_100K'],
-        agg['WRITE_100K_1M'],
-        agg['WRITE_1M_4M'],
-        agg['WRITE_4M_10M'],
-        agg['WRITE_10M_100M'],
-        agg['WRITE_100M_1G'],
-        agg['WRITE_1G_PLUS']
+            counters[f'{wr_counter_prefix}0_100'][0],
+            counters[f'{wr_counter_prefix}100_1K'][0],
+            counters[f'{wr_counter_prefix}1K_10K'][0],
+            counters[f'{wr_counter_prefix}10K_100K'][0],
+            counters[f'{wr_counter_prefix}100K_1M'][0],
+            counters[f'{wr_counter_prefix}1M_4M'][0],
+            counters[f'{wr_counter_prefix}4M_10M'][0],
+            counters[f'{wr_counter_prefix}10M_100M'][0],
+            counters[f'{wr_counter_prefix}100M_1G'][0],
+            counters[f'{wr_counter_prefix}1G_PLUS'][0]
     ]
-
+    #TODO: add support for HDF5/PnetCDF modules
     x = np.arange(len(labels))  # the label locations
     width = 0.35  # the width of the bars
 
