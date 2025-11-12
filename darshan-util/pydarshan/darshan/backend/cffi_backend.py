@@ -595,6 +595,25 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     mod_type = _structdefs[mod_name]
     #name_records = log_get_name_records(log)
 
+    if 'DXT_POSIX' in log['modules']:
+        # retrieve file's DXT_POSIX version number
+        dxt_posix_ver = log['modules']['DXT_POSIX']['ver']
+
+    if 'DXT_MPIIO' in log['modules']:
+        # retrieve file's DXT_MPIIO version number
+        dxt_mpiio_ver = log['modules']['DXT_MPIIO']['ver']
+
+    append_pthread_id = True
+    append_extra_info = True
+    if mod_name == 'DXT_POSIX' and dxt_posix_ver < 2:
+        # DXT_POSIX_VER 2 and later has pthread_id and extra_info field added
+        append_pthread_id = False
+        append_extra_info = False
+    elif mod_name == 'DXT_MPIIO' and dxt_mpiio_ver < 3:
+        # DXT_MPIIO_VER 3 and later has pthread_id and extra_info field added
+        append_pthread_id = False
+        append_extra_info = False
+
     rec = {}
     buf = ffi.new("void **")
     r = libdutil.darshan_log_get_record(log['handle'], modules[mod_name]['idx'], buf)
@@ -620,7 +639,6 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
     size_of = ffi.sizeof("struct dxt_file_record")
     segments = ffi.cast("struct segment_info *", buf[0] + size_of  )
 
-
     for i in range(wcnt):
         seg = {
             "offset": segments[i].offset,
@@ -628,19 +646,48 @@ def log_get_dxt_record(log, mod_name, reads=True, writes=True, dtype='dict'):
             "start_time": segments[i].start_time,
             "end_time": segments[i].end_time
         }
-        rec['write_segments'].append(seg)
 
+        if append_pthread_id:
+            # append field of pthread_id
+            seg["pthread_id"] = segments[i].pthread_id
+
+        if append_extra_info:
+            # append field of extra_info
+            info_str = ffi.string(segments[i].extra_info)
+            if not info_str:
+                extra_info_str = info_str.decode("utf-8")
+            else:
+                extra_info_str = ""
+
+            seg["extra_info"] = extra_info_str
+
+        rec['write_segments'].append(seg)
 
     for i in range(rcnt):
         i = i + wcnt
+
         seg = {
             "offset": segments[i].offset,
             "length": segments[i].length,
             "start_time": segments[i].start_time,
             "end_time": segments[i].end_time
         }
-        rec['read_segments'].append(seg)
 
+        if append_pthread_id:
+            # append field of pthread_id
+            seg["pthread_id"] = segments[i].pthread_id
+
+        if append_extra_info:
+            # append field of extra_info
+            info_str = ffi.string(segments[i].extra_info)
+            if not info_str:
+                extra_info_str = info_str.decode("utf-8")
+            else:
+                extra_info_str = ""
+
+            seg["extra_info"] = extra_info_str
+
+        rec['read_segments'].append(seg)
 
     if dtype == "pandas":
         rec['read_segments'] = pd.DataFrame(rec['read_segments'])
