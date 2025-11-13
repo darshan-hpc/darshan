@@ -70,7 +70,7 @@ static void dxt_swap_segments(struct dxt_file_record *file_rec)
     int i;
     segment_info *tmp_seg;
 
-    tmp_seg = (segment_info *)((void *)file_rec + sizeof(struct dxt_file_record));
+    tmp_seg = (segment_info *)((char *)file_rec + sizeof(struct dxt_file_record));
     for(i = 0; i < (file_rec->write_count + file_rec->read_count); i++)
     {
         DARSHAN_BSWAP64(&tmp_seg->offset);
@@ -86,7 +86,7 @@ static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf_p)
     struct dxt_file_record *rec = *((struct dxt_file_record **)dxt_posix_buf_p);
     struct dxt_file_record tmp_rec;
     int ret;
-    int64_t io_trace_size;
+    size_t rw_count;
 
     if(fd->mod_map[DXT_POSIX_MOD].len == 0)
         return(0);
@@ -112,27 +112,52 @@ static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf_p)
         dxt_swap_file_record(&tmp_rec);
     }
 
-    io_trace_size = (tmp_rec.write_count + tmp_rec.read_count) *
-                        sizeof(segment_info);
+    rw_count = tmp_rec.write_count + tmp_rec.read_count;
 
     if (*dxt_posix_buf_p == NULL)
     {
-        rec = malloc(sizeof(struct dxt_file_record) + io_trace_size);
+        rec = malloc(sizeof(struct dxt_file_record) + rw_count * sizeof(segment_info));
         if (!rec)
             return(-1);
     }
+
+    /* copy over the metadta of dxt_file_record */
     memcpy(rec, &tmp_rec, sizeof(struct dxt_file_record));
 
-    if (io_trace_size > 0)
+    if (rw_count > 0)
     {
-        void *tmp_p = (void *)rec + sizeof(struct dxt_file_record);
+        char *buf;
+        int64_t io_trace_size;
 
-        ret = darshan_log_get_mod(fd, DXT_POSIX_MOD, tmp_p,
-                    io_trace_size);
+        /* Check POSIX DXT format version. When > 1, segment_info contains an additional pthread ID */
+        if (fd->mod_ver[DXT_POSIX_MOD] == 1) {
+            io_trace_size = rw_count * (sizeof(segment_info) - sizeof(unsigned long));
+            buf = (char*) malloc(io_trace_size);
+            if (!buf) return(-1);
+        }
+        else {
+            io_trace_size = rw_count * sizeof(segment_info);
+            buf = (char *)rec + sizeof(struct dxt_file_record);
+        }
+
+        ret = darshan_log_get_mod(fd, DXT_POSIX_MOD, buf, io_trace_size);
         if (ret < io_trace_size)
             ret = -1;
         else
         {
+            if (fd->mod_ver[DXT_POSIX_MOD] == 1) {
+                /* copy record data over to rec */
+                size_t j;
+                char *src = buf;
+                char *dest = (char *)rec + sizeof(struct dxt_file_record);
+                size_t rec_size = sizeof(segment_info) - sizeof(unsigned long);
+                for (j=0; j<rw_count; j++) {
+                    memcpy(dest, src, rec_size);
+                    src += rec_size;
+                    dest += sizeof(segment_info);
+                }
+            }
+
             ret = 1;
             if(fd->swap_flag)
             {
@@ -140,6 +165,9 @@ static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf_p)
                 dxt_swap_segments(rec);
             }
         }
+
+        if (fd->mod_ver[DXT_POSIX_MOD] == 1)
+            free(buf);
     }
     else
     {
@@ -147,7 +175,7 @@ static int dxt_log_get_posix_file(darshan_fd fd, void** dxt_posix_buf_p)
     }
 
     if(*dxt_posix_buf_p == NULL)
-    {   
+    {
         if(ret == 1)
             *dxt_posix_buf_p = rec;
         else
@@ -163,7 +191,7 @@ static int dxt_log_get_mpiio_file(darshan_fd fd, void** dxt_mpiio_buf_p)
     struct dxt_file_record tmp_rec;
     int i;
     int ret;
-    int64_t io_trace_size;
+    size_t rw_count;
 
     if(fd->mod_map[DXT_MPIIO_MOD].len == 0)
         return(0);
@@ -189,27 +217,52 @@ static int dxt_log_get_mpiio_file(darshan_fd fd, void** dxt_mpiio_buf_p)
         dxt_swap_file_record(&tmp_rec);
     }
 
-    io_trace_size = (tmp_rec.write_count + tmp_rec.read_count) *
-                        sizeof(segment_info);
+    rw_count = tmp_rec.write_count + tmp_rec.read_count;
 
     if (*dxt_mpiio_buf_p == NULL)
     {
-        rec = malloc(sizeof(struct dxt_file_record) + io_trace_size);
+        rec = malloc(sizeof(struct dxt_file_record) + rw_count * sizeof(segment_info));
         if (!rec)
             return(-1);
     }
+
+    /* copy over the metadta of dxt_file_record */
     memcpy(rec, &tmp_rec, sizeof(struct dxt_file_record));
 
-    if (io_trace_size > 0)
+    if (rw_count > 0)
     {
-        void *tmp_p = (void *)rec + sizeof(struct dxt_file_record);
+        char *buf;
+        int64_t io_trace_size;
 
-        ret = darshan_log_get_mod(fd, DXT_MPIIO_MOD, tmp_p,
-                    io_trace_size);
+        /* Check MPIIO DXT format version. When > 2, segment_info contains an additional pthread ID */
+        if (fd->mod_ver[DXT_MPIIO_MOD] < 3) {
+            io_trace_size = rw_count * (sizeof(segment_info) - sizeof(unsigned long));
+            buf = (char*) malloc(io_trace_size);
+            if (!buf) return(-1);
+        }
+        else {
+            io_trace_size = rw_count * sizeof(segment_info);
+            buf = (char *)rec + sizeof(struct dxt_file_record);
+        }
+
+        ret = darshan_log_get_mod(fd, DXT_MPIIO_MOD, buf, io_trace_size);
         if (ret < io_trace_size)
             ret = -1;
         else
         {
+            if (fd->mod_ver[DXT_MPIIO_MOD] < 3) {
+                /* copy record data over to rec */
+                size_t j;
+                char *src = buf;
+                char *dest = (char *)rec + sizeof(struct dxt_file_record);
+                size_t rec_size = sizeof(segment_info) - sizeof(unsigned long);
+                for (j=0; j<rw_count; j++) {
+                    memcpy(dest, src, rec_size);
+                    src += rec_size;
+                    dest += sizeof(segment_info);
+                }
+            }
+
             ret = 1;
             if(fd->swap_flag)
             {
@@ -220,12 +273,16 @@ static int dxt_log_get_mpiio_file(darshan_fd fd, void** dxt_mpiio_buf_p)
             if(fd->mod_ver[DXT_MPIIO_MOD] == 1)
             {
                 /* make sure to indicate offsets are invalid in version 1 */
-                for(i = 0; i < (tmp_rec.write_count + tmp_rec.read_count); i++)
+                segment_info *tmp_p = (segment_info*)((char *)rec + sizeof(struct dxt_file_record));
+                for(i = 0; i < rw_count; i++)
                 {
-                    ((segment_info *)tmp_p)[i].offset = -1;
+                    tmp_p[i].offset = -1;
                 }
             }
         }
+
+        if (fd->mod_ver[DXT_MPIIO_MOD] < 3)
+            free(buf);
     }
     else
     {
@@ -285,8 +342,44 @@ static void dxt_log_print_mpiio_file_darshan(void *file_rec, char *file_name,
 {
 }
 
+static int ulong_comp(const void *p1, const void *p2)
+{
+    if (*((unsigned long *)p1) > *((unsigned long *)p2))
+        return (1);
+    if (*((unsigned long *)p1) < *((unsigned long *)p2))
+        return (-1);
+    return (0);
+}
+
+/* Count the total number of unique threads. */
+static int count_nthreads(segment_info *io_trace, int nelems)
+{
+    int i, nthreads = 0;
+    unsigned long *ids;
+
+    if (nelems == 0) return 0;
+
+    ids = (unsigned long*) malloc(sizeof(unsigned long) * nelems);
+
+    /* First collect thread IDs */
+    for (i=0; i<nelems; i++) ids[i] = io_trace[i].pthread_id;
+
+    qsort(ids, nelems, sizeof(unsigned long), ulong_comp);
+
+    /* remove duplicated numbers in ids[] */
+    for (nthreads=0,i=1; i<nelems; i++)
+        if (ids[i] > ids[nthreads]) ids[++nthreads] = ids[i];
+
+    nthreads++;
+    /* Now nthreads is the total number of unique threads */
+
+    free(ids);
+
+    return nthreads;
+}
+
 void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
-    char *mnt_pt, char *fs_type, struct lustre_record_ref *lustre_rec_ref)
+    char *mnt_pt, char *fs_type, struct lustre_record_ref *lustre_rec_ref, uint32_t *mod_ver)
 {
     struct dxt_file_record *file_rec =
                 (struct dxt_file_record *)posix_file_rec;
@@ -303,7 +396,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     int64_t write_count = file_rec->write_count;
     int64_t read_count = file_rec->read_count;
     segment_info *io_trace = (segment_info *)
-        ((void *)file_rec + sizeof(struct dxt_file_record));
+        ((char *)file_rec + sizeof(struct dxt_file_record));
 
     /* Lustre File System */
     struct darshan_lustre_record *rec;
@@ -319,8 +412,14 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         lustreFS = 1;
     }
 
+    /* Find the total number of unique threads */
+    int nthreads = 1;
+    if (mod_ver[DXT_POSIX_MOD] > 1 && write_count + read_count > 0)
+        nthreads = count_nthreads(io_trace, write_count + read_count);
+
     printf("\n# DXT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
     printf("# DXT, rank: %" PRId64 ", hostname: %s\n", rank, hostname);
+    printf("# DXT, number of threads: %d\n", nthreads);
     printf("# DXT, write_count: %" PRId64 ", read_count: %" PRId64 "\n",
                 write_count, read_count);
 
@@ -349,12 +448,12 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     }
 
     /* Print header */
-    printf("# Module    Rank  Wt/Rd  Segment          Offset       Length    Start(s)      End(s)");
+    printf("# Module    Rank  Wt/Rd  Segment          Offset          Length    Start(s)      End(s)");
 
     if (lustreFS) {
         printf("   [OST]");
     }
-    printf("\n");
+    printf("   Pthread-ID\n");
 
     /* Print IO Traces information */
     for (i = 0; i < write_count; i++) {
@@ -363,7 +462,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f   ", "X_POSIX", rank, "write", i, offset, length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f  ", "X_POSIX", rank, "write", i, offset, length, start_time, end_time);
 
         if (lustreFS) {
             cur_file_offset = offset;
@@ -398,9 +497,12 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
                 }
                 cur_ost_offset += stripe_count;
             }
+            if (rec->num_comps) printf("  ");
         }
-
-        printf("\n");
+        if (mod_ver[DXT_POSIX_MOD] == 1)
+            printf(" N/A\n");
+        else
+            printf(" %4lu\n", io_trace[i].pthread_id);
     }
 
     for (i = write_count; i < write_count + read_count; i++) {
@@ -409,7 +511,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f   ", "X_POSIX", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f  ", "X_POSIX", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
 
         if (lustreFS) {
             cur_file_offset = offset;
@@ -444,15 +546,19 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
                 }
                 cur_ost_offset += stripe_count;
             }
+            if (rec->num_comps) printf("  ");
         }
 
-        printf("\n");
+        if (mod_ver[DXT_POSIX_MOD] == 1)
+            printf(" N/A\n");
+        else
+            printf(" %4lu\n", io_trace[i].pthread_id);
     }
     return;
 }
 
 void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
-    char *mnt_pt, char *fs_type)
+    char *mnt_pt, char *fs_type, uint32_t *mod_ver)
 {
     struct dxt_file_record *file_rec =
                 (struct dxt_file_record *)mpiio_file_rec;
@@ -471,17 +577,23 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
     int64_t read_count = file_rec->read_count;
 
     segment_info *io_trace = (segment_info *)
-        ((void *)file_rec + sizeof(struct dxt_file_record));
+        ((char *)file_rec + sizeof(struct dxt_file_record));
+
+    /* Find the total number of unique threads */
+    int nthreads = 1;
+    if (mod_ver[DXT_MPIIO_MOD] > 2 && write_count + read_count > 0)
+        nthreads = count_nthreads(io_trace, write_count + read_count);
 
     printf("\n# DXT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
     printf("# DXT, rank: %" PRId64 ", hostname: %s\n", rank, hostname);
+    printf("# DXT, number of threads: %d\n", nthreads);
     printf("# DXT, write_count: %" PRId64 ", read_count: %" PRId64 "\n",
                 write_count, read_count);
 
     printf("# DXT, mnt_pt: %s, fs_type: %s\n", mnt_pt, fs_type);
 
     /* Print header */
-    printf("# Module    Rank  Wt/Rd  Segment          Offset       Length    Start(s)      End(s)\n");
+    printf("# Module    Rank  Wt/Rd  Segment          Offset          Length    Start(s)      End(s)   Pthread-ID\n");
 
     /* Print IO Traces information */
     for (i = 0; i < write_count; i++) {
@@ -490,7 +602,12 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f\n", "X_MPIIO", rank, "write", i, offset, length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f  ", "X_MPIIO", rank, "write", i, offset, length, start_time, end_time);
+
+        if (mod_ver[DXT_MPIIO_MOD] <= 2)
+            printf(" N/A\n");
+        else
+            printf(" %4lu\n", io_trace[i].pthread_id);
     }
 
     for (i = write_count; i < write_count + read_count; i++) {
@@ -499,7 +616,12 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
         start_time = io_trace[i].start_time;
         end_time = io_trace[i].end_time;
 
-        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f\n", "X_MPIIO", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
+        printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f  ", "X_MPIIO", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
+
+        if (mod_ver[DXT_MPIIO_MOD] <= 2)
+            printf(" N/A\n");
+        else
+            printf(" %4lu\n", io_trace[i].pthread_id);
     }
 
     return;

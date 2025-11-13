@@ -7,8 +7,8 @@
 #define __DARSHAN_DXT_LOG_FORMAT_H
 
 /* current DXT log format version */
-#define DXT_POSIX_VER 1
-#define DXT_MPIIO_VER 2
+#define DXT_POSIX_VER 2
+#define DXT_MPIIO_VER 3
 
 #define HOSTNAME_SIZE 64
 
@@ -21,6 +21,7 @@ typedef struct segment_info {
     int64_t length;
     double start_time;
     double end_time;
+    unsigned long pthread_id;
 } segment_info;
 
 #define X(a) a,
