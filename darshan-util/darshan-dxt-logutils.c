@@ -342,6 +342,42 @@ static void dxt_log_print_mpiio_file_darshan(void *file_rec, char *file_name,
 {
 }
 
+static int ulong_comp(const void *p1, const void *p2)
+{
+    if (*((unsigned long *)p1) > *((unsigned long *)p2))
+        return (1);
+    if (*((unsigned long *)p1) < *((unsigned long *)p2))
+        return (-1);
+    return (0);
+}
+
+/* Count the total number of unique threads. */
+static int count_nthreads(segment_info *io_trace, int nelems)
+{
+    int i, nthreads = 0;
+    unsigned long *ids;
+
+    if (nelems == 0) return 0;
+
+    ids = (unsigned long*) malloc(sizeof(unsigned long) * nelems);
+
+    /* First collect thread IDs */
+    for (i=0; i<nelems; i++) ids[i] = io_trace[i].pthread_id;
+
+    qsort(ids, nelems, sizeof(unsigned long), ulong_comp);
+
+    /* remove duplicated numbers in ids[] */
+    for (nthreads=0,i=1; i<nelems; i++)
+        if (ids[i] > ids[nthreads]) ids[++nthreads] = ids[i];
+
+    nthreads++;
+    /* Now nthreads is the total number of unique threads */
+
+    free(ids);
+
+    return nthreads;
+}
+
 void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     char *mnt_pt, char *fs_type, struct lustre_record_ref *lustre_rec_ref, uint32_t *mod_ver)
 {
@@ -376,8 +412,14 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         lustreFS = 1;
     }
 
+    /* Find the total number of unique threads */
+    int nthreads = 1;
+    if (mod_ver[DXT_POSIX_MOD] > 1 && write_count + read_count > 0)
+        nthreads = count_nthreads(io_trace, write_count + read_count);
+
     printf("\n# DXT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
     printf("# DXT, rank: %" PRId64 ", hostname: %s\n", rank, hostname);
+    printf("# DXT, number of threads: %d\n", nthreads);
     printf("# DXT, write_count: %" PRId64 ", read_count: %" PRId64 "\n",
                 write_count, read_count);
 
@@ -411,7 +453,7 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
     if (lustreFS) {
         printf("   [OST]");
     }
-    printf("     Pthread-ID\n");
+    printf("   Pthread-ID\n");
 
     /* Print IO Traces information */
     for (i = 0; i < write_count; i++) {
@@ -458,9 +500,9 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
             if (rec->num_comps) printf("  ");
         }
         if (mod_ver[DXT_POSIX_MOD] == 1)
-            printf("   N/A\n");
+            printf(" N/A\n");
         else
-            printf("   %-20lu\n", io_trace[i].pthread_id);
+            printf(" %4lu\n", io_trace[i].pthread_id);
     }
 
     for (i = write_count; i < write_count + read_count; i++) {
@@ -508,9 +550,9 @@ void dxt_log_print_posix_file(void *posix_file_rec, char *file_name,
         }
 
         if (mod_ver[DXT_POSIX_MOD] == 1)
-            printf("   N/A\n");
+            printf(" N/A\n");
         else
-            printf("   %-20lu\n", io_trace[i].pthread_id);
+            printf(" %4lu\n", io_trace[i].pthread_id);
     }
     return;
 }
@@ -537,15 +579,21 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
     segment_info *io_trace = (segment_info *)
         ((char *)file_rec + sizeof(struct dxt_file_record));
 
+    /* Find the total number of unique threads */
+    int nthreads = 1;
+    if (mod_ver[DXT_MPIIO_MOD] > 2 && write_count + read_count > 0)
+        nthreads = count_nthreads(io_trace, write_count + read_count);
+
     printf("\n# DXT, file_id: %" PRIu64 ", file_name: %s\n", f_id, file_name);
     printf("# DXT, rank: %" PRId64 ", hostname: %s\n", rank, hostname);
+    printf("# DXT, number of threads: %d\n", nthreads);
     printf("# DXT, write_count: %" PRId64 ", read_count: %" PRId64 "\n",
                 write_count, read_count);
 
     printf("# DXT, mnt_pt: %s, fs_type: %s\n", mnt_pt, fs_type);
 
     /* Print header */
-    printf("# Module    Rank  Wt/Rd  Segment          Offset          Length    Start(s)      End(s)     Pthread-ID\n");
+    printf("# Module    Rank  Wt/Rd  Segment          Offset          Length    Start(s)      End(s)   Pthread-ID\n");
 
     /* Print IO Traces information */
     for (i = 0; i < write_count; i++) {
@@ -557,9 +605,9 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
         printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f  ", "X_MPIIO", rank, "write", i, offset, length, start_time, end_time);
 
         if (mod_ver[DXT_MPIIO_MOD] <= 2)
-            printf("   N/A\n");
+            printf(" N/A\n");
         else
-            printf("   %-20lu\n", io_trace[i].pthread_id);
+            printf(" %4lu\n", io_trace[i].pthread_id);
     }
 
     for (i = write_count; i < write_count + read_count; i++) {
@@ -571,9 +619,9 @@ void dxt_log_print_mpiio_file(void *mpiio_file_rec, char *file_name,
         printf("%8s%8" PRId64 "%7s%9d%16" PRId64 "%16" PRId64 "%12.4f%12.4f  ", "X_MPIIO", rank, "read", (int)(i - write_count), offset, length, start_time, end_time);
 
         if (mod_ver[DXT_MPIIO_MOD] <= 2)
-            printf("   N/A\n");
+            printf(" N/A\n");
         else
-            printf("   %-20lu\n", io_trace[i].pthread_id);
+            printf(" %4lu\n", io_trace[i].pthread_id);
     }
 
     return;
