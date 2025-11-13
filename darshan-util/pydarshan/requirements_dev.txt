@@ -1,19 +1,19 @@
-wheel
-watchdog
-twine
+wheel>=0.38.1
+watchdog>=3.0.0
+twine>=4.0.0
 
-cffi
-numpy
-pandas
-matplotlib
-seaborn
-mako
-jupyterlab
+cffi>=1.15.0
+numpy>=1.22.0
+pandas>=2.0.0
+matplotlib>=3.5.0
+seaborn>=0.12.0
+mako>=1.2.4
+jupyterlab>=4.4.8
 
-pytest
-pytest-runner
+pytest>=7.0.0
+pytest-runner>=6.0.0
 # lxml needed implicitly for pandas read_html calls in some tests
-lxml
+lxml>=4.9.1
 
-sphinx
-sphinx_rtd_theme
+sphinx>=7.0.0
+sphinx_rtd_theme>=2.0.0
