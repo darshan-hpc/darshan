@@ -1,4 +1,4 @@
-cffi
-numpy
-pandas
-matplotlib
+cffi>=1.15.0
+numpy>=1.22.0
+pandas>=2.0.0
+matplotlib>=3.5.0

@@ -1,12 +1,12 @@
-jupyter
-notebook
+jupyter>=1.0.0
+notebook>=7.2.2
 
 
 # altair (has svg well exposed)
-altair
+altair>=5.0.0
 
 
 # for bokeh + svg export
 # but bokeh is almost as verbose to use as matplotlib
-bokeh
-selenium
+bokeh>=3.0.0
+selenium>=4.14.0
