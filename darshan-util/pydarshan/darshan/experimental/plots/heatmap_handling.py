@@ -132,6 +132,10 @@ def get_rd_wr_dfs(
             # ignore for the same reason as above
             seg_df = _dict[seg_key]  # type: ignore
             if seg_df.size:
+                seg_df.columns = ["offset",
+                                  "length",
+                                  "start_time",
+                                  "end_time"]
                 # drop unused columns from the dataframe
                 seg_df = seg_df.drop(columns=drop_columns)
                 # create new column for the ranks
