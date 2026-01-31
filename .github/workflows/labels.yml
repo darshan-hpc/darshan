@@ -9,7 +9,7 @@ jobs:
   triage-on-file-paths:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/labeler@3d612d72e6784a1a65365cc6d33b5a001c12bf10 # v3
+    - uses: actions/labeler@634933edcd8ababfe52f92936142cc22ac488b1b # v3
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
         configuration-path: ".github/pr_path_labeler.yml"
