@@ -469,13 +469,13 @@ static void mdhim_record_reduction_op(void *infile_v, void *inoutfile_v,
         }
         memcpy(inoutrec, tmp_rec,
                 MDHIM_RECORD_SIZE(tmp_rec->counters[MDHIM_SERVERS]));
-        free(tmp_rec);
 
         /* updating not as simple as incrementing, unfortunately */
         infile_v = (char *) infile_v +
             MDHIM_RECORD_SIZE(tmp_rec->counters[MDHIM_SERVERS]);
         inoutfile_v = (char *)inoutfile_v +
             MDHIM_RECORD_SIZE(tmp_rec->counters[MDHIM_SERVERS]);
+        free(tmp_rec);
     }
     return;
 }
