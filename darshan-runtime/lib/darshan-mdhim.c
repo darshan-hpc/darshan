@@ -323,7 +323,7 @@ mdhim_grm_t * DARSHAN_DECL(mdhimGet)(mdhim_t *md,
 static void mdhim_runtime_initialize()
 {
     int ret;
-    size_t mdhim_rec_count
+    size_t mdhim_rec_count;
     darshan_module_funcs mod_funcs = {
     .mod_redux_func = &mdhim_mpi_redux,
     .mod_output_func = &mdhim_output,
