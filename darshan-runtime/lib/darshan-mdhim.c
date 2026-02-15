@@ -210,7 +210,7 @@ static int my_rank = -1;
 } while(0)
 
 /**********************************************************
- *    Wrappers for "MDHIM" module functions of interest    * 
+ *   Wrappers for "MDHIM" module functions of interest    * 
  **********************************************************/
 
 /* The DARSHAN_DECL macro provides the appropriate wrapper function
