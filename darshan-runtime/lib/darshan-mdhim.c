@@ -422,7 +422,7 @@ static void mdhim_record_reduction_op(void *infile_v, void *inoutfile_v,
     int i, j;
 
     for (i=0; i< *len; i++) {
-        /* can't use 'sizeof': server count historgram */
+        /* can't use 'sizeof': server count histogram */
         tmp_rec = calloc(1,
                 MDHIM_RECORD_SIZE(inrec->counters[MDHIM_SERVERS]));
         tmp_rec->base_rec.id = inrec->base_rec.id;
