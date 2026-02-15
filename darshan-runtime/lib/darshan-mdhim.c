@@ -127,7 +127,7 @@ static int my_rank = -1;
 
 /* the MDHIM_PRE_RECORD macro is executed before performing MDHIM
  * module instrumentation of a call. It obtains a lock for updating
- * module data strucutres, and ensure the MDHIM module has been properly
+ * module data structures, and ensure the MDHIM module has been properly
  * initialized before instrumenting.
  * NOTE: if the break condition is triggered in this macro, then it
  * will exit the do/while loop holding a lock that will be released in
