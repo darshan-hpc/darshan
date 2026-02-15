@@ -35,7 +35,7 @@ DARSHAN_FORWARD_DECL(mdhimPut, mdhim_rm_t *, (mdhim_t *md,
             void *value, int value_len));
 
 DARSHAN_FORWARD_DECL(mdhimGet, mdhim_grm_t *, (mdhim_t *md,
-        index_t *index, void *key, size_t key_len, int op));
+        index_t *index, void *key, size_t key_len, enum TransportGetMessageOp op));
 
 DARSHAN_FORWARD_DECL(mdhimInit, int, (mdhim_t *md, mdhim_options_t *opts));
 
