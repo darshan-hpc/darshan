@@ -2259,7 +2259,7 @@ static int darshan_core_name_is_excluded(const char *name, darshan_module_id mod
          * user-provided path exclusions
          */
 
-        /* if user has set DARSHAN_EXCLUDE_DIRS, override the default ones */
+        /* if user has set NAME_EXCLUDE, override the default ones */
         if (__darshan_core->config.user_exclude_dirs != NULL) {
             while((path_exclusion = __darshan_core->config.user_exclude_dirs[tmp_index++])) {
                 if(!(strncmp(path_exclusion, name, strlen(path_exclusion)))) {

@@ -220,10 +220,9 @@ int main(int argc, char **argv)
                        darshan_module_names[i]);
                 printf(
                        "\n# To avoid this error, consult the darshan-runtime\n"
-                       "# documentation and consider setting the\n"
-                       "# DARSHAN_EXCLUDE_DIRS or DXT_TRIGGER_CONF_PATH\n"
-                       "# environment variable to prevent Darshan from\n"
-                       "# instrumenting unecessary files.\n");
+                       "# documentation and consider setting the NAME_EXCLUDE\n"
+                       "# variable in a run-time configuration file to prevent\n"
+                       "# Darshan from instrumenting unecessary files.\n");
             }
             else
             {
@@ -235,10 +234,9 @@ int main(int argc, char **argv)
                        darshan_module_names[i]);
                 fprintf(stderr,
                        "\n# To avoid this error, consult the darshan-runtime\n"
-                       "# documentation and consider setting the\n"
-                       "# DARSHAN_EXCLUDE_DIRS or DXT_TRIGGER_CONF_PATH\n"
-                       "# environment variable to prevent Darshan from\n"
-                       "# instrumenting unecessary files.\n");
+                       "# documentation and consider setting the NAME_EXCLUDE\n"
+                       "# variable in a run-time configuration file to prevent\n"
+                       "# Darshan from instrumenting unecessary files.\n");
                 fprintf(stderr,
                         "\n# You can display the (incomplete) data that is\n"
                         "# present in this log using the --show-incomplete\n"

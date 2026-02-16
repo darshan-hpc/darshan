@@ -125,7 +125,6 @@ void darshan_parse_config_env(struct darshan_config *cfg)
     char *envstr;
     char* string;
     char* token;
-    int i;
     int ret;
     struct darshan_core_regex *regex, *tmp_regex;
     uint64_t tmp_mod_flags;
@@ -223,6 +222,9 @@ void darshan_parse_config_env(struct darshan_config *cfg)
         cfg->mmap_log_path = strdup(envstr);
     }
 #endif
+
+    /* environment var DARSHAN_EXCLUDE_DIRS has been deprecated since 3.4.0 */
+#if 0
     /* allow override of Darshan's default directory exclusions */
     envstr = getenv("DARSHAN_EXCLUDE_DIRS");
     if(envstr)
@@ -234,6 +236,7 @@ void darshan_parse_config_env(struct darshan_config *cfg)
         }
         else
         {
+            int i;
             string = strdup(envstr);
             i = 0;
             /* get the comma separated number of directories */
@@ -261,6 +264,8 @@ void darshan_parse_config_env(struct darshan_config *cfg)
             free(string);
         }
     }
+#endif
+
     char *app_exclude_str = getenv("DARSHAN_APP_EXCLUDE");
     char *app_include_str = getenv("DARSHAN_APP_INCLUDE");
     if(app_exclude_str || app_include_str)

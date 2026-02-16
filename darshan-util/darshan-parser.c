@@ -354,8 +354,8 @@ int main(int argc, char **argv)
                        darshan_module_names[i]);
                 printf(
                        "\n# To avoid this error, consult the darshan-runtime\n"
-                       "# documentation and consider setting the\n"
-                       "# DARSHAN_EXCLUDE_DIRS environment variable to prevent\n"
+                       "# documentation and consider setting the NAME_EXCLUDE\n"
+                       "# variable in a run-time configuration file to prevent\n"
                        "# Darshan from instrumenting unnecessary files.\n");
                 if(fd->mod_map[i].len == 0)
                     continue; // no data to parse
@@ -370,8 +370,8 @@ int main(int argc, char **argv)
                        darshan_module_names[i]);
                 fprintf(stderr,
                        "\n# To avoid this error, consult the darshan-runtime\n"
-                       "# documentation and consider setting the\n"
-                       "# DARSHAN_EXCLUDE_DIRS environment variable to prevent\n"
+                       "# documentation and consider setting the NAME_EXCLUDE\n"
+                       "# variable in a run-time configuration file to prevent\n"
                        "# Darshan from instrumenting unnecessary files.\n");
                 fprintf(stderr,
                         "\n# You can display the (incomplete) data that is\n"
