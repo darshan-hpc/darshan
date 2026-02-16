@@ -190,9 +190,6 @@ extern struct darshan_mod_logutil_funcs *mod_logutils[];
 /* DXT */
 #include "darshan-dxt-logutils.h"
 
-#ifdef DARSHAN_USE_APXC
-#include "darshan-apxc-logutils.h"
-#endif
 #ifdef DARSHAN_USE_APMPI
 #include "darshan-apmpi-logutils.h"
 #endif

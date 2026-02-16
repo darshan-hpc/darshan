@@ -108,9 +108,6 @@ void darshan_init_config(struct darshan_config *cfg)
     DARSHAN_MOD_FLAG_SET(cfg->mod_disabled, DARSHAN_H5F_MOD);
     DARSHAN_MOD_FLAG_SET(cfg->mod_disabled, DARSHAN_H5D_MOD);
 #endif
-#ifndef DARSHAN_USE_APXC
-    DARSHAN_MOD_FLAG_SET(cfg->mod_disabled, DARSHAN_APXC_MOD);
-#endif
 #ifndef DARSHAN_USE_APMPI
     DARSHAN_MOD_FLAG_SET(cfg->mod_disabled, DARSHAN_APMPI_MOD);
 #endif

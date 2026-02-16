@@ -57,7 +57,6 @@ void (*set_dummy_fn[DARSHAN_KNOWN_MODULE_COUNT])(void*) = {
     NULL, /* DXT_POSIX_MOD */
     NULL, /* DXT_MPIIO_MOD */
     NULL, /* DARSHAN_MDHIM_MOD */
-    NULL, /* DARSHAN_APXC_MOD */
     NULL, /* DARSHAN_APMPI_MOD */
     NULL /* DARSHAN_HEATMAP_MOD */
 };
@@ -76,7 +75,6 @@ void (*validate_double_dummy_fn[DARSHAN_KNOWN_MODULE_COUNT])(void*, struct darsh
     NULL, /* DXT_POSIX_MOD */
     NULL, /* DXT_MPIIO_MOD */
     NULL, /* DARSHAN_MDHIM_MOD */
-    NULL, /* DARSHAN_APXC_MOD */
     NULL, /* DARSHAN_APMPI_MOD */
     NULL /* DARSHAN_HEATMAP_MOD */
 };

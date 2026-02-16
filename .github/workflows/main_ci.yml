@@ -44,7 +44,6 @@ jobs:
           brew install libtool
       - name: Install darshan-util
         run: |
-          git submodule update --init
           export DARSHAN_INSTALL_PREFIX=$PWD/darshan_install
           DARSHAN_RUNTIME_SKIP=1 darshan-test/automated/build-darshan.sh
           # run darshan-util make check target

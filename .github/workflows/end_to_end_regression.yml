@@ -40,7 +40,6 @@ jobs:
           make -j8 install
       - name: Install Darshan
         run: |
-          git submodule update --init
           export PATH=$PWD/mpich_install/bin:$PATH
           # use automated script to build Darshan
           export DARSHAN_INSTALL_PREFIX=$PWD/darshan_install

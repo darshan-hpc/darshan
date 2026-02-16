@@ -36,7 +36,6 @@ jobs:
           CC=mpicc python -m pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
       - name: Install Darshan
         run: |
-          git submodule update --init
           export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/include/hdf5/openmpi/
           export DARSHAN_INSTALL_PREFIX=$PWD/darshan_install
           export DARSHAN_RUNTIME_CONFIG_ARGS="--with-jobid-env=NONE --enable-hdf5-mod --with-log-path-by-env=DARSHAN_LOGPATH"

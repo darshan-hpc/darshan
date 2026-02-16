@@ -1,0 +1,27 @@
+# 
+# AutoPerf MPI make rules for Darshan
+#
+
+VPATH += :$(srcdir)/../modules/autoperf/apmpi/util
+
+DARSHAN_MOD_LOG_FORMATS += $(srcdir)/../modules/autoperf/apmpi/darshan-apmpi-log-format.h
+DARSHAN_MOD_LOGUTIL_HEADERS += darshan-apmpi-logutils.h
+DARSHAN_STATIC_MOD_OBJS += darshan-apmpi-logutils.o
+DARSHAN_DYNAMIC_MOD_OBJS += darshan-apmpi-logutils.po
+
+CFLAGS += \
+          -DDARSHAN_USE_APMPI \
+          -I$(srcdir)/../modules/autoperf/apmpi \
+          -I$(srcdir)/../modules/autoperf/apmpi/util
+
+CFLAGS_SHARED += \
+         -DDARSHAN_USE_APMPI \
+         -I$(srcdir)/../modules/autoperf/apmpi \
+         -I$(srcdir)/../modules/autoperf/apmpi/util
+
+darshan-apmpi-logutils.o: darshan-apmpi-logutils.c darshan-logutils.h darshan-apmpi-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../modules/autoperf/apmpi/darshan-apmpi-log-format.h | uthash-1.9.2
+	$(CC) $(CFLAGS) -c  $< -o $@
+
+darshan-apmpi-logutils.po: darshan-apmpi-logutils.c darshan-logutils.h darshan-apmpi-logutils.h $(DARSHAN_LOG_FORMAT) $(srcdir)/../modules/autoperf/apmpi/darshan-apmpi-log-format.h | uthash-1.9.2
+	$(CC) $(CFLAGS_SHARED) -c  $< -o $@
+

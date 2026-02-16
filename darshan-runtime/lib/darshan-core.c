@@ -76,10 +76,6 @@ static int mnt_data_count = 0;
 extern void bgq_runtime_initialize();
 #endif
 
-#ifdef DARSHAN_USE_APXC
-extern void apxc_runtime_initialize();
-#endif
-
 /* array of init functions for modules which need to be statically
  * initialized by darshan at startup time
  */
@@ -87,9 +83,6 @@ void (*mod_static_init_fns[])(void) =
 {
 #ifdef DARSHAN_BGQ
     &bgq_runtime_initialize,
-#endif
-#ifdef DARSHAN_USE_APXC
-    &apxc_runtime_initialize,
 #endif
     NULL
 };
@@ -2249,7 +2242,7 @@ static int darshan_core_name_is_excluded(const char *name, darshan_module_id mod
 
     /* set flag if this module's record names are based on file paths */
     name_is_path = 1;
-    if((mod_id == DARSHAN_APMPI_MOD) || (mod_id == DARSHAN_APXC_MOD) ||
+    if((mod_id == DARSHAN_APMPI_MOD) ||
        (mod_id == DARSHAN_HEATMAP_MOD) || (mod_id == DARSHAN_MDHIM_MOD))
         name_is_path = 0;
 
@@ -2537,9 +2530,9 @@ int darshan_core_register_module(
     if(__darshan_core->config.mod_max_records_override[mod_id])
     {
         /* ignore overrides for modules with static record counts
-         * (i.e., HEATMAP, APMPI, APXC modules)
+         * (i.e., HEATMAP, APMPI modules)
          */
-        if((mod_id != DARSHAN_HEATMAP_MOD) && (mod_id != DARSHAN_APXC_MOD) &&
+        if((mod_id != DARSHAN_HEATMAP_MOD) &&
             (mod_id != DARSHAN_APMPI_MOD))
             mod_recs_req = __darshan_core->config.mod_max_records_override[mod_id];
     }

@@ -538,8 +538,9 @@ class DarshanReport(object):
             self.mod_read_all_lustre_records(dtype=dtype, filter_patterns=filter_patterns, filter_mode=filter_mode)
         if "APMPI" in self.data['modules']:
             self.mod_read_all_apmpi_records(dtype=dtype)
-        if "APXC" in self.data['modules']:
-            self.mod_read_all_apxc_records(dtype=dtype)
+        # APXC module is no longer supported after 3.5.0 release
+        # if "APXC" in self.data['modules']:
+        #     self.mod_read_all_apxc_records(dtype=dtype)
         if "HEATMAP" in self.data['modules']:
             self.read_all_heatmap_records()
         

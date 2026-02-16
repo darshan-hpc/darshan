@@ -38,7 +38,7 @@ clean-devenv:
 	rm -rf devenv
 
 clean-modules:
-	for file in `find ../../modules/ -name "*backend.py"` ; do \
+	for file in `find ../../autoperf/apmpi -name "*backend.py"` ; do \
 		rm -rf darshan/backend/`basename $$file | cut -d '-' -f 1`.py ; \
 	done
 
@@ -72,9 +72,7 @@ docs-show:
 
 # add AutoPef Python packages...
 add-modules:
-	git submodule init
-	git submodule update
-	for file in `find ../../modules/ -name "*-backend.py"` ; do \
+	for file in `find ../../autoperf/apmpi -name "*-backend.py"` ; do \
 		cp $$file darshan/backend/`basename $$file | cut -d '-' -f 1`.py ; \
 	done
 

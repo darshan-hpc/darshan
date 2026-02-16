@@ -20,7 +20,7 @@ yum install -y libjpeg libjpeg-devel
 # Build and install darshan-util
 cd /darshan/
 ./prepare.sh
-./configure --disable-darshan-runtime --enable-apxc-mod --enable-apmpi-mod
+./configure --disable-darshan-runtime --enable-apmpi-mod
 make install
 make distclean
 

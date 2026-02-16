@@ -13,11 +13,10 @@ macos_M1_native_apple_silicon_py310_task:
     mkdir -p /tmp/darshan_install
     export DARSHAN_INSTALL_PATH=/tmp/darshan_install
     export DYLD_FALLBACK_LIBRARY_PATH=/tmp/darshan_install/lib
-    git submodule update --init
     ./prepare.sh
     cd darshan-util
     mkdir build && cd build
-    ../configure --prefix=$DARSHAN_INSTALL_PATH --enable-shared --enable-apxc-mod --enable-apmpi-mod
+    ../configure --prefix=$DARSHAN_INSTALL_PATH --enable-shared --enable-apmpi-mod
     make
     make install
     cd ../pydarshan

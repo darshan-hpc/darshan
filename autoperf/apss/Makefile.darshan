@@ -1,0 +1,20 @@
+# 
+# AutoPerf Make rules for Darshan
+#
+DARSHAN_STATIC_MOD_OBJS += lib/darshan-apss.o
+DARSHAN_DYNAMIC_MOD_OBJS += lib/darshan-apss.po
+
+VPATH += :$(srcdir)/../modules/autoperf/apss
+CFLAGS += \
+         -DDARSHAN_USE_APSS \
+         -I$(srcdir)/../modules/autoperf/apss
+
+CFLAGS_SHARED += \
+         -DDARSHAN_USE_APSS \
+         -I$(srcdir)/../modules/autoperf/apss
+
+lib/darshan-apss.o: lib/darshan-apss.c lib/darshan-apss-utils.h darshan.h darshan-common.h $(DARSHAN_LOG_FORMAT) darshan-apss-log-format.h | lib
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/darshan-apss.po: lib/darshan-apss.c lib/darshan-apss-utils.h darshan.h darshan-dynamic.h darshan-common.h $(DARSHAN_LOG_FORMAT) darshan-apss-log-format.h | lib
+	$(CC) $(CFLAGS_SHARED) -c $< -o $@

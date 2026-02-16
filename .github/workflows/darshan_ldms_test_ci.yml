@@ -50,7 +50,6 @@ jobs:
         make -j 8 install
     - name: Install Darshan
       run: |
-        git submodule update --init
         # build darshan against LDMS library
         export DARSHAN_INSTALL_PREFIX=/opt/darshan_install
         export DARSHAN_LOG_PATH="${GITHUB_WORKSPACE}/darshan_logs"

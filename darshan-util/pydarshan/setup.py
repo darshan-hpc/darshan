@@ -31,7 +31,7 @@ if "PYDARSHAN_BUILD_EXT" in os.environ:
 #
 # Find backend python files in modules and copy them into lib
 #
-for root, dirs, files in os.walk("../../modules"):
+for root, dirs, files in os.walk("../../autoperf/apmpi"):
     for f in files:
         if f.endswith("-backend.py"):
             fname = f.replace("-backend", "")

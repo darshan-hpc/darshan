@@ -47,8 +47,6 @@ Notes on how to release a new version of Darshan
     - NOTE: update the above to reflect the tag format needed by Read the
       Docs
 11) manually create the release tarball
-    - Make sure to update the AutoPerf submodule
-      git submodule update --init
     - Run "configure" to generate necessary autotools files
     - Run "make dist", which generates a tar ball, named darshan-3.5.0.tar.gz
 12) create a new release on github.com

@@ -35,7 +35,6 @@ enable_heatmap_mod="@ENABLE_HEATMAP_MOD@"
 enable_mpiio_mod="@ENABLE_MPIIO_MOD@"
 enable_apmpi_mod="@ENABLE_APMPI_MOD@"
 enable_apmpi_coll_sync="@ENABLE_APMPI_COLL_SYNC@"
-enable_apxc_mod="@ENABLE_APXC_MOD@"
 enable_hdf5_mod="@ENABLE_HDF5_MOD@"
 enable_pnetcdf_mod="@ENABLE_PNETCDF_MOD@"
 enable_daos_mod="@ENABLE_DAOS_MOD@"
@@ -83,7 +82,6 @@ all()
         echo "  --mpiio-mod             -> $enable_mpiio_mod"
         echo "  --apmpi-mod             -> $enable_apmpi_mod"
         echo "  --apmpi-coll-sync       -> $enable_apmpi_coll_sync"
-        echo "  --apxc-mod              -> $enable_apxc_mod"
         echo "  --hdf5-mod              -> $enable_hdf5_mod"
         echo "  --pnetcdf-mod           -> $enable_pnetcdf_mod"
         echo "  --daos-mod              -> $enable_daos_mod"
@@ -197,7 +195,6 @@ Available values for OPTION include:
   --mpiio-mod            Whether MPI-IO module is enabled
   --apmpi-mod            Whether AUTOPERF MPI module is enabled
   --apmpi-coll-sync      Whether sync for MPI collectives is enabled
-  --apxc-mod             Whether AUTOPERF XC module is enabled
   --hdf5-mod             Whether HDF5 module is enabled
   --pnetcdf-mod          Whether PnetCDF module is enabled
   --daos-mod             Whether DAOS module is enabled
@@ -263,7 +260,6 @@ while test $# -gt 0; do
     --mpiio-mod)           echo "$enable_mpiio_mod" ;;
     --apmpi-mod)           echo "$enable_apmpi_mod" ;;
     --apmpi-coll-sync)     echo "$enable_apmpi_coll_sync" ;;
-    --apxc-mod)            echo "$enable_apxc_mod" ;;
     --hdf5-mod)            echo "$enable_hdf5_mod" ;;
     --pnetcdf-mod)         echo "$enable_pnetcdf_mod" ;;
     --daos-mod)            echo "$enable_daos_mod" ;;

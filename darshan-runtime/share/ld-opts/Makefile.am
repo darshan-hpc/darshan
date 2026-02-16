@@ -36,7 +36,7 @@ if BUILD_APMPI_MODULE
    BUILT_SOURCES += autoperf-apmpi-ld-opts
    CLEANFILES += autoperf-apmpi-ld-opts
 endif
-apmpi_root = $(top_srcdir)/../modules/autoperf/apmpi
+apmpi_root = $(top_srcdir)/../autoperf/apmpi
 autoperf-apmpi-ld-opts:
 	$(LN_S) $(apmpi_root)/share/ld-opts/autoperf-apmpi-ld-opts ./
 

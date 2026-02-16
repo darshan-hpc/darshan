@@ -93,27 +93,11 @@ if test "x$enable_darshan_util" = xyes ; then
       AC_CONFIG_FILES([pydarshan-info.py pydarshan-info.sh])
    fi
 
-   AC_ARG_ENABLE([apxc_mod],
-      [AS_HELP_STRING([--enable-apxc-mod],
-                      [enables compilation and use of the AutoPerf Cray XC module])],
-      [], [enable_apxc_mod=no]
-   )
-   if test "x$enable_apxc_mod" = xyes; then
-      AC_CHECK_FILE([${ac_abs_confdir}/../modules/autoperf/apxc/darshan-apxc-log-format.h],
-                      DARSHAN_USE_APXC=1,
-                      [AC_MSG_ERROR([The autoperf APXC module is not present])])
-   fi
    AC_ARG_ENABLE([apmpi_mod],
       [AS_HELP_STRING([--enable-apmpi-mod],
                       [enables compilation and use of the AutoPerf MPI module])],
       [], [enable_apmpi_mod=no]
    )
-   if test "x$enable_apmpi_mod" = xyes; then
-      AC_CHECK_FILE([${ac_abs_confdir}/../modules/autoperf/apmpi/darshan-apmpi-log-format.h],
-                    DARSHAN_USE_APMPI=1,
-                    [AC_MSG_ERROR([The autoperf MPI module is not present])])
-   fi
-
    AC_CHECK_FUNCS([strndup])
 
    DARSHAN_UTIL_VERSION="AC_PACKAGE_VERSION"
@@ -129,7 +113,6 @@ else
 fi
 
 AM_CONDITIONAL(DARSHAN_ENABLE_PYDARSHAN, [test "x$enable_pydarshan" = xyes])
-AM_CONDITIONAL(DARSHAN_USE_APXC, [test "x$enable_apxc_mod" = xyes])
 AM_CONDITIONAL(DARSHAN_USE_APMPI, [test "x$enable_apmpi_mod" = xyes])
 
 AC_CONFIG_FILES([Makefile \
@@ -144,7 +127,6 @@ if test "x$enable_darshan_util" = xyes ; then
    ${PACKAGE_NAME} Version ${PACKAGE_VERSION} configured with the following features:
            C compiler                    - $CC
            Python module and tools       - $enable_pydarshan
-           AUTOPERF MPI  module support  - $enable_apmpi_mod
-           AUTOPERF APXC module support  - $enable_apxc_mod"
+           AUTOPERF MPI  module support  - $enable_apmpi_mod"
 fi
 

@@ -79,18 +79,6 @@ compilation.
   library (default: enable).
 * ``--enable-apmpi-mod``: Build darshan-util with support for AutoPerf APMPI
   modules (default: disable).
-* ``--enable-apxc-mod``: Build darshan-util with support for AutoPerf APXC
-  modules (default: disable).
-
-  .. note::
-     AutoPerf log analysis code is provided as Git submodules to Darshan's main
-     repository, so if building Darshan source that has been cloned from Git,
-     it is necessary to first retrieve the AutoPerf submodules by running the
-     following command:
-
-     .. code-block:: bash
-
-        git submodule update --init
 * ``--enable-pydarshan``: Build pydarshan module and tools (default: disable).
 * ``--with-zlib=DIR``: root directory path of zlib installation (default:
   /usr/local or /usr if not found in /usr/local).
@@ -1034,59 +1022,7 @@ time.
 Additional modules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Table 12. APXC module header record (if enabled, for Cray XC systems)**
-
-.. list-table::
-   :header-rows: 1
-   :widths: 30, 70
-   :class: longtable
-   :align: left
-
-   * - counter name
-     - description
-   * - APXC_GROUPS
-     - total number of groups for the job
-   * - APXC_CHASSIS
-     - total number of chassis for the job
-   * - APXC_BLADES
-     - total number of blades for the job
-   * - APXC_MEMORY_MODE
-     - Intel Xeon memory mode
-   * - APXC_CLUSTER_MODE
-     - Intel Xeon NUMA configuration
-   * - APXC_MEMORY_MODE_CONSISTENT
-     - Intel Xeon memory mode consistent across all nodes
-   * - APXC_CLUSTER_MODE_CONSISTENT
-     - Intel Xeon cluster mode consistent across all nodes
-
-**Table 13. APXC module per-router record (if enabled, for Cray XC systems)**
-
-.. list-table::
-   :header-rows: 1
-   :widths: 30, 70
-   :class: longtable
-   :align: left
-
-   * - counter name
-     - description
-   * - APXC_GROUP
-     - group this router is on
-   * - APXC_CHASSIS
-     - chassis this router is on
-   * - APXC_BLADE
-     - blade this router is on
-   * - APXC_NODE
-     - node connected to this router
-   * - APXC_AR_RTR_x_y_INQ_PRF_INCOMING_FLIT_VC[0-7]
-     - flits on VCs of x y tile for router-router ports
-   * - APXC_AR_RTR_x_y_INQ_PRF_ROWBUS_STALL_CNT
-     - stalls on x y tile for router-router ports
-   * - APXC_AR_RTR_PT_x_y_INQ_PRF_INCOMING_FLIT_VC[0,4]
-     - flits on VCs of x y tile for router-nic ports
-   * - APXC_AR_RTR_PT_x_y_INQ_PRF_REQ_ROWBUS_STALL_CNT
-     - stalls on x y tile for router-nic ports
-
-**Table 14. APMPI module header record (if enabled, for MPI applications)**
+**Table 12. APMPI module header record (if enabled, for MPI applications)**
 
 .. list-table::
    :header-rows: 1
@@ -1101,7 +1037,7 @@ Additional modules
    * - MPI_TOTAL_COMM_SYNC_TIME_VARIANCE
      - variance in total sync time across all the processes, if enabled
 
-**Table 15. APMPI module per-process record (if enabled, for MPI applications)**
+**Table 13. APMPI module per-process record (if enabled, for MPI applications)**
 
 .. list-table::
    :header-rows: 1
@@ -1133,7 +1069,7 @@ Additional modules
      - total sync time of a process across all the MPI ops, if enabled
 
 
-**Table 16. BG/Q module (if enabled on BG/Q systems)**
+**Table 14. BG/Q module (if enabled on BG/Q systems)**
 
 .. list-table::
    :header-rows: 1
