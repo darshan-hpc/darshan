@@ -93,7 +93,7 @@ jobs:
           python -m pip install "seaborn==0.12"
           python -m asv check -E existing
       - name: codecov check
-        uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457 # v3
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: $RUNNER_TEMP/coverage.xml,/home/runner/work/_temp/coverage.xml,/Users/runner/work/_temp/coverage.xml
           fail_ci_if_error: False
