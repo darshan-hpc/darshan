@@ -465,6 +465,7 @@ if test "x$enable_darshan_runtime" = xyes ; then
              # See if we can find pnetcdf-config from user's $PATH.
              AC_PATH_PROG(PNETCDF_CONFIG, pnetcdf-config, "no")
          fi
+         unset saved_LIBS
       fi
 
       # If pnetcdf-config is available, run it to obtain include and lib
@@ -473,8 +474,10 @@ if test "x$enable_darshan_runtime" = xyes ; then
          if test "x$PNETCDF_CONFIG" != xno ; then
             inc_folder=`$PNETCDF_CONFIG --includedir`
             CFLAGS="${CFLAGS} -I${inc_folder}"
+            unset inc_folder
             lib_folder=`$PNETCDF_CONFIG --libdir`
-            DARSHAN_PNETCDF_LD_FLAGS="-L${lib_folder} [-Wl,-rpath=${lib_folder}/lib]"
+            DARSHAN_PNETCDF_LD_FLAGS="-L${lib_folder} [-Wl,-rpath=${lib_folder}]"
+            unset lib_folder
          fi
 
          # Rudimentary check if the installed PnetCDF is valid
@@ -498,6 +501,8 @@ if test "x$enable_darshan_runtime" = xyes ; then
             AC_MSG_ERROR(m4_normalize([Darshan PnetCDF module enabled but no valid PnetCDF install found,
                           use --with-pnetcdf to provide the PnetCDF install prefix, if needed.]))
          fi
+         unset saved_LDFLAGS
+         unset saved_LIBS
       fi
 
       DARSHAN_PNETCDF_LD_FLAGS="${DARSHAN_PNETCDF_LD_FLAGS} -lpnetcdf"
