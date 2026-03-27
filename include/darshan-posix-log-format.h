@@ -7,7 +7,7 @@
 #define __DARSHAN_POSIX_LOG_FORMAT_H
 
 /* current POSIX log format version */
-#define DARSHAN_POSIX_VER 4
+#define DARSHAN_POSIX_VER 5
 
 #define POSIX_COUNTERS \
     /* count of posix opens (INCLUDING fileno and dup operations) */\
@@ -113,6 +113,10 @@
     X(POSIX_FASTEST_RANK_BYTES) \
     X(POSIX_SLOWEST_RANK) \
     X(POSIX_SLOWEST_RANK_BYTES) \
+    X(POSIX_FCNTL_SETLOCK_READ_COUNT)\
+    X(POSIX_FCNTL_SETLOCK_WRITE_COUNT)\
+    X(POSIX_FCNTL_SETLOCK_UNLOCK_COUNT)\
+    X(POSIX_FCNTL_GETLOCK_COUNT)\
     /* end of counters */\
     X(POSIX_NUM_INDICES)
 
@@ -150,6 +154,7 @@
     /* NOTE: for shared records only */\
     X(POSIX_F_VARIANCE_RANK_TIME) \
     X(POSIX_F_VARIANCE_RANK_BYTES) \
+    X(POSIX_F_FCNTL_LOCK_TIME) \
     /* end of counters */\
     X(POSIX_F_NUM_INDICES)
 
@@ -180,5 +185,4 @@ struct darshan_posix_file
     int64_t counters[POSIX_NUM_INDICES];
     double fcounters[POSIX_F_NUM_INDICES];
 };
-
 #endif /* __DARSHAN_POSIX_LOG_FORMAT_H */
