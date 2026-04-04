@@ -2233,11 +2233,12 @@ void darshan_log_get_modules(darshan_fd fd,
 /*
  * darshan_log_get_name_records
  *
- * Gets list of hashed name_records present in logs and returns the info
+ * Gets list of hashed name_records present in logs and returns the info.
+ * Returns -1 when failed to read from the log file.
  */
-void darshan_log_get_name_records(darshan_fd fd,
-                              struct darshan_name_record_info **name_records,
-                              int* count)
+int darshan_log_get_name_records(darshan_fd fd,
+                                 struct darshan_name_record_info **name_records,
+                                 int* count)
 {
     int ret;
     struct darshan_name_record_ref *name_hash = NULL;
@@ -2249,7 +2250,7 @@ void darshan_log_get_name_records(darshan_fd fd,
     if(ret < 0)
     {
         darshan_log_close(fd);
-        return;
+        return -1;
     }
 
     int num = HASH_CNT(hlink, name_hash);
@@ -2276,9 +2277,10 @@ void darshan_log_get_name_records(darshan_fd fd,
         free(curr);
         i++;
     }
- 
+
     *count = num;
 
+    return 0;
 }
 
 /*

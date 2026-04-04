@@ -271,7 +271,9 @@ def log_get_name_records(log):
 
     nrecs = ffi.new("struct darshan_name_record **")
     cnt = ffi.new("int *")
-    libdutil.darshan_log_get_name_records(log['handle'], nrecs, cnt)
+    ret = libdutil.darshan_log_get_name_records(log['handle'], nrecs, cnt)
+    if ret < 0:
+        raise RuntimeError("Failed to read name records from log file.")
 
     for i in range(0, cnt[0]):
         name_records[nrecs[0][i].id] = ffi.string(nrecs[0][i].name).decode("utf-8")
