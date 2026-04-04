@@ -1585,6 +1585,7 @@ static int darshan_log_dzread(darshan_fd fd, int region_id, void *buf, int len)
         state->dz.eor = 0;
         state->dz.size = 0;
         reset_strm_flag = 1; /* reset libz/bzip2 streams */
+        inflateReset(state->dz.comp_dat);
     }
 
     if(region_id == DARSHAN_JOB_REGION_ID)
