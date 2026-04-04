@@ -138,6 +138,9 @@ XFAIL_TESTS =
 check_PROGRAMS =
 noinst_HEADERS =
 
+TESTS_ENVIRONMENT = export srcdir="$(srcdir)";
+TESTS_ENVIRONMENT += export check_PROGRAMS="$(check_PROGRAMS)";
+
 include $(top_srcdir)/tests/unit-tests/Makefile.subdir
 
 # convenience rule for building test programs
