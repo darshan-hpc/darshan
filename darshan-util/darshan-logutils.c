@@ -1167,6 +1167,7 @@ static int darshan_log_get_header(darshan_fd fd)
             return(-1);
         }
 
+        /* job_map section is stored right after header */
         fd->job_map.off = sizeof(struct darshan_header);
     }
     else
@@ -1237,7 +1238,18 @@ static int darshan_log_get_header(darshan_fd fd)
         }
     }
 
-    /* set some fd fields based on what's stored in the header */
+    /* set some fd fields based on what's stored in the header:
+     *   'comp_type' - compression method used on darshan log file
+     *   'partial_flag' - denotes whether the log is storing partial data (that
+     *       is, all possible application file records were not tracked by
+     *       darshan).
+     *   'name_map' - name records
+     *   'mod_map[]' - data structure indicating the location of specific
+     *       module data in a Darshan log. Note that 'off' and 'len' are the
+     *       respective offset and length of the data in the file, in
+     *       "compressed" terms
+     *   'mod_ver[]' - module log format version
+     */
     fd->comp_type = header.comp_type;
     fd->partial_flag = header.partial_flag;
     memcpy(fd->mod_ver, header.mod_ver, DARSHAN_MAX_MODS * sizeof(uint32_t));
@@ -1314,6 +1326,9 @@ static int darshan_log_get_header(darshan_fd fd)
     }
     else
     {
+        /* job map is stored right after header and
+         * name map is stored right after job map
+         */
         fd->job_map.len = fd->name_map.off - fd->job_map.off;
     }
 
@@ -1700,7 +1715,7 @@ static int darshan_log_libz_read(darshan_fd fd, struct darshan_log_map map,
                 break;
             }
 
-            /* read more data from input file */
+            /* read more data from input file into fd->state->dz.buf */
             ret = darshan_log_dzload(fd, map);
             if(ret < 0)
                 return(-1);
