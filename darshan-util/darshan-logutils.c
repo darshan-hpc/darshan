@@ -1729,7 +1729,7 @@ static int darshan_log_libz_read(darshan_fd fd, struct darshan_log_map map,
         ret = inflate(z_strmp, Z_NO_FLUSH);
         if(ret != Z_OK && ret != Z_STREAM_END)
         {
-            fprintf(stderr, "Error: unable to inflate darshan log data.\n");
+            fprintf(stderr, "Error: unable to inflate darshan log data (%s).\n",z_strmp->msg);
             return(-1);
         }
         total_bytes += (z_strmp->total_out - tmp_out_bytes);
