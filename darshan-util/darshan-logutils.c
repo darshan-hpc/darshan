@@ -680,8 +680,11 @@ int darshan_log_get_filtered_namehash(darshan_fd fd,
         buf_processed = state->get_namerecs(name_rec_buf, buf_len, fd->swap_flag, hash,
             whitelist, whitelist_count);
 
-        /* copy any leftover data to beginning of buffer to parse next */
-        memcpy(name_rec_buf, name_rec_buf + buf_processed, buf_len - buf_processed);
+        /* Move any leftover data to beginning of buffer to parse next. Note
+         * memcpy() does not allow overlap between the dest and src buffers.
+         * memmove() does allow overlap.
+         */
+        memmove(name_rec_buf, name_rec_buf + buf_processed, buf_len - buf_processed);
         buf_len -= buf_processed;
 
         /* we keep reading until we get a short read informing us we have
