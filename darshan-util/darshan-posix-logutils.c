@@ -136,6 +136,12 @@ static int darshan_log_get_posix_file(darshan_fd fd, void** posix_buf_p)
     int i;
     int ret = -1;
 
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return(-1);
+    }
+
     if(fd->mod_map[DARSHAN_POSIX_MOD].len == 0)
         return(0);
 
@@ -298,6 +304,12 @@ static int darshan_log_put_posix_file(darshan_fd fd, void* posix_buf)
 {
     struct darshan_posix_file *file = (struct darshan_posix_file *)posix_buf;
     int ret;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return(-1);
+    }
 
     ret = darshan_log_put_mod(fd, DARSHAN_POSIX_MOD, file,
         sizeof(struct darshan_posix_file), DARSHAN_POSIX_VER);
