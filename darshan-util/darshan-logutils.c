@@ -281,7 +281,8 @@ int darshan_log_get_job(darshan_fd fd, struct darshan_job *job)
 
     if(!fd)
     {
-        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
         return(-1);
     }
     state = fd->state;
@@ -371,7 +372,8 @@ int darshan_log_put_job(darshan_fd fd, struct darshan_job *job)
 
     if(!fd)
     {
-        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
         return(-1);
     }
     state = fd->state;
@@ -417,7 +419,8 @@ int darshan_log_get_exe(darshan_fd fd, char *buf)
 
     if(!fd)
     {
-        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
         return(-1);
     }
     state = fd->state;
@@ -461,7 +464,8 @@ int darshan_log_put_exe(darshan_fd fd, char *buf)
 
     if(!fd)
     {
-        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
         return(-1);
     }
     state = fd->state;
@@ -496,7 +500,8 @@ int darshan_log_get_mounts(darshan_fd fd, struct darshan_mnt_info **mnt_data_arr
 
     if(!fd)
     {
-        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
         return(-1);
     }
     state = fd->state;
@@ -573,7 +578,8 @@ int darshan_log_put_mounts(darshan_fd fd, struct darshan_mnt_info *mnt_data_arra
 
     if(!fd)
     {
-        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
         return(-1);
     }
     state = fd->state;
@@ -640,7 +646,8 @@ int darshan_log_get_filtered_namehash(darshan_fd fd,
 
     if(!fd)
     {
-        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
         return(-1);
     }
     state = fd->state;
@@ -680,8 +687,11 @@ int darshan_log_get_filtered_namehash(darshan_fd fd,
         buf_processed = state->get_namerecs(name_rec_buf, buf_len, fd->swap_flag, hash,
             whitelist, whitelist_count);
 
-        /* copy any leftover data to beginning of buffer to parse next */
-        memcpy(name_rec_buf, name_rec_buf + buf_processed, buf_len - buf_processed);
+        /* Move any leftover data to beginning of buffer to parse next. Note
+         * memcpy() does not allow overlap between the dest and src buffers.
+         * memmove() does allow overlap.
+         */
+        memmove(name_rec_buf, name_rec_buf + buf_processed, buf_len - buf_processed);
         buf_len -= buf_processed;
 
         /* we keep reading until we get a short read informing us we have
@@ -713,7 +723,8 @@ int darshan_log_put_namehash(darshan_fd fd, struct darshan_name_record_ref *hash
 
     if(!fd)
     {
-        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
         return(-1);
     }
     state = fd->state;
@@ -761,7 +772,8 @@ int darshan_log_get_mod(darshan_fd fd, darshan_module_id mod_id,
 
     if(!fd)
     {
-        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
         return(-1);
     }
     state = fd->state;
@@ -820,7 +832,8 @@ int darshan_log_put_mod(darshan_fd fd, darshan_module_id mod_id,
 
     if(!fd)
     {
-        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
         return(-1);
     }
     state = fd->state;
@@ -862,7 +875,8 @@ void darshan_log_close(darshan_fd fd)
 
     if(!fd)
     {
-        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
         return;
     }
     state = fd->state;
@@ -941,6 +955,12 @@ int darshan_log_get_job_runtime(darshan_fd fd, struct darshan_job job, double *r
     int log_ver_maj, log_ver_min;
     int ret;
     *runtime = 0;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
 
     /* get major/minor version numbers */
     ret = darshan_log_get_format_version(fd->version, &log_ver_maj, &log_ver_min);
@@ -1101,6 +1121,12 @@ static int darshan_log_get_header(darshan_fd fd)
     int i;
     int ret;
 
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
     ret = darshan_log_seek(fd, 0);
     if(ret < 0)
     {
@@ -1164,6 +1190,7 @@ static int darshan_log_get_header(darshan_fd fd)
             return(-1);
         }
 
+        /* job_map section is stored right after header */
         fd->job_map.off = sizeof(struct darshan_header);
     }
     else
@@ -1234,7 +1261,18 @@ static int darshan_log_get_header(darshan_fd fd)
         }
     }
 
-    /* set some fd fields based on what's stored in the header */
+    /* set some fd fields based on what's stored in the header:
+     *   'comp_type' - compression method used on darshan log file
+     *   'partial_flag' - denotes whether the log is storing partial data (that
+     *       is, all possible application file records were not tracked by
+     *       darshan).
+     *   'name_map' - name records
+     *   'mod_map[]' - data structure indicating the location of specific
+     *       module data in a Darshan log. Note that 'off' and 'len' are the
+     *       respective offset and length of the data in the file, in
+     *       "compressed" terms
+     *   'mod_ver[]' - module log format version
+     */
     fd->comp_type = header.comp_type;
     fd->partial_flag = header.partial_flag;
     memcpy(fd->mod_ver, header.mod_ver, DARSHAN_MAX_MODS * sizeof(uint32_t));
@@ -1311,6 +1349,9 @@ static int darshan_log_get_header(darshan_fd fd)
     }
     else
     {
+        /* job map is stored right after header and
+         * name map is stored right after job map
+         */
         fd->job_map.len = fd->name_map.off - fd->job_map.off;
     }
 
@@ -1325,6 +1366,12 @@ static int darshan_log_put_header(darshan_fd fd)
 {
     struct darshan_header header;
     int ret;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
 
     ret = darshan_log_seek(fd, 0);
     if(ret < 0)
@@ -1357,8 +1404,16 @@ static int darshan_log_put_header(darshan_fd fd)
  */
 static int darshan_log_seek(darshan_fd fd, off_t offset)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     off_t ret_off;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
 
     if(state->pos == offset)
         return(0);
@@ -1377,9 +1432,17 @@ static int darshan_log_seek(darshan_fd fd, off_t offset)
  */
 static int darshan_log_read(darshan_fd fd, void* buf, int len)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
     unsigned int read_so_far = 0;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
 
     do
     {
@@ -1399,9 +1462,17 @@ static int darshan_log_read(darshan_fd fd, void* buf, int len)
  */
 static int darshan_log_write(darshan_fd fd, void* buf, int len)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
     unsigned int wrote_so_far = 0;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
 
     do
     {
@@ -1419,8 +1490,16 @@ static int darshan_log_write(darshan_fd fd, void* buf, int len)
 
 static int darshan_log_dzinit(darshan_fd fd)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
 
     /* initialize buffers for staging compressed data
      * to/from log file
@@ -1524,7 +1603,13 @@ static int darshan_log_dzinit(darshan_fd fd)
 
 static void darshan_log_dzdestroy(darshan_fd fd)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
+
+    if (fd == NULL)
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+
+    state = fd->state;
 
     switch(fd->comp_type)
     {
@@ -1556,10 +1641,18 @@ static void darshan_log_dzdestroy(darshan_fd fd)
 
 static int darshan_log_dzread(darshan_fd fd, int region_id, void *buf, int len)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     struct darshan_log_map map;
     int reset_strm_flag = 0;
     int ret;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
 
     /* if new log region, we reload buffers and clear eor flag */
     if(region_id != state->dz.prev_reg_id)
@@ -1567,6 +1660,7 @@ static int darshan_log_dzread(darshan_fd fd, int region_id, void *buf, int len)
         state->dz.eor = 0;
         state->dz.size = 0;
         reset_strm_flag = 1; /* reset libz/bzip2 streams */
+        inflateReset(state->dz.comp_dat);
     }
 
     if(region_id == DARSHAN_JOB_REGION_ID)
@@ -1615,10 +1709,18 @@ static int darshan_log_dzread(darshan_fd fd, int region_id, void *buf, int len)
 
 static int darshan_log_dzwrite(darshan_fd fd, int region_id, void *buf, int len)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     struct darshan_log_map *map_p;
     int flush_strm_flag = 0;
     int ret;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
 
     /* if new log region, finish prev region's zstream and flush to log file */
     if(region_id != state->dz.prev_reg_id)
@@ -1666,11 +1768,20 @@ static int darshan_log_dzwrite(darshan_fd fd, int region_id, void *buf, int len)
 static int darshan_log_libz_read(darshan_fd fd, struct darshan_log_map map,
     void *buf, int len, int reset_stream_flag)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
     int total_bytes = 0;
     int tmp_out_bytes;
-    z_stream *z_strmp = (z_stream *)state->dz.comp_dat;
+    z_stream *z_strmp;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
+    z_strmp = (z_stream*)state->dz.comp_dat;
 
     assert(z_strmp);
 
@@ -1697,7 +1808,7 @@ static int darshan_log_libz_read(darshan_fd fd, struct darshan_log_map map,
                 break;
             }
 
-            /* read more data from input file */
+            /* read more data from input file into fd->state->dz.buf */
             ret = darshan_log_dzload(fd, map);
             if(ret < 0)
                 return(-1);
@@ -1711,7 +1822,7 @@ static int darshan_log_libz_read(darshan_fd fd, struct darshan_log_map map,
         ret = inflate(z_strmp, Z_NO_FLUSH);
         if(ret != Z_OK && ret != Z_STREAM_END)
         {
-            fprintf(stderr, "Error: unable to inflate darshan log data.\n");
+            fprintf(stderr, "Error: unable to inflate darshan log data (%s).\n",z_strmp->msg);
             return(-1);
         }
         total_bytes += (z_strmp->total_out - tmp_out_bytes);
@@ -1727,12 +1838,21 @@ static int darshan_log_libz_read(darshan_fd fd, struct darshan_log_map map,
 static int darshan_log_libz_write(darshan_fd fd, struct darshan_log_map *map_p,
     void *buf, int len, int flush_strm_flag)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
     int total_bytes = 0;
     int tmp_in_bytes;
     int tmp_out_bytes;
-    z_stream *z_strmp = (z_stream *)state->dz.comp_dat;
+    z_stream *z_strmp;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
+    z_strmp = (z_stream *)state->dz.comp_dat;
 
     assert(z_strmp);
 
@@ -1780,11 +1900,20 @@ static int darshan_log_libz_write(darshan_fd fd, struct darshan_log_map *map_p,
 
 static int darshan_log_libz_flush(darshan_fd fd, int region_id)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
     int tmp_out_bytes;
     struct darshan_log_map *map_p;
-    z_stream *z_strmp = (z_stream *)state->dz.comp_dat;
+    z_stream *z_strmp;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
+    z_strmp = (z_stream *)state->dz.comp_dat;
 
     assert(z_strmp);
 
@@ -1828,11 +1957,20 @@ static int darshan_log_libz_flush(darshan_fd fd, int region_id)
 static int darshan_log_bzip2_read(darshan_fd fd, struct darshan_log_map map,
     void *buf, int len, int reset_strm_flag)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
     int total_bytes = 0;
     int tmp_out_bytes;
-    bz_stream *bz_strmp = (bz_stream *)state->dz.comp_dat;
+    bz_stream *bz_strmp;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
+    bz_strmp = (bz_stream *)state->dz.comp_dat;
 
     assert(bz_strmp);
 
@@ -1892,12 +2030,21 @@ static int darshan_log_bzip2_read(darshan_fd fd, struct darshan_log_map map,
 static int darshan_log_bzip2_write(darshan_fd fd, struct darshan_log_map *map_p,
     void *buf, int len, int flush_strm_flag)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
     int total_bytes = 0;
     int tmp_in_bytes;
     int tmp_out_bytes;
-    bz_stream *bz_strmp = (bz_stream *)state->dz.comp_dat;
+    bz_stream *bz_strmp;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
+    bz_strmp = (bz_stream *)state->dz.comp_dat;
 
     assert(bz_strmp);
 
@@ -1945,11 +2092,20 @@ static int darshan_log_bzip2_write(darshan_fd fd, struct darshan_log_map *map_p,
 
 static int darshan_log_bzip2_flush(darshan_fd fd, int region_id)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
     int tmp_out_bytes;
     struct darshan_log_map *map_p;
-    bz_stream *bz_strmp = (bz_stream *)state->dz.comp_dat;
+    bz_stream *bz_strmp;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
+    bz_strmp = (bz_stream *)state->dz.comp_dat;
 
     assert(bz_strmp);
 
@@ -1994,11 +2150,20 @@ static int darshan_log_bzip2_flush(darshan_fd fd, int region_id)
 static int darshan_log_noz_read(darshan_fd fd, struct darshan_log_map map,
     void *buf, int len, int reset_strm_flag)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
     int total_bytes = 0;
     int cp_size;
-    int *buf_off = (int *)state->dz.comp_dat;
+    int *buf_off;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
+    buf_off = (int *)state->dz.comp_dat;
 
     if(reset_strm_flag)
         *buf_off = state->dz.size;
@@ -2039,10 +2204,18 @@ static int darshan_log_noz_read(darshan_fd fd, struct darshan_log_map map,
 
 static int darshan_log_dzload(darshan_fd fd, struct darshan_log_map map)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
     unsigned int remaining;
     unsigned int read_size;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
 
     /* seek to the appropriate portion of the log file, if out of range */
     if((state->pos < map.off) || (state->pos >= (map.off + map.len)))
@@ -2077,8 +2250,16 @@ static int darshan_log_dzload(darshan_fd fd, struct darshan_log_map map)
 
 static int darshan_log_dzunload(darshan_fd fd, struct darshan_log_map *map_p)
 {
-    struct darshan_fd_int_state *state = fd->state;
+    struct darshan_fd_int_state *state;
     int ret;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
+    state = fd->state;
 
     /* initialize map structure for this log region */
     if(map_p->off == 0)
@@ -2194,7 +2375,8 @@ void darshan_log_get_modules(darshan_fd fd,
 
     if(!fd)
     {
-        fprintf(stderr, "Error: invalid Darshan log file handle.\n");
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
         *count = 0;
         return;
     }
@@ -2233,23 +2415,30 @@ void darshan_log_get_modules(darshan_fd fd,
 /*
  * darshan_log_get_name_records
  *
- * Gets list of hashed name_records present in logs and returns the info
+ * Gets list of hashed name_records present in logs and returns the info.
+ * Returns -1 when failed to read from the log file.
  */
-void darshan_log_get_name_records(darshan_fd fd,
-                              struct darshan_name_record_info **name_records,
-                              int* count)
+int darshan_log_get_name_records(darshan_fd fd,
+                                 struct darshan_name_record_info **name_records,
+                                 int* count)
 {
     int ret;
     struct darshan_name_record_ref *name_hash = NULL;
     struct darshan_name_record_ref *tmp = NULL;
     struct darshan_name_record_ref *curr = NULL;
 
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
+
     /* read hash of darshan records */
     ret = darshan_log_get_namehash(fd, &name_hash);
     if(ret < 0)
     {
         darshan_log_close(fd);
-        return;
+        return -1;
     }
 
     int num = HASH_CNT(hlink, name_hash);
@@ -2276,9 +2465,10 @@ void darshan_log_get_name_records(darshan_fd fd,
         free(curr);
         i++;
     }
- 
+
     *count = num;
 
+    return 0;
 }
 
 /*
@@ -2296,6 +2486,11 @@ void darshan_log_get_filtered_name_records(darshan_fd fd,
     struct darshan_name_record_ref *name_hash = NULL;
     struct darshan_name_record_ref *tmp = NULL;
     struct darshan_name_record_ref *curr = NULL;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+    }
 
     /* read hash of darshan records */
     ret = darshan_log_get_filtered_namehash(fd, &name_hash, whitelist, whitelist_count);
@@ -2344,6 +2539,12 @@ int darshan_log_get_record(darshan_fd fd,
                            void **buf)
 {
     int r;
+
+    if (fd == NULL) {
+        fprintf(stderr, "Error in %s() at %d: NULL Darshan log file handle\n",
+                __func__,__LINE__);
+        return -1;
+    }
 
     r = mod_logutils[mod_idx]->log_get_record(fd, buf);
 
