@@ -344,7 +344,7 @@ static void darshan_log_print_lustre_record(void *rec, char *file_name,
                 for(k = 0; k < sizeof(flag_str_table)/sizeof(flag_str_table[0]); k++)
                 {
                     if(flags & flag)
-                        strncat(flag_str, flag_str_table[k], 64 - strlen(flag_str));
+                        strncat(flag_str, flag_str_table[k], sizeof(flag_str) - strlen(flag_str) - 1);
                     flag = flag << 1;
                 }
                 /* drop last ',' separator */

@@ -62,7 +62,7 @@ typedef long long ap_bytes_t;
           ap_bytes_t bytes = 0; \
           if((COUNT > 0) && (TYPE != MPI_DATATYPE_NULL)) { \
               PMPI_Type_size(TYPE, &tsize); \
-              bytes = (COUNT) * tsize; \
+              bytes = (ap_bytes_t)(COUNT) * tsize; \
           }
 
 #define BYTECOUNTND(TYPE, COUNT) \
@@ -70,7 +70,7 @@ typedef long long ap_bytes_t;
           bytes = 0; \
           if((COUNT > 0) && (TYPE != MPI_DATATYPE_NULL)) { \
               PMPI_Type_size(TYPE, &tsize2); \
-              bytes = (COUNT) * tsize2; \
+              bytes = (ap_bytes_t)(COUNT) * tsize2; \
           }
 
 
