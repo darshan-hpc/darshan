@@ -1712,8 +1712,11 @@ void darshan_mpiio_shutdown_bench_setup(int test_case)
     for(j = 0; j < 1024; j++)
         fh_array[j] = (MPI_File)j;
     for(i = 0; i < DARSHAN_COMMON_VAL_MAX_RUNTIME_COUNT; i++) {
-        offset_array[i] = rand();
-        size_array[i] = rand();
+        /* keep generated values in a safe bounded range to avoid overflow in
+         * downstream arithmetic on offsets/sizes
+         */
+        offset_array[i] = (MPI_Offset)(rand() % (1024 * 1024));
+        size_array[i] = (int64_t)(rand() % (1024 * 1024));
     }
 
     switch(test_case)
