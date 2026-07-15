@@ -139,7 +139,7 @@ void* thread_func(void *arg)
     // err = setenv_thread_safe("DARSHAN_DXT_EXTRA_INFO", annotation, 0);
     err = setenv("DARSHAN_DXT_EXTRA_INFO", annotation, 0);
     if (err == -1)
-        printf("Error: rank %s thread %d failed to call setenv (%s)\n",
+        printf("Error: rank %d thread %d failed to call setenv (%s)\n",
         rank, id, strerror(errno));
 
     off = rank * NTHREADS * LEN + id * LEN;
