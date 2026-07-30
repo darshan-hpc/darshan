@@ -1509,6 +1509,55 @@ static void darshan_get_shared_records(struct darshan_core_runtime *core,
 }
 #endif
 
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <errno.h>
+
+static int mkdir_p(const char *base, const char *path, mode_t mode)
+{
+    char *tmp, *p = NULL;
+    int err=0;
+    size_t len;
+
+    len = strlen(base) + strlen(path) + 1;
+    tmp = (char*) malloc(len + 1);
+    snprintf(tmp, len+1, "%s/%s", base, path);
+    tmp[len+1] = '\0';
+
+    /* Remove trailing slash if present */
+    while (tmp[len] == '/') {
+        tmp[len] = '\0';
+        len--;
+    }
+
+    p = tmp + strlen(base) + 2;
+    for (; *p; p++) {
+        if (*p == '/') {
+            *p = 0;
+            err = mkdir(tmp, mode);
+            if (err != 0 && errno != EEXIST) {
+                /* Fail if error other than "already exists" */
+                fprintf(stderr,"Fail to mkdir %s (%s)\n", tmp,
+                            strerror(errno));
+                goto err_out;
+            }
+            else if (errno == EEXIST) err = 0;
+            *p = '/';
+        }
+    }
+
+    /* Create the final target directory */
+    err = mkdir(tmp, mode);
+    if (err != 0 && errno != EEXIST)
+        err = -1;
+    else if (errno == EEXIST) err = 0;
+
+err_out:
+    free(tmp);
+    return err;
+}
+
 /* construct the darshan log file name */
 /* NOTE: logfile_name argument is assumed to have already been allocated
  * with size __DARSHAN_PATH_MAX; length will be safety checked in this
@@ -1519,7 +1568,7 @@ static void darshan_get_logfile_name(
 {
     char* user_logfile_name;
     uint64_t hlevel;
-    char hname[HOST_NAME_MAX];
+    char hname[HOST_NAME_MAX] = {0};
     uint64_t logmod;
     char cuser[L_cuserid] = {0};
     struct tm *start_tm;
@@ -1593,15 +1642,58 @@ static void darshan_get_logfile_name(
              * by the user either at configure time (--with-log-path configure
              * argument) or at runtime using DARSHAN_LOGPATH env var
              */
-            ret = snprintf(logfile_name, __DARSHAN_PATH_MAX,
-                "%s/%d/%d/%d/%s_%s_id%d-%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
-                core->config.log_path, (start_tm->tm_year+1900),
-                (start_tm->tm_mon+1), start_tm->tm_mday,
-                cuser, __progname, jobid, pid,
-                (start_tm->tm_mon+1),
-                start_tm->tm_mday,
-                (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
-                logmod);
+            if (!using_mpi && core->config.log_path_hierarchy) {
+                /* Only for non-MPI jobs and the user has set environment
+                 * variable DARSHAN_LOGPATH_HIERARCHY.
+                 */
+                char *dot;
+                char base_dir[__DARSHAN_PATH_MAX-1];
+                char hirerarchy_dir[__DARSHAN_PATH_MAX-1];
+
+                if (hname[0] == 0)
+                    (void)gethostname(hname, sizeof(hname));
+
+                dot = strchr(hname, '.');
+                if (dot != NULL)
+                    *dot = '\0'; /* Truncate at the first dot */
+
+                /* folder hierarchy: USER/PROGRAMNAME/JOBID/HOSTNAME/log_file */
+                ret = snprintf(base_dir, __DARSHAN_PATH_MAX,
+                      "%s/%d/%d/%d", core->config.log_path,
+                      (start_tm->tm_year+1900), (start_tm->tm_mon+1),
+                      start_tm->tm_mday);
+                if (ret == (__DARSHAN_PATH_MAX-1))
+                    goto snprintf_overflow;
+
+                ret = snprintf(hirerarchy_dir, __DARSHAN_PATH_MAX,
+                      "%s/%s/id%d/%s", cuser, __progname, jobid, hname);
+                if (ret == (__DARSHAN_PATH_MAX-1))
+                    goto snprintf_overflow;
+
+                ret = mkdir_p(base_dir, hirerarchy_dir, 0777);
+                if (ret < 0)
+                    ret = __DARSHAN_PATH_MAX - 1;
+                else
+                    ret = snprintf(logfile_name, __DARSHAN_PATH_MAX,
+                          "%s/%s/%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                          base_dir, hirerarchy_dir, pid,
+                          (start_tm->tm_mon+1), start_tm->tm_mday,
+                          (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
+                          logmod);
+            }
+            else {
+                ret = snprintf(logfile_name, __DARSHAN_PATH_MAX,
+                      "%s/%d/%d/%d/%s_%s_id%d-%d_%d-%d-%d-%" PRIu64 ".darshan_partial",
+                      core->config.log_path, (start_tm->tm_year+1900),
+                      (start_tm->tm_mon+1), start_tm->tm_mday,
+                      cuser, __progname, jobid, pid,
+                      (start_tm->tm_mon+1),
+                      start_tm->tm_mday,
+                      (start_tm->tm_hour*60*60 + start_tm->tm_min*60 + start_tm->tm_sec),
+                      logmod);
+            }
+
+snprintf_overflow:
             if(ret == (__DARSHAN_PATH_MAX-1))
             {
                 /* file name was too big; squish it down */

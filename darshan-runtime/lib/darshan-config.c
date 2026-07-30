@@ -450,6 +450,8 @@ void darshan_parse_config_env(struct darshan_config *cfg)
         cfg->internal_timing_flag = 1;
     if(getenv("DARSHAN_DISABLE_SHARED_REDUCTION"))
         cfg->disable_shared_redux_flag = 1;
+    if(getenv("DARSHAN_LOGPATH_HIERARCHY"))
+        cfg->log_path_hierarchy = 1;
 
     /* apply disabled/enabled module flags */
     cfg->mod_disabled |= cfg->mod_disabled_flags;

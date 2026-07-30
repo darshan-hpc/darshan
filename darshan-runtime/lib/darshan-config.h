@@ -40,6 +40,7 @@ struct darshan_config
     int internal_timing_flag;
     int disable_shared_redux_flag;
     int dump_config_flag;
+    int log_path_hierarchy;
 };
 
 /* initialize a default Darshan configuration */
