@@ -157,9 +157,18 @@ echo "env_darshan_logpath = $env_darshan_logpath runtime_conf_file_logpath = $ru
          fi
       fi
 
-      exp_darshan_log_file="${exp_log_path}/${USERNAME_ENV}_${exe}"
+      # check if the executable is an MPI program
+      is_exe_mpi=`nm ./$exe | grep -i "MPI_Init"`
+      # env variable DARSHAN_LOGPATH_HIERARCHY only takes effect on non-MPI jobs
+      if test "x$is_exe_mpi" = x && test -v DARSHAN_LOGPATH_HIERARCHY ; then
+         # When log path name hierarchy is enabled, the log file path is:
+         # USER/PROGRAMNAME/JOBID/HOSTNAME/PID-hashed_name.darshan
+         exp_darshan_log_file="${exp_log_path}/${USERNAME_ENV}/${exe}/"
+      else
+         exp_darshan_log_file="${exp_log_path}/${USERNAME_ENV}_${exe}"
+      fi
       echo "exp_darshan_log_file=$exp_darshan_log_file"
-      rm -f ${exp_darshan_log_file}*
+      rm -rf ${exp_darshan_log_file}*
 
       # Run MPI program
       CMD="${TESTMPIRUN} -n ${NP} ./$exe -q $TEST_FILE"
@@ -170,11 +179,13 @@ echo "env_darshan_logpath = $env_darshan_logpath runtime_conf_file_logpath = $ru
       # check if log file has been created in the expected folder
       if ! compgen -G "${exp_darshan_log_file}*" > /dev/null; then
          echo "Error: log file not found (expected ${exp_darshan_log_file}*"
+         echo "Running command: ls -lt ${exp_darshan_log_file}*"
+         ls -lt ${exp_darshan_log_file}*
          exit 1
       fi
       # ls -lt ${exp_darshan_log_file}*
 
-      rm -f ${exp_darshan_log_file}*
+      rm -rf ${exp_darshan_log_file}*
 
    done
    done

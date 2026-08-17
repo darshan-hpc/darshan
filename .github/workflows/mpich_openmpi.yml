@@ -108,3 +108,10 @@ jobs:
           cd ${GITHUB_WORKSPACE}/BUILD
           make check NP=4
 
+      - name: test log path name hierarchy for MPI jobs (should have no effect)
+        run: |
+          export PATH="${GITHUB_WORKSPACE}/MPI/bin:${PATH}"
+          cd ${GITHUB_WORKSPACE}/BUILD
+          export DARSHAN_LOGPATH_HIERARCHY=
+          make check NP=4
+
