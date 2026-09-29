@@ -78,7 +78,7 @@ def get_x_axis_ticks(bin_max: float, n_xlabels: int = 4) -> npt.NDArray[np.float
     Array of x-axis tick mark locations of length ``n_xlabels``.
 
     """
-    return np.linspace(0, bin_max, n_xlabels)
+    return np.linspace(0, bin_max, n_xlabels) # type: ignore[return-value, unused-ignore]
 
 
 def get_x_axis_tick_labels(
