@@ -33,22 +33,22 @@ fi
 
 STDIO_OPENS=`grep STDIO_OPENS $DARSHAN_TMP/${PROG}.darshan.txt | grep -vE "^#" | grep -vE "STDIN|STDOUT|STDERR" | cut -f 5`
 if [ ! "$STDIO_OPENS" -gt 0 ]; then
-    echo "Error: STDIO open count of $STDIO_OPENS is incorrect" 1>&2
+    echo "Error: STDIO_OPENS of $STDIO_OPENS is incorrect" 1>&2
     exit 1
 fi
 STDIO_SEEKS=`grep STDIO_SEEKS $DARSHAN_TMP/${PROG}.darshan.txt | grep -vE "^#" | grep -vE "STDIN|STDOUT|STDERR" | cut -f 5`
 if [ ! "$STDIO_SEEKS" -gt 0 ]; then
-    echo "Error: STDIO open count of $STDIO_SEEKS is incorrect" 1>&2
+    echo "Error: STDIO_SEEKS of $STDIO_SEEKS is incorrect" 1>&2
     exit 1
 fi
 STDIO_BYTES_WRITTEN=`grep STDIO_BYTES_WRITTEN $DARSHAN_TMP/${PROG}.darshan.txt | grep -vE "^#" | grep -vE "STDIN|STDOUT|STDERR" | cut -f 5`
 if [ ! "$STDIO_BYTES_WRITTEN" -eq 6 ]; then
-    echo "Error: STDIO open count of $STDIO_BYTES_WRITTEN is incorrect" 1>&2
+    echo "Error: STDIO_BYTES_WRITTEN of $STDIO_BYTES_WRITTEN is incorrect" 1>&2
     exit 1
 fi
 STDIO_BYTES_READ=`grep STDIO_BYTES_READ $DARSHAN_TMP/${PROG}.darshan.txt | grep -vE "^#" | grep -vE "STDIN|STDOUT|STDERR" | cut -f 5`
 if [ ! "$STDIO_BYTES_READ" -eq 6 ]; then
-    echo "Error: STDIO open count of $STDIO_BYTES_READ is incorrect" 1>&2
+    echo "Error: STDIO_BYTES_READ of $STDIO_BYTES_READ is incorrect" 1>&2
     exit 1
 fi
 
@@ -57,32 +57,32 @@ fi
 # use bc for floating point comparison
 STDIO_F_OPEN_START_TIMESTAMP=`grep STDIO_F_OPEN_START_TIMESTAMP $DARSHAN_TMP/${PROG}.darshan.txt | grep -vE "^#" | grep -vE "STDIN|STDOUT|STDERR" | cut -f 5`
 if [ ! $(echo "$STDIO_F_OPEN_START_TIMESTAMP > 0" | bc -l) ]; then
-    echo "Error: counter is incorrect" 1>&2
+    echo "Error: STDIO_F_OPEN_START_TIMESTAMP counter is incorrect" 1>&2
     exit 1
 fi
 STDIO_F_OPEN_END_TIMESTAMP=`grep STDIO_F_OPEN_END_TIMESTAMP $DARSHAN_TMP/${PROG}.darshan.txt | grep -vE "^#" | grep -vE "STDIN|STDOUT|STDERR" | cut -f 5`
 if [ ! $(echo "$STDIO_F_OPEN_END_TIMESTAMP > 0" | bc -l) ]; then
-    echo "Error: counter is incorrect" 1>&2
+    echo "Error: STDIO_F_OPEN_END_TIMESTAMP counter is incorrect" 1>&2
     exit 1
 fi
 STDIO_F_META_TIME=`grep STDIO_F_META_TIME $DARSHAN_TMP/${PROG}.darshan.txt | grep -vE "^#" | grep -vE "STDIN|STDOUT|STDERR" | cut -f 5`
 if [ ! $(echo "$STDIO_F_META_TIME > 0" | bc -l) ]; then
-    echo "Error: counter is incorrect" 1>&2
+    echo "Error: STDIO_F_META_TIME counter is incorrect" 1>&2
     exit 1
 fi
 STDIO_F_WRITE_TIME=`grep STDIO_F_WRITE_TIME $DARSHAN_TMP/${PROG}.darshan.txt | grep -vE "^#" | grep -vE "STDIN|STDOUT|STDERR" | cut -f 5`
 if [ ! $(echo "$STDIO_F_WRITE_TIME > 0" | bc -l) ]; then
-    echo "Error: counter is incorrect" 1>&2
+    echo "Error: STDIO_F_WRITE_TIME counter is incorrect" 1>&2
     exit 1
 fi
 STDIO_F_CLOSE_START_TIMESTAMP=`grep STDIO_F_CLOSE_START_TIMESTAMP $DARSHAN_TMP/${PROG}.darshan.txt | grep -vE "^#" | grep -vE "STDIN|STDOUT|STDERR" | cut -f 5`
 if [ ! $(echo "$STDIO_F_CLOSE_START_TIMESTAMP > 0" | bc -l) ]; then
-    echo "Error: counter is incorrect" 1>&2
+    echo "Error: STDIO_F_CLOSE_START_TIMESTAMP counter is incorrect" 1>&2
     exit 1
 fi
 STDIO_F_CLOSE_END_TIMESTAMP=`grep STDIO_F_CLOSE_END_TIMESTAMP $DARSHAN_TMP/${PROG}.darshan.txt | grep -vE "^#" | grep -vE "STDIN|STDOUT|STDERR" | cut -f 5`
 if [ ! $(echo "$STDIO_F_CLOSE_END_TIMESTAMP > 0" | bc -l) ]; then
-    echo "Error: counter is incorrect" 1>&2
+    echo "Error: STDIO_F_CLOSE_END_TIMESTAMP counter is incorrect" 1>&2
     exit 1
 fi
 
