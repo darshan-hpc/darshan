@@ -219,7 +219,7 @@ char *darshan_log_get_lib_version(void);
 int darshan_log_get_job_runtime(darshan_fd fd, struct darshan_job job, double *runtime);
 void darshan_log_get_modules(darshan_fd fd, struct darshan_mod_info **mods,
     int* count);
-void darshan_log_get_name_records(darshan_fd fd,
+int darshan_log_get_name_records(darshan_fd fd,
     struct darshan_name_record_info **mods, int* count);
 void darshan_log_get_filtered_name_records(darshan_fd fd,
     struct darshan_name_record_info **mods, int* count,
