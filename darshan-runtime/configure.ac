@@ -443,35 +443,84 @@ if test "x$enable_darshan_runtime" = xyes ; then
       if test "x$M4" = x ; then
          AC_MSG_ERROR(--enable-pnetcdf-mod requires a valid M4 macro processor)
       fi
-      if test -d "$with_pnetcdf" ; then
-         AC_PATH_PROG(PNC_VER_CHECK, pnetcdf_version, "no", "${with_pnetcdf}/bin")
+
+      pnetcdf_valid=no
+      if test "x$with_pnetcdf" != x && test -d "$with_pnetcdf" ; then
+         AC_PATH_PROG(PNETCDF_CONFIG, pnetcdf-config, "no", "${with_pnetcdf}/bin")
       else
-         AC_PATH_PROG(PNC_VER_CHECK, pnetcdf_version, "no")
-         # autodetect PNetCDF install prefix and set with_pnetcdf
-         with_pnetcdf=$(dirname $(dirname $PNC_VER_CHECK))
+         # When --with-pnetcdf is not used, check if we can compile and link a
+         # PnetCDF program using CFLAGS, LDFLAGS, and LIBS.
+         saved_LIBS=$LIBS
+         LIBS="$LIBS -lpnetcdf"
+         AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #include <stdio.h>
+            #include <mpi.h>
+            #include <pnetcdf.h>
+            ]], [[
+               printf("%s\n", ncmpi_inq_libvers());
+            ]])], [pnetcdf_valid=yes], [pnetcdf_valid=no]
+         )
+         LIBS="$saved_LIBS"
+         if test "x$pnetcdf_valid" = xno ; then
+             # See if we can find pnetcdf-config from user's $PATH.
+             AC_PATH_PROG(PNETCDF_CONFIG, pnetcdf-config, "no")
+         fi
+         unset saved_LIBS
       fi
-      if ! test -d "${with_pnetcdf}/lib" ; then
-         AC_MSG_ERROR(m4_normalize([Darshan PnetCDF module enabled but no valid PnetCDF install found,
-                       use --with-pnetcdf to provide the PnetCDF install prefix, if needed.]))
+
+      # If pnetcdf-config is available, run it to obtain include and lib
+      # directories of PnetCDF installation
+      if test "x$pnetcdf_valid" = xno ; then
+         if test "x$PNETCDF_CONFIG" != xno ; then
+            inc_folder=`$PNETCDF_CONFIG --includedir`
+            CFLAGS="${CFLAGS} -I${inc_folder}"
+            unset inc_folder
+            lib_folder=`$PNETCDF_CONFIG --libdir`
+            DARSHAN_PNETCDF_LD_FLAGS="-L${lib_folder} [-Wl,-rpath=${lib_folder}]"
+            unset lib_folder
+         fi
+
+         # Rudimentary check if the installed PnetCDF is valid
+         AC_MSG_CHECKING([whether PnetCDF is valid])
+         saved_LDFLAGS=$LDFLAGS
+         saved_LIBS=$LIBS
+         LDFLAGS="$DARSHAN_PNETCDF_LD_FLAGS $LDFLAGS"
+         LIBS="$LIBS -lpnetcdf"
+         AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #include <stdio.h>
+            #include <mpi.h>
+            #include <pnetcdf.h>
+            ]], [[
+            printf("%s\n", ncmpi_inq_libvers());
+            ]])], [pnetcdf_valid=yes], [pnetcdf_valid=no]
+         )
+         AC_MSG_RESULT([$pnetcdf_valid])
+         LDFLAGS=$saved_LDFLAGS
+         LIBS=$saved_LIBS
+         if test "x${pnetcdf_valid}" = xno ; then
+            AC_MSG_ERROR(m4_normalize([Darshan PnetCDF module enabled but no valid PnetCDF install found,
+                          use --with-pnetcdf to provide the PnetCDF install prefix, if needed.]))
+         fi
+         unset saved_LDFLAGS
+         unset saved_LIBS
       fi
-      if test "x$PNC_VER_CHECK" != xno ; then
-         pnc_version=`${with_pnetcdf}/bin/pnetcdf_version | grep Version | cut -d':' -f 2 | xargs`
-      fi
-      CFLAGS="${CFLAGS} -I${with_pnetcdf}/include"
-      DARSHAN_PNETCDF_LD_FLAGS="-L${with_pnetcdf}/lib [-Wl,-rpath=${with_pnetcdf}/lib -lpnetcdf]"
+
+      DARSHAN_PNETCDF_LD_FLAGS="${DARSHAN_PNETCDF_LD_FLAGS} -lpnetcdf"
+
+      AC_MSG_CHECKING([PnetCDF version number])
+      AC_COMPUTE_INT([major], [PNETCDF_VERSION_MAJOR], [[#include <pnetcdf.h>]])
+      AC_COMPUTE_INT([minor], [PNETCDF_VERSION_MINOR], [[#include <pnetcdf.h>]])
+      AC_COMPUTE_INT([sub],   [PNETCDF_VERSION_SUB],   [[#include <pnetcdf.h>]])
+      pnc_version="${major}.${minor}.${sub}"
+      AC_MSG_RESULT([${pnc_version}])
 
       # PnetCDF only supported in library versions greater than 1.8.0
       AC_MSG_CHECKING([whether PnetCDF version is at least 1.8.0])
-      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-         #include <pnetcdf.h>
-         #if (PNETCDF_VERSION_MAJOR == 1) && (PNETCDF_VERSION_MINOR < 8)
-         #error PnetCDF version is older than 1.8.0
-         #endif
-         ]])], [pnc_ge_1_8_0=yes], [pnc_ge_1_8_0=no]
-      )
-      AC_MSG_RESULT([$pnc_ge_1_8_0])
-      if test x$pnc_ge_1_8_0 = xno; then
+      if test $major -eq 1 && test $minor -lt 8 ; then
+         AC_MSG_RESULT([no])
          AC_MSG_ERROR([PnetCDF version 1.8.0 and later is required.])
+      else
+         AC_MSG_RESULT([yes])
       fi
    elif test "x$enable_pnetcdf_mod" != xno ; then
       AC_MSG_ERROR(m4_normalize([--enable-pnetcdf-mod does not take any argument,
