@@ -245,7 +245,7 @@ void darshan_free(void *);
 
 int darshan_log_get_namehash(void*, struct darshan_name_record_ref **hash);
 
-void darshan_log_get_name_records(void*, struct darshan_name_record **, int*);
+int darshan_log_get_name_records(void*, struct darshan_name_record **, int*);
 void darshan_log_get_filtered_name_records(void*, struct darshan_name_record **, int*, darshan_record_id*, int);
 
 """
