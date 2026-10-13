@@ -820,18 +820,65 @@ int DARSHAN_DECL(fcntl)(int fd, int cmd, ...)
     tm2 = POSIX_WTIME();
 
     struct posix_file_record_ref *rec_ref;
+    /* any harm to hoisting this up to common code, even if fcntl returned an error? */
+    POSIX_PRE_RECORD();
+    rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash, &fd, sizeof(fd));
 
-    /* some code (e.g. python) prefers (portabilty? functionality?) to
-     * duplicate the file descriptor via fcntl instead of dup/dup2/dup3 */
-    if (ret >= 0 && (cmd == F_DUPFD || cmd == F_DUPFD_CLOEXEC)) {
-        POSIX_PRE_RECORD();
-        rec_ref = darshan_lookup_record_ref(posix_runtime->fd_hash,
-                &fd, sizeof(fd));
+    switch (cmd) {
+        case F_DUPFD:
+        case F_DUPFD_CLOEXEC:
+            /* some code (e.g. python) prefers (portabilty? functionality?)
+             * to duplicate the file descriptor via fcntl instead of
+             * dup/dup2/dup3 */
+            /* there is nothing meaningful we can do on error */
+            if (ret < 0) break;
+            POSIX_RECORD_REFOPEN(ret, rec_ref, tm1, tm2, POSIX_DUPS);
+            break;
+        /* mpi-io "data sieving", for one example, can issue a bunch of
+         * fcntl-based locks.  We could go nuts tracking byte ranges, orphaned
+         * locks, read vs write.   For now, let's just count the number of
+         * times we called a locking routine and how long it
+         * took.
+         * - F_SETLKW will wait for the lock to be available -- low count, high
+         * time.
+         * - F_SETLK returns -1 and sets errno to EACCESS or EAGAIN.. we still
+         * want to track those, though.  we should see a high count and small
+         * time while the application spins for access.  will darshan overhead
+         * get in the way here?  I have to imagine in such a situation
+         * (contentious locks) that performance is not top of mind.  */
 
-        POSIX_RECORD_REFOPEN(ret, rec_ref, tm1, tm2, POSIX_DUPS);
-        POSIX_POST_RECORD();
+        //case F_SETLK:
+        case F_SETLK64:
+        //case F_SETLKW:
+        case F_SETLKW64:
+        case F_OFD_SETLK:
+        case F_OFD_SETLKW:
+            POSIX_PRE_RECORD();
+            struct flock *lock = (struct flock *) next;
+            DARSHAN_TIMER_INC_NO_OVERLAP(
+                    rec_ref->file_rec->fcounters[POSIX_F_FCNTL_LOCK_TIME],
+                    tm1, tm2, rec_ref->last_meta_end);
+            if (lock->l_type == F_RDLCK)
+                rec_ref->file_rec->counters[POSIX_FCNTL_SETLOCK_READ_COUNT] += 1;
+            else if (lock->l_type == F_WRLCK)
+                rec_ref->file_rec->counters[POSIX_FCNTL_SETLOCK_WRITE_COUNT] += 1;
+            else if (lock->l_type == F_UNLCK) {
+                rec_ref->file_rec->counters[POSIX_FCNTL_SETLOCK_UNLOCK_COUNT] += 1;
+            }
+                                   break;
+        //case F_GETLK:
+        case F_GETLK64:
+        case F_OFD_GETLK:
+                DARSHAN_TIMER_INC_NO_OVERLAP(
+                        rec_ref->file_rec->fcounters[POSIX_F_FCNTL_LOCK_TIME],
+                        tm1, tm2, rec_ref->last_meta_end);
+            rec_ref->file_rec->counters[POSIX_FCNTL_GETLOCK_COUNT] += 1;
+            break;
+        default:
+            ;
+            // nothing: we only handle specific fcntl calls
     }
-
+    POSIX_POST_RECORD();
     return ret;
 }
 
@@ -2414,6 +2461,13 @@ static void posix_record_reduction_op(void* infile_v, void* inoutfile_v,
             tmp_file.fcounters[POSIX_F_SLOWEST_RANK_TIME] =
                 inoutfile->fcounters[POSIX_F_SLOWEST_RANK_TIME];
         }
+        /* sum */
+        for (j=POSIX_FCNTL_SETLOCK_READ_COUNT; j<= POSIX_FCNTL_GETLOCK_COUNT; j++) {
+            tmp_file.counters[j] = infile->counters[j] + inoutfile->counters[j];
+        }
+        tmp_file.fcounters[POSIX_F_FCNTL_LOCK_TIME] = infile->fcounters[POSIX_F_FCNTL_LOCK_TIME] +
+            inoutfile->fcounters[POSIX_F_FCNTL_LOCK_TIME];
+
 
         /* update pointers */
         *inoutfile = tmp_file;
