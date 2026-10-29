@@ -669,6 +669,11 @@ runtime:
        output Darshan log to. This overrides the default Darshan behavior of
        automatically generating a log file name and adding it to a log file
        directory formatted using darshan-mk-log-dirs script.
+   * - DARSHAN_LOGPATH_HIERARCHY
+     - LOGPATH_HIERARCHY
+     - Instead of a flat log file name, it instructs Darshan to use file name
+       hierarchy of: USER/PROGRAMNAME/JOBID/HOSTNAME/PID-hashed_name.darshan
+       This setting only takes effect on non-MPI jobs.
    * - DARSHAN_MOD_DISABLE=<mod_csv>
      - MOD_DISABLE <mod_csv>
      - Specifies a list of comma-separated Darshan module names to disable at

@@ -833,6 +833,8 @@ void darshan_parse_config_file(struct darshan_config *cfg)
                 cfg->internal_timing_flag = 1;
             else if(strcmp(key, "DISABLE_SHARED_REDUCTION") == 0)
                 cfg->disable_shared_redux_flag = 1;
+            else if(strcmp(key, "LOGPATH_HIERARCHY") == 0)
+                cfg->log_path_hierarchy = 1;
             else
             {
                 darshan_core_fprintf(stderr, "darshan library warning: "\
