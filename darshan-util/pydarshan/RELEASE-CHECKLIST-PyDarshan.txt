@@ -10,16 +10,19 @@ Notes on how to release a new version of PyDarshan
  - About updating CHANGELOG.rst
     - Since version 3.5.0, pydarshan released as a part of Darshan package, the
       change history should go to `ChangeLog` at root folder.
- - Update version numbers in:
-    darshan/__init__.py
+ - Update version numbers in file darshan-util/pydarshan/darshan/__init__.py
+    - Since version 3.5.0, the version number must be kept the same as Darshan
+      version number as set in darshan.version at Darshan's root folder.
  - About the pydarshan documents
     - Since version 3.5.0, all Darshan documents have been moved to
       readthedocs.io and are updated every time a new commit is pushed to the
       main branch.
 
  - Upload darshan package to test.pypi / pypi.org using cibuildwheel/twine:
-    - pipx run build --sdist
-        (in the pydarshan directory, creates a source distribution)
+    - In the pydarshan directory, creates a source distribution using 2
+      commands below. (To install pipx, run "pip install --upgrade pipx")
+      cd darshan-util/pydarshan
+      pipx run build --sdist
     - Download wheel artifacts from GitHub, copy them to 'dist/' directory
       created above.
         + Click on Actions in GitHub. On the left panel, click "Build Wheels".
