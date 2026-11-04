@@ -2,6 +2,57 @@
 Darshan Release Change Log
 --------------------------
 
+Darshan-3.6.0
+=============
+
+## Highlights of some significant changes from the previous release.
+* New feature: Darshan now collects Pthread IDs into DXT records.
+* Migrate APMPI module into Darshan soure tree.
+* Remove APXC sub-module, as Cray XC systems are now legacy.
+* New feature: set an environment variable to enable log file path name hierarchy
+* Bug fix: error Z_DATA_ERROR returned when inflating a new log file region
+* Improve configure script on detecting PnetCDF installation path
+
+## What's Changed
+* Update versioning convention in RELEASE-CHECKLIST-PyDarshan.txt by @orcunyildiz in https://github.com/darshan-hpc/darshan/pull/1090
+* pydarshan release check list update: instructions on upload to test.pypi by @wkliao in https://github.com/darshan-hpc/darshan/pull/1091
+* darshan-runtime.pc.in - remove requirements of mpich and zlib by @wkliao in https://github.com/darshan-hpc/darshan/pull/1096
+* workstation-ld-preload/env.sh - remove hack of adding libfmpich.so by @wkliao in https://github.com/darshan-hpc/darshan/pull/1095
+* Fix: CSV data not being stored in darshan_ldms_test_ci.yml workflow by @spwalto in https://github.com/darshan-hpc/darshan/pull/1099
+* CI: use the latest official release of LDMS 4.5.1 by @wkliao in https://github.com/darshan-hpc/darshan/pull/1101
+* Doc: update release check list for creating an example log file on Polaris by @wkliao in https://github.com/darshan-hpc/darshan/pull/1104
+* Doc: explain why the offsets in MPI-IO module may not be the true values by @wkliao in https://github.com/darshan-hpc/darshan/pull/1103
+* New feature: collect Pthread IDs into DXT records by @wkliao in https://github.com/darshan-hpc/darshan/pull/1102
+* test all combinations of log path settings by @wkliao in https://github.com/darshan-hpc/darshan/pull/1112
+* Github CI: pytest failed due to DataFrame Attribute "dtype" are different by @wkliao in https://github.com/darshan-hpc/darshan/pull/1116
+* Pin GHA dependencies by hash by @williamjallen in https://github.com/darshan-hpc/darshan/pull/1111
+* Github CI: mpich_openmpi.yml uses matrix by @wkliao in https://github.com/darshan-hpc/darshan/pull/1122
+* Github CI: set permission to read only by @wkliao in https://github.com/darshan-hpc/darshan/pull/1124
+* fix potential use-after-free by @roblatham00 in https://github.com/darshan-hpc/darshan/pull/1125
+* Potential fixes for 5 code quality findings by @wkliao in https://github.com/darshan-hpc/darshan/pull/1126
+* Replace DARSHAN_EXCLUDE_DIRS with NAME_EXCLUDE by @wkliao in https://github.com/darshan-hpc/darshan/pull/1115
+* Add security policy statement by @wkliao in https://github.com/darshan-hpc/darshan/pull/1123
+* Migrate apmpi and remove apxc by @wkliao in https://github.com/darshan-hpc/darshan/pull/1113
+* Pin PyDarshan dependencies by @williamjallen in https://github.com/darshan-hpc/darshan/pull/1127
+* relax cython version requirement by @wkliao in https://github.com/darshan-hpc/darshan/pull/1133
+* Github labeller: adjust permission by @wkliao in https://github.com/darshan-hpc/darshan/pull/1134
+* New feature: use log file path hierarchy by @wkliao in https://github.com/darshan-hpc/darshan/pull/1158
+* Update main_ci.yml by @orcunyildiz in https://github.com/darshan-hpc/darshan/pull/1162
+* Add --include_names/--exclude_names to to_json pydarshan CLI  by @iCebka in https://github.com/darshan-hpc/darshan/pull/1161
+* Fix the error messages of stdio-test.sh by @wkliao in https://github.com/darshan-hpc/darshan/pull/1163
+* various fixes the warnings found by the copilot  by @wkliao in https://github.com/darshan-hpc/darshan/pull/1155
+* Potential fix for code scanning alert no. 12: Uncontrolled data in arithmetic expression by @wkliao in https://github.com/darshan-hpc/darshan/pull/1154
+* Bug fix: add a missing call to InflateReset() by @wkliao in https://github.com/darshan-hpc/darshan/pull/1137
+* rework pnetcdf installation path check by @wkliao in https://github.com/darshan-hpc/darshan/pull/1132
+* doc: add env variable DARSHAN_LOGPATH_HIERARCHY/LOGPATH_HIERARCHY by @wkliao in https://github.com/darshan-hpc/darshan/pull/1165
+
+## New Contributors
+* @williamjallen made their first contribution in https://github.com/darshan-hpc/darshan/pull/1111
+* @dependabot[bot] made their first contribution in https://github.com/darshan-hpc/darshan/pull/1117
+* @iCebka made their first contribution in https://github.com/darshan-hpc/darshan/pull/1161
+
+**Full Changelog**: https://github.com/darshan-hpc/darshan/compare/3.5.0...3.6.0
+
 Darshan-3.5.0
 =============
 
