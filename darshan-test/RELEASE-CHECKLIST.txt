@@ -12,15 +12,24 @@ Notes on how to release a new version of Darshan
     instructions in readthedocs/DEVELOPER_NOTES.md
  4) update file "ChangeLog", if needed (browse git log since last release)
     - When using Github release mechanism, it has a nice feature to generated a
-      list of merged PRs, which can be copied to file ChangeLog. See 12) below.
+      list of merged PRs, which can be copied to file ChangeLog.
       You may want to first create a dummy release to see this note first.
+      + 4.1) On Darshan's github root page, click "Releases" on the right and
+             then "Draft a new release" on the top.
+      + 4.2) Click "Tag: Select tag" and then "Create new tag". Enter "dummy"
+             as the tag name.
+      + 4.3) Click "Generate release note". Then copy the note into file
+             ChangeLog and edit as necessary.
     - commit
- 5) update version number in top-level darshan.version file
+ 5) update version number in top-level file, "darshan.version"
+    - Also, file darshan-util/pydarshan/darshan/__init__.py for PyDarshan.
+      Note the version number has been kept consistent between Darshan run
+      time library and PyDarshan since 3.5.0 release.
     - See below for the guideline of setting the version number.
     - commit
  6) follow checklist for corresponding release of PyDarshan
     - found at darshan-util/pydarshan/RELEASE-CHECKLIST-PyDarshan.txt
-    - NOTE: new PyDarshan version must be released with every Darshan release
+    - NOTE: new PyDarshan version must be kept the same as Darshan release
  7) use "git status" to make sure that all changes have been committed and
     pushed to origin/main
  8) manually install Darshan and run regression tests on a workstation and/or
@@ -50,7 +59,8 @@ Notes on how to release a new version of Darshan
     - Run "configure" to generate necessary autotools files
     - Run "make dist", which generates a tar ball, named darshan-3.5.0.tar.gz
 12) create a new release on github.com
-    - On Darshan repo home, click "Create a new release" on the right.
+    - On Darshan repo home, click "Releases" on the right and then "Draft a
+      new release" on the top.
     - Select Tag to be "3.5.0"
     - Add release title to be "3.5.0". This must be in the form of
       MAJOR.MINOR.PATCH
