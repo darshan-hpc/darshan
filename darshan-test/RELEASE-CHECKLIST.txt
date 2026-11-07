@@ -32,32 +32,59 @@ Notes on how to release a new version of Darshan
     - NOTE: new PyDarshan version must be kept the same as Darshan release
  7) use "git status" to make sure that all changes have been committed and
     pushed to origin/main
+
  8) manually install Darshan and run regression tests on a workstation and/or
     an HPC system (e.g., ALCF Polaris)
     - after installing, run the following in darshan-test/regression:
       ./run-all.sh <darshan_install_prefix> <scratch_dir> <system_env_profile>
- 9) copy example output file (from the above testing) and commit in
-    the darshan-logs repo in the darshan_logs/release_logs/ directory
+    - See next bullet point for example commands when running on Polaris at ALCF
+
+ 9) copy example output file named mpi-io-test.darshan (from the above testing)
+    and commit to the darshan-logs repo into its darshan_logs/release_logs/
+    directory.
     a. log into polaris.alcf.anl.gov
     b. clone darshan repo, say into $HOME/Darshan/Github/darshan
-    c. module swap PrgEnv-nvidia PrgEnv-gnu
-    d. install Darshan, say into folder $HOME/Darshan/Github/DEV
-    e. cd $HOME/Darshan/Github/darshan/darshan-test/regression/
-    f. ./run-all.sh $HOME/Darshan/Github/DEV $HOME/Darshan/TEST alcf-polaris-cray-module
-    g. clone darshan-logs repo, say into $HOME/Darshan/Github/darshan-logs
-    h. cd $HOME/Darshan/Github/darshan-logs/darshan_logs/release_logs
-    i. cp $HOME/Darshan/TEST/mpi-io-test.darshan mpi-io-test-x86_64-3.5.0.darshan
-    j. Create a new PR
-10) make a tag for the release according to instructions at
-    http://git-scm.com/book/en/Git-Basics-Tagging
-    - example (annotated tag, pushed to repo):
+    c. install Darshan, say into folder $HOME/Darshan/Github/DEV, by running
+       commands below.
+       + module swap PrgEnv-nvidia PrgEnv-gnu
+       + ../darshan/configure --prefix=$HOME/Darshan/Github/DEV \
+                              --with-log-path=$HOME/Darshan/LOG \
+                              --with-jobid-env=NONE \
+                              cross_compiling=yes CC=cc
+       + cd ../darshan/darshan-test/regression
+    d. run regression tests using commands below.
+       + cd $HOME/Darshan/Github/darshan/darshan-test/regression/
+       + ./run-all.sh $HOME/Darshan/Github/DEV \
+                      $HOME/Darshan/TEST \
+                      alcf-polaris-cray-module
+    e. The above regression test will produce files under $HOME/Darshan/TEST
+    f. clone darshan-logs repo, say into folder $HOME/Darshan/Github/darshan-logs
+       + cd $HOME/Darshan/Github
+       + git clone git@github.com:darshan-hpc/darshan-logs.git
+       + cd darshan-logs
+       + git checkout -B add-3.5.0-release-log
+    g. Copy over one regression test output file, mpi-io-test.darshan
+       + cd $HOME/Darshan/Github/darshan-logs/darshan_logs/release_logs
+       + cp $HOME/Darshan/TEST/mpi-io-test.darshan mpi-io-test-x86_64-3.5.0.darshan
+    h. Add the new log file, commit changes and create a new PR
+       + git add mpi-io-test-x86_64-3.5.0.darshan
+       + git commit -m "add regression test output log file for release 3.5.0"
+       + git push origin add-3.5.0-release-log
+       + go to https://github.com/darshan-hpc/darshan-logs and create a new PR
+       + merge the new PR into the main branch
+
+10) create a new tag to be used for creating a new Darshan release (based on
+    instructions from http://git-scm.com/book/en/Git-Basics-Tagging)
+    - example git commands (annotated tag, pushed to repo):
       git tag -a 3.5.0 -m 'Darshan 3.5.0'
       git push origin 3.5.0
-    - NOTE: update the above to reflect the tag format needed by Read the
-      Docs
-11) manually create the release tarball
+    - NOTE: update the above to reflect the tag name format needed by Read the
+      Docs (i.e. 3.5.0 or v3.5.3. We choose the one without prefix 'v')
+
+11) manually create the release tarball to be added as a Darshan release asset
     - Run "configure" to generate necessary autotools files
     - Run "make dist", which generates a tar ball, named darshan-3.5.0.tar.gz
+
 12) create a new release on github.com
     - On Darshan repo home, click "Releases" on the right and then "Draft a
       new release" on the top.
@@ -76,6 +103,7 @@ Notes on how to release a new version of Darshan
       + `git push -f origin 3.5.0` to force pushed to remote repo at github.com
       + Then visit Darshan repo at github.com and edit the draft.
     - When ready for the release, click "Publish release" to make a release.
+
 13) update download page on darshan web site: www.mcs.anl.gov/darshan/download
 14) update darshan-runtime and darshan-util Spack packages with new release
     - consider whether new variants should be exposed based on new features
