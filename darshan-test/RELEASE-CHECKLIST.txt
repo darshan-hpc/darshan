@@ -105,10 +105,16 @@ Notes on how to release a new version of Darshan
     - When ready for the release, click "Publish release" to make a release.
 
 13) update download page on darshan web site: www.mcs.anl.gov/darshan/download
+    Check google doc "Darshan Web Site Documentation" for instructions on
+    updating the web contents.
+
 14) update darshan-runtime and darshan-util Spack packages with new release
     - consider whether new variants should be exposed based on new features
       enabled by the release
     - commit, submit PR to upstream Spack repository
+    - Check "Darshan Developer Documentation" for detailed instructions on
+      updating the web contents.
+
 15) announce on web page (new post) and mailing list
 
 ----
