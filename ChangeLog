@@ -6,10 +6,17 @@ Darshan-3.6.0
 =============
 
 ## Highlights of some significant changes from the previous release.
-* New feature: Darshan now collects Pthread IDs into DXT records.
-* Migrate APMPI module into Darshan soure tree.
+* New feature: Darshan now collects Pthread IDs into DXT records. See example
+  outputs in https://github.com/darshan-hpc/darshan/pull/1102 and Darshan user
+  guide.
+* New feature: set an environment variable to enable log file path name
+  hierarchy in the form of
+  `USER/PROGRAMNAME/JOBID/HOSTNAME/PID-hashed_name.darshan`. This applies only
+  to non-MPI jobs and can avoid too many log files created in the same
+  directory. Detailed can be found in
+  https://github.com/darshan-hpc/darshan/pull/1158 and Darshan user guide.
+* Migrate APMPI module into Darshan source tree.
 * Remove APXC sub-module, as Cray XC systems are now legacy.
-* New feature: set an environment variable to enable log file path name hierarchy
 * Bug fix: error Z_DATA_ERROR returned when inflating a new log file region
 * Improve configure script on detecting PnetCDF installation path
 
