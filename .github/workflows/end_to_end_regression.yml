@@ -28,9 +28,9 @@ jobs:
           sudo apt-get install -y gfortran bc
       - name: Install MPICH
         run: |
-          echo "Install MPICH ${MPICH_VERSION} in ${PWD}/mpich_install"
+          echo "Install MPICH ${MPICH_VERSION} in ${GITHUB_WORKSPACE}/mpich_install"
           mkdir mpich_install
-          export MPICH_INSTALL_PATH=$PWD/mpich_install
+          export MPICH_INSTALL_PATH=${GITHUB_WORKSPACE}/mpich_install
           wget -q https://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz
           tar -xzvf mpich-${MPICH_VERSION}.tar.gz
           cd mpich-${MPICH_VERSION}
@@ -40,27 +40,27 @@ jobs:
           make -j8 install
       - name: Install Darshan
         run: |
-          export PATH=$PWD/mpich_install/bin:$PATH
+          export PATH=${GITHUB_WORKSPACE}/mpich_install/bin:$PATH
           # use automated script to build Darshan
-          export DARSHAN_INSTALL_PREFIX=$PWD/darshan_install
+          export DARSHAN_INSTALL_PREFIX=${GITHUB_WORKSPACE}/darshan_install
           darshan-test/automated/build-darshan.sh
           # try to format log directory to ensure this works
-          ./darshan_install/bin/darshan-mk-log-dirs.pl
+          ${DARSHAN_INSTALL_PREFIX}/bin/darshan-mk-log-dirs.pl
       - name: Run end-to-end regression tests (ld_preload)
         run: |
-          export DARSHAN_INSTALL_PATH=$PWD/darshan_install
-          export PATH=$PWD/mpich_install/bin:$PATH
+          export DARSHAN_INSTALL_PATH=${GITHUB_WORKSPACE}/darshan_install
+          export PATH=${GITHUB_WORKSPACE}/mpich_install/bin:$PATH
           cd darshan-test/regression
           ./run-all.sh $DARSHAN_INSTALL_PATH /tmp/darshan-ld-preload workstation-ld-preload
       - name: Run end-to-end regression tests (prof conf dynamic)
         run: |
-          export DARSHAN_INSTALL_PATH=$PWD/darshan_install
-          export PATH=$PWD/mpich_install/bin:$PATH
+          export DARSHAN_INSTALL_PATH=${GITHUB_WORKSPACE}/darshan_install
+          export PATH=${GITHUB_WORKSPACE}/mpich_install/bin:$PATH
           cd darshan-test/regression
           ./run-all.sh $DARSHAN_INSTALL_PATH /tmp/darshan-prof-conf-dynamic workstation-profile-conf-dynamic
       - name: Run end-to-end regression tests (prof conf static)
         run: |
-          export DARSHAN_INSTALL_PATH=$PWD/darshan_install
-          export PATH=$PWD/mpich_install/bin:$PATH
+          export DARSHAN_INSTALL_PATH=${GITHUB_WORKSPACE}/darshan_install
+          export PATH=${GITHUB_WORKSPACE}/mpich_install/bin:$PATH
           cd darshan-test/regression
           ./run-all.sh $DARSHAN_INSTALL_PATH /tmp/darshan-prof-conf-static workstation-profile-conf-static
