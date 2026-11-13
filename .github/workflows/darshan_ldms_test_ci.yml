@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
 
 env:
-  LDMS_VERSION: 4.5.1
+  LDMS_VERSION: 4.5.4
 
 jobs:
   test:
