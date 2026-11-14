@@ -161,7 +161,9 @@ DARSHAN_FORWARD_DECL(PMPI_Alltoallw, int, (const void *sendbuf, const int sendco
 DARSHAN_FORWARD_DECL(PMPI_Allgather, int, (const void *sendbuf, int sendcount, MPI_Datatype sendtype,
                   void *recvbuf, int recvcount, MPI_Datatype recvtype,
                   MPI_Comm comm));
-DARSHAN_FORWARD_DECL(PMPI_Allgatherv, int, ());
+DARSHAN_FORWARD_DECL(PMPI_Allgatherv, int, (const void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                   void *recvbuf, const int *recvcounts, const int *displs,
+                   MPI_Datatype recvtype, MPI_Comm comm));
 DARSHAN_FORWARD_DECL(PMPI_Gather , int, (const void *sendbuf, int sendcount, MPI_Datatype sendtype,
                void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm));
 DARSHAN_FORWARD_DECL(PMPI_Gatherv , int, (const void *sendbuf, int sendcount, MPI_Datatype sendtype,
@@ -195,7 +197,9 @@ DARSHAN_FORWARD_DECL(PMPI_Ialltoallw, int, (const void *sendbuf, const int sendc
 DARSHAN_FORWARD_DECL(PMPI_Iallgather, int, (const void *sendbuf, int sendcount, MPI_Datatype sendtype,
                   void *recvbuf, int recvcount, MPI_Datatype recvtype,
                   MPI_Comm comm, MPI_Request * request));
-DARSHAN_FORWARD_DECL(PMPI_Iallgatherv, int, ());
+DARSHAN_FORWARD_DECL(PMPI_Iallgatherv, int, (const void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                   void *recvbuf, const int recvcounts[], const int displs[],
+                   MPI_Datatype recvtype, MPI_Comm comm, MPI_Request * request));
 DARSHAN_FORWARD_DECL(PMPI_Igather , int, (const void *sendbuf, int sendcount, MPI_Datatype sendtype,
                void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Request * request));
 DARSHAN_FORWARD_DECL(PMPI_Igatherv , int, (const void *sendbuf, int sendcount, MPI_Datatype sendtype,
