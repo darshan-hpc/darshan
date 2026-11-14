@@ -115,6 +115,8 @@ DARSHAN_FORWARD_DECL(_IO_getc, int, (FILE *stream));
 DARSHAN_FORWARD_DECL(_IO_putc, int, (int, FILE *stream));
 #ifdef HAVE___ISOC99_FSCANF
 DARSHAN_FORWARD_DECL(__isoc99_fscanf, int, (FILE *stream, const char *format, ...));
+#elif defined(HAVE___ISOC23_FSCANF)
+DARSHAN_FORWARD_DECL(__isoc23_fscanf, int, (FILE *stream, const char *format, ...));
 #else
 DARSHAN_FORWARD_DECL(fscanf, int, (FILE *stream, const char *format, ...));
 #endif
@@ -778,11 +780,15 @@ int DARSHAN_DECL(getw)(FILE *stream)
     return(ret);
 }
 
-#ifdef HAVE___ISOC99_FSCANF
-/* NOTE: some glibc versions use __isoc99_fscanf as the underlying symbol
- * rather than fscanf
+/* NOTE: some glibc versions use __isoc99_fscanf or __isoc23_fscanf as the
+ * underlying symbol rather than fscanf
  */
+#if defined(HAVE___ISOC99_FSCANF) || defined(HAVE___ISOC23_FSCANF)
+#ifdef HAVE___ISOC99_FSCANF
 int DARSHAN_DECL(__isoc99_fscanf)(FILE *stream, const char *format, ...)
+#elif defined(HAVE___ISOC23_FSCANF)
+int DARSHAN_DECL(__isoc23_fscanf)(FILE *stream, const char *format, ...)
+#endif
 {
     int ret;
     double tm1, tm2;
