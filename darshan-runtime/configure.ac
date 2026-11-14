@@ -941,9 +941,13 @@ if test "x$enable_darshan_runtime" = xyes ; then
    # if found. Otherwise, we will use the traditional fscanf wrapper.
    # We must only wrap one of these calls to avoid multiple definition
    # errors when building Darshan.
-   AC_CHECK_FUNCS([__isoc99_fscanf],
-      [DARSHAN_STDIO_ADD_FSCANF_LD_OPTS="--wrap=__isoc99_fscanf"],
-      [DARSHAN_STDIO_ADD_FSCANF_LD_OPTS="--wrap=fscanf"]
+   # Starting with glibc 2.38, standard headers automatically redirect fscanf
+   # calls to __isoc23_fscanf when compiling under C23 or GNU feature macros.
+   AC_CHECK_FUNCS([__isoc23_fscanf],
+      [DARSHAN_STDIO_ADD_FSCANF_LD_OPTS="--wrap=__isoc23_fscanf"],
+      [AC_CHECK_FUNCS([__isoc99_fscanf],
+          [DARSHAN_STDIO_ADD_FSCANF_LD_OPTS="--wrap=__isoc99_fscanf"],
+          [DARSHAN_STDIO_ADD_FSCANF_LD_OPTS="--wrap=fscanf"])]
    )
 
    # look for glibc-specific functions
