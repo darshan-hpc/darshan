@@ -68,8 +68,6 @@ version = {attr = "darshan.__version__"}
 
 [tool.cibuildwheel]
 skip = [
-    "cp37-*",
-    "pp*",
     "*musllinux*",
     "*i686*",
     "*_ppc64le",
