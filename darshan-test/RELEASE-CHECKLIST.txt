@@ -27,9 +27,11 @@ Notes on how to release a new version of Darshan
       time library and PyDarshan since 3.5.0 release.
     - See below for the guideline of setting the version number.
     - commit
+
  6) follow checklist for corresponding release of PyDarshan
     - found at darshan-util/pydarshan/RELEASE-CHECKLIST-PyDarshan.txt
     - NOTE: new PyDarshan version must be kept the same as Darshan release
+
  7) use "git status" to make sure that all changes have been committed and
     pushed to origin/main
 
@@ -104,18 +106,31 @@ Notes on how to release a new version of Darshan
       + Then visit Darshan repo at github.com and edit the draft.
     - When ready for the release, click "Publish release" to make a release.
 
-13) update download page on darshan web site: www.mcs.anl.gov/darshan/download
-    Check google doc "Darshan Web Site Documentation" for instructions on
-    updating the web contents.
+13) Upload the package to PYPI
+    - Check darshan-util/pydarshan/RELEASE-CHECKLIST-PyDarshan.txt for
+      instructions to test PyDarshan on PYPI first, and then make a release
+      on pypi.org
 
-14) update darshan-runtime and darshan-util Spack packages with new release
+14) update Darshan Spack packages with new release
+    - PyDarshan must be released on test.pypi / pypi.org first, before
+      creating a PR for Spack.
     - consider whether new variants should be exposed based on new features
       enabled by the release
     - commit, submit PR to upstream Spack repository
-    - Check "Darshan Developer Documentation" for detailed instructions on
-      updating the web contents.
+    - Check google doc "Darshan Developer Documentation" for detailed
+      instructions on creating a PR to update the Spack package at
+      https://github.com/spack/spack-packages/.
 
-15) announce on web page (new post) and mailing list
+15) update Darshan web site: www.mcs.anl.gov/darshan/download
+    Check google doc "Darshan Web Site Documentation" for instructions on
+    updating the web contents.
+    - Create a new "Post" which will add a new section at the beginning of the
+      main web page.
+    - Edit "Download Page" (click "Pages" on the left and edit "Download")
+
+16) announce on Darshan's mailing list
+    - darshan-users@lists.mcs.anl.gov
+    - https://mailman.cels.anl.gov/mailman3/lists/darshan-users.lists.mcs.anl.gov/
 
 ----
 ## Setting the release version number
