@@ -1,0 +1,7 @@
+--wrap=cuFileHandleRegister
+--wrap=cuFileHandleDeregister
+--wrap=cuFileRead
+--wrap=cuFileWrite
+--wrap=cuFileBatchIOSubmit
+--wrap=cuFileReadAsync
+--wrap=cuFileWriteAsync
