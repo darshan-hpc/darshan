@@ -250,7 +250,7 @@ static void posix_set_dummy_record(void* buffer) {
     /* This function must be updated (or at least checked) if the posix
      * module log format changes
      */
-    munit_assert_int(DARSHAN_POSIX_VER, ==, 4);
+    munit_assert_int(DARSHAN_POSIX_VER, ==, 5);
 
     pfile->base_rec.id = 15574190512568163195UL;
     pfile->base_rec.rank = 0;
@@ -333,6 +333,10 @@ static void posix_set_dummy_record(void* buffer) {
     pfile->counters[POSIX_SLOWEST_RANK] = 0;
     pfile->counters[POSIX_SLOWEST_RANK_BYTES] = 0;
 #endif
+    pfile->counters[POSIX_FCNTL_SETLOCK_READ_COUNT] = 1;
+    pfile->counters[POSIX_FCNTL_SETLOCK_WRITE_COUNT] = 1;
+    pfile->counters[POSIX_FCNTL_SETLOCK_UNLOCK_COUNT] = 1;
+    pfile->counters[POSIX_FCNTL_GETLOCK_COUNT] = 1;
 
     pfile->fcounters[POSIX_F_OPEN_START_TIMESTAMP] = 0.008787;
     pfile->fcounters[POSIX_F_READ_START_TIMESTAMP] = 0.079433;
@@ -358,6 +362,7 @@ static void posix_set_dummy_record(void* buffer) {
 #endif
     pfile->fcounters[POSIX_F_VARIANCE_RANK_TIME] = 0.000090;
     pfile->fcounters[POSIX_F_VARIANCE_RANK_BYTES] = 0.000000;
+    pfile->fcounters[POSIX_F_FCNTL_LOCK_TIME] = 2.5;
 
     return;
 }
@@ -526,7 +531,7 @@ static void posix_validate_double_dummy_record(void* buffer, struct darshan_deri
     /* This function must be updated (or at least checked) if the posix
      * module log format changes
      */
-    munit_assert_int(DARSHAN_POSIX_VER, ==, 4);
+    munit_assert_int(DARSHAN_POSIX_VER, ==, 5);
 
     /* check base record */
     if(shared_file_flag)
