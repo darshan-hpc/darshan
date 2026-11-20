@@ -83,7 +83,7 @@ def get_access_count_df(mod_df: Any, mod: str) -> Any:
     Parameters
     ----------
     mod_df: "counters" dataframe for the input
-    module `mod` from a ``darshan.DarshanReport``.
+    module `mod` from a dictionary with 2 separate DataFrames: 'counters' and 'fcounters'.
 
     mod: the module to obtain the common accesses
     table for (i.e "POSIX", "MPI-IO", "H5D").
@@ -102,7 +102,6 @@ def get_access_count_df(mod_df: Any, mod: str) -> Any:
         df = mod_df.filter(filter_keys)
         df = collapse_access_cols(df=df, col_name=col_name)
         df_list.append(df)
-
     return pd.concat(df_list, axis=1)
 
 
@@ -122,14 +121,14 @@ class DarshanReportTable:
         self.html = self.df.to_html(**kwargs)
 
 
-def plot_common_access_table(report: darshan.DarshanReport, mod: str, n_rows: int = 4) -> DarshanReportTable:
+def plot_common_access_table(record: dict, mod: str, n_rows: int = 4) -> DarshanReportTable:
     """
     Creates a table containing the most
     common access sizes and their counts.
 
     Parameters
     ----------
-    report: a ``darshan.DarshanReport``.
+    record: a dictionary with 2 separate DataFrames: 'counters' and 'fcounters'
 
     mod: the module to obtain the common access size
     table for (i.e "POSIX", "MPI-IO", "H5D").
@@ -145,8 +144,7 @@ def plot_common_access_table(report: darshan.DarshanReport, mod: str, n_rows: in
     the `df` or `html` attributes, respectively.
 
     """
-    mod_df = report.records[mod].to_df(attach=None)["counters"]
-
+    mod_df=record['counters']
     if mod == "MPI-IO":
         mod = "MPIIO"
 
