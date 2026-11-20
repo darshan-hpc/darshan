@@ -1,5 +1,5 @@
 macos_instance:
-  image: ghcr.io/cirruslabs/macos-ventura-base:latest
+  image: ghcr.io/cirruslabs/macos-runner:sonoma
 
 macos_M1_native_apple_silicon_py310_task:
   script: |
